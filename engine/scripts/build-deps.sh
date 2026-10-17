@@ -2,8 +2,8 @@
 # =============================================================================
 # WASM spike: cross-compile the slicer's third-party deps with Emscripten.
 #
-# Output layout mirrors the Android `extern/` bundle so the shared
-# core/CMakeLists.txt can consume it unchanged:
+# Output layout, read by engine/cmake/libslic3r.cmake
+# can consume it:
 #     $OUT/<dep>/include
 #     $OUT/<dep>/lib/wasm32/*.a
 #
@@ -147,7 +147,7 @@ dep_nlopt() {
 dep_occt() {
     fetch_git https://github.com/Open-Cascade-SAS/OCCT.git V7_6_0 OCCT-7.6.0
     local S="$WORK/OCCT-7.6.0"
-    local ORCA_PATCH="$WASM_DIR/core/orcaslicer/deps/OCCT/0001-OCCT-fix.patch"
+    local ORCA_PATCH="$WASM_DIR/orcaslicer/deps/OCCT/0001-OCCT-fix.patch"
     if [ ! -f "$S/.u1-patched" ]; then
         git -C "$S" apply --ignore-space-change --whitespace=fix "$ORCA_PATCH"
         # OCCT appends -fexceptions (Emscripten's JS exception model) after our
@@ -189,6 +189,16 @@ CMK
     # with the same -I the Android bundle uses (extern/occt/include).
     cp -r "$OUT/occt/include.real"/opencascade*/* "$OUT/occt/include/"
     rm -rf "$OUT/occt/include.real"
+}
+# Fuzzy skin's noise modes (FuzzySkin.cpp). Same archive OrcaSlicer's deps/ pins.
+dep_libnoise() {
+    fetch_git https://github.com/SoftFever/Orca-deps-libnoise.git 1.0 libnoise
+    emcmake_build "$WORK/libnoise" "$WORK/libnoise/build-wasm" -DBUILD_SHARED_LIBS=OFF
+    local L; L=$(libdir libnoise)
+    find "$WORK/libnoise/build-wasm" -name "*.a" -exec cp {} "$L/" \;
+    # FuzzySkin.cpp includes "libnoise/noise.h"
+    rm -rf "$OUT/libnoise/include/libnoise"; mkdir -p "$OUT/libnoise/include/libnoise"
+    (cd "$WORK/libnoise/src" && find . -name "*.h" -exec cp --parents {} "$OUT/libnoise/include/libnoise/" \;)
 }
 dep_gmp() {
     local V=6.3.0
@@ -238,7 +248,7 @@ JAM
         || { tail -40 "$WORK/boost-b2.log"; exit 1; })
 }
 
-ALL=(eigen cgal cereal nlohmann zlib expat libpng libjpeg tbb nlopt gmp mpfr boost)
+ALL=(eigen cgal cereal nlohmann zlib expat libpng libjpeg tbb nlopt libnoise gmp mpfr boost)
 DEPS=("${@:-${ALL[@]}}")
 for d in "${DEPS[@]}"; do
     echo ">>> $d"

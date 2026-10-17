@@ -1,0 +1,84 @@
+--- a/src/libslic3r/SLA/Hollowing.cpp
++++ b/src/libslic3r/SLA/Hollowing.cpp
+@@ -1,7 +1,11 @@
+ #include <functional>
++#include <numeric>
+ #include <optional>
+ 
++// The browser engine has no OpenVDB (SLA hollowing only; FFF never uses it).
++#if SLIC3R_OPENVDB
+ #include <libslic3r/OpenVDBUtils.hpp>
++#endif
+ #include <libslic3r/TriangleMesh.hpp>
+ #include <libslic3r/TriangleMeshSlicer.hpp>
+ #include <libslic3r/SLA/Hollowing.hpp>
+@@ -24,8 +28,12 @@
+ 
+ struct Interior {
+     indexed_triangle_set mesh;
++#if SLIC3R_OPENVDB
+     openvdb::FloatGrid::Ptr gridptr;
+     mutable std::optional<openvdb::FloatGrid::ConstAccessor> accessor;
++#else
++    void *gridptr = nullptr;
++#endif
+ 
+     double closing_distance = 0.;
+     double thickness = 0.;
+@@ -34,12 +42,16 @@
+     double nb_out = 3.; // narrow band width outwards
+     // Full narrow band is the sum of the two above values.
+ 
++#if SLIC3R_OPENVDB
+     void reset_accessor() const  // This resets the accessor and its cache
+     // Not a thread safe call!
+     {
+         if (gridptr)
+             accessor = gridptr->getConstAccessor();
+     }
++#else
++    void reset_accessor() const {}
++#endif
+ };
+ 
+ void InteriorDeleter::operator()(Interior *p)
+@@ -57,6 +69,7 @@
+     return interior.mesh;
+ }
+ 
++#if SLIC3R_OPENVDB
+ static InteriorPtr generate_interior_verbose(const TriangleMesh & mesh,
+                                              const JobController &ctl,
+                                              double min_thickness,
+@@ -147,6 +160,13 @@
+     return interior;
+ }
+ 
++#else
++InteriorPtr generate_interior(const TriangleMesh &, const HollowingConfig &, const JobController &)
++{
++    return {};
++}
++#endif
++
+ indexed_triangle_set DrainHole::to_mesh() const
+ {
+     auto r = double(radius);
+@@ -324,6 +344,7 @@
+ // the model surface.
+ static double get_distance_raw(const Vec3f &p, const Interior &interior)
+ {
++#if SLIC3R_OPENVDB
+     assert(interior.gridptr);
+ 
+     if (!interior.accessor) interior.reset_accessor();
+@@ -333,6 +354,9 @@
+         {v.x(), v.y(), v.z()});
+ 
+     return interior.accessor->getValue(grididx) ;
++#else
++    return std::numeric_limits<double>::max();
++#endif
+ }
+ 
+ struct TriangleBubble { Vec3f center; double R; };

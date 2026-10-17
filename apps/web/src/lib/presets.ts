@@ -1,17 +1,34 @@
-// Phase 0 choices, mirroring engine/node/app-defaults.mjs (what the worker
-// slices with). Phase 1 replaces this with the bundled Snapmaker presets.
+import type { PresetSummary } from '../engine/protocol';
 
-export const PRINTER = { name: 'Snapmaker U1', nozzle: '0.4 mm nozzle', bed: { x: 270, y: 270, z: 270 } };
+export const DEFAULT_PRINTER = 'Snapmaker U1 (0.4 nozzle)';
 
-export const PROCESS = '0.20 mm Standard';
+/** Colours given to new filament slots, in order. */
+export const SLOT_COLOURS = ['#F2F2F2', '#1E1E1E', '#E5383B', '#2F6FE4', '#2BB673', '#F4B400', '#8E44AD', '#FF7F2A'];
 
-export const MATERIALS = ['PLA', 'PETG', 'ABS', 'ASA', 'TPU', 'PA', 'PVA'] as const;
+export const MODEL_EXTENSIONS = ['.stl', '.3mf', '.obj', '.amf', '.step', '.stp'];
 
-export const PLATES: Record<string, string> = {
-  TEXTURED_PEI: 'Textured PEI',
-  SMOOTH_PEI: 'Smooth PEI',
-  COOL_PLATE: 'Cool Plate',
-  ENGINEERING_PLATE: 'Engineering Plate',
-};
+/** Orca's list values ("a;b;c" or "a,b,c") -> ["a", "b", "c"]. */
+export function splitList(value: string | undefined): string[] {
+  if (!value) return [];
+  return value.split(/[;,]/).map((s) => s.trim().replace(/^"|"$/g, '')).filter(Boolean);
+}
 
-export const MODEL_EXTENSIONS = ['.stl', '.3mf', '.obj'];
+/**
+ * Closest compatible filament preset for a file filament of `type` (e.g. "PLA"):
+ * the printer vendor's own preset of that material first, then a generic one,
+ * then any of that material, else `fallback`.
+ */
+export function pickFilamentPreset(presets: PresetSummary[], type: string | undefined, fallback?: string): string {
+  const want = (type ?? '').toUpperCase();
+  const same = presets.filter((p) => (p.filamentType ?? '').toUpperCase() === want);
+  const pick =
+    same.find((p) => p.vendor === 'Snapmaker' && /^Snapmaker /.test(p.name)) ??
+    same.find((p) => /generic/i.test(p.name)) ??
+    same[0];
+  return pick?.name ?? fallback ?? presets[0]?.name ?? '';
+}
+
+/** Short name for a preset inside its printer's lists: "PLA @Snapmaker U1" -> "PLA". */
+export function shortName(name: string): string {
+  return name.replace(/\s*@.*$/, '');
+}

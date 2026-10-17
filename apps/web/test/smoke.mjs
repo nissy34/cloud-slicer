@@ -56,7 +56,7 @@ try {
   console.log(`loaded ${model}`);
 
   const t0 = Date.now();
-  await page.getByRole('button', { name: 'Slice', exact: true }).click();
+  await page.getByRole('button', { name: /^Slice plate/ }).click();
   await page.getByTestId('slice-stats').waitFor({ timeout: 600000 });
   console.log(`sliced in ${((Date.now() - t0) / 1000).toFixed(1)} s: ${await page.getByTestId('slice-stats').innerText()}`);
 
@@ -70,6 +70,10 @@ try {
   const layers = (gcode.match(/^;LAYER_CHANGE/gm) ?? []).length;
   if (layers < 10) fail(`only ${layers} layers`);
   console.log(`${download.suggestedFilename()}: ${(gcode.length / 1e6).toFixed(1)} MB, ${layers} layers`);
+
+  await page.getByRole('button', { name: 'Preview', exact: true }).first().click();
+  await page.getByTestId('layer-label').waitFor({ timeout: 120000 });
+  console.log(`preview: layer ${await page.getByTestId('layer-label').innerText()}`);
 
   if (shot) await page.screenshot({ path: shot });
 } catch (e) {

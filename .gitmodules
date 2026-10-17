@@ -1,3 +1,3 @@
-[submodule "engine/core/orcaslicer"]
-	path = engine/core/orcaslicer
-	url = https://github.com/taylormadearmy/OrcaSlicer.git
+[submodule "engine/orcaslicer"]
+	path = engine/orcaslicer
+	url = https://github.com/Snapmaker/OrcaSlicer.git
