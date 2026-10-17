@@ -3,3 +3,4 @@ public/engine/u1slicer*
 public/engine/app-defaults.mjs
 public/engine/snapmaker_u1.json
 test-results/
+*.tsbuildinfo
