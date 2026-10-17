@@ -1,0 +1,8 @@
+{
+  "name": "@cloud-slicer/printer",
+  "private": true,
+  "description": "Printer drivers for the Device tab: Moonraker/Klipper client, filament library and sync, G-code summary and tool remap (ported from the U1 Android app via the wasm spike)",
+  "scripts": {
+    "test": "node --test test/*.test.mjs"
+  }
+}

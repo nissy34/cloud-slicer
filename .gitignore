@@ -1,4 +1,5 @@
-# WASM spike build outputs (deps, engine)
+# Build outputs
 build/
+dist/
 node_modules/
 .wrangler/
