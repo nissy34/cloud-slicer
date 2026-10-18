@@ -1,7 +1,8 @@
 #!/usr/bin/env node
 // Browser end to end for the object toolbar over the 3D view: adding a model
-// keeps the one already there, lay on face turns the object, and the toolbar
-// fits a phone (and the page itself never scrolls there).
+// keeps the one already there, simplify halves the triangles, lay on face
+// turns the object, measure picks two features and measures between them, and
+// the toolbar fits a phone (and the page itself never scrolls there).
 //
 //   node test/toolbar.mjs [screenshot-dir]
 //
@@ -103,6 +104,30 @@ try {
   if (shots) await page.screenshot({ path: join(shots, 'toolbar-desktop-cut.png') });
   console.log('cut plane follows the height');
 
+  // Simplify (from the object list): the count it would leave, then Apply
+  // halves the boat's triangles, and Ctrl+Z brings them back.
+  const triangles = async () => {
+    await page.getByRole('button', { name: 'Simplify', exact: true }).click();
+    const panel = page.getByRole('region', { name: 'Simplify' });
+    await page.waitForFunction(() => /→/.test(document.querySelector('[aria-label="Triangles"]')?.textContent ?? ''), null, { timeout: 60000 });
+    return { panel, now: Number((await panel.getByLabel('Triangles').innerText()).match(/([\d,]+) triangles/)[1].replace(/,/g, '')) };
+  };
+  const { panel: simplify, now: before } = await triangles();
+  await simplify.getByRole('radio', { name: 'Decimate ratio' }).click();
+  await page.waitForFunction(() => /→/.test(document.querySelector('[aria-label="Triangles"]')?.textContent ?? ''), null, { timeout: 60000 });
+  if (shots) await page.screenshot({ path: join(shots, 'simplify-desktop.png') });
+  await simplify.getByRole('button', { name: 'Apply' }).click();
+  await simplify.waitFor({ state: 'detached', timeout: 60000 });
+  const { now: after } = await triangles();
+  if (Math.abs(after - before / 2) > before * 0.02) fail(`simplify at 50% should halve the triangles: ${before} -> ${after}`);
+  await page.locator('body').press('Control+z');
+  await page.waitForTimeout(500);
+  await page.getByRole('region', { name: 'Simplify' }).getByRole('button', { name: 'Done' }).click();
+  const { now: undone } = await triangles();
+  if (undone !== before) fail(`undo should bring the triangles back: ${undone} vs ${before}`);
+  await page.getByRole('region', { name: 'Simplify' }).getByRole('button', { name: 'Done' }).click();
+  console.log(`simplify: ${before} -> ${after} triangles, undo brings ${undone} back`);
+
   // Lay on face: click the highlighted faces over the boat until it turns.
   await toolbar.getByRole('button', { name: 'Lay on face' }).click();
   await page.getByRole('region', { name: 'Lay on face' }).waitFor();
@@ -142,6 +167,32 @@ try {
     const after = await rotation(page, 3000).catch(() => 'no object selected');
     if (after !== laid) fail(`after lay on face the panel showed ${laid}, then ${after}`);
     console.log(`lay on face: ${start} -> ${after}`);
+  }
+
+  // Measure: hovering shows the feature under the pointer, two clicks measure between them.
+  await page.keyboard.press('Escape');
+  await toolbar.getByRole('button', { name: 'Measure' }).click();
+  const measure = page.getByRole('region', { name: 'Measure' });
+  await measure.waitFor();
+  let picked = 0;
+  for (const [x, y] of points) {
+    await page.mouse.move(box.x + box.width * x, box.y + box.height * y);
+    const hovered = await measure.getByLabel('Feature under the pointer').waitFor({ timeout: 1500 }).then(() => true, () => false);
+    if (!hovered && !picked) continue;
+    if (shots && !picked) await page.screenshot({ path: join(shots, 'measure-desktop-hover.png') });
+    await page.mouse.down();
+    await page.mouse.up();
+    await page.waitForTimeout(300);
+    picked = (await measure.getByLabel('Feature 2').isVisible()) ? 2 : (await measure.getByLabel('Feature 1').isVisible()) ? 1 : 0;
+    if (picked === 2) break;
+  }
+  if (picked < 2) fail('measure did not pick two features');
+  else {
+    await measure.getByLabel('Measurement').waitFor({ timeout: 10000 });
+    const figures = await measure.getByLabel('Measurement').innerText();
+    if (!/Distance|Angle/.test(figures)) fail(`measure showed no distance or angle: ${figures}`);
+    if (shots) await page.screenshot({ path: join(shots, 'measure-desktop.png') });
+    console.log(`measure: ${figures.replace(/\s+/g, ' ')}`);
   }
   await page.close();
 

@@ -12,6 +12,7 @@
 #include <emscripten/threading.h>
 #include <nlohmann/json.hpp>
 
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -65,5 +66,21 @@ emscripten::val typedCopy(const std::vector<T>& v) {
 // Whether the selected printer preset is a Bambu Lab printer (desktop sets
 // Print::is_BBL_printer() from this before every slice).
 bool selectedPrinterIsBambu();
+
+// A ray from the page (the camera through the pointer) hitting a part.
+struct RayHit {
+    int object = -1;
+    Slic3r::ModelInstance* inst = nullptr;
+    Slic3r::ModelVolume* volume = nullptr;
+    int facet = -1;
+    Slic3r::Vec3f point;      // mesh coordinates
+    Slic3r::Vec3f camera;     // ray origin, mesh coordinates
+    Slic3r::Transform3d trafo;  // mesh -> world
+    double distance = 0;
+};
+
+// Nearest model part on `plate` hit by the ray from s along dir (plate
+// coordinates), through a ray-cast tree per part mesh (paint_api.cpp).
+std::optional<RayHit> castRay(int plate, Slic3r::Vec3d s, const Slic3r::Vec3d& dir);
 
 } // namespace engine

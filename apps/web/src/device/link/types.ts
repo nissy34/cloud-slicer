@@ -20,6 +20,8 @@ export interface BridgeStatus {
   /** The bridge computer's system (win32, darwin, linux) and whether it is the app (not Node.js); bridges before version 4 don't say. */
   system?: string;
   app?: boolean;
+  /** The bridge computer's name (bridges from this build on). */
+  host?: string;
 }
 
 export interface LinkHandlers {

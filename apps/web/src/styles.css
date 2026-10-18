@@ -14,6 +14,10 @@
   --scene-grid: #9ba3af;
   --scene-ground: #b9bfc8;
   --scene-text: #3b414b;
+  /* Measure tool features, both themes (same as MEASURE_COLOURS in lib/measure.ts) */
+  --measure-hover: #f5c542;
+  --measure-first: #ff6b4a;
+  --measure-second: #3fa7ff;
   --radius: 8px;
   --topbar: 48px;
   color-scheme: light;
@@ -941,6 +945,53 @@ select:focus-visible {
   padding: 0;
   border: 0;
   background: none;
+}
+/* Measure: the picked features (their colours match the 3D view) and what lies between them. */
+.measure-figures {
+  display: grid;
+  gap: 2px;
+  margin: 0;
+  padding: 6px 8px;
+  border-left: 3px solid var(--measure-hover);
+  border-radius: 4px;
+  background: var(--surface-2);
+  font-size: 0.9em;
+}
+.measure-figures.pick-1 {
+  border-left-color: var(--measure-first);
+}
+.measure-figures.pick-2 {
+  border-left-color: var(--measure-second);
+}
+.measure-figures.result {
+  border-left-color: var(--accent);
+}
+.measure-figures > div {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+}
+.measure-figures dt {
+  color: var(--muted);
+}
+.measure-figures dt.measure-title {
+  color: inherit;
+  font-weight: 600;
+}
+.measure-figures dd {
+  margin: 0;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+.measure-label {
+  padding: 1px 6px;
+  border-radius: 4px;
+  background: rgb(20 24 28 / 85%);
+  color: #fff;
+  font-size: 12px;
+  white-space: nowrap;
+  pointer-events: none;
+  font-variant-numeric: tabular-nums;
 }
 .workspace-tools {
   position: absolute;
@@ -2426,6 +2477,109 @@ select:focus-visible {
   gap: 8px;
 }
 /* Bridge setup (device/ui/BridgeSetup.tsx) */
+.dv-bridge-setup {
+  display: grid;
+  gap: 14px;
+}
+.dv-bridge-setup p {
+  margin: 0;
+}
+.dv-note {
+  padding: 8px 10px;
+  border-radius: 6px;
+  background: var(--surface-2);
+}
+.dv-setup-os {
+  display: grid;
+  gap: 6px;
+}
+.dv-setup-question {
+  font-weight: 600;
+}
+.dv-setup-os .dv-segmented {
+  margin-bottom: 0;
+}
+.dv-setup-os .dv-segmented button {
+  white-space: normal;
+  padding: 8px 6px;
+}
+.dv-setup-steps {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 16px;
+}
+.dv-setup-step {
+  display: grid;
+  grid-template-columns: 28px minmax(0, 1fr);
+  gap: 12px;
+  align-items: start;
+}
+.dv-step-n {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: var(--accent);
+  color: var(--accent-text);
+  font-weight: 700;
+}
+.dv-step-body {
+  display: grid;
+  gap: 6px;
+  padding-top: 3px;
+}
+.dv-step-body strong {
+  font-size: 15px;
+}
+.dv-step-body kbd {
+  font: inherit;
+  font-size: 0.9em;
+  padding: 0 5px;
+  border: 1px solid var(--border);
+  border-bottom-width: 2px;
+  border-radius: 4px;
+  background: var(--surface);
+  white-space: nowrap;
+}
+.primary.dv-big,
+.secondary.dv-big {
+  display: inline-block;
+  padding: 10px 20px;
+  font-size: 15px;
+  text-decoration: none;
+}
+.dv-copy-step {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 10px;
+  align-items: center;
+}
+.dv-copy-step .dv-code {
+  margin: 0;
+  color: var(--muted);
+}
+.dv-paste-link label {
+  display: grid;
+  gap: 4px;
+  margin-top: 6px;
+}
+.dv-bridge-setup .dv-node-option {
+  margin-top: 0;
+}
+.dv-bridge-setup .dv-node-option summary {
+  margin-bottom: 6px;
+}
+@media (max-width: 760px) {
+  .dv-copy-step {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .dv-copy-step .dv-big {
+    justify-self: start;
+  }
+}
 .dv-downloads {
   display: flex;
   flex-wrap: wrap;
@@ -3215,4 +3369,132 @@ select:focus-visible {
 }
 .dv-found .muted {
   overflow-wrap: anywhere;
+}
+.dv-add-row {
+  border: 1px solid transparent;
+}
+.dv-add-row.editing {
+  border-color: var(--accent);
+  background: var(--surface);
+}
+.dv-add-row.ready {
+  border-color: var(--dv-ok, #1f8a4c);
+}
+.dv-row-actions {
+  display: flex;
+  gap: 12px;
+}
+.dv-row-buttons {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+.dv-add-fields {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 8px;
+}
+.dv-add-fields label {
+  display: grid;
+  gap: 4px;
+}
+.dv-add-key {
+  grid-column: 1 / -1;
+}
+.dv-add-summary {
+  align-self: center;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}
+@media (max-width: 760px) {
+  .dv-add-fields {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+.dv-use-bridge {
+  display: grid;
+  gap: 8px;
+  justify-items: start;
+  padding: 12px;
+  border: 1px solid var(--accent);
+  border-radius: 8px;
+}
+.dv-manage-title {
+  margin: 4px 0 0;
+  font-size: 14px;
+}
+.dv-manage-card {
+  display: grid;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+.dv-manage-card p {
+  margin: 0;
+}
+.dv-manage-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 6px;
+}
+.dv-manage-printer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  padding: 8px 10px;
+  border-radius: 6px;
+  background: var(--surface-2);
+}
+.dv-manage-actions {
+  justify-content: space-between;
+  flex-wrap: wrap;
+}
+.dv-manage-confirm {
+  display: grid;
+  gap: 8px;
+  padding: 10px;
+  border-radius: 6px;
+  background: var(--surface-2);
+}
+.dv-added {
+  color: var(--dv-ok, #1f8a4c);
+  font-weight: 600;
+}
+.dv-searching {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  padding: 12px;
+  border-radius: 6px;
+  background: var(--surface-2);
+}
+.dv-searching > div {
+  display: grid;
+  gap: 2px;
+}
+.dv-spinner {
+  flex: none;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  border: 3px solid var(--border);
+  border-top-color: var(--accent);
+  animation: dv-spin 0.8s linear infinite;
+}
+@keyframes dv-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .dv-spinner {
+    animation-duration: 2.4s;
+  }
 }

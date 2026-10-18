@@ -26,8 +26,9 @@ hosted on Cloudflare's free tier.
   onto one of yours: its print settings carry over, the printer's own settings
   (speeds, accelerations, jerk) come from your printer, and filaments are matched by
   material.
-- **Prepare tools**: move, rotate, scale, lay on face, cut, arrange, auto-orient, split,
-  mirror, plates, undo and redo, and painting (colours, support and seam
+- **Prepare tools**: move, rotate, scale, lay on face, cut, measure (distances and angles
+  between faces, edges, circles and corners), arrange, auto-orient, split,
+  mirror, simplify, plates, undo and redo, and painting (colours, support and seam
   enforcers/blockers, fuzzy skin).
 - **Colour mixing**: Snapmaker Orca's mixed filaments, virtual filaments made of two or
   more physical ones, usable anywhere a filament is.
@@ -160,6 +161,10 @@ The bridge asks nothing: it starts with the computer (Windows and macOS at login
 Linux at boot) and opens a pairing link, and the Device tab then searches the
 bridge's network for Moonraker printers and adds the ones you pick, with their API
 keys, or any address you type. API keys are only ever entered in the Device tab.
+Bridges are saved on their own, apart from their printers: the Device tab's
+Printers & bridges window lists each bridge with its printers, removes either on
+its own, adds printers to a saved bridge with no pairing again, and removing a
+running bridge makes it uninstall itself from its computer.
 Pairing links carry a browser key derived from the bridge's secret; the relay stores
 only hashes and rate-limits connects. The apps are unsigned (signing costs money),
 which is why Windows warns and why macOS uses the Terminal command. More in
@@ -185,7 +190,7 @@ Browser end to end tests (Playwright's Chromium) run against the built site
 | `test/presets.mjs` | Save, find, rename and delete your own presets |
 | `test/preset-files.mjs` | Printer and filament settings windows, preset export and import |
 | `test/accounts.mjs` | Sign-in, sessions, synced presets/settings/printers, online projects (Pages Functions + local D1, mock Google) |
-| `test/toolbar.mjs` | The object toolbar: add a model, lay on face, fits a phone |
+| `test/toolbar.mjs` | The object toolbar: add a model, simplify, lay on face, measure, fits a phone |
 | `test/mixing.mjs` | Make a colour mix, slice, the G-code alternates between both tools |
 | `test/loading.mjs` | The loading screen while the engine starts and a project opens |
 | `test/cancel.mjs` | Cancel stops the slice in the engine, and a change while slicing drops its result |

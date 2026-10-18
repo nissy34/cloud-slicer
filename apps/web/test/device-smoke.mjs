@@ -79,46 +79,70 @@ try {
   // The bridge app opens this link as it starts, so the page usually asks before the
   // bridge has connected: the dialog must keep listening until it comes online.
   await page.goto(`${site}#pair=${pairingCode(cfg)}`);
-  await page.getByText(/Bridge smoke-te · (checking…|offline)/).waitFor();
+  await page.getByTestId('bridge-state').filter({ hasText: /Connecting to the bridge|The bridge is offline/ }).waitFor();
   // What the bridge's network search finds (the real one scans port 7125 on the bridge's networks).
-  const onTheNetwork = async () => [
+  // The first search finds nothing, like a Mac before its "find devices on your local network" prompt is allowed.
+  let searches = 0;
+  const onTheNetwork = async () => (searches++ === 0 ? [] : [
     { url: u1.url, name: 'U1-mock' },
     { url: keyed.url, name: '127.0.0.1', needsKey: true },
-    { url: voron.url, name: 'voron-mock' },
-  ];
+  ]);
   bridge = runBridge(cfg, { log: (m) => console.log(`bridge: ${m}`), find: onTheNetwork });
-  await page.getByRole('combobox').filter({ hasText: 'U1-mock' }).waitFor();
-  // The Device tab searches the bridge's network and adds the printers you pick, with the API key where one is needed.
-  const bridgePrinter = page.getByRole('combobox').filter({ hasText: 'U1-mock' });
+  // One list: every printer the bridge serves or found, each with its own name, profile and API key, and one button for all.
   const printers = page.getByTestId('bridge-printers');
+  const row = (url) => printers.locator(`[data-testid="add-row"][data-url="${url}"]`);
+  await printers.locator('[data-testid="add-row"][data-bridge-id="u1"]').waitFor();
   await printers.getByTestId('bridge-search').click();
-  const row = (url) => printers.locator(`[data-testid="found-printer"][data-url="${url}"]`);
-  await row(u1.url).getByText('Added').waitFor();
-  if (shots) await page.getByRole('dialog').screenshot({ path: join(shots, 'bridge-search.png') });
-  const keyedRow = row(keyed.url);
-  if (await keyedRow.getByTestId('found-add').isEnabled()) throw new Error('a printer that needs a key should not be addable without one');
-  await keyedRow.getByTestId('found-key').fill('wrong-key');
-  await keyedRow.getByTestId('found-add').click();
-  await keyedRow.getByRole('alert').filter({ hasText: 'did not accept that API key' }).waitFor();
-  await keyedRow.getByTestId('found-key').fill('mock-api-key');
-  await keyedRow.getByTestId('found-add').click();
-  await keyedRow.getByText('Added').waitFor();
-  await until('the bridge kept the key', () => cfg.printers.some((p) => p.name === 'Keyed-mock' && p.apiKey === 'mock-api-key'));
-  await page.getByRole('combobox').filter({ hasText: 'Keyed-mock' }).waitFor();
-  if ((await bridgePrinter.inputValue()) !== cfg.printers.find((p) => p.name === 'Keyed-mock').id) throw new Error('the added printer should be chosen');
-  if (cfg.printers.some((p) => p.url === voron.url)) throw new Error('only the printers picked should be added');
-  console.log('bridge: network search in the Device tab, picked printer added with its API key');
-  // Or by its address (any port), with no search.
+  // Searching is shown plainly, and an empty search goes again by itself.
+  await printers.getByTestId('bridge-searching').waitFor();
+  if (shots) await page.getByRole('dialog').screenshot({ path: join(shots, 'bridge-searching.png') });
+  await row(keyed.url).waitFor({ timeout: 20_000 });
+  if (searches < 2) throw new Error('an empty search should go again by itself');
+  if ((await printers.getByTestId('add-row').count()) !== 2) throw new Error('U1-mock is both on the bridge and found: it should be one row');
+  // Or by its address (any port), when the search doesn't find it.
   const addToBridge = page.getByTestId('bridge-add-printer');
   await addToBridge.locator('summary').click();
   await addToBridge.getByTestId('bridge-new-address').fill(voron.url.replace('http://', ''));
   await addToBridge.getByTestId('bridge-add-submit').click();
   await until('voron-mock added to the bridge', () => cfg.printers.some((p) => p.name === 'voron-mock'));
-  await page.getByRole('combobox').filter({ hasText: 'voron-mock' }).waitFor();
-  await bridgePrinter.selectOption('u1');
+  const voronRow = printers.locator(`[data-testid="add-row"][data-bridge-id="${cfg.printers.find((p) => p.name === 'voron-mock').id}"]`);
+  await voronRow.getByTestId('add-row-name').waitFor();
   console.log('bridge: printer added from the Device tab by its address');
+  // Each printer is added on its own row (name, profile, key checked there), then one button saves the ready ones.
+  if (await page.getByTestId('save-printer').isEnabled()) throw new Error('nothing is ready yet, so nothing can be added');
+  const u1Row = row(u1.url);
+  await u1Row.getByTestId('add-row-add').click();
+  await u1Row.getByTestId('add-row-done').click();
+  await printers.locator(`[data-testid="add-row"][data-url="${u1.url}"][data-step="ready"]`).waitFor();
+  const keyedRow = row(keyed.url);
+  await keyedRow.getByTestId('add-row-add').click();
+  await keyedRow.getByTestId('add-row-name').fill('Keyed printer');
+  await keyedRow.getByTestId('add-row-done').click();
+  await keyedRow.getByRole('alert').filter({ hasText: 'Type its API key first' }).waitFor();
+  await keyedRow.getByTestId('add-row-key').fill('wrong-key');
+  await keyedRow.getByTestId('add-row-done').click();
+  await keyedRow.getByRole('alert').filter({ hasText: 'did not accept that API key' }).waitFor();
+  await keyedRow.getByTestId('add-row-key').fill('mock-api-key');
+  await keyedRow.getByTestId('add-row-done').click();
+  await until('the bridge kept the key and the name', () => cfg.printers.some((p) => p.name === 'Keyed printer' && p.apiKey === 'mock-api-key'));
+  await printers.locator('[data-testid="add-row"][data-step="ready"]').filter({ hasText: 'Keyed printer' }).waitFor();
+  // The printer added by address opened for its details; leave it out.
+  await voronRow.getByRole('button', { name: 'Cancel' }).click();
+  await page.getByTestId('save-printer').filter({ hasText: 'Add 2 printers' }).waitFor();
+  await page.getByTestId('add-summary').filter({ hasText: 'U1-mock, Keyed printer' }).waitFor();
+  if (shots) await page.getByRole('dialog').screenshot({ path: join(shots, 'bridge-search.png') });
+  // The list fits a phone too.
+  await page.setViewportSize({ width: 390, height: 844 });
+  const tooWide = await page.evaluate(() => [...document.querySelectorAll('.dv-dialog *')].find((el) => el.getBoundingClientRect().right > window.innerWidth + 0.5)?.className ?? null);
+  if (tooWide !== null) throw new Error(`the add list is wider than a phone: ${tooWide}`);
+  if (shots) await page.screenshot({ path: join(shots, 'bridge-list-phone.png') });
+  await page.setViewportSize({ width: 1280, height: 900 });
   await page.getByTestId('save-printer').click();
   await page.getByTestId('connection').filter({ hasText: 'Connected' }).waitFor({ timeout: 20_000 });
+  await page.getByTestId('printer-select').locator('option', { hasText: 'Keyed printer' }).waitFor({ state: 'attached' });
+  if (await page.getByTestId('printer-select').locator('option', { hasText: 'voron-mock' }).count()) throw new Error('only the ready printers should be saved');
+  if ((await page.getByTestId('printer-select').locator('option:checked').textContent()) !== 'U1-mock') throw new Error('the first printer in the list should be chosen');
+  console.log('bridge: the ready printers saved in one go, with their names and API key');
   console.log('bridge: connected');
 
   await page.getByTestId('head-0').getByText('PLA').waitFor();
@@ -234,7 +258,9 @@ try {
   const older = runBridge(cfg, { log: (m) => /Connected to the relay/.test(m) && (olderUp = true), onReplaced: () => (replaced = true) });
   await until('the older copy connected', () => olderUp, 40_000);
   await page.getByTestId('connection').filter({ hasText: 'Connected' }).waitFor({ timeout: 40_000 });
-  bridge = runBridge(cfg, { log: () => {} });
+  // This copy can be removed from the Device tab; the real one then uninstalls itself (here: just notes it).
+  let uninstalled = false;
+  bridge = runBridge(cfg, { log: () => {}, uninstall: async () => (uninstalled = true) });
   await until('the older copy stopped', () => replaced, 20_000);
   await new Promise((r) => setTimeout(r, 5000));
   await page.getByTestId('connection').filter({ hasText: 'Connected' }).waitFor({ timeout: 40_000 });
@@ -245,7 +271,7 @@ try {
   // A printer that has collected files over months: the card pages them like Fluidd.
   for (let i = 0; i < 24; i++) voron.files.set(`part_${String(i).padStart(2, '0')}.gcode`, { size: 50_000, modified: Date.now() / 1000 - 7200 - i * 600, text: '' });
   await page.getByTestId('printer-select').selectOption('__add');
-  await page.getByRole('tab', { name: 'Public https address' }).click();
+  await page.getByRole('tab', { name: 'Over the internet (advanced)' }).click();
   // The exact moonraker.conf lines that let this site reach the printer, ready to copy.
   await page.getByTestId('cors-snippet').filter({ hasText: `[authorization] cors_domains: ${site.replace(/\/$/, '')}` }).waitFor();
   await page.getByTestId('printer-url').fill(voron.url);
@@ -286,6 +312,28 @@ try {
   await filesCard.getByLabel('Search files').fill('');
   console.log('files card: 10 newest per page, older pages and search reach the rest');
 
+  // With two printers saved, a new file can go to either one: picking the U1 in the dialog connects to it.
+  const sendFile = { name: 'pick printer.gcode', mimeType: 'text/plain', buffer: gcode };
+  await page.getByTestId('device-gcode-input').setInputFiles(sendFile);
+  const sendTo = page.getByRole('dialog').getByTestId('send-printer');
+  await sendTo.locator('option', { hasText: 'voron-mock' }).waitFor({ state: 'attached' });
+  if ((await sendTo.locator('option', { hasText: 'voron-mock' }).getAttribute('value')) !== (await sendTo.inputValue())) throw new Error('the dialog should start on the printer on screen');
+  if (await page.getByTestId('tool-map').count()) throw new Error('generic printer shows the U1 tool map');
+  const u1Id = await sendTo.locator('option', { hasText: 'U1-mock' }).getAttribute('value');
+  await sendTo.selectOption(u1Id);
+  await page.getByTestId('tool-map').waitFor({ timeout: 20_000 });
+  await page.getByTestId('upload-only').waitFor();
+  await until('upload enabled once the U1 is connected', () => page.getByTestId('upload-only').isEnabled());
+  if (shots) await page.getByRole('dialog').screenshot({ path: join(shots, 'send-pick-printer.png') });
+  await page.getByTestId('upload-only').click();
+  await until('file uploaded to the printer picked', () => u1.files.has('pick_printer.gcode'), 20_000);
+  if (voron.files.has('pick_printer.gcode')) throw new Error('the file went to the printer on screen, not the one picked');
+  if (u1.state.print_stats.state === 'printing') throw new Error('Upload only started a print');
+  if ((await page.evaluate(() => localStorage.getItem('cloud-slicer:printer-send:v1'))) !== JSON.stringify(u1Id)) throw new Error('the printer sent to is not remembered');
+  await page.getByTestId('printer-select').selectOption({ label: 'voron-mock' });
+  await page.getByTestId('connection').filter({ hasText: 'Connected' }).waitFor({ timeout: 20_000 });
+  console.log('send dialog: printer picker sends to the printer chosen and remembers it');
+
   const phone = await browser.newPage({ viewport: { width: 390, height: 844 } });
   await phone.goto(site);
   await phone.evaluate((p) => localStorage.setItem('cloud-slicer:devices:v1', p), await page.evaluate(() => localStorage.getItem('cloud-slicer:devices:v1')));
@@ -305,6 +353,15 @@ try {
   if (shots) await phone.screenshot({ path: join(shots, 'device-phone.png'), fullPage: true });
   console.log('phone layout fits');
 
+  await phone.setViewportSize({ width: 390, height: 844 });
+  await phone.getByTestId('device-gcode-input').setInputFiles(sendFile);
+  await phone.getByRole('dialog').getByTestId('send-printer').waitFor();
+  const wideDialog = await phone.evaluate(() => [...document.querySelectorAll('.dv-dialog *')].find((el) => el.getBoundingClientRect().right > window.innerWidth + 0.5)?.className ?? null);
+  if (wideDialog !== null) throw new Error(`send dialog is wider than a 390 px phone: ${wideDialog}`);
+  if (shots) await phone.screenshot({ path: join(shots, 'send-pick-printer-phone.png') });
+  await phone.getByRole('dialog').getByRole('button', { name: 'Cancel' }).click();
+  console.log('send dialog with the printer picker fits a phone');
+
   // Printers saved by the first Device tab build move into the account store.
   const old = await browser.newPage();
   await old.goto(site);
@@ -315,6 +372,19 @@ try {
   const moved = await old.evaluate(() => [localStorage.getItem('cloud-slicer:printers:v1'), localStorage.getItem('cloud-slicer:devices:v1')]);
   if (moved[0] !== null || !moved[1]?.includes('Old Voron')) throw new Error(`legacy printers not moved: ${JSON.stringify(moved)}`);
   console.log('printers from the earlier build moved into the account store');
+
+  // Bridge printers saved before bridges were saved on their own get their bridge back, with no pairing.
+  const earlier = await browser.newPage();
+  await earlier.goto(site);
+  const onlyPrinters = await page.evaluate(() => JSON.stringify(JSON.parse(localStorage.getItem('cloud-slicer:devices:v1')).filter((d) => d.extra?.kind === 'bridge')));
+  await earlier.evaluate((v) => localStorage.setItem('cloud-slicer:devices:v1', v), onlyPrinters);
+  await earlier.reload();
+  await earlier.getByRole('tab', { name: 'Device' }).click();
+  await earlier.getByTestId('manage-open').first().click();
+  await earlier.getByTestId('manage-bridge').getByTestId('manage-bridge-state').filter({ hasText: 'Running' }).waitFor({ timeout: 20_000 });
+  await earlier.getByTestId('manage-bridge').locator('[data-testid="manage-printer"][data-name="U1-mock"]').waitFor();
+  await earlier.close();
+  console.log('bridges of printers saved earlier come back on their own');
 
   // ---- Bridge setup: the apps the relay has, else the Node.js steps ---------------------
   const relayUrl = `http://127.0.0.1:${RELAY_PORT}`;
@@ -331,12 +401,26 @@ try {
   await setup.goto(site);
   await setup.getByRole('tab', { name: 'Device' }).click();
   await setup.getByTestId('add-printer').click();
+  // One computer at a time, three numbered steps, starting from this browser's system (Linux here).
+  // Nothing to fill in before the bridge pairs: no name, profile or Add printer button yet.
+  await setup.getByTestId('bridge-steps-linux').getByTestId('bridge-install-command').filter({ hasText: `curl -fsSL ${liveRelay}/install.sh | sh` }).waitFor();
+  if ((await setup.getByTestId('bridge-steps-linux').locator('.dv-setup-step').count()) !== 3) throw new Error('the Linux setup should be three steps');
+  if (await setup.getByTestId('save-printer').count()) throw new Error('Add printer should wait for the bridge to pair');
+  if (await setup.getByRole('dialog').getByLabel('Printer profile').count()) throw new Error('the printer profile should wait for the bridge to pair');
+  await setup.getByRole('tab', { name: 'Windows PC' }).click();
   const win = setup.getByTestId('bridge-download-windows');
   await win.waitFor();
   if ((await win.getAttribute('href')) !== `${liveRelay}/download/windows-x64`) throw new Error(`Windows download points at ${await win.getAttribute('href')}`);
-  await setup.getByTestId('bridge-download-mac').waitFor();
-  await setup.getByTestId('bridge-install-command').filter({ hasText: `curl -fsSL ${liveRelay}/install.sh | sh` }).waitFor();
   if (shots) await setup.screenshot({ path: join(shots, 'bridge-setup.png') });
+  await setup.getByRole('tab', { name: 'Mac' }).click();
+  await setup.getByTestId('bridge-steps-mac').getByTestId('bridge-install-command').filter({ hasText: `curl -fsSL ${liveRelay}/install.sh | sh` }).waitFor();
+  await setup.getByText('Rather download the Mac app?').click();
+  await setup.getByTestId('bridge-download-mac').waitFor();
+  // A pairing link pasted by hand works too, for when the page opened on another computer.
+  await setup.getByTestId('bridge-paste-link').locator('summary').click();
+  await setup.getByTestId('pairing-code').fill('not a link');
+  await setup.getByRole('alert').filter({ hasText: "That isn't a pairing link" }).waitFor();
+  await setup.getByTestId('pairing-code').fill('');
   const download = await fetch(`${relayUrl}/download/windows-x64`);
   if ((await download.text()) !== 'pretend bridge app' || !/filename="cloud-slicer-bridge\.exe"/.test(download.headers.get('content-disposition') ?? '')) throw new Error('the relay does not serve the Windows app');
   const script = await (await fetch(`${relayUrl}/install.sh`)).text();
@@ -365,16 +449,38 @@ try {
   await setup.getByTestId('add-printer').click();
   await setup.getByText('node cloud-slicer-bridge.mjs', { exact: true }).waitFor();
   console.log('bridge setup: app downloads and the Linux command from the relay, Node.js steps when it has none');
-  // Removing a bridge printer explains how to remove the bridge from its computer too.
-  await page.getByTestId('printer-select').selectOption({ label: 'U1-mock' });
-  await page.locator('.dv-header-actions').getByRole('button', { name: 'Edit' }).click();
-  await page.getByTestId('remove-printer').click();
-  await page.getByTestId('bridge-uninstall').getByTestId('bridge-uninstall-command').filter({ hasText: / uninstall$/ }).waitFor();
-  if (shots) await page.screenshot({ path: join(shots, 'remove-bridge-printer.png') });
-  await page.getByTestId('confirm-remove-printer').click();
+  // Printers & bridges: the bridge is its own thing, its printers come and go on their own.
+  await page.getByTestId('manage-open').first().click();
+  const manage = page.getByTestId('manage-dialog');
+  const card = manage.getByTestId('manage-bridge');
+  await card.getByTestId('manage-bridge-state').filter({ hasText: 'Running' }).waitFor({ timeout: 20_000 });
+  await card.getByText(/^Bridge on /).waitFor();
+  if (shots) await page.getByRole('dialog').screenshot({ path: join(shots, 'manage.png') });
+  const managed = (name) => card.locator(`[data-testid="manage-printer"][data-name="${name}"]`);
+  await managed('U1-mock').getByTestId('manage-printer-remove').click();
+  await managed('U1-mock').getByTestId('manage-printer-remove-yes').click();
   await until('U1-mock removed', async () => (await page.getByTestId('printer-select').locator('option', { hasText: 'U1-mock' }).count()) === 0);
   await until('the bridge forgot U1-mock too', () => !cfg.printers.some((p) => p.id === 'u1'));
-  console.log('removing a bridge printer: shows how to uninstall the bridge, then removes it');
+  await managed('Keyed printer').getByTestId('manage-printer-remove').click();
+  await managed('Keyed printer').getByTestId('manage-printer-remove-yes').click();
+  // No printers left: the bridge stays, empty.
+  await card.getByText('No printers yet.').waitFor();
+  console.log('removing printers leaves the bridge');
+  // Adding to a saved bridge needs no pairing again.
+  await card.getByTestId('manage-bridge-add').click();
+  await page.getByTestId('bridge-state').filter({ hasText: 'Connected to the bridge' }).waitFor({ timeout: 20_000 });
+  await page.getByRole('dialog', { name: 'Add a printer' }).getByRole('button', { name: 'Close' }).click();
+  // Removing the bridge, while it runs, makes it uninstall itself.
+  await page.getByTestId('manage-open').first().click();
+  await card.getByTestId('manage-bridge-state').filter({ hasText: 'Running' }).waitFor({ timeout: 20_000 });
+  await card.getByTestId('manage-bridge-remove').click();
+  await card.getByText('will also uninstall itself').waitFor();
+  if (shots) await page.getByRole('dialog').screenshot({ path: join(shots, 'manage-remove-bridge.png') });
+  await card.getByTestId('manage-bridge-remove-yes').click();
+  await until('the bridge uninstalled itself', () => uninstalled, 20_000);
+  await until('the bridge is gone', async () => (await manage.getByTestId('manage-bridge').count()) === 0);
+  if (await manage.getByTestId('manage-leftover').count()) throw new Error('a bridge that removed itself needs no manual command');
+  console.log('removing the bridge: it uninstalls itself');
   console.log('DEVICE SMOKE OK');
 } catch (e) {
   console.error(`DEVICE SMOKE FAIL: ${e.stack ?? e.message}`);

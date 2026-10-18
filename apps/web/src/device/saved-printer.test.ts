@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { Device } from '../account/api';
-import { deviceInput, printerFromDevice, type SavedPrinter } from '../state/device';
+import { bridgeFromDevice, bridgeInput, bridgeLabel, deviceInput, printerFromDevice, type SavedBridge, type SavedPrinter } from '../state/device';
 
 const asDevice = (input: { id: string; name: string; url: string; apiKey: string | null; extra: Record<string, unknown> }): Device => ({
   id: input.id,
@@ -32,5 +32,22 @@ describe('saved printers in the account store', () => {
 
   it('skips account printers without connection details', () => {
     expect(printerFromDevice(asDevice({ id: 'x', name: 'Wizard printer', url: '', apiKey: null, extra: {} }))).toBeNull();
+  });
+});
+
+describe('saved bridges', () => {
+  it('are their own records, never printers, with the key kept out of the listing', () => {
+    const b: SavedBridge = { id: 'x', name: 'Bridge on NIssy-PC', relay: 'https://relay', bridgeId: 'abc', key: 'secret' };
+    const d = asDevice({ ...bridgeInput(b), apiKey: b.key });
+    expect(JSON.stringify(bridgeInput(b).extra)).not.toContain('secret');
+    expect(bridgeFromDevice(d)).toEqual({ ...b, key: '' });
+    expect(printerFromDevice(d)).toBeNull();
+    expect(bridgeFromDevice(asDevice(deviceInput({ id: 'p', name: 'U1', kind: 'bridge', relay: 'r', bridgeId: 'abc', key: 'k', printer: 'u1' })))).toBeNull();
+  });
+
+  it('are named after their computer, else its system', () => {
+    expect(bridgeLabel({ host: 'NIssy-PC', system: 'win32' })).toBe('Bridge on NIssy-PC');
+    expect(bridgeLabel({ system: 'darwin' })).toBe('Bridge on a Mac');
+    expect(bridgeLabel(null)).toBe('Bridge');
   });
 });

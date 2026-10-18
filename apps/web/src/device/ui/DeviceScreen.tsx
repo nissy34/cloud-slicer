@@ -6,6 +6,7 @@ import { ClimateCard } from './ClimateCard';
 import { ConsoleCard } from './ConsoleCard';
 import { FilesCard } from './FilesCard';
 import { JobCard } from './JobCard';
+import { ManageDialog } from './ManageDialog';
 import { MotionCard } from './MotionCard';
 import { useConfirm } from './parts';
 import { PrintDialog } from './PrintDialog';
@@ -22,8 +23,10 @@ export function DeviceScreen() {
   const bridge = useDevice((s) => s.bridge);
   const send = useDevice((s) => s.send);
   const editor = useDevice((s) => s.editor);
+  const manageOpen = useDevice((s) => s.manageOpen);
+  const bridges = useDevice((s) => s.bridges);
   const toast = useDevice((s) => s.toast);
-  const { select, openEditor, call, retry } = useDevice.getState();
+  const { select, openEditor, openManage, call, retry } = useDevice.getState();
   const active = printers.find((p) => p.id === activeId);
   const { confirm, dialog } = useConfirm();
 
@@ -48,6 +51,11 @@ export function DeviceScreen() {
             Add a printer
           </button>
           {send && <p className="muted">Add your printer first, then send the plate again.</p>}
+          {bridges.length > 0 && (
+            <button className="dv-link" onClick={() => openManage(true)} data-testid="manage-open">
+              Printers &amp; bridges
+            </button>
+          )}
         </div>
       ) : (
         <>
@@ -69,6 +77,9 @@ export function DeviceScreen() {
             <div className="dv-header-actions">
               <button className="dv-link" onClick={() => void openEditor({ mode: 'edit', id: active.id })}>
                 Edit
+              </button>
+              <button className="dv-link" onClick={() => openManage(true)} data-testid="manage-open">
+                Printers &amp; bridges
               </button>
               <button
                 className="secondary dv-danger-text"
@@ -118,6 +129,7 @@ export function DeviceScreen() {
         </>
       )}
       {send && active && <PrintDialog key={send.kind === 'upload' ? send.name : send.path} source={send} />}
+      {manageOpen && <ManageDialog />}
       {editor && <PrinterEditor key={editor.mode === 'edit' ? editor.id : 'add'} />}
       {dialog}
       {toast && (

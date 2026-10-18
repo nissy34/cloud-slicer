@@ -23,11 +23,12 @@ import { accountReady, getUserSetting, presetEditing, useAccount } from './accou
 import { installedOnly, SETUP_KEY, type Setup } from '../lib/setup';
 import { loadConvertPreference, loadSaved, save, saveConvertPreference } from '../lib/storage';
 import type { SimplifyBy, SimplifyResult } from '../lib/simplify';
+import { sameFeature, type MeasureFeature, type Measurement } from '../lib/measure';
 import { mixSettings, palette as mixPalette, type MatchResult, type MixRecipe, type MixRow } from '../lib/mixing';
 
 export type Tab = 'prepare' | 'preview' | 'device';
 /** The object tool open on the 3D view, like desktop's gizmos (paint has its own state). */
-export type Tool = 'move' | 'rotate' | 'scale' | 'flatten' | 'cut' | 'simplify';
+export type Tool = 'move' | 'rotate' | 'scale' | 'flatten' | 'cut' | 'measure' | 'simplify';
 /** How a 3MF is opened: as the project (replacing it) or its objects added. */
 export type OpenMode = 'project' | 'geometry';
 const is3mf = (f: File) => /\.3mf$/i.test(f.name);
@@ -131,6 +132,17 @@ export interface SlicerState {
   setSnap(snap: boolean): void;
   /** Height of the Cut tool's plane above the bed, in mm; the 3D view shows it. */
   cutZ: number;
+  /**
+   * The Measure tool: the feature under the pointer, the (up to two) picked
+   * ones and what lies between them, like desktop's Measure gizmo.
+   */
+  measure: { hover: MeasureFeature | null; picks: MeasureFeature[]; result: Measurement | null; onlyPlane: boolean };
+  /** Looks up the feature under a ray from the camera (null: the pointer left the parts). */
+  measureHover(ray: PaintRay | null): void;
+  /** Picks the feature under `ray` (a tap), else the hovered one; off the parts it starts over. */
+  measurePick(ray?: PaintRay): Promise<void>;
+  measureReset(): void;
+  setMeasureOnlyPlane(onlyPlane: boolean): void;
   setCutZ(z: number): void;
   /** Object o's triangles, and (with `by`) how many simplifying would leave; changes nothing. */
   simplifyPreview(o: number, by?: SimplifyBy): Promise<SimplifyResult | null>;
@@ -334,6 +346,10 @@ export const useSlicer = create<SlicerState>((set, get) => {
   // so the brush joins them without a gap.
   let strokeQueue: PaintRay[] = [];
   let lastRay: PaintRay | null = null;
+  // Measure hovers: one engine lookup at a time, then the latest pointer ray.
+  let hoverRay: PaintRay | null | undefined;
+  let hovering = false;
+  const NO_MEASURE: SlicerState['measure'] = { hover: null, picks: [], result: null, onlyPlane: false };
   let painting = false;
   let strokeStarts = false;  // the next dab begins a stroke: remember the project for undo
 
@@ -515,6 +531,7 @@ export const useSlicer = create<SlicerState>((set, get) => {
     snap: false,
     history: { undo: null, redo: null },
     cutZ: 0,
+    measure: NO_MEASURE,
     overlay: null,
     calibration: null,
     mixDefinitions: '',
@@ -625,7 +642,8 @@ export const useSlicer = create<SlicerState>((set, get) => {
       const { selected, project } = get();
       // The cut plane starts half way up, like desktop.
       const height = selected ? project?.objects[selected.object]?.size[2] : undefined;
-      set(tool === 'cut' && height ? { tool, cutZ: Math.round(height * 50) / 100 } : { tool });
+      const measure = { ...NO_MEASURE, onlyPlane: get().measure.onlyPlane };
+      set(tool === 'cut' && height ? { tool, measure, cutZ: Math.round(height * 50) / 100 } : { tool, measure });
     },
     setCutZ: (cutZ) => set({ cutZ }),
     simplifyPreview: (o, by) =>
@@ -633,6 +651,54 @@ export const useSlicer = create<SlicerState>((set, get) => {
         .simplifyPreview(o, by)
         .catch((err) => (fail(err), null)),
     simplifyObject: (o, by) => projectEdit('Simplify', () => engine().simplifyApply(o, by)),
+    async measureHover(ray) {
+      hoverRay = ray;
+      if (hovering) return;
+      hovering = true;
+      try {
+        while (hoverRay !== undefined) {
+          const next = hoverRay;
+          hoverRay = undefined;
+          const m = get().measure;
+          if (get().tool !== 'measure') break;
+          const hover = next
+            ? await engine().measureFeature(get().plate, { ray: next, onlyPlane: m.onlyPlane, keep: m.picks.map((f) => f.id) })
+            : null;
+          if (get().tool !== 'measure') break;
+          if (!sameFeature(hover, get().measure.hover)) set({ measure: { ...get().measure, hover } });
+        }
+      } catch (e) {
+        fail(e);
+      } finally {
+        hovering = false;
+      }
+    },
+    async measurePick(ray) {
+      if (ray) {
+        try {
+          const { onlyPlane, picks } = get().measure;
+          const hover = await engine().measureFeature(get().plate, { ray, onlyPlane, keep: picks.map((f) => f.id) });
+          set({ measure: { ...get().measure, hover } });
+        } catch (e) {
+          return fail(e);
+        }
+      }
+      const { hover, picks, onlyPlane } = get().measure;
+      // Like desktop: a click off the parts starts over, a third pick starts a new pair.
+      if (!hover) return set({ measure: { ...NO_MEASURE, onlyPlane } });
+      if (picks.some((p) => sameFeature(p, hover))) return;
+      const next = picks.length === 1 ? [picks[0], hover] : [hover];
+      set({ measure: { ...get().measure, picks: next, result: null } });
+      if (next.length < 2) return;
+      try {
+        const result = await engine().measureBetween(next[0].id, next[1].id);
+        if (get().measure.picks === next) set({ measure: { ...get().measure, result } });
+      } catch (e) {
+        fail(e);
+      }
+    },
+    measureReset: () => set({ measure: { ...NO_MEASURE, onlyPlane: get().measure.onlyPlane } }),
+    setMeasureOnlyPlane: (onlyPlane) => set({ measure: { ...NO_MEASURE, onlyPlane } }),
     projectFile: (thumbnail) => engine().saveProject(engineOverrides(), thumbnail),
     clearProject: () =>
       projectEdit('Delete all', async () => {
@@ -645,7 +711,8 @@ export const useSlicer = create<SlicerState>((set, get) => {
       set({ plate, selected: null, tool: null });
       await refreshPreview(get().project ?? undefined);
     },
-    select: (selected) => set(selected ? { selected } : { selected, tool: null }),
+    // Measure works on every part on the plate, so it stays open without a selection.
+    select: (selected) => set(selected ? { selected } : { selected, tool: get().tool === 'measure' ? 'measure' : null }),
     moveInstance: (o, i, x, y) => projectEdit('Move', () => engine().transform(o, i, { offset: [x, y], plate: get().plate })),
     transformInstance: (o, i, changes) =>
       projectEdit(changes.rotation ? 'Rotate' : changes.scale ? 'Scale' : 'Move', () => engine().transform(o, i, changes)),

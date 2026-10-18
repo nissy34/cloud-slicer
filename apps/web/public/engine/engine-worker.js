@@ -202,6 +202,10 @@ if (self.name !== 'em-pthread') {
       const out = json(e.simplifyObject(o, JSON.stringify(request)));
       return request.op === 'apply' ? JSON.parse(e.modelInfoJson()) : out;
     },
+    // Measure tool: the feature under a ray, and the distance and angle
+    // between two of them (see engine/src/measure_api.cpp).
+    measureFeature: (e, plate, options) => json(e.measureFeature(plate, JSON.stringify(options))).feature,
+    measureBetween: (e, a, b) => json(e.measureBetween(a, b)),
     clearPaint: (e, o, kind) => (json(e.clearPaint(o, kind)), JSON.parse(e.modelInfoJson())),
     // Undo history: {undo, redo} are the labels of the next steps, or null.
     snapshot: (e, label) => json(e.snapshot(label)),
