@@ -1,0 +1,169 @@
+name: CI
+
+# Builds the wasm engine, runs every test suite, smoke-tests the web app in
+# Chromium and deploys it to Cloudflare Pages (production from main, a preview
+# for every other branch) when the Cloudflare secrets are set:
+#   secrets.CLOUDFLARE_API_TOKEN   token with Pages: Edit
+#   secrets.CLOUDFLARE_ACCOUNT_ID  account id
+#   vars.CF_PAGES_PROJECT          optional project name (default cloud-slicer)
+# CI never talks to a real printer: printer tests run against a mock Moonraker.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+# Queue rather than cancel: a cancelled first run would never finish (and so
+# never cache) the long dependency build.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  deployments: write
+
+env:
+  EMSDK_VERSION: 6.0.12
+  CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+  CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 240
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Fetch the pinned Orca submodule (shallow)
+        run: |
+          sha=$(git ls-tree HEAD engine/core/orcaslicer | awk '{print $3}')
+          url=$(git config -f .gitmodules submodule.engine/core/orcaslicer.url)
+          cd engine/core/orcaslicer
+          git init -q && git remote add origin "$url"
+          git fetch -q --depth 1 origin "$sha" && git checkout -q FETCH_HEAD
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Printer driver tests
+        working-directory: packages/printer
+        run: npm test
+
+      - name: Install Emscripten ${{ env.EMSDK_VERSION }}
+        run: |
+          sudo apt-get install -y -qq ninja-build ccache
+          git clone -q --depth 1 https://github.com/emscripten-core/emsdk.git "$RUNNER_TEMP/emsdk"
+          "$RUNNER_TEMP/emsdk/emsdk" install "$EMSDK_VERSION"
+          "$RUNNER_TEMP/emsdk/emsdk" activate "$EMSDK_VERSION"
+
+      - name: Restore engine dependencies
+        id: deps-cache
+        uses: actions/cache/restore@v4
+        with:
+          path: engine/build/deps
+          key: engine-deps-${{ env.EMSDK_VERSION }}-${{ hashFiles('engine/scripts/build-deps.sh') }}
+
+      - name: Build engine dependencies (cache miss only)
+        if: steps.deps-cache.outputs.cache-hit != 'true'
+        run: |
+          source "$RUNNER_TEMP/emsdk/emsdk_env.sh"
+          engine/scripts/build-deps.sh
+
+      # Saved right away, so a later failing step doesn't throw the build away.
+      - name: Save engine dependencies
+        if: steps.deps-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: engine/build/deps
+          key: ${{ steps.deps-cache.outputs.cache-primary-key }}
+
+      - name: Restore compiler cache
+        uses: actions/cache/restore@v4
+        with:
+          path: ${{ runner.temp }}/ccache
+          key: engine-ccache-${{ env.EMSDK_VERSION }}-${{ github.sha }}
+          restore-keys: engine-ccache-${{ env.EMSDK_VERSION }}-
+
+      - name: Build the engine
+        env:
+          EM_COMPILER_WRAPPER: ccache
+          CCACHE_DIR: ${{ runner.temp }}/ccache
+          CCACHE_MAXSIZE: 3G
+          CCACHE_BASEDIR: ${{ github.workspace }}
+        run: |
+          source "$RUNNER_TEMP/emsdk/emsdk_env.sh"
+          emcmake cmake -S engine -B engine/build/engine -G Ninja -DCMAKE_BUILD_TYPE=Release
+          cmake --build engine/build/engine
+          ls -la engine/build/engine/u1slicer.*
+          ccache -s | head -8
+
+      - name: Save compiler cache
+        if: always()
+        uses: actions/cache/save@v4
+        with:
+          path: ${{ runner.temp }}/ccache
+          key: engine-ccache-${{ env.EMSDK_VERSION }}-${{ github.sha }}
+
+      - name: Engine smoke test (Node)
+        run: |
+          node engine/node/slice.mjs fixtures/tetrahedron.stl /tmp/tetra.gcode --app-defaults
+          grep -q '^PRINT_START' /tmp/tetra.gcode
+          grep -q '^EXCLUDE_OBJECT_DEFINE' /tmp/tetra.gcode
+          node engine/node/slice.mjs fixtures/3DBenchy.stl /tmp/benchy.gcode --app-defaults
+          grep -q '^PRINT_START' /tmp/benchy.gcode
+
+      - name: Web app checks and build
+        working-directory: apps/web
+        run: |
+          npm ci --no-audit --no-fund
+          npm run typecheck
+          npm test
+          npm run build
+
+      - name: Browser smoke test (Chromium)
+        working-directory: apps/web
+        timeout-minutes: 20
+        run: |
+          npx playwright install --with-deps chromium
+          node test/smoke.mjs ../../fixtures/3DBenchy.stl smoke.png
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: web-site
+          path: |
+            apps/web/dist
+            apps/web/smoke.png
+
+      - name: Deploy to Cloudflare Pages
+        id: deploy
+        if: env.CLOUDFLARE_API_TOKEN != '' && env.CLOUDFLARE_ACCOUNT_ID != '' && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)
+        working-directory: apps/web
+        env:
+          PROJECT: ${{ vars.CF_PAGES_PROJECT || 'cloud-slicer' }}
+          BRANCH: ${{ github.head_ref || github.ref_name }}
+        run: |
+          # Creates the project on the first run; harmless "already exists" afterwards.
+          npx wrangler pages project create "$PROJECT" --production-branch=main || true
+          npx wrangler pages deploy dist --project-name="$PROJECT" --branch="$BRANCH" \
+            --commit-hash="$GITHUB_SHA" | tee deploy.log
+          url=$(grep -Eo 'https://[^ ]+\.pages\.dev' deploy.log | tail -1)
+          echo "url=$url" >> "$GITHUB_OUTPUT"
+          echo "### Deployed: $url" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Smoke test the deployed site
+        if: steps.deploy.outputs.url != ''
+        working-directory: apps/web
+        timeout-minutes: 20
+        run: |
+          # A new Pages project or branch alias gets its TLS certificate a few
+          # minutes after the first deploy; wait until the site answers over https.
+          url='${{ steps.deploy.outputs.url }}'
+          for i in $(seq 1 60); do
+            curl -fsS -o /dev/null "$url" && break
+            echo "waiting for $url ($i)"; sleep 10
+          done
+          SMOKE_URL='${{ steps.deploy.outputs.url }}' node test/smoke.mjs ../../fixtures/tetrahedron.stl
