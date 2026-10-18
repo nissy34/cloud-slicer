@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import type { CutKeep } from '../engine/client';
 import { useSlicer, type Tool } from '../state/store';
+import { LayersPanel } from './LayersPanel';
 
 const round = (n: number) => Math.round(n * 100) / 100;
 
@@ -117,7 +118,7 @@ function TransformFields({ tool, object, instance }: { tool: 'move' | 'rotate' |
   );
 }
 
-const HINTS: Record<Exclude<Tool, 'cut'>, [string, string]> = {
+const HINTS: Record<Exclude<Tool, 'cut' | 'layers'>, [string, string]> = {
   move: ['Move', 'Drag an arrow, or drag the object itself.'],
   rotate: ['Rotate', 'Drag a ring to turn the object around that axis.'],
   scale: ['Scale', 'Drag a handle; the centre box scales evenly.'],
@@ -133,6 +134,7 @@ export function ToolPanel() {
   const rotation = useSlicer((s) => (s.selected ? s.project?.objects[s.selected.object]?.instances[s.selected.instance]?.rotation : undefined));
   const { setTool, setSnap } = useSlicer.getState();
   if (!tool || !selected) return null;
+  if (tool === 'layers') return <LayersPanel key={selected.object} object={selected.object} />;
   if (tool === 'cut')
     return (
       <section className="tool-panel" aria-label="Cut">

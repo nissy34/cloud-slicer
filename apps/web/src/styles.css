@@ -927,6 +927,42 @@ select:focus-visible {
   border: 0;
   background: none;
 }
+/* Variable layer height: the profile chart and its buttons. */
+.layer-chart {
+  width: 100%;
+  height: 200px;
+  touch-action: none;
+  cursor: crosshair;
+  user-select: none;
+}
+.layer-chart-bg {
+  fill: var(--surface-2);
+}
+.layer-chart-base {
+  stroke: var(--muted);
+  stroke-dasharray: 3 3;
+}
+.layer-chart-band {
+  fill: color-mix(in srgb, var(--accent) 25%, transparent);
+}
+.layer-chart-line {
+  fill: none;
+  stroke: var(--accent);
+  stroke-width: 2;
+}
+.layer-chart-dot {
+  fill: var(--accent);
+}
+.layer-summary {
+  font-size: 0.9em;
+  font-variant-numeric: tabular-nums;
+}
+.layer-op {
+  display: grid;
+  gap: 4px;
+  padding-top: 6px;
+  border-top: 1px solid var(--border);
+}
 .workspace-tools {
   position: absolute;
   top: 60px;

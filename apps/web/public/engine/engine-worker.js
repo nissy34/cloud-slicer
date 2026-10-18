@@ -197,6 +197,11 @@ if (self.name !== 'em-pthread') {
     },
     mixedBlend: (e, request) => json(e.mixedBlend(JSON.stringify(request))).colours,
     mixedMatch: (e, request) => json(e.mixedMatch(JSON.stringify(request))),
+    // Variable layer height of object o (see engine/src/layers_api.cpp).
+    layerHeights(e, o, overrides, request) {
+      const { config } = json(e.presetsFullConfig(JSON.stringify(overrides || {})));
+      return json(e.layerHeights(o, JSON.stringify(config), JSON.stringify(request)));
+    },
     clearPaint: (e, o, kind) => (json(e.clearPaint(o, kind)), JSON.parse(e.modelInfoJson())),
     // Undo history: {undo, redo} are the labels of the next steps, or null.
     snapshot: (e, label) => json(e.snapshot(label)),
