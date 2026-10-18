@@ -8,6 +8,7 @@ import { BridgeLink } from '../link/bridge';
 import { DirectLink, directBlockedReason, normalizePrinterUrl } from '../link/direct';
 import type { BridgeStatus } from '../link/types';
 import { decodePairing, type Pairing } from '../pairing';
+import { BridgeSetup } from './BridgeSetup';
 import { Dialog } from './parts';
 
 const newId = () => Math.random().toString(36).slice(2, 10);
@@ -145,8 +146,6 @@ export function PrinterEditor() {
   };
 
   const relayForCommand = pairing?.relay ?? DEFAULT_RELAY_URL;
-  // The site goes along so the bridge's pairing links come back to this same site.
-  const bridgeDownload = `${relayForCommand}/bridge.mjs?site=${encodeURIComponent(location.origin)}`;
   return (
     <Dialog
       title={existing ? `Edit ${existing.name}` : 'Add a printer'}
@@ -190,26 +189,10 @@ export function PrinterEditor() {
           {!pairing && (
             <>
               <p>
-                Browsers can't reach a printer on your home network from a website, so a small bridge runs on any computer that stays on near the printer (a PC, a Raspberry Pi or a NAS with
-                Node.js 22). It connects out to the relay, so nothing on your router needs opening.
+                Browsers can't reach a printer on your home network from a website, so a small bridge runs on any computer that stays on near the printer (a PC, a Mac or a Raspberry
+                Pi). It connects out to the relay, so nothing on your router needs opening.
               </p>
-              <ol className="dv-steps-list">
-                <li>
-                  <a href={bridgeDownload} download="cloud-slicer-bridge.mjs">
-                    Download the bridge
-                  </a>{' '}
-                  to that computer.
-                </li>
-                <li>
-                  Run it, and keep it running:
-                  <pre className="dv-code">node cloud-slicer-bridge.mjs</pre>
-                  It finds the printers on your network by itself.
-                </li>
-                <li>It opens a link to this page that adds your printer (or prints the link; you can also paste it below).</li>
-                <li>
-                  No printer found? Add it by its address: <code>node cloud-slicer-bridge.mjs add 192.168.1.50</code>, then run it again.
-                </li>
-              </ol>
+              <BridgeSetup relay={relayForCommand} />
               <label>
                 Pairing link or code
                 <input

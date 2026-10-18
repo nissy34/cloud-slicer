@@ -6,36 +6,44 @@ private-network blocking), so this small agent runs on any always-on computer
 next to the printer and connects **out** to the relay. Nothing on your router
 needs opening, and it only talks to the printers you add.
 
-Needs Node.js 22 or newer; no other dependencies.
+## Getting it
 
-```bash
-curl -fsSLo cloud-slicer-bridge.mjs https://<relay>/bridge.mjs
-node cloud-slicer-bridge.mjs     # finds your printers, opens the pairing link; keep it running
-```
+The Device tab's "Add a printer" dialog offers the right one for each system:
 
-On Windows, PowerShell's `curl` is a different command: type `curl.exe`
-instead, or just open `https://<relay>/bridge.mjs` in a browser to download it.
+- **Windows and macOS**: a one-file app. Open it with a double click; nothing
+  else needs installing. It isn't signed yet, so Windows shows "Windows
+  protected your PC" (More info, then Run anyway), and on a Mac you open the
+  zip, then Control-click the app and choose Open the first time.
+- **Linux and Raspberry Pi (64-bit)**: one command, which downloads the app,
+  finds your printers and starts the bridge with the computer:
+  ```bash
+  curl -fsSL https://<relay>/install.sh | sh
+  ```
+- **Anything else with Node.js 22 or newer**: the script itself.
+  ```bash
+  curl -fsSLo cloud-slicer-bridge.mjs https://<relay>/bridge.mjs
+  node cloud-slicer-bridge.mjs
+  ```
+  On Windows, PowerShell's `curl` is a different command: type `curl.exe`, or
+  open `https://<relay>/bridge.mjs` in a browser.
 
 On first run it looks for Moonraker on port 7125 across your local network,
 adds every printer it finds, and opens the pairing link in your browser (it
-also prints it). If it finds nothing, add the printer by its address with
-`node cloud-slicer-bridge.mjs add 192.168.1.50` (`--api-key KEY` if Moonraker
-wants one) and run it again. The
-code is the bridge's secret: anyone holding it can control your printers.
+also prints it). Opened by double click, it then asks whether to start by
+itself with the computer; `install` and `uninstall` do the same from a
+terminal (Windows: a Run entry for your user, minimised; macOS: a launch agent;
+Linux: a systemd user service with lingering, so a headless Pi starts it at
+boot). If it finds nothing, add the printer by its address with
+`cloud-slicer-bridge add 192.168.1.50` (`--api-key KEY` if Moonraker wants
+one); a bridge running in the background restarts by itself to use it. The
+pairing link is the bridge's key: anyone holding it can control your printers.
 
 Config lives in `~/.cloud-slicer-bridge.json` (`--config` to move it). Other
-commands: `list`, `remove <name>`, `pair` (print the pairing link again).
+commands: `list`, `remove <name>`, `pair` (print the pairing link again),
+`version`.
 
-To keep it running on Linux, a systemd user service is enough:
-
-```ini
-# ~/.config/systemd/user/cloud-slicer-bridge.service
-[Service]
-ExecStart=/usr/bin/node %h/cloud-slicer-bridge.mjs
-Restart=always
-[Install]
-WantedBy=default.target
-```
+The apps are `bridge.mjs` built with `bun build --compile` (`build-apps.sh`);
+CI uploads them to the relay's R2 bucket on every push to main.
 
 ## How it works
 

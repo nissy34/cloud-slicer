@@ -2019,6 +2019,41 @@ select:focus-visible {
   display: grid;
   gap: 8px;
 }
+/* Bridge setup (device/ui/BridgeSetup.tsx) */
+.dv-downloads {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 6px 0 8px;
+}
+.dv-downloads a {
+  display: inline-block;
+  text-decoration: none;
+  color: var(--text);
+}
+.dv-downloads a.primary {
+  color: var(--accent-text);
+}
+.dv-command {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+}
+.dv-command .dv-code {
+  flex: 1;
+  min-width: 0;
+}
+.dv-command button {
+  margin-top: 4px;
+}
+.dv-node-option {
+  margin-top: 10px;
+}
+.dv-node-option summary {
+  cursor: pointer;
+  color: var(--muted);
+  margin-bottom: 8px;
+}
 .dv-code {
   margin: 4px 0 0;
   padding: 8px 10px;

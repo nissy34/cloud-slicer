@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { browserKey, candidateUrls, mergeDiff, pairingCode, refused } from './bridge.mjs';
+import { join } from 'node:path';
+import { autostartPlan, browserKey, candidateUrls, mergeDiff, pairingCode, refused } from './bridge.mjs';
 
 test('tries Moonraker on 7125, then the web port', () => {
   assert.deepEqual(candidateUrls('192.168.1.50'), ['http://192.168.1.50:7125', 'http://192.168.1.50']);
@@ -27,4 +28,39 @@ test("refuses Moonraker's access.* calls, which would reveal the printer's API k
   assert.equal(refused('access.post_user'), true);
   assert.equal(refused('printer.objects.query'), false);
   assert.equal(refused(undefined), false);
+});
+
+test('starting with the computer: Windows uses a per-user Run entry and copies the app out of Downloads', () => {
+  const plan = autostartPlan({ platform: 'win32', home: 'C:\\Users\\n', env: { LOCALAPPDATA: 'C:\\Users\\n\\AppData\\Local' }, app: true, exe: 'C:\\Users\\n\\Downloads\\cloud-slicer-bridge.exe' });
+  assert.equal(plan.copy.to, join('C:\\Users\\n\\AppData\\Local', 'Cloud Slicer Bridge', 'cloud-slicer-bridge.exe'));
+  const [cmd, args] = plan.enable[0];
+  assert.equal(cmd, 'reg');
+  assert.ok(args.includes('HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Run'));
+  const value = args[args.indexOf('/d') + 1];
+  // Paths with spaces stay quoted, and the bridge never opens a browser by itself at sign-in.
+  assert.match(value, /^cmd \/c start "Cloud Slicer Bridge" \/min ".*Cloud Slicer Bridge.*cloud-slicer-bridge\.exe" "run" "--no-browser"$/);
+  assert.match(plan.start[1][1], /^start "Cloud Slicer Bridge" \/min "/);
+});
+
+test('starting with the computer: macOS writes a launch agent that keeps the bridge running', () => {
+  const plan = autostartPlan({ platform: 'darwin', home: '/Users/n', app: true, exe: '/Users/n/Downloads/Cloud Slicer Bridge' });
+  assert.equal(plan.copy.to, '/Users/n/Library/Application Support/Cloud Slicer Bridge/cloud-slicer-bridge');
+  assert.equal(plan.files[0].path, '/Users/n/Library/LaunchAgents/io.qzz.awesomestuff.cloud-slicer-bridge.plist');
+  assert.match(plan.files[0].content, /<string>\/Users\/n\/Library\/Application Support\/Cloud Slicer Bridge\/cloud-slicer-bridge<\/string><string>run<\/string><string>--no-browser<\/string>/);
+  assert.match(plan.files[0].content, /<key>KeepAlive<\/key><true\/>/);
+  assert.ok(plan.enable.some(([c, a]) => c === 'launchctl' && a[0] === 'bootstrap'));
+});
+
+test('starting with the computer: Linux (and a Pi) gets a systemd user service that runs without a sign-in', () => {
+  const plan = autostartPlan({ platform: 'linux', home: '/home/pi', app: true, exe: '/home/pi/.local/bin/cloud-slicer-bridge', user: 'pi' });
+  assert.equal(plan.files[0].path, '/home/pi/.config/systemd/user/cloud-slicer-bridge.service');
+  assert.match(plan.files[0].content, /^ExecStart=\/home\/pi\/\.local\/share\/cloud-slicer-bridge\/cloud-slicer-bridge run --no-browser$/m);
+  assert.match(plan.files[0].content, /^Restart=always$/m);
+  assert.deepEqual(plan.enable.at(-1).slice(0, 2), ['loginctl', ['enable-linger', 'pi']]);
+});
+
+test('starting with the computer under node: node runs a stable copy of this script', () => {
+  const plan = autostartPlan({ platform: 'linux', home: '/home/pi', app: false, exe: '/usr/bin/node', script: '/home/pi/Downloads/cloud-slicer-bridge.mjs', user: 'pi' });
+  assert.equal(plan.copy.from, '/home/pi/Downloads/cloud-slicer-bridge.mjs');
+  assert.match(plan.files[0].content, /^ExecStart=\/usr\/bin\/node \/home\/pi\/\.local\/share\/cloud-slicer-bridge\/cloud-slicer-bridge\.mjs run --no-browser$/m);
 });
