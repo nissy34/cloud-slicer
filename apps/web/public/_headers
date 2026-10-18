@@ -6,3 +6,7 @@
 # Revalidate (cheap 304s) so a new deploy's engine is picked up at once.
 /engine/*
   Cache-Control: no-cache
+
+# The service worker must update as soon as a deploy changes it.
+/sw.js
+  Cache-Control: no-cache

@@ -44,7 +44,10 @@ darkQuery?.addEventListener('change', (e) => useThemeStore.setState({ systemDark
 
 function apply({ choice, systemDark }: ThemeState) {
   if (typeof document === 'undefined') return;
-  document.documentElement.dataset.theme = resolveTheme(choice, systemDark);
+  const theme = resolveTheme(choice, systemDark);
+  document.documentElement.dataset.theme = theme;
+  // The phone's status bar / installed app title bar, matching the top bar (--surface).
+  document.querySelector('meta[name=theme-color]')?.setAttribute('content', theme === 'dark' ? '#17191d' : '#ffffff');
 }
 apply(useThemeStore.getState());
 useThemeStore.subscribe(apply);

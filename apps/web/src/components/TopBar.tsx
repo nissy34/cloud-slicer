@@ -19,7 +19,7 @@ export function TopBar() {
   return (
     <header className="topbar">
       <div className="brand">
-        <span className="brand-mark" aria-hidden />
+        <img className="brand-mark" src="/icon.svg" alt="" />
         Cloud Slicer
       </div>
       <ProjectMenu />
