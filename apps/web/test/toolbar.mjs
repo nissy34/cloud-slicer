@@ -164,6 +164,10 @@ try {
   if (!undoBox || undoBox.x < 0 || undoBox.x + undoBox.width > 390) fail(`Undo should stay on screen while the toolbar scrolls: ${JSON.stringify(undoBox)}`);
   await bar.getByRole('button', { name: 'Lay on face' }).tap();
   await phone.waitForTimeout(500);
+  // On a phone the tool's card sits under the 3D view, not over the plate.
+  const card = await phone.getByRole('region', { name: 'Lay on face' }).boundingBox();
+  const view = await phone.getByTestId('viewport').boundingBox();
+  if (!card || card.y < view.y + view.height - 1) fail(`the phone tool card covers the 3D view: ${JSON.stringify({ card, view })}`);
   if (shots) await phone.screenshot({ path: join(shots, 'toolbar-phone-flatten.png') });
   console.log('phone: toolbar scrolls inside the screen');
 } catch (e) {

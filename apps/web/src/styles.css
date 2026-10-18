@@ -1125,22 +1125,21 @@ select:focus-visible {
   .workspace-tools {
     top: 64px;
   }
-  /* Phone: the tool's options at the bottom of the 3D view, under the thumb. */
-  .tool-pop {
-    left: 8px !important;
-    right: 8px;
-    top: auto !important;
-    bottom: 52px;
+  /* Phone: the tool's options go right under the 3D view (Sidebar's tool
+     slot), so they never cover the plate; the card stays in view while the
+     column scrolls. */
+  .tool-pop.docked {
+    position: sticky;
+    top: 0;
+    z-index: 4;
     width: auto;
-    max-height: 45%;
+    max-height: none;
+    margin: 8px 0 4px;
     padding: 8px 10px;
   }
   .tool-panel,
   .paint-panel {
     gap: 4px;
-  }
-  .tool-pop .paint-panel .hint {
-    display: none;
   }
   .tool-pop .segmented button,
   .tool-pop .paint-states button {
@@ -1177,6 +1176,11 @@ select:focus-visible {
   .tabs {
     overflow-x: auto;
     scrollbar-width: none;
+  }
+  /* A long project name shortens so all three tabs stay readable. */
+  .topbar .project-button {
+    max-width: 84px;
+    padding: 5px 8px;
   }
 }
 @media (max-width: 380px) {
@@ -2765,9 +2769,26 @@ select:focus-visible {
   color: var(--muted);
   font-weight: 400;
 }
+/* Calibration: the word on a computer, the icon alone on a phone. */
+.calib-icon {
+  display: none;
+}
 @media (max-width: 760px) {
   .topbar {
     gap: 4px;
+  }
+  .topbar .calib-button {
+    display: grid;
+    place-items: center;
+    width: 28px;
+    height: 28px;
+    padding: 0;
+  }
+  .calib-icon {
+    display: block;
+  }
+  .calib-label {
+    display: none;
   }
   .topbar .icon-button {
     width: 28px;
