@@ -25,3 +25,9 @@ export function stageLabel(stage: string): string {
   const s = stage.trim().toLowerCase();
   return s ? s[0].toUpperCase() + s.slice(1) : '';
 }
+
+/** A byte count for download progress, e.g. "12.4 MB". */
+export function formatMegabytes(bytes: number): string {
+  const mb = bytes / 1e6;
+  return `${mb < 10 ? mb.toFixed(1) : Math.round(mb)} MB`;
+}

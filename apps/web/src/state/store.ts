@@ -4,6 +4,7 @@ import type {
   PaintOverlay,
   PaintRay,
   PaintSettings,
+  EngineLoading,
   OptionDef,
   OrcaConfig,
   PresetSummary,
@@ -32,15 +33,18 @@ const is3mf = (f: File) => /\.3mf$/i.test(f.name);
 export type EngineStatus = 'starting' | 'ready' | 'failed';
 export type Job =
   | { kind: 'idle' }
-  | { kind: 'loading'; name: string }
+  /** label: what the loading screen says, when not "Opening <name>". */
+  | { kind: 'loading'; name: string; label?: string }
   | { kind: 'slicing'; pct: number; stage: string }
   | { kind: 'sliced'; plate: number; result: SliceResult; gcode: Blob; ms: number }
   | { kind: 'error'; message: string };
 
-interface SlicerState {
+export interface SlicerState {
   tab: Tab;
   engine: EngineStatus;
   engineMessage: string;
+  /** While the engine starts: download progress, then setting it up and loading the printers. */
+  engineLoad: EngineLoading | { stage: 'printers'; loaded: number; total: number };
   vendorVersion: string;
 
   printers: PresetSummary[];
@@ -180,8 +184,9 @@ let enginePresets: UserPresetFile[] = [];
 export const useSlicer = create<SlicerState>((set, get) => {
   const engine = () => {
     client ??= new EngineClient({
+      onLoading: (engineLoad) => set({ engineLoad }),
       onReady: (presets) => {
-        set({ vendorVersion: presets.vendorVersion });
+        set({ vendorVersion: presets.vendorVersion, engineLoad: { ...get().engineLoad, stage: 'printers' } });
         void start();
       },
       onProgress: (pct, stage) => set({ job: { kind: 'slicing', pct, stage } }),
@@ -462,6 +467,7 @@ export const useSlicer = create<SlicerState>((set, get) => {
     tab: typeof location !== 'undefined' && /[#&]pair=/.test(location.hash) ? 'device' : 'prepare',
     engine: 'starting',
     engineMessage: '',
+    engineLoad: { stage: 'download', loaded: 0, total: 0 },
     vendorVersion: '',
     printers: [],
     processes: [],
@@ -663,8 +669,10 @@ export const useSlicer = create<SlicerState>((set, get) => {
       const c = get().conversion;
       if (!c) return;
       saveConvertPreference(remember ? { printer, keepSettings, auto: true } : null);
+      set({ job: { kind: 'loading', name: c.from, label: `Converting to ${printer}` } });
       try {
         await convert(c.file, printer, keepSettings);
+        set({ job: { kind: 'idle' } });
       } catch (e) {
         fail(e);
       }
@@ -719,7 +727,7 @@ export const useSlicer = create<SlicerState>((set, get) => {
     async startCalibration(mode, values) {
       const title = CALIBRATIONS.find((c) => c.mode === mode)?.title ?? mode;
       await get().endCalibration();
-      set({ tab: 'prepare', paint: null, overlay: null, selected: null, plate: 0, conversion: null, job: { kind: 'loading', name: `${title} test` } });
+      set({ tab: 'prepare', paint: null, overlay: null, selected: null, plate: 0, conversion: null, job: { kind: 'loading', name: `${title} test`, label: `Setting up the ${title} test` } });
       try {
         const res = await engine().calibrate(calibrationOptions(mode, values), get().overrides);
         set({ history: await engine().clearHistory() });

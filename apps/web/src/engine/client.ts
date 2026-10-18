@@ -1,4 +1,5 @@
 import type {
+  EngineLoading,
   OptionDef,
   PaintKind,
   PaintOverlay,
@@ -75,6 +76,7 @@ export interface ProjectThumbnail {
 type Pending = { resolve: (value: unknown) => void; reject: (e: Error) => void };
 
 export interface EngineEvents {
+  onLoading(loading: EngineLoading): void;
   onReady(presets: PresetsLoaded): void;
   onProgress(pct: number, stage: string): void;
   onFatal(message: string): void;
@@ -87,13 +89,19 @@ export class EngineClient {
   private pending = new Map<number, Pending>();
 
   constructor(private events: EngineEvents) {
-    this.worker = new Worker(`/engine/engine-worker.js?v=${import.meta.env.VITE_ENGINE_VERSION}`, { name: 'engine' });
+    // bytes: what the engine downloads (wasm + presets), for its progress; the
+    // server may compress them, so the response can't tell.
+    const query = `v=${import.meta.env.VITE_ENGINE_VERSION}&bytes=${import.meta.env.VITE_ENGINE_BYTES}`;
+    this.worker = new Worker(`/engine/engine-worker.js?${query}`, { name: 'engine' });
     this.worker.onmessage = ({ data }: MessageEvent<WorkerReply>) => this.receive(data);
     this.worker.onerror = (e) => events.onFatal(e.message || 'The engine worker failed to load.');
   }
 
   private receive(reply: WorkerReply) {
     switch (reply.type) {
+      case 'loading':
+        this.events.onLoading(reply.loading);
+        return;
       case 'ready':
         this.events.onReady(reply.presets);
         return;

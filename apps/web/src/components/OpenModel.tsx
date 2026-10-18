@@ -1,7 +1,9 @@
 import { useRef, useState, type DragEvent } from 'react';
 import { MODEL_EXTENSIONS } from '../lib/presets';
+import { useLoading } from '../state/loading';
 import { useProjects } from '../state/projects';
 import { useSlicer } from '../state/store';
+import { LoadingOverlay } from './LoadingOverlay';
 import { Toolbar } from './Toolbar';
 
 /** File button plus drag-and-drop anywhere over the workspace. */
@@ -14,6 +16,7 @@ export function OpenModel({ children }: { children: React.ReactNode }) {
   const { deletePlate } = useSlicer.getState();
   const input = useRef<HTMLInputElement>(null);
   const [dragging, setDragging] = useState(false);
+  const loading = useLoading() !== null;
 
   const onDrop = (e: DragEvent) => {
     e.preventDefault();
@@ -44,7 +47,7 @@ export function OpenModel({ children }: { children: React.ReactNode }) {
           e.target.value = '';
         }}
       />
-      {!hasModel && !dragging && (
+      {!hasModel && !dragging && !loading && (
         <div className="empty">
           <p>Drop STL, 3MF, OBJ or STEP files here</p>
           <button className="primary" onClick={() => input.current?.click()}>
@@ -74,6 +77,7 @@ export function OpenModel({ children }: { children: React.ReactNode }) {
         </>
       )}
       {dragging && <div className="dropzone">Drop to add</div>}
+      <LoadingOverlay />
     </div>
   );
 }
