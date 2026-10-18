@@ -43,7 +43,7 @@ export function ConvertDialog() {
           <span>Do this automatically next time</span>
         </label>
         <p className="muted small">
-          Speeds, acceleration, jerk, line widths, flow calibration and the prime tower come from {printer || 'your printer'}. Filaments are matched by material and keep the project's colours.
+          Speeds, acceleration, jerk, line widths, flow calibration and the prime tower come from {printer || 'your printer'}. Filaments are matched by material and kind (matte, silk, high flow...) and keep the project's colours.
         </p>
         <div className="dialog-actions">
           <button className="secondary" onClick={dismissConversion}>
