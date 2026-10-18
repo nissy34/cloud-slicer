@@ -66,9 +66,17 @@ jobs:
           path: engine/build/deps
           key: engine-deps-${{ env.EMSDK_VERSION }}-${{ hashFiles('engine/scripts/build-deps.sh') }}
 
+      # Feature branches can only read caches from their own branch and main, so
+      # a main run that fails here leaves every new branch rebuilding from
+      # scratch. ftp.gnu.org (gmp, mpfr) regularly times out: retry downloads
+      # through a .curlrc (this step only) so build-deps.sh, and with it the cache key, stays as is.
       - name: Build engine dependencies (cache miss only)
         if: steps.deps-cache.outputs.cache-hit != 'true'
+        env:
+          CURL_HOME: ${{ runner.temp }}/curl-retry
         run: |
+          mkdir -p "$CURL_HOME"
+          printf '%s\n' 'retry = 6' 'retry-delay = 20' 'retry-all-errors' 'connect-timeout = 30' > "$CURL_HOME/.curlrc"
           source "$RUNNER_TEMP/emsdk/emsdk_env.sh"
           engine/scripts/build-deps.sh
 
@@ -91,14 +99,18 @@ jobs:
         env:
           EM_COMPILER_WRAPPER: ccache
           CCACHE_DIR: ${{ runner.temp }}/ccache
-          CCACHE_MAXSIZE: 3G
+          # Each commit saves its own copy, and the repo has 10 GB of cache in
+          # total; a small cap keeps these from evicting the dependency cache.
+          CCACHE_MAXSIZE: 1G
           CCACHE_BASEDIR: ${{ github.workspace }}
         run: |
           source "$RUNNER_TEMP/emsdk/emsdk_env.sh"
           emcmake cmake -S engine -B engine/build/engine -G Ninja -DCMAKE_BUILD_TYPE=Release
           cmake --build engine/build/engine
           ls -la engine/build/engine/orca-engine.*
-          ccache -s | head -8
+          ccache -s | tee "$RUNNER_TEMP/ccache.txt" | head -8
+          { echo '### Engine build'; echo "dependency cache hit: ${{ steps.deps-cache.outputs.cache-hit || 'false' }}";
+            echo '```'; head -8 "$RUNNER_TEMP/ccache.txt"; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Save compiler cache
         if: always()
