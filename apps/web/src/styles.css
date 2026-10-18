@@ -1206,15 +1206,27 @@ select:focus-visible {
     font-size: 12px;
   }
 }
-/* Narrow phones (360 px): keep the top bar inside the screen. */
-@media (max-width: 380px) {
+/* Narrow phones (360-420 px): keep the top bar, with its theme and account buttons, inside the screen. */
+@media (max-width: 420px) {
   .topbar {
     gap: 4px;
     padding: 0 6px;
+    min-width: 0;
   }
   .tab,
   .topbar .ghost {
-    padding: 6px 6px;
+    padding: 6px 5px;
+  }
+  /* If the fonts still make the bar too wide, the tabs scroll instead of the page. */
+  .tabs {
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+}
+@media (max-width: 380px) {
+  .tab,
+  .topbar .ghost {
+    font-size: 12px;
   }
 }
 
