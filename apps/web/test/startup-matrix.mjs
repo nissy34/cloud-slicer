@@ -25,6 +25,8 @@ await new Promise((ok, fail) => {
 const variants = [
   {},
   { timezoneId: 'Asia/Jerusalem', locale: 'he-IL' },
+  { timezoneId: 'Asia/Jerusalem', locale: 'it-IT' },
+  { timezoneId: 'Europe/Rome', locale: 'it-IT', cores: 32 },
   { timezoneId: 'America/Los_Angeles', locale: 'en-US', cores: 16 },
   { timezoneId: 'Asia/Jerusalem', locale: 'en-US', cores: 32 },
   { timezoneId: 'UTC', locale: 'en-US', cores: 1 },
