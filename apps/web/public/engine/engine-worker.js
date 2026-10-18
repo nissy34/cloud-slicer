@@ -140,5 +140,8 @@ if (self.name !== 'em-pthread') {
     }
   };
 
-  ready.catch((e) => postMessage({ type: 'error', id: null, message: `Engine failed to start: ${e?.message ?? e}` }));
+  ready.catch((e) => {
+    console.error('Engine failed to start', e?.stack ?? e);
+    postMessage({ type: 'error', id: null, message: `Engine failed to start: ${e?.message ?? e}` });
+  });
 }
