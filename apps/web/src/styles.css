@@ -14,6 +14,10 @@
   --scene-grid: #9ba3af;
   --scene-ground: #b9bfc8;
   --scene-text: #3b414b;
+  /* Measure tool features, both themes (same as MEASURE_COLOURS in lib/measure.ts) */
+  --measure-hover: #f5c542;
+  --measure-first: #ff6b4a;
+  --measure-second: #3fa7ff;
   --radius: 8px;
   --topbar: 48px;
   color-scheme: light;
@@ -926,6 +930,53 @@ select:focus-visible {
   padding: 0;
   border: 0;
   background: none;
+}
+/* Measure: the picked features (their colours match the 3D view) and what lies between them. */
+.measure-figures {
+  display: grid;
+  gap: 2px;
+  margin: 0;
+  padding: 6px 8px;
+  border-left: 3px solid var(--measure-hover);
+  border-radius: 4px;
+  background: var(--surface-2);
+  font-size: 0.9em;
+}
+.measure-figures.pick-1 {
+  border-left-color: var(--measure-first);
+}
+.measure-figures.pick-2 {
+  border-left-color: var(--measure-second);
+}
+.measure-figures.result {
+  border-left-color: var(--accent);
+}
+.measure-figures > div {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+}
+.measure-figures dt {
+  color: var(--muted);
+}
+.measure-figures dt.measure-title {
+  color: inherit;
+  font-weight: 600;
+}
+.measure-figures dd {
+  margin: 0;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+.measure-label {
+  padding: 1px 6px;
+  border-radius: 4px;
+  background: rgb(20 24 28 / 85%);
+  color: #fff;
+  font-size: 12px;
+  white-space: nowrap;
+  pointer-events: none;
+  font-variant-numeric: tabular-nums;
 }
 .workspace-tools {
   position: absolute;
