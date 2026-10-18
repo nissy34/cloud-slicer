@@ -182,6 +182,10 @@ export class DirectLink implements PrinterLink {
     });
   }
 
+  mediaUrl(url: string): string | null {
+    return directBlockedReason(this.baseUrl) ? null : this.resolve(url);
+  }
+
   async snapshot(url: string): Promise<Blob> {
     const sep = url.includes('?') ? '&' : '?';
     const r = await this.fetch(`${url}${sep}_t=${Date.now()}`, { cache: 'no-store' }, 5000);

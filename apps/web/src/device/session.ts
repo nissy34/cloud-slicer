@@ -3,6 +3,7 @@
 // Reconnects by itself; the UI only reads what the callbacks report.
 import { detectAddons, type PrinterAddon, type PrinterFacts } from './addons';
 import type { BridgeStatus, PrinterLink, RpcMessage } from './link/types';
+import { parseWebcams, type Webcam } from './camera';
 import { genericObjects, mergeStatus, type KlipperObjects } from './status';
 
 export type ConnState = 'connecting' | 'online' | 'offline';
@@ -19,13 +20,23 @@ export interface GcodeFile {
   size: number;
 }
 
-export interface Webcam {
-  name: string;
-  snapshotUrl: string;
-  streamUrl: string;
-  flipH: boolean;
-  flipV: boolean;
-  rotation: number;
+export type { Webcam };
+
+/**
+ * Whether a notify_filelist_changed touches the gcodes root. Moonraker sends
+ * one for every root it watches, and the Snapmaker U1's camera rewrites
+ * camera/monitor.jpg several times a second while it is watched: refreshing
+ * the G-code list on each of those kept Moonraker busy rescanning gcodes
+ * until it dropped its connection to Klipper.
+ */
+export function touchesGcodes(params: unknown): boolean {
+  const items = Array.isArray(params) ? params : [params];
+  return items.some((p) => {
+    const e = p as { item?: { root?: string }; source_item?: { root?: string } } | null;
+    const roots = [e?.item?.root, e?.source_item?.root].filter((r) => r != null);
+    // No root at all: an older Moonraker; assume it may be G-code.
+    return roots.length === 0 || roots.includes('gcodes');
+  });
 }
 
 export interface SessionEvents {
@@ -171,7 +182,7 @@ export class PrinterSession {
         this.scheduleFlush();
         break;
       case 'notify_filelist_changed':
-        this.ev.onFilesChanged();
+        if (touchesGcodes(msg.params)) this.ev.onFilesChanged();
         break;
     }
   }
@@ -241,26 +252,12 @@ export class PrinterSession {
   emergencyStop = () => this.rpc('printer.emergency_stop');
   firmwareRestart = () => this.rpc('printer.firmware_restart');
 
+  /** Cameras configured in Moonraker; empty when it has none or can't say. */
   async webcams(): Promise<Webcam[]> {
     try {
-      const r = await this.rpc<{ webcams: Record<string, unknown>[] }>('server.webcams.list');
-      return (r.webcams ?? [])
-        .filter((w) => w.enabled !== false)
-        .map((w) => ({
-          name: String(w.name ?? 'Camera'),
-          snapshotUrl: String(w.snapshot_url ?? ''),
-          streamUrl: String(w.stream_url ?? ''),
-          flipH: w.flip_horizontal === true,
-          flipV: w.flip_vertical === true,
-          rotation: Number(w.rotation ?? 0) || 0,
-        }));
+      return parseWebcams(await this.rpc('server.webcams.list'));
     } catch {
       return [];
     }
-  }
-
-  /** Fire-and-forget call (camera keep-alives); errors are ignored. */
-  notify(method: string, params?: unknown) {
-    this.rpc(method, params, 10_000).catch(() => {});
   }
 }

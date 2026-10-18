@@ -36,6 +36,11 @@ export interface PrinterLink {
   upload(blob: Blob, path: string, onProgress?: (fraction: number) => void): Promise<string>;
   /** One camera frame. `url` may be relative to the printer ("/webcam/?action=snapshot"). */
   snapshot(url: string): Promise<Blob>;
+  /**
+   * A camera address the browser can load itself (MJPEG stream, player page,
+   * WebRTC signalling), or null when only single frames can be fetched.
+   */
+  mediaUrl(url: string): string | null;
 }
 
 export class LinkError extends Error {

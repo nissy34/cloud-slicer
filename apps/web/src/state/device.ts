@@ -14,6 +14,7 @@ import { create } from 'zustand';
 import type { Device } from '../account/api';
 import { deleteDevice, getDeviceApiKey, saveDevice, useAccount } from './account';
 import type { PrinterAddon, PrinterFacts } from '../device/addons';
+import { coalesce } from '../device/coalesce';
 import { BridgeLink } from '../device/link/bridge';
 import { DirectLink } from '../device/link/direct';
 import type { BridgeStatus, PrinterLink } from '../device/link/types';
@@ -21,9 +22,12 @@ import { decodePairing, type Pairing } from '../device/pairing';
 import { PrinterSession, type ConnState, type ConsoleLine, type GcodeFile } from '../device/session';
 import type { KlipperObjects } from '../device/status';
 
+/** Shared by both kinds: `hiddenCameras` names the webcams the user chose not to show. */
+type PrinterCommon = { id: string; name: string; preset?: string; hiddenCameras?: string[] };
+
 export type SavedPrinter =
-  | { id: string; name: string; kind: 'direct'; url: string; apiKey: string; preset?: string }
-  | { id: string; name: string; kind: 'bridge'; relay: string; bridgeId: string; key: string; printer: string; preset?: string };
+  | (PrinterCommon & { kind: 'direct'; url: string; apiKey: string })
+  | (PrinterCommon & { kind: 'bridge'; relay: string; bridgeId: string; key: string; printer: string });
 
 export type SendSource = { kind: 'upload'; blob: Blob; name: string } | { kind: 'file'; path: string };
 
@@ -51,6 +55,8 @@ interface DeviceState {
   start(): void;
   select(id: string | null): void;
   savePrinter(p: SavedPrinter): Promise<void>;
+  /** Which of the active printer's cameras to hide, by name; saved with the printer. */
+  setHiddenCameras(names: string[]): Promise<void>;
   removePrinter(id: string): Promise<void>;
   openEditor(editor: { mode: 'add' } | { mode: 'edit'; id: string } | null): Promise<void>;
   run(script: string): Promise<boolean>;
@@ -88,19 +94,22 @@ function store(key: string, value: unknown) {
 /** A saved account printer as the Device tab sees it (secret not filled in). */
 export function printerFromDevice(d: Device): SavedPrinter | null {
   const x = d.extra ?? {};
+  const hidden = Array.isArray(x.hiddenCameras) ? x.hiddenCameras.filter((n): n is string => typeof n === 'string') : [];
+  const common = { ...(d.preset && { preset: d.preset }), ...(hidden.length && { hiddenCameras: hidden }) };
   if (x.kind === 'bridge' && typeof x.relay === 'string' && typeof x.bridgeId === 'string') {
-    return { id: d.id, name: d.name, kind: 'bridge', relay: x.relay, bridgeId: x.bridgeId, key: '', printer: typeof x.printer === 'string' ? x.printer : '', ...(d.preset && { preset: d.preset }) };
+    return { id: d.id, name: d.name, kind: 'bridge', relay: x.relay, bridgeId: x.bridgeId, key: '', printer: typeof x.printer === 'string' ? x.printer : '', ...common };
   }
-  return d.url ? { id: d.id, name: d.name, kind: 'direct', url: d.url, apiKey: '', ...(d.preset && { preset: d.preset }) } : null;
+  return d.url ? { id: d.id, name: d.name, kind: 'direct', url: d.url, apiKey: '', ...common } : null;
 }
 
 const secretOf = (p: SavedPrinter) => (p.kind === 'direct' ? p.apiKey : p.key);
 const withSecret = (p: SavedPrinter, secret: string): SavedPrinter => (p.kind === 'direct' ? { ...p, apiKey: secret } : { ...p, key: secret });
 
 export function deviceInput(p: SavedPrinter) {
+  const cams = p.hiddenCameras?.length ? { hiddenCameras: p.hiddenCameras } : {};
   return p.kind === 'direct'
-    ? { id: p.id, name: p.name, url: p.url, apiKey: p.apiKey || null, preset: p.preset, extra: { kind: 'direct' } }
-    : { id: p.id, name: p.name, url: '', apiKey: p.key, preset: p.preset, extra: { kind: 'bridge', relay: p.relay, bridgeId: p.bridgeId, printer: p.printer } };
+    ? { id: p.id, name: p.name, url: p.url, apiKey: p.apiKey || null, preset: p.preset, extra: { kind: 'direct', ...cams } }
+    : { id: p.id, name: p.name, url: '', apiKey: p.key, preset: p.preset, extra: { kind: 'bridge', relay: p.relay, bridgeId: p.bridgeId, printer: p.printer, ...cams } };
 }
 
 /** Secrets fetched or saved this visit, by printer id. */
@@ -157,6 +166,9 @@ let connectSeq = 0;
 /** The printer this browser is saving right now: its secret is already cached. */
 let savingId: string | null = null;
 let toastTimer: ReturnType<typeof setTimeout> | null = null;
+
+/** Moonraker rescans the whole gcodes folder for every list: never ask more than every 2 s. */
+const FILE_LIST_GAP_MS = 2000;
 
 /** The live session, for components that call the printer directly (camera). */
 export const currentSession = () => session;
@@ -260,6 +272,23 @@ export const useDevice = create<DeviceState>((set, get) => {
       get().select(p.id);
     },
 
+    async setHiddenCameras(names) {
+      const p = get().printers.find((x) => x.id === get().activeId);
+      if (!p) return;
+      const next = { ...p, hiddenCameras: [...new Set(names)] };
+      // Show the change at once; the account store follows.
+      set({ printers: get().printers.map((x) => (x.id === p.id ? next : x)) });
+      savingId = p.id;
+      try {
+        // apiKey undefined: keep the saved secret as it is.
+        await saveDevice({ ...deviceInput(next), apiKey: undefined });
+      } catch (e) {
+        get().setToast(`Could not save the camera choice: ${(e as Error).message}`, true);
+      } finally {
+        savingId = null;
+      }
+    },
+
     async removePrinter(id) {
       try {
         await deleteDevice(id);
@@ -299,15 +328,16 @@ export const useDevice = create<DeviceState>((set, get) => {
       }
     },
 
-    async refreshFiles() {
-      if (!session) return;
+    refreshFiles: coalesce(async () => {
+      const s = session;
+      if (!s) return;
       try {
-        const files = await session.listFiles();
-        set({ files });
+        const files = await s.listFiles();
+        if (session === s) set({ files });
       } catch {
         // keep the last list; the connection state already says what is wrong
       }
-    },
+    }, FILE_LIST_GAP_MS),
 
     requestSend(blob, name) {
       set({ send: { kind: 'upload', blob, name } });

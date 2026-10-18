@@ -19,9 +19,14 @@ export const u1Addon: PrinterAddon = {
       (n) => ['print_task_config', 'purifier', 'machine_state_manager', 'filament_detect', U1_LIGHT].includes(n) || n.startsWith('filament_feed '),
     ),
   camera: {
-    // The U1's camera service writes frames here while a monitor session is open.
+    // Stock firmware has no [webcam] section: its camera service writes frames
+    // here while a monitor session is open. Moonraker relays each
+    // start_monitor to that service and waits up to 10 s for it, so ask
+    // rarely; and the frame file is rewritten in place, so poll it gently.
+    name: 'Camera',
     snapshotUrl: '/server/files/camera/monitor.jpg',
-    keepalive: { method: 'camera.start_monitor', params: { domain: 'lan', interval: 0 }, everyMs: 2000 },
+    fps: 2,
+    keepalive: { method: 'camera.start_monitor', params: { domain: 'lan', interval: 0 }, everyMs: 15_000 },
   },
   activity: (o) => u1Activity(o),
 };

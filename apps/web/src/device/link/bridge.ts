@@ -143,6 +143,11 @@ export class BridgeLink implements PrinterLink {
     return done.path;
   }
 
+  /** The browser can't reach the printer's network: cameras come as single frames only. */
+  mediaUrl(): string | null {
+    return null;
+  }
+
   async snapshot(url: string): Promise<Blob> {
     const r = await this.call<{ contentType: string; data: string }>('bridge.snapshot', { url }, 8000);
     return new Blob([fromBase64(r.data) as BlobPart], { type: r.contentType || 'image/jpeg' });
