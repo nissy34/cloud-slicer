@@ -16,7 +16,8 @@
 //
 // Part of Cloud Slicer (AGPL-3.0): https://github.com/nissy34/cloud-slicer
 import { createHmac, randomBytes } from 'node:crypto';
-import { openAsBlob } from 'node:fs';
+// fs as a namespace: a named import of openAsBlob would fail before main() can say Node is too old.
+import * as fs from 'node:fs';
 import { mkdtemp, readFile, rm, writeFile, appendFile } from 'node:fs/promises';
 import { homedir, tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -263,7 +264,7 @@ class Session {
         try {
           const form = new FormData();
           form.append('root', 'gcodes');
-          form.append('file', await openAsBlob(up.file), up.path);
+          form.append('file', await fs.openAsBlob(up.file), up.path);
           const r = await fetch(`${this.printer.url}/server/files/upload`, { method: 'POST', body: form, headers: this.keyFor(this.printer.url) });
           const body = await r.json().catch(() => ({}));
           if (!r.ok) throw new Error(body?.error?.message ?? `Upload failed: HTTP ${r.status}`);
@@ -375,6 +376,9 @@ export function runBridge(cfg, { log = console.log } = {}) {
 // ---- command line ------------------------------------------------------------------
 
 async function main() {
+  if (Number(process.versions.node.split('.')[0]) < 22) {
+    throw new Error(`The bridge needs Node.js 22 or newer; this is ${process.version}. Install it from https://nodejs.org (or with nvm: nvm install 22).`);
+  }
   const { opts, rest } = parseArgs(process.argv.slice(2));
   const path = String(opts.config ?? process.env.CLOUD_SLICER_BRIDGE_CONFIG ?? join(homedir(), '.cloud-slicer-bridge.json'));
   const cfg = await loadConfig(path, opts.relay);
