@@ -1,9 +1,11 @@
 #!/usr/bin/env node
 // Starts the engine under browser settings that differ from CI's (time zone,
-// language, CPU count), since startup has failed on users' machines while the
-// plain smoke test passed.
+// language, CPU count) and in the current stable Google Chrome as well as
+// Playwright's bundled Chromium, since startup has failed on users' machines
+// while the plain smoke test passed.
 //
 //   node test/startup-matrix.mjs        # needs `npm run build` first
+//   STARTUP_CHROME=1 …                  # also run in stable Chrome (npx playwright install chrome)
 import { spawn } from 'node:child_process';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -21,6 +23,7 @@ await new Promise((ok, fail) => {
 });
 
 const variants = [
+  {},
   { timezoneId: 'Asia/Jerusalem', locale: 'he-IL' },
   { timezoneId: 'America/Los_Angeles', locale: 'en-US', cores: 16 },
   { timezoneId: 'Asia/Jerusalem', locale: 'en-US', cores: 32 },
@@ -28,13 +31,18 @@ const variants = [
   { timezoneId: 'UTC', locale: 'en-US', cores: 64 },
 ];
 
-const browser = await chromium.launch(
-  process.env.PLAYWRIGHT_BROWSERS_PATH === '/opt/pw-browsers' ? { executablePath: '/opt/pw-browsers/chromium' } : {},
-);
+const browsers = [
+  await chromium.launch(
+    process.env.PLAYWRIGHT_BROWSERS_PATH === '/opt/pw-browsers' ? { executablePath: '/opt/pw-browsers/chromium' } : {},
+  ),
+];
+if (process.env.STARTUP_CHROME) browsers.push(await chromium.launch({ channel: 'chrome' }));
 let failed = 0;
+let runs = 0;
 try {
-  for (const { cores, ...options } of variants) {
-    const label = JSON.stringify({ ...options, cores });
+  for (const browser of browsers) for (const { cores, ...options } of variants) {
+    runs++;
+    const label = `Chrome ${browser.version()} ${JSON.stringify({ ...options, cores })}`;
     const context = await browser.newContext(options);
     if (cores) {
       // Workers have their own navigator, so patch it in the worker script itself
@@ -60,10 +68,10 @@ try {
     await context.close();
   }
 } finally {
-  await browser.close();
+  for (const browser of browsers) await browser.close();
   process.kill(-server.pid);
 }
 if (failed) {
-  console.error(`STARTUP MATRIX: ${failed} of ${variants.length} failed`);
+  console.error(`STARTUP MATRIX: ${failed} of ${runs} failed`);
   process.exitCode = 1;
 }

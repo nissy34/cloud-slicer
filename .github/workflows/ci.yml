@@ -145,7 +145,8 @@ jobs:
         run: |
           npx playwright install --with-deps chromium
           node test/smoke.mjs ../../fixtures/3DBenchy.stl smoke.png
-          node test/startup-matrix.mjs
+          npx playwright install --with-deps chrome
+          STARTUP_CHROME=1 node test/startup-matrix.mjs
 
       - name: Accounts end to end (Pages Functions + local D1, mock OAuth)
         working-directory: apps/web
