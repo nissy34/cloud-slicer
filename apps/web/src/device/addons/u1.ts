@@ -5,6 +5,7 @@
 // (the top cover's air purifier), machine_state_manager and the cavity light.
 import type { KlipperObjects } from '../status';
 import type { PrinterAddon } from './types';
+import { differenceCie76 } from 'culori';
 
 export const U1_HEADS = 4;
 export const U1_LIGHT = 'led cavity_led';
@@ -214,24 +215,11 @@ export function u1PrintPrepGcode(options: U1PrintOptions, toolMap: Record<number
   return out;
 }
 
+const cie76 = differenceCie76();
+
 /** CIE76 distance between two #RRGGBB colours, for suggesting a head per filament. */
 export function colourDistance(a: string, b: string): number {
-  const lab = (hex: string) => {
-    const n = parseInt(hex.replace('#', ''), 16);
-    const lin = [(n >> 16) & 255, (n >> 8) & 255, n & 255].map((c) => {
-      const v = c / 255;
-      return v > 0.04045 ? ((v + 0.055) / 1.055) ** 2.4 : v / 12.92;
-    });
-    const [x, y, z] = [
-      (lin[0] * 0.4124 + lin[1] * 0.3576 + lin[2] * 0.1805) / 0.95047,
-      lin[0] * 0.2126 + lin[1] * 0.7152 + lin[2] * 0.0722,
-      (lin[0] * 0.0193 + lin[1] * 0.1192 + lin[2] * 0.9505) / 1.08883,
-    ].map((t) => (t > 0.008856 ? Math.cbrt(t) : 7.787 * t + 16 / 116));
-    return [116 * y - 16, 500 * (x - y), 200 * (y - z)];
-  };
-  const [l1, a1, b1] = lab(a);
-  const [l2, a2, b2] = lab(b);
-  return Math.hypot(l1 - l2, a1 - a2, b1 - b2);
+  return cie76(a, b);
 }
 
 /**

@@ -8,9 +8,9 @@
 //
 // Tests read every G-code script it received from mock.scripts.
 import { createServer } from 'node:http';
-import { createHash } from 'node:crypto';
 import { crc32, deflateSync } from 'node:zlib';
 import { fileURLToPath } from 'node:url';
+import { WebSocketServer } from 'ws';
 
 function u1State(generic) {
   const s = {
@@ -84,54 +84,6 @@ function pngFrame(n, w = 64, h = 48) {
   return Buffer.concat([Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]), chunk('IHDR', ihdr), chunk('IDAT', deflateSync(raw)), chunk('IEND', Buffer.alloc(0))]);
 }
 
-function wsFrame(text) {
-  const data = Buffer.from(text);
-  let head;
-  if (data.length < 126) head = Buffer.from([0x81, data.length]);
-  else if (data.length < 65536) {
-    head = Buffer.alloc(4);
-    head[0] = 0x81;
-    head[1] = 126;
-    head.writeUInt16BE(data.length, 2);
-  } else {
-    head = Buffer.alloc(10);
-    head[0] = 0x81;
-    head[1] = 127;
-    head.writeBigUInt64BE(BigInt(data.length), 2);
-  }
-  return Buffer.concat([head, data]);
-}
-
-function wsReader(onText, onClose) {
-  let buf = Buffer.alloc(0);
-  return (chunk) => {
-    buf = Buffer.concat([buf, chunk]);
-    while (buf.length >= 2) {
-      const op = buf[0] & 0x0f;
-      const masked = buf[1] & 0x80;
-      let len = buf[1] & 0x7f;
-      let off = 2;
-      if (len === 126) {
-        if (buf.length < 4) return;
-        len = buf.readUInt16BE(2);
-        off = 4;
-      } else if (len === 127) {
-        if (buf.length < 10) return;
-        len = Number(buf.readBigUInt64BE(2));
-        off = 10;
-      }
-      const need = off + (masked ? 4 : 0) + len;
-      if (buf.length < need) return;
-      const mask = masked ? buf.subarray(off, off + 4) : null;
-      const payload = Buffer.from(buf.subarray(off + (masked ? 4 : 0), need));
-      if (mask) for (let i = 0; i < payload.length; i++) payload[i] ^= mask[i % 4];
-      buf = buf.subarray(need);
-      if (op === 8) return onClose();
-      if (op === 1) onText(payload.toString());
-    }
-  };
-}
-
 export async function startMockPrinter({ port = 0, host = '127.0.0.1', generic = false } = {}) {
   let state = u1State(generic);
   const files = new Map([['calibration_cube.gcode', { size: 123456, modified: Date.now() / 1000 - 3600, text: '; filament_colour = #FF0000\n; filament_type = PLA\n; filament used [g] = 5.1\n' }]]);
@@ -142,13 +94,13 @@ export async function startMockPrinter({ port = 0, host = '127.0.0.1', generic =
 
   const broadcast = (method, params) => {
     const text = JSON.stringify({ jsonrpc: '2.0', method, params });
-    for (const c of clients) c.socket.write(wsFrame(text));
+    for (const c of clients) c.ws.send(text);
   };
   const patch = (diff) => {
     for (const [k, v] of Object.entries(diff)) state[k] = { ...(state[k] ?? {}), ...v };
     for (const c of clients) {
       const mine = Object.fromEntries(Object.entries(diff).filter(([k]) => c.objects.has(k)));
-      if (Object.keys(mine).length) c.socket.write(wsFrame(JSON.stringify({ jsonrpc: '2.0', method: 'notify_status_update', params: [mine, Date.now() / 1000] })));
+      if (Object.keys(mine).length) c.ws.send(JSON.stringify({ jsonrpc: '2.0', method: 'notify_status_update', params: [mine, Date.now() / 1000] }));
     }
   };
 
@@ -352,36 +304,27 @@ export async function startMockPrinter({ port = 0, host = '127.0.0.1', generic =
     return send(404, { error: { message: `Not found: ${url.pathname}` } });
   });
 
-  server.on('upgrade', (req, socket) => {
-    if (new URL(req.url, 'http://mock').pathname !== '/websocket') return socket.end('HTTP/1.1 404 Not Found\r\n\r\n');
-    const accept = createHash('sha1').update(`${req.headers['sec-websocket-key']}258EAFA5-E914-47DA-95CA-C5AB0DC85B11`).digest('base64');
-    socket.write(`HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r\nConnection: Upgrade\r\nSec-WebSocket-Accept: ${accept}\r\n\r\n`);
-    const client = { socket, objects: new Set() };
+  const wss = new WebSocketServer({ server, path: '/websocket' });
+  wss.on('connection', (ws) => {
+    const client = { ws, objects: new Set() };
     clients.add(client);
-    const drop = () => {
-      clients.delete(client);
-      socket.destroy();
-    };
-    socket.on(
-      'data',
-      wsReader((text) => {
-        let msg;
-        try {
-          msg = JSON.parse(text);
-        } catch {
-          return;
-        }
-        try {
-          if (msg.method === 'printer.objects.subscribe') client.objects = new Set(Object.keys(msg.params?.objects ?? {}));
-          const result = rpc(msg.method, msg.params);
-          socket.write(wsFrame(JSON.stringify({ jsonrpc: '2.0', id: msg.id, result })));
-        } catch (e) {
-          socket.write(wsFrame(JSON.stringify({ jsonrpc: '2.0', id: msg.id, error: { code: e.code ?? 400, message: e.message } })));
-        }
-      }, drop),
-    );
-    socket.on('close', drop);
-    socket.on('error', drop);
+    ws.on('close', () => clients.delete(client));
+    ws.on('error', () => clients.delete(client));
+    ws.on('message', (data) => {
+      let msg;
+      try {
+        msg = JSON.parse(String(data));
+      } catch {
+        return;
+      }
+      try {
+        if (msg.method === 'printer.objects.subscribe') client.objects = new Set(Object.keys(msg.params?.objects ?? {}));
+        const result = rpc(msg.method, msg.params);
+        ws.send(JSON.stringify({ jsonrpc: '2.0', id: msg.id, result }));
+      } catch (e) {
+        ws.send(JSON.stringify({ jsonrpc: '2.0', id: msg.id, error: { code: e.code ?? 400, message: e.message } }));
+      }
+    });
   });
 
   await new Promise((ok) => server.listen(port, host, ok));
@@ -400,7 +343,8 @@ export async function startMockPrinter({ port = 0, host = '127.0.0.1', generic =
     async close() {
       clearInterval(drift);
       clearInterval(printTimer);
-      for (const c of clients) c.socket.destroy();
+      for (const c of clients) c.ws.terminate();
+      wss.close();
       server.closeAllConnections?.();
       await new Promise((ok) => server.close(ok));
     },
