@@ -462,7 +462,14 @@ if (withApp)
       await menu.click();
       await page.getByText('Signed in with Google as bob@example.com').waitFor();
       await page.getByText('1 process').waitFor();
-      const settings = (await (await bobBrowser.json('/api/settings')).json()).settings;
+      // The merged settings upload after the presets, so wait for them too.
+      const merged = { printers: ['Snapmaker U1 (0.4 nozzle)', 'Snapmaker J1'] };
+      let settings = [];
+      for (let i = 0; i < 50; i++) {
+        if (i) await new Promise((r) => setTimeout(r, 200));
+        settings = (await (await bobBrowser.json('/api/settings')).json()).settings;
+        if (JSON.stringify(settings[0]?.value) === JSON.stringify(merged)) break;
+      }
       assert.deepEqual(settings[0].value, { printers: ['Snapmaker U1 (0.4 nozzle)', 'Snapmaker J1'] }, 'browser choices merged into the account');
       // The printers upload after the presets and settings, so wait for it rather than racing it.
       let devices = [];
