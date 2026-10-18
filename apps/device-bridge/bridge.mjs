@@ -30,7 +30,7 @@ import { basename, dirname, join } from 'node:path';
 import { createInterface } from 'node:readline';
 import { pathToFileURL } from 'node:url';
 
-export const VERSION = '3';
+export const VERSION = '4';
 /** True in the one-file app (bun build --compile), false under node or bun. */
 const APP = Boolean(process.versions.bun) && !/^bun(\.exe)?$/i.test(basename(process.execPath));
 /** The Mac app opened from Finder: it has no terminal window, but was opened by hand all the same. */
@@ -622,7 +622,7 @@ export function runBridge(cfg, { log = console.log, save = async () => {}, onRep
   let stopped = false;
 
   const toRelay = (obj) => relay?.readyState === WebSocket.OPEN && relay.send(JSON.stringify(obj));
-  const hello = () => toRelay({ ctl: 'hello', version: VERSION, printers: cfg.printers.map(({ id, name }) => ({ id, name })) });
+  const hello = () => toRelay({ ctl: 'hello', version: VERSION, system: process.platform, app: APP, printers: cfg.printers.map(({ id, name }) => ({ id, name })) });
 
   /** Calls from a window with no printer chosen: finding, adding and removing this bridge's printers from the Device tab. */
   const manage = async (method, p = {}) => {

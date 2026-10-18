@@ -107,6 +107,45 @@ export function UninstallBridge() {
   );
 }
 
+const FROM_PLATFORM: Record<string, BridgeOs> = { win32: 'windows', darwin: 'mac', linux: 'linux' };
+const STARTS_WHEN = { windows: 'when you sign in to Windows', mac: 'when you log in to the Mac', linux: 'when the computer starts' };
+const LOG = { mac: '~/Library/Logs/cloud-slicer-bridge.log', linux: 'journalctl --user -u cloud-slicer-bridge -n 50' } as const;
+
+/**
+ * What to do when the bridge is offline, for the bridge computer's own system
+ * when the bridge said which it is (version 4 on), else with a choice of system.
+ */
+export function BridgeOffline({ system, app }: { system?: string; app?: boolean }) {
+  const known = system ? FROM_PLATFORM[system] : undefined;
+  const [picked, setOs] = useBridgeOs();
+  const os = known ?? picked;
+  if (known && app === false) {
+    return (
+      <div className="dv-about-commands" data-testid="bridge-offline-help">
+        <span>The bridge isn't running. On its computer, start it again and keep it running:</span>
+        <CopyCommand command="node cloud-slicer-bridge.mjs" testId="bridge-offline-command" />
+        <span className="muted">This page reconnects by itself.</span>
+      </div>
+    );
+  }
+  return (
+    <div className="dv-about-commands" data-testid="bridge-offline-help">
+      <span>
+        The bridge isn't running{known ? ` on its ${os === 'windows' ? 'Windows PC' : os === 'mac' ? 'Mac' : 'Linux computer'}` : ''}. It starts by itself{' '}
+        {STARTS_WHEN[os]}, so first check that computer is on{os === 'linux' ? '' : ', signed in'} and online. This page reconnects by itself.
+      </span>
+      {!known && <OsTabs os={os} onChange={setOs} />}
+      <span className="muted">Still offline? Start it again on that computer, in {SHELL_NAME[os]}:</span>
+      <CopyCommand command={`${BRIDGE_COMMAND[os]} install`} testId="bridge-offline-command" />
+      <span className="muted">
+        That starts it in the background and sets it to start with the computer again (it also opens the pairing page there, which you can close).
+        {os !== 'windows' && <> If it keeps stopping, its log says why: <code>{LOG[os]}</code>.</>} If the command says the path can't be found, download
+        the bridge again from Add a printer and open it.
+      </span>
+    </div>
+  );
+}
+
 /**
  * How to set up the bridge on the computer near the printer: one app to open
  * on Windows and macOS, one command on Linux and Raspberry Pi, and the
