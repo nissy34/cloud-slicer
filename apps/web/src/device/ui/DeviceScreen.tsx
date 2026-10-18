@@ -95,7 +95,8 @@ export function DeviceScreen() {
           )}
           {agentOffline && (
             <div className="dv-banner" role="status">
-              The bridge computer is offline. Start the bridge on it again (node cloud-slicer-bridge.mjs) and this page reconnects by itself.
+              The bridge isn't running. It starts by itself when its computer is on: check that computer is on and online, or open the Cloud Slicer Bridge app
+              there again. This page reconnects by itself.
             </div>
           )}
           {/* Two columns on wide screens; one on phones, where CSS order interleaves them. */}

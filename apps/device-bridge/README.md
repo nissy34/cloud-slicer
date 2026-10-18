@@ -33,7 +33,8 @@ The bridge asks nothing. Opened by double click it sets itself up to start
 with the computer and opens the pairing link in your browser (it also prints
 it); `install` does the same from a terminal, and `uninstall` stops the bridge
 and removes it from the computer, with its printers and pairing (Windows: a
-Run entry for your user, minimised; macOS: a launch agent; Linux: a systemd
+Run entry for your user that runs it with no window, so it stays out of the
+taskbar; macOS: a launch agent; Linux: a systemd
 user service with lingering, so a headless Pi starts it at boot, plus a menu
 entry that opens the pairing link). The downloaded Mac app is
 `Cloud Slicer Bridge.app`: opened from Finder it shows no window, sets itself

@@ -183,8 +183,9 @@ const LABEL = 'io.qzz.awesomestuff.cloud-slicer-bridge';
 /**
  * What starting with the computer takes on each system, without doing it:
  * where this program is copied to, the files to write and the commands to
- * run. Windows: a Run entry for the user (no admin; the bridge opens
- * minimised at sign-in). macOS: a launch agent. Linux: a systemd user service,
+ * run. Windows: a Run entry for the user (no admin; at sign-in the bridge
+ * runs with no window, through conhost --headless, so nothing sits in the
+ * taskbar). macOS: a launch agent. Linux: a systemd user service,
  * plus lingering so it starts at boot without a sign-in (a headless Pi).
  */
 export function autostartPlan({ platform = process.platform, home = homedir(), env = process.env, app = APP, exe = process.execPath, script = process.argv[1], user = safeUser() } = {}) {
@@ -198,13 +199,14 @@ export function autostartPlan({ platform = process.platform, home = homedir(), e
   const argv = [...(app ? [copy.to] : [exe, copy.to]), 'run', '--no-browser'];
   const quoted = argv.map((a) => `"${a}"`).join(' ');
   if (win) {
-    const value = `cmd /c start "Cloud Slicer Bridge" /min ${quoted}`;
+    // conhost --headless runs a console program with no window at all, whatever the default terminal is.
+    const value = `conhost.exe --headless ${quoted}`;
     return {
       dir,
       copy,
       files: [],
       enable: [['reg', ['add', 'HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Run', '/v', 'CloudSlicerBridge', '/t', 'REG_SZ', '/d', value, '/f']]],
-      start: ['cmd', ['/c', `start "Cloud Slicer Bridge" /min ${quoted}`]],
+      start: ['conhost.exe', [`--headless ${quoted}`]],
       restart: null,
       disable: [['reg', ['delete', 'HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Run', '/v', 'CloudSlicerBridge', '/f']]],
       marker: null,
@@ -342,7 +344,7 @@ async function installAutostart() {
     throw new Error(`${e.message}\nThis computer can't start the bridge by itself (no systemd user services). Run it yourself instead: ${asCommand(plan.copy.to)} run`);
   }
   if (plan.start) {
-    const child = spawn(plan.start[0], plan.start[1], { stdio: 'ignore', detached: true, windowsVerbatimArguments: true });
+    const child = spawn(plan.start[0], plan.start[1], { stdio: 'ignore', detached: true, windowsHide: true, windowsVerbatimArguments: true });
     child.unref();
   }
   return plan;
@@ -356,7 +358,7 @@ function restartAutostart() {
     if (plan.restart) for (const step of plan.restart) runStep(step);
     else {
       spawnSync('taskkill', ['/F', '/IM', basename(plan.copy.to), '/FI', `PID ne ${process.pid}`], { stdio: 'ignore' });
-      spawn(plan.start[0], plan.start[1], { stdio: 'ignore', detached: true, windowsVerbatimArguments: true }).unref();
+      spawn(plan.start[0], plan.start[1], { stdio: 'ignore', detached: true, windowsHide: true, windowsVerbatimArguments: true }).unref();
     }
     return true;
   } catch {

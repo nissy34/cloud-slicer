@@ -206,8 +206,8 @@ export function BridgeSetup({ relay }: { relay: string }) {
         <summary>About the bridge: keeping it running, adding printers, removing it</summary>
         <div className="dv-about">
           <p>
-            <strong>Does it keep running?</strong> Yes. Once set up it starts by itself: on Windows and Mac when you log in (on Windows you'll see it minimised in the
-            taskbar), on Linux and Raspberry Pi when the computer starts. The Device tab can reach your printer whenever that computer is on.
+            <strong>Does it keep running?</strong> Yes. Once set up it starts by itself: on Windows and Mac when you log in (with no window: it
+            runs in the background, out of the taskbar), on Linux and Raspberry Pi when the computer starts. The Device tab can reach your printer whenever that computer is on.
           </p>
           <p>
             <strong>Adding a printer later, or stopping it.</strong> Once the bridge is paired, add printers right in this dialog: search the network, or

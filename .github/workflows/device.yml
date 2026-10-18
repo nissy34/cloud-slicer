@@ -95,6 +95,11 @@ jobs:
           ./build-apps.sh windows
           cp dist/windows-x64 "$RUNNER_TEMP/bridge.exe"
           "$RUNNER_TEMP/bridge.exe" version
+          # The bridge starts with the computer through conhost --headless (no window): check that runs it.
+          cfg="$(cygpath -w "$RUNNER_TEMP/headless.json")"
+          conhost.exe --headless "$(cygpath -w "$RUNNER_TEMP/bridge.exe")" pair --config "$cfg"
+          for i in $(seq 1 20); do [ -s "$RUNNER_TEMP/headless.json" ] && break; sleep 1; done
+          test -s "$RUNNER_TEMP/headless.json"
       - name: The app carries its name (so its icon and version resources went in)
         shell: pwsh
         run: |
