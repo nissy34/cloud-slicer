@@ -273,6 +273,10 @@ export function PrinterEditor() {
       ) : (
         <div className="dv-form">
           <p>For a printer you've put on the internet yourself, behind https. Add this site to Moonraker's cors_domains so the browser may talk to it.</p>
+          <p className="muted">
+            Using <a href="https://tailscale.com/kb/1312/serve" target="_blank" rel="noreferrer">Tailscale</a> (built into the paxx12 U1 firmware)? Turn on Tailscale Serve on the printer and
+            enter its https://….ts.net address. It works from your phones and computers that are signed in to Tailscale.
+          </p>
           <label>
             Address
             <input value={url} onChange={(e) => setUrl(e.target.value)} placeholder="https://printer.example.com" spellCheck={false} autoCapitalize="off" data-testid="printer-url" />
