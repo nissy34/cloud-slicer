@@ -176,7 +176,11 @@ export const useSlicer = create<SlicerState>((set, get) => {
     job: { kind: 'idle' },
     notice: '',
 
-    setTab: (tab) => set({ tab }),
+    setTab: (tab) => {
+      set({ tab });
+      // On a phone the page scrolls; show the new tab from the top.
+      document.querySelector('.body')?.scrollTo({ top: 0 });
+    },
 
     selectPrinter: (name) => editSelection(() => ({ printer: name, process: '' })),
     selectProcess: (name) => editSelection(() => ({ process: name })),

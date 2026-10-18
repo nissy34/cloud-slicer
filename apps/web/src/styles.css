@@ -297,6 +297,9 @@ select:focus-visible {
   gap: 4px 18px;
   color: var(--muted);
 }
+.stats > span {
+  white-space: nowrap;
+}
 .stats b {
   color: var(--text);
   font-variant-numeric: tabular-nums;
@@ -527,7 +530,7 @@ select:focus-visible {
 }
 .option {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 132px) 26px;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 168px) 26px;
   align-items: center;
   gap: 6px;
 }
@@ -629,8 +632,22 @@ select:focus-visible {
   border: 1px solid var(--border);
   border-radius: var(--radius);
 }
+.legend-head {
+  display: flex;
+  gap: 6px;
+}
+.legend-toggle {
+  flex: none;
+  width: 28px;
+  padding: 0;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  color: var(--muted);
+}
 .legend-head select {
-  width: 100%;
+  flex: 1;
+  min-width: 0;
   padding: 4px 6px;
   border-radius: 6px;
   border: 1px solid var(--border);
@@ -708,11 +725,30 @@ select:focus-visible {
   }
   .actionbar {
     order: 3;
+    flex: none;
     position: sticky;
     bottom: 0;
     z-index: 5;
     flex-wrap: wrap;
-    padding-bottom: max(10px, env(safe-area-inset-bottom));
+    gap: 8px;
+    padding: 8px 12px max(8px, env(safe-area-inset-bottom));
+  }
+  .actionbar .status {
+    flex-basis: 100%;
+  }
+  .actionbar .actions {
+    flex: 1;
+  }
+  .actionbar .actions button {
+    flex: 1;
+    padding-inline: 8px;
+  }
+  .stats {
+    gap: 2px 12px;
+    font-size: 13px;
+  }
+  .stats .muted {
+    display: none;
   }
   /* The full panel width is available on a phone, so give values more room. */
   .option {
@@ -723,7 +759,13 @@ select:focus-visible {
     top: 56px;
   }
   .legend {
-    top: auto;
-    bottom: 76px;
+    top: 8px;
+    right: 8px;
+    min-width: 0;
+    max-width: 52%;
+    max-height: calc(100% - 90px);
+    overflow-y: auto;
+    padding: 6px 8px;
+    font-size: 12px;
   }
 }

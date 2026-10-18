@@ -7,6 +7,7 @@ self.onmessage = async ({ data }: MessageEvent<{ gcode: Blob }>) => {
     parsed.positions.buffer,
     parsed.features.buffer,
     parsed.tools.buffer,
+    parsed.sizes.buffer,
     parsed.layerStarts.buffer,
     parsed.layerZ.buffer,
   ]);
