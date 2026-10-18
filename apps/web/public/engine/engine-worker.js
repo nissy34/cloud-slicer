@@ -197,6 +197,11 @@ if (self.name !== 'em-pthread') {
     },
     mixedBlend: (e, request) => json(e.mixedBlend(JSON.stringify(request))).colours,
     mixedMatch: (e, request) => json(e.mixedMatch(JSON.stringify(request))),
+    // Brim ears of object o seen from instance i (see engine/src/brim_api.cpp).
+    brimEars(e, o, i, overrides, request) {
+      const { config } = json(e.presetsFullConfig(JSON.stringify(overrides || {})));
+      return json(e.brimEars(o, i, JSON.stringify(config), JSON.stringify(request)));
+    },
     // Variable layer height of object o (see engine/src/layers_api.cpp).
     layerHeights(e, o, overrides, request) {
       const { config } = json(e.presetsFullConfig(JSON.stringify(overrides || {})));

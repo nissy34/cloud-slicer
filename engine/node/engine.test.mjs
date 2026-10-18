@@ -658,6 +658,54 @@ test('colour mixing: Match finds the recipe for a target colour', () => {
   assert.equal(mixed({ definitions: '', colours: TWO, types: ['PETG', 'TPU'], op: { kind: 'add', row } }).rows[0].compatible, true);
 });
 
+test('brim ears: on the corners, by hand, and printed when the brim type is painted', () => {
+  select({ printer: DEFAULT_PRINTER });
+  load('gen-cube-20.stl');
+  const config = JSON.stringify(fullConfig());
+  const ears = (request, o = 0, i = 0) => call(engine, 'brimEars', o, i, config, JSON.stringify(request));
+  const brimLines = (gcode) => gcode.split(/^;TYPE:/m).filter((b) => /^Brim/.test(b)).join('');
+
+  const none = ears({ op: 'get' });
+  assert.deepEqual(none.ears, []);
+  assert.ok(none.defaultDiameter > 4 && none.defaultDiameter < 12, `16 first-layer lines across: ${none.defaultDiameter}`);
+
+  const auto = ears({ op: 'auto', diameter: 8, maxAngle: 125, detection: 1 });
+  assert.equal(auto.ears.length, 4, 'one ear on each corner of the cube');
+  const xs = auto.ears.map((e) => e.x), ys = auto.ears.map((e) => e.y);
+  assert.ok(Math.abs(Math.max(...xs) - Math.min(...xs) - 20) < 0.5 && Math.abs(Math.max(...ys) - Math.min(...ys) - 20) < 0.5, 'ears 20 mm apart, on the corners');
+  assert.ok(auto.ears.every((e) => e.attached && Math.abs(e.diameter - 8) < 1e-4));
+  assert.equal(ears({ op: 'auto', diameter: 8, maxAngle: 125, detection: 1 }).ears.length, 4, 'running it again adds no duplicates');
+
+  // An ear by hand, far from the cube, doesn't touch it.
+  const cx = (Math.max(...xs) + Math.min(...xs)) / 2, cy = (Math.max(...ys) + Math.min(...ys)) / 2;
+  const loose = ears({ op: 'add', x: cx + 40, y: cy, diameter: 6 });
+  assert.equal(loose.ears.length, 5);
+  assert.equal(loose.ears[4].attached, false);
+  assert.ok(Math.abs(loose.ears[4].x - cx - 40) < 1e-3);
+  const resized = ears({ op: 'resize', indices: [0], diameter: 10 });
+  assert.ok(Math.abs(resized.ears[0].diameter - 10) < 1e-4);
+  assert.equal(ears({ op: 'remove', indices: [4] }).ears.length, 4);
+
+  // Printed only with the painted brim type, as on desktop.
+  call(engine, 'setObjectSettings', 0, -1, JSON.stringify({ brim_type: 'no_brim' }));
+  assert.equal(ears({ op: 'get' }).brimType, 'no_brim');
+  assert.equal(brimLines(slice(fullConfig()).gcode), '', 'no brim without the painted type');
+  call(engine, 'setObjectSettings', 0, -1, JSON.stringify({ brim_type: 'painted' }));
+  assert.equal(ears({ op: 'get' }).brimType, 'painted');
+  const painted = brimLines(slice(fullConfig()).gcode);
+  assert.ok(painted.length > 0, 'the ears print as brim');
+  // Brim only under the ears: no brim line runs along the sides away from them.
+  const corners = resized.ears.slice(0, 4);
+  const moves = [...painted.matchAll(/^G1 X([\d.]+) Y([\d.]+) E/gm)].map((m) => [Number(m[1]), Number(m[2])]);
+  assert.ok(moves.length > 20);
+  const nearEar = ([x, y]) => corners.some((e) => Math.hypot(x - e.x, y - e.y) <= e.diameter / 2 + 1);
+  const onCube = ([x, y]) => Math.abs(x - cx) <= 10.5 && Math.abs(y - cy) <= 10.5;
+  assert.deepEqual(moves.filter((m) => !nearEar(m) && !onCube(m)), [], 'brim only at the ears');
+  assert.ok(moves.some(([x]) => x < cx - 11.5), 'the ears reach past the cube');
+
+  assert.deepEqual(ears({ op: 'clear' }).ears, []);
+});
+
 test('variable layer height: adaptive, smooth, manual edits and reset change what a slice prints', () => {
   select({ printer: DEFAULT_PRINTER });
   load('3DBenchy.stl');
