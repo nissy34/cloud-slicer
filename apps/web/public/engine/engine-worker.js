@@ -202,6 +202,11 @@ if (self.name !== 'em-pthread') {
       const out = json(e.simplifyObject(o, JSON.stringify(request)));
       return request.op === 'apply' ? JSON.parse(e.modelInfoJson()) : out;
     },
+    // Brim ears of object o seen from instance i (see engine/src/brim_api.cpp).
+    brimEars(e, o, i, overrides, request) {
+      const { config } = json(e.presetsFullConfig(JSON.stringify(overrides || {})));
+      return json(e.brimEars(o, i, JSON.stringify(config), JSON.stringify(request)));
+    },
     // Variable layer height of object o (see engine/src/layers_api.cpp).
     layerHeights(e, o, overrides, request) {
       const { config } = json(e.presetsFullConfig(JSON.stringify(overrides || {})));

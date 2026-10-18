@@ -1,9 +1,10 @@
 #!/usr/bin/env node
-// Browser end to end for the object toolbar over the 3D view: adding a model
-// keeps the one already there, simplify halves the triangles, lay on face
-// turns the object, variable layer height makes an adaptive profile, measure
-// picks two features and measures between them, and the toolbar fits a phone
-// (and the page itself never scrolls there).
+// Browser end to end for the object toolbar over the 3D view: it shows on an
+// empty plate with its object tools greyed out, adding a model keeps the one
+// already there, simplify halves the triangles, brim ears go on the corners and
+// where the bed is clicked, lay on face turns the object, variable layer height
+// makes an adaptive profile, measure picks two features and measures between
+// them, and the toolbar fits a phone (and the page itself never scrolls there).
 //
 //   node test/toolbar.mjs [screenshot-dir]
 //
@@ -54,10 +55,17 @@ const rotation = (page, timeout = 1000) => page.getByLabel('Current rotation').i
 
 try {
   const page = await open({ width: 1280, height: 800 }, false);
-  await page.getByTestId('model-input').setInputFiles(join(fixtures, '3DBenchy.stl'));
-  await page.getByText('Ready to slice').waitFor({ timeout: 120000 });
+  // The toolbar is there before any model, its object tools waiting greyed out.
   const toolbar = page.getByRole('toolbar', { name: 'Object tools' });
   await toolbar.waitFor();
+  if ((await toolbar.getByRole('button', { name: 'Move' }).getAttribute('aria-disabled')) !== 'true') fail('Move is usable with no model');
+  if ((await toolbar.getByRole('button', { name: 'Add models' }).getAttribute('aria-disabled')) === 'true') fail('Add models is off with no model');
+  await toolbar.getByRole('button', { name: 'Cut' }).click({ force: true });  // aria-disabled: still clickable, to explain itself
+  await page.getByText('Cut works on a model: open one first.').waitFor({ timeout: 5000 });
+  if (shots) await page.screenshot({ path: join(shots, 'toolbar-empty.png') });
+  console.log('the toolbar shows on an empty plate, its object tools waiting for a model');
+  await page.getByTestId('model-input').setInputFiles(join(fixtures, '3DBenchy.stl'));
+  await page.getByText('Ready to slice').waitFor({ timeout: 120000 });
   for (const name of ['Undo', 'Redo', 'Add models', 'Add plate', 'Auto orient', 'Arrange all objects', 'Split to objects', 'Split to parts', 'Move', 'Rotate', 'Scale', 'Lay on face', 'Cut', 'Support painting', 'Seam painting', 'Colour painting'])
     await toolbar.getByRole('button', { name }).waitFor();
   console.log('toolbar shows desktop Orca\'s tools');
@@ -95,7 +103,7 @@ try {
   console.log('Ctrl+Z / Ctrl+Y undo and redo the rotation');
 
   // Cut shows its plane; the height follows the panel.
-  await toolbar.getByRole('button', { name: 'Cut' }).click();
+  await toolbar.getByRole('button', { name: 'Cut' }).click({ force: true });  // aria-disabled: still clickable, to explain itself
   const cut = page.getByRole('region', { name: 'Cut' });
   await cut.waitFor();
   await cut.getByLabel('Cut height in mm').fill('12');
@@ -128,6 +136,32 @@ try {
   if (undone !== before) fail(`undo should bring the triangles back: ${undone} vs ${before}`);
   await page.getByRole('region', { name: 'Simplify' }).getByRole('button', { name: 'Done' }).click();
   console.log(`simplify: ${before} -> ${after} triangles, undo brings ${undone} back`);
+  // Brim ears: the panel offers to switch the brim type, ears go on the
+  // corners, a click on the bed adds one, and Remove all takes them away.
+  await toolbar.getByRole('button', { name: 'Brim ears' }).click();
+  const brim = page.getByRole('region', { name: 'Brim ears' });
+  await brim.waitFor();
+  const ears = brim.getByLabel('Ears');
+  const earCount = async () => Number((await ears.innerText()).match(/^(\d+)/)?.[1] ?? NaN);
+  await ears.waitFor({ timeout: 30000 });
+  const usePainted = brim.getByRole('button', { name: 'Use brim ears for this object' });
+  if (await usePainted.isVisible()) {
+    await usePainted.click();
+    await usePainted.waitFor({ state: 'detached', timeout: 30000 });
+  }
+  await brim.getByRole('button', { name: 'Add ears on the corners' }).click();
+  await page.waitForFunction(() => /^[1-9]/.test(document.querySelector('[aria-label="Ears"]')?.textContent ?? ''), null, { timeout: 30000 });
+  const corners = await earCount();
+  // A click on the bed below the boat adds one more.
+  await page.mouse.click(box.x + box.width * 0.5, box.y + box.height * 0.7);
+  await page.waitForFunction((n) => Number(document.querySelector('[aria-label="Ears"]')?.textContent?.match(/^(\d+)/)?.[1]) === n + 1, corners, { timeout: 30000 });
+  if (shots) await page.screenshot({ path: join(shots, 'toolbar-desktop-brim.png') });
+  console.log(`brim ears: ${corners} on the corners, one more by clicking the bed`);
+  await brim.getByRole('button', { name: 'Remove all' }).click();
+  await page.waitForFunction(() => /^0 ears/.test(document.querySelector('[aria-label="Ears"]')?.textContent ?? ''), null, { timeout: 30000 });
+  await page.locator('body').press('Control+z');
+  await page.waitForFunction((n) => Number(document.querySelector('[aria-label="Ears"]')?.textContent?.match(/^(\d+)/)?.[1]) === n + 1, corners, { timeout: 30000 });
+  console.log('Remove all clears the ears and undo brings them back');
   // Variable layer height: Adaptive gives the object its own layer profile; Reset takes it away.
   await toolbar.getByRole('button', { name: 'Variable layer height' }).click();
   const layersPanel = page.getByRole('region', { name: 'Variable layer height' });

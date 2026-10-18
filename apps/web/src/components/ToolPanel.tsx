@@ -3,6 +3,7 @@ import type { CutKeep } from '../engine/client';
 import { describeFeature, measurementRows } from '../lib/measure';
 import { useSlicer, type Tool } from '../state/store';
 import { SimplifyPanel } from './SimplifyPanel';
+import { BrimPanel } from './BrimEars';
 import { LayersPanel } from './LayersPanel';
 
 const round = (n: number) => Math.round(n * 100) / 100;
@@ -179,7 +180,7 @@ function MeasurePanel() {
   );
 }
 
-const HINTS: Record<Exclude<Tool, 'cut' | 'measure' | 'layers' | 'simplify'>, [string, string]> = {
+const HINTS: Record<Exclude<Tool, 'cut' | 'measure' | 'layers' | 'brim' | 'simplify'>, [string, string]> = {
   move: ['Move', 'Drag an arrow, or drag the object itself.'],
   rotate: ['Rotate', 'Drag a ring to turn the object around that axis.'],
   scale: ['Scale', 'Drag a handle; the centre box scales evenly.'],
@@ -197,6 +198,7 @@ export function ToolPanel() {
   if (tool === 'measure') return <MeasurePanel />;
   if (!tool || !selected) return null;
   if (tool === 'simplify') return <SimplifyPanel key={selected.object} object={selected.object} />;
+  if (tool === 'brim') return <BrimPanel key={selected.object} object={selected.object} />;
   if (tool === 'layers') return <LayersPanel key={selected.object} object={selected.object} />;
   if (tool === 'cut')
     return (

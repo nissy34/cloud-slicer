@@ -58,7 +58,7 @@ const GROUPS: Item[][] = [
     { id: 'text', icon: 'toolbar_text', label: 'Text shape', missing: true },
     { id: 'measure', icon: 'toolbar_measure', label: 'Measure', key: 'U', tool: 'measure' },
     { id: 'assembly', icon: 'toolbar_assembly', label: 'Assemble', missing: true },
-    { id: 'brimears', icon: 'toolbar_brimears', label: 'Brim ears', missing: true },
+    { id: 'brimears', icon: 'toolbar_brimears', label: 'Brim ears', tool: 'brim', needsSelection: true },
   ],
   [{ id: 'assemblyview', icon: 'toolbar_assemble', label: 'Assembly view', missing: true }],
 ];
@@ -96,7 +96,11 @@ export function Toolbar({ onAdd }: { onAdd(): void }) {
       ? !history[item.id]
       : item.missing || (item.needsSelection && !target) || (!onPlate.length && item.id !== 'add' && item.id !== 'addplate');
 
+  // Tools waiting for a model say so when tapped (a phone shows no tooltip).
+  const needsModel = (item: Item) => !onPlate.length && !item.missing && item.id !== 'undo' && item.id !== 'redo' && disabled(item);
+
   const run = (item: Item) => {
+    if (needsModel(item)) return useSlicer.setState({ notice: `${item.label} works on a model: open one first.`, noticeWarn: false });
     if (disabled(item)) return;
     const s = useSlicer.getState();
     if (item.needsSelection && target && !selected) s.select(target);
@@ -158,9 +162,10 @@ export function Toolbar({ onAdd }: { onAdd(): void }) {
             {group.map((item) => {
               const off = disabled(item);
               const step = item.id === 'undo' || item.id === 'redo' ? history[item.id] : null;
+              const why = needsModel(item) ? ': add a model first' : item.needsSelection && !target ? ': select an object first' : '';
               const title = item.missing
                 ? `${item.label}: not in the web app yet`
-                : `${item.label}${step ? ` ${step}` : ''}${item.key ? ` (${item.key})` : ''}${item.needsSelection && !target ? ': select an object first' : ''}`;
+                : `${item.label}${step ? ` ${step}` : ''}${item.key ? ` (${item.key})` : ''}${why}`;
               return (
                 <button
                   key={item.id}
