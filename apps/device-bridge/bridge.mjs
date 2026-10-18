@@ -10,7 +10,8 @@
 //   node cloud-slicer-bridge.mjs                     # finds your printers, pairs, keeps running
 //   node cloud-slicer-bridge.mjs add 192.168.1.50 [--name "My U1"] [--api-key KEY]
 //   node cloud-slicer-bridge.mjs list | remove <name> | pair
-//   node cloud-slicer-bridge.mjs install | uninstall # start (or stop starting) with this computer
+//   node cloud-slicer-bridge.mjs install            # start with this computer
+//   node cloud-slicer-bridge.mjs uninstall          # stop it and remove it from this computer
 //
 // The same file is also built into a one-file app per system (bun build
 // --compile), which you open with a double click and which needs no Node.js.
@@ -335,11 +336,33 @@ function restartAutostart() {
   }
 }
 
-async function uninstallAutostart() {
+/**
+ * Removes the bridge from this computer: stops it, stops it starting with the
+ * computer, and deletes its installed copy and its settings (printers and the
+ * pairing secret, so old pairing links stop working).
+ */
+async function uninstallBridge(configPath) {
   const plan = autostartPlan();
   for (const step of plan.disable) runStep([step[0], step[1], { optional: true }]);
+  if (process.platform === 'win32') {
+    spawnSync('taskkill', ['/F', '/IM', basename(plan.copy.to), '/FI', `PID ne ${process.pid}`], { stdio: 'ignore' });
+  }
   for (const f of plan.files) await rm(f.path, { force: true });
   if (process.platform === 'linux') runStep(['systemctl', ['--user', 'daemon-reload'], { optional: true }]);
+  await rm(configPath, { force: true });
+  // install.sh's link to the command, on Linux.
+  const link = join(homedir(), '.local', 'bin', SERVICE);
+  try {
+    if (fs.lstatSync(link).isSymbolicLink() && fs.readlinkSync(link).startsWith(plan.dir)) fs.unlinkSync(link);
+  } catch {}
+  try {
+    await rm(plan.dir, { recursive: true, force: true });
+  } catch {
+    // Windows can't delete the program that is running this: delete it just after this exits.
+    if (process.platform === 'win32') {
+      spawn('cmd', ['/c', `ping -n 3 127.0.0.1 >nul & rmdir /s /q "${plan.dir}"`], { stdio: 'ignore', detached: true, windowsVerbatimArguments: true }).unref();
+    }
+  }
   return plan;
 }
 
@@ -687,11 +710,12 @@ export async function main() {
     await findPrinters();
     const plan = await installAutostart();
     console.log(`The bridge now starts by itself with this computer (from ${plan.copy.to}), and is running.`);
-    console.log(`To stop that: "${plan.copy.to}" uninstall`);
+    console.log(`To remove it from this computer: "${plan.copy.to}" uninstall`);
     printPairing(cfg, opts.site, { open: !opts['no-browser'] && cfg.printers.length > 0 });
   } else if (cmd === 'uninstall') {
-    await uninstallAutostart();
-    console.log('The bridge no longer starts with this computer.');
+    await uninstallBridge(path);
+    console.log('Removed the bridge from this computer: it has stopped, no longer starts with the computer, and its printers and pairing are deleted.');
+    console.log('Remove its printers from the Device tab too (Edit, then Remove printer).');
   } else if (cmd === 'version') {
     console.log(VERSION);
   } else if (cmd === 'run') {
@@ -703,7 +727,7 @@ export async function main() {
         await installAutostart();
         console.log('Updated the bridge that runs in the background to this version.');
       } else console.log('The bridge already runs in the background and starts with this computer.');
-      console.log(`To stop it starting with the computer: "${plan.copy.to}" uninstall`);
+      console.log(`To remove it from this computer: "${plan.copy.to}" uninstall`);
       printPairing(cfg, opts.site, { open: cfg.printers.length > 0 });
       await holdWindow();
       return;
@@ -716,7 +740,7 @@ export async function main() {
         bridge.stop();
         const plan = await installAutostart();
         console.log(`Done. The bridge now runs in the background (from ${plan.copy.to}); you can close this window.`);
-        console.log(`To stop it starting with the computer: "${plan.copy.to}" uninstall`);
+        console.log(`To remove it from this computer: "${plan.copy.to}" uninstall`);
         await holdWindow();
         process.exit(0);
       }

@@ -8,7 +8,7 @@ import { BridgeLink } from '../link/bridge';
 import { DirectLink, directBlockedReason, normalizePrinterUrl } from '../link/direct';
 import type { BridgeStatus } from '../link/types';
 import { decodePairing, type Pairing } from '../pairing';
-import { BridgeSetup } from './BridgeSetup';
+import { BridgeSetup, UninstallBridge } from './BridgeSetup';
 import { Dialog } from './parts';
 
 const newId = () => Math.random().toString(36).slice(2, 10);
@@ -110,6 +110,8 @@ export function PrinterEditor() {
   const [apiKey, setApiKey] = useState(existing?.kind === 'direct' ? existing.apiKey : '');
   const [checking, setChecking] = useState(false);
   const [error, setError] = useState('');
+  const [confirmRemove, setConfirmRemove] = useState(false);
+  const saved = useDevice((s) => s.printers);
 
   useEffect(() => {
     if (!pairing) return;
@@ -164,6 +166,40 @@ export function PrinterEditor() {
   };
 
   const relayForCommand = pairing?.relay ?? DEFAULT_RELAY_URL;
+
+  if (existing && confirmRemove) {
+    // A bridge printer: the bridge keeps running on its computer, so say how to remove it too (unless other printers still use it).
+    const sharing = existing.kind === 'bridge' ? saved.filter((p) => p.id !== existing.id && p.kind === 'bridge' && p.bridgeId === existing.bridgeId) : [];
+    return (
+      <Dialog
+        title={`Remove ${existing.name}?`}
+        onClose={close}
+        footer={
+          <>
+            <button className="secondary" onClick={() => setConfirmRemove(false)}>
+              Cancel
+            </button>
+            <button className="primary dv-danger" onClick={() => void removePrinter(existing.id)} data-testid="confirm-remove-printer">
+              Remove printer
+            </button>
+          </>
+        }
+      >
+        <div className="dv-form">
+          <p>This removes {existing.name} from Cloud Slicer. The printer itself isn't changed.</p>
+          {existing.kind === 'bridge' &&
+            (sharing.length ? (
+              <p className="muted">Keep the bridge on its computer: {sharing.map((p) => p.name).join(', ')} still use it.</p>
+            ) : (
+              <>
+                <p>The bridge keeps running on the computer near the printer. If you don't need it any more, remove it from that computer too:</p>
+                <UninstallBridge />
+              </>
+            ))}
+        </div>
+      </Dialog>
+    );
+  }
   return (
     <Dialog
       title={existing ? `Edit ${existing.name}` : 'Add a printer'}
@@ -172,7 +208,7 @@ export function PrinterEditor() {
       footer={
         <>
           {existing && (
-            <button className="secondary dv-danger-text dv-left" onClick={() => void removePrinter(existing.id)}>
+            <button className="secondary dv-danger-text dv-left" onClick={() => setConfirmRemove(true)} data-testid="remove-printer">
               Remove printer
             </button>
           )}

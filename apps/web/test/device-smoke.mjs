@@ -283,7 +283,16 @@ try {
   if (!script.includes(`RELAY="${relayUrl}"`)) throw new Error('install.sh does not name the relay it came from');
   // What the bridge does once set up, how to add printers or remove it: explained in the dialog.
   await setup.getByTestId('bridge-about').locator('summary').click();
-  await setup.getByTestId('bridge-about').getByText('uninstall', { exact: false }).first().waitFor();
+  const about = setup.getByTestId('bridge-about');
+  // One command per line, each with its own Copy, and the printer address typed in rather than an example to edit.
+  await about.getByTestId('bridge-add-command').filter({ hasText: '~/.local/bin/cloud-slicer-bridge add <printer address>' }).waitFor();
+  await about.getByTestId('bridge-add-address').fill('10.0.0.42');
+  await about.getByRole('tab', { name: 'Mac' }).click();
+  await about.getByTestId('bridge-add-command').filter({ hasText: /^"\$HOME\/Library\/Application Support\/Cloud Slicer Bridge\/cloud-slicer-bridge" add 10\.0\.0\.42$/ }).waitFor();
+  await about.getByRole('tab', { name: 'Windows' }).click();
+  await about.getByTestId('bridge-uninstall-command').filter({ hasText: /^"%LOCALAPPDATA%\\Cloud Slicer Bridge\\cloud-slicer-bridge\.exe" uninstall$/ }).waitFor();
+  if ((await about.getByRole('button', { name: 'Copy' }).count()) !== 2) throw new Error('the add and uninstall commands should each have their own Copy button');
+  if (shots) await about.screenshot({ path: join(shots, 'bridge-about.png') });
   for (const width of [390, 360]) {
     await setup.setViewportSize({ width, height: 844 });
     const wide = await setup.evaluate(() => [...document.querySelectorAll('.dv-dialog *')].find((el) => el.getBoundingClientRect().right > window.innerWidth + 0.5)?.className ?? null);
@@ -296,6 +305,15 @@ try {
   await setup.getByTestId('add-printer').click();
   await setup.getByText('node cloud-slicer-bridge.mjs', { exact: true }).waitFor();
   console.log('bridge setup: app downloads and the Linux command from the relay, Node.js steps when it has none');
+  // Removing a bridge printer explains how to remove the bridge from its computer too.
+  await page.getByTestId('printer-select').selectOption({ label: 'U1-mock' });
+  await page.locator('.dv-header-actions').getByRole('button', { name: 'Edit' }).click();
+  await page.getByTestId('remove-printer').click();
+  await page.getByTestId('bridge-uninstall').getByTestId('bridge-uninstall-command').filter({ hasText: / uninstall$/ }).waitFor();
+  if (shots) await page.screenshot({ path: join(shots, 'remove-bridge-printer.png') });
+  await page.getByTestId('confirm-remove-printer').click();
+  await until('U1-mock removed', async () => (await page.getByTestId('printer-select').locator('option', { hasText: 'U1-mock' }).count()) === 0);
+  console.log('removing a bridge printer: shows how to uninstall the bridge, then removes it');
   console.log('DEVICE SMOKE OK');
 } catch (e) {
   console.error(`DEVICE SMOKE FAIL: ${e.stack ?? e.message}`);

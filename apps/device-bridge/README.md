@@ -33,8 +33,9 @@ The Device tab's "Add a printer" dialog offers the right one for each system:
 On first run it looks for Moonraker on port 7125 across your local network,
 adds every printer it finds, and opens the pairing link in your browser (it
 also prints it). Opened by double click, it then asks whether to start by
-itself with the computer; `install` and `uninstall` do the same from a
-terminal (Windows: a Run entry for your user, minimised; macOS: a launch agent;
+itself with the computer; `install` does the same from a terminal, and
+`uninstall` stops the bridge and removes it from the computer, with its
+printers and pairing (Windows: a Run entry for your user, minimised; macOS: a launch agent;
 Linux: a systemd user service with lingering, so a headless Pi starts it at
 boot). If it finds nothing, add the printer by its address with
 `cloud-slicer-bridge add 192.168.1.50` (`--api-key KEY` if Moonraker wants
