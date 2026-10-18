@@ -16,7 +16,8 @@ same engine code.
 | `compat/` | Stand-ins for what a browser lacks: OpenSSL MD5 (on Boost), serial TBB `parallel_*`, no-op STEP/SVG import when built without OCCT, thread naming |
 | `cmake/libslic3r.cmake` | Builds libslic3r from the source list in upstream's own `src/libslic3r/CMakeLists.txt` |
 | `src/presets_api.cpp` | Presets: loads every bundled vendor through `PresetBundle::load_presets`, lists and selects printer / process / filament presets, resolves the full config, option metadata |
-| `src/model_api.cpp` | Project: loads models and 3MF projects, plates, per-object/part filaments, transforms, preview meshes with painted colours |
+| `src/model_api.cpp` | Project: loads models and 3MF projects, plates (resized when the printer's bed changes), per-object/part filaments, transforms, preview meshes with painted colours |
+| `src/tools_api.cpp` | Prepare tools: arrange a plate, auto-orient, split to objects, cut, mirror, add and delete plates |
 | `src/slice_api.cpp` | Slices one plate with a full config and exports G-code with Orca's time and filament estimates |
 | `scripts/build-deps.sh` | Builds the third-party libraries for wasm into `build/deps` |
 | `scripts/bundle-profiles.mjs` | Packs the Snapmaker presets (and Orca's filament library they inherit from) into one JSON file |

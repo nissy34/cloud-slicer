@@ -355,9 +355,42 @@ std::string deleteInstance(int o, int i) {
     }
 }
 
+// Changes the plate size (after switching to a printer with a different bed),
+// keeping every instance at the same place relative to its plate's centre, as
+// desktop does when the bed changes. Instances off every plate stay put.
+std::string resizePlates(double width, double depth) {
+    try {
+        if (width <= 0 || depth <= 0) throw std::runtime_error("bad plate size");
+        Project& pr = g_project;
+        struct Move { ModelInstance* inst; int plate; Vec2d fromCentre; };
+        std::vector<Move> moves;
+        for (ModelObject* obj : pr.model.objects)
+            for (ModelInstance* inst : obj->instances) {
+                const int plate = pr.plateOf(*inst);
+                if (plate < 0) continue;
+                const Vec2d centre = pr.plateOrigin(plate) + Vec2d(pr.plateWidth / 2, pr.plateDepth / 2);
+                const Vec3d c = obj->instance_bounding_box(*inst, false).center();
+                moves.push_back({inst, plate, Vec2d(c.x(), c.y()) - centre});
+            }
+        std::vector<Vec2d> oldCentres;
+        for (const Move& m : moves) oldCentres.push_back(pr.plateOrigin(m.plate) + Vec2d(pr.plateWidth / 2, pr.plateDepth / 2));
+        pr.plateWidth = width;
+        pr.plateDepth = depth;
+        for (size_t k = 0; k < moves.size(); ++k) {
+            const Vec2d newCentre = pr.plateOrigin(moves[k].plate) + Vec2d(width / 2, depth / 2);
+            const Vec2d d = newCentre - oldCentres[k];
+            moves[k].inst->set_offset(moves[k].inst->get_offset() + Vec3d(d.x(), d.y(), 0));
+        }
+        return ok().dump();
+    } catch (const std::exception& e) {
+        return fail(e.what()).dump();
+    }
+}
+
 } // namespace
 
 EMSCRIPTEN_BINDINGS(model_api) {
+    emscripten::function("resizePlates", &resizePlates);
     emscripten::function("loadModel", &loadModel);
     emscripten::function("clearModel", &clearModel);
     emscripten::function("modelInfoJson", &modelInfoJson);

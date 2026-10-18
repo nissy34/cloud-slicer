@@ -590,8 +590,15 @@ select:focus-visible {
   position: absolute;
   top: 12px;
   right: 12px;
+  left: 50%;
   display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
   gap: 8px;
+  pointer-events: none;
+}
+.workspace-tools > * {
+  pointer-events: auto;
 }
 .plate-tabs {
   position: absolute;
@@ -691,6 +698,79 @@ select:focus-visible {
   color: var(--muted);
 }
 
+/* Object tools */
+.tool-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.tool-row button {
+  padding: 4px 10px;
+  font-size: 13px;
+}
+.cut-panel {
+  display: grid;
+  gap: 8px;
+  padding: 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface-2);
+}
+.cut-panel input[type='range'] {
+  flex: 1;
+  min-width: 0;
+  accent-color: var(--accent);
+}
+
+/* Dialogs */
+.dialog-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: grid;
+  place-items: center;
+  padding: 16px;
+  background: rgb(0 0 0 / 45%);
+}
+.dialog {
+  display: grid;
+  gap: 12px;
+  width: min(440px, 100%);
+  padding: 20px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: 0 12px 40px rgb(0 0 0 / 30%);
+}
+.dialog h2 {
+  margin: 0;
+  font-size: 18px;
+}
+.dialog p {
+  margin: 0;
+}
+.dialog .field {
+  display: grid;
+  gap: 4px;
+}
+.dialog select {
+  padding: 6px 8px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+}
+.dialog .check {
+  align-items: flex-start;
+}
+.small {
+  font-size: 12px;
+}
+.dialog-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
 /* Phone: viewport first, panel below */
 @media (max-width: 760px) {
   .topbar {
@@ -756,7 +836,16 @@ select:focus-visible {
   }
   .plate-tabs {
     max-width: calc(100% - 24px);
-    top: 56px;
+    top: auto;
+    bottom: 12px;
+  }
+  .workspace-tools {
+    left: 12px;
+    gap: 6px;
+  }
+  .workspace-tools button {
+    padding: 5px 10px;
+    font-size: 13px;
   }
   .legend {
     top: 8px;

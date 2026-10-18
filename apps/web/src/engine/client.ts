@@ -11,6 +11,8 @@ import type {
   WorkerReply,
 } from './protocol';
 
+export type CutKeep = 'both' | 'upper' | 'lower';
+
 type Pending = { resolve: (value: unknown) => void; reject: (e: Error) => void };
 
 export interface EngineEvents {
@@ -82,6 +84,15 @@ export class EngineClient {
   deleteObject = (o: number) => this.call<ProjectInfo>('deleteObject', [o]);
   addInstance = (o: number, i: number, dx: number, dy: number) => this.call<ProjectInfo>('addInstance', [o, i, dx, dy]);
   deleteInstance = (o: number, i: number) => this.call<ProjectInfo>('deleteInstance', [o, i]);
+  resizePlates = (width: number, depth: number) => this.call<ProjectInfo>('resizePlates', [width, depth]);
+  arrangePlate = (plate: number, spacing: number) => this.call<ProjectInfo>('arrangePlate', [plate, spacing]);
+  orientObject = (o: number) => this.call<ProjectInfo>('orientObject', [o]);
+  splitObject = (o: number) => this.call<ProjectInfo>('splitObject', [o]);
+  cutObject = (o: number, i: number, z: number, keep: CutKeep, flipUpper: boolean) =>
+    this.call<ProjectInfo>('cutObject', [o, i, z, keep, flipUpper]);
+  mirrorInstance = (o: number, i: number, axis: 0 | 1 | 2) => this.call<ProjectInfo>('mirrorInstance', [o, i, axis]);
+  addPlate = () => this.call<ProjectInfo>('addPlate');
+  deletePlate = (plate: number) => this.call<ProjectInfo>('deletePlate', [plate]);
   slice = (plate: number, overrides: OrcaConfig) =>
     this.call<{ result: SliceResult; gcode: ArrayBuffer; ms: number }>('slice', [plate, overrides]);
 }

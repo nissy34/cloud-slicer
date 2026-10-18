@@ -83,6 +83,14 @@ if (self.name !== 'em-pthread') {
     deleteObject: (e, o) => (json(e.deleteObject(o)), JSON.parse(e.modelInfoJson())),
     addInstance: (e, o, i, dx, dy) => (json(e.addInstance(o, i, dx, dy)), JSON.parse(e.modelInfoJson())),
     deleteInstance: (e, o, i) => (json(e.deleteInstance(o, i)), JSON.parse(e.modelInfoJson())),
+    resizePlates: (e, w, d) => (json(e.resizePlates(w, d)), JSON.parse(e.modelInfoJson())),
+    arrangePlate: (e, plate, spacing) => (json(e.arrangePlate(plate, spacing)), JSON.parse(e.modelInfoJson())),
+    orientObject: (e, o) => (json(e.orientObject(o)), JSON.parse(e.modelInfoJson())),
+    splitObject: (e, o) => (json(e.splitObject(o)), JSON.parse(e.modelInfoJson())),
+    cutObject: (e, o, i, z, keep, flip) => (json(e.cutObject(o, i, z, keep, flip)), JSON.parse(e.modelInfoJson())),
+    mirrorInstance: (e, o, i, axis) => (json(e.mirrorInstance(o, i, axis)), JSON.parse(e.modelInfoJson())),
+    addPlate: (e) => (json(e.addPlate()), JSON.parse(e.modelInfoJson())),
+    deletePlate: (e, plate) => (json(e.deletePlate(plate)), JSON.parse(e.modelInfoJson())),
 
     // Slices one plate with the current preset selection plus overrides.
     slice(e, plate, overrides, id) {
