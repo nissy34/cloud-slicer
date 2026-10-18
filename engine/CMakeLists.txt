@@ -90,7 +90,13 @@ target_link_options(orca-engine PRIVATE
     -sINITIAL_MEMORY=256MB
     -sMAXIMUM_MEMORY=4GB
     -sSTACK_SIZE=8MB
-    -sPTHREAD_POOL_SIZE=0
+    # Slicing runs on TBB's worker threads, one per core (as desktop), plus the
+    # slice's cancel watcher. Start them with the engine: a pthread created later
+    # only starts once the engine thread goes idle, which a slice never does.
+    -sPTHREAD_POOL_SIZE=navigator.hardwareConcurrency+1
+    # Emscripten's default malloc takes one lock for every thread, which leaves
+    # the threads queueing for memory instead of slicing.
+    -sMALLOC=mimalloc
 )
 option(ENGINE_WASM_DEBUG "Runtime assertions + symbolised stacks" OFF)
 if(ENGINE_WASM_DEBUG)

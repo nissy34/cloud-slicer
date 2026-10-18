@@ -23,11 +23,6 @@ foreach(dep ${EXTERN_DEPS})
     link_directories("${EXTERN_DIR}/${dep}/lib/wasm32")
 endforeach()
 
-# Serial TBB algorithms (parallel_for & co. run inline). Slicing in the browser
-# is single-threaded for now; real TBB threads on wasm pthreads are a later
-# speed-up that needs its own validation.
-include_directories(BEFORE "${COMPAT_DIR}/tbb_serial")
-
 set(ENGINE_INCLUDES
     ${COMPAT_DIR}
     ${BUNDLED_DIR}

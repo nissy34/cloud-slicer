@@ -13,7 +13,7 @@ same engine code.
 |---|---|
 | `orcaslicer/` | Submodule pinned to the v2.4.0 tag. Never edited in place |
 | `patches/` | Browser-only fixes, applied to copies of the touched files in the build tree |
-| `compat/` | Stand-ins for what a browser lacks: OpenSSL MD5 (on Boost), serial TBB `parallel_*` (with a cancellation point, so the page can cancel a slice), no-op STEP/SVG import when built without OCCT, thread naming |
+| `compat/` | Stand-ins for what a browser lacks: OpenSSL MD5 (on Boost), no-op STEP/SVG import when built without OCCT, thread naming |
 | `cmake/libslic3r.cmake` | Builds libslic3r from the source list in upstream's own `src/libslic3r/CMakeLists.txt` |
 | `src/presets_api.cpp` | Presets: loads every bundled vendor through `PresetBundle::load_presets`, lists and selects printer / process / filament presets, resolves the full config, option metadata |
 | `src/model_api.cpp` | Project: loads models and 3MF projects, plates (resized when the printer's bed changes), per-object/part filaments, transforms, preview meshes with painted colours, and saving the project as an Orca 3MF (`store_bbs_3mf`, like desktop's Save project) |
@@ -55,8 +55,9 @@ node --test engine/node/engine.test.mjs      # engine tests
 
 ## How it differs from desktop
 
-- **Single-threaded for now.** TBB's `parallel_for` family runs serially (`compat/tbb_serial`).
-  Slices are correct but use one core; real worker threads are a later step.
+- **Threads are Web Workers.** TBB runs on Emscripten pthreads, one per core, started
+  with the engine (`PTHREAD_POOL_SIZE`), with mimalloc so threads don't queue on one
+  malloc lock. A slice's cancel watcher thread stands in for desktop's UI thread.
 - **No OpenGL**: plate thumbnails are drawn by the page and handed to the G-code export.
 - **No SLA hollowing** (needs OpenVDB). FFF printing never uses it.
 - **Every bundled printer is loaded**: desktop loads only the printers its setup wizard
@@ -75,4 +76,4 @@ here; each patch says why at the top of its hunk.
 | `0001-arachne-empty-toolpath-index-wasm32` | Arachne indexes an empty toolpath vector; harmless on 64-bit, a crash on wasm32 |
 | `0002-step-serial-occt-meshing` | OCCT meshing of STEP files without its thread pool |
 | `0003-sla-hollowing-without-openvdb` | Builds SLA hollowing without OpenVDB (no interior is generated) |
-| `0004-serial-tbb-skip-thread-naming-barrier` | Thread naming waits on a barrier for TBB workers that serial TBB never starts |
+| `0004-skip-thread-naming-barrier` | Thread naming holds every TBB worker on a barrier; browser threads have no names or locales to set |
