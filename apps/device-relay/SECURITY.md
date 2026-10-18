@@ -2,7 +2,7 @@
 
 How the Device tab reaches a printer on a home network, what each part can see,
 and what is and isn't protected. First reviewed 2026-10-18; updated as fixes
-landed (PRs #13, #16, #25).
+landed (PRs #13, #16, #25, #29).
 
 ## How it works
 
