@@ -86,6 +86,7 @@ function ManageCommands() {
       <CopyCommand command={`${exe} add ${address || '<printer address>'}`} testId="bridge-add-command" />
       <span className="muted">Stop the bridge and remove it from that computer, with its printers and pairing:</span>
       <CopyCommand command={`${exe} uninstall`} testId="bridge-uninstall-command" />
+      <span className="muted">These need the bridge set to start with the computer (it asks the first time you open it). If a command says the path can't be found, open the bridge app again and say yes.</span>
     </div>
   );
 }
@@ -98,7 +99,10 @@ export function UninstallBridge() {
       <OsTabs os={os} onChange={setOs} />
       <span className="muted">On the bridge's computer, in {SHELL_NAME[os]}:</span>
       <CopyCommand command={`${BRIDGE_COMMAND[os]} uninstall`} testId="bridge-uninstall-command" />
-      <span className="muted">That stops the bridge, stops it starting with the computer, and deletes it with its printers and pairing.</span>
+      <span className="muted">
+        That stops the bridge, stops it starting with the computer, and deletes it with its printers and pairing. If it says the path can't be found, the bridge was never
+        set to start with that computer: closing its window stops it.
+      </span>
     </div>
   );
 }
