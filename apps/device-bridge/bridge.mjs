@@ -591,17 +591,22 @@ class Session {
 
 // ---- the relay connection ---------------------------------------------------------
 
-export function runBridge(cfg, { log = console.log, save = async () => {}, onReplaced = () => {} } = {}) {
+export function runBridge(cfg, { log = console.log, save = async () => {}, onReplaced = () => {}, find = discover } = {}) {
   const sessions = new Map();
   let relay = null;
   let retries = 0;
   let stopped = false;
 
   const toRelay = (obj) => relay?.readyState === WebSocket.OPEN && relay.send(JSON.stringify(obj));
-  const hello = () => toRelay({ ctl: 'hello', version: VERSION, printers: cfg.printers.map(({ id, name, needsKey }) => ({ id, name, ...(needsKey && { needsKey: true }) })) });
+  const hello = () => toRelay({ ctl: 'hello', version: VERSION, printers: cfg.printers.map(({ id, name }) => ({ id, name })) });
 
-  /** Calls from a window with no printer chosen: adding and removing this bridge's printers from the Device tab. */
+  /** Calls from a window with no printer chosen: finding, adding and removing this bridge's printers from the Device tab. */
   const manage = async (method, p = {}) => {
+    if (method === 'bridge.discover') {
+      log('Looking for printers on the network for the Device tab...');
+      const found = await find();
+      return { printers: found.map((f) => ({ url: f.url, name: f.name, needsKey: !!f.needsKey, added: cfg.printers.find((x) => x.url === f.url)?.id ?? null })) };
+    }
     if (method === 'bridge.add_printer') {
       const address = String(p.address ?? '').trim().slice(0, 200);
       const apiKey = String(p.apiKey ?? '').trim().slice(0, 200);
@@ -615,31 +620,12 @@ export function runBridge(cfg, { log = console.log, save = async () => {}, onRep
       }
       const name = String(p.name || found.info.hostname || address).slice(0, 80);
       let printer = cfg.printers.find((x) => x.url === found.url);
-      if (printer) {
-        Object.assign(printer, { name, apiKey });
-        delete printer.needsKey;
-      }
+      if (printer) Object.assign(printer, { name, apiKey });
       else cfg.printers.push((printer = { id: randomBytes(4).toString('hex'), name, url: found.url, apiKey }));
       await save();
       log(`Added ${name} (${found.url}) from the Device tab.`);
       hello();
       return { id: printer.id, name };
-    }
-    if (method === 'bridge.set_key') {
-      const printer = cfg.printers.find((x) => x.id === String(p.id ?? ''));
-      if (!printer) throw new Error('This bridge no longer has that printer.');
-      const apiKey = String(p.apiKey ?? '').trim().slice(0, 200);
-      try {
-        await probe(printer.url, apiKey);
-      } catch (e) {
-        throw new Error(e.needsKey ? (apiKey ? 'The printer did not accept that API key.' : 'This printer needs its Moonraker API key.') : `The printer did not answer: ${e.message}`);
-      }
-      printer.apiKey = apiKey;
-      delete printer.needsKey;
-      await save();
-      log(`Saved the API key for ${printer.name} from the Device tab.`);
-      hello();
-      return { id: printer.id, name: printer.name };
     }
     if (method === 'bridge.remove_printer') {
       const id = String(p.id ?? '');
@@ -681,7 +667,6 @@ export function runBridge(cfg, { log = console.log, save = async () => {}, onRep
       if (msg.ctl === 'open') {
         const printer = cfg.printers.find((p) => p.id === msg.printer);
         if (!printer) return toRelay({ ctl: 'drop', c: msg.c, reason: 'This bridge no longer has that printer.' });
-        if (printer.needsKey) return toRelay({ ctl: 'drop', c: msg.c, reason: 'This printer needs its API key: add it in Edit.' });
         sessions.get(msg.c)?.close();
         const s = new Session(
           msg.c,
@@ -769,22 +754,6 @@ export async function main() {
   // Opened with a double click (or plain "run" in a terminal): offer to start with the computer.
   const interactive = !rest.length && !opts['no-browser'] && process.stdin.isTTY;
 
-  /**
-   * Finds printers on this network when none are saved yet. One that wants an
-   * API key is kept too, marked as needing it: the key is typed in the Device
-   * tab, never here.
-   */
-  const findPrinters = async () => {
-    if (cfg.printers.length) return;
-    const found = await discover({ log: console.log });
-    for (const f of found) {
-      cfg.printers.push({ id: randomBytes(4).toString('hex'), name: f.name, url: f.url, apiKey: '', ...(f.needsKey && { needsKey: true }) });
-      console.log(f.needsKey ? `Found ${f.name} (${f.url}); it needs its API key, which you enter in Cloud Slicer's Device tab.` : `Found ${f.name} (${f.url}).`);
-    }
-    if (cfg.printers.length) await saveConfig(path, cfg);
-    else console.log("No printer found on your network. Add it by its address in Cloud Slicer's Device tab (Add a printer).");
-  };
-
   /** Sets the bridge up to start with this computer (and starts it there), or says why it can't. */
   const startWithComputer = async () => {
     try {
@@ -804,10 +773,7 @@ export async function main() {
     const found = await probeAddress(args[0], apiKey);
     const name = String(opts.name ?? found.info.hostname ?? args[0]);
     const existing = cfg.printers.find((p) => p.url === found.url);
-    if (existing) {
-      Object.assign(existing, { name, apiKey });
-      delete existing.needsKey;
-    }
+    if (existing) Object.assign(existing, { name, apiKey });
     else cfg.printers.push({ id: randomBytes(4).toString('hex'), name, url: found.url, apiKey });
     await saveConfig(path, cfg);
     console.log(`Added ${name} (${found.url}).${restartAutostart() ? ' The bridge restarted to use it.' : ' Restart the bridge if it is running.'}`);
@@ -825,7 +791,6 @@ export async function main() {
     printPairing(cfg, opts.site);
   } else if (cmd === 'install') {
     if (APP) installedAt = autostartPlan().copy.to;
-    await findPrinters();
     const plan = await installAutostart();
     console.log(`The bridge now starts by itself with this computer (from ${plan.copy.to}), and is running.`);
     console.log(`To remove it from this computer: ${asCommand(plan.copy.to)} uninstall`);
@@ -850,8 +815,7 @@ export async function main() {
       await holdWindow();
       return;
     }
-    await findPrinters();
-    // Opened by hand: set it up to start with the computer, no questions; printers and keys are handled in the Device tab.
+    // Opened by hand: set it up to start with the computer, no questions. Finding and adding printers (and their API keys) happens in the Device tab.
     if (interactive && (await startWithComputer())) {
       printPairing(cfg, opts.site, { open: true });
       console.log('You can close this window.');

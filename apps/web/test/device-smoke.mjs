@@ -67,8 +67,6 @@ try {
   await serve('npx', ['vite', 'preview', '--port', String(PAGE_PORT), '--strictPort'], web, new RegExp(String(PAGE_PORT)));
   const cfg = { relay: `http://127.0.0.1:${RELAY_PORT}`, bridgeId: 'smoke-test-bridge', key: 'smoke-test-key-0123456789', printers: [
       { id: 'u1', name: 'U1-mock', url: u1.url, apiKey: '' },
-      // Found on the network, but Moonraker wants a key: the bridge never asks for it, the Device tab does.
-      { id: 'keyed', name: 'Keyed-mock', url: keyed.url, apiKey: '', needsKey: true },
     ],
   };
 
@@ -82,31 +80,41 @@ try {
   // bridge has connected: the dialog must keep listening until it comes online.
   await page.goto(`${site}#pair=${pairingCode(cfg)}`);
   await page.getByText(/Bridge smoke-te · (checking…|offline)/).waitFor();
-  bridge = runBridge(cfg, { log: (m) => console.log(`bridge: ${m}`) });
+  // What the bridge's network search finds (the real one scans port 7125 on the bridge's networks).
+  const onTheNetwork = async () => [
+    { url: u1.url, name: 'U1-mock' },
+    { url: keyed.url, name: '127.0.0.1', needsKey: true },
+    { url: voron.url, name: 'voron-mock' },
+  ];
+  bridge = runBridge(cfg, { log: (m) => console.log(`bridge: ${m}`), find: onTheNetwork });
   await page.getByRole('combobox').filter({ hasText: 'U1-mock' }).waitFor();
-  // A printer that needs its API key gets it here, not in the bridge's window.
+  // The Device tab searches the bridge's network and adds the printers you pick, with the API key where one is needed.
   const bridgePrinter = page.getByRole('combobox').filter({ hasText: 'U1-mock' });
-  await bridgePrinter.selectOption('keyed');
-  const keyForm = page.getByTestId('bridge-printer-key');
-  await keyForm.getByText('Keyed-mock needs its Moonraker API key').waitFor();
-  if (await page.getByTestId('save-printer').isEnabled()) throw new Error('a printer without its key should not be addable yet');
-  await keyForm.getByTestId('bridge-printer-key-input').fill('wrong-key');
-  await keyForm.getByTestId('bridge-printer-key-save').click();
-  await keyForm.getByRole('alert').filter({ hasText: 'did not accept that API key' }).waitFor();
-  await keyForm.getByTestId('bridge-printer-key-input').fill('mock-api-key');
-  await keyForm.getByTestId('bridge-printer-key-save').click();
-  await until('the bridge kept the key', () => cfg.printers.some((p) => p.id === 'keyed' && p.apiKey === 'mock-api-key' && !p.needsKey));
-  await keyForm.waitFor({ state: 'detached' });
-  if (!(await page.getByTestId('save-printer').isEnabled())) throw new Error('the printer should be addable once its key is saved');
-  console.log('bridge: API key entered in the Device tab, kept by the bridge');
-  // More printers are added from here by address, with no terminal.
+  const printers = page.getByTestId('bridge-printers');
+  await printers.getByTestId('bridge-search').click();
+  const row = (url) => printers.locator(`[data-testid="found-printer"][data-url="${url}"]`);
+  await row(u1.url).getByText('Added').waitFor();
+  if (shots) await page.getByRole('dialog').screenshot({ path: join(shots, 'bridge-search.png') });
+  const keyedRow = row(keyed.url);
+  if (await keyedRow.getByTestId('found-add').isEnabled()) throw new Error('a printer that needs a key should not be addable without one');
+  await keyedRow.getByTestId('found-key').fill('wrong-key');
+  await keyedRow.getByTestId('found-add').click();
+  await keyedRow.getByRole('alert').filter({ hasText: 'did not accept that API key' }).waitFor();
+  await keyedRow.getByTestId('found-key').fill('mock-api-key');
+  await keyedRow.getByTestId('found-add').click();
+  await keyedRow.getByText('Added').waitFor();
+  await until('the bridge kept the key', () => cfg.printers.some((p) => p.name === 'Keyed-mock' && p.apiKey === 'mock-api-key'));
+  await page.getByRole('combobox').filter({ hasText: 'Keyed-mock' }).waitFor();
+  if ((await bridgePrinter.inputValue()) !== cfg.printers.find((p) => p.name === 'Keyed-mock').id) throw new Error('the added printer should be chosen');
+  if (cfg.printers.some((p) => p.url === voron.url)) throw new Error('only the printers picked should be added');
+  console.log('bridge: network search in the Device tab, picked printer added with its API key');
+  // Or by its address (any port), with no search.
   const addToBridge = page.getByTestId('bridge-add-printer');
   await addToBridge.locator('summary').click();
-  await addToBridge.getByTestId('bridge-new-address').fill(voron.url);
+  await addToBridge.getByTestId('bridge-new-address').fill(voron.url.replace('http://', ''));
   await addToBridge.getByTestId('bridge-add-submit').click();
   await until('voron-mock added to the bridge', () => cfg.printers.some((p) => p.name === 'voron-mock'));
   await page.getByRole('combobox').filter({ hasText: 'voron-mock' }).waitFor();
-  if ((await bridgePrinter.inputValue()) !== cfg.printers.find((p) => p.name === 'voron-mock').id) throw new Error('the added printer should be chosen');
   await bridgePrinter.selectOption('u1');
   console.log('bridge: printer added from the Device tab by its address');
   await page.getByTestId('save-printer').click();

@@ -2848,3 +2848,39 @@ select:focus-visible {
     height: 28px;
   }
 }
+.dv-bridge-printers {
+  display: grid;
+  gap: 8px;
+  padding: 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+.dv-found-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.dv-found-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 6px;
+}
+.dv-found {
+  display: grid;
+  gap: 6px;
+  padding: 8px;
+  background: var(--surface-2);
+  border-radius: 6px;
+  min-width: 0;
+}
+.dv-found label {
+  display: grid;
+  gap: 4px;
+}
+.dv-found .muted {
+  overflow-wrap: anywhere;
+}

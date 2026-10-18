@@ -143,13 +143,8 @@ export function BridgeSetup({ relay }: { relay: string }) {
       <li>
         Run it, and keep it running:
         <pre className="dv-code">node cloud-slicer-bridge.mjs</pre>
-        It finds the printers on your network by itself.
       </li>
-      <li>It opens a link to this page that adds your printer (or prints the link; you can also paste it below).</li>
-      <li>
-        No printer found? Add it by its address, for example <code>node cloud-slicer-bridge.mjs add 192.168.1.50</code> (use your printer's address), then run it
-        again.
-      </li>
+      <li>It opens a link to this page (or prints it; you can also paste it below), where you search for your printers and add them.</li>
     </ol>
   );
 
@@ -183,9 +178,9 @@ export function BridgeSetup({ relay }: { relay: string }) {
           )}
         </li>
         <li>
-          Open it (the Terminal command does this by itself). It asks nothing: it finds the printers on your network, starts by itself with the computer (so the Device tab works
-          whenever that computer is on), and opens a link to this page (you can also paste the link below). Here you choose the printer, type its API key if
-          it needs one, or add a printer by its address.
+          Open it (the Terminal command does this by itself). It asks nothing: it starts by itself with the computer (so the Device tab works whenever that
+          computer is on) and opens a link to this page (you can also paste the link below). Here you search the network for your printers and add the ones you
+          want, with an API key if one needs it, or add a printer by its address.
         </li>
         {(win || macDownload) && (
           <li className="muted">
@@ -215,8 +210,8 @@ export function BridgeSetup({ relay }: { relay: string }) {
             taskbar), on Linux and Raspberry Pi when the computer starts. The Device tab can reach your printer whenever that computer is on.
           </p>
           <p>
-            <strong>Adding a printer later, or stopping it.</strong> The bridge finds your printers when it's first set up. Once it's paired, you can add more
-            printers by address right in this dialog, with no terminal. Or type the address here and run the command on the bridge's computer:
+            <strong>Adding a printer later, or stopping it.</strong> Once the bridge is paired, add printers right in this dialog: search the network, or
+            type an address. Or type the address here and run the command on the bridge's computer:
           </p>
           <ManageCommands />
           <p>The bridge restarts by itself to use a printer you add. To update it, set it up again the same way (download and open the app, or run the Terminal command).</p>

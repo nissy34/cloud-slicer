@@ -124,7 +124,7 @@ interface ClientAttachment {
 }
 
 interface BridgeInfo {
-  printers: { id: string; name: string; needsKey?: boolean }[];
+  printers: { id: string; name: string }[];
   version: string;
 }
 
@@ -211,11 +211,7 @@ export class Bridge extends DurableObject<Env> {
       if (msg.ctl === 'hello') {
         const printers = (Array.isArray(msg.printers) ? msg.printers : [])
           .slice(0, 32)
-          .map((p: { id?: unknown; name?: unknown; needsKey?: unknown }) => ({
-            id: String(p.id ?? '').slice(0, 64),
-            name: String(p.name ?? '').slice(0, 80),
-            ...(p.needsKey === true && { needsKey: true }),
-          }));
+          .map((p: { id?: unknown; name?: unknown }) => ({ id: String(p.id ?? '').slice(0, 64), name: String(p.name ?? '').slice(0, 80) }));
         await this.ctx.storage.put('info', { printers, version: String(msg.version ?? '') } satisfies BridgeInfo);
         await this.broadcastStatus(true);
         // Browsers that were waiting for the agent get their sessions now.
