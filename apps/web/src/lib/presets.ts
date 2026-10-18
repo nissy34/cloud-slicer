@@ -14,18 +14,42 @@ export function splitList(value: string | undefined): string[] {
 }
 
 /**
- * Closest compatible filament preset for a file filament of `type` (e.g. "PLA"):
- * the printer vendor's own preset of that material first, then a generic one,
- * then any of that material, else `fallback`.
+ * The words that tell filaments of one material apart: "Bambu PLA Silk+ @BBL X1C"
+ * -> ["silk"]. Drops the printer suffix, the vendor (first word), the material
+ * and "basic", which every vendor uses for its plain filament.
  */
-export function pickFilamentPreset(presets: PresetSummary[], type: string | undefined, fallback?: string): string {
+function variantWords(name: string, type: string): string[] {
+  const material = new Set(type.toLowerCase().split(/[^a-z0-9]+/));
+  const words = shortName(name)
+    .toLowerCase()
+    .replace(/high[\s-]*flow/g, 'hf')
+    .split(/[^a-z0-9]+/)
+    .filter(Boolean)
+    .slice(1);
+  return words.filter((w) => !material.has(w) && w !== 'basic');
+}
+
+/**
+ * Closest compatible filament preset for a file filament of `type` (e.g. "PLA"),
+ * using the file's preset name (`source`, e.g. "Bambu PLA Matte @BBL X1C") to
+ * keep its kind: Matte -> Matte, Silk -> Silk, HF -> HF. Among equally close
+ * ones the plainest wins, then the printer vendor's own preset, then a generic
+ * one; else `fallback`.
+ */
+export function pickFilamentPreset(presets: PresetSummary[], type: string | undefined, fallback?: string, source?: string): string {
   const want = (type ?? '').toUpperCase();
   const same = presets.filter((p) => (p.filamentType ?? '').toUpperCase() === want);
-  const pick =
-    same.find((p) => p.vendor === 'Snapmaker' && /^Snapmaker /.test(p.name)) ??
-    same.find((p) => /generic/i.test(p.name)) ??
-    same[0];
-  return pick?.name ?? fallback ?? presets[0]?.name ?? '';
+  const wanted = new Set(source ? variantWords(source, want) : []);
+  const vendorRank = (p: PresetSummary) =>
+    p.vendor === 'Snapmaker' && /^Snapmaker /.test(p.name) ? 0 : /generic/i.test(p.name) ? 1 : 2;
+  const ranked = same
+    .map((p, i) => {
+      const words = variantWords(p.name, want);
+      const shared = words.filter((w) => wanted.has(w)).length;
+      return { p, i, shared, extra: words.length - shared, vendor: vendorRank(p) };
+    })
+    .sort((a, b) => b.shared - a.shared || a.extra - b.extra || a.vendor - b.vendor || a.i - b.i);
+  return ranked[0]?.p.name ?? fallback ?? presets[0]?.name ?? '';
 }
 
 /** Short name for a preset inside its printer's lists: "PLA @Snapmaker U1" -> "PLA". */

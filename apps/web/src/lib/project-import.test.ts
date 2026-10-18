@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { PresetSummary } from '../engine/protocol';
-import { modelProcessKeys, pickProcess, processKeys, projectOverrides } from './project-import';
+import { emptyProjectMessage, modelProcessKeys, pickProcess, processKeys, projectOverrides } from './project-import';
 
 const known = { layer_height: {}, wall_loops: {}, nozzle_diameter: {}, wipe_tower_x: {}, print_settings_id: {} };
 
@@ -59,5 +59,12 @@ describe('pickProcess', () => {
   });
   it('falls back to the default', () => {
     expect(pickProcess(list, '0.3', 'default')).toBe('default');
+  });
+});
+
+describe('emptyProjectMessage', () => {
+  it('explains sliced-only 3MF files', () => {
+    expect(emptyProjectMessage('Cube.gcode.3mf')).toMatch(/sliced file.*original project/);
+    expect(emptyProjectMessage('empty.3mf')).toBe('empty.3mf has no objects to print.');
   });
 });
