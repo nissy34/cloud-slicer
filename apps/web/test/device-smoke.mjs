@@ -86,45 +86,53 @@ try {
   const onTheNetwork = async () => (searches++ === 0 ? [] : [
     { url: u1.url, name: 'U1-mock' },
     { url: keyed.url, name: '127.0.0.1', needsKey: true },
-    { url: voron.url, name: 'voron-mock' },
   ]);
   bridge = runBridge(cfg, { log: (m) => console.log(`bridge: ${m}`), find: onTheNetwork });
-  await page.getByRole('combobox').filter({ hasText: 'U1-mock' }).waitFor();
-  // The Device tab searches the bridge's network and adds the printers you pick, with the API key where one is needed.
-  const bridgePrinter = page.getByRole('combobox').filter({ hasText: 'U1-mock' });
+  // One list: every printer the bridge serves or found, each with its own name, profile and API key, and one button for all.
   const printers = page.getByTestId('bridge-printers');
+  const row = (url) => printers.locator(`[data-testid="add-row"][data-url="${url}"]`);
+  await printers.locator('[data-testid="add-row"][data-bridge-id="u1"]').waitFor();
   await printers.getByTestId('bridge-search').click();
   // Searching is shown plainly, and an empty search goes again by itself.
   await printers.getByTestId('bridge-searching').waitFor();
   if (shots) await page.getByRole('dialog').screenshot({ path: join(shots, 'bridge-searching.png') });
-  const row = (url) => printers.locator(`[data-testid="found-printer"][data-url="${url}"]`);
-  await row(u1.url).getByText('Added').waitFor({ timeout: 20_000 });
+  await row(keyed.url).waitFor({ timeout: 20_000 });
   if (searches < 2) throw new Error('an empty search should go again by itself');
-  if (shots) await page.getByRole('dialog').screenshot({ path: join(shots, 'bridge-search.png') });
-  const keyedRow = row(keyed.url);
-  if (await keyedRow.getByTestId('found-add').isEnabled()) throw new Error('a printer that needs a key should not be addable without one');
-  await keyedRow.getByTestId('found-key').fill('wrong-key');
-  await keyedRow.getByTestId('found-add').click();
-  await keyedRow.getByRole('alert').filter({ hasText: 'did not accept that API key' }).waitFor();
-  await keyedRow.getByTestId('found-key').fill('mock-api-key');
-  await keyedRow.getByTestId('found-add').click();
-  await keyedRow.getByText('Added').waitFor();
-  await until('the bridge kept the key', () => cfg.printers.some((p) => p.name === 'Keyed-mock' && p.apiKey === 'mock-api-key'));
-  await page.getByRole('combobox').filter({ hasText: 'Keyed-mock' }).waitFor();
-  if ((await bridgePrinter.inputValue()) !== cfg.printers.find((p) => p.name === 'Keyed-mock').id) throw new Error('the added printer should be chosen');
-  if (cfg.printers.some((p) => p.url === voron.url)) throw new Error('only the printers picked should be added');
-  console.log('bridge: network search in the Device tab, picked printer added with its API key');
-  // Or by its address (any port), with no search.
+  if ((await printers.getByTestId('add-row').count()) !== 2) throw new Error('U1-mock is both on the bridge and found: it should be one row');
+  // Or by its address (any port), when the search doesn't find it.
   const addToBridge = page.getByTestId('bridge-add-printer');
   await addToBridge.locator('summary').click();
   await addToBridge.getByTestId('bridge-new-address').fill(voron.url.replace('http://', ''));
   await addToBridge.getByTestId('bridge-add-submit').click();
   await until('voron-mock added to the bridge', () => cfg.printers.some((p) => p.name === 'voron-mock'));
-  await page.getByRole('combobox').filter({ hasText: 'voron-mock' }).waitFor();
-  await bridgePrinter.selectOption('u1');
+  const voronRow = printers.locator(`[data-testid="add-row"][data-bridge-id="${cfg.printers.find((p) => p.name === 'voron-mock').id}"]`);
+  await voronRow.getByTestId('add-row-name').waitFor();
+  await page.getByTestId('save-printer').filter({ hasText: 'Add 3 printers' }).waitFor();
   console.log('bridge: printer added from the Device tab by its address');
+  // A locked printer needs its key before anything is added.
+  if (await page.getByTestId('save-printer').isEnabled()) throw new Error('a printer that needs a key should not be addable without one');
+  await row(keyed.url).getByTestId('add-row-name').fill('Keyed printer');
+  await row(keyed.url).getByTestId('add-row-key').fill('wrong-key');
+  await voronRow.getByTestId('add-row-on').uncheck();
+  await page.getByTestId('save-printer').filter({ hasText: 'Add 2 printers' }).waitFor();
+  await page.getByTestId('add-summary').filter({ hasText: 'U1-mock, Keyed printer' }).waitFor();
+  if (shots) await page.getByRole('dialog').screenshot({ path: join(shots, 'bridge-search.png') });
+  // The list fits a phone too.
+  await page.setViewportSize({ width: 390, height: 844 });
+  const tooWide = await page.evaluate(() => [...document.querySelectorAll('.dv-dialog *')].find((el) => el.getBoundingClientRect().right > window.innerWidth + 0.5)?.className ?? null);
+  if (tooWide !== null) throw new Error(`the add list is wider than a phone: ${tooWide}`);
+  if (shots) await page.screenshot({ path: join(shots, 'bridge-list-phone.png') });
+  await page.setViewportSize({ width: 1280, height: 900 });
   await page.getByTestId('save-printer').click();
+  await row(keyed.url).getByRole('alert').filter({ hasText: 'did not accept that API key' }).waitFor();
+  await row(keyed.url).getByTestId('add-row-key').fill('mock-api-key');
+  await page.getByTestId('save-printer').click();
+  await until('the bridge kept the key and the name', () => cfg.printers.some((p) => p.name === 'Keyed printer' && p.apiKey === 'mock-api-key'));
   await page.getByTestId('connection').filter({ hasText: 'Connected' }).waitFor({ timeout: 20_000 });
+  await page.getByTestId('printer-select').locator('option', { hasText: 'Keyed printer' }).waitFor({ state: 'attached' });
+  if (await page.getByTestId('printer-select').locator('option', { hasText: 'voron-mock' }).count()) throw new Error('only the ticked printers should be saved');
+  if ((await page.getByTestId('printer-select').locator('option:checked').textContent()) !== 'U1-mock') throw new Error('the first printer in the list should be chosen');
+  console.log('bridge: the ticked printers saved in one go, with their names and API key');
   console.log('bridge: connected');
 
   await page.getByTestId('head-0').getByText('PLA').waitFor();
@@ -389,11 +397,19 @@ try {
   await page.getByTestId('printer-select').selectOption({ label: 'U1-mock' });
   await page.locator('.dv-header-actions').getByRole('button', { name: 'Edit' }).click();
   await page.getByTestId('remove-printer').click();
-  await page.getByTestId('bridge-uninstall').getByTestId('bridge-uninstall-command').filter({ hasText: / uninstall$/ }).waitFor();
-  if (shots) await page.screenshot({ path: join(shots, 'remove-bridge-printer.png') });
+  // Another saved printer still uses this bridge: keep it.
+  await page.getByText('Keep the bridge on its computer: Keyed printer still uses it.').waitFor();
   await page.getByTestId('confirm-remove-printer').click();
   await until('U1-mock removed', async () => (await page.getByTestId('printer-select').locator('option', { hasText: 'U1-mock' }).count()) === 0);
   await until('the bridge forgot U1-mock too', () => !cfg.printers.some((p) => p.id === 'u1'));
+  // The bridge's last printer: say how to remove the bridge too.
+  await page.getByTestId('printer-select').selectOption({ label: 'Keyed printer' });
+  await page.locator('.dv-header-actions').getByRole('button', { name: 'Edit' }).click();
+  await page.getByTestId('remove-printer').click();
+  await page.getByTestId('bridge-uninstall').getByTestId('bridge-uninstall-command').filter({ hasText: / uninstall$/ }).waitFor();
+  if (shots) await page.screenshot({ path: join(shots, 'remove-bridge-printer.png') });
+  await page.getByTestId('confirm-remove-printer').click();
+  await until('Keyed printer removed', async () => (await page.getByTestId('printer-select').locator('option', { hasText: 'Keyed printer' }).count()) === 0);
   console.log('removing a bridge printer: shows how to uninstall the bridge, then removes it');
   console.log('DEVICE SMOKE OK');
 } catch (e) {

@@ -3304,6 +3304,50 @@ select:focus-visible {
 .dv-found .muted {
   overflow-wrap: anywhere;
 }
+.dv-add-row {
+  border: 1px solid transparent;
+}
+.dv-add-row.on {
+  border-color: var(--accent);
+  background: var(--surface);
+}
+.dv-add-tick {
+  display: flex !important;
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+}
+.dv-add-tick input {
+  width: 18px;
+  height: 18px;
+  flex: none;
+}
+.dv-add-fields {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 8px;
+  padding-left: 28px;
+}
+.dv-add-fields label {
+  display: grid;
+  gap: 4px;
+}
+.dv-add-key {
+  grid-column: 1 / -1;
+}
+.dv-add-summary {
+  align-self: center;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}
+@media (max-width: 760px) {
+  .dv-add-fields {
+    grid-template-columns: minmax(0, 1fr);
+    padding-left: 0;
+  }
+}
 .dv-added {
   color: var(--dv-ok, #1f8a4c);
   font-weight: 600;

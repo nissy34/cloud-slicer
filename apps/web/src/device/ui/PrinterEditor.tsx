@@ -174,19 +174,16 @@ function FoundRow({ printer, watch, onAdded }: { printer: FoundPrinter; watch: B
 }
 
 /**
- * The bridge's printers come from here: search the bridge's network and pick
- * which printers to add (with their API keys), or add one by its address.
+ * Searching the bridge's network. A Mac blocks the first search until its
+ * "find devices on your local network" prompt is allowed, so a search that
+ * finds nothing goes again by itself a few times.
  */
-function BridgePrinters({ watch, onAdded, searchNow, system }: { watch: BridgeWatch | null; onAdded: (p: { id: string; name: string }) => void; searchNow: boolean; system?: string }) {
+function useBridgeSearch(watch: BridgeWatch | null, searchNow: boolean) {
   const [found, setFound] = useState<FoundPrinter[] | null>(null);
   const [searching, setSearching] = useState(false);
-  // Searches in a row that found nothing. A Mac blocks the first search until its "find devices on your local network" prompt is allowed, so an empty search goes again by itself a few times.
+  // Searches in a row that found nothing.
   const [tries, setTries] = useState(0);
   const [problem, setProblem] = useState('');
-  const [address, setAddress] = useState('');
-  const [apiKey, setApiKey] = useState('');
-  const [adding, setAdding] = useState(false);
-  const [addProblem, setAddProblem] = useState('');
   const search = async (again = false) => {
     if (!watch) return;
     setSearching(true);
@@ -209,92 +206,242 @@ function BridgePrinters({ watch, onAdded, searchNow, system }: { watch: BridgeWa
     return () => clearTimeout(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [keepLooking, searching, tries]);
-  const looking = searching || keepLooking;
-  const allowHint =
-    system === 'darwin'
-      ? 'If your Mac asks whether the bridge may find devices on your local network, click Allow there. The search carries on by itself.'
-      : 'If the bridge’s computer asks whether the bridge may find devices on your network, allow it there. The search carries on by itself.';
   // A bridge with no printers yet: look straight away.
   useEffect(() => {
     if (searchNow && watch && found === null && !searching) void search();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchNow, watch]);
-  const added = (p: { id: string; name: string }, url?: string) => {
-    if (url) setFound((list) => list?.map((f) => (f.url === url ? { ...f, added: p.id } : f)) ?? null);
-    onAdded(p);
-  };
-  const addByAddress = async () => {
+  return { found, setFound, searching, looking: searching || keepLooking, tries, problem, search };
+}
+
+/** The heading with Search again, and what the search is doing: looking (with the Allow hint), failed, or found nothing. */
+function SearchStatus({ s, watch, system, title }: { s: ReturnType<typeof useBridgeSearch>; watch: BridgeWatch | null; system?: string; title: string }) {
+  const allowHint =
+    system === 'darwin'
+      ? 'If your Mac asks whether the bridge may find devices on your local network, click Allow there. The search carries on by itself.'
+      : 'If the bridge’s computer asks whether the bridge may find devices on your network, allow it there. The search carries on by itself.';
+  return (
+    <>
+      <div className="dv-found-head">
+        <strong>{title}</strong>
+        {!s.looking && (
+          <button className="secondary" disabled={!watch} onClick={() => void s.search()} data-testid="bridge-search">
+            {s.found ? 'Search again' : 'Search my network'}
+          </button>
+        )}
+      </div>
+      {s.looking && (
+        <div className="dv-searching" role="status" data-testid="bridge-searching">
+          <span className="dv-spinner" aria-hidden />
+          <div>
+            <strong>Looking for printers on your network…</strong>
+            <span className="muted">{s.tries > 0 || system === 'darwin' ? allowHint : 'This takes a few seconds.'}</span>
+          </div>
+        </div>
+      )}
+      {s.problem && (
+        <p className="dv-alert" role="alert">
+          {s.problem}
+        </p>
+      )}
+      {s.found && !s.looking && !s.found.length && (
+        <p className="dv-alert">No printer found. Check that the printer is switched on and on the same network as the bridge's computer, then search again, or add it by its address below.</p>
+      )}
+    </>
+  );
+}
+
+/** Adds a printer to the bridge by its address (any port), for when the search doesn't find it. */
+function AddByAddress({ watch, onAdded }: { watch: BridgeWatch | null; onAdded: (p: { id: string; name: string }) => void }) {
+  const [address, setAddress] = useState('');
+  const [apiKey, setApiKey] = useState('');
+  const [adding, setAdding] = useState(false);
+  const [problem, setProblem] = useState('');
+  const add = async () => {
     if (!watch) return;
     setAdding(true);
-    setAddProblem('');
+    setProblem('');
     try {
-      added(await watch.manage<{ id: string; name: string }>('bridge.add_printer', { address: address.trim(), apiKey: apiKey.trim() }));
+      onAdded(await watch.manage<{ id: string; name: string }>('bridge.add_printer', { address: address.trim(), apiKey: apiKey.trim() }));
       setAddress('');
       setApiKey('');
     } catch (e) {
-      setAddProblem((e as Error).message);
+      setProblem((e as Error).message);
     } finally {
       setAdding(false);
     }
   };
   return (
-    <div className="dv-bridge-printers" data-testid="bridge-printers">
-      <div className="dv-found-head">
-        <strong>Printers on your network</strong>
-        {!looking && (
-          <button className="secondary" disabled={!watch} onClick={() => void search()} data-testid="bridge-search">
-            {found ? 'Search again' : 'Search my network'}
-          </button>
+    <details className="dv-node-option" data-testid="bridge-add-printer">
+      <summary>Printer not found? Add it by its address</summary>
+      <div className="dv-form">
+        <label>
+          Printer address
+          <input value={address} onChange={(e) => setAddress(e.target.value)} placeholder="for example 192.168.1.50, or 192.168.1.50:7130 for another port" spellCheck={false} autoCapitalize="off" data-testid="bridge-new-address" />
+        </label>
+        <label>
+          Moonraker API key <span className="muted">(only if the printer asks for one)</span>
+          <input value={apiKey} onChange={(e) => setApiKey(e.target.value)} spellCheck={false} autoCapitalize="off" autoComplete="off" data-testid="bridge-new-key" />
+        </label>
+        {problem && (
+          <p className="dv-alert" role="alert">
+            {problem}
+          </p>
         )}
-      </div>
-      {looking && (
-        <div className="dv-searching" role="status" data-testid="bridge-searching">
-          <span className="dv-spinner" aria-hidden />
-          <div>
-            <strong>Looking for printers on your network…</strong>
-            <span className="muted">{tries > 0 || system === 'darwin' ? allowHint : 'This takes a few seconds.'}</span>
-          </div>
+        <div>
+          <button className="secondary" disabled={!address.trim() || adding} onClick={() => void add()} data-testid="bridge-add-submit">
+            {adding ? 'Checking…' : 'Find this printer'}
+          </button>
         </div>
-      )}
-      {problem && (
-        <p className="dv-alert" role="alert">
-          {problem}
-        </p>
-      )}
-      {found && !looking && !found.length && (
-        <p className="dv-alert">No printer found. Check that the printer is switched on and on the same network as the bridge's computer, then search again, or add it by its address below.</p>
-      )}
-      {found && found.length > 0 && !searching && (
+      </div>
+    </details>
+  );
+}
+
+/**
+ * Editing a saved bridge printer: search the bridge's network and add
+ * printers to the bridge (with their API keys), or add one by its address.
+ */
+function BridgePrinters({ watch, onAdded, searchNow, system }: { watch: BridgeWatch | null; onAdded: (p: { id: string; name: string }) => void; searchNow: boolean; system?: string }) {
+  const s = useBridgeSearch(watch, searchNow);
+  const added = (p: { id: string; name: string }, url?: string) => {
+    if (url) s.setFound((list) => list?.map((f) => (f.url === url ? { ...f, added: p.id } : f)) ?? null);
+    onAdded(p);
+  };
+  return (
+    <div className="dv-bridge-printers" data-testid="bridge-printers">
+      <SearchStatus s={s} watch={watch} system={system} title="Printers on your network" />
+      {s.found && s.found.length > 0 && !s.searching && (
         <ul className="dv-found-list">
-          {found.map((f) => (
+          {s.found.map((f) => (
             <FoundRow key={f.url} printer={f} watch={watch} onAdded={(p) => added(p, f.url)} />
           ))}
         </ul>
       )}
-      <details className="dv-node-option" data-testid="bridge-add-printer">
-        <summary>Add a printer by its address</summary>
-        <div className="dv-form">
-          <label>
-            Printer address
-            <input value={address} onChange={(e) => setAddress(e.target.value)} placeholder="for example 192.168.1.50, or 192.168.1.50:7130 for another port" spellCheck={false} autoCapitalize="off" data-testid="bridge-new-address" />
-          </label>
-          <label>
-            Moonraker API key <span className="muted">(only if the printer asks for one)</span>
-            <input value={apiKey} onChange={(e) => setApiKey(e.target.value)} spellCheck={false} autoCapitalize="off" autoComplete="off" data-testid="bridge-new-key" />
-          </label>
-          {addProblem && (
-            <p className="dv-alert" role="alert">
-              {addProblem}
-            </p>
-          )}
-          <div>
-            <button className="secondary" disabled={!address.trim() || adding} onClick={() => void addByAddress()} data-testid="bridge-add-submit">
-              {adding ? 'Adding…' : 'Add to bridge'}
-            </button>
-          </div>
-        </div>
-      </details>
+      <AddByAddress watch={watch} onAdded={(p) => added(p)} />
       <p className="muted">API keys go to the bridge, which keeps them on its computer; Cloud Slicer doesn't store them.</p>
+    </div>
+  );
+}
+
+/** One printer in the add list: on the bridge already (bridgeId), or found on the network (url) and added to the bridge when saved. */
+export interface AddRow {
+  key: string;
+  bridgeId: string | null;
+  url: string | null;
+  host: string;
+  needsKey: boolean;
+  /** Already a saved printer in Cloud Slicer. */
+  saved: boolean;
+  on: boolean;
+  name: string;
+  preset: string;
+  apiKey: string;
+  problem: string;
+}
+
+/** Merges what the bridge serves and what the search found into the add list, keeping what the user typed. */
+export function mergeAddRows(
+  rows: AddRow[],
+  bridgePrinters: { id: string; name: string }[],
+  found: FoundPrinter[] | null,
+  isSaved: (bridgeId: string) => boolean,
+  preset: string,
+): AddRow[] {
+  const next = [...rows];
+  const byBridge = (id: string) => next.find((r) => r.bridgeId === id);
+  const blank = (r: Pick<AddRow, 'key' | 'bridgeId' | 'url' | 'host' | 'needsKey' | 'name'>): AddRow => {
+    const saved = r.bridgeId ? isSaved(r.bridgeId) : false;
+    return { ...r, saved, on: !saved, preset, apiKey: '', problem: '' };
+  };
+  for (const p of bridgePrinters) {
+    if (!byBridge(p.id)) next.push(blank({ key: `b:${p.id}`, bridgeId: p.id, url: null, host: '', needsKey: false, name: p.name }));
+  }
+  for (const f of found ?? []) {
+    const host = f.url.replace(/^https?:\/\//, '');
+    const name = f.name === host.split(':')[0] ? '' : f.name;
+    const mine = f.added ? byBridge(f.added) : next.find((r) => r.url === f.url);
+    if (mine) {
+      const i = next.indexOf(mine);
+      next[i] = { ...mine, url: f.url, host, needsKey: !f.added && f.needsKey, name: mine.name || name };
+    } else next.push(blank({ key: f.added ? `b:${f.added}` : `u:${f.url}`, bridgeId: f.added, url: f.url, host, needsKey: !f.added && f.needsKey, name }));
+  }
+  return next;
+}
+
+/**
+ * Adding printers from a paired bridge: one list of every printer it serves
+ * or found, each with its own name, printer profile and API key, and one
+ * button below that adds all the ticked ones.
+ */
+function BridgeAddList({
+  rows,
+  setRows,
+  watch,
+  searchNow,
+  system,
+  isSaved,
+}: {
+  rows: AddRow[];
+  setRows: (f: (rows: AddRow[]) => AddRow[]) => void;
+  watch: BridgeWatch | null;
+  searchNow: boolean;
+  system?: string;
+  isSaved: (bridgeId: string) => boolean;
+}) {
+  const s = useBridgeSearch(watch, searchNow);
+  const found = s.found;
+  const preset = useSlicer((st) => st.selection?.printer ?? '');
+  useEffect(() => {
+    if (found) setRows((r) => mergeAddRows(r, [], found, isSaved, preset));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [found]);
+  const edit = (key: string, change: Partial<AddRow>) => setRows((list) => list.map((r) => (r.key === key ? { ...r, ...change, ...(change.apiKey !== undefined && { problem: '' }) } : r)));
+  const shown = rows.filter((r) => !r.saved);
+  const savedRows = rows.filter((r) => r.saved);
+  return (
+    <div className="dv-bridge-printers" data-testid="bridge-printers">
+      <SearchStatus s={s} watch={watch} system={system} title="Your printers" />
+      {shown.length > 0 && (
+        <>
+          <span className="muted">Tick the printers you want, give each a name and its printer profile.</span>
+          <ul className="dv-found-list">
+            {shown.map((r) => (
+              <li key={r.key} className={`dv-found dv-add-row${r.on ? ' on' : ''}`} data-testid="add-row" data-url={r.url ?? ''} data-bridge-id={r.bridgeId ?? ''}>
+                <label className="dv-add-tick">
+                  <input type="checkbox" checked={r.on} onChange={(e) => edit(r.key, { on: e.target.checked })} data-testid="add-row-on" />
+                  <span>
+                    <strong>{r.name || r.host}</strong> {r.name && r.host && <span className="muted">{r.host}</span>}
+                  </span>
+                </label>
+                {r.on && (
+                  <div className="dv-add-fields">
+                    <label>
+                      Name
+                      <input value={r.name} onChange={(e) => edit(r.key, { name: e.target.value })} placeholder={r.host || 'My printer'} data-testid="add-row-name" />
+                    </label>
+                    <PresetField value={r.preset} onChange={(p) => edit(r.key, { preset: p })} />
+                    {r.needsKey && (
+                      <label className="dv-add-key">
+                        API key
+                        <input value={r.apiKey} onChange={(e) => edit(r.key, { apiKey: e.target.value })} placeholder="This printer is locked: type its API key" spellCheck={false} autoCapitalize="off" autoComplete="off" data-testid="add-row-key" />
+                        <span className="muted">Mainsail and Fluidd show it in their settings. It goes to the bridge, not to Cloud Slicer.</span>
+                      </label>
+                    )}
+                  </div>
+                )}
+                {r.problem && (
+                  <p className="dv-alert" role="alert">
+                    {r.problem}
+                  </p>
+                )}
+              </li>
+            ))}
+          </ul>
+        </>
+      )}
+      {savedRows.length > 0 && <span className="muted">Already in Cloud Slicer: {savedRows.map((r) => r.name || r.host).join(', ')}.</span>}
+      <AddByAddress watch={watch} onAdded={(p) => setRows((list) => list.map((r) => (r.bridgeId === p.id ? { ...r, on: true, saved: false } : r)).concat(list.some((r) => r.bridgeId === p.id) ? [] : [{ key: `b:${p.id}`, bridgeId: p.id, url: null, host: '', needsKey: false, saved: false, on: true, name: p.name, preset, apiKey: '', problem: '' }]))} />
     </div>
   );
 }
@@ -340,6 +487,15 @@ export function PrinterEditor() {
   const [confirmRemove, setConfirmRemove] = useState(false);
   const [removing, setRemoving] = useState(false);
   const saved = useDevice((s) => s.printers);
+  // Adding from a paired bridge: every printer it serves or found, each with its own name and profile.
+  const [rows, setRows] = useState<AddRow[]>([]);
+  const [addingAll, setAddingAll] = useState(false);
+  const isSaved = (printer: string) => !!pairing && saved.some((p) => p.kind === 'bridge' && p.bridgeId === pairing.bridgeId && p.printer === printer);
+  const listMode = !existing && !!bridge && Number(bridge.version) >= MANAGED_FROM;
+  useEffect(() => {
+    if (bridge && !existing) setRows((r) => mergeAddRows(r, bridge.printers, null, isSaved, preset));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [bridge]);
 
   useEffect(() => {
     if (!pairing) return;
@@ -376,6 +532,37 @@ export function PrinterEditor() {
   const saveBridge = () => {
     if (!pairing || !printerId) return;
     void savePrinter({ id, kind: 'bridge', name: name.trim() || 'Printer', relay: pairing.relay, bridgeId: pairing.bridgeId, key: pairing.key, printer: printerId, ...(preset && { preset }), ...keep });
+  };
+
+  const chosen = rows.filter((r) => r.on && !r.saved);
+  const missingKey = chosen.some((r) => !r.bridgeId && r.needsKey && !r.apiKey.trim());
+  /** Adds every ticked printer: to the bridge first when it was only found on the network, then to Cloud Slicer. */
+  const addAll = async () => {
+    if (!pairing || !watch || !chosen.length) return;
+    setAddingAll(true);
+    const ready: { row: AddRow; printer: string }[] = [];
+    for (const r of chosen) {
+      let printer = r.bridgeId;
+      if (!printer) {
+        try {
+          const res = await watch.manage<{ id: string; name: string }>('bridge.add_printer', { address: r.url, apiKey: r.apiKey.trim(), ...(r.name.trim() && { name: r.name.trim() }) });
+          printer = res.id;
+          // The bridge's status may already list it as a row of its own: keep this one.
+          setRows((list) => list.filter((x) => x.key === r.key || x.bridgeId !== res.id).map((x) => (x.key === r.key ? { ...x, bridgeId: res.id, needsKey: false } : x)));
+        } catch (e) {
+          setRows((list) => list.map((x) => (x.key === r.key ? { ...x, problem: (e as Error).message } : x)));
+          setAddingAll(false);
+          return;
+        }
+      }
+      ready.push({ row: r, printer });
+    }
+    const ids = ready.map(() => newId());
+    for (const [i, { row, printer }] of ready.entries()) {
+      await savePrinter({ id: ids[i], kind: 'bridge', name: row.name.trim() || row.host || 'Printer', relay: pairing.relay, bridgeId: pairing.bridgeId, key: pairing.key, printer, ...(row.preset && { preset: row.preset }) });
+    }
+    // Saved in the list's order, with the first one chosen on the Device tab.
+    if (ids.length > 1) useDevice.getState().select(ids[0]);
   };
 
   const saveDirect = async () => {
@@ -434,7 +621,7 @@ export function PrinterEditor() {
           <p>This removes {existing.name} from Cloud Slicer{existing.kind === 'bridge' ? ' and from its bridge' : ''}. The printer itself isn't changed.</p>
           {existing.kind === 'bridge' &&
             (sharing.length ? (
-              <p className="muted">Keep the bridge on its computer: {sharing.map((p) => p.name).join(', ')} still use it.</p>
+              <p className="muted">Keep the bridge on its computer: {sharing.map((p) => p.name).join(', ')} {sharing.length === 1 ? 'still uses' : 'still use'} it.</p>
             ) : (
               <>
                 <p>The bridge keeps running on the computer near the printer. If you don't need it any more, remove it from that computer too:</p>
@@ -457,10 +644,21 @@ export function PrinterEditor() {
               Remove printer
             </button>
           )}
+          {kind === 'bridge' && listMode && chosen.length > 0 && (
+            <span className="muted dv-left dv-add-summary" data-testid="add-summary">
+              {chosen.map((r) => r.name.trim() || r.host).join(', ')}
+            </span>
+          )}
           <button className="secondary" onClick={close}>
             Cancel
           </button>
-          {kind === 'bridge' ? (
+          {kind === 'bridge' && listMode ? (
+            <>
+              <button className="primary" disabled={!chosen.length || missingKey || addingAll || !watch} onClick={() => void addAll()} data-testid="save-printer">
+                {addingAll ? 'Adding…' : chosen.length > 1 ? `Add ${chosen.length} printers` : 'Add printer'}
+              </button>
+            </>
+          ) : kind === 'bridge' ? (
             pairing && (
               <button className="primary" disabled={!pairing || !printerId || checking} onClick={saveBridge} data-testid="save-printer">
                 {existing ? 'Save' : 'Add printer'}
@@ -529,6 +727,7 @@ export function PrinterEditor() {
                       onClick={() => {
                         setPairing(null);
                         setBridge(null);
+                        setRows([]);
                         setCode('');
                       }}
                     >
@@ -537,7 +736,11 @@ export function PrinterEditor() {
                   </>
                 )}
               </p>
+              {bridge?.agent === 'online' && listMode && (
+                <BridgeAddList rows={rows} setRows={setRows} watch={watch} searchNow={bridge.printers.length === 0} system={bridge.system} isSaved={isSaved} />
+              )}
               {bridge?.agent === 'online' &&
+                !listMode &&
                 (Number(bridge.version) >= MANAGED_FROM ? (
                   <BridgePrinters
                     watch={watch}
@@ -551,7 +754,7 @@ export function PrinterEditor() {
                 ) : (
                   <p className="muted">To find and add printers from here, update the bridge: download it again and open it (or run the Terminal command again).</p>
                 ))}
-              {bridge && bridge.printers.length > 0 && (
+              {bridge && !listMode && bridge.printers.length > 0 && (
                 <label>
                   Printer
                   <select value={printerId} onChange={(e) => setPrinterId(e.target.value)}>
@@ -565,7 +768,7 @@ export function PrinterEditor() {
               )}
             </>
           )}
-          {pairing && (
+          {pairing && !listMode && (
             <>
               <label>
                 Name
