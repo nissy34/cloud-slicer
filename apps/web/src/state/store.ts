@@ -17,7 +17,7 @@ import { calibrationOptions, CALIBRATIONS, type CalibrationMode, type Calibratio
 import { bedSize } from '../lib/colour';
 import { renderThumbnails, thumbnailSizes } from '../lib/thumbnail';
 import { DEFAULT_PRINTER, pickFilamentPreset, splitList, SLOT_COLOURS } from '../lib/presets';
-import { modelProcessKeys, pickProcess, printerLabel, projectOverrides } from '../lib/project-import';
+import { emptyProjectMessage, modelProcessKeys, pickProcess, printerLabel, projectOverrides } from '../lib/project-import';
 import { accountReady, getUserSetting, presetEditing, useAccount } from './account';
 import { installedOnly, SETUP_KEY, type Setup } from '../lib/setup';
 import { loadConvertPreference, loadSaved, save, saveConvertPreference } from '../lib/storage';
@@ -199,11 +199,11 @@ export const useSlicer = create<SlicerState>((set, get) => {
 
   // A filament preset for a material: one of the user's installed filaments
   // when one matches, else any compatible preset.
-  function pickFilament(filaments: PresetSummary[], type: string | undefined, fallback?: string) {
+  function pickFilament(filaments: PresetSummary[], type: string | undefined, fallback?: string, source?: string) {
     const installed = installedOnly(filaments, getUserSetting<Setup>(SETUP_KEY)?.filaments);
     const want = (type ?? '').toUpperCase();
     const mine = installed.length < filaments.length && installed.some((f) => (f.filamentType ?? '').toUpperCase() === want);
-    return pickFilamentPreset(mine ? installed : filaments, type, fallback);
+    return pickFilamentPreset(mine ? installed : filaments, type, fallback, source);
   }
 
   async function refreshPreview(info?: ProjectInfo) {
@@ -230,8 +230,9 @@ export const useSlicer = create<SlicerState>((set, get) => {
     const colours = splitList(info.file.filamentColours);
     if (!colours.length) return;
     const types = splitList(info.file.filamentTypes);
+    const sources = splitList(info.file.filamentPresets);
     const { filaments, selection } = get();
-    const names = colours.map((_, i) => pickFilament(filaments, types[i], selection?.filaments[0]));
+    const names = colours.map((_, i) => pickFilament(filaments, types[i], selection?.filaments[0], sources[i]));
     await applySelection({ ...selection, filaments: names, colours });
     const extruders = splitList(get().baseConfig.nozzle_diameter ?? '').length;
     if (extruders && colours.length > extruders)
@@ -288,7 +289,7 @@ export const useSlicer = create<SlicerState>((set, get) => {
     await applySelection({ printer: info.file.printer, process: '' });
     const { filaments, selection } = get();
     const names = colours.map((_, i) =>
-      filaments.some((f) => f.name === presets[i]) ? presets[i] : pickFilament(filaments, types[i], selection?.filaments[0]),
+      filaments.some((f) => f.name === presets[i]) ? presets[i] : pickFilament(filaments, types[i], selection?.filaments[0], presets[i]),
     );
     // The engine also finds a process by its old name, and keeps the current one when it can't.
     const process = info.file.process || (selection?.process ?? '');
@@ -308,7 +309,8 @@ export const useSlicer = create<SlicerState>((set, get) => {
     const { filaments, selection, processes } = get();
     const colours = splitList(file.filament_colour);
     const types = splitList(file.filament_type);
-    const names = colours.map((_, i) => pickFilament(filaments, types[i], selection?.filaments[0]));
+    const sources = splitList(file.filament_settings_id);
+    const names = colours.map((_, i) => pickFilament(filaments, types[i], selection?.filaments[0], sources[i]));
     await applySelection({
       printer,
       process: pickProcess(processes, file.layer_height, selection?.process ?? ''),
@@ -433,6 +435,7 @@ export const useSlicer = create<SlicerState>((set, get) => {
           const res = await e.load(file, get().plate, area);
           if (res.isProject) set({ plate: 0, selected: null });
           await refreshPreview(res.info);
+          if (res.isProject && !res.info.objects.length) throw new Error(emptyProjectMessage(file.name));
           if (res.isProject && res.info.file.hasConfig) await importProject(res.info);
           set({ job: { kind: 'idle' } });
         } catch (err) {
