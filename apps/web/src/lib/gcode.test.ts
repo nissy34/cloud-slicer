@@ -50,3 +50,29 @@ describe('parseGcode', () => {
     expect(last[4]).toBeCloseTo(20);
   });
 });
+
+describe('parseGcode extrusion modes', () => {
+  // U1 start G-code switches XYZ back to absolute (G90, G91/G90 pairs) after
+  // M83. E must stay relative, or every move that extrudes no more than the one
+  // before it is dropped and walls show gaps.
+  const segments = (text: string) => parseGcode(text).features.length;
+  const walls = `
+;LAYER_CHANGE
+;Z:0.2
+G1 X0 Y0 Z0.2
+;TYPE:Outer wall
+G1 X10 Y0 E0.5
+G1 X10 Y10 E0.5
+G1 X0 Y10 E0.4
+G1 X0 Y0 E0.5
+`;
+  it('keeps E relative after G90 following M83', () => {
+    expect(segments(`M83\nG91\nG1 Z1\nG90\n${walls}`)).toBe(4);
+  });
+  it('treats E as absolute with M82', () => {
+    expect(segments(`G90\nM82\n${walls}`)).toBe(2);
+  });
+  it('treats E as relative under G91', () => {
+    expect(segments(`M82\nG91\nG1 X0 Y0 E0\n${walls.replace(/X(\d+) Y(\d+)/g, 'X0 Y1')}`)).toBe(4);
+  });
+});
