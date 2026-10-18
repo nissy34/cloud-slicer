@@ -113,3 +113,13 @@ export function pickProcess(processes: PresetSummary[], layerHeight: string | un
 export function printerLabel(file: OrcaConfig): string {
   return file.printer_settings_id || file.printer_model || 'another printer';
 }
+
+/**
+ * Why a 3MF opened with no objects. A sliced export (".gcode.3mf") keeps only
+ * the G-code of its plates, not the models, so it can't be re-sliced.
+ */
+export function emptyProjectMessage(fileName: string): string {
+  return /\.gcode\.3mf$/i.test(fileName)
+    ? `${fileName} is a sliced file: it holds G-code for another printer but no models. Open the original project (.3mf) instead.`
+    : `${fileName} has no objects to print.`;
+}
