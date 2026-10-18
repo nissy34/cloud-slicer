@@ -13,7 +13,7 @@ compatibility_flags = ["nodejs_compat"]
 # Where Google sends the user back after sign-in. Every deploy (production,
 # branch previews) signs in through this one host, so the Google client
 # needs only this host's callback URL.
-AUTH_ORIGIN = "https://cloud-slicer.pages.dev"
+AUTH_ORIGIN = "https://slicer.awesomestuff.qzz.io"
 # Other sites allowed to sign in (and be sent back to after sign-in).
 TRUSTED_ORIGINS = "https://slicer.awesomestuff.qzz.io,https://cloud-slicer.pages.dev,https://*.cloud-slicer.pages.dev,http://localhost:*,http://127.0.0.1:*"
 

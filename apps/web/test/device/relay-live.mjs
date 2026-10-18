@@ -5,7 +5,7 @@
 //
 //   node test/device/relay-live.mjs https://cloud-slicer-relay.<account>.workers.dev
 import { randomBytes } from 'node:crypto';
-import { pairingCode, runBridge } from '../../../device-bridge/bridge.mjs';
+import { browserKey, pairingCode, runBridge } from '../../../device-bridge/bridge.mjs';
 import { startMockPrinter } from './mock-printer.mjs';
 
 const relay = (process.argv[2] ?? '').replace(/\/+$/, '');
@@ -15,7 +15,9 @@ const cfg = { relay, bridgeId: `ci-${randomBytes(9).toString('base64url')}`, key
 const bridge = runBridge(cfg, { log: (m) => console.log(`bridge: ${m}`) });
 /** Every pretend-browser socket, closed at the end so a failure can't keep the process alive. */
 const open = new Set();
-const socket = (key, printer) => new WebSocket(`${relay.replace(/^http/, 'ws')}/v1/bridges/${cfg.bridgeId}/client?key=${key}&printer=${printer}`);
+const clientKey = browserKey(cfg.key);
+const socket = (key, printer, role = 'client') => new WebSocket(`${relay.replace(/^http/, 'ws')}/v1/bridges/${cfg.bridgeId}/${role}?key=${key}&printer=${printer}`);
+const closeCode = (ws) => new Promise((resolve) => (ws.onclose = (e) => resolve(e)));
 const timeout = setTimeout(() => {
   console.error('RELAY LIVE FAIL: timed out');
   process.exit(1);
@@ -25,7 +27,7 @@ try {
   // Wait until the agent has claimed the bridge id.
   for (let i = 0; ; i++) {
     const status = await new Promise((resolve) => {
-      const ws = socket(cfg.key, '');
+      const ws = socket(clientKey, '');
       ws.onmessage = (e) => {
         resolve(JSON.parse(e.data).params?.[0]);
         ws.close();
@@ -41,7 +43,7 @@ try {
   }
 
   const results = await new Promise((resolve, reject) => {
-    const ws = socket(cfg.key, 'u1');
+    const ws = socket(clientKey, 'u1');
     const got = {};
     open.add(ws);
     ws.onopen = () => {
@@ -65,12 +67,16 @@ try {
   if (!Buffer.from(results.b1.data, 'base64').subarray(1, 4).equals(Buffer.from('PNG'))) throw new Error('snapshot is not a PNG');
   console.log('printer.info and a camera frame came back through the relay');
 
-  const refused = await new Promise((resolve) => {
-    const ws = socket('wrong-key-wrong-key-wrong', 'u1');
-    ws.onclose = (e) => resolve(e);
-  });
+  const refused = await closeCode(socket('wrong-key-wrong-key-wrong', 'u1'));
   if (refused.code !== 4003) throw new Error(`a wrong key was not refused (${refused.code})`);
   console.log(`wrong key refused: ${refused.reason}`);
+  // The pairing code's key can't take over the bridge, and the secret key isn't a browser key.
+  const asAgent = await closeCode(socket(clientKey, '', 'agent'));
+  if (asAgent.code !== 4003) throw new Error(`the browser key connected as the agent (${asAgent.code})`);
+  console.log(`browser key refused as the agent: ${asAgent.reason}`);
+  const secretAsBrowser = await closeCode(socket(cfg.key, 'u1'));
+  if (secretAsBrowser.code !== 4003) throw new Error(`the secret key connected as a browser (${secretAsBrowser.code})`);
+  console.log(`secret key refused as a browser: ${secretAsBrowser.reason}`);
   console.log(`pairing code format ok (${pairingCode(cfg).length} chars)`);
   console.log('RELAY LIVE OK');
 } catch (e) {

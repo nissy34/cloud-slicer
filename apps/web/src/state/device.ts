@@ -176,7 +176,8 @@ export const currentSession = () => session;
 function pairingFromLocation(): Pairing | null {
   if (typeof location === 'undefined') return null;
   const p = decodePairing(location.hash);
-  if (p) history.replaceState(null, '', location.pathname + location.search);
+  // Cleared once every module has seen it (the slicer store opens the Device tab for it).
+  if (p) setTimeout(() => history.replaceState(null, '', location.pathname + location.search));
   return p;
 }
 

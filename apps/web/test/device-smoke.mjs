@@ -64,8 +64,8 @@ try {
   const site = `http://localhost:${PAGE_PORT}/`;
 
   // ---- U1 through the bridge ---------------------------------------------------------
+  // The pairing link alone opens the Device tab with the add-printer dialog: no clicks first.
   await page.goto(`${site}#pair=${pairingCode(cfg)}`);
-  await page.getByRole('tab', { name: 'Device' }).click();
   await page.getByRole('combobox').filter({ hasText: 'U1-mock' }).waitFor();
   await page.getByTestId('save-printer').click();
   await page.getByTestId('connection').filter({ hasText: 'Connected' }).waitFor({ timeout: 20_000 });

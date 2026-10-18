@@ -10,6 +10,14 @@ name: CI
 # secrets, which the deploy copies into the Pages project:
 #   secrets.GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET
 # CI never talks to a real printer: printer tests run against a mock Moonraker.
+#
+# Jobs, so independent work runs side by side:
+#   unit ─────────────────────────────────────────────┐
+#   engine ─┬─ engine-tests ──────────────────────────┤
+#           └─ site ── browser (smoke, startup,       ├─ deploy
+#                       presets, accounts) ───────────┘
+# The engine job reuses the last build when nothing it is built from changed
+# (see the engine key below), so most runs skip Emscripten entirely.
 
 on:
   push:
@@ -17,11 +25,13 @@ on:
   pull_request:
   workflow_dispatch:
 
-# Queue rather than cancel: a cancelled first run would never finish (and so
-# never cache) the long dependency build.
+# A new push to a PR cancels that PR's older run. Runs on main never wait for
+# each other (each has its own group); only their deploys are ordered, below.
+# A cancelled run can lose a half-done dependency build, but main keeps its own
+# copy of that cache, which every branch can read.
 concurrency:
-  group: ci-${{ github.ref }}
-  cancel-in-progress: false
+  group: ci-${{ github.event_name == 'pull_request' && format('pr-{0}', github.event.pull_request.number) || github.run_id }}
+  cancel-in-progress: true
 
 permissions:
   contents: read
@@ -29,17 +39,60 @@ permissions:
 
 env:
   EMSDK_VERSION: 6.0.12
-  CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-  CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+  # Bump to force an engine rebuild when the build itself changes (flags,
+  # commands in this file) but no engine source did.
+  ENGINE_CACHE_VERSION: 1
 
 jobs:
-  build:
+  unit:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: apps/web/package-lock.json
+
+      - name: Printer driver tests
+        working-directory: packages/printer
+        run: npm test
+
+      - name: Web app typecheck and unit tests
+        working-directory: apps/web
+        run: |
+          npm ci --no-audit --no-fund
+          npm run typecheck
+          npm test
+
+  engine:
     runs-on: ubuntu-24.04
     timeout-minutes: 240
+    outputs:
+      key: ${{ steps.key.outputs.key }}
     steps:
       - uses: actions/checkout@v4
 
+      # Everything the wasm build reads: the pinned Orca commit, the engine's
+      # own sources and patches, the dependency script and the toolchain.
+      # Tests, presets bundling and engine/node are not part of it.
+      - name: Engine key
+        id: key
+        run: |
+          orca=$(git ls-tree HEAD engine/orcaslicer | awk '{print $3}')
+          echo "key=engine-out-v$ENGINE_CACHE_VERSION-$EMSDK_VERSION-$orca-${{ hashFiles('engine/CMakeLists.txt', 'engine/cmake/**', 'engine/compat/**', 'engine/patches/**', 'engine/src/**', 'engine/scripts/build-deps.sh') }}" >> "$GITHUB_OUTPUT"
+
+      - name: Reuse an engine built from the same sources
+        id: engine-cache
+        uses: actions/cache/restore@v4
+        with:
+          path: engine/build/engine/orca-engine.*
+          key: ${{ steps.key.outputs.key }}
+          lookup-only: true
+
       - name: Fetch the pinned Snapmaker Orca submodule (shallow)
+        if: steps.engine-cache.outputs.cache-hit != 'true'
         run: |
           sha=$(git ls-tree HEAD engine/orcaslicer | awk '{print $3}')
           url=$(git config -f .gitmodules submodule.engine/orcaslicer.url)
@@ -47,15 +100,8 @@ jobs:
           git init -q && git remote add origin "$url"
           git fetch -q --depth 1 origin "$sha" && git checkout -q FETCH_HEAD
 
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 22
-
-      - name: Printer driver tests
-        working-directory: packages/printer
-        run: npm test
-
       - name: Install Emscripten ${{ env.EMSDK_VERSION }}
+        if: steps.engine-cache.outputs.cache-hit != 'true'
         run: |
           sudo apt-get install -y -qq ninja-build ccache
           git clone -q --depth 1 https://github.com/emscripten-core/emsdk.git "$RUNNER_TEMP/emsdk"
@@ -63,6 +109,7 @@ jobs:
           "$RUNNER_TEMP/emsdk/emsdk" activate "$EMSDK_VERSION"
 
       - name: Restore engine dependencies
+        if: steps.engine-cache.outputs.cache-hit != 'true'
         id: deps-cache
         uses: actions/cache/restore@v4
         with:
@@ -74,7 +121,7 @@ jobs:
       # scratch. ftp.gnu.org (gmp, mpfr) regularly times out: retry downloads
       # through a .curlrc (this step only) so build-deps.sh, and with it the cache key, stays as is.
       - name: Build engine dependencies (cache miss only)
-        if: steps.deps-cache.outputs.cache-hit != 'true'
+        if: steps.engine-cache.outputs.cache-hit != 'true' && steps.deps-cache.outputs.cache-hit != 'true'
         env:
           CURL_HOME: ${{ runner.temp }}/curl-retry
         run: |
@@ -85,13 +132,14 @@ jobs:
 
       # Saved right away, so a later failing step doesn't throw the build away.
       - name: Save engine dependencies
-        if: steps.deps-cache.outputs.cache-hit != 'true'
+        if: steps.engine-cache.outputs.cache-hit != 'true' && steps.deps-cache.outputs.cache-hit != 'true'
         uses: actions/cache/save@v4
         with:
           path: engine/build/deps
           key: ${{ steps.deps-cache.outputs.cache-primary-key }}
 
       - name: Restore compiler cache
+        if: steps.engine-cache.outputs.cache-hit != 'true'
         uses: actions/cache/restore@v4
         with:
           path: ${{ runner.temp }}/ccache
@@ -99,11 +147,12 @@ jobs:
           restore-keys: engine-ccache-${{ env.EMSDK_VERSION }}-
 
       - name: Build the engine
+        if: steps.engine-cache.outputs.cache-hit != 'true'
         env:
           EM_COMPILER_WRAPPER: ccache
           CCACHE_DIR: ${{ runner.temp }}/ccache
-          # Each commit saves its own copy, and the repo has 10 GB of cache in
-          # total; a small cap keeps these from evicting the dependency cache.
+          # Each engine build saves its own copy, and the repo has 10 GB of cache
+          # in total; a small cap keeps these from evicting the dependency cache.
           CCACHE_MAXSIZE: 1G
           CCACHE_BASEDIR: ${{ github.workspace }}
         run: |
@@ -116,11 +165,45 @@ jobs:
             echo '```'; head -8 "$RUNNER_TEMP/ccache.txt"; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Save compiler cache
-        if: always()
+        if: always() && steps.engine-cache.outputs.cache-hit != 'true'
         uses: actions/cache/save@v4
         with:
           path: ${{ runner.temp }}/ccache
           key: engine-ccache-${{ env.EMSDK_VERSION }}-${{ github.sha }}
+
+      # The later jobs restore the engine from this cache.
+      - name: Save the engine
+        if: steps.engine-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: engine/build/engine/orca-engine.*
+          key: ${{ steps.key.outputs.key }}
+
+      - name: Summary
+        if: steps.engine-cache.outputs.cache-hit == 'true'
+        run: echo '### Engine unchanged, reused the build for `${{ steps.key.outputs.key }}`' >> "$GITHUB_STEP_SUMMARY"
+
+  engine-tests:
+    needs: engine
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - name: Fetch the pinned Snapmaker Orca submodule (shallow)
+        run: |
+          sha=$(git ls-tree HEAD engine/orcaslicer | awk '{print $3}')
+          url=$(git config -f .gitmodules submodule.engine/orcaslicer.url)
+          cd engine/orcaslicer
+          git init -q && git remote add origin "$url"
+          git fetch -q --depth 1 origin "$sha" && git checkout -q FETCH_HEAD
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - uses: actions/cache/restore@v4
+        with:
+          path: engine/build/engine/orca-engine.*
+          key: ${{ needs.engine.outputs.key }}
+          fail-on-cache-miss: true
 
       - name: Bundle the Snapmaker presets
         run: node engine/scripts/bundle-profiles.mjs engine/build/profiles
@@ -131,51 +214,150 @@ jobs:
           node engine/node/slice.mjs fixtures/3DBenchy.stl /tmp/benchy.gcode
           grep -q '^PRINT_START' /tmp/benchy.gcode
 
-      - name: Web app checks and build
+  site:
+    needs: engine
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Fetch the pinned Snapmaker Orca submodule (shallow)
+        run: |
+          sha=$(git ls-tree HEAD engine/orcaslicer | awk '{print $3}')
+          url=$(git config -f .gitmodules submodule.engine/orcaslicer.url)
+          cd engine/orcaslicer
+          git init -q && git remote add origin "$url"
+          git fetch -q --depth 1 origin "$sha" && git checkout -q FETCH_HEAD
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: apps/web/package-lock.json
+      - uses: actions/cache/restore@v4
+        with:
+          path: engine/build/engine/orca-engine.*
+          key: ${{ needs.engine.outputs.key }}
+          fail-on-cache-miss: true
+
+      - name: Build the web app
         working-directory: apps/web
         run: |
           npm ci --no-audit --no-fund
-          npm run typecheck
-          npm test
           npm run build
 
-      - name: Browser smoke test (Chromium)
+      - uses: actions/upload-artifact@v4
+        with:
+          name: web-site
+          path: apps/web/dist
+          retention-days: 7
+
+  browser:
+    needs: site
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        suite: [smoke, startup, presets, accounts]
+    name: browser (${{ matrix.suite }})
+    defaults:
+      run:
         working-directory: apps/web
-        timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: apps/web/package-lock.json
+      - uses: actions/download-artifact@v4
+        with:
+          name: web-site
+          path: apps/web/dist
+      - name: Install
         run: |
+          npm ci --no-audit --no-fund
           npx playwright install --with-deps chromium
-          node test/smoke.mjs ../../fixtures/3DBenchy.stl smoke.png
+
+      - name: Browser smoke test (Chromium)
+        if: matrix.suite == 'smoke'
+        run: node test/smoke.mjs ../../fixtures/3DBenchy.stl smoke.png
+
+      - name: Engine startup matrix (Chromium + current stable Chrome)
+        if: matrix.suite == 'startup'
+        run: |
           npx playwright install --with-deps chrome
           STARTUP_CHROME=1 node test/startup-matrix.mjs
 
-      - name: Accounts end to end (Pages Functions + local D1, mock OAuth)
-        working-directory: apps/web
-        timeout-minutes: 10
-        run: node test/accounts.mjs
-
       - name: User presets end to end (Chromium)
-        working-directory: apps/web
-        timeout-minutes: 10
+        if: matrix.suite == 'presets'
         run: node test/presets.mjs
 
+      - name: Accounts end to end (Pages Functions + local D1, mock OAuth)
+        if: matrix.suite == 'accounts'
+        run: node test/accounts.mjs
+
       - uses: actions/upload-artifact@v4
-        if: always()
+        if: always() && matrix.suite == 'smoke'
+        with:
+          name: smoke-screenshot
+          path: apps/web/smoke.png
+
+  deploy:
+    needs: [unit, engine-tests, browser]
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    # One deploy per branch at a time, in order.
+    concurrency:
+      group: deploy-${{ github.head_ref || github.ref_name }}
+      cancel-in-progress: false
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+    defaults:
+      run:
+        working-directory: apps/web
+    steps:
+      - uses: actions/checkout@v4
+        if: env.CLOUDFLARE_API_TOKEN != '' && env.CLOUDFLARE_ACCOUNT_ID != ''
+
+      # Runs on main can finish out of order; an older one must not replace a
+      # newer deploy. A newer commit on main deploys itself.
+      - name: Still the newest commit?
+        id: current
+        if: env.CLOUDFLARE_API_TOKEN != '' && env.CLOUDFLARE_ACCOUNT_ID != ''
+        run: |
+          if [ "$GITHUB_EVENT_NAME" = push ]; then
+            head=$(git ls-remote origin "refs/heads/$GITHUB_REF_NAME" | awk '{print $1}')
+            if [ -n "$head" ] && [ "$head" != "$GITHUB_SHA" ]; then
+              echo "::notice::$GITHUB_REF_NAME moved on to $head; that run deploys instead"
+              exit 0
+            fi
+          fi
+          echo "deploy=true" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/setup-node@v4
+        if: steps.current.outputs.deploy == 'true'
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: apps/web/package-lock.json
+      - uses: actions/download-artifact@v4
+        if: steps.current.outputs.deploy == 'true'
         with:
           name: web-site
-          path: |
-            apps/web/dist
-            apps/web/smoke.png
+          path: apps/web/dist
 
       - name: Deploy to Cloudflare Pages
         id: deploy
-        if: env.CLOUDFLARE_API_TOKEN != '' && env.CLOUDFLARE_ACCOUNT_ID != '' && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)
-        working-directory: apps/web
+        if: steps.current.outputs.deploy == 'true'
         env:
           PROJECT: ${{ vars.CF_PAGES_PROJECT || 'cloud-slicer' }}
           BRANCH: ${{ github.head_ref || github.ref_name }}
           GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
           GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
         run: |
+          npm ci --no-audit --no-fund
           # Creates the project on the first run; harmless "already exists" afterwards.
           npx wrangler pages project create "$PROJECT" --production-branch=main || true
           # Accounts: D1 database + migrations, sign-in secrets. Every deploy
@@ -193,9 +375,9 @@ jobs:
 
       - name: Smoke test the deployed site
         if: steps.deploy.outputs.url != ''
-        working-directory: apps/web
         timeout-minutes: 20
         run: |
+          npx playwright install --with-deps chromium
           # A new Pages project or branch alias gets its TLS certificate a few
           # minutes after the first deploy; wait until the site answers over https.
           url='${{ steps.deploy.outputs.url }}'
