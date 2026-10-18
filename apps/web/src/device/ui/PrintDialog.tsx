@@ -8,14 +8,19 @@ import { job } from '../status';
 import { Dialog, Swatch } from './parts';
 
 /**
- * Sends a file to the printer and optionally starts it. On a U1 the same
- * dialog also maps each filament in the file to a tool head and sets the
- * printer's own pre-print options.
+ * Sends a file to the printer and optionally starts it. With more than one
+ * saved printer, a new file can go to any of them: picking one connects to
+ * it. On a U1 the same dialog also maps each filament in the file to a tool
+ * head and sets the printer's own pre-print options.
  */
 export function PrintDialog({ source }: { source: SendSource }) {
   const objects = useDevice((s) => s.objects);
   const addons = useDevice((s) => s.addons);
-  const online = useDevice((s) => s.conn.state === 'online');
+  const conn = useDevice((s) => s.conn.state);
+  const online = conn === 'online';
+  const printers = useDevice((s) => s.printers);
+  const activeId = useDevice((s) => s.activeId);
+  const printer = printers.find((p) => p.id === activeId);
   const upload = useDevice((s) => s.upload);
   const close = () => useDevice.getState().openPrintDialog(null);
   const go = useDevice((s) => s.uploadAndMaybePrint);
@@ -23,7 +28,9 @@ export function PrintDialog({ source }: { source: SendSource }) {
   const [meta, setMeta] = useState<GcodeMeta | null>(null);
   const [name, setName] = useState(source.kind === 'upload' ? uploadName(source.name) : source.path);
   const heads = useMemo(() => (isU1 ? u1Heads(objects) : []), [isU1, objects]);
-  const [options, setOptions] = useState<U1PrintOptions>(() => u1PrintOptions(objects));
+  // What the user changed; the rest follows the printer's own settings.
+  const [optionEdits, setOptionEdits] = useState<Partial<U1PrintOptions>>({});
+  const options = { ...u1PrintOptions(objects), ...optionEdits };
   const [toolMap, setToolMap] = useState<Record<number, number> | null>(null);
   const [busy, setBusy] = useState(false);
   const state = job(objects).state;
@@ -37,6 +44,12 @@ export function PrintDialog({ source }: { source: SendSource }) {
       live = false;
     };
   }, [source]);
+
+  // Another printer: its own heads and settings.
+  useEffect(() => {
+    setToolMap(null);
+    setOptionEdits({});
+  }, [activeId]);
 
   // Suggest a head per filament once both the file and the printer's spools are known.
   useEffect(() => {
@@ -85,6 +98,18 @@ export function PrintDialog({ source }: { source: SendSource }) {
       }
     >
       <div className="dv-form">
+        {source.kind === 'upload' && printers.length > 1 && (
+          <label>
+            Printer
+            <select value={activeId ?? ''} onChange={(e) => useDevice.getState().select(e.target.value)} disabled={busy} data-testid="send-printer">
+              {printers.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.name}
+                </option>
+              ))}
+            </select>
+          </label>
+        )}
         {source.kind === 'upload' ? (
           <label>
             File name
@@ -102,7 +127,12 @@ export function PrintDialog({ source }: { source: SendSource }) {
         </p>
       )}
       {printerBusy && <p className="dv-alert">The printer is busy, so this can only be uploaded for now.</p>}
-      {!online && <p className="dv-alert">The printer is not connected.</p>}
+      {!online && <p className="dv-alert">{conn === 'connecting' ? `Connecting to ${printer?.name ?? 'the printer'}…` : `${printer?.name ?? 'The printer'} is not connected.`}</p>}
+      {meta?.printer && printer?.preset && meta.printer !== printer.preset && (
+        <p className="dv-alert" data-testid="profile-mismatch">
+          This file was sliced for {meta.printer}, but {printer.name} is set up as {printer.preset}. Choose that printer in the slicer and slice again before printing.
+        </p>
+      )}
 
       {isU1 && meta && meta.filaments.length > 0 && toolMap && (
         <fieldset className="dv-fieldset" data-testid="tool-map">
@@ -148,15 +178,15 @@ export function PrintDialog({ source }: { source: SendSource }) {
         <fieldset className="dv-fieldset">
           <legend>Before printing</legend>
           <label className="check">
-            <input type="checkbox" checked={options.bedLevel} onChange={(e) => setOptions({ ...options, bedLevel: e.target.checked })} />
+            <input type="checkbox" checked={options.bedLevel} onChange={(e) => setOptionEdits({ ...optionEdits, bedLevel: e.target.checked })} />
             Level the bed
           </label>
           <label className="check">
-            <input type="checkbox" checked={options.flowCalibrate} onChange={(e) => setOptions({ ...options, flowCalibrate: e.target.checked })} />
+            <input type="checkbox" checked={options.flowCalibrate} onChange={(e) => setOptionEdits({ ...optionEdits, flowCalibrate: e.target.checked })} />
             Calibrate flow
           </label>
           <label className="check">
-            <input type="checkbox" checked={options.timeLapse} onChange={(e) => setOptions({ ...options, timeLapse: e.target.checked })} />
+            <input type="checkbox" checked={options.timeLapse} onChange={(e) => setOptionEdits({ ...optionEdits, timeLapse: e.target.checked })} />
             Record a time-lapse
           </label>
         </fieldset>
