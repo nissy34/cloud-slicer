@@ -323,7 +323,7 @@ export async function deleteAccount(env: Env, request: Request): Promise<Respons
   const user = await requireUser(env, request);
   const d = db(env);
   await d.batch(
-    ['presets', 'sessions', 'handoffs', 'identities'].map((t) => d.prepare(`DELETE FROM ${t} WHERE user_id = ?`).bind(user.id)).concat(
+    ['presets', 'user_settings', 'devices', 'sessions', 'handoffs', 'identities'].map((t) => d.prepare(`DELETE FROM ${t} WHERE user_id = ?`).bind(user.id)).concat(
       d.prepare('DELETE FROM users WHERE id = ?').bind(user.id),
     ),
   );

@@ -29,6 +29,41 @@ export interface UserPreset {
   updatedAt: number;
 }
 
+/** A setup choice saved by key (e.g. the setup wizard's installed printers and filaments). */
+export interface UserSetting<T = unknown> {
+  key: string;
+  value: T;
+  version: number;
+  updatedAt: number;
+}
+
+/** One of the user's physical printers and how to reach it. */
+export interface Device {
+  id: string;
+  name: string;
+  /** Printer preset (system or user) this machine prints with. */
+  preset: string;
+  /** Moonraker address, e.g. http://192.168.1.50 */
+  url: string;
+  /** The API key is fetched separately (getDeviceApiKey), never listed. */
+  hasApiKey: boolean;
+  /** Anything else the Device tab wants to keep per printer. */
+  extra: Record<string, unknown>;
+  version: number;
+  updatedAt: number;
+}
+
+export interface DeviceInput {
+  id: string;
+  name: string;
+  preset?: string;
+  url?: string;
+  /** A string sets it, null removes it, undefined keeps the saved one. */
+  apiKey?: string | null;
+  extra?: Record<string, unknown>;
+  baseVersion?: number;
+}
+
 export class ApiError extends Error {
   constructor(
     readonly status: number,
@@ -66,7 +101,57 @@ export const api = {
       body: JSON.stringify({ inherits: p.inherits, config: p.config, baseVersion: p.baseVersion }),
     }).then((r) => r.preset),
   deletePreset: (type: PresetType, name: string) => call<{ ok: true }>(presetPath(type, name), { method: 'DELETE' }),
+  settings: () => call<{ settings: UserSetting[] }>('/api/settings').then((r) => r.settings),
+  saveSetting: (key: string, value: unknown, baseVersion?: number) =>
+    call<{ setting: UserSetting }>(`/api/settings/${encodeURIComponent(key)}`, {
+      method: 'PUT',
+      body: JSON.stringify({ value, baseVersion }),
+    }).then((r) => r.setting),
+  deleteSetting: (key: string) => call<{ ok: true }>(`/api/settings/${encodeURIComponent(key)}`, { method: 'DELETE' }),
+  devices: () => call<{ devices: Device[] }>('/api/devices').then((r) => r.devices),
+  deviceApiKey: (id: string) => call<{ apiKey: string | null }>(`/api/devices/${encodeURIComponent(id)}/secret`).then((r) => r.apiKey),
+  saveDevice: ({ id, ...rest }: DeviceInput) =>
+    call<{ device: Device }>(`/api/devices/${encodeURIComponent(id)}`, { method: 'PUT', body: JSON.stringify(rest) }).then((r) => r.device),
+  deleteDevice: (id: string) => call<{ ok: true }>(`/api/devices/${encodeURIComponent(id)}`, { method: 'DELETE' }),
 };
+
+const isStringArray = (v: unknown): v is string[] => Array.isArray(v) && v.every((x) => typeof x === 'string');
+const isPlainObject = (v: unknown): v is Record<string, unknown> => !!v && typeof v === 'object' && !Array.isArray(v);
+
+/**
+ * Combines a setting saved in this browser with the account's copy at sign-in.
+ * Lists of names (installed printers, chosen filaments) are unioned, also one
+ * level down inside an object ({ printers: [...], filaments: [...] }); for
+ * anything else the account's copy wins. Returns undefined when nothing changes.
+ */
+export function mergeSetting(account: unknown, local: unknown): unknown {
+  const union = (a: string[], b: string[]) => [...a, ...b.filter((x) => !a.includes(x))];
+  if (isStringArray(account) && isStringArray(local)) {
+    const merged = union(account, local);
+    return merged.length === account.length ? undefined : merged;
+  }
+  if (isPlainObject(account) && isPlainObject(local)) {
+    let changed = false;
+    const merged: Record<string, unknown> = { ...account };
+    for (const [k, v] of Object.entries(local)) {
+      if (!(k in account)) {
+        merged[k] = v;
+        changed = true;
+      } else if (isStringArray(account[k]) && isStringArray(v)) {
+        const u = union(account[k] as string[], v);
+        if (u.length !== (account[k] as string[]).length) {
+          merged[k] = u;
+          changed = true;
+        }
+      }
+    }
+    return changed ? merged : undefined;
+  }
+  return undefined;
+}
+
+/** A new printer id. */
+export const newDeviceId = () => crypto.randomUUID();
 
 /** URL that starts a sign-in and comes back to `returnTo`. */
 export function signInUrl(provider: ProviderId, opts: { returnTo: string; popup?: boolean; link?: boolean }): string {

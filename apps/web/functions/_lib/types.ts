@@ -28,6 +28,8 @@ export interface Env {
   GOOGLE_CLIENT_SECRET?: string;
   GITHUB_CLIENT_ID?: string;
   GITHUB_CLIENT_SECRET?: string;
+  /** 32 random bytes, base64: encrypts printer API keys at rest. CI creates it once. */
+  ACCOUNT_ENC_KEY?: string;
   /** Tests only: replaces the providers' endpoints with a mock at this URL. */
   OAUTH_TEST_BASE?: string;
 }

@@ -99,6 +99,7 @@ const bindings = {
   GITHUB_CLIENT_SECRET: 'github-secret',
   GOOGLE_CLIENT_ID: 'google-id',
   GOOGLE_CLIENT_SECRET: 'google-secret',
+  ACCOUNT_ENC_KEY: Buffer.alloc(32, 7).toString('base64'),
 };
 const server = spawn(
   wrangler,
@@ -287,6 +288,50 @@ test('presets: save, conflict, update, list, delete', async () => {
   assert.deepEqual(left.map((x) => x.name), ['My U1']);
 });
 
+test('settings: setup choices by key, with conflicts', async () => {
+  const setup = { printers: ['Snapmaker U1 (0.4 nozzle)'], filaments: ['Snapmaker PLA @U1'] };
+  const saved = await alice.json('/api/settings/setup', 'PUT', { value: setup, baseVersion: 0 });
+  assert.equal(saved.status, 200);
+  assert.equal((await saved.json()).setting.version, 1);
+  assert.equal((await alice.json('/api/settings/setup', 'PUT', { value: setup, baseVersion: 0 })).status, 409);
+  await alice.json('/api/settings/setup', 'PUT', { value: { ...setup, filaments: [] } });
+  const list = (await (await alice.json('/api/settings')).json()).settings;
+  assert.deepEqual(list, [{ key: 'setup', value: { ...setup, filaments: [] }, version: 2, updatedAt: list[0].updatedAt }]);
+  assert.equal((await alice.json('/api/settings/a%20b', 'PUT', { value: 1 })).status, 400);
+  await alice.json('/api/settings/setup', 'DELETE');
+  assert.equal((await (await alice.json('/api/settings')).json()).settings.length, 0);
+});
+
+test('devices: connection details sync, API key encrypted and only on request', async () => {
+  const dev = { name: 'Workshop U1', preset: 'Snapmaker U1 (0.4 nozzle)', url: 'http://192.168.1.50', apiKey: 'sekrit-123', extra: { camera: true } };
+  const put = await alice.json('/api/devices/dev-1', 'PUT', dev);
+  assert.equal(put.status, 200);
+  const saved = (await put.json()).device;
+  assert.equal(saved.hasApiKey, true);
+  assert.equal(saved.apiKey, undefined, 'saves never echo the key');
+  const listed = (await (await alice.json('/api/devices')).json()).devices;
+  assert.equal(listed.length, 1);
+  assert.equal(JSON.stringify(listed).includes('sekrit'), false, 'lists never include the key');
+  assert.deepEqual((await (await alice.json('/api/devices/dev-1/secret')).json()), { apiKey: 'sekrit-123' });
+
+  // At rest it is ciphertext.
+  const raw = spawnSync(wrangler, ['d1', 'execute', 'cloud-slicer', '--local', '--persist-to', state, '--json', '--command', 'SELECT api_key_enc FROM devices'], { cwd: web, encoding: 'utf8' });
+  assert.match(raw.stdout, /"api_key_enc": "v1\./);
+  assert.equal(raw.stdout.includes('sekrit'), false);
+
+  await alice.json('/api/devices/dev-1', 'PUT', { name: 'Workshop U1', url: 'http://192.168.1.51' });
+  assert.deepEqual((await (await alice.json('/api/devices/dev-1/secret')).json()), { apiKey: 'sekrit-123' }, 'left out = kept');
+  await alice.json('/api/devices/dev-1', 'PUT', { name: 'Workshop U1', apiKey: null });
+  assert.deepEqual((await (await alice.json('/api/devices/dev-1/secret')).json()), { apiKey: null });
+  assert.equal((await alice.json('/api/devices/dev-1', 'PUT', { name: 'x', url: 'javascript:alert(1)' })).status, 400);
+
+  const bob = new Browser();
+  await signIn(bob, 'github', 'bob');
+  assert.equal((await bob.json('/api/devices/dev-1/secret')).status, 404, "another user can't read it");
+  await alice.json('/api/devices/dev-1', 'DELETE');
+  assert.equal((await (await alice.json('/api/devices')).json()).devices.length, 0);
+});
+
 test('linking Google to a signed-in GitHub user', async () => {
   const { url } = await signIn(alice, 'google', 'alice', '&link=1');
   assert.equal(url, `${HOST}/?tab=prepare`);
@@ -312,6 +357,8 @@ test('sign out, then delete the account and its presets', async () => {
   assert.equal((await other.json('/api/auth/logout', 'POST')).status, 200);
   assert.equal(await other.me(), null);
 
+  await alice.json('/api/settings/setup', 'PUT', { value: { printers: ['x'] } });
+  await alice.json('/api/devices/d', 'PUT', { name: 'd', apiKey: 'k' });
   assert.equal((await alice.json('/api/me', 'DELETE')).status, 200);
   assert.equal(await alice.me(), null);
   const fresh = new Browser();
@@ -319,17 +366,30 @@ test('sign out, then delete the account and its presets', async () => {
   const me = await fresh.me();
   assert.deepEqual(me.identities.map((i) => i.provider), ['github'], 'a new, empty account');
   assert.equal((await (await fresh.json('/api/presets')).json()).presets.length, 0);
+  assert.equal((await (await fresh.json('/api/settings')).json()).settings.length, 0);
+  assert.equal((await (await fresh.json('/api/devices')).json()).devices.length, 0);
 });
 
+const bobBrowser = new Browser();
 if (withApp)
   test('browser: Sign in button, popup sign-in, account menu, sign out', async () => {
+    await signIn(bobBrowser, 'github', 'bob');
     const browser = await chromium.launch(
       process.env.PLAYWRIGHT_BROWSERS_PATH === '/opt/pw-browsers' ? { executablePath: '/opt/pw-browsers/chromium' } : {},
     );
     try {
       const page = await browser.newPage({ viewport: { width: 1280, height: 800 } });
       await page.goto(HOST);
+      // Choices made while signed out (as the setup wizard would save them).
+      await page.evaluate(() => {
+        const now = Date.now();
+        localStorage.setItem('cloud-slicer:user-settings:v1', JSON.stringify({ setup: { key: 'setup', value: { printers: ['Snapmaker J1'] }, version: 0, updatedAt: now } }));
+        localStorage.setItem('cloud-slicer:devices:v1', JSON.stringify([{ id: 'local-1', name: 'Garage J1', preset: 'Snapmaker J1', url: 'http://10.0.0.9', apiKey: 'garage-key', extra: {}, hasApiKey: false, version: 0, updatedAt: now }]));
+        localStorage.setItem('cloud-slicer:user-presets:v1', JSON.stringify([{ type: 'process', name: 'Fast', inherits: '0.20mm Standard', config: { wall_loops: '2' }, version: 0, updatedAt: now }]));
+      });
+      await page.reload();
       nextUser = 'bob';
+      await bobBrowser.json('/api/settings/setup', 'PUT', { value: { printers: ['Snapmaker U1 (0.4 nozzle)'] } });
       await page.getByRole('button', { name: 'Sign in' }).click();
       const [popup] = await Promise.all([page.waitForEvent('popup'), page.getByRole('button', { name: 'Continue with GitHub' }).click()]);
       if (!popup.isClosed()) await popup.waitForEvent('close', { timeout: 30000 });
@@ -337,6 +397,13 @@ if (withApp)
       await menu.waitFor({ timeout: 30000 });
       await menu.click();
       await page.getByText('Signed in with GitHub as bob').waitFor();
+      await page.getByText('1 process').waitFor();
+      const settings = (await (await bobBrowser.json('/api/settings')).json()).settings;
+      assert.deepEqual(settings[0].value, { printers: ['Snapmaker U1 (0.4 nozzle)', 'Snapmaker J1'] }, 'browser choices merged into the account');
+      const devices = (await (await bobBrowser.json('/api/devices')).json()).devices;
+      assert.deepEqual(devices.map((d) => d.name), ['Garage J1']);
+      assert.deepEqual(await (await bobBrowser.json('/api/devices/local-1/secret')).json(), { apiKey: 'garage-key' });
+      assert.equal(await page.evaluate(() => localStorage.getItem('cloud-slicer:devices:v1')), null, 'local copy cleared once uploaded');
       if (process.env.ACCOUNTS_SHOTS) await page.screenshot({ path: join(process.env.ACCOUNTS_SHOTS, 'account-menu.png') });
       await page.setViewportSize({ width: 390, height: 800 });
       if (process.env.ACCOUNTS_SHOTS) await page.screenshot({ path: join(process.env.ACCOUNTS_SHOTS, 'account-menu-phone.png') });

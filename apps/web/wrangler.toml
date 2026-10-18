@@ -1,7 +1,9 @@
 # Cloudflare Pages config for the site and its Functions (functions/).
 # The OAuth client ids and secrets are Pages secrets, not set here:
 #   GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, GITHUB_CLIENT_ID, GITHUB_CLIENT_SECRET
-# CI copies them from the GitHub repository secrets of the same names.
+# CI copies them from the repository secrets GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET,
+# OAUTH_GITHUB_CLIENT_ID and OAUTH_GITHUB_CLIENT_SECRET (scripts/setup-accounts.mjs),
+# and creates ACCOUNT_ENC_KEY (encrypts saved printer API keys) once.
 name = "cloud-slicer"
 pages_build_output_dir = "dist"
 compatibility_date = "2025-09-01"

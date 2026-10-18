@@ -9,10 +9,18 @@
 //   GET    /api/presets[?type=]             the user's presets
 //   PUT    /api/presets/<type>/<name>       save one ({ inherits, config, baseVersion? })
 //   DELETE /api/presets/<type>/<name>
+//   GET    /api/settings                    setup choices ({ key, value, version })
+//   PUT    /api/settings/<key>              save one ({ value, baseVersion? })
+//   DELETE /api/settings/<key>
+//   GET    /api/devices                     the user's printers (no API keys)
+//   GET    /api/devices/<id>/secret         one printer's API key
+//   PUT    /api/devices/<id>                save ({ name, preset, url, apiKey?, extra?, baseVersion? })
+//   DELETE /api/devices/<id>
 import * as auth from '../_lib/auth';
 import { HttpError, json } from '../_lib/http';
 import * as presets from '../_lib/presets';
 import type { PagesContext } from '../_lib/types';
+import * as userdata from '../_lib/userdata';
 
 function errorPage(status: number, message: string): Response {
   const escape = (s: string) => s.replace(/[&<>"]/g, (c) => `&#${c.charCodeAt(0)};`);
@@ -43,6 +51,17 @@ export async function onRequest({ request, env }: PagesContext): Promise<Respons
       if (parts.length === 1 && m === 'GET') return await presets.list(env, request);
       if (parts.length === 3 && m === 'PUT') return await presets.put(env, request, b, c);
       if (parts.length === 3 && m === 'DELETE') return await presets.remove(env, request, b, c);
+    }
+    if (a === 'settings') {
+      if (parts.length === 1 && m === 'GET') return await userdata.listSettings(env, request);
+      if (parts.length === 2 && m === 'PUT') return await userdata.putSetting(env, request, b);
+      if (parts.length === 2 && m === 'DELETE') return await userdata.deleteSetting(env, request, b);
+    }
+    if (a === 'devices') {
+      if (parts.length === 1 && m === 'GET') return await userdata.listDevices(env, request);
+      if (parts.length === 3 && c === 'secret' && m === 'GET') return await userdata.deviceSecret(env, request, b);
+      if (parts.length === 2 && m === 'PUT') return await userdata.putDevice(env, request, b);
+      if (parts.length === 2 && m === 'DELETE') return await userdata.deleteDevice(env, request, b);
     }
     throw new HttpError(404, 'Not found');
   } catch (e) {

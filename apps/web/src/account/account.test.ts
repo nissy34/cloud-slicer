@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { hostAllowed, safeReturnPath } from '../../functions/_lib/auth';
 import { initials } from './AccountMenu';
-import { presetNameError, signInUrl, toOrcaPresetJson } from './api';
+import { mergeSetting, presetNameError, signInUrl, toOrcaPresetJson } from './api';
 
 const ALLOWED = 'slicer.awesomestuff.qzz.io,cloud-slicer.pages.dev,*.cloud-slicer.pages.dev,localhost';
 const AUTH = 'https://cloud-slicer.pages.dev';
@@ -56,5 +56,23 @@ describe('account helpers', () => {
     expect(initials('Alice Smith')).toBe('AS');
     expect(initials('bob')).toBe('BO');
     expect(initials('Ada Lovelace Byron')).toBe('AB');
+  });
+});
+
+describe('merging this browser into the account at sign-in', () => {
+  it('unions lists of names', () => {
+    expect(mergeSetting(['U1'], ['U1', 'J1'])).toEqual(['U1', 'J1']);
+    expect(mergeSetting(['U1'], ['U1'])).toBeUndefined();
+  });
+  it('unions lists inside a setup object and adds missing fields', () => {
+    expect(mergeSetting({ printers: ['U1'], filaments: ['PLA'] }, { printers: ['J1'], filaments: ['PLA'], nozzle: '0.4' })).toEqual({
+      printers: ['U1', 'J1'],
+      filaments: ['PLA'],
+      nozzle: '0.4',
+    });
+  });
+  it("keeps the account's value otherwise", () => {
+    expect(mergeSetting('dark', 'light')).toBeUndefined();
+    expect(mergeSetting({ mode: 'a' }, { mode: 'b' })).toBeUndefined();
   });
 });

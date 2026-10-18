@@ -6,6 +6,10 @@ name: CI
 #   secrets.CLOUDFLARE_API_TOKEN   token with Pages: Edit
 #   secrets.CLOUDFLARE_ACCOUNT_ID  account id
 #   vars.CF_PAGES_PROJECT          optional project name (default cloud-slicer)
+# Accounts (sign-in) also need the token to have "D1: Edit", and these
+# secrets, which the deploy copies into the Pages project:
+#   secrets.GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, OAUTH_GITHUB_CLIENT_ID, OAUTH_GITHUB_CLIENT_SECRET
+#   (GitHub reserves the GITHUB_ prefix for its own secrets)
 # CI never talks to a real printer: printer tests run against a mock Moonraker.
 
 on:
@@ -131,6 +135,11 @@ jobs:
           npx playwright install --with-deps chromium
           node test/smoke.mjs ../../fixtures/3DBenchy.stl smoke.png
 
+      - name: Accounts end to end (Pages Functions + local D1, mock OAuth)
+        working-directory: apps/web
+        timeout-minutes: 10
+        run: node test/accounts.mjs
+
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -146,9 +155,20 @@ jobs:
         env:
           PROJECT: ${{ vars.CF_PAGES_PROJECT || 'cloud-slicer' }}
           BRANCH: ${{ github.head_ref || github.ref_name }}
+          GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
+          GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
+          GITHUB_CLIENT_ID: ${{ secrets.OAUTH_GITHUB_CLIENT_ID }}
+          GITHUB_CLIENT_SECRET: ${{ secrets.OAUTH_GITHUB_CLIENT_SECRET }}
         run: |
           # Creates the project on the first run; harmless "already exists" afterwards.
           npx wrangler pages project create "$PROJECT" --production-branch=main || true
+          # Accounts: D1 database + migrations, sign-in secrets. Every deploy
+          # (previews too) shares one database, so migrations must stay additive.
+          node scripts/setup-accounts.mjs | tee accounts.log
+          if grep -q '^d1=ok' accounts.log; then
+            npx wrangler d1 migrations apply cloud-slicer --remote \
+              || echo "::warning::D1 migrations failed; accounts may not work on this deploy"
+          fi
           npx wrangler pages deploy dist --project-name="$PROJECT" --branch="$BRANCH" \
             --commit-hash="$GITHUB_SHA" | tee deploy.log
           url=$(grep -Eo 'https://[^ ]+\.pages\.dev' deploy.log | tail -1)
@@ -168,3 +188,5 @@ jobs:
             echo "waiting for $url ($i)"; sleep 10
           done
           SMOKE_URL='${{ steps.deploy.outputs.url }}' node test/smoke.mjs ../../fixtures/tetrahedron.stl
+          # The account API answers (Functions deployed), whether or not D1 is set up yet.
+          curl -fsS "$url/api/me" | tee /dev/stderr | grep -q '"providers"'
