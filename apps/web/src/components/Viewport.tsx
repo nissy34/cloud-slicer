@@ -205,7 +205,7 @@ function Gizmo({
           mode={tool === 'move' ? 'translate' : tool}
           space={tool === 'scale' ? 'local' : 'world'}
           showZ={tool !== 'move'}
-          size={coarse ? 1.3 : 0.9}
+          size={coarse ? 1.5 : 1.15}
           translationSnap={snap ? 5 : null}
           rotationSnap={snap ? 15 * DEG : null}
           scaleSnap={snap ? 0.1 : null}
