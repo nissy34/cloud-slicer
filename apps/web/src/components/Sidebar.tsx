@@ -6,6 +6,7 @@ import { CalibrationBanner } from './CalibrationDialog';
 import { useOption, useSlicer } from '../state/store';
 import { ObjectList } from './ObjectList';
 import { PaintPanel } from './PaintPanel';
+import { ColorMixPanel } from './ColorMixing';
 import { OptionField } from './OptionField';
 import { SettingsPanel } from './SettingsPanel';
 import { PresetMenu } from '../account/PresetMenu';
@@ -111,6 +112,7 @@ function FilamentSection() {
           {selection.filaments.length} filaments on a printer with {extruders} extruders.
         </p>
       )}
+      <ColorMixPanel />
     </section>
   );
 }

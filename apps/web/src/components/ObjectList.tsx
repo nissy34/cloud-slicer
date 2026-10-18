@@ -58,8 +58,10 @@ export function ObjectList() {
   const project = useSlicer((s) => s.project);
   const plate = useSlicer((s) => s.plate);
   const selected = useSlicer((s) => s.selected);
-  const slots = useSlicer((s) => s.selection?.filaments.length ?? 1);
-  const colours = useSlicer((s) => s.selection?.colours ?? NO_COLOURS);
+  // Physical filaments, then the colour mixes in use.
+  const colours = useSlicer((s) => (s.palette.length ? s.palette : (s.selection?.colours ?? NO_COLOURS)));
+  const physical = useSlicer((s) => s.selection?.filaments.length ?? 1);
+  const slots = colours.length;
   const { select, setObjectFilament, deleteObject, copyInstance, transformInstance, orientObject, splitObject, mirror, setPaint } = useSlicer.getState();
   const [cutting, setCutting] = useState(false);
   const painting = useSlicer((s) => s.paint !== null);
@@ -79,6 +81,7 @@ export function ObjectList() {
       {Array.from({ length: Math.max(slots, value) }, (_, i) => (
         <option key={i} value={i + 1}>
           {i + 1}
+          {i >= physical ? ' (mix)' : ''}
         </option>
       ))}
     </select>

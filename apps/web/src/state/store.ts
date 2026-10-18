@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { EngineClient, type CutKeep, type ProjectThumbnail, type UserPresetFile } from '../engine/client';
+import { EngineClient, type CutKeep, type MixedReply, type MixedRequest, type ProjectThumbnail, type UserPresetFile } from '../engine/client';
 import type {
   PaintOverlay,
   PaintRay,
@@ -21,6 +21,7 @@ import { modelProcessKeys, pickProcess, printerLabel, projectOverrides } from '.
 import { accountReady, getUserSetting, presetEditing, useAccount } from './account';
 import { installedOnly, SETUP_KEY, type Setup } from '../lib/setup';
 import { loadConvertPreference, loadSaved, save, saveConvertPreference } from '../lib/storage';
+import { mixSettings, palette as mixPalette, type MatchResult, type MixRecipe, type MixRow } from '../lib/mixing';
 
 export type Tab = 'prepare' | 'preview' | 'device';
 export type EngineStatus = 'starting' | 'ready' | 'failed';
@@ -69,6 +70,14 @@ interface SlicerState {
   overlay: PaintOverlay | null;
   /** The calibration test on the plate, and the settings it changed. */
   calibration: { title: string; keys: string[]; previous: OrcaConfig } | null;
+  /**
+   * Colour mixing: the project's mixed filaments, as Orca saves them
+   * (mixed_filament_definitions), and the rows the engine reads from them.
+   */
+  mixDefinitions: string;
+  mixes: MixRow[];
+  /** Colour of every filament number: the physical filaments, then the mixes. */
+  palette: string[];
 
   setTab(tab: Tab): void;
   selectPrinter(name: string): Promise<void>;
@@ -121,6 +130,15 @@ interface SlicerState {
   startCalibration(mode: CalibrationMode, values: CalibrationValues): Promise<void>;
   /** Back to normal printing: drops the test's settings (the test model stays). */
   endCalibration(): Promise<void>;
+  addMix(recipe: MixRecipe): Promise<void>;
+  updateMix(index: number, recipe: MixRecipe): Promise<void>;
+  deleteMix(index: number): Promise<void>;
+  /** How a recipe would look, and whether its materials can be mixed. */
+  previewMix(recipe: MixRecipe): Promise<{ colour: string; compatible: boolean }>;
+  /** FilamentMixer blends of the physical filaments, one per weight list. */
+  blendFilaments(ids: number[], weights: number[][]): Promise<string[]>;
+  /** The closest mix of the physical filaments to a colour (desktop's Match mode). */
+  matchColour(target: string, minPercent: number): Promise<MatchResult>;
 }
 
 let client: EngineClient | null = null;
@@ -147,7 +165,7 @@ export const useSlicer = create<SlicerState>((set, get) => {
   const plateThumbnails = () => {
     const { preview, selection, overrides, baseConfig } = get();
     try {
-      return renderThumbnails(preview, selection?.colours ?? [], thumbnailSizes(overrides.thumbnails ?? baseConfig.thumbnails));
+      return renderThumbnails(preview, get().palette.length ? get().palette : (selection?.colours ?? []), thumbnailSizes(overrides.thumbnails ?? baseConfig.thumbnails));
     } catch (e) {
       console.warn('No plate thumbnail:', e);
       return [];
@@ -155,6 +173,38 @@ export const useSlicer = create<SlicerState>((set, get) => {
   };
 
   const fail = (e: unknown) => set({ job: { kind: 'error', message: (e as Error).message } });
+
+  // The settings as the engine slices and saves them: the user's changes plus
+  // the project's mixed filaments.
+  const engineOverrides = (): OrcaConfig => ({ ...get().overrides, mixed_filament_definitions: get().mixDefinitions });
+
+  // A request about the mix list, with what colours its rows.
+  const mixRequest = (extra: Partial<MixedRequest> = {}): MixedRequest => {
+    const config = { ...get().baseConfig, ...get().overrides };
+    return {
+      definitions: get().mixDefinitions,
+      colours: get().selection?.colours ?? [],
+      types: splitList(config.filament_type),
+      ...mixSettings(config),
+      ...extra,
+    };
+  };
+
+  // Keeps the mix rows and the palette in step with the definitions and the
+  // filament colours. Edits pass the engine's reply in.
+  async function refreshMixes(reply?: MixedReply) {
+    const colours = get().selection?.colours ?? [];
+    const res = reply ?? (await engine().mixed(mixRequest()));
+    set({ mixDefinitions: res.definitions, mixes: res.rows, palette: mixPalette(colours, res.rows) });
+    persist();
+  }
+
+  async function editMixes(op: MixedRequest['op']) {
+    const res = await engine().mixed(mixRequest({ op }));
+    await refreshMixes(res);
+    if (res.info) await refreshPreview(res.info);
+    else set(stale());
+  }
 
   // Anything that changes what would be sliced makes the last result stale.
   const stale = () => (get().job.kind === 'sliced' ? { job: { kind: 'idle' } as Job } : {});
@@ -180,7 +230,7 @@ export const useSlicer = create<SlicerState>((set, get) => {
         e.options(),
         fetch(`/engine/settings-layout.json?v=${import.meta.env.VITE_ENGINE_VERSION}`).then((r) => (r.ok ? (r.json() as Promise<SettingsLayout>) : null)),
       ]);
-      set({ printers, options, layout, overrides: saved?.overrides ?? {} });
+      set({ printers, options, layout, overrides: saved?.overrides ?? {}, mixDefinitions: saved?.mixes ?? '' });
       const known = saved?.selection && printers.some((p) => p.name === saved.selection?.printer);
       await applySelection(known && saved?.selection ? saved.selection : { printer: DEFAULT_PRINTER });
       set({ engine: 'ready' });
@@ -195,6 +245,7 @@ export const useSlicer = create<SlicerState>((set, get) => {
     const { config } = await e.fullConfig({});
     set({ selection: res.selection, processes: res.processes, filaments: res.filaments, baseConfig: config, ...stale() });
     persist();
+    await refreshMixes();
   }
 
   // A filament preset for a material: one of the user's installed filaments
@@ -249,8 +300,13 @@ export const useSlicer = create<SlicerState>((set, get) => {
   }
 
   function setOverrides(overrides: OrcaConfig) {
+    const before = get().overrides;
     set({ overrides, ...stale() });
     persist();
+    // Mix colours follow the colour-mixing settings (bias, Local-Z ...) and the nozzles.
+    const affects = (k: string) => k.startsWith('mixed_') || k.startsWith('dithering_') || k === 'nozzle_diameter' || k === 'filament_type';
+    if ([...new Set([...Object.keys(before), ...Object.keys(overrides)])].some((k) => affects(k) && before[k] !== overrides[k]))
+      void refreshMixes().catch(fail);
   }
 
   // Saves the selection and the user's overrides; a calibration test's
@@ -259,7 +315,7 @@ export const useSlicer = create<SlicerState>((set, get) => {
   function persist() {
     const { selection, overrides, calibration: c } = get();
     const keep = c ? { ...Object.fromEntries(Object.entries(overrides).filter(([k]) => !c.keys.includes(k))), ...c.previous } : overrides;
-    save({ selection, overrides: keep });
+    save({ selection, overrides: keep, mixes: get().mixDefinitions });
   }
 
   const settingsNotice = (n: number, from: string) =>
@@ -293,8 +349,11 @@ export const useSlicer = create<SlicerState>((set, get) => {
     // The engine also finds a process by its old name, and keeps the current one when it can't.
     const process = info.file.process || (selection?.process ?? '');
     await applySelection({ printer: info.file.printer, process, filaments: names.length ? names : selection?.filaments, colours: colours.length ? colours : selection?.colours });
-    const overrides = projectOverrides(file, get().baseConfig, get().options);
+    const { mixed_filament_definitions: mixes = '', ...overrides } = projectOverrides(file, get().baseConfig, get().options);
+    // The project's own mixes replace the current ones, as opening it in desktop does.
+    set({ mixDefinitions: file.mixed_filament_definitions ?? mixes });
     setOverrides(overrides);
+    await refreshMixes();
     set({ notice: settingsNotice(Object.keys(overrides).length, 'the project'), noticeWarn: false });
   }
 
@@ -316,7 +375,9 @@ export const useSlicer = create<SlicerState>((set, get) => {
       colours: colours.length ? colours : selection?.colours,
     });
     const overrides = keepSettings ? projectOverrides(file, get().baseConfig, get().options, modelProcessKeys(get().layout)) : {};
+    set({ mixDefinitions: file.mixed_filament_definitions ?? '' });
     setOverrides(overrides);
+    await refreshMixes();
     set({ conversion: null });
     await fitPlates();
     const from = printerLabel(file);
@@ -369,6 +430,9 @@ export const useSlicer = create<SlicerState>((set, get) => {
     paint: null,
     overlay: null,
     calibration: null,
+    mixDefinitions: '',
+    mixes: [],
+    palette: [],
 
     setTab: (tab) => {
       set({ tab });
@@ -404,11 +468,19 @@ export const useSlicer = create<SlicerState>((set, get) => {
         filaments: [...s.filaments, s.filaments[s.filaments.length - 1]],
         colours: [...s.colours, SLOT_COLOURS[s.colours.length % SLOT_COLOURS.length]],
       })),
-    removeFilament: (slot) =>
-      editSelection((s) => ({
+    // Like desktop, mixes that use the filament go, and objects, parts and
+    // paint on later filaments (mixes included) move down one number.
+    removeFilament: async (slot) => {
+      try {
+        await editMixes({ kind: 'removePhysical', filament: slot + 1 });
+      } catch (e) {
+        return fail(e);
+      }
+      await editSelection((s) => ({
         filaments: s.filaments.filter((_, i) => i !== slot),
         colours: s.colours.filter((_, i) => i !== slot),
-      })),
+      }));
+    },
 
     setOverride(key, value) {
       const overrides = { ...get().overrides };
@@ -440,7 +512,7 @@ export const useSlicer = create<SlicerState>((set, get) => {
         }
       }
     },
-    projectFile: (thumbnail) => engine().saveProject(get().overrides, thumbnail),
+    projectFile: (thumbnail) => engine().saveProject(engineOverrides(), thumbnail),
     clearProject: () =>
       projectEdit(async () => {
         await get().endCalibration();
@@ -570,12 +642,31 @@ export const useSlicer = create<SlicerState>((set, get) => {
       await engine().calibrationStop();
     },
 
+    addMix: (recipe) => editMixes({ kind: 'add', row: recipe }).catch(fail),
+    updateMix: (index, recipe) => editMixes({ kind: 'update', index, row: recipe }).catch(fail),
+    deleteMix: (index) => editMixes({ kind: 'delete', index }).catch(fail),
+    async previewMix(recipe) {
+      const res = await engine().mixed(mixRequest({ draft: recipe }));
+      return { colour: res.draftColour ?? '#26A69A', compatible: res.draftCompatible ?? true };
+    },
+    blendFilaments(ids, weights) {
+      const colours = get().selection?.colours ?? [];
+      return engine().mixedBlend(ids.map((i) => colours[i - 1] ?? '#26A69A'), weights);
+    },
+    matchColour(target, minPercent) {
+      const { colours, types } = mixRequest();
+      return engine().mixedMatch({ colours, types: types ?? [], target, minPercent });
+    },
+
     async slice() {
-      const { project, plate, overrides } = get();
+      const { project, plate } = get();
       if (!project?.objects.length) return;
+      // Desktop refuses to slice a mix of materials that can't be mixed.
+      if (get().mixes.some((m) => m.enabled && !m.compatible))
+        return fail(new Error('Mixed filaments contain incompatible material types. Please correct the mixed filaments settings before slicing.'));
       set({ job: { kind: 'slicing', pct: 0, stage: '' } });
       try {
-        const { result, gcode, ms } = await engine().slice(plate, overrides, plateThumbnails());
+        const { result, gcode, ms } = await engine().slice(plate, engineOverrides(), plateThumbnails());
         set({ job: { kind: 'sliced', plate, result, gcode: new Blob([gcode], { type: 'text/plain' }), ms }, notice: '' });
         // Like desktop Orca: show the result as soon as slicing finishes.
         get().setTab('preview');

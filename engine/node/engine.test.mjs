@@ -415,3 +415,104 @@ test('user presets (diffs over a system preset) load like desktop user presets',
     call(engine, 'presetsLoad', DATA_DIR);
   }
 });
+
+// Colour mixing: the mixed-filament list of a project (what desktop's Color Mixing panel edits).
+const mixed = (request) => call(engine, 'mixedFilaments', JSON.stringify(request));
+const TWO = ['#0000FF', '#FFFF00'];
+
+test('colour mixing: a mix of two filaments is filament 3 and prints with both', () => {
+  selectSlots(2);
+  const added = mixed({ definitions: '', colours: TWO, op: { kind: 'add', row: { componentA: 1, componentB: 2, mixBPercent: 50, uiMode: 0 } } });
+  assert.equal(added.rows.length, 1);
+  const [row] = added.rows;
+  assert.equal(row.virtualId, 3, 'numbered after the physical filaments');
+  assert.equal(row.componentA, 1);
+  assert.equal(row.componentB, 2);
+  // FilamentMixer blends like paint: blue + yellow is green, not grey.
+  const [r, g, b] = [1, 3, 5].map((i) => parseInt(row.colour.slice(i, i + 2), 16));
+  assert.ok(g > r && g > b, `blue + yellow should look green, got ${row.colour}`);
+  assert.ok(added.definitions.length > 0);
+  // Reading the definitions back gives the same row.
+  assert.deepEqual(mixed({ definitions: added.definitions, colours: TWO }).rows, added.rows);
+
+  load('tetrahedron.stl');
+  call(engine, 'setExtruder', 0, -1, 3);
+  const { gcode, result } = slice(fullConfig({ filament_colour: TWO.join(';'), mixed_filament_definitions: added.definitions }));
+  const tools = toolCounts(gcode);
+  assert.ok(tools[0] > 0 && tools[1] > 0, `both tools print the mix: ${JSON.stringify(tools)}`);
+  assert.ok(!tools[2], 'the virtual filament never reaches the G-code as a tool');
+  // 50% alternates every layer.
+  assert.ok(tools[0] + tools[1] >= result.totalLayers - 2, `${JSON.stringify(tools)} over ${result.totalLayers} layers`);
+});
+
+test('colour mixing: a 3:1 ratio prints the first filament three times as often', () => {
+  selectSlots(2);
+  const { definitions } = mixed({ definitions: '', colours: TWO, op: { kind: 'add', row: { componentA: 1, componentB: 2, mixBPercent: 25, ratioA: 3, ratioB: 1 } } });
+  load('tetrahedron.stl');
+  call(engine, 'setExtruder', 0, -1, 3);
+  const { gcode } = slice(fullConfig({ filament_colour: TWO.join(';'), mixed_filament_definitions: definitions }));
+  // Layers per tool, from the tool active at each layer change.
+  const layers = { 0: 0, 1: 0 };
+  let tool = 0;
+  for (const line of gcode.split('\n')) {
+    const t = /^T(\d+)\s*$/.exec(line);
+    if (t) tool = Number(t[1]);
+    if (line.startsWith(';LAYER_CHANGE')) layers[tool] = (layers[tool] ?? 0) + 1;
+  }
+  const share = layers[0] / (layers[0] + layers[1]);
+  assert.ok(share > 0.6 && share < 0.9, `filament 1 on ${Math.round(share * 100)}% of layers`);
+});
+
+test('colour mixing: painted mixes and the mix list survive saving and opening the 3MF', () => {
+  selectSlots(2);
+  const { definitions } = mixed({ definitions: '', colours: TWO, op: { kind: 'add', row: { componentA: 1, componentB: 2, mixBPercent: 50 } } });
+  let m = load('3DBenchy.stl');
+  const [x, y] = m.objects[0].instances[0].offset;
+  call(engine, 'paint', 0, JSON.stringify({ rays: [[x, y, 200, 0, 0, -1]], kind: 'color', state: 3, tool: 'sphere', radius: 10 }));
+  assert.ok(engine.previewMesh(0).filaments.includes(3), 'painted with the mix');
+  const config = fullConfig({ filament_colour: TWO.join(';'), mixed_filament_definitions: definitions });
+  call(engine, 'saveProject', '/work/mixed.3mf', JSON.stringify(config), null);
+
+  engine.clearModel();
+  const [bw, bd] = bedSize(fullConfig());
+  call(engine, 'loadModel', '/work/mixed.3mf', 0, bw, bd);
+  const file = JSON.parse(engine.fileConfigJson());
+  assert.equal(file.mixed_filament_definitions, definitions, 'mix list kept');
+  assert.ok(engine.previewMesh(0).filaments.includes(3), 'mix paint kept');
+  const { gcode } = slice(fullConfig({ filament_colour: TWO.join(';'), mixed_filament_definitions: file.mixed_filament_definitions }));
+  const tools = toolCounts(gcode);
+  assert.ok(tools[0] > 0 && tools[1] > 0, JSON.stringify(tools));
+});
+
+test('colour mixing: deleting a mix or a filament moves what uses later filaments', () => {
+  const THREE = ['#FF0000', '#0000FF', '#FFFF00'];
+  let d = mixed({ definitions: '', colours: THREE, op: { kind: 'add', row: { componentA: 1, componentB: 2 } } }).definitions;
+  d = mixed({ definitions: d, colours: THREE, op: { kind: 'add', row: { componentA: 2, componentB: 3 } } }).definitions;
+  load('calib-cube-10-dual-colour-merged.3mf');
+  call(engine, 'setExtruder', 0, -1, 5);  // the second mix (2 + 3)
+  // Deleting the first mix: the second becomes filament 4.
+  const afterDelete = mixed({ definitions: d, colours: THREE, op: { kind: 'delete', index: 0 } });
+  assert.deepEqual(afterDelete.rows.map((r) => [r.deleted, r.virtualId]), [[true, 0], [false, 4]]);
+  assert.equal(info().objects[0].extruder, 4);
+  // Deleting filament 1: the mix of 2 + 3 is now 1 + 2, filament 3.
+  const afterRemove = mixed({ definitions: afterDelete.definitions, colours: THREE, op: { kind: 'removePhysical', filament: 1 } });
+  const live = afterRemove.rows.filter((r) => !r.deleted);
+  assert.deepEqual(live.map((r) => [r.componentA, r.componentB, r.virtualId]), [[1, 2, 3]]);
+  assert.equal(info().objects[0].extruder, 3);
+});
+
+test('colour mixing: Match finds the recipe for a target colour', () => {
+  const target = mixed({ definitions: '', colours: TWO, op: { kind: 'add', row: { componentA: 1, componentB: 2, mixBPercent: 30 } } }).rows[0].colour;
+  const match = call(engine, 'mixedMatch', JSON.stringify({ colours: TWO, types: ['PLA', 'PLA'], target, minPercent: 10 }));
+  assert.ok(match.valid);
+  assert.deepEqual([match.componentA, match.componentB], [1, 2]);
+  assert.ok(Math.abs(match.mixBPercent - 30) <= 3, `mix ${match.mixBPercent}%`);
+  assert.ok(match.deltaE < 2, `ΔE ${match.deltaE}`);
+  // PLA and PETG can't be mixed.
+  const none = call(engine, 'mixedMatch', JSON.stringify({ colours: TWO, types: ['PLA', 'PETG'], target, minPercent: 10 }));
+  assert.equal(none.valid, false);
+  const row = { componentA: 1, componentB: 2 };
+  assert.equal(mixed({ definitions: '', colours: TWO, types: ['PLA', 'PETG'], draft: row }).draftCompatible, false);
+  assert.equal(mixed({ definitions: '', colours: TWO, types: ['PLA', 'PLA'], draft: row }).draftCompatible, true);
+  assert.equal(mixed({ definitions: '', colours: TWO, types: ['PETG', 'TPU'], op: { kind: 'add', row } }).rows[0].compatible, true);
+});

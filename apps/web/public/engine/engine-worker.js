@@ -121,6 +121,16 @@ if (self.name !== 'em-pthread') {
       const o = e.paintOverlay(plate, kind);
       return { value: o, transfer: [o.positions.buffer, o.states.buffer] };
     },
+    // Colour mixing: the mixed-filament list (see engine/src/mixed_api.cpp).
+    // An edit that removes a filament also moves the project's IDs, so the
+    // project comes back with it.
+    mixed(e, request) {
+      const out = json(e.mixedFilaments(JSON.stringify(request)));
+      const kind = request.op?.kind;
+      return kind === 'delete' || kind === 'removePhysical' ? { ...out, info: JSON.parse(e.modelInfoJson()) } : out;
+    },
+    mixedBlend: (e, request) => json(e.mixedBlend(JSON.stringify(request))).colours,
+    mixedMatch: (e, request) => json(e.mixedMatch(JSON.stringify(request))),
     clearPaint: (e, o, kind) => (json(e.clearPaint(o, kind)), JSON.parse(e.modelInfoJson())),
     // Replaces the user presets ([{type, name, inherits, config}], Orca diffs
     // over a system preset) and reloads every preset, like desktop start-up.

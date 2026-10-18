@@ -8,6 +8,8 @@ const KEY = 'cloud-slicer:session:v1';
 export interface Saved {
   selection: Selection | null;
   overrides: OrcaConfig;
+  /** The project's mixed filaments (mixed_filament_definitions). */
+  mixes?: string;
 }
 
 export function loadSaved(): Saved | null {
