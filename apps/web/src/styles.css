@@ -1044,10 +1044,22 @@ select:focus-visible {
   .topbar {
     gap: 4px;
     padding: 0 6px;
+    min-width: 0;
   }
   .tab,
   .topbar .ghost {
     padding: 6px 5px;
+  }
+  /* If the fonts still make the bar too wide, the tabs scroll instead of the page. */
+  .tabs {
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+}
+@media (max-width: 380px) {
+  .tab,
+  .topbar .ghost {
+    font-size: 12px;
   }
 }
 
