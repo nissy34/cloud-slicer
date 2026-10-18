@@ -15,7 +15,7 @@ import type {
 } from '../engine/protocol';
 import { bedSize } from '../lib/colour';
 import { DEFAULT_PRINTER, pickFilamentPreset, splitList, SLOT_COLOURS } from '../lib/presets';
-import { pickProcess, printerLabel, processKeys, projectOverrides } from '../lib/project-import';
+import { modelProcessKeys, pickProcess, printerLabel, projectOverrides } from '../lib/project-import';
 import { loadConvertPreference, loadSaved, save, saveConvertPreference } from '../lib/storage';
 
 export type Tab = 'prepare' | 'preview' | 'device';
@@ -225,7 +225,9 @@ export const useSlicer = create<SlicerState>((set, get) => {
 
   // Moves a project to `printer`: its default process of the same layer height,
   // filaments matched by material in the file's colours, and (when asked) the
-  // project's print settings on top. Machine and filament settings are not carried.
+  // project's model settings on top (layers, walls, infill, supports...).
+  // Machine settings (speeds, acceleration, jerk, line widths, calibration,
+  // prime tower) and filament settings come from the new printer's presets.
   async function convert(file: OrcaConfig, printer: string, keepSettings: boolean) {
     await applySelection({ printer, process: '' });
     const { filaments, selection, processes } = get();
@@ -238,7 +240,7 @@ export const useSlicer = create<SlicerState>((set, get) => {
       filaments: names.length ? names : selection?.filaments,
       colours: colours.length ? colours : selection?.colours,
     });
-    const overrides = keepSettings ? projectOverrides(file, get().baseConfig, get().options, processKeys(get().layout)) : {};
+    const overrides = keepSettings ? projectOverrides(file, get().baseConfig, get().options, modelProcessKeys(get().layout)) : {};
     setOverrides(overrides);
     set({ conversion: null });
     await fitPlates();

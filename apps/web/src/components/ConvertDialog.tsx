@@ -32,13 +32,15 @@ export function ConvertDialog() {
         </label>
         <label className="check">
           <input type="checkbox" checked={keep} onChange={(e) => setKeep(e.target.checked)} />
-          <span>Keep the project's print settings (layers, walls, infill, supports…)</span>
+          <span>Keep the project's model settings: layers, walls, infill, supports, seams, brim</span>
         </label>
         <label className="check">
           <input type="checkbox" checked={remember} onChange={(e) => setRemember(e.target.checked)} />
           <span>Do this automatically next time</span>
         </label>
-        <p className="muted small">Filaments are matched by material and keep the project's colours.</p>
+        <p className="muted small">
+          Speeds, acceleration, jerk, line widths, flow calibration and the prime tower come from {printer || 'your printer'}. Filaments are matched by material and keep the project's colours.
+        </p>
         <div className="dialog-actions">
           <button className="secondary" onClick={dismissConversion}>
             Not now

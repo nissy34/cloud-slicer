@@ -21,19 +21,33 @@ const NEVER = new Set([
 ]);
 
 /**
+ * Whether every plain number in `value` ("3", "0.2,0.2") is within the
+ * option's range. Other slicers write values Orca doesn't accept, e.g. Bambu
+ * Studio's wall_filament = 0 for "default", where Orca's minimum is 1.
+ */
+function inRange(value: string, def: { min?: number; max?: number }): boolean {
+  return value.split(',').every((v) => {
+    if (!/^\s*-?\d+(\.\d+)?\s*$/.test(v)) return true;
+    const n = Number(v);
+    return (def.min === undefined || n >= def.min) && (def.max === undefined || n <= def.max);
+  });
+}
+
+/**
  * The project's values that differ from `base` (the selected presets), limited
- * to options the engine knows and, when given, to `only`.
+ * to options the engine knows (and values in their range) and, when given, to
+ * `only`.
  */
 export function projectOverrides(
   file: OrcaConfig,
   base: OrcaConfig,
-  known: Record<string, unknown>,
+  known: Record<string, { min?: number; max?: number }>,
   only?: Set<string>,
 ): OrcaConfig {
   const out: OrcaConfig = {};
   for (const [key, value] of Object.entries(file)) {
     if (NEVER.has(key) || !(key in known) || (only && !only.has(key))) continue;
-    if (base[key] !== value) out[key] = value;
+    if (base[key] !== value && inRange(value, known[key])) out[key] = value;
   }
   return out;
 }
@@ -42,6 +56,42 @@ export function projectOverrides(
 export function processKeys(layout: SettingsLayout | null): Set<string> {
   const keys = new Set<string>();
   for (const page of layout?.print ?? []) for (const g of page.groups) for (const k of g.options) keys.add(k);
+  return keys;
+}
+
+/**
+ * Process settings that belong to the machine rather than the model: when a
+ * project moves to another printer these come from that printer's own
+ * profile. Speeds, acceleration and jerk follow its motion system; line
+ * widths its nozzle; flow ratios and XY / elephant-foot compensation its
+ * calibration; the prime tower and ooze prevention how it changes filament
+ * (AMS vs tool changer); G-code output its firmware.
+ */
+const MACHINE_PAGES = new Set(['Speed']);
+const MACHINE_GROUPS = new Set(['Line width', 'Prime tower', 'Ooze prevention', 'G-code output', 'Post-processing Scripts']);
+const MACHINE_KEYS = new Set([
+  'resolution', 'enable_arc_fitting', 'xy_hole_compensation', 'xy_contour_compensation',
+  'elefant_foot_compensation', 'elefant_foot_compensation_layers',
+  'print_flow_ratio', 'top_solid_infill_flow_ratio', 'bottom_solid_infill_flow_ratio',
+  'small_area_infill_flow_compensation', 'small_area_infill_flow_compensation_model',
+  'scarf_joint_speed', 'role_based_wipe_speed', 'wipe_speed', 'skirt_speed', 'timelapse_type',
+  'skin_infill_line_width', 'skeleton_infill_line_width',
+]);
+
+/**
+ * The process options a converted project keeps: what describes how the model
+ * should print (layers, walls, infill, supports, seams, ironing, brim, ...),
+ * without the machine's own settings.
+ */
+export function modelProcessKeys(layout: SettingsLayout | null): Set<string> {
+  const keys = new Set<string>();
+  for (const page of layout?.print ?? []) {
+    if (MACHINE_PAGES.has(page.page)) continue;
+    for (const g of page.groups) {
+      if (MACHINE_GROUPS.has(g.title)) continue;
+      for (const k of g.options) if (!MACHINE_KEYS.has(k)) keys.add(k);
+    }
+  }
   return keys;
 }
 
