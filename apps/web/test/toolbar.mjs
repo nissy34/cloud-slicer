@@ -47,7 +47,8 @@ async function open(viewport, mobile) {
 }
 
 const objectRows = (page) => page.locator('ul.objects > li.object');
-const rotation = (page) => Promise.all(['X', 'Y', 'Z'].map((a) => page.getByLabel(`Rotation ${a}`).inputValue()));
+// The rotation fields; they are gone while nothing is selected, so don't wait for them.
+const rotation = (page, timeout = 1000) => Promise.all(['X', 'Y', 'Z'].map((a) => page.getByLabel(`Rotation ${a}`).inputValue({ timeout })));
 
 try {
   const page = await open({ width: 1280, height: 800 }, false);
@@ -75,7 +76,7 @@ try {
   // Lay on face: click the highlighted faces over the boat until it turns.
   await toolbar.getByRole('button', { name: 'Lay on face' }).click();
   await page.getByRole('region', { name: 'Lay on face' }).waitFor();
-  const start = await rotation(page);
+  const start = await rotation(page, 10000);
   // Points over the view, nearest the middle (where the boat is) first. A
   // click that misses the object deselects it, like desktop: pick it again.
   const points = [];
@@ -93,7 +94,7 @@ try {
     await page.mouse.down();
     await page.mouse.up();
     await page.waitForTimeout(500);
-    turned = (await rotation(page).catch(() => start)).join() !== start.join();
+    turned = (await rotation(page, 3000).catch(() => start)).join() !== start.join();
     if (turned) break;
   }
   if (shots && turned) {

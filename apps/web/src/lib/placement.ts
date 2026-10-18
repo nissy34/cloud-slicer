@@ -40,18 +40,32 @@ export interface FlatPlane {
  */
 export function hullPlanes(geometry: THREE.BufferGeometry): FlatPlane[] {
   const pos = geometry.getAttribute('position') as THREE.BufferAttribute;
-  const seen = new Set<string>();
-  const points: THREE.Vector3[] = [];
+  // The part is a triangle soup: each vertex once, to 0.05 mm.
+  const seen = new Set<number>();
+  const all: THREE.Vector3[] = [];
   for (let i = 0; i < pos.count; i++) {
     const x = pos.getX(i), y = pos.getY(i), z = pos.getZ(i);
-    const key = `${Math.round(x * 100)},${Math.round(y * 100)},${Math.round(z * 100)}`;
+    const key = ((Math.round(x * 20) + 65536) * 131072 + (Math.round(y * 20) + 65536)) * 131072 + (Math.round(z * 20) + 65536);
     if (seen.has(key)) continue;
     seen.add(key);
-    points.push(new THREE.Vector3(x, y, z));
+    all.push(new THREE.Vector3(x, y, z));
+  }
+  if (all.length < 4) return [];
+  // Points inside the hull of the extreme points in 26 directions can't be on
+  // the full hull, so they are dropped first (Akl-Toussaint).
+  const dirs: THREE.Vector3[] = [];
+  for (const x of [-1, 0, 1]) for (const y of [-1, 0, 1]) for (const z of [-1, 0, 1]) if (x || y || z) dirs.push(new THREE.Vector3(x, y, z));
+  const extreme = dirs.map((dir) => all.reduce((a, b) => (b.dot(dir) > a.dot(dir) ? b : a)));
+  let points = all;
+  const core = [...new Set(extreme)];
+  if (core.length >= 4) {
+    const inner = new ConvexHull().setFromPoints(core).faces;
+    points = all.filter((p) => inner.some((f) => f.normal.dot(p) - f.constant > -0.01));
   }
   if (points.length < 4) return [];
   const hull = new ConvexHull().setFromPoints(points);
-  const groups: { normal: THREE.Vector3; constant: number; area: number; tris: number[] }[] = [];
+  // Coplanar hull faces make one plane: grouped by their normal and offset.
+  const groups = new Map<string, { normal: THREE.Vector3; area: number; tris: number[] }>();
   let total = 0;
   for (const face of hull.faces) {
     const loop: THREE.Vector3[] = [];
@@ -61,13 +75,15 @@ export function hullPlanes(geometry: THREE.BufferGeometry): FlatPlane[] {
       edge = edge.next;
     } while (edge !== face.edge);
     total += face.area;
-    let g = groups.find((p) => p.normal.dot(face.normal) > 0.9995 && Math.abs(p.constant - face.constant) < 0.05);
-    if (!g) groups.push((g = { normal: face.normal.clone(), constant: face.constant, area: 0, tris: [] }));
+    const n = face.normal;
+    const key = `${Math.round(n.x * 200)},${Math.round(n.y * 200)},${Math.round(n.z * 200)},${Math.round(face.constant * 10)}`;
+    let g = groups.get(key);
+    if (!g) groups.set(key, (g = { normal: n.clone(), area: 0, tris: [] }));
     g.area += face.area;
     for (let k = 1; k + 1 < loop.length; k++) for (const v of [loop[0], loop[k], loop[k + 1]]) g.tris.push(v.x, v.y, v.z);
   }
   const down = new THREE.Vector3(0, 0, -1);
-  return groups
+  return [...groups.values()]
     .filter((g) => g.area >= Math.max(1, total * 0.002) && g.normal.dot(down) < 0.9999)
     .sort((a, b) => b.area - a.area)
     .slice(0, 254)

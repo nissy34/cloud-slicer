@@ -145,9 +145,13 @@ jobs:
         run: |
           npx playwright install --with-deps chromium
           node test/smoke.mjs ../../fixtures/3DBenchy.stl smoke.png
-          node test/toolbar.mjs toolbar-shots
           npx playwright install --with-deps chrome
           STARTUP_CHROME=1 node test/startup-matrix.mjs
+
+      - name: Object toolbar end to end (Chromium)
+        working-directory: apps/web
+        timeout-minutes: 10
+        run: node test/toolbar.mjs toolbar-shots
 
       - name: Accounts end to end (Pages Functions + local D1, mock OAuth)
         working-directory: apps/web
