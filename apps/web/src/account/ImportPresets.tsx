@@ -132,6 +132,7 @@ export function ImportPresetsDialog() {
     setWorking(true);
     setError('');
     let added = 0;
+    let done = '';
     try {
       await presetEdit(async () => {
         const taken = new Set(listUserPresets().map((p) => `${p.type}\n${p.name}`));
@@ -145,16 +146,21 @@ export function ImportPresetsDialog() {
           added++;
         }
       });
-      setDone(`Imported ${added} preset${added === 1 ? '' : 's'}. ${signedIn ? 'They are saved to your account.' : 'They are saved in this browser until you sign in.'}`);
-      setRows(null);
+      done = `Imported ${added} preset${added === 1 ? '' : 's'}. ${signedIn ? 'They are saved to your account.' : 'They are saved in this browser until you sign in.'}`;
     } catch (e) {
       setError((e as Error).message);
     } finally {
-      // Whatever was saved reaches the engine and the pickers.
+      // Whatever was saved reaches the engine and the pickers. Done only
+      // after that: the reload re-applies the selection, so an edit made
+      // while it ran (a filament added once the dialog closes) would be lost.
       await useSlicer
         .getState()
         .setUserPresets(listUserPresets())
         .catch(() => {});
+      if (done) {
+        setDone(done);
+        setRows(null);
+      }
       setWorking(false);
     }
   }
