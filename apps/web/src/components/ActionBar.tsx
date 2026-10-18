@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { sendToPrinter } from '../device';
 import { formatDuration, formatGrams, gcodeFileName, stageLabel } from '../lib/format';
 import { useSlicer } from '../state/store';
@@ -9,24 +10,36 @@ function download(blob: Blob, name: string) {
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
+/** The engine start-up error in full, with a button that copies it (and the build and browser) for a bug report. */
+function EngineFailed({ message }: { message: string }) {
+  const [copied, setCopied] = useState(false);
+  // The first line is the error; any lines after it are the stack.
+  const summary = message.split('\n')[0];
+  const report = [`The slicing engine could not start: ${message}`, `Engine build: ${import.meta.env.VITE_ENGINE_VERSION}`, `Browser: ${navigator.userAgent}`].join('\n');
+  const copy = () =>
+    navigator.clipboard.writeText(report).then(
+      () => setCopied(true),
+      () => setCopied(false),
+    );
+  return (
+    <div className="actionbar error engine-failed" role="alert">
+      <div className="status">
+        The slicing engine could not start: {summary}
+        <pre className="error-details" data-testid="engine-error">{report}</pre>
+      </div>
+      <div className="actions">
+        <button className="secondary" onClick={() => void copy()}>
+          {copied ? 'Copied' : 'Copy error'}
+        </button>
+      </div>
+    </div>
+  );
+}
+
 export function ActionBar() {
   const { engine, engineMessage, project, plate, job, notice, noticeWarn, slice, setTab, tab } = useSlicer();
 
-  if (engine === 'failed') {
-    // The first line is the error; any lines after it are the stack, for bug reports.
-    const [summary, ...stack] = engineMessage.split('\n');
-    return (
-      <div className="actionbar error" role="alert">
-        The slicing engine could not start: {summary}
-        {stack.length > 0 && (
-          <details open>
-            <summary>Details</summary>
-            <pre>{stack.join('\n')}</pre>
-          </details>
-        )}
-      </div>
-    );
-  }
+  if (engine === 'failed') return <EngineFailed message={engineMessage} />;
 
   const onPlate = project?.plates[plate]?.objects.length ?? 0;
   const busy = job.kind === 'loading' || job.kind === 'slicing';

@@ -14,11 +14,9 @@
 //   GET    /api/devices/<id>/secret         one printer's API key
 //   PUT    /api/devices/<id>                save ({ name, preset, url, apiKey?, extra?, baseVersion? })
 //   DELETE /api/devices/<id>
-//   POST   /api/engine-errors               report an engine start-up failure ({ message, stack, engineVersion })
 import * as auth from '../_lib/auth';
 import { HttpError, json } from '../_lib/http';
 import * as presets from '../_lib/presets';
-import * as reports from '../_lib/reports';
 import type { Env, PagesContext } from '../_lib/types';
 import * as userdata from '../_lib/userdata';
 
@@ -62,7 +60,6 @@ export async function onRequest({ request, env }: PagesContext): Promise<Respons
       if (parts.length === 2 && m === 'PUT') return await userdata.putDevice(env, request, b);
       if (parts.length === 2 && m === 'DELETE') return await userdata.deleteDevice(env, request, b);
     }
-    if (a === 'engine-errors' && parts.length === 1 && m === 'POST') return await reports.engineError(env, request);
     throw new HttpError(404, 'Not found');
   } catch (e) {
     const status = e instanceof HttpError ? e.status : 500;
