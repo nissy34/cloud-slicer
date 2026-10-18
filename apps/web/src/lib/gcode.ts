@@ -198,3 +198,51 @@ export function parseGcode(text: string): ParsedGcode {
     toolsUsed: [...toolsUsed].sort((a, b) => a - b),
   };
 }
+
+/** Features that outer walls and the layers above hide; the Preview leaves them out while the view moves. */
+export const INNER_FEATURES = new Set(
+  ['Inner wall', 'Sparse infill', 'Internal solid infill', 'Internal Bridge', 'Gap infill'].map((f) =>
+    FEATURES.indexOf(f as (typeof FEATURES)[number]),
+  ),
+);
+
+/**
+ * Segments in the Preview's drawing order: every layer's shell (what can be
+ * seen from outside) first, then every layer's inner segments, so each group
+ * up to a layer is one contiguous run that one draw call covers.
+ */
+export interface PreviewGcode extends Omit<ParsedGcode, 'layerStarts'> {
+  /** Index of the first shell segment of each layer, plus a final end index (= innerStarts[0]). */
+  shellStarts: Uint32Array;
+  /** Index of the first inner segment of each layer, plus a final end index. */
+  innerStarts: Uint32Array;
+}
+
+export function orderForPreview(p: ParsedGcode): PreviewGcode {
+  const n = p.features.length;
+  const layers = p.layerZ.length;
+  const positions = new Float32Array(n * 6);
+  const features = new Uint8Array(n);
+  const tools = new Uint8Array(n);
+  const sizes = new Float32Array(n * 2);
+  const shellStarts = new Uint32Array(layers + 1);
+  const innerStarts = new Uint32Array(layers + 1);
+  let shellCount = 0;
+  for (let s = 0; s < n; s++) if (!INNER_FEATURES.has(p.features[s])) shellCount++;
+  let shell = 0, inner = shellCount;
+  for (let k = 0; k < layers; k++) {
+    shellStarts[k] = shell;
+    innerStarts[k] = inner;
+    for (let s = p.layerStarts[k]; s < p.layerStarts[k + 1]; s++) {
+      const to = INNER_FEATURES.has(p.features[s]) ? inner++ : shell++;
+      positions.set(p.positions.subarray(s * 6, s * 6 + 6), to * 6);
+      sizes[to * 2] = p.sizes[s * 2];
+      sizes[to * 2 + 1] = p.sizes[s * 2 + 1];
+      features[to] = p.features[s];
+      tools[to] = p.tools[s];
+    }
+  }
+  shellStarts[layers] = shell;
+  innerStarts[layers] = inner;
+  return { positions, features, tools, sizes, shellStarts, innerStarts, layerZ: p.layerZ, toolsUsed: p.toolsUsed };
+}
