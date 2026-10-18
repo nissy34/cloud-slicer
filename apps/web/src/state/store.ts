@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { EngineClient, type CutKeep } from '../engine/client';
+import { EngineClient, type CutKeep, type UserPresetFile } from '../engine/client';
 import type {
   PaintOverlay,
   PaintRay,
@@ -17,7 +17,7 @@ import { calibrationOptions, CALIBRATIONS, type CalibrationMode, type Calibratio
 import { bedSize } from '../lib/colour';
 import { DEFAULT_PRINTER, pickFilamentPreset, splitList, SLOT_COLOURS } from '../lib/presets';
 import { modelProcessKeys, pickProcess, printerLabel, projectOverrides } from '../lib/project-import';
-import { getUserSetting } from './account';
+import { accountReady, getUserSetting, presetEditing, useAccount } from './account';
 import { installedOnly, SETUP_KEY, type Setup } from '../lib/setup';
 import { loadConvertPreference, loadSaved, save, saveConvertPreference } from '../lib/storage';
 
@@ -69,6 +69,14 @@ interface SlicerState {
   /** Filaments that work with a printer, without selecting it (for the setup wizard). */
   filamentsFor(printer: string): Promise<{ filaments: PresetSummary[]; defaults: string[] }>;
   selectProcess(name: string): Promise<void>;
+  /** One preset's own settings, after inheritance. */
+  presetConfig(type: 'printer' | 'filament' | 'process', name: string): Promise<OrcaConfig | null>;
+  /**
+   * Gives the engine the user's saved presets (it reloads every preset) and
+   * selects again, with `selection` on top of the current one. Changes now
+   * saved in a preset stop counting as changes.
+   */
+  setUserPresets(presets: UserPresetFile[], selection?: Partial<Selection>): Promise<void>;
   setFilament(slot: number, name: string): Promise<void>;
   setColour(slot: number, colour: string): Promise<void>;
   addFilament(): Promise<void>;
@@ -107,6 +115,9 @@ interface SlicerState {
 }
 
 let client: EngineClient | null = null;
+const presetFile = ({ type, name, inherits, config }: UserPresetFile): UserPresetFile => ({ type, name, inherits, config });
+/** The user presets the engine has loaded. */
+let enginePresets: UserPresetFile[] = [];
 
 export const useSlicer = create<SlicerState>((set, get) => {
   const engine = () => {
@@ -130,6 +141,18 @@ export const useSlicer = create<SlicerState>((set, get) => {
     const e = engine();
     try {
       const saved = loadSaved();
+      // The user's own presets (this browser's, or the account's) load before
+      // the saved selection, which may name one of them.
+      // Waits at most a few seconds: offline, the engine starts without user presets
+      // and the subscription below adds them when the account answers.
+      await accountReady();
+      enginePresets = useAccount.getState().presets;
+      if (enginePresets.length) await e.userPresets(enginePresets.map(presetFile));
+      // Presets saved on another device (or merged at sign-in) reach the engine too.
+      useAccount.subscribe((a) => {
+        if (a.presets !== enginePresets && get().engine === 'ready' && !presetEditing())
+          void get().setUserPresets(a.presets).catch(fail);
+      });
       const [printers, options, layout] = await Promise.all([
         e.printers(),
         e.options(),
@@ -335,6 +358,21 @@ export const useSlicer = create<SlicerState>((set, get) => {
     },
     filamentsFor: (printer) => engine().filamentsFor(printer),
     selectProcess: (name) => editSelection(() => ({ process: name })),
+    presetConfig: (type, name) => engine().presetConfig(type, name),
+    setUserPresets: async (presets, selection) => {
+      const e = engine();
+      enginePresets = presets;
+      await e.userPresets(presets.map(presetFile));
+      const printers = await e.printers();
+      set({ printers });
+      const want = { ...get().selection, ...selection };
+      if (!printers.some((p) => p.name === want.printer)) want.printer = DEFAULT_PRINTER;
+      await applySelection(want);
+      const base = get().baseConfig;
+      const overrides = get().overrides;
+      if (Object.keys(overrides).some((k) => overrides[k] === base[k]))
+        setOverrides(Object.fromEntries(Object.entries(overrides).filter(([k, v]) => base[k] !== v)));
+    },
     setFilament: (slot, name) => editSelection((s) => ({ filaments: s.filaments.map((f, i) => (i === slot ? name : f)) })),
     setColour: (slot, colour) => editSelection((s) => ({ colours: s.colours.map((c, i) => (i === slot ? colour : c)) })),
     addFilament: () =>

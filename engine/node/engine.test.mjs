@@ -6,7 +6,7 @@ import { readFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { after, before, test } from 'node:test';
 import { fileURLToPath } from 'node:url';
-import { DEFAULT_PRINTER, bedSize, call, openEngine } from './engine.mjs';
+import { DATA_DIR, DEFAULT_PRINTER, bedSize, call, openEngine } from './engine.mjs';
 
 const fixtures = resolve(dirname(fileURLToPath(import.meta.url)), '../../fixtures');
 let engine;
@@ -279,4 +279,42 @@ test('calibration tests set up like desktop and change settings per layer', () =
   assert.ok(gcode.length > 1000);
 
   engine.calibrationStop();
+});
+
+test('user presets (diffs over a system preset) load like desktop user presets', () => {
+  const PROCESS = '0.20mm Standard @Snapmaker U1 (0.4 nozzle)';
+  select({ printer: DEFAULT_PRINTER, process: PROCESS });
+  const filament = call(engine, 'presetsSelect', JSON.stringify({})).selection.filaments[0];
+  // What the web worker's userPresets writes (one JSON file per preset).
+  const write = (folder, preset) => {
+    const dir = `${DATA_DIR}/user/default/${folder}`;
+    engine.FS.mkdirTree(dir);
+    engine.FS.writeFile(`${dir}/${preset.name}.json`, JSON.stringify({ ...preset, from: 'User', is_custom_defined: '0', version: '1.0.0' }));
+  };
+  write('process', { name: 'My fast', inherits: PROCESS, layer_height: '0.28', wall_loops: '3' });
+  write('filament', { name: 'My PLA', inherits: filament, nozzle_temperature: '212' });
+  write('machine', { name: 'My U1', inherits: DEFAULT_PRINTER, retraction_length: '0.6,0.6,0.6,0.6' });
+  try {
+    call(engine, 'presetsLoad', DATA_DIR);
+    const printer = JSON.parse(engine.presetsPrinters()).find((p) => p.name === 'My U1');
+    assert.ok(printer?.user && printer.inherits === DEFAULT_PRINTER, JSON.stringify(printer));
+    const sel = select({ printer: 'My U1', process: 'My fast', filaments: ['My PLA'] });
+    assert.equal(sel.selection.printer, 'My U1');
+    assert.equal(sel.selection.process, 'My fast', 'a system process stays compatible with a user printer of that printer');
+    assert.deepEqual(sel.selection.filaments, ['My PLA']);
+    assert.ok(sel.processes.find((p) => p.name === 'My fast')?.user);
+    const cfg = fullConfig();
+    assert.equal(cfg.layer_height, '0.28');
+    assert.equal(cfg.wall_loops, '3');
+    assert.equal(cfg.nozzle_temperature, '212');
+    assert.equal(cfg.retraction_length.split(',')[0], '0.6');
+    // Everything else comes from the system presets they inherit.
+    assert.equal(cfg.sparse_infill_density, JSON.parse(engine.presetConfig('process', PROCESS)).sparse_infill_density);
+  } finally {
+    for (const folder of ['process', 'filament', 'machine']) {
+      const dir = `${DATA_DIR}/user/default/${folder}`;
+      for (const f of engine.FS.readdir(dir)) if (f.endsWith('.json')) engine.FS.unlink(`${dir}/${f}`);
+    }
+    call(engine, 'presetsLoad', DATA_DIR);
+  }
 });

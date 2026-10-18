@@ -11,7 +11,8 @@
     "typecheck": "tsc -b && tsc -p functions",
     "smoke": "node test/smoke.mjs",
     "pages": "wrangler d1 migrations apply cloud-slicer --local && wrangler pages dev dist",
-    "test:accounts": "node test/accounts.mjs"
+    "test:accounts": "node test/accounts.mjs",
+    "test:presets": "node test/presets.mjs"
   },
   "dependencies": {
     "@react-three/drei": "9.122.0",

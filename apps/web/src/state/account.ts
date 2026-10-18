@@ -150,6 +150,8 @@ async function mergeDevices(server: Device[]): Promise<Device[]> {
 }
 
 let started = false;
+/** Signed in, and the account's presets and settings are still on their way. */
+let pendingData = false;
 
 export const useAccount = create<AccountState>((set, get) => ({
   status: 'loading',
@@ -184,11 +186,18 @@ export const useAccount = create<AccountState>((set, get) => ({
       if (!me.enabled) return set({ status: 'unavailable', user: null, providers: me.providers });
       if (!me.user) return set({ status: 'signedOut', user: null, providers: me.providers, ...localState() });
       const justSignedIn = !(get().status === 'signedIn' && get().user?.id === me.user.id);
+      pendingData = true;
       set({ status: 'signedIn', user: me.user, providers: me.providers });
       const [presets, settings, devices] = await Promise.all([api.presets(), api.settings(), api.devices()]);
-      if (!justSignedIn) return set({ presets, settings: keyed(settings), devices });
-      set({ presets: await mergePresets(presets), settings: await mergeSettings(settings), devices: await mergeDevices(devices) });
+      if (!justSignedIn) {
+        pendingData = false;
+        return set({ presets, settings: keyed(settings), devices });
+      }
+      const merged = { presets: await mergePresets(presets), settings: await mergeSettings(settings), devices: await mergeDevices(devices) };
+      pendingData = false;
+      set(merged);
     } catch (e) {
+      if (pendingData) (pendingData = false), set({});
       if (e instanceof ApiError && e.status === 404) set({ status: 'unavailable', user: null });
       else set({ error: (e as Error).message });
     }
@@ -232,6 +241,38 @@ export const useAccount = create<AccountState>((set, get) => ({
 }));
 
 const signedIn = () => useAccount.getState().status === 'signedIn';
+
+let editing = 0;
+/** Runs a preset edit; the engine picks up the account's presets when it ends, not halfway. */
+export async function presetEdit<T>(task: () => Promise<T>): Promise<T> {
+  editing++;
+  try {
+    return await task();
+  } finally {
+    editing--;
+  }
+}
+export const presetEditing = () => editing > 0;
+
+/** Resolves once it is known whose presets to use (this browser's or the account's), or after `timeoutMs`. */
+export function accountReady(timeoutMs = 5000): Promise<void> {
+  useAccount.getState().init();
+  const done = () => {
+    const s = useAccount.getState();
+    // Signed in: the account's data arrives just after the status.
+    return s.status !== 'loading' && !(s.status === 'signedIn' && pendingData);
+  };
+  if (done()) return Promise.resolve();
+  return new Promise((resolve) => {
+    const timer = setTimeout(finish, timeoutMs);
+    const unsubscribe = useAccount.subscribe(() => done() && finish());
+    function finish() {
+      clearTimeout(timer);
+      unsubscribe();
+      resolve();
+    }
+  });
+}
 
 // ---- presets -------------------------------------------------------------------
 

@@ -107,6 +107,32 @@ if (self.name !== 'em-pthread') {
       return { value: o, transfer: [o.positions.buffer, o.states.buffer] };
     },
     clearPaint: (e, o, kind) => (json(e.clearPaint(o, kind)), JSON.parse(e.modelInfoJson())),
+    // Replaces the user presets ([{type, name, inherits, config}], Orca diffs
+    // over a system preset) and reloads every preset, like desktop start-up.
+    // The selection resets; the caller selects again.
+    userPresets(e, presets) {
+      const root = `${DATA_DIR}/user`;
+      const remove = (path) => {
+        if (!e.FS.analyzePath(path).exists) return;
+        for (const name of e.FS.readdir(path)) {
+          if (name === '.' || name === '..') continue;
+          const child = `${path}/${name}`;
+          if (e.FS.isDir(e.FS.stat(child).mode)) remove(child);
+          else e.FS.unlink(child);
+        }
+        e.FS.rmdir(path);
+      };
+      remove(root);
+      const folder = { printer: 'machine', filament: 'filament', process: 'process' };
+      for (const p of presets || []) {
+        const dir = `${root}/default/${folder[p.type]}`;
+        e.FS.mkdirTree(dir);
+        // Orca skips a user preset file without a version.
+        const preset = { ...p.config, name: p.name, inherits: p.inherits, from: 'User', is_custom_defined: '0', version: '1.0.0' };
+        e.FS.writeFile(`${dir}/${p.name}.json`, JSON.stringify(preset));
+      }
+      return json(e.presetsLoad(DATA_DIR)).counts;
+    },
     addPlate: (e) => (json(e.addPlate()), JSON.parse(e.modelInfoJson())),
     deletePlate: (e, plate) => (json(e.deletePlate(plate)), JSON.parse(e.modelInfoJson())),
 
