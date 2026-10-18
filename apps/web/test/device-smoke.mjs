@@ -6,7 +6,8 @@
 //
 //   npm run build && node test/device-smoke.mjs [screenshot-dir]
 import { spawn } from 'node:child_process';
-import { mkdirSync, mkdtempSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
+import { execFileSync } from 'node:child_process';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -54,7 +55,14 @@ const voron = await startMockPrinter({ generic: true });
 let bridge;
 const browser = await chromium.launch(process.env.PLAYWRIGHT_BROWSERS_PATH === '/opt/pw-browsers' ? { executablePath: '/opt/pw-browsers/chromium' } : {});
 try {
-  await serve('npx', ['wrangler', 'dev', '--port', String(RELAY_PORT), '--ip', '127.0.0.1', '--persist-to', mkdtempSync(join(tmpdir(), 'relay-'))], join(web, '../device-relay'), /Ready on/);
+  // Pretend bridge apps in the relay's local R2, as CI uploads the real ones on main.
+  const persist = mkdtempSync(join(tmpdir(), 'relay-'));
+  const fakeApp = join(persist, 'fake-app');
+  writeFileSync(fakeApp, 'pretend bridge app');
+  for (const name of ['windows-x64', 'mac-arm64', 'linux-arm64']) {
+    execFileSync('npx', ['wrangler', 'r2', 'object', 'put', `cloud-slicer-bridge/bridge/${name}`, '--file', fakeApp, '--local', '--persist-to', persist], { cwd: join(web, '../device-relay'), stdio: 'ignore' });
+  }
+  await serve('npx', ['wrangler', 'dev', '--port', String(RELAY_PORT), '--ip', '127.0.0.1', '--persist-to', persist], join(web, '../device-relay'), /Ready on/);
   await serve('npx', ['vite', 'preview', '--port', String(PAGE_PORT), '--strictPort'], web, new RegExp(String(PAGE_PORT)));
   const cfg = { relay: `http://127.0.0.1:${RELAY_PORT}`, bridgeId: 'smoke-test-bridge', key: 'smoke-test-key-0123456789', printers: [{ id: 'u1', name: 'U1-mock', url: u1.url, apiKey: '' }] };
   bridge = runBridge(cfg, { log: (m) => console.log(`bridge: ${m}`) });
@@ -244,6 +252,44 @@ try {
   const moved = await old.evaluate(() => [localStorage.getItem('cloud-slicer:printers:v1'), localStorage.getItem('cloud-slicer:devices:v1')]);
   if (moved[0] !== null || !moved[1]?.includes('Old Voron')) throw new Error(`legacy printers not moved: ${JSON.stringify(moved)}`);
   console.log('printers from the earlier build moved into the account store');
+
+  // ---- Bridge setup: the apps the relay has, else the Node.js steps ---------------------
+  const relayUrl = `http://127.0.0.1:${RELAY_PORT}`;
+  const liveRelay = 'https://cloud-slicer-relay.nissy34.workers.dev';
+  const setup = await browser.newPage({ viewport: { width: 1280, height: 900 } });
+  let noApps = false;
+  // The dialog asks the default (live) relay before anything is paired; answer from the local one.
+  await setup.route(`${liveRelay}/**`, async (route) => {
+    const u = new URL(route.request().url());
+    if (noApps && u.pathname === '/downloads.json') return route.fulfill({ json: { apps: [] } });
+    const r = await fetch(`${relayUrl}${u.pathname}${u.search}`);
+    await route.fulfill({ status: r.status, headers: Object.fromEntries(r.headers), body: Buffer.from(await r.arrayBuffer()) });
+  });
+  await setup.goto(site);
+  await setup.getByRole('tab', { name: 'Device' }).click();
+  await setup.getByTestId('add-printer').click();
+  const win = setup.getByTestId('bridge-download-windows');
+  await win.waitFor();
+  if ((await win.getAttribute('href')) !== `${liveRelay}/download/windows-x64`) throw new Error(`Windows download points at ${await win.getAttribute('href')}`);
+  await setup.getByTestId('bridge-download-mac').waitFor();
+  await setup.getByTestId('bridge-install-command').filter({ hasText: `curl -fsSL ${liveRelay}/install.sh | sh` }).waitFor();
+  if (shots) await setup.screenshot({ path: join(shots, 'bridge-setup.png') });
+  const download = await fetch(`${relayUrl}/download/windows-x64`);
+  if ((await download.text()) !== 'pretend bridge app' || !/filename="cloud-slicer-bridge\.exe"/.test(download.headers.get('content-disposition') ?? '')) throw new Error('the relay does not serve the Windows app');
+  const script = await (await fetch(`${relayUrl}/install.sh`)).text();
+  if (!script.includes(`RELAY="${relayUrl}"`)) throw new Error('install.sh does not name the relay it came from');
+  for (const width of [390, 360]) {
+    await setup.setViewportSize({ width, height: 844 });
+    const wide = await setup.evaluate(() => [...document.querySelectorAll('.dv-dialog *')].find((el) => el.getBoundingClientRect().right > window.innerWidth + 0.5)?.className ?? null);
+    if (wide !== null) throw new Error(`bridge setup is wider than a ${width} px phone: ${wide}`);
+  }
+  if (shots) await setup.screenshot({ path: join(shots, 'bridge-setup-phone.png'), fullPage: true });
+  noApps = true;
+  await setup.reload();
+  await setup.getByRole('tab', { name: 'Device' }).click();
+  await setup.getByTestId('add-printer').click();
+  await setup.getByText('node cloud-slicer-bridge.mjs', { exact: true }).waitFor();
+  console.log('bridge setup: app downloads and the Linux command from the relay, Node.js steps when it has none');
   console.log('DEVICE SMOKE OK');
 } catch (e) {
   console.error(`DEVICE SMOKE FAIL: ${e.stack ?? e.message}`);

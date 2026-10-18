@@ -11,6 +11,7 @@
 // Sockets hibernate, so an idle bridge costs nothing.
 import { DurableObject } from 'cloudflare:workers';
 import agentSource from '../../device-bridge/bridge.mjs';
+import installScript from '../../device-bridge/install.sh';
 
 export interface Env {
   BRIDGE: DurableObjectNamespace<Bridge>;
@@ -18,7 +19,18 @@ export interface Env {
   CONNECT_LIMIT: RateLimit;
   /** New bridge ids claimed per IP. */
   CLAIM_LIMIT: RateLimit;
+  /** The one-file bridge apps, uploaded by CI (.github/workflows/device.yml). */
+  DOWNLOADS?: R2Bucket;
 }
+
+/** Bridge apps: download name -> the file name people get. Stored in R2 as bridge/<name>. */
+export const APPS: Record<string, string> = {
+  'windows-x64': 'cloud-slicer-bridge.exe',
+  'mac-arm64': 'cloud-slicer-bridge-mac.zip',
+  'mac-x64': 'cloud-slicer-bridge-mac-intel.zip',
+  'linux-x64': 'cloud-slicer-bridge',
+  'linux-arm64': 'cloud-slicer-bridge',
+};
 
 const BRIDGE_ID = /^[\w-]{8,64}$/;
 const MAX_CLIENTS = 16;
@@ -65,6 +77,33 @@ export default {
         headers: { ...cors, 'Content-Type': 'text/javascript; charset=utf-8', 'Content-Disposition': 'attachment; filename="cloud-slicer-bridge.mjs"' },
       });
     }
+    if (url.pathname === '/install.sh') {
+      return new Response(installScript.replaceAll('__RELAY_URL__', url.origin), { headers: { ...cors, 'Content-Type': 'text/x-shellscript; charset=utf-8' } });
+    }
+    if (url.pathname === '/downloads.json') {
+      // Which apps CI has uploaded, so the Device tab only offers what exists.
+      const listed = env.DOWNLOADS ? await env.DOWNLOADS.list({ prefix: 'bridge/' }) : { objects: [] };
+      const apps = listed.objects
+        .map((o) => ({ name: o.key.slice('bridge/'.length), size: o.size, uploaded: o.uploaded.toISOString() }))
+        .filter((a) => a.name in APPS);
+      return Response.json({ apps }, { headers: { ...cors, 'Cache-Control': 'max-age=60' } });
+    }
+    const dl = /^\/download\/([\w-]+)$/.exec(url.pathname);
+    if (dl) {
+      const file = APPS[dl[1]];
+      const object = file && env.DOWNLOADS ? await env.DOWNLOADS.get(`bridge/${dl[1]}`) : null;
+      if (!object) return new Response('That bridge app is not available yet. Use the Node.js version: /bridge.mjs\n', { status: 404, headers: cors });
+      return new Response(object.body, {
+        headers: {
+          ...cors,
+          'Content-Type': 'application/octet-stream',
+          'Content-Length': String(object.size),
+          'Content-Disposition': `attachment; filename="${file}"`,
+          'Cache-Control': 'no-cache',
+          ETag: object.httpEtag,
+        },
+      });
+    }
     const m = /^\/v1\/bridges\/([^/]+)\/(agent|client)$/.exec(url.pathname);
     if (m) {
       if (!BRIDGE_ID.test(m[1])) return new Response('Bad bridge id', { status: 400, headers: cors });
@@ -73,7 +112,7 @@ export default {
       return env.BRIDGE.get(env.BRIDGE.idFromName(m[1])).fetch(req);
     }
     if (url.pathname === '/') {
-      return new Response('Cloud Slicer device relay. Download the bridge agent from /bridge.mjs.\n', { headers: { ...cors, 'Content-Type': 'text/plain' } });
+      return new Response('Cloud Slicer device relay. Bridge apps: /downloads.json and /download/<system>; Linux and Raspberry Pi: curl -fsSL <this relay>/install.sh | sh; Node.js version: /bridge.mjs.\n', { headers: { ...cors, 'Content-Type': 'text/plain' } });
     }
     return new Response('Not found', { status: 404, headers: cors });
   },
