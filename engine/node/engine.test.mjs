@@ -693,6 +693,14 @@ test('variable layer height: adaptive, smooth, manual edits and reset change wha
   const reset = layers({ op: 'reset' });
   assert.equal(reset.custom, false);
   assert.equal(layerCount(slice(fullConfig()).gcode), plainLayers, 'reset goes back to the plain layers');
+
+  // Reading the layers caches the object's height; turning it afterwards
+  // still drops it onto the bed.
+  call(engine, 'setInstanceTransform', 0, 0, JSON.stringify({ rotation: [90, 0, 0] }));
+  const pos = engine.previewMesh(0).positions;
+  let low = Infinity;
+  for (let i = 2; i < pos.length; i += 3) low = Math.min(low, pos[i]);
+  assert.ok(Math.abs(low) < 1e-3, `on the bed after turning: lowest z ${low}`);
 });
 
 test('measure: faces, edges and corners under a ray, and the distance and angle between them', () => {
