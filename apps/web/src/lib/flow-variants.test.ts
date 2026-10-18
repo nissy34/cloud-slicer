@@ -82,6 +82,12 @@ describe('alignFlowVariants', () => {
     expect(alignFlowVariants(file, base, options).outer_wall_speed).toBe('180,450');
   });
 
+  it('gives a value as many entries as the presets value has', () => {
+    // 0.08mm Standard @U1 lists only standard flow but inherits two-entry speeds.
+    const single = { ...base, process_flow_support: 'standard', outer_wall_speed: '90,90', initial_layer_speed: '50' };
+    expect(alignFlowVariants({ outer_wall_speed: '90', initial_layer_speed: '50' }, single, options)).toMatchObject({ outer_wall_speed: '90,90', initial_layer_speed: '50' });
+  });
+
   it('keeps the presets segment of a filament the project lacks', () => {
     expect(alignFlowVariants({ nozzle_temperature: '215' }, base, options).nozzle_temperature).toBe('215,215,250,260');
   });

@@ -86,8 +86,11 @@ export function alignFlowVariants(file: OrcaConfig, base: OrcaConfig, options: R
     if (!flow || base[key] === undefined) continue;
     const values = splitValues(value);
     if (flow === 'process') {
-      const from = fileProcess.length === values.length ? fileProcess : values.length === 1 ? ['standard'] : baseProcess;
-      out[key] = remap(values, from, baseProcess).join(',');
+      // As many entries as the presets' value has (some presets have more than
+      // their process_flow_support lists); ones without a named variant take the standard value.
+      const to = splitValues(base[key]).map((_, i) => baseProcess[i] ?? `#${i}`);
+      const from = fileProcess.length === values.length ? fileProcess : values.length === 1 ? ['standard'] : to;
+      out[key] = remap(values, from, to).join(',');
       continue;
     }
     const baseSegs = segments(splitValues(base[key]), baseSteps);
