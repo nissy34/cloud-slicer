@@ -1,7 +1,8 @@
 #!/usr/bin/env node
 // Browser end to end for the object toolbar over the 3D view: adding a model
-// keeps the one already there, lay on face turns the object, and the toolbar
-// fits a phone.
+// keeps the one already there, lay on face turns the object, measure picks two
+// features and measures between them, and the toolbar fits a phone (and the
+// page itself never scrolls there).
 //
 //   node test/toolbar.mjs [screenshot-dir]
 //
@@ -143,6 +144,32 @@ try {
     if (after !== laid) fail(`after lay on face the panel showed ${laid}, then ${after}`);
     console.log(`lay on face: ${start} -> ${after}`);
   }
+
+  // Measure: hovering shows the feature under the pointer, two clicks measure between them.
+  await page.keyboard.press('Escape');
+  await toolbar.getByRole('button', { name: 'Measure' }).click();
+  const measure = page.getByRole('region', { name: 'Measure' });
+  await measure.waitFor();
+  let picked = 0;
+  for (const [x, y] of points) {
+    await page.mouse.move(box.x + box.width * x, box.y + box.height * y);
+    const hovered = await measure.getByLabel('Feature under the pointer').waitFor({ timeout: 1500 }).then(() => true, () => false);
+    if (!hovered && !picked) continue;
+    if (shots && !picked) await page.screenshot({ path: join(shots, 'measure-desktop-hover.png') });
+    await page.mouse.down();
+    await page.mouse.up();
+    await page.waitForTimeout(300);
+    picked = (await measure.getByLabel('Feature 2').isVisible()) ? 2 : (await measure.getByLabel('Feature 1').isVisible()) ? 1 : 0;
+    if (picked === 2) break;
+  }
+  if (picked < 2) fail('measure did not pick two features');
+  else {
+    await measure.getByLabel('Measurement').waitFor({ timeout: 10000 });
+    const figures = await measure.getByLabel('Measurement').innerText();
+    if (!/Distance|Angle/.test(figures)) fail(`measure showed no distance or angle: ${figures}`);
+    if (shots) await page.screenshot({ path: join(shots, 'measure-desktop.png') });
+    console.log(`measure: ${figures.replace(/\s+/g, ' ')}`);
+  }
   await page.close();
 
   const phone = await open({ width: 390, height: 844 }, true);
@@ -170,6 +197,27 @@ try {
   if (!card || card.y < view.y + view.height - 1) fail(`the phone tool card covers the 3D view: ${JSON.stringify({ card, view })}`);
   if (shots) await phone.screenshot({ path: join(shots, 'toolbar-phone-flatten.png') });
   console.log('phone: toolbar scrolls inside the screen');
+
+  // The page itself must never scroll on a phone. Android Chrome makes the
+  // document taller than the screen while its address bar slides away; a
+  // scrollable page then hid the top bar and left a blank strip under the
+  // action bar. Recreate the taller document and scroll everything there is.
+  await phone.addStyleTag({ content: 'body::after { content: ""; display: block; height: 120px; }' });
+  await phone.evaluate(() => {
+    document.querySelector('.body').scrollTop = 1e6;
+    window.scrollTo(0, 1e6);
+  });
+  await phone.waitForTimeout(300);
+  const edges = await phone.evaluate(() => ({
+    pageScroll: window.scrollY,
+    topbar: document.querySelector('.topbar').getBoundingClientRect().top,
+    actionbar: document.querySelector('.actionbar').getBoundingClientRect().bottom,
+    screen: window.innerHeight,
+  }));
+  if (edges.pageScroll !== 0 || edges.topbar !== 0) fail(`the top bar scrolled off a phone: ${JSON.stringify(edges)}`);
+  if (Math.abs(edges.actionbar - edges.screen) > 1) fail(`the action bar is not at the bottom of a phone: ${JSON.stringify(edges)}`);
+  if (shots) await phone.screenshot({ path: join(shots, 'toolbar-phone-layout.png') });
+  console.log('phone: top bar and action bar stay on screen');
 } catch (e) {
   fail(e.message);
 } finally {

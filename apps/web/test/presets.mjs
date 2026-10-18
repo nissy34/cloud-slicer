@@ -1,7 +1,8 @@
 #!/usr/bin/env node
 // Browser end to end for the user's own presets (signed out, so they live in
 // this browser): change a setting, save it as a process preset, find it again
-// after a reload, rename it, save a filament preset from a slot, delete both.
+// after a reload (an unsaved change is not), rename it, save a filament preset
+// from a slot, delete both.
 //
 //   node test/presets.mjs
 //
@@ -88,6 +89,18 @@ try {
     await ready();
     expect((await processPicker.inputValue()) === 'My fast', `selected ${await processPicker.inputValue()}`);
     expect((await page.getByLabel('Layer height', { exact: true }).inputValue()) === '0.28', 'layer height from the preset');
+  });
+
+  await step('an unsaved change is gone after a reload, the preset stays', async () => {
+    const layer = page.getByLabel('Layer height', { exact: true });
+    await layer.fill('0.3');
+    await layer.press('Enter');
+    await page.getByText(/settings? changed from the presets/).waitFor();
+    await page.reload();
+    await ready();
+    expect((await processPicker.inputValue()) === 'My fast', `selected ${await processPicker.inputValue()}`);
+    expect((await page.getByLabel('Layer height', { exact: true }).inputValue()) === '0.28', 'layer height back to the preset');
+    expect(!(await page.getByText(/settings? changed from the presets/).isVisible()), 'no changed settings after a reload');
   });
 
   await step('rename keeps it selected', async () => {

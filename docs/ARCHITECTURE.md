@@ -122,6 +122,10 @@ nothing on purpose, so a deploy's page and engine never get out of step).
   own reader, and brings the file's own print settings (`project_settings.config`) in as
   overrides on top of the selected presets, like desktop's project presets. Opening a
   3MF over loaded objects asks whether to open it as the project or add its objects.
+- **What survives a reload**: only the preset selection (printer, process, filaments and
+  their colours) and the user's own presets. Changed settings and mixed filaments belong
+  to the project, so like desktop Orca after a restart they are gone until the project
+  is opened again (save it to the cloud or download the 3MF to keep them).
 - **Converting**: when a 3MF was made for a printer you don't have (a Bambu project, for
   example), a dialog offers to put it onto one of your installed printers. Only
   model settings carry over (walls, infill, supports, seams...); printer-specific ones
