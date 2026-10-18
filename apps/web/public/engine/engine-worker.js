@@ -172,11 +172,12 @@ if (self.name !== 'em-pthread') {
     calibrationStop: (e) => e.calibrationStop(),
 
     // Slices one plate with the current preset selection plus overrides.
-    slice(e, plate, overrides, id) {
+    // thumbnails: the page's plate pictures, [{width, height, pixels}].
+    slice(e, plate, overrides, thumbnails, id) {
       const t0 = performance.now();
       const { config } = json(e.presetsFullConfig(JSON.stringify(overrides || {})));
       const result = JSON.parse(e.sliceWithConfig(JSON.stringify(config), plate, '/work/plate.gcode', (pct, stage) =>
-        postMessage({ type: 'progress', id, pct, stage })));
+        postMessage({ type: 'progress', id, pct, stage }), thumbnails || []));
       if (!result.success) throw new Error(result.error || 'Slicing failed');
       const gcode = e.FS.readFile(result.gcodePath).buffer;
       e.FS.unlink(result.gcodePath);

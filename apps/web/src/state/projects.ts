@@ -8,7 +8,7 @@
 import { create } from 'zustand';
 import { api, ApiError, type OnlineProject } from '../account/api';
 import { copyName, nameFromFile, newProjectId, projectFileName, projectSignature, UNTITLED } from '../lib/projects';
-import { snapshot } from '../lib/thumbnail';
+import { snapshot } from '../lib/snapshot';
 import { useAccount } from './account';
 import { useSlicer } from './store';
 

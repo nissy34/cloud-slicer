@@ -3,6 +3,7 @@ import { AccountMenu } from '../account/AccountMenu';
 import { useSlicer, type Tab } from '../state/store';
 import { CalibrationDialog } from './CalibrationDialog';
 import { ProjectMenu } from './ProjectMenu';
+import { ThemeMenu } from './ThemeMenu';
 
 const TABS: { id: Tab; label: string }[] = [
   { id: 'prepare', label: 'Prepare' },
@@ -39,6 +40,7 @@ export function TopBar() {
         Calibration
       </button>
       {calibrating && <CalibrationDialog onClose={() => setCalibrating(false)} />}
+      <ThemeMenu />
       <AccountMenu />
     </header>
   );

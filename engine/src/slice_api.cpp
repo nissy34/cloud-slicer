@@ -5,8 +5,10 @@
 
 #include "libslic3r/BuildVolume.hpp"
 #include "libslic3r/GCode/GCodeProcessor.hpp"
+#include "libslic3r/GCode/ThumbnailData.hpp"
 #include "libslic3r/Print.hpp"
 
+#include <algorithm>
 #include <cmath>
 
 using nlohmann::json;
@@ -50,15 +52,66 @@ Model plateModel(int plate) {
     return m;
 }
 
+// Plate pictures the page rendered (desktop draws them with OpenGL; the engine
+// has none). Each is {width, height, pixels}: RGBA rows bottom to top, as
+// glReadPixels returns them and Orca's thumbnail encoders expect.
+ThumbnailsList readThumbnails(const emscripten::val& images) {
+    ThumbnailsList out;
+    if (images.isUndefined() || images.isNull()) return out;
+    const unsigned n = images["length"].as<unsigned>();
+    for (unsigned i = 0; i < n; ++i) {
+        const emscripten::val img = images[i];
+        ThumbnailData t;
+        t.set(img["width"].as<unsigned>(), img["height"].as<unsigned>());
+        std::vector<unsigned char> px = emscripten::convertJSArrayToNumberVector<unsigned char>(img["pixels"]);
+        if (px.size() != t.pixels.size()) continue;
+        t.pixels = std::move(px);
+        out.push_back(std::move(t));
+    }
+    return out;
+}
+
+// Desktop renders each size the printer's `thumbnails` option asks for. The
+// page renders the same list, so a size is normally there as is; otherwise the
+// largest picture is resampled (bilinear), so a size never goes missing.
+ThumbnailData thumbnailAt(const ThumbnailsList& images, unsigned w, unsigned h) {
+    const ThumbnailData* best = nullptr;
+    for (const ThumbnailData& t : images) {
+        if (t.width == w && t.height == h) return t;
+        if (!best || t.width * t.height > best->width * best->height) best = &t;
+    }
+    ThumbnailData out;
+    if (!best || w == 0 || h == 0) return out;
+    out.set(w, h);
+    for (unsigned y = 0; y < h; ++y)
+        for (unsigned x = 0; x < w; ++x) {
+            const double sx = std::clamp((x + 0.5) * best->width / w - 0.5, 0.0, best->width - 1.0);
+            const double sy = std::clamp((y + 0.5) * best->height / h - 0.5, 0.0, best->height - 1.0);
+            const unsigned x0 = unsigned(sx), y0 = unsigned(sy);
+            const unsigned x1 = std::min(x0 + 1, best->width - 1), y1 = std::min(y0 + 1, best->height - 1);
+            const double fx = sx - x0, fy = sy - y0;
+            for (int c = 0; c < 4; ++c) {
+                auto at = [&](unsigned px, unsigned py) { return double(best->pixels[(py * best->width + px) * 4 + c]); };
+                const double v = (at(x0, y0) * (1 - fx) + at(x1, y0) * fx) * (1 - fy) + (at(x0, y1) * (1 - fx) + at(x1, y1) * fx) * fy;
+                out.pixels[(y * w + x) * 4 + c] = (unsigned char) std::lround(v);
+            }
+        }
+    return out;
+}
+
 // Slice `plate` with `configJson` (key -> serialized value, e.g. from
 // presetsFullConfig plus edits) and write the G-code to outputPath.
 // Returns {success, cancelled, error, warnings, gcodePath, totalLayers,
 // estimatedTimeSeconds, filamentMm: {"<1-based filament>": mm}, totalFilamentMm,
 // totalFilamentGrams, objectsOutside}.
-std::string sliceWithConfig(const std::string& configJson, int plate, const std::string& outputPath, emscripten::val onProgress) {
+// `thumbnails` (optional) holds the plate pictures for the G-code; Orca's own
+// GCode export encodes and places them, in the formats `thumbnails` asks for.
+std::string sliceWithConfig(const std::string& configJson, int plate, const std::string& outputPath, emscripten::val onProgress,
+                            emscripten::val thumbnails) {
     json res{{"success", false}, {"cancelled", false}, {"error", ""}};
     json warnings = json::array();
     try {
+        const ThumbnailsList pictures = readThumbnails(thumbnails);
         Model model = plateModel(plate);
         if (model.objects.empty()) throw std::runtime_error("This plate is empty.");
 
@@ -80,6 +133,9 @@ std::string sliceWithConfig(const std::string& configJson, int plate, const std:
         engine::report(onProgress, 2, "Preparing");
         Print print;
         print.is_BBL_printer() = engine::selectedPrinterIsBambu();  // as desktop does before slicing
+        // Desktop's PartPlate sets this; Print leaves it uninitialised (brim and
+        // skirt read it). plateModel already put the plate's corner at the origin.
+        print.set_plate_origin(Vec3d::Zero());
         print.set_calib_params(engine::project().calib);
         print.apply(model, cfg);
         const StringObjectException err = print.validate();
@@ -95,7 +151,14 @@ std::string sliceWithConfig(const std::string& configJson, int plate, const std:
 
         engine::report(onProgress, 93, "Generating G-code");
         GCodeProcessorResult result;
-        print.export_gcode(outputPath, &result, nullptr);
+        ThumbnailsGeneratorCallback thumbnailCb = nullptr;
+        if (!pictures.empty())
+            thumbnailCb = [&pictures](const ThumbnailsParams& params) {
+                ThumbnailsList list;
+                for (const Vec2d& size : params.sizes) list.push_back(thumbnailAt(pictures, unsigned(size.x()), unsigned(size.y())));
+                return list;
+            };
+        print.export_gcode(outputPath, &result, thumbnailCb);
 
         int layers = 0;
         for (const PrintObject* o : print.objects()) layers = std::max(layers, int(o->total_layer_count()));
