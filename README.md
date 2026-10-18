@@ -31,6 +31,8 @@ hosted on Cloudflare's free tier.
   more physical ones, usable anywhere a filament is.
 - **Calibration tests** from desktop's Calibration menu: temperature, flow rate, pressure
   advance, retraction, max volumetric speed, VFA, input shaping, junction deviation.
+- **Slicing you can stop**: Cancel next to the progress bar, and a change while slicing
+  (settings, filaments, presets, the model) stops the slice and drops its result, like desktop.
 - **Preview** of the sliced toolpaths by feature or filament, layer by layer.
 - **Projects**: save as an Orca 3MF that reopens here or in desktop Orca; online in your
   account when signed in, downloaded when signed out.
@@ -171,6 +173,7 @@ Browser end to end tests (Playwright's Chromium) run against the built site
 | `test/toolbar.mjs` | The object toolbar: add a model, lay on face, fits a phone |
 | `test/mixing.mjs` | Make a colour mix, slice, the G-code alternates between both tools |
 | `test/loading.mjs` | The loading screen while the engine starts and a project opens |
+| `test/cancel.mjs` | Cancel stops the slice in the engine, and a change while slicing drops its result |
 | `test/device-smoke.mjs` | Device tab through relay and bridge to a mock U1, and direct to a mock Klipper printer |
 
 CI never talks to a real printer: printer tests use a mock Moonraker. How CI runs all of

@@ -12,7 +12,7 @@ unit ─────────────────────────
 engine ─┬─ engine-tests ──────────────────────────┤
         └─ site ── browser (smoke, startup,       ├─ deploy
                     presets, accounts, toolbar,   │
-                    mixing, loading) ─────────────┘
+                    mixing, loading, cancel) ─────┘
 ```
 
 | Job | Does |

@@ -49,7 +49,8 @@ tests.
   the touched files at build time, each with its reason. Android-app patches from the
   U1 fork are not used.
 - TBB's parallel loops run serially for now (`engine/compat/tbb_serial`): slices are
-  correct but use one core.
+  correct but use one core. The serial loops have a cancellation point, so the page can
+  stop a running slice.
 - No STEP reader in the default build (no OpenCASCADE), no SLA hollowing (no OpenVDB).
 - Plate thumbnails: the wasm engine has no OpenGL, so the page renders each plate the
   way desktop does and the engine's own G-code export embeds the pictures.
@@ -69,7 +70,10 @@ State lives in zustand stores: the slicer (`state/store.ts`), the open project
 (`state/device.ts`) and the loading screen (`state/loading.ts`). The engine runs in a
 Web Worker because slicing blocks for seconds and Emscripten's threads need
 `Atomics.wait`; that needs cross-origin isolation (COOP/COEP), which the site always
-sends. After slicing, the page switches to Preview; G-code is parsed in its own worker
+sends. Cancel stops a running slice, and so does any change to settings, filaments,
+presets or the model while it runs (its result is dropped, like desktop); engine edits
+sent during a slice cancel it first instead of queueing behind it. After slicing, the
+page switches to Preview; G-code is parsed in its own worker
 and drawn as beads by feature or by filament.
 
 The site is installable as an app (web manifest and a service worker that caches
@@ -206,7 +210,6 @@ In review, not on `main` yet:
 
 - Preset files: import and export Orca preset files, and edit printer and filament
   settings, not only process settings (PR #31).
-- Cancel slicing, and stop a slice when something changes (PR #33).
 - The app icon on the bridge apps, the Windows bridge without a taskbar window, and
   per-system help when a bridge is offline (PR #34).
 
