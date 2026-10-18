@@ -97,3 +97,18 @@ export function metaFromMoonraker(m: Record<string, unknown> | null): GcodeMeta 
     layers: typeof m.layer_count === 'number' ? m.layer_count : null,
   };
 }
+
+/**
+ * The address of a file's slicer thumbnail on the printer, from Moonraker's
+ * metadata: the smallest one at least `min` px wide (else the largest), so a
+ * list row fetches a few kilobytes, not the 300 px preview.
+ * Thumbnail paths are relative to the G-code file's folder.
+ */
+export function thumbnailUrl(m: Record<string, unknown> | null, path: string, min = 64): string | null {
+  const thumbs = (Array.isArray(m?.thumbnails) ? m.thumbnails : []) as { width?: number; relative_path?: string }[];
+  const usable = thumbs.filter((t) => typeof t.relative_path === 'string' && t.relative_path).sort((a, b) => (a.width ?? 0) - (b.width ?? 0));
+  const pick = usable.find((t) => (t.width ?? 0) >= min) ?? usable[usable.length - 1];
+  if (!pick) return null;
+  const dir = path.includes('/') ? path.slice(0, path.lastIndexOf('/') + 1) : '';
+  return `/server/files/gcodes/${`${dir}${pick.relative_path}`.split('/').map(encodeURIComponent).join('/')}`;
+}

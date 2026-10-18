@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { fanGcode, jogGcode, lightGcode, ownName, setHeaterGcode, uploadName } from './commands';
-import { metaFromMoonraker, parseDuration, parseGcodeMeta } from './gcode-meta';
+import { metaFromMoonraker, parseDuration, parseGcodeMeta, thumbnailUrl } from './gcode-meta';
 import { directBlockedReason, normalizePrinterUrl } from './link/direct';
 import { decodePairing, encodePairing } from './pairing';
 
@@ -56,5 +56,18 @@ describe('connections', () => {
     expect(directBlockedReason('https://u1.local', 'https://slicer.example.com/')).toMatch(/home network/);
     expect(directBlockedReason('https://printer.example.com', 'https://slicer.example.com/')).toBeNull();
     expect(directBlockedReason('http://127.0.0.1:7125', 'http://localhost:5173/')).toBeNull();
+  });
+});
+
+describe('file thumbnails', () => {
+  const thumbs = { thumbnails: [{ width: 300, relative_path: '.thumbs/a b-300x300.png' }, { width: 32, relative_path: '.thumbs/a b-32x32.png' }, { width: 96, relative_path: '.thumbs/a b-96x96.png' }] };
+  it('picks the smallest thumbnail big enough for a row, relative to the file folder', () => {
+    expect(thumbnailUrl(thumbs, 'a b.gcode')).toBe('/server/files/gcodes/.thumbs/a%20b-96x96.png');
+    expect(thumbnailUrl(thumbs, 'jobs/a b.gcode')).toBe('/server/files/gcodes/jobs/.thumbs/a%20b-96x96.png');
+    expect(thumbnailUrl(thumbs, 'a b.gcode', 400)).toBe('/server/files/gcodes/.thumbs/a%20b-300x300.png');
+  });
+  it('has none when Moonraker found none', () => {
+    expect(thumbnailUrl(null, 'x.gcode')).toBeNull();
+    expect(thumbnailUrl({ thumbnails: [] }, 'x.gcode')).toBeNull();
   });
 });

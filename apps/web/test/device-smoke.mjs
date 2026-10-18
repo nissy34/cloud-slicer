@@ -76,6 +76,11 @@ try {
   await page.getByText('Snapmaker U1').first().waitFor();
   console.log('U1 tool heads shown');
 
+  // Each file row shows what Moonraker already knows about it: thumbnail (fetched through the bridge), time, filament.
+  await until('file thumbnail through the bridge', () => page.getByTestId('files-card').locator('.dv-file-thumb img').first().evaluate((img) => img.naturalWidth > 0).catch(() => false));
+  await page.getByTestId('files-card').getByTestId('file-meta').first().filter({ hasText: '1 h' }).filter({ hasText: 'PLA 5.1 g' }).waitFor();
+  console.log('file rows show thumbnail, print time and filament');
+
   await page.getByRole('switch', { name: 'Chamber light' }).click({ force: true });
   await until('chamber light on', () => u1.state['led cavity_led'].color_data[0][3] === 1);
   await page.getByLabel('Bed target').fill('60');
@@ -168,6 +173,8 @@ try {
   console.log('bridge restart: reconnected by itself');
 
   // ---- generic Klipper printer, direct ------------------------------------------------
+  // A printer that has collected files over months: the card pages them like Fluidd.
+  for (let i = 0; i < 24; i++) voron.files.set(`part_${String(i).padStart(2, '0')}.gcode`, { size: 50_000, modified: Date.now() / 1000 - 7200 - i * 600, text: '' });
   await page.getByTestId('printer-select').selectOption('__add');
   await page.getByRole('tab', { name: 'Public https address' }).click();
   await page.getByTestId('printer-url').fill(voron.url);
@@ -194,6 +201,19 @@ try {
   await page.getByRole('button', { name: 'X plus' }).click();
   await until('jogged', () => voron.scripts.includes('G1 X10 F6000'));
   console.log('direct generic printer: connected, both cameras live (player page + MJPEG), camera choice saved, home and jog work');
+
+  const filesCard = page.getByTestId('files-card');
+  const fileRows = filesCard.locator('.dv-files li');
+  await filesCard.getByTestId('files-pager').filter({ hasText: '1–10 of 25' }).waitFor();
+  if ((await fileRows.count()) !== 10) throw new Error(`files card shows ${await fileRows.count()} rows, want 10`);
+  if (!(await fileRows.first().textContent()).includes('calibration_cube.gcode')) throw new Error('files card is not newest first');
+  await filesCard.getByRole('button', { name: 'Older ›' }).click();
+  await filesCard.getByTestId('files-pager').filter({ hasText: '11–20 of 25' }).waitFor();
+  if (!(await fileRows.first().textContent()).includes('part_09.gcode')) throw new Error(`page 2 starts with ${await fileRows.first().textContent()}`);
+  await filesCard.getByLabel('Search files').fill('part_2');
+  await until('search narrows the list', async () => (await fileRows.count()) === 4 && (await filesCard.getByTestId('files-pager').count()) === 0);
+  await filesCard.getByLabel('Search files').fill('');
+  console.log('files card: 10 newest per page, older pages and search reach the rest');
 
   const phone = await browser.newPage({ viewport: { width: 390, height: 844 } });
   await phone.goto(site);
