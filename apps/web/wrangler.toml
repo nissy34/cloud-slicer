@@ -1,0 +1,22 @@
+# Cloudflare Pages config for the site and its Functions (functions/).
+# The OAuth client ids and secrets are Pages secrets, not set here:
+#   GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, GITHUB_CLIENT_ID, GITHUB_CLIENT_SECRET
+# CI copies them from the GitHub repository secrets of the same names.
+name = "cloud-slicer"
+pages_build_output_dir = "dist"
+compatibility_date = "2025-09-01"
+
+[vars]
+# Where Google and GitHub send the user back after sign-in. Every deploy
+# (production, previews) signs in through this one host.
+AUTH_ORIGIN = "https://cloud-slicer.pages.dev"
+# Hosts a sign-in may start from (and return to).
+ALLOWED_HOSTS = "slicer.awesomestuff.qzz.io,cloud-slicer.pages.dev,*.cloud-slicer.pages.dev,localhost,127.0.0.1"
+
+# --- D1 (keep last: CI fills in database_id, or drops this block when the
+# Cloudflare token can't reach D1, and the site then runs without accounts) ---
+[[d1_databases]]
+binding = "DB"
+database_name = "cloud-slicer"
+database_id = "00000000-0000-0000-0000-000000000000"
+migrations_dir = "migrations"
