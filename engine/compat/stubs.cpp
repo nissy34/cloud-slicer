@@ -27,3 +27,9 @@ extern "C" int pthread_getname_np(pthread_t, char *buf, size_t len)
     if (len) buf[0] = '\0';
     return 0;
 }
+
+// The serial TBB shims' cancellation point (tbb_serial/tbb/serial_cancel.h).
+#include <tbb/serial_cancel.h>
+namespace tbb { namespace detail { namespace d1 {
+void (*serial_cancel_point)() = nullptr;
+}}} // namespace tbb::detail::d1

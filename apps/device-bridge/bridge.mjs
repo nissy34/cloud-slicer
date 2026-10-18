@@ -9,7 +9,7 @@
 //
 //   node cloud-slicer-bridge.mjs                     # finds your printers, pairs, keeps running
 //   node cloud-slicer-bridge.mjs add 192.168.1.50 [--name "My U1"] [--api-key KEY]
-//   node cloud-slicer-bridge.mjs list | remove <name> | pair
+//   node cloud-slicer-bridge.mjs list | remove <name> | pair [--open]
 //   node cloud-slicer-bridge.mjs install            # start with this computer
 //   node cloud-slicer-bridge.mjs uninstall          # stop it and remove it from this computer
 //
@@ -30,9 +30,11 @@ import { basename, dirname, join } from 'node:path';
 import { createInterface } from 'node:readline';
 import { pathToFileURL } from 'node:url';
 
-export const VERSION = '3';
+export const VERSION = '4';
 /** True in the one-file app (bun build --compile), false under node or bun. */
 const APP = Boolean(process.versions.bun) && !/^bun(\.exe)?$/i.test(basename(process.execPath));
+/** The Mac app opened from Finder: it has no terminal window, but was opened by hand all the same. */
+const MAC_BUNDLE = APP && process.platform === 'darwin' && /\.app\/Contents\/MacOS\//.test(process.execPath);
 /** How to run this bridge again, for messages: the app's own path, or node and this script. */
 let installedAt = null;
 /**
@@ -70,7 +72,7 @@ function parseArgs(argv) {
     if (a.startsWith('--')) {
       const k = a.slice(2);
       opts[k] = argv[i + 1] && !argv[i + 1].startsWith('--') ? argv[++i] : true;
-    } else rest.push(a);
+    } else if (!a.startsWith('-psn_')) rest.push(a); // older macOS adds -psn_… to apps opened from Finder
   }
   return { opts, rest };
 }
@@ -181,8 +183,9 @@ const LABEL = 'io.qzz.awesomestuff.cloud-slicer-bridge';
 /**
  * What starting with the computer takes on each system, without doing it:
  * where this program is copied to, the files to write and the commands to
- * run. Windows: a Run entry for the user (no admin; the bridge opens
- * minimised at sign-in). macOS: a launch agent. Linux: a systemd user service,
+ * run. Windows: a Run entry for the user (no admin; at sign-in the bridge
+ * starts itself again with no window, --background, so nothing sits in the
+ * taskbar). macOS: a launch agent. Linux: a systemd user service,
  * plus lingering so it starts at boot without a sign-in (a headless Pi).
  */
 export function autostartPlan({ platform = process.platform, home = homedir(), env = process.env, app = APP, exe = process.execPath, script = process.argv[1], user = safeUser() } = {}) {
@@ -196,13 +199,13 @@ export function autostartPlan({ platform = process.platform, home = homedir(), e
   const argv = [...(app ? [copy.to] : [exe, copy.to]), 'run', '--no-browser'];
   const quoted = argv.map((a) => `"${a}"`).join(' ');
   if (win) {
-    const value = `cmd /c start "Cloud Slicer Bridge" /min ${quoted}`;
+    const value = `${quoted} "--background"`;
     return {
       dir,
       copy,
       files: [],
       enable: [['reg', ['add', 'HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Run', '/v', 'CloudSlicerBridge', '/t', 'REG_SZ', '/d', value, '/f']]],
-      start: ['cmd', ['/c', `start "Cloud Slicer Bridge" /min ${quoted}`]],
+      start: [argv[0], [...argv.slice(1), '--background']],
       restart: null,
       disable: [['reg', ['delete', 'HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Run', '/v', 'CloudSlicerBridge', '/f']]],
       marker: null,
@@ -252,10 +255,25 @@ RestartSec=5
 [Install]
 WantedBy=default.target
 `;
+  // The app also gets a menu entry, with its icon, that opens the pairing link.
+  const icon = join(dir, 'icon.png');
+  const menu = {
+    path: join(home, '.local', 'share', 'applications', `${SERVICE}.desktop`),
+    content: `[Desktop Entry]
+Type=Application
+Name=Cloud Slicer Bridge
+Comment=Open the link that pairs this bridge with Cloud Slicer
+Exec=${[copy.to, 'pair', '--open'].map((a) => (/\s/.test(a) ? `"${a}"` : a)).join(' ')}
+Icon=${icon}
+Terminal=false
+Categories=Utility;
+`,
+  };
   return {
     dir,
     copy,
-    files: [{ path: unit, content }],
+    files: app ? [{ path: unit, content }, menu] : [{ path: unit, content }],
+    icon: app ? icon : null,
     enable: [
       ['systemctl', ['--user', 'daemon-reload']],
       ['systemctl', ['--user', 'enable', SERVICE]],
@@ -313,6 +331,11 @@ async function installAutostart() {
     await mkdir(dirname(f.path), { recursive: true });
     await writeFile(f.path, f.content);
   }
+  if (plan.icon) {
+    // build-apps.sh builds the icon into the Linux app.
+    const png = globalThis.Bun?.embeddedFiles?.find((f) => /\.png$/.test(f.name));
+    if (png) await writeFile(plan.icon, Buffer.from(await png.arrayBuffer()));
+  }
   try {
     for (const step of plan.enable) runStep(step);
   } catch (e) {
@@ -320,7 +343,7 @@ async function installAutostart() {
     throw new Error(`${e.message}\nThis computer can't start the bridge by itself (no systemd user services). Run it yourself instead: ${asCommand(plan.copy.to)} run`);
   }
   if (plan.start) {
-    const child = spawn(plan.start[0], plan.start[1], { stdio: 'ignore', detached: true, windowsVerbatimArguments: true });
+    const child = spawn(plan.start[0], plan.start[1], { stdio: 'ignore', detached: true, windowsHide: true, windowsVerbatimArguments: true });
     child.unref();
   }
   return plan;
@@ -334,7 +357,7 @@ function restartAutostart() {
     if (plan.restart) for (const step of plan.restart) runStep(step);
     else {
       spawnSync('taskkill', ['/F', '/IM', basename(plan.copy.to), '/FI', `PID ne ${process.pid}`], { stdio: 'ignore' });
-      spawn(plan.start[0], plan.start[1], { stdio: 'ignore', detached: true, windowsVerbatimArguments: true }).unref();
+      spawn(plan.start[0], plan.start[1], { stdio: 'ignore', detached: true, windowsHide: true, windowsVerbatimArguments: true }).unref();
     }
     return true;
   } catch {
@@ -598,7 +621,7 @@ export function runBridge(cfg, { log = console.log, save = async () => {}, onRep
   let stopped = false;
 
   const toRelay = (obj) => relay?.readyState === WebSocket.OPEN && relay.send(JSON.stringify(obj));
-  const hello = () => toRelay({ ctl: 'hello', version: VERSION, printers: cfg.printers.map(({ id, name }) => ({ id, name })) });
+  const hello = () => toRelay({ ctl: 'hello', version: VERSION, system: process.platform, app: APP, printers: cfg.printers.map(({ id, name }) => ({ id, name })) });
 
   /** Calls from a window with no printer chosen: finding, adding and removing this bridge's printers from the Device tab. */
   const manage = async (method, p = {}) => {
@@ -747,12 +770,24 @@ export async function main() {
     throw new Error(`The bridge needs Node.js 22 or newer; this is ${process.version}. Install it from https://nodejs.org (or with nvm: nvm install 22).`);
   }
   const { opts, rest } = parseArgs(process.argv.slice(2));
+  if (opts.background && process.platform === 'win32' && !process.env.CLOUD_SLICER_BRIDGE_BACKGROUND) {
+    // Windows gives a console program a window (and a taskbar button). --background starts this
+    // again detached with no window at all, and this copy exits; that is how it runs at sign-in.
+    const args = process.argv.slice(2).filter((a) => a !== '--background');
+    spawn(process.execPath, APP ? args : [process.argv[1], ...args], {
+      detached: true,
+      stdio: 'ignore',
+      windowsHide: true,
+      env: { ...process.env, CLOUD_SLICER_BRIDGE_BACKGROUND: '1' },
+    }).unref();
+    return;
+  }
   const path = String(opts.config ?? process.env.CLOUD_SLICER_BRIDGE_CONFIG ?? join(homedir(), '.cloud-slicer-bridge.json'));
   const cfg = await loadConfig(path, opts.relay);
   if (opts.site) cfg.site = String(opts.site);
   const [cmd = 'run', ...args] = rest;
   // Opened with a double click (or plain "run" in a terminal): offer to start with the computer.
-  const interactive = !rest.length && !opts['no-browser'] && process.stdin.isTTY;
+  const interactive = !rest.length && !opts['no-browser'] && (process.stdin.isTTY || MAC_BUNDLE);
 
   /** Sets the bridge up to start with this computer (and starts it there), or says why it can't. */
   const startWithComputer = async () => {
@@ -788,7 +823,7 @@ export async function main() {
     for (const p of cfg.printers) console.log(`${p.id}  ${p.name}  ${p.url}${p.apiKey ? '  (API key)' : ''}`);
     if (!cfg.printers.length) console.log(`No printers yet. Add one: ${self()} add <address>`);
   } else if (cmd === 'pair') {
-    printPairing(cfg, opts.site);
+    printPairing(cfg, opts.site, { open: !!opts.open });
   } else if (cmd === 'install') {
     if (APP) installedAt = autostartPlan().copy.to;
     const plan = await installAutostart();

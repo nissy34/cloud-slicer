@@ -318,6 +318,16 @@ select:focus-visible {
   width: min(240px, 40vw);
   accent-color: var(--accent);
 }
+.progress .stage {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.progress button {
+  flex: none;
+  padding-block: 4px;
+}
 .stats {
   display: flex;
   flex-wrap: wrap;
@@ -1728,6 +1738,12 @@ select:focus-visible {
   gap: 12px;
   align-items: center;
   justify-content: space-between;
+}
+.dv-banner-help {
+  display: block;
+}
+.dv-banner-help .dv-about-commands {
+  min-width: 0;
 }
 .dv-cols {
   max-width: 1400px;

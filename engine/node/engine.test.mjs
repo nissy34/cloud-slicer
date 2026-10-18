@@ -110,6 +110,37 @@ test('slices an STL with the U1 presets', () => {
   assert.ok(result.estimatedTimeSeconds > 0);
 });
 
+test('a slice stops when the page cancels it, and the engine slices again after', () => {
+  select({ printer: DEFAULT_PRINTER, process: '0.20mm Standard @Snapmaker U1 (0.4 nozzle)' });
+  load('3DBenchy.stl');
+  const cfg = JSON.stringify(fullConfig());
+  // [0] the request id to cancel, [1] the running slice's id (the worker's job in the browser).
+  const cells = engine.sliceCancelFlag();
+  const run = (id, cancelAt) => {
+    Atomics.store(cells, 1, id);
+    const seen = [];
+    try {
+      return { seen, result: JSON.parse(engine.sliceWithConfig(cfg, 0, '/work/out.gcode', (pct) => {
+        seen.push(pct);
+        // The page clicks Cancel while the engine is busy (here, from inside its progress callback).
+        if (cancelAt != null && pct >= cancelAt) Atomics.store(cells, 0, cancelAt === -1 ? id + 1 : id);
+      }, null)) };
+    } finally {
+      Atomics.store(cells, 1, 0);
+    }
+  };
+
+  const cancelled = run(7, 5);
+  assert.equal(cancelled.result.success, false);
+  assert.equal(cancelled.result.cancelled, true);
+  assert.ok(Math.max(...cancelled.seen) < 90, `stopped before G-code export, progress ${cancelled.seen}`);
+
+  // Cancelling another request leaves this one alone, and the engine still slices.
+  const other = run(8, -1);
+  assert.ok(other.result.success, `slice after cancel failed: ${other.result.error}`);
+  assert.match(new TextDecoder().decode(engine.FS.readFile('/work/out.gcode')), /^PRINT_START/m);
+});
+
 // Thumbnail blocks Orca wrote: [{format, width, height, png bytes}].
 function thumbnailBlocks(gcode) {
   return [...gcode.matchAll(/^; (thumbnail\w*) begin (\d+)x(\d+) (\d+)\n([\s\S]*?)^; \1 end$/gm)].map((m) => {

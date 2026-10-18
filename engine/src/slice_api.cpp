@@ -8,13 +8,47 @@
 #include "libslic3r/GCode/ThumbnailData.hpp"
 #include "libslic3r/Print.hpp"
 
+#include <tbb/serial_cancel.h>
+
 #include <algorithm>
+#include <atomic>
 #include <cmath>
+#include <cstdint>
 
 using nlohmann::json;
 using namespace Slic3r;
 
 namespace {
+
+// Cancelling a running slice. Desktop's UI thread calls Print::cancel() while
+// the background thread slices; here the slice runs on the engine worker's
+// only thread, which nothing can reach while it is busy. So the page writes
+// to these two cells, which live in the engine's shared memory
+// (sliceCancelFlag): [0] the request id the page wants cancelled, [1] the id
+// of the slice now running (the worker sets it). Slicing stops at the next
+// cancellation point: Orca's own throw_if_canceled() once the status
+// callback has called Print::cancel(), and the serial TBB loops in between.
+std::atomic<int32_t> cancelCells[2];
+static_assert(sizeof(cancelCells) == 2 * sizeof(int32_t) && std::atomic<int32_t>::is_always_lock_free);
+
+bool cancelRequested() {
+    const int32_t running = cancelCells[1].load(std::memory_order_acquire);
+    return running != 0 && cancelCells[0].load(std::memory_order_acquire) == running;
+}
+
+// Installs the serial TBB cancellation point for the length of a slice.
+struct CancelPoint {
+    CancelPoint() {
+        tbb::detail::d1::serial_cancel_point = [] {
+            if (cancelRequested()) throw CanceledException();
+        };
+    }
+    ~CancelPoint() { tbb::detail::d1::serial_cancel_point = nullptr; }
+};
+
+emscripten::val sliceCancelFlag() {
+    return emscripten::val(emscripten::typed_memory_view(2, reinterpret_cast<int32_t*>(cancelCells)));
+}
 
 // Orca's wipe tower reads flush_volumes_matrix as N x N for N filaments without
 // bounds checks; desktop keeps it sized as filaments are added. A config
@@ -141,8 +175,11 @@ std::string sliceWithConfig(const std::string& configJson, int plate, const std:
         const StringObjectException err = print.validate();
         if (!err.string.empty()) throw std::runtime_error(err.string);
 
+        const CancelPoint cancelPoint;
+        if (cancelRequested()) throw CanceledException();
         int high = 2;
         print.set_status_callback([&](const PrintBase::SlicingStatus& s) {
+            if (cancelRequested()) print.cancel();
             const int pct = 2 + int(s.percent * 0.9);
             if (pct > high) high = pct;
             engine::report(onProgress, high, s.text);
@@ -159,6 +196,8 @@ std::string sliceWithConfig(const std::string& configJson, int plate, const std:
                 return list;
             };
         print.export_gcode(outputPath, &result, thumbnailCb);
+        // A cancel that landed in code which caught the exception itself.
+        if (cancelRequested()) throw CanceledException();
 
         int layers = 0;
         for (const PrintObject* o : print.objects()) layers = std::max(layers, int(o->total_layer_count()));
@@ -193,4 +232,5 @@ std::string sliceWithConfig(const std::string& configJson, int plate, const std:
 
 EMSCRIPTEN_BINDINGS(slice_api) {
     emscripten::function("sliceWithConfig", &sliceWithConfig);
+    emscripten::function("sliceCancelFlag", &sliceCancelFlag);
 }

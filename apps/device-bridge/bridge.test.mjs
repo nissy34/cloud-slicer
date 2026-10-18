@@ -38,8 +38,10 @@ test('starting with the computer: Windows uses a per-user Run entry and copies t
   assert.ok(args.includes('HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Run'));
   const value = args[args.indexOf('/d') + 1];
   // Paths with spaces stay quoted, and the bridge never opens a browser by itself at sign-in.
-  assert.match(value, /^cmd \/c start "Cloud Slicer Bridge" \/min ".*Cloud Slicer Bridge.*cloud-slicer-bridge\.exe" "run" "--no-browser"$/);
-  assert.match(plan.start[1][1], /^start "Cloud Slicer Bridge" \/min "/);
+  // --background: the bridge starts itself again with no window, so it stays out of the taskbar.
+  assert.match(value, /^".*Cloud Slicer Bridge.*cloud-slicer-bridge\.exe" "run" "--no-browser" "--background"$/);
+  assert.equal(plan.start[0], plan.copy.to);
+  assert.deepEqual(plan.start[1], ['run', '--no-browser', '--background']);
 });
 
 test('starting with the computer: macOS writes a launch agent that keeps the bridge running', () => {
@@ -57,6 +59,17 @@ test('starting with the computer: Linux (and a Pi) gets a systemd user service t
   assert.match(plan.files[0].content, /^ExecStart=\/home\/pi\/\.local\/share\/cloud-slicer-bridge\/cloud-slicer-bridge run --no-browser$/m);
   assert.match(plan.files[0].content, /^Restart=always$/m);
   assert.deepEqual(plan.enable.at(-1).slice(0, 2), ['loginctl', ['enable-linger', 'pi']]);
+});
+
+test('the Linux app also gets a menu entry with its icon that opens the pairing link', () => {
+  const plan = autostartPlan({ platform: 'linux', home: '/home/pi', app: true, exe: '/tmp/x/cloud-slicer-bridge', user: 'pi' });
+  const menu = plan.files.find((f) => f.path.endsWith('.desktop'));
+  assert.equal(menu.path, '/home/pi/.local/share/applications/cloud-slicer-bridge.desktop');
+  assert.match(menu.content, /^Exec=\/home\/pi\/\.local\/share\/cloud-slicer-bridge\/cloud-slicer-bridge pair --open$/m);
+  assert.match(menu.content, /^Icon=\/home\/pi\/\.local\/share\/cloud-slicer-bridge\/icon\.png$/m);
+  assert.equal(plan.icon, '/home/pi/.local/share/cloud-slicer-bridge/icon.png');
+  // Under node there is no icon to show, so no menu entry.
+  assert.equal(autostartPlan({ platform: 'linux', home: '/home/pi', app: false, exe: '/usr/bin/node', script: '/tmp/b.mjs', user: 'pi' }).files.length, 1);
 });
 
 test('starting with the computer under node: node runs a stable copy of this script', () => {

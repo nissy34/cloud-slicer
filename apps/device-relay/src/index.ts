@@ -5,7 +5,7 @@
 //   browser  --text-->  relay  --{c, m: text}-->  agent  --> printer's Moonraker
 //   browser  <--text--  relay  <--{c, m: text}--  agent
 //
-// Control messages: agent -> relay {ctl:'hello', printers, version} and
+// Control messages: agent -> relay {ctl:'hello', printers, version, system, app} and
 // {ctl:'drop', c, reason}; relay -> agent {ctl:'open', c, printer} and
 // {ctl:'close', c}. Browsers also get notify_bridge_status notifications.
 // Sockets hibernate, so an idle bridge costs nothing.
@@ -126,6 +126,9 @@ interface ClientAttachment {
 interface BridgeInfo {
   printers: { id: string; name: string }[];
   version: string;
+  /** The bridge computer's system (win32, darwin, linux) and whether it runs as the app or under Node.js, so the Device tab's help fits it. */
+  system?: string;
+  app?: boolean;
 }
 
 export class Bridge extends DurableObject<Env> {
@@ -142,7 +145,7 @@ export class Bridge extends DurableObject<Env> {
   }
 
   private statusMessage(info: BridgeInfo, online: boolean) {
-    return JSON.stringify({ jsonrpc: '2.0', method: 'notify_bridge_status', params: [{ agent: online ? 'online' : 'offline', printers: info.printers, version: info.version }] });
+    return JSON.stringify({ jsonrpc: '2.0', method: 'notify_bridge_status', params: [{ agent: online ? 'online' : 'offline', printers: info.printers, version: info.version, system: info.system, app: info.app }] });
   }
 
   private async broadcastStatus(online: boolean) {
@@ -202,7 +205,7 @@ export class Bridge extends DurableObject<Env> {
     const tags = this.ctx.getTags(ws);
 
     if (tags.includes('agent')) {
-      let msg: { ctl?: string; c?: string; m?: string; reason?: string; printers?: unknown; version?: unknown };
+      let msg: { ctl?: string; c?: string; m?: string; reason?: string; printers?: unknown; version?: unknown; system?: unknown; app?: unknown };
       try {
         msg = JSON.parse(message);
       } catch {
@@ -212,7 +215,8 @@ export class Bridge extends DurableObject<Env> {
         const printers = (Array.isArray(msg.printers) ? msg.printers : [])
           .slice(0, 32)
           .map((p: { id?: unknown; name?: unknown }) => ({ id: String(p.id ?? '').slice(0, 64), name: String(p.name ?? '').slice(0, 80) }));
-        await this.ctx.storage.put('info', { printers, version: String(msg.version ?? '') } satisfies BridgeInfo);
+        const system = ['win32', 'darwin', 'linux'].includes(String(msg.system)) ? String(msg.system) : undefined;
+        await this.ctx.storage.put('info', { printers, version: String(msg.version ?? ''), system, app: msg.app === true } satisfies BridgeInfo);
         await this.broadcastStatus(true);
         // Browsers that were waiting for the agent get their sessions now.
         for (const c of this.clients()) {

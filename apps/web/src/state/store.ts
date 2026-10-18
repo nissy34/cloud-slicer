@@ -142,6 +142,8 @@ export interface SlicerState {
   deleteObject(o: number): Promise<void>;
   copyInstance(o: number, i: number): Promise<void>;
   slice(): Promise<void>;
+  /** Stops the running slice (desktop's Cancel next to the progress bar). */
+  cancelSlice(): void;
   arrange(): Promise<void>;
   /** Object (volume -1) or part settings; null removes a setting. */
   setObjectSettings(o: number, volume: number, values: Record<string, string | null>): Promise<void>;
@@ -180,6 +182,8 @@ export interface SlicerState {
 }
 
 let client: EngineClient | null = null;
+/** Counts slices started and stopped; a slice whose number is no longer current is dropped. */
+let sliceRun = 0;
 
 const presetFile = ({ type, name, inherits, config }: UserPresetFile): UserPresetFile => ({ type, name, inherits, config });
 /** The user presets the engine has loaded. */
@@ -193,9 +197,11 @@ export const useSlicer = create<SlicerState>((set, get) => {
         set({ vendorVersion: presets.vendorVersion, engineLoad: { ...get().engineLoad, stage: 'printers' } });
         void start();
       },
-      onProgress: (pct, stage) => set({ job: { kind: 'slicing', pct, stage } }),
       onFatal: (message) => set({ engine: 'failed', engineMessage: message }),
     });
+    // Like desktop: an edit while slicing stops the slice rather than waiting for it.
+    // (Something else may already have replaced the slicing state, like opening a file.)
+    client.onEditWhileSlicing = () => (get().job.kind === 'slicing' ? set(stale()) : stopSlice());
     return client;
   };
 
@@ -245,8 +251,21 @@ export const useSlicer = create<SlicerState>((set, get) => {
     else set(stale());
   }
 
-  // Anything that changes what would be sliced makes the last result stale.
-  const stale = () => (get().job.kind === 'sliced' ? { job: { kind: 'idle' } as Job } : {});
+  // Stops the running slice; whatever it returns is dropped.
+  const stopSlice = () => {
+    sliceRun++;
+    client?.cancelSlice();
+  };
+
+  // Anything that changes what would be sliced makes the last result stale,
+  // and, as on desktop, stops a slice that is running.
+  const stale = (): Partial<SlicerState> => {
+    const { kind } = get().job;
+    if (kind === 'sliced') return { job: { kind: 'idle' } };
+    if (kind !== 'slicing') return {};
+    stopSlice();
+    return { job: { kind: 'idle' }, notice: 'Slicing stopped because something changed. Slice again when ready.', noticeWarn: false };
+  };
 
   async function start() {
     const e = engine();
@@ -783,15 +802,24 @@ export const useSlicer = create<SlicerState>((set, get) => {
       // Desktop refuses to slice a mix of materials that can't be mixed.
       if (get().mixes.some((m) => m.enabled && !m.compatible))
         return fail(new Error('Mixed filaments contain incompatible material types. Please correct the mixed filaments settings before slicing.'));
-      set({ job: { kind: 'slicing', pct: 0, stage: '' } });
+      const run = ++sliceRun;
+      set({ job: { kind: 'slicing', pct: 0, stage: '' }, notice: '' });
       try {
-        const { result, gcode, ms } = await engine().slice(plate, engineOverrides(), plateThumbnails());
+        const { result, gcode, ms } = await engine().slice(plate, engineOverrides(), plateThumbnails(), (pct, stage) => {
+          if (run === sliceRun) set({ job: { kind: 'slicing', pct, stage } });
+        });
+        if (run !== sliceRun) return;
         set({ job: { kind: 'sliced', plate, result, gcode: new Blob([gcode], { type: 'text/plain' }), ms }, notice: '' });
         // Like desktop Orca: show the result as soon as slicing finishes.
         get().setTab('preview');
       } catch (e) {
-        fail(e);
+        if (run === sliceRun) fail(e);
       }
+    },
+    cancelSlice() {
+      if (get().job.kind !== 'slicing') return;
+      stopSlice();
+      set({ job: { kind: 'idle' }, notice: 'Slicing cancelled.', noticeWarn: false });
     },
   };
 });
