@@ -11,8 +11,6 @@ import { Toolbar } from './Toolbar';
 export function OpenModel({ children }: { children: React.ReactNode }) {
   const openFiles = useProjects((s) => s.openFiles);
   const hasModel = useSlicer((s) => (s.project?.objects.length ?? 0) > 0);
-  // After Delete all the plate is empty, but the toolbar stays for its Undo.
-  const canUndo = useSlicer((s) => s.history.undo !== null);
   const plates = useSlicer((s) => s.project?.plates.length ?? 1);
   const { deletePlate } = useSlicer.getState();
   const input = useRef<HTMLInputElement>(null);
@@ -56,7 +54,8 @@ export function OpenModel({ children }: { children: React.ReactNode }) {
           </button>
         </div>
       )}
-      {(hasModel || canUndo) && <Toolbar onAdd={() => input.current?.click()} />}
+      {/* Always there, so a first visit shows what the slicer can do; tools that need a model wait greyed out. */}
+      <Toolbar onAdd={() => input.current?.click()} />
       {hasModel && (
         <>
           <div className="workspace-tools">

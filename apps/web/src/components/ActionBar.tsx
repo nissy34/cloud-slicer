@@ -52,7 +52,10 @@ export function ActionBar() {
       <div className="status" aria-live="polite">
         {engine === 'starting' && <span className="muted">Loading the engine and Snapmaker presets…</span>}
         {engine === 'ready' && job.kind === 'idle' && (
-          <span className="muted">{onPlate ? 'Ready to slice' : project?.objects.length ? 'This plate is empty' : 'Open a model to start'}</span>
+          <span className="muted">
+            {onPlate ? 'Ready to slice' : project?.objects.length ? 'This plate is empty' : 'Open a model to start'}
+            {notice && '.'}
+          </span>
         )}
         {job.kind === 'loading' && <span className="muted">Opening {job.name}…</span>}
         {job.kind === 'slicing' && (
