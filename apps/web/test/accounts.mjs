@@ -309,6 +309,16 @@ test('settings: setup choices by key, with conflicts', async () => {
   assert.equal((await (await alice.json('/api/settings')).json()).settings.length, 0);
 });
 
+test('engine start-up failures are stored, newest kept, for CI to print', async () => {
+  const res = await new Browser().json('/api/engine-errors', 'POST', { message: 'Engine failed to start: boom', stack: 'TypeError: boom\n    at x', engineVersion: 'abc' });
+  assert.equal(res.status, 200);
+  const raw = spawnSync(wrangler, ['d1', 'execute', 'cloud-slicer', '--local', '--persist-to', state, '--json', '--command', 'SELECT message, stack, engine_version FROM engine_errors'], { cwd: web, encoding: 'utf8' });
+  const rows = JSON.parse(raw.stdout)[0].results;
+  assert.deepEqual(rows.at(-1), { message: 'Engine failed to start: boom', stack: 'TypeError: boom\n    at x', engine_version: 'abc' });
+  const cross = await fetch(`${HOST}/api/engine-errors`, { method: 'POST', headers: { 'Content-Type': 'application/json', Origin: 'https://evil.example' }, body: '{}' });
+  assert.equal(cross.status, 403);
+});
+
 test('devices: connection details sync, API key encrypted and only on request', async () => {
   const dev = { name: 'Workshop U1', preset: 'Snapmaker U1 (0.4 nozzle)', url: 'http://192.168.1.50', apiKey: 'sekrit-123', extra: { camera: true } };
   const put = await alice.json('/api/devices/dev-1', 'PUT', dev);
