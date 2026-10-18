@@ -240,6 +240,23 @@ try {
     expect(!(await stored()).some((p) => p.name === 'My X1C'), 'X1C not imported');
   });
 
+  await step('with two filaments the Filament tab edits each one on its own', async () => {
+    await page.getByRole('button', { name: 'Add filament' }).click();
+    await page.getByRole('combobox', { name: 'Filament 2 preset' }).waitFor();
+    await tab('Filament').click();
+    const slot = (n) => settings.getByRole('radiogroup', { name: 'Filament to edit' }).getByRole('radio').nth(n - 1);
+    await slot(2).click();
+    const temp = field('Print temperature', 'Other layers');
+    const before = await temp.inputValue();
+    await setField(temp, '204');
+    await slot(1).click();
+    const first = await field('Print temperature', 'Other layers').inputValue();
+    expect(first === before, `filament 1 shows ${first}, expected ${before}`);
+    await slot(2).click();
+    expect((await field('Print temperature', 'Other layers').inputValue()) === '204', 'filament 2 keeps its change');
+    await page.getByRole('button', { name: 'Remove filament 2' }).click();
+  });
+
   await step('the import dialog fits a phone', async () => {
     await page.setViewportSize({ width: 390, height: 844 });
     await openImport(filamentMenu, filamentPop, [bundle]);

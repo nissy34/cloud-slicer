@@ -58,7 +58,8 @@ export function OptionField({
   useEffect(() => setDraft(shown ?? ''), [shown]);
   if (!def || value === undefined || shown === undefined) return null;
 
-  const type = perEntry ? entryType(def.type) : def.type;
+  // One filament's text (its type, vendor, G-code) edits as a single string, or a list when Orca has one.
+  const type = slotText ? (def.enumValues ? 'enum' : 'string') : perEntry ? entryType(def.type) : def.type;
   const title = def.tooltip || undefined;
   const text = label ?? (def.label || optKey);
   const commit = (v: string) => {
@@ -110,7 +111,7 @@ export function OptionField({
         ))}
       </select>
     );
-  } else if (def.multiline || def.type === 'strings' || (type === 'string' && value.length > 60)) {
+  } else if (def.multiline || (def.type === 'strings' && !slotText) || (type === 'string' && shown.length > 60)) {
     editor = (
       <textarea
         aria-label={text}
