@@ -12,9 +12,17 @@ export function ActionBar() {
   const { engine, engineMessage, project, plate, job, notice, noticeWarn, slice, setTab, tab } = useSlicer();
 
   if (engine === 'failed') {
+    // The first line is the error; any lines after it are the stack, for bug reports.
+    const [summary, ...stack] = engineMessage.split('\n');
     return (
       <div className="actionbar error" role="alert">
-        The slicing engine could not start: {engineMessage}
+        The slicing engine could not start: {summary}
+        {stack.length > 0 && (
+          <details>
+            <summary>Details</summary>
+            <pre>{stack.join('\n')}</pre>
+          </details>
+        )}
       </div>
     );
   }
