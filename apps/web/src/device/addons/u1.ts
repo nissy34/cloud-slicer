@@ -272,18 +272,67 @@ export function colourDistance(a: string, b: string): number {
   return cie76(a, b);
 }
 
+/** What the print dialog knows about one filament in the file. */
+export interface MappedFilament {
+  index: number;
+  colour: string;
+  material: string;
+  /** Nozzle diameter the file was sliced for, in mm. */
+  nozzle?: number;
+  /** The file was sliced for a high-flow nozzle. */
+  highFlow?: boolean;
+}
+
+/** Snapmaker's way of comparing material names: case, dashes, underscores and spaces don't count. */
+const materialKey = (v: string) => v.toLowerCase().replace(/[-_ ]/g, '');
+
 /**
- * Suggested head for each file filament: a loaded head of the same material
- * and the closest colour, each head used once while there are spares; the
- * file's own tool number when nothing fits.
+ * Whether a head's filament is the type the file asks for, the way Snapmaker's
+ * own print dialog decides it: the same material name, or the head's type and
+ * sub-type together spelling it ("PLA" + "CF" for a "PLA-CF" file). Brand and
+ * colour don't matter.
  */
-export function suggestToolMap(filaments: { index: number; colour: string; material: string }[], heads: U1Head[]): Record<number, number> {
+export function u1MaterialMatches(fileMaterial: string, head: Pick<U1Head, 'material' | 'subType'>): boolean {
+  const want = materialKey(fileMaterial);
+  const type = materialKey(head.material);
+  if (!want || !type) return false;
+  if (want === type) return true;
+  const sub = materialKey(head.subType);
+  return Boolean(sub) && sub !== type && want === type + sub;
+}
+
+/**
+ * Whether a filament can go to a head, with the same rules as Snapmaker's
+ * print dialog: a head with another filament type, no filament identified or
+ * another nozzle size can't be picked; a standard nozzle for a file sliced for
+ * high flow is allowed with a warning. The U1 firmware itself accepts any map.
+ */
+export function u1MappingCheck(f: MappedFilament, head: U1Head): { blocked: string | null; warning: string | null } {
+  let blocked: string | null = null;
+  if (!head.material) blocked = `${head.label} has no filament type set. Load filament, or set its type on the Tool heads card.`;
+  else if (f.material && !u1MaterialMatches(f.material, head))
+    blocked = `${head.label} has ${[head.material, head.subType].filter(Boolean).join(' ')}, but this filament was sliced as ${f.material}. Load ${f.material} on a head, or change the filament in the slicer and slice again.`;
+  else if (f.nozzle && head.nozzle && Math.abs(f.nozzle - head.nozzle.diameter) >= 0.001)
+    blocked = `${head.label} has a ${head.nozzle.diameter} mm nozzle, but the file was sliced for ${f.nozzle} mm.`;
+  const warning =
+    !blocked && f.highFlow && head.nozzle && head.nozzle.volumeType !== 'high_flow'
+      ? `The file was sliced for a high-flow nozzle, but ${head.label} has a standard one.`
+      : null;
+  return { blocked, warning };
+}
+
+/**
+ * Suggested head for each file filament: a head it is allowed on (see
+ * u1MappingCheck), loaded ones first, then the closest colour, each head used
+ * once while there are spares; the file's own tool number when nothing fits.
+ */
+export function suggestToolMap(filaments: MappedFilament[], heads: U1Head[]): Record<number, number> {
   const map: Record<number, number> = {};
   const used = new Set<number>();
   for (const f of filaments) {
     const candidates = heads
-      .filter((h) => h.loaded && (!f.material || !h.material || h.material.toUpperCase() === f.material.toUpperCase()))
-      .map((h) => ({ h, d: colourDistance(f.colour, h.colour) + (used.has(h.index) ? 1000 : 0) }))
+      .filter((h) => !u1MappingCheck(f, h).blocked)
+      .map((h) => ({ h, d: colourDistance(f.colour, h.colour) + (used.has(h.index) ? 1000 : 0) + (h.loaded ? 0 : 2000) }))
       .sort((a, b) => a.d - b.d);
     const pick = candidates[0]?.h.index ?? (f.index < U1_HEADS ? f.index : 0);
     map[f.index] = pick;
