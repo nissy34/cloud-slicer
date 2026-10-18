@@ -46,6 +46,11 @@ interface SlicerState {
   overrides: OrcaConfig;
   options: Record<string, OptionDef>;
   layout: SettingsLayout | null;
+  /**
+   * Flow variant (index into process_flow_support) the settings show and edit
+   * for flow-variant options, like desktop's [Standard flow] [High flow] switch.
+   */
+  flowVariant: number;
 
   project: ProjectInfo | null;
   plate: number;
@@ -82,6 +87,7 @@ interface SlicerState {
   addFilament(): Promise<void>;
   removeFilament(slot: number): Promise<void>;
   setOverride(key: string, value: string | null): void;
+  setFlowVariant(index: number): void;
   resetOverrides(keys?: string[]): void;
   openFiles(files: File[]): Promise<void>;
   clearProject(): Promise<void>;
@@ -335,6 +341,7 @@ export const useSlicer = create<SlicerState>((set, get) => {
     overrides: {},
     options: {},
     layout: null,
+    flowVariant: 0,
     project: null,
     plate: 0,
     preview: null,
@@ -393,6 +400,7 @@ export const useSlicer = create<SlicerState>((set, get) => {
       else overrides[key] = value;
       setOverrides(overrides);
     },
+    setFlowVariant: (flowVariant) => set({ flowVariant }),
     resetOverrides(keys) {
       setOverrides(keys ? Object.fromEntries(Object.entries(get().overrides).filter(([k]) => !keys.includes(k))) : {});
     },

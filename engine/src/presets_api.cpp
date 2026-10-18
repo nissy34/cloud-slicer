@@ -294,7 +294,10 @@ const char* optionTypeName(ConfigOptionType t) {
 
 // Metadata of every option the engine knows, for building settings UIs:
 // {key: {type, label, fullLabel, category, tooltip, sidetext, mode, min, max,
-//        enumValues, enumLabels, default, nullable, multiline, readonly}}.
+//        enumValues, enumLabels, default, nullable, multiline, readonly, flow}}.
+// flow is "process" or "filament" for Snapmaker's flow-variant options: one
+// value per flow variant (standard / high flow) in the order of the
+// *_flow_support list, which desktop edits one variant at a time.
 std::string configOptionsJson() {
     json out = json::object();
     for (const auto& [key, def] : print_config_def.options) {
@@ -327,6 +330,8 @@ std::string configOptionsJson() {
         if (def.nullable) o["nullable"] = true;
         if (def.multiline) o["multiline"] = true;
         if (def.readonly) o["readonly"] = true;
+        if (is_process_flow_variant_option(key)) o["flow"] = "process";
+        else if (is_filament_flow_variant_option(key)) o["flow"] = "filament";
         out[key] = std::move(o);
     }
     return out.dump();

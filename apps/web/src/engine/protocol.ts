@@ -58,6 +58,12 @@ export interface OptionDef {
   nullable?: boolean;
   multiline?: boolean;
   readonly?: boolean;
+  /**
+   * Snapmaker flow-variant option: one value per flow variant (standard /
+   * high flow), in the order of process_flow_support (or, per filament,
+   * filament_flow_support).
+   */
+  flow?: 'process' | 'filament';
 }
 
 export interface SettingsLayout {
