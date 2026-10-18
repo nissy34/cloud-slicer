@@ -159,7 +159,18 @@ export interface SliceResult {
   filamentMm: Record<string, number>;
   totalFilamentMm: number;
   totalFilamentGrams: number;
+  /** Depth of the prime tower the slice made (mm), when it made one. */
+  wipeTowerDepth?: number;
 }
+
+/**
+ * The prime tower on a plate, as desktop's Prepare view shows it: x, y is its
+ * front-left corner on the plate (mm), rotated `rotation` degrees about it;
+ * `filaments` are the plate's (1-based), one coloured band each.
+ */
+export type WipeTower =
+  | { show: false }
+  | { show: true; x: number; y: number; width: number; depth: number; height: number; rotation: number; brim: number; filaments: number[] };
 
 /**
  * Engine start-up before 'ready': downloading the engine and presets (bytes so

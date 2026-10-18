@@ -151,6 +151,20 @@ assigned filaments when a row or a physical filament goes away, and the "Match a
 colour" search. The Add Mix dialog's modes follow desktop's `MixedFilamentDialog`
 (`src/lib/mixing.ts`).
 
+## Prime tower
+
+Desktop draws the prime (wipe) tower on the Prepare plate when it is enabled and the
+plate prints with more than one filament, and lets you drag it. Here
+`engine/src/wipe_tower_api.cpp` follows the same steps as desktop's
+`GLCanvas3D::reload_scene` and `PartPlate::estimate_wipe_tower_size`: the plate's
+filaments (mixes expanded to the filaments they mix), the depth Orca plans for before
+slicing (`Print::wipe_tower_data`) or the real one after a slice, the minimum depth for
+the plate's height, and the position kept on the bed. Positions are one per plate in
+Orca's project options `wipe_tower_x` / `wipe_tower_y`; the store keeps them with the
+project (outside the settings overrides, like the mixes), they are saved in the 3MF and
+read back from one, and the slice uses the sliced plate's (`src/lib/wipe-tower.ts`,
+`src/components/WipeTower.tsx`).
+
 ## Accounts
 
 Google sign-in only, with Better Auth on Pages Functions and D1. Every deploy, branch

@@ -201,6 +201,12 @@ if (self.name !== 'em-pthread') {
     // between two of them (see engine/src/measure_api.cpp).
     measureFeature: (e, plate, options) => json(e.measureFeature(plate, JSON.stringify(options))).feature,
     measureBetween: (e, a, b) => json(e.measureBetween(a, b)),
+    // The prime tower desktop's Prepare view would show on `plate` (see
+    // engine/src/wipe_tower_api.cpp); slicedDepth: the last slice's, or -1.
+    wipeTower(e, plate, overrides, slicedDepth) {
+      const { config } = json(e.presetsFullConfig(JSON.stringify(overrides || {})));
+      return json(e.wipeTowerJson(JSON.stringify(config), plate, slicedDepth ?? -1));
+    },
     clearPaint: (e, o, kind) => (json(e.clearPaint(o, kind)), JSON.parse(e.modelInfoJson())),
     // Undo history: {undo, redo} are the labels of the next steps, or null.
     snapshot: (e, label) => json(e.snapshot(label)),

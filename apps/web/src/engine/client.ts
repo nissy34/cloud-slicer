@@ -13,6 +13,7 @@ import type {
   SelectResult,
   Selection,
   SliceResult,
+  WipeTower,
   WorkerReply,
 } from './protocol';
 import type { Thumbnail } from '../lib/thumbnail';
@@ -104,7 +105,7 @@ export interface EngineEvents {
 }
 
 /** Engine methods that only read: anything else changes what a slice would make. */
-const READS = new Set(['printers', 'filamentsFor', 'fullConfig', 'presetConfig', 'options', 'modelInfo', 'fileConfig', 'saveProject', 'preview', 'paintOverlay', 'mixedBlend', 'mixedMatch', 'measureFeature', 'measureBetween', 'slice']);
+const READS = new Set(['printers', 'filamentsFor', 'fullConfig', 'presetConfig', 'options', 'modelInfo', 'fileConfig', 'saveProject', 'preview', 'paintOverlay', 'mixedBlend', 'mixedMatch', 'measureFeature', 'measureBetween', 'wipeTower', 'slice']);
 
 /** Promise wrapper around the engine worker. Requests run in order. */
 export class EngineClient {
@@ -238,6 +239,9 @@ export class EngineClient {
   measureFeature = (plate: number, options: { ray: PaintRay; onlyPlane?: boolean; keep: number[] }) =>
     this.call<MeasureFeature | null>('measureFeature', [plate, options]);
   measureBetween = (a: number, b: number) => this.call<Measurement>('measureBetween', [a, b]);
+  /** The prime tower on `plate` with these settings; slicedDepth: the last slice's tower depth. */
+  wipeTower = (plate: number, overrides: OrcaConfig, slicedDepth?: number) =>
+    this.call<WipeTower>('wipeTower', [plate, overrides, slicedDepth ?? -1]);
   clearPaint = (o: number, kind: PaintKind | 'all') => this.call<ProjectInfo>('clearPaint', [o, kind]);
   /** Remembers the project before an edit called `label`, for undo. */
   snapshot = (label: string) => this.call<History>('snapshot', [label]);
