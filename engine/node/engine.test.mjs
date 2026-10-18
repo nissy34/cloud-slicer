@@ -687,7 +687,8 @@ test('variable layer height: adaptive, smooth, manual edits and reset change wha
   const thin = layers({ op: 'adjust', action: 'decrease', zs: Array(20).fill(20), band: 4 });
   const at = (p, z) => heights(p)[p.layers.findIndex((v, i) => i % 2 === 0 && p.layers[i + 1] >= z) / 2];
   assert.ok(at(thin, 20) < plain.layerHeight - 0.01, `adding detail at 20 mm makes layers there thinner: ${at(thin, 20)}`);
-  assert.ok(Math.abs(at(thin, 40) - plain.layerHeight) < 1e-6, 'and leaves layers far away alone');
+  // (within a hair: Orca stretches the layers a little so the last one ends at the top)
+  assert.ok(Math.abs(at(thin, 40) - plain.layerHeight) < 0.005, `and leaves layers far away alone: ${at(thin, 40)}`);
 
   const reset = layers({ op: 'reset' });
   assert.equal(reset.custom, false);
