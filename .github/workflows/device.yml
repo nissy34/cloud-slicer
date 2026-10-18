@@ -11,9 +11,9 @@ name: Device
 on:
   push:
     branches: [main]
-    paths: ['apps/device-*/**', 'apps/web/src/device/**', 'apps/web/src/state/device.ts', 'apps/web/test/device*', 'apps/web/test/device/**', '.github/workflows/device.yml']
+    paths: ['apps/device-*/**', 'apps/web/src/device/**', 'apps/web/src/state/device.ts', 'apps/web/src/styles.css', 'apps/web/src/components/TopBar.tsx', 'apps/web/src/components/ThemeMenu.tsx', 'apps/web/src/account/AccountMenu.tsx', 'apps/web/test/device*', 'apps/web/test/device/**', '.github/workflows/device.yml']
   pull_request:
-    paths: ['apps/device-*/**', 'apps/web/src/device/**', 'apps/web/src/state/device.ts', 'apps/web/test/device*', 'apps/web/test/device/**', '.github/workflows/device.yml']
+    paths: ['apps/device-*/**', 'apps/web/src/device/**', 'apps/web/src/state/device.ts', 'apps/web/src/styles.css', 'apps/web/src/components/TopBar.tsx', 'apps/web/src/components/ThemeMenu.tsx', 'apps/web/src/account/AccountMenu.tsx', 'apps/web/test/device*', 'apps/web/test/device/**', '.github/workflows/device.yml']
   workflow_dispatch:
 
 permissions:
