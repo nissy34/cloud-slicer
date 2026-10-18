@@ -1,9 +1,10 @@
 #!/usr/bin/env node
-// Browser end to end for the object toolbar over the 3D view: adding a model
-// keeps the one already there, brim ears go on the corners and where the bed
-// is clicked, lay on face turns the object, variable layer height makes an
-// adaptive profile, measure picks two features and measures between them, and
-// the toolbar fits a phone (and the page itself never scrolls there).
+// Browser end to end for the object toolbar over the 3D view: it shows on an
+// empty plate with its object tools greyed out, adding a model keeps the one
+// already there, brim ears go on the corners and where the bed is clicked, lay
+// on face turns the object, variable layer height makes an adaptive profile,
+// measure picks two features and measures between them, and the toolbar fits a
+// phone (and the page itself never scrolls there).
 //
 //   node test/toolbar.mjs [screenshot-dir]
 //
@@ -54,10 +55,17 @@ const rotation = (page, timeout = 1000) => page.getByLabel('Current rotation').i
 
 try {
   const page = await open({ width: 1280, height: 800 }, false);
-  await page.getByTestId('model-input').setInputFiles(join(fixtures, '3DBenchy.stl'));
-  await page.getByText('Ready to slice').waitFor({ timeout: 120000 });
+  // The toolbar is there before any model, its object tools waiting greyed out.
   const toolbar = page.getByRole('toolbar', { name: 'Object tools' });
   await toolbar.waitFor();
+  if ((await toolbar.getByRole('button', { name: 'Move' }).getAttribute('aria-disabled')) !== 'true') fail('Move is usable with no model');
+  if ((await toolbar.getByRole('button', { name: 'Add models' }).getAttribute('aria-disabled')) === 'true') fail('Add models is off with no model');
+  await toolbar.getByRole('button', { name: 'Cut' }).click({ force: true });  // aria-disabled: still clickable, to explain itself
+  await page.getByText('Cut works on a model: open one first.').waitFor({ timeout: 5000 });
+  if (shots) await page.screenshot({ path: join(shots, 'toolbar-empty.png') });
+  console.log('the toolbar shows on an empty plate, its object tools waiting for a model');
+  await page.getByTestId('model-input').setInputFiles(join(fixtures, '3DBenchy.stl'));
+  await page.getByText('Ready to slice').waitFor({ timeout: 120000 });
   for (const name of ['Undo', 'Redo', 'Add models', 'Add plate', 'Auto orient', 'Arrange all objects', 'Split to objects', 'Split to parts', 'Move', 'Rotate', 'Scale', 'Lay on face', 'Cut', 'Support painting', 'Seam painting', 'Colour painting'])
     await toolbar.getByRole('button', { name }).waitFor();
   console.log('toolbar shows desktop Orca\'s tools');
@@ -95,7 +103,7 @@ try {
   console.log('Ctrl+Z / Ctrl+Y undo and redo the rotation');
 
   // Cut shows its plane; the height follows the panel.
-  await toolbar.getByRole('button', { name: 'Cut' }).click();
+  await toolbar.getByRole('button', { name: 'Cut' }).click({ force: true });  // aria-disabled: still clickable, to explain itself
   const cut = page.getByRole('region', { name: 'Cut' });
   await cut.waitFor();
   await cut.getByLabel('Cut height in mm').fill('12');
