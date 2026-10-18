@@ -112,7 +112,7 @@ export default {
       return env.BRIDGE.get(env.BRIDGE.idFromName(m[1])).fetch(req);
     }
     if (url.pathname === '/') {
-      return new Response('Cloud Slicer device relay. Bridge apps: /downloads.json and /download/<system>; Linux and Raspberry Pi: curl -fsSL <this relay>/install.sh | sh; Node.js version: /bridge.mjs.\n', { headers: { ...cors, 'Content-Type': 'text/plain' } });
+      return new Response('Cloud Slicer device relay. Bridge apps: /downloads.json and /download/<system>; macOS, Linux and Raspberry Pi: curl -fsSL <this relay>/install.sh | sh; Node.js version: /bridge.mjs.\n', { headers: { ...cors, 'Content-Type': 'text/plain' } });
     }
     return new Response('Not found', { status: 404, headers: cors });
   },

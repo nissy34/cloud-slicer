@@ -77,21 +77,25 @@ export function BridgeSetup({ relay }: { relay: string }) {
   const win = has('windows-x64');
   const mac = has('mac-arm64');
   const macIntel = has('mac-x64');
-  const appButtons = [
-    win && { key: 'windows', node: <a key="w" className={system === 'windows' ? 'primary' : 'secondary'} href={`${relay}/download/windows-x64`} data-testid="bridge-download-windows">Windows ({mb(win.size)})</a> },
-    mac && { key: 'mac', node: <a key="m" className={system === 'mac' ? 'primary' : 'secondary'} href={`${relay}/download/mac-arm64`} data-testid="bridge-download-mac">Mac with Apple chip ({mb(mac.size)})</a> },
-    macIntel && { key: 'mac-intel', node: <a key="mi" className="secondary" href={`${relay}/download/mac-x64`}>Intel Mac</a> },
-  ].filter(Boolean) as { key: string; node: JSX.Element }[];
+  const macDownload = mac || macIntel;
+  const terminal = linux || macDownload;
+  const terminalFor = [macDownload && 'Mac', linux && 'Linux or Raspberry Pi (64-bit)'].filter(Boolean).join(', ');
 
   return (
     <div className="dv-bridge-setup">
       <ol className="dv-steps-list">
         <li>
           On the computer near the printer, get the bridge:
-          {appButtons.length > 0 && <div className="dv-downloads">{appButtons.map((b) => b.node)}</div>}
-          {linux && (
+          {win && (
+            <div className="dv-downloads">
+              <a className={system === 'windows' ? 'primary' : 'secondary'} href={`${relay}/download/windows-x64`} data-testid="bridge-download-windows">
+                Windows ({mb(win.size)})
+              </a>
+            </div>
+          )}
+          {terminal && (
             <>
-              <span className="muted">Linux or Raspberry Pi (64-bit), in a terminal:</span>
+              <span className="muted">{terminalFor}: paste this in Terminal and press Enter.</span>
               <div className="dv-command">
                 <pre className="dv-code" data-testid="bridge-install-command">{install}</pre>
                 <button className="secondary" onClick={copy}>
@@ -102,15 +106,26 @@ export function BridgeSetup({ relay }: { relay: string }) {
           )}
         </li>
         <li>
-          Open it. It finds the printers on your network, opens a link to this page that adds them (you can also paste the link below), and asks to start by itself with the computer:
-          say yes, so the Device tab works whenever the computer is on.
+          Open it (the Terminal command does this by itself). It finds the printers on your network, opens a link to this page that adds them (you can also paste the link below), and
+          starts by itself with the computer, so the Device tab works whenever the computer is on.
         </li>
-        {(win || mac || macIntel) && (
+        {(win || macDownload) && (
           <li className="muted">
-            {win && 'Windows may say "Windows protected your PC": choose More info, then Run anyway. '}
-            {(mac || macIntel) &&
-              'On a Mac, open the zip first; the first time, Control-click the app and choose Open (or allow it in System Settings, Privacy & Security). '}
-            The bridge isn't signed yet, which is why these warnings appear.
+            The bridge isn't signed yet, so systems warn about it.
+            {win && ' Windows may say "Windows protected your PC": choose More info, then Run anyway.'}
+            {macDownload && (
+              <>
+                {' '}On a Mac the Terminal command avoids the warning; if macOS asks whether the bridge may find devices on your local network, click Allow. To download the app instead (
+                {mac && (
+                  <a href={`${relay}/download/mac-arm64`} data-testid="bridge-download-mac">
+                    Apple chip
+                  </a>
+                )}
+                {mac && macIntel && ', '}
+                {macIntel && <a href={`${relay}/download/mac-x64`}>Intel</a>}
+                ): open the zip and the app; when macOS says it was not opened, click Done, then open System Settings, Privacy & Security, and click Open Anyway.
+              </>
+            )}
           </li>
         )}
       </ol>

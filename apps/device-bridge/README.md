@@ -10,12 +10,15 @@ needs opening, and it only talks to the printers you add.
 
 The Device tab's "Add a printer" dialog offers the right one for each system:
 
-- **Windows and macOS**: a one-file app. Open it with a double click; nothing
-  else needs installing. It isn't signed yet, so Windows shows "Windows
-  protected your PC" (More info, then Run anyway), and on a Mac you open the
-  zip, then Control-click the app and choose Open the first time.
-- **Linux and Raspberry Pi (64-bit)**: one command, which downloads the app,
-  finds your printers and starts the bridge with the computer:
+- **Windows**: a one-file app. Open it with a double click; nothing else
+  needs installing. It isn't signed yet, so Windows shows "Windows protected
+  your PC" (More info, then Run anyway).
+- **macOS, Linux and Raspberry Pi (64-bit)**: one command in Terminal, which
+  downloads the app, finds your printers and starts the bridge with the
+  computer. On a Mac this also avoids Gatekeeper's "could not verify" block,
+  which only applies to apps a browser downloaded. (The Mac app is also
+  offered as a zip; downloaded that way, macOS blocks it until you click Open
+  Anyway in System Settings, Privacy & Security.)
   ```bash
   curl -fsSL https://<relay>/install.sh | sh
   ```
