@@ -99,7 +99,7 @@ export function ActionBar() {
             <button
               className="secondary"
               onClick={() => {
-                sendToPrinter(job.gcode, fileName);
+                sendToPrinter(job.gcode, fileName, useSlicer.getState().selection?.printer);
                 setTab('device');
               }}
             >

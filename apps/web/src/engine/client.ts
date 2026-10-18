@@ -18,6 +18,7 @@ import type {
 import type { Thumbnail } from '../lib/thumbnail';
 import type { BrimEars, BrimRequest } from '../lib/brim';
 import type { MatchResult, MixRecipe, MixRow } from '../lib/mixing';
+import type { MeasureFeature, Measurement } from '../lib/measure';
 
 /** A request to the engine's mixed-filament list (engine/src/mixed_api.cpp). */
 export interface MixedRequest {
@@ -104,7 +105,7 @@ export interface EngineEvents {
 }
 
 /** Engine methods that only read: anything else changes what a slice would make. */
-const READS = new Set(['printers', 'filamentsFor', 'fullConfig', 'presetConfig', 'options', 'modelInfo', 'fileConfig', 'saveProject', 'preview', 'paintOverlay', 'mixedBlend', 'mixedMatch', 'slice']);
+const READS = new Set(['printers', 'filamentsFor', 'fullConfig', 'presetConfig', 'options', 'modelInfo', 'fileConfig', 'saveProject', 'preview', 'paintOverlay', 'mixedBlend', 'mixedMatch', 'measureFeature', 'measureBetween', 'slice']);
 
 /** Promise wrapper around the engine worker. Requests run in order. */
 export class EngineClient {
@@ -240,6 +241,10 @@ export class EngineClient {
   /** Object o's brim ears (seen from instance i), after the edit in `request` (see BrimRequest). */
   brimEars = (o: number, i: number, overrides: OrcaConfig, request: BrimRequest) =>
     this.call<BrimEars>('brimEars', [o, i, overrides, request]);
+  /** Measure tool: the point, edge, circle or plane under a ray (`keep`: feature ids still in use). */
+  measureFeature = (plate: number, options: { ray: PaintRay; onlyPlane?: boolean; keep: number[] }) =>
+    this.call<MeasureFeature | null>('measureFeature', [plate, options]);
+  measureBetween = (a: number, b: number) => this.call<Measurement>('measureBetween', [a, b]);
   clearPaint = (o: number, kind: PaintKind | 'all') => this.call<ProjectInfo>('clearPaint', [o, kind]);
   /** Remembers the project before an edit called `label`, for undo. */
   snapshot = (label: string) => this.call<History>('snapshot', [label]);

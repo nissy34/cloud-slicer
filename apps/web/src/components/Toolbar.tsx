@@ -56,7 +56,7 @@ const GROUPS: Item[][] = [
     { id: 'fuzzy', icon: 'toolbar_fuzzy_skin_paint', label: 'Fuzzy skin painting', key: 'H', paint: 'fuzzy' },
     { id: 'color', icon: 'mmu_segmentation', label: 'Colour painting', key: 'N', paint: 'color' },
     { id: 'text', icon: 'toolbar_text', label: 'Text shape', missing: true },
-    { id: 'measure', icon: 'toolbar_measure', label: 'Measure', missing: true },
+    { id: 'measure', icon: 'toolbar_measure', label: 'Measure', key: 'U', tool: 'measure' },
     { id: 'assembly', icon: 'toolbar_assembly', label: 'Assemble', missing: true },
     { id: 'brimears', icon: 'toolbar_brimears', label: 'Brim ears', tool: 'brim', needsSelection: true },
   ],

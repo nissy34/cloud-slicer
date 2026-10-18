@@ -17,20 +17,9 @@
 using nlohmann::json;
 using namespace Slic3r;
 
+// Ray-casting the parts, shared with the Measure tool (measure_api.cpp).
+namespace engine {
 namespace {
-
-engine::Project& pr() { return engine::project(); }
-
-std::string fail(const std::string& error) { return json{{"ok", false}, {"error", error}}.dump(); }
-
-// kind: "color" (filament), "support", "seam" or "fuzzy".
-FacetsAnnotation& facetsOf(ModelVolume& v, const std::string& kind) {
-    if (kind == "color") return v.mmu_segmentation_facets;
-    if (kind == "support") return v.supported_facets;
-    if (kind == "seam") return v.seam_facets;
-    if (kind == "fuzzy") return v.fuzzy_skin_facets;
-    throw std::runtime_error("unknown paint kind " + kind);
-}
 
 // Ray-cast trees, one per part mesh, kept while the mesh lives.
 struct Tree {
@@ -47,6 +36,52 @@ const AABBMesh& treeOf(const ModelVolume& v) {
         t.mesh = mesh;
     }
     return *t.aabb;
+}
+
+} // namespace
+
+// Nearest part on `plate` hit by the ray from s along dir (plate coordinates).
+std::optional<RayHit> castRay(int plate, Vec3d s, const Vec3d& dir) {
+    Project& p = project();
+    const Vec2d origin = p.plateOrigin(plate);
+    s += Vec3d(origin.x(), origin.y(), 0);
+    std::optional<RayHit> best;
+    for (size_t o = 0; o < p.model.objects.size(); ++o) {
+        ModelObject* obj = p.model.objects[o];
+        for (ModelInstance* inst : obj->instances) {
+            if (p.plateOf(*inst) != plate) continue;
+            for (ModelVolume* v : obj->volumes) {
+                if (!v->is_model_part()) continue;
+                const Transform3d m = inst->get_matrix() * v->get_matrix();
+                const Transform3d inv = m.inverse();
+                const Vec3d ms = inv * s;
+                const Vec3d md = (inv.linear() * dir).normalized();
+                const AABBMesh::hit_result h = treeOf(*v).query_ray_hit(ms, md);
+                if (!h.is_hit()) continue;
+                const double d = (m * h.position() - s).norm();
+                if (best && best->distance <= d) continue;
+                best = RayHit{int(o), inst, v, h.face(), h.position().cast<float>(), ms.cast<float>(), m, d};
+            }
+        }
+    }
+    return best;
+}
+
+} // namespace engine
+
+namespace {
+
+engine::Project& pr() { return engine::project(); }
+
+std::string fail(const std::string& error) { return json{{"ok", false}, {"error", error}}.dump(); }
+
+// kind: "color" (filament), "support", "seam" or "fuzzy".
+FacetsAnnotation& facetsOf(ModelVolume& v, const std::string& kind) {
+    if (kind == "color") return v.mmu_segmentation_facets;
+    if (kind == "support") return v.supported_facets;
+    if (kind == "seam") return v.seam_facets;
+    if (kind == "fuzzy") return v.fuzzy_skin_facets;
+    throw std::runtime_error("unknown paint kind " + kind);
 }
 
 // The selector of the part painted last, so a stroke doesn't rebuild it for
@@ -81,43 +116,8 @@ void commit(ModelVolume& v, const std::string& kind) {
     g_selector.stamp = f.timestamp();
 }
 
-struct Hit {
-    int object = -1;
-    ModelInstance* inst = nullptr;
-    ModelVolume* volume = nullptr;
-    int facet = -1;
-    Vec3f point;      // mesh coordinates
-    Vec3f camera;     // ray origin, mesh coordinates
-    Transform3d trafo;
-    double distance = 0;
-};
-
-// Nearest part on `plate` hit by the ray from s along dir (plate coordinates).
-std::optional<Hit> castRay(int plate, Vec3d s, const Vec3d& dir) {
-    engine::Project& p = pr();
-    const Vec2d origin = p.plateOrigin(plate);
-    s += Vec3d(origin.x(), origin.y(), 0);
-    std::optional<Hit> best;
-    for (size_t o = 0; o < p.model.objects.size(); ++o) {
-        ModelObject* obj = p.model.objects[o];
-        for (ModelInstance* inst : obj->instances) {
-            if (p.plateOf(*inst) != plate) continue;
-            for (ModelVolume* v : obj->volumes) {
-                if (!v->is_model_part()) continue;
-                const Transform3d m = inst->get_matrix() * v->get_matrix();
-                const Transform3d inv = m.inverse();
-                const Vec3d ms = inv * s;
-                const Vec3d md = (inv.linear() * dir).normalized();
-                const AABBMesh::hit_result h = treeOf(*v).query_ray_hit(ms, md);
-                if (!h.is_hit()) continue;
-                const double d = (m * h.position() - s).norm();
-                if (best && best->distance <= d) continue;
-                best = Hit{int(o), inst, v, h.face(), h.position().cast<float>(), ms.cast<float>(), m, d};
-            }
-        }
-    }
-    return best;
-}
+using Hit = engine::RayHit;
+using engine::castRay;
 
 // Paints along a stroke on `plate`. options:
 //   kind:   "color" | "support" | "seam" | "fuzzy"

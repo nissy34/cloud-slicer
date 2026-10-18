@@ -11,6 +11,7 @@ import { setCapture } from '../lib/snapshot';
 import { useSceneColours } from '../lib/theme';
 import { NO_COLOURS, useOption, useSlicer } from '../state/store';
 import { BrimMarks } from './BrimEars';
+import { MeasureOverlay } from './MeasureOverlay';
 
 // Printer coordinates are Z-up with the plate from (0,0) to (w,d).
 THREE.Object3D.DEFAULT_UP.set(0, 0, 1);
@@ -362,13 +363,14 @@ function Objects({ w, d }: { w: number; d: number }) {
   const plate = useSlicer((s) => s.plate);
   const selected = useSlicer((s) => s.selected);
   const tool = useSlicer((s) => s.tool);
-  const { select, moveInstance, paintStroke, editBrim } = useSlicer.getState();
+  const { select, moveInstance, paintStroke, editBrim, measureHover, measurePick } = useSlicer.getState();
   const parts = useParts(preview, colours);
   useEffect(() => () => parts.forEach((p) => p.geometry.dispose()), [parts]);
   const camera = useThree((s) => s.camera);
   const canvas = useThree((s) => s.gl.domElement);
   const paint = useSlicer((s) => s.paint);
   const overlay = useSlicer((s) => s.overlay);
+  const measuring = !paint && tool === 'measure';
   const stroking = useRef(false);
   const [brush, setBrush] = useState<{ point: THREE.Vector3; normal: THREE.Vector3 } | null>(null);
   const brushTool = paint && (paint.tool === 'circle' || paint.tool === 'sphere');
@@ -461,6 +463,8 @@ function Objects({ w, d }: { w: number; d: number }) {
 
   const onDown = (e: ThreeEvent<PointerEvent>, object: number) => {
     e.stopPropagation();
+    // Measuring picks on click (below); a drag still turns the camera.
+    if (measuring) return;
     if (paint) {
       if (e.button !== 0) return;
       // Painting holds the camera still; a drag off the parts still orbits.
@@ -489,6 +493,10 @@ function Objects({ w, d }: { w: number; d: number }) {
     (e.target as Element).setPointerCapture?.(e.pointerId);
   };
   const onMove = (e: ThreeEvent<PointerEvent>) => {
+    if (measuring) {
+      if (e.buttons === 0) measureHover(toRay(e.ray));
+      return;
+    }
     if (paint) {
       hover(e);
       return;
@@ -513,7 +521,14 @@ function Objects({ w, d }: { w: number; d: number }) {
     e.stopPropagation();
     void editBrim({ op: 'add', x: e.point.x, y: e.point.y, diameter: useSlicer.getState().brimDiameter ?? 8 });
   };
+  const onClick = (e: ThreeEvent<MouseEvent>) => {
+    if (!measuring || e.delta > 6) return;
+    e.stopPropagation();
+    // The ray of the click itself: a tap has no hover before it.
+    void measurePick(toRay(e.ray));
+  };
   const onMissed = () => {
+    if (measuring) return useSlicer.getState().measureReset();
     // Clicks on a gizmo handle off the part don't deselect it.
     if (paint || brimTool || onGizmo() || performance.now() - gizmoReleased.current < 400) return;
     select(null);
@@ -521,7 +536,13 @@ function Objects({ w, d }: { w: number; d: number }) {
 
   const gizmoTool = !paint && place && (tool === 'move' || tool === 'rotate' || tool === 'scale') ? tool : null;
   return (
-    <group onPointerMove={onMove} onPointerUp={onUp} onPointerOut={() => setBrush(null)} onPointerMissed={onMissed}>
+    <group
+      onPointerMove={onMove}
+      onPointerUp={onUp}
+      onPointerOut={() => (setBrush(null), measuring && measureHover(null))}
+      onPointerMissed={onMissed}
+      onClick={onClick}
+    >
       {/* invisible catcher so drags keep tracking off the object */}
       {delta && (
         <mesh position={[w / 2, d / 2, 0]} onPointerMove={onMove} onPointerUp={onUp}>
@@ -582,6 +603,7 @@ function Objects({ w, d }: { w: number; d: number }) {
       )}
       {paint && overlay && paint.kind !== 'color' && <Overlay overlay={overlay} kind={paint.kind} />}
       {paint && brushTool && <BrushRing at={brush} radius={paint.radius} />}
+      {measuring && <MeasureOverlay size={Math.max(0.4, Math.min(w, d) / 400)} />}
     </group>
   );
 }

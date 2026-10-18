@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import type { CutKeep } from '../engine/client';
+import { describeFeature, measurementRows } from '../lib/measure';
 import { useSlicer, type Tool } from '../state/store';
 import { BrimPanel } from './BrimEars';
 
@@ -118,7 +119,66 @@ function TransformFields({ tool, object, instance }: { tool: 'move' | 'rotate' |
   );
 }
 
-const HINTS: Record<Exclude<Tool, 'cut' | 'brim'>, [string, string]> = {
+/** The Measure tool's figures, like desktop's Measure panel. */
+function MeasurePanel() {
+  const { hover, picks, result, onlyPlane } = useSlicer((s) => s.measure);
+  const { setTool, measureReset, setMeasureOnlyPlane } = useSlicer.getState();
+  const shown = picks.length ? picks : hover ? [hover] : [];
+  return (
+    <section className="tool-panel measure-panel" aria-label="Measure">
+      <div className="tool-panel-head">
+        <strong>Measure</strong>
+        <button className="ghost" onClick={() => setTool(null)}>
+          Done
+        </button>
+      </div>
+      <p className="muted hint">
+        {picks.length === 0
+          ? 'Point at a face, edge, circle or corner and click it. Click a second one to measure between them.'
+          : picks.length === 1
+            ? 'Now click a second feature to measure the distance and angle.'
+            : 'Click another feature to start a new measurement.'}
+      </p>
+      {shown.map((f, i) => {
+        const { name, rows } = describeFeature(f);
+        return (
+          <dl className={`measure-figures pick-${picks.length ? i + 1 : 0}`} key={`${i}-${f.id}`} aria-label={picks.length ? `Feature ${i + 1}` : 'Feature under the pointer'}>
+            <dt className="measure-title">{picks.length ? `${i + 1}. ${name}` : name}</dt>
+            {rows.map(([k, v]) => (
+              <div key={k}>
+                <dt>{k}</dt>
+                <dd>{v}</dd>
+              </div>
+            ))}
+          </dl>
+        );
+      })}
+      {result && (
+        <dl className="measure-figures result" aria-label="Measurement">
+          {measurementRows(result).map(([k, v]) => (
+            <div key={k}>
+              <dt>{k}</dt>
+              <dd>{v}</dd>
+            </div>
+          ))}
+        </dl>
+      )}
+      <label className="check">
+        <input type="checkbox" checked={onlyPlane} onChange={(e) => setMeasureOnlyPlane(e.target.checked)} />
+        <span>Pick whole faces only</span>
+      </label>
+      {picks.length > 0 && (
+        <div className="tool-row">
+          <button className="secondary" onClick={measureReset}>
+            Start over
+          </button>
+        </div>
+      )}
+    </section>
+  );
+}
+
+const HINTS: Record<Exclude<Tool, 'cut' | 'measure' | 'brim'>, [string, string]> = {
   move: ['Move', 'Drag an arrow, or drag the object itself.'],
   rotate: ['Rotate', 'Drag a ring to turn the object around that axis.'],
   scale: ['Scale', 'Drag a handle; the centre box scales evenly.'],
@@ -133,6 +193,7 @@ export function ToolPanel() {
   const snap = useSlicer((s) => s.snap);
   const rotation = useSlicer((s) => (s.selected ? s.project?.objects[s.selected.object]?.instances[s.selected.instance]?.rotation : undefined));
   const { setTool, setSnap } = useSlicer.getState();
+  if (tool === 'measure') return <MeasurePanel />;
   if (!tool || !selected) return null;
   if (tool === 'brim') return <BrimPanel key={selected.object} object={selected.object} />;
   if (tool === 'cut')

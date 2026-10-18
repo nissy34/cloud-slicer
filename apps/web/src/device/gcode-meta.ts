@@ -15,6 +15,8 @@ export interface GcodeMeta {
   filaments: FileFilament[];
   estimatedSeconds: number | null;
   layers: number | null;
+  /** The printer profile the file was sliced with (Orca's printer_settings_id). */
+  printer?: string;
 }
 
 const HEAD = 256 * 1024;
@@ -69,6 +71,7 @@ export function parseGcodeMeta(text: string): GcodeMeta {
     filaments,
     estimatedSeconds: parseDuration(kv.get('estimated printing time (normal mode)') ?? kv.get('model printing time')),
     layers: Number.isFinite(layers) && layers > 0 ? layers : null,
+    ...(kv.get('printer_settings_id') && { printer: kv.get('printer_settings_id')!.replace(/^"|"$/g, '') }),
   };
 }
 

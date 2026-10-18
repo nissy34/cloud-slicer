@@ -50,6 +50,9 @@ export function BrimMarks() {
   );
 }
 
+// A phone or tablet: no right click and no Shift, so the hint says tap.
+const touch = typeof window !== 'undefined' && !!window.matchMedia?.('(pointer: coarse)').matches;
+
 const fmt = (n: number) => (Math.round(n * 10) / 10).toString();
 
 /** Desktop's Brim ears panel for the selected object. */
@@ -77,8 +80,10 @@ export function BrimPanel({ object }: { object: number }) {
         </button>
       </div>
       <p className="muted hint">
-        Round pads of brim under the corners keep them from lifting, with far less brim to clean off than a full brim. Click or tap the model
-        or the bed next to it to add an ear. Tap an ear to pick it, then remove or resize the picked ones (a right click removes one too).
+        Round pads of brim under the corners keep them from lifting, with far less brim to clean off than a full brim.{' '}
+        {touch
+          ? 'Tap the model or the bed next to it to add an ear. Tap an ear to pick it, then Remove picked.'
+          : 'Click the model or the bed next to it to add an ear. Click an ear to pick it (Shift adds more), or right-click it to remove it.'}
       </p>
       {!brim ? (
         <p className="muted hint">Reading the ears…</p>
