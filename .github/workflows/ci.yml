@@ -160,5 +160,11 @@ jobs:
         working-directory: apps/web
         timeout-minutes: 20
         run: |
-          sleep 15  # let the new deployment propagate
+          # A new Pages project or branch alias gets its TLS certificate a few
+          # minutes after the first deploy; wait until the site answers over https.
+          url='${{ steps.deploy.outputs.url }}'
+          for i in $(seq 1 60); do
+            curl -fsS -o /dev/null "$url" && break
+            echo "waiting for $url ($i)"; sleep 10
+          done
           SMOKE_URL='${{ steps.deploy.outputs.url }}' node test/smoke.mjs ../../fixtures/tetrahedron.stl
