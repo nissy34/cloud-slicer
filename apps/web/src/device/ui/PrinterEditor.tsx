@@ -145,6 +145,8 @@ export function PrinterEditor() {
   };
 
   const relayForCommand = pairing?.relay ?? DEFAULT_RELAY_URL;
+  // The site goes along so the bridge's pairing links come back to this same site.
+  const bridgeDownload = `${relayForCommand}/bridge.mjs?site=${encodeURIComponent(location.origin)}`;
   return (
     <Dialog
       title={existing ? `Edit ${existing.name}` : 'Add a printer'}
@@ -193,17 +195,20 @@ export function PrinterEditor() {
               </p>
               <ol className="dv-steps-list">
                 <li>
-                  <a href={`${relayForCommand}/bridge.mjs`} download="cloud-slicer-bridge.mjs">
+                  <a href={bridgeDownload} download="cloud-slicer-bridge.mjs">
                     Download the bridge
                   </a>{' '}
-                  (or <code>curl -fsSLo cloud-slicer-bridge.mjs {relayForCommand}/bridge.mjs</code>; on Windows type <code>curl.exe</code>), then add your printer by its address:
-                  <pre className="dv-code">node cloud-slicer-bridge.mjs add 192.168.1.50 --name "My U1"</pre>
+                  to that computer.
                 </li>
                 <li>
-                  Start it, and keep it running:
+                  Run it, and keep it running:
                   <pre className="dv-code">node cloud-slicer-bridge.mjs</pre>
+                  It finds the printers on your network by itself.
                 </li>
-                <li>It prints a pairing link. Open it here, or paste the link or code below.</li>
+                <li>It opens a link to this page that adds your printer (or prints the link; you can also paste it below).</li>
+                <li>
+                  No printer found? Add it by its address: <code>node cloud-slicer-bridge.mjs add 192.168.1.50</code>, then run it again.
+                </li>
               </ol>
               <label>
                 Pairing link or code

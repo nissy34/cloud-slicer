@@ -10,14 +10,17 @@ Needs Node.js 22 or newer; no other dependencies.
 
 ```bash
 curl -fsSLo cloud-slicer-bridge.mjs https://<relay>/bridge.mjs
-node cloud-slicer-bridge.mjs add 192.168.1.50 --name "My U1"   # --api-key KEY if Moonraker wants one
-node cloud-slicer-bridge.mjs                                    # keep running; prints a pairing link
+node cloud-slicer-bridge.mjs     # finds your printers, opens the pairing link; keep it running
 ```
 
 On Windows, PowerShell's `curl` is a different command: type `curl.exe`
 instead, or just open `https://<relay>/bridge.mjs` in a browser to download it.
 
-Open the pairing link (or paste the code) in Device tab > Add a printer. The
+On first run it looks for Moonraker on port 7125 across your local network,
+adds every printer it finds, and opens the pairing link in your browser (it
+also prints it). If it finds nothing, add the printer by its address with
+`node cloud-slicer-bridge.mjs add 192.168.1.50` (`--api-key KEY` if Moonraker
+wants one) and run it again. The
 code is the bridge's secret: anyone holding it can control your printers.
 
 Config lives in `~/.cloud-slicer-bridge.json` (`--config` to move it). Other

@@ -7,9 +7,9 @@
 // hands it the browser's Moonraker messages; it passes them to the printer
 // and sends the answers back. It only talks to printers you added here.
 //
+//   node cloud-slicer-bridge.mjs                     # finds your printers, pairs, keeps running
 //   node cloud-slicer-bridge.mjs add 192.168.1.50 [--name "My U1"] [--api-key KEY]
 //   node cloud-slicer-bridge.mjs list | remove <name> | pair
-//   node cloud-slicer-bridge.mjs                     # run (keep it running)
 //
 // Options: --config <file> (default ~/.cloud-slicer-bridge.json),
 //          --relay <url>, --site <url> (where pairing links point).
@@ -19,13 +19,15 @@ import { createHmac, randomBytes } from 'node:crypto';
 // fs as a namespace: a named import of openAsBlob would fail before main() can say Node is too old.
 import * as fs from 'node:fs';
 import { mkdtemp, readFile, rm, writeFile, appendFile } from 'node:fs/promises';
-import { homedir, tmpdir } from 'node:os';
+import { spawn } from 'node:child_process';
+import { homedir, networkInterfaces, tmpdir } from 'node:os';
 import { join } from 'node:path';
 
 export const VERSION = '2';
 // The relay that served this file replaces this default when you download it.
 const DEFAULT_RELAY = '__RELAY_URL__'.startsWith('__') ? 'https://cloud-slicer-relay.nissy34.workers.dev' : '__RELAY_URL__';
-const DEFAULT_SITE = 'https://cloud-slicer.pages.dev';
+// Pairing links open the site the bridge was downloaded from (the relay fills it in).
+const DEFAULT_SITE = '__SITE_URL__'.startsWith('__') ? 'https://slicer.awesomestuff.qzz.io' : '__SITE_URL__';
 /** notify_status_update is merged and sent at most this often per browser, to keep the relay within its free tier. */
 export const STATUS_EVERY_MS = 1000;
 /** Base64 of a frame must stay under the relay's 1 MiB message limit. */
@@ -98,13 +100,57 @@ async function probe(url, apiKey) {
  */
 export const browserKey = (key) => createHmac('sha256', key).update('cloud-slicer browser key').digest('base64url');
 
+/** Every Moonraker answering on port 7125 on this computer's local networks (each /24). */
+export async function discover({ timeoutMs = 1500, log = () => {} } = {}) {
+  const hosts = new Set(['127.0.0.1']);
+  for (const list of Object.values(networkInterfaces())) {
+    for (const a of list ?? []) {
+      if (a.family !== 'IPv4' || a.internal) continue;
+      const prefix = a.address.split('.').slice(0, 3).join('.');
+      for (let i = 1; i < 255; i++) hosts.add(`${prefix}.${i}`);
+    }
+  }
+  log(`Looking for printers on your network (${hosts.size} addresses)...`);
+  const found = [];
+  const queue = [...hosts];
+  const worker = async () => {
+    for (let h = queue.shift(); h; h = queue.shift()) {
+      const url = `http://${h}:7125`;
+      try {
+        const r = await fetch(`${url}/printer/info`, { signal: AbortSignal.timeout(timeoutMs) });
+        if (r.status === 401 || r.status === 403) found.push({ url, name: h, needsKey: true });
+        else if (r.ok) found.push({ url, name: String((await r.json()).result?.hostname ?? h) });
+      } catch {
+        // nothing there
+      }
+    }
+  };
+  await Promise.all(Array.from({ length: 64 }, worker));
+  return found;
+}
+
+/** Opens a link in this computer's browser, if it has one (not on a headless Pi). */
+function openInBrowser(url) {
+  const [cmd, args] =
+    process.platform === 'win32' ? ['cmd', ['/c', 'start', '""', url]] : process.platform === 'darwin' ? ['open', [url]] : ['xdg-open', [url]];
+  try {
+    const child = spawn(cmd, args, { stdio: 'ignore', detached: true });
+    child.on('error', () => {});
+    child.unref();
+  } catch {
+    // no browser here; the link is printed anyway
+  }
+}
+
 export const pairingCode = (cfg) =>
   Buffer.from(JSON.stringify({ r: cfg.relay, i: cfg.bridgeId, k: browserKey(cfg.key) })).toString('base64url');
 
-function printPairing(cfg, site) {
+function printPairing(cfg, site, { open = false } = {}) {
   const code = pairingCode(cfg);
-  console.log('\nPair this bridge in Cloud Slicer: Device tab > Add a printer > On my home network.');
-  console.log(`Open this link in your browser:\n  ${String(site ?? cfg.site ?? DEFAULT_SITE).replace(/\/+$/, '')}/#pair=${code}`);
+  const link = `${String(site ?? cfg.site ?? DEFAULT_SITE).replace(/\/+$/, '')}/#pair=${code}`;
+  console.log('\nTo use your printer from Cloud Slicer, open this link in your browser:');
+  console.log(`  ${link}`);
+  if (open) openInBrowser(link);
   console.log(`or paste this code:\n  ${code}\n`);
   console.log('Anyone with this code can control your printers; keep it private.\n');
 }
@@ -417,8 +463,17 @@ async function main() {
   } else if (cmd === 'pair') {
     printPairing(cfg, opts.site);
   } else if (cmd === 'run') {
-    if (!cfg.printers.length) console.log('No printers yet. Add one first: node cloud-slicer-bridge.mjs add <printer address>');
-    printPairing(cfg, opts.site);
+    if (!cfg.printers.length) {
+      const found = await discover({ log: console.log });
+      for (const f of found.filter((x) => x.needsKey)) console.log(`${f.url} needs an API key: node ${process.argv[1]} add ${new URL(f.url).hostname} --api-key KEY`);
+      for (const f of found.filter((x) => !x.needsKey)) {
+        cfg.printers.push({ id: randomBytes(4).toString('hex'), name: f.name, url: f.url, apiKey: '' });
+        console.log(`Found ${f.name} (${f.url}).`);
+      }
+      if (cfg.printers.length) await saveConfig(path, cfg);
+      else console.log('No printer found on your network. Add it by its address: node cloud-slicer-bridge.mjs add <printer address>');
+    }
+    printPairing(cfg, opts.site, { open: !opts['no-browser'] && cfg.printers.length > 0 });
     runBridge(cfg);
   } else {
     throw new Error(`Unknown command ${cmd}. Commands: add, remove, list, pair, run`);

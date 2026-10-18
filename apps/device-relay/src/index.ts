@@ -59,7 +59,9 @@ export default {
   async fetch(req: Request, env: Env): Promise<Response> {
     const url = new URL(req.url);
     if (url.pathname === '/bridge.mjs') {
-      return new Response(agentSource.replaceAll('__RELAY_URL__', url.origin), {
+      // ?site= is the page the user downloaded it from, so pairing links open that same site.
+      const site = /^https:\/\/[\w.-]+$|^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.exec(url.searchParams.get('site') ?? '')?.[0];
+      return new Response(agentSource.replaceAll('__RELAY_URL__', url.origin).replaceAll('__SITE_URL__', site ?? '__SITE_URL__'), {
         headers: { ...cors, 'Content-Type': 'text/javascript; charset=utf-8', 'Content-Disposition': 'attachment; filename="cloud-slicer-bridge.mjs"' },
       });
     }
