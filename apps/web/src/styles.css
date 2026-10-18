@@ -67,6 +67,15 @@ body,
   height: 100%;
   margin: 0;
 }
+/* The page itself never scrolls: only panels inside .app do. On Android
+   Chrome a scrollable page let the address bar's show/hide (and scroll
+   chaining or scrollIntoView from the settings column) scroll the whole app,
+   hiding the top bar and leaving a blank strip under the action bar. */
+html,
+body {
+  overflow: hidden;
+  overscroll-behavior: none;
+}
 
 body {
   background: var(--bg);
@@ -86,7 +95,10 @@ textarea {
 .app {
   display: grid;
   grid-template-rows: var(--topbar) 1fr;
-  height: 100dvh;
+  /* Pinned to the visible viewport, so it always fills the screen whatever
+     the mobile browser's toolbars are doing. */
+  position: fixed;
+  inset: 0;
 }
 
 /* Top bar */
@@ -1236,6 +1248,7 @@ select:focus-visible {
     display: flex;
     flex-direction: column;
     overflow-y: auto;
+    overscroll-behavior: contain;
   }
   .main {
     display: contents;
