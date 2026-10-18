@@ -8,6 +8,8 @@ M83
 ;Z:0.2
 G1 Z0.2 F600
 ;TYPE:Outer wall
+;WIDTH:0.42
+;HEIGHT:0.2
 G1 X10 Y10 F3000
 G1 X20 Y10 E0.5
 G1 X20 Y20 E0.5
@@ -35,6 +37,10 @@ describe('parseGcode', () => {
     expect(FEATURES[g.features[3]]).toBe('Top surface');
     expect(g.tools[3]).toBe(1);
     expect(g.toolsUsed).toEqual([0, 1]);
+  });
+  it('reads extrusion width and height', () => {
+    expect(g.sizes[0]).toBeCloseTo(0.42);
+    expect(g.sizes[1]).toBeCloseTo(0.2);
   });
   it('splits arcs and ignores travel', () => {
     const arcSegments = g.layerStarts[2] - g.layerStarts[1];

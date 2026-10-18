@@ -57,20 +57,28 @@ foreach(patch ${ENGINE_PATCHES})
     endforeach()
 endforeach()
 list(REMOVE_DUPLICATES ENGINE_SOURCE_OVERRIDES)
-foreach(rel ${ENGINE_SOURCE_OVERRIDES})  # fresh originals first, then all patches
-    configure_file("${ORCA_DIR}/${rel}" "${ENGINE_PATCHED_DIR}/${rel}" COPYONLY)
+# Patch fresh originals in a staging dir, then copy the results over only where
+# they changed, so a re-configure does not touch the patched files' timestamps
+# and rebuild everything that includes them.
+set(ENGINE_PATCH_STAGE "${CMAKE_BINARY_DIR}/patched-engine-stage")
+file(REMOVE_RECURSE "${ENGINE_PATCH_STAGE}")
+foreach(rel ${ENGINE_SOURCE_OVERRIDES})
+    configure_file("${ORCA_DIR}/${rel}" "${ENGINE_PATCH_STAGE}/${rel}" COPYONLY)
 endforeach()
 foreach(patch ${ENGINE_PATCHES})
-    execute_process(COMMAND patch -p1 --forward --silent -d "${ENGINE_PATCHED_DIR}" -i "${patch}"
+    execute_process(COMMAND patch -p1 --forward --silent -d "${ENGINE_PATCH_STAGE}" -i "${patch}"
                     RESULT_VARIABLE rc)
     if(NOT rc EQUAL 0)
         message(FATAL_ERROR "Engine patch failed to apply: ${patch}")
     endif()
 endforeach()
+foreach(rel ${ENGINE_SOURCE_OVERRIDES})
+    configure_file("${ENGINE_PATCH_STAGE}/${rel}" "${ENGINE_PATCHED_DIR}/${rel}" COPYONLY)
+endforeach()
 
 include(cmake/libslic3r.cmake)
 
-add_executable(orca-engine src/presets_api.cpp src/model_api.cpp src/slice_api.cpp)
+add_executable(orca-engine src/presets_api.cpp src/model_api.cpp src/slice_api.cpp src/tools_api.cpp src/paint_api.cpp)
 target_link_libraries(orca-engine PRIVATE libslic3r embind)
 set_target_properties(orca-engine PROPERTIES SUFFIX ".js")
 target_link_options(orca-engine PRIVATE

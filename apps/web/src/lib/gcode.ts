@@ -22,6 +22,8 @@ export interface ParsedGcode {
   features: Uint8Array;
   /** Tool (0-based) per segment. */
   tools: Uint8Array;
+  /** Extrusion width and height (mm) per segment, from ;WIDTH: / ;HEIGHT:. */
+  sizes: Float32Array;
   /** Index of the first segment of each layer, plus a final end index. */
   layerStarts: Uint32Array;
   layerZ: Float32Array;
@@ -35,6 +37,7 @@ export function parseGcode(text: string): ParsedGcode {
   let pos = new Float32Array(1 << 20);
   let feat = new Uint8Array(1 << 17);
   let tool = new Uint8Array(1 << 17);
+  let size = new Float32Array(1 << 18);
   let n = 0;
   const layerStarts: number[] = [];
   const layerZ: number[] = [];
@@ -44,6 +47,7 @@ export function parseGcode(text: string): ParsedGcode {
   let absXYZ = true, absE = true;
   let feature = OTHER;
   let t = 0;
+  let width = 0.45, height = 0.2;
   let pendingZ: number | null = null;
   let layerOpen = false;
 
@@ -60,10 +64,15 @@ export function parseGcode(text: string): ParsedGcode {
       const tt = new Uint8Array(tool.length * 2);
       tt.set(tool);
       tool = tt;
+      const sz = new Float32Array(size.length * 2);
+      sz.set(size);
+      size = sz;
     }
     pos.set([x1, y1, z1, x2, y2, z2], n * 6);
     feat[n] = feature;
     tool[n] = t;
+    size[n * 2] = width;
+    size[n * 2 + 1] = height;
     toolsUsed.add(t);
     n++;
   };
@@ -94,6 +103,12 @@ export function parseGcode(text: string): ParsedGcode {
         }
       } else if (line.startsWith(';TYPE:')) {
         feature = featureIndex.get(line.slice(6).trim().toLowerCase()) ?? OTHER;
+      } else if (line.startsWith(';WIDTH:')) {
+        const v = parseFloat(line.slice(7));
+        if (v > 0) width = v;
+      } else if (line.startsWith(';HEIGHT:')) {
+        const v = parseFloat(line.slice(8));
+        if (v > 0) height = v;
       }
       continue;
     }
@@ -174,6 +189,7 @@ export function parseGcode(text: string): ParsedGcode {
     positions: pos.slice(0, n * 6),
     features: feat.slice(0, n),
     tools: tool.slice(0, n),
+    sizes: size.slice(0, n * 2),
     layerStarts: Uint32Array.from(starts),
     layerZ: Float32Array.from(zs),
     toolsUsed: [...toolsUsed].sort((a, b) => a - b),
