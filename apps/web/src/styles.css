@@ -926,6 +926,21 @@ select:focus-visible {
   align-items: center;
   justify-content: space-between;
 }
+/* Simplify: the object's name and triangle counts, and the paint note. */
+.simplify-figures {
+  display: grid;
+  gap: 2px;
+  font-size: 0.9em;
+  font-variant-numeric: tabular-nums;
+}
+.simplify-figures > span:first-child {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.simplify-warning {
+  color: var(--danger);
+}
 /* Brim ears: the brim type note, the count and the auto-generate group. */
 .brim-warning {
   display: grid;

@@ -1,10 +1,10 @@
 #!/usr/bin/env node
 // Browser end to end for the object toolbar over the 3D view: it shows on an
 // empty plate with its object tools greyed out, adding a model keeps the one
-// already there, brim ears go on the corners and where the bed is clicked, lay
-// on face turns the object, variable layer height makes an adaptive profile,
-// measure picks two features and measures between them, and the toolbar fits a
-// phone (and the page itself never scrolls there).
+// already there, simplify halves the triangles, brim ears go on the corners and
+// where the bed is clicked, lay on face turns the object, variable layer height
+// makes an adaptive profile, measure picks two features and measures between
+// them, and the toolbar fits a phone (and the page itself never scrolls there).
 //
 //   node test/toolbar.mjs [screenshot-dir]
 //
@@ -113,6 +113,29 @@ try {
   if (shots) await page.screenshot({ path: join(shots, 'toolbar-desktop-cut.png') });
   console.log('cut plane follows the height');
 
+  // Simplify (from the object list): the count it would leave, then Apply
+  // halves the boat's triangles, and Ctrl+Z brings them back.
+  const triangles = async () => {
+    await page.getByRole('button', { name: 'Simplify', exact: true }).click();
+    const panel = page.getByRole('region', { name: 'Simplify' });
+    await page.waitForFunction(() => /→/.test(document.querySelector('[aria-label="Triangles"]')?.textContent ?? ''), null, { timeout: 60000 });
+    return { panel, now: Number((await panel.getByLabel('Triangles').innerText()).match(/([\d,]+) triangles/)[1].replace(/,/g, '')) };
+  };
+  const { panel: simplify, now: before } = await triangles();
+  await simplify.getByRole('radio', { name: 'Decimate ratio' }).click();
+  await page.waitForFunction(() => /→/.test(document.querySelector('[aria-label="Triangles"]')?.textContent ?? ''), null, { timeout: 60000 });
+  if (shots) await page.screenshot({ path: join(shots, 'simplify-desktop.png') });
+  await simplify.getByRole('button', { name: 'Apply' }).click();
+  await simplify.waitFor({ state: 'detached', timeout: 60000 });
+  const { now: after } = await triangles();
+  if (Math.abs(after - before / 2) > before * 0.02) fail(`simplify at 50% should halve the triangles: ${before} -> ${after}`);
+  await page.locator('body').press('Control+z');
+  await page.waitForTimeout(500);
+  await page.getByRole('region', { name: 'Simplify' }).getByRole('button', { name: 'Done' }).click();
+  const { now: undone } = await triangles();
+  if (undone !== before) fail(`undo should bring the triangles back: ${undone} vs ${before}`);
+  await page.getByRole('region', { name: 'Simplify' }).getByRole('button', { name: 'Done' }).click();
+  console.log(`simplify: ${before} -> ${after} triangles, undo brings ${undone} back`);
   // Brim ears: the panel offers to switch the brim type, ears go on the
   // corners, a click on the bed adds one, and Remove all takes them away.
   await toolbar.getByRole('button', { name: 'Brim ears' }).click();
