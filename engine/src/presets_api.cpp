@@ -300,6 +300,12 @@ std::string presetExport(const std::string& type, const std::string& name) {
         if (p == nullptr || !p->is_user()) return json{{"ok", false}, {"error", "not a user preset: " + name}}.dump();
         const Preset* parent = c.get_preset_parent(*p);
         Preset copy = *p;
+        // Desktop's import tells the preset type by its *_settings_id, which
+        // desktop always writes; ours may only have the parent's.
+        if (p->type == Preset::TYPE_FILAMENT)
+            copy.config.set_key_value("filament_settings_id", new ConfigOptionStrings(std::vector<std::string>{name}));
+        else
+            copy.config.set_key_value(p->type == Preset::TYPE_PRINTER ? "printer_settings_id" : "print_settings_id", new ConfigOptionString(name));
         copy.file = "/work/preset-export.json";
         copy.save(parent ? const_cast<DynamicPrintConfig*>(&parent->config) : nullptr);
         std::string text;
@@ -333,6 +339,13 @@ std::string presetImportParse(const std::string& path, const std::string& rebase
         else if (config.has("filament_settings_id")) type = "filament";
         else if (kv["type"] == "machine") type = "printer";
         else if (kv["type"] == "filament" || kv["type"] == "process") type = kv["type"];
+        // Else whichever kind of preset it inherits.
+        if (type.empty() && !kv["inherits"].empty())
+            for (const char* t : {"printer", "filament", "process"})
+                if (systemPreset(b, collectionOf(b, t), kv["inherits"])) {
+                    type = t;
+                    break;
+                }
         if (type.empty()) return json{{"ok", false}, {"error", "not an Orca printer, filament or process preset"}}.dump();
         PresetCollection& c = collectionOf(b, type);
         const std::string inherits = kv["inherits"];
