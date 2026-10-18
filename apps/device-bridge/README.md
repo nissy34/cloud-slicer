@@ -33,8 +33,12 @@ The bridge asks nothing. Opened by double click it sets itself up to start
 with the computer and opens the pairing link in your browser (it also prints
 it); `install` does the same from a terminal, and `uninstall` stops the bridge
 and removes it from the computer, with its printers and pairing (Windows: a
-Run entry for your user, minimised; macOS: a launch agent; Linux: a systemd
-user service with lingering, so a headless Pi starts it at boot).
+Run entry for your user that runs it with no window, so it stays out of the
+taskbar; macOS: a launch agent; Linux: a systemd
+user service with lingering, so a headless Pi starts it at boot, plus a menu
+entry that opens the pairing link). The downloaded Mac app is
+`Cloud Slicer Bridge.app`: opened from Finder it shows no window, sets itself
+up and opens the pairing link.
 
 Printers are found and added in the Device tab's Add a printer dialog, which
 asks the bridge over the relay: `bridge.discover` looks for Moonraker on port
@@ -54,11 +58,14 @@ in `~/.local/bin`). To update, set it up again the same way: a newly downloaded
 app opened while an older one runs in the background replaces it.
 
 Config lives in `~/.cloud-slicer-bridge.json` (`--config` to move it). Other
-commands: `list`, `remove <name>`, `pair` (print the pairing link again),
+commands: `list`, `remove <name>`, `pair` (print the pairing link again; `--open` opens it),
 `version`.
 
-The apps are `bridge.mjs` built with `bun build --compile` (`build-apps.sh`);
-CI uploads them to the relay's R2 bucket on every push to main.
+The apps are `bridge.mjs` built with `bun build --compile` (`build-apps.sh`),
+with the icons in `icons/`. CI builds the Windows app on a Windows runner (bun
+sets an .exe's icon only there) and the Mac app on a macOS runner (to sign the
+.app ad hoc), and uploads them all to the relay's R2 bucket on every push to
+main.
 
 ## How it works
 

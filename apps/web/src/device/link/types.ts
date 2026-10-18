@@ -17,6 +17,9 @@ export interface BridgeStatus {
   agent: 'online' | 'offline';
   printers: { id: string; name: string }[];
   version?: string;
+  /** The bridge computer's system (win32, darwin, linux) and whether it is the app (not Node.js); bridges before version 4 don't say. */
+  system?: string;
+  app?: boolean;
 }
 
 export interface LinkHandlers {

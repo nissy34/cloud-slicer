@@ -1669,6 +1669,12 @@ select:focus-visible {
   align-items: center;
   justify-content: space-between;
 }
+.dv-banner-help {
+  display: block;
+}
+.dv-banner-help .dv-about-commands {
+  min-width: 0;
+}
 .dv-cols {
   max-width: 1400px;
   margin: 0 auto;
