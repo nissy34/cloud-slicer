@@ -66,12 +66,13 @@ if (self.name !== 'em-pthread') {
     modelInfo: (e) => JSON.parse(e.modelInfoJson()),
     fileConfig: (e) => JSON.parse(e.fileConfigJson()),
 
-    // Adds a geometry file to the project (or opens a 3MF project).
-    load(e, name, bytes, plate, printableArea) {
+    // Adds a geometry file to the project, or opens a 3MF project
+    // (geometryOnly adds a 3MF's objects instead).
+    load(e, name, bytes, plate, printableArea, geometryOnly) {
       const path = `/work/${name.replace(/[^\w.\-]+/g, '_')}`;
       e.FS.writeFile(path, new Uint8Array(bytes));
       const [w, d] = bedSize(printableArea);
-      const res = json(e.loadModel(path, plate, w, d));
+      const res = json(e.loadModel(path, plate, w, d, !!geometryOnly));
       e.FS.unlink(path);
       return { ...res, info: JSON.parse(e.modelInfoJson()) };
     },
@@ -103,6 +104,7 @@ if (self.name !== 'em-pthread') {
     arrangePlate: (e, plate, spacing) => (json(e.arrangePlate(plate, spacing)), JSON.parse(e.modelInfoJson())),
     orientObject: (e, o) => (json(e.orientObject(o)), JSON.parse(e.modelInfoJson())),
     splitObject: (e, o) => (json(e.splitObject(o)), JSON.parse(e.modelInfoJson())),
+    splitParts: (e, o) => (json(e.splitParts(o)), JSON.parse(e.modelInfoJson())),
     cutObject: (e, o, i, z, keep, flip) => (json(e.cutObject(o, i, z, keep, flip)), JSON.parse(e.modelInfoJson())),
     mirrorInstance: (e, o, i, axis) => (json(e.mirrorInstance(o, i, axis)), JSON.parse(e.modelInfoJson())),
     setObjectSettings: (e, o, v, values) => (json(e.setObjectSettings(o, v, JSON.stringify(values))), JSON.parse(e.modelInfoJson())),
@@ -122,6 +124,12 @@ if (self.name !== 'em-pthread') {
       return { value: o, transfer: [o.positions.buffer, o.states.buffer] };
     },
     clearPaint: (e, o, kind) => (json(e.clearPaint(o, kind)), JSON.parse(e.modelInfoJson())),
+    // Undo history: {undo, redo} are the labels of the next steps, or null.
+    snapshot: (e, label) => json(e.snapshot(label)),
+    dropSnapshot: (e) => json(e.dropSnapshot()),
+    clearHistory: (e) => json(e.clearHistory()),
+    undo: (e) => ({ history: json(e.undo()), info: JSON.parse(e.modelInfoJson()) }),
+    redo: (e) => ({ history: json(e.redo()), info: JSON.parse(e.modelInfoJson()) }),
     // Replaces the user presets ([{type, name, inherits, config}], Orca diffs
     // over a system preset) and reloads every preset, like desktop start-up.
     // The selection resets; the caller selects again.

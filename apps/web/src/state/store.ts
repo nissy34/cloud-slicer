@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { EngineClient, type CutKeep, type ProjectThumbnail, type UserPresetFile } from '../engine/client';
+import { EngineClient, type CutKeep, type History, type InstanceChanges, type ProjectThumbnail, type UserPresetFile } from '../engine/client';
 import type {
   PaintOverlay,
   PaintRay,
@@ -23,6 +23,11 @@ import { installedOnly, SETUP_KEY, type Setup } from '../lib/setup';
 import { loadConvertPreference, loadSaved, save, saveConvertPreference } from '../lib/storage';
 
 export type Tab = 'prepare' | 'preview' | 'device';
+/** The object tool open on the 3D view, like desktop's gizmos (paint has its own state). */
+export type Tool = 'move' | 'rotate' | 'scale' | 'flatten' | 'cut';
+/** How a 3MF is opened: as the project (replacing it) or its objects added. */
+export type OpenMode = 'project' | 'geometry';
+const is3mf = (f: File) => /\.3mf$/i.test(f.name);
 export type EngineStatus = 'starting' | 'ready' | 'failed';
 export type Job =
   | { kind: 'idle' }
@@ -65,6 +70,12 @@ interface SlicerState {
   conversion: { from: string; file: OrcaConfig } | null;
   /** Paint mode is on while set: what clicks and drags on the parts paint. */
   paint: PaintSettings | null;
+  /** The object tool in use on the selected object. */
+  tool: Tool | null;
+  /** Files waiting for the user to say how to open the 3MF among them. */
+  pendingOpen: File[] | null;
+  /** Rotate in 15° steps (and move/scale in steps) without holding Shift, for touch screens. */
+  snap: boolean;
   /** Support, seam or fuzzy skin paint of the plate, while painting it. */
   overlay: PaintOverlay | null;
   /** The calibration test on the plate, and the settings it changed. */
@@ -90,14 +101,26 @@ interface SlicerState {
   setOverride(key: string, value: string | null): void;
   setFlowVariant(index: number): void;
   resetOverrides(keys?: string[]): void;
-  openFiles(files: File[]): Promise<void>;
+  /**
+   * Adds model files to the project. A single 3MF opens as the project when
+   * nothing is loaded; with objects already there the user is asked first
+   * (pendingOpen) unless `mode` says. Several 3MFs at once add their objects.
+   * Resolves true when a 3MF was opened as the project.
+   */
+  openFiles(files: File[], mode?: OpenMode): Promise<boolean>;
+  cancelOpen(): void;
+  setTool(tool: Tool | null): void;
+  setSnap(snap: boolean): void;
+  /** Height of the Cut tool's plane above the bed, in mm; the 3D view shows it. */
+  cutZ: number;
+  setCutZ(z: number): void;
   /** The open project as an Orca 3MF project file, with the current settings. */
   projectFile(thumbnail: ProjectThumbnail | null): Promise<ArrayBuffer>;
   clearProject(): Promise<void>;
   setPlate(plate: number): Promise<void>;
   select(sel: { object: number; instance: number } | null): void;
   moveInstance(o: number, i: number, x: number, y: number): Promise<void>;
-  transformInstance(o: number, i: number, changes: { rotation?: number[]; scale?: number[] }): Promise<void>;
+  transformInstance(o: number, i: number, changes: InstanceChanges): Promise<void>;
   setObjectFilament(o: number, volume: number, filament: number): Promise<void>;
   deleteObject(o: number): Promise<void>;
   copyInstance(o: number, i: number): Promise<void>;
@@ -109,6 +132,9 @@ interface SlicerState {
   deletePlate(): Promise<void>;
   orientObject(o: number): Promise<void>;
   splitObject(o: number): Promise<void>;
+  splitParts(o: number): Promise<void>;
+  /** Auto-orients one object, or every object on the plate. */
+  orient(o?: number): Promise<void>;
   mirror(o: number, i: number, axis: 0 | 1 | 2): Promise<void>;
   cutObject(o: number, i: number, z: number, keep: CutKeep, flipUpper: boolean): Promise<void>;
   convertProject(printer: string, keepSettings: boolean, remember: boolean): Promise<void>;
@@ -117,6 +143,10 @@ interface SlicerState {
   /** Paints along rays; newStroke when the pointer just went down. */
   paintStroke(rays: PaintRay[], newStroke: boolean): Promise<void>;
   clearPaint(o: number): Promise<void>;
+  /** Labels of the edits undo and redo would take back or redo next. */
+  history: History;
+  undo(): Promise<void>;
+  redo(): Promise<void>;
   /** Replaces the project with a calibration test, like desktop's Calibration menu. */
   startCalibration(mode: CalibrationMode, values: CalibrationValues): Promise<void>;
   /** Back to normal printing: drops the test's settings (the test model stays). */
@@ -222,6 +252,7 @@ export const useSlicer = create<SlicerState>((set, get) => {
   let strokeQueue: PaintRay[] = [];
   let lastRay: PaintRay | null = null;
   let painting = false;
+  let strokeStarts = false;  // the next dab begins a stroke: remember the project for undo
 
   // A 3MF brings its own filaments: one slot per file filament, coloured like
   // the file, with the closest compatible preset of the same material
@@ -338,9 +369,28 @@ export const useSlicer = create<SlicerState>((set, get) => {
     }
   };
 
-  const projectEdit = async (op: () => Promise<ProjectInfo>) => {
+  // An edit of the project: remembered first, so undo can take it back.
+  const projectEdit = async (label: string, op: () => Promise<ProjectInfo>) => {
+    const e = engine();
+    let remembered = false;
     try {
+      set({ history: await e.snapshot(label) });
+      remembered = true;
       await refreshPreview(await op());
+    } catch (err) {
+      if (remembered) set({ history: await e.dropSnapshot().catch(() => get().history) });
+      fail(err);
+    }
+  };
+
+  const stepHistory = async (step: 'undo' | 'redo') => {
+    if (!get().history[step]) return;
+    try {
+      const { history, info } = await engine()[step]();
+      const sel = get().selected;
+      const gone = sel && !info.objects[sel.object]?.instances[sel.instance];
+      set(gone ? { history, selected: null, tool: null } : { history });
+      await refreshPreview(info);
     } catch (e) {
       fail(e);
     }
@@ -370,6 +420,11 @@ export const useSlicer = create<SlicerState>((set, get) => {
     noticeWarn: false,
     conversion: null,
     paint: null,
+    tool: null,
+    pendingOpen: null,
+    snap: false,
+    history: { undo: null, redo: null },
+    cutZ: 0,
     overlay: null,
     calibration: null,
 
@@ -424,75 +479,111 @@ export const useSlicer = create<SlicerState>((set, get) => {
       setOverrides(keys ? Object.fromEntries(Object.entries(get().overrides).filter(([k]) => !keys.includes(k))) : {});
     },
 
-    async openFiles(files) {
+    async openFiles(files, mode) {
       const e = engine();
+      const threeMfs = files.filter(is3mf).length;
+      if (!mode && threeMfs === 1 && (get().project?.objects.length ?? 0) > 0) {
+        set({ pendingOpen: files });
+        return false;
+      }
       await get().endCalibration();
-      set({ tab: 'prepare', notice: '', conversion: null });
-      for (const file of files) {
+      set({ tab: 'prepare', notice: '', conversion: null, pendingOpen: null, tool: null });
+      // The project first, so the other files land on it.
+      const ordered = [...files].sort((a, b) => Number(is3mf(b)) - Number(is3mf(a)));
+      let opened = false;
+      for (const file of ordered) {
         set({ job: { kind: 'loading', name: file.name } });
         try {
           const area = get().overrides.printable_area ?? get().baseConfig.printable_area ?? '';
-          const res = await e.load(file, get().plate, area);
-          if (res.isProject) set({ plate: 0, selected: null });
+          const geometryOnly = is3mf(file) && (mode === 'geometry' || threeMfs > 1);
+          // Adding a model can be undone; opening a project starts a new history, like desktop.
+          const opensProject = is3mf(file) && !geometryOnly;
+          if (!opensProject) set({ history: await e.snapshot('Add model') });
+          const res = await e.load(file, get().plate, area, geometryOnly);
+          if (res.isProject) {
+            opened = true;
+            set({ plate: 0, selected: null, history: await e.clearHistory() });
+          }
           await refreshPreview(res.info);
           if (res.isProject && !res.info.objects.length) throw new Error(emptyProjectMessage(file.name));
           if (res.isProject && res.info.file.hasConfig) await importProject(res.info);
           set({ job: { kind: 'idle' } });
         } catch (err) {
           fail(err);
-          return;
+          return opened;
         }
       }
+      return opened;
     },
+    cancelOpen: () => set({ pendingOpen: null }),
+    setSnap: (snap) => set({ snap }),
+    setTool: (tool) => {
+      if (tool && get().paint) void get().setPaint(null);
+      const { selected, project } = get();
+      // The cut plane starts half way up, like desktop.
+      const height = selected ? project?.objects[selected.object]?.size[2] : undefined;
+      set(tool === 'cut' && height ? { tool, cutZ: Math.round(height * 50) / 100 } : { tool });
+    },
+    setCutZ: (cutZ) => set({ cutZ }),
     projectFile: (thumbnail) => engine().saveProject(get().overrides, thumbnail),
     clearProject: () =>
-      projectEdit(async () => {
+      projectEdit('Delete all', async () => {
         await get().endCalibration();
-        set({ selected: null });
+        set({ selected: null, tool: null });
         return engine().clear();
       }),
 
     async setPlate(plate) {
-      set({ plate, selected: null });
+      set({ plate, selected: null, tool: null });
       await refreshPreview(get().project ?? undefined);
     },
-    select: (selected) => set({ selected }),
-    moveInstance: (o, i, x, y) => projectEdit(() => engine().transform(o, i, { offset: [x, y], plate: get().plate })),
-    transformInstance: (o, i, changes) => projectEdit(() => engine().transform(o, i, changes)),
-    setObjectFilament: (o, volume, filament) => projectEdit(() => engine().setExtruder(o, volume, filament)),
+    select: (selected) => set(selected ? { selected } : { selected, tool: null }),
+    moveInstance: (o, i, x, y) => projectEdit('Move', () => engine().transform(o, i, { offset: [x, y], plate: get().plate })),
+    transformInstance: (o, i, changes) =>
+      projectEdit(changes.rotation ? 'Rotate' : changes.scale ? 'Scale' : 'Move', () => engine().transform(o, i, changes)),
+    setObjectFilament: (o, volume, filament) => projectEdit('Change filament', () => engine().setExtruder(o, volume, filament)),
     deleteObject: (o) =>
-      projectEdit(() => {
-        set({ selected: null });
+      projectEdit('Delete', () => {
+        set({ selected: null, tool: null });
         return engine().deleteObject(o);
       }),
     copyInstance: (o, i) => {
       const size = get().project?.objects[o]?.size ?? [20, 20, 0];
-      return projectEdit(() => engine().addInstance(o, i, size[0] + 5, 0));
+      return projectEdit('Add copy', () => engine().addInstance(o, i, size[0] + 5, 0));
     },
 
     // 6 mm apart, like desktop's default arrange distance.
-    arrange: () => projectEdit(() => engine().arrangePlate(get().plate, 6)),
-    setObjectSettings: (o, volume, values) => projectEdit(() => engine().setObjectSettings(o, volume, values)),
+    arrange: () => projectEdit('Arrange', () => engine().arrangePlate(get().plate, 6)),
+    setObjectSettings: (o, volume, values) => projectEdit('Change object settings', () => engine().setObjectSettings(o, volume, values)),
     addPlate: async () => {
-      await projectEdit(() => engine().addPlate());
+      await projectEdit('Add plate', () => engine().addPlate());
       const n = get().project?.plates.length ?? 1;
       await get().setPlate(n - 1);
     },
     deletePlate: () =>
-      projectEdit(() => {
+      projectEdit('Delete plate', () => {
         set({ selected: null });
         return engine().deletePlate(get().plate);
       }),
-    orientObject: (o) => projectEdit(() => engine().orientObject(o)),
+    orientObject: (o) => projectEdit('Auto orient', () => engine().orientObject(o)),
     splitObject: (o) =>
-      projectEdit(() => {
-        set({ selected: null });
+      projectEdit('Split to objects', () => {
+        set({ selected: null, tool: null });
         return engine().splitObject(o);
       }),
-    mirror: (o, i, axis) => projectEdit(() => engine().mirrorInstance(o, i, axis)),
+    splitParts: (o) => projectEdit('Split to parts', () => engine().splitParts(o)),
+    orient: (o) =>
+      projectEdit('Auto orient', async () => {
+        const { project, plate } = get();
+        const objects = o !== undefined ? [o] : (project?.plates[plate]?.objects ?? []);
+        let info = project!;
+        for (const obj of objects) info = await engine().orientObject(obj);
+        return info;
+      }),
+    mirror: (o, i, axis) => projectEdit('Mirror', () => engine().mirrorInstance(o, i, axis)),
     cutObject: (o, i, z, keep, flipUpper) =>
-      projectEdit(() => {
-        set({ selected: null });
+      projectEdit('Cut', () => {
+        set({ selected: null, tool: null });
         return engine().cutObject(o, i, z, keep, flipUpper);
       }),
 
@@ -510,7 +601,7 @@ export const useSlicer = create<SlicerState>((set, get) => {
 
     async setPaint(paint) {
       const before = get().paint;
-      set({ paint });
+      set(paint ? { paint, tool: null } : { paint });
       if (!paint || paint.kind === 'color') return set({ overlay: null });
       if (before?.kind === paint.kind && get().overlay) return;
       try {
@@ -520,7 +611,10 @@ export const useSlicer = create<SlicerState>((set, get) => {
       }
     },
     async paintStroke(rays, newStroke) {
-      if (newStroke) lastRay = null;
+      if (newStroke) {
+        lastRay = null;
+        strokeStarts = true;
+      }
       strokeQueue.push(...rays);
       if (painting) return;
       painting = true;
@@ -532,6 +626,10 @@ export const useSlicer = create<SlicerState>((set, get) => {
           const batch = lastRay && !fills ? [lastRay, ...strokeQueue] : strokeQueue;
           lastRay = strokeQueue[strokeQueue.length - 1];
           strokeQueue = [];
+          if (strokeStarts) {
+            strokeStarts = false;
+            set({ history: await engine().snapshot('Paint') });
+          }
           const res = await engine().paint(get().plate, { ...paint, rays: batch });
           set({ project: res.info, ...(res.preview && { preview: res.preview }), ...(res.overlay && { overlay: res.overlay }), ...stale() });
         }
@@ -542,7 +640,9 @@ export const useSlicer = create<SlicerState>((set, get) => {
         painting = false;
       }
     },
-    clearPaint: (o) => projectEdit(() => engine().clearPaint(o, get().paint?.kind ?? 'all')),
+    undo: () => stepHistory('undo'),
+    redo: () => stepHistory('redo'),
+    clearPaint: (o) => projectEdit('Clear paint', () => engine().clearPaint(o, get().paint?.kind ?? 'all')),
 
     async startCalibration(mode, values) {
       const title = CALIBRATIONS.find((c) => c.mode === mode)?.title ?? mode;
@@ -550,6 +650,7 @@ export const useSlicer = create<SlicerState>((set, get) => {
       set({ tab: 'prepare', paint: null, overlay: null, selected: null, plate: 0, conversion: null, job: { kind: 'loading', name: `${title} test` } });
       try {
         const res = await engine().calibrate(calibrationOptions(mode, values), get().overrides);
+        set({ history: await engine().clearHistory() });
         const keys = Object.keys(res.overrides);
         const previous = Object.fromEntries(keys.filter((k) => k in get().overrides).map((k) => [k, get().overrides[k]]));
         set({ calibration: { title, keys, previous } });

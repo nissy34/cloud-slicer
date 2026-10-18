@@ -641,9 +641,101 @@ select:focus-visible {
 }
 
 /* Workspace overlays */
+/* The object toolbar along the top of the 3D view, like desktop Orca's. */
+.toolbar {
+  --tool-accent: var(--accent);
+  position: absolute;
+  top: 8px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 2;
+  display: flex;
+  max-width: calc(100% - 16px);
+  padding: 3px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface);
+  box-shadow: 0 2px 10px rgb(0 0 0 / 25%);
+  overflow-x: auto;
+  scrollbar-width: thin;
+  overscroll-behavior-x: contain;
+}
+.toolbar-group {
+  display: flex;
+  flex: none;
+  gap: 1px;
+}
+/* Undo and redo stay in reach while the rest of the row scrolls on a phone. */
+.toolbar-group:first-child {
+  position: sticky;
+  left: 0;
+  z-index: 1;
+  background: var(--surface);
+}
+.toolbar-group + .toolbar-group {
+  margin-left: 4px;
+  padding-left: 4px;
+  border-left: 1px solid var(--border);
+}
+.tool {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: 7px;
+  background: none;
+  color: var(--text);
+  cursor: pointer;
+}
+.tool-icon,
+.tool-icon svg {
+  display: block;
+  width: 30px;
+  height: 30px;
+}
+.tool:hover:not([aria-disabled]) {
+  background: var(--surface-2);
+}
+.tool.on {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 18%, transparent);
+}
+.tool[aria-disabled] {
+  opacity: 0.32;
+  cursor: default;
+}
+.tool-pop {
+  position: absolute;
+  z-index: 3;
+  width: min(300px, calc(100% - 16px));
+  max-height: calc(100% - 80px);
+  overflow-y: auto;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  box-shadow: 0 4px 16px rgb(0 0 0 / 30%);
+}
+.tool-panel {
+  display: grid;
+  gap: 8px;
+}
+.tool-panel-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.tool-panel .cut-panel {
+  padding: 0;
+  border: 0;
+  background: none;
+}
 .workspace-tools {
   position: absolute;
-  top: 12px;
+  top: 60px;
   right: 12px;
   left: 50%;
   display: flex;
@@ -657,7 +749,7 @@ select:focus-visible {
 }
 .plate-tabs {
   position: absolute;
-  top: 12px;
+  top: 60px;
   left: 12px;
   display: flex;
   flex-wrap: wrap;
@@ -801,11 +893,6 @@ select:focus-visible {
 .paint-panel {
   display: grid;
   gap: 8px;
-  padding: 10px;
-  margin-bottom: 12px;
-  border: 1px solid var(--accent);
-  border-radius: var(--radius);
-  background: var(--surface-2);
 }
 .paint-head {
   display: flex;
@@ -1024,6 +1111,41 @@ select:focus-visible {
     left: 12px;
     gap: 6px;
   }
+  /* Bigger touch targets; the row scrolls sideways. */
+  .toolbar {
+    left: 6px;
+    right: 6px;
+    transform: none;
+    max-width: none;
+  }
+  .tool {
+    width: 40px;
+    height: 40px;
+  }
+  .workspace-tools {
+    top: 64px;
+  }
+  /* Phone: the tool's options go right under the 3D view (Sidebar's tool
+     slot), so they never cover the plate; the card stays in view while the
+     column scrolls. */
+  .tool-pop.docked {
+    position: sticky;
+    top: 0;
+    z-index: 4;
+    width: auto;
+    max-height: none;
+    margin: 8px 0 4px;
+    padding: 8px 10px;
+  }
+  .tool-panel,
+  .paint-panel {
+    gap: 4px;
+  }
+  .tool-pop .segmented button,
+  .tool-pop .paint-states button {
+    padding: 3px 6px;
+    font-size: 12px;
+  }
   .workspace-tools button {
     padding: 5px 10px;
     font-size: 13px;
@@ -1054,6 +1176,11 @@ select:focus-visible {
   .tabs {
     overflow-x: auto;
     scrollbar-width: none;
+  }
+  /* A long project name shortens so all three tabs stay readable. */
+  .topbar .project-button {
+    max-width: 84px;
+    padding: 5px 8px;
   }
 }
 @media (max-width: 380px) {
@@ -2690,9 +2817,26 @@ select:focus-visible {
   color: var(--muted);
   font-weight: 400;
 }
+/* Calibration: the word on a computer, the icon alone on a phone. */
+.calib-icon {
+  display: none;
+}
 @media (max-width: 760px) {
   .topbar {
     gap: 4px;
+  }
+  .topbar .calib-button {
+    display: grid;
+    place-items: center;
+    width: 28px;
+    height: 28px;
+    padding: 0;
+  }
+  .calib-icon {
+    display: block;
+  }
+  .calib-label {
+    display: none;
   }
   .topbar .icon-button {
     width: 28px;

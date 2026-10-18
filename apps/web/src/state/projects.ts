@@ -10,7 +10,7 @@ import { api, ApiError, type OnlineProject } from '../account/api';
 import { copyName, nameFromFile, newProjectId, projectFileName, projectSignature, UNTITLED } from '../lib/projects';
 import { snapshot } from '../lib/snapshot';
 import { useAccount } from './account';
-import { useSlicer } from './store';
+import { useSlicer, type OpenMode } from './store';
 
 export interface CurrentProject {
   name: string;
@@ -43,7 +43,8 @@ interface ProjectsState {
   download(): Promise<void>;
   resolveConflict(choice: 'overwrite' | 'copy' | 'cancel'): Promise<void>;
   /** Opens model or project files from this device (a 3MF replaces the project). */
-  openFiles(files: File[]): Promise<void>;
+  /** Adds model files, or opens a 3MF as the project (see the slicer store's openFiles). */
+  openFiles(files: File[], mode?: OpenMode): Promise<void>;
   openOnline(p: OnlineProject): Promise<void>;
   /** A project in the list was renamed or deleted. */
   onlineChanged(p: OnlineProject | { id: string; deleted: true }): void;
@@ -179,13 +180,12 @@ export const useProjects = create<ProjectsState>((set, get) => {
       }
     },
 
-    async openFiles(files) {
+    async openFiles(files, mode) {
       const slicer = useSlicer.getState();
       const wasEmpty = !slicer.project?.objects.length;
       const project = files.find((f) => /\.3mf$/i.test(f.name));
-      await slicer.openFiles(files);
-      if (project) {
-        set({ current: { name: nameFromFile(project.name), id: null, version: 0 } });
+      if (await slicer.openFiles(files, mode)) {
+        set({ current: { name: nameFromFile(project!.name), id: null, version: 0 } });
         markClean();
       } else if (wasEmpty && files.length && get().current.name === UNTITLED && !get().current.id) {
         // Like desktop: a new project is named after its first model.
@@ -197,7 +197,7 @@ export const useProjects = create<ProjectsState>((set, get) => {
       set({ busy: `Opening “${p.name}”…`, message: '', listOpen: false });
       try {
         const { bytes, version } = await api.projectFile(p.id);
-        await useSlicer.getState().openFiles([new File([bytes], projectFileName(p.name), { type: 'model/3mf' })]);
+        await useSlicer.getState().openFiles([new File([bytes], projectFileName(p.name), { type: 'model/3mf' })], 'project');
         set({ current: { name: p.name, id: p.id, version: version || p.version } });
         markClean();
       } catch (e) {

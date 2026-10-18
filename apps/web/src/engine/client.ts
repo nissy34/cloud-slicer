@@ -18,6 +18,20 @@ import type { Thumbnail } from '../lib/thumbnail';
 
 export type CutKeep = 'both' | 'upper' | 'lower';
 
+/** Instance changes: offset is on `plate` (mm from its corner), rotation in degrees. */
+/** The labels of the edits undo and redo would take back or redo next, or null. */
+export interface History {
+  undo: string | null;
+  redo: string | null;
+}
+
+export interface InstanceChanges {
+  offset?: [number, number];
+  plate?: number;
+  rotation?: number[];
+  scale?: number[];
+}
+
 /** An Orca user preset: `config` is the diff over the system preset it inherits. */
 export interface UserPresetFile {
   type: 'printer' | 'filament' | 'process';
@@ -96,17 +110,18 @@ export class EngineClient {
   modelInfo = () => this.call<ProjectInfo>('modelInfo');
   fileConfig = () => this.call<OrcaConfig>('fileConfig');
 
-  async load(file: File, plate: number, printableArea: string) {
+  /** Adds a model file's objects, or opens a 3MF as the project unless geometryOnly. */
+  async load(file: File, plate: number, printableArea: string, geometryOnly = false) {
     const bytes = await file.arrayBuffer();
     return this.call<{ objectsAdded: number; isProject: boolean; info: ProjectInfo }>(
-      'load', [file.name, bytes, plate, printableArea], [bytes]);
+      'load', [file.name, bytes, plate, printableArea, geometryOnly], [bytes]);
   }
   /** The open project as an Orca 3MF project file (desktop's Save project). */
   saveProject = (overrides: OrcaConfig, thumbnail: ProjectThumbnail | null) =>
     this.call<ArrayBuffer>('saveProject', [overrides, thumbnail], thumbnail ? [thumbnail.pixels.buffer] : []);
   clear = () => this.call<ProjectInfo>('clear');
   preview = (plate: number) => this.call<PreviewMesh>('preview', [plate]);
-  transform = (o: number, i: number, changes: { offset?: [number, number]; plate?: number; rotation?: number[]; scale?: number[] }) =>
+  transform = (o: number, i: number, changes: InstanceChanges) =>
     this.call<ProjectInfo>('transform', [o, i, changes]);
   setExtruder = (o: number, volume: number, filament: number) => this.call<ProjectInfo>('setExtruder', [o, volume, filament]);
   deleteObject = (o: number) => this.call<ProjectInfo>('deleteObject', [o]);
@@ -116,12 +131,19 @@ export class EngineClient {
   arrangePlate = (plate: number, spacing: number) => this.call<ProjectInfo>('arrangePlate', [plate, spacing]);
   orientObject = (o: number) => this.call<ProjectInfo>('orientObject', [o]);
   splitObject = (o: number) => this.call<ProjectInfo>('splitObject', [o]);
+  splitParts = (o: number) => this.call<ProjectInfo>('splitParts', [o]);
   cutObject = (o: number, i: number, z: number, keep: CutKeep, flipUpper: boolean) =>
     this.call<ProjectInfo>('cutObject', [o, i, z, keep, flipUpper]);
   paint = (plate: number, options: PaintSettings & { rays: PaintRay[] }) =>
     this.call<{ info: ProjectInfo; preview?: PreviewMesh; overlay?: PaintOverlay }>('paint', [plate, options]);
   paintOverlay = (plate: number, kind: PaintKind) => this.call<PaintOverlay>('paintOverlay', [plate, kind]);
   clearPaint = (o: number, kind: PaintKind | 'all') => this.call<ProjectInfo>('clearPaint', [o, kind]);
+  /** Remembers the project before an edit called `label`, for undo. */
+  snapshot = (label: string) => this.call<History>('snapshot', [label]);
+  dropSnapshot = () => this.call<History>('dropSnapshot');
+  clearHistory = () => this.call<History>('clearHistory');
+  undo = () => this.call<{ history: History; info: ProjectInfo }>('undo');
+  redo = () => this.call<{ history: History; info: ProjectInfo }>('redo');
   mirrorInstance = (o: number, i: number, axis: 0 | 1 | 2) => this.call<ProjectInfo>('mirrorInstance', [o, i, axis]);
   setObjectSettings = (o: number, volume: number, values: Record<string, string | null>) =>
     this.call<ProjectInfo>('setObjectSettings', [o, volume, values]);

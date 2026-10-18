@@ -36,12 +36,23 @@ export function TopBar() {
           </button>
         ))}
       </nav>
-      <button className="ghost" disabled={!ready} onClick={() => setCalibrating(true)}>
-        Calibration
+      <button className="ghost calib-button" disabled={!ready} aria-label="Calibration" title="Calibration" onClick={() => setCalibrating(true)}>
+        <CalibrationIcon />
+        <span className="calib-label">Calibration</span>
       </button>
       {calibrating && <CalibrationDialog onClose={() => setCalibrating(false)} />}
       <ThemeMenu />
       <AccountMenu />
     </header>
+  );
+}
+
+/** Desktop Orca's calibration icon (resources/images/calib_sf.svg), shown alone on a phone. */
+function CalibrationIcon() {
+  return (
+    <svg className="calib-icon" viewBox="0 0 18 18" width="18" height="18" aria-hidden="true" fill="none" stroke="currentColor" strokeLinecap="square" strokeLinejoin="round">
+      <path d="M7.5,15.5h-3a1,1,0,0,1-1-1v-3M15.5,11.5v3a1,1,0,0,1-1,1h-3M11.5,3.5h3a1,1,0,0,1,1,1v3M3.5,7.5v-3a1,1,0,0,1,1-1h3" />
+      <path d="M9.5,3.5v2M9.5,8.5v2M9.5,13.5v2M15.5,9.5h-2M5.5,9.5h-2M10.5,9.5h-2" />
+    </svg>
   );
 }
