@@ -1,21 +1,22 @@
-// Per-browser memory of the last preset selection and edits. Optional: it can
-// be unavailable (private windows, blocked storage), and the app starts from
-// the default printer then.
-import type { OrcaConfig, Selection } from '../engine/protocol';
+// Per-browser memory of the last preset selection (printer, process,
+// filaments and their colours). Changed settings and mixed filaments belong to
+// the project, which isn't there after a reload, so they aren't kept: like
+// desktop Orca, a restart starts from the presets. Optional: storage can be
+// unavailable (private windows, blocked storage), and the app starts from the
+// default printer then.
+import type { Selection } from '../engine/protocol';
 
 const KEY = 'cloud-slicer:session:v1';
 
 export interface Saved {
   selection: Selection | null;
-  overrides: OrcaConfig;
-  /** The project's mixed filaments (mixed_filament_definitions). */
-  mixes?: string;
 }
 
 export function loadSaved(): Saved | null {
   try {
     const raw = localStorage.getItem(KEY);
-    return raw ? (JSON.parse(raw) as Saved) : null;
+    // Older versions also stored overrides and mixes here; only the selection is read.
+    return raw ? { selection: (JSON.parse(raw) as Saved).selection ?? null } : null;
   } catch {
     return null;
   }
