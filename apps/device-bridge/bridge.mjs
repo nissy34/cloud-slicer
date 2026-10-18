@@ -32,6 +32,13 @@ const MAX_FRAME = 700 * 1024;
 /** Moonraker notifications the Device tab doesn't use; dropping them saves relay traffic. */
 const DROPPED = new Set(['notify_proc_stat_update', 'notify_cpu_throttled']);
 
+/**
+ * Moonraker calls the bridge refuses to pass on. access.* would let anyone
+ * holding the pairing code read or replace the printer's API key, or add
+ * Moonraker users; the Device tab never needs them.
+ */
+export const refused = (method) => typeof method === 'string' && method.startsWith('access.');
+
 // ---- config ------------------------------------------------------------------------
 
 function parseArgs(argv) {
@@ -186,6 +193,10 @@ class Session {
         (result) => this.send(JSON.stringify({ jsonrpc: '2.0', id: msg.id, result })),
         (e) => this.send(JSON.stringify({ jsonrpc: '2.0', id: msg.id, error: { code: -32000, message: e.message } })),
       );
+      return;
+    }
+    if (refused(msg.method)) {
+      if (msg.id != null) this.send(JSON.stringify({ jsonrpc: '2.0', id: msg.id, error: { code: -32601, message: `The bridge does not pass on ${msg.method}.` } }));
       return;
     }
     if (this.ws?.readyState === WebSocket.OPEN) this.ws.send(text);
