@@ -18,7 +18,7 @@ export function ActionBar() {
       <div className="actionbar error" role="alert">
         The slicing engine could not start: {summary}
         {stack.length > 0 && (
-          <details>
+          <details open>
             <summary>Details</summary>
             <pre>{stack.join('\n')}</pre>
           </details>
