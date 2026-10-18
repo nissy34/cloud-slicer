@@ -11,6 +11,16 @@ const TABS: { id: Tab; label: string }[] = [
   { id: 'device', label: 'Device' },
 ];
 
+function CalibrationIcon() {
+  return (
+    <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden>
+      <circle cx="12" cy="12" r="8" />
+      <circle cx="12" cy="12" r="3" />
+      <path d="M12 2v3M12 19v3M2 12h3M19 12h3" />
+    </svg>
+  );
+}
+
 export function TopBar() {
   const tab = useSlicer((s) => s.tab);
   const setTab = useSlicer((s) => s.setTab);
@@ -36,8 +46,9 @@ export function TopBar() {
           </button>
         ))}
       </nav>
-      <button className="ghost" disabled={!ready} onClick={() => setCalibrating(true)}>
-        Calibration
+      <button className="ghost calibration-button" disabled={!ready} onClick={() => setCalibrating(true)} title="Calibration">
+        <CalibrationIcon />
+        <span className="topbar-label">Calibration</span>
       </button>
       {calibrating && <CalibrationDialog onClose={() => setCalibrating(false)} />}
       <ThemeMenu />
