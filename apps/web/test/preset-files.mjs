@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // Browser end to end for editing filament and printer presets and for preset
 // files (signed out, so presets live in this browser): change a filament and
-// a printer setting in their settings tabs and save them as presets, export
+// a printer setting in their settings windows and save them as presets, export
 // one preset and all of them, import them back (name collision: keep both),
 // import a desktop Orca filament made for another printer onto ours, and
 // check a printer we don't have is refused. Screenshots of the import dialog
@@ -65,10 +65,21 @@ try {
     await page.getByRole('combobox', { name: 'Process preset' }).waitFor();
   };
   const stored = () => page.evaluate(() => JSON.parse(localStorage.getItem('cloud-slicer:user-presets:v1') || '[]'));
-  const settings = page.locator('section.settings');
-  const tab = (name) => settings.getByRole('tablist', { name: 'Settings for' }).getByRole('tab', { name });
-  const settingsPage = (name) => settings.getByRole('tablist', { name: 'Settings pages' }).getByRole('tab', { name, exact: true });
-  const field = (group, label) => settings.locator('fieldset', { has: page.locator('legend', { hasText: group }) }).getByLabel(label, { exact: true });
+  // The printer / filament settings window, opened from the ✎ beside its picker.
+  const editor = (name) => page.getByRole('dialog', { name, exact: true });
+  const openEditor = async (button, name) => {
+    await page.getByRole('button', { name: button }).click();
+    await editor(name).waitFor();
+    return editor(name);
+  };
+  const settingsPage = (dialog, name) => dialog.getByRole('tablist', { name: 'Settings pages' }).getByRole('tab', { name, exact: true });
+  const field = (dialog, group, label) => dialog.locator('fieldset', { has: page.locator('legend', { hasText: group }) }).getByLabel(label, { exact: true });
+  const editorSaveAs = async (dialog, name) => {
+    await dialog.getByRole('button', { name: 'Save as new preset…' }).click();
+    await dialog.getByRole('textbox', { name: /preset name/ }).fill(name);
+    await dialog.getByRole('button', { name: 'Save', exact: true }).click();
+    await dialog.getByText(`Saved as ${name}.`).waitFor({ timeout: 60000 });
+  };
   const setField = async (locator, value) => {
     await locator.fill(value);
     await locator.press('Enter');
@@ -108,30 +119,38 @@ try {
   let filamentJson;
   let bundle;
 
-  await step('the Filament tab edits the slot shown, and saves as a filament preset', async () => {
-    await tab('Filament').click();
-    const temp = field('Print temperature', 'Other layers');
+  await step('the filament window edits the filament, saves it as a preset, then saves into it', async () => {
+    const dialog = await openEditor('Edit filament 1 settings', 'Filament settings');
+    const temp = field(dialog, 'Print temperature', 'Other layers');
     await temp.waitFor();
-    await setField(temp, '231');
-    await page.getByText(/settings? changed from the presets/).waitFor();
-    await saveAs(filamentMenu, filamentPop, 'Hot PLA');
+    await setField(temp, '230');
+    await dialog.getByText('1 unsaved change').waitFor();
+    await editorSaveAs(dialog, 'Hot PLA');
     expect((await filamentPicker.inputValue()) === 'Hot PLA', `slot 1 is ${await filamentPicker.inputValue()}`);
+    // Now one of mine: Save to preset writes the change into it.
+    await setField(field(dialog, 'Print temperature', 'Other layers'), '231');
+    await dialog.getByRole('button', { name: 'Save to preset' }).click();
+    await dialog.getByText('Saved Hot PLA.').waitFor({ timeout: 60000 });
     const saved = (await stored()).find((p) => p.name === 'Hot PLA');
     expect(saved?.type === 'filament' && saved.inherits === systemFilament, JSON.stringify(saved));
     expect(/^231(,231)*$/.test(saved.config.nozzle_temperature ?? ''), `saved ${saved.config.nozzle_temperature}`);
-    expect((await field('Print temperature', 'Other layers').inputValue()) === '231', 'shown from the preset');
+    expect((await field(dialog, 'Print temperature', 'Other layers').inputValue()) === '231', 'shown from the preset');
+    await dialog.getByRole('button', { name: 'Close' }).click();
+    await dialog.waitFor({ state: 'detached' });
   });
 
-  await step('the Printer tab edits printer settings, and saves as a printer preset', async () => {
-    await tab('Printer').click();
-    await settingsPage('Basic information').click();
-    await settings.getByLabel('Advanced').check();
-    const z = settings.getByLabel('Z offset', { exact: true });
-    await setField(z, '0.05');
-    await saveAs(printerMenu, printerPop, 'My U1 tuned');
+  await step('the printer window edits printer settings, and saves as a printer preset', async () => {
+    const dialog = await openEditor('Edit printer settings', 'Printer settings');
+    await settingsPage(dialog, 'Basic information').click();
+    await dialog.getByLabel('Advanced').check();
+    await setField(dialog.getByLabel('Z offset', { exact: true }), '0.05');
+    await page.screenshot({ path: join(out, 'printer-desktop.png') });
+    await editorSaveAs(dialog, 'My U1 tuned');
     expect((await printerPicker.inputValue()) === 'My U1 tuned', `printer is ${await printerPicker.inputValue()}`);
     const saved = (await stored()).find((p) => p.name === 'My U1 tuned');
     expect(saved?.type === 'printer' && saved.inherits === systemPrinter && saved.config.z_offset === '0.05', JSON.stringify(saved));
+    await page.keyboard.press('Escape');
+    await dialog.waitFor({ state: 'detached' });
   });
 
   await step('a preset exports as desktop Orca preset JSON', async () => {
@@ -240,20 +259,21 @@ try {
     expect(!(await stored()).some((p) => p.name === 'My X1C'), 'X1C not imported');
   });
 
-  await step('with two filaments the Filament tab edits each one on its own', async () => {
+  await step('with two filaments each filament window edits its own filament', async () => {
     await page.getByRole('button', { name: 'Add filament' }).click();
     await page.getByRole('combobox', { name: 'Filament 2 preset' }).waitFor();
-    await tab('Filament').click();
-    const slot = (n) => settings.getByRole('radiogroup', { name: 'Filament to edit' }).getByRole('radio').nth(n - 1);
-    await slot(2).click();
-    const temp = field('Print temperature', 'Other layers');
-    const before = await temp.inputValue();
-    await setField(temp, '204');
-    await slot(1).click();
-    const first = await field('Print temperature', 'Other layers').inputValue();
-    expect(first === before, `filament 1 shows ${first}, expected ${before}`);
-    await slot(2).click();
-    expect((await field('Print temperature', 'Other layers').inputValue()) === '204', 'filament 2 keeps its change');
+    let dialog = await openEditor('Edit filament 2 settings', 'Filament 2 settings');
+    const before = await field(dialog, 'Print temperature', 'Other layers').inputValue();
+    await setField(field(dialog, 'Print temperature', 'Other layers'), '204');
+    await dialog.getByRole('button', { name: 'Close' }).click();
+    dialog = await openEditor('Edit filament 1 settings', 'Filament 1 settings');
+    const first = await field(dialog, 'Print temperature', 'Other layers').inputValue();
+    expect(first !== '204', `filament 1 shows ${first}, filament 2 had ${before}`);
+    await dialog.getByRole('button', { name: 'Close' }).click();
+    dialog = await openEditor('Edit filament 2 settings', 'Filament 2 settings');
+    expect((await field(dialog, 'Print temperature', 'Other layers').inputValue()) === '204', 'filament 2 keeps its change');
+    await dialog.getByText('(modified)').waitFor();
+    await dialog.getByRole('button', { name: 'Close' }).click();
     await page.getByRole('button', { name: 'Remove filament 2' }).click();
   });
 
@@ -266,6 +286,17 @@ try {
     expect(scroll <= 390, `page is ${scroll}px wide`);
     await page.screenshot({ path: join(out, 'import-phone.png') });
     await importDialog.getByRole('button', { name: 'Cancel' }).click();
+  });
+
+  await step('the filament window fills a phone screen', async () => {
+    const dialog = await openEditor('Edit filament 1 settings', 'Filament settings');
+    await field(dialog, 'Print temperature', 'Other layers').waitFor();
+    const box = await dialog.boundingBox();
+    expect(box && box.x >= 0 && Math.round(box.width) === 390, `dialog ${JSON.stringify(box)}`);
+    const scroll = await page.evaluate(() => document.documentElement.scrollWidth);
+    expect(scroll <= 390, `page is ${scroll}px wide`);
+    await page.screenshot({ path: join(out, 'filament-phone.png') });
+    await dialog.getByRole('button', { name: 'Close' }).click();
   });
 } catch {
   // reported by step(); a picture of where it stopped

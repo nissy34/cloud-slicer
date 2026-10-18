@@ -2,11 +2,12 @@
 // (like desktop Orca's save / delete preset buttons). A preset is saved as a
 // diff over the system preset it inherits; signed in, it follows the account.
 import { useEffect, useRef, useState } from 'react';
-import type { OrcaConfig, PresetSummary, Selection } from '../engine/protocol';
-import { deleteUserPreset, listUserPresets, presetEdit, saveUserPreset, useAccount } from '../state/account';
+import type { OrcaConfig } from '../engine/protocol';
+import { deleteUserPreset, listUserPresets, saveUserPreset, useAccount } from '../state/account';
 import { useSlicer } from '../state/store';
 import { presetNameError, type PresetType } from './api';
-import { changesFor, copyName, presetDiff, systemParent } from './preset-diff';
+import { changesFor, copyName, systemParent } from './preset-diff';
+import { editPresets, presetTaken, saveAsNew, saveChanges, selectionWith } from './preset-save';
 import { usePresetImport } from './ImportPresets';
 import { canShareFiles, presetBundle, presetFileName, saveFile } from '../lib/preset-files';
 
@@ -82,92 +83,48 @@ export function PresetMenu({ type, slot }: { type: PresetType; slot?: number }) 
     setError('');
   }
 
-  const taken = (name: string) => list.some((p) => p.name === name) || listUserPresets(type).some((p) => p.name === name);
+  const taken = (name: string) => presetTaken(type, name);
 
-  // The selection with this picker pointing at `name`.
-  const pick = (name: string): Partial<Selection> => {
-    if (type === 'printer') return { printer: name };
-    if (type === 'process') return { process: name };
-    return {
-      filaments: (selection?.filaments ?? []).map((f, i) => (i === (slot ?? 0) ? name : f)),
-    };
-  };
-
-  async function run(task: () => Promise<Partial<Selection> | undefined>) {
+  async function run(task: () => Promise<unknown>) {
     setWorking(true);
     setError('');
     try {
-      await presetEdit(async () => {
-        const next = await task();
-        // Reloads the engine's presets with the account's list, then selects.
-        await useSlicer.getState().setUserPresets(listUserPresets(), next);
-      });
+      await task();
       close();
     } catch (e) {
       setError((e as Error).message);
-      // Whatever did save still reaches the engine.
-      void useSlicer
-        .getState()
-        .setUserPresets(listUserPresets())
-        .catch(() => {});
     } finally {
       setWorking(false);
     }
   }
 
-  async function diffFor(target: PresetSummary): Promise<{ inherits: string; config: OrcaConfig }> {
-    const s = useSlicer.getState();
-    const inherits = systemParent(target);
-    const [ownCfg, parentCfg] = await Promise.all([s.presetConfig(type, target.name), s.presetConfig(type, inherits)]);
-    if (!ownCfg || !parentCfg) throw new Error(`The preset ${inherits} is not available.`);
-    const slots = s.selection?.filaments.length ?? 1;
-    return {
-      inherits,
-      config: presetDiff({
-        own: ownCfg,
-        parent: parentCfg,
-        overrides: s.overrides,
-        options: s.options,
-        slot: type === 'filament' ? { index: slot ?? 0, count: slots, config: s.baseConfig } : undefined,
-      }),
-    };
-  }
-
-  const save = () =>
-    run(async () => {
-      if (!preset) return;
-      const { inherits, config } = await diffFor(preset);
-      await saveUserPreset(type, preset.name, inherits, config, {
-        overwrite: true,
-      });
-      return undefined;
-    });
+  const save = () => run(() => saveChanges(type, slot));
 
   const submitName = (action: 'saveAs' | 'rename', raw: string) => {
     const name = raw.trim();
     const problem = presetNameError(name) ?? (taken(name) ? 'A preset with this name already exists.' : null);
     if (problem) return setError(problem);
-    return run(async () => {
-      if (!preset) return;
-      if (action === 'saveAs') {
-        const { inherits, config } = await diffFor(preset);
-        await saveUserPreset(type, name, inherits, config);
-      } else {
+    if (action === 'saveAs') return run(() => saveAsNew(type, name, slot));
+    return run(() =>
+      editPresets(async () => {
+        if (!preset) return;
         const stored = listUserPresets(type).find((p) => p.name === preset.name);
         if (!stored) throw new Error('This preset is not one of yours.');
         await saveUserPreset(type, name, stored.inherits, stored.config);
         await deleteUserPreset(type, preset.name);
-      }
-      return pick(name);
-    });
+        return selectionWith(type, name, slot);
+      }),
+    );
   };
 
   const remove = () =>
-    run(async () => {
-      if (!preset) return;
-      await deleteUserPreset(type, preset.name);
-      return pick(preset.inherits || '');
-    });
+    run(() =>
+      editPresets(async () => {
+        if (!preset) return;
+        await deleteUserPreset(type, preset.name);
+        return selectionWith(type, preset.inherits || '', slot);
+      }),
+    );
 
   async function exportOne(viaShare: boolean) {
     if (!preset) return;

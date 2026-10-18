@@ -9,6 +9,7 @@ import { ColorMixPanel } from './ColorMixing';
 import { OptionField } from './OptionField';
 import { SettingsPanel } from './SettingsPanel';
 import { PresetMenu } from '../account/PresetMenu';
+import { EditPresetButton } from './PresetSettingsDialog';
 import type { PresetSummary } from '../engine/protocol';
 
 /** The user's own presets always show, whatever the setup wizard installed. */
@@ -33,6 +34,7 @@ function PrinterSection() {
           <button className="link" onClick={manage}>
             Manage
           </button>
+          <EditPresetButton type="printer" />
           <PresetMenu type="printer" />
         </div>
       </div>
@@ -94,6 +96,7 @@ function FilamentSection() {
               {!filaments.some((f) => f.name === name) && <option value={name}>{shortName(name)}</option>}
               <PresetOptions presets={filaments} />
             </select>
+            <EditPresetButton type="filament" slot={i} />
             <PresetMenu type="filament" slot={i} />
             <button
               className="icon"

@@ -713,62 +713,12 @@ select:focus-visible {
   border-color: var(--accent);
   color: var(--accent-text);
 }
-/* Process / Filament / Printer, like desktop's three settings tabs. */
-.settings-kinds {
-  display: flex;
-  border-bottom: 1px solid var(--border);
-}
-.settings-kinds .kind {
-  flex: 1 1 0;
-  border: 0;
-  border-bottom: 2px solid transparent;
-  margin-bottom: -1px;
-  background: none;
-  padding: 6px 8px;
-  color: var(--muted);
-  cursor: pointer;
-  font-weight: 600;
-}
-.settings-kinds .kind.active {
-  color: var(--text);
-  border-bottom-color: var(--accent);
-}
-/* Which filament the Filament tab edits. */
-.slot-picker {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 4px;
-}
-.slot-picker button {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  max-width: 100%;
-  border: 1px solid var(--border);
-  background: none;
-  border-radius: 6px;
-  padding: 3px 8px;
-  color: var(--text);
-  cursor: pointer;
-  font-size: 12px;
-}
-.slot-picker button.active {
-  border-color: var(--accent);
-  box-shadow: inset 0 0 0 1px var(--accent);
-}
 .slot-dot {
   flex: none;
   width: 10px;
   height: 10px;
   border-radius: 50%;
   border: 1px solid var(--border);
-}
-.slot-name {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  max-width: 120px;
-  color: var(--muted);
 }
 /* Desktop's [Standard flow] [High flow] switch: one segmented control. */
 .flow-switch {
@@ -1561,7 +1511,7 @@ select:focus-visible {
 
 /* Saving user presets (src/account/PresetMenu.tsx) */
 .slot {
-  grid-template-columns: 30px 1fr auto auto;
+  grid-template-columns: 30px minmax(0, 1fr) auto auto auto;
 }
 .group-actions {
   display: flex;
@@ -3128,5 +3078,58 @@ select:focus-visible {
   .topbar .icon-button {
     width: 28px;
     height: 28px;
+  }
+}
+
+/* Printer and filament settings windows (src/components/PresetSettingsDialog.tsx) */
+.dialog.preset-settings {
+  width: min(720px, 100%);
+  height: min(860px, calc(100dvh - 32px));
+  grid-template-rows: auto auto minmax(0, 1fr) auto auto auto;
+}
+.preset-settings-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.preset-settings-head h2 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.preset-settings-head .slot-dot {
+  width: 14px;
+  height: 14px;
+}
+.preset-settings-name {
+  overflow-wrap: anywhere;
+}
+.preset-settings-body {
+  display: grid;
+  align-content: start;
+  gap: 10px;
+  overflow-y: auto;
+  min-height: 0;
+  padding-right: 4px;
+}
+.preset-settings-count {
+  margin-right: auto;
+  align-self: center;
+}
+.preset-settings-saveas {
+  display: grid;
+  gap: 8px;
+}
+@media (max-width: 760px) {
+  .dialog-backdrop:has(.preset-settings) {
+    padding: 0;
+  }
+  .dialog.preset-settings {
+    width: 100%;
+    height: 100dvh;
+    border-radius: 0;
+    border: 0;
+    padding: 14px 12px;
   }
 }

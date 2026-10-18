@@ -61,8 +61,10 @@ your presets as a zip that desktop's Import Configs reads, and imports `.json`,
 `.orca_printer`, `.orca_filament` and `.zip` files. The engine reads them with Orca's own
 loader. A preset must be based on a system preset the app ships: a printer preset for a
 printer we don't have is refused, and a filament or process made for another printer can
-be put on one of ours (keeping its material or model settings). The settings panel edits
-process, filament (per slot) and printer settings, saved into presets from the same menu.
+be put on one of ours (keeping its material or model settings). Process settings are in the
+sidebar; printer and filament (per slot) settings open in their own window from the ✎
+beside their picker, like desktop's preset editors, with Save to preset, Save as new
+preset and Save to project (changes kept only in the project 3MF).
 
 ## Projects
 
