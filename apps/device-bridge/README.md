@@ -41,6 +41,13 @@ boot). If it finds nothing, add the printer by its address with
 one); a bridge running in the background restarts by itself to use it. The
 pairing link is the bridge's key: anyone holding it can control your printers.
 
+Where things go once set up: Windows `%LOCALAPPDATA%\Cloud Slicer Bridge\`,
+macOS `~/Library/Application Support/Cloud Slicer Bridge/` (log in
+`~/Library/Logs/cloud-slicer-bridge.log`), Linux `~/.local/share/cloud-slicer-bridge/`
+(`journalctl --user -u cloud-slicer-bridge` for the log, and the command linked
+in `~/.local/bin`). To update, set it up again the same way: a newly downloaded
+app opened while an older one runs in the background replaces it.
+
 Config lives in `~/.cloud-slicer-bridge.json` (`--config` to move it). Other
 commands: `list`, `remove <name>`, `pair` (print the pairing link again),
 `version`.
@@ -55,4 +62,5 @@ Browser ⇄ relay (a Cloudflare Durable Object per bridge, `apps/device-relay`)
 JSON-RPC; the agent adds `bridge.upload_*` and `bridge.snapshot`, which it
 answers itself with HTTP to the printer. Status updates are merged and sent at
 most once a second, and only while a browser is watching, to stay inside the
-relay's free tier.
+relay's free tier. What each part can see and what's protected:
+[../device-relay/SECURITY.md](../device-relay/SECURITY.md).

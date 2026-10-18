@@ -129,6 +129,39 @@ export function BridgeSetup({ relay }: { relay: string }) {
           </li>
         )}
       </ol>
+      <details className="dv-node-option" data-testid="bridge-about">
+        <summary>About the bridge: keeping it running, adding printers, removing it</summary>
+        <div className="dv-about">
+          <p>
+            <strong>Does it keep running?</strong> Yes. Once set up it starts by itself: on Windows and Mac when you log in (on Windows you'll see it minimised in the
+            taskbar), on Linux and Raspberry Pi when the computer starts. The Device tab can reach your printer whenever that computer is on.
+          </p>
+          <p>
+            <strong>Adding a printer later, or stopping it.</strong> The bridge finds your printers when it's first set up. For a printer you add later, or to stop the
+            bridge starting with the computer, run one of these with its address (or <code>uninstall</code>):
+          </p>
+          <ul className="dv-about-commands">
+            <li>
+              Windows, in Command Prompt:
+              <pre className="dv-code">{'"%LOCALAPPDATA%\\Cloud Slicer Bridge\\cloud-slicer-bridge.exe" add 192.168.1.50\n"%LOCALAPPDATA%\\Cloud Slicer Bridge\\cloud-slicer-bridge.exe" uninstall'}</pre>
+            </li>
+            <li>
+              Mac, in Terminal:
+              <pre className="dv-code">{'"$HOME/Library/Application Support/Cloud Slicer Bridge/cloud-slicer-bridge" add 192.168.1.50\n"$HOME/Library/Application Support/Cloud Slicer Bridge/cloud-slicer-bridge" uninstall'}</pre>
+            </li>
+            <li>
+              Linux or Raspberry Pi:
+              <pre className="dv-code">{'~/.local/bin/cloud-slicer-bridge add 192.168.1.50\n~/.local/bin/cloud-slicer-bridge uninstall'}</pre>
+            </li>
+          </ul>
+          <p>The bridge restarts by itself to use a printer you add. To update it, set it up again the same way (download and open the app, or run the Terminal command).</p>
+          <p>
+            <strong>Is it safe?</strong> The bridge only connects out to Cloud Slicer's relay, so nothing on your router is opened, and it only talks to the printers it
+            found or you added. Your printer's own API key never leaves that computer. The pairing link works like a password: anyone who has it can control your
+            printers, so don't share it.
+          </p>
+        </div>
+      </details>
       <details className="dv-node-option">
         <summary>Other computers (with Node.js)</summary>
         {nodeSteps}

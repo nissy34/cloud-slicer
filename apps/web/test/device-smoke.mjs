@@ -278,6 +278,9 @@ try {
   if ((await download.text()) !== 'pretend bridge app' || !/filename="cloud-slicer-bridge\.exe"/.test(download.headers.get('content-disposition') ?? '')) throw new Error('the relay does not serve the Windows app');
   const script = await (await fetch(`${relayUrl}/install.sh`)).text();
   if (!script.includes(`RELAY="${relayUrl}"`)) throw new Error('install.sh does not name the relay it came from');
+  // What the bridge does once set up, how to add printers or remove it: explained in the dialog.
+  await setup.getByTestId('bridge-about').locator('summary').click();
+  await setup.getByTestId('bridge-about').getByText('uninstall', { exact: false }).first().waitFor();
   for (const width of [390, 360]) {
     await setup.setViewportSize({ width, height: 844 });
     const wide = await setup.evaluate(() => [...document.querySelectorAll('.dv-dialog *')].find((el) => el.getBoundingClientRect().right > window.innerWidth + 0.5)?.className ?? null);

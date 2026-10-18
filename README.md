@@ -14,6 +14,8 @@ for the architecture and roadmap.
 | `engine/` | The engine: Snapmaker Orca's libslic3r in WebAssembly with an embind API, its build, patches, and a Node CLI and tests. See [engine/README.md](engine/README.md) |
 | `engine/orcaslicer/` | Submodule: upstream Snapmaker Orca, pinned to v2.4.0 |
 | `apps/web/` | The web app (React + TypeScript + Vite) |
+| `apps/device-bridge/` | The bridge that lets the Device tab reach printers on a home network: `bridge.mjs`, its one-file apps and the Mac/Linux installer. See [apps/device-bridge/README.md](apps/device-bridge/README.md) |
+| `apps/device-relay/` | The relay Worker between browsers and bridges. See [apps/device-relay/README.md](apps/device-relay/README.md) and [SECURITY.md](apps/device-relay/SECURITY.md) |
 | `packages/printer/` | Printer drivers for the Device tab: Moonraker client, filament library and sync, G-code summary, tool remap, and a mock Moonraker for tests |
 | `fixtures/` | Small test models and G-code |
 
@@ -76,6 +78,41 @@ For online projects, turn on R2 in the Cloudflare dashboard (free up to 10 GB) a
 token "Workers R2 Storage: Edit"; without it the site works and online projects say they
 aren't set up. CI creates the database and the R2 bucket, applies migrations, copies the secrets to Pages and generates
 `BETTER_AUTH_SECRET` and `ACCOUNT_ENC_KEY` once.
+
+## Device tab
+
+The Device tab controls Moonraker (Klipper) printers: camera, temperatures, motion,
+files, upload and print, plus Snapmaker U1 extras (tool heads, filament sync, the U1
+print dialog). A printer with a public https address is reached directly. A printer
+on a home network is reached through a small **bridge** on any always-on computer
+near it, which connects out to the **relay** (a Cloudflare Worker with one Durable
+Object per bridge), so no router ports are opened:
+
+    browser ⇄ relay (apps/device-relay) ⇄ bridge (apps/device-bridge) ⇄ printer's Moonraker
+
+Setting up a home printer, from the Device tab's "Add a printer":
+
+| System | How |
+|---|---|
+| Windows | Download the app and open it ("Windows protected your PC": More info, then Run anyway) |
+| macOS, Linux, Raspberry Pi (64-bit) | `curl -fsSL https://cloud-slicer-relay.nissy34.workers.dev/install.sh \| sh` in Terminal |
+| Anything with Node.js 22+ | Download `bridge.mjs` and run `node cloud-slicer-bridge.mjs` |
+
+The bridge finds Moonraker on the network by itself, opens a pairing link that adds
+the printers here, and starts with the computer (Windows and macOS at login, Linux
+at boot). Pairing links carry a browser key derived from the bridge's secret; the
+relay stores only hashes and rate-limits connects. The apps are unsigned (signing
+costs money), which is why Windows warns and why macOS uses the Terminal command.
+
+```bash
+(cd apps/device-bridge && npm test)            # bridge unit tests
+(cd apps/web && npm run build && node test/device-smoke.mjs)   # browser -> local relay -> bridge -> mock U1
+node apps/web/test/device/relay-live.mjs <relay url> [--app <bridge app>]   # a deployed relay, no browser
+```
+
+`.github/workflows/device.yml` runs these, builds the bridge apps on every PR, and
+on main deploys the relay, uploads the apps to R2 and checks the live relay with
+both the script and the Linux app. It never talks to a real printer.
 
 ## Tests
 
