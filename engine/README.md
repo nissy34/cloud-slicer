@@ -16,11 +16,13 @@ same engine code.
 | `compat/` | Stand-ins for what a browser lacks: OpenSSL MD5 (on Boost), serial TBB `parallel_*`, no-op STEP/SVG import when built without OCCT, thread naming |
 | `cmake/libslic3r.cmake` | Builds libslic3r from the source list in upstream's own `src/libslic3r/CMakeLists.txt` |
 | `src/presets_api.cpp` | Presets: loads every bundled vendor through `PresetBundle::load_presets`, lists and selects printer / process / filament presets, resolves the full config, option metadata |
-| `src/model_api.cpp` | Project: loads models and 3MF projects, plates (resized when the printer's bed changes), per-object/part filaments, transforms, preview meshes with painted colours |
+| `src/model_api.cpp` | Project: loads models and 3MF projects, plates (resized when the printer's bed changes), per-object/part filaments, transforms, preview meshes with painted colours, and saving the project as an Orca 3MF (`store_bbs_3mf`, like desktop's Save project) |
 | `src/tools_api.cpp` | Prepare tools: arrange a plate, auto-orient, split to objects, cut, mirror, add and delete plates |
 | `src/paint_api.cpp` | Painting colours, support and seam enforcers/blockers and fuzzy skin with Orca's TriangleSelector: `paint`, `clearPaint`, `paintOverlay` |
 | `src/calib_api.cpp` | Calibration tests, ported from desktop's Plater: temperature, flow rate, pressure advance (line, tower), retraction, max volumetric speed, VFA, input shaping and junction deviation. Loads the test model, returns the settings to change, and sets `Print::set_calib_params` for slicing |
-| `src/slice_api.cpp` | Slices one plate with a full config and exports G-code with Orca's time and filament estimates |
+| `src/mixed_api.cpp` | Colour mixing: reads and edits the project's `mixed_filament_definitions` with Orca's `MixedFilamentManager`, gives each mix its colour, remaps painted and assigned filaments when a mix or a physical filament goes away, and matches a colour |
+| `src/history_api.cpp` | Undo and redo of project edits, like desktop's Ctrl+Z / Ctrl+Y: Model snapshots that share their meshes |
+| `src/slice_api.cpp` | Slices one plate with a full config and exports G-code with Orca's time and filament estimates and the plate thumbnails the page renders |
 | `scripts/build-deps.sh` | Builds the third-party libraries for wasm into `build/deps` |
 | `scripts/bundle-profiles.mjs` | Packs the Snapmaker presets (and Orca's filament library they inherit from) into one JSON file |
 | `scripts/extract-settings-layout.mjs` | Reads desktop's settings pages and groups out of `Tab.cpp` for the web settings panel |
@@ -55,8 +57,10 @@ node --test engine/node/engine.test.mjs      # engine tests
 
 - **Single-threaded for now.** TBB's `parallel_for` family runs serially (`compat/tbb_serial`).
   Slices are correct but use one core; real worker threads are a later step.
+- **No OpenGL**: plate thumbnails are drawn by the page and handed to the G-code export.
 - **No SLA hollowing** (needs OpenVDB). FFF printing never uses it.
-- **Every bundled printer counts as installed**, so no setup wizard is needed.
+- **Every bundled printer is loaded**: desktop loads only the printers its setup wizard
+  installed. The web app's own setup wizard decides which ones its pickers show.
 - **Plates** follow desktop's plate grid: an object belongs to the plate under its centre.
 
 ## Patches
