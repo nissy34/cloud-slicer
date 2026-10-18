@@ -1090,6 +1090,63 @@ select:focus-visible {
   }
 }
 
+/* Saving user presets (src/account/PresetMenu.tsx) */
+.slot {
+  grid-template-columns: 30px 1fr auto auto;
+}
+.group-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.preset-menu {
+  position: relative;
+}
+.preset-pop {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  z-index: 40;
+  width: 300px;
+  max-width: calc(100vw - 32px);
+  padding: 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  box-shadow: 0 12px 32px rgb(0 0 0 / 0.18);
+  text-align: left;
+}
+.preset-pop p {
+  margin: 0 0 10px;
+}
+.preset-pop .small {
+  font-size: 12px;
+  margin: 10px 0 0;
+}
+.preset-pop-title {
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+.preset-pop-actions {
+  display: grid;
+  gap: 6px;
+}
+.preset-pop-actions.row {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 10px;
+}
+.preset-pop-actions .danger {
+  color: var(--danger);
+}
+.preset-pop-field {
+  display: grid;
+  gap: 4px;
+}
+.preset-pop-field input {
+  width: 100%;
+}
+
 /* ==========================================================================
    Device tab (owned by the device work: src/device/**). Add device rules here
    only; they all start with .device or .dv-.
