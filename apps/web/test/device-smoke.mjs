@@ -99,6 +99,27 @@ try {
   await until('filament edited', () => u1.state.print_task_config.filament_sub_type[1] === 'Silk');
   console.log('filament edit saved on the printer');
 
+  await page.getByTestId('head-0').getByText('On carriage').waitFor();
+  await page.getByTestId('head-2').getByRole('button', { name: 'Pick up' }).click();
+  await page.getByRole('dialog', { name: 'Pick up' }).getByRole('button', { name: 'Pick up' }).click();
+  await until('PICK_EXTRUDER2 sent', () => u1.scripts.includes('PICK_EXTRUDER2'));
+  await page.getByTestId('head-2').getByText('On carriage').waitFor();
+  await page.getByTestId('head-0').getByText('Docked').waitFor();
+  await page.getByTestId('head-2').getByRole('button', { name: 'Park' }).click();
+  await page.getByRole('dialog', { name: 'Park' }).getByRole('button', { name: 'Park' }).click();
+  await until('PARK_EXTRUDER2 sent', () => u1.scripts.includes('PARK_EXTRUDER2'));
+  await page.getByTestId('head-2').getByText('Docked').waitFor();
+  console.log('tool head pick up and park');
+
+  await page.getByTestId('head-1').getByRole('button', { name: 'Nozzle' }).click();
+  await page.getByTestId('head-switches').getByText('121').waitFor();
+  await page.getByLabel('Size').selectOption('0.6');
+  await page.getByLabel('Type').selectOption('high_flow');
+  await page.getByRole('button', { name: 'Save to printer' }).click();
+  await until('nozzle saved', () => u1.scripts.includes('SET_NOZZLE_PROPERTIES EXTRUDER=extruder1 DIAMETER=0.6 VOLUME_TYPE=high_flow'));
+  await page.getByTestId('head-1').getByText('0.6 mm high flow nozzle').waitFor();
+  console.log('nozzle size and type saved on the printer');
+
   if (shots) await page.screenshot({ path: join(shots, 'device-u1.png'), fullPage: true });
 
   const gcode = Buffer.from(

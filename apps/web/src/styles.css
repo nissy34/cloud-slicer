@@ -1052,7 +1052,8 @@ select:focus-visible {
 .dv-head-actions {
   grid-area: actions;
   display: flex;
-  gap: 14px;
+  flex-wrap: wrap;
+  gap: 4px 14px;
   font-size: 12px;
 }
 .dv-chip {
@@ -1062,6 +1063,10 @@ select:focus-visible {
   border-radius: 999px;
   background: var(--surface-2);
   color: var(--muted);
+}
+.dv-chip-warn {
+  background: var(--dv-warn);
+  color: #fff;
 }
 .dv-swatch {
   width: 18px;

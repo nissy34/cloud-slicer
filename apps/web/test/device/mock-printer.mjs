@@ -34,6 +34,17 @@ function u1State(generic) {
     exclude_object: { objects: [], excluded_objects: [], current_object: null },
   };
   if (!generic) {
+    // Head 0 starts on the carriage; the others sit in their docks.
+    for (const [i, name] of ['extruder', 'extruder1', 'extruder2', 'extruder3'].entries()) {
+      Object.assign(s[name], {
+        state: i ? 'PARKED' : 'ACTIVATE',
+        nozzle_diameter: 0.4,
+        nozzle_volume_type: 'standard',
+        switch_count: 120 + i,
+        error_count: 0,
+        last_maintenance_count: 100,
+      });
+    }
     Object.assign(s, {
       'led cavity_led': { color_data: [[0, 0, 0, 0]] },
       print_task_config: {
@@ -182,6 +193,32 @@ export async function startMockPrinter({ port = 0, host = '127.0.0.1', generic =
           setTimeout(() => patch({ machine_state_manager: { main_state: 0 }, print_task_config: { filament_exist: setArr(state.print_task_config.filament_exist, head, load) } }), 600);
           break;
         }
+        case 'PICK_EXTRUDER':
+        case 'PICK_EXTRUDER1':
+        case 'PICK_EXTRUDER2':
+        case 'PICK_EXTRUDER3':
+        case 'PARK_EXTRUDER':
+        case 'PARK_EXTRUDER1':
+        case 'PARK_EXTRUDER2':
+        case 'PARK_EXTRUDER3': {
+          const name = cmd.slice(5).toLowerCase();
+          const pick = cmd.startsWith('PICK');
+          const heads = ['extruder', 'extruder1', 'extruder2', 'extruder3'];
+          patch({
+            toolhead: { homed_axes: 'xyz', ...(pick ? { extruder: name } : {}) },
+            ...Object.fromEntries(heads.map((h) => [h, { state: pick && h === name ? 'ACTIVATE' : 'PARKED', ...(pick && h === name ? { switch_count: state[h].switch_count + 1 } : {}) }])),
+          });
+          break;
+        }
+        case 'SET_NOZZLE_PROPERTIES': {
+          const name = param(line, 'EXTRUDER');
+          if (!state[name]) throw new Error(`Unknown extruder ${name}`);
+          patch({ [name]: { nozzle_diameter: Number(param(line, 'DIAMETER')), nozzle_volume_type: param(line, 'VOLUME_TYPE') } });
+          break;
+        }
+        case 'RESET_EXTRUDER_MAINTENANCE_COUNT':
+          patch(Object.fromEntries(['extruder', 'extruder1', 'extruder2', 'extruder3'].map((h) => [h, { last_maintenance_count: state[h].switch_count }])));
+          break;
         case 'SET_PRINT_PREFERENCES':
           patch({ print_task_config: { auto_bed_leveling: param(line, 'BED_LEVEL') === '1', flow_calibrate: param(line, 'FLOW_CALIBRATE') === '1', time_lapse_camera: param(line, 'TIME_LAPSE_CAMERA') === '1' } });
           break;

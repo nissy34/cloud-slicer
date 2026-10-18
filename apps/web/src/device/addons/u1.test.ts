@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { feedChannels, feedGcode, filamentConfigGcode, purifierGcode, suggestToolMap, u1Activity, u1Addon, u1Heads, u1PrintPrepGcode, u1Purifier } from './u1';
+import { nozzleGcode, parkHeadGcode, pickHeadGcode, feedChannels, feedGcode, filamentConfigGcode, purifierGcode, suggestToolMap, u1Activity, u1Addon, u1Heads, u1PrintPrepGcode, u1Purifier } from './u1';
 
 const objects = {
   print_task_config: {
@@ -69,5 +69,28 @@ describe('U1 add-on', () => {
       'SET_PRINT_PREFERENCES BED_LEVEL=1 FLOW_CALIBRATE=0 TIME_LAPSE_CAMERA=1',
       'SET_PRINT_EXTRUDER_MAP CONFIG_EXTRUDER=0 MAP_EXTRUDER=2',
     ]);
+  });
+
+  it('reads dock state, nozzle and tool-change counts per head', () => {
+    const heads = u1Heads({
+      extruder: { state: 'PARKED', nozzle_diameter: 0.4, nozzle_volume_type: 'standard', switch_count: 50, error_count: 1, last_maintenance_count: 20 },
+      extruder1: { state: 'ACTIVATE', nozzle_diameter: 0.6, nozzle_volume_type: 'high_flow' },
+      extruder2: { state: 'UNKNOWN' },
+    });
+    expect(heads.map((h) => h.dock)).toEqual(['parked', 'attached', 'unknown', null]);
+    expect(heads[0].nozzle).toEqual({ diameter: 0.4, volumeType: 'standard' });
+    expect(heads[0].switches).toEqual({ count: 50, errors: 1, sinceMaintenance: 30 });
+    expect(heads[1].nozzle).toEqual({ diameter: 0.6, volumeType: 'high_flow' });
+    expect(heads[1].switches).toBeNull();
+    expect(heads[2].nozzle).toBeNull();
+  });
+
+  it('builds pick, park and nozzle commands with the firmware names', () => {
+    expect(pickHeadGcode(0)).toBe('PICK_EXTRUDER');
+    expect(pickHeadGcode(3)).toBe('PICK_EXTRUDER3');
+    expect(parkHeadGcode(1)).toBe('PARK_EXTRUDER1');
+    expect(nozzleGcode(2, 0.6, 'high_flow')).toBe('SET_NOZZLE_PROPERTIES EXTRUDER=extruder2 DIAMETER=0.6 VOLUME_TYPE=high_flow');
+    expect(() => nozzleGcode(0, 0.5, 'standard')).toThrow();
+    expect(() => nozzleGcode(0, 0.4, 'huge')).toThrow();
   });
 });

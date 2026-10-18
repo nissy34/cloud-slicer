@@ -51,6 +51,11 @@ export interface U1Head {
   /** Read from a Snapmaker RFID tag: the firmware won't let it be edited. */
   official: boolean;
   feed: FeedChannel | null;
+  /** Whether the head is in its dock or on the carriage, from the dock sensors. */
+  dock: 'parked' | 'attached' | 'unknown' | null;
+  nozzle: { diameter: number; volumeType: string } | null;
+  /** Pick-ups since the counter was reset on the printer, and failed ones. */
+  switches: { count: number; errors: number; sinceMaintenance: number } | null;
 }
 
 /** "E72F1DFF" -> "#E72F1D". */
@@ -98,8 +103,48 @@ export function u1Heads(o: KlipperObjects): U1Head[] {
     loaded: Boolean(arr(ptc.filament_exist)[i]),
     official: Boolean(arr(ptc.filament_official)[i]),
     feed: feeds.get(i) ?? null,
+    ...headState(o[u1ExtruderName(i)]),
   }));
 }
+
+/** Klipper's name for head i: extruder, extruder1, extruder2, extruder3. */
+export const u1ExtruderName = (i: number) => (i ? `extruder${i}` : 'extruder');
+
+function headState(e: Record<string, unknown> | undefined): Pick<U1Head, 'dock' | 'nozzle' | 'switches'> {
+  if (!e) return { dock: null, nozzle: null, switches: null };
+  const dock = e.state === 'PARKED' ? 'parked' : e.state === 'ACTIVATE' ? 'attached' : e.state === undefined ? null : 'unknown';
+  const diameter = Number(e.nozzle_diameter);
+  const count = Number(e.switch_count ?? NaN);
+  return {
+    dock,
+    nozzle: Number.isFinite(diameter) && diameter > 0 ? { diameter, volumeType: s(e.nozzle_volume_type) || 'standard' } : null,
+    switches: Number.isFinite(count)
+      ? { count, errors: Number(e.error_count ?? 0), sinceMaintenance: count - Number(e.last_maintenance_count ?? 0) }
+      : null,
+  };
+}
+
+/** Takes head i from its dock (parking the head on the carriage first). The firmware homes X/Y if needed. */
+export const pickHeadGcode = (i: number) => `PICK_${u1ExtruderName(i).toUpperCase()}`;
+/** Puts head i back in its dock. */
+export const parkHeadGcode = (i: number) => `PARK_${u1ExtruderName(i).toUpperCase()}`;
+
+/** Nozzle sizes and kinds the U1 firmware accepts (VALID_NOZZLE_DIAMETERS / VOLUME_TYPES). */
+export const U1_NOZZLE_DIAMETERS = [0.2, 0.4, 0.6, 0.8];
+export const U1_NOZZLE_TYPES = [
+  { id: 'standard', label: 'Standard' },
+  { id: 'high_flow', label: 'High flow' },
+];
+
+/** Tells the printer which nozzle is fitted to head i. Refused while printing. */
+export function nozzleGcode(i: number, diameter: number, volumeType: string): string {
+  if (!U1_NOZZLE_DIAMETERS.includes(diameter)) throw new Error(`Unsupported nozzle size ${diameter} mm.`);
+  if (!U1_NOZZLE_TYPES.some((t) => t.id === volumeType)) throw new Error(`Unsupported nozzle type ${volumeType}.`);
+  return `SET_NOZZLE_PROPERTIES EXTRUDER=${u1ExtruderName(i)} DIAMETER=${diameter} VOLUME_TYPE=${volumeType}`;
+}
+
+/** Starts counting tool changes again for every head, after cleaning/servicing the docks. */
+export const RESET_MAINTENANCE_GCODE = 'RESET_EXTRUDER_MAINTENANCE_COUNT';
 
 /** Print options the U1 keeps between prints (print_task_config). */
 export interface U1PrintOptions {
