@@ -39,9 +39,19 @@ function PresetField({ value, onChange }: { value: string; onChange: (name: stri
  * pairing link as it starts, so the page often asks before the bridge has
  * connected (the relay refuses browsers until then, or reports it offline).
  */
-function watchBridge(p: Pairing, onStatus: (s: BridgeStatus) => void, onError: (e: Error) => void): () => void {
+interface BridgeWatch {
+  stop(): void;
+  /** Asks the bridge itself to do something (add or remove a printer), over the watching connection. */
+  manage<T>(method: `bridge.${string}`, params: unknown): Promise<T>;
+}
+
+/** Bridges from this version on can add and remove printers when the Device tab asks. */
+const MANAGED_FROM = 3;
+
+function watchBridge(p: Pairing, onStatus: (s: BridgeStatus) => void, onError: (e: Error) => void): BridgeWatch {
   let stopped = false;
   let link: BridgeLink | null = null;
+  let open: BridgeLink | null = null;
   let retry: ReturnType<typeof setTimeout> | undefined;
   let lastError = 'The bridge did not answer.';
   // A bridge that is just starting is refused or offline for a moment: only say so if it lasts.
@@ -57,20 +67,95 @@ function watchBridge(p: Pairing, onStatus: (s: BridgeStatus) => void, onError: (
     link = l;
     l.open({
       onMessage: () => {},
-      onClose: again,
+      onClose: (reason) => {
+        if (open === l) open = null;
+        again(reason);
+      },
       onBridge: (status) => {
         if (status.agent === 'online') clearTimeout(slow);
         onStatus(status);
       },
-    }).catch((e) => again((e as Error).message));
+    }).then(
+      () => {
+        if (link === l) open = l;
+      },
+      (e) => again((e as Error).message),
+    );
   }
   connect();
-  return () => {
-    stopped = true;
-    clearTimeout(slow);
-    clearTimeout(retry);
-    link?.close();
+  return {
+    stop() {
+      stopped = true;
+      clearTimeout(slow);
+      clearTimeout(retry);
+      link?.close();
+    },
+    manage(method, params) {
+      return open ? open.manage(method, params) : Promise.reject(new Error('The bridge is not connected right now. Check that it is running.'));
+    },
   };
+}
+
+/** Removes a printer from its bridge, if the bridge is reachable; the saved printer goes either way. */
+async function removeFromBridge(p: Pairing, printer: string): Promise<void> {
+  const link = new BridgeLink({ relay: p.relay, bridgeId: p.bridgeId, key: p.key, printer: '' });
+  try {
+    await link.open({ onMessage: () => {}, onClose: () => {} });
+    await link.manage('bridge.remove_printer', { id: printer });
+  } catch {
+    // An offline or older bridge keeps the printer; it can be removed there with the remove command.
+  } finally {
+    link.close();
+  }
+}
+
+/** Adds a printer to the bridge by its address, from the Device tab instead of a terminal on the bridge's computer. */
+function AddToBridge({ watch, onAdded, open }: { watch: BridgeWatch | null; onAdded: (p: { id: string; name: string }) => void; open: boolean }) {
+  const [address, setAddress] = useState('');
+  const [apiKey, setApiKey] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [problem, setProblem] = useState('');
+  const add = async () => {
+    if (!watch) return;
+    setBusy(true);
+    setProblem('');
+    try {
+      const added = await watch.manage<{ id: string; name: string }>('bridge.add_printer', { address: address.trim(), apiKey: apiKey.trim() });
+      setAddress('');
+      setApiKey('');
+      onAdded(added);
+    } catch (e) {
+      setProblem((e as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  };
+  return (
+    <details className="dv-node-option" open={open} data-testid="bridge-add-printer">
+      <summary>Add a printer to this bridge</summary>
+      <div className="dv-form">
+        <label>
+          Printer address
+          <input value={address} onChange={(e) => setAddress(e.target.value)} placeholder="for example 192.168.1.50" spellCheck={false} autoCapitalize="off" data-testid="bridge-new-address" />
+        </label>
+        <label>
+          Moonraker API key <span className="muted">(only if the printer asks for one; Mainsail or Fluidd show it in their settings)</span>
+          <input value={apiKey} onChange={(e) => setApiKey(e.target.value)} spellCheck={false} autoCapitalize="off" autoComplete="off" data-testid="bridge-new-key" />
+        </label>
+        {problem && (
+          <p className="dv-alert" role="alert">
+            {problem}
+          </p>
+        )}
+        <div>
+          <button className="secondary" disabled={!address.trim() || busy} onClick={() => void add()} data-testid="bridge-add-submit">
+            {busy ? 'Adding…' : 'Add to bridge'}
+          </button>
+        </div>
+        <p className="muted">The key goes to the bridge, which keeps it on its computer; Cloud Slicer doesn't store it.</p>
+      </div>
+    </details>
+  );
 }
 
 /** Opens the printer's socket and asks Moonraker who it is. */
@@ -104,6 +189,7 @@ export function PrinterEditor() {
   const [code, setCode] = useState('');
   const [pairing, setPairing] = useState<Pairing | null>(existing?.kind === 'bridge' ? { relay: existing.relay, bridgeId: existing.bridgeId, key: existing.key } : pairingFromLink);
   const [bridge, setBridge] = useState<BridgeStatus | null>(null);
+  const [watch, setWatch] = useState<BridgeWatch | null>(null);
   const [printerId, setPrinterId] = useState(existing?.kind === 'bridge' ? existing.printer : '');
   // direct
   const [url, setUrl] = useState(existing?.kind === 'direct' ? existing.url : '');
@@ -111,13 +197,14 @@ export function PrinterEditor() {
   const [checking, setChecking] = useState(false);
   const [error, setError] = useState('');
   const [confirmRemove, setConfirmRemove] = useState(false);
+  const [removing, setRemoving] = useState(false);
   const saved = useDevice((s) => s.printers);
 
   useEffect(() => {
     if (!pairing) return;
     setChecking(true);
     setError('');
-    return watchBridge(
+    const w = watchBridge(
       pairing,
       (b) => {
         setChecking(false);
@@ -133,6 +220,11 @@ export function PrinterEditor() {
         setError(e.message);
       },
     );
+    setWatch(w);
+    return () => {
+      w.stop();
+      setWatch(null);
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pairing]);
 
@@ -179,14 +271,26 @@ export function PrinterEditor() {
             <button className="secondary" onClick={() => setConfirmRemove(false)}>
               Cancel
             </button>
-            <button className="primary dv-danger" onClick={() => void removePrinter(existing.id)} data-testid="confirm-remove-printer">
+            <button
+              className="primary dv-danger"
+              disabled={removing}
+              onClick={async () => {
+                setRemoving(true);
+                // The bridge forgets the printer too, unless another saved printer still uses it.
+                if (existing.kind === 'bridge' && !saved.some((p) => p.id !== existing.id && p.kind === 'bridge' && p.bridgeId === existing.bridgeId && p.printer === existing.printer)) {
+                  await removeFromBridge({ relay: existing.relay, bridgeId: existing.bridgeId, key: existing.key }, existing.printer);
+                }
+                void removePrinter(existing.id);
+              }}
+              data-testid="confirm-remove-printer"
+            >
               Remove printer
             </button>
           </>
         }
       >
         <div className="dv-form">
-          <p>This removes {existing.name} from Cloud Slicer. The printer itself isn't changed.</p>
+          <p>This removes {existing.name} from Cloud Slicer{existing.kind === 'bridge' ? ' and from its bridge' : ''}. The printer itself isn't changed.</p>
           {existing.kind === 'bridge' &&
             (sharing.length ? (
               <p className="muted">Keep the bridge on its computer: {sharing.map((p) => p.name).join(', ')} still use it.</p>
@@ -286,7 +390,20 @@ export function PrinterEditor() {
                   </>
                 )}
               </p>
-              {bridge && bridge.printers.length === 0 && <p className="dv-alert">This bridge has no printers yet. Add one on the bridge's computer with the bridge's add command and the printer's address; it shows up here by itself.</p>}
+              {bridge && bridge.printers.length === 0 && <p className="dv-alert">This bridge has no printers yet. Add one below by its address.</p>}
+              {bridge?.agent === 'online' &&
+                (Number(bridge.version) >= MANAGED_FROM ? (
+                  <AddToBridge
+                    watch={watch}
+                    open={bridge.printers.length === 0}
+                    onAdded={(p) => {
+                      setPrinterId(p.id);
+                      setName((n) => n || p.name);
+                    }}
+                  />
+                ) : (
+                  <p className="muted">To add printers from here, update the bridge: download it again and open it (or run the Terminal command again).</p>
+                ))}
               {bridge && bridge.printers.length > 0 && (
                 <label>
                   Printer

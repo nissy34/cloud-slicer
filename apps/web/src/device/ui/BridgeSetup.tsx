@@ -214,14 +214,14 @@ export function BridgeSetup({ relay }: { relay: string }) {
             taskbar), on Linux and Raspberry Pi when the computer starts. The Device tab can reach your printer whenever that computer is on.
           </p>
           <p>
-            <strong>Adding a printer later, or stopping it.</strong> The bridge finds your printers when it's first set up. For a printer you add later, type its
-            address here and run the command on the bridge's computer:
+            <strong>Adding a printer later, or stopping it.</strong> The bridge finds your printers when it's first set up. Once it's paired, you can add more
+            printers by address right in this dialog, with no terminal. Or type the address here and run the command on the bridge's computer:
           </p>
           <ManageCommands />
           <p>The bridge restarts by itself to use a printer you add. To update it, set it up again the same way (download and open the app, or run the Terminal command).</p>
           <p>
             <strong>Is it safe?</strong> The bridge only connects out to Cloud Slicer's relay, so nothing on your router is opened, and it only talks to the printers it
-            found or you added. Your printer's own API key never leaves that computer. The pairing link works like a password: anyone who has it can control your
+            found or you added. Your printer's API key is kept on that computer (one typed here goes straight to the bridge). The pairing link works like a password: anyone who has it can control your
             printers, so don't share it.
           </p>
         </div>

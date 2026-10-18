@@ -52,6 +52,7 @@ const until = async (what, fn, ms = 15_000) => {
 
 const u1 = await startMockPrinter();
 const voron = await startMockPrinter({ generic: true });
+const keyed = await startMockPrinter({ generic: true, hostname: 'Keyed-mock', apiKey: 'mock-api-key' });
 let bridge;
 const browser = await chromium.launch(process.env.PLAYWRIGHT_BROWSERS_PATH === '/opt/pw-browsers' ? { executablePath: '/opt/pw-browsers/chromium' } : {});
 try {
@@ -78,6 +79,23 @@ try {
   await page.getByText(/Bridge smoke-te · (checking…|offline)/).waitFor();
   bridge = runBridge(cfg, { log: (m) => console.log(`bridge: ${m}`) });
   await page.getByRole('combobox').filter({ hasText: 'U1-mock' }).waitFor();
+  // More printers are added from here by address, with the API key when Moonraker asks for one: no terminal.
+  const addToBridge = page.getByTestId('bridge-add-printer');
+  await addToBridge.locator('summary').click();
+  await addToBridge.getByTestId('bridge-new-address').fill(keyed.url);
+  await addToBridge.getByTestId('bridge-add-submit').click();
+  await addToBridge.getByRole('alert').filter({ hasText: 'needs its Moonraker API key' }).waitFor();
+  await addToBridge.getByTestId('bridge-new-key').fill('wrong-key');
+  await addToBridge.getByTestId('bridge-add-submit').click();
+  await addToBridge.getByRole('alert').filter({ hasText: 'did not accept that API key' }).waitFor();
+  await addToBridge.getByTestId('bridge-new-key').fill('mock-api-key');
+  await addToBridge.getByTestId('bridge-add-submit').click();
+  await until('Keyed-mock added to the bridge', () => cfg.printers.some((p) => p.name === 'Keyed-mock' && p.apiKey === 'mock-api-key'));
+  await page.getByRole('combobox').filter({ hasText: 'Keyed-mock' }).waitFor();
+  const bridgePrinter = page.getByRole('combobox').filter({ hasText: 'Keyed-mock' });
+  if ((await bridgePrinter.inputValue()) !== cfg.printers.find((p) => p.name === 'Keyed-mock').id) throw new Error('the added printer should be chosen');
+  await bridgePrinter.selectOption('u1');
+  console.log('bridge: printer added from the Device tab with its API key');
   await page.getByTestId('save-printer').click();
   await page.getByTestId('connection').filter({ hasText: 'Connected' }).waitFor({ timeout: 20_000 });
   console.log('bridge: connected');
@@ -313,6 +331,7 @@ try {
   if (shots) await page.screenshot({ path: join(shots, 'remove-bridge-printer.png') });
   await page.getByTestId('confirm-remove-printer').click();
   await until('U1-mock removed', async () => (await page.getByTestId('printer-select').locator('option', { hasText: 'U1-mock' }).count()) === 0);
+  await until('the bridge forgot U1-mock too', () => !cfg.printers.some((p) => p.id === 'u1'));
   console.log('removing a bridge printer: shows how to uninstall the bridge, then removes it');
   console.log('DEVICE SMOKE OK');
 } catch (e) {
@@ -323,6 +342,7 @@ try {
   await browser.close();
   await u1.close();
   await voron.close();
+  await keyed.close();
   for (const c of children) {
     try {
       process.kill(-c.pid);

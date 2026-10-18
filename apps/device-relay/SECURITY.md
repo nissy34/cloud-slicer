@@ -32,7 +32,9 @@ Pairing:
 ## Who can see what
 
 - **The printer's Moonraker API key** stays on the bridge computer: never in the
-  pairing link, never sent to the relay or browser, only sent to the printer.
+  pairing link, never stored by the relay or the site, only sent to the printer.
+  When a printer is added from the Device tab, the key typed there passes once
+  through the relay (TLS) to the bridge, which keeps it; it never comes back.
   The bridge refuses Moonraker's `access.*` calls, so a pairing-link holder can't
   read or replace it or add Moonraker users.
 - **The relay** (the Cloudflare account, and Cloudflare) sees all traffic in
@@ -57,7 +59,9 @@ Attackers considered: someone on the internet with nothing, someone who got a pa
 - **Key storage**: the relay keeps hashes; D1 keeps keys encrypted.
 - **Cross-site use**: auth is by key, not cookies, so no CSRF/CSWSH.
 - **Reach**: the bridge only talks to printers it found or was given;
-  `bridge.snapshot` only fetches from the printer's own host.
+  `bridge.snapshot` only fetches from the printer's own host. A link holder can
+  add a printer by address (`bridge.add_printer`), but the bridge keeps it only
+  if Moonraker answers `/printer/info` there.
 - **Abuse**: per client IP, at most 60 websocket connects and 5 new bridge ids a
   minute (Workers rate limiting), so the free tier can't be exhausted cheaply.
 - **Deploys**: the live relay deploys from main only, never from a PR.
@@ -74,7 +78,11 @@ Attackers considered: someone on the internet with nothing, someone who got a pa
 4. **Signed-out storage and no CSP**: an XSS on the site could read pairing keys
    from localStorage.
 5. **Bridge resource limits**: uploads have no size cap on the bridge computer.
-6. **Unsigned apps, trust on first use**: the bridge apps and `install.sh` come
+6. **Adding printers from the Device tab** lets a pairing-link holder make the
+   bridge send a `GET /printer/info` to any address on its network, and keep
+   one that answers like Moonraker. That is a small LAN probe on top of the
+   printer control the link already gives.
+7. **Unsigned apps, trust on first use**: the bridge apps and `install.sh` come
    from the relay; whoever controls the relay and its R2 bucket controls the
    code that runs. They aren't code-signed (signing costs money), so Windows and
    macOS can't vouch for them.

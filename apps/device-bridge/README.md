@@ -39,7 +39,12 @@ printers and pairing (Windows: a Run entry for your user, minimised; macOS: a la
 Linux: a systemd user service with lingering, so a headless Pi starts it at
 boot). If it finds nothing, add the printer by its address with
 `cloud-slicer-bridge add 192.168.1.50` (`--api-key KEY` if Moonraker wants
-one); a bridge running in the background restarts by itself to use it. The
+one); a bridge running in the background restarts by itself to use it. Once
+paired, printers can also be added (and removed) from the Device tab's Add a
+printer dialog: the browser sends `bridge.add_printer` with the address and
+key, the bridge checks Moonraker answers there, saves it and announces it.
+Run interactively, the bridge asks for a printer's API key, or for an address
+when it finds none, instead of sending you to another command. The
 pairing link is the bridge's key: anyone holding it can control your printers.
 
 Where things go once set up: Windows `%LOCALAPPDATA%\Cloud Slicer Bridge\`,

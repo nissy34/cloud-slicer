@@ -30,7 +30,7 @@ import { basename, dirname, join } from 'node:path';
 import { createInterface } from 'node:readline';
 import { pathToFileURL } from 'node:url';
 
-export const VERSION = '2';
+export const VERSION = '3';
 /** True in the one-file app (bun build --compile), false under node or bun. */
 const APP = Boolean(process.versions.bun) && !/^bun(\.exe)?$/i.test(basename(process.execPath));
 /** How to run this bridge again, for messages: the app's own path, or node and this script. */
@@ -610,13 +610,56 @@ class Session {
 
 // ---- the relay connection ---------------------------------------------------------
 
-export function runBridge(cfg, { log = console.log } = {}) {
+export function runBridge(cfg, { log = console.log, save = async () => {} } = {}) {
   const sessions = new Map();
   let relay = null;
   let retries = 0;
   let stopped = false;
 
   const toRelay = (obj) => relay?.readyState === WebSocket.OPEN && relay.send(JSON.stringify(obj));
+  const hello = () => toRelay({ ctl: 'hello', version: VERSION, printers: cfg.printers.map(({ id, name }) => ({ id, name })) });
+
+  /** Calls from a window with no printer chosen: adding and removing this bridge's printers from the Device tab. */
+  const manage = async (method, p = {}) => {
+    if (method === 'bridge.add_printer') {
+      const address = String(p.address ?? '').trim().slice(0, 200);
+      const apiKey = String(p.apiKey ?? '').trim().slice(0, 200);
+      if (!address) throw new Error("Type the printer's address.");
+      let found;
+      try {
+        found = await probeAddress(address, apiKey);
+      } catch (e) {
+        if (e.needsKey) throw new Error(apiKey ? 'The printer did not accept that API key.' : 'This printer needs its Moonraker API key.');
+        throw new Error(`No printer answered at ${address}. Check the address, and that the printer is on.`);
+      }
+      const name = String(p.name || found.info.hostname || address).slice(0, 80);
+      let printer = cfg.printers.find((x) => x.url === found.url);
+      if (printer) Object.assign(printer, { name, apiKey });
+      else cfg.printers.push((printer = { id: randomBytes(4).toString('hex'), name, url: found.url, apiKey }));
+      await save();
+      log(`Added ${name} (${found.url}) from the Device tab.`);
+      hello();
+      return { id: printer.id, name };
+    }
+    if (method === 'bridge.remove_printer') {
+      const id = String(p.id ?? '');
+      const printer = cfg.printers.find((x) => x.id === id);
+      if (!printer) return { removed: false };
+      cfg.printers = cfg.printers.filter((x) => x !== printer);
+      await save();
+      for (const [c, s] of sessions) {
+        if (s.printer === printer) {
+          s.close();
+          sessions.delete(c);
+          toRelay({ ctl: 'drop', c, reason: 'This printer was removed from the bridge.' });
+        }
+      }
+      log(`Removed ${printer.name} from the Device tab.`);
+      hello();
+      return { removed: true };
+    }
+    throw new Error(`Unknown bridge call ${method}`);
+  };
 
   const connect = () => {
     if (stopped) return;
@@ -626,7 +669,7 @@ export function runBridge(cfg, { log = console.log } = {}) {
     ws.onopen = () => {
       retries = 0;
       log(`Connected to the relay (${cfg.relay}). Serving: ${cfg.printers.map((p) => p.name).join(', ') || 'no printers yet'}`);
-      toRelay({ ctl: 'hello', version: VERSION, printers: cfg.printers.map(({ id, name }) => ({ id, name })) });
+      hello();
     };
     ws.onmessage = (ev) => {
       let msg;
@@ -659,7 +702,20 @@ export function runBridge(cfg, { log = console.log } = {}) {
         sessions.get(msg.c)?.close();
         sessions.delete(msg.c);
       } else if (msg.c && typeof msg.m === 'string') {
-        sessions.get(msg.c)?.fromBrowser(msg.m);
+        const session = sessions.get(msg.c);
+        if (session) return session.fromBrowser(msg.m);
+        let call;
+        try {
+          call = JSON.parse(msg.m);
+        } catch {
+          return;
+        }
+        if (call.id == null) return;
+        const answer = (body) => toRelay({ c: msg.c, m: JSON.stringify({ jsonrpc: '2.0', id: call.id, ...body }) });
+        manage(call.method, call.params).then(
+          (result) => answer({ result }),
+          (e) => answer({ error: { code: -32000, message: e.message } }),
+        );
       }
     };
     ws.onclose = (ev) => {
@@ -804,7 +860,7 @@ export async function main() {
     }
     await findPrinters();
     printPairing(cfg, opts.site, { open: !opts['no-browser'] && cfg.printers.length > 0 });
-    const bridge = runBridge(cfg);
+    const bridge = runBridge(cfg, { save: () => saveConfig(path, cfg) });
     if (interactive && cfg.printers.length) {
       if (await ask('Start the bridge by itself whenever this computer starts? [Y/n] ')) {
         bridge.stop();
