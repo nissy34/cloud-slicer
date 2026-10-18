@@ -5,12 +5,19 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="description" content="A full slicer in your browser, built on the Snapmaker Orca engine." />
     <title>Cloud Slicer</title>
+    <link rel="icon" href="/favicon.ico" sizes="48x48" />
+    <link rel="icon" href="/icon.svg" type="image/svg+xml" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <meta name="apple-mobile-web-app-title" content="Cloud Slicer" />
+    <meta name="theme-color" content="#ffffff" />
     <script>
       // Paint in the saved theme before the app loads (see src/lib/theme.ts).
       try {
         var t = localStorage.getItem('cloud-slicer:theme');
         if (t !== 'light' && t !== 'dark') t = matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
         document.documentElement.dataset.theme = t;
+        document.querySelector('meta[name=theme-color]').content = t === 'dark' ? '#17191d' : '#ffffff';
       } catch (e) {}
     </script>
   </head>

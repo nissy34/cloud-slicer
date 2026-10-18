@@ -107,10 +107,8 @@ textarea {
   white-space: nowrap;
 }
 .brand-mark {
-  width: 18px;
-  height: 18px;
-  border-radius: 5px;
-  background: linear-gradient(135deg, var(--accent), #8b5cf6);
+  width: 20px;
+  height: 20px;
 }
 .tabs {
   display: flex;
