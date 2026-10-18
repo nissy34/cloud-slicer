@@ -11,6 +11,7 @@
 import { betterAuth } from 'better-auth';
 import { oAuthProxy } from 'better-auth/plugins';
 import { HttpError, json } from './http';
+import { deleteAllFiles } from './projects';
 import type { Env } from './types';
 
 export type ProviderId = 'google';
@@ -45,7 +46,13 @@ export function createAuth(env: Env, request: Request) {
         : {},
     session: { expiresIn: 30 * DAY, updateAge: DAY },
     account: { encryptOAuthTokens: true },
-    user: { deleteUser: { enabled: true } },
+    user: {
+      deleteUser: {
+        enabled: true,
+        // D1 rows go with the user row (ON DELETE CASCADE); saved project files are in R2.
+        beforeDelete: (user) => deleteAllFiles(env, user.id),
+      },
+    },
     plugins: [oAuthProxy({ productionURL: env.AUTH_ORIGIN, currentURL: origin })],
     telemetry: { enabled: false },
   });

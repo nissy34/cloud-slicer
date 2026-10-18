@@ -14,9 +14,17 @@
 //   GET    /api/devices/<id>/secret         one printer's API key
 //   PUT    /api/devices/<id>                save ({ name, preset, url, apiKey?, extra?, baseVersion? })
 //   DELETE /api/devices/<id>
+//   GET    /api/projects                    the user's online projects, usage and limits
+//   GET    /api/projects/<id>/file          the project's 3MF
+//   GET    /api/projects/<id>/thumbnail     its PNG thumbnail
+//   PUT    /api/projects/<id>?name=&baseVersion=   save (body: the 3MF)
+//   PUT    /api/projects/<id>/thumbnail     set the thumbnail (body: PNG)
+//   PATCH  /api/projects/<id>               rename ({ name, baseVersion? })
+//   DELETE /api/projects/<id>
 import * as auth from '../_lib/auth';
 import { HttpError, json } from '../_lib/http';
 import * as presets from '../_lib/presets';
+import * as projects from '../_lib/projects';
 import type { Env, PagesContext } from '../_lib/types';
 import * as userdata from '../_lib/userdata';
 
@@ -59,6 +67,15 @@ export async function onRequest({ request, env }: PagesContext): Promise<Respons
       if (parts.length === 3 && c === 'secret' && m === 'GET') return await userdata.deviceSecret(env, request, b);
       if (parts.length === 2 && m === 'PUT') return await userdata.putDevice(env, request, b);
       if (parts.length === 2 && m === 'DELETE') return await userdata.deleteDevice(env, request, b);
+    }
+    if (a === 'projects') {
+      if (parts.length === 1 && m === 'GET') return await projects.list(env, request);
+      if (parts.length === 3 && c === 'file' && m === 'GET') return await projects.file(env, request, b);
+      if (parts.length === 3 && c === 'thumbnail' && m === 'GET') return await projects.thumbnail(env, request, b);
+      if (parts.length === 3 && c === 'thumbnail' && m === 'PUT') return await projects.putThumbnail(env, request, b);
+      if (parts.length === 2 && m === 'PUT') return await projects.put(env, request, b);
+      if (parts.length === 2 && m === 'PATCH') return await projects.rename(env, request, b);
+      if (parts.length === 2 && m === 'DELETE') return await projects.remove(env, request, b);
     }
     throw new HttpError(404, 'Not found');
   } catch (e) {

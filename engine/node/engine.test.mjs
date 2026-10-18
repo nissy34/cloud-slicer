@@ -229,6 +229,47 @@ test('painting: colour, supports and seams, like the desktop paint tools', () =>
   assert.equal(m.objects[0].volumes[0].paint.seam, false);
 });
 
+test('saves the project as an Orca 3MF that opens with everything in it', () => {
+  select({ printer: DEFAULT_PRINTER });
+  let m = load('3DBenchy.stl');
+  const [x, y] = m.objects[0].instances[0].offset;
+  call(engine, 'paint', 0, JSON.stringify({ rays: [[x, y, 200, 0, 0, -1]], kind: 'color', state: 2, tool: 'sphere', radius: 10 }));
+  call(engine, 'paint', 0, JSON.stringify({ rays: [[x, y, 200, 0, 0, -1]], kind: 'support', state: 1, tool: 'circle', radius: 5 }));
+  call(engine, 'setObjectSettings', 0, -1, JSON.stringify({ wall_loops: '5' }));
+  call(engine, 'addPlate');
+  call(engine, 'addInstance', 0, 0, 0, 0);
+  call(engine, 'setInstanceTransform', 0, 1, JSON.stringify({ offset: [100, 100], plate: 1 }));
+  m = info();
+  assert.deepEqual(m.objects[0].instances.map((i) => i.plate), [0, 1]);
+
+  const w = 4, h = 2;
+  const pixels = new Uint8Array(w * h * 4).fill(200);
+  const config = fullConfig({ layer_height: '0.28', filament_colour: '#123456' });
+  call(engine, 'saveProject', '/work/saved.3mf', JSON.stringify(config), { plate: 0, width: w, height: h, pixels });
+  const bytes = engine.FS.readFile('/work/saved.3mf');
+  assert.equal(String.fromCharCode(bytes[0], bytes[1]), 'PK', 'a zip file');
+  const names = new TextDecoder('latin1').decode(bytes);
+  for (const f of ['3D/3dmodel.model', 'Metadata/project_settings.config', 'Metadata/model_settings.config', 'Metadata/plate_1.png'])
+    assert.ok(names.includes(f), `${f} in the 3MF`);
+
+  engine.clearModel();
+  const [bw, bd] = bedSize(fullConfig());
+  const opened = call(engine, 'loadModel', '/work/saved.3mf', 0, bw, bd);
+  assert.equal(opened.isProject, true);
+  m = info();
+  assert.equal(m.plates.length, 2, 'both plates');
+  assert.deepEqual(m.objects[0].instances.map((i) => i.plate), [0, 1], 'instances on their plates');
+  assert.ok(Math.abs(m.objects[0].instances[1].offset[0] - 100) < 1, 'position kept');
+  const part = m.objects[0].volumes[0];
+  assert.ok(part.painted, 'colour paint kept');
+  assert.equal(part.paint.support, true, 'support paint kept');
+  assert.equal(m.objects[0].settings.wall_loops, '5', 'object settings kept');
+  assert.equal(m.file.printer, DEFAULT_PRINTER);
+  const file = JSON.parse(engine.fileConfigJson());
+  assert.equal(file.layer_height, '0.28', 'changed settings kept');
+  assert.equal(file.filament_colour, '#123456');
+});
+
 test('lists the filaments that work with a printer, for the setup wizard', () => {
   const before = call(engine, 'presetsSelect', JSON.stringify({})).selection;
   const r = call(engine, 'presetsFilamentsFor', DEFAULT_PRINTER);

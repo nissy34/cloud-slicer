@@ -393,9 +393,80 @@ std::string resizePlates(double width, double depth) {
     }
 }
 
+// Save the project as an Orca 3MF project, the way desktop's Save project does
+// (Plater::export_3mf -> store_bbs_3mf): geometry, plates, object and part
+// settings, every kind of paint, and configJson (the full config of the
+// selected presets plus the user's changes) as project_settings.config.
+//   thumbnail: null, or {plate, width, height, pixels: Uint8Array RGBA, rows
+//   top to bottom}, written as that plate's Metadata/plate_N.png.
+// Returns {ok, error?}; the file is at `path` in the wasm FS.
+std::string saveProject(const std::string& path, const std::string& configJson, emscripten::val thumbnail) {
+    PlateDataPtrs plates;
+    try {
+        Project& pr = g_project;
+        DynamicPrintConfig cfg;
+        cfg.apply(FullPrintConfig::defaults());
+        applyJsonConfig(cfg, json::parse(configJson));
+
+        // PartPlateList::store_to_3mf_structure: one PlateData per plate with the
+        // (object, instance) pairs on it; a loaded 3MF's plate names, locks and
+        // plate settings are kept.
+        const std::string nozzles = optString(cfg, "nozzle_diameter");
+        for (int p = 0; p < pr.plateCount; ++p) {
+            PlateData* d = new PlateData();
+            plates.push_back(d);
+            d->plate_index = p;
+            if (size_t(p) < pr.plates.size() && pr.plates[p]) {
+                d->plate_name = pr.plates[p]->plate_name;
+                d->locked = pr.plates[p]->locked;
+                d->config.apply(pr.plates[p]->config);
+            }
+            d->nozzle_diameters = nozzles;
+        }
+        for (size_t o = 0; o < pr.model.objects.size(); ++o)
+            for (size_t i = 0; i < pr.model.objects[o]->instances.size(); ++i) {
+                const int p = pr.plateOf(*pr.model.objects[o]->instances[i]);
+                if (p >= 0) plates[p]->objects_and_instances.emplace_back(int(o), int(i));
+            }
+
+        // The exporter writes PNGs bottom row first (OpenGL's order); the page
+        // sends canvas rows top first.
+        std::vector<ThumbnailData> thumbs(plates.size());
+        if (thumbnail.typeOf().as<std::string>() == "object" && !thumbnail.isNull()) {
+            const int plate = thumbnail["plate"].as<int>();
+            const unsigned w = thumbnail["width"].as<unsigned>(), h = thumbnail["height"].as<unsigned>();
+            const std::vector<unsigned char> px = emscripten::convertJSArrayToNumberVector<unsigned char>(thumbnail["pixels"]);
+            if (plate >= 0 && size_t(plate) < thumbs.size() && w && h && px.size() == size_t(w) * h * 4) {
+                ThumbnailData& t = thumbs[plate];
+                t.set(w, h);
+                for (unsigned y = 0; y < h; ++y)
+                    std::copy_n(px.begin() + size_t(h - 1 - y) * w * 4, size_t(w) * 4, t.pixels.begin() + size_t(y) * w * 4);
+            }
+        }
+        std::vector<ThumbnailData*> thumbPtrs;
+        for (ThumbnailData& t : thumbs) thumbPtrs.push_back(&t);
+
+        StoreParams params;
+        params.path = path.c_str();
+        params.model = &pr.model;
+        params.plate_data_list = plates;
+        params.config = &cfg;
+        params.thumbnail_data = thumbPtrs;
+        params.strategy = SaveStrategy::Zip64;
+        const bool saved = store_bbs_3mf(params);
+        release_PlateData_list(plates);
+        if (!saved) return fail("the project could not be written").dump();
+        return ok().dump();
+    } catch (const std::exception& e) {
+        release_PlateData_list(plates);
+        return fail(e.what()).dump();
+    }
+}
+
 } // namespace
 
 EMSCRIPTEN_BINDINGS(model_api) {
+    emscripten::function("saveProject", &saveProject);
     emscripten::function("resizePlates", &resizePlates);
     emscripten::function("loadModel", &loadModel);
     emscripten::function("clearModel", &clearModel);

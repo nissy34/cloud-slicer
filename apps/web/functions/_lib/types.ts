@@ -17,9 +17,26 @@ export interface D1Database {
   batch(statements: D1PreparedStatement[]): Promise<D1Result<unknown>[]>;
 }
 
+/** The slice of an R2 bucket binding these functions use. */
+export interface R2Object {
+  key: string;
+  size: number;
+}
+export interface R2ObjectBody extends R2Object {
+  body: ReadableStream;
+}
+export interface R2Bucket {
+  get(key: string): Promise<R2ObjectBody | null>;
+  put(key: string, value: ArrayBuffer | ReadableStream | string, options?: { httpMetadata?: { contentType?: string } }): Promise<R2Object | null>;
+  delete(keys: string | string[]): Promise<void>;
+  list(options?: { prefix?: string; cursor?: string; limit?: number }): Promise<{ objects: R2Object[]; truncated: boolean; cursor?: string }>;
+}
+
 export interface Env {
   /** Absent until the D1 database is bound: accounts then report "not set up". */
   DB?: D1Database;
+  /** Saved projects (3MF + thumbnail). Absent until R2 is set up: online projects then report "not set up". */
+  PROJECTS?: R2Bucket;
   /** The deploy Google redirects back to (every other deploy signs in through it), e.g. https://cloud-slicer.pages.dev. */
   AUTH_ORIGIN?: string;
   /** Other origins allowed to sign in, comma separated, "*" wildcards allowed (https://*.cloud-slicer.pages.dev). */

@@ -25,6 +25,14 @@ export interface UserPresetFile {
   config: OrcaConfig;
 }
 
+/** A plate thumbnail for a saved 3MF: RGBA pixels, rows top first. */
+export interface ProjectThumbnail {
+  plate: number;
+  width: number;
+  height: number;
+  pixels: Uint8Array;
+}
+
 type Pending = { resolve: (value: unknown) => void; reject: (e: Error) => void };
 
 export interface EngineEvents {
@@ -92,6 +100,9 @@ export class EngineClient {
     return this.call<{ objectsAdded: number; isProject: boolean; info: ProjectInfo }>(
       'load', [file.name, bytes, plate, printableArea], [bytes]);
   }
+  /** The open project as an Orca 3MF project file (desktop's Save project). */
+  saveProject = (overrides: OrcaConfig, thumbnail: ProjectThumbnail | null) =>
+    this.call<ArrayBuffer>('saveProject', [overrides, thumbnail], thumbnail ? [thumbnail.pixels.buffer] : []);
   clear = () => this.call<ProjectInfo>('clear');
   preview = (plate: number) => this.call<PreviewMesh>('preview', [plate]);
   transform = (o: number, i: number, changes: { offset?: [number, number]; plate?: number; rotation?: number[]; scale?: number[] }) =>

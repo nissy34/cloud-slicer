@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { AccountMenu } from '../account/AccountMenu';
 import { useSlicer, type Tab } from '../state/store';
 import { CalibrationDialog } from './CalibrationDialog';
+import { ProjectMenu } from './ProjectMenu';
 
 const TABS: { id: Tab; label: string }[] = [
   { id: 'prepare', label: 'Prepare' },
@@ -20,6 +21,7 @@ export function TopBar() {
         <span className="brand-mark" aria-hidden />
         Cloud Slicer
       </div>
+      <ProjectMenu />
       <nav className="tabs" role="tablist" aria-label="Workspace">
         {TABS.map((t) => (
           <button
