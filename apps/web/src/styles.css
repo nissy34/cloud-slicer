@@ -900,6 +900,9 @@ select:focus-visible {
     padding: 6px 8px;
     font-size: 13px;
   }
+  .tabs {
+    min-width: 0;
+  }
   .brand {
     display: none;
   }
@@ -979,6 +982,17 @@ select:focus-visible {
     overflow-y: auto;
     padding: 6px 8px;
     font-size: 12px;
+  }
+}
+/* Narrow phones (360 px): keep the top bar inside the screen. */
+@media (max-width: 380px) {
+  .topbar {
+    gap: 4px;
+    padding: 0 6px;
+  }
+  .tab,
+  .topbar .ghost {
+    padding: 6px 6px;
   }
 }
 
@@ -1949,13 +1963,130 @@ select:focus-visible {
   .dv-console-card {
     order: 7;
   }
+  /* Cards fill the width instead of shrinking to their content. */
+  .dv-cols {
+    align-items: stretch;
+  }
+  /* Header: printer name and its status on one line, model under the name,
+     Edit and Emergency stop on their own line. */
+  .dv-header {
+    gap: 8px 12px;
+    align-items: flex-start;
+  }
+  .dv-printer {
+    flex: 1;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0;
+  }
+  .dv-printer select {
+    max-width: 100%;
+    text-overflow: ellipsis;
+  }
+  .dv-model {
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .dv-pill {
+    margin-top: 4px;
+    white-space: nowrap;
+  }
   .dv-header-actions {
     margin-left: 0;
     width: 100%;
     justify-content: space-between;
   }
+  .dv-banner {
+    flex-wrap: wrap;
+  }
+  .dv-card {
+    padding: 12px;
+  }
+  /* Text buttons get finger-sized hit areas. */
+  .dv-link {
+    padding: 6px 0;
+  }
+  .dv-card-head {
+    flex-wrap: wrap;
+  }
+  /* Tool heads: name and temperature on top, filament under them, then actions. */
+  .dv-head {
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-areas: 'id temp' 'filament filament' 'actions actions';
+    gap: 4px 8px;
+    padding: 10px 0;
+  }
+  .dv-head-filament {
+    white-space: normal;
+  }
+  .dv-head-actions {
+    gap: 0 18px;
+    font-size: 14px;
+  }
+  .dv-list li {
+    min-height: 40px;
+  }
+  .dv-slider {
+    flex: 0 1 200px;
+    min-width: 0;
+  }
   .dv-slider input {
-    width: 90px;
+    flex: 1;
+    width: auto;
+    min-width: 0;
+  }
+  /* Bigger jog pad and buttons in an even grid. */
+  .dv-jog-xy {
+    grid-template-columns: repeat(3, 56px);
+    grid-template-rows: repeat(3, 48px);
+  }
+  .dv-jog-z {
+    grid-template-rows: repeat(3, 48px);
+    width: 56px;
+  }
+  .dv-steps button {
+    flex: 1;
+    padding: 8px 4px;
+    font-size: 13px;
+  }
+  .dv-card .dv-row > button {
+    flex: 1 1 calc(50% - 4px);
+  }
+  .dv-files li {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+  .dv-file-actions {
+    gap: 16px;
+  }
+  .dv-form-inline {
+    flex-wrap: wrap;
+  }
+  /* Print dialog tool map: filament on one line, its tool head under it. */
+  .dv-map li {
+    display: grid;
+    grid-template-columns: 26px minmax(0, 1fr);
+    gap: 4px 0;
+    padding: 8px 0;
+    border-top: 1px solid var(--border);
+  }
+  .dv-map li:first-child {
+    border-top: 0;
+  }
+  .dv-map-file {
+    grid-column: 1 / -1;
+    min-width: 0;
+  }
+  .dv-map li > [aria-hidden] {
+    justify-self: center;
+  }
+  .dv-map-head select {
+    flex: 1;
+    min-width: 0;
+  }
+  .dv-map .dv-warn-text {
+    grid-column: 2;
   }
 }
 

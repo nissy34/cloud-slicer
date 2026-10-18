@@ -181,8 +181,16 @@ try {
   await phone.reload();
   await phone.getByRole('tab', { name: 'Device' }).click();
   await phone.getByTestId('connection').filter({ hasText: 'Connected' }).waitFor({ timeout: 20_000 });
-  const overflow = await phone.evaluate(() => document.documentElement.scrollWidth > window.innerWidth);
-  if (overflow) throw new Error('Device tab scrolls sideways on a phone');
+  // Every card and the top bar fit in a 390 and a narrow 360 px phone, with no sideways scroll.
+  for (const width of [390, 360]) {
+    await phone.setViewportSize({ width, height: 844 });
+    const wide = await phone.evaluate(() => {
+      if (document.documentElement.scrollWidth > window.innerWidth) return 'the page';
+      const over = [...document.querySelectorAll('.topbar, .device *')].find((el) => el.getBoundingClientRect().right > window.innerWidth + 0.5);
+      return over ? `${over.tagName.toLowerCase()}.${over.className}` : null;
+    });
+    if (wide) throw new Error(`Device tab is wider than a ${width} px phone: ${wide}`);
+  }
   if (shots) await phone.screenshot({ path: join(shots, 'device-phone.png'), fullPage: true });
   console.log('phone layout fits');
 
