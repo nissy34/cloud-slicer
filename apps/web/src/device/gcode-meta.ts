@@ -9,6 +9,10 @@ export interface FileFilament {
   colour: string;
   material: string;
   grams: number;
+  /** Nozzle diameter the file was sliced for this filament, in mm. */
+  nozzle?: number;
+  /** Sliced for a high-flow nozzle (Snapmaker Orca's filament_volume_type). */
+  highFlow?: boolean;
 }
 
 export interface GcodeMeta {
@@ -53,6 +57,8 @@ export function parseGcodeMeta(text: string): GcodeMeta {
   const grams = list('filament used [g]', ',').map(Number);
   const colours = list('filament_colour', ';').length ? list('filament_colour', ';') : list('extruder_colour', ';');
   const materials = list('filament_type', ';');
+  const nozzles = list('nozzle_diameter', /[,;]/).map(Number);
+  const flows = list('filament_volume_type', /[,;]/);
   const count = Math.max(grams.length, colours.length, materials.length);
   const filaments: FileFilament[] = [];
   for (let i = 0; i < count; i++) {
@@ -64,6 +70,7 @@ export function parseGcodeMeta(text: string): GcodeMeta {
       colour: /^#[0-9a-f]{6}/i.test(colours[i] ?? '') ? colours[i].slice(0, 7).toUpperCase() : '#888888',
       material: materials[i] ?? '',
       grams: Number.isFinite(g) ? g : 0,
+      ...nozzleFacts(nozzles[i] ?? nozzles[0], flows[i]),
     });
   }
   const layers = Number(kv.get('total layer number') ?? kv.get('total layers count'));
@@ -72,6 +79,13 @@ export function parseGcodeMeta(text: string): GcodeMeta {
     estimatedSeconds: parseDuration(kv.get('estimated printing time (normal mode)') ?? kv.get('model printing time')),
     layers: Number.isFinite(layers) && layers > 0 ? layers : null,
     ...(kv.get('printer_settings_id') && { printer: kv.get('printer_settings_id')!.replace(/^"|"$/g, '') }),
+  };
+}
+
+function nozzleFacts(diameter: number | undefined, flow: string | undefined): Pick<FileFilament, 'nozzle' | 'highFlow'> {
+  return {
+    ...(diameter && diameter > 0 && { nozzle: diameter }),
+    ...(flow && { highFlow: flow.toLowerCase().replace(/[-_ ]/g, '') === 'highflow' }),
   };
 }
 
@@ -92,7 +106,13 @@ export function metaFromMoonraker(m: Record<string, unknown> | null): GcodeMeta 
   for (let i = 0; i < count; i++) {
     if (weights.length && !(weights[i] > 0)) continue;
     const c = String(colours[i] ?? '');
-    filaments.push({ index: i, colour: /^#?[0-9a-f]{6}/i.test(c) ? `#${c.replace('#', '').slice(0, 6).toUpperCase()}` : '#888888', material: types[i] ?? '', grams: weights[i] ?? 0 });
+    filaments.push({
+      index: i,
+      colour: /^#?[0-9a-f]{6}/i.test(c) ? `#${c.replace('#', '').slice(0, 6).toUpperCase()}` : '#888888',
+      material: types[i] ?? '',
+      grams: weights[i] ?? 0,
+      ...nozzleFacts(typeof m.nozzle_diameter === 'number' ? m.nozzle_diameter : undefined, undefined),
+    });
   }
   return {
     filaments,

@@ -2662,6 +2662,18 @@ select:focus-visible {
   border-radius: 6px;
   background: var(--surface);
 }
+.dv-map .dv-warn-text,
+.dv-map .dv-error-text {
+  flex-basis: 100%;
+  font-size: 12px;
+}
+.dv-map select[aria-invalid] {
+  border-color: var(--danger);
+}
+.dv-map-note {
+  margin: 6px 0 0;
+  font-size: 12px;
+}
 .dv-print-facts {
   margin: 8px 0 0;
 }
@@ -2848,7 +2860,8 @@ select:focus-visible {
     flex: 1;
     min-width: 0;
   }
-  .dv-map .dv-warn-text {
+  .dv-map .dv-warn-text,
+  .dv-map .dv-error-text {
     grid-column: 2;
   }
 }
