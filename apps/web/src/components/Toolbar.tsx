@@ -58,7 +58,7 @@ const GROUPS: Item[][] = [
     { id: 'text', icon: 'toolbar_text', label: 'Text shape', missing: true },
     { id: 'measure', icon: 'toolbar_measure', label: 'Measure', key: 'U', tool: 'measure' },
     { id: 'assembly', icon: 'toolbar_assembly', label: 'Assemble', missing: true },
-    { id: 'brimears', icon: 'toolbar_brimears', label: 'Brim ears', missing: true },
+    { id: 'brimears', icon: 'toolbar_brimears', label: 'Brim ears', tool: 'brim', needsSelection: true },
   ],
   [{ id: 'assemblyview', icon: 'toolbar_assemble', label: 'Assembly view', missing: true }],
 ];
@@ -185,7 +185,8 @@ export function Toolbar({ onAdd }: { onAdd(): void }) {
           </div>
         ))}
       </div>
-      <ToolPopover bar={bar} anchor={ALL.find((i) => active(i))?.id ?? null} />
+      {/* A tool without a button here (Simplify, from the object list) still gets the card. */}
+      <ToolPopover bar={bar} anchor={ALL.find((i) => active(i))?.id ?? tool ?? null} />
     </>
   );
 }
@@ -225,10 +226,11 @@ function ToolPopover({ bar, anchor }: { bar: React.RefObject<HTMLDivElement>; an
     const place = () => {
       const button = anchor && bar.current?.querySelector<HTMLElement>(`[data-tool="${anchor}"]`);
       const area = bar.current?.offsetParent?.getBoundingClientRect();
-      if (!button || !area || !pop.current) return setAt(null);
-      const b = button.getBoundingClientRect();
+      if (!anchor || !area || !pop.current) return setAt(null);
       const width = pop.current.offsetWidth;
-      const left = Math.min(Math.max(8, b.left - area.left + b.width / 2 - width / 2), area.width - width - 8);
+      // Under its button, or at the right of the view for a tool without one.
+      const b = button ? button.getBoundingClientRect() : null;
+      const left = b ? Math.min(Math.max(8, b.left - area.left + b.width / 2 - width / 2), area.width - width - 8) : area.width - width - 8;
       setAt({ left: Math.max(8, left), top: bar.current!.getBoundingClientRect().bottom - area.top + 6 });
     };
     place();

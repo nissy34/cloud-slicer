@@ -16,8 +16,10 @@ import type {
   WorkerReply,
 } from './protocol';
 import type { Thumbnail } from '../lib/thumbnail';
+import type { BrimEars, BrimRequest } from '../lib/brim';
 import type { LayerProfile, LayerRequest } from '../lib/layers';
 import type { MatchResult, MixRecipe, MixRow } from '../lib/mixing';
+import type { SimplifyBy, SimplifyResult } from '../lib/simplify';
 import type { MeasureFeature, Measurement } from '../lib/measure';
 import type { ObjectAction } from '../lib/objectMenu';
 
@@ -164,6 +166,8 @@ export class EngineClient {
     const edits =
       !READS.has(method) &&
       !(method === 'mixed' && !(args[0] as MixedRequest).op) &&
+      !(method === 'simplify' && (args[1] as { op: string }).op !== 'apply') &&
+      !(method === 'brimEars' && (args[3] as BrimRequest).op === 'get') &&
       !(method === 'layerHeights' && (args[2] as LayerRequest).op === 'get');
     if (edits && this.sliceId) this.onEditWhileSlicing?.();
     const id = this.nextId++;
@@ -239,6 +243,14 @@ export class EngineClient {
   mixedBlend = (colours: string[], weights: number[][]) => this.call<string[]>('mixedBlend', [{ colours, weights }]);
   mixedMatch = (request: { colours: string[]; types: string[]; target: string; minPercent: number }) =>
     this.call<MatchResult>('mixedMatch', [request]);
+  /** Object o's triangle count, and with `by` its count after simplifying (nothing changes). */
+  simplifyPreview = (o: number, by?: SimplifyBy) => this.call<SimplifyResult>('simplify', [o, by ? { op: 'preview', ...by } : { op: 'get' }]);
+  /** Simplifies object o's parts, like desktop's Simplify (its paint goes). */
+  simplifyApply = (o: number, by: SimplifyBy) => this.call<ProjectInfo>('simplify', [o, { op: 'apply', ...by }]);
+  /** Object o's brim ears (seen from instance i), after the edit in `request` (see BrimRequest). */
+  brimEars = (o: number, i: number, overrides: OrcaConfig, request: BrimRequest) =>
+    this.call<BrimEars>('brimEars', [o, i, overrides, request]);
+
   /** Object o's variable layer height profile, after the edit in `request` (see LayerRequest). */
   layerHeights = (o: number, overrides: OrcaConfig, request: LayerRequest) =>
     this.call<LayerProfile>('layerHeights', [o, overrides, request]);

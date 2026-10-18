@@ -926,6 +926,43 @@ select:focus-visible {
   align-items: center;
   justify-content: space-between;
 }
+/* Simplify: the object's name and triangle counts, and the paint note. */
+.simplify-figures {
+  display: grid;
+  gap: 2px;
+  font-size: 0.9em;
+  font-variant-numeric: tabular-nums;
+}
+.simplify-figures > span:first-child {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.simplify-warning {
+  color: var(--danger);
+}
+/* Brim ears: the brim type note, the count and the auto-generate group. */
+.brim-warning {
+  display: grid;
+  gap: 6px;
+  padding: 8px;
+  border: 1px solid color-mix(in srgb, var(--danger) 50%, transparent);
+  border-radius: var(--radius);
+  font-size: 0.9em;
+}
+.brim-summary {
+  font-size: 0.9em;
+  font-variant-numeric: tabular-nums;
+}
+.brim-loose {
+  color: var(--danger);
+}
+.brim-op {
+  display: grid;
+  gap: 4px;
+  padding-top: 6px;
+  border-top: 1px solid var(--border);
+}
 .tool-panel .cut-panel {
   padding: 0;
   border: 0;

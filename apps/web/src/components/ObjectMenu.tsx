@@ -185,6 +185,14 @@ function MenuCard() {
           {item('Delete', run(() => s.deleteObject(o)))}
           <hr />
           {item('Auto orient', run(() => s.orientObject(o)))}
+          {item(
+            'Simplify model…',
+            run(() => {
+              s.select({ object: o, instance: i });
+              s.setTool('simplify');
+            }),
+            { title: 'Fewer triangles, keeping the shape' },
+          )}
           {item('Printable', run(() => s.objectAction(o, i, { op: 'printable', value: !inst.printable }, 'Printable')), { checked: inst.printable })}
           {item('Rename…', () => setForm('rename'))}
           {submenu(

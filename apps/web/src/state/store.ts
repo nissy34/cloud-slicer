@@ -22,6 +22,8 @@ import { emptyProjectMessage, modelProcessKeys, pickProcess, printerLabel, proje
 import { accountReady, getUserSetting, presetEditing, useAccount } from './account';
 import { installedOnly, SETUP_KEY, type Setup } from '../lib/setup';
 import { loadConvertPreference, loadSaved, save, saveConvertPreference } from '../lib/storage';
+import type { SimplifyBy, SimplifyResult } from '../lib/simplify';
+import type { BrimEars, BrimRequest } from '../lib/brim';
 import type { LayerProfile, LayerRequest } from '../lib/layers';
 import { sameFeature, type MeasureFeature, type Measurement } from '../lib/measure';
 import { mixSettings, palette as mixPalette, type MatchResult, type MixRecipe, type MixRow } from '../lib/mixing';
@@ -30,7 +32,7 @@ import { saveFile } from '../lib/preset-files';
 
 export type Tab = 'prepare' | 'preview' | 'device';
 /** The object tool open on the 3D view, like desktop's gizmos (paint has its own state). */
-export type Tool = 'move' | 'rotate' | 'scale' | 'flatten' | 'cut' | 'measure' | 'layers';
+export type Tool = 'move' | 'rotate' | 'scale' | 'flatten' | 'cut' | 'measure' | 'layers' | 'brim' | 'simplify';
 /** How a 3MF is opened: as the project (replacing it) or its objects added. */
 export type OpenMode = 'project' | 'geometry';
 const is3mf = (f: File) => /\.3mf$/i.test(f.name);
@@ -152,6 +154,21 @@ export interface SlicerState {
   measureReset(): void;
   setMeasureOnlyPlane(onlyPlane: boolean): void;
   setCutZ(z: number): void;
+  /** Object o's triangles, and (with `by`) how many simplifying would leave; changes nothing. */
+  simplifyPreview(o: number, by?: SimplifyBy): Promise<SimplifyResult | null>;
+  /** Simplifies object o, like desktop's Simplify, as one undo step. */
+  simplifyObject(o: number, by: SimplifyBy): Promise<void>;
+  /** The brim ears tool's object and its ears, while that tool is open. */
+  brim: (BrimEars & { object: number; instance: number }) | null;
+  /** Ears picked in the brim ears tool (indices into brim.ears), for removing or resizing. */
+  brimPicked: number[];
+  /** Size of new ears, mm; null until the tool has read the object's default. */
+  brimDiameter: number | null;
+  setBrimDiameter(diameter: number): void;
+  /** Picks ear i (alone, or added to the picked ones), or clears the picks (-1). */
+  pickEar(i: number, add?: boolean): void;
+  /** Reads (op "get") or edits the selected object's brim ears; an edit is one undo step. */
+  editBrim(request: BrimRequest): Promise<void>;
   /** The open project as an Orca 3MF project file, with the current settings. */
   projectFile(thumbnail: ProjectThumbnail | null): Promise<ArrayBuffer>;
   clearProject(): Promise<void>;
@@ -545,6 +562,9 @@ export const useSlicer = create<SlicerState>((set, get) => {
     snap: false,
     history: { undo: null, redo: null },
     cutZ: 0,
+    brim: null,
+    brimPicked: [],
+    brimDiameter: null,
     layers: null,
     measure: NO_MEASURE,
     overlay: null,
@@ -658,9 +678,15 @@ export const useSlicer = create<SlicerState>((set, get) => {
       // The cut plane starts half way up, like desktop.
       const height = selected ? project?.objects[selected.object]?.size[2] : undefined;
       const measure = { ...NO_MEASURE, onlyPlane: get().measure.onlyPlane };
-      set(tool === 'cut' && height ? { tool, measure, layers: null, cutZ: Math.round(height * 50) / 100 } : { tool, measure, layers: null });
+      const reset = { tool, measure, layers: null, brim: null, brimPicked: [] as number[] };
+      set(tool === 'cut' && height ? { ...reset, cutZ: Math.round(height * 50) / 100 } : reset);
     },
     setCutZ: (cutZ) => set({ cutZ }),
+    simplifyPreview: (o, by) =>
+      engine()
+        .simplifyPreview(o, by)
+        .catch((err) => (fail(err), null)),
+    simplifyObject: (o, by) => projectEdit('Simplify', () => engine().simplifyApply(o, by)),
     async measureHover(ray) {
       hoverRay = ray;
       if (hovering) return;
@@ -709,6 +735,34 @@ export const useSlicer = create<SlicerState>((set, get) => {
     },
     measureReset: () => set({ measure: { ...NO_MEASURE, onlyPlane: get().measure.onlyPlane } }),
     setMeasureOnlyPlane: (onlyPlane) => set({ measure: { ...NO_MEASURE, onlyPlane } }),
+    setBrimDiameter: (brimDiameter) => set({ brimDiameter }),
+    pickEar: (i, add = false) => {
+      const picked = get().brimPicked;
+      if (i < 0) return set({ brimPicked: [] });
+      if (!add) return set({ brimPicked: [i] });
+      set({ brimPicked: picked.includes(i) ? picked.filter((k) => k !== i) : [...picked, i] });
+    },
+    async editBrim(request) {
+      const { selected } = get();
+      if (!selected) return;
+      const e = engine();
+      const edit = request.op !== 'get';
+      try {
+        if (edit) set({ history: await e.snapshot('Brim ears') });
+        const ears = await e.brimEars(selected.object, selected.instance, engineOverrides(), request);
+        if (get().tool !== 'brim') return;
+        const same = get().brim?.object === selected.object;
+        set({
+          brim: { ...ears, ...selected },
+          // Picks point at ears by index, so they go when the ears change.
+          brimPicked: edit || !same ? [] : get().brimPicked.filter((i) => i < ears.ears.length),
+          brimDiameter: get().brimDiameter ?? ears.defaultDiameter,
+        });
+        if (edit) set(stale());
+      } catch (err) {
+        fail(err);
+      }
+    },
     async editLayers(o, request, continues = false) {
       const e = engine();
       const edit = request.op !== 'get';
