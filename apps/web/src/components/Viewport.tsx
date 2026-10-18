@@ -9,6 +9,7 @@ import { bedSize, rgb } from '../lib/colour';
 import { hullPlanes, layOnFace, movedOffset, toDegrees, toQuat, DEG, type Placement } from '../lib/placement';
 import { setCapture } from '../lib/snapshot';
 import { useSceneColours } from '../lib/theme';
+import { layerTexture, type LayerProfile } from '../lib/layers';
 import { NO_COLOURS, useOption, useSlicer } from '../state/store';
 import { MeasureOverlay } from './MeasureOverlay';
 
@@ -310,6 +311,40 @@ function useShift() {
   return shift;
 }
 
+/**
+ * The variable layer height tool's look of the object, like desktop's: every
+ * layer a slice will print, coloured by its height (thin cool, thick warm).
+ */
+function LayerMaterial({ profile, bottom }: { profile: LayerProfile; bottom: number }) {
+  const texture = useMemo(() => {
+    const rows = 2048;
+    const t = new THREE.DataTexture(layerTexture(profile, rows), 1, rows, THREE.RGBAFormat);
+    t.magFilter = THREE.NearestFilter;
+    t.needsUpdate = true;
+    return t;
+  }, [profile]);
+  useEffect(() => () => texture.dispose(), [texture]);
+  const onBeforeCompile = useMemo(
+    () => (shader: THREE.WebGLProgramParametersWithUniforms) => {
+      shader.uniforms.layerMap = { value: texture };
+      shader.uniforms.layerBottom = { value: bottom };
+      shader.uniforms.layerHeight = { value: Math.max(profile.height, 1e-3) };
+      shader.vertexShader = shader.vertexShader
+        .replace('#include <common>', '#include <common>\nvarying float vLayerZ;')
+        .replace('#include <worldpos_vertex>', '#include <worldpos_vertex>\nvLayerZ = (modelMatrix * vec4(transformed, 1.0)).z;');
+      shader.fragmentShader = shader.fragmentShader
+        .replace('#include <common>', '#include <common>\nvarying float vLayerZ;\nuniform sampler2D layerMap;\nuniform float layerBottom;\nuniform float layerHeight;')
+        .replace(
+          '#include <color_fragment>',
+          '#include <color_fragment>\ndiffuseColor.rgb = texture2D(layerMap, vec2(0.5, clamp((vLayerZ - layerBottom) / layerHeight, 0.0, 1.0))).rgb;',
+        );
+    },
+    [texture, bottom, profile.height],
+  );
+  // A new key per texture: three caches the compiled program by material.
+  return <meshStandardMaterial key={texture.uuid} roughness={0.7} onBeforeCompile={onBeforeCompile} customProgramCacheKey={() => texture.uuid} />;
+}
+
 /** Lay on face: hovering shows a candidate face, a click or tap lays the object on it. */
 function FlattenPlanes({ part, place }: { part: Part; place: Placement }) {
   const planes = useMemo(() => hullPlanes(part.geometry), [part]);
@@ -369,6 +404,7 @@ function Objects({ w, d }: { w: number; d: number }) {
   const canvas = useThree((s) => s.gl.domElement);
   const paint = useSlicer((s) => s.paint);
   const overlay = useSlicer((s) => s.overlay);
+  const layers = useSlicer((s) => s.layers);
   const measuring = !paint && tool === 'measure';
   const stroking = useRef(false);
   const [brush, setBrush] = useState<{ point: THREE.Vector3; normal: THREE.Vector3 } | null>(null);
@@ -542,7 +578,10 @@ function Objects({ w, d }: { w: number; d: number }) {
       {parts.map((p) => {
         const active = !paint && selected?.object === p.object;
         const offset = active && delta ? delta : [0, 0];
-        const material = (
+        const layered = !paint && tool === 'layers' && layers?.object === p.object ? layers : null;
+        const material = layered ? (
+          <LayerMaterial profile={layered} bottom={p.geometry.boundingBox!.min.z} />
+        ) : (
           <meshStandardMaterial vertexColors roughness={0.55} metalness={0.05} emissive={active ? '#2f6fe4' : '#000000'} emissiveIntensity={active ? 0.35 : 0} />
         );
         if (gizmoTool && place && p.object === place.object)

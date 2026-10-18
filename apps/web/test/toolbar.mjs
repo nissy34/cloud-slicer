@@ -1,8 +1,9 @@
 #!/usr/bin/env node
 // Browser end to end for the object toolbar over the 3D view: adding a model
 // keeps the one already there, simplify halves the triangles, lay on face
-// turns the object, measure picks two features and measures between them, and
-// the toolbar fits a phone (and the page itself never scrolls there).
+// turns the object, variable layer height makes an adaptive profile, measure
+// picks two features and measures between them, and the toolbar fits a phone
+// (and the page itself never scrolls there).
 //
 //   node test/toolbar.mjs [screenshot-dir]
 //
@@ -127,6 +128,27 @@ try {
   if (undone !== before) fail(`undo should bring the triangles back: ${undone} vs ${before}`);
   await page.getByRole('region', { name: 'Simplify' }).getByRole('button', { name: 'Done' }).click();
   console.log(`simplify: ${before} -> ${after} triangles, undo brings ${undone} back`);
+  // Variable layer height: Adaptive gives the object its own layer profile; Reset takes it away.
+  await toolbar.getByRole('button', { name: 'Variable layer height' }).click();
+  const layersPanel = page.getByRole('region', { name: 'Variable layer height' });
+  await layersPanel.waitFor();
+  const summary = layersPanel.getByLabel('Layer heights');
+  await page.waitForFunction(() => /^Plain/.test(document.querySelector('[aria-label="Layer heights"]')?.textContent ?? ''), null, { timeout: 30000 });
+  const plainText = await summary.innerText();
+  await layersPanel.getByRole('button', { name: 'Adaptive' }).click();
+  await page.waitForFunction(() => /^Variable/.test(document.querySelector('[aria-label="Layer heights"]')?.textContent ?? ''), null, { timeout: 30000 });
+  const adaptiveText = await summary.innerText();
+  if (adaptiveText.match(/(\d+) layers/)?.[1] === plainText.match(/(\d+) layers/)?.[1]) fail(`adaptive kept the layer count: ${plainText} / ${adaptiveText}`);
+  if (shots) await page.screenshot({ path: join(shots, 'layers-desktop-adaptive.png') });
+  // Holding on the chart adds detail around that height.
+  const chart = await layersPanel.getByRole('img', { name: 'Layer height profile' }).boundingBox();
+  await page.mouse.move(chart.x + chart.width / 2, chart.y + chart.height / 2);
+  await page.mouse.down();
+  await page.waitForTimeout(600);
+  await page.mouse.up();
+  await layersPanel.getByRole('button', { name: 'Reset' }).click();
+  await page.waitForFunction(() => /^Plain/.test(document.querySelector('[aria-label="Layer heights"]')?.textContent ?? ''), null, { timeout: 30000 });
+  console.log(`variable layer height: ${plainText} -> ${adaptiveText} -> reset`);
 
   // Lay on face: click the highlighted faces over the boat until it turns.
   await toolbar.getByRole('button', { name: 'Lay on face' }).click();

@@ -690,6 +690,51 @@ test('simplify: fewer triangles by detail level or ratio, paint dropped, like de
   assert.equal(simplify({ op: 'preview', ratio: 0 }).after, half.after);
 });
 
+test('variable layer height: adaptive, smooth, manual edits and reset change what a slice prints', () => {
+  select({ printer: DEFAULT_PRINTER });
+  load('3DBenchy.stl');
+  const config = JSON.stringify(fullConfig());
+  const layers = (request) => call(engine, 'layerHeights', 0, config, JSON.stringify(request));
+  const layerCount = (gcode) => (gcode.match(/^;LAYER_CHANGE/gm) ?? []).length;
+
+  const plain = layers({ op: 'get' });
+  assert.equal(plain.custom, false);
+  assert.ok(plain.height > 40 && plain.height < 50, `Benchy is about 48 mm tall: ${plain.height}`);
+  const heights = (p) => p.layers.filter((_, i) => i % 2).map((top, i) => top - p.layers[i * 2]);
+  assert.ok(heights(plain).slice(1).every((h) => Math.abs(h - plain.layerHeight) < 1e-6), 'without a profile every layer is the layer height');
+  const plainLayers = layerCount(slice(fullConfig()).gcode);
+
+  const adaptive = layers({ op: 'adaptive', quality: 0 });
+  assert.equal(adaptive.custom, true);
+  const hs = heights(adaptive);
+  assert.ok(Math.min(...hs.slice(1)) < plain.layerHeight - 1e-6, 'adaptive (quality) makes some layers thinner');
+  assert.ok(hs.every((h) => h >= adaptive.minLayerHeight - 1e-6 && h <= adaptive.maxLayerHeight + 1e-6), 'within the printer\'s layer heights');
+  const adaptiveLayers = layerCount(slice(fullConfig()).gcode);
+  assert.ok(adaptiveLayers > plainLayers, `the slice follows the profile: ${adaptiveLayers} layers vs ${plainLayers}`);
+
+  const smooth = layers({ op: 'smooth', radius: 5, keepMin: false });
+  assert.equal(smooth.custom, true);
+
+  layers({ op: 'reset' });
+  const thin = layers({ op: 'adjust', action: 'decrease', zs: Array(20).fill(20), band: 4 });
+  const at = (p, z) => heights(p)[p.layers.findIndex((v, i) => i % 2 === 0 && p.layers[i + 1] >= z) / 2];
+  assert.ok(at(thin, 20) < plain.layerHeight - 0.01, `adding detail at 20 mm makes layers there thinner: ${at(thin, 20)}`);
+  // (within a hair: Orca stretches the layers a little so the last one ends at the top)
+  assert.ok(Math.abs(at(thin, 40) - plain.layerHeight) < 0.005, `and leaves layers far away alone: ${at(thin, 40)}`);
+
+  const reset = layers({ op: 'reset' });
+  assert.equal(reset.custom, false);
+  assert.equal(layerCount(slice(fullConfig()).gcode), plainLayers, 'reset goes back to the plain layers');
+
+  // Reading the layers caches the object's height; turning it afterwards
+  // still drops it onto the bed.
+  call(engine, 'setInstanceTransform', 0, 0, JSON.stringify({ rotation: [90, 0, 0] }));
+  const pos = engine.previewMesh(0).positions;
+  let low = Infinity;
+  for (let i = 2; i < pos.length; i += 3) low = Math.min(low, pos[i]);
+  assert.ok(Math.abs(low) < 1e-3, `on the bed after turning: lowest z ${low}`);
+});
+
 test('measure: faces, edges and corners under a ray, and the distance and angle between them', () => {
   select({ printer: DEFAULT_PRINTER });
   load('gen-cube-20.stl');

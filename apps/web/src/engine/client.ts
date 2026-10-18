@@ -16,6 +16,7 @@ import type {
   WorkerReply,
 } from './protocol';
 import type { Thumbnail } from '../lib/thumbnail';
+import type { LayerProfile, LayerRequest } from '../lib/layers';
 import type { MatchResult, MixRecipe, MixRow } from '../lib/mixing';
 import type { SimplifyBy, SimplifyResult } from '../lib/simplify';
 import type { MeasureFeature, Measurement } from '../lib/measure';
@@ -163,7 +164,8 @@ export class EngineClient {
     const edits =
       !READS.has(method) &&
       !(method === 'mixed' && !(args[0] as MixedRequest).op) &&
-      !(method === 'simplify' && (args[1] as { op: string }).op !== 'apply');
+      !(method === 'simplify' && (args[1] as { op: string }).op !== 'apply') &&
+      !(method === 'layerHeights' && (args[2] as LayerRequest).op === 'get');
     if (edits && this.sliceId) this.onEditWhileSlicing?.();
     const id = this.nextId++;
     const done = () => {
@@ -242,6 +244,10 @@ export class EngineClient {
   simplifyPreview = (o: number, by?: SimplifyBy) => this.call<SimplifyResult>('simplify', [o, by ? { op: 'preview', ...by } : { op: 'get' }]);
   /** Simplifies object o's parts, like desktop's Simplify (its paint goes). */
   simplifyApply = (o: number, by: SimplifyBy) => this.call<ProjectInfo>('simplify', [o, { op: 'apply', ...by }]);
+
+  /** Object o's variable layer height profile, after the edit in `request` (see LayerRequest). */
+  layerHeights = (o: number, overrides: OrcaConfig, request: LayerRequest) =>
+    this.call<LayerProfile>('layerHeights', [o, overrides, request]);
   /** Measure tool: the point, edge, circle or plane under a ray (`keep`: feature ids still in use). */
   measureFeature = (plate: number, options: { ray: PaintRay; onlyPlane?: boolean; keep: number[] }) =>
     this.call<MeasureFeature | null>('measureFeature', [plate, options]);

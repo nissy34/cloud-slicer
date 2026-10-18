@@ -42,7 +42,7 @@ const GROUPS: Item[][] = [
     { id: 'arrange', icon: 'toolbar_arrange', label: 'Arrange all objects', key: 'A' },
     { id: 'splitobjects', icon: 'split_objects', label: 'Split to objects', needsSelection: true },
     { id: 'splitparts', icon: 'split_parts', label: 'Split to parts', needsSelection: true },
-    { id: 'layers', icon: 'toolbar_variable_layer_height', label: 'Variable layer height', missing: true },
+    { id: 'layers', icon: 'toolbar_variable_layer_height', label: 'Variable layer height', tool: 'layers', needsSelection: true },
   ],
   [
     { id: 'move', icon: 'toolbar_move', label: 'Move', key: 'M', tool: 'move', needsSelection: true },

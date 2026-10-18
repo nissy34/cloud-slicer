@@ -356,6 +356,9 @@ std::string setInstanceTransform(int o, int i, const std::string& changesJson) {
             const Vec3d off = inst->get_offset();
             inst->set_offset(Vec3d(origin.x() + c["offset"][0].get<double>(), origin.y() + c["offset"][1].get<double>(), off.z()));
         }
+        // The object's cached bounding box is stale after a rotation or scale
+        // (desktop invalidates it too); dropping to the bed reads it.
+        objectAt(o)->invalidate_bounding_box();
         objectAt(o)->ensure_on_bed();
         return ok().dump();
     } catch (const std::exception& e) {
