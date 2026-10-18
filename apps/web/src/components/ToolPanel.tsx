@@ -51,6 +51,60 @@ function CutPanel({ object, instance, height, onDone }: { object: number; instan
   );
 }
 
+/** Exact values for the open gizmo, like the fields in desktop's gizmo panels. */
+function TransformFields({ tool, object, instance }: { tool: 'move' | 'rotate' | 'scale'; object: number; instance: number }) {
+  const inst = useSlicer((s) => s.project?.objects[object]?.instances[instance]);
+  const { transformInstance, moveInstance, mirror } = useSlicer.getState();
+  if (!inst) return null;
+  const values = tool === 'move' ? inst.offset.slice(0, 2) : tool === 'rotate' ? inst.rotation : inst.scale.map((v) => v * 100);
+  const [label, unit] = tool === 'move' ? ['Position', 'mm'] : tool === 'rotate' ? ['Rotation', '°'] : ['Scale', '%'];
+  const set = (axis: number, raw: string) => {
+    const v = Number(raw);
+    if (!Number.isFinite(v) || round(v) === round(values[axis])) return;
+    if (tool === 'move') {
+      const at = [inst.offset[0], inst.offset[1]];
+      at[axis] = v;
+      return void moveInstance(object, instance, at[0], at[1]);
+    }
+    if (tool === 'rotate') {
+      const rotation = [...inst.rotation];
+      rotation[axis] = v;
+      return void transformInstance(object, instance, { rotation });
+    }
+    if (v <= 0) return;
+    const scale = [...inst.scale];
+    scale[axis] = v / 100;
+    void transformInstance(object, instance, { scale });
+  };
+  return (
+    <>
+      <div className="transform-row">
+        <span>{label} {unit}</span>
+        {values.map((v, axis) => (
+          <input
+            key={`${tool}${axis}-${v}`}
+            aria-label={`${label} ${'XYZ'[axis]}`}
+            inputMode="decimal"
+            defaultValue={round(v)}
+            onBlur={(e) => set(axis, e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && (e.target as HTMLInputElement).blur()}
+          />
+        ))}
+      </div>
+      {tool === 'scale' && (
+        <div className="tool-row">
+          <button className="secondary" title="Mirror along X" onClick={() => void mirror(object, instance, 0)}>
+            Mirror X
+          </button>
+          <button className="secondary" title="Mirror along Y" onClick={() => void mirror(object, instance, 1)}>
+            Mirror Y
+          </button>
+        </div>
+      )}
+    </>
+  );
+}
+
 const HINTS: Record<Exclude<Tool, 'cut'>, [string, string]> = {
   move: ['Move', 'Drag an arrow, or drag the object itself.'],
   rotate: ['Rotate', 'Drag a ring to turn the object around that axis.'],
@@ -64,6 +118,7 @@ export function ToolPanel() {
   const selected = useSlicer((s) => s.selected);
   const height = useSlicer((s) => (s.selected ? s.project?.objects[s.selected.object]?.size[2] : undefined));
   const snap = useSlicer((s) => s.snap);
+  const rotation = useSlicer((s) => (s.selected ? s.project?.objects[s.selected.object]?.instances[s.selected.instance]?.rotation : undefined));
   const { setTool, setSnap } = useSlicer.getState();
   if (!tool || !selected) return null;
   if (tool === 'cut')
@@ -83,6 +138,13 @@ export function ToolPanel() {
         </button>
       </div>
       <p className="muted hint">{hint}</p>
+      {tool === 'flatten' ? (
+        <p className="muted hint" aria-label="Current rotation">
+          Rotation now: {rotation?.map((r) => `${round(r)}°`).join(', ')}
+        </p>
+      ) : (
+        <TransformFields tool={tool} object={selected.object} instance={selected.instance} />
+      )}
       {tool !== 'flatten' && (
         <label className="check">
           <input type="checkbox" checked={snap} onChange={(e) => setSnap(e.target.checked)} />

@@ -47,8 +47,8 @@ async function open(viewport, mobile) {
 }
 
 const objectRows = (page) => page.locator('ul.objects > li.object');
-// The rotation fields; they are gone while nothing is selected, so don't wait for them.
-const rotation = (page, timeout = 1000) => Promise.all(['X', 'Y', 'Z'].map((a) => page.getByLabel(`Rotation ${a}`).inputValue({ timeout })));
+// The rotation the Lay on face panel shows; it is gone while nothing is selected, so don't wait long.
+const rotation = (page, timeout = 1000) => page.getByLabel('Current rotation').innerText({ timeout });
 
 try {
   const page = await open({ width: 1280, height: 800 }, false);
@@ -70,8 +70,17 @@ try {
 
   // Rotate: the gizmo panel opens.
   await toolbar.getByRole('button', { name: 'Rotate' }).click();
-  await page.getByRole('region', { name: 'Rotate' }).waitFor();
+  const rotate = page.getByRole('region', { name: 'Rotate' });
+  await rotate.waitFor();
   if (shots) await page.screenshot({ path: join(shots, 'toolbar-desktop-rotate.png') });
+  // Exact values go in the gizmo's own panel, like desktop.
+  await rotate.getByLabel('Rotation Z').fill('90');
+  await rotate.getByLabel('Rotation Z').press('Enter');
+  await page.waitForFunction(() => document.querySelector('[aria-label="Rotation Z"]')?.value === '90', null, { timeout: 30000 });
+  await rotate.getByLabel('Rotation Z').fill('0');
+  await rotate.getByLabel('Rotation Z').press('Enter');
+  await page.waitForFunction(() => document.querySelector('[aria-label="Rotation Z"]')?.value === '0', null, { timeout: 30000 });
+  console.log('rotation typed in the Rotate panel');
 
   // Lay on face: click the highlighted faces over the boat until it turns.
   await toolbar.getByRole('button', { name: 'Lay on face' }).click();
@@ -94,7 +103,7 @@ try {
     await page.mouse.down();
     await page.mouse.up();
     await page.waitForTimeout(500);
-    turned = (await rotation(page, 3000).catch(() => start)).join() !== start.join();
+    turned = (await rotation(page, 3000).catch(() => start)) !== start;
     if (turned) break;
   }
   if (shots && turned) {
@@ -102,7 +111,7 @@ try {
     await page.screenshot({ path: join(shots, 'toolbar-desktop-laid.png') });
   }
   if (!turned) fail('lay on face did not turn the object');
-  else console.log(`lay on face: rotation ${start.join(',')} -> ${(await rotation(page)).join(',')}`);
+  else console.log(`lay on face: ${start} -> ${await rotation(page)}`);
   await page.close();
 
   const phone = await open({ width: 390, height: 844 }, true);

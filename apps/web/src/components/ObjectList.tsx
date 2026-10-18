@@ -1,16 +1,14 @@
 import { NO_COLOURS, useSlicer } from '../state/store';
 import { ObjectSettings } from './ObjectSettings';
 
-const round = (n: number) => Math.round(n * 100) / 100;
-
-/** Objects on the current plate, their filament, and the selected one's transform. */
+/** Objects on the current plate, their filament, and the selected one's settings. */
 export function ObjectList() {
   const project = useSlicer((s) => s.project);
   const plate = useSlicer((s) => s.plate);
   const selected = useSlicer((s) => s.selected);
   const slots = useSlicer((s) => s.selection?.filaments.length ?? 1);
   const colours = useSlicer((s) => s.selection?.colours ?? NO_COLOURS);
-  const { select, setObjectFilament, deleteObject, copyInstance, transformInstance, mirror } = useSlicer.getState();
+  const { select, setObjectFilament, deleteObject, copyInstance } = useSlicer.getState();
   if (!project?.objects.length) return null;
   const onPlate = project.plates[plate]?.objects ?? [];
 
@@ -69,44 +67,6 @@ export function ObjectList() {
       </ul>
       {selected && sel && (
         <div className="transform">
-          <div className="transform-row">
-            <span>Rotate°</span>
-            {sel.rotation.map((r, axis) => (
-              <input
-                key={`r${axis}-${r}`}
-                aria-label={`Rotation ${'XYZ'[axis]}`}
-                defaultValue={round(r)}
-                onBlur={(e) => {
-                  const rot = [...sel.rotation];
-                  rot[axis] = Number(e.target.value) || 0;
-                  if (rot[axis] !== sel.rotation[axis]) void transformInstance(selected.object, selected.instance, { rotation: rot });
-                }}
-              />
-            ))}
-          </div>
-          <div className="transform-row">
-            <span>Scale %</span>
-            {sel.scale.map((s, axis) => (
-              <input
-                key={`s${axis}-${s}`}
-                aria-label={`Scale ${'XYZ'[axis]}`}
-                defaultValue={round(s * 100)}
-                onBlur={(e) => {
-                  const scl = [...sel.scale];
-                  scl[axis] = (Number(e.target.value) || 100) / 100;
-                  if (scl[axis] !== sel.scale[axis]) void transformInstance(selected.object, selected.instance, { scale: scl });
-                }}
-              />
-            ))}
-          </div>
-          <div className="tool-row">
-            <button className="secondary" title="Mirror along X" onClick={() => void mirror(selected.object, selected.instance, 0)}>
-              Mirror X
-            </button>
-            <button className="secondary" title="Mirror along Y" onClick={() => void mirror(selected.object, selected.instance, 1)}>
-              Mirror Y
-            </button>
-          </div>
           <ObjectSettings object={selected.object} />
           <div className="transform-row actions">
             <button className="secondary" onClick={() => void copyInstance(selected.object, selected.instance)}>
