@@ -429,9 +429,11 @@ export function PrinterEditor() {
             Cancel
           </button>
           {kind === 'bridge' ? (
-            <button className="primary" disabled={!pairing || !printerId || checking} onClick={saveBridge} data-testid="save-printer">
-              {existing ? 'Save' : 'Add printer'}
-            </button>
+            pairing && (
+              <button className="primary" disabled={!pairing || !printerId || checking} onClick={saveBridge} data-testid="save-printer">
+                {existing ? 'Save' : 'Add printer'}
+              </button>
+            )
           ) : (
             <button className="primary" disabled={!url.trim() || checking} onClick={() => void saveDirect()} data-testid="save-printer">
               {checking ? 'Checking…' : existing ? 'Save' : 'Add printer'}
@@ -443,10 +445,10 @@ export function PrinterEditor() {
       {!existing && (
         <div className="dv-segmented" role="tablist" aria-label="How to reach the printer">
           <button role="tab" aria-selected={kind === 'bridge'} className={kind === 'bridge' ? 'on' : ''} onClick={() => setKind('bridge')}>
-            On my home network
+            At home (recommended)
           </button>
           <button role="tab" aria-selected={kind === 'direct'} className={kind === 'direct' ? 'on' : ''} onClick={() => setKind('direct')}>
-            Public https address
+            Over the internet (advanced)
           </button>
         </div>
       )}
@@ -454,28 +456,27 @@ export function PrinterEditor() {
       {kind === 'bridge' ? (
         <div className="dv-form">
           {!pairing && (
-            <>
-              <p>
-                Browsers can't reach a printer on your home network from a website, so a small bridge runs on any computer that stays on near the printer (a PC, a Mac or a Raspberry
-                Pi). It connects out to the relay, so nothing on your router needs opening.
-              </p>
-              <BridgeSetup relay={relayForCommand} />
-              <label>
-                Pairing link or code
-                <input
-                  value={code}
-                  data-testid="pairing-code"
-                  onChange={(e) => {
-                    setCode(e.target.value);
-                    const p = decodePairing(e.target.value);
-                    setError(p || !e.target.value.trim() ? '' : 'That is not a pairing code.');
-                    if (p) setPairing(p);
-                  }}
-                  spellCheck={false}
-                  autoCapitalize="off"
-                />
-              </label>
-            </>
+            <BridgeSetup
+              relay={relayForCommand}
+              pasteLink={
+                <label>
+                  Pairing link
+                  <input
+                    value={code}
+                    data-testid="pairing-code"
+                    onChange={(e) => {
+                      setCode(e.target.value);
+                      const p = decodePairing(e.target.value);
+                      setError(p || !e.target.value.trim() ? '' : "That isn't a pairing link. Copy the whole address of the page the bridge opened.");
+                      if (p) setPairing(p);
+                    }}
+                    placeholder="https://…/#pair=…"
+                    spellCheck={false}
+                    autoCapitalize="off"
+                  />
+                </label>
+              }
+            />
           )}
           {pairing && (
             <>
@@ -527,11 +528,15 @@ export function PrinterEditor() {
               )}
             </>
           )}
-          <label>
-            Name
-            <input value={name} onChange={(e) => setName(e.target.value)} placeholder="My U1" />
-          </label>
-          <PresetField value={preset} onChange={setPreset} />
+          {pairing && (
+            <>
+              <label>
+                Name
+                <input value={name} onChange={(e) => setName(e.target.value)} placeholder="My U1" />
+              </label>
+              <PresetField value={preset} onChange={setPreset} />
+            </>
+          )}
         </div>
       ) : (
         <div className="dv-form">

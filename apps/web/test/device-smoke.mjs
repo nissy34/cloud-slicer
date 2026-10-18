@@ -245,7 +245,7 @@ try {
   // A printer that has collected files over months: the card pages them like Fluidd.
   for (let i = 0; i < 24; i++) voron.files.set(`part_${String(i).padStart(2, '0')}.gcode`, { size: 50_000, modified: Date.now() / 1000 - 7200 - i * 600, text: '' });
   await page.getByTestId('printer-select').selectOption('__add');
-  await page.getByRole('tab', { name: 'Public https address' }).click();
+  await page.getByRole('tab', { name: 'Over the internet (advanced)' }).click();
   // The exact moonraker.conf lines that let this site reach the printer, ready to copy.
   await page.getByTestId('cors-snippet').filter({ hasText: `[authorization] cors_domains: ${site.replace(/\/$/, '')}` }).waitFor();
   await page.getByTestId('printer-url').fill(voron.url);
@@ -331,12 +331,26 @@ try {
   await setup.goto(site);
   await setup.getByRole('tab', { name: 'Device' }).click();
   await setup.getByTestId('add-printer').click();
+  // One computer at a time, three numbered steps, starting from this browser's system (Linux here).
+  // Nothing to fill in before the bridge pairs: no name, profile or Add printer button yet.
+  await setup.getByTestId('bridge-steps-linux').getByTestId('bridge-install-command').filter({ hasText: `curl -fsSL ${liveRelay}/install.sh | sh` }).waitFor();
+  if ((await setup.getByTestId('bridge-steps-linux').locator('.dv-setup-step').count()) !== 3) throw new Error('the Linux setup should be three steps');
+  if (await setup.getByTestId('save-printer').count()) throw new Error('Add printer should wait for the bridge to pair');
+  if (await setup.getByRole('dialog').getByLabel('Printer profile').count()) throw new Error('the printer profile should wait for the bridge to pair');
+  await setup.getByRole('tab', { name: 'Windows PC' }).click();
   const win = setup.getByTestId('bridge-download-windows');
   await win.waitFor();
   if ((await win.getAttribute('href')) !== `${liveRelay}/download/windows-x64`) throw new Error(`Windows download points at ${await win.getAttribute('href')}`);
-  await setup.getByTestId('bridge-download-mac').waitFor();
-  await setup.getByTestId('bridge-install-command').filter({ hasText: `curl -fsSL ${liveRelay}/install.sh | sh` }).waitFor();
   if (shots) await setup.screenshot({ path: join(shots, 'bridge-setup.png') });
+  await setup.getByRole('tab', { name: 'Mac' }).click();
+  await setup.getByTestId('bridge-steps-mac').getByTestId('bridge-install-command').filter({ hasText: `curl -fsSL ${liveRelay}/install.sh | sh` }).waitFor();
+  await setup.getByText('Rather download the Mac app?').click();
+  await setup.getByTestId('bridge-download-mac').waitFor();
+  // A pairing link pasted by hand works too, for when the page opened on another computer.
+  await setup.getByTestId('bridge-paste-link').locator('summary').click();
+  await setup.getByTestId('pairing-code').fill('not a link');
+  await setup.getByRole('alert').filter({ hasText: "That isn't a pairing link" }).waitFor();
+  await setup.getByTestId('pairing-code').fill('');
   const download = await fetch(`${relayUrl}/download/windows-x64`);
   if ((await download.text()) !== 'pretend bridge app' || !/filename="cloud-slicer-bridge\.exe"/.test(download.headers.get('content-disposition') ?? '')) throw new Error('the relay does not serve the Windows app');
   const script = await (await fetch(`${relayUrl}/install.sh`)).text();

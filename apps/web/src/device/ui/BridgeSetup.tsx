@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 
 /** A bridge app the relay has (apps/device-relay: /downloads.json). */
 interface BridgeApp {
@@ -55,7 +55,7 @@ type BridgeOs = 'windows' | 'mac' | 'linux';
 /** Which system the bridge's computer runs, starting from this browser's guess. */
 function useBridgeOs(): [BridgeOs, (os: BridgeOs) => void] {
   const guess = guessSystem();
-  return useState<BridgeOs>(guess === 'other' ? 'linux' : guess);
+  return useState<BridgeOs>(guess === 'other' ? 'windows' : guess);
 }
 
 function OsTabs({ os, onChange }: { os: BridgeOs; onChange: (os: BridgeOs) => void }) {
@@ -146,13 +146,76 @@ export function BridgeOffline({ system, app }: { system?: string; app?: boolean 
   );
 }
 
+/** A numbered step: a short bold heading saying what to do, and anything under it. */
+function Step({ n, title, children }: { n: number; title: ReactNode; children?: ReactNode }) {
+  return (
+    <li className="dv-setup-step">
+      <span className="dv-step-n" aria-hidden>
+        {n}
+      </span>
+      <div className="dv-step-body">
+        <strong>{title}</strong>
+        {children}
+      </div>
+    </li>
+  );
+}
+
+/** One command to paste, with a big Copy button first: copying it is the whole step. */
+function CopyStep({ command, testId }: { command: string; testId?: string }) {
+  const [copied, setCopied] = useState(false);
+  const copy = () => {
+    void navigator.clipboard?.writeText(command).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    });
+  };
+  return (
+    <div className="dv-copy-step">
+      <button className="primary dv-big" onClick={copy}>
+        {copied ? 'Copied ✓' : 'Copy'}
+      </button>
+      <pre className="dv-code" data-testid={testId}>
+        {command}
+      </pre>
+    </div>
+  );
+}
+
+const OS_LABEL: Record<BridgeOs, string> = { windows: 'Windows PC', mac: 'Mac', linux: 'Raspberry Pi or Linux' };
+
+/** Copies this page's address, for someone reading it on a phone who sets the bridge up on a computer. */
+function CopyPageLink() {
+  const [copied, setCopied] = useState(false);
+  const url = location.origin + location.pathname;
+  return (
+    <button
+      className="dv-link"
+      onClick={() =>
+        void navigator.clipboard?.writeText(url).then(() => {
+          setCopied(true);
+          setTimeout(() => setCopied(false), 2000);
+        })
+      }
+    >
+      {copied ? 'Link copied ✓' : 'Copy the link to this page'}
+    </button>
+  );
+}
+
 /**
- * How to set up the bridge on the computer near the printer: one app to open
- * on Windows and macOS, one command on Linux and Raspberry Pi, and the
- * Node.js script for everything else (or while the relay has no apps yet).
+ * How to set up the bridge on the computer near the printer, one system at a
+ * time (guessed from this browser, switchable): Windows downloads and opens
+ * the app, Mac and Linux paste one Terminal command. Every path ends with the
+ * bridge opening this page with its pairing link, so the last step is just
+ * picking the printer. `pasteLink` is the field for that link, for when the
+ * page opened on another computer or not at all; the Node.js script stays for
+ * everything else (or while the relay has no apps yet).
  */
-export function BridgeSetup({ relay }: { relay: string }) {
+export function BridgeSetup({ relay, pasteLink }: { relay: string; pasteLink?: ReactNode }) {
   const [apps, setApps] = useState<BridgeApp[] | null>(null);
+  const system = guessSystem();
+  const [os, setOs] = useBridgeOs();
   useEffect(() => {
     let live = true;
     fetch(`${relay}/downloads.json`)
@@ -168,8 +231,17 @@ export function BridgeSetup({ relay }: { relay: string }) {
   const script = `${relay}/bridge.mjs?site=${encodeURIComponent(location.origin)}`;
   const install = `curl -fsSL ${relay}/install.sh | sh`;
   const has = (name: string) => apps?.find((a) => a.name === name);
-  const linux = has('linux-x64') || has('linux-arm64');
-  const system = guessSystem();
+
+  const paste = pasteLink && (
+    <details className="dv-node-option dv-paste-link" data-testid="bridge-paste-link">
+      <summary>This page didn't open by itself?</summary>
+      <p className="muted">
+        The bridge opens this page on its own computer. If that is a different computer, you can carry on there. Or copy the address of the page it opened (it ends with a long
+        code after #pair=) and paste it here:
+      </p>
+      {pasteLink}
+    </details>
+  );
 
   const nodeSteps = (
     <ol className="dv-steps-list">
@@ -187,62 +259,141 @@ export function BridgeSetup({ relay }: { relay: string }) {
     </ol>
   );
 
-  if (apps === null) return <p className="muted">Finding the bridge downloads…</p>;
-  if (!apps.length) return nodeSteps;
+  if (apps === null) return <p className="muted">Getting the bridge ready…</p>;
+  if (!apps.length) {
+    return (
+      <>
+        {nodeSteps}
+        {paste}
+      </>
+    );
+  }
 
   const win = has('windows-x64');
   const mac = has('mac-arm64');
   const macIntel = has('mac-x64');
-  const macDownload = mac || macIntel;
-  const terminal = linux || macDownload;
-  const terminalFor = [macDownload && 'Mac', linux && 'Linux or Raspberry Pi (64-bit)'].filter(Boolean).join(', ');
+  const linux = has('linux-x64') || has('linux-arm64');
+  const offered = (['windows', 'mac', 'linux'] as const).filter((k) => (k === 'windows' ? win : k === 'mac' ? mac || macIntel : linux));
+  const shown = offered.includes(os) ? os : offered[0];
+  if (!shown) {
+    return (
+      <>
+        {nodeSteps}
+        {paste}
+      </>
+    );
+  }
+
+  const lastStep = (n: number) => (
+    <Step n={n} title="Pick your printer">
+      <span>
+        The bridge opens this page by itself and looks for printers on your network. Choose yours, then click <b>Add printer</b>. That's it: from now on the bridge starts
+        by itself whenever that computer is on.
+      </span>
+    </Step>
+  );
 
   return (
     <div className="dv-bridge-setup">
-      <ol className="dv-steps-list">
-        <li>
-          On the computer near the printer, get the bridge:
-          {win && (
-            <div className="dv-downloads">
-              <a className={system === 'windows' ? 'primary' : 'secondary'} href={`${relay}/download/windows-x64`} data-testid="bridge-download-windows">
-                Windows ({mb(win.size)})
-              </a>
-            </div>
-          )}
-          {terminal && (
-            <>
-              <span className="muted">{terminalFor}: paste this in Terminal and press Enter.</span>
-              <CopyCommand command={install} testId="bridge-install-command" />
-            </>
-          )}
-        </li>
-        <li>
-          Open it (the Terminal command does this by itself). It asks nothing: it starts by itself with the computer (so the Device tab works whenever that
-          computer is on) and opens a link to this page (you can also paste the link below). Here you search the network for your printers and add the ones you
-          want, with an API key if one needs it, or add a printer by its address.
-        </li>
-        {(win || macDownload) && (
-          <li className="muted">
-            The bridge isn't signed yet, so systems warn about it.
-            {win && ' Windows may say "Windows protected your PC": choose More info, then Run anyway.'}
-            {macDownload && (
-              <>
-                {' '}On a Mac the Terminal command avoids the warning; if macOS asks whether the bridge may find devices on your local network, click Allow. To download the app instead (
-                {mac && (
-                  <a href={`${relay}/download/mac-arm64`} data-testid="bridge-download-mac">
-                    Apple chip
-                  </a>
-                )}
-                {mac && macIntel && ', '}
-                {macIntel && <a href={`${relay}/download/mac-x64`}>Intel</a>}
-                ): open the zip and the app; when macOS says it was not opened, click Done, then open System Settings, Privacy & Security, and click Open Anyway.
-              </>
-            )}
-          </li>
+      <p>
+        Your printer is on your home network, which websites can't reach on their own. A small free app called the <b>bridge</b> connects the two. It runs on a computer
+        in your home that is usually switched on, and you only set it up once.
+      </p>
+      {system === 'other' && (
+        <p className="dv-note" data-testid="bridge-phone-note">
+          Do this on that computer, not on this phone. <CopyPageLink /> and open it there.
+        </p>
+      )}
+      <div className="dv-setup-os">
+        <span className="dv-setup-question">Which computer will run the bridge?</span>
+        <div className="dv-segmented dv-os-tabs" role="tablist" aria-label="The bridge's computer">
+          {offered.map((k) => (
+            <button key={k} role="tab" aria-selected={shown === k} className={shown === k ? 'on' : ''} onClick={() => setOs(k)}>
+              {OS_LABEL[k]}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <ol className="dv-setup-steps" data-testid={`bridge-steps-${shown}`}>
+        {shown === 'windows' && win && (
+          <>
+            <Step n={1} title="Download the bridge">
+              <div>
+                <a className="primary dv-big" href={`${relay}/download/windows-x64`} data-testid="bridge-download-windows">
+                  Download for Windows
+                </a>{' '}
+                <span className="muted">{mb(win.size)}</span>
+              </div>
+            </Step>
+            <Step n={2} title="Open the file you downloaded">
+              <span>You'll find it in your Downloads folder.</span>
+              <span className="muted">
+                If a blue box says "Windows protected your PC", click <b>More info</b>, then <b>Run anyway</b>. Windows says this about new apps it doesn't know yet.
+              </span>
+            </Step>
+            {lastStep(3)}
+          </>
+        )}
+        {shown === 'mac' && (
+          <>
+            <Step n={1} title="Copy this line">
+              <CopyStep command={install} testId="bridge-install-command" />
+            </Step>
+            <Step n={2} title="Paste it into Terminal and press Return">
+              <span>
+                To open Terminal, press <kbd>⌘ Command</kbd> + <kbd>Space</kbd>, type <b>Terminal</b> and press <kbd>Return</kbd>. Paste with <kbd>⌘ Command</kbd> +{' '}
+                <kbd>V</kbd>.
+              </span>
+              <span className="muted">
+                If your Mac asks whether the bridge may find devices on your local network, click <b>Allow</b>.
+              </span>
+            </Step>
+            {lastStep(3)}
+          </>
+        )}
+        {shown === 'linux' && (
+          <>
+            <Step n={1} title="Copy this line">
+              <CopyStep command={install} testId="bridge-install-command" />
+            </Step>
+            <Step n={2} title="Paste it into a terminal on that computer and press Enter">
+              <span className="muted">
+                On a Raspberry Pi without a screen, connect to it over SSH first. It needs a 64-bit system. With no screen, the bridge prints a link instead of opening
+                this page: open that link on any computer or phone.
+              </span>
+            </Step>
+            {lastStep(3)}
+          </>
         )}
       </ol>
+
+      {paste}
+      {shown === 'mac' && (
+        <details className="dv-node-option">
+          <summary>Rather download the Mac app?</summary>
+          <div className="dv-about">
+            <div className="dv-downloads">
+              {mac && (
+                <a className="secondary" href={`${relay}/download/mac-arm64`} data-testid="bridge-download-mac">
+                  Mac with Apple chip
+                </a>
+              )}
+              {macIntel && (
+                <a className="secondary" href={`${relay}/download/mac-x64`}>
+                  Mac with Intel chip
+                </a>
+              )}
+            </div>
+            <p className="muted">
+              Open the zip, then the app. The app isn't signed by Apple yet, so macOS stops it the first time: click <b>Done</b>, open <b>System Settings</b>, then{' '}
+              <b>Privacy &amp; Security</b>, scroll down and click <b>Open Anyway</b>. The Terminal line above avoids all of this.
+            </p>
+          </div>
+        </details>
+      )}
       <details className="dv-node-option" data-testid="bridge-about">
-        <summary>About the bridge: keeping it running, adding printers, removing it</summary>
+        <summary>More about the bridge: is it safe, keeping it running, removing it</summary>
         <div className="dv-about">
           <p>
             <strong>Does it keep running?</strong> Yes. Once set up it starts by itself: on Windows and Mac when you log in (with no window: it
@@ -262,7 +413,7 @@ export function BridgeSetup({ relay }: { relay: string }) {
         </div>
       </details>
       <details className="dv-node-option">
-        <summary>Other computers (with Node.js)</summary>
+        <summary>Another kind of computer (with Node.js)</summary>
         {nodeSteps}
       </details>
     </div>

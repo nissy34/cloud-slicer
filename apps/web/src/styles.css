@@ -2411,6 +2411,109 @@ select:focus-visible {
   gap: 8px;
 }
 /* Bridge setup (device/ui/BridgeSetup.tsx) */
+.dv-bridge-setup {
+  display: grid;
+  gap: 14px;
+}
+.dv-bridge-setup p {
+  margin: 0;
+}
+.dv-note {
+  padding: 8px 10px;
+  border-radius: 6px;
+  background: var(--surface-2);
+}
+.dv-setup-os {
+  display: grid;
+  gap: 6px;
+}
+.dv-setup-question {
+  font-weight: 600;
+}
+.dv-setup-os .dv-segmented {
+  margin-bottom: 0;
+}
+.dv-setup-os .dv-segmented button {
+  white-space: normal;
+  padding: 8px 6px;
+}
+.dv-setup-steps {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 16px;
+}
+.dv-setup-step {
+  display: grid;
+  grid-template-columns: 28px minmax(0, 1fr);
+  gap: 12px;
+  align-items: start;
+}
+.dv-step-n {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: var(--accent);
+  color: var(--accent-text);
+  font-weight: 700;
+}
+.dv-step-body {
+  display: grid;
+  gap: 6px;
+  padding-top: 3px;
+}
+.dv-step-body strong {
+  font-size: 15px;
+}
+.dv-step-body kbd {
+  font: inherit;
+  font-size: 0.9em;
+  padding: 0 5px;
+  border: 1px solid var(--border);
+  border-bottom-width: 2px;
+  border-radius: 4px;
+  background: var(--surface);
+  white-space: nowrap;
+}
+.primary.dv-big,
+.secondary.dv-big {
+  display: inline-block;
+  padding: 10px 20px;
+  font-size: 15px;
+  text-decoration: none;
+}
+.dv-copy-step {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 10px;
+  align-items: center;
+}
+.dv-copy-step .dv-code {
+  margin: 0;
+  color: var(--muted);
+}
+.dv-paste-link label {
+  display: grid;
+  gap: 4px;
+  margin-top: 6px;
+}
+.dv-bridge-setup .dv-node-option {
+  margin-top: 0;
+}
+.dv-bridge-setup .dv-node-option summary {
+  margin-bottom: 6px;
+}
+@media (max-width: 760px) {
+  .dv-copy-step {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .dv-copy-step .dv-big {
+    justify-self: start;
+  }
+}
 .dv-downloads {
   display: flex;
   flex-wrap: wrap;
