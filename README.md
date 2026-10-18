@@ -161,6 +161,10 @@ The bridge asks nothing: it starts with the computer (Windows and macOS at login
 Linux at boot) and opens a pairing link, and the Device tab then searches the
 bridge's network for Moonraker printers and adds the ones you pick, with their API
 keys, or any address you type. API keys are only ever entered in the Device tab.
+Bridges are saved on their own, apart from their printers: the Device tab's
+Printers & bridges window lists each bridge with its printers, removes either on
+its own, adds printers to a saved bridge with no pairing again, and removing a
+running bridge makes it uninstall itself from its computer.
 Pairing links carry a browser key derived from the bridge's secret; the relay stores
 only hashes and rate-limits connects. The apps are unsigned (signing costs money),
 which is why Windows warns and why macOS uses the Terminal command. More in

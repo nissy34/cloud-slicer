@@ -25,12 +25,12 @@ import { createHmac, randomBytes } from 'node:crypto';
 import * as fs from 'node:fs';
 import { mkdtemp, readFile, rm, writeFile, appendFile, mkdir, copyFile, chmod, rename } from 'node:fs/promises';
 import { spawn, spawnSync } from 'node:child_process';
-import { homedir, networkInterfaces, tmpdir, userInfo } from 'node:os';
+import { homedir, hostname, networkInterfaces, tmpdir, userInfo } from 'node:os';
 import { basename, dirname, join } from 'node:path';
 import { createInterface } from 'node:readline';
 import { pathToFileURL } from 'node:url';
 
-export const VERSION = '4';
+export const VERSION = '5';
 /** True in the one-file app (bun build --compile), false under node or bun. */
 const APP = Boolean(process.versions.bun) && !/^bun(\.exe)?$/i.test(basename(process.execPath));
 /** The Mac app opened from Finder: it has no terminal window, but was opened by hand all the same. */
@@ -161,6 +161,15 @@ function openInBrowser(url) {
     // no browser here; the link is printed anyway
   }
 }
+
+/** This computer's name without the local-network suffix ("NIssy-PC", "Nissans-MacBook-Pro"), for "Bridge on <name>". */
+const safeHost = () => {
+  try {
+    return hostname().replace(/\.(local|lan|home)$/i, '');
+  } catch {
+    return '';
+  }
+};
 
 export const pairingCode = (cfg) =>
   Buffer.from(JSON.stringify({ r: cfg.relay, i: cfg.bridgeId, k: browserKey(cfg.key) })).toString('base64url');
@@ -395,6 +404,34 @@ async function uninstallBridge(configPath) {
   return plan;
 }
 
+/**
+ * The Device tab removed this bridge: delete everything first, then stop
+ * starting with the computer, which on a Mac and Linux also stops this very
+ * process (launchd and systemd keep it running otherwise), and exit.
+ */
+async function selfUninstall(configPath) {
+  const plan = autostartPlan();
+  const installed = autostartInstalled(plan);
+  await rm(configPath, { force: true });
+  if (installed) {
+    for (const f of plan.files) await rm(f.path, { force: true });
+    const link = join(homedir(), '.local', 'bin', SERVICE);
+    try {
+      if (fs.lstatSync(link).isSymbolicLink() && fs.readlinkSync(link).startsWith(plan.dir)) fs.unlinkSync(link);
+    } catch {}
+    if (process.platform === 'win32') {
+      runStep([plan.disable[0][0], plan.disable[0][1], { optional: true }]);
+      // Windows can't delete the program that is running: delete it just after this exits.
+      spawn('cmd', ['/c', `ping -n 3 127.0.0.1 >nul & rmdir /s /q "${plan.dir}"`], { stdio: 'ignore', detached: true, windowsHide: true, windowsVerbatimArguments: true }).unref();
+    } else {
+      await rm(plan.dir, { recursive: true, force: true });
+      if (process.platform === 'linux') runStep(['systemctl', ['--user', 'daemon-reload'], { optional: true }]);
+      for (const step of plan.disable) runStep([step[0], step[1], { optional: true }]);
+    }
+  }
+  process.exit(0);
+}
+
 /** Asks for a line of text in the terminal. */
 function prompt(question) {
   const rl = createInterface({ input: process.stdin, output: process.stdout });
@@ -614,14 +651,14 @@ class Session {
 
 // ---- the relay connection ---------------------------------------------------------
 
-export function runBridge(cfg, { log = console.log, save = async () => {}, onReplaced = () => {}, find = discover } = {}) {
+export function runBridge(cfg, { log = console.log, save = async () => {}, onReplaced = () => {}, find = discover, uninstall = null } = {}) {
   const sessions = new Map();
   let relay = null;
   let retries = 0;
   let stopped = false;
 
   const toRelay = (obj) => relay?.readyState === WebSocket.OPEN && relay.send(JSON.stringify(obj));
-  const hello = () => toRelay({ ctl: 'hello', version: VERSION, system: process.platform, app: APP, printers: cfg.printers.map(({ id, name }) => ({ id, name })) });
+  const hello = () => toRelay({ ctl: 'hello', version: VERSION, system: process.platform, app: APP, host: safeHost(), printers: cfg.printers.map(({ id, name }) => ({ id, name })) });
 
   /** Calls from a window with no printer chosen: finding, adding and removing this bridge's printers from the Device tab. */
   const manage = async (method, p = {}) => {
@@ -649,6 +686,17 @@ export function runBridge(cfg, { log = console.log, save = async () => {}, onRep
       log(`Added ${name} (${found.url}) from the Device tab.`);
       hello();
       return { id: printer.id, name };
+    }
+    if (method === 'bridge.uninstall') {
+      if (!uninstall) throw new Error("This bridge can't remove itself: remove it on its computer.");
+      log('Removed from the Device tab: uninstalling this bridge.');
+      // Answer first, then go.
+      setTimeout(() => {
+        stopped = true;
+        relay?.close();
+        void uninstall();
+      }, 300);
+      return { uninstalling: true };
     }
     if (method === 'bridge.remove_printer') {
       const id = String(p.id ?? '');
@@ -860,6 +908,7 @@ export async function main() {
     printPairing(cfg, opts.site, { open: !opts['no-browser'] });
     runBridge(cfg, {
       save: () => saveConfig(path, cfg),
+      uninstall: () => selfUninstall(path),
       onReplaced: async () => {
         await holdWindow();
         process.exit(0);

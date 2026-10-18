@@ -3,8 +3,10 @@
 // slicer. Separate from the slicer store so the two can change independently.
 //
 // Sending sliced G-code from elsewhere in the app:
-//   useDevice.getState().requestSend(blob, 'benchy.gcode');  // then show the Device tab
-// The Device screen opens its print dialog for it.
+//   useDevice.getState().requestSend(blob, 'benchy.gcode', 'Snapmaker U1 (0.4 nozzle)');  // then show the Device tab
+// The Device screen opens its print dialog for it, on the printer last sent
+// to (or one set up with the profile the plate was sliced with); the dialog
+// lets the user pick another.
 //
 // Saved printers are the account's printers (src/state/account.ts): kept in
 // this browser when signed out, in the account when signed in. The secret (a
@@ -29,10 +31,26 @@ export type SavedPrinter =
   | (PrinterCommon & { kind: 'direct'; url: string; apiKey: string })
   | (PrinterCommon & { kind: 'bridge'; relay: string; bridgeId: string; key: string; printer: string });
 
+/**
+ * A bridge (the small app on a computer near the printers), saved on its own:
+ * it can have no printers, and removing a printer leaves it. Its printers
+ * still carry the relay, id and key so they connect on their own.
+ */
+export interface SavedBridge {
+  id: string;
+  name: string;
+  relay: string;
+  bridgeId: string;
+  key: string;
+}
+
 export type SendSource = { kind: 'upload'; blob: Blob; name: string } | { kind: 'file'; path: string };
 
 interface DeviceState {
   printers: SavedPrinter[];
+  bridges: SavedBridge[];
+  /** The Printers & bridges window. */
+  manageOpen: boolean;
   activeId: string | null;
   conn: { state: ConnState | 'idle'; message: string };
   objects: KlipperObjects;
@@ -58,11 +76,19 @@ interface DeviceState {
   /** Which of the active printer's cameras to hide, by name; saved with the printer. */
   setHiddenCameras(names: string[]): Promise<void>;
   removePrinter(id: string): Promise<void>;
-  openEditor(editor: { mode: 'add' } | { mode: 'edit'; id: string } | null): Promise<void>;
+  saveBridge(b: SavedBridge): Promise<void>;
+  /** Removes a bridge and every printer saved through it. */
+  removeBridge(id: string): Promise<void>;
+  /** A saved bridge's pairing (relay, id and key), to reach it again. */
+  bridgePairing(id: string): Promise<Pairing | null>;
+  openManage(open: boolean): void;
+  /** `bridge`: add printers from that saved bridge, with no pairing again. */
+  openEditor(editor: { mode: 'add'; bridge?: string } | { mode: 'edit'; id: string } | null): Promise<void>;
   run(script: string): Promise<boolean>;
   call(label: string, fn: (s: PrinterSession) => Promise<unknown>): Promise<boolean>;
   refreshFiles(): Promise<void>;
-  requestSend(blob: Blob, name: string): void;
+  /** `slicedFor` is the printer profile the G-code was sliced with, if known. */
+  requestSend(blob: Blob, name: string, slicedFor?: string): void;
   openPrintDialog(source: SendSource | null): void;
   uploadAndMaybePrint(source: SendSource, opts: { start: boolean; prep: string[] }): Promise<boolean>;
   setToast(text: string, error?: boolean): void;
@@ -72,6 +98,8 @@ interface DeviceState {
 /** Where printers lived before they moved into the account store. */
 const LEGACY_PRINTERS_KEY = 'cloud-slicer:printers:v1';
 const ACTIVE_KEY = 'cloud-slicer:printer-active:v1';
+/** The printer sliced G-code was last sent to. */
+const SEND_KEY = 'cloud-slicer:printer-send:v1';
 const CONSOLE_MAX = 200;
 
 function load<T>(key: string, fallback: T): T {
@@ -100,6 +128,20 @@ export function printerFromDevice(d: Device): SavedPrinter | null {
     return { id: d.id, name: d.name, kind: 'bridge', relay: x.relay, bridgeId: x.bridgeId, key: '', printer: typeof x.printer === 'string' ? x.printer : '', ...common };
   }
   return d.url ? { id: d.id, name: d.name, kind: 'direct', url: d.url, apiKey: '', ...common } : null;
+}
+
+/** A saved bridge (extra.kind 'bridge-agent'); printers through it are kind 'bridge'. */
+export function bridgeFromDevice(d: Device): SavedBridge | null {
+  const x = d.extra ?? {};
+  return x.kind === 'bridge-agent' && typeof x.relay === 'string' && typeof x.bridgeId === 'string' ? { id: d.id, name: d.name, relay: x.relay, bridgeId: x.bridgeId, key: '' } : null;
+}
+
+export const bridgeInput = (b: SavedBridge) => ({ id: b.id, name: b.name, url: '', apiKey: b.key, extra: { kind: 'bridge-agent', relay: b.relay, bridgeId: b.bridgeId } });
+
+/** What to call a bridge before the user names it: by its computer's name or system when the bridge says. */
+export function bridgeLabel(status?: { host?: string; system?: string } | null): string {
+  if (status?.host) return `Bridge on ${status.host}`;
+  return status?.system === 'win32' ? 'Bridge on a Windows PC' : status?.system === 'darwin' ? 'Bridge on a Mac' : status?.system === 'linux' ? 'Bridge on Linux' : 'Bridge';
 }
 
 const secretOf = (p: SavedPrinter) => (p.kind === 'direct' ? p.apiKey : p.key);
@@ -136,6 +178,39 @@ async function loadSecret(p: SavedPrinter): Promise<SavedPrinter> {
 }
 
 const accountPrinters = () => useAccount.getState().devices.map(printerFromDevice).filter((p): p is SavedPrinter => p !== null);
+/** Saved bridges, one per bridge id. */
+const accountBridges = () => {
+  const all = useAccount.getState().devices.map(bridgeFromDevice).filter((b): b is SavedBridge => b !== null);
+  return all.filter((b, i) => all.findIndex((x) => x.bridgeId === b.bridgeId) === i);
+};
+
+const newId = () => Math.random().toString(36).slice(2, 10);
+const making = new Set<string>();
+
+/**
+ * Printers saved before bridges were saved on their own: give each of their
+ * bridges a record, with the pairing key from one of its printers.
+ */
+function ensureBridges() {
+  void accountSettled().then(async () => {
+    const bridges = accountBridges();
+    for (const p of accountPrinters()) {
+      if (p.kind !== 'bridge' || bridges.some((b) => b.bridgeId === p.bridgeId) || making.has(p.bridgeId)) continue;
+      making.add(p.bridgeId);
+      try {
+        const { key } = (await loadSecret(p)) as Extract<SavedPrinter, { kind: 'bridge' }>;
+        if (accountBridges().some((b) => b.bridgeId === p.bridgeId)) continue;
+        const b = { id: newId(), name: 'Bridge', relay: p.relay, bridgeId: p.bridgeId, key };
+        secrets.set(b.id, key);
+        await saveDevice(bridgeInput(b));
+      } catch {
+        // tried again with the next change
+      } finally {
+        making.delete(p.bridgeId);
+      }
+    }
+  });
+}
 
 /** Moves printers saved by earlier builds into the account store, once. */
 function migrateLegacyPrinters() {
@@ -153,6 +228,18 @@ function migrateLegacyPrinters() {
       // nothing to clean up
     }
   });
+}
+
+/**
+ * Which printer a freshly sliced plate goes to by default: the one last sent
+ * to, unless another printer is set up with the profile the plate was sliced
+ * for; then the one on screen, if it matches; then any that matches.
+ */
+export function pickSendTarget(printers: SavedPrinter[], activeId: string | null, lastId: string | null, slicedFor?: string): string | null {
+  const byId = (id: string | null) => printers.find((p) => p.id === id);
+  const order = [byId(lastId), byId(activeId), ...printers].filter((p): p is SavedPrinter => p !== undefined);
+  const matches = slicedFor ? order.find((p) => p.preset === slicedFor) : undefined;
+  return (matches ?? order[0])?.id ?? null;
 }
 
 export function linkFor(p: SavedPrinter): PrinterLink {
@@ -219,7 +306,8 @@ export const useDevice = create<DeviceState>((set, get) => {
     if (a.devices === prev.devices) return;
     const before = get().printers.find((x) => x.id === get().activeId);
     const printers = accountPrinters();
-    set({ printers });
+    set({ printers, bridges: accountBridges() });
+    ensureBridges();
     const now = printers.find((x) => x.id === get().activeId);
     if (!now) get().select(printers[0]?.id ?? null);
     else if (started && now.id !== savingId && (!before || JSON.stringify(now) !== JSON.stringify(before))) {
@@ -229,8 +317,12 @@ export const useDevice = create<DeviceState>((set, get) => {
     }
   });
 
+  ensureBridges();
+
   return {
     printers: initialPrinters,
+    bridges: accountBridges(),
+    manageOpen: false,
     activeId: initialPrinters.some((p) => p.id === savedActive) ? savedActive : (initialPrinters[0]?.id ?? null),
     conn: { state: 'idle', message: '' },
     objects: {},
@@ -301,9 +393,51 @@ export const useDevice = create<DeviceState>((set, get) => {
       set({ editor: null });
     },
 
+    async saveBridge(b) {
+      secrets.set(b.id, b.key);
+      try {
+        await saveDevice(bridgeInput(b));
+      } catch (e) {
+        get().setToast(`Could not save the bridge: ${(e as Error).message}`, true);
+      }
+    },
+
+    async removeBridge(id) {
+      const b = get().bridges.find((x) => x.id === id);
+      if (!b) return;
+      try {
+        for (const p of get().printers) if (p.kind === 'bridge' && p.bridgeId === b.bridgeId) await deleteDevice(p.id);
+        // Older copies of the same bridge's record go too.
+        for (const d of useAccount.getState().devices) if (bridgeFromDevice(d)?.bridgeId === b.bridgeId) await deleteDevice(d.id);
+      } catch (e) {
+        get().setToast(`Could not remove the bridge: ${(e as Error).message}`, true);
+        return;
+      }
+      secrets.delete(id);
+    },
+
+    async bridgePairing(id) {
+      const b = get().bridges.find((x) => x.id === id);
+      if (!b) return null;
+      if (!secrets.has(id)) {
+        await accountSettled();
+        secrets.set(id, (await getDeviceApiKey(id).catch(() => null)) ?? '');
+      }
+      return { relay: b.relay, bridgeId: b.bridgeId, key: secrets.get(id)! };
+    },
+
+    openManage(open) {
+      set({ manageOpen: open });
+    },
+
     async openEditor(editor) {
+      if (editor?.mode === 'add' && editor.bridge) {
+        const pairing = await get().bridgePairing(editor.bridge);
+        set({ editor: { mode: 'add' }, pairing });
+        return;
+      }
       if (editor?.mode !== 'edit') {
-        set({ editor, ...(editor ? {} : { pairing: null }) });
+        set({ editor: editor && { mode: 'add' }, ...(editor ? {} : { pairing: null }) });
         return;
       }
       const p = get().printers.find((x) => x.id === editor.id);
@@ -340,7 +474,9 @@ export const useDevice = create<DeviceState>((set, get) => {
       }
     }, FILE_LIST_GAP_MS),
 
-    requestSend(blob, name) {
+    requestSend(blob, name, slicedFor) {
+      const target = pickSendTarget(get().printers, get().activeId, load<string | null>(SEND_KEY, null), slicedFor);
+      if (target && target !== get().activeId) get().select(target);
       set({ send: { kind: 'upload', blob, name } });
     },
 
@@ -354,12 +490,14 @@ export const useDevice = create<DeviceState>((set, get) => {
         get().setToast('The printer is not connected.', true);
         return false;
       }
+      const target = get().activeId;
       try {
         let path: string;
         if (source.kind === 'upload') {
           set({ upload: { name: source.name, fraction: 0 } });
           path = await s.upload(source.blob, source.name, (fraction) => set({ upload: { name: source.name, fraction } }));
           set({ upload: null });
+          store(SEND_KEY, target);
         } else {
           path = source.path;
         }

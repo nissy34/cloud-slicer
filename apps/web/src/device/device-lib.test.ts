@@ -31,6 +31,11 @@ describe('G-code metadata', () => {
     expect(parseDuration('2d 1s')).toBe(172801);
   });
 
+  it('reads the printer profile the file was sliced for', () => {
+    expect(parseGcodeMeta('; printer_settings_id = "Snapmaker U1 (0.4 nozzle)"').printer).toBe('Snapmaker U1 (0.4 nozzle)');
+    expect(parseGcodeMeta('; filament_type = PLA').printer).toBeUndefined();
+  });
+
   it('reads Moonraker metadata the same way', () => {
     expect(metaFromMoonraker({ filament_colors: ['FF0000', '#00ff00'], filament_type: 'PLA;PETG', filament_weights: [1, 2], estimated_time: 60 }).filaments).toEqual([
       { index: 0, colour: '#FF0000', material: 'PLA', grams: 1 },

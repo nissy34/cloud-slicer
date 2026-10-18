@@ -207,6 +207,11 @@ Bridge design choices:
   printers and their API keys are added from the Device tab, which can search the
   bridge's network for Moonraker. When a bridge is offline, the Device tab shows how to
   start it again on that bridge's system.
+- Bridges are saved items of their own (account device with `extra.kind: 'bridge-agent'`,
+  pairing key as its secret); printers through a bridge still carry its relay, id and
+  key so they connect alone. Printers saved before this get their bridge record from
+  the first printer's key. Removing a running bridge (version 5 on) sends it
+  `bridge.uninstall`, and it removes itself from its computer.
 - Pairing links carry a browser key (HMAC of the bridge's secret), never the secret;
   the relay stores only hashes, rate-limits connects and deploys from main only.
 
