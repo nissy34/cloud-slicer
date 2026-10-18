@@ -318,6 +318,16 @@ select:focus-visible {
   width: min(240px, 40vw);
   accent-color: var(--accent);
 }
+.progress .stage {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.progress button {
+  flex: none;
+  padding-block: 4px;
+}
 .stats {
   display: flex;
   flex-wrap: wrap;

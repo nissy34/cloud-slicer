@@ -10,6 +10,7 @@
 
 // partitioner.h transitively includes the real task_group.h (via relative include)
 #include <tbb/partitioner.h>
+#include <tbb/serial_cancel.h>
 
 #include <iterator>
 #include <type_traits>
@@ -71,6 +72,7 @@ void parallel_for_each(Iterator first, Iterator last, const Body& body) {
     using Item = typename std::iterator_traits<Iterator>::value_type;
     d1::feeder<Item> f;
     for (Iterator it = first; it != last; ++it) {
+        d1::serial_check_cancel();
         d1::serial_detail::invoke_body(body, *it, f);
     }
     // Process any items added via feeder
@@ -78,6 +80,7 @@ void parallel_for_each(Iterator first, Iterator last, const Body& body) {
         std::vector<Item> items;
         std::swap(items, f.items());
         for (auto& item : items) {
+            d1::serial_check_cancel();
             d1::serial_detail::invoke_body(body, std::move(item), f);
         }
     }

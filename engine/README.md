@@ -13,7 +13,7 @@ same engine code.
 |---|---|
 | `orcaslicer/` | Submodule pinned to the v2.4.0 tag. Never edited in place |
 | `patches/` | Browser-only fixes, applied to copies of the touched files in the build tree |
-| `compat/` | Stand-ins for what a browser lacks: OpenSSL MD5 (on Boost), serial TBB `parallel_*`, no-op STEP/SVG import when built without OCCT, thread naming |
+| `compat/` | Stand-ins for what a browser lacks: OpenSSL MD5 (on Boost), serial TBB `parallel_*` (with a cancellation point, so the page can cancel a slice), no-op STEP/SVG import when built without OCCT, thread naming |
 | `cmake/libslic3r.cmake` | Builds libslic3r from the source list in upstream's own `src/libslic3r/CMakeLists.txt` |
 | `src/presets_api.cpp` | Presets: loads every bundled vendor through `PresetBundle::load_presets`, lists and selects printer / process / filament presets, resolves the full config, option metadata |
 | `src/model_api.cpp` | Project: loads models and 3MF projects, plates (resized when the printer's bed changes), per-object/part filaments, transforms, preview meshes with painted colours, and saving the project as an Orca 3MF (`store_bbs_3mf`, like desktop's Save project) |
