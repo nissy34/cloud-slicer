@@ -143,6 +143,8 @@ export const useSlicer = create<SlicerState>((set, get) => {
       const saved = loadSaved();
       // The user's own presets (this browser's, or the account's) load before
       // the saved selection, which may name one of them.
+      // Waits at most a few seconds: offline, the engine starts without user presets
+      // and the subscription below adds them when the account answers.
       await accountReady();
       enginePresets = useAccount.getState().presets;
       if (enginePresets.length) await e.userPresets(enginePresets.map(presetFile));
