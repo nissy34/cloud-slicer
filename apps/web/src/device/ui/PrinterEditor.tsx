@@ -79,6 +79,8 @@ export function PrinterEditor() {
   const pairingFromLink = useDevice((s) => s.pairing);
   const { savePrinter, removePrinter, openEditor } = useDevice.getState();
   const existing = editor?.mode === 'edit' ? editor.printer : undefined;
+  // Settings made elsewhere on the Device tab survive an edit.
+  const keep = existing?.hiddenCameras?.length ? { hiddenCameras: existing.hiddenCameras } : {};
   const [kind, setKind] = useState<'bridge' | 'direct'>(existing?.kind ?? 'bridge');
   const [name, setName] = useState(existing?.name ?? '');
   const [preset, setPreset] = useState(() => existing?.preset ?? useSlicer.getState().selection?.printer ?? '');
@@ -119,7 +121,7 @@ export function PrinterEditor() {
 
   const saveBridge = () => {
     if (!pairing || !printerId) return;
-    void savePrinter({ id, kind: 'bridge', name: name.trim() || 'Printer', relay: pairing.relay, bridgeId: pairing.bridgeId, key: pairing.key, printer: printerId, ...(preset && { preset }) });
+    void savePrinter({ id, kind: 'bridge', name: name.trim() || 'Printer', relay: pairing.relay, bridgeId: pairing.bridgeId, key: pairing.key, printer: printerId, ...(preset && { preset }), ...keep });
   };
 
   const saveDirect = async () => {
@@ -133,7 +135,7 @@ export function PrinterEditor() {
     setError('');
     try {
       const host = await probeDirect(u, apiKey.trim());
-      const p: SavedPrinter = { id, kind: 'direct', name: name.trim() || host || new URL(u).host, url: u, apiKey: apiKey.trim(), ...(preset && { preset }) };
+      const p: SavedPrinter = { id, kind: 'direct', name: name.trim() || host || new URL(u).host, url: u, apiKey: apiKey.trim(), ...(preset && { preset }), ...keep };
       void savePrinter(p);
     } catch (e) {
       setError((e as Error).message);

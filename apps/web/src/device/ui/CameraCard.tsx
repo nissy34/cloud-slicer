@@ -25,6 +25,8 @@ function usePageVisible() {
   return visible;
 }
 
+const NONE: string[] = [];
+
 const builtinCamera = (hint: CameraHints): Webcam => ({
   id: 'builtin',
   name: hint.name,
@@ -50,6 +52,8 @@ export function CameraCard() {
   const facts = useDevice((s) => s.facts);
   const visible = usePageVisible();
   const [on, setOn] = useState(true);
+  const [choosing, setChoosing] = useState(false);
+  const hidden = useDevice((s) => s.printers.find((p) => p.id === s.activeId)?.hiddenCameras ?? NONE);
   const [cams, setCams] = useState<Webcam[] | null>(null);
   const [hint, setHint] = useState<CameraHints | null>(null);
   const session = currentSession();
@@ -72,27 +76,57 @@ export function CameraCard() {
   }, [online, facts, addons]);
 
   const active = on && visible && online && !!session;
+  const shown = cams?.filter((c) => !hidden.includes(c.name)) ?? null;
+  const toggle = (name: string, show: boolean) => void useDevice.getState().setHiddenCameras(show ? hidden.filter((n) => n !== name) : [...hidden, name]);
   useKeepalive(active ? session : null, hint?.keepalive);
 
   return (
     <Card
-      title={cams && cams.length > 1 ? 'Cameras' : 'Camera'}
+      title={shown && shown.length > 1 ? 'Cameras' : 'Camera'}
       className="dv-camera-card"
       testId="camera-card"
       actions={
-        <button className="dv-link" onClick={() => setOn(!on)}>
-          {on ? 'Turn off' : 'Turn on'}
-        </button>
+        <>
+          {cams && cams.length > 1 && (
+            <button className="dv-link" onClick={() => setChoosing(!choosing)} aria-expanded={choosing}>
+              {choosing ? 'Done' : 'Choose'}
+            </button>
+          )}
+          <button className="dv-link" onClick={() => setOn(!on)}>
+            {on ? 'Turn off' : 'Turn on'}
+          </button>
+        </>
       }
     >
-      {!on || !online || !session || !cams || cams.length === 0 ? (
+      {choosing && cams && cams.length > 1 && (
+        <fieldset className="dv-camera-pick" data-testid="camera-pick">
+          <legend>Show these cameras</legend>
+          {cams.map((c) => (
+            <label key={c.id}>
+              <input type="checkbox" checked={!hidden.includes(c.name)} onChange={(e) => toggle(c.name, e.target.checked)} />
+              {c.name}
+            </label>
+          ))}
+        </fieldset>
+      )}
+      {!on || !online || !session || !shown || shown.length === 0 ? (
         <div className="dv-camera">
-          <span className="muted">{!on ? 'Camera off' : !online ? 'Not connected' : !cams ? 'Looking for cameras…' : 'This printer has no camera set up in Moonraker.'}</span>
+          <span className="muted">
+            {!on
+              ? 'Camera off'
+              : !online
+                ? 'Not connected'
+                : !shown
+                  ? 'Looking for cameras…'
+                  : cams?.length
+                    ? 'All cameras are hidden. Use Choose to show one.'
+                    : 'This printer has no camera set up in Moonraker.'}
+          </span>
         </div>
       ) : (
-        <div className={`dv-cameras${cams.length > 1 ? ' dv-cameras-many' : ''}`}>
-          {cams.map((cam) => (
-            <CameraTile key={cam.id} cam={cam} session={session} active={active} labelled={cams.length > 1} />
+        <div className={`dv-cameras${shown.length > 1 ? ' dv-cameras-many' : ''}`}>
+          {shown.map((cam) => (
+            <CameraTile key={cam.id} cam={cam} session={session} active={active} labelled={cams!.length > 1} />
           ))}
         </div>
       )}

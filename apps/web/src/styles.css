@@ -1378,6 +1378,24 @@ select:focus-visible {
 .dv-row:empty {
   display: none;
 }
+.dv-camera-pick {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 14px;
+  margin: 0 0 8px;
+  padding: 6px 10px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+}
+.dv-camera-pick legend {
+  padding: 0 4px;
+  font-size: 12px;
+}
+.dv-camera-pick label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
 .dv-cameras {
   display: grid;
   gap: 8px;

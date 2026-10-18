@@ -182,11 +182,18 @@ try {
   await page.locator('[data-camera="nozzle"] img[data-view="mjpeg"]').waitFor({ timeout: 20_000 });
   await until('mjpeg stream decodes', () => page.locator('[data-camera="nozzle"] img').evaluate((img) => img.naturalWidth > 0), 20_000);
   if (voron.stats.startMonitor) throw new Error('camera.start_monitor sent to a printer with configured webcams');
+  await page.getByTestId('camera-card').getByRole('button', { name: 'Choose' }).click();
+  await page.getByTestId('camera-pick').getByLabel('case').uncheck();
+  await until('case camera hidden', async () => (await page.getByTestId('camera-tile').count()) === 1 && (await page.locator('[data-camera="nozzle"]').count()) === 1);
+  await until('choice saved with the printer', () => page.evaluate(() => (localStorage.getItem('cloud-slicer:devices:v1') ?? '').includes('hiddenCameras')));
+  await page.getByTestId('camera-pick').getByLabel('case').check();
+  await until('case camera back', async () => (await page.getByTestId('camera-tile').count()) === 2);
+  await page.getByTestId('camera-card').getByRole('button', { name: 'Done' }).click();
   await page.getByRole('button', { name: 'Home all' }).click();
   await until('homed', () => voron.state.toolhead.homed_axes === 'xyz');
   await page.getByRole('button', { name: 'X plus' }).click();
   await until('jogged', () => voron.scripts.includes('G1 X10 F6000'));
-  console.log('direct generic printer: connected, both cameras live (player page + MJPEG), home and jog work');
+  console.log('direct generic printer: connected, both cameras live (player page + MJPEG), camera choice saved, home and jog work');
 
   const phone = await browser.newPage({ viewport: { width: 390, height: 844 } });
   await phone.goto(site);
