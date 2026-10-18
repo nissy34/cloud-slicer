@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { EngineClient, type CutKeep, type InstanceChanges, type UserPresetFile } from '../engine/client';
+import { EngineClient, type CutKeep, type InstanceChanges, type ProjectThumbnail, type UserPresetFile } from '../engine/client';
 import type {
   PaintOverlay,
   PaintRay,
@@ -105,11 +105,14 @@ interface SlicerState {
    * Adds model files to the project. A single 3MF opens as the project when
    * nothing is loaded; with objects already there the user is asked first
    * (pendingOpen) unless `mode` says. Several 3MFs at once add their objects.
+   * Resolves true when a 3MF was opened as the project.
    */
-  openFiles(files: File[], mode?: OpenMode): Promise<void>;
+  openFiles(files: File[], mode?: OpenMode): Promise<boolean>;
   cancelOpen(): void;
   setTool(tool: Tool | null): void;
   setSnap(snap: boolean): void;
+  /** The open project as an Orca 3MF project file, with the current settings. */
+  projectFile(thumbnail: ProjectThumbnail | null): Promise<ArrayBuffer>;
   clearProject(): Promise<void>;
   setPlate(plate: number): Promise<void>;
   select(sel: { object: number; instance: number } | null): void;
@@ -449,27 +452,32 @@ export const useSlicer = create<SlicerState>((set, get) => {
       const threeMfs = files.filter(is3mf).length;
       if (!mode && threeMfs === 1 && (get().project?.objects.length ?? 0) > 0) {
         set({ pendingOpen: files });
-        return;
+        return false;
       }
       await get().endCalibration();
       set({ tab: 'prepare', notice: '', conversion: null, pendingOpen: null, tool: null });
       // The project first, so the other files land on it.
       const ordered = [...files].sort((a, b) => Number(is3mf(b)) - Number(is3mf(a)));
+      let opened = false;
       for (const file of ordered) {
         set({ job: { kind: 'loading', name: file.name } });
         try {
           const area = get().overrides.printable_area ?? get().baseConfig.printable_area ?? '';
           const geometryOnly = is3mf(file) && (mode === 'geometry' || threeMfs > 1);
           const res = await e.load(file, get().plate, area, geometryOnly);
-          if (res.isProject) set({ plate: 0, selected: null });
+          if (res.isProject) {
+            opened = true;
+            set({ plate: 0, selected: null });
+          }
           await refreshPreview(res.info);
           if (res.isProject && res.info.file.hasConfig) await importProject(res.info);
           set({ job: { kind: 'idle' } });
         } catch (err) {
           fail(err);
-          return;
+          return opened;
         }
       }
+      return opened;
     },
     cancelOpen: () => set({ pendingOpen: null }),
     setSnap: (snap) => set({ snap }),
@@ -477,6 +485,7 @@ export const useSlicer = create<SlicerState>((set, get) => {
       if (tool && get().paint) void get().setPaint(null);
       set({ tool });
     },
+    projectFile: (thumbnail) => engine().saveProject(get().overrides, thumbnail),
     clearProject: () =>
       projectEdit(async () => {
         await get().endCalibration();

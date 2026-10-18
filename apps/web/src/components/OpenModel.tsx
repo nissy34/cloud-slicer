@@ -1,14 +1,14 @@
 import { useRef, useState, type DragEvent } from 'react';
 import { MODEL_EXTENSIONS } from '../lib/presets';
+import { useProjects } from '../state/projects';
 import { useSlicer } from '../state/store';
 import { Toolbar } from './Toolbar';
 import { ToolPanel } from './ToolPanel';
 
 /** File button plus drag-and-drop anywhere over the workspace. */
 export function OpenModel({ children }: { children: React.ReactNode }) {
-  const openFiles = useSlicer((s) => s.openFiles);
+  const openFiles = useProjects((s) => s.openFiles);
   const hasModel = useSlicer((s) => (s.project?.objects.length ?? 0) > 0);
-  const clearProject = useSlicer((s) => s.clearProject);
   const plates = useSlicer((s) => s.project?.plates.length ?? 1);
   const { deletePlate } = useSlicer.getState();
   const input = useRef<HTMLInputElement>(null);
@@ -61,7 +61,13 @@ export function OpenModel({ children }: { children: React.ReactNode }) {
                 Delete plate
               </button>
             )}
-            <button className="ghost" onClick={() => void clearProject()}>
+            <button
+              className="ghost"
+              onClick={() => {
+                const p = useProjects.getState();
+                if (!p.dirty || confirm(`Clear the plate? “${p.current.name}” has unsaved changes.`)) void p.newProject();
+              }}
+            >
               Clear all
             </button>
           </div>

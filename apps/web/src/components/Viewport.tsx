@@ -7,6 +7,7 @@ import { acceleratedRaycast, MeshBVH } from 'three-mesh-bvh';
 import type { PaintOverlay, PaintRay, PreviewMesh } from '../engine/protocol';
 import { bedSize, rgb } from '../lib/colour';
 import { hullPlanes, layOnFace, movedOffset, toDegrees, toQuat, DEG, type Placement } from '../lib/placement';
+import { setCapture } from '../lib/snapshot';
 import { useSceneColours } from '../lib/theme';
 import { NO_COLOURS, useOption, useSlicer } from '../state/store';
 
@@ -493,6 +494,21 @@ function PlateTabs() {
   );
 }
 
+/** Lets saved projects take a picture of this view (lib/snapshot). */
+function ThumbnailSource() {
+  const gl = useThree((s) => s.gl);
+  const scene = useThree((s) => s.scene);
+  const camera = useThree((s) => s.camera);
+  useEffect(() => {
+    setCapture(() => {
+      gl.render(scene, camera);
+      return gl.domElement;
+    });
+    return () => setCapture(null);
+  }, [gl, scene, camera]);
+  return null;
+}
+
 export function Viewport() {
   const { w, d } = bedSize(useOption('printable_area'));
   const scene = useSceneColours();
@@ -510,6 +526,7 @@ export function Viewport() {
         <Bed w={w} d={d} />
         <Objects w={w} d={d} />
         <OrbitControls target={[w / 2, d / 2, 0]} makeDefault />
+        <ThumbnailSource />
       </Canvas>
       <PlateTabs />
     </>

@@ -1,9 +1,11 @@
+import { useProjects } from '../state/projects';
 import { useSlicer } from '../state/store';
 
 /** Desktop's question when a 3MF project is opened over objects already loaded. */
 export function OpenProjectDialog() {
   const files = useSlicer((s) => s.pendingOpen);
-  const { openFiles, cancelOpen } = useSlicer.getState();
+  const { cancelOpen } = useSlicer.getState();
+  const { openFiles } = useProjects.getState();
   if (!files) return null;
   const name = files.find((f) => /\.3mf$/i.test(f.name))?.name ?? 'This file';
   return (
