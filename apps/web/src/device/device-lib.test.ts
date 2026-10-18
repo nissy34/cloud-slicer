@@ -31,6 +31,16 @@ describe('G-code metadata', () => {
     expect(parseDuration('2d 1s')).toBe(172801);
   });
 
+  it('reads the nozzle size and flow type each filament was sliced for', () => {
+    const m = parseGcodeMeta(['; filament_type = PLA;PETG', '; filament used [g] = 1,2', '; nozzle_diameter = 0.4,0.6', '; filament_volume_type = standard,high_flow'].join('\n'));
+    expect(m.filaments.map((f) => [f.nozzle, f.highFlow])).toEqual([
+      [0.4, false],
+      [0.6, true],
+    ]);
+    expect(parseGcodeMeta('; filament_type = PLA;PLA\n; nozzle_diameter = 0.4').filaments.map((f) => f.nozzle)).toEqual([0.4, 0.4]);
+    expect(metaFromMoonraker({ filament_type: 'PLA', filament_weights: [1], nozzle_diameter: 0.4 }).filaments[0].nozzle).toBe(0.4);
+  });
+
   it('reads the printer profile the file was sliced for', () => {
     expect(parseGcodeMeta('; printer_settings_id = "Snapmaker U1 (0.4 nozzle)"').printer).toBe('Snapmaker U1 (0.4 nozzle)');
     expect(parseGcodeMeta('; filament_type = PLA').printer).toBeUndefined();

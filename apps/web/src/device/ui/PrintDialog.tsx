@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { formatDuration, formatGrams } from '../../lib/format';
 import { currentSession, useDevice, type SendSource } from '../../state/device';
-import { suggestToolMap, u1Heads, u1PrintOptions, u1PrintPrepGcode, type U1PrintOptions } from '../addons/u1';
+import { suggestToolMap, u1Heads, u1MappingCheck, u1NoHeadReason, u1PrintOptions, u1PrintPrepGcode, type U1PrintOptions } from '../addons/u1';
 import { uploadName } from '../commands';
 import { metaFromMoonraker, readGcodeMeta, type GcodeMeta } from '../gcode-meta';
 import { job } from '../status';
@@ -35,6 +35,16 @@ export function PrintDialog({ source }: { source: SendSource }) {
   const [busy, setBusy] = useState(false);
   const state = job(objects).state;
   const printerBusy = state === 'printing' || state === 'paused';
+  const mapChecks = useMemo(() => {
+    const out = new Map<number, ReturnType<typeof u1MappingCheck>>();
+    if (!isU1 || !meta || !toolMap) return out;
+    for (const f of meta.filaments) {
+      const head = heads[toolMap[f.index]];
+      out.set(f.index, head ? u1MappingCheck(f, head) : { blocked: u1NoHeadReason(f), warning: null });
+    }
+    return out;
+  }, [isU1, meta, toolMap, heads]);
+  const mapBlocked = [...mapChecks.values()].some((c) => c.blocked);
 
   useEffect(() => {
     let live = true;
@@ -88,8 +98,8 @@ export function PrintDialog({ source }: { source: SendSource }) {
           <button
             className="primary"
             onClick={() => void submit(true)}
-            disabled={busy || !online || printerBusy}
-            title={printerBusy ? 'The printer is already printing' : undefined}
+            disabled={busy || !online || printerBusy || mapBlocked}
+            title={printerBusy ? 'The printer is already printing' : mapBlocked ? 'A filament is mapped to a tool head it can’t print on' : undefined}
             data-testid="upload-and-print"
           >
             {source.kind === 'upload' ? 'Upload and print' : 'Print'}
@@ -140,9 +150,9 @@ export function PrintDialog({ source }: { source: SendSource }) {
           <ul className="dv-map">
             {meta.filaments.map((f) => {
               const head = heads[toolMap[f.index]];
-              const mismatch = head && head.loaded && f.material && head.material && f.material.toUpperCase() !== head.material.toUpperCase();
+              const check = mapChecks.get(f.index);
               return (
-                <li key={f.index}>
+                <li key={f.index} data-blocked={check?.blocked ? '' : undefined}>
                   <span className="dv-map-file">
                     <Swatch colour={f.colour} />
                     <span>
@@ -153,25 +163,42 @@ export function PrintDialog({ source }: { source: SendSource }) {
                     →
                   </span>
                   <span className="dv-map-head">
-                    {head && <Swatch colour={head.colour} empty={!head.loaded} />}
+                    {head ? <Swatch colour={head.colour} empty={!head.loaded} /> : <Swatch colour="#888888" empty />}
                     <select
                       aria-label={`Tool head for filament ${f.index + 1}`}
+                      aria-invalid={check?.blocked ? true : undefined}
                       value={toolMap[f.index]}
                       onChange={(e) => setToolMap({ ...toolMap, [f.index]: Number(e.target.value) })}
                     >
-                      {heads.map((h) => (
-                        <option key={h.index} value={h.index}>
-                          {h.label} · {h.loaded ? `${h.material || '?'} ${h.subType}`.trim() : 'empty'}
+                      {!head && (
+                        <option value={-1} disabled>
+                          No matching head
                         </option>
-                      ))}
+                      )}
+                      {heads.map((h) => {
+                        const blocked = u1MappingCheck(f, h).blocked;
+                        return (
+                          <option key={h.index} value={h.index} disabled={Boolean(blocked)} title={blocked ?? undefined}>
+                            {h.label} · {h.material ? `${h.material} ${h.subType}`.trim() : 'empty'}
+                          </option>
+                        );
+                      })}
                     </select>
                   </span>
-                  {mismatch && <span className="dv-warn-text">The file expects {f.material}</span>}
-                  {head && !head.loaded && <span className="dv-warn-text">No filament in {head.label}</span>}
+                  {check?.blocked && (
+                    <span className="dv-error-text" data-testid="map-blocked">
+                      {check.blocked}
+                    </span>
+                  )}
+                  {check?.warning && <span className="dv-warn-text">{check.warning}</span>}
+                  {head && !check?.blocked && !head.loaded && <span className="dv-warn-text">No filament in {head.label}</span>}
                 </li>
               );
             })}
           </ul>
+          <p className="muted dv-map-note">
+            As in Snapmaker’s own app, a filament can only go to a head with the same filament type and nozzle size. Brand and colour can differ.
+          </p>
         </fieldset>
       )}
       {isU1 && (
