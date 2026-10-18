@@ -464,9 +464,15 @@ if (withApp)
       await page.getByText('1 process').waitFor();
       const settings = (await (await bobBrowser.json('/api/settings')).json()).settings;
       assert.deepEqual(settings[0].value, { printers: ['Snapmaker U1 (0.4 nozzle)', 'Snapmaker J1'] }, 'browser choices merged into the account');
-      const devices = (await (await bobBrowser.json('/api/devices')).json()).devices;
+      // The printers upload after the presets and settings, so wait for it rather than racing it.
+      let devices = [];
+      for (let i = 0; i < 50 && !devices.length; i++) {
+        if (i) await new Promise((r) => setTimeout(r, 200));
+        devices = (await (await bobBrowser.json('/api/devices')).json()).devices;
+      }
       assert.deepEqual(devices.map((d) => d.name), ['Garage J1']);
       assert.deepEqual(await (await bobBrowser.json('/api/devices/local-1/secret')).json(), { apiKey: 'garage-key' });
+      await page.waitForFunction(() => localStorage.getItem('cloud-slicer:devices:v1') === null, null, { timeout: 5000 }).catch(() => {});
       assert.equal(await page.evaluate(() => localStorage.getItem('cloud-slicer:devices:v1')), null, 'local copy cleared once uploaded');
       if (process.env.ACCOUNTS_SHOTS) await page.screenshot({ path: join(process.env.ACCOUNTS_SHOTS, 'account-menu.png') });
       await page.setViewportSize({ width: 390, height: 800 });

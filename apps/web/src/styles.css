@@ -2049,6 +2049,19 @@ select:focus-visible {
 .dv-node-option {
   margin-top: 10px;
 }
+.dv-about {
+  display: grid;
+  gap: 8px;
+}
+.dv-about p {
+  margin: 0;
+}
+.dv-about-commands {
+  margin: 0;
+  padding-left: 18px;
+  display: grid;
+  gap: 6px;
+}
 .dv-node-option summary {
   cursor: pointer;
   color: var(--muted);

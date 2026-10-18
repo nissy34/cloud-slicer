@@ -10,12 +10,15 @@ needs opening, and it only talks to the printers you add.
 
 The Device tab's "Add a printer" dialog offers the right one for each system:
 
-- **Windows and macOS**: a one-file app. Open it with a double click; nothing
-  else needs installing. It isn't signed yet, so Windows shows "Windows
-  protected your PC" (More info, then Run anyway), and on a Mac you open the
-  zip, then Control-click the app and choose Open the first time.
-- **Linux and Raspberry Pi (64-bit)**: one command, which downloads the app,
-  finds your printers and starts the bridge with the computer:
+- **Windows**: a one-file app. Open it with a double click; nothing else
+  needs installing. It isn't signed yet, so Windows shows "Windows protected
+  your PC" (More info, then Run anyway).
+- **macOS, Linux and Raspberry Pi (64-bit)**: one command in Terminal, which
+  downloads the app, finds your printers and starts the bridge with the
+  computer. On a Mac this also avoids Gatekeeper's "could not verify" block,
+  which only applies to apps a browser downloaded. (The Mac app is also
+  offered as a zip; downloaded that way, macOS blocks it until you click Open
+  Anyway in System Settings, Privacy & Security.)
   ```bash
   curl -fsSL https://<relay>/install.sh | sh
   ```
@@ -38,6 +41,13 @@ boot). If it finds nothing, add the printer by its address with
 one); a bridge running in the background restarts by itself to use it. The
 pairing link is the bridge's key: anyone holding it can control your printers.
 
+Where things go once set up: Windows `%LOCALAPPDATA%\Cloud Slicer Bridge\`,
+macOS `~/Library/Application Support/Cloud Slicer Bridge/` (log in
+`~/Library/Logs/cloud-slicer-bridge.log`), Linux `~/.local/share/cloud-slicer-bridge/`
+(`journalctl --user -u cloud-slicer-bridge` for the log, and the command linked
+in `~/.local/bin`). To update, set it up again the same way: a newly downloaded
+app opened while an older one runs in the background replaces it.
+
 Config lives in `~/.cloud-slicer-bridge.json` (`--config` to move it). Other
 commands: `list`, `remove <name>`, `pair` (print the pairing link again),
 `version`.
@@ -52,4 +62,5 @@ Browser ⇄ relay (a Cloudflare Durable Object per bridge, `apps/device-relay`)
 JSON-RPC; the agent adds `bridge.upload_*` and `bridge.snapshot`, which it
 answers itself with HTTP to the printer. Status updates are merged and sent at
 most once a second, and only while a browser is watching, to stay inside the
-relay's free tier.
+relay's free tier. What each part can see and what's protected:
+[../device-relay/SECURITY.md](../device-relay/SECURITY.md).

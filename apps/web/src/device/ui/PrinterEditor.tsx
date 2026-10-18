@@ -33,29 +33,44 @@ function PresetField({ value, onChange }: { value: string; onChange: (name: stri
   );
 }
 
-/** Asks a bridge which printers it serves. */
-function probeBridge(p: Pairing): Promise<BridgeStatus> {
-  const link = new BridgeLink({ relay: p.relay, bridgeId: p.bridgeId, key: p.key, printer: '' });
-  return new Promise((resolve, reject) => {
-    const timer = setTimeout(() => {
-      link.close();
-      reject(new Error('The bridge did not answer.'));
-    }, 10_000);
-    link
-      .open({
-        onMessage: () => {},
-        onClose: () => {},
-        onBridge: (status) => {
-          clearTimeout(timer);
-          link.close();
-          resolve(status);
-        },
-      })
-      .catch((e) => {
-        clearTimeout(timer);
-        reject(e);
-      });
-  });
+/**
+ * Watches a bridge's status (which printers it serves, whether it's online)
+ * until stopped, reconnecting every few seconds. The bridge app opens the
+ * pairing link as it starts, so the page often asks before the bridge has
+ * connected (the relay refuses browsers until then, or reports it offline).
+ */
+function watchBridge(p: Pairing, onStatus: (s: BridgeStatus) => void, onError: (e: Error) => void): () => void {
+  let stopped = false;
+  let link: BridgeLink | null = null;
+  let retry: ReturnType<typeof setTimeout> | undefined;
+  let lastError = 'The bridge did not answer.';
+  // A bridge that is just starting is refused or offline for a moment: only say so if it lasts.
+  const slow = setTimeout(() => !stopped && onError(new Error(lastError)), 10_000);
+  const again = (reason?: string) => {
+    if (reason) lastError = reason;
+    if (!stopped && retry === undefined) retry = setTimeout(connect, 3000);
+  };
+  function connect() {
+    retry = undefined;
+    if (stopped) return;
+    const l = new BridgeLink({ relay: p.relay, bridgeId: p.bridgeId, key: p.key, printer: '' });
+    link = l;
+    l.open({
+      onMessage: () => {},
+      onClose: again,
+      onBridge: (status) => {
+        if (status.agent === 'online') clearTimeout(slow);
+        onStatus(status);
+      },
+    }).catch((e) => again((e as Error).message));
+  }
+  connect();
+  return () => {
+    stopped = true;
+    clearTimeout(slow);
+    clearTimeout(retry);
+    link?.close();
+  };
 }
 
 /** Opens the printer's socket and asks Moonraker who it is. */
@@ -98,21 +113,24 @@ export function PrinterEditor() {
 
   useEffect(() => {
     if (!pairing) return;
-    let live = true;
     setChecking(true);
     setError('');
-    probeBridge(pairing)
-      .then((b) => {
-        if (!live) return;
+    return watchBridge(
+      pairing,
+      (b) => {
+        setChecking(false);
+        setError('');
         setBridge(b);
-        if (!printerId && b.printers[0]) setPrinterId(b.printers[0].id);
-        if (!name && b.printers[0]) setName(b.printers[0].name);
-      })
-      .catch((e) => live && setError((e as Error).message))
-      .finally(() => live && setChecking(false));
-    return () => {
-      live = false;
-    };
+        if (b.printers[0]) {
+          setPrinterId((id) => id || b.printers[0].id);
+          setName((n) => n || b.printers[0].name);
+        }
+      },
+      (e) => {
+        setChecking(false);
+        setError(e.message);
+      },
+    );
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pairing]);
 
@@ -232,7 +250,7 @@ export function PrinterEditor() {
                   </>
                 )}
               </p>
-              {bridge && bridge.printers.length === 0 && <p className="dv-alert">This bridge has no printers yet. Add one with: node cloud-slicer-bridge.mjs add &lt;address&gt;</p>}
+              {bridge && bridge.printers.length === 0 && <p className="dv-alert">This bridge has no printers yet. Add one on the bridge's computer with the bridge's add command and the printer's address; it shows up here by itself.</p>}
               {bridge && bridge.printers.length > 0 && (
                 <label>
                   Printer

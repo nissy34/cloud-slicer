@@ -687,6 +687,7 @@ export async function main() {
     await findPrinters();
     const plan = await installAutostart();
     console.log(`The bridge now starts by itself with this computer (from ${plan.copy.to}), and is running.`);
+    console.log(`To stop that: "${plan.copy.to}" uninstall`);
     printPairing(cfg, opts.site, { open: !opts['no-browser'] && cfg.printers.length > 0 });
   } else if (cmd === 'uninstall') {
     await uninstallAutostart();
@@ -695,9 +696,14 @@ export async function main() {
     console.log(VERSION);
   } else if (cmd === 'run') {
     if (interactive && autostartInstalled()) {
-      // A second bridge would only take over from the background one.
-      console.log('The bridge already runs in the background and starts with this computer.');
-      console.log(`To stop that: ${self()} uninstall`);
+      // A second bridge would only take over from the background one. A newly
+      // downloaded app replaces it instead (that's how the app updates).
+      const plan = autostartPlan();
+      if (APP && process.execPath !== plan.copy.to) {
+        await installAutostart();
+        console.log('Updated the bridge that runs in the background to this version.');
+      } else console.log('The bridge already runs in the background and starts with this computer.');
+      console.log(`To stop it starting with the computer: "${plan.copy.to}" uninstall`);
       printPairing(cfg, opts.site, { open: cfg.printers.length > 0 });
       await holdWindow();
       return;
@@ -710,6 +716,7 @@ export async function main() {
         bridge.stop();
         const plan = await installAutostart();
         console.log(`Done. The bridge now runs in the background (from ${plan.copy.to}); you can close this window.`);
+        console.log(`To stop it starting with the computer: "${plan.copy.to}" uninstall`);
         await holdWindow();
         process.exit(0);
       }
