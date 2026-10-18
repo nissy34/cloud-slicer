@@ -15,7 +15,8 @@ name: CI
 #   unit ─────────────────────────────────────────────┐
 #   engine ─┬─ engine-tests ──────────────────────────┤
 #           └─ site ── browser (smoke, startup,       ├─ deploy
-#                       presets, accounts, toolbar) ──┘
+#                       presets, accounts, toolbar,   │
+#                       mixing, cancel) ──────────────┘
 # The engine job reuses the last build when nothing it is built from changed
 # (see the engine key below), so most runs skip Emscripten entirely.
 
@@ -257,7 +258,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        suite: [smoke, startup, presets, accounts, toolbar, mixing]
+        suite: [smoke, startup, presets, accounts, toolbar, mixing, cancel]
     name: browser (${{ matrix.suite }})
     defaults:
       run:
@@ -295,6 +296,10 @@ jobs:
       - name: Colour mixing end to end (Chromium)
         if: matrix.suite == 'mixing'
         run: node test/mixing.mjs
+
+      - name: Slice cancel end to end (Chromium)
+        if: matrix.suite == 'cancel'
+        run: node test/cancel.mjs
 
       - name: Accounts end to end (Pages Functions + local D1, mock OAuth)
         if: matrix.suite == 'accounts'

@@ -72,19 +72,31 @@ export interface ProjectThumbnail {
   pixels: Uint8Array;
 }
 
-type Pending = { resolve: (value: unknown) => void; reject: (e: Error) => void };
+type Pending = { resolve: (value: unknown) => void; reject: (e: Error) => void; progress?: (pct: number, stage: string) => void };
 
 export interface EngineEvents {
   onReady(presets: PresetsLoaded): void;
-  onProgress(pct: number, stage: string): void;
   onFatal(message: string): void;
 }
+
+/** Engine methods that only read: anything else changes what a slice would make. */
+const READS = new Set(['printers', 'filamentsFor', 'fullConfig', 'presetConfig', 'options', 'modelInfo', 'fileConfig', 'saveProject', 'preview', 'paintOverlay', 'mixedBlend', 'mixedMatch', 'slice']);
 
 /** Promise wrapper around the engine worker. Requests run in order. */
 export class EngineClient {
   private worker: Worker;
   private nextId = 1;
   private pending = new Map<number, Pending>();
+  /** The engine's slice cancel cells (see slice in engine-worker.js), when it has them. */
+  private cancelCells: Int32Array | null = null;
+  /** Request id of the slice the engine is running or will run next, else 0. */
+  private sliceId = 0;
+  /**
+   * Called before a request that changes the project or presets is sent while
+   * a slice is running, so the slice can be cancelled instead of finishing
+   * first (requests run in order).
+   */
+  onEditWhileSlicing: (() => void) | null = null;
 
   constructor(private events: EngineEvents) {
     this.worker = new Worker(`/engine/engine-worker.js?v=${import.meta.env.VITE_ENGINE_VERSION}`, { name: 'engine' });
@@ -95,10 +107,11 @@ export class EngineClient {
   private receive(reply: WorkerReply) {
     switch (reply.type) {
       case 'ready':
+        this.cancelCells = reply.cancel ?? null;
         this.events.onReady(reply.presets);
         return;
       case 'progress':
-        this.events.onProgress(reply.pct, reply.stage);
+        this.pending.get(reply.id)?.progress?.(reply.pct, reply.stage);
         return;
       case 'error':
         if (reply.id == null) {
@@ -114,12 +127,33 @@ export class EngineClient {
     }
   }
 
-  private call<T>(method: string, args: unknown[] = [], transfer: Transferable[] = []): Promise<T> {
+  private call<T>(method: string, args: unknown[] = [], transfer: Transferable[] = [], progress?: Pending['progress']): Promise<T> {
+    // The mix list is only read unless the request edits it.
+    const edits = !READS.has(method) && !(method === 'mixed' && !(args[0] as MixedRequest).op);
+    if (edits && this.sliceId) this.onEditWhileSlicing?.();
     const id = this.nextId++;
+    const done = () => {
+      if (this.sliceId === id) this.sliceId = 0;
+    };
+    if (method === 'slice') this.sliceId = id;
     return new Promise<T>((resolve, reject) => {
-      this.pending.set(id, { resolve: resolve as (v: unknown) => void, reject });
+      this.pending.set(id, {
+        resolve: (v) => (done(), resolve(v as T)),
+        reject: (e) => (done(), reject(e)),
+        progress,
+      });
       this.worker.postMessage({ id, method, args }, transfer);
     });
+  }
+
+  /** Whether this engine build can cancel a running slice. */
+  get canCancel() {
+    return this.cancelCells != null;
+  }
+
+  /** Stops the running (or queued) slice; its promise rejects with "cancelled". */
+  cancelSlice() {
+    if (this.sliceId && this.cancelCells) Atomics.store(this.cancelCells, 0, this.sliceId);
   }
 
   printers = () => this.call<PresetSummary[]>('printers');
@@ -182,7 +216,7 @@ export class EngineClient {
     this.call<{ overrides: OrcaConfig; info: ProjectInfo }>('calibrate', [options, overrides]);
   calibrationStop = () => this.call<void>('calibrationStop');
   /** `thumbnails`: plate pictures for the G-code (see lib/thumbnail.ts). */
-  slice = (plate: number, overrides: OrcaConfig, thumbnails: Thumbnail[] = []) =>
+  slice = (plate: number, overrides: OrcaConfig, thumbnails: Thumbnail[], progress: (pct: number, stage: string) => void) =>
     this.call<{ result: SliceResult; gcode: ArrayBuffer; ms: number }>(
-      'slice', [plate, overrides, thumbnails], thumbnails.map((t) => t.pixels.buffer as ArrayBuffer));
+      'slice', [plate, overrides, thumbnails], thumbnails.map((t) => t.pixels.buffer as ArrayBuffer), progress);
 }

@@ -37,7 +37,7 @@ function EngineFailed({ message }: { message: string }) {
 }
 
 export function ActionBar() {
-  const { engine, engineMessage, project, plate, job, notice, noticeWarn, slice, setTab, tab } = useSlicer();
+  const { engine, engineMessage, project, plate, job, notice, noticeWarn, slice, cancelSlice, setTab, tab } = useSlicer();
 
   if (engine === 'failed') return <EngineFailed message={engineMessage} />;
 
@@ -58,7 +58,10 @@ export function ActionBar() {
         {job.kind === 'slicing' && (
           <span className="progress">
             <progress max={100} value={job.pct} />
-            <span>{stageLabel(job.stage) || 'Slicing'}</span>
+            <span className="stage">{stageLabel(job.stage) || 'Slicing'}</span>
+            <button className="secondary" onClick={cancelSlice}>
+              Cancel
+            </button>
           </span>
         )}
         {job.kind === 'sliced' && (
