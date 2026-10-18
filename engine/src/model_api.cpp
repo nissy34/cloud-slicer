@@ -53,12 +53,6 @@ void appendTriangles(const indexed_triangle_set& its, const Transform3d& m, cons
     }
 }
 
-template <typename T>
-emscripten::val typedCopy(const std::vector<T>& v) {
-    // typed_memory_view aliases wasm memory; slice() copies it out before v dies.
-    return emscripten::val(emscripten::typed_memory_view(v.size(), v.data())).template call<emscripten::val>("slice");
-}
-
 std::string optString(const DynamicPrintConfig& c, const char* key) {
     const ConfigOption* o = c.option(key);
     return o ? o->serialize() : std::string();
@@ -212,6 +206,8 @@ std::string modelInfoJson() {
                              : v->is_support_enforcer() ? "supportEnforcer" : v->is_support_blocker() ? "supportBlocker" : "other";
             volumes.push_back({{"name", v->name}, {"kind", kind}, {"extruder", v->extruder_id()},
                                {"painted", !v->mmu_segmentation_facets.empty()},
+                               {"paint", {{"support", !v->supported_facets.empty()}, {"seam", !v->seam_facets.empty()},
+                                          {"fuzzy", !v->fuzzy_skin_facets.empty()}}},
                                {"settings", settingsJson(v->config.get())}});
         }
         json instances = json::array();

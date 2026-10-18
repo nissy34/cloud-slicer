@@ -195,3 +195,36 @@ test('per-object settings change how that object slices', () => {
   call(engine, 'setObjectSettings', 0, -1, JSON.stringify({ layer_height: null }));
   assert.equal(info().objects[0].settings.layer_height, undefined);
 });
+
+test('painting: colour, supports and seams, like the desktop paint tools', () => {
+  select({ printer: DEFAULT_PRINTER });
+  let m = load('3DBenchy.stl');
+  const [x, y] = m.objects[0].instances[0].offset;
+  const down = [[x, y, 200, 0, 0, -1]];
+  const paint = (opts) => call(engine, 'paint', 0, JSON.stringify({ rays: down, ...opts }));
+  // A miss paints nothing.
+  assert.deepEqual(call(engine, 'paint', 0, JSON.stringify({ rays: [[-50, -50, 200, 0, 0, -1]] })).objects, []);
+
+  assert.deepEqual(paint({ kind: 'color', state: 2, tool: 'sphere', radius: 10 }).objects, [0]);
+  m = info();
+  assert.ok(m.objects[0].volumes[0].painted, 'colour paint stored on the part');
+  selectSlots(2);
+  const { gcode } = slice(fullConfig({ filament_colour: '#FF0000;#0000FF' }));
+  assert.ok(Object.keys(toolCounts(gcode)).length >= 2, 'the painted area prints with filament 2');
+
+  paint({ kind: 'support', state: 1, tool: 'circle', radius: 5 });
+  paint({ kind: 'seam', state: 2, tool: 'fill', angle: 20 });
+  m = info();
+  assert.deepEqual(m.objects[0].volumes[0].paint, { support: true, seam: true, fuzzy: false });
+  const overlay = engine.paintOverlay(0, 'support');
+  assert.ok(overlay.states.length > 0 && overlay.states.every((s) => s === 1), 'support enforcers in the overlay');
+  assert.equal(overlay.positions.length, overlay.states.length * 9);
+
+  // Erasing with state 0, then clearing everything.
+  paint({ kind: 'support', state: 0, tool: 'sphere', radius: 50 });
+  assert.equal(info().objects[0].volumes[0].paint.support, false);
+  call(engine, 'clearPaint', 0, 'all');
+  m = info();
+  assert.equal(m.objects[0].volumes[0].painted, false);
+  assert.equal(m.objects[0].volumes[0].paint.seam, false);
+});

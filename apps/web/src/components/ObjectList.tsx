@@ -2,6 +2,7 @@ import { useState } from 'react';
 import type { CutKeep } from '../engine/client';
 import { NO_COLOURS, useSlicer } from '../state/store';
 import { ObjectSettings } from './ObjectSettings';
+import { DEFAULT_PAINT } from './PaintPanel';
 
 const round = (n: number) => Math.round(n * 100) / 100;
 
@@ -59,8 +60,10 @@ export function ObjectList() {
   const selected = useSlicer((s) => s.selected);
   const slots = useSlicer((s) => s.selection?.filaments.length ?? 1);
   const colours = useSlicer((s) => s.selection?.colours ?? NO_COLOURS);
-  const { select, setObjectFilament, deleteObject, copyInstance, transformInstance, orientObject, splitObject, mirror } = useSlicer.getState();
+  const { select, setObjectFilament, deleteObject, copyInstance, transformInstance, orientObject, splitObject, mirror, setPaint } = useSlicer.getState();
   const [cutting, setCutting] = useState(false);
+  const painting = useSlicer((s) => s.paint !== null);
+  const colourCount = colours.length;
   if (!project?.objects.length) return null;
   const onPlate = project.plates[plate]?.objects ?? [];
 
@@ -155,6 +158,14 @@ export function ObjectList() {
             </button>
             <button className="secondary" title="Make every separate piece its own object" onClick={() => void splitObject(selected.object)}>
               Split
+            </button>
+            <button
+              className="secondary"
+              title="Paint colours, supports, seams or fuzzy skin onto the parts"
+              aria-pressed={painting}
+              onClick={() => void setPaint(painting ? null : { ...DEFAULT_PAINT, state: Math.min(2, colourCount) })}
+            >
+              Paint
             </button>
             <button className="secondary" aria-pressed={cutting} onClick={() => setCutting((c) => !c)}>
               Cut

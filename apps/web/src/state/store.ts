@@ -1,6 +1,9 @@
 import { create } from 'zustand';
 import { EngineClient, type CutKeep } from '../engine/client';
 import type {
+  PaintOverlay,
+  PaintRay,
+  PaintSettings,
   OptionDef,
   OrcaConfig,
   PresetSummary,
@@ -51,6 +54,10 @@ interface SlicerState {
   noticeWarn: boolean;
   /** A 3MF made for a printer we don't have, waiting for the user to convert it. */
   conversion: { from: string; file: OrcaConfig } | null;
+  /** Paint mode is on while set: what clicks and drags on the parts paint. */
+  paint: PaintSettings | null;
+  /** Support, seam or fuzzy skin paint of the plate, while painting it. */
+  overlay: PaintOverlay | null;
 
   setTab(tab: Tab): void;
   selectPrinter(name: string): Promise<void>;
@@ -82,6 +89,10 @@ interface SlicerState {
   cutObject(o: number, i: number, z: number, keep: CutKeep, flipUpper: boolean): Promise<void>;
   convertProject(printer: string, keepSettings: boolean, remember: boolean): Promise<void>;
   dismissConversion(): void;
+  setPaint(paint: PaintSettings | null): Promise<void>;
+  /** Paints along rays; newStroke when the pointer just went down. */
+  paintStroke(rays: PaintRay[], newStroke: boolean): Promise<void>;
+  clearPaint(o: number): Promise<void>;
 }
 
 let client: EngineClient | null = null;
@@ -135,8 +146,17 @@ export const useSlicer = create<SlicerState>((set, get) => {
     const project = info ?? (await e.modelInfo());
     const plate = Math.min(get().plate, Math.max(0, project.plates.length - 1));
     const preview = project.objects.length ? await e.preview(plate) : null;
-    set({ project, plate, preview, ...stale() });
+    const paint = get().paint;
+    const overlay = paint && paint.kind !== 'color' && project.objects.length ? await e.paintOverlay(plate, paint.kind) : null;
+    set({ project, plate, preview, overlay, ...stale() });
   }
+
+  // Paint dabs queue up while the engine is busy and go over in one call, so
+  // a fast drag never falls behind. The last ray of a batch starts the next,
+  // so the brush joins them without a gap.
+  let strokeQueue: PaintRay[] = [];
+  let lastRay: PaintRay | null = null;
+  let painting = false;
 
   // A 3MF brings its own filaments: one slot per file filament, coloured like
   // the file, with the closest compatible preset of the same material
@@ -268,6 +288,8 @@ export const useSlicer = create<SlicerState>((set, get) => {
     notice: '',
     noticeWarn: false,
     conversion: null,
+    paint: null,
+    overlay: null,
 
     setTab: (tab) => {
       set({ tab });
@@ -382,6 +404,42 @@ export const useSlicer = create<SlicerState>((set, get) => {
       }
     },
     dismissConversion: () => set({ conversion: null }),
+
+    async setPaint(paint) {
+      const before = get().paint;
+      set({ paint });
+      if (!paint || paint.kind === 'color') return set({ overlay: null });
+      if (before?.kind === paint.kind && get().overlay) return;
+      try {
+        set({ overlay: await engine().paintOverlay(get().plate, paint.kind) });
+      } catch (e) {
+        fail(e);
+      }
+    },
+    async paintStroke(rays, newStroke) {
+      if (newStroke) lastRay = null;
+      strokeQueue.push(...rays);
+      if (painting) return;
+      painting = true;
+      try {
+        while (strokeQueue.length) {
+          const paint = get().paint;
+          if (!paint) break;
+          const fills = paint.tool === 'fill' || paint.tool === 'bucket';
+          const batch = lastRay && !fills ? [lastRay, ...strokeQueue] : strokeQueue;
+          lastRay = strokeQueue[strokeQueue.length - 1];
+          strokeQueue = [];
+          const res = await engine().paint(get().plate, { ...paint, rays: batch });
+          set({ project: res.info, ...(res.preview && { preview: res.preview }), ...(res.overlay && { overlay: res.overlay }), ...stale() });
+        }
+      } catch (e) {
+        fail(e);
+      } finally {
+        strokeQueue = [];
+        painting = false;
+      }
+    },
+    clearPaint: (o) => projectEdit(() => engine().clearPaint(o, get().paint?.kind ?? 'all')),
 
     async slice() {
       const { project, plate, overrides } = get();

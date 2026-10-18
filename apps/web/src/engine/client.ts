@@ -1,5 +1,9 @@
 import type {
   OptionDef,
+  PaintKind,
+  PaintOverlay,
+  PaintRay,
+  PaintSettings,
   OrcaConfig,
   PresetSummary,
   PresetsLoaded,
@@ -90,6 +94,10 @@ export class EngineClient {
   splitObject = (o: number) => this.call<ProjectInfo>('splitObject', [o]);
   cutObject = (o: number, i: number, z: number, keep: CutKeep, flipUpper: boolean) =>
     this.call<ProjectInfo>('cutObject', [o, i, z, keep, flipUpper]);
+  paint = (plate: number, options: PaintSettings & { rays: PaintRay[] }) =>
+    this.call<{ info: ProjectInfo; preview?: PreviewMesh; overlay?: PaintOverlay }>('paint', [plate, options]);
+  paintOverlay = (plate: number, kind: PaintKind) => this.call<PaintOverlay>('paintOverlay', [plate, kind]);
+  clearPaint = (o: number, kind: PaintKind | 'all') => this.call<ProjectInfo>('clearPaint', [o, kind]);
   mirrorInstance = (o: number, i: number, axis: 0 | 1 | 2) => this.call<ProjectInfo>('mirrorInstance', [o, i, axis]);
   setObjectSettings = (o: number, volume: number, values: Record<string, string | null>) =>
     this.call<ProjectInfo>('setObjectSettings', [o, volume, values]);
