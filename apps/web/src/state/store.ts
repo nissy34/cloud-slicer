@@ -23,12 +23,13 @@ import { accountReady, getUserSetting, presetEditing, useAccount } from './accou
 import { installedOnly, SETUP_KEY, type Setup } from '../lib/setup';
 import { loadConvertPreference, loadSaved, save, saveConvertPreference } from '../lib/storage';
 import type { BrimEars, BrimRequest } from '../lib/brim';
+import type { LayerProfile, LayerRequest } from '../lib/layers';
 import { sameFeature, type MeasureFeature, type Measurement } from '../lib/measure';
 import { mixSettings, palette as mixPalette, type MatchResult, type MixRecipe, type MixRow } from '../lib/mixing';
 
 export type Tab = 'prepare' | 'preview' | 'device';
 /** The object tool open on the 3D view, like desktop's gizmos (paint has its own state). */
-export type Tool = 'move' | 'rotate' | 'scale' | 'flatten' | 'cut' | 'measure' | 'brim';
+export type Tool = 'move' | 'rotate' | 'scale' | 'flatten' | 'cut' | 'measure' | 'layers' | 'brim';
 /** How a 3MF is opened: as the project (replacing it) or its objects added. */
 export type OpenMode = 'project' | 'geometry';
 const is3mf = (f: File) => /\.3mf$/i.test(f.name);
@@ -132,6 +133,10 @@ export interface SlicerState {
   setSnap(snap: boolean): void;
   /** Height of the Cut tool's plane above the bed, in mm; the 3D view shows it. */
   cutZ: number;
+  /** The variable layer height tool's object and its profile, while that tool is open. */
+  layers: (LayerProfile & { object: number }) | null;
+  /** Reads (op "get") or edits object o's layer height profile; an edit starts a new undo step unless `continues`. */
+  editLayers(o: number, request: LayerRequest, continues?: boolean): Promise<void>;
   /**
    * The Measure tool: the feature under the pointer, the (up to two) picked
    * ones and what lies between them, like desktop's Measure gizmo.
@@ -541,6 +546,7 @@ export const useSlicer = create<SlicerState>((set, get) => {
     brim: null,
     brimPicked: [],
     brimDiameter: null,
+    layers: null,
     measure: NO_MEASURE,
     overlay: null,
     calibration: null,
@@ -653,7 +659,8 @@ export const useSlicer = create<SlicerState>((set, get) => {
       // The cut plane starts half way up, like desktop.
       const height = selected ? project?.objects[selected.object]?.size[2] : undefined;
       const measure = { ...NO_MEASURE, onlyPlane: get().measure.onlyPlane };
-      set(tool === 'cut' && height ? { tool, measure, brim: null, brimPicked: [], cutZ: Math.round(height * 50) / 100 } : { tool, measure, brim: null, brimPicked: [] });
+      const reset = { tool, measure, layers: null, brim: null, brimPicked: [] as number[] };
+      set(tool === 'cut' && height ? { ...reset, cutZ: Math.round(height * 50) / 100 } : reset);
     },
     setCutZ: (cutZ) => set({ cutZ }),
     async measureHover(ray) {
@@ -727,6 +734,18 @@ export const useSlicer = create<SlicerState>((set, get) => {
           brimPicked: edit || !same ? [] : get().brimPicked.filter((i) => i < ears.ears.length),
           brimDiameter: get().brimDiameter ?? ears.defaultDiameter,
         });
+        if (edit) set(stale());
+      } catch (err) {
+        fail(err);
+      }
+    },
+    async editLayers(o, request, continues = false) {
+      const e = engine();
+      const edit = request.op !== 'get';
+      try {
+        if (edit && !continues) set({ history: await e.snapshot('Variable layer height') });
+        const profile = await e.layerHeights(o, engineOverrides(), request);
+        if (get().tool === 'layers') set({ layers: { ...profile, object: o } });
         if (edit) set(stale());
       } catch (err) {
         fail(err);

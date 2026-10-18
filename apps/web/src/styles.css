@@ -953,6 +953,42 @@ select:focus-visible {
   border: 0;
   background: none;
 }
+/* Variable layer height: the profile chart and its buttons. */
+.layer-chart {
+  width: 100%;
+  height: 200px;
+  touch-action: none;
+  cursor: crosshair;
+  user-select: none;
+}
+.layer-chart-bg {
+  fill: var(--surface-2);
+}
+.layer-chart-base {
+  stroke: var(--muted);
+  stroke-dasharray: 3 3;
+}
+.layer-chart-band {
+  fill: color-mix(in srgb, var(--accent) 25%, transparent);
+}
+.layer-chart-line {
+  fill: none;
+  stroke: var(--accent);
+  stroke-width: 2;
+}
+.layer-chart-dot {
+  fill: var(--accent);
+}
+.layer-summary {
+  font-size: 0.9em;
+  font-variant-numeric: tabular-nums;
+}
+.layer-op {
+  display: grid;
+  gap: 4px;
+  padding-top: 6px;
+  border-top: 1px solid var(--border);
+}
 /* Measure: the picked features (their colours match the 3D view) and what lies between them. */
 .measure-figures {
   display: grid;
@@ -1395,19 +1431,32 @@ select:focus-visible {
   }
   /* Phone: the tool's options go right under the 3D view (Sidebar's tool
      slot), so they never cover the plate; the card stays in view while the
-     column scrolls. */
+     column scrolls. A tall card scrolls inside itself, so opening it never
+     pushes the 3D view (or the card's own Done) off the screen. */
   .tool-pop.docked {
     position: sticky;
     top: 0;
     z-index: 4;
     width: auto;
-    max-height: none;
+    max-height: max(220px, calc(45dvh - 120px));
     margin: 8px 0 4px;
     padding: 8px 10px;
   }
   .tool-panel,
   .paint-panel {
     gap: 4px;
+  }
+  .layer-chart {
+    height: 140px;
+  }
+  /* The tool's name and Done stay at the top while its card scrolls. */
+  .tool-pop.docked .tool-panel-head {
+    position: sticky;
+    top: -8px;
+    z-index: 1;
+    margin: -8px -10px 0;
+    padding: 8px 10px 4px;
+    background: var(--surface);
   }
   .tool-pop .segmented button,
   .tool-pop .paint-states button {
@@ -2684,6 +2733,18 @@ select:focus-visible {
   border-radius: 6px;
   background: var(--surface);
 }
+.dv-map .dv-warn-text,
+.dv-map .dv-error-text {
+  flex-basis: 100%;
+  font-size: 12px;
+}
+.dv-map select[aria-invalid] {
+  border-color: var(--danger);
+}
+.dv-map-note {
+  margin: 6px 0 0;
+  font-size: 12px;
+}
 .dv-print-facts {
   margin: 8px 0 0;
 }
@@ -2870,7 +2931,8 @@ select:focus-visible {
     flex: 1;
     min-width: 0;
   }
-  .dv-map .dv-warn-text {
+  .dv-map .dv-warn-text,
+  .dv-map .dv-error-text {
     grid-column: 2;
   }
 }
