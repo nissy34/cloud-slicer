@@ -22,11 +22,12 @@ import { emptyProjectMessage, modelProcessKeys, pickProcess, printerLabel, proje
 import { accountReady, getUserSetting, presetEditing, useAccount } from './account';
 import { installedOnly, SETUP_KEY, type Setup } from '../lib/setup';
 import { loadConvertPreference, loadSaved, save, saveConvertPreference } from '../lib/storage';
+import type { SimplifyBy, SimplifyResult } from '../lib/simplify';
 import { mixSettings, palette as mixPalette, type MatchResult, type MixRecipe, type MixRow } from '../lib/mixing';
 
 export type Tab = 'prepare' | 'preview' | 'device';
 /** The object tool open on the 3D view, like desktop's gizmos (paint has its own state). */
-export type Tool = 'move' | 'rotate' | 'scale' | 'flatten' | 'cut';
+export type Tool = 'move' | 'rotate' | 'scale' | 'flatten' | 'cut' | 'simplify';
 /** How a 3MF is opened: as the project (replacing it) or its objects added. */
 export type OpenMode = 'project' | 'geometry';
 const is3mf = (f: File) => /\.3mf$/i.test(f.name);
@@ -131,6 +132,10 @@ export interface SlicerState {
   /** Height of the Cut tool's plane above the bed, in mm; the 3D view shows it. */
   cutZ: number;
   setCutZ(z: number): void;
+  /** Object o's triangles, and (with `by`) how many simplifying would leave; changes nothing. */
+  simplifyPreview(o: number, by?: SimplifyBy): Promise<SimplifyResult | null>;
+  /** Simplifies object o, like desktop's Simplify, as one undo step. */
+  simplifyObject(o: number, by: SimplifyBy): Promise<void>;
   /** The open project as an Orca 3MF project file, with the current settings. */
   projectFile(thumbnail: ProjectThumbnail | null): Promise<ArrayBuffer>;
   clearProject(): Promise<void>;
@@ -623,6 +628,11 @@ export const useSlicer = create<SlicerState>((set, get) => {
       set(tool === 'cut' && height ? { tool, cutZ: Math.round(height * 50) / 100 } : { tool });
     },
     setCutZ: (cutZ) => set({ cutZ }),
+    simplifyPreview: (o, by) =>
+      engine()
+        .simplifyPreview(o, by)
+        .catch((err) => (fail(err), null)),
+    simplifyObject: (o, by) => projectEdit('Simplify', () => engine().simplifyApply(o, by)),
     projectFile: (thumbnail) => engine().saveProject(engineOverrides(), thumbnail),
     clearProject: () =>
       projectEdit('Delete all', async () => {

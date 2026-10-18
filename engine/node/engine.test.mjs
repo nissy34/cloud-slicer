@@ -657,3 +657,35 @@ test('colour mixing: Match finds the recipe for a target colour', () => {
   assert.equal(mixed({ definitions: '', colours: TWO, types: ['PLA', 'PLA'], draft: row }).draftCompatible, true);
   assert.equal(mixed({ definitions: '', colours: TWO, types: ['PETG', 'TPU'], op: { kind: 'add', row } }).rows[0].compatible, true);
 });
+
+test('simplify: fewer triangles by detail level or ratio, paint dropped, like desktop', () => {
+  select({ printer: DEFAULT_PRINTER });
+  load('3DBenchy.stl');
+  const simplify = (request) => call(engine, 'simplifyObject', 0, JSON.stringify(request));
+  const start = simplify({ op: 'get' }).triangles;
+  assert.ok(start > 100000, `Benchy has many triangles: ${start}`);
+
+  // Preview changes nothing; Apply uses the same result.
+  const half = simplify({ op: 'preview', ratio: 50 });
+  assert.equal(half.triangles, start);
+  assert.ok(Math.abs(half.after - start / 2) < start * 0.02, `half the triangles: ${half.after} of ${start}`);
+  assert.equal(simplify({ op: 'get' }).triangles, start);
+
+  // Coarser detail levels keep fewer triangles.
+  const levels = [0, 2, 4].map((level) => simplify({ op: 'preview', level }).after);
+  assert.ok(levels[0] >= levels[1] && levels[1] > levels[2], `extra high >= medium > extra low: ${levels}`);
+
+  const [x, y] = info().objects[0].instances[0].offset;
+  call(engine, 'paint', 0, JSON.stringify({ rays: [[x, y, 200, 0, 0, -1]], kind: 'support', state: 1, tool: 'sphere', radius: 10 }));
+  assert.ok(simplify({ op: 'get' }).painted);
+  const size = info().objects[0].size;
+  const applied = simplify({ op: 'apply', ratio: 50 });
+  assert.equal(applied.triangles, half.after);
+  assert.equal(simplify({ op: 'get' }).triangles, half.after);
+  assert.ok(!info().objects[0].volumes[0].painted && !simplify({ op: 'get' }).painted, 'the paint goes with the old triangles');
+  assert.ok(info().objects[0].size.every((v, i) => Math.abs(v - size[i]) < 0.5), 'the shape keeps its size');
+  slice(fullConfig());
+
+  // A 0% ratio leaves the mesh as it is.
+  assert.equal(simplify({ op: 'preview', ratio: 0 }).after, half.after);
+});

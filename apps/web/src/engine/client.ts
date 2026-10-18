@@ -17,6 +17,7 @@ import type {
 } from './protocol';
 import type { Thumbnail } from '../lib/thumbnail';
 import type { MatchResult, MixRecipe, MixRow } from '../lib/mixing';
+import type { SimplifyBy, SimplifyResult } from '../lib/simplify';
 
 /** A request to the engine's mixed-filament list (engine/src/mixed_api.cpp). */
 export interface MixedRequest {
@@ -158,7 +159,10 @@ export class EngineClient {
 
   private call<T>(method: string, args: unknown[] = [], transfer: Transferable[] = [], progress?: Pending['progress']): Promise<T> {
     // The mix list is only read unless the request edits it.
-    const edits = !READS.has(method) && !(method === 'mixed' && !(args[0] as MixedRequest).op);
+    const edits =
+      !READS.has(method) &&
+      !(method === 'mixed' && !(args[0] as MixedRequest).op) &&
+      !(method === 'simplify' && (args[1] as { op: string }).op !== 'apply');
     if (edits && this.sliceId) this.onEditWhileSlicing?.();
     const id = this.nextId++;
     const done = () => {
@@ -233,6 +237,10 @@ export class EngineClient {
   mixedBlend = (colours: string[], weights: number[][]) => this.call<string[]>('mixedBlend', [{ colours, weights }]);
   mixedMatch = (request: { colours: string[]; types: string[]; target: string; minPercent: number }) =>
     this.call<MatchResult>('mixedMatch', [request]);
+  /** Object o's triangle count, and with `by` its count after simplifying (nothing changes). */
+  simplifyPreview = (o: number, by?: SimplifyBy) => this.call<SimplifyResult>('simplify', [o, by ? { op: 'preview', ...by } : { op: 'get' }]);
+  /** Simplifies object o's parts, like desktop's Simplify (its paint goes). */
+  simplifyApply = (o: number, by: SimplifyBy) => this.call<ProjectInfo>('simplify', [o, { op: 'apply', ...by }]);
   clearPaint = (o: number, kind: PaintKind | 'all') => this.call<ProjectInfo>('clearPaint', [o, kind]);
   /** Remembers the project before an edit called `label`, for undo. */
   snapshot = (label: string) => this.call<History>('snapshot', [label]);

@@ -197,6 +197,11 @@ if (self.name !== 'em-pthread') {
     },
     mixedBlend: (e, request) => json(e.mixedBlend(JSON.stringify(request))).colours,
     mixedMatch: (e, request) => json(e.mixedMatch(JSON.stringify(request))),
+    // Simplify object o (see engine/src/simplify_api.cpp); apply also returns the project.
+    simplify(e, o, request) {
+      const out = json(e.simplifyObject(o, JSON.stringify(request)));
+      return request.op === 'apply' ? JSON.parse(e.modelInfoJson()) : out;
+    },
     clearPaint: (e, o, kind) => (json(e.clearPaint(o, kind)), JSON.parse(e.modelInfoJson())),
     // Undo history: {undo, redo} are the labels of the next steps, or null.
     snapshot: (e, label) => json(e.snapshot(label)),
