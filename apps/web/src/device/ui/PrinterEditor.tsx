@@ -109,6 +109,46 @@ async function removeFromBridge(p: Pairing, printer: string): Promise<void> {
   }
 }
 
+/** Sends a printer's Moonraker API key to the bridge, which checks it and keeps it. */
+function KeyForPrinter({ watch, printer }: { watch: BridgeWatch | null; printer: { id: string; name: string } }) {
+  const [apiKey, setApiKey] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [problem, setProblem] = useState('');
+  const save = async () => {
+    if (!watch) return;
+    setBusy(true);
+    setProblem('');
+    try {
+      await watch.manage('bridge.set_key', { id: printer.id, apiKey: apiKey.trim() });
+      setApiKey('');
+    } catch (e) {
+      setProblem((e as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  };
+  return (
+    <div className="dv-form" data-testid="bridge-printer-key">
+      <p className="dv-alert">{printer.name} needs its Moonraker API key. Mainsail and Fluidd show it in their settings.</p>
+      <label>
+        API key
+        <input value={apiKey} onChange={(e) => setApiKey(e.target.value)} spellCheck={false} autoCapitalize="off" autoComplete="off" data-testid="bridge-printer-key-input" />
+      </label>
+      {problem && (
+        <p className="dv-alert" role="alert">
+          {problem}
+        </p>
+      )}
+      <div>
+        <button className="secondary" disabled={!apiKey.trim() || busy || !watch} onClick={() => void save()} data-testid="bridge-printer-key-save">
+          {busy ? 'Checking…' : 'Save key'}
+        </button>
+      </div>
+      <p className="muted">The key goes to the bridge, which keeps it on its computer; Cloud Slicer doesn't store it.</p>
+    </div>
+  );
+}
+
 /** Adds a printer to the bridge by its address, from the Device tab instead of a terminal on the bridge's computer. */
 function AddToBridge({ watch, onAdded, open }: { watch: BridgeWatch | null; onAdded: (p: { id: string; name: string }) => void; open: boolean }) {
   const [address, setAddress] = useState('');
@@ -258,6 +298,7 @@ export function PrinterEditor() {
   };
 
   const relayForCommand = pairing?.relay ?? DEFAULT_RELAY_URL;
+  const chosen = bridge?.printers.find((p) => p.id === printerId);
 
   if (existing && confirmRemove) {
     // A bridge printer: the bridge keeps running on its computer, so say how to remove it too (unless other printers still use it).
@@ -320,7 +361,7 @@ export function PrinterEditor() {
             Cancel
           </button>
           {kind === 'bridge' ? (
-            <button className="primary" disabled={!pairing || !printerId || checking} onClick={saveBridge} data-testid="save-printer">
+            <button className="primary" disabled={!pairing || !printerId || checking || !!chosen?.needsKey} onClick={saveBridge} data-testid="save-printer">
               {existing ? 'Save' : 'Add printer'}
             </button>
           ) : (
@@ -410,12 +451,13 @@ export function PrinterEditor() {
                   <select value={printerId} onChange={(e) => setPrinterId(e.target.value)}>
                     {bridge.printers.map((p) => (
                       <option key={p.id} value={p.id}>
-                        {p.name}
+                        {p.needsKey ? `${p.name} (needs its API key)` : p.name}
                       </option>
                     ))}
                   </select>
                 </label>
               )}
+              {chosen?.needsKey && <KeyForPrinter key={chosen.id} watch={watch} printer={chosen} />}
             </>
           )}
           <label>

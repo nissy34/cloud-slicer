@@ -15,7 +15,7 @@ export type RpcMessage = {
 /** What the bridge reports about itself, alongside the printer's own messages. */
 export interface BridgeStatus {
   agent: 'online' | 'offline';
-  printers: { id: string; name: string }[];
+  printers: { id: string; name: string; needsKey?: boolean }[];
   version?: string;
 }
 

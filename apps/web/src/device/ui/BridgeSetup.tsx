@@ -86,7 +86,7 @@ function ManageCommands() {
       <CopyCommand command={`${exe} add ${address || '<printer address>'}`} testId="bridge-add-command" />
       <span className="muted">Stop the bridge and remove it from that computer, with its printers and pairing:</span>
       <CopyCommand command={`${exe} uninstall`} testId="bridge-uninstall-command" />
-      <span className="muted">These need the bridge set to start with the computer (it asks the first time you open it). If a command says the path can't be found, open the bridge app again and say yes.</span>
+      <span className="muted">These need the bridge set up to start with the computer, which it does the first time you open it. If a command says the path can't be found, open the bridge app again.</span>
     </div>
   );
 }
@@ -183,8 +183,9 @@ export function BridgeSetup({ relay }: { relay: string }) {
           )}
         </li>
         <li>
-          Open it (the Terminal command does this by itself). It finds the printers on your network, opens a link to this page that adds them (you can also paste the link below), and
-          starts by itself with the computer, so the Device tab works whenever the computer is on.
+          Open it (the Terminal command does this by itself). It asks nothing: it finds the printers on your network, starts by itself with the computer (so the Device tab works
+          whenever that computer is on), and opens a link to this page (you can also paste the link below). Here you choose the printer, type its API key if
+          it needs one, or add a printer by its address.
         </li>
         {(win || macDownload) && (
           <li className="muted">

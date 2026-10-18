@@ -48,13 +48,7 @@ chmod +x "$app"
 
 # install copies the app somewhere stable, starts it with the computer, and
 # prints the pairing link.
-# With "curl | sh" the script is on stdin, so give the bridge the terminal to ask
-# questions on (a printer's API key, or its address when none is found).
-if (exec </dev/tty) 2>/dev/null; then
-  "$app" install </dev/tty
-else
-  "$app" install
-fi
+"$app" install
 if [ "$os" = linux ]; then
   # The command itself, for add / list / uninstall later.
   mkdir -p "$HOME/.local/bin"
