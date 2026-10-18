@@ -119,7 +119,7 @@ function SignedOut() {
             className="secondary account-provider"
             disabled={!providers[p]}
             title={providers[p] ? undefined : `${PROVIDER_LABEL[p]} sign-in isn't set up yet`}
-            onClick={() => useAccount.getState().signIn(p)}
+            onClick={() => void useAccount.getState().signIn(p)}
           >
             Continue with {PROVIDER_LABEL[p]}
           </button>
@@ -137,11 +137,8 @@ function SignedOut() {
 
 function SignedIn({ onDone }: { onDone: () => void }) {
   const user = useAccount((s) => s.user)!;
-  const providers = useAccount((s) => s.providers);
   const { counts, total } = usePresetCounts();
   const [confirming, setConfirming] = useState(false);
-  const linked = new Set(user.identities.map((i) => i.provider));
-  const linkable = ALL_PROVIDERS.filter((p) => providers[p] && !linked.has(p));
 
   return (
     <>
@@ -163,11 +160,6 @@ function SignedIn({ onDone }: { onDone: () => void }) {
         ))}
         <li>{presetSummary(counts)}</li>
       </ul>
-      {linkable.map((p) => (
-        <button key={p} className="account-link" onClick={() => useAccount.getState().signIn(p, { link: true })}>
-          Also sign in with {PROVIDER_LABEL[p]}
-        </button>
-      ))}
       {confirming ? (
         <div className="account-confirm">
           <p>

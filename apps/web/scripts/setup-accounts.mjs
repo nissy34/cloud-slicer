@@ -6,7 +6,8 @@
 //     the deploy still works, just without accounts.
 //  2. Copies the Google OAuth credentials (GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET,
 //     repository secrets) into Pages secrets, for production and previews.
-//  3. Creates ACCOUNT_ENC_KEY (encrypts printer API keys) once, if missing.
+//  3. Creates BETTER_AUTH_SECRET (sessions) and ACCOUNT_ENC_KEY (printer API
+//     keys) once, if missing. Production and previews share them.
 //
 // Prints `d1=ok|missing` for $GITHUB_OUTPUT. Never fails the build.
 //
@@ -67,10 +68,13 @@ async function setupSecrets() {
   try {
     const info = await cf(`/pages/projects/${project}`);
     const existing = info.deployment_configs?.production?.env_vars ?? {};
-    if (!existing.ACCOUNT_ENC_KEY) {
-      vars.ACCOUNT_ENC_KEY = randomBytes(32).toString('base64');
-      console.log('created ACCOUNT_ENC_KEY');
-    }
+    // Generated once and then kept: changing them signs everyone out
+    // (BETTER_AUTH_SECRET) or loses saved printer API keys (ACCOUNT_ENC_KEY).
+    for (const name of ['BETTER_AUTH_SECRET', 'ACCOUNT_ENC_KEY'])
+      if (!existing[name]) {
+        vars[name] = randomBytes(32).toString('base64');
+        console.log(`created ${name}`);
+      }
     if (!Object.keys(vars).length) return;
     const env_vars = Object.fromEntries(Object.entries(vars).map(([k, value]) => [k, { type: 'secret_text', value }]));
     await cf(`/pages/projects/${project}`, {

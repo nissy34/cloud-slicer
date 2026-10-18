@@ -20,7 +20,6 @@ import {
   api,
   ApiError,
   mergeSetting,
-  signInUrl,
   type AccountUser,
   type Device,
   type DeviceInput,
@@ -44,7 +43,7 @@ interface AccountState {
 
   init(): void;
   refresh(): Promise<void>;
-  signIn(provider: ProviderId, opts?: { link?: boolean }): void;
+  signIn(provider: ProviderId): Promise<void>;
   signOut(): Promise<void>;
   deleteAccount(): Promise<void>;
   clearError(): void;
@@ -195,16 +194,20 @@ export const useAccount = create<AccountState>((set, get) => ({
     }
   },
 
-  signIn(provider, opts = {}) {
+  async signIn(provider) {
     set({ error: '' });
     const returnTo = location.pathname + location.search;
-    // A popup keeps the open model; fall back to a full redirect if it's blocked.
-    const popup = window.open(
-      signInUrl(provider, { returnTo, popup: true, link: opts.link }),
-      'cloud-slicer-signin',
-      'popup,width=520,height=680',
-    );
-    if (!popup) location.assign(signInUrl(provider, { returnTo, link: opts.link }));
+    // A popup keeps the open model; it is opened right away (before any await)
+    // so the browser counts it as a click. Blocked: sign in in this tab.
+    const popup = window.open('about:blank', 'cloud-slicer-signin', 'popup,width=520,height=680');
+    try {
+      const url = await api.startSignIn(provider, { returnTo, popup: Boolean(popup) });
+      if (popup) popup.location.href = url;
+      else location.assign(url);
+    } catch (e) {
+      popup?.close();
+      set({ error: (e as Error).message });
+    }
   },
 
   async signOut() {

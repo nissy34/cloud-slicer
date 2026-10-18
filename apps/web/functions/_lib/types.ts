@@ -20,15 +20,17 @@ export interface D1Database {
 export interface Env {
   /** Absent until the D1 database is bound: accounts then report "not set up". */
   DB?: D1Database;
-  /** Host every provider redirects back to, e.g. https://slicer.awesomestuff.qzz.io. Defaults to the request's own origin. */
+  /** The deploy Google redirects back to (every other deploy signs in through it), e.g. https://cloud-slicer.pages.dev. */
   AUTH_ORIGIN?: string;
-  /** Hosts allowed to start a sign-in, comma separated; "*.example.com" matches subdomains. */
-  ALLOWED_HOSTS?: string;
+  /** Other origins allowed to sign in, comma separated, "*" wildcards allowed (https://*.cloud-slicer.pages.dev). */
+  TRUSTED_ORIGINS?: string;
+  /** Better Auth's signing/encryption secret; the same on every deploy. CI creates it once. */
+  BETTER_AUTH_SECRET?: string;
   GOOGLE_CLIENT_ID?: string;
   GOOGLE_CLIENT_SECRET?: string;
   /** 32 random bytes, base64: encrypts printer API keys at rest. CI creates it once. */
   ACCOUNT_ENC_KEY?: string;
-  /** Tests only: replaces the providers' endpoints with a mock at this URL. */
+  /** Tests only: sends Google's token requests to a mock at this URL. */
   OAUTH_TEST_BASE?: string;
 }
 

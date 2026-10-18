@@ -2,18 +2,20 @@
 # The Google OAuth client id and secret are Pages secrets, not set here.
 # CI copies them from the repository secrets GOOGLE_CLIENT_ID and
 # GOOGLE_CLIENT_SECRET (scripts/setup-accounts.mjs), and creates
-# ACCOUNT_ENC_KEY (encrypts saved printer API keys) once.
+# BETTER_AUTH_SECRET (sessions) and ACCOUNT_ENC_KEY (saved printer API keys) once.
 name = "cloud-slicer"
 pages_build_output_dir = "dist"
 compatibility_date = "2025-09-01"
+# Better Auth uses AsyncLocalStorage.
+compatibility_flags = ["nodejs_compat"]
 
 [vars]
 # Where Google sends the user back after sign-in. Every deploy (production,
 # branch previews) signs in through this one host, so the Google client
 # needs only this host's callback URL.
 AUTH_ORIGIN = "https://cloud-slicer.pages.dev"
-# Hosts a sign-in may start from (and return to).
-ALLOWED_HOSTS = "slicer.awesomestuff.qzz.io,cloud-slicer.pages.dev,*.cloud-slicer.pages.dev,localhost,127.0.0.1"
+# Other sites allowed to sign in (and be sent back to after sign-in).
+TRUSTED_ORIGINS = "https://slicer.awesomestuff.qzz.io,https://cloud-slicer.pages.dev,https://*.cloud-slicer.pages.dev,http://localhost:*,http://127.0.0.1:*"
 
 # --- D1 (keep last: CI fills in database_id, or drops this block when the
 # Cloudflare token can't reach D1, and the site then runs without accounts) ---

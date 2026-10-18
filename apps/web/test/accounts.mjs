@@ -28,51 +28,55 @@ const HOST = `http://localhost:${PORT}`; // where the user is
 const AUTH = `http://127.0.0.1:${PORT}`; // AUTH_ORIGIN
 const MOCK = `http://127.0.0.1:${MOCK_PORT}`;
 
-// ---- mock OAuth provider ----------------------------------------------------
+// ---- mock Google -------------------------------------------------------------
+// The site sends the browser to accounts.google.com (the test sends it here
+// instead) and, in test mode, posts the code to this server's /google/token.
 const users = {
-  google: {
-    alice: { sub: 'g-alice', name: 'Alice', email: 'alice@example.com', email_verified: true },
-    bob: { sub: 'g-bob', email: 'bob@example.com', email_verified: true },
-  },
+  alice: { sub: 'g-alice', name: 'Alice', email: 'alice@example.com', email_verified: true },
+  bob: { sub: 'g-bob', name: 'Bob', email: 'bob@example.com', email_verified: true },
 };
 let nextUser = 'alice';
-const codes = new Map(); // code -> { provider, user, challenge }
-const tokens = new Map(); // token -> profile
-const b64url = (buf) => buf.toString('base64').replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+const codes = new Map(); // code -> { user, challenge }
+const b64url = (buf) => Buffer.from(buf).toString('base64').replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+// Unsigned id_token: the site reads the profile from the token Google returned
+// straight to it over TLS, without checking a signature (as Google documents).
+const idToken = (claims) => `${b64url(JSON.stringify({ alg: 'none' }))}.${b64url(JSON.stringify(claims))}.`;
 
 const mock = createServer(async (req, res) => {
   const url = new URL(req.url, MOCK);
-  const [, provider, step] = url.pathname.split('/');
   const send = (status, body, headers = {}) => {
     res.writeHead(status, { 'Content-Type': 'application/json', ...headers });
     res.end(body === undefined ? '' : JSON.stringify(body));
   };
-  if (step === 'authorize') {
+  if (url.pathname === '/google/authorize') {
     const q = url.searchParams;
-    assert.equal(q.get('client_id'), `${provider}-id`);
+    assert.equal(q.get('client_id'), 'google-id');
     assert.equal(q.get('code_challenge_method'), 'S256');
-    const code = `code-${codes.size + 1}`;
-    codes.set(code, { provider, user: users[provider][nextUser], challenge: q.get('code_challenge') });
+    const code = `code-${codes.size + 1}-${Math.random()}`;
+    codes.set(code, { user: users[nextUser], challenge: q.get('code_challenge') });
     const back = new URL(q.get('redirect_uri'));
-    back.searchParams.set('code', code);
+    if (nextUser === 'cancel') back.searchParams.set('error', 'access_denied');
+    else back.searchParams.set('code', code);
     back.searchParams.set('state', q.get('state'));
     return send(302, undefined, { Location: back.toString() });
   }
-  if (step === 'token' && req.method === 'POST') {
+  if (url.pathname === '/google/token' && req.method === 'POST') {
     let body = '';
     for await (const chunk of req) body += chunk;
     const f = new URLSearchParams(body);
     const c = codes.get(f.get('code'));
     codes.delete(f.get('code'));
     const pkceOk = c && b64url(createHash('sha256').update(f.get('code_verifier') ?? '').digest()) === c.challenge;
-    if (!c || !pkceOk || f.get('client_secret') !== `${provider}-secret`) return send(400, { error: 'bad_verification_code' });
-    const token = `tok-${Math.random()}`;
-    tokens.set(token, c.user);
-    return send(200, { access_token: token, token_type: 'bearer' });
-  }
-  if (step === 'user') {
-    const profile = tokens.get((req.headers.authorization ?? '').replace('Bearer ', ''));
-    return profile ? send(200, profile) : send(401, { message: 'Bad credentials' });
+    const secret = f.get('client_secret') ?? Buffer.from((req.headers.authorization ?? '').replace('Basic ', ''), 'base64').toString().split(':')[1];
+    if (!c || !pkceOk || secret !== 'google-secret') return send(400, { error: 'invalid_grant' });
+    const now = Math.floor(Date.now() / 1000);
+    return send(200, {
+      access_token: `tok-${Math.random()}`,
+      expires_in: 3600,
+      token_type: 'Bearer',
+      scope: 'openid email profile',
+      id_token: idToken({ iss: 'https://accounts.google.com', aud: 'google-id', iat: now, exp: now + 3600, ...c.user }),
+    });
   }
   send(404, {});
 });
@@ -96,6 +100,8 @@ assert.equal(migrate.status, 0, migrate.stderr + migrate.stdout);
 
 const bindings = {
   AUTH_ORIGIN: AUTH,
+  TRUSTED_ORIGINS: `${HOST},${AUTH}`,
+  BETTER_AUTH_SECRET: 'test-secret-test-secret-test-secret-0123',
   OAUTH_TEST_BASE: MOCK,
   GOOGLE_CLIENT_ID: 'google-id',
   GOOGLE_CLIENT_SECRET: 'google-secret',
@@ -123,6 +129,8 @@ async function waitForServer() {
   throw new Error(`wrangler pages dev did not start:\n${log}`);
 }
 
+const toMock = (u) => u.replace('https://accounts.google.com/o/oauth2/v2/auth', `${MOCK}/google/authorize`);
+
 // ---- a tiny browser: per-host cookie jar, manual redirects --------------------
 class Browser {
   jar = new Map(); // host -> Map(name -> value)
@@ -147,7 +155,7 @@ class Browser {
     const visited = [url];
     let res = await this.fetch(url);
     while (res.status === 302) {
-      url = new URL(res.headers.get('location'), url).toString();
+      url = toMock(new URL(res.headers.get('location'), url).toString());
       visited.push(url);
       res = await this.fetch(url);
     }
@@ -168,9 +176,17 @@ class Browser {
   }
 }
 
-async function signIn(browser, provider, user, query = '') {
+/** Starts a sign-in the way the app does (POST sign-in/social), returning Google's URL. */
+async function startSignIn(browser, { returnTo = '/?tab=prepare', popup = false } = {}) {
+  const done = `${HOST}/api/signin-done?${new URLSearchParams({ return: returnTo, ...(popup ? { popup: '1' } : {}) })}`;
+  const res = await browser.json('/api/auth/sign-in/social', 'POST', { provider: 'google', callbackURL: done, errorCallbackURL: done, disableRedirect: true });
+  assert.equal(res.status, 200, await res.clone().text());
+  return toMock((await res.json()).url);
+}
+
+async function signIn(browser, user, opts) {
   nextUser = user;
-  return browser.navigate(`${HOST}/api/auth/${provider}/start?return=${encodeURIComponent('/?tab=prepare')}${query}`);
+  return browser.navigate(await startSignIn(browser, opts));
 }
 
 const tests = [];
@@ -182,68 +198,59 @@ test('signed out: /api/me says accounts are on and lists providers', async () =>
 });
 
 const alice = new Browser();
-test('Google sign-in hands the session back to the starting host', async () => {
-  const { res, visited, url } = await signIn(alice, 'google', 'alice');
+test('Google sign-in from another host goes through AUTH_ORIGIN and comes back signed in', async () => {
+  const { res, visited, url } = await signIn(alice, 'alice');
   assert.equal(url, `${HOST}/?tab=prepare`);
   assert.equal(res.status, 200);
-  assert.ok(visited.some((v) => v.startsWith(`${AUTH}/api/auth/google/callback`)), 'callback went to AUTH_ORIGIN');
-  assert.ok(visited.some((v) => v.startsWith(`${HOST}/api/auth/finish?code=`)), 'finish ran on the starting host');
-  assert.ok(alice.cookie(`localhost:${PORT}`, '__Host-cs_session'));
-  assert.equal(alice.cookie(`127.0.0.1:${PORT}`, '__Host-cs_session'), undefined, 'no session on the auth host');
+  assert.ok(visited.some((v) => v.startsWith(`${AUTH}/api/auth/callback/google?`)), 'Google called back to AUTH_ORIGIN');
+  assert.ok(visited.some((v) => v.startsWith(`${HOST}/api/auth/callback/google/oauth-proxy?`)), 'the session was set on the starting host');
   const me = await alice.me();
   assert.equal(me.name, 'Alice');
-  assert.deepEqual(me.identities, [{ provider: 'google', login: null, email: 'alice@example.com' }]);
+  assert.equal(me.email, 'alice@example.com');
+  assert.deepEqual(me.identities.map((i) => i.provider), ['google']);
+  assert.equal(await new Browser().me(), null, 'other browsers stay signed out');
 });
 
-test('a handoff code works once, and only in the browser that started the sign-in', async () => {
-  const thief = new Browser();
-  nextUser = 'alice';
-  const start = await alice.fetch(`${HOST}/api/auth/google/start?return=/`);
-  const authorize = await fetch(start.headers.get('location'), { redirect: 'manual' });
-  const cb = await fetch(authorize.headers.get('location'), { redirect: 'manual' });
-  const finish = cb.headers.get('location');
-  assert.match(finish, /\/api\/auth\/finish\?code=/);
-  const stolen = await thief.fetch(finish);
-  assert.equal(stolen.status, 400, 'finish without the nonce cookie is refused');
-  assert.equal(thief.cookie(`localhost:${PORT}`, '__Host-cs_session'), undefined);
-  const again = await alice.fetch(finish);
-  assert.equal(again.status, 400, 'a used code is refused');
-});
-
-test('state from the callback cannot be reused', async () => {
+test('a Google code works once', async () => {
   nextUser = 'alice';
   const b = new Browser();
-  const start = await b.fetch(`${HOST}/api/auth/google/start?return=/`);
-  const authorize = await fetch(start.headers.get('location'), { redirect: 'manual' });
+  const authorize = await fetch(await startSignIn(b), { redirect: 'manual' });
   const cbUrl = authorize.headers.get('location');
-  assert.equal((await fetch(cbUrl, { redirect: 'manual' })).status, 302);
-  assert.equal((await fetch(cbUrl, { redirect: 'manual' })).status, 400);
+  const first = await b.navigate(cbUrl);
+  assert.equal(first.url, `${HOST}/?tab=prepare`);
+  const again = await new Browser().navigate(cbUrl);
+  assert.notEqual(again.url, `${HOST}/?tab=prepare`);
 });
 
-test('return paths never leave the site', async () => {
-  const b = new Browser();
-  nextUser = 'bob';
-  const { url } = await b.navigate(`${HOST}/api/auth/google/start?return=${encodeURIComponent('//evil.example/x')}`);
+test("sign-in can't be started from, or sent back to, another site", async () => {
+  // A signed-in browser (one with cookies to abuse) can't be driven from another site.
+  const evil = await alice.fetch(`${HOST}/api/auth/sign-in/social`, {
+    method: 'POST',
+    headers: { Origin: 'https://evil.example', 'Content-Type': 'application/json' },
+    body: JSON.stringify({ provider: 'google', callbackURL: '/', disableRedirect: true }),
+  });
+  assert.equal(evil.status, 403);
+  const away = await new Browser().json('/api/auth/sign-in/social', 'POST', { provider: 'google', callbackURL: 'https://evil.example/x', disableRedirect: true });
+  assert.equal(away.status, 403);
+  const { url } = await signIn(new Browser(), 'bob', { returnTo: '//evil.example/x' });
   assert.equal(url, `${HOST}/`);
 });
 
-test('cancelling at the provider returns with an error in the hash', async () => {
+test('cancelling at Google returns with an error in the hash', async () => {
   const b = new Browser();
-  const start = await b.fetch(`${HOST}/api/auth/google/start?return=/somewhere`);
-  const state = new URL(start.headers.get('location')).searchParams.get('state');
-  const { url } = await b.navigate(`${AUTH}/api/auth/google/callback?error=access_denied&state=${state}`);
-  assert.equal(url, `${HOST}/somewhere#auth-error=Sign-in%20was%20cancelled`);
+  const { url } = await signIn(b, 'cancel', { returnTo: '/somewhere' });
+  assert.match(url, new RegExp(`^${HOST}/somewhere#auth-error=`));
   assert.equal(await b.me(), null);
 });
 
 test('popup sign-in ends on a page that tells the app window', async () => {
   const b = new Browser();
-  const { res, url } = await signIn(b, 'google', 'bob', '&popup=1');
-  assert.match(url, /\/api\/auth\/finish\?code=/);
+  const { res, url } = await signIn(b, 'bob', { popup: true });
+  assert.match(url, /\/api\/signin-done\?/);
   const html = await res.text();
   assert.match(html, /BroadcastChannel\('cloud-slicer-auth'\)/);
   assert.match(html, /"type":"signed-in"/);
-  assert.equal((await b.me()).name, 'bob@example.com', 'email stands in for a missing name');
+  assert.equal((await b.me()).name, 'Bob');
 });
 
 test('presets: save, conflict, update, list, delete', async () => {
@@ -279,7 +286,7 @@ test('presets: save, conflict, update, list, delete', async () => {
   assert.equal((await alice.json('/api/presets/filament/x', 'PUT', { config: { k: 1 } })).status, 400, 'values are strings');
 
   const bob = new Browser();
-  await signIn(bob, 'google', 'bob');
+  await signIn(bob, 'bob');
   assert.equal((await (await bob.json('/api/presets')).json()).presets.length, 0, "users don't see each other's presets");
   assert.equal((await new Browser().json('/api/presets')).status, 401);
 
@@ -326,7 +333,7 @@ test('devices: connection details sync, API key encrypted and only on request', 
   assert.equal((await alice.json('/api/devices/dev-1', 'PUT', { name: 'x', url: 'javascript:alert(1)' })).status, 400);
 
   const bob = new Browser();
-  await signIn(bob, 'google', 'bob');
+  await signIn(bob, 'bob');
   assert.equal((await bob.json('/api/devices/dev-1/secret')).status, 404, "another user can't read it");
   await alice.json('/api/devices/dev-1', 'DELETE');
   assert.equal((await (await alice.json('/api/devices')).json()).devices.length, 0);
@@ -336,23 +343,23 @@ test('signing in again, on another device, finds the same account', async () => 
   const me = await alice.me();
   assert.equal(me.email, 'alice@example.com');
   const otherDevice = new Browser();
-  await signIn(otherDevice, 'google', 'alice');
+  await signIn(otherDevice, 'alice');
   assert.equal((await otherDevice.me()).id, me.id);
   assert.deepEqual((await (await otherDevice.json('/api/presets')).json()).presets.map((p) => p.name), ['My U1']);
 });
 
 test('sign out, then delete the account and its presets', async () => {
   const other = new Browser();
-  await signIn(other, 'google', 'alice');
-  assert.equal((await other.json('/api/auth/logout', 'POST')).status, 200);
+  await signIn(other, 'alice');
+  assert.equal((await other.json('/api/auth/sign-out', 'POST', {})).status, 200);
   assert.equal(await other.me(), null);
 
   await alice.json('/api/settings/setup', 'PUT', { value: { printers: ['x'] } });
   await alice.json('/api/devices/d', 'PUT', { name: 'd', apiKey: 'k' });
-  assert.equal((await alice.json('/api/me', 'DELETE')).status, 200);
+  assert.equal((await alice.json('/api/auth/delete-user', 'POST', {})).status, 200);
   assert.equal(await alice.me(), null);
   const fresh = new Browser();
-  await signIn(fresh, 'google', 'alice');
+  await signIn(fresh, 'alice');
   const me = await fresh.me();
   assert.deepEqual(me.identities.map((i) => i.provider), ['google'], 'a new, empty account');
   assert.equal((await (await fresh.json('/api/presets')).json()).presets.length, 0);
@@ -363,12 +370,13 @@ test('sign out, then delete the account and its presets', async () => {
 const bobBrowser = new Browser();
 if (withApp)
   test('browser: Sign in button, popup sign-in, account menu, sign out', async () => {
-    await signIn(bobBrowser, 'google', 'bob');
+    await signIn(bobBrowser, 'bob');
     const browser = await chromium.launch(
       process.env.PLAYWRIGHT_BROWSERS_PATH === '/opt/pw-browsers' ? { executablePath: '/opt/pw-browsers/chromium' } : {},
     );
     try {
       const page = await browser.newPage({ viewport: { width: 1280, height: 800 } });
+      await page.context().route('https://accounts.google.com/**', (r) => r.fulfill({ status: 302, headers: { location: toMock(r.request().url()) } }));
       await page.goto(HOST);
       // Choices made while signed out (as the setup wizard would save them).
       await page.evaluate(() => {
@@ -383,7 +391,7 @@ if (withApp)
       await page.getByRole('button', { name: 'Sign in' }).click();
       const [popup] = await Promise.all([page.waitForEvent('popup'), page.getByRole('button', { name: 'Continue with Google' }).click()]);
       if (!popup.isClosed()) await popup.waitForEvent('close', { timeout: 30000 });
-      const menu = page.getByRole('button', { name: /bob@example\.com/ });
+      const menu = page.getByRole('button', { name: /Bob/ });
       await menu.waitFor({ timeout: 30000 });
       await menu.click();
       await page.getByText('Signed in with Google as bob@example.com').waitFor();

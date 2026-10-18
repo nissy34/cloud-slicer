@@ -1,27 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import { hostAllowed, safeReturnPath } from '../../functions/_lib/auth';
+import { safeReturnPath } from '../../functions/_lib/auth';
 import { initials } from './AccountMenu';
-import { mergeSetting, presetNameError, signInUrl, toOrcaPresetJson } from './api';
-
-const ALLOWED = 'slicer.awesomestuff.qzz.io,cloud-slicer.pages.dev,*.cloud-slicer.pages.dev,localhost';
-const AUTH = 'https://cloud-slicer.pages.dev';
-
-describe('sign-in hosts', () => {
-  it('allows production, pages.dev, branch previews and localhost', () => {
-    expect(hostAllowed('slicer.awesomestuff.qzz.io', ALLOWED, AUTH)).toBe(true);
-    expect(hostAllowed('cloud-slicer.pages.dev', ALLOWED, AUTH)).toBe(true);
-    expect(hostAllowed('phase-3-accounts.cloud-slicer.pages.dev', ALLOWED, AUTH)).toBe(true);
-    expect(hostAllowed('localhost:8788', ALLOWED, AUTH)).toBe(true);
-  });
-  it('refuses look-alikes', () => {
-    expect(hostAllowed('evil-cloud-slicer.pages.dev', ALLOWED, AUTH)).toBe(false);
-    expect(hostAllowed('cloud-slicer.pages.dev.evil.com', ALLOWED, AUTH)).toBe(false);
-    expect(hostAllowed('other.pages.dev', ALLOWED, AUTH)).toBe(false);
-  });
-  it('always allows the auth host itself', () => {
-    expect(hostAllowed('cloud-slicer.pages.dev', '', AUTH)).toBe(true);
-  });
-});
+import { mergeSetting, presetNameError, signInDoneUrl, toOrcaPresetJson } from './api';
 
 describe('return paths', () => {
   it('keeps paths on the site', () => {
@@ -34,8 +14,8 @@ describe('return paths', () => {
 
 describe('account helpers', () => {
   it('builds sign-in URLs', () => {
-    expect(signInUrl('google', { returnTo: '/a?b=1', popup: true })).toBe('/api/auth/google/start?return=%2Fa%3Fb%3D1&popup=1');
-    expect(signInUrl('google', { returnTo: '/', link: true })).toBe('/api/auth/google/start?return=%2F&link=1');
+    expect(signInDoneUrl({ returnTo: '/a?b=1', popup: true })).toBe('/api/signin-done?return=%2Fa%3Fb%3D1&popup=1');
+    expect(signInDoneUrl({ returnTo: '/' })).toBe('/api/signin-done?return=%2F');
   });
   it('checks preset names like the server', () => {
     expect(presetNameError('My PLA @U1')).toBeNull();

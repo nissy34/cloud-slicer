@@ -92,8 +92,20 @@ const presetPath = (type: PresetType, name: string) => `/api/presets/${type}/${e
 
 export const api = {
   me: () => call<Me>('/api/me'),
-  logout: () => call<{ ok: true }>('/api/auth/logout', { method: 'POST' }),
-  deleteAccount: () => call<{ ok: true }>('/api/me', { method: 'DELETE' }),
+  /**
+   * Starts a sign-in (Better Auth); returns the provider's page to open. The
+   * way back is absolute: on a preview the provider returns via AUTH_ORIGIN,
+   * which must send the user (or an error) back to this host.
+   */
+  startSignIn: (provider: ProviderId, opts: { returnTo: string; popup?: boolean }) => {
+    const done = location.origin + signInDoneUrl(opts);
+    return call<{ url: string }>('/api/auth/sign-in/social', {
+      method: 'POST',
+      body: JSON.stringify({ provider, callbackURL: done, errorCallbackURL: done, disableRedirect: true }),
+    }).then((r) => r.url);
+  },
+  logout: () => call<{ success: boolean }>('/api/auth/sign-out', { method: 'POST', body: '{}' }),
+  deleteAccount: () => call<{ success: boolean }>('/api/auth/delete-user', { method: 'POST', body: '{}' }),
   presets: () => call<{ presets: UserPreset[] }>('/api/presets').then((r) => r.presets),
   savePreset: (p: { type: PresetType; name: string; inherits: string; config: Record<string, string>; baseVersion?: number }) =>
     call<{ preset: UserPreset }>(presetPath(p.type, p.name), {
@@ -153,12 +165,11 @@ export function mergeSetting(account: unknown, local: unknown): unknown {
 /** A new printer id. */
 export const newDeviceId = () => crypto.randomUUID();
 
-/** URL that starts a sign-in and comes back to `returnTo`. */
-export function signInUrl(provider: ProviderId, opts: { returnTo: string; popup?: boolean; link?: boolean }): string {
+/** Where a sign-in ends: back to `returnTo`, or (popup) a page that tells the app and closes. */
+export function signInDoneUrl(opts: { returnTo: string; popup?: boolean }): string {
   const q = new URLSearchParams({ return: opts.returnTo });
   if (opts.popup) q.set('popup', '1');
-  if (opts.link) q.set('link', '1');
-  return `/api/auth/${provider}/start?${q.toString()}`;
+  return `/api/signin-done?${q.toString()}`;
 }
 
 /** Orca user preset file content (what goes in <dataDir>/user/default/<machine|filament|process>/<name>.json). */

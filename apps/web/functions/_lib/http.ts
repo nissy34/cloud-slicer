@@ -1,4 +1,4 @@
-// Small response and cookie helpers.
+// Small response helpers.
 
 export class HttpError extends Error {
   constructor(
@@ -15,26 +15,6 @@ export function json(data: unknown, status = 200, headers: HeadersInit = {}): Re
     status,
     headers: { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store', ...headers },
   });
-}
-
-export function redirect(location: string, cookies: string[] = []): Response {
-  const headers = new Headers({ Location: location, 'Cache-Control': 'no-store' });
-  for (const c of cookies) headers.append('Set-Cookie', c);
-  return new Response(null, { status: 302, headers });
-}
-
-export function getCookie(request: Request, name: string): string | null {
-  const header = request.headers.get('Cookie') ?? '';
-  for (const part of header.split(';')) {
-    const [k, ...v] = part.trim().split('=');
-    if (k === name) return v.join('=');
-  }
-  return null;
-}
-
-/** __Host- cookies: Secure, whole site, no Domain, so other subdomains can't read or set them. */
-export function cookie(name: string, value: string, maxAgeSeconds: number): string {
-  return `${name}=${value}; Path=/; Max-Age=${maxAgeSeconds}; HttpOnly; Secure; SameSite=Lax`;
 }
 
 /** Every state-changing call must come from the page itself (blocks cross-site form posts). */
