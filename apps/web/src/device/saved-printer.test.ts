@@ -23,6 +23,13 @@ describe('saved printers in the account store', () => {
     expect(printerFromDevice(asDevice(deviceInput(direct)))).toEqual({ ...direct, apiKey: '' });
   });
 
+  it('keeps the cameras the user hid', () => {
+    const direct: SavedPrinter = { id: 'd', name: 'U1', kind: 'direct', url: 'https://u1.example', apiKey: '', hiddenCameras: ['usb'] };
+    expect(deviceInput(direct).extra).toEqual({ kind: 'direct', hiddenCameras: ['usb'] });
+    expect(printerFromDevice(asDevice(deviceInput(direct)))).toEqual(direct);
+    expect(printerFromDevice(asDevice({ id: 'x', name: 'n', url: 'https://x', apiKey: null, extra: { kind: 'direct', hiddenCameras: ['a', 3] } }))?.hiddenCameras).toEqual(['a']);
+  });
+
   it('skips account printers without connection details', () => {
     expect(printerFromDevice(asDevice({ id: 'x', name: 'Wizard printer', url: '', apiKey: null, extra: {} }))).toBeNull();
   });

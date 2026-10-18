@@ -6,7 +6,14 @@
 //
 //   node test/device/mock-printer.mjs [port] [--generic]   (--generic: plain Klipper, no U1 objects)
 //
-// Tests read every G-code script it received from mock.scripts.
+// Tests read every G-code script it received from mock.scripts, and how hard
+// the page leaned on it from mock.stats.
+//
+// Cameras: the U1 has none in Moonraker; like the real one, camera.start_monitor
+// makes it rewrite camera/monitor.jpg several times a second, and Moonraker
+// announces every rewrite as a notify_filelist_changed in the "camera" root.
+// The generic printer lists two webcams, like the paxx12 firmware plus a
+// crowsnest camera: an iframe player page and an MJPEG stream.
 import { createServer } from 'node:http';
 import { crc32, deflateSync } from 'node:zlib';
 import { fileURLToPath } from 'node:url';
@@ -102,6 +109,10 @@ export async function startMockPrinter({ port = 0, host = '127.0.0.1', generic =
   const clients = new Set();
   let frame = 0;
   let printTimer = null;
+  const stats = { fileLists: 0, startMonitor: 0 };
+  let monitorUntil = 0;
+  let monitorTimer = null;
+  const streams = new Set();
 
   const broadcast = (method, params) => {
     const text = JSON.stringify({ jsonrpc: '2.0', method, params });
@@ -284,6 +295,7 @@ export async function startMockPrinter({ port = 0, host = '127.0.0.1', generic =
         patch({ webhooks: { state: 'ready', state_message: 'Printer is ready' } });
         return 'ok';
       case 'server.files.list':
+        stats.fileLists++;
         return [...files].map(([path, f]) => ({ path, size: f.size, modified: f.modified, permissions: 'rw' }));
       case 'server.files.metadata': {
         const f = files.get(params.filename);
@@ -301,11 +313,29 @@ export async function startMockPrinter({ port = 0, host = '127.0.0.1', generic =
       }
       case 'server.files.delete_file':
         files.delete(String(params.path).replace(/^gcodes\//, ''));
-        broadcast('notify_filelist_changed', [{ action: 'delete_file' }]);
+        broadcast('notify_filelist_changed', [{ action: 'delete_file', item: { root: 'gcodes', path: params.path } }]);
         return { item: { path: params.path } };
       case 'server.webcams.list':
-        return { webcams: generic ? [{ name: 'cam', enabled: true, snapshot_url: '/webcam/?action=snapshot', stream_url: '/webcam/?action=stream' }] : [] };
+        return {
+          webcams: generic
+            ? [
+                { name: 'case', service: 'iframe', enabled: true, stream_url: '/webcam/player', snapshot_url: '/webcam/snapshot.jpg', aspect_ratio: '16:9', target_fps: 15 },
+                { name: 'nozzle', service: 'mjpegstreamer', enabled: true, stream_url: '/webcam2/?action=stream', snapshot_url: '/webcam2/?action=snapshot', target_fps: 15 },
+              ]
+            : [],
+        };
       case 'camera.start_monitor':
+        stats.startMonitor++;
+        monitorUntil = Date.now() + 20_000;
+        monitorTimer ??= setInterval(() => {
+          if (Date.now() > monitorUntil) {
+            clearInterval(monitorTimer);
+            monitorTimer = null;
+            return;
+          }
+          frame++;
+          broadcast('notify_filelist_changed', [{ action: 'modify_file', item: { root: 'camera', path: 'monitor.jpg' } }]);
+        }, 250);
         return 'ok';
       default:
         throw Object.assign(new Error(`Method not found: ${method}`), { code: -32601 });
@@ -320,9 +350,32 @@ export async function startMockPrinter({ port = 0, host = '127.0.0.1', generic =
       res.end(typeof body === 'string' || Buffer.isBuffer(body) ? body : JSON.stringify(body));
     };
     if (req.method === 'OPTIONS') return send(204, '');
-    if (url.pathname === '/server/files/camera/monitor.jpg' || url.pathname === '/webcam/') {
-      if (generic === (url.pathname === '/webcam/')) return send(200, pngFrame(frame++), 'image/png');
+    if (url.pathname === '/server/files/camera/monitor.jpg') {
+      if (!generic && Date.now() < monitorUntil) return send(200, pngFrame(frame), 'image/png');
       return send(404, { error: { message: 'no camera here' } });
+    }
+    if (generic && (url.pathname === '/webcam/snapshot.jpg' || (url.pathname === '/webcam2/' && url.searchParams.get('action') === 'snapshot'))) {
+      return send(200, pngFrame(frame++), 'image/png');
+    }
+    if (generic && url.pathname === '/webcam/player') {
+      return send(200, '<!doctype html><title>player</title><body style="margin:0;background:#123"><p style="color:#fff">mock camera player</p></body>', 'text/html');
+    }
+    if (generic && url.pathname === '/webcam2/' && url.searchParams.get('action') === 'stream') {
+      res.writeHead(200, { ...headers, 'Content-Type': 'multipart/x-mixed-replace; boundary=frame', 'Cache-Control': 'no-store' });
+      const push = () => {
+        const img = pngFrame(frame++);
+        res.write(`--frame\r\nContent-Type: image/png\r\nContent-Length: ${img.length}\r\n\r\n`);
+        res.write(img);
+        res.write('\r\n');
+      };
+      push();
+      const t = setInterval(push, 200);
+      streams.add(t);
+      req.on('close', () => {
+        clearInterval(t);
+        streams.delete(t);
+      });
+      return;
     }
     if (url.pathname === '/server/files/upload' && req.method === 'POST') {
       const chunks = [];
@@ -334,7 +387,7 @@ export async function startMockPrinter({ port = 0, host = '127.0.0.1', generic =
       const name = /filename="([^"]+)"/.exec(filePart ?? '')?.[1] ?? 'upload.gcode';
       const content = filePart ? filePart.slice(filePart.indexOf('\r\n\r\n') + 4, -2) : '';
       files.set(name, { size: Buffer.byteLength(content, 'latin1'), modified: Date.now() / 1000, text: content });
-      broadcast('notify_filelist_changed', [{ action: 'create_file', item: { path: name } }]);
+      broadcast('notify_filelist_changed', [{ action: 'create_file', item: { root: 'gcodes', path: name } }]);
       return send(201, { result: { item: { path: name, root: 'gcodes' }, action: 'create_file' } });
     }
     if (url.pathname === '/printer/info') return send(200, { result: rpc('printer.info') });
@@ -369,6 +422,7 @@ export async function startMockPrinter({ port = 0, host = '127.0.0.1', generic =
     url: `http://${host}:${server.address().port}`,
     scripts,
     files,
+    stats,
     get state() {
       return state;
     },
@@ -380,6 +434,8 @@ export async function startMockPrinter({ port = 0, host = '127.0.0.1', generic =
     async close() {
       clearInterval(drift);
       clearInterval(printTimer);
+      clearInterval(monitorTimer);
+      for (const t of streams) clearInterval(t);
       for (const c of clients) c.ws.terminate();
       wss.close();
       server.closeAllConnections?.();

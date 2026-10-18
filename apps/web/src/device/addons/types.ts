@@ -11,10 +11,17 @@ export interface PrinterFacts {
   software: string;
 }
 
+/** A printer's built-in camera, used only when Moonraker lists no webcams. */
 export interface CameraHints {
-  /** Snapshot path tried before Moonraker's configured webcams. */
-  snapshotUrl?: string;
-  /** A JSON-RPC call that keeps the camera producing frames while it is watched. */
+  name: string;
+  /** Where the camera's latest frame can be fetched. */
+  snapshotUrl: string;
+  /** Frames per second to poll it at. */
+  fps: number;
+  /**
+   * A JSON-RPC call that keeps the camera producing frames while it is
+   * watched. Sent one at a time, never more often than `everyMs`.
+   */
   keepalive?: { method: string; params: unknown; everyMs: number };
 }
 
