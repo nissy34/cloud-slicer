@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { AccountMenu } from '../account/AccountMenu';
 import { useSlicer, type Tab } from '../state/store';
 import { CalibrationDialog } from './CalibrationDialog';
 
@@ -36,9 +37,7 @@ export function TopBar() {
         Calibration
       </button>
       {calibrating && <CalibrationDialog onClose={() => setCalibrating(false)} />}
-      <button className="ghost" disabled title="Accounts arrive in phase 3">
-        Sign in
-      </button>
+      <AccountMenu />
     </header>
   );
 }

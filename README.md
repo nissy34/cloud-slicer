@@ -41,12 +41,36 @@ npm run dev        # copies the engine build into public/engine, then starts Vit
 The page needs cross-origin isolation (COOP/COEP) for the engine's threads; the dev server
 and `public/_headers` (Cloudflare Pages) both send it.
 
+## Accounts
+
+Sign-in with Google uses [Better Auth](https://better-auth.com) on Cloudflare Pages
+Functions (`apps/web/functions/`) with a D1 database (`apps/web/migrations/`). Each
+user's printer, filament and process presets (Orca user presets, a diff over a
+system preset), setup choices, and printers with their connection details (API keys
+encrypted at rest) are stored per account. Signed out, the same data is kept in the
+browser and merged into the account at sign-in. Every deploy signs in through one
+host (`AUTH_ORIGIN` in `apps/web/wrangler.toml`) with Better Auth's oAuthProxy
+plugin, so branch previews work with one Google OAuth client.
+
+```bash
+cd apps/web
+npm run build && npm run pages     # site + Functions + local D1 on http://localhost:8788
+node test/accounts.mjs             # end to end against a mock Google
+```
+
+Setup, once: give the Cloudflare token "D1: Edit", create a Google OAuth client
+(Web application) with redirect URI `https://cloud-slicer.pages.dev/api/auth/callback/google`,
+and add its id and secret as repository secrets `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET`.
+CI creates the database, applies migrations, copies the secrets to Pages and generates
+`BETTER_AUTH_SECRET` and `ACCOUNT_ENC_KEY` once.
+
 ## Tests
 
 ```bash
 (cd packages/printer && npm test)    # printer driver unit tests + mock Moonraker
 (cd apps/web && npm test)            # web app unit tests
 (cd apps/web && npm run smoke)       # browser end to end: load Benchy, slice, check G-code
+(cd apps/web && npm run test:accounts)  # sign-in, sessions, synced presets/settings/printers
 node --test engine/node/engine.test.mjs   # engine: presets, STL, painted Bambu 3MF, dual-colour 3MF
 ```
 

@@ -1,0 +1,20 @@
+# The Device tab relay: one Durable Object per bridge, hibernating websockets
+# so idle bridges cost nothing. Free plan: SQLite-backed Durable Objects.
+name = "cloud-slicer-relay"
+main = "src/index.ts"
+compatibility_date = "2025-10-01"
+workers_dev = true
+
+[[durable_objects.bindings]]
+name = "BRIDGE"
+class_name = "Bridge"
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["Bridge"]
+
+# The bridge agent is served as text at /bridge.mjs.
+[[rules]]
+type = "Text"
+globs = ["**/bridge.mjs"]
+fallthrough = false
