@@ -1,3 +1,5 @@
+import { ImportPresetsDialog } from './account/ImportPresets';
+import { PresetSettingsDialog } from './components/PresetSettingsDialog';
 import { ActionBar } from './components/ActionBar';
 import { ConvertDialog } from './components/ConvertDialog';
 import { OpenProjectDialog } from './components/OpenProjectDialog';
@@ -19,6 +21,8 @@ export function App() {
       <ConvertDialog />
       <OpenProjectDialog />
       <SetupWizard />
+      <ImportPresetsDialog />
+      <PresetSettingsDialog />
       {tab !== 'device' && (
         <div className="body">
           <Sidebar />

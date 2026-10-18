@@ -2,11 +2,24 @@
 // (like desktop Orca's save / delete preset buttons). A preset is saved as a
 // diff over the system preset it inherits; signed in, it follows the account.
 import { useEffect, useRef, useState } from 'react';
-import type { OrcaConfig, PresetSummary, Selection } from '../engine/protocol';
-import { deleteUserPreset, listUserPresets, presetEdit, saveUserPreset, useAccount } from '../state/account';
+import type { OrcaConfig } from '../engine/protocol';
+import { deleteUserPreset, listUserPresets, saveUserPreset, useAccount } from '../state/account';
 import { useSlicer } from '../state/store';
 import { presetNameError, type PresetType } from './api';
-import { changesFor, copyName, presetDiff, systemParent } from './preset-diff';
+import { changesFor, copyName, systemParent } from './preset-diff';
+import { editPresets, presetTaken, saveAsNew, saveChanges, selectionWith } from './preset-save';
+import { usePresetImport } from './ImportPresets';
+import { canShareFiles, presetBundle, presetFileName, saveFile } from '../lib/preset-files';
+
+/** Every user preset as one zip that desktop Orca's Import Configs reads too. */
+export async function exportAllPresets(share = false): Promise<number> {
+  const s = useSlicer.getState();
+  const mine = listUserPresets();
+  const files = await Promise.all(mine.map(async (p) => ({ type: p.type, name: p.name, json: await s.presetExport(p.type, p.name) })));
+  const day = new Date().toISOString().slice(0, 10);
+  await saveFile(new Blob([presetBundle(files) as Uint8Array<ArrayBuffer>], { type: 'application/zip' }), `orca-presets-${day}.zip`, share);
+  return files.length;
+}
 
 const LABEL: Record<PresetType, string> = {
   printer: 'printer',
@@ -27,6 +40,8 @@ export function PresetMenu({ type, slot }: { type: PresetType; slot?: number }) 
   const [own, setOwn] = useState<{ name: string; config: OrcaConfig } | null>(null);
   const [working, setWorking] = useState(false);
   const [error, setError] = useState('');
+  const share = canShareFiles();
+  const mineCount = useAccount((s) => s.presets.length);
   const root = useRef<HTMLDivElement>(null);
 
   const current = !selection
@@ -68,92 +83,68 @@ export function PresetMenu({ type, slot }: { type: PresetType; slot?: number }) 
     setError('');
   }
 
-  const taken = (name: string) => list.some((p) => p.name === name) || listUserPresets(type).some((p) => p.name === name);
+  const taken = (name: string) => presetTaken(type, name);
 
-  // The selection with this picker pointing at `name`.
-  const pick = (name: string): Partial<Selection> => {
-    if (type === 'printer') return { printer: name };
-    if (type === 'process') return { process: name };
-    return {
-      filaments: (selection?.filaments ?? []).map((f, i) => (i === (slot ?? 0) ? name : f)),
-    };
-  };
-
-  async function run(task: () => Promise<Partial<Selection> | undefined>) {
+  async function run(task: () => Promise<unknown>) {
     setWorking(true);
     setError('');
     try {
-      await presetEdit(async () => {
-        const next = await task();
-        // Reloads the engine's presets with the account's list, then selects.
-        await useSlicer.getState().setUserPresets(listUserPresets(), next);
-      });
+      await task();
       close();
     } catch (e) {
       setError((e as Error).message);
-      // Whatever did save still reaches the engine.
-      void useSlicer
-        .getState()
-        .setUserPresets(listUserPresets())
-        .catch(() => {});
     } finally {
       setWorking(false);
     }
   }
 
-  async function diffFor(target: PresetSummary): Promise<{ inherits: string; config: OrcaConfig }> {
-    const s = useSlicer.getState();
-    const inherits = systemParent(target);
-    const [ownCfg, parentCfg] = await Promise.all([s.presetConfig(type, target.name), s.presetConfig(type, inherits)]);
-    if (!ownCfg || !parentCfg) throw new Error(`The preset ${inherits} is not available.`);
-    const slots = s.selection?.filaments.length ?? 1;
-    return {
-      inherits,
-      config: presetDiff({
-        own: ownCfg,
-        parent: parentCfg,
-        overrides: s.overrides,
-        options: s.options,
-        slot: type === 'filament' ? { index: slot ?? 0, count: slots } : undefined,
-      }),
-    };
-  }
-
-  const save = () =>
-    run(async () => {
-      if (!preset) return;
-      const { inherits, config } = await diffFor(preset);
-      await saveUserPreset(type, preset.name, inherits, config, {
-        overwrite: true,
-      });
-      return undefined;
-    });
+  const save = () => run(() => saveChanges(type, slot));
 
   const submitName = (action: 'saveAs' | 'rename', raw: string) => {
     const name = raw.trim();
     const problem = presetNameError(name) ?? (taken(name) ? 'A preset with this name already exists.' : null);
     if (problem) return setError(problem);
-    return run(async () => {
-      if (!preset) return;
-      if (action === 'saveAs') {
-        const { inherits, config } = await diffFor(preset);
-        await saveUserPreset(type, name, inherits, config);
-      } else {
+    if (action === 'saveAs') return run(() => saveAsNew(type, name, slot));
+    return run(() =>
+      editPresets(async () => {
+        if (!preset) return;
         const stored = listUserPresets(type).find((p) => p.name === preset.name);
         if (!stored) throw new Error('This preset is not one of yours.');
         await saveUserPreset(type, name, stored.inherits, stored.config);
         await deleteUserPreset(type, preset.name);
-      }
-      return pick(name);
-    });
+        return selectionWith(type, name, slot);
+      }),
+    );
   };
 
   const remove = () =>
-    run(async () => {
-      if (!preset) return;
-      await deleteUserPreset(type, preset.name);
-      return pick(preset.inherits || '');
-    });
+    run(() =>
+      editPresets(async () => {
+        if (!preset) return;
+        await deleteUserPreset(type, preset.name);
+        return selectionWith(type, preset.inherits || '', slot);
+      }),
+    );
+
+  async function exportOne(viaShare: boolean) {
+    if (!preset) return;
+    setError('');
+    try {
+      const text = await useSlicer.getState().presetExport(type, preset.name);
+      await saveFile(new Blob([text], { type: 'application/json' }), presetFileName(preset.name), viaShare);
+    } catch (e) {
+      setError((e as Error).message);
+    }
+  }
+
+  async function exportAll(viaShare: boolean) {
+    setError('');
+    try {
+      await exportAllPresets(viaShare);
+    } catch (e) {
+      setError((e as Error).message);
+    }
+  }
 
   const label = LABEL[type];
   const where = signedIn ? 'Saved to your account.' : 'Saved in this browser until you sign in.';
@@ -218,6 +209,43 @@ export function PresetMenu({ type, slot }: { type: PresetType; slot?: number }) 
                   </>
                 )}
               </div>
+              <div className="preset-pop-actions">
+                {preset.user && (
+                  <div className="preset-pop-split">
+                    <button className="ghost" disabled={working} onClick={() => void exportOne(false)} title={changes > 0 ? 'Exports the preset as last saved' : undefined}>
+                      Export preset
+                    </button>
+                    {share && (
+                      <button className="ghost" disabled={working} aria-label="Share preset" onClick={() => void exportOne(true)}>
+                        Share…
+                      </button>
+                    )}
+                  </div>
+                )}
+                {mineCount > 0 && (
+                  <div className="preset-pop-split">
+                    <button className="ghost" disabled={working} onClick={() => void exportAll(false)}>
+                      Export all my presets
+                    </button>
+                    {share && (
+                      <button className="ghost" disabled={working} aria-label="Share all my presets" onClick={() => void exportAll(true)}>
+                        Share…
+                      </button>
+                    )}
+                  </div>
+                )}
+                <button
+                  className="ghost"
+                  disabled={working}
+                  onClick={() => {
+                    close();
+                    usePresetImport.getState().show();
+                  }}
+                >
+                  Import presets…
+                </button>
+              </div>
+              {preset.user && changes > 0 && <p className="account-muted small">Export takes the preset as last saved, without your unsaved changes.</p>}
               <p className="account-muted small">{where}</p>
             </>
           )}

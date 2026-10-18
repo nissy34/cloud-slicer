@@ -54,6 +54,18 @@ browser and merged into the account at sign-in. Every deploy signs in through on
 host (`AUTH_ORIGIN` in `apps/web/wrangler.toml`) with Better Auth's oAuthProxy
 plugin, so branch previews work with one Google OAuth client.
 
+## Preset files
+
+Each preset picker's ⋯ menu exports the preset as desktop Orca's preset JSON, exports all
+your presets as a zip that desktop's Import Configs reads, and imports `.json`,
+`.orca_printer`, `.orca_filament` and `.zip` files. The engine reads them with Orca's own
+loader. A preset must be based on a system preset the app ships: a printer preset for a
+printer we don't have is refused, and a filament or process made for another printer can
+be put on one of ours (keeping its material or model settings). Process settings are in the
+sidebar; printer and filament (per slot) settings open in their own window from the ✎
+beside their picker, like desktop's preset editors, with Save to preset, Save as new
+preset and Save to project (changes kept only in the project 3MF).
+
 ## Projects
 
 The Project menu in the top bar saves the open project as an Orca 3MF project, written by
@@ -121,6 +133,7 @@ both the script and the Linux app. It never talks to a real printer.
 (cd packages/printer && npm test)    # printer driver unit tests + mock Moonraker
 (cd apps/web && npm test)            # web app unit tests
 (cd apps/web && npm run smoke)       # browser end to end: load Benchy, slice, check G-code
+(cd apps/web && node test/preset-files.mjs)  # filament/printer editing, preset import/export
 (cd apps/web && npm run test:accounts)  # sign-in, sessions, synced presets/settings/printers, online projects
 node --test engine/node/engine.test.mjs   # engine: presets, STL, painted Bambu 3MF, dual-colour 3MF
 ```
