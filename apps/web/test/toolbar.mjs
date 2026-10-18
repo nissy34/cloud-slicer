@@ -76,15 +76,30 @@ try {
   await toolbar.getByRole('button', { name: 'Lay on face' }).click();
   await page.getByRole('region', { name: 'Lay on face' }).waitFor();
   const start = await rotation(page);
+  // Points over the view, nearest the middle (where the boat is) first. A
+  // click that misses the object deselects it, like desktop: pick it again.
+  const points = [];
+  for (let y = 0.3; y <= 0.7; y += 0.04) for (let x = 0.35; x <= 0.65; x += 0.04) points.push([x, y]);
+  points.sort((a, b) => Math.hypot(a[0] - 0.5, a[1] - 0.45) - Math.hypot(b[0] - 0.5, b[1] - 0.45));
   let turned = false;
-  for (let y = 0.35; y <= 0.75 && !turned; y += 0.05)
-    for (let x = 0.3; x <= 0.7 && !turned; x += 0.05) {
-      await page.mouse.move(box.x + box.width * x, box.y + box.height * y);
-      if (shots && !turned && x > 0.49 && x < 0.51) await page.screenshot({ path: join(shots, 'toolbar-desktop-flatten.png') });
-      await page.mouse.click(box.x + box.width * x, box.y + box.height * y);
-      await page.waitForTimeout(300);
-      turned = (await rotation(page).catch(() => start)).join() !== start.join();
+  for (const [i, [x, y]] of points.entries()) {
+    if (!(await page.getByRole('region', { name: 'Lay on face' }).isVisible())) {
+      await objectRows(page).first().locator('.object-name').click();
+      await toolbar.getByRole('button', { name: 'Lay on face' }).click();
     }
+    await page.mouse.move(box.x + box.width * x, box.y + box.height * y);
+    await page.waitForTimeout(100);
+    if (shots && i === 0) await page.screenshot({ path: join(shots, 'toolbar-desktop-flatten.png') });
+    await page.mouse.down();
+    await page.mouse.up();
+    await page.waitForTimeout(500);
+    turned = (await rotation(page).catch(() => start)).join() !== start.join();
+    if (turned) break;
+  }
+  if (shots && turned) {
+    await page.waitForTimeout(800);
+    await page.screenshot({ path: join(shots, 'toolbar-desktop-laid.png') });
+  }
   if (!turned) fail('lay on face did not turn the object');
   else console.log(`lay on face: rotation ${start.join(',')} -> ${(await rotation(page)).join(',')}`);
   await page.close();

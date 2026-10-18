@@ -266,9 +266,9 @@ function FlattenPlanes({ part, place }: { part: Part; place: Placement }) {
           }}
         >
           <meshBasicMaterial
-            color={hover === i ? '#4f8cff' : '#9fb7e8'}
+            color={hover === i ? '#4f8cff' : '#ffffff'}
             transparent
-            opacity={hover === i ? 0.75 : 0.35}
+            opacity={hover === i ? 0.8 : 0.14}
             side={THREE.DoubleSide}
             depthWrite={false}
           />

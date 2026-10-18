@@ -1084,6 +1084,8 @@ select:focus-visible {
     right: 8px;
     bottom: 52px;
     width: auto;
+    gap: 4px;
+    padding: 8px 10px;
   }
   .workspace-tools button {
     padding: 5px 10px;
