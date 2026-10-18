@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { formatDuration, formatGrams } from '../../lib/format';
 import { currentSession, useDevice, type SendSource } from '../../state/device';
-import { suggestToolMap, u1Heads, u1MappingCheck, u1PrintOptions, u1PrintPrepGcode, type U1PrintOptions } from '../addons/u1';
+import { suggestToolMap, u1Heads, u1MappingCheck, u1NoHeadReason, u1PrintOptions, u1PrintPrepGcode, type U1PrintOptions } from '../addons/u1';
 import { uploadName } from '../commands';
 import { metaFromMoonraker, readGcodeMeta, type GcodeMeta } from '../gcode-meta';
 import { job } from '../status';
@@ -40,7 +40,7 @@ export function PrintDialog({ source }: { source: SendSource }) {
     if (!isU1 || !meta || !toolMap) return out;
     for (const f of meta.filaments) {
       const head = heads[toolMap[f.index]];
-      if (head) out.set(f.index, u1MappingCheck(f, head));
+      out.set(f.index, head ? u1MappingCheck(f, head) : { blocked: u1NoHeadReason(f), warning: null });
     }
     return out;
   }, [isU1, meta, toolMap, heads]);
@@ -163,19 +163,23 @@ export function PrintDialog({ source }: { source: SendSource }) {
                     →
                   </span>
                   <span className="dv-map-head">
-                    {head && <Swatch colour={head.colour} empty={!head.loaded} />}
+                    {head ? <Swatch colour={head.colour} empty={!head.loaded} /> : <Swatch colour="#888888" empty />}
                     <select
                       aria-label={`Tool head for filament ${f.index + 1}`}
                       aria-invalid={check?.blocked ? true : undefined}
                       value={toolMap[f.index]}
                       onChange={(e) => setToolMap({ ...toolMap, [f.index]: Number(e.target.value) })}
                     >
+                      {!head && (
+                        <option value={-1} disabled>
+                          No matching head
+                        </option>
+                      )}
                       {heads.map((h) => {
                         const blocked = u1MappingCheck(f, h).blocked;
                         return (
-                          <option key={h.index} value={h.index} disabled={Boolean(blocked) && h.index !== toolMap[f.index]} title={blocked ?? undefined}>
+                          <option key={h.index} value={h.index} disabled={Boolean(blocked)} title={blocked ?? undefined}>
                             {h.label} · {h.material ? `${h.material} ${h.subType}`.trim() : 'empty'}
-                            {blocked ? ' (can’t use)' : ''}
                           </option>
                         );
                       })}

@@ -307,11 +307,15 @@ export function u1MaterialMatches(fileMaterial: string, head: Pick<U1Head, 'mate
  * another nozzle size can't be picked; a standard nozzle for a file sliced for
  * high flow is allowed with a warning. The U1 firmware itself accepts any map.
  */
+/** Why a filament has no head: none of the loaded ones is allowed. */
+export const u1NoHeadReason = (f: MappedFilament) =>
+  `No tool head has ${f.material || 'a matching filament'}${f.nozzle ? ` with a ${f.nozzle} mm nozzle` : ''}. Load it on a head, or change the filament in the slicer and slice again.`;
+
 export function u1MappingCheck(f: MappedFilament, head: U1Head): { blocked: string | null; warning: string | null } {
   let blocked: string | null = null;
   if (!head.material) blocked = `${head.label} has no filament type set. Load filament, or set its type on the Tool heads card.`;
   else if (f.material && !u1MaterialMatches(f.material, head))
-    blocked = `${head.label} has ${[head.material, head.subType].filter(Boolean).join(' ')}, but this filament was sliced as ${f.material}. Load ${f.material} on a head, or change the filament in the slicer and slice again.`;
+    blocked = `${head.label} has ${[head.material, head.subType].filter(Boolean).join(' ')}, but this filament was sliced as ${f.material}.`;
   else if (f.nozzle && head.nozzle && Math.abs(f.nozzle - head.nozzle.diameter) >= 0.001)
     blocked = `${head.label} has a ${head.nozzle.diameter} mm nozzle, but the file was sliced for ${f.nozzle} mm.`;
   const warning =
@@ -324,7 +328,7 @@ export function u1MappingCheck(f: MappedFilament, head: U1Head): { blocked: stri
 /**
  * Suggested head for each file filament: a head it is allowed on (see
  * u1MappingCheck), loaded ones first, then the closest colour, each head used
- * once while there are spares; the file's own tool number when nothing fits.
+ * once while there are spares; -1 (no head) when nothing fits.
  */
 export function suggestToolMap(filaments: MappedFilament[], heads: U1Head[]): Record<number, number> {
   const map: Record<number, number> = {};
@@ -334,9 +338,9 @@ export function suggestToolMap(filaments: MappedFilament[], heads: U1Head[]): Re
       .filter((h) => !u1MappingCheck(f, h).blocked)
       .map((h) => ({ h, d: colourDistance(f.colour, h.colour) + (used.has(h.index) ? 1000 : 0) + (h.loaded ? 0 : 2000) }))
       .sort((a, b) => a.d - b.d);
-    const pick = candidates[0]?.h.index ?? (f.index < U1_HEADS ? f.index : 0);
+    const pick = candidates[0]?.h.index ?? -1;
     map[f.index] = pick;
-    used.add(pick);
+    if (pick >= 0) used.add(pick);
   }
   return map;
 }

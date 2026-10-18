@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { nozzleGcode, parkHeadGcode, pickHeadGcode, feedChannels, feedGcode, filamentConfigGcode, purifierGcode, suggestToolMap, u1Activity, u1Addon, u1Heads, u1MappingCheck, u1MaterialMatches, u1PrintPrepGcode, u1Purifier } from './u1';
+import { nozzleGcode, parkHeadGcode, pickHeadGcode, feedChannels, feedGcode, filamentConfigGcode, purifierGcode, suggestToolMap, u1Activity, u1Addon, u1Heads, u1MappingCheck, u1MaterialMatches, u1NoHeadReason, u1PrintPrepGcode, u1Purifier } from './u1';
 
 const objects = {
   print_task_config: {
@@ -95,8 +95,9 @@ describe('U1 add-on', () => {
 
   it('never suggests a head the filament is not allowed on', () => {
     const heads = u1Heads(objects);
-    // No head has TPU: falls back to the file's own tool number (the dialog then blocks printing).
-    expect(suggestToolMap([{ index: 1, colour: '#E72F1D', material: 'TPU' }], heads)).toEqual({ 1: 1 });
+    // No head has TPU: no head at all, never a head of another type.
+    expect(suggestToolMap([{ index: 1, colour: '#E72F1D', material: 'TPU' }], heads)).toEqual({ 1: -1 });
+    expect(u1NoHeadReason({ index: 1, colour: '#E72F1D', material: 'TPU' })).toMatch(/^No tool head has TPU\./);
     // A red PLA goes to a PLA head, not to the red PETG one.
     expect(suggestToolMap([{ index: 0, colour: '#E72F1D', material: 'PLA' }], heads)[0]).not.toBe(1);
   });
