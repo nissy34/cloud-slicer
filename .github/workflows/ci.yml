@@ -145,6 +145,7 @@ jobs:
         run: |
           npx playwright install --with-deps chromium
           node test/smoke.mjs ../../fixtures/3DBenchy.stl smoke.png
+          node test/toolbar.mjs toolbar-shots
           npx playwright install --with-deps chrome
           STARTUP_CHROME=1 node test/startup-matrix.mjs
 
@@ -165,6 +166,7 @@ jobs:
           path: |
             apps/web/dist
             apps/web/smoke.png
+            apps/web/toolbar-shots
 
       - name: Deploy to Cloudflare Pages
         id: deploy

@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { EngineClient, type CutKeep, type UserPresetFile } from '../engine/client';
+import { EngineClient, type CutKeep, type InstanceChanges, type UserPresetFile } from '../engine/client';
 import type {
   PaintOverlay,
   PaintRay,
@@ -22,6 +22,11 @@ import { installedOnly, SETUP_KEY, type Setup } from '../lib/setup';
 import { loadConvertPreference, loadSaved, save, saveConvertPreference } from '../lib/storage';
 
 export type Tab = 'prepare' | 'preview' | 'device';
+/** The object tool open on the 3D view, like desktop's gizmos (paint has its own state). */
+export type Tool = 'move' | 'rotate' | 'scale' | 'flatten' | 'cut';
+/** How a 3MF is opened: as the project (replacing it) or its objects added. */
+export type OpenMode = 'project' | 'geometry';
+const is3mf = (f: File) => /\.3mf$/i.test(f.name);
 export type EngineStatus = 'starting' | 'ready' | 'failed';
 export type Job =
   | { kind: 'idle' }
@@ -59,6 +64,12 @@ interface SlicerState {
   conversion: { from: string; file: OrcaConfig } | null;
   /** Paint mode is on while set: what clicks and drags on the parts paint. */
   paint: PaintSettings | null;
+  /** The object tool in use on the selected object. */
+  tool: Tool | null;
+  /** Files waiting for the user to say how to open the 3MF among them. */
+  pendingOpen: File[] | null;
+  /** Rotate in 15° steps (and move/scale in steps) without holding Shift, for touch screens. */
+  snap: boolean;
   /** Support, seam or fuzzy skin paint of the plate, while painting it. */
   overlay: PaintOverlay | null;
   /** The calibration test on the plate, and the settings it changed. */
@@ -83,12 +94,20 @@ interface SlicerState {
   removeFilament(slot: number): Promise<void>;
   setOverride(key: string, value: string | null): void;
   resetOverrides(keys?: string[]): void;
-  openFiles(files: File[]): Promise<void>;
+  /**
+   * Adds model files to the project. A single 3MF opens as the project when
+   * nothing is loaded; with objects already there the user is asked first
+   * (pendingOpen) unless `mode` says. Several 3MFs at once add their objects.
+   */
+  openFiles(files: File[], mode?: OpenMode): Promise<void>;
+  cancelOpen(): void;
+  setTool(tool: Tool | null): void;
+  setSnap(snap: boolean): void;
   clearProject(): Promise<void>;
   setPlate(plate: number): Promise<void>;
   select(sel: { object: number; instance: number } | null): void;
   moveInstance(o: number, i: number, x: number, y: number): Promise<void>;
-  transformInstance(o: number, i: number, changes: { rotation?: number[]; scale?: number[] }): Promise<void>;
+  transformInstance(o: number, i: number, changes: InstanceChanges): Promise<void>;
   setObjectFilament(o: number, volume: number, filament: number): Promise<void>;
   deleteObject(o: number): Promise<void>;
   copyInstance(o: number, i: number): Promise<void>;
@@ -100,6 +119,9 @@ interface SlicerState {
   deletePlate(): Promise<void>;
   orientObject(o: number): Promise<void>;
   splitObject(o: number): Promise<void>;
+  splitParts(o: number): Promise<void>;
+  /** Auto-orients one object, or every object on the plate. */
+  orient(o?: number): Promise<void>;
   mirror(o: number, i: number, axis: 0 | 1 | 2): Promise<void>;
   cutObject(o: number, i: number, z: number, keep: CutKeep, flipUpper: boolean): Promise<void>;
   convertProject(printer: string, keepSettings: boolean, remember: boolean): Promise<void>;
@@ -344,6 +366,9 @@ export const useSlicer = create<SlicerState>((set, get) => {
     noticeWarn: false,
     conversion: null,
     paint: null,
+    tool: null,
+    pendingOpen: null,
+    snap: false,
     overlay: null,
     calibration: null,
 
@@ -397,15 +422,23 @@ export const useSlicer = create<SlicerState>((set, get) => {
       setOverrides(keys ? Object.fromEntries(Object.entries(get().overrides).filter(([k]) => !keys.includes(k))) : {});
     },
 
-    async openFiles(files) {
+    async openFiles(files, mode) {
       const e = engine();
+      const threeMfs = files.filter(is3mf).length;
+      if (!mode && threeMfs === 1 && (get().project?.objects.length ?? 0) > 0) {
+        set({ pendingOpen: files });
+        return;
+      }
       await get().endCalibration();
-      set({ tab: 'prepare', notice: '', conversion: null });
-      for (const file of files) {
+      set({ tab: 'prepare', notice: '', conversion: null, pendingOpen: null, tool: null });
+      // The project first, so the other files land on it.
+      const ordered = [...files].sort((a, b) => Number(is3mf(b)) - Number(is3mf(a)));
+      for (const file of ordered) {
         set({ job: { kind: 'loading', name: file.name } });
         try {
           const area = get().overrides.printable_area ?? get().baseConfig.printable_area ?? '';
-          const res = await e.load(file, get().plate, area);
+          const geometryOnly = is3mf(file) && (mode === 'geometry' || threeMfs > 1);
+          const res = await e.load(file, get().plate, area, geometryOnly);
           if (res.isProject) set({ plate: 0, selected: null });
           await refreshPreview(res.info);
           if (res.isProject && res.info.file.hasConfig) await importProject(res.info);
@@ -416,24 +449,30 @@ export const useSlicer = create<SlicerState>((set, get) => {
         }
       }
     },
+    cancelOpen: () => set({ pendingOpen: null }),
+    setSnap: (snap) => set({ snap }),
+    setTool: (tool) => {
+      if (tool && get().paint) void get().setPaint(null);
+      set({ tool });
+    },
     clearProject: () =>
       projectEdit(async () => {
         await get().endCalibration();
-        set({ selected: null });
+        set({ selected: null, tool: null });
         return engine().clear();
       }),
 
     async setPlate(plate) {
-      set({ plate, selected: null });
+      set({ plate, selected: null, tool: null });
       await refreshPreview(get().project ?? undefined);
     },
-    select: (selected) => set({ selected }),
+    select: (selected) => set(selected ? { selected } : { selected, tool: null }),
     moveInstance: (o, i, x, y) => projectEdit(() => engine().transform(o, i, { offset: [x, y], plate: get().plate })),
     transformInstance: (o, i, changes) => projectEdit(() => engine().transform(o, i, changes)),
     setObjectFilament: (o, volume, filament) => projectEdit(() => engine().setExtruder(o, volume, filament)),
     deleteObject: (o) =>
       projectEdit(() => {
-        set({ selected: null });
+        set({ selected: null, tool: null });
         return engine().deleteObject(o);
       }),
     copyInstance: (o, i) => {
@@ -457,13 +496,22 @@ export const useSlicer = create<SlicerState>((set, get) => {
     orientObject: (o) => projectEdit(() => engine().orientObject(o)),
     splitObject: (o) =>
       projectEdit(() => {
-        set({ selected: null });
+        set({ selected: null, tool: null });
         return engine().splitObject(o);
+      }),
+    splitParts: (o) => projectEdit(() => engine().splitParts(o)),
+    orient: (o) =>
+      projectEdit(async () => {
+        const { project, plate } = get();
+        const objects = o !== undefined ? [o] : (project?.plates[plate]?.objects ?? []);
+        let info = project!;
+        for (const obj of objects) info = await engine().orientObject(obj);
+        return info;
       }),
     mirror: (o, i, axis) => projectEdit(() => engine().mirrorInstance(o, i, axis)),
     cutObject: (o, i, z, keep, flipUpper) =>
       projectEdit(() => {
-        set({ selected: null });
+        set({ selected: null, tool: null });
         return engine().cutObject(o, i, z, keep, flipUpper);
       }),
 
@@ -481,7 +529,7 @@ export const useSlicer = create<SlicerState>((set, get) => {
 
     async setPaint(paint) {
       const before = get().paint;
-      set({ paint });
+      set(paint ? { paint, tool: null } : { paint });
       if (!paint || paint.kind === 'color') return set({ overlay: null });
       if (before?.kind === paint.kind && get().overlay) return;
       try {

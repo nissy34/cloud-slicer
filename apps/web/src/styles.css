@@ -599,9 +599,92 @@ select:focus-visible {
 }
 
 /* Workspace overlays */
+/* The object toolbar along the top of the 3D view, like desktop Orca's. */
+.toolbar {
+  --tool-accent: var(--accent);
+  position: absolute;
+  top: 8px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 2;
+  display: flex;
+  max-width: calc(100% - 16px);
+  padding: 3px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface);
+  box-shadow: 0 2px 10px rgb(0 0 0 / 25%);
+  overflow-x: auto;
+  scrollbar-width: thin;
+  overscroll-behavior-x: contain;
+}
+.toolbar-group {
+  display: flex;
+  flex: none;
+  gap: 1px;
+}
+.toolbar-group + .toolbar-group {
+  margin-left: 4px;
+  padding-left: 4px;
+  border-left: 1px solid var(--border);
+}
+.tool {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: 7px;
+  background: none;
+  color: var(--text);
+  cursor: pointer;
+}
+.tool-icon,
+.tool-icon svg {
+  display: block;
+  width: 30px;
+  height: 30px;
+}
+.tool:hover:not([aria-disabled]) {
+  background: var(--surface-2);
+}
+.tool.on {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 18%, transparent);
+}
+.tool[aria-disabled] {
+  opacity: 0.32;
+  cursor: default;
+}
+.tool-panel {
+  position: absolute;
+  left: 12px;
+  bottom: 12px;
+  z-index: 2;
+  display: grid;
+  gap: 8px;
+  width: min(300px, calc(100% - 24px));
+  padding: 10px 12px;
+  border: 1px solid var(--accent);
+  border-radius: var(--radius);
+  background: var(--surface);
+  box-shadow: 0 2px 10px rgb(0 0 0 / 25%);
+}
+.tool-panel-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.tool-panel .cut-panel {
+  padding: 0;
+  border: 0;
+  background: none;
+}
 .workspace-tools {
   position: absolute;
-  top: 12px;
+  top: 60px;
   right: 12px;
   left: 50%;
   display: flex;
@@ -615,7 +698,7 @@ select:focus-visible {
 }
 .plate-tabs {
   position: absolute;
-  top: 12px;
+  top: 60px;
   left: 12px;
   display: flex;
   flex-wrap: wrap;
@@ -981,6 +1064,26 @@ select:focus-visible {
   .workspace-tools {
     left: 12px;
     gap: 6px;
+  }
+  /* Bigger touch targets; the row scrolls sideways. */
+  .toolbar {
+    left: 6px;
+    right: 6px;
+    transform: none;
+    max-width: none;
+  }
+  .tool {
+    width: 40px;
+    height: 40px;
+  }
+  .workspace-tools {
+    top: 64px;
+  }
+  .tool-panel {
+    left: 8px;
+    right: 8px;
+    bottom: 52px;
+    width: auto;
   }
   .workspace-tools button {
     padding: 5px 10px;

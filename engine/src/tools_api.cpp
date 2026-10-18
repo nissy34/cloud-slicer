@@ -1,5 +1,5 @@
 // Object tools from desktop Orca's Prepare toolbar, on the open project:
-// arrange a plate, auto-orient, split to objects, cut, mirror, and adding or
+// arrange a plate, auto-orient, split to objects or parts, cut, mirror, and adding or
 // removing plates. Each returns {ok, error?}; the page re-reads modelInfoJson().
 #include "engine.hpp"
 
@@ -132,6 +132,24 @@ std::string splitObject(int o) {
         pr().model.delete_object(size_t(o));
         for (ModelObject* piece : pieces) piece->ensure_on_bed();
         return ok({{"objects", pieces.size()}});
+    });
+}
+
+// Split to parts: every separate piece of the object's parts becomes a part of
+// its own, keeping the part's filament (desktop's ModelVolume::split). Paint
+// on a split part is dropped, as on desktop.
+std::string splitParts(int o) {
+    return guarded([&] {
+        ModelObject* obj = objectAt(o);
+        const size_t before = obj->volumes.size();
+        std::vector<ModelVolume*> parts;
+        for (ModelVolume* v : obj->volumes)
+            if (v->is_model_part()) parts.push_back(v);
+        for (ModelVolume* v : parts) v->split(1);
+        if (obj->volumes.size() == before) throw std::runtime_error("the parts are single pieces");
+        obj->invalidate_bounding_box();
+        obj->ensure_on_bed();
+        return ok({{"parts", obj->volumes.size()}});
     });
 }
 
@@ -273,6 +291,7 @@ EMSCRIPTEN_BINDINGS(tools_api) {
     emscripten::function("arrangePlate", &arrangePlate);
     emscripten::function("orientObject", &orientObject);
     emscripten::function("splitObject", &splitObject);
+    emscripten::function("splitParts", &splitParts);
     emscripten::function("cutObject", &cutObject);
     emscripten::function("mirrorInstance", &mirrorInstance);
     emscripten::function("addPlate", &addPlate);

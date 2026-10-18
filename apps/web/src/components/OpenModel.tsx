@@ -1,6 +1,8 @@
 import { useRef, useState, type DragEvent } from 'react';
 import { MODEL_EXTENSIONS } from '../lib/presets';
 import { useSlicer } from '../state/store';
+import { Toolbar } from './Toolbar';
+import { ToolPanel } from './ToolPanel';
 
 /** File button plus drag-and-drop anywhere over the workspace. */
 export function OpenModel({ children }: { children: React.ReactNode }) {
@@ -8,7 +10,7 @@ export function OpenModel({ children }: { children: React.ReactNode }) {
   const hasModel = useSlicer((s) => (s.project?.objects.length ?? 0) > 0);
   const clearProject = useSlicer((s) => s.clearProject);
   const plates = useSlicer((s) => s.project?.plates.length ?? 1);
-  const { arrange, addPlate, deletePlate } = useSlicer.getState();
+  const { deletePlate } = useSlicer.getState();
   const input = useRef<HTMLInputElement>(null);
   const [dragging, setDragging] = useState(false);
 
@@ -50,25 +52,20 @@ export function OpenModel({ children }: { children: React.ReactNode }) {
         </div>
       )}
       {hasModel && (
-        <div className="workspace-tools">
-          <button className="secondary" onClick={() => input.current?.click()}>
-            Add model
-          </button>
-          <button className="secondary" title="Pack the objects on this plate" onClick={() => void arrange()}>
-            Arrange
-          </button>
-          <button className="secondary" onClick={() => void addPlate()}>
-            Add plate
-          </button>
-          {plates > 1 && (
-            <button className="ghost" title="Delete this plate and what's on it" onClick={() => void deletePlate()}>
-              Delete plate
+        <>
+          <Toolbar onAdd={() => input.current?.click()} />
+          <ToolPanel />
+          <div className="workspace-tools">
+            {plates > 1 && (
+              <button className="ghost" title="Delete this plate and what's on it" onClick={() => void deletePlate()}>
+                Delete plate
+              </button>
+            )}
+            <button className="ghost" onClick={() => void clearProject()}>
+              Clear all
             </button>
-          )}
-          <button className="ghost" onClick={() => void clearProject()}>
-            Clear all
-          </button>
-        </div>
+          </div>
+        </>
       )}
       {dragging && <div className="dropzone">Drop to add</div>}
     </div>

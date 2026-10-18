@@ -17,6 +17,14 @@ import type {
 
 export type CutKeep = 'both' | 'upper' | 'lower';
 
+/** Instance changes: offset is on `plate` (mm from its corner), rotation in degrees. */
+export interface InstanceChanges {
+  offset?: [number, number];
+  plate?: number;
+  rotation?: number[];
+  scale?: number[];
+}
+
 /** An Orca user preset: `config` is the diff over the system preset it inherits. */
 export interface UserPresetFile {
   type: 'printer' | 'filament' | 'process';
@@ -87,14 +95,15 @@ export class EngineClient {
   modelInfo = () => this.call<ProjectInfo>('modelInfo');
   fileConfig = () => this.call<OrcaConfig>('fileConfig');
 
-  async load(file: File, plate: number, printableArea: string) {
+  /** Adds a model file's objects, or opens a 3MF as the project unless geometryOnly. */
+  async load(file: File, plate: number, printableArea: string, geometryOnly = false) {
     const bytes = await file.arrayBuffer();
     return this.call<{ objectsAdded: number; isProject: boolean; info: ProjectInfo }>(
-      'load', [file.name, bytes, plate, printableArea], [bytes]);
+      'load', [file.name, bytes, plate, printableArea, geometryOnly], [bytes]);
   }
   clear = () => this.call<ProjectInfo>('clear');
   preview = (plate: number) => this.call<PreviewMesh>('preview', [plate]);
-  transform = (o: number, i: number, changes: { offset?: [number, number]; plate?: number; rotation?: number[]; scale?: number[] }) =>
+  transform = (o: number, i: number, changes: InstanceChanges) =>
     this.call<ProjectInfo>('transform', [o, i, changes]);
   setExtruder = (o: number, volume: number, filament: number) => this.call<ProjectInfo>('setExtruder', [o, volume, filament]);
   deleteObject = (o: number) => this.call<ProjectInfo>('deleteObject', [o]);
@@ -104,6 +113,7 @@ export class EngineClient {
   arrangePlate = (plate: number, spacing: number) => this.call<ProjectInfo>('arrangePlate', [plate, spacing]);
   orientObject = (o: number) => this.call<ProjectInfo>('orientObject', [o]);
   splitObject = (o: number) => this.call<ProjectInfo>('splitObject', [o]);
+  splitParts = (o: number) => this.call<ProjectInfo>('splitParts', [o]);
   cutObject = (o: number, i: number, z: number, keep: CutKeep, flipUpper: boolean) =>
     this.call<ProjectInfo>('cutObject', [o, i, z, keep, flipUpper]);
   paint = (plate: number, options: PaintSettings & { rays: PaintRay[] }) =>

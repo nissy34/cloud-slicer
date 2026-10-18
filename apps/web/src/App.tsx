@@ -1,5 +1,6 @@
 import { ActionBar } from './components/ActionBar';
 import { ConvertDialog } from './components/ConvertDialog';
+import { OpenProjectDialog } from './components/OpenProjectDialog';
 import { SetupWizard } from './components/SetupWizard';
 import { OpenModel } from './components/OpenModel';
 import { Preview } from './components/Preview';
@@ -15,6 +16,7 @@ export function App() {
     <div className="app">
       <TopBar />
       <ConvertDialog />
+      <OpenProjectDialog />
       <SetupWizard />
       {tab !== 'device' && (
         <div className="body">

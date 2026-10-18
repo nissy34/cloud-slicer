@@ -61,7 +61,7 @@ const tInit = performance.now();
 
 const modelPath = `/work/${basename(modelArg)}`;
 engine.FS.writeFile(modelPath, readFileSync(modelArg));
-const loaded = call(engine, 'loadModel', modelPath, opts.plate, bedW, bedD);
+const loaded = call(engine, 'loadModel', modelPath, opts.plate, bedW, bedD, false);
 const info = JSON.parse(engine.modelInfoJson());
 console.error(`model: ${info.objects.length} objects on ${info.plates.length} plate(s)${loaded.isProject ? ' (project)' : ''}`);
 const tLoad = performance.now();

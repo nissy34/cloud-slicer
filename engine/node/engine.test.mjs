@@ -20,14 +20,33 @@ after(() => setImmediate(() => process.exit(process.exitCode ?? 0)));  // pthrea
 const select = (selection) => call(engine, 'presetsSelect', JSON.stringify(selection));
 const fullConfig = (overrides = {}) => call(engine, 'presetsFullConfig', JSON.stringify(overrides)).config;
 
-function load(name, plate = 0) {
+// Opens a fixture as a new project; `add` adds it to the open one instead
+// (a 3MF as geometry only).
+function load(name, plate = 0, add = false) {
   const path = `/work/${name}`;
-  engine.FS.writeFile(path, readFileSync(resolve(fixtures, name)));
+  engine.FS.writeFile(path, typeof name === 'string' && !name.startsWith('gen-') ? readFileSync(resolve(fixtures, name)) : generated[name]);
   const [w, d] = bedSize(fullConfig());
-  engine.clearModel();
-  call(engine, 'loadModel', path, plate, w, d);
+  if (!add) engine.clearModel();
+  call(engine, 'loadModel', path, plate, w, d, add);
   return JSON.parse(engine.modelInfoJson());
 }
+
+// ASCII STL of axis-aligned cubes (size s mm) at the given corners: one mesh
+// with several separate pieces.
+function cubesStl(corners, s = 10) {
+  const quad = (a, b, c, d) => [[a, b, c], [a, c, d]];
+  const tris = corners.flatMap(([x, y, z]) => {
+    const v = (i, j, k) => [x + i * s, y + j * s, z + k * s];
+    return [
+      ...quad(v(0, 0, 0), v(0, 1, 0), v(1, 1, 0), v(1, 0, 0)), ...quad(v(0, 0, 1), v(1, 0, 1), v(1, 1, 1), v(0, 1, 1)),
+      ...quad(v(0, 0, 0), v(1, 0, 0), v(1, 0, 1), v(0, 0, 1)), ...quad(v(0, 1, 0), v(0, 1, 1), v(1, 1, 1), v(1, 1, 0)),
+      ...quad(v(0, 0, 0), v(0, 0, 1), v(0, 1, 1), v(0, 1, 0)), ...quad(v(1, 0, 0), v(1, 1, 0), v(1, 1, 1), v(1, 0, 1)),
+    ];
+  });
+  const facets = tris.map((t) => `facet normal 0 0 0\nouter loop\n${t.map((p) => `vertex ${p.join(' ')}`).join('\n')}\nendloop\nendfacet`);
+  return new TextEncoder().encode(`solid cubes\n${facets.join('\n')}\nendsolid cubes\n`);
+}
+const generated = { 'gen-two-cubes.stl': cubesStl([[0, 0, 0], [30, 0, 0]]) };
 
 function slice(config, plate = 0) {
   const result = JSON.parse(engine.sliceWithConfig(JSON.stringify(config), plate, '/work/out.gcode', null));
@@ -159,6 +178,48 @@ test('object tools: cut, split, mirror, orient', () => {
   call(engine, 'orientObject', 0);
   assert.equal(info().objects.length, 1);
   assert.ok(info().objects[0].instances[0].offset[2] >= -0.01, 'on the bed');
+});
+
+test('split to parts makes each piece a part of the same object', () => {
+  select({ printer: DEFAULT_PRINTER });
+  load('gen-two-cubes.stl');
+  assert.equal(info().objects[0].volumes.length, 1);
+  call(engine, 'splitParts', 0);
+  const m = info();
+  assert.equal(m.objects.length, 1, 'still one object');
+  assert.equal(m.objects[0].volumes.filter((v) => v.kind === 'part').length, 2, 'two parts');
+  assert.throws(() => call(engine, 'splitParts', 0), /single pieces/);
+});
+
+test('adding models puts them next to the ones on the plate', () => {
+  select({ printer: DEFAULT_PRINTER });
+  load('3DBenchy.stl');
+  load('3DBenchy.stl', 0, true);
+  let m = load('calib-cube-10-dual-colour-merged.3mf', 0, true);
+  assert.equal(m.objects.length, 3, 'a 3MF added as geometry keeps what was there');
+  assert.ok(m.objects.every((o) => o.instances[0].plate === 0), 'all on plate 1');
+  // Bounding boxes from the plate's preview mesh, one run of triangles per object.
+  const mesh = engine.previewMesh(0);
+  const boxes = [];
+  let tri = 0;
+  for (const count of mesh.objectTriangles) {
+    const b = { x0: Infinity, y0: Infinity, x1: -Infinity, y1: -Infinity };
+    for (let i = tri * 9; i < (tri + count) * 9; i += 3) {
+      b.x0 = Math.min(b.x0, mesh.positions[i]); b.x1 = Math.max(b.x1, mesh.positions[i]);
+      b.y0 = Math.min(b.y0, mesh.positions[i + 1]); b.y1 = Math.max(b.y1, mesh.positions[i + 1]);
+    }
+    if (count) boxes.push(b);
+    tri += count;
+  }
+  assert.equal(boxes.length, 3);
+  for (let a = 0; a < boxes.length; a++)
+    for (let b = a + 1; b < boxes.length; b++) {
+      const [p, q] = [boxes[a], boxes[b]];
+      const apart = p.x1 <= q.x0 || q.x1 <= p.x0 || p.y1 <= q.y0 || q.y1 <= p.y0;
+      assert.ok(apart, `objects ${a} and ${b} overlap: ${JSON.stringify([p, q])}`);
+    }
+  m = load('calib-cube-10-dual-colour-merged.3mf');
+  assert.ok(m.objects.length >= 1 && m.objects.length < 3, 'opening a 3MF as a project replaces the project');
 });
 
 test('plates: add, arrange, delete', () => {

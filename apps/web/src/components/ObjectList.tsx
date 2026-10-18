@@ -1,57 +1,7 @@
-import { useState } from 'react';
-import type { CutKeep } from '../engine/client';
 import { NO_COLOURS, useSlicer } from '../state/store';
 import { ObjectSettings } from './ObjectSettings';
-import { DEFAULT_PAINT } from './PaintPanel';
 
 const round = (n: number) => Math.round(n * 100) / 100;
-
-/** Horizontal cut of the selected instance, like desktop's Cut tool (C). */
-function CutPanel({ object, instance, height, onDone }: { object: number; instance: number; height: number; onDone(): void }) {
-  const cutObject = useSlicer((s) => s.cutObject);
-  const [z, setZ] = useState(round(height / 2));
-  const [keep, setKeep] = useState<CutKeep>('both');
-  const [flip, setFlip] = useState(true);
-  return (
-    <div className="cut-panel">
-      <label className="transform-row">
-        <span>Cut at</span>
-        <input type="range" aria-label="Cut height" min={0.2} max={round(height - 0.2)} step={0.1} value={z} onChange={(e) => setZ(Number(e.target.value))} />
-        <input aria-label="Cut height in mm" value={z} onChange={(e) => setZ(Number(e.target.value) || 0)} />
-        <span className="unit">mm</span>
-      </label>
-      <label className="transform-row">
-        <span>Keep</span>
-        <select aria-label="Parts to keep" value={keep} onChange={(e) => setKeep(e.target.value as CutKeep)}>
-          <option value="both">Both parts</option>
-          <option value="upper">Upper part</option>
-          <option value="lower">Lower part</option>
-        </select>
-      </label>
-      {keep !== 'lower' && (
-        <label className="check">
-          <input type="checkbox" checked={flip} onChange={(e) => setFlip(e.target.checked)} />
-          <span>Flip the upper part onto its cut face</span>
-        </label>
-      )}
-      <div className="transform-row actions">
-        <button className="secondary" onClick={onDone}>
-          Cancel
-        </button>
-        <button
-          className="primary"
-          disabled={!(z > 0 && z < height)}
-          onClick={() => {
-            onDone();
-            void cutObject(object, instance, z, keep, flip);
-          }}
-        >
-          Cut
-        </button>
-      </div>
-    </div>
-  );
-}
 
 /** Objects on the current plate, their filament, and the selected one's transform. */
 export function ObjectList() {
@@ -60,10 +10,7 @@ export function ObjectList() {
   const selected = useSlicer((s) => s.selected);
   const slots = useSlicer((s) => s.selection?.filaments.length ?? 1);
   const colours = useSlicer((s) => s.selection?.colours ?? NO_COLOURS);
-  const { select, setObjectFilament, deleteObject, copyInstance, transformInstance, orientObject, splitObject, mirror, setPaint } = useSlicer.getState();
-  const [cutting, setCutting] = useState(false);
-  const painting = useSlicer((s) => s.paint !== null);
-  const colourCount = colours.length;
+  const { select, setObjectFilament, deleteObject, copyInstance, transformInstance, mirror } = useSlicer.getState();
   if (!project?.objects.length) return null;
   const onPlate = project.plates[plate]?.objects ?? [];
 
@@ -152,24 +99,7 @@ export function ObjectList() {
               />
             ))}
           </div>
-          <div className="tool-row" role="toolbar" aria-label="Object tools">
-            <button className="secondary" title="Turn it so it prints with the least overhang" onClick={() => void orientObject(selected.object)}>
-              Auto-orient
-            </button>
-            <button className="secondary" title="Make every separate piece its own object" onClick={() => void splitObject(selected.object)}>
-              Split
-            </button>
-            <button
-              className="secondary"
-              title="Paint colours, supports, seams or fuzzy skin onto the parts"
-              aria-pressed={painting}
-              onClick={() => void setPaint(painting ? null : { ...DEFAULT_PAINT, state: Math.min(2, colourCount) })}
-            >
-              Paint
-            </button>
-            <button className="secondary" aria-pressed={cutting} onClick={() => setCutting((c) => !c)}>
-              Cut
-            </button>
+          <div className="tool-row">
             <button className="secondary" title="Mirror along X" onClick={() => void mirror(selected.object, selected.instance, 0)}>
               Mirror X
             </button>
@@ -177,15 +107,6 @@ export function ObjectList() {
               Mirror Y
             </button>
           </div>
-          {cutting && (
-            <CutPanel
-              key={`${selected.object}-${selected.instance}`}
-              object={selected.object}
-              instance={selected.instance}
-              height={project.objects[selected.object].size[2]}
-              onDone={() => setCutting(false)}
-            />
-          )}
           <ObjectSettings object={selected.object} />
           <div className="transform-row actions">
             <button className="secondary" onClick={() => void copyInstance(selected.object, selected.instance)}>

@@ -1,0 +1,117 @@
+#!/usr/bin/env node
+// Browser end to end for the object toolbar over the 3D view: adding a model
+// keeps the one already there, lay on face turns the object, and the toolbar
+// fits a phone.
+//
+//   node test/toolbar.mjs [screenshot-dir]
+//
+// Needs `npm run build` first (with the engine copied into public/engine).
+import { spawn } from 'node:child_process';
+import { mkdirSync } from 'node:fs';
+import { dirname, join, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { chromium } from 'playwright';
+
+const web = join(dirname(fileURLToPath(import.meta.url)), '..');
+const fixtures = join(web, '../../fixtures');
+const shots = process.argv[2] ? resolve(process.argv[2]) : null;
+if (shots) mkdirSync(shots, { recursive: true });
+const PORT = 4174;
+
+const server = spawn('npx', ['vite', 'preview', '--port', String(PORT), '--strictPort'], { cwd: web, stdio: 'pipe', detached: true });
+const url = `http://localhost:${PORT}/`;
+await new Promise((ok, fail) => {
+  const timer = setTimeout(() => fail(new Error('vite preview did not start')), 30000);
+  server.stdout.on('data', (d) => String(d).includes(String(PORT)) && (clearTimeout(timer), ok()));
+  server.on('exit', (code) => fail(new Error(`vite preview exited (${code})`)));
+});
+
+const fail = (msg) => {
+  console.error(`TOOLBAR FAIL: ${msg}`);
+  process.exitCode = 1;
+};
+
+const browser = await chromium.launch(
+  process.env.PLAYWRIGHT_BROWSERS_PATH === '/opt/pw-browsers' ? { executablePath: '/opt/pw-browsers/chromium' } : {},
+);
+
+async function open(viewport, mobile) {
+  const page = await browser.newPage({ viewport, isMobile: mobile, hasTouch: mobile, deviceScaleFactor: mobile ? 2 : 1, colorScheme: 'dark' });
+  page.on('pageerror', (e) => console.error(`page error: ${e.message}`));
+  await page.goto(url);
+  await page.getByText('Open a model to start').waitFor({ timeout: 120000 });
+  const wizard = page.getByRole('dialog', { name: 'Set up your printers' });
+  await wizard.waitFor({ timeout: 30000 });
+  await wizard.getByRole('button', { name: 'Not now' }).click();
+  return page;
+}
+
+const objectRows = (page) => page.locator('ul.objects > li.object');
+const rotation = (page) => Promise.all(['X', 'Y', 'Z'].map((a) => page.getByLabel(`Rotation ${a}`).inputValue()));
+
+try {
+  const page = await open({ width: 1280, height: 800 }, false);
+  await page.getByTestId('model-input').setInputFiles(join(fixtures, '3DBenchy.stl'));
+  await page.getByText('Ready to slice').waitFor({ timeout: 120000 });
+  const toolbar = page.getByRole('toolbar', { name: 'Object tools' });
+  await toolbar.waitFor();
+  for (const name of ['Add models', 'Add plate', 'Auto orient', 'Arrange all objects', 'Split to objects', 'Split to parts', 'Move', 'Rotate', 'Scale', 'Lay on face', 'Cut', 'Support painting', 'Seam painting', 'Colour painting'])
+    await toolbar.getByRole('button', { name }).waitFor();
+  console.log('toolbar shows desktop Orca\'s tools');
+
+  // Add a second model: it joins the first instead of replacing it.
+  await page.getByTestId('model-input').setInputFiles(join(fixtures, 'tetrahedron.stl'));
+  await page.waitForFunction(() => document.querySelectorAll('ul.objects > li.object').length === 2, null, { timeout: 60000 });
+  console.log('adding a model keeps the one on the plate');
+
+  await objectRows(page).first().locator('.object-name').click();
+  const box = await page.getByTestId('viewport').boundingBox();
+
+  // Rotate: the gizmo panel opens.
+  await toolbar.getByRole('button', { name: 'Rotate' }).click();
+  await page.getByRole('region', { name: 'Rotate' }).waitFor();
+  if (shots) await page.screenshot({ path: join(shots, 'toolbar-desktop-rotate.png') });
+
+  // Lay on face: click the highlighted faces over the boat until it turns.
+  await toolbar.getByRole('button', { name: 'Lay on face' }).click();
+  await page.getByRole('region', { name: 'Lay on face' }).waitFor();
+  const start = await rotation(page);
+  let turned = false;
+  for (let y = 0.35; y <= 0.75 && !turned; y += 0.05)
+    for (let x = 0.3; x <= 0.7 && !turned; x += 0.05) {
+      await page.mouse.move(box.x + box.width * x, box.y + box.height * y);
+      if (shots && !turned && x > 0.49 && x < 0.51) await page.screenshot({ path: join(shots, 'toolbar-desktop-flatten.png') });
+      await page.mouse.click(box.x + box.width * x, box.y + box.height * y);
+      await page.waitForTimeout(300);
+      turned = (await rotation(page).catch(() => start)).join() !== start.join();
+    }
+  if (!turned) fail('lay on face did not turn the object');
+  else console.log(`lay on face: rotation ${start.join(',')} -> ${(await rotation(page)).join(',')}`);
+  await page.close();
+
+  const phone = await open({ width: 390, height: 844 }, true);
+  await phone.getByTestId('model-input').setInputFiles(join(fixtures, '3DBenchy.stl'));
+  await phone.getByText('Ready to slice').waitFor({ timeout: 120000 });
+  const bar = phone.getByRole('toolbar', { name: 'Object tools' });
+  const barBox = await bar.boundingBox();
+  if (barBox.x < 0 || barBox.x + barBox.width > 390) fail(`toolbar is off the screen: ${JSON.stringify(barBox)}`);
+  const scrolls = await bar.evaluate((el) => el.scrollWidth > el.clientWidth);
+  if (!scrolls) fail('on a phone the toolbar should scroll sideways');
+  const pageScroll = await phone.evaluate(() => document.documentElement.scrollWidth > window.innerWidth);
+  if (pageScroll) fail('the page scrolls sideways on a phone');
+  await bar.getByRole('button', { name: 'Rotate' }).tap();
+  await phone.getByRole('region', { name: 'Rotate' }).waitFor();
+  if (shots) await phone.screenshot({ path: join(shots, 'toolbar-phone-rotate.png') });
+  await bar.evaluate((el) => el.scrollTo({ left: el.scrollWidth }));
+  await bar.getByRole('button', { name: 'Lay on face' }).tap();
+  await phone.waitForTimeout(500);
+  if (shots) await phone.screenshot({ path: join(shots, 'toolbar-phone-flatten.png') });
+  console.log('phone: toolbar scrolls inside the screen');
+} catch (e) {
+  fail(e.message);
+} finally {
+  await browser.close();
+  process.kill(-server.pid, 'SIGTERM');
+}
+if (!process.exitCode) console.log('TOOLBAR OK');
+process.exit();
