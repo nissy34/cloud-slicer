@@ -125,6 +125,7 @@ jobs:
 
       - name: Browser smoke test (Chromium)
         working-directory: apps/web
+        timeout-minutes: 20
         run: |
           npx playwright install --with-deps chromium
           node test/smoke.mjs ../../fixtures/3DBenchy.stl smoke.png
@@ -156,6 +157,7 @@ jobs:
       - name: Smoke test the deployed site
         if: steps.deploy.outputs.url != ''
         working-directory: apps/web
+        timeout-minutes: 20
         run: |
           sleep 15  # let the new deployment propagate
           SMOKE_URL='${{ steps.deploy.outputs.url }}' node test/smoke.mjs ../../fixtures/tetrahedron.stl
