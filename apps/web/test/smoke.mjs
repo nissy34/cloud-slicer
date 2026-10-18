@@ -53,6 +53,12 @@ try {
   await page.getByText('Open a model to start').waitFor({ timeout: 120000 });
   console.log('engine ready');
 
+  // First visit: the setup wizard opens by itself.
+  const wizard = page.getByRole('dialog', { name: 'Set up your printers' });
+  await wizard.waitFor({ timeout: 30000 });
+  await wizard.getByRole('button', { name: 'Not now' }).click();
+  console.log('setup wizard shown and closed');
+
   await page.getByTestId('model-input').setInputFiles(model);
   await page.getByText('Ready to slice').waitFor({ timeout: 120000 });
   console.log(`loaded ${model}`);

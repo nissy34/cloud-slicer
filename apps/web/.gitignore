@@ -3,5 +3,6 @@ public/engine/orca-engine*
 public/engine/profiles.json
 public/engine/settings-layout.json
 public/engine/assets/
+public/engine/calib/
 test-results/
 *.tsbuildinfo

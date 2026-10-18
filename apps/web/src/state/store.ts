@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { EngineClient, type CutKeep } from '../engine/client';
+import { EngineClient, type CutKeep, type UserPresetFile } from '../engine/client';
 import type {
   PaintOverlay,
   PaintRay,
@@ -13,9 +13,12 @@ import type {
   SettingsLayout,
   SliceResult,
 } from '../engine/protocol';
+import { calibrationOptions, CALIBRATIONS, type CalibrationMode, type CalibrationValues } from '../lib/calibration';
 import { bedSize } from '../lib/colour';
 import { DEFAULT_PRINTER, pickFilamentPreset, splitList, SLOT_COLOURS } from '../lib/presets';
 import { modelProcessKeys, pickProcess, printerLabel, projectOverrides } from '../lib/project-import';
+import { accountReady, getUserSetting, presetEditing, useAccount } from './account';
+import { installedOnly, SETUP_KEY, type Setup } from '../lib/setup';
 import { loadConvertPreference, loadSaved, save, saveConvertPreference } from '../lib/storage';
 
 export type Tab = 'prepare' | 'preview' | 'device';
@@ -58,10 +61,22 @@ interface SlicerState {
   paint: PaintSettings | null;
   /** Support, seam or fuzzy skin paint of the plate, while painting it. */
   overlay: PaintOverlay | null;
+  /** The calibration test on the plate, and the settings it changed. */
+  calibration: { title: string; keys: string[]; previous: OrcaConfig } | null;
 
   setTab(tab: Tab): void;
   selectPrinter(name: string): Promise<void>;
+  /** Filaments that work with a printer, without selecting it (for the setup wizard). */
+  filamentsFor(printer: string): Promise<{ filaments: PresetSummary[]; defaults: string[] }>;
   selectProcess(name: string): Promise<void>;
+  /** One preset's own settings, after inheritance. */
+  presetConfig(type: 'printer' | 'filament' | 'process', name: string): Promise<OrcaConfig | null>;
+  /**
+   * Gives the engine the user's saved presets (it reloads every preset) and
+   * selects again, with `selection` on top of the current one. Changes now
+   * saved in a preset stop counting as changes.
+   */
+  setUserPresets(presets: UserPresetFile[], selection?: Partial<Selection>): Promise<void>;
   setFilament(slot: number, name: string): Promise<void>;
   setColour(slot: number, colour: string): Promise<void>;
   addFilament(): Promise<void>;
@@ -93,9 +108,16 @@ interface SlicerState {
   /** Paints along rays; newStroke when the pointer just went down. */
   paintStroke(rays: PaintRay[], newStroke: boolean): Promise<void>;
   clearPaint(o: number): Promise<void>;
+  /** Replaces the project with a calibration test, like desktop's Calibration menu. */
+  startCalibration(mode: CalibrationMode, values: CalibrationValues): Promise<void>;
+  /** Back to normal printing: drops the test's settings (the test model stays). */
+  endCalibration(): Promise<void>;
 }
 
 let client: EngineClient | null = null;
+const presetFile = ({ type, name, inherits, config }: UserPresetFile): UserPresetFile => ({ type, name, inherits, config });
+/** The user presets the engine has loaded. */
+let enginePresets: UserPresetFile[] = [];
 
 export const useSlicer = create<SlicerState>((set, get) => {
   const engine = () => {
@@ -119,6 +141,18 @@ export const useSlicer = create<SlicerState>((set, get) => {
     const e = engine();
     try {
       const saved = loadSaved();
+      // The user's own presets (this browser's, or the account's) load before
+      // the saved selection, which may name one of them.
+      // Waits at most a few seconds: offline, the engine starts without user presets
+      // and the subscription below adds them when the account answers.
+      await accountReady();
+      enginePresets = useAccount.getState().presets;
+      if (enginePresets.length) await e.userPresets(enginePresets.map(presetFile));
+      // Presets saved on another device (or merged at sign-in) reach the engine too.
+      useAccount.subscribe((a) => {
+        if (a.presets !== enginePresets && get().engine === 'ready' && !presetEditing())
+          void get().setUserPresets(a.presets).catch(fail);
+      });
       const [printers, options, layout] = await Promise.all([
         e.printers(),
         e.options(),
@@ -138,7 +172,16 @@ export const useSlicer = create<SlicerState>((set, get) => {
     const res = await e.select(selection);
     const { config } = await e.fullConfig({});
     set({ selection: res.selection, processes: res.processes, filaments: res.filaments, baseConfig: config, ...stale() });
-    save({ selection: res.selection, overrides: get().overrides });
+    persist();
+  }
+
+  // A filament preset for a material: one of the user's installed filaments
+  // when one matches, else any compatible preset.
+  function pickFilament(filaments: PresetSummary[], type: string | undefined, fallback?: string) {
+    const installed = installedOnly(filaments, getUserSetting<Setup>(SETUP_KEY)?.filaments);
+    const want = (type ?? '').toUpperCase();
+    const mine = installed.length < filaments.length && installed.some((f) => (f.filamentType ?? '').toUpperCase() === want);
+    return pickFilamentPreset(mine ? installed : filaments, type, fallback);
   }
 
   async function refreshPreview(info?: ProjectInfo) {
@@ -166,7 +209,7 @@ export const useSlicer = create<SlicerState>((set, get) => {
     if (!colours.length) return;
     const types = splitList(info.file.filamentTypes);
     const { filaments, selection } = get();
-    const names = colours.map((_, i) => pickFilamentPreset(filaments, types[i], selection?.filaments[0]));
+    const names = colours.map((_, i) => pickFilament(filaments, types[i], selection?.filaments[0]));
     await applySelection({ ...selection, filaments: names, colours });
     const extruders = splitList(get().baseConfig.nozzle_diameter ?? '').length;
     if (extruders && colours.length > extruders)
@@ -185,7 +228,16 @@ export const useSlicer = create<SlicerState>((set, get) => {
 
   function setOverrides(overrides: OrcaConfig) {
     set({ overrides, ...stale() });
-    save({ selection: get().selection, overrides });
+    persist();
+  }
+
+  // Saves the selection and the user's overrides; a calibration test's
+  // settings are saved as they were before it, since the test isn't there
+  // after a reload.
+  function persist() {
+    const { selection, overrides, calibration: c } = get();
+    const keep = c ? { ...Object.fromEntries(Object.entries(overrides).filter(([k]) => !c.keys.includes(k))), ...c.previous } : overrides;
+    save({ selection, overrides: keep });
   }
 
   const settingsNotice = (n: number, from: string) =>
@@ -214,7 +266,7 @@ export const useSlicer = create<SlicerState>((set, get) => {
     await applySelection({ printer: info.file.printer, process: '' });
     const { filaments, selection } = get();
     const names = colours.map((_, i) =>
-      filaments.some((f) => f.name === presets[i]) ? presets[i] : pickFilamentPreset(filaments, types[i], selection?.filaments[0]),
+      filaments.some((f) => f.name === presets[i]) ? presets[i] : pickFilament(filaments, types[i], selection?.filaments[0]),
     );
     const process = get().processes.some((p) => p.name === info.file.process) ? info.file.process : (selection?.process ?? '');
     await applySelection({ printer: info.file.printer, process, filaments: names.length ? names : selection?.filaments, colours: colours.length ? colours : selection?.colours });
@@ -233,7 +285,7 @@ export const useSlicer = create<SlicerState>((set, get) => {
     const { filaments, selection, processes } = get();
     const colours = splitList(file.filament_colour);
     const types = splitList(file.filament_type);
-    const names = colours.map((_, i) => pickFilamentPreset(filaments, types[i], selection?.filaments[0]));
+    const names = colours.map((_, i) => pickFilament(filaments, types[i], selection?.filaments[0]));
     await applySelection({
       printer,
       process: pickProcess(processes, file.layer_height, selection?.process ?? ''),
@@ -292,6 +344,7 @@ export const useSlicer = create<SlicerState>((set, get) => {
     conversion: null,
     paint: null,
     overlay: null,
+    calibration: null,
 
     setTab: (tab) => {
       set({ tab });
@@ -303,7 +356,23 @@ export const useSlicer = create<SlicerState>((set, get) => {
       await editSelection(() => ({ printer: name, process: '' }));
       await fitPlates().catch(fail);
     },
+    filamentsFor: (printer) => engine().filamentsFor(printer),
     selectProcess: (name) => editSelection(() => ({ process: name })),
+    presetConfig: (type, name) => engine().presetConfig(type, name),
+    setUserPresets: async (presets, selection) => {
+      const e = engine();
+      enginePresets = presets;
+      await e.userPresets(presets.map(presetFile));
+      const printers = await e.printers();
+      set({ printers });
+      const want = { ...get().selection, ...selection };
+      if (!printers.some((p) => p.name === want.printer)) want.printer = DEFAULT_PRINTER;
+      await applySelection(want);
+      const base = get().baseConfig;
+      const overrides = get().overrides;
+      if (Object.keys(overrides).some((k) => overrides[k] === base[k]))
+        setOverrides(Object.fromEntries(Object.entries(overrides).filter(([k, v]) => base[k] !== v)));
+    },
     setFilament: (slot, name) => editSelection((s) => ({ filaments: s.filaments.map((f, i) => (i === slot ? name : f)) })),
     setColour: (slot, colour) => editSelection((s) => ({ colours: s.colours.map((c, i) => (i === slot ? colour : c)) })),
     addFilament: () =>
@@ -329,6 +398,7 @@ export const useSlicer = create<SlicerState>((set, get) => {
 
     async openFiles(files) {
       const e = engine();
+      await get().endCalibration();
       set({ tab: 'prepare', notice: '', conversion: null });
       for (const file of files) {
         set({ job: { kind: 'loading', name: file.name } });
@@ -346,7 +416,8 @@ export const useSlicer = create<SlicerState>((set, get) => {
       }
     },
     clearProject: () =>
-      projectEdit(() => {
+      projectEdit(async () => {
+        await get().endCalibration();
         set({ selected: null });
         return engine().clear();
       }),
@@ -442,6 +513,36 @@ export const useSlicer = create<SlicerState>((set, get) => {
       }
     },
     clearPaint: (o) => projectEdit(() => engine().clearPaint(o, get().paint?.kind ?? 'all')),
+
+    async startCalibration(mode, values) {
+      const title = CALIBRATIONS.find((c) => c.mode === mode)?.title ?? mode;
+      await get().endCalibration();
+      set({ tab: 'prepare', paint: null, overlay: null, selected: null, plate: 0, conversion: null, job: { kind: 'loading', name: `${title} test` } });
+      try {
+        const res = await engine().calibrate(calibrationOptions(mode, values), get().overrides);
+        const keys = Object.keys(res.overrides);
+        const previous = Object.fromEntries(keys.filter((k) => k in get().overrides).map((k) => [k, get().overrides[k]]));
+        set({ calibration: { title, keys, previous } });
+        setOverrides({ ...get().overrides, ...res.overrides });
+        await refreshPreview(res.info);
+        set({
+          job: { kind: 'idle' },
+          notice: `${title} test ready. It changed ${keys.length} setting${keys.length === 1 ? '' : 's'}, marked in Settings.`,
+          noticeWarn: false,
+        });
+      } catch (e) {
+        set({ calibration: null });
+        fail(e);
+      }
+    },
+    async endCalibration() {
+      const c = get().calibration;
+      if (!c) return;
+      set({ calibration: null });
+      const rest = Object.fromEntries(Object.entries(get().overrides).filter(([k]) => !c.keys.includes(k)));
+      setOverrides({ ...rest, ...c.previous });
+      await engine().calibrationStop();
+    },
 
     async slice() {
       const { project, plate, overrides } = get();

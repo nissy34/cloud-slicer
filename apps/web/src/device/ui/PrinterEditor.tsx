@@ -1,5 +1,8 @@
 import { useEffect, useState } from 'react';
+import { installedOnly, SETUP_KEY, type Setup } from '../../lib/setup';
+import { useUserSetting } from '../../state/account';
 import { useDevice, type SavedPrinter } from '../../state/device';
+import { useSlicer } from '../../state/store';
 import { DEFAULT_RELAY_URL } from '../config';
 import { BridgeLink } from '../link/bridge';
 import { DirectLink, directBlockedReason, normalizePrinterUrl } from '../link/direct';
@@ -8,6 +11,26 @@ import { decodePairing, type Pairing } from '../pairing';
 import { Dialog } from './parts';
 
 const newId = () => Math.random().toString(36).slice(2, 10);
+
+/** Which printer profile this machine prints with: one of the installed printers. */
+function PresetField({ value, onChange }: { value: string; onChange: (name: string) => void }) {
+  const all = useSlicer((s) => s.printers);
+  const installed = useUserSetting<Setup>(SETUP_KEY)?.printers;
+  const printers = installedOnly(all, installed, value);
+  return (
+    <label>
+      Printer profile
+      <select value={value} onChange={(e) => onChange(e.target.value)} aria-label="Printer profile">
+        {!printers.some((p) => p.name === value) && <option value={value}>{value || 'Choose a printer profile'}</option>}
+        {printers.map((p) => (
+          <option key={p.name} value={p.name}>
+            {p.name}
+          </option>
+        ))}
+      </select>
+    </label>
+  );
+}
 
 /** Asks a bridge which printers it serves. */
 function probeBridge(p: Pairing): Promise<BridgeStatus> {
@@ -58,6 +81,7 @@ export function PrinterEditor() {
   const existing = editor?.mode === 'edit' ? editor.printer : undefined;
   const [kind, setKind] = useState<'bridge' | 'direct'>(existing?.kind ?? 'bridge');
   const [name, setName] = useState(existing?.name ?? '');
+  const [preset, setPreset] = useState(() => existing?.preset ?? useSlicer.getState().selection?.printer ?? '');
   // bridge
   const [code, setCode] = useState('');
   const [pairing, setPairing] = useState<Pairing | null>(existing?.kind === 'bridge' ? { relay: existing.relay, bridgeId: existing.bridgeId, key: existing.key } : pairingFromLink);
@@ -95,7 +119,7 @@ export function PrinterEditor() {
 
   const saveBridge = () => {
     if (!pairing || !printerId) return;
-    void savePrinter({ id, kind: 'bridge', name: name.trim() || 'Printer', relay: pairing.relay, bridgeId: pairing.bridgeId, key: pairing.key, printer: printerId });
+    void savePrinter({ id, kind: 'bridge', name: name.trim() || 'Printer', relay: pairing.relay, bridgeId: pairing.bridgeId, key: pairing.key, printer: printerId, ...(preset && { preset }) });
   };
 
   const saveDirect = async () => {
@@ -109,7 +133,7 @@ export function PrinterEditor() {
     setError('');
     try {
       const host = await probeDirect(u, apiKey.trim());
-      const p: SavedPrinter = { id, kind: 'direct', name: name.trim() || host || new URL(u).host, url: u, apiKey: apiKey.trim() };
+      const p: SavedPrinter = { id, kind: 'direct', name: name.trim() || host || new URL(u).host, url: u, apiKey: apiKey.trim(), ...(preset && { preset }) };
       void savePrinter(p);
     } catch (e) {
       setError((e as Error).message);
@@ -236,6 +260,7 @@ export function PrinterEditor() {
             Name
             <input value={name} onChange={(e) => setName(e.target.value)} placeholder="My U1" />
           </label>
+          <PresetField value={preset} onChange={setPreset} />
         </div>
       ) : (
         <div className="dv-form">
@@ -252,6 +277,7 @@ export function PrinterEditor() {
             Name
             <input value={name} onChange={(e) => setName(e.target.value)} placeholder="My printer" />
           </label>
+          <PresetField value={preset} onChange={setPreset} />
         </div>
       )}
       {error && (

@@ -6,7 +6,7 @@ import { readFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { after, before, test } from 'node:test';
 import { fileURLToPath } from 'node:url';
-import { DEFAULT_PRINTER, bedSize, call, openEngine } from './engine.mjs';
+import { DATA_DIR, DEFAULT_PRINTER, bedSize, call, openEngine } from './engine.mjs';
 
 const fixtures = resolve(dirname(fileURLToPath(import.meta.url)), '../../fixtures');
 let engine;
@@ -227,4 +227,94 @@ test('painting: colour, supports and seams, like the desktop paint tools', () =>
   m = info();
   assert.equal(m.objects[0].volumes[0].painted, false);
   assert.equal(m.objects[0].volumes[0].paint.seam, false);
+});
+
+test('lists the filaments that work with a printer, for the setup wizard', () => {
+  const before = call(engine, 'presetsSelect', JSON.stringify({})).selection;
+  const r = call(engine, 'presetsFilamentsFor', DEFAULT_PRINTER);
+  const names = r.filaments.map((f) => f.name);
+  assert.ok(names.length >= 20, `${names.length} filaments`);
+  assert.ok(r.filaments.some((f) => /Snapmaker PLA/.test(f.name) && f.filamentType === 'PLA'));
+  assert.ok(r.defaults.length > 0 && r.defaults.every((d) => names.includes(d)), JSON.stringify(r.defaults));
+  assert.deepEqual(call(engine, 'presetsSelect', JSON.stringify({})).selection, before, 'the selection is unchanged');
+  assert.throws(() => call(engine, 'presetsFilamentsFor', 'No such printer'));
+});
+
+test('calibration tests set up like desktop and change settings per layer', () => {
+  select({ printer: DEFAULT_PRINTER, process: '0.20mm Standard @Snapmaker U1 (0.4 nozzle)' });
+  selectSlots(1);
+  const here = dirname(fileURLToPath(import.meta.url));
+  const start = (mode, model, opts = {}) => {
+    const path = `/work/${model.split('/').pop()}`;
+    const file = model.includes('/') ? resolve(here, '../orcaslicer/resources/calib', model) : resolve(here, '../calib', model);
+    engine.FS.writeFile(path, readFileSync(file));
+    const base = fullConfig();
+    const [w, d] = bedSize(base);
+    const r = call(engine, 'calibrationStart', JSON.stringify({ mode, model: path, ...opts }), JSON.stringify(base), w, d);
+    assert.ok(info().objects.length > 0, `${mode}: test model loaded`);
+    return slice(fullConfig(r.overrides)).gcode;
+  };
+  const values = (gcode, re) => [...new Set([...gcode.matchAll(re)].map((m) => Number(m[1])))];
+
+  // Temperature tower: the nozzle steps from 230 down to 200 in 5 degree blocks.
+  let gcode = start('temperature', 'temperature_tower/temperature_tower.stl', { start: 230, end: 200, step: 5 });
+  const temps = values(gcode, /^M104 S(\d+)/gm);
+  for (const t of [230, 215, 200]) assert.ok(temps.includes(t), `temperature ${t} in ${temps}`);
+
+  // Pressure advance tower: SET_PRESSURE_ADVANCE climbs layer by layer.
+  gcode = start('paTower', 'pressure_advance/tower_with_seam.stl', { start: 0, end: 0.1, step: 0.002 });
+  const pa = values(gcode, /^SET_PRESSURE_ADVANCE ADVANCE=([\d.]+)/gm);
+  assert.ok(pa.length > 10 && Math.max(...pa) > 0.05, `pressure advance values ${pa.slice(0, 5)}...`);
+
+  // Retraction tower and flow rate both slice; flow rate needs no calib params.
+  gcode = start('retraction', 'retraction/retraction_tower.stl', { start: 0, end: 2, step: 0.1 });
+  assert.ok(gcode.length > 1000);
+  gcode = start('flowRate', 'filament_flow/flowrate-test-pass1.3mf', { pass: 1 });
+  assert.ok(info().objects.length >= 9, 'pass 1 has a block per flow ratio');
+
+  // Max volumetric speed (a STEP model) and VFA: the speed climbs up the tower.
+  gcode = start('volumetricSpeed', 'SpeedTestStructure.stl', { start: 5, end: 20, step: 0.5 });
+  assert.ok(values(gcode, /^G1 [^F\n]*F(\d+)/gm).length > 5, 'speeds change up the tower');
+  gcode = start('vfa', 'vfa/VFA.stl', { start: 40, end: 200, step: 10 });
+  assert.ok(gcode.length > 1000);
+
+  engine.calibrationStop();
+});
+
+test('user presets (diffs over a system preset) load like desktop user presets', () => {
+  const PROCESS = '0.20mm Standard @Snapmaker U1 (0.4 nozzle)';
+  select({ printer: DEFAULT_PRINTER, process: PROCESS });
+  const filament = call(engine, 'presetsSelect', JSON.stringify({})).selection.filaments[0];
+  // What the web worker's userPresets writes (one JSON file per preset).
+  const write = (folder, preset) => {
+    const dir = `${DATA_DIR}/user/default/${folder}`;
+    engine.FS.mkdirTree(dir);
+    engine.FS.writeFile(`${dir}/${preset.name}.json`, JSON.stringify({ ...preset, from: 'User', is_custom_defined: '0', version: '1.0.0' }));
+  };
+  write('process', { name: 'My fast', inherits: PROCESS, layer_height: '0.28', wall_loops: '3' });
+  write('filament', { name: 'My PLA', inherits: filament, nozzle_temperature: '212' });
+  write('machine', { name: 'My U1', inherits: DEFAULT_PRINTER, retraction_length: '0.6,0.6,0.6,0.6' });
+  try {
+    call(engine, 'presetsLoad', DATA_DIR);
+    const printer = JSON.parse(engine.presetsPrinters()).find((p) => p.name === 'My U1');
+    assert.ok(printer?.user && printer.inherits === DEFAULT_PRINTER, JSON.stringify(printer));
+    const sel = select({ printer: 'My U1', process: 'My fast', filaments: ['My PLA'] });
+    assert.equal(sel.selection.printer, 'My U1');
+    assert.equal(sel.selection.process, 'My fast', 'a system process stays compatible with a user printer of that printer');
+    assert.deepEqual(sel.selection.filaments, ['My PLA']);
+    assert.ok(sel.processes.find((p) => p.name === 'My fast')?.user);
+    const cfg = fullConfig();
+    assert.equal(cfg.layer_height, '0.28');
+    assert.equal(cfg.wall_loops, '3');
+    assert.equal(cfg.nozzle_temperature, '212');
+    assert.equal(cfg.retraction_length.split(',')[0], '0.6');
+    // Everything else comes from the system presets they inherit.
+    assert.equal(cfg.sparse_infill_density, JSON.parse(engine.presetConfig('process', PROCESS)).sparse_infill_density);
+  } finally {
+    for (const folder of ['process', 'filament', 'machine']) {
+      const dir = `${DATA_DIR}/user/default/${folder}`;
+      for (const f of engine.FS.readdir(dir)) if (f.endsWith('.json')) engine.FS.unlink(`${dir}/${f}`);
+    }
+    call(engine, 'presetsLoad', DATA_DIR);
+  }
 });

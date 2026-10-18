@@ -1,3 +1,4 @@
+import { sendToPrinter } from '../device';
 import { formatDuration, formatGrams, gcodeFileName, stageLabel } from '../lib/format';
 import { useSlicer } from '../state/store';
 
@@ -31,6 +32,8 @@ export function ActionBar() {
   const busy = job.kind === 'loading' || job.kind === 'slicing';
   const plateLabel = (project?.plates.length ?? 0) > 1 ? `Slice plate ${plate + 1}` : 'Slice plate';
   const baseName = project?.fileName || project?.objects[0]?.name || 'plate';
+  const plates = project?.plates.length ?? 0;
+  const fileName = job.kind === 'sliced' ? gcodeFileName(plates > 1 ? `${baseName.replace(/\.[^.]+$/, '')}-plate${job.plate + 1}` : baseName) : '';
   return (
     <div className="actionbar" data-testid="actionbar">
       <div className="status" aria-live="polite">
@@ -74,11 +77,17 @@ export function ActionBar() {
                 Preview
               </button>
             )}
+            <button className="secondary" onClick={() => download(job.gcode, fileName)}>
+              Download G-code
+            </button>
             <button
               className="secondary"
-              onClick={() => download(job.gcode, gcodeFileName(project?.plates.length && project.plates.length > 1 ? `${baseName.replace(/\.[^.]+$/, '')}-plate${job.plate + 1}` : baseName))}
+              onClick={() => {
+                sendToPrinter(job.gcode, fileName);
+                setTab('device');
+              }}
             >
-              Download G-code
+              Send to printer
             </button>
           </>
         )}

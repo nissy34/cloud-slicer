@@ -174,7 +174,8 @@ export function signInDoneUrl(opts: { returnTo: string; popup?: boolean }): stri
 
 /** Orca user preset file content (what goes in <dataDir>/user/default/<machine|filament|process>/<name>.json). */
 export function toOrcaPresetJson(p: Pick<UserPreset, 'type' | 'name' | 'inherits' | 'config'>): Record<string, string> {
-  return { ...p.config, name: p.name, inherits: p.inherits, from: 'User', is_custom_defined: '0' };
+  // Orca skips a user preset file without a version.
+  return { ...p.config, name: p.name, inherits: p.inherits, from: 'User', is_custom_defined: '0', version: '1.0.0' };
 }
 
 /** Orca's folder name for a preset type. */

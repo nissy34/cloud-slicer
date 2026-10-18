@@ -808,6 +808,35 @@ select:focus-visible {
   font-size: 12px;
 }
 
+/* Calibration */
+.calib-banner {
+  display: grid;
+  gap: 8px;
+  padding: 10px;
+  margin-bottom: 12px;
+  border: 1px solid var(--accent);
+  border-radius: var(--radius);
+  background: var(--surface-2);
+  font-size: 13px;
+}
+.calib-banner button {
+  justify-self: start;
+  padding: 4px 14px;
+}
+.calib-fields {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+  gap: 8px;
+}
+.calib-fields input {
+  width: 100%;
+  padding: 6px 8px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  color: var(--text);
+}
+
 /* Dialogs */
 .dialog-backdrop {
   position: fixed;
@@ -860,11 +889,19 @@ select:focus-visible {
 /* Phone: viewport first, panel below */
 @media (max-width: 760px) {
   .topbar {
-    gap: 12px;
+    gap: 8px;
+    padding: 0 10px;
+  }
+  .tabs {
+    gap: 0;
+  }
+  .tab,
+  .topbar .ghost {
+    padding: 6px 8px;
+    font-size: 13px;
   }
   .brand {
-    font-size: 0;
-    gap: 0;
+    display: none;
   }
   /* One scrolling column: 3D view, then the settings, with the action bar
      (Slice, stats, download) pinned to the bottom of the screen. */
@@ -1088,6 +1125,63 @@ select:focus-visible {
     right: 16px;
     top: calc(var(--topbar) + 4px);
   }
+}
+
+/* Saving user presets (src/account/PresetMenu.tsx) */
+.slot {
+  grid-template-columns: 30px 1fr auto auto;
+}
+.group-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.preset-menu {
+  position: relative;
+}
+.preset-pop {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  z-index: 40;
+  width: 300px;
+  max-width: calc(100vw - 32px);
+  padding: 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  box-shadow: 0 12px 32px rgb(0 0 0 / 0.18);
+  text-align: left;
+}
+.preset-pop p {
+  margin: 0 0 10px;
+}
+.preset-pop .small {
+  font-size: 12px;
+  margin: 10px 0 0;
+}
+.preset-pop-title {
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+.preset-pop-actions {
+  display: grid;
+  gap: 6px;
+}
+.preset-pop-actions.row {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 10px;
+}
+.preset-pop-actions .danger {
+  color: var(--danger);
+}
+.preset-pop-field {
+  display: grid;
+  gap: 4px;
+}
+.preset-pop-field input {
+  width: 100%;
 }
 
 /* ==========================================================================
@@ -1862,5 +1956,114 @@ select:focus-visible {
   }
   .dv-slider input {
     width: 90px;
+  }
+}
+
+/* Setup wizard */
+.wizard {
+  width: min(640px, 100%);
+  grid-template-columns: minmax(0, 1fr);
+  max-height: calc(100dvh - 32px);
+  grid-template-rows: auto auto minmax(0, 1fr) auto;
+}
+.wizard-body {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  align-content: start;
+  gap: 10px;
+  min-height: 0;
+  overflow-y: auto;
+}
+.wizard-steps {
+  display: flex;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  counter-reset: step;
+  font-size: 13px;
+  color: var(--muted);
+}
+.wizard-steps li {
+  counter-increment: step;
+}
+.wizard-steps li::before {
+  content: counter(step) '. ';
+}
+.wizard-steps li + li::before {
+  content: '› ' counter(step) '. ';
+}
+.wizard-steps li.on {
+  color: var(--text);
+  font-weight: 600;
+}
+.wizard-models,
+.wizard-devices,
+.wizard-filaments ul {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.wizard-models li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+.wizard-models li.on {
+  border-color: var(--accent);
+}
+.wizard-models .segmented {
+  flex-wrap: nowrap;
+}
+.wizard-model {
+  font-weight: 600;
+}
+.wizard-filters {
+  display: flex;
+  gap: 8px;
+}
+.wizard-filters select {
+  max-width: 45%;
+}
+.wizard-filters input {
+  flex: 1;
+  min-width: 0;
+  padding: 6px 8px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  color: var(--text);
+}
+.wizard-filaments {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 6px;
+}
+.wizard-filaments details {
+  padding: 6px 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+.wizard-filaments summary {
+  cursor: pointer;
+  font-weight: 600;
+}
+.wizard-filaments ul {
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  margin-top: 6px;
+}
+.wizard-later {
+  margin-right: auto;
+}
+@media (max-width: 760px) {
+  .wizard .dialog-actions {
+    flex-wrap: wrap;
   }
 }

@@ -1,19 +1,41 @@
 import { shortName } from '../lib/presets';
+import { installedOnly, SETUP_KEY, type Setup } from '../lib/setup';
+import { useUserSetting } from '../state/account';
+import { useSetupWizard } from './SetupWizard';
+import { CalibrationBanner } from './CalibrationDialog';
 import { useOption, useSlicer } from '../state/store';
 import { ObjectList } from './ObjectList';
 import { PaintPanel } from './PaintPanel';
 import { OptionField } from './OptionField';
 import { SettingsPanel } from './SettingsPanel';
+import { PresetMenu } from '../account/PresetMenu';
+import type { PresetSummary } from '../engine/protocol';
+
+/** The user's own presets always show, whatever the setup wizard installed. */
+const withMine = (installed: string[] | undefined, list: PresetSummary[]) =>
+  installed && [...installed, ...list.filter((p) => p.user).map((p) => p.name)];
 
 function PrinterSection() {
-  const printers = useSlicer((s) => s.printers);
+  const allPrinters = useSlicer((s) => s.printers);
   const selection = useSlicer((s) => s.selection);
   const selectPrinter = useSlicer((s) => s.selectPrinter);
+  const installed = useUserSetting<Setup>(SETUP_KEY)?.printers;
+  const printers = installedOnly(allPrinters, withMine(installed, allPrinters), selection?.printer);
+  const manage = useSetupWizard((s) => s.show);
   const busy = useSlicer((s) => s.engine !== 'ready');
-  const vendors = [...new Set(printers.map((p) => p.vendor || 'Other'))];
+  const group = (p: PresetSummary) => (p.user ? 'My printers' : p.vendor || 'Other');
+  const vendors = [...new Set(printers.map(group))].sort((a, b) => Number(b === 'My printers') - Number(a === 'My printers'));
   return (
     <section className="group">
-      <h2>Printer</h2>
+      <div className="group-head">
+        <h2>Printer</h2>
+        <div className="group-actions">
+          <button className="link" onClick={manage}>
+            Manage
+          </button>
+          <PresetMenu type="printer" />
+        </div>
+      </div>
       <label className="field">
         <span className="sr-only">Printer preset</span>
         <select
@@ -25,7 +47,7 @@ function PrinterSection() {
           {vendors.map((v) => (
             <optgroup key={v} label={v}>
               {printers
-                .filter((p) => (p.vendor || 'Other') === v)
+                .filter((p) => group(p) === v)
                 .map((p) => (
                   <option key={p.name} value={p.name}>
                     {p.name}
@@ -42,7 +64,9 @@ function PrinterSection() {
 
 function FilamentSection() {
   const selection = useSlicer((s) => s.selection);
-  const filaments = useSlicer((s) => s.filaments);
+  const allFilaments = useSlicer((s) => s.filaments);
+  const installed = useUserSetting<Setup>(SETUP_KEY)?.filaments;
+  const filaments = installedOnly(allFilaments, withMine(installed, allFilaments), selection?.filaments);
   const { setFilament, setColour, addFilament, removeFilament } = useSlicer.getState();
   const extruders = (useOption('nozzle_diameter') ?? '').split(',').filter(Boolean).length;
   if (!selection) return null;
@@ -68,12 +92,9 @@ function FilamentSection() {
             </label>
             <select aria-label={`Filament ${i + 1} preset`} value={name} onChange={(e) => void setFilament(i, e.target.value)}>
               {!filaments.some((f) => f.name === name) && <option value={name}>{shortName(name)}</option>}
-              {filaments.map((f) => (
-                <option key={f.name} value={f.name}>
-                  {shortName(f.name)}
-                </option>
-              ))}
+              <PresetOptions presets={filaments} />
             </select>
+            <PresetMenu type="filament" slot={i} />
             <button
               className="icon"
               aria-label={`Remove filament ${i + 1}`}
@@ -100,24 +121,42 @@ function ProcessSection() {
   const selectProcess = useSlicer((s) => s.selectProcess);
   return (
     <section className="group">
-      <h2>Process</h2>
+      <div className="group-head">
+        <h2>Process</h2>
+        <PresetMenu type="process" />
+      </div>
       <label className="field">
         <span className="sr-only">Process preset</span>
         <select aria-label="Process preset" value={selection?.process ?? ''} onChange={(e) => void selectProcess(e.target.value)}>
-          {processes.map((p) => (
-            <option key={p.name} value={p.name}>
-              {shortName(p.name)}
-            </option>
-          ))}
+          <PresetOptions presets={processes} />
         </select>
       </label>
     </section>
   );
 }
 
+/** A picker's options, the user's own presets first. */
+function PresetOptions({ presets }: { presets: PresetSummary[] }) {
+  const mine = presets.filter((p) => p.user);
+  const options = (list: PresetSummary[]) =>
+    list.map((p) => (
+      <option key={p.name} value={p.name}>
+        {shortName(p.name)}
+      </option>
+    ));
+  if (!mine.length) return <>{options(presets)}</>;
+  return (
+    <>
+      <optgroup label="My presets">{options(mine)}</optgroup>
+      <optgroup label="System presets">{options(presets.filter((p) => !p.user))}</optgroup>
+    </>
+  );
+}
+
 export function Sidebar() {
   return (
     <aside className="panel">
+      <CalibrationBanner />
       <PaintPanel />
       <PrinterSection />
       <FilamentSection />

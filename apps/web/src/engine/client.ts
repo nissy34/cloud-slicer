@@ -17,6 +17,14 @@ import type {
 
 export type CutKeep = 'both' | 'upper' | 'lower';
 
+/** An Orca user preset: `config` is the diff over the system preset it inherits. */
+export interface UserPresetFile {
+  type: 'printer' | 'filament' | 'process';
+  name: string;
+  inherits: string;
+  config: OrcaConfig;
+}
+
 type Pending = { resolve: (value: unknown) => void; reject: (e: Error) => void };
 
 export interface EngineEvents {
@@ -69,8 +77,12 @@ export class EngineClient {
 
   printers = () => this.call<PresetSummary[]>('printers');
   select = (selection: Partial<Selection>) => this.call<SelectResult>('select', [selection]);
+  filamentsFor = (printer: string) => this.call<{ filaments: PresetSummary[]; defaults: string[] }>('filamentsFor', [printer]);
   fullConfig = (overrides: OrcaConfig) => this.call<{ config: OrcaConfig; errors: string[] }>('fullConfig', [overrides]);
   presetConfig = (type: string, name: string) => this.call<OrcaConfig | null>('presetConfig', [type, name]);
+  /** Replaces the user presets and reloads all presets (the selection resets). */
+  userPresets = (presets: UserPresetFile[]) =>
+    this.call<{ printers: number; filaments: number; processes: number }>('userPresets', [presets]);
   options = () => this.call<Record<string, OptionDef>>('options');
   modelInfo = () => this.call<ProjectInfo>('modelInfo');
   fileConfig = () => this.call<OrcaConfig>('fileConfig');
@@ -103,6 +115,9 @@ export class EngineClient {
     this.call<ProjectInfo>('setObjectSettings', [o, volume, values]);
   addPlate = () => this.call<ProjectInfo>('addPlate');
   deletePlate = (plate: number) => this.call<ProjectInfo>('deletePlate', [plate]);
+  calibrate = (options: Record<string, unknown>, overrides: OrcaConfig) =>
+    this.call<{ overrides: OrcaConfig; info: ProjectInfo }>('calibrate', [options, overrides]);
+  calibrationStop = () => this.call<void>('calibrationStop');
   slice = (plate: number, overrides: OrcaConfig) =>
     this.call<{ result: SliceResult; gcode: ArrayBuffer; ms: number }>('slice', [plate, overrides]);
 }

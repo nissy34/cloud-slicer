@@ -1,17 +1,21 @@
 import { useState } from 'react';
+import { installedOnly, SETUP_KEY, type Setup } from '../lib/setup';
 import { loadConvertPreference } from '../lib/storage';
+import { useUserSetting } from '../state/account';
 import { useSlicer } from '../state/store';
 
 /** Asks how to bring a 3MF made for a printer we don't have onto one we do. */
 export function ConvertDialog() {
   const conversion = useSlicer((s) => s.conversion);
-  const printers = useSlicer((s) => s.printers);
+  const allPrinters = useSlicer((s) => s.printers);
+  const installed = useUserSetting<Setup>(SETUP_KEY)?.printers;
   const current = useSlicer((s) => s.selection?.printer ?? '');
   const { convertProject, dismissConversion } = useSlicer.getState();
   const [target, setTarget] = useState(() => loadConvertPreference()?.printer ?? '');
   const [keep, setKeep] = useState(true);
   const [remember, setRemember] = useState(false);
   if (!conversion) return null;
+  const printers = installedOnly(allPrinters, installed);
   const printer = printers.some((p) => p.name === target) ? target : current;
   return (
     <div className="dialog-backdrop">
