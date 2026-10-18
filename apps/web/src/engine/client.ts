@@ -15,6 +15,30 @@ import type {
   WorkerReply,
 } from './protocol';
 import type { Thumbnail } from '../lib/thumbnail';
+import type { MatchResult, MixRecipe, MixRow } from '../lib/mixing';
+
+/** A request to the engine's mixed-filament list (engine/src/mixed_api.cpp). */
+export interface MixedRequest {
+  definitions: string;
+  colours: string[];
+  types?: string[];
+  nozzles?: number[];
+  settings?: Record<string, number | boolean>;
+  op?:
+    | { kind: 'add'; row: MixRecipe }
+    | { kind: 'update'; index: number; row: MixRecipe }
+    | { kind: 'delete'; index: number }
+    | { kind: 'removePhysical'; filament: number };
+  draft?: MixRecipe;
+}
+export interface MixedReply {
+  definitions: string;
+  rows: MixRow[];
+  draftColour?: string;
+  draftCompatible?: boolean;
+  /** The project, after an edit that moved its filament IDs. */
+  info?: ProjectInfo;
+}
 
 export type CutKeep = 'both' | 'upper' | 'lower';
 
@@ -137,6 +161,11 @@ export class EngineClient {
   paint = (plate: number, options: PaintSettings & { rays: PaintRay[] }) =>
     this.call<{ info: ProjectInfo; preview?: PreviewMesh; overlay?: PaintOverlay }>('paint', [plate, options]);
   paintOverlay = (plate: number, kind: PaintKind) => this.call<PaintOverlay>('paintOverlay', [plate, kind]);
+  mixed = (request: MixedRequest) => this.call<MixedReply>('mixed', [request]);
+  /** FilamentMixer blends of `colours`, one per weight list. */
+  mixedBlend = (colours: string[], weights: number[][]) => this.call<string[]>('mixedBlend', [{ colours, weights }]);
+  mixedMatch = (request: { colours: string[]; types: string[]; target: string; minPercent: number }) =>
+    this.call<MatchResult>('mixedMatch', [request]);
   clearPaint = (o: number, kind: PaintKind | 'all') => this.call<ProjectInfo>('clearPaint', [o, kind]);
   /** Remembers the project before an edit called `label`, for undo. */
   snapshot = (label: string) => this.call<History>('snapshot', [label]);

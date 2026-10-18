@@ -21,7 +21,8 @@ export const DEFAULT_PAINT: PaintSettings = { kind: 'color', state: 2, tool: 'ci
 /** Desktop Orca's paint tools: colours, support and seam enforcers/blockers, fuzzy skin. */
 export function PaintPanel() {
   const paint = useSlicer((s) => s.paint);
-  const colours = useSlicer((s) => s.selection?.colours ?? NO_COLOURS);
+  // Physical filaments, then the colour mixes: paint with either.
+  const colours = useSlicer((s) => (s.palette.length ? s.palette : (s.selection?.colours ?? NO_COLOURS)));
   const selected = useSlicer((s) => s.selected);
   const project = useSlicer((s) => s.project);
   const { setPaint, clearPaint } = useSlicer.getState();

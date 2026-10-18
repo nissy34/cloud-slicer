@@ -462,7 +462,14 @@ if (withApp)
       await menu.click();
       await page.getByText('Signed in with Google as bob@example.com').waitFor();
       await page.getByText('1 process').waitFor();
-      const settings = (await (await bobBrowser.json('/api/settings')).json()).settings;
+      // The merged settings upload after the presets, so wait for them too.
+      const merged = { printers: ['Snapmaker U1 (0.4 nozzle)', 'Snapmaker J1'] };
+      let settings = [];
+      for (let i = 0; i < 50; i++) {
+        if (i) await new Promise((r) => setTimeout(r, 200));
+        settings = (await (await bobBrowser.json('/api/settings')).json()).settings;
+        if (JSON.stringify(settings[0]?.value) === JSON.stringify(merged)) break;
+      }
       assert.deepEqual(settings[0].value, { printers: ['Snapmaker U1 (0.4 nozzle)', 'Snapmaker J1'] }, 'browser choices merged into the account');
       // The printers upload after the presets and settings, so wait for it rather than racing it.
       let devices = [];
@@ -534,6 +541,8 @@ if (withApp)
       await page.getByRole('button', { name: 'Add model' }).waitFor({ timeout: 60000 });
       assert.equal(await layer.inputValue(), '0.28', 'the saved setting came back');
       await projectButton.getByText('3DBenchy').waitFor();
+      // The settings show before opening finishes (mixes are read after them), so wait for it.
+      await projectButton.getByLabel('unsaved changes').waitFor({ state: 'detached', timeout: 30000 }).catch(() => {});
       assert.equal(await projectButton.getByLabel('unsaved changes').count(), 0, 'clean after opening');
 
       await projectButton.click();

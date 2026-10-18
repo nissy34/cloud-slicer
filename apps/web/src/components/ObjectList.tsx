@@ -6,8 +6,10 @@ export function ObjectList() {
   const project = useSlicer((s) => s.project);
   const plate = useSlicer((s) => s.plate);
   const selected = useSlicer((s) => s.selected);
-  const slots = useSlicer((s) => s.selection?.filaments.length ?? 1);
-  const colours = useSlicer((s) => s.selection?.colours ?? NO_COLOURS);
+  // Physical filaments, then the colour mixes in use.
+  const colours = useSlicer((s) => (s.palette.length ? s.palette : (s.selection?.colours ?? NO_COLOURS)));
+  const physical = useSlicer((s) => s.selection?.filaments.length ?? 1);
+  const slots = colours.length;
   const { select, setObjectFilament, deleteObject, copyInstance } = useSlicer.getState();
   if (!project?.objects.length) return null;
   const onPlate = project.plates[plate]?.objects ?? [];
@@ -21,11 +23,20 @@ export function ObjectList() {
       onChange={(e) => void setObjectFilament(o, v, Number(e.target.value))}
     >
       {v >= 0 && <option value={0}>Object</option>}
-      {Array.from({ length: Math.max(slots, value) }, (_, i) => (
+      {Array.from({ length: physical }, (_, i) => (
         <option key={i} value={i + 1}>
           {i + 1}
         </option>
       ))}
+      {Math.max(slots, value) > physical && (
+        <optgroup label="Mixes">
+          {Array.from({ length: Math.max(slots, value) - physical }, (_, i) => (
+            <option key={i} value={physical + i + 1}>
+              {physical + i + 1}
+            </option>
+          ))}
+        </optgroup>
+      )}
     </select>
   );
 

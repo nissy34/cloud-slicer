@@ -355,7 +355,8 @@ function FlattenPlanes({ part, place }: { part: Part; place: Placement }) {
 
 function Objects({ w, d }: { w: number; d: number }) {
   const preview = useSlicer((s) => s.preview);
-  const colours = useSlicer((s) => s.selection?.colours ?? NO_COLOURS);
+  // Filament numbers past the physical ones are colour mixes.
+  const colours = useSlicer((s) => (s.palette.length ? s.palette : (s.selection?.colours ?? NO_COLOURS)));
   const project = useSlicer((s) => s.project);
   const plate = useSlicer((s) => s.plate);
   const selected = useSlicer((s) => s.selected);
