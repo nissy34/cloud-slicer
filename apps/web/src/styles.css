@@ -3304,3 +3304,38 @@ select:focus-visible {
 .dv-found .muted {
   overflow-wrap: anywhere;
 }
+.dv-added {
+  color: var(--dv-ok, #1f8a4c);
+  font-weight: 600;
+}
+.dv-searching {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  padding: 12px;
+  border-radius: 6px;
+  background: var(--surface-2);
+}
+.dv-searching > div {
+  display: grid;
+  gap: 2px;
+}
+.dv-spinner {
+  flex: none;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  border: 3px solid var(--border);
+  border-top-color: var(--accent);
+  animation: dv-spin 0.8s linear infinite;
+}
+@keyframes dv-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .dv-spinner {
+    animation-duration: 2.4s;
+  }
+}

@@ -45,6 +45,9 @@ interface BridgeWatch {
   manage<T>(method: `bridge.${string}`, params: unknown): Promise<T>;
 }
 
+/** How many searches in a row may find nothing before the Device tab stops looking by itself. */
+const AUTO_SEARCHES = 8;
+
 /** Bridges from this version on can add and remove printers when the Device tab asks. */
 const MANAGED_FROM = 3;
 
@@ -148,16 +151,16 @@ function FoundRow({ printer, watch, onAdded }: { printer: FoundPrinter; watch: B
           )}
         </span>
         {printer.added ? (
-          <span className="muted">Added</span>
+          <span className="dv-added">✓ Added</span>
         ) : (
-          <button className="secondary" disabled={busy || (printer.needsKey && !apiKey.trim())} onClick={() => void add()} data-testid="found-add">
-            {busy ? 'Adding…' : 'Add'}
+          <button className="primary" disabled={busy || (printer.needsKey && !apiKey.trim())} onClick={() => void add()} data-testid="found-add">
+            {busy ? 'Adding…' : 'Add this printer'}
           </button>
         )}
       </div>
       {!printer.added && printer.needsKey && (
         <label>
-          <span className="muted">It needs its Moonraker API key (Mainsail and Fluidd show it in their settings):</span>
+          <span className="muted">This printer is locked with an API key. Type it here first (Mainsail and Fluidd show it in their settings):</span>
           <input value={apiKey} onChange={(e) => setApiKey(e.target.value)} placeholder="API key" spellCheck={false} autoCapitalize="off" autoComplete="off" data-testid="found-key" />
         </label>
       )}
@@ -174,26 +177,43 @@ function FoundRow({ printer, watch, onAdded }: { printer: FoundPrinter; watch: B
  * The bridge's printers come from here: search the bridge's network and pick
  * which printers to add (with their API keys), or add one by its address.
  */
-function BridgePrinters({ watch, onAdded, searchNow }: { watch: BridgeWatch | null; onAdded: (p: { id: string; name: string }) => void; searchNow: boolean }) {
+function BridgePrinters({ watch, onAdded, searchNow, system }: { watch: BridgeWatch | null; onAdded: (p: { id: string; name: string }) => void; searchNow: boolean; system?: string }) {
   const [found, setFound] = useState<FoundPrinter[] | null>(null);
   const [searching, setSearching] = useState(false);
+  // Searches in a row that found nothing. A Mac blocks the first search until its "find devices on your local network" prompt is allowed, so an empty search goes again by itself a few times.
+  const [tries, setTries] = useState(0);
   const [problem, setProblem] = useState('');
   const [address, setAddress] = useState('');
   const [apiKey, setApiKey] = useState('');
   const [adding, setAdding] = useState(false);
   const [addProblem, setAddProblem] = useState('');
-  const search = async () => {
+  const search = async (again = false) => {
     if (!watch) return;
     setSearching(true);
     setProblem('');
+    if (!again) setTries(0);
     try {
-      setFound((await watch.manage<{ printers: FoundPrinter[] }>('bridge.discover', {})).printers);
+      const list = (await watch.manage<{ printers: FoundPrinter[] }>('bridge.discover', {})).printers;
+      setFound(list);
+      setTries((t) => (list.length ? 0 : t + 1));
     } catch (e) {
       setProblem((e as Error).message);
     } finally {
       setSearching(false);
     }
   };
+  const keepLooking = found !== null && !found.length && !problem && tries > 0 && tries < AUTO_SEARCHES;
+  useEffect(() => {
+    if (!keepLooking || searching) return;
+    const t = setTimeout(() => void search(true), 3000);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [keepLooking, searching, tries]);
+  const looking = searching || keepLooking;
+  const allowHint =
+    system === 'darwin'
+      ? 'If your Mac asks whether the bridge may find devices on your local network, click Allow there. The search carries on by itself.'
+      : 'If the bridge’s computer asks whether the bridge may find devices on your network, allow it there. The search carries on by itself.';
   // A bridge with no printers yet: look straight away.
   useEffect(() => {
     if (searchNow && watch && found === null && !searching) void search();
@@ -220,19 +240,31 @@ function BridgePrinters({ watch, onAdded, searchNow }: { watch: BridgeWatch | nu
   return (
     <div className="dv-bridge-printers" data-testid="bridge-printers">
       <div className="dv-found-head">
-        <strong>Printers on the bridge's network</strong>
-        <button className="secondary" disabled={!watch || searching} onClick={() => void search()} data-testid="bridge-search">
-          {searching ? 'Searching…' : found ? 'Search again' : 'Search my network'}
-        </button>
+        <strong>Printers on your network</strong>
+        {!looking && (
+          <button className="secondary" disabled={!watch} onClick={() => void search()} data-testid="bridge-search">
+            {found ? 'Search again' : 'Search my network'}
+          </button>
+        )}
       </div>
-      {searching && <p className="muted">Looking for printers (Moonraker) on the network, this takes a few seconds…</p>}
+      {looking && (
+        <div className="dv-searching" role="status" data-testid="bridge-searching">
+          <span className="dv-spinner" aria-hidden />
+          <div>
+            <strong>Looking for printers on your network…</strong>
+            <span className="muted">{tries > 0 || system === 'darwin' ? allowHint : 'This takes a few seconds.'}</span>
+          </div>
+        </div>
+      )}
       {problem && (
         <p className="dv-alert" role="alert">
           {problem}
         </p>
       )}
-      {found && !searching && !found.length && <p className="muted">No printer answered on the network. Add yours by its address below.</p>}
-      {found && found.length > 0 && (
+      {found && !looking && !found.length && (
+        <p className="dv-alert">No printer found. Check that the printer is switched on and on the same network as the bridge's computer, then search again, or add it by its address below.</p>
+      )}
+      {found && found.length > 0 && !searching && (
         <ul className="dv-found-list">
           {found.map((f) => (
             <FoundRow key={f.url} printer={f} watch={watch} onAdded={(p) => added(p, f.url)} />
@@ -480,9 +512,14 @@ export function PrinterEditor() {
           )}
           {pairing && (
             <>
-              <p className="muted">
-                Bridge {pairing.bridgeId.slice(0, 8)} ·{' '}
-                {checking ? 'checking…' : bridge ? (bridge.agent === 'online' ? 'online' : 'offline, start the bridge to use it') : 'not reachable'}
+              <p className="muted" data-testid="bridge-state">
+                {checking
+                  ? 'Connecting to the bridge…'
+                  : bridge
+                    ? bridge.agent === 'online'
+                      ? '✓ Connected to the bridge'
+                      : 'The bridge is offline: start it on its computer'
+                    : "Can't reach the bridge"}
                 {!existing && (
                   <>
                     {' '}
@@ -500,12 +537,12 @@ export function PrinterEditor() {
                   </>
                 )}
               </p>
-              {bridge && bridge.printers.length === 0 && <p className="dv-alert">This bridge has no printers yet: add them below.</p>}
               {bridge?.agent === 'online' &&
                 (Number(bridge.version) >= MANAGED_FROM ? (
                   <BridgePrinters
                     watch={watch}
                     searchNow={bridge.printers.length === 0}
+                    system={bridge.system}
                     onAdded={(p) => {
                       setPrinterId(p.id);
                       setName((n) => n || p.name);

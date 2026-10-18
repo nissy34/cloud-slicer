@@ -79,21 +79,27 @@ try {
   // The bridge app opens this link as it starts, so the page usually asks before the
   // bridge has connected: the dialog must keep listening until it comes online.
   await page.goto(`${site}#pair=${pairingCode(cfg)}`);
-  await page.getByText(/Bridge smoke-te · (checking…|offline)/).waitFor();
+  await page.getByTestId('bridge-state').filter({ hasText: /Connecting to the bridge|The bridge is offline/ }).waitFor();
   // What the bridge's network search finds (the real one scans port 7125 on the bridge's networks).
-  const onTheNetwork = async () => [
+  // The first search finds nothing, like a Mac before its "find devices on your local network" prompt is allowed.
+  let searches = 0;
+  const onTheNetwork = async () => (searches++ === 0 ? [] : [
     { url: u1.url, name: 'U1-mock' },
     { url: keyed.url, name: '127.0.0.1', needsKey: true },
     { url: voron.url, name: 'voron-mock' },
-  ];
+  ]);
   bridge = runBridge(cfg, { log: (m) => console.log(`bridge: ${m}`), find: onTheNetwork });
   await page.getByRole('combobox').filter({ hasText: 'U1-mock' }).waitFor();
   // The Device tab searches the bridge's network and adds the printers you pick, with the API key where one is needed.
   const bridgePrinter = page.getByRole('combobox').filter({ hasText: 'U1-mock' });
   const printers = page.getByTestId('bridge-printers');
   await printers.getByTestId('bridge-search').click();
+  // Searching is shown plainly, and an empty search goes again by itself.
+  await printers.getByTestId('bridge-searching').waitFor();
+  if (shots) await page.getByRole('dialog').screenshot({ path: join(shots, 'bridge-searching.png') });
   const row = (url) => printers.locator(`[data-testid="found-printer"][data-url="${url}"]`);
-  await row(u1.url).getByText('Added').waitFor();
+  await row(u1.url).getByText('Added').waitFor({ timeout: 20_000 });
+  if (searches < 2) throw new Error('an empty search should go again by itself');
   if (shots) await page.getByRole('dialog').screenshot({ path: join(shots, 'bridge-search.png') });
   const keyedRow = row(keyed.url);
   if (await keyedRow.getByTestId('found-add').isEnabled()) throw new Error('a printer that needs a key should not be addable without one');
