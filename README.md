@@ -26,8 +26,9 @@ hosted on Cloudflare's free tier.
   onto one of yours: its print settings carry over, the printer's own settings
   (speeds, accelerations, jerk) come from your printer, and filaments are matched by
   material.
-- **Prepare tools**: move, rotate, scale, lay on face, cut, variable layer height
-  (adaptive, smooth, or by hand on the layer height chart), arrange, auto-orient, split,
+- **Prepare tools**: move, rotate, scale, lay on face, cut, measure (distances and angles
+  between faces, edges, circles and corners), variable layer height (adaptive, smooth,
+  or by hand on the layer height chart), arrange, auto-orient, split,
   mirror, plates, undo and redo, and painting (colours, support and seam
   enforcers/blockers, fuzzy skin).
 - **Colour mixing**: Snapmaker Orca's mixed filaments, virtual filaments made of two or
@@ -186,7 +187,7 @@ Browser end to end tests (Playwright's Chromium) run against the built site
 | `test/presets.mjs` | Save, find, rename and delete your own presets |
 | `test/preset-files.mjs` | Printer and filament settings windows, preset export and import |
 | `test/accounts.mjs` | Sign-in, sessions, synced presets/settings/printers, online projects (Pages Functions + local D1, mock Google) |
-| `test/toolbar.mjs` | The object toolbar: add a model, variable layer height, lay on face, fits a phone |
+| `test/toolbar.mjs` | The object toolbar: add a model, variable layer height, lay on face, measure, fits a phone |
 | `test/mixing.mjs` | Make a colour mix, slice, the G-code alternates between both tools |
 | `test/loading.mjs` | The loading screen while the engine starts and a project opens |
 | `test/cancel.mjs` | Cancel stops the slice in the engine, and a change while slicing drops its result |

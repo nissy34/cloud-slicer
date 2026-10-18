@@ -20,6 +20,7 @@ same engine code.
 | `src/tools_api.cpp` | Prepare tools: arrange a plate, auto-orient, split to objects, cut, mirror, add and delete plates |
 | `src/paint_api.cpp` | Painting colours, support and seam enforcers/blockers and fuzzy skin with Orca's TriangleSelector: `paint`, `clearPaint`, `paintOverlay` |
 | `src/layers_api.cpp` | Variable layer height: an object's `layer_height_profile` made adaptive (`layer_height_profile_adaptive`), smoothed, edited around a height (`adjust_layer_height_profile`) or reset, like desktop's layer height editing |
+| `src/measure_api.cpp` | The Measure tool: Orca's `Measure::Measuring` finds the point, edge, circle or plane under a ray from the page, and `Measure::get_measurement` gives the distance and angle between two |
 | `src/calib_api.cpp` | Calibration tests, ported from desktop's Plater: temperature, flow rate, pressure advance (line, tower), retraction, max volumetric speed, VFA, input shaping and junction deviation. Loads the test model, returns the settings to change, and sets `Print::set_calib_params` for slicing |
 | `src/mixed_api.cpp` | Colour mixing: reads and edits the project's `mixed_filament_definitions` with Orca's `MixedFilamentManager`, gives each mix its colour, remaps painted and assigned filaments when a mix or a physical filament goes away, and matches a colour |
 | `src/history_api.cpp` | Undo and redo of project edits, like desktop's Ctrl+Z / Ctrl+Y: Model snapshots that share their meshes |
