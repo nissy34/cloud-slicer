@@ -7,6 +7,7 @@ import { Preview } from './components/Preview';
 import { Sidebar } from './components/Sidebar';
 import { TopBar } from './components/TopBar';
 import { Viewport } from './components/Viewport';
+import { LoadingOverlay } from './components/LoadingOverlay';
 import { DeviceScreen } from './device';
 import { useSlicer } from './state/store';
 
@@ -29,6 +30,7 @@ export function App() {
             ) : (
               <div className="workspace">
                 <Preview />
+                <LoadingOverlay />
               </div>
             )}
             <ActionBar />

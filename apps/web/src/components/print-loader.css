@@ -1,0 +1,160 @@
+/* The printing-nozzle loader (PrintLoader.tsx). One 4.8 s cycle prints four
+   layers back and forth, lifts the nozzle, fades the print and starts over.
+   Lengths in the head's keyframes are SVG user units (viewBox 160 x 120). */
+.print-nozzle {
+  display: block;
+  width: 132px;
+  height: auto;
+  overflow: visible;
+}
+.print-nozzle .pn-bed {
+  fill: var(--border);
+}
+.print-nozzle .pn-body {
+  fill: var(--text);
+}
+.print-nozzle .pn-glow {
+  opacity: 0.85;
+}
+.print-nozzle .pn-head {
+  transform: translate(80px, 54px);
+}
+.print-nozzle .pn-layer {
+  transform-box: fill-box;
+}
+.print-nozzle .pn-l1,
+.print-nozzle .pn-l3 {
+  transform-origin: left center;
+}
+.print-nozzle .pn-l2,
+.print-nozzle .pn-l4 {
+  transform-origin: right center;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .print-nozzle .pn-head {
+    animation: pn-head 4.8s linear infinite;
+  }
+  .print-nozzle .pn-glow {
+    animation: pn-glow 0.6s ease-in-out infinite alternate;
+  }
+  .print-nozzle .pn-l1 {
+    animation: pn-l1 4.8s linear infinite;
+  }
+  .print-nozzle .pn-l2 {
+    animation: pn-l2 4.8s linear infinite;
+  }
+  .print-nozzle .pn-l3 {
+    animation: pn-l3 4.8s linear infinite;
+  }
+  .print-nozzle .pn-l4 {
+    animation: pn-l4 4.8s linear infinite;
+  }
+}
+
+/* The tip runs along the top of each layer as that layer grows behind it. */
+@keyframes pn-head {
+  0% { transform: translate(20px, 96px); }
+  20% { transform: translate(140px, 96px); }
+  22% { transform: translate(130px, 82px); }
+  40% { transform: translate(30px, 82px); }
+  42% { transform: translate(42px, 68px); }
+  60% { transform: translate(118px, 68px); }
+  62% { transform: translate(104px, 54px); }
+  80% { transform: translate(56px, 54px); }
+  86% { transform: translate(56px, 36px); }
+  100% { transform: translate(20px, 96px); }
+}
+@keyframes pn-glow {
+  from { transform: scale(0.7); }
+  to { transform: scale(1.15); }
+}
+@keyframes pn-l1 {
+  0% { transform: scaleX(0); opacity: 1; }
+  20%, 86% { transform: scaleX(1); opacity: 1; }
+  97% { transform: scaleX(1); opacity: 0; }
+  100% { transform: scaleX(0); opacity: 0; }
+}
+@keyframes pn-l2 {
+  0%, 22% { transform: scaleX(0); opacity: 1; }
+  40%, 86% { transform: scaleX(1); opacity: 1; }
+  97% { transform: scaleX(1); opacity: 0; }
+  100% { transform: scaleX(0); opacity: 0; }
+}
+@keyframes pn-l3 {
+  0%, 42% { transform: scaleX(0); opacity: 1; }
+  60%, 86% { transform: scaleX(1); opacity: 1; }
+  97% { transform: scaleX(1); opacity: 0; }
+  100% { transform: scaleX(0); opacity: 0; }
+}
+@keyframes pn-l4 {
+  0%, 62% { transform: scaleX(0); opacity: 1; }
+  80%, 86% { transform: scaleX(1); opacity: 1; }
+  97% { transform: scaleX(1); opacity: 0; }
+  100% { transform: scaleX(0); opacity: 0; }
+}
+
+/* Over the 3D view while the engine starts or a project opens. */
+.loading-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  display: grid;
+  place-items: center;
+  padding: 16px;
+  background: color-mix(in srgb, var(--scene-bg) 72%, transparent);
+  backdrop-filter: blur(3px);
+  animation: pl-fade-in 0.2s ease-out;
+}
+@keyframes pl-fade-in {
+  from { opacity: 0; }
+}
+.print-loader {
+  display: grid;
+  justify-items: center;
+  gap: 10px;
+  width: min(300px, 100%);
+  padding: 22px 24px 18px;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: var(--surface);
+  color: var(--text);
+  box-shadow: 0 12px 32px rgb(0 0 0 / 0.14);
+  text-align: center;
+}
+.print-loader .pl-label {
+  font-weight: 600;
+}
+.print-loader .pl-detail {
+  min-height: 1.2em;
+  font-size: 0.85em;
+  font-variant-numeric: tabular-nums;
+}
+.pl-bar {
+  position: relative;
+  width: 100%;
+  height: 6px;
+  overflow: hidden;
+  border-radius: 3px;
+  background: var(--surface-2);
+}
+.pl-bar > span {
+  position: absolute;
+  inset: 0 auto 0 0;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #2f6fe4, #8b5cf6);
+  transition: width 0.2s linear;
+}
+.pl-bar.indeterminate > span {
+  width: 35%;
+}
+@media (prefers-reduced-motion: no-preference) {
+  .pl-bar.indeterminate > span {
+    animation: pl-sweep 1.3s ease-in-out infinite;
+  }
+}
+@keyframes pl-sweep {
+  from { transform: translateX(-100%); }
+  to { transform: translateX(290%); }
+}
+

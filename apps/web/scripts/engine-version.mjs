@@ -3,7 +3,7 @@
 // another deploy's .wasm: the glue and the wasm imports must match, or startup
 // fails with errors like "Cannot mix BigInt and other types".
 import { createHash } from 'node:crypto';
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync, readFileSync, statSync } from 'node:fs';
 
 const files = ['engine-worker.js', 'orca-engine.js', 'orca-engine.wasm', 'profiles.json', 'settings-layout.json'];
 
@@ -14,4 +14,15 @@ export function engineVersion() {
     if (existsSync(path)) hash.update(f).update(readFileSync(path));
   }
   return hash.digest('hex').slice(0, 12);
+}
+
+// What the engine downloads at start-up (the wasm and the presets), in bytes,
+// so the page can show download progress; 0 without an engine.
+export function engineBytes() {
+  let total = 0;
+  for (const f of ['orca-engine.wasm', 'profiles.json']) {
+    const path = new URL(`../public/engine/${f}`, import.meta.url);
+    if (existsSync(path)) total += statSync(path).size;
+  }
+  return total;
 }
