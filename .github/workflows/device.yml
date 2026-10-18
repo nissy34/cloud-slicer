@@ -75,8 +75,72 @@ jobs:
           name: device-screenshots
           path: apps/web/device-shots
 
+  # bun can set an .exe's icon only on Windows, and only macOS can sign the
+  # Mac app (ad hoc, free), so those two apps build on their own runners
+  # (free for a public repo). The Linux apps build in test and deploy-relay.
+  apps-windows:
+    runs-on: windows-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.4.2
+      - name: Build the Windows app with its icon
+        working-directory: apps/device-bridge
+        run: |
+          ./build-apps.sh windows
+          cp dist/windows-x64 "$RUNNER_TEMP/bridge.exe"
+          "$RUNNER_TEMP/bridge.exe" version
+          # At sign-in the bridge starts with --background, which starts it again with no window: check that copy runs.
+          "$RUNNER_TEMP/bridge.exe" pair --config "$(cygpath -w "$RUNNER_TEMP/background.json")" --background
+          for i in $(seq 1 20); do [ -s "$RUNNER_TEMP/background.json" ] && break; sleep 1; done
+          test -s "$RUNNER_TEMP/background.json"
+      - name: The app carries its name (so its icon and version resources went in)
+        shell: pwsh
+        run: |
+          $info = (Get-Item "$env:RUNNER_TEMP/bridge.exe").VersionInfo
+          $info | Format-List ProductName, FileDescription, FileVersion
+          if ($info.ProductName -ne 'Cloud Slicer Bridge') { throw "No version resources in the app" }
+      - uses: actions/upload-artifact@v4
+        with:
+          name: bridge-app-windows
+          path: apps/device-bridge/dist/windows-x64
+          if-no-files-found: error
+
+  apps-mac:
+    runs-on: macos-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.4.2
+      - name: Build the Mac apps (Cloud Slicer Bridge.app, with its icon, signed ad hoc)
+        working-directory: apps/device-bridge
+        run: |
+          ./build-apps.sh mac
+          mkdir -p "$RUNNER_TEMP/app" && cd "$RUNNER_TEMP/app" && unzip -q "$GITHUB_WORKSPACE/apps/device-bridge/dist/mac-arm64"
+          app="$RUNNER_TEMP/app/Cloud Slicer Bridge.app"
+          codesign --verify --deep --strict --verbose=2 "$app"
+          plutil -lint "$app/Contents/Info.plist"
+          test -s "$app/Contents/Resources/icon.icns"
+          "$app/Contents/MacOS/cloud-slicer-bridge" version
+          # install copies the program out of the .app; that copy has to run too.
+          cp "$app/Contents/MacOS/cloud-slicer-bridge" "$RUNNER_TEMP/copied" && "$RUNNER_TEMP/copied" version
+      - uses: actions/upload-artifact@v4
+        with:
+          name: bridge-app-mac
+          path: |
+            apps/device-bridge/dist/mac-arm64
+            apps/device-bridge/dist/mac-x64
+          if-no-files-found: error
+
   deploy-relay:
-    needs: test
+    needs: [test, apps-windows, apps-mac]
     if: github.event_name != 'pull_request'
     timeout-minutes: 20
     runs-on: ubuntu-24.04
@@ -110,11 +174,17 @@ jobs:
           curl -fsS "$url/" && curl -fsS "$url/bridge.mjs" | grep -q runBridge
           echo "url=$url" >> "$GITHUB_OUTPUT"
         id: deploy
+      - uses: actions/download-artifact@v4
+        if: steps.deploy.outputs.r2 == 'ok'
+        with:
+          pattern: bridge-app-*
+          path: apps/device-bridge/dist
+          merge-multiple: true
       - name: Build the bridge apps and upload them to R2
         if: steps.deploy.outputs.r2 == 'ok'
         working-directory: apps/device-bridge
         run: |
-          ./build-apps.sh
+          ./build-apps.sh linux
           for name in windows-x64 mac-arm64 mac-x64 linux-x64 linux-arm64; do
             (cd ../device-relay && npx wrangler r2 object put "cloud-slicer-bridge/bridge/$name" --file "../device-bridge/dist/$name" --remote --content-type application/octet-stream)
           done

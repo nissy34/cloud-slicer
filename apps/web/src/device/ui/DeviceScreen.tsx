@@ -1,5 +1,6 @@
 import { useEffect } from 'react';
 import { useDevice } from '../../state/device';
+import { BridgeOffline } from './BridgeSetup';
 import { CameraCard } from './CameraCard';
 import { ClimateCard } from './ClimateCard';
 import { ConsoleCard } from './ConsoleCard';
@@ -94,8 +95,8 @@ export function DeviceScreen() {
             </div>
           )}
           {agentOffline && (
-            <div className="dv-banner" role="status">
-              The bridge computer is offline. Start the bridge on it again (node cloud-slicer-bridge.mjs) and this page reconnects by itself.
+            <div className="dv-banner dv-banner-help" role="status">
+              <BridgeOffline system={bridge?.system} app={bridge?.app} />
             </div>
           )}
           {/* Two columns on wide screens; one on phones, where CSS order interleaves them. */}

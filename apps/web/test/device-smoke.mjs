@@ -218,6 +218,10 @@ try {
   // The bridge going away is reported, and the page reconnects when it returns.
   bridge.stop();
   await page.getByText('Bridge offline').waitFor({ timeout: 20_000 });
+  // The offline help fits the bridge's computer: this one runs under Node.js on Linux (or wherever the test runs).
+  await page.getByTestId('bridge-offline-help').waitFor();
+  const offlineCmd = await page.getByTestId('bridge-offline-command').textContent();
+  if (offlineCmd !== 'node cloud-slicer-bridge.mjs') throw new Error(`offline help for a Node.js bridge shows: ${offlineCmd}`);
   bridge = runBridge(cfg, { log: () => {} });
   await page.getByTestId('connection').filter({ hasText: 'Connected' }).waitFor({ timeout: 40_000 });
   console.log('bridge restart: reconnected by itself');
@@ -225,7 +229,10 @@ try {
   // A second copy of the bridge (another window) takes over, and the older one stops rather than taking it back.
   let replaced = false;
   bridge.stop();
-  const older = runBridge(cfg, { log: () => {}, onReplaced: () => (replaced = true) });
+  // Wait for the older copy itself to be on the relay: the page may still show the stopped one as connected for a moment.
+  let olderUp = false;
+  const older = runBridge(cfg, { log: (m) => /Connected to the relay/.test(m) && (olderUp = true), onReplaced: () => (replaced = true) });
+  await until('the older copy connected', () => olderUp, 40_000);
   await page.getByTestId('connection').filter({ hasText: 'Connected' }).waitFor({ timeout: 40_000 });
   bridge = runBridge(cfg, { log: () => {} });
   await until('the older copy stopped', () => replaced, 20_000);

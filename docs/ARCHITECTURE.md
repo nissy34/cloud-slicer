@@ -182,12 +182,16 @@ Moonraker is reached one of two ways (`src/device/link/`):
 Bridge design choices:
 
 - One-file apps built with `bun build --compile` for Windows, macOS, Linux and
-  Raspberry Pi, served by the relay from R2 (`cloud-slicer-bridge`), plus `bridge.mjs`
-  for anything with Node.js 22. They are unsigned to stay at $0, so macOS uses a
+  Raspberry Pi, with the app icon (a `Cloud Slicer Bridge.app` bundle on macOS, a menu
+  entry on Linux), served by the relay from R2 (`cloud-slicer-bridge`), plus
+  `bridge.mjs` for anything with Node.js 22. On Windows the bridge runs with no window,
+  out of the taskbar. They are not code-signed to stay at $0 (the Mac app is signed ad
+  hoc only), so macOS uses a
   one-line Terminal installer and Windows shows its "protected your PC" warning.
-- The bridge window asks nothing. It starts with the computer and opens a pairing link;
+- The bridge asks nothing. It starts with the computer and opens a pairing link;
   printers and their API keys are added from the Device tab, which can search the
-  bridge's network for Moonraker.
+  bridge's network for Moonraker. When a bridge is offline, the Device tab shows how to
+  start it again on that bridge's system.
 - Pairing links carry a browser key (HMAC of the bridge's secret), never the secret;
   the relay stores only hashes, rate-limits connects and deploys from main only.
 
@@ -210,8 +214,6 @@ In review, not on `main` yet:
 
 - Preset files: import and export Orca preset files, and edit printer and filament
   settings, not only process settings (PR #31).
-- The app icon on the bridge apps, the Windows bridge without a taskbar window, and
-  per-system help when a bridge is offline (PR #34).
 
 Later:
 
