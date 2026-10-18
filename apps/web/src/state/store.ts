@@ -241,7 +241,6 @@ export const useSlicer = create<SlicerState>((set, get) => {
     const colours = get().selection?.colours ?? [];
     const res = reply ?? (await engine().mixed(mixRequest()));
     set({ mixDefinitions: res.definitions, mixes: res.rows, palette: mixPalette(colours, res.rows) });
-    persist();
   }
 
   async function editMixes(op: MixedRequest['op']) {
@@ -288,7 +287,7 @@ export const useSlicer = create<SlicerState>((set, get) => {
         e.options(),
         fetch(`/engine/settings-layout.json?v=${import.meta.env.VITE_ENGINE_VERSION}`).then((r) => (r.ok ? (r.json() as Promise<SettingsLayout>) : null)),
       ]);
-      set({ printers, options, layout, overrides: saved?.overrides ?? {}, mixDefinitions: saved?.mixes ?? '' });
+      set({ printers, options, layout });
       const known = saved?.selection && printers.some((p) => p.name === saved.selection?.printer);
       await applySelection(known && saved?.selection ? saved.selection : { printer: DEFAULT_PRINTER });
       set({ engine: 'ready' });
@@ -362,20 +361,16 @@ export const useSlicer = create<SlicerState>((set, get) => {
   function setOverrides(overrides: OrcaConfig) {
     const before = get().overrides;
     set({ overrides, ...stale() });
-    persist();
     // Mix colours follow the colour-mixing settings (bias, Local-Z ...) and the nozzles.
     const affects = (k: string) => k.startsWith('mixed_') || k.startsWith('dithering_') || k === 'nozzle_diameter' || k === 'filament_type';
     if ([...new Set([...Object.keys(before), ...Object.keys(overrides)])].some((k) => affects(k) && before[k] !== overrides[k]))
       void refreshMixes().catch(fail);
   }
 
-  // Saves the selection and the user's overrides; a calibration test's
-  // settings are saved as they were before it, since the test isn't there
-  // after a reload.
+  // Saves the preset selection. Changed settings and mixes go with the
+  // project (Save / Download 3MF), not across reloads.
   function persist() {
-    const { selection, overrides, calibration: c } = get();
-    const keep = c ? { ...Object.fromEntries(Object.entries(overrides).filter(([k]) => !c.keys.includes(k))), ...c.previous } : overrides;
-    save({ selection, overrides: keep, mixes: get().mixDefinitions });
+    save({ selection: get().selection });
   }
 
   const settingsNotice = (n: number, from: string) =>
