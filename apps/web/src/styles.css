@@ -1378,7 +1378,16 @@ select:focus-visible {
 .dv-row:empty {
   display: none;
 }
+.dv-cameras {
+  display: grid;
+  gap: 8px;
+}
+.dv-cameras-many {
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+}
 .dv-camera {
+  position: relative;
+  margin: 0;
   aspect-ratio: 4 / 3;
   background: #000;
   border-radius: 6px;
@@ -1386,10 +1395,24 @@ select:focus-visible {
   place-items: center;
   overflow: hidden;
 }
-.dv-camera img {
+.dv-camera img,
+.dv-camera video,
+.dv-camera iframe {
   width: 100%;
   height: 100%;
   object-fit: contain;
+  border: 0;
+}
+.dv-camera figcaption {
+  position: absolute;
+  left: 6px;
+  top: 6px;
+  padding: 1px 6px;
+  border-radius: 4px;
+  background: rgb(0 0 0 / 0.55);
+  color: #fff;
+  font-size: 12px;
+  pointer-events: none;
 }
 .dv-camera .muted {
   color: #aaa;

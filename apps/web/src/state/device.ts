@@ -14,6 +14,7 @@ import { create } from 'zustand';
 import type { Device } from '../account/api';
 import { deleteDevice, getDeviceApiKey, saveDevice, useAccount } from './account';
 import type { PrinterAddon, PrinterFacts } from '../device/addons';
+import { coalesce } from '../device/coalesce';
 import { BridgeLink } from '../device/link/bridge';
 import { DirectLink } from '../device/link/direct';
 import type { BridgeStatus, PrinterLink } from '../device/link/types';
@@ -158,6 +159,9 @@ let connectSeq = 0;
 let savingId: string | null = null;
 let toastTimer: ReturnType<typeof setTimeout> | null = null;
 
+/** Moonraker rescans the whole gcodes folder for every list: never ask more than every 2 s. */
+const FILE_LIST_GAP_MS = 2000;
+
 /** The live session, for components that call the printer directly (camera). */
 export const currentSession = () => session;
 
@@ -299,15 +303,16 @@ export const useDevice = create<DeviceState>((set, get) => {
       }
     },
 
-    async refreshFiles() {
-      if (!session) return;
+    refreshFiles: coalesce(async () => {
+      const s = session;
+      if (!s) return;
       try {
-        const files = await session.listFiles();
-        set({ files });
+        const files = await s.listFiles();
+        if (session === s) set({ files });
       } catch {
         // keep the last list; the connection state already says what is wrong
       }
-    },
+    }, FILE_LIST_GAP_MS),
 
     requestSend(blob, name) {
       set({ send: { kind: 'upload', blob, name } });
