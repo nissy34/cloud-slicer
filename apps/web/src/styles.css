@@ -683,21 +683,40 @@ select:focus-visible {
     font-size: 0;
     gap: 0;
   }
+  /* One scrolling column: 3D view, then the settings, with the action bar
+     (Slice, stats, download) pinned to the bottom of the screen. */
   .body {
-    grid-template-columns: 1fr;
-    grid-template-rows: minmax(320px, 1fr) auto;
+    display: flex;
+    flex-direction: column;
     overflow-y: auto;
+  }
+  .main {
+    display: contents;
+  }
+  .workspace {
+    order: 1;
+    flex: none;
+    height: 55dvh;
+    min-height: 300px;
   }
   .panel {
     order: 2;
+    flex: none;
+    overflow: visible;
     border-right: 0;
     border-top: 1px solid var(--border);
   }
-  .main {
-    min-height: 420px;
-  }
   .actionbar {
+    order: 3;
+    position: sticky;
+    bottom: 0;
+    z-index: 5;
     flex-wrap: wrap;
+    padding-bottom: max(10px, env(safe-area-inset-bottom));
+  }
+  /* The full panel width is available on a phone, so give values more room. */
+  .option {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 200px) 26px;
   }
   .plate-tabs {
     max-width: calc(100% - 24px);
