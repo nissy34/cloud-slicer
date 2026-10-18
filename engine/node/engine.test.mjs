@@ -183,3 +183,15 @@ test('plates: add, arrange, delete', () => {
   assert.equal(m.plates.length, 1);
   assert.equal(m.objects.length, 0, 'deleting plate 1 deleted its objects');
 });
+
+test('per-object settings change how that object slices', () => {
+  select({ printer: DEFAULT_PRINTER });
+  load('3DBenchy.stl');
+  const base = slice(fullConfig()).result.totalLayers;
+  call(engine, 'setObjectSettings', 0, -1, JSON.stringify({ layer_height: '0.3' }));
+  assert.equal(info().objects[0].settings.layer_height, '0.3');
+  const coarse = slice(fullConfig()).result.totalLayers;
+  assert.ok(coarse < base * 0.8, `layers ${base} -> ${coarse}`);
+  call(engine, 'setObjectSettings', 0, -1, JSON.stringify({ layer_height: null }));
+  assert.equal(info().objects[0].settings.layer_height, undefined);
+});

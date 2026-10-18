@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import type { CutKeep } from '../engine/client';
 import { NO_COLOURS, useSlicer } from '../state/store';
+import { ObjectSettings } from './ObjectSettings';
 
 const round = (n: number) => Math.round(n * 100) / 100;
 
@@ -174,6 +175,7 @@ export function ObjectList() {
               onDone={() => setCutting(false)}
             />
           )}
+          <ObjectSettings object={selected.object} />
           <div className="transform-row actions">
             <button className="secondary" onClick={() => void copyInstance(selected.object, selected.instance)}>
               Add copy

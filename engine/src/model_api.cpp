@@ -82,6 +82,13 @@ json ok(json extra = json::object()) {
 }
 json fail(const std::string& error) { return json{{"ok", false}, {"error", error}}; }
 
+// An object's or part's own settings, without the filament assignment.
+json settingsJson(const DynamicPrintConfig& cfg) {
+    json out = configToJson(cfg);
+    out.erase("extruder");
+    return out;
+}
+
 // Centre a freshly read geometry object on plate `plate` and drop it on the bed.
 void placeOnPlate(ModelObject* obj, int plate) {
     if (obj->instances.empty()) obj->add_instance();
@@ -204,7 +211,8 @@ std::string modelInfoJson() {
             const char* kind = v->is_model_part() ? "part" : v->is_negative_volume() ? "negative" : v->is_modifier() ? "modifier"
                              : v->is_support_enforcer() ? "supportEnforcer" : v->is_support_blocker() ? "supportBlocker" : "other";
             volumes.push_back({{"name", v->name}, {"kind", kind}, {"extruder", v->extruder_id()},
-                               {"painted", !v->mmu_segmentation_facets.empty()}});
+                               {"painted", !v->mmu_segmentation_facets.empty()},
+                               {"settings", settingsJson(v->config.get())}});
         }
         json instances = json::array();
         for (const ModelInstance* inst : obj->instances) {
@@ -226,6 +234,7 @@ std::string modelInfoJson() {
         const Vec3d size = obj->instance_bounding_box(0, false).size();
         objects.push_back({{"name", obj->name}, {"size", {size.x(), size.y(), size.z()}},
                            {"extruder", obj->config.has("extruder") ? obj->config.opt_int("extruder") : 0},
+                           {"settings", settingsJson(obj->config.get())},
                            {"volumes", volumes}, {"instances", instances}});
     }
     const DynamicPrintConfig& fc = pr.fileConfig;

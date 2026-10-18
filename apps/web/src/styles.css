@@ -722,6 +722,26 @@ select:focus-visible {
   accent-color: var(--accent);
 }
 
+/* Per-object settings */
+.object-settings {
+  display: grid;
+  gap: 6px;
+  padding-top: 8px;
+  border-top: 1px dashed var(--border);
+}
+.subhead {
+  font-weight: 600;
+  font-size: 13px;
+}
+.add-setting {
+  max-width: 55%;
+  padding: 3px 6px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  color: var(--accent);
+}
+
 /* Dialogs */
 .dialog-backdrop {
   position: fixed;

@@ -235,9 +235,41 @@ std::string deletePlate(int plate) {
     });
 }
 
+// Per-object (volume < 0) or per-part settings, like desktop's object list
+// "Add settings": a JSON object of Orca option key -> value, where null removes
+// the setting. Filament assignment ("extruder") has its own call.
+std::string setObjectSettings(int o, int volume, const std::string& valuesJson) {
+    return guarded([&] {
+        ModelObject* obj = objectAt(o);
+        if (volume >= int(obj->volumes.size())) throw std::runtime_error("no part " + std::to_string(volume));
+        ModelConfig& cfg = volume < 0 ? static_cast<ModelConfig&>(obj->config) : obj->volumes[volume]->config;
+        const json values = json::parse(valuesJson);
+        ConfigSubstitutionContext subs(ForwardCompatibilitySubstitutionRule::Disable);
+        json errors = json::array();
+        for (auto& [key, value] : values.items()) {
+            if (key == "extruder") continue;
+            if (value.is_null()) {
+                cfg.erase(key);
+                continue;
+            }
+            if (!print_config_def.get(key)) {
+                errors.push_back(key + ": unknown option");
+                continue;
+            }
+            try {
+                cfg.set_deserialize(key, value.is_string() ? value.get<std::string>() : value.dump(), subs);
+            } catch (const std::exception& e) {
+                errors.push_back(key + ": " + e.what());
+            }
+        }
+        return ok({{"errors", errors}});
+    });
+}
+
 } // namespace
 
 EMSCRIPTEN_BINDINGS(tools_api) {
+    emscripten::function("setObjectSettings", &setObjectSettings);
     emscripten::function("arrangePlate", &arrangePlate);
     emscripten::function("orientObject", &orientObject);
     emscripten::function("splitObject", &splitObject);

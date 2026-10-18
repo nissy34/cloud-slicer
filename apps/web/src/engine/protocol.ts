@@ -75,6 +75,8 @@ export interface VolumeInfo {
   kind: 'part' | 'negative' | 'modifier' | 'supportEnforcer' | 'supportBlocker' | 'other';
   extruder: number;
   painted: boolean;
+  /** The part's own settings (Orca option key -> value). */
+  settings: OrcaConfig;
 }
 export interface InstanceInfo {
   plate: number;
@@ -87,6 +89,8 @@ export interface ObjectInfo {
   name: string;
   size: [number, number, number];
   extruder: number;
+  /** The object's own settings, on top of the process (Orca option key -> value). */
+  settings: OrcaConfig;
   volumes: VolumeInfo[];
   instances: InstanceInfo[];
 }

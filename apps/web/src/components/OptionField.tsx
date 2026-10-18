@@ -5,12 +5,31 @@ import { useOption, useSlicer } from '../state/store';
  * Editor for one Orca option, driven by the engine's option metadata: a
  * checkbox, a list or a text box, with Orca's unit and tooltip. A changed
  * value is marked and can be reset to the preset's.
+ *
+ * By default it edits the global overrides; pass `value` and `onChange` to
+ * edit something else (an object's own settings), where reset means remove.
  */
-export function OptionField({ optKey, label }: { optKey: string; label?: string }) {
+export function OptionField({
+  optKey,
+  label,
+  value: ownValue,
+  onChange,
+  resetLabel = 'Reset to the preset value',
+}: {
+  optKey: string;
+  label?: string;
+  value?: string;
+  onChange?: (value: string | null) => void;
+  resetLabel?: string;
+}) {
   const def = useSlicer((s) => s.options[optKey]);
-  const value = useOption(optKey);
-  const modified = useSlicer((s) => optKey in s.overrides);
-  const setOverride = useSlicer((s) => s.setOverride);
+  const globalValue = useOption(optKey);
+  const globalModified = useSlicer((s) => optKey in s.overrides);
+  const setGlobal = useSlicer((s) => s.setOverride);
+  const own = onChange !== undefined;
+  const value = own ? ownValue : globalValue;
+  const modified = own ? true : globalModified;
+  const setOverride = own ? (_: string, v: string | null) => onChange(v) : setGlobal;
   const [draft, setDraft] = useState(value ?? '');
   useEffect(() => setDraft(value ?? ''), [value]);
   if (!def || value === undefined) return null;
@@ -21,8 +40,8 @@ export function OptionField({ optKey, label }: { optKey: string; label?: string 
     if (v !== value) setOverride(optKey, v);
   };
   const reset = modified ? (
-    <button className="icon reset" title="Reset to the preset value" aria-label={`Reset ${text}`} onClick={() => setOverride(optKey, null)}>
-      ↺
+    <button className="icon reset" title={resetLabel} aria-label={`${resetLabel}: ${text}`} onClick={() => setOverride(optKey, null)}>
+      {own ? '×' : '↺'}
     </button>
   ) : null;
 

@@ -91,6 +91,8 @@ export class EngineClient {
   cutObject = (o: number, i: number, z: number, keep: CutKeep, flipUpper: boolean) =>
     this.call<ProjectInfo>('cutObject', [o, i, z, keep, flipUpper]);
   mirrorInstance = (o: number, i: number, axis: 0 | 1 | 2) => this.call<ProjectInfo>('mirrorInstance', [o, i, axis]);
+  setObjectSettings = (o: number, volume: number, values: Record<string, string | null>) =>
+    this.call<ProjectInfo>('setObjectSettings', [o, volume, values]);
   addPlate = () => this.call<ProjectInfo>('addPlate');
   deletePlate = (plate: number) => this.call<ProjectInfo>('deletePlate', [plate]);
   slice = (plate: number, overrides: OrcaConfig) =>

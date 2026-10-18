@@ -89,6 +89,7 @@ if (self.name !== 'em-pthread') {
     splitObject: (e, o) => (json(e.splitObject(o)), JSON.parse(e.modelInfoJson())),
     cutObject: (e, o, i, z, keep, flip) => (json(e.cutObject(o, i, z, keep, flip)), JSON.parse(e.modelInfoJson())),
     mirrorInstance: (e, o, i, axis) => (json(e.mirrorInstance(o, i, axis)), JSON.parse(e.modelInfoJson())),
+    setObjectSettings: (e, o, v, values) => (json(e.setObjectSettings(o, v, JSON.stringify(values))), JSON.parse(e.modelInfoJson())),
     addPlate: (e) => (json(e.addPlate()), JSON.parse(e.modelInfoJson())),
     deletePlate: (e, plate) => (json(e.deletePlate(plate)), JSON.parse(e.modelInfoJson())),
 

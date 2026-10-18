@@ -72,6 +72,8 @@ interface SlicerState {
   copyInstance(o: number, i: number): Promise<void>;
   slice(): Promise<void>;
   arrange(): Promise<void>;
+  /** Object (volume -1) or part settings; null removes a setting. */
+  setObjectSettings(o: number, volume: number, values: Record<string, string | null>): Promise<void>;
   addPlate(): Promise<void>;
   deletePlate(): Promise<void>;
   orientObject(o: number): Promise<void>;
@@ -345,6 +347,7 @@ export const useSlicer = create<SlicerState>((set, get) => {
 
     // 6 mm apart, like desktop's default arrange distance.
     arrange: () => projectEdit(() => engine().arrangePlate(get().plate, 6)),
+    setObjectSettings: (o, volume, values) => projectEdit(() => engine().setObjectSettings(o, volume, values)),
     addPlate: async () => {
       await projectEdit(() => engine().addPlate());
       const n = get().project?.plates.length ?? 1;
