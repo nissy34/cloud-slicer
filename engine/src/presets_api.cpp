@@ -332,6 +332,38 @@ std::string configOptionsJson() {
     return out.dump();
 }
 
+// Filaments that work with one printer, without selecting it (the setup
+// wizard lists them for every printer the user installs). Returns
+// {filaments: [preset summaries], defaults: [the printer's default filament names]}.
+std::string presetsFilamentsFor(const std::string& printerName) {
+    try {
+        PresetBundle& b = bundle();
+        const Preset* printer = b.printers.find_preset(printerName, false);
+        if (!printer) throw std::runtime_error("no printer preset " + printerName);
+        const PresetWithVendorProfile active = b.printers.get_preset_with_vendor_profile(*printer);
+        json names = json::array(), list = json::array();
+        for (auto it = b.filaments.begin(); it != b.filaments.end(); ++it) {
+            if (!it->is_visible || it->is_default) continue;
+            if (!is_compatible_with_printer(b.filaments.get_preset_with_vendor_profile(*it), active)) continue;
+            names.push_back(it->name);
+            list.push_back(presetJson(*it));
+        }
+        json defaults = json::array();
+        // Profiles may name a filament family ("Snapmaker PLA"): take its
+        // member for this printer, as compatibleName does for the selection.
+        if (const auto* d = printer->config.option<ConfigOptionStrings>("default_filament_profile"))
+            for (const std::string& n : d->values) {
+                auto it = std::find(names.begin(), names.end(), n);
+                if (it == names.end())
+                    it = std::find_if(names.begin(), names.end(), [&](const json& f) { return boost::starts_with(f.get<std::string>(), n + " "); });
+                if (it != names.end()) defaults.push_back(*it);
+            }
+        return json{{"ok", true}, {"filaments", list}, {"defaults", defaults}}.dump();
+    } catch (const std::exception& e) {
+        return json{{"ok", false}, {"error", e.what()}}.dump();
+    }
+}
+
 } // namespace
 
 bool engine::selectedPrinterIsBambu() { return g_bundle && g_bundle->is_bbl_vendor(); }
@@ -340,6 +372,7 @@ EMSCRIPTEN_BINDINGS(presets_api) {
     emscripten::function("presetsLoad", &presetsLoad);
     emscripten::function("presetsPrinters", &presetsPrinters);
     emscripten::function("presetsSelect", &presetsSelect);
+    emscripten::function("presetsFilamentsFor", &presetsFilamentsFor);
     emscripten::function("presetConfig", &presetConfig);
     emscripten::function("presetsFullConfig", &presetsFullConfig);
     emscripten::function("configOptionsJson", &configOptionsJson);

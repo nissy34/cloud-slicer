@@ -55,6 +55,7 @@ if (self.name !== 'em-pthread') {
   const methods = {
     printers: (e) => JSON.parse(e.presetsPrinters()),
     select: (e, selection) => json(e.presetsSelect(JSON.stringify(selection))),
+    filamentsFor: (e, printer) => json(e.presetsFilamentsFor(printer)),
     fullConfig: (e, overrides) => json(e.presetsFullConfig(JSON.stringify(overrides || {}))),
     presetConfig: (e, type, name) => JSON.parse(e.presetConfig(type, name) || 'null'),
     options: (e) => JSON.parse(e.configOptionsJson()),

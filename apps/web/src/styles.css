@@ -1901,3 +1901,112 @@ select:focus-visible {
     width: 90px;
   }
 }
+
+/* Setup wizard */
+.wizard {
+  width: min(640px, 100%);
+  grid-template-columns: minmax(0, 1fr);
+  max-height: calc(100dvh - 32px);
+  grid-template-rows: auto auto minmax(0, 1fr) auto;
+}
+.wizard-body {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  align-content: start;
+  gap: 10px;
+  min-height: 0;
+  overflow-y: auto;
+}
+.wizard-steps {
+  display: flex;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  counter-reset: step;
+  font-size: 13px;
+  color: var(--muted);
+}
+.wizard-steps li {
+  counter-increment: step;
+}
+.wizard-steps li::before {
+  content: counter(step) '. ';
+}
+.wizard-steps li + li::before {
+  content: '› ' counter(step) '. ';
+}
+.wizard-steps li.on {
+  color: var(--text);
+  font-weight: 600;
+}
+.wizard-models,
+.wizard-devices,
+.wizard-filaments ul {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.wizard-models li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+.wizard-models li.on {
+  border-color: var(--accent);
+}
+.wizard-models .segmented {
+  flex-wrap: nowrap;
+}
+.wizard-model {
+  font-weight: 600;
+}
+.wizard-filters {
+  display: flex;
+  gap: 8px;
+}
+.wizard-filters select {
+  max-width: 45%;
+}
+.wizard-filters input {
+  flex: 1;
+  min-width: 0;
+  padding: 6px 8px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  color: var(--text);
+}
+.wizard-filaments {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 6px;
+}
+.wizard-filaments details {
+  padding: 6px 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+.wizard-filaments summary {
+  cursor: pointer;
+  font-weight: 600;
+}
+.wizard-filaments ul {
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  margin-top: 6px;
+}
+.wizard-later {
+  margin-right: auto;
+}
+@media (max-width: 760px) {
+  .wizard .dialog-actions {
+    flex-wrap: wrap;
+  }
+}
