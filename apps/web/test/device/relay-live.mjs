@@ -13,6 +13,8 @@ if (!/^https?:\/\//.test(relay)) throw new Error('usage: relay-live.mjs <relay u
 const mock = await startMockPrinter();
 const cfg = { relay, bridgeId: `ci-${randomBytes(9).toString('base64url')}`, key: randomBytes(24).toString('base64url'), printers: [{ id: 'u1', name: 'U1-mock', url: mock.url, apiKey: '' }] };
 const bridge = runBridge(cfg, { log: (m) => console.log(`bridge: ${m}`) });
+/** Every pretend-browser socket, closed at the end so a failure can't keep the process alive. */
+const open = new Set();
 const socket = (key, printer) => new WebSocket(`${relay.replace(/^http/, 'ws')}/v1/bridges/${cfg.bridgeId}/client?key=${key}&printer=${printer}`);
 const timeout = setTimeout(() => {
   console.error('RELAY LIVE FAIL: timed out');
@@ -41,13 +43,16 @@ try {
   const results = await new Promise((resolve, reject) => {
     const ws = socket(cfg.key, 'u1');
     const got = {};
+    open.add(ws);
     ws.onopen = () => {
       ws.send(JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'printer.info' }));
-      ws.send(JSON.stringify({ jsonrpc: '2.0', id: 'b1', method: 'bridge.snapshot', params: { url: '/server/files/camera/monitor.jpg' } }));
+      // Like the real U1, the mock only has a camera frame once the monitor is on.
+      ws.send(JSON.stringify({ jsonrpc: '2.0', id: 2, method: 'camera.start_monitor', params: {} }));
     };
     ws.onmessage = (e) => {
       const m = JSON.parse(e.data);
       if (m.error) reject(new Error(m.error.message));
+      if (m.id === 2) ws.send(JSON.stringify({ jsonrpc: '2.0', id: 'b1', method: 'bridge.snapshot', params: { url: '/server/files/camera/monitor.jpg' } }));
       if (m.id != null) got[m.id] = m.result;
       if (got[1] && got.b1) {
         ws.close();
@@ -73,6 +78,9 @@ try {
   process.exitCode = 1;
 } finally {
   clearTimeout(timeout);
+  for (const ws of open) ws.close();
   bridge.stop();
   await mock.close();
+  // Exit even if a socket or timer is still open: CI waits on this step.
+  process.exit();
 }

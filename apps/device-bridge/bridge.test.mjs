@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { candidateUrls, mergeDiff, pairingCode } from './bridge.mjs';
+import { candidateUrls, mergeDiff, pairingCode, refused } from './bridge.mjs';
 
 test('tries Moonraker on 7125, then the web port', () => {
   assert.deepEqual(candidateUrls('192.168.1.50'), ['http://192.168.1.50:7125', 'http://192.168.1.50']);
@@ -17,4 +17,11 @@ test('coalesces status diffs field by field', () => {
 test('pairing code carries relay, id and key', () => {
   const code = pairingCode({ relay: 'https://r.example', bridgeId: 'abcdefgh', key: 'k'.repeat(32) });
   assert.deepEqual(JSON.parse(Buffer.from(code, 'base64url').toString()), { r: 'https://r.example', i: 'abcdefgh', k: 'k'.repeat(32) });
+});
+
+test("refuses Moonraker's access.* calls, which would reveal the printer's API key", () => {
+  assert.equal(refused('access.get_api_key'), true);
+  assert.equal(refused('access.post_user'), true);
+  assert.equal(refused('printer.objects.query'), false);
+  assert.equal(refused(undefined), false);
 });
