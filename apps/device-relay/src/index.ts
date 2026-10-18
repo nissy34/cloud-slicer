@@ -14,6 +14,10 @@ import agentSource from '../../device-bridge/bridge.mjs';
 
 export interface Env {
   BRIDGE: DurableObjectNamespace<Bridge>;
+  /** Websocket connects per IP (wrangler.toml [[ratelimits]]). */
+  CONNECT_LIMIT: RateLimit;
+  /** New bridge ids claimed per IP. */
+  CLAIM_LIMIT: RateLimit;
 }
 
 const BRIDGE_ID = /^[\w-]{8,64}$/;
@@ -30,6 +34,19 @@ async function sha256(text: string): Promise<string> {
   return [...new Uint8Array(digest)].map((b) => b.toString(16).padStart(2, '0')).join('');
 }
 
+/**
+ * The key browsers use, derived from the agent's secret key. The pairing code
+ * carries only this one, so holding a pairing code is not enough to connect
+ * as the bridge agent. Same derivation as browserKey() in bridge.mjs.
+ */
+async function browserKey(key: string): Promise<string> {
+  const hmac = await crypto.subtle.importKey('raw', new TextEncoder().encode(key), { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']);
+  const mac = new Uint8Array(await crypto.subtle.sign('HMAC', hmac, new TextEncoder().encode('cloud-slicer browser key')));
+  return btoa(String.fromCharCode(...mac)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+}
+
+const clientIp = (req: Request) => req.headers.get('CF-Connecting-IP') ?? 'unknown';
+
 /** Constant-time comparison of two hex digests. */
 function same(a: string, b: string) {
   if (a.length !== b.length) return false;
@@ -42,7 +59,9 @@ export default {
   async fetch(req: Request, env: Env): Promise<Response> {
     const url = new URL(req.url);
     if (url.pathname === '/bridge.mjs') {
-      return new Response(agentSource.replaceAll('__RELAY_URL__', url.origin), {
+      // ?site= is the page the user downloaded it from, so pairing links open that same site.
+      const site = /^https:\/\/[\w.-]+$|^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.exec(url.searchParams.get('site') ?? '')?.[0];
+      return new Response(agentSource.replaceAll('__RELAY_URL__', url.origin).replaceAll('__SITE_URL__', site ?? '__SITE_URL__'), {
         headers: { ...cors, 'Content-Type': 'text/javascript; charset=utf-8', 'Content-Disposition': 'attachment; filename="cloud-slicer-bridge.mjs"' },
       });
     }
@@ -50,6 +69,7 @@ export default {
     if (m) {
       if (!BRIDGE_ID.test(m[1])) return new Response('Bad bridge id', { status: 400, headers: cors });
       if (req.headers.get('Upgrade') !== 'websocket') return new Response('Expected a websocket', { status: 426, headers: cors });
+      if (!(await env.CONNECT_LIMIT.limit({ key: clientIp(req) })).success) return new Response('Too many connections; try again in a minute.', { status: 429, headers: cors });
       return env.BRIDGE.get(env.BRIDGE.idFromName(m[1])).fetch(req);
     }
     if (url.pathname === '/') {
@@ -111,14 +131,22 @@ export class Bridge extends DurableObject<Env> {
 
     if (role === 'agent') {
       // The first agent to connect claims the bridge id; later ones must hold the same key.
-      if (!stored) await this.ctx.storage.put('keyHash', hash);
-      else if (!same(stored, hash)) return reject(4003, 'This bridge id belongs to someone else.');
+      if (!stored) {
+        if (!(await this.env.CLAIM_LIMIT.limit({ key: clientIp(req) })).success) return reject(4029, 'Too many new bridges from this address; try again later.');
+        await this.ctx.storage.put('keyHash', hash);
+      } else if (!same(stored, hash)) return reject(4003, 'This bridge id belongs to someone else.');
+      // Bridges claimed before browser keys existed learn theirs on their next connect.
+      if (!(await this.ctx.storage.get<string>('clientHash'))) await this.ctx.storage.put('clientHash', await sha256(await browserKey(key)));
       for (const old of this.ctx.getWebSockets('agent')) old.close(4000, 'Another bridge agent connected with this id.');
       this.ctx.acceptWebSocket(ours, ['agent']);
       return new Response(null, { status: 101, webSocket: browserEnd });
     }
 
-    if (!stored || !same(stored, hash)) return reject(4003, stored ? 'Wrong pairing code.' : 'This bridge has never connected. Start the bridge first.');
+    const clientHash = await this.ctx.storage.get<string>('clientHash');
+    if (!stored) return reject(4003, 'This bridge has never connected. Start the bridge first.');
+    if (same(stored, hash)) return reject(4003, 'This pairing code is from an older bridge. Download the new bridge, restart it and pair again.');
+    if (!clientHash) return reject(4003, 'Restart the bridge, then pair again.');
+    if (!same(clientHash, hash)) return reject(4003, 'Wrong pairing code.');
     if (this.clients().length >= MAX_CLIENTS) return reject(4029, 'Too many open windows for this bridge.');
     const id = crypto.randomUUID().slice(0, 8);
     const printer = (url.searchParams.get('printer') ?? '').slice(0, 64);

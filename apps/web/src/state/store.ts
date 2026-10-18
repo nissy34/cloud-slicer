@@ -347,7 +347,8 @@ export const useSlicer = create<SlicerState>((set, get) => {
   };
 
   return {
-    tab: 'prepare',
+    // A bridge pairing link opens straight on the Device tab, where its add-printer dialog waits.
+    tab: typeof location !== 'undefined' && /[#&]pair=/.test(location.hash) ? 'device' : 'prepare',
     engine: 'starting',
     engineMessage: '',
     vendorVersion: '',
