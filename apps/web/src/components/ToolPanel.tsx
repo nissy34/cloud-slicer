@@ -7,15 +7,27 @@ const round = (n: number) => Math.round(n * 100) / 100;
 /** Horizontal cut of the selected instance, like desktop's Cut tool (C). */
 function CutPanel({ object, instance, height, onDone }: { object: number; instance: number; height: number; onDone(): void }) {
   const cutObject = useSlicer((s) => s.cutObject);
-  const [z, setZ] = useState(round(height / 2));
+  const z = useSlicer((s) => s.cutZ);
+  const setZ = useSlicer((s) => s.setCutZ);
   const [keep, setKeep] = useState<CutKeep>('both');
   const [flip, setFlip] = useState(true);
   return (
     <div className="cut-panel">
+      <p className="muted hint">Drag the arrow on the plane, or set the height here. Cyan is the upper part, pink the lower.</p>
       <label className="transform-row">
         <span>Cut at</span>
         <input type="range" aria-label="Cut height" min={0.2} max={round(height - 0.2)} step={0.1} value={z} onChange={(e) => setZ(Number(e.target.value))} />
-        <input aria-label="Cut height in mm" value={z} onChange={(e) => setZ(Number(e.target.value) || 0)} />
+        <input
+          key={round(z)}
+          aria-label="Cut height in mm"
+          inputMode="decimal"
+          defaultValue={round(z)}
+          onBlur={(e) => {
+            const v = Number(e.target.value);
+            if (Number.isFinite(v) && v > 0 && v < height) setZ(v);
+          }}
+          onKeyDown={(e) => e.key === 'Enter' && (e.target as HTMLInputElement).blur()}
+        />
         <span className="unit">mm</span>
       </label>
       <label className="transform-row">

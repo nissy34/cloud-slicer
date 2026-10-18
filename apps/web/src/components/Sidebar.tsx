@@ -5,7 +5,6 @@ import { useSetupWizard } from './SetupWizard';
 import { CalibrationBanner } from './CalibrationDialog';
 import { useOption, useSlicer } from '../state/store';
 import { ObjectList } from './ObjectList';
-import { PaintPanel } from './PaintPanel';
 import { OptionField } from './OptionField';
 import { SettingsPanel } from './SettingsPanel';
 import { PresetMenu } from '../account/PresetMenu';
@@ -157,7 +156,6 @@ export function Sidebar() {
   return (
     <aside className="panel">
       <CalibrationBanner />
-      <PaintPanel />
       <PrinterSection />
       <FilamentSection />
       <ObjectList />

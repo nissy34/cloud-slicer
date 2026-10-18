@@ -3,12 +3,13 @@ import { MODEL_EXTENSIONS } from '../lib/presets';
 import { useProjects } from '../state/projects';
 import { useSlicer } from '../state/store';
 import { Toolbar } from './Toolbar';
-import { ToolPanel } from './ToolPanel';
 
 /** File button plus drag-and-drop anywhere over the workspace. */
 export function OpenModel({ children }: { children: React.ReactNode }) {
   const openFiles = useProjects((s) => s.openFiles);
   const hasModel = useSlicer((s) => (s.project?.objects.length ?? 0) > 0);
+  // After Delete all the plate is empty, but the toolbar stays for its Undo.
+  const canUndo = useSlicer((s) => s.history.undo !== null);
   const plates = useSlicer((s) => s.project?.plates.length ?? 1);
   const { deletePlate } = useSlicer.getState();
   const input = useRef<HTMLInputElement>(null);
@@ -51,10 +52,9 @@ export function OpenModel({ children }: { children: React.ReactNode }) {
           </button>
         </div>
       )}
+      {(hasModel || canUndo) && <Toolbar onAdd={() => input.current?.click()} />}
       {hasModel && (
         <>
-          <Toolbar onAdd={() => input.current?.click()} />
-          <ToolPanel />
           <div className="workspace-tools">
             {plates > 1 && (
               <button className="ghost" title="Delete this plate and what's on it" onClick={() => void deletePlate()}>

@@ -124,6 +124,12 @@ if (self.name !== 'em-pthread') {
       return { value: o, transfer: [o.positions.buffer, o.states.buffer] };
     },
     clearPaint: (e, o, kind) => (json(e.clearPaint(o, kind)), JSON.parse(e.modelInfoJson())),
+    // Undo history: {undo, redo} are the labels of the next steps, or null.
+    snapshot: (e, label) => json(e.snapshot(label)),
+    dropSnapshot: (e) => json(e.dropSnapshot()),
+    clearHistory: (e) => json(e.clearHistory()),
+    undo: (e) => ({ history: json(e.undo()), info: JSON.parse(e.modelInfoJson()) }),
+    redo: (e) => ({ history: json(e.redo()), info: JSON.parse(e.modelInfoJson()) }),
     // Replaces the user presets ([{type, name, inherits, config}], Orca diffs
     // over a system preset) and reloads every preset, like desktop start-up.
     // The selection resets; the caller selects again.

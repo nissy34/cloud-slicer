@@ -56,7 +56,7 @@ try {
   await page.getByText('Ready to slice').waitFor({ timeout: 120000 });
   const toolbar = page.getByRole('toolbar', { name: 'Object tools' });
   await toolbar.waitFor();
-  for (const name of ['Add models', 'Add plate', 'Auto orient', 'Arrange all objects', 'Split to objects', 'Split to parts', 'Move', 'Rotate', 'Scale', 'Lay on face', 'Cut', 'Support painting', 'Seam painting', 'Colour painting'])
+  for (const name of ['Undo', 'Redo', 'Add models', 'Add plate', 'Auto orient', 'Arrange all objects', 'Split to objects', 'Split to parts', 'Move', 'Rotate', 'Scale', 'Lay on face', 'Cut', 'Support painting', 'Seam painting', 'Colour painting'])
     await toolbar.getByRole('button', { name }).waitFor();
   console.log('toolbar shows desktop Orca\'s tools');
 
@@ -81,6 +81,27 @@ try {
   await rotate.getByLabel('Rotation Z').press('Enter');
   await page.waitForFunction(() => document.querySelector('[aria-label="Rotation Z"]')?.value === '0', null, { timeout: 30000 });
   console.log('rotation typed in the Rotate panel');
+  // The panel opens under the toolbar, like desktop's gizmo panels.
+  const barBottom = (await toolbar.boundingBox()).y + (await toolbar.boundingBox()).height;
+  if ((await rotate.boundingBox()).y < barBottom) fail('the Rotate panel should open under the toolbar');
+
+  // Undo and redo with the keyboard, like desktop.
+  await page.locator('body').press('Control+z');
+  await page.waitForFunction(() => document.querySelector('[aria-label="Rotation Z"]')?.value === '90', null, { timeout: 30000 });
+  await page.locator('body').press('Control+y');
+  await page.waitForFunction(() => document.querySelector('[aria-label="Rotation Z"]')?.value === '0', null, { timeout: 30000 });
+  console.log('Ctrl+Z / Ctrl+Y undo and redo the rotation');
+
+  // Cut shows its plane; the height follows the panel.
+  await toolbar.getByRole('button', { name: 'Cut' }).click();
+  const cut = page.getByRole('region', { name: 'Cut' });
+  await cut.waitFor();
+  await cut.getByLabel('Cut height in mm').fill('12');
+  await cut.getByLabel('Cut height in mm').press('Enter');
+  await page.waitForFunction(() => document.querySelector('[aria-label="Cut height"]')?.value === '12', null, { timeout: 10000 });
+  await page.waitForTimeout(300);
+  if (shots) await page.screenshot({ path: join(shots, 'toolbar-desktop-cut.png') });
+  console.log('cut plane follows the height');
 
   // Lay on face: click the highlighted faces over the boat until it turns.
   await toolbar.getByRole('button', { name: 'Lay on face' }).click();
@@ -128,6 +149,9 @@ try {
   await phone.getByRole('region', { name: 'Rotate' }).waitFor();
   if (shots) await phone.screenshot({ path: join(shots, 'toolbar-phone-rotate.png') });
   await bar.evaluate((el) => el.scrollTo({ left: el.scrollWidth }));
+  await phone.waitForTimeout(200);
+  const undoBox = await bar.getByRole('button', { name: 'Undo' }).boundingBox();
+  if (!undoBox || undoBox.x < 0 || undoBox.x + undoBox.width > 390) fail(`Undo should stay on screen while the toolbar scrolls: ${JSON.stringify(undoBox)}`);
   await bar.getByRole('button', { name: 'Lay on face' }).tap();
   await phone.waitForTimeout(500);
   if (shots) await phone.screenshot({ path: join(shots, 'toolbar-phone-flatten.png') });

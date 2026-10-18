@@ -219,6 +219,78 @@ function Gizmo({
   );
 }
 
+const CUT_UPPER = '#22d3ee';
+const CUT_LOWER = '#e879f9';
+
+/**
+ * The Cut tool's plane, like desktop's: a see-through plane at the cut height
+ * with an arrow to drag it up and down, the part above it tinted cyan and the
+ * part below pink.
+ */
+function CutPlane({
+  part,
+  controlsRef,
+  onRelease,
+}: {
+  part: Part;
+  controlsRef: React.MutableRefObject<TransformControlsImpl | null>;
+  onRelease(): void;
+}) {
+  const z = useSlicer((s) => s.cutZ);
+  const setCutZ = useSlicer((s) => s.setCutZ);
+  const shift = useShift();
+  const snap = useSlicer((s) => s.snap) || shift;
+  const coarse = useMemo(() => typeof matchMedia !== 'undefined' && matchMedia('(pointer: coarse)').matches, []);
+  const [handle, setHandle] = useState<THREE.Group | null>(null);
+  const box = part.geometry.boundingBox!;
+  const size = box.getSize(new THREE.Vector3());
+  const centre = box.getCenter(new THREE.Vector3());
+  const span = Math.max(size.x, size.y) * 1.3 + 10;
+  // Three keeps what is on the positive side of a clipping plane.
+  const above = useMemo(() => new THREE.Plane(new THREE.Vector3(0, 0, 1), 0), []);
+  const below = useMemo(() => new THREE.Plane(new THREE.Vector3(0, 0, -1), 0), []);
+  above.constant = -z;
+  below.constant = z;
+
+  useLayoutEffect(() => {
+    handle?.position.set(centre.x, centre.y, z);
+  }, [handle, centre.x, centre.y, z]);
+
+  const tint = (colour: string, plane: THREE.Plane) => (
+    <mesh geometry={part.geometry} raycast={() => null} renderOrder={1}>
+      <meshBasicMaterial color={colour} transparent opacity={0.45} depthWrite={false} clippingPlanes={[plane]} polygonOffset polygonOffsetFactor={-1} polygonOffsetUnits={-1} />
+    </mesh>
+  );
+  return (
+    <>
+      {tint(CUT_UPPER, above)}
+      {tint(CUT_LOWER, below)}
+      <mesh position={[centre.x, centre.y, z]} raycast={() => null} renderOrder={2}>
+        <planeGeometry args={[span, span]} />
+        <meshBasicMaterial color="#ffffff" transparent opacity={0.22} side={THREE.DoubleSide} depthWrite={false} />
+      </mesh>
+      <group ref={setHandle} />
+      {handle && (
+        <TransformControls
+          ref={controlsRef}
+          object={handle}
+          mode="translate"
+          showX={false}
+          showY={false}
+          size={coarse ? 1.5 : 1.15}
+          translationSnap={snap ? 1 : null}
+          onObjectChange={() => {
+            const v = Math.min(Math.max(handle.position.z, 0.2), box.max.z - 0.2);
+            handle.position.set(centre.x, centre.y, v);
+            setCutZ(Math.round(v * 100) / 100);
+          }}
+          onMouseUp={onRelease}
+        />
+      )}
+    </>
+  );
+}
+
 /** Whether Shift is held, for the gizmos' snapping like desktop. */
 function useShift() {
   const [shift, setShift] = useState(false);
@@ -470,6 +542,14 @@ function Objects({ w, d }: { w: number; d: number }) {
       {!paint && tool === 'flatten' && place && (
         <FlattenPlanes key={place.object} part={parts.find((p) => p.object === place.object)!} place={place} />
       )}
+      {!paint && tool === 'cut' && place && (
+        <CutPlane
+          key={place.object}
+          part={parts.find((p) => p.object === place.object)!}
+          controlsRef={gizmo}
+          onRelease={() => (gizmoReleased.current = performance.now())}
+        />
+      )}
       {paint && overlay && paint.kind !== 'color' && <Overlay overlay={overlay} kind={paint.kind} />}
       {paint && brushTool && <BrushRing at={brush} radius={paint.radius} />}
     </group>
@@ -518,6 +598,9 @@ export function Viewport() {
         className="viewport"
         camera={{ position: [w / 2, -d * 0.75, d * 0.8], fov: 40, near: 1, far: 5000 }}
         gl={{ antialias: true }}
+        onCreated={({ gl }) => {
+          gl.localClippingEnabled = true; // the Cut tool's tinted halves
+        }}
         data-testid="viewport"
       >
         <color attach="background" args={[scene.background]} />

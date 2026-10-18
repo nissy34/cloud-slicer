@@ -665,6 +665,13 @@ select:focus-visible {
   flex: none;
   gap: 1px;
 }
+/* Undo and redo stay in reach while the rest of the row scrolls on a phone. */
+.toolbar-group:first-child {
+  position: sticky;
+  left: 0;
+  z-index: 1;
+  background: var(--surface);
+}
 .toolbar-group + .toolbar-group {
   margin-left: 4px;
   padding-left: 4px;
@@ -700,19 +707,21 @@ select:focus-visible {
   opacity: 0.32;
   cursor: default;
 }
-.tool-panel {
+.tool-pop {
   position: absolute;
-  left: 12px;
-  bottom: 12px;
-  z-index: 2;
-  display: grid;
-  gap: 8px;
-  width: min(300px, calc(100% - 24px));
+  z-index: 3;
+  width: min(300px, calc(100% - 16px));
+  max-height: calc(100% - 80px);
+  overflow-y: auto;
   padding: 10px 12px;
-  border: 1px solid var(--accent);
+  border: 1px solid var(--border);
   border-radius: var(--radius);
   background: var(--surface);
-  box-shadow: 0 2px 10px rgb(0 0 0 / 25%);
+  box-shadow: 0 4px 16px rgb(0 0 0 / 30%);
+}
+.tool-panel {
+  display: grid;
+  gap: 8px;
 }
 .tool-panel-head {
   display: flex;
@@ -884,11 +893,6 @@ select:focus-visible {
 .paint-panel {
   display: grid;
   gap: 8px;
-  padding: 10px;
-  margin-bottom: 12px;
-  border: 1px solid var(--accent);
-  border-radius: var(--radius);
-  background: var(--surface-2);
 }
 .paint-head {
   display: flex;
@@ -1121,13 +1125,27 @@ select:focus-visible {
   .workspace-tools {
     top: 64px;
   }
-  .tool-panel {
-    left: 8px;
+  /* Phone: the tool's options at the bottom of the 3D view, under the thumb. */
+  .tool-pop {
+    left: 8px !important;
     right: 8px;
+    top: auto !important;
     bottom: 52px;
     width: auto;
-    gap: 4px;
+    max-height: 45%;
     padding: 8px 10px;
+  }
+  .tool-panel,
+  .paint-panel {
+    gap: 4px;
+  }
+  .tool-pop .paint-panel .hint {
+    display: none;
+  }
+  .tool-pop .segmented button,
+  .tool-pop .paint-states button {
+    padding: 3px 6px;
+    font-size: 12px;
   }
   .workspace-tools button {
     padding: 5px 10px;

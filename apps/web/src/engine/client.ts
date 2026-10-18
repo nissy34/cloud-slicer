@@ -19,6 +19,12 @@ import type { Thumbnail } from '../lib/thumbnail';
 export type CutKeep = 'both' | 'upper' | 'lower';
 
 /** Instance changes: offset is on `plate` (mm from its corner), rotation in degrees. */
+/** The labels of the edits undo and redo would take back or redo next, or null. */
+export interface History {
+  undo: string | null;
+  redo: string | null;
+}
+
 export interface InstanceChanges {
   offset?: [number, number];
   plate?: number;
@@ -132,6 +138,12 @@ export class EngineClient {
     this.call<{ info: ProjectInfo; preview?: PreviewMesh; overlay?: PaintOverlay }>('paint', [plate, options]);
   paintOverlay = (plate: number, kind: PaintKind) => this.call<PaintOverlay>('paintOverlay', [plate, kind]);
   clearPaint = (o: number, kind: PaintKind | 'all') => this.call<ProjectInfo>('clearPaint', [o, kind]);
+  /** Remembers the project before an edit called `label`, for undo. */
+  snapshot = (label: string) => this.call<History>('snapshot', [label]);
+  dropSnapshot = () => this.call<History>('dropSnapshot');
+  clearHistory = () => this.call<History>('clearHistory');
+  undo = () => this.call<{ history: History; info: ProjectInfo }>('undo');
+  redo = () => this.call<{ history: History; info: ProjectInfo }>('redo');
   mirrorInstance = (o: number, i: number, axis: 0 | 1 | 2) => this.call<ProjectInfo>('mirrorInstance', [o, i, axis]);
   setObjectSettings = (o: number, volume: number, values: Record<string, string | null>) =>
     this.call<ProjectInfo>('setObjectSettings', [o, volume, values]);

@@ -278,6 +278,55 @@ test('adding models puts them next to the ones on the plate', () => {
   assert.ok(m.objects.length >= 1 && m.objects.length < 3, 'opening a 3MF as a project replaces the project');
 });
 
+test('undo and redo step through edits, paint and plates, like desktop', () => {
+  select({ printer: DEFAULT_PRINTER });
+  let m = load('3DBenchy.stl');
+  call(engine, 'clearHistory');
+  const [x, y] = m.objects[0].instances[0].offset;
+  assert.deepEqual(call(engine, 'historyStatus'), { ok: true, undo: null, redo: null });
+
+  call(engine, 'snapshot', 'Rotate');
+  call(engine, 'setInstanceTransform', 0, 0, JSON.stringify({ rotation: [0, 0, 90] }));
+  call(engine, 'snapshot', 'Paint');
+  call(engine, 'paint', 0, JSON.stringify({ rays: [[x, y, 200, 0, 0, -1]], kind: 'color', state: 2, tool: 'sphere', radius: 10 }));
+  call(engine, 'snapshot', 'Add plate');
+  call(engine, 'addPlate');
+  m = info();
+  assert.equal(m.plates.length, 2);
+  assert.ok(m.objects[0].volumes[0].painted);
+
+  assert.deepEqual(call(engine, 'undo'), { ok: true, undo: 'Paint', redo: 'Add plate' });
+  assert.equal(info().plates.length, 1, 'undo takes the plate away');
+  call(engine, 'undo');
+  assert.equal(info().objects[0].volumes[0].painted, false, 'undo takes the paint away');
+  // Painting again after an undo works on the restored part.
+  call(engine, 'paint', 0, JSON.stringify({ rays: [[x, y, 200, 0, 0, -1]], kind: 'color', state: 2, tool: 'sphere', radius: 10 }));
+  assert.ok(info().objects[0].volumes[0].painted);
+  call(engine, 'clearPaint', 0, 'all');
+  assert.deepEqual(call(engine, 'undo'), { ok: true, undo: null, redo: 'Rotate' });
+  assert.deepEqual(info().objects[0].instances[0].rotation.map((r) => Math.round(r) + 0), [0, 0, 0], 'undo takes the rotation back');
+  assert.throws(() => call(engine, 'undo'), /nothing to undo/);
+
+  call(engine, 'redo');
+  call(engine, 'redo');
+  m = info();
+  assert.deepEqual(m.objects[0].instances[0].rotation.map((r) => Math.round(r) + 0), [0, 0, 90], 'redo turns it again');
+  assert.ok(m.objects[0].volumes[0].painted, 'redo brings the paint back');
+  call(engine, 'redo');
+  assert.equal(info().plates.length, 2);
+  assert.throws(() => call(engine, 'redo'), /nothing to redo/);
+
+  // A new edit drops the redo steps; a failed one drops its snapshot.
+  call(engine, 'undo');
+  call(engine, 'snapshot', 'Delete');
+  call(engine, 'deleteObject', 0);
+  assert.equal(call(engine, 'historyStatus').redo, null);
+  call(engine, 'snapshot', 'Split to parts');
+  assert.deepEqual(call(engine, 'dropSnapshot'), { ok: true, undo: 'Delete', redo: null });
+  call(engine, 'undo');
+  assert.equal(info().objects.length, 1, 'undo brings the deleted object back');
+});
+
 test('plates: add, arrange, delete', () => {
   select({ printer: DEFAULT_PRINTER });
   load('3DBenchy.stl');
