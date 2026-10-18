@@ -7,7 +7,7 @@ import type { Env, R2Bucket } from './types';
 
 export const LIMITS = {
   projectBytes: 50 * 1024 * 1024,
-  userBytes: 500 * 1024 * 1024,
+  userBytes: 200 * 1024 * 1024,
   userProjects: 200,
   siteBytes: 8 * 1024 * 1024 * 1024,
   thumbnailBytes: 512 * 1024,

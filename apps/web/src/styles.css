@@ -2512,8 +2512,14 @@ select:focus-visible {
   margin: 0;
 }
 @media (max-width: 760px) {
+  /* Hidden but still read out, so the button stays "Project …" to screen readers. */
   .project-label {
-    display: none;
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
   }
   .project-button {
     max-width: 38vw;
