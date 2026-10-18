@@ -2,7 +2,8 @@ import { useEffect, useRef, useState } from 'react';
 import { useAccount } from '../state/account';
 import type { PresetType, ProviderId } from './api';
 
-const PROVIDER_LABEL: Record<ProviderId, string> = { google: 'Google', github: 'GitHub' };
+const PROVIDER_LABEL: Record<ProviderId, string> = { google: 'Google' };
+const ALL_PROVIDERS = Object.keys(PROVIDER_LABEL) as ProviderId[];
 const TYPE_LABEL: Record<PresetType, [string, string]> = {
   printer: ['printer', 'printers'],
   filament: ['filament', 'filaments'],
@@ -106,13 +107,13 @@ function SignedOut() {
         <p className="account-muted">Accounts aren't set up on this site yet. Your presets are kept in this browser meanwhile.</p>
       </>
     );
-  const none = !providers.google && !providers.github;
+  const none = !ALL_PROVIDERS.some((p) => providers[p]);
   return (
     <>
       <h3>Sign in to Cloud Slicer</h3>
       <p className="account-muted">Keep your printers, filaments and process presets, and use them on any device.</p>
       <div className="account-providers">
-        {(['google', 'github'] as ProviderId[]).map((p) => (
+        {ALL_PROVIDERS.map((p) => (
           <button
             key={p}
             className="secondary account-provider"
@@ -140,7 +141,7 @@ function SignedIn({ onDone }: { onDone: () => void }) {
   const { counts, total } = usePresetCounts();
   const [confirming, setConfirming] = useState(false);
   const linked = new Set(user.identities.map((i) => i.provider));
-  const linkable = (['google', 'github'] as ProviderId[]).filter((p) => providers[p] && !linked.has(p));
+  const linkable = ALL_PROVIDERS.filter((p) => providers[p] && !linked.has(p));
 
   return (
     <>

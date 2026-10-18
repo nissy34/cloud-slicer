@@ -43,25 +43,24 @@ and `public/_headers` (Cloudflare Pages) both send it.
 
 ## Accounts
 
-Sign-in (Google or GitHub) and per-user data run as Cloudflare Pages Functions
+Sign-in with Google and per-user data run as Cloudflare Pages Functions
 (`apps/web/functions/`) on a D1 database (`apps/web/migrations/`): the user's
 printer, filament and process presets (Orca user presets, a diff over a system
 preset), setup choices, and printers with their connection details (API keys
 encrypted at rest). Signed out, the same data is kept in the browser and merged
 into the account at sign-in. Every deploy signs in through one host
 (`AUTH_ORIGIN` in `apps/web/wrangler.toml`), so branch previews work with one
-OAuth app per provider.
+Google OAuth client.
 
 ```bash
 cd apps/web
 npm run build && npm run pages     # site + Functions + local D1 on http://localhost:8788
-node test/accounts.mjs             # end to end against a mock Google/GitHub
+node test/accounts.mjs             # end to end against a mock Google
 ```
 
-Setup, once: give the Cloudflare token "D1: Edit", create the OAuth apps with
-callback `https://cloud-slicer.pages.dev/api/auth/{google,github}/callback`, and
-add their ids and secrets as repository secrets `GOOGLE_CLIENT_ID`,
-`GOOGLE_CLIENT_SECRET`, `OAUTH_GITHUB_CLIENT_ID`, `OAUTH_GITHUB_CLIENT_SECRET`.
+Setup, once: give the Cloudflare token "D1: Edit", create a Google OAuth client
+(Web application) with redirect URI `https://cloud-slicer.pages.dev/api/auth/google/callback`,
+and add its id and secret as repository secrets `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET`.
 CI creates the database, applies migrations and copies the secrets to Pages.
 
 ## Tests

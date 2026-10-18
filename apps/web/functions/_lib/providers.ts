@@ -1,9 +1,10 @@
-// Google and GitHub OAuth (authorization code flow with PKCE).
+// Google sign-in (OAuth authorization code flow with PKCE). ProviderId leaves
+// room for more providers; GitHub was dropped to keep setup simple.
 import { HttpError } from './http';
 import type { Env } from './types';
 
-export type ProviderId = 'google' | 'github';
-export const PROVIDERS: ProviderId[] = ['google', 'github'];
+export type ProviderId = 'google';
+export const PROVIDERS: ProviderId[] = ['google'];
 
 export interface Profile {
   subject: string;
@@ -21,22 +22,16 @@ interface Endpoints {
 function endpoints(env: Env, id: ProviderId): Endpoints {
   const mock = env.OAUTH_TEST_BASE;
   if (mock) return { authorize: `${mock}/${id}/authorize`, token: `${mock}/${id}/token`, user: `${mock}/${id}/user` };
-  return id === 'google'
-    ? {
-        authorize: 'https://accounts.google.com/o/oauth2/v2/auth',
-        token: 'https://oauth2.googleapis.com/token',
-        user: 'https://openidconnect.googleapis.com/v1/userinfo',
-      }
-    : {
-        authorize: 'https://github.com/login/oauth/authorize',
-        token: 'https://github.com/login/oauth/access_token',
-        user: 'https://api.github.com/user',
-      };
+  return {
+    authorize: 'https://accounts.google.com/o/oauth2/v2/auth',
+    token: 'https://oauth2.googleapis.com/token',
+    user: 'https://openidconnect.googleapis.com/v1/userinfo',
+  };
 }
 
-function credentials(env: Env, id: ProviderId) {
-  const clientId = id === 'google' ? env.GOOGLE_CLIENT_ID : env.GITHUB_CLIENT_ID;
-  const secret = id === 'google' ? env.GOOGLE_CLIENT_SECRET : env.GITHUB_CLIENT_SECRET;
+function credentials(env: Env, _id: ProviderId) {
+  const clientId = env.GOOGLE_CLIENT_ID;
+  const secret = env.GOOGLE_CLIENT_SECRET;
   return clientId && secret ? { clientId, secret } : null;
 }
 
@@ -52,14 +47,9 @@ export function authorizeUrl(env: Env, id: ProviderId, p: { redirectUri: string;
   q.set('state', p.state);
   q.set('code_challenge', p.challenge);
   q.set('code_challenge_method', 'S256');
-  if (id === 'google') {
-    q.set('response_type', 'code');
-    q.set('scope', 'openid email profile');
-    q.set('prompt', 'select_account');
-  } else {
-    q.set('scope', 'read:user');
-    q.set('allow_signup', 'true');
-  }
+  q.set('response_type', 'code');
+  q.set('scope', 'openid email profile');
+  q.set('prompt', 'select_account');
   return url.toString();
 }
 
@@ -94,15 +84,11 @@ export async function fetchProfile(
   const u = (await userRes.json()) as Record<string, unknown>;
   const str = (v: unknown) => (typeof v === 'string' && v ? v : null);
 
-  if (id === 'google') {
-    if (!str(u.sub)) throw new HttpError(502, 'Google returned no account id');
-    return {
-      subject: String(u.sub),
-      name: str(u.name) ?? str(u.email) ?? 'Google user',
-      email: u.email_verified === false ? null : str(u.email),
-      login: null,
-    };
-  }
-  if (typeof u.id !== 'number' && !str(u.id)) throw new HttpError(502, 'GitHub returned no account id');
-  return { subject: String(u.id), name: str(u.name) ?? str(u.login) ?? 'GitHub user', email: str(u.email), login: str(u.login) };
+  if (!str(u.sub)) throw new HttpError(502, 'Google returned no account id');
+  return {
+    subject: String(u.sub),
+    name: str(u.name) ?? str(u.email) ?? 'Google user',
+    email: u.email_verified === false ? null : str(u.email),
+    login: null,
+  };
 }

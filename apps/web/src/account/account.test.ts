@@ -34,7 +34,7 @@ describe('return paths', () => {
 
 describe('account helpers', () => {
   it('builds sign-in URLs', () => {
-    expect(signInUrl('github', { returnTo: '/a?b=1', popup: true })).toBe('/api/auth/github/start?return=%2Fa%3Fb%3D1&popup=1');
+    expect(signInUrl('google', { returnTo: '/a?b=1', popup: true })).toBe('/api/auth/google/start?return=%2Fa%3Fb%3D1&popup=1');
     expect(signInUrl('google', { returnTo: '/', link: true })).toBe('/api/auth/google/start?return=%2F&link=1');
   });
   it('checks preset names like the server', () => {

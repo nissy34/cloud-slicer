@@ -1,6 +1,6 @@
 // Client for the account API in functions/api (Cloudflare Pages Functions).
 
-export type ProviderId = 'google' | 'github';
+export type ProviderId = 'google';
 export type PresetType = 'printer' | 'filament' | 'process';
 
 export interface AccountUser {

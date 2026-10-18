@@ -1,4 +1,4 @@
-// Sign-in with Google or GitHub, and the browser sessions it creates.
+// Sign-in with Google, and the browser sessions it creates.
 //
 // Every deploy (production, cloud-slicer.pages.dev and each branch preview)
 // shares one D1 database, but an OAuth app only knows a fixed callback URL. So
@@ -88,7 +88,7 @@ function providerOf(value: string): ProviderId {
 
 /** GET /api/me: who is signed in, and which providers this site offers. */
 export async function me(env: Env, request: Request): Promise<Response> {
-  const providers = { google: isConfigured(env, 'google'), github: isConfigured(env, 'github') };
+  const providers = { google: isConfigured(env, 'google') };
   const enabled = Boolean(env.DB);
   const user = await currentUser(env, request);
   if (!user) return json({ enabled, providers, user: null });
@@ -233,7 +233,7 @@ async function upsertUser(
     .first<{ user_id: string }>();
   if (existing) {
     if (linkUserId && existing.user_id !== linkUserId)
-      throw new HttpError(409, `That ${provider === 'google' ? 'Google' : 'GitHub'} account already belongs to another Cloud Slicer account`);
+      throw new HttpError(409, 'That Google account already belongs to another Cloud Slicer account');
     await d.batch([
       d
         .prepare('UPDATE identities SET login = ?, email = ? WHERE provider = ? AND subject = ?')

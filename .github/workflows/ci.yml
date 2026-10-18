@@ -8,8 +8,7 @@ name: CI
 #   vars.CF_PAGES_PROJECT          optional project name (default cloud-slicer)
 # Accounts (sign-in) also need the token to have "D1: Edit", and these
 # secrets, which the deploy copies into the Pages project:
-#   secrets.GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, OAUTH_GITHUB_CLIENT_ID, OAUTH_GITHUB_CLIENT_SECRET
-#   (GitHub reserves the GITHUB_ prefix for its own secrets)
+#   secrets.GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET
 # CI never talks to a real printer: printer tests run against a mock Moonraker.
 
 on:
@@ -157,8 +156,6 @@ jobs:
           BRANCH: ${{ github.head_ref || github.ref_name }}
           GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
           GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
-          GITHUB_CLIENT_ID: ${{ secrets.OAUTH_GITHUB_CLIENT_ID }}
-          GITHUB_CLIENT_SECRET: ${{ secrets.OAUTH_GITHUB_CLIENT_SECRET }}
         run: |
           # Creates the project on the first run; harmless "already exists" afterwards.
           npx wrangler pages project create "$PROJECT" --production-branch=main || true

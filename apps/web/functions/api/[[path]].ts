@@ -2,7 +2,7 @@
 //
 //   GET    /api/me                          who is signed in + which providers exist
 //   DELETE /api/me                          delete the account and its data
-//   GET    /api/auth/<google|github>/start  begin a sign-in (?return=/path&popup=1&link=1)
+//   GET    /api/auth/google/start    begin a sign-in (?return=/path&popup=1&link=1)
 //   GET    /api/auth/<provider>/callback    the provider's redirect (on AUTH_ORIGIN)
 //   GET    /api/auth/finish                 set the session on the starting host
 //   POST   /api/auth/logout

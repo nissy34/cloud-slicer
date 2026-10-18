@@ -1,16 +1,16 @@
 # Cloudflare Pages config for the site and its Functions (functions/).
-# The OAuth client ids and secrets are Pages secrets, not set here:
-#   GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, GITHUB_CLIENT_ID, GITHUB_CLIENT_SECRET
-# CI copies them from the repository secrets GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET,
-# OAUTH_GITHUB_CLIENT_ID and OAUTH_GITHUB_CLIENT_SECRET (scripts/setup-accounts.mjs),
-# and creates ACCOUNT_ENC_KEY (encrypts saved printer API keys) once.
+# The Google OAuth client id and secret are Pages secrets, not set here.
+# CI copies them from the repository secrets GOOGLE_CLIENT_ID and
+# GOOGLE_CLIENT_SECRET (scripts/setup-accounts.mjs), and creates
+# ACCOUNT_ENC_KEY (encrypts saved printer API keys) once.
 name = "cloud-slicer"
 pages_build_output_dir = "dist"
 compatibility_date = "2025-09-01"
 
 [vars]
-# Where Google and GitHub send the user back after sign-in. Every deploy
-# (production, previews) signs in through this one host.
+# Where Google sends the user back after sign-in. Every deploy (production,
+# branch previews) signs in through this one host, so the Google client
+# needs only this host's callback URL.
 AUTH_ORIGIN = "https://cloud-slicer.pages.dev"
 # Hosts a sign-in may start from (and return to).
 ALLOWED_HOSTS = "slicer.awesomestuff.qzz.io,cloud-slicer.pages.dev,*.cloud-slicer.pages.dev,localhost,127.0.0.1"

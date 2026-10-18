@@ -155,7 +155,7 @@ let started = false;
 export const useAccount = create<AccountState>((set, get) => ({
   status: 'loading',
   user: null,
-  providers: { google: false, github: false },
+  providers: { google: false },
   ...localState(),
   error: '',
 

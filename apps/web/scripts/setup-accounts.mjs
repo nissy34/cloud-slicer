@@ -4,9 +4,8 @@
 //  1. Finds (or creates) the D1 database and writes its id into wrangler.toml.
 //     If the Cloudflare token can't reach D1, it drops the D1 block instead so
 //     the deploy still works, just without accounts.
-//  2. Copies the OAuth credentials from the environment (GOOGLE_CLIENT_ID,
-//     GOOGLE_CLIENT_SECRET, GITHUB_CLIENT_ID, GITHUB_CLIENT_SECRET; ci.yml maps
-//     them from repository secrets) into Pages secrets, for production and previews.
+//  2. Copies the Google OAuth credentials (GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET,
+//     repository secrets) into Pages secrets, for production and previews.
 //  3. Creates ACCOUNT_ENC_KEY (encrypts printer API keys) once, if missing.
 //
 // Prints `d1=ok|missing` for $GITHUB_OUTPUT. Never fails the build.
@@ -22,7 +21,7 @@ const tomlPath = join(web, 'wrangler.toml');
 const { CLOUDFLARE_API_TOKEN: token, CLOUDFLARE_ACCOUNT_ID: account } = process.env;
 const project = process.env.PROJECT || 'cloud-slicer';
 const DB_NAME = 'cloud-slicer';
-const SECRET_NAMES = ['GOOGLE_CLIENT_ID', 'GOOGLE_CLIENT_SECRET', 'GITHUB_CLIENT_ID', 'GITHUB_CLIENT_SECRET'];
+const SECRET_NAMES = ['GOOGLE_CLIENT_ID', 'GOOGLE_CLIENT_SECRET'];
 
 const warn = (msg) => console.log(`::warning::${msg}`);
 const output = (line) => {

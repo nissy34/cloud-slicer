@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // Accounts end to end against the real Pages Functions runtime (wrangler pages
-// dev, local D1) and a mock Google/GitHub OAuth server. No browser and no real
+// dev, local D1) and a mock Google OAuth server. No browser and no real
 // provider: the test follows each redirect itself with its own cookie jar.
 //
 //   node test/accounts.mjs [site dir]     # default dist/ (after npm run build)
@@ -30,8 +30,10 @@ const MOCK = `http://127.0.0.1:${MOCK_PORT}`;
 
 // ---- mock OAuth provider ----------------------------------------------------
 const users = {
-  github: { alice: { id: 1001, login: 'alice', name: 'Alice' }, bob: { id: 1002, login: 'bob', name: null } },
-  google: { alice: { sub: 'g-alice', name: 'Alice G', email: 'alice@example.com', email_verified: true } },
+  google: {
+    alice: { sub: 'g-alice', name: 'Alice', email: 'alice@example.com', email_verified: true },
+    bob: { sub: 'g-bob', email: 'bob@example.com', email_verified: true },
+  },
 };
 let nextUser = 'alice';
 const codes = new Map(); // code -> { provider, user, challenge }
@@ -95,8 +97,6 @@ assert.equal(migrate.status, 0, migrate.stderr + migrate.stdout);
 const bindings = {
   AUTH_ORIGIN: AUTH,
   OAUTH_TEST_BASE: MOCK,
-  GITHUB_CLIENT_ID: 'github-id',
-  GITHUB_CLIENT_SECRET: 'github-secret',
   GOOGLE_CLIENT_ID: 'google-id',
   GOOGLE_CLIENT_SECRET: 'google-secret',
   ACCOUNT_ENC_KEY: Buffer.alloc(32, 7).toString('base64'),
@@ -178,27 +178,27 @@ const test = (name, fn) => tests.push([name, fn]);
 
 test('signed out: /api/me says accounts are on and lists providers', async () => {
   const me = await (await fetch(`${HOST}/api/me`)).json();
-  assert.deepEqual(me, { enabled: true, providers: { google: true, github: true }, user: null });
+  assert.deepEqual(me, { enabled: true, providers: { google: true }, user: null });
 });
 
 const alice = new Browser();
-test('GitHub sign-in hands the session back to the starting host', async () => {
-  const { res, visited, url } = await signIn(alice, 'github', 'alice');
+test('Google sign-in hands the session back to the starting host', async () => {
+  const { res, visited, url } = await signIn(alice, 'google', 'alice');
   assert.equal(url, `${HOST}/?tab=prepare`);
   assert.equal(res.status, 200);
-  assert.ok(visited.some((v) => v.startsWith(`${AUTH}/api/auth/github/callback`)), 'callback went to AUTH_ORIGIN');
+  assert.ok(visited.some((v) => v.startsWith(`${AUTH}/api/auth/google/callback`)), 'callback went to AUTH_ORIGIN');
   assert.ok(visited.some((v) => v.startsWith(`${HOST}/api/auth/finish?code=`)), 'finish ran on the starting host');
   assert.ok(alice.cookie(`localhost:${PORT}`, '__Host-cs_session'));
   assert.equal(alice.cookie(`127.0.0.1:${PORT}`, '__Host-cs_session'), undefined, 'no session on the auth host');
   const me = await alice.me();
   assert.equal(me.name, 'Alice');
-  assert.deepEqual(me.identities, [{ provider: 'github', login: 'alice', email: null }]);
+  assert.deepEqual(me.identities, [{ provider: 'google', login: null, email: 'alice@example.com' }]);
 });
 
 test('a handoff code works once, and only in the browser that started the sign-in', async () => {
   const thief = new Browser();
   nextUser = 'alice';
-  const start = await alice.fetch(`${HOST}/api/auth/github/start?return=/`);
+  const start = await alice.fetch(`${HOST}/api/auth/google/start?return=/`);
   const authorize = await fetch(start.headers.get('location'), { redirect: 'manual' });
   const cb = await fetch(authorize.headers.get('location'), { redirect: 'manual' });
   const finish = cb.headers.get('location');
@@ -213,7 +213,7 @@ test('a handoff code works once, and only in the browser that started the sign-i
 test('state from the callback cannot be reused', async () => {
   nextUser = 'alice';
   const b = new Browser();
-  const start = await b.fetch(`${HOST}/api/auth/github/start?return=/`);
+  const start = await b.fetch(`${HOST}/api/auth/google/start?return=/`);
   const authorize = await fetch(start.headers.get('location'), { redirect: 'manual' });
   const cbUrl = authorize.headers.get('location');
   assert.equal((await fetch(cbUrl, { redirect: 'manual' })).status, 302);
@@ -223,7 +223,7 @@ test('state from the callback cannot be reused', async () => {
 test('return paths never leave the site', async () => {
   const b = new Browser();
   nextUser = 'bob';
-  const { url } = await b.navigate(`${HOST}/api/auth/github/start?return=${encodeURIComponent('//evil.example/x')}`);
+  const { url } = await b.navigate(`${HOST}/api/auth/google/start?return=${encodeURIComponent('//evil.example/x')}`);
   assert.equal(url, `${HOST}/`);
 });
 
@@ -238,12 +238,12 @@ test('cancelling at the provider returns with an error in the hash', async () =>
 
 test('popup sign-in ends on a page that tells the app window', async () => {
   const b = new Browser();
-  const { res, url } = await signIn(b, 'github', 'bob', '&popup=1');
+  const { res, url } = await signIn(b, 'google', 'bob', '&popup=1');
   assert.match(url, /\/api\/auth\/finish\?code=/);
   const html = await res.text();
   assert.match(html, /BroadcastChannel\('cloud-slicer-auth'\)/);
   assert.match(html, /"type":"signed-in"/);
-  assert.equal((await b.me()).name, 'bob', 'GitHub login stands in for a missing name');
+  assert.equal((await b.me()).name, 'bob@example.com', 'email stands in for a missing name');
 });
 
 test('presets: save, conflict, update, list, delete', async () => {
@@ -279,7 +279,7 @@ test('presets: save, conflict, update, list, delete', async () => {
   assert.equal((await alice.json('/api/presets/filament/x', 'PUT', { config: { k: 1 } })).status, 400, 'values are strings');
 
   const bob = new Browser();
-  await signIn(bob, 'github', 'bob');
+  await signIn(bob, 'google', 'bob');
   assert.equal((await (await bob.json('/api/presets')).json()).presets.length, 0, "users don't see each other's presets");
   assert.equal((await new Browser().json('/api/presets')).status, 401);
 
@@ -326,34 +326,24 @@ test('devices: connection details sync, API key encrypted and only on request', 
   assert.equal((await alice.json('/api/devices/dev-1', 'PUT', { name: 'x', url: 'javascript:alert(1)' })).status, 400);
 
   const bob = new Browser();
-  await signIn(bob, 'github', 'bob');
+  await signIn(bob, 'google', 'bob');
   assert.equal((await bob.json('/api/devices/dev-1/secret')).status, 404, "another user can't read it");
   await alice.json('/api/devices/dev-1', 'DELETE');
   assert.equal((await (await alice.json('/api/devices')).json()).devices.length, 0);
 });
 
-test('linking Google to a signed-in GitHub user', async () => {
-  const { url } = await signIn(alice, 'google', 'alice', '&link=1');
-  assert.equal(url, `${HOST}/?tab=prepare`);
+test('signing in again, on another device, finds the same account', async () => {
   const me = await alice.me();
-  assert.deepEqual(me.identities.map((i) => i.provider), ['github', 'google']);
-  assert.equal(me.email, 'alice@example.com', 'email filled in from Google');
-
-  const viaGoogle = new Browser();
-  await signIn(viaGoogle, 'google', 'alice');
-  assert.equal((await viaGoogle.me()).id, me.id, 'signing in with Google finds the same account');
-});
-
-test("an identity can't be linked to a second account", async () => {
-  const bob = new Browser();
-  await signIn(bob, 'github', 'bob');
-  const { url } = await signIn(bob, 'google', 'alice', '&link=1');
-  assert.match(decodeURIComponent(url), /#auth-error=That Google account already belongs to another/);
+  assert.equal(me.email, 'alice@example.com');
+  const otherDevice = new Browser();
+  await signIn(otherDevice, 'google', 'alice');
+  assert.equal((await otherDevice.me()).id, me.id);
+  assert.deepEqual((await (await otherDevice.json('/api/presets')).json()).presets.map((p) => p.name), ['My U1']);
 });
 
 test('sign out, then delete the account and its presets', async () => {
   const other = new Browser();
-  await signIn(other, 'github', 'alice');
+  await signIn(other, 'google', 'alice');
   assert.equal((await other.json('/api/auth/logout', 'POST')).status, 200);
   assert.equal(await other.me(), null);
 
@@ -362,9 +352,9 @@ test('sign out, then delete the account and its presets', async () => {
   assert.equal((await alice.json('/api/me', 'DELETE')).status, 200);
   assert.equal(await alice.me(), null);
   const fresh = new Browser();
-  await signIn(fresh, 'github', 'alice');
+  await signIn(fresh, 'google', 'alice');
   const me = await fresh.me();
-  assert.deepEqual(me.identities.map((i) => i.provider), ['github'], 'a new, empty account');
+  assert.deepEqual(me.identities.map((i) => i.provider), ['google'], 'a new, empty account');
   assert.equal((await (await fresh.json('/api/presets')).json()).presets.length, 0);
   assert.equal((await (await fresh.json('/api/settings')).json()).settings.length, 0);
   assert.equal((await (await fresh.json('/api/devices')).json()).devices.length, 0);
@@ -373,7 +363,7 @@ test('sign out, then delete the account and its presets', async () => {
 const bobBrowser = new Browser();
 if (withApp)
   test('browser: Sign in button, popup sign-in, account menu, sign out', async () => {
-    await signIn(bobBrowser, 'github', 'bob');
+    await signIn(bobBrowser, 'google', 'bob');
     const browser = await chromium.launch(
       process.env.PLAYWRIGHT_BROWSERS_PATH === '/opt/pw-browsers' ? { executablePath: '/opt/pw-browsers/chromium' } : {},
     );
@@ -391,12 +381,12 @@ if (withApp)
       nextUser = 'bob';
       await bobBrowser.json('/api/settings/setup', 'PUT', { value: { printers: ['Snapmaker U1 (0.4 nozzle)'] } });
       await page.getByRole('button', { name: 'Sign in' }).click();
-      const [popup] = await Promise.all([page.waitForEvent('popup'), page.getByRole('button', { name: 'Continue with GitHub' }).click()]);
+      const [popup] = await Promise.all([page.waitForEvent('popup'), page.getByRole('button', { name: 'Continue with Google' }).click()]);
       if (!popup.isClosed()) await popup.waitForEvent('close', { timeout: 30000 });
-      const menu = page.getByRole('button', { name: /bob/ });
+      const menu = page.getByRole('button', { name: /bob@example\.com/ });
       await menu.waitFor({ timeout: 30000 });
       await menu.click();
-      await page.getByText('Signed in with GitHub as bob').waitFor();
+      await page.getByText('Signed in with Google as bob@example.com').waitFor();
       await page.getByText('1 process').waitFor();
       const settings = (await (await bobBrowser.json('/api/settings')).json()).settings;
       assert.deepEqual(settings[0].value, { printers: ['Snapmaker U1 (0.4 nozzle)', 'Snapmaker J1'] }, 'browser choices merged into the account');
