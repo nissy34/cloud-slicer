@@ -86,4 +86,6 @@ jobs:
       - name: Check the deployed relay end to end (mock printer, no browser)
         if: steps.deploy.outputs.url != ''
         working-directory: apps/web
-        run: node test/device/relay-live.mjs '${{ steps.deploy.outputs.url }}'
+        run: |
+          npm ci --no-audit --no-fund
+          node test/device/relay-live.mjs '${{ steps.deploy.outputs.url }}'
