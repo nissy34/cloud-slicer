@@ -63,10 +63,13 @@ function FeatureMark({ f, colour, size }: { f: MeasureFeature; colour: string; s
 
 const mid = (a: Vec3, b: Vec3): Vec3 => [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2, (a[2] + b[2]) / 2];
 
-function Label({ at, children }: { at: Vec3; children: React.ReactNode }) {
+/** A figure on the view; `shift` moves it up (-1) or down (1) a line so figures at one spot don't cover each other. */
+function Label({ at, shift = 0, children }: { at: Vec3; shift?: number; children: React.ReactNode }) {
   return (
     <Html position={at} center zIndexRange={[2, 0]} style={{ pointerEvents: 'none' }}>
-      <div className="measure-label">{children}</div>
+      <div className="measure-label" style={shift ? { transform: `translateY(${shift * 1.6}em)` } : undefined}>
+        {children}
+      </div>
     </Html>
   );
 }
@@ -103,13 +106,13 @@ function Result({ m, size }: { m: Measurement; size: number }) {
       {showPerpendicular && p.distance > 1e-6 && (
         <>
           <Line points={[p.from, p.to]} color="#ffffff" lineWidth={1.5} dashed dashSize={size * 2} gapSize={size} renderOrder={6} raycast={() => null} {...ON_TOP} />
-          <Label at={mid(p.from, p.to)}>⟂ {p.distance.toFixed(3)} mm</Label>
+          <Label at={mid(p.from, p.to)} shift={-1}>⟂ {p.distance.toFixed(3)} mm</Label>
         </>
       )}
       {arc && (
         <>
           <Line points={arc.points} color="#ffffff" lineWidth={2} renderOrder={6} raycast={() => null} {...ON_TOP} />
-          <Label at={arc.label}>{m.angle!.degrees.toFixed(2)}°</Label>
+          <Label at={arc.label} shift={1}>{m.angle!.degrees.toFixed(2)}°</Label>
         </>
       )}
     </>

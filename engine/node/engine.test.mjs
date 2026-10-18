@@ -660,8 +660,13 @@ test('colour mixing: Match finds the recipe for a target colour', () => {
 
 test('measure: faces, edges and corners under a ray, and the distance and angle between them', () => {
   select({ printer: DEFAULT_PRINTER });
-  const m = load('gen-cube-20.stl');
-  const [x, y] = m.objects[0].instances[0].offset;  // the cube spans x±10, y±10, z 0..20
+  load('gen-cube-20.stl');
+  // The cube's centre on the plate, from its triangles: it spans x±10, y±10, z 0..20.
+  const pos = engine.previewMesh(0).positions;
+  const span = (k) => { let lo = Infinity, hi = -Infinity; for (let i = k; i < pos.length; i += 3) { lo = Math.min(lo, pos[i]); hi = Math.max(hi, pos[i]); } return [lo, hi]; };
+  const [[x0, x1], [y0, y1], [z0, z1]] = [span(0), span(1), span(2)];
+  assert.ok(Math.abs(x1 - x0 - 20) < 1e-3 && Math.abs(z1 - z0 - 20) < 1e-3 && Math.abs(z0) < 1e-3, 'a 20 mm cube on the plate');
+  const [x, y] = [(x0 + x1) / 2, (y0 + y1) / 2];
   const feature = (ray, onlyPlane = false) => call(engine, 'measureFeature', 0, JSON.stringify({ ray, onlyPlane })).feature;
   const near = (a, b, msg) => a.forEach((v, i) => assert.ok(Math.abs(v - b[i]) < 1e-3, `${msg}: ${JSON.stringify(a)} vs ${JSON.stringify(b)}`));
 
