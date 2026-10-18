@@ -15,6 +15,7 @@ import type {
 } from '../engine/protocol';
 import { calibrationOptions, CALIBRATIONS, type CalibrationMode, type CalibrationValues } from '../lib/calibration';
 import { bedSize } from '../lib/colour';
+import { renderThumbnails, thumbnailSizes } from '../lib/thumbnail';
 import { DEFAULT_PRINTER, pickFilamentPreset, splitList, SLOT_COLOURS } from '../lib/presets';
 import { modelProcessKeys, pickProcess, printerLabel, projectOverrides } from '../lib/project-import';
 import { accountReady, getUserSetting, presetEditing, useAccount } from './account';
@@ -131,6 +132,18 @@ export const useSlicer = create<SlicerState>((set, get) => {
       onFatal: (message) => set({ engine: 'failed', engineMessage: message }),
     });
     return client;
+  };
+
+  // Pictures of the plate for the G-code, in the sizes the printer asks for.
+  // Without WebGL the G-code just has none, as desktop's would without a GPU.
+  const plateThumbnails = () => {
+    const { preview, selection, overrides, baseConfig } = get();
+    try {
+      return renderThumbnails(preview, selection?.colours ?? [], thumbnailSizes(overrides.thumbnails ?? baseConfig.thumbnails));
+    } catch (e) {
+      console.warn('No plate thumbnail:', e);
+      return [];
+    }
   };
 
   const fail = (e: unknown) => set({ job: { kind: 'error', message: (e as Error).message } });
@@ -550,7 +563,7 @@ export const useSlicer = create<SlicerState>((set, get) => {
       if (!project?.objects.length) return;
       set({ job: { kind: 'slicing', pct: 0, stage: '' } });
       try {
-        const { result, gcode, ms } = await engine().slice(plate, overrides);
+        const { result, gcode, ms } = await engine().slice(plate, overrides, plateThumbnails());
         set({ job: { kind: 'sliced', plate, result, gcode: new Blob([gcode], { type: 'text/plain' }), ms }, notice: '' });
         // Like desktop Orca: show the result as soon as slicing finishes.
         get().setTab('preview');
