@@ -14,6 +14,9 @@ node cloud-slicer-bridge.mjs add 192.168.1.50 --name "My U1"   # --api-key KEY i
 node cloud-slicer-bridge.mjs                                    # keep running; prints a pairing link
 ```
 
+On Windows, PowerShell's `curl` is a different command: type `curl.exe`
+instead, or just open `https://<relay>/bridge.mjs` in a browser to download it.
+
 Open the pairing link (or paste the code) in Device tab > Add a printer. The
 code is the bridge's secret: anyone holding it can control your printers.
 

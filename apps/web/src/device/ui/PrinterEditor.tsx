@@ -193,10 +193,11 @@ export function PrinterEditor() {
               </p>
               <ol className="dv-steps-list">
                 <li>
-                  Download the bridge and add your printer by its address:
-                  <pre className="dv-code">
-                    curl -fsSLo cloud-slicer-bridge.mjs {relayForCommand}/bridge.mjs{'\n'}node cloud-slicer-bridge.mjs add 192.168.1.50 --name "My U1"
-                  </pre>
+                  <a href={`${relayForCommand}/bridge.mjs`} download="cloud-slicer-bridge.mjs">
+                    Download the bridge
+                  </a>{' '}
+                  (or <code>curl -fsSLo cloud-slicer-bridge.mjs {relayForCommand}/bridge.mjs</code>; on Windows type <code>curl.exe</code>), then add your printer by its address:
+                  <pre className="dv-code">node cloud-slicer-bridge.mjs add 192.168.1.50 --name "My U1"</pre>
                 </li>
                 <li>
                   Start it, and keep it running:
