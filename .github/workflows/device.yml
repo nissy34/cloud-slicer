@@ -81,3 +81,9 @@ jobs:
           url=$(grep -Eo 'https://[^ ]+\.workers\.dev' deploy.log | tail -1)
           echo "### Relay: $url" >> "$GITHUB_STEP_SUMMARY"
           curl -fsS "$url/" && curl -fsS "$url/bridge.mjs" | grep -q runBridge
+          echo "url=$url" >> "$GITHUB_OUTPUT"
+        id: deploy
+      - name: Check the deployed relay end to end (mock printer, no browser)
+        if: steps.deploy.outputs.url != ''
+        working-directory: apps/web
+        run: node test/device/relay-live.mjs '${{ steps.deploy.outputs.url }}'

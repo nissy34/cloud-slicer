@@ -23,7 +23,7 @@ import { join } from 'node:path';
 
 export const VERSION = '1';
 // The relay that served this file replaces this default when you download it.
-const DEFAULT_RELAY = '__RELAY_URL__'.startsWith('__') ? 'https://cloud-slicer-relay.workers.dev' : '__RELAY_URL__';
+const DEFAULT_RELAY = '__RELAY_URL__'.startsWith('__') ? 'https://cloud-slicer-relay.nissy34.workers.dev' : '__RELAY_URL__';
 const DEFAULT_SITE = 'https://cloud-slicer.pages.dev';
 /** notify_status_update is merged and sent at most this often per browser, to keep the relay within its free tier. */
 export const STATUS_EVERY_MS = 1000;
