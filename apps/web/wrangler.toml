@@ -17,6 +17,12 @@ AUTH_ORIGIN = "https://cloud-slicer.pages.dev"
 # Other sites allowed to sign in (and be sent back to after sign-in).
 TRUSTED_ORIGINS = "https://slicer.awesomestuff.qzz.io,https://cloud-slicer.pages.dev,https://*.cloud-slicer.pages.dev,http://localhost:*,http://127.0.0.1:*"
 
+# --- R2 (before D1: CI drops this block when the Cloudflare token can't
+# reach R2, and online projects then report "not set up") ---
+[[r2_buckets]]
+binding = "PROJECTS"
+bucket_name = "cloud-slicer-projects"
+
 # --- D1 (keep last: CI fills in database_id, or drops this block when the
 # Cloudflare token can't reach D1, and the site then runs without accounts) ---
 [[d1_databases]]

@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { EngineClient, type CutKeep, type UserPresetFile } from '../engine/client';
+import { EngineClient, type CutKeep, type ProjectThumbnail, type UserPresetFile } from '../engine/client';
 import type {
   PaintOverlay,
   PaintRay,
@@ -91,6 +91,8 @@ interface SlicerState {
   setFlowVariant(index: number): void;
   resetOverrides(keys?: string[]): void;
   openFiles(files: File[]): Promise<void>;
+  /** The open project as an Orca 3MF project file, with the current settings. */
+  projectFile(thumbnail: ProjectThumbnail | null): Promise<ArrayBuffer>;
   clearProject(): Promise<void>;
   setPlate(plate: number): Promise<void>;
   select(sel: { object: number; instance: number } | null): void;
@@ -438,6 +440,7 @@ export const useSlicer = create<SlicerState>((set, get) => {
         }
       }
     },
+    projectFile: (thumbnail) => engine().saveProject(get().overrides, thumbnail),
     clearProject: () =>
       projectEdit(async () => {
         await get().endCalibration();

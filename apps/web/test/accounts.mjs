@@ -339,6 +339,71 @@ test('devices: connection details sync, API key encrypted and only on request', 
   assert.equal((await (await alice.json('/api/devices')).json()).devices.length, 0);
 });
 
+test('projects: save a 3MF online, thumbnail, conflicts, rename, list, delete', async () => {
+  // A tiny zip-looking file stands in for the 3MF; the server only checks the signature.
+  const file = (text) => new Blob([Buffer.concat([Buffer.from('PK\x03\x04'), Buffer.from(text)])]);
+  const save = (b, id, name, body, baseVersion) =>
+    b.fetch(`${HOST}/api/projects/${id}?${new URLSearchParams({ name, ...(baseVersion !== undefined ? { baseVersion: String(baseVersion) } : {}) })}`, {
+      method: 'PUT',
+      headers: { Origin: HOST, 'Content-Type': 'model/3mf' },
+      body,
+    });
+  assert.equal((await new Browser().json('/api/projects')).status, 401, 'signed out');
+  assert.equal(
+    (await alice.fetch(`${HOST}/api/projects/p1?name=x`, { method: 'PUT', headers: { 'Content-Type': 'model/3mf' }, body: file('a') })).status,
+    403,
+    'writes need the page origin',
+  );
+  assert.equal((await save(alice, 'p1', 'Benchy', new Blob(['not a zip']), 0)).status, 400, 'only 3MF (zip) files');
+
+  const created = await save(alice, 'p1', 'Benchy', file('version one'), 0);
+  assert.equal(created.status, 200, await created.clone().text());
+  const p1 = (await created.json()).project;
+  assert.deepEqual([p1.name, p1.version, p1.hasThumbnail], ['Benchy', 1, false]);
+  const got = await alice.fetch(`${HOST}/api/projects/p1/file`);
+  assert.equal(got.headers.get('X-Project-Version'), '1');
+  assert.match(Buffer.from(await got.arrayBuffer()).toString(), /version one$/);
+
+  // Both devices opened version 1; the phone saves first.
+  const phone = new Browser();
+  await signIn(phone, 'alice');
+  assert.equal((await save(phone, 'p1', 'Benchy', file('from the phone'), 1)).status, 200);
+  const stale = await save(alice, 'p1', 'Benchy', file('from the laptop'), 1);
+  assert.equal(stale.status, 409, 'a save based on an old version is refused');
+  assert.equal((await stale.json()).current.version, 2);
+  assert.match(Buffer.from(await (await alice.fetch(`${HOST}/api/projects/p1/file`)).arrayBuffer()).toString(), /from the phone$/, 'the newer save is kept');
+  assert.equal((await save(alice, 'p1', 'Benchy', file('overwrite'), undefined)).status, 200, 'overwrite without baseVersion');
+  assert.equal((await save(alice, 'p1', 'Benchy', file('x'), 0)).status, 409, 'baseVersion 0 never replaces a project');
+
+  // Thumbnail: PNG only, replaced on the next upload.
+  const png = Buffer.from('89504e470d0a1a0a0000000d49484452', 'hex');
+  const thumb = (body) => alice.fetch(`${HOST}/api/projects/p1/thumbnail`, { method: 'PUT', headers: { Origin: HOST, 'Content-Type': 'image/png' }, body });
+  assert.equal((await thumb(Buffer.from('GIF89a'))).status, 400);
+  assert.equal((await thumb(png)).status, 200);
+  const shown = await alice.fetch(`${HOST}/api/projects/p1/thumbnail`);
+  assert.equal(shown.headers.get('content-type'), 'image/png');
+  assert.deepEqual(Buffer.from(await shown.arrayBuffer()), png);
+
+  await save(alice, 'p2', 'Cube', file('cube'), 0);
+  const renamed = await alice.json('/api/projects/p1', 'PATCH', { name: 'Benchy v2' });
+  assert.equal((await renamed.json()).project.name, 'Benchy v2');
+  const list = await (await alice.json('/api/projects')).json();
+  assert.equal(list.enabled, true);
+  assert.deepEqual(list.projects.map((p) => [p.name, p.hasThumbnail]), [['Benchy v2', true], ['Cube', false]], 'newest first');
+  assert.equal(list.usage.count, 2);
+  assert.ok(list.usage.bytes > 0 && list.limits.userBytes > list.usage.bytes);
+
+  const bob = new Browser();
+  await signIn(bob, 'bob');
+  assert.equal((await (await bob.json('/api/projects')).json()).projects.length, 0, "users don't see each other's projects");
+  assert.equal((await bob.fetch(`${HOST}/api/projects/p1/file`)).status, 404);
+
+  assert.equal((await alice.json('/api/projects/p2', 'DELETE')).status, 200);
+  assert.deepEqual((await (await alice.json('/api/projects')).json()).projects.map((p) => p.id), ['p1']);
+  assert.equal((await alice.fetch(`${HOST}/api/projects/p2/file`)).status, 404);
+  assert.equal((await alice.json('/api/projects/bad%20id', 'DELETE')).status, 400);
+});
+
 test('signing in again, on another device, finds the same account', async () => {
   const me = await alice.me();
   assert.equal(me.email, 'alice@example.com');
@@ -365,6 +430,7 @@ test('sign out, then delete the account and its presets', async () => {
   assert.equal((await (await fresh.json('/api/presets')).json()).presets.length, 0);
   assert.equal((await (await fresh.json('/api/settings')).json()).settings.length, 0);
   assert.equal((await (await fresh.json('/api/devices')).json()).devices.length, 0);
+  assert.equal((await (await fresh.json('/api/projects')).json()).projects.length, 0, 'projects went with the account');
 });
 
 const bobBrowser = new Browser();
@@ -407,6 +473,72 @@ if (withApp)
       if (process.env.ACCOUNTS_SHOTS) await page.screenshot({ path: join(process.env.ACCOUNTS_SHOTS, 'account-menu-phone.png') });
       await page.getByRole('button', { name: 'Sign out' }).click();
       await page.getByRole('button', { name: 'Sign in' }).waitFor();
+    } finally {
+      await browser.close();
+    }
+  });
+
+if (withApp)
+  test('browser: save a project online, reopen it with its settings, download the 3MF', async () => {
+    const browser = await chromium.launch(
+      process.env.PLAYWRIGHT_BROWSERS_PATH === '/opt/pw-browsers' ? { executablePath: '/opt/pw-browsers/chromium' } : {},
+    );
+    try {
+      const carol = new Browser();
+      await signIn(carol, 'bob');
+      const context = await browser.newContext({ viewport: { width: 1280, height: 860 }, acceptDownloads: true });
+      await context.addCookies([...carol.jar.get(new URL(HOST).host)].map(([name, value]) => ({ name, value, url: HOST })));
+      const page = await context.newPage();
+      page.on('pageerror', (e) => console.error(`page error: ${e.message}`));
+      await page.goto(HOST);
+      await page.getByText('Open a model to start').waitFor({ timeout: 120000 });
+      const wizard = page.getByRole('dialog', { name: 'Set up your printers' });
+      if (await wizard.isVisible().catch(() => false)) await wizard.getByRole('button', { name: 'Not now' }).click();
+      await page.getByRole('button', { name: /Bob/ }).waitFor({ timeout: 30000 });
+
+      await page.getByTestId('model-input').setInputFiles(join(web, '../../fixtures/3DBenchy.stl'));
+      await page.getByRole('button', { name: 'Add model' }).waitFor({ timeout: 60000 });
+      const layer = page.getByLabel('Layer height', { exact: true });
+      await layer.fill('0.28');
+      await layer.press('Enter');
+      const projectButton = page.getByRole('button', { name: /^Project/ });
+      await projectButton.getByText('3DBenchy').waitFor();
+      await projectButton.getByLabel('unsaved changes').waitFor();
+
+      await page.keyboard.press('Control+s');
+      await page.getByText('Saved “3DBenchy” to your projects').waitFor({ timeout: 60000 });
+      assert.equal(await projectButton.getByLabel('unsaved changes').count(), 0, 'clean after saving');
+      const list = await (await carol.json('/api/projects')).json();
+      const saved = list.projects.find((p) => p.name === '3DBenchy');
+      assert.ok(saved, JSON.stringify(list.projects));
+      assert.equal(saved.hasThumbnail, true, 'the 3D view was saved as its thumbnail');
+      assert.ok(saved.size > 100_000, `3MF is ${saved.size} bytes`);
+      if (process.env.ACCOUNTS_SHOTS) await page.screenshot({ path: join(process.env.ACCOUNTS_SHOTS, 'project-saved.png') });
+
+      await projectButton.click();
+      await page.getByRole('menuitem', { name: 'New project' }).click();
+      await page.getByText('Open a model to start').waitFor();
+      await projectButton.click();
+      await page.getByRole('menuitem', { name: 'Online projects…' }).click();
+      const dialog = page.getByRole('dialog', { name: 'Online projects' });
+      await dialog.getByText('3DBenchy').waitFor();
+      await dialog.locator('img').first().waitFor();
+      if (process.env.ACCOUNTS_SHOTS) await page.screenshot({ path: join(process.env.ACCOUNTS_SHOTS, 'projects-list.png') });
+      await dialog.getByRole('button', { name: 'Open', exact: true }).first().click();
+      await page.getByRole('button', { name: 'Add model' }).waitFor({ timeout: 60000 });
+      assert.equal(await layer.inputValue(), '0.28', 'the saved setting came back');
+      await projectButton.getByText('3DBenchy').waitFor();
+      assert.equal(await projectButton.getByLabel('unsaved changes').count(), 0, 'clean after opening');
+
+      await projectButton.click();
+      const [download] = await Promise.all([page.waitForEvent('download'), page.getByRole('menuitem', { name: 'Download 3MF' }).click()]);
+      assert.equal(download.suggestedFilename(), '3DBenchy.3mf');
+
+      await page.setViewportSize({ width: 390, height: 800 });
+      await projectButton.click();
+      await page.getByRole('menuitem', { name: 'Online projects…' }).click();
+      await dialog.getByText('3DBenchy').waitFor();
+      if (process.env.ACCOUNTS_SHOTS) await page.screenshot({ path: join(process.env.ACCOUNTS_SHOTS, 'projects-list-phone.png') });
     } finally {
       await browser.close();
     }
