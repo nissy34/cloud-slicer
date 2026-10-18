@@ -229,7 +229,10 @@ try {
   // A second copy of the bridge (another window) takes over, and the older one stops rather than taking it back.
   let replaced = false;
   bridge.stop();
-  const older = runBridge(cfg, { log: () => {}, onReplaced: () => (replaced = true) });
+  // Wait for the older copy itself to be on the relay: the page may still show the stopped one as connected for a moment.
+  let olderUp = false;
+  const older = runBridge(cfg, { log: (m) => /Connected to the relay/.test(m) && (olderUp = true), onReplaced: () => (replaced = true) });
+  await until('the older copy connected', () => olderUp, 40_000);
   await page.getByTestId('connection').filter({ hasText: 'Connected' }).waitFor({ timeout: 40_000 });
   bridge = runBridge(cfg, { log: () => {} });
   await until('the older copy stopped', () => replaced, 20_000);

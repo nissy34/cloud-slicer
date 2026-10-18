@@ -38,10 +38,10 @@ test('starting with the computer: Windows uses a per-user Run entry and copies t
   assert.ok(args.includes('HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Run'));
   const value = args[args.indexOf('/d') + 1];
   // Paths with spaces stay quoted, and the bridge never opens a browser by itself at sign-in.
-  // conhost --headless: no window, so the running bridge stays out of the taskbar.
-  assert.match(value, /^conhost\.exe --headless ".*Cloud Slicer Bridge.*cloud-slicer-bridge\.exe" "run" "--no-browser"$/);
-  assert.equal(plan.start[0], 'conhost.exe');
-  assert.match(plan.start[1][0], /^--headless "/);
+  // --background: the bridge starts itself again with no window, so it stays out of the taskbar.
+  assert.match(value, /^".*Cloud Slicer Bridge.*cloud-slicer-bridge\.exe" "run" "--no-browser" "--background"$/);
+  assert.equal(plan.start[0], plan.copy.to);
+  assert.deepEqual(plan.start[1], ['run', '--no-browser', '--background']);
 });
 
 test('starting with the computer: macOS writes a launch agent that keeps the bridge running', () => {

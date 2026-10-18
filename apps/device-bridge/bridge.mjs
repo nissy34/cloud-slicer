@@ -184,7 +184,7 @@ const LABEL = 'io.qzz.awesomestuff.cloud-slicer-bridge';
  * What starting with the computer takes on each system, without doing it:
  * where this program is copied to, the files to write and the commands to
  * run. Windows: a Run entry for the user (no admin; at sign-in the bridge
- * runs with no window, through conhost --headless, so nothing sits in the
+ * starts itself again with no window, --background, so nothing sits in the
  * taskbar). macOS: a launch agent. Linux: a systemd user service,
  * plus lingering so it starts at boot without a sign-in (a headless Pi).
  */
@@ -199,14 +199,13 @@ export function autostartPlan({ platform = process.platform, home = homedir(), e
   const argv = [...(app ? [copy.to] : [exe, copy.to]), 'run', '--no-browser'];
   const quoted = argv.map((a) => `"${a}"`).join(' ');
   if (win) {
-    // conhost --headless runs a console program with no window at all, whatever the default terminal is.
-    const value = `conhost.exe --headless ${quoted}`;
+    const value = `${quoted} "--background"`;
     return {
       dir,
       copy,
       files: [],
       enable: [['reg', ['add', 'HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Run', '/v', 'CloudSlicerBridge', '/t', 'REG_SZ', '/d', value, '/f']]],
-      start: ['conhost.exe', [`--headless ${quoted}`]],
+      start: [argv[0], [...argv.slice(1), '--background']],
       restart: null,
       disable: [['reg', ['delete', 'HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Run', '/v', 'CloudSlicerBridge', '/f']]],
       marker: null,
@@ -771,6 +770,18 @@ export async function main() {
     throw new Error(`The bridge needs Node.js 22 or newer; this is ${process.version}. Install it from https://nodejs.org (or with nvm: nvm install 22).`);
   }
   const { opts, rest } = parseArgs(process.argv.slice(2));
+  if (opts.background && process.platform === 'win32' && !process.env.CLOUD_SLICER_BRIDGE_BACKGROUND) {
+    // Windows gives a console program a window (and a taskbar button). --background starts this
+    // again detached with no window at all, and this copy exits; that is how it runs at sign-in.
+    const args = process.argv.slice(2).filter((a) => a !== '--background');
+    spawn(process.execPath, APP ? args : [process.argv[1], ...args], {
+      detached: true,
+      stdio: 'ignore',
+      windowsHide: true,
+      env: { ...process.env, CLOUD_SLICER_BRIDGE_BACKGROUND: '1' },
+    }).unref();
+    return;
+  }
   const path = String(opts.config ?? process.env.CLOUD_SLICER_BRIDGE_CONFIG ?? join(homedir(), '.cloud-slicer-bridge.json'));
   const cfg = await loadConfig(path, opts.relay);
   if (opts.site) cfg.site = String(opts.site);
