@@ -197,6 +197,11 @@ if (self.name !== 'em-pthread') {
     },
     mixedBlend: (e, request) => json(e.mixedBlend(JSON.stringify(request))).colours,
     mixedMatch: (e, request) => json(e.mixedMatch(JSON.stringify(request))),
+    // Variable layer height of object o (see engine/src/layers_api.cpp).
+    layerHeights(e, o, overrides, request) {
+      const { config } = json(e.presetsFullConfig(JSON.stringify(overrides || {})));
+      return json(e.layerHeights(o, JSON.stringify(config), JSON.stringify(request)));
+    },
     // Measure tool: the feature under a ray, and the distance and angle
     // between two of them (see engine/src/measure_api.cpp).
     measureFeature: (e, plate, options) => json(e.measureFeature(plate, JSON.stringify(options))).feature,
