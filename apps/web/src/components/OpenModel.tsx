@@ -7,6 +7,8 @@ export function OpenModel({ children }: { children: React.ReactNode }) {
   const openFiles = useSlicer((s) => s.openFiles);
   const hasModel = useSlicer((s) => (s.project?.objects.length ?? 0) > 0);
   const clearProject = useSlicer((s) => s.clearProject);
+  const plates = useSlicer((s) => s.project?.plates.length ?? 1);
+  const { arrange, addPlate, deletePlate } = useSlicer.getState();
   const input = useRef<HTMLInputElement>(null);
   const [dragging, setDragging] = useState(false);
 
@@ -52,6 +54,17 @@ export function OpenModel({ children }: { children: React.ReactNode }) {
           <button className="secondary" onClick={() => input.current?.click()}>
             Add model
           </button>
+          <button className="secondary" title="Pack the objects on this plate" onClick={() => void arrange()}>
+            Arrange
+          </button>
+          <button className="secondary" onClick={() => void addPlate()}>
+            Add plate
+          </button>
+          {plates > 1 && (
+            <button className="ghost" title="Delete this plate and what's on it" onClick={() => void deletePlate()}>
+              Delete plate
+            </button>
+          )}
           <button className="ghost" onClick={() => void clearProject()}>
             Clear all
           </button>

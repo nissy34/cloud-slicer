@@ -3,3 +3,6 @@ build/
 dist/
 node_modules/
 .wrangler/
+
+# Local throwaway browser scripts
+apps/web/test/.*.mjs

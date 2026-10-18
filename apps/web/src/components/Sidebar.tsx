@@ -1,6 +1,7 @@
 import { shortName } from '../lib/presets';
 import { useOption, useSlicer } from '../state/store';
 import { ObjectList } from './ObjectList';
+import { PaintPanel } from './PaintPanel';
 import { OptionField } from './OptionField';
 import { SettingsPanel } from './SettingsPanel';
 
@@ -117,6 +118,7 @@ function ProcessSection() {
 export function Sidebar() {
   return (
     <aside className="panel">
+      <PaintPanel />
       <PrinterSection />
       <FilamentSection />
       <ObjectList />

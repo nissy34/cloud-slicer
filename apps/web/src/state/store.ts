@@ -1,6 +1,9 @@
 import { create } from 'zustand';
-import { EngineClient } from '../engine/client';
+import { EngineClient, type CutKeep } from '../engine/client';
 import type {
+  PaintOverlay,
+  PaintRay,
+  PaintSettings,
   OptionDef,
   OrcaConfig,
   PresetSummary,
@@ -10,8 +13,10 @@ import type {
   SettingsLayout,
   SliceResult,
 } from '../engine/protocol';
+import { bedSize } from '../lib/colour';
 import { DEFAULT_PRINTER, pickFilamentPreset, splitList, SLOT_COLOURS } from '../lib/presets';
-import { loadSaved, save } from '../lib/storage';
+import { modelProcessKeys, pickProcess, printerLabel, projectOverrides } from '../lib/project-import';
+import { loadConvertPreference, loadSaved, save, saveConvertPreference } from '../lib/storage';
 
 export type Tab = 'prepare' | 'preview' | 'device';
 export type EngineStatus = 'starting' | 'ready' | 'failed';
@@ -45,6 +50,14 @@ interface SlicerState {
   selected: { object: number; instance: number } | null;
   job: Job;
   notice: string;
+  /** The notice is a problem to fix, not just information. */
+  noticeWarn: boolean;
+  /** A 3MF made for a printer we don't have, waiting for the user to convert it. */
+  conversion: { from: string; file: OrcaConfig } | null;
+  /** Paint mode is on while set: what clicks and drags on the parts paint. */
+  paint: PaintSettings | null;
+  /** Support, seam or fuzzy skin paint of the plate, while painting it. */
+  overlay: PaintOverlay | null;
 
   setTab(tab: Tab): void;
   selectPrinter(name: string): Promise<void>;
@@ -65,6 +78,21 @@ interface SlicerState {
   deleteObject(o: number): Promise<void>;
   copyInstance(o: number, i: number): Promise<void>;
   slice(): Promise<void>;
+  arrange(): Promise<void>;
+  /** Object (volume -1) or part settings; null removes a setting. */
+  setObjectSettings(o: number, volume: number, values: Record<string, string | null>): Promise<void>;
+  addPlate(): Promise<void>;
+  deletePlate(): Promise<void>;
+  orientObject(o: number): Promise<void>;
+  splitObject(o: number): Promise<void>;
+  mirror(o: number, i: number, axis: 0 | 1 | 2): Promise<void>;
+  cutObject(o: number, i: number, z: number, keep: CutKeep, flipUpper: boolean): Promise<void>;
+  convertProject(printer: string, keepSettings: boolean, remember: boolean): Promise<void>;
+  dismissConversion(): void;
+  setPaint(paint: PaintSettings | null): Promise<void>;
+  /** Paints along rays; newStroke when the pointer just went down. */
+  paintStroke(rays: PaintRay[], newStroke: boolean): Promise<void>;
+  clearPaint(o: number): Promise<void>;
 }
 
 let client: EngineClient | null = null;
@@ -118,8 +146,17 @@ export const useSlicer = create<SlicerState>((set, get) => {
     const project = info ?? (await e.modelInfo());
     const plate = Math.min(get().plate, Math.max(0, project.plates.length - 1));
     const preview = project.objects.length ? await e.preview(plate) : null;
-    set({ project, plate, preview, ...stale() });
+    const paint = get().paint;
+    const overlay = paint && paint.kind !== 'color' && project.objects.length ? await e.paintOverlay(plate, paint.kind) : null;
+    set({ project, plate, preview, overlay, ...stale() });
   }
+
+  // Paint dabs queue up while the engine is busy and go over in one call, so
+  // a fast drag never falls behind. The last ray of a batch starts the next,
+  // so the brush joins them without a gap.
+  let strokeQueue: PaintRay[] = [];
+  let lastRay: PaintRay | null = null;
+  let painting = false;
 
   // A 3MF brings its own filaments: one slot per file filament, coloured like
   // the file, with the closest compatible preset of the same material
@@ -133,7 +170,83 @@ export const useSlicer = create<SlicerState>((set, get) => {
     await applySelection({ ...selection, filaments: names, colours });
     const extruders = splitList(get().baseConfig.nozzle_diameter ?? '').length;
     if (extruders && colours.length > extruders)
-      set({ notice: `This file uses ${colours.length} filaments; the printer has ${extruders} extruders.` });
+      set({ notice: `This file uses ${colours.length} filaments; the printer has ${extruders} extruders.`, noticeWarn: true });
+  }
+
+  // Plates follow the selected printer's bed; objects keep their place
+  // relative to the plate centre (desktop does the same when the bed changes).
+  async function fitPlates() {
+    const { project, overrides, baseConfig } = get();
+    if (!project?.objects.length) return;
+    const { w, d } = bedSize(overrides.printable_area ?? baseConfig.printable_area);
+    if (Math.abs(project.plateWidth - w) < 0.5 && Math.abs(project.plateDepth - d) < 0.5) return;
+    await refreshPreview(await engine().resizePlates(w, d));
+  }
+
+  function setOverrides(overrides: OrcaConfig) {
+    set({ overrides, ...stale() });
+    save({ selection: get().selection, overrides });
+  }
+
+  const settingsNotice = (n: number, from: string) =>
+    n ? `Loaded ${n} setting${n === 1 ? '' : 's'} from ${from}. Changed values are marked in Settings.` : '';
+
+  // A 3MF's own settings: with a printer we have, select the project's presets
+  // and apply its changes on top (like opening the project in desktop Orca);
+  // otherwise offer to convert it to one of our printers.
+  async function importProject(info: ProjectInfo) {
+    const e = engine();
+    const file = await e.fileConfig();
+    const { printers } = get();
+    if (!printers.some((p) => p.name === info.file.printer)) {
+      const pref = loadConvertPreference();
+      if (pref?.auto && printers.some((p) => p.name === pref.printer)) {
+        await convert(file, pref.printer, pref.keepSettings);
+        return;
+      }
+      await adoptFileFilaments(info);
+      set({ conversion: { from: printerLabel(file), file } });
+      return;
+    }
+    const colours = splitList(info.file.filamentColours);
+    const types = splitList(info.file.filamentTypes);
+    const presets = splitList(info.file.filamentPresets);
+    await applySelection({ printer: info.file.printer, process: '' });
+    const { filaments, selection } = get();
+    const names = colours.map((_, i) =>
+      filaments.some((f) => f.name === presets[i]) ? presets[i] : pickFilamentPreset(filaments, types[i], selection?.filaments[0]),
+    );
+    const process = get().processes.some((p) => p.name === info.file.process) ? info.file.process : (selection?.process ?? '');
+    await applySelection({ printer: info.file.printer, process, filaments: names.length ? names : selection?.filaments, colours: colours.length ? colours : selection?.colours });
+    const overrides = projectOverrides(file, get().baseConfig, get().options);
+    setOverrides(overrides);
+    set({ notice: settingsNotice(Object.keys(overrides).length, 'the project'), noticeWarn: false });
+  }
+
+  // Moves a project to `printer`: its default process of the same layer height,
+  // filaments matched by material in the file's colours, and (when asked) the
+  // project's model settings on top (layers, walls, infill, supports...).
+  // Machine settings (speeds, acceleration, jerk, line widths, calibration,
+  // prime tower) and filament settings come from the new printer's presets.
+  async function convert(file: OrcaConfig, printer: string, keepSettings: boolean) {
+    await applySelection({ printer, process: '' });
+    const { filaments, selection, processes } = get();
+    const colours = splitList(file.filament_colour);
+    const types = splitList(file.filament_type);
+    const names = colours.map((_, i) => pickFilamentPreset(filaments, types[i], selection?.filaments[0]));
+    await applySelection({
+      printer,
+      process: pickProcess(processes, file.layer_height, selection?.process ?? ''),
+      filaments: names.length ? names : selection?.filaments,
+      colours: colours.length ? colours : selection?.colours,
+    });
+    const overrides = keepSettings ? projectOverrides(file, get().baseConfig, get().options, modelProcessKeys(get().layout)) : {};
+    setOverrides(overrides);
+    set({ conversion: null });
+    await fitPlates();
+    const from = printerLabel(file);
+    const n = Object.keys(overrides).length;
+    set({ notice: `Converted from ${from} to ${printer}.${n ? ' ' + settingsNotice(n, 'the project') : ''}`, noticeWarn: false });
   }
 
   if (typeof Worker !== 'undefined') queueMicrotask(engine);
@@ -175,10 +288,21 @@ export const useSlicer = create<SlicerState>((set, get) => {
     selected: null,
     job: { kind: 'idle' },
     notice: '',
+    noticeWarn: false,
+    conversion: null,
+    paint: null,
+    overlay: null,
 
-    setTab: (tab) => set({ tab }),
+    setTab: (tab) => {
+      set({ tab });
+      // On a phone the page scrolls; show the new tab from the top.
+      document.querySelector('.body')?.scrollTo({ top: 0 });
+    },
 
-    selectPrinter: (name) => editSelection(() => ({ printer: name, process: '' })),
+    selectPrinter: async (name) => {
+      await editSelection(() => ({ printer: name, process: '' }));
+      await fitPlates().catch(fail);
+    },
     selectProcess: (name) => editSelection(() => ({ process: name })),
     setFilament: (slot, name) => editSelection((s) => ({ filaments: s.filaments.map((f, i) => (i === slot ? name : f)) })),
     setColour: (slot, colour) => editSelection((s) => ({ colours: s.colours.map((c, i) => (i === slot ? colour : c)) })),
@@ -197,28 +321,23 @@ export const useSlicer = create<SlicerState>((set, get) => {
       const overrides = { ...get().overrides };
       if (value === null || value === get().baseConfig[key]) delete overrides[key];
       else overrides[key] = value;
-      set({ overrides, ...stale() });
-      save({ selection: get().selection, overrides });
+      setOverrides(overrides);
     },
     resetOverrides(keys) {
-      const overrides = keys ? Object.fromEntries(Object.entries(get().overrides).filter(([k]) => !keys.includes(k))) : {};
-      set({ overrides, ...stale() });
-      save({ selection: get().selection, overrides });
+      setOverrides(keys ? Object.fromEntries(Object.entries(get().overrides).filter(([k]) => !keys.includes(k))) : {});
     },
 
     async openFiles(files) {
       const e = engine();
-      set({ tab: 'prepare', notice: '' });
+      set({ tab: 'prepare', notice: '', conversion: null });
       for (const file of files) {
         set({ job: { kind: 'loading', name: file.name } });
         try {
           const area = get().overrides.printable_area ?? get().baseConfig.printable_area ?? '';
           const res = await e.load(file, get().plate, area);
-          if (res.isProject) {
-            set({ plate: 0, selected: null });
-            if (res.info.file.hasConfig) await adoptFileFilaments(res.info);
-          }
+          if (res.isProject) set({ plate: 0, selected: null });
           await refreshPreview(res.info);
+          if (res.isProject && res.info.file.hasConfig) await importProject(res.info);
           set({ job: { kind: 'idle' } });
         } catch (err) {
           fail(err);
@@ -250,6 +369,80 @@ export const useSlicer = create<SlicerState>((set, get) => {
       return projectEdit(() => engine().addInstance(o, i, size[0] + 5, 0));
     },
 
+    // 6 mm apart, like desktop's default arrange distance.
+    arrange: () => projectEdit(() => engine().arrangePlate(get().plate, 6)),
+    setObjectSettings: (o, volume, values) => projectEdit(() => engine().setObjectSettings(o, volume, values)),
+    addPlate: async () => {
+      await projectEdit(() => engine().addPlate());
+      const n = get().project?.plates.length ?? 1;
+      await get().setPlate(n - 1);
+    },
+    deletePlate: () =>
+      projectEdit(() => {
+        set({ selected: null });
+        return engine().deletePlate(get().plate);
+      }),
+    orientObject: (o) => projectEdit(() => engine().orientObject(o)),
+    splitObject: (o) =>
+      projectEdit(() => {
+        set({ selected: null });
+        return engine().splitObject(o);
+      }),
+    mirror: (o, i, axis) => projectEdit(() => engine().mirrorInstance(o, i, axis)),
+    cutObject: (o, i, z, keep, flipUpper) =>
+      projectEdit(() => {
+        set({ selected: null });
+        return engine().cutObject(o, i, z, keep, flipUpper);
+      }),
+
+    async convertProject(printer, keepSettings, remember) {
+      const c = get().conversion;
+      if (!c) return;
+      saveConvertPreference(remember ? { printer, keepSettings, auto: true } : null);
+      try {
+        await convert(c.file, printer, keepSettings);
+      } catch (e) {
+        fail(e);
+      }
+    },
+    dismissConversion: () => set({ conversion: null }),
+
+    async setPaint(paint) {
+      const before = get().paint;
+      set({ paint });
+      if (!paint || paint.kind === 'color') return set({ overlay: null });
+      if (before?.kind === paint.kind && get().overlay) return;
+      try {
+        set({ overlay: await engine().paintOverlay(get().plate, paint.kind) });
+      } catch (e) {
+        fail(e);
+      }
+    },
+    async paintStroke(rays, newStroke) {
+      if (newStroke) lastRay = null;
+      strokeQueue.push(...rays);
+      if (painting) return;
+      painting = true;
+      try {
+        while (strokeQueue.length) {
+          const paint = get().paint;
+          if (!paint) break;
+          const fills = paint.tool === 'fill' || paint.tool === 'bucket';
+          const batch = lastRay && !fills ? [lastRay, ...strokeQueue] : strokeQueue;
+          lastRay = strokeQueue[strokeQueue.length - 1];
+          strokeQueue = [];
+          const res = await engine().paint(get().plate, { ...paint, rays: batch });
+          set({ project: res.info, ...(res.preview && { preview: res.preview }), ...(res.overlay && { overlay: res.overlay }), ...stale() });
+        }
+      } catch (e) {
+        fail(e);
+      } finally {
+        strokeQueue = [];
+        painting = false;
+      }
+    },
+    clearPaint: (o) => projectEdit(() => engine().clearPaint(o, get().paint?.kind ?? 'all')),
+
     async slice() {
       const { project, plate, overrides } = get();
       if (!project?.objects.length) return;
@@ -257,6 +450,8 @@ export const useSlicer = create<SlicerState>((set, get) => {
       try {
         const { result, gcode, ms } = await engine().slice(plate, overrides);
         set({ job: { kind: 'sliced', plate, result, gcode: new Blob([gcode], { type: 'text/plain' }), ms }, notice: '' });
+        // Like desktop Orca: show the result as soon as slicing finishes.
+        get().setTab('preview');
       } catch (e) {
         fail(e);
       }

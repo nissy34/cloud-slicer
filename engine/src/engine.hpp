@@ -53,6 +53,13 @@ std::vector<std::string> applyJsonConfig(Slic3r::DynamicPrintConfig& cfg, const 
 
 nlohmann::json configToJson(const Slic3r::DynamicPrintConfig& cfg);
 
+// A JS typed array holding a copy of v (typed_memory_view aliases wasm memory;
+// slice() copies it out before v dies).
+template <typename T>
+emscripten::val typedCopy(const std::vector<T>& v) {
+    return emscripten::val(emscripten::typed_memory_view(v.size(), v.data())).template call<emscripten::val>("slice");
+}
+
 // Whether the selected printer preset is a Bambu Lab printer (desktop sets
 // Print::is_BBL_printer() from this before every slice).
 bool selectedPrinterIsBambu();

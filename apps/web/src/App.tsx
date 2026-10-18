@@ -1,4 +1,5 @@
 import { ActionBar } from './components/ActionBar';
+import { ConvertDialog } from './components/ConvertDialog';
 import { OpenModel } from './components/OpenModel';
 import { Preview } from './components/Preview';
 import { Sidebar } from './components/Sidebar';
@@ -12,6 +13,7 @@ export function App() {
   return (
     <div className="app">
       <TopBar />
+      <ConvertDialog />
       {tab !== 'device' && (
         <div className="body">
           <Sidebar />
