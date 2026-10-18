@@ -16,6 +16,7 @@
   "dependencies": {
     "@react-three/drei": "9.122.0",
     "@react-three/fiber": "8.18.0",
+    "culori": "4.0.2",
     "better-auth": "1.7.7",
     "react": "18.3.1",
     "react-dom": "18.3.1",
@@ -24,6 +25,7 @@
     "zustand": "5.0.15"
   },
   "devDependencies": {
+    "@types/culori": "^4.0.1",
     "@types/react": "18.3.12",
     "@types/react-dom": "18.3.1",
     "@types/three": "0.186.0",
@@ -32,6 +34,7 @@
     "typescript": "5.9.3",
     "vite": "6.4.4",
     "vitest": "3.2.7",
-    "wrangler": "4.151.1"
+    "wrangler": "4.151.1",
+    "ws": "^8.18.3"
   }
 }
