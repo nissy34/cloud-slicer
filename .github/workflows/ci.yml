@@ -208,7 +208,7 @@ jobs:
           curl -fsS "$url/api/me" | tee /dev/stderr | grep -q '"providers"'
 
       - name: Latest engine start-up failures reported by browsers
-        if: steps.deploy.outputs.url != ''
+        if: always() && steps.deploy.outputs.url != ''
         continue-on-error: true
         working-directory: apps/web
         run: |
