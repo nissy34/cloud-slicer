@@ -3,8 +3,10 @@
 // slicer. Separate from the slicer store so the two can change independently.
 //
 // Sending sliced G-code from elsewhere in the app:
-//   useDevice.getState().requestSend(blob, 'benchy.gcode');  // then show the Device tab
-// The Device screen opens its print dialog for it.
+//   useDevice.getState().requestSend(blob, 'benchy.gcode', 'Snapmaker U1 (0.4 nozzle)');  // then show the Device tab
+// The Device screen opens its print dialog for it, on the printer last sent
+// to (or one set up with the profile the plate was sliced with); the dialog
+// lets the user pick another.
 //
 // Saved printers are the account's printers (src/state/account.ts): kept in
 // this browser when signed out, in the account when signed in. The secret (a
@@ -62,7 +64,8 @@ interface DeviceState {
   run(script: string): Promise<boolean>;
   call(label: string, fn: (s: PrinterSession) => Promise<unknown>): Promise<boolean>;
   refreshFiles(): Promise<void>;
-  requestSend(blob: Blob, name: string): void;
+  /** `slicedFor` is the printer profile the G-code was sliced with, if known. */
+  requestSend(blob: Blob, name: string, slicedFor?: string): void;
   openPrintDialog(source: SendSource | null): void;
   uploadAndMaybePrint(source: SendSource, opts: { start: boolean; prep: string[] }): Promise<boolean>;
   setToast(text: string, error?: boolean): void;
@@ -72,6 +75,8 @@ interface DeviceState {
 /** Where printers lived before they moved into the account store. */
 const LEGACY_PRINTERS_KEY = 'cloud-slicer:printers:v1';
 const ACTIVE_KEY = 'cloud-slicer:printer-active:v1';
+/** The printer sliced G-code was last sent to. */
+const SEND_KEY = 'cloud-slicer:printer-send:v1';
 const CONSOLE_MAX = 200;
 
 function load<T>(key: string, fallback: T): T {
@@ -153,6 +158,18 @@ function migrateLegacyPrinters() {
       // nothing to clean up
     }
   });
+}
+
+/**
+ * Which printer a freshly sliced plate goes to by default: the one last sent
+ * to, unless another printer is set up with the profile the plate was sliced
+ * for; then the one on screen, if it matches; then any that matches.
+ */
+export function pickSendTarget(printers: SavedPrinter[], activeId: string | null, lastId: string | null, slicedFor?: string): string | null {
+  const byId = (id: string | null) => printers.find((p) => p.id === id);
+  const order = [byId(lastId), byId(activeId), ...printers].filter((p): p is SavedPrinter => p !== undefined);
+  const matches = slicedFor ? order.find((p) => p.preset === slicedFor) : undefined;
+  return (matches ?? order[0])?.id ?? null;
 }
 
 export function linkFor(p: SavedPrinter): PrinterLink {
@@ -340,7 +357,9 @@ export const useDevice = create<DeviceState>((set, get) => {
       }
     }, FILE_LIST_GAP_MS),
 
-    requestSend(blob, name) {
+    requestSend(blob, name, slicedFor) {
+      const target = pickSendTarget(get().printers, get().activeId, load<string | null>(SEND_KEY, null), slicedFor);
+      if (target && target !== get().activeId) get().select(target);
       set({ send: { kind: 'upload', blob, name } });
     },
 
@@ -354,12 +373,14 @@ export const useDevice = create<DeviceState>((set, get) => {
         get().setToast('The printer is not connected.', true);
         return false;
       }
+      const target = get().activeId;
       try {
         let path: string;
         if (source.kind === 'upload') {
           set({ upload: { name: source.name, fraction: 0 } });
           path = await s.upload(source.blob, source.name, (fraction) => set({ upload: { name: source.name, fraction } }));
           set({ upload: null });
+          store(SEND_KEY, target);
         } else {
           path = source.path;
         }

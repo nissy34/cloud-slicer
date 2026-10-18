@@ -286,6 +286,28 @@ try {
   await filesCard.getByLabel('Search files').fill('');
   console.log('files card: 10 newest per page, older pages and search reach the rest');
 
+  // With two printers saved, a new file can go to either one: picking the U1 in the dialog connects to it.
+  const sendFile = { name: 'pick printer.gcode', mimeType: 'text/plain', buffer: gcode };
+  await page.getByTestId('device-gcode-input').setInputFiles(sendFile);
+  const sendTo = page.getByRole('dialog').getByTestId('send-printer');
+  await sendTo.locator('option', { hasText: 'voron-mock' }).waitFor({ state: 'attached' });
+  if ((await sendTo.locator('option', { hasText: 'voron-mock' }).getAttribute('value')) !== (await sendTo.inputValue())) throw new Error('the dialog should start on the printer on screen');
+  if (await page.getByTestId('tool-map').count()) throw new Error('generic printer shows the U1 tool map');
+  const u1Id = await sendTo.locator('option', { hasText: 'U1-mock' }).getAttribute('value');
+  await sendTo.selectOption(u1Id);
+  await page.getByTestId('tool-map').waitFor({ timeout: 20_000 });
+  await page.getByTestId('upload-only').waitFor();
+  await until('upload enabled once the U1 is connected', () => page.getByTestId('upload-only').isEnabled());
+  if (shots) await page.getByRole('dialog').screenshot({ path: join(shots, 'send-pick-printer.png') });
+  await page.getByTestId('upload-only').click();
+  await until('file uploaded to the printer picked', () => u1.files.has('pick_printer.gcode'), 20_000);
+  if (voron.files.has('pick_printer.gcode')) throw new Error('the file went to the printer on screen, not the one picked');
+  if (u1.state.print_stats.state === 'printing') throw new Error('Upload only started a print');
+  if ((await page.evaluate(() => localStorage.getItem('cloud-slicer:printer-send:v1'))) !== JSON.stringify(u1Id)) throw new Error('the printer sent to is not remembered');
+  await page.getByTestId('printer-select').selectOption({ label: 'voron-mock' });
+  await page.getByTestId('connection').filter({ hasText: 'Connected' }).waitFor({ timeout: 20_000 });
+  console.log('send dialog: printer picker sends to the printer chosen and remembers it');
+
   const phone = await browser.newPage({ viewport: { width: 390, height: 844 } });
   await phone.goto(site);
   await phone.evaluate((p) => localStorage.setItem('cloud-slicer:devices:v1', p), await page.evaluate(() => localStorage.getItem('cloud-slicer:devices:v1')));
@@ -304,6 +326,15 @@ try {
   }
   if (shots) await phone.screenshot({ path: join(shots, 'device-phone.png'), fullPage: true });
   console.log('phone layout fits');
+
+  await phone.setViewportSize({ width: 390, height: 844 });
+  await phone.getByTestId('device-gcode-input').setInputFiles(sendFile);
+  await phone.getByRole('dialog').getByTestId('send-printer').waitFor();
+  const wideDialog = await phone.evaluate(() => [...document.querySelectorAll('.dv-dialog *')].find((el) => el.getBoundingClientRect().right > window.innerWidth + 0.5)?.className ?? null);
+  if (wideDialog !== null) throw new Error(`send dialog is wider than a 390 px phone: ${wideDialog}`);
+  if (shots) await phone.screenshot({ path: join(shots, 'send-pick-printer-phone.png') });
+  await phone.getByRole('dialog').getByRole('button', { name: 'Cancel' }).click();
+  console.log('send dialog with the printer picker fits a phone');
 
   // Printers saved by the first Device tab build move into the account store.
   const old = await browser.newPage();
