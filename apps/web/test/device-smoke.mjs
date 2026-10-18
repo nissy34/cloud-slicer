@@ -258,7 +258,9 @@ try {
   const older = runBridge(cfg, { log: (m) => /Connected to the relay/.test(m) && (olderUp = true), onReplaced: () => (replaced = true) });
   await until('the older copy connected', () => olderUp, 40_000);
   await page.getByTestId('connection').filter({ hasText: 'Connected' }).waitFor({ timeout: 40_000 });
-  bridge = runBridge(cfg, { log: () => {} });
+  // This copy can be removed from the Device tab; the real one then uninstalls itself (here: just notes it).
+  let uninstalled = false;
+  bridge = runBridge(cfg, { log: () => {}, uninstall: async () => (uninstalled = true) });
   await until('the older copy stopped', () => replaced, 20_000);
   await new Promise((r) => setTimeout(r, 5000));
   await page.getByTestId('connection').filter({ hasText: 'Connected' }).waitFor({ timeout: 40_000 });
@@ -340,6 +342,19 @@ try {
   if (moved[0] !== null || !moved[1]?.includes('Old Voron')) throw new Error(`legacy printers not moved: ${JSON.stringify(moved)}`);
   console.log('printers from the earlier build moved into the account store');
 
+  // Bridge printers saved before bridges were saved on their own get their bridge back, with no pairing.
+  const earlier = await browser.newPage();
+  await earlier.goto(site);
+  const onlyPrinters = await page.evaluate(() => JSON.stringify(JSON.parse(localStorage.getItem('cloud-slicer:devices:v1')).filter((d) => d.extra?.kind === 'bridge')));
+  await earlier.evaluate((v) => localStorage.setItem('cloud-slicer:devices:v1', v), onlyPrinters);
+  await earlier.reload();
+  await earlier.getByRole('tab', { name: 'Device' }).click();
+  await earlier.getByTestId('manage-open').first().click();
+  await earlier.getByTestId('manage-bridge').getByTestId('manage-bridge-state').filter({ hasText: 'Running' }).waitFor({ timeout: 20_000 });
+  await earlier.getByTestId('manage-bridge').locator('[data-testid="manage-printer"][data-name="U1-mock"]').waitFor();
+  await earlier.close();
+  console.log('bridges of printers saved earlier come back on their own');
+
   // ---- Bridge setup: the apps the relay has, else the Node.js steps ---------------------
   const relayUrl = `http://127.0.0.1:${RELAY_PORT}`;
   const liveRelay = 'https://cloud-slicer-relay.nissy34.workers.dev';
@@ -403,24 +418,38 @@ try {
   await setup.getByTestId('add-printer').click();
   await setup.getByText('node cloud-slicer-bridge.mjs', { exact: true }).waitFor();
   console.log('bridge setup: app downloads and the Linux command from the relay, Node.js steps when it has none');
-  // Removing a bridge printer explains how to remove the bridge from its computer too.
-  await page.getByTestId('printer-select').selectOption({ label: 'U1-mock' });
-  await page.locator('.dv-header-actions').getByRole('button', { name: 'Edit' }).click();
-  await page.getByTestId('remove-printer').click();
-  // Another saved printer still uses this bridge: keep it.
-  await page.getByText('Keep the bridge on its computer: Keyed printer still uses it.').waitFor();
-  await page.getByTestId('confirm-remove-printer').click();
+  // Printers & bridges: the bridge is its own thing, its printers come and go on their own.
+  await page.getByTestId('manage-open').first().click();
+  const manage = page.getByTestId('manage-dialog');
+  const card = manage.getByTestId('manage-bridge');
+  await card.getByTestId('manage-bridge-state').filter({ hasText: 'Running' }).waitFor({ timeout: 20_000 });
+  await card.getByText(/^Bridge on /).waitFor();
+  if (shots) await page.getByRole('dialog').screenshot({ path: join(shots, 'manage.png') });
+  const managed = (name) => card.locator(`[data-testid="manage-printer"][data-name="${name}"]`);
+  await managed('U1-mock').getByTestId('manage-printer-remove').click();
+  await managed('U1-mock').getByTestId('manage-printer-remove-yes').click();
   await until('U1-mock removed', async () => (await page.getByTestId('printer-select').locator('option', { hasText: 'U1-mock' }).count()) === 0);
   await until('the bridge forgot U1-mock too', () => !cfg.printers.some((p) => p.id === 'u1'));
-  // The bridge's last printer: say how to remove the bridge too.
-  await page.getByTestId('printer-select').selectOption({ label: 'Keyed printer' });
-  await page.locator('.dv-header-actions').getByRole('button', { name: 'Edit' }).click();
-  await page.getByTestId('remove-printer').click();
-  await page.getByTestId('bridge-uninstall').getByTestId('bridge-uninstall-command').filter({ hasText: / uninstall$/ }).waitFor();
-  if (shots) await page.screenshot({ path: join(shots, 'remove-bridge-printer.png') });
-  await page.getByTestId('confirm-remove-printer').click();
-  await until('Keyed printer removed', async () => (await page.getByTestId('printer-select').locator('option', { hasText: 'Keyed printer' }).count()) === 0);
-  console.log('removing a bridge printer: shows how to uninstall the bridge, then removes it');
+  await managed('Keyed printer').getByTestId('manage-printer-remove').click();
+  await managed('Keyed printer').getByTestId('manage-printer-remove-yes').click();
+  // No printers left: the bridge stays, empty.
+  await card.getByText('No printers yet.').waitFor();
+  console.log('removing printers leaves the bridge');
+  // Adding to a saved bridge needs no pairing again.
+  await card.getByTestId('manage-bridge-add').click();
+  await page.getByTestId('bridge-state').filter({ hasText: 'Connected to the bridge' }).waitFor({ timeout: 20_000 });
+  await page.getByRole('dialog', { name: 'Add a printer' }).getByRole('button', { name: 'Close' }).click();
+  // Removing the bridge, while it runs, makes it uninstall itself.
+  await page.getByTestId('manage-open').first().click();
+  await card.getByTestId('manage-bridge-state').filter({ hasText: 'Running' }).waitFor({ timeout: 20_000 });
+  await card.getByTestId('manage-bridge-remove').click();
+  await card.getByText('will also uninstall itself').waitFor();
+  if (shots) await page.getByRole('dialog').screenshot({ path: join(shots, 'manage-remove-bridge.png') });
+  await card.getByTestId('manage-bridge-remove-yes').click();
+  await until('the bridge uninstalled itself', () => uninstalled, 20_000);
+  await until('the bridge is gone', async () => (await manage.getByTestId('manage-bridge').count()) === 0);
+  if (await manage.getByTestId('manage-leftover').count()) throw new Error('a bridge that removed itself needs no manual command');
+  console.log('removing the bridge: it uninstalls itself');
   console.log('DEVICE SMOKE OK');
 } catch (e) {
   console.error(`DEVICE SMOKE FAIL: ${e.stack ?? e.message}`);

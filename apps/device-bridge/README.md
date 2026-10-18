@@ -45,7 +45,9 @@ asks the bridge over the relay: `bridge.discover` looks for Moonraker on port
 7125 across the bridge's local networks and lists what answers (and which want
 an API key); `bridge.add_printer` adds the ones you pick, or any address and
 port you type, with its API key, after checking Moonraker answers there;
-`bridge.remove_printer` forgets one. From a terminal, `cloud-slicer-bridge add
+`bridge.remove_printer` forgets one; `bridge.uninstall` (Printers & bridges,
+Remove bridge) makes the running bridge remove itself from its computer, as the
+`uninstall` command does, and exit. From a terminal, `cloud-slicer-bridge add
 192.168.1.50 [--api-key KEY]` does the same; a bridge running in the background
 restarts by itself to use it. The pairing link is the bridge's key: anyone
 holding it can control your printers.

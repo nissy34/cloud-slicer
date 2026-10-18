@@ -1,14 +1,14 @@
 import { useEffect, useState } from 'react';
 import { installedOnly, SETUP_KEY, type Setup } from '../../lib/setup';
 import { useUserSetting } from '../../state/account';
-import { useDevice, type SavedPrinter } from '../../state/device';
+import { bridgeLabel, useDevice, type SavedPrinter } from '../../state/device';
 import { useSlicer } from '../../state/store';
 import { DEFAULT_RELAY_URL } from '../config';
 import { BridgeLink } from '../link/bridge';
 import { DirectLink, directBlockedReason, normalizePrinterUrl } from '../link/direct';
 import type { BridgeStatus } from '../link/types';
 import { decodePairing, type Pairing } from '../pairing';
-import { BridgeSetup, CopyCommand, UninstallBridge } from './BridgeSetup';
+import { BridgeSetup, CopyCommand } from './BridgeSetup';
 import { Dialog } from './parts';
 
 const newId = () => Math.random().toString(36).slice(2, 10);
@@ -39,7 +39,7 @@ function PresetField({ value, onChange }: { value: string; onChange: (name: stri
  * pairing link as it starts, so the page often asks before the bridge has
  * connected (the relay refuses browsers until then, or reports it offline).
  */
-interface BridgeWatch {
+export interface BridgeWatch {
   stop(): void;
   /** Asks the bridge itself to do something (add or remove a printer), over the watching connection. */
   manage<T>(method: `bridge.${string}`, params: unknown): Promise<T>;
@@ -49,9 +49,11 @@ interface BridgeWatch {
 const AUTO_SEARCHES = 8;
 
 /** Bridges from this version on can add and remove printers when the Device tab asks. */
-const MANAGED_FROM = 3;
+export const MANAGED_FROM = 3;
+/** Bridges from this version on uninstall themselves when the Device tab removes them. */
+export const SELF_REMOVING_FROM = 5;
 
-function watchBridge(p: Pairing, onStatus: (s: BridgeStatus) => void, onError: (e: Error) => void): BridgeWatch {
+export function watchBridge(p: Pairing, onStatus: (s: BridgeStatus) => void, onError: (e: Error) => void): BridgeWatch {
   let stopped = false;
   let link: BridgeLink | null = null;
   let open: BridgeLink | null = null;
@@ -100,7 +102,7 @@ function watchBridge(p: Pairing, onStatus: (s: BridgeStatus) => void, onError: (
 }
 
 /** Removes a printer from its bridge, if the bridge is reachable; the saved printer goes either way. */
-async function removeFromBridge(p: Pairing, printer: string): Promise<void> {
+export async function removeFromBridge(p: Pairing, printer: string): Promise<void> {
   const link = new BridgeLink({ relay: p.relay, bridgeId: p.bridgeId, key: p.key, printer: '' });
   try {
     await link.open({ onMessage: () => {}, onClose: () => {} });
@@ -546,6 +548,7 @@ export function PrinterEditor() {
   const [confirmRemove, setConfirmRemove] = useState(false);
   const [removing, setRemoving] = useState(false);
   const saved = useDevice((s) => s.printers);
+  const savedBridges = useDevice((s) => s.bridges);
   // Adding from a paired bridge: every printer it serves or found, each with its own name and profile.
   const [rows, setRows] = useState<AddRow[]>([]);
   const [addingAll, setAddingAll] = useState(false);
@@ -598,6 +601,8 @@ export function PrinterEditor() {
   const addAll = async () => {
     if (!pairing || !chosen.length) return;
     setAddingAll(true);
+    // The bridge is saved on its own the first time, so it stays when its printers go.
+    if (!savedBridges.some((b) => b.bridgeId === pairing.bridgeId)) await useDevice.getState().saveBridge({ id: newId(), name: bridgeLabel(bridge), ...pairing });
     const ids = chosen.map(() => newId());
     for (const [i, row] of chosen.entries()) {
       await savePrinter({ id: ids[i], kind: 'bridge', name: row.name.trim() || row.host || 'Printer', relay: pairing.relay, bridgeId: pairing.bridgeId, key: pairing.key, printer: row.bridgeId!, ...(row.preset && { preset: row.preset }) });
@@ -628,8 +633,6 @@ export function PrinterEditor() {
   const relayForCommand = pairing?.relay ?? DEFAULT_RELAY_URL;
 
   if (existing && confirmRemove) {
-    // A bridge printer: the bridge keeps running on its computer, so say how to remove it too (unless other printers still use it).
-    const sharing = existing.kind === 'bridge' ? saved.filter((p) => p.id !== existing.id && p.kind === 'bridge' && p.bridgeId === existing.bridgeId) : [];
     return (
       <Dialog
         title={`Remove ${existing.name}?`}
@@ -659,15 +662,7 @@ export function PrinterEditor() {
       >
         <div className="dv-form">
           <p>This removes {existing.name} from Cloud Slicer{existing.kind === 'bridge' ? ' and from its bridge' : ''}. The printer itself isn't changed.</p>
-          {existing.kind === 'bridge' &&
-            (sharing.length ? (
-              <p className="muted">Keep the bridge on its computer: {sharing.map((p) => p.name).join(', ')} {sharing.length === 1 ? 'still uses' : 'still use'} it.</p>
-            ) : (
-              <>
-                <p>The bridge keeps running on the computer near the printer. If you don't need it any more, remove it from that computer too:</p>
-                <UninstallBridge />
-              </>
-            ))}
+          {existing.kind === 'bridge' && <p className="muted">The bridge stays. To remove the bridge too, use Printers &amp; bridges.</p>}
         </div>
       </Dialog>
     );
@@ -725,6 +720,27 @@ export function PrinterEditor() {
 
       {kind === 'bridge' ? (
         <div className="dv-form">
+          {!pairing && !existing && savedBridges.length > 0 && (
+            <div className="dv-use-bridge" data-testid="use-saved-bridge">
+              <strong>Add it through a bridge you already have</strong>
+              {savedBridges.map((b) => (
+                <button
+                  key={b.id}
+                  className="primary dv-big"
+                  onClick={() =>
+                    void useDevice
+                      .getState()
+                      .bridgePairing(b.id)
+                      .then((p) => p && setPairing(p))
+                  }
+                  data-testid="use-bridge"
+                >
+                  Use {b.name}
+                </button>
+              ))}
+              <span className="muted">Or set up a new bridge on another computer:</span>
+            </div>
+          )}
           {!pairing && (
             <BridgeSetup
               relay={relayForCommand}

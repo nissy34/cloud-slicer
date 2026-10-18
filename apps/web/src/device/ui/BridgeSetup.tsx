@@ -92,11 +92,13 @@ function ManageCommands() {
 }
 
 /** How to remove the bridge from its computer, for when its last printer goes. */
-export function UninstallBridge() {
-  const [os, setOs] = useBridgeOs();
+export function UninstallBridge({ system }: { system?: string }) {
+  const known = system ? FROM_PLATFORM[system] : undefined;
+  const [picked, setOs] = useBridgeOs();
+  const os = known ?? picked;
   return (
     <div className="dv-about-commands" data-testid="bridge-uninstall">
-      <OsTabs os={os} onChange={setOs} />
+      {!known && <OsTabs os={os} onChange={setOs} />}
       <span className="muted">On the bridge's computer, in {SHELL_NAME[os]}:</span>
       <CopyCommand command={`${BRIDGE_COMMAND[os]} uninstall`} testId="bridge-uninstall-command" />
       <span className="muted">

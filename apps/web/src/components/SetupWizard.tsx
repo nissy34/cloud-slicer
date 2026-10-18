@@ -261,7 +261,8 @@ function FilamentStep({ printers, chosen, onChange }: { printers: string[]; chos
 }
 
 function ConnectStep() {
-  const devices = useDevices();
+  // Bridges are saved alongside printers; only the printers are listed here.
+  const devices = useDevices().filter((d) => d.extra?.kind !== 'bridge-agent');
   return (
     <>
       <p className="muted small">

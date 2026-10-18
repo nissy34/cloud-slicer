@@ -3347,6 +3347,56 @@ select:focus-visible {
     grid-template-columns: minmax(0, 1fr);
   }
 }
+.dv-use-bridge {
+  display: grid;
+  gap: 8px;
+  justify-items: start;
+  padding: 12px;
+  border: 1px solid var(--accent);
+  border-radius: 8px;
+}
+.dv-manage-title {
+  margin: 4px 0 0;
+  font-size: 14px;
+}
+.dv-manage-card {
+  display: grid;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+.dv-manage-card p {
+  margin: 0;
+}
+.dv-manage-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 6px;
+}
+.dv-manage-printer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  padding: 8px 10px;
+  border-radius: 6px;
+  background: var(--surface-2);
+}
+.dv-manage-actions {
+  justify-content: space-between;
+  flex-wrap: wrap;
+}
+.dv-manage-confirm {
+  display: grid;
+  gap: 8px;
+  padding: 10px;
+  border-radius: 6px;
+  background: var(--surface-2);
+}
 .dv-added {
   color: var(--dv-ok, #1f8a4c);
   font-weight: 600;
