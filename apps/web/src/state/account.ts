@@ -277,7 +277,7 @@ export async function deleteUserPreset(type: PresetType, name: string): Promise<
 
 // ---- setup choices ---------------------------------------------------------------
 
-/** A saved setup choice, e.g. getUserSetting<string[]>('installedPrinters'). */
+/** A saved setup choice, e.g. getUserSetting<Setup>('setup') (see lib/setup.ts). */
 export function getUserSetting<T>(key: string): T | undefined {
   return useAccount.getState().settings[key]?.value as T | undefined;
 }

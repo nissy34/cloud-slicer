@@ -228,3 +228,14 @@ test('painting: colour, supports and seams, like the desktop paint tools', () =>
   assert.equal(m.objects[0].volumes[0].painted, false);
   assert.equal(m.objects[0].volumes[0].paint.seam, false);
 });
+
+test('lists the filaments that work with a printer, for the setup wizard', () => {
+  const before = call(engine, 'presetsSelect', JSON.stringify({})).selection;
+  const r = call(engine, 'presetsFilamentsFor', DEFAULT_PRINTER);
+  const names = r.filaments.map((f) => f.name);
+  assert.ok(names.length >= 20, `${names.length} filaments`);
+  assert.ok(r.filaments.some((f) => /Snapmaker PLA/.test(f.name) && f.filamentType === 'PLA'));
+  assert.ok(r.defaults.length > 0 && r.defaults.every((d) => names.includes(d)), JSON.stringify(r.defaults));
+  assert.deepEqual(call(engine, 'presetsSelect', JSON.stringify({})).selection, before, 'the selection is unchanged');
+  assert.throws(() => call(engine, 'presetsFilamentsFor', 'No such printer'));
+});

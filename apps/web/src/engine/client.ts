@@ -69,6 +69,7 @@ export class EngineClient {
 
   printers = () => this.call<PresetSummary[]>('printers');
   select = (selection: Partial<Selection>) => this.call<SelectResult>('select', [selection]);
+  filamentsFor = (printer: string) => this.call<{ filaments: PresetSummary[]; defaults: string[] }>('filamentsFor', [printer]);
   fullConfig = (overrides: OrcaConfig) => this.call<{ config: OrcaConfig; errors: string[] }>('fullConfig', [overrides]);
   presetConfig = (type: string, name: string) => this.call<OrcaConfig | null>('presetConfig', [type, name]);
   options = () => this.call<Record<string, OptionDef>>('options');

@@ -16,6 +16,8 @@ import type {
 import { bedSize } from '../lib/colour';
 import { DEFAULT_PRINTER, pickFilamentPreset, splitList, SLOT_COLOURS } from '../lib/presets';
 import { modelProcessKeys, pickProcess, printerLabel, projectOverrides } from '../lib/project-import';
+import { getUserSetting } from './account';
+import { installedOnly, SETUP_KEY, type Setup } from '../lib/setup';
 import { loadConvertPreference, loadSaved, save, saveConvertPreference } from '../lib/storage';
 
 export type Tab = 'prepare' | 'preview' | 'device';
@@ -61,6 +63,8 @@ interface SlicerState {
 
   setTab(tab: Tab): void;
   selectPrinter(name: string): Promise<void>;
+  /** Filaments that work with a printer, without selecting it (for the setup wizard). */
+  filamentsFor(printer: string): Promise<{ filaments: PresetSummary[]; defaults: string[] }>;
   selectProcess(name: string): Promise<void>;
   setFilament(slot: number, name: string): Promise<void>;
   setColour(slot: number, colour: string): Promise<void>;
@@ -141,6 +145,15 @@ export const useSlicer = create<SlicerState>((set, get) => {
     save({ selection: res.selection, overrides: get().overrides });
   }
 
+  // A filament preset for a material: one of the user's installed filaments
+  // when one matches, else any compatible preset.
+  function pickFilament(filaments: PresetSummary[], type: string | undefined, fallback?: string) {
+    const installed = installedOnly(filaments, getUserSetting<Setup>(SETUP_KEY)?.filaments);
+    const want = (type ?? '').toUpperCase();
+    const mine = installed.length < filaments.length && installed.some((f) => (f.filamentType ?? '').toUpperCase() === want);
+    return pickFilamentPreset(mine ? installed : filaments, type, fallback);
+  }
+
   async function refreshPreview(info?: ProjectInfo) {
     const e = engine();
     const project = info ?? (await e.modelInfo());
@@ -166,7 +179,7 @@ export const useSlicer = create<SlicerState>((set, get) => {
     if (!colours.length) return;
     const types = splitList(info.file.filamentTypes);
     const { filaments, selection } = get();
-    const names = colours.map((_, i) => pickFilamentPreset(filaments, types[i], selection?.filaments[0]));
+    const names = colours.map((_, i) => pickFilament(filaments, types[i], selection?.filaments[0]));
     await applySelection({ ...selection, filaments: names, colours });
     const extruders = splitList(get().baseConfig.nozzle_diameter ?? '').length;
     if (extruders && colours.length > extruders)
@@ -214,7 +227,7 @@ export const useSlicer = create<SlicerState>((set, get) => {
     await applySelection({ printer: info.file.printer, process: '' });
     const { filaments, selection } = get();
     const names = colours.map((_, i) =>
-      filaments.some((f) => f.name === presets[i]) ? presets[i] : pickFilamentPreset(filaments, types[i], selection?.filaments[0]),
+      filaments.some((f) => f.name === presets[i]) ? presets[i] : pickFilament(filaments, types[i], selection?.filaments[0]),
     );
     const process = get().processes.some((p) => p.name === info.file.process) ? info.file.process : (selection?.process ?? '');
     await applySelection({ printer: info.file.printer, process, filaments: names.length ? names : selection?.filaments, colours: colours.length ? colours : selection?.colours });
@@ -233,7 +246,7 @@ export const useSlicer = create<SlicerState>((set, get) => {
     const { filaments, selection, processes } = get();
     const colours = splitList(file.filament_colour);
     const types = splitList(file.filament_type);
-    const names = colours.map((_, i) => pickFilamentPreset(filaments, types[i], selection?.filaments[0]));
+    const names = colours.map((_, i) => pickFilament(filaments, types[i], selection?.filaments[0]));
     await applySelection({
       printer,
       process: pickProcess(processes, file.layer_height, selection?.process ?? ''),
@@ -303,6 +316,7 @@ export const useSlicer = create<SlicerState>((set, get) => {
       await editSelection(() => ({ printer: name, process: '' }));
       await fitPlates().catch(fail);
     },
+    filamentsFor: (printer) => engine().filamentsFor(printer),
     selectProcess: (name) => editSelection(() => ({ process: name })),
     setFilament: (slot, name) => editSelection((s) => ({ filaments: s.filaments.map((f, i) => (i === slot ? name : f)) })),
     setColour: (slot, colour) => editSelection((s) => ({ colours: s.colours.map((c, i) => (i === slot ? colour : c)) })),

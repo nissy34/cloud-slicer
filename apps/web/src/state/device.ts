@@ -22,8 +22,8 @@ import { PrinterSession, type ConnState, type ConsoleLine, type GcodeFile } from
 import type { KlipperObjects } from '../device/status';
 
 export type SavedPrinter =
-  | { id: string; name: string; kind: 'direct'; url: string; apiKey: string }
-  | { id: string; name: string; kind: 'bridge'; relay: string; bridgeId: string; key: string; printer: string };
+  | { id: string; name: string; kind: 'direct'; url: string; apiKey: string; preset?: string }
+  | { id: string; name: string; kind: 'bridge'; relay: string; bridgeId: string; key: string; printer: string; preset?: string };
 
 export type SendSource = { kind: 'upload'; blob: Blob; name: string } | { kind: 'file'; path: string };
 
@@ -89,9 +89,9 @@ function store(key: string, value: unknown) {
 export function printerFromDevice(d: Device): SavedPrinter | null {
   const x = d.extra ?? {};
   if (x.kind === 'bridge' && typeof x.relay === 'string' && typeof x.bridgeId === 'string') {
-    return { id: d.id, name: d.name, kind: 'bridge', relay: x.relay, bridgeId: x.bridgeId, key: '', printer: typeof x.printer === 'string' ? x.printer : '' };
+    return { id: d.id, name: d.name, kind: 'bridge', relay: x.relay, bridgeId: x.bridgeId, key: '', printer: typeof x.printer === 'string' ? x.printer : '', ...(d.preset && { preset: d.preset }) };
   }
-  return d.url ? { id: d.id, name: d.name, kind: 'direct', url: d.url, apiKey: '' } : null;
+  return d.url ? { id: d.id, name: d.name, kind: 'direct', url: d.url, apiKey: '', ...(d.preset && { preset: d.preset }) } : null;
 }
 
 const secretOf = (p: SavedPrinter) => (p.kind === 'direct' ? p.apiKey : p.key);
@@ -99,8 +99,8 @@ const withSecret = (p: SavedPrinter, secret: string): SavedPrinter => (p.kind ==
 
 export function deviceInput(p: SavedPrinter) {
   return p.kind === 'direct'
-    ? { id: p.id, name: p.name, url: p.url, apiKey: p.apiKey || null, extra: { kind: 'direct' } }
-    : { id: p.id, name: p.name, url: '', apiKey: p.key, extra: { kind: 'bridge', relay: p.relay, bridgeId: p.bridgeId, printer: p.printer } };
+    ? { id: p.id, name: p.name, url: p.url, apiKey: p.apiKey || null, preset: p.preset, extra: { kind: 'direct' } }
+    : { id: p.id, name: p.name, url: '', apiKey: p.key, preset: p.preset, extra: { kind: 'bridge', relay: p.relay, bridgeId: p.bridgeId, printer: p.printer } };
 }
 
 /** Secrets fetched or saved this visit, by printer id. */

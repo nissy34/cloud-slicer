@@ -1,4 +1,7 @@
 import { shortName } from '../lib/presets';
+import { installedOnly, SETUP_KEY, type Setup } from '../lib/setup';
+import { useUserSetting } from '../state/account';
+import { useSetupWizard } from './SetupWizard';
 import { useOption, useSlicer } from '../state/store';
 import { ObjectList } from './ObjectList';
 import { PaintPanel } from './PaintPanel';
@@ -6,14 +9,22 @@ import { OptionField } from './OptionField';
 import { SettingsPanel } from './SettingsPanel';
 
 function PrinterSection() {
-  const printers = useSlicer((s) => s.printers);
+  const allPrinters = useSlicer((s) => s.printers);
   const selection = useSlicer((s) => s.selection);
   const selectPrinter = useSlicer((s) => s.selectPrinter);
+  const installed = useUserSetting<Setup>(SETUP_KEY)?.printers;
+  const printers = installedOnly(allPrinters, installed, selection?.printer);
+  const manage = useSetupWizard((s) => s.show);
   const busy = useSlicer((s) => s.engine !== 'ready');
   const vendors = [...new Set(printers.map((p) => p.vendor || 'Other'))];
   return (
     <section className="group">
-      <h2>Printer</h2>
+      <div className="group-head">
+        <h2>Printer</h2>
+        <button className="link" onClick={manage}>
+          Manage
+        </button>
+      </div>
       <label className="field">
         <span className="sr-only">Printer preset</span>
         <select
@@ -42,7 +53,9 @@ function PrinterSection() {
 
 function FilamentSection() {
   const selection = useSlicer((s) => s.selection);
-  const filaments = useSlicer((s) => s.filaments);
+  const allFilaments = useSlicer((s) => s.filaments);
+  const installed = useUserSetting<Setup>(SETUP_KEY)?.filaments;
+  const filaments = installedOnly(allFilaments, installed, selection?.filaments);
   const { setFilament, setColour, addFilament, removeFilament } = useSlicer.getState();
   const extruders = (useOption('nozzle_diameter') ?? '').split(',').filter(Boolean).length;
   if (!selection) return null;
