@@ -8,6 +8,12 @@
   --accent: #2f6fe4;
   --accent-text: #ffffff;
   --danger: #c4312b;
+  /* 3D views (read by lib/theme.ts) */
+  --scene-bg: #e8ebef;
+  --scene-bed: #d3d8df;
+  --scene-grid: #9ba3af;
+  --scene-ground: #b9bfc8;
+  --scene-text: #3b414b;
   --radius: 8px;
   --topbar: 48px;
   color-scheme: light;
@@ -24,6 +30,11 @@
     --accent: #6e9cf5;
     --accent-text: #0b1530;
     --danger: #f08a84;
+    --scene-bg: #16191e;
+    --scene-bed: #2b2f36;
+    --scene-grid: #4a5160;
+    --scene-ground: #3a3f48;
+    --scene-text: #c9ced6;
     color-scheme: dark;
   }
 }
@@ -38,6 +49,11 @@
   --accent: #6e9cf5;
   --accent-text: #0b1530;
   --danger: #f08a84;
+  --scene-bg: #16191e;
+  --scene-bed: #2b2f36;
+  --scene-grid: #4a5160;
+  --scene-ground: #3a3f48;
+  --scene-text: #c9ced6;
   color-scheme: dark;
 }
 
@@ -232,7 +248,7 @@ select:focus-visible {
   place-content: center;
   justify-items: center;
   gap: 12px;
-  color: #c9ced6;
+  color: var(--scene-text);
   pointer-events: none;
 }
 .empty p {
@@ -249,7 +265,7 @@ select:focus-visible {
   border: 2px dashed var(--accent);
   border-radius: 12px;
   background: color-mix(in srgb, var(--accent) 12%, transparent);
-  color: #fff;
+  color: var(--text);
   font-weight: 600;
   pointer-events: none;
 }
@@ -528,6 +544,32 @@ select:focus-visible {
 .page.active {
   background: var(--accent);
   border-color: var(--accent);
+  color: var(--accent-text);
+}
+/* Desktop's [Standard flow] [High flow] switch: one segmented control. */
+.flow-switch {
+  display: flex;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  overflow: hidden;
+  justify-self: start;
+  max-width: 100%;
+}
+.flow-switch button {
+  flex: 1 1 0;
+  border: 0;
+  background: none;
+  padding: 4px 12px;
+  color: var(--muted);
+  cursor: pointer;
+  font-size: 12px;
+  white-space: nowrap;
+}
+.flow-switch button + button {
+  border-left: 1px solid var(--border);
+}
+.flow-switch button.active {
+  background: var(--accent);
   color: var(--accent-text);
 }
 .optgroup {
@@ -2412,5 +2454,62 @@ select:focus-visible {
 @media (max-width: 760px) {
   .wizard .dialog-actions {
     flex-wrap: wrap;
+  }
+}
+
+/* ===== Theme menu (components/ThemeMenu.tsx) ===== */
+.theme-menu {
+  position: relative;
+}
+.topbar .icon-button {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+}
+.theme-pop {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  z-index: 50;
+  display: grid;
+  min-width: 200px;
+  padding: 4px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  box-shadow: 0 12px 32px rgb(0 0 0 / 0.18);
+}
+.theme-item {
+  display: flex;
+  white-space: nowrap;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 10px;
+  border: 0;
+  border-radius: 6px;
+  background: none;
+  text-align: left;
+  cursor: pointer;
+}
+.theme-item:hover {
+  background: var(--surface-2);
+}
+.theme-item.active {
+  font-weight: 600;
+  color: var(--accent);
+}
+.theme-hint {
+  color: var(--muted);
+  font-weight: 400;
+}
+@media (max-width: 760px) {
+  .topbar {
+    gap: 4px;
+  }
+  .topbar .icon-button {
+    width: 28px;
+    height: 28px;
   }
 }

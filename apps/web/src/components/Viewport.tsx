@@ -7,12 +7,14 @@ import { acceleratedRaycast, MeshBVH } from 'three-mesh-bvh';
 import type { PaintOverlay, PaintRay, PreviewMesh } from '../engine/protocol';
 import { bedSize, rgb } from '../lib/colour';
 import { hullPlanes, layOnFace, movedOffset, toDegrees, toQuat, DEG, type Placement } from '../lib/placement';
+import { useSceneColours } from '../lib/theme';
 import { NO_COLOURS, useOption, useSlicer } from '../state/store';
 
 // Printer coordinates are Z-up with the plate from (0,0) to (w,d).
 THREE.Object3D.DEFAULT_UP.set(0, 0, 1);
 
 export function Bed({ w, d }: { w: number; d: number }) {
+  const scene = useSceneColours();
   const grid = useMemo(() => {
     const pts: number[] = [];
     for (let x = 0; x <= w + 0.01; x += 10) pts.push(x, 0, 0, x, d, 0);
@@ -25,10 +27,10 @@ export function Bed({ w, d }: { w: number; d: number }) {
     <group>
       <mesh position={[w / 2, d / 2, -0.2]} receiveShadow>
         <planeGeometry args={[w, d]} />
-        <meshStandardMaterial color="#2b2f36" roughness={0.9} />
+        <meshStandardMaterial color={scene.bed} roughness={0.9} />
       </mesh>
       <lineSegments geometry={grid}>
-        <lineBasicMaterial color="#4a5160" transparent opacity={0.6} />
+        <lineBasicMaterial color={scene.grid} transparent opacity={0.6} />
       </lineSegments>
     </group>
   );
@@ -493,6 +495,7 @@ function PlateTabs() {
 
 export function Viewport() {
   const { w, d } = bedSize(useOption('printable_area'));
+  const scene = useSceneColours();
   return (
     <>
       <Canvas
@@ -501,8 +504,8 @@ export function Viewport() {
         gl={{ antialias: true }}
         data-testid="viewport"
       >
-        <color attach="background" args={['#16191e']} />
-        <hemisphereLight args={['#ffffff', '#3a3f48', 0.9]} />
+        <color attach="background" args={[scene.background]} />
+        <hemisphereLight args={['#ffffff', scene.ground, 0.9]} />
         <directionalLight position={[w, -d, d * 2]} intensity={1.6} />
         <Bed w={w} d={d} />
         <Objects w={w} d={d} />

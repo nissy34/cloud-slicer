@@ -102,9 +102,34 @@ function pngFrame(n, w = 64, h = 48) {
   return Buffer.concat([Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]), chunk('IHDR', ihdr), chunk('IDAT', deflateSync(raw)), chunk('IEND', Buffer.alloc(0))]);
 }
 
+// Slicer thumbnails in a G-code file, found the way Moonraker's metadata
+// extractor finds them (file_manager/metadata.py, parse_thumbnails): PNG
+// blocks whose base64 length matches the header. Moonraker also converts QOI
+// and JPG and makes a 32x32 miniature; the mock keeps PNGs only.
+export function gcodeThumbnails(text) {
+  const out = [];
+  for (const m of text.matchAll(/(thumbnail(?:_[A-Za-z0-9]+)?) begin([;/+=\w\s]+?); \1 end/g)) {
+    if ((m[1].split('_')[1] ?? 'png').toLowerCase() !== 'png') continue;
+    const lines = m[2].replaceAll('; ', '').split(/\r?\n/);
+    const info = (lines[0].match(/\d+/g) ?? []).map(Number);
+    const data = lines.slice(1, -1).join('');
+    if (info.length !== 3 || data.length !== info[2]) continue;
+    out.push({ width: info[0], height: info[1], png: Buffer.from(data, 'base64') });
+  }
+  return out;
+}
+
+// A G-code thumbnail block, as slicers write it.
+function thumbnailBlock(png) {
+  const b64 = png.toString('base64');
+  const rows = b64.match(/.{1,78}/g).map((r) => `; ${r}\n`).join('');
+  return `; THUMBNAIL_BLOCK_START\n;\n; thumbnail begin ${png.readUInt32BE(16)}x${png.readUInt32BE(20)} ${b64.length}\n${rows}; thumbnail end\n; THUMBNAIL_BLOCK_END\n`;
+}
+
 export async function startMockPrinter({ port = 0, host = '127.0.0.1', generic = false } = {}) {
   let state = u1State(generic);
-  const files = new Map([['calibration_cube.gcode', { size: 123456, modified: Date.now() / 1000 - 3600, text: '; filament_colour = #FF0000\n; filament_type = PLA\n; filament used [g] = 5.1\n' }]]);
+  const cube = `${thumbnailBlock(pngFrame(3, 300, 300))}; filament_colour = #FF0000\n; filament_type = PLA\n; filament used [g] = 5.1\n`;
+  const files = new Map([['calibration_cube.gcode', { size: 123456, modified: Date.now() / 1000 - 3600, text: cube }]]);
   const scripts = [];
   const clients = new Set();
   let frame = 0;
@@ -306,10 +331,12 @@ export async function startMockPrinter({ port = 0, host = '127.0.0.1', generic =
           filename: params.filename,
           size: f.size,
           estimated_time: Number(kv('estimated_time_s') ?? 3600),
-          thumbnails: [
-            { width: 32, height: 32, size: 900, relative_path: `.thumbs/${params.filename.replace(/\.[^.]+$/, '')}-32x32.png` },
-            { width: 300, height: 300, size: 9000, relative_path: `.thumbs/${params.filename.replace(/\.[^.]+$/, '')}-300x300.png` },
-          ],
+          thumbnails: gcodeThumbnails(f.text).map((t) => ({
+            width: t.width,
+            height: t.height,
+            size: t.png.length,
+            relative_path: `.thumbs/${params.filename.replace(/\.[^.]+$/, '')}-${t.width}x${t.height}.png`,
+          })),
           filament_colors: (kv('filament_colour') ?? '').split(';').filter(Boolean),
           filament_type: kv('filament_type') ?? '',
           filament_weights: (kv('filament used [g]') ?? '').split(',').filter(Boolean).map(Number),
@@ -354,11 +381,13 @@ export async function startMockPrinter({ port = 0, host = '127.0.0.1', generic =
       res.end(typeof body === 'string' || Buffer.isBuffer(body) ? body : JSON.stringify(body));
     };
     if (req.method === 'OPTIONS') return send(204, '');
-    // Slicer thumbnails Moonraker extracted from the G-code (one colour per file).
+    // Slicer thumbnails Moonraker extracted from the G-code.
     if (url.pathname.startsWith('/server/files/gcodes/.thumbs/')) {
-      const name = decodeURIComponent(url.pathname.slice('/server/files/gcodes/.thumbs/'.length)).replace(/-\d+x\d+\.png$/, '');
-      if (![...files.keys()].some((p) => p.replace(/\.[^.]+$/, '') === name)) return send(404, { error: { message: 'no thumbnail' } });
-      return send(200, pngFrame([...name].reduce((h, c) => h + c.charCodeAt(0), 0), 64, 64), 'image/png');
+      const m = /^(.*)-(\d+)x(\d+)\.png$/.exec(decodeURIComponent(url.pathname.slice('/server/files/gcodes/.thumbs/'.length)));
+      const file = m && [...files].find(([p]) => p.replace(/\.[^.]+$/, '') === m[1])?.[1];
+      const thumb = file && gcodeThumbnails(file.text).find((t) => t.width === Number(m[2]) && t.height === Number(m[3]));
+      if (!thumb) return send(404, { error: { message: 'no thumbnail' } });
+      return send(200, thumb.png, 'image/png');
     }
     if (url.pathname === '/server/files/camera/monitor.jpg') {
       if (!generic && Date.now() < monitorUntil) return send(200, pngFrame(frame), 'image/png');

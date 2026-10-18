@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import type { OptionDef } from '../engine/protocol';
 import { useSlicer } from '../state/store';
+import { FlowVariantSwitch } from './FlowVariantSwitch';
 import { OptionField } from './OptionField';
 
 const visible = (def: OptionDef | undefined, advanced: boolean) =>
@@ -18,6 +19,7 @@ export function SettingsPanel() {
   const pages = layout.print;
   const current = pages[Math.min(page, pages.length - 1)];
   const changed = Object.keys(overrides).length;
+  const hasFlowVariants = current.groups.some((g) => g.options.some((k) => options[k]?.flow === 'process' && visible(options[k], advanced)));
 
   return (
     <section className="group settings">
@@ -35,6 +37,7 @@ export function SettingsPanel() {
           </button>
         ))}
       </div>
+      {hasFlowVariants && <FlowVariantSwitch />}
       {current.groups.map((g) => {
         const keys = g.options.filter((k) => visible(options[k], advanced));
         if (!keys.length) return null;

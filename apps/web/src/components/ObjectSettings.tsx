@@ -1,4 +1,5 @@
 import { useSlicer } from '../state/store';
+import { FlowVariantSwitch } from './FlowVariantSwitch';
 import { OptionField } from './OptionField';
 
 /**
@@ -51,6 +52,7 @@ export function ObjectSettings({ object }: { object: number }) {
           ))}
         </select>
       </div>
+      {keys.some((k) => options[k].flow === 'process') && <FlowVariantSwitch />}
       {keys.length === 0 && <p className="hint">Uses the process settings. Add one to change it for this object only.</p>}
       {keys.map((k) => (
         <OptionField

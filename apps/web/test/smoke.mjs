@@ -7,10 +7,12 @@
 //
 // Needs `npm run build` first (with the engine copied into public/engine).
 import { spawn } from 'node:child_process';
-import { readFileSync } from 'node:fs';
+import { readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { inflateSync } from 'node:zlib';
 import { chromium } from 'playwright';
+import { gcodeThumbnails } from './device/mock-printer.mjs';
 
 const web = join(dirname(fileURLToPath(import.meta.url)), '..');
 const model = resolve(process.argv[2] ?? join(web, '../../fixtures/3DBenchy.stl'));
@@ -34,6 +36,18 @@ if (!url) {
     });
     server.on('exit', (code) => fail(new Error(`vite preview exited (${code})`)));
   });
+}
+
+// Share of a PNG's pixels that are not transparent (8-bit RGBA, unfiltered rows, as Orca writes them).
+function opaqueShare(png) {
+  const w = png.readUInt32BE(16), h = png.readUInt32BE(20);
+  const idat = [];
+  for (let at = 8; at < png.length; at += 12 + png.readUInt32BE(at))
+    if (png.toString('latin1', at + 4, at + 8) === 'IDAT') idat.push(png.subarray(at + 8, at + 8 + png.readUInt32BE(at)));
+  const raw = inflateSync(Buffer.concat(idat));
+  let n = 0;
+  for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) if (raw[y * (w * 4 + 1) + 1 + x * 4 + 3] > 0) n++;
+  return n / (w * h);
 }
 
 const fail = (msg) => {
@@ -79,6 +93,18 @@ try {
   const layers = (gcode.match(/^;LAYER_CHANGE/gm) ?? []).length;
   if (layers < 10) fail(`only ${layers} layers`);
   console.log(`${download.suggestedFilename()}: ${(gcode.length / 1e6).toFixed(1)} MB, ${layers} layers`);
+
+  // The plate picture, in the sizes the U1 profile asks for, found the way Moonraker finds it.
+  const thumbs = gcodeThumbnails(gcode);
+  const sizes = thumbs.map((t) => `${t.width}x${t.height}`).join(', ');
+  if (sizes !== '48x48, 300x300') fail(`thumbnails: [${sizes}], expected 48x48 and 300x300`);
+  for (const t of thumbs) {
+    const share = opaqueShare(t.png);
+    // The model fills a good part of the picture; the rest is transparent.
+    if (share < 0.1 || share > 0.95) fail(`${t.width}x${t.height} thumbnail is ${(share * 100).toFixed(0)}% model`);
+  }
+  if (process.env.SMOKE_THUMBNAIL && thumbs.length) writeFileSync(process.env.SMOKE_THUMBNAIL, thumbs.at(-1).png);
+  console.log(`thumbnails: ${sizes}`);
 
   // Slicing switches to the Preview tab on its own.
   await page.getByTestId('layer-label').waitFor({ timeout: 120000 });

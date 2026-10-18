@@ -4,6 +4,7 @@
 // converted: only its print (process) settings are carried over to a printer we
 // do have, and its filaments are matched by material.
 import type { OrcaConfig, PresetSummary, SettingsLayout } from '../engine/protocol';
+import { alignFlowVariants, type FlowDomain } from './flow-variants';
 
 /**
  * Keys that describe presets or a specific machine rather than a setting the
@@ -18,6 +19,9 @@ const NEVER = new Set([
   'print_host', 'print_host_webui', 'printhost_apikey', 'printhost_cafile', 'host_type',
   // Prime tower position is per plate and per bed; Orca re-places it.
   'wipe_tower_x', 'wipe_tower_y',
+  // Which flow variants the presets have values for; alignFlowVariants lays
+  // the project's values out like the presets'.
+  'process_flow_support', 'filament_flow_support', 'printer_flow_support', 'filament_flow_step_size',
 ]);
 
 /**
@@ -41,11 +45,11 @@ function inRange(value: string, def: { min?: number; max?: number }): boolean {
 export function projectOverrides(
   file: OrcaConfig,
   base: OrcaConfig,
-  known: Record<string, { min?: number; max?: number }>,
+  known: Record<string, { min?: number; max?: number; flow?: FlowDomain }>,
   only?: Set<string>,
 ): OrcaConfig {
   const out: OrcaConfig = {};
-  for (const [key, value] of Object.entries(file)) {
+  for (const [key, value] of Object.entries(alignFlowVariants(file, base, known))) {
     if (NEVER.has(key) || !(key in known) || (only && !only.has(key))) continue;
     if (base[key] !== value && inRange(value, known[key])) out[key] = value;
   }

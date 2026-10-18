@@ -15,6 +15,7 @@ import type {
 } from '../engine/protocol';
 import { calibrationOptions, CALIBRATIONS, type CalibrationMode, type CalibrationValues } from '../lib/calibration';
 import { bedSize } from '../lib/colour';
+import { renderThumbnails, thumbnailSizes } from '../lib/thumbnail';
 import { DEFAULT_PRINTER, pickFilamentPreset, splitList, SLOT_COLOURS } from '../lib/presets';
 import { modelProcessKeys, pickProcess, printerLabel, projectOverrides } from '../lib/project-import';
 import { accountReady, getUserSetting, presetEditing, useAccount } from './account';
@@ -51,6 +52,11 @@ interface SlicerState {
   overrides: OrcaConfig;
   options: Record<string, OptionDef>;
   layout: SettingsLayout | null;
+  /**
+   * Flow variant (index into process_flow_support) the settings show and edit
+   * for flow-variant options, like desktop's [Standard flow] [High flow] switch.
+   */
+  flowVariant: number;
 
   project: ProjectInfo | null;
   plate: number;
@@ -93,6 +99,7 @@ interface SlicerState {
   addFilament(): Promise<void>;
   removeFilament(slot: number): Promise<void>;
   setOverride(key: string, value: string | null): void;
+  setFlowVariant(index: number): void;
   resetOverrides(keys?: string[]): void;
   /**
    * Adds model files to the project. A single 3MF opens as the project when
@@ -153,6 +160,18 @@ export const useSlicer = create<SlicerState>((set, get) => {
       onFatal: (message) => set({ engine: 'failed', engineMessage: message }),
     });
     return client;
+  };
+
+  // Pictures of the plate for the G-code, in the sizes the printer asks for.
+  // Without WebGL the G-code just has none, as desktop's would without a GPU.
+  const plateThumbnails = () => {
+    const { preview, selection, overrides, baseConfig } = get();
+    try {
+      return renderThumbnails(preview, selection?.colours ?? [], thumbnailSizes(overrides.thumbnails ?? baseConfig.thumbnails));
+    } catch (e) {
+      console.warn('No plate thumbnail:', e);
+      return [];
+    }
   };
 
   const fail = (e: unknown) => set({ job: { kind: 'error', message: (e as Error).message } });
@@ -291,7 +310,8 @@ export const useSlicer = create<SlicerState>((set, get) => {
     const names = colours.map((_, i) =>
       filaments.some((f) => f.name === presets[i]) ? presets[i] : pickFilament(filaments, types[i], selection?.filaments[0]),
     );
-    const process = get().processes.some((p) => p.name === info.file.process) ? info.file.process : (selection?.process ?? '');
+    // The engine also finds a process by its old name, and keeps the current one when it can't.
+    const process = info.file.process || (selection?.process ?? '');
     await applySelection({ printer: info.file.printer, process, filaments: names.length ? names : selection?.filaments, colours: colours.length ? colours : selection?.colours });
     const overrides = projectOverrides(file, get().baseConfig, get().options);
     setOverrides(overrides);
@@ -357,6 +377,7 @@ export const useSlicer = create<SlicerState>((set, get) => {
     overrides: {},
     options: {},
     layout: null,
+    flowVariant: 0,
     project: null,
     plate: 0,
     preview: null,
@@ -418,6 +439,7 @@ export const useSlicer = create<SlicerState>((set, get) => {
       else overrides[key] = value;
       setOverrides(overrides);
     },
+    setFlowVariant: (flowVariant) => set({ flowVariant }),
     resetOverrides(keys) {
       setOverrides(keys ? Object.fromEntries(Object.entries(get().overrides).filter(([k]) => !keys.includes(k))) : {});
     },
@@ -598,7 +620,7 @@ export const useSlicer = create<SlicerState>((set, get) => {
       if (!project?.objects.length) return;
       set({ job: { kind: 'slicing', pct: 0, stage: '' } });
       try {
-        const { result, gcode, ms } = await engine().slice(plate, overrides);
+        const { result, gcode, ms } = await engine().slice(plate, overrides, plateThumbnails());
         set({ job: { kind: 'sliced', plate, result, gcode: new Blob([gcode], { type: 'text/plain' }), ms }, notice: '' });
         // Like desktop Orca: show the result as soon as slicing finishes.
         get().setTab('preview');

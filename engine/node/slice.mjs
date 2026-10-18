@@ -72,7 +72,7 @@ const result = JSON.parse(engine.sliceWithConfig(JSON.stringify(full.config), op
     console.error(`  [${String(pct).padStart(3)}%] ${stage}`);
     lastStage = stage;
   }
-}));
+}, null));
 const tSlice = performance.now();
 console.error(`result: ${JSON.stringify(result)}`);
 if (opts.configOut) writeFileSync(opts.configOut, JSON.stringify(full.config, null, 1));

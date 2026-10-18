@@ -14,6 +14,7 @@ import type {
   SliceResult,
   WorkerReply,
 } from './protocol';
+import type { Thumbnail } from '../lib/thumbnail';
 
 export type CutKeep = 'both' | 'upper' | 'lower';
 
@@ -128,6 +129,8 @@ export class EngineClient {
   calibrate = (options: Record<string, unknown>, overrides: OrcaConfig) =>
     this.call<{ overrides: OrcaConfig; info: ProjectInfo }>('calibrate', [options, overrides]);
   calibrationStop = () => this.call<void>('calibrationStop');
-  slice = (plate: number, overrides: OrcaConfig) =>
-    this.call<{ result: SliceResult; gcode: ArrayBuffer; ms: number }>('slice', [plate, overrides]);
+  /** `thumbnails`: plate pictures for the G-code (see lib/thumbnail.ts). */
+  slice = (plate: number, overrides: OrcaConfig, thumbnails: Thumbnail[] = []) =>
+    this.call<{ result: SliceResult; gcode: ArrayBuffer; ms: number }>(
+      'slice', [plate, overrides, thumbnails], thumbnails.map((t) => t.pixels.buffer as ArrayBuffer));
 }
