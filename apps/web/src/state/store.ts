@@ -116,15 +116,6 @@ interface SlicerState {
 
 let client: EngineClient | null = null;
 
-/** Sends an engine start-up failure to the server, so it can be read without the user's console. */
-function reportEngineError(message: string) {
-  const [summary, ...stack] = message.split('\n');
-  void fetch('/api/engine-errors', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ message: summary, stack: stack.join('\n'), engineVersion: import.meta.env.VITE_ENGINE_VERSION }),
-  }).catch(() => {});
-}
 const presetFile = ({ type, name, inherits, config }: UserPresetFile): UserPresetFile => ({ type, name, inherits, config });
 /** The user presets the engine has loaded. */
 let enginePresets: UserPresetFile[] = [];
@@ -137,10 +128,7 @@ export const useSlicer = create<SlicerState>((set, get) => {
         void start();
       },
       onProgress: (pct, stage) => set({ job: { kind: 'slicing', pct, stage } }),
-      onFatal: (message) => {
-        set({ engine: 'failed', engineMessage: message });
-        reportEngineError(message);
-      },
+      onFatal: (message) => set({ engine: 'failed', engineMessage: message }),
     });
     return client;
   };

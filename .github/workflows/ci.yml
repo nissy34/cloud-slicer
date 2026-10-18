@@ -206,13 +206,3 @@ jobs:
           SMOKE_URL='${{ steps.deploy.outputs.url }}' node test/smoke.mjs ../../fixtures/tetrahedron.stl
           # The account API answers (Functions deployed), whether or not D1 is set up yet.
           curl -fsS "$url/api/me" | tee /dev/stderr | grep -q '"providers"'
-
-      - name: Latest engine start-up failures reported by browsers
-        if: always() && steps.deploy.outputs.url != ''
-        continue-on-error: true
-        working-directory: apps/web
-        run: |
-          npx wrangler d1 execute cloud-slicer --remote --command \
-            "SELECT datetime(created_at / 1000, 'unixepoch') AS at, engine_version, user_agent, message, stack FROM engine_errors ORDER BY id DESC LIMIT 10" \
-            | tee errors.txt
-          { echo '### Engine start-up failures (latest 10)'; echo '```'; cat errors.txt; echo '```'; } >> "$GITHUB_STEP_SUMMARY"

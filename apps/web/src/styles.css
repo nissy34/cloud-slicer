@@ -267,6 +267,19 @@ select:focus-visible {
 .actionbar.error {
   color: var(--danger);
 }
+.engine-failed {
+  align-items: flex-start;
+}
+.error-details {
+  margin: 8px 0 0;
+  max-height: 30vh;
+  overflow: auto;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  font-size: 12px;
+  color: var(--muted);
+  user-select: text;
+}
 .status {
   flex: 1;
   min-width: 0;
