@@ -87,7 +87,7 @@ export class DirectLink implements PrinterLink {
       if (e instanceof LinkError) throw e;
       if ((e as Error).name === 'AbortError') throw new LinkError('The printer did not answer in time.', 'timeout');
       throw new LinkError(
-        `Could not reach ${this.label}. Check that it is on, and that Moonraker allows this site (cors_domains: ${location.origin}).`,
+        `Could not reach ${this.label}. Check that it is on, and that moonraker.conf lists this site under [authorization] cors_domains (${location.origin}), then restart Moonraker.`,
         'network',
       );
     } finally {

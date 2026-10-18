@@ -20,7 +20,7 @@ export function guessSystem(ua = typeof navigator === 'undefined' ? '' : navigat
 const mb = (bytes: number) => `${Math.round(bytes / 1e6)} MB`;
 
 /** One command on its own line, with a button that copies exactly that command. */
-function CopyCommand({ command, testId }: { command: string; testId?: string }) {
+export function CopyCommand({ command, testId }: { command: string; testId?: string }) {
   const [copied, setCopied] = useState(false);
   const copy = () => {
     void navigator.clipboard?.writeText(command).then(() => {

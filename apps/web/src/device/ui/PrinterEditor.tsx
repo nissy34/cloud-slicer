@@ -8,7 +8,7 @@ import { BridgeLink } from '../link/bridge';
 import { DirectLink, directBlockedReason, normalizePrinterUrl } from '../link/direct';
 import type { BridgeStatus } from '../link/types';
 import { decodePairing, type Pairing } from '../pairing';
-import { BridgeSetup, UninstallBridge } from './BridgeSetup';
+import { BridgeSetup, CopyCommand, UninstallBridge } from './BridgeSetup';
 import { Dialog } from './parts';
 
 const newId = () => Math.random().toString(36).slice(2, 10);
@@ -535,7 +535,16 @@ export function PrinterEditor() {
         </div>
       ) : (
         <div className="dv-form">
-          <p>For a printer you've put on the internet yourself, behind https. Add this site to Moonraker's cors_domains so the browser may talk to it.</p>
+          <p>For a printer you've put on the internet yourself, behind https.</p>
+          <p>
+            <strong>First, let this site talk to the printer.</strong> Moonraker only answers websites it lists in <code>cors_domains</code>. On the printer, open{' '}
+            <code>moonraker.conf</code> (in Mainsail or Fluidd: Machine, then moonraker.conf), add this site under <code>[authorization]</code>, save, and restart
+            Moonraker:
+          </p>
+          <CopyCommand command={`[authorization]\ncors_domains:\n    ${location.origin}`} testId="cors-snippet" />
+          <p className="muted">
+            If <code>[authorization]</code> already has <code>cors_domains:</code>, add just the last line under it, indented like the others.
+          </p>
           <p className="muted">
             Using <a href="https://tailscale.com/kb/1312/serve" target="_blank" rel="noreferrer">Tailscale</a> (built into the paxx12 U1 firmware)? Turn on Tailscale Serve on the printer and
             enter its https://….ts.net address. It works from your phones and computers that are signed in to Tailscale.

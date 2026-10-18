@@ -239,6 +239,8 @@ try {
   for (let i = 0; i < 24; i++) voron.files.set(`part_${String(i).padStart(2, '0')}.gcode`, { size: 50_000, modified: Date.now() / 1000 - 7200 - i * 600, text: '' });
   await page.getByTestId('printer-select').selectOption('__add');
   await page.getByRole('tab', { name: 'Public https address' }).click();
+  // The exact moonraker.conf lines that let this site reach the printer, ready to copy.
+  await page.getByTestId('cors-snippet').filter({ hasText: `[authorization] cors_domains: ${site.replace(/\/$/, '')}` }).waitFor();
   await page.getByTestId('printer-url').fill(voron.url);
   await page.getByTestId('save-printer').click();
   await page.getByTestId('connection').filter({ hasText: 'Connected' }).waitFor({ timeout: 20_000 });
