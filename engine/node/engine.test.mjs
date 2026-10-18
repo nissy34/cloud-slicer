@@ -240,6 +240,47 @@ test('lists the filaments that work with a printer, for the setup wizard', () =>
   assert.throws(() => call(engine, 'presetsFilamentsFor', 'No such printer'));
 });
 
+test('calibration tests set up like desktop and change settings per layer', () => {
+  select({ printer: DEFAULT_PRINTER, process: '0.20mm Standard @Snapmaker U1 (0.4 nozzle)' });
+  selectSlots(1);
+  const here = dirname(fileURLToPath(import.meta.url));
+  const start = (mode, model, opts = {}) => {
+    const path = `/work/${model.split('/').pop()}`;
+    const file = model.includes('/') ? resolve(here, '../orcaslicer/resources/calib', model) : resolve(here, '../calib', model);
+    engine.FS.writeFile(path, readFileSync(file));
+    const base = fullConfig();
+    const [w, d] = bedSize(base);
+    const r = call(engine, 'calibrationStart', JSON.stringify({ mode, model: path, ...opts }), JSON.stringify(base), w, d);
+    assert.ok(info().objects.length > 0, `${mode}: test model loaded`);
+    return slice(fullConfig(r.overrides)).gcode;
+  };
+  const values = (gcode, re) => [...new Set([...gcode.matchAll(re)].map((m) => Number(m[1])))];
+
+  // Temperature tower: the nozzle steps from 230 down to 200 in 5 degree blocks.
+  let gcode = start('temperature', 'temperature_tower/temperature_tower.stl', { start: 230, end: 200, step: 5 });
+  const temps = values(gcode, /^M104 S(\d+)/gm);
+  for (const t of [230, 215, 200]) assert.ok(temps.includes(t), `temperature ${t} in ${temps}`);
+
+  // Pressure advance tower: SET_PRESSURE_ADVANCE climbs layer by layer.
+  gcode = start('paTower', 'pressure_advance/tower_with_seam.stl', { start: 0, end: 0.1, step: 0.002 });
+  const pa = values(gcode, /^SET_PRESSURE_ADVANCE ADVANCE=([\d.]+)/gm);
+  assert.ok(pa.length > 10 && Math.max(...pa) > 0.05, `pressure advance values ${pa.slice(0, 5)}...`);
+
+  // Retraction tower and flow rate both slice; flow rate needs no calib params.
+  gcode = start('retraction', 'retraction/retraction_tower.stl', { start: 0, end: 2, step: 0.1 });
+  assert.ok(gcode.length > 1000);
+  gcode = start('flowRate', 'filament_flow/flowrate-test-pass1.3mf', { pass: 1 });
+  assert.ok(info().objects.length >= 9, 'pass 1 has a block per flow ratio');
+
+  // Max volumetric speed (a STEP model) and VFA: the speed climbs up the tower.
+  gcode = start('volumetricSpeed', 'SpeedTestStructure.stl', { start: 5, end: 20, step: 0.5 });
+  assert.ok(values(gcode, /^G1 [^F\n]*F(\d+)/gm).length > 5, 'speeds change up the tower');
+  gcode = start('vfa', 'vfa/VFA.stl', { start: 40, end: 200, step: 10 });
+  assert.ok(gcode.length > 1000);
+
+  engine.calibrationStop();
+});
+
 test('user presets (diffs over a system preset) load like desktop user presets', () => {
   const PROCESS = '0.20mm Standard @Snapmaker U1 (0.4 nozzle)';
   select({ printer: DEFAULT_PRINTER, process: PROCESS });

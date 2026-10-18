@@ -808,6 +808,35 @@ select:focus-visible {
   font-size: 12px;
 }
 
+/* Calibration */
+.calib-banner {
+  display: grid;
+  gap: 8px;
+  padding: 10px;
+  margin-bottom: 12px;
+  border: 1px solid var(--accent);
+  border-radius: var(--radius);
+  background: var(--surface-2);
+  font-size: 13px;
+}
+.calib-banner button {
+  justify-self: start;
+  padding: 4px 14px;
+}
+.calib-fields {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+  gap: 8px;
+}
+.calib-fields input {
+  width: 100%;
+  padding: 6px 8px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  color: var(--text);
+}
+
 /* Dialogs */
 .dialog-backdrop {
   position: fixed;
@@ -860,11 +889,19 @@ select:focus-visible {
 /* Phone: viewport first, panel below */
 @media (max-width: 760px) {
   .topbar {
-    gap: 12px;
+    gap: 8px;
+    padding: 0 10px;
+  }
+  .tabs {
+    gap: 0;
+  }
+  .tab,
+  .topbar .ghost {
+    padding: 6px 8px;
+    font-size: 13px;
   }
   .brand {
-    font-size: 0;
-    gap: 0;
+    display: none;
   }
   /* One scrolling column: 3D view, then the settings, with the action bar
      (Slice, stats, download) pinned to the bottom of the screen. */

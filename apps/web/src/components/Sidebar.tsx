@@ -2,6 +2,7 @@ import { shortName } from '../lib/presets';
 import { installedOnly, SETUP_KEY, type Setup } from '../lib/setup';
 import { useUserSetting } from '../state/account';
 import { useSetupWizard } from './SetupWizard';
+import { CalibrationBanner } from './CalibrationDialog';
 import { useOption, useSlicer } from '../state/store';
 import { ObjectList } from './ObjectList';
 import { PaintPanel } from './PaintPanel';
@@ -155,6 +156,7 @@ function PresetOptions({ presets }: { presets: PresetSummary[] }) {
 export function Sidebar() {
   return (
     <aside className="panel">
+      <CalibrationBanner />
       <PaintPanel />
       <PrinterSection />
       <FilamentSection />

@@ -124,6 +124,7 @@ void Project::clear() {
     fileName.clear();
     fromBambu = false;
     plateCount = 1;
+    calib = Slic3r::Calib_Params();
 }
 
 } // namespace engine
