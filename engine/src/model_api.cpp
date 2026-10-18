@@ -53,12 +53,6 @@ void appendTriangles(const indexed_triangle_set& its, const Transform3d& m, cons
     }
 }
 
-template <typename T>
-emscripten::val typedCopy(const std::vector<T>& v) {
-    // typed_memory_view aliases wasm memory; slice() copies it out before v dies.
-    return emscripten::val(emscripten::typed_memory_view(v.size(), v.data())).template call<emscripten::val>("slice");
-}
-
 std::string optString(const DynamicPrintConfig& c, const char* key) {
     const ConfigOption* o = c.option(key);
     return o ? o->serialize() : std::string();
@@ -81,6 +75,13 @@ json ok(json extra = json::object()) {
     return extra;
 }
 json fail(const std::string& error) { return json{{"ok", false}, {"error", error}}; }
+
+// An object's or part's own settings, without the filament assignment.
+json settingsJson(const DynamicPrintConfig& cfg) {
+    json out = configToJson(cfg);
+    out.erase("extruder");
+    return out;
+}
 
 // Centre a freshly read geometry object on plate `plate` and drop it on the bed.
 void placeOnPlate(ModelObject* obj, int plate) {
@@ -204,7 +205,10 @@ std::string modelInfoJson() {
             const char* kind = v->is_model_part() ? "part" : v->is_negative_volume() ? "negative" : v->is_modifier() ? "modifier"
                              : v->is_support_enforcer() ? "supportEnforcer" : v->is_support_blocker() ? "supportBlocker" : "other";
             volumes.push_back({{"name", v->name}, {"kind", kind}, {"extruder", v->extruder_id()},
-                               {"painted", !v->mmu_segmentation_facets.empty()}});
+                               {"painted", !v->mmu_segmentation_facets.empty()},
+                               {"paint", {{"support", !v->supported_facets.empty()}, {"seam", !v->seam_facets.empty()},
+                                          {"fuzzy", !v->fuzzy_skin_facets.empty()}}},
+                               {"settings", settingsJson(v->config.get())}});
         }
         json instances = json::array();
         for (const ModelInstance* inst : obj->instances) {
@@ -226,6 +230,7 @@ std::string modelInfoJson() {
         const Vec3d size = obj->instance_bounding_box(0, false).size();
         objects.push_back({{"name", obj->name}, {"size", {size.x(), size.y(), size.z()}},
                            {"extruder", obj->config.has("extruder") ? obj->config.opt_int("extruder") : 0},
+                           {"settings", settingsJson(obj->config.get())},
                            {"volumes", volumes}, {"instances", instances}});
     }
     const DynamicPrintConfig& fc = pr.fileConfig;
@@ -355,9 +360,42 @@ std::string deleteInstance(int o, int i) {
     }
 }
 
+// Changes the plate size (after switching to a printer with a different bed),
+// keeping every instance at the same place relative to its plate's centre, as
+// desktop does when the bed changes. Instances off every plate stay put.
+std::string resizePlates(double width, double depth) {
+    try {
+        if (width <= 0 || depth <= 0) throw std::runtime_error("bad plate size");
+        Project& pr = g_project;
+        struct Move { ModelInstance* inst; int plate; Vec2d fromCentre; };
+        std::vector<Move> moves;
+        for (ModelObject* obj : pr.model.objects)
+            for (ModelInstance* inst : obj->instances) {
+                const int plate = pr.plateOf(*inst);
+                if (plate < 0) continue;
+                const Vec2d centre = pr.plateOrigin(plate) + Vec2d(pr.plateWidth / 2, pr.plateDepth / 2);
+                const Vec3d c = obj->instance_bounding_box(*inst, false).center();
+                moves.push_back({inst, plate, Vec2d(c.x(), c.y()) - centre});
+            }
+        std::vector<Vec2d> oldCentres;
+        for (const Move& m : moves) oldCentres.push_back(pr.plateOrigin(m.plate) + Vec2d(pr.plateWidth / 2, pr.plateDepth / 2));
+        pr.plateWidth = width;
+        pr.plateDepth = depth;
+        for (size_t k = 0; k < moves.size(); ++k) {
+            const Vec2d newCentre = pr.plateOrigin(moves[k].plate) + Vec2d(width / 2, depth / 2);
+            const Vec2d d = newCentre - oldCentres[k];
+            moves[k].inst->set_offset(moves[k].inst->get_offset() + Vec3d(d.x(), d.y(), 0));
+        }
+        return ok().dump();
+    } catch (const std::exception& e) {
+        return fail(e.what()).dump();
+    }
+}
+
 } // namespace
 
 EMSCRIPTEN_BINDINGS(model_api) {
+    emscripten::function("resizePlates", &resizePlates);
     emscripten::function("loadModel", &loadModel);
     emscripten::function("clearModel", &clearModel);
     emscripten::function("modelInfoJson", &modelInfoJson);

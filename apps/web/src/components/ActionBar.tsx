@@ -9,7 +9,7 @@ function download(blob: Blob, name: string) {
 }
 
 export function ActionBar() {
-  const { engine, engineMessage, project, plate, job, notice, slice, setTab } = useSlicer();
+  const { engine, engineMessage, project, plate, job, notice, noticeWarn, slice, setTab, tab } = useSlicer();
 
   if (engine === 'failed') {
     return (
@@ -56,14 +56,16 @@ export function ActionBar() {
             {job.message}
           </span>
         )}
-        {notice && job.kind !== 'error' && <span className="hint warn"> {notice}</span>}
+        {notice && job.kind !== 'error' && <span className={noticeWarn ? 'hint warn' : 'hint'}> {notice}</span>}
       </div>
       <div className="actions">
         {job.kind === 'sliced' && (
           <>
-            <button className="secondary" onClick={() => setTab('preview')}>
-              Preview
-            </button>
+            {tab !== 'preview' && (
+              <button className="secondary" onClick={() => setTab('preview')}>
+                Preview
+              </button>
+            )}
             <button
               className="secondary"
               onClick={() => download(job.gcode, gcodeFileName(project?.plates.length && project.plates.length > 1 ? `${baseName.replace(/\.[^.]+$/, '')}-plate${job.plate + 1}` : baseName))}

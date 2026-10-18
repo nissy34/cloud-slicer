@@ -73,7 +73,7 @@ try {
   if (layers < 10) fail(`only ${layers} layers`);
   console.log(`${download.suggestedFilename()}: ${(gcode.length / 1e6).toFixed(1)} MB, ${layers} layers`);
 
-  await page.getByRole('button', { name: 'Preview', exact: true }).first().click();
+  // Slicing switches to the Preview tab on its own.
   await page.getByTestId('layer-label').waitFor({ timeout: 120000 });
   console.log(`preview: layer ${await page.getByTestId('layer-label').innerText()}`);
 

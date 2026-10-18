@@ -83,6 +83,31 @@ if (self.name !== 'em-pthread') {
     deleteObject: (e, o) => (json(e.deleteObject(o)), JSON.parse(e.modelInfoJson())),
     addInstance: (e, o, i, dx, dy) => (json(e.addInstance(o, i, dx, dy)), JSON.parse(e.modelInfoJson())),
     deleteInstance: (e, o, i) => (json(e.deleteInstance(o, i)), JSON.parse(e.modelInfoJson())),
+    resizePlates: (e, w, d) => (json(e.resizePlates(w, d)), JSON.parse(e.modelInfoJson())),
+    arrangePlate: (e, plate, spacing) => (json(e.arrangePlate(plate, spacing)), JSON.parse(e.modelInfoJson())),
+    orientObject: (e, o) => (json(e.orientObject(o)), JSON.parse(e.modelInfoJson())),
+    splitObject: (e, o) => (json(e.splitObject(o)), JSON.parse(e.modelInfoJson())),
+    cutObject: (e, o, i, z, keep, flip) => (json(e.cutObject(o, i, z, keep, flip)), JSON.parse(e.modelInfoJson())),
+    mirrorInstance: (e, o, i, axis) => (json(e.mirrorInstance(o, i, axis)), JSON.parse(e.modelInfoJson())),
+    setObjectSettings: (e, o, v, values) => (json(e.setObjectSettings(o, v, JSON.stringify(values))), JSON.parse(e.modelInfoJson())),
+    // A paint stroke; returns the project plus whatever shows the new paint.
+    paint(e, plate, options) {
+      json(e.paint(plate, JSON.stringify(options)));
+      const info = JSON.parse(e.modelInfoJson());
+      if (options.kind === 'color') {
+        const m = e.previewMesh(plate);
+        return { value: { info, preview: m }, transfer: [m.positions.buffer, m.filaments.buffer, m.objectTriangles.buffer] };
+      }
+      const o = e.paintOverlay(plate, options.kind);
+      return { value: { info, overlay: o }, transfer: [o.positions.buffer, o.states.buffer] };
+    },
+    paintOverlay(e, plate, kind) {
+      const o = e.paintOverlay(plate, kind);
+      return { value: o, transfer: [o.positions.buffer, o.states.buffer] };
+    },
+    clearPaint: (e, o, kind) => (json(e.clearPaint(o, kind)), JSON.parse(e.modelInfoJson())),
+    addPlate: (e) => (json(e.addPlate()), JSON.parse(e.modelInfoJson())),
+    deletePlate: (e, plate) => (json(e.deletePlate(plate)), JSON.parse(e.modelInfoJson())),
 
     // Slices one plate with the current preset selection plus overrides.
     slice(e, plate, overrides, id) {

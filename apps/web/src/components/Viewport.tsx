@@ -1,8 +1,9 @@
 import { OrbitControls } from '@react-three/drei';
 import { Canvas, useThree, type ThreeEvent } from '@react-three/fiber';
-import { useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import * as THREE from 'three';
-import type { PreviewMesh } from '../engine/protocol';
+import { acceleratedRaycast, MeshBVH } from 'three-mesh-bvh';
+import type { PaintOverlay, PaintRay, PreviewMesh } from '../engine/protocol';
 import { bedSize, rgb } from '../lib/colour';
 import { NO_COLOURS, useOption, useSlicer } from '../state/store';
 
@@ -66,22 +67,140 @@ function useParts(preview: PreviewMesh | null, colours: string[]): Part[] {
   }, [preview, colours]);
 }
 
+const OVERLAY_COLOURS: Record<string, [string, string]> = {
+  support: ['#3fbf5f', '#e0454a'],
+  seam: ['#3d8bff', '#e0454a'],
+  fuzzy: ['#b061ff', '#b061ff'],
+};
+
+// Support, seam or fuzzy skin paint, drawn just in front of the parts.
+function Overlay({ overlay, kind }: { overlay: PaintOverlay; kind: string }) {
+  const geometry = useMemo(() => {
+    const [enforce, block] = (OVERLAY_COLOURS[kind] ?? OVERLAY_COLOURS.support).map((c) => new THREE.Color(c));
+    const n = overlay.states.length;
+    const col = new Float32Array(n * 9);
+    for (let t = 0; t < n; t++) {
+      const c = overlay.states[t] === 2 ? block : enforce;
+      for (let v = 0; v < 3; v++) col.set([c.r, c.g, c.b], t * 9 + v * 3);
+    }
+    const g = new THREE.BufferGeometry();
+    g.setAttribute('position', new THREE.BufferAttribute(overlay.positions, 3));
+    g.setAttribute('color', new THREE.BufferAttribute(col, 3));
+    g.computeVertexNormals();
+    return g;
+  }, [overlay, kind]);
+  useEffect(() => () => geometry.dispose(), [geometry]);
+  return (
+    <mesh geometry={geometry} raycast={() => null}>
+      <meshStandardMaterial vertexColors roughness={0.6} polygonOffset polygonOffsetFactor={-2} polygonOffsetUnits={-4} />
+    </mesh>
+  );
+}
+
+const toRay = (r: THREE.Ray): PaintRay => [r.origin.x, r.origin.y, r.origin.z, r.direction.x, r.direction.y, r.direction.z];
+
+// The brush outline under the pointer: a ring lying on the face it hovers.
+function BrushRing({ at, radius }: { at: { point: THREE.Vector3; normal: THREE.Vector3 } | null; radius: number }) {
+  const quaternion = useMemo(
+    () => (at ? new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 0, 1), at.normal) : new THREE.Quaternion()),
+    [at],
+  );
+  if (!at) return null;
+  const p = at.point.clone().addScaledVector(at.normal, 0.05);
+  return (
+    <mesh position={p} quaternion={quaternion} raycast={() => null} renderOrder={2}>
+      <ringGeometry args={[Math.max(radius - 0.25, radius * 0.9), radius, 48]} />
+      <meshBasicMaterial color="#ffffff" depthTest={false} transparent opacity={0.85} side={THREE.DoubleSide} />
+    </mesh>
+  );
+}
+
+// Pointer hits go through a bounding volume tree, built on the first hit test:
+// plain ray-casting a 200k-triangle part on every pointer move stalls the page,
+// and painting replaces the geometry too often to build one up front.
+function bvhRaycast(this: THREE.Mesh, raycaster: THREE.Raycaster, hits: THREE.Intersection[]) {
+  const g = this.geometry;
+  if (!g.boundsTree) g.boundsTree = new MeshBVH(g);
+  acceleratedRaycast.call(this, raycaster, hits);
+}
+
 function Objects({ w, d }: { w: number; d: number }) {
   const preview = useSlicer((s) => s.preview);
   const colours = useSlicer((s) => s.selection?.colours ?? NO_COLOURS);
   const project = useSlicer((s) => s.project);
   const plate = useSlicer((s) => s.plate);
   const selected = useSlicer((s) => s.selected);
-  const { select, moveInstance } = useSlicer.getState();
+  const { select, moveInstance, paintStroke } = useSlicer.getState();
   const parts = useParts(preview, colours);
+  useEffect(() => () => parts.forEach((p) => p.geometry.dispose()), [parts]);
+  const camera = useThree((s) => s.camera);
+  const canvas = useThree((s) => s.gl.domElement);
+  const paint = useSlicer((s) => s.paint);
+  const overlay = useSlicer((s) => s.overlay);
+  const stroking = useRef(false);
+  const [brush, setBrush] = useState<{ point: THREE.Vector3; normal: THREE.Vector3 } | null>(null);
+  const brushTool = paint && (paint.tool === 'circle' || paint.tool === 'sphere');
   const drag = useRef<{ object: number; instance: number; start: THREE.Vector3; offset: [number, number] } | null>(null);
   const [delta, setDelta] = useState<[number, number] | null>(null);
   const plane = useMemo(() => new THREE.Plane(new THREE.Vector3(0, 0, 1), 0), []);
   // The camera must hold still while an object is dragged.
   const controls = useThree((s) => s.controls) as unknown as { enabled: boolean } | null;
 
+  // During a stroke the rays come straight from the camera, so dragging never
+  // waits on hit-testing the parts; the engine finds what each ray hits.
+  const strokeMove = (e: PointerEvent) => {
+    const r = canvas.getBoundingClientRect();
+    const ndc = new THREE.Vector2(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1);
+    const caster = new THREE.Raycaster();
+    caster.setFromCamera(ndc, camera);
+    void paintStroke([toRay(caster.ray)], false);
+  };
+  const endStroke = () => {
+    if (!stroking.current) return;
+    stroking.current = false;
+    canvas.removeEventListener('pointermove', strokeMove);
+    if (controls) controls.enabled = true;
+  };
+  useEffect(() => {
+    window.addEventListener('pointerup', endStroke);
+    window.addEventListener('pointercancel', endStroke);
+    return () => {
+      window.removeEventListener('pointerup', endStroke);
+      window.removeEventListener('pointercancel', endStroke);
+    };
+  });
+  useEffect(() => {
+    if (!paint) setBrush(null);
+  }, [paint]);
+
+  // No hit tests while a stroke runs: its rays come from strokeMove.
+  const partRaycast = useMemo(
+    () =>
+      function (this: THREE.Mesh, raycaster: THREE.Raycaster, hits: THREE.Intersection[]) {
+        if (!stroking.current) bvhRaycast.call(this, raycaster, hits);
+      },
+    [],
+  );
+
+  const hover = (e: ThreeEvent<PointerEvent>) => {
+    if (!brushTool || !e.face) return setBrush(null);
+    const normal = e.face.normal.clone().transformDirection(e.object.matrixWorld);
+    setBrush({ point: e.point.clone(), normal });
+  };
+
   const onDown = (e: ThreeEvent<PointerEvent>, object: number) => {
     e.stopPropagation();
+    if (paint) {
+      if (e.button !== 0) return;
+      // Painting holds the camera still; a drag off the parts still orbits.
+      if (brushTool) {
+        stroking.current = true;
+        canvas.addEventListener('pointermove', strokeMove);
+        if (controls) controls.enabled = false;
+      }
+      void paintStroke([toRay(e.ray)], true);
+      return;
+    }
     const obj = project?.objects[object];
     const instances = obj?.instances.map((inst, i) => ({ inst, i })).filter(({ inst }) => inst.plate === plate) ?? [];
     const first = instances[0];
@@ -95,6 +214,10 @@ function Objects({ w, d }: { w: number; d: number }) {
     (e.target as Element).setPointerCapture?.(e.pointerId);
   };
   const onMove = (e: ThreeEvent<PointerEvent>) => {
+    if (paint) {
+      hover(e);
+      return;
+    }
     if (!drag.current) return;
     const hit = new THREE.Vector3();
     if (!e.ray.intersectPlane(plane, hit)) return;
@@ -110,7 +233,7 @@ function Objects({ w, d }: { w: number; d: number }) {
   };
 
   return (
-    <group onPointerMove={onMove} onPointerUp={onUp} onPointerMissed={() => select(null)}>
+    <group onPointerMove={onMove} onPointerUp={onUp} onPointerOut={() => setBrush(null)} onPointerMissed={() => !paint && select(null)}>
       {/* invisible catcher so drags keep tracking off the object */}
       {delta && (
         <mesh position={[w / 2, d / 2, 0]} onPointerMove={onMove} onPointerUp={onUp}>
@@ -119,14 +242,16 @@ function Objects({ w, d }: { w: number; d: number }) {
         </mesh>
       )}
       {parts.map((p) => {
-        const active = selected?.object === p.object;
+        const active = !paint && selected?.object === p.object;
         const offset = active && delta ? delta : [0, 0];
         return (
-          <mesh key={p.object} geometry={p.geometry} position={[offset[0], offset[1], 0]} onPointerDown={(e) => onDown(e, p.object)} castShadow>
+          <mesh key={p.object} geometry={p.geometry} position={[offset[0], offset[1], 0]} raycast={partRaycast} onPointerDown={(e) => onDown(e, p.object)} castShadow>
             <meshStandardMaterial vertexColors roughness={0.55} metalness={0.05} emissive={active ? '#2f6fe4' : '#000000'} emissiveIntensity={active ? 0.35 : 0} />
           </mesh>
         );
       })}
+      {paint && overlay && paint.kind !== 'color' && <Overlay overlay={overlay} kind={paint.kind} />}
+      {paint && brushTool && <BrushRing at={brush} radius={paint.radius} />}
     </group>
   );
 }

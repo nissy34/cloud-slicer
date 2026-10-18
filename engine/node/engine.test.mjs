@@ -120,3 +120,111 @@ test('dual-colour 3MF keeps per-part filaments', () => {
   const { gcode } = slice(fullConfig({ filament_colour: '#FF0000;#0000FF' }));
   assert.ok(Object.keys(toolCounts(gcode)).length >= 2);
 });
+
+test('resizing plates keeps objects centred on their plate', () => {
+  select({ printer: DEFAULT_PRINTER });
+  const info = load('calib-cube-10-dual-colour-merged.3mf');  // made on a 180 mm A1 mini bed
+  assert.ok(Math.abs(info.plateWidth - 180) < 1, `plate ${info.plateWidth}`);
+  const centre = (i) => {
+    const inst = i.objects[0].instances[0];
+    return [inst.offset[0] - i.plateWidth / 2, inst.offset[1] - i.plateDepth / 2];
+  };
+  const before = centre(info);
+  call(engine, 'resizePlates', 270, 270);
+  const after = JSON.parse(engine.modelInfoJson());
+  assert.equal(after.plateWidth, 270);
+  assert.equal(after.objects[0].instances[0].plate, 0);
+  assert.ok(Math.abs(centre(after)[0] - before[0]) < 0.01 && Math.abs(centre(after)[1] - before[1]) < 0.01);
+});
+
+const info = () => JSON.parse(engine.modelInfoJson());
+
+test('object tools: cut, split, mirror, orient', () => {
+  select({ printer: DEFAULT_PRINTER });
+  let m = load('3DBenchy.stl');
+  const height = m.objects[0].size[2];
+  call(engine, 'cutObject', 0, 0, 20, 'both', true);
+  m = info();
+  assert.equal(m.objects.length, 2, 'cut gives two objects');
+  const heights = m.objects.map((o) => o.size[2]).sort((a, b) => a - b);
+  assert.ok(Math.abs(heights[0] - 20) < 0.5 && Math.abs(heights[1] - (height - 20)) < 0.5, `heights ${heights}`);
+
+  m = load('calib-cube-10-dual-colour-merged.3mf');
+  const objects = m.objects.length;
+  call(engine, 'splitObject', 0);
+  assert.ok(info().objects.length > objects, 'split adds objects');
+
+  load('3DBenchy.stl');
+  call(engine, 'mirrorInstance', 0, 0, 0);
+  call(engine, 'orientObject', 0);
+  assert.equal(info().objects.length, 1);
+  assert.ok(info().objects[0].instances[0].offset[2] >= -0.01, 'on the bed');
+});
+
+test('plates: add, arrange, delete', () => {
+  select({ printer: DEFAULT_PRINTER });
+  load('3DBenchy.stl');
+  call(engine, 'addInstance', 0, 0, 0, 0);  // a copy right on top of the first
+  call(engine, 'addInstance', 0, 0, 0, 0);
+  call(engine, 'arrangePlate', 0, 6);
+  let m = info();
+  const xs = m.objects[0].instances.map((i) => [i.offset[0], i.offset[1]]);
+  for (let a = 0; a < xs.length; a++)
+    for (let b = a + 1; b < xs.length; b++)
+      assert.ok(Math.hypot(xs[a][0] - xs[b][0], xs[a][1] - xs[b][1]) > 20, 'copies were spread out');
+  assert.ok(m.objects[0].instances.every((i) => i.plate === 0));
+
+  call(engine, 'addPlate');
+  m = info();
+  assert.equal(m.plates.length, 2);
+  assert.ok(m.objects[0].instances.every((i) => i.plate === 0), 'instances stay on plate 1');
+  call(engine, 'deletePlate', 0);
+  m = info();
+  assert.equal(m.plates.length, 1);
+  assert.equal(m.objects.length, 0, 'deleting plate 1 deleted its objects');
+});
+
+test('per-object settings change how that object slices', () => {
+  select({ printer: DEFAULT_PRINTER });
+  load('3DBenchy.stl');
+  const base = slice(fullConfig()).result.totalLayers;
+  call(engine, 'setObjectSettings', 0, -1, JSON.stringify({ layer_height: '0.3' }));
+  assert.equal(info().objects[0].settings.layer_height, '0.3');
+  const coarse = slice(fullConfig()).result.totalLayers;
+  assert.ok(coarse < base * 0.8, `layers ${base} -> ${coarse}`);
+  call(engine, 'setObjectSettings', 0, -1, JSON.stringify({ layer_height: null }));
+  assert.equal(info().objects[0].settings.layer_height, undefined);
+});
+
+test('painting: colour, supports and seams, like the desktop paint tools', () => {
+  select({ printer: DEFAULT_PRINTER });
+  let m = load('3DBenchy.stl');
+  const [x, y] = m.objects[0].instances[0].offset;
+  const down = [[x, y, 200, 0, 0, -1]];
+  const paint = (opts) => call(engine, 'paint', 0, JSON.stringify({ rays: down, ...opts }));
+  // A miss paints nothing.
+  assert.deepEqual(call(engine, 'paint', 0, JSON.stringify({ rays: [[-50, -50, 200, 0, 0, -1]] })).objects, []);
+
+  assert.deepEqual(paint({ kind: 'color', state: 2, tool: 'sphere', radius: 10 }).objects, [0]);
+  m = info();
+  assert.ok(m.objects[0].volumes[0].painted, 'colour paint stored on the part');
+  selectSlots(2);
+  const { gcode } = slice(fullConfig({ filament_colour: '#FF0000;#0000FF' }));
+  assert.ok(Object.keys(toolCounts(gcode)).length >= 2, 'the painted area prints with filament 2');
+
+  paint({ kind: 'support', state: 1, tool: 'circle', radius: 5 });
+  paint({ kind: 'seam', state: 2, tool: 'fill', angle: 20 });
+  m = info();
+  assert.deepEqual(m.objects[0].volumes[0].paint, { support: true, seam: true, fuzzy: false });
+  const overlay = engine.paintOverlay(0, 'support');
+  assert.ok(overlay.states.length > 0 && overlay.states.every((s) => s === 1), 'support enforcers in the overlay');
+  assert.equal(overlay.positions.length, overlay.states.length * 9);
+
+  // Erasing with state 0, then clearing everything.
+  paint({ kind: 'support', state: 0, tool: 'sphere', radius: 50 });
+  assert.equal(info().objects[0].volumes[0].paint.support, false);
+  call(engine, 'clearPaint', 0, 'all');
+  m = info();
+  assert.equal(m.objects[0].volumes[0].painted, false);
+  assert.equal(m.objects[0].volumes[0].paint.seam, false);
+});

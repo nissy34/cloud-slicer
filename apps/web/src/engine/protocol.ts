@@ -74,7 +74,12 @@ export interface VolumeInfo {
   name: string;
   kind: 'part' | 'negative' | 'modifier' | 'supportEnforcer' | 'supportBlocker' | 'other';
   extruder: number;
+  /** Painted with filament colours. */
   painted: boolean;
+  /** Other paint on the part. */
+  paint: { support: boolean; seam: boolean; fuzzy: boolean };
+  /** The part's own settings (Orca option key -> value). */
+  settings: OrcaConfig;
 }
 export interface InstanceInfo {
   plate: number;
@@ -87,6 +92,8 @@ export interface ObjectInfo {
   name: string;
   size: [number, number, number];
   extruder: number;
+  /** The object's own settings, on top of the process (Orca option key -> value). */
+  settings: OrcaConfig;
   volumes: VolumeInfo[];
   instances: InstanceInfo[];
 }
@@ -112,6 +119,29 @@ export interface PreviewMesh {
   filaments: Uint8Array;
   objectTriangles: Int32Array;
 }
+
+/** What a paint stroke paints: filament colours, supports, seams or fuzzy skin. */
+export type PaintKind = 'color' | 'support' | 'seam' | 'fuzzy';
+/** Brushes (circle paints the visible side, sphere goes through), smart fill, bucket fill. */
+export type PaintTool = 'circle' | 'sphere' | 'fill' | 'bucket';
+export interface PaintSettings {
+  kind: PaintKind;
+  /** Filament number for colour; 1 enforce / 2 block for supports and seams; 1 for fuzzy skin; 0 erases. */
+  state: number;
+  tool: PaintTool;
+  /** Brush radius, mm. */
+  radius: number;
+  /** Smart fill: faces up to this many degrees apart are filled together. */
+  angle: number;
+}
+/** Support, seam or fuzzy skin paint to draw over the parts. */
+export interface PaintOverlay {
+  positions: Float32Array;
+  /** 1 enforce / 2 block per triangle. */
+  states: Uint8Array;
+}
+/** A ray from the camera through the pointer: origin then direction, plate coordinates. */
+export type PaintRay = [number, number, number, number, number, number];
 
 export interface SliceResult {
   success: boolean;
