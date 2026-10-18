@@ -197,7 +197,13 @@ try {
     const filament = saved.find((p) => p.name === 'Hot PLA');
     expect(printer?.config.z_offset === '0.05' && printer.inherits === systemPrinter, JSON.stringify(printer));
     expect(/^231/.test(filament?.config.nozzle_temperature ?? '') && filament.inherits === systemFilament, JSON.stringify(filament));
-    expect(await printerPicker.locator('option', { hasText: 'My U1 tuned' }).count(), 'printer back in the picker');
+    // The pickers refresh from the engine once the import has finished.
+    const back = await printerPicker
+      .locator('option', { hasText: 'My U1 tuned' })
+      .first()
+      .waitFor({ state: 'attached', timeout: 10000 })
+      .then(() => true, () => false);
+    expect(back, 'printer back in the picker');
   });
 
   await step('a name already taken can be kept twice', async () => {
