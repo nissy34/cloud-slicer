@@ -1,0 +1,82 @@
+name: Device
+
+# The Device tab: the bridge agent, the relay Worker and the web screen, tested
+# end to end against pretend printers (apps/web/test/device/mock-printer.mjs).
+# Never talks to a real printer.
+#
+# The relay Worker deploys on pushes to main (and by hand, workflow_dispatch)
+# when the Cloudflare secrets are set; the token needs Workers Scripts: Edit.
+
+on:
+  push:
+    branches: [main]
+    paths: ['apps/device-*/**', 'apps/web/src/device/**', 'apps/web/src/state/device.ts', 'apps/web/test/device*', 'apps/web/test/device/**', '.github/workflows/device.yml']
+  pull_request:
+    paths: ['apps/device-*/**', 'apps/web/src/device/**', 'apps/web/src/state/device.ts', 'apps/web/test/device*', 'apps/web/test/device/**', '.github/workflows/device.yml']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Bridge agent tests
+        working-directory: apps/device-bridge
+        run: npm test
+
+      - name: Relay typecheck
+        working-directory: apps/device-relay
+        run: |
+          npm ci --no-audit --no-fund
+          npm run typecheck
+
+      - name: Web unit tests and build (no engine needed for the Device tab)
+        working-directory: apps/web
+        run: |
+          npm ci --no-audit --no-fund
+          npm run typecheck
+          npm test
+          npm run build
+
+      - name: Device end to end (browser -> relay -> bridge -> mock U1, and direct)
+        working-directory: apps/web
+        timeout-minutes: 15
+        run: |
+          npx playwright install --with-deps chromium
+          node test/device-smoke.mjs device-shots
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: device-screenshots
+          path: apps/web/device-shots
+
+  deploy-relay:
+    needs: test
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-24.04
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Deploy the relay Worker
+        if: env.CLOUDFLARE_API_TOKEN != '' && env.CLOUDFLARE_ACCOUNT_ID != ''
+        working-directory: apps/device-relay
+        run: |
+          npm ci --no-audit --no-fund
+          npx wrangler deploy | tee deploy.log
+          url=$(grep -Eo 'https://[^ ]+\.workers\.dev' deploy.log | tail -1)
+          echo "### Relay: $url" >> "$GITHUB_STEP_SUMMARY"
+          curl -fsS "$url/" && curl -fsS "$url/bridge.mjs" | grep -q runBridge

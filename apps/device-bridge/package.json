@@ -1,0 +1,12 @@
+{
+  "name": "@cloud-slicer/device-bridge",
+  "private": true,
+  "description": "The bridge agent that lets the Device tab reach printers on a home network (Node.js 22, no dependencies)",
+  "type": "module",
+  "bin": { "cloud-slicer-bridge": "bridge.mjs" },
+  "engines": { "node": ">=22" },
+  "scripts": {
+    "start": "node bridge.mjs",
+    "test": "node --test"
+  }
+}
