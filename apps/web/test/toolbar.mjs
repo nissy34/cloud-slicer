@@ -1,7 +1,8 @@
 #!/usr/bin/env node
 // Browser end to end for the object toolbar over the 3D view: adding a model
-// keeps the one already there, lay on face turns the object, and the toolbar
-// fits a phone (and the page itself never scrolls there).
+// keeps the one already there, brim ears go on the corners and where the bed
+// is clicked, lay on face turns the object, and the toolbar fits a phone (and
+// the page itself never scrolls there).
 //
 //   node test/toolbar.mjs [screenshot-dir]
 //
@@ -102,6 +103,33 @@ try {
   await page.waitForTimeout(300);
   if (shots) await page.screenshot({ path: join(shots, 'toolbar-desktop-cut.png') });
   console.log('cut plane follows the height');
+
+  // Brim ears: the panel offers to switch the brim type, ears go on the
+  // corners, a click on the bed adds one, and Remove all takes them away.
+  await toolbar.getByRole('button', { name: 'Brim ears' }).click();
+  const brim = page.getByRole('region', { name: 'Brim ears' });
+  await brim.waitFor();
+  const ears = brim.getByLabel('Ears');
+  const earCount = async () => Number((await ears.innerText()).match(/^(\d+)/)?.[1] ?? NaN);
+  await ears.waitFor({ timeout: 30000 });
+  const usePainted = brim.getByRole('button', { name: 'Use brim ears for this object' });
+  if (await usePainted.isVisible()) {
+    await usePainted.click();
+    await usePainted.waitFor({ state: 'detached', timeout: 30000 });
+  }
+  await brim.getByRole('button', { name: 'Add ears on the corners' }).click();
+  await page.waitForFunction(() => /^[1-9]/.test(document.querySelector('[aria-label="Ears"]')?.textContent ?? ''), null, { timeout: 30000 });
+  const corners = await earCount();
+  // A click on the bed below the boat adds one more.
+  await page.mouse.click(box.x + box.width * 0.5, box.y + box.height * 0.7);
+  await page.waitForFunction((n) => Number(document.querySelector('[aria-label="Ears"]')?.textContent?.match(/^(\d+)/)?.[1]) === n + 1, corners, { timeout: 30000 });
+  if (shots) await page.screenshot({ path: join(shots, 'toolbar-desktop-brim.png') });
+  console.log(`brim ears: ${corners} on the corners, one more by clicking the bed`);
+  await brim.getByRole('button', { name: 'Remove all' }).click();
+  await page.waitForFunction(() => /^0 ears/.test(document.querySelector('[aria-label="Ears"]')?.textContent ?? ''), null, { timeout: 30000 });
+  await page.locator('body').press('Control+z');
+  await page.waitForFunction((n) => Number(document.querySelector('[aria-label="Ears"]')?.textContent?.match(/^(\d+)/)?.[1]) === n + 1, corners, { timeout: 30000 });
+  console.log('Remove all clears the ears and undo brings them back');
 
   // Lay on face: click the highlighted faces over the boat until it turns.
   await toolbar.getByRole('button', { name: 'Lay on face' }).click();

@@ -19,6 +19,7 @@ same engine code.
 | `src/model_api.cpp` | Project: loads models and 3MF projects, plates (resized when the printer's bed changes), per-object/part filaments, transforms, preview meshes with painted colours, and saving the project as an Orca 3MF (`store_bbs_3mf`, like desktop's Save project) |
 | `src/tools_api.cpp` | Prepare tools: arrange a plate, auto-orient, split to objects, cut, mirror, add and delete plates |
 | `src/paint_api.cpp` | Painting colours, support and seam enforcers/blockers and fuzzy skin with Orca's TriangleSelector: `paint`, `clearPaint`, `paintOverlay` |
+| `src/brim_api.cpp` | Brim ears, like desktop's Brim Ears tool: the ears in `ModelObject::brim_points`, added by hand or on the sharp corners of the first layer (the tool's own corner detection), and which ones touch the object |
 | `src/calib_api.cpp` | Calibration tests, ported from desktop's Plater: temperature, flow rate, pressure advance (line, tower), retraction, max volumetric speed, VFA, input shaping and junction deviation. Loads the test model, returns the settings to change, and sets `Print::set_calib_params` for slicing |
 | `src/mixed_api.cpp` | Colour mixing: reads and edits the project's `mixed_filament_definitions` with Orca's `MixedFilamentManager`, gives each mix its colour, remaps painted and assigned filaments when a mix or a physical filament goes away, and matches a colour |
 | `src/history_api.cpp` | Undo and redo of project edits, like desktop's Ctrl+Z / Ctrl+Y: Model snapshots that share their meshes |

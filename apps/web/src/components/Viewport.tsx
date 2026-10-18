@@ -10,6 +10,7 @@ import { hullPlanes, layOnFace, movedOffset, toDegrees, toQuat, DEG, type Placem
 import { setCapture } from '../lib/snapshot';
 import { useSceneColours } from '../lib/theme';
 import { NO_COLOURS, useOption, useSlicer } from '../state/store';
+import { BrimMarks } from './BrimEars';
 
 // Printer coordinates are Z-up with the plate from (0,0) to (w,d).
 THREE.Object3D.DEFAULT_UP.set(0, 0, 1);
@@ -361,7 +362,7 @@ function Objects({ w, d }: { w: number; d: number }) {
   const plate = useSlicer((s) => s.plate);
   const selected = useSlicer((s) => s.selected);
   const tool = useSlicer((s) => s.tool);
-  const { select, moveInstance, paintStroke } = useSlicer.getState();
+  const { select, moveInstance, paintStroke, editBrim } = useSlicer.getState();
   const parts = useParts(preview, colours);
   useEffect(() => () => parts.forEach((p) => p.geometry.dispose()), [parts]);
   const camera = useThree((s) => s.camera);
@@ -378,6 +379,7 @@ function Objects({ w, d }: { w: number; d: number }) {
   const controls = useThree((s) => s.controls) as unknown as { enabled: boolean } | null;
   const gizmo = useRef<TransformControlsImpl | null>(null);
   const gizmoReleased = useRef(0);
+  const brimTool = !paint && tool === 'brim' && !!selected;
 
   // The selected instance, when it is the object's only one on this plate
   // (the part geometry holds all of them); the gizmos work on it.
@@ -476,6 +478,8 @@ function Objects({ w, d }: { w: number; d: number }) {
     const instances = obj?.instances.map((inst, i) => ({ inst, i })).filter(({ inst }) => inst.plate === plate) ?? [];
     const first = instances[0];
     if (selected?.object !== object) select(first ? { object, instance: first.i } : null);
+    // Brim ears: a click adds an ear (onEarClick); the object stays put.
+    if (brimTool) return;
     // Dragging moves an object with a single instance on this plate.
     if (instances.length !== 1) return;
     const hit = new THREE.Vector3();
@@ -502,9 +506,16 @@ function Objects({ w, d }: { w: number; d: number }) {
       void moveInstance(dr.object, dr.instance, dr.offset[0] + delta[0], dr.offset[1] + delta[1]);
     setDelta(null);
   };
+  // Brim ears: a click (not an orbit drag) on the selected object, or on the
+  // bed, adds an ear there, like desktop's left click.
+  const onEarClick = (e: ThreeEvent<MouseEvent>, object?: number) => {
+    if (!brimTool || e.delta > 6 || e.button !== 0 || (object !== undefined && object !== selected?.object)) return;
+    e.stopPropagation();
+    void editBrim({ op: 'add', x: e.point.x, y: e.point.y, diameter: useSlicer.getState().brimDiameter ?? 8 });
+  };
   const onMissed = () => {
     // Clicks on a gizmo handle off the part don't deselect it.
-    if (paint || onGizmo() || performance.now() - gizmoReleased.current < 400) return;
+    if (paint || brimTool || onGizmo() || performance.now() - gizmoReleased.current < 400) return;
     select(null);
   };
 
@@ -535,7 +546,15 @@ function Objects({ w, d }: { w: number; d: number }) {
             </group>
           );
         return (
-          <mesh key={p.object} geometry={p.geometry} position={[offset[0], offset[1], 0]} raycast={partRaycast} onPointerDown={(e) => onDown(e, p.object)} castShadow>
+          <mesh
+            key={p.object}
+            geometry={p.geometry}
+            position={[offset[0], offset[1], 0]}
+            raycast={partRaycast}
+            onPointerDown={(e) => onDown(e, p.object)}
+            onClick={(e) => onEarClick(e, p.object)}
+            castShadow
+          >
             {material}
           </mesh>
         );
@@ -550,6 +569,16 @@ function Objects({ w, d }: { w: number; d: number }) {
           controlsRef={gizmo}
           onRelease={() => (gizmoReleased.current = performance.now())}
         />
+      )}
+      {brimTool && (
+        <>
+          {/* the bed takes clicks for new ears */}
+          <mesh position={[w / 2, d / 2, 0]} onClick={(e) => onEarClick(e)}>
+            <planeGeometry args={[w, d]} />
+            <meshBasicMaterial visible={false} />
+          </mesh>
+          <BrimMarks />
+        </>
       )}
       {paint && overlay && paint.kind !== 'color' && <Overlay overlay={overlay} kind={paint.kind} />}
       {paint && brushTool && <BrushRing at={brush} radius={paint.radius} />}

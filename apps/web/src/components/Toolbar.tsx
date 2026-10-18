@@ -58,7 +58,7 @@ const GROUPS: Item[][] = [
     { id: 'text', icon: 'toolbar_text', label: 'Text shape', missing: true },
     { id: 'measure', icon: 'toolbar_measure', label: 'Measure', missing: true },
     { id: 'assembly', icon: 'toolbar_assembly', label: 'Assemble', missing: true },
-    { id: 'brimears', icon: 'toolbar_brimears', label: 'Brim ears', missing: true },
+    { id: 'brimears', icon: 'toolbar_brimears', label: 'Brim ears', tool: 'brim', needsSelection: true },
   ],
   [{ id: 'assemblyview', icon: 'toolbar_assemble', label: 'Assembly view', missing: true }],
 ];

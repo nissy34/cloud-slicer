@@ -16,6 +16,7 @@ import type {
   WorkerReply,
 } from './protocol';
 import type { Thumbnail } from '../lib/thumbnail';
+import type { BrimEars, BrimRequest } from '../lib/brim';
 import type { MatchResult, MixRecipe, MixRow } from '../lib/mixing';
 
 /** A request to the engine's mixed-filament list (engine/src/mixed_api.cpp). */
@@ -158,7 +159,10 @@ export class EngineClient {
 
   private call<T>(method: string, args: unknown[] = [], transfer: Transferable[] = [], progress?: Pending['progress']): Promise<T> {
     // The mix list is only read unless the request edits it.
-    const edits = !READS.has(method) && !(method === 'mixed' && !(args[0] as MixedRequest).op);
+    const edits =
+      !READS.has(method) &&
+      !(method === 'mixed' && !(args[0] as MixedRequest).op) &&
+      !(method === 'brimEars' && (args[3] as BrimRequest).op === 'get');
     if (edits && this.sliceId) this.onEditWhileSlicing?.();
     const id = this.nextId++;
     const done = () => {
@@ -233,6 +237,9 @@ export class EngineClient {
   mixedBlend = (colours: string[], weights: number[][]) => this.call<string[]>('mixedBlend', [{ colours, weights }]);
   mixedMatch = (request: { colours: string[]; types: string[]; target: string; minPercent: number }) =>
     this.call<MatchResult>('mixedMatch', [request]);
+  /** Object o's brim ears (seen from instance i), after the edit in `request` (see BrimRequest). */
+  brimEars = (o: number, i: number, overrides: OrcaConfig, request: BrimRequest) =>
+    this.call<BrimEars>('brimEars', [o, i, overrides, request]);
   clearPaint = (o: number, kind: PaintKind | 'all') => this.call<ProjectInfo>('clearPaint', [o, kind]);
   /** Remembers the project before an edit called `label`, for undo. */
   snapshot = (label: string) => this.call<History>('snapshot', [label]);
