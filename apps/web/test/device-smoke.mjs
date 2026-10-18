@@ -201,6 +201,18 @@ try {
   await page.getByTestId('connection').filter({ hasText: 'Connected' }).waitFor({ timeout: 40_000 });
   console.log('bridge restart: reconnected by itself');
 
+  // A second copy of the bridge (another window) takes over, and the older one stops rather than taking it back.
+  let replaced = false;
+  bridge.stop();
+  const older = runBridge(cfg, { log: () => {}, onReplaced: () => (replaced = true) });
+  await page.getByTestId('connection').filter({ hasText: 'Connected' }).waitFor({ timeout: 40_000 });
+  bridge = runBridge(cfg, { log: () => {} });
+  await until('the older copy stopped', () => replaced, 20_000);
+  await new Promise((r) => setTimeout(r, 5000));
+  await page.getByTestId('connection').filter({ hasText: 'Connected' }).waitFor({ timeout: 40_000 });
+  older.stop();
+  console.log('a second bridge takes over and the first one stops');
+
   // ---- generic Klipper printer, direct ------------------------------------------------
   // A printer that has collected files over months: the card pages them like Fluidd.
   for (let i = 0; i < 24; i++) voron.files.set(`part_${String(i).padStart(2, '0')}.gcode`, { size: 50_000, modified: Date.now() / 1000 - 7200 - i * 600, text: '' });

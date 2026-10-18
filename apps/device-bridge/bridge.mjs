@@ -610,7 +610,7 @@ class Session {
 
 // ---- the relay connection ---------------------------------------------------------
 
-export function runBridge(cfg, { log = console.log, save = async () => {} } = {}) {
+export function runBridge(cfg, { log = console.log, save = async () => {}, onReplaced = () => {} } = {}) {
   const sessions = new Map();
   let relay = null;
   let retries = 0;
@@ -724,6 +724,14 @@ export function runBridge(cfg, { log = console.log, save = async () => {} } = {}
       for (const s of sessions.values()) s.close();
       sessions.clear();
       if (stopped) return;
+      // Another copy of this bridge (a second window, or the one running in the background) took
+      // over: retrying would only take it back, and the two would swap forever.
+      if (ev.code === 4000) {
+        stopped = true;
+        log('Another copy of this bridge is running on this computer and took over, so this one stops. Close this window.');
+        onReplaced();
+        return;
+      }
       if (ev.code === 4003) {
         log(`The relay refused this bridge: ${ev.reason}`);
       }
@@ -860,7 +868,13 @@ export async function main() {
     }
     await findPrinters();
     printPairing(cfg, opts.site, { open: !opts['no-browser'] && cfg.printers.length > 0 });
-    const bridge = runBridge(cfg, { save: () => saveConfig(path, cfg) });
+    const bridge = runBridge(cfg, {
+      save: () => saveConfig(path, cfg),
+      onReplaced: async () => {
+        await holdWindow();
+        process.exit(0);
+      },
+    });
     if (interactive && cfg.printers.length) {
       if (await ask('Start the bridge by itself whenever this computer starts? [Y/n] ')) {
         bridge.stop();
