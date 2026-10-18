@@ -257,7 +257,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        suite: [smoke, startup, presets, accounts]
+        suite: [smoke, startup, presets, accounts, mixing]
     name: browser (${{ matrix.suite }})
     defaults:
       run:
@@ -291,6 +291,10 @@ jobs:
       - name: User presets end to end (Chromium)
         if: matrix.suite == 'presets'
         run: node test/presets.mjs
+
+      - name: Colour mixing end to end (Chromium)
+        if: matrix.suite == 'mixing'
+        run: node test/mixing.mjs
 
       - name: Accounts end to end (Pages Functions + local D1, mock OAuth)
         if: matrix.suite == 'accounts'

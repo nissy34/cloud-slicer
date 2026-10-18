@@ -296,6 +296,7 @@ function MixDialog({ row, index, onClose }: { row: MixRow | undefined; index: nu
                 className="mix-hex"
                 defaultValue={draft.target}
                 key={draft.target}
+                onKeyDown={(e) => e.key === 'Enter' && e.currentTarget.blur()}
                 onBlur={(e) => /^#?[0-9a-f]{6}$/i.test(e.target.value.trim()) && change({ target: `#${e.target.value.trim().replace('#', '').toUpperCase()}` })}
               />
               <span className="muted small">{matching ? 'Matching…' : draft.match?.valid ? closeness(draft.match.deltaE) : ''}</span>

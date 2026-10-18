@@ -78,12 +78,20 @@ export function ObjectList() {
       onChange={(e) => void setObjectFilament(o, v, Number(e.target.value))}
     >
       {v >= 0 && <option value={0}>Object</option>}
-      {Array.from({ length: Math.max(slots, value) }, (_, i) => (
+      {Array.from({ length: physical }, (_, i) => (
         <option key={i} value={i + 1}>
           {i + 1}
-          {i >= physical ? ' (mix)' : ''}
         </option>
       ))}
+      {Math.max(slots, value) > physical && (
+        <optgroup label="Mixes">
+          {Array.from({ length: Math.max(slots, value) - physical }, (_, i) => (
+            <option key={i} value={physical + i + 1}>
+              {physical + i + 1}
+            </option>
+          ))}
+        </optgroup>
+      )}
     </select>
   );
 
