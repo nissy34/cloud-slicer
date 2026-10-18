@@ -9,7 +9,7 @@ function download(blob: Blob, name: string) {
 }
 
 export function ActionBar() {
-  const { engine, engineMessage, model, job, slice } = useSlicer();
+  const { engine, engineMessage, project, plate, job, notice, slice, setTab } = useSlicer();
 
   if (engine === 'failed') {
     return (
@@ -19,13 +19,16 @@ export function ActionBar() {
     );
   }
 
+  const onPlate = project?.plates[plate]?.objects.length ?? 0;
   const busy = job.kind === 'loading' || job.kind === 'slicing';
+  const plateLabel = (project?.plates.length ?? 0) > 1 ? `Slice plate ${plate + 1}` : 'Slice plate';
+  const baseName = project?.fileName || project?.objects[0]?.name || 'plate';
   return (
     <div className="actionbar" data-testid="actionbar">
       <div className="status" aria-live="polite">
-        {engine === 'starting' && <span className="muted">Loading the engine…</span>}
+        {engine === 'starting' && <span className="muted">Loading the engine and Snapmaker presets…</span>}
         {engine === 'ready' && job.kind === 'idle' && (
-          <span className="muted">{model ? 'Ready to slice' : 'Open a model to start'}</span>
+          <span className="muted">{onPlate ? 'Ready to slice' : project?.objects.length ? 'This plate is empty' : 'Open a model to start'}</span>
         )}
         {job.kind === 'loading' && <span className="muted">Opening {job.name}…</span>}
         {job.kind === 'slicing' && (
@@ -40,7 +43,7 @@ export function ActionBar() {
               <b>{formatDuration(job.result.estimatedTimeSeconds)}</b> print
             </span>
             <span>
-              <b>{formatGrams(job.result.estimatedFilamentGrams)}</b> filament
+              <b>{formatGrams(job.result.totalFilamentGrams)}</b> filament
             </span>
             <span>
               <b>{job.result.totalLayers}</b> layers
@@ -53,15 +56,24 @@ export function ActionBar() {
             {job.message}
           </span>
         )}
+        {notice && job.kind !== 'error' && <span className="hint warn"> {notice}</span>}
       </div>
       <div className="actions">
-        {job.kind === 'sliced' && model && (
-          <button className="secondary" onClick={() => download(job.gcode, gcodeFileName(model.name))}>
-            Download G-code
-          </button>
+        {job.kind === 'sliced' && (
+          <>
+            <button className="secondary" onClick={() => setTab('preview')}>
+              Preview
+            </button>
+            <button
+              className="secondary"
+              onClick={() => download(job.gcode, gcodeFileName(project?.plates.length && project.plates.length > 1 ? `${baseName.replace(/\.[^.]+$/, '')}-plate${job.plate + 1}` : baseName))}
+            >
+              Download G-code
+            </button>
+          </>
         )}
-        <button className="primary" disabled={!model || busy || engine !== 'ready'} onClick={slice}>
-          Slice
+        <button className="primary" disabled={!onPlate || busy || engine !== 'ready'} onClick={() => void slice()}>
+          {plateLabel}
         </button>
       </div>
     </div>

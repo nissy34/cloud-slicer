@@ -1,7 +1,8 @@
 import { ActionBar } from './components/ActionBar';
 import { ComingSoon } from './components/ComingSoon';
 import { OpenModel } from './components/OpenModel';
-import { SidePanel } from './components/SidePanel';
+import { Preview } from './components/Preview';
+import { Sidebar } from './components/Sidebar';
 import { TopBar } from './components/TopBar';
 import { Viewport } from './components/Viewport';
 import { useSlicer } from './state/store';
@@ -11,21 +12,22 @@ export function App() {
   return (
     <div className="app">
       <TopBar />
-      {tab === 'prepare' && (
+      {tab !== 'device' && (
         <div className="body">
-          <SidePanel />
+          <Sidebar />
           <main className="main">
-            <OpenModel>
-              <Viewport />
-            </OpenModel>
+            {tab === 'prepare' ? (
+              <OpenModel>
+                <Viewport />
+              </OpenModel>
+            ) : (
+              <div className="workspace">
+                <Preview />
+              </div>
+            )}
             <ActionBar />
           </main>
         </div>
-      )}
-      {tab === 'preview' && (
-        <ComingSoon title="Preview" phase={2}>
-          The layer-by-layer G-code preview, with legends for feature, speed, flow, temperature and tool.
-        </ComingSoon>
       )}
       {tab === 'device' && (
         <ComingSoon title="Device" phase={4}>

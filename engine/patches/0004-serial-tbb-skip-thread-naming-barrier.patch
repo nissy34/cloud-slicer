@@ -1,0 +1,16 @@
+--- a/src/libslic3r/Thread.cpp
++++ b/src/libslic3r/Thread.cpp
+@@ -216,6 +216,13 @@
+ 		return;
+ 	initialized = true;
+ 
++#ifdef __EMSCRIPTEN__
++	// The browser engine runs parallel_for serially (engine/compat/tbb_serial),
++	// so the barrier below would wait forever for worker threads that never
++	// arrive. There are no pool threads to name.
++	return;
++#endif
++
+ 	// see GH issue #5661 PrusaSlicer hangs on Linux when run with non standard task affinity
+ 	// TBB will respect the task affinity mask on Linux and spawn less threads than std::thread::hardware_concurrency().
+ //	const size_t nthreads_hw = std::thread::hardware_concurrency();

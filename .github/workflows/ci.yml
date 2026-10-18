@@ -36,11 +36,11 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Fetch the pinned Orca submodule (shallow)
+      - name: Fetch the pinned Snapmaker Orca submodule (shallow)
         run: |
-          sha=$(git ls-tree HEAD engine/core/orcaslicer | awk '{print $3}')
-          url=$(git config -f .gitmodules submodule.engine/core/orcaslicer.url)
-          cd engine/core/orcaslicer
+          sha=$(git ls-tree HEAD engine/orcaslicer | awk '{print $3}')
+          url=$(git config -f .gitmodules submodule.engine/orcaslicer.url)
+          cd engine/orcaslicer
           git init -q && git remote add origin "$url"
           git fetch -q --depth 1 origin "$sha" && git checkout -q FETCH_HEAD
 
@@ -97,7 +97,7 @@ jobs:
           source "$RUNNER_TEMP/emsdk/emsdk_env.sh"
           emcmake cmake -S engine -B engine/build/engine -G Ninja -DCMAKE_BUILD_TYPE=Release
           cmake --build engine/build/engine
-          ls -la engine/build/engine/u1slicer.*
+          ls -la engine/build/engine/orca-engine.*
           ccache -s | head -8
 
       - name: Save compiler cache
@@ -107,12 +107,13 @@ jobs:
           path: ${{ runner.temp }}/ccache
           key: engine-ccache-${{ env.EMSDK_VERSION }}-${{ github.sha }}
 
-      - name: Engine smoke test (Node)
+      - name: Bundle the Snapmaker presets
+        run: node engine/scripts/bundle-profiles.mjs engine/build/profiles
+
+      - name: Engine tests (Node)
         run: |
-          node engine/node/slice.mjs fixtures/tetrahedron.stl /tmp/tetra.gcode --app-defaults
-          grep -q '^PRINT_START' /tmp/tetra.gcode
-          grep -q '^EXCLUDE_OBJECT_DEFINE' /tmp/tetra.gcode
-          node engine/node/slice.mjs fixtures/3DBenchy.stl /tmp/benchy.gcode --app-defaults
+          node --test engine/node/engine.test.mjs
+          node engine/node/slice.mjs fixtures/3DBenchy.stl /tmp/benchy.gcode
           grep -q '^PRINT_START' /tmp/benchy.gcode
 
       - name: Web app checks and build
