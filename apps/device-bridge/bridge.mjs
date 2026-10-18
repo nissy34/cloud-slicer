@@ -105,7 +105,7 @@ export function candidateUrls(address) {
 
 async function probe(url, apiKey) {
   const r = await fetch(`${url}/printer/info`, { headers: apiKey ? { 'X-Api-Key': apiKey } : {}, signal: AbortSignal.timeout(5000) });
-  if (r.status === 401 || r.status === 403) throw new Error('Moonraker wants an API key (add --api-key KEY)');
+  if (r.status === 401 || r.status === 403) throw Object.assign(new Error(apiKey ? 'Moonraker did not accept that API key' : 'Moonraker wants an API key (add --api-key KEY)'), { needsKey: true });
   if (!r.ok) throw new Error(`HTTP ${r.status}`);
   const body = await r.json();
   return body.result ?? {};
@@ -372,15 +372,53 @@ async function uninstallBridge(configPath) {
   return plan;
 }
 
-/** Asks a yes/no question in the terminal; Enter means yes. */
-function ask(question) {
+/** Asks for a line of text in the terminal. */
+function prompt(question) {
   const rl = createInterface({ input: process.stdin, output: process.stdout });
   return new Promise((resolve) =>
     rl.question(question, (a) => {
       rl.close();
-      resolve(!/^\s*n/i.test(a));
+      resolve(a.trim());
     }),
   );
+}
+
+/** Asks a yes/no question in the terminal; Enter means yes. */
+async function ask(question) {
+  return !/^n/i.test(await prompt(question));
+}
+
+/** Finds Moonraker at an address the user typed (with or without a port or http://). */
+async function probeAddress(address, apiKey) {
+  let lastError = null;
+  for (const url of candidateUrls(address)) {
+    try {
+      return { url, info: await probe(url, apiKey) };
+    } catch (e) {
+      lastError = e;
+      if (e.needsKey) break;
+    }
+  }
+  throw Object.assign(new Error(`No Moonraker answered at ${address}: ${lastError?.message}`), { needsKey: !!lastError?.needsKey });
+}
+
+const KEY_HELP = "Find it in Mainsail or Fluidd (Settings, then API key / Authorization) or in Moonraker's settings.";
+
+/**
+ * Asks for the API key of a printer that wants one, until it works or the
+ * user presses Enter to skip. Returns the printer, or null when skipped.
+ */
+async function askForKey(address) {
+  console.log(`\nThe printer at ${address} needs its Moonraker API key. ${KEY_HELP}`);
+  for (;;) {
+    const apiKey = await prompt('Paste the API key and press Enter (or just press Enter to skip): ');
+    if (!apiKey) return null;
+    try {
+      return { ...(await probeAddress(address, apiKey)), apiKey };
+    } catch (e) {
+      console.log(e.needsKey ? 'Moonraker did not accept that key. Try again.' : `${e.message}. Try again.`);
+    }
+  }
 }
 
 /** Keeps a double-clicked app's window open until Enter, so its message can be read. */
@@ -666,33 +704,59 @@ export async function main() {
   // Opened with a double click (or plain "run" in a terminal): offer to start with the computer.
   const interactive = !rest.length && !opts['no-browser'] && process.stdin.isTTY;
 
+  // Someone at the keyboard can answer questions (API keys, an address) instead of being sent to run another command.
+  const canAsk = !opts['no-browser'] && process.stdin.isTTY;
+  const keep = (p, apiKey) => {
+    const name = String(p.info?.hostname || p.name || new URL(p.url).hostname);
+    cfg.printers.push({ id: randomBytes(4).toString('hex'), name, url: p.url, apiKey });
+    console.log(`Added ${name} (${p.url}).`);
+  };
+
   /** Finds printers on this network when none are saved yet. */
   const findPrinters = async () => {
     if (cfg.printers.length) return;
     const found = await discover({ log: console.log });
-    for (const f of found.filter((x) => x.needsKey)) console.log(`${f.url} needs an API key: ${self()} add ${new URL(f.url).hostname} --api-key KEY`);
-    for (const f of found.filter((x) => !x.needsKey)) {
-      cfg.printers.push({ id: randomBytes(4).toString('hex'), name: f.name, url: f.url, apiKey: '' });
-      console.log(`Found ${f.name} (${f.url}).`);
+    for (const f of found.filter((x) => !x.needsKey)) keep(f, '');
+    for (const f of found.filter((x) => x.needsKey)) {
+      const host = new URL(f.url).host;
+      if (!canAsk) {
+        console.log(`${f.url} needs an API key: ${self()} add ${host} --api-key KEY`);
+        continue;
+      }
+      const p = await askForKey(f.url);
+      if (p) keep(p, p.apiKey);
+    }
+    while (!cfg.printers.length && canAsk) {
+      const address = await prompt("\nNo printer found on your network. Type your printer's address (for example 192.168.1.50) and press Enter, or just press Enter to skip: ");
+      if (!address) break;
+      try {
+        keep(await probeAddress(address, ''), '');
+      } catch (e) {
+        if (!e.needsKey) {
+          console.log(e.message);
+          continue;
+        }
+        const p = await askForKey(address);
+        if (p) keep(p, p.apiKey);
+      }
     }
     if (cfg.printers.length) await saveConfig(path, cfg);
-    else console.log(`No printer found on your network. Add it by its address: ${self()} add <printer address>`);
+    else console.log(`No printer added. Add it later by its address: ${self()} add <printer address>`);
   };
 
   if (cmd === 'add') {
     if (!args[0]) throw new Error('Usage: add <address> [--name NAME] [--api-key KEY]');
-    const apiKey = opts['api-key'] ? String(opts['api-key']) : '';
-    let found = null;
-    let lastError = null;
-    for (const url of candidateUrls(args[0])) {
-      try {
-        found = { url, info: await probe(url, apiKey) };
-        break;
-      } catch (e) {
-        lastError = e;
-      }
+    let apiKey = opts['api-key'] ? String(opts['api-key']) : '';
+    let found;
+    try {
+      found = await probeAddress(args[0], apiKey);
+    } catch (e) {
+      // In a terminal, ask for the key rather than sending the user off to retype the command.
+      if (!e.needsKey || !process.stdin.isTTY) throw e;
+      const withKey = await askForKey(args[0]);
+      if (!withKey) throw e;
+      ({ apiKey, ...found } = withKey);
     }
-    if (!found) throw new Error(`No Moonraker answered at ${args[0]}: ${lastError?.message}`);
     const name = String(opts.name ?? found.info.hostname ?? args[0]);
     const existing = cfg.printers.find((p) => p.url === found.url);
     if (existing) Object.assign(existing, { name, apiKey });
