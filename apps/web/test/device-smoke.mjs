@@ -65,7 +65,6 @@ try {
   await serve('npx', ['wrangler', 'dev', '--port', String(RELAY_PORT), '--ip', '127.0.0.1', '--persist-to', persist], join(web, '../device-relay'), /Ready on/);
   await serve('npx', ['vite', 'preview', '--port', String(PAGE_PORT), '--strictPort'], web, new RegExp(String(PAGE_PORT)));
   const cfg = { relay: `http://127.0.0.1:${RELAY_PORT}`, bridgeId: 'smoke-test-bridge', key: 'smoke-test-key-0123456789', printers: [{ id: 'u1', name: 'U1-mock', url: u1.url, apiKey: '' }] };
-  bridge = runBridge(cfg, { log: (m) => console.log(`bridge: ${m}`) });
 
   const page = await browser.newPage({ viewport: { width: 1280, height: 900 } });
   page.on('pageerror', (e) => console.error(`page error: ${e.message}`));
@@ -73,7 +72,11 @@ try {
 
   // ---- U1 through the bridge ---------------------------------------------------------
   // The pairing link alone opens the Device tab with the add-printer dialog: no clicks first.
+  // The bridge app opens this link as it starts, so the page usually asks before the
+  // bridge has connected: the dialog must keep listening until it comes online.
   await page.goto(`${site}#pair=${pairingCode(cfg)}`);
+  await page.getByText(/Bridge smoke-te · (checking…|offline)/).waitFor();
+  bridge = runBridge(cfg, { log: (m) => console.log(`bridge: ${m}`) });
   await page.getByRole('combobox').filter({ hasText: 'U1-mock' }).waitFor();
   await page.getByTestId('save-printer').click();
   await page.getByTestId('connection').filter({ hasText: 'Connected' }).waitFor({ timeout: 20_000 });
