@@ -47,6 +47,7 @@ const browser = await chromium.launch(
 try {
   const page = await browser.newPage({ viewport: { width: 1280, height: 800 }, acceptDownloads: true });
   page.on('pageerror', (e) => console.error(`page error: ${e.message}`));
+  page.on('console', (m) => m.type() === 'error' && console.error(`console: ${m.text()}`));
   await page.goto(url);
 
   if (!(await page.evaluate(() => crossOriginIsolated))) throw new Error('page is not cross-origin isolated (COOP/COEP)');
@@ -86,6 +87,9 @@ try {
   if (shot) await page.screenshot({ path: shot });
 } catch (e) {
   fail(e.message);
+  // What the page showed instead (an engine start-up error, a dialog, ...).
+  const text = await browser.contexts()[0]?.pages()[0]?.locator('body').innerText().catch(() => '');
+  if (text) console.error(`page text:\n${text.slice(0, 3000)}`);
 } finally {
   await browser.close();
   if (server) process.kill(-server.pid, 'SIGTERM');

@@ -12,11 +12,15 @@
 //   <- { type: 'result', id, value }               value may carry transferred buffers
 //   <- { type: 'progress', id, pct, stage }
 //   <- { type: 'error', id, message }              id null: the engine failed to start
-importScripts('orca-engine.js');
+//
+// The page loads this file as engine-worker.js?v=<engine build hash>; every
+// file it loads carries the same ?v, so a cached file from an older deploy is
+// never mixed with a newer one.
+const here = (path) => new URL(path + self.location.search, self.location.href).href;
+importScripts(here('orca-engine.js'));
 
 if (self.name !== 'em-pthread') {
   const DATA_DIR = '/orca';
-  const here = (path) => new URL(path, self.location.href).href;
   const log = () => {};
 
   const json = (text) => {
@@ -183,5 +187,8 @@ if (self.name !== 'em-pthread') {
     }
   };
 
-  ready.catch((e) => postMessage({ type: 'error', id: null, message: `Engine failed to start: ${e?.message ?? e}` }));
+  ready.catch((e) => {
+    console.error('Engine failed to start', e?.stack ?? e);
+    postMessage({ type: 'error', id: null, message: `Engine failed to start: ${e?.message ?? e}${e?.stack ? `\n${e.stack}` : ''}` });
+  });
 }
