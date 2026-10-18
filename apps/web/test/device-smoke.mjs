@@ -290,7 +290,7 @@ try {
   await about.getByRole('tab', { name: 'Mac' }).click();
   await about.getByTestId('bridge-add-command').filter({ hasText: /^"\$HOME\/Library\/Application Support\/Cloud Slicer Bridge\/cloud-slicer-bridge" add 10\.0\.0\.42$/ }).waitFor();
   await about.getByRole('tab', { name: 'Windows' }).click();
-  await about.getByTestId('bridge-uninstall-command').filter({ hasText: /^cmd \/c "%LOCALAPPDATA%\\Cloud Slicer Bridge\\cloud-slicer-bridge\.exe" uninstall$/ }).waitFor();
+  await about.getByTestId('bridge-uninstall-command').filter({ hasText: /^cmd \/c call "%LOCALAPPDATA%\\Cloud Slicer Bridge\\cloud-slicer-bridge\.exe" uninstall$/ }).waitFor();
   if ((await about.getByRole('button', { name: 'Copy' }).count()) !== 2) throw new Error('the add and uninstall commands should each have their own Copy button');
   if (shots) await about.screenshot({ path: join(shots, 'bridge-about.png') });
   for (const width of [390, 360]) {

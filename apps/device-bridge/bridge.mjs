@@ -36,11 +36,11 @@ const APP = Boolean(process.versions.bun) && !/^bun(\.exe)?$/i.test(basename(pro
 /** How to run this bridge again, for messages: the app's own path, or node and this script. */
 let installedAt = null;
 /**
- * A program path as a command to paste. On Windows "cmd /c" makes the same
+ * A program path as a command to paste. On Windows "cmd /c call" makes the same
  * line work in PowerShell (where a quoted path followed by arguments is a
  * syntax error) and in Command Prompt.
  */
-const asCommand = (path) => (process.platform === 'win32' ? `cmd /c "${path}"` : `"${path}"`);
+const asCommand = (path) => (process.platform === 'win32' ? `cmd /c call "${path}"` : `"${path}"`);
 const self = () => (installedAt ? asCommand(installedAt) : APP ? asCommand(process.execPath) : `node ${basename(process.argv[1] ?? 'cloud-slicer-bridge.mjs')}`);
 // The relay that served this file replaces this default when you download it.
 const DEFAULT_RELAY = '__RELAY_URL__'.startsWith('__') ? 'https://cloud-slicer-relay.nissy34.workers.dev' : '__RELAY_URL__';
