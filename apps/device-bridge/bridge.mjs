@@ -15,13 +15,13 @@
 //          --relay <url>, --site <url> (where pairing links point).
 //
 // Part of Cloud Slicer (AGPL-3.0): https://github.com/nissy34/cloud-slicer
-import { randomBytes } from 'node:crypto';
+import { createHmac, randomBytes } from 'node:crypto';
 import { openAsBlob } from 'node:fs';
 import { mkdtemp, readFile, rm, writeFile, appendFile } from 'node:fs/promises';
 import { homedir, tmpdir } from 'node:os';
 import { join } from 'node:path';
 
-export const VERSION = '1';
+export const VERSION = '2';
 // The relay that served this file replaces this default when you download it.
 const DEFAULT_RELAY = '__RELAY_URL__'.startsWith('__') ? 'https://cloud-slicer-relay.nissy34.workers.dev' : '__RELAY_URL__';
 const DEFAULT_SITE = 'https://cloud-slicer.pages.dev';
@@ -90,8 +90,15 @@ async function probe(url, apiKey) {
   return body.result ?? {};
 }
 
+/**
+ * The key browsers get, derived from this bridge's secret key (the relay
+ * derives the same). It lets a browser reach the printers but not connect as
+ * this bridge, and the secret key itself never leaves this computer.
+ */
+export const browserKey = (key) => createHmac('sha256', key).update('cloud-slicer browser key').digest('base64url');
+
 export const pairingCode = (cfg) =>
-  Buffer.from(JSON.stringify({ r: cfg.relay, i: cfg.bridgeId, k: cfg.key })).toString('base64url');
+  Buffer.from(JSON.stringify({ r: cfg.relay, i: cfg.bridgeId, k: browserKey(cfg.key) })).toString('base64url');
 
 function printPairing(cfg, site) {
   const code = pairingCode(cfg);
