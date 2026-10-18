@@ -47,6 +47,15 @@ describe('presetDiff', () => {
     expect(presetDiff({ own, parent: p, overrides, options, slot: { index: 0, count: 2 } })).toEqual({ nozzle_temperature: '200' });
   });
 
+  it('takes the flow-variant segment of a filament slot', () => {
+    const own = { nozzle_temperature: '220,225' };
+    const options = { nozzle_temperature: { type: 'ints', flow: 'filament' } as OptionDef };
+    const config = { filament_flow_step_size: '2,2' };
+    const overrides = { nozzle_temperature: '220,225,240,245' };
+    expect(presetDiff({ own, parent: own, overrides, options, slot: { index: 1, count: 2, config } })).toEqual({ nozzle_temperature: '240,245' });
+    expect(presetDiff({ own, parent: own, overrides, options, slot: { index: 0, count: 2, config } })).toEqual({});
+  });
+
   it('never saves preset bookkeeping', () => {
     const own = { print_settings_id: 'Mine', compatible_printers: '"X"', version: '1' };
     expect(presetDiff({ own, parent: {}, overrides: {}, options: {} })).toEqual({});

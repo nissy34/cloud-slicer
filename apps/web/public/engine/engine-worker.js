@@ -62,6 +62,21 @@ if (self.name !== 'em-pthread') {
     filamentsFor: (e, printer) => json(e.presetsFilamentsFor(printer)),
     fullConfig: (e, overrides) => json(e.presetsFullConfig(JSON.stringify(overrides || {}))),
     presetConfig: (e, type, name) => JSON.parse(e.presetConfig(type, name) || 'null'),
+    // A user preset as desktop Orca's preset file (JSON text), for Export.
+    presetExport: (e, type, name) => json(e.presetExport(type, name)).json,
+    // Reads preset files (desktop Orca JSON) without adding them; `rebase`
+    // puts one on another system preset than the one it inherits.
+    presetParse(e, files) {
+      return files.map(({ text, rebase }) => {
+        const path = '/work/preset-import.json';
+        e.FS.writeFile(path, text);
+        try {
+          return JSON.parse(e.presetImportParse(path, rebase || ''));
+        } finally {
+          e.FS.unlink(path);
+        }
+      });
+    },
     options: (e) => JSON.parse(e.configOptionsJson()),
     modelInfo: (e) => JSON.parse(e.modelInfoJson()),
     fileConfig: (e) => JSON.parse(e.fileConfigJson()),

@@ -1,3 +1,4 @@
+import { ImportPresetsDialog } from './account/ImportPresets';
 import { ActionBar } from './components/ActionBar';
 import { ConvertDialog } from './components/ConvertDialog';
 import { OpenProjectDialog } from './components/OpenProjectDialog';
@@ -18,6 +19,7 @@ export function App() {
       <ConvertDialog />
       <OpenProjectDialog />
       <SetupWizard />
+      <ImportPresetsDialog />
       {tab !== 'device' && (
         <div className="body">
           <Sidebar />

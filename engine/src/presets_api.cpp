@@ -15,6 +15,7 @@
 #include "libslic3r/Utils.hpp"
 
 #include <boost/algorithm/string/predicate.hpp>
+#include <boost/nowide/cstdio.hpp>
 
 #include <climits>
 #include <memory>
@@ -273,6 +274,99 @@ std::string presetsFullConfig(const std::string& overridesJson) {
     }
 }
 
+// --- import / export of preset files, like desktop's Import / Export Configs ---
+
+PresetCollection& collectionOf(PresetBundle& b, const std::string& type) {
+    return type == "printer" ? static_cast<PresetCollection&>(b.printers) : type == "filament" ? b.filaments : b.prints;
+}
+
+// A system preset by name, old name (renamed_from) or alias.
+const Preset* systemPreset(PresetBundle& b, PresetCollection& c, const std::string& name) {
+    if (name.empty()) return nullptr;
+    auto system = [](const Preset* p) { return p && p->is_system ? p : nullptr; };
+    if (const Preset* p = system(c.find_preset(name, false, true))) return p;
+    if (const std::string* renamed = c.get_preset_name_renamed(name))
+        if (const Preset* p = system(c.find_preset(*renamed, false, true))) return p;
+    return system(c.find_preset(b.get_preset_name_by_alias(c.type(), name), false, true));
+}
+
+// The preset file desktop Orca writes for a user preset (Preset::save: only
+// what differs from the system preset it inherits), for "Export".
+std::string presetExport(const std::string& type, const std::string& name) {
+    try {
+        PresetBundle& b = bundle();
+        PresetCollection& c = collectionOf(b, type);
+        const Preset* p = c.find_preset(name, false, true);
+        if (p == nullptr || !p->is_user()) return json{{"ok", false}, {"error", "not a user preset: " + name}}.dump();
+        const Preset* parent = c.get_preset_parent(*p);
+        Preset copy = *p;
+        copy.file = "/work/preset-export.json";
+        copy.save(parent ? const_cast<DynamicPrintConfig*>(&parent->config) : nullptr);
+        std::string text;
+        load_string_file(copy.file, text);
+        boost::nowide::remove(copy.file.c_str());
+        boost::nowide::remove("/work/preset-export.info");
+        return json{{"ok", true}, {"json", text}}.dump();
+    } catch (const std::exception& e) {
+        return json{{"ok", false}, {"error", e.what()}}.dump();
+    }
+}
+
+// Reads a preset file (desktop Orca's JSON, as PresetBundle::import_json_presets
+// does) without adding it: its type, name, the system preset it inherits (or
+// `rebase`, a system preset of the same type to put it on instead) and its own
+// settings, serialized like the rest of the engine. Returns
+//   {ok, error?, type, name, version, inherits, parent, unknown: [key], invalid: [key], config: {key: value}}
+// where parent is "" when the inherited preset isn't here.
+std::string presetImportParse(const std::string& path, const std::string& rebase) {
+    try {
+        PresetBundle& b = bundle();
+        DynamicPrintConfig config;
+        std::map<std::string, std::string> kv;
+        std::string reason;
+        ConfigSubstitutionContext ctx(ForwardCompatibilitySubstitutionRule::EnableSilent);
+        if (config.load_from_json(path, ctx, false, kv, reason) != 0)
+            return json{{"ok", false}, {"error", reason.empty() ? "not an Orca preset file" : reason}}.dump();
+        std::string type;
+        if (config.has("printer_settings_id")) type = "printer";
+        else if (config.has("print_settings_id")) type = "process";
+        else if (config.has("filament_settings_id")) type = "filament";
+        else if (kv["type"] == "machine") type = "printer";
+        else if (kv["type"] == "filament" || kv["type"] == "process") type = kv["type"];
+        if (type.empty()) return json{{"ok", false}, {"error", "not an Orca printer, filament or process preset"}}.dump();
+        PresetCollection& c = collectionOf(b, type);
+        const std::string inherits = kv["inherits"];
+        const Preset* parent = systemPreset(b, c, rebase.empty() ? inherits : rebase);
+        // Like desktop: the file on top of the preset it inherits, made whole.
+        DynamicPrintConfig merged = parent ? parent->config : c.default_preset_for(config).config;
+        merged.apply(config);
+        Preset::normalize(merged);
+        const std::string invalid = Preset::remove_invalid_keys(merged, c.default_preset_for(merged).config);
+        json own = json::object();
+        for (const std::string& key : config.keys())
+            if (merged.has(key)) own[key] = merged.opt_serialize(key);
+        json bad = json::array();
+        for (size_t at = 0; at < invalid.size();) {
+            size_t end = invalid.find(", ", at);
+            bad.push_back(invalid.substr(at, end == std::string::npos ? std::string::npos : end - at));
+            at = end == std::string::npos ? invalid.size() : end + 2;
+        }
+        return json{{"ok", true},
+                    {"type", type},
+                    {"name", kv["name"]},
+                    {"version", kv["version"]},
+                    {"inherits", inherits},
+                    {"parent", parent ? parent->name : std::string()},
+                    {"filamentId", kv["filament_id"]},
+                    {"unknown", ctx.unrecogized_keys},
+                    {"invalid", bad},
+                    {"config", own}}
+            .dump();
+    } catch (const std::exception& e) {
+        return json{{"ok", false}, {"error", e.what()}}.dump();
+    }
+}
+
 const char* optionTypeName(ConfigOptionType t) {
     switch (t) {
     case coFloat: return "float";
@@ -384,5 +478,7 @@ EMSCRIPTEN_BINDINGS(presets_api) {
     emscripten::function("presetsFilamentsFor", &presetsFilamentsFor);
     emscripten::function("presetConfig", &presetConfig);
     emscripten::function("presetsFullConfig", &presetsFullConfig);
+    emscripten::function("presetExport", &presetExport);
+    emscripten::function("presetImportParse", &presetImportParse);
     emscripten::function("configOptionsJson", &configOptionsJson);
 }
