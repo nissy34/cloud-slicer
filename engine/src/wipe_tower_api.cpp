@@ -16,14 +16,18 @@ using namespace Slic3r;
 
 namespace {
 
-int intOpt(const ConfigBase& c, const char* key, int fallback = 0) {
+// An int option of a config (the project's, or an object's own settings).
+template <class Config>
+int intOpt(const Config& c, const char* key, int fallback = 0) {
     const ConfigOption* o = c.option(key);
     return o ? o->getInt() : fallback;
 }
 
 // The filaments `plate` prints with, 1-based, mixes expanded to the filaments
 // they mix (PartPlate::get_extruders(true) + expand_plate_extruders).
-std::vector<int> plateFilaments(const DynamicPrintConfig& cfg, int plate) {
+// `assigned`: how many filament numbers before expanding the mixes, which is
+// what the slice counts (Print::apply -> normalize_fdm_2).
+std::vector<int> plateFilaments(const DynamicPrintConfig& cfg, int plate, size_t* assigned = nullptr) {
     const engine::Project& pr = engine::project();
     std::vector<int> ids;
     const int supportIntf = intOpt(cfg, "support_interface_filament"), support = intOpt(cfg, "support_filament");
@@ -72,6 +76,9 @@ std::vector<int> plateFilaments(const DynamicPrintConfig& cfg, int plate) {
             if (item.type == CustomGCode::Type::ToolChange && item.extruder <= int(mixes.total_filaments(physical)))
                 ids.push_back(item.extruder);
 
+    std::sort(ids.begin(), ids.end());
+    ids.erase(std::unique(ids.begin(), ids.end()), ids.end());
+    if (assigned) *assigned = ids.size();
     mixes.expand_virtual_extruder_ids(ids, physical);
     std::sort(ids.begin(), ids.end());
     ids.erase(std::unique(ids.begin(), ids.end()), ids.end());
@@ -121,7 +128,8 @@ json wipeTowerFor(const DynamicPrintConfig& cfg, int plate, double slicedDepth) 
     const auto* seq = cfg.option<ConfigOptionEnum<PrintSequence>>("print_sequence");
     if (seq && seq->value == PrintSequence::ByObject && printable != 1) return out;
 
-    const std::vector<int> used = plateFilaments(cfg, plate);
+    size_t assigned = 0;
+    const std::vector<int> used = plateFilaments(cfg, plate, &assigned);
     if (used.empty()) return out;
 
     // The depth Orca plans for before slicing (Print::wipe_tower_data with the
@@ -136,8 +144,11 @@ json wipeTowerFor(const DynamicPrintConfig& cfg, int plate, double slicedDepth) 
         depth = data.depth;
         brim = data.brim_width;
     }
-    // One filament on the plate: no tower unless timelapse needs it.
-    if (used.size() == 1) depth = 0;
+    // One filament on the plate: no tower unless timelapse needs it. Desktop
+    // counts a mix as the filaments it mixes here, but the slice counts it as
+    // one (normalize_fdm_2 turns the tower off), and the view shows what will
+    // print: a plate printed with a single mix gets no tower.
+    if (used.size() == 1 || assigned == 1) depth = 0;
     if (smooth || depth > EPSILON) depth = std::max(double(minDepth(height)), depth);
     if (depth < 0.01) return out;
 

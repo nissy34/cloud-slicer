@@ -255,25 +255,35 @@ test('prime tower: shown and sized like desktop Prepare, sliced where it was pla
   let inTower = false;
   for (const line of gcode.split('\n')) {
     if (line.startsWith(';TYPE:')) inTower = line.startsWith(';TYPE:Prime tower');
-    const m = inTower && /^G1 .*X([-\d.]+) Y([-\d.]+)/.exec(line);
+    // Extrusions only: the tool change G-code in between parks the head.
+    const m = inTower && /^G1 .*X([-\d.]+) Y([-\d.]+).* E[\d.]+/.exec(line);
     if (m) xs.push(Number(m[1])), ys.push(Number(m[2]));
   }
   assert.ok(xs.length > 0, 'no prime tower moves');
-  const slack = t.brim + 2;
-  assert.ok(Math.min(...xs) >= 120 - slack && Math.max(...xs) <= 120 + t.width + slack, `x ${Math.min(...xs)}..${Math.max(...xs)}`);
-  assert.ok(Math.min(...ys) >= 40 - slack && Math.max(...ys) <= 40 + result.wipeTowerDepth + slack, `y ${Math.min(...ys)}..${Math.max(...ys)}`);
+  // The tower stands where placed (its brim, wider than set, round it).
+  const [x0, x1, y0, y1] = [Math.min(...xs), Math.max(...xs), Math.min(...ys), Math.max(...ys)];
+  const box = `X${x0}..${x1} Y${y0}..${y1}`;
+  assert.ok(x0 <= 120.5 && x1 >= 120 + t.width - 1 && y0 <= 40.5 && y1 >= 40 + result.wipeTowerDepth - 1, `tower ${box}`);
+  assert.ok(x0 >= 105 && x1 <= 120 + t.width + 15 && y0 >= 25 && y1 <= 40 + result.wipeTowerDepth + 15, `tower ${box}`);
   // Once sliced, the view shows the tower as deep as the slice made it.
   assert.equal(tower(placed, 0, result.wipeTowerDepth).depth, Math.max(result.wipeTowerDepth, 20));
 
   // A plate printed with one filament has no tower.
   load('tetrahedron.stl');
   assert.ok(!tower(two).show, 'single-filament plate');
-  // A mix of both filaments needs one.
+  // Printed with a mix only, the slice makes no tower (Orca counts the mix as
+  // one filament), so none shows; with the mix and another filament it does.
   const mix = call(engine, 'mixedFilaments', JSON.stringify({ definitions: '', colours: ['#FF0000', '#0000FF'], op: { kind: 'add', row: { componentA: 1, componentB: 2, mixBPercent: 50, uiMode: 0 } } }));
   call(engine, 'setExtruder', 0, -1, 3);
-  const m = tower({ ...two, mixed_filament_definitions: mix.definitions });
-  assert.ok(m.show, 'mixed filament plate');
+  const withMix = { ...two, mixed_filament_definitions: mix.definitions };
+  assert.ok(!tower(withMix).show, 'only a mix on the plate');
+  assert.ok(!/;TYPE:Prime tower/.test(slice(fullConfig(withMix)).gcode), 'the slice makes no tower for a mix alone');
+  load('tetrahedron.stl', 0, true);
+  call(engine, 'setExtruder', 1, -1, 1);
+  const m = tower(withMix);
+  assert.ok(m.show, 'a mix and a filament');
   assert.deepEqual(m.filaments, [1, 2]);
+  assert.ok(/;TYPE:Prime tower/.test(slice(fullConfig(withMix)).gcode), 'the slice makes the tower');
 });
 
 test('resizing plates keeps objects centred on their plate', () => {

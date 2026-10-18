@@ -1,6 +1,6 @@
 #!/usr/bin/env node
-// Browser end to end for the prime tower on the Prepare plate: a model printed
-// with a mix of two filaments gets a tower, dragging it moves it, and the
+// Browser end to end for the prime tower on the Prepare plate: a plate printed
+// with two filaments gets a tower, dragging it moves it, and the
 // slice prints it where it was dropped.
 //
 //   node test/wipe-tower.mjs [screenshot-dir]
@@ -15,6 +15,7 @@ import * as THREE from 'three';
 
 const web = join(dirname(fileURLToPath(import.meta.url)), '..');
 const model = join(web, '../../fixtures/3DBenchy.stl');
+const second = join(web, '../../fixtures/tetrahedron.stl');
 const shots = process.argv[2] ? resolve(process.argv[2]) : null;
 const PORT = 4176;
 const BED = 270;  // the U1's plate
@@ -73,17 +74,11 @@ try {
   await page.getByRole('dialog', { name: 'Set up your printers' }).getByRole('button', { name: 'Not now' }).click();
 
   while ((await page.getByLabel(/^Filament \d+ colour$/).count()) < 2) await page.getByLabel('Add filament').click();
-  const mixId = (await page.getByLabel(/^Filament \d+ colour$/).count()) + 1;
-  await page.getByTestId('model-input').setInputFiles(model);
+  await page.getByTestId('model-input').setInputFiles([model, second]);
   await page.getByText('Ready to slice').waitFor({ timeout: 120000 });
 
-  // Printed with a mix of filaments 1 and 2: the plate needs a prime tower.
-  await page.getByLabel('Add mix').click();
-  const dialog = page.getByRole('dialog', { name: /mix/i });
-  await dialog.getByRole('radio', { name: 'Ratio' }).click();
-  await dialog.getByRole('button', { name: /^(Add|Save)/ }).click();
-  await page.getByLabel(`Delete mix ${mixId}`).waitFor();
-  await page.getByLabel(/^Filament for 3DBenchy/).first().selectOption(String(mixId));
+  // Two objects in two filaments: the plate needs a prime tower.
+  await page.getByLabel(/^Filament for tetrahedron/).first().selectOption('2');
   await page.waitForTimeout(1500);
   await shot(page, 'desktop');
 
@@ -108,14 +103,18 @@ try {
   let inTower = false;
   for (const line of gcode.split('\n')) {
     if (line.startsWith(';TYPE:')) inTower = line.startsWith(';TYPE:Prime tower');
-    const m = inTower && /^G1 .*X([-\d.]+) Y([-\d.]+)/.exec(line);
+    // Extrusions only: the tool change G-code in between parks the head.
+    const m = inTower && /^G1 .*X([-\d.]+) Y([-\d.]+).* E[\d.]+/.exec(line);
     if (m) xs.push(Number(m[1])), ys.push(Number(m[2]));
   }
   if (!xs.length) throw new Error('the G-code has no prime tower');
-  const [x0, y0] = [Math.min(...xs), Math.min(...ys)];
-  console.log(`prime tower printed from X${x0} Y${y0}`);
-  // The drag is pixels on a 3D view, so allow a few mm.
-  if (Math.abs(x0 - TARGET[0]) > 8 || Math.abs(y0 - TARGET[1]) > 8) fail(`tower printed at X${x0} Y${y0}, dragged to X${TARGET[0]} Y${TARGET[1]}`);
+  const [x0, x1, y0, y1] = [Math.min(...xs), Math.max(...xs), Math.min(...ys), Math.max(...ys)];
+  console.log(`prime tower printed over X${x0}..${x1} Y${y0}..${y1}`);
+  // Its front-left corner, where it was dropped, is inside what printed, near
+  // the front-left (the brim goes round it; the drag is pixels, so a few mm).
+  const near = (v, lo, hi) => v >= lo - 4 && v <= hi + 4;
+  if (!near(TARGET[0], x0, x0 + 15) || !near(TARGET[1], y0, y0 + 15))
+    fail(`tower printed over X${x0}..${x1} Y${y0}..${y1}, dragged to X${TARGET[0]} Y${TARGET[1]}`);
 
   // Back on Prepare the tower stands where it printed; on a phone too.
   await page.getByRole('tab', { name: 'Prepare' }).click().catch(() => page.getByRole('button', { name: 'Prepare' }).click());
