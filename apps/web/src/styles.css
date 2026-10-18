@@ -86,7 +86,6 @@ textarea {
 .app {
   display: grid;
   grid-template-rows: var(--topbar) 1fr;
-  grid-template-columns: minmax(0, 1fr);
   height: 100dvh;
 }
 
@@ -2581,45 +2580,6 @@ select:focus-visible {
   }
   .projects-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-}
-
-/* Calibration: icon and label on wide screens, icon only on phones. */
-.calibration-button {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-.calibration-button svg {
-  display: none;
-}
-@media (max-width: 760px) {
-  .topbar .calibration-button {
-    display: grid;
-    place-items: center;
-    width: 28px;
-    height: 28px;
-    padding: 0;
-  }
-  .calibration-button svg {
-    display: block;
-  }
-  /* Hidden but still read out, so the button stays "Calibration" to screen readers. */
-  .calibration-button .topbar-label {
-    position: absolute;
-    width: 1px;
-    height: 1px;
-    overflow: hidden;
-    clip-path: inset(50%);
-    white-space: nowrap;
-  }
-  /* The project name gives way first; the tabs never shrink under their labels. */
-  .project-button {
-    min-width: 0;
-  }
-  .topbar .tabs,
-  .topbar .calibration-button {
-    flex: none;
   }
 }
 
