@@ -47,7 +47,7 @@ function cubesStl(corners, s = 10) {
   const facets = tris.map((t) => `facet normal 0 0 0\nouter loop\n${t.map((p) => `vertex ${p.join(' ')}`).join('\n')}\nendloop\nendfacet`);
   return new TextEncoder().encode(`solid cubes\n${facets.join('\n')}\nendsolid cubes\n`);
 }
-const generated = { 'gen-two-cubes.stl': cubesStl([[0, 0, 0], [30, 0, 0]]) };
+const generated = { 'gen-two-cubes.stl': cubesStl([[0, 0, 0], [30, 0, 0]]), 'gen-cube-20.stl': cubesStl([[0, 0, 0]], 20) };
 
 function slice(config, plate = 0, thumbnails = null) {
   const result = JSON.parse(engine.sliceWithConfig(JSON.stringify(config), plate, '/work/out.gcode', null, thumbnails));
@@ -656,4 +656,36 @@ test('colour mixing: Match finds the recipe for a target colour', () => {
   assert.equal(mixed({ definitions: '', colours: TWO, types: ['PLA', 'PETG'], draft: row }).draftCompatible, false);
   assert.equal(mixed({ definitions: '', colours: TWO, types: ['PLA', 'PLA'], draft: row }).draftCompatible, true);
   assert.equal(mixed({ definitions: '', colours: TWO, types: ['PETG', 'TPU'], op: { kind: 'add', row } }).rows[0].compatible, true);
+});
+
+test('measure: faces, edges and corners under a ray, and the distance and angle between them', () => {
+  select({ printer: DEFAULT_PRINTER });
+  const m = load('gen-cube-20.stl');
+  const [x, y] = m.objects[0].instances[0].offset;  // the cube spans x±10, y±10, z 0..20
+  const feature = (ray, onlyPlane = false) => call(engine, 'measureFeature', 0, JSON.stringify({ ray, onlyPlane })).feature;
+  const near = (a, b, msg) => a.forEach((v, i) => assert.ok(Math.abs(v - b[i]) < 1e-3, `${msg}: ${JSON.stringify(a)} vs ${JSON.stringify(b)}`));
+
+  const top = feature([x, y, 100, 0, 0, -1]);
+  assert.equal(top.type, 'plane');
+  near(top.normal, [0, 0, 1], 'top face normal');
+  assert.equal(top.triangles.length, 2 * 9, 'the top face is two triangles');
+  assert.ok(top.triangles.every((v, i) => i % 3 !== 2 || Math.abs(v - 20) < 1e-3), 'the top face is at 20 mm');
+
+  const edge = feature([x + 9.8, y, 100, 0, 0, -1]);
+  assert.equal(edge.type, 'edge', 'close to the side of the top face');
+  assert.ok(Math.abs(Math.hypot(...edge.start.map((v, i) => v - edge.end[i])) - 20) < 1e-3, 'the edge is 20 mm');
+  assert.equal(feature([x + 9.8, y, 100, 0, 0, -1], true).type, 'plane', 'whole faces only');
+
+  const corner = feature([x + 9.9, y + 9.9, 100, 0, 0, -1]);
+  assert.equal(corner.type, 'point', 'close to a corner');
+  near(corner.point, [x + 10, y + 10, 20], 'the corner');
+
+  const left = feature([x - 50, y, 10, 1, 0, 0]);
+  const right = feature([x + 50, y, 10, -1, 0, 0]);
+  near(left.normal, [-1, 0, 0], 'left face normal');
+  const across = call(engine, 'measureBetween', left.id, right.id);
+  assert.ok(Math.abs((across.distance ?? across.perpendicular).distance - 20) < 1e-3, `opposite faces are 20 mm apart: ${JSON.stringify(across)}`);
+  const angle = call(engine, 'measureBetween', top.id, left.id);
+  assert.ok(Math.abs(angle.angle.degrees - 90) < 1e-3, `top and side are square: ${JSON.stringify(angle)}`);
+  assert.equal(feature([x + 100, y + 100, 100, 0, 0, -1]), null, 'nothing under a ray that misses');
 });
