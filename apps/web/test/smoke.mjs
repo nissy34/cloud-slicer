@@ -20,7 +20,9 @@ const PORT = 4173;
 let server;
 let url = process.env.SMOKE_URL;
 if (!url) {
-  server = spawn('npx', ['vite', 'preview', '--port', String(PORT), '--strictPort'], { cwd: web, stdio: 'pipe' });
+  // Own process group, so the whole tree (npx -> vite) can be stopped at the end;
+  // killing npx alone leaves vite running and the test never exits.
+  server = spawn('npx', ['vite', 'preview', '--port', String(PORT), '--strictPort'], { cwd: web, stdio: 'pipe', detached: true });
   url = `http://localhost:${PORT}/`;
   await new Promise((ok, fail) => {
     const timer = setTimeout(() => fail(new Error('vite preview did not start')), 30000);
@@ -80,6 +82,7 @@ try {
   fail(e.message);
 } finally {
   await browser.close();
-  server?.kill();
+  if (server) process.kill(-server.pid, 'SIGTERM');
 }
 if (!process.exitCode) console.log('SMOKE OK');
+process.exit();
