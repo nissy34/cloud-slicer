@@ -26,6 +26,8 @@ interface ProjectsState {
   dirty: boolean;
   /** What is being done right now ('' when idle), e.g. "Saving…". */
   busy: string;
+  /** A project from the account being downloaded: bytes so far, of `total` (0 when unknown). */
+  downloading: { name: string; loaded: number; total: number } | null;
   /** The last problem or result, shown under the project menu. */
   message: string;
   messageWarn: boolean;
@@ -133,6 +135,7 @@ export const useProjects = create<ProjectsState>((set, get) => {
     current: blank(),
     dirty: false,
     busy: '',
+    downloading: null,
     message: '',
     messageWarn: false,
     conflict: null,
@@ -197,14 +200,16 @@ export const useProjects = create<ProjectsState>((set, get) => {
     async openOnline(p) {
       set({ busy: `Opening “${p.name}”…`, message: '', listOpen: false });
       try {
-        const { bytes, version } = await api.projectFile(p.id);
+        set({ downloading: { name: p.name, loaded: 0, total: 0 } });
+        const { bytes, version } = await api.projectFile(p.id, (loaded, total) => set({ downloading: { name: p.name, loaded, total } }));
+        set({ downloading: null });
         await useSlicer.getState().openFiles([new File([bytes], projectFileName(p.name), { type: 'model/3mf' })], 'project');
         set({ current: { name: p.name, id: p.id, version: version || p.version } });
         markClean();
       } catch (e) {
         set({ message: `Couldn't open “${p.name}”: ${errorText(e)}`, messageWarn: true });
       } finally {
-        set({ busy: '' });
+        set({ busy: '', downloading: null });
       }
     },
 

@@ -161,7 +161,18 @@ export interface SliceResult {
   totalFilamentGrams: number;
 }
 
+/**
+ * Engine start-up before 'ready': downloading the engine and presets (bytes so
+ * far of `total`, 0 when unknown), then setting the engine up.
+ */
+export interface EngineLoading {
+  stage: 'download' | 'setup';
+  loaded: number;
+  total: number;
+}
+
 export type WorkerReply =
+  | { type: 'loading'; loading: EngineLoading }
   | { type: 'ready'; presets: PresetsLoaded; cancel: Int32Array | null }
   | { type: 'result'; id: number; value: unknown }
   | { type: 'progress'; id: number; pct: number; stage: string }

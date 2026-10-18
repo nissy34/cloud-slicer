@@ -8,6 +8,7 @@
 //
 // Protocol (postMessage). Requests carry an `id`; replies echo it.
 //   -> { id, method, args: [...] }                 see `methods` below
+//   <- { type: 'loading', loading }                start-up: { stage: 'download' | 'setup', loaded, total } bytes
 //   <- { type: 'ready', presets, cancel }          presets loaded (counts, selection);
 //                                                  cancel: the slice cancel cells, see slice below
 //   <- { type: 'result', id, value }               value may carry transferred buffers
@@ -31,13 +32,57 @@ if (self.name !== 'em-pthread') {
     return out;
   };
 
+  // Start-up progress for the page's loading screen: bytes of the wasm and
+  // profiles.json downloaded so far. Their sizes come from the page (?bytes=),
+  // since a compressed response has no usable length.
+  const download = { loaded: 0, total: Number(new URLSearchParams(self.location.search).get('bytes')) || 0, sent: 0 };
+  const loading = (stage) => postMessage({ type: 'loading', loading: { stage, loaded: download.loaded, total: download.total } });
+  // A copy of `res` that reports its bytes as they arrive.
+  const counted = (res) => {
+    if (!res.body || typeof TransformStream === 'undefined') return res;
+    const count = new TransformStream({
+      transform(chunk, out) {
+        download.loaded += chunk.byteLength;
+        const now = performance.now();
+        if (now - download.sent > 100) {
+          download.sent = now;
+          loading('download');
+        }
+        out.enqueue(chunk);
+      },
+    });
+    return new Response(res.body.pipeThrough(count), { headers: res.headers });
+  };
+  const fetchCounted = async (file) => {
+    const res = await fetch(here(file));
+    if (!res.ok) throw new Error(`${file}: HTTP ${res.status}`);
+    return counted(res);
+  };
+
+  let startFailed;
+  const failed = new Promise((_, reject) => (startFailed = reject));
+  // Emscripten's hook for loading the wasm ourselves: the same streaming
+  // compile it does by default, through the byte counter.
+  const instantiateWasm = (imports, receive) => {
+    fetchCounted('orca-engine.wasm')
+      .then(async (res) => {
+        const wasm = new Response(res.body, { headers: { 'Content-Type': 'application/wasm' } });
+        const { instance, module } = WebAssembly.instantiateStreaming
+          ? await WebAssembly.instantiateStreaming(wasm, imports)
+          : await WebAssembly.instantiate(await wasm.arrayBuffer(), imports);
+        loading('setup');
+        receive(instance, module);
+      })
+      .catch(startFailed);
+    return {};
+  };
+
+  loading('download');
   const ready = Promise.all([
-    createOrcaEngine({ print: log, printErr: log, locateFile: here }),
-    fetch(here('profiles.json')).then((r) => {
-      if (!r.ok) throw new Error(`profiles.json: HTTP ${r.status}`);
-      return r.json();
-    }),
+    Promise.race([createOrcaEngine({ print: log, printErr: log, locateFile: here, instantiateWasm }), failed]),
+    fetchCounted('profiles.json').then((r) => r.json()),
   ]).then(([engine, bundle]) => {
+    loading('setup');
     for (const [rel, text] of Object.entries(bundle.files)) {
       const path = `${DATA_DIR}/system/${rel}`;
       engine.FS.mkdirTree(path.slice(0, path.lastIndexOf('/')));

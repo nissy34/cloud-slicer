@@ -258,7 +258,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        suite: [smoke, startup, presets, accounts, toolbar, mixing, cancel]
+        suite: [smoke, startup, presets, accounts, toolbar, mixing, loading, cancel]
     name: browser (${{ matrix.suite }})
     defaults:
       run:
@@ -296,6 +296,10 @@ jobs:
       - name: Colour mixing end to end (Chromium)
         if: matrix.suite == 'mixing'
         run: node test/mixing.mjs
+
+      - name: Loading screen end to end (Chromium)
+        if: matrix.suite == 'loading'
+        run: node test/loading.mjs
 
       - name: Slice cancel end to end (Chromium)
         if: matrix.suite == 'cancel'

@@ -112,6 +112,11 @@ export class BridgeLink implements PrinterLink {
     ws?.close();
   }
 
+  /** A call the bridge answers itself, such as adding a printer to it (bridge.add_printer). */
+  manage<T>(method: `bridge.${string}`, params: unknown, timeoutMs = 20_000): Promise<T> {
+    return this.call<T>(method, params, timeoutMs);
+  }
+
   private call<T>(method: string, params: unknown, timeoutMs = 30_000): Promise<T> {
     const id = `b${++this.seq}`;
     return new Promise<T>((resolve, reject) => {
