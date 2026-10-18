@@ -8,7 +8,8 @@
 //
 // Protocol (postMessage). Requests carry an `id`; replies echo it.
 //   -> { id, method, args: [...] }                 see `methods` below
-//   <- { type: 'ready', presets }                  presets loaded (counts, selection)
+//   <- { type: 'ready', presets, cancel }          presets loaded (counts, selection);
+//                                                  cancel: the slice cancel cells, see slice below
 //   <- { type: 'result', id, value }               value may carry transferred buffers
 //   <- { type: 'progress', id, pct, stage }
 //   <- { type: 'error', id, message }              id null: the engine failed to start
@@ -22,6 +23,7 @@ importScripts(here('orca-engine.js'));
 if (self.name !== 'em-pthread') {
   const DATA_DIR = '/orca';
   const log = () => {};
+  let cancel = null;
 
   const json = (text) => {
     const out = JSON.parse(text);
@@ -44,7 +46,9 @@ if (self.name !== 'em-pthread') {
     const presets = json(engine.presetsLoad(DATA_DIR));
     presets.vendorVersion = bundle.version;
     engine.FS.mkdirTree('/work');
-    postMessage({ type: 'ready', presets });
+    // An engine build without slice cancelling still works, without Cancel.
+    cancel = engine.sliceCancelFlag ? engine.sliceCancelFlag() : null;
+    postMessage({ type: 'ready', presets, cancel });
     return engine;
   });
 
@@ -191,11 +195,22 @@ if (self.name !== 'em-pthread') {
 
     // Slices one plate with the current preset selection plus overrides.
     // thumbnails: the page's plate pictures, [{width, height, pixels}].
+    // While it runs, this thread answers nothing, so the page cancels it
+    // through `cancel`, two cells in the engine's shared memory: the page
+    // writes the id of the request to cancel to [0]; [1] holds the id of the
+    // slice running, and the engine stops when they match.
     slice(e, plate, overrides, thumbnails, id) {
+      if (cancel && Atomics.load(cancel, 0) === id) throw new Error('cancelled');
       const t0 = performance.now();
       const { config } = json(e.presetsFullConfig(JSON.stringify(overrides || {})));
-      const result = JSON.parse(e.sliceWithConfig(JSON.stringify(config), plate, '/work/plate.gcode', (pct, stage) =>
-        postMessage({ type: 'progress', id, pct, stage }), thumbnails || []));
+      if (cancel) Atomics.store(cancel, 1, id);
+      let result;
+      try {
+        result = JSON.parse(e.sliceWithConfig(JSON.stringify(config), plate, '/work/plate.gcode', (pct, stage) =>
+          postMessage({ type: 'progress', id, pct, stage }), thumbnails || []));
+      } finally {
+        if (cancel) Atomics.store(cancel, 1, 0);
+      }
       if (!result.success) throw new Error(result.error || 'Slicing failed');
       const gcode = e.FS.readFile(result.gcodePath).buffer;
       e.FS.unlink(result.gcodePath);

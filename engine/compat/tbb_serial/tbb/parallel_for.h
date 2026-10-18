@@ -23,6 +23,7 @@
 // giving us task_group_context needed by function signatures below.
 #include <tbb/blocked_range.h>
 #include <tbb/partitioner.h>
+#include <tbb/serial_cancel.h>
 
 #include <cstddef>
 #include <stdexcept>
@@ -42,6 +43,7 @@ void serial_for_each_grain( Range range, const Body& body ) {
         serial_for_each_grain(range, body);  // process left (recurse)
         range = right;  // continue with right (tail position)
     }
+    serial_check_cancel();
     body(range);  // process the final non-divisible piece
 }
 
@@ -107,8 +109,10 @@ template<typename Index, typename Function>
 void parallel_for( Index first, Index last, Index step, const Function& f ) {
     if (step <= Index(0))
         throw std::invalid_argument("Step must be positive in parallel_for");
-    for (Index i = first; i < last; i = i + step)
+    for (Index i = first; i < last; i = i + step) {
+        serial_check_cancel();
         f(i);
+    }
 }
 
 template<typename Index, typename Function>
@@ -134,8 +138,10 @@ void parallel_for( Index first, Index last, Index step, const Function& f, affin
 // Without step (default step = 1)
 template<typename Index, typename Function>
 void parallel_for( Index first, Index last, const Function& f ) {
-    for (Index i = first; i < last; ++i)
+    for (Index i = first; i < last; ++i) {
+        serial_check_cancel();
         f(i);
+    }
 }
 
 template<typename Index, typename Function>
