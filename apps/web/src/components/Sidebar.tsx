@@ -1,4 +1,5 @@
 import { shortName } from '../lib/presets';
+import { CalibrationBanner } from './CalibrationDialog';
 import { useOption, useSlicer } from '../state/store';
 import { ObjectList } from './ObjectList';
 import { PaintPanel } from './PaintPanel';
@@ -118,6 +119,7 @@ function ProcessSection() {
 export function Sidebar() {
   return (
     <aside className="panel">
+      <CalibrationBanner />
       <PaintPanel />
       <PrinterSection />
       <FilamentSection />

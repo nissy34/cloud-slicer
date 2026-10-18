@@ -1,4 +1,6 @@
+import { useState } from 'react';
 import { useSlicer, type Tab } from '../state/store';
+import { CalibrationDialog } from './CalibrationDialog';
 
 const TABS: { id: Tab; label: string }[] = [
   { id: 'prepare', label: 'Prepare' },
@@ -9,6 +11,8 @@ const TABS: { id: Tab; label: string }[] = [
 export function TopBar() {
   const tab = useSlicer((s) => s.tab);
   const setTab = useSlicer((s) => s.setTab);
+  const ready = useSlicer((s) => s.engine === 'ready');
+  const [calibrating, setCalibrating] = useState(false);
   return (
     <header className="topbar">
       <div className="brand">
@@ -28,6 +32,10 @@ export function TopBar() {
           </button>
         ))}
       </nav>
+      <button className="ghost" disabled={!ready} onClick={() => setCalibrating(true)}>
+        Calibration
+      </button>
+      {calibrating && <CalibrationDialog onClose={() => setCalibrating(false)} />}
       <button className="ghost" disabled title="Accounts arrive in phase 3">
         Sign in
       </button>

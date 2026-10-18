@@ -80,6 +80,7 @@ std::string sliceWithConfig(const std::string& configJson, int plate, const std:
         engine::report(onProgress, 2, "Preparing");
         Print print;
         print.is_BBL_printer() = engine::selectedPrinterIsBambu();  // as desktop does before slicing
+        print.set_calib_params(engine::project().calib);
         print.apply(model, cfg);
         const StringObjectException err = print.validate();
         if (!err.string.empty()) throw std::runtime_error(err.string);

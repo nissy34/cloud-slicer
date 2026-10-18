@@ -3,6 +3,7 @@
 // through embind functions that take and return JSON.
 #pragma once
 
+#include "libslic3r/calib.hpp"
 #include "libslic3r/Format/bbs_3mf.hpp"
 #include "libslic3r/Model.hpp"
 #include "libslic3r/PrintConfig.hpp"
@@ -29,6 +30,7 @@ struct Project {
     bool fromBambu = false;
     int plateCount = 1;
     double plateWidth = 270, plateDepth = 270;  // plate grid cell, from the file or the printer
+    Slic3r::Calib_Params calib;              // calibration test being printed, set by calib_api
 
     int columns() const;
     Slic3r::Vec2d plateOrigin(int plate) const;

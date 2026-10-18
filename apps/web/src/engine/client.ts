@@ -103,6 +103,9 @@ export class EngineClient {
     this.call<ProjectInfo>('setObjectSettings', [o, volume, values]);
   addPlate = () => this.call<ProjectInfo>('addPlate');
   deletePlate = (plate: number) => this.call<ProjectInfo>('deletePlate', [plate]);
+  calibrate = (options: Record<string, unknown>, overrides: OrcaConfig) =>
+    this.call<{ overrides: OrcaConfig; info: ProjectInfo }>('calibrate', [options, overrides]);
+  calibrationStop = () => this.call<void>('calibrationStop');
   slice = (plate: number, overrides: OrcaConfig) =>
     this.call<{ result: SliceResult; gcode: ArrayBuffer; ms: number }>('slice', [plate, overrides]);
 }
