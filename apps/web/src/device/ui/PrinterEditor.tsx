@@ -333,7 +333,9 @@ export interface AddRow {
   needsKey: boolean;
   /** Already a saved printer in Cloud Slicer. */
   saved: boolean;
-  on: boolean;
+  /** idle: not chosen; editing: its name, profile and key are open; ready: checked and waiting for the button below. */
+  step: 'idle' | 'editing' | 'ready';
+  busy: boolean;
   name: string;
   preset: string;
   apiKey: string;
@@ -352,7 +354,7 @@ export function mergeAddRows(
   const byBridge = (id: string) => next.find((r) => r.bridgeId === id);
   const blank = (r: Pick<AddRow, 'key' | 'bridgeId' | 'url' | 'host' | 'needsKey' | 'name'>): AddRow => {
     const saved = r.bridgeId ? isSaved(r.bridgeId) : false;
-    return { ...r, saved, on: !saved, preset, apiKey: '', problem: '' };
+    return { ...r, saved, step: 'idle', busy: false, preset, apiKey: '', problem: '' };
   };
   for (const p of bridgePrinters) {
     if (!byBridge(p.id)) next.push(blank({ key: `b:${p.id}`, bridgeId: p.id, url: null, host: '', needsKey: false, name: p.name }));
@@ -396,44 +398,92 @@ function BridgeAddList({
     if (found) setRows((r) => mergeAddRows(r, [], found, isSaved, preset));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [found]);
-  const edit = (key: string, change: Partial<AddRow>) => setRows((list) => list.map((r) => (r.key === key ? { ...r, ...change, ...(change.apiKey !== undefined && { problem: '' }) } : r)));
+  const edit = (key: string, change: Partial<AddRow>) => setRows((list) => list.map((r) => (r.key === key ? { ...r, problem: '', ...change } : r)));
+  /** Checks one printer before it joins the ones to add: a profile, and the API key (by adding it to the bridge, which tries it). */
+  const confirm = async (r: AddRow) => {
+    if (!r.preset && useSlicer.getState().printers.length) return edit(r.key, { problem: 'Choose its printer profile.' });
+    if (r.bridgeId) return edit(r.key, { step: 'ready' });
+    if (r.needsKey && !r.apiKey.trim()) return edit(r.key, { problem: 'Type its API key first.' });
+    if (!watch) return;
+    edit(r.key, { busy: true });
+    try {
+      const res = await watch.manage<{ id: string; name: string }>('bridge.add_printer', { address: r.url, apiKey: r.apiKey.trim(), ...(r.name.trim() && { name: r.name.trim() }) });
+      // The bridge's status may already list it as a row of its own: keep this one.
+      setRows((list) => list.filter((x) => x.key === r.key || x.bridgeId !== res.id).map((x) => (x.key === r.key ? { ...x, bridgeId: res.id, needsKey: false, busy: false, step: 'ready' } : x)));
+    } catch (e) {
+      edit(r.key, { busy: false, problem: (e as Error).message });
+    }
+  };
   const shown = rows.filter((r) => !r.saved);
   const savedRows = rows.filter((r) => r.saved);
+  const title = (r: AddRow) => (
+    <span>
+      <strong>{r.name || r.host}</strong> {r.name && r.host && <span className="muted">{r.host}</span>}
+    </span>
+  );
   return (
     <div className="dv-bridge-printers" data-testid="bridge-printers">
       <SearchStatus s={s} watch={watch} system={system} title="Your printers" />
       {shown.length > 0 && (
         <>
-          <span className="muted">Tick the printers you want, give each a name and its printer profile.</span>
+          <span className="muted">Click Add on each printer you want. When they're ready, the button at the bottom adds them all.</span>
           <ul className="dv-found-list">
             {shown.map((r) => (
-              <li key={r.key} className={`dv-found dv-add-row${r.on ? ' on' : ''}`} data-testid="add-row" data-url={r.url ?? ''} data-bridge-id={r.bridgeId ?? ''}>
-                <label className="dv-add-tick">
-                  <input type="checkbox" checked={r.on} onChange={(e) => edit(r.key, { on: e.target.checked })} data-testid="add-row-on" />
-                  <span>
-                    <strong>{r.name || r.host}</strong> {r.name && r.host && <span className="muted">{r.host}</span>}
-                  </span>
-                </label>
-                {r.on && (
-                  <div className="dv-add-fields">
-                    <label>
-                      Name
-                      <input value={r.name} onChange={(e) => edit(r.key, { name: e.target.value })} placeholder={r.host || 'My printer'} data-testid="add-row-name" />
-                    </label>
-                    <PresetField value={r.preset} onChange={(p) => edit(r.key, { preset: p })} />
-                    {r.needsKey && (
-                      <label className="dv-add-key">
-                        API key
-                        <input value={r.apiKey} onChange={(e) => edit(r.key, { apiKey: e.target.value })} placeholder="This printer is locked: type its API key" spellCheck={false} autoCapitalize="off" autoComplete="off" data-testid="add-row-key" />
-                        <span className="muted">Mainsail and Fluidd show it in their settings. It goes to the bridge, not to Cloud Slicer.</span>
+              <li key={r.key} className={`dv-found dv-add-row ${r.step}`} data-testid="add-row" data-step={r.step} data-url={r.url ?? ''} data-bridge-id={r.bridgeId ?? ''}>
+                <div className="dv-found-head">
+                  {r.step === 'ready' ? (
+                    <span>
+                      <span className="dv-added">✓</span> <strong>{r.name || r.host}</strong> <span className="muted">{r.preset}</span>
+                    </span>
+                  ) : (
+                    title(r)
+                  )}
+                  {r.step === 'idle' && (
+                    <button className="primary" onClick={() => edit(r.key, { step: 'editing' })} data-testid="add-row-add">
+                      Add
+                    </button>
+                  )}
+                  {r.step === 'ready' && (
+                    <span className="dv-row-actions">
+                      <button className="dv-link" onClick={() => edit(r.key, { step: 'editing' })}>
+                        Change
+                      </button>
+                      <button className="dv-link" onClick={() => edit(r.key, { step: 'idle' })} data-testid="add-row-drop">
+                        Don't add
+                      </button>
+                    </span>
+                  )}
+                </div>
+                {r.step === 'editing' && (
+                  <>
+                    <div className="dv-add-fields">
+                      <label>
+                        Name
+                        <input value={r.name} onChange={(e) => edit(r.key, { name: e.target.value })} placeholder={r.host || 'My printer'} data-testid="add-row-name" />
                       </label>
+                      <PresetField value={r.preset} onChange={(p) => edit(r.key, { preset: p })} />
+                      {r.needsKey && (
+                        <label className="dv-add-key">
+                          API key
+                          <input value={r.apiKey} onChange={(e) => edit(r.key, { apiKey: e.target.value })} placeholder="This printer is locked: type its API key" spellCheck={false} autoCapitalize="off" autoComplete="off" data-testid="add-row-key" />
+                          <span className="muted">Mainsail and Fluidd show it in their settings. It goes to the bridge, not to Cloud Slicer.</span>
+                        </label>
+                      )}
+                    </div>
+                    {r.problem && (
+                      <p className="dv-alert" role="alert">
+                        {r.problem}
+                      </p>
                     )}
-                  </div>
-                )}
-                {r.problem && (
-                  <p className="dv-alert" role="alert">
-                    {r.problem}
-                  </p>
+                    <div className="dv-row-buttons">
+                      <button className="secondary" onClick={() => edit(r.key, { step: 'idle' })}>
+                        Cancel
+                      </button>
+                      <button className="primary" disabled={r.busy} onClick={() => void confirm(r)} data-testid="add-row-done">
+                        {r.busy ? 'Checking…' : 'Done'}
+                      </button>
+                    </div>
+                  </>
                 )}
               </li>
             ))}
@@ -441,7 +491,16 @@ function BridgeAddList({
         </>
       )}
       {savedRows.length > 0 && <span className="muted">Already in Cloud Slicer: {savedRows.map((r) => r.name || r.host).join(', ')}.</span>}
-      <AddByAddress watch={watch} onAdded={(p) => setRows((list) => list.map((r) => (r.bridgeId === p.id ? { ...r, on: true, saved: false } : r)).concat(list.some((r) => r.bridgeId === p.id) ? [] : [{ key: `b:${p.id}`, bridgeId: p.id, url: null, host: '', needsKey: false, saved: false, on: true, name: p.name, preset, apiKey: '', problem: '' }]))} />
+      <AddByAddress
+        watch={watch}
+        onAdded={(p) =>
+          setRows((list) =>
+            list.some((r) => r.bridgeId === p.id)
+              ? list.map((r) => (r.bridgeId === p.id ? { ...r, step: 'editing', saved: false } : r))
+              : [...list, { key: `b:${p.id}`, bridgeId: p.id, url: null, host: '', needsKey: false, saved: false, step: 'editing', busy: false, name: p.name, preset, apiKey: '', problem: '' }],
+          )
+        }
+      />
     </div>
   );
 }
@@ -534,34 +593,15 @@ export function PrinterEditor() {
     void savePrinter({ id, kind: 'bridge', name: name.trim() || 'Printer', relay: pairing.relay, bridgeId: pairing.bridgeId, key: pairing.key, printer: printerId, ...(preset && { preset }), ...keep });
   };
 
-  const chosen = rows.filter((r) => r.on && !r.saved);
-  const missingKey = chosen.some((r) => !r.bridgeId && r.needsKey && !r.apiKey.trim());
-  /** Adds every ticked printer: to the bridge first when it was only found on the network, then to Cloud Slicer. */
+  const chosen = rows.filter((r) => r.step === 'ready' && !r.saved && r.bridgeId);
+  /** Saves every ready printer (each is on the bridge already), in the list's order, with the first one chosen on the Device tab. */
   const addAll = async () => {
-    if (!pairing || !watch || !chosen.length) return;
+    if (!pairing || !chosen.length) return;
     setAddingAll(true);
-    const ready: { row: AddRow; printer: string }[] = [];
-    for (const r of chosen) {
-      let printer = r.bridgeId;
-      if (!printer) {
-        try {
-          const res = await watch.manage<{ id: string; name: string }>('bridge.add_printer', { address: r.url, apiKey: r.apiKey.trim(), ...(r.name.trim() && { name: r.name.trim() }) });
-          printer = res.id;
-          // The bridge's status may already list it as a row of its own: keep this one.
-          setRows((list) => list.filter((x) => x.key === r.key || x.bridgeId !== res.id).map((x) => (x.key === r.key ? { ...x, bridgeId: res.id, needsKey: false } : x)));
-        } catch (e) {
-          setRows((list) => list.map((x) => (x.key === r.key ? { ...x, problem: (e as Error).message } : x)));
-          setAddingAll(false);
-          return;
-        }
-      }
-      ready.push({ row: r, printer });
+    const ids = chosen.map(() => newId());
+    for (const [i, row] of chosen.entries()) {
+      await savePrinter({ id: ids[i], kind: 'bridge', name: row.name.trim() || row.host || 'Printer', relay: pairing.relay, bridgeId: pairing.bridgeId, key: pairing.key, printer: row.bridgeId!, ...(row.preset && { preset: row.preset }) });
     }
-    const ids = ready.map(() => newId());
-    for (const [i, { row, printer }] of ready.entries()) {
-      await savePrinter({ id: ids[i], kind: 'bridge', name: row.name.trim() || row.host || 'Printer', relay: pairing.relay, bridgeId: pairing.bridgeId, key: pairing.key, printer, ...(row.preset && { preset: row.preset }) });
-    }
-    // Saved in the list's order, with the first one chosen on the Device tab.
     if (ids.length > 1) useDevice.getState().select(ids[0]);
   };
 
@@ -654,7 +694,7 @@ export function PrinterEditor() {
           </button>
           {kind === 'bridge' && listMode ? (
             <>
-              <button className="primary" disabled={!chosen.length || missingKey || addingAll || !watch} onClick={() => void addAll()} data-testid="save-printer">
+              <button className="primary" disabled={!chosen.length || addingAll} onClick={() => void addAll()} data-testid="save-printer">
                 {addingAll ? 'Adding…' : chosen.length > 1 ? `Add ${chosen.length} printers` : 'Add printer'}
               </button>
             </>

@@ -3307,26 +3307,26 @@ select:focus-visible {
 .dv-add-row {
   border: 1px solid transparent;
 }
-.dv-add-row.on {
+.dv-add-row.editing {
   border-color: var(--accent);
   background: var(--surface);
 }
-.dv-add-tick {
-  display: flex !important;
-  align-items: center;
-  gap: 10px;
-  cursor: pointer;
+.dv-add-row.ready {
+  border-color: var(--dv-ok, #1f8a4c);
 }
-.dv-add-tick input {
-  width: 18px;
-  height: 18px;
-  flex: none;
+.dv-row-actions {
+  display: flex;
+  gap: 12px;
+}
+.dv-row-buttons {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
 }
 .dv-add-fields {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   gap: 8px;
-  padding-left: 28px;
 }
 .dv-add-fields label {
   display: grid;
@@ -3345,7 +3345,6 @@ select:focus-visible {
 @media (max-width: 760px) {
   .dv-add-fields {
     grid-template-columns: minmax(0, 1fr);
-    padding-left: 0;
   }
 }
 .dv-added {

@@ -107,13 +107,27 @@ try {
   await until('voron-mock added to the bridge', () => cfg.printers.some((p) => p.name === 'voron-mock'));
   const voronRow = printers.locator(`[data-testid="add-row"][data-bridge-id="${cfg.printers.find((p) => p.name === 'voron-mock').id}"]`);
   await voronRow.getByTestId('add-row-name').waitFor();
-  await page.getByTestId('save-printer').filter({ hasText: 'Add 3 printers' }).waitFor();
   console.log('bridge: printer added from the Device tab by its address');
-  // A locked printer needs its key before anything is added.
-  if (await page.getByTestId('save-printer').isEnabled()) throw new Error('a printer that needs a key should not be addable without one');
-  await row(keyed.url).getByTestId('add-row-name').fill('Keyed printer');
-  await row(keyed.url).getByTestId('add-row-key').fill('wrong-key');
-  await voronRow.getByTestId('add-row-on').uncheck();
+  // Each printer is added on its own row (name, profile, key checked there), then one button saves the ready ones.
+  if (await page.getByTestId('save-printer').isEnabled()) throw new Error('nothing is ready yet, so nothing can be added');
+  const u1Row = row(u1.url);
+  await u1Row.getByTestId('add-row-add').click();
+  await u1Row.getByTestId('add-row-done').click();
+  await printers.locator(`[data-testid="add-row"][data-url="${u1.url}"][data-step="ready"]`).waitFor();
+  const keyedRow = row(keyed.url);
+  await keyedRow.getByTestId('add-row-add').click();
+  await keyedRow.getByTestId('add-row-name').fill('Keyed printer');
+  await keyedRow.getByTestId('add-row-done').click();
+  await keyedRow.getByRole('alert').filter({ hasText: 'Type its API key first' }).waitFor();
+  await keyedRow.getByTestId('add-row-key').fill('wrong-key');
+  await keyedRow.getByTestId('add-row-done').click();
+  await keyedRow.getByRole('alert').filter({ hasText: 'did not accept that API key' }).waitFor();
+  await keyedRow.getByTestId('add-row-key').fill('mock-api-key');
+  await keyedRow.getByTestId('add-row-done').click();
+  await until('the bridge kept the key and the name', () => cfg.printers.some((p) => p.name === 'Keyed printer' && p.apiKey === 'mock-api-key'));
+  await printers.locator('[data-testid="add-row"][data-step="ready"]').filter({ hasText: 'Keyed printer' }).waitFor();
+  // The printer added by address opened for its details; leave it out.
+  await voronRow.getByRole('button', { name: 'Cancel' }).click();
   await page.getByTestId('save-printer').filter({ hasText: 'Add 2 printers' }).waitFor();
   await page.getByTestId('add-summary').filter({ hasText: 'U1-mock, Keyed printer' }).waitFor();
   if (shots) await page.getByRole('dialog').screenshot({ path: join(shots, 'bridge-search.png') });
@@ -124,15 +138,11 @@ try {
   if (shots) await page.screenshot({ path: join(shots, 'bridge-list-phone.png') });
   await page.setViewportSize({ width: 1280, height: 900 });
   await page.getByTestId('save-printer').click();
-  await row(keyed.url).getByRole('alert').filter({ hasText: 'did not accept that API key' }).waitFor();
-  await row(keyed.url).getByTestId('add-row-key').fill('mock-api-key');
-  await page.getByTestId('save-printer').click();
-  await until('the bridge kept the key and the name', () => cfg.printers.some((p) => p.name === 'Keyed printer' && p.apiKey === 'mock-api-key'));
   await page.getByTestId('connection').filter({ hasText: 'Connected' }).waitFor({ timeout: 20_000 });
   await page.getByTestId('printer-select').locator('option', { hasText: 'Keyed printer' }).waitFor({ state: 'attached' });
-  if (await page.getByTestId('printer-select').locator('option', { hasText: 'voron-mock' }).count()) throw new Error('only the ticked printers should be saved');
+  if (await page.getByTestId('printer-select').locator('option', { hasText: 'voron-mock' }).count()) throw new Error('only the ready printers should be saved');
   if ((await page.getByTestId('printer-select').locator('option:checked').textContent()) !== 'U1-mock') throw new Error('the first printer in the list should be chosen');
-  console.log('bridge: the ticked printers saved in one go, with their names and API key');
+  console.log('bridge: the ready printers saved in one go, with their names and API key');
   console.log('bridge: connected');
 
   await page.getByTestId('head-0').getByText('PLA').waitFor();
