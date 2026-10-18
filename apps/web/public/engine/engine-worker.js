@@ -75,6 +75,17 @@ if (self.name !== 'em-pthread') {
       e.FS.unlink(path);
       return { ...res, info: JSON.parse(e.modelInfoJson()) };
     },
+    // The project as an Orca 3MF (desktop's Save project) with the current
+    // presets plus overrides as its settings. thumbnail: {plate, width,
+    // height, pixels} RGBA rows top first, or null.
+    saveProject(e, overrides, thumbnail) {
+      const { config } = json(e.presetsFullConfig(JSON.stringify(overrides || {})));
+      const path = '/work/project.3mf';
+      json(e.saveProject(path, JSON.stringify(config), thumbnail || null));
+      const bytes = e.FS.readFile(path).buffer;
+      e.FS.unlink(path);
+      return { value: bytes, transfer: [bytes] };
+    },
     clear(e) {
       e.clearModel();
       return JSON.parse(e.modelInfoJson());
@@ -161,11 +172,12 @@ if (self.name !== 'em-pthread') {
     calibrationStop: (e) => e.calibrationStop(),
 
     // Slices one plate with the current preset selection plus overrides.
-    slice(e, plate, overrides, id) {
+    // thumbnails: the page's plate pictures, [{width, height, pixels}].
+    slice(e, plate, overrides, thumbnails, id) {
       const t0 = performance.now();
       const { config } = json(e.presetsFullConfig(JSON.stringify(overrides || {})));
       const result = JSON.parse(e.sliceWithConfig(JSON.stringify(config), plate, '/work/plate.gcode', (pct, stage) =>
-        postMessage({ type: 'progress', id, pct, stage })));
+        postMessage({ type: 'progress', id, pct, stage }), thumbnails || []));
       if (!result.success) throw new Error(result.error || 'Slicing failed');
       const gcode = e.FS.readFile(result.gcodePath).buffer;
       e.FS.unlink(result.gcodePath);

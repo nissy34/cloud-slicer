@@ -64,6 +64,26 @@ export interface DeviceInput {
   baseVersion?: number;
 }
 
+/** A project saved online (its 3MF and thumbnail are fetched separately). */
+export interface OnlineProject {
+  id: string;
+  name: string;
+  /** Bytes of the 3MF. */
+  size: number;
+  hasThumbnail: boolean;
+  version: number;
+  createdAt: number;
+  updatedAt: number;
+}
+
+export interface ProjectList {
+  /** False when the site has no project storage (R2) yet. */
+  enabled: boolean;
+  projects: OnlineProject[];
+  usage: { count: number; bytes: number };
+  limits: { projectBytes: number; userBytes: number; userProjects: number };
+}
+
 export class ApiError extends Error {
   constructor(
     readonly status: number,
@@ -74,11 +94,11 @@ export class ApiError extends Error {
   }
 }
 
-async function call<T>(path: string, init: RequestInit = {}): Promise<T> {
+async function call<T>(path: string, init: RequestInit = {}, contentType = 'application/json'): Promise<T> {
   const res = await fetch(path, {
     ...init,
     credentials: 'same-origin',
-    headers: init.body ? { 'Content-Type': 'application/json' } : undefined,
+    headers: init.body ? { 'Content-Type': contentType } : undefined,
   });
   const type = res.headers.get('Content-Type') ?? '';
   // Without Functions (vite dev/preview) /api/* falls through to index.html.
@@ -125,7 +145,31 @@ export const api = {
   saveDevice: ({ id, ...rest }: DeviceInput) =>
     call<{ device: Device }>(`/api/devices/${encodeURIComponent(id)}`, { method: 'PUT', body: JSON.stringify(rest) }).then((r) => r.device),
   deleteDevice: (id: string) => call<{ ok: true }>(`/api/devices/${encodeURIComponent(id)}`, { method: 'DELETE' }),
+  projects: () => call<ProjectList>('/api/projects'),
+  /** baseVersion: the version this save started from (0 = must be new); undefined overwrites. */
+  saveProject: (id: string, name: string, file: Blob, baseVersion?: number) => {
+    const q = new URLSearchParams({ name });
+    if (baseVersion !== undefined) q.set('baseVersion', String(baseVersion));
+    return call<{ project: OnlineProject }>(`${projectPath(id)}?${q}`, { method: 'PUT', body: file }, 'model/3mf').then((r) => r.project);
+  },
+  saveProjectThumbnail: (id: string, png: Blob) =>
+    call<{ ok: true }>(`${projectPath(id)}/thumbnail`, { method: 'PUT', body: png }, 'image/png'),
+  renameProject: (id: string, name: string, baseVersion?: number) =>
+    call<{ project: OnlineProject }>(projectPath(id), { method: 'PATCH', body: JSON.stringify({ name, baseVersion }) }).then((r) => r.project),
+  deleteProject: (id: string) => call<{ ok: true }>(projectPath(id), { method: 'DELETE' }),
+  /** The project's 3MF and the version it is at. */
+  async projectFile(id: string): Promise<{ bytes: ArrayBuffer; version: number }> {
+    const res = await fetch(`${projectPath(id)}/file`, { credentials: 'same-origin' });
+    if (!res.ok) {
+      const body = (await res.json().catch(() => ({}))) as Record<string, unknown>;
+      throw new ApiError(res.status, String(body.error ?? res.statusText), body);
+    }
+    return { bytes: await res.arrayBuffer(), version: Number(res.headers.get('X-Project-Version') ?? 0) };
+  },
 };
+
+const projectPath = (id: string) => `/api/projects/${encodeURIComponent(id)}`;
+export const projectThumbnailUrl = (p: Pick<OnlineProject, 'id' | 'version'>) => `${projectPath(p.id)}/thumbnail?v=${p.version}`;
 
 const isStringArray = (v: unknown): v is string[] => Array.isArray(v) && v.every((x) => typeof x === 'string');
 const isPlainObject = (v: unknown): v is Record<string, unknown> => !!v && typeof v === 'object' && !Array.isArray(v);

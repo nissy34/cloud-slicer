@@ -52,6 +52,17 @@ browser and merged into the account at sign-in. Every deploy signs in through on
 host (`AUTH_ORIGIN` in `apps/web/wrangler.toml`) with Better Auth's oAuthProxy
 plugin, so branch previews work with one Google OAuth client.
 
+## Projects
+
+The Project menu in the top bar saves the open project as an Orca 3MF project, written by
+the engine with Orca's own `store_bbs_3mf` (like desktop's Save project): plates, objects,
+part settings, paint and the full print, filament and printer settings, so it reopens here
+or in desktop Orca. Signed out, Save downloads the file. Signed in, Save keeps it in the
+account's online projects: the 3MF and a thumbnail in R2 (`PROJECTS` bucket), indexed in
+D1 (`projects` table), with per-project, per-user and site-wide size limits that keep R2
+inside its free 10 GB. Saves carry the version they started from, so a save from a second
+device asks before overwriting.
+
 ```bash
 cd apps/web
 npm run build && npm run pages     # site + Functions + local D1 on http://localhost:8788
@@ -61,7 +72,9 @@ node test/accounts.mjs             # end to end against a mock Google
 Setup, once: give the Cloudflare token "D1: Edit", create a Google OAuth client
 (Web application) with redirect URI `https://slicer.awesomestuff.qzz.io/api/auth/callback/google`,
 and add its id and secret as repository secrets `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET`.
-CI creates the database, applies migrations, copies the secrets to Pages and generates
+For online projects, turn on R2 in the Cloudflare dashboard (free up to 10 GB) and give the
+token "Workers R2 Storage: Edit"; without it the site works and online projects say they
+aren't set up. CI creates the database and the R2 bucket, applies migrations, copies the secrets to Pages and generates
 `BETTER_AUTH_SECRET` and `ACCOUNT_ENC_KEY` once.
 
 ## Tests
@@ -70,7 +83,7 @@ CI creates the database, applies migrations, copies the secrets to Pages and gen
 (cd packages/printer && npm test)    # printer driver unit tests + mock Moonraker
 (cd apps/web && npm test)            # web app unit tests
 (cd apps/web && npm run smoke)       # browser end to end: load Benchy, slice, check G-code
-(cd apps/web && npm run test:accounts)  # sign-in, sessions, synced presets/settings/printers
+(cd apps/web && npm run test:accounts)  # sign-in, sessions, synced presets/settings/printers, online projects
 node --test engine/node/engine.test.mjs   # engine: presets, STL, painted Bambu 3MF, dual-colour 3MF
 ```
 

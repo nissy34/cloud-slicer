@@ -6,6 +6,7 @@ import { readFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { after, before, test } from 'node:test';
 import { fileURLToPath } from 'node:url';
+import { inflateSync } from 'node:zlib';
 import { DATA_DIR, DEFAULT_PRINTER, bedSize, call, openEngine } from './engine.mjs';
 
 const fixtures = resolve(dirname(fileURLToPath(import.meta.url)), '../../fixtures');
@@ -29,8 +30,8 @@ function load(name, plate = 0) {
   return JSON.parse(engine.modelInfoJson());
 }
 
-function slice(config, plate = 0) {
-  const result = JSON.parse(engine.sliceWithConfig(JSON.stringify(config), plate, '/work/out.gcode', null));
+function slice(config, plate = 0, thumbnails = null) {
+  const result = JSON.parse(engine.sliceWithConfig(JSON.stringify(config), plate, '/work/out.gcode', null, thumbnails));
   assert.ok(result.success, `slice failed: ${result.error}`);
   return { result, gcode: new TextDecoder().decode(engine.FS.readFile(result.gcodePath)) };
 }
@@ -88,6 +89,61 @@ test('slices an STL with the U1 presets', () => {
   assert.match(gcode, /^EXCLUDE_OBJECT_DEFINE/m);
   assert.ok(result.totalLayers > 10);
   assert.ok(result.estimatedTimeSeconds > 0);
+});
+
+// Thumbnail blocks Orca wrote: [{format, width, height, png bytes}].
+function thumbnailBlocks(gcode) {
+  return [...gcode.matchAll(/^; (thumbnail\w*) begin (\d+)x(\d+) (\d+)\n([\s\S]*?)^; \1 end$/gm)].map((m) => {
+    const data = Buffer.from(m[5].replace(/^; /gm, '').replace(/\s/g, ''), 'base64');
+    assert.equal(m[5].replace(/^; /gm, '').replace(/\s/g, '').length, Number(m[4]));
+    return { tag: m[1], width: Number(m[2]), height: Number(m[3]), data };
+  });
+}
+
+// RGBA of one pixel (top-left origin) of a PNG Orca wrote (8-bit RGBA, filter 0 rows).
+function pngPixel(png, x, y) {
+  const w = png.readUInt32BE(16);
+  const idat = [];
+  for (let at = 8; at < png.length; ) {
+    const len = png.readUInt32BE(at);
+    if (png.toString('latin1', at + 4, at + 8) === 'IDAT') idat.push(png.subarray(at + 8, at + 8 + len));
+    at += 12 + len;
+  }
+  const raw = inflateSync(Buffer.concat(idat));
+  const row = raw.subarray(y * (w * 4 + 1), (y + 1) * (w * 4 + 1));
+  assert.equal(row[0], 0, 'unfiltered row');
+  return [...row.subarray(1 + x * 4, 5 + x * 4)];
+}
+
+test('embeds the plate picture as the printer profile\'s thumbnails', () => {
+  select({ printer: DEFAULT_PRINTER, process: '0.20mm Standard @Snapmaker U1 (0.4 nozzle)' });
+  const cfg = fullConfig();
+  assert.equal(cfg.thumbnails, '48x48/PNG, 300x300/PNG');
+  load('tetrahedron.stl');
+  // Rows bottom to top, like glReadPixels: bottom half red, top half blue.
+  const pixels = new Uint8Array(300 * 300 * 4);
+  for (let y = 0; y < 300; y++)
+    for (let x = 0; x < 300; x++) pixels.set(y < 150 ? [255, 0, 0, 255] : [0, 0, 255, 255], (y * 300 + x) * 4);
+  const { gcode } = slice(cfg, 0, [{ width: 300, height: 300, pixels }]);
+  const blocks = thumbnailBlocks(gcode);
+  assert.deepEqual(blocks.map((b) => `${b.tag} ${b.width}x${b.height}`), ['thumbnail 48x48', 'thumbnail 300x300']);
+  for (const b of blocks) {
+    assert.equal(b.data.toString('latin1', 1, 4), 'PNG');
+    assert.equal(b.data.readUInt32BE(16), b.width);
+  }
+  // The 48x48 one is resampled from the 300x300 picture; both stay upright.
+  for (const b of blocks) {
+    assert.deepEqual(pngPixel(b.data, 2, 2), [0, 0, 255, 255], `${b.width}: top is blue`);
+    assert.deepEqual(pngPixel(b.data, 2, b.height - 3), [255, 0, 0, 255], `${b.width}: bottom is red`);
+  }
+  // Before the first move, inside the header Moonraker scans.
+  assert.ok(gcode.indexOf('; THUMBNAIL_BLOCK_START') < gcode.search(/^G1 /m));
+  // QOI, as some printers ask for, comes from the same picture.
+  const qoi = thumbnailBlocks(slice({ ...cfg, thumbnails: '96x96/QOI' }, 0, [{ width: 300, height: 300, pixels }]).gcode);
+  assert.deepEqual(qoi.map((b) => `${b.tag} ${b.width}x${b.height}`), ['thumbnail_QOI 96x96']);
+  assert.equal(qoi[0].data.toString('latin1', 0, 4), 'qoif');
+  // No picture, no thumbnail blocks.
+  assert.doesNotMatch(slice(cfg).gcode, /thumbnail begin/);
 });
 
 // N slots of the printer's default PLA, like adding filaments in the sidebar.
@@ -227,6 +283,47 @@ test('painting: colour, supports and seams, like the desktop paint tools', () =>
   m = info();
   assert.equal(m.objects[0].volumes[0].painted, false);
   assert.equal(m.objects[0].volumes[0].paint.seam, false);
+});
+
+test('saves the project as an Orca 3MF that opens with everything in it', () => {
+  select({ printer: DEFAULT_PRINTER });
+  let m = load('3DBenchy.stl');
+  const [x, y] = m.objects[0].instances[0].offset;
+  call(engine, 'paint', 0, JSON.stringify({ rays: [[x, y, 200, 0, 0, -1]], kind: 'color', state: 2, tool: 'sphere', radius: 10 }));
+  call(engine, 'paint', 0, JSON.stringify({ rays: [[x, y, 200, 0, 0, -1]], kind: 'support', state: 1, tool: 'circle', radius: 5 }));
+  call(engine, 'setObjectSettings', 0, -1, JSON.stringify({ wall_loops: '5' }));
+  call(engine, 'addPlate');
+  call(engine, 'addInstance', 0, 0, 0, 0);
+  call(engine, 'setInstanceTransform', 0, 1, JSON.stringify({ offset: [100, 100], plate: 1 }));
+  m = info();
+  assert.deepEqual(m.objects[0].instances.map((i) => i.plate), [0, 1]);
+
+  const w = 4, h = 2;
+  const pixels = new Uint8Array(w * h * 4).fill(200);
+  const config = fullConfig({ layer_height: '0.28', filament_colour: '#123456' });
+  call(engine, 'saveProject', '/work/saved.3mf', JSON.stringify(config), { plate: 0, width: w, height: h, pixels });
+  const bytes = engine.FS.readFile('/work/saved.3mf');
+  assert.equal(String.fromCharCode(bytes[0], bytes[1]), 'PK', 'a zip file');
+  const names = new TextDecoder('latin1').decode(bytes);
+  for (const f of ['3D/3dmodel.model', 'Metadata/project_settings.config', 'Metadata/model_settings.config', 'Metadata/plate_1.png'])
+    assert.ok(names.includes(f), `${f} in the 3MF`);
+
+  engine.clearModel();
+  const [bw, bd] = bedSize(fullConfig());
+  const opened = call(engine, 'loadModel', '/work/saved.3mf', 0, bw, bd);
+  assert.equal(opened.isProject, true);
+  m = info();
+  assert.equal(m.plates.length, 2, 'both plates');
+  assert.deepEqual(m.objects[0].instances.map((i) => i.plate), [0, 1], 'instances on their plates');
+  assert.ok(Math.abs(m.objects[0].instances[1].offset[0] - 100) < 1, 'position kept');
+  const part = m.objects[0].volumes[0];
+  assert.ok(part.painted, 'colour paint kept');
+  assert.equal(part.paint.support, true, 'support paint kept');
+  assert.equal(m.objects[0].settings.wall_loops, '5', 'object settings kept');
+  assert.equal(m.file.printer, DEFAULT_PRINTER);
+  const file = JSON.parse(engine.fileConfigJson());
+  assert.equal(file.layer_height, '0.28', 'changed settings kept');
+  assert.equal(file.filament_colour, '#123456');
 });
 
 test('lists the filaments that work with a printer, for the setup wizard', () => {

@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from 'react';
 import * as THREE from 'three';
 import { bedSize, rgb } from '../lib/colour';
 import { FEATURE_COLOURS, FEATURES, type ParsedGcode } from '../lib/gcode';
+import { useSceneColours } from '../lib/theme';
 import { NO_COLOURS, useOption, useSlicer } from '../state/store';
 import { Bed } from './Viewport';
 
@@ -166,6 +167,7 @@ export function Preview() {
   // The colour key starts folded on a phone, where it would cover the model.
   const [keyOpen, setKeyOpen] = useState(() => !window.matchMedia('(max-width: 760px)').matches);
   const upTo = Math.min(layer, layers - 1);
+  const scene = useSceneColours();
 
   if (!gcode) {
     return (
@@ -183,7 +185,7 @@ export function Preview() {
   return (
     <div className="preview">
       <Canvas className="viewport" camera={{ position: [w / 2, -d * 0.6, d * 0.7], fov: 40, near: 1, far: 5000 }} data-testid="gcode-preview">
-        <color attach="background" args={['#16191e']} />
+        <color attach="background" args={[scene.background]} />
         <Bed w={w} d={d} />
         {parsed && <Toolpaths parsed={parsed} upTo={upTo} colourBy={colourBy} colours={colours} />}
         {parsed && <FitCamera parsed={parsed} />}

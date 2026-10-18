@@ -14,6 +14,7 @@ import type {
   SliceResult,
   WorkerReply,
 } from './protocol';
+import type { Thumbnail } from '../lib/thumbnail';
 
 export type CutKeep = 'both' | 'upper' | 'lower';
 
@@ -23,6 +24,14 @@ export interface UserPresetFile {
   name: string;
   inherits: string;
   config: OrcaConfig;
+}
+
+/** A plate thumbnail for a saved 3MF: RGBA pixels, rows top first. */
+export interface ProjectThumbnail {
+  plate: number;
+  width: number;
+  height: number;
+  pixels: Uint8Array;
 }
 
 type Pending = { resolve: (value: unknown) => void; reject: (e: Error) => void };
@@ -92,6 +101,9 @@ export class EngineClient {
     return this.call<{ objectsAdded: number; isProject: boolean; info: ProjectInfo }>(
       'load', [file.name, bytes, plate, printableArea], [bytes]);
   }
+  /** The open project as an Orca 3MF project file (desktop's Save project). */
+  saveProject = (overrides: OrcaConfig, thumbnail: ProjectThumbnail | null) =>
+    this.call<ArrayBuffer>('saveProject', [overrides, thumbnail], thumbnail ? [thumbnail.pixels.buffer] : []);
   clear = () => this.call<ProjectInfo>('clear');
   preview = (plate: number) => this.call<PreviewMesh>('preview', [plate]);
   transform = (o: number, i: number, changes: { offset?: [number, number]; plate?: number; rotation?: number[]; scale?: number[] }) =>
@@ -118,6 +130,8 @@ export class EngineClient {
   calibrate = (options: Record<string, unknown>, overrides: OrcaConfig) =>
     this.call<{ overrides: OrcaConfig; info: ProjectInfo }>('calibrate', [options, overrides]);
   calibrationStop = () => this.call<void>('calibrationStop');
-  slice = (plate: number, overrides: OrcaConfig) =>
-    this.call<{ result: SliceResult; gcode: ArrayBuffer; ms: number }>('slice', [plate, overrides]);
+  /** `thumbnails`: plate pictures for the G-code (see lib/thumbnail.ts). */
+  slice = (plate: number, overrides: OrcaConfig, thumbnails: Thumbnail[] = []) =>
+    this.call<{ result: SliceResult; gcode: ArrayBuffer; ms: number }>(
+      'slice', [plate, overrides, thumbnails], thumbnails.map((t) => t.pixels.buffer as ArrayBuffer));
 }
