@@ -1,0 +1,17 @@
+// A short hash of the engine files in public/engine/. Every engine URL carries
+// it (?v=), so a browser can never run one deploy's orca-engine.js against
+// another deploy's .wasm: the glue and the wasm imports must match, or startup
+// fails with errors like "Cannot mix BigInt and other types".
+import { createHash } from 'node:crypto';
+import { existsSync, readFileSync } from 'node:fs';
+
+const files = ['engine-worker.js', 'orca-engine.js', 'orca-engine.wasm', 'profiles.json', 'settings-layout.json'];
+
+export function engineVersion() {
+  const hash = createHash('sha256');
+  for (const f of files) {
+    const path = new URL(`../public/engine/${f}`, import.meta.url);
+    if (existsSync(path)) hash.update(f).update(readFileSync(path));
+  }
+  return hash.digest('hex').slice(0, 12);
+}

@@ -122,7 +122,7 @@ export const useSlicer = create<SlicerState>((set, get) => {
       const [printers, options, layout] = await Promise.all([
         e.printers(),
         e.options(),
-        fetch('/engine/settings-layout.json').then((r) => (r.ok ? (r.json() as Promise<SettingsLayout>) : null)),
+        fetch(`/engine/settings-layout.json?v=${import.meta.env.VITE_ENGINE_VERSION}`).then((r) => (r.ok ? (r.json() as Promise<SettingsLayout>) : null)),
       ]);
       set({ printers, options, layout, overrides: saved?.overrides ?? {} });
       const known = saved?.selection && printers.some((p) => p.name === saved.selection?.printer);

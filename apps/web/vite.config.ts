@@ -1,5 +1,6 @@
 import react from '@vitejs/plugin-react';
 import { defineConfig } from 'vite';
+import { engineVersion } from './scripts/engine-version.mjs';
 
 // The engine runs pthreads on SharedArrayBuffer, which browsers only enable on
 // cross-origin-isolated pages. public/_headers sends the same on Cloudflare Pages.
@@ -11,6 +12,7 @@ const isolation = {
 
 export default defineConfig({
   plugins: [react()],
+  define: { 'import.meta.env.VITE_ENGINE_VERSION': JSON.stringify(engineVersion()) },
   server: { headers: isolation },
   preview: { headers: isolation },
   test: { include: ['src/**/*.test.ts'] },

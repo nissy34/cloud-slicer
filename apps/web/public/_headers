@@ -3,5 +3,6 @@
   Cross-Origin-Embedder-Policy: require-corp
   Cross-Origin-Resource-Policy: same-origin
 
+# Revalidate (cheap 304s) so a new deploy's engine is picked up at once.
 /engine/*
-  Cache-Control: public, max-age=3600
+  Cache-Control: no-cache

@@ -32,7 +32,7 @@ export class EngineClient {
   private pending = new Map<number, Pending>();
 
   constructor(private events: EngineEvents) {
-    this.worker = new Worker('/engine/engine-worker.js', { name: 'engine' });
+    this.worker = new Worker(`/engine/engine-worker.js?v=${import.meta.env.VITE_ENGINE_VERSION}`, { name: 'engine' });
     this.worker.onmessage = ({ data }: MessageEvent<WorkerReply>) => this.receive(data);
     this.worker.onerror = (e) => events.onFatal(e.message || 'The engine worker failed to load.');
   }
