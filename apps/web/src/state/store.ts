@@ -13,6 +13,7 @@ import type {
   SettingsLayout,
   SliceResult,
 } from '../engine/protocol';
+import { calibrationOptions, CALIBRATIONS, type CalibrationMode, type CalibrationValues } from '../lib/calibration';
 import { bedSize } from '../lib/colour';
 import { DEFAULT_PRINTER, pickFilamentPreset, splitList, SLOT_COLOURS } from '../lib/presets';
 import { modelProcessKeys, pickProcess, printerLabel, projectOverrides } from '../lib/project-import';
@@ -58,6 +59,8 @@ interface SlicerState {
   paint: PaintSettings | null;
   /** Support, seam or fuzzy skin paint of the plate, while painting it. */
   overlay: PaintOverlay | null;
+  /** The calibration test on the plate, and the settings it changed. */
+  calibration: { title: string; keys: string[]; previous: OrcaConfig } | null;
 
   setTab(tab: Tab): void;
   selectPrinter(name: string): Promise<void>;
@@ -93,6 +96,10 @@ interface SlicerState {
   /** Paints along rays; newStroke when the pointer just went down. */
   paintStroke(rays: PaintRay[], newStroke: boolean): Promise<void>;
   clearPaint(o: number): Promise<void>;
+  /** Replaces the project with a calibration test, like desktop's Calibration menu. */
+  startCalibration(mode: CalibrationMode, values: CalibrationValues): Promise<void>;
+  /** Back to normal printing: drops the test's settings (the test model stays). */
+  endCalibration(): Promise<void>;
 }
 
 let client: EngineClient | null = null;
@@ -138,7 +145,7 @@ export const useSlicer = create<SlicerState>((set, get) => {
     const res = await e.select(selection);
     const { config } = await e.fullConfig({});
     set({ selection: res.selection, processes: res.processes, filaments: res.filaments, baseConfig: config, ...stale() });
-    save({ selection: res.selection, overrides: get().overrides });
+    persist();
   }
 
   async function refreshPreview(info?: ProjectInfo) {
@@ -185,7 +192,16 @@ export const useSlicer = create<SlicerState>((set, get) => {
 
   function setOverrides(overrides: OrcaConfig) {
     set({ overrides, ...stale() });
-    save({ selection: get().selection, overrides });
+    persist();
+  }
+
+  // Saves the selection and the user's overrides; a calibration test's
+  // settings are saved as they were before it, since the test isn't there
+  // after a reload.
+  function persist() {
+    const { selection, overrides, calibration: c } = get();
+    const keep = c ? { ...Object.fromEntries(Object.entries(overrides).filter(([k]) => !c.keys.includes(k))), ...c.previous } : overrides;
+    save({ selection, overrides: keep });
   }
 
   const settingsNotice = (n: number, from: string) =>
@@ -292,6 +308,7 @@ export const useSlicer = create<SlicerState>((set, get) => {
     conversion: null,
     paint: null,
     overlay: null,
+    calibration: null,
 
     setTab: (tab) => {
       set({ tab });
@@ -329,6 +346,7 @@ export const useSlicer = create<SlicerState>((set, get) => {
 
     async openFiles(files) {
       const e = engine();
+      await get().endCalibration();
       set({ tab: 'prepare', notice: '', conversion: null });
       for (const file of files) {
         set({ job: { kind: 'loading', name: file.name } });
@@ -346,7 +364,8 @@ export const useSlicer = create<SlicerState>((set, get) => {
       }
     },
     clearProject: () =>
-      projectEdit(() => {
+      projectEdit(async () => {
+        await get().endCalibration();
         set({ selected: null });
         return engine().clear();
       }),
@@ -442,6 +461,36 @@ export const useSlicer = create<SlicerState>((set, get) => {
       }
     },
     clearPaint: (o) => projectEdit(() => engine().clearPaint(o, get().paint?.kind ?? 'all')),
+
+    async startCalibration(mode, values) {
+      const title = CALIBRATIONS.find((c) => c.mode === mode)?.title ?? mode;
+      await get().endCalibration();
+      set({ tab: 'prepare', paint: null, overlay: null, selected: null, plate: 0, conversion: null, job: { kind: 'loading', name: `${title} test` } });
+      try {
+        const res = await engine().calibrate(calibrationOptions(mode, values), get().overrides);
+        const keys = Object.keys(res.overrides);
+        const previous = Object.fromEntries(keys.filter((k) => k in get().overrides).map((k) => [k, get().overrides[k]]));
+        set({ calibration: { title, keys, previous } });
+        setOverrides({ ...get().overrides, ...res.overrides });
+        await refreshPreview(res.info);
+        set({
+          job: { kind: 'idle' },
+          notice: `${title} test ready. It changed ${keys.length} setting${keys.length === 1 ? '' : 's'}, marked in Settings.`,
+          noticeWarn: false,
+        });
+      } catch (e) {
+        set({ calibration: null });
+        fail(e);
+      }
+    },
+    async endCalibration() {
+      const c = get().calibration;
+      if (!c) return;
+      set({ calibration: null });
+      const rest = Object.fromEntries(Object.entries(get().overrides).filter(([k]) => !c.keys.includes(k)));
+      setOverrides({ ...rest, ...c.previous });
+      await engine().calibrationStop();
+    },
 
     async slice() {
       const { project, plate, overrides } = get();
