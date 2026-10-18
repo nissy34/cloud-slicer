@@ -110,7 +110,7 @@ try {
 
   await step('the Filament tab edits the slot shown, and saves as a filament preset', async () => {
     await tab('Filament').click();
-    const temp = field('Nozzle', 'Other layers');
+    const temp = field('Print temperature', 'Other layers');
     await temp.waitFor();
     await setField(temp, '231');
     await page.getByText(/settings? changed from the presets/).waitFor();
@@ -119,12 +119,13 @@ try {
     const saved = (await stored()).find((p) => p.name === 'Hot PLA');
     expect(saved?.type === 'filament' && saved.inherits === systemFilament, JSON.stringify(saved));
     expect(/^231(,231)*$/.test(saved.config.nozzle_temperature ?? ''), `saved ${saved.config.nozzle_temperature}`);
-    expect((await field('Nozzle', 'Other layers').inputValue()) === '231', 'shown from the preset');
+    expect((await field('Print temperature', 'Other layers').inputValue()) === '231', 'shown from the preset');
   });
 
   await step('the Printer tab edits printer settings, and saves as a printer preset', async () => {
     await tab('Printer').click();
     await settingsPage('Basic information').click();
+    await settings.getByLabel('Advanced').check();
     const z = settings.getByLabel('Z offset', { exact: true });
     await setField(z, '0.05');
     await saveAs(printerMenu, printerPop, 'My U1 tuned');
@@ -250,7 +251,8 @@ try {
     await importDialog.getByRole('button', { name: 'Cancel' }).click();
   });
 } catch {
-  // reported by step()
+  // reported by step(); a picture of where it stopped
+  await browser.contexts()[0]?.pages()[0]?.screenshot({ path: join(out, 'failure.png'), fullPage: true }).catch(() => {});
 } finally {
   await browser.close();
   process.kill(-server.pid, 'SIGTERM');
