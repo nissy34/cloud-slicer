@@ -4,8 +4,9 @@ name: Device
 # end to end against pretend printers (apps/web/test/device/mock-printer.mjs).
 # Never talks to a real printer.
 #
-# The relay Worker deploys on pushes to main (and by hand, workflow_dispatch)
-# when the Cloudflare secrets are set; the token needs Workers Scripts: Edit.
+# The relay Worker deploys when the Cloudflare secrets are set (the token needs
+# Workers Scripts: Edit): from main, and from PRs in this repo while the relay
+# is new. It is one Worker, so a PR deploy replaces the live relay.
 
 on:
   push:
@@ -61,7 +62,7 @@ jobs:
 
   deploy-relay:
     needs: test
-    if: github.event_name != 'pull_request'
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-24.04
     env:
       CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
