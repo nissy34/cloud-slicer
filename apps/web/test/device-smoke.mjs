@@ -177,7 +177,7 @@ try {
 
   const phone = await browser.newPage({ viewport: { width: 390, height: 844 } });
   await phone.goto(site);
-  await phone.evaluate((p) => localStorage.setItem('cloud-slicer:printers:v1', p), await page.evaluate(() => localStorage.getItem('cloud-slicer:printers:v1')));
+  await phone.evaluate((p) => localStorage.setItem('cloud-slicer:devices:v1', p), await page.evaluate(() => localStorage.getItem('cloud-slicer:devices:v1')));
   await phone.reload();
   await phone.getByRole('tab', { name: 'Device' }).click();
   await phone.getByTestId('connection').filter({ hasText: 'Connected' }).waitFor({ timeout: 20_000 });
@@ -185,6 +185,17 @@ try {
   if (overflow) throw new Error('Device tab scrolls sideways on a phone');
   if (shots) await phone.screenshot({ path: join(shots, 'device-phone.png'), fullPage: true });
   console.log('phone layout fits');
+
+  // Printers saved by the first Device tab build move into the account store.
+  const old = await browser.newPage();
+  await old.goto(site);
+  await old.evaluate((url) => localStorage.setItem('cloud-slicer:printers:v1', JSON.stringify([{ id: 'legacy', name: 'Old Voron', kind: 'direct', url, apiKey: '' }])), voron.url);
+  await old.reload();
+  await old.getByRole('tab', { name: 'Device' }).click();
+  await old.getByTestId('connection').filter({ hasText: 'Connected' }).waitFor({ timeout: 20_000 });
+  const moved = await old.evaluate(() => [localStorage.getItem('cloud-slicer:printers:v1'), localStorage.getItem('cloud-slicer:devices:v1')]);
+  if (moved[0] !== null || !moved[1]?.includes('Old Voron')) throw new Error(`legacy printers not moved: ${JSON.stringify(moved)}`);
+  console.log('printers from the earlier build moved into the account store');
   console.log('DEVICE SMOKE OK');
 } catch (e) {
   console.error(`DEVICE SMOKE FAIL: ${e.stack ?? e.message}`);

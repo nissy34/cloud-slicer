@@ -1,3 +1,4 @@
+import { AccountMenu } from '../account/AccountMenu';
 import { useSlicer, type Tab } from '../state/store';
 
 const TABS: { id: Tab; label: string }[] = [
@@ -28,9 +29,7 @@ export function TopBar() {
           </button>
         ))}
       </nav>
-      <button className="ghost" disabled title="Accounts arrive in phase 3">
-        Sign in
-      </button>
+      <AccountMenu />
     </header>
   );
 }

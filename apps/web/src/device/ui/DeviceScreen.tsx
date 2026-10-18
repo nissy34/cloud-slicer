@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { useDevice } from '../../state/device';
 import { CameraCard } from './CameraCard';
 import { ClimateCard } from './ClimateCard';
@@ -11,6 +12,7 @@ import { PrinterEditor } from './PrinterEditor';
 import { ToolheadsCard } from './ToolheadsCard';
 
 export function DeviceScreen() {
+  useEffect(() => useDevice.getState().start(), []);
   const printers = useDevice((s) => s.printers);
   const activeId = useDevice((s) => s.activeId);
   const conn = useDevice((s) => s.conn);
@@ -41,7 +43,7 @@ export function DeviceScreen() {
         <div className="dv-empty">
           <h1>Your printers</h1>
           <p className="muted">Add a Snapmaker U1, or any Klipper printer with Moonraker, to watch the camera, control it and send prints from the slicer.</p>
-          <button className="primary" onClick={() => openEditor({ mode: 'add' })} data-testid="add-printer">
+          <button className="primary" onClick={() => void openEditor({ mode: 'add' })} data-testid="add-printer">
             Add a printer
           </button>
           {send && <p className="muted">Add your printer first, then send the plate again.</p>}
@@ -50,7 +52,7 @@ export function DeviceScreen() {
         <>
           <header className="dv-header">
             <div className="dv-printer">
-              <select value={activeId ?? ''} onChange={(e) => (e.target.value === '__add' ? openEditor({ mode: 'add' }) : select(e.target.value))} aria-label="Printer" data-testid="printer-select">
+              <select value={activeId ?? ''} onChange={(e) => (e.target.value === '__add' ? void openEditor({ mode: 'add' }) : select(e.target.value))} aria-label="Printer" data-testid="printer-select">
                 {printers.map((p) => (
                   <option key={p.id} value={p.id}>
                     {p.name}
@@ -64,7 +66,7 @@ export function DeviceScreen() {
               {pill.text}
             </span>
             <div className="dv-header-actions">
-              <button className="dv-link" onClick={() => openEditor({ mode: 'edit', id: active.id })}>
+              <button className="dv-link" onClick={() => void openEditor({ mode: 'edit', id: active.id })}>
                 Edit
               </button>
               <button

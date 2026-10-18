@@ -53,10 +53,9 @@ async function probeDirect(url: string, apiKey: string): Promise<string> {
 
 export function PrinterEditor() {
   const editor = useDevice((s) => s.editor);
-  const printers = useDevice((s) => s.printers);
   const pairingFromLink = useDevice((s) => s.pairing);
   const { savePrinter, removePrinter, openEditor } = useDevice.getState();
-  const existing = editor?.mode === 'edit' ? printers.find((p) => p.id === editor.id) : undefined;
+  const existing = editor?.mode === 'edit' ? editor.printer : undefined;
   const [kind, setKind] = useState<'bridge' | 'direct'>(existing?.kind ?? 'bridge');
   const [name, setName] = useState(existing?.name ?? '');
   // bridge
@@ -91,12 +90,12 @@ export function PrinterEditor() {
   }, [pairing]);
 
   if (!editor) return null;
-  const close = () => openEditor(null);
+  const close = () => void openEditor(null);
   const id = existing?.id ?? newId();
 
   const saveBridge = () => {
     if (!pairing || !printerId) return;
-    savePrinter({ id, kind: 'bridge', name: name.trim() || 'Printer', relay: pairing.relay, bridgeId: pairing.bridgeId, key: pairing.key, printer: printerId });
+    void savePrinter({ id, kind: 'bridge', name: name.trim() || 'Printer', relay: pairing.relay, bridgeId: pairing.bridgeId, key: pairing.key, printer: printerId });
   };
 
   const saveDirect = async () => {
@@ -111,7 +110,7 @@ export function PrinterEditor() {
     try {
       const host = await probeDirect(u, apiKey.trim());
       const p: SavedPrinter = { id, kind: 'direct', name: name.trim() || host || new URL(u).host, url: u, apiKey: apiKey.trim() };
-      savePrinter(p);
+      void savePrinter(p);
     } catch (e) {
       setError((e as Error).message);
     } finally {
@@ -128,7 +127,7 @@ export function PrinterEditor() {
       footer={
         <>
           {existing && (
-            <button className="secondary dv-danger-text dv-left" onClick={() => removePrinter(existing.id)}>
+            <button className="secondary dv-danger-text dv-left" onClick={() => void removePrinter(existing.id)}>
               Remove printer
             </button>
           )}

@@ -6,11 +6,13 @@
 //   useDevice.getState().requestSend(blob, 'benchy.gcode');  // then show the Device tab
 // The Device screen opens its print dialog for it.
 //
-// Saved printers (name and connection details, including any API key) live in
-// localStorage. To keep them in a signed-in account instead, sync the list:
-//   useDevice.subscribe((s, prev) => s.printers !== prev.printers && push(s.printers))
-//   useDevice.getState().setPrinters(fromAccount)  // load the account's copy
+// Saved printers are the account's printers (src/state/account.ts): kept in
+// this browser when signed out, in the account when signed in. The secret (a
+// direct printer's API key, a bridge's pairing key) is saved as the printer's
+// API key and only fetched when connecting or editing.
 import { create } from 'zustand';
+import type { Device } from '../account/api';
+import { deleteDevice, getDeviceApiKey, saveDevice, useAccount } from './account';
 import type { PrinterAddon, PrinterFacts } from '../device/addons';
 import { BridgeLink } from '../device/link/bridge';
 import { DirectLink } from '../device/link/direct';
@@ -42,12 +44,15 @@ interface DeviceState {
   toast: { text: string; error: boolean } | null;
   /** A pairing link opened this page; the add-printer dialog picks it up. */
   pairing: Pairing | null;
-  editor: { mode: 'add' } | { mode: 'edit'; id: string } | null;
+  /** In edit mode, the printer with its secret filled in. */
+  editor: { mode: 'add' } | { mode: 'edit'; id: string; printer: SavedPrinter } | null;
 
+  /** Connects to the selected printer; the Device tab calls it when it opens. */
+  start(): void;
   select(id: string | null): void;
-  savePrinter(p: SavedPrinter): void;
-  removePrinter(id: string): void;
-  openEditor(editor: DeviceState['editor']): void;
+  savePrinter(p: SavedPrinter): Promise<void>;
+  removePrinter(id: string): Promise<void>;
+  openEditor(editor: { mode: 'add' } | { mode: 'edit'; id: string } | null): Promise<void>;
   run(script: string): Promise<boolean>;
   call(label: string, fn: (s: PrinterSession) => Promise<unknown>): Promise<boolean>;
   refreshFiles(): Promise<void>;
@@ -56,11 +61,10 @@ interface DeviceState {
   uploadAndMaybePrint(source: SendSource, opts: { start: boolean; prep: string[] }): Promise<boolean>;
   setToast(text: string, error?: boolean): void;
   retry(): void;
-  /** Replaces the saved printers, e.g. with the signed-in account's copy. */
-  setPrinters(printers: SavedPrinter[]): void;
 }
 
-const PRINTERS_KEY = 'cloud-slicer:printers:v1';
+/** Where printers lived before they moved into the account store. */
+const LEGACY_PRINTERS_KEY = 'cloud-slicer:printers:v1';
 const ACTIVE_KEY = 'cloud-slicer:printer-active:v1';
 const CONSOLE_MAX = 200;
 
@@ -81,6 +85,67 @@ function store(key: string, value: unknown) {
   }
 }
 
+/** A saved account printer as the Device tab sees it (secret not filled in). */
+export function printerFromDevice(d: Device): SavedPrinter | null {
+  const x = d.extra ?? {};
+  if (x.kind === 'bridge' && typeof x.relay === 'string' && typeof x.bridgeId === 'string') {
+    return { id: d.id, name: d.name, kind: 'bridge', relay: x.relay, bridgeId: x.bridgeId, key: '', printer: typeof x.printer === 'string' ? x.printer : '' };
+  }
+  return d.url ? { id: d.id, name: d.name, kind: 'direct', url: d.url, apiKey: '' } : null;
+}
+
+const secretOf = (p: SavedPrinter) => (p.kind === 'direct' ? p.apiKey : p.key);
+const withSecret = (p: SavedPrinter, secret: string): SavedPrinter => (p.kind === 'direct' ? { ...p, apiKey: secret } : { ...p, key: secret });
+
+export function deviceInput(p: SavedPrinter) {
+  return p.kind === 'direct'
+    ? { id: p.id, name: p.name, url: p.url, apiKey: p.apiKey || null, extra: { kind: 'direct' } }
+    : { id: p.id, name: p.name, url: '', apiKey: p.key, extra: { kind: 'bridge', relay: p.relay, bridgeId: p.bridgeId, printer: p.printer } };
+}
+
+/** Secrets fetched or saved this visit, by printer id. */
+const secrets = new Map<string, string>();
+
+/** Waits for the account to know whether someone is signed in (which decides where secrets live). */
+function accountSettled(): Promise<void> {
+  if (useAccount.getState().status !== 'loading') return Promise.resolve();
+  return new Promise((done) => {
+    const off = useAccount.subscribe((a) => {
+      if (a.status === 'loading') return;
+      off();
+      done();
+    });
+  });
+}
+
+async function loadSecret(p: SavedPrinter): Promise<SavedPrinter> {
+  if (!secrets.has(p.id)) {
+    await accountSettled();
+    secrets.set(p.id, (await getDeviceApiKey(p.id).catch(() => null)) ?? '');
+  }
+  return withSecret(p, secrets.get(p.id)!);
+}
+
+const accountPrinters = () => useAccount.getState().devices.map(printerFromDevice).filter((p): p is SavedPrinter => p !== null);
+
+/** Moves printers saved by earlier builds into the account store, once. */
+function migrateLegacyPrinters() {
+  const legacy = load<SavedPrinter[]>(LEGACY_PRINTERS_KEY, []);
+  if (!legacy.length) return;
+  void accountSettled().then(async () => {
+    for (const p of legacy) {
+      if (useAccount.getState().devices.some((d) => d.id === p.id)) continue;
+      secrets.set(p.id, secretOf(p));
+      await saveDevice(deviceInput(p)).catch(() => undefined);
+    }
+    try {
+      localStorage.removeItem(LEGACY_PRINTERS_KEY);
+    } catch {
+      // nothing to clean up
+    }
+  });
+}
+
 export function linkFor(p: SavedPrinter): PrinterLink {
   return p.kind === 'direct'
     ? new DirectLink(p.url, p.apiKey)
@@ -88,6 +153,9 @@ export function linkFor(p: SavedPrinter): PrinterLink {
 }
 
 let session: PrinterSession | null = null;
+let connectSeq = 0;
+/** The printer this browser is saving right now: its secret is already cached. */
+let savingId: string | null = null;
 let toastTimer: ReturnType<typeof setTimeout> | null = null;
 
 /** The live session, for components that call the printer directly (camera). */
@@ -101,15 +169,19 @@ function pairingFromLocation(): Pairing | null {
 }
 
 export const useDevice = create<DeviceState>((set, get) => {
-  const initialPrinters = load<SavedPrinter[]>(PRINTERS_KEY, []);
+  migrateLegacyPrinters();
+  const initialPrinters = accountPrinters();
   const savedActive = load<string | null>(ACTIVE_KEY, null);
   const initialPairing = pairingFromLocation();
 
-  const connect = (p: SavedPrinter | undefined) => {
+  const connect = async (saved: SavedPrinter | undefined) => {
     session?.stop();
     session = null;
-    set({ objects: {}, facts: null, addons: [], bridge: null, console: [], files: null, conn: { state: 'idle', message: '' } });
-    if (!p) return;
+    const seq = ++connectSeq;
+    set({ objects: {}, facts: null, addons: [], bridge: null, console: [], files: null, conn: { state: saved ? 'connecting' : 'idle', message: '' } });
+    if (!saved) return;
+    const p = await loadSecret(saved);
+    if (seq !== connectSeq) return;
     const s: PrinterSession = new PrinterSession(linkFor(p), {
       onState: (state, message) => {
         if (session !== s) return;
@@ -126,10 +198,22 @@ export const useDevice = create<DeviceState>((set, get) => {
     s.start();
   };
 
-  // Connect lazily: the store is created on first use, i.e. when the Device tab opens.
-  queueMicrotask(() => {
-    const p = get().printers.find((x) => x.id === get().activeId);
-    if (p) connect(p);
+  // Nothing connects until the Device tab first opens (start()).
+  let started = false;
+
+  // Follow the account's printers: sign-in, sign-out and edits on other devices.
+  useAccount.subscribe((a, prev) => {
+    if (a.devices === prev.devices) return;
+    const before = get().printers.find((x) => x.id === get().activeId);
+    const printers = accountPrinters();
+    set({ printers });
+    const now = printers.find((x) => x.id === get().activeId);
+    if (!now) get().select(printers[0]?.id ?? null);
+    else if (started && now.id !== savingId && (!before || JSON.stringify(now) !== JSON.stringify(before))) {
+      // Changed elsewhere (another device or tab): its secret may have changed too.
+      secrets.delete(now.id);
+      void connect(now);
+    }
   });
 
   return {
@@ -148,29 +232,52 @@ export const useDevice = create<DeviceState>((set, get) => {
     pairing: initialPairing,
     editor: initialPairing ? { mode: 'add' } : null,
 
+    start() {
+      if (started) return;
+      started = true;
+      const p = get().printers.find((x) => x.id === get().activeId);
+      if (p) void connect(p);
+    },
+
     select(id) {
       set({ activeId: id });
       store(ACTIVE_KEY, id);
-      connect(get().printers.find((p) => p.id === id));
+      if (started) void connect(get().printers.find((p) => p.id === id));
     },
 
-    savePrinter(p) {
-      const exists = get().printers.some((x) => x.id === p.id);
-      const printers = exists ? get().printers.map((x) => (x.id === p.id ? p : x)) : [...get().printers, p];
-      set({ printers, editor: null, pairing: null });
-      store(PRINTERS_KEY, printers);
+    async savePrinter(p) {
+      secrets.set(p.id, secretOf(p));
+      savingId = p.id;
+      try {
+        await saveDevice(deviceInput(p));
+      } catch (e) {
+        get().setToast(`Could not save the printer: ${(e as Error).message}`, true);
+        return;
+      } finally {
+        savingId = null;
+      }
+      set({ editor: null, pairing: null });
       get().select(p.id);
     },
 
-    removePrinter(id) {
-      const printers = get().printers.filter((p) => p.id !== id);
-      set({ printers, editor: null });
-      store(PRINTERS_KEY, printers);
-      if (get().activeId === id) get().select(printers[0]?.id ?? null);
+    async removePrinter(id) {
+      try {
+        await deleteDevice(id);
+      } catch (e) {
+        get().setToast(`Could not remove the printer: ${(e as Error).message}`, true);
+        return;
+      }
+      secrets.delete(id);
+      set({ editor: null });
     },
 
-    openEditor(editor) {
-      set({ editor, ...(editor ? {} : { pairing: null }) });
+    async openEditor(editor) {
+      if (editor?.mode !== 'edit') {
+        set({ editor, ...(editor ? {} : { pairing: null }) });
+        return;
+      }
+      const p = get().printers.find((x) => x.id === editor.id);
+      if (p) set({ editor: { ...editor, printer: await loadSecret(p) } });
     },
 
     run(script) {
@@ -250,14 +357,6 @@ export const useDevice = create<DeviceState>((set, get) => {
 
     retry() {
       session?.retryNow();
-    },
-
-    setPrinters(printers) {
-      const current = get().printers.find((p) => p.id === get().activeId);
-      set({ printers });
-      store(PRINTERS_KEY, printers);
-      const keep = printers.find((p) => p.id === get().activeId);
-      if (!keep || JSON.stringify(keep) !== JSON.stringify(current)) get().select(keep?.id ?? printers[0]?.id ?? null);
     },
   };
 });
