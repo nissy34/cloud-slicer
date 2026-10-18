@@ -119,7 +119,9 @@ jobs:
             (cd ../device-relay && npx wrangler r2 object put "cloud-slicer-bridge/bridge/$name" --file "../device-bridge/dist/$name" --remote --content-type application/octet-stream)
           done
           curl -fsS '${{ steps.deploy.outputs.url }}/downloads.json' | tee /dev/stderr | grep -q '"linux-arm64"'
-          curl -fsS '${{ steps.deploy.outputs.url }}/install.sh' | grep -q 'download/linux-'
+          curl -fsS '${{ steps.deploy.outputs.url }}/install.sh' > "$RUNNER_TEMP/install.sh"
+          grep -qF 'RELAY="${{ steps.deploy.outputs.url }}"' "$RUNNER_TEMP/install.sh"
+          grep -qF '/download/$os-$arch' "$RUNNER_TEMP/install.sh"
       - name: Check the deployed relay end to end (mock printer, no browser)
         if: steps.deploy.outputs.url != ''
         working-directory: apps/web
