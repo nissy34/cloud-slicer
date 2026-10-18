@@ -238,6 +238,18 @@ export class Bridge extends DurableObject<Env> {
       agent.send(JSON.stringify({ c: a.id, m: message }));
       return;
     }
+    // A window with no printer chosen may still manage the bridge (add or remove printers).
+    if (agent) {
+      try {
+        const msg = JSON.parse(message) as { method?: unknown };
+        if (typeof msg.method === 'string' && msg.method.startsWith('bridge.')) {
+          agent.send(JSON.stringify({ c: a.id, m: message }));
+          return;
+        }
+      } catch {
+        // not JSON
+      }
+    }
     // No agent: answer requests at once rather than letting them time out.
     try {
       const msg = JSON.parse(message) as { id?: unknown };

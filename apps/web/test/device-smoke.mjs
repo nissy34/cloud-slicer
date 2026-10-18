@@ -52,6 +52,7 @@ const until = async (what, fn, ms = 15_000) => {
 
 const u1 = await startMockPrinter();
 const voron = await startMockPrinter({ generic: true });
+const keyed = await startMockPrinter({ generic: true, hostname: 'Keyed-mock', apiKey: 'mock-api-key' });
 let bridge;
 const browser = await chromium.launch(process.env.PLAYWRIGHT_BROWSERS_PATH === '/opt/pw-browsers' ? { executablePath: '/opt/pw-browsers/chromium' } : {});
 try {
@@ -64,7 +65,10 @@ try {
   }
   await serve('npx', ['wrangler', 'dev', '--port', String(RELAY_PORT), '--ip', '127.0.0.1', '--persist-to', persist], join(web, '../device-relay'), /Ready on/);
   await serve('npx', ['vite', 'preview', '--port', String(PAGE_PORT), '--strictPort'], web, new RegExp(String(PAGE_PORT)));
-  const cfg = { relay: `http://127.0.0.1:${RELAY_PORT}`, bridgeId: 'smoke-test-bridge', key: 'smoke-test-key-0123456789', printers: [{ id: 'u1', name: 'U1-mock', url: u1.url, apiKey: '' }] };
+  const cfg = { relay: `http://127.0.0.1:${RELAY_PORT}`, bridgeId: 'smoke-test-bridge', key: 'smoke-test-key-0123456789', printers: [
+      { id: 'u1', name: 'U1-mock', url: u1.url, apiKey: '' },
+    ],
+  };
 
   const page = await browser.newPage({ viewport: { width: 1280, height: 900 } });
   page.on('pageerror', (e) => console.error(`page error: ${e.message}`));
@@ -76,8 +80,43 @@ try {
   // bridge has connected: the dialog must keep listening until it comes online.
   await page.goto(`${site}#pair=${pairingCode(cfg)}`);
   await page.getByText(/Bridge smoke-te · (checking…|offline)/).waitFor();
-  bridge = runBridge(cfg, { log: (m) => console.log(`bridge: ${m}`) });
+  // What the bridge's network search finds (the real one scans port 7125 on the bridge's networks).
+  const onTheNetwork = async () => [
+    { url: u1.url, name: 'U1-mock' },
+    { url: keyed.url, name: '127.0.0.1', needsKey: true },
+    { url: voron.url, name: 'voron-mock' },
+  ];
+  bridge = runBridge(cfg, { log: (m) => console.log(`bridge: ${m}`), find: onTheNetwork });
   await page.getByRole('combobox').filter({ hasText: 'U1-mock' }).waitFor();
+  // The Device tab searches the bridge's network and adds the printers you pick, with the API key where one is needed.
+  const bridgePrinter = page.getByRole('combobox').filter({ hasText: 'U1-mock' });
+  const printers = page.getByTestId('bridge-printers');
+  await printers.getByTestId('bridge-search').click();
+  const row = (url) => printers.locator(`[data-testid="found-printer"][data-url="${url}"]`);
+  await row(u1.url).getByText('Added').waitFor();
+  if (shots) await page.getByRole('dialog').screenshot({ path: join(shots, 'bridge-search.png') });
+  const keyedRow = row(keyed.url);
+  if (await keyedRow.getByTestId('found-add').isEnabled()) throw new Error('a printer that needs a key should not be addable without one');
+  await keyedRow.getByTestId('found-key').fill('wrong-key');
+  await keyedRow.getByTestId('found-add').click();
+  await keyedRow.getByRole('alert').filter({ hasText: 'did not accept that API key' }).waitFor();
+  await keyedRow.getByTestId('found-key').fill('mock-api-key');
+  await keyedRow.getByTestId('found-add').click();
+  await keyedRow.getByText('Added').waitFor();
+  await until('the bridge kept the key', () => cfg.printers.some((p) => p.name === 'Keyed-mock' && p.apiKey === 'mock-api-key'));
+  await page.getByRole('combobox').filter({ hasText: 'Keyed-mock' }).waitFor();
+  if ((await bridgePrinter.inputValue()) !== cfg.printers.find((p) => p.name === 'Keyed-mock').id) throw new Error('the added printer should be chosen');
+  if (cfg.printers.some((p) => p.url === voron.url)) throw new Error('only the printers picked should be added');
+  console.log('bridge: network search in the Device tab, picked printer added with its API key');
+  // Or by its address (any port), with no search.
+  const addToBridge = page.getByTestId('bridge-add-printer');
+  await addToBridge.locator('summary').click();
+  await addToBridge.getByTestId('bridge-new-address').fill(voron.url.replace('http://', ''));
+  await addToBridge.getByTestId('bridge-add-submit').click();
+  await until('voron-mock added to the bridge', () => cfg.printers.some((p) => p.name === 'voron-mock'));
+  await page.getByRole('combobox').filter({ hasText: 'voron-mock' }).waitFor();
+  await bridgePrinter.selectOption('u1');
+  console.log('bridge: printer added from the Device tab by its address');
   await page.getByTestId('save-printer').click();
   await page.getByTestId('connection').filter({ hasText: 'Connected' }).waitFor({ timeout: 20_000 });
   console.log('bridge: connected');
@@ -183,11 +222,25 @@ try {
   await page.getByTestId('connection').filter({ hasText: 'Connected' }).waitFor({ timeout: 40_000 });
   console.log('bridge restart: reconnected by itself');
 
+  // A second copy of the bridge (another window) takes over, and the older one stops rather than taking it back.
+  let replaced = false;
+  bridge.stop();
+  const older = runBridge(cfg, { log: () => {}, onReplaced: () => (replaced = true) });
+  await page.getByTestId('connection').filter({ hasText: 'Connected' }).waitFor({ timeout: 40_000 });
+  bridge = runBridge(cfg, { log: () => {} });
+  await until('the older copy stopped', () => replaced, 20_000);
+  await new Promise((r) => setTimeout(r, 5000));
+  await page.getByTestId('connection').filter({ hasText: 'Connected' }).waitFor({ timeout: 40_000 });
+  older.stop();
+  console.log('a second bridge takes over and the first one stops');
+
   // ---- generic Klipper printer, direct ------------------------------------------------
   // A printer that has collected files over months: the card pages them like Fluidd.
   for (let i = 0; i < 24; i++) voron.files.set(`part_${String(i).padStart(2, '0')}.gcode`, { size: 50_000, modified: Date.now() / 1000 - 7200 - i * 600, text: '' });
   await page.getByTestId('printer-select').selectOption('__add');
   await page.getByRole('tab', { name: 'Public https address' }).click();
+  // The exact moonraker.conf lines that let this site reach the printer, ready to copy.
+  await page.getByTestId('cors-snippet').filter({ hasText: `[authorization] cors_domains: ${site.replace(/\/$/, '')}` }).waitFor();
   await page.getByTestId('printer-url').fill(voron.url);
   await page.getByTestId('save-printer').click();
   await page.getByTestId('connection').filter({ hasText: 'Connected' }).waitFor({ timeout: 20_000 });
@@ -283,7 +336,16 @@ try {
   if (!script.includes(`RELAY="${relayUrl}"`)) throw new Error('install.sh does not name the relay it came from');
   // What the bridge does once set up, how to add printers or remove it: explained in the dialog.
   await setup.getByTestId('bridge-about').locator('summary').click();
-  await setup.getByTestId('bridge-about').getByText('uninstall', { exact: false }).first().waitFor();
+  const about = setup.getByTestId('bridge-about');
+  // One command per line, each with its own Copy, and the printer address typed in rather than an example to edit.
+  await about.getByTestId('bridge-add-command').filter({ hasText: '~/.local/bin/cloud-slicer-bridge add <printer address>' }).waitFor();
+  await about.getByTestId('bridge-add-address').fill('10.0.0.42');
+  await about.getByRole('tab', { name: 'Mac' }).click();
+  await about.getByTestId('bridge-add-command').filter({ hasText: /^"\$HOME\/Library\/Application Support\/Cloud Slicer Bridge\/cloud-slicer-bridge" add 10\.0\.0\.42$/ }).waitFor();
+  await about.getByRole('tab', { name: 'Windows' }).click();
+  await about.getByTestId('bridge-uninstall-command').filter({ hasText: /^cmd \/c call "%LOCALAPPDATA%\\Cloud Slicer Bridge\\cloud-slicer-bridge\.exe" uninstall$/ }).waitFor();
+  if ((await about.getByRole('button', { name: 'Copy' }).count()) !== 2) throw new Error('the add and uninstall commands should each have their own Copy button');
+  if (shots) await about.screenshot({ path: join(shots, 'bridge-about.png') });
   for (const width of [390, 360]) {
     await setup.setViewportSize({ width, height: 844 });
     const wide = await setup.evaluate(() => [...document.querySelectorAll('.dv-dialog *')].find((el) => el.getBoundingClientRect().right > window.innerWidth + 0.5)?.className ?? null);
@@ -296,6 +358,16 @@ try {
   await setup.getByTestId('add-printer').click();
   await setup.getByText('node cloud-slicer-bridge.mjs', { exact: true }).waitFor();
   console.log('bridge setup: app downloads and the Linux command from the relay, Node.js steps when it has none');
+  // Removing a bridge printer explains how to remove the bridge from its computer too.
+  await page.getByTestId('printer-select').selectOption({ label: 'U1-mock' });
+  await page.locator('.dv-header-actions').getByRole('button', { name: 'Edit' }).click();
+  await page.getByTestId('remove-printer').click();
+  await page.getByTestId('bridge-uninstall').getByTestId('bridge-uninstall-command').filter({ hasText: / uninstall$/ }).waitFor();
+  if (shots) await page.screenshot({ path: join(shots, 'remove-bridge-printer.png') });
+  await page.getByTestId('confirm-remove-printer').click();
+  await until('U1-mock removed', async () => (await page.getByTestId('printer-select').locator('option', { hasText: 'U1-mock' }).count()) === 0);
+  await until('the bridge forgot U1-mock too', () => !cfg.printers.some((p) => p.id === 'u1'));
+  console.log('removing a bridge printer: shows how to uninstall the bridge, then removes it');
   console.log('DEVICE SMOKE OK');
 } catch (e) {
   console.error(`DEVICE SMOKE FAIL: ${e.stack ?? e.message}`);
@@ -305,6 +377,7 @@ try {
   await browser.close();
   await u1.close();
   await voron.close();
+  await keyed.close();
   for (const c of children) {
     try {
       process.kill(-c.pid);

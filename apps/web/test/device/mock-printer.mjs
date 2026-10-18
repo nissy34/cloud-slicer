@@ -126,7 +126,7 @@ function thumbnailBlock(png) {
   return `; THUMBNAIL_BLOCK_START\n;\n; thumbnail begin ${png.readUInt32BE(16)}x${png.readUInt32BE(20)} ${b64.length}\n${rows}; thumbnail end\n; THUMBNAIL_BLOCK_END\n`;
 }
 
-export async function startMockPrinter({ port = 0, host = '127.0.0.1', generic = false } = {}) {
+export async function startMockPrinter({ port = 0, host = '127.0.0.1', generic = false, hostname = generic ? 'voron-mock' : 'U1-mock', apiKey = '' } = {}) {
   let state = u1State(generic);
   const cube = `${thumbnailBlock(pngFrame(3, 300, 300))}; filament_colour = #FF0000\n; filament_type = PLA\n; filament used [g] = 5.1\n`;
   const files = new Map([['calibration_cube.gcode', { size: 123456, modified: Date.now() / 1000 - 3600, text: cube }]]);
@@ -288,7 +288,7 @@ export async function startMockPrinter({ port = 0, host = '127.0.0.1', generic =
       case 'server.info':
         return { klippy_state: state.webhooks.state, moonraker_version: 'v0.9-mock' };
       case 'printer.info':
-        return { state: 'ready', hostname: generic ? 'voron-mock' : 'U1-mock', software_version: 'mock' };
+        return { state: 'ready', hostname, software_version: 'mock' };
       case 'printer.objects.list':
         return { objects: Object.keys(state) };
       case 'printer.objects.subscribe':
@@ -381,6 +381,11 @@ export async function startMockPrinter({ port = 0, host = '127.0.0.1', generic =
       res.end(typeof body === 'string' || Buffer.isBuffer(body) ? body : JSON.stringify(body));
     };
     if (req.method === 'OPTIONS') return send(204, '');
+    // What the bridge asks when it finds or is given a printer.
+    if (url.pathname === '/printer/info') {
+      if (apiKey && req.headers['x-api-key'] !== apiKey) return send(401, { error: { message: 'Unauthorized' } });
+      return send(200, { result: { state: 'ready', hostname, software_version: 'mock' } });
+    }
     // Slicer thumbnails Moonraker extracted from the G-code.
     if (url.pathname.startsWith('/server/files/gcodes/.thumbs/')) {
       const m = /^(.*)-(\d+)x(\d+)\.png$/.exec(decodeURIComponent(url.pathname.slice('/server/files/gcodes/.thumbs/'.length)));

@@ -10,7 +10,8 @@
 //   node cloud-slicer-bridge.mjs                     # finds your printers, pairs, keeps running
 //   node cloud-slicer-bridge.mjs add 192.168.1.50 [--name "My U1"] [--api-key KEY]
 //   node cloud-slicer-bridge.mjs list | remove <name> | pair
-//   node cloud-slicer-bridge.mjs install | uninstall # start (or stop starting) with this computer
+//   node cloud-slicer-bridge.mjs install            # start with this computer
+//   node cloud-slicer-bridge.mjs uninstall          # stop it and remove it from this computer
 //
 // The same file is also built into a one-file app per system (bun build
 // --compile), which you open with a double click and which needs no Node.js.
@@ -29,12 +30,18 @@ import { basename, dirname, join } from 'node:path';
 import { createInterface } from 'node:readline';
 import { pathToFileURL } from 'node:url';
 
-export const VERSION = '2';
+export const VERSION = '3';
 /** True in the one-file app (bun build --compile), false under node or bun. */
 const APP = Boolean(process.versions.bun) && !/^bun(\.exe)?$/i.test(basename(process.execPath));
 /** How to run this bridge again, for messages: the app's own path, or node and this script. */
 let installedAt = null;
-const self = () => (installedAt ? `"${installedAt}"` : APP ? `"${process.execPath}"` : `node ${basename(process.argv[1] ?? 'cloud-slicer-bridge.mjs')}`);
+/**
+ * A program path as a command to paste. On Windows "cmd /c call" makes the same
+ * line work in PowerShell (where a quoted path followed by arguments is a
+ * syntax error) and in Command Prompt.
+ */
+const asCommand = (path) => (process.platform === 'win32' ? `cmd /c call "${path}"` : `"${path}"`);
+const self = () => (installedAt ? asCommand(installedAt) : APP ? asCommand(process.execPath) : `node ${basename(process.argv[1] ?? 'cloud-slicer-bridge.mjs')}`);
 // The relay that served this file replaces this default when you download it.
 const DEFAULT_RELAY = '__RELAY_URL__'.startsWith('__') ? 'https://cloud-slicer-relay.nissy34.workers.dev' : '__RELAY_URL__';
 // Pairing links open the site the bridge was downloaded from (the relay fills it in).
@@ -98,7 +105,7 @@ export function candidateUrls(address) {
 
 async function probe(url, apiKey) {
   const r = await fetch(`${url}/printer/info`, { headers: apiKey ? { 'X-Api-Key': apiKey } : {}, signal: AbortSignal.timeout(5000) });
-  if (r.status === 401 || r.status === 403) throw new Error('Moonraker wants an API key (add --api-key KEY)');
+  if (r.status === 401 || r.status === 403) throw Object.assign(new Error(apiKey ? 'Moonraker did not accept that API key' : 'Moonraker wants an API key (add --api-key KEY)'), { needsKey: true });
   if (!r.ok) throw new Error(`HTTP ${r.status}`);
   const body = await r.json();
   return body.result ?? {};
@@ -310,7 +317,7 @@ async function installAutostart() {
     for (const step of plan.enable) runStep(step);
   } catch (e) {
     if (process.platform !== 'linux') throw e;
-    throw new Error(`${e.message}\nThis computer can't start the bridge by itself (no systemd user services). Run it yourself instead: "${plan.copy.to}" run`);
+    throw new Error(`${e.message}\nThis computer can't start the bridge by itself (no systemd user services). Run it yourself instead: ${asCommand(plan.copy.to)} run`);
   }
   if (plan.start) {
     const child = spawn(plan.start[0], plan.start[1], { stdio: 'ignore', detached: true, windowsVerbatimArguments: true });
@@ -335,23 +342,64 @@ function restartAutostart() {
   }
 }
 
-async function uninstallAutostart() {
+/**
+ * Removes the bridge from this computer: stops it, stops it starting with the
+ * computer, and deletes its installed copy and its settings (printers and the
+ * pairing secret, so old pairing links stop working).
+ */
+async function uninstallBridge(configPath) {
   const plan = autostartPlan();
   for (const step of plan.disable) runStep([step[0], step[1], { optional: true }]);
+  if (process.platform === 'win32') {
+    spawnSync('taskkill', ['/F', '/IM', basename(plan.copy.to), '/FI', `PID ne ${process.pid}`], { stdio: 'ignore' });
+  }
   for (const f of plan.files) await rm(f.path, { force: true });
   if (process.platform === 'linux') runStep(['systemctl', ['--user', 'daemon-reload'], { optional: true }]);
+  await rm(configPath, { force: true });
+  // install.sh's link to the command, on Linux.
+  const link = join(homedir(), '.local', 'bin', SERVICE);
+  try {
+    if (fs.lstatSync(link).isSymbolicLink() && fs.readlinkSync(link).startsWith(plan.dir)) fs.unlinkSync(link);
+  } catch {}
+  try {
+    await rm(plan.dir, { recursive: true, force: true });
+  } catch {
+    // Windows can't delete the program that is running this: delete it just after this exits.
+    if (process.platform === 'win32') {
+      spawn('cmd', ['/c', `ping -n 3 127.0.0.1 >nul & rmdir /s /q "${plan.dir}"`], { stdio: 'ignore', detached: true, windowsVerbatimArguments: true }).unref();
+    }
+  }
   return plan;
 }
 
-/** Asks a yes/no question in the terminal; Enter means yes. */
-function ask(question) {
+/** Asks for a line of text in the terminal. */
+function prompt(question) {
   const rl = createInterface({ input: process.stdin, output: process.stdout });
   return new Promise((resolve) =>
     rl.question(question, (a) => {
       rl.close();
-      resolve(!/^\s*n/i.test(a));
+      resolve(a.trim());
     }),
   );
+}
+
+/** Asks a yes/no question in the terminal; Enter means yes. */
+async function ask(question) {
+  return !/^n/i.test(await prompt(question));
+}
+
+/** Finds Moonraker at an address the user typed (with or without a port or http://). */
+async function probeAddress(address, apiKey) {
+  let lastError = null;
+  for (const url of candidateUrls(address)) {
+    try {
+      return { url, info: await probe(url, apiKey) };
+    } catch (e) {
+      lastError = e;
+      if (e.needsKey) break;
+    }
+  }
+  throw Object.assign(new Error(`No Moonraker answered at ${address}: ${lastError?.message}`), { needsKey: !!lastError?.needsKey });
 }
 
 /** Keeps a double-clicked app's window open until Enter, so its message can be read. */
@@ -543,13 +591,61 @@ class Session {
 
 // ---- the relay connection ---------------------------------------------------------
 
-export function runBridge(cfg, { log = console.log } = {}) {
+export function runBridge(cfg, { log = console.log, save = async () => {}, onReplaced = () => {}, find = discover } = {}) {
   const sessions = new Map();
   let relay = null;
   let retries = 0;
   let stopped = false;
 
   const toRelay = (obj) => relay?.readyState === WebSocket.OPEN && relay.send(JSON.stringify(obj));
+  const hello = () => toRelay({ ctl: 'hello', version: VERSION, printers: cfg.printers.map(({ id, name }) => ({ id, name })) });
+
+  /** Calls from a window with no printer chosen: finding, adding and removing this bridge's printers from the Device tab. */
+  const manage = async (method, p = {}) => {
+    if (method === 'bridge.discover') {
+      log('Looking for printers on the network for the Device tab...');
+      const found = await find();
+      return { printers: found.map((f) => ({ url: f.url, name: f.name, needsKey: !!f.needsKey, added: cfg.printers.find((x) => x.url === f.url)?.id ?? null })) };
+    }
+    if (method === 'bridge.add_printer') {
+      const address = String(p.address ?? '').trim().slice(0, 200);
+      const apiKey = String(p.apiKey ?? '').trim().slice(0, 200);
+      if (!address) throw new Error("Type the printer's address.");
+      let found;
+      try {
+        found = await probeAddress(address, apiKey);
+      } catch (e) {
+        if (e.needsKey) throw new Error(apiKey ? 'The printer did not accept that API key.' : 'This printer needs its Moonraker API key.');
+        throw new Error(`No printer answered at ${address}. Check the address, and that the printer is on.`);
+      }
+      const name = String(p.name || found.info.hostname || address).slice(0, 80);
+      let printer = cfg.printers.find((x) => x.url === found.url);
+      if (printer) Object.assign(printer, { name, apiKey });
+      else cfg.printers.push((printer = { id: randomBytes(4).toString('hex'), name, url: found.url, apiKey }));
+      await save();
+      log(`Added ${name} (${found.url}) from the Device tab.`);
+      hello();
+      return { id: printer.id, name };
+    }
+    if (method === 'bridge.remove_printer') {
+      const id = String(p.id ?? '');
+      const printer = cfg.printers.find((x) => x.id === id);
+      if (!printer) return { removed: false };
+      cfg.printers = cfg.printers.filter((x) => x !== printer);
+      await save();
+      for (const [c, s] of sessions) {
+        if (s.printer === printer) {
+          s.close();
+          sessions.delete(c);
+          toRelay({ ctl: 'drop', c, reason: 'This printer was removed from the bridge.' });
+        }
+      }
+      log(`Removed ${printer.name} from the Device tab.`);
+      hello();
+      return { removed: true };
+    }
+    throw new Error(`Unknown bridge call ${method}`);
+  };
 
   const connect = () => {
     if (stopped) return;
@@ -559,7 +655,7 @@ export function runBridge(cfg, { log = console.log } = {}) {
     ws.onopen = () => {
       retries = 0;
       log(`Connected to the relay (${cfg.relay}). Serving: ${cfg.printers.map((p) => p.name).join(', ') || 'no printers yet'}`);
-      toRelay({ ctl: 'hello', version: VERSION, printers: cfg.printers.map(({ id, name }) => ({ id, name })) });
+      hello();
     };
     ws.onmessage = (ev) => {
       let msg;
@@ -592,7 +688,20 @@ export function runBridge(cfg, { log = console.log } = {}) {
         sessions.get(msg.c)?.close();
         sessions.delete(msg.c);
       } else if (msg.c && typeof msg.m === 'string') {
-        sessions.get(msg.c)?.fromBrowser(msg.m);
+        const session = sessions.get(msg.c);
+        if (session) return session.fromBrowser(msg.m);
+        let call;
+        try {
+          call = JSON.parse(msg.m);
+        } catch {
+          return;
+        }
+        if (call.id == null) return;
+        const answer = (body) => toRelay({ c: msg.c, m: JSON.stringify({ jsonrpc: '2.0', id: call.id, ...body }) });
+        manage(call.method, call.params).then(
+          (result) => answer({ result }),
+          (e) => answer({ error: { code: -32000, message: e.message } }),
+        );
       }
     };
     ws.onclose = (ev) => {
@@ -601,6 +710,14 @@ export function runBridge(cfg, { log = console.log } = {}) {
       for (const s of sessions.values()) s.close();
       sessions.clear();
       if (stopped) return;
+      // Another copy of this bridge (a second window, or the one running in the background) took
+      // over: retrying would only take it back, and the two would swap forever.
+      if (ev.code === 4000) {
+        stopped = true;
+        log('Another copy of this bridge is running on this computer and took over, so this one stops. Close this window.');
+        onReplaced();
+        return;
+      }
       if (ev.code === 4003) {
         log(`The relay refused this bridge: ${ev.reason}`);
       }
@@ -637,33 +754,23 @@ export async function main() {
   // Opened with a double click (or plain "run" in a terminal): offer to start with the computer.
   const interactive = !rest.length && !opts['no-browser'] && process.stdin.isTTY;
 
-  /** Finds printers on this network when none are saved yet. */
-  const findPrinters = async () => {
-    if (cfg.printers.length) return;
-    const found = await discover({ log: console.log });
-    for (const f of found.filter((x) => x.needsKey)) console.log(`${f.url} needs an API key: ${self()} add ${new URL(f.url).hostname} --api-key KEY`);
-    for (const f of found.filter((x) => !x.needsKey)) {
-      cfg.printers.push({ id: randomBytes(4).toString('hex'), name: f.name, url: f.url, apiKey: '' });
-      console.log(`Found ${f.name} (${f.url}).`);
+  /** Sets the bridge up to start with this computer (and starts it there), or says why it can't. */
+  const startWithComputer = async () => {
+    try {
+      const plan = await installAutostart();
+      console.log(`\nThe bridge now runs in the background and starts by itself with this computer (from ${plan.copy.to}).`);
+      console.log(`To remove it from this computer: ${asCommand(plan.copy.to)} uninstall`);
+      return true;
+    } catch (e) {
+      console.log(`\nThe bridge can't start by itself on this computer (${e.message}). It runs while this window stays open.`);
+      return false;
     }
-    if (cfg.printers.length) await saveConfig(path, cfg);
-    else console.log(`No printer found on your network. Add it by its address: ${self()} add <printer address>`);
   };
 
   if (cmd === 'add') {
     if (!args[0]) throw new Error('Usage: add <address> [--name NAME] [--api-key KEY]');
     const apiKey = opts['api-key'] ? String(opts['api-key']) : '';
-    let found = null;
-    let lastError = null;
-    for (const url of candidateUrls(args[0])) {
-      try {
-        found = { url, info: await probe(url, apiKey) };
-        break;
-      } catch (e) {
-        lastError = e;
-      }
-    }
-    if (!found) throw new Error(`No Moonraker answered at ${args[0]}: ${lastError?.message}`);
+    const found = await probeAddress(args[0], apiKey);
     const name = String(opts.name ?? found.info.hostname ?? args[0]);
     const existing = cfg.printers.find((p) => p.url === found.url);
     if (existing) Object.assign(existing, { name, apiKey });
@@ -684,14 +791,14 @@ export async function main() {
     printPairing(cfg, opts.site);
   } else if (cmd === 'install') {
     if (APP) installedAt = autostartPlan().copy.to;
-    await findPrinters();
     const plan = await installAutostart();
     console.log(`The bridge now starts by itself with this computer (from ${plan.copy.to}), and is running.`);
-    console.log(`To stop that: "${plan.copy.to}" uninstall`);
-    printPairing(cfg, opts.site, { open: !opts['no-browser'] && cfg.printers.length > 0 });
+    console.log(`To remove it from this computer: ${asCommand(plan.copy.to)} uninstall`);
+    printPairing(cfg, opts.site, { open: !opts['no-browser'] });
   } else if (cmd === 'uninstall') {
-    await uninstallAutostart();
-    console.log('The bridge no longer starts with this computer.');
+    await uninstallBridge(path);
+    console.log('Removed the bridge from this computer: it has stopped, no longer starts with the computer, and its printers and pairing are deleted.');
+    console.log('Remove its printers from the Device tab too (Edit, then Remove printer).');
   } else if (cmd === 'version') {
     console.log(VERSION);
   } else if (cmd === 'run') {
@@ -703,25 +810,26 @@ export async function main() {
         await installAutostart();
         console.log('Updated the bridge that runs in the background to this version.');
       } else console.log('The bridge already runs in the background and starts with this computer.');
-      console.log(`To stop it starting with the computer: "${plan.copy.to}" uninstall`);
-      printPairing(cfg, opts.site, { open: cfg.printers.length > 0 });
+      console.log(`To remove it from this computer: ${asCommand(plan.copy.to)} uninstall`);
+      printPairing(cfg, opts.site, { open: true });
       await holdWindow();
       return;
     }
-    await findPrinters();
-    printPairing(cfg, opts.site, { open: !opts['no-browser'] && cfg.printers.length > 0 });
-    const bridge = runBridge(cfg);
-    if (interactive && cfg.printers.length) {
-      if (await ask('Start the bridge by itself whenever this computer starts? [Y/n] ')) {
-        bridge.stop();
-        const plan = await installAutostart();
-        console.log(`Done. The bridge now runs in the background (from ${plan.copy.to}); you can close this window.`);
-        console.log(`To stop it starting with the computer: "${plan.copy.to}" uninstall`);
+    // Opened by hand: set it up to start with the computer, no questions. Finding and adding printers (and their API keys) happens in the Device tab.
+    if (interactive && (await startWithComputer())) {
+      printPairing(cfg, opts.site, { open: true });
+      console.log('You can close this window.');
+      await holdWindow();
+      process.exit(0);
+    }
+    printPairing(cfg, opts.site, { open: !opts['no-browser'] });
+    runBridge(cfg, {
+      save: () => saveConfig(path, cfg),
+      onReplaced: async () => {
         await holdWindow();
         process.exit(0);
-      }
-      console.log('OK. Keep this window open while you use the Device tab.');
-    }
+      },
+    });
   } else {
     throw new Error(`Unknown command ${cmd}. Commands: add, remove, list, pair, run, install, uninstall`);
   }

@@ -14,8 +14,7 @@ The Device tab's "Add a printer" dialog offers the right one for each system:
   needs installing. It isn't signed yet, so Windows shows "Windows protected
   your PC" (More info, then Run anyway).
 - **macOS, Linux and Raspberry Pi (64-bit)**: one command in Terminal, which
-  downloads the app, finds your printers and starts the bridge with the
-  computer. On a Mac this also avoids Gatekeeper's "could not verify" block,
+  downloads the app and starts the bridge with the computer. On a Mac this also avoids Gatekeeper's "could not verify" block,
   which only applies to apps a browser downloaded. (The Mac app is also
   offered as a zip; downloaded that way, macOS blocks it until you click Open
   Anyway in System Settings, Privacy & Security.)
@@ -30,16 +29,22 @@ The Device tab's "Add a printer" dialog offers the right one for each system:
   On Windows, PowerShell's `curl` is a different command: type `curl.exe`, or
   open `https://<relay>/bridge.mjs` in a browser.
 
-On first run it looks for Moonraker on port 7125 across your local network,
-adds every printer it finds, and opens the pairing link in your browser (it
-also prints it). Opened by double click, it then asks whether to start by
-itself with the computer; `install` and `uninstall` do the same from a
-terminal (Windows: a Run entry for your user, minimised; macOS: a launch agent;
-Linux: a systemd user service with lingering, so a headless Pi starts it at
-boot). If it finds nothing, add the printer by its address with
-`cloud-slicer-bridge add 192.168.1.50` (`--api-key KEY` if Moonraker wants
-one); a bridge running in the background restarts by itself to use it. The
-pairing link is the bridge's key: anyone holding it can control your printers.
+The bridge asks nothing. Opened by double click it sets itself up to start
+with the computer and opens the pairing link in your browser (it also prints
+it); `install` does the same from a terminal, and `uninstall` stops the bridge
+and removes it from the computer, with its printers and pairing (Windows: a
+Run entry for your user, minimised; macOS: a launch agent; Linux: a systemd
+user service with lingering, so a headless Pi starts it at boot).
+
+Printers are found and added in the Device tab's Add a printer dialog, which
+asks the bridge over the relay: `bridge.discover` looks for Moonraker on port
+7125 across the bridge's local networks and lists what answers (and which want
+an API key); `bridge.add_printer` adds the ones you pick, or any address and
+port you type, with its API key, after checking Moonraker answers there;
+`bridge.remove_printer` forgets one. From a terminal, `cloud-slicer-bridge add
+192.168.1.50 [--api-key KEY]` does the same; a bridge running in the background
+restarts by itself to use it. The pairing link is the bridge's key: anyone
+holding it can control your printers.
 
 Where things go once set up: Windows `%LOCALAPPDATA%\Cloud Slicer Bridge\`,
 macOS `~/Library/Application Support/Cloud Slicer Bridge/` (log in

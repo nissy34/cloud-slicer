@@ -8,7 +8,7 @@ import { BridgeLink } from '../link/bridge';
 import { DirectLink, directBlockedReason, normalizePrinterUrl } from '../link/direct';
 import type { BridgeStatus } from '../link/types';
 import { decodePairing, type Pairing } from '../pairing';
-import { BridgeSetup } from './BridgeSetup';
+import { BridgeSetup, CopyCommand, UninstallBridge } from './BridgeSetup';
 import { Dialog } from './parts';
 
 const newId = () => Math.random().toString(36).slice(2, 10);
@@ -39,9 +39,19 @@ function PresetField({ value, onChange }: { value: string; onChange: (name: stri
  * pairing link as it starts, so the page often asks before the bridge has
  * connected (the relay refuses browsers until then, or reports it offline).
  */
-function watchBridge(p: Pairing, onStatus: (s: BridgeStatus) => void, onError: (e: Error) => void): () => void {
+interface BridgeWatch {
+  stop(): void;
+  /** Asks the bridge itself to do something (add or remove a printer), over the watching connection. */
+  manage<T>(method: `bridge.${string}`, params: unknown): Promise<T>;
+}
+
+/** Bridges from this version on can add and remove printers when the Device tab asks. */
+const MANAGED_FROM = 3;
+
+function watchBridge(p: Pairing, onStatus: (s: BridgeStatus) => void, onError: (e: Error) => void): BridgeWatch {
   let stopped = false;
   let link: BridgeLink | null = null;
+  let open: BridgeLink | null = null;
   let retry: ReturnType<typeof setTimeout> | undefined;
   let lastError = 'The bridge did not answer.';
   // A bridge that is just starting is refused or offline for a moment: only say so if it lasts.
@@ -57,20 +67,204 @@ function watchBridge(p: Pairing, onStatus: (s: BridgeStatus) => void, onError: (
     link = l;
     l.open({
       onMessage: () => {},
-      onClose: again,
+      onClose: (reason) => {
+        if (open === l) open = null;
+        again(reason);
+      },
       onBridge: (status) => {
         if (status.agent === 'online') clearTimeout(slow);
         onStatus(status);
       },
-    }).catch((e) => again((e as Error).message));
+    }).then(
+      () => {
+        if (link === l) open = l;
+      },
+      (e) => again((e as Error).message),
+    );
   }
   connect();
-  return () => {
-    stopped = true;
-    clearTimeout(slow);
-    clearTimeout(retry);
-    link?.close();
+  return {
+    stop() {
+      stopped = true;
+      clearTimeout(slow);
+      clearTimeout(retry);
+      link?.close();
+    },
+    manage(method, params) {
+      return open ? open.manage(method, params) : Promise.reject(new Error('The bridge is not connected right now. Check that it is running.'));
+    },
   };
+}
+
+/** Removes a printer from its bridge, if the bridge is reachable; the saved printer goes either way. */
+async function removeFromBridge(p: Pairing, printer: string): Promise<void> {
+  const link = new BridgeLink({ relay: p.relay, bridgeId: p.bridgeId, key: p.key, printer: '' });
+  try {
+    await link.open({ onMessage: () => {}, onClose: () => {} });
+    await link.manage('bridge.remove_printer', { id: printer });
+  } catch {
+    // An offline or older bridge keeps the printer; it can be removed there with the remove command.
+  } finally {
+    link.close();
+  }
+}
+
+interface FoundPrinter {
+  url: string;
+  name: string;
+  needsKey: boolean;
+  /** The bridge's id for it when it's already added. */
+  added: string | null;
+}
+
+/** One printer the bridge found: add it, with its API key when Moonraker wants one. */
+function FoundRow({ printer, watch, onAdded }: { printer: FoundPrinter; watch: BridgeWatch | null; onAdded: (p: { id: string; name: string }) => void }) {
+  const [apiKey, setApiKey] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [problem, setProblem] = useState('');
+  const add = async () => {
+    if (!watch) return;
+    setBusy(true);
+    setProblem('');
+    try {
+      onAdded(await watch.manage<{ id: string; name: string }>('bridge.add_printer', { address: printer.url, apiKey: apiKey.trim() }));
+    } catch (e) {
+      setProblem((e as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  };
+  const host = printer.url.replace(/^https?:\/\//, '');
+  return (
+    <li className="dv-found" data-testid="found-printer" data-url={printer.url}>
+      <div className="dv-found-head">
+        <span>
+          {printer.name === host.split(':')[0] ? (
+            <strong>{host}</strong>
+          ) : (
+            <>
+              <strong>{printer.name}</strong> <span className="muted">{host}</span>
+            </>
+          )}
+        </span>
+        {printer.added ? (
+          <span className="muted">Added</span>
+        ) : (
+          <button className="secondary" disabled={busy || (printer.needsKey && !apiKey.trim())} onClick={() => void add()} data-testid="found-add">
+            {busy ? 'Adding…' : 'Add'}
+          </button>
+        )}
+      </div>
+      {!printer.added && printer.needsKey && (
+        <label>
+          <span className="muted">It needs its Moonraker API key (Mainsail and Fluidd show it in their settings):</span>
+          <input value={apiKey} onChange={(e) => setApiKey(e.target.value)} placeholder="API key" spellCheck={false} autoCapitalize="off" autoComplete="off" data-testid="found-key" />
+        </label>
+      )}
+      {problem && (
+        <p className="dv-alert" role="alert">
+          {problem}
+        </p>
+      )}
+    </li>
+  );
+}
+
+/**
+ * The bridge's printers come from here: search the bridge's network and pick
+ * which printers to add (with their API keys), or add one by its address.
+ */
+function BridgePrinters({ watch, onAdded, searchNow }: { watch: BridgeWatch | null; onAdded: (p: { id: string; name: string }) => void; searchNow: boolean }) {
+  const [found, setFound] = useState<FoundPrinter[] | null>(null);
+  const [searching, setSearching] = useState(false);
+  const [problem, setProblem] = useState('');
+  const [address, setAddress] = useState('');
+  const [apiKey, setApiKey] = useState('');
+  const [adding, setAdding] = useState(false);
+  const [addProblem, setAddProblem] = useState('');
+  const search = async () => {
+    if (!watch) return;
+    setSearching(true);
+    setProblem('');
+    try {
+      setFound((await watch.manage<{ printers: FoundPrinter[] }>('bridge.discover', {})).printers);
+    } catch (e) {
+      setProblem((e as Error).message);
+    } finally {
+      setSearching(false);
+    }
+  };
+  // A bridge with no printers yet: look straight away.
+  useEffect(() => {
+    if (searchNow && watch && found === null && !searching) void search();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchNow, watch]);
+  const added = (p: { id: string; name: string }, url?: string) => {
+    if (url) setFound((list) => list?.map((f) => (f.url === url ? { ...f, added: p.id } : f)) ?? null);
+    onAdded(p);
+  };
+  const addByAddress = async () => {
+    if (!watch) return;
+    setAdding(true);
+    setAddProblem('');
+    try {
+      added(await watch.manage<{ id: string; name: string }>('bridge.add_printer', { address: address.trim(), apiKey: apiKey.trim() }));
+      setAddress('');
+      setApiKey('');
+    } catch (e) {
+      setAddProblem((e as Error).message);
+    } finally {
+      setAdding(false);
+    }
+  };
+  return (
+    <div className="dv-bridge-printers" data-testid="bridge-printers">
+      <div className="dv-found-head">
+        <strong>Printers on the bridge's network</strong>
+        <button className="secondary" disabled={!watch || searching} onClick={() => void search()} data-testid="bridge-search">
+          {searching ? 'Searching…' : found ? 'Search again' : 'Search my network'}
+        </button>
+      </div>
+      {searching && <p className="muted">Looking for printers (Moonraker) on the network, this takes a few seconds…</p>}
+      {problem && (
+        <p className="dv-alert" role="alert">
+          {problem}
+        </p>
+      )}
+      {found && !searching && !found.length && <p className="muted">No printer answered on the network. Add yours by its address below.</p>}
+      {found && found.length > 0 && (
+        <ul className="dv-found-list">
+          {found.map((f) => (
+            <FoundRow key={f.url} printer={f} watch={watch} onAdded={(p) => added(p, f.url)} />
+          ))}
+        </ul>
+      )}
+      <details className="dv-node-option" data-testid="bridge-add-printer">
+        <summary>Add a printer by its address</summary>
+        <div className="dv-form">
+          <label>
+            Printer address
+            <input value={address} onChange={(e) => setAddress(e.target.value)} placeholder="for example 192.168.1.50, or 192.168.1.50:7130 for another port" spellCheck={false} autoCapitalize="off" data-testid="bridge-new-address" />
+          </label>
+          <label>
+            Moonraker API key <span className="muted">(only if the printer asks for one)</span>
+            <input value={apiKey} onChange={(e) => setApiKey(e.target.value)} spellCheck={false} autoCapitalize="off" autoComplete="off" data-testid="bridge-new-key" />
+          </label>
+          {addProblem && (
+            <p className="dv-alert" role="alert">
+              {addProblem}
+            </p>
+          )}
+          <div>
+            <button className="secondary" disabled={!address.trim() || adding} onClick={() => void addByAddress()} data-testid="bridge-add-submit">
+              {adding ? 'Adding…' : 'Add to bridge'}
+            </button>
+          </div>
+        </div>
+      </details>
+      <p className="muted">API keys go to the bridge, which keeps them on its computer; Cloud Slicer doesn't store them.</p>
+    </div>
+  );
 }
 
 /** Opens the printer's socket and asks Moonraker who it is. */
@@ -104,18 +298,22 @@ export function PrinterEditor() {
   const [code, setCode] = useState('');
   const [pairing, setPairing] = useState<Pairing | null>(existing?.kind === 'bridge' ? { relay: existing.relay, bridgeId: existing.bridgeId, key: existing.key } : pairingFromLink);
   const [bridge, setBridge] = useState<BridgeStatus | null>(null);
+  const [watch, setWatch] = useState<BridgeWatch | null>(null);
   const [printerId, setPrinterId] = useState(existing?.kind === 'bridge' ? existing.printer : '');
   // direct
   const [url, setUrl] = useState(existing?.kind === 'direct' ? existing.url : '');
   const [apiKey, setApiKey] = useState(existing?.kind === 'direct' ? existing.apiKey : '');
   const [checking, setChecking] = useState(false);
   const [error, setError] = useState('');
+  const [confirmRemove, setConfirmRemove] = useState(false);
+  const [removing, setRemoving] = useState(false);
+  const saved = useDevice((s) => s.printers);
 
   useEffect(() => {
     if (!pairing) return;
     setChecking(true);
     setError('');
-    return watchBridge(
+    const w = watchBridge(
       pairing,
       (b) => {
         setChecking(false);
@@ -131,6 +329,11 @@ export function PrinterEditor() {
         setError(e.message);
       },
     );
+    setWatch(w);
+    return () => {
+      w.stop();
+      setWatch(null);
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pairing]);
 
@@ -164,6 +367,52 @@ export function PrinterEditor() {
   };
 
   const relayForCommand = pairing?.relay ?? DEFAULT_RELAY_URL;
+
+  if (existing && confirmRemove) {
+    // A bridge printer: the bridge keeps running on its computer, so say how to remove it too (unless other printers still use it).
+    const sharing = existing.kind === 'bridge' ? saved.filter((p) => p.id !== existing.id && p.kind === 'bridge' && p.bridgeId === existing.bridgeId) : [];
+    return (
+      <Dialog
+        title={`Remove ${existing.name}?`}
+        onClose={close}
+        footer={
+          <>
+            <button className="secondary" onClick={() => setConfirmRemove(false)}>
+              Cancel
+            </button>
+            <button
+              className="primary dv-danger"
+              disabled={removing}
+              onClick={async () => {
+                setRemoving(true);
+                // The bridge forgets the printer too, unless another saved printer still uses it.
+                if (existing.kind === 'bridge' && !saved.some((p) => p.id !== existing.id && p.kind === 'bridge' && p.bridgeId === existing.bridgeId && p.printer === existing.printer)) {
+                  await removeFromBridge({ relay: existing.relay, bridgeId: existing.bridgeId, key: existing.key }, existing.printer);
+                }
+                void removePrinter(existing.id);
+              }}
+              data-testid="confirm-remove-printer"
+            >
+              Remove printer
+            </button>
+          </>
+        }
+      >
+        <div className="dv-form">
+          <p>This removes {existing.name} from Cloud Slicer{existing.kind === 'bridge' ? ' and from its bridge' : ''}. The printer itself isn't changed.</p>
+          {existing.kind === 'bridge' &&
+            (sharing.length ? (
+              <p className="muted">Keep the bridge on its computer: {sharing.map((p) => p.name).join(', ')} still use it.</p>
+            ) : (
+              <>
+                <p>The bridge keeps running on the computer near the printer. If you don't need it any more, remove it from that computer too:</p>
+                <UninstallBridge />
+              </>
+            ))}
+        </div>
+      </Dialog>
+    );
+  }
   return (
     <Dialog
       title={existing ? `Edit ${existing.name}` : 'Add a printer'}
@@ -172,7 +421,7 @@ export function PrinterEditor() {
       footer={
         <>
           {existing && (
-            <button className="secondary dv-danger-text dv-left" onClick={() => void removePrinter(existing.id)}>
+            <button className="secondary dv-danger-text dv-left" onClick={() => setConfirmRemove(true)} data-testid="remove-printer">
               Remove printer
             </button>
           )}
@@ -250,7 +499,20 @@ export function PrinterEditor() {
                   </>
                 )}
               </p>
-              {bridge && bridge.printers.length === 0 && <p className="dv-alert">This bridge has no printers yet. Add one on the bridge's computer with the bridge's add command and the printer's address; it shows up here by itself.</p>}
+              {bridge && bridge.printers.length === 0 && <p className="dv-alert">This bridge has no printers yet: add them below.</p>}
+              {bridge?.agent === 'online' &&
+                (Number(bridge.version) >= MANAGED_FROM ? (
+                  <BridgePrinters
+                    watch={watch}
+                    searchNow={bridge.printers.length === 0}
+                    onAdded={(p) => {
+                      setPrinterId(p.id);
+                      setName((n) => n || p.name);
+                    }}
+                  />
+                ) : (
+                  <p className="muted">To find and add printers from here, update the bridge: download it again and open it (or run the Terminal command again).</p>
+                ))}
               {bridge && bridge.printers.length > 0 && (
                 <label>
                   Printer
@@ -273,7 +535,16 @@ export function PrinterEditor() {
         </div>
       ) : (
         <div className="dv-form">
-          <p>For a printer you've put on the internet yourself, behind https. Add this site to Moonraker's cors_domains so the browser may talk to it.</p>
+          <p>For a printer you've put on the internet yourself, behind https.</p>
+          <p>
+            <strong>First, let this site talk to the printer.</strong> Moonraker only answers websites it lists in <code>cors_domains</code>. On the printer, open{' '}
+            <code>moonraker.conf</code> (in Mainsail or Fluidd: Machine, then moonraker.conf), add this site under <code>[authorization]</code>, save, and restart
+            Moonraker:
+          </p>
+          <CopyCommand command={`[authorization]\ncors_domains:\n    ${location.origin}`} testId="cors-snippet" />
+          <p className="muted">
+            If <code>[authorization]</code> already has <code>cors_domains:</code>, add just the last line under it, indented like the others.
+          </p>
           <p className="muted">
             Using <a href="https://tailscale.com/kb/1312/serve" target="_blank" rel="noreferrer">Tailscale</a> (built into the paxx12 U1 firmware)? Turn on Tailscale Serve on the printer and
             enter its https://….ts.net address. It works from your phones and computers that are signed in to Tailscale.
