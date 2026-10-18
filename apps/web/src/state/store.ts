@@ -25,6 +25,8 @@ import { loadConvertPreference, loadSaved, save, saveConvertPreference } from '.
 import type { LayerProfile, LayerRequest } from '../lib/layers';
 import { sameFeature, type MeasureFeature, type Measurement } from '../lib/measure';
 import { mixSettings, palette as mixPalette, type MatchResult, type MixRecipe, type MixRow } from '../lib/mixing';
+import { stlName, type ObjectAction } from '../lib/objectMenu';
+import { saveFile } from '../lib/preset-files';
 
 export type Tab = 'prepare' | 'preview' | 'device';
 /** The object tool open on the 3D view, like desktop's gizmos (paint has its own state). */
@@ -79,6 +81,8 @@ export interface SlicerState {
   paint: PaintSettings | null;
   /** The object tool in use on the selected object. */
   tool: Tool | null;
+  /** The object menu (right click, long press or the object list's ⋯), at a point on the page. */
+  objectMenu: { object: number; instance: number; x: number; y: number } | null;
   /** Files waiting for the user to say how to open the 3MF among them. */
   pendingOpen: File[] | null;
   /** Rotate in 15° steps (and move/scale in steps) without holding Shift, for touch screens. */
@@ -172,6 +176,15 @@ export interface SlicerState {
   /** Auto-orients one object, or every object on the plate. */
   orient(o?: number): Promise<void>;
   mirror(o: number, i: number, axis: 0 | 1 | 2): Promise<void>;
+  openObjectMenu(menu: SlicerState['objectMenu']): void;
+  /** One of the object menu's edits (rename, printable, center, scale to fit, units...); one undo step. */
+  objectAction(o: number, i: number, request: ObjectAction, label: string): Promise<void>;
+  /** Desktop's Clone: `count` copies as new objects, then (optionally) Arrange. */
+  cloneObject(o: number, count: number, arrange: boolean): Promise<void>;
+  /** Replaces part `volume` of object o with the mesh in an STL file, keeping its place. */
+  replaceWithStl(o: number, volume: number, file: File): Promise<void>;
+  /** Saves instance i of object o as an STL file. */
+  exportStl(o: number, i: number): Promise<void>;
   cutObject(o: number, i: number, z: number, keep: CutKeep, flipUpper: boolean): Promise<void>;
   convertProject(printer: string, keepSettings: boolean, remember: boolean): Promise<void>;
   dismissConversion(): void;
@@ -527,6 +540,7 @@ export const useSlicer = create<SlicerState>((set, get) => {
     conversion: null,
     paint: null,
     tool: null,
+    objectMenu: null,
     pendingOpen: null,
     snap: false,
     history: { undo: null, redo: null },
@@ -764,6 +778,22 @@ export const useSlicer = create<SlicerState>((set, get) => {
         return info;
       }),
     mirror: (o, i, axis) => projectEdit('Mirror', () => engine().mirrorInstance(o, i, axis)),
+    openObjectMenu: (objectMenu) => set({ objectMenu }),
+    objectAction: (o, i, request, label) => projectEdit(label, () => engine().objectAction(o, i, request)),
+    cloneObject: async (o, count, arrange) => {
+      await projectEdit('Clone', () => engine().objectAction(o, 0, { op: 'clone', count }));
+      if (arrange) await get().arrange();
+    },
+    replaceWithStl: async (o, volume, file) =>
+      projectEdit('Replace with STL', async () => engine().objectAction(o, 0, { op: 'replace', volume }, await file.arrayBuffer())),
+    exportStl: async (o, i) => {
+      try {
+        const bytes = await engine().exportStl(o, i);
+        await saveFile(new Blob([bytes], { type: 'model/stl' }), stlName(get().project?.objects[o]?.name ?? ''));
+      } catch (err) {
+        fail(err);
+      }
+    },
     cutObject: (o, i, z, keep, flipUpper) =>
       projectEdit('Cut', () => {
         set({ selected: null, tool: null });

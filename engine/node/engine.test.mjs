@@ -788,8 +788,10 @@ test('object menu: rename, printable, center, scale to fit, clone, units, replac
   m = load('gen-cube-20.stl');
   act(0, 0, { op: 'convert', to: 'fromInch' });
   near(info().objects[0].size[0], 20 * 25.4, 'inches to mm', 0.1);
+  assert.equal(info().objects[0].units, 'inch', 'the page offers to convert back');
   act(0, 0, { op: 'convert', to: 'toInch' });
   near(info().objects[0].size[0], 20, 'and back', 0.01);
+  assert.equal(info().objects[0].units, '');
   near(centre().bottom, 0, 'on the bed after converting');
 
   // Another mesh in place of the part (one mesh with two pieces is still one part).

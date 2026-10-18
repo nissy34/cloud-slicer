@@ -2,7 +2,8 @@
 // Browser end to end for the object toolbar over the 3D view: adding a model
 // keeps the one already there, lay on face turns the object, variable layer
 // height makes an adaptive profile, measure picks two features and measures
-// between them, and the toolbar fits a phone (and the page itself never
+// between them, the object menu (right click or ⋯) renames, clones and
+// exports, and the toolbar fits a phone (and the page itself never
 // scrolls there).
 //
 //   node test/toolbar.mjs [screenshot-dir]
@@ -193,6 +194,66 @@ try {
     if (shots) await page.screenshot({ path: join(shots, 'measure-desktop.png') });
     console.log(`measure: ${figures.replace(/\s+/g, ' ')}`);
   }
+
+  // The object menu: a right click on an object in the 3D view, or ⋯ in the object list.
+  await page.keyboard.press('Escape');
+  const objectMenu = page.locator('.object-menu');
+  let menuAt = null;
+  for (const [x, y] of points) {
+    await page.mouse.click(box.x + box.width * x, box.y + box.height * y, { button: 'right' });
+    if (await objectMenu.waitFor({ timeout: 1500 }).then(() => true, () => false)) {
+      menuAt = [x, y];
+      break;
+    }
+  }
+  if (!menuAt) fail('a right click on an object opened no menu');
+  else {
+    for (const name of ['Clone…', 'Center', 'Split', 'Mirror', 'Delete', 'Auto orient', 'Printable', 'Rename…', 'Change filament', 'Object settings', 'Scale to fit the plate', 'Units', 'Replace with STL…', 'Export as STL'])
+      await objectMenu.getByRole(/^(Printable)$/.test(name) ? 'menuitemcheckbox' : 'menuitem', { name, exact: true }).waitFor({ timeout: 3000 });
+    await objectMenu.getByRole('menuitem', { name: 'Mirror' }).click();
+    await objectMenu.getByRole('menuitem', { name: 'Along X axis' }).waitFor();
+    if (shots) await page.screenshot({ path: join(shots, 'object-menu-desktop.png') });
+    await page.keyboard.press('Escape');
+    await objectMenu.waitFor({ state: 'detached' });
+    console.log('right click opens the object menu');
+  }
+
+  // Rename from the object list's ⋯ button.
+  const more = (n) => objectRows(page).nth(n).getByRole('button', { name: /^More for / });
+  await more(0).click();
+  await objectMenu.getByRole('menuitem', { name: 'Rename…' }).click();
+  await objectMenu.getByLabel('Name').fill('Boat');
+  await objectMenu.getByRole('button', { name: 'Rename' }).click();
+  await objectRows(page).first().getByText('Boat').waitFor({ timeout: 30000 });
+  console.log('rename from the object list');
+
+  // Clone 2, arranged: two more objects; undo (twice: clone, then arrange) takes them back.
+  await more(0).click();
+  await objectMenu.getByRole('menuitem', { name: 'Clone…' }).click();
+  await objectMenu.getByLabel('Number of copies').fill('2');
+  await objectMenu.getByRole('button', { name: 'Clone' }).click();
+  await page.waitForFunction(() => document.querySelectorAll('ul.objects > li.object').length === 4, null, { timeout: 60000 });
+  await page.locator('body').press('Control+z');
+  await page.locator('body').press('Control+z');
+  await page.waitForFunction(() => document.querySelectorAll('ul.objects > li.object').length === 2, null, { timeout: 60000 });
+  console.log('clone adds two objects, undo removes them');
+
+  // Not printable, then printable again; the check mark follows.
+  await more(0).click();
+  await objectMenu.getByRole('menuitemcheckbox', { name: 'Printable' }).click();
+  await objectMenu.waitFor({ state: 'detached' });
+  await page.waitForTimeout(500);
+  await more(0).click();
+  if ((await objectMenu.getByRole('menuitemcheckbox', { name: 'Printable' }).getAttribute('aria-checked')) !== 'false') fail('Printable stayed checked');
+  await objectMenu.getByRole('menuitemcheckbox', { name: 'Printable' }).click();
+
+  // Export as STL downloads the boat.
+  await more(0).click();
+  const [download] = await Promise.all([page.waitForEvent('download', { timeout: 30000 }), objectMenu.getByRole('menuitem', { name: 'Export as STL' }).click()]);
+  if (download.suggestedFilename() !== 'Boat.stl') fail(`exported as ${download.suggestedFilename()}`);
+  const stl = await download.createReadStream().then(async (st) => { let n = 0; for await (const c of st) n += c.length; return n; });
+  if (stl < 1000 * 50) fail(`the exported STL is only ${stl} bytes`);
+  console.log(`export as STL: ${download.suggestedFilename()}, ${stl} bytes`);
   await page.close();
 
   const phone = await open({ width: 390, height: 844 }, true);

@@ -171,6 +171,25 @@ if (self.name !== 'em-pthread') {
     splitParts: (e, o) => (json(e.splitParts(o)), JSON.parse(e.modelInfoJson())),
     cutObject: (e, o, i, z, keep, flip) => (json(e.cutObject(o, i, z, keep, flip)), JSON.parse(e.modelInfoJson())),
     mirrorInstance: (e, o, i, axis) => (json(e.mirrorInstance(o, i, axis)), JSON.parse(e.modelInfoJson())),
+    // The object menu (see engine/src/object_api.cpp); "replace" brings the STL's bytes.
+    objectAction(e, o, i, request, bytes) {
+      const path = '/work/replace.stl';
+      if (bytes) e.FS.writeFile(path, new Uint8Array(bytes));
+      try {
+        json(e.objectAction(o, i, JSON.stringify(bytes ? { ...request, path } : request)));
+      } finally {
+        if (bytes) e.FS.unlink(path);
+      }
+      return JSON.parse(e.modelInfoJson());
+    },
+    // Instance i of object o as a binary STL (the object menu's Export as STL).
+    exportStl(e, o, i) {
+      const path = '/work/export.stl';
+      json(e.objectAction(o, i, JSON.stringify({ op: 'exportStl', path })));
+      const bytes = e.FS.readFile(path).buffer;
+      e.FS.unlink(path);
+      return { value: bytes, transfer: [bytes] };
+    },
     setObjectSettings: (e, o, v, values) => (json(e.setObjectSettings(o, v, JSON.stringify(values))), JSON.parse(e.modelInfoJson())),
     // A paint stroke; returns the project plus whatever shows the new paint.
     paint(e, plate, options) {

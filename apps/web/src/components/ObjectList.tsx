@@ -10,7 +10,7 @@ export function ObjectList() {
   const colours = useSlicer((s) => (s.palette.length ? s.palette : (s.selection?.colours ?? NO_COLOURS)));
   const physical = useSlicer((s) => s.selection?.filaments.length ?? 1);
   const slots = colours.length;
-  const { select, setObjectFilament, deleteObject, copyInstance } = useSlicer.getState();
+  const { select, setObjectFilament, deleteObject, copyInstance, openObjectMenu } = useSlicer.getState();
   if (!project?.objects.length) return null;
   const onPlate = project.plates[plate]?.objects ?? [];
 
@@ -58,6 +58,19 @@ export function ObjectList() {
                   {obj.instances.length > 1 && <span className="muted"> ×{obj.instances.length}</span>}
                 </button>
                 {filamentSelect(o, -1, obj.extruder || 1, `Filament for ${obj.name}`)}
+                <button
+                  className="ghost object-more"
+                  aria-label={`More for ${obj.name}`}
+                  title="More: clone, rename, mirror, export… (or right-click the object)"
+                  onClick={(e) => {
+                    const r = e.currentTarget.getBoundingClientRect();
+                    const i = Math.max(0, instance);
+                    select({ object: o, instance: i });
+                    openObjectMenu({ object: o, instance: i, x: r.left, y: r.bottom + 2 });
+                  }}
+                >
+                  ⋯
+                </button>
               </div>
               {active && parts.length > 1 && (
                 <ul className="volumes">
