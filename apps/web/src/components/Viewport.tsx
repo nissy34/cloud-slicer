@@ -1,10 +1,12 @@
-import { OrbitControls } from '@react-three/drei';
+import { OrbitControls, TransformControls } from '@react-three/drei';
 import { Canvas, useThree, type ThreeEvent } from '@react-three/fiber';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import * as THREE from 'three';
+import type { TransformControls as TransformControlsImpl } from 'three-stdlib';
 import { acceleratedRaycast, MeshBVH } from 'three-mesh-bvh';
 import type { PaintOverlay, PaintRay, PreviewMesh } from '../engine/protocol';
 import { bedSize, rgb } from '../lib/colour';
+import { hullPlanes, layOnFace, movedOffset, toDegrees, toQuat, DEG, type Placement } from '../lib/placement';
 import { setCapture } from '../lib/snapshot';
 import { useSceneColours } from '../lib/theme';
 import { NO_COLOURS, useOption, useSlicer } from '../state/store';
@@ -127,6 +129,230 @@ function bvhRaycast(this: THREE.Mesh, raycaster: THREE.Raycaster, hits: THREE.In
   acceleratedRaycast.call(this, raycaster, hits);
 }
 
+/**
+ * Desktop's move, rotate and scale gizmos on the selected instance (drei's
+ * TransformControls). The part is drawn inside a pivot at its centre: the
+ * gizmo moves the pivot, and on release the change goes to the engine.
+ * Rotation rings are in world axes, scale handles along the object's own.
+ */
+function Gizmo({
+  tool,
+  part,
+  place,
+  controlsRef,
+  material,
+  onRelease,
+}: {
+  tool: 'move' | 'rotate' | 'scale';
+  part: Part;
+  place: Placement;
+  controlsRef: React.MutableRefObject<TransformControlsImpl | null>;
+  material: React.ReactNode;
+  onRelease(): void;
+}) {
+  const [pivot, setPivot] = useState<THREE.Group | null>(null);
+  const snapSetting = useSlicer((s) => s.snap);
+  const shift = useShift();
+  const snap = snapSetting || shift;
+  const coarse = useMemo(() => typeof matchMedia !== 'undefined' && matchMedia('(pointer: coarse)').matches, []);
+  const { moveInstance, transformInstance } = useSlicer.getState();
+  const inverse = useMemo(() => place.rotation.clone().invert(), [place]);
+  const negCentre = useMemo(() => place.centre.clone().negate(), [place]);
+
+  // Back to the instance as the engine has it whenever it changes.
+  useLayoutEffect(() => {
+    if (!pivot) return;
+    pivot.position.copy(place.centre);
+    pivot.quaternion.copy(place.rotation);
+    pivot.scale.set(1, 1, 1);
+  }, [pivot, place, tool]);
+
+  const commit = () => {
+    onRelease();
+    if (!pivot) return;
+    const { object, instance, plate } = place;
+    if (tool === 'move') {
+      const d = pivot.position.clone().sub(place.centre);
+      if (d.lengthSq() > 1e-6) void moveInstance(object, instance, place.offset.x + d.x, place.offset.y + d.y);
+      return;
+    }
+    // What the gizmo did, about the part's centre.
+    pivot.updateMatrix();
+    const m = new THREE.Matrix4()
+      .multiplyMatrices(pivot.matrix, new THREE.Matrix4().makeRotationFromQuaternion(inverse))
+      .multiply(new THREE.Matrix4().makeTranslation(negCentre));
+    if (tool === 'rotate') {
+      if (pivot.quaternion.angleTo(place.rotation) < 1e-4) return;
+      void transformInstance(object, instance, { rotation: toDegrees(pivot.quaternion), offset: movedOffset(place, m), plate });
+    } else {
+      const s = pivot.scale;
+      if (Math.abs(s.x - 1) + Math.abs(s.y - 1) + Math.abs(s.z - 1) < 1e-4) return;
+      const scale = [place.scale.x * s.x, place.scale.y * s.y, place.scale.z * s.z].map((v) => Math.max(0.001, Math.round(v * 1e4) / 1e4));
+      void transformInstance(object, instance, { scale, offset: movedOffset(place, m), plate });
+    }
+  };
+
+  return (
+    <>
+      <group ref={setPivot}>
+        <group quaternion={inverse}>
+          <mesh geometry={part.geometry} position={negCentre} raycast={() => null} castShadow>
+            {material}
+          </mesh>
+        </group>
+      </group>
+      {pivot && (
+        <TransformControls
+          ref={controlsRef}
+          object={pivot}
+          mode={tool === 'move' ? 'translate' : tool}
+          space={tool === 'scale' ? 'local' : 'world'}
+          showZ={tool !== 'move'}
+          size={coarse ? 1.5 : 1.15}
+          translationSnap={snap ? 5 : null}
+          rotationSnap={snap ? 15 * DEG : null}
+          scaleSnap={snap ? 0.1 : null}
+          onMouseUp={commit}
+        />
+      )}
+    </>
+  );
+}
+
+const CUT_UPPER = '#22d3ee';
+const CUT_LOWER = '#e879f9';
+
+/**
+ * The Cut tool's plane, like desktop's: a see-through plane at the cut height
+ * with an arrow to drag it up and down, the part above it tinted cyan and the
+ * part below pink.
+ */
+function CutPlane({
+  part,
+  controlsRef,
+  onRelease,
+}: {
+  part: Part;
+  controlsRef: React.MutableRefObject<TransformControlsImpl | null>;
+  onRelease(): void;
+}) {
+  const z = useSlicer((s) => s.cutZ);
+  const setCutZ = useSlicer((s) => s.setCutZ);
+  const shift = useShift();
+  const snap = useSlicer((s) => s.snap) || shift;
+  const coarse = useMemo(() => typeof matchMedia !== 'undefined' && matchMedia('(pointer: coarse)').matches, []);
+  const [handle, setHandle] = useState<THREE.Group | null>(null);
+  const box = part.geometry.boundingBox!;
+  const size = box.getSize(new THREE.Vector3());
+  const centre = box.getCenter(new THREE.Vector3());
+  const span = Math.max(size.x, size.y) * 1.3 + 10;
+  // Three keeps what is on the positive side of a clipping plane.
+  const above = useMemo(() => new THREE.Plane(new THREE.Vector3(0, 0, 1), 0), []);
+  const below = useMemo(() => new THREE.Plane(new THREE.Vector3(0, 0, -1), 0), []);
+  above.constant = -z;
+  below.constant = z;
+
+  useLayoutEffect(() => {
+    handle?.position.set(centre.x, centre.y, z);
+  }, [handle, centre.x, centre.y, z]);
+
+  const tint = (colour: string, plane: THREE.Plane) => (
+    <mesh geometry={part.geometry} raycast={() => null} renderOrder={1}>
+      <meshBasicMaterial color={colour} transparent opacity={0.45} depthWrite={false} clippingPlanes={[plane]} polygonOffset polygonOffsetFactor={-1} polygonOffsetUnits={-1} />
+    </mesh>
+  );
+  return (
+    <>
+      {tint(CUT_UPPER, above)}
+      {tint(CUT_LOWER, below)}
+      <mesh position={[centre.x, centre.y, z]} raycast={() => null} renderOrder={2}>
+        <planeGeometry args={[span, span]} />
+        <meshBasicMaterial color="#ffffff" transparent opacity={0.22} side={THREE.DoubleSide} depthWrite={false} />
+      </mesh>
+      <group ref={setHandle} />
+      {handle && (
+        <TransformControls
+          ref={controlsRef}
+          object={handle}
+          mode="translate"
+          showX={false}
+          showY={false}
+          size={coarse ? 1.5 : 1.15}
+          translationSnap={snap ? 1 : null}
+          onObjectChange={() => {
+            const v = Math.min(Math.max(handle.position.z, 0.2), box.max.z - 0.2);
+            handle.position.set(centre.x, centre.y, v);
+            setCutZ(Math.round(v * 100) / 100);
+          }}
+          onMouseUp={onRelease}
+        />
+      )}
+    </>
+  );
+}
+
+/** Whether Shift is held, for the gizmos' snapping like desktop. */
+function useShift() {
+  const [shift, setShift] = useState(false);
+  useEffect(() => {
+    const on = (e: KeyboardEvent) => setShift(e.shiftKey);
+    const off = () => setShift(false);
+    window.addEventListener('keydown', on);
+    window.addEventListener('keyup', on);
+    window.addEventListener('blur', off);
+    return () => {
+      window.removeEventListener('keydown', on);
+      window.removeEventListener('keyup', on);
+      window.removeEventListener('blur', off);
+    };
+  }, []);
+  return shift;
+}
+
+/** Lay on face: hovering shows a candidate face, a click or tap lays the object on it. */
+function FlattenPlanes({ part, place }: { part: Part; place: Placement }) {
+  const planes = useMemo(() => hullPlanes(part.geometry), [part]);
+  useEffect(() => () => planes.forEach((p) => p.geometry.dispose()), [planes]);
+  const [hover, setHover] = useState<number | null>(null);
+  const transformInstance = useSlicer((s) => s.transformInstance);
+
+  const lay = (normal: THREE.Vector3) => void transformInstance(place.object, place.instance, layOnFace(place, normal));
+
+  return (
+    <group>
+      {planes.map((p, i) => (
+        <mesh
+          key={i}
+          geometry={p.geometry}
+          renderOrder={3}
+          onPointerMove={(e) => {
+            e.stopPropagation();
+            setHover(i);
+          }}
+          onPointerOut={() => setHover((h) => (h === i ? null : h))}
+          onPointerDown={(e) => {
+            e.stopPropagation();
+            // A tap has no hover before it: show the face it lands on.
+            setHover(i);
+          }}
+          onClick={(e) => {
+            e.stopPropagation();
+            if (e.delta <= 6) lay(p.normal);
+          }}
+        >
+          <meshBasicMaterial
+            color={hover === i ? '#4f8cff' : '#ffffff'}
+            transparent
+            opacity={hover === i ? 0.8 : 0.14}
+            side={THREE.DoubleSide}
+            depthWrite={false}
+          />
+        </mesh>
+      ))}
+    </group>
+  );
+}
+
 function Objects({ w, d }: { w: number; d: number }) {
   const preview = useSlicer((s) => s.preview);
   // Filament numbers past the physical ones are colour mixes.
@@ -134,6 +360,7 @@ function Objects({ w, d }: { w: number; d: number }) {
   const project = useSlicer((s) => s.project);
   const plate = useSlicer((s) => s.plate);
   const selected = useSlicer((s) => s.selected);
+  const tool = useSlicer((s) => s.tool);
   const { select, moveInstance, paintStroke } = useSlicer.getState();
   const parts = useParts(preview, colours);
   useEffect(() => () => parts.forEach((p) => p.geometry.dispose()), [parts]);
@@ -149,20 +376,47 @@ function Objects({ w, d }: { w: number; d: number }) {
   const plane = useMemo(() => new THREE.Plane(new THREE.Vector3(0, 0, 1), 0), []);
   // The camera must hold still while an object is dragged.
   const controls = useThree((s) => s.controls) as unknown as { enabled: boolean } | null;
+  const gizmo = useRef<TransformControlsImpl | null>(null);
+  const gizmoReleased = useRef(0);
+
+  // The selected instance, when it is the object's only one on this plate
+  // (the part geometry holds all of them); the gizmos work on it.
+  const place = useMemo((): Placement | null => {
+    if (!selected || !project) return null;
+    const obj = project.objects[selected.object];
+    const inst = obj?.instances[selected.instance];
+    const part = parts.find((p) => p.object === selected.object);
+    if (!inst || !part || obj.instances.filter((i) => i.plate === plate).length !== 1) return null;
+    return {
+      object: selected.object,
+      instance: selected.instance,
+      plate,
+      offset: new THREE.Vector3(...inst.offset),
+      rotation: toQuat(inst.rotation),
+      scale: new THREE.Vector3(...inst.scale),
+      centre: part.centre.clone(),
+    };
+  }, [selected, project, parts, plate]);
 
   // During a stroke the rays come straight from the camera, so dragging never
-  // waits on hit-testing the parts; the engine finds what each ray hits.
-  const strokeMove = (e: PointerEvent) => {
+  // waits on hit-testing the parts; the engine finds what each ray hits. The
+  // listener is one function for the whole life of the view, so the one added
+  // when a stroke starts is the one removed when it ends.
+  const strokeMove = useRef<(e: PointerEvent) => void>(() => {});
+  strokeMove.current = (e: PointerEvent) => {
+    // Paint only while the button (or finger) is down, whatever event was missed.
+    if (!(e.buttons & 1)) return endStroke();
     const r = canvas.getBoundingClientRect();
     const ndc = new THREE.Vector2(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1);
     const caster = new THREE.Raycaster();
     caster.setFromCamera(ndc, camera);
     void paintStroke([toRay(caster.ray)], false);
   };
+  const onStrokeMove = useMemo(() => (e: PointerEvent) => strokeMove.current(e), []);
   const endStroke = () => {
     if (!stroking.current) return;
     stroking.current = false;
-    canvas.removeEventListener('pointermove', strokeMove);
+    canvas.removeEventListener('pointermove', onStrokeMove);
     if (controls) controls.enabled = true;
   };
   useEffect(() => {
@@ -173,8 +427,12 @@ function Objects({ w, d }: { w: number; d: number }) {
       window.removeEventListener('pointercancel', endStroke);
     };
   });
+  useEffect(() => () => canvas.removeEventListener('pointermove', onStrokeMove), [canvas, onStrokeMove]);
   useEffect(() => {
-    if (!paint) setBrush(null);
+    if (!paint) {
+      setBrush(null);
+      endStroke();
+    }
   }, [paint]);
 
   // No hit tests while a stroke runs: its rays come from strokeMove.
@@ -186,10 +444,17 @@ function Objects({ w, d }: { w: number; d: number }) {
     [],
   );
 
+  // Hovering only shows the brush; painting needs the button held (onDown).
   const hover = (e: ThreeEvent<PointerEvent>) => {
     if (!brushTool || !e.face) return setBrush(null);
     const normal = e.face.normal.clone().transformDirection(e.object.matrixWorld);
     setBrush({ point: e.point.clone(), normal });
+  };
+
+  // TransformControls keeps these private; they say a handle is hovered or held.
+  const onGizmo = () => {
+    const g = gizmo.current as unknown as { dragging: boolean; axis: string | null } | null;
+    return !!g && (g.dragging || g.axis !== null);
   };
 
   const onDown = (e: ThreeEvent<PointerEvent>, object: number) => {
@@ -199,16 +464,18 @@ function Objects({ w, d }: { w: number; d: number }) {
       // Painting holds the camera still; a drag off the parts still orbits.
       if (brushTool) {
         stroking.current = true;
-        canvas.addEventListener('pointermove', strokeMove);
+        canvas.addEventListener('pointermove', onStrokeMove);
         if (controls) controls.enabled = false;
       }
       void paintStroke([toRay(e.ray)], true);
       return;
     }
+    // A press on a gizmo handle in front of the part is the gizmo's.
+    if (onGizmo()) return;
     const obj = project?.objects[object];
     const instances = obj?.instances.map((inst, i) => ({ inst, i })).filter(({ inst }) => inst.plate === plate) ?? [];
     const first = instances[0];
-    select(first ? { object, instance: first.i } : null);
+    if (selected?.object !== object) select(first ? { object, instance: first.i } : null);
     // Dragging moves an object with a single instance on this plate.
     if (instances.length !== 1) return;
     const hit = new THREE.Vector3();
@@ -235,9 +502,15 @@ function Objects({ w, d }: { w: number; d: number }) {
       void moveInstance(dr.object, dr.instance, dr.offset[0] + delta[0], dr.offset[1] + delta[1]);
     setDelta(null);
   };
+  const onMissed = () => {
+    // Clicks on a gizmo handle off the part don't deselect it.
+    if (paint || onGizmo() || performance.now() - gizmoReleased.current < 400) return;
+    select(null);
+  };
 
+  const gizmoTool = !paint && place && (tool === 'move' || tool === 'rotate' || tool === 'scale') ? tool : null;
   return (
-    <group onPointerMove={onMove} onPointerUp={onUp} onPointerOut={() => setBrush(null)} onPointerMissed={() => !paint && select(null)}>
+    <group onPointerMove={onMove} onPointerUp={onUp} onPointerOut={() => setBrush(null)} onPointerMissed={onMissed}>
       {/* invisible catcher so drags keep tracking off the object */}
       {delta && (
         <mesh position={[w / 2, d / 2, 0]} onPointerMove={onMove} onPointerUp={onUp}>
@@ -248,12 +521,36 @@ function Objects({ w, d }: { w: number; d: number }) {
       {parts.map((p) => {
         const active = !paint && selected?.object === p.object;
         const offset = active && delta ? delta : [0, 0];
+        const material = (
+          <meshStandardMaterial vertexColors roughness={0.55} metalness={0.05} emissive={active ? '#2f6fe4' : '#000000'} emissiveIntensity={active ? 0.35 : 0} />
+        );
+        if (gizmoTool && place && p.object === place.object)
+          return (
+            <group key={p.object}>
+              {/* the part as the gizmo turns it; the hit target stays where the engine has it */}
+              <mesh geometry={p.geometry} raycast={partRaycast} onPointerDown={(e) => onDown(e, p.object)} visible={false} />
+              <group position={[offset[0], offset[1], 0]}>
+                <Gizmo tool={gizmoTool} part={p} place={place} controlsRef={gizmo} material={material} onRelease={() => (gizmoReleased.current = performance.now())} />
+              </group>
+            </group>
+          );
         return (
           <mesh key={p.object} geometry={p.geometry} position={[offset[0], offset[1], 0]} raycast={partRaycast} onPointerDown={(e) => onDown(e, p.object)} castShadow>
-            <meshStandardMaterial vertexColors roughness={0.55} metalness={0.05} emissive={active ? '#2f6fe4' : '#000000'} emissiveIntensity={active ? 0.35 : 0} />
+            {material}
           </mesh>
         );
       })}
+      {!paint && tool === 'flatten' && place && (
+        <FlattenPlanes key={place.object} part={parts.find((p) => p.object === place.object)!} place={place} />
+      )}
+      {!paint && tool === 'cut' && place && (
+        <CutPlane
+          key={place.object}
+          part={parts.find((p) => p.object === place.object)!}
+          controlsRef={gizmo}
+          onRelease={() => (gizmoReleased.current = performance.now())}
+        />
+      )}
       {paint && overlay && paint.kind !== 'color' && <Overlay overlay={overlay} kind={paint.kind} />}
       {paint && brushTool && <BrushRing at={brush} radius={paint.radius} />}
     </group>
@@ -302,6 +599,9 @@ export function Viewport() {
         className="viewport"
         camera={{ position: [w / 2, -d * 0.75, d * 0.8], fov: 40, near: 1, far: 5000 }}
         gl={{ antialias: true }}
+        onCreated={({ gl }) => {
+          gl.localClippingEnabled = true; // the Cut tool's tinted halves
+        }}
         data-testid="viewport"
       >
         <color attach="background" args={[scene.background]} />

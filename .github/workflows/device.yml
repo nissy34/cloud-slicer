@@ -54,6 +54,21 @@ jobs:
           npx playwright install --with-deps chromium
           node test/device-smoke.mjs device-shots
 
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.4.2
+
+      - name: Bridge apps build, and the Linux one serves the mock U1 through a local relay
+        working-directory: apps/device-bridge
+        run: |
+          ./build-apps.sh
+          ./dist/linux-x64 version
+          cd ../device-relay
+          npx wrangler dev --port 8797 --ip 127.0.0.1 > wrangler.log 2>&1 &
+          for i in $(seq 1 60); do curl -fsS -o /dev/null http://127.0.0.1:8797/ && break; sleep 1; done
+          cd ../web
+          node test/device/relay-live.mjs http://127.0.0.1:8797 --app ../device-bridge/dist/linux-x64
+
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -63,7 +78,7 @@ jobs:
   deploy-relay:
     needs: test
     if: github.event_name != 'pull_request'
-    timeout-minutes: 10
+    timeout-minutes: 20
     runs-on: ubuntu-24.04
     env:
       CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
@@ -73,20 +88,44 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.4.2
       - name: Deploy the relay Worker
         if: env.CLOUDFLARE_API_TOKEN != '' && env.CLOUDFLARE_ACCOUNT_ID != ''
         working-directory: apps/device-relay
         run: |
           npm ci --no-audit --no-fund
+          # The bridge apps live in R2. Without R2 (not turned on, or the token
+          # lacks "Workers R2 Storage: Edit") the relay offers only bridge.mjs.
+          if npx wrangler r2 bucket list | grep -q 'cloud-slicer-bridge' || npx wrangler r2 bucket create cloud-slicer-bridge; then
+            echo "r2=ok" >> "$GITHUB_OUTPUT"
+          else
+            echo "::warning::R2 isn't usable; the relay deploys without the bridge apps"
+            sed -i '/^\[\[r2_buckets\]\]/,/^bucket_name/d' wrangler.toml
+          fi
           npx wrangler deploy | tee deploy.log
           url=$(grep -Eo 'https://[^ ]+\.workers\.dev' deploy.log | tail -1)
           echo "### Relay: $url" >> "$GITHUB_STEP_SUMMARY"
           curl -fsS "$url/" && curl -fsS "$url/bridge.mjs" | grep -q runBridge
           echo "url=$url" >> "$GITHUB_OUTPUT"
         id: deploy
+      - name: Build the bridge apps and upload them to R2
+        if: steps.deploy.outputs.r2 == 'ok'
+        working-directory: apps/device-bridge
+        run: |
+          ./build-apps.sh
+          for name in windows-x64 mac-arm64 mac-x64 linux-x64 linux-arm64; do
+            (cd ../device-relay && npx wrangler r2 object put "cloud-slicer-bridge/bridge/$name" --file "../device-bridge/dist/$name" --remote --content-type application/octet-stream)
+          done
+          curl -fsS '${{ steps.deploy.outputs.url }}/downloads.json' | tee /dev/stderr | grep -q '"linux-arm64"'
+          curl -fsS '${{ steps.deploy.outputs.url }}/install.sh' | grep -q 'download/linux-'
       - name: Check the deployed relay end to end (mock printer, no browser)
         if: steps.deploy.outputs.url != ''
         working-directory: apps/web
         run: |
           npm ci --no-audit --no-fund
           node test/device/relay-live.mjs '${{ steps.deploy.outputs.url }}'
+          if [ -x ../device-bridge/dist/linux-x64 ]; then
+            node test/device/relay-live.mjs '${{ steps.deploy.outputs.url }}' --app ../device-bridge/dist/linux-x64
+          fi

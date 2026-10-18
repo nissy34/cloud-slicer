@@ -8,6 +8,7 @@ import { BridgeLink } from '../link/bridge';
 import { DirectLink, directBlockedReason, normalizePrinterUrl } from '../link/direct';
 import type { BridgeStatus } from '../link/types';
 import { decodePairing, type Pairing } from '../pairing';
+import { BridgeSetup } from './BridgeSetup';
 import { Dialog } from './parts';
 
 const newId = () => Math.random().toString(36).slice(2, 10);
@@ -32,29 +33,44 @@ function PresetField({ value, onChange }: { value: string; onChange: (name: stri
   );
 }
 
-/** Asks a bridge which printers it serves. */
-function probeBridge(p: Pairing): Promise<BridgeStatus> {
-  const link = new BridgeLink({ relay: p.relay, bridgeId: p.bridgeId, key: p.key, printer: '' });
-  return new Promise((resolve, reject) => {
-    const timer = setTimeout(() => {
-      link.close();
-      reject(new Error('The bridge did not answer.'));
-    }, 10_000);
-    link
-      .open({
-        onMessage: () => {},
-        onClose: () => {},
-        onBridge: (status) => {
-          clearTimeout(timer);
-          link.close();
-          resolve(status);
-        },
-      })
-      .catch((e) => {
-        clearTimeout(timer);
-        reject(e);
-      });
-  });
+/**
+ * Watches a bridge's status (which printers it serves, whether it's online)
+ * until stopped, reconnecting every few seconds. The bridge app opens the
+ * pairing link as it starts, so the page often asks before the bridge has
+ * connected (the relay refuses browsers until then, or reports it offline).
+ */
+function watchBridge(p: Pairing, onStatus: (s: BridgeStatus) => void, onError: (e: Error) => void): () => void {
+  let stopped = false;
+  let link: BridgeLink | null = null;
+  let retry: ReturnType<typeof setTimeout> | undefined;
+  let lastError = 'The bridge did not answer.';
+  // A bridge that is just starting is refused or offline for a moment: only say so if it lasts.
+  const slow = setTimeout(() => !stopped && onError(new Error(lastError)), 10_000);
+  const again = (reason?: string) => {
+    if (reason) lastError = reason;
+    if (!stopped && retry === undefined) retry = setTimeout(connect, 3000);
+  };
+  function connect() {
+    retry = undefined;
+    if (stopped) return;
+    const l = new BridgeLink({ relay: p.relay, bridgeId: p.bridgeId, key: p.key, printer: '' });
+    link = l;
+    l.open({
+      onMessage: () => {},
+      onClose: again,
+      onBridge: (status) => {
+        if (status.agent === 'online') clearTimeout(slow);
+        onStatus(status);
+      },
+    }).catch((e) => again((e as Error).message));
+  }
+  connect();
+  return () => {
+    stopped = true;
+    clearTimeout(slow);
+    clearTimeout(retry);
+    link?.close();
+  };
 }
 
 /** Opens the printer's socket and asks Moonraker who it is. */
@@ -97,21 +113,24 @@ export function PrinterEditor() {
 
   useEffect(() => {
     if (!pairing) return;
-    let live = true;
     setChecking(true);
     setError('');
-    probeBridge(pairing)
-      .then((b) => {
-        if (!live) return;
+    return watchBridge(
+      pairing,
+      (b) => {
+        setChecking(false);
+        setError('');
         setBridge(b);
-        if (!printerId && b.printers[0]) setPrinterId(b.printers[0].id);
-        if (!name && b.printers[0]) setName(b.printers[0].name);
-      })
-      .catch((e) => live && setError((e as Error).message))
-      .finally(() => live && setChecking(false));
-    return () => {
-      live = false;
-    };
+        if (b.printers[0]) {
+          setPrinterId((id) => id || b.printers[0].id);
+          setName((n) => n || b.printers[0].name);
+        }
+      },
+      (e) => {
+        setChecking(false);
+        setError(e.message);
+      },
+    );
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pairing]);
 
@@ -145,8 +164,6 @@ export function PrinterEditor() {
   };
 
   const relayForCommand = pairing?.relay ?? DEFAULT_RELAY_URL;
-  // The site goes along so the bridge's pairing links come back to this same site.
-  const bridgeDownload = `${relayForCommand}/bridge.mjs?site=${encodeURIComponent(location.origin)}`;
   return (
     <Dialog
       title={existing ? `Edit ${existing.name}` : 'Add a printer'}
@@ -190,26 +207,10 @@ export function PrinterEditor() {
           {!pairing && (
             <>
               <p>
-                Browsers can't reach a printer on your home network from a website, so a small bridge runs on any computer that stays on near the printer (a PC, a Raspberry Pi or a NAS with
-                Node.js 22). It connects out to the relay, so nothing on your router needs opening.
+                Browsers can't reach a printer on your home network from a website, so a small bridge runs on any computer that stays on near the printer (a PC, a Mac or a Raspberry
+                Pi). It connects out to the relay, so nothing on your router needs opening.
               </p>
-              <ol className="dv-steps-list">
-                <li>
-                  <a href={bridgeDownload} download="cloud-slicer-bridge.mjs">
-                    Download the bridge
-                  </a>{' '}
-                  to that computer.
-                </li>
-                <li>
-                  Run it, and keep it running:
-                  <pre className="dv-code">node cloud-slicer-bridge.mjs</pre>
-                  It finds the printers on your network by itself.
-                </li>
-                <li>It opens a link to this page that adds your printer (or prints the link; you can also paste it below).</li>
-                <li>
-                  No printer found? Add it by its address: <code>node cloud-slicer-bridge.mjs add 192.168.1.50</code>, then run it again.
-                </li>
-              </ol>
+              <BridgeSetup relay={relayForCommand} />
               <label>
                 Pairing link or code
                 <input
@@ -249,7 +250,7 @@ export function PrinterEditor() {
                   </>
                 )}
               </p>
-              {bridge && bridge.printers.length === 0 && <p className="dv-alert">This bridge has no printers yet. Add one with: node cloud-slicer-bridge.mjs add &lt;address&gt;</p>}
+              {bridge && bridge.printers.length === 0 && <p className="dv-alert">This bridge has no printers yet. Add one on the bridge's computer with the bridge's add command and the printer's address; it shows up here by itself.</p>}
               {bridge && bridge.printers.length > 0 && (
                 <label>
                   Printer

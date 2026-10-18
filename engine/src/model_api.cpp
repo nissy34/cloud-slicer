@@ -14,6 +14,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <limits>
 
 using nlohmann::json;
 using namespace Slic3r;
@@ -83,16 +84,53 @@ json settingsJson(const DynamicPrintConfig& cfg) {
     return out;
 }
 
-// Centre a freshly read geometry object on plate `plate` and drop it on the bed.
+// Bounding boxes (XY) of every instance on `plate` except `skip`'s.
+std::vector<BoundingBoxf> plateBoxes(int plate, const ModelObject* skip) {
+    std::vector<BoundingBoxf> boxes;
+    for (const ModelObject* obj : g_project.model.objects) {
+        if (obj == skip) continue;
+        for (const ModelInstance* inst : obj->instances) {
+            if (g_project.plateOf(*inst) != plate) continue;
+            const BoundingBoxf3 bb = obj->instance_bounding_box(*inst, false);
+            boxes.emplace_back(Vec2d(bb.min.x(), bb.min.y()), Vec2d(bb.max.x(), bb.max.y()));
+        }
+    }
+    return boxes;
+}
+
+// Puts a freshly read geometry object on plate `plate` and drops it on the
+// bed: in the centre when the plate is empty, otherwise on the free spot
+// closest to the centre, SPACING mm clear of what is already there (desktop
+// arranges added objects around the ones on the plate the same way). When
+// nothing fits it goes in the centre, for the user to sort out.
 void placeOnPlate(ModelObject* obj, int plate) {
+    constexpr double SPACING = 6, STEP = 2;
     if (obj->instances.empty()) obj->add_instance();
     const Vec2d origin = g_project.plateOrigin(plate);
     const Vec2d centre = origin + Vec2d(g_project.plateWidth / 2, g_project.plateDepth / 2);
+    std::vector<BoundingBoxf> taken = plateBoxes(plate, obj);
     for (ModelInstance* inst : obj->instances) {
         const BoundingBoxf3 bb = obj->instance_bounding_box(*inst, false);
+        const Vec2d half(bb.size().x() / 2, bb.size().y() / 2);
+        Vec2d best = centre;
+        if (!taken.empty()) {
+            double bestDist = std::numeric_limits<double>::max();
+            for (double y = origin.y() + half.y(); y <= origin.y() + g_project.plateDepth - half.y() + 1e-6; y += STEP)
+                for (double x = origin.x() + half.x(); x <= origin.x() + g_project.plateWidth - half.x() + 1e-6; x += STEP) {
+                    const double dist = (Vec2d(x, y) - centre).squaredNorm();
+                    if (dist >= bestDist) continue;
+                    const BoundingBoxf me(Vec2d(x, y) - half - Vec2d(SPACING, SPACING), Vec2d(x, y) + half + Vec2d(SPACING, SPACING));
+                    if (std::none_of(taken.begin(), taken.end(), [&](const BoundingBoxf& t) { return t.overlap(me); })) {
+                        best = Vec2d(x, y);
+                        bestDist = dist;
+                    }
+                }
+        }
         const Vec3d off = inst->get_offset();
-        inst->set_offset(Vec3d(off.x() + centre.x() - bb.center().x(), off.y() + centre.y() - bb.center().y(), off.z()));
+        inst->set_offset(Vec3d(off.x() + best.x() - bb.center().x(), off.y() + best.y() - bb.center().y(), off.z()));
+        taken.emplace_back(best - half, best + half);
     }
+    obj->invalidate_bounding_box();
     obj->ensure_on_bed();
 }
 
@@ -140,10 +178,14 @@ namespace {
 //   bedWidth/bedDepth: the selected printer's bed, used for the plate grid of
 //   geometry projects (a 3MF brings its own).
 // Returns {ok, error, objectsAdded, isProject}.
-std::string loadModel(const std::string& path, int plate, double bedWidth, double bedDepth) {
+// Opens a 3MF as the project (its plates, settings and filaments replace
+// the open project), or adds a model file's objects to the project on
+// `plate`. geometryOnly adds a 3MF's objects like a model file, which is
+// desktop's "Import geometry only".
+std::string loadModel(const std::string& path, int plate, double bedWidth, double bedDepth, bool geometryOnly) {
     try {
         const bool is3mf = boost::iends_with(path, ".3mf");
-        if (is3mf) {
+        if (is3mf && !geometryOnly) {
             g_project.clear();
             DynamicPrintConfig config;
             ConfigSubstitutionContext subs(ForwardCompatibilitySubstitutionRule::Enable);
@@ -170,7 +212,17 @@ std::string loadModel(const std::string& path, int plate, double bedWidth, doubl
             g_project.plateWidth = bedWidth;
             g_project.plateDepth = bedDepth;
         }
-        Model loaded = Model::read_from_file(path, nullptr, nullptr, LoadStrategy::AddDefaultInstances | LoadStrategy::LoadModel);
+        Model loaded;
+        if (is3mf) {
+            DynamicPrintConfig config;
+            ConfigSubstitutionContext subs(ForwardCompatibilitySubstitutionRule::Enable);
+            En3mfType type = En3mfType::From_BBS;
+            PlateDataPtrs plates;
+            loaded = Model::read_from_archive(path, &config, &subs, type, LoadStrategy::AddDefaultInstances | LoadStrategy::LoadModel, &plates);
+            release_PlateData_list(plates);
+        } else {
+            loaded = Model::read_from_file(path, nullptr, nullptr, LoadStrategy::AddDefaultInstances | LoadStrategy::LoadModel);
+        }
         const size_t added = loaded.objects.size();
         for (ModelObject* o : loaded.objects) {
             ModelObject* copy = g_project.model.add_object(*o);

@@ -96,7 +96,7 @@ export function ProjectMenu() {
         onChange={(e) => {
           const files = [...(e.target.files ?? [])];
           e.target.value = '';
-          if (files.length && (!files.some((f) => /\.3mf$/i.test(f.name)) || discardOk())) void useProjects.getState().openFiles(files);
+          if (files.length && (!files.some((f) => /\.3mf$/i.test(f.name)) || discardOk())) void useProjects.getState().openFiles(files, 'project');
         }}
       />
       {open && (

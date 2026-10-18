@@ -5,7 +5,6 @@ import { useSetupWizard } from './SetupWizard';
 import { CalibrationBanner } from './CalibrationDialog';
 import { useOption, useSlicer } from '../state/store';
 import { ObjectList } from './ObjectList';
-import { PaintPanel } from './PaintPanel';
 import { ColorMixPanel } from './ColorMixing';
 import { OptionField } from './OptionField';
 import { SettingsPanel } from './SettingsPanel';
@@ -158,8 +157,9 @@ function PresetOptions({ presets }: { presets: PresetSummary[] }) {
 export function Sidebar() {
   return (
     <aside className="panel">
+      {/* On a phone the open tool's options show here, right under the 3D view. */}
+      <div id="tool-slot" className="tool-slot" />
       <CalibrationBanner />
-      <PaintPanel />
       <PrinterSection />
       <FilamentSection />
       <ObjectList />

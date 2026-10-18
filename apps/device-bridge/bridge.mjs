@@ -10,6 +10,10 @@
 //   node cloud-slicer-bridge.mjs                     # finds your printers, pairs, keeps running
 //   node cloud-slicer-bridge.mjs add 192.168.1.50 [--name "My U1"] [--api-key KEY]
 //   node cloud-slicer-bridge.mjs list | remove <name> | pair
+//   node cloud-slicer-bridge.mjs install | uninstall # start (or stop starting) with this computer
+//
+// The same file is also built into a one-file app per system (bun build
+// --compile), which you open with a double click and which needs no Node.js.
 //
 // Options: --config <file> (default ~/.cloud-slicer-bridge.json),
 //          --relay <url>, --site <url> (where pairing links point).
@@ -18,12 +22,19 @@
 import { createHmac, randomBytes } from 'node:crypto';
 // fs as a namespace: a named import of openAsBlob would fail before main() can say Node is too old.
 import * as fs from 'node:fs';
-import { mkdtemp, readFile, rm, writeFile, appendFile } from 'node:fs/promises';
-import { spawn } from 'node:child_process';
-import { homedir, networkInterfaces, tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { mkdtemp, readFile, rm, writeFile, appendFile, mkdir, copyFile, chmod, rename } from 'node:fs/promises';
+import { spawn, spawnSync } from 'node:child_process';
+import { homedir, networkInterfaces, tmpdir, userInfo } from 'node:os';
+import { basename, dirname, join } from 'node:path';
+import { createInterface } from 'node:readline';
+import { pathToFileURL } from 'node:url';
 
 export const VERSION = '2';
+/** True in the one-file app (bun build --compile), false under node or bun. */
+const APP = Boolean(process.versions.bun) && !/^bun(\.exe)?$/i.test(basename(process.execPath));
+/** How to run this bridge again, for messages: the app's own path, or node and this script. */
+let installedAt = null;
+const self = () => (installedAt ? `"${installedAt}"` : APP ? `"${process.execPath}"` : `node ${basename(process.argv[1] ?? 'cloud-slicer-bridge.mjs')}`);
 // The relay that served this file replaces this default when you download it.
 const DEFAULT_RELAY = '__RELAY_URL__'.startsWith('__') ? 'https://cloud-slicer-relay.nissy34.workers.dev' : '__RELAY_URL__';
 // Pairing links open the site the bridge was downloaded from (the relay fills it in).
@@ -153,6 +164,199 @@ function printPairing(cfg, site, { open = false } = {}) {
   if (open) openInBrowser(link);
   console.log(`or paste this code:\n  ${code}\n`);
   console.log('Anyone with this code can control your printers; keep it private.\n');
+}
+
+// ---- start with this computer -------------------------------------------------------
+
+const SERVICE = 'cloud-slicer-bridge';
+const LABEL = 'io.qzz.awesomestuff.cloud-slicer-bridge';
+
+/**
+ * What starting with the computer takes on each system, without doing it:
+ * where this program is copied to, the files to write and the commands to
+ * run. Windows: a Run entry for the user (no admin; the bridge opens
+ * minimised at sign-in). macOS: a launch agent. Linux: a systemd user service,
+ * plus lingering so it starts at boot without a sign-in (a headless Pi).
+ */
+export function autostartPlan({ platform = process.platform, home = homedir(), env = process.env, app = APP, exe = process.execPath, script = process.argv[1], user = safeUser() } = {}) {
+  const win = platform === 'win32';
+  const dir =
+    win ? join(env.LOCALAPPDATA ?? join(home, 'AppData', 'Local'), 'Cloud Slicer Bridge')
+    : platform === 'darwin' ? join(home, 'Library', 'Application Support', 'Cloud Slicer Bridge')
+    : join(home, '.local', 'share', SERVICE);
+  // The app copies itself; under node the script is copied and node runs it.
+  const copy = app ? { from: exe, to: join(dir, win ? `${SERVICE}.exe` : SERVICE) } : { from: script, to: join(dir, `${SERVICE}.mjs`) };
+  const argv = [...(app ? [copy.to] : [exe, copy.to]), 'run', '--no-browser'];
+  const quoted = argv.map((a) => `"${a}"`).join(' ');
+  if (win) {
+    const value = `cmd /c start "Cloud Slicer Bridge" /min ${quoted}`;
+    return {
+      dir,
+      copy,
+      files: [],
+      enable: [['reg', ['add', 'HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Run', '/v', 'CloudSlicerBridge', '/t', 'REG_SZ', '/d', value, '/f']]],
+      start: ['cmd', ['/c', `start "Cloud Slicer Bridge" /min ${quoted}`]],
+      restart: null,
+      disable: [['reg', ['delete', 'HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Run', '/v', 'CloudSlicerBridge', '/f']]],
+      marker: null,
+    };
+  }
+  if (platform === 'darwin') {
+    const plist = join(home, 'Library', 'LaunchAgents', `${LABEL}.plist`);
+    const log = join(home, 'Library', 'Logs', `${SERVICE}.log`);
+    const xml = (v) => v.replace(/&/g, '&amp;').replace(/</g, '&lt;');
+    const content = `<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>Label</key><string>${LABEL}</string>
+  <key>ProgramArguments</key>
+  <array>${argv.map((a) => `<string>${xml(a)}</string>`).join('')}</array>
+  <key>RunAtLoad</key><true/>
+  <key>KeepAlive</key><true/>
+  <key>StandardOutPath</key><string>${xml(log)}</string>
+  <key>StandardErrorPath</key><string>${xml(log)}</string>
+</dict>
+</plist>
+`;
+    const uid = typeof process.getuid === 'function' ? process.getuid() : 501;
+    return {
+      dir,
+      copy,
+      files: [{ path: plist, content }],
+      enable: [['launchctl', ['bootout', `gui/${uid}/${LABEL}`], { optional: true }], ['launchctl', ['bootstrap', `gui/${uid}`, plist]]],
+      start: null,
+      restart: [['launchctl', ['kickstart', '-k', `gui/${uid}/${LABEL}`]]],
+      disable: [['launchctl', ['bootout', `gui/${uid}/${LABEL}`], { optional: true }]],
+      marker: plist,
+    };
+  }
+  const unit = join(home, '.config', 'systemd', 'user', `${SERVICE}.service`);
+  const content = `[Unit]
+Description=Cloud Slicer bridge (lets the Device tab reach printers on this network)
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+ExecStart=${argv.map((a) => (/\s/.test(a) ? `"${a}"` : a)).join(' ')}
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=default.target
+`;
+  return {
+    dir,
+    copy,
+    files: [{ path: unit, content }],
+    enable: [
+      ['systemctl', ['--user', 'daemon-reload']],
+      ['systemctl', ['--user', 'enable', SERVICE]],
+      ['systemctl', ['--user', 'restart', SERVICE]],
+      // Without lingering a user service only runs while that user is signed in.
+      ['loginctl', ['enable-linger', user], { optional: true }],
+    ],
+    start: null,
+    restart: [['systemctl', ['--user', 'restart', SERVICE]]],
+    disable: [['systemctl', ['--user', 'disable', '--now', SERVICE], { optional: true }]],
+    marker: unit,
+  };
+}
+
+function safeUser() {
+  try {
+    return userInfo().username;
+  } catch {
+    return process.env.USER ?? '';
+  }
+}
+
+function runStep([cmd, args, { optional = false } = {}]) {
+  const r = spawnSync(cmd, args, { stdio: 'pipe', encoding: 'utf8' });
+  if ((r.error || r.status !== 0) && !optional) {
+    throw new Error(`${cmd} ${args.join(' ')} failed: ${(r.stderr || r.error?.message || `exit ${r.status}`).trim()}`);
+  }
+  return r.status === 0;
+}
+
+/** Whether this computer already starts the bridge by itself. */
+export function autostartInstalled(plan = autostartPlan()) {
+  if (plan.marker) return fs.existsSync(plan.marker);
+  const r = spawnSync('reg', ['query', 'HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Run', '/v', 'CloudSlicerBridge'], { stdio: 'ignore' });
+  return r.status === 0;
+}
+
+/** Copies this program somewhere stable, registers it to start with the computer, and starts it now. */
+async function installAutostart() {
+  const plan = autostartPlan();
+  await mkdir(plan.dir, { recursive: true });
+  if (plan.copy.from !== plan.copy.to) {
+    // An older copy may be running (Windows locks running programs): stop it first.
+    for (const step of plan.disable) runStep([step[0], step[1], { optional: true }]);
+    if (process.platform === 'win32') {
+      spawnSync('taskkill', ['/F', '/IM', basename(plan.copy.to), '/FI', `PID ne ${process.pid}`], { stdio: 'ignore' });
+    }
+    // Copy then rename: replacing a program that is running fails on Linux, renaming over it doesn't.
+    await copyFile(plan.copy.from, `${plan.copy.to}.new`);
+    if (process.platform !== 'win32') await chmod(`${plan.copy.to}.new`, 0o755);
+    await rm(plan.copy.to, { force: true }).catch(() => {});
+    await rename(`${plan.copy.to}.new`, plan.copy.to);
+  }
+  for (const f of plan.files) {
+    await mkdir(dirname(f.path), { recursive: true });
+    await writeFile(f.path, f.content);
+  }
+  try {
+    for (const step of plan.enable) runStep(step);
+  } catch (e) {
+    if (process.platform !== 'linux') throw e;
+    throw new Error(`${e.message}\nThis computer can't start the bridge by itself (no systemd user services). Run it yourself instead: "${plan.copy.to}" run`);
+  }
+  if (plan.start) {
+    const child = spawn(plan.start[0], plan.start[1], { stdio: 'ignore', detached: true, windowsVerbatimArguments: true });
+    child.unref();
+  }
+  return plan;
+}
+
+/** Restarts the background bridge, if there is one, so it picks up changed printers. Returns whether it did. */
+function restartAutostart() {
+  const plan = autostartPlan();
+  if (!autostartInstalled(plan)) return false;
+  try {
+    if (plan.restart) for (const step of plan.restart) runStep(step);
+    else {
+      spawnSync('taskkill', ['/F', '/IM', basename(plan.copy.to), '/FI', `PID ne ${process.pid}`], { stdio: 'ignore' });
+      spawn(plan.start[0], plan.start[1], { stdio: 'ignore', detached: true, windowsVerbatimArguments: true }).unref();
+    }
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+async function uninstallAutostart() {
+  const plan = autostartPlan();
+  for (const step of plan.disable) runStep([step[0], step[1], { optional: true }]);
+  for (const f of plan.files) await rm(f.path, { force: true });
+  if (process.platform === 'linux') runStep(['systemctl', ['--user', 'daemon-reload'], { optional: true }]);
+  return plan;
+}
+
+/** Asks a yes/no question in the terminal; Enter means yes. */
+function ask(question) {
+  const rl = createInterface({ input: process.stdin, output: process.stdout });
+  return new Promise((resolve) =>
+    rl.question(question, (a) => {
+      rl.close();
+      resolve(!/^\s*n/i.test(a));
+    }),
+  );
+}
+
+/** Keeps a double-clicked app's window open until Enter, so its message can be read. */
+async function holdWindow() {
+  if (APP && process.stdin.isTTY) await ask('\nPress Enter to close this window.');
 }
 
 // ---- one browser's session with one printer ------------------------------------------
@@ -421,8 +625,8 @@ export function runBridge(cfg, { log = console.log } = {}) {
 
 // ---- command line ------------------------------------------------------------------
 
-async function main() {
-  if (Number(process.versions.node.split('.')[0]) < 22) {
+export async function main() {
+  if (!process.versions.bun && Number(process.versions.node.split('.')[0]) < 22) {
     throw new Error(`The bridge needs Node.js 22 or newer; this is ${process.version}. Install it from https://nodejs.org (or with nvm: nvm install 22).`);
   }
   const { opts, rest } = parseArgs(process.argv.slice(2));
@@ -430,6 +634,21 @@ async function main() {
   const cfg = await loadConfig(path, opts.relay);
   if (opts.site) cfg.site = String(opts.site);
   const [cmd = 'run', ...args] = rest;
+  // Opened with a double click (or plain "run" in a terminal): offer to start with the computer.
+  const interactive = !rest.length && !opts['no-browser'] && process.stdin.isTTY;
+
+  /** Finds printers on this network when none are saved yet. */
+  const findPrinters = async () => {
+    if (cfg.printers.length) return;
+    const found = await discover({ log: console.log });
+    for (const f of found.filter((x) => x.needsKey)) console.log(`${f.url} needs an API key: ${self()} add ${new URL(f.url).hostname} --api-key KEY`);
+    for (const f of found.filter((x) => !x.needsKey)) {
+      cfg.printers.push({ id: randomBytes(4).toString('hex'), name: f.name, url: f.url, apiKey: '' });
+      console.log(`Found ${f.name} (${f.url}).`);
+    }
+    if (cfg.printers.length) await saveConfig(path, cfg);
+    else console.log(`No printer found on your network. Add it by its address: ${self()} add <printer address>`);
+  };
 
   if (cmd === 'add') {
     if (!args[0]) throw new Error('Usage: add <address> [--name NAME] [--api-key KEY]');
@@ -450,39 +669,70 @@ async function main() {
     if (existing) Object.assign(existing, { name, apiKey });
     else cfg.printers.push({ id: randomBytes(4).toString('hex'), name, url: found.url, apiKey });
     await saveConfig(path, cfg);
-    console.log(`Added ${name} (${found.url}). Restart the bridge if it is running.`);
+    console.log(`Added ${name} (${found.url}).${restartAutostart() ? ' The bridge restarted to use it.' : ' Restart the bridge if it is running.'}`);
     printPairing(cfg, opts.site);
   } else if (cmd === 'remove') {
     const before = cfg.printers.length;
     cfg.printers = cfg.printers.filter((p) => p.name !== args[0] && p.id !== args[0]);
     await saveConfig(path, cfg);
-    console.log(before === cfg.printers.length ? `No printer called ${args[0]}.` : `Removed ${args[0]}.`);
+    if (before === cfg.printers.length) console.log(`No printer called ${args[0]}.`);
+    else console.log(`Removed ${args[0]}.${restartAutostart() ? ' The bridge restarted without it.' : ''}`);
   } else if (cmd === 'list') {
     for (const p of cfg.printers) console.log(`${p.id}  ${p.name}  ${p.url}${p.apiKey ? '  (API key)' : ''}`);
-    if (!cfg.printers.length) console.log('No printers yet. Add one: add <address>');
+    if (!cfg.printers.length) console.log(`No printers yet. Add one: ${self()} add <address>`);
   } else if (cmd === 'pair') {
     printPairing(cfg, opts.site);
-  } else if (cmd === 'run') {
-    if (!cfg.printers.length) {
-      const found = await discover({ log: console.log });
-      for (const f of found.filter((x) => x.needsKey)) console.log(`${f.url} needs an API key: node ${process.argv[1]} add ${new URL(f.url).hostname} --api-key KEY`);
-      for (const f of found.filter((x) => !x.needsKey)) {
-        cfg.printers.push({ id: randomBytes(4).toString('hex'), name: f.name, url: f.url, apiKey: '' });
-        console.log(`Found ${f.name} (${f.url}).`);
-      }
-      if (cfg.printers.length) await saveConfig(path, cfg);
-      else console.log('No printer found on your network. Add it by its address: node cloud-slicer-bridge.mjs add <printer address>');
-    }
+  } else if (cmd === 'install') {
+    if (APP) installedAt = autostartPlan().copy.to;
+    await findPrinters();
+    const plan = await installAutostart();
+    console.log(`The bridge now starts by itself with this computer (from ${plan.copy.to}), and is running.`);
+    console.log(`To stop that: "${plan.copy.to}" uninstall`);
     printPairing(cfg, opts.site, { open: !opts['no-browser'] && cfg.printers.length > 0 });
-    runBridge(cfg);
+  } else if (cmd === 'uninstall') {
+    await uninstallAutostart();
+    console.log('The bridge no longer starts with this computer.');
+  } else if (cmd === 'version') {
+    console.log(VERSION);
+  } else if (cmd === 'run') {
+    if (interactive && autostartInstalled()) {
+      // A second bridge would only take over from the background one. A newly
+      // downloaded app replaces it instead (that's how the app updates).
+      const plan = autostartPlan();
+      if (APP && process.execPath !== plan.copy.to) {
+        await installAutostart();
+        console.log('Updated the bridge that runs in the background to this version.');
+      } else console.log('The bridge already runs in the background and starts with this computer.');
+      console.log(`To stop it starting with the computer: "${plan.copy.to}" uninstall`);
+      printPairing(cfg, opts.site, { open: cfg.printers.length > 0 });
+      await holdWindow();
+      return;
+    }
+    await findPrinters();
+    printPairing(cfg, opts.site, { open: !opts['no-browser'] && cfg.printers.length > 0 });
+    const bridge = runBridge(cfg);
+    if (interactive && cfg.printers.length) {
+      if (await ask('Start the bridge by itself whenever this computer starts? [Y/n] ')) {
+        bridge.stop();
+        const plan = await installAutostart();
+        console.log(`Done. The bridge now runs in the background (from ${plan.copy.to}); you can close this window.`);
+        console.log(`To stop it starting with the computer: "${plan.copy.to}" uninstall`);
+        await holdWindow();
+        process.exit(0);
+      }
+      console.log('OK. Keep this window open while you use the Device tab.');
+    }
   } else {
-    throw new Error(`Unknown command ${cmd}. Commands: add, remove, list, pair, run`);
+    throw new Error(`Unknown command ${cmd}. Commands: add, remove, list, pair, run, install, uninstall`);
   }
 }
 
-if (process.argv[1] && import.meta.url === new URL(`file://${process.argv[1]}`).href) {
-  main().catch((e) => {
+// Run main() when started directly (not when imported by the tests). pathToFileURL
+// handles Windows paths; the one-file app is always started directly.
+if (APP || (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href)) {
+  main().catch(async (e) => {
     console.error(e.message);
+    await holdWindow();
     process.exit(1);
   });
 }

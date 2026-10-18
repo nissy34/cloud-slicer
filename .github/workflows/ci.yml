@@ -15,7 +15,7 @@ name: CI
 #   unit ─────────────────────────────────────────────┐
 #   engine ─┬─ engine-tests ──────────────────────────┤
 #           └─ site ── browser (smoke, startup,       ├─ deploy
-#                       presets, accounts) ───────────┘
+#                       presets, accounts, toolbar) ──┘
 # The engine job reuses the last build when nothing it is built from changed
 # (see the engine key below), so most runs skip Emscripten entirely.
 
@@ -257,7 +257,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        suite: [smoke, startup, presets, accounts, mixing]
+        suite: [smoke, startup, presets, accounts, toolbar, mixing]
     name: browser (${{ matrix.suite }})
     defaults:
       run:
@@ -299,6 +299,16 @@ jobs:
       - name: Accounts end to end (Pages Functions + local D1, mock OAuth)
         if: matrix.suite == 'accounts'
         run: node test/accounts.mjs
+
+      - name: Object toolbar end to end (Chromium)
+        if: matrix.suite == 'toolbar'
+        run: node test/toolbar.mjs toolbar-shots
+
+      - uses: actions/upload-artifact@v4
+        if: always() && matrix.suite == 'toolbar'
+        with:
+          name: toolbar-screenshots
+          path: apps/web/toolbar-shots
 
       - uses: actions/upload-artifact@v4
         if: always() && matrix.suite == 'smoke'
