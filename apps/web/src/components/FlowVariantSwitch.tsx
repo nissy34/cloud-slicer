@@ -7,7 +7,8 @@ import { useSlicer } from '../state/store';
  * there when the process has values for more than one variant.
  */
 export function FlowVariantSwitch() {
-  const modes = useSlicer((s) => processFlowModes(s.baseConfig));
+  const support = useSlicer((s) => s.baseConfig.process_flow_support);
+  const modes = processFlowModes({ process_flow_support: support });
   const flowVariant = useSlicer((s) => s.flowVariant);
   const setFlowVariant = useSlicer((s) => s.setFlowVariant);
   if (modes.length < 2) return null;
