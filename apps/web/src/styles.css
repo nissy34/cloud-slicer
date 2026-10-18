@@ -546,6 +546,32 @@ select:focus-visible {
   border-color: var(--accent);
   color: var(--accent-text);
 }
+/* Desktop's [Standard flow] [High flow] switch: one segmented control. */
+.flow-switch {
+  display: flex;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  overflow: hidden;
+  justify-self: start;
+  max-width: 100%;
+}
+.flow-switch button {
+  flex: 1 1 0;
+  border: 0;
+  background: none;
+  padding: 4px 12px;
+  color: var(--muted);
+  cursor: pointer;
+  font-size: 12px;
+  white-space: nowrap;
+}
+.flow-switch button + button {
+  border-left: 1px solid var(--border);
+}
+.flow-switch button.active {
+  background: var(--accent);
+  color: var(--accent-text);
+}
 .optgroup {
   border: 0;
   margin: 0;

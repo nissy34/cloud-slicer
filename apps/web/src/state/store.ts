@@ -47,6 +47,11 @@ interface SlicerState {
   overrides: OrcaConfig;
   options: Record<string, OptionDef>;
   layout: SettingsLayout | null;
+  /**
+   * Flow variant (index into process_flow_support) the settings show and edit
+   * for flow-variant options, like desktop's [Standard flow] [High flow] switch.
+   */
+  flowVariant: number;
 
   project: ProjectInfo | null;
   plate: number;
@@ -83,6 +88,7 @@ interface SlicerState {
   addFilament(): Promise<void>;
   removeFilament(slot: number): Promise<void>;
   setOverride(key: string, value: string | null): void;
+  setFlowVariant(index: number): void;
   resetOverrides(keys?: string[]): void;
   openFiles(files: File[]): Promise<void>;
   clearProject(): Promise<void>;
@@ -282,7 +288,8 @@ export const useSlicer = create<SlicerState>((set, get) => {
     const names = colours.map((_, i) =>
       filaments.some((f) => f.name === presets[i]) ? presets[i] : pickFilament(filaments, types[i], selection?.filaments[0]),
     );
-    const process = get().processes.some((p) => p.name === info.file.process) ? info.file.process : (selection?.process ?? '');
+    // The engine also finds a process by its old name, and keeps the current one when it can't.
+    const process = info.file.process || (selection?.process ?? '');
     await applySelection({ printer: info.file.printer, process, filaments: names.length ? names : selection?.filaments, colours: colours.length ? colours : selection?.colours });
     const overrides = projectOverrides(file, get().baseConfig, get().options);
     setOverrides(overrides);
@@ -348,6 +355,7 @@ export const useSlicer = create<SlicerState>((set, get) => {
     overrides: {},
     options: {},
     layout: null,
+    flowVariant: 0,
     project: null,
     plate: 0,
     preview: null,
@@ -406,6 +414,7 @@ export const useSlicer = create<SlicerState>((set, get) => {
       else overrides[key] = value;
       setOverrides(overrides);
     },
+    setFlowVariant: (flowVariant) => set({ flowVariant }),
     resetOverrides(keys) {
       setOverrides(keys ? Object.fromEntries(Object.entries(get().overrides).filter(([k]) => !keys.includes(k))) : {});
     },

@@ -200,7 +200,11 @@ std::string presetsSelect(const std::string& selectionJsonText) {
 
         // Like desktop: a newly chosen printer brings its default process and
         // filament unless the caller names them.
+        // A named process may be an old name (a project from Snapmaker Orca 2.2
+        // names "0.12 Fine @Snapmaker U1 (0.4 nozzle)", now "0.12mm Standard ...");
+        // one that isn't there or doesn't fit the printer keeps the current one.
         std::string process = sel.value("process", std::string());
+        if (!process.empty()) process = compatibleName(b, b.prints, Preset::TYPE_PRINT, process);
         if (process.empty() && printerChanged)
             process = compatibleName(b, b.prints, Preset::TYPE_PRINT, printerCfg.opt_string("default_print_profile"));
         if (!process.empty()) b.prints.select_preset_by_name(process, true);
@@ -294,7 +298,10 @@ const char* optionTypeName(ConfigOptionType t) {
 
 // Metadata of every option the engine knows, for building settings UIs:
 // {key: {type, label, fullLabel, category, tooltip, sidetext, mode, min, max,
-//        enumValues, enumLabels, default, nullable, multiline, readonly}}.
+//        enumValues, enumLabels, default, nullable, multiline, readonly, flow}}.
+// flow is "process" or "filament" for Snapmaker's flow-variant options: one
+// value per flow variant (standard / high flow) in the order of the
+// *_flow_support list, which desktop edits one variant at a time.
 std::string configOptionsJson() {
     json out = json::object();
     for (const auto& [key, def] : print_config_def.options) {
@@ -327,6 +334,8 @@ std::string configOptionsJson() {
         if (def.nullable) o["nullable"] = true;
         if (def.multiline) o["multiline"] = true;
         if (def.readonly) o["readonly"] = true;
+        if (is_process_flow_variant_option(key)) o["flow"] = "process";
+        else if (is_filament_flow_variant_option(key)) o["flow"] = "filament";
         out[key] = std::move(o);
     }
     return out.dump();
