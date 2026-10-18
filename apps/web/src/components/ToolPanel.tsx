@@ -194,6 +194,12 @@ export function ToolPanel() {
   const height = useSlicer((s) => (s.selected ? s.project?.objects[s.selected.object]?.size[2] : undefined));
   const snap = useSlicer((s) => s.snap);
   const rotation = useSlicer((s) => (s.selected ? s.project?.objects[s.selected.object]?.instances[s.selected.instance]?.rotation : undefined));
+  // A part, modifier... picked in an object of several: the gizmos move it inside the object.
+  const volume = useSlicer((s) => {
+    const obj = s.selected?.volume !== undefined ? s.project?.objects[s.selected.object] : undefined;
+    const v = obj?.volumes[s.selected!.volume!];
+    return v && (v.kind !== 'part' || obj!.volumes.filter((x) => x.kind === 'part').length > 1) ? v.name : null;
+  });
   const { setTool, setSnap } = useSlicer.getState();
   if (tool === 'measure') return <MeasurePanel />;
   if (!tool || !selected) return null;
@@ -207,7 +213,11 @@ export function ToolPanel() {
         <CutPanel key={`${selected.object}-${selected.instance}`} object={selected.object} instance={selected.instance} height={height ?? 10} onDone={() => setTool(null)} />
       </section>
     );
-  const [title, hint] = HINTS[tool];
+  const [title, objectHint] = HINTS[tool];
+  const onVolume = volume !== null && tool !== 'flatten';
+  const hint = onVolume
+    ? `${tool === 'move' ? 'Drag an arrow' : tool === 'rotate' ? 'Drag a ring' : 'Drag a handle'} to change ${volume} inside its object. Pick the object in the list to work on all of it.`
+    : objectHint;
   return (
     <section className="tool-panel" aria-label={title}>
       <div className="tool-panel-head">
@@ -222,7 +232,7 @@ export function ToolPanel() {
           Rotation now: {rotation?.map((r) => `${round(r)}°`).join(', ')}
         </p>
       ) : (
-        <TransformFields tool={tool} object={selected.object} instance={selected.instance} />
+        !onVolume && <TransformFields tool={tool} object={selected.object} instance={selected.instance} />
       )}
       {tool !== 'flatten' && (
         <label className="check">

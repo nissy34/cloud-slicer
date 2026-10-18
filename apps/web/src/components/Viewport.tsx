@@ -10,6 +10,7 @@ import { hullPlanes, layOnFace, movedOffset, toDegrees, toQuat, DEG, type Placem
 import { setCapture } from '../lib/snapshot';
 import { useSceneColours } from '../lib/theme';
 import { layerTexture, type LayerProfile } from '../lib/layers';
+import { KIND_COLOURS, partRanges, volumeMeshes } from '../lib/volumes';
 import { NO_COLOURS, useOption, useSlicer } from '../state/store';
 import { BrimMarks } from './BrimEars';
 import { MeasureOverlay } from './MeasureOverlay';
@@ -44,6 +45,8 @@ interface Part {
   object: number;
   geometry: THREE.BufferGeometry;
   centre: THREE.Vector3;
+  /** Index of the object's first triangle in the preview. */
+  first: number;
 }
 
 // One geometry per object, coloured per triangle by its filament.
@@ -68,11 +71,61 @@ function useParts(preview: PreviewMesh | null, colours: string[]): Part[] {
       g.computeBoundingBox();
       const centre = new THREE.Vector3();
       g.boundingBox!.getCenter(centre);
-      parts.push({ object, geometry: g, centre });
+      parts.push({ object, geometry: g, centre, first: tri });
       tri += count;
     });
     return parts;
   }, [preview, colours]);
+}
+
+function geometryOf(pos: Float32Array, col?: Float32Array): THREE.BufferGeometry {
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+  if (col) g.setAttribute('color', new THREE.BufferAttribute(col, 3));
+  g.computeVertexNormals();
+  g.computeBoundingBox();
+  return g;
+}
+
+/**
+ * One part of a multi-part object split out of the object's geometry, so the
+ * gizmos can move it alone: the part, and the rest of the object.
+ */
+function splitPart(part: Part, ranges: [number, number][]): { piece: Part; rest: THREE.BufferGeometry } {
+  const pos = part.geometry.getAttribute('position').array as Float32Array;
+  const col = part.geometry.getAttribute('color').array as Float32Array;
+  const total = pos.length / 9;
+  const inPiece = new Uint8Array(total);
+  for (const [first, count] of ranges) inPiece.fill(1, Math.max(0, first - part.first), Math.min(total, first - part.first + count));
+  const n = inPiece.reduce((a, b) => a + b, 0);
+  const take = (src: Float32Array, want: number, size: number) => {
+    const out = new Float32Array(size * 9);
+    let k = 0;
+    for (let t = 0; t < total; t++) if (inPiece[t] === want) out.set(src.subarray(t * 9, t * 9 + 9), 9 * k++);
+    return out;
+  };
+  const geometry = geometryOf(take(pos, 1, n), take(col, 1, n));
+  const centre = new THREE.Vector3();
+  geometry.boundingBox!.getCenter(centre);
+  return { piece: { object: part.object, geometry, centre, first: 0 }, rest: geometryOf(take(pos, 0, total - n), take(col, 0, total - n)) };
+}
+
+interface VolumePart extends Part {
+  volume: number;
+  kind: number;
+}
+
+// Negative parts, modifiers and support enforcers/blockers, drawn see-through like desktop.
+function useVolumeParts(preview: PreviewMesh | null): VolumePart[] {
+  return useMemo(() => {
+    if (!preview?.volumeList) return [];
+    return volumeMeshes(preview).map((m) => {
+      const geometry = geometryOf(m.positions);
+      const centre = new THREE.Vector3();
+      geometry.boundingBox!.getCenter(centre);
+      return { object: m.object, volume: m.volume, kind: m.kind, geometry, centre, first: 0 };
+    });
+  }, [preview]);
 }
 
 const OVERLAY_COLOURS: Record<string, [string, string]> = {
@@ -145,6 +198,7 @@ function Gizmo({
   controlsRef,
   material,
   onRelease,
+  onMatrix,
 }: {
   tool: 'move' | 'rotate' | 'scale';
   part: Part;
@@ -152,6 +206,8 @@ function Gizmo({
   controlsRef: React.MutableRefObject<TransformControlsImpl | null>;
   material: React.ReactNode;
   onRelease(): void;
+  /** Takes what the gizmo did as a matrix in plate coordinates, instead of moving the instance (a part's gizmo). */
+  onMatrix?(m: THREE.Matrix4): void;
 }) {
   const [pivot, setPivot] = useState<THREE.Group | null>(null);
   const snapSetting = useSlicer((s) => s.snap);
@@ -176,6 +232,7 @@ function Gizmo({
     const { object, instance, plate } = place;
     if (tool === 'move') {
       const d = pivot.position.clone().sub(place.centre);
+      if (onMatrix) return d.lengthSq() > 1e-6 && onMatrix(new THREE.Matrix4().makeTranslation(d));
       if (d.lengthSq() > 1e-6) void moveInstance(object, instance, place.offset.x + d.x, place.offset.y + d.y);
       return;
     }
@@ -184,6 +241,11 @@ function Gizmo({
     const m = new THREE.Matrix4()
       .multiplyMatrices(pivot.matrix, new THREE.Matrix4().makeRotationFromQuaternion(inverse))
       .multiply(new THREE.Matrix4().makeTranslation(negCentre));
+    if (onMatrix) {
+      const changed = tool === 'rotate' ? pivot.quaternion.angleTo(place.rotation) >= 1e-4 : pivot.scale.distanceTo(new THREE.Vector3(1, 1, 1)) >= 1e-4;
+      if (changed) onMatrix(m);
+      return;
+    }
     if (tool === 'rotate') {
       if (pivot.quaternion.angleTo(place.rotation) < 1e-4) return;
       void transformInstance(object, instance, { rotation: toDegrees(pivot.quaternion), offset: movedOffset(place, m), plate });
@@ -390,6 +452,22 @@ function FlattenPlanes({ part, place }: { part: Part; place: Placement }) {
   );
 }
 
+/** Desktop's see-through look of a negative part, modifier or support enforcer/blocker. */
+function VolumeMaterial({ kind, active }: { kind: number; active: boolean }) {
+  const { colour, opacity } = KIND_COLOURS[kind] ?? KIND_COLOURS[2];
+  return (
+    <meshStandardMaterial
+      color={colour}
+      transparent
+      opacity={active ? Math.min(1, opacity + 0.2) : opacity}
+      depthWrite={false}
+      roughness={0.6}
+      emissive={active ? '#2f6fe4' : '#000000'}
+      emissiveIntensity={active ? 0.4 : 0}
+    />
+  );
+}
+
 function Objects({ w, d }: { w: number; d: number }) {
   const preview = useSlicer((s) => s.preview);
   // Filament numbers past the physical ones are colour mixes.
@@ -444,6 +522,31 @@ function Objects({ w, d }: { w: number; d: number }) {
       centre: part.centre.clone(),
     };
   }, [selected, project, parts, plate]);
+
+  // A selected part, modifier... of that instance: the gizmos move it inside
+  // the object (a part is split out of the object's geometry while they do).
+  const volumeParts = useVolumeParts(preview);
+  useEffect(() => () => volumeParts.forEach((p) => p.geometry.dispose()), [volumeParts]);
+  const picked = useMemo(() => {
+    const v = selected?.volume;
+    if (!place || v === undefined || !preview) return null;
+    const info = project?.objects[place.object]?.volumes[v];
+    if (!info) return null;
+    if (info.kind !== 'part') {
+      const piece = volumeParts.find((p) => p.object === place.object && p.volume === v);
+      return piece ? { volume: v, kind: piece.kind, piece, rest: null, place: { ...place, rotation: new THREE.Quaternion(), centre: piece.centre.clone() } } : null;
+    }
+    const whole = parts.find((p) => p.object === place.object);
+    if (!whole || project!.objects[place.object].volumes.filter((x) => x.kind === 'part').length < 2) return null;
+    const { piece, rest } = splitPart(whole, partRanges(preview, place.object, v));
+    return { volume: v, kind: 0, piece, rest, place: { ...place, rotation: new THREE.Quaternion(), centre: piece.centre.clone() } };
+  }, [place, selected, preview, project, parts, volumeParts]);
+  useEffect(() => () => {
+    if (picked?.rest) {
+      picked.rest.dispose();
+      picked.piece.geometry.dispose();
+    }
+  }, [picked]);
 
   // During a stroke the rays come straight from the camera, so dragging never
   // waits on hit-testing the parts; the engine finds what each ray hits. The
@@ -506,10 +609,10 @@ function Objects({ w, d }: { w: number; d: number }) {
 
   // The object menu: a right click (released without dragging, since a
   // right drag pans the view) or a long press with a finger.
-  const menuPress = (ev: PointerEvent, object: number, instance: number, long: boolean) => {
+  const menuPress = (ev: PointerEvent, object: number, instance: number, long: boolean, volume?: number) => {
     const [x0, y0] = [ev.clientX, ev.clientY];
     let timer = 0;
-    const open = () => useSlicer.getState().openObjectMenu({ object, instance, x: x0, y: y0 });
+    const open = () => useSlicer.getState().openObjectMenu({ object, instance, volume, x: x0, y: y0 });
     const done = () => {
       clearTimeout(timer);
       window.removeEventListener('pointermove', move);
@@ -558,7 +661,7 @@ function Objects({ w, d }: { w: number; d: number }) {
     const obj = project?.objects[object];
     const instances = obj?.instances.map((inst, i) => ({ inst, i })).filter(({ inst }) => inst.plate === plate) ?? [];
     const first = instances[0];
-    if (selected?.object !== object) select(first ? { object, instance: first.i } : null);
+    if (selected?.object !== object || selected.volume !== undefined) select(first ? { object, instance: first.i } : null);
     if (first && e.pointerType === 'touch') menuPress(e.nativeEvent, object, first.i, true);
     // Brim ears: a click adds an ear (onEarClick); the object stays put.
     if (brimTool) return;
@@ -569,6 +672,15 @@ function Objects({ w, d }: { w: number; d: number }) {
     drag.current = { object, instance: first.i, start: hit, offset: [first.inst.offset[0], first.inst.offset[1]] };
     if (controls) controls.enabled = false;
     (e.target as Element).setPointerCapture?.(e.pointerId);
+  };
+  // A press on a see-through volume picks it (its menu on a right click or long press).
+  const onVolumeDown = (e: ThreeEvent<PointerEvent>, v: VolumePart) => {
+    if (paint || measuring || brimTool || onGizmo()) return;
+    e.stopPropagation();
+    const instance = Math.max(0, project?.objects[v.object]?.instances.findIndex((i) => i.plate === plate) ?? -1);
+    select({ object: v.object, instance, volume: v.volume });
+    if (e.button === 2) return menuPress(e.nativeEvent, v.object, instance, false, v.volume);
+    if (e.pointerType === 'touch') menuPress(e.nativeEvent, v.object, instance, true, v.volume);
   };
   const onMove = (e: ThreeEvent<PointerEvent>) => {
     if (measuring) {
@@ -637,6 +749,35 @@ function Objects({ w, d }: { w: number; d: number }) {
         ) : (
           <meshStandardMaterial vertexColors roughness={0.55} metalness={0.05} emissive={active ? '#2f6fe4' : '#000000'} emissiveIntensity={active ? 0.35 : 0} />
         );
+        if (gizmoTool && place && picked && p.object === place.object) {
+          return (
+            <group key={p.object}>
+              <mesh geometry={picked.rest ?? p.geometry} raycast={partRaycast} onPointerDown={(e) => onDown(e, p.object)} castShadow>
+                <meshStandardMaterial vertexColors roughness={0.55} metalness={0.05} />
+              </mesh>
+              <Gizmo
+                key={picked.volume}
+                tool={gizmoTool}
+                part={picked.piece}
+                place={picked.place}
+                controlsRef={gizmo}
+                material={
+                  picked.kind ? (
+                    <VolumeMaterial kind={picked.kind} active />
+                  ) : (
+                    <meshStandardMaterial vertexColors roughness={0.55} metalness={0.05} emissive="#2f6fe4" emissiveIntensity={0.35} />
+                  )
+                }
+                onRelease={() => (gizmoReleased.current = performance.now())}
+                onMatrix={(m) =>
+                  void useSlicer
+                    .getState()
+                    .volumeAction(place.object, { op: 'transform', volume: picked.volume, instance: place.instance, matrix: m.elements.slice() }, gizmoTool === 'move' ? 'Move part' : gizmoTool === 'rotate' ? 'Rotate part' : 'Scale part')
+                }
+              />
+            </group>
+          );
+        }
         if (gizmoTool && place && p.object === place.object)
           return (
             <group key={p.object}>
@@ -661,6 +802,24 @@ function Objects({ w, d }: { w: number; d: number }) {
           </mesh>
         );
       })}
+      {!paint &&
+        volumeParts.map((v, k) => {
+          if (gizmoTool && picked && !picked.rest && v === picked.piece) return null;
+          const offset = selected?.object === v.object && delta ? delta : [0, 0];
+          const active = selected?.object === v.object && selected.volume === v.volume;
+          return (
+            <mesh
+              key={`v${k}`}
+              geometry={v.geometry}
+              position={[offset[0], offset[1], 0]}
+              renderOrder={1}
+              raycast={measuring || brimTool ? () => null : undefined}
+              onPointerDown={(e) => onVolumeDown(e, v)}
+            >
+              <VolumeMaterial kind={v.kind} active={active} />
+            </mesh>
+          );
+        })}
       {!paint && tool === 'flatten' && place && (
         <FlattenPlanes key={place.object} part={parts.find((p) => p.object === place.object)!} place={place} />
       )}

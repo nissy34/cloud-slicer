@@ -157,7 +157,7 @@ if (self.name !== 'em-pthread') {
     },
     preview(e, plate) {
       const m = e.previewMesh(plate);
-      return { value: m, transfer: [m.positions.buffer, m.filaments.buffer, m.objectTriangles.buffer] };
+      return { value: m, transfer: [m.positions.buffer, m.filaments.buffer, m.objectTriangles.buffer, m.volumePositions.buffer, m.volumeList.buffer, m.partList.buffer] };
     },
     transform: (e, o, i, changes) => (json(e.setInstanceTransform(o, i, JSON.stringify(changes))), JSON.parse(e.modelInfoJson())),
     setExtruder: (e, o, v, f) => (json(e.setExtruder(o, v, f)), JSON.parse(e.modelInfoJson())),
@@ -182,6 +182,18 @@ if (self.name !== 'em-pthread') {
       }
       return JSON.parse(e.modelInfoJson());
     },
+    // Parts, modifiers and the like of object o (see engine/src/volume_api.cpp);
+    // a mesh file to add comes as bytes, named for its format.
+    volumeAction(e, o, request, bytes) {
+      const path = '/work/part' + ((request.name || '').match(/\.[a-z0-9]+$/i)?.[0] ?? '.stl');
+      if (bytes) e.FS.writeFile(path, new Uint8Array(bytes));
+      try {
+        const { volume } = json(e.volumeAction(o, JSON.stringify(bytes ? { ...request, path } : request)));
+        return { info: JSON.parse(e.modelInfoJson()), volume };
+      } finally {
+        if (bytes) e.FS.unlink(path);
+      }
+    },
     // Instance i of object o as a binary STL (the object menu's Export as STL).
     exportStl(e, o, i) {
       const path = '/work/export.stl';
@@ -197,7 +209,7 @@ if (self.name !== 'em-pthread') {
       const info = JSON.parse(e.modelInfoJson());
       if (options.kind === 'color') {
         const m = e.previewMesh(plate);
-        return { value: { info, preview: m }, transfer: [m.positions.buffer, m.filaments.buffer, m.objectTriangles.buffer] };
+        return { value: { info, preview: m }, transfer: [m.positions.buffer, m.filaments.buffer, m.objectTriangles.buffer, m.volumePositions.buffer, m.volumeList.buffer, m.partList.buffer] };
       }
       const o = e.paintOverlay(plate, options.kind);
       return { value: { info, overlay: o }, transfer: [o.positions.buffer, o.states.buffer] };

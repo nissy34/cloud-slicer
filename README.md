@@ -33,7 +33,9 @@ hosted on Cloudflare's free tier.
   painting (colours, support and seam enforcers/blockers, fuzzy skin), and desktop's
   object menu (right click or long press an object, or ⋯ in the object list: clone,
   center, rename, printable, change filament, scale to fit, unit conversion, replace
-  with STL, export as STL).
+  with STL, export as STL), and parts, negative parts, modifiers and support
+  blockers/enforcers added to an object (shapes or a mesh file), shown see-through,
+  moved with the gizmos, with their own settings.
 - **Colour mixing**: Snapmaker Orca's mixed filaments, virtual filaments made of two or
   more physical ones, usable anywhere a filament is.
 - **Calibration tests** from desktop's Calibration menu: temperature, flow rate, pressure
@@ -194,7 +196,7 @@ Browser end to end tests (Playwright's Chromium) run against the built site
 | `test/presets.mjs` | Save, find, rename and delete your own presets |
 | `test/preset-files.mjs` | Printer and filament settings windows, preset export and import |
 | `test/accounts.mjs` | Sign-in, sessions, synced presets/settings/printers, online projects (Pages Functions + local D1, mock Google) |
-| `test/toolbar.mjs` | The object toolbar: add a model, variable layer height, simplify, brim ears, lay on face, measure, the object menu, fits a phone |
+| `test/toolbar.mjs` | The object toolbar: add a model, variable layer height, simplify, brim ears, lay on face, measure, the object menu, parts and modifiers, fits a phone |
 | `test/mixing.mjs` | Make a colour mix, slice, the G-code alternates between both tools |
 | `test/loading.mjs` | The loading screen while the engine starts and a project opens |
 | `test/cancel.mjs` | Cancel stops the slice in the engine, and a change while slicing drops its result |

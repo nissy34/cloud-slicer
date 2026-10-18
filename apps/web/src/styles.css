@@ -3682,3 +3682,25 @@ select:focus-visible {
     min-height: 42px;
   }
 }
+/* Parts, modifiers... in the object list: picked one highlighted, a dot of its see-through colour. */
+button.volume-name {
+  border: 0;
+  background: none;
+  padding: 4px 2px;
+  cursor: pointer;
+  font: inherit;
+  color: inherit;
+}
+.volume.active {
+  background: color-mix(in srgb, var(--accent) 18%, transparent);
+  border-radius: 4px;
+}
+.volume-kind {
+  display: inline-block;
+  width: 9px;
+  height: 9px;
+  margin-right: 6px;
+  border-radius: 50%;
+  border: 1px solid var(--border);
+  vertical-align: baseline;
+}

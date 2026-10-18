@@ -1,3 +1,4 @@
+import { KIND_CODES, KIND_COLOURS, KIND_LABELS } from '../lib/volumes';
 import { NO_COLOURS, useSlicer } from '../state/store';
 import { ObjectSettings } from './ObjectSettings';
 
@@ -47,7 +48,6 @@ export function ObjectList() {
       <ul className="objects">
         {onPlate.map((o) => {
           const obj = project.objects[o];
-          const parts = obj.volumes.map((v, i) => ({ v, i })).filter(({ v }) => v.kind === 'part');
           const instance = obj.instances.findIndex((inst) => inst.plate === plate);
           const active = selected?.object === o;
           return (
@@ -72,17 +72,41 @@ export function ObjectList() {
                   ⋯
                 </button>
               </div>
-              {active && parts.length > 1 && (
+              {active && obj.volumes.length > 1 && (
                 <ul className="volumes">
-                  {parts.map(({ v, i }) => (
-                    <li key={i} className="object-row">
-                      <span className="volume-name" title={v.name}>
-                        {v.name}
-                        {v.painted && <span className="muted"> (painted)</span>}
-                      </span>
-                      {filamentSelect(o, i, v.extruder, `Filament for ${v.name}`)}
-                    </li>
-                  ))}
+                  {obj.volumes.map((v, i) => {
+                    const picked = selected?.volume === i;
+                    const tint = KIND_COLOURS[KIND_CODES[v.kind] ?? 0];
+                    return (
+                      <li key={i} className={picked ? 'object-row volume active' : 'object-row volume'}>
+                        <button
+                          className="volume-name"
+                          title={`${KIND_LABELS[v.kind]}: ${v.name}`}
+                          aria-pressed={picked}
+                          onClick={() => select({ object: o, instance: Math.max(0, instance), volume: picked ? undefined : i })}
+                        >
+                          {tint && <span className="volume-kind" style={{ background: tint.colour }} aria-hidden="true" />}
+                          {v.name}
+                          {v.kind !== 'part' && <span className="muted"> · {KIND_LABELS[v.kind]}</span>}
+                          {v.painted && <span className="muted"> (painted)</span>}
+                        </button>
+                        {v.kind === 'part' && filamentSelect(o, i, v.extruder, `Filament for ${v.name}`)}
+                        <button
+                          className="ghost object-more"
+                          aria-label={`More for part ${v.name}`}
+                          title="Rename, change type, settings, delete"
+                          onClick={(e) => {
+                            const r = e.currentTarget.getBoundingClientRect();
+                            const inst = Math.max(0, instance);
+                            select({ object: o, instance: inst, volume: i });
+                            openObjectMenu({ object: o, instance: inst, volume: i, x: r.left, y: r.bottom + 2 });
+                          }}
+                        >
+                          ⋯
+                        </button>
+                      </li>
+                    );
+                  })}
                 </ul>
               )}
             </li>
@@ -91,7 +115,18 @@ export function ObjectList() {
       </ul>
       {selected && sel && (
         <div className="transform">
-          <ObjectSettings object={selected.object} />
+          {selected.volume !== undefined && project.objects[selected.object].volumes[selected.volume] ? (
+            project.objects[selected.object].volumes[selected.volume].kind.startsWith('support') ? (
+              <p className="hint">
+                {KIND_LABELS[project.objects[selected.object].volumes[selected.volume].kind]}: supports {project.objects[selected.object].volumes[selected.volume].kind === 'supportBlocker' ? "don't grow" : 'grow'} where it
+                overlaps the object, when supports are on. Move it with the Move tool.
+              </p>
+            ) : (
+              <ObjectSettings key={selected.volume} object={selected.object} volume={selected.volume} />
+            )
+          ) : (
+            <ObjectSettings object={selected.object} />
+          )}
           <div className="transform-row actions">
             <button className="secondary" onClick={() => void copyInstance(selected.object, selected.instance)}>
               Add copy

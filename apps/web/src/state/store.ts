@@ -28,6 +28,7 @@ import type { LayerProfile, LayerRequest } from '../lib/layers';
 import { sameFeature, type MeasureFeature, type Measurement } from '../lib/measure';
 import { mixSettings, palette as mixPalette, type MatchResult, type MixRecipe, type MixRow } from '../lib/mixing';
 import { stlName, type ObjectAction } from '../lib/objectMenu';
+import type { VolumeAction } from '../lib/volumes';
 import { saveFile } from '../lib/preset-files';
 
 export type Tab = 'prepare' | 'preview' | 'device';
@@ -72,7 +73,8 @@ export interface SlicerState {
   project: ProjectInfo | null;
   plate: number;
   preview: PreviewMesh | null;
-  selected: { object: number; instance: number } | null;
+  /** The selected instance, and one of its object's volumes when that is picked (in the object list or the 3D view). */
+  selected: { object: number; instance: number; volume?: number } | null;
   job: Job;
   notice: string;
   /** The notice is a problem to fix, not just information. */
@@ -84,7 +86,8 @@ export interface SlicerState {
   /** The object tool in use on the selected object. */
   tool: Tool | null;
   /** The object menu (right click, long press or the object list's ⋯), at a point on the page. */
-  objectMenu: { object: number; instance: number; x: number; y: number } | null;
+  /** The object menu, or with `volume` the menu of one of its parts, modifiers..., at (x, y) on the page. */
+  objectMenu: { object: number; instance: number; volume?: number; x: number; y: number } | null;
   /** Files waiting for the user to say how to open the 3MF among them. */
   pendingOpen: File[] | null;
   /** Rotate in 15° steps (and move/scale in steps) without holding Shift, for touch screens. */
@@ -173,7 +176,7 @@ export interface SlicerState {
   projectFile(thumbnail: ProjectThumbnail | null): Promise<ArrayBuffer>;
   clearProject(): Promise<void>;
   setPlate(plate: number): Promise<void>;
-  select(sel: { object: number; instance: number } | null): void;
+  select(sel: { object: number; instance: number; volume?: number } | null): void;
   moveInstance(o: number, i: number, x: number, y: number): Promise<void>;
   transformInstance(o: number, i: number, changes: InstanceChanges): Promise<void>;
   setObjectFilament(o: number, volume: number, filament: number): Promise<void>;
@@ -200,6 +203,12 @@ export interface SlicerState {
   cloneObject(o: number, count: number, arrange: boolean): Promise<void>;
   /** Replaces part `volume` of object o with the mesh in an STL file, keeping its place. */
   replaceWithStl(o: number, volume: number, file: File): Promise<void>;
+  /**
+   * A part, negative part, modifier or support enforcer/blocker of object o
+   * added (a shape, or the mesh in `file`), renamed, moved, retyped or deleted;
+   * one undo step. The added or changed volume is selected.
+   */
+  volumeAction(o: number, request: VolumeAction, label: string, file?: File): Promise<void>;
   /** Saves instance i of object o as an STL file. */
   exportStl(o: number, i: number): Promise<void>;
   cutObject(o: number, i: number, z: number, keep: CutKeep, flipUpper: boolean): Promise<void>;
@@ -524,7 +533,8 @@ export const useSlicer = create<SlicerState>((set, get) => {
       const { history, info } = await engine()[step]();
       const sel = get().selected;
       const gone = sel && !info.objects[sel.object]?.instances[sel.instance];
-      set(gone ? { history, selected: null, tool: null } : { history });
+      const volumeGone = sel && sel.volume !== undefined && !info.objects[sel.object]?.volumes[sel.volume];
+      set(gone ? { history, selected: null, tool: null } : volumeGone ? { history, selected: { object: sel.object, instance: sel.instance } } : { history });
       await refreshPreview(info);
     } catch (e) {
       fail(e);
@@ -840,6 +850,16 @@ export const useSlicer = create<SlicerState>((set, get) => {
     },
     replaceWithStl: async (o, volume, file) =>
       projectEdit('Replace with STL', async () => engine().objectAction(o, 0, { op: 'replace', volume }, await file.arrayBuffer())),
+    volumeAction: async (o, request, label, file) => {
+      let volume: number | undefined;
+      const instance = get().selected?.object === o ? get().selected!.instance : 'instance' in request ? request.instance : 0;
+      await projectEdit(label, async () => {
+        const out = await engine().volumeAction(o, file ? ({ ...request, name: file.name } as VolumeAction) : request, file ? await file.arrayBuffer() : undefined);
+        volume = out.volume;
+        return out.info;
+      });
+      if (get().project?.objects[o]) set({ selected: { object: o, instance, volume } });
+    },
     exportStl: async (o, i) => {
       try {
         const bytes = await engine().exportStl(o, i);
