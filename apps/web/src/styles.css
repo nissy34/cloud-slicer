@@ -86,7 +86,6 @@ textarea {
 .app {
   display: grid;
   grid-template-rows: var(--topbar) 1fr;
-  grid-template-columns: minmax(0, 1fr);
   height: 100dvh;
 }
 
@@ -2751,26 +2750,6 @@ select:focus-visible {
 @media (max-width: 760px) {
   .topbar {
     gap: 4px;
-  }
-  /* With the project button there is more than a phone's width: the project
-     name shortens and the tabs scroll sideways instead of widening the page. */
-  .topbar > * {
-    flex-shrink: 0;
-  }
-  .topbar > .project-menu {
-    flex-shrink: 1;
-    min-width: 56px;
-  }
-  .project-button {
-    max-width: 100%;
-  }
-  .topbar > .tabs {
-    flex-shrink: 1;
-    overflow-x: auto;
-    scrollbar-width: none;
-  }
-  .tab {
-    flex: none;
   }
   .topbar .icon-button {
     width: 28px;
