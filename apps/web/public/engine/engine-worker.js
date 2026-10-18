@@ -127,7 +127,8 @@ if (self.name !== 'em-pthread') {
       for (const p of presets || []) {
         const dir = `${root}/default/${folder[p.type]}`;
         e.FS.mkdirTree(dir);
-        const preset = { ...p.config, name: p.name, inherits: p.inherits, from: 'User', is_custom_defined: '0' };
+        // Orca skips a user preset file without a version.
+        const preset = { ...p.config, name: p.name, inherits: p.inherits, from: 'User', is_custom_defined: '0', version: '1.0.0' };
         e.FS.writeFile(`${dir}/${p.name}.json`, JSON.stringify(preset));
       }
       return json(e.presetsLoad(DATA_DIR)).counts;

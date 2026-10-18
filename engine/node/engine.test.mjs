@@ -289,7 +289,7 @@ test('user presets (diffs over a system preset) load like desktop user presets',
   const write = (folder, preset) => {
     const dir = `${DATA_DIR}/user/default/${folder}`;
     engine.FS.mkdirTree(dir);
-    engine.FS.writeFile(`${dir}/${preset.name}.json`, JSON.stringify({ ...preset, from: 'User', is_custom_defined: '0' }));
+    engine.FS.writeFile(`${dir}/${preset.name}.json`, JSON.stringify({ ...preset, from: 'User', is_custom_defined: '0', version: '1.0.0' }));
   };
   write('process', { name: 'My fast', inherits: PROCESS, layer_height: '0.28', wall_loops: '3' });
   write('filament', { name: 'My PLA', inherits: filament, nozzle_temperature: '212' });

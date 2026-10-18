@@ -30,6 +30,7 @@ describe('account helpers', () => {
       inherits: 'Snapmaker PLA',
       from: 'User',
       is_custom_defined: '0',
+      version: '1.0.0',
     });
   });
   it('makes initials', () => {
