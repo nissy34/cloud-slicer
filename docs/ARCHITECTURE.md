@@ -97,6 +97,17 @@ nothing on purpose, so a deploy's page and engine never get out of step).
   `<dataDir>/user/default/{machine,filament,process}/<name>.json` before the engine
   loads presets, so they behave like desktop's. The ⋯ menu on each picker saves,
   renames and deletes them; they sync with the account.
+- **Editing presets**: process settings are in the sidebar; printer and filament (per
+  slot) settings open in their own window from the ✎ beside their picker, like desktop's
+  preset editors, with Save to preset, Save as new preset and Save to project (the change
+  is kept only in the project 3MF).
+- **Preset files**: the ⋯ menu exports one preset as desktop Orca's preset JSON, or all
+  your presets as a zip that desktop's Import Configs reads, and imports `.json`,
+  `.orca_printer`, `.orca_filament` and `.zip` (`src/lib/preset-files.ts`). The engine
+  reads each file with Orca's own loader. A preset must be based on a system preset the
+  app ships: a printer preset for a printer we don't have is refused, and a filament or
+  process made for another printer can be put on one of ours, keeping its material or
+  model settings.
 - **Flow variants**: Snapmaker Orca 2.4 keeps many speed, acceleration, jerk and
   filament options as one value per nozzle flow variant (standard, high flow), e.g.
   `initial_layer_speed = "50,50"`, while 2.2 files hold one value. The settings panel
@@ -208,14 +219,7 @@ was ruled out (closed service with per-user device certificates, against its ter
 - Relay: Worker `cloud-slicer-relay`, deployed from `main` by `device.yml`.
 - CI layout, caches and secrets: [CI.md](CI.md).
 
-## Upcoming
-
-In review, not on `main` yet:
-
-- Preset files: import and export Orca preset files, and edit printer and filament
-  settings, not only process settings (PR #31).
-
-Later:
+## Still to come
 
 - Remaining desktop parity tools.
 - Real worker threads in the engine instead of serial TBB.

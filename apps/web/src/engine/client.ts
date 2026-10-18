@@ -65,6 +65,27 @@ export interface UserPresetFile {
   config: OrcaConfig;
 }
 
+/**
+ * A preset file as the engine reads it (desktop Orca's import): `parent` is
+ * the system preset it goes on, "" when the one it inherits isn't here;
+ * `config` its own settings, serialized; `unknown` and `invalid` the keys
+ * Orca dropped (not an option here, or not one of this preset type's).
+ */
+export type ParsedPreset =
+  | { ok: false; error: string }
+  | {
+      ok: true;
+      type: 'printer' | 'filament' | 'process';
+      name: string;
+      version: string;
+      inherits: string;
+      parent: string;
+      filamentId: string;
+      unknown: string[];
+      invalid: string[];
+      config: OrcaConfig;
+    };
+
 /** A plate thumbnail for a saved 3MF: RGBA pixels, rows top first. */
 export interface ProjectThumbnail {
   plate: number;
@@ -169,6 +190,10 @@ export class EngineClient {
   filamentsFor = (printer: string) => this.call<{ filaments: PresetSummary[]; defaults: string[] }>('filamentsFor', [printer]);
   fullConfig = (overrides: OrcaConfig) => this.call<{ config: OrcaConfig; errors: string[] }>('fullConfig', [overrides]);
   presetConfig = (type: string, name: string) => this.call<OrcaConfig | null>('presetConfig', [type, name]);
+  /** A user preset as desktop Orca's preset file (JSON text). */
+  presetExport = (type: string, name: string) => this.call<string>('presetExport', [type, name]);
+  /** Reads preset files without adding them (see ParsedPreset). */
+  presetParse = (files: { text: string; rebase?: string }[]) => this.call<ParsedPreset[]>('presetParse', [files]);
   /** Replaces the user presets and reloads all presets (the selection resets). */
   userPresets = (presets: UserPresetFile[]) =>
     this.call<{ printers: number; filaments: number; processes: number }>('userPresets', [presets]);

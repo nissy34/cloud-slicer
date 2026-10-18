@@ -68,6 +68,7 @@ npm run typecheck           # app and Functions
 npm run build && npm run smoke
 node test/startup-matrix.mjs
 node test/presets.mjs
+node test/preset-files.mjs
 node test/accounts.mjs      # needs NO_PROXY=localhost,127.0.0.1 behind a proxy
 node test/toolbar.mjs
 node test/mixing.mjs

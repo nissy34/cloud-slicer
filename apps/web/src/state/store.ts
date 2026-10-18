@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { EngineClient, type CutKeep, type History, type InstanceChanges, type MixedReply, type MixedRequest, type ProjectThumbnail, type UserPresetFile } from '../engine/client';
+import { EngineClient, type CutKeep, type History, type InstanceChanges, type MixedReply, type MixedRequest, type ParsedPreset, type ProjectThumbnail, type UserPresetFile } from '../engine/client';
 import type {
   PaintOverlay,
   PaintRay,
@@ -101,6 +101,10 @@ export interface SlicerState {
   selectProcess(name: string): Promise<void>;
   /** One preset's own settings, after inheritance. */
   presetConfig(type: 'printer' | 'filament' | 'process', name: string): Promise<OrcaConfig | null>;
+  /** A saved user preset as desktop Orca's preset file (JSON text). */
+  presetExport(type: 'printer' | 'filament' | 'process', name: string): Promise<string>;
+  /** Reads preset files the way desktop's import does, without adding them. */
+  presetParse(files: { text: string; rebase?: string }[]): Promise<ParsedPreset[]>;
   /**
    * Gives the engine the user's saved presets (it reloads every preset) and
    * selects again, with `selection` on top of the current one. Changes now
@@ -530,6 +534,8 @@ export const useSlicer = create<SlicerState>((set, get) => {
     filamentsFor: (printer) => engine().filamentsFor(printer),
     selectProcess: (name) => editSelection(() => ({ process: name })),
     presetConfig: (type, name) => engine().presetConfig(type, name),
+    presetExport: (type, name) => engine().presetExport(type, name),
+    presetParse: (files) => engine().presetParse(files),
     setUserPresets: async (presets, selection) => {
       const e = engine();
       enginePresets = presets;

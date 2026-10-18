@@ -18,7 +18,9 @@ hosted on Cloudflare's free tier.
 - **Process settings in desktop's own pages and groups**, with per-object settings and a
   Standard flow / High flow switch for options that hold one value per nozzle flow
   variant (the U1).
-- **Your own presets**, saved as Orca user presets (a diff over a system preset).
+- **Your own presets**, saved as Orca user presets (a diff over a system preset), with
+  printer and filament settings windows like desktop's preset editors, and preset files
+  in and out (desktop Orca's preset JSON, `.orca_printer`, `.orca_filament`, zip).
 - **3MF print settings import**: a project's own settings come in on top of your presets.
   A 3MF made for a printer you don't have (for example a Bambu project) can be converted
   onto one of yours: its print settings carry over, the printer's own settings
@@ -101,6 +103,18 @@ Every deploy signs in through one host (`AUTH_ORIGIN` in `apps/web/wrangler.toml
 https://slicer.awesomestuff.qzz.io) with Better Auth's oAuthProxy plugin, so branch
 previews work with one Google OAuth client.
 
+## Preset files
+
+Each preset picker's ⋯ menu exports the preset as desktop Orca's preset JSON, exports all
+your presets as a zip that desktop's Import Configs reads, and imports `.json`,
+`.orca_printer`, `.orca_filament` and `.zip` files. The engine reads them with Orca's own
+loader. A preset must be based on a system preset the app ships: a printer preset for a
+printer we don't have is refused, and a filament or process made for another printer can
+be put on one of ours (keeping its material or model settings). Process settings are in the
+sidebar; printer and filament (per slot) settings open in their own window from the ✎
+beside their picker, like desktop's preset editors, with Save to preset, Save as new
+preset and Save to project (changes kept only in the project 3MF).
+
 ## Projects
 
 The Project menu in the top bar (New, Open, Projects, Save, Save as, Download 3MF) saves
@@ -169,6 +183,7 @@ Browser end to end tests (Playwright's Chromium) run against the built site
 | `npm run smoke` (`test/smoke.mjs`) | Open Benchy, slice, download the G-code and check it is a real U1 print file |
 | `test/startup-matrix.mjs` | The engine starts under other time zones, languages, CPU counts and in stable Chrome |
 | `test/presets.mjs` | Save, find, rename and delete your own presets |
+| `test/preset-files.mjs` | Printer and filament settings windows, preset export and import |
 | `test/accounts.mjs` | Sign-in, sessions, synced presets/settings/printers, online projects (Pages Functions + local D1, mock Google) |
 | `test/toolbar.mjs` | The object toolbar: add a model, lay on face, fits a phone |
 | `test/mixing.mjs` | Make a colour mix, slice, the G-code alternates between both tools |

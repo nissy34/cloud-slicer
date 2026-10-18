@@ -11,7 +11,8 @@ Runs on every pull request, on pushes to `main`, and by hand.
 unit ─────────────────────────────────────────────┐
 engine ─┬─ engine-tests ──────────────────────────┤
         └─ site ── browser (smoke, startup,       ├─ deploy
-                    presets, accounts, toolbar,   │
+                    presets, presetfiles,         │
+                    accounts, toolbar,            │
                     mixing, loading, cancel) ─────┘
 ```
 
