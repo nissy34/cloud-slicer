@@ -1,7 +1,8 @@
 #!/usr/bin/env node
 // Browser end to end for the object toolbar over the 3D view: adding a model
 // keeps the one already there, lay on face turns the object, measure picks two
-// features and measures between them, and the toolbar fits a phone.
+// features and measures between them, and the toolbar fits a phone (and the
+// page itself never scrolls there).
 //
 //   node test/toolbar.mjs [screenshot-dir]
 //
@@ -196,6 +197,27 @@ try {
   if (!card || card.y < view.y + view.height - 1) fail(`the phone tool card covers the 3D view: ${JSON.stringify({ card, view })}`);
   if (shots) await phone.screenshot({ path: join(shots, 'toolbar-phone-flatten.png') });
   console.log('phone: toolbar scrolls inside the screen');
+
+  // The page itself must never scroll on a phone. Android Chrome makes the
+  // document taller than the screen while its address bar slides away; a
+  // scrollable page then hid the top bar and left a blank strip under the
+  // action bar. Recreate the taller document and scroll everything there is.
+  await phone.addStyleTag({ content: 'body::after { content: ""; display: block; height: 120px; }' });
+  await phone.evaluate(() => {
+    document.querySelector('.body').scrollTop = 1e6;
+    window.scrollTo(0, 1e6);
+  });
+  await phone.waitForTimeout(300);
+  const edges = await phone.evaluate(() => ({
+    pageScroll: window.scrollY,
+    topbar: document.querySelector('.topbar').getBoundingClientRect().top,
+    actionbar: document.querySelector('.actionbar').getBoundingClientRect().bottom,
+    screen: window.innerHeight,
+  }));
+  if (edges.pageScroll !== 0 || edges.topbar !== 0) fail(`the top bar scrolled off a phone: ${JSON.stringify(edges)}`);
+  if (Math.abs(edges.actionbar - edges.screen) > 1) fail(`the action bar is not at the bottom of a phone: ${JSON.stringify(edges)}`);
+  if (shots) await phone.screenshot({ path: join(shots, 'toolbar-phone-layout.png') });
+  console.log('phone: top bar and action bar stay on screen');
 } catch (e) {
   fail(e.message);
 } finally {
