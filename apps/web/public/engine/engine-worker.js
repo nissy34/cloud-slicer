@@ -110,6 +110,26 @@ if (self.name !== 'em-pthread') {
     addPlate: (e) => (json(e.addPlate()), JSON.parse(e.modelInfoJson())),
     deletePlate: (e, plate) => (json(e.deletePlate(plate)), JSON.parse(e.modelInfoJson())),
 
+    // Replaces the project with a calibration test (desktop's Calibration
+    // menu). Returns the settings the test changes, for the page to apply as
+    // overrides, and the new project.
+    async calibrate(e, options, overrides) {
+      const res = await fetch(here(`calib/${options.model}`));
+      if (!res.ok) throw new Error(`Calibration model ${options.model}: HTTP ${res.status}`);
+      const path = `/work/${options.model.split('/').pop()}`;
+      e.FS.writeFile(path, new Uint8Array(await res.arrayBuffer()));
+      const { config } = json(e.presetsFullConfig(JSON.stringify(overrides || {})));
+      const [w, d] = bedSize(config.printable_area);
+      try {
+        const out = json(e.calibrationStart(JSON.stringify({ ...options, model: path }), JSON.stringify(config), w, d));
+        return { overrides: out.overrides, info: JSON.parse(e.modelInfoJson()) };
+      } finally {
+        e.FS.unlink(path);
+      }
+    },
+
+    calibrationStop: (e) => e.calibrationStop(),
+
     // Slices one plate with the current preset selection plus overrides.
     slice(e, plate, overrides, id) {
       const t0 = performance.now();
@@ -129,7 +149,7 @@ if (self.name !== 'em-pthread') {
       const engine = await ready;
       const fn = methods[method];
       if (!fn) throw new Error(`Unknown request: ${method}`);
-      const out = fn(engine, ...args, id);
+      const out = await fn(engine, ...args, id);
       if (out && out.transfer) postMessage({ type: 'result', id, value: out.value }, out.transfer);
       else postMessage({ type: 'result', id, value: out });
     } catch (e) {
