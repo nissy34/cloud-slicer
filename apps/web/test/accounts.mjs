@@ -528,6 +528,8 @@ if (withApp)
       await page.getByRole('button', { name: 'Add model' }).waitFor({ timeout: 60000 });
       assert.equal(await layer.inputValue(), '0.28', 'the saved setting came back');
       await projectButton.getByText('3DBenchy').waitFor();
+      // The settings show before opening finishes (mixes are read after them), so wait for it.
+      await projectButton.getByLabel('unsaved changes').waitFor({ state: 'detached', timeout: 30000 }).catch(() => {});
       assert.equal(await projectButton.getByLabel('unsaved changes').count(), 0, 'clean after opening');
 
       await projectButton.click();

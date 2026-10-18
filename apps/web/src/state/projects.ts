@@ -60,7 +60,8 @@ let savedSignature = '';
 let paintedSinceSave = false;
 const signature = () => {
   const s = useSlicer.getState();
-  return projectSignature(s.project, s.selection, s.overrides);
+  // Mixes are saved with the project, so changing them is an unsaved change too.
+  return projectSignature(s.project, s.selection, { ...s.overrides, mixed_filament_definitions: s.mixDefinitions });
 };
 function markClean() {
   savedSignature = signature();
@@ -229,7 +230,7 @@ export const useProjects = create<ProjectsState>((set, get) => {
 // Unsaved changes: anything a save keeps, or paint (which the signature can't see).
 // An empty plate never counts as unsaved.
 useSlicer.subscribe((s, prev) => {
-  const same = s.project === prev.project && s.selection === prev.selection && s.overrides === prev.overrides;
+  const same = s.project === prev.project && s.selection === prev.selection && s.overrides === prev.overrides && s.mixDefinitions === prev.mixDefinitions;
   if (same && s.preview === prev.preview && s.overlay === prev.overlay) return;
   if (s.paint && ((s.preview !== prev.preview && prev.preview) || (s.overlay !== prev.overlay && prev.overlay))) paintedSinceSave = true;
   const dirty = Boolean(s.project?.objects.length) && (paintedSinceSave || signature() !== savedSignature);
