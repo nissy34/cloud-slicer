@@ -9,7 +9,7 @@
 //
 //   node cloud-slicer-bridge.mjs                     # finds your printers, pairs, keeps running
 //   node cloud-slicer-bridge.mjs add 192.168.1.50 [--name "My U1"] [--api-key KEY]
-//   node cloud-slicer-bridge.mjs list | remove <name> | pair
+//   node cloud-slicer-bridge.mjs list | remove <name> | pair [--open]
 //   node cloud-slicer-bridge.mjs install            # start with this computer
 //   node cloud-slicer-bridge.mjs uninstall          # stop it and remove it from this computer
 //
@@ -33,6 +33,8 @@ import { pathToFileURL } from 'node:url';
 export const VERSION = '3';
 /** True in the one-file app (bun build --compile), false under node or bun. */
 const APP = Boolean(process.versions.bun) && !/^bun(\.exe)?$/i.test(basename(process.execPath));
+/** The Mac app opened from Finder: it has no terminal window, but was opened by hand all the same. */
+const MAC_BUNDLE = APP && process.platform === 'darwin' && /\.app\/Contents\/MacOS\//.test(process.execPath);
 /** How to run this bridge again, for messages: the app's own path, or node and this script. */
 let installedAt = null;
 /**
@@ -70,7 +72,7 @@ function parseArgs(argv) {
     if (a.startsWith('--')) {
       const k = a.slice(2);
       opts[k] = argv[i + 1] && !argv[i + 1].startsWith('--') ? argv[++i] : true;
-    } else rest.push(a);
+    } else if (!a.startsWith('-psn_')) rest.push(a); // older macOS adds -psn_… to apps opened from Finder
   }
   return { opts, rest };
 }
@@ -252,10 +254,25 @@ RestartSec=5
 [Install]
 WantedBy=default.target
 `;
+  // The app also gets a menu entry, with its icon, that opens the pairing link.
+  const icon = join(dir, 'icon.png');
+  const menu = {
+    path: join(home, '.local', 'share', 'applications', `${SERVICE}.desktop`),
+    content: `[Desktop Entry]
+Type=Application
+Name=Cloud Slicer Bridge
+Comment=Open the link that pairs this bridge with Cloud Slicer
+Exec=${[copy.to, 'pair', '--open'].map((a) => (/\s/.test(a) ? `"${a}"` : a)).join(' ')}
+Icon=${icon}
+Terminal=false
+Categories=Utility;
+`,
+  };
   return {
     dir,
     copy,
-    files: [{ path: unit, content }],
+    files: app ? [{ path: unit, content }, menu] : [{ path: unit, content }],
+    icon: app ? icon : null,
     enable: [
       ['systemctl', ['--user', 'daemon-reload']],
       ['systemctl', ['--user', 'enable', SERVICE]],
@@ -312,6 +329,11 @@ async function installAutostart() {
   for (const f of plan.files) {
     await mkdir(dirname(f.path), { recursive: true });
     await writeFile(f.path, f.content);
+  }
+  if (plan.icon) {
+    // build-apps.sh builds the icon into the Linux app.
+    const png = globalThis.Bun?.embeddedFiles?.find((f) => /\.png$/.test(f.name));
+    if (png) await writeFile(plan.icon, Buffer.from(await png.arrayBuffer()));
   }
   try {
     for (const step of plan.enable) runStep(step);
@@ -752,7 +774,7 @@ export async function main() {
   if (opts.site) cfg.site = String(opts.site);
   const [cmd = 'run', ...args] = rest;
   // Opened with a double click (or plain "run" in a terminal): offer to start with the computer.
-  const interactive = !rest.length && !opts['no-browser'] && process.stdin.isTTY;
+  const interactive = !rest.length && !opts['no-browser'] && (process.stdin.isTTY || MAC_BUNDLE);
 
   /** Sets the bridge up to start with this computer (and starts it there), or says why it can't. */
   const startWithComputer = async () => {
@@ -788,7 +810,7 @@ export async function main() {
     for (const p of cfg.printers) console.log(`${p.id}  ${p.name}  ${p.url}${p.apiKey ? '  (API key)' : ''}`);
     if (!cfg.printers.length) console.log(`No printers yet. Add one: ${self()} add <address>`);
   } else if (cmd === 'pair') {
-    printPairing(cfg, opts.site);
+    printPairing(cfg, opts.site, { open: !!opts.open });
   } else if (cmd === 'install') {
     if (APP) installedAt = autostartPlan().copy.to;
     const plan = await installAutostart();

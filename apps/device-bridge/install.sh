@@ -39,7 +39,7 @@ fi
 if [ "$os" = mac ]; then
   # The Mac app comes zipped (so a browser download keeps it runnable).
   unzip -q "$tmp/download" -d "$tmp"
-  app="$tmp/Cloud Slicer Bridge"
+  app="$tmp/Cloud Slicer Bridge.app/Contents/MacOS/cloud-slicer-bridge"
 else
   app="$tmp/cloud-slicer-bridge"
   mv "$tmp/download" "$app"

@@ -59,6 +59,17 @@ test('starting with the computer: Linux (and a Pi) gets a systemd user service t
   assert.deepEqual(plan.enable.at(-1).slice(0, 2), ['loginctl', ['enable-linger', 'pi']]);
 });
 
+test('the Linux app also gets a menu entry with its icon that opens the pairing link', () => {
+  const plan = autostartPlan({ platform: 'linux', home: '/home/pi', app: true, exe: '/tmp/x/cloud-slicer-bridge', user: 'pi' });
+  const menu = plan.files.find((f) => f.path.endsWith('.desktop'));
+  assert.equal(menu.path, '/home/pi/.local/share/applications/cloud-slicer-bridge.desktop');
+  assert.match(menu.content, /^Exec=\/home\/pi\/\.local\/share\/cloud-slicer-bridge\/cloud-slicer-bridge pair --open$/m);
+  assert.match(menu.content, /^Icon=\/home\/pi\/\.local\/share\/cloud-slicer-bridge\/icon\.png$/m);
+  assert.equal(plan.icon, '/home/pi/.local/share/cloud-slicer-bridge/icon.png');
+  // Under node there is no icon to show, so no menu entry.
+  assert.equal(autostartPlan({ platform: 'linux', home: '/home/pi', app: false, exe: '/usr/bin/node', script: '/tmp/b.mjs', user: 'pi' }).files.length, 1);
+});
+
 test('starting with the computer under node: node runs a stable copy of this script', () => {
   const plan = autostartPlan({ platform: 'linux', home: '/home/pi', app: false, exe: '/usr/bin/node', script: '/home/pi/Downloads/cloud-slicer-bridge.mjs', user: 'pi' });
   assert.equal(plan.copy.from, '/home/pi/Downloads/cloud-slicer-bridge.mjs');
