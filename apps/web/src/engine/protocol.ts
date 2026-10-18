@@ -173,7 +173,7 @@ export interface EngineLoading {
 
 export type WorkerReply =
   | { type: 'loading'; loading: EngineLoading }
-  | { type: 'ready'; presets: PresetsLoaded }
+  | { type: 'ready'; presets: PresetsLoaded; cancel: Int32Array | null }
   | { type: 'result'; id: number; value: unknown }
   | { type: 'progress'; id: number; pct: number; stage: string }
   | { type: 'error'; id: number | null; message: string };
