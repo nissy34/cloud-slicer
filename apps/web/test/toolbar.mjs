@@ -113,6 +113,7 @@ try {
   for (let y = 0.3; y <= 0.7; y += 0.04) for (let x = 0.35; x <= 0.65; x += 0.04) points.push([x, y]);
   points.sort((a, b) => Math.hypot(a[0] - 0.5, a[1] - 0.45) - Math.hypot(b[0] - 0.5, b[1] - 0.45));
   let turned = false;
+  let laid = '';
   for (const [i, [x, y]] of points.entries()) {
     if (!(await page.getByRole('region', { name: 'Lay on face' }).isVisible())) {
       await objectRows(page).first().locator('.object-name').click();
@@ -124,15 +125,24 @@ try {
     await page.mouse.down();
     await page.mouse.up();
     await page.waitForTimeout(500);
-    turned = (await rotation(page, 3000).catch(() => start)) !== start;
-    if (turned) break;
+    const now = await rotation(page, 3000).catch(() => start);
+    turned = now !== start;
+    if (turned) {
+      laid = now;
+      break;
+    }
   }
   if (shots && turned) {
     await page.waitForTimeout(800);
     await page.screenshot({ path: join(shots, 'toolbar-desktop-laid.png') });
   }
   if (!turned) fail('lay on face did not turn the object');
-  else console.log(`lay on face: ${start} -> ${await rotation(page)}`);
+  else {
+    // It stays laid (and the object stays selected) once the click is done.
+    const after = await rotation(page, 3000).catch(() => 'no object selected');
+    if (after !== laid) fail(`after lay on face the panel showed ${laid}, then ${after}`);
+    console.log(`lay on face: ${start} -> ${after}`);
+  }
   await page.close();
 
   const phone = await open({ width: 390, height: 844 }, true);

@@ -70,7 +70,7 @@ node test/accounts.mjs             # end to end against a mock Google
 ```
 
 Setup, once: give the Cloudflare token "D1: Edit", create a Google OAuth client
-(Web application) with redirect URI `https://cloud-slicer.pages.dev/api/auth/callback/google`,
+(Web application) with redirect URI `https://slicer.awesomestuff.qzz.io/api/auth/callback/google`,
 and add its id and secret as repository secrets `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET`.
 For online projects, turn on R2 in the Cloudflare dashboard (free up to 10 GB) and give the
 token "Workers R2 Storage: Edit"; without it the site works and online projects say they
