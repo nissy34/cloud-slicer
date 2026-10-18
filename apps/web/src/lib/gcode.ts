@@ -44,7 +44,10 @@ export function parseGcode(text: string): ParsedGcode {
   const toolsUsed = new Set<number>();
 
   let x = 0, y = 0, z = 0, e = 0;
-  let absXYZ = true, absE = true;
+  // Like Orca's GCodeProcessor (and Klipper): G90/G91 set the XYZ mode, M82/M83
+  // the extruder's own mode, and E is relative if either says so. A G90 after
+  // M83 must not make E absolute (U1 start G-code does exactly that).
+  let absXYZ = true, relE = false;
   let feature = OTHER;
   let t = 0;
   let width = 0.45, height = 0.2;
@@ -128,7 +131,7 @@ export function parseGcode(text: string): ParsedGcode {
         if (c === 120) nx = absXYZ ? v : x + v;
         else if (c === 121) ny = absXYZ ? v : y + v;
         else if (c === 122) nz = absXYZ ? v : z + v;
-        else if (c === 101) { ne = absE ? v : e + v; hasE = true; }
+        else if (c === 101) { ne = absXYZ && !relE ? v : e + v; hasE = true; }
         else if (c === 105) i = v;
         else if (c === 106) j = v;
       }
@@ -161,10 +164,10 @@ export function parseGcode(text: string): ParsedGcode {
         }
       }
       x = nx; y = ny; z = nz; e = ne;
-    } else if (cmd === 'G90') absXYZ = true, absE = true;
-    else if (cmd === 'G91') absXYZ = false, absE = false;
-    else if (cmd === 'M82') absE = true;
-    else if (cmd === 'M83') absE = false;
+    } else if (cmd === 'G90') absXYZ = true;
+    else if (cmd === 'G91') absXYZ = false;
+    else if (cmd === 'M82') relE = false;
+    else if (cmd === 'M83') relE = true;
     else if (cmd === 'G92') {
       for (let k = 1; k < word.length; k++) {
         const c = word[k].charCodeAt(0) | 32;

@@ -110,9 +110,10 @@ Setting up a home printer, from the Device tab's "Add a printer":
 | macOS, Linux, Raspberry Pi (64-bit) | `curl -fsSL https://cloud-slicer-relay.nissy34.workers.dev/install.sh \| sh` in Terminal |
 | Anything with Node.js 22+ | Download `bridge.mjs` and run `node cloud-slicer-bridge.mjs` |
 
-The bridge finds Moonraker on the network by itself, opens a pairing link that adds
-the printers here, and starts with the computer (Windows and macOS at login, Linux
-at boot). Pairing links carry a browser key derived from the bridge's secret; the
+The bridge asks nothing: it starts with the computer (Windows and macOS at login,
+Linux at boot) and opens a pairing link, and the Device tab then searches the
+bridge's network for Moonraker printers and adds the ones you pick, with their API
+keys, or any address you type. Pairing links carry a browser key derived from the bridge's secret; the
 relay stores only hashes and rate-limits connects. The apps are unsigned (signing
 costs money), which is why Windows warns and why macOS uses the Terminal command.
 

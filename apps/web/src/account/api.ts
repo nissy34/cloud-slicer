@@ -158,13 +158,32 @@ export const api = {
     call<{ project: OnlineProject }>(projectPath(id), { method: 'PATCH', body: JSON.stringify({ name, baseVersion }) }).then((r) => r.project),
   deleteProject: (id: string) => call<{ ok: true }>(projectPath(id), { method: 'DELETE' }),
   /** The project's 3MF and the version it is at. */
-  async projectFile(id: string): Promise<{ bytes: ArrayBuffer; version: number }> {
+  /** `onProgress`: bytes downloaded so far, of `total` (0 when the size is unknown). */
+  async projectFile(id: string, onProgress?: (loaded: number, total: number) => void): Promise<{ bytes: ArrayBuffer; version: number }> {
     const res = await fetch(`${projectPath(id)}/file`, { credentials: 'same-origin' });
     if (!res.ok) {
       const body = (await res.json().catch(() => ({}))) as Record<string, unknown>;
       throw new ApiError(res.status, String(body.error ?? res.statusText), body);
     }
-    return { bytes: await res.arrayBuffer(), version: Number(res.headers.get('X-Project-Version') ?? 0) };
+    const version = Number(res.headers.get('X-Project-Version') ?? 0);
+    if (!onProgress || !res.body) return { bytes: await res.arrayBuffer(), version };
+    // A compressed response's length isn't the size of what it reads.
+    const total = res.headers.get('Content-Encoding') ? 0 : Number(res.headers.get('Content-Length') ?? 0);
+    const chunks: Uint8Array[] = [];
+    let loaded = 0;
+    const reader = res.body.getReader();
+    for (let r = await reader.read(); !r.done; r = await reader.read()) {
+      chunks.push(r.value);
+      loaded += r.value.byteLength;
+      onProgress(loaded, total);
+    }
+    const bytes = new Uint8Array(loaded);
+    let at = 0;
+    for (const c of chunks) {
+      bytes.set(c, at);
+      at += c.byteLength;
+    }
+    return { bytes: bytes.buffer, version };
   },
 };
 
