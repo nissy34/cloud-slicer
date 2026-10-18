@@ -42,11 +42,12 @@ function CopyCommand({ command, testId }: { command: string; testId?: string }) 
 
 /** Where `install` puts the bridge on each system, as a command to type. */
 const BRIDGE_COMMAND: Record<'windows' | 'mac' | 'linux', string> = {
-  windows: '"%LOCALAPPDATA%\\Cloud Slicer Bridge\\cloud-slicer-bridge.exe"',
+  // "cmd /c" makes one line work in PowerShell and in Command Prompt (cmd fills in %LOCALAPPDATA%).
+  windows: 'cmd /c "%LOCALAPPDATA%\\Cloud Slicer Bridge\\cloud-slicer-bridge.exe"',
   mac: '"$HOME/Library/Application Support/Cloud Slicer Bridge/cloud-slicer-bridge"',
   linux: '~/.local/bin/cloud-slicer-bridge',
 };
-const SHELL_NAME = { windows: 'Command Prompt', mac: 'Terminal', linux: 'a terminal' };
+const SHELL_NAME = { windows: 'PowerShell or Command Prompt', mac: 'Terminal', linux: 'a terminal' };
 const SYSTEM_NAME = { windows: 'Windows', mac: 'Mac', linux: 'Linux or Pi' };
 
 type BridgeOs = 'windows' | 'mac' | 'linux';

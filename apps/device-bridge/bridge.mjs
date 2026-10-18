@@ -35,7 +35,13 @@ export const VERSION = '2';
 const APP = Boolean(process.versions.bun) && !/^bun(\.exe)?$/i.test(basename(process.execPath));
 /** How to run this bridge again, for messages: the app's own path, or node and this script. */
 let installedAt = null;
-const self = () => (installedAt ? `"${installedAt}"` : APP ? `"${process.execPath}"` : `node ${basename(process.argv[1] ?? 'cloud-slicer-bridge.mjs')}`);
+/**
+ * A program path as a command to paste. On Windows "cmd /c" makes the same
+ * line work in PowerShell (where a quoted path followed by arguments is a
+ * syntax error) and in Command Prompt.
+ */
+const asCommand = (path) => (process.platform === 'win32' ? `cmd /c "${path}"` : `"${path}"`);
+const self = () => (installedAt ? asCommand(installedAt) : APP ? asCommand(process.execPath) : `node ${basename(process.argv[1] ?? 'cloud-slicer-bridge.mjs')}`);
 // The relay that served this file replaces this default when you download it.
 const DEFAULT_RELAY = '__RELAY_URL__'.startsWith('__') ? 'https://cloud-slicer-relay.nissy34.workers.dev' : '__RELAY_URL__';
 // Pairing links open the site the bridge was downloaded from (the relay fills it in).
@@ -311,7 +317,7 @@ async function installAutostart() {
     for (const step of plan.enable) runStep(step);
   } catch (e) {
     if (process.platform !== 'linux') throw e;
-    throw new Error(`${e.message}\nThis computer can't start the bridge by itself (no systemd user services). Run it yourself instead: "${plan.copy.to}" run`);
+    throw new Error(`${e.message}\nThis computer can't start the bridge by itself (no systemd user services). Run it yourself instead: ${asCommand(plan.copy.to)} run`);
   }
   if (plan.start) {
     const child = spawn(plan.start[0], plan.start[1], { stdio: 'ignore', detached: true, windowsVerbatimArguments: true });
@@ -710,7 +716,7 @@ export async function main() {
     await findPrinters();
     const plan = await installAutostart();
     console.log(`The bridge now starts by itself with this computer (from ${plan.copy.to}), and is running.`);
-    console.log(`To remove it from this computer: "${plan.copy.to}" uninstall`);
+    console.log(`To remove it from this computer: ${asCommand(plan.copy.to)} uninstall`);
     printPairing(cfg, opts.site, { open: !opts['no-browser'] && cfg.printers.length > 0 });
   } else if (cmd === 'uninstall') {
     await uninstallBridge(path);
@@ -727,7 +733,7 @@ export async function main() {
         await installAutostart();
         console.log('Updated the bridge that runs in the background to this version.');
       } else console.log('The bridge already runs in the background and starts with this computer.');
-      console.log(`To remove it from this computer: "${plan.copy.to}" uninstall`);
+      console.log(`To remove it from this computer: ${asCommand(plan.copy.to)} uninstall`);
       printPairing(cfg, opts.site, { open: cfg.printers.length > 0 });
       await holdWindow();
       return;
@@ -740,7 +746,7 @@ export async function main() {
         bridge.stop();
         const plan = await installAutostart();
         console.log(`Done. The bridge now runs in the background (from ${plan.copy.to}); you can close this window.`);
-        console.log(`To remove it from this computer: "${plan.copy.to}" uninstall`);
+        console.log(`To remove it from this computer: ${asCommand(plan.copy.to)} uninstall`);
         await holdWindow();
         process.exit(0);
       }
