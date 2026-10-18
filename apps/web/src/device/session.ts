@@ -233,6 +233,11 @@ export class PrinterSession {
     return this.rpc<Record<string, unknown>>('server.files.metadata', { filename }).catch(() => null);
   }
 
+  /** A file's slicer thumbnail, fetched through the link (direct or bridge). */
+  thumbnail(url: string) {
+    return this.link.snapshot(url);
+  }
+
   deleteFile(path: string) {
     return this.rpc('server.files.delete_file', { path: `gcodes/${path}` });
   }

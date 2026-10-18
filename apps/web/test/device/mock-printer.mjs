@@ -305,7 +305,11 @@ export async function startMockPrinter({ port = 0, host = '127.0.0.1', generic =
         return {
           filename: params.filename,
           size: f.size,
-          estimated_time: 3600,
+          estimated_time: Number(kv('estimated_time_s') ?? 3600),
+          thumbnails: [
+            { width: 32, height: 32, size: 900, relative_path: `.thumbs/${params.filename.replace(/\.[^.]+$/, '')}-32x32.png` },
+            { width: 300, height: 300, size: 9000, relative_path: `.thumbs/${params.filename.replace(/\.[^.]+$/, '')}-300x300.png` },
+          ],
           filament_colors: (kv('filament_colour') ?? '').split(';').filter(Boolean),
           filament_type: kv('filament_type') ?? '',
           filament_weights: (kv('filament used [g]') ?? '').split(',').filter(Boolean).map(Number),
@@ -350,6 +354,12 @@ export async function startMockPrinter({ port = 0, host = '127.0.0.1', generic =
       res.end(typeof body === 'string' || Buffer.isBuffer(body) ? body : JSON.stringify(body));
     };
     if (req.method === 'OPTIONS') return send(204, '');
+    // Slicer thumbnails Moonraker extracted from the G-code (one colour per file).
+    if (url.pathname.startsWith('/server/files/gcodes/.thumbs/')) {
+      const name = decodeURIComponent(url.pathname.slice('/server/files/gcodes/.thumbs/'.length)).replace(/-\d+x\d+\.png$/, '');
+      if (![...files.keys()].some((p) => p.replace(/\.[^.]+$/, '') === name)) return send(404, { error: { message: 'no thumbnail' } });
+      return send(200, pngFrame([...name].reduce((h, c) => h + c.charCodeAt(0), 0), 64, 64), 'image/png');
+    }
     if (url.pathname === '/server/files/camera/monitor.jpg') {
       if (!generic && Date.now() < monitorUntil) return send(200, pngFrame(frame), 'image/png');
       return send(404, { error: { message: 'no camera here' } });

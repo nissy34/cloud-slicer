@@ -76,6 +76,11 @@ try {
   await page.getByText('Snapmaker U1').first().waitFor();
   console.log('U1 tool heads shown');
 
+  // Each file row shows what Moonraker already knows about it: thumbnail (fetched through the bridge), time, filament.
+  await until('file thumbnail through the bridge', () => page.getByTestId('files-card').locator('.dv-file-thumb img').first().evaluate((img) => img.naturalWidth > 0).catch(() => false));
+  await page.getByTestId('files-card').getByTestId('file-meta').first().filter({ hasText: '1 h' }).filter({ hasText: 'PLA 5.1 g' }).waitFor();
+  console.log('file rows show thumbnail, print time and filament');
+
   await page.getByRole('switch', { name: 'Chamber light' }).click({ force: true });
   await until('chamber light on', () => u1.state['led cavity_led'].color_data[0][3] === 1);
   await page.getByLabel('Bed target').fill('60');
