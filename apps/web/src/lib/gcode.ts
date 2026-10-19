@@ -33,7 +33,8 @@ export interface ParsedGcode {
 const featureIndex = new Map<string, number>(FEATURES.map((f, i) => [f.toLowerCase(), i]));
 const OTHER = FEATURES.length - 1;
 
-export function parseGcode(text: string): ParsedGcode {
+/** `onProgress` gets the share of the text read so far (0..1), about every 2 MB. */
+export function parseGcode(text: string, onProgress?: (done: number) => void): ParsedGcode {
   let pos = new Float32Array(1 << 20);
   let feat = new Uint8Array(1 << 17);
   let tool = new Uint8Array(1 << 17);
@@ -88,7 +89,13 @@ export function parseGcode(text: string): ParsedGcode {
 
   let start = 0;
   const len = text.length;
+  const STEP = 2 << 20;
+  let nextReport = STEP;
   while (start < len) {
+    if (onProgress && start >= nextReport) {
+      onProgress(start / len);
+      nextReport = start + STEP;
+    }
     let end = text.indexOf('\n', start);
     if (end < 0) end = len;
     const line = text.slice(start, end).trim();
