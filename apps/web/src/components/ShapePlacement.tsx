@@ -1,16 +1,27 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { useSlicer } from '../state/store';
 import { cameraPosition } from '../state/view';
 
 /**
- * Where a text or SVG shape stands on its object, like the lower half of
- * desktop's Text and SVG tools: its turn, its distance from the surface,
- * "Keep up" and "Face the camera". The 3D view has the same as handles.
+ * The shape's number boxes in one row: its own (`fields`: height, depth...),
+ * then where it stands on its object like desktop's Text and SVG tools: its
+ * turn and its distance from the surface. The 3D view has the same as handles.
  */
-export function ShapePlacement({ object, volume, followsSurface, label }: { object: number; volume: number; followsSurface: boolean; label: string }) {
+export function ShapePlacement({
+  object,
+  volume,
+  followsSurface,
+  label,
+  fields,
+}: {
+  object: number;
+  volume: number;
+  followsSurface: boolean;
+  label: string;
+  fields: ReactNode;
+}) {
   const shape = useSlicer((s) => (s.shape?.object === object && s.shape.volume === volume ? s.shape : null));
-  const keepUp = useSlicer((s) => s.keepUp);
-  const { setKeepUp, shapePlace } = useSlicer.getState();
+  const shapePlace = useSlicer((s) => s.shapePlace);
   const instance = shape?.instance ?? 0;
   const [angle, setAngle] = useState('');
   const [distance, setDistance] = useState('');
@@ -43,50 +54,55 @@ export function ShapePlacement({ object, volume, followsSurface, label }: { obje
     return () => window.clearTimeout(t);
   }, [distance, shape, object, volume, instance, label, shapePlace]);
 
-  if (!shape) return null;
-  const onSurface = shape.surface;
+  const onSurface = !!shape?.surface;
   return (
-    <div className="shape-placement">
-      <div className="num-fields">
+    <div className="num-fields">
+      {fields}
+      {shape && (
         <label className="num-field" title="Turn it about its own axis, clockwise (the ring in the 3D view does the same)">
-          <span>Rotation</span>
+          <span>
+            Rotation <span className="unit">(°)</span>
+          </span>
           <input type="number" aria-label="Rotation" inputMode="decimal" step={5} value={angle} onChange={(e) => setAngle(e.target.value)} />
-          <span className="unit">°</span>
         </label>
-        {/* Following the surface, it sits on it. */}
-        {onSurface && !followsSurface && (
-          <label className="num-field" title="How far it stands off the surface">
-            <span>From surface</span>
-            <input
-              type="number"
-              aria-label="From surface"
-              inputMode="decimal"
-              step={0.1}
-              value={distance}
-              onChange={(e) => setDistance(e.target.value)}
-            />
-            <span className="unit">mm</span>
-          </label>
-        )}
-      </div>
-      <div className="tool-row shape-row">
-        {onSurface && (
-          <label className="svg-ratio" title="Keeps it upright while you slide it over the surface or face it to the camera">
-            <input type="checkbox" checked={keepUp} onChange={(e) => setKeepUp(e.target.checked)} />
-            Keep up
-          </label>
-        )}
-        <button
-          className="ghost"
-          title="Turn it to face you, where you look at it from"
-          onClick={() => {
-            const camera = cameraPosition();
-            if (camera) void shapePlace(object, { op: 'face', volume, instance, camera }, 'Face the camera');
-          }}
-        >
-          Face the camera
-        </button>
-      </div>
+      )}
+      {/* Following the surface, it sits on it. */}
+      {onSurface && !followsSurface && (
+        <label className="num-field" title="How far it stands off the surface">
+          <span>
+            From surface <span className="unit">(mm)</span>
+          </span>
+          <input type="number" aria-label="From surface" inputMode="decimal" step={0.1} value={distance} onChange={(e) => setDistance(e.target.value)} />
+        </label>
+      )}
+    </div>
+  );
+}
+
+/** Desktop's "Keep up" and "Face the camera" for a shape on its object. */
+export function ShapeActions({ object, volume }: { object: number; volume: number }) {
+  const shape = useSlicer((s) => (s.shape?.object === object && s.shape.volume === volume ? s.shape : null));
+  const keepUp = useSlicer((s) => s.keepUp);
+  const { setKeepUp, shapePlace } = useSlicer.getState();
+  if (!shape) return null;
+  return (
+    <div className="tool-row shape-row">
+      {shape.surface && (
+        <label className="svg-ratio" title="Keeps it upright while you slide it over the surface or face it to the camera">
+          <input type="checkbox" checked={keepUp} onChange={(e) => setKeepUp(e.target.checked)} />
+          Keep up
+        </label>
+      )}
+      <button
+        className="ghost"
+        title="Turn it to face you, where you look at it from"
+        onClick={() => {
+          const camera = cameraPosition();
+          if (camera) void shapePlace(object, { op: 'face', volume, instance: shape.instance, camera }, 'Face the camera');
+        }}
+      >
+        Face the camera
+      </button>
     </div>
   );
 }

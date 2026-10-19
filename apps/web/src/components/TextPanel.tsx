@@ -3,7 +3,7 @@ import { DEFAULT_TEXT, clampStyle, type FontChoice, type TextStyle } from '../li
 import { KIND_LABELS, keepsAPart } from '../lib/volumes';
 import { addFontFile, availableFonts, canListComputerFonts, loadComputerFonts, nextTextStyle, rememberTextStyle } from '../state/fonts';
 import { useSlicer } from '../state/store';
-import { ShapePlacement, placementHint } from './ShapePlacement';
+import { ShapeActions, ShapePlacement, placementHint } from './ShapePlacement';
 
 const TYPES = ['part', 'negative', 'modifier'] as const;
 const GROUPS: [FontChoice['source'], string][] = [
@@ -105,9 +105,11 @@ function TextFields({
   const set = <K extends keyof TextStyle>(key: K, value: TextStyle[K]) => setStyle((s) => ({ ...s, [key]: value }));
   const num = (key: 'size' | 'depth' | 'boldness' | 'skew' | 'charGap' | 'lineGap', label: string, unit: string, step: number, title?: string) => (
     <label className="num-field" title={title}>
-      <span>{label}</span>
+      <span>
+        {label}
+        {unit && <span className="unit"> ({unit})</span>}
+      </span>
       <input type="number" aria-label={label} inputMode="decimal" step={step} value={style[key]} onChange={(e) => set(key, Number(e.target.value))} />
-      {unit && <span className="unit">{unit}</span>}
     </label>
   );
 
@@ -166,10 +168,18 @@ function TextFields({
         }}
       />
       {missingFont && <p className="hint simplify-warning">This text was made with a font that isn't on this device. Pick a font to change the text.</p>}
-      <div className="num-fields">
-        {num('size', 'Height', 'mm', 0.5, 'Height of the letters')}
-        {num('depth', 'Depth', 'mm', 0.1, kind === 'negative' ? 'How deep the text cuts in' : 'How far the text stands out')}
-      </div>
+      <ShapePlacement
+        object={object}
+        volume={volume}
+        followsSurface={style.useSurface}
+        label="text"
+        fields={
+          <>
+            {num('size', 'Height', 'mm', 0.5, 'Height of the letters')}
+            {num('depth', 'Depth', 'mm', 0.1, kind === 'negative' ? 'How deep the text cuts in' : 'How far the text stands out')}
+          </>
+        }
+      />
       <div className="align-row">
         <div className="segmented icons" role="radiogroup" aria-label="Alignment">
           {(['left', 'center', 'right'] as const).map((a) => (
@@ -214,7 +224,7 @@ function TextFields({
           </label>
         </div>
       )}
-      <ShapePlacement object={object} volume={volume} followsSurface={style.useSurface} label="text" />
+      <ShapeActions object={object} volume={volume} />
       {canChangeType && (
         <div className="segmented" role="radiogroup" aria-label="Text type">
           {TYPES.map((t) => (
@@ -238,8 +248,6 @@ function TextFields({
           <div className="num-fields">
             {num('boldness', 'Boldness', 'mm', 0.05, 'Thicker (+) or thinner (−) letters')}
             {num('skew', 'Skew', '', 0.05, 'Slant the letters (0.2 is a light italic)')}
-          </div>
-          <div className="num-fields">
             {num('charGap', 'Letter gap', '', 10, 'Extra space between letters, in font units')}
             {num('lineGap', 'Line gap', '', 10, 'Extra space between lines, in font units')}
           </div>

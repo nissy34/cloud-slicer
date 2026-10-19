@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { KIND_LABELS, keepsAPart } from '../lib/volumes';
 import { useSlicer } from '../state/store';
-import { ShapePlacement, placementHint } from './ShapePlacement';
+import { ShapeActions, ShapePlacement, placementHint } from './ShapePlacement';
 
 const TYPES = ['part', 'negative', 'modifier'] as const;
 
@@ -132,9 +132,10 @@ function SvgFields({
     });
   const field = (key: keyof Size, label: string, title: string, onChange: (x: number) => void) => (
     <label className="num-field" title={title}>
-      <span>{label}</span>
+      <span>
+        {label} <span className="unit">(mm)</span>
+      </span>
       <input type="number" aria-label={label} inputMode="decimal" step={key === 'depth' ? 0.1 : 1} min={0} value={values[key]} onChange={(e) => onChange(Number(e.target.value))} />
-      <span className="unit">mm</span>
     </label>
   );
 
@@ -143,11 +144,19 @@ function SvgFields({
       <p className="svg-name" title={name}>
         {name}
       </p>
-      <div className="num-fields">
-        {field('depth', 'Depth', kind === 'negative' ? 'How deep the shape cuts in' : 'How far the shape stands out', (x) => setValues((s) => ({ ...s, depth: x })))}
-        {field('width', 'Width', 'Size across the shape', (x) => setSize('width', x))}
-        {field('height', 'Height', 'Size up the shape', (x) => setSize('height', x))}
-      </div>
+      <ShapePlacement
+        object={object}
+        volume={volume}
+        followsSurface={size.useSurface}
+        label="SVG"
+        fields={
+          <>
+            {field('depth', 'Depth', kind === 'negative' ? 'How deep the shape cuts in' : 'How far the shape stands out', (x) => setValues((s) => ({ ...s, depth: x })))}
+            {field('width', 'Width', 'Size across the shape', (x) => setSize('width', x))}
+            {field('height', 'Height', 'Size up the shape', (x) => setSize('height', x))}
+          </>
+        }
+      />
       <label className="svg-ratio">
         <input type="checkbox" checked={keepRatio} onChange={(e) => setKeepRatio(e.target.checked)} />
         Keep proportions
@@ -169,7 +178,7 @@ function SvgFields({
           </label>
         </div>
       )}
-      <ShapePlacement object={object} volume={volume} followsSurface={size.useSurface} label="SVG" />
+      <ShapeActions object={object} volume={volume} />
       {canChangeType && (
         <div className="segmented" role="radiogroup" aria-label="SVG type">
           {TYPES.map((t) => (

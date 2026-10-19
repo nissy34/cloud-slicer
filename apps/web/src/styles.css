@@ -999,21 +999,23 @@ select:focus-visible {
 .transform-row.text-row {
   grid-template-columns: 80px 1fr auto;
 }
-/* Small number boxes side by side: a caption, the box, its unit. */
+/* Number boxes side by side across the panel, each captioned above. */
 .num-fields {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px 12px;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(68px, 1fr));
+  gap: 8px;
 }
 .num-field {
   display: flex;
-  align-items: center;
-  gap: 6px;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
   color: var(--muted);
   font-size: 12px;
 }
 .num-field input {
-  width: 56px;
+  width: 100%;
+  min-width: 0;
   font-variant-numeric: tabular-nums;
 }
 .text-row select,
@@ -1036,15 +1038,11 @@ select:focus-visible {
   align-items: center;
   gap: 8px;
 }
-/* Text and SVG shapes on a surface: the surface options, then where it stands. */
+/* Text and SVG shapes on a surface: the surface options, Keep up and Face the camera. */
 .shape-checks {
   display: flex;
   flex-wrap: wrap;
   gap: 4px 16px;
-}
-.shape-placement {
-  display: grid;
-  gap: 8px;
 }
 .tool-row.shape-row {
   align-items: center;
