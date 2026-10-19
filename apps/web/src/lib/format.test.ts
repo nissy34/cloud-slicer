@@ -33,5 +33,6 @@ describe('stageLabel', () => {
   it('sentence-cases engine stages', () => {
     expect(stageLabel('GENERATING SUPPORT')).toBe('Generating support');
     expect(stageLabel('')).toBe('');
+    expect(stageLabel('Generating G-code: layer 12')).toBe('Generating G-code: layer 12');
   });
 });
