@@ -291,7 +291,9 @@ jobs:
 
       - name: User presets end to end (Chromium)
         if: matrix.suite == 'presets'
-        run: node test/presets.mjs
+        run: |
+          node test/presets.mjs
+          node test/convert.mjs
 
       - name: Preset editing, import and export end to end (Chromium)
         if: matrix.suite == 'presetfiles'

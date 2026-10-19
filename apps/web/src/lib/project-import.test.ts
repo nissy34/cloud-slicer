@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { PresetSummary } from '../engine/protocol';
-import { emptyProjectMessage, modelProcessKeys, pickProcess, processKeys, projectOverrides } from './project-import';
+import { changedOnPurpose, emptyProjectMessage, modelProcessKeys, pickProcess, processKeys, projectOverrides } from './project-import';
 
 const known = { layer_height: {}, wall_loops: {}, nozzle_diameter: {}, wipe_tower_x: {}, print_settings_id: {} };
 
@@ -66,5 +66,18 @@ describe('emptyProjectMessage', () => {
   it('explains sliced-only 3MF files', () => {
     expect(emptyProjectMessage('Cube.gcode.3mf')).toMatch(/sliced file.*original project/);
     expect(emptyProjectMessage('empty.3mf')).toBe('empty.3mf has no objects to print.');
+  });
+});
+
+describe('changedOnPurpose', () => {
+  it('reads the keys the author changed, for the process and the other presets', () => {
+    const file = { different_settings_to_system: 'enable_support;wall_loops;;nozzle_temperature;;' };
+    expect([...changedOnPurpose(file)!].sort()).toEqual(['enable_support', 'layer_height', 'nozzle_temperature', 'wall_loops']);
+  });
+  it('counts the layer height even when nothing was changed', () => {
+    expect([...changedOnPurpose({ different_settings_to_system: ';;;' })!]).toEqual(['layer_height']);
+  });
+  it("is null when the file doesn't say", () => {
+    expect(changedOnPurpose({ layer_height: '0.2' })).toBeNull();
   });
 });

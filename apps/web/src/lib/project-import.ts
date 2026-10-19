@@ -100,6 +100,25 @@ export function modelProcessKeys(layout: SettingsLayout | null): Set<string> {
 }
 
 /**
+ * The settings the project's author changed on purpose: Bambu Studio and Orca
+ * save, in different_settings_to_system, the keys that differ from the system
+ * presets the project came from (one entry for the process, one per filament,
+ * one for the printer; the engine hands them over joined by ';', so they're
+ * read together, and the caller keeps only process keys). A value the author
+ * never touched is just the old printer's default, so a converted project takes
+ * the new printer's default instead (Bambu's 0.2 mm first layer becomes the
+ * U1's 0.25). The layer height always counts: the new process is picked by it.
+ * Null when the file doesn't say (older or hand-made files).
+ */
+export function changedOnPurpose(file: OrcaConfig): Set<string> | null {
+  const list = file.different_settings_to_system;
+  if (list === undefined) return null;
+  const keys = new Set(list.split(';').map((k) => k.trim().replace(/^"|"$/g, '')).filter(Boolean));
+  keys.add('layer_height');
+  return keys;
+}
+
+/**
  * Process preset for a converted project: same layer height as the project,
  * preferring a "Standard" one, else `fallback` (the printer's default).
  */
