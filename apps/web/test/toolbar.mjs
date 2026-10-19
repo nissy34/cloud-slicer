@@ -8,7 +8,8 @@
 // boolean joins two parts, text and SVG shapes go on a model or make an object
 // of their own, Assemble joins two cubes and puts a face of one onto the
 // other, and the toolbar fits a phone (and the page itself
-// never scrolls there).
+// never scrolls there; an open tool stacks the toolbar, its card and the 3D
+// view with the settings hidden).
 //
 //   node test/toolbar.mjs [screenshot-dir]
 //
@@ -524,14 +525,24 @@ try {
   await phone.waitForTimeout(200);
   const undoBox = await bar.getByRole('button', { name: 'Undo' }).boundingBox();
   if (!undoBox || undoBox.x < 0 || undoBox.x + undoBox.width > 390) fail(`Undo should stay on screen while the toolbar scrolls: ${JSON.stringify(undoBox)}`);
+  // Opening a tool with the settings scrolled into view used to scroll the
+  // toolbar away. Now the toolbar, the tool's card and the 3D view stack in
+  // that order, all on screen, and the settings hide until Done.
+  await phone.getByRole('region', { name: 'Rotate' }).getByRole('button', { name: 'Done' }).tap();
+  await phone.evaluate(() => (document.querySelector('.body').scrollTop = 400));
   await bar.getByRole('button', { name: 'Lay on face' }).tap();
   await phone.waitForTimeout(500);
-  // On a phone the tool's card sits under the 3D view, not over the plate.
   const card = await phone.getByRole('region', { name: 'Lay on face' }).boundingBox();
   const view = await phone.getByTestId('viewport').boundingBox();
-  if (!card || card.y < view.y + view.height - 1) fail(`the phone tool card covers the 3D view: ${JSON.stringify({ card, view })}`);
+  const top = await bar.boundingBox();
+  if (!card || top.y < 0 || card.y < top.y + top.height - 1 || view.y < card.y + card.height - 1)
+    fail(`a phone tool should stack toolbar, card, then 3D view: ${JSON.stringify({ top, card, view })}`);
+  if (view.height < 844 * 0.3) fail(`the 3D view is too small with a tool open: ${JSON.stringify(view)}`);
+  if (await phone.getByRole('heading', { name: 'Printer' }).isVisible()) fail('the settings should hide while a phone tool is open');
   if (shots) await phone.screenshot({ path: join(shots, 'toolbar-phone-flatten.png') });
-  console.log('phone: toolbar scrolls inside the screen');
+  await phone.getByRole('region', { name: 'Lay on face' }).getByRole('button', { name: 'Done' }).tap();
+  await phone.getByRole('heading', { name: 'Printer' }).waitFor();
+  console.log('phone: toolbar scrolls inside the screen; a tool stacks toolbar, card and 3D view with the settings hidden');
 
   // The page itself must never scroll on a phone. Android Chrome makes the
   // document taller than the screen while its address bar slides away; a
