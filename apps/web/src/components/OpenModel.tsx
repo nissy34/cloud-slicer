@@ -5,6 +5,7 @@ import { useProjects } from '../state/projects';
 import { useSlicer } from '../state/store';
 import { LoadingOverlay } from './LoadingOverlay';
 import { ObjectMenu } from './ObjectMenu';
+import { PlateMenu } from './PlateMenu';
 import { Toolbar } from './Toolbar';
 
 /** File button plus drag-and-drop anywhere over the workspace. */
@@ -78,6 +79,7 @@ export function OpenModel({ children }: { children: React.ReactNode }) {
       )}
       {dragging && <div className="dropzone">Drop to add</div>}
       <ObjectMenu />
+      <PlateMenu onAdd={() => input.current?.click()} />
       <LoadingOverlay />
     </div>
   );

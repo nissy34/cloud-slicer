@@ -24,6 +24,7 @@ import type { SimplifyBy, SimplifyResult } from '../lib/simplify';
 import type { AssembleRequest, AssembleResult, MeasureFeature, Measurement } from '../lib/measure';
 import type { ObjectAction } from '../lib/objectMenu';
 import type { VolumeAction } from '../lib/volumes';
+import type { PlateAction } from '../lib/plateMenu';
 import type { BooleanRequest } from '../lib/boolean';
 import type { TextStyle } from '../lib/fonts';
 
@@ -318,6 +319,7 @@ export class EngineClient {
     this.call<ProjectInfo>('setObjectSettings', [o, volume, values]);
   addPlate = () => this.call<ProjectInfo>('addPlate');
   deletePlate = (plate: number) => this.call<ProjectInfo>('deletePlate', [plate]);
+  plateAction = (plate: number, request: PlateAction) => this.call<{ info: ProjectInfo; object?: number }>('plateAction', [plate, request]);
   calibrate = (options: Record<string, unknown>, overrides: OrcaConfig) =>
     this.call<{ overrides: OrcaConfig; info: ProjectInfo }>('calibrate', [options, overrides]);
   calibrationStop = () => this.call<void>('calibrationStop');

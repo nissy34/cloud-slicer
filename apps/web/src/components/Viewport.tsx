@@ -12,6 +12,7 @@ import { holdCamera, onFingersUp, onSecondFinger, twoFingers, type CameraControl
 import { useSceneColours } from '../lib/theme';
 import { layerTexture, type LayerProfile } from '../lib/layers';
 import { KIND_COLOURS, partRanges, volumeMeshes } from '../lib/volumes';
+import { onPlate } from '../lib/plateMenu';
 import { NO_COLOURS, useOption, useSlicer } from '../state/store';
 import { setCameraSource } from '../state/view';
 import { BrimMarks } from './BrimEars';
@@ -677,10 +678,11 @@ function Objects({ w, d }: { w: number; d: number }) {
 
   // The object menu: a right click (released without dragging, since a
   // right drag pans the view) or a long press with a finger.
-  const menuPress = (ev: PointerEvent, object: number, instance: number, long: boolean, volume?: number) => {
+  const menuPress = (ev: PointerEvent, object: number, instance: number, long: boolean, volume?: number) =>
+    pressForMenu(ev, long, () => useSlicer.getState().openObjectMenu({ object, instance, volume, x: ev.clientX, y: ev.clientY }));
+  const pressForMenu = (ev: PointerEvent, long: boolean, open: () => void) => {
     const [x0, y0] = [ev.clientX, ev.clientY];
     let timer = 0;
-    const open = () => useSlicer.getState().openObjectMenu({ object, instance, volume, x: x0, y: y0 });
     const done = () => {
       clearTimeout(timer);
       window.removeEventListener('pointermove', move);
@@ -704,6 +706,31 @@ function Objects({ w, d }: { w: number; d: number }) {
         open();
       }, 550);
   };
+
+  // The plate menu: a right click or long press on the plate or the space
+  // around it, where nothing (object, part, prime tower) took the press, and
+  // no tool is open, like desktop. A press reaches window after the 3D view
+  // handled it, so r3f's hits for it are known by then.
+  const r3f = useThree((s) => s.get);
+  useEffect(() => {
+    const down = (ev: PointerEvent) => {
+      if (ev.target !== canvas || twoFingers()) return;
+      const { tool, paint } = useSlicer.getState();
+      if (tool || paint || r3f().internal.initialHits.length) return;
+      const long = ev.pointerType === 'touch';
+      if (!long && ev.button !== 2) return;
+      pressForMenu(ev, long, () => {
+        const r = canvas.getBoundingClientRect();
+        const caster = new THREE.Raycaster();
+        caster.setFromCamera(new THREE.Vector2(((ev.clientX - r.left) / r.width) * 2 - 1, -((ev.clientY - r.top) / r.height) * 2 + 1), camera);
+        const hit = new THREE.Vector3();
+        const onBed = !!caster.ray.intersectPlane(plane, hit) && onPlate(hit.x, hit.y, w, d);
+        useSlicer.getState().openPlateMenu({ x: ev.clientX, y: ev.clientY, onPlate: onBed });
+      });
+    };
+    window.addEventListener('pointerdown', down);
+    return () => window.removeEventListener('pointerdown', down);
+  });
 
   const onDown = (e: ThreeEvent<PointerEvent>, object: number) => {
     e.stopPropagation();

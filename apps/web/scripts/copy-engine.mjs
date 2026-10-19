@@ -6,6 +6,7 @@
 //   settings-layout.json     desktop Orca's settings pages (extract-settings-layout.mjs)
 //   calib/                   calibration test models (resources/calib, plus
 //                            engine/calib for the STEP model as STL)
+//   handy_models/            the plate menu's handy models (resources/handy_models)
 //   fonts/                   the Text tool's bundled fonts (src/lib/fonts.ts)
 //
 //   ENGINE_DIR  engine build dir (default: ../../engine/build/engine)
@@ -52,6 +53,9 @@ if (existsSync(join(repo, 'engine/orcaslicer/resources/profiles'))) {
     filter: (src) => !/\.(step|stp)$/i.test(src) && !unused.includes(basename(src)),
   });
   copyFileSync(join(repo, 'engine/calib/SpeedTestStructure.stl'), join(out, 'calib/volumetric_speed/SpeedTestStructure.stl'));
+  // Fetched only when picked from the plate menu's Add handy models.
+  rmSync(join(out, 'handy_models'), { recursive: true, force: true });
+  cpSync(join(repo, 'engine/orcaslicer/resources/handy_models'), join(out, 'handy_models'), { recursive: true });
 } else {
   console.warn('copy-engine: engine/orcaslicer is not checked out; no presets bundled.');
 }

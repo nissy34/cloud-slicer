@@ -30,6 +30,7 @@ import { sameFeature, type AssembleRequest, type MeasureFeature, type Measuremen
 import { mixSettings, palette as mixPalette, type MatchResult, type MixRecipe, type MixRow } from '../lib/mixing';
 import { dropPlateTower, moveTower, towerOptions, towersFromConfig, type TowerSpot } from '../lib/wipe-tower';
 import { stlName, type ObjectAction } from '../lib/objectMenu';
+import type { PlateAction } from '../lib/plateMenu';
 import type { VolumeAction } from '../lib/volumes';
 import type { BooleanRequest } from '../lib/boolean';
 import type { TextStyle } from '../lib/fonts';
@@ -102,6 +103,8 @@ export interface SlicerState {
   /** The object menu (right click, long press or the object list's ⋯), at a point on the page. */
   /** The object menu, or with `volume` the menu of one of its parts, modifiers..., at (x, y) on the page. */
   objectMenu: { object: number; instance: number; volume?: number; x: number; y: number } | null;
+  /** Desktop's menu on the plate (onPlate) or the empty space around it, open at (x, y) on the page. */
+  plateMenu: { x: number; y: number; onPlate: boolean } | null;
   /** Files waiting for the user to say how to open the 3MF among them. */
   pendingOpen: File[] | null;
   /** Rotate in 15° steps (and move/scale in steps) without holding Shift, for touch screens. */
@@ -227,6 +230,9 @@ export interface SlicerState {
   orient(o?: number): Promise<void>;
   mirror(o: number, i: number, axis: 0 | 1 | 2): Promise<void>;
   openObjectMenu(menu: SlicerState['objectMenu']): void;
+  openPlateMenu(menu: SlicerState['plateMenu']): void;
+  /** A plate menu action on the shown plate (engine/src/plate_api.cpp); a new object is picked. */
+  plateAction(request: PlateAction, label: string): Promise<void>;
   /** One of the object menu's edits (rename, printable, center, scale to fit, units...); one undo step. */
   objectAction(o: number, i: number, request: ObjectAction, label: string): Promise<void>;
   /** Desktop's Clone: `count` copies as new objects, then (optionally) Arrange. */
@@ -762,6 +768,7 @@ export const useSlicer = create<SlicerState>((set, get) => {
     paint: null,
     tool: null,
     objectMenu: null,
+    plateMenu: null,
     pendingOpen: null,
     snap: false,
     history: { undo: null, redo: null },
@@ -1076,7 +1083,18 @@ export const useSlicer = create<SlicerState>((set, get) => {
         return info;
       }),
     mirror: (o, i, axis) => projectEdit('Mirror', () => engine().mirrorInstance(o, i, axis)),
-    openObjectMenu: (objectMenu) => set({ objectMenu }),
+    openObjectMenu: (objectMenu) => set(objectMenu ? { objectMenu, plateMenu: null } : { objectMenu }),
+    openPlateMenu: (plateMenu) => set(plateMenu ? { plateMenu, objectMenu: null } : { plateMenu }),
+    plateAction: async (request, label) => {
+      let object: number | undefined;
+      await projectEdit(label, async () => {
+        if (request.op === 'deleteAll') set({ selected: null, tool: null });
+        const out = await engine().plateAction(get().plate, request);
+        object = out.object;
+        return out.info;
+      });
+      if (object !== undefined && get().project?.objects[object]) set({ selected: { object, instance: 0 } });
+    },
     objectAction: (o, i, request, label) => projectEdit(label, () => engine().objectAction(o, i, request)),
     cloneObject: async (o, count, arrange) => {
       await projectEdit('Clone', () => engine().objectAction(o, 0, { op: 'clone', count }));
