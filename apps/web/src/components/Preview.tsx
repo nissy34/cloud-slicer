@@ -10,6 +10,7 @@ import type { GcodeWorkerMessage } from '../engine/gcode-worker';
 import { useLoading } from '../state/loading';
 import { NO_COLOURS, useOption, useSlicer } from '../state/store';
 import { PrintLoader } from './PrintLoader';
+import { CameraViews, ViewButtons, type ViewHandle } from './ViewControls';
 import { Bed } from './Viewport';
 
 type ColourBy = 'feature' | 'filament';
@@ -221,18 +222,25 @@ function useMoving() {
   return [moving, onChange] as const;
 }
 
+/** The printed part's bounding box. */
+function toolpathBox(parsed: PreviewGcode): THREE.Box3 {
+  const p = parsed.positions;
+  const box = new THREE.Box3();
+  const v = new THREE.Vector3();
+  if (!p.length) return box;
+  // Every 8th segment is plenty for a bounding box.
+  for (let i = 0; i < p.length; i += 48) box.expandByPoint(v.set(p[i], p[i + 1], p[i + 2]));
+  box.expandByPoint(v.set(p[p.length - 3], p[p.length - 2], p[p.length - 1]));
+  return box;
+}
+
 /** Points the camera at the printed part once the G-code has been read. */
 function FitCamera({ parsed }: { parsed: PreviewGcode }) {
   const camera = useThree((s) => s.camera);
   const controls = useThree((s) => s.controls) as unknown as { target: THREE.Vector3; update(): void } | null;
   useEffect(() => {
-    const p = parsed.positions;
-    if (!p.length || !controls) return;
-    const box = new THREE.Box3();
-    const v = new THREE.Vector3();
-    // Every 8th segment is plenty for a bounding box.
-    for (let i = 0; i < p.length; i += 48) box.expandByPoint(v.set(p[i], p[i + 1], p[i + 2]));
-    box.expandByPoint(v.set(p[p.length - 3], p[p.length - 2], p[p.length - 1]));
+    if (!parsed.positions.length || !controls) return;
+    const box = toolpathBox(parsed);
     const centre = box.getCenter(new THREE.Vector3());
     const radius = Math.max(box.getSize(new THREE.Vector3()).length() / 2, 20);
     const fov = ((camera as THREE.PerspectiveCamera).fov * Math.PI) / 180;
@@ -266,6 +274,7 @@ export function Preview() {
   const upTo = Math.min(layer, layers - 1);
   const scene = useSceneColours();
   const [moving, onCameraChange] = useMoving();
+  const views: ViewHandle = useRef(null);
 
   if (!gcode) {
     return (
@@ -289,7 +298,12 @@ export function Preview() {
         {parsed && !ready && <DrawnSignal onDrawn={() => setDrawn(parsed)} />}
         {parsed && <FitCamera parsed={parsed} />}
         <OrbitControls target={[w / 2, d / 2, 0]} makeDefault onChange={onCameraChange} />
+        <CameraViews
+          handle={views}
+          box={() => (parsed?.positions.length ? toolpathBox(parsed) : new THREE.Box3(new THREE.Vector3(0, 0, 0), new THREE.Vector3(w, d, 0)))}
+        />
       </Canvas>
+      <ViewButtons handle={views} className="over-slider" />
       <div className="legend">
         <div className="legend-head">
           <select aria-label="Colour by" value={colourBy} onChange={(e) => setColourBy(e.target.value as ColourBy)}>

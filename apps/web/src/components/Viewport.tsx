@@ -8,6 +8,7 @@ import type { PaintOverlay, PaintRay, PreviewMesh } from '../engine/protocol';
 import { bedSize, rgb } from '../lib/colour';
 import { hullPlanes, layOnFace, movedOffset, toDegrees, toQuat, DEG, type Placement } from '../lib/placement';
 import { setCapture } from '../lib/snapshot';
+import { holdCamera, onFingersUp, onSecondFinger, twoFingers, type CameraControls } from '../lib/touch';
 import { useSceneColours } from '../lib/theme';
 import { layerTexture, type LayerProfile } from '../lib/layers';
 import { KIND_COLOURS, partRanges, volumeMeshes } from '../lib/volumes';
@@ -15,6 +16,7 @@ import { NO_COLOURS, useOption, useSlicer } from '../state/store';
 import { setCameraSource } from '../state/view';
 import { BrimMarks } from './BrimEars';
 import { MeasureOverlay } from './MeasureOverlay';
+import { CameraViews, ViewButtons, type ViewHandle } from './ViewControls';
 import { WipeTowerView } from './WipeTower';
 
 // Printer coordinates are Z-up with the plate from (0,0) to (w,d).
@@ -188,6 +190,25 @@ function bvhRaycast(this: THREE.Mesh, raycaster: THREE.Raycaster, hits: THREE.In
 }
 
 /**
+ * drei's TransformControls turns the camera controls off while a handle is
+ * dragged, so they would miss that finger and a second one could not zoom;
+ * hold the camera still instead (lib/touch).
+ */
+function useHoldWhileDragging(ref: React.MutableRefObject<TransformControlsImpl | null>, mounted: unknown) {
+  const controls = useThree((s) => s.controls) as unknown as CameraControls | null;
+  useEffect(() => {
+    const g = ref.current as unknown as THREE.EventDispatcher<{ 'dragging-changed': { value: boolean } }> | null;
+    if (!g || !controls) return;
+    const changed = (e: { value: boolean }) => {
+      controls.enabled = true;
+      holdCamera(controls, e.value);
+    };
+    g.addEventListener('dragging-changed', changed);
+    return () => g.removeEventListener('dragging-changed', changed);
+  }, [ref, mounted, controls]);
+}
+
+/**
  * Desktop's move, rotate and scale gizmos on the selected instance (drei's
  * TransformControls). The part is drawn inside a pivot at its centre: the
  * gizmo moves the pivot, and on release the change goes to the engine.
@@ -219,6 +240,7 @@ function Gizmo({
   const { moveInstance, transformInstance } = useSlicer.getState();
   const inverse = useMemo(() => place.rotation.clone().invert(), [place]);
   const negCentre = useMemo(() => place.centre.clone().negate(), [place]);
+  useHoldWhileDragging(controlsRef, pivot);
 
   const invalidate = useThree((s) => s.invalidate);
   // Back to the instance as the engine has it whenever it changes.
@@ -311,6 +333,7 @@ function CutPlane({
   const snap = useSlicer((s) => s.snap) || shift;
   const coarse = useMemo(() => typeof matchMedia !== 'undefined' && matchMedia('(pointer: coarse)').matches, []);
   const [handle, setHandle] = useState<THREE.Group | null>(null);
+  useHoldWhileDragging(controlsRef, handle);
   const box = part.geometry.boundingBox!;
   const size = box.getSize(new THREE.Vector3());
   const centre = box.getCenter(new THREE.Vector3());
@@ -438,11 +461,11 @@ function FlattenPlanes({ part, place }: { part: Part; place: Placement }) {
           onPointerDown={(e) => {
             e.stopPropagation();
             // A tap has no hover before it: show the face it lands on.
-            setHover(i);
+            if (!twoFingers()) setHover(i);
           }}
           onClick={(e) => {
             e.stopPropagation();
-            if (e.delta <= 6) lay(p.normal);
+            if (e.delta <= 6 && !twoFingers()) lay(p.normal);
           }}
         >
           <meshBasicMaterial
@@ -498,7 +521,7 @@ function Objects({ w, d }: { w: number; d: number }) {
   const [delta, setDelta] = useState<[number, number] | null>(null);
   const plane = useMemo(() => new THREE.Plane(new THREE.Vector3(0, 0, 1), 0), []);
   // The camera must hold still while an object is dragged.
-  const controls = useThree((s) => s.controls) as unknown as { enabled: boolean } | null;
+  const controls = useThree((s) => s.controls) as unknown as CameraControls | null;
   const gizmo = useRef<TransformControlsImpl | null>(null);
   const gizmoReleased = useRef(0);
   const brimTool = !paint && tool === 'brim' && !!selected;
@@ -579,7 +602,7 @@ function Objects({ w, d }: { w: number; d: number }) {
     if (!stroking.current) return;
     stroking.current = false;
     canvas.removeEventListener('pointermove', onStrokeMove);
-    if (controls) controls.enabled = true;
+    holdCamera(controls, false);
   };
   useEffect(() => {
     window.addEventListener('pointerup', endStroke);
@@ -596,6 +619,39 @@ function Objects({ w, d }: { w: number; d: number }) {
       endStroke();
     }
   }, [paint]);
+
+  // A second finger: whatever the first one started (moving an object or a
+  // part, painting) gives way to the camera, which zooms (lib/touch).
+  const giveWay = useRef(() => {});
+  const beforeTouch = useRef<{ was: ReturnType<typeof useSlicer.getState>['selected'] } | null>(null);
+  giveWay.current = () => {
+    // A pinch picks nothing.
+    if (beforeTouch.current) select(beforeTouch.current.was);
+    beforeTouch.current = null;
+    if (drag.current) {
+      drag.current = null;
+      setDelta(null);
+    }
+    endStroke();
+    holdCamera(controls, false);
+    const g = gizmo.current as unknown as { enabled: boolean; dragging: boolean; reset(): void; pointerUp(p: { button: number }): void } | null;
+    if (!g) return;
+    if (g.dragging) {
+      g.reset(); // back to where the handle was picked up
+      g.pointerUp({ button: 0 });
+    }
+    g.enabled = false; // nor may the second finger pick up a handle
+  };
+  useEffect(() => onSecondFinger(() => giveWay.current()), []);
+  useEffect(
+    () =>
+      onFingersUp(() => {
+        beforeTouch.current = null;
+        const g = gizmo.current as unknown as { enabled: boolean } | null;
+        if (g) g.enabled = true;
+      }),
+    [],
+  );
 
   // No hit tests while a stroke runs: its rays come from strokeMove.
   const partRaycast = useMemo(
@@ -639,16 +695,19 @@ function Objects({ w, d }: { w: number; d: number }) {
     if (long)
       timer = window.setTimeout(() => {
         done();
+        // Two fingers are the camera's, not a long press.
+        if (twoFingers()) return;
         // The press opens the menu instead of moving the object.
         drag.current = null;
         setDelta(null);
-        if (controls) controls.enabled = true;
+        holdCamera(controls, false);
         open();
       }, 550);
   };
 
   const onDown = (e: ThreeEvent<PointerEvent>, object: number) => {
     e.stopPropagation();
+    if (twoFingers()) return;
     if (e.button === 2) {
       if (paint || measuring) return;
       const inst = project?.objects[object]?.instances.findIndex((i) => i.plate === plate) ?? -1;
@@ -663,7 +722,7 @@ function Objects({ w, d }: { w: number; d: number }) {
       if (brushTool) {
         stroking.current = true;
         canvas.addEventListener('pointermove', onStrokeMove);
-        if (controls) controls.enabled = false;
+        holdCamera(controls, true);
       }
       void paintStroke([toRay(e.ray)], true);
       return;
@@ -673,6 +732,8 @@ function Objects({ w, d }: { w: number; d: number }) {
     const obj = project?.objects[object];
     const instances = obj?.instances.map((inst, i) => ({ inst, i })).filter(({ inst }) => inst.plate === plate) ?? [];
     const first = instances[0];
+    // What was selected before a finger picked this, for when it turns out to be a pinch.
+    beforeTouch.current = e.pointerType === 'touch' ? { was: useSlicer.getState().selected } : null;
     if (selected?.object !== object || selected.volume !== undefined) select(first ? { object, instance: first.i } : null);
     if (first && e.pointerType === 'touch') menuPress(e.nativeEvent, object, first.i, true);
     // Brim ears: a click adds an ear (onEarClick); the object stays put.
@@ -682,12 +743,12 @@ function Objects({ w, d }: { w: number; d: number }) {
     const hit = new THREE.Vector3();
     e.ray.intersectPlane(plane, hit);
     drag.current = { object, instance: first.i, start: hit, offset: [first.inst.offset[0], first.inst.offset[1]] };
-    if (controls) controls.enabled = false;
+    holdCamera(controls, true);
     (e.target as Element).setPointerCapture?.(e.pointerId);
   };
   // A press on a see-through volume picks it (its menu on a right click or long press).
   const onVolumeDown = (e: ThreeEvent<PointerEvent>, v: VolumePart) => {
-    if (paint || measuring || brimTool || onGizmo()) return;
+    if (paint || measuring || brimTool || onGizmo() || twoFingers()) return;
     e.stopPropagation();
     const instance = Math.max(0, project?.objects[v.object]?.instances.findIndex((i) => i.plate === plate) ?? -1);
     select({ object: v.object, instance, volume: v.volume });
@@ -709,9 +770,10 @@ function Objects({ w, d }: { w: number; d: number }) {
     setDelta([hit.x - drag.current.start.x, hit.y - drag.current.start.y]);
   };
   const onUp = () => {
+    beforeTouch.current = null;
     const dr = drag.current;
     drag.current = null;
-    if (controls) controls.enabled = true;
+    holdCamera(controls, false);
     if (dr && delta && Math.hypot(delta[0], delta[1]) > 0.5)
       void moveInstance(dr.object, dr.instance, dr.offset[0] + delta[0], dr.offset[1] + delta[1]);
     setDelta(null);
@@ -719,17 +781,18 @@ function Objects({ w, d }: { w: number; d: number }) {
   // Brim ears: a click (not an orbit drag) on the selected object, or on the
   // bed, adds an ear there, like desktop's left click.
   const onEarClick = (e: ThreeEvent<MouseEvent>, object?: number) => {
-    if (!brimTool || e.delta > 6 || e.button !== 0 || (object !== undefined && object !== selected?.object)) return;
+    if (!brimTool || e.delta > 6 || e.button !== 0 || twoFingers() || (object !== undefined && object !== selected?.object)) return;
     e.stopPropagation();
     void editBrim({ op: 'add', x: e.point.x, y: e.point.y, diameter: useSlicer.getState().brimDiameter ?? 8 });
   };
   const onClick = (e: ThreeEvent<MouseEvent>) => {
-    if (!measuring || e.delta > 6) return;
+    if (!measuring || e.delta > 6 || twoFingers()) return;
     e.stopPropagation();
     // The ray of the click itself: a tap has no hover before it.
     void measurePick(toRay(e.ray));
   };
   const onMissed = () => {
+    if (twoFingers()) return;
     if (measuring) return useSlicer.getState().measureReset();
     // Clicks on a gizmo handle off the part don't deselect it.
     if (paint || brimTool || onGizmo() || performance.now() - gizmoReleased.current < 400) return;
@@ -897,9 +960,23 @@ function ThumbnailSource() {
   return null;
 }
 
+/** What Fit all and the views frame: the plate's models and prime tower, or the bed when it is empty. */
+function plateBox(w: number, d: number): THREE.Box3 {
+  const { preview, wipeTower } = useSlicer.getState();
+  const box = new THREE.Box3();
+  const p = preview?.positions;
+  if (p) for (let i = 0; i < p.length; i += 3) box.expandByPoint(new THREE.Vector3(p[i], p[i + 1], p[i + 2]));
+  if (wipeTower) {
+    box.expandByPoint(new THREE.Vector3(wipeTower.x, wipeTower.y, 0));
+    box.expandByPoint(new THREE.Vector3(wipeTower.x + wipeTower.width, wipeTower.y + wipeTower.depth, wipeTower.height));
+  }
+  return box.isEmpty() ? new THREE.Box3(new THREE.Vector3(0, 0, 0), new THREE.Vector3(w, d, 0)) : box;
+}
+
 export function Viewport() {
   const { w, d } = bedSize(useOption('printable_area'));
   const scene = useSceneColours();
+  const views: ViewHandle = useRef(null);
   return (
     <>
       {/* Draws only when something changes (React props, the camera, the gizmos'
@@ -921,9 +998,11 @@ export function Viewport() {
         <Objects w={w} d={d} />
         <WipeTowerView />
         <OrbitControls target={[w / 2, d / 2, 0]} makeDefault />
+        <CameraViews handle={views} box={() => plateBox(w, d)} />
         <ThumbnailSource />
       </Canvas>
       <PlateTabs />
+      <ViewButtons handle={views} />
     </>
   );
 }
