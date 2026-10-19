@@ -1126,3 +1126,69 @@ test('text shapes: a text part, an engraved text, a text object and editing the 
   assert.throws(() => text(0, { op: 'add', type: 'part', text: '   ' }), /type some text/);
   assert.throws(() => text(0, { op: 'add', type: 'part', text: 'A', fontPath: '/work/none.ttf' }), /can't be read/);
 });
+
+test('SVG shapes: an SVG part, an engraved SVG, an SVG object, depth and size, kept in the 3MF, like desktop', () => {
+  select({ printer: DEFAULT_PRINTER });
+  // A 20 x 10 mm plate with a round hole.
+  engine.FS.writeFile(
+    '/work/badge.svg',
+    '<svg xmlns="http://www.w3.org/2000/svg" width="20mm" height="10mm" viewBox="0 0 20 10">' +
+      '<path fill-rule="evenodd" d="M0 0 H20 V10 H0 Z M8 5 A2 2 0 1 0 12 5 A2 2 0 1 0 8 5 Z"/></svg>',
+  );
+  engine.FS.writeFile('/work/empty.svg', '<svg xmlns="http://www.w3.org/2000/svg" width="10mm" height="10mm"></svg>');
+  const svg = (o, request, plate = 0) => call(engine, 'svgVolume', o, plate, JSON.stringify(request));
+  const volumes = (o = 0) => info().objects[o].volumes;
+  const near = (a, b, what) => assert.ok(Math.abs(a - b) < 0.2, `${what}: ${a} vs ${b}`);
+  load('gen-cube-20.stl');
+
+  const added = svg(0, { op: 'add', type: 'part', path: '/work/badge.svg', name: 'badge.svg', depth: 2 });
+  near(added.width, 20, 'the SVG keeps its size in mm');
+  near(added.height, 10, 'the SVG keeps its size in mm');
+  const part = volumes()[added.volume];
+  assert.equal(part.name, 'badge');
+  assert.equal(part.kind, 'part');
+  near(part.svg.depth, 2, 'depth');
+
+  // Deeper, then wider: the shape is remade, then scaled across its face.
+  svg(0, { op: 'update', volume: added.volume, depth: 4 });
+  near(volumes()[added.volume].svg.depth, 4, 'new depth');
+  const wider = svg(0, { op: 'update', volume: added.volume, width: 30, height: 15 });
+  near(wider.width, 30, 'new width');
+  near(volumes()[added.volume].svg.height, 15, 'new height');
+  near(volumes()[added.volume].svg.depth, 4, 'the depth stays');
+
+  // On the cube's top, seen from above.
+  const cubeTop = info().objects[0].size[2];
+  const onTop = svg(0, { op: 'add', type: 'part', path: '/work/badge.svg', name: 'badge.svg', depth: 1, camera: [135, 135, 200] });
+  assert.ok(info().objects[0].size[2] > cubeTop + 0.9, `the SVG on the top stands 1 mm above it: ${info().objects[0].size[2]} vs ${cubeTop}`);
+  // Engraved, it goes into the top instead; a part again, it stands out again.
+  const asNegative = call(engine, 'volumeAction', 0, JSON.stringify({ op: 'type', volume: onTop.volume, type: 'negative' }));
+  near(info().objects[0].size[2], cubeTop, 'engraved, the SVG is inside the top');
+  const asPart = call(engine, 'volumeAction', 0, JSON.stringify({ op: 'type', volume: asNegative.volume, type: 'part' }));
+  near(info().objects[0].size[2], cubeTop + 1, 'a part again, the SVG stands out');
+  call(engine, 'volumeAction', 0, JSON.stringify({ op: 'delete', volume: asPart.volume }));
+
+  const engraved = svg(0, { op: 'add', type: 'negative', path: '/work/badge.svg', name: 'badge.svg', depth: 1 });
+  assert.equal(volumes()[engraved.volume].kind, 'negative');
+  slice(fullConfig());
+
+  const object = svg(-1, { op: 'add', type: 'part', path: '/work/badge.svg', name: 'logo.svg', depth: 3 });
+  const logo = info().objects[object.object];
+  assert.equal(logo.name, 'logo');
+  near(logo.size[2], 3, 'the SVG object lies flat');
+
+  // Saved and opened again: the file is in the 3MF, so the depth can still change.
+  call(engine, 'saveProject', '/work/svg.3mf', JSON.stringify(fullConfig()), null);
+  engine.clearModel();
+  const [w, d] = bedSize(fullConfig());
+  call(engine, 'loadModel', '/work/svg.3mf', 0, w, d);
+  const index = volumes().findIndex((v) => v.svg && v.kind === 'part');
+  assert.ok(index >= 0, `the SVG part comes back: ${JSON.stringify(volumes().map((v) => v.name))}`);
+  near(volumes()[index].svg.width, 30, 'the width comes back');
+  svg(0, { op: 'update', volume: index, depth: 1 });
+  near(volumes()[index].svg.depth, 1, 'depth after reopening');
+  near(volumes()[index].svg.width, 30, 'the width stays after reopening');
+
+  assert.throws(() => svg(0, { op: 'add', type: 'part', path: '/work/empty.svg', name: 'empty.svg' }), /no paths/);
+  assert.throws(() => svg(0, { op: 'add', type: 'part', path: '/work/none.svg', name: 'none.svg' }), /missing/);
+});

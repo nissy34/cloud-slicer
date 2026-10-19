@@ -89,6 +89,8 @@ export interface VolumeInfo {
   settings: OrcaConfig;
   /** A text shape's text and font settings (the Text tool edits them). */
   text?: TextStyle;
+  /** An SVG shape's depth and size across its face, mm (the SVG tool edits them). */
+  svg?: { depth: number; width: number; height: number };
 }
 export interface InstanceInfo {
   plate: number;

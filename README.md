@@ -39,7 +39,9 @@ hosted on Cloudflare's free tier.
   intersection of two of an object's parts), and text shapes (desktop's Text tool: raised,
   engraved or a modifier on the object's surface facing you, or an object of its own;
   edited live with built-in Noto fonts, a font file, or the computer's fonts in Chrome/Edge,
-  and kept in the 3MF).
+  and kept in the 3MF), and SVG shapes (desktop's SVG tool: an .svg file's paths as a raised,
+  engraved or modifier shape on the object, or an object of its own when you open or drop an
+  .svg file, with its depth and size changeable and the file kept in the 3MF).
 - **Prime tower on the plate**: when a plate prints with more than one filament the tower
   stands on the Prepare plate at the size Orca will print it, and you drag it where you
   want it, per plate, like desktop.
@@ -203,7 +205,7 @@ Browser end to end tests (Playwright's Chromium) run against the built site
 | `test/presets.mjs` | Save, find, rename and delete your own presets |
 | `test/preset-files.mjs` | Printer and filament settings windows, preset export and import |
 | `test/accounts.mjs` | Sign-in, sessions, synced presets/settings/printers, online projects (Pages Functions + local D1, mock Google) |
-| `test/toolbar.mjs` | The object toolbar: add a model, variable layer height, simplify, brim ears, lay on face, measure, the object menu, parts and modifiers, mesh boolean, text shapes, fits a phone |
+| `test/toolbar.mjs` | The object toolbar: add a model, variable layer height, simplify, brim ears, lay on face, measure, the object menu, parts and modifiers, mesh boolean, text and SVG shapes, fits a phone |
 | `test/mixing.mjs` | Make a colour mix, slice, the G-code alternates between both tools |
 | `test/wipe-tower.mjs` | A two-filament plate shows the prime tower; drag it, and the slice prints it there |
 | `test/loading.mjs` | The loading screen while the engine starts and a project opens |

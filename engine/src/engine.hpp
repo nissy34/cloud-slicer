@@ -87,6 +87,24 @@ struct RayHit {
 // coordinates), through a ray-cast tree per part mesh (paint_api.cpp).
 std::optional<RayHit> castRay(int plate, Slic3r::Vec3d s, const Slic3r::Vec3d& dir);
 
+// Desktop's SAFE_SURFACE_OFFSET (EmbossJob.cpp): an emboss part starts this
+// far into the surface it stands on, a negative part or modifier stops this far out.
+constexpr float embossSurfaceOffset = 0.015f;
+
+// Emboss shapes (text_api.cpp, svg_api.cpp): the shape's outlines, healed,
+// extruded `depth` mm down from z = 0 for a part (outside) or up to it.
+Slic3r::TriangleMesh embossMesh(Slic3r::EmbossShape& shape, double depth, bool outside);
+// A new shape volume on object o: onto the surface the request's camera sees
+// ({camera: [x, y, z]}), else flat in front of the object on the bed. Returns
+// its index after the object's volumes are sorted.
+int addEmbossVolume(int o, int plate, const nlohmann::json& req, Slic3r::TriangleMesh&& mesh, Slic3r::ModelVolumeType type,
+                    const std::string& name, Slic3r::EmbossShape&& shape, const std::optional<Slic3r::TextConfiguration>& text);
+// A shape that is a new object of its own, lying on `plate`. Returns the object's index.
+int addEmbossObject(int plate, Slic3r::TriangleMesh&& mesh, const std::string& name, Slic3r::EmbossShape&& shape,
+                    const std::optional<Slic3r::TextConfiguration>& text);
+// The shape volume's new mesh where the old one stood (desktop's UpdateJob::update_volume).
+void updateEmbossVolume(Slic3r::ModelObject* obj, Slic3r::ModelVolume* v, Slic3r::TriangleMesh&& mesh, const std::string& name);
+
 // The prime tower desktop's Prepare view shows on `plate` with `cfg`, kept on
 // the bed (wipe_tower_api.cpp): {show} or {show: true, x, y, width, depth,
 // height, rotation, brim, filaments}. slicedDepth < 0: Orca's estimate.

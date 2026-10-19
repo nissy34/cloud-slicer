@@ -1002,6 +1002,19 @@ select:focus-visible {
 .text-more {
   justify-self: start;
 }
+/* SVG shape: the file's name over the same rows. */
+.svg-name {
+  margin: 0;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.svg-ratio {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
 /* Mesh boolean: a picker per part, its name and kind. */
 .transform-row.boolean-pick {
   grid-template-columns: 96px 1fr;

@@ -5,7 +5,7 @@ export const DEFAULT_PRINTER = 'Snapmaker U1 (0.4 nozzle)';
 /** Colours given to new filament slots, in order. */
 export const SLOT_COLOURS = ['#F2F2F2', '#1E1E1E', '#E5383B', '#2F6FE4', '#2BB673', '#F4B400', '#8E44AD', '#FF7F2A'];
 
-export const MODEL_EXTENSIONS = ['.stl', '.3mf', '.obj', '.amf', '.step', '.stp'];
+export const MODEL_EXTENSIONS = ['.stl', '.3mf', '.obj', '.amf', '.step', '.stp', '.svg'];
 
 /** Orca's list values ("a;b;c" or "a,b,c") -> ["a", "b", "c"]. */
 export function splitList(value: string | undefined): string[] {

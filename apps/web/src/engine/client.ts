@@ -29,6 +29,11 @@ import type { TextStyle } from '../lib/fonts';
 
 export type TextRequest = TextStyle & { fontPath: string } & ({ op: 'add'; type: 'part' | 'negative' | 'modifier'; camera?: [number, number, number] } | { op: 'update'; volume: number });
 
+/** An SVG shape added from a file, or given a new depth or size (engine/src/svg_api.cpp). */
+export type SvgRequest =
+  | { op: 'add'; type: 'part' | 'negative' | 'modifier'; name: string; depth: number; camera?: [number, number, number] }
+  | { op: 'update'; volume: number; depth?: number; width?: number; height?: number };
+
 /** A request to the engine's mixed-filament list (engine/src/mixed_api.cpp). */
 export interface MixedRequest {
   definitions: string;
@@ -301,6 +306,9 @@ export class EngineClient {
   /** A text part added to object o (-1: a new object on `plate`) or changed, like desktop's Text tool. */
   textVolume = (o: number, plate: number, request: TextRequest) =>
     this.call<{ info: ProjectInfo; object: number; volume: number }>('textVolume', [o, plate, request]);
+  /** An SVG shape added to object o (-1: a new object on `plate`) from the file's bytes, or changed, like desktop's SVG tool. */
+  svgVolume = (o: number, plate: number, request: SvgRequest, bytes?: ArrayBuffer) =>
+    this.call<{ info: ProjectInfo; object: number; volume: number }>('svgVolume', [o, plate, request, bytes ?? null], bytes ? [bytes] : []);
   /** Two volumes of object o combined into one, like desktop's Mesh boolean. */
   meshBoolean = (o: number, request: BooleanRequest) => this.call<{ info: ProjectInfo; volume: number }>('meshBoolean', [o, request]);
   /** Instance i of object o as a binary STL. */

@@ -2,6 +2,7 @@ import { Fragment, useEffect, useLayoutEffect, useRef, useState, type ReactNode 
 import { menuPosition, unitConversions } from '../lib/objectMenu';
 import { ADD_MENUS, KIND_LABELS, keepsAPart, SHAPES, type VolumeKind } from '../lib/volumes';
 import { NO_COLOURS, useSlicer } from '../state/store';
+import { startSvg } from './SvgPanel';
 import { startText } from './TextPanel';
 
 type Sub = 'split' | 'mirror' | 'filament' | 'units' | 'type' | `add-${VolumeKind}` | null;
@@ -179,6 +180,11 @@ function MenuCard() {
               s.select({ object: o, instance: i, volume: vi });
               s.setTool('text');
             }), { title: 'Change the words, font or size' })}
+          {vol.svg &&
+            item('Edit SVG…', run(() => {
+              s.select({ object: o, instance: i, volume: vi });
+              s.setTool('svg');
+            }), { title: 'Change its depth or size' })}
           {item('Rename…', () => setForm('rename'))}
           {submenu(
             'type',
@@ -247,6 +253,11 @@ function MenuCard() {
                       s.select({ object: o, instance: i });
                       return startText(o, type);
                     }), { title: 'Letters in a font, edited in the Text shape tool' })}
+                  {(type === 'part' || type === 'negative' || type === 'modifier') &&
+                    item('SVG…', run(() => {
+                      s.select({ object: o, instance: i });
+                      return startSvg(o, type);
+                    }), { title: 'The paths of an .svg file, like a logo' })}
                 </>,
               )}
             </Fragment>
