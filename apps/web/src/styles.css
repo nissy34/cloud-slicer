@@ -445,9 +445,13 @@ select:focus-visible {
 .link:hover {
   text-decoration: underline;
 }
+/* The docked phone tool card sits outside the panel but keeps its fields. */
 .panel select,
 .panel input:not([type='checkbox']):not([type='color']),
-.panel textarea {
+.panel textarea,
+.tool-pop.docked select,
+.tool-pop.docked input:not([type='checkbox']):not([type='color']):not([type='range']),
+.tool-pop.docked textarea {
   min-width: 0;
   padding: 5px 8px;
   border-radius: 6px;
@@ -1539,18 +1543,50 @@ select:focus-visible {
   .workspace-tools {
     top: 64px;
   }
-  /* Phone: the tool's options go right under the 3D view (Sidebar's tool
-     slot), so they never cover the plate; the card stays in view while the
-     column scrolls. A tall card scrolls inside itself, so opening it never
-     pushes the 3D view (or the card's own Done) off the screen. */
+  /* Phone with a tool open: the toolbar, then the tool's card, then the 3D
+     view, stacked so nothing covers the plate. The settings hide until Done
+     and the column stops scrolling, so all three stay on screen. A tall card
+     scrolls inside itself and leaves the model at least half the room. */
+  .body:has(.tool-pop.docked) {
+    overflow: hidden;
+  }
+  .body:has(.tool-pop.docked) .panel,
+  .workspace:has(.tool-pop.docked) :is(.workspace-tools, .empty) {
+    display: none;
+  }
+  .workspace:has(.tool-pop.docked) {
+    display: flex;
+    flex-direction: column;
+    flex: 1 1 0;
+    height: auto;
+    min-height: 0;
+  }
+  .workspace:has(.tool-pop.docked) .toolbar {
+    position: relative;
+    top: auto;
+    left: auto;
+    right: auto;
+    order: 0;
+    flex: none;
+    margin: 6px 6px 0;
+  }
   .tool-pop.docked {
-    position: sticky;
-    top: 0;
-    z-index: 4;
+    position: relative;
+    order: 1;
+    flex: 0 1 auto;
     width: auto;
-    max-height: max(220px, calc(45dvh - 120px));
-    margin: 8px 0 4px;
+    min-height: 0;
+    max-height: 50%;
+    margin: 6px 6px 0;
     padding: 8px 10px;
+    box-shadow: none;
+  }
+  .workspace:has(.tool-pop.docked) .viewport {
+    position: relative !important;
+    inset: auto;
+    order: 2;
+    flex: 1 1 0;
+    min-height: 0;
   }
   .tool-panel,
   .paint-panel {

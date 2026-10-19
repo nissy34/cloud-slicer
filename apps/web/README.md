@@ -15,7 +15,8 @@ npm run pages        # dist/ + Functions + a local D1 on http://localhost:8788 (
 
 `npm run engine` (part of `dev` and `build`, `scripts/copy-engine.mjs`) puts what the
 engine worker loads into `public/engine/`: `orca-engine.{js,wasm}` from `ENGINE_DIR`
-(default `../../engine/build/engine`), the bundled Snapmaker presets, desktop's settings
+(default `../../engine/build/engine`, which it first fills with the engine CI built for
+these sources, `engine/scripts/fetch-engine.mjs`; `ENGINE_FETCH=0` skips that), the bundled Snapmaker presets, desktop's settings
 layout and the calibration models. The presets, layout and calibration models need the
 `engine/orcaslicer` submodule checked out; without the engine binaries the page loads
 without an engine.

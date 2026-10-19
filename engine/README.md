@@ -33,12 +33,17 @@ same engine code.
 | `src/mixed_api.cpp` | Colour mixing: reads and edits the project's `mixed_filament_definitions` with Orca's `MixedFilamentManager`, gives each mix its colour, remaps painted and assigned filaments when a mix or a physical filament goes away, and matches a colour |
 | `src/history_api.cpp` | Undo and redo of project edits, like desktop's Ctrl+Z / Ctrl+Y: Model snapshots that share their meshes |
 | `src/slice_api.cpp` | Slices one plate with a full config and exports G-code with Orca's time and filament estimates and the plate thumbnails the page renders |
+| `scripts/engine-key.mjs` | The engine key: names an engine build by the Orca commit and a hash of the sources it is built from |
+| `scripts/fetch-engine.mjs` | Downloads the engine CI built for this checkout's key into `build/engine`, so it needn't be built |
 | `scripts/build-deps.sh` | Builds the third-party libraries for wasm into `build/deps` |
 | `scripts/bundle-profiles.mjs` | Packs the Snapmaker presets (and Orca's filament library they inherit from) into one JSON file |
 | `scripts/extract-settings-layout.mjs` | Reads desktop's settings pages and groups out of `Tab.cpp` for the web settings panel |
 | `node/` | The engine under Node.js: a slicing CLI and the engine tests |
 
 ## Build
+
+Usually you don't: `node engine/scripts/fetch-engine.mjs` downloads the engine CI built
+from the same sources (see [CI and deploys](../docs/CI.md#published-engines)). Building it:
 
 ```bash
 git submodule update --init engine/orcaslicer
