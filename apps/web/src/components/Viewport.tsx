@@ -490,7 +490,7 @@ function Objects({ w, d }: { w: number; d: number }) {
   const paint = useSlicer((s) => s.paint);
   const overlay = useSlicer((s) => s.overlay);
   const layers = useSlicer((s) => s.layers);
-  const measuring = !paint && tool === 'measure';
+  const measuring = !paint && (tool === 'measure' || tool === 'assemble');
   const stroking = useRef(false);
   const [brush, setBrush] = useState<{ point: THREE.Vector3; normal: THREE.Vector3 } | null>(null);
   const brushTool = paint && (paint.tool === 'circle' || paint.tool === 'sphere');

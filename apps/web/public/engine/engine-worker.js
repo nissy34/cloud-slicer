@@ -284,6 +284,8 @@ if (self.name !== 'em-pthread') {
     // between two of them (see engine/src/measure_api.cpp).
     measureFeature: (e, plate, options) => json(e.measureFeature(plate, JSON.stringify(options))).feature,
     measureBetween: (e, a, b) => json(e.measureBetween(a, b)),
+    // Assemble: moves the second pick onto the first, or joins their objects.
+    assembleAction: (e, a, b, request) => ({ ...json(e.assembleAction(a, b, JSON.stringify(request))), info: JSON.parse(e.modelInfoJson()) }),
     // The prime tower desktop's Prepare view would show on `plate` (see
     // engine/src/wipe_tower_api.cpp); slicedDepth: the last slice's, or -1.
     wipeTower(e, plate, overrides, slicedDepth) {

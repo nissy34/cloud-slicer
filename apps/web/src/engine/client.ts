@@ -21,7 +21,7 @@ import type { BrimEars, BrimRequest } from '../lib/brim';
 import type { LayerProfile, LayerRequest } from '../lib/layers';
 import type { MatchResult, MixRecipe, MixRow } from '../lib/mixing';
 import type { SimplifyBy, SimplifyResult } from '../lib/simplify';
-import type { MeasureFeature, Measurement } from '../lib/measure';
+import type { AssembleRequest, AssembleResult, MeasureFeature, Measurement } from '../lib/measure';
 import type { ObjectAction } from '../lib/objectMenu';
 import type { VolumeAction } from '../lib/volumes';
 import type { BooleanRequest } from '../lib/boolean';
@@ -282,6 +282,7 @@ export class EngineClient {
   measureFeature = (plate: number, options: { ray: PaintRay; onlyPlane?: boolean; keep: number[] }) =>
     this.call<MeasureFeature | null>('measureFeature', [plate, options]);
   measureBetween = (a: number, b: number) => this.call<Measurement>('measureBetween', [a, b]);
+  assembleAction = (a: number, b: number, request: AssembleRequest) => this.call<AssembleResult & { info: ProjectInfo }>('assembleAction', [a, b, request]);
   /** The prime tower on `plate` with these settings; slicedDepth: the last slice's tower depth. */
   wipeTower = (plate: number, overrides: OrcaConfig, slicedDepth?: number) =>
     this.call<WipeTower>('wipeTower', [plate, overrides, slicedDepth ?? -1]);

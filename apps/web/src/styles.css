@@ -3785,3 +3785,10 @@ button.volume-name {
   border: 1px solid var(--border);
   vertical-align: baseline;
 }
+
+/* Assemble: the "join into one object" advice and its button. */
+.assemble-join {
+  display: grid;
+  gap: 6px;
+  justify-items: start;
+}

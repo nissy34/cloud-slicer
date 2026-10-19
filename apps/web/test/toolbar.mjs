@@ -6,14 +6,16 @@
 // makes an adaptive profile, measure picks two features and measures between
 // them, the object menu (right click or ⋯) renames, clones and exports, mesh
 // boolean joins two parts, text and SVG shapes go on a model or make an object
-// of their own, and the toolbar fits a phone (and the page itself
+// of their own, Assemble joins two cubes and puts a face of one onto the
+// other, and the toolbar fits a phone (and the page itself
 // never scrolls there).
 //
 //   node test/toolbar.mjs [screenshot-dir]
 //
 // Needs `npm run build` first (with the engine copied into public/engine).
 import { spawn } from 'node:child_process';
-import { mkdirSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { chromium } from 'playwright';
@@ -53,6 +55,20 @@ async function open(viewport, mobile) {
 }
 
 const objectRows = (page) => page.locator('ul.objects > li.object');
+// An ASCII STL cube, size mm on a side.
+const cubeStl = (size) => {
+  const v = (x, y, z) => [x, y, z].map((c) => c * size);
+  const quads = [
+    [[0, 0, 0], [0, 1, 0], [1, 1, 0], [1, 0, 0]],
+    [[0, 0, 1], [1, 0, 1], [1, 1, 1], [0, 1, 1]],
+    [[0, 0, 0], [1, 0, 0], [1, 0, 1], [0, 0, 1]],
+    [[0, 1, 0], [0, 1, 1], [1, 1, 1], [1, 1, 0]],
+    [[0, 0, 0], [0, 0, 1], [0, 1, 1], [0, 1, 0]],
+    [[1, 0, 0], [1, 1, 0], [1, 1, 1], [1, 0, 1]],
+  ];
+  const tri = (a, b, c) => `facet normal 0 0 0\nouter loop\n${[a, b, c].map((p) => `vertex ${v(...p).join(' ')}`).join('\n')}\nendloop\nendfacet\n`;
+  return `solid cube\n${quads.map(([a, b, c, d]) => tri(a, b, c) + tri(a, c, d)).join('')}endsolid cube\n`;
+};
 // The rotation the Lay on face panel shows; it is gone while nothing is selected, so don't wait long.
 const rotation = (page, timeout = 1000) => page.getByLabel('Current rotation').innerText({ timeout });
 
@@ -436,6 +452,60 @@ try {
   await empty.getByRole('region', { name: 'SVG shape' }).getByRole('spinbutton', { name: 'Depth' }).waitFor({ timeout: 30000 });
   console.log('SVG shape: opening an .svg file makes an object of its own');
   await empty.close();
+
+  // Assemble: a face on each of two cubes; they are two objects, so join them
+  // first, then Center coincidence puts one face on the other; undo takes both back.
+  const cubes = await open({ width: 1280, height: 800 }, false);
+  const cubeFiles = ['cube-a.stl', 'cube-b.stl'].map((name) => {
+    const path = join(mkdtempSync(join(tmpdir(), 'assemble-')), name);
+    writeFileSync(path, cubeStl(20));
+    return path;
+  });
+  await cubes.getByTestId('model-input').setInputFiles(cubeFiles);
+  await cubes.waitForFunction(() => document.querySelectorAll('ul.objects > li.object').length === 2, null, { timeout: 120000 });
+  await cubes.getByText('Ready to slice').waitFor({ timeout: 120000 });
+  await cubes.keyboard.press('Escape');
+  await cubes.getByRole('toolbar', { name: 'Object tools' }).getByRole('button', { name: 'Assemble' }).click();
+  const assemblePanel = cubes.getByRole('region', { name: 'Assemble' });
+  await assemblePanel.getByRole('radio', { name: 'Face and face', checked: true }).waitFor();
+  const cubesView = await cubes.getByTestId('viewport').boundingBox();
+  // The cubes stand one behind the other: a face of the front one (scanning up
+  // from the bottom of the view), then one of the back one (scanning down).
+  const pickIn = async (ys, label) => {
+    for (const y of ys)
+      for (let x = 0.4; x <= 0.6; x += 0.01) {
+        await cubes.mouse.move(cubesView.x + cubesView.width * x, cubesView.y + cubesView.height * y);
+        if (!(await assemblePanel.getByLabel('Feature under the pointer').waitFor({ timeout: 300 }).then(() => true, () => false))) continue;
+        await cubes.mouse.down();
+        await cubes.mouse.up();
+        if (await assemblePanel.getByLabel(label).waitFor({ timeout: 3000 }).then(() => true, () => false)) return true;
+      }
+    return false;
+  };
+  const up = Array.from({ length: 40 }, (_, i) => 0.75 - i * 0.01);
+  if (!(await pickIn(up, 'Feature 1')) || !(await pickIn([...up].reverse(), 'Feature 2'))) fail('assemble did not pick a face on each cube');
+  else {
+    const joinButton = assemblePanel.getByRole('button', { name: 'Join into one object' });
+    await joinButton.waitFor({ timeout: 10000 });
+    if (shots) await cubes.screenshot({ path: join(shots, 'assemble-two-objects.png') });
+    await joinButton.click();
+    await cubes.locator('ul.objects > li.object .object-name', { hasText: /^Assembly$/ }).waitFor({ timeout: 30000 });
+    if ((await objectRows(cubes).count()) !== 1) fail('joining left more than one object');
+    const centre = assemblePanel.getByRole('button', { name: 'Center coincidence' });
+    await centre.waitFor({ timeout: 10000 });
+    await centre.click();
+    await cubes.waitForFunction(() => Number(document.querySelector('[aria-label="Assemble"] input[aria-label="Parallel distance"]')?.value) === 0, null, { timeout: 30000 });
+    if (shots) await cubes.screenshot({ path: join(shots, 'assemble-centred.png') });
+    // 5 mm apart, face to face.
+    await assemblePanel.getByRole('spinbutton', { name: 'Parallel distance' }).fill('5');
+    await assemblePanel.getByRole('button', { name: 'Set distance' }).click();
+    await cubes.waitForFunction(() => Math.abs(Math.abs(Number(document.querySelector('[aria-label="Assemble"] input[aria-label="Parallel distance"]')?.value)) - 5) < 1e-3, null, { timeout: 30000 });
+    // Undo: back to the cubes face on face, joined, then to two objects.
+    for (let i = 0; i < 3; i++) await cubes.keyboard.press('Control+z');
+    await cubes.waitForFunction(() => document.querySelectorAll('ul.objects > li.object').length === 2, null, { timeout: 30000 });
+    console.log('assemble: two cubes joined into one object, a face put onto the other, set 5 mm apart, then undone');
+  }
+  await cubes.close();
 
   const phone = await open({ width: 390, height: 844 }, true);
   await phone.getByTestId('model-input').setInputFiles(join(fixtures, '3DBenchy.stl'));

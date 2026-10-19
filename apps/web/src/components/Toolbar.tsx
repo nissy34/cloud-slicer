@@ -58,7 +58,7 @@ const GROUPS: Item[][] = [
     { id: 'color', icon: 'mmu_segmentation', label: 'Colour painting', key: 'N', paint: 'color' },
     { id: 'text', icon: 'toolbar_text', label: 'Text shape', key: 'T', tool: 'text' },
     { id: 'measure', icon: 'toolbar_measure', label: 'Measure', key: 'U', tool: 'measure' },
-    { id: 'assembly', icon: 'toolbar_assembly', label: 'Assemble', missing: true },
+    { id: 'assembly', icon: 'toolbar_assembly', label: 'Assemble', tool: 'assemble' },
     { id: 'brimears', icon: 'toolbar_brimears', label: 'Brim ears', tool: 'brim', needsSelection: true },
   ],
   [{ id: 'assemblyview', icon: 'toolbar_assemble', label: 'Assembly view', missing: true }],
