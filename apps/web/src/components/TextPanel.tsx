@@ -168,19 +168,37 @@ function TextFields({
       {missingFont && <p className="hint simplify-warning">This text was made with a font that isn't on this device. Pick a font to change the text.</p>}
       {num('size', 'Height', 'mm', 0.5, 'Height of the letters')}
       {num('depth', 'Depth', 'mm', 0.1, kind === 'negative' ? 'How deep the text cuts in' : 'How far the text stands out')}
-      <div className="segmented" role="radiogroup" aria-label="Alignment">
-        {(['left', 'center', 'right'] as const).map((a) => (
-          <button key={a} role="radio" aria-checked={style.align === a} className={style.align === a ? 'on' : ''} onClick={() => set('align', a)}>
-            {a === 'center' ? 'Centre' : a[0].toUpperCase() + a.slice(1)}
-          </button>
-        ))}
-      </div>
-      <div className="segmented" role="radiogroup" aria-label="Vertical alignment" title="Which part of the text sits at its middle point">
-        {(['top', 'center', 'bottom'] as const).map((a) => (
-          <button key={a} role="radio" aria-checked={style.valign === a} className={style.valign === a ? 'on' : ''} onClick={() => set('valign', a)}>
-            {a === 'center' ? 'Middle' : a[0].toUpperCase() + a.slice(1)}
-          </button>
-        ))}
+      <div className="align-row">
+        <div className="segmented icons" role="radiogroup" aria-label="Alignment">
+          {(['left', 'center', 'right'] as const).map((a) => (
+            <button
+              key={a}
+              role="radio"
+              aria-checked={style.align === a}
+              aria-label={ALIGN_NAMES[a]}
+              title={`${ALIGN_NAMES[a]}: lines line up on the ${a === 'center' ? 'middle' : a}`}
+              className={style.align === a ? 'on' : ''}
+              onClick={() => set('align', a)}
+            >
+              <AlignIcon align={a} />
+            </button>
+          ))}
+        </div>
+        <div className="segmented icons" role="radiogroup" aria-label="Vertical alignment">
+          {(['top', 'center', 'bottom'] as const).map((a) => (
+            <button
+              key={a}
+              role="radio"
+              aria-checked={style.valign === a}
+              aria-label={VALIGN_NAMES[a]}
+              title={`${VALIGN_NAMES[a]}: the text's ${a === 'center' ? 'middle' : a} sits on its point`}
+              className={style.valign === a ? 'on' : ''}
+              onClick={() => set('valign', a)}
+            >
+              <VAlignIcon valign={a} />
+            </button>
+          ))}
+        </div>
       </div>
       {onObject && (
         <div className="shape-checks">
@@ -223,5 +241,33 @@ function TextFields({
       )}
       <p className="muted hint">{working ? 'Making the text…' : `${placementHint('text', onObject)} Undo brings the last text back.`}</p>
     </>
+  );
+}
+
+const ALIGN_NAMES = { left: 'Left', center: 'Centre', right: 'Right' } as const;
+const VALIGN_NAMES = { top: 'Top', center: 'Middle', bottom: 'Bottom' } as const;
+
+/** Lines of text lined up left, centre or right, like a word processor's buttons. */
+function AlignIcon({ align }: { align: 'left' | 'center' | 'right' }) {
+  const widths = [14, 9, 14, 9];
+  return (
+    <svg viewBox="0 0 18 18" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" aria-hidden>
+      {widths.map((w, i) => {
+        const x = align === 'left' ? 2 : align === 'right' ? 16 - w : 9 - w / 2;
+        return <line key={i} x1={x} x2={x + w} y1={3 + i * 4} y2={3 + i * 4} />;
+      })}
+    </svg>
+  );
+}
+
+/** Two lines of text at the top, middle or bottom of a box, its point marked. */
+function VAlignIcon({ valign }: { valign: 'top' | 'center' | 'bottom' }) {
+  const y = valign === 'top' ? 4 : valign === 'bottom' ? 10 : 7;
+  return (
+    <svg viewBox="0 0 18 18" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" aria-hidden>
+      <rect x="1.5" y="1.5" width="15" height="15" rx="2" strokeWidth="1" opacity="0.5" />
+      <line x1="5" x2="13" y1={y} y2={y} />
+      <line x1="5" x2="13" y1={y + 4} y2={y + 4} />
+    </svg>
   );
 }

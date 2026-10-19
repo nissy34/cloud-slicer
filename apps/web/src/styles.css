@@ -1340,6 +1340,19 @@ select:focus-visible {
   box-shadow: inset 0 0 0 1px var(--accent);
   font-weight: 600;
 }
+.align-row {
+  display: flex;
+  gap: 8px;
+}
+.align-row .segmented {
+  flex: 1;
+  flex-wrap: nowrap;
+}
+.segmented.icons button {
+  display: flex;
+  justify-content: center;
+  padding: 5px 0;
+}
 .paint-states {
   display: flex;
   flex-wrap: wrap;
