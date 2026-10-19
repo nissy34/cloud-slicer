@@ -1067,3 +1067,62 @@ test('mesh boolean: union, difference and intersection of two parts, like deskto
   assert.throws(() => boolean({ op: 'union', a: 0, b: 0 }), /two different/);
   assert.throws(() => boolean({ op: 'xor', a: 0, b: 1 }), /unknown/);
 });
+
+test('text shapes: a text part, an engraved text, a text object and editing the text, like desktop', () => {
+  select({ printer: DEFAULT_PRINTER });
+  engine.FS.writeFile('/work/font.ttf', readFileSync(resolve(fixtures, '../engine/orcaslicer/resources/fonts/NanumGothic-Regular.ttf')));
+  const text = (o, request, plate = 0) => call(engine, 'textVolume', o, plate, JSON.stringify({ font: 'NanumGothic', fontPath: '/work/font.ttf', ...request }));
+  const volumes = (o = 0) => info().objects[o].volumes;
+  load('gen-cube-20.stl');
+
+  const added = text(0, { op: 'add', type: 'part', text: 'Hi', size: 10, depth: 2 });
+  assert.equal(added.volume, 1);
+  const part = volumes()[1];
+  assert.equal(part.kind, 'part');
+  assert.equal(part.name, 'Hi');
+  assert.deepEqual(
+    { text: part.text.text, font: part.text.font, size: part.text.size, depth: part.text.depth, align: part.text.align },
+    { text: 'Hi', font: 'NanumGothic', size: 10, depth: 2, align: 'center' },
+  );
+  const sizeBefore = info().objects[0].size;
+  assert.ok(sizeBefore[1] > 20, `the text stands in front of the cube: ${sizeBefore}`);
+
+  // Longer text, same place: the object grows along X only as far as the words.
+  text(0, { op: 'update', volume: 1, text: 'Hello there', size: 10, depth: 2 });
+  assert.equal(volumes()[1].text.text, 'Hello there');
+  assert.equal(volumes()[1].name, 'Hello there');
+  assert.ok(info().objects[0].size[0] > 40, `longer text is wider: ${info().objects[0].size}`);
+
+  // On the surface the camera looks at: the cube's top, seen from straight above.
+  const cubeTop = info().objects[0].size[2];
+  const onTop = text(0, { op: 'add', type: 'part', text: 'Top', size: 5, depth: 1, camera: [135, 135, 200] });
+  assert.ok(info().objects[0].size[2] > cubeTop + 0.9, `text on the top stands 1 mm above it: ${info().objects[0].size[2]} vs ${cubeTop}`);
+  call(engine, 'volumeAction', 0, JSON.stringify({ op: 'delete', volume: onTop.volume }));
+
+  const engraved = text(0, { op: 'add', type: 'negative', text: 'X', size: 5, depth: 1 });
+  assert.equal(volumes()[engraved.volume].kind, 'negative');
+  slice(fullConfig());
+
+  // A text object of its own, on the plate.
+  const object = text(-1, { op: 'add', type: 'part', text: 'Label', size: 12, depth: 3 });
+  assert.equal(object.object, 1);
+  const label = info().objects[1];
+  assert.equal(label.name, 'Label');
+  assert.ok(Math.abs(label.size[2] - 3) < 0.1, `the label lies flat, 3 mm thick: ${label.size}`);
+  text(1, { op: 'update', volume: 0, text: 'New label', size: 12, depth: 3 });
+  assert.equal(info().objects[1].name, 'New label', 'a text that is the whole object names it');
+
+  // Saved and opened again, the text and its font settings are still there to edit.
+  call(engine, 'saveProject', '/work/text.3mf', JSON.stringify(fullConfig()), null);
+  engine.clearModel();
+  const [w, d] = bedSize(fullConfig());
+  call(engine, 'loadModel', '/work/text.3mf', 0, w, d);
+  const reopened = volumes().find((v) => v.text?.text === 'Hello there');
+  assert.ok(reopened, `the text part comes back: ${JSON.stringify(volumes().map((v) => v.name))}`);
+  assert.equal(reopened.text.size, 10);
+  assert.equal(reopened.text.depth, 2);
+  assert.equal(info().objects[1].volumes[0].text.text, 'New label');
+
+  assert.throws(() => text(0, { op: 'add', type: 'part', text: '   ' }), /type some text/);
+  assert.throws(() => text(0, { op: 'add', type: 'part', text: 'A', fontPath: '/work/none.ttf' }), /can't be read/);
+});

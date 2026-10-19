@@ -136,6 +136,8 @@ void placeOnPlate(ModelObject* obj, int plate) {
 
 } // namespace
 
+void placeObject(ModelObject* obj, int plate) { placeOnPlate(obj, plate); }
+
 Project& project() { return g_project; }
 
 int Project::columns() const { return columnCount(std::max(1, plateCount)); }
@@ -239,7 +241,7 @@ void clearModel() { g_project.clear(); }
 
 // Everything the page shows about the project:
 // {fileName, plates: [{index, name, objects: [objectIndex...]}],
-//  objects: [{name, size, units ("", "inch" or "meter": converted from), volumes: [{name, kind, extruder, painted}],
+//  objects: [{name, size, units ("", "inch" or "meter": converted from), volumes: [{name, kind, extruder, painted, text?}],
 //             instances: [{plate, offset, rotation, scale, printable}]}],
 //  file: {bambu, printer, filamentColours, filamentTypes, filamentPresets}}.
 std::string modelInfoJson() {
@@ -262,6 +264,18 @@ std::string modelInfoJson() {
                                {"paint", {{"support", !v->supported_facets.empty()}, {"seam", !v->seam_facets.empty()},
                                           {"fuzzy", !v->fuzzy_skin_facets.empty()}}},
                                {"settings", settingsJson(v->config.get())}});
+            if (v->text_configuration) {
+                // A text shape (text_api.cpp): what the Text tool edits.
+                const TextConfiguration& tc = *v->text_configuration;
+                const FontProp& fp = tc.style.prop;
+                const auto align = fp.align.first;
+                volumes.back()["text"] = {{"text", tc.text}, {"font", fp.face_name.value_or(tc.style.name)},
+                                          {"size", fp.size_in_mm},
+                                          {"depth", v->emboss_shape ? v->emboss_shape->projection.depth : 1.0},
+                                          {"boldness", fp.boldness.value_or(0.f)}, {"skew", fp.skew.value_or(0.f)},
+                                          {"charGap", fp.char_gap.value_or(0)}, {"lineGap", fp.line_gap.value_or(0)},
+                                          {"align", align == FontProp::HorizontalAlign::left ? "left" : align == FontProp::HorizontalAlign::right ? "right" : "center"}};
+            }
         }
         json instances = json::array();
         for (const ModelInstance* inst : obj->instances) {

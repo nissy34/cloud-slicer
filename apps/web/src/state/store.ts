@@ -32,12 +32,15 @@ import { dropPlateTower, moveTower, towerOptions, towersFromConfig, type TowerSp
 import { stlName, type ObjectAction } from '../lib/objectMenu';
 import type { VolumeAction } from '../lib/volumes';
 import type { BooleanRequest } from '../lib/boolean';
+import type { TextStyle } from '../lib/fonts';
+import { fontInEngine } from './fonts';
+import { cameraPosition } from './view';
 import { saveFile } from '../lib/preset-files';
 import { estimateLayers, slicePercent } from '../lib/slice-progress';
 
 export type Tab = 'prepare' | 'preview' | 'device';
 /** The object tool open on the 3D view, like desktop's gizmos (paint has its own state). */
-export type Tool = 'move' | 'rotate' | 'scale' | 'flatten' | 'cut' | 'measure' | 'layers' | 'brim' | 'simplify' | 'boolean';
+export type Tool = 'move' | 'rotate' | 'scale' | 'flatten' | 'cut' | 'measure' | 'layers' | 'brim' | 'simplify' | 'boolean' | 'text';
 /** How a 3MF is opened: as the project (replacing it) or its objects added. */
 export type OpenMode = 'project' | 'geometry';
 const is3mf = (f: File) => /\.3mf$/i.test(f.name);
@@ -224,6 +227,12 @@ export interface SlicerState {
    * one undo step. The added or changed volume is selected.
    */
   volumeAction(o: number, request: VolumeAction, label: string, file?: File): Promise<void>;
+  /**
+   * A text shape, like desktop's Text tool, as one undo step: added to object o
+   * (null: a new object on the plate) or `volume`'s text and style changed. Picks
+   * it; false if it failed.
+   */
+  textVolume(o: number | null, style: TextStyle, edit: { type: 'part' | 'negative' | 'modifier' } | { volume: number }): Promise<boolean>;
   /** Two volumes of object o combined, like desktop's Mesh boolean, as one undo step; picks the result. False if it failed. */
   meshBoolean(o: number, request: BooleanRequest): Promise<boolean>;
   /** Saves instance i of object o as an STL file. */
@@ -1005,6 +1014,26 @@ export const useSlicer = create<SlicerState>((set, get) => {
         return out.info;
       });
       if (get().project?.objects[o]) set({ selected: { object: o, instance, volume } });
+    },
+    textVolume: async (o, style, edit) => {
+      let out: { object: number; volume: number } | undefined;
+      const label = 'volume' in edit ? 'Edit text' : 'Add text';
+      await projectEdit(label, async () => {
+        const e = engine();
+        const fontPath = await fontInEngine(e, style.font);
+        const request =
+          'volume' in edit
+            ? { ...style, fontPath, op: 'update' as const, volume: edit.volume }
+            : { ...style, fontPath, op: 'add' as const, type: edit.type, camera: cameraPosition() };
+        const r = await e.textVolume(o ?? -1, get().plate, request);
+        out = { object: r.object, volume: r.volume };
+        return r.info;
+      });
+      if (!out) return false;
+      const sel = get().selected;
+      const instance = sel?.object === out.object ? sel.instance : 0;
+      set({ selected: { object: out.object, instance, volume: out.volume } });
+      return true;
     },
     meshBoolean: async (o, request) => {
       let volume: number | undefined;

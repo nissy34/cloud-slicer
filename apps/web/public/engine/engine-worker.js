@@ -194,6 +194,26 @@ if (self.name !== 'em-pthread') {
         if (bytes) e.FS.unlink(path);
       }
     },
+    // A font for the Text tool, kept in the engine's files under its name.
+    hasFont(e, path) {
+      return e.FS.analyzePath(path).exists;
+    },
+    loadFont(e, path, bytes) {
+      e.FS.mkdirTree('/fonts');
+      e.FS.writeFile(path, new Uint8Array(bytes));
+    },
+    // One of the bundled fonts (engine/fonts, see scripts/copy-engine.mjs).
+    async loadBundledFont(e, path, file) {
+      const res = await fetch(here(`fonts/${file}`));
+      if (!res.ok) throw new Error(`The font ${file} didn't download (HTTP ${res.status})`);
+      e.FS.mkdirTree('/fonts');
+      e.FS.writeFile(path, new Uint8Array(await res.arrayBuffer()));
+    },
+    // A text part added to object o (-1: a new object on `plate`) or edited (see engine/src/text_api.cpp).
+    textVolume(e, o, plate, request) {
+      const { object, volume } = json(e.textVolume(o, plate, JSON.stringify(request)));
+      return { info: JSON.parse(e.modelInfoJson()), object, volume };
+    },
     // Union, difference or intersection of two volumes of object o (see engine/src/boolean_api.cpp).
     meshBoolean(e, o, request) {
       const { volume } = json(e.meshBoolean(o, JSON.stringify(request)));

@@ -42,6 +42,10 @@ struct Project {
 
 Project& project();
 
+// Puts a new object on `plate`, on the free spot closest to the centre, on the
+// bed, as an added model is placed (model_api.cpp).
+void placeObject(Slic3r::ModelObject* obj, int plate);
+
 // Calls a JS progress callback (percent, text) when it is a function. Orca
 // reports some stages from worker threads, and an emscripten::val may only be
 // touched on the thread that created it, so off-main-thread updates are dropped.
