@@ -1,5 +1,8 @@
 import { create } from 'zustand';
-import { EngineClient, type CutKeep, type History, type InstanceChanges, type MixedReply, type MixedRequest, type ParsedPreset, type ProjectThumbnail, type UserPresetFile } from '../engine/client';
+import { EngineClient, type CutKeep, type History, type InstanceChanges, type MixedReply, type MixedRequest, type ParsedPreset, type ProjectThumbnail, type ShapePlaceRequest, type ShapeState, type UserPresetFile } from '../engine/client';
+
+/** Omit over each member of a union. */
+type DistributiveOmit<T, K extends PropertyKey> = T extends unknown ? Omit<T, K> : never;
 import type {
   PaintOverlay,
   PaintRay,
@@ -251,8 +254,23 @@ export interface SlicerState {
    */
   svgVolume(
     o: number | null,
-    edit: { type: 'part' | 'negative' | 'modifier'; file: File } | { volume: number; depth?: number; width?: number; height?: number },
+    edit: { type: 'part' | 'negative' | 'modifier'; file: File } | { volume: number; depth?: number; width?: number; height?: number; useSurface?: boolean },
   ): Promise<boolean>;
+  /**
+   * Where the picked text or SVG shape stands on its object (its matrix, turn
+   * and distance from the surface), for the Text and SVG tools' handles and
+   * fields; for the preview it was read with.
+   */
+  shape: (ShapeState & { object: number; volume: number; instance: number; preview: PreviewMesh | null }) | null;
+  /** Reads `shape` again for the picked volume (null when it isn't a shape). */
+  loadShape(): Promise<void>;
+  /** Desktop's "Keep up": sliding or facing the camera keeps the text upright. */
+  keepUp: boolean;
+  setKeepUp(keepUp: boolean): void;
+  /** Where a shape would go if slid to where `ray` (plate coordinates) meets its object's other parts: its matrix, or null off them. Changes nothing. */
+  shapeSlide(o: number, volume: number, instance: number, ray: [number, number, number, number, number, number]): Promise<number[] | null>;
+  /** The picked text or SVG shape slid, turned or lifted on its object's surface, as one undo step. False if it failed. */
+  shapePlace(o: number, request: DistributiveOmit<ShapePlaceRequest, 'fontPath' | 'keepUp'>, label: string): Promise<boolean>;
   /** Two volumes of object o combined, like desktop's Mesh boolean, as one undo step; picks the result. False if it failed. */
   meshBoolean(o: number, request: BooleanRequest): Promise<boolean>;
   /** Saves instance i of object o as an STL file. */
@@ -1135,6 +1153,44 @@ export const useSlicer = create<SlicerState>((set, get) => {
       const instance = sel?.object === out.object ? sel.instance : 0;
       set({ selected: { object: out.object, instance, volume: out.volume } });
       return true;
+    },
+    shape: null,
+    loadShape: async () => {
+      const { selected, project, preview, plate } = get();
+      const v = selected?.volume;
+      const info = v !== undefined ? project?.objects[selected!.object]?.volumes[v] : undefined;
+      if (!selected || v === undefined || !info || (!info.text && !info.svg)) {
+        if (get().shape) set({ shape: null });
+        return;
+      }
+      try {
+        const state = await engine().shapeState(selected.object, plate, v, selected.instance);
+        // Only if nothing changed while it was read.
+        if (get().preview === preview && get().selected === selected) set({ shape: { ...state, object: selected.object, volume: v, instance: selected.instance, preview } });
+      } catch (err) {
+        console.warn('Shape placement:', err);
+        set({ shape: null });
+      }
+    },
+    keepUp: true,
+    setKeepUp: (keepUp) => set({ keepUp }),
+    shapeSlide: async (o, volume, instance, ray) => {
+      const r = await engine().shapePlace(o, get().plate, { op: 'drag', volume, instance, ray, keepUp: get().keepUp });
+      return r.hit && r.matrix ? r.matrix : null;
+    },
+    shapePlace: async (o, request, label) => {
+      let ok = false;
+      await projectEdit(label, async () => {
+        const e = engine();
+        const text = get().project?.objects[o]?.volumes[request.volume]?.text;
+        // A text that follows the surface is remade with its font.
+        const fontPath = text ? await fontInEngine(e, text.font).catch(() => undefined) : undefined;
+        const r = await e.shapePlace(o, get().plate, { ...request, fontPath, keepUp: get().keepUp } as ShapePlaceRequest);
+        if (!r.info) throw new Error('The shape is off the object there; move it back onto the surface.');
+        ok = true;
+        return r.info;
+      });
+      return ok;
     },
     meshBoolean: async (o, request) => {
       let volume: number | undefined;

@@ -39,6 +39,12 @@ export interface TextStyle {
   charGap: number;
   lineGap: number;
   align: 'left' | 'center' | 'right';
+  /** Where the text's middle sits: its first line's top, the middle of its lines, or the last line's bottom. */
+  valign: 'top' | 'center' | 'bottom';
+  /** Follows the object's surface (desktop's "Use surface"). */
+  useSurface: boolean;
+  /** Each letter set on the surface on its own (desktop's "Per glyph"). */
+  perGlyph: boolean;
 }
 
 /** Desktop's starting text and style: "Embossed text", 10 mm high, 1 mm deep. */
@@ -52,6 +58,9 @@ export const DEFAULT_TEXT: TextStyle = {
   charGap: 0,
   lineGap: 0,
   align: 'center',
+  valign: 'center',
+  useSurface: false,
+  perGlyph: false,
 };
 
 /** Desktop's limits for the size and depth fields. */

@@ -3,6 +3,7 @@ import { DEFAULT_TEXT, clampStyle, type FontChoice, type TextStyle } from '../li
 import { KIND_LABELS, keepsAPart } from '../lib/volumes';
 import { addFontFile, availableFonts, canListComputerFonts, loadComputerFonts, nextTextStyle, rememberTextStyle } from '../state/fonts';
 import { useSlicer } from '../state/store';
+import { ShapeActions, ShapePlacement, placementHint } from './ShapePlacement';
 
 const TYPES = ['part', 'negative', 'modifier'] as const;
 const GROUPS: [FontChoice['source'], string][] = [
@@ -37,7 +38,15 @@ export function TextPanel() {
         </button>
       </div>
       {v?.text && selected ? (
-        <TextFields key={`${selected.object}-${index}`} object={selected.object} volume={index} start={v.text} kind={v.kind} canChangeType={!!volumes && keepsAPart(volumes, index) && volumes.length > 1} />
+        <TextFields
+          key={`${selected.object}-${index}`}
+          object={selected.object}
+          volume={index}
+          start={v.text}
+          kind={v.kind}
+          onObject={!!volumes && volumes.length > 1}
+          canChangeType={!!volumes && keepsAPart(volumes, index) && volumes.length > 1}
+        />
       ) : (
         <>
           <p className="muted hint">
@@ -55,7 +64,21 @@ export function TextPanel() {
   );
 }
 
-function TextFields({ object, volume, start, kind, canChangeType }: { object: number; volume: number; start: TextStyle; kind: string; canChangeType: boolean }) {
+function TextFields({
+  object,
+  volume,
+  start,
+  kind,
+  onObject,
+  canChangeType,
+}: {
+  object: number;
+  volume: number;
+  start: TextStyle;
+  kind: string;
+  onObject: boolean;
+  canChangeType: boolean;
+}) {
   const [style, setStyle] = useState<TextStyle>({ ...DEFAULT_TEXT, ...start });
   const [fonts, setFonts] = useState(availableFonts);
   const [working, setWorking] = useState(false);
@@ -81,10 +104,12 @@ function TextFields({ object, volume, start, kind, canChangeType }: { object: nu
 
   const set = <K extends keyof TextStyle>(key: K, value: TextStyle[K]) => setStyle((s) => ({ ...s, [key]: value }));
   const num = (key: 'size' | 'depth' | 'boldness' | 'skew' | 'charGap' | 'lineGap', label: string, unit: string, step: number, title?: string) => (
-    <label className="transform-row text-row" title={title}>
-      <span>{label}</span>
+    <label className="num-field" title={title}>
+      <span>
+        {label}
+        {unit && <span className="unit"> ({unit})</span>}
+      </span>
       <input type="number" aria-label={label} inputMode="decimal" step={step} value={style[key]} onChange={(e) => set(key, Number(e.target.value))} />
-      <span className="unit">{unit}</span>
     </label>
   );
 
@@ -143,15 +168,63 @@ function TextFields({ object, volume, start, kind, canChangeType }: { object: nu
         }}
       />
       {missingFont && <p className="hint simplify-warning">This text was made with a font that isn't on this device. Pick a font to change the text.</p>}
-      {num('size', 'Height', 'mm', 0.5, 'Height of the letters')}
-      {num('depth', 'Depth', 'mm', 0.1, kind === 'negative' ? 'How deep the text cuts in' : 'How far the text stands out')}
-      <div className="segmented" role="radiogroup" aria-label="Alignment">
-        {(['left', 'center', 'right'] as const).map((a) => (
-          <button key={a} role="radio" aria-checked={style.align === a} className={style.align === a ? 'on' : ''} onClick={() => set('align', a)}>
-            {a === 'center' ? 'Centre' : a[0].toUpperCase() + a.slice(1)}
-          </button>
-        ))}
+      <ShapePlacement
+        object={object}
+        volume={volume}
+        followsSurface={style.useSurface}
+        label="text"
+        fields={
+          <>
+            {num('size', 'Height', 'mm', 0.5, 'Height of the letters')}
+            {num('depth', 'Depth', 'mm', 0.1, kind === 'negative' ? 'How deep the text cuts in' : 'How far the text stands out')}
+          </>
+        }
+      />
+      <div className="align-row">
+        <div className="segmented icons" role="radiogroup" aria-label="Alignment">
+          {(['left', 'center', 'right'] as const).map((a) => (
+            <button
+              key={a}
+              role="radio"
+              aria-checked={style.align === a}
+              aria-label={ALIGN_NAMES[a]}
+              title={`${ALIGN_NAMES[a]}: lines line up on the ${a === 'center' ? 'middle' : a}`}
+              className={style.align === a ? 'on' : ''}
+              onClick={() => set('align', a)}
+            >
+              <AlignIcon align={a} />
+            </button>
+          ))}
+        </div>
+        <div className="segmented icons" role="radiogroup" aria-label="Vertical alignment">
+          {(['top', 'center', 'bottom'] as const).map((a) => (
+            <button
+              key={a}
+              role="radio"
+              aria-checked={style.valign === a}
+              aria-label={VALIGN_NAMES[a]}
+              title={`${VALIGN_NAMES[a]}: the text's ${a === 'center' ? 'middle' : a} sits on its point`}
+              className={style.valign === a ? 'on' : ''}
+              onClick={() => set('valign', a)}
+            >
+              <VAlignIcon valign={a} />
+            </button>
+          ))}
+        </div>
       </div>
+      {onObject && (
+        <div className="shape-checks">
+          <label className="svg-ratio" title="The text bends with the object's surface instead of standing flat on it">
+            <input type="checkbox" checked={style.useSurface} onChange={(e) => set('useSurface', e.target.checked)} />
+            Use surface
+          </label>
+          <label className="svg-ratio" title="Each letter sits on the surface on its own, so text can go around a curved object">
+            <input type="checkbox" checked={style.perGlyph} onChange={(e) => set('perGlyph', e.target.checked)} />
+            Per letter
+          </label>
+        </div>
+      )}
+      <ShapeActions object={object} volume={volume} />
       {canChangeType && (
         <div className="segmented" role="radiogroup" aria-label="Text type">
           {TYPES.map((t) => (
@@ -172,13 +245,43 @@ function TextFields({ object, volume, start, kind, canChangeType }: { object: nu
       </button>
       {more && (
         <>
-          {num('boldness', 'Boldness', 'mm', 0.05, 'Thicker (+) or thinner (−) letters')}
-          {num('skew', 'Skew', '', 0.05, 'Slant the letters (0.2 is a light italic)')}
-          {num('charGap', 'Letter gap', '', 10, 'Extra space between letters, in font units')}
-          {num('lineGap', 'Line gap', '', 10, 'Extra space between lines, in font units')}
+          <div className="num-fields">
+            {num('boldness', 'Boldness', 'mm', 0.05, 'Thicker (+) or thinner (−) letters')}
+            {num('skew', 'Skew', '', 0.05, 'Slant the letters (0.2 is a light italic)')}
+            {num('charGap', 'Letter gap', '', 10, 'Extra space between letters, in font units')}
+            {num('lineGap', 'Line gap', '', 10, 'Extra space between lines, in font units')}
+          </div>
         </>
       )}
-      <p className="muted hint">{working ? 'Making the text…' : 'Move, rotate or scale it with those tools. Undo brings the last text back.'}</p>
+      <p className="muted hint">{working ? 'Making the text…' : `${placementHint('text', onObject)} Undo brings the last text back.`}</p>
     </>
+  );
+}
+
+const ALIGN_NAMES = { left: 'Left', center: 'Centre', right: 'Right' } as const;
+const VALIGN_NAMES = { top: 'Top', center: 'Middle', bottom: 'Bottom' } as const;
+
+/** Lines of text lined up left, centre or right, like a word processor's buttons. */
+function AlignIcon({ align }: { align: 'left' | 'center' | 'right' }) {
+  const widths = [14, 9, 14, 9];
+  return (
+    <svg viewBox="0 0 18 18" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" aria-hidden>
+      {widths.map((w, i) => {
+        const x = align === 'left' ? 2 : align === 'right' ? 16 - w : 9 - w / 2;
+        return <line key={i} x1={x} x2={x + w} y1={3 + i * 4} y2={3 + i * 4} />;
+      })}
+    </svg>
+  );
+}
+
+/** Two lines of text at the top, middle or bottom of a box, its point marked. */
+function VAlignIcon({ valign }: { valign: 'top' | 'center' | 'bottom' }) {
+  const y = valign === 'top' ? 4 : valign === 'bottom' ? 10 : 7;
+  return (
+    <svg viewBox="0 0 18 18" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" aria-hidden>
+      <rect x="1.5" y="1.5" width="15" height="15" rx="2" strokeWidth="1" opacity="0.5" />
+      <line x1="5" x2="13" y1={y} y2={y} />
+      <line x1="5" x2="13" y1={y + 4} y2={y + 4} />
+    </svg>
   );
 }

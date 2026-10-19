@@ -47,7 +47,22 @@ function cubesStl(corners, s = 10) {
   const facets = tris.map((t) => `facet normal 0 0 0\nouter loop\n${t.map((p) => `vertex ${p.join(' ')}`).join('\n')}\nendloop\nendfacet`);
   return new TextEncoder().encode(`solid cubes\n${facets.join('\n')}\nendsolid cubes\n`);
 }
-const generated = { 'gen-two-cubes.stl': cubesStl([[0, 0, 0], [30, 0, 0]]), 'gen-cube-20.stl': cubesStl([[0, 0, 0]], 20) };
+// ASCII STL of an upright cylinder (radius r, height h) with `n` sides, centred on x = y = 0.
+function cylinderStl(r, h, n = 96) {
+  const at = (k, z) => [r * Math.cos((2 * Math.PI * k) / n), r * Math.sin((2 * Math.PI * k) / n), z];
+  const tris = [];
+  for (let k = 0; k < n; k++) {
+    const [a, b, c, d] = [at(k, 0), at(k + 1, 0), at(k + 1, h), at(k, h)];
+    tris.push([a, b, c], [a, c, d], [[0, 0, 0], b, a], [[0, 0, h], d, c]);
+  }
+  const facets = tris.map((t) => `facet normal 0 0 0\nouter loop\n${t.map((p) => `vertex ${p.join(' ')}`).join('\n')}\nendloop\nendfacet`);
+  return new TextEncoder().encode(`solid cylinder\n${facets.join('\n')}\nendsolid cylinder\n`);
+}
+const generated = {
+  'gen-two-cubes.stl': cubesStl([[0, 0, 0], [30, 0, 0]]),
+  'gen-cube-20.stl': cubesStl([[0, 0, 0]], 20),
+  'gen-cylinder.stl': cylinderStl(15, 30),
+};
 
 function slice(config, plate = 0, thumbnails = null) {
   const result = JSON.parse(engine.sliceWithConfig(JSON.stringify(config), plate, '/work/out.gcode', null, thumbnails));
@@ -1194,6 +1209,88 @@ test('text shapes: a text part, an engraved text, a text object and editing the 
   assert.throws(() => text(0, { op: 'add', type: 'part', text: 'A', fontPath: '/work/none.ttf' }), /can't be read/);
 });
 
+test('text on a surface: slid, turned, lifted, facing the camera, following a curve and letter by letter, kept in the 3MF', () => {
+  select({ printer: DEFAULT_PRINTER });
+  engine.FS.writeFile('/work/font.ttf', readFileSync(resolve(fixtures, '../engine/orcaslicer/resources/fonts/NanumGothic-Regular.ttf')));
+  const style = { font: 'NanumGothic', fontPath: '/work/font.ttf', text: 'HELLO WORLD', size: 8, depth: 1 };
+  const text = (o, request) => call(engine, 'textVolume', o, 0, JSON.stringify({ ...style, ...request }));
+  const place = (request) => call(engine, 'shapePlace', 0, 0, JSON.stringify({ volume: 1, instance: 0, fontPath: '/work/font.ttf', ...request }));
+  const state = () => place({ op: 'state' });
+  const near = (a, b, what, tolerance = 0.2) => assert.ok(Math.abs(a - b) < tolerance, `${what}: ${a} vs ${b}`);
+  const at = (m) => [m[12], m[13], m[14]];
+  const axis = (m) => [m[8], m[9], m[10]].map((v) => v / Math.hypot(m[8], m[9], m[10]));
+  const width = () => info().objects[0].size[0];
+
+  // On the front of a cylinder (radius 15), seen from the front.
+  load('gen-cylinder.stl');
+  const centre = info().objects[0].instances[0].offset;
+  text(0, { op: 'add', type: 'part', camera: [centre[0], centre[1] - 150, 15] });
+  let s = state();
+  assert.equal(s.surface, true);
+  assert.equal(s.distance, null, 'it starts on the surface');
+  near(s.angle, 0, 'it starts upright');
+  near(axis(s.matrix)[1], -1, 'it faces the camera', 0.05);
+  const flat = width();
+  assert.ok(flat > 45, `flat, the words stick out past the cylinder: ${flat}`);
+
+  // Following the surface, the words bend round it; letter by letter, each stands on it.
+  text(0, { op: 'update', volume: 1, useSurface: true });
+  assert.equal(info().objects[0].volumes[1].text.useSurface, true);
+  assert.ok(width() < 33, `on the surface the words wrap round the cylinder: ${width()}`);
+  text(0, { op: 'update', volume: 1, useSurface: false, perGlyph: true });
+  assert.ok(width() < 36, `letter by letter they stand round the cylinder: ${width()}`);
+  text(0, { op: 'update', volume: 1, useSurface: true, perGlyph: false, valign: 'top' });
+  assert.equal(info().objects[0].volumes[1].text.valign, 'top');
+
+  // Slid round to the right side, it faces right and still follows the surface.
+  s = state();
+  const right = place({ op: 'drag', ray: [centre[0] + 100, centre[1], 15, -1, 0, 0] });
+  assert.equal(right.hit, true);
+  near(axis(right.matrix)[0], 1, 'over the right side it faces right', 0.05);
+  near(at(s.matrix)[0], at(state().matrix)[0], 'a drag that is not committed changes nothing');
+  place({ op: 'drag', ray: [centre[0] + 100, centre[1], 15, -1, 0, 0], commit: true });
+  s = state();
+  near(at(s.matrix)[0], centre[0] + 15, 'it moved onto the right side', 0.3);
+  assert.ok(info().objects[0].size[1] < 33, `and wraps round it there: ${info().objects[0].size}`);
+  assert.equal(place({ op: 'drag', ray: [centre[0] + 100, centre[1] + 100, 15, 1, 0, 0] }).hit, false, 'off the object nothing is hit');
+
+  // Turned, lifted off the surface (flat again), turned to the camera above.
+  place({ op: 'rotate', angle: 30 });
+  near(state().angle, 30, 'turned 30 degrees clockwise', 0.5);
+  place({ op: 'rotate', angle: 0 });
+  text(0, { op: 'update', volume: 1, useSurface: false });
+  place({ op: 'distance', distance: 2 });
+  near(state().distance, 2, 'lifted 2 mm', 0.1);
+  place({ op: 'distance', distance: 0 });
+  assert.equal(state().distance, null, 'back on the surface');
+  place({ op: 'face', camera: [centre[0], centre[1], 300] });
+  near(axis(state().matrix)[2], 1, 'facing the camera above', 0.05);
+
+  // Saved and opened again, desktop's surface settings come back.
+  text(0, { op: 'update', volume: 1, useSurface: true, perGlyph: true, valign: 'top' });
+  call(engine, 'saveProject', '/work/surface.3mf', JSON.stringify(fullConfig()), null);
+  engine.clearModel();
+  const [w, d] = bedSize(fullConfig());
+  call(engine, 'loadModel', '/work/surface.3mf', 0, w, d);
+  const index = info().objects[0].volumes.findIndex((v) => v.text);
+  const back = info().objects[0].volumes[index];
+  assert.deepEqual([back.text.useSurface, back.text.perGlyph, back.text.valign], [true, true, 'top']);
+  // And it can still be moved, remade where it lands.
+  place({ op: 'drag', volume: index, ray: [centre[0] - 100, centre[1], 15, 1, 0, 0], commit: true });
+  near(at(place({ op: 'state', volume: index }).matrix)[0], centre[0] - 15, 'moved onto the left side after reopening', 0.3);
+  assert.throws(() => place({ op: 'drag', volume: index, ray: [centre[0] + 100, centre[1], 15, -1, 0, 0], commit: true, fontPath: '' }), /font/);
+
+  // On a thin wall (the Benchy's cabin) it stays on the near side: from a
+  // point on the surface a ray finds the wall's far side.
+  load('3DBenchy.stl');
+  text(0, { op: 'add', type: 'part', camera: [w / 2, -d * 0.75, d * 0.8] });
+  const before = at(state().matrix);
+  text(0, { op: 'update', volume: 1, useSurface: true });
+  s = state();
+  at(s.matrix).forEach((v, k) => near(v, before[k], 'following the surface it stays where it was', 0.05));
+  assert.equal(s.distance, null, 'and on the surface');
+});
+
 test('SVG shapes: an SVG part, an engraved SVG, an SVG object, depth and size, kept in the 3MF, like desktop', () => {
   select({ printer: DEFAULT_PRINTER });
   // A 20 x 10 mm plate with a round hole.
@@ -1255,6 +1352,12 @@ test('SVG shapes: an SVG part, an engraved SVG, an SVG object, depth and size, k
   svg(0, { op: 'update', volume: index, depth: 1 });
   near(volumes()[index].svg.depth, 1, 'depth after reopening');
   near(volumes()[index].svg.width, 30, 'the width stays after reopening');
+
+  // Following the surface: the cube's top is flat, so the shape keeps its size.
+  const top = svg(0, { op: 'add', type: 'part', path: '/work/badge.svg', name: 'badge.svg', depth: 1, camera: [135, 135, 200] });
+  svg(0, { op: 'update', volume: top.volume, useSurface: true });
+  assert.equal(volumes()[top.volume].svg.useSurface, true);
+  near(volumes()[top.volume].svg.width, 20, 'following a flat surface keeps the width');
 
   assert.throws(() => svg(0, { op: 'add', type: 'part', path: '/work/empty.svg', name: 'empty.svg' }), /no paths/);
   assert.throws(() => svg(0, { op: 'add', type: 'part', path: '/work/none.svg', name: 'none.svg' }), /missing/);
