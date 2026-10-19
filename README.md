@@ -37,6 +37,9 @@ hosted on Cloudflare's free tier.
   blockers/enforcers added to an object (shapes or a mesh file), shown see-through,
   moved with the gizmos, with their own settings, and mesh boolean (union, difference or
   intersection of two of an object's parts).
+- **Prime tower on the plate**: when a plate prints with more than one filament the tower
+  stands on the Prepare plate at the size Orca will print it, and you drag it where you
+  want it, per plate, like desktop.
 - **Colour mixing**: Snapmaker Orca's mixed filaments, virtual filaments made of two or
   more physical ones, usable anywhere a filament is.
 - **Calibration tests** from desktop's Calibration menu: temperature, flow rate, pressure
@@ -199,6 +202,7 @@ Browser end to end tests (Playwright's Chromium) run against the built site
 | `test/accounts.mjs` | Sign-in, sessions, synced presets/settings/printers, online projects (Pages Functions + local D1, mock Google) |
 | `test/toolbar.mjs` | The object toolbar: add a model, variable layer height, simplify, brim ears, lay on face, measure, the object menu, parts and modifiers, mesh boolean, fits a phone |
 | `test/mixing.mjs` | Make a colour mix, slice, the G-code alternates between both tools |
+| `test/wipe-tower.mjs` | A two-filament plate shows the prime tower; drag it, and the slice prints it there |
 | `test/loading.mjs` | The loading screen while the engine starts and a project opens |
 | `test/cancel.mjs` | Cancel stops the slice in the engine, and a change while slicing drops its result |
 | `test/device-smoke.mjs` | Device tab through relay and bridge to a mock U1, and direct to a mock Klipper printer |

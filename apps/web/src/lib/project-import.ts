@@ -17,7 +17,7 @@ const NEVER = new Set([
   'print_compatible_printers', 'printer_model', 'printer_variant', 'printer_technology', 'upward_compatible_machine',
   'default_print_profile', 'default_filament_profile', 'filament_ids', 'filament_vendor', 'is_custom_defined',
   'print_host', 'print_host_webui', 'printhost_apikey', 'printhost_cafile', 'host_type',
-  // Prime tower position is per plate and per bed; Orca re-places it.
+  // Prime tower spots are per plate; the page keeps them apart (lib/wipe-tower.ts).
   'wipe_tower_x', 'wipe_tower_y',
   // Which flow variants the presets have values for; alignFlowVariants lays
   // the project's values out like the presets'.

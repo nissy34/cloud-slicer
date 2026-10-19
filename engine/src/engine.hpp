@@ -83,4 +83,9 @@ struct RayHit {
 // coordinates), through a ray-cast tree per part mesh (paint_api.cpp).
 std::optional<RayHit> castRay(int plate, Slic3r::Vec3d s, const Slic3r::Vec3d& dir);
 
+// The prime tower desktop's Prepare view shows on `plate` with `cfg`, kept on
+// the bed (wipe_tower_api.cpp): {show} or {show: true, x, y, width, depth,
+// height, rotation, brim, filaments}. slicedDepth < 0: Orca's estimate.
+nlohmann::json wipeTowerFor(const Slic3r::DynamicPrintConfig& cfg, int plate, double slicedDepth = -1);
+
 } // namespace engine

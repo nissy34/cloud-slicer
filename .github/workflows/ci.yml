@@ -258,7 +258,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        suite: [smoke, startup, presets, presetfiles, accounts, toolbar, mixing, loading, cancel]
+        suite: [smoke, startup, presets, presetfiles, accounts, toolbar, mixing, wipetower, loading, cancel]
     name: browser (${{ matrix.suite }})
     defaults:
       run:
@@ -306,6 +306,10 @@ jobs:
       - name: Colour mixing end to end (Chromium)
         if: matrix.suite == 'mixing'
         run: node test/mixing.mjs
+
+      - name: Prime tower end to end (Chromium)
+        if: matrix.suite == 'wipetower'
+        run: node test/wipe-tower.mjs
 
       - name: Loading screen end to end (Chromium)
         if: matrix.suite == 'loading'
