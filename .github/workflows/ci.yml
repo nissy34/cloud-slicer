@@ -70,6 +70,9 @@ jobs:
   engine:
     runs-on: ubuntu-24.04
     timeout-minutes: 240
+    # Writes the built engine to the engine-builds release (see "Publish the engine").
+    permissions:
+      contents: write
     outputs:
       key: ${{ steps.key.outputs.key }}
     steps:
@@ -78,11 +81,14 @@ jobs:
       # Everything the wasm build reads: the pinned Orca commit, the engine's
       # own sources and patches, the dependency script and the toolchain.
       # Tests, presets bundling and engine/node are not part of it.
+      # engine/scripts/engine-key.mjs computes it, so a checkout can tell which
+      # published build matches it.
       - name: Engine key
         id: key
         run: |
-          orca=$(git ls-tree HEAD engine/orcaslicer | awk '{print $3}')
-          echo "key=engine-out-v$ENGINE_CACHE_VERSION-$EMSDK_VERSION-$orca-${{ hashFiles('engine/CMakeLists.txt', 'engine/cmake/**', 'engine/compat/**', 'engine/patches/**', 'engine/src/**', 'engine/scripts/build-deps.sh') }}" >> "$GITHUB_OUTPUT"
+          name=$(node engine/scripts/engine-key.mjs)
+          echo "name=$name" >> "$GITHUB_OUTPUT"
+          echo "key=engine-out-$name" >> "$GITHUB_OUTPUT"
 
       - name: Reuse an engine built from the same sources
         id: engine-cache
@@ -179,6 +185,63 @@ jobs:
         with:
           path: engine/build/engine/orca-engine.*
           key: ${{ steps.key.outputs.key }}
+
+      # Every engine also goes to one GitHub pre-release, `engine-builds`, as
+      # engine-<key>.tar.gz, so anyone (cloud sessions included, which can't
+      # download Actions artifacts) gets it in seconds with
+      # engine/scripts/fetch-engine.mjs instead of building it. Not for pull
+      # requests from forks, whose token can't write. Never fails the run.
+      - name: Is the engine published?
+        id: published
+        if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          asset="engine-${{ steps.key.outputs.name }}.tar.gz"
+          echo "asset=$asset" >> "$GITHUB_OUTPUT"
+          if gh release view engine-builds --json assets -q '.assets[].name' 2>/dev/null | grep -qxF "$asset"; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Restore the engine to publish it
+        if: steps.published.outputs.exists == 'false' && steps.engine-cache.outputs.cache-hit == 'true'
+        continue-on-error: true
+        uses: actions/cache/restore@v4
+        with:
+          path: engine/build/engine/orca-engine.*
+          key: ${{ steps.key.outputs.key }}
+
+      - name: Publish the engine
+        if: steps.published.outputs.exists == 'false'
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ASSET: ${{ steps.published.outputs.asset }}
+        run: |
+          gh release view engine-builds >/dev/null 2>&1 ||
+            gh release create engine-builds --prerelease --latest=false --target main --title "Engine builds" \
+              --notes "Wasm engines built by CI, one file per engine key, for engine/scripts/fetch-engine.mjs. Not a release of the app; old files are removed automatically." ||
+            gh release view engine-builds >/dev/null
+          cd engine/build/engine
+          tar -czf "$RUNNER_TEMP/$ASSET" orca-engine.*
+          ls -la "$RUNNER_TEMP/$ASSET"
+          gh release upload engine-builds "$RUNNER_TEMP/$ASSET" --clobber
+          echo "### Published \`$ASSET\` to the engine-builds release" >> "$GITHUB_STEP_SUMMARY"
+
+      # Keeps the 15 newest engines, and anything younger than 30 days.
+      - name: Remove old published engines
+        if: steps.published.outcome == 'success'
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          cutoff=$(date -u -d '30 days ago' +%Y-%m-%dT%H:%M:%SZ)
+          gh api "repos/$GITHUB_REPOSITORY/releases/tags/engine-builds" \
+            -q "[.assets | sort_by(.created_at) | reverse | .[15:][] | select(.created_at < \"$cutoff\") | .id] | .[]" |
+            while read -r id; do gh api -X DELETE "repos/$GITHUB_REPOSITORY/releases/assets/$id"; done
 
       - name: Summary
         if: steps.engine-cache.outputs.cache-hit == 'true'

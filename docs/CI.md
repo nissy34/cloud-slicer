@@ -19,7 +19,7 @@ engine ─┬─ engine-tests ────────────────�
 | Job | Does |
 |---|---|
 | `unit` | Printer driver tests, web typecheck (app and Functions) and Vitest |
-| `engine` | Builds the wasm engine, or skips the build when an engine built from the same sources is cached |
+| `engine` | Builds the wasm engine, or skips the build when an engine built from the same sources is cached, and publishes it (below) |
 | `engine-tests` | Bundles the presets and runs `engine/node/engine.test.mjs` |
 | `site` | Builds the web app with the engine and uploads it as the `web-site` artifact (kept 7 days) |
 | `browser` | One job per browser test in `apps/web/test/` (matrix `suite`), against the built site |
@@ -27,8 +27,9 @@ engine ─┬─ engine-tests ────────────────�
 
 ### Engine caches
 
-- **Engine output** (`orca-engine.*`), key
-  `engine-out-v$ENGINE_CACHE_VERSION-<emsdk>-<orca submodule sha>-<hash of engine/CMakeLists.txt, engine/cmake, engine/compat, engine/patches, engine/src, engine/scripts/build-deps.sh>`.
+- **Engine output** (`orca-engine.*`), key `engine-out-<engine key>`. The engine key
+  (`engine/scripts/engine-key.mjs`) is
+  `v$ENGINE_CACHE_VERSION-<emsdk>-<orca submodule sha>-<hash of engine/CMakeLists.txt, engine/cmake, engine/compat, engine/patches, engine/src, engine/scripts/build-deps.sh>`.
   A change to tests, presets bundling or `engine/node` doesn't rebuild the engine. Bump
   `ENGINE_CACHE_VERSION` in `ci.yml` when the build itself changes (flags, commands)
   without an engine source change.
@@ -39,6 +40,18 @@ engine ─┬─ engine-tests ────────────────�
   the dependency cache (the repository has 10 GB of cache in total).
 
 Typical runs: about 4 to 5 minutes with a cached engine, about 7 with a ccache rebuild.
+
+### Published engines
+
+The engine job also uploads every engine to one GitHub pre-release,
+[`engine-builds`](https://github.com/nissy34/cloud-slicer/releases/tag/engine-builds), as
+`engine-<engine key>.tar.gz` (pushes to `main` and pull requests from this repository,
+not from forks). `node engine/scripts/fetch-engine.mjs` computes the key of a checkout and
+downloads the matching file, so contributors and cloud sessions get the engine in seconds
+instead of building it for 40 minutes. A release file because it downloads without
+signing in, unlike Actions artifacts and caches. It is not a release of the app. The job
+keeps the 15 newest files and anything younger than 30 days, and publishing never fails
+a run.
 
 **Keep `main` green.** GitHub lets a branch read only caches saved on its own branch or
 on `main`. If `main`'s engine job fails, every new branch rebuilds the dependencies and
