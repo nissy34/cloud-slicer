@@ -31,12 +31,13 @@ import { mixSettings, palette as mixPalette, type MatchResult, type MixRecipe, t
 import { dropPlateTower, moveTower, towerOptions, towersFromConfig, type TowerSpot } from '../lib/wipe-tower';
 import { stlName, type ObjectAction } from '../lib/objectMenu';
 import type { VolumeAction } from '../lib/volumes';
+import type { BooleanRequest } from '../lib/boolean';
 import { saveFile } from '../lib/preset-files';
 import { estimateLayers, slicePercent } from '../lib/slice-progress';
 
 export type Tab = 'prepare' | 'preview' | 'device';
 /** The object tool open on the 3D view, like desktop's gizmos (paint has its own state). */
-export type Tool = 'move' | 'rotate' | 'scale' | 'flatten' | 'cut' | 'measure' | 'layers' | 'brim' | 'simplify';
+export type Tool = 'move' | 'rotate' | 'scale' | 'flatten' | 'cut' | 'measure' | 'layers' | 'brim' | 'simplify' | 'boolean';
 /** How a 3MF is opened: as the project (replacing it) or its objects added. */
 export type OpenMode = 'project' | 'geometry';
 const is3mf = (f: File) => /\.3mf$/i.test(f.name);
@@ -223,6 +224,8 @@ export interface SlicerState {
    * one undo step. The added or changed volume is selected.
    */
   volumeAction(o: number, request: VolumeAction, label: string, file?: File): Promise<void>;
+  /** Two volumes of object o combined, like desktop's Mesh boolean, as one undo step; picks the result. False if it failed. */
+  meshBoolean(o: number, request: BooleanRequest): Promise<boolean>;
   /** Saves instance i of object o as an STL file. */
   exportStl(o: number, i: number): Promise<void>;
   cutObject(o: number, i: number, z: number, keep: CutKeep, flipUpper: boolean): Promise<void>;
@@ -914,6 +917,19 @@ export const useSlicer = create<SlicerState>((set, get) => {
         return out.info;
       });
       if (get().project?.objects[o]) set({ selected: { object: o, instance, volume } });
+    },
+    meshBoolean: async (o, request) => {
+      let volume: number | undefined;
+      const label = request.op === 'union' ? 'Union' : request.op === 'difference' ? 'Difference' : 'Intersection';
+      await projectEdit(label, async () => {
+        const out = await engine().meshBoolean(o, request);
+        volume = out.volume;
+        return out.info;
+      });
+      if (volume === undefined) return false;
+      const instance = get().selected?.object === o ? get().selected!.instance : 0;
+      set({ selected: { object: o, instance, volume } });
+      return true;
     },
     exportStl: async (o, i) => {
       try {
