@@ -12,6 +12,7 @@ import { useSceneColours } from '../lib/theme';
 import { layerTexture, type LayerProfile } from '../lib/layers';
 import { KIND_COLOURS, partRanges, volumeMeshes } from '../lib/volumes';
 import { NO_COLOURS, useOption, useSlicer } from '../state/store';
+import { setCameraSource } from '../state/view';
 import { BrimMarks } from './BrimEars';
 import { MeasureOverlay } from './MeasureOverlay';
 import { WipeTowerView } from './WipeTower';
@@ -548,6 +549,12 @@ function Objects({ w, d }: { w: number; d: number }) {
       picked.piece.geometry.dispose();
     }
   }, [picked]);
+
+  // Where the camera is, for the Text tool's new text (state/view.ts).
+  useEffect(() => {
+    setCameraSource(() => [camera.position.x, camera.position.y, camera.position.z]);
+    return () => setCameraSource(null);
+  }, [camera]);
 
   // During a stroke the rays come straight from the camera, so dragging never
   // waits on hit-testing the parts; the engine finds what each ray hits. The

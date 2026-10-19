@@ -2,6 +2,7 @@ import { Fragment, useEffect, useLayoutEffect, useRef, useState, type ReactNode 
 import { menuPosition, unitConversions } from '../lib/objectMenu';
 import { ADD_MENUS, KIND_LABELS, keepsAPart, SHAPES, type VolumeKind } from '../lib/volumes';
 import { NO_COLOURS, useSlicer } from '../state/store';
+import { startText } from './TextPanel';
 
 type Sub = 'split' | 'mirror' | 'filament' | 'units' | 'type' | `add-${VolumeKind}` | null;
 type Form = 'rename' | 'clone' | null;
@@ -173,6 +174,11 @@ function MenuCard() {
         </form>
       ) : vol && vi !== undefined ? (
         <>
+          {vol.text &&
+            item('Edit text…', run(() => {
+              s.select({ object: o, instance: i, volume: vi });
+              s.setTool('text');
+            }), { title: 'Change the words, font or size' })}
           {item('Rename…', () => setForm('rename'))}
           {submenu(
             'type',
@@ -236,6 +242,11 @@ function MenuCard() {
                   {SHAPES.map((shape) => (
                     <Fragment key={shape}>{item(shape, run(() => s.volumeAction(o, { op: 'add', type, shape, instance: i }, label)))}</Fragment>
                   ))}
+                  {(type === 'part' || type === 'negative' || type === 'modifier') &&
+                    item('Text', run(() => {
+                      s.select({ object: o, instance: i });
+                      return startText(o, type);
+                    }), { title: 'Letters in a font, edited in the Text shape tool' })}
                 </>,
               )}
             </Fragment>

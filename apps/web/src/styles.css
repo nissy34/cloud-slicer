@@ -986,6 +986,22 @@ select:focus-visible {
 .simplify-warning {
   color: var(--danger);
 }
+/* Text shape: the words, then rows of a label, a field and its unit. */
+.text-input {
+  width: 100%;
+  resize: vertical;
+  font: inherit;
+}
+.transform-row.text-row {
+  grid-template-columns: 80px 1fr auto;
+}
+.text-row select,
+.text-row input {
+  min-width: 0;
+}
+.text-more {
+  justify-self: start;
+}
 /* Mesh boolean: a picker per part, its name and kind. */
 .transform-row.boolean-pick {
   grid-template-columns: 96px 1fr;

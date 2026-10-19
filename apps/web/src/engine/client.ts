@@ -25,6 +25,9 @@ import type { MeasureFeature, Measurement } from '../lib/measure';
 import type { ObjectAction } from '../lib/objectMenu';
 import type { VolumeAction } from '../lib/volumes';
 import type { BooleanRequest } from '../lib/boolean';
+import type { TextStyle } from '../lib/fonts';
+
+export type TextRequest = TextStyle & { fontPath: string } & ({ op: 'add'; type: 'part' | 'negative' | 'modifier'; camera?: [number, number, number] } | { op: 'update'; volume: number });
 
 /** A request to the engine's mixed-filament list (engine/src/mixed_api.cpp). */
 export interface MixedRequest {
@@ -278,6 +281,13 @@ export class EngineClient {
   /** A part, modifier... of object o added, renamed, moved or deleted; "add" without a shape takes a mesh file's bytes. */
   volumeAction = (o: number, request: VolumeAction, bytes?: ArrayBuffer) =>
     this.call<{ info: ProjectInfo; volume?: number }>('volumeAction', [o, request, bytes ?? null], bytes ? [bytes] : []);
+  /** Whether the engine already has the font file at `path`. */
+  hasFont = (path: string) => this.call<boolean>('hasFont', [path]);
+  loadFont = (path: string, bytes: ArrayBuffer) => this.call<void>('loadFont', [path, bytes], [bytes]);
+  loadBundledFont = (path: string, file: string) => this.call<void>('loadBundledFont', [path, file]);
+  /** A text part added to object o (-1: a new object on `plate`) or changed, like desktop's Text tool. */
+  textVolume = (o: number, plate: number, request: TextRequest) =>
+    this.call<{ info: ProjectInfo; object: number; volume: number }>('textVolume', [o, plate, request]);
   /** Two volumes of object o combined into one, like desktop's Mesh boolean. */
   meshBoolean = (o: number, request: BooleanRequest) => this.call<{ info: ProjectInfo; volume: number }>('meshBoolean', [o, request]);
   /** Instance i of object o as a binary STL. */
