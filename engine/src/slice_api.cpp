@@ -137,7 +137,7 @@ ThumbnailData thumbnailAt(const ThumbnailsList& images, unsigned w, unsigned h) 
 // presetsFullConfig plus edits) and write the G-code to outputPath.
 // Returns {success, cancelled, error, warnings, gcodePath, totalLayers,
 // estimatedTimeSeconds, filamentMm: {"<1-based filament>": mm}, totalFilamentMm,
-// totalFilamentGrams, objectsOutside}.
+// totalFilamentGrams, objectsOutside, wipeTowerDepth (when it made a prime tower)}.
 // `thumbnails` (optional) holds the plate pictures for the G-code; Orca's own
 // GCode export encodes and places them, in the formats `thumbnails` asks for.
 std::string sliceWithConfig(const std::string& configJson, int plate, const std::string& outputPath, emscripten::val onProgress,
@@ -153,6 +153,16 @@ std::string sliceWithConfig(const std::string& configJson, int plate, const std:
         cfg.apply(FullPrintConfig::defaults());
         for (const std::string& w : engine::applyJsonConfig(cfg, json::parse(configJson))) warnings.push_back(w);
         padFlushMatrix(cfg);
+        // wipe_tower_x/y hold one position per plate. The Print below slices as
+        // plate 0, so it gets this plate's, kept on the bed the way desktop
+        // keeps it whenever it shows the plate.
+        const json tower = engine::wipeTowerFor(cfg, plate);
+        for (const char* axis : {"x", "y"}) {
+            const std::string key = std::string("wipe_tower_") + axis;
+            auto* opt = cfg.option<ConfigOptionFloats>(key, true);
+            const double v = tower.value("show", false) ? tower[axis].get<double>() : opt->get_at(plate);
+            opt->values = {v};
+        }
 
         for (ModelObject* o : model.objects) o->ensure_on_bed();
         const BuildVolume volume(cfg.option<ConfigOptionPoints>("printable_area")->values, cfg.opt_float("printable_height"));
@@ -217,6 +227,10 @@ std::string sliceWithConfig(const std::string& configJson, int plate, const std:
         res["filamentMm"] = mm;
         res["totalFilamentMm"] = stats.total_used_filament;
         res["totalFilamentGrams"] = stats.total_weight;
+        // The tower this slice made, for the Prepare view (desktop shows its
+        // real depth once the plate is sliced).
+        if (print.has_wipe_tower() && print.is_step_done(psWipeTower) && !print.wipe_tower_data().tool_changes.empty())
+            res["wipeTowerDepth"] = print.wipe_tower_data().depth;
         engine::report(onProgress, 100, "Done");
     } catch (const CanceledException&) {
         res["cancelled"] = true;

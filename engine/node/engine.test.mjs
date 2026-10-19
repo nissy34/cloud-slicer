@@ -227,6 +227,65 @@ test('dual-colour 3MF keeps per-part filaments', () => {
   assert.ok(Object.keys(toolCounts(gcode)).length >= 2);
 });
 
+test('prime tower: shown and sized like desktop Prepare, sliced where it was placed', () => {
+  selectSlots(2);
+  load('calib-cube-10-dual-colour-merged.3mf');
+  const two = { filament_colour: '#FF0000;#0000FF', enable_prime_tower: '1' };
+  const tower = (overrides, plate = 0, sliced = -1) => JSON.parse(engine.wipeTowerJson(JSON.stringify(fullConfig(overrides)), plate, sliced));
+
+  const t = tower(two);
+  assert.ok(t.show, JSON.stringify(t));
+  assert.deepEqual(t.filaments, [1, 2]);
+  assert.equal(t.width, Number(fullConfig(two).prime_tower_width));
+  assert.ok(t.depth > 0 && t.height > 9, JSON.stringify(t));
+  assert.ok(!tower({ ...two, enable_prime_tower: '0' }).show, 'prime tower turned off');
+  // Off the bed it comes back on, like desktop.
+  const [w, d] = bedSize(fullConfig());
+  const far = tower({ ...two, wipe_tower_x: '900', wipe_tower_y: '-50' });
+  assert.ok(far.x + far.width < w && far.x > 0 && far.y > 0 && far.y + far.depth < d, JSON.stringify(far));
+
+  // One position per plate; the slice puts the tower where this plate's says.
+  const placed = { ...two, wipe_tower_x: '120,5', wipe_tower_y: '40,5' };
+  const at = tower(placed);
+  assert.equal(at.x, 120);
+  assert.equal(at.y, 40);
+  const { gcode, result } = slice(fullConfig(placed));
+  assert.ok(result.wipeTowerDepth > 0, `sliced tower depth: ${result.wipeTowerDepth}`);
+  const xs = [], ys = [];
+  let inTower = false;
+  for (const line of gcode.split('\n')) {
+    if (line.startsWith(';TYPE:')) inTower = line.startsWith(';TYPE:Prime tower');
+    // Extrusions only: the tool change G-code in between parks the head.
+    const m = inTower && /^G1 .*X([-\d.]+) Y([-\d.]+).* E[\d.]+/.exec(line);
+    if (m) xs.push(Number(m[1])), ys.push(Number(m[2]));
+  }
+  assert.ok(xs.length > 0, 'no prime tower moves');
+  // The tower stands where placed (its brim, wider than set, round it).
+  const [x0, x1, y0, y1] = [Math.min(...xs), Math.max(...xs), Math.min(...ys), Math.max(...ys)];
+  const box = `X${x0}..${x1} Y${y0}..${y1}`;
+  assert.ok(x0 <= 120.5 && x1 >= 120 + t.width - 1 && y0 <= 40.5 && y1 >= 40 + result.wipeTowerDepth - 1, `tower ${box}`);
+  assert.ok(x0 >= 105 && x1 <= 120 + t.width + 15 && y0 >= 25 && y1 <= 40 + result.wipeTowerDepth + 15, `tower ${box}`);
+  // Once sliced, the view shows the tower as deep as the slice made it.
+  assert.equal(tower(placed, 0, result.wipeTowerDepth).depth, Math.max(result.wipeTowerDepth, 20));
+
+  // A plate printed with one filament has no tower.
+  load('tetrahedron.stl');
+  assert.ok(!tower(two).show, 'single-filament plate');
+  // Printed with a mix only, the slice makes no tower (Orca counts the mix as
+  // one filament), so none shows; with the mix and another filament it does.
+  const mix = call(engine, 'mixedFilaments', JSON.stringify({ definitions: '', colours: ['#FF0000', '#0000FF'], op: { kind: 'add', row: { componentA: 1, componentB: 2, mixBPercent: 50, uiMode: 0 } } }));
+  call(engine, 'setExtruder', 0, -1, 3);
+  const withMix = { ...two, mixed_filament_definitions: mix.definitions };
+  assert.ok(!tower(withMix).show, 'only a mix on the plate');
+  assert.ok(!/;TYPE:Prime tower/.test(slice(fullConfig(withMix)).gcode), 'the slice makes no tower for a mix alone');
+  load('tetrahedron.stl', 0, true);
+  call(engine, 'setExtruder', 1, -1, 1);
+  const m = tower(withMix);
+  assert.ok(m.show, 'a mix and a filament');
+  assert.deepEqual(m.filaments, [1, 2]);
+  assert.ok(/;TYPE:Prime tower/.test(slice(fullConfig(withMix)).gcode), 'the slice makes the tower');
+});
+
 test('resizing plates keeps objects centred on their plate', () => {
   select({ printer: DEFAULT_PRINTER });
   const info = load('calib-cube-10-dual-colour-merged.3mf');  // made on a 180 mm A1 mini bed

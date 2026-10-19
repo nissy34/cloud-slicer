@@ -14,6 +14,7 @@ import { KIND_COLOURS, partRanges, volumeMeshes } from '../lib/volumes';
 import { NO_COLOURS, useOption, useSlicer } from '../state/store';
 import { BrimMarks } from './BrimEars';
 import { MeasureOverlay } from './MeasureOverlay';
+import { WipeTowerView } from './WipeTower';
 
 // Printer coordinates are Z-up with the plate from (0,0) to (w,d).
 THREE.Object3D.DEFAULT_UP.set(0, 0, 1);
@@ -873,7 +874,11 @@ function ThumbnailSource() {
   const camera = useThree((s) => s.camera);
   useEffect(() => {
     setCapture(() => {
+      // Desktop leaves the prime tower out of the plate picture.
+      const tower = scene.getObjectByName('wipe-tower');
+      if (tower) tower.visible = false;
       gl.render(scene, camera);
+      if (tower) tower.visible = true;
       return gl.domElement;
     });
     return () => setCapture(null);
@@ -900,6 +905,7 @@ export function Viewport() {
         <directionalLight position={[w, -d, d * 2]} intensity={1.6} />
         <Bed w={w} d={d} />
         <Objects w={w} d={d} />
+        <WipeTowerView />
         <OrbitControls target={[w / 2, d / 2, 0]} makeDefault />
         <ThumbnailSource />
       </Canvas>

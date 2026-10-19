@@ -13,6 +13,7 @@ import type {
   Selection,
   SettingsLayout,
   SliceResult,
+  WipeTower,
 } from '../engine/protocol';
 import { calibrationOptions, CALIBRATIONS, type CalibrationMode, type CalibrationValues } from '../lib/calibration';
 import { bedSize } from '../lib/colour';
@@ -27,6 +28,7 @@ import type { BrimEars, BrimRequest } from '../lib/brim';
 import type { LayerProfile, LayerRequest } from '../lib/layers';
 import { sameFeature, type MeasureFeature, type Measurement } from '../lib/measure';
 import { mixSettings, palette as mixPalette, type MatchResult, type MixRecipe, type MixRow } from '../lib/mixing';
+import { dropPlateTower, moveTower, towerOptions, towersFromConfig, type TowerSpot } from '../lib/wipe-tower';
 import { stlName, type ObjectAction } from '../lib/objectMenu';
 import type { VolumeAction } from '../lib/volumes';
 import { saveFile } from '../lib/preset-files';
@@ -104,6 +106,13 @@ export interface SlicerState {
   mixes: MixRow[];
   /** Colour of every filament number: the physical filaments, then the mixes. */
   palette: string[];
+  /**
+   * Where the prime tower stands on each plate (wipe_tower_x / wipe_tower_y),
+   * kept with the project like the mixes, outside the changed settings.
+   */
+  towers: TowerSpot[];
+  /** The prime tower on the plate shown, when it has one (the engine's estimate, or the last slice's size). */
+  wipeTower: Extract<WipeTower, { show: true }> | null;
 
   setTab(tab: Tab): void;
   selectPrinter(name: string): Promise<void>;
@@ -157,6 +166,10 @@ export interface SlicerState {
   measureReset(): void;
   setMeasureOnlyPlane(onlyPlane: boolean): void;
   setCutZ(z: number): void;
+  /** Moves the prime tower on the plate shown (front-left corner, mm). */
+  moveWipeTower(x: number, y: number): void;
+  /** Asks the engine again for the prime tower of the plate shown. */
+  refreshWipeTower(): void;
   /** Object o's triangles, and (with `by`) how many simplifying would leave; changes nothing. */
   simplifyPreview(o: number, by?: SimplifyBy): Promise<SimplifyResult | null>;
   /** Simplifies object o, like desktop's Simplify, as one undo step. */
@@ -277,7 +290,39 @@ export const useSlicer = create<SlicerState>((set, get) => {
 
   // The settings as the engine slices and saves them: the user's changes plus
   // the project's mixed filaments.
-  const engineOverrides = (): OrcaConfig => ({ ...get().overrides, mixed_filament_definitions: get().mixDefinitions });
+  const engineOverrides = (): OrcaConfig => ({
+    ...get().overrides,
+    mixed_filament_definitions: get().mixDefinitions,
+    ...towerOptions(get().towers, get().project?.plates.length ?? 1),
+  });
+
+  // The prime tower on the plate shown, again after anything that may move,
+  // size or remove it. Only the latest request's answer is kept.
+  let towerRun = 0;
+  async function refreshTower() {
+    const run = ++towerRun;
+    const { project, plate, job } = get();
+    if (!project?.plates[plate]?.objects.length) return set({ wipeTower: null });
+    const sliced = job.kind === 'sliced' && job.plate === plate ? job.result.wipeTowerDepth : undefined;
+    try {
+      const tower = await engine().wipeTower(plate, engineOverrides(), sliced);
+      if (run === towerRun) set({ wipeTower: tower.show ? tower : null });
+    } catch (e) {
+      console.warn('Prime tower:', e);
+      if (run === towerRun) set({ wipeTower: null });
+    }
+  }
+  // Coalesced: one look after a burst of changes.
+  let towerQueued = false;
+  const queueTower = () => {
+    if (towerQueued) return;
+    towerQueued = true;
+    queueMicrotask(() => {
+      towerQueued = false;
+      if (get().engine === 'ready') void refreshTower();
+    });
+  };
+
 
   // A request about the mix list, with what colours its rows.
   const mixRequest = (extra: Partial<MixedRequest> = {}): MixedRequest => {
@@ -442,6 +487,8 @@ export const useSlicer = create<SlicerState>((set, get) => {
   async function importProject(info: ProjectInfo) {
     const e = engine();
     const file = await e.fileConfig();
+    // Desktop keeps the project's prime tower spots, whatever printer it was for.
+    set({ towers: towersFromConfig(file) });
     const { printers } = get();
     if (!printers.some((p) => p.name === info.file.printer)) {
       const pref = loadConvertPreference();
@@ -582,6 +629,8 @@ export const useSlicer = create<SlicerState>((set, get) => {
     mixDefinitions: '',
     mixes: [],
     palette: [],
+    towers: [],
+    wipeTower: null,
 
     setTab: (tab) => {
       set({ tab });
@@ -667,7 +716,7 @@ export const useSlicer = create<SlicerState>((set, get) => {
           const res = await e.load(file, get().plate, area, geometryOnly);
           if (res.isProject) {
             opened = true;
-            set({ plate: 0, selected: null, history: await e.clearHistory() });
+            set({ plate: 0, selected: null, towers: [], history: await e.clearHistory() });
           }
           await refreshPreview(res.info);
           if (res.isProject && !res.info.objects.length) throw new Error(emptyProjectMessage(file.name));
@@ -692,6 +741,11 @@ export const useSlicer = create<SlicerState>((set, get) => {
       set(tool === 'cut' && height ? { ...reset, cutZ: Math.round(height * 50) / 100 } : reset);
     },
     setCutZ: (cutZ) => set({ cutZ }),
+    refreshWipeTower: queueTower,
+    moveWipeTower(x, y) {
+      const towers = moveTower(get().towers, get().plate, [x, y]);
+      set({ towers, ...stale() });
+    },
     simplifyPreview: (o, by) =>
       engine()
         .simplifyPreview(o, by)
@@ -823,7 +877,7 @@ export const useSlicer = create<SlicerState>((set, get) => {
     },
     deletePlate: () =>
       projectEdit('Delete plate', () => {
-        set({ selected: null });
+        set({ selected: null, towers: dropPlateTower(get().towers, get().plate) });
         return engine().deletePlate(get().plate);
       }),
     orientObject: (o) => projectEdit('Auto orient', () => engine().orientObject(o)),
@@ -1006,6 +1060,17 @@ export const useSlicer = create<SlicerState>((set, get) => {
       set({ job: { kind: 'idle' }, notice: 'Slicing cancelled.', noticeWarn: false });
     },
   };
+});
+
+// The prime tower follows the plate, its objects, the settings, the tower
+// spots and the last slice (desktop shows the sliced tower's real size).
+useSlicer.subscribe((s, prev) => {
+  if (
+    s.engine !== prev.engine || s.project !== prev.project || s.plate !== prev.plate || s.overrides !== prev.overrides ||
+    s.baseConfig !== prev.baseConfig || s.mixDefinitions !== prev.mixDefinitions || s.towers !== prev.towers ||
+    (s.job !== prev.job && (s.job.kind === 'sliced' || prev.job.kind === 'sliced'))
+  )
+    useSlicer.getState().refreshWipeTower();
 });
 
 /** Stable empty list for selectors (a fresh [] each render loops React). */
