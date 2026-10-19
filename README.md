@@ -56,6 +56,9 @@ hosted on Cloudflare's free tier.
 - **Slicing you can stop**: Cancel next to the progress bar, and a change while slicing
   (settings, filaments, presets, the model) stops the slice and drops its result, like desktop.
 - **Preview** of the sliced toolpaths by feature or filament, layer by layer.
+- **Camera views** in the corner of the 3D views: Fit all, and desktop's Iso, Top, Bottom,
+  Front, Back, Left and Right (keys 0 to 6, Z fits all). On a phone two fingers always zoom
+  and turn the camera, even when they land on the model; one finger on a model moves it.
 - **Projects**: save as an Orca 3MF that reopens here or in desktop Orca; online in your
   account when signed in, downloaded when signed out.
 - **Sign in with Google** to keep presets, setup choices, printers and projects on every
@@ -212,6 +215,7 @@ Browser end to end tests (Playwright's Chromium) run against the built site
 | `test/toolbar.mjs` | The object toolbar: add a model, variable layer height, simplify, brim ears, lay on face, measure, the object menu, parts and modifiers, mesh boolean, text and SVG shapes, assemble, fits a phone |
 | `test/mixing.mjs` | Make a colour mix, slice, the G-code alternates between both tools |
 | `test/wipe-tower.mjs` | A two-filament plate shows the prime tower; drag it, and the slice prints it there |
+| `test/view-touch.mjs` | Phone 3D view: pinching on a model that fills the screen zooms out instead of moving it; Fit all and the views menu |
 | `test/loading.mjs` | The loading screen while the engine starts and a project opens |
 | `test/cancel.mjs` | Cancel stops the slice in the engine, and a change while slicing drops its result |
 | `test/restart.mjs` | After an engine crash (mid-slice or after), the engine restarts and reopens the project |
