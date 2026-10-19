@@ -43,21 +43,30 @@ TextConfiguration configFrom(const json& req) {
     if (req.contains("lineGap") && req["lineGap"].get<int>() != 0) fp.line_gap = req["lineGap"].get<int>();
     const std::string h = req.value("align", "center");
     fp.align.first = h == "left" ? FontProp::HorizontalAlign::left : h == "right" ? FontProp::HorizontalAlign::right : FontProp::HorizontalAlign::center;
-    fp.align.second = FontProp::VerticalAlign::center;
+    const std::string vert = req.value("valign", "center");
+    fp.align.second = vert == "top" ? FontProp::VerticalAlign::top : vert == "bottom" ? FontProp::VerticalAlign::bottom : FontProp::VerticalAlign::center;
+    fp.per_glyph = req.value("perGlyph", false);
     fp.face_name = style.name;
     return tc;
 }
 
-// TextDataBase::create_shape: the letters' outlines in the font.
-TriangleMesh textMesh(const std::string& fontPath, const TextConfiguration& tc, double depth, bool outside, EmbossShape& shape) {
+// TextDataBase::create_shape: the letters' outlines in the font, into shape
+// (its depth and surface setting kept). Returns the font, which per glyph needs.
+Emboss::FontFileWithCache textOutlines(const std::string& fontPath, const TextConfiguration& tc, EmbossShape& shape) {
+    if (fontPath.empty()) throw std::runtime_error("this text's font isn't on this device; pick a font in the Text tool first");
     std::unique_ptr<Emboss::FontFile> file = Emboss::create_font_file(fontPath.c_str());
     if (!file) throw std::runtime_error("this font can't be read; pick another one (TrueType or OpenType)");
     Emboss::FontFileWithCache font(std::move(file));
     const FontProp& fp = tc.style.prop;
-    shape = EmbossShape{};
     shape.scale = Emboss::get_text_shape_scale(fp, *font.font_file);
     shape.shapes_with_ids = Emboss::text2vshapes(font, boost::nowide::widen(tc.text), fp);
-    TriangleMesh mesh = engine::embossMesh(shape, depth, outside);
+    shape.final_shape = {};
+    return font;
+}
+
+// The text's mesh where volume v stands (flat on a new volume).
+TriangleMesh textMesh(const ModelVolume* v, const Emboss::FontFileWithCache& font, const TextConfiguration& tc, bool outside, EmbossShape& shape) {
+    TriangleMesh mesh = v ? engine::shapeMesh(*v, shape, outside, &font, &tc) : engine::embossMesh(shape, shape.projection.depth, outside);
     if (mesh.empty()) throw std::runtime_error("the text has no letters this font can draw");
     return mesh;
 }
@@ -70,9 +79,12 @@ std::string volumeName(std::string text) {
 // Object o (or -1 for a new object on `plate`), request:
 //   {op: "add", type: part|negative|modifier, text, font, fontPath, size, depth,
 //    boldness?, skew?, charGap?, lineGap?, align: left|center|right,
+//    valign: top|center|bottom, useSurface?, perGlyph?,
 //    camera?: [x, y, z]}   on object o: onto the surface the camera sees, else in front of it
 //   {op: "update", volume, ...the same}   new text or style for a text volume, where it stands
 // font is the font's name (kept with the text); fontPath the font file in the engine's files.
+// useSurface: the text follows the object's surface (desktop's "Use surface");
+// perGlyph: each letter is set on the surface on its own ("Per glyph").
 // Returns {ok, object, volume, error?}.
 std::string textVolume(int o, int plate, const std::string& requestJson) {
     try {
@@ -90,8 +102,22 @@ std::string textVolume(int o, int plate, const std::string& requestJson) {
             const int index = req.value("volume", -1);
             if (index < 0 || size_t(index) >= obj->volumes.size()) throw std::runtime_error("no part " + std::to_string(index));
             ModelVolume* v = obj->volumes[index];
+            engine::unfixShape(*v);
             EmbossShape shape;
-            TriangleMesh mesh = textMesh(fontPath, tc, depth, v->is_model_part(), shape);
+            shape.projection.depth = depth;
+            const bool usedSurface = v->emboss_shape && v->emboss_shape->projection.use_surface;
+            shape.projection.use_surface = req.value("useSurface", usedSurface);
+            const Emboss::FontFileWithCache font = textOutlines(fontPath, tc, shape);
+            // start_update_volume: newly following the surface, the text first moves onto it.
+            const Geometry::Transformation was = v->get_transformation();
+            if (shape.projection.use_surface && !usedSurface) engine::moveOntoSurface(*v);
+            TriangleMesh mesh;
+            try {
+                mesh = textMesh(v, font, tc, v->is_model_part(), shape);
+            } catch (...) {
+                v->set_transformation(was);
+                throw;
+            }
             engine::updateEmbossVolume(obj, v, std::move(mesh), volumeName(tc.text));
             v->text_configuration = tc;
             v->emboss_shape = std::move(shape);
@@ -101,16 +127,34 @@ std::string textVolume(int o, int plate, const std::string& requestJson) {
 
         const ModelVolumeType type = typeOf(req.value("type", "part"));
         EmbossShape shape;
-        TriangleMesh mesh = textMesh(fontPath, tc, depth, type == ModelVolumeType::MODEL_PART, shape);
+        shape.projection.depth = depth;
+        const Emboss::FontFileWithCache font = textOutlines(fontPath, tc, shape);
+        const bool onSurface = req.value("useSurface", false);
+        TriangleMesh mesh = textMesh(nullptr, font, tc, type == ModelVolumeType::MODEL_PART, shape);
 
         if (o < 0) {
             // CreateObjectJob without a surface: the text alone, lying on the bed.
             if (type != ModelVolumeType::MODEL_PART) throw std::runtime_error("only a text part can be an object of its own");
-            const int object = engine::addEmbossObject(plate, std::move(mesh), volumeName(tc.text), std::move(shape), tc);
+            TextConfiguration alone = tc;
+            alone.style.prop.per_glyph = false;
+            const int object = engine::addEmbossObject(plate, std::move(mesh), volumeName(tc.text), std::move(shape), alone);
             return json{{"ok", true}, {"object", object}, {"volume", 0}}.dump();
         }
 
         const int volume = engine::addEmbossVolume(o, plate, req, std::move(mesh), type, volumeName(tc.text), std::move(shape), tc);
+        if (onSurface || tc.style.prop.per_glyph) {
+            // start_create_volume_on_surface_job: made again to follow the
+            // surface it landed on; flat and plain when there is none.
+            ModelObject* obj = objs[o];
+            ModelVolume* v = obj->volumes[volume];
+            v->emboss_shape->projection.use_surface = onSurface;
+            try {
+                engine::updateEmbossVolume(obj, v, textMesh(v, font, tc, v->is_model_part(), *v->emboss_shape), volumeName(tc.text));
+            } catch (const std::exception&) {
+                v->emboss_shape->projection.use_surface = false;
+                v->text_configuration->style.prop.per_glyph = false;
+            }
+        }
         return json{{"ok", true}, {"object", o}, {"volume", volume}}.dump();
     } catch (const std::exception& e) {
         return json{{"ok", false}, {"error", e.what()}}.dump();
@@ -222,6 +266,20 @@ int addEmbossVolume(int o, int plate, const json& req, TriangleMesh&& mesh, Mode
     obj->invalidate_bounding_box();
     if (v->is_model_part()) obj->ensure_on_bed();
     return indexOf(obj, v);
+}
+
+void remakeShape(ModelObject* obj, ModelVolume* v, const std::string& fontPath) {
+    if (!v->emboss_shape) return;
+    EmbossShape& shape = *v->emboss_shape;
+    if (v->text_configuration) {
+        const Emboss::FontFileWithCache font = textOutlines(fontPath, *v->text_configuration, shape);
+        updateEmbossVolume(obj, v, textMesh(v, font, *v->text_configuration, v->is_model_part(), shape), v->name);
+        return;
+    }
+    if (shape.shapes_with_ids.empty()) svgOutlines(*v);
+    TriangleMesh mesh = shapeMesh(*v, shape, v->is_model_part(), nullptr, nullptr);
+    if (mesh.empty()) throw std::runtime_error("the shape has no paths to make it from");
+    updateEmbossVolume(obj, v, std::move(mesh), v->name);
 }
 
 void updateEmbossVolume(ModelObject* obj, ModelVolume* v, TriangleMesh&& mesh, const std::string& name) {

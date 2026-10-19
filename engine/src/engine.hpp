@@ -16,6 +16,11 @@
 #include <string>
 #include <vector>
 
+namespace Slic3r {
+class AABBMesh;
+namespace Emboss { struct FontFileWithCache; }
+}
+
 namespace engine {
 
 // The open project: every object on every plate, as Orca keeps it in the
@@ -91,6 +96,8 @@ struct RayHit {
 // Nearest model part on `plate` hit by the ray from s along dir (plate
 // coordinates), through a ray-cast tree per part mesh (paint_api.cpp).
 std::optional<RayHit> castRay(int plate, Slic3r::Vec3d s, const Slic3r::Vec3d& dir);
+// The part's ray-cast tree, kept while its mesh lives (paint_api.cpp).
+const Slic3r::AABBMesh& treeOf(const Slic3r::ModelVolume& v);
 
 // Desktop's SAFE_SURFACE_OFFSET (EmbossJob.cpp): an emboss part starts this
 // far into the surface it stands on, a negative part or modifier stops this far out.
@@ -109,6 +116,22 @@ int addEmbossObject(int plate, Slic3r::TriangleMesh&& mesh, const std::string& n
                     const std::optional<Slic3r::TextConfiguration>& text);
 // The shape volume's new mesh where the old one stood (desktop's UpdateJob::update_volume).
 void updateEmbossVolume(Slic3r::ModelObject* obj, Slic3r::ModelVolume* v, Slic3r::TriangleMesh&& mesh, const std::string& name);
+
+// Shapes on a surface (surface_api.cpp). The fix a 3MF store bakes into a
+// shape's transformation, put back into the volume's transformation.
+void unfixShape(Slic3r::ModelVolume& v);
+// Shape volume v's mesh as desktop makes it for where v stands: flat, cut out
+// of the object's other parts (shape.projection.use_surface), or for a text
+// set letter by letter along them (per glyph; needs the font).
+Slic3r::TriangleMesh shapeMesh(const Slic3r::ModelVolume& v, Slic3r::EmbossShape& shape, bool outside,
+                               const Slic3r::Emboss::FontFileWithCache* font, const Slic3r::TextConfiguration* text);
+// The shape's origin moved onto the object's surface behind it (desktop's calc_surface_offset).
+void moveOntoSurface(Slic3r::ModelVolume& v);
+// Shape volume v remade where it stands from its text (with the font file at
+// fontPath) or its SVG file (text_api.cpp).
+void remakeShape(Slic3r::ModelObject* obj, Slic3r::ModelVolume* v, const std::string& fontPath);
+// An SVG shape's outlines read again from its file (svg_api.cpp).
+void svgOutlines(Slic3r::ModelVolume& v);
 
 // The prime tower desktop's Prepare view shows on `plate` with `cfg`, kept on
 // the bed (wipe_tower_api.cpp): {show} or {show: true, x, y, width, depth,

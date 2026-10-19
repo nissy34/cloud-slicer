@@ -999,6 +999,25 @@ select:focus-visible {
 .transform-row.text-row {
   grid-template-columns: 80px 1fr auto;
 }
+/* Number boxes side by side across the panel, each captioned above. */
+.num-fields {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(68px, 1fr));
+  gap: 8px;
+}
+.num-field {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+  color: var(--muted);
+  font-size: 12px;
+}
+.num-field input {
+  width: 100%;
+  min-width: 0;
+  font-variant-numeric: tabular-nums;
+}
 .text-row select,
 .text-row input {
   min-width: 0;
@@ -1018,6 +1037,16 @@ select:focus-visible {
   display: flex;
   align-items: center;
   gap: 8px;
+}
+/* Text and SVG shapes on a surface: the surface options, Keep up and Face the camera. */
+.shape-checks {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 16px;
+}
+.tool-row.shape-row {
+  align-items: center;
+  justify-content: space-between;
 }
 /* Mesh boolean: a picker per part, its name and kind. */
 .transform-row.boolean-pick {
@@ -1393,6 +1422,19 @@ select:focus-visible {
   border-color: var(--accent);
   box-shadow: inset 0 0 0 1px var(--accent);
   font-weight: 600;
+}
+.align-row {
+  display: flex;
+  gap: 8px;
+}
+.align-row .segmented {
+  flex: 1;
+  flex-wrap: nowrap;
+}
+.segmented.icons button {
+  display: flex;
+  justify-content: center;
+  padding: 5px 0;
 }
 .paint-states {
   display: flex;

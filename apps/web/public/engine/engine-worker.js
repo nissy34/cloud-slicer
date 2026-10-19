@@ -226,6 +226,13 @@ if (self.name !== 'em-pthread') {
         if (bytes) e.FS.unlink(path);
       }
     },
+    // Where a text or SVG shape stands, and moving it over its object's surface
+    // (see engine/src/surface_api.cpp); a change brings the project back.
+    shapeState: (e, o, plate, request) => json(e.shapePlace(o, plate, JSON.stringify(request))),
+    shapePlace(e, o, plate, request) {
+      const out = json(e.shapePlace(o, plate, JSON.stringify(request)));
+      return out.changed ? { info: JSON.parse(e.modelInfoJson()) } : out;
+    },
     // Union, difference or intersection of two volumes of object o (see engine/src/boolean_api.cpp).
     meshBoolean(e, o, request) {
       const { volume } = json(e.meshBoolean(o, JSON.stringify(request)));

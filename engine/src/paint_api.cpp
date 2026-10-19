@@ -28,6 +28,8 @@ struct Tree {
 };
 std::map<size_t, Tree> g_trees;
 
+} // namespace
+
 const AABBMesh& treeOf(const ModelVolume& v) {
     const auto& mesh = v.get_mesh_shared_ptr();
     Tree& t = g_trees[v.id().id];
@@ -37,8 +39,6 @@ const AABBMesh& treeOf(const ModelVolume& v) {
     }
     return *t.aabb;
 }
-
-} // namespace
 
 // Nearest part on `plate` hit by the ray from s along dir (plate coordinates).
 std::optional<RayHit> castRay(int plate, Vec3d s, const Vec3d& dir) {

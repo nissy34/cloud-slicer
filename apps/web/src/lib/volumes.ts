@@ -75,6 +75,14 @@ export function partRanges(preview: Pick<PreviewMesh, 'partList'>, object: numbe
   return out;
 }
 
+/** The part of object o that triangle `tri` of the preview's positions belongs to, if any. */
+export function partAt(preview: Pick<PreviewMesh, 'partList'>, object: number, tri: number): number | undefined {
+  const list = preview.partList ?? new Int32Array();
+  for (let k = 0; k + 3 < list.length; k += 4)
+    if (list[k] === object && tri >= list[k + 2] && tri < list[k + 2] + list[k + 3]) return list[k + 1];
+  return undefined;
+}
+
 /** Whether a volume can be deleted or made something other than a part: an object keeps one part. */
 export function keepsAPart(volumes: VolumeInfo[], volume: number): boolean {
   return volumes[volume]?.kind !== 'part' || volumes.filter((v) => v.kind === 'part').length > 1;

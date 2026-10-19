@@ -33,7 +33,29 @@ export type TextRequest = TextStyle & { fontPath: string } & ({ op: 'add'; type:
 /** An SVG shape added from a file, or given a new depth or size (engine/src/svg_api.cpp). */
 export type SvgRequest =
   | { op: 'add'; type: 'part' | 'negative' | 'modifier'; name: string; depth: number; camera?: [number, number, number] }
-  | { op: 'update'; volume: number; depth?: number; width?: number; height?: number };
+  | { op: 'update'; volume: number; depth?: number; width?: number; height?: number; useSurface?: boolean };
+
+/**
+ * Placing a text or SVG shape on its object's surface (engine/src/surface_api.cpp):
+ * sliding it along the surface, turning it, its distance from the surface, facing the camera.
+ */
+export type ShapePlaceRequest = { volume: number; instance: number; keepUp?: boolean; fontPath?: string } & (
+  | { op: 'drag'; ray: [number, number, number, number, number, number]; commit?: boolean }
+  | { op: 'rotate'; angle: number }
+  | { op: 'distance'; distance: number }
+  | { op: 'face'; camera: [number, number, number] }
+);
+
+/** Where a shape is: its matrix (column major, plate coordinates), turn and distance from the surface. */
+export interface ShapeState {
+  matrix: number[];
+  /** Degrees clockwise from upright, like desktop's Rotation. */
+  angle: number;
+  /** mm off the surface; null when on it. */
+  distance: number | null;
+  /** There is another part for it to stand on. */
+  surface: boolean;
+}
 
 /** A request to the engine's mixed-filament list (engine/src/mixed_api.cpp). */
 export interface MixedRequest {
@@ -311,6 +333,12 @@ export class EngineClient {
   /** An SVG shape added to object o (-1: a new object on `plate`) from the file's bytes, or changed, like desktop's SVG tool. */
   svgVolume = (o: number, plate: number, request: SvgRequest, bytes?: ArrayBuffer) =>
     this.call<{ info: ProjectInfo; object: number; volume: number }>('svgVolume', [o, plate, request, bytes ?? null], bytes ? [bytes] : []);
+  /** Where shape `volume` of object o stands (engine/src/surface_api.cpp). */
+  shapeState = (o: number, plate: number, volume: number, instance: number) =>
+    this.call<ShapeState>('shapeState', [o, plate, { op: 'state', volume, instance }]);
+  /** A text or SVG shape slid, turned or lifted on its object's surface; a drag without commit only says where it would go. */
+  shapePlace = (o: number, plate: number, request: ShapePlaceRequest) =>
+    this.call<{ hit?: boolean; matrix?: number[]; info?: ProjectInfo }>('shapePlace', [o, plate, request]);
   /** Two volumes of object o combined into one, like desktop's Mesh boolean. */
   meshBoolean = (o: number, request: BooleanRequest) => this.call<{ info: ProjectInfo; volume: number }>('meshBoolean', [o, request]);
   /** Instance i of object o as a binary STL. */
