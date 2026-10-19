@@ -160,8 +160,6 @@ function PresetOptions({ presets }: { presets: PresetSummary[] }) {
 export function Sidebar() {
   return (
     <aside className="panel">
-      {/* On a phone the open tool's options show here, right under the 3D view. */}
-      <div id="tool-slot" className="tool-slot" />
       <CalibrationBanner />
       <PrinterSection />
       <FilamentSection />

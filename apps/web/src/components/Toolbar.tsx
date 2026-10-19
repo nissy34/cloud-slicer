@@ -1,5 +1,4 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
-import { createPortal } from 'react-dom';
 import type { PaintKind } from '../engine/protocol';
 import { NO_COLOURS, useSlicer, type Tool } from '../state/store';
 import { DEFAULT_PAINT, PaintPanel } from './PaintPanel';
@@ -215,22 +214,22 @@ function usePhone() {
 
 /**
  * The open tool's options in a card under its toolbar button, like desktop's
- * gizmo panels. On a phone the card goes right under the 3D view (the
- * sidebar's tool slot), so it never covers the plate.
+ * gizmo panels. On a phone the card is docked between the toolbar and the 3D
+ * view (the settings column hides until Done), so it never covers the plate.
  */
 function ToolPopover({ bar, anchor }: { bar: React.RefObject<HTMLDivElement>; anchor: string | null }) {
   const pop = useRef<HTMLDivElement>(null);
   const [at, setAt] = useState<{ left: number; top: number } | null>(null);
-  const phone = usePhone();
-  const slot = phone ? document.getElementById('tool-slot') : null;
+  const docked = usePhone();
 
-  // On a phone, bring the card into view under the 3D view when a tool opens.
+  // On a phone the column stops scrolling while a tool is open: put it back at
+  // the top so the toolbar, the card and the 3D view are all on screen.
   useEffect(() => {
-    if (slot && anchor) pop.current?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
-  }, [slot, anchor]);
+    if (docked && anchor) pop.current?.closest('.body')?.scrollTo({ top: 0 });
+  }, [docked, anchor]);
 
   useLayoutEffect(() => {
-    if (slot) return;
+    if (docked) return;
     const place = () => {
       const button = anchor && bar.current?.querySelector<HTMLElement>(`[data-tool="${anchor}"]`);
       const area = bar.current?.offsetParent?.getBoundingClientRect();
@@ -249,19 +248,11 @@ function ToolPopover({ bar, anchor }: { bar: React.RefObject<HTMLDivElement>; an
       el?.removeEventListener('scroll', place);
       window.removeEventListener('resize', place);
     };
-  }, [anchor, bar, slot]);
+  }, [anchor, bar, docked]);
 
   if (!anchor) return null;
-  if (slot)
-    return createPortal(
-      <div className="tool-pop docked" ref={pop}>
-        <ToolPanel />
-        <PaintPanel />
-      </div>,
-      slot,
-    );
   return (
-    <div className="tool-pop" ref={pop} style={at ? { left: at.left, top: at.top } : { visibility: 'hidden' }}>
+    <div className={docked ? 'tool-pop docked' : 'tool-pop'} ref={pop} style={docked ? undefined : at ? { left: at.left, top: at.top } : { visibility: 'hidden' }}>
       <ToolPanel />
       <PaintPanel />
     </div>

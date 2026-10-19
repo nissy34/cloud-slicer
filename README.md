@@ -63,7 +63,7 @@ hosted on Cloudflare's free tier.
 - **Device tab** for Moonraker (Klipper) printers: cameras, temperatures, motion, files,
   upload and print, plus Snapmaker U1 extras (tool heads, filament sync, the U1 print
   dialog). Printers on a home network are reached through a small bridge app.
-- **Light and dark theme**, a layout that works on phones, and installable as an app
+- **Light and dark theme**, a layout that works on phones (an open tool stacks the toolbar, its options and the model, with the settings hidden until Done), and installable as an app
   (PWA) on Android.
 
 How it is built, and why: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
