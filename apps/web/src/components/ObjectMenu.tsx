@@ -1,9 +1,12 @@
 import { Fragment, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 import { menuPosition, unitConversions } from '../lib/objectMenu';
+import { ADD_MENUS, KIND_LABELS, keepsAPart, SHAPES, type VolumeKind } from '../lib/volumes';
 import { NO_COLOURS, useSlicer } from '../state/store';
 
-type Sub = 'split' | 'mirror' | 'filament' | 'units' | null;
+type Sub = 'split' | 'mirror' | 'filament' | 'units' | 'type' | `add-${VolumeKind}` | null;
 type Form = 'rename' | 'clone' | null;
+/** Mesh files the engine reads as a part (Model::read_from_file). */
+const MESH_FILES = '.stl,.obj,.3mf,.amf';
 
 /**
  * Desktop Orca's right-click menu on an object (MenuFactory's object menu):
@@ -17,7 +20,8 @@ export function ObjectMenu() {
   const obj = menu ? project?.objects[menu.object] : undefined;
   const inst = menu && obj?.instances[menu.instance];
   if (!menu || !obj || !inst) return null;
-  return <MenuCard key={`${menu.object}-${menu.instance}-${menu.x}-${menu.y}`} />;
+  if (menu.volume !== undefined && !obj.volumes[menu.volume]) return null;
+  return <MenuCard key={`${menu.object}-${menu.instance}-${menu.volume}-${menu.x}-${menu.y}`} />;
 }
 
 function MenuCard() {
@@ -27,15 +31,18 @@ function MenuCard() {
   const physical = useSlicer((s) => s.selection?.filaments.length ?? 1);
   const height = useSlicer((s) => Number(s.overrides.printable_height ?? s.baseConfig.printable_height) || 0);
   const s = useSlicer.getState();
-  const { object: o, instance: i } = menu;
+  const { object: o, instance: i, volume: vi } = menu;
   const obj = project.objects[o];
   const inst = obj.instances[i];
+  const vol = vi === undefined ? undefined : obj.volumes[vi];
   const parts = obj.volumes.map((v, k) => ({ v, k })).filter(({ v }) => v.kind === 'part');
   const card = useRef<HTMLDivElement>(null);
   const replaceInput = useRef<HTMLInputElement>(null);
+  const addInput = useRef<HTMLInputElement>(null);
+  const addType = useRef<VolumeKind>('part');
   const [sub, setSub] = useState<Sub>(null);
   const [form, setForm] = useState<Form>(null);
-  const [name, setName] = useState(obj.name);
+  const [name, setName] = useState(vol ? vol.name : obj.name);
   const [count, setCount] = useState(1);
   const [arrange, setArrange] = useState(true);
   const [at, setAt] = useState<{ left: number; top: number } | null>(null);
@@ -101,7 +108,7 @@ function MenuCard() {
       ref={card}
       className="object-menu"
       role="menu"
-      aria-label={`${obj.name || `Object ${o + 1}`} menu`}
+      aria-label={`${vol ? vol.name : obj.name || `Object ${o + 1}`} menu`}
       style={at ?? { left: menu.x, top: menu.y, visibility: 'hidden' }}
       onContextMenu={(e) => e.preventDefault()}
       onPointerDownCapture={() => (armed.current = true)}
@@ -112,15 +119,18 @@ function MenuCard() {
         e.stopPropagation();
       }}
     >
-      <div className="menu-title" title={obj.name}>
-        {obj.name || `Object ${o + 1}`}
+      <div className="menu-title" title={vol ? vol.name : obj.name}>
+        {vol ? vol.name : obj.name || `Object ${o + 1}`}
+        {vol && <span className="muted"> · {KIND_LABELS[vol.kind]}</span>}
       </div>
       {form === 'rename' ? (
         <form
           className="menu-form"
           onSubmit={(e) => {
             e.preventDefault();
-            if (name.trim()) run(() => s.objectAction(o, i, { op: 'rename', name: name.trim() }, 'Rename'))();
+            if (!name.trim()) return;
+            if (vi !== undefined) run(() => s.volumeAction(o, { op: 'rename', volume: vi, name: name.trim() }, 'Rename'))();
+            else run(() => s.objectAction(o, i, { op: 'rename', name: name.trim() }, 'Rename'))();
           }}
         >
           <label>
@@ -161,8 +171,89 @@ function MenuCard() {
             </button>
           </div>
         </form>
+      ) : vol && vi !== undefined ? (
+        <>
+          {item('Rename…', () => setForm('rename'))}
+          {submenu(
+            'type',
+            'Change type',
+            <>
+              {ADD_MENUS.map(({ type }) => (
+                <button
+                  key={type}
+                  role="menuitemradio"
+                  aria-checked={vol.kind === type}
+                  className="menu-item"
+                  disabled={vol.kind !== type && type !== 'part' && !keepsAPart(obj.volumes, vi)}
+                  onClick={run(() => vol.kind !== type && s.volumeAction(o, { op: 'type', volume: vi, type }, 'Change type'))}
+                >
+                  {KIND_LABELS[type]}
+                </button>
+              ))}
+            </>,
+          )}
+          {vol.kind === 'part' &&
+            submenu(
+              'filament',
+              'Change filament',
+              <>
+                {Array.from({ length: Math.max(physical, colours.length) }, (_, k) => (
+                  <button key={k} role="menuitemradio" aria-checked={(vol.extruder || obj.extruder || 1) === k + 1} className="menu-item" onClick={run(() => s.setObjectFilament(o, vi, k + 1))}>
+                    <span className="menu-swatch" style={{ background: colours[k] }} aria-hidden="true" />
+                    {k < physical ? `Filament ${k + 1}` : `Mix ${k + 1}`}
+                  </button>
+                ))}
+              </>,
+            )}
+          {vol.kind !== 'supportBlocker' &&
+            vol.kind !== 'supportEnforcer' &&
+            item(
+              vol.kind === 'modifier' ? 'Modifier settings' : 'Part settings',
+              run(() => {
+                s.select({ object: o, instance: i, volume: vi });
+                setTimeout(() => document.querySelector('.object-settings')?.scrollIntoView({ block: 'nearest', behavior: 'smooth' }), 50);
+              }),
+              { title: vol.kind === 'modifier' ? 'Settings for where the modifier overlaps the object' : 'Settings for this part only' },
+            )}
+          <hr />
+          {item('Delete', run(() => s.volumeAction(o, { op: 'delete', volume: vi }, 'Delete part')), {
+            disabled: !keepsAPart(obj.volumes, vi),
+            title: keepsAPart(obj.volumes, vi) ? undefined : 'An object keeps at least one part',
+          })}
+        </>
       ) : (
         <>
+          {ADD_MENUS.map(({ type, label }) => (
+            <Fragment key={type}>
+              {submenu(
+                `add-${type}`,
+                label,
+                <>
+                  {item('Load…', () => {
+                    addType.current = type;
+                    addInput.current?.click();
+                  }, { title: 'A mesh file (STL, OBJ, 3MF)' })}
+                  {SHAPES.map((shape) => (
+                    <Fragment key={shape}>{item(shape, run(() => s.volumeAction(o, { op: 'add', type, shape, instance: i }, label)))}</Fragment>
+                  ))}
+                </>,
+              )}
+            </Fragment>
+          ))}
+          <input
+            ref={addInput}
+            type="file"
+            accept={MESH_FILES}
+            hidden
+            data-testid="add-part-input"
+            onChange={(e) => {
+              const file = e.target.files?.[0];
+              e.target.value = '';
+              const label = ADD_MENUS.find((m) => m.type === addType.current)!.label;
+              if (file) run(() => s.volumeAction(o, { op: 'add', type: addType.current }, label, file))();
+            }}
+          />
+          <hr />
           {item('Clone…', () => setForm('clone'), { title: 'Copies of this object, as new objects' })}
           {item('Center', run(() => s.objectAction(o, i, { op: 'center' }, 'Center')), { title: 'Move it to the middle of its plate' })}
           {submenu(

@@ -126,6 +126,11 @@ export interface PreviewMesh {
   positions: Float32Array;
   filaments: Uint8Array;
   objectTriangles: Int32Array;
+  /** Negative parts, modifiers and support enforcers/blockers (lib/volumes). */
+  volumePositions: Float32Array;
+  volumeList: Int32Array;
+  /** [object, volume, first triangle, triangles] of each part of each instance. */
+  partList: Int32Array;
 }
 
 /** What a paint stroke paints: filament colours, supports, seams or fuzzy skin. */

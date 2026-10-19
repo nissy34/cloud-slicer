@@ -276,7 +276,7 @@ try {
   }
 
   // Rename from the object list's ⋯ button.
-  const more = (n) => objectRows(page).nth(n).getByRole('button', { name: /^More for / });
+  const more = (n) => objectRows(page).nth(n).locator(':scope > .object-row').getByRole('button', { name: /^More for / });
   await more(0).click();
   await objectMenu.getByRole('menuitem', { name: 'Rename…' }).click();
   await objectMenu.getByLabel('Name').fill('Boat');
@@ -317,6 +317,38 @@ try {
   const stl = await download.createReadStream().then(async (st) => { let n = 0; for await (const c of st) n += c.length; return n; });
   if (stl < 1000 * 50) fail(`the exported STL is only ${stl} bytes`);
   console.log(`export as STL: ${download.suggestedFilename()}, ${stl} bytes`);
+
+  // Parts and modifiers from the object menu: a modifier cube gets its own
+  // settings, turns into a negative part, a part comes from a file, and
+  // deleting one is undone like any edit.
+  const volumes = objectRows(page).first().locator('ul.volumes > li');
+  await more(0).click();
+  await objectMenu.getByRole('menuitem', { name: 'Add modifier' }).click();
+  await objectMenu.getByRole('menuitem', { name: 'Cube', exact: true }).click();
+  await volumes.nth(1).getByText('Modifier').waitFor({ timeout: 30000 });
+  await page.getByText('Modifier settings').waitFor();
+  await page.getByLabel('Add a setting to this modifier').selectOption('sparse_infill_density');
+  await page.locator('.object-settings').getByText(/infill density/i).first().waitFor({ timeout: 30000 });
+  await toolbar.getByRole('button', { name: 'Move' }).click();
+  if (shots) await page.screenshot({ path: join(shots, 'parts-modifier.png') });
+  await page.keyboard.press('Escape');
+  await volumes.nth(1).getByRole('button', { name: /^More for part / }).click();
+  await objectMenu.getByRole('menuitem', { name: 'Change type' }).click();
+  await objectMenu.getByRole('menuitemradio', { name: 'Negative part' }).click();
+  await volumes.nth(1).getByText('Negative part').waitFor({ timeout: 30000 });
+  await more(0).click();
+  await objectMenu.getByRole('menuitem', { name: 'Add part' }).click();
+  const [chooser] = await Promise.all([page.waitForEvent('filechooser'), objectMenu.getByRole('menuitem', { name: 'Load…' }).click()]);
+  await chooser.setFiles(join(fixtures, 'tetrahedron.stl'));
+  await volumes.nth(2).waitFor({ timeout: 30000 });
+  const names = await volumes.locator('.volume-name').allInnerTexts();
+  if (names.length !== 3 || !/tetrahedron\.stl/.test(names[1]) || !/Negative part/.test(names[2])) fail(`parts come first, then the negative part: ${names}`);
+  await volumes.nth(2).getByRole('button', { name: /^More for part / }).click();
+  await objectMenu.getByRole('menuitem', { name: 'Delete' }).click();
+  await page.waitForFunction(() => document.querySelectorAll('ul.objects > li.object:first-child ul.volumes > li').length === 2, null, { timeout: 30000 });
+  await page.locator('body').press('Control+z');
+  await page.waitForFunction(() => document.querySelectorAll('ul.objects > li.object:first-child ul.volumes > li').length === 3, null, { timeout: 30000 });
+  console.log(`parts and modifiers: ${names.join(' | ')}; delete and undo`);
   await page.close();
 
   const phone = await open({ width: 390, height: 844 }, true);

@@ -889,3 +889,73 @@ test('object menu: rename, printable, center, scale to fit, clone, units, replac
   assert.equal(stl.length, 84 + 50 * triangles, 'binary STL');
   assert.throws(() => act(0, 0, { op: 'nonsense' }), /unknown/);
 });
+
+test('parts and modifiers: add shapes and files, move, change type, delete, and they change the slice', () => {
+  select({ printer: DEFAULT_PRINTER });
+  load('gen-cube-20.stl');
+  const act = (request) => call(engine, 'volumeAction', 0, JSON.stringify(request));
+  const kinds = () => info().objects[0].volumes.map((v) => v.kind);
+  const config = fullConfig({ sparse_infill_density: '10%' });
+  const plain = slice(config).result.totalFilamentMm;
+
+  // A negative cylinder, like desktop: square to the bed at the cube's right front corner.
+  const neg = act({ op: 'add', type: 'negative', shape: 'Cylinder', instance: 0 });
+  assert.equal(neg.volume, 1);
+  assert.deepEqual(kinds(), ['part', 'negative']);
+  assert.equal(info().objects[0].volumes[1].name, 'Generic-Cylinder');
+  let preview = engine.previewMesh(0);
+  assert.deepEqual([...preview.volumeList].filter((_, k) => k % 4 !== 3), [0, 1, 1]);
+  assert.equal(preview.volumePositions.length / 9, preview.volumeList[3]);
+  assert.deepEqual([...preview.partList], [0, 0, 0, 12], 'the cube is the only part');
+  const box = (p) => {
+    const xs = [], ys = [], zs = [];
+    for (let k = 0; k < p.length; k += 3) xs.push(p[k]), ys.push(p[k + 1]), zs.push(p[k + 2]);
+    return { min: [Math.min(...xs), Math.min(...ys), Math.min(...zs)], max: [Math.max(...xs), Math.max(...ys), Math.max(...zs)] };
+  };
+  const cube = box(preview.positions);
+  let cyl = box(preview.volumePositions);
+  assert.ok(Math.abs(cyl.min[0] - cube.max[0]) < 0.01 && Math.abs(cyl.min[2]) < 0.01, `beside the cube on the bed: ${JSON.stringify(cyl)}`);
+
+  // Moved into the middle of the cube (a world translation), it cuts a hole.
+  const centre = (b) => b.min.map((v, k) => (v + b.max[k]) / 2);
+  const [dx, dy] = centre(cube).map((v, k) => v - centre(cyl)[k]);
+  act({ op: 'transform', volume: 1, instance: 0, matrix: [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, dx, dy, 0, 1] });
+  cyl = box(engine.previewMesh(0).volumePositions);
+  assert.ok(Math.abs(centre(cyl)[0] - centre(cube)[0]) < 0.01 && Math.abs(centre(cyl)[1] - centre(cube)[1]) < 0.01, 'centred in the cube');
+  const holed = slice(config).result.totalFilamentMm;
+  assert.ok(holed < plain * 0.9, `the hole takes filament away: ${holed} vs ${plain}`);
+
+  // As a modifier with 100% infill, the same cylinder adds filament instead.
+  assert.equal(act({ op: 'type', volume: 1, type: 'modifier' }).volume, 1);
+  call(engine, 'setObjectSettings', 0, 1, JSON.stringify({ sparse_infill_density: '100%' }));
+  assert.deepEqual(kinds(), ['part', 'modifier']);
+  const filled = slice(config).result.totalFilamentMm;
+  assert.ok(filled > plain * 1.05, `the modifier fills the middle: ${filled} vs ${plain}`);
+
+  // A part from a file, and rotating it a quarter turn about its centre.
+  engine.FS.writeFile('/work/part.stl', cubesStl([[0, 0, 0]], 5));
+  const added = act({ op: 'add', type: 'part', path: '/work/part.stl', name: 'small.stl' });
+  assert.deepEqual(kinds(), ['part', 'part', 'modifier'], 'parts come first');
+  assert.equal(added.volume, 1);
+  assert.equal(info().objects[0].volumes[1].name, 'small.stl');
+  assert.equal(engine.previewMesh(0).partList.length, 8);
+  act({ op: 'rename', volume: 1, name: 'Small cube' });
+  assert.equal(info().objects[0].volumes[1].name, 'Small cube');
+
+  // Supports: a blocker; then deleting; the last part can't go.
+  act({ op: 'add', type: 'supportBlocker', shape: 'Sphere', instance: 0 });
+  assert.deepEqual(kinds(), ['part', 'part', 'modifier', 'supportBlocker']);
+  act({ op: 'delete', volume: 3 });
+  act({ op: 'delete', volume: 1 });
+  assert.deepEqual(kinds(), ['part', 'modifier']);
+  assert.throws(() => act({ op: 'delete', volume: 0 }), /at least one part/);
+  assert.throws(() => act({ op: 'type', volume: 0, type: 'negative' }), /at least one part/);
+
+  // Saved and opened again, the modifier and its setting are still there.
+  call(engine, 'saveProject', '/work/parts.3mf', JSON.stringify(config), null);
+  engine.clearModel();
+  const [w, d] = bedSize(fullConfig());
+  call(engine, 'loadModel', '/work/parts.3mf', 0, w, d);
+  assert.deepEqual(kinds(), ['part', 'modifier']);
+  assert.equal(info().objects[0].volumes[1].settings.sparse_infill_density, '100%');
+});

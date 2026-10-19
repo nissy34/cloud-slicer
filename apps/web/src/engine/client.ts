@@ -22,6 +22,7 @@ import type { MatchResult, MixRecipe, MixRow } from '../lib/mixing';
 import type { SimplifyBy, SimplifyResult } from '../lib/simplify';
 import type { MeasureFeature, Measurement } from '../lib/measure';
 import type { ObjectAction } from '../lib/objectMenu';
+import type { VolumeAction } from '../lib/volumes';
 
 /** A request to the engine's mixed-filament list (engine/src/mixed_api.cpp). */
 export interface MixedRequest {
@@ -269,6 +270,9 @@ export class EngineClient {
   /** An object menu action on object o (instance i where it matters); "replace" takes the STL file's bytes. */
   objectAction = (o: number, i: number, request: ObjectAction, bytes?: ArrayBuffer) =>
     this.call<ProjectInfo>('objectAction', [o, i, request, bytes ?? null], bytes ? [bytes] : []);
+  /** A part, modifier... of object o added, renamed, moved or deleted; "add" without a shape takes a mesh file's bytes. */
+  volumeAction = (o: number, request: VolumeAction, bytes?: ArrayBuffer) =>
+    this.call<{ info: ProjectInfo; volume?: number }>('volumeAction', [o, request, bytes ?? null], bytes ? [bytes] : []);
   /** Instance i of object o as a binary STL. */
   exportStl = (o: number, i: number) => this.call<ArrayBuffer>('exportStl', [o, i]);
   setObjectSettings = (o: number, volume: number, values: Record<string, string | null>) =>
