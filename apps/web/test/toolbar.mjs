@@ -87,12 +87,24 @@ try {
   await rotate.waitFor();
   if (shots) await page.screenshot({ path: join(shots, 'toolbar-desktop-rotate.png') });
   // Exact values go in the gizmo's own panel, like desktop.
-  await rotate.getByLabel('Rotation Z').fill('90');
-  await rotate.getByLabel('Rotation Z').press('Enter');
-  await page.waitForFunction(() => document.querySelector('[aria-label="Rotation Z"]')?.value === '90', null, { timeout: 30000 });
-  await rotate.getByLabel('Rotation Z').fill('0');
-  await rotate.getByLabel('Rotation Z').press('Enter');
-  await page.waitForFunction(() => document.querySelector('[aria-label="Rotation Z"]')?.value === '0', null, { timeout: 30000 });
+  // The field is rebuilt once the engine has turned the object, so wait for a
+  // new field rather than the typed value (typing into the old one gets lost).
+  const typeRotation = async (value) => {
+    const field = rotate.getByLabel('Rotation Z');
+    await field.evaluate((el) => (el.dataset.typed = '1'));
+    await field.fill(value);
+    await field.press('Enter');
+    await page.waitForFunction(
+      (v) => {
+        const el = document.querySelector('[aria-label="Rotation Z"]');
+        return el?.value === v && !el.dataset.typed;
+      },
+      value,
+      { timeout: 30000 },
+    );
+  };
+  await typeRotation('90');
+  await typeRotation('0');
   console.log('rotation typed in the Rotate panel');
   // The panel opens under the toolbar, like desktop's gizmo panels.
   const barBottom = (await toolbar.boundingBox()).y + (await toolbar.boundingBox()).height;

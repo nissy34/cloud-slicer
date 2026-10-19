@@ -220,13 +220,15 @@ function Gizmo({
   const inverse = useMemo(() => place.rotation.clone().invert(), [place]);
   const negCentre = useMemo(() => place.centre.clone().negate(), [place]);
 
+  const invalidate = useThree((s) => s.invalidate);
   // Back to the instance as the engine has it whenever it changes.
   useLayoutEffect(() => {
     if (!pivot) return;
     pivot.position.copy(place.centre);
     pivot.quaternion.copy(place.rotation);
     pivot.scale.set(1, 1, 1);
-  }, [pivot, place, tool]);
+    invalidate();
+  }, [pivot, place, tool, invalidate]);
 
   const commit = () => {
     onRelease();
@@ -318,10 +320,12 @@ function CutPlane({
   const below = useMemo(() => new THREE.Plane(new THREE.Vector3(0, 0, -1), 0), []);
   above.constant = -z;
   below.constant = z;
+  const invalidate = useThree((s) => s.invalidate);
 
   useLayoutEffect(() => {
     handle?.position.set(centre.x, centre.y, z);
-  }, [handle, centre.x, centre.y, z]);
+    invalidate(); // the clipping planes moved too
+  }, [handle, centre.x, centre.y, z, invalidate]);
 
   const tint = (colour: string, plane: THREE.Plane) => (
     <mesh geometry={part.geometry} raycast={() => null} renderOrder={1}>
@@ -898,8 +902,11 @@ export function Viewport() {
   const scene = useSceneColours();
   return (
     <>
+      {/* Draws only when something changes (React props, the camera, the gizmos'
+          own invalidate), so an idle view costs nothing while a slice runs. */}
       <Canvas
         className="viewport"
+        frameloop="demand"
         camera={{ position: [w / 2, -d * 0.75, d * 0.8], fov: 40, near: 1, far: 5000 }}
         gl={{ antialias: true }}
         onCreated={({ gl }) => {

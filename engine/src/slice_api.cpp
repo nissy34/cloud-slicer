@@ -8,12 +8,12 @@
 #include "libslic3r/GCode/ThumbnailData.hpp"
 #include "libslic3r/Print.hpp"
 
-#include <tbb/serial_cancel.h>
-
 #include <algorithm>
 #include <atomic>
+#include <chrono>
 #include <cmath>
 #include <cstdint>
+#include <thread>
 
 using nlohmann::json;
 using namespace Slic3r;
@@ -22,12 +22,13 @@ namespace {
 
 // Cancelling a running slice. Desktop's UI thread calls Print::cancel() while
 // the background thread slices; here the slice runs on the engine worker's
-// only thread, which nothing can reach while it is busy. So the page writes
-// to these two cells, which live in the engine's shared memory
+// thread, which nothing can reach while it is busy. So the page writes to
+// these two cells, which live in the engine's shared memory
 // (sliceCancelFlag): [0] the request id the page wants cancelled, [1] the id
-// of the slice now running (the worker sets it). Slicing stops at the next
-// cancellation point: Orca's own throw_if_canceled() once the status
-// callback has called Print::cancel(), and the serial TBB loops in between.
+// of the slice now running (the worker sets it). A watcher thread stands in
+// for desktop's UI thread: it calls Print::cancel() once the page asks, and
+// slicing stops at Orca's own next throw_if_canceled(), on whichever thread
+// gets there.
 std::atomic<int32_t> cancelCells[2];
 static_assert(sizeof(cancelCells) == 2 * sizeof(int32_t) && std::atomic<int32_t>::is_always_lock_free);
 
@@ -36,14 +37,24 @@ bool cancelRequested() {
     return running != 0 && cancelCells[0].load(std::memory_order_acquire) == running;
 }
 
-// Installs the serial TBB cancellation point for the length of a slice.
-struct CancelPoint {
-    CancelPoint() {
-        tbb::detail::d1::serial_cancel_point = [] {
-            if (cancelRequested()) throw CanceledException();
-        };
+// Watches the cancel cells for the length of a slice.
+class CancelWatch {
+public:
+    explicit CancelWatch(Print& print)
+        : m_thread([this, &print] {
+              while (!m_done.load(std::memory_order_acquire)) {
+                  if (cancelRequested()) print.cancel();
+                  std::this_thread::sleep_for(std::chrono::milliseconds(20));
+              }
+          }) {}
+    ~CancelWatch() {
+        m_done.store(true, std::memory_order_release);
+        m_thread.join();
     }
-    ~CancelPoint() { tbb::detail::d1::serial_cancel_point = nullptr; }
+
+private:
+    std::atomic<bool> m_done{false};
+    std::thread m_thread;
 };
 
 emscripten::val sliceCancelFlag() {
@@ -133,6 +144,19 @@ ThumbnailData thumbnailAt(const ThumbnailsList& images, unsigned w, unsigned h) 
     return out;
 }
 
+// Orca's SlicingErrors holds one error per object that can't be printed; its
+// own text is just "Errors". Desktop shows each, on the object it names.
+std::string explain(const SlicingErrors& e, const Print& print) {
+    std::string all;
+    for (const SlicingError& one : e.errors_) {
+        std::string name;
+        for (const PrintObject* o : print.objects())
+            if (o->id().id == one.objectId()) name = o->model_object()->name;
+        all += (all.empty() ? "" : "\n") + (name.empty() ? std::string(one.what()) : name + ": " + one.what());
+    }
+    return all.empty() ? std::string(e.what()) : all;
+}
+
 // Slice `plate` with `configJson` (key -> serialized value, e.g. from
 // presetsFullConfig plus edits) and write the G-code to outputPath.
 // Returns {success, cancelled, error, warnings, gcodePath, totalLayers,
@@ -185,16 +209,22 @@ std::string sliceWithConfig(const std::string& configJson, int plate, const std:
         const StringObjectException err = print.validate();
         if (!err.string.empty()) throw std::runtime_error(err.string);
 
-        const CancelPoint cancelPoint;
+        const CancelWatch cancelWatch(print);
         if (cancelRequested()) throw CanceledException();
         int high = 2;
+        // Orca reports some stages from its worker threads; only the engine's
+        // own thread may call into the page.
         print.set_status_callback([&](const PrintBase::SlicingStatus& s) {
-            if (cancelRequested()) print.cancel();
+            if (!emscripten_is_main_runtime_thread()) return;
             const int pct = 2 + int(s.percent * 0.9);
             if (pct > high) high = pct;
             engine::report(onProgress, high, s.text);
         });
-        print.process();
+        try {
+            print.process();
+        } catch (const SlicingErrors& e) {
+            throw std::runtime_error(explain(e, print));
+        }
 
         engine::report(onProgress, 93, "Generating G-code");
         GCodeProcessorResult result;
@@ -205,7 +235,11 @@ std::string sliceWithConfig(const std::string& configJson, int plate, const std:
                 for (const Vec2d& size : params.sizes) list.push_back(thumbnailAt(pictures, unsigned(size.x()), unsigned(size.y())));
                 return list;
             };
-        print.export_gcode(outputPath, &result, thumbnailCb);
+        try {
+            print.export_gcode(outputPath, &result, thumbnailCb);
+        } catch (const SlicingErrors& e) {
+            throw std::runtime_error(explain(e, print));
+        }
         // A cancel that landed in code which caught the exception itself.
         if (cancelRequested()) throw CanceledException();
 

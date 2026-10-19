@@ -1,6 +1,6 @@
 import { OrbitControls } from '@react-three/drei';
 import { Canvas, useThree } from '@react-three/fiber';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useState } from 'react';
 import * as THREE from 'three';
 import { bedSize, rgb } from '../lib/colour';
 import { FEATURE_COLOURS, FEATURES, type ParsedGcode } from '../lib/gcode';
@@ -127,6 +127,9 @@ function Toolpaths({ parsed, upTo, colourBy, colours }: { parsed: ParsedGcode; u
     geometry.setAttribute('iColor', new THREE.InstancedBufferAttribute(col, 3, true));
   }, [geometry, parsed, colourBy, colours]);
   geometry.instanceCount = parsed.layerStarts[Math.min(upTo + 1, parsed.layerStarts.length - 1)];
+  // The view draws on demand: the layer and colour changes above are not props.
+  const invalidate = useThree((s) => s.invalidate);
+  useLayoutEffect(() => invalidate());
   return <mesh geometry={geometry} material={material} frustumCulled={false} />;
 }
 
@@ -184,7 +187,7 @@ export function Preview() {
   const usedFeatures = parsed ? [...new Set(parsed.features)].sort((a, b) => a - b) : [];
   return (
     <div className="preview">
-      <Canvas className="viewport" camera={{ position: [w / 2, -d * 0.6, d * 0.7], fov: 40, near: 1, far: 5000 }} data-testid="gcode-preview">
+      <Canvas className="viewport" frameloop="demand" camera={{ position: [w / 2, -d * 0.6, d * 0.7], fov: 40, near: 1, far: 5000 }} data-testid="gcode-preview">
         <color attach="background" args={[scene.background]} />
         <Bed w={w} d={d} />
         {parsed && <Toolpaths parsed={parsed} upTo={upTo} colourBy={colourBy} colours={colours} />}

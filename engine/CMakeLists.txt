@@ -78,7 +78,9 @@ endforeach()
 
 include(cmake/libslic3r.cmake)
 
-add_executable(orca-engine src/presets_api.cpp src/model_api.cpp src/slice_api.cpp src/tools_api.cpp src/paint_api.cpp src/calib_api.cpp src/history_api.cpp src/mixed_api.cpp src/measure_api.cpp src/layers_api.cpp src/brim_api.cpp src/simplify_api.cpp src/object_api.cpp src/volume_api.cpp src/wipe_tower_api.cpp src/boolean_api.cpp src/text_api.cpp src/svg_api.cpp)
+add_executable(orca-engine src/presets_api.cpp src/model_api.cpp src/slice_api.cpp src/tools_api.cpp src/paint_api.cpp src/calib_api.cpp src/history_api.cpp src/mixed_api.cpp src/measure_api.cpp src/layers_api.cpp src/brim_api.cpp src/simplify_api.cpp src/object_api.cpp src/volume_api.cpp src/wipe_tower_api.cpp src/boolean_api.cpp src/text_api.cpp src/svg_api.cpp src/memory.cpp)
+# mimalloc.h, for the allocator settings in src/memory.cpp.
+target_include_directories(orca-engine PRIVATE "${EMSCRIPTEN_ROOT_PATH}/system/lib/mimalloc/include")
 target_link_libraries(orca-engine PRIVATE libslic3r embind)
 set_target_properties(orca-engine PROPERTIES SUFFIX ".js")
 target_link_options(orca-engine PRIVATE
@@ -90,7 +92,13 @@ target_link_options(orca-engine PRIVATE
     -sINITIAL_MEMORY=256MB
     -sMAXIMUM_MEMORY=4GB
     -sSTACK_SIZE=8MB
-    -sPTHREAD_POOL_SIZE=0
+    # Slicing runs on TBB's worker threads, one per core (as desktop), plus the
+    # slice's cancel watcher. Start them with the engine: a pthread created later
+    # only starts once the engine thread goes idle, which a slice never does.
+    -sPTHREAD_POOL_SIZE=navigator.hardwareConcurrency+1
+    # Emscripten's default malloc takes one lock for every thread, which leaves
+    # the threads queueing for memory instead of slicing.
+    -sMALLOC=mimalloc
 )
 option(ENGINE_WASM_DEBUG "Runtime assertions + symbolised stacks" OFF)
 if(ENGINE_WASM_DEBUG)

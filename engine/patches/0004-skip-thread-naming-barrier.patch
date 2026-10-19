@@ -1,13 +1,14 @@
 --- a/src/libslic3r/Thread.cpp
 +++ b/src/libslic3r/Thread.cpp
-@@ -216,6 +216,13 @@
+@@ -216,6 +216,14 @@
  		return;
  	initialized = true;
  
 +#ifdef __EMSCRIPTEN__
-+	// The browser engine runs parallel_for serially (engine/compat/tbb_serial),
-+	// so the barrier below would wait forever for worker threads that never
-+	// arrive. There are no pool threads to name.
++	// The barrier below holds every TBB worker until all of them have joined,
++	// and threads have no names or locales to set in the browser engine.
++	// Skipping it keeps a slice from ever waiting on a worker that is slow
++	// to start.
 +	return;
 +#endif
 +

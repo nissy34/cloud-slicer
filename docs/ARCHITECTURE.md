@@ -48,9 +48,11 @@ tests.
 - Browser-only fixes are small patch files in `engine/patches/`, applied to copies of
   the touched files at build time, each with its reason. Android-app patches from the
   U1 fork are not used.
-- TBB's parallel loops run serially for now (`engine/compat/tbb_serial`): slices are
-  correct but use one core. The serial loops have a cancellation point, so the page can
-  stop a running slice.
+- Slicing uses every core, like desktop: TBB runs on Emscripten pthreads (Web Workers
+  started with the engine) with mimalloc as the allocator, set up for wasm in
+  `engine/src/memory.cpp` so a big slice needs about as much memory as one thread
+  would. Cancel goes through Orca's own `Print::cancel()`, called by a watcher thread
+  when the page asks.
 - No STEP reader in the default build (no OpenCASCADE), no SLA hollowing (no OpenVDB).
 - Plate thumbnails: the wasm engine has no OpenGL, so the page renders each plate the
   way desktop does and the engine's own G-code export embeds the pictures.
@@ -245,7 +247,6 @@ was ruled out (closed service with per-user device certificates, against its ter
 ## Still to come
 
 - Remaining desktop parity tools.
-- Real worker threads in the engine instead of serial TBB.
 - A choice of engine per user (Snapmaker Orca or upstream OrcaSlicer), after a study of
   what differs between them and what the app would change per engine.
 - Device relay hardening: key rotation, end-to-end encryption (see SECURITY.md).
