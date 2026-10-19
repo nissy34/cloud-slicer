@@ -73,8 +73,11 @@ try {
   // A crash while slicing: a new engine starts and the model comes back.
   await sliceButton.click();
   await cancel.waitFor();
+  // Past the copy the page keeps before slicing, into the slice itself.
+  await page.waitForFunction(() => Number(document.querySelector('[aria-label="Slicing"]')?.getAttribute('aria-valuenow')) > 0, null, { timeout: 120000 });
   await crash();
-  await page.getByText('restarted and reopened your project').waitFor({ timeout: 120000 });
+  await page.getByText(/so it restarted/).waitFor({ timeout: 120000 });
+  expect(await page.getByText('restarted and reopened your project').isVisible(), `project reopened: ${await page.getByTestId('actionbar').textContent()}`);
   expect(await workers() === 2, 'a second engine started');
   expect(!(await page.getByText('Changes made since your last slice were lost').isVisible()), 'nothing was lost');
   expect(!(await page.getByText('could not start').isVisible()), 'no "could not start" message');
@@ -83,9 +86,8 @@ try {
   // The new engine slices.
   await sliceButton.click();
   await stats.waitFor({ timeout: 300000 });
-  await page.getByRole('tab', { name: 'Prepare' }).click();
 
-  // A crash while idle comes back too.
+  // A crash after slicing comes back too.
   await crash();
   await page.getByText('restarted and reopened your project').waitFor({ timeout: 120000 });
   expect(await workers() === 3, 'a third engine started');
