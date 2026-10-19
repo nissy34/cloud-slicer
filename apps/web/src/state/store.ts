@@ -23,7 +23,7 @@ import { emptyProjectMessage, modelProcessKeys, pickProcess, printerLabel, proje
 import { accountReady, getUserSetting, presetEditing, useAccount } from './account';
 import { installedOnly, SETUP_KEY, type Setup } from '../lib/setup';
 import { loadConvertPreference, loadSaved, save, saveConvertPreference } from '../lib/storage';
-import type { SimplifyBy, SimplifyResult } from '../lib/simplify';
+import { heavyModel, type HeavyModel, type SimplifyBy, type SimplifyResult } from '../lib/simplify';
 import type { BrimEars, BrimRequest } from '../lib/brim';
 import type { LayerProfile, LayerRequest } from '../lib/layers';
 import { sameFeature, type MeasureFeature, type Measurement } from '../lib/measure';
@@ -89,6 +89,10 @@ export interface SlicerState {
   notice: string;
   /** The notice is a problem to fix, not just information. */
   noticeWarn: boolean;
+  /** The open project has too many triangles to slice comfortably: what Simplify would do. */
+  heavy: HeavyModel | null;
+  /** Simplifies the heavy project's big objects (see heavy), as one undo step. */
+  simplifyHeavy(): Promise<void>;
   /** A 3MF made for a printer we don't have, waiting for the user to convert it. */
   conversion: { from: string; file: OrcaConfig } | null;
   /** Paint mode is on while set: what clicks and drags on the parts paint. */
@@ -381,6 +385,7 @@ export const useSlicer = create<SlicerState>((set, get) => {
     const res = await e.load(r.file, 0, area, false);
     set({ plate: Math.min(r.plate, Math.max(0, res.info.plates.length - 1)), history: await e.clearHistory() });
     await refreshPreview(res.info);
+    await checkHeavy().catch((err) => console.warn('Triangle count:', err));
     saved3mf = { file: r.file, edits: e.projectEdits };
     const lost = r.current ? '' : ' Changes made since your last slice were lost.';
     set({ job: { kind: 'idle' }, notice: `${crashed}, so it restarted and reopened your project.${lost} (${r.message})`, noticeWarn: true });
@@ -531,7 +536,20 @@ export const useSlicer = create<SlicerState>((set, get) => {
     const preview = project.objects.length ? await e.preview(plate) : null;
     const paint = get().paint;
     const overlay = paint && paint.kind !== 'color' && project.objects.length ? await e.paintOverlay(plate, paint.kind) : null;
-    set({ project, plate, preview, overlay, ...stale() });
+    const heavy = get().heavy && get().project?.objects.length === project.objects.length ? get().heavy : null;
+    set({ project, plate, preview, overlay, heavy, ...stale() });
+  }
+
+  // A model with millions of triangles can need more memory to slice than a
+  // browser page may have; offer to simplify it as soon as it opens.
+  async function checkHeavy() {
+    const e = engine();
+    const objects = get().project?.objects ?? [];
+    const counts = await Promise.all(objects.map((_, o) => e.simplifyPreview(o)));
+    const plan = heavyModel(counts.map((c) => c.triangles));
+    // Simplifying removes paint, so say so when it would.
+    if (get().project?.objects.length === counts.length)
+      set({ heavy: plan && { ...plan, painted: plan.objects.some((o) => counts[o].painted) } });
   }
 
   // Paint dabs queue up while the engine is busy and go over in one call, so
@@ -720,6 +738,7 @@ export const useSlicer = create<SlicerState>((set, get) => {
     job: { kind: 'idle' },
     notice: '',
     noticeWarn: false,
+    heavy: null,
     conversion: null,
     paint: null,
     tool: null,
@@ -844,6 +863,7 @@ export const useSlicer = create<SlicerState>((set, get) => {
       }
       // A single project file is its own copy to reopen after a crash.
       if (opened && files.length === 1) saved3mf = { file: files[0], edits: e.projectEdits };
+      await checkHeavy().catch((err) => console.warn('Triangle count:', err));
       return opened;
     },
     cancelOpen: () => set({ pendingOpen: null }),
@@ -868,6 +888,17 @@ export const useSlicer = create<SlicerState>((set, get) => {
         .simplifyPreview(o, by)
         .catch((err) => (fail(err), null)),
     simplifyObject: (o, by) => projectEdit('Simplify', () => engine().simplifyApply(o, by)),
+    async simplifyHeavy() {
+      const plan = get().heavy;
+      if (!plan) return;
+      set({ heavy: null, job: { kind: 'loading', name: '', label: 'Simplifying' } });
+      await projectEdit('Simplify', async () => {
+        let info = get().project!;
+        for (const o of plan.objects) info = await engine().simplifyApply(o, { ratio: plan.ratio });
+        return info;
+      });
+      if (get().job.kind === 'loading') set({ job: { kind: 'idle' } });
+    },
     async measureHover(ray) {
       hoverRay = ray;
       if (hovering) return;
@@ -1238,7 +1269,7 @@ export const useSlicer = create<SlicerState>((set, get) => {
           if (run === sliceRun && job.kind === 'slicing') set({ job: { kind: 'slicing', pct: slicePercent(job.pct, pct, stage, layers), stage } });
         });
         if (run !== sliceRun) return;
-        set({ job: { kind: 'sliced', plate, result, gcode: new Blob([gcode], { type: 'text/plain' }), ms }, notice: '' });
+        set({ job: { kind: 'sliced', plate, result, gcode: new Blob([gcode], { type: 'text/plain' }), ms }, notice: '', heavy: null });
         // Like desktop Orca: show the result as soon as slicing finishes.
         get().setTab('preview');
       } catch (e) {

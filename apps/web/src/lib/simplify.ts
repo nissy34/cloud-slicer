@@ -19,3 +19,40 @@ export interface SimplifyResult {
 export function simplifyBy(mode: 'level' | 'ratio', level: number, ratio: number): SimplifyBy {
   return mode === 'level' ? { level: Math.min(4, Math.max(0, Math.round(level))) } : { ratio: Math.min(100, Math.max(0, ratio)) };
 }
+
+/**
+ * Above this many triangles a model makes slicing run short of memory: a
+ * browser page gets at most 4 GB, on desktop as on a phone. Measured on a
+ * 3.2 million triangle mask with tree supports, which needed 3.7 GB.
+ */
+export const HEAVY_TRIANGLES = 1_000_000;
+/** What simplifying a heavy model aims for: plenty of detail for printing. */
+export const LIGHT_TRIANGLES = 500_000;
+/** Objects smaller than this are left alone (simplifying them saves little). */
+const WORTH_SIMPLIFYING = 50_000;
+
+export interface HeavyModel {
+  /** The objects to simplify. */
+  objects: number[];
+  /** Triangles in the whole project now. */
+  triangles: number;
+  /** The decimate ratio (% removed) for each of those objects. */
+  ratio: number;
+  /** Some of those objects have paint, which simplifying removes. */
+  painted: boolean;
+}
+
+/** Given each object's triangles, what to simplify to bring the project near LIGHT_TRIANGLES, or null when it's light enough. */
+export function heavyModel(triangles: number[]): HeavyModel | null {
+  const total = triangles.reduce((a, b) => a + b, 0);
+  if (total <= HEAVY_TRIANGLES) return null;
+  const objects = triangles.flatMap((t, o) => (t >= WORTH_SIMPLIFYING ? [o] : []));
+  const big = objects.reduce((a, o) => a + triangles[o], 0);
+  const keep = Math.max(LIGHT_TRIANGLES - (total - big), big * 0.05);
+  return { objects, triangles: total, ratio: Math.min(95, Math.round(100 * (1 - keep / big))), painted: false };
+}
+
+/** "3.2 million" or "800,000". */
+export function triangleCount(n: number): string {
+  return n >= 1e6 ? `${(n / 1e6).toFixed(1).replace(/\.0$/, '')} million` : n.toLocaleString('en-US');
+}
