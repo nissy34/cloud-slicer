@@ -40,10 +40,13 @@ import { estimateLayers, slicePercent } from '../lib/slice-progress';
 
 export type Tab = 'prepare' | 'preview' | 'device';
 /** The object tool open on the 3D view, like desktop's gizmos (paint has its own state). */
-export type Tool = 'move' | 'rotate' | 'scale' | 'flatten' | 'cut' | 'measure' | 'layers' | 'brim' | 'simplify' | 'boolean' | 'text';
+export type Tool = 'move' | 'rotate' | 'scale' | 'flatten' | 'cut' | 'measure' | 'layers' | 'brim' | 'simplify' | 'boolean' | 'text' | 'svg';
 /** How a 3MF is opened: as the project (replacing it) or its objects added. */
 export type OpenMode = 'project' | 'geometry';
 const is3mf = (f: File) => /\.3mf$/i.test(f.name);
+const isSvg = (f: File) => /\.svg$/i.test(f.name);
+/** How deep a new SVG shape is, mm. */
+const SVG_DEPTH = 2;
 export type EngineStatus = 'starting' | 'ready' | 'failed';
 export type Job =
   | { kind: 'idle' }
@@ -233,6 +236,14 @@ export interface SlicerState {
    * it; false if it failed.
    */
   textVolume(o: number | null, style: TextStyle, edit: { type: 'part' | 'negative' | 'modifier' } | { volume: number }): Promise<boolean>;
+  /**
+   * An SVG shape like desktop's SVG tool, as one undo step: from a file onto
+   * object o (null: an object of its own), or a new depth or size for one. Picks it; false if it failed.
+   */
+  svgVolume(
+    o: number | null,
+    edit: { type: 'part' | 'negative' | 'modifier'; file: File } | { volume: number; depth?: number; width?: number; height?: number },
+  ): Promise<boolean>;
   /** Two volumes of object o combined, like desktop's Mesh boolean, as one undo step; picks the result. False if it failed. */
   meshBoolean(o: number, request: BooleanRequest): Promise<boolean>;
   /** Saves instance i of object o as an STL file. */
@@ -805,6 +816,11 @@ export const useSlicer = create<SlicerState>((set, get) => {
       let opened = false;
       saved3mf = null;
       for (const file of ordered) {
+        // An SVG becomes a shape lying on the plate, like dropping one on desktop.
+        if (isSvg(file)) {
+          if (await get().svgVolume(null, { type: 'part', file })) set({ tool: 'svg' });
+          continue;
+        }
         set({ job: { kind: 'loading', name: file.name } });
         try {
           const area = get().overrides.printable_area ?? get().baseConfig.printable_area ?? '';
@@ -1026,6 +1042,28 @@ export const useSlicer = create<SlicerState>((set, get) => {
             ? { ...style, fontPath, op: 'update' as const, volume: edit.volume }
             : { ...style, fontPath, op: 'add' as const, type: edit.type, camera: cameraPosition() };
         const r = await e.textVolume(o ?? -1, get().plate, request);
+        out = { object: r.object, volume: r.volume };
+        return r.info;
+      });
+      if (!out) return false;
+      const sel = get().selected;
+      const instance = sel?.object === out.object ? sel.instance : 0;
+      set({ selected: { object: out.object, instance, volume: out.volume } });
+      return true;
+    },
+    svgVolume: async (o, edit) => {
+      let out: { object: number; volume: number } | undefined;
+      await projectEdit('file' in edit ? 'Add SVG' : 'Edit SVG', async () => {
+        const e = engine();
+        const r =
+          'file' in edit
+            ? await e.svgVolume(
+                o ?? -1,
+                get().plate,
+                { op: 'add', type: edit.type, name: edit.file.name, depth: SVG_DEPTH, camera: cameraPosition() },
+                await edit.file.arrayBuffer(),
+              )
+            : await e.svgVolume(o ?? -1, get().plate, { op: 'update', ...edit });
         out = { object: r.object, volume: r.volume };
         return r.info;
       });

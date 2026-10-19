@@ -275,6 +275,10 @@ std::string modelInfoJson() {
                                           {"boldness", fp.boldness.value_or(0.f)}, {"skew", fp.skew.value_or(0.f)},
                                           {"charGap", fp.char_gap.value_or(0)}, {"lineGap", fp.line_gap.value_or(0)},
                                           {"align", align == FontProp::HorizontalAlign::left ? "left" : align == FontProp::HorizontalAlign::right ? "right" : "center"}};
+            } else if (v->emboss_shape && v->emboss_shape->svg_file) {
+                // An SVG shape (svg_api.cpp): what the SVG tool edits, its size across its face.
+                const Vec3d size = v->mesh().bounding_box().size().cwiseProduct(v->get_scaling_factor());
+                volumes.back()["svg"] = {{"depth", v->emboss_shape->projection.depth}, {"width", size.x()}, {"height", size.y()}};
             }
         }
         json instances = json::array();

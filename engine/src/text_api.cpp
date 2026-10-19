@@ -2,7 +2,8 @@
 // TrueType font made into a part, negative part or modifier of an object, or
 // a new object of its own, and edited later. The text and its font settings
 // stay on the volume (ModelVolume::text_configuration and emboss_shape), so a
-// 3MF keeps them for desktop and for this page.
+// 3MF keeps them for desktop and for this page. The placing and meshing of
+// a shape is shared with SVG shapes (svg_api.cpp).
 #include "engine.hpp"
 
 #include "libslic3r/Emboss.hpp"
@@ -18,10 +19,6 @@ using namespace Slic3r;
 namespace {
 
 engine::Project& pr() { return engine::project(); }
-
-// Desktop's SAFE_SURFACE_OFFSET (EmbossJob.cpp): a part starts this far into
-// the surface it stands on, a negative part or modifier stops this far out.
-constexpr float SAFE_SURFACE_OFFSET = 0.015f;
 
 ModelVolumeType typeOf(const std::string& kind) {
     if (kind == "part") return ModelVolumeType::MODEL_PART;
@@ -51,8 +48,7 @@ TextConfiguration configFrom(const json& req) {
     return tc;
 }
 
-// TextDataBase::create_shape + try_create_mesh: the letters' outlines, healed
-// into one shape, extruded `depth` mm down from z = 0 (a part) or up to it.
+// TextDataBase::create_shape: the letters' outlines in the font.
 TriangleMesh textMesh(const std::string& fontPath, const TextConfiguration& tc, double depth, bool outside, EmbossShape& shape) {
     std::unique_ptr<Emboss::FontFile> file = Emboss::create_font_file(fontPath.c_str());
     if (!file) throw std::runtime_error("this font can't be read; pick another one (TrueType or OpenType)");
@@ -60,14 +56,8 @@ TriangleMesh textMesh(const std::string& fontPath, const TextConfiguration& tc, 
     const FontProp& fp = tc.style.prop;
     shape = EmbossShape{};
     shape.scale = Emboss::get_text_shape_scale(fp, *font.font_file);
-    shape.projection.depth = depth;
     shape.shapes_with_ids = Emboss::text2vshapes(font, boost::nowide::widen(tc.text), fp);
-    const ExPolygons shapes = union_with_delta(shape, Emboss::UNION_DELTA, Emboss::UNION_MAX_ITERATIN);
-    if (shapes.empty()) throw std::runtime_error("the text has no letters this font can draw");
-    Emboss::ProjectTransform project(std::make_unique<Emboss::ProjectZ>(depth / shape.scale),
-                                     Eigen::Translation<double, 3>(0., 0., outside ? -SAFE_SURFACE_OFFSET : SAFE_SURFACE_OFFSET - depth) *
-                                         Eigen::Scaling(shape.scale));
-    TriangleMesh mesh(Emboss::polygons2model(shapes, project));
+    TriangleMesh mesh = engine::embossMesh(shape, depth, outside);
     if (mesh.empty()) throw std::runtime_error("the text has no letters this font can draw");
     return mesh;
 }
@@ -75,48 +65,6 @@ TriangleMesh textMesh(const std::string& fontPath, const TextConfiguration& tc, 
 std::string volumeName(std::string text) {
     std::replace(text.begin(), text.end(), '\n', ' ');
     return text;
-}
-
-// Where text on object o goes when the request has the camera's position
-// (plate coordinates): its transformation in the object, onto the surface a
-// ray from the camera to the middle of the object meets first (desktop aims
-// at the selected object from the view), or nothing when it misses.
-std::optional<Transform3d> surfaceSeenFrom(ModelObject* obj, int o, int plate, const json& req) {
-    if (!req.contains("camera") || obj->instances.empty()) return std::nullopt;
-    const json& cam = req["camera"];
-    const Vec3d s(cam[0].get<double>(), cam[1].get<double>(), cam[2].get<double>());
-    const ModelInstance* inst = obj->instances.front();
-    for (const ModelInstance* i : obj->instances)
-        if (engine::project().plateOf(*i) == plate) inst = i;
-    const Vec2d origin = engine::project().plateOrigin(plate);
-    const BoundingBoxf3 box = obj->instance_bounding_box(*inst, false);
-    const Vec3d centre = box.center() - Vec3d(origin.x(), origin.y(), 0);
-    // The middle can be a hole (a Benchy's cabin windows), so then try points
-    // around it, nearest first.
-    std::optional<engine::RayHit> hit;
-    for (double r : {0., 0.2, 0.35}) {
-        for (int k = 0; k < (r == 0 ? 1 : 8) && !hit; ++k) {
-            const double a = k * PI / 4;
-            const Vec3d at = centre + Vec3d(r * box.size().x() * std::cos(a), r * box.size().y() * std::sin(a), r * box.size().z() * std::sin(a));
-            hit = engine::castRay(plate, s, (at - s).normalized());
-            if (hit && (hit->object != o || hit->facet < 0)) hit.reset();
-        }
-        if (hit) break;
-    }
-    if (!hit) return std::nullopt;
-    const indexed_triangle_set& its = hit->volume->mesh().its;
-    const stl_triangle_vertex_indices& f = its.indices[hit->facet];
-    const Vec3d a = its.vertices[f[0]].cast<double>(), b = its.vertices[f[1]].cast<double>(), c = its.vertices[f[2]].cast<double>();
-    const Vec3d normal = (hit->trafo.linear().inverse().transpose() * (b - a).cross(c - a)).normalized();
-    const Vec3d position = hit->trafo * hit->point.cast<double>();
-    constexpr double UP_LIMIT = 0.9;  // desktop's SurfaceDrag.hpp
-    const Transform3d onto = Emboss::create_transformation_onto_surface(position, normal, UP_LIMIT);
-    return hit->inst->get_matrix().inverse() * onto;
-}
-
-int indexOf(const ModelObject* obj, const ModelVolume* v) {
-    const auto it = std::find(obj->volumes.begin(), obj->volumes.end(), v);
-    return it == obj->volumes.end() ? -1 : int(it - obj->volumes.begin());
 }
 
 // Object o (or -1 for a new object on `plate`), request:
@@ -144,17 +92,9 @@ std::string textVolume(int o, int plate, const std::string& requestJson) {
             ModelVolume* v = obj->volumes[index];
             EmbossShape shape;
             TriangleMesh mesh = textMesh(fontPath, tc, depth, v->is_model_part(), shape);
-            // UpdateJob::update_volume: the new mesh where the old one stood.
-            v->set_mesh(std::move(mesh));
-            v->set_new_unique_id();
-            v->calculate_convex_hull();
-            v->name = volumeName(tc.text);
-            // update_name_in_list: a text that is the whole object names it too.
-            if (obj->volumes.size() == 1) obj->name = v->name;
+            engine::updateEmbossVolume(obj, v, std::move(mesh), volumeName(tc.text));
             v->text_configuration = tc;
             v->emboss_shape = std::move(shape);
-            obj->invalidate_bounding_box();
-            if (v->is_model_part()) obj->ensure_on_bed();
             return json{{"ok", true}, {"object", o}, {"volume", index}}.dump();
         }
         if (op != "add") throw std::runtime_error("unknown text action " + op);
@@ -166,51 +106,136 @@ std::string textVolume(int o, int plate, const std::string& requestJson) {
         if (o < 0) {
             // CreateObjectJob without a surface: the text alone, lying on the bed.
             if (type != ModelVolumeType::MODEL_PART) throw std::runtime_error("only a text part can be an object of its own");
-            ModelObject* obj = pr().model.add_object();
-            obj->name = volumeName(tc.text);
-            ModelVolume* v = obj->add_volume(std::move(mesh));
-            v->name = obj->name;
-            v->source.is_from_builtin_objects = true;
-            v->text_configuration = tc;
-            v->emboss_shape = std::move(shape);
-            obj->add_instance();
-            obj->invalidate_bounding_box();
-            engine::placeObject(obj, std::clamp(plate, 0, pr().plateCount - 1));
-            return json{{"ok", true}, {"object", int(objs.size()) - 1}, {"volume", 0}}.dump();
+            const int object = engine::addEmbossObject(plate, std::move(mesh), volumeName(tc.text), std::move(shape), tc);
+            return json{{"ok", true}, {"object", object}, {"volume", 0}}.dump();
         }
 
-        if (size_t(o) >= objs.size()) throw std::runtime_error("no object " + std::to_string(o));
-        ModelObject* obj = objs[o];
-        ModelVolume* v = obj->add_volume(make_cube(1., 1., 1.), type);
-        v->set_mesh(std::move(mesh));  // after add_volume, so the text keeps its own origin
-        v->calculate_convex_hull();
-        v->config.set_key_value("extruder", new ConfigOptionInt(0));
-        v->source.is_from_builtin_objects = true;
-        v->name = volumeName(tc.text);
-        if (const std::optional<Transform3d> onSurface = surfaceSeenFrom(obj, o, plate, req)) {
-            // start_create_volume_on_surface_job: on the object's surface facing
-            // the camera, standing out of it, kept upright.
-            v->set_transformation(*onSurface);
-        } else {
-            // create_volume without a position: flat, in front of the object, on the bed.
-            const ModelInstance* inst = obj->instances.front();
-            const BoundingBoxf3 instanceBox = obj->instance_bounding_box(*inst, false);
-            const BoundingBoxf3 text = v->mesh().bounding_box();
-            const Vec3d at(instanceBox.center().x(), instanceBox.min.y() - text.size().y() / 2, instanceBox.min.z() - text.min.z());
-            v->set_transformation(inst->get_matrix().inverse() * Eigen::Translation3d(at));
-        }
-        v->text_configuration = tc;
-        v->emboss_shape = std::move(shape);
-        obj->sort_volumes(true);
-        obj->invalidate_bounding_box();
-        if (v->is_model_part()) obj->ensure_on_bed();
-        return json{{"ok", true}, {"object", o}, {"volume", indexOf(obj, v)}}.dump();
+        const int volume = engine::addEmbossVolume(o, plate, req, std::move(mesh), type, volumeName(tc.text), std::move(shape), tc);
+        return json{{"ok", true}, {"object", o}, {"volume", volume}}.dump();
     } catch (const std::exception& e) {
         return json{{"ok", false}, {"error", e.what()}}.dump();
     }
 }
 
 } // namespace
+
+namespace engine {
+
+namespace {
+
+// Where a shape on object o goes when the request has the camera's position
+// (plate coordinates): its transformation in the object, onto the surface a
+// ray from the camera to the middle of the object meets first (desktop aims
+// at the selected object from the view), or nothing when it misses.
+std::optional<Transform3d> surfaceSeenFrom(ModelObject* obj, int o, int plate, const json& req) {
+    if (!req.contains("camera") || obj->instances.empty()) return std::nullopt;
+    const json& cam = req["camera"];
+    const Vec3d s(cam[0].get<double>(), cam[1].get<double>(), cam[2].get<double>());
+    const ModelInstance* inst = obj->instances.front();
+    for (const ModelInstance* i : obj->instances)
+        if (project().plateOf(*i) == plate) inst = i;
+    const Vec2d origin = project().plateOrigin(plate);
+    const BoundingBoxf3 box = obj->instance_bounding_box(*inst, false);
+    const Vec3d centre = box.center() - Vec3d(origin.x(), origin.y(), 0);
+    // The middle can be a hole (a Benchy's cabin windows), so then try points
+    // around it, nearest first.
+    std::optional<RayHit> hit;
+    for (double r : {0., 0.2, 0.35}) {
+        for (int k = 0; k < (r == 0 ? 1 : 8) && !hit; ++k) {
+            const double a = k * PI / 4;
+            const Vec3d at = centre + Vec3d(r * box.size().x() * std::cos(a), r * box.size().y() * std::sin(a), r * box.size().z() * std::sin(a));
+            hit = castRay(plate, s, (at - s).normalized());
+            if (hit && (hit->object != o || hit->facet < 0)) hit.reset();
+        }
+        if (hit) break;
+    }
+    if (!hit) return std::nullopt;
+    const indexed_triangle_set& its = hit->volume->mesh().its;
+    const stl_triangle_vertex_indices& f = its.indices[hit->facet];
+    const Vec3d a = its.vertices[f[0]].cast<double>(), b = its.vertices[f[1]].cast<double>(), c = its.vertices[f[2]].cast<double>();
+    const Vec3d normal = (hit->trafo.linear().inverse().transpose() * (b - a).cross(c - a)).normalized();
+    const Vec3d position = hit->trafo * hit->point.cast<double>();
+    constexpr double UP_LIMIT = 0.9;  // desktop's SurfaceDrag.hpp
+    const Transform3d onto = Emboss::create_transformation_onto_surface(position, normal, UP_LIMIT);
+    return hit->inst->get_matrix().inverse() * onto;
+}
+
+int indexOf(const ModelObject* obj, const ModelVolume* v) {
+    const auto it = std::find(obj->volumes.begin(), obj->volumes.end(), v);
+    return it == obj->volumes.end() ? -1 : int(it - obj->volumes.begin());
+}
+
+} // namespace
+
+TriangleMesh embossMesh(EmbossShape& shape, double depth, bool outside) {
+    // try_create_mesh: healed outlines, projected along z (SHAPE_SCALE is applied in ProjectZ).
+    shape.projection.depth = depth;
+    const ExPolygons shapes = union_with_delta(shape, Emboss::UNION_DELTA, Emboss::UNION_MAX_ITERATIN);
+    if (shapes.empty()) return {};
+    Emboss::ProjectTransform project(std::make_unique<Emboss::ProjectZ>(depth / shape.scale),
+                                     Eigen::Translation<double, 3>(0., 0., outside ? -embossSurfaceOffset : embossSurfaceOffset - depth) *
+                                         Eigen::Scaling(shape.scale));
+    return TriangleMesh(Emboss::polygons2model(shapes, project));
+}
+
+int addEmbossObject(int plate, TriangleMesh&& mesh, const std::string& name, EmbossShape&& shape, const std::optional<TextConfiguration>& text) {
+    Project& p = project();
+    ModelObject* obj = p.model.add_object();
+    obj->name = name;
+    ModelVolume* v = obj->add_volume(std::move(mesh));
+    v->name = name;
+    v->source.is_from_builtin_objects = true;
+    v->text_configuration = text;
+    v->emboss_shape = std::move(shape);
+    obj->add_instance();
+    obj->invalidate_bounding_box();
+    placeObject(obj, std::clamp(plate, 0, p.plateCount - 1));
+    return int(p.model.objects.size()) - 1;
+}
+
+int addEmbossVolume(int o, int plate, const json& req, TriangleMesh&& mesh, ModelVolumeType type, const std::string& name, EmbossShape&& shape,
+                    const std::optional<TextConfiguration>& text) {
+    auto& objs = project().model.objects;
+    if (o < 0 || size_t(o) >= objs.size()) throw std::runtime_error("no object " + std::to_string(o));
+    ModelObject* obj = objs[o];
+    ModelVolume* v = obj->add_volume(make_cube(1., 1., 1.), type);
+    v->set_mesh(std::move(mesh));  // after add_volume, so the shape keeps its own origin
+    v->calculate_convex_hull();
+    v->config.set_key_value("extruder", new ConfigOptionInt(0));
+    v->source.is_from_builtin_objects = true;
+    v->name = name;
+    if (const std::optional<Transform3d> onSurface = surfaceSeenFrom(obj, o, plate, req)) {
+        // start_create_volume_on_surface_job: on the object's surface facing
+        // the camera, standing out of it, kept upright.
+        v->set_transformation(*onSurface);
+    } else {
+        // create_volume without a position: flat, in front of the object, on the bed.
+        const ModelInstance* inst = obj->instances.front();
+        const BoundingBoxf3 instanceBox = obj->instance_bounding_box(*inst, false);
+        const BoundingBoxf3 box = v->mesh().bounding_box();
+        const Vec3d at(instanceBox.center().x(), instanceBox.min.y() - box.size().y() / 2, instanceBox.min.z() - box.min.z());
+        v->set_transformation(inst->get_matrix().inverse() * Eigen::Translation3d(at));
+    }
+    v->text_configuration = text;
+    v->emboss_shape = std::move(shape);
+    obj->sort_volumes(true);
+    obj->invalidate_bounding_box();
+    if (v->is_model_part()) obj->ensure_on_bed();
+    return indexOf(obj, v);
+}
+
+void updateEmbossVolume(ModelObject* obj, ModelVolume* v, TriangleMesh&& mesh, const std::string& name) {
+    v->set_mesh(std::move(mesh));
+    v->set_new_unique_id();
+    v->calculate_convex_hull();
+    v->name = name;
+    // update_name_in_list: a shape that is the whole object names it too.
+    if (obj->volumes.size() == 1) obj->name = name;
+    obj->invalidate_bounding_box();
+    if (v->is_model_part()) obj->ensure_on_bed();
+}
+
+} // namespace engine
 
 EMSCRIPTEN_BINDINGS(text_api) {
     emscripten::function("textVolume", &textVolume);
