@@ -66,7 +66,7 @@ hosted on Cloudflare's free tier.
 - **Device tab** for Moonraker (Klipper) printers: cameras, temperatures, motion, files,
   upload and print, plus Snapmaker U1 extras (tool heads, filament sync, the U1 print
   dialog). Printers on a home network are reached through a small bridge app.
-- **Light and dark theme**, a layout that works on phones, and installable as an app
+- **Light and dark theme**, a layout that works on phones (an open tool stacks the toolbar, its options and the model, with the settings hidden until Done), and installable as an app
   (PWA) on Android.
 
 How it is built, and why: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
@@ -84,6 +84,21 @@ How it is built, and why: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 | `fixtures/` | Small test models and G-code |
 | `docs/` | [Architecture and design](docs/ARCHITECTURE.md), [CI and deploys](docs/CI.md) |
 
+## Get the engine
+
+You usually don't need to build it. CI builds the engine for every change to it and
+publishes it, so this downloads the one built from your checkout's engine sources in
+seconds (and fetches the `engine/orcaslicer` submodule if it's missing):
+
+```bash
+node engine/scripts/fetch-engine.mjs         # -> engine/build/engine/orca-engine.{js,wasm}
+```
+
+`npm run dev` and `npm run build` in `apps/web` run it for you. It only ever downloads an
+engine built from exactly the same sources (Orca commit, `engine/src`, patches, CMake
+files, build script; see `engine/scripts/engine-key.mjs`). If you changed any of those,
+CI hasn't built that engine yet: push and wait for CI's engine job, or build it yourself.
+
 ## Build the engine
 
 ```bash
@@ -97,10 +112,7 @@ node engine/scripts/bundle-profiles.mjs engine/build/profiles
 node engine/node/slice.mjs fixtures/3DBenchy.stl /tmp/benchy.gcode
 ```
 
-Building the engine takes a while the first time. To work on the web app only, you can
-take a built engine from CI instead: the `web-site` artifact of a recent CI run (kept 7
-days) holds the built site with the engine under `engine/`; point `ENGINE_DIR` at a folder
-holding `orca-engine.js` and `orca-engine.wasm` when running `npm run dev`. More in [engine/README.md](engine/README.md).
+Building the engine takes about 40 minutes the first time. More in [engine/README.md](engine/README.md).
 
 ## Run the web app
 

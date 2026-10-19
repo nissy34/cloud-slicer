@@ -4,6 +4,7 @@
   "type": "module",
   "scripts": {
     "engine": "node scripts/copy-engine.mjs",
+    "engine:fetch": "node ../../engine/scripts/fetch-engine.mjs",
     "dev": "npm run engine && vite",
     "build": "npm run engine && tsc -b && vite build",
     "preview": "vite preview",
