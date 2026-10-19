@@ -47,26 +47,28 @@ export function ShapePlacement({ object, volume, followsSurface, label }: { obje
   const onSurface = shape.surface;
   return (
     <div className="shape-placement">
-      <label className="transform-row text-row" title="Turn it about its own axis, clockwise (the ring in the 3D view does the same)">
-        <span>Rotation</span>
-        <input type="number" aria-label="Rotation" inputMode="decimal" step={5} value={angle} onChange={(e) => setAngle(e.target.value)} />
-        <span className="unit">°</span>
-      </label>
-      {/* Following the surface, it sits on it. */}
-      {onSurface && !followsSurface && (
-        <label className="transform-row text-row" title="How far it stands off the surface">
-          <span>From surface</span>
-          <input
-            type="number"
-            aria-label="From surface"
-            inputMode="decimal"
-            step={0.1}
-            value={distance}
-            onChange={(e) => setDistance(e.target.value)}
-          />
-          <span className="unit">mm</span>
+      <div className="num-fields">
+        <label className="num-field" title="Turn it about its own axis, clockwise (the ring in the 3D view does the same)">
+          <span>Rotation</span>
+          <input type="number" aria-label="Rotation" inputMode="decimal" step={5} value={angle} onChange={(e) => setAngle(e.target.value)} />
+          <span className="unit">°</span>
         </label>
-      )}
+        {/* Following the surface, it sits on it. */}
+        {onSurface && !followsSurface && (
+          <label className="num-field" title="How far it stands off the surface">
+            <span>From surface</span>
+            <input
+              type="number"
+              aria-label="From surface"
+              inputMode="decimal"
+              step={0.1}
+              value={distance}
+              onChange={(e) => setDistance(e.target.value)}
+            />
+            <span className="unit">mm</span>
+          </label>
+        )}
+      </div>
       <div className="tool-row shape-row">
         {onSurface && (
           <label className="svg-ratio" title="Keeps it upright while you slide it over the surface or face it to the camera">

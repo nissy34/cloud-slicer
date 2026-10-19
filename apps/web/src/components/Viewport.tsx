@@ -426,6 +426,7 @@ function ShapeHandles({
   const snap = useSlicer((s) => s.snap) || shift;
   const invalidate = useThree((s) => s.invalidate);
   const [pivot, setPivot] = useState<THREE.Group | null>(null);
+  useHoldWhileDragging(ringRef, pivot);
   // The engine's placement of this very geometry (it is read after each change).
   const ready = !!shape && shape.preview === preview;
   const place = useMemo(() => {
@@ -808,8 +809,7 @@ function Objects({ w, d }: { w: number; d: number }) {
     window.removeEventListener('pointermove', onShapeMove);
     window.removeEventListener('pointerup', onShapeEnd);
     window.removeEventListener('pointercancel', onShapeEnd);
-    canvas.removeEventListener('pointerdown', onShapeEnd);
-    if (controls) controls.enabled = true;
+    holdCamera(controls, false);
     gizmoReleased.current = performance.now();
     // A second finger is the camera's. Let go off the object, it stays
     // where it last was on it.
@@ -826,12 +826,11 @@ function Objects({ w, d }: { w: number; d: number }) {
       window.removeEventListener('pointermove', onShapeMove);
       window.removeEventListener('pointerup', onShapeEnd);
       window.removeEventListener('pointercancel', onShapeEnd);
-      canvas.removeEventListener('pointerdown', onShapeEnd);
     },
     [canvas, onShapeMove, onShapeEnd],
   );
   const startShapeDrag = (ev: PointerEvent, object: number, volume: number, instance: number) => {
-    if (ev.pointerType === 'mouse' && ev.button !== 0) return;
+    if ((ev.pointerType === 'mouse' && ev.button !== 0) || twoFingers()) return;
     const d: NonNullable<typeof shapeDrag.current> = {
       object,
       volume,
@@ -846,12 +845,10 @@ function Objects({ w, d }: { w: number; d: number }) {
       moved: false,
     };
     shapeDrag.current = d;
-    if (controls) controls.enabled = false;
+    holdCamera(controls, true);
     window.addEventListener('pointermove', onShapeMove);
     window.addEventListener('pointerup', onShapeEnd);
     window.addEventListener('pointercancel', onShapeEnd);
-    // Registered after this press, so only a second finger ends the drag.
-    setTimeout(() => shapeDrag.current === d && canvas.addEventListener('pointerdown', onShapeEnd));
     // Where the shape's origin is on screen, from where it stands.
     const s = useSlicer.getState();
     const known = s.shape && s.shape.object === object && s.shape.volume === volume && s.shape.preview === s.preview ? s.shape : null;
@@ -929,6 +926,8 @@ function Objects({ w, d }: { w: number; d: number }) {
       setDelta(null);
     }
     endStroke();
+    // A shape being slid stays where it was.
+    if (shapeDrag.current) shapeEnd.current(new PointerEvent('pointercancel'));
     holdCamera(controls, false);
     const g = gizmo.current as unknown as { enabled: boolean; dragging: boolean; reset(): void; pointerUp(p: { button: number }): void } | null;
     if (!g) return;

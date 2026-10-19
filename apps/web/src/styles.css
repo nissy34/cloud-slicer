@@ -999,6 +999,23 @@ select:focus-visible {
 .transform-row.text-row {
   grid-template-columns: 80px 1fr auto;
 }
+/* Small number boxes side by side: a caption, the box, its unit. */
+.num-fields {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 12px;
+}
+.num-field {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--muted);
+  font-size: 12px;
+}
+.num-field input {
+  width: 56px;
+  font-variant-numeric: tabular-nums;
+}
 .text-row select,
 .text-row input {
   min-width: 0;
