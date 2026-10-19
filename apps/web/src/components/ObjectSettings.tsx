@@ -15,9 +15,13 @@ const ADDABLE: { group: string; keys: string[] }[] = [
   { group: 'Others', keys: ['fuzzy_skin', 'fuzzy_skin_thickness', 'wall_generator'] },
 ];
 
-/** The selected object's own settings, on top of the process. */
-export function ObjectSettings({ object }: { object: number }) {
-  const settings = useSlicer((s) => s.project?.objects[object]?.settings);
+/**
+ * The selected object's own settings, on top of the process; with `volume`,
+ * one part's or modifier's (a modifier's apply where it overlaps the object).
+ */
+export function ObjectSettings({ object, volume = -1 }: { object: number; volume?: number }) {
+  const settings = useSlicer((s) => (volume < 0 ? s.project?.objects[object]?.settings : s.project?.objects[object]?.volumes[volume]?.settings));
+  const kind = useSlicer((s) => (volume < 0 ? 'object' : s.project?.objects[object]?.volumes[volume]?.kind === 'modifier' ? 'modifier' : 'part'));
   const options = useSlicer((s) => s.options);
   const setObjectSettings = useSlicer((s) => s.setObjectSettings);
   const baseConfig = useSlicer((s) => s.baseConfig);
@@ -26,14 +30,14 @@ export function ObjectSettings({ object }: { object: number }) {
   const keys = Object.keys(settings).filter((k) => options[k]);
   const add = (key: string) => {
     const start = overrides[key] ?? baseConfig[key];
-    if (start !== undefined) void setObjectSettings(object, -1, { [key]: start });
+    if (start !== undefined) void setObjectSettings(object, volume, { [key]: start });
   };
   return (
     <div className="object-settings">
       <div className="group-head">
-        <span className="subhead">Object settings</span>
+        <span className="subhead">{kind === 'object' ? 'Object settings' : kind === 'modifier' ? 'Modifier settings' : 'Part settings'}</span>
         <select
-          aria-label="Add a setting to this object"
+          aria-label={`Add a setting to this ${kind}`}
           className="add-setting"
           value=""
           onChange={(e) => e.target.value && add(e.target.value)}
@@ -53,14 +57,20 @@ export function ObjectSettings({ object }: { object: number }) {
         </select>
       </div>
       {keys.some((k) => options[k].flow === 'process') && <FlowVariantSwitch />}
-      {keys.length === 0 && <p className="hint">Uses the process settings. Add one to change it for this object only.</p>}
+      {keys.length === 0 && (
+        <p className="hint">
+          {kind === 'modifier'
+            ? 'Add a setting to change it where the modifier overlaps the object, like more infill in one spot.'
+            : `Uses the ${kind === 'part' ? "object's" : 'process'} settings. Add one to change it for this ${kind} only.`}
+        </p>
+      )}
       {keys.map((k) => (
         <OptionField
           key={k}
           optKey={k}
           value={settings[k]}
-          resetLabel="Remove from this object"
-          onChange={(v) => void setObjectSettings(object, -1, { [k]: v })}
+          resetLabel={`Remove from this ${kind}`}
+          onChange={(v) => void setObjectSettings(object, volume, { [k]: v })}
         />
       ))}
     </div>

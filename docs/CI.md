@@ -12,8 +12,8 @@ unit ─────────────────────────
 engine ─┬─ engine-tests ──────────────────────────┤
         └─ site ── browser (smoke, startup,       ├─ deploy
                     presets, presetfiles,         │
-                    accounts, toolbar,            │
-                    mixing, loading, cancel) ─────┘
+                    accounts, toolbar, mixing,    │
+                    wipetower, loading, cancel) ──┘
 ```
 
 | Job | Does |

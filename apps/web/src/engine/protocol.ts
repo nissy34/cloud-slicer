@@ -97,6 +97,8 @@ export interface InstanceInfo {
 export interface ObjectInfo {
   name: string;
   size: [number, number, number];
+  /** Converted from inches or meters by the object menu ('' when not). */
+  units: '' | 'inch' | 'meter';
   extruder: number;
   /** The object's own settings, on top of the process (Orca option key -> value). */
   settings: OrcaConfig;
@@ -124,6 +126,11 @@ export interface PreviewMesh {
   positions: Float32Array;
   filaments: Uint8Array;
   objectTriangles: Int32Array;
+  /** Negative parts, modifiers and support enforcers/blockers (lib/volumes). */
+  volumePositions: Float32Array;
+  volumeList: Int32Array;
+  /** [object, volume, first triangle, triangles] of each part of each instance. */
+  partList: Int32Array;
 }
 
 /** What a paint stroke paints: filament colours, supports, seams or fuzzy skin. */
@@ -159,7 +166,18 @@ export interface SliceResult {
   filamentMm: Record<string, number>;
   totalFilamentMm: number;
   totalFilamentGrams: number;
+  /** Depth of the prime tower the slice made (mm), when it made one. */
+  wipeTowerDepth?: number;
 }
+
+/**
+ * The prime tower on a plate, as desktop's Prepare view shows it: x, y is its
+ * front-left corner on the plate (mm), rotated `rotation` degrees about it;
+ * `filaments` are the plate's (1-based), one coloured band each.
+ */
+export type WipeTower =
+  | { show: false }
+  | { show: true; x: number; y: number; width: number; depth: number; height: number; rotation: number; brim: number; filaments: number[] };
 
 /**
  * Engine start-up before 'ready': downloading the engine and presets (bytes so

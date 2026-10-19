@@ -1,9 +1,11 @@
 #!/usr/bin/env node
-// Browser end to end for the object toolbar over the 3D view: adding a model
-// keeps the one already there, lay on face turns the object, variable layer
-// height makes an adaptive profile, measure picks two features and measures
-// between them, and the toolbar fits a phone (and the page itself never
-// scrolls there).
+// Browser end to end for the object toolbar over the 3D view: it shows on an
+// empty plate with its object tools greyed out, adding a model keeps the one
+// already there, simplify halves the triangles, brim ears go on the corners and
+// where the bed is clicked, lay on face turns the object, variable layer height
+// makes an adaptive profile, measure picks two features and measures between
+// them, the object menu (right click or ⋯) renames, clones and exports, and
+// the toolbar fits a phone (and the page itself never scrolls there).
 //
 //   node test/toolbar.mjs [screenshot-dir]
 //
@@ -54,10 +56,17 @@ const rotation = (page, timeout = 1000) => page.getByLabel('Current rotation').i
 
 try {
   const page = await open({ width: 1280, height: 800 }, false);
-  await page.getByTestId('model-input').setInputFiles(join(fixtures, '3DBenchy.stl'));
-  await page.getByText('Ready to slice').waitFor({ timeout: 120000 });
+  // The toolbar is there before any model, its object tools waiting greyed out.
   const toolbar = page.getByRole('toolbar', { name: 'Object tools' });
   await toolbar.waitFor();
+  if ((await toolbar.getByRole('button', { name: 'Move' }).getAttribute('aria-disabled')) !== 'true') fail('Move is usable with no model');
+  if ((await toolbar.getByRole('button', { name: 'Add models' }).getAttribute('aria-disabled')) === 'true') fail('Add models is off with no model');
+  await toolbar.getByRole('button', { name: 'Cut' }).click({ force: true });  // aria-disabled: still clickable, to explain itself
+  await page.getByText('Cut works on a model: open one first.').waitFor({ timeout: 5000 });
+  if (shots) await page.screenshot({ path: join(shots, 'toolbar-empty.png') });
+  console.log('the toolbar shows on an empty plate, its object tools waiting for a model');
+  await page.getByTestId('model-input').setInputFiles(join(fixtures, '3DBenchy.stl'));
+  await page.getByText('Ready to slice').waitFor({ timeout: 120000 });
   for (const name of ['Undo', 'Redo', 'Add models', 'Add plate', 'Auto orient', 'Arrange all objects', 'Split to objects', 'Split to parts', 'Move', 'Rotate', 'Scale', 'Lay on face', 'Cut', 'Support painting', 'Seam painting', 'Colour painting'])
     await toolbar.getByRole('button', { name }).waitFor();
   console.log('toolbar shows desktop Orca\'s tools');
@@ -95,7 +104,7 @@ try {
   console.log('Ctrl+Z / Ctrl+Y undo and redo the rotation');
 
   // Cut shows its plane; the height follows the panel.
-  await toolbar.getByRole('button', { name: 'Cut' }).click();
+  await toolbar.getByRole('button', { name: 'Cut' }).click({ force: true });  // aria-disabled: still clickable, to explain itself
   const cut = page.getByRole('region', { name: 'Cut' });
   await cut.waitFor();
   await cut.getByLabel('Cut height in mm').fill('12');
@@ -105,6 +114,55 @@ try {
   if (shots) await page.screenshot({ path: join(shots, 'toolbar-desktop-cut.png') });
   console.log('cut plane follows the height');
 
+  // Simplify (from the object list): the count it would leave, then Apply
+  // halves the boat's triangles, and Ctrl+Z brings them back.
+  const triangles = async () => {
+    await page.getByRole('button', { name: 'Simplify', exact: true }).click();
+    const panel = page.getByRole('region', { name: 'Simplify' });
+    await page.waitForFunction(() => /→/.test(document.querySelector('[aria-label="Triangles"]')?.textContent ?? ''), null, { timeout: 60000 });
+    return { panel, now: Number((await panel.getByLabel('Triangles').innerText()).match(/([\d,]+) triangles/)[1].replace(/,/g, '')) };
+  };
+  const { panel: simplify, now: before } = await triangles();
+  await simplify.getByRole('radio', { name: 'Decimate ratio' }).click();
+  await page.waitForFunction(() => /→/.test(document.querySelector('[aria-label="Triangles"]')?.textContent ?? ''), null, { timeout: 60000 });
+  if (shots) await page.screenshot({ path: join(shots, 'simplify-desktop.png') });
+  await simplify.getByRole('button', { name: 'Apply' }).click();
+  await simplify.waitFor({ state: 'detached', timeout: 60000 });
+  const { now: after } = await triangles();
+  if (Math.abs(after - before / 2) > before * 0.02) fail(`simplify at 50% should halve the triangles: ${before} -> ${after}`);
+  await page.locator('body').press('Control+z');
+  await page.waitForTimeout(500);
+  await page.getByRole('region', { name: 'Simplify' }).getByRole('button', { name: 'Done' }).click();
+  const { now: undone } = await triangles();
+  if (undone !== before) fail(`undo should bring the triangles back: ${undone} vs ${before}`);
+  await page.getByRole('region', { name: 'Simplify' }).getByRole('button', { name: 'Done' }).click();
+  console.log(`simplify: ${before} -> ${after} triangles, undo brings ${undone} back`);
+  // Brim ears: the panel offers to switch the brim type, ears go on the
+  // corners, a click on the bed adds one, and Remove all takes them away.
+  await toolbar.getByRole('button', { name: 'Brim ears' }).click();
+  const brim = page.getByRole('region', { name: 'Brim ears' });
+  await brim.waitFor();
+  const ears = brim.getByLabel('Ears');
+  const earCount = async () => Number((await ears.innerText()).match(/^(\d+)/)?.[1] ?? NaN);
+  await ears.waitFor({ timeout: 30000 });
+  const usePainted = brim.getByRole('button', { name: 'Use brim ears for this object' });
+  if (await usePainted.isVisible()) {
+    await usePainted.click();
+    await usePainted.waitFor({ state: 'detached', timeout: 30000 });
+  }
+  await brim.getByRole('button', { name: 'Add ears on the corners' }).click();
+  await page.waitForFunction(() => /^[1-9]/.test(document.querySelector('[aria-label="Ears"]')?.textContent ?? ''), null, { timeout: 30000 });
+  const corners = await earCount();
+  // A click on the bed below the boat adds one more.
+  await page.mouse.click(box.x + box.width * 0.5, box.y + box.height * 0.7);
+  await page.waitForFunction((n) => Number(document.querySelector('[aria-label="Ears"]')?.textContent?.match(/^(\d+)/)?.[1]) === n + 1, corners, { timeout: 30000 });
+  if (shots) await page.screenshot({ path: join(shots, 'toolbar-desktop-brim.png') });
+  console.log(`brim ears: ${corners} on the corners, one more by clicking the bed`);
+  await brim.getByRole('button', { name: 'Remove all' }).click();
+  await page.waitForFunction(() => /^0 ears/.test(document.querySelector('[aria-label="Ears"]')?.textContent ?? ''), null, { timeout: 30000 });
+  await page.locator('body').press('Control+z');
+  await page.waitForFunction((n) => Number(document.querySelector('[aria-label="Ears"]')?.textContent?.match(/^(\d+)/)?.[1]) === n + 1, corners, { timeout: 30000 });
+  console.log('Remove all clears the ears and undo brings them back');
   // Variable layer height: Adaptive gives the object its own layer profile; Reset takes it away.
   await toolbar.getByRole('button', { name: 'Variable layer height' }).click();
   const layersPanel = page.getByRole('region', { name: 'Variable layer height' });
@@ -193,6 +251,104 @@ try {
     if (shots) await page.screenshot({ path: join(shots, 'measure-desktop.png') });
     console.log(`measure: ${figures.replace(/\s+/g, ' ')}`);
   }
+
+  // The object menu: a right click on an object in the 3D view, or ⋯ in the object list.
+  await page.keyboard.press('Escape');
+  const objectMenu = page.locator('.object-menu');
+  let menuAt = null;
+  for (const [x, y] of points) {
+    await page.mouse.click(box.x + box.width * x, box.y + box.height * y, { button: 'right' });
+    if (await objectMenu.waitFor({ timeout: 1500 }).then(() => true, () => false)) {
+      menuAt = [x, y];
+      break;
+    }
+  }
+  if (!menuAt) fail('a right click on an object opened no menu');
+  else {
+    for (const name of ['Clone…', 'Center', 'Split', 'Mirror', 'Delete', 'Auto orient', 'Simplify model…', 'Printable', 'Rename…', 'Change filament', 'Object settings', 'Scale to fit the plate', 'Units', 'Replace with STL…', 'Export as STL'])
+      await objectMenu.getByRole(/^(Printable)$/.test(name) ? 'menuitemcheckbox' : 'menuitem', { name, exact: true }).waitFor({ timeout: 3000 });
+    await objectMenu.getByRole('menuitem', { name: 'Mirror' }).click();
+    await objectMenu.getByRole('menuitem', { name: 'Along X axis' }).waitFor();
+    if (shots) await page.screenshot({ path: join(shots, 'object-menu-desktop.png') });
+    await page.keyboard.press('Escape');
+    await objectMenu.waitFor({ state: 'detached' });
+    console.log('right click opens the object menu');
+  }
+
+  // Rename from the object list's ⋯ button.
+  const more = (n) => objectRows(page).nth(n).locator(':scope > .object-row').getByRole('button', { name: /^More for / });
+  await more(0).click();
+  await objectMenu.getByRole('menuitem', { name: 'Rename…' }).click();
+  await objectMenu.getByLabel('Name').fill('Boat');
+  await objectMenu.getByRole('button', { name: 'Rename' }).click();
+  await objectRows(page).first().getByText('Boat').waitFor({ timeout: 30000 });
+  console.log('rename from the object list');
+
+  // Simplify model… opens the Simplify panel on that object.
+  await more(0).click();
+  await objectMenu.getByRole('menuitem', { name: 'Simplify model…' }).click();
+  await page.getByRole('region', { name: 'Simplify' }).getByRole('button', { name: 'Done' }).click();
+  console.log('Simplify model opens the Simplify panel');
+
+  // Clone 2, arranged: two more objects; undo (twice: clone, then arrange) takes them back.
+  await more(0).click();
+  await objectMenu.getByRole('menuitem', { name: 'Clone…' }).click();
+  await objectMenu.getByLabel('Number of copies').fill('2');
+  await objectMenu.getByRole('button', { name: 'Clone' }).click();
+  await page.waitForFunction(() => document.querySelectorAll('ul.objects > li.object').length === 4, null, { timeout: 60000 });
+  await page.locator('body').press('Control+z');
+  await page.locator('body').press('Control+z');
+  await page.waitForFunction(() => document.querySelectorAll('ul.objects > li.object').length === 2, null, { timeout: 60000 });
+  console.log('clone adds two objects, undo removes them');
+
+  // Not printable, then printable again; the check mark follows.
+  await more(0).click();
+  await objectMenu.getByRole('menuitemcheckbox', { name: 'Printable' }).click();
+  await objectMenu.waitFor({ state: 'detached' });
+  await page.waitForTimeout(500);
+  await more(0).click();
+  if ((await objectMenu.getByRole('menuitemcheckbox', { name: 'Printable' }).getAttribute('aria-checked')) !== 'false') fail('Printable stayed checked');
+  await objectMenu.getByRole('menuitemcheckbox', { name: 'Printable' }).click();
+
+  // Export as STL downloads the boat.
+  await more(0).click();
+  const [download] = await Promise.all([page.waitForEvent('download', { timeout: 30000 }), objectMenu.getByRole('menuitem', { name: 'Export as STL' }).click()]);
+  if (download.suggestedFilename() !== 'Boat.stl') fail(`exported as ${download.suggestedFilename()}`);
+  const stl = await download.createReadStream().then(async (st) => { let n = 0; for await (const c of st) n += c.length; return n; });
+  if (stl < 1000 * 50) fail(`the exported STL is only ${stl} bytes`);
+  console.log(`export as STL: ${download.suggestedFilename()}, ${stl} bytes`);
+
+  // Parts and modifiers from the object menu: a modifier cube gets its own
+  // settings, turns into a negative part, a part comes from a file, and
+  // deleting one is undone like any edit.
+  const volumes = objectRows(page).first().locator('ul.volumes > li');
+  await more(0).click();
+  await objectMenu.getByRole('menuitem', { name: 'Add modifier' }).click();
+  await objectMenu.getByRole('menuitem', { name: 'Cube', exact: true }).click();
+  await volumes.nth(1).getByText('Modifier').waitFor({ timeout: 30000 });
+  await page.getByText('Modifier settings').waitFor();
+  await page.getByLabel('Add a setting to this modifier').selectOption('sparse_infill_density');
+  await page.locator('.object-settings').getByText(/infill density/i).first().waitFor({ timeout: 30000 });
+  await toolbar.getByRole('button', { name: 'Move' }).click();
+  if (shots) await page.screenshot({ path: join(shots, 'parts-modifier.png') });
+  await page.keyboard.press('Escape');
+  await volumes.nth(1).getByRole('button', { name: /^More for part / }).click();
+  await objectMenu.getByRole('menuitem', { name: 'Change type' }).click();
+  await objectMenu.getByRole('menuitemradio', { name: 'Negative part' }).click();
+  await volumes.nth(1).getByText('Negative part').waitFor({ timeout: 30000 });
+  await more(0).click();
+  await objectMenu.getByRole('menuitem', { name: 'Add part' }).click();
+  const [chooser] = await Promise.all([page.waitForEvent('filechooser'), objectMenu.getByRole('menuitem', { name: 'Load…' }).click()]);
+  await chooser.setFiles(join(fixtures, 'tetrahedron.stl'));
+  await volumes.nth(2).waitFor({ timeout: 30000 });
+  const names = await volumes.locator('.volume-name').allInnerTexts();
+  if (names.length !== 3 || !/tetrahedron\.stl/.test(names[1]) || !/Negative part/.test(names[2])) fail(`parts come first, then the negative part: ${names}`);
+  await volumes.nth(2).getByRole('button', { name: /^More for part / }).click();
+  await objectMenu.getByRole('menuitem', { name: 'Delete' }).click();
+  await page.waitForFunction(() => document.querySelectorAll('ul.objects > li.object:first-child ul.volumes > li').length === 2, null, { timeout: 30000 });
+  await page.locator('body').press('Control+z');
+  await page.waitForFunction(() => document.querySelectorAll('ul.objects > li.object:first-child ul.volumes > li').length === 3, null, { timeout: 30000 });
+  console.log(`parts and modifiers: ${names.join(' | ')}; delete and undo`);
   await page.close();
 
   const phone = await open({ width: 390, height: 844 }, true);

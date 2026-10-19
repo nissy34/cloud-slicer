@@ -13,6 +13,7 @@ import type {
   Selection,
   SettingsLayout,
   SliceResult,
+  WipeTower,
 } from '../engine/protocol';
 import { calibrationOptions, CALIBRATIONS, type CalibrationMode, type CalibrationValues } from '../lib/calibration';
 import { bedSize } from '../lib/colour';
@@ -22,13 +23,19 @@ import { emptyProjectMessage, modelProcessKeys, pickProcess, printerLabel, proje
 import { accountReady, getUserSetting, presetEditing, useAccount } from './account';
 import { installedOnly, SETUP_KEY, type Setup } from '../lib/setup';
 import { loadConvertPreference, loadSaved, save, saveConvertPreference } from '../lib/storage';
+import type { SimplifyBy, SimplifyResult } from '../lib/simplify';
+import type { BrimEars, BrimRequest } from '../lib/brim';
 import type { LayerProfile, LayerRequest } from '../lib/layers';
 import { sameFeature, type MeasureFeature, type Measurement } from '../lib/measure';
 import { mixSettings, palette as mixPalette, type MatchResult, type MixRecipe, type MixRow } from '../lib/mixing';
+import { dropPlateTower, moveTower, towerOptions, towersFromConfig, type TowerSpot } from '../lib/wipe-tower';
+import { stlName, type ObjectAction } from '../lib/objectMenu';
+import type { VolumeAction } from '../lib/volumes';
+import { saveFile } from '../lib/preset-files';
 
 export type Tab = 'prepare' | 'preview' | 'device';
 /** The object tool open on the 3D view, like desktop's gizmos (paint has its own state). */
-export type Tool = 'move' | 'rotate' | 'scale' | 'flatten' | 'cut' | 'measure' | 'layers';
+export type Tool = 'move' | 'rotate' | 'scale' | 'flatten' | 'cut' | 'measure' | 'layers' | 'brim' | 'simplify';
 /** How a 3MF is opened: as the project (replacing it) or its objects added. */
 export type OpenMode = 'project' | 'geometry';
 const is3mf = (f: File) => /\.3mf$/i.test(f.name);
@@ -68,7 +75,8 @@ export interface SlicerState {
   project: ProjectInfo | null;
   plate: number;
   preview: PreviewMesh | null;
-  selected: { object: number; instance: number } | null;
+  /** The selected instance, and one of its object's volumes when that is picked (in the object list or the 3D view). */
+  selected: { object: number; instance: number; volume?: number } | null;
   job: Job;
   notice: string;
   /** The notice is a problem to fix, not just information. */
@@ -79,6 +87,9 @@ export interface SlicerState {
   paint: PaintSettings | null;
   /** The object tool in use on the selected object. */
   tool: Tool | null;
+  /** The object menu (right click, long press or the object list's ⋯), at a point on the page. */
+  /** The object menu, or with `volume` the menu of one of its parts, modifiers..., at (x, y) on the page. */
+  objectMenu: { object: number; instance: number; volume?: number; x: number; y: number } | null;
   /** Files waiting for the user to say how to open the 3MF among them. */
   pendingOpen: File[] | null;
   /** Rotate in 15° steps (and move/scale in steps) without holding Shift, for touch screens. */
@@ -95,6 +106,13 @@ export interface SlicerState {
   mixes: MixRow[];
   /** Colour of every filament number: the physical filaments, then the mixes. */
   palette: string[];
+  /**
+   * Where the prime tower stands on each plate (wipe_tower_x / wipe_tower_y),
+   * kept with the project like the mixes, outside the changed settings.
+   */
+  towers: TowerSpot[];
+  /** The prime tower on the plate shown, when it has one (the engine's estimate, or the last slice's size). */
+  wipeTower: Extract<WipeTower, { show: true }> | null;
 
   setTab(tab: Tab): void;
   selectPrinter(name: string): Promise<void>;
@@ -148,11 +166,30 @@ export interface SlicerState {
   measureReset(): void;
   setMeasureOnlyPlane(onlyPlane: boolean): void;
   setCutZ(z: number): void;
+  /** Moves the prime tower on the plate shown (front-left corner, mm). */
+  moveWipeTower(x: number, y: number): void;
+  /** Asks the engine again for the prime tower of the plate shown. */
+  refreshWipeTower(): void;
+  /** Object o's triangles, and (with `by`) how many simplifying would leave; changes nothing. */
+  simplifyPreview(o: number, by?: SimplifyBy): Promise<SimplifyResult | null>;
+  /** Simplifies object o, like desktop's Simplify, as one undo step. */
+  simplifyObject(o: number, by: SimplifyBy): Promise<void>;
+  /** The brim ears tool's object and its ears, while that tool is open. */
+  brim: (BrimEars & { object: number; instance: number }) | null;
+  /** Ears picked in the brim ears tool (indices into brim.ears), for removing or resizing. */
+  brimPicked: number[];
+  /** Size of new ears, mm; null until the tool has read the object's default. */
+  brimDiameter: number | null;
+  setBrimDiameter(diameter: number): void;
+  /** Picks ear i (alone, or added to the picked ones), or clears the picks (-1). */
+  pickEar(i: number, add?: boolean): void;
+  /** Reads (op "get") or edits the selected object's brim ears; an edit is one undo step. */
+  editBrim(request: BrimRequest): Promise<void>;
   /** The open project as an Orca 3MF project file, with the current settings. */
   projectFile(thumbnail: ProjectThumbnail | null): Promise<ArrayBuffer>;
   clearProject(): Promise<void>;
   setPlate(plate: number): Promise<void>;
-  select(sel: { object: number; instance: number } | null): void;
+  select(sel: { object: number; instance: number; volume?: number } | null): void;
   moveInstance(o: number, i: number, x: number, y: number): Promise<void>;
   transformInstance(o: number, i: number, changes: InstanceChanges): Promise<void>;
   setObjectFilament(o: number, volume: number, filament: number): Promise<void>;
@@ -172,6 +209,21 @@ export interface SlicerState {
   /** Auto-orients one object, or every object on the plate. */
   orient(o?: number): Promise<void>;
   mirror(o: number, i: number, axis: 0 | 1 | 2): Promise<void>;
+  openObjectMenu(menu: SlicerState['objectMenu']): void;
+  /** One of the object menu's edits (rename, printable, center, scale to fit, units...); one undo step. */
+  objectAction(o: number, i: number, request: ObjectAction, label: string): Promise<void>;
+  /** Desktop's Clone: `count` copies as new objects, then (optionally) Arrange. */
+  cloneObject(o: number, count: number, arrange: boolean): Promise<void>;
+  /** Replaces part `volume` of object o with the mesh in an STL file, keeping its place. */
+  replaceWithStl(o: number, volume: number, file: File): Promise<void>;
+  /**
+   * A part, negative part, modifier or support enforcer/blocker of object o
+   * added (a shape, or the mesh in `file`), renamed, moved, retyped or deleted;
+   * one undo step. The added or changed volume is selected.
+   */
+  volumeAction(o: number, request: VolumeAction, label: string, file?: File): Promise<void>;
+  /** Saves instance i of object o as an STL file. */
+  exportStl(o: number, i: number): Promise<void>;
   cutObject(o: number, i: number, z: number, keep: CutKeep, flipUpper: boolean): Promise<void>;
   convertProject(printer: string, keepSettings: boolean, remember: boolean): Promise<void>;
   dismissConversion(): void;
@@ -238,7 +290,39 @@ export const useSlicer = create<SlicerState>((set, get) => {
 
   // The settings as the engine slices and saves them: the user's changes plus
   // the project's mixed filaments.
-  const engineOverrides = (): OrcaConfig => ({ ...get().overrides, mixed_filament_definitions: get().mixDefinitions });
+  const engineOverrides = (): OrcaConfig => ({
+    ...get().overrides,
+    mixed_filament_definitions: get().mixDefinitions,
+    ...towerOptions(get().towers, get().project?.plates.length ?? 1),
+  });
+
+  // The prime tower on the plate shown, again after anything that may move,
+  // size or remove it. Only the latest request's answer is kept.
+  let towerRun = 0;
+  async function refreshTower() {
+    const run = ++towerRun;
+    const { project, plate, job } = get();
+    if (!project?.plates[plate]?.objects.length) return set({ wipeTower: null });
+    const sliced = job.kind === 'sliced' && job.plate === plate ? job.result.wipeTowerDepth : undefined;
+    try {
+      const tower = await engine().wipeTower(plate, engineOverrides(), sliced);
+      if (run === towerRun) set({ wipeTower: tower.show ? tower : null });
+    } catch (e) {
+      console.warn('Prime tower:', e);
+      if (run === towerRun) set({ wipeTower: null });
+    }
+  }
+  // Coalesced: one look after a burst of changes.
+  let towerQueued = false;
+  const queueTower = () => {
+    if (towerQueued) return;
+    towerQueued = true;
+    queueMicrotask(() => {
+      towerQueued = false;
+      if (get().engine === 'ready') void refreshTower();
+    });
+  };
+
 
   // A request about the mix list, with what colours its rows.
   const mixRequest = (extra: Partial<MixedRequest> = {}): MixedRequest => {
@@ -403,6 +487,8 @@ export const useSlicer = create<SlicerState>((set, get) => {
   async function importProject(info: ProjectInfo) {
     const e = engine();
     const file = await e.fileConfig();
+    // Desktop keeps the project's prime tower spots, whatever printer it was for.
+    set({ towers: towersFromConfig(file) });
     const { printers } = get();
     if (!printers.some((p) => p.name === info.file.printer)) {
       const pref = loadConvertPreference();
@@ -494,7 +580,8 @@ export const useSlicer = create<SlicerState>((set, get) => {
       const { history, info } = await engine()[step]();
       const sel = get().selected;
       const gone = sel && !info.objects[sel.object]?.instances[sel.instance];
-      set(gone ? { history, selected: null, tool: null } : { history });
+      const volumeGone = sel && sel.volume !== undefined && !info.objects[sel.object]?.volumes[sel.volume];
+      set(gone ? { history, selected: null, tool: null } : volumeGone ? { history, selected: { object: sel.object, instance: sel.instance } } : { history });
       await refreshPreview(info);
     } catch (e) {
       fail(e);
@@ -527,10 +614,14 @@ export const useSlicer = create<SlicerState>((set, get) => {
     conversion: null,
     paint: null,
     tool: null,
+    objectMenu: null,
     pendingOpen: null,
     snap: false,
     history: { undo: null, redo: null },
     cutZ: 0,
+    brim: null,
+    brimPicked: [],
+    brimDiameter: null,
     layers: null,
     measure: NO_MEASURE,
     overlay: null,
@@ -538,6 +629,8 @@ export const useSlicer = create<SlicerState>((set, get) => {
     mixDefinitions: '',
     mixes: [],
     palette: [],
+    towers: [],
+    wipeTower: null,
 
     setTab: (tab) => {
       set({ tab });
@@ -623,7 +716,7 @@ export const useSlicer = create<SlicerState>((set, get) => {
           const res = await e.load(file, get().plate, area, geometryOnly);
           if (res.isProject) {
             opened = true;
-            set({ plate: 0, selected: null, history: await e.clearHistory() });
+            set({ plate: 0, selected: null, towers: [], history: await e.clearHistory() });
           }
           await refreshPreview(res.info);
           if (res.isProject && !res.info.objects.length) throw new Error(emptyProjectMessage(file.name));
@@ -644,9 +737,20 @@ export const useSlicer = create<SlicerState>((set, get) => {
       // The cut plane starts half way up, like desktop.
       const height = selected ? project?.objects[selected.object]?.size[2] : undefined;
       const measure = { ...NO_MEASURE, onlyPlane: get().measure.onlyPlane };
-      set(tool === 'cut' && height ? { tool, measure, layers: null, cutZ: Math.round(height * 50) / 100 } : { tool, measure, layers: null });
+      const reset = { tool, measure, layers: null, brim: null, brimPicked: [] as number[] };
+      set(tool === 'cut' && height ? { ...reset, cutZ: Math.round(height * 50) / 100 } : reset);
     },
     setCutZ: (cutZ) => set({ cutZ }),
+    refreshWipeTower: queueTower,
+    moveWipeTower(x, y) {
+      const towers = moveTower(get().towers, get().plate, [x, y]);
+      set({ towers, ...stale() });
+    },
+    simplifyPreview: (o, by) =>
+      engine()
+        .simplifyPreview(o, by)
+        .catch((err) => (fail(err), null)),
+    simplifyObject: (o, by) => projectEdit('Simplify', () => engine().simplifyApply(o, by)),
     async measureHover(ray) {
       hoverRay = ray;
       if (hovering) return;
@@ -695,6 +799,34 @@ export const useSlicer = create<SlicerState>((set, get) => {
     },
     measureReset: () => set({ measure: { ...NO_MEASURE, onlyPlane: get().measure.onlyPlane } }),
     setMeasureOnlyPlane: (onlyPlane) => set({ measure: { ...NO_MEASURE, onlyPlane } }),
+    setBrimDiameter: (brimDiameter) => set({ brimDiameter }),
+    pickEar: (i, add = false) => {
+      const picked = get().brimPicked;
+      if (i < 0) return set({ brimPicked: [] });
+      if (!add) return set({ brimPicked: [i] });
+      set({ brimPicked: picked.includes(i) ? picked.filter((k) => k !== i) : [...picked, i] });
+    },
+    async editBrim(request) {
+      const { selected } = get();
+      if (!selected) return;
+      const e = engine();
+      const edit = request.op !== 'get';
+      try {
+        if (edit) set({ history: await e.snapshot('Brim ears') });
+        const ears = await e.brimEars(selected.object, selected.instance, engineOverrides(), request);
+        if (get().tool !== 'brim') return;
+        const same = get().brim?.object === selected.object;
+        set({
+          brim: { ...ears, ...selected },
+          // Picks point at ears by index, so they go when the ears change.
+          brimPicked: edit || !same ? [] : get().brimPicked.filter((i) => i < ears.ears.length),
+          brimDiameter: get().brimDiameter ?? ears.defaultDiameter,
+        });
+        if (edit) set(stale());
+      } catch (err) {
+        fail(err);
+      }
+    },
     async editLayers(o, request, continues = false) {
       const e = engine();
       const edit = request.op !== 'get';
@@ -745,7 +877,7 @@ export const useSlicer = create<SlicerState>((set, get) => {
     },
     deletePlate: () =>
       projectEdit('Delete plate', () => {
-        set({ selected: null });
+        set({ selected: null, towers: dropPlateTower(get().towers, get().plate) });
         return engine().deletePlate(get().plate);
       }),
     orientObject: (o) => projectEdit('Auto orient', () => engine().orientObject(o)),
@@ -764,6 +896,32 @@ export const useSlicer = create<SlicerState>((set, get) => {
         return info;
       }),
     mirror: (o, i, axis) => projectEdit('Mirror', () => engine().mirrorInstance(o, i, axis)),
+    openObjectMenu: (objectMenu) => set({ objectMenu }),
+    objectAction: (o, i, request, label) => projectEdit(label, () => engine().objectAction(o, i, request)),
+    cloneObject: async (o, count, arrange) => {
+      await projectEdit('Clone', () => engine().objectAction(o, 0, { op: 'clone', count }));
+      if (arrange) await get().arrange();
+    },
+    replaceWithStl: async (o, volume, file) =>
+      projectEdit('Replace with STL', async () => engine().objectAction(o, 0, { op: 'replace', volume }, await file.arrayBuffer())),
+    volumeAction: async (o, request, label, file) => {
+      let volume: number | undefined;
+      const instance = get().selected?.object === o ? get().selected!.instance : 'instance' in request ? request.instance : 0;
+      await projectEdit(label, async () => {
+        const out = await engine().volumeAction(o, file ? ({ ...request, name: file.name } as VolumeAction) : request, file ? await file.arrayBuffer() : undefined);
+        volume = out.volume;
+        return out.info;
+      });
+      if (get().project?.objects[o]) set({ selected: { object: o, instance, volume } });
+    },
+    exportStl: async (o, i) => {
+      try {
+        const bytes = await engine().exportStl(o, i);
+        await saveFile(new Blob([bytes], { type: 'model/stl' }), stlName(get().project?.objects[o]?.name ?? ''));
+      } catch (err) {
+        fail(err);
+      }
+    },
     cutObject: (o, i, z, keep, flipUpper) =>
       projectEdit('Cut', () => {
         set({ selected: null, tool: null });
@@ -902,6 +1060,17 @@ export const useSlicer = create<SlicerState>((set, get) => {
       set({ job: { kind: 'idle' }, notice: 'Slicing cancelled.', noticeWarn: false });
     },
   };
+});
+
+// The prime tower follows the plate, its objects, the settings, the tower
+// spots and the last slice (desktop shows the sliced tower's real size).
+useSlicer.subscribe((s, prev) => {
+  if (
+    s.engine !== prev.engine || s.project !== prev.project || s.plate !== prev.plate || s.overrides !== prev.overrides ||
+    s.baseConfig !== prev.baseConfig || s.mixDefinitions !== prev.mixDefinitions || s.towers !== prev.towers ||
+    (s.job !== prev.job && (s.job.kind === 'sliced' || prev.job.kind === 'sliced'))
+  )
+    useSlicer.getState().refreshWipeTower();
 });
 
 /** Stable empty list for selectors (a fresh [] each render loops React). */

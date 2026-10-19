@@ -13,12 +13,17 @@ import type {
   SelectResult,
   Selection,
   SliceResult,
+  WipeTower,
   WorkerReply,
 } from './protocol';
 import type { Thumbnail } from '../lib/thumbnail';
+import type { BrimEars, BrimRequest } from '../lib/brim';
 import type { LayerProfile, LayerRequest } from '../lib/layers';
 import type { MatchResult, MixRecipe, MixRow } from '../lib/mixing';
+import type { SimplifyBy, SimplifyResult } from '../lib/simplify';
 import type { MeasureFeature, Measurement } from '../lib/measure';
+import type { ObjectAction } from '../lib/objectMenu';
+import type { VolumeAction } from '../lib/volumes';
 
 /** A request to the engine's mixed-filament list (engine/src/mixed_api.cpp). */
 export interface MixedRequest {
@@ -105,7 +110,7 @@ export interface EngineEvents {
 }
 
 /** Engine methods that only read: anything else changes what a slice would make. */
-const READS = new Set(['printers', 'filamentsFor', 'fullConfig', 'presetConfig', 'options', 'modelInfo', 'fileConfig', 'saveProject', 'preview', 'paintOverlay', 'mixedBlend', 'mixedMatch', 'measureFeature', 'measureBetween', 'slice']);
+const READS = new Set(['printers', 'filamentsFor', 'fullConfig', 'presetConfig', 'options', 'modelInfo', 'fileConfig', 'saveProject', 'preview', 'paintOverlay', 'mixedBlend', 'mixedMatch', 'measureFeature', 'measureBetween', 'wipeTower', 'exportStl', 'slice']);
 
 /** Promise wrapper around the engine worker. Requests run in order. */
 export class EngineClient {
@@ -163,6 +168,8 @@ export class EngineClient {
     const edits =
       !READS.has(method) &&
       !(method === 'mixed' && !(args[0] as MixedRequest).op) &&
+      !(method === 'simplify' && (args[1] as { op: string }).op !== 'apply') &&
+      !(method === 'brimEars' && (args[3] as BrimRequest).op === 'get') &&
       !(method === 'layerHeights' && (args[2] as LayerRequest).op === 'get');
     if (edits && this.sliceId) this.onEditWhileSlicing?.();
     const id = this.nextId++;
@@ -238,6 +245,14 @@ export class EngineClient {
   mixedBlend = (colours: string[], weights: number[][]) => this.call<string[]>('mixedBlend', [{ colours, weights }]);
   mixedMatch = (request: { colours: string[]; types: string[]; target: string; minPercent: number }) =>
     this.call<MatchResult>('mixedMatch', [request]);
+  /** Object o's triangle count, and with `by` its count after simplifying (nothing changes). */
+  simplifyPreview = (o: number, by?: SimplifyBy) => this.call<SimplifyResult>('simplify', [o, by ? { op: 'preview', ...by } : { op: 'get' }]);
+  /** Simplifies object o's parts, like desktop's Simplify (its paint goes). */
+  simplifyApply = (o: number, by: SimplifyBy) => this.call<ProjectInfo>('simplify', [o, { op: 'apply', ...by }]);
+  /** Object o's brim ears (seen from instance i), after the edit in `request` (see BrimRequest). */
+  brimEars = (o: number, i: number, overrides: OrcaConfig, request: BrimRequest) =>
+    this.call<BrimEars>('brimEars', [o, i, overrides, request]);
+
   /** Object o's variable layer height profile, after the edit in `request` (see LayerRequest). */
   layerHeights = (o: number, overrides: OrcaConfig, request: LayerRequest) =>
     this.call<LayerProfile>('layerHeights', [o, overrides, request]);
@@ -245,6 +260,9 @@ export class EngineClient {
   measureFeature = (plate: number, options: { ray: PaintRay; onlyPlane?: boolean; keep: number[] }) =>
     this.call<MeasureFeature | null>('measureFeature', [plate, options]);
   measureBetween = (a: number, b: number) => this.call<Measurement>('measureBetween', [a, b]);
+  /** The prime tower on `plate` with these settings; slicedDepth: the last slice's tower depth. */
+  wipeTower = (plate: number, overrides: OrcaConfig, slicedDepth?: number) =>
+    this.call<WipeTower>('wipeTower', [plate, overrides, slicedDepth ?? -1]);
   clearPaint = (o: number, kind: PaintKind | 'all') => this.call<ProjectInfo>('clearPaint', [o, kind]);
   /** Remembers the project before an edit called `label`, for undo. */
   snapshot = (label: string) => this.call<History>('snapshot', [label]);
@@ -253,6 +271,14 @@ export class EngineClient {
   undo = () => this.call<{ history: History; info: ProjectInfo }>('undo');
   redo = () => this.call<{ history: History; info: ProjectInfo }>('redo');
   mirrorInstance = (o: number, i: number, axis: 0 | 1 | 2) => this.call<ProjectInfo>('mirrorInstance', [o, i, axis]);
+  /** An object menu action on object o (instance i where it matters); "replace" takes the STL file's bytes. */
+  objectAction = (o: number, i: number, request: ObjectAction, bytes?: ArrayBuffer) =>
+    this.call<ProjectInfo>('objectAction', [o, i, request, bytes ?? null], bytes ? [bytes] : []);
+  /** A part, modifier... of object o added, renamed, moved or deleted; "add" without a shape takes a mesh file's bytes. */
+  volumeAction = (o: number, request: VolumeAction, bytes?: ArrayBuffer) =>
+    this.call<{ info: ProjectInfo; volume?: number }>('volumeAction', [o, request, bytes ?? null], bytes ? [bytes] : []);
+  /** Instance i of object o as a binary STL. */
+  exportStl = (o: number, i: number) => this.call<ArrayBuffer>('exportStl', [o, i]);
   setObjectSettings = (o: number, volume: number, values: Record<string, string | null>) =>
     this.call<ProjectInfo>('setObjectSettings', [o, volume, values]);
   addPlate = () => this.call<ProjectInfo>('addPlate');
