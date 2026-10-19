@@ -73,17 +73,18 @@ try {
   if ((await objects(page).first().locator('.object-name').innerText()).trim() !== 'Cube') fail('the new object is not called Cube');
   console.log('right click on the empty plate adds a cube');
 
-  // A second primitive, from a spot of the plate the cube leaves free.
-  let opened = false;
-  for (const [x, y] of [[0.3, 0.7], [0.7, 0.7], [0.3, 0.45], [0.7, 0.45]]) {
-    await rightClick(x, y);
-    if (await plateMenu.waitFor({ timeout: 1500 }).then(() => true, () => false)) {
-      opened = true;
-      break;
+  // The plate menu from a spot of the plate no object covers.
+  const onFreePlate = async () => {
+    for (const [x, y] of [[0.35, 0.75], [0.9, 0.75], [0.5, 0.4], [0.75, 0.4], [0.3, 0.7], [0.7, 0.7]]) {
+      await rightClick(x, y);
+      if (await plateMenu.waitFor({ timeout: 1500 }).then(() => true, () => false)) return true;
+      await page.keyboard.press('Escape');
     }
-    await page.keyboard.press('Escape');
-  }
-  if (!opened) fail('no right click on the plate beside the cube opened the plate menu');
+    return false;
+  };
+
+  // A second primitive beside the cube.
+  if (!(await onFreePlate())) fail('no right click on the plate beside the cube opened the plate menu');
   else {
     if (await plateMenu.getByRole('menuitem', { name: 'Arrange', exact: true }).isDisabled()) fail('Arrange is off with a cube on the plate');
     await plateMenu.getByRole('menuitem', { name: 'Add primitive' }).click();
@@ -93,17 +94,19 @@ try {
   }
 
   // Off the plate: only the add items, like desktop's menu on empty space.
-  await rightClick(0.5, 0.04);
+  await rightClick(0.5, 0.2);
   await addMenu.waitFor({ timeout: 5000 });
   if (await addMenu.getByRole('menuitem', { name: 'Arrange', exact: true }).count()) fail('the menu off the plate has plate items');
   await addMenu.getByRole('menuitem', { name: 'Add handy models' }).click();
+  if (shots) await page.screenshot({ path: join(shots, 'add-menu-desktop.png') });
   await addMenu.getByRole('menuitem', { name: 'Voron Cube', exact: true }).click();
   await waitObjects(page, 3);
   console.log('right click off the plate adds a handy model');
+  await page.getByText('Ready to slice').waitFor({ timeout: 60000 });
+  if (shots) await page.screenshot({ path: join(shots, 'plate-menu-added-desktop.png') });
 
   // Rename the plate; a second plate shows it on the tabs.
-  await rightClick(0.5, 0.55);
-  await plateMenu.waitFor({ timeout: 5000 });
+  if (!(await onFreePlate())) throw new Error('no free spot on the plate for its menu');
   await plateMenu.getByRole('menuitem', { name: 'Rename plate…' }).click();
   await plateMenu.getByLabel('Plate name').fill('Shapes');
   await plateMenu.getByRole('button', { name: 'Rename' }).click();
@@ -113,8 +116,7 @@ try {
   console.log('the plate is renamed');
 
   // Delete all empties the plate, and undo brings it all back.
-  await rightClick(0.5, 0.55);
-  await plateMenu.waitFor({ timeout: 5000 });
+  if (!(await onFreePlate())) throw new Error('no free spot on the plate for its menu');
   await plateMenu.getByRole('menuitem', { name: 'Delete all' }).click();
   await waitObjects(page, 0);
   await page.locator('body').press('Control+z');
