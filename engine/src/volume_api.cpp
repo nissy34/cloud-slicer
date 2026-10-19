@@ -13,6 +13,22 @@
 using nlohmann::json;
 using namespace Slic3r;
 
+namespace engine {
+
+// ObjectList's create_mesh: shapes sized by the bed (a tenth of its larger side).
+TriangleMesh shapeMesh(const std::string& shape) {
+    const double side = 0.1 * std::max(project().plateWidth, project().plateDepth);
+    if (shape == "Cube") return TriangleMesh(its_make_cube(side, side, side));
+    if (shape == "Cylinder") return TriangleMesh(its_make_cylinder(0.5 * side, side));
+    if (shape == "Sphere") return TriangleMesh(its_make_sphere(0.5 * side, PI / 90));
+    if (shape == "Cone") return TriangleMesh(its_make_cone(0.5 * side, side));
+    if (shape == "Disc") return TriangleMesh(its_make_cylinder(0.5 * side, 0.2f));
+    if (shape == "Torus") return TriangleMesh(its_make_torus(0.5 * side, 0.125 * side, PI / 60));
+    throw std::runtime_error("unknown shape " + shape);
+}
+
+} // namespace engine
+
 namespace {
 
 engine::Project& pr() { return engine::project(); }
@@ -35,18 +51,6 @@ ModelVolumeType typeOf(const std::string& kind) {
     if (kind == "supportEnforcer") return ModelVolumeType::SUPPORT_ENFORCER;
     if (kind == "supportBlocker") return ModelVolumeType::SUPPORT_BLOCKER;
     throw std::runtime_error("unknown part type " + kind);
-}
-
-// ObjectList's create_mesh: shapes sized by the bed (a tenth of its larger side).
-TriangleMesh shapeMesh(const std::string& shape) {
-    const double side = 0.1 * std::max(pr().plateWidth, pr().plateDepth);
-    if (shape == "Cube") return TriangleMesh(its_make_cube(side, side, side));
-    if (shape == "Cylinder") return TriangleMesh(its_make_cylinder(0.5 * side, side));
-    if (shape == "Sphere") return TriangleMesh(its_make_sphere(0.5 * side, PI / 90));
-    if (shape == "Cone") return TriangleMesh(its_make_cone(0.5 * side, side));
-    if (shape == "Disc") return TriangleMesh(its_make_cylinder(0.5 * side, 0.2f));
-    if (shape == "Torus") return TriangleMesh(its_make_torus(0.5 * side, 0.125 * side, PI / 60));
-    throw std::runtime_error("unknown shape " + shape);
 }
 
 int indexOf(const ModelObject* obj, const ModelVolume* v) {
@@ -76,7 +80,7 @@ ModelVolume* addShape(ModelObject* obj, int i, ModelVolumeType type, const std::
     if (i < 0 || size_t(i) >= obj->instances.size()) throw std::runtime_error("no instance " + std::to_string(i));
     const ModelInstance* inst = obj->instances[i];
     const BoundingBoxf3 instanceBox = obj->instance_bounding_box(i);
-    ModelVolume* v = obj->add_volume(shapeMesh(shape), type);
+    ModelVolume* v = obj->add_volume(engine::shapeMesh(shape), type);
     const Transform3d inverse = inst->get_transformation().get_matrix_no_offset().inverse();
     v->set_transformation(Geometry::Transformation(inverse));
     const BoundingBoxf3 meshBox = v->mesh().bounding_box();
