@@ -109,7 +109,7 @@ try {
   await page.setViewportSize({ width: 390, height: 844 });
   await sliceButton.click();
   await cancel.waitFor();
-  const bar = await page.getByTestId('actionbar').locator('progress').boundingBox();
+  const bar = await page.getByTestId('actionbar').getByRole('progressbar').boundingBox();
   const box = await cancel.boundingBox();
   expect(bar && box && Math.abs(bar.y + bar.height / 2 - (box.y + box.height / 2)) < 20 && box.x + box.width <= 390, 'Cancel beside the progress bar on a phone');
   await cancel.click();

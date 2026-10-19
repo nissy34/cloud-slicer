@@ -284,6 +284,14 @@ function MenuCard() {
             }),
             { title: 'Fewer triangles, keeping the shape' },
           )}
+          {item(
+            'Mesh boolean…',
+            run(() => {
+              s.select({ object: o, instance: i });
+              s.setTool('boolean');
+            }),
+            { title: 'Join two parts, cut one out of the other or keep their overlap' },
+          )}
           {item('Printable', run(() => s.objectAction(o, i, { op: 'printable', value: !inst.printable }, 'Printable')), { checked: inst.printable })}
           {item('Rename…', () => setForm('rename'))}
           {submenu(

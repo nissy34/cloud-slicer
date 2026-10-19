@@ -84,7 +84,13 @@ target_include_directories(qhull PUBLIC ${BUNDLED_DIR}/qhull/src ${BUNDLED_DIR}/
 file(GLOB MCUT_SOURCES ${BUNDLED_DIR}/mcut/source/*.cpp ${BUNDLED_DIR}/mcut/source/*.c)
 add_library(mcut STATIC ${MCUT_SOURCES})
 target_include_directories(mcut PUBLIC ${BUNDLED_DIR}/mcut/include)
-target_compile_definitions(mcut PRIVATE MCUT_WITH_COMPUTE_HELPER_THREADPOOL=0)
+# A patched mcut header (engine/patches) comes ahead of its original.
+if("deps_src/mcut/include/mcut/internal/frontend.h" IN_LIST ENGINE_SOURCE_OVERRIDES)
+    target_include_directories(mcut BEFORE PRIVATE ${ENGINE_PATCHED_DIR}/deps_src/mcut/include)
+endif()
+# No MCUT_WITH_COMPUTE_HELPER_THREADPOOL: mcut checks it with #if defined, so
+# even =0 turns on its helper threads, and a page can't start those while it
+# waits for them (the boolean hung in the browser; Node starts them fine).
 
 # --- libslic3r sources, from the engine's own list ----------------------------
 file(READ "${LIBSLIC3R_DIR}/CMakeLists.txt" _upstream)

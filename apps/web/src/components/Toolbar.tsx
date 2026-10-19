@@ -50,7 +50,7 @@ const GROUPS: Item[][] = [
     { id: 'scale', icon: 'toolbar_scale', label: 'Scale', key: 'S', tool: 'scale', needsSelection: true },
     { id: 'flatten', icon: 'toolbar_flatten', label: 'Lay on face', key: 'F', tool: 'flatten', needsSelection: true },
     { id: 'cut', icon: 'toolbar_cut', label: 'Cut', key: 'C', tool: 'cut', needsSelection: true },
-    { id: 'boolean', icon: 'toolbar_meshboolean', label: 'Mesh boolean', missing: true },
+    { id: 'boolean', icon: 'toolbar_meshboolean', label: 'Mesh boolean', tool: 'boolean', needsSelection: true },
     { id: 'support', icon: 'toolbar_support', label: 'Support painting', key: 'L', paint: 'support' },
     { id: 'seam', icon: 'toolbar_seam', label: 'Seam painting', key: 'P', paint: 'seam' },
     { id: 'fuzzy', icon: 'toolbar_fuzzy_skin_paint', label: 'Fuzzy skin painting', key: 'H', paint: 'fuzzy' },

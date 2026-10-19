@@ -1,0 +1,27 @@
+--- a/deps_src/mcut/include/mcut/internal/frontend.h
++++ b/deps_src/mcut/include/mcut/internal/frontend.h
+@@ -534,7 +534,9 @@
+ 
+             for (uint32_t i = 0; i < manager_thread_count; ++i) {
+                 m_queues[i].set_done_ptr(&m_done);
++#ifndef __EMSCRIPTEN__
+                 m_api_threads.push_back(std::thread(&context_t::api_thread_main, this, i));
++#endif
+             }
+ #if defined(MCUT_WITH_COMPUTE_HELPER_THREADPOOL)
+             // create the pool of compute threads. These are the worker threads that
+@@ -756,7 +758,14 @@
+         event_ptr->m_future = task.get_future(); // the future we can later wait on via mcWaitForEVents
+         event_ptr->m_responsible_thread_id = responsible_thread_id;
+ 
++#ifdef __EMSCRIPTEN__
++        // The browser engine can't start a thread and wait for it in the same
++        // call (the new worker only starts once the engine's worker is idle), so
++        // every API task runs right here, in order, as a blocking dispatch would.
++        task();
++#else
+         m_queues[responsible_thread_id].push(std::move(task)); // enqueue task to be executed when responsible API thread is free
++#endif
+ 
+         return event_ptr->m_user_handle;
+     }

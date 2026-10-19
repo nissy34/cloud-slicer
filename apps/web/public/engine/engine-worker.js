@@ -194,6 +194,11 @@ if (self.name !== 'em-pthread') {
         if (bytes) e.FS.unlink(path);
       }
     },
+    // Union, difference or intersection of two volumes of object o (see engine/src/boolean_api.cpp).
+    meshBoolean(e, o, request) {
+      const { volume } = json(e.meshBoolean(o, JSON.stringify(request)));
+      return { info: JSON.parse(e.modelInfoJson()), volume };
+    },
     // Instance i of object o as a binary STL (the object menu's Export as STL).
     exportStl(e, o, i) {
       const path = '/work/export.stl';

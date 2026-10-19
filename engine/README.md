@@ -23,6 +23,7 @@ same engine code.
 | `src/layers_api.cpp` | Variable layer height: an object's `layer_height_profile` made adaptive (`layer_height_profile_adaptive`), smoothed, edited around a height (`adjust_layer_height_profile`) or reset, like desktop's layer height editing |
 | `src/object_api.cpp` | The object menu (desktop's right-click menu on an object): rename, printable, center, scale to fit the plate, clone, inch/meter conversion (`ModelObject::convert_units` done in place), replace a part with an STL (`replace_volume_with_stl`) and export as STL |
 | `src/volume_api.cpp` | Parts, negative parts, modifiers and support blockers/enforcers of an object: add a shape (desktop's `load_generic_subobject`) or a mesh file (`load_modifier`), rename, delete, change type, and move/rotate/scale by a matrix from the page's gizmos. `previewMesh` also returns these volumes (drawn see-through) and where each part's triangles are |
+| `src/boolean_api.cpp` | Mesh boolean, like desktop's Mesh Boolean tool: union, difference or intersection of two volumes of an object with mcut (`MeshBoolean::mcut::make_boolean`); the result takes the first one's place, type, settings and filament |
 | `src/measure_api.cpp` | The Measure tool: Orca's `Measure::Measuring` finds the point, edge, circle or plane under a ray from the page, and `Measure::get_measurement` gives the distance and angle between two |
 | `src/simplify_api.cpp` | Simplify, like desktop's Simplify model: Orca's quadric edge collapse (`its_quadric_edge_collapse`) by detail level or decimate ratio, previewed as a triangle count, then applied (the object's paint goes, as on desktop) |
 | `src/calib_api.cpp` | Calibration tests, ported from desktop's Plater: temperature, flow rate, pressure advance (line, tower), retraction, max volumetric speed, VFA, input shaping and junction deviation. Loads the test model, returns the settings to change, and sets `Print::set_calib_params` for slicing |
@@ -86,4 +87,5 @@ here; each patch says why at the top of its hunk.
 | `0002-step-serial-occt-meshing` | OCCT meshing of STEP files without its thread pool |
 | `0003-sla-hollowing-without-openvdb` | Builds SLA hollowing without OpenVDB (no interior is generated) |
 | `0004-skip-thread-naming-barrier` | Thread naming holds every TBB worker on a barrier; browser threads have no names or locales to set |
-| `0005-move-gcode-result-instead-of-copying` | G-code export copies every move into the caller's result at the memory peak; moves it instead, so big slices fit in a phone's browser |
+| `0005-mcut-api-tasks-without-threads` | mcut (mesh boolean) runs each call on a thread it starts and waits for; a page can't start one while it waits, so the calls run in place |
+| `0006-move-gcode-result-instead-of-copying` | G-code export copies every move into the caller's result at the memory peak; moves it instead, so big slices fit in a phone's browser |
