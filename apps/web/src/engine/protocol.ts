@@ -97,6 +97,8 @@ export interface InstanceInfo {
 export interface ObjectInfo {
   name: string;
   size: [number, number, number];
+  /** Converted from inches or meters by the object menu ('' when not). */
+  units: '' | 'inch' | 'meter';
   extruder: number;
   /** The object's own settings, on top of the process (Orca option key -> value). */
   settings: OrcaConfig;

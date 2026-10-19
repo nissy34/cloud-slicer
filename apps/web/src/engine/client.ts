@@ -21,6 +21,7 @@ import type { LayerProfile, LayerRequest } from '../lib/layers';
 import type { MatchResult, MixRecipe, MixRow } from '../lib/mixing';
 import type { SimplifyBy, SimplifyResult } from '../lib/simplify';
 import type { MeasureFeature, Measurement } from '../lib/measure';
+import type { ObjectAction } from '../lib/objectMenu';
 
 /** A request to the engine's mixed-filament list (engine/src/mixed_api.cpp). */
 export interface MixedRequest {
@@ -107,7 +108,7 @@ export interface EngineEvents {
 }
 
 /** Engine methods that only read: anything else changes what a slice would make. */
-const READS = new Set(['printers', 'filamentsFor', 'fullConfig', 'presetConfig', 'options', 'modelInfo', 'fileConfig', 'saveProject', 'preview', 'paintOverlay', 'mixedBlend', 'mixedMatch', 'measureFeature', 'measureBetween', 'slice']);
+const READS = new Set(['printers', 'filamentsFor', 'fullConfig', 'presetConfig', 'options', 'modelInfo', 'fileConfig', 'saveProject', 'preview', 'paintOverlay', 'mixedBlend', 'mixedMatch', 'measureFeature', 'measureBetween', 'exportStl', 'slice']);
 
 /** Promise wrapper around the engine worker. Requests run in order. */
 export class EngineClient {
@@ -265,6 +266,11 @@ export class EngineClient {
   undo = () => this.call<{ history: History; info: ProjectInfo }>('undo');
   redo = () => this.call<{ history: History; info: ProjectInfo }>('redo');
   mirrorInstance = (o: number, i: number, axis: 0 | 1 | 2) => this.call<ProjectInfo>('mirrorInstance', [o, i, axis]);
+  /** An object menu action on object o (instance i where it matters); "replace" takes the STL file's bytes. */
+  objectAction = (o: number, i: number, request: ObjectAction, bytes?: ArrayBuffer) =>
+    this.call<ProjectInfo>('objectAction', [o, i, request, bytes ?? null], bytes ? [bytes] : []);
+  /** Instance i of object o as a binary STL. */
+  exportStl = (o: number, i: number) => this.call<ArrayBuffer>('exportStl', [o, i]);
   setObjectSettings = (o: number, volume: number, values: Record<string, string | null>) =>
     this.call<ProjectInfo>('setObjectSettings', [o, volume, values]);
   addPlate = () => this.call<ProjectInfo>('addPlate');

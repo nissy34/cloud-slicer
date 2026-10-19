@@ -819,3 +819,73 @@ test('measure: faces, edges and corners under a ray, and the distance and angle 
   assert.ok(Math.abs(angle.angle.degrees - 90) < 1e-3, `top and side are square: ${JSON.stringify(angle)}`);
   assert.equal(feature([x + 100, y + 100, 100, 0, 0, -1]), null, 'nothing under a ray that misses');
 });
+
+test('object menu: rename, printable, center, scale to fit, clone, units, replace with STL and export STL', () => {
+  select({ printer: DEFAULT_PRINTER });
+  let m = load('gen-cube-20.stl');
+  const act = (o, i, request) => call(engine, 'objectAction', o, i, JSON.stringify(request));
+  const info = () => JSON.parse(engine.modelInfoJson());
+  const near = (a, b, msg, tol = 1e-2) => assert.ok(Math.abs(a - b) < tol, `${msg}: ${a} vs ${b}`);
+  const [w, d] = bedSize(fullConfig());
+
+  act(0, 0, { op: 'rename', name: 'Box' });
+  assert.equal(info().objects[0].name, 'Box');
+  assert.throws(() => act(0, 0, { op: 'rename', name: '' }), /empty/);
+
+  act(0, 0, { op: 'printable', value: false });
+  assert.equal(info().objects[0].instances[0].printable, false);
+  act(0, 0, { op: 'printable', value: true });
+
+  // The cube's centre on the plate, from its triangles.
+  const centre = () => {
+    const pos = engine.previewMesh(0).positions;
+    const lo = [Infinity, Infinity, Infinity], hi = [-Infinity, -Infinity, -Infinity];
+    for (let i = 0; i < pos.length; i++) { lo[i % 3] = Math.min(lo[i % 3], pos[i]); hi[i % 3] = Math.max(hi[i % 3], pos[i]); }
+    return { mid: lo.map((v, k) => (v + hi[k]) / 2), size: lo.map((v, k) => hi[k] - v), bottom: lo[2] };
+  };
+  call(engine, 'setInstanceTransform', 0, 0, JSON.stringify({ offset: [30, 40] }));
+  act(0, 0, { op: 'center' });
+  let c = centre();
+  near(c.mid[0], w / 2, 'centred in x');
+  near(c.mid[1], d / 2, 'centred in y');
+
+  // As large as the plate allows, with room for floating-point rounding, still on the bed.
+  act(0, 0, { op: 'scaleToFit', height: 100 });
+  c = centre();
+  near(c.size[2], 100 * 20 / 20.02, 'the height limits a cube to 100 mm', 0.05);
+  near(c.bottom, 0, 'on the bed');
+  near(c.mid[0], w / 2, 'still centred');
+  act(0, 0, { op: 'scaleToFit', height: 0 });
+  const fit = centre().size[0];
+  assert.ok(fit <= Math.min(w, d) && fit > Math.min(w, d) - 0.1, `without a height, the plate limits it: ${fit}`);
+
+  m = load('gen-cube-20.stl');
+  act(0, 0, { op: 'clone', count: 3 });
+  m = info();
+  assert.equal(m.objects.length, 4, 'three new objects');
+  assert.ok(m.objects.every((o) => o.instances.length === 1));
+
+  m = load('gen-cube-20.stl');
+  act(0, 0, { op: 'convert', to: 'fromInch' });
+  near(info().objects[0].size[0], 20 * 25.4, 'inches to mm', 0.1);
+  assert.equal(info().objects[0].units, 'inch', 'the page offers to convert back');
+  act(0, 0, { op: 'convert', to: 'toInch' });
+  near(info().objects[0].size[0], 20, 'and back', 0.01);
+  assert.equal(info().objects[0].units, '');
+  near(centre().bottom, 0, 'on the bed after converting');
+
+  // Another mesh in place of the part (one mesh with two pieces is still one part).
+  engine.FS.writeFile('/work/two.stl', generated['gen-two-cubes.stl']);
+  act(0, 0, { op: 'replace', volume: 0, path: '/work/two.stl' });
+  m = info();
+  assert.equal(m.objects.length, 1);
+  near(m.objects[0].size[0], 40, 'the new mesh: two 10 mm cubes 30 mm apart');
+  near(centre().bottom, 0, 'on the bed after replacing');
+
+  act(0, 0, { op: 'exportStl', path: '/work/out.stl' });
+  const stl = engine.FS.readFile('/work/out.stl');
+  const triangles = new DataView(stl.buffer, stl.byteOffset).getUint32(80, true);
+  assert.equal(triangles, 24, 'two cubes, 12 triangles each');
+  assert.equal(stl.length, 84 + 50 * triangles, 'binary STL');
+  assert.throws(() => act(0, 0, { op: 'nonsense' }), /unknown/);
+});

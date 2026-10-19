@@ -239,7 +239,7 @@ void clearModel() { g_project.clear(); }
 
 // Everything the page shows about the project:
 // {fileName, plates: [{index, name, objects: [objectIndex...]}],
-//  objects: [{name, size, volumes: [{name, kind, extruder, painted}],
+//  objects: [{name, size, units ("", "inch" or "meter": converted from), volumes: [{name, kind, extruder, painted}],
 //             instances: [{plate, offset, rotation, scale, printable}]}],
 //  file: {bambu, printer, filamentColours, filamentTypes, filamentPresets}}.
 std::string modelInfoJson() {
@@ -281,7 +281,11 @@ std::string modelInfoJson() {
             }
         }
         const Vec3d size = obj->instance_bounding_box(0, false).size();
-        objects.push_back({{"name", obj->name}, {"size", {size.x(), size.y(), size.z()}},
+        // Parts converted from inches or meters (desktop then offers to convert back).
+        const char* units = "";
+        for (const ModelVolume* v : obj->volumes)
+            units = v->source.is_converted_from_inches ? "inch" : v->source.is_converted_from_meters ? "meter" : units;
+        objects.push_back({{"name", obj->name}, {"size", {size.x(), size.y(), size.z()}}, {"units", units},
                            {"extruder", obj->config.has("extruder") ? obj->config.opt_int("extruder") : 0},
                            {"settings", settingsJson(obj->config.get())},
                            {"volumes", volumes}, {"instances", instances}});

@@ -419,6 +419,13 @@ function Objects({ w, d }: { w: number; d: number }) {
   const gizmoReleased = useRef(0);
   const brimTool = !paint && tool === 'brim' && !!selected;
 
+  // The 3D view has its own menu (on an object); the browser's would only get in the way.
+  useEffect(() => {
+    const block = (e: Event) => e.preventDefault();
+    canvas.addEventListener('contextmenu', block);
+    return () => canvas.removeEventListener('contextmenu', block);
+  }, [canvas]);
+
   // The selected instance, when it is the object's only one on this plate
   // (the part geometry holds all of them); the gizmos work on it.
   const place = useMemo((): Placement | null => {
@@ -497,8 +504,42 @@ function Objects({ w, d }: { w: number; d: number }) {
     return !!g && (g.dragging || g.axis !== null);
   };
 
+  // The object menu: a right click (released without dragging, since a
+  // right drag pans the view) or a long press with a finger.
+  const menuPress = (ev: PointerEvent, object: number, instance: number, long: boolean) => {
+    const [x0, y0] = [ev.clientX, ev.clientY];
+    let timer = 0;
+    const open = () => useSlicer.getState().openObjectMenu({ object, instance, x: x0, y: y0 });
+    const done = () => {
+      clearTimeout(timer);
+      window.removeEventListener('pointermove', move);
+      window.removeEventListener('pointerup', up);
+      window.removeEventListener('pointercancel', done);
+    };
+    const move = (m: PointerEvent) => Math.hypot(m.clientX - x0, m.clientY - y0) > 6 && done();
+    const up = (u: PointerEvent) => (done(), !long && u.button === 2 && open());
+    window.addEventListener('pointermove', move);
+    window.addEventListener('pointerup', up);
+    window.addEventListener('pointercancel', done);
+    if (long)
+      timer = window.setTimeout(() => {
+        done();
+        // The press opens the menu instead of moving the object.
+        drag.current = null;
+        setDelta(null);
+        if (controls) controls.enabled = true;
+        open();
+      }, 550);
+  };
+
   const onDown = (e: ThreeEvent<PointerEvent>, object: number) => {
     e.stopPropagation();
+    if (e.button === 2) {
+      if (paint || measuring) return;
+      const inst = project?.objects[object]?.instances.findIndex((i) => i.plate === plate) ?? -1;
+      select({ object, instance: Math.max(0, inst) });
+      return menuPress(e.nativeEvent, object, Math.max(0, inst), false);
+    }
     // Measuring picks on click (below); a drag still turns the camera.
     if (measuring) return;
     if (paint) {
@@ -518,6 +559,7 @@ function Objects({ w, d }: { w: number; d: number }) {
     const instances = obj?.instances.map((inst, i) => ({ inst, i })).filter(({ inst }) => inst.plate === plate) ?? [];
     const first = instances[0];
     if (selected?.object !== object) select(first ? { object, instance: first.i } : null);
+    if (first && e.pointerType === 'touch') menuPress(e.nativeEvent, object, first.i, true);
     // Brim ears: a click adds an ear (onEarClick); the object stays put.
     if (brimTool) return;
     // Dragging moves an object with a single instance on this plate.
