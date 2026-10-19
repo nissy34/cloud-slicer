@@ -32,6 +32,7 @@ import { dropPlateTower, moveTower, towerOptions, towersFromConfig, type TowerSp
 import { stlName, type ObjectAction } from '../lib/objectMenu';
 import type { VolumeAction } from '../lib/volumes';
 import { saveFile } from '../lib/preset-files';
+import { estimateLayers, slicePercent } from '../lib/slice-progress';
 
 export type Tab = 'prepare' | 'preview' | 'device';
 /** The object tool open on the 3D view, like desktop's gizmos (paint has its own state). */
@@ -1042,9 +1043,21 @@ export const useSlicer = create<SlicerState>((set, get) => {
         return fail(new Error('Mixed filaments contain incompatible material types. Please correct the mixed filaments settings before slicing.'));
       const run = ++sliceRun;
       set({ job: { kind: 'slicing', pct: 0, stage: '' }, notice: '' });
+      // For the G-code step's percentage (lib/slice-progress).
+      const config = { ...get().baseConfig, ...get().overrides };
+      const onPlate = project.plates[plate]?.objects ?? [];
+      const layers = Math.max(
+        0,
+        ...onPlate.map((i) => {
+          const o = project.objects[i];
+          const layerHeight = parseFloat(o?.settings.layer_height ?? config.layer_height);
+          return o ? estimateLayers([o.size[2]], layerHeight, parseFloat(config.initial_layer_print_height)) : 0;
+        }),
+      );
       try {
         const { result, gcode, ms } = await engine().slice(plate, engineOverrides(), plateThumbnails(), (pct, stage) => {
-          if (run === sliceRun) set({ job: { kind: 'slicing', pct, stage } });
+          const job = get().job;
+          if (run === sliceRun && job.kind === 'slicing') set({ job: { kind: 'slicing', pct: slicePercent(job.pct, pct, stage, layers), stage } });
         });
         if (run !== sliceRun) return;
         set({ job: { kind: 'sliced', plate, result, gcode: new Blob([gcode], { type: 'text/plain' }), ms }, notice: '' });

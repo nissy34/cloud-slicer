@@ -20,9 +20,9 @@ export function gcodeFileName(modelName: string): string {
   return `${base}.gcode`;
 }
 
-/** Engine stage text -> sentence case, e.g. "GENERATING SUPPORT" -> "Generating support". */
+/** Engine stage text -> sentence case, e.g. "GENERATING SUPPORT" -> "Generating support" (G-code keeps its capital). */
 export function stageLabel(stage: string): string {
-  const s = stage.trim().toLowerCase();
+  const s = stage.trim().toLowerCase().replace(/\bg-code\b/g, 'G-code');
   return s ? s[0].toUpperCase() + s.slice(1) : '';
 }
 

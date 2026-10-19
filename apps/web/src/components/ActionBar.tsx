@@ -36,6 +36,28 @@ function EngineFailed({ message }: { message: string }) {
   );
 }
 
+/**
+ * The slicing progress: a bar with stripes that keep moving (so a long step
+ * still looks alive), the percentage, and the step on its own line in full.
+ */
+function SliceProgress({ pct, stage, onCancel }: { pct: number; stage: string; onCancel: () => void }) {
+  const shown = Math.floor(pct);
+  return (
+    <span className="progress" data-testid="slice-progress">
+      <span className="progress-row">
+        <span className="progress-bar" role="progressbar" aria-label="Slicing" aria-valuemin={0} aria-valuemax={100} aria-valuenow={shown} aria-valuetext={`${shown}%, ${stage}`}>
+          <span className="progress-fill" style={{ width: `${Math.max(2, pct)}%` }} />
+        </span>
+        <span className="progress-pct">{shown}%</span>
+        <button className="secondary" onClick={onCancel}>
+          Cancel
+        </button>
+      </span>
+      <span className="stage">{stage}</span>
+    </span>
+  );
+}
+
 export function ActionBar() {
   const { engine, engineMessage, project, plate, job, notice, noticeWarn, slice, cancelSlice, setTab, tab } = useSlicer();
 
@@ -59,13 +81,7 @@ export function ActionBar() {
         )}
         {job.kind === 'loading' && <span className="muted">Opening {job.name}…</span>}
         {job.kind === 'slicing' && (
-          <span className="progress">
-            <progress max={100} value={job.pct} />
-            <span className="stage">{stageLabel(job.stage) || 'Slicing'}</span>
-            <button className="secondary" onClick={cancelSlice}>
-              Cancel
-            </button>
-          </span>
+          <SliceProgress pct={job.pct} stage={stageLabel(job.stage) || 'Slicing'} onCancel={cancelSlice} />
         )}
         {job.kind === 'sliced' && (
           <span className="stats" data-testid="slice-stats">
