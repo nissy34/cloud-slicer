@@ -23,9 +23,9 @@ hosted on Cloudflare's free tier.
   in and out (desktop Orca's preset JSON, `.orca_printer`, `.orca_filament`, zip).
 - **3MF print settings import**: a project's own settings come in on top of your presets.
   A 3MF made for a printer you don't have (for example a Bambu project) can be converted
-  onto one of yours: its print settings carry over, the printer's own settings
-  (speeds, accelerations, jerk) come from your printer, and filaments are matched by
-  material.
+  onto one of yours: the print settings its author changed carry over, the ones left at
+  the old printer's defaults and the printer's own settings (speeds, accelerations,
+  jerk) come from your printer, and filaments are matched by material.
 - **Prepare tools**: move, rotate, scale, lay on face, cut, measure (distances and angles
   between faces, edges, circles and corners), variable layer height (adaptive, smooth,
   or by hand on the layer height chart), arrange, auto-orient, split,

@@ -19,7 +19,7 @@ import { calibrationOptions, CALIBRATIONS, type CalibrationMode, type Calibratio
 import { bedSize } from '../lib/colour';
 import { renderThumbnails, thumbnailSizes } from '../lib/thumbnail';
 import { DEFAULT_PRINTER, pickFilamentPreset, splitList, SLOT_COLOURS } from '../lib/presets';
-import { emptyProjectMessage, modelProcessKeys, pickProcess, printerLabel, projectOverrides } from '../lib/project-import';
+import { changedOnPurpose, emptyProjectMessage, modelProcessKeys, pickProcess, printerLabel, projectOverrides } from '../lib/project-import';
 import { accountReady, getUserSetting, presetEditing, useAccount } from './account';
 import { installedOnly, SETUP_KEY, type Setup } from '../lib/setup';
 import { loadConvertPreference, loadSaved, save, saveConvertPreference } from '../lib/storage';
@@ -677,7 +677,11 @@ export const useSlicer = create<SlicerState>((set, get) => {
       filaments: names.length ? names : selection?.filaments,
       colours: colours.length ? colours : selection?.colours,
     });
-    const overrides = keepSettings ? projectOverrides(file, get().baseConfig, get().options, modelProcessKeys(get().layout)) : {};
+    // Only what the author changed: values they left alone were the old printer's defaults.
+    const model = modelProcessKeys(get().layout);
+    const changed = changedOnPurpose(file);
+    const keep = changed ? new Set([...model].filter((k) => changed.has(k))) : model;
+    const overrides = keepSettings ? projectOverrides(file, get().baseConfig, get().options, keep) : {};
     set({ mixDefinitions: file.mixed_filament_definitions ?? '' });
     setOverrides(overrides);
     await refreshMixes();

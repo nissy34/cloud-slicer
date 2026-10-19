@@ -130,7 +130,11 @@ nothing on purpose, so a deploy's page and engine never get out of step).
   is opened again (save it to the cloud or download the 3MF to keep them).
 - **Converting**: when a 3MF was made for a printer you don't have (a Bambu project, for
   example), a dialog offers to put it onto one of your installed printers. Only
-  model settings carry over (walls, infill, supports, seams...); printer-specific ones
+  model settings carry over (walls, infill, supports, seams...), and only those the
+  author changed: Bambu Studio and Orca list them in the project's
+  `different_settings_to_system`, so values left at the old printer's defaults (Bambu's
+  0.2 mm first layer) take the target's; files without that list keep every model
+  setting that differs. Printer-specific ones
   (machine speeds, accelerations, jerk) come from the target printer, and filaments are
   matched by material and kind (Matte, Silk, HF, Translucent). A sliced-only `.gcode.3mf`
   is explained instead of opened.
