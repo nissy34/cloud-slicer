@@ -113,6 +113,9 @@ export interface EngineEvents {
 /** Engine methods that only read: anything else changes what a slice would make. */
 const READS = new Set(['printers', 'filamentsFor', 'fullConfig', 'presetConfig', 'options', 'modelInfo', 'fileConfig', 'saveProject', 'preview', 'paintOverlay', 'mixedBlend', 'mixedMatch', 'measureFeature', 'measureBetween', 'wipeTower', 'exportStl', 'slice']);
 
+/** Engine methods that change the presets, not the project. */
+const PRESET_CALLS = new Set(['select', 'userPresets', 'presetParse', 'mixed']);
+
 /** Promise wrapper around the engine worker. Requests run in order. */
 export class EngineClient {
   private worker: Worker;
@@ -128,6 +131,8 @@ export class EngineClient {
    * first (requests run in order).
    */
   onEditWhileSlicing: (() => void) | null = null;
+  /** Requests so far that changed the project (not the presets), to tell whether a saved copy is current. */
+  projectEdits = 0;
 
   constructor(private events: EngineEvents) {
     // bytes: what the engine downloads (wasm + presets), for its progress; the
@@ -173,6 +178,7 @@ export class EngineClient {
       !(method === 'brimEars' && (args[3] as BrimRequest).op === 'get') &&
       !(method === 'layerHeights' && (args[2] as LayerRequest).op === 'get');
     if (edits && this.sliceId) this.onEditWhileSlicing?.();
+    if (edits && !PRESET_CALLS.has(method)) this.projectEdits++;
     const id = this.nextId++;
     const done = () => {
       if (this.sliceId === id) this.sliceId = 0;
@@ -186,6 +192,13 @@ export class EngineClient {
       });
       this.worker.postMessage({ id, method, args }, transfer);
     });
+  }
+
+  /** Stops the engine for good; requests still waiting reject with `message`. */
+  terminate(message: string) {
+    this.worker.terminate();
+    for (const p of this.pending.values()) p.reject(new Error(message));
+    this.pending.clear();
   }
 
   /** Whether this engine build can cancel a running slice. */

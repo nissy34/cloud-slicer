@@ -257,6 +257,17 @@ export interface SlicerState {
 let client: EngineClient | null = null;
 /** Counts slices started and stopped; a slice whose number is no longer current is dropped. */
 let sliceRun = 0;
+/**
+ * A copy of the project the engine can reopen if it crashes (the project lives
+ * in the engine, so a new engine starts empty): the 3MF it was opened from, or
+ * one saved before slicing, with the engine's edit count when it was made.
+ */
+let saved3mf: { file: File; edits: number } | null = null;
+/** What to put back once a restarted engine is up. */
+let pendingRestore: { file: File | null; current: boolean; plate: number; slicing: boolean; message: string } | null = null;
+/** The engine is restarting: requests the old one dropped are not errors to show. */
+let restarting = false;
+let presetsWatched = false;
 
 const presetFile = ({ type, name, inherits, config }: UserPresetFile): UserPresetFile => ({ type, name, inherits, config });
 /** The user presets the engine has loaded. */
@@ -270,7 +281,13 @@ export const useSlicer = create<SlicerState>((set, get) => {
         set({ vendorVersion: presets.vendorVersion, engineLoad: { ...get().engineLoad, stage: 'printers' } });
         void start();
       },
-      onFatal: (message) => set({ engine: 'failed', engineMessage: message }),
+      onFatal: (message) => {
+        // A crash once the engine was up (most likely out of memory while
+        // slicing) restarts it; a crash while starting it, or while reopening
+        // the project after a restart, leaves it stopped as before.
+        if (get().engine === 'ready' || (restarting && pendingRestore?.file)) restart(message);
+        else set({ engine: 'failed', engineMessage: message });
+      },
     });
     // Like desktop: an edit while slicing stops the slice rather than waiting for it.
     // (Something else may already have replaced the slicing state, like opening a file.)
@@ -290,7 +307,64 @@ export const useSlicer = create<SlicerState>((set, get) => {
     }
   };
 
-  const fail = (e: unknown) => set({ job: { kind: 'error', message: (e as Error).message } });
+  const fail = (e: unknown) => {
+    if (restarting) return console.warn('While the engine restarted:', e);
+    set({ job: { kind: 'error', message: (e as Error).message } });
+  };
+
+  // Replaces a crashed engine with a new one, which reopens the project when
+  // it is up (see start).
+  function restart(message: string) {
+    console.warn('The slicing engine crashed and restarts:', message);
+    const retry = restarting;
+    sliceRun++;
+    const old = client;
+    client = null;
+    restarting = true;
+    old?.terminate('The slicing engine restarted.');
+    const { project, plate, job } = get();
+    // If reopening the project crashed the new engine too, start without it.
+    pendingRestore = retry
+      ? { file: null, current: false, plate: 0, slicing: false, message: pendingRestore?.message ?? message }
+      : {
+          file: project?.objects.length ? (saved3mf?.file ?? null) : null,
+          current: !!saved3mf && saved3mf.edits === old?.projectEdits,
+          plate,
+          slicing: job.kind === 'slicing',
+          message,
+        };
+    saved3mf = null;
+    set({
+      engine: 'starting',
+      engineLoad: { stage: 'download', loaded: 0, total: 0 },
+      job: { kind: 'idle' },
+      project: retry || !pendingRestore.file ? null : project,
+      preview: retry || !pendingRestore.file ? null : get().preview,
+      selected: null, tool: null, paint: null, overlay: null, layers: null, brim: null, brimPicked: [],
+      measure: { ...NO_MEASURE, onlyPlane: get().measure.onlyPlane },
+      history: { undo: null, redo: null },
+    });
+    engine();
+  }
+
+  // Puts the project back into a restarted engine, keeping the page's settings,
+  // mixes and tower spots (they were never lost).
+  async function restore(r: NonNullable<typeof pendingRestore>) {
+    const e = engine();
+    const crashed = r.slicing ? 'The slicing engine crashed while slicing, most likely because it needed more memory than this browser allows' : 'The slicing engine crashed';
+    if (!r.file) {
+      set({ project: null, preview: null, notice: `${crashed}, so it restarted. Your project could not be reopened. (${r.message})`, noticeWarn: true });
+      return;
+    }
+    set({ job: { kind: 'loading', name: r.file.name, label: 'Reopening your project' } });
+    const area = get().overrides.printable_area ?? get().baseConfig.printable_area ?? '';
+    const res = await e.load(r.file, 0, area, false);
+    set({ plate: Math.min(r.plate, Math.max(0, res.info.plates.length - 1)), history: await e.clearHistory() });
+    await refreshPreview(res.info);
+    saved3mf = { file: r.file, edits: e.projectEdits };
+    const lost = r.current ? '' : ' Changes made since your last slice were lost.';
+    set({ job: { kind: 'idle' }, notice: `${crashed}, so it restarted and reopened your project.${lost} (${r.message})`, noticeWarn: true });
+  }
 
   // The settings as the engine slices and saves them: the user's changes plus
   // the project's mixed filaments.
@@ -383,10 +457,13 @@ export const useSlicer = create<SlicerState>((set, get) => {
       enginePresets = useAccount.getState().presets;
       if (enginePresets.length) await e.userPresets(enginePresets.map(presetFile));
       // Presets saved on another device (or merged at sign-in) reach the engine too.
-      useAccount.subscribe((a) => {
-        if (a.presets !== enginePresets && get().engine === 'ready' && !presetEditing())
-          void get().setUserPresets(a.presets).catch(fail);
-      });
+      if (!presetsWatched) {
+        presetsWatched = true;
+        useAccount.subscribe((a) => {
+          if (a.presets !== enginePresets && get().engine === 'ready' && !presetEditing())
+            void get().setUserPresets(a.presets).catch(fail);
+        });
+      }
       const [printers, options, layout] = await Promise.all([
         e.printers(),
         e.options(),
@@ -395,9 +472,17 @@ export const useSlicer = create<SlicerState>((set, get) => {
       set({ printers, options, layout });
       const known = saved?.selection && printers.some((p) => p.name === saved.selection?.printer);
       await applySelection(known && saved?.selection ? saved.selection : { printer: DEFAULT_PRINTER });
+      const r = pendingRestore;
+      if (r) await restore(r);
+      pendingRestore = null;
+      restarting = false;
       set({ engine: 'ready' });
     } catch (err) {
-      set({ engine: 'failed', engineMessage: (err as Error).message });
+      // The engine was replaced while starting (it crashed): the new one carries on.
+      if (e !== client) return;
+      pendingRestore = null;
+      restarting = false;
+      set({ engine: 'failed', engineMessage: (err as Error).message, job: { kind: 'idle' } });
     }
   }
 
@@ -709,6 +794,7 @@ export const useSlicer = create<SlicerState>((set, get) => {
       // The project first, so the other files land on it.
       const ordered = [...files].sort((a, b) => Number(is3mf(b)) - Number(is3mf(a)));
       let opened = false;
+      saved3mf = null;
       for (const file of ordered) {
         set({ job: { kind: 'loading', name: file.name } });
         try {
@@ -731,6 +817,8 @@ export const useSlicer = create<SlicerState>((set, get) => {
           return opened;
         }
       }
+      // A single project file is its own copy to reopen after a crash.
+      if (opened && files.length === 1) saved3mf = { file: files[0], edits: e.projectEdits };
       return opened;
     },
     cancelOpen: () => set({ pendingOpen: null }),
@@ -1071,6 +1159,13 @@ export const useSlicer = create<SlicerState>((set, get) => {
         }),
       );
       try {
+        // Slicing is what runs out of memory; keep a copy to reopen if it does.
+        const e = engine();
+        if (saved3mf?.edits !== e.projectEdits) {
+          const bytes = await e.saveProject(engineOverrides(), null);
+          saved3mf = { file: new File([bytes], `${project.fileName.replace(/\.\w+$/, '') || 'project'}.3mf`), edits: e.projectEdits };
+          if (run !== sliceRun) return;
+        }
         const { result, gcode, ms } = await engine().slice(plate, engineOverrides(), plateThumbnails(), (pct, stage) => {
           const job = get().job;
           if (run === sliceRun && job.kind === 'slicing') set({ job: { kind: 'slicing', pct: slicePercent(job.pct, pct, stage, layers), stage } });
