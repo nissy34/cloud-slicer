@@ -1,9 +1,9 @@
 import { OrbitControls } from '@react-three/drei';
 import { Canvas, useThree } from '@react-three/fiber';
-import { useEffect, useLayoutEffect, useMemo, useState } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import * as THREE from 'three';
 import { bedSize, rgb } from '../lib/colour';
-import { FEATURE_COLOURS, FEATURES, type ParsedGcode } from '../lib/gcode';
+import { FEATURE_COLOURS, FEATURES, type PreviewGcode } from '../lib/gcode';
 import { useSceneColours } from '../lib/theme';
 import { NO_COLOURS, useOption, useSlicer } from '../state/store';
 import { Bed } from './Viewport';
@@ -11,12 +11,12 @@ import { Bed } from './Viewport';
 type ColourBy = 'feature' | 'filament';
 
 function useParsed(gcode: Blob | null) {
-  const [parsed, setParsed] = useState<ParsedGcode | null>(null);
+  const [parsed, setParsed] = useState<PreviewGcode | null>(null);
   useEffect(() => {
     setParsed(null);
     if (!gcode) return;
     const worker = new Worker(new URL('../engine/gcode-worker.ts', import.meta.url), { type: 'module' });
-    worker.onmessage = ({ data }: MessageEvent<ParsedGcode>) => setParsed(data);
+    worker.onmessage = ({ data }: MessageEvent<PreviewGcode>) => setParsed(data);
     worker.postMessage({ gcode });
     return () => worker.terminate();
   }, [gcode]);
@@ -26,7 +26,9 @@ function useParsed(gcode: Blob | null) {
 // One extrusion is drawn as a solid bead with a diamond cross-section (like
 // Orca's preview), built on the GPU from the segment's two endpoints, width and
 // height. Local coords: x along the segment (0..1), y across (-0.5..0.5),
-// z down from the nozzle (-1..0).
+// z down from the nozzle (-1..0). Eight corners with smooth normals give a
+// rounded bead; the vertex shader runs once per corner, so a big print is
+// mostly vertex work and this keeps it to eight per segment.
 const BEAD = (() => {
   const ring = [
     [0, 0],
@@ -36,25 +38,29 @@ const BEAD = (() => {
   ];
   const pos: number[] = [];
   const nrm: number[] = [];
+  for (const x of [0, 1])
+    for (const [y, z] of ring) {
+      pos.push(x, y, z);
+      // Straight out from the bead's centre line: up, sideways or down.
+      nrm.push(0, y * 2, (z + 0.5) * 2);
+    }
+  const corner = (i: number) => new THREE.Vector3(pos[i * 3], pos[i * 3 + 1], pos[i * 3 + 2]);
   const idx: number[] = [];
-  const quad = (a: number[], b: number[], c: number[], d: number[], n: number[]) => {
-    const base = pos.length / 3;
-    pos.push(...a, ...b, ...c, ...d);
-    for (let k = 0; k < 4; k++) nrm.push(...n);
-    idx.push(base, base + 1, base + 2, base, base + 2, base + 3);
+  // Wound counter-clockwise seen from outside, so back faces can be culled.
+  const tri = (a: number, b: number, c: number, out: THREE.Vector3) => {
+    const n = corner(b).sub(corner(a)).cross(corner(c).sub(corner(a)));
+    idx.push(...(n.dot(out) > 0 ? [a, b, c] : [a, c, b]));
   };
   for (let k = 0; k < 4; k++) {
-    const [y0, z0] = ring[k];
-    const [y1, z1] = ring[(k + 1) % 4];
-    // Outward normal of the edge in the y/z plane (unit space; rescaled in the shader).
-    const ny = z0 - z1;
-    const nz = y1 - y0;
-    const cy = (y0 + y1) / 2, cz = (z0 + z1) / 2 + 0.5;
-    const flip = ny * cy + nz * cz < 0 ? -1 : 1;
-    quad([0, y0, z0], [1, y0, z0], [1, y1, z1], [0, y1, z1], [0, ny * flip, nz * flip]);
+    const k1 = (k + 1) % 4;
+    const out = new THREE.Vector3(0, ring[k][0] + ring[k1][0], ring[k][1] + ring[k1][1] + 1);
+    tri(k, k1, 4 + k1, out);
+    tri(k, 4 + k1, 4 + k, out);
   }
-  quad([0, ...ring[0]], [0, ...ring[3]], [0, ...ring[2]], [0, ...ring[1]], [-1, 0, 0]);
-  quad([1, ...ring[0]], [1, ...ring[1]], [1, ...ring[2]], [1, ...ring[3]], [1, 0, 0]);
+  tri(0, 1, 2, new THREE.Vector3(-1, 0, 0));
+  tri(0, 2, 3, new THREE.Vector3(-1, 0, 0));
+  tri(4, 5, 6, new THREE.Vector3(1, 0, 0));
+  tri(4, 6, 7, new THREE.Vector3(1, 0, 0));
   return { pos: new Float32Array(pos), nrm: new Float32Array(nrm), idx };
 })();
 
@@ -96,24 +102,34 @@ const beadFragment = /* glsl */ `
   }
 `;
 
-function Toolpaths({ parsed, upTo, colourBy, colours }: { parsed: ParsedGcode; upTo: number; colourBy: ColourBy; colours: string[] }) {
+/** Segments [from, to) of the G-code as instanced beads, in the colours given per segment. */
+function useBeads(parsed: PreviewGcode, from: number, to: number, colour: Uint8Array) {
   const geometry = useMemo(() => {
     const g = new THREE.InstancedBufferGeometry();
     g.setAttribute('position', new THREE.BufferAttribute(BEAD.pos, 3));
     g.setAttribute('normal', new THREE.BufferAttribute(BEAD.nrm, 3));
     g.setIndex(BEAD.idx);
-    const ends = new THREE.InstancedInterleavedBuffer(parsed.positions, 6);
+    const ends = new THREE.InstancedInterleavedBuffer(parsed.positions.subarray(from * 6, to * 6), 6);
     g.setAttribute('iStart', new THREE.InterleavedBufferAttribute(ends, 3, 0));
     g.setAttribute('iEnd', new THREE.InterleavedBufferAttribute(ends, 3, 3));
-    g.setAttribute('iSize', new THREE.InstancedBufferAttribute(parsed.sizes, 2));
+    g.setAttribute('iSize', new THREE.InstancedBufferAttribute(parsed.sizes.subarray(from * 2, to * 2), 2));
     return g;
-  }, [parsed]);
+  }, [parsed, from, to]);
   useEffect(() => () => geometry.dispose(), [geometry]);
-  const material = useMemo(
-    () => new THREE.ShaderMaterial({ vertexShader: beadVertex, fragmentShader: beadFragment, side: THREE.DoubleSide }),
-    [],
-  );
   useMemo(() => {
+    geometry.setAttribute('iColor', new THREE.InstancedBufferAttribute(colour.subarray(from * 3, to * 3), 3, true));
+  }, [geometry, colour, from, to]);
+  return geometry;
+}
+
+/**
+ * The toolpaths up to layer `upTo`: the shell (what shows from outside) always,
+ * the inner segments (infill, inner walls) only while the view holds still,
+ * since they are most of a print and almost all hidden. While the view moves,
+ * only the top layer keeps its inner segments.
+ */
+function Toolpaths({ parsed, upTo, colourBy, colours, moving }: { parsed: PreviewGcode; upTo: number; colourBy: ColourBy; colours: string[]; moving: boolean }) {
+  const colour = useMemo(() => {
     const n = parsed.features.length;
     const col = new Uint8Array(n * 3);
     const toByte = (c: [number, number, number]) => c.map((v) => Math.round(v * 255));
@@ -124,17 +140,46 @@ function Toolpaths({ parsed, upTo, colourBy, colours }: { parsed: ParsedGcode; u
       const c = colourBy === 'feature' ? featurePalette[parsed.features[s]] : (toolPalette[parsed.tools[s]] ?? fallback);
       col.set(c, s * 3);
     }
-    geometry.setAttribute('iColor', new THREE.InstancedBufferAttribute(col, 3, true));
-  }, [geometry, parsed, colourBy, colours]);
-  geometry.instanceCount = parsed.layerStarts[Math.min(upTo + 1, parsed.layerStarts.length - 1)];
+    return col;
+  }, [parsed, colourBy, colours]);
+  const { shellStarts, innerStarts } = parsed;
+  const last = shellStarts.length - 1;
+  const shellEnd = shellStarts[last];
+  const top = Math.max(0, Math.min(upTo, last - 1));
+  const shell = useBeads(parsed, 0, shellEnd, colour);
+  const inner = useBeads(parsed, shellEnd, innerStarts[last], colour);
+  const topInner = useBeads(parsed, innerStarts[top], innerStarts[top + 1], colour);
+  shell.instanceCount = shellStarts[top + 1];
+  inner.instanceCount = innerStarts[top + 1] - shellEnd;
+  topInner.instanceCount = innerStarts[top + 1] - innerStarts[top];
+  const material = useMemo(() => new THREE.ShaderMaterial({ vertexShader: beadVertex, fragmentShader: beadFragment }), []);
   // The view draws on demand: the layer and colour changes above are not props.
   const invalidate = useThree((s) => s.invalidate);
   useLayoutEffect(() => invalidate());
-  return <mesh geometry={geometry} material={material} frustumCulled={false} />;
+  return (
+    <>
+      <mesh geometry={shell} material={material} frustumCulled={false} />
+      <mesh geometry={inner} material={material} frustumCulled={false} visible={!moving} />
+      <mesh geometry={topInner} material={material} frustumCulled={false} visible={moving} />
+    </>
+  );
+}
+
+/** Whether the camera is moving: from the first change until it has been still for a moment. */
+function useMoving() {
+  const [moving, setMoving] = useState(false);
+  const timer = useRef(0);
+  useEffect(() => () => clearTimeout(timer.current), []);
+  const onChange = () => {
+    setMoving(true);
+    clearTimeout(timer.current);
+    timer.current = window.setTimeout(() => setMoving(false), 250);
+  };
+  return [moving, onChange] as const;
 }
 
 /** Points the camera at the printed part once the G-code has been read. */
-function FitCamera({ parsed }: { parsed: ParsedGcode }) {
+function FitCamera({ parsed }: { parsed: PreviewGcode }) {
   const camera = useThree((s) => s.camera);
   const controls = useThree((s) => s.controls) as unknown as { target: THREE.Vector3; update(): void } | null;
   useEffect(() => {
@@ -171,6 +216,7 @@ export function Preview() {
   const [keyOpen, setKeyOpen] = useState(() => !window.matchMedia('(max-width: 760px)').matches);
   const upTo = Math.min(layer, layers - 1);
   const scene = useSceneColours();
+  const [moving, onCameraChange] = useMoving();
 
   if (!gcode) {
     return (
@@ -190,9 +236,9 @@ export function Preview() {
       <Canvas className="viewport" frameloop="demand" camera={{ position: [w / 2, -d * 0.6, d * 0.7], fov: 40, near: 1, far: 5000 }} data-testid="gcode-preview">
         <color attach="background" args={[scene.background]} />
         <Bed w={w} d={d} />
-        {parsed && <Toolpaths parsed={parsed} upTo={upTo} colourBy={colourBy} colours={colours} />}
+        {parsed && <Toolpaths parsed={parsed} upTo={upTo} colourBy={colourBy} colours={colours} moving={moving} />}
         {parsed && <FitCamera parsed={parsed} />}
-        <OrbitControls target={[w / 2, d / 2, 0]} makeDefault />
+        <OrbitControls target={[w / 2, d / 2, 0]} makeDefault onChange={onCameraChange} />
       </Canvas>
       <div className="legend">
         <div className="legend-head">

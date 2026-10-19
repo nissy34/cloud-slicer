@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { sendToPrinter } from '../device';
 import { formatDuration, formatGrams, gcodeFileName, stageLabel } from '../lib/format';
+import { LIGHT_TRIANGLES, triangleCount } from '../lib/simplify';
 import { useSlicer } from '../state/store';
 
 function download(blob: Blob, name: string) {
@@ -59,7 +60,7 @@ function SliceProgress({ pct, stage, onCancel }: { pct: number; stage: string; o
 }
 
 export function ActionBar() {
-  const { engine, engineMessage, project, plate, job, notice, noticeWarn, slice, cancelSlice, setTab, tab } = useSlicer();
+  const { engine, engineMessage, project, plate, job, notice, noticeWarn, heavy, simplifyHeavy, slice, cancelSlice, setTab, tab } = useSlicer();
 
   if (engine === 'failed') return <EngineFailed message={engineMessage} />;
 
@@ -76,10 +77,10 @@ export function ActionBar() {
         {engine === 'ready' && job.kind === 'idle' && (
           <span className="muted">
             {onPlate ? 'Ready to slice' : project?.objects.length ? 'This plate is empty' : 'Open a model to start'}
-            {notice && '.'}
+            {(notice || heavy) && '.'}
           </span>
         )}
-        {job.kind === 'loading' && <span className="muted">Opening {job.name}…</span>}
+        {job.kind === 'loading' && <span className="muted">{job.label ?? `Opening ${job.name}`}…</span>}
         {job.kind === 'slicing' && (
           <SliceProgress pct={job.pct} stage={stageLabel(job.stage) || 'Slicing'} onCancel={cancelSlice} />
         )}
@@ -103,6 +104,13 @@ export function ActionBar() {
           </span>
         )}
         {notice && job.kind !== 'error' && <span className={noticeWarn ? 'hint warn' : 'hint'}> {notice}</span>}
+        {heavy && job.kind === 'idle' && (
+          <span className="hint warn" data-testid="heavy-model">
+            {' '}
+            This model has {triangleCount(heavy.triangles)} triangles, more than a browser can comfortably slice. Simplifying it to
+            about {triangleCount(LIGHT_TRIANGLES)} keeps plenty of detail for printing{heavy.painted ? ', but removes its paint' : ''}.
+          </span>
+        )}
       </div>
       <div className="actions">
         {job.kind === 'sliced' && (
@@ -125,6 +133,11 @@ export function ActionBar() {
               Send to printer
             </button>
           </>
+        )}
+        {heavy && job.kind === 'idle' && (
+          <button className="secondary" onClick={() => void simplifyHeavy()}>
+            Simplify model
+          </button>
         )}
         <button className="primary" disabled={!onPlate || busy || engine !== 'ready'} onClick={() => void slice()}>
           {plateLabel}

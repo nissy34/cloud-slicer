@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { FEATURES, parseGcode } from './gcode';
+import { FEATURES, orderForPreview, parseGcode } from './gcode';
 
 const sample = `
 G90
@@ -74,5 +74,23 @@ G1 X0 Y0 E0.5
   });
   it('treats E as relative under G91', () => {
     expect(segments(`M82\nG91\nG1 X0 Y0 E0\n${walls.replace(/X(\d+) Y(\d+)/g, 'X0 Y1')}`)).toBe(4);
+  });
+});
+
+describe('orderForPreview', () => {
+  const parsed = parseGcode(sample);
+  const g = orderForPreview(parsed);
+  const arc = parsed.features.length - 3; // the top surface arc, in chords
+  it('puts every layer\'s shell first, then the inner segments, layer by layer', () => {
+    const names = Array.from(g.features, (f) => FEATURES[f]);
+    expect(names).toEqual(['Outer wall', 'Outer wall', ...Array(arc).fill('Top surface'), 'Sparse infill']);
+    expect(Array.from(g.shellStarts)).toEqual([0, 2, 2 + arc]);
+    expect(Array.from(g.innerStarts)).toEqual([2 + arc, 3 + arc, 3 + arc]);
+  });
+  it('keeps each segment\'s data together', () => {
+    const last = parsed.features.length - 1;
+    expect(Array.from(g.positions.subarray(last * 6, last * 6 + 6))).toEqual(Array.from(parsed.positions.subarray(12, 18)));
+    expect(g.tools[2]).toBe(1);
+    expect(g.tools[last]).toBe(0);
   });
 });

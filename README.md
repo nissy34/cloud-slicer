@@ -29,7 +29,7 @@ hosted on Cloudflare's free tier.
 - **Prepare tools**: move, rotate, scale, lay on face, cut, measure (distances and angles
   between faces, edges, circles and corners), variable layer height (adaptive, smooth,
   or by hand on the layer height chart), arrange, auto-orient, split,
-  mirror, simplify, plates, brim ears (by hand or on the corners), undo and redo,
+  mirror, simplify (offered by itself when a model has too many triangles to slice comfortably), plates, brim ears (by hand or on the corners), undo and redo,
   painting (colours, support and seam enforcers/blockers, fuzzy skin), and desktop's
   object menu (right click or long press an object, or ⋯ in the object list: clone,
   center, rename, printable, change filament, scale to fit, unit conversion, replace
@@ -214,6 +214,8 @@ Browser end to end tests (Playwright's Chromium) run against the built site
 | `test/wipe-tower.mjs` | A two-filament plate shows the prime tower; drag it, and the slice prints it there |
 | `test/loading.mjs` | The loading screen while the engine starts and a project opens |
 | `test/cancel.mjs` | Cancel stops the slice in the engine, and a change while slicing drops its result |
+| `test/restart.mjs` | After an engine crash (mid-slice or after), the engine restarts and reopens the project |
+| `test/heavy.mjs` | A model with over a million triangles offers Simplify, which brings it to about half a million |
 | `test/device-smoke.mjs` | Device tab through relay and bridge to a mock U1, and direct to a mock Klipper printer |
 
 CI never talks to a real printer: printer tests use a mock Moonraker. How CI runs all of
