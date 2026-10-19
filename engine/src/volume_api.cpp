@@ -106,7 +106,12 @@ ModelVolume* addFile(ModelObject* obj, ModelVolumeType type, const std::string& 
     v->source.input_file = name;
     if (model.objects.size() == 1 && model.objects.front()->volumes.size() == 1)
         v->source.mesh_offset = model.objects.front()->volumes.front()->source.mesh_offset;
-    v->set_offset(v->source.mesh_offset - obj->volumes.front()->source.mesh_offset);
+    // Where the file put it relative to the object's first part, carried
+    // through that part's own placement (desktop assumes it sits at the origin).
+    const ModelVolume* first = obj->volumes.front();
+    const Vec3d at = first->get_matrix() * (v->source.mesh_offset - first->source.mesh_offset);
+    v->set_transformation(first->get_transformation());
+    v->set_offset(at);
     return v;
 }
 

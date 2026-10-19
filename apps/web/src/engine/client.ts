@@ -23,6 +23,7 @@ import type { SimplifyBy, SimplifyResult } from '../lib/simplify';
 import type { MeasureFeature, Measurement } from '../lib/measure';
 import type { ObjectAction } from '../lib/objectMenu';
 import type { VolumeAction } from '../lib/volumes';
+import type { BooleanRequest } from '../lib/boolean';
 
 /** A request to the engine's mixed-filament list (engine/src/mixed_api.cpp). */
 export interface MixedRequest {
@@ -273,6 +274,8 @@ export class EngineClient {
   /** A part, modifier... of object o added, renamed, moved or deleted; "add" without a shape takes a mesh file's bytes. */
   volumeAction = (o: number, request: VolumeAction, bytes?: ArrayBuffer) =>
     this.call<{ info: ProjectInfo; volume?: number }>('volumeAction', [o, request, bytes ?? null], bytes ? [bytes] : []);
+  /** Two volumes of object o combined into one, like desktop's Mesh boolean. */
+  meshBoolean = (o: number, request: BooleanRequest) => this.call<{ info: ProjectInfo; volume: number }>('meshBoolean', [o, request]);
   /** Instance i of object o as a binary STL. */
   exportStl = (o: number, i: number) => this.call<ArrayBuffer>('exportStl', [o, i]);
   setObjectSettings = (o: number, volume: number, values: Record<string, string | null>) =>

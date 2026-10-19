@@ -4,8 +4,9 @@
 // already there, simplify halves the triangles, brim ears go on the corners and
 // where the bed is clicked, lay on face turns the object, variable layer height
 // makes an adaptive profile, measure picks two features and measures between
-// them, the object menu (right click or ⋯) renames, clones and exports, and
-// the toolbar fits a phone (and the page itself never scrolls there).
+// them, the object menu (right click or ⋯) renames, clones and exports, mesh
+// boolean joins two parts, and the toolbar fits a phone (and the page itself
+// never scrolls there).
 //
 //   node test/toolbar.mjs [screenshot-dir]
 //
@@ -349,6 +350,27 @@ try {
   await page.locator('body').press('Control+z');
   await page.waitForFunction(() => document.querySelectorAll('ul.objects > li.object:first-child ul.volumes > li').length === 3, null, { timeout: 30000 });
   console.log(`parts and modifiers: ${names.join(' | ')}; delete and undo`);
+
+  // Mesh boolean from the object menu: the boat and the tetrahedron part
+  // become one part, undone like any edit.
+  await more(0).click();
+  await objectMenu.getByRole('menuitem', { name: 'Mesh boolean…' }).click();
+  const booleanPanel = page.getByRole('region', { name: 'Mesh boolean' });
+  await booleanPanel.waitFor();
+  await booleanPanel.getByRole('radio', { name: 'Difference' }).click();
+  await booleanPanel.getByLabel('Subtract with').waitFor();
+  await booleanPanel.getByRole('radio', { name: 'Union' }).click();
+  await booleanPanel.getByLabel('Part 1').selectOption({ index: 0 });
+  await booleanPanel.getByLabel('Part 2').selectOption({ index: 1 });
+  if (shots) await page.screenshot({ path: join(shots, 'boolean-desktop.png') });
+  await booleanPanel.getByRole('button', { name: 'Union', exact: true }).click();
+  await page.waitForFunction(() => document.querySelectorAll('ul.objects > li.object:first-child ul.volumes > li').length === 2, null, { timeout: 60000 });
+  const joined = await volumes.locator('.volume-name').allInnerTexts();
+  if (!/ - union/.test(joined[0])) fail(`the union takes the first part's place: ${joined}`);
+  await booleanPanel.getByRole('button', { name: 'Done' }).click();
+  await page.locator('body').press('Control+z');
+  await page.waitForFunction(() => document.querySelectorAll('ul.objects > li.object:first-child ul.volumes > li').length === 3, null, { timeout: 30000 });
+  console.log(`mesh boolean: ${joined.join(' | ')}; undo brings the parts back`);
   await page.close();
 
   const phone = await open({ width: 390, height: 844 }, true);

@@ -959,3 +959,52 @@ test('parts and modifiers: add shapes and files, move, change type, delete, and 
   assert.deepEqual(kinds(), ['part', 'modifier']);
   assert.equal(info().objects[0].volumes[1].settings.sparse_infill_density, '100%');
 });
+
+test('mesh boolean: union, difference and intersection of two parts, like desktop', () => {
+  select({ printer: DEFAULT_PRINTER });
+  const volumes = (o = 0) => info().objects[o].volumes;
+  const extent = () => {
+    const p = engine.previewMesh(0).positions;
+    const lo = [Infinity, Infinity, Infinity], hi = [-Infinity, -Infinity, -Infinity];
+    for (let k = 0; k < p.length; k++) (lo[k % 3] = Math.min(lo[k % 3], p[k])), (hi[k % 3] = Math.max(hi[k % 3], p[k]));
+    return hi.map((v, k) => Math.round((v - lo[k]) * 100) / 100);
+  };
+  // A 20 mm cube and a 30 mm cube part over its right half, sticking out on
+  // every side so no faces lie flat on each other (mcut can't cut those).
+  const setup = () => {
+    load('gen-cube-20.stl');
+    engine.FS.writeFile('/work/b.stl', cubesStl([[10, -5, -5]], 30));
+    call(engine, 'volumeAction', 0, JSON.stringify({ op: 'add', type: 'part', path: '/work/b.stl', name: 'b.stl' }));
+    assert.equal(volumes().length, 2);
+  };
+  const boolean = (request) => call(engine, 'meshBoolean', 0, JSON.stringify(request));
+
+  setup();
+  assert.deepEqual(extent(), [40, 30, 30], 'the two cubes overlapping');
+  const union = boolean({ op: 'union', a: 0, b: 1 });
+  assert.equal(volumes().length, 1, 'a union always takes the second part');
+  assert.equal(union.volume, 0);
+  assert.match(volumes()[0].name, / - union$/);
+  assert.deepEqual(extent(), [40, 30, 30]);
+  slice(fullConfig());
+
+  setup();
+  boolean({ op: 'difference', a: 0, b: 1 });
+  assert.equal(volumes().length, 2, 'the tool stays unless asked to go');
+  assert.equal(volumes()[0].kind, 'part');
+
+  setup();
+  boolean({ op: 'difference', a: 0, b: 1, deleteInput: true });
+  assert.equal(volumes().length, 1);
+  assert.deepEqual(extent(), [10, 20, 20], 'half the first cube is left');
+
+  setup();
+  boolean({ op: 'intersection', a: 1, b: 0, deleteInput: true });
+  assert.equal(volumes().length, 1);
+  assert.deepEqual(extent(), [10, 20, 20], 'only the overlap is left');
+  assert.match(volumes()[0].name, /b\.stl - intersection/);
+
+  setup();
+  assert.throws(() => boolean({ op: 'union', a: 0, b: 0 }), /two different/);
+  assert.throws(() => boolean({ op: 'xor', a: 0, b: 1 }), /unknown/);
+});

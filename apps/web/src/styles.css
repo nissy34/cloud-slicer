@@ -941,6 +941,13 @@ select:focus-visible {
 .simplify-warning {
   color: var(--danger);
 }
+/* Mesh boolean: a picker per part, its name and kind. */
+.transform-row.boolean-pick {
+  grid-template-columns: 96px 1fr;
+}
+.boolean-pick select {
+  min-width: 0;
+}
 /* Brim ears: the brim type note, the count and the auto-generate group. */
 .brim-warning {
   display: grid;
