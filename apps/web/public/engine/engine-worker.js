@@ -157,7 +157,7 @@ if (self.name !== 'em-pthread') {
     },
     preview(e, plate) {
       const m = e.previewMesh(plate);
-      return { value: m, transfer: [m.positions.buffer, m.filaments.buffer, m.objectTriangles.buffer] };
+      return { value: m, transfer: [m.positions.buffer, m.filaments.buffer, m.objectTriangles.buffer, m.volumePositions.buffer, m.volumeList.buffer, m.partList.buffer] };
     },
     transform: (e, o, i, changes) => (json(e.setInstanceTransform(o, i, JSON.stringify(changes))), JSON.parse(e.modelInfoJson())),
     setExtruder: (e, o, v, f) => (json(e.setExtruder(o, v, f)), JSON.parse(e.modelInfoJson())),
@@ -171,6 +171,37 @@ if (self.name !== 'em-pthread') {
     splitParts: (e, o) => (json(e.splitParts(o)), JSON.parse(e.modelInfoJson())),
     cutObject: (e, o, i, z, keep, flip) => (json(e.cutObject(o, i, z, keep, flip)), JSON.parse(e.modelInfoJson())),
     mirrorInstance: (e, o, i, axis) => (json(e.mirrorInstance(o, i, axis)), JSON.parse(e.modelInfoJson())),
+    // The object menu (see engine/src/object_api.cpp); "replace" brings the STL's bytes.
+    objectAction(e, o, i, request, bytes) {
+      const path = '/work/replace.stl';
+      if (bytes) e.FS.writeFile(path, new Uint8Array(bytes));
+      try {
+        json(e.objectAction(o, i, JSON.stringify(bytes ? { ...request, path } : request)));
+      } finally {
+        if (bytes) e.FS.unlink(path);
+      }
+      return JSON.parse(e.modelInfoJson());
+    },
+    // Parts, modifiers and the like of object o (see engine/src/volume_api.cpp);
+    // a mesh file to add comes as bytes, named for its format.
+    volumeAction(e, o, request, bytes) {
+      const path = '/work/part' + ((request.name || '').match(/\.[a-z0-9]+$/i)?.[0] ?? '.stl');
+      if (bytes) e.FS.writeFile(path, new Uint8Array(bytes));
+      try {
+        const { volume } = json(e.volumeAction(o, JSON.stringify(bytes ? { ...request, path } : request)));
+        return { info: JSON.parse(e.modelInfoJson()), volume };
+      } finally {
+        if (bytes) e.FS.unlink(path);
+      }
+    },
+    // Instance i of object o as a binary STL (the object menu's Export as STL).
+    exportStl(e, o, i) {
+      const path = '/work/export.stl';
+      json(e.objectAction(o, i, JSON.stringify({ op: 'exportStl', path })));
+      const bytes = e.FS.readFile(path).buffer;
+      e.FS.unlink(path);
+      return { value: bytes, transfer: [bytes] };
+    },
     setObjectSettings: (e, o, v, values) => (json(e.setObjectSettings(o, v, JSON.stringify(values))), JSON.parse(e.modelInfoJson())),
     // A paint stroke; returns the project plus whatever shows the new paint.
     paint(e, plate, options) {
@@ -178,7 +209,7 @@ if (self.name !== 'em-pthread') {
       const info = JSON.parse(e.modelInfoJson());
       if (options.kind === 'color') {
         const m = e.previewMesh(plate);
-        return { value: { info, preview: m }, transfer: [m.positions.buffer, m.filaments.buffer, m.objectTriangles.buffer] };
+        return { value: { info, preview: m }, transfer: [m.positions.buffer, m.filaments.buffer, m.objectTriangles.buffer, m.volumePositions.buffer, m.volumeList.buffer, m.partList.buffer] };
       }
       const o = e.paintOverlay(plate, options.kind);
       return { value: { info, overlay: o }, transfer: [o.positions.buffer, o.states.buffer] };
@@ -197,6 +228,21 @@ if (self.name !== 'em-pthread') {
     },
     mixedBlend: (e, request) => json(e.mixedBlend(JSON.stringify(request))).colours,
     mixedMatch: (e, request) => json(e.mixedMatch(JSON.stringify(request))),
+    // Simplify object o (see engine/src/simplify_api.cpp); apply also returns the project.
+    simplify(e, o, request) {
+      const out = json(e.simplifyObject(o, JSON.stringify(request)));
+      return request.op === 'apply' ? JSON.parse(e.modelInfoJson()) : out;
+    },
+    // Brim ears of object o seen from instance i (see engine/src/brim_api.cpp).
+    brimEars(e, o, i, overrides, request) {
+      const { config } = json(e.presetsFullConfig(JSON.stringify(overrides || {})));
+      return json(e.brimEars(o, i, JSON.stringify(config), JSON.stringify(request)));
+    },
+    // Variable layer height of object o (see engine/src/layers_api.cpp).
+    layerHeights(e, o, overrides, request) {
+      const { config } = json(e.presetsFullConfig(JSON.stringify(overrides || {})));
+      return json(e.layerHeights(o, JSON.stringify(config), JSON.stringify(request)));
+    },
     // Measure tool: the feature under a ray, and the distance and angle
     // between two of them (see engine/src/measure_api.cpp).
     measureFeature: (e, plate, options) => json(e.measureFeature(plate, JSON.stringify(options))).feature,

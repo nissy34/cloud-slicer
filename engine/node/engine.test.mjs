@@ -717,6 +717,131 @@ test('colour mixing: Match finds the recipe for a target colour', () => {
   assert.equal(mixed({ definitions: '', colours: TWO, types: ['PETG', 'TPU'], op: { kind: 'add', row } }).rows[0].compatible, true);
 });
 
+test('simplify: fewer triangles by detail level or ratio, paint dropped, like desktop', () => {
+  select({ printer: DEFAULT_PRINTER });
+  load('3DBenchy.stl');
+  const simplify = (request) => call(engine, 'simplifyObject', 0, JSON.stringify(request));
+  const start = simplify({ op: 'get' }).triangles;
+  assert.ok(start > 100000, `Benchy has many triangles: ${start}`);
+
+  // Preview changes nothing; Apply uses the same result.
+  const half = simplify({ op: 'preview', ratio: 50 });
+  assert.equal(half.triangles, start);
+  assert.ok(Math.abs(half.after - start / 2) < start * 0.02, `half the triangles: ${half.after} of ${start}`);
+  assert.equal(simplify({ op: 'get' }).triangles, start);
+
+  // Coarser detail levels keep fewer triangles.
+  const levels = [0, 2, 4].map((level) => simplify({ op: 'preview', level }).after);
+  assert.ok(levels[0] >= levels[1] && levels[1] > levels[2], `extra high >= medium > extra low: ${levels}`);
+
+  const [x, y] = info().objects[0].instances[0].offset;
+  call(engine, 'paint', 0, JSON.stringify({ rays: [[x, y, 200, 0, 0, -1]], kind: 'support', state: 1, tool: 'sphere', radius: 10 }));
+  assert.ok(simplify({ op: 'get' }).painted);
+  const size = info().objects[0].size;
+  const applied = simplify({ op: 'apply', ratio: 50 });
+  assert.equal(applied.triangles, half.after);
+  assert.equal(simplify({ op: 'get' }).triangles, half.after);
+  assert.ok(!info().objects[0].volumes[0].painted && !simplify({ op: 'get' }).painted, 'the paint goes with the old triangles');
+  assert.ok(info().objects[0].size.every((v, i) => Math.abs(v - size[i]) < 0.5), 'the shape keeps its size');
+  slice(fullConfig());
+
+  // A 0% ratio leaves the mesh as it is.
+  assert.equal(simplify({ op: 'preview', ratio: 0 }).after, half.after);
+});
+
+test('brim ears: on the corners, by hand, and printed when the brim type is painted', () => {
+  select({ printer: DEFAULT_PRINTER });
+  load('gen-cube-20.stl');
+  const config = JSON.stringify(fullConfig());
+  const ears = (request, o = 0, i = 0) => call(engine, 'brimEars', o, i, config, JSON.stringify(request));
+  const brimLines = (gcode) => gcode.split(/^;TYPE:/m).filter((b) => /^Brim/.test(b)).join('');
+
+  const none = ears({ op: 'get' });
+  assert.deepEqual(none.ears, []);
+  assert.ok(none.defaultDiameter > 4 && none.defaultDiameter < 12, `16 first-layer lines across: ${none.defaultDiameter}`);
+
+  const auto = ears({ op: 'auto', diameter: 8, maxAngle: 125, detection: 1 });
+  assert.equal(auto.ears.length, 4, 'one ear on each corner of the cube');
+  const xs = auto.ears.map((e) => e.x), ys = auto.ears.map((e) => e.y);
+  assert.ok(Math.abs(Math.max(...xs) - Math.min(...xs) - 20) < 0.5 && Math.abs(Math.max(...ys) - Math.min(...ys) - 20) < 0.5, 'ears 20 mm apart, on the corners');
+  assert.ok(auto.ears.every((e) => e.attached && Math.abs(e.diameter - 8) < 1e-4));
+  assert.equal(ears({ op: 'auto', diameter: 8, maxAngle: 125, detection: 1 }).ears.length, 4, 'running it again adds no duplicates');
+
+  // An ear by hand, far from the cube, doesn't touch it.
+  const cx = (Math.max(...xs) + Math.min(...xs)) / 2, cy = (Math.max(...ys) + Math.min(...ys)) / 2;
+  const loose = ears({ op: 'add', x: cx + 40, y: cy, diameter: 6 });
+  assert.equal(loose.ears.length, 5);
+  assert.equal(loose.ears[4].attached, false);
+  assert.ok(Math.abs(loose.ears[4].x - cx - 40) < 1e-3);
+  const resized = ears({ op: 'resize', indices: [0], diameter: 10 });
+  assert.ok(Math.abs(resized.ears[0].diameter - 10) < 1e-4);
+  assert.equal(ears({ op: 'remove', indices: [4] }).ears.length, 4);
+
+  // Printed only with the painted brim type, as on desktop.
+  call(engine, 'setObjectSettings', 0, -1, JSON.stringify({ brim_type: 'no_brim' }));
+  assert.equal(ears({ op: 'get' }).brimType, 'no_brim');
+  assert.equal(brimLines(slice(fullConfig()).gcode), '', 'no brim without the painted type');
+  call(engine, 'setObjectSettings', 0, -1, JSON.stringify({ brim_type: 'painted' }));
+  assert.equal(ears({ op: 'get' }).brimType, 'painted');
+  const painted = brimLines(slice(fullConfig()).gcode);
+  assert.ok(painted.length > 0, 'the ears print as brim');
+  // Brim only under the ears: no brim line runs along the sides away from them.
+  const corners = resized.ears.slice(0, 4);
+  const moves = [...painted.matchAll(/^G1 X([\d.]+) Y([\d.]+) E/gm)].map((m) => [Number(m[1]), Number(m[2])]);
+  assert.ok(moves.length > 20);
+  const nearEar = ([x, y]) => corners.some((e) => Math.hypot(x - e.x, y - e.y) <= e.diameter / 2 + 1);
+  const onCube = ([x, y]) => Math.abs(x - cx) <= 10.5 && Math.abs(y - cy) <= 10.5;
+  assert.deepEqual(moves.filter((m) => !nearEar(m) && !onCube(m)), [], 'brim only at the ears');
+  assert.ok(moves.some(([x]) => x < cx - 11.5), 'the ears reach past the cube');
+
+  assert.deepEqual(ears({ op: 'clear' }).ears, []);
+});
+
+test('variable layer height: adaptive, smooth, manual edits and reset change what a slice prints', () => {
+  select({ printer: DEFAULT_PRINTER });
+  load('3DBenchy.stl');
+  const config = JSON.stringify(fullConfig());
+  const layers = (request) => call(engine, 'layerHeights', 0, config, JSON.stringify(request));
+  const layerCount = (gcode) => (gcode.match(/^;LAYER_CHANGE/gm) ?? []).length;
+
+  const plain = layers({ op: 'get' });
+  assert.equal(plain.custom, false);
+  assert.ok(plain.height > 40 && plain.height < 50, `Benchy is about 48 mm tall: ${plain.height}`);
+  const heights = (p) => p.layers.filter((_, i) => i % 2).map((top, i) => top - p.layers[i * 2]);
+  assert.ok(heights(plain).slice(1).every((h) => Math.abs(h - plain.layerHeight) < 1e-6), 'without a profile every layer is the layer height');
+  const plainLayers = layerCount(slice(fullConfig()).gcode);
+
+  const adaptive = layers({ op: 'adaptive', quality: 0 });
+  assert.equal(adaptive.custom, true);
+  const hs = heights(adaptive);
+  assert.ok(Math.min(...hs.slice(1)) < plain.layerHeight - 1e-6, 'adaptive (quality) makes some layers thinner');
+  assert.ok(hs.every((h) => h >= adaptive.minLayerHeight - 1e-6 && h <= adaptive.maxLayerHeight + 1e-6), 'within the printer\'s layer heights');
+  const adaptiveLayers = layerCount(slice(fullConfig()).gcode);
+  assert.ok(adaptiveLayers > plainLayers, `the slice follows the profile: ${adaptiveLayers} layers vs ${plainLayers}`);
+
+  const smooth = layers({ op: 'smooth', radius: 5, keepMin: false });
+  assert.equal(smooth.custom, true);
+
+  layers({ op: 'reset' });
+  const thin = layers({ op: 'adjust', action: 'decrease', zs: Array(20).fill(20), band: 4 });
+  const at = (p, z) => heights(p)[p.layers.findIndex((v, i) => i % 2 === 0 && p.layers[i + 1] >= z) / 2];
+  assert.ok(at(thin, 20) < plain.layerHeight - 0.01, `adding detail at 20 mm makes layers there thinner: ${at(thin, 20)}`);
+  // (within a hair: Orca stretches the layers a little so the last one ends at the top)
+  assert.ok(Math.abs(at(thin, 40) - plain.layerHeight) < 0.005, `and leaves layers far away alone: ${at(thin, 40)}`);
+
+  const reset = layers({ op: 'reset' });
+  assert.equal(reset.custom, false);
+  assert.equal(layerCount(slice(fullConfig()).gcode), plainLayers, 'reset goes back to the plain layers');
+
+  // Reading the layers caches the object's height; turning it afterwards
+  // still drops it onto the bed.
+  call(engine, 'setInstanceTransform', 0, 0, JSON.stringify({ rotation: [90, 0, 0] }));
+  const pos = engine.previewMesh(0).positions;
+  let low = Infinity;
+  for (let i = 2; i < pos.length; i += 3) low = Math.min(low, pos[i]);
+  assert.ok(Math.abs(low) < 1e-3, `on the bed after turning: lowest z ${low}`);
+});
+
 test('measure: faces, edges and corners under a ray, and the distance and angle between them', () => {
   select({ printer: DEFAULT_PRINTER });
   load('gen-cube-20.stl');
@@ -752,4 +877,144 @@ test('measure: faces, edges and corners under a ray, and the distance and angle 
   const angle = call(engine, 'measureBetween', top.id, left.id);
   assert.ok(Math.abs(angle.angle.degrees - 90) < 1e-3, `top and side are square: ${JSON.stringify(angle)}`);
   assert.equal(feature([x + 100, y + 100, 100, 0, 0, -1]), null, 'nothing under a ray that misses');
+});
+
+test('object menu: rename, printable, center, scale to fit, clone, units, replace with STL and export STL', () => {
+  select({ printer: DEFAULT_PRINTER });
+  let m = load('gen-cube-20.stl');
+  const act = (o, i, request) => call(engine, 'objectAction', o, i, JSON.stringify(request));
+  const info = () => JSON.parse(engine.modelInfoJson());
+  const near = (a, b, msg, tol = 1e-2) => assert.ok(Math.abs(a - b) < tol, `${msg}: ${a} vs ${b}`);
+  const [w, d] = bedSize(fullConfig());
+
+  act(0, 0, { op: 'rename', name: 'Box' });
+  assert.equal(info().objects[0].name, 'Box');
+  assert.throws(() => act(0, 0, { op: 'rename', name: '' }), /empty/);
+
+  act(0, 0, { op: 'printable', value: false });
+  assert.equal(info().objects[0].instances[0].printable, false);
+  act(0, 0, { op: 'printable', value: true });
+
+  // The cube's centre on the plate, from its triangles.
+  const centre = () => {
+    const pos = engine.previewMesh(0).positions;
+    const lo = [Infinity, Infinity, Infinity], hi = [-Infinity, -Infinity, -Infinity];
+    for (let i = 0; i < pos.length; i++) { lo[i % 3] = Math.min(lo[i % 3], pos[i]); hi[i % 3] = Math.max(hi[i % 3], pos[i]); }
+    return { mid: lo.map((v, k) => (v + hi[k]) / 2), size: lo.map((v, k) => hi[k] - v), bottom: lo[2] };
+  };
+  call(engine, 'setInstanceTransform', 0, 0, JSON.stringify({ offset: [30, 40] }));
+  act(0, 0, { op: 'center' });
+  let c = centre();
+  near(c.mid[0], w / 2, 'centred in x');
+  near(c.mid[1], d / 2, 'centred in y');
+
+  // As large as the plate allows, with room for floating-point rounding, still on the bed.
+  act(0, 0, { op: 'scaleToFit', height: 100 });
+  c = centre();
+  near(c.size[2], 100 * 20 / 20.02, 'the height limits a cube to 100 mm', 0.05);
+  near(c.bottom, 0, 'on the bed');
+  near(c.mid[0], w / 2, 'still centred');
+  act(0, 0, { op: 'scaleToFit', height: 0 });
+  const fit = centre().size[0];
+  assert.ok(fit <= Math.min(w, d) && fit > Math.min(w, d) - 0.1, `without a height, the plate limits it: ${fit}`);
+
+  m = load('gen-cube-20.stl');
+  act(0, 0, { op: 'clone', count: 3 });
+  m = info();
+  assert.equal(m.objects.length, 4, 'three new objects');
+  assert.ok(m.objects.every((o) => o.instances.length === 1));
+
+  m = load('gen-cube-20.stl');
+  act(0, 0, { op: 'convert', to: 'fromInch' });
+  near(info().objects[0].size[0], 20 * 25.4, 'inches to mm', 0.1);
+  assert.equal(info().objects[0].units, 'inch', 'the page offers to convert back');
+  act(0, 0, { op: 'convert', to: 'toInch' });
+  near(info().objects[0].size[0], 20, 'and back', 0.01);
+  assert.equal(info().objects[0].units, '');
+  near(centre().bottom, 0, 'on the bed after converting');
+
+  // Another mesh in place of the part (one mesh with two pieces is still one part).
+  engine.FS.writeFile('/work/two.stl', generated['gen-two-cubes.stl']);
+  act(0, 0, { op: 'replace', volume: 0, path: '/work/two.stl' });
+  m = info();
+  assert.equal(m.objects.length, 1);
+  near(m.objects[0].size[0], 40, 'the new mesh: two 10 mm cubes 30 mm apart');
+  near(centre().bottom, 0, 'on the bed after replacing');
+
+  act(0, 0, { op: 'exportStl', path: '/work/out.stl' });
+  const stl = engine.FS.readFile('/work/out.stl');
+  const triangles = new DataView(stl.buffer, stl.byteOffset).getUint32(80, true);
+  assert.equal(triangles, 24, 'two cubes, 12 triangles each');
+  assert.equal(stl.length, 84 + 50 * triangles, 'binary STL');
+  assert.throws(() => act(0, 0, { op: 'nonsense' }), /unknown/);
+});
+
+test('parts and modifiers: add shapes and files, move, change type, delete, and they change the slice', () => {
+  select({ printer: DEFAULT_PRINTER });
+  load('gen-cube-20.stl');
+  const act = (request) => call(engine, 'volumeAction', 0, JSON.stringify(request));
+  const kinds = () => info().objects[0].volumes.map((v) => v.kind);
+  const config = fullConfig({ sparse_infill_density: '10%' });
+  const plain = slice(config).result.totalFilamentMm;
+
+  // A negative cylinder, like desktop: square to the bed at the cube's right front corner.
+  const neg = act({ op: 'add', type: 'negative', shape: 'Cylinder', instance: 0 });
+  assert.equal(neg.volume, 1);
+  assert.deepEqual(kinds(), ['part', 'negative']);
+  assert.equal(info().objects[0].volumes[1].name, 'Generic-Cylinder');
+  let preview = engine.previewMesh(0);
+  assert.deepEqual([...preview.volumeList].filter((_, k) => k % 4 !== 3), [0, 1, 1]);
+  assert.equal(preview.volumePositions.length / 9, preview.volumeList[3]);
+  assert.deepEqual([...preview.partList], [0, 0, 0, 12], 'the cube is the only part');
+  const box = (p) => {
+    const xs = [], ys = [], zs = [];
+    for (let k = 0; k < p.length; k += 3) xs.push(p[k]), ys.push(p[k + 1]), zs.push(p[k + 2]);
+    return { min: [Math.min(...xs), Math.min(...ys), Math.min(...zs)], max: [Math.max(...xs), Math.max(...ys), Math.max(...zs)] };
+  };
+  const cube = box(preview.positions);
+  let cyl = box(preview.volumePositions);
+  assert.ok(Math.abs(cyl.min[0] - cube.max[0]) < 0.01 && Math.abs(cyl.min[2]) < 0.01, `beside the cube on the bed: ${JSON.stringify(cyl)}`);
+
+  // Moved into the middle of the cube (a world translation), it cuts a hole.
+  const centre = (b) => b.min.map((v, k) => (v + b.max[k]) / 2);
+  const [dx, dy] = centre(cube).map((v, k) => v - centre(cyl)[k]);
+  act({ op: 'transform', volume: 1, instance: 0, matrix: [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, dx, dy, 0, 1] });
+  cyl = box(engine.previewMesh(0).volumePositions);
+  assert.ok(Math.abs(centre(cyl)[0] - centre(cube)[0]) < 0.01 && Math.abs(centre(cyl)[1] - centre(cube)[1]) < 0.01, 'centred in the cube');
+  const holed = slice(config).result.totalFilamentMm;
+  assert.ok(holed < plain * 0.9, `the hole takes filament away: ${holed} vs ${plain}`);
+
+  // As a modifier with 100% infill, the same cylinder adds filament instead.
+  assert.equal(act({ op: 'type', volume: 1, type: 'modifier' }).volume, 1);
+  call(engine, 'setObjectSettings', 0, 1, JSON.stringify({ sparse_infill_density: '100%' }));
+  assert.deepEqual(kinds(), ['part', 'modifier']);
+  const filled = slice(config).result.totalFilamentMm;
+  assert.ok(filled > plain * 1.05, `the modifier fills the middle: ${filled} vs ${plain}`);
+
+  // A part from a file, and rotating it a quarter turn about its centre.
+  engine.FS.writeFile('/work/part.stl', cubesStl([[0, 0, 0]], 5));
+  const added = act({ op: 'add', type: 'part', path: '/work/part.stl', name: 'small.stl' });
+  assert.deepEqual(kinds(), ['part', 'part', 'modifier'], 'parts come first');
+  assert.equal(added.volume, 1);
+  assert.equal(info().objects[0].volumes[1].name, 'small.stl');
+  assert.equal(engine.previewMesh(0).partList.length, 8);
+  act({ op: 'rename', volume: 1, name: 'Small cube' });
+  assert.equal(info().objects[0].volumes[1].name, 'Small cube');
+
+  // Supports: a blocker; then deleting; the last part can't go.
+  act({ op: 'add', type: 'supportBlocker', shape: 'Sphere', instance: 0 });
+  assert.deepEqual(kinds(), ['part', 'part', 'modifier', 'supportBlocker']);
+  act({ op: 'delete', volume: 3 });
+  act({ op: 'delete', volume: 1 });
+  assert.deepEqual(kinds(), ['part', 'modifier']);
+  assert.throws(() => act({ op: 'delete', volume: 0 }), /at least one part/);
+  assert.throws(() => act({ op: 'type', volume: 0, type: 'negative' }), /at least one part/);
+
+  // Saved and opened again, the modifier and its setting are still there.
+  call(engine, 'saveProject', '/work/parts.3mf', JSON.stringify(config), null);
+  engine.clearModel();
+  const [w, d] = bedSize(fullConfig());
+  call(engine, 'loadModel', '/work/parts.3mf', 0, w, d);
+  assert.deepEqual(kinds(), ['part', 'modifier']);
+  assert.equal(info().objects[0].volumes[1].settings.sparse_infill_density, '100%');
 });

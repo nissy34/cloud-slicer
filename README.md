@@ -27,10 +27,16 @@ hosted on Cloudflare's free tier.
   (speeds, accelerations, jerk) come from your printer, and filaments are matched by
   material.
 - **Prepare tools**: move, rotate, scale, lay on face, cut, measure (distances and angles
-  between faces, edges, circles and corners), arrange, auto-orient, split,
-  mirror, plates, undo and redo, and painting (colours, support and seam
-  enforcers/blockers, fuzzy skin).
-- **Prime tower on the plate**: with more than one filament (mixes included) the tower
+  between faces, edges, circles and corners), variable layer height (adaptive, smooth,
+  or by hand on the layer height chart), arrange, auto-orient, split,
+  mirror, simplify, plates, brim ears (by hand or on the corners), undo and redo,
+  painting (colours, support and seam enforcers/blockers, fuzzy skin), and desktop's
+  object menu (right click or long press an object, or ⋯ in the object list: clone,
+  center, rename, printable, change filament, scale to fit, unit conversion, replace
+  with STL, export as STL), and parts, negative parts, modifiers and support
+  blockers/enforcers added to an object (shapes or a mesh file), shown see-through,
+  moved with the gizmos, with their own settings.
+- **Prime tower on the plate**: when a plate prints with more than one filament the tower
   stands on the Prepare plate at the size Orca will print it, and you drag it where you
   want it, per plate, like desktop.
 - **Colour mixing**: Snapmaker Orca's mixed filaments, virtual filaments made of two or
@@ -193,7 +199,7 @@ Browser end to end tests (Playwright's Chromium) run against the built site
 | `test/presets.mjs` | Save, find, rename and delete your own presets |
 | `test/preset-files.mjs` | Printer and filament settings windows, preset export and import |
 | `test/accounts.mjs` | Sign-in, sessions, synced presets/settings/printers, online projects (Pages Functions + local D1, mock Google) |
-| `test/toolbar.mjs` | The object toolbar: add a model, lay on face, measure, fits a phone |
+| `test/toolbar.mjs` | The object toolbar: add a model, variable layer height, simplify, brim ears, lay on face, measure, the object menu, parts and modifiers, fits a phone |
 | `test/mixing.mjs` | Make a colour mix, slice, the G-code alternates between both tools |
 | `test/wipe-tower.mjs` | A two-filament plate shows the prime tower; drag it, and the slice prints it there |
 | `test/loading.mjs` | The loading screen while the engine starts and a project opens |

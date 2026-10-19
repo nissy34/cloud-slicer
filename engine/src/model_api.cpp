@@ -239,7 +239,7 @@ void clearModel() { g_project.clear(); }
 
 // Everything the page shows about the project:
 // {fileName, plates: [{index, name, objects: [objectIndex...]}],
-//  objects: [{name, size, volumes: [{name, kind, extruder, painted}],
+//  objects: [{name, size, units ("", "inch" or "meter": converted from), volumes: [{name, kind, extruder, painted}],
 //             instances: [{plate, offset, rotation, scale, printable}]}],
 //  file: {bambu, printer, filamentColours, filamentTypes, filamentPresets}}.
 std::string modelInfoJson() {
@@ -281,7 +281,11 @@ std::string modelInfoJson() {
             }
         }
         const Vec3d size = obj->instance_bounding_box(0, false).size();
-        objects.push_back({{"name", obj->name}, {"size", {size.x(), size.y(), size.z()}},
+        // Parts converted from inches or meters (desktop then offers to convert back).
+        const char* units = "";
+        for (const ModelVolume* v : obj->volumes)
+            units = v->source.is_converted_from_inches ? "inch" : v->source.is_converted_from_meters ? "meter" : units;
+        objects.push_back({{"name", obj->name}, {"size", {size.x(), size.y(), size.z()}}, {"units", units},
                            {"extruder", obj->config.has("extruder") ? obj->config.opt_int("extruder") : 0},
                            {"settings", settingsJson(obj->config.get())},
                            {"volumes", volumes}, {"instances", instances}});
@@ -308,20 +312,38 @@ std::string fileConfigJson() { return configToJson(g_project.fileConfig).dump();
 // Prepare preview of one plate: {positions: Float32Array (9 floats / triangle,
 // plate-local mm), filaments: Uint8Array (1-based filament per triangle; paint
 // is resolved per facet), objectTriangles: Int32Array (triangles per object,
-// in object order; objects not on the plate have 0)}. Only model parts are
-// included; modifiers and negative volumes are not drawn.
+// in object order; objects not on the plate have 0), and the other volumes
+// (negative parts, modifiers, support enforcers and blockers), drawn see-through:
+// volumePositions (9 floats / triangle) and volumeList: Int32Array of
+// [object, volume, kind (1 negative, 2 modifier, 3 support enforcer,
+// 4 support blocker), triangles] per volume of each instance}; partList:
+// Int32Array of [object, volume, first triangle, triangles] for each model part
+// of each instance, so a part can be drawn on its own.
 emscripten::val previewMesh(int plate) {
     std::vector<float> pos;
     std::vector<uint8_t> fil;
     std::vector<int> perObject;
+    std::vector<float> extraPos;
+    std::vector<uint8_t> extraFil;
+    std::vector<int> extraList;
+    std::vector<int> partList;
     const Vec2d origin = g_project.plateOrigin(plate);
-    for (const ModelObject* obj : g_project.model.objects) {
+    for (size_t o = 0; o < g_project.model.objects.size(); ++o) {
+        const ModelObject* obj = g_project.model.objects[o];
         const size_t before = fil.size();
         for (const ModelInstance* inst : obj->instances) {
             if (g_project.plateOf(*inst) != plate) continue;
-            for (const ModelVolume* v : obj->volumes) {
-                if (!v->is_model_part()) continue;
+            for (size_t k = 0; k < obj->volumes.size(); ++k) {
+                const ModelVolume* v = obj->volumes[k];
                 const Transform3d m = inst->get_matrix() * v->get_matrix();
+                if (!v->is_model_part()) {
+                    const int kind = v->is_negative_volume() ? 1 : v->is_modifier() ? 2 : v->is_support_enforcer() ? 3 : 4;
+                    const size_t start = extraFil.size();
+                    appendTriangles(v->mesh().its, m, origin, extraPos, extraFil, 0);
+                    extraList.insert(extraList.end(), {int(o), int(k), kind, int(extraFil.size() - start)});
+                    continue;
+                }
+                const size_t first = fil.size();
                 const uint8_t base = uint8_t(std::clamp(v->extruder_id(), 1, 255));
                 if (v->mmu_segmentation_facets.empty()) {
                     appendTriangles(v->mesh().its, m, origin, pos, fil, base);
@@ -331,6 +353,7 @@ emscripten::val previewMesh(int plate) {
                     for (size_t s = 0; s < perState.size(); ++s)
                         appendTriangles(perState[s], m, origin, pos, fil, s == 0 ? base : uint8_t(std::min<size_t>(s, 255)));
                 }
+                partList.insert(partList.end(), {int(o), int(k), int(first), int(fil.size() - first)});
             }
         }
         perObject.push_back(int(fil.size() - before));
@@ -339,6 +362,9 @@ emscripten::val previewMesh(int plate) {
     out.set("positions", typedCopy(pos));
     out.set("filaments", typedCopy(fil));
     out.set("objectTriangles", typedCopy(perObject));
+    out.set("volumePositions", typedCopy(extraPos));
+    out.set("volumeList", typedCopy(extraList));
+    out.set("partList", typedCopy(partList));
     return out;
 }
 
@@ -356,6 +382,9 @@ std::string setInstanceTransform(int o, int i, const std::string& changesJson) {
             const Vec3d off = inst->get_offset();
             inst->set_offset(Vec3d(origin.x() + c["offset"][0].get<double>(), origin.y() + c["offset"][1].get<double>(), off.z()));
         }
+        // The object's cached bounding box is stale after a rotation or scale
+        // (desktop invalidates it too); dropping to the bed reads it.
+        objectAt(o)->invalidate_bounding_box();
         objectAt(o)->ensure_on_bed();
         return ok().dump();
     } catch (const std::exception& e) {

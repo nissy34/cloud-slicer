@@ -926,10 +926,83 @@ select:focus-visible {
   align-items: center;
   justify-content: space-between;
 }
+/* Simplify: the object's name and triangle counts, and the paint note. */
+.simplify-figures {
+  display: grid;
+  gap: 2px;
+  font-size: 0.9em;
+  font-variant-numeric: tabular-nums;
+}
+.simplify-figures > span:first-child {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.simplify-warning {
+  color: var(--danger);
+}
+/* Brim ears: the brim type note, the count and the auto-generate group. */
+.brim-warning {
+  display: grid;
+  gap: 6px;
+  padding: 8px;
+  border: 1px solid color-mix(in srgb, var(--danger) 50%, transparent);
+  border-radius: var(--radius);
+  font-size: 0.9em;
+}
+.brim-summary {
+  font-size: 0.9em;
+  font-variant-numeric: tabular-nums;
+}
+.brim-loose {
+  color: var(--danger);
+}
+.brim-op {
+  display: grid;
+  gap: 4px;
+  padding-top: 6px;
+  border-top: 1px solid var(--border);
+}
 .tool-panel .cut-panel {
   padding: 0;
   border: 0;
   background: none;
+}
+/* Variable layer height: the profile chart and its buttons. */
+.layer-chart {
+  width: 100%;
+  height: 200px;
+  touch-action: none;
+  cursor: crosshair;
+  user-select: none;
+}
+.layer-chart-bg {
+  fill: var(--surface-2);
+}
+.layer-chart-base {
+  stroke: var(--muted);
+  stroke-dasharray: 3 3;
+}
+.layer-chart-band {
+  fill: color-mix(in srgb, var(--accent) 25%, transparent);
+}
+.layer-chart-line {
+  fill: none;
+  stroke: var(--accent);
+  stroke-width: 2;
+}
+.layer-chart-dot {
+  fill: var(--accent);
+}
+.layer-summary {
+  font-size: 0.9em;
+  font-variant-numeric: tabular-nums;
+}
+.layer-op {
+  display: grid;
+  gap: 4px;
+  padding-top: 6px;
+  border-top: 1px solid var(--border);
 }
 /* Measure: the picked features (their colours match the 3D view) and what lies between them. */
 .measure-figures {
@@ -1373,19 +1446,32 @@ select:focus-visible {
   }
   /* Phone: the tool's options go right under the 3D view (Sidebar's tool
      slot), so they never cover the plate; the card stays in view while the
-     column scrolls. */
+     column scrolls. A tall card scrolls inside itself, so opening it never
+     pushes the 3D view (or the card's own Done) off the screen. */
   .tool-pop.docked {
     position: sticky;
     top: 0;
     z-index: 4;
     width: auto;
-    max-height: none;
+    max-height: max(220px, calc(45dvh - 120px));
     margin: 8px 0 4px;
     padding: 8px 10px;
   }
   .tool-panel,
   .paint-panel {
     gap: 4px;
+  }
+  .layer-chart {
+    height: 140px;
+  }
+  /* The tool's name and Done stay at the top while its card scrolls. */
+  .tool-pop.docked .tool-panel-head {
+    position: sticky;
+    top: -8px;
+    z-index: 1;
+    margin: -8px -10px 0;
+    padding: 8px 10px 4px;
+    background: var(--surface);
   }
   .tool-pop .segmented button,
   .tool-pop .paint-states button {
@@ -2662,6 +2748,18 @@ select:focus-visible {
   border-radius: 6px;
   background: var(--surface);
 }
+.dv-map .dv-warn-text,
+.dv-map .dv-error-text {
+  flex-basis: 100%;
+  font-size: 12px;
+}
+.dv-map select[aria-invalid] {
+  border-color: var(--danger);
+}
+.dv-map-note {
+  margin: 6px 0 0;
+  font-size: 12px;
+}
 .dv-print-facts {
   margin: 8px 0 0;
 }
@@ -2848,7 +2946,8 @@ select:focus-visible {
     flex: 1;
     min-width: 0;
   }
-  .dv-map .dv-warn-text {
+  .dv-map .dv-warn-text,
+  .dv-map .dv-error-text {
     grid-column: 2;
   }
 }
@@ -3482,4 +3581,126 @@ select:focus-visible {
   .dv-spinner {
     animation-duration: 2.4s;
   }
+}
+
+/* The object menu (right click, long press or ⋯ in the object list). */
+.object-menu {
+  position: fixed;
+  z-index: 60;
+  display: grid;
+  width: 240px;
+  max-height: calc(100dvh - 8px);
+  overflow-y: auto;
+  padding: 6px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  box-shadow: 0 12px 32px rgb(0 0 0 / 0.25);
+  font-size: 14px;
+}
+.object-menu .menu-title {
+  overflow: hidden;
+  padding: 4px 10px 6px;
+  color: var(--muted);
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.object-menu .menu-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 34px;
+  padding: 6px 10px;
+  border: 0;
+  border-radius: 6px;
+  background: none;
+  color: var(--text);
+  text-align: left;
+  cursor: pointer;
+}
+.object-menu .menu-item:hover:not(:disabled),
+.object-menu .menu-item[aria-expanded='true'] {
+  background: var(--surface-2);
+}
+.object-menu .menu-item:disabled {
+  color: var(--muted);
+  cursor: default;
+}
+.object-menu .menu-arrow {
+  margin-left: auto;
+  color: var(--muted);
+}
+.object-menu .menu-check {
+  width: 14px;
+  color: var(--accent);
+}
+.object-menu .menu-sub {
+  display: grid;
+  margin: 0 0 4px 12px;
+  padding-left: 6px;
+  border-left: 2px solid var(--border);
+}
+.object-menu .menu-swatch {
+  width: 14px;
+  height: 14px;
+  border: 1px solid var(--border);
+  border-radius: 50%;
+}
+.object-menu hr {
+  width: 100%;
+  margin: 4px 0;
+  border: 0;
+  border-top: 1px solid var(--border);
+}
+.object-menu .menu-form {
+  display: grid;
+  gap: 10px;
+  padding: 4px 6px;
+}
+.object-menu .menu-form label {
+  display: grid;
+  gap: 4px;
+  font-size: 13px;
+}
+.object-menu .menu-form .menu-check-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.object-menu .menu-form-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 6px;
+}
+.object-more {
+  padding: 2px 8px;
+  line-height: 1;
+}
+@media (pointer: coarse) {
+  .object-menu .menu-item {
+    min-height: 42px;
+  }
+}
+/* Parts, modifiers... in the object list: picked one highlighted, a dot of its see-through colour. */
+button.volume-name {
+  border: 0;
+  background: none;
+  padding: 4px 2px;
+  cursor: pointer;
+  font: inherit;
+  color: inherit;
+}
+.volume.active {
+  background: color-mix(in srgb, var(--accent) 18%, transparent);
+  border-radius: 4px;
+}
+.volume-kind {
+  display: inline-block;
+  width: 9px;
+  height: 9px;
+  margin-right: 6px;
+  border-radius: 50%;
+  border: 1px solid var(--border);
+  vertical-align: baseline;
 }

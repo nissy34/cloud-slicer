@@ -9,7 +9,10 @@ import { bedSize, rgb } from '../lib/colour';
 import { hullPlanes, layOnFace, movedOffset, toDegrees, toQuat, DEG, type Placement } from '../lib/placement';
 import { setCapture } from '../lib/snapshot';
 import { useSceneColours } from '../lib/theme';
+import { layerTexture, type LayerProfile } from '../lib/layers';
+import { KIND_COLOURS, partRanges, volumeMeshes } from '../lib/volumes';
 import { NO_COLOURS, useOption, useSlicer } from '../state/store';
+import { BrimMarks } from './BrimEars';
 import { MeasureOverlay } from './MeasureOverlay';
 import { WipeTowerView } from './WipeTower';
 
@@ -43,6 +46,8 @@ interface Part {
   object: number;
   geometry: THREE.BufferGeometry;
   centre: THREE.Vector3;
+  /** Index of the object's first triangle in the preview. */
+  first: number;
 }
 
 // One geometry per object, coloured per triangle by its filament.
@@ -67,11 +72,61 @@ function useParts(preview: PreviewMesh | null, colours: string[]): Part[] {
       g.computeBoundingBox();
       const centre = new THREE.Vector3();
       g.boundingBox!.getCenter(centre);
-      parts.push({ object, geometry: g, centre });
+      parts.push({ object, geometry: g, centre, first: tri });
       tri += count;
     });
     return parts;
   }, [preview, colours]);
+}
+
+function geometryOf(pos: Float32Array, col?: Float32Array): THREE.BufferGeometry {
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+  if (col) g.setAttribute('color', new THREE.BufferAttribute(col, 3));
+  g.computeVertexNormals();
+  g.computeBoundingBox();
+  return g;
+}
+
+/**
+ * One part of a multi-part object split out of the object's geometry, so the
+ * gizmos can move it alone: the part, and the rest of the object.
+ */
+function splitPart(part: Part, ranges: [number, number][]): { piece: Part; rest: THREE.BufferGeometry } {
+  const pos = part.geometry.getAttribute('position').array as Float32Array;
+  const col = part.geometry.getAttribute('color').array as Float32Array;
+  const total = pos.length / 9;
+  const inPiece = new Uint8Array(total);
+  for (const [first, count] of ranges) inPiece.fill(1, Math.max(0, first - part.first), Math.min(total, first - part.first + count));
+  const n = inPiece.reduce((a, b) => a + b, 0);
+  const take = (src: Float32Array, want: number, size: number) => {
+    const out = new Float32Array(size * 9);
+    let k = 0;
+    for (let t = 0; t < total; t++) if (inPiece[t] === want) out.set(src.subarray(t * 9, t * 9 + 9), 9 * k++);
+    return out;
+  };
+  const geometry = geometryOf(take(pos, 1, n), take(col, 1, n));
+  const centre = new THREE.Vector3();
+  geometry.boundingBox!.getCenter(centre);
+  return { piece: { object: part.object, geometry, centre, first: 0 }, rest: geometryOf(take(pos, 0, total - n), take(col, 0, total - n)) };
+}
+
+interface VolumePart extends Part {
+  volume: number;
+  kind: number;
+}
+
+// Negative parts, modifiers and support enforcers/blockers, drawn see-through like desktop.
+function useVolumeParts(preview: PreviewMesh | null): VolumePart[] {
+  return useMemo(() => {
+    if (!preview?.volumeList) return [];
+    return volumeMeshes(preview).map((m) => {
+      const geometry = geometryOf(m.positions);
+      const centre = new THREE.Vector3();
+      geometry.boundingBox!.getCenter(centre);
+      return { object: m.object, volume: m.volume, kind: m.kind, geometry, centre, first: 0 };
+    });
+  }, [preview]);
 }
 
 const OVERLAY_COLOURS: Record<string, [string, string]> = {
@@ -144,6 +199,7 @@ function Gizmo({
   controlsRef,
   material,
   onRelease,
+  onMatrix,
 }: {
   tool: 'move' | 'rotate' | 'scale';
   part: Part;
@@ -151,6 +207,8 @@ function Gizmo({
   controlsRef: React.MutableRefObject<TransformControlsImpl | null>;
   material: React.ReactNode;
   onRelease(): void;
+  /** Takes what the gizmo did as a matrix in plate coordinates, instead of moving the instance (a part's gizmo). */
+  onMatrix?(m: THREE.Matrix4): void;
 }) {
   const [pivot, setPivot] = useState<THREE.Group | null>(null);
   const snapSetting = useSlicer((s) => s.snap);
@@ -175,6 +233,7 @@ function Gizmo({
     const { object, instance, plate } = place;
     if (tool === 'move') {
       const d = pivot.position.clone().sub(place.centre);
+      if (onMatrix) return d.lengthSq() > 1e-6 && onMatrix(new THREE.Matrix4().makeTranslation(d));
       if (d.lengthSq() > 1e-6) void moveInstance(object, instance, place.offset.x + d.x, place.offset.y + d.y);
       return;
     }
@@ -183,6 +242,11 @@ function Gizmo({
     const m = new THREE.Matrix4()
       .multiplyMatrices(pivot.matrix, new THREE.Matrix4().makeRotationFromQuaternion(inverse))
       .multiply(new THREE.Matrix4().makeTranslation(negCentre));
+    if (onMatrix) {
+      const changed = tool === 'rotate' ? pivot.quaternion.angleTo(place.rotation) >= 1e-4 : pivot.scale.distanceTo(new THREE.Vector3(1, 1, 1)) >= 1e-4;
+      if (changed) onMatrix(m);
+      return;
+    }
     if (tool === 'rotate') {
       if (pivot.quaternion.angleTo(place.rotation) < 1e-4) return;
       void transformInstance(object, instance, { rotation: toDegrees(pivot.quaternion), offset: movedOffset(place, m), plate });
@@ -311,6 +375,40 @@ function useShift() {
   return shift;
 }
 
+/**
+ * The variable layer height tool's look of the object, like desktop's: every
+ * layer a slice will print, coloured by its height (thin cool, thick warm).
+ */
+function LayerMaterial({ profile, bottom }: { profile: LayerProfile; bottom: number }) {
+  const texture = useMemo(() => {
+    const rows = 2048;
+    const t = new THREE.DataTexture(layerTexture(profile, rows), 1, rows, THREE.RGBAFormat);
+    t.magFilter = THREE.NearestFilter;
+    t.needsUpdate = true;
+    return t;
+  }, [profile]);
+  useEffect(() => () => texture.dispose(), [texture]);
+  const onBeforeCompile = useMemo(
+    () => (shader: THREE.WebGLProgramParametersWithUniforms) => {
+      shader.uniforms.layerMap = { value: texture };
+      shader.uniforms.layerBottom = { value: bottom };
+      shader.uniforms.layerHeight = { value: Math.max(profile.height, 1e-3) };
+      shader.vertexShader = shader.vertexShader
+        .replace('#include <common>', '#include <common>\nvarying float vLayerZ;')
+        .replace('#include <worldpos_vertex>', '#include <worldpos_vertex>\nvLayerZ = (modelMatrix * vec4(transformed, 1.0)).z;');
+      shader.fragmentShader = shader.fragmentShader
+        .replace('#include <common>', '#include <common>\nvarying float vLayerZ;\nuniform sampler2D layerMap;\nuniform float layerBottom;\nuniform float layerHeight;')
+        .replace(
+          '#include <color_fragment>',
+          '#include <color_fragment>\ndiffuseColor.rgb = texture2D(layerMap, vec2(0.5, clamp((vLayerZ - layerBottom) / layerHeight, 0.0, 1.0))).rgb;',
+        );
+    },
+    [texture, bottom, profile.height],
+  );
+  // A new key per texture: three caches the compiled program by material.
+  return <meshStandardMaterial key={texture.uuid} roughness={0.7} onBeforeCompile={onBeforeCompile} customProgramCacheKey={() => texture.uuid} />;
+}
+
 /** Lay on face: hovering shows a candidate face, a click or tap lays the object on it. */
 function FlattenPlanes({ part, place }: { part: Part; place: Placement }) {
   const planes = useMemo(() => hullPlanes(part.geometry), [part]);
@@ -355,6 +453,22 @@ function FlattenPlanes({ part, place }: { part: Part; place: Placement }) {
   );
 }
 
+/** Desktop's see-through look of a negative part, modifier or support enforcer/blocker. */
+function VolumeMaterial({ kind, active }: { kind: number; active: boolean }) {
+  const { colour, opacity } = KIND_COLOURS[kind] ?? KIND_COLOURS[2];
+  return (
+    <meshStandardMaterial
+      color={colour}
+      transparent
+      opacity={active ? Math.min(1, opacity + 0.2) : opacity}
+      depthWrite={false}
+      roughness={0.6}
+      emissive={active ? '#2f6fe4' : '#000000'}
+      emissiveIntensity={active ? 0.4 : 0}
+    />
+  );
+}
+
 function Objects({ w, d }: { w: number; d: number }) {
   const preview = useSlicer((s) => s.preview);
   // Filament numbers past the physical ones are colour mixes.
@@ -363,13 +477,14 @@ function Objects({ w, d }: { w: number; d: number }) {
   const plate = useSlicer((s) => s.plate);
   const selected = useSlicer((s) => s.selected);
   const tool = useSlicer((s) => s.tool);
-  const { select, moveInstance, paintStroke, measureHover, measurePick } = useSlicer.getState();
+  const { select, moveInstance, paintStroke, editBrim, measureHover, measurePick } = useSlicer.getState();
   const parts = useParts(preview, colours);
   useEffect(() => () => parts.forEach((p) => p.geometry.dispose()), [parts]);
   const camera = useThree((s) => s.camera);
   const canvas = useThree((s) => s.gl.domElement);
   const paint = useSlicer((s) => s.paint);
   const overlay = useSlicer((s) => s.overlay);
+  const layers = useSlicer((s) => s.layers);
   const measuring = !paint && tool === 'measure';
   const stroking = useRef(false);
   const [brush, setBrush] = useState<{ point: THREE.Vector3; normal: THREE.Vector3 } | null>(null);
@@ -381,6 +496,14 @@ function Objects({ w, d }: { w: number; d: number }) {
   const controls = useThree((s) => s.controls) as unknown as { enabled: boolean } | null;
   const gizmo = useRef<TransformControlsImpl | null>(null);
   const gizmoReleased = useRef(0);
+  const brimTool = !paint && tool === 'brim' && !!selected;
+
+  // The 3D view has its own menu (on an object); the browser's would only get in the way.
+  useEffect(() => {
+    const block = (e: Event) => e.preventDefault();
+    canvas.addEventListener('contextmenu', block);
+    return () => canvas.removeEventListener('contextmenu', block);
+  }, [canvas]);
 
   // The selected instance, when it is the object's only one on this plate
   // (the part geometry holds all of them); the gizmos work on it.
@@ -400,6 +523,31 @@ function Objects({ w, d }: { w: number; d: number }) {
       centre: part.centre.clone(),
     };
   }, [selected, project, parts, plate]);
+
+  // A selected part, modifier... of that instance: the gizmos move it inside
+  // the object (a part is split out of the object's geometry while they do).
+  const volumeParts = useVolumeParts(preview);
+  useEffect(() => () => volumeParts.forEach((p) => p.geometry.dispose()), [volumeParts]);
+  const picked = useMemo(() => {
+    const v = selected?.volume;
+    if (!place || v === undefined || !preview) return null;
+    const info = project?.objects[place.object]?.volumes[v];
+    if (!info) return null;
+    if (info.kind !== 'part') {
+      const piece = volumeParts.find((p) => p.object === place.object && p.volume === v);
+      return piece ? { volume: v, kind: piece.kind, piece, rest: null, place: { ...place, rotation: new THREE.Quaternion(), centre: piece.centre.clone() } } : null;
+    }
+    const whole = parts.find((p) => p.object === place.object);
+    if (!whole || project!.objects[place.object].volumes.filter((x) => x.kind === 'part').length < 2) return null;
+    const { piece, rest } = splitPart(whole, partRanges(preview, place.object, v));
+    return { volume: v, kind: 0, piece, rest, place: { ...place, rotation: new THREE.Quaternion(), centre: piece.centre.clone() } };
+  }, [place, selected, preview, project, parts, volumeParts]);
+  useEffect(() => () => {
+    if (picked?.rest) {
+      picked.rest.dispose();
+      picked.piece.geometry.dispose();
+    }
+  }, [picked]);
 
   // During a stroke the rays come straight from the camera, so dragging never
   // waits on hit-testing the parts; the engine finds what each ray hits. The
@@ -460,8 +608,42 @@ function Objects({ w, d }: { w: number; d: number }) {
     return !!g && (g.dragging || g.axis !== null);
   };
 
+  // The object menu: a right click (released without dragging, since a
+  // right drag pans the view) or a long press with a finger.
+  const menuPress = (ev: PointerEvent, object: number, instance: number, long: boolean, volume?: number) => {
+    const [x0, y0] = [ev.clientX, ev.clientY];
+    let timer = 0;
+    const open = () => useSlicer.getState().openObjectMenu({ object, instance, volume, x: x0, y: y0 });
+    const done = () => {
+      clearTimeout(timer);
+      window.removeEventListener('pointermove', move);
+      window.removeEventListener('pointerup', up);
+      window.removeEventListener('pointercancel', done);
+    };
+    const move = (m: PointerEvent) => Math.hypot(m.clientX - x0, m.clientY - y0) > 6 && done();
+    const up = (u: PointerEvent) => (done(), !long && u.button === 2 && open());
+    window.addEventListener('pointermove', move);
+    window.addEventListener('pointerup', up);
+    window.addEventListener('pointercancel', done);
+    if (long)
+      timer = window.setTimeout(() => {
+        done();
+        // The press opens the menu instead of moving the object.
+        drag.current = null;
+        setDelta(null);
+        if (controls) controls.enabled = true;
+        open();
+      }, 550);
+  };
+
   const onDown = (e: ThreeEvent<PointerEvent>, object: number) => {
     e.stopPropagation();
+    if (e.button === 2) {
+      if (paint || measuring) return;
+      const inst = project?.objects[object]?.instances.findIndex((i) => i.plate === plate) ?? -1;
+      select({ object, instance: Math.max(0, inst) });
+      return menuPress(e.nativeEvent, object, Math.max(0, inst), false);
+    }
     // Measuring picks on click (below); a drag still turns the camera.
     if (measuring) return;
     if (paint) {
@@ -480,7 +662,10 @@ function Objects({ w, d }: { w: number; d: number }) {
     const obj = project?.objects[object];
     const instances = obj?.instances.map((inst, i) => ({ inst, i })).filter(({ inst }) => inst.plate === plate) ?? [];
     const first = instances[0];
-    if (selected?.object !== object) select(first ? { object, instance: first.i } : null);
+    if (selected?.object !== object || selected.volume !== undefined) select(first ? { object, instance: first.i } : null);
+    if (first && e.pointerType === 'touch') menuPress(e.nativeEvent, object, first.i, true);
+    // Brim ears: a click adds an ear (onEarClick); the object stays put.
+    if (brimTool) return;
     // Dragging moves an object with a single instance on this plate.
     if (instances.length !== 1) return;
     const hit = new THREE.Vector3();
@@ -488,6 +673,15 @@ function Objects({ w, d }: { w: number; d: number }) {
     drag.current = { object, instance: first.i, start: hit, offset: [first.inst.offset[0], first.inst.offset[1]] };
     if (controls) controls.enabled = false;
     (e.target as Element).setPointerCapture?.(e.pointerId);
+  };
+  // A press on a see-through volume picks it (its menu on a right click or long press).
+  const onVolumeDown = (e: ThreeEvent<PointerEvent>, v: VolumePart) => {
+    if (paint || measuring || brimTool || onGizmo()) return;
+    e.stopPropagation();
+    const instance = Math.max(0, project?.objects[v.object]?.instances.findIndex((i) => i.plate === plate) ?? -1);
+    select({ object: v.object, instance, volume: v.volume });
+    if (e.button === 2) return menuPress(e.nativeEvent, v.object, instance, false, v.volume);
+    if (e.pointerType === 'touch') menuPress(e.nativeEvent, v.object, instance, true, v.volume);
   };
   const onMove = (e: ThreeEvent<PointerEvent>) => {
     if (measuring) {
@@ -511,6 +705,13 @@ function Objects({ w, d }: { w: number; d: number }) {
       void moveInstance(dr.object, dr.instance, dr.offset[0] + delta[0], dr.offset[1] + delta[1]);
     setDelta(null);
   };
+  // Brim ears: a click (not an orbit drag) on the selected object, or on the
+  // bed, adds an ear there, like desktop's left click.
+  const onEarClick = (e: ThreeEvent<MouseEvent>, object?: number) => {
+    if (!brimTool || e.delta > 6 || e.button !== 0 || (object !== undefined && object !== selected?.object)) return;
+    e.stopPropagation();
+    void editBrim({ op: 'add', x: e.point.x, y: e.point.y, diameter: useSlicer.getState().brimDiameter ?? 8 });
+  };
   const onClick = (e: ThreeEvent<MouseEvent>) => {
     if (!measuring || e.delta > 6) return;
     e.stopPropagation();
@@ -520,7 +721,7 @@ function Objects({ w, d }: { w: number; d: number }) {
   const onMissed = () => {
     if (measuring) return useSlicer.getState().measureReset();
     // Clicks on a gizmo handle off the part don't deselect it.
-    if (paint || onGizmo() || performance.now() - gizmoReleased.current < 400) return;
+    if (paint || brimTool || onGizmo() || performance.now() - gizmoReleased.current < 400) return;
     select(null);
   };
 
@@ -543,9 +744,41 @@ function Objects({ w, d }: { w: number; d: number }) {
       {parts.map((p) => {
         const active = !paint && selected?.object === p.object;
         const offset = active && delta ? delta : [0, 0];
-        const material = (
+        const layered = !paint && tool === 'layers' && layers?.object === p.object ? layers : null;
+        const material = layered ? (
+          <LayerMaterial profile={layered} bottom={p.geometry.boundingBox!.min.z} />
+        ) : (
           <meshStandardMaterial vertexColors roughness={0.55} metalness={0.05} emissive={active ? '#2f6fe4' : '#000000'} emissiveIntensity={active ? 0.35 : 0} />
         );
+        if (gizmoTool && place && picked && p.object === place.object) {
+          return (
+            <group key={p.object}>
+              <mesh geometry={picked.rest ?? p.geometry} raycast={partRaycast} onPointerDown={(e) => onDown(e, p.object)} castShadow>
+                <meshStandardMaterial vertexColors roughness={0.55} metalness={0.05} />
+              </mesh>
+              <Gizmo
+                key={picked.volume}
+                tool={gizmoTool}
+                part={picked.piece}
+                place={picked.place}
+                controlsRef={gizmo}
+                material={
+                  picked.kind ? (
+                    <VolumeMaterial kind={picked.kind} active />
+                  ) : (
+                    <meshStandardMaterial vertexColors roughness={0.55} metalness={0.05} emissive="#2f6fe4" emissiveIntensity={0.35} />
+                  )
+                }
+                onRelease={() => (gizmoReleased.current = performance.now())}
+                onMatrix={(m) =>
+                  void useSlicer
+                    .getState()
+                    .volumeAction(place.object, { op: 'transform', volume: picked.volume, instance: place.instance, matrix: m.elements.slice() }, gizmoTool === 'move' ? 'Move part' : gizmoTool === 'rotate' ? 'Rotate part' : 'Scale part')
+                }
+              />
+            </group>
+          );
+        }
         if (gizmoTool && place && p.object === place.object)
           return (
             <group key={p.object}>
@@ -557,11 +790,37 @@ function Objects({ w, d }: { w: number; d: number }) {
             </group>
           );
         return (
-          <mesh key={p.object} geometry={p.geometry} position={[offset[0], offset[1], 0]} raycast={partRaycast} onPointerDown={(e) => onDown(e, p.object)} castShadow>
+          <mesh
+            key={p.object}
+            geometry={p.geometry}
+            position={[offset[0], offset[1], 0]}
+            raycast={partRaycast}
+            onPointerDown={(e) => onDown(e, p.object)}
+            onClick={(e) => onEarClick(e, p.object)}
+            castShadow
+          >
             {material}
           </mesh>
         );
       })}
+      {!paint &&
+        volumeParts.map((v, k) => {
+          if (gizmoTool && picked && !picked.rest && v === picked.piece) return null;
+          const offset = selected?.object === v.object && delta ? delta : [0, 0];
+          const active = selected?.object === v.object && selected.volume === v.volume;
+          return (
+            <mesh
+              key={`v${k}`}
+              geometry={v.geometry}
+              position={[offset[0], offset[1], 0]}
+              renderOrder={1}
+              raycast={measuring || brimTool ? () => null : undefined}
+              onPointerDown={(e) => onVolumeDown(e, v)}
+            >
+              <VolumeMaterial kind={v.kind} active={active} />
+            </mesh>
+          );
+        })}
       {!paint && tool === 'flatten' && place && (
         <FlattenPlanes key={place.object} part={parts.find((p) => p.object === place.object)!} place={place} />
       )}
@@ -572,6 +831,16 @@ function Objects({ w, d }: { w: number; d: number }) {
           controlsRef={gizmo}
           onRelease={() => (gizmoReleased.current = performance.now())}
         />
+      )}
+      {brimTool && (
+        <>
+          {/* the bed takes clicks for new ears */}
+          <mesh position={[w / 2, d / 2, 0]} onClick={(e) => onEarClick(e)}>
+            <planeGeometry args={[w, d]} />
+            <meshBasicMaterial visible={false} />
+          </mesh>
+          <BrimMarks />
+        </>
       )}
       {paint && overlay && paint.kind !== 'color' && <Overlay overlay={overlay} kind={paint.kind} />}
       {paint && brushTool && <BrushRing at={brush} radius={paint.radius} />}
