@@ -26,7 +26,7 @@ import { loadConvertPreference, loadSaved, save, saveConvertPreference } from '.
 import type { SimplifyBy, SimplifyResult } from '../lib/simplify';
 import type { BrimEars, BrimRequest } from '../lib/brim';
 import type { LayerProfile, LayerRequest } from '../lib/layers';
-import { sameFeature, type MeasureFeature, type Measurement } from '../lib/measure';
+import { sameFeature, type AssembleRequest, type MeasureFeature, type Measurement } from '../lib/measure';
 import { mixSettings, palette as mixPalette, type MatchResult, type MixRecipe, type MixRow } from '../lib/mixing';
 import { dropPlateTower, moveTower, towerOptions, towersFromConfig, type TowerSpot } from '../lib/wipe-tower';
 import { stlName, type ObjectAction } from '../lib/objectMenu';
@@ -40,7 +40,7 @@ import { estimateLayers, slicePercent } from '../lib/slice-progress';
 
 export type Tab = 'prepare' | 'preview' | 'device';
 /** The object tool open on the 3D view, like desktop's gizmos (paint has its own state). */
-export type Tool = 'move' | 'rotate' | 'scale' | 'flatten' | 'cut' | 'measure' | 'layers' | 'brim' | 'simplify' | 'boolean' | 'text' | 'svg';
+export type Tool = 'move' | 'rotate' | 'scale' | 'flatten' | 'cut' | 'measure' | 'layers' | 'brim' | 'simplify' | 'boolean' | 'text' | 'svg' | 'assemble';
 /** How a 3MF is opened: as the project (replacing it) or its objects added. */
 export type OpenMode = 'project' | 'geometry';
 const is3mf = (f: File) => /\.3mf$/i.test(f.name);
@@ -173,6 +173,11 @@ export interface SlicerState {
   measurePick(ray?: PaintRay): Promise<void>;
   measureReset(): void;
   setMeasureOnlyPlane(onlyPlane: boolean): void;
+  /** The Assemble tool picks two faces or two points (it shares measure's picks). */
+  assembleMode: 'faces' | 'points';
+  setAssembleMode(mode: 'faces' | 'points'): void;
+  /** Moves the second pick's part or object onto the first, or joins their objects, like desktop's Assemble. */
+  assemble(request: AssembleRequest): Promise<void>;
   setCutZ(z: number): void;
   /** Moves the prime tower on the plate shown (front-left corner, mm). */
   moveWipeTower(x: number, y: number): void;
@@ -543,6 +548,14 @@ export const useSlicer = create<SlicerState>((set, get) => {
   let hoverRay: PaintRay | null | undefined;
   let hovering = false;
   const NO_MEASURE: SlicerState['measure'] = { hover: null, picks: [], result: null, onlyPlane: false };
+  // Measure and Assemble both pick features; Assemble picks faces, or points and circle centres.
+  const picking = () => get().tool === 'measure' || get().tool === 'assemble';
+  const pickOptions = () => {
+    const { tool, assembleMode, measure } = get();
+    return { onlyPlane: tool === 'assemble' ? assembleMode === 'faces' : measure.onlyPlane, keep: measure.picks.map((f) => f.id) };
+  };
+  const fits = (f: MeasureFeature | null) =>
+    f && get().tool === 'assemble' && get().assembleMode === 'points' && f.type !== 'point' && f.type !== 'circle' ? null : f;
   let painting = false;
   let strokeStarts = false;  // the next dab begins a stroke: remember the project for undo
 
@@ -691,6 +704,8 @@ export const useSlicer = create<SlicerState>((set, get) => {
       const gone = sel && !info.objects[sel.object]?.instances[sel.instance];
       const volumeGone = sel && sel.volume !== undefined && !info.objects[sel.object]?.volumes[sel.volume];
       set(gone ? { history, selected: null, tool: null } : volumeGone ? { history, selected: { object: sel.object, instance: sel.instance } } : { history });
+      // Picked features belong to the parts as they were.
+      if (picking()) set({ measure: { ...NO_MEASURE, onlyPlane: get().measure.onlyPlane } });
       await refreshPreview(info);
     } catch (e) {
       fail(e);
@@ -876,12 +891,9 @@ export const useSlicer = create<SlicerState>((set, get) => {
         while (hoverRay !== undefined) {
           const next = hoverRay;
           hoverRay = undefined;
-          const m = get().measure;
-          if (get().tool !== 'measure') break;
-          const hover = next
-            ? await engine().measureFeature(get().plate, { ray: next, onlyPlane: m.onlyPlane, keep: m.picks.map((f) => f.id) })
-            : null;
-          if (get().tool !== 'measure') break;
+          if (!picking()) break;
+          const hover = next ? fits(await engine().measureFeature(get().plate, { ray: next, ...pickOptions() })) : null;
+          if (!picking()) break;
           if (!sameFeature(hover, get().measure.hover)) set({ measure: { ...get().measure, hover } });
         }
       } catch (e) {
@@ -893,8 +905,10 @@ export const useSlicer = create<SlicerState>((set, get) => {
     async measurePick(ray) {
       if (ray) {
         try {
-          const { onlyPlane, picks } = get().measure;
-          const hover = await engine().measureFeature(get().plate, { ray, onlyPlane, keep: picks.map((f) => f.id) });
+          const found = await engine().measureFeature(get().plate, { ray, ...pickOptions() });
+          // Assemble's points mode passes over edges and faces rather than starting over.
+          if (found && !fits(found)) return;
+          const hover = found;
           set({ measure: { ...get().measure, hover } });
         } catch (e) {
           return fail(e);
@@ -916,6 +930,20 @@ export const useSlicer = create<SlicerState>((set, get) => {
     },
     measureReset: () => set({ measure: { ...NO_MEASURE, onlyPlane: get().measure.onlyPlane } }),
     setMeasureOnlyPlane: (onlyPlane) => set({ measure: { ...NO_MEASURE, onlyPlane } }),
+    assembleMode: 'faces',
+    setAssembleMode: (assembleMode) => set({ assembleMode, measure: { ...NO_MEASURE, onlyPlane: get().measure.onlyPlane } }),
+    assemble: (request) => {
+      const [a, b] = get().measure.picks;
+      if (!a || !b) return Promise.resolve();
+      return projectEdit(request.op === 'join' ? 'Join objects' : 'Assemble', async () => {
+        const { info, first, second, object, ...result } = await engine().assembleAction(a.id, b.id, request);
+        set({
+          measure: { ...get().measure, hover: null, picks: [first, second], result },
+          ...(object !== undefined ? { selected: { object, instance: 0 } } : {}),
+        });
+        return info;
+      });
+    },
     setBrimDiameter: (brimDiameter) => set({ brimDiameter }),
     pickEar: (i, add = false) => {
       const picked = get().brimPicked;
@@ -968,8 +996,8 @@ export const useSlicer = create<SlicerState>((set, get) => {
       set({ plate, selected: null, tool: null });
       await refreshPreview(get().project ?? undefined);
     },
-    // Measure works on every part on the plate, so it stays open without a selection.
-    select: (selected) => set(selected ? { selected } : { selected, tool: get().tool === 'measure' ? 'measure' : null }),
+    // Measure and Assemble work on every part on the plate, so they stay open without a selection.
+    select: (selected) => set(selected ? { selected } : { selected, tool: picking() ? get().tool : null }),
     moveInstance: (o, i, x, y) => projectEdit('Move', () => engine().transform(o, i, { offset: [x, y], plate: get().plate })),
     transformInstance: (o, i, changes) =>
       projectEdit(changes.rotation ? 'Rotate' : changes.scale ? 'Scale' : 'Move', () => engine().transform(o, i, changes)),

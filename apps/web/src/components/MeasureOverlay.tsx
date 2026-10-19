@@ -127,8 +127,11 @@ function Result({ m, size }: { m: Measurement; size: number }) {
 export function MeasureOverlay({ size }: { size: number }) {
   const { hover, picks, result } = useSlicer((s) => s.measure);
   const preview = useSlicer((s) => s.preview);
-  // Features belong to the geometry they were found on.
-  useEffect(() => useSlicer.getState().measureReset(), [preview]);
+  // Features belong to the geometry they were found on. Assemble's picks
+  // follow the parts it moves (and start over on undo).
+  useEffect(() => {
+    if (useSlicer.getState().tool !== 'assemble') useSlicer.getState().measureReset();
+  }, [preview]);
   const colours = [MEASURE_COLOURS.first, MEASURE_COLOURS.second];
   const hovered = hover && !picks.some((p) => p.id === hover.id) ? hover : null;
   return (

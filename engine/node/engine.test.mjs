@@ -879,6 +879,73 @@ test('measure: faces, edges and corners under a ray, and the distance and angle 
   assert.equal(feature([x + 100, y + 100, 100, 0, 0, -1]), null, 'nothing under a ray that misses');
 });
 
+test('assemble: faces turned and moved onto each other, objects joined, parts stacked, points moved, like desktop', () => {
+  select({ printer: DEFAULT_PRINTER });
+  load('gen-cube-20.stl');
+  load('gen-cube-20.stl', 0, true);
+  // Two 20 mm cubes: x 60..80 and 120..140, y 100..120, z 0..20 (the offset is a corner).
+  call(engine, 'setInstanceTransform', 0, 0, JSON.stringify({ offset: [60, 100] }));
+  call(engine, 'setInstanceTransform', 1, 0, JSON.stringify({ offset: [120, 100] }));
+  const info = () => JSON.parse(engine.modelInfoJson());
+  const feature = (ray, onlyPlane = true) => call(engine, 'measureFeature', 0, JSON.stringify({ ray, onlyPlane })).feature;
+  const assemble = (a, b, request) => call(engine, 'assembleAction', a.id, b.id, JSON.stringify(request));
+  const near = (a, b, msg, tol = 1e-3) => [a].flat().forEach((v, i) => assert.ok(Math.abs(v - [b].flat()[i]) < tol, `${msg}: ${JSON.stringify(a)} vs ${JSON.stringify(b)}`));
+
+  const side = feature([100, 110, 10, -1, 0, 0]);  // the first cube's right face
+  const top = feature([130, 110, 100, 0, 0, -1]);  // the second cube's top
+  near(side.normal, [1, 0, 0], 'right face');
+  near(top.normal, [0, 0, 1], 'top face');
+  assert.equal(call(engine, 'measureBetween', side.id, top.id).assembly.parallel, true, 'square faces can be made parallel');
+
+  // Parallel: the second cube turns its top to face the first cube's side.
+  let r = assemble(side, top, { op: 'parallel' });
+  near(r.second.normal, [-1, 0, 0], 'the top now faces the side');
+  assert.equal(r.assembly.parallel, false);
+  assert.ok(r.assembly.aroundCentre && r.assembly.parallelDistance !== undefined, 'now parallel faces have a distance');
+  assert.equal(r.second.id, top.id, 'the feature keeps its id');
+
+  // Center coincidence: face on face, middle on middle (the cube stays on the bed).
+  r = assemble(side, top, { op: 'centre' });
+  near(r.second.origin, r.first.origin, 'middle on middle');
+  near(r.assembly.parallelDistance, 0, 'touching');
+
+  r = assemble(side, top, { op: 'distance', value: 5 });
+  near(r.assembly.parallelDistance, 5, 'parallel distance');
+  near(r.second.origin[0], 85, 'moved 5 mm away');
+  r = assemble(side, top, { op: 'rotate', degrees: 90 });
+  near(r.second.normal, [-1, 0, 0], 'turning about the face keeps it facing');
+  r = assemble(side, top, { op: 'flip' });
+  near(r.second.normal, [1, 0, 0], 'flipped over');
+  assemble(side, top, { op: 'flip' });
+
+  // Join: one "Assembly" object with both cubes as parts, the picks still on them.
+  r = assemble(side, top, { op: 'join' });
+  assert.equal(info().objects.length, 1);
+  assert.equal(info().objects[0].name, 'Assembly');
+  assert.equal(info().objects[0].volumes.length, 2);
+  assert.equal(r.object, 0);
+  assert.equal(r.assembly.sameObject, true);
+  near(r.second.origin[0], 85, 'the parts stay where they were');
+
+  // Parts can leave the bed: the second cube's face goes onto the first cube's top.
+  const roof = feature([70, 110, 100, 0, 0, -1]);
+  near(roof.normal, [0, 0, 1], 'the first cube top');
+  r = assemble(roof, top, { op: 'centre' });
+  near(r.second.origin, roof.origin, 'stacked middle on middle');
+  near(info().objects[0].size[2], 40, 'two cubes high', 1e-2);
+
+  // Point and point: a corner of the upper cube moved onto a corner under the lower one.
+  const under = feature([60.1, 100.1, -100, 0, 0, 1], false);
+  const upper = feature([79.9, 119.9, 100, 0, 0, -1], false);
+  assert.equal(under.type, 'point');
+  assert.equal(upper.type, 'point');
+  near(upper.point[2], 40, 'the upper cube top corner');
+  r = assemble(under, upper, { op: 'move', by: under.point.map((v, i) => v - upper.point[i]) });
+  near(r.second.point, r.first.point, 'corner on corner');
+  assert.throws(() => assemble(under, upper, { op: 'flip' }), /pick two faces/);
+  assert.throws(() => assemble(roof, roof, { op: 'parallel' }), /two different parts/);
+});
+
 test('object menu: rename, printable, center, scale to fit, clone, units, replace with STL and export STL', () => {
   select({ printer: DEFAULT_PRINTER });
   let m = load('gen-cube-20.stl');

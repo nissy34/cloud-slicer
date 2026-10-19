@@ -31,7 +31,26 @@ export interface Measurement {
   angle?: { degrees: number; centre: Vec3; e1: [Vec3, Vec3]; e2: [Vec3, Vec3]; radius: number };
   /** Distance along X, Y and Z. */
   xyz?: Vec3;
+  /** What the Assemble tool can do with the two (Orca's Measure::get_assembly_action). */
+  assembly?: {
+    parallel: boolean;
+    centre: boolean;
+    aroundCentre: boolean;
+    /** Distance between two parallel faces. */
+    parallelDistance?: number;
+    sameObject: boolean;
+    samePart: boolean;
+  };
 }
+
+/** An Assemble step on the two picks: the second one's part (or object) moves. */
+export type AssembleRequest =
+  | { op: 'parallel' | 'centre' | 'flip' | 'join' }
+  | { op: 'distance'; value: number }
+  | { op: 'rotate'; degrees: number }
+  | { op: 'move'; by: Vec3 };
+
+export type AssembleResult = Measurement & { first: MeasureFeature; second: MeasureFeature; object?: number };
 
 /** Hovered, first and second picked features (the --measure-* colours in styles.css). */
 export const MEASURE_COLOURS = { hover: '#f5c542', first: '#ff6b4a', second: '#3fa7ff' } as const;

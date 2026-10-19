@@ -43,7 +43,7 @@ export function WipeTowerView() {
     clamp(tower.y + (d?.[1] ?? 0), depth, bed.y0 + bed.d),
   ];
   const [x, y] = at(delta);
-  const busy = tool === 'measure' || tool === 'cut' || tool === 'flatten';
+  const busy = tool === 'measure' || tool === 'assemble' || tool === 'cut' || tool === 'flatten';
 
   const onDown = (e: ThreeEvent<PointerEvent>) => {
     if (busy || e.button !== 0) return;
