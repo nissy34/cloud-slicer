@@ -52,7 +52,7 @@ const browser = await chromium.launch(
 );
 
 try {
-  const page = await browser.newPage({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true, deviceScaleFactor: 2, colorScheme: 'dark' });
+  const page = await browser.newPage({ viewport: { width: Number(process.env.VIEW_WIDTH ?? 390), height: 844 }, isMobile: true, hasTouch: true, deviceScaleFactor: 2, colorScheme: 'dark' });
   page.on('pageerror', (e) => console.error(`page error: ${e.message}`));
   page.on('console', (m) => m.text().includes('VIEWDBG') && console.log(m.text()));
   await page.goto(`http://localhost:${PORT}/`);
@@ -179,6 +179,20 @@ try {
   await page.waitForFunction((before) => document.querySelector('[aria-label="Undo"]')?.title !== before, undoBefore, { timeout: 10000 }).catch(() => {});
   if ((await undo.getAttribute('title')) === undoBefore) fail('a one-finger drag on the model should still move it');
   else console.log(`a one-finger drag still moves the model (${await undo.getAttribute('title')})`);
+
+  // With a tool open (the model selected, Move): the corner buttons stay inside the 3D view, clear of the tool's card.
+  await page.getByRole('toolbar', { name: 'Object tools' }).getByRole('button', { name: 'Move' }).tap();
+  await page.waitForTimeout(500);
+  if (shots) await page.screenshot({ path: join(shots, 'tool-open.png') });
+  const v = await view.boundingBox();
+  for (const name of ['Fit all', 'Views']) {
+    const b = await page.getByRole('button', { name, exact: true }).boundingBox();
+    if (!b || b.x < v.x || b.x + b.width > v.x + v.width || b.y < v.y || b.y + b.height > v.y + v.height) fail(`${name} is outside the 3D view with a tool open`);
+    for (const card of await page.locator('.tool-pop').all()) {
+      const c = await card.boundingBox();
+      if (c && b && b.x < c.x + c.width && c.x < b.x + b.width && b.y < c.y + c.height && c.y < b.y + b.height) fail(`${name} is under the tool's card`);
+    }
+  }
 } finally {
   await browser.close();
   process.kill(-server.pid, 'SIGTERM');
