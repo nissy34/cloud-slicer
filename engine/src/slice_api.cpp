@@ -144,6 +144,19 @@ ThumbnailData thumbnailAt(const ThumbnailsList& images, unsigned w, unsigned h) 
     return out;
 }
 
+// Orca's SlicingErrors holds one error per object that can't be printed; its
+// own text is just "Errors". Desktop shows each, on the object it names.
+std::string explain(const SlicingErrors& e, const Print& print) {
+    std::string all;
+    for (const SlicingError& one : e.errors_) {
+        std::string name;
+        for (const PrintObject* o : print.objects())
+            if (o->id().id == one.objectId()) name = o->model_object()->name;
+        all += (all.empty() ? "" : "\n") + (name.empty() ? std::string(one.what()) : name + ": " + one.what());
+    }
+    return all.empty() ? std::string(e.what()) : all;
+}
+
 // Slice `plate` with `configJson` (key -> serialized value, e.g. from
 // presetsFullConfig plus edits) and write the G-code to outputPath.
 // Returns {success, cancelled, error, warnings, gcodePath, totalLayers,
@@ -207,7 +220,11 @@ std::string sliceWithConfig(const std::string& configJson, int plate, const std:
             if (pct > high) high = pct;
             engine::report(onProgress, high, s.text);
         });
-        print.process();
+        try {
+            print.process();
+        } catch (const SlicingErrors& e) {
+            throw std::runtime_error(explain(e, print));
+        }
 
         engine::report(onProgress, 93, "Generating G-code");
         GCodeProcessorResult result;
@@ -218,7 +235,11 @@ std::string sliceWithConfig(const std::string& configJson, int plate, const std:
                 for (const Vec2d& size : params.sizes) list.push_back(thumbnailAt(pictures, unsigned(size.x()), unsigned(size.y())));
                 return list;
             };
-        print.export_gcode(outputPath, &result, thumbnailCb);
+        try {
+            print.export_gcode(outputPath, &result, thumbnailCb);
+        } catch (const SlicingErrors& e) {
+            throw std::runtime_error(explain(e, print));
+        }
         // A cancel that landed in code which caught the exception itself.
         if (cancelRequested()) throw CanceledException();
 

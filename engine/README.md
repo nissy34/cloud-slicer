@@ -89,3 +89,4 @@ here; each patch says why at the top of its hunk.
 | `0004-skip-thread-naming-barrier` | Thread naming holds every TBB worker on a barrier; browser threads have no names or locales to set |
 | `0005-mcut-api-tasks-without-threads` | mcut (mesh boolean) runs each call on a thread it starts and waits for; a page can't start one while it waits, so the calls run in place |
 | `0006-move-gcode-result-instead-of-copying` | G-code export copies every move into the caller's result at the memory peak; moves it instead, so big slices fit in a phone's browser |
+| `0007-keep-only-the-last-gcode-move` | G-code processing keeps every move for desktop's preview, which the browser doesn't use; on a big print that list alone outgrew the 4 GB a page can have |
