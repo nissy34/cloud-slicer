@@ -77,7 +77,7 @@ export function ActionBar() {
         {engine === 'ready' && job.kind === 'idle' && (
           <span className="muted">
             {onPlate ? 'Ready to slice' : project?.objects.length ? 'This plate is empty' : 'Open a model to start'}
-            {notice && '.'}
+            {(notice || heavy) && '.'}
           </span>
         )}
         {job.kind === 'loading' && <span className="muted">{job.label ?? `Opening ${job.name}`}…</span>}

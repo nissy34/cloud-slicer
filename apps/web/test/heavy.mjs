@@ -3,18 +3,19 @@
 // triangles offers to simplify it (slicing it could need more memory than a
 // browser page may have), and the button brings it to about half a million.
 //
-//   node test/heavy.mjs
+//   node test/heavy.mjs [screenshot-dir]
 //
 // Needs `npm run build` first (with the engine copied into public/engine).
 import { spawn } from 'node:child_process';
 import { mkdtempSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { dirname, join } from 'node:path';
+import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { chromium } from 'playwright';
 
 const web = join(dirname(fileURLToPath(import.meta.url)), '..');
 const PORT = 4176;
+const shots = process.argv[2] ? resolve(process.argv[2]) : null;
 
 // A finely divided sphere: 2 x 720 x 740 = 1,065,600 triangles (binary STL).
 function sphereStl(path, rings = 720, segments = 740, r = 40) {
@@ -77,6 +78,13 @@ try {
   const text = await offer.innerText();
   if (!text.includes('1.1 million triangles')) fail(`the offer should give the model's size: "${text}"`);
   console.log(`offered: ${text.trim()}`);
+  if (shots) {
+    await page.screenshot({ path: join(shots, 'heavy-desktop.png') });
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.waitForTimeout(500);
+    await page.screenshot({ path: join(shots, 'heavy-phone.png') });
+    await page.setViewportSize({ width: 1280, height: 860 });
+  }
 
   await page.getByTestId('actionbar').getByRole('button', { name: 'Simplify model' }).click();
   await offer.waitFor({ state: 'detached', timeout: 180000 });
