@@ -2,6 +2,7 @@ import { useThree, type ThreeEvent } from '@react-three/fiber';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import * as THREE from 'three';
 import { bedSize } from '../lib/colour';
+import { holdCamera, onSecondFinger, twoFingers, type CameraControls } from '../lib/touch';
 import { NO_COLOURS, useOption, useSlicer } from '../state/store';
 
 /** WIPE_TOWER_MARGIN in Orca: how close to the plate edge the tower may stand (plus its brim). */
@@ -19,7 +20,7 @@ export function WipeTowerView() {
   const tool = useSlicer((s) => s.tool);
   const brimWidth = Number(useOption('prime_tower_brim_width') ?? 0) || 0;
   const bed = bedSize(useOption('printable_area'));
-  const controls = useThree((s) => s.controls) as unknown as { enabled: boolean } | null;
+  const controls = useThree((s) => s.controls) as unknown as CameraControls | null;
   const drag = useRef<{ start: THREE.Vector3 } | null>(null);
   const [delta, setDelta] = useState<[number, number] | null>(null);
   const [hover, setHover] = useState(false);
@@ -28,8 +29,19 @@ export function WipeTowerView() {
   // Let go of the camera if the tower goes away mid-drag.
   useEffect(
     () => () => {
-      if (drag.current && controls) controls.enabled = true;
+      if (drag.current) holdCamera(controls, false);
     },
+    [controls],
+  );
+  // A second finger zooms the camera instead (lib/touch).
+  useEffect(
+    () =>
+      onSecondFinger(() => {
+        if (!drag.current) return;
+        drag.current = null;
+        setDelta(null);
+        holdCamera(controls, false);
+      }),
     [controls],
   );
 
@@ -46,12 +58,12 @@ export function WipeTowerView() {
   const busy = tool === 'measure' || tool === 'assemble' || tool === 'cut' || tool === 'flatten';
 
   const onDown = (e: ThreeEvent<PointerEvent>) => {
-    if (busy || e.button !== 0) return;
+    if (busy || e.button !== 0 || twoFingers()) return;
     e.stopPropagation();
     const hit = new THREE.Vector3();
     if (!e.ray.intersectPlane(plane, hit)) return;
     drag.current = { start: hit };
-    if (controls) controls.enabled = false;
+    holdCamera(controls, true);
     (e.target as Element).setPointerCapture?.(e.pointerId);
   };
   const onMove = (e: ThreeEvent<PointerEvent>) => {
@@ -63,7 +75,7 @@ export function WipeTowerView() {
   const onUp = () => {
     if (!drag.current) return;
     drag.current = null;
-    if (controls) controls.enabled = true;
+    holdCamera(controls, false);
     if (delta && Math.hypot(delta[0], delta[1]) > 0.5) {
       const [nx, ny] = at(delta);
       useSlicer.getState().moveWipeTower(Math.round(nx * 100) / 100, Math.round(ny * 100) / 100);
