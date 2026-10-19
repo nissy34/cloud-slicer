@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { VolumeInfo } from '../engine/protocol';
-import { keepsAPart, partRanges, volumeMeshes } from './volumes';
+import { keepsAPart, partAt, partRanges, volumeMeshes } from './volumes';
 
 const vol = (kind: VolumeInfo['kind']): VolumeInfo => ({ name: kind, kind, extruder: 0, painted: false, paint: { support: false, seam: false, fuzzy: false }, settings: {} });
 
@@ -20,6 +20,14 @@ describe('volumes', () => {
       [0, 12],
       [16, 12],
     ]);
+  });
+
+  it('finds the part a preview triangle belongs to', () => {
+    const preview = { partList: new Int32Array([0, 0, 0, 12, 0, 1, 12, 4, 1, 0, 16, 6]) };
+    expect(partAt(preview, 0, 13)).toBe(1);
+    expect(partAt(preview, 0, 11)).toBe(0);
+    expect(partAt(preview, 1, 16)).toBe(0);
+    expect(partAt(preview, 0, 16)).toBeUndefined();
   });
 
   it('keeps one part on an object', () => {

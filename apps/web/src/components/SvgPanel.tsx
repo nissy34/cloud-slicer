@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { KIND_LABELS, keepsAPart } from '../lib/volumes';
 import { useSlicer } from '../state/store';
+import { ShapePlacement, placementHint } from './ShapePlacement';
 
 const TYPES = ['part', 'negative', 'modifier'] as const;
 
@@ -52,6 +53,7 @@ export function SvgPanel() {
           name={v.name}
           size={v.svg}
           kind={v.kind}
+          onObject={!!volumes && volumes.length > 1}
           canChangeType={!!volumes && keepsAPart(volumes, index) && volumes.length > 1}
         />
       ) : (
@@ -73,7 +75,23 @@ export function SvgPanel() {
 
 type Size = { depth: number; width: number; height: number };
 
-function SvgFields({ object, volume, name, size, kind, canChangeType }: { object: number; volume: number; name: string; size: Size; kind: string; canChangeType: boolean }) {
+function SvgFields({
+  object,
+  volume,
+  name,
+  size,
+  kind,
+  onObject,
+  canChangeType,
+}: {
+  object: number;
+  volume: number;
+  name: string;
+  size: Size & { useSurface: boolean };
+  kind: string;
+  onObject: boolean;
+  canChangeType: boolean;
+}) {
   const [values, setValues] = useState<Size>(() => ({ depth: round(size.depth), width: round(size.width), height: round(size.height) }));
   const [keepRatio, setKeepRatio] = useState(true);
   const [working, setWorking] = useState(false);
@@ -132,6 +150,24 @@ function SvgFields({ object, volume, name, size, kind, canChangeType }: { object
         <input type="checkbox" checked={keepRatio} onChange={(e) => setKeepRatio(e.target.checked)} />
         Keep proportions
       </label>
+      {onObject && (
+        <div className="shape-checks">
+          <label className="svg-ratio" title="The shape bends with the object's surface instead of standing flat on it">
+            <input
+              type="checkbox"
+              checked={size.useSurface}
+              disabled={working}
+              onChange={async (e) => {
+                setWorking(true);
+                await svgVolume(object, { volume, useSurface: e.target.checked });
+                setWorking(false);
+              }}
+            />
+            Use surface
+          </label>
+        </div>
+      )}
+      <ShapePlacement object={object} volume={volume} followsSurface={size.useSurface} label="SVG" />
       {canChangeType && (
         <div className="segmented" role="radiogroup" aria-label="SVG type">
           {TYPES.map((t) => (
@@ -147,7 +183,7 @@ function SvgFields({ object, volume, name, size, kind, canChangeType }: { object
           ))}
         </div>
       )}
-      <p className="muted hint">{working ? 'Making the shape…' : 'Move or rotate it with those tools. Undo brings the last shape back.'}</p>
+      <p className="muted hint">{working ? 'Making the shape…' : `${placementHint('shape', onObject)} Undo brings the last shape back.`}</p>
     </>
   );
 }

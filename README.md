@@ -38,10 +38,14 @@ hosted on Cloudflare's free tier.
   moved with the gizmos, with their own settings, mesh boolean (union, difference or
   intersection of two of an object's parts), and text shapes (desktop's Text tool: raised,
   engraved or a modifier on the object's surface facing you, or an object of its own;
-  edited live with built-in Noto fonts, a font file, or the computer's fonts in Chrome/Edge,
-  and kept in the 3MF), and SVG shapes (desktop's SVG tool: an .svg file's paths as a raised,
+  edited live with built-in Noto fonts, a font file, or the computer's fonts in Chrome/Edge;
+  following a curved surface or set letter by letter, aligned left/centre/right and
+  top/middle/bottom, slid over the object by dragging it (one finger on a phone), turned
+  with its ring or a Rotation field, lifted off the surface, faced to the camera, and kept
+  in the 3MF), and SVG shapes (desktop's SVG tool: an .svg file's paths as a raised,
   engraved or modifier shape on the object, or an object of its own when you open or drop an
-  .svg file, with its depth and size changeable and the file kept in the 3MF), and Assemble
+  .svg file, with its depth and size changeable, following the surface, slid and turned like
+  text, and the file kept in the 3MF), and Assemble
   (desktop's Assemble tool: pick a face on each of two parts and turn one parallel to the
   other, put it face on face middle on middle, flip it, set the distance between them or
   turn it about the face; or pick two points and move one onto the other; two objects are

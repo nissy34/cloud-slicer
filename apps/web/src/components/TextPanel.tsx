@@ -3,6 +3,7 @@ import { DEFAULT_TEXT, clampStyle, type FontChoice, type TextStyle } from '../li
 import { KIND_LABELS, keepsAPart } from '../lib/volumes';
 import { addFontFile, availableFonts, canListComputerFonts, loadComputerFonts, nextTextStyle, rememberTextStyle } from '../state/fonts';
 import { useSlicer } from '../state/store';
+import { ShapePlacement, placementHint } from './ShapePlacement';
 
 const TYPES = ['part', 'negative', 'modifier'] as const;
 const GROUPS: [FontChoice['source'], string][] = [
@@ -37,7 +38,15 @@ export function TextPanel() {
         </button>
       </div>
       {v?.text && selected ? (
-        <TextFields key={`${selected.object}-${index}`} object={selected.object} volume={index} start={v.text} kind={v.kind} canChangeType={!!volumes && keepsAPart(volumes, index) && volumes.length > 1} />
+        <TextFields
+          key={`${selected.object}-${index}`}
+          object={selected.object}
+          volume={index}
+          start={v.text}
+          kind={v.kind}
+          onObject={!!volumes && volumes.length > 1}
+          canChangeType={!!volumes && keepsAPart(volumes, index) && volumes.length > 1}
+        />
       ) : (
         <>
           <p className="muted hint">
@@ -55,7 +64,21 @@ export function TextPanel() {
   );
 }
 
-function TextFields({ object, volume, start, kind, canChangeType }: { object: number; volume: number; start: TextStyle; kind: string; canChangeType: boolean }) {
+function TextFields({
+  object,
+  volume,
+  start,
+  kind,
+  onObject,
+  canChangeType,
+}: {
+  object: number;
+  volume: number;
+  start: TextStyle;
+  kind: string;
+  onObject: boolean;
+  canChangeType: boolean;
+}) {
   const [style, setStyle] = useState<TextStyle>({ ...DEFAULT_TEXT, ...start });
   const [fonts, setFonts] = useState(availableFonts);
   const [working, setWorking] = useState(false);
@@ -152,6 +175,26 @@ function TextFields({ object, volume, start, kind, canChangeType }: { object: nu
           </button>
         ))}
       </div>
+      <div className="segmented" role="radiogroup" aria-label="Vertical alignment" title="Which part of the text sits at its middle point">
+        {(['top', 'center', 'bottom'] as const).map((a) => (
+          <button key={a} role="radio" aria-checked={style.valign === a} className={style.valign === a ? 'on' : ''} onClick={() => set('valign', a)}>
+            {a === 'center' ? 'Middle' : a[0].toUpperCase() + a.slice(1)}
+          </button>
+        ))}
+      </div>
+      {onObject && (
+        <div className="shape-checks">
+          <label className="svg-ratio" title="The text bends with the object's surface instead of standing flat on it">
+            <input type="checkbox" checked={style.useSurface} onChange={(e) => set('useSurface', e.target.checked)} />
+            Use surface
+          </label>
+          <label className="svg-ratio" title="Each letter sits on the surface on its own, so text can go around a curved object">
+            <input type="checkbox" checked={style.perGlyph} onChange={(e) => set('perGlyph', e.target.checked)} />
+            Per letter
+          </label>
+        </div>
+      )}
+      <ShapePlacement object={object} volume={volume} followsSurface={style.useSurface} label="text" />
       {canChangeType && (
         <div className="segmented" role="radiogroup" aria-label="Text type">
           {TYPES.map((t) => (
@@ -178,7 +221,7 @@ function TextFields({ object, volume, start, kind, canChangeType }: { object: nu
           {num('lineGap', 'Line gap', '', 10, 'Extra space between lines, in font units')}
         </>
       )}
-      <p className="muted hint">{working ? 'Making the text…' : 'Move, rotate or scale it with those tools. Undo brings the last text back.'}</p>
+      <p className="muted hint">{working ? 'Making the text…' : `${placementHint('text', onObject)} Undo brings the last text back.`}</p>
     </>
   );
 }

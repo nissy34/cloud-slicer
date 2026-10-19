@@ -10,7 +10,7 @@ import { hullPlanes, layOnFace, movedOffset, toDegrees, toQuat, DEG, type Placem
 import { setCapture } from '../lib/snapshot';
 import { useSceneColours } from '../lib/theme';
 import { layerTexture, type LayerProfile } from '../lib/layers';
-import { KIND_COLOURS, partRanges, volumeMeshes } from '../lib/volumes';
+import { KIND_COLOURS, partAt, partRanges, volumeMeshes } from '../lib/volumes';
 import { NO_COLOURS, useOption, useSlicer } from '../state/store';
 import { setCameraSource } from '../state/view';
 import { BrimMarks } from './BrimEars';
@@ -93,7 +93,7 @@ function geometryOf(pos: Float32Array, col?: Float32Array): THREE.BufferGeometry
  * One part of a multi-part object split out of the object's geometry, so the
  * gizmos can move it alone: the part, and the rest of the object.
  */
-function splitPart(part: Part, ranges: [number, number][]): { piece: Part; rest: THREE.BufferGeometry } {
+function splitPart(part: Part, ranges: [number, number][]): { piece: Part; rest: THREE.BufferGeometry; restTris: Uint32Array } {
   const pos = part.geometry.getAttribute('position').array as Float32Array;
   const col = part.geometry.getAttribute('color').array as Float32Array;
   const total = pos.length / 9;
@@ -109,7 +109,10 @@ function splitPart(part: Part, ranges: [number, number][]): { piece: Part; rest:
   const geometry = geometryOf(take(pos, 1, n), take(col, 1, n));
   const centre = new THREE.Vector3();
   geometry.boundingBox!.getCenter(centre);
-  return { piece: { object: part.object, geometry, centre, first: 0 }, rest: geometryOf(take(pos, 0, total - n), take(col, 0, total - n)) };
+  // Where each triangle of the rest was in the object's geometry, to tell which part a press hit.
+  const restTris = new Uint32Array(total - n);
+  for (let t = 0, k = 0; t < total; t++) if (!inPiece[t]) restTris[k++] = t;
+  return { piece: { object: part.object, geometry, centre, first: 0 }, rest: geometryOf(take(pos, 0, total - n), take(col, 0, total - n)), restTris };
 }
 
 interface VolumePart extends Part {
@@ -362,6 +365,162 @@ function CutPlane({
   );
 }
 
+const SHAPE_FRAME = '#4f8cff';
+
+/**
+ * The Text and SVG tools' handles on the picked shape, like desktop's: the
+ * shape and a frame around it to drag over the object's surface (the frame is
+ * bigger on touch screens, so a finger finds it) and a ring to turn it about
+ * its own axis. The shape is drawn inside a pivot at its own origin: the ring
+ * turns the pivot, and on
+ * release the change goes to the engine. While a drag slides it, `slide` puts
+ * it where the engine says it will go.
+ */
+function ShapeHandles({
+  piece,
+  material,
+  slide,
+  ringRef,
+  frameRef,
+  onPress,
+  onRelease,
+}: {
+  piece: Part;
+  material: React.ReactNode;
+  /** Where a running drag has the shape: the change from where it stands. */
+  slide: THREE.Matrix4 | null;
+  ringRef: React.MutableRefObject<TransformControlsImpl | null>;
+  /** The frame, for presses where the object's surface is nearer than it (a curved surface, a sunk shape). */
+  frameRef: React.MutableRefObject<THREE.Mesh | null>;
+  onPress(e: ThreeEvent<PointerEvent>): void;
+  onRelease(): void;
+}) {
+  const shape = useSlicer((s) => s.shape);
+  const preview = useSlicer((s) => s.preview);
+  const shapePlace = useSlicer((s) => s.shapePlace);
+  const coarse = useMemo(() => typeof matchMedia !== 'undefined' && matchMedia('(pointer: coarse)').matches, []);
+  const shift = useShift();
+  const snap = useSlicer((s) => s.snap) || shift;
+  const invalidate = useThree((s) => s.invalidate);
+  const [pivot, setPivot] = useState<THREE.Group | null>(null);
+  // The engine's placement of this very geometry (it is read after each change).
+  const ready = !!shape && shape.preview === preview;
+  const place = useMemo(() => {
+    if (!ready) return null;
+    const m = new THREE.Matrix4().fromArray(shape.matrix);
+    const position = new THREE.Vector3();
+    const quaternion = new THREE.Quaternion();
+    const scale = new THREE.Vector3();
+    m.decompose(position, quaternion, scale);
+    const inverse = m.clone().invert();
+    // The shape's own extent, in its coordinates. Following the surface, a
+    // letter over a hole lands on a wall far behind; the frame stays on the
+    // surface it stands on.
+    const box = new THREE.Box3();
+    const all = new THREE.Box3();
+    const pos = piece.geometry.getAttribute('position');
+    const p = new THREE.Vector3();
+    for (let i = 0; i < pos.count; i++) {
+      p.fromBufferAttribute(pos, i).applyMatrix4(inverse);
+      all.expandByPoint(p);
+      if (Math.abs(p.z) < 5) box.expandByPoint(p);
+    }
+    if (box.isEmpty()) box.copy(all);
+    return { position, quaternion, scale, inverse, box };
+  }, [ready, shape, piece]);
+
+  useLayoutEffect(() => {
+    if (!pivot || !place) return;
+    pivot.position.copy(place.position);
+    pivot.quaternion.copy(place.quaternion);
+    pivot.scale.copy(place.scale);
+    invalidate();
+  }, [pivot, place, invalidate]);
+
+  // Where the shape's origin is on screen, for the browser tests (test/toolbar.mjs).
+  const camera = useThree((s) => s.camera);
+  const canvas = useThree((s) => s.gl.domElement);
+  useEffect(() => {
+    if (!place) return;
+    const p = place.position.clone().project(camera);
+    const r = canvas.getBoundingClientRect();
+    canvas.dataset.shapeAt = `${Math.round(r.left + ((p.x + 1) / 2) * r.width)},${Math.round(r.top + ((1 - p.y) / 2) * r.height)}`;
+    return () => void delete canvas.dataset.shapeAt;
+  }, [place, camera, canvas]);
+
+  const frame = useMemo(() => {
+    if (!place || place.box.isEmpty()) return null;
+    const size = place.box.getSize(new THREE.Vector3());
+    // A finger needs about 9 mm of shape around small text.
+    const margin = Math.max(1.5, Math.min(size.x, size.y) * 0.15) + (coarse ? 4 : 0);
+    const w = size.x + 2 * margin;
+    const h = size.y + 2 * margin;
+    const centre = place.box.getCenter(new THREE.Vector3());
+    const [hx, hy] = [w / 2, h / 2];
+    const outline = new THREE.BufferGeometry().setFromPoints([
+      new THREE.Vector3(-hx, -hy, 0),
+      new THREE.Vector3(hx, -hy, 0),
+      new THREE.Vector3(hx, hy, 0),
+      new THREE.Vector3(-hx, hy, 0),
+    ]);
+    return { w, h, at: new THREE.Vector3(centre.x, centre.y, place.box.max.z + 0.05), outline };
+  }, [place, coarse]);
+  useEffect(() => () => frame?.outline.dispose(), [frame]);
+
+  const mesh = (
+    <mesh geometry={piece.geometry} raycast={() => null} castShadow>
+      {material}
+    </mesh>
+  );
+  if (!place || !frame) return slide ? <group matrixAutoUpdate={false} matrix={slide}>{mesh}</group> : mesh;
+
+  const turn = () => {
+    onRelease();
+    if (!pivot || !shape) return;
+    const rel = place.quaternion.clone().invert().multiply(pivot.quaternion);
+    const turned = 2 * Math.atan2(rel.z, rel.w);
+    if (Math.abs(turned) < 1e-4) return;
+    let angle = shape.angle - turned / DEG;
+    angle = ((((angle + 180) % 360) + 360) % 360) - 180;
+    void shapePlace(shape.object, { op: 'rotate', volume: shape.volume, instance: shape.instance, angle: Math.round(angle * 100) / 100 }, 'Rotate text');
+  };
+
+  return (
+    <>
+      <group matrixAutoUpdate={!slide} matrix={slide ?? undefined}>
+        <group ref={setPivot}>
+          <group matrixAutoUpdate={false} matrix={place.inverse}>
+            {mesh}
+          </group>
+          {/* the frame to grab: drag it to slide the shape over the surface */}
+          <group position={frame.at}>
+            <mesh ref={frameRef} onPointerDown={onPress} renderOrder={3}>
+              <planeGeometry args={[frame.w, frame.h]} />
+              <meshBasicMaterial color={SHAPE_FRAME} transparent opacity={0.08} depthWrite={false} side={THREE.DoubleSide} />
+            </mesh>
+            <lineLoop geometry={frame.outline} raycast={() => null} renderOrder={3}>
+              <lineBasicMaterial color={SHAPE_FRAME} transparent opacity={0.9} depthTest={false} />
+            </lineLoop>
+          </group>
+        </group>
+      </group>
+      {pivot && !slide && (
+        <TransformControls
+            ref={ringRef}
+            object={pivot}
+            mode="rotate"
+            space="local"
+            showX={false}
+            showY={false}
+            size={coarse ? 1.5 : 1.15}
+            rotationSnap={snap ? 15 * DEG : null}
+            onMouseUp={turn}
+          />
+      )}
+    </>
+  );
+}
+
 /** Whether Shift is held, for the gizmos' snapping like desktop. */
 function useShift() {
   const [shift, setShift] = useState(false);
@@ -502,6 +661,7 @@ function Objects({ w, d }: { w: number; d: number }) {
   const gizmo = useRef<TransformControlsImpl | null>(null);
   const gizmoReleased = useRef(0);
   const brimTool = !paint && tool === 'brim' && !!selected;
+  const shapeTool = !paint && (tool === 'text' || tool === 'svg');
 
   // The 3D view has its own menu (on an object); the browser's would only get in the way.
   useEffect(() => {
@@ -540,12 +700,12 @@ function Objects({ w, d }: { w: number; d: number }) {
     if (!info) return null;
     if (info.kind !== 'part') {
       const piece = volumeParts.find((p) => p.object === place.object && p.volume === v);
-      return piece ? { volume: v, kind: piece.kind, piece, rest: null, place: { ...place, rotation: new THREE.Quaternion(), centre: piece.centre.clone() } } : null;
+      return piece ? { volume: v, kind: piece.kind, piece, rest: null, restTris: null, place: { ...place, rotation: new THREE.Quaternion(), centre: piece.centre.clone() } } : null;
     }
     const whole = parts.find((p) => p.object === place.object);
     if (!whole || project!.objects[place.object].volumes.filter((x) => x.kind === 'part').length < 2) return null;
-    const { piece, rest } = splitPart(whole, partRanges(preview, place.object, v));
-    return { volume: v, kind: 0, piece, rest, place: { ...place, rotation: new THREE.Quaternion(), centre: piece.centre.clone() } };
+    const { piece, rest, restTris } = splitPart(whole, partRanges(preview, place.object, v));
+    return { volume: v, kind: 0, piece, rest, restTris, place: { ...place, rotation: new THREE.Quaternion(), centre: piece.centre.clone() } };
   }, [place, selected, preview, project, parts, volumeParts]);
   useEffect(() => () => {
     if (picked?.rest) {
@@ -553,6 +713,142 @@ function Objects({ w, d }: { w: number; d: number }) {
       picked.piece.geometry.dispose();
     }
   }, [picked]);
+
+  // The picked text or SVG shape in the Text and SVG tools: its handles, and
+  // where it stands, read again after every change.
+  const shapeInfo = selected?.volume !== undefined ? project?.objects[selected.object]?.volumes[selected.volume] : undefined;
+  const shapePicked = shapeTool && picked && (shapeInfo?.text || shapeInfo?.svg) ? picked : null;
+  const loadShape = useSlicer((s) => s.loadShape);
+  useEffect(() => {
+    if (shapeTool) void loadShape();
+  }, [shapeTool, selected, preview, project, loadShape]);
+
+  // Sliding a shape over the surface (desktop's SurfaceDrag): the pointer
+  // keeps its offset from the shape's origin, and the engine finds where a ray
+  // through it meets the object's other parts. One request at a time, the
+  // latest position wins; on release the shape goes there as one undo step.
+  const [slide, setSlide] = useState<THREE.Matrix4 | null>(null);
+  const shapeFrame = useRef<THREE.Mesh | null>(null);
+  const shapeDrag = useRef<{
+    object: number;
+    volume: number;
+    instance: number;
+    x0: number;
+    y0: number;
+    at: [number, number];
+    offset: [number, number] | null;
+    inverse: THREE.Matrix4 | null;
+    ray: [number, number, number, number, number, number] | null;
+    busy: boolean;
+    moved: boolean;
+  } | null>(null);
+  const rayThrough = (x: number, y: number) => {
+    const r = canvas.getBoundingClientRect();
+    const caster = new THREE.Raycaster();
+    caster.setFromCamera(new THREE.Vector2(((x - r.left) / r.width) * 2 - 1, -((y - r.top) / r.height) * 2 + 1), camera);
+    return toRay(caster.ray) as [number, number, number, number, number, number];
+  };
+  const slideStep = async () => {
+    const d = shapeDrag.current;
+    if (!d || d.busy || !d.offset || !d.inverse || !d.moved) return;
+    const ray = rayThrough(d.at[0] + d.offset[0], d.at[1] + d.offset[1]);
+    d.busy = true;
+    try {
+      const m = await useSlicer.getState().shapeSlide(d.object, d.volume, d.instance, ray);
+      if (shapeDrag.current !== d) return;
+      if (m) {
+        d.ray = ray;
+        setSlide(new THREE.Matrix4().fromArray(m).multiply(d.inverse));
+      }
+    } catch (err) {
+      console.warn('Slide:', err);
+    } finally {
+      d.busy = false;
+    }
+    // The pointer moved on while the engine worked.
+    if (shapeDrag.current === d && ray.some((v, k) => v !== rayThrough(d.at[0] + d.offset![0], d.at[1] + d.offset![1])[k])) void slideStep();
+  };
+  const shapeMove = useRef<(e: PointerEvent) => void>(() => {});
+  shapeMove.current = (e: PointerEvent) => {
+    const d = shapeDrag.current;
+    if (!d) return;
+    d.at = [e.clientX, e.clientY];
+    if (!d.moved && Math.hypot(e.clientX - d.x0, e.clientY - d.y0) < 4) return;
+    d.moved = true;
+    void slideStep();
+  };
+  const shapeEnd = useRef<(e: PointerEvent) => void>(() => {});
+  shapeEnd.current = (e: PointerEvent) => {
+    const d = shapeDrag.current;
+    if (!d) return;
+    shapeDrag.current = null;
+    window.removeEventListener('pointermove', onShapeMove);
+    window.removeEventListener('pointerup', onShapeEnd);
+    window.removeEventListener('pointercancel', onShapeEnd);
+    canvas.removeEventListener('pointerdown', onShapeEnd);
+    if (controls) controls.enabled = true;
+    gizmoReleased.current = performance.now();
+    // A second finger is the camera's. Let go off the object, it stays
+    // where it last was on it.
+    if (e.type !== 'pointerup' || !d.moved || !d.ray) return setSlide(null);
+    void useSlicer
+      .getState()
+      .shapePlace(d.object, { op: 'drag', volume: d.volume, instance: d.instance, ray: d.ray, commit: true }, shapeInfo?.svg ? 'Move SVG over surface' : 'Move text over surface')
+      .finally(() => setSlide(null));
+  };
+  const onShapeMove = useMemo(() => (e: PointerEvent) => shapeMove.current(e), []);
+  const onShapeEnd = useMemo(() => (e: PointerEvent) => shapeEnd.current(e), []);
+  useEffect(
+    () => () => {
+      window.removeEventListener('pointermove', onShapeMove);
+      window.removeEventListener('pointerup', onShapeEnd);
+      window.removeEventListener('pointercancel', onShapeEnd);
+      canvas.removeEventListener('pointerdown', onShapeEnd);
+    },
+    [canvas, onShapeMove, onShapeEnd],
+  );
+  const startShapeDrag = (ev: PointerEvent, object: number, volume: number, instance: number) => {
+    if (ev.pointerType === 'mouse' && ev.button !== 0) return;
+    const d: NonNullable<typeof shapeDrag.current> = {
+      object,
+      volume,
+      instance,
+      x0: ev.clientX,
+      y0: ev.clientY,
+      at: [ev.clientX, ev.clientY],
+      offset: null,
+      inverse: null,
+      ray: null,
+      busy: false,
+      moved: false,
+    };
+    shapeDrag.current = d;
+    if (controls) controls.enabled = false;
+    window.addEventListener('pointermove', onShapeMove);
+    window.addEventListener('pointerup', onShapeEnd);
+    window.addEventListener('pointercancel', onShapeEnd);
+    // Registered after this press, so only a second finger ends the drag.
+    setTimeout(() => shapeDrag.current === d && canvas.addEventListener('pointerdown', onShapeEnd));
+    // Where the shape's origin is on screen, from where it stands.
+    const s = useSlicer.getState();
+    const known = s.shape && s.shape.object === object && s.shape.volume === volume && s.shape.preview === s.preview ? s.shape : null;
+    void (known ? Promise.resolve(known.matrix) : s.loadShape().then(() => useSlicer.getState().shape?.matrix)).then((matrix) => {
+      if (shapeDrag.current !== d || !matrix) return;
+      const m = new THREE.Matrix4().fromArray(matrix);
+      const origin = new THREE.Vector3().setFromMatrixPosition(m).project(camera);
+      const r = canvas.getBoundingClientRect();
+      d.offset = [r.left + ((origin.x + 1) / 2) * r.width - d.x0, r.top + ((1 - origin.y) / 2) * r.height - d.y0];
+      d.inverse = m.invert();
+      void slideStep();
+    });
+  };
+  // Shapes slide only on an object with other parts to slide over.
+  const startShapeAt = (ev: PointerEvent, object: number, volume: number) => {
+    const obj = project?.objects[object];
+    const instance = Math.max(0, obj?.instances.findIndex((i) => i.plate === plate) ?? -1);
+    select({ object, instance, volume });
+    if (obj && obj.volumes.length > 1 && obj.instances.filter((i) => i.plate === plate).length === 1) startShapeDrag(ev, object, volume, instance);
+  };
 
   // Where the camera is, for the Text tool's new text (state/view.ts).
   useEffect(() => {
@@ -647,7 +943,7 @@ function Objects({ w, d }: { w: number; d: number }) {
       }, 550);
   };
 
-  const onDown = (e: ThreeEvent<PointerEvent>, object: number) => {
+  const onDown = (e: ThreeEvent<PointerEvent>, object: number, tris?: Uint32Array | null) => {
     e.stopPropagation();
     if (e.button === 2) {
       if (paint || measuring) return;
@@ -671,12 +967,25 @@ function Objects({ w, d }: { w: number; d: number }) {
     // A press on a gizmo handle in front of the part is the gizmo's.
     if (onGizmo()) return;
     const obj = project?.objects[object];
+    if (shapeTool && obj && obj.volumes.length > 1 && preview && e.faceIndex != null) {
+      // The Text and SVG tools: a press on a shape picks it and slides it; a
+      // press on the rest of the object turns the camera, the shape stays picked.
+      // The picked shape's frame wins even where the surface is in front of it.
+      if (shapePicked && shapeFrame.current && new THREE.Raycaster(e.ray.origin, e.ray.direction).intersectObject(shapeFrame.current, false).length)
+        return startShapeAt(e.nativeEvent, object, shapePicked.volume);
+      const whole = parts.find((p) => p.object === object);
+      const v = whole ? partAt(preview, object, whole.first + (tris ? tris[e.faceIndex] : e.faceIndex)) : undefined;
+      const info = v !== undefined ? obj.volumes[v] : undefined;
+      if (v !== undefined && (info?.text || info?.svg)) return startShapeAt(e.nativeEvent, object, v);
+      if (selected?.object === object && selected.volume !== undefined) return;
+    }
     const instances = obj?.instances.map((inst, i) => ({ inst, i })).filter(({ inst }) => inst.plate === plate) ?? [];
     const first = instances[0];
     if (selected?.object !== object || selected.volume !== undefined) select(first ? { object, instance: first.i } : null);
     if (first && e.pointerType === 'touch') menuPress(e.nativeEvent, object, first.i, true);
-    // Brim ears: a click adds an ear (onEarClick); the object stays put.
-    if (brimTool) return;
+    // Brim ears: a click adds an ear (onEarClick); the object stays put. The
+    // Text and SVG tools move shapes, not objects with other parts.
+    if (brimTool || (shapeTool && (obj?.volumes.length ?? 0) > 1)) return;
     // Dragging moves an object with a single instance on this plate.
     if (instances.length !== 1) return;
     const hit = new THREE.Vector3();
@@ -689,6 +998,8 @@ function Objects({ w, d }: { w: number; d: number }) {
   const onVolumeDown = (e: ThreeEvent<PointerEvent>, v: VolumePart) => {
     if (paint || measuring || brimTool || onGizmo()) return;
     e.stopPropagation();
+    const info = project?.objects[v.object]?.volumes[v.volume];
+    if (shapeTool && e.button === 0 && (info?.text || info?.svg)) return startShapeAt(e.nativeEvent, v.object, v.volume);
     const instance = Math.max(0, project?.objects[v.object]?.instances.findIndex((i) => i.plate === plate) ?? -1);
     select({ object: v.object, instance, volume: v.volume });
     if (e.button === 2) return menuPress(e.nativeEvent, v.object, instance, false, v.volume);
@@ -761,6 +1072,39 @@ function Objects({ w, d }: { w: number; d: number }) {
         ) : (
           <meshStandardMaterial vertexColors roughness={0.55} metalness={0.05} emissive={active ? '#2f6fe4' : '#000000'} emissiveIntensity={active ? 0.35 : 0} />
         );
+        if (shapePicked && place && p.object === place.object) {
+          const pieceMaterial = shapePicked.kind ? (
+            <VolumeMaterial kind={shapePicked.kind} active />
+          ) : (
+            <meshStandardMaterial vertexColors roughness={0.55} metalness={0.05} emissive="#2f6fe4" emissiveIntensity={0.35} />
+          );
+          const restTris = shapePicked.restTris;
+          return (
+            <group key={p.object}>
+              <mesh
+                geometry={shapePicked.rest ?? p.geometry}
+                raycast={partRaycast}
+                onPointerDown={(e) => onDown(e, p.object, restTris)}
+                castShadow
+              >
+                <meshStandardMaterial vertexColors roughness={0.55} metalness={0.05} />
+              </mesh>
+              <ShapeHandles
+                key={shapePicked.volume}
+                piece={shapePicked.piece}
+                material={pieceMaterial}
+                slide={slide}
+                ringRef={gizmo}
+                frameRef={shapeFrame}
+                onPress={(e) => {
+                  e.stopPropagation();
+                  if (!onGizmo()) startShapeAt(e.nativeEvent, p.object, shapePicked.volume);
+                }}
+                onRelease={() => (gizmoReleased.current = performance.now())}
+              />
+            </group>
+          );
+        }
         if (gizmoTool && place && picked && p.object === place.object) {
           return (
             <group key={p.object}>
@@ -816,7 +1160,7 @@ function Objects({ w, d }: { w: number; d: number }) {
       })}
       {!paint &&
         volumeParts.map((v, k) => {
-          if (gizmoTool && picked && !picked.rest && v === picked.piece) return null;
+          if ((gizmoTool || shapePicked) && picked && !picked.rest && v === picked.piece) return null;
           const offset = selected?.object === v.object && delta ? delta : [0, 0];
           const active = selected?.object === v.object && selected.volume === v.volume;
           return (

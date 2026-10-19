@@ -274,11 +274,15 @@ std::string modelInfoJson() {
                                           {"depth", v->emboss_shape ? v->emboss_shape->projection.depth : 1.0},
                                           {"boldness", fp.boldness.value_or(0.f)}, {"skew", fp.skew.value_or(0.f)},
                                           {"charGap", fp.char_gap.value_or(0)}, {"lineGap", fp.line_gap.value_or(0)},
-                                          {"align", align == FontProp::HorizontalAlign::left ? "left" : align == FontProp::HorizontalAlign::right ? "right" : "center"}};
+                                          {"align", align == FontProp::HorizontalAlign::left ? "left" : align == FontProp::HorizontalAlign::right ? "right" : "center"},
+                                          {"valign", fp.align.second == FontProp::VerticalAlign::top ? "top" : fp.align.second == FontProp::VerticalAlign::bottom ? "bottom" : "center"},
+                                          {"useSurface", v->emboss_shape && v->emboss_shape->projection.use_surface},
+                                          {"perGlyph", fp.per_glyph}};
             } else if (v->emboss_shape && v->emboss_shape->svg_file) {
                 // An SVG shape (svg_api.cpp): what the SVG tool edits, its size across its face.
                 const Vec3d size = v->mesh().bounding_box().size().cwiseProduct(v->get_scaling_factor());
-                volumes.back()["svg"] = {{"depth", v->emboss_shape->projection.depth}, {"width", size.x()}, {"height", size.y()}};
+                volumes.back()["svg"] = {{"depth", v->emboss_shape->projection.depth}, {"width", size.x()}, {"height", size.y()},
+                                         {"useSurface", v->emboss_shape->projection.use_surface}};
             }
         }
         json instances = json::array();

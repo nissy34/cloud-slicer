@@ -5,7 +5,8 @@
 // where the bed is clicked, lay on face turns the object, variable layer height
 // makes an adaptive profile, measure picks two features and measures between
 // them, the object menu (right click or ⋯) renames, clones and exports, mesh
-// boolean joins two parts, text and SVG shapes go on a model or make an object
+// boolean joins two parts, text and SVG shapes go on a model (text following
+// its surface, turned and slid over it) or make an object
 // of their own, Assemble joins two cubes and puts a face of one onto the
 // other, and the toolbar fits a phone (and the page itself
 // never scrolls there).
@@ -416,8 +417,46 @@ try {
   await page.waitForTimeout(1500);
   if (await page.getByText('this font').count()) fail('the bundled font did not load');
   if (shots) await page.screenshot({ path: join(shots, 'text-on-boat.png') });
-  await textPanel.getByRole('button', { name: 'Done' }).click();
   console.log('text shape: a text part on the boat, renamed by its text, in another font');
+
+  // On the boat's surface: it follows the surface, turns with the Rotation
+  // field, and a drag on it slides it over the boat (one undo step each).
+  const errors = page.locator('.error-text');
+  const rotationField = textPanel.getByRole('spinbutton', { name: 'Rotation' });
+  await rotationField.waitFor({ timeout: 30000 });
+  await textPanel.getByLabel('Use surface').check();
+  await page.waitForTimeout(2000);
+  if (await errors.count()) fail(`use surface: ${await errors.first().innerText()}`);
+  await rotationField.fill('30');
+  await page.waitForFunction(
+    () => Math.abs(Number(document.querySelector('[aria-label="Text shape"] input[aria-label="Rotation"]')?.value) - 30) < 0.5 && !!document.querySelector('canvas[data-shape-at]'),
+    null,
+    { timeout: 30000 },
+  );
+  await rotationField.fill('0');
+  await page.waitForTimeout(1500);
+  const shapeAt = async () => (await page.locator('canvas[data-shape-at]').getAttribute('data-shape-at', { timeout: 30000 })).split(',').map(Number);
+  await page.waitForFunction(() => !!document.querySelector('canvas[data-shape-at]'), null, { timeout: 30000 });
+  const [sx, sy] = await shapeAt();
+  await page.mouse.move(sx, sy);
+  await page.mouse.down();
+  for (let k = 1; k <= 10; k++) {
+    await page.mouse.move(sx - 3 * k, sy + k);
+    await page.waitForTimeout(60);
+  }
+  await page.mouse.up();
+  await page.waitForFunction(
+    (x0) => {
+      const at = document.querySelector('canvas[data-shape-at]')?.getAttribute('data-shape-at');
+      return !!at && Number(at.split(',')[0]) < x0 - 10;
+    },
+    sx,
+    { timeout: 30000 },
+  );
+  if (await errors.count()) fail(`sliding the text: ${await errors.first().innerText()}`);
+  if (shots) await page.screenshot({ path: join(shots, 'text-slid.png') });
+  console.log(`text shape: follows the surface, turns, and slides from ${sx},${sy} to ${(await shapeAt()).join(',')}`);
+  await textPanel.getByRole('button', { name: 'Done' }).click();
 
   // SVG from the object menu: an .svg file becomes a part of the boat, then
   // gets wider (its height follows) and engraved.

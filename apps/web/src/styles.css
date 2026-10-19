@@ -1015,6 +1015,20 @@ select:focus-visible {
   align-items: center;
   gap: 8px;
 }
+/* Text and SVG shapes on a surface: the surface options, then where it stands. */
+.shape-checks {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 16px;
+}
+.shape-placement {
+  display: grid;
+  gap: 8px;
+}
+.tool-row.shape-row {
+  align-items: center;
+  justify-content: space-between;
+}
 /* Mesh boolean: a picker per part, its name and kind. */
 .transform-row.boolean-pick {
   grid-template-columns: 96px 1fr;
