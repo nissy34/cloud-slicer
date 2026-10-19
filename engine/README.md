@@ -86,3 +86,4 @@ here; each patch says why at the top of its hunk.
 | `0002-step-serial-occt-meshing` | OCCT meshing of STEP files without its thread pool |
 | `0003-sla-hollowing-without-openvdb` | Builds SLA hollowing without OpenVDB (no interior is generated) |
 | `0004-skip-thread-naming-barrier` | Thread naming holds every TBB worker on a barrier; browser threads have no names or locales to set |
+| `0005-move-gcode-result-instead-of-copying` | G-code export copies every move into the caller's result at the memory peak; moves it instead, so big slices fit in a phone's browser |

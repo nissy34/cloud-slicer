@@ -1,0 +1,23 @@
+--- a/src/libslic3r/GCode.cpp
++++ b/src/libslic3r/GCode.cpp
+@@ -1886,7 +1886,20 @@
+     //    DoExport::update_print_estimated_times_stats(m_processor, print->m_print_statistics);
+     DoExport::update_print_estimated_stats(m_processor, m_writer.extruders(), print->m_print_statistics, print->config());
+     if (result != nullptr) {
++#ifdef __EMSCRIPTEN__
++        // GCodeProcessorResult only has a copy assignment, so assigning it
++        // copies every move of the G-code at the peak of the slice's memory:
++        // a big slice on a phone ran out of memory right here. Hand over the
++        // two big vectors instead and copy only the rest.
++        GCodeProcessorResult &done = m_processor.result();
++        auto moves      = std::move(done.moves);
++        auto lines_ends = std::move(done.lines_ends);
++        *result = done;
++        result->moves      = std::move(moves);
++        result->lines_ends = std::move(lines_ends);
++#else
+         *result = std::move(m_processor.extract_result());
++#endif
+         // set the filename to the correct value
+         result->filename = path;
+     }
