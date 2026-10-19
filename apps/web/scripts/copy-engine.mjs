@@ -9,6 +9,10 @@
 //   fonts/                   the Text tool's bundled fonts (src/lib/fonts.ts)
 //
 //   ENGINE_DIR  engine build dir (default: ../../engine/build/engine)
+//
+// Without ENGINE_DIR, and outside CI, it first runs engine/scripts/fetch-engine.mjs,
+// which downloads the engine CI built for this checkout's engine sources (seconds)
+// unless engine/build/engine already has it. ENGINE_FETCH=0 turns that off.
 import { execFileSync } from 'node:child_process';
 import { copyFileSync, cpSync, existsSync, mkdirSync, rmSync } from 'node:fs';
 import { basename, dirname, join } from 'node:path';
@@ -18,13 +22,20 @@ const web = join(dirname(fileURLToPath(import.meta.url)), '..');
 const repo = join(web, '../..');
 const engineDir = process.env.ENGINE_DIR ?? join(repo, 'engine/build/engine');
 const out = join(web, 'public/engine');
+if (!process.env.ENGINE_DIR && !process.env.CI && process.env.ENGINE_FETCH !== '0') {
+  try {
+    execFileSync('node', [join(repo, 'engine/scripts/fetch-engine.mjs'), '--quiet'], { stdio: 'inherit' });
+  } catch {
+    // fetch-engine said why; carry on with whatever engine build is there.
+  }
+}
 mkdirSync(out, { recursive: true });
 
 const binaries = ['orca-engine.js', 'orca-engine.wasm'].map((f) => join(engineDir, f));
 const missing = binaries.filter((f) => !existsSync(f));
 if (missing.length) {
   console.warn(`copy-engine: not found, the page will load without an engine:\n  ${missing.join('\n  ')}`);
-  console.warn('Build it first (see README.md) or set ENGINE_DIR.');
+  console.warn('Download it (node engine/scripts/fetch-engine.mjs), build it (README.md) or set ENGINE_DIR.');
 }
 for (const src of binaries) if (existsSync(src)) copyFileSync(src, join(out, src.split('/').pop()));
 
