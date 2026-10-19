@@ -623,7 +623,11 @@ function Objects({ w, d }: { w: number; d: number }) {
   // A second finger: whatever the first one started (moving an object or a
   // part, painting) gives way to the camera, which zooms (lib/touch).
   const giveWay = useRef(() => {});
+  const beforeTouch = useRef<{ was: ReturnType<typeof useSlicer.getState>['selected'] } | null>(null);
   giveWay.current = () => {
+    // A pinch picks nothing.
+    if (beforeTouch.current) select(beforeTouch.current.was);
+    beforeTouch.current = null;
     if (drag.current) {
       drag.current = null;
       setDelta(null);
@@ -642,6 +646,7 @@ function Objects({ w, d }: { w: number; d: number }) {
   useEffect(
     () =>
       onFingersUp(() => {
+        beforeTouch.current = null;
         const g = gizmo.current as unknown as { enabled: boolean } | null;
         if (g) g.enabled = true;
       }),
@@ -727,6 +732,8 @@ function Objects({ w, d }: { w: number; d: number }) {
     const obj = project?.objects[object];
     const instances = obj?.instances.map((inst, i) => ({ inst, i })).filter(({ inst }) => inst.plate === plate) ?? [];
     const first = instances[0];
+    // What was selected before a finger picked this, for when it turns out to be a pinch.
+    beforeTouch.current = e.pointerType === 'touch' ? { was: useSlicer.getState().selected } : null;
     if (selected?.object !== object || selected.volume !== undefined) select(first ? { object, instance: first.i } : null);
     if (first && e.pointerType === 'touch') menuPress(e.nativeEvent, object, first.i, true);
     // Brim ears: a click adds an ear (onEarClick); the object stays put.
@@ -763,6 +770,7 @@ function Objects({ w, d }: { w: number; d: number }) {
     setDelta([hit.x - drag.current.start.x, hit.y - drag.current.start.y]);
   };
   const onUp = () => {
+    beforeTouch.current = null;
     const dr = drag.current;
     drag.current = null;
     holdCamera(controls, false);

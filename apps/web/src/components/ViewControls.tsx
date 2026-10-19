@@ -29,12 +29,11 @@ const Z_UP = new THREE.Vector3(0, 0, 1);
 /**
  * Inside the 3D view's Canvas: points the camera at what box() returns (the
  * models, or the toolpaths) from one of the views, or keeps the direction and
- * fits it all on screen. drei's Bounds does the framing and the short camera
- * move, and redraws while it runs (the views draw on demand).
+ * fits it all on screen. drei's Bounds does the short camera move.
  */
 export function CameraViews({ handle, box }: { handle: ViewHandle; box: () => THREE.Box3 }) {
   return (
-    <Bounds margin={1.15} maxDuration={0.4}>
+    <Bounds maxDuration={0.4}>
       <Views handle={handle} box={box} />
     </Bounds>
   );
@@ -43,6 +42,7 @@ export function CameraViews({ handle, box }: { handle: ViewHandle; box: () => TH
 function Views({ handle, box }: { handle: ViewHandle; box: () => THREE.Box3 }) {
   const bounds = useBounds();
   const camera = useThree((s) => s.camera);
+  const invalidate = useThree((s) => s.invalidate);
   const controls = useThree((s) => s.controls) as unknown as THREE.EventDispatcher<{ start: object }> | null;
 
   // Bounds tilts camera.up while it moves the camera; the controls orbit about
@@ -55,11 +55,23 @@ function Views({ handle, box }: { handle: ViewHandle; box: () => THREE.Box3 }) {
   }, [controls, camera]);
 
   const go = (view: View) => {
-    bounds.refresh(box());
-    if (view === 'fit') return void bounds.reset();
-    const { center, distance } = bounds.getSize();
-    const from = new THREE.Vector3(...VIEWS.find((v) => v.view === view)!.from).normalize();
-    bounds.moveTo(center.clone().addScaledVector(from, distance)).lookAt({ target: center, up: Z_UP });
+    // The whole box in sight from any side: its bounding sphere fits the
+    // narrower of the two fields of view. (Bounds' own fit is too tight for
+    // a tall model, or a phone held upright.)
+    const b = box();
+    const sphere = b.getBoundingSphere(new THREE.Sphere());
+    const cam = camera as THREE.PerspectiveCamera;
+    const vertical = THREE.MathUtils.degToRad(cam.fov);
+    const horizontal = 2 * Math.atan(Math.tan(vertical / 2) * cam.aspect);
+    const distance = (Math.max(sphere.radius, 5) / Math.sin(Math.min(vertical, horizontal) / 2)) * 1.05;
+    const target = (controls as unknown as { target?: THREE.Vector3 } | null)?.target ?? sphere.center;
+    const from =
+      view === 'fit'
+        ? camera.position.clone().sub(target).normalize()
+        : new THREE.Vector3(...VIEWS.find((v) => v.view === view)!.from).normalize();
+    bounds.refresh(b).moveTo(sphere.center.clone().addScaledVector(from, distance)).lookAt({ target: sphere.center, up: Z_UP });
+    // Bounds moves the camera frame by frame, and this view only draws on demand.
+    invalidate();
   };
   useEffect(() => {
     handle.current = go;

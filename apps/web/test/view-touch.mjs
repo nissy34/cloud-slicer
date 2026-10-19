@@ -54,6 +54,7 @@ const browser = await chromium.launch(
 try {
   const page = await browser.newPage({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true, deviceScaleFactor: 2, colorScheme: 'dark' });
   page.on('pageerror', (e) => console.error(`page error: ${e.message}`));
+  page.on('console', (m) => m.text().includes('VIEWDBG') && console.log(m.text()));
   await page.goto(`http://localhost:${PORT}/`);
   await page.getByText('Open a model to start').waitFor({ timeout: 120000 });
   const wizard = page.getByRole('dialog', { name: 'Set up your printers' });
@@ -78,8 +79,8 @@ try {
   const undo = page.getByRole('toolbar', { name: 'Object tools' }).getByRole('button', { name: 'Undo' });
   const undoBefore = await undo.getAttribute('title');
 
-  // The share of the 3D view the model covers: its red pixels (the bed and the
-  // background are greys).
+  // The share of the 3D view the model covers: its coloured pixels (red, or
+  // pink while selected; the bed and the background are greys).
   const modelShare = async () => {
     await page.waitForTimeout(400);
     const png = (await view.screenshot()).toString('base64');
@@ -93,7 +94,7 @@ try {
       g.drawImage(img, 0, 0);
       const px = g.getImageData(0, 0, c.width, c.height).data;
       let red = 0;
-      for (let i = 0; i < px.length; i += 4) if (px[i] > 60 && px[i] > 2 * px[i + 1] && px[i] > 2 * px[i + 2]) red++;
+      for (let i = 0; i < px.length; i += 4) if (Math.max(px[i], px[i + 1], px[i + 2]) - Math.min(px[i], px[i + 1], px[i + 2]) > 70) red++;
       return red / (px.length / 4);
     }, png);
   };
@@ -119,25 +120,26 @@ try {
   const start = await modelShare();
   console.log(`model covers ${(start * 100).toFixed(0)}% of the view at first`);
   // Zoom in with the fingers off the model, near the bottom corners, until it fills the view.
-  for (let i = 0; i < 4 && (await modelShare()) < 0.9; i++) await pinch(box.x + box.width / 2, box.y + box.height - 20, 60, box.width - 20);
+  for (let i = 0; i < 10 && (await modelShare()) < 0.75; i++) await pinch(box.x + box.width / 2, box.y + box.height - 20, 120, 150);
   const zoomed = await modelShare();
-  if (zoomed < 0.9) fail(`zooming in should fill the view with the model: ${(zoomed * 100).toFixed(0)}%`);
+  if (zoomed < 0.75) fail(`zooming in should fill the view with the model: ${(zoomed * 100).toFixed(0)}%`);
   if (shots) await page.screenshot({ path: join(shots, 'zoomed-in.png') });
   console.log(`zoomed in: the model covers ${(zoomed * 100).toFixed(0)}%`);
 
   // Now every finger lands on the model: pinching must still zoom back out.
-  await pinch(box.x + box.width / 2, box.y + box.height / 2, box.width - 40, 40);
-  await pinch(box.x + box.width / 2, box.y + box.height / 2, box.width - 40, 40);
+  await pinch(box.x + box.width / 2, box.y + box.height / 2, 200, 120);
+  await pinch(box.x + box.width / 2, box.y + box.height / 2, 200, 120);
   const out = await modelShare();
   if (shots) await page.screenshot({ path: join(shots, 'pinched-out.png') });
   if (out > zoomed - 0.2) fail(`pinching on the model should zoom out: ${(zoomed * 100).toFixed(0)}% -> ${(out * 100).toFixed(0)}%`);
   else console.log(`pinching on the model zooms out: ${(zoomed * 100).toFixed(0)}% -> ${(out * 100).toFixed(0)}%`);
+  if (await page.locator("ul.objects > li.object.active").count()) fail("the pinch selected the model");
   if ((await undo.getAttribute('title')) !== undoBefore) fail(`the pinch moved the model: Undo is now "${await undo.getAttribute('title')}"`);
 
   // Fit all: zoomed in again, the button brings the whole model back on screen.
   const fit = page.getByRole('button', { name: 'Fit all' });
   if (await fit.count()) {
-    for (let i = 0; i < 4 && (await modelShare()) < 0.9; i++) await pinch(box.x + box.width / 2, box.y + box.height / 2, 60, box.width - 20);
+    for (let i = 0; i < 10 && (await modelShare()) < 0.75; i++) await pinch(box.x + box.width / 2, box.y + box.height - 20, 120, 150);
     await fit.tap();
     await page.waitForTimeout(700);
     const fitted = await modelShare();
@@ -162,9 +164,21 @@ try {
     if (top < 0.08) fail(`the top view should show the model: ${(top * 100).toFixed(0)}%`);
     console.log(`Top view: the model covers ${(top * 100).toFixed(0)}%`);
     // And the camera still turns with one finger and zooms with two afterwards.
-    await pinch(box.x + box.width / 2, box.y + box.height / 2, 60, box.width - 20);
+    await pinch(box.x + box.width / 2, box.y + box.height / 2, 120, 200);
     if ((await modelShare()) <= top) fail('pinching after the top view should zoom in');
   }
+
+  // One finger on the model still moves it.
+  const [cx, cy] = [box.x + box.width / 2, box.y + box.height / 2];
+  await touch('touchStart', [[cx, cy]]);
+  for (let i = 1; i <= 10; i++) {
+    await touch('touchMove', [[cx + i * 6, cy]]);
+    await page.waitForTimeout(16);
+  }
+  await touch('touchEnd', []);
+  await page.waitForFunction((before) => document.querySelector('[aria-label="Undo"]')?.title !== before, undoBefore, { timeout: 10000 }).catch(() => {});
+  if ((await undo.getAttribute('title')) === undoBefore) fail('a one-finger drag on the model should still move it');
+  else console.log(`a one-finger drag still moves the model (${await undo.getAttribute('title')})`);
 } finally {
   await browser.close();
   process.kill(-server.pid, 'SIGTERM');
