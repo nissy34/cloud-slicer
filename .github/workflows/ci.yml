@@ -315,9 +315,11 @@ jobs:
         if: matrix.suite == 'loading'
         run: node test/loading.mjs
 
-      - name: Slice cancel end to end (Chromium)
+      - name: Slice cancel and engine restart end to end (Chromium)
         if: matrix.suite == 'cancel'
-        run: node test/cancel.mjs
+        run: |
+          node test/cancel.mjs
+          node test/restart.mjs
 
       - name: Accounts end to end (Pages Functions + local D1, mock OAuth)
         if: matrix.suite == 'accounts'
