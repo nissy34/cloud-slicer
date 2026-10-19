@@ -59,7 +59,10 @@ node --test engine/node/engine.test.mjs      # engine tests
 
 - **Threads are Web Workers.** TBB runs on Emscripten pthreads, one per core, started
   with the engine (`PTHREAD_POOL_SIZE`), with mimalloc so threads don't queue on one
-  malloc lock. A slice's cancel watcher thread stands in for desktop's UI thread.
+  malloc lock. TBB's own scalable allocator is not linked: `src/memory.cpp` sends it to
+  malloc and sets mimalloc's arena size for wasm, which keeps a big slice's memory
+  close to the single-threaded engine's. A slice's cancel watcher thread stands in for
+  desktop's UI thread.
 - **No OpenGL**: plate thumbnails are drawn by the page and handed to the G-code export.
 - **No SLA hollowing** (needs OpenVDB). FFF printing never uses it.
 - **Every bundled printer is loaded**: desktop loads only the printers its setup wizard

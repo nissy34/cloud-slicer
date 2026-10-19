@@ -162,4 +162,4 @@ target_link_libraries(libslic3r PUBLIC
     boost_log_setup boost_log boost_filesystem boost_thread boost_regex boost_iostreams
     boost_nowide boost_chrono boost_atomic boost_system boost_date_time
     ${OCCT_LIBS}
-    tbb tbbmalloc gmpxx gmp mpfr nlopt png jpeg libnoise_static z expat)
+    tbb gmpxx gmp mpfr nlopt png jpeg libnoise_static z expat)

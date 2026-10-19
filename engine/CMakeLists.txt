@@ -78,7 +78,9 @@ endforeach()
 
 include(cmake/libslic3r.cmake)
 
-add_executable(orca-engine src/presets_api.cpp src/model_api.cpp src/slice_api.cpp src/tools_api.cpp src/paint_api.cpp src/calib_api.cpp src/history_api.cpp src/mixed_api.cpp src/measure_api.cpp src/layers_api.cpp)
+add_executable(orca-engine src/presets_api.cpp src/model_api.cpp src/slice_api.cpp src/tools_api.cpp src/paint_api.cpp src/calib_api.cpp src/history_api.cpp src/mixed_api.cpp src/measure_api.cpp src/layers_api.cpp src/memory.cpp)
+# mimalloc.h, for the allocator settings in src/memory.cpp.
+target_include_directories(orca-engine PRIVATE "${EMSCRIPTEN_ROOT_PATH}/system/lib/mimalloc/include")
 target_link_libraries(orca-engine PRIVATE libslic3r embind)
 set_target_properties(orca-engine PROPERTIES SUFFIX ".js")
 target_link_options(orca-engine PRIVATE
