@@ -25,6 +25,14 @@ import type { MeasureFeature, Measurement } from '../lib/measure';
 import type { ObjectAction } from '../lib/objectMenu';
 import type { VolumeAction } from '../lib/volumes';
 import type { BooleanRequest } from '../lib/boolean';
+import type { TextStyle } from '../lib/fonts';
+
+export type TextRequest = TextStyle & { fontPath: string } & ({ op: 'add'; type: 'part' | 'negative' | 'modifier'; camera?: [number, number, number] } | { op: 'update'; volume: number });
+
+/** An SVG shape added from a file, or given a new depth or size (engine/src/svg_api.cpp). */
+export type SvgRequest =
+  | { op: 'add'; type: 'part' | 'negative' | 'modifier'; name: string; depth: number; camera?: [number, number, number] }
+  | { op: 'update'; volume: number; depth?: number; width?: number; height?: number };
 
 /** A request to the engine's mixed-filament list (engine/src/mixed_api.cpp). */
 export interface MixedRequest {
@@ -113,6 +121,9 @@ export interface EngineEvents {
 /** Engine methods that only read: anything else changes what a slice would make. */
 const READS = new Set(['printers', 'filamentsFor', 'fullConfig', 'presetConfig', 'options', 'modelInfo', 'fileConfig', 'saveProject', 'preview', 'paintOverlay', 'mixedBlend', 'mixedMatch', 'measureFeature', 'measureBetween', 'wipeTower', 'exportStl', 'slice']);
 
+/** Engine methods that change the presets, not the project. */
+const PRESET_CALLS = new Set(['select', 'userPresets', 'presetParse', 'mixed']);
+
 /** Promise wrapper around the engine worker. Requests run in order. */
 export class EngineClient {
   private worker: Worker;
@@ -128,6 +139,8 @@ export class EngineClient {
    * first (requests run in order).
    */
   onEditWhileSlicing: (() => void) | null = null;
+  /** Requests so far that changed the project (not the presets), to tell whether a saved copy is current. */
+  projectEdits = 0;
 
   constructor(private events: EngineEvents) {
     // bytes: what the engine downloads (wasm + presets), for its progress; the
@@ -173,6 +186,7 @@ export class EngineClient {
       !(method === 'brimEars' && (args[3] as BrimRequest).op === 'get') &&
       !(method === 'layerHeights' && (args[2] as LayerRequest).op === 'get');
     if (edits && this.sliceId) this.onEditWhileSlicing?.();
+    if (edits && !PRESET_CALLS.has(method)) this.projectEdits++;
     const id = this.nextId++;
     const done = () => {
       if (this.sliceId === id) this.sliceId = 0;
@@ -186,6 +200,13 @@ export class EngineClient {
       });
       this.worker.postMessage({ id, method, args }, transfer);
     });
+  }
+
+  /** Stops the engine for good; requests still waiting reject with `message`. */
+  terminate(message: string) {
+    this.worker.terminate();
+    for (const p of this.pending.values()) p.reject(new Error(message));
+    this.pending.clear();
   }
 
   /** Whether this engine build can cancel a running slice. */
@@ -278,6 +299,16 @@ export class EngineClient {
   /** A part, modifier... of object o added, renamed, moved or deleted; "add" without a shape takes a mesh file's bytes. */
   volumeAction = (o: number, request: VolumeAction, bytes?: ArrayBuffer) =>
     this.call<{ info: ProjectInfo; volume?: number }>('volumeAction', [o, request, bytes ?? null], bytes ? [bytes] : []);
+  /** Whether the engine already has the font file at `path`. */
+  hasFont = (path: string) => this.call<boolean>('hasFont', [path]);
+  loadFont = (path: string, bytes: ArrayBuffer) => this.call<void>('loadFont', [path, bytes], [bytes]);
+  loadBundledFont = (path: string, file: string) => this.call<void>('loadBundledFont', [path, file]);
+  /** A text part added to object o (-1: a new object on `plate`) or changed, like desktop's Text tool. */
+  textVolume = (o: number, plate: number, request: TextRequest) =>
+    this.call<{ info: ProjectInfo; object: number; volume: number }>('textVolume', [o, plate, request]);
+  /** An SVG shape added to object o (-1: a new object on `plate`) from the file's bytes, or changed, like desktop's SVG tool. */
+  svgVolume = (o: number, plate: number, request: SvgRequest, bytes?: ArrayBuffer) =>
+    this.call<{ info: ProjectInfo; object: number; volume: number }>('svgVolume', [o, plate, request, bytes ?? null], bytes ? [bytes] : []);
   /** Two volumes of object o combined into one, like desktop's Mesh boolean. */
   meshBoolean = (o: number, request: BooleanRequest) => this.call<{ info: ProjectInfo; volume: number }>('meshBoolean', [o, request]);
   /** Instance i of object o as a binary STL. */

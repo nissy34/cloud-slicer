@@ -194,6 +194,38 @@ if (self.name !== 'em-pthread') {
         if (bytes) e.FS.unlink(path);
       }
     },
+    // A font for the Text tool, kept in the engine's files under its name.
+    hasFont(e, path) {
+      return e.FS.analyzePath(path).exists;
+    },
+    loadFont(e, path, bytes) {
+      e.FS.mkdirTree('/fonts');
+      e.FS.writeFile(path, new Uint8Array(bytes));
+    },
+    // One of the bundled fonts (engine/fonts, see scripts/copy-engine.mjs).
+    async loadBundledFont(e, path, file) {
+      const res = await fetch(here(`fonts/${file}`));
+      if (!res.ok) throw new Error(`The font ${file} didn't download (HTTP ${res.status})`);
+      e.FS.mkdirTree('/fonts');
+      e.FS.writeFile(path, new Uint8Array(await res.arrayBuffer()));
+    },
+    // A text part added to object o (-1: a new object on `plate`) or edited (see engine/src/text_api.cpp).
+    textVolume(e, o, plate, request) {
+      const { object, volume } = json(e.textVolume(o, plate, JSON.stringify(request)));
+      return { info: JSON.parse(e.modelInfoJson()), object, volume };
+    },
+    // An SVG shape added to object o (-1: a new object on `plate`) from the file's
+    // bytes, or given a new depth or size (see engine/src/svg_api.cpp).
+    svgVolume(e, o, plate, request, bytes) {
+      const path = '/work/shape.svg';
+      if (bytes) e.FS.writeFile(path, new Uint8Array(bytes));
+      try {
+        const out = json(e.svgVolume(o, plate, JSON.stringify(bytes ? { ...request, path } : request)));
+        return { info: JSON.parse(e.modelInfoJson()), object: out.object, volume: out.volume };
+      } finally {
+        if (bytes) e.FS.unlink(path);
+      }
+    },
     // Union, difference or intersection of two volumes of object o (see engine/src/boolean_api.cpp).
     meshBoolean(e, o, request) {
       const { volume } = json(e.meshBoolean(o, JSON.stringify(request)));

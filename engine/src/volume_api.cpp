@@ -155,7 +155,18 @@ std::string volumeAction(int o, const std::string& requestJson) {
             const ModelVolumeType type = typeOf(req.value("type", ""));
             if (v->is_model_part() && type != ModelVolumeType::MODEL_PART && partCount(obj) == 1)
                 throw std::runtime_error("an object keeps at least one part");
+            const bool wasOutside = v->is_model_part();
             v->set_type(type);
+            // A text or SVG shape stands out of the surface as a part and goes
+            // into it otherwise (desktop remakes it for the new type).
+            if (v->emboss_shape && wasOutside != v->is_model_part()) {
+                const double depth = v->emboss_shape->projection.depth, shift = depth - 2 * engine::embossSurfaceOffset;
+                TriangleMesh mesh = v->mesh();
+                mesh.translate(0, 0, float(v->is_model_part() ? shift : -shift));
+                v->set_mesh(std::move(mesh));
+                v->set_new_unique_id();
+                v->calculate_convex_hull();
+            }
             // A part takes the object's filament; the others have none (desktop's change_part_type).
             if (type == ModelVolumeType::MODEL_PART && !v->config.has("extruder")) v->config.set_key_value("extruder", new ConfigOptionInt(0));
             obj->sort_volumes(true);

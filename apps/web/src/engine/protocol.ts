@@ -1,5 +1,6 @@
 // Types of what public/engine/engine-worker.js returns. The engine speaks
 // Orca's own vocabulary: preset names, option keys and serialized values.
+import type { TextStyle } from '../lib/fonts';
 
 export type OrcaConfig = Record<string, string>;
 
@@ -86,6 +87,10 @@ export interface VolumeInfo {
   paint: { support: boolean; seam: boolean; fuzzy: boolean };
   /** The part's own settings (Orca option key -> value). */
   settings: OrcaConfig;
+  /** A text shape's text and font settings (the Text tool edits them). */
+  text?: TextStyle;
+  /** An SVG shape's depth and size across its face, mm (the SVG tool edits them). */
+  svg?: { depth: number; width: number; height: number };
 }
 export interface InstanceInfo {
   plate: number;

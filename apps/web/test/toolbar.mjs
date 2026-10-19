@@ -5,7 +5,8 @@
 // where the bed is clicked, lay on face turns the object, variable layer height
 // makes an adaptive profile, measure picks two features and measures between
 // them, the object menu (right click or ⋯) renames, clones and exports, mesh
-// boolean joins two parts, and the toolbar fits a phone (and the page itself
+// boolean joins two parts, text and SVG shapes go on a model or make an object
+// of their own, and the toolbar fits a phone (and the page itself
 // never scrolls there).
 //
 //   node test/toolbar.mjs [screenshot-dir]
@@ -383,7 +384,58 @@ try {
   await page.locator('body').press('Control+z');
   await page.waitForFunction(() => document.querySelectorAll('ul.objects > li.object:first-child ul.volumes > li').length === 3, null, { timeout: 30000 });
   console.log(`mesh boolean: ${joined.join(' | ')}; undo brings the parts back`);
+
+  // Text shape on the selected boat: a text part on its surface, edited live
+  // (its name follows the text), in another font. A click on a selected
+  // object's name deselects it, so only pick the boat when it isn't.
+  if (!/\bactive\b/.test(await objectRows(page).first().getAttribute('class'))) await objectRows(page).first().locator('.object-name').click();
+  await toolbar.getByRole('button', { name: 'Text shape' }).click();
+  const textPanel = page.getByRole('region', { name: 'Text shape' });
+  const textBox = textPanel.getByRole('textbox', { name: 'Text' });
+  await textBox.waitFor({ timeout: 60000 });
+  await page.waitForFunction(() => document.querySelectorAll('ul.objects > li.object:first-child ul.volumes > li').length === 4, null, { timeout: 60000 });
+  await textBox.fill('U1');
+  await volumes.locator('.volume-name', { hasText: /^U1$/ }).waitFor({ timeout: 30000 });
+  await textPanel.getByLabel('Font').selectOption('Noto Serif Bold');
+  await page.waitForTimeout(1500);
+  if (await page.getByText('this font').count()) fail('the bundled font did not load');
+  if (shots) await page.screenshot({ path: join(shots, 'text-on-boat.png') });
+  await textPanel.getByRole('button', { name: 'Done' }).click();
+  console.log('text shape: a text part on the boat, renamed by its text, in another font');
+
+  // SVG from the object menu: an .svg file becomes a part of the boat, then
+  // gets wider (its height follows) and engraved.
+  await more(0).click();
+  await objectMenu.getByRole('menuitem', { name: 'Add part' }).click();
+  const [svgChooser] = await Promise.all([page.waitForEvent('filechooser'), objectMenu.getByRole('menuitem', { name: 'SVG…' }).click()]);
+  await svgChooser.setFiles(join(fixtures, 'badge.svg'));
+  const svgPanel = page.getByRole('region', { name: 'SVG shape' });
+  const svgWidth = svgPanel.getByRole('spinbutton', { name: 'Width' });
+  await svgWidth.waitFor({ timeout: 60000 });
+  if (Math.abs(Number(await svgWidth.inputValue()) - 20) > 0.1) fail(`the SVG keeps its 20 mm width: ${await svgWidth.inputValue()}`);
+  await volumes.locator('.volume-name', { hasText: /^badge$/ }).waitFor({ timeout: 30000 });
+  await svgWidth.fill('40');
+  await page.waitForFunction(() => Number(document.querySelector('[aria-label="SVG shape"] input[aria-label="Height"]')?.value) === 20, null, { timeout: 30000 });
+  await svgPanel.getByRole('radio', { name: 'Engraved' }).click();
+  await svgPanel.getByRole('radio', { name: 'Engraved', checked: true }).waitFor({ timeout: 30000 });
+  if (shots) await page.screenshot({ path: join(shots, 'svg-on-boat.png') });
+  await svgPanel.getByRole('button', { name: 'Done' }).click();
+  console.log('SVG shape: a part from an .svg file, made wider and engraved');
   await page.close();
+
+  // On an empty plate Text makes an object of its own.
+  const empty = await open({ width: 1280, height: 800 }, false);
+  await empty.getByRole('toolbar', { name: 'Object tools' }).getByRole('button', { name: 'Text shape' }).click();
+  await empty.getByRole('region', { name: 'Text shape' }).getByRole('textbox', { name: 'Text' }).fill('Label');
+  await empty.locator('ul.objects > li.object .object-name', { hasText: /^Label$/ }).waitFor({ timeout: 60000 });
+  if (shots) await empty.screenshot({ path: join(shots, 'text-object.png') });
+  console.log('text shape: on an empty plate it is an object of its own');
+  // Opening an .svg file makes an SVG object, its tool open.
+  await empty.getByTestId('model-input').setInputFiles(join(fixtures, 'badge.svg'));
+  await empty.locator('ul.objects > li.object .object-name', { hasText: /^badge$/ }).waitFor({ timeout: 60000 });
+  await empty.getByRole('region', { name: 'SVG shape' }).getByRole('spinbutton', { name: 'Depth' }).waitFor({ timeout: 30000 });
+  console.log('SVG shape: opening an .svg file makes an object of its own');
+  await empty.close();
 
   const phone = await open({ width: 390, height: 844 }, true);
   await phone.getByTestId('model-input').setInputFiles(join(fixtures, '3DBenchy.stl'));
@@ -433,6 +485,7 @@ try {
   console.log('phone: top bar and action bar stay on screen');
 } catch (e) {
   fail(e.message);
+  if (shots) for (const [i, pg] of browser.contexts().flatMap((c) => c.pages()).entries()) await pg.screenshot({ path: join(shots, `failed-${i}.png`) }).catch(() => {});
 } finally {
   await browser.close();
   process.kill(-server.pid, 'SIGTERM');

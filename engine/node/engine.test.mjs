@@ -1067,3 +1067,128 @@ test('mesh boolean: union, difference and intersection of two parts, like deskto
   assert.throws(() => boolean({ op: 'union', a: 0, b: 0 }), /two different/);
   assert.throws(() => boolean({ op: 'xor', a: 0, b: 1 }), /unknown/);
 });
+
+test('text shapes: a text part, an engraved text, a text object and editing the text, like desktop', () => {
+  select({ printer: DEFAULT_PRINTER });
+  engine.FS.writeFile('/work/font.ttf', readFileSync(resolve(fixtures, '../engine/orcaslicer/resources/fonts/NanumGothic-Regular.ttf')));
+  const text = (o, request, plate = 0) => call(engine, 'textVolume', o, plate, JSON.stringify({ font: 'NanumGothic', fontPath: '/work/font.ttf', ...request }));
+  const volumes = (o = 0) => info().objects[o].volumes;
+  load('gen-cube-20.stl');
+
+  const added = text(0, { op: 'add', type: 'part', text: 'Hi', size: 10, depth: 2 });
+  assert.equal(added.volume, 1);
+  const part = volumes()[1];
+  assert.equal(part.kind, 'part');
+  assert.equal(part.name, 'Hi');
+  assert.deepEqual(
+    { text: part.text.text, font: part.text.font, size: part.text.size, depth: part.text.depth, align: part.text.align },
+    { text: 'Hi', font: 'NanumGothic', size: 10, depth: 2, align: 'center' },
+  );
+  const sizeBefore = info().objects[0].size;
+  assert.ok(sizeBefore[1] > 20, `the text stands in front of the cube: ${sizeBefore}`);
+
+  // Longer text, same place: the object grows along X only as far as the words.
+  text(0, { op: 'update', volume: 1, text: 'Hello there', size: 10, depth: 2 });
+  assert.equal(volumes()[1].text.text, 'Hello there');
+  assert.equal(volumes()[1].name, 'Hello there');
+  assert.ok(info().objects[0].size[0] > 40, `longer text is wider: ${info().objects[0].size}`);
+
+  // On the surface the camera looks at: the cube's top, seen from straight above.
+  const cubeTop = info().objects[0].size[2];
+  const onTop = text(0, { op: 'add', type: 'part', text: 'Top', size: 5, depth: 1, camera: [135, 135, 200] });
+  assert.ok(info().objects[0].size[2] > cubeTop + 0.9, `text on the top stands 1 mm above it: ${info().objects[0].size[2]} vs ${cubeTop}`);
+  call(engine, 'volumeAction', 0, JSON.stringify({ op: 'delete', volume: onTop.volume }));
+
+  const engraved = text(0, { op: 'add', type: 'negative', text: 'X', size: 5, depth: 1 });
+  assert.equal(volumes()[engraved.volume].kind, 'negative');
+  slice(fullConfig());
+
+  // A text object of its own, on the plate.
+  const object = text(-1, { op: 'add', type: 'part', text: 'Label', size: 12, depth: 3 });
+  assert.equal(object.object, 1);
+  const label = info().objects[1];
+  assert.equal(label.name, 'Label');
+  assert.ok(Math.abs(label.size[2] - 3) < 0.1, `the label lies flat, 3 mm thick: ${label.size}`);
+  text(1, { op: 'update', volume: 0, text: 'New label', size: 12, depth: 3 });
+  assert.equal(info().objects[1].name, 'New label', 'a text that is the whole object names it');
+
+  // Saved and opened again, the text and its font settings are still there to edit.
+  call(engine, 'saveProject', '/work/text.3mf', JSON.stringify(fullConfig()), null);
+  engine.clearModel();
+  const [w, d] = bedSize(fullConfig());
+  call(engine, 'loadModel', '/work/text.3mf', 0, w, d);
+  const reopened = volumes().find((v) => v.text?.text === 'Hello there');
+  assert.ok(reopened, `the text part comes back: ${JSON.stringify(volumes().map((v) => v.name))}`);
+  assert.equal(reopened.text.size, 10);
+  assert.equal(reopened.text.depth, 2);
+  assert.equal(info().objects[1].volumes[0].text.text, 'New label');
+
+  assert.throws(() => text(0, { op: 'add', type: 'part', text: '   ' }), /type some text/);
+  assert.throws(() => text(0, { op: 'add', type: 'part', text: 'A', fontPath: '/work/none.ttf' }), /can't be read/);
+});
+
+test('SVG shapes: an SVG part, an engraved SVG, an SVG object, depth and size, kept in the 3MF, like desktop', () => {
+  select({ printer: DEFAULT_PRINTER });
+  // A 20 x 10 mm plate with a round hole.
+  engine.FS.writeFile(
+    '/work/badge.svg',
+    '<svg xmlns="http://www.w3.org/2000/svg" width="20mm" height="10mm" viewBox="0 0 20 10">' +
+      '<path fill-rule="evenodd" d="M0 0 H20 V10 H0 Z M8 5 A2 2 0 1 0 12 5 A2 2 0 1 0 8 5 Z"/></svg>',
+  );
+  engine.FS.writeFile('/work/empty.svg', '<svg xmlns="http://www.w3.org/2000/svg" width="10mm" height="10mm"></svg>');
+  const svg = (o, request, plate = 0) => call(engine, 'svgVolume', o, plate, JSON.stringify(request));
+  const volumes = (o = 0) => info().objects[o].volumes;
+  const near = (a, b, what) => assert.ok(Math.abs(a - b) < 0.2, `${what}: ${a} vs ${b}`);
+  load('gen-cube-20.stl');
+
+  const added = svg(0, { op: 'add', type: 'part', path: '/work/badge.svg', name: 'badge.svg', depth: 2 });
+  near(added.width, 20, 'the SVG keeps its size in mm');
+  near(added.height, 10, 'the SVG keeps its size in mm');
+  const part = volumes()[added.volume];
+  assert.equal(part.name, 'badge');
+  assert.equal(part.kind, 'part');
+  near(part.svg.depth, 2, 'depth');
+
+  // Deeper, then wider: the shape is remade, then scaled across its face.
+  svg(0, { op: 'update', volume: added.volume, depth: 4 });
+  near(volumes()[added.volume].svg.depth, 4, 'new depth');
+  const wider = svg(0, { op: 'update', volume: added.volume, width: 30, height: 15 });
+  near(wider.width, 30, 'new width');
+  near(volumes()[added.volume].svg.height, 15, 'new height');
+  near(volumes()[added.volume].svg.depth, 4, 'the depth stays');
+
+  // On the cube's top, seen from above.
+  const cubeTop = info().objects[0].size[2];
+  const onTop = svg(0, { op: 'add', type: 'part', path: '/work/badge.svg', name: 'badge.svg', depth: 1, camera: [135, 135, 200] });
+  assert.ok(info().objects[0].size[2] > cubeTop + 0.9, `the SVG on the top stands 1 mm above it: ${info().objects[0].size[2]} vs ${cubeTop}`);
+  // Engraved, it goes into the top instead; a part again, it stands out again.
+  const asNegative = call(engine, 'volumeAction', 0, JSON.stringify({ op: 'type', volume: onTop.volume, type: 'negative' }));
+  near(info().objects[0].size[2], cubeTop, 'engraved, the SVG is inside the top');
+  const asPart = call(engine, 'volumeAction', 0, JSON.stringify({ op: 'type', volume: asNegative.volume, type: 'part' }));
+  near(info().objects[0].size[2], cubeTop + 1, 'a part again, the SVG stands out');
+  call(engine, 'volumeAction', 0, JSON.stringify({ op: 'delete', volume: asPart.volume }));
+
+  const engraved = svg(0, { op: 'add', type: 'negative', path: '/work/badge.svg', name: 'badge.svg', depth: 1 });
+  assert.equal(volumes()[engraved.volume].kind, 'negative');
+  slice(fullConfig());
+
+  const object = svg(-1, { op: 'add', type: 'part', path: '/work/badge.svg', name: 'logo.svg', depth: 3 });
+  const logo = info().objects[object.object];
+  assert.equal(logo.name, 'logo');
+  near(logo.size[2], 3, 'the SVG object lies flat');
+
+  // Saved and opened again: the file is in the 3MF, so the depth can still change.
+  call(engine, 'saveProject', '/work/svg.3mf', JSON.stringify(fullConfig()), null);
+  engine.clearModel();
+  const [w, d] = bedSize(fullConfig());
+  call(engine, 'loadModel', '/work/svg.3mf', 0, w, d);
+  const index = volumes().findIndex((v) => v.svg && v.kind === 'part');
+  assert.ok(index >= 0, `the SVG part comes back: ${JSON.stringify(volumes().map((v) => v.name))}`);
+  near(volumes()[index].svg.width, 30, 'the width comes back');
+  svg(0, { op: 'update', volume: index, depth: 1 });
+  near(volumes()[index].svg.depth, 1, 'depth after reopening');
+  near(volumes()[index].svg.width, 30, 'the width stays after reopening');
+
+  assert.throws(() => svg(0, { op: 'add', type: 'part', path: '/work/empty.svg', name: 'empty.svg' }), /no paths/);
+  assert.throws(() => svg(0, { op: 'add', type: 'part', path: '/work/none.svg', name: 'none.svg' }), /missing/);
+});

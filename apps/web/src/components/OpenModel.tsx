@@ -48,7 +48,7 @@ export function OpenModel({ children }: { children: React.ReactNode }) {
       />
       {!hasModel && !dragging && !loading && (
         <div className="empty">
-          <p>Drop STL, 3MF, OBJ or STEP files here</p>
+          <p>Drop STL, 3MF, OBJ, STEP or SVG files here</p>
           <button className="primary" onClick={() => input.current?.click()}>
             Open model
           </button>

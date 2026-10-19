@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import type { PaintKind } from '../engine/protocol';
 import { NO_COLOURS, useSlicer, type Tool } from '../state/store';
 import { DEFAULT_PAINT, PaintPanel } from './PaintPanel';
+import { startText } from './TextPanel';
 import { ToolPanel } from './ToolPanel';
 
 // Desktop Snapmaker Orca's toolbar icons (resources/images, AGPL-3.0 like this
@@ -55,7 +56,7 @@ const GROUPS: Item[][] = [
     { id: 'seam', icon: 'toolbar_seam', label: 'Seam painting', key: 'P', paint: 'seam' },
     { id: 'fuzzy', icon: 'toolbar_fuzzy_skin_paint', label: 'Fuzzy skin painting', key: 'H', paint: 'fuzzy' },
     { id: 'color', icon: 'mmu_segmentation', label: 'Colour painting', key: 'N', paint: 'color' },
-    { id: 'text', icon: 'toolbar_text', label: 'Text shape', missing: true },
+    { id: 'text', icon: 'toolbar_text', label: 'Text shape', key: 'T', tool: 'text' },
     { id: 'measure', icon: 'toolbar_measure', label: 'Measure', key: 'U', tool: 'measure' },
     { id: 'assembly', icon: 'toolbar_assembly', label: 'Assemble', missing: true },
     { id: 'brimears', icon: 'toolbar_brimears', label: 'Brim ears', tool: 'brim', needsSelection: true },
@@ -94,7 +95,7 @@ export function Toolbar({ onAdd }: { onAdd(): void }) {
   const disabled = (item: Item) =>
     item.id === 'undo' || item.id === 'redo'
       ? !history[item.id]
-      : item.missing || (item.needsSelection && !target) || (!onPlate.length && item.id !== 'add' && item.id !== 'addplate');
+      : item.missing || (item.needsSelection && !target) || (!onPlate.length && item.id !== 'add' && item.id !== 'addplate' && item.id !== 'text');
 
   // Tools waiting for a model say so when tapped (a phone shows no tooltip).
   const needsModel = (item: Item) => !onPlate.length && !item.missing && item.id !== 'undo' && item.id !== 'redo' && disabled(item);
@@ -104,6 +105,13 @@ export function Toolbar({ onAdd }: { onAdd(): void }) {
     if (disabled(item)) return;
     const s = useSlicer.getState();
     if (item.needsSelection && target && !selected) s.select(target);
+    // Text, like desktop: edits the picked text, else adds one (to the picked object, or as an object).
+    if (item.id === 'text' && tool !== 'text') {
+      const v = selected?.volume !== undefined ? project?.objects[selected.object]?.volumes[selected.volume] : undefined;
+      const lone = selected && project?.objects[selected.object]?.volumes.length === 1 ? project.objects[selected.object].volumes[0] : undefined;
+      if (v?.text || lone?.text) return s.setTool('text');
+      return void startText(selected?.object ?? null);
+    }
     if (item.tool) return s.setTool(tool === item.tool ? null : item.tool);
     if (item.paint) {
       if (paint?.kind === item.paint) return void s.setPaint(null);

@@ -6,6 +6,7 @@
 //   settings-layout.json     desktop Orca's settings pages (extract-settings-layout.mjs)
 //   calib/                   calibration test models (resources/calib, plus
 //                            engine/calib for the STEP model as STL)
+//   fonts/                   the Text tool's bundled fonts (src/lib/fonts.ts)
 //
 //   ENGINE_DIR  engine build dir (default: ../../engine/build/engine)
 import { execFileSync } from 'node:child_process';
@@ -42,4 +43,21 @@ if (existsSync(join(repo, 'engine/orcaslicer/resources/profiles'))) {
   copyFileSync(join(repo, 'engine/calib/SpeedTestStructure.stl'), join(out, 'calib/volumetric_speed/SpeedTestStructure.stl'));
 } else {
   console.warn('copy-engine: engine/orcaslicer is not checked out; no presets bundled.');
+}
+
+// The Text tool's bundled fonts, from their npm packages.
+const fontSources = {
+  'NotoSans-Regular.ttf': ['@expo-google-fonts/noto-sans', '400Regular/NotoSans_400Regular.ttf'],
+  'NotoSans-Bold.ttf': ['@expo-google-fonts/noto-sans', '700Bold/NotoSans_700Bold.ttf'],
+  'NotoSans-Italic.ttf': ['@expo-google-fonts/noto-sans', '400Regular_Italic/NotoSans_400Regular_Italic.ttf'],
+  'NotoSans-BoldItalic.ttf': ['@expo-google-fonts/noto-sans', '700Bold_Italic/NotoSans_700Bold_Italic.ttf'],
+  'NotoSerif-Regular.ttf': ['@expo-google-fonts/noto-serif', '400Regular/NotoSerif_400Regular.ttf'],
+  'NotoSerif-Bold.ttf': ['@expo-google-fonts/noto-serif', '700Bold/NotoSerif_700Bold.ttf'],
+  'NotoSansMono-Regular.ttf': ['@expo-google-fonts/noto-sans-mono', '400Regular/NotoSansMono_400Regular.ttf'],
+};
+mkdirSync(join(out, 'fonts'), { recursive: true });
+for (const [file, [pkg, path]] of Object.entries(fontSources)) {
+  const src = join(web, 'node_modules', pkg, path);
+  if (existsSync(src)) copyFileSync(src, join(out, 'fonts', file));
+  else console.warn(`copy-engine: font not found: ${src} (npm install first)`);
 }
