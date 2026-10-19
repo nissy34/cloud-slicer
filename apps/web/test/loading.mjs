@@ -1,7 +1,8 @@
 #!/usr/bin/env node
 // Browser end to end for the loading screen: on a slow connection the engine
 // start shows the printing-nozzle loader with download progress, it goes away
-// once the engine is ready, and opening a project shows it again.
+// once the engine is ready, opening a project shows it again, and so does the
+// Preview while it reads the G-code after a slice.
 //
 //   node test/loading.mjs [screenshot-dir]
 //
@@ -80,6 +81,17 @@ try {
   if (!labels.includes('Opening colored_3DBenchy.3mf')) fail(`no loader while opening the project, saw ${JSON.stringify(labels)}`);
   if (await loader.isVisible()) fail('loader still shown after the project opened');
   console.log(`project opened, loader showed ${JSON.stringify(labels)}`);
+
+  // After slicing, the Preview shows the loader while it reads the G-code and
+  // builds the 3D view, and takes it away once the toolpaths are drawn.
+  await page.evaluate(() => (window.loaderLabels = []));
+  await page.getByRole('button', { name: /^Slice plate/ }).click();
+  await page.getByTestId('layer-label').waitFor({ timeout: 600000 });
+  await loader.waitFor({ state: 'hidden', timeout: 60000 });
+  const previewLabels = await page.evaluate(() => window.loaderLabels);
+  for (const want of ['Reading the G-code', 'Drawing the preview'])
+    if (!previewLabels.includes(want)) fail(`no "${want}" loader before the preview, saw ${JSON.stringify(previewLabels)}`);
+  console.log(`preview drawn, loader showed ${JSON.stringify(previewLabels)}`);
 } finally {
   await browser.close();
   process.kill(-server.pid);

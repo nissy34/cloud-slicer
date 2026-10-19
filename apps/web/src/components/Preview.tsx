@@ -1,26 +1,65 @@
 import { OrbitControls } from '@react-three/drei';
-import { Canvas, useThree } from '@react-three/fiber';
+import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import * as THREE from 'three';
 import { bedSize, rgb } from '../lib/colour';
+import { formatMegabytes } from '../lib/format';
 import { FEATURE_COLOURS, FEATURES, type PreviewGcode } from '../lib/gcode';
 import { useSceneColours } from '../lib/theme';
+import type { GcodeWorkerMessage } from '../engine/gcode-worker';
+import { useLoading } from '../state/loading';
 import { NO_COLOURS, useOption, useSlicer } from '../state/store';
+import { PrintLoader } from './PrintLoader';
 import { Bed } from './Viewport';
 
 type ColourBy = 'feature' | 'filament';
 
+/** The G-code read in a worker: progress (0..1) while reading, then the segments. */
 function useParsed(gcode: Blob | null) {
   const [parsed, setParsed] = useState<PreviewGcode | null>(null);
+  const [progress, setProgress] = useState(0);
   useEffect(() => {
     setParsed(null);
+    setProgress(0);
     if (!gcode) return;
     const worker = new Worker(new URL('../engine/gcode-worker.ts', import.meta.url), { type: 'module' });
-    worker.onmessage = ({ data }: MessageEvent<PreviewGcode>) => setParsed(data);
+    worker.onmessage = ({ data }: MessageEvent<GcodeWorkerMessage>) => {
+      if ('progress' in data) setProgress(data.progress);
+      else setParsed(data.parsed);
+    };
     worker.postMessage({ gcode });
     return () => worker.terminate();
   }, [gcode]);
-  return parsed;
+  return { parsed, progress };
+}
+
+/**
+ * `parsed`, handed on only after the browser has painted once more, so the
+ * "Drawing the preview" card shows before the main thread is busy building and
+ * uploading the toolpaths (which freezes the page for a moment on a big print).
+ */
+function useAfterPaint<T>(value: T) {
+  const [shown, setShown] = useState<T | null>(null);
+  useEffect(() => {
+    setShown(null);
+    let frame = requestAnimationFrame(() => {
+      frame = requestAnimationFrame(() => setShown(value));
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [value]);
+  return shown;
+}
+
+/** Calls `onDrawn` once, just after the first frame with the toolpaths in it has been drawn. */
+function DrawnSignal({ onDrawn }: { onDrawn: () => void }) {
+  const done = useRef(false);
+  useFrame(() => {
+    if (done.current) return;
+    done.current = true;
+    // useFrame runs before the frame renders; the timeout fires after it.
+    setTimeout(onDrawn, 0);
+  });
+  return null;
 }
 
 // One extrusion is drawn as a solid bead with a diamond cross-section (like
@@ -132,13 +171,17 @@ function Toolpaths({ parsed, upTo, colourBy, colours, moving }: { parsed: Previe
   const colour = useMemo(() => {
     const n = parsed.features.length;
     const col = new Uint8Array(n * 3);
-    const toByte = (c: [number, number, number]) => c.map((v) => Math.round(v * 255));
-    const featurePalette = FEATURE_COLOURS.map((c) => toByte(rgb(c)));
-    const toolPalette = colours.map((c) => toByte(rgb(c)));
-    const fallback = [204, 204, 204];
+    // RGB bytes per feature or per tool (256 entries, light grey past the known tools).
+    const palette = new Uint8Array(256 * 3).fill(204);
+    (colourBy === 'feature' ? FEATURE_COLOURS : colours).forEach((c, i) =>
+      palette.set(rgb(c).map((v) => Math.round(v * 255)), i * 3),
+    );
+    const index = colourBy === 'feature' ? parsed.features : parsed.tools;
     for (let s = 0; s < n; s++) {
-      const c = colourBy === 'feature' ? featurePalette[parsed.features[s]] : (toolPalette[parsed.tools[s]] ?? fallback);
-      col.set(c, s * 3);
+      const p = index[s] * 3;
+      col[s * 3] = palette[p];
+      col[s * 3 + 1] = palette[p + 1];
+      col[s * 3 + 2] = palette[p + 2];
     }
     return col;
   }, [parsed, colourBy, colours]);
@@ -208,7 +251,13 @@ export function Preview() {
   const setTab = useSlicer((s) => s.setTab);
   const { w, d } = bedSize(useOption('printable_area'));
   const gcode = job.kind === 'sliced' ? job.gcode : null;
-  const parsed = useParsed(gcode);
+  const { parsed: read, progress } = useParsed(gcode);
+  const parsed = useAfterPaint(read);
+  // The loading card stays from the slice finishing until the first frame of
+  // toolpaths is on screen: reading the G-code, then building the 3D view.
+  const [drawn, setDrawn] = useState<PreviewGcode | null>(null);
+  const ready = parsed !== null && drawn === parsed;
+  const otherLoading = useLoading() !== null;
   const layers = parsed ? parsed.layerZ.length : 0;
   const [layer, setLayer] = useState(Number.MAX_SAFE_INTEGER);
   const [colourBy, setColourBy] = useState<ColourBy>('feature');
@@ -237,6 +286,7 @@ export function Preview() {
         <color attach="background" args={[scene.background]} />
         <Bed w={w} d={d} />
         {parsed && <Toolpaths parsed={parsed} upTo={upTo} colourBy={colourBy} colours={colours} moving={moving} />}
+        {parsed && !ready && <DrawnSignal onDrawn={() => setDrawn(parsed)} />}
         {parsed && <FitCamera parsed={parsed} />}
         <OrbitControls target={[w / 2, d / 2, 0]} makeDefault onChange={onCameraChange} />
       </Canvas>
@@ -255,7 +305,6 @@ export function Preview() {
             {keyOpen ? '▴' : '▾'}
           </button>
         </div>
-        {!parsed && <p className="muted">Reading G-code…</p>}
         {parsed &&
           keyOpen &&
           (colourBy === 'feature'
@@ -272,6 +321,17 @@ export function Preview() {
                 </div>
               )))}
       </div>
+      {!ready && !otherLoading && (
+        <div className="loading-overlay no-blur" role="status" aria-live="polite">
+          <PrintLoader
+            loading={
+              read
+                ? { label: 'Drawing the preview', progress: 1 }
+                : { label: 'Reading the G-code', progress, detail: `${formatMegabytes(gcode.size)} of G-code` }
+            }
+          />
+        </div>
+      )}
       {parsed && layers > 0 && (
         <div className="layer-slider">
           <input
