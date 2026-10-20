@@ -51,6 +51,10 @@ Project& project();
 // bed, as an added model is placed (model_api.cpp).
 void placeObject(Slic3r::ModelObject* obj, int plate);
 
+// A pressure advance pattern test's G-code, put into the plate model's custom
+// G-code before slicing (calib_api.cpp). Does nothing for other tests.
+void addCalibrationGcodes(Slic3r::Model& model, const Slic3r::DynamicPrintConfig& cfg);
+
 // A primitive shape as desktop's ObjectList::create_mesh makes it, sized by the
 // bed (a tenth of its larger side): Cube, Cylinder, Sphere, Cone, Disc or Torus
 // (volume_api.cpp).

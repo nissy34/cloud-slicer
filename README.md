@@ -60,7 +60,9 @@ hosted on Cloudflare's free tier.
 - **Colour mixing**: Snapmaker Orca's mixed filaments, virtual filaments made of two or
   more physical ones, usable anywhere a filament is.
 - **Calibration tests** from desktop's Calibration menu: temperature, flow rate, pressure
-  advance, retraction, max volumetric speed, VFA, input shaping, junction deviation.
+  advance (tower, lines or pattern, with direct drive / Bowden ranges and the pattern's
+  speed and acceleration lists), retraction, max volumetric speed, VFA, input shaping,
+  junction deviation.
 - **Slicing you can stop**: Cancel next to the progress bar, and a change while slicing
   (settings, filaments, presets, the model) stops the slice and drops its result, like desktop.
 - **Preview** of the sliced toolpaths by feature or filament, layer by layer.
