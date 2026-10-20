@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { formatDuration } from '../../lib/format';
 import { currentSession, useDevice } from '../../state/device';
 import { job as jobOf, klippyMessage, klippyState, remainingSeconds } from '../status';
+import type { PrinterError } from '../addons';
 import { Card, useConfirm } from './parts';
 
 const STATE_LABEL: Record<string, string> = {
@@ -16,6 +17,7 @@ const STATE_LABEL: Record<string, string> = {
 export function JobCard() {
   const objects = useDevice((s) => s.objects);
   const addons = useDevice((s) => s.addons);
+  const errors = useDevice((s) => s.errors);
   const call = useDevice((s) => s.call);
   const openPrintDialog = useDevice((s) => s.openPrintDialog);
   const j = useMemo(() => jobOf(objects), [objects]);
@@ -43,6 +45,7 @@ export function JobCard() {
         <p className="dv-alert">
           {klippy === 'startup' ? 'The printer firmware is starting.' : 'The printer firmware has stopped.'} {klippyMessage(objects)}
         </p>
+        <PrinterErrors errors={errors} />
         <div className="dv-row">
           <button className="secondary" onClick={() => void call('Restarting the firmware', (s) => s.firmwareRestart())}>
             Restart firmware
@@ -55,8 +58,8 @@ export function JobCard() {
   return (
     <Card title="Print" testId="job-card">
       <div className="dv-job-head">
-        <span className={`dv-badge ${j.state}`} data-testid="print-state">
-          {activity && !active ? activity : STATE_LABEL[j.state]}
+        <span className={`dv-badge ${errors.length && !active ? 'error' : j.state}`} data-testid="print-state">
+          {errors.length && !active ? 'Needs attention' : activity && !active ? activity : STATE_LABEL[j.state]}
         </span>
         {j.filename && (
           <span className="dv-job-file" title={j.filename}>
@@ -64,6 +67,7 @@ export function JobCard() {
           </span>
         )}
       </div>
+      <PrinterErrors errors={errors} />
       {active || j.state === 'complete' ? (
         <>
           <div className="dv-progress" role="progressbar" aria-valuenow={pct} aria-valuemin={0} aria-valuemax={100}>
@@ -134,5 +138,28 @@ export function JobCard() {
       </div>
       {dialog}
     </Card>
+  );
+}
+
+/** What the printer is complaining about, in its maker's words, with the code its own app shows. */
+function PrinterErrors({ errors }: { errors: PrinterError[] }) {
+  if (!errors.length) return null;
+  return (
+    <div className="dv-errors" data-testid="printer-errors">
+      {errors.map((e) => (
+        <div key={e.id} className="dv-error" role="alert" data-testid="printer-error">
+          <strong>{e.title}</strong>
+          <p>{e.text}</p>
+          <div className="dv-error-foot">
+            <span className="muted">Error code {e.code}</span>
+            {e.once && (
+              <button className="dv-link" onClick={() => currentSession()?.dismissError(e.id)}>
+                Dismiss
+              </button>
+            )}
+          </div>
+        </div>
+      ))}
+    </div>
   );
 }

@@ -383,9 +383,11 @@ jobs:
           node test/layer-codes.mjs
           node test/transform-fields.mjs
 
-      - name: Loading screen end to end (Chromium)
+      - name: Loading screen and Preview colour key end to end (Chromium)
         if: matrix.suite == 'loading'
-        run: node test/loading.mjs
+        run: |
+          node test/loading.mjs
+          node test/preview-views.mjs
 
       - name: Slice cancel, engine restart and big models end to end (Chromium)
         if: matrix.suite == 'cancel'

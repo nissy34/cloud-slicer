@@ -5,6 +5,7 @@
 // (the top cover's air purifier), machine_state_manager and the cavity light.
 import type { KlipperObjects } from '../status';
 import type { PrinterAddon } from './types';
+import { u1Errors } from './u1-errors';
 import { differenceCie76 } from 'culori';
 
 export const U1_HEADS = 4;
@@ -29,6 +30,7 @@ export const u1Addon: PrinterAddon = {
     keepalive: { method: 'camera.start_monitor', params: { domain: 'lan', interval: 0 }, everyMs: 15_000 },
   },
   activity: (o) => u1Activity(o),
+  errors: u1Errors,
 };
 
 const arr = (v: unknown): unknown[] => (Array.isArray(v) ? v : []);
