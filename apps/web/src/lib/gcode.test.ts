@@ -94,3 +94,87 @@ describe('orderForPreview', () => {
     expect(g.tools[last]).toBe(0);
   });
 });
+
+describe('parseGcode values per segment', () => {
+  const text = `
+; HEADER_BLOCK_START
+; filament_diameter: 1.75,2.85
+; HEADER_BLOCK_END
+M83
+M104 S215 T0
+M104 S240 T1
+;TYPE:Custom
+G1 X0 Y0 Z0.3 F600
+G1 X10 Y0 E1 F1200
+;LAYER_CHANGE
+;Z:0.2
+G1 Z0.2
+;TYPE:Outer wall
+;WIDTH:0.4
+;HEIGHT:0.2
+M106 S127.5
+G1 X0 Y0 F600
+G1 X10 Y0 E0.5 F3000
+G4 P1000
+;LAYER_CHANGE
+;Z:0.4
+G1 Z0.4
+T1
+M107
+G1 X0 Y0 E0.5 F6000
+T0
+G1 X10 Y0 E0.5
+; filament used [mm] = 120.50, 30.25
+; filament used [g] = 3.60, 1.10
+; filament cost = 0.09, 0.03
+; total filament used [g] = 4.70
+; total filament cost = 0.12
+; estimated printing time (normal mode) = 1m 0s
+`;
+  const g = parseGcode(text);
+  it('folds the start G-code purge line into the first layer', () => {
+    expect(g.layerZ.length).toBe(2);
+    expect(g.layerZ[0]).toBeCloseTo(0.2);
+    expect(g.layerStarts[1]).toBe(2);
+  });
+  it('reads speed, fan and nozzle temperature', () => {
+    expect(g.speeds[1] / 10).toBeCloseTo(50);
+    expect(g.speeds[2] / 10).toBeCloseTo(100);
+    expect(g.fans[1]).toBe(50);
+    expect(g.fans[2]).toBe(0);
+    expect(g.temps[1]).toBe(215);
+    expect(g.temps[2]).toBe(240);
+  });
+  it('works out the volumetric flow from E, the filament diameter and the speed', () => {
+    const area175 = (Math.PI * 1.75 ** 2) / 4;
+    expect(g.flows[1] / 100).toBeCloseTo(((0.5 * area175) / 10) * 50, 1);
+    const area285 = (Math.PI * 2.85 ** 2) / 4;
+    expect(g.flows[2] / 100).toBeCloseTo(((0.5 * area285) / 10) * 100, 1);
+  });
+  it('counts filament changes between extrusions', () => {
+    expect(g.stats.toolChanges).toBe(2);
+  });
+  it('shares the estimate between layers by the time of their moves', () => {
+    // The travel before the purge line is start G-code time, outside the layers.
+    const total = g.layerTimes[0] + g.layerTimes[1];
+    expect(total).toBeLessThan(60);
+    expect(total).toBeGreaterThan(40);
+    // The first layer has the slow moves and the dwell.
+    expect(g.layerTimes[0]).toBeGreaterThan(g.layerTimes[1]);
+  });
+  it('reads Orca\'s filament statistics', () => {
+    expect(g.stats.filaments).toEqual([
+      { mm: 120.5, grams: 3.6, cost: 0.09 },
+      { mm: 30.25, grams: 1.1, cost: 0.03 },
+    ]);
+    expect(g.stats.totalGrams).toBeCloseTo(4.7);
+    expect(g.stats.totalCost).toBeCloseTo(0.12);
+    expect(g.stats.seconds).toBe(60);
+  });
+  it('keeps the values with their segments in drawing order', () => {
+    const p = orderForPreview(g);
+    expect(Array.from(p.temps)).toEqual(Array.from(g.temps));
+    expect(p.layerTimes).toBe(g.layerTimes);
+    expect(p.stats).toBe(g.stats);
+  });
+});
