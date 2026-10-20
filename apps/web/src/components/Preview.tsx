@@ -432,7 +432,7 @@ export function Preview() {
 
   const usedFeatures = parsed ? [...new Set(parsed.features)].sort((a, b) => a - b) : [];
   return (
-    <div className="preview">
+    <div className={menuOpen ? 'preview layer-menu-open' : 'preview'}>
       <Canvas className="viewport" frameloop="demand" camera={{ position: [w / 2, -d * 0.6, d * 0.7], fov: 40, near: 1, far: 5000 }} data-testid="gcode-preview">
         <color attach="background" args={[scene.background]} />
         <Bed w={w} d={d} />

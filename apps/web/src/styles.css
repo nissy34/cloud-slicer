@@ -4373,6 +4373,10 @@ button.volume-name {
     bottom: 74px;
     max-height: 45%;
   }
+  /* The colour key folds up while the layer menu is open, so the model keeps its room. */
+  .preview.layer-menu-open .legend > :not(.legend-head) {
+    display: none;
+  }
 }
 
 /* Load filaments from the printer (components/FilamentSync.tsx) */
