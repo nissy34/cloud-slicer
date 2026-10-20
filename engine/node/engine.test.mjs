@@ -655,6 +655,27 @@ test('calibration tests set up like desktop and change settings per layer', () =
   const pa = values(gcode, /^SET_PRESSURE_ADVANCE ADVANCE=([\d.]+)/gm);
   assert.ok(pa.length > 10 && Math.max(...pa) > 0.05, `pressure advance values ${pa.slice(0, 5)}...`);
 
+  // Pressure advance pattern: one handle cube per speed and acceleration pair,
+  // and the zig-zag pattern around it comes from custom G-code at slicing,
+  // its walls stepping through every PA value.
+  const patternStart = (opts) => {
+    const base = fullConfig();
+    const [w, d] = bedSize(base);
+    return call(engine, 'calibrationStart', JSON.stringify({ mode: 'paPattern', start: 0, end: 0.08, step: 0.005, ...opts }), JSON.stringify(base), w, d);
+  };
+  let r = patternStart({ speeds: [60, 120], accelerations: [5000] });
+  assert.deepEqual(info().objects.map((o) => o.name), ['pa_pattern_60_5000', 'pa_pattern_120_5000']);
+  assert.deepEqual(r.notes, []);
+  gcode = slice(fullConfig(r.overrides)).gcode;
+  assert.equal(gcode.match(/; start pressure advance pattern for layer/g)?.length > 2, true, 'pattern G-code on several layers');
+  const steps = values(gcode, /^SET_PRESSURE_ADVANCE ADVANCE=([\d.]+)/gm);
+  for (let i = 0; i <= 16; i++) assert.ok(steps.includes(Number((i * 0.005).toFixed(3))), `PA ${i * 0.005} in ${steps}`);
+  // With no lists, desktop picks the speed and acceleration and says so.
+  r = patternStart({});
+  assert.equal(info().objects.length, 1);
+  assert.equal(r.notes.length, 2, JSON.stringify(r.notes));
+  assert.ok(r.overrides.outer_wall_speed, 'the speed it picked is set');
+
   // Retraction tower and flow rate both slice; flow rate needs no calib params.
   gcode = start('retraction', 'retraction/retraction_tower.stl', { start: 0, end: 2, step: 0.1 });
   assert.ok(gcode.length > 1000);

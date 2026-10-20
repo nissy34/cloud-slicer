@@ -69,7 +69,9 @@ hosted on Cloudflare's free tier.
   a U1's tool heads (material, brand, colour) into the project, like desktop's Sync
   filament: match each project filament to the closest loaded one, or replace the list.
 - **Calibration tests** from desktop's Calibration menu: temperature, flow rate, pressure
-  advance, retraction, max volumetric speed, VFA, input shaping, junction deviation.
+  advance (tower, lines or pattern, with direct drive / Bowden ranges and the pattern's
+  speed and acceleration lists), retraction, max volumetric speed, VFA, input shaping,
+  junction deviation.
 - **Slicing you can stop**: Cancel next to the progress bar, and a change while slicing
   (settings, filaments, presets, the model) stops the slice and drops its result, like desktop.
 - **Preview** of the sliced toolpaths layer by layer, coloured like desktop's view types: line type, filament,

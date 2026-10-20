@@ -51,6 +51,10 @@ Project& project();
 // bed, as an added model is placed (model_api.cpp).
 void placeObject(Slic3r::ModelObject* obj, int plate);
 
+// A pressure advance pattern test's G-code, put into the plate model's custom
+// G-code before slicing (calib_api.cpp). Does nothing for other tests.
+void addCalibrationGcodes(Slic3r::Model& model, const Slic3r::DynamicPrintConfig& cfg);
+
 // Whether part of the object is below the bed (model_api.cpp).
 bool isSunk(const Slic3r::ModelObject* obj);
 // Puts an object back on the bed after an edit; with `sinking`, one that is

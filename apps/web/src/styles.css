@@ -1690,11 +1690,15 @@ select:focus-visible {
   justify-self: start;
   padding: 4px 14px;
 }
+.calib-list small {
+  font-size: 11px;
+}
 .calib-fields {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
   gap: 8px;
 }
+.calib-list input,
 .calib-fields input {
   width: 100%;
   padding: 6px 8px;
