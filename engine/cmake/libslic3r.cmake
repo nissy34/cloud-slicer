@@ -54,6 +54,7 @@ set(ENGINE_INCLUDES
 if(EXISTS "${LIBSLIC3R_DIR}/libslic3r_version.h.in")
     include("${ORCA_DIR}/version.inc")
     set(SLIC3R_BUILD_ID "${SLIC3R_APP_KEY}-${SoftFever_VERSION}-wasm")
+    set(ORCA_CHECK_GCODE_PLACEHOLDERS 0)
     configure_file("${LIBSLIC3R_DIR}/libslic3r_version.h.in"
                    "${CMAKE_BINARY_DIR}/libslic3r-generated/libslic3r_version.h" @ONLY)
 endif()
