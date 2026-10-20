@@ -1950,6 +1950,9 @@ select:focus-visible {
   align-items: center;
   gap: 4px;
 }
+.group-actions.spaced {
+  gap: 14px;
+}
 .preset-menu {
   position: relative;
 }
@@ -3984,4 +3987,56 @@ button.volume-name {
   display: grid;
   gap: 6px;
   justify-items: start;
+}
+
+/* Load filaments from the printer (components/FilamentSync.tsx) */
+.sync-filaments {
+  display: grid;
+  gap: 10px;
+}
+.sync-filaments p {
+  margin: 0;
+}
+.sync-filaments .field {
+  display: grid;
+  gap: 4px;
+}
+.sync-filaments .dv-segmented {
+  margin: 0;
+}
+.sync-filaments .warn {
+  color: var(--dv-warn, #b26a00);
+}
+.sync-rows {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 6px;
+}
+.sync-rows li {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px 8px;
+  padding: 6px 8px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+.sync-rows select {
+  flex: 1 1 160px;
+  min-width: 0;
+  padding: 5px 6px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  color: var(--text);
+}
+.sync-from {
+  font-weight: 600;
+  white-space: nowrap;
+}
+.sync-preset {
+  flex-basis: 100%;
+  padding-left: 26px;
 }
