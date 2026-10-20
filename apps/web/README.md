@@ -77,6 +77,7 @@ node test/warnings.mjs    # objects over the plate edge, slicing warnings
 node test/loading.mjs
 node test/cancel.mjs
 node test/brands.mjs     # every printer brand, loaded per brand, can-send marks
+node test/filament-count.mjs  # 8 filaments on an X1 Carbon and on the U1, in both engines
 node test/device-smoke.mjs  # browser -> local relay -> bridge -> mock U1, and direct
 ```
 

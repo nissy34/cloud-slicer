@@ -6,7 +6,8 @@ import { blocksPrinting, OBJECT_CLASHED } from '../lib/outside';
 import { LIGHT_TRIANGLES, triangleCount } from '../lib/simplify';
 import { ENGINES } from '../lib/engines';
 import { useProjects } from '../state/projects';
-import { useObjectsOutside, useSlicer } from '../state/store';
+import { useFilamentLimit, useObjectsOutside, useSlicer } from '../state/store';
+import { filamentLimitMessage } from '../lib/filament-limit';
 
 function download(blob: Blob, name: string) {
   const url = URL.createObjectURL(blob);
@@ -153,6 +154,8 @@ export function ActionBar() {
   const unprintable = warnings.some(blocksPrinting);
   // Objects over the plate's edge, which desktop won't slice (shown darker in the 3D view).
   const outside = useObjectsOutside();
+  const filamentCount = useSlicer((s) => s.selection?.filaments.length ?? 0);
+  const tooManyFilaments = filamentLimitMessage(useFilamentLimit(), filamentCount)?.blocks ?? false;
   const clashed = outside.length > 0 && project && (job.kind === 'idle' || job.kind === 'sliced' || (job.kind === 'error' && !errorHere));
 
   if (engine === 'failed') return <EngineFailed message={engineMessage} />;
@@ -248,7 +251,12 @@ export function ActionBar() {
             Simplify model
           </button>
         )}
-        <button className="primary" disabled={!onPlate || busy || engine !== 'ready' || outside.length > 0} onClick={() => void slice()}>
+        <button
+          className="primary"
+          disabled={!onPlate || busy || engine !== 'ready' || outside.length > 0 || tooManyFilaments}
+          title={tooManyFilaments ? 'More filaments than heads: see Filament' : undefined}
+          onClick={() => void slice()}
+        >
           {plateLabel}
         </button>
       </div>

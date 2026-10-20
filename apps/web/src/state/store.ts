@@ -32,6 +32,7 @@ import { accountReady, getUserSetting, presetEditing, useAccount } from './accou
 import { installedOnly, SETUP_KEY, type Setup } from '../lib/setup';
 import { loadConvertPreference, loadDefaultEngine, loadSaved, save, saveConvertPreference } from '../lib/storage';
 import { engineFolder, engineFromUrl, type EngineFlavor } from '../lib/engines';
+import { filamentLimit, filamentLimitMessage, type FilamentLimit } from '../lib/filament-limit';
 import { loadCatalog, vendorFilesFor, type PrinterCatalog } from '../lib/printer-catalog';
 import { expandPending, presetForEngine } from '../lib/preset-engines';
 import type { UserPreset } from '../account/api';
@@ -734,9 +735,16 @@ export const useSlicer = create<SlicerState>((set, get) => {
     const { filaments, selection } = get();
     const names = colours.map((_, i) => pickFilament(filaments, types[i], selection?.filaments[0], sources[i]));
     await applySelection({ ...selection, filaments: names, colours });
-    const extruders = splitList(get().baseConfig.nozzle_diameter ?? '').length;
-    if (extruders && colours.length > extruders)
-      set({ notice: `This file uses ${colours.length} filaments; the printer has ${extruders} extruders.`, noticeWarn: true });
+    const { flavor, overrides, baseConfig } = get();
+    const config = (k: string) => overrides[k] ?? baseConfig[k];
+    const limit = filamentLimit({
+      flavor,
+      printer: get().selection?.printer ?? '',
+      nozzleDiameter: config('nozzle_diameter'),
+      singleExtruderMM: config('single_extruder_multi_material'),
+    });
+    const message = filamentLimitMessage(limit, colours.length);
+    if (message) set({ notice: message.text, noticeWarn: message.blocks });
   }
 
   // Plates follow the selected printer's bed; objects keep their place
@@ -1651,6 +1659,15 @@ export const NO_COLOURS: string[] = [];
 
 /** Value of an option as it will be sliced: the user's override, else the preset's. */
 export const useOption = (key: string) => useSlicer((s) => s.overrides[key] ?? s.baseConfig[key]);
+
+/** How many filaments the selected printer takes in this project's engine (lib/filament-limit.ts). */
+export function useFilamentLimit(): FilamentLimit {
+  const flavor = useSlicer((s) => s.flavor);
+  const printer = useSlicer((s) => s.selection?.printer ?? '');
+  const nozzleDiameter = useOption('nozzle_diameter');
+  const singleExtruderMM = useOption('single_extruder_multi_material');
+  return filamentLimit({ flavor, printer, nozzleDiameter, singleExtruderMM });
+}
 
 /** The build volume of the selected printer, in plate coordinates. */
 function configBounds() {

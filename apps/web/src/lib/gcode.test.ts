@@ -51,6 +51,38 @@ describe('parseGcode', () => {
   });
 });
 
+// What OrcaSlicer writes for Bambu Lab printers.
+const bambu = `
+M83
+; CHANGE_LAYER
+; Z_HEIGHT: 0.2
+; LAYER_HEIGHT: 0.2
+; FEATURE: Outer wall
+; LINE_WIDTH: 0.42
+G1 X10 Y10 F3000
+G1 X20 Y10 E0.5
+; CHANGE_LAYER
+; Z_HEIGHT: 0.4
+; LAYER_HEIGHT: 0.2
+T255
+T1000
+T7
+; FEATURE: Inner wall
+G1 X20 Y20 E0.5
+`;
+
+describe('parseGcode on Bambu printers', () => {
+  const g = parseGcode(bambu);
+  it('reads their layer and feature markers', () => {
+    expect(Array.from(g.layerZ)).toEqual([0.2, 0.4].map((v) => Math.fround(v)));
+    expect(FEATURES[g.features[0]]).toBe('Outer wall');
+    expect(FEATURES[g.features[1]]).toBe('Inner wall');
+  });
+  it('ignores the T255/T1000 control codes', () => {
+    expect(g.toolsUsed).toEqual([0, 7]);
+  });
+});
+
 describe('parseGcode extrusion modes', () => {
   // U1 start G-code switches XYZ back to absolute (G90, G91/G90 pairs) after
   // M83. E must stay relative, or every move that extrudes no more than the one
