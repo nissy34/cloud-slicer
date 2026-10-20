@@ -19,7 +19,9 @@ hosted on Cloudflare's free tier.
   Standard flow / High flow switch for options that hold one value per nozzle flow
   variant (the U1).
 - **Your own presets**, saved as Orca user presets (a diff over a system preset), with
-  printer and filament settings windows like desktop's preset editors, and preset files
+  printer and filament settings windows like desktop's preset editors (with its Extruder 1 to 4
+  pages, one per tool head, Motion ability with the machine limits, and the filament's Setting
+  Overrides, where a filament can use its own retraction and z-hop values or the printer's), and preset files
   in and out (desktop Orca's preset JSON, `.orca_printer`, `.orca_filament`, zip).
 - **3MF print settings import**: a project's own settings come in on top of your presets.
   A 3MF made for a printer you don't have (for example a Bambu project) can be converted
