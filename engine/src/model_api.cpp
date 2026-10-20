@@ -138,6 +138,14 @@ void placeOnPlate(ModelObject* obj, int plate) {
 
 void placeObject(ModelObject* obj, int plate) { placeOnPlate(obj, plate); }
 
+void settleOnBed(ModelObject* obj) {
+    obj->invalidate_bounding_box();
+    // Sunk into the bed (desktop's sinking objects): stays so while some of it
+    // is above, like GLCanvas3D::do_move. Anything floating drops onto the bed.
+    if (obj->min_z() < SINKING_Z_THRESHOLD && obj->max_z() >= SINKING_MIN_Z_THRESHOLD) return;
+    obj->ensure_on_bed();
+}
+
 Project& project() { return g_project; }
 
 int Project::columns() const { return columnCount(std::max(1, plateCount)); }
@@ -264,6 +272,15 @@ std::string modelInfoJson() {
                                {"paint", {{"support", !v->supported_facets.empty()}, {"seam", !v->seam_facets.empty()},
                                           {"fuzzy", !v->fuzzy_skin_facets.empty()}}},
                                {"settings", settingsJson(v->config.get())}});
+            {
+                // Where the part sits in its object, for the Move/Rotate/Scale fields (desktop's part coordinates).
+                const Vec3d off = v->get_offset(), rot = v->get_rotation() * DEG, scl = v->get_scaling_factor();
+                const Vec3d size = v->mesh().bounding_box().size();
+                volumes.back()["offset"] = {off.x(), off.y(), off.z()};
+                volumes.back()["rotation"] = {rot.x(), rot.y(), rot.z()};
+                volumes.back()["scale"] = {scl.x(), scl.y(), scl.z()};
+                volumes.back()["meshSize"] = {size.x(), size.y(), size.z()};
+            }
             if (v->text_configuration) {
                 // A text shape (text_api.cpp): what the Text tool edits.
                 const TextConfiguration& tc = *v->text_configuration;
@@ -303,11 +320,14 @@ std::string modelInfoJson() {
             }
         }
         const Vec3d size = obj->instance_bounding_box(0, false).size();
+        // Unrotated, unscaled: an instance's size along its own axes is this times its scale.
+        const Vec3d meshSize = obj->raw_mesh_bounding_box().size();
         // Parts converted from inches or meters (desktop then offers to convert back).
         const char* units = "";
         for (const ModelVolume* v : obj->volumes)
             units = v->source.is_converted_from_inches ? "inch" : v->source.is_converted_from_meters ? "meter" : units;
-        objects.push_back({{"name", obj->name}, {"size", {size.x(), size.y(), size.z()}}, {"units", units},
+        objects.push_back({{"name", obj->name}, {"size", {size.x(), size.y(), size.z()}},
+                           {"meshSize", {meshSize.x(), meshSize.y(), meshSize.z()}}, {"units", units},
                            {"extruder", obj->config.has("extruder") ? obj->config.opt_int("extruder") : 0},
                            {"settings", settingsJson(obj->config.get())},
                            {"volumes", volumes}, {"instances", instances}});
@@ -391,7 +411,8 @@ emscripten::val previewMesh(int plate) {
 }
 
 // Move / rotate / scale one instance. Any field may be omitted:
-// {offset: [x, y] (plate-local, of the instance origin), plate, rotation: [x, y, z] deg, scale: [x, y, z]}.
+// {offset: [x, y] or [x, y, z] (plate-local, of the instance origin), plate, rotation: [x, y, z] deg, scale: [x, y, z]}.
+// A z below the bed sinks the object into it, as desktop allows; above it, it drops back.
 std::string setInstanceTransform(int o, int i, const std::string& changesJson) {
     try {
         ModelInstance* inst = instanceAt(o, i);
@@ -402,12 +423,12 @@ std::string setInstanceTransform(int o, int i, const std::string& changesJson) {
             const int plate = c.value("plate", std::max(0, g_project.plateOf(*inst)));
             const Vec2d origin = g_project.plateOrigin(plate);
             const Vec3d off = inst->get_offset();
-            inst->set_offset(Vec3d(origin.x() + c["offset"][0].get<double>(), origin.y() + c["offset"][1].get<double>(), off.z()));
+            const double z = c["offset"].size() > 2 ? c["offset"][2].get<double>() : off.z();
+            inst->set_offset(Vec3d(origin.x() + c["offset"][0].get<double>(), origin.y() + c["offset"][1].get<double>(), z));
         }
         // The object's cached bounding box is stale after a rotation or scale
-        // (desktop invalidates it too); dropping to the bed reads it.
-        objectAt(o)->invalidate_bounding_box();
-        objectAt(o)->ensure_on_bed();
+        // (desktop invalidates it too); settling on the bed reads it.
+        settleOnBed(objectAt(o));
         return ok().dump();
     } catch (const std::exception& e) {
         return fail(e.what()).dump();

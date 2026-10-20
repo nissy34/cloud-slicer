@@ -51,6 +51,10 @@ Project& project();
 // bed, as an added model is placed (model_api.cpp).
 void placeObject(Slic3r::ModelObject* obj, int plate);
 
+// Puts an object back on the bed after an edit, keeping it sunk into the bed
+// when it was moved down into it (desktop's sinking objects) (model_api.cpp).
+void settleOnBed(Slic3r::ModelObject* obj);
+
 // A primitive shape as desktop's ObjectList::create_mesh makes it, sized by the
 // bed (a tenth of its larger side): Cube, Cylinder, Sphere, Cone, Disc or Torus
 // (volume_api.cpp).
