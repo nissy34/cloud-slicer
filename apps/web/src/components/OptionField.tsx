@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { entryType, isVectorType, processFlowModes, splitValues, valueAt, withValueAt } from '../lib/flow-variants';
 import { decodeString, encodeString, slotEntryIndex, splitStrings } from '../lib/slot-values';
 import { useOption, useSlicer } from '../state/store';
+import { setOverrideChecked } from './SettingsPrompt';
 
 /**
  * Editor for one Orca option, driven by the engine's option metadata: a
@@ -16,6 +17,10 @@ import { useOption, useSlicer } from '../state/store';
  * like desktop; any other one as a single value while its entries agree.
  * With `slot`, a filament option edits that filament's entry (and, for a
  * flow-variant one, that filament's value for the flow variant shown).
+ *
+ * `disabled` greys it out when another setting makes it not apply (support
+ * settings with support off), like desktop; `choices` narrows a list that
+ * depends on another setting. Global edits run desktop's checks afterwards.
  */
 export function OptionField({
   optKey,
@@ -24,8 +29,12 @@ export function OptionField({
   onChange,
   resetLabel = 'Reset to the preset value',
   slot,
+  disabled = false,
+  choices,
 }: {
   slot?: number;
+  disabled?: boolean;
+  choices?: string[];
   optKey: string;
   label?: string;
   value?: string;
@@ -35,11 +44,11 @@ export function OptionField({
   const def = useSlicer((s) => s.options[optKey]);
   const globalValue = useOption(optKey);
   const globalModified = useSlicer((s) => optKey in s.overrides);
-  const setGlobal = useSlicer((s) => s.setOverride);
+
   const own = onChange !== undefined;
   const value = own ? ownValue : globalValue;
   const modified = own ? true : globalModified;
-  const setOverride = own ? (_: string, v: string | null) => onChange(v) : setGlobal;
+  const setOverride = own ? (_: string, v: string | null) => onChange(v) : (k: string, v: string | null) => setOverrideChecked(k, v, slot);
   const variants = useSlicer((s) => processFlowModes(s.baseConfig).length);
   const flowVariant = useSlicer((s) => s.flowVariant);
   // The one value this field shows and how an edit of it maps back to the whole option.
@@ -89,9 +98,9 @@ export function OptionField({
 
   if (type === 'bool') {
     return (
-      <div className={changed ? 'option modified' : 'option'} title={title}>
+      <div className={`option${changed ? ' modified' : ''}${disabled ? ' disabled' : ''}`} title={title}>
         <label className="check">
-          <input type="checkbox" checked={shown === '1'} onChange={(e) => commit(e.target.checked ? '1' : '0')} />
+          <input type="checkbox" disabled={disabled} checked={shown === '1'} onChange={(e) => commit(e.target.checked ? '1' : '0')} />
           <span>{text}</span>
         </label>
         {reset}
@@ -102,19 +111,22 @@ export function OptionField({
   let editor: React.ReactNode;
   if (type === 'enum' && def.enumValues) {
     editor = (
-      <select aria-label={text} value={shown} onChange={(e) => commit(e.target.value)}>
+      <select aria-label={text} value={shown} disabled={disabled} onChange={(e) => commit(e.target.value)}>
         {!def.enumValues.includes(shown) && <option value={shown}>{shown}</option>}
-        {def.enumValues.map((v, i) => (
-          <option key={v} value={v}>
-            {def.enumLabels?.[i] || v}
-          </option>
-        ))}
+        {def.enumValues.map((v, i) =>
+          choices && !choices.includes(v) && v !== shown ? null : (
+            <option key={v} value={v}>
+              {def.enumLabels?.[i] || v}
+            </option>
+          ),
+        )}
       </select>
     );
   } else if (def.multiline || (def.type === 'strings' && !slotText) || (type === 'string' && shown.length > 60)) {
     editor = (
       <textarea
         aria-label={text}
+        disabled={disabled}
         rows={Math.min(10, Math.max(3, draft.split('\n').length))}
         value={slotText ? draft : draft.replace(/\\n/g, '\n')}
         spellCheck={false}
@@ -127,6 +139,7 @@ export function OptionField({
       <span className="input-unit">
         <input
           aria-label={text}
+          disabled={disabled}
           value={draft}
           inputMode={/float|int|percent/i.test(type) ? 'decimal' : undefined}
           onChange={(e) => setDraft(e.target.value)}
@@ -141,7 +154,7 @@ export function OptionField({
     );
   }
   return (
-    <div className={changed ? 'option modified' : 'option'} title={title}>
+    <div className={`option${changed ? ' modified' : ''}${disabled ? ' disabled' : ''}`} title={title}>
       <span className="option-label">{text}</span>
       {editor}
       {reset}

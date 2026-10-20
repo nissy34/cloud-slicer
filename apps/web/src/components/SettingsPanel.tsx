@@ -1,8 +1,9 @@
 import { useState } from 'react';
-import type { OptionDef } from '../engine/protocol';
+import type { OptionDef, SettingsPage } from '../engine/protocol';
 import { useSlicer } from '../state/store';
 import { FlowVariantSwitch } from './FlowVariantSwitch';
 import { OptionField } from './OptionField';
+import { useOptionStates } from './SettingsPrompt';
 
 const visible = (def: OptionDef | undefined, advanced: boolean) =>
   def != null && (advanced ? def.mode !== 'develop' : def.mode === 'simple');
@@ -17,32 +18,75 @@ export function SettingsPages({ kind, advanced, slot }: { kind: SettingsKind; ad
   const pages = useSlicer((s) => s.layout?.[kind] ?? []);
   const options = useSlicer((s) => s.options);
   const [page, setPage] = useState(0);
+  const [query, setQuery] = useState('');
+  const states = useOptionStates('global', slot);
   const current = pages[Math.min(page, pages.length - 1)];
-  const hasFlowVariants = current?.groups.some((g) => g.options.some((k) => options[k]?.flow && visible(options[k], advanced)));
+  const found = query.trim() ? searchSettings(pages, options, query) : null;
+  // A search finds settings in every page and in Advanced too; ones that don't apply show greyed out.
+  const groups = found ?? current?.groups.map((g) => ({ title: g.title, keys: g.options.filter((k) => visible(options[k], advanced) && !states.hidden.has(k)) })) ?? [];
+  const hasFlowVariants = groups.some((g) => g.keys.some((k) => options[k]?.flow));
+  const label = kind === 'print' ? 'process' : kind;
   return (
     <>
-      <div className="pages" role="tablist" aria-label="Settings pages">
-        {pages.map((p, i) => (
-          <button key={p.page} role="tab" aria-selected={p === current} className={p === current ? 'page active' : 'page'} onClick={() => setPage(i)}>
-            {p.page}
-          </button>
-        ))}
-      </div>
+      <input
+        type="search"
+        className="settings-search"
+        placeholder={`Search ${label} settings`}
+        aria-label={`Search ${label} settings`}
+        value={query}
+        onChange={(e) => setQuery(e.target.value)}
+        onKeyDown={(e) => e.key === 'Escape' && setQuery('')}
+      />
+      {!found && (
+        <div className="pages" role="tablist" aria-label="Settings pages">
+          {pages.map((p, i) => (
+            <button key={p.page} role="tab" aria-selected={p === current} className={p === current ? 'page active' : 'page'} onClick={() => setPage(i)}>
+              {p.page}
+            </button>
+          ))}
+        </div>
+      )}
+      {found && found.length === 0 && <p className="hint">No {label} settings match “{query.trim()}”.</p>}
       {hasFlowVariants && <FlowVariantSwitch />}
-      {current?.groups.map((g) => {
-        const keys = g.options.filter((k) => visible(options[k], advanced));
-        if (!keys.length) return null;
+      {groups.map((g) => {
+        if (!g.keys.length) return null;
         return (
           <fieldset key={g.title} className="optgroup">
             <legend>{g.title}</legend>
-            {keys.map((k) => (
-              <OptionField key={`${k}:${slot ?? ''}`} optKey={k} slot={slot} />
+            {g.keys.map((k) => (
+              <OptionField
+                key={`${k}:${slot ?? ''}`}
+                optKey={k}
+                slot={slot}
+                disabled={states.disabled.has(k) || states.hidden.has(k)}
+                choices={states.enumValues[k]}
+              />
             ))}
           </fieldset>
         );
       })}
     </>
   );
+}
+
+/**
+ * Settings whose name (or key, for people who know Orca's) has every word of
+ * the query, grouped by page and group like desktop's settings search.
+ */
+export function searchSettings(pages: SettingsPage[], options: Record<string, OptionDef>, query: string) {
+  const words = query.toLowerCase().split(/\s+/).filter(Boolean);
+  const groups: { title: string; keys: string[] }[] = [];
+  for (const p of pages)
+    for (const g of p.groups) {
+      const keys = g.options.filter((k) => {
+        const def = options[k];
+        if (!def || def.mode === 'develop') return false;
+        const text = `${def.label} ${def.fullLabel} ${k} ${k.replace(/_/g, ' ')} ${g.title}`.toLowerCase();
+        return words.every((w) => text.includes(w));
+      });
+      if (keys.length) groups.push({ title: `${p.page} › ${g.title}`, keys });
+    }
+  return groups;
 }
 
 /**

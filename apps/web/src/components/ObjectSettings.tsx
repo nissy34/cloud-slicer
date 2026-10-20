@@ -1,6 +1,7 @@
 import { useSlicer } from '../state/store';
 import { FlowVariantSwitch } from './FlowVariantSwitch';
 import { OptionField } from './OptionField';
+import { setObjectSettingChecked, useOptionStates } from './SettingsPrompt';
 
 /**
  * Settings an object can have on its own, like desktop's object list
@@ -26,6 +27,8 @@ export function ObjectSettings({ object, volume = -1 }: { object: number; volume
   const setObjectSettings = useSlicer((s) => s.setObjectSettings);
   const baseConfig = useSlicer((s) => s.baseConfig);
   const overrides = useSlicer((s) => s.overrides);
+  // Like desktop, a setting that doesn't apply with the object's other settings greys out.
+  const states = useOptionStates('object', undefined, settings);
   if (!settings) return null;
   const keys = Object.keys(settings).filter((k) => options[k]);
   const add = (key: string) => {
@@ -70,7 +73,9 @@ export function ObjectSettings({ object, volume = -1 }: { object: number; volume
           optKey={k}
           value={settings[k]}
           resetLabel={`Remove from this ${kind}`}
-          onChange={(v) => void setObjectSettings(object, volume, { [k]: v })}
+          disabled={states.disabled.has(k) || states.hidden.has(k)}
+          choices={states.enumValues[k]}
+          onChange={(v) => void (v === null ? setObjectSettings(object, volume, { [k]: v }) : setObjectSettingChecked(object, volume, k, v))}
         />
       ))}
     </div>

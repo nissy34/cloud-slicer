@@ -17,7 +17,11 @@ hosted on Cloudflare's free tier.
   first-run setup wizard (like Orca's) to pick the printers and filaments you have.
 - **Process settings in desktop's own pages and groups**, with per-object settings and a
   Standard flow / High flow switch for options that hold one value per nozzle flow
-  variant (the U1).
+  variant (the U1). Like desktop, settings that don't apply grey out or hide (support
+  settings with support off, ironing settings with ironing off), and a change that makes a
+  combination desktop rejects (spiral vase with more than one wall, extrusion fuzzy skin
+  without Arachne...) fixes itself or asks how to fix it. A search box above the pages finds
+  any setting by name across every page, Advanced ones included.
 - **Your own presets**, saved as Orca user presets (a diff over a system preset), with
   printer and filament settings windows like desktop's preset editors, and preset files
   in and out (desktop Orca's preset JSON, `.orca_printer`, `.orca_filament`, zip).
