@@ -27,7 +27,9 @@ hibernate, so an idle bridge costs nothing; it runs on the free plan.
   bridge owns it; a bridge no account has used within 7 days of its first connect is
   refused, and so is one whose owner is blocked.
 - `POST /v1/revoke` (signed by the site): an account was blocked or unblocked; its
-  browsers on the listed bridges are closed at once.
+  browsers on the listed bridges are closed at once. Orders from the site itself
+  (subject `site`) turn whole bridges off or on (`bridgeOff`) or drop signed-out
+  browsers (`guests`).
 - `GET /v1/info` says whether accounts are on. `RELAY_TEST_PUBLIC_KEY` is CI's
   throwaway key for checking the deployed relay; it only works for `ci-` bridges.
 

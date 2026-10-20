@@ -64,7 +64,7 @@ const closeCode = (ws) => new Promise((resolve) => (ws.onclose = (e) => resolve(
 const timeout = setTimeout(() => {
   console.error('RELAY LIVE FAIL: timed out');
   process.exit(1);
-}, 30_000);
+}, 90_000);
 
 try {
   // Wait until the agent has claimed the bridge id.
@@ -158,6 +158,34 @@ try {
     still.ws.close();
     if (still.m.result?.hostname !== 'U1-mock') throw new Error('the owner lost the bridge');
     console.log('blocking an account drops it; a forged order is refused; the owner keeps the bridge');
+
+    const siteOrder = async (claims) => {
+      const r = await fetch(`${relay}/v1/revoke`, { method: 'POST', headers: { Authorization: `Bearer ${await sign('site', { revoke: [cfg.bridgeId], ...claims }, 300)}` } });
+      if (!r.ok) throw new Error(`order: HTTP ${r.status}`);
+    };
+    const openSocket = async (ticket) => {
+      const ws = socket(clientKey, 'u1', 'client', ticket);
+      open.add(ws);
+      await new Promise((r, j) => ((ws.onmessage = r), (ws.onclose = (e) => j(new Error(`closed early: ${e.code}`)))));
+      return ws;
+    };
+    // Signed-out browsers go when the site stops letting them in; signed-in ones stay.
+    const guest = await openSocket(await sign(`guest:${cfg.bridgeId}`, { b: cfg.bridgeId, cams: 1 }));
+    const member = await openSocket(ownerTicket);
+    const guestGone = closeCode(guest);
+    await siteOrder({ guests: true });
+    if ((await guestGone).code !== 4401) throw new Error('the signed-out browser was not dropped');
+    if (member.readyState !== WebSocket.OPEN) throw new Error('a signed-in browser was dropped with the guests');
+    // The owner turns the whole bridge off: everyone goes, nobody gets back in, until it is turned on.
+    const memberGone = closeCode(member);
+    await siteOrder({ bridgeOff: true });
+    if ((await memberGone).code !== 4403) throw new Error('turning the bridge off did not close its browsers');
+    const refusedOff = await closeCode(socket(clientKey, 'u1'));
+    if (refusedOff.code !== 4403) throw new Error(`a browser got onto a bridge that is off (${refusedOff.code})`);
+    await siteOrder({ bridgeOff: false });
+    const back = await openSocket(ownerTicket);
+    back.close();
+    console.log('signed-out browsers dropped on their own; a bridge turned off and on again');
   }
   console.log('RELAY LIVE OK');
 } catch (e) {

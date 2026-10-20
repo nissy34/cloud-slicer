@@ -28,12 +28,26 @@ export interface AdminUser {
   bridges: number;
   /** null = the site's default. */
   storageMb: number | null;
+  /** False when the owner turned bridges off for this person. */
+  bridgesAllowed: boolean;
+}
+
+export interface AdminBridge {
+  id: string;
+  lastUsed: number | null;
+  /** Names of the accounts that use it. */
+  people: string;
+  /** Turned off by the owner. */
+  off: boolean;
+  /** Last use by a signed-out browser. */
+  guestUsed: number | null;
 }
 
 export interface AdminOverview {
   settings: { inviteOnly: boolean; storageMb: number; guestRelay: boolean };
   users: AdminUser[];
   invites: { email: string; addedAt: number }[];
+  bridges: AdminBridge[];
   usage: { meters: Meter[]; analytics: 'ok' | 'not-set-up' | 'failed'; analyticsError?: string };
 }
 
@@ -54,6 +68,8 @@ export const adminApi = {
   saveSettings: (s: Partial<AdminOverview['settings']>) => call('/settings', 'PUT', s),
   userAction: (id: string, action: 'block' | 'unblock' | 'allow' | 'disallow' | 'delete') => call(`/users/${encodeURIComponent(id)}/${action}`, 'POST', {}),
   setStorage: (id: string, storageMb: number | null) => call(`/users/${encodeURIComponent(id)}/storage`, 'PUT', { storageMb }),
+  setBridges: (id: string, allowed: boolean) => call(`/users/${encodeURIComponent(id)}/bridges`, 'PUT', { allowed }),
+  bridge: (id: string, action: 'off' | 'on') => call(`/bridges/${encodeURIComponent(id)}/${action}`, 'POST', {}),
   invite: (email: string) => call('/invites', 'POST', { email }),
   uninvite: (email: string) => call(`/invites/${encodeURIComponent(email)}`, 'DELETE'),
 };

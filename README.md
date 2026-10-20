@@ -198,7 +198,10 @@ Cloudflare's free limits. Nothing changes for people who are allowed.
   them to the account. Signed out, bridge printers show a Sign in button; printers
   reached directly need no account. The Admin switch **Signed-out people can use bridges**
 (off by default, never while invite only) gives signed-out browsers a ticket too, with one
-camera at a time; they have no account, so they can't be blocked.
+camera at a time; they have no account, so they can't be blocked, and turning the switch
+off disconnects them at once. The Admin page's **Bridges** list shows every bridge in use
+and who uses it: **Turn off** closes a bridge for everyone and refuses its bridge app until
+it is turned on again. Each person can also be set to "Bridges: not allowed".
 - Usage: storage, accounts and bridges come from D1. Today's request counts (site and
   relay, database rows) need a read-only Cloudflare token: create one from the "Read
   analytics and logs" template and add it as the repository secret

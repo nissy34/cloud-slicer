@@ -90,7 +90,9 @@ export async function onRequest({ request, env }: PagesContext): Promise<Respons
       if (parts.length === 1 && m === 'GET') return await admin.overview(env, request);
       if (b === 'settings' && parts.length === 2 && m === 'PUT') return await admin.putSettings(env, request);
       if (b === 'users' && parts.length === 4 && parts[3] === 'storage' && m === 'PUT') return await admin.putUserStorage(env, request, c);
+      if (b === 'users' && parts.length === 4 && parts[3] === 'bridges' && m === 'PUT') return await admin.putUserBridges(env, request, c);
       if (b === 'users' && parts.length === 4 && m === 'POST') return await admin.userAction(env, request, c, parts[3]);
+      if (b === 'bridges' && parts.length === 4 && m === 'POST') return await admin.bridgeAction(env, request, c, parts[3]);
       if (b === 'invites' && parts.length === 2 && m === 'POST') return await admin.addInvite(env, request);
       if (b === 'invites' && parts.length === 3 && m === 'DELETE') return await admin.removeInvite(env, request, c);
     }

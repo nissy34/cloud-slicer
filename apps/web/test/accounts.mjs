@@ -548,6 +548,41 @@ test('relay for signed-out people: off by default, the owner can turn it on (nev
   assert.equal((await guest.json('/api/relay/ticket', 'POST', { relay, bridgeId: 'bridge-guest1' })).status, 401);
 });
 
+test('bridges: the owner turns one off for everyone, or bridges off for one person', async () => {
+  const relay = 'https://relay.example';
+  const carol = new Browser();
+  await signIn(carol, 'carol');
+  const carolId = (await carol.me()).id;
+  assert.equal((await carol.json('/api/relay/ticket', 'POST', { relay, bridgeId: 'bridge-0003' })).status, 200);
+  const listed = (await (await alice.json('/api/admin')).json()).bridges.find((b) => b.id === 'bridge-0003');
+  assert.ok(listed && listed.people.includes('Carol') && !listed.off, JSON.stringify(listed));
+  assert.equal((await alice.json('/api/admin/bridges/bridge-0003/off', 'POST', {})).status, 200);
+  const refused = await carol.json('/api/relay/ticket', 'POST', { relay, bridgeId: 'bridge-0003' });
+  assert.equal(refused.status, 403);
+  assert.equal((await refused.json()).code, 'bridge-off');
+  assert.equal((await (await alice.json('/api/admin')).json()).bridges.find((b) => b.id === 'bridge-0003').off, true);
+  assert.equal((await alice.json('/api/admin/bridges/bridge-0003/on', 'POST', {})).status, 200);
+  assert.equal((await carol.json('/api/relay/ticket', 'POST', { relay, bridgeId: 'bridge-0003' })).status, 200);
+  assert.equal((await alice.json('/api/admin/bridges/no-such-bridge/off', 'POST', {})).status, 404);
+  // One person: no bridges at all, then allowed again; storage settings are kept.
+  await alice.json(`/api/admin/users/${carolId}/storage`, 'PUT', { storageMb: 100 });
+  assert.equal((await alice.json(`/api/admin/users/${carolId}/bridges`, 'PUT', { allowed: false })).status, 200);
+  const none = await carol.json('/api/relay/ticket', 'POST', { relay, bridgeId: 'bridge-0003' });
+  assert.equal(none.status, 403);
+  assert.equal((await none.json()).code, 'no-bridges');
+  const row = (await (await alice.json('/api/admin')).json()).users.find((u) => u.id === carolId);
+  assert.equal(row.bridgesAllowed, false);
+  assert.equal(row.storageMb, 100);
+  await alice.json(`/api/admin/users/${carolId}/storage`, 'PUT', { storageMb: null });
+  assert.equal((await alice.json(`/api/admin/users/${carolId}/bridges`, 'PUT', { allowed: true })).status, 200);
+  assert.equal((await carol.json('/api/relay/ticket', 'POST', { relay, bridgeId: 'bridge-0003' })).status, 200);
+  // Signed-out use shows on the bridge list.
+  await alice.json('/api/admin/settings', 'PUT', { guestRelay: true });
+  await new Browser().json('/api/relay/ticket', 'POST', { relay, bridgeId: 'bridge-guest2' });
+  await alice.json('/api/admin/settings', 'PUT', { guestRelay: false });
+  assert.ok((await (await alice.json('/api/admin')).json()).bridges.find((b) => b.id === 'bridge-guest2').guestUsed > 0);
+});
+
 test('delete a person: account, presets, printers, projects and files go', async () => {
   const erin = new Browser();
   users.erin = { sub: 'g-erin', name: 'Erin', email: 'erin@example.com', email_verified: true };
@@ -648,6 +683,9 @@ if (withApp)
       await daveRow.getByText("This can't be undone.", { exact: false }).scrollIntoViewIfNeeded();
       if (process.env.ACCOUNTS_SHOTS) await page.screenshot({ path: join(process.env.ACCOUNTS_SHOTS, 'admin-phone-delete.png') });
       await daveRow.getByRole('button', { name: 'Keep' }).click();
+      await admin.getByText(/^Bridges \(/).scrollIntoViewIfNeeded();
+      await admin.getByTestId('admin-bridge').last().scrollIntoViewIfNeeded();
+      if (process.env.ACCOUNTS_SHOTS) await page.screenshot({ path: join(process.env.ACCOUNTS_SHOTS, 'admin-phone-bridges.png') });
       await admin.getByLabel(/Invite only/).click();
       await admin.getByText('Anyone with a Google account can sign in.', { exact: false }).waitFor();
       await page.getByRole('button', { name: 'Back to the slicer' }).click();

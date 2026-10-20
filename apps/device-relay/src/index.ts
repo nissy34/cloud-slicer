@@ -183,7 +183,13 @@ export default {
       const bridges = (Array.isArray(order.revoke) ? order.revoke : [])
         .filter((b): b is string => typeof b === 'string' && BRIDGE_ID.test(b) && (!test || testBridge(b)))
         .slice(0, 50);
-      const body = JSON.stringify({ user: order.sub, blocked: order.blocked === true });
+      const body = JSON.stringify({
+        user: order.sub,
+        blocked: order.blocked === true,
+        // From the site itself: turn whole bridges off or on, or drop signed-out browsers.
+        bridgeOff: order.sub === 'site' && typeof order.bridgeOff === 'boolean' ? order.bridgeOff : undefined,
+        guests: order.sub === 'site' && order.guests === true,
+      });
       await Promise.all(bridges.map((b) => env.BRIDGE.get(env.BRIDGE.idFromName(b)).fetch('https://bridge/revoke', { method: 'POST', body })));
       return Response.json({ ok: true, bridges: bridges.length }, { headers: cors });
     }
@@ -208,6 +214,13 @@ export default {
     return new Response('Not found', { status: 404, headers: cors });
   },
 } satisfies ExportedHandler<Env>;
+
+interface RevokeOrder {
+  user: string;
+  blocked: boolean;
+  bridgeOff?: boolean;
+  guests?: boolean;
+}
 
 interface ClientAttachment {
   id: string;
@@ -256,7 +269,7 @@ export class Bridge extends DurableObject<Env> {
 
   async fetch(req: Request): Promise<Response> {
     const url = new URL(req.url);
-    if (url.pathname === '/revoke') return this.revoke((await req.json()) as { user: string; blocked: boolean });
+    if (url.pathname === '/revoke') return this.revoke((await req.json()) as RevokeOrder);
     const role = url.pathname.endsWith('/agent') ? 'agent' : 'client';
     const key = url.searchParams.get('key') ?? '';
     const pair = new WebSocketPair();
@@ -280,6 +293,7 @@ export class Bridge extends DurableObject<Env> {
         await this.ctx.storage.put('keyHash', hash);
       } else if (!same(stored, hash)) return reject(4003, 'This bridge id belongs to someone else.');
       if (this.env.RELAY_TICKET_PUBLIC_KEY) {
+        if (await this.ctx.storage.get<boolean>('off')) return reject(4003, "The site's owner turned this bridge off.");
         if (await this.ctx.storage.get<boolean>('blocked')) return reject(4003, "This bridge's Cloud Slicer account is blocked.");
         // Bridges from before accounts start their wait now.
         let claimedAt = await this.ctx.storage.get<number>('claimedAt');
@@ -305,6 +319,7 @@ export class Bridge extends DurableObject<Env> {
       // Checked by the Worker in front; a request without it never came through there.
       ticket = JSON.parse(req.headers.get('X-Relay-Ticket') ?? 'null') as Ticket | null;
       if (!ticket) return reject(4401, 'Sign in to Cloud Slicer to use the bridge.');
+      if (await this.ctx.storage.get<boolean>('off')) return reject(4403, "The site's owner turned this bridge off.");
       const owner = await this.ctx.storage.get<string>('owner');
       if (!owner) await this.ctx.storage.put('owner', ticket.user);
       else if (owner === ticket.user && (await this.ctx.storage.get<boolean>('blocked'))) return reject(4003, 'This account is blocked.');
@@ -438,8 +453,25 @@ export class Bridge extends DurableObject<Env> {
   }
 
   /** The site blocked (or unblocked) an account: close its browsers here; if it owns this bridge, the bridge too. */
-  private async revoke({ user, blocked }: { user: string; blocked: boolean }): Promise<Response> {
+  private async revoke({ user, blocked, bridgeOff, guests }: RevokeOrder): Promise<Response> {
     if (!user) return new Response('No user', { status: 400 });
+    if (bridgeOff !== undefined) {
+      if (!bridgeOff) {
+        await this.ctx.storage.delete('off');
+        return Response.json({ ok: true });
+      }
+      await this.ctx.storage.put('off', true);
+      for (const ws of this.clients()) ws.close(4403, "The site's owner turned this bridge off.");
+      for (const ws of this.ctx.getWebSockets('agent')) ws.close(4003, "The site's owner turned this bridge off.");
+      return Response.json({ ok: true });
+    }
+    if (guests) {
+      for (const ws of this.clients()) {
+        const a = ws.deserializeAttachment() as ClientAttachment | null;
+        if (a?.user?.startsWith('guest:')) ws.close(4401, 'Sign in to Cloud Slicer to use the bridge.');
+      }
+      return Response.json({ ok: true });
+    }
     const owner = await this.ctx.storage.get<string>('owner');
     if (blocked) {
       for (const ws of this.clients()) {

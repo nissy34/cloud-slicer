@@ -2,7 +2,7 @@
 // in, how much each user may store, and how close the site is to
 // Cloudflare's free limits. Server side: functions/_lib/admin.ts.
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { adminApi, type AdminOverview, type AdminUser, type Meter } from '../account/admin-api';
+import { adminApi, type AdminBridge, type AdminOverview, type AdminUser, type Meter } from '../account/admin-api';
 import { useAccount } from '../state/account';
 import { useSlicer } from '../state/store';
 
@@ -82,6 +82,7 @@ export function AdminScreen() {
             <UsageCard data={data} />
             <AccessCard data={data} busy={busy} act={act} />
             <UsersCard data={data} busy={busy} act={act} />
+            <BridgesCard bridges={data.bridges} busy={busy} act={act} />
           </>
         )}
       </div>
@@ -170,7 +171,7 @@ function AccessCard({ data, busy, act }: { data: AdminOverview; busy: boolean; a
             {s.inviteOnly
               ? 'Off while invite only is on.'
               : s.guestRelay
-                ? 'Anyone with a pairing link can reach printers through the relay, one camera at a time. They have no account, so they can\u2019t be blocked.'
+                ? 'Anyone with a pairing link can reach printers through the relay, one camera at a time. They have no account, so they can\u2019t be blocked. Turning this off disconnects them at once.'
                 : 'Only signed-in people can reach printers through the bridge. Printers reached directly never need an account.'}
           </span>
         </span>
@@ -261,7 +262,7 @@ function UserRow({ u, defaultMb, inviteOnly, busy, act }: { u: AdminUser; defaul
           {formatBytes(u.bytes)} in {u.projects} project{u.projects === 1 ? '' : 's'}
         </span>
         <span>
-          {u.presets} preset{u.presets === 1 ? '' : 's'} · {u.printers} printer{u.printers === 1 ? '' : 's'} · {u.bridges} bridge{u.bridges === 1 ? '' : 's'}
+          {!u.bridgesAllowed && <span className="admin-tag warn">No bridges</span>} {u.presets} preset{u.presets === 1 ? '' : 's'} · {u.printers} printer{u.printers === 1 ? '' : 's'} · {u.bridges} bridge{u.bridges === 1 ? '' : 's'}
         </span>
       </div>
       <div className="admin-user-actions">
@@ -278,6 +279,17 @@ function UserRow({ u, defaultMb, inviteOnly, busy, act }: { u: AdminUser; defaul
             </option>
           ))}
         </select>
+        {!u.owner && (
+          <select
+            aria-label={`Bridges for ${u.email}`}
+            value={u.bridgesAllowed ? 'yes' : 'no'}
+            disabled={busy}
+            onChange={(e) => void act(() => adminApi.setBridges(u.id, e.target.value === 'yes'))}
+          >
+            <option value="yes">Bridges: allowed</option>
+            <option value="no">Bridges: not allowed</option>
+          </select>
+        )}
         {!u.owner && inviteOnly && !u.blocked && (
           <button className="secondary" disabled={busy} onClick={() => void act(() => adminApi.userAction(u.id, u.allowed ? 'disallow' : 'allow'))}>
             {u.allowed ? 'Remove from list' : 'Allow'}
@@ -311,5 +323,44 @@ function UserRow({ u, defaultMb, inviteOnly, busy, act }: { u: AdminUser; defaul
         </div>
       )}
     </li>
+  );
+}
+
+function BridgesCard({ bridges, busy, act }: { bridges: AdminBridge[]; busy: boolean; act: Act }) {
+  return (
+    <section className="dv-card">
+      <div className="dv-card-head">
+        <h2>Bridges ({bridges.length})</h2>
+      </div>
+      <p className="muted small admin-note">
+        Every bridge someone reached a printer through. Turning one off closes it for everyone at once, and the bridge app is refused until you
+        turn it on again.
+      </p>
+      {bridges.length === 0 ? (
+        <p className="muted small">No bridges yet.</p>
+      ) : (
+        <ul className="admin-users">
+          {bridges.map((b) => (
+            <li key={b.id} className={b.off ? 'admin-user blocked' : 'admin-user'} data-testid="admin-bridge">
+              <div className="admin-user-who">
+                <strong className="admin-bridge-id">{b.id}</strong>
+                {b.off && <span className="admin-tag danger">Off</span>}
+                <div className="muted small admin-email">
+                  {[b.people, b.guestUsed ? 'signed-out people' : ''].filter(Boolean).join(', ') || 'nobody yet'}
+                </div>
+              </div>
+              <div className="admin-user-stats small">
+                <span>Used {when(b.lastUsed)}</span>
+              </div>
+              <div className="admin-user-actions">
+                <button className={b.off ? 'secondary' : 'secondary admin-danger'} disabled={busy} onClick={() => void act(() => adminApi.bridge(b.id, b.off ? 'on' : 'off'))}>
+                  {b.off ? 'Turn on' : 'Turn off'}
+                </button>
+              </div>
+            </li>
+          ))}
+        </ul>
+      )}
+    </section>
   );
 }

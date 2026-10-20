@@ -59,15 +59,26 @@ export async function ticket(env: Env, request: Request): Promise<Response> {
   if (!BRIDGE_ID.test(bridgeId)) throw new HttpError(400, 'Bad bridge id');
   const relay = relayOrigin(body.relay);
   const now = Date.now();
+  const d = env.DB!;
+  const info = await d.prepare('SELECT revoked FROM relay_bridge_info WHERE bridge_id = ?').bind(bridgeId).first<{ revoked: number }>().catch(() => null);
+  if (info?.revoked) throw new HttpError(403, "The site's owner turned this bridge off.", { code: 'bridge-off' });
   const user = await currentUser(env, request);
   if (!user) {
     // Signed out: only when the owner allows it on the Admin page (one camera, no account to block).
     const s = await accessSettings(env);
     if (!s.guestRelay || s.inviteOnly) throw new HttpError(401, 'Sign in first');
+    await d
+      .prepare(
+        `INSERT INTO relay_bridge_info (bridge_id, relay, guest_used_at, updated_at) VALUES (?, ?, ?, ?)
+         ON CONFLICT (bridge_id) DO UPDATE SET relay = excluded.relay, guest_used_at = excluded.guest_used_at, updated_at = excluded.updated_at`,
+      )
+      .bind(bridgeId, relay, now, now)
+      .run();
     const t = await sign(env, { b: bridgeId, cams: 1 }, `guest:${bridgeId}`, TICKET_SECONDS);
     return json({ ticket: t, expiresAt: now + TICKET_SECONDS * 1000 });
   }
-  const d = env.DB!;
+  const limits = await d.prepare('SELECT bridges FROM user_limits WHERE user_id = ?').bind(user.id).first<{ bridges: number | null }>().catch(() => null);
+  if (limits?.bridges === 0 && !user.owner) throw new HttpError(403, "Bridges aren't available for your account. Printers you reach directly still work.", { code: 'no-bridges' });
   const known = await d.prepare('SELECT 1 AS ok FROM relay_bridges WHERE user_id = ? AND bridge_id = ?').bind(user.id, bridgeId).first();
   if (known) {
     await d.prepare('UPDATE relay_bridges SET last_used_at = ?, relay = ? WHERE user_id = ? AND bridge_id = ?').bind(now, relay, user.id, bridgeId).run();
@@ -96,6 +107,23 @@ export async function forget(env: Env, request: Request, bridgeId: string): Prom
   return json({ ok: true });
 }
 
+/** Sends a signed order to relays: { revoke: bridge ids, ... } (see the relay's POST /v1/revoke). */
+async function order(env: Env, targets: { relay: string; bridge_id: string }[], subject: string, claims: Record<string, unknown>) {
+  if (!env.RELAY_TICKET_KEY) return;
+  const byRelay = new Map<string, string[]>();
+  for (const r of targets) byRelay.set(r.relay, [...(byRelay.get(r.relay) ?? []), r.bridge_id]);
+  await Promise.all(
+    [...byRelay].map(async ([relay, bridges]) => {
+      try {
+        const token = await sign(env, { ...claims, revoke: bridges }, subject, 300);
+        await fetch(`${relay}/v1/revoke`, { method: 'POST', headers: { Authorization: `Bearer ${token}` } });
+      } catch (e) {
+        console.error('relay order failed', relay, e);
+      }
+    }),
+  );
+}
+
 /**
  * Tells every relay the user has used to drop their connections now
  * (blocked: true), or to let them back (false). Best effort: their tickets
@@ -104,16 +132,31 @@ export async function forget(env: Env, request: Request, bridgeId: string): Prom
 export async function revoke(env: Env, userId: string, blocked: boolean): Promise<void> {
   if (!env.RELAY_TICKET_KEY) return;
   const rows = await env.DB!.prepare('SELECT bridge_id, relay FROM relay_bridges WHERE user_id = ?').bind(userId).all<{ bridge_id: string; relay: string }>();
-  const byRelay = new Map<string, string[]>();
-  for (const r of rows.results) byRelay.set(r.relay, [...(byRelay.get(r.relay) ?? []), r.bridge_id]);
-  await Promise.all(
-    [...byRelay].map(async ([relay, bridges]) => {
-      try {
-        const token = await sign(env, { revoke: bridges, blocked }, userId, 300);
-        await fetch(`${relay}/v1/revoke`, { method: 'POST', headers: { Authorization: `Bearer ${token}` } });
-      } catch (e) {
-        console.error('relay revoke failed', relay, e);
-      }
-    }),
-  );
+  await order(env, rows.results, userId, { blocked });
+}
+
+/** Turns a bridge off (or back on) for everyone: its relay closes it and the site stops giving tickets for it. */
+export async function setBridgeOff(env: Env, bridgeId: string, off: boolean): Promise<void> {
+  const d = env.DB!;
+  const known = await d
+    .prepare('SELECT relay FROM relay_bridge_info WHERE bridge_id = ? UNION SELECT relay FROM relay_bridges WHERE bridge_id = ? LIMIT 1')
+    .bind(bridgeId, bridgeId)
+    .first<{ relay: string }>();
+  if (!known) throw new HttpError(404, 'No such bridge');
+  await d
+    .prepare(
+      `INSERT INTO relay_bridge_info (bridge_id, relay, revoked, updated_at) VALUES (?, ?, ?, ?)
+       ON CONFLICT (bridge_id) DO UPDATE SET revoked = excluded.revoked, updated_at = excluded.updated_at`,
+    )
+    .bind(bridgeId, known.relay, off ? 1 : 0, Date.now())
+    .run();
+  await order(env, [{ relay: known.relay, bridge_id: bridgeId }], 'site', { bridgeOff: off });
+}
+
+/** Signed-out people may no longer use bridges: drop the ones connected now (bridges they used in the last two hours). */
+export async function dropGuests(env: Env): Promise<void> {
+  const rows = await env.DB!.prepare('SELECT bridge_id, relay FROM relay_bridge_info WHERE guest_used_at > ?')
+    .bind(Date.now() - 2 * 3600_000)
+    .all<{ bridge_id: string; relay: string }>();
+  await order(env, rows.results, 'site', { guests: true });
 }

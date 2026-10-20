@@ -4693,6 +4693,14 @@ button.volume-name {
 .secondary.admin-danger {
   color: var(--danger);
 }
+.admin-bridge-id {
+  font-family: ui-monospace, 'Noto Sans Mono', monospace;
+  font-weight: 500;
+  overflow-wrap: anywhere;
+}
+.admin-note {
+  margin: 0 0 10px;
+}
 .admin-confirm {
   grid-column: 1 / -1;
   display: grid;
