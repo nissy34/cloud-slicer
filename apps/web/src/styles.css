@@ -2501,6 +2501,29 @@ select:focus-visible {
   background: var(--surface-2);
   border-left: 3px solid var(--dv-warn);
 }
+.dv-errors {
+  display: grid;
+  gap: 8px;
+  margin: 10px 0 0;
+}
+.dv-error {
+  padding: 8px 10px;
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--danger) 10%, var(--surface-2));
+  border-left: 3px solid var(--danger);
+  overflow-wrap: anywhere;
+}
+.dv-error p {
+  margin: 4px 0;
+}
+.dv-error-foot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 4px 12px;
+  font-size: 12px;
+}
 .dv-row {
   display: flex;
   gap: 8px;
