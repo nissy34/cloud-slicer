@@ -111,7 +111,7 @@ try {
 
     // Bambu Studio 2.5's project keeps its own G-code, like desktop.
     await open(modelPath);
-    const question = page.getByRole('dialog', { name: /This project's G-code doesn't work in/ });
+    const question = page.getByRole('dialog', { name: /G-code for this printer\?/ });
     const download = async () => {
       const [file] = await Promise.all([page.waitForEvent('download'), page.getByRole('button', { name: 'Download G-code' }).click()]);
       return readFileSync(await file.path(), 'utf8').includes('M1002 gcode_claim_action:54');
@@ -134,17 +134,28 @@ try {
       else {
         const text = await question.innerText();
         console.log(`snapmaker: ${text.replace(/\s+/g, ' ')}`);
-        if (!/doesn't work in Snapmaker Orca[\s\S]*written for Bambu Studio 2\.5/.test(text) || !text.includes(PRINTER)) fail(`snapmaker: the question doesn't say why or which printer: ${text}`);
+        if (!/Use Snapmaker Orca's G-code for this printer\?[\s\S]*written for Bambu Studio 2\.5, and Snapmaker Orca can't use it/.test(text) || !text.includes(PRINTER)) fail(`snapmaker: the question doesn't say why or which printer: ${text}`);
         await shoot('gcode-question');
         await question.getByRole('button', { name: 'Cancel' }).click();
         await error.first().waitFor({ timeout: 10000 });
         console.log(`snapmaker: cancelled: ${(await error.first().innerText()).replace(/\n/g, ' | ')}`);
         await page.getByRole('button', { name: /^Slice plate/ }).click();
         await question.waitFor({ timeout: 300000 });
-        await question.getByRole('button', { name: 'Slice with standard G-code' }).click();
+        // "Always do this": from now on without asking.
+        await question.getByLabel('Always do this for files from other slicers').check();
+        await question.getByRole('button', { name: 'Use it and slice' }).click();
         await page.getByTestId('slice-stats').waitFor({ timeout: 300000 });
         if (await download()) fail("snapmaker: the G-code still has Bambu Studio 2.5's start lines");
-        else console.log("snapmaker: sliced with the printer's own G-code");
+        else console.log("snapmaker: sliced with Snapmaker Orca's own G-code for the printer");
+        await page.getByRole('tab', { name: 'Prepare' }).first().click().catch(() => {});
+        await open(modelPath);
+        await page.getByRole('button', { name: /^Slice plate/ }).click();
+        await Promise.race([page.getByTestId('slice-stats').waitFor({ timeout: 300000 }), question.waitFor({ timeout: 300000 })]);
+        if (await question.count()) fail('snapmaker: asked again after "Always do this"');
+        const note = page.getByText(/Sliced with Snapmaker Orca's G-code for/);
+        if (!(await note.count())) fail('snapmaker: no note after slicing with Snapmaker Orca\'s G-code automatically');
+        else console.log(`snapmaker: automatically: ${(await note.first().innerText()).trim()}`);
+        if (await download()) fail("snapmaker: automatic slice still has Bambu Studio 2.5's start lines");
       }
     }
     await page.getByRole('tab', { name: 'Prepare' }).first().click().catch(() => {});

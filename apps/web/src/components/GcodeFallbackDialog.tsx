@@ -1,28 +1,36 @@
+import { useState } from 'react';
 import { engineName } from '../lib/engines';
 import { useSlicer } from '../state/store';
 
 /**
  * Slicing stopped on G-code another slicer wrote (Bambu Studio 2.5's, say):
- * slice with the printer preset's own G-code instead, or see the error.
+ * slice with the engine's own G-code for the printer instead, or see the error.
  */
 export function GcodeFallbackDialog() {
   const question = useSlicer((s) => s.gcodeFallback);
   const flavor = useSlicer((s) => s.flavor);
+  const [always, setAlways] = useState(false);
   if (!question) return null;
   const { answerGcodeFallback } = useSlicer.getState();
+  const engine = engineName(flavor);
   return (
     <div className="dialog-backdrop" onKeyDown={(e) => e.key === 'Escape' && void answerGcodeFallback(false)}>
       <div className="dialog" role="dialog" aria-modal="true" aria-labelledby="gcode-fallback-title" data-testid="gcode-fallback">
-        <h2 id="gcode-fallback-title">This project's G-code doesn't work in {engineName(flavor)}</h2>
+        <h2 id="gcode-fallback-title">Use {engine}'s G-code for this printer?</h2>
         <p>
-          Its start and filament change G-code was written for {question.app}. Slice with the standard G-code of <b>{question.printer}</b> instead?
+          The start and filament change G-code in this file was written for {question.app}, and {engine} can't use it. {engine} has its own G-code for{' '}
+          <b>{question.printer}</b>, which works.
         </p>
+        <label className="check">
+          <input type="checkbox" id="gcode-fallback-always" checked={always} onChange={(e) => setAlways(e.target.checked)} />
+          <span>Always do this for files from other slicers</span>
+        </label>
         <div className="dialog-actions">
           <button className="secondary" onClick={() => void answerGcodeFallback(false)}>
             Cancel
           </button>
-          <button className="primary" autoFocus onClick={() => void answerGcodeFallback(true)}>
-            Slice with standard G-code
+          <button className="primary" autoFocus onClick={() => void answerGcodeFallback(true, always)}>
+            Use it and slice
           </button>
         </div>
       </div>

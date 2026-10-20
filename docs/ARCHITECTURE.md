@@ -167,8 +167,9 @@ nothing on purpose, so a deploy's page and engine never get out of step).
   say; `3D/3dmodel.model`'s Application entry tells) keeps its own start, end,
   filament-change and other G-code, as desktop does. That G-code can use the other
   slicer's variables (Bambu Studio 2.5's `flush_volumetric_speeds`): when the engine
-  can't fill it in, a pop-up asks whether to slice with the printer's standard G-code
-  (only values still as the file had them go back; Cancel shows the error). OrcaSlicer 2.4.2 fills Bambu Studio
+  can't fill it in, a pop-up asks whether to slice with the engine's own G-code for the
+  printer (only values still as the file had them go back; Cancel shows the error;
+  "Always do this for files from other slicers" does it from then on, in this browser). OrcaSlicer 2.4.2 fills Bambu Studio
   2.5's A1 mini G-code in; Snapmaker Orca 2.4 can't. When G-code the user wrote can't
   be filled in, the slice error names the G-code, the line and the variable
   (`lib/gcode-errors.ts`).

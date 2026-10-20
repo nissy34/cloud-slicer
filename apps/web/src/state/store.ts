@@ -30,7 +30,7 @@ import { DEFAULT_PRINTER, pickFilamentPreset, splitList, SLOT_COLOURS } from '..
 import { changedOnPurpose, emptyProjectMessage, modelProcessKeys, pickProcess, printerLabel, projectOverrides, fallBackGcode, gcodeOverrides } from '../lib/project-import';
 import { accountReady, getUserSetting, presetEditing, useAccount } from './account';
 import { installedOnly, SETUP_KEY, type Setup } from '../lib/setup';
-import { loadConvertPreference, loadDefaultEngine, loadSaved, save, saveConvertPreference } from '../lib/storage';
+import { loadConvertPreference, loadDefaultEngine, loadGcodeFallbackAuto, loadSaved, save, saveConvertPreference, saveGcodeFallbackAuto } from '../lib/storage';
 import { gcodeErrors, readableGcodeError } from '../lib/gcode-errors';
 import { appOfModelHead, engineFolder, engineFromUrl, engineName, engineOfModelHead, modelHeadOf3mf, type EngineFlavor } from '../lib/engines';
 import { flowFill, switchedText, switchPlan, type SwitchPlan } from '../lib/engine-switch';
@@ -121,12 +121,15 @@ export interface SlicerState {
   conversion: { from: string; file: OrcaConfig } | null;
   /**
    * Slicing stopped on G-code another slicer wrote (`app`): the question
-   * whether to slice with the printer's standard G-code instead; `error`
+   * whether to slice with the engine's own G-code for the printer instead; `error`
    * is shown if not.
    */
   gcodeFallback: { app: string; printer: string; error: string } | null;
-  /** Answers gcodeFallback: the printer's own G-code and slice again, or the error. */
-  answerGcodeFallback(useOwn: boolean): Promise<void>;
+  /**
+   * Answers gcodeFallback: the engine's own G-code for the printer and slice
+   * again (`always`: from now on without asking), or the error.
+   */
+  answerGcodeFallback(useOwn: boolean, always?: boolean): Promise<void>;
   /** Paint mode is on while set: what clicks and drags on the parts paint. */
   paint: PaintSettings | null;
   /** The object tool in use on the selected object. */
@@ -473,6 +476,14 @@ export const useSlicer = create<SlicerState>((set, get) => {
     if (restarting) return console.warn('While the engine restarted:', e);
     const inTool = !!(get().tool || get().paint);
     set({ job: { kind: 'error', message: (e as Error).message, inTool } });
+  };
+  // The engine's own G-code for the printer in place of another slicer's
+  // (what is still as the file had it), then slices again.
+  const useEngineGcode = async () => {
+    if (!foreignGcode) return;
+    setOverrides(fallBackGcode(get().overrides, foreignGcode.values).overrides);
+    foreignGcode = null;
+    await get().slice();
   };
   // A problem goes once the action is done again without one, or its tool closes.
   const clearError = (toolErrorsOnly = false) => {
@@ -1747,21 +1758,24 @@ export const useSlicer = create<SlicerState>((set, get) => {
         // Another slicer's G-code this engine can't fill in: ask whether to use the printer's own.
         const fromFile = foreignGcode && gcodeErrors(message).some((f) => f.key in foreignGcode!.values);
         if (fromFile && fallBackGcode(get().overrides, foreignGcode!.values).dropped) {
-          set({ job: { kind: 'idle' }, gcodeFallback: { app: foreignGcode!.app, printer: get().selection?.printer ?? 'your printer', error } });
+          const question = { app: foreignGcode!.app, printer: get().selection?.printer ?? 'this printer', error };
+          if (!loadGcodeFallbackAuto()) return set({ job: { kind: 'idle' }, gcodeFallback: question });
+          await useEngineGcode();
+          if (get().job.kind === 'sliced')
+            set({ notice: `Sliced with ${engineName(get().flavor)}'s G-code for ${question.printer}: the file's G-code from ${question.app} doesn't work in ${engineName(get().flavor)}.`, noticeWarn: false });
           return;
         }
         // Custom G-code the engine can't fill in: which one, which line, which variable.
         fail(new Error(error));
       }
     },
-    async answerGcodeFallback(useOwn) {
+    async answerGcodeFallback(useOwn, always = false) {
       const question = get().gcodeFallback;
       if (!question) return;
       set({ gcodeFallback: null });
       if (!useOwn || !foreignGcode) return fail(new Error(question.error));
-      setOverrides(fallBackGcode(get().overrides, foreignGcode.values).overrides);
-      foreignGcode = null;
-      await get().slice();
+      if (always) saveGcodeFallbackAuto(true);
+      await useEngineGcode();
     },
     cancelSlice() {
       if (get().job.kind !== 'slicing') return;
