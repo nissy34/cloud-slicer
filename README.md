@@ -15,7 +15,7 @@ hosted on Cloudflare's free tier.
   multi-plate projects. Plate thumbnails go into the G-code, like desktop.
 - **Every printer brand the engine ships** (55 in Snapmaker Orca, 63 in OrcaSlicer, with
   their filaments and processes), with a first-run setup wizard (like Orca's) to pick the
-  printers and filaments you have: search, pictures, and a "can send" mark on the
+  printers and filaments you have: search, pictures, and a "Direct print" mark on the
   printers this app can send prints to (Klipper ones); for the others you download the
   G-code. Snapmaker's presets load at start and another brand's only once you pick one
   of its printers, so the page starts as fast as with Snapmaker alone.

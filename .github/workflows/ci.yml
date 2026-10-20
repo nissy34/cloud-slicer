@@ -418,7 +418,7 @@ jobs:
           name: engine-screenshots
           path: apps/web/engine-shots
 
-      - name: Every printer brand, loaded per brand, with the can-send mark (Chromium)
+      - name: Every printer brand, loaded per brand, with the Direct print mark (Chromium)
         if: matrix.suite == 'brands'
         run: |
           mkdir -p brand-shots

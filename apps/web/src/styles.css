@@ -3664,7 +3664,7 @@ select:focus-visible {
   align-items: center;
   gap: 4px;
 }
-/* The app can send prints to this printer (Klipper): wizard, printer picker. */
+/* Direct print: the app can send prints to this printer (Klipper): wizard, printer picker. */
 .send-mark {
   display: inline-flex;
   align-items: center;

@@ -58,7 +58,7 @@ function PrinterSection() {
                 .map((p) => (
                   <option key={p.name} value={p.name}>
                     {p.name}
-                    {sends(p.name) ? ' · can send' : ''}
+                    {sends(p.name) ? ' · direct print' : ''}
                   </option>
                 ))}
             </optgroup>
@@ -67,10 +67,10 @@ function PrinterSection() {
       </label>
       {selectedSends === true && (
         <p className="muted small printer-send">
-          <SendMark /> Prints go to it from the Device tab.
+          <SendMark /> Send prints to it from the Device tab.
         </p>
       )}
-      {selectedSends === false && <p className="muted small printer-send">This app can't send to this printer (not Klipper): download the G-code to print it.</p>}
+      {selectedSends === false && <p className="muted small printer-send">No direct print for this printer (not Klipper): download the G-code to print it.</p>}
       <OptionField optKey="curr_bed_type" label="Plate type" />
     </section>
   );

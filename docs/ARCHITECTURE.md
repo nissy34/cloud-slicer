@@ -102,7 +102,7 @@ nothing on purpose, so a deploy's page and engine never get out of step).
   (about 10 KB compressed) lists every brand's models, nozzle presets and picture
   (`profiles/covers/`) for the wizard. Loading every brand at once would add 0.7 MB
   (Snapmaker Orca) to 1.3 MB (OrcaSlicer) of compressed downloads and their memory.
-- **Can send**: a catalog printer whose presets run Klipper (`gcode_flavor`, through
+- **Direct print**: a catalog printer whose presets run Klipper (`gcode_flavor`, through
   `inherits`) is one the Device tab can send to through Moonraker. The wizard and the
   printer picker mark them; a user printer gets its system parent's mark
   (`src/lib/printer-catalog.ts`). Other printers slice the same; you download the G-code.
