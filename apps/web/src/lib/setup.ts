@@ -2,6 +2,7 @@
 // installed, as desktop Orca's first-run wizard asks. They are saved as
 // account settings (this browser when signed out, the account when signed in).
 import type { PresetSummary } from '../engine/protocol';
+import type { EngineFlavor } from './engines';
 
 /** Account setting key; signing in merges this browser's lists into the account's. */
 export const SETUP_KEY = 'setup';
@@ -11,6 +12,8 @@ export interface Setup {
   printers: string[];
   /** Filament preset names. */
   filaments: string[];
+  /** The engine new projects use (left out before the wizard asked: Snapmaker Orca). */
+  engine?: EngineFlavor;
 }
 
 export interface PrinterModel {

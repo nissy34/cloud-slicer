@@ -1,4 +1,5 @@
 // Client for the account API in functions/api (Cloudflare Pages Functions).
+import type { EngineFlavor } from '../lib/engines';
 
 export type ProviderId = 'google';
 export type PresetType = 'printer' | 'filament' | 'process';
@@ -74,6 +75,8 @@ export interface OnlineProject {
   version: number;
   createdAt: number;
   updatedAt: number;
+  /** The engine it slices with. */
+  engine: EngineFlavor;
 }
 
 export interface ProjectList {
@@ -147,8 +150,8 @@ export const api = {
   deleteDevice: (id: string) => call<{ ok: true }>(`/api/devices/${encodeURIComponent(id)}`, { method: 'DELETE' }),
   projects: () => call<ProjectList>('/api/projects'),
   /** baseVersion: the version this save started from (0 = must be new); undefined overwrites. */
-  saveProject: (id: string, name: string, file: Blob, baseVersion?: number) => {
-    const q = new URLSearchParams({ name });
+  saveProject: (id: string, name: string, file: Blob, baseVersion: number | undefined, engine: EngineFlavor) => {
+    const q = new URLSearchParams({ name, engine });
     if (baseVersion !== undefined) q.set('baseVersion', String(baseVersion));
     return call<{ project: OnlineProject }>(`${projectPath(id)}?${q}`, { method: 'PUT', body: file }, 'model/3mf').then((r) => r.project);
   },

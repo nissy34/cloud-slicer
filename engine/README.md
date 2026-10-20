@@ -117,5 +117,8 @@ What only Snapmaker Orca has compiles only for it (`ENGINE_HAS_MIXING`: mixed fi
 `src/mixed_api.cpp`; `ENGINE_HAS_FLOW_VARIANTS`: standard/high flow pairs), and the few
 calls whose signatures differ upstream are under `#if ENGINE_UPSTREAM`. `engineInfo()`
 tells the page which engine it got. `apps/web/scripts/copy-engine.mjs` puts an upstream
-build (from `engine/build/engine-orca`) in `public/engine-orca/`, and the page uses it
-when opened with `?engine=orca`. CI doesn't build it yet.
+build (from `engine/build/engine-orca`) in `public/engine-orca/`. CI builds and tests both
+engines. Each project slices with one of them (`apps/web/src/lib/engines.ts`): new projects
+use the setup wizard's choice, an online project remembers its engine, and a 3MF opens with
+the engine that made it (Snapmaker Orca writes Application "Snapmaker_Orca-…", OrcaSlicer an
+"OrcaSlicer" entry). `?engine=orca` (or `snapmaker`) starts the page with that engine.

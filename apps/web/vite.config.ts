@@ -15,6 +15,7 @@ export default defineConfig({
   define: {
     'import.meta.env.VITE_ENGINE_VERSION': JSON.stringify(engineVersion()),
     'import.meta.env.VITE_ENGINE_BYTES': JSON.stringify(engineBytes()),
+    'import.meta.env.VITE_ENGINE_ORCA_BYTES': JSON.stringify(engineBytes('engine-orca')),
   },
   server: { headers: isolation },
   preview: { headers: isolation },

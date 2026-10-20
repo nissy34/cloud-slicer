@@ -526,10 +526,11 @@ if (withApp)
       assert.ok(saved, JSON.stringify(list.projects));
       assert.equal(saved.hasThumbnail, true, 'the 3D view was saved as its thumbnail');
       assert.ok(saved.size > 100_000, `3MF is ${saved.size} bytes`);
+      assert.equal(saved.engine, 'snapmaker', 'saved with the engine it slices with');
       if (process.env.ACCOUNTS_SHOTS) await page.screenshot({ path: join(process.env.ACCOUNTS_SHOTS, 'project-saved.png') });
 
       await projectButton.click();
-      await page.getByRole('menuitem', { name: 'New project' }).click();
+      await page.getByRole('menuitem', { name: 'New project', exact: true }).click();
       await page.getByText('Open a model to start').waitFor();
       await projectButton.click();
       await page.getByRole('menuitem', { name: 'Online projects…' }).click();

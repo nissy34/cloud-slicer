@@ -404,9 +404,18 @@ jobs:
         if: matrix.suite == 'smoke'
         run: node test/smoke.mjs ../../fixtures/3DBenchy.stl smoke.png
 
-      - name: Browser smoke test with the OrcaSlicer engine (Chromium, ?engine=orca)
+      - name: OrcaSlicer smoke test and choosing the engine per project (Chromium)
         if: matrix.suite == 'orca'
-        run: SMOKE_ENGINE=orca node test/smoke.mjs ../../fixtures/3DBenchy.stl smoke-orca.png
+        run: |
+          SMOKE_ENGINE=orca node test/smoke.mjs ../../fixtures/3DBenchy.stl smoke-orca.png
+          mkdir -p engine-shots
+          node test/engines.mjs engine-shots
+
+      - uses: actions/upload-artifact@v4
+        if: always() && matrix.suite == 'orca'
+        with:
+          name: engine-screenshots
+          path: apps/web/engine-shots
 
       - name: Engine startup matrix (Chromium + current stable Chrome)
         if: matrix.suite == 'startup'

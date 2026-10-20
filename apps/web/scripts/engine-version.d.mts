@@ -1,2 +1,2 @@
 export function engineVersion(): string;
-export function engineBytes(): number;
+export function engineBytes(dir?: string): number;

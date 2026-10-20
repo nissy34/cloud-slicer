@@ -22,6 +22,8 @@ interface ProjectRow {
   version: number;
   created_at: number;
   updated_at: number;
+  /** null: saved before there were two engines (Snapmaker Orca). */
+  engine: string | null;
 }
 const toProject = (r: ProjectRow) => ({
   id: r.id,
@@ -29,6 +31,7 @@ const toProject = (r: ProjectRow) => ({
   size: r.size,
   hasThumbnail: r.thumb_key !== null,
   version: r.version,
+  engine: r.engine ?? 'snapmaker',
   createdAt: r.created_at,
   updatedAt: r.updated_at,
 });
@@ -46,6 +49,12 @@ function validName(v: unknown) {
   const name = typeof v === 'string' ? v.trim() : '';
   if (!name || name.length > 128) throw new HttpError(400, 'Project names are 1-128 characters');
   return name;
+}
+const ENGINES = ['snapmaker', 'orca'];
+function validEngine(v: string | null) {
+  if (v === null || v === '') return 'snapmaker';
+  if (!ENGINES.includes(v)) throw new HttpError(400, 'Bad engine');
+  return v;
 }
 function baseVersion(v: string | null): number | undefined {
   if (v === null || v === '') return undefined;
@@ -114,9 +123,10 @@ export async function thumbnail(env: Env, request: Request, rawId: string): Prom
 }
 
 /**
- * PUT /api/projects/<id>?name=…&baseVersion=…  body: the 3MF
+ * PUT /api/projects/<id>?name=…&baseVersion=…&engine=…  body: the 3MF
  * baseVersion: the version this save started from (0 = a new project);
  * left out, the save goes over whatever is there.
+ * engine: snapmaker (the default) or orca, the engine the project slices with.
  */
 export async function put(env: Env, request: Request, rawId: string): Promise<Response> {
   requireSameOrigin(request);
@@ -126,6 +136,7 @@ export async function put(env: Env, request: Request, rawId: string): Promise<Re
   const url = new URL(request.url);
   const name = validName(url.searchParams.get('name'));
   const base = baseVersion(url.searchParams.get('baseVersion'));
+  const engine = validEngine(url.searchParams.get('engine'));
 
   const declared = Number(request.headers.get('Content-Length') ?? '0');
   if (declared > LIMITS.projectBytes) throw new HttpError(413, `Projects can be up to ${LIMITS.projectBytes / 1024 / 1024} MB`);
@@ -154,22 +165,22 @@ export async function put(env: Env, request: Request, rawId: string): Promise<Re
   const d = env.DB!;
   const res = current
     ? await d
-        .prepare('UPDATE projects SET name = ?, size = ?, file_key = ?, version = ?, updated_at = ? WHERE user_id = ? AND id = ? AND version = ?')
-        .bind(name, bytes.byteLength, key, version, now, user.id, id, current.version)
+        .prepare('UPDATE projects SET name = ?, size = ?, file_key = ?, version = ?, updated_at = ?, engine = ? WHERE user_id = ? AND id = ? AND version = ?')
+        .bind(name, bytes.byteLength, key, version, now, engine, user.id, id, current.version)
         .run()
     : await d
         .prepare(
-          `INSERT INTO projects (user_id, id, name, size, file_key, thumb_key, version, created_at, updated_at)
-           VALUES (?, ?, ?, ?, ?, NULL, ?, ?, ?) ON CONFLICT (user_id, id) DO NOTHING`,
+          `INSERT INTO projects (user_id, id, name, size, file_key, thumb_key, version, created_at, updated_at, engine)
+           VALUES (?, ?, ?, ?, ?, NULL, ?, ?, ?, ?) ON CONFLICT (user_id, id) DO NOTHING`,
         )
-        .bind(user.id, id, name, bytes.byteLength, key, version, now, now)
+        .bind(user.id, id, name, bytes.byteLength, key, version, now, now, engine)
         .run();
   if (!res.meta.changes) {
     await b.delete(key);
     throw conflict(await row(env, user.id, id));
   }
   if (current) await b.delete(current.file_key);
-  return json({ project: toProject({ ...(current ?? { thumb_key: null, created_at: now }), id, name, size: bytes.byteLength, file_key: key, version, updated_at: now } as ProjectRow) });
+  return json({ project: toProject({ ...(current ?? { thumb_key: null, created_at: now }), id, name, size: bytes.byteLength, file_key: key, version, updated_at: now, engine } as ProjectRow) });
 }
 
 /** PUT /api/projects/<id>/thumbnail  body: PNG. Doesn't change the version. */
