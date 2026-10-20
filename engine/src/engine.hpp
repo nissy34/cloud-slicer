@@ -51,6 +51,12 @@ Project& project();
 // bed, as an added model is placed (model_api.cpp).
 void placeObject(Slic3r::ModelObject* obj, int plate);
 
+// ObjectList::merge(true), the object menu's Assemble: instance ia of object oa
+// and instance ib of object ob made the parts of one new object, each part
+// where it stood (each part keeps its ObjectID). Objects left with no copy go.
+// Returns the new object's index (measure_api.cpp).
+int joinObjects(int oa, int ia, int ob, int ib);
+
 // A primitive shape as desktop's ObjectList::create_mesh makes it, sized by the
 // bed (a tenth of its larger side): Cube, Cylinder, Sphere, Cone, Disc or Torus
 // (volume_api.cpp).

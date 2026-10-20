@@ -1150,6 +1150,46 @@ test('mesh boolean: union, difference and intersection of two parts, like deskto
   assert.throws(() => boolean({ op: 'xor', a: 0, b: 1 }), /unknown/);
 });
 
+test('mesh boolean of two objects on the bed: they become one object first, like Assemble on desktop', () => {
+  select({ printer: DEFAULT_PRINTER });
+  const info = () => JSON.parse(engine.modelInfoJson());
+  const boolean = (o, request) => call(engine, 'meshBoolean', o, JSON.stringify(request));
+  // A 20 mm cube at x 100..120 and a 30 mm cube at x 110..140, both standing on the bed.
+  const setup = () => {
+    load('gen-cube-20.stl');
+    engine.FS.writeFile('/work/big.stl', cubesStl([[0, 0, 0]], 30));
+    call(engine, 'loadModel', '/work/big.stl', 0, ...bedSize(fullConfig()), true);
+    call(engine, 'setInstanceTransform', 0, 0, JSON.stringify({ offset: [100, 100] }));
+    call(engine, 'setInstanceTransform', 1, 0, JSON.stringify({ offset: [110, 95] }));
+    assert.equal(info().objects.length, 2);
+  };
+
+  setup();
+  const union = boolean(0, { op: 'union', a: 0, b: 0, bObject: 1 });
+  assert.equal(info().objects.length, 1, 'one object left');
+  assert.equal(union.object, 0);
+  assert.equal(info().objects[0].volumes.length, 1, 'a single part');
+  assert.match(info().objects[0].volumes[0].name, / - union$/);
+  const size = info().objects[0].size.map((v) => Math.round(v * 100) / 100);
+  assert.deepEqual(size, [40, 30, 30], 'both cubes, where they stood');
+  slice(fullConfig());
+
+  setup();
+  boolean(1, { op: 'difference', a: 0, b: 0, bObject: 0, deleteInput: true });
+  assert.equal(info().objects.length, 1);
+  assert.deepEqual(info().objects[0].size.map((v) => Math.round(v * 100) / 100), [30, 30, 30], 'the big cube with a bite out of it');
+
+  setup();
+  boolean(0, { op: 'intersection', a: 0, b: 0, bObject: 1, deleteInput: true });
+  assert.deepEqual(info().objects[0].size.map((v) => Math.round(v * 100) / 100), [10, 20, 20], 'only the overlap is left');
+
+  // Nothing changes when the two don't overlap.
+  setup();
+  call(engine, 'setInstanceTransform', 1, 0, JSON.stringify({ offset: [180, 95] }));
+  assert.throws(() => boolean(0, { op: 'intersection', a: 0, b: 0, bObject: 1 }), /don't overlap/);
+  assert.equal(info().objects.length, 2, 'still two objects');
+});
+
 test('text shapes: a text part, an engraved text, a text object and editing the text, like desktop', () => {
   select({ printer: DEFAULT_PRINTER });
   engine.FS.writeFile('/work/font.ttf', readFileSync(resolve(fixtures, '../engine/orcaslicer/resources/fonts/NanumGothic-Regular.ttf')));

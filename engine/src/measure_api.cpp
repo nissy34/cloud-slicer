@@ -291,41 +291,10 @@ void moveSecond(const Picked& a, const Picked& b, const Transform3d& t) {
     w.obj->ensure_on_bed();
 }
 
-// ObjectList::merge(true), the object menu's Assemble: the two objects as the
-// parts of one new object, each part where it stood.
 int joinObjects(const Picked& a, const Picked& b) {
-    engine::Project& pr = engine::project();
     const Where wa = locate(a), wb = locate(b);
-    if (wa.object == wb.object) throw std::runtime_error("both are on one object already");
-    ModelObject* joined = pr.model.add_object();
-    joined->name = "Assembly";
-    joined->add_instance();
-    for (const Where* w : {&wa, &wb}) {
-        const ModelObject* from = w->obj;
-        for (const ModelVolume* v : from->volumes) {
-            ModelVolume* nv = joined->add_volume(*v);  // keeps the part's id, so the picks follow it
-            nv->set_transformation(Geometry::Transformation(w->inst->get_matrix() * v->get_matrix()));
-            if (!nv->config.option("extruder"))
-                if (const ConfigOption* e = from->config.option("extruder")) nv->config.set_key_value("extruder", new ConfigOptionInt(e->getInt()));
-        }
-        for (const std::string& key : from->config.keys())
-            if (!joined->config.has(key)) joined->config.set_key_value(key, from->config.option(key)->clone());
-        for (const auto& range : from->layer_config_ranges) joined->layer_config_ranges.emplace(range);
-    }
-    joined->sort_volumes(true);
-    joined->ensure_on_bed();
-    joined->center_around_origin();
-    joined->translate_instances(-joined->origin_translation);
-    joined->origin_translation = Vec3d::Zero();
-    // The picked copies leave their objects; an object with no other copy goes.
-    std::vector<int> gone;
-    for (const Where* w : {&wa, &wb}) {
-        if (w->obj->instances.size() == 1) gone.push_back(w->object);
-        else w->obj->delete_instance(size_t(std::find(w->obj->instances.begin(), w->obj->instances.end(), w->inst) - w->obj->instances.begin()));
-    }
-    std::sort(gone.rbegin(), gone.rend());
-    for (int o : gone) pr.model.delete_object(size_t(o));
-    return int(pr.model.objects.size()) - 1;
+    const auto index = [](const Where& w) { return int(std::find(w.obj->instances.begin(), w.obj->instances.end(), w.inst) - w.obj->instances.begin()); };
+    return engine::joinObjects(wa.object, index(wa), wb.object, index(wb));
 }
 
 // Desktop's Assemble on features a and b from measureFeature (two faces, or
@@ -392,6 +361,54 @@ std::string assembleAction(int a, int b, const std::string& requestJson) {
 }
 
 } // namespace
+
+namespace engine {
+
+// ObjectList::merge(true), the object menu's Assemble: the two objects as the
+// parts of one new object, each part where it stood.
+int joinObjects(int oa, int ia, int ob, int ib) {
+    engine::Project& pr = engine::project();
+    struct Side { int object; ModelObject* obj; ModelInstance* inst; };
+    const auto side = [&](int o, int i) {
+        if (o < 0 || size_t(o) >= pr.model.objects.size()) throw std::runtime_error("no object " + std::to_string(o));
+        ModelObject* obj = pr.model.objects[o];
+        if (i < 0 || size_t(i) >= obj->instances.size()) throw std::runtime_error("no instance " + std::to_string(i));
+        return Side{o, obj, obj->instances[i]};
+    };
+    const Side wa = side(oa, ia), wb = side(ob, ib);
+    if (wa.object == wb.object) throw std::runtime_error("both are on one object already");
+    ModelObject* joined = pr.model.add_object();
+    joined->name = "Assembly";
+    joined->add_instance();
+    for (const Side* w : {&wa, &wb}) {
+        const ModelObject* from = w->obj;
+        for (const ModelVolume* v : from->volumes) {
+            ModelVolume* nv = joined->add_volume(*v);  // keeps the part's id, so the picks follow it
+            nv->set_transformation(Geometry::Transformation(w->inst->get_matrix() * v->get_matrix()));
+            if (!nv->config.option("extruder"))
+                if (const ConfigOption* e = from->config.option("extruder")) nv->config.set_key_value("extruder", new ConfigOptionInt(e->getInt()));
+        }
+        for (const std::string& key : from->config.keys())
+            if (!joined->config.has(key)) joined->config.set_key_value(key, from->config.option(key)->clone());
+        for (const auto& range : from->layer_config_ranges) joined->layer_config_ranges.emplace(range);
+    }
+    joined->sort_volumes(true);
+    joined->ensure_on_bed();
+    joined->center_around_origin();
+    joined->translate_instances(-joined->origin_translation);
+    joined->origin_translation = Vec3d::Zero();
+    // The picked copies leave their objects; an object with no other copy goes.
+    std::vector<int> gone;
+    for (const Side* w : {&wa, &wb}) {
+        if (w->obj->instances.size() == 1) gone.push_back(w->object);
+        else w->obj->delete_instance(size_t(std::find(w->obj->instances.begin(), w->obj->instances.end(), w->inst) - w->obj->instances.begin()));
+    }
+    std::sort(gone.rbegin(), gone.rend());
+    for (int o : gone) pr.model.delete_object(size_t(o));
+    return int(pr.model.objects.size()) - 1;
+}
+
+} // namespace engine
 
 EMSCRIPTEN_BINDINGS(measure_api) {
     emscripten::function("measureFeature", &measureFeature);
