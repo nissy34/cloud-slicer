@@ -1,4 +1,3 @@
-import { useState } from 'react';
 import { engineName } from '../lib/engines';
 import { useSlicer } from '../state/store';
 
@@ -9,7 +8,6 @@ import { useSlicer } from '../state/store';
 export function GcodeFallbackDialog() {
   const question = useSlicer((s) => s.gcodeFallback);
   const flavor = useSlicer((s) => s.flavor);
-  const [always, setAlways] = useState(false);
   if (!question) return null;
   const { answerGcodeFallback } = useSlicer.getState();
   const engine = engineName(flavor);
@@ -19,17 +17,13 @@ export function GcodeFallbackDialog() {
         <h2 id="gcode-fallback-title">Use {engine}'s G-code for this printer?</h2>
         <p>
           The start and filament change G-code in this file was written for {question.app}, and {engine} can't use it. {engine} has its own G-code for{' '}
-          <b>{question.printer}</b>, which works.
+          <b>{question.printer}</b>, which works. This project keeps using it.
         </p>
-        <label className="check">
-          <input type="checkbox" id="gcode-fallback-always" checked={always} onChange={(e) => setAlways(e.target.checked)} />
-          <span>Always do this for files from other slicers</span>
-        </label>
         <div className="dialog-actions">
           <button className="secondary" onClick={() => void answerGcodeFallback(false)}>
             Cancel
           </button>
-          <button className="primary" autoFocus onClick={() => void answerGcodeFallback(true, always)}>
+          <button className="primary" autoFocus onClick={() => void answerGcodeFallback(true)}>
             Use it and slice
           </button>
         </div>

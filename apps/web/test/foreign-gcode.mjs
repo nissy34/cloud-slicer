@@ -141,21 +141,16 @@ try {
         console.log(`snapmaker: cancelled: ${(await error.first().innerText()).replace(/\n/g, ' | ')}`);
         await page.getByRole('button', { name: /^Slice plate/ }).click();
         await question.waitFor({ timeout: 300000 });
-        // "Always do this": from now on without asking.
-        await question.getByLabel('Always do this for files from other slicers').check();
         await question.getByRole('button', { name: 'Use it and slice' }).click();
         await page.getByTestId('slice-stats').waitFor({ timeout: 300000 });
         if (await download()) fail("snapmaker: the G-code still has Bambu Studio 2.5's start lines");
         else console.log("snapmaker: sliced with Snapmaker Orca's own G-code for the printer");
         await page.getByRole('tab', { name: 'Prepare' }).first().click().catch(() => {});
-        await open(modelPath);
+        // The project keeps it: slicing again doesn't ask.
         await page.getByRole('button', { name: /^Slice plate/ }).click();
         await Promise.race([page.getByTestId('slice-stats').waitFor({ timeout: 300000 }), question.waitFor({ timeout: 300000 })]);
-        if (await question.count()) fail('snapmaker: asked again after "Always do this"');
-        const note = page.getByText(/Sliced with Snapmaker Orca's G-code for/);
-        if (!(await note.count())) fail('snapmaker: no note after slicing with Snapmaker Orca\'s G-code automatically');
-        else console.log(`snapmaker: automatically: ${(await note.first().innerText()).trim()}`);
-        if (await download()) fail("snapmaker: automatic slice still has Bambu Studio 2.5's start lines");
+        if (await question.count()) fail('snapmaker: asked again in the same project');
+        else console.log('snapmaker: sliced again without asking');
       }
     }
     await page.getByRole('tab', { name: 'Prepare' }).first().click().catch(() => {});

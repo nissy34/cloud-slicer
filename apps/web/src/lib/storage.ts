@@ -57,7 +57,6 @@ export function saveDefaultEngine(flavor: EngineFlavor) {
 }
 
 const CONVERT_KEY = 'cloud-slicer:convert:v1';
-const GCODE_FALLBACK_KEY = 'cloud-slicer:gcode-fallback:v1';
 
 /** What to do with a 3MF made for a printer we don't have. */
 export interface ConvertPreference {
@@ -85,23 +84,3 @@ export function saveConvertPreference(pref: ConvertPreference | null) {
   }
 }
 
-/**
- * Whether a project's G-code from another slicer that the engine can't use is
- * swapped for the engine's own G-code for the printer without asking.
- */
-export function loadGcodeFallbackAuto(): boolean {
-  try {
-    return localStorage.getItem(GCODE_FALLBACK_KEY) === 'auto';
-  } catch {
-    return false;
-  }
-}
-
-export function saveGcodeFallbackAuto(auto: boolean) {
-  try {
-    if (auto) localStorage.setItem(GCODE_FALLBACK_KEY, 'auto');
-    else localStorage.removeItem(GCODE_FALLBACK_KEY);
-  } catch {
-    // storage unavailable: ask every time
-  }
-}
