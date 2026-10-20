@@ -65,6 +65,11 @@ export interface OptionDef {
    * filament_flow_support).
    */
   flow?: 'process' | 'filament';
+  /**
+   * What can carry this option on its own: "region" options a part, modifier
+   * or object can (PrintRegionConfig), "object" ones only an object can.
+   */
+  scope?: 'region' | 'object';
 }
 
 export interface SettingsLayout {

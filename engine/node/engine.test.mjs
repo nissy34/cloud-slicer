@@ -111,6 +111,11 @@ test('option metadata covers the print, filament and printer settings', () => {
   assert.equal(opts.layer_height.type, 'float');
   assert.ok(opts.sparse_infill_pattern.enumValues.includes('gyroid'));
   assert.ok(['simple', 'advanced', 'develop'].includes(opts.wall_loops.mode));
+  // What an object or a part can carry on its own (desktop's "Add settings").
+  assert.equal(opts.wall_loops.scope, 'region');
+  assert.equal(opts.layer_height.scope, 'object');
+  assert.equal(opts.enable_support.scope, 'object');
+  assert.equal(opts.nozzle_temperature.scope, undefined);
 });
 
 test('slices an STL with the U1 presets', () => {
