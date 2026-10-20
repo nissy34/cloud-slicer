@@ -372,12 +372,13 @@ jobs:
         if: matrix.suite == 'mixing'
         run: node test/mixing.mjs
 
-      - name: Prime tower, phone 3D view gestures and plate menu end to end (Chromium)
+      - name: Prime tower, phone 3D view gestures, plate menu and two-object boolean end to end (Chromium)
         if: matrix.suite == 'wipetower'
         run: |
           node test/wipe-tower.mjs
           node test/view-touch.mjs
           node test/plate-menu.mjs
+          node test/boolean-objects.mjs
 
       - name: Loading screen end to end (Chromium)
         if: matrix.suite == 'loading'

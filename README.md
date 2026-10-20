@@ -40,7 +40,8 @@ hosted on Cloudflare's free tier.
   with STL, export as STL), and parts, negative parts, modifiers and support
   blockers/enforcers added to an object (shapes or a mesh file), shown see-through,
   moved with the gizmos, with their own settings, mesh boolean (union, difference or
-  intersection of two of an object's parts), and text shapes (desktop's Text tool: raised,
+  intersection of two of an object's parts, or of two objects on the plate, which are
+  first joined into one object like desktop's Assemble), and text shapes (desktop's Text tool: raised,
   engraved or a modifier on the object's surface facing you, or an object of its own;
   edited live with built-in Noto fonts, a font file, or the computer's fonts in Chrome/Edge;
   following a curved surface or set letter by letter, aligned left/centre/right and
@@ -235,6 +236,7 @@ Browser end to end tests (Playwright's Chromium) run against the built site
 | `test/toolbar.mjs` | The object toolbar: add a model, variable layer height, simplify, brim ears, lay on face, measure, the object menu, parts and modifiers, mesh boolean, text and SVG shapes, assemble, fits a phone |
 | `test/mixing.mjs` | Make a colour mix, slice, the G-code alternates between both tools |
 | `test/wipe-tower.mjs` | A two-filament plate shows the prime tower; drag it, and the slice prints it there |
+| `test/boolean-objects.mjs` | Mesh boolean of two separate cubes on desktop and a phone: one object of one part, undo brings both back |
 | `test/view-touch.mjs` | Phone 3D view: pinching on a model that fills the screen zooms out instead of moving it; Fit all and the views menu |
 | `test/loading.mjs` | The loading screen while the engine starts and a project opens |
 | `test/cancel.mjs` | Cancel stops the slice in the engine, and a change while slicing drops its result |
