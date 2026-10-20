@@ -3,7 +3,8 @@
 // signed out so it lives in this browser: a process preset saved in Snapmaker
 // Orca shows in OrcaSlicer on its stand-in base with the same layer height; a
 // change saved in OrcaSlicer shows back in Snapmaker Orca, and OrcaSlicer's own
-// base is kept for it.
+// base is kept for it. A filament preset with a new print temperature does the
+// same, on OrcaSlicer's stand-in for its base filament.
 //
 //   node test/shared-presets.mjs [screenshot-dir]
 //
@@ -72,6 +73,14 @@ try {
     await page.getByText('Open a model to start').waitFor({ timeout: 120000 });
     await processPicker.waitFor();
   };
+  const filamentPicker = page.getByRole('combobox', { name: 'Filament 1 preset' });
+  const filamentEditor = page.getByRole('dialog', { name: /^Filament (1 )?settings$/ });
+  const temperature = () =>
+    filamentEditor.locator('fieldset', { has: page.locator('legend', { hasText: 'Print temperature' }) }).getByLabel('Other layers', { exact: true });
+  const openFilamentEditor = async () => {
+    await page.getByRole('button', { name: 'Edit filament 1 settings' }).click();
+    await temperature().waitFor();
+  };
   const switchTo = async (name) => {
     await page.getByTestId('engine-chip').click();
     await page.getByRole('menuitemradio', { name: new RegExp(`^${name}`) }).click();
@@ -125,6 +134,30 @@ try {
     await switchTo('Snapmaker Orca');
     await processPicker.selectOption('Both engines');
     await layerIs('0.24');
+  });
+
+  await step('a filament preset saved in Snapmaker Orca', async () => {
+    await openFilamentEditor();
+    await temperature().fill('231');
+    await temperature().press('Enter');
+    await filamentEditor.getByText('1 unsaved change').waitFor();
+    await filamentEditor.getByRole('button', { name: 'Save as new preset…' }).click();
+    await filamentEditor.getByRole('textbox', { name: /preset name/ }).fill('Hot PLA');
+    await filamentEditor.getByRole('button', { name: 'Save', exact: true }).click();
+    await filamentEditor.getByText('Saved as Hot PLA.').waitFor({ timeout: 60000 });
+    await filamentEditor.getByRole('button', { name: 'Close' }).click();
+    const p = (await stored()).find((x) => x.name === 'Hot PLA');
+    expect(p?.type === 'filament' && /^231/.test(p.config.nozzle_temperature ?? ''), JSON.stringify(p));
+  });
+
+  await step('shows in OrcaSlicer with the same print temperature', async () => {
+    await switchTo('OrcaSlicer');
+    await filamentPicker.selectOption('Hot PLA');
+    await openFilamentEditor();
+    for (let i = 0; i < 60 && (await temperature().inputValue()) !== '231'; i++) await page.waitForTimeout(500);
+    expect((await temperature().inputValue()) === '231', `print temperature ${await temperature().inputValue()}`);
+    if (shots) await page.screenshot({ path: join(shots, 'filament-in-orca.png') });
+    await filamentEditor.getByRole('button', { name: 'Close' }).click();
   });
 } finally {
   await browser.close();
