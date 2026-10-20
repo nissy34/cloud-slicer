@@ -1446,6 +1446,10 @@ test('transform fields, sinking, part fields, copy and paste, like desktop', () 
 
   // A Z below the bed sinks it (sliced only above the bed); above the bed it drops back.
   const full = slice(fullConfig()).result.totalLayers;
+  // Turning an object on the bed about a corner keeps it on the bed, not partly under it.
+  move(0, 0, { rotation: [40, 0, 30] });
+  move(0, 0, { rotation: [0, 0, 30] });
+  assert.equal(slice(fullConfig()).result.totalLayers, full, 'turned and back, still all above the bed');
   const z0 = info().objects[0].instances[0].offset[2];
   move(0, 0, { offset: [100, 100, z0 - 10] });
   near(info().objects[0].instances[0].offset[2], z0 - 10, 'sunk by 10 mm');

@@ -138,11 +138,13 @@ void placeOnPlate(ModelObject* obj, int plate) {
 
 void placeObject(ModelObject* obj, int plate) { placeOnPlate(obj, plate); }
 
-void settleOnBed(ModelObject* obj) {
+bool isSunk(const ModelObject* obj) { return obj->min_z() < SINKING_Z_THRESHOLD; }
+
+void settleOnBed(ModelObject* obj, bool sinking) {
     obj->invalidate_bounding_box();
     // Sunk into the bed (desktop's sinking objects): stays so while some of it
     // is above, like GLCanvas3D::do_move. Anything floating drops onto the bed.
-    if (obj->min_z() < SINKING_Z_THRESHOLD && obj->max_z() >= SINKING_MIN_Z_THRESHOLD) return;
+    if (sinking && isSunk(obj) && obj->max_z() >= SINKING_MIN_Z_THRESHOLD) return;
     obj->ensure_on_bed();
 }
 
@@ -417,6 +419,10 @@ std::string setInstanceTransform(int o, int i, const std::string& changesJson) {
     try {
         ModelInstance* inst = instanceAt(o, i);
         const json c = json::parse(changesJson);
+        // Turning or scaling an object on the bed keeps it on the bed (desktop
+        // drops it back); only a Z below it, or one already sunk, sinks.
+        objectAt(o)->invalidate_bounding_box();
+        bool sinking = isSunk(objectAt(o));
         if (c.contains("rotation")) inst->set_rotation(Vec3d(c["rotation"][0].get<double>(), c["rotation"][1].get<double>(), c["rotation"][2].get<double>()) / DEG);
         if (c.contains("scale")) inst->set_scaling_factor(Vec3d(c["scale"][0].get<double>(), c["scale"][1].get<double>(), c["scale"][2].get<double>()));
         if (c.contains("offset")) {
@@ -424,11 +430,12 @@ std::string setInstanceTransform(int o, int i, const std::string& changesJson) {
             const Vec2d origin = g_project.plateOrigin(plate);
             const Vec3d off = inst->get_offset();
             const double z = c["offset"].size() > 2 ? c["offset"][2].get<double>() : off.z();
+            if (c["offset"].size() > 2) sinking = true;
             inst->set_offset(Vec3d(origin.x() + c["offset"][0].get<double>(), origin.y() + c["offset"][1].get<double>(), z));
         }
         // The object's cached bounding box is stale after a rotation or scale
         // (desktop invalidates it too); settling on the bed reads it.
-        settleOnBed(objectAt(o));
+        settleOnBed(objectAt(o), sinking);
         return ok().dump();
     } catch (const std::exception& e) {
         return fail(e.what()).dump();
