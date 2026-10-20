@@ -5,7 +5,7 @@ import { useUserSetting } from '../state/account';
 import { SendMark, useSetupWizard } from './SetupWizard';
 import { CalibrationBanner } from './CalibrationDialog';
 import { useFilamentLimit, useSlicer } from '../state/store';
-import { canAddFilament, filamentLimitMessage } from '../lib/filament-limit';
+import { filamentLimitMessage } from '../lib/filament-limit';
 import { ObjectList } from './ObjectList';
 import { ColorMixPanel } from './ColorMixing';
 import { SyncFilamentsButton } from './FilamentSync';
@@ -92,11 +92,9 @@ function FilamentSection() {
         <h2>Filament</h2>
         <div className="group-actions spaced">
           <SyncFilamentsButton />
-          {canAddFilament(limit, selection.filaments.length) && (
-            <button className="link" onClick={() => void addFilament()} aria-label="Add filament">
-              + Add
-            </button>
-          )}
+          <button className="link" onClick={() => void addFilament()} aria-label="Add filament">
+            + Add
+          </button>
         </div>
       </div>
       <ol className="slots">
@@ -129,7 +127,7 @@ function FilamentSection() {
         ))}
       </ol>
       {limitMessage && (
-        <p className={limitMessage.blocks || limit.kind === 'warn' ? 'hint warn' : 'hint'} data-testid="filament-limit">
+        <p className={limitMessage.warn ? 'hint warn' : 'hint'} data-testid="filament-limit">
           {limitMessage.text}
         </p>
       )}

@@ -5,10 +5,8 @@
 // - OrcaSlicer on the X1 Carbon (single nozzle, AMS): all 8 filaments stay, no
 //   warning, + Add stays, it slices with all 8, and the Preview reads the
 //   Bambu G-code (layers, line types, no T1000 "filament").
-// - OrcaSlicer on the U1 (4 heads, one filament per head): Slice is blocked
-//   with a note and + Add hidden until 4 are left, then it slices.
-// - Snapmaker Orca on the U1: all 8 stay and slice; a plain note says each one
-//   gets a head when the print is sent.
+// - Both engines on the U1 (4 heads): all 8 stay and slice (OrcaSlicer used to
+//   crash); a plain note says each one gets a head when the print is sent.
 //
 //   npm run build && node test/filament-count.mjs [screenshot-dir]
 import { spawn } from 'node:child_process';
@@ -120,56 +118,30 @@ try {
   for (const viewport of [
     { name: 'desktop', width: 1280, height: 900 },
     { name: 'phone', width: 390, height: 844 },
-  ]) {
-    await step(`OrcaSlicer, U1 (${viewport.name}): one filament per head, Slice blocked until 4 are left`, async () => {
-      const page = await open('orca', null, viewport);
-      await page.getByTestId('model-input').setInputFiles(model);
-      const dialog = page.getByRole('dialog', { name: 'Convert this project?' });
-      await dialog.waitFor({ timeout: 120000 });
-      await dialog.getByLabel('Convert to printer').selectOption(U1);
-      await dialog.getByRole('button', { name: 'Convert' }).click();
-      await page.getByText(/Converted from/).waitFor({ timeout: 120000 });
-      expect((await slots(page).count()) === 8, `${await slots(page).count()} filaments`);
-      const note = page.getByTestId('filament-limit');
-      expect(/one filament per head.*Snapmaker Orca/.test(await note.innerText()), `note: ${await note.innerText()}`);
-      const sliceButton = page.getByRole('button', { name: /^Slice plate/ });
-      expect(await sliceButton.isDisabled(), 'Slice is blocked');
-      expect(!(await page.getByRole('button', { name: 'Add filament' }).count()), '+ Add is hidden');
-      await note.scrollIntoViewIfNeeded();
-      await shot(page, `orca-u1-blocked-${viewport.name}`);
-      if (viewport.name === 'phone') return void (await page.close());
-      for (let i = 8; i > 4; i--) await page.getByRole('button', { name: `Remove filament ${i}` }).click();
-      await page.waitForFunction(() => document.querySelectorAll('select[aria-label^="Filament "][aria-label$=" preset"]').length === 4);
-      expect(!(await note.count()), 'the note goes with 4 filaments');
-      expect(!(await page.getByRole('button', { name: 'Add filament' }).count()), '+ Add stays hidden with a filament per head');
-      await slice(page);
-      expect((await filamentsInPreview(page)).length <= 4, 'sliced with at most 4 filaments');
-      await page.close();
-    });
-
-    await step(`Snapmaker Orca, U1 (${viewport.name}): all 8 filaments slice, each gets a head when sent`, async () => {
-      const page = await open('snapmaker', null, viewport);
-      await page.getByTestId('model-input').setInputFiles(model);
-      const dialog = page.getByRole('dialog', { name: 'Convert this project?' });
-      await dialog.waitFor({ timeout: 120000 });
-      await dialog.getByRole('button', { name: 'Convert' }).click();
-      await page.getByText(/Converted from/).waitFor({ timeout: 120000 });
-      expect((await page.getByRole('combobox', { name: 'Printer preset' }).inputValue()) === U1, 'converted to the U1');
-      expect((await slots(page).count()) === 8, `${await slots(page).count()} filaments`);
-      const note = page.getByTestId('filament-limit');
-      expect(/8 filaments on 4 heads: you pick which head/.test(await note.innerText()), `note: ${await note.innerText()}`);
-      expect(!(await note.getAttribute('class')).includes('warn'), 'a plain note, not a warning');
-      expect(await page.getByRole('button', { name: 'Add filament' }).isVisible(), '+ Add is there');
-      await note.scrollIntoViewIfNeeded();
-      await shot(page, `snapmaker-u1-${viewport.name}`);
-      if (viewport.name === 'phone') return void (await page.close());
-      await slice(page);
-      const used = await filamentsInPreview(page);
-      expect(used.join() === '1,2,3,4,5,6,7,8', `the Preview lists filaments ${used.join()}`);
-      await shot(page, 'snapmaker-u1-preview');
-      await page.close();
-    });
-  }
+  ])
+    for (const engine of ['orca', 'snapmaker'])
+      await step(`${engine === 'orca' ? 'OrcaSlicer' : 'Snapmaker Orca'}, U1 (${viewport.name}): all 8 filaments slice, each gets a head when sent`, async () => {
+        const page = await open(engine, null, viewport);
+        await page.getByTestId('model-input').setInputFiles(model);
+        const dialog = page.getByRole('dialog', { name: 'Convert this project?' });
+        await dialog.waitFor({ timeout: 120000 });
+        await dialog.getByLabel('Convert to printer').selectOption(U1);
+        await dialog.getByRole('button', { name: 'Convert' }).click();
+        await page.getByText(/Converted from/).waitFor({ timeout: 120000 });
+        expect((await slots(page).count()) === 8, `${await slots(page).count()} filaments`);
+        const note = page.getByTestId('filament-limit');
+        expect(/8 filaments on 4 heads: you pick which head/.test(await note.innerText()), `note: ${await note.innerText()}`);
+        expect(!(await note.getAttribute('class')).includes('warn'), 'a plain note, not a warning');
+        expect(await page.getByRole('button', { name: 'Add filament' }).isVisible(), '+ Add is there');
+        await note.scrollIntoViewIfNeeded();
+        await shot(page, `${engine}-u1-${viewport.name}`);
+        if (viewport.name === 'phone') return void (await page.close());
+        await slice(page);
+        const used = await filamentsInPreview(page);
+        expect(used.join() === '1,2,3,4,5,6,7,8', `the Preview lists filaments ${used.join()}`);
+        await shot(page, `${engine}-u1-preview`);
+        await page.close();
+      });
 } catch {
   // reported by step()
 } finally {

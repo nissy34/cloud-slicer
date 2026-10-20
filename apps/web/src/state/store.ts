@@ -735,16 +735,15 @@ export const useSlicer = create<SlicerState>((set, get) => {
     const { filaments, selection } = get();
     const names = colours.map((_, i) => pickFilament(filaments, types[i], selection?.filaments[0], sources[i]));
     await applySelection({ ...selection, filaments: names, colours });
-    const { flavor, overrides, baseConfig } = get();
+    const { overrides, baseConfig } = get();
     const config = (k: string) => overrides[k] ?? baseConfig[k];
     const limit = filamentLimit({
-      flavor,
       printer: get().selection?.printer ?? '',
       nozzleDiameter: config('nozzle_diameter'),
       singleExtruderMM: config('single_extruder_multi_material'),
     });
     const message = filamentLimitMessage(limit, colours.length);
-    if (message) set({ notice: message.text, noticeWarn: message.blocks });
+    if (message) set({ notice: message.text, noticeWarn: message.warn });
   }
 
   // Plates follow the selected printer's bed; objects keep their place
@@ -1660,13 +1659,12 @@ export const NO_COLOURS: string[] = [];
 /** Value of an option as it will be sliced: the user's override, else the preset's. */
 export const useOption = (key: string) => useSlicer((s) => s.overrides[key] ?? s.baseConfig[key]);
 
-/** How many filaments the selected printer takes in this project's engine (lib/filament-limit.ts). */
+/** What the selected printer does with more filaments than heads (lib/filament-limit.ts). */
 export function useFilamentLimit(): FilamentLimit {
-  const flavor = useSlicer((s) => s.flavor);
   const printer = useSlicer((s) => s.selection?.printer ?? '');
   const nozzleDiameter = useOption('nozzle_diameter');
   const singleExtruderMM = useOption('single_extruder_multi_material');
-  return filamentLimit({ flavor, printer, nozzleDiameter, singleExtruderMM });
+  return filamentLimit({ printer, nozzleDiameter, singleExtruderMM });
 }
 
 /** The build volume of the selected printer, in plate coordinates. */

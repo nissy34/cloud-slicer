@@ -103,6 +103,22 @@ void padFlushMatrix(DynamicPrintConfig& cfg) {
     m->values = std::move(v);
 }
 
+// Upstream OrcaSlicer prints filament N with extruder N on a printer with
+// several heads (desktop fixes one filament per head there) and reads the
+// extruder settings past their end when a project has more filaments, so a
+// slice crashed. Give it one extruder per filament, as desktop's printer
+// "Extruders" count does (the extra ones copy the last head). Snapmaker Orca
+// slices such projects too; the U1 maps the file's tools onto its heads when
+// the print is sent (SET_PRINT_EXTRUDER_MAP).
+void extruderPerFilament(DynamicPrintConfig& cfg) {
+#if ENGINE_UPSTREAM
+    const auto* nozzles = cfg.option<ConfigOptionFloats>("nozzle_diameter");
+    const auto* filaments = cfg.option<ConfigOptionFloats>("filament_diameter");
+    if (!nozzles || !filaments || nozzles->values.size() <= 1 || cfg.opt_bool("single_extruder_multi_material")) return;
+    if (filaments->values.size() > nozzles->values.size()) cfg.set_num_extruders(unsigned(filaments->values.size()));
+#endif
+}
+
 // Copy of the project holding only `plate`'s instances, moved so the plate's
 // front-left corner is the origin (what desktop's PartPlate hands to Print).
 // It is marked as that plate, as desktop does before slicing a plate, so Print
@@ -273,6 +289,7 @@ std::string sliceWithConfig(const std::string& configJson, int plate, const std:
         DynamicPrintConfig cfg;
         cfg.apply(FullPrintConfig::defaults());
         for (const std::string& w : engine::applyJsonConfig(cfg, json::parse(configJson))) warnings.add("A setting could not be used: " + w, false);
+        extruderPerFilament(cfg);
         padFlushMatrix(cfg);
         // wipe_tower_x/y hold one position per plate. The Print below slices as
         // plate 0, so it gets this plate's, kept on the bed the way desktop
