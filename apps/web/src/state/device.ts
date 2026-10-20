@@ -13,13 +13,13 @@
 // direct printer's API key, a bridge's pairing key) is saved as the printer's
 // API key and only fetched when connecting or editing.
 import { create } from 'zustand';
-import type { Device } from '../account/api';
-import { deleteDevice, getDeviceApiKey, saveDevice, useAccount } from './account';
+import { api, ApiError, type Device } from '../account/api';
+import { accountReady, deleteDevice, getDeviceApiKey, saveDevice, useAccount } from './account';
 import type { PrinterAddon, PrinterError, PrinterFacts } from '../device/addons';
 import { coalesce } from '../device/coalesce';
-import { BridgeLink } from '../device/link/bridge';
+import { BridgeLink, setBridgeTickets } from '../device/link/bridge';
 import { DirectLink } from '../device/link/direct';
-import type { BridgeStatus, PrinterLink } from '../device/link/types';
+import { LinkError, type BridgeStatus, type PrinterLink } from '../device/link/types';
 import { decodePairing, type Pairing } from '../device/pairing';
 import { PrinterSession, type ConnState, type ConsoleLine, type GcodeFile } from '../device/session';
 import type { KlipperObjects } from '../device/status';
@@ -43,6 +43,26 @@ export interface SavedBridge {
   bridgeId: string;
   key: string;
 }
+
+/** Shown when a bridge needs an account; the Device tab offers Sign in next to it. */
+export const BRIDGE_SIGN_IN = 'Sign in to reach printers through the bridge. Printers you reach directly need no account.';
+
+// The relay lets a browser in only with the site's ticket for a signed-in, allowed account.
+setBridgeTickets(async (relay, bridgeId) => {
+  await accountReady();
+  const status = useAccount.getState().status;
+  // A site without accounts (local dev) uses a relay without tickets.
+  if (status === 'unavailable') return null;
+  if (status !== 'signedIn') throw new LinkError(BRIDGE_SIGN_IN, 'auth');
+  try {
+    return await api.relayTicket(relay, bridgeId);
+  } catch (e) {
+    if (e instanceof ApiError && (e.status === 503 || e.status === 404)) return null;
+    if (e instanceof ApiError && e.status === 401) throw new LinkError(BRIDGE_SIGN_IN, 'auth');
+    if (e instanceof ApiError) throw new LinkError(e.message, 'auth');
+    throw new LinkError('Could not reach Cloud Slicer to open the bridge. Check your internet connection.', 'network');
+  }
+});
 
 export type SendSource = { kind: 'upload'; blob: Blob; name: string } | { kind: 'file'; path: string };
 
@@ -306,6 +326,8 @@ export const useDevice = create<DeviceState>((set, get) => {
 
   // Follow the account's printers: sign-in, sign-out and edits on other devices.
   useAccount.subscribe((a, prev) => {
+    // Just signed in: a bridge that was waiting for an account connects now.
+    if (a.status === 'signedIn' && prev.status !== 'signedIn' && get().conn.state !== 'online') session?.retryNow();
     if (a.devices === prev.devices) return;
     const before = get().printers.find((x) => x.id === get().activeId);
     const printers = accountPrinters();
@@ -413,6 +435,8 @@ export const useDevice = create<DeviceState>((set, get) => {
         for (const p of get().printers) if (p.kind === 'bridge' && p.bridgeId === b.bridgeId) await deleteDevice(p.id);
         // Older copies of the same bridge's record go too.
         for (const d of useAccount.getState().devices) if (bridgeFromDevice(d)?.bridgeId === b.bridgeId) await deleteDevice(d.id);
+        // It no longer counts against the account's bridges.
+        if (useAccount.getState().status === 'signedIn') await api.forgetBridge(b.bridgeId).catch(() => undefined);
       } catch (e) {
         get().setToast(`Could not remove the bridge: ${(e as Error).message}`, true);
         return;

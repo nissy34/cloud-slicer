@@ -18,6 +18,18 @@ hibernate, so an idle bridge costs nothing; it runs on the free plan.
   key from the pairing code (HMAC-SHA256 of the secret key; it can't connect
   as the agent).
 - Per client IP: at most 60 websocket connects and 5 new bridge ids a minute.
+- **Accounts**, when the Worker has the secret `RELAY_TICKET_PUBLIC_KEY` (CI's
+  `setup-accounts.mjs` sets it): a browser also needs `&ticket=…`, a JWT the site
+  signs for one signed-in account and one bridge (`apps/web/functions/_lib/relay.ts`),
+  checked in the Worker before the bridge's Durable Object wakes. It lasts an hour;
+  the page renews it over the socket (`{"relay":"ticket","ticket":…}`). The ticket
+  also carries the account's camera cap (2 at a time). The first account to use a
+  bridge owns it; a bridge no account has used within 7 days of its first connect is
+  refused, and so is one whose owner is blocked.
+- `POST /v1/revoke` (signed by the site): an account was blocked or unblocked; its
+  browsers on the listed bridges are closed at once.
+- `GET /v1/info` says whether accounts are on. `RELAY_TEST_PUBLIC_KEY` is CI's
+  throwaway key for checking the deployed relay; it only works for `ci-` bridges.
 
 ```bash
 npm ci

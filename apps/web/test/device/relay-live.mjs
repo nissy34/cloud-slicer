@@ -7,12 +7,18 @@
 //
 // With --app, a one-file bridge app (bun build --compile) is the agent instead
 // of bridge.mjs in this process.
+//
+// A relay that wants account tickets: give RELAY_TICKET_PRIVATE_KEY (the JWK
+// of the key pair whose public half the relay has) and the pretend browsers
+// carry tickets, as the site would sign them. Then it also checks a browser
+// without one is refused, the camera cap, and that blocking an account drops it.
 import { spawn } from 'node:child_process';
 import { randomBytes } from 'node:crypto';
 import { mkdtempSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { browserKey, pairingCode, runBridge } from '../../../device-bridge/bridge.mjs';
+import { importJWK, SignJWT } from 'jose';
 import { startMockPrinter } from './mock-printer.mjs';
 
 const relay = (process.argv[2] ?? '').replace(/\/+$/, '');
@@ -33,7 +39,27 @@ function startApp(path) {
 /** Every pretend-browser socket, closed at the end so a failure can't keep the process alive. */
 const open = new Set();
 const clientKey = browserKey(cfg.key);
-const socket = (key, printer, role = 'client') => new WebSocket(`${relay.replace(/^http/, 'ws')}/v1/bridges/${cfg.bridgeId}/${role}?key=${key}&printer=${printer}`);
+const signer = process.env.RELAY_TICKET_PRIVATE_KEY ? await importJWK(JSON.parse(process.env.RELAY_TICKET_PRIVATE_KEY), 'ES256') : null;
+/** What the site signs (apps/web/functions/_lib/relay.ts). */
+const sign = (user, claims, seconds = 600) =>
+  new SignJWT(claims).setProtectedHeader({ alg: 'ES256' }).setSubject(user).setAudience('cloud-slicer-relay').setIssuedAt().setExpirationTime(`${seconds}s`).sign(signer);
+const mint = (user = 'ci-user', claims = {}) => (signer ? sign(user, { b: cfg.bridgeId, cams: 2, ...claims }) : Promise.resolve(''));
+const ownerTicket = await mint();
+const socket = (key, printer, role = 'client', ticket = ownerTicket) =>
+  new WebSocket(`${relay.replace(/^http/, 'ws')}/v1/bridges/${cfg.bridgeId}/${role}?key=${key}&printer=${printer}${ticket && role === 'client' ? `&ticket=${ticket}` : ''}`);
+/** One call through a fresh socket; resolves to the answer message. */
+function ask(ticket, call) {
+  return new Promise((resolve, reject) => {
+    const ws = socket(clientKey, 'u1', 'client', ticket);
+    open.add(ws);
+    ws.onopen = () => ws.send(JSON.stringify({ jsonrpc: '2.0', ...call }));
+    ws.onmessage = (e) => {
+      const m = JSON.parse(e.data);
+      if (m.id === call.id) resolve({ m, ws });
+    };
+    ws.onclose = (e) => reject(new Error(`closed: ${e.code} ${e.reason}`));
+  });
+}
 const closeCode = (ws) => new Promise((resolve) => (ws.onclose = (e) => resolve(e)));
 const timeout = setTimeout(() => {
   console.error('RELAY LIVE FAIL: timed out');
@@ -95,6 +121,44 @@ try {
   if (secretAsBrowser.code !== 4003) throw new Error(`the secret key connected as a browser (${secretAsBrowser.code})`);
   console.log(`secret key refused as a browser: ${secretAsBrowser.reason}`);
   console.log(`pairing code format ok (${pairingCode(cfg).length} chars)`);
+
+  const { accounts } = await (await fetch(`${relay}/v1/info`)).json();
+  if (signer && !accounts) console.log('this relay takes no tickets (it has no ticket key): skipping the account checks');
+  if (signer && accounts) {
+    const none = await closeCode(socket(clientKey, 'u1', 'client', ''));
+    if (none.code !== 4401) throw new Error(`a browser without a ticket was let in (${none.code})`);
+    const other = await closeCode(socket(clientKey, 'u1', 'client', await sign('ci-user', { b: 'some-other-bridge', cams: 2 })));
+    if (other.code !== 4401) throw new Error(`another bridge's ticket was accepted (${other.code})`);
+    const stale = await closeCode(socket(clientKey, 'u1', 'client', await sign('ci-user', { b: cfg.bridgeId }, -10)));
+    if (stale.code !== 4401) throw new Error(`an expired ticket was accepted (${stale.code})`);
+    console.log(`tickets: none, another bridge's and an expired one refused (${none.reason})`);
+
+    // One camera allowed: a second camera is refused, the first keeps working.
+    const one = await mint('ci-cams', { cams: 1 });
+    const a = await ask(one, { id: 'c1', method: 'bridge.snapshot', params: { url: '/server/files/camera/monitor.jpg' } });
+    a.ws.close();
+    const b = await ask(one, { id: 'c2', method: 'bridge.snapshot', params: { url: '/webcam2/snapshot.jpg' } });
+    b.ws.close();
+    if (a.m.error?.code === -32002 || b.m.error?.code !== -32002) throw new Error(`camera cap: ${JSON.stringify([a.m.error, b.m.error])}`);
+    console.log(`camera cap: ${b.m.error.message}`);
+
+    // Blocking an account drops its browsers at once; the bridge's owner is not touched.
+    const blocked = await mint('ci-blocked');
+    const live = socket(clientKey, 'u1', 'client', blocked);
+    open.add(live);
+    await new Promise((r, j) => ((live.onmessage = r), (live.onclose = (e) => j(new Error(`closed early: ${e.code}`)))));
+    const dropped = closeCode(live);
+    const order = await sign('ci-blocked', { revoke: [cfg.bridgeId], blocked: true }, 300);
+    const res = await fetch(`${relay}/v1/revoke`, { method: 'POST', headers: { Authorization: `Bearer ${order}` } });
+    if (!res.ok) throw new Error(`revoke: HTTP ${res.status}`);
+    const forged = await fetch(`${relay}/v1/revoke`, { method: 'POST', headers: { Authorization: `Bearer ${order.slice(0, -4)}AAAA` } });
+    if (forged.status !== 403) throw new Error(`a forged revoke was accepted (${forged.status})`);
+    if ((await dropped).code !== 4403) throw new Error('the blocked account was not dropped');
+    const still = await ask(ownerTicket, { id: 9, method: 'printer.info' });
+    still.ws.close();
+    if (still.m.result?.hostname !== 'U1-mock') throw new Error('the owner lost the bridge');
+    console.log('blocking an account drops it; a forged order is refused; the owner keeps the bridge');
+  }
   console.log('RELAY LIVE OK');
 } catch (e) {
   console.error(`RELAY LIVE FAIL: ${e.message}`);

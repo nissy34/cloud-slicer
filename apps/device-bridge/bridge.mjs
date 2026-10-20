@@ -789,10 +789,10 @@ export function runBridge(cfg, { log = console.log, save = async () => {}, onRep
         onReplaced();
         return;
       }
-      if (ev.code === 4003) {
-        log(`The relay refused this bridge: ${ev.reason}`);
-      }
-      const delay = Math.min(60_000, 2000 * 2 ** Math.min(retries++, 5));
+      // Refused (blocked, or never paired with a signed-in account): asking again soon won't change that.
+      const refused = ev.code === 4003;
+      if (refused) log(`The relay refused this bridge: ${ev.reason}`);
+      const delay = refused ? 10 * 60_000 : Math.min(60_000, 2000 * 2 ** Math.min(retries++, 5));
       log(`Relay connection closed${ev.reason ? ` (${ev.reason})` : ''}; retrying in ${Math.round(delay / 1000)} s.`);
       setTimeout(connect, delay);
     };
