@@ -108,7 +108,7 @@ set(ENGINE_FLAVOR_SOURCES "")
 if(ENGINE_HAS_MIXING)
     list(APPEND ENGINE_FLAVOR_SOURCES src/mixed_api.cpp)
 endif()
-add_executable(orca-engine ${ENGINE_FLAVOR_SOURCES} src/presets_api.cpp src/model_api.cpp src/slice_api.cpp src/tools_api.cpp src/paint_api.cpp src/calib_api.cpp src/history_api.cpp src/measure_api.cpp src/layers_api.cpp src/brim_api.cpp src/simplify_api.cpp src/object_api.cpp src/volume_api.cpp src/wipe_tower_api.cpp src/boolean_api.cpp src/text_api.cpp src/svg_api.cpp src/surface_api.cpp src/plate_api.cpp src/memory.cpp)
+add_executable(orca-engine ${ENGINE_FLAVOR_SOURCES} src/presets_api.cpp src/model_api.cpp src/slice_api.cpp src/tools_api.cpp src/paint_api.cpp src/calib_api.cpp src/history_api.cpp src/measure_api.cpp src/layers_api.cpp src/brim_api.cpp src/simplify_api.cpp src/object_api.cpp src/volume_api.cpp src/wipe_tower_api.cpp src/boolean_api.cpp src/text_api.cpp src/svg_api.cpp src/surface_api.cpp src/plate_api.cpp src/flush_api.cpp src/memory.cpp)
 # mimalloc.h, for the allocator settings in src/memory.cpp.
 target_include_directories(orca-engine PRIVATE "${EMSCRIPTEN_ROOT_PATH}/system/lib/mimalloc/include")
 target_link_libraries(orca-engine PRIVATE libslic3r embind)
@@ -130,6 +130,11 @@ target_link_options(orca-engine PRIVATE
     # the threads queueing for memory instead of slicing.
     -sMALLOC=mimalloc
 )
+# Upstream OrcaSlicer's flushing volumes come from measured colour pairs in
+# resources/flush (FlushVolPredictor reads them from resources_dir(), "" here).
+if(ENGINE_FLAVOR STREQUAL "orca")
+    target_link_options(orca-engine PRIVATE "SHELL:--embed-file ${ORCA_DIR}/resources/flush@/flush")
+endif()
 option(ENGINE_WASM_DEBUG "Runtime assertions + symbolised stacks" OFF)
 if(ENGINE_WASM_DEBUG)
     target_link_options(orca-engine PRIVATE -sASSERTIONS=2 --profiling-funcs -sSAFE_HEAP=1 -sSTACK_OVERFLOW_CHECK=2)
