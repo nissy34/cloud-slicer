@@ -35,6 +35,8 @@ export interface SelectResult {
   selection: Selection;
   processes: PresetSummary[];
   filaments: PresetSummary[];
+  /** The printer's flushing (engine/src/flush_api.cpp); missing from an older engine. */
+  flush?: import('../lib/flush').FlushInfo;
 }
 
 /** Which engine is running and what it can do (engine/src/presets_api.cpp engineInfo). */

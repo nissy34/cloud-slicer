@@ -4612,6 +4612,94 @@ button.volume-name {
   margin: -2px 0 0;
 }
 
+/* Flushing volumes (components/FlushVolumes.tsx): one grid, number boxes that
+   shrink to fit, so even eight filaments fit a phone without scrolling sideways. */
+.flush-link {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin-top: 6px;
+}
+.flush-volumes {
+  display: grid;
+  gap: 10px;
+}
+.flush-grid {
+  display: grid;
+  gap: 4px;
+  align-items: center;
+}
+.flush-row {
+  display: contents;
+}
+.flush-corner {
+  display: grid;
+  font-size: 10px;
+  line-height: 1.1;
+  color: var(--muted);
+}
+.flush-corner span:last-child {
+  text-align: right;
+}
+.flush-head {
+  display: flex;
+  justify-content: center;
+}
+.flush-chip {
+  display: inline-grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  border: 1px solid var(--border);
+  font-size: 11px;
+  font-weight: 600;
+  color: #fff;
+  text-shadow: 0 0 2px #000, 0 0 2px #000;
+}
+.flush-box,
+.flush-self {
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+.flush-box {
+  padding: 6px 2px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--surface);
+  color: var(--text);
+  font-size: 13px;
+  -moz-appearance: textfield;
+}
+.flush-box::-webkit-inner-spin-button,
+.flush-box::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+.flush-box.warn {
+  color: var(--danger);
+  border-color: var(--danger);
+}
+.flush-self {
+  color: var(--muted);
+}
+.flush-multiplier {
+  display: grid;
+  grid-template-columns: auto 80px 1fr;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+}
+@media (max-width: 760px) {
+  .flush-multiplier {
+    grid-template-columns: auto 80px;
+  }
+  .flush-multiplier .small {
+    grid-column: 1 / -1;
+  }
 /* Switch this project to <engine>?: the list scrolls inside, the buttons stay. */
 .dialog.engine-switch {
   width: min(520px, 100%);

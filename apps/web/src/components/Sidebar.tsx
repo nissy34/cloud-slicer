@@ -8,6 +8,7 @@ import { useOption, useSlicer } from '../state/store';
 import { ObjectList } from './ObjectList';
 import { ColorMixPanel } from './ColorMixing';
 import { SyncFilamentsButton } from './FilamentSync';
+import { FlushVolumesButton } from './FlushVolumes';
 import { OptionField } from './OptionField';
 import { SettingsPanel } from './SettingsPanel';
 import { PresetMenu } from '../account/PresetMenu';
@@ -89,6 +90,8 @@ function FilamentSection() {
   const filaments = installedOnly(allFilaments, withMine(installed, allFilaments), selection?.filaments);
   const { setFilament, setColour, addFilament, removeFilament } = useSlicer.getState();
   const extruders = (useOption('nozzle_diameter') ?? '').split(',').filter(Boolean).length;
+  // A printer that changes filament in one nozzle (AMS, MMU...) takes any number of them.
+  const flushes = useSlicer((s) => s.flush?.flushes ?? false);
   if (!selection) return null;
   return (
     <section className="group">
@@ -130,7 +133,8 @@ function FilamentSection() {
           </li>
         ))}
       </ol>
-      {extruders > 0 && selection.filaments.length > extruders && (
+      <FlushVolumesButton />
+      {!flushes && extruders > 0 && selection.filaments.length > extruders && (
         <p className="hint warn">
           {selection.filaments.length} filaments on a printer with {extruders} extruders.
         </p>

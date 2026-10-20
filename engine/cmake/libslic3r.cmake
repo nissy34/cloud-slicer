@@ -150,7 +150,21 @@ list(REMOVE_DUPLICATES LIBSLIC3R_SOURCES)
 if("Format/DRC.cpp" IN_LIST _rel)
     list(APPEND LIBSLIC3R_SOURCES ${COMPAT_DIR}/drc_stub.cpp)
 endif()
+# Desktop's flushing volume maths (FlushVolCalc.cpp, FlushVolPredictor.cpp)
+# calls colour conversions that live with the GUI, in
+# slic3r/Utils/ColorSpaceConvert.cpp. Build that file as it is, without its
+# two wxWidgets helpers (the last two functions) and their include.
+file(READ "${ORCA_DIR}/src/slic3r/Utils/ColorSpaceConvert.cpp" _csc)
+string(FIND "${_csc}" "std::string color_to_string" _csc_cut)
+if(_csc_cut EQUAL -1)
+    message(FATAL_ERROR "ColorSpaceConvert.cpp changed: color_to_string not found")
+endif()
+string(SUBSTRING "${_csc}" 0 ${_csc_cut} _csc)
+string(REPLACE "#include <wx/colordlg.h>" "" _csc "${_csc}")
+string(REPLACE "#include \"ColorSpaceConvert.hpp\"" "#include \"slic3r/Utils/ColorSpaceConvert.hpp\"" _csc "${_csc}")
+file(WRITE "${CMAKE_CURRENT_BINARY_DIR}/ColorSpaceConvert.cpp" "${_csc}")
 list(APPEND LIBSLIC3R_SOURCES
+    ${CMAKE_CURRENT_BINARY_DIR}/ColorSpaceConvert.cpp
     ${COMPAT_DIR}/stubs.cpp
     ${COMPAT_DIR}/boost_locale_stub.cpp
     ${COMPAT_DIR}/nanosvg_impl.c)

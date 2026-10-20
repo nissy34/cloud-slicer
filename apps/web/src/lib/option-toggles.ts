@@ -21,6 +21,8 @@ export interface ToggleContext {
   scope: 'global' | 'object';
   /** Option metadata, to find list options and flow-variant ones. */
   options: Record<string, { type?: string; flow?: 'process' | 'filament' } | undefined>;
+  /** A Bambu Lab printer is selected (desktop hides some settings for them). */
+  bambu?: boolean;
 }
 
 export interface OptionStates {
@@ -96,8 +98,7 @@ export function optionStates(cfg: OrcaConfig, ctx: ToggleContext): OptionStates 
 
   const gcflavor = c.str('gcode_flavor');
   const bSEMM = c.bool('single_extruder_multi_material');
-  // Desktop hides some Bambu-only settings; no Bambu printer here.
-  const isBBL = false;
+  const isBBL = ctx.bambu ?? false;
 
   // ---- Process (ConfigManipulation::toggle_print_fff_options) ----
   const haveSlope = c.num('max_volumetric_extrusion_rate_slope') > 0;
