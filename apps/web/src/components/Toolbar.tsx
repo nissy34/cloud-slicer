@@ -1,6 +1,7 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import type { PaintKind } from '../engine/protocol';
 import { sentence } from '../lib/format';
+import { editKey } from '../lib/transform';
 import { NO_COLOURS, useSlicer, type Tool } from '../state/store';
 import { DEFAULT_PAINT, PaintPanel } from './PaintPanel';
 import { startText } from './TextPanel';
@@ -144,16 +145,50 @@ export function Toolbar({ onAdd }: { onAdd(): void }) {
     }
   };
 
+  // Desktop's editing keys: Delete, Ctrl+C / Ctrl+V, Ctrl+K (clone) and + / - (a copy more or less).
+  const runEdit = (edit: NonNullable<ReturnType<typeof editKey>>) => {
+    const s = useSlicer.getState();
+    if (edit === 'paste') return void s.paste();
+    if (!selected || !project?.objects[selected.object]?.instances[selected.instance]) return;
+    const { object: o, instance: i, volume: v } = selected;
+    const obj = project.objects[o];
+    switch (edit) {
+      case 'delete': {
+        // A picked part goes (not the object's last one); else the picked copy, the object with its last.
+        const vol = v !== undefined ? obj.volumes[v] : undefined;
+        if (vol && (vol.kind !== 'part' || obj.volumes.filter((x) => x.kind === 'part').length > 1))
+          return void s.volumeAction(o, { op: 'delete', volume: v! }, 'Delete part');
+        return void (obj.instances.length > 1 ? s.removeInstance(o, i) : s.deleteObject(o));
+      }
+      case 'copy':
+        return void s.copyToClipboard(o, i);
+      case 'clone': {
+        // Desktop's Ctrl+K asks how many copies: the object menu's Clone form, over the plate.
+        const box = bar.current?.getBoundingClientRect();
+        return s.openObjectMenu({ object: o, instance: i, x: box ? box.left + 8 : 16, y: box ? box.bottom + 8 : 80, form: 'clone' });
+      }
+      case 'addCopy':
+        return void s.copyInstance(o, i);
+      case 'removeCopy':
+        if (obj.instances.length > 1) return void s.removeInstance(o, i);
+    }
+  };
+
   // Desktop's single-key shortcuts, while the 3D view (not a text field) has the keys.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       const el = e.target as HTMLElement;
-      if (el.closest('input, textarea, select, [contenteditable="true"]') || e.altKey) return;
+      // Typing goes to text boxes; a ticked checkbox or a slider keeps the shortcuts working.
+      if (el.closest('input:not([type="checkbox"]):not([type="radio"]):not([type="range"]), textarea, select, [contenteditable="true"]') || e.altKey) return;
       // Ctrl+Shift+Z redoes too, and Cmd works for Ctrl on a Mac.
       const key = e.shiftKey && e.key.toUpperCase() === 'Z' ? 'Y' : e.key.toUpperCase();
       const combo = (e.ctrlKey || e.metaKey ? 'Ctrl+' : '') + key;
       const item = ALL.find((i) => i.key === combo && !i.missing);
-      if (item) {
+      const edit = editKey(e);
+      if (edit) {
+        if (edit === 'paste' || selected) e.preventDefault();
+        runEdit(edit);
+      } else if (item) {
         e.preventDefault();
         run(item);
       } else if (combo === 'Ctrl+E') {

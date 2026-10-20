@@ -1,0 +1,237 @@
+// "From printer" in the Filament section: loads the filaments in the printer's
+// tool heads into the project, like desktop Snapmaker Orca's Sync filament
+// button. The printer and its heads come from the Device tab's connection
+// (state/device.ts, device/addons/u1.ts); the plan from lib/filament-sync.
+import { useEffect, useMemo, useState, type ReactNode } from 'react';
+import { u1Heads } from '../device/addons/u1';
+import { Dialog, Swatch } from '../device/ui/parts';
+import { isLoaded, matchByColour, printerFilaments, syncPlan, syncPreset, type SyncMode } from '../lib/filament-sync';
+import { shortName } from '../lib/presets';
+import { installedOnly, SETUP_KEY, type Setup } from '../lib/setup';
+import { useUserSetting } from '../state/account';
+import { useDevice } from '../state/device';
+import { useSlicer } from '../state/store';
+
+export function SyncFilamentsButton() {
+  const [open, setOpen] = useState(false);
+  return (
+    <>
+      <button className="link" onClick={() => setOpen(true)} title="Load the filaments in your printer's tool heads into this project" data-testid="sync-filaments">
+        From printer
+      </button>
+      {open && <SyncFilamentsDialog onClose={() => setOpen(false)} />}
+    </>
+  );
+}
+
+function SyncFilamentsDialog({ onClose }: { onClose(): void }) {
+  const printers = useDevice((s) => s.printers);
+  const activeId = useDevice((s) => s.activeId);
+  const conn = useDevice((s) => s.conn);
+  const isU1 = useDevice((s) => s.addons.some((a) => a.id === 'u1'));
+  const objects = useDevice((s) => s.objects);
+  const selection = useSlicer((s) => s.selection);
+  const presets = useSlicer((s) => s.filaments);
+  const hasObjects = useSlicer((s) => (s.project?.objects.length ?? 0) > 0);
+  const mixCount = useSlicer((s) => s.mixes.filter((m) => m.enabled && !m.deleted).length);
+  const installedNames = useUserSetting<Setup>(SETUP_KEY)?.filaments;
+  const printer = printers.find((p) => p.id === activeId);
+
+  // Connects the printer the Device tab shows, if it isn't already.
+  useEffect(() => useDevice.getState().start(), []);
+
+  const heads = useMemo(() => (isU1 && objects.print_task_config ? printerFilaments(u1Heads(objects)) : []), [isU1, objects]);
+  const loaded = heads.filter(isLoaded);
+  const project = useMemo(
+    () =>
+      (selection?.filaments ?? []).map((name, i) => ({
+        preset: name,
+        colour: selection?.colours[i] ?? '#FFFFFF',
+        type: presets.find((p) => p.name === name)?.filamentType ?? '',
+      })),
+    [selection, presets],
+  );
+
+  const [mode, setMode] = useState<SyncMode>(hasObjects ? 'match' : 'replace');
+  // The user's picks, until the printer's filaments change.
+  const headsKey = heads.map((h) => `${h.type}/${h.colour}/${h.name}`).join('|');
+  const [picked, setChoice] = useState<{ key: string; picks: number[] } | null>(null);
+  const choice = picked?.key === headsKey ? picked.picks : null;
+  const [addRest, setAddRest] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const ready = conn.state === 'online' && loaded.length > 0;
+  const picks = choice ?? matchByColour(project, heads);
+  const plan = ready ? syncPlan(mode, project.length, heads, picks, addRest) : null;
+  const installed = installedOnly(presets, installedNames);
+  const presetFor = (f: (typeof heads)[number], i: number) => syncPreset(presets, installed, f, project[i]?.preset ?? project[project.length - 1]?.preset ?? '');
+  const unused = loaded.filter((f) => !picks.slice(0, project.length).includes(heads.indexOf(f)));
+
+  const load = async () => {
+    if (!plan?.filaments.length || !printer) return;
+    setBusy(true);
+    await useSlicer.getState().syncFilaments(plan, plan.filaments.map(presetFor), printer.name);
+    setBusy(false);
+    onClose();
+  };
+  const openDevice = () => {
+    onClose();
+    useSlicer.getState().setTab('device');
+  };
+
+  let status: ReactNode = null;
+  if (!printer)
+    status = (
+      <p data-testid="sync-status">
+        No printer is set up yet. Add your U1 on the Device tab, then come back here.
+      </p>
+    );
+  else if (conn.state !== 'online')
+    status = (
+      <p data-testid="sync-status">
+        {conn.state === 'offline' ? `${printer.name} is not connected${conn.message ? `: ${conn.message}` : '.'}` : `Connecting to ${printer.name}…`}
+      </p>
+    );
+  else if (!isU1)
+    status = (
+      <p data-testid="sync-status">
+        {printer.name} is not a Snapmaker U1. Only the U1 tells the slicer which filaments are in its heads.
+      </p>
+    );
+  else if (!objects.print_task_config) status = <p data-testid="sync-status">Reading the tool heads…</p>;
+  else if (!loaded.length)
+    status = (
+      <p data-testid="sync-status">
+        No filament is loaded on {printer.name}. Load filament first, or set each head's filament on the Device tab's Tool heads card.
+      </p>
+    );
+
+  return (
+    <Dialog
+      title="Load filaments from the printer"
+      onClose={onClose}
+      wide
+      footer={
+        <>
+          {!ready && (
+            <button className="secondary dv-left" onClick={openDevice}>
+              Open Device tab
+            </button>
+          )}
+          <button className="secondary" onClick={onClose}>
+            Cancel
+          </button>
+          <button className="primary" disabled={!plan?.filaments.length || busy} onClick={() => void load()} data-testid="sync-load">
+            Load filaments
+          </button>
+        </>
+      }
+    >
+      <div className="sync-filaments">
+        <p className="muted">
+          Reads the material, brand and colour in each of your printer's tool heads and puts them in this project's filament list, so what you slice matches what is loaded.
+        </p>
+        {printers.length > 1 && (
+          <label className="field">
+            <span>Printer</span>
+            <select aria-label="Printer" value={activeId ?? ''} onChange={(e) => useDevice.getState().select(e.target.value)}>
+              {printers.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.name}
+                </option>
+              ))}
+            </select>
+          </label>
+        )}
+        {status}
+        {ready && plan && (
+          <>
+            <div className="dv-segmented" role="radiogroup" aria-label="How to load">
+              <button role="radio" aria-checked={mode === 'match'} className={mode === 'match' ? 'on' : ''} onClick={() => setMode('match')}>
+                Match colours
+              </button>
+              <button role="radio" aria-checked={mode === 'replace'} className={mode === 'replace' ? 'on' : ''} onClick={() => setMode('replace')}>
+                Replace all
+              </button>
+            </div>
+            {mode === 'match' ? (
+              <>
+                <p className="small muted">
+                  Keeps your {project.length} filament{project.length === 1 ? '' : 's'} and what each object prints with. Each one takes the printer's filament of the same material with the closest colour; pick another if you like.
+                </p>
+                <ol className="sync-rows" data-testid="sync-rows">
+                  {project.map((p, i) => {
+                    const f = heads[picks[i]];
+                    return (
+                      <li key={i}>
+                        <Swatch colour={p.colour} />
+                        <span className="sync-from">
+                          {i + 1} {p.type || shortName(p.preset)}
+                        </span>
+                        <span aria-hidden>→</span>
+                        {f && <Swatch colour={f.colour} />}
+                        <select
+                          aria-label={`Printer filament for filament ${i + 1}`}
+                          value={picks[i]}
+                          onChange={(e) => setChoice({ key: headsKey, picks: picks.map((c, j) => (j === i ? Number(e.target.value) : c)) })}
+                        >
+                          {heads.map((h, j) =>
+                            isLoaded(h) ? (
+                              <option key={j} value={j}>
+                                {h.label} · {h.name}
+                              </option>
+                            ) : null,
+                          )}
+                        </select>
+                        {f && <span className="sync-preset small muted">{shortName(presetFor(f, i))}</span>}
+                      </li>
+                    );
+                  })}
+                </ol>
+                {unused.length > 0 && (
+                  <label className="check">
+                    <input type="checkbox" checked={addRest} onChange={(e) => setAddRest(e.target.checked)} />
+                    <span>Also add the filaments on the other heads ({unused.map((f) => f.label).join(', ')})</span>
+                  </label>
+                )}
+                {mixCount > 0 && (
+                  <p className="small warn">Colour mixes keep their filament numbers, so their colours follow the new filaments.</p>
+                )}
+              </>
+            ) : (
+              <>
+                <p className="small muted">
+                  The project's filaments become exactly what is loaded, head by head.
+                  {hasObjects && ' Objects on filament 1 go to the first one, filament 2 to the second, and so on.'}
+                </p>
+                <ol className="sync-rows" data-testid="sync-rows">
+                  {plan.filaments.map((f, i) => (
+                    <li key={f.head}>
+                      <span className="sync-from">{i + 1}</span>
+                      <Swatch colour={f.colour} />
+                      <span>
+                        {f.label} · {f.name}
+                      </span>
+                      <span className="sync-preset small muted">{shortName(presetFor(f, i))}</span>
+                    </li>
+                  ))}
+                </ol>
+                {hasObjects && project.length > plan.filaments.length && (
+                  <p className="small muted">
+                    Objects on filament{project.length - plan.filaments.length === 1 ? '' : 's'}{' '}
+                    {project.slice(plan.filaments.length).map((_, k) => `${plan.filaments.length + k + 1} → ${(plan.remap?.[plan.filaments.length + k] ?? 1)}`).join(', ')}.
+                  </p>
+                )}
+                {mixCount > 0 && (
+                  <p className="small warn">
+                    Your {mixCount} colour mix{mixCount === 1 ? '' : 'es'} will be removed.
+                  </p>
+                )}
+              </>
+            )}
+            <p className="small muted">Only materials and colours are loaded. Nozzle sizes are set on the printer preset.</p>
+          </>
+        )}
+      </div>
+    </Dialog>
+  );
+}

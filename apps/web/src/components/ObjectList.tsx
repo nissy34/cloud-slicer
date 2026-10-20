@@ -11,7 +11,7 @@ export function ObjectList() {
   const colours = useSlicer((s) => (s.palette.length ? s.palette : (s.selection?.colours ?? NO_COLOURS)));
   const physical = useSlicer((s) => s.selection?.filaments.length ?? 1);
   const slots = colours.length;
-  const { select, setObjectFilament, deleteObject, copyInstance, openObjectMenu, setTool } = useSlicer.getState();
+  const { select, setObjectFilament, deleteObject, copyInstance, removeInstance, openObjectMenu, setTool } = useSlicer.getState();
   if (!project?.objects.length) return null;
   const onPlate = project.plates[plate]?.objects ?? [];
 
@@ -128,13 +128,21 @@ export function ObjectList() {
             <ObjectSettings object={selected.object} />
           )}
           <div className="transform-row actions">
-            <button className="secondary" onClick={() => void copyInstance(selected.object, selected.instance)}>
+            <button className="secondary" title="One more copy of it, beside it (+). Ctrl+C and Ctrl+V paste it as a new object." onClick={() => void copyInstance(selected.object, selected.instance)}>
               Add copy
+            </button>
+            <button
+              className="secondary"
+              disabled={project.objects[selected.object].instances.length < 2}
+              title="Remove this copy, keeping the others (-)"
+              onClick={() => void removeInstance(selected.object, selected.instance)}
+            >
+              Remove copy
             </button>
             <button className="secondary" title="Fewer triangles, like desktop's Simplify model" onClick={() => setTool('simplify')}>
               Simplify
             </button>
-            <button className="secondary danger" onClick={() => void deleteObject(selected.object)}>
+            <button className="secondary danger" title="The object with all its copies (Del removes only the picked copy)" onClick={() => void deleteObject(selected.object)}>
               Delete
             </button>
           </div>

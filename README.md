@@ -26,10 +26,14 @@ hosted on Cloudflare's free tier.
   onto one of yours: the print settings its author changed carry over, the ones left at
   the old printer's defaults and the printer's own settings (speeds, accelerations,
   jerk) come from your printer, and filaments are matched by material.
-- **Prepare tools**: move, rotate, scale, lay on face, cut, measure (distances and angles
+- **Prepare tools**: move, rotate, scale (exact fields like desktop's: position X, Y and Z, where a
+  Z below the bed sinks the object into it; rotation; scale in percent or size in mm, all three
+  axes together while "Scale evenly" is on; the same fields for a part inside its object), lay on face, cut, measure (distances and angles
   between faces, edges, circles and corners), variable layer height (adaptive, smooth,
   or by hand on the layer height chart), arrange, auto-orient, split,
-  mirror, simplify (offered by itself when a model has too many triangles to slice comfortably), plates, brim ears (by hand or on the corners), undo and redo,
+  mirror, simplify (offered by itself when a model has too many triangles to slice comfortably), plates, brim ears (by hand or on the corners), undo and redo, desktop's editing keys (Del deletes the
+  picked copy or part, Ctrl+C / Ctrl+V copy and paste an object, Ctrl+K clones it, + and - add or
+  remove a copy, also Add copy / Remove copy in the object list and object menu),
   painting (colours, support and seam enforcers/blockers, fuzzy skin), desktop's plate
   menu (right click or long press the plate or the space around it: add a primitive
   shape, text, an SVG, one of Orca's handy models or a model file, and on the plate
@@ -59,6 +63,9 @@ hosted on Cloudflare's free tier.
   want it, per plate, like desktop.
 - **Colour mixing**: Snapmaker Orca's mixed filaments, virtual filaments made of two or
   more physical ones, usable anywhere a filament is.
+- **Filaments from the printer**: "From printer" in the Filament section loads what is in
+  a U1's tool heads (material, brand, colour) into the project, like desktop's Sync
+  filament: match each project filament to the closest loaded one, or replace the list.
 - **Calibration tests** from desktop's Calibration menu: temperature, flow rate, pressure
   advance, retraction, max volumetric speed, VFA, input shaping, junction deviation.
 - **Slicing you can stop**: Cancel next to the progress bar, and a change while slicing

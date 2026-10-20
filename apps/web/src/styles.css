@@ -763,6 +763,7 @@ select:focus-visible {
 }
 .transform-row.actions {
   display: flex;
+  flex-wrap: wrap;
   justify-content: flex-end;
 }
 
@@ -1008,6 +1009,13 @@ select:focus-visible {
 }
 .transform-row.text-row {
   grid-template-columns: 80px 1fr auto;
+}
+/* Room for "Position X (mm)" over each of three boxes. */
+.tool-pop:has(.axis-fields) {
+  width: min(350px, calc(100% - 16px));
+}
+.axis-fields .num-field > span {
+  white-space: nowrap;
 }
 /* Number boxes side by side across the panel, each captioned above. */
 .num-fields {
@@ -1409,12 +1417,110 @@ select:focus-visible {
   font-size: 13px;
 }
 .add-setting {
-  max-width: 55%;
-  padding: 3px 6px;
+  padding: 3px 10px;
   border-radius: 6px;
   border: 1px solid var(--border);
   background: var(--surface-2);
   color: var(--accent);
+  font: inherit;
+  cursor: pointer;
+}
+.add-setting[aria-expanded='true'] {
+  border-color: var(--accent);
+}
+.setting-picker {
+  display: grid;
+  gap: 6px;
+  padding: 8px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface-2);
+}
+.setting-picker-head {
+  display: flex;
+  gap: 6px;
+}
+.setting-picker-head input {
+  flex: 1;
+  min-width: 0;
+}
+.setting-picker-list {
+  max-height: min(360px, 45vh);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+.setting-picker-list ul {
+  list-style: none;
+  margin: 0 0 4px;
+  padding: 0 0 0 10px;
+}
+.setting-picker-divider {
+  margin: 8px 0 2px;
+  padding-top: 6px;
+  border-top: 1px solid var(--border);
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--muted);
+}
+.setting-group-toggle,
+.setting-pick {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 7px 6px;
+  border: 0;
+  border-radius: 6px;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.setting-group-toggle {
+  font-weight: 600;
+}
+.setting-group-toggle:hover,
+.setting-pick:hover {
+  background: var(--surface);
+}
+.setting-group-toggle > span:first-child,
+.setting-pick > span:first-child {
+  flex: 1;
+  min-width: 0;
+}
+.setting-pick-note {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 400;
+}
+.setting-pick-plus {
+  color: var(--accent);
+  font-weight: 600;
+}
+.setting-group-chevron {
+  color: var(--muted);
+  transition: transform 0.15s;
+}
+.setting-group-toggle[aria-expanded='true'] .setting-group-chevron {
+  transform: rotate(90deg);
+}
+.object-settings-group {
+  display: grid;
+  gap: 6px;
+}
+.object-settings .option-label {
+  /* Few settings here: show their whole names, like desktop's object list. */
+  white-space: normal;
+}
+.object-settings-cat {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--muted);
 }
 
 /* Paint tools */
@@ -1949,6 +2055,9 @@ select:focus-visible {
   display: flex;
   align-items: center;
   gap: 4px;
+}
+.group-actions.spaced {
+  gap: 14px;
 }
 .preset-menu {
   position: relative;
@@ -4101,4 +4210,56 @@ button.volume-name {
     bottom: 74px;
     max-height: 45%;
   }
+}
+
+/* Load filaments from the printer (components/FilamentSync.tsx) */
+.sync-filaments {
+  display: grid;
+  gap: 10px;
+}
+.sync-filaments p {
+  margin: 0;
+}
+.sync-filaments .field {
+  display: grid;
+  gap: 4px;
+}
+.sync-filaments .dv-segmented {
+  margin: 0;
+}
+.sync-filaments .warn {
+  color: var(--dv-warn, #b26a00);
+}
+.sync-rows {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 6px;
+}
+.sync-rows li {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px 8px;
+  padding: 6px 8px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+.sync-rows select {
+  flex: 1 1 160px;
+  min-width: 0;
+  padding: 5px 6px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  color: var(--text);
+}
+.sync-from {
+  font-weight: 600;
+  white-space: nowrap;
+}
+.sync-preset {
+  flex-basis: 100%;
+  padding-left: 26px;
 }

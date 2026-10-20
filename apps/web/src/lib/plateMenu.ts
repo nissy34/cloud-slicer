@@ -8,7 +8,10 @@ export type PlateAction =
   | { op: 'deleteAll' }
   | { op: 'rename'; name: string }
   /** The plate's layer slider items, all of them (lib/layerCodes.ts); filaments: how many the project has. */
-  | { op: 'layerCodes'; codes: LayerCode[]; filaments: number };
+  | { op: 'layerCodes'; codes: LayerCode[]; filaments: number }
+  /** Ctrl+C and Ctrl+V: the engine keeps the copy, so it pastes after the original is gone. */
+  | { op: 'copy'; object: number; instance: number }
+  | { op: 'paste' };
 
 /**
  * Desktop's "Add Handy models" (MenuFactory::append_submenu_add_handy_model):
