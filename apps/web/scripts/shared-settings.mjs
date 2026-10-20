@@ -19,10 +19,10 @@
 // When the shared list changes (an engine update), the file gets a new version
 // and keeps the old lists in `history`, so a preset saved with an older list can
 // be moved to the new one (preset-engines.ts, upgradePreset).
-import { readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { call, openEngine } from '../../../engine/node/engine.mjs';
+import { call, DATA_DIR, openEngine, writeProfiles } from '../../../engine/node/engine.mjs';
 
 const web = join(dirname(fileURLToPath(import.meta.url)), '..');
 const repo = join(web, '../..');
@@ -65,6 +65,12 @@ const singular = { bools: 'bool', ints: 'int', floats: 'float', percents: 'perce
 /** Each engine's options and system presets (every preset that fits each printer). */
 async function read(flavor) {
   const { engine } = await openEngine(ENGINES[flavor]);
+  // Every brand, not only the start-up ones: the page loads the others on demand
+  // (profiles/<brand>.json, see engine/scripts/bundle-profiles.mjs).
+  const dir = join(dirname(ENGINES[flavor].profiles), 'profiles');
+  const catalog = existsSync(join(dir, 'catalog.json')) ? JSON.parse(readFileSync(join(dir, 'catalog.json'), 'utf8')) : { vendors: [] };
+  for (const v of catalog.vendors) if (v.file) writeProfiles(engine, JSON.parse(readFileSync(join(dir, v.file), 'utf8')));
+  if (catalog.vendors.some((v) => v.file)) call(engine, 'presetsLoad', DATA_DIR);
   const options = JSON.parse(engine.configOptionsJson());
   const printers = JSON.parse(engine.presetsPrinters()).filter((p) => p.system);
   const presets = { printer: Object.fromEntries(printers.map((p) => [p.name, p])), process: {}, filament: {} };
@@ -123,13 +129,17 @@ const layer = (p) => parseFloat(/^(\d+\.\d+)/.exec(p.name)?.[1] ?? p.layerHeight
 const family = (type) => String(type).split('-')[0];
 
 function matchPreset(type, p, targets, printerMap) {
-  if (targets[p.name]) return p.name;
+  // The same name from another brand is not the same preset (every brand is loaded).
+  if (targets[p.name]?.vendor === p.vendor) return p.name;
   const mine = new Set(p.printers.map((n) => printerMap[n]).filter(Boolean));
   const w = words(p.name);
   let best = null;
   for (const t of Object.values(targets)) {
     const shared = t.printers.filter((n) => mine.has(n)).length;
     let score = shared ? 1000 : 0;
+    // Another brand's preset that happens to fit the same printers loses to the brand's own.
+    // (Only a tie-breaker for filaments, where the material and its maker count.)
+    if (t.vendor === p.vendor) score += type === 'process' ? 400 : 40;
     if (type === 'process') {
       score -= Math.abs(layer(t) - layer(p)) * 1000;
       score += overlap(w.slice(1), words(t.name).slice(1)) * 5;

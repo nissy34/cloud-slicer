@@ -151,7 +151,7 @@ export interface EngineEvents {
 const READS = new Set(['printers', 'filamentsFor', 'fullConfig', 'presetConfig', 'options', 'modelInfo', 'fileConfig', 'saveProject', 'preview', 'paintOverlay', 'mixedBlend', 'mixedMatch', 'measureFeature', 'measureBetween', 'wipeTower', 'exportStl', 'slice']);
 
 /** Engine methods that change the presets, not the project. */
-const PRESET_CALLS = new Set(['select', 'userPresets', 'presetParse', 'mixed']);
+const PRESET_CALLS = new Set(['select', 'userPresets', 'vendors', 'presetParse', 'mixed']);
 
 /** Promise wrapper around the engine worker. Requests run in order. */
 export class EngineClient {
@@ -264,6 +264,8 @@ export class EngineClient {
   /** Replaces the user presets and reloads all presets (the selection resets). */
   userPresets = (presets: UserPresetFile[]) =>
     this.call<{ printers: number; filaments: number; processes: number }>('userPresets', [presets]);
+  /** Adds printer brands (catalog file names) and reloads all presets when one was new (the selection resets then). */
+  vendors = (files: string[]) => this.call<boolean>('vendors', [files]);
   options = () => this.call<Record<string, OptionDef>>('options');
   modelInfo = () => this.call<ProjectInfo>('modelInfo');
   fileConfig = () => this.call<OrcaConfig>('fileConfig');

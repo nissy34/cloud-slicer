@@ -16,7 +16,8 @@ name: CI
 #   engine ─┬─ engine-tests ──────────────────────────┤
 #           └─ site ── browser (smoke, startup,       ├─ deploy
 #                       presets, accounts, toolbar,   │
-#                       mixing, cancel, orca) ────────┘
+#                       mixing, cancel, orca,         │
+#                       brands) ──────────────────────┘
 # The engine job reuses the last build when nothing it is built from changed
 # (see the engine key below), so most runs skip Emscripten entirely.
 # There are two engines (engine/README.md, "Two engines"): Snapmaker Orca and
@@ -384,7 +385,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        suite: [smoke, startup, presets, presetfiles, accounts, toolbar, mixing, wipetower, loading, cancel, orca]
+        suite: [smoke, startup, presets, presetfiles, accounts, toolbar, mixing, wipetower, loading, cancel, orca, brands]
     name: browser (${{ matrix.suite }})
     defaults:
       run:
@@ -423,6 +424,18 @@ jobs:
         with:
           name: engine-screenshots
           path: apps/web/engine-shots
+
+      - name: Every printer brand, loaded per brand, with the Direct print mark (Chromium)
+        if: matrix.suite == 'brands'
+        run: |
+          mkdir -p brand-shots
+          node test/brands.mjs brand-shots
+
+      - uses: actions/upload-artifact@v4
+        if: always() && matrix.suite == 'brands'
+        with:
+          name: brand-screenshots
+          path: apps/web/brand-shots
 
       - name: Engine startup matrix (Chromium + current stable Chrome)
         if: matrix.suite == 'startup'

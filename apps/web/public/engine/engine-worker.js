@@ -25,6 +25,8 @@ if (self.name !== 'em-pthread') {
   const DATA_DIR = '/orca';
   const log = () => {};
   let cancel = null;
+  // Brand files from profiles/ already written into the FS (methods.vendors).
+  const loadedVendors = new Set();
 
   const json = (text) => {
     const out = JSON.parse(text);
@@ -337,6 +339,30 @@ if (self.name !== 'em-pthread') {
         e.FS.writeFile(`${dir}/${p.name}.json`, JSON.stringify(preset));
       }
       return json(e.presetsLoad(DATA_DIR)).counts;
+    },
+    // Adds printer brands beyond the start-up ones: fetches each brand's
+    // profiles/<file> (bundle-profiles.mjs), writes it beside the others and
+    // reloads every preset when one was new. The selection resets then; the
+    // caller selects again. Returns whether anything was added.
+    async vendors(e, files) {
+      const added = [];
+      await Promise.all(
+        (files || []).map(async (file) => {
+          if (loadedVendors.has(file)) return;
+          const res = await fetch(here(`profiles/${file}`));
+          if (!res.ok) throw new Error(`${file}: HTTP ${res.status}`);
+          const bundle = await res.json();
+          for (const [rel, text] of Object.entries(bundle.files)) {
+            const path = `${DATA_DIR}/system/${rel}`;
+            e.FS.mkdirTree(path.slice(0, path.lastIndexOf('/')));
+            e.FS.writeFile(path, text);
+          }
+          loadedVendors.add(file);
+          added.push(file);
+        }),
+      );
+      if (added.length) json(e.presetsLoad(DATA_DIR));
+      return added.length > 0;
     },
     addPlate: (e) => (json(e.addPlate()), JSON.parse(e.modelInfoJson())),
     deletePlate: (e, plate) => (json(e.deletePlate(plate)), JSON.parse(e.modelInfoJson())),

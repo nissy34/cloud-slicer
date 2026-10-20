@@ -3,6 +3,7 @@
 // account settings (this browser when signed out, the account when signed in).
 import type { PresetSummary } from '../engine/protocol';
 import type { EngineFlavor } from './engines';
+import type { PrinterCatalog } from './printer-catalog';
 
 /** Account setting key; signing in merges this browser's lists into the account's. */
 export const SETUP_KEY = 'setup';
@@ -62,4 +63,42 @@ export function filamentGroups(filaments: PresetSummary[], names: Set<string>): 
   return [...groups]
     .map(([vendor, list]) => ({ vendor, filaments: list.sort((a, b) => a.name.localeCompare(b.name)) }))
     .sort((a, b) => a.vendor.localeCompare(b.vendor));
+}
+
+export interface WizardModel extends PrinterModel {
+  /** Picture path under profiles/, or ''. */
+  cover: string;
+  /** Runs Klipper, so the Device tab can send to it; null when unknown. */
+  send: boolean | null;
+}
+
+/**
+ * The wizard's printer page: every brand in the engine's catalog, the ones
+ * holding a picked printer first, then Snapmaker, then by name. Without a
+ * catalog (an engine build from before it), the printers the engine loaded.
+ */
+export function wizardBrands(catalog: PrinterCatalog | null, printers: PresetSummary[], picked: string[]): { vendor: string; models: WizardModel[] }[] {
+  const brands = catalog
+    ? catalog.vendors.map((v) => ({ vendor: v.name, models: v.models.map((m) => ({ ...m, vendor: v.name })) }))
+    : [...new Set(printerModels(printers).map((m) => m.vendor))].map((vendor) => ({
+        vendor,
+        models: printerModels(printers)
+          .filter((m) => m.vendor === vendor)
+          .map((m) => ({ ...m, cover: '', send: null })),
+      }));
+  // Within a brand, the picked models first too.
+  const mine = (m: WizardModel) => (m.nozzles.some((n) => picked.includes(n.name)) ? 0 : 1);
+  for (const b of brands) b.models.sort((x, y) => mine(x) - mine(y));
+  const rank = (b: (typeof brands)[number]) => (b.models.some((m) => m.nozzles.some((n) => picked.includes(n.name))) ? 0 : b.vendor === 'Snapmaker' ? 1 : 2);
+  return brands.sort((a, b) => rank(a) - rank(b) || a.vendor.localeCompare(b.vendor));
+}
+
+/** The models matching a search (brand or model name, any word order). */
+export function matchModels<T extends { vendor: string; model: string }>(models: T[], query: string): T[] {
+  const words = query.toLowerCase().split(/\s+/).filter(Boolean);
+  if (!words.length) return models;
+  return models.filter((m) => {
+    const text = `${m.vendor} ${m.model}`.toLowerCase();
+    return words.every((w) => text.includes(w));
+  });
 }

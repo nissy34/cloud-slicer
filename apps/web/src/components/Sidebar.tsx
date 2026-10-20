@@ -1,7 +1,8 @@
 import { shortName } from '../lib/presets';
 import { installedOnly, SETUP_KEY, type Setup } from '../lib/setup';
+import { canSend } from '../lib/printer-catalog';
 import { useUserSetting } from '../state/account';
-import { useSetupWizard } from './SetupWizard';
+import { SendMark, useSetupWizard } from './SetupWizard';
 import { CalibrationBanner } from './CalibrationDialog';
 import { useOption, useSlicer } from '../state/store';
 import { ObjectList } from './ObjectList';
@@ -26,6 +27,9 @@ function PrinterSection() {
   const printers = installedOnly(allPrinters, withMine(installed, allPrinters), selection?.printer);
   const manage = useSetupWizard((s) => s.show);
   const busy = useSlicer((s) => s.engine !== 'ready');
+  const catalog = useSlicer((s) => s.catalog);
+  const sends = (name: string) => canSend(catalog, name, allPrinters);
+  const selectedSends = selection ? sends(selection.printer) : null;
   const group = (p: PresetSummary) => (p.user ? 'My printers' : p.vendor || 'Other');
   const vendors = [...new Set(printers.map(group))].sort((a, b) => Number(b === 'My printers') - Number(a === 'My printers'));
   return (
@@ -55,12 +59,19 @@ function PrinterSection() {
                 .map((p) => (
                   <option key={p.name} value={p.name}>
                     {p.name}
+                    {sends(p.name) ? ' · direct print' : ''}
                   </option>
                 ))}
             </optgroup>
           ))}
         </select>
       </label>
+      {selectedSends === true && (
+        <p className="muted small printer-send">
+          <SendMark /> Send prints to it from the Device tab.
+        </p>
+      )}
+      {selectedSends === false && <p className="muted small printer-send">No direct print for this printer (not Klipper): download the G-code to print it.</p>}
       <OptionField optKey="curr_bed_type" label="Plate type" />
     </section>
   );
