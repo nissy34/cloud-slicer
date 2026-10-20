@@ -82,6 +82,9 @@ try {
     // The project: a Bambu Studio 3MF for this printer, dark red and black.
     await page.getByTestId('model-input').setInputFiles(model);
     await page.getByText('Ready to slice').waitFor({ timeout: 120000 });
+    // Bambu Studio 2.5's own machine G-code uses variables these engines don't have: back to the presets'.
+    const reset = page.getByRole('button', { name: 'Reset all' });
+    if (await reset.count()) await reset.first().click();
     await flushButton.waitFor({ timeout: 30000 });
     await flushButton.click();
     await dialog.waitFor();
