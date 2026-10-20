@@ -970,6 +970,16 @@ select:focus-visible {
   display: grid;
   gap: 8px;
 }
+/* The open tool's problem, pinned to the foot of its card so it stays in view. */
+.tool-error {
+  position: sticky;
+  bottom: -10px;
+  margin: 8px -12px -10px;
+  padding: 6px 12px;
+  border-top: 1px solid var(--border);
+  background: var(--surface);
+  font-size: 13px;
+}
 .tool-panel-head {
   display: flex;
   align-items: center;
@@ -1724,6 +1734,11 @@ select:focus-visible {
     height: 140px;
   }
   /* The tool's name and Done stay at the top while its card scrolls. */
+  .tool-pop.docked .tool-error {
+    bottom: -8px;
+    margin: 6px -10px -8px;
+    padding: 6px 10px;
+  }
   .tool-pop.docked .tool-panel-head {
     position: sticky;
     top: -8px;

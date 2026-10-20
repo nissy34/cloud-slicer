@@ -1,5 +1,6 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import type { PaintKind } from '../engine/protocol';
+import { sentence } from '../lib/format';
 import { NO_COLOURS, useSlicer, type Tool } from '../state/store';
 import { DEFAULT_PAINT, PaintPanel } from './PaintPanel';
 import { startText } from './TextPanel';
@@ -259,6 +260,18 @@ function ToolPopover({ bar, anchor }: { bar: React.RefObject<HTMLDivElement>; an
     <div className={docked ? 'tool-pop docked' : 'tool-pop'} ref={pop} style={docked ? undefined : at ? { left: at.left, top: at.top } : { visibility: 'hidden' }}>
       <ToolPanel />
       <PaintPanel />
+      <ToolError />
     </div>
+  );
+}
+
+/** A problem with the open tool, at the foot of its card (kept in view while the card scrolls). */
+function ToolError() {
+  const message = useSlicer((s) => (s.job.kind === 'error' && s.job.inTool ? s.job.message : ''));
+  if (!message) return null;
+  return (
+    <p className="tool-error error-text" role="alert">
+      {sentence(message)}
+    </p>
   );
 }

@@ -1209,6 +1209,24 @@ test('text shapes: a text part, an engraved text, a text object and editing the 
   assert.throws(() => text(0, { op: 'add', type: 'part', text: 'A', fontPath: '/work/none.ttf' }), /can't be read/);
 });
 
+test('text in Hebrew: laid out right to left, numbers and Latin words left to right, missing letters reported', () => {
+  const order = (t) => engine.textVisualOrder(t);
+  assert.equal(order('Hello'), 'Hello');
+  assert.equal(order('שלום עולם'), 'םלוע םולש');
+  assert.equal(order('גיל 12 שנים'), 'םינש 12 ליג');
+  assert.equal(order('Hi שלום 2026 there'), 'Hi 2026 םולש there');
+  assert.equal(order('(שלום)'), '(םולש)', 'brackets turn round with the words');
+  assert.equal(order('שָׁלוֹם'), 'םוֹלשָׁ', 'points stay after their letter');
+  assert.equal(order('שלום\nabc'), 'םולש\nabc', 'each line on its own');
+
+  select({ printer: DEFAULT_PRINTER });
+  engine.FS.writeFile('/work/font.ttf', readFileSync(resolve(fixtures, '../engine/orcaslicer/resources/fonts/NanumGothic-Regular.ttf')));
+  load('gen-cube-20.stl');
+  const r = call(engine, 'textVolume', -1, 0, JSON.stringify({ op: 'add', type: 'part', font: 'NanumGothic', fontPath: '/work/font.ttf', text: 'Ab שלום', size: 10, depth: 2 }));
+  assert.equal(r.missing, 'שלום', 'a font without Hebrew letters says which are missing');
+  assert.equal(info().objects[r.object].volumes[0].text.text, 'Ab שלום', 'the text is kept as typed');
+});
+
 test('text on a surface: slid, turned, lifted, facing the camera, following a curve and letter by letter, kept in the 3MF', () => {
   select({ printer: DEFAULT_PRINTER });
   engine.FS.writeFile('/work/font.ttf', readFileSync(resolve(fixtures, '../engine/orcaslicer/resources/fonts/NanumGothic-Regular.ttf')));

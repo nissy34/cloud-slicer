@@ -31,3 +31,10 @@ export function formatMegabytes(bytes: number): string {
   const mb = bytes / 1e6;
   return `${mb < 10 ? mb.toFixed(1) : Math.round(mb)} MB`;
 }
+
+/** An engine message as a sentence: "the letters can't be set" -> "The letters can't be set." */
+export function sentence(message: string): string {
+  const s = message.trim();
+  if (!s) return s;
+  return s[0].toUpperCase() + s.slice(1) + (/[.!?)]$/.test(s) ? '' : '.');
+}

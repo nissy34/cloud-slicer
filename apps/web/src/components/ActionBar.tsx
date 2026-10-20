@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { sendToPrinter } from '../device';
-import { formatDuration, formatGrams, gcodeFileName, stageLabel } from '../lib/format';
+import { formatDuration, formatGrams, gcodeFileName, sentence, stageLabel } from '../lib/format';
 import { LIGHT_TRIANGLES, triangleCount } from '../lib/simplify';
 import { useSlicer } from '../state/store';
 
@@ -61,6 +61,9 @@ function SliceProgress({ pct, stage, onCancel }: { pct: number; stage: string; o
 
 export function ActionBar() {
   const { engine, engineMessage, project, plate, job, notice, noticeWarn, heavy, simplifyHeavy, slice, cancelSlice, setTab, tab } = useSlicer();
+  // A problem with the open tool shows in its card, where the eye is.
+  const toolOpen = useSlicer((s) => !!(s.tool || s.paint));
+  const errorHere = job.kind === 'error' && !(job.inTool && toolOpen);
 
   if (engine === 'failed') return <EngineFailed message={engineMessage} />;
 
@@ -74,7 +77,7 @@ export function ActionBar() {
     <div className="actionbar" data-testid="actionbar">
       <div className="status" aria-live="polite">
         {engine === 'starting' && <span className="muted">Loading the engine and Snapmaker presets…</span>}
-        {engine === 'ready' && job.kind === 'idle' && (
+        {engine === 'ready' && (job.kind === 'idle' || (job.kind === 'error' && !errorHere)) && (
           <span className="muted">
             {onPlate ? 'Ready to slice' : project?.objects.length ? 'This plate is empty' : 'Open a model to start'}
             {(notice || heavy) && '.'}
@@ -98,12 +101,12 @@ export function ActionBar() {
             <span className="muted">sliced in {(job.ms / 1000).toFixed(1)} s</span>
           </span>
         )}
-        {job.kind === 'error' && (
+        {errorHere && (
           <span className="error-text" role="alert">
-            {job.message}
+            {sentence(job.message)}
           </span>
         )}
-        {notice && job.kind !== 'error' && <span className={noticeWarn ? 'hint warn' : 'hint'}> {notice}</span>}
+        {notice && !errorHere && <span className={noticeWarn ? 'hint warn' : 'hint'}> {notice}</span>}
         {heavy && job.kind === 'idle' && (
           <span className="hint warn" data-testid="heavy-model">
             {' '}

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { formatDuration, formatGrams, gcodeFileName, stageLabel } from './format';
+import { formatDuration, formatGrams, gcodeFileName, sentence, stageLabel } from './format';
 
 describe('formatDuration', () => {
   it('rounds to minutes and shows hours', () => {
@@ -34,5 +34,13 @@ describe('stageLabel', () => {
     expect(stageLabel('GENERATING SUPPORT')).toBe('Generating support');
     expect(stageLabel('')).toBe('');
     expect(stageLabel('Generating G-code: layer 12')).toBe('Generating G-code: layer 12');
+  });
+});
+
+describe('sentence', () => {
+  it('starts with a capital and ends with a full stop', () => {
+    expect(sentence("the letters can't be set along this surface")).toBe("The letters can't be set along this surface.");
+    expect(sentence('Already a sentence.')).toBe('Already a sentence.');
+    expect(sentence('')).toBe('');
   });
 });
