@@ -138,6 +138,8 @@ export async function startMockPrinter({ port = 0, host = '127.0.0.1', generic =
   let monitorUntil = 0;
   let monitorTimer = null;
   const streams = new Set();
+  // Snapmaker's Moonraker keeps the U1's current errors ("exceptions").
+  let exceptions = [];
 
   const broadcast = (method, params) => {
     const text = JSON.stringify({ jsonrpc: '2.0', method, params });
@@ -355,6 +357,9 @@ export async function startMockPrinter({ port = 0, host = '127.0.0.1', generic =
               ]
             : [],
         };
+      case 'server.exception.query':
+        if (generic) throw Object.assign(new Error(`Method not found: ${method}`), { code: -32601 });
+        return { exceptions };
       case 'camera.start_monitor':
         stats.startMonitor++;
         monitorUntil = Date.now() + 20_000;
@@ -471,9 +476,19 @@ export async function startMockPrinter({ port = 0, host = '127.0.0.1', generic =
       return state;
     },
     patch,
+    /** Sets the U1's current errors ({ id, index, code, level, message }) and announces the new list. */
+    setExceptions(list) {
+      exceptions = list;
+      broadcast('notify_exception_status', [{ exceptions }]);
+    },
+    /** A one-off error announcement, like a U1 refusing a command. */
+    announceException(e) {
+      broadcast('notify_exception_notification', [e]);
+    },
     reset() {
       state = u1State(generic);
       scripts.length = 0;
+      exceptions = [];
     },
     async close() {
       clearInterval(drift);

@@ -1,8 +1,12 @@
-import { useState } from 'react';
-import type { OptionDef } from '../engine/protocol';
-import { useSlicer } from '../state/store';
+import { Fragment, useMemo, useState } from 'react';
+import type { OptionDef, SettingsPage } from '../engine/protocol';
+import { splitValues, valueAt, withValueAt } from '../lib/flow-variants';
+import { shownPages } from '../lib/settings-pages';
+import { slotEntryIndex } from '../lib/slot-values';
+import { useOption, useSlicer } from '../state/store';
 import { FlowVariantSwitch } from './FlowVariantSwitch';
 import { OptionField } from './OptionField';
+import { useOptionStates } from './SettingsPrompt';
 
 const visible = (def: OptionDef | undefined, advanced: boolean) =>
   def != null && (advanced ? def.mode !== 'develop' : def.mode === 'simple');
@@ -12,37 +16,155 @@ export type SettingsKind = 'print' | 'filament' | 'printer';
 /**
  * One kind of settings (process, filament or printer) in desktop Orca's own
  * pages and groups. With `slot`, the filament settings edit that filament.
+ * Like desktop, the printer has one Extruder page per extruder, Motion ability
+ * only for Marlin, Klipper and RepRap printers (with a Silent column when
+ * silent_mode is on), and the filament a Setting Overrides page.
  */
 export function SettingsPages({ kind, advanced, slot }: { kind: SettingsKind; advanced: boolean; slot?: number }) {
-  const pages = useSlicer((s) => s.layout?.[kind] ?? []);
+  const layout = useSlicer((s) => s.layout?.[kind] ?? NO_PAGES);
   const options = useSlicer((s) => s.options);
+  const extruders = splitValues(useOption('nozzle_diameter') ?? '').length || 1;
+  const flavor = useOption('gcode_flavor');
+  const silent = useOption('silent_mode') === '1';
+  const pages = useMemo(() => shownPages(layout, extruders, flavor), [layout, extruders, flavor]);
   const [page, setPage] = useState(0);
+  const [query, setQuery] = useState('');
+  const states = useOptionStates('global', slot);
   const current = pages[Math.min(page, pages.length - 1)];
-  const hasFlowVariants = current?.groups.some((g) => g.options.some((k) => options[k]?.flow && visible(options[k], advanced)));
+  const found = query.trim() ? searchSettings(pages, options, query) : null;
+  // A search finds settings in every page and in Advanced too; ones that don't apply show greyed out.
+  const groups =
+    found ??
+    current?.groups.map((g) => ({ title: g.title, page: current, keys: g.options.filter((k) => visible(options[k], advanced) && !states.hidden.has(k)) })) ??
+    [];
+  const hasFlowVariants = groups.some((g) => g.keys.some((k) => options[k]?.flow));
+  const label = kind === 'print' ? 'process' : kind;
+  const field = (k: string, at: ShownPage) => {
+    const off = states.disabled.has(k) || states.hidden.has(k);
+    const choices = states.enumValues[k];
+    if (at.overrides) return <OverrideField key={`${k}:${slot ?? ''}`} optKey={k} slot={slot ?? 0} />;
+    if (at.limits?.includes(k))
+      return (
+        <Fragment key={k}>
+          <OptionField optKey={k} entry={0} disabled={off} label={silent ? `${options[k].fullLabel || options[k].label} (Normal)` : options[k].fullLabel || undefined} />
+          {silent && <OptionField optKey={k} entry={1} disabled={off} label={`${options[k].fullLabel || options[k].label} (Silent)`} />}
+        </Fragment>
+      );
+    return <OptionField key={`${k}:${slot ?? ''}:${at.index ?? ''}`} optKey={k} slot={slot} entry={at.index} disabled={off} choices={choices} />;
+  };
   return (
     <>
-      <div className="pages" role="tablist" aria-label="Settings pages">
-        {pages.map((p, i) => (
-          <button key={p.page} role="tab" aria-selected={p === current} className={p === current ? 'page active' : 'page'} onClick={() => setPage(i)}>
-            {p.page}
-          </button>
-        ))}
-      </div>
+      <input
+        type="search"
+        className="settings-search"
+        placeholder={`Search ${label} settings`}
+        aria-label={`Search ${label} settings`}
+        value={query}
+        onChange={(e) => setQuery(e.target.value)}
+        onKeyDown={(e) => e.key === 'Escape' && setQuery('')}
+      />
+      {!found && (
+        <div className="pages" role="tablist" aria-label="Settings pages">
+          {pages.map((p, i) => (
+            <button key={p.page} role="tab" aria-selected={p === current} className={p === current ? 'page active' : 'page'} onClick={() => setPage(i)}>
+              {p.page}
+            </button>
+          ))}
+        </div>
+      )}
+      {found && found.length === 0 && <p className="hint">No {label} settings match “{query.trim()}”.</p>}
       {hasFlowVariants && <FlowVariantSwitch />}
-      {current?.groups.map((g) => {
-        const keys = g.options.filter((k) => visible(options[k], advanced));
-        if (!keys.length) return null;
+      {!found && current?.overrides && (
+        <p className="hint">Tick a setting to use this filament&apos;s own value. Unticked ones use the printer&apos;s, shown greyed out.</p>
+      )}
+      {groups.map((g) => {
+        if (!g.keys.length) return null;
         return (
           <fieldset key={g.title} className="optgroup">
             <legend>{g.title}</legend>
-            {keys.map((k) => (
-              <OptionField key={`${k}:${slot ?? ''}`} optKey={k} slot={slot} />
-            ))}
+            {g.keys.map((k) => field(k, g.page))}
           </fieldset>
         );
       })}
     </>
   );
+}
+
+const NO_PAGES: SettingsPage[] = [];
+type ShownPage = SettingsPage & { index?: number };
+
+/**
+ * One option of the filament Setting Overrides page, like desktop's: a
+ * checkbox turns this filament's own value on; unticked, the value is unset
+ * (nil) and the printer's value for this filament's extruder is used, shown
+ * greyed out.
+ */
+function OverrideField({ optKey, slot }: { optKey: string; slot: number }) {
+  const def = useSlicer((s) => s.options[optKey]);
+  const value = useOption(optKey);
+  const base = useSlicer((s) => s.baseConfig[optKey]);
+  const slots = useSlicer((s) => s.selection?.filaments.length ?? 1);
+  const flowVariant = useSlicer((s) => s.flowVariant);
+  const baseConfig = useSlicer((s) => s.baseConfig);
+  const setOverride = useSlicer((s) => s.setOverride);
+  const printerKey = optKey.replace(/^filament_/, '');
+  const printerDef = useSlicer((s) => s.options[printerKey]);
+  const printerValue = useOption(printerKey);
+  if (!def || value === undefined) return null;
+  const index = slotEntryIndex(value, slot, slots, baseConfig, def.flow === 'filament', flowVariant) ?? 0;
+  const on = valueAt(value, index) !== 'nil';
+  // The printer's value for the extruder this filament prints with (filament n on extruder n).
+  const fallback = printerValue === undefined ? '' : valueAt(printerValue, slot);
+  const label = def.label || def.fullLabel || optKey;
+  const toggle = (checked: boolean) => {
+    const next = withValueAt(value, index, checked ? fallback : 'nil');
+    setOverride(optKey, next === base ? null : next);
+  };
+  const box = (
+    <input
+      type="checkbox"
+      className="override-check"
+      aria-label={`Use this filament's own ${label}`}
+      title={on ? "Use the printer's value" : "Use this filament's own value"}
+      checked={on}
+      onChange={(e) => toggle(e.target.checked)}
+    />
+  );
+  if (on) return <OptionField optKey={optKey} slot={slot} before={box} />;
+  const enumAt = printerDef?.enumValues?.indexOf(fallback) ?? -1;
+  const shown = printerDef?.type === 'bools' ? (fallback === '1' ? 'Yes' : 'No') : enumAt >= 0 ? printerDef?.enumLabels?.[enumAt] || fallback : fallback;
+  return (
+    <div className="option unset" title={def.tooltip || undefined}>
+      <span className="option-label">
+        {box}
+        {label}
+      </span>
+      <span className="input-unit">
+        <input aria-label={label} value={shown} disabled />
+        {def.sidetext && <span className="unit">{def.sidetext}</span>}
+      </span>
+    </div>
+  );
+}
+
+/**
+ * Settings whose name (or key, for people who know Orca's) has every word of
+ * the query, grouped by page and group like desktop's settings search.
+ */
+export function searchSettings(pages: ShownPage[], options: Record<string, OptionDef>, query: string) {
+  const words = query.toLowerCase().split(/\s+/).filter(Boolean);
+  const groups: { title: string; page: ShownPage; keys: string[] }[] = [];
+  for (const p of pages)
+    for (const g of p.groups) {
+      const keys = g.options.filter((k) => {
+        const def = options[k];
+        if (!def || def.mode === 'develop') return false;
+        const text = `${def.label} ${def.fullLabel} ${k} ${k.replace(/_/g, ' ')} ${g.title}`.toLowerCase();
+        return words.every((w) => text.includes(w));
+      });
+      if (keys.length) groups.push({ title: `${p.page} › ${g.title}`, page: p, keys });
+    }
+  return groups;
 }
 
 /**

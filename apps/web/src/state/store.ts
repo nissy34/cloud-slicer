@@ -1,3 +1,4 @@
+import { useMemo } from 'react';
 import { create } from 'zustand';
 import { EngineClient, type CutKeep, type History, type InstanceChanges, type MixedReply, type MixedRequest, type ParsedPreset, type ProjectThumbnail, type ShapePlaceRequest, type ShapeState, type UserPresetFile } from '../engine/client';
 
@@ -12,16 +13,19 @@ import type {
   OrcaConfig,
   PresetSummary,
   PreviewMesh,
+  LayerCode,
   ProjectInfo,
   Selection,
   SettingsLayout,
   SliceResult,
+  SliceWarning,
   WipeTower,
   EngineInfo,
 } from '../engine/protocol';
 import { calibrationOptions, CALIBRATIONS, type CalibrationMode, type CalibrationValues } from '../lib/calibration';
 import { bedSize } from '../lib/colour';
 import { renderThumbnails, thumbnailSizes } from '../lib/thumbnail';
+import type { SyncPlan } from '../lib/filament-sync';
 import { DEFAULT_PRINTER, pickFilamentPreset, splitList, SLOT_COLOURS } from '../lib/presets';
 import { changedOnPurpose, emptyProjectMessage, modelProcessKeys, pickProcess, printerLabel, projectOverrides } from '../lib/project-import';
 import { accountReady, getUserSetting, presetEditing, useAccount } from './account';
@@ -42,6 +46,7 @@ import { fontInEngine } from './fonts';
 import { cameraPosition } from './view';
 import { saveFile } from '../lib/preset-files';
 import { estimateLayers, slicePercent } from '../lib/slice-progress';
+import { OBJECT_CLASHED, objectsOutside, plateBounds } from '../lib/outside';
 
 export type Tab = 'prepare' | 'preview' | 'device';
 /** The object tool open on the 3D view, like desktop's gizmos (paint has its own state). */
@@ -58,7 +63,8 @@ export type Job =
   /** label: what the loading screen says, when not "Opening <name>". */
   | { kind: 'loading'; name: string; label?: string }
   | { kind: 'slicing'; pct: number; stage: string }
-  | { kind: 'sliced'; plate: number; result: SliceResult; gcode: Blob; ms: number }
+  /** outdated: the plate's layer items (pauses...) changed after this slice, so the G-code lacks them. */
+  | { kind: 'sliced'; plate: number; result: SliceResult; gcode: Blob; ms: number; outdated?: boolean }
   /** inTool: it came from the open tool (or paint), so it shows in the tool's card and goes when the tool closes. */
   | { kind: 'error'; message: string; inTool?: boolean };
 
@@ -109,13 +115,18 @@ export interface SlicerState {
   tool: Tool | null;
   /** The object menu (right click, long press or the object list's ⋯), at a point on the page. */
   /** The object menu, or with `volume` the menu of one of its parts, modifiers..., at (x, y) on the page. */
-  objectMenu: { object: number; instance: number; volume?: number; x: number; y: number } | null;
+  objectMenu: { object: number; instance: number; volume?: number; x: number; y: number; form?: 'clone' } | null;
   /** Desktop's menu on the plate (onPlate) or the empty space around it, open at (x, y) on the page. */
   plateMenu: { x: number; y: number; onPlate: boolean } | null;
   /** Files waiting for the user to say how to open the 3MF among them. */
   pendingOpen: File[] | null;
   /** Rotate in 15° steps (and move/scale in steps) without holding Shift, for touch screens. */
   snap: boolean;
+  /** The Scale fields change all three axes together (desktop's lock). */
+  uniformScale: boolean;
+  setUniformScale(on: boolean): void;
+  /** Ctrl+C took something (the engine holds the copy). */
+  copied: boolean;
   /** Desktop's Show labels: object names in the 3D view. */
   labels: boolean;
   setLabels(labels: boolean): void;
@@ -138,6 +149,9 @@ export interface SlicerState {
   towers: TowerSpot[];
   /** The prime tower on the plate shown, when it has one (the engine's estimate, or the last slice's size). */
   wipeTower: Extract<WipeTower, { show: true }> | null;
+  /** Desktop's errors about the sliced toolpaths (lib/outside), found when the Preview reads the G-code. */
+  gcodeWarnings: { gcode: Blob; list: SliceWarning[] } | null;
+  setGcodeWarnings(gcode: Blob, list: SliceWarning[]): void;
 
   setTab(tab: Tab): void;
   selectPrinter(name: string): Promise<void>;
@@ -160,6 +174,12 @@ export interface SlicerState {
   setColour(slot: number, colour: string): Promise<void>;
   addFilament(): Promise<void>;
   removeFilament(slot: number): Promise<void>;
+  /**
+   * Loads the printer's filaments (Sync filament): `plan` from
+   * lib/filament-sync, `presets` the filament preset for each, `from` the
+   * printer's name for the notice.
+   */
+  syncFilaments(plan: SyncPlan, presets: string[], from: string): Promise<void>;
   setOverride(key: string, value: string | null): void;
   setFlowVariant(index: number): void;
   resetOverrides(keys?: string[]): void;
@@ -225,6 +245,14 @@ export interface SlicerState {
   setObjectFilament(o: number, volume: number, filament: number): Promise<void>;
   deleteObject(o: number): Promise<void>;
   copyInstance(o: number, i: number): Promise<void>;
+  /** Removes copy i of object o (the object, when it is the last one), like desktop's Remove instance. */
+  removeInstance(o: number, i: number): Promise<void>;
+  /** Part `volume`'s place in object o, from the Move/Rotate/Scale fields. */
+  transformVolume(o: number, volume: number, changes: { offset?: number[]; rotation?: number[]; scale?: number[] }): Promise<void>;
+  /** Ctrl+C: copy i of object o onto the clipboard. */
+  copyToClipboard(o: number, i: number): Promise<void>;
+  /** Ctrl+V: the clipboard as a new object on the plate, picked. */
+  paste(): Promise<void>;
   slice(): Promise<void>;
   /** Stops the running slice (desktop's Cancel next to the progress bar). */
   cancelSlice(): void;
@@ -243,6 +271,12 @@ export interface SlicerState {
   openPlateMenu(menu: SlicerState['plateMenu']): void;
   /** A plate menu action on the shown plate (engine/src/plate_api.cpp); a new object is picked. */
   plateAction(request: PlateAction, label: string): Promise<void>;
+  /**
+   * Replaces the sliced plate's pauses, filament changes and custom G-code
+   * (from the Preview's layer slider) as one undo step. The preview stays,
+   * marked outdated until the plate is sliced again.
+   */
+  setLayerCodes(codes: LayerCode[], label: string): Promise<void>;
   /** One of the object menu's edits (rename, printable, center, scale to fit, units...); one undo step. */
   objectAction(o: number, i: number, request: ObjectAction, label: string): Promise<void>;
   /** Desktop's Clone: `count` copies as new objects, then (optionally) Arrange. */
@@ -805,6 +839,9 @@ export const useSlicer = create<SlicerState>((set, get) => {
     plateMenu: null,
     pendingOpen: null,
     snap: false,
+    uniformScale: true,
+    setUniformScale: (uniformScale) => set({ uniformScale }),
+    copied: false,
     labels: false,
     history: { undo: null, redo: null },
     cutZ: 0,
@@ -820,6 +857,10 @@ export const useSlicer = create<SlicerState>((set, get) => {
     palette: [],
     towers: [],
     wipeTower: null,
+    gcodeWarnings: null,
+    setGcodeWarnings(gcode, list) {
+      set({ gcodeWarnings: { gcode, list } });
+    },
 
     setTab: (tab) => {
       set({ tab });
@@ -869,6 +910,23 @@ export const useSlicer = create<SlicerState>((set, get) => {
         filaments: s.filaments.filter((_, i) => i !== slot),
         colours: s.colours.filter((_, i) => i !== slot),
       }));
+    },
+
+    // Desktop's Sync filament: objects, parts and paint move first (and mixes
+    // go when the filaments were replaced), then the list itself.
+    syncFilaments: async (plan, presets, from) => {
+      if (!get().selection || !plan.filaments.length) return;
+      const colours = plan.filaments.map((f) => f.colour.toUpperCase());
+      if (plan.remap) {
+        try {
+          await editMixes({ kind: 'replacePhysical', colours, types: plan.filaments.map((f) => f.type), remap: plan.remap, dropMixes: plan.dropMixes });
+        } catch (e) {
+          return fail(e);
+        }
+      }
+      await editSelection(() => ({ filaments: presets, colours }));
+      const n = plan.filaments.length;
+      set({ notice: `Loaded ${n} filament${n === 1 ? '' : 's'} from ${from}.`, noticeWarn: false });
     },
 
     setOverride(key, value) {
@@ -1094,6 +1152,32 @@ export const useSlicer = create<SlicerState>((set, get) => {
       const size = get().project?.objects[o]?.size ?? [20, 20, 0];
       return projectEdit('Add copy', () => engine().addInstance(o, i, size[0] + 5, 0));
     },
+    removeInstance: (o, i) =>
+      projectEdit('Remove copy', async () => {
+        const last = (get().project?.objects[o]?.instances.length ?? 1) <= 1;
+        const sel = get().selected;
+        if (sel?.object === o) {
+          if (last) set({ selected: null, tool: null });
+          // The copy before it stays picked, so + and - can be pressed again.
+          else if (sel.instance >= i) set({ selected: { object: o, instance: Math.max(0, sel.instance - 1) } });
+        }
+        return engine().deleteInstance(o, i);
+      }),
+    transformVolume: (o, volume, changes) =>
+      projectEdit(changes.rotation ? 'Rotate part' : changes.scale ? 'Scale part' : 'Move part', async () =>
+        (await engine().volumeAction(o, { op: 'set', volume, ...changes })).info),
+    copyToClipboard: async (o, i) => {
+      try {
+        await engine().plateAction(get().plate, { op: 'copy', object: o, instance: i });
+        set({ copied: true, notice: 'Copied. Ctrl+V pastes it as a new object.', noticeWarn: false });
+      } catch (err) {
+        fail(err);
+      }
+    },
+    paste: async () => {
+      if (!get().copied) return void set({ notice: 'Nothing copied yet: pick an object and press Ctrl+C.', noticeWarn: false });
+      return get().plateAction({ op: 'paste' }, 'Paste');
+    },
 
     // 6 mm apart, like desktop's default arrange distance.
     arrange: () => projectEdit('Arrange', () => engine().arrangePlate(get().plate, 6)),
@@ -1135,6 +1219,23 @@ export const useSlicer = create<SlicerState>((set, get) => {
         return out.info;
       });
       if (object !== undefined && get().project?.objects[object]) set({ selected: { object, instance: 0 } });
+    },
+    setLayerCodes: async (codes, label) => {
+      const job = get().job;
+      if (job.kind !== 'sliced') return;
+      const e = engine();
+      let remembered = false;
+      try {
+        set({ history: await e.snapshot(label) });
+        remembered = true;
+        const filaments = get().palette.length || (get().selection?.colours.length ?? 1);
+        const { info } = await e.plateAction(job.plate, { op: 'layerCodes', codes, filaments });
+        const now = get().job;
+        set({ project: info, job: now.kind === 'sliced' ? { ...now, outdated: true } : now });
+      } catch (err) {
+        if (remembered) set({ history: await e.dropSnapshot().catch(() => get().history) });
+        fail(err);
+      }
     },
     objectAction: (o, i, request, label) => projectEdit(label, () => engine().objectAction(o, i, request)),
     cloneObject: async (o, count, arrange) => {
@@ -1334,7 +1435,7 @@ export const useSlicer = create<SlicerState>((set, get) => {
         await refreshPreview(res.info);
         set({
           job: { kind: 'idle' },
-          notice: `${title} test ready. It changed ${keys.length} setting${keys.length === 1 ? '' : 's'}, marked in Settings.`,
+          notice: [`${title} test ready. It changed ${keys.length} setting${keys.length === 1 ? '' : 's'}, marked in Settings.`, ...res.notes].join(' '),
           noticeWarn: false,
         });
       } catch (e) {
@@ -1370,6 +1471,8 @@ export const useSlicer = create<SlicerState>((set, get) => {
     async slice() {
       const { project, plate } = get();
       if (!project?.objects.length) return;
+      // Like desktop, an object over the plate's edge has to be moved first.
+      if (objectsOutside(get().preview ?? { positions: new Float32Array(), partList: new Int32Array() }, configBounds()).length) return fail(new Error(OBJECT_CLASHED));
       // Desktop refuses to slice a mix of materials that can't be mixed.
       if (get().mixes.some((m) => m.enabled && !m.compatible))
         return fail(new Error('Mixed filaments contain incompatible material types. Please correct the mixed filaments settings before slicing.'));
@@ -1430,3 +1533,22 @@ export const NO_COLOURS: string[] = [];
 
 /** Value of an option as it will be sliced: the user's override, else the preset's. */
 export const useOption = (key: string) => useSlicer((s) => s.overrides[key] ?? s.baseConfig[key]);
+
+/** The build volume of the selected printer, in plate coordinates. */
+function configBounds() {
+  const { overrides, baseConfig } = useSlicer.getState();
+  return plateBounds(overrides.printable_area ?? baseConfig.printable_area, overrides.printable_height ?? baseConfig.printable_height);
+}
+
+const NO_OBJECTS: number[] = [];
+/** Objects on the shown plate that are partly outside it or taller than the printer (desktop's ObjectClashed). */
+export function useObjectsOutside(): number[] {
+  const preview = useSlicer((s) => s.preview);
+  const area = useOption('printable_area');
+  const height = useOption('printable_height');
+  return useMemo(() => {
+    if (!preview) return NO_OBJECTS;
+    const out = objectsOutside(preview, plateBounds(area, height));
+    return out.length ? out : NO_OBJECTS;
+  }, [preview, area, height]);
+}

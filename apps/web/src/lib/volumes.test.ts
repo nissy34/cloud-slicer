@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import type { VolumeInfo } from '../engine/protocol';
 import { keepsAPart, partAt, partRanges, volumeMeshes } from './volumes';
 
-const vol = (kind: VolumeInfo['kind']): VolumeInfo => ({ name: kind, kind, extruder: 0, painted: false, paint: { support: false, seam: false, fuzzy: false }, settings: {} });
+const vol = (kind: VolumeInfo['kind']): VolumeInfo => ({ name: kind, kind, extruder: 0, painted: false, paint: { support: false, seam: false, fuzzy: false }, settings: {}, offset: [0, 0, 0], rotation: [0, 0, 0], scale: [1, 1, 1], meshSize: [1, 1, 1] });
 
 describe('volumes', () => {
   it('splits the see-through volumes out of a preview', () => {

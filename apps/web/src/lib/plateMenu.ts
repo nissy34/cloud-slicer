@@ -1,8 +1,17 @@
 // The plate menu's requests to the engine (engine/src/plate_api.cpp), and what
 // desktop Orca's plate and empty-space menus offer besides.
+import type { LayerCode } from '../engine/protocol';
 import type { Shape } from './volumes';
 
-export type PlateAction = { op: 'addShape'; shape: Shape } | { op: 'deleteAll' } | { op: 'rename'; name: string };
+export type PlateAction =
+  | { op: 'addShape'; shape: Shape }
+  | { op: 'deleteAll' }
+  | { op: 'rename'; name: string }
+  /** The plate's layer slider items, all of them (lib/layerCodes.ts); filaments: how many the project has. */
+  | { op: 'layerCodes'; codes: LayerCode[]; filaments: number }
+  /** Ctrl+C and Ctrl+V: the engine keeps the copy, so it pastes after the original is gone. */
+  | { op: 'copy'; object: number; instance: number }
+  | { op: 'paste' };
 
 /**
  * Desktop's "Add Handy models" (MenuFactory::append_submenu_add_handy_model):

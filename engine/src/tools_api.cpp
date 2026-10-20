@@ -253,6 +253,11 @@ std::string deletePlate(int plate) {
             const Vec2d d = p.plateOrigin(m.to) - m.from;
             m.inst->set_offset(m.inst->get_offset() + Vec3d(d.x(), d.y(), 0));
         }
+        // The layer slider items go with their plate too.
+        std::map<int, CustomGCode::Info> codes;
+        for (auto& [q, info] : p.model.plates_custom_gcodes)
+            if (q != plate) codes[q > plate ? q - 1 : q] = std::move(info);
+        p.model.plates_custom_gcodes = std::move(codes);
         if (size_t(plate) < p.plates.size()) {
             delete p.plates[plate];
             p.plates.erase(p.plates.begin() + plate);

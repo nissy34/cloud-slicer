@@ -13,6 +13,7 @@ import { useSceneColours } from '../lib/theme';
 import { layerTexture, type LayerProfile } from '../lib/layers';
 import { KIND_COLOURS, partAt, partRanges, volumeMeshes } from '../lib/volumes';
 import { onPlate } from '../lib/plateMenu';
+import { plateBounds } from '../lib/outside';
 import { NO_COLOURS, useOption, useSlicer } from '../state/store';
 import { setCameraSource } from '../state/view';
 import { BrimMarks } from './BrimEars';
@@ -599,6 +600,57 @@ function LayerMaterial({ profile, bottom }: { profile: LayerProfile; bottom: num
   return <meshStandardMaterial key={texture.uuid} roughness={0.7} onBeforeCompile={onBeforeCompile} customProgramCacheKey={() => texture.uuid} />;
 }
 
+// Desktop darkens the part of an object outside the build volume by a third
+// (its gouraud shader's print_volume test); what sinks below the bed doesn't
+// count. One set of uniforms for every part, so a printer change needs no
+// shader rebuild.
+const plateVolume = {
+  plateMin: { value: new THREE.Vector2(0, 0) },
+  plateMax: { value: new THREE.Vector3(270, 270, 270) },
+};
+function tintOutside(shader: THREE.WebGLProgramParametersWithUniforms) {
+  Object.assign(shader.uniforms, plateVolume);
+  shader.vertexShader = shader.vertexShader
+    .replace('#include <common>', '#include <common>\nvarying vec3 vPlatePos;')
+    .replace('#include <worldpos_vertex>', '#include <worldpos_vertex>\nvPlatePos = (modelMatrix * vec4(transformed, 1.0)).xyz;');
+  shader.fragmentShader = shader.fragmentShader
+    .replace('#include <common>', '#include <common>\nvarying vec3 vPlatePos;\nuniform vec2 plateMin;\nuniform vec3 plateMax;')
+    .replace(
+      '#include <color_fragment>',
+      '#include <color_fragment>\nif (any(lessThan(vPlatePos.xy, plateMin)) || any(greaterThan(vPlatePos, plateMax))) diffuseColor.rgb *= 0.6667;',
+    );
+}
+const tintKey = () => 'outside-tint';
+
+/** The material of a model part: its filament colours, darker outside the plate, blue when selected. */
+function PartMaterial({ active = false }: { active?: boolean }) {
+  return (
+    <meshStandardMaterial
+      vertexColors
+      roughness={0.55}
+      metalness={0.05}
+      emissive={active ? '#2f6fe4' : '#000000'}
+      emissiveIntensity={active ? 0.35 : 0}
+      onBeforeCompile={tintOutside}
+      customProgramCacheKey={tintKey}
+    />
+  );
+}
+
+/** Keeps the outside test on the selected printer's build volume. */
+function PlateVolume() {
+  const area = useOption('printable_area');
+  const height = useOption('printable_height');
+  const invalidate = useThree((s) => s.invalidate);
+  useEffect(() => {
+    const b = plateBounds(area, height);
+    plateVolume.plateMin.value.set(b.minX, b.minY);
+    plateVolume.plateMax.value.set(b.maxX, b.maxY, Number.isFinite(b.maxZ) ? b.maxZ : 1e9);
+    invalidate();
+  }, [area, height, invalidate]);
+  return null;
+}
+
 /** Lay on face: hovering shows a candidate face, a click or tap lays the object on it. */
 function FlattenPlanes({ part, place }: { part: Part; place: Placement }) {
   const planes = useMemo(() => hullPlanes(part.geometry), [part]);
@@ -1160,13 +1212,13 @@ function Objects({ w, d }: { w: number; d: number }) {
         const material = layered ? (
           <LayerMaterial profile={layered} bottom={p.geometry.boundingBox!.min.z} />
         ) : (
-          <meshStandardMaterial vertexColors roughness={0.55} metalness={0.05} emissive={active ? '#2f6fe4' : '#000000'} emissiveIntensity={active ? 0.35 : 0} />
+          <PartMaterial active={active} />
         );
         if (shapePicked && place && p.object === place.object) {
           const pieceMaterial = shapePicked.kind ? (
             <VolumeMaterial kind={shapePicked.kind} active />
           ) : (
-            <meshStandardMaterial vertexColors roughness={0.55} metalness={0.05} emissive="#2f6fe4" emissiveIntensity={0.35} />
+            <PartMaterial active />
           );
           const restTris = shapePicked.restTris;
           return (
@@ -1177,7 +1229,7 @@ function Objects({ w, d }: { w: number; d: number }) {
                 onPointerDown={(e) => onDown(e, p.object, restTris)}
                 castShadow
               >
-                <meshStandardMaterial vertexColors roughness={0.55} metalness={0.05} />
+                <PartMaterial />
               </mesh>
               <ShapeHandles
                 key={shapePicked.volume}
@@ -1199,7 +1251,7 @@ function Objects({ w, d }: { w: number; d: number }) {
           return (
             <group key={p.object}>
               <mesh geometry={picked.rest ?? p.geometry} raycast={partRaycast} onPointerDown={(e) => onDown(e, p.object)} castShadow>
-                <meshStandardMaterial vertexColors roughness={0.55} metalness={0.05} />
+                <PartMaterial />
               </mesh>
               <Gizmo
                 key={picked.volume}
@@ -1211,7 +1263,7 @@ function Objects({ w, d }: { w: number; d: number }) {
                   picked.kind ? (
                     <VolumeMaterial kind={picked.kind} active />
                   ) : (
-                    <meshStandardMaterial vertexColors roughness={0.55} metalness={0.05} emissive="#2f6fe4" emissiveIntensity={0.35} />
+                    <PartMaterial active />
                   )
                 }
                 onRelease={() => (gizmoReleased.current = performance.now())}
@@ -1368,6 +1420,7 @@ export function Viewport() {
         <directionalLight position={[w, -d, d * 2]} intensity={1.6} />
         <Bed w={w} d={d} />
         <PlateName d={d} />
+        <PlateVolume />
         <Objects w={w} d={d} />
         <WipeTowerView />
         <OrbitControls target={[w / 2, d / 2, 0]} makeDefault />

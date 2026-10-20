@@ -1,19 +1,31 @@
 import { OrbitControls } from '@react-three/drei';
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import * as THREE from 'three';
-import { bedSize, rgb } from '../lib/colour';
+import { bedSize } from '../lib/colour';
 import { formatMegabytes } from '../lib/format';
-import { FEATURE_COLOURS, FEATURES, type PreviewGcode } from '../lib/gcode';
+import { FEATURE_COLOURS, FEATURES, type GcodeStats, type PreviewGcode } from '../lib/gcode';
+import {
+  RANGE_COLOURS,
+  VIEW_TYPES,
+  formatValue,
+  isRangeView,
+  segmentColours,
+  valueAt,
+  valueRange,
+  type ColourBy,
+  type ValueRange,
+} from '../lib/preview-colours';
+import { codeAt } from '../lib/layerCodes';
+import { plateBounds, toolpathWarnings } from '../lib/outside';
 import { useSceneColours } from '../lib/theme';
 import type { GcodeWorkerMessage } from '../engine/gcode-worker';
 import { useLoading } from '../state/loading';
 import { NO_COLOURS, useOption, useSlicer } from '../state/store';
+import { LayerMarks, LayerMenu, useLayerCodes } from './LayerCodes';
 import { PrintLoader } from './PrintLoader';
 import { CameraViews, ViewButtons, type ViewHandle } from './ViewControls';
 import { Bed } from './Viewport';
-
-type ColourBy = 'feature' | 'filament';
 
 /** The G-code read in a worker: progress (0..1) while reading, then the segments. */
 function useParsed(gcode: Blob | null) {
@@ -109,9 +121,17 @@ const beadVertex = /* glsl */ `
   attribute vec3 iEnd;
   attribute vec3 iColor;
   attribute vec2 iSize;
+  attribute float iFeature;
+  // 1 for each line type the legend has hidden.
+  uniform float uHidden[${FEATURES.length}];
   varying vec3 vColor;
   varying vec3 vNormal;
   void main() {
+    if (uHidden[int(iFeature + 0.5)] > 0.5) {
+      // Outside the view on every corner: nothing is drawn.
+      gl_Position = vec4(2.0, 2.0, 2.0, 1.0);
+      return;
+    }
     vec3 d = iEnd - iStart;
     float len = length(d);
     vec3 dir = len > 1e-6 ? d / len : vec3(1.0, 0.0, 0.0);
@@ -153,6 +173,7 @@ function useBeads(parsed: PreviewGcode, from: number, to: number, colour: Uint8A
     g.setAttribute('iStart', new THREE.InterleavedBufferAttribute(ends, 3, 0));
     g.setAttribute('iEnd', new THREE.InterleavedBufferAttribute(ends, 3, 3));
     g.setAttribute('iSize', new THREE.InstancedBufferAttribute(parsed.sizes.subarray(from * 2, to * 2), 2));
+    g.setAttribute('iFeature', new THREE.InstancedBufferAttribute(parsed.features.subarray(from, to), 1));
     return g;
   }, [parsed, from, to]);
   useEffect(() => () => geometry.dispose(), [geometry]);
@@ -168,24 +189,24 @@ function useBeads(parsed: PreviewGcode, from: number, to: number, colour: Uint8A
  * since they are most of a print and almost all hidden. While the view moves,
  * only the top layer keeps its inner segments.
  */
-function Toolpaths({ parsed, upTo, colourBy, colours, moving }: { parsed: PreviewGcode; upTo: number; colourBy: ColourBy; colours: string[]; moving: boolean }) {
-  const colour = useMemo(() => {
-    const n = parsed.features.length;
-    const col = new Uint8Array(n * 3);
-    // RGB bytes per feature or per tool (256 entries, light grey past the known tools).
-    const palette = new Uint8Array(256 * 3).fill(204);
-    (colourBy === 'feature' ? FEATURE_COLOURS : colours).forEach((c, i) =>
-      palette.set(rgb(c).map((v) => Math.round(v * 255)), i * 3),
-    );
-    const index = colourBy === 'feature' ? parsed.features : parsed.tools;
-    for (let s = 0; s < n; s++) {
-      const p = index[s] * 3;
-      col[s * 3] = palette[p];
-      col[s * 3 + 1] = palette[p + 1];
-      col[s * 3 + 2] = palette[p + 2];
-    }
-    return col;
-  }, [parsed, colourBy, colours]);
+function Toolpaths({
+  parsed,
+  upTo,
+  colourBy,
+  colours,
+  range,
+  hidden,
+  moving,
+}: {
+  parsed: PreviewGcode;
+  upTo: number;
+  colourBy: ColourBy;
+  colours: string[];
+  range: ValueRange | null;
+  hidden: ReadonlySet<number>;
+  moving: boolean;
+}) {
+  const colour = useMemo(() => segmentColours(parsed, colourBy, colours, range), [parsed, colourBy, colours, range]);
   const { shellStarts, innerStarts } = parsed;
   const last = shellStarts.length - 1;
   const shellEnd = shellStarts[last];
@@ -196,7 +217,18 @@ function Toolpaths({ parsed, upTo, colourBy, colours, moving }: { parsed: Previe
   shell.instanceCount = shellStarts[top + 1];
   inner.instanceCount = innerStarts[top + 1] - shellEnd;
   topInner.instanceCount = innerStarts[top + 1] - innerStarts[top];
-  const material = useMemo(() => new THREE.ShaderMaterial({ vertexShader: beadVertex, fragmentShader: beadFragment }), []);
+  const material = useMemo(
+    () =>
+      new THREE.ShaderMaterial({
+        vertexShader: beadVertex,
+        fragmentShader: beadFragment,
+        uniforms: { uHidden: { value: new Array<number>(FEATURES.length).fill(0) } },
+      }),
+    [],
+  );
+  useMemo(() => {
+    material.uniforms.uHidden.value = FEATURES.map((_, i) => (hidden.has(i) ? 1 : 0));
+  }, [material, hidden]);
   // The view draws on demand: the layer and colour changes above are not props.
   const invalidate = useThree((s) => s.invalidate);
   useLayoutEffect(() => invalidate());
@@ -253,6 +285,103 @@ function FitCamera({ parsed }: { parsed: PreviewGcode }) {
   return null;
 }
 
+/** Line types in the print, each a button that hides or shows it (desktop's Display column). */
+function LineTypes({ features, hidden, setHidden }: { features: number[]; hidden: ReadonlySet<number>; setHidden: (h: ReadonlySet<number>) => void }) {
+  const toggle = (f: number) => {
+    const next = new Set(hidden);
+    if (!next.delete(f)) next.add(f);
+    setHidden(next);
+  };
+  return (
+    <>
+      <div className="line-types">
+        {features.map((f) => (
+          <button
+            key={f}
+            className={hidden.has(f) ? 'legend-row legend-item off' : 'legend-row legend-item'}
+            aria-pressed={!hidden.has(f)}
+            title={hidden.has(f) ? `Show ${FEATURES[f].toLowerCase()}` : `Hide ${FEATURES[f].toLowerCase()}`}
+            onClick={() => toggle(f)}
+          >
+            <span className="dot" style={{ background: FEATURE_COLOURS[f] }} />
+            {FEATURES[f]}
+          </button>
+        ))}
+      </div>
+      <p className="legend-note">{hidden.size ? 'Tap a line type to show it again.' : 'Tap a line type to hide it.'}</p>
+    </>
+  );
+}
+
+const grams = (g: number) => `${g < 10 ? g.toFixed(2) : g.toFixed(1)} g`;
+const metres = (mm: number) => `${(mm / 1000).toFixed(2)} m`;
+const money = (c: number) => c.toFixed(2);
+
+/** Each filament's length, weight and cost (prime tower included), then the totals and filament changes, like desktop's Filament view. */
+function FilamentStats({ stats, used, colours }: { stats: GcodeStats; used: number[]; colours: string[] }) {
+  const tools = [...new Set([...used, ...stats.filaments.flatMap((f, i) => (f.grams > 0 || f.mm > 0 ? [i] : []))])].sort((a, b) => a - b);
+  const costed = stats.totalCost > 0;
+  return (
+    <div className="filament-stats" data-testid="filament-stats">
+      {tools.map((t) => {
+        const f = stats.filaments[t];
+        return (
+          <div key={t} className="legend-row filament-row">
+            <span className="dot" style={{ background: colours[t] ?? '#ccc' }} />
+            <span className="filament-name">Filament {t + 1}</span>
+            {f && (
+              <span className="filament-use">
+                {grams(f.grams)} · {metres(f.mm)}
+                {costed && ` · ${money(f.cost)}`}
+              </span>
+            )}
+          </div>
+        );
+      })}
+      <div className="stats-total">
+        <span>Total</span>
+        <span>
+          {grams(stats.totalGrams)} · {metres(stats.filaments.reduce((a, f) => a + f.mm, 0))}
+        </span>
+        <span>Cost</span>
+        <span>{costed ? money(stats.totalCost) : '–'}</span>
+        <span>Filament changes</span>
+        <span data-testid="tool-changes">{stats.toolChanges}</span>
+      </div>
+      {!costed && <p className="legend-note">Set the Price in the filament settings to see the cost.</p>}
+    </div>
+  );
+}
+
+/** The scale of a value view: Orca's colours from highest at the top to lowest, with six values along it. */
+function RangeKey({ by, range }: { by: ColourBy; range: ValueRange | null }) {
+  const title = VIEW_TYPES.find((v) => v.id === by)?.title;
+  if (!range) return <p className="legend-note">Nothing shown to colour.</p>;
+  const single = range.max <= range.min;
+  const ticks = single ? [range.max] : [1, 0.8, 0.6, 0.4, 0.2, 0].map((t) => valueAt(range, t));
+  return (
+    <div className="range-key" data-testid="range-key">
+      <span className="range-title">{title}</span>
+      <div className="range-body">
+        <span
+          className="range-bar"
+          style={
+            {
+              '--stops': single ? `${RANGE_COLOURS[0]}, ${RANGE_COLOURS[0]}` : RANGE_COLOURS.join(', '),
+              background: single ? RANGE_COLOURS[0] : `linear-gradient(to top, ${RANGE_COLOURS.join(', ')})`,
+            } as CSSProperties
+          }
+        />
+        <span className="range-ticks">
+          {ticks.map((v, i) => (
+            <span key={i}>{formatValue(by, v)}</span>
+          ))}
+        </span>
+      </div>
+    </div>
+  );
+}
+
 export function Preview() {
   const job = useSlicer((s) => s.job);
   const colours = useSlicer((s) => s.selection?.colours ?? NO_COLOURS);
@@ -261,6 +390,12 @@ export function Preview() {
   const gcode = job.kind === 'sliced' ? job.gcode : null;
   const { parsed: read, progress } = useParsed(gcode);
   const parsed = useAfterPaint(read);
+  // Desktop checks the toolpaths against the plate when it reads the G-code.
+  const area = useOption('printable_area');
+  const height = useOption('printable_height');
+  useEffect(() => {
+    if (read && gcode) useSlicer.getState().setGcodeWarnings(gcode, toolpathWarnings(read, plateBounds(area, height)));
+  }, [read, gcode, area, height]);
   // The loading card stays from the slice finishing until the first frame of
   // toolpaths is on screen: reading the G-code, then building the 3D view.
   const [drawn, setDrawn] = useState<PreviewGcode | null>(null);
@@ -269,13 +404,27 @@ export function Preview() {
   const layers = parsed ? parsed.layerZ.length : 0;
   const [layer, setLayer] = useState(Number.MAX_SAFE_INTEGER);
   const [colourBy, setColourBy] = useState<ColourBy>('feature');
-  // The colour key starts folded on a phone, where it would cover the model.
-  const [keyOpen, setKeyOpen] = useState(() => !window.matchMedia('(max-width: 760px)').matches);
+  // Line types (FEATURES indexes) hidden from the legend, as desktop's Display column.
+  const [hidden, setHidden] = useState<ReadonlySet<number>>(() => new Set());
+  const range = useMemo(() => (parsed ? valueRange(parsed, colourBy, hidden) : null), [parsed, colourBy, hidden]);
+  // On a phone the key is a strip above the 3D view (styles.css), so it can start open there too.
+  const [keyOpen, setKeyOpen] = useState(true);
   const upTo = Math.min(layer, layers - 1);
   const scene = useSceneColours();
   const [moving, onCameraChange] = useMoving();
   const views: ViewHandle = useRef(null);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const codes = useLayerCodes();
+  const slicing = useSlicer((s) => s.job.kind === 'slicing');
 
+  if (!gcode && slicing) {
+    return (
+      <div className="coming-soon">
+        <h1>Slicing the plate</h1>
+        <p>Its toolpaths show here when it's done.</p>
+      </div>
+    );
+  }
   if (!gcode) {
     return (
       <div className="coming-soon">
@@ -290,11 +439,13 @@ export function Preview() {
 
   const usedFeatures = parsed ? [...new Set(parsed.features)].sort((a, b) => a - b) : [];
   return (
-    <div className="preview">
+    <div className={menuOpen ? 'preview layer-menu-open' : 'preview'}>
       <Canvas className="viewport" frameloop="demand" camera={{ position: [w / 2, -d * 0.6, d * 0.7], fov: 40, near: 1, far: 5000 }} data-testid="gcode-preview">
         <color attach="background" args={[scene.background]} />
         <Bed w={w} d={d} />
-        {parsed && <Toolpaths parsed={parsed} upTo={upTo} colourBy={colourBy} colours={colours} moving={moving} />}
+        {parsed && (
+          <Toolpaths parsed={parsed} upTo={upTo} colourBy={colourBy} colours={colours} range={range} hidden={hidden} moving={moving} />
+        )}
         {parsed && !ready && <DrawnSignal onDrawn={() => setDrawn(parsed)} />}
         {parsed && <FitCamera parsed={parsed} />}
         <OrbitControls target={[w / 2, d / 2, 0]} makeDefault onChange={onCameraChange} />
@@ -304,11 +455,14 @@ export function Preview() {
         />
       </Canvas>
       <ViewButtons handle={views} className="over-slider" />
-      <div className="legend">
+      <div className="legend" data-testid="legend">
         <div className="legend-head">
           <select aria-label="Colour by" value={colourBy} onChange={(e) => setColourBy(e.target.value as ColourBy)}>
-            <option value="feature">Line type</option>
-            <option value="filament">Filament</option>
+            {VIEW_TYPES.map((v) => (
+              <option key={v.id} value={v.id}>
+                {v.label}
+              </option>
+            ))}
           </select>
           <button
             className="legend-toggle"
@@ -319,21 +473,21 @@ export function Preview() {
             {keyOpen ? '▴' : '▾'}
           </button>
         </div>
-        {parsed &&
-          keyOpen &&
-          (colourBy === 'feature'
-            ? usedFeatures.map((f) => (
-                <div key={f} className="legend-row">
-                  <span className="dot" style={{ background: FEATURE_COLOURS[f] }} />
-                  {FEATURES[f]}
-                </div>
-              ))
-            : parsed.toolsUsed.map((t) => (
-                <div key={t} className="legend-row">
-                  <span className="dot" style={{ background: colours[t] ?? '#ccc' }} />
-                  Filament {t + 1}
-                </div>
-              )))}
+        {parsed && keyOpen && (
+          <>
+            {colourBy === 'feature' && <LineTypes features={usedFeatures} hidden={hidden} setHidden={setHidden} />}
+            {colourBy === 'filament' && <FilamentStats stats={parsed.stats} used={parsed.toolsUsed} colours={colours} />}
+            {isRangeView(colourBy) && <RangeKey by={colourBy} range={range} />}
+            {colourBy !== 'feature' && hidden.size > 0 && (
+              <p className="legend-note">
+                {hidden.size === 1 ? '1 line type hidden. ' : `${hidden.size} line types hidden. `}
+                <button className="link" onClick={() => setHidden(new Set())}>
+                  Show all
+                </button>
+              </p>
+            )}
+          </>
+        )}
       </div>
       {!ready && !otherLoading && (
         <div className="loading-overlay no-blur" role="status" aria-live="polite">
@@ -346,19 +500,39 @@ export function Preview() {
           />
         </div>
       )}
+      {parsed && layers > 0 && menuOpen && (
+        <LayerMenu key={upTo} layerZ={parsed.layerZ} layer={upTo} onLayer={setLayer} onClose={() => setMenuOpen(false)} />
+      )}
       {parsed && layers > 0 && (
         <div className="layer-slider">
-          <input
-            type="range"
-            aria-label="Layer"
-            min={0}
-            max={layers - 1}
-            value={upTo}
-            onChange={(e) => setLayer(Number(e.target.value))}
-          />
+          <div className="layer-track">
+            <input
+              type="range"
+              aria-label="Layer"
+              min={0}
+              max={layers - 1}
+              value={upTo}
+              onChange={(e) => setLayer(Number(e.target.value))}
+              // Desktop opens the slider's menu with a right click; a long press here.
+              onContextMenu={(e) => {
+                e.preventDefault();
+                setMenuOpen(true);
+              }}
+            />
+            <LayerMarks layerZ={parsed.layerZ} onLayer={setLayer} />
+          </div>
           <span className="layer-label" data-testid="layer-label">
             {upTo + 1} / {layers} · {parsed.layerZ[upTo].toFixed(2)} mm
           </span>
+          <button
+            className={`layer-add${codeAt(codes, parsed.layerZ, upTo) ? ' has-code' : ''}`}
+            aria-label={codeAt(codes, parsed.layerZ, upTo) ? 'Change what happens at this layer' : 'Add a pause, filament change or G-code at this layer'}
+            title={codeAt(codes, parsed.layerZ, upTo) ? 'Change what happens at this layer' : 'Add a pause, filament change or G-code at this layer'}
+            aria-expanded={menuOpen}
+            onClick={() => setMenuOpen((o) => !o)}
+          >
+            {codeAt(codes, parsed.layerZ, upTo) ? '✎' : '+'}
+          </button>
         </div>
       )}
     </div>

@@ -138,6 +138,16 @@ void placeOnPlate(ModelObject* obj, int plate) {
 
 void placeObject(ModelObject* obj, int plate) { placeOnPlate(obj, plate); }
 
+bool isSunk(const ModelObject* obj) { return obj->min_z() < SINKING_Z_THRESHOLD; }
+
+void settleOnBed(ModelObject* obj, bool sinking) {
+    obj->invalidate_bounding_box();
+    // Sunk into the bed (desktop's sinking objects): stays so while some of it
+    // is above, like GLCanvas3D::do_move. Anything floating drops onto the bed.
+    if (sinking && isSunk(obj) && obj->max_z() >= SINKING_MIN_Z_THRESHOLD) return;
+    obj->ensure_on_bed();
+}
+
 Project& project() { return g_project; }
 
 int Project::columns() const { return columnCount(std::max(1, plateCount)); }
@@ -159,6 +169,7 @@ int Project::plateOf(const ModelInstance& inst) const {
 void Project::clear() {
     model.clear_objects();
     model.clear_materials();
+    model.plates_custom_gcodes.clear();
     release_PlateData_list(plates);
     fileConfig.clear();
     fileName.clear();
@@ -240,7 +251,8 @@ std::string loadModel(const std::string& path, int plate, double bedWidth, doubl
 void clearModel() { g_project.clear(); }
 
 // Everything the page shows about the project:
-// {fileName, plates: [{index, name, objects: [objectIndex...]}],
+// {fileName, plates: [{index, name, objects: [objectIndex...], filaments: [1-based filaments the
+//   plate's parts print with, support left out], layerCodes: [see engine::layerCodesJson]}],
 //  objects: [{name, size, units ("", "inch" or "meter": converted from), volumes: [{name, kind, extruder, painted, text?}],
 //             instances: [{plate, offset, rotation, scale, printable}]}],
 //  file: {bambu, printer, filamentColours, filamentTypes, filamentPresets}}.
@@ -251,7 +263,8 @@ std::string modelInfoJson() {
     for (int p = 0; p < pr.plateCount; ++p) {
         std::string name;
         if (size_t(p) < pr.plates.size() && pr.plates[p]) name = pr.plates[p]->plate_name;
-        plates.push_back({{"index", p}, {"name", name}, {"objects", json::array()}});
+        plates.push_back({{"index", p}, {"name", name}, {"objects", json::array()}, {"filaments", json::array()},
+                          {"layerCodes", layerCodesJson(p)}});
     }
     for (size_t o = 0; o < pr.model.objects.size(); ++o) {
         const ModelObject* obj = pr.model.objects[o];
@@ -264,6 +277,15 @@ std::string modelInfoJson() {
                                {"paint", {{"support", !v->supported_facets.empty()}, {"seam", !v->seam_facets.empty()},
                                           {"fuzzy", !v->fuzzy_skin_facets.empty()}}},
                                {"settings", settingsJson(v->config.get())}});
+            {
+                // Where the part sits in its object, for the Move/Rotate/Scale fields (desktop's part coordinates).
+                const Vec3d off = v->get_offset(), rot = v->get_rotation() * DEG, scl = v->get_scaling_factor();
+                const Vec3d size = v->mesh().bounding_box().size();
+                volumes.back()["offset"] = {off.x(), off.y(), off.z()};
+                volumes.back()["rotation"] = {rot.x(), rot.y(), rot.z()};
+                volumes.back()["scale"] = {scl.x(), scl.y(), scl.z()};
+                volumes.back()["meshSize"] = {size.x(), size.y(), size.z()};
+            }
             if (v->text_configuration) {
                 // A text shape (text_api.cpp): what the Text tool edits.
                 const TextConfiguration& tc = *v->text_configuration;
@@ -300,14 +322,31 @@ std::string modelInfoJson() {
             if (plate >= 0) {
                 auto &list = plates[plate]["objects"];
                 if (std::find(list.begin(), list.end(), json(o)) == list.end()) list.push_back(o);
+                // PartPlate::get_extruders_without_support: what desktop's
+                // layer slider checks before it offers a filament change.
+                // (ModelVolume::get_extruders gives the same, but rebuilds the
+                // paint's triangles to find them; the paint's used states say
+                // which filaments it has without that.)
+                auto &used = plates[plate]["filaments"];
+                const auto use = [&](int e) {
+                    if (e > 0 && std::find(used.begin(), used.end(), json(e)) == used.end()) used.push_back(e);
+                };
+                for (const ModelVolume* v : obj->volumes)
+                    if (v->is_model_part()) {
+                        use(std::max(1, v->extruder_id()));
+                        for (size_t e : v->get_extruders_from_multi_material_painting()) use(int(e) + 1);
+                    }
             }
         }
         const Vec3d size = obj->instance_bounding_box(0, false).size();
+        // Unrotated, unscaled: an instance's size along its own axes is this times its scale.
+        const Vec3d meshSize = obj->raw_mesh_bounding_box().size();
         // Parts converted from inches or meters (desktop then offers to convert back).
         const char* units = "";
         for (const ModelVolume* v : obj->volumes)
             units = v->source.is_converted_from_inches ? "inch" : v->source.is_converted_from_meters ? "meter" : units;
-        objects.push_back({{"name", obj->name}, {"size", {size.x(), size.y(), size.z()}}, {"units", units},
+        objects.push_back({{"name", obj->name}, {"size", {size.x(), size.y(), size.z()}},
+                           {"meshSize", {meshSize.x(), meshSize.y(), meshSize.z()}}, {"units", units},
                            {"extruder", obj->config.has("extruder") ? obj->config.opt_int("extruder") : 0},
                            {"settings", settingsJson(obj->config.get())},
                            {"volumes", volumes}, {"instances", instances}});
@@ -391,23 +430,29 @@ emscripten::val previewMesh(int plate) {
 }
 
 // Move / rotate / scale one instance. Any field may be omitted:
-// {offset: [x, y] (plate-local, of the instance origin), plate, rotation: [x, y, z] deg, scale: [x, y, z]}.
+// {offset: [x, y] or [x, y, z] (plate-local, of the instance origin), plate, rotation: [x, y, z] deg, scale: [x, y, z]}.
+// A z below the bed sinks the object into it, as desktop allows; above it, it drops back.
 std::string setInstanceTransform(int o, int i, const std::string& changesJson) {
     try {
         ModelInstance* inst = instanceAt(o, i);
         const json c = json::parse(changesJson);
+        // Turning or scaling an object on the bed keeps it on the bed (desktop
+        // drops it back); only a Z below it, or one already sunk, sinks.
+        objectAt(o)->invalidate_bounding_box();
+        bool sinking = isSunk(objectAt(o));
         if (c.contains("rotation")) inst->set_rotation(Vec3d(c["rotation"][0].get<double>(), c["rotation"][1].get<double>(), c["rotation"][2].get<double>()) / DEG);
         if (c.contains("scale")) inst->set_scaling_factor(Vec3d(c["scale"][0].get<double>(), c["scale"][1].get<double>(), c["scale"][2].get<double>()));
         if (c.contains("offset")) {
             const int plate = c.value("plate", std::max(0, g_project.plateOf(*inst)));
             const Vec2d origin = g_project.plateOrigin(plate);
             const Vec3d off = inst->get_offset();
-            inst->set_offset(Vec3d(origin.x() + c["offset"][0].get<double>(), origin.y() + c["offset"][1].get<double>(), off.z()));
+            const double z = c["offset"].size() > 2 ? c["offset"][2].get<double>() : off.z();
+            if (c["offset"].size() > 2) sinking = true;
+            inst->set_offset(Vec3d(origin.x() + c["offset"][0].get<double>(), origin.y() + c["offset"][1].get<double>(), z));
         }
         // The object's cached bounding box is stale after a rotation or scale
-        // (desktop invalidates it too); dropping to the bed reads it.
-        objectAt(o)->invalidate_bounding_box();
-        objectAt(o)->ensure_on_bed();
+        // (desktop invalidates it too); settling on the bed reads it.
+        settleOnBed(objectAt(o), sinking);
         return ok().dump();
     } catch (const std::exception& e) {
         return fail(e.what()).dump();

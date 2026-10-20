@@ -13,6 +13,8 @@
 #include <chrono>
 #include <cmath>
 #include <cstdint>
+#include <cstdio>
+#include <mutex>
 #include <thread>
 
 using nlohmann::json;
@@ -81,9 +83,12 @@ void padFlushMatrix(DynamicPrintConfig& cfg) {
 
 // Copy of the project holding only `plate`'s instances, moved so the plate's
 // front-left corner is the origin (what desktop's PartPlate hands to Print).
+// It is marked as that plate, as desktop does before slicing a plate, so Print
+// uses that plate's pauses, colour changes and custom G-code.
 Model plateModel(int plate) {
     const engine::Project& pr = engine::project();
     Model m(pr.model);
+    m.curr_plate_index = plate;
     const Vec2d origin = pr.plateOrigin(plate);
     for (int o = int(m.objects.size()) - 1; o >= 0; --o) {
         ModelObject* obj = m.objects[o];
@@ -157,9 +162,79 @@ std::string explain(const SlicingErrors& e, const Print& print) {
     return all.empty() ? std::string(e.what()) : all;
 }
 
+// Desktop's Print, with the G-code export marked as the running step. Orca's
+// export adds warnings (empty layers, priming regions) to the active Print
+// step, and neither desktop nor Print::export_gcode starts one, so they would
+// land in m_state[-1]: past the array, onto the Print's other fields.
+class SlicePrint : public Print {
+public:
+    std::string exportGcode(const std::string& path, GCodeProcessorResult* result, ThumbnailsGeneratorCallback thumbnails) {
+        set_started(psGCodeExport);
+        std::string out = export_gcode(path, result, thumbnails);
+        set_done(psGCodeExport);
+        return out;
+    }
+};
+
+// Warnings for the user from one slice, the ones desktop shows as
+// notifications: validation's warning, each Print / PrintObject step's
+// warnings (Orca reports them through the status callback, from whichever
+// thread runs the step, including the G-code export), the G-code path
+// conflict check, and settings that could not be read. Each is
+// {text, level: "warning" | "serious", object?: name, option?: key}.
+class Warnings {
+public:
+    void add(const std::string& text, bool serious, const std::string& object = {}, const std::string& option = {}) {
+        if (text.empty()) return;
+        std::scoped_lock lock(m_mutex);
+        for (const json& w : m_list)
+            if (w["text"] == text && w.value("object", "") == object) return;
+        json w{{"text", text}, {"level", serious ? "serious" : "warning"}};
+        if (!object.empty()) w["object"] = object;
+        if (!option.empty()) w["option"] = option;
+        m_list.push_back(std::move(w));
+    }
+    // A step warning from the status callback. Desktop shows empty layers
+    // (and the first layers they replace) as serious, the rest as warnings.
+    void add(const PrintBase::SlicingStatus& s, const Print& print) {
+        std::string object;
+        if (s.flags & PrintBase::SlicingStatus::UPDATE_PRINT_OBJECT_STEP_WARNINGS)
+            for (const PrintObject* o : print.objects())
+                if (o->id() == s.warning_object_id) object = o->model_object()->name;
+        add(s.text, s.message_type == PrintStateBase::SlicingEmptyGcodeLayers || s.message_type == PrintStateBase::SlicingReplaceInitEmptyLayers,
+            object);
+    }
+    json list() const {
+        std::scoped_lock lock(m_mutex);
+        return m_list;
+    }
+
+private:
+    mutable std::mutex m_mutex;
+    json m_list = json::array();
+};
+
+// Desktop's text for a G-code path conflict (GLCanvas3D, EWarning::GCodeConflict).
+// Its layer number counts the G-code's layers up to the conflict's height.
+std::string conflictText(const ConflictResult& c, const Print& print) {
+    std::vector<double> zs;
+    for (const PrintObject* o : print.objects()) {
+        for (const Layer* l : o->layers()) zs.push_back(l->print_z);
+        for (const SupportLayer* l : o->support_layers()) zs.push_back(l->print_z);
+    }
+    std::sort(zs.begin(), zs.end());
+    zs.erase(std::unique(zs.begin(), zs.end(), [](double a, double b) { return std::abs(a - b) < EPSILON; }), zs.end());
+    const long layer = std::distance(zs.begin(), std::upper_bound(zs.begin(), zs.end(), c._height + EPSILON));
+    char text[512];
+    std::snprintf(text, sizeof text,
+                  "Conflicts of G-code paths have been found at layer %ld, z = %.2lf mm. Please separate the conflicted objects farther (%s <-> %s).",
+                  layer, c._height, c._objName1.c_str(), c._objName2.c_str());
+    return text;
+}
+
 // Slice `plate` with `configJson` (key -> serialized value, e.g. from
 // presetsFullConfig plus edits) and write the G-code to outputPath.
-// Returns {success, cancelled, error, warnings, gcodePath, totalLayers,
+// Returns {success, cancelled, error, warnings (see Warnings), gcodePath, totalLayers,
 // estimatedTimeSeconds, filamentMm: {"<1-based filament>": mm}, totalFilamentMm,
 // totalFilamentGrams, objectsOutside, wipeTowerDepth (when it made a prime tower)}.
 // `thumbnails` (optional) holds the plate pictures for the G-code; Orca's own
@@ -167,7 +242,7 @@ std::string explain(const SlicingErrors& e, const Print& print) {
 std::string sliceWithConfig(const std::string& configJson, int plate, const std::string& outputPath, emscripten::val onProgress,
                             emscripten::val thumbnails) {
     json res{{"success", false}, {"cancelled", false}, {"error", ""}};
-    json warnings = json::array();
+    Warnings warnings;
     try {
         const ThumbnailsList pictures = readThumbnails(thumbnails);
         Model model = plateModel(plate);
@@ -175,7 +250,7 @@ std::string sliceWithConfig(const std::string& configJson, int plate, const std:
 
         DynamicPrintConfig cfg;
         cfg.apply(FullPrintConfig::defaults());
-        for (const std::string& w : engine::applyJsonConfig(cfg, json::parse(configJson))) warnings.push_back(w);
+        for (const std::string& w : engine::applyJsonConfig(cfg, json::parse(configJson))) warnings.add("A setting could not be used: " + w, false);
         padFlushMatrix(cfg);
         // wipe_tower_x/y hold one position per plate. The Print below slices as
         // plate 0, so it gets this plate's, kept on the bed the way desktop
@@ -188,7 +263,9 @@ std::string sliceWithConfig(const std::string& configJson, int plate, const std:
             opt->values = {v};
         }
 
-        for (ModelObject* o : model.objects) o->ensure_on_bed();
+        // Sunk objects stay sunk; Orca slices only what is above the bed.
+        for (ModelObject* o : model.objects) engine::settleOnBed(o, true);
+        engine::addCalibrationGcodes(model, cfg);
 #if ENGINE_UPSTREAM
         // Upstream also takes each extruder's own area (none here: the whole bed).
         const BuildVolume volume(cfg.option<ConfigOptionPoints>("printable_area")->values, cfg.opt_float("printable_height"), {}, {});
@@ -204,22 +281,32 @@ std::string sliceWithConfig(const std::string& configJson, int plate, const std:
         if (!outside.empty()) throw std::runtime_error("Some objects are outside the printable area: " + outside.dump());
 
         engine::report(onProgress, 2, "Preparing");
-        Print print;
+        SlicePrint print;
         print.is_BBL_printer() = engine::selectedPrinterIsBambu();  // as desktop does before slicing
         // Desktop's PartPlate sets this; Print leaves it uninitialised (brim and
         // skirt read it). plateModel already put the plate's corner at the origin.
         print.set_plate_origin(Vec3d::Zero());
         print.set_calib_params(engine::project().calib);
         print.apply(model, cfg);
-        const StringObjectException err = print.validate();
+        StringObjectException warning;
+        const StringObjectException err = print.validate(&warning);
         if (!err.string.empty()) throw std::runtime_error(err.string);
+        {
+            const auto* po = dynamic_cast<const PrintObjectBase*>(warning.object);
+            const ModelObject* mo = po ? po->model_object() : dynamic_cast<const ModelObject*>(warning.object);
+            warnings.add(warning.string, false, mo ? mo->name : std::string(), warning.opt_key);
+        }
 
         const CancelWatch cancelWatch(print);
         if (cancelRequested()) throw CanceledException();
         int high = 2;
         // Orca reports some stages from its worker threads; only the engine's
-        // own thread may call into the page.
+        // own thread may call into the page. Warnings come from any of them.
         print.set_status_callback([&](const PrintBase::SlicingStatus& s) {
+            if (s.flags & (PrintBase::SlicingStatus::UPDATE_PRINT_STEP_WARNINGS | PrintBase::SlicingStatus::UPDATE_PRINT_OBJECT_STEP_WARNINGS)) {
+                warnings.add(s, print);
+                return;
+            }
             if (!emscripten_is_main_runtime_thread()) return;
             const int pct = 2 + int(s.percent * 0.9);
             if (pct > high) high = pct;
@@ -241,12 +328,13 @@ std::string sliceWithConfig(const std::string& configJson, int plate, const std:
                 return list;
             };
         try {
-            print.export_gcode(outputPath, &result, thumbnailCb);
+            print.exportGcode(outputPath, &result, thumbnailCb);
         } catch (const SlicingErrors& e) {
             throw std::runtime_error(explain(e, print));
         }
         // A cancel that landed in code which caught the exception itself.
         if (cancelRequested()) throw CanceledException();
+        if (result.conflict_result) warnings.add(conflictText(*result.conflict_result, print), true);
 
         int layers = 0;
         for (const PrintObject* o : print.objects()) layers = std::max(layers, int(o->total_layer_count()));
@@ -277,7 +365,7 @@ std::string sliceWithConfig(const std::string& configJson, int plate, const std:
     } catch (const std::exception& e) {
         res["error"] = e.what();
     }
-    res["warnings"] = warnings;
+    res["warnings"] = warnings.list();
     return res.dump();
 }
 

@@ -15,7 +15,9 @@
 #include "libslic3r/Geometry.hpp"
 #include "libslic3r/calib.hpp"
 
+#include <algorithm>
 #include <clocale>
+#include <cmath>
 #include <map>
 
 using nlohmann::json;
@@ -313,6 +315,104 @@ void paTower(const Calib_Params& params, DynamicPrintConfig& cfg) {
     cutHorizontal(std::ceil((params.end - params.start) / params.step) + 1, true);
 }
 
+// Plater::_calib_pa_pattern. The pattern itself is not a model: each test is
+// a small "handle" cube, and the zig-zag walls and numbers around it are
+// custom G-code made at slicing time (patternGcodes below). One test per
+// speed and acceleration pair, laid out in a grid; tests that don't fit go
+// on further plates, as desktop's arrange does.
+std::vector<std::string> paPattern(const Calib_Params& params, DynamicPrintConfig& cfg, double bedWidth, double bedDepth) {
+    std::vector<std::string> notes;
+    std::vector<double> speeds = params.speeds;
+    std::vector<double> accels = params.accelerations;
+    const double nozzle_diameter = nozzleDiameter(cfg);
+    set(cfg, "filament_retract_when_changing_layer", new ConfigOptionBoolsNullable{false});
+    set(cfg, "filament_wipe", new ConfigOptionBoolsNullable{false});
+    set(cfg, "wipe", new ConfigOptionBools{false});
+    set(cfg, "retract_when_changing_layer", new ConfigOptionBools{false});
+    set(cfg, "resonance_avoidance", new ConfigOptionBool{false});
+
+    // The outer wall acceleration, else the inner wall's, else the default.
+    double accel = cfg.option<ConfigOptionFloats>("outer_wall_acceleration")->values.front();
+    if (accel == 0) accel = cfg.option<ConfigOptionFloats>("inner_wall_acceleration")->values.front();
+    if (accel == 0) accel = cfg.option<ConfigOptionFloats>("default_acceleration")->values.front();
+    if (accels.empty()) {
+        accels.assign({accel});
+        notes.push_back("No accelerations given, so the test uses the default acceleration of " + std::to_string(long(accel)) + " mm/s².");
+    } else {
+        // The largest one sizes the pattern.
+        accel = *std::max_element(accels.begin(), accels.end());
+    }
+    set(cfg, "outer_wall_acceleration", new ConfigOptionFloats{accel});
+    set(cfg, "print_sequence", new ConfigOptionEnum<PrintSequence>(PrintSequence::ByLayer));
+
+    if (cfg.option<ConfigOptionFloats>("default_jerk")->values.front() > 0) {
+        double jerk = cfg.option<ConfigOptionFloats>("outer_wall_jerk")->values.front();
+        if (jerk == 0) jerk = cfg.option<ConfigOptionFloats>("inner_wall_jerk")->values.front();
+        if (jerk == 0) jerk = cfg.option<ConfigOptionFloats>("default_jerk")->values.front();
+        for (const char* key : {"default_jerk", "outer_wall_jerk", "inner_wall_jerk", "top_surface_jerk", "infill_jerk", "travel_jerk"})
+            set(cfg, key, new ConfigOptionFloats{jerk});
+    }
+
+    const SuggestedConfigCalibPAPattern suggested;
+    for (const auto& [key, value] : suggested.float_pairs) set(cfg, key, new ConfigOptionFloat(value));
+    for (const auto& [key, ratio] : suggested.nozzle_ratio_pairs) set(cfg, key, new ConfigOptionFloatOrPercent(nozzle_diameter * ratio / 100, false));
+    for (const auto& [key, value] : suggested.int_pairs) set(cfg, key, new ConfigOptionInt(value));
+    set(cfg, suggested.brim_pair.first, new ConfigOptionEnum<BrimType>(suggested.brim_pair.second));
+
+    if (speeds.empty()) {
+        const double speed = CalibPressureAdvance::find_optimal_PA_speed(cfg, cfg.get_abs_value("line_width", nozzle_diameter), cfg.get_abs_value("layer_height"), 0);
+        set(cfg, "outer_wall_speed", new ConfigOptionFloats{speed});
+        speeds.assign({speed});
+        notes.push_back("No speeds given, so the test uses the best speed for it, " + std::to_string(long(speed)) + " mm/s.");
+    } else if (speeds.size() == 1) {
+        set(cfg, "outer_wall_speed", new ConfigOptionFloats{speeds.front()});
+    }
+
+    engine::Project& p = pr();
+    p.clear();
+    p.plateWidth = bedWidth;
+    p.plateDepth = bedDepth;
+    ModelObject* cube = p.model.add_object();
+    cube->add_instance();
+    TriangleMesh mesh = engine::shapeMesh("Cube");
+    const BoundingBoxf3 mesh_bb = mesh.bounding_box();
+    cube->add_volume(std::move(mesh))->name = "Cube";
+    cube->config.set_key_value("extruder", new ConfigOptionInt(0));
+    cube->invalidate_bounding_box();
+    cube->translate(-mesh_bb.center());
+
+    const CalibPressureAdvancePattern pattern(params, cfg, engine::selectedPrinterIsBambu(), *cube, Vec3d::Zero());
+    BoundingBoxf3 bb = cube->raw_bounding_box();
+    cube->scale(Vec3d(pattern.handle_xy_size() / bb.size().x(), pattern.handle_xy_size() / bb.size().y(), pattern.max_layer_z() / bb.size().z()));
+
+    // Desktop arranges copies of the pattern's outline, 4 mm larger, on the
+    // plate less its arrange margin.
+    const double cellX = pattern.print_size_x() + 4, cellY = pattern.print_size_y() + 4, margin = 5;
+    const int cols = int((bedWidth - 2 * margin) / cellX), rows = int((bedDepth - 2 * margin) / cellY);
+    if (cols < 1 || rows < 1)
+        throw std::runtime_error("The test pattern (" + std::to_string(long(std::ceil(pattern.print_size_x()))) + " × " +
+                                 std::to_string(long(std::ceil(pattern.print_size_y()))) +
+                                 " mm) does not fit the plate. Use fewer pressure advance steps.");
+    const size_t tests = speeds.size() * accels.size(), perPlate = size_t(cols) * rows;
+    p.plateCount = int((tests + perPlate - 1) / perPlate);
+    for (size_t t = 0; t < tests; ++t) {
+        const int plate = int(t / perPlate), cell = int(t % perPlate);
+        const size_t onPlate = std::min(perPlate, tests - plate * perPlate);
+        const int usedCols = int(std::min<size_t>(cols, onPlate)), usedRows = int((onPlate + cols - 1) / cols);
+        const Vec2d centre = p.plateOrigin(plate) + Vec2d(bedWidth / 2 + (cell % cols - (usedCols - 1) / 2.0) * cellX,
+                                                           bedDepth / 2 + ((usedRows - 1) / 2.0 - cell / cols) * cellY);
+        const double speed = speeds[t % speeds.size()], acc = accels[t / speeds.size()];
+        ModelObject* obj = t == 0 ? cube : p.model.add_object(*cube);
+        obj->name = "pa_pattern_" + std::to_string(int(speed)) + "_" + std::to_string(int(acc));
+        if (speeds.size() > 1) obj->config.set_key_value("outer_wall_speed", new ConfigOptionFloats{speed});
+        if (accels.size() > 1) obj->config.set_key_value("outer_wall_acceleration", new ConfigOptionFloats{acc});
+        obj->instances[0]->set_offset(Vec3d(centre.x(), centre.y(), 0) + pattern.handle_pos_offset());
+        obj->invalidate_bounding_box();
+        obj->ensure_on_bed();
+    }
+    return notes;
+}
+
 // Plater::calib_input_shaping_freq / _damp / calib_junction_deviation
 void ringingTower(CalibMode mode, DynamicPrintConfig& cfg) {
     ModelObject* obj = pr().model.objects[0];
@@ -346,6 +446,7 @@ void ringingTower(CalibMode mode, DynamicPrintConfig& cfg) {
 const std::map<std::string, CalibMode> MODES = {
     {"temperature", CalibMode::Calib_Temp_Tower},     {"flowRate", CalibMode::Calib_Flow_Rate},
     {"paLine", CalibMode::Calib_PA_Line},             {"paTower", CalibMode::Calib_PA_Tower},
+    {"paPattern", CalibMode::Calib_PA_Pattern},
     {"retraction", CalibMode::Calib_Retraction_tower}, {"volumetricSpeed", CalibMode::Calib_Vol_speed_Tower},
     {"vfa", CalibMode::Calib_VFA_Tower},              {"inputShapingFrequency", CalibMode::Calib_Input_shaping_freq},
     {"inputShapingDamping", CalibMode::Calib_Input_shaping_damp}, {"junctionDeviation", CalibJunctionDeviation},
@@ -354,11 +455,13 @@ const std::map<std::string, CalibMode> MODES = {
 // Sets up a calibration test as the project.
 //   options: {mode, model (test model path in the wasm FS), start, end, step,
 //             printNumbers, pass (flow rate: 1 or 2), linear (flow rate: Orca's
-//             YOLO test), freqStartX, freqEndX, freqStartY, freqEndY}
+//             YOLO test), freqStartX, freqEndX, freqStartY, freqEndY,
+//             speeds, accelerations (PA pattern: one test per pair)}
 //   configJson: the full config the test starts from (selected presets plus
 //               overrides), key -> value.
-// Returns {ok, overrides: {key: value}}: the settings to change on top of
-// that config, as desktop changes them in the presets.
+// Returns {ok, overrides: {key: value}, notes: [text]}: the settings to change
+// on top of that config, as desktop changes them in the presets, and what
+// desktop tells the user about the choices it made.
 std::string calibrationStart(const std::string& optionsJson, const std::string& configJson, double bedWidth, double bedDepth) {
     try {
         const json opt = json::parse(optionsJson);
@@ -380,12 +483,22 @@ std::string calibrationStart(const std::string& optionsJson, const std::string& 
         params.freqStartY = opt.value("freqStartY", 0.0);
         params.freqEndY = opt.value("freqEndY", 0.0);
         params.test_model = opt.value("testModel", 0);
+        // Desktop's lists keep whole numbers above 0 (ParseStringValues).
+        for (const auto& [key, list] : {std::pair{"speeds", &params.speeds}, std::pair{"accelerations", &params.accelerations}})
+            for (const json& v : opt.value(key, json::array()))
+                if (v.is_number() && int(v.get<double>()) > 0) list->push_back(int(v.get<double>()));
         if (params.mode != CalibMode::Calib_Flow_Rate && params.mode != CalibMode::Calib_Input_shaping_freq &&
             params.mode != CalibMode::Calib_Input_shaping_damp && params.mode != CalibJunctionDeviation &&
             params.mode != CalibMode::Calib_PA_Line && params.step <= 0)
             throw std::runtime_error("the step must be more than 0");
 
-        loadTestModel(opt.at("model").get<std::string>(), bedWidth, bedDepth);
+        std::vector<std::string> notes;
+        if (params.mode == CalibMode::Calib_PA_Pattern) {
+            params.print_numbers = true;
+            notes = paPattern(params, cfg, bedWidth, bedDepth);
+        } else {
+            loadTestModel(opt.at("model").get<std::string>(), bedWidth, bedDepth);
+        }
         switch (params.mode) {
         case CalibMode::Calib_Temp_Tower: temperatureTower(params, cfg); break;
         case CalibMode::Calib_Flow_Rate:
@@ -394,6 +507,7 @@ std::string calibrationStart(const std::string& optionsJson, const std::string& 
             break;
         case CalibMode::Calib_PA_Line: set(cfg, "resonance_avoidance", new ConfigOptionBool{false}); break;
         case CalibMode::Calib_PA_Tower: paTower(params, cfg); break;
+        case CalibMode::Calib_PA_Pattern: break;
         case CalibMode::Calib_Retraction_tower: retractionTower(params, cfg); break;
         case CalibMode::Calib_Vol_speed_Tower: params = maxVolumetricSpeed(params, cfg, bedWidth); break;
         case CalibMode::Calib_VFA_Tower: vfaTower(params, cfg); break;
@@ -408,7 +522,7 @@ std::string calibrationStart(const std::string& optionsJson, const std::string& 
             const ConfigOption* was = base.option(key);
             if (!was || *now != *was) overrides[key] = now->serialize();
         }
-        return json{{"ok", true}, {"overrides", overrides}}.dump();
+        return json{{"ok", true}, {"overrides", overrides}, {"notes", notes}}.dump();
     } catch (const std::exception& e) {
         return fail(e.what());
     }
@@ -418,6 +532,26 @@ std::string calibrationStart(const std::string& optionsJson, const std::string& 
 void calibrationStop() { pr().calib = Calib_Params(); }
 
 } // namespace
+
+// Plater::_calib_pa_pattern_gen_gcode, run before every slice as desktop does:
+// each handle cube's pattern G-code for the plate's full config, merged layer
+// by layer into the plate's custom G-code.
+void engine::addCalibrationGcodes(Model& model, const DynamicPrintConfig& cfg) {
+    const Calib_Params& params = pr().calib;
+    if (params.mode != CalibMode::Calib_PA_Pattern || model.objects.empty()) return;
+    const bool bbl = engine::selectedPrinterIsBambu();
+    CalibPressureAdvancePattern pattern(params, cfg, bbl, *model.objects.front(), Vec3d::Zero());
+    CustomGCode::Info merged;
+    for (const ModelObject* obj : model.objects) {
+        CustomGCode::Info one = pattern.generate_custom_gcodes(cfg, bbl, *obj, Vec3d::Zero());
+        if (merged.gcodes.empty()) {
+            merged = std::move(one);
+            continue;
+        }
+        for (size_t i = 0; i < merged.gcodes.size() && i < one.gcodes.size(); ++i) merged.gcodes[i].extra += one.gcodes[i].extra;
+    }
+    model.plates_custom_gcodes[model.curr_plate_index] = std::move(merged);
+}
 
 EMSCRIPTEN_BINDINGS(calib_api) {
     emscripten::function("calibrationStart", &calibrationStart);

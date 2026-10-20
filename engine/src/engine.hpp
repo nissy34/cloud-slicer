@@ -51,6 +51,16 @@ Project& project();
 // bed, as an added model is placed (model_api.cpp).
 void placeObject(Slic3r::ModelObject* obj, int plate);
 
+// A pressure advance pattern test's G-code, put into the plate model's custom
+// G-code before slicing (calib_api.cpp). Does nothing for other tests.
+void addCalibrationGcodes(Slic3r::Model& model, const Slic3r::DynamicPrintConfig& cfg);
+
+// Whether part of the object is below the bed (model_api.cpp).
+bool isSunk(const Slic3r::ModelObject* obj);
+// Puts an object back on the bed after an edit; with `sinking`, one that is
+// below the bed stays sunk into it (desktop's sinking objects) (model_api.cpp).
+void settleOnBed(Slic3r::ModelObject* obj, bool sinking);
+
 // A primitive shape as desktop's ObjectList::create_mesh makes it, sized by the
 // bed (a tenth of its larger side): Cube, Cylinder, Sphere, Cone, Disc or Torus
 // (volume_api.cpp).
@@ -132,6 +142,11 @@ void moveOntoSurface(Slic3r::ModelVolume& v);
 void remakeShape(Slic3r::ModelObject* obj, Slic3r::ModelVolume* v, const std::string& fontPath);
 // An SVG shape's outlines read again from its file (svg_api.cpp).
 void svgOutlines(Slic3r::ModelVolume& v);
+
+// Pauses, filament changes and custom G-code at layers of `plate` (desktop's
+// layer slider items, Model::plates_custom_gcodes; plate_api.cpp):
+// [{z, type: "pause"|"filament"|"custom"|"template"|"colour", filament, colour, gcode}].
+nlohmann::json layerCodesJson(int plate);
 
 // The prime tower desktop's Prepare view shows on `plate` with `cfg`, kept on
 // the bed (wipe_tower_api.cpp): {show} or {show: true, x, y, width, depth,

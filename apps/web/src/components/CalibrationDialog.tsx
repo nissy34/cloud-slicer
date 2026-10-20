@@ -1,5 +1,13 @@
 import { useState } from 'react';
-import { CALIBRATIONS, checkCalibration, defaultValues, type CalibrationValues } from '../lib/calibration';
+import {
+  CALIBRATIONS,
+  calibrationHint,
+  changeChoice,
+  checkCalibration,
+  defaultValues,
+  visibleFields,
+  type CalibrationValues,
+} from '../lib/calibration';
 import { useSlicer } from '../state/store';
 
 /** Desktop Orca's Calibration menu: pick a test, set its range, and it replaces the plate. */
@@ -10,8 +18,10 @@ export function CalibrationDialog({ onClose }: { onClose: () => void }) {
   const test = CALIBRATIONS.find((c) => c.mode === mode) ?? CALIBRATIONS[0];
   const [values, setValues] = useState<Record<string, CalibrationValues>>({});
   const v = values[mode] ?? defaultValues(test);
-  const change = (key: string, value: string) => setValues({ ...values, [mode]: { ...v, [key]: value } });
+  const change = (key: string, value: string | boolean) => setValues({ ...values, [mode]: { ...v, [key]: value } });
   const problem = checkCalibration(mode, v);
+  const fields = visibleFields(test, v);
+  const numbers = fields.filter((f) => (f.kind ?? 'number') === 'number');
   return (
     <div className="dialog-backdrop" onKeyDown={(e) => e.key === 'Escape' && onClose()}>
       <div className="dialog calib-dialog" role="dialog" aria-modal="true" aria-labelledby="calib-title">
@@ -26,11 +36,15 @@ export function CalibrationDialog({ onClose }: { onClose: () => void }) {
             ))}
           </select>
         </label>
-        <p className="muted small">{test.hint}</p>
+        <p className="muted small">{calibrationHint(test, v)}</p>
         {test.choices?.map((c) => (
           <label key={c.key} className="field">
             <span>{c.label}</span>
-            <select aria-label={c.label} value={String(v[c.key])} onChange={(e) => change(c.key, e.target.value)}>
+            <select
+              aria-label={c.label}
+              value={String(v[c.key])}
+              onChange={(e) => setValues({ ...values, [mode]: changeChoice(test, v, c.key, e.target.value) })}
+            >
               {c.options.map((o) => (
                 <option key={o.value} value={o.value}>
                   {o.label}
@@ -39,19 +53,44 @@ export function CalibrationDialog({ onClose }: { onClose: () => void }) {
             </select>
           </label>
         ))}
-        {test.fields.length > 0 && (
+        {numbers.length > 0 && (
           <div className="calib-fields">
-            {test.fields.map((f) => (
+            {numbers.map((f) => (
               <label key={f.key} className="field">
                 <span>
                   {f.label}
                   {f.unit && ` (${f.unit})`}
                 </span>
-                <input type="number" inputMode="decimal" step={f.step ?? 1} value={v[f.key]} onChange={(e) => change(f.key, e.target.value)} />
+                <input type="number" inputMode="decimal" step={f.step ?? 1} value={String(v[f.key])} onChange={(e) => change(f.key, e.target.value)} />
               </label>
             ))}
           </div>
         )}
+        {fields
+          .filter((f) => f.kind === 'list')
+          .map((f) => (
+            <label key={f.key} className="field calib-list">
+              <span>
+                {f.label}
+                {f.unit && ` (${f.unit})`}
+              </span>
+              <input
+                type="text"
+                placeholder="Empty: from your settings"
+                value={String(v[f.key])}
+                onChange={(e) => change(f.key, e.target.value.replace(/[^\d,\s]/g, ''))}
+              />
+              {f.hint && <small className="muted">{f.hint}</small>}
+            </label>
+          ))}
+        {fields
+          .filter((f) => f.kind === 'check')
+          .map((f) => (
+            <label key={f.key} className="check">
+              <input type="checkbox" checked={v[f.key] !== false} onChange={(e) => change(f.key, e.target.checked)} />
+              {f.label}
+            </label>
+          ))}
         {problem && <p className="hint warn">{problem}</p>}
         <p className="muted small">
           {hasProject ? 'This replaces what is on the plate. ' : ''}

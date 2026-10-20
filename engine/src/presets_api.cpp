@@ -19,6 +19,7 @@
 
 #include <climits>
 #include <memory>
+#include <set>
 
 using nlohmann::json;
 using namespace Slic3r;
@@ -420,8 +421,14 @@ const char* optionTypeName(ConfigOptionType t) {
 // flow is "process" or "filament" for Snapmaker's flow-variant options: one
 // value per flow variant (standard / high flow) in the order of the
 // *_flow_support list, which desktop edits one variant at a time.
+// scope is "region" for options a part, modifier or object can carry on its
+// own and "object" for ones only an object can (desktop's "Add settings" menu
+// offers PrintRegionConfig's keys for parts, plus PrintObjectConfig's for objects).
 std::string configOptionsJson() {
     json out = json::object();
+    const t_config_option_keys regionKeys = PrintRegionConfig().keys();
+    const t_config_option_keys objectKeys = PrintObjectConfig().keys();
+    const std::set<std::string> region(regionKeys.begin(), regionKeys.end()), object(objectKeys.begin(), objectKeys.end());
     for (const auto& [key, def] : print_config_def.options) {
         json o{{"type", optionTypeName(def.type)},
                {"label", def.label},
@@ -456,6 +463,8 @@ std::string configOptionsJson() {
         if (is_process_flow_variant_option(key)) o["flow"] = "process";
         else if (is_filament_flow_variant_option(key)) o["flow"] = "filament";
 #endif
+        if (region.count(key)) o["scope"] = "region";
+        else if (object.count(key)) o["scope"] = "object";
         out[key] = std::move(o);
     }
     return out.dump();

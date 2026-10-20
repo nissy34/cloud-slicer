@@ -77,6 +77,11 @@ export interface OptionDef {
    * filament_flow_support).
    */
   flow?: 'process' | 'filament';
+  /**
+   * What can carry this option on its own: "region" options a part, modifier
+   * or object can (PrintRegionConfig), "object" ones only an object can.
+   */
+  scope?: 'region' | 'object';
 }
 
 export interface SettingsLayout {
@@ -87,6 +92,14 @@ export interface SettingsLayout {
 export interface SettingsPage {
   page: string;
   groups: { title: string; options: string[] }[];
+  /** Desktop's Extruder 1, 2, ... pages: one per extruder, each editing its own entry. */
+  extruder?: boolean;
+  /** Options with a Normal and a Silent value (entries 0 and 1), as on Motion ability. */
+  limits?: string[];
+  /** Only for these gcode_flavor values. */
+  flavors?: string[];
+  /** The filament Setting Overrides page: unset (nil) values use the printer's. */
+  overrides?: boolean;
 }
 
 export interface VolumeInfo {
@@ -103,6 +116,12 @@ export interface VolumeInfo {
   text?: TextStyle;
   /** An SVG shape's depth and size across its face, mm (the SVG tool edits them). */
   svg?: { depth: number; width: number; height: number; useSurface: boolean };
+  /** Where it sits in its object: mm, degrees and factors (desktop's part fields). */
+  offset: [number, number, number];
+  rotation: [number, number, number];
+  scale: [number, number, number];
+  /** Its mesh's size before its own scale, mm. */
+  meshSize: [number, number, number];
 }
 export interface InstanceInfo {
   plate: number;
@@ -114,6 +133,8 @@ export interface InstanceInfo {
 export interface ObjectInfo {
   name: string;
   size: [number, number, number];
+  /** Unrotated and unscaled: an instance's size along its own axes is this times its scale. */
+  meshSize: [number, number, number];
   /** Converted from inches or meters by the object menu ('' when not). */
   units: '' | 'inch' | 'meter';
   extruder: number;
@@ -122,11 +143,29 @@ export interface ObjectInfo {
   volumes: VolumeInfo[];
   instances: InstanceInfo[];
 }
+/**
+ * An item of desktop's layer slider (Orca's CustomGCode::Item), run at the
+ * start of the layer whose top is at z mm: a pause, a change to filament
+ * `filament` (1-based), Orca's custom template, or the G-code in `gcode`.
+ * "colour" (M600) only comes from older files; desktop no longer adds it.
+ */
+export interface LayerCode {
+  z: number;
+  type: 'pause' | 'filament' | 'custom' | 'template' | 'colour';
+  filament: number;
+  colour: string;
+  gcode: string;
+}
+
 export interface ProjectInfo {
   fileName: string;
   plateWidth: number;
   plateDepth: number;
-  plates: { index: number; name: string; objects: number[] }[];
+  /**
+   * filaments: what the plate's parts print with (1-based, support left out);
+   * layerCodes: its pauses, filament changes and custom G-code at layers.
+   */
+  plates: { index: number; name: string; objects: number[]; filaments: number[]; layerCodes: LayerCode[] }[];
   objects: ObjectInfo[];
   file: {
     bambu: boolean;
@@ -173,10 +212,22 @@ export interface PaintOverlay {
 /** A ray from the camera through the pointer: origin then direction, plate coordinates. */
 export type PaintRay = [number, number, number, number, number, number];
 
+/**
+ * A warning from a slice, as desktop shows it in a notification: a warning, or
+ * a serious one (empty layers, G-code path conflicts). `object` names the
+ * object it is about; `option` the setting.
+ */
+export interface SliceWarning {
+  text: string;
+  level: 'warning' | 'serious';
+  object?: string;
+  option?: string;
+}
+
 export interface SliceResult {
   success: boolean;
   error: string;
-  warnings: string[];
+  warnings: SliceWarning[];
   gcodePath: string;
   totalLayers: number;
   estimatedTimeSeconds: number;

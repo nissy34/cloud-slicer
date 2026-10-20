@@ -76,7 +76,12 @@ sends. Cancel stops a running slice, and so does any change to settings, filamen
 presets or the model while it runs (its result is dropped, like desktop); engine edits
 sent during a slice cancel it first instead of queueing behind it. After slicing, the
 page switches to Preview; G-code is parsed in its own worker
-and drawn as beads by feature or by filament.
+and drawn as beads, coloured by feature, filament or a value per segment (speed, flow,
+fan, temperature, width, height, layer time) on Orca's blue-to-red scale
+(`lib/preview-colours.ts`); hidden line types are dropped in the vertex shader. Speed,
+flow and layer time are worked out from the G-code (layer times scaled to Orca's
+estimate), and the per-filament grams and cost come from the statistics Orca writes at
+the end of the file.
 
 The site is installable as an app (web manifest and a service worker that caches
 nothing on purpose, so a deploy's page and engine never get out of step).
@@ -115,8 +120,11 @@ nothing on purpose, so a deploy's page and engine never get out of step).
   `initial_layer_speed = "50,50"`, while 2.2 files hold one value. The settings panel
   has desktop's Standard flow / High flow switch and edits one variant at a time
   (`src/lib/flow-variants.ts`); importing older files aligns their values to both.
-- **Per-object settings** come from desktop's "Add settings" categories and are stored
-  on the object, like desktop.
+- **Per-object settings** offer desktop's full list (`src/lib/object-settings.ts`): its
+  per-object settings table (Quality / Speed / Strength / Support), then every other
+  option its "Add settings" menu allows, by category. The engine's option metadata
+  says which options a part can carry (`scope: "region"`) and which only an object can
+  (`"object"`). They are stored on the object, part or modifier, like desktop.
 
 ## Projects and 3MF import
 

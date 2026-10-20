@@ -6,8 +6,7 @@
 export type CalibrationMode =
   | 'temperature'
   | 'flowRate'
-  | 'paLine'
-  | 'paTower'
+  | 'pressureAdvance'
   | 'retraction'
   | 'volumetricSpeed'
   | 'vfa'
@@ -19,8 +18,13 @@ export interface CalibrationField {
   key: string;
   label: string;
   unit?: string;
-  value: number;
+  value: number | string | boolean;
   step?: number;
+  /** number (default), a tick box, or a comma separated list of whole numbers. */
+  kind?: 'number' | 'check' | 'list';
+  hint?: string;
+  /** Shown only for these values of the test's choices. */
+  when?: (v: CalibrationValues) => boolean;
 }
 
 export interface CalibrationChoice {
@@ -33,15 +37,23 @@ export interface CalibrationChoice {
 export interface CalibrationTest {
   mode: CalibrationMode;
   title: string;
-  hint: string;
+  hint: string | ((v: CalibrationValues) => string);
   fields: CalibrationField[];
   choices?: CalibrationChoice[];
+  /** Desktop resets the fields to these when a choice changes. */
+  defaults?: (v: CalibrationValues) => CalibrationValues;
 }
 
 const towerModel = { key: 'testModel', label: 'Test model', value: '0', options: [
   { value: '0', label: 'Ringing tower' },
   { value: '1', label: 'Fast tower' },
 ] };
+
+const PA_HINTS: Record<string, string> = {
+  tower: 'A tower whose pressure advance rises with height. Measure where the corners look best.',
+  line: 'Lines printed with rising pressure advance. Pick the most even line.',
+  pattern: 'Rows of nested corners, each printed with a higher pressure advance. Pick the sharpest corner with no gaps; the number above it is the value.',
+};
 
 export const CALIBRATIONS: CalibrationTest[] = [
   {
@@ -63,20 +75,39 @@ export const CALIBRATIONS: CalibrationTest[] = [
     ] }],
   },
   {
-    mode: 'paLine', title: 'Pressure advance (lines)', hint: 'Lines printed with rising pressure advance. Pick the most even line.',
+    // Desktop's PA Calibration dialog (calib_dlg.cpp PA_Calibration_Dlg).
+    mode: 'pressureAdvance', title: 'Pressure advance',
+    hint: (v) => PA_HINTS[String(v.method)] ?? PA_HINTS.tower,
+    choices: [
+      { key: 'extruder', label: 'Extruder type', value: 'direct', options: [
+        { value: 'direct', label: 'Direct drive' },
+        { value: 'bowden', label: 'Bowden' },
+      ] },
+      { key: 'method', label: 'Method', value: 'tower', options: [
+        { value: 'tower', label: 'Tower' },
+        { value: 'line', label: 'Lines' },
+        { value: 'pattern', label: 'Pattern' },
+      ] },
+    ],
     fields: [
       { key: 'start', label: 'Start PA', value: 0, step: 0.001 },
       { key: 'end', label: 'End PA', value: 0.1, step: 0.001 },
       { key: 'step', label: 'PA step', value: 0.002, step: 0.001 },
+      { key: 'printNumbers', label: 'Print numbers', kind: 'check', value: true, when: (v) => v.method === 'line' },
+      { key: 'accelerations', label: 'Accelerations', unit: 'mm/s²', kind: 'list', value: '', when: (v) => v.method === 'pattern',
+        hint: 'Comma separated, like 1000, 3000. One test per speed and acceleration pair. Empty uses the outer wall acceleration.' },
+      { key: 'speeds', label: 'Speeds', unit: 'mm/s', kind: 'list', value: '', when: (v) => v.method === 'pattern',
+        hint: 'Comma separated, like 100, 200. Empty picks the best speed for the test.' },
     ],
-  },
-  {
-    mode: 'paTower', title: 'Pressure advance (tower)', hint: 'A tower whose pressure advance rises with height. Measure where the corners look best.',
-    fields: [
-      { key: 'start', label: 'Start PA', value: 0, step: 0.001 },
-      { key: 'end', label: 'End PA', value: 0.1, step: 0.001 },
-      { key: 'step', label: 'PA step', value: 0.002, step: 0.001 },
-    ],
+    defaults: (v) => {
+      const bowden = v.extruder === 'bowden';
+      const pattern = v.method === 'pattern';
+      return {
+        start: 0,
+        end: bowden ? 1 : pattern ? 0.08 : 0.1,
+        step: bowden ? (pattern ? 0.05 : 0.02) : pattern ? 0.005 : 0.002,
+      };
+    },
   },
   {
     mode: 'retraction', title: 'Retraction', hint: 'A tower whose retraction length grows with height. Find the lowest length without strings.',
@@ -133,10 +164,23 @@ export const CALIBRATIONS: CalibrationTest[] = [
   },
 ];
 
-export type CalibrationValues = Record<string, number | string>;
+export type CalibrationValues = Record<string, number | string | boolean>;
+
+/** Desktop's list fields keep the whole numbers above 0 (calib_dlg.cpp ParseStringValues). */
+export const parseList = (text: unknown) =>
+  String(text ?? '')
+    .split(/[\s,]+/)
+    .map((x) => parseInt(x, 10))
+    .filter((x) => x > 0);
+
+export const calibrationHint = (test: CalibrationTest, v: CalibrationValues) =>
+  typeof test.hint === 'function' ? test.hint(v) : test.hint;
+
+/** The fields shown for the current choices. */
+export const visibleFields = (test: CalibrationTest, v: CalibrationValues) => test.fields.filter((f) => !f.when || f.when(v));
 
 /** Options for the engine's calibrationStart, with the test model to load. */
-export function calibrationOptions(mode: CalibrationMode, v: CalibrationValues) {
+export function calibrationOptions(mode: CalibrationMode, v: CalibrationValues): { mode: string; model?: string; [key: string]: unknown } {
   const n = (k: string) => Number(v[k] ?? 0);
   const towers = ['input_shaping/ringing_tower.stl', 'input_shaping/fast_tower_test.stl'];
   const title = CALIBRATIONS.find((c) => c.mode === mode)?.title ?? mode;
@@ -152,8 +196,16 @@ export function calibrationOptions(mode: CalibrationMode, v: CalibrationValues) 
         : `filament_flow/flowrate-test-pass${pass}.3mf`;
       return { ...base, model, linear, pass };
     }
-    case 'paLine': return { ...base, model: 'pressure_advance/pressure_advance_test.stl' };
-    case 'paTower': return { ...base, model: 'pressure_advance/tower_with_seam.stl' };
+    case 'pressureAdvance':
+      switch (v.method) {
+        case 'line':
+          return { ...base, mode: 'paLine', printNumbers: v.printNumbers !== false, model: 'pressure_advance/pressure_advance_test.stl' };
+        // The pattern needs no model file: the engine makes its test cubes.
+        case 'pattern':
+          return { ...base, mode: 'paPattern', speeds: parseList(v.speeds), accelerations: parseList(v.accelerations) };
+        default:
+          return { ...base, mode: 'paTower', model: 'pressure_advance/tower_with_seam.stl' };
+      }
     case 'retraction': return { ...base, model: 'retraction/retraction_tower.stl' };
     case 'volumetricSpeed': return { ...base, model: 'volumetric_speed/SpeedTestStructure.stl' };
     case 'vfa': return { ...base, model: 'vfa/VFA.stl' };
@@ -175,8 +227,9 @@ export function calibrationOptions(mode: CalibrationMode, v: CalibrationValues) 
 /** Desktop's checks on the dialog values; returns a message, or '' when fine. */
 export function checkCalibration(mode: CalibrationMode, v: CalibrationValues): string {
   const n = (k: string) => Number(v[k]);
-  const fields = CALIBRATIONS.find((c) => c.mode === mode)?.fields ?? [];
-  if (fields.some((f) => !Number.isFinite(n(f.key)))) return 'Please fill in every value.';
+  const test = CALIBRATIONS.find((c) => c.mode === mode);
+  const fields = test ? visibleFields(test, v).filter((f) => (f.kind ?? 'number') === 'number') : [];
+  if (fields.some((f) => v[f.key] === '' || !Number.isFinite(n(f.key)))) return 'Please fill in every value.';
   switch (mode) {
     case 'flowRate': return '';
     case 'inputShapingFrequency':
@@ -194,13 +247,25 @@ export function checkCalibration(mode: CalibrationMode, v: CalibrationValues): s
       if (n('step') <= 0) return 'The step must be more than 0.';
       return n('start') > 350 || n('end') < 170 || n('end') > n('start') - 5
         ? 'Temperatures must be from 170 to 350 °C, with start at least 5 °C above end.' : '';
+    case 'pressureAdvance':
+      return n('start') < 0 || n('step') < 0.001 || n('end') < n('start') + n('step')
+        ? 'Start PA must be 0 or more, the PA step at least 0.001, and end PA at least one step above start.' : '';
     default:
       return n('start') < 0 || n('step') <= 0 || n('end') < n('start') + n('step')
         ? 'Start must be 0 or more, the step above 0, and end at least one step above start.' : '';
   }
 }
 
-export const defaultValues = (test: CalibrationTest): CalibrationValues => ({
-  ...Object.fromEntries(test.fields.map((f) => [f.key, f.value])),
-  ...Object.fromEntries((test.choices ?? []).map((c) => [c.key, c.value])),
-});
+export const defaultValues = (test: CalibrationTest): CalibrationValues => {
+  const v: CalibrationValues = {
+    ...Object.fromEntries(test.fields.map((f) => [f.key, f.value])),
+    ...Object.fromEntries((test.choices ?? []).map((c) => [c.key, c.value])),
+  };
+  return { ...v, ...test.defaults?.(v) };
+};
+
+/** Values after a choice changes: desktop resets the range for the new choice. */
+export const changeChoice = (test: CalibrationTest, v: CalibrationValues, key: string, value: string): CalibrationValues => {
+  const next = { ...v, [key]: value };
+  return { ...next, ...test.defaults?.(next) };
+};
