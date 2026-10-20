@@ -20,6 +20,7 @@ import type {
   SliceResult,
   SliceWarning,
   WipeTower,
+  EngineInfo,
 } from '../engine/protocol';
 import { calibrationOptions, CALIBRATIONS, type CalibrationMode, type CalibrationValues } from '../lib/calibration';
 import { bedSize } from '../lib/colour';
@@ -74,6 +75,8 @@ export interface SlicerState {
   /** While the engine starts: download progress, then setting it up and loading the printers. */
   engineLoad: EngineLoading | { stage: 'printers'; loaded: number; total: number };
   vendorVersion: string;
+  /** The running engine and what it can do; null until it starts. */
+  engineInfo: EngineInfo | null;
 
   printers: PresetSummary[];
   processes: PresetSummary[];
@@ -370,7 +373,7 @@ export const useSlicer = create<SlicerState>((set, get) => {
     client ??= new EngineClient({
       onLoading: (engineLoad) => set({ engineLoad }),
       onReady: (presets) => {
-        set({ vendorVersion: presets.vendorVersion, engineLoad: { ...get().engineLoad, stage: 'printers' } });
+        set({ vendorVersion: presets.vendorVersion, engineInfo: presets.engine, engineLoad: { ...get().engineLoad, stage: 'printers' } });
         void start();
       },
       onFatal: (message) => {
@@ -811,6 +814,7 @@ export const useSlicer = create<SlicerState>((set, get) => {
     engineMessage: '',
     engineLoad: { stage: 'download', loaded: 0, total: 0 },
     vendorVersion: '',
+    engineInfo: null,
     printers: [],
     processes: [],
     filaments: [],

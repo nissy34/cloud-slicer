@@ -16,9 +16,12 @@ name: CI
 #   engine ─┬─ engine-tests ──────────────────────────┤
 #           └─ site ── browser (smoke, startup,       ├─ deploy
 #                       presets, accounts, toolbar,   │
-#                       mixing, cancel) ──────────────┘
+#                       mixing, cancel, orca) ────────┘
 # The engine job reuses the last build when nothing it is built from changed
 # (see the engine key below), so most runs skip Emscripten entirely.
+# There are two engines (engine/README.md, "Two engines"): Snapmaker Orca and
+# upstream OrcaSlicer. engine and engine-tests run once for each; the site
+# carries both (the page loads OrcaSlicer with ?engine=orca).
 
 on:
   push:
@@ -73,8 +76,23 @@ jobs:
     # Writes the built engine to the engine-builds release (see "Publish the engine").
     permissions:
       contents: write
-    outputs:
-      key: ${{ steps.key.outputs.key }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - flavor: snapmaker
+            name: Snapmaker Orca
+            submodule: engine/orcaslicer
+            out: engine/build/engine
+            ccache: ''
+          - flavor: orca
+            name: OrcaSlicer
+            submodule: engine/orcaslicer-upstream
+            out: engine/build/engine-orca
+            ccache: orca-
+    name: engine (${{ matrix.name }})
+    # The later jobs work out the same keys themselves (engine-key.mjs), since a
+    # matrix job has only one set of outputs.
     steps:
       - uses: actions/checkout@v4
 
@@ -86,7 +104,7 @@ jobs:
       - name: Engine key
         id: key
         run: |
-          name=$(node engine/scripts/engine-key.mjs)
+          name=$(node engine/scripts/engine-key.mjs --flavor ${{ matrix.flavor }})
           echo "name=$name" >> "$GITHUB_OUTPUT"
           echo "key=engine-out-$name" >> "$GITHUB_OUTPUT"
 
@@ -94,16 +112,18 @@ jobs:
         id: engine-cache
         uses: actions/cache/restore@v4
         with:
-          path: engine/build/engine/orca-engine.*
+          path: ${{ matrix.out }}/orca-engine.*
           key: ${{ steps.key.outputs.key }}
           lookup-only: true
 
-      - name: Fetch the pinned Snapmaker Orca submodule (shallow)
+      - name: Fetch the pinned ${{ matrix.name }} submodule (shallow)
         if: steps.engine-cache.outputs.cache-hit != 'true'
+        env:
+          SUB: ${{ matrix.submodule }}
         run: |
-          sha=$(git ls-tree HEAD engine/orcaslicer | awk '{print $3}')
-          url=$(git config -f .gitmodules submodule.engine/orcaslicer.url)
-          cd engine/orcaslicer
+          sha=$(git ls-tree HEAD "$SUB" | awk '{print $3}')
+          url=$(git config -f .gitmodules "submodule.$SUB.url")
+          cd "$SUB"
           git init -q && git remote add origin "$url"
           git fetch -q --depth 1 origin "$sha" && git checkout -q FETCH_HEAD
 
@@ -150,8 +170,8 @@ jobs:
         uses: actions/cache/restore@v4
         with:
           path: ${{ runner.temp }}/ccache
-          key: engine-ccache-${{ env.EMSDK_VERSION }}-${{ github.sha }}
-          restore-keys: engine-ccache-${{ env.EMSDK_VERSION }}-
+          key: engine-ccache-${{ matrix.ccache }}${{ env.EMSDK_VERSION }}-${{ github.sha }}
+          restore-keys: engine-ccache-${{ matrix.ccache }}${{ env.EMSDK_VERSION }}-
 
       - name: Build the engine
         if: steps.engine-cache.outputs.cache-hit != 'true'
@@ -164,11 +184,11 @@ jobs:
           CCACHE_BASEDIR: ${{ github.workspace }}
         run: |
           source "$RUNNER_TEMP/emsdk/emsdk_env.sh"
-          emcmake cmake -S engine -B engine/build/engine -G Ninja -DCMAKE_BUILD_TYPE=Release
-          cmake --build engine/build/engine
-          ls -la engine/build/engine/orca-engine.*
+          emcmake cmake -S engine -B "${{ matrix.out }}" -G Ninja -DCMAKE_BUILD_TYPE=Release -DENGINE_FLAVOR=${{ matrix.flavor }}
+          cmake --build "${{ matrix.out }}"
+          ls -la "${{ matrix.out }}"/orca-engine.*
           ccache -s | tee "$RUNNER_TEMP/ccache.txt" | head -8
-          { echo '### Engine build'; echo "dependency cache hit: ${{ steps.deps-cache.outputs.cache-hit || 'false' }}";
+          { echo '### ${{ matrix.name }} engine build'; echo "dependency cache hit: ${{ steps.deps-cache.outputs.cache-hit || 'false' }}";
             echo '```'; head -8 "$RUNNER_TEMP/ccache.txt"; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Save compiler cache
@@ -176,14 +196,14 @@ jobs:
         uses: actions/cache/save@v4
         with:
           path: ${{ runner.temp }}/ccache
-          key: engine-ccache-${{ env.EMSDK_VERSION }}-${{ github.sha }}
+          key: engine-ccache-${{ matrix.ccache }}${{ env.EMSDK_VERSION }}-${{ github.sha }}
 
       # The later jobs restore the engine from this cache.
       - name: Save the engine
         if: steps.engine-cache.outputs.cache-hit != 'true'
         uses: actions/cache/save@v4
         with:
-          path: engine/build/engine/orca-engine.*
+          path: ${{ matrix.out }}/orca-engine.*
           key: ${{ steps.key.outputs.key }}
 
       # Every engine also goes to one GitHub pre-release, `engine-builds`, as
@@ -211,7 +231,7 @@ jobs:
         continue-on-error: true
         uses: actions/cache/restore@v4
         with:
-          path: engine/build/engine/orca-engine.*
+          path: ${{ matrix.out }}/orca-engine.*
           key: ${{ steps.key.outputs.key }}
 
       - name: Publish the engine
@@ -225,7 +245,7 @@ jobs:
             gh release create engine-builds --prerelease --latest=false --target main --title "Engine builds" \
               --notes "Wasm engines built by CI, one file per engine key, for engine/scripts/fetch-engine.mjs. Not a release of the app; old files are removed automatically." ||
             gh release view engine-builds >/dev/null
-          cd engine/build/engine
+          cd "${{ matrix.out }}"
           tar -czf "$RUNNER_TEMP/$ASSET" orca-engine.*
           ls -la "$RUNNER_TEMP/$ASSET"
           gh release upload engine-builds "$RUNNER_TEMP/$ASSET" --clobber
@@ -245,32 +265,56 @@ jobs:
 
       - name: Summary
         if: steps.engine-cache.outputs.cache-hit == 'true'
-        run: echo '### Engine unchanged, reused the build for `${{ steps.key.outputs.key }}`' >> "$GITHUB_STEP_SUMMARY"
+        run: echo '### ${{ matrix.name }} engine unchanged, reused the build for `${{ steps.key.outputs.key }}`' >> "$GITHUB_STEP_SUMMARY"
 
   engine-tests:
     needs: engine
     runs-on: ubuntu-24.04
     timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - flavor: snapmaker
+            name: Snapmaker Orca
+            out: engine/build/engine
+            profiles: engine/build/profiles
+          - flavor: orca
+            name: OrcaSlicer
+            out: engine/build/engine-orca
+            profiles: engine/build/profiles-orca
+    name: engine-tests (${{ matrix.name }})
+    env:
+      ENGINE_FLAVOR: ${{ matrix.flavor }}
+      ORCA_ENGINE_JS: ${{ github.workspace }}/${{ matrix.out }}/orca-engine.js
+      ORCA_PROFILES: ${{ github.workspace }}/${{ matrix.profiles }}/profiles.json
     steps:
       - uses: actions/checkout@v4
-      - name: Fetch the pinned Snapmaker Orca submodule (shallow)
+      # Both engines' sources: presets, calibration models and fonts come from them.
+      - name: Fetch the pinned Snapmaker Orca and OrcaSlicer submodules (shallow)
         run: |
-          sha=$(git ls-tree HEAD engine/orcaslicer | awk '{print $3}')
-          url=$(git config -f .gitmodules submodule.engine/orcaslicer.url)
-          cd engine/orcaslicer
-          git init -q && git remote add origin "$url"
-          git fetch -q --depth 1 origin "$sha" && git checkout -q FETCH_HEAD
+          for sub in engine/orcaslicer engine/orcaslicer-upstream; do
+            sha=$(git ls-tree HEAD "$sub" | awk '{print $3}')
+            url=$(git config -f .gitmodules "submodule.$sub.url")
+            (cd "$sub" && git init -q && git remote add origin "$url" &&
+              git fetch -q --depth 1 origin "$sha" && git checkout -q FETCH_HEAD)
+          done
+      - name: Engine keys
+        id: key
+        run: |
+          echo "snapmaker=engine-out-$(node engine/scripts/engine-key.mjs)" >> "$GITHUB_OUTPUT"
+          echo "orca=engine-out-$(node engine/scripts/engine-key.mjs --flavor orca)" >> "$GITHUB_OUTPUT"
       - uses: actions/setup-node@v4
         with:
           node-version: 22
       - uses: actions/cache/restore@v4
         with:
-          path: engine/build/engine/orca-engine.*
-          key: ${{ needs.engine.outputs.key }}
+          path: ${{ matrix.out }}/orca-engine.*
+          key: ${{ steps.key.outputs[matrix.flavor] }}
           fail-on-cache-miss: true
 
-      - name: Bundle the Snapmaker presets
-        run: node engine/scripts/bundle-profiles.mjs engine/build/profiles
+      - name: Bundle the ${{ matrix.name }} presets
+        run: node engine/scripts/bundle-profiles.mjs "${{ matrix.profiles }}"
 
       - name: Engine tests (Node)
         run: |
@@ -284,22 +328,36 @@ jobs:
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
-      - name: Fetch the pinned Snapmaker Orca submodule (shallow)
+      # Both engines' sources: presets, calibration models and fonts come from them.
+      - name: Fetch the pinned Snapmaker Orca and OrcaSlicer submodules (shallow)
         run: |
-          sha=$(git ls-tree HEAD engine/orcaslicer | awk '{print $3}')
-          url=$(git config -f .gitmodules submodule.engine/orcaslicer.url)
-          cd engine/orcaslicer
-          git init -q && git remote add origin "$url"
-          git fetch -q --depth 1 origin "$sha" && git checkout -q FETCH_HEAD
+          for sub in engine/orcaslicer engine/orcaslicer-upstream; do
+            sha=$(git ls-tree HEAD "$sub" | awk '{print $3}')
+            url=$(git config -f .gitmodules "submodule.$sub.url")
+            (cd "$sub" && git init -q && git remote add origin "$url" &&
+              git fetch -q --depth 1 origin "$sha" && git checkout -q FETCH_HEAD)
+          done
+      - name: Engine keys
+        id: key
+        run: |
+          echo "snapmaker=engine-out-$(node engine/scripts/engine-key.mjs)" >> "$GITHUB_OUTPUT"
+          echo "orca=engine-out-$(node engine/scripts/engine-key.mjs --flavor orca)" >> "$GITHUB_OUTPUT"
       - uses: actions/setup-node@v4
         with:
           node-version: 22
           cache: npm
           cache-dependency-path: apps/web/package-lock.json
-      - uses: actions/cache/restore@v4
+      - name: Restore the Snapmaker Orca engine
+        uses: actions/cache/restore@v4
         with:
           path: engine/build/engine/orca-engine.*
-          key: ${{ needs.engine.outputs.key }}
+          key: ${{ steps.key.outputs.snapmaker }}
+          fail-on-cache-miss: true
+      - name: Restore the OrcaSlicer engine
+        uses: actions/cache/restore@v4
+        with:
+          path: engine/build/engine-orca/orca-engine.*
+          key: ${{ steps.key.outputs.orca }}
           fail-on-cache-miss: true
 
       - name: Build the web app
@@ -321,7 +379,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        suite: [smoke, startup, presets, presetfiles, accounts, toolbar, mixing, wipetower, loading, cancel]
+        suite: [smoke, startup, presets, presetfiles, accounts, toolbar, mixing, wipetower, loading, cancel, orca]
     name: browser (${{ matrix.suite }})
     defaults:
       run:
@@ -345,6 +403,10 @@ jobs:
       - name: Browser smoke test (Chromium)
         if: matrix.suite == 'smoke'
         run: node test/smoke.mjs ../../fixtures/3DBenchy.stl smoke.png
+
+      - name: Browser smoke test with the OrcaSlicer engine (Chromium, ?engine=orca)
+        if: matrix.suite == 'orca'
+        run: SMOKE_ENGINE=orca node test/smoke.mjs ../../fixtures/3DBenchy.stl smoke-orca.png
 
       - name: Engine startup matrix (Chromium + current stable Chrome)
         if: matrix.suite == 'startup'
@@ -416,10 +478,10 @@ jobs:
           path: apps/web/toolbar-shots
 
       - uses: actions/upload-artifact@v4
-        if: always() && matrix.suite == 'smoke'
+        if: always() && (matrix.suite == 'smoke' || matrix.suite == 'orca')
         with:
-          name: smoke-screenshot
-          path: apps/web/smoke.png
+          name: ${{ matrix.suite }}-screenshot
+          path: apps/web/smoke*.png
 
   deploy:
     needs: [unit, engine-tests, browser]

@@ -209,6 +209,10 @@ std::string presetsSelect(const std::string& selectionJsonText) {
         if (!process.empty()) process = compatibleName(b, b.prints, Preset::TYPE_PRINT, process);
         if (process.empty() && printerChanged)
             process = compatibleName(b, b.prints, Preset::TYPE_PRINT, printerCfg.opt_string("default_print_profile"));
+        // Upstream OrcaSlicer's U1 printers name no default process; take the
+        // 0.20 Standard one rather than the first in the list (0.08 Extra Fine).
+        for (const char* fallback : {"0.20 Standard", "0.20mm Standard"})
+            if (process.empty() && printerChanged) process = compatibleName(b, b.prints, Preset::TYPE_PRINT, fallback);
         if (!process.empty()) b.prints.select_preset_by_name(process, true);
         std::string defaultFilament;
         if (const auto* d = printerCfg.option<ConfigOptionStrings>("default_filament_profile"))
@@ -221,6 +225,11 @@ std::string presetsSelect(const std::string& selectionJsonText) {
             // resizes every per-filament project setting (colours, maps) too.
             b.set_num_filaments(unsigned(names.size()));
             for (size_t i = 0; i < names.size(); ++i) b.set_filament_preset(i, names[i]);
+#if ENGINE_UPSTREAM
+            // Upstream keeps a filament per tool head; the slots it added copy
+            // the last one named, as its sidebar does.
+            for (size_t i = names.size(); i < b.filament_presets.size(); ++i) b.set_filament_preset(i, names.back());
+#endif
             b.filaments.select_preset_by_name(names.front(), true);
         }
         if (sel.contains("colours") && sel["colours"].is_array()) {
@@ -229,6 +238,13 @@ std::string presetsSelect(const std::string& selectionJsonText) {
             for (size_t i = 0; i < values.size() && i < colours->values.size(); ++i) colours->values[i] = values[i];
         }
         b.update_compatible(PresetSelectCompatibleType::Always);
+#if ENGINE_UPSTREAM
+        // Upstream OrcaSlicer keeps at least one filament per tool head and adds
+        // the missing ones without growing the colour list; grow it to match, or
+        // the slice reads past the end of it.
+        if (b.project_config.option<ConfigOptionStrings>("filament_colour")->values.size() != b.filament_presets.size())
+            b.set_num_filaments(unsigned(b.filament_presets.size()));
+#endif
         // Any filament slot naming an unknown or incompatible preset (every slot,
         // for a newly chosen printer with no filaments given) takes the
         // printer's default filament, else the first compatible one.
@@ -448,8 +464,10 @@ std::string configOptionsJson() {
         if (def.nullable) o["nullable"] = true;
         if (def.multiline) o["multiline"] = true;
         if (def.readonly) o["readonly"] = true;
+#if ENGINE_HAS_FLOW_VARIANTS
         if (is_process_flow_variant_option(key)) o["flow"] = "process";
         else if (is_filament_flow_variant_option(key)) o["flow"] = "filament";
+#endif
         if (region.count(key)) o["scope"] = "region";
         else if (object.count(key)) o["scope"] = "object";
         out[key] = std::move(o);
@@ -489,6 +507,17 @@ std::string presetsFilamentsFor(const std::string& printerName) {
     }
 }
 
+// Which engine this is and what it can do, so the page can show only the
+// features it has: {flavor: "snapmaker" | "orca", name, version, mixing, flowVariants}.
+std::string engineInfo() {
+    return json{{"flavor", ENGINE_FLAVOR},
+                {"name", ENGINE_NAME},
+                {"version", ENGINE_VERSION},
+                {"mixing", bool(ENGINE_HAS_MIXING)},
+                {"flowVariants", bool(ENGINE_HAS_FLOW_VARIANTS)}}
+        .dump();
+}
+
 } // namespace
 
 bool engine::selectedPrinterIsBambu() { return g_bundle && g_bundle->is_bbl_vendor(); }
@@ -503,4 +532,5 @@ EMSCRIPTEN_BINDINGS(presets_api) {
     emscripten::function("presetExport", &presetExport);
     emscripten::function("presetImportParse", &presetImportParse);
     emscripten::function("configOptionsJson", &configOptionsJson);
+    emscripten::function("engineInfo", &engineInfo);
 }

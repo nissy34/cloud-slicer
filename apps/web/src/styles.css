@@ -4322,6 +4322,16 @@ button.volume-name {
   justify-items: start;
 }
 
+/* Which engine slices, when it isn't the default Snapmaker Orca. */
+.engine-badge {
+  font-size: 12px;
+  color: var(--muted);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 2px 8px;
+  white-space: nowrap;
+}
+
 /* The filament Setting Overrides page: a checkbox before each label, and the
    printer's value greyed out while the filament leaves it unset. */
 .override-check {

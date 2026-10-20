@@ -37,10 +37,22 @@ export interface SelectResult {
   filaments: PresetSummary[];
 }
 
+/** Which engine is running and what it can do (engine/src/presets_api.cpp engineInfo). */
+export interface EngineInfo {
+  flavor: 'snapmaker' | 'orca';
+  name: string;
+  version: string;
+  /** Mixed filaments (Snapmaker Orca's colour mixing). */
+  mixing: boolean;
+  /** Standard / high flow values per option (Snapmaker Orca 2.4). */
+  flowVariants: boolean;
+}
+
 export interface PresetsLoaded {
   counts: { printers: number; filaments: number; processes: number };
   selection: Selection;
   vendorVersion: string;
+  engine: EngineInfo;
 }
 
 export interface OptionDef {

@@ -16,7 +16,8 @@ import { dirname, join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const here = dirname(fileURLToPath(import.meta.url));
-const root = resolve(here, '../orcaslicer/resources/profiles');
+// ENGINE_FLAVOR=orca bundles upstream OrcaSlicer's presets instead.
+const root = resolve(here, process.env.ENGINE_FLAVOR === 'orca' ? '../orcaslicer-upstream/resources/profiles' : '../orcaslicer/resources/profiles');
 const [outDir, ...vendorArgs] = process.argv.slice(2);
 if (!outDir) {
   console.error('usage: bundle-profiles.mjs <out-dir> [vendor ...]');

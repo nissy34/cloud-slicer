@@ -16,6 +16,7 @@ export function TopBar() {
   const setTab = useSlicer((s) => s.setTab);
   const ready = useSlicer((s) => s.engine === 'ready');
   const [calibrating, setCalibrating] = useState(false);
+  const engineInfo = useSlicer((s) => s.engineInfo);
   return (
     <header className="topbar">
       <div className="brand">
@@ -23,6 +24,11 @@ export function TopBar() {
         Cloud Slicer
       </div>
       <ProjectMenu />
+      {engineInfo && engineInfo.flavor !== 'snapmaker' && (
+        <span className="engine-badge" title={`Slicing with ${engineInfo.name} ${engineInfo.version}`}>
+          {engineInfo.name} {engineInfo.version}
+        </span>
+      )}
       <nav className="tabs" role="tablist" aria-label="Workspace">
         {TABS.map((t) => (
           <button

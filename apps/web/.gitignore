@@ -8,3 +8,4 @@ public/engine/fonts/
 public/engine/handy_models/
 test-results/
 *.tsbuildinfo
+public/engine-orca/

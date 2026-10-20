@@ -90,6 +90,10 @@ if (self.name !== 'em-pthread') {
     }
     const presets = json(engine.presetsLoad(DATA_DIR));
     presets.vendorVersion = bundle.version;
+    // Engines built before engineInfo() were all Snapmaker Orca.
+    presets.engine = engine.engineInfo
+      ? JSON.parse(engine.engineInfo())
+      : { flavor: 'snapmaker', name: 'Snapmaker Orca', version: '', mixing: true, flowVariants: true };
     engine.FS.mkdirTree('/work');
     // An engine build without slice cancelling still works, without Cancel.
     cancel = engine.sliceCancelFlag ? engine.sliceCancelFlag() : null;
@@ -266,6 +270,8 @@ if (self.name !== 'em-pthread') {
     // An edit that removes a filament also moves the project's IDs, so the
     // project comes back with it.
     mixed(e, request) {
+      // An engine without mixed filaments (upstream OrcaSlicer) has no list.
+      if (!e.mixedFilaments) return { definitions: '', rows: [] };
       const out = json(e.mixedFilaments(JSON.stringify(request)));
       const kind = request.op?.kind;
       return kind === 'delete' || kind === 'removePhysical' || kind === 'replacePhysical' ? { ...out, info: JSON.parse(e.modelInfoJson()) } : out;

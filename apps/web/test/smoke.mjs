@@ -4,6 +4,7 @@
 //
 //   node test/smoke.mjs [model] [screenshot.png]
 //   SMOKE_URL=https://… node test/smoke.mjs      # test a deployed site instead
+//   SMOKE_ENGINE=orca node test/smoke.mjs        # with the upstream OrcaSlicer engine (?engine=orca)
 //
 // Needs `npm run build` first (with the engine copied into public/engine).
 import { spawn } from 'node:child_process';
@@ -62,11 +63,17 @@ try {
   const page = await browser.newPage({ viewport: { width: 1280, height: 800 }, acceptDownloads: true });
   page.on('pageerror', (e) => console.error(`page error: ${e.message}`));
   page.on('console', (m) => m.type() === 'error' && console.error(`console: ${m.text()}`));
-  await page.goto(url);
+  const engine = process.env.SMOKE_ENGINE;
+  await page.goto(engine ? `${url}${url.includes('?') ? '&' : '?'}engine=${engine}` : url);
 
   if (!(await page.evaluate(() => crossOriginIsolated))) throw new Error('page is not cross-origin isolated (COOP/COEP)');
   await page.getByText('Open a model to start').waitFor({ timeout: 120000 });
   console.log('engine ready');
+  if (engine === 'orca') {
+    const badge = await page.locator('.engine-badge').innerText({ timeout: 10000 });
+    if (!/^OrcaSlicer /.test(badge)) fail(`engine badge says "${badge}", expected OrcaSlicer`);
+    console.log(`engine: ${badge}`);
+  }
 
   // First visit: the setup wizard opens by itself.
   const wizard = page.getByRole('dialog', { name: 'Set up your printers' });

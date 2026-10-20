@@ -1,3 +1,6 @@
 [submodule "engine/orcaslicer"]
 	path = engine/orcaslicer
 	url = https://github.com/Snapmaker/OrcaSlicer.git
+[submodule "engine/orcaslicer-upstream"]
+	path = engine/orcaslicer-upstream
+	url = https://github.com/OrcaSlicer/OrcaSlicer.git
