@@ -148,7 +148,19 @@ json wipeTowerFor(const DynamicPrintConfig& cfg, int plate, double slicedDepth) 
     double brim = cfg.opt_float("prime_tower_brim_width");
     if (depth < 0) {
         Print print;
+#if ENGINE_UPSTREAM
+        // Upstream sizes the tower from the tallest object in the Print (and
+        // plans none for an empty one): stand in a block as tall as the plate.
+        Model stand_in;
+        if (height > EPSILON) {
+            ModelObject* block = stand_in.add_object();
+            block->add_volume(TriangleMesh(its_make_cube(10., 10., height)));
+            block->add_instance();
+        }
+        print.apply(stand_in, cfg);
+#else
         print.apply(Model(), cfg);
+#endif
         const WipeTowerData& data = print.wipe_tower_data(filaments);
         depth = data.depth;
         brim = data.brim_width;

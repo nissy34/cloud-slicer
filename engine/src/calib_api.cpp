@@ -52,11 +52,35 @@ void set(DynamicPrintConfig& cfg, const std::string& key, ConfigOption* value) {
     cfg.set_key_value(key, v.release());
 }
 
-double nozzleDiameter(const DynamicPrintConfig& cfg) { return cfg.option<ConfigOptionFloats>("nozzle_diameter")->get_at(0); }
+// A number option with one value, in the type Orca declares for `key`:
+// Snapmaker Orca keeps speeds and accelerations per nozzle flow type (a
+// vector), upstream OrcaSlicer as a single number.
+ConfigOption* number(const std::string& key, double value) {
+    const ConfigOptionDef* def = print_config_def.get(key);
+    if (def && def->type == coFloat) return new ConfigOptionFloat(value);
+    return new ConfigOptionFloats{value};
+}
+
+// A yes/no option with one value, typed as number() is.
+ConfigOption* flag(const std::string& key, bool value) {
+    const ConfigOptionDef* def = print_config_def.get(key);
+    if (def && def->type == coBool) return new ConfigOptionBool(value);
+    return new ConfigOptionBools{value};
+}
+
+// The first value of a number option, single or per slot.
+double firstValue(const DynamicPrintConfig& cfg, const std::string& key) {
+    const ConfigOption* o = cfg.option(key);
+    if (const auto* v = dynamic_cast<const ConfigOptionFloats*>(o)) return v->values.empty() ? 0. : v->values.front();
+    if (const auto* v = dynamic_cast<const ConfigOptionFloatsNullable*>(o)) return v->values.empty() ? 0. : v->values.front();
+    return o ? o->getFloat() : 0.;
+}
+
+double nozzleDiameter(const DynamicPrintConfig& cfg) { return firstValue(cfg, "nozzle_diameter"); }
 
 void raiseMaxLayerHeight(DynamicPrintConfig& cfg, double layer_height) {
     auto* max_lh = cfg.option<ConfigOptionFloats>("max_layer_height", true);
-    if (max_lh->values.empty() || max_lh->values[0] < layer_height) set(cfg, "max_layer_height", new ConfigOptionFloats{layer_height});
+    if (max_lh->values.empty() || max_lh->values[0] < layer_height) set(cfg, "max_layer_height", number("max_layer_height", layer_height));
 }
 
 // Replaces the project with the test model, its objects centred together on
@@ -155,13 +179,13 @@ void flowRate(bool linear, int pass, DynamicPrintConfig& cfg) {
     const double zscale = (first_layer_height + 9 * layer_height) / 2;
     scaleAll(xyScale > 1.2 ? Vec3d(xyScale, xyScale, zscale) : Vec3d(1, 1, zscale));
 
-    const double cur_flowrate = cfg.option<ConfigOptionFloats>("filament_flow_ratio")->get_at(0);
+    const double cur_flowrate = firstValue(cfg, "filament_flow_ratio");
     const Flow infill_flow(float(nozzle_diameter * 1.2), float(layer_height), float(nozzle_diameter));
-    const double max_vol = cfg.option<ConfigOptionFloats>("filament_max_volumetric_speed")->get_at(0);
+    const double max_vol = firstValue(cfg, "filament_max_volumetric_speed");
     const double max_infill_speed = linear ? max_vol / (infill_flow.mm3_per_mm() * (cur_flowrate + (pass == 2 ? 0.035 : 0.05)) / cur_flowrate)
                                            : max_vol / (infill_flow.mm3_per_mm() * (pass == 1 ? 1.2 : 1));
-    const double internal_solid_speed = std::floor(std::min(cfg.opt_float("internal_solid_infill_speed", 0), max_infill_speed));
-    const double top_surface_speed = std::floor(std::min(cfg.opt_float("top_surface_speed", 0), max_infill_speed));
+    const double internal_solid_speed = std::floor(std::min(firstValue(cfg, "internal_solid_infill_speed"), max_infill_speed));
+    const double top_surface_speed = std::floor(std::min(firstValue(cfg, "top_surface_speed"), max_infill_speed));
 
     for (ModelObject* o : pr().model.objects) {
         o->ensure_on_bed();
@@ -188,8 +212,8 @@ void flowRate(bool linear, int pass, DynamicPrintConfig& cfg) {
         c.set_key_value("solid_infill_direction", new ConfigOptionFloat(135));
         c.set_key_value("align_infill_direction_to_model", new ConfigOptionBool(true));
         c.set_key_value("ironing_type", new ConfigOptionEnum<IroningType>(IroningType::NoIroning));
-        c.set_key_value("internal_solid_infill_speed", new ConfigOptionFloats{internal_solid_speed});
-        c.set_key_value("top_surface_speed", new ConfigOptionFloats{top_surface_speed});
+        c.set_key_value("internal_solid_infill_speed", number("internal_solid_infill_speed", internal_solid_speed));
+        c.set_key_value("top_surface_speed", number("top_surface_speed", top_surface_speed));
         c.set_key_value("seam_slope_type", new ConfigOptionEnum<SeamScarfType>(SeamScarfType::None));
         c.set_key_value("gap_fill_target", new ConfigOptionEnum<GapFillTarget>(GapFillTarget::gftNowhere));
         c.set_key_value("calib_flowrate_topinfill_special_order", new ConfigOptionBool(true));
@@ -207,7 +231,7 @@ void flowRate(bool linear, int pass, DynamicPrintConfig& cfg) {
         std::setlocale(LC_NUMERIC, loc.c_str());
         c.set_key_value("print_flow_ratio", new ConfigOptionFloat(linear ? (cur_flowrate + modifier) / cur_flowrate : 1.0f + modifier / 100.f));
     }
-    set(cfg, "max_volumetric_extrusion_rate_slope", new ConfigOptionFloats{0.});
+    set(cfg, "max_volumetric_extrusion_rate_slope", number("max_volumetric_extrusion_rate_slope", 0.));
     set(cfg, "layer_height", new ConfigOptionFloat(layer_height));
     set(cfg, "alternate_extra_wall", new ConfigOptionBool(false));
     set(cfg, "initial_layer_print_height", new ConfigOptionFloat(first_layer_height));
@@ -225,11 +249,11 @@ Calib_Params maxVolumetricSpeed(Calib_Params params, DynamicPrintConfig& cfg, do
     const double layer_height = nozzle_diameter * 0.8;
     raiseMaxLayerHeight(cfg, layer_height);
 
-    set(cfg, "filament_max_volumetric_speed", new ConfigOptionFloats{200.});
-    set(cfg, "slow_down_layer_time", new ConfigOptionFloats{0.0});
+    set(cfg, "filament_max_volumetric_speed", number("filament_max_volumetric_speed", 200.));
+    set(cfg, "slow_down_layer_time", number("slow_down_layer_time", 0.0));
     set(cfg, "resonance_avoidance", new ConfigOptionBool{false});
     auto& c = obj->config;
-    c.set_key_value("enable_overhang_speed", new ConfigOptionBools{false});
+    c.set_key_value("enable_overhang_speed", flag("enable_overhang_speed", false));
     c.set_key_value("wall_loops", new ConfigOptionInt(1));
     c.set_key_value("alternate_extra_wall", new ConfigOptionBool(false));
     c.set_key_value("top_shell_layers", new ConfigOptionInt(0));
@@ -243,12 +267,12 @@ Calib_Params maxVolumetricSpeed(Calib_Params params, DynamicPrintConfig& cfg, do
     c.set_key_value("brim_object_gap", new ConfigOptionFloat(0.0));
     set(cfg, "timelapse_type", new ConfigOptionEnum<TimelapseType>(tlTraditional));
     set(cfg, "spiral_mode", new ConfigOptionBool(true));
-    set(cfg, "max_volumetric_extrusion_rate_slope", new ConfigOptionFloats{0.});
+    set(cfg, "max_volumetric_extrusion_rate_slope", number("max_volumetric_extrusion_rate_slope", 0.));
 
     cutHorizontal((params.end - params.start + 1) / params.step, true);
 
     const double mm3_per_mm = Flow(float(line_width), float(layer_height), float(nozzle_diameter)).mm3_per_mm() *
-                              cfg.option<ConfigOptionFloats>("filament_flow_ratio")->get_at(0);
+                              firstValue(cfg, "filament_flow_ratio");
     params.end /= mm3_per_mm;
     params.start /= mm3_per_mm;
     params.step /= mm3_per_mm;
@@ -275,8 +299,8 @@ void retractionTower(const Calib_Params& params, DynamicPrintConfig& cfg) {
 // Plater::calib_VFA
 void vfaTower(const Calib_Params& params, DynamicPrintConfig& cfg) {
     ModelObject* obj = pr().model.objects[0];
-    set(cfg, "slow_down_layer_time", new ConfigOptionFloats{0.0});
-    set(cfg, "enable_overhang_speed", new ConfigOptionBools{false});
+    set(cfg, "slow_down_layer_time", number("slow_down_layer_time", 0.0));
+    set(cfg, "enable_overhang_speed", flag("enable_overhang_speed", false));
     set(cfg, "timelapse_type", new ConfigOptionEnum<TimelapseType>(tlTraditional));
     set(cfg, "wall_loops", new ConfigOptionInt(1));
     set(cfg, "alternate_extra_wall", new ConfigOptionBool(false));
@@ -294,12 +318,12 @@ void vfaTower(const Calib_Params& params, DynamicPrintConfig& cfg) {
 void paTower(const Calib_Params& params, DynamicPrintConfig& cfg) {
     ModelObject* obj = pr().model.objects[0];
     const double nozzle_diameter = nozzleDiameter(cfg);
-    set(cfg, "slow_down_layer_time", new ConfigOptionFloats{1.0f});
+    set(cfg, "slow_down_layer_time", number("slow_down_layer_time", 1.0f));
     auto& c = obj->config;
     c.set_key_value("alternate_extra_wall", new ConfigOptionBool(false));
     const auto wall_speed = CalibPressureAdvance::find_optimal_PA_speed(cfg, cfg.get_abs_value("line_width", nozzle_diameter), cfg.get_abs_value("layer_height"), 0);
-    c.set_key_value("outer_wall_speed", new ConfigOptionFloats{wall_speed});
-    c.set_key_value("inner_wall_speed", new ConfigOptionFloats{wall_speed});
+    c.set_key_value("outer_wall_speed", number("outer_wall_speed", wall_speed));
+    c.set_key_value("inner_wall_speed", number("inner_wall_speed", wall_speed));
     c.set_key_value("seam_position", new ConfigOptionEnum<SeamPosition>(spRear));
     c.set_key_value("wall_loops", new ConfigOptionInt(2));
     c.set_key_value("top_shell_layers", new ConfigOptionInt(0));
@@ -310,7 +334,7 @@ void paTower(const Calib_Params& params, DynamicPrintConfig& cfg) {
     c.set_key_value("brim_ears_max_angle", new ConfigOptionFloat(135.f));
     c.set_key_value("brim_width", new ConfigOptionFloat(6.f));
     c.set_key_value("seam_slope_type", new ConfigOptionEnum<SeamScarfType>(SeamScarfType::None));
-    set(cfg, "max_volumetric_extrusion_rate_slope", new ConfigOptionFloats{0.});
+    set(cfg, "max_volumetric_extrusion_rate_slope", number("max_volumetric_extrusion_rate_slope", 0.));
     set(cfg, "resonance_avoidance", new ConfigOptionBool{false});
     cutHorizontal(std::ceil((params.end - params.start) / params.step) + 1, true);
 }
@@ -332,9 +356,9 @@ std::vector<std::string> paPattern(const Calib_Params& params, DynamicPrintConfi
     set(cfg, "resonance_avoidance", new ConfigOptionBool{false});
 
     // The outer wall acceleration, else the inner wall's, else the default.
-    double accel = cfg.option<ConfigOptionFloats>("outer_wall_acceleration")->values.front();
-    if (accel == 0) accel = cfg.option<ConfigOptionFloats>("inner_wall_acceleration")->values.front();
-    if (accel == 0) accel = cfg.option<ConfigOptionFloats>("default_acceleration")->values.front();
+    double accel = firstValue(cfg, "outer_wall_acceleration");
+    if (accel == 0) accel = firstValue(cfg, "inner_wall_acceleration");
+    if (accel == 0) accel = firstValue(cfg, "default_acceleration");
     if (accels.empty()) {
         accels.assign({accel});
         notes.push_back("No accelerations given, so the test uses the default acceleration of " + std::to_string(long(accel)) + " mm/s².");
@@ -342,15 +366,15 @@ std::vector<std::string> paPattern(const Calib_Params& params, DynamicPrintConfi
         // The largest one sizes the pattern.
         accel = *std::max_element(accels.begin(), accels.end());
     }
-    set(cfg, "outer_wall_acceleration", new ConfigOptionFloats{accel});
+    set(cfg, "outer_wall_acceleration", number("outer_wall_acceleration", accel));
     set(cfg, "print_sequence", new ConfigOptionEnum<PrintSequence>(PrintSequence::ByLayer));
 
-    if (cfg.option<ConfigOptionFloats>("default_jerk")->values.front() > 0) {
-        double jerk = cfg.option<ConfigOptionFloats>("outer_wall_jerk")->values.front();
-        if (jerk == 0) jerk = cfg.option<ConfigOptionFloats>("inner_wall_jerk")->values.front();
-        if (jerk == 0) jerk = cfg.option<ConfigOptionFloats>("default_jerk")->values.front();
+    if (firstValue(cfg, "default_jerk") > 0) {
+        double jerk = firstValue(cfg, "outer_wall_jerk");
+        if (jerk == 0) jerk = firstValue(cfg, "inner_wall_jerk");
+        if (jerk == 0) jerk = firstValue(cfg, "default_jerk");
         for (const char* key : {"default_jerk", "outer_wall_jerk", "inner_wall_jerk", "top_surface_jerk", "infill_jerk", "travel_jerk"})
-            set(cfg, key, new ConfigOptionFloats{jerk});
+            set(cfg, key, number(key, jerk));
     }
 
     const SuggestedConfigCalibPAPattern suggested;
@@ -361,11 +385,11 @@ std::vector<std::string> paPattern(const Calib_Params& params, DynamicPrintConfi
 
     if (speeds.empty()) {
         const double speed = CalibPressureAdvance::find_optimal_PA_speed(cfg, cfg.get_abs_value("line_width", nozzle_diameter), cfg.get_abs_value("layer_height"), 0);
-        set(cfg, "outer_wall_speed", new ConfigOptionFloats{speed});
+        set(cfg, "outer_wall_speed", number("outer_wall_speed", speed));
         speeds.assign({speed});
         notes.push_back("No speeds given, so the test uses the best speed for it, " + std::to_string(long(speed)) + " mm/s.");
     } else if (speeds.size() == 1) {
-        set(cfg, "outer_wall_speed", new ConfigOptionFloats{speeds.front()});
+        set(cfg, "outer_wall_speed", number("outer_wall_speed", speeds.front()));
     }
 
     engine::Project& p = pr();
@@ -404,8 +428,8 @@ std::vector<std::string> paPattern(const Calib_Params& params, DynamicPrintConfi
         const double speed = speeds[t % speeds.size()], acc = accels[t / speeds.size()];
         ModelObject* obj = t == 0 ? cube : p.model.add_object(*cube);
         obj->name = "pa_pattern_" + std::to_string(int(speed)) + "_" + std::to_string(int(acc));
-        if (speeds.size() > 1) obj->config.set_key_value("outer_wall_speed", new ConfigOptionFloats{speed});
-        if (accels.size() > 1) obj->config.set_key_value("outer_wall_acceleration", new ConfigOptionFloats{acc});
+        if (speeds.size() > 1) obj->config.set_key_value("outer_wall_speed", number("outer_wall_speed", speed));
+        if (accels.size() > 1) obj->config.set_key_value("outer_wall_acceleration", number("outer_wall_acceleration", acc));
         obj->instances[0]->set_offset(Vec3d(centre.x(), centre.y(), 0) + pattern.handle_pos_offset());
         obj->invalidate_bounding_box();
         obj->ensure_on_bed();
@@ -417,16 +441,16 @@ std::vector<std::string> paPattern(const Calib_Params& params, DynamicPrintConfi
 void ringingTower(CalibMode mode, DynamicPrintConfig& cfg) {
     ModelObject* obj = pr().model.objects[0];
     const bool junction = mode == CalibJunctionDeviation;
-    set(cfg, "machine_max_junction_deviation", new ConfigOptionFloats{junction ? 1.0 : 0.3});
-    set(cfg, "slow_down_layer_time", new ConfigOptionFloats{0.0});
-    set(cfg, "slow_down_min_speed", new ConfigOptionFloats{0.0});
+    set(cfg, "machine_max_junction_deviation", number("machine_max_junction_deviation", junction ? 1.0 : 0.3));
+    set(cfg, "slow_down_layer_time", number("slow_down_layer_time", 0.0));
+    set(cfg, "slow_down_min_speed", number("slow_down_min_speed", 0.0));
     set(cfg, "slow_down_for_layer_cooling", new ConfigOptionBools{false});
-    if (junction) set(cfg, "filament_max_volumetric_speed", new ConfigOptionFloats{200.});
+    if (junction) set(cfg, "filament_max_volumetric_speed", number("filament_max_volumetric_speed", 200.));
     set(cfg, "enable_pressure_advance", new ConfigOptionBools{true});
-    set(cfg, "pressure_advance", new ConfigOptionFloats{0.0});
+    set(cfg, "pressure_advance", number("pressure_advance", 0.0));
     set(cfg, "adaptive_pressure_advance", new ConfigOptionBools{false});
     set(cfg, "layer_height", new ConfigOptionFloat(0.2));
-    set(cfg, "enable_overhang_speed", new ConfigOptionBools{false});
+    set(cfg, "enable_overhang_speed", flag("enable_overhang_speed", false));
     set(cfg, "timelapse_type", new ConfigOptionEnum<TimelapseType>(tlTraditional));
     set(cfg, "wall_loops", new ConfigOptionInt(1));
     set(cfg, "top_shell_layers", new ConfigOptionInt(0));
@@ -436,10 +460,10 @@ void ringingTower(CalibMode mode, DynamicPrintConfig& cfg) {
     set(cfg, "spiral_mode", new ConfigOptionBool(true));
     set(cfg, "spiral_mode_smooth", new ConfigOptionBool(false));
     set(cfg, "bottom_surface_pattern", new ConfigOptionEnum<InfillPattern>(ipRectilinear));
-    set(cfg, "outer_wall_speed", new ConfigOptionFloats{200.});
-    set(cfg, "default_acceleration", new ConfigOptionFloats{2000.});
-    set(cfg, "outer_wall_acceleration", new ConfigOptionFloats{2000.});
-    set(cfg, "default_junction_deviation", new ConfigOptionFloats{junction ? 0.0 : 0.25});
+    set(cfg, "outer_wall_speed", number("outer_wall_speed", 200.));
+    set(cfg, "default_acceleration", number("default_acceleration", 2000.));
+    set(cfg, "outer_wall_acceleration", number("outer_wall_acceleration", 2000.));
+    set(cfg, "default_junction_deviation", number("default_junction_deviation", junction ? 0.0 : 0.25));
     commonTowerSettings(cfg, obj);
 }
 

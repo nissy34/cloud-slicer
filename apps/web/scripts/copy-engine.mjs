@@ -75,8 +75,10 @@ if (existsSync(join(orcaDir, 'orca-engine.wasm')) && existsSync(join(repo, 'engi
   const env = { ...process.env, ENGINE_FLAVOR: 'orca' };
   execFileSync('node', [join(repo, 'engine/scripts/bundle-profiles.mjs'), orcaOut], { stdio: 'inherit', env });
   execFileSync('node', [join(repo, 'engine/scripts/extract-settings-layout.mjs'), join(orcaOut, 'settings-layout.json')], { stdio: 'inherit', env });
-  cpSync(join(repo, 'engine/orcaslicer-upstream/resources/calib'), join(orcaOut, 'calib'), { recursive: true, filter: (src) => !/\.(step|stp)$/i.test(src) });
-  cpSync(join(repo, 'engine/orcaslicer-upstream/resources/handy_models'), join(orcaOut, 'handy_models'), { recursive: true });
+  // The same calibration and handy models as Snapmaker Orca: upstream ships some
+  // of them only as Draco (.drc) files, which the engine can't read, and the page
+  // asks for them by Snapmaker's file names (src/lib/calibration.ts).
+  for (const dir of ['calib', 'handy_models']) if (existsSync(join(out, dir))) cpSync(join(out, dir), join(orcaOut, dir), { recursive: true });
 }
 
 // The Text tool's bundled fonts, from their npm packages.

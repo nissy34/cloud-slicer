@@ -225,6 +225,11 @@ std::string presetsSelect(const std::string& selectionJsonText) {
             // resizes every per-filament project setting (colours, maps) too.
             b.set_num_filaments(unsigned(names.size()));
             for (size_t i = 0; i < names.size(); ++i) b.set_filament_preset(i, names[i]);
+#if ENGINE_UPSTREAM
+            // Upstream keeps a filament per tool head; the slots it added copy
+            // the last one named, as its sidebar does.
+            for (size_t i = names.size(); i < b.filament_presets.size(); ++i) b.set_filament_preset(i, names.back());
+#endif
             b.filaments.select_preset_by_name(names.front(), true);
         }
         if (sel.contains("colours") && sel["colours"].is_array()) {

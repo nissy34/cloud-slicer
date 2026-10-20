@@ -6,6 +6,7 @@
 #include "libslic3r/BuildVolume.hpp"
 #include "libslic3r/GCode/GCodeProcessor.hpp"
 #include "libslic3r/GCode/ThumbnailData.hpp"
+#include "libslic3r/Layer.hpp"
 #include "libslic3r/Print.hpp"
 
 #include <algorithm>
@@ -66,18 +67,39 @@ emscripten::val sliceCancelFlag() {
 // Orca's wipe tower reads flush_volumes_matrix as N x N for N filaments without
 // bounds checks; desktop keeps it sized as filaments are added. A config
 // assembled outside desktop (or edited by hand) may not be, so pad it the way
-// desktop seeds new entries.
+// desktop seeds new entries. Upstream OrcaSlicer keeps one N x N block per
+// entry of flush_multiplier (per nozzle group) and refuses any other size.
 void padFlushMatrix(DynamicPrintConfig& cfg) {
+#if ENGINE_UPSTREAM
+    // Upstream sizes painted-colour layers by filament_colour and reads them by
+    // filament_diameter; a page that sends fewer colours than filaments (it
+    // keeps one filament per tool head) would read past the end. Pad them.
+    if (const auto* diameters = cfg.option<ConfigOptionFloats>("filament_diameter"))
+        for (const char* key : {"filament_colour", "filament_multi_colour"})
+            if (auto* c = cfg.option<ConfigOptionStrings>(key); c && !c->values.empty() && c->values.size() < diameters->values.size())
+                c->values.resize(diameters->values.size(), c->values.back());
+#endif
     const auto* colours = cfg.option<ConfigOptionStrings>("filament_colour");
     const size_t n = colours ? std::max<size_t>(1, colours->values.size()) : 1;
+#if ENGINE_UPSTREAM
+    const auto* multiplier = cfg.option<ConfigOptionFloats>("flush_multiplier");
+    const size_t blocks = multiplier ? std::max<size_t>(1, multiplier->values.size()) : 1;
+#else
+    const size_t blocks = 1;
+#endif
     auto* m = cfg.option<ConfigOptionFloats>("flush_volumes_matrix", true);
-    if (m->values.size() >= n * n) return;
-    const size_t old = size_t(std::lround(std::sqrt(double(m->values.size()))));
-    const bool square = old * old == m->values.size();
-    std::vector<double> v(n * n, 0.0);
-    for (size_t i = 0; i < n; ++i)
-        for (size_t j = 0; j < n; ++j)
-            v[i * n + j] = i == j ? 0.0 : (square && i < old && j < old) ? m->values[i * old + j] : 280.0;
+    if (blocks == 1 ? m->values.size() >= n * n : m->values.size() == n * n * blocks) return;
+    // The old matrix, as one square block (or the first of several).
+    size_t old = size_t(std::lround(std::sqrt(double(m->values.size()) / double(blocks))));
+    if (old * old * blocks != m->values.size()) old = size_t(std::lround(std::sqrt(double(m->values.size()))));
+    const bool square = old > 0 && old * old <= m->values.size();
+    std::vector<double> v(n * n * blocks, 0.0);
+    for (size_t b = 0; b < blocks; ++b) {
+        const size_t from = (square && (b + 1) * old * old <= m->values.size()) ? b * old * old : 0;
+        for (size_t i = 0; i < n; ++i)
+            for (size_t j = 0; j < n; ++j)
+                v[b * n * n + i * n + j] = i == j ? 0.0 : (square && i < old && j < old) ? m->values[from + i * old + j] : 280.0;
+    }
     m->values = std::move(v);
 }
 
