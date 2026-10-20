@@ -1,0 +1,38 @@
+name: Playwright browser
+description: >
+  Installs a Playwright browser and its system libraries, run from a folder
+  where `npm ci` has installed playwright. The browser is cached per
+  Playwright version (one copy, saved by main and read by every branch), and
+  the install is retried, since a download now and then drops mid-way.
+inputs:
+  browser:
+    description: Playwright browser name
+    default: chromium
+  working-directory:
+    description: Folder with node_modules/playwright
+    default: apps/web
+runs:
+  using: composite
+  steps:
+    - name: Playwright version
+      id: version
+      shell: bash
+      working-directory: ${{ inputs.working-directory }}
+      run: echo "version=$(node -p "require('./node_modules/playwright/package.json').version")" >> "$GITHUB_OUTPUT"
+    - uses: actions/cache@v5
+      with:
+        path: ~/.cache/ms-playwright
+        key: playwright-${{ runner.os }}-${{ inputs.browser }}-${{ steps.version.outputs.version }}
+    # With the browser restored this only checks the system libraries.
+    - name: Install ${{ inputs.browser }} (3 tries)
+      shell: bash
+      working-directory: ${{ inputs.working-directory }}
+      env:
+        BROWSER: ${{ inputs.browser }}
+      run: |
+        for try in 1 2 3; do
+          npx playwright install --with-deps "$BROWSER" && exit 0
+          echo "::warning::Playwright install failed (try $try of 3)"
+          sleep $((try * 20))
+        done
+        exit 1

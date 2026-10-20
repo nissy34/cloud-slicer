@@ -45,14 +45,19 @@ env:
   # Bump to force an engine rebuild when the build itself changes (flags,
   # commands in this file) but no engine source did.
   ENGINE_CACHE_VERSION: 1
+  # npm gives up after 2 tries by default; registry downloads now and then drop
+  # mid-way (ECONNRESET), so try harder before failing the job.
+  npm_config_fetch_retries: 5
+  npm_config_fetch_retry_mintimeout: 20000
+  npm_config_fetch_retry_maxtimeout: 120000
 
 jobs:
   unit:
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
         with:
           node-version: 22
           cache: npm
@@ -78,7 +83,7 @@ jobs:
     outputs:
       key: ${{ steps.key.outputs.key }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       # Everything the wasm build reads: the pinned Orca commit, the engine's
       # own sources and patches, the dependency script and the toolchain.
@@ -94,7 +99,7 @@ jobs:
 
       - name: Reuse an engine built from the same sources
         id: engine-cache
-        uses: actions/cache/restore@v4
+        uses: actions/cache/restore@v5
         with:
           path: engine/build/engine/orca-engine.*
           key: ${{ steps.key.outputs.key }}
@@ -120,7 +125,7 @@ jobs:
       - name: Restore engine dependencies
         if: steps.engine-cache.outputs.cache-hit != 'true'
         id: deps-cache
-        uses: actions/cache/restore@v4
+        uses: actions/cache/restore@v5
         with:
           path: engine/build/deps
           key: engine-deps-${{ env.EMSDK_VERSION }}-${{ hashFiles('engine/scripts/build-deps.sh') }}
@@ -142,14 +147,14 @@ jobs:
       # Saved right away, so a later failing step doesn't throw the build away.
       - name: Save engine dependencies
         if: steps.engine-cache.outputs.cache-hit != 'true' && steps.deps-cache.outputs.cache-hit != 'true'
-        uses: actions/cache/save@v4
+        uses: actions/cache/save@v5
         with:
           path: engine/build/deps
           key: ${{ steps.deps-cache.outputs.cache-primary-key }}
 
       - name: Restore compiler cache
         if: steps.engine-cache.outputs.cache-hit != 'true'
-        uses: actions/cache/restore@v4
+        uses: actions/cache/restore@v5
         with:
           path: ${{ runner.temp }}/ccache
           key: engine-ccache-${{ env.EMSDK_VERSION }}-${{ github.sha }}
@@ -175,7 +180,7 @@ jobs:
 
       - name: Save compiler cache
         if: always() && steps.engine-cache.outputs.cache-hit != 'true'
-        uses: actions/cache/save@v4
+        uses: actions/cache/save@v5
         with:
           path: ${{ runner.temp }}/ccache
           key: engine-ccache-${{ env.EMSDK_VERSION }}-${{ github.sha }}
@@ -183,7 +188,7 @@ jobs:
       # The later jobs restore the engine from this cache.
       - name: Save the engine
         if: steps.engine-cache.outputs.cache-hit != 'true'
-        uses: actions/cache/save@v4
+        uses: actions/cache/save@v5
         with:
           path: engine/build/engine/orca-engine.*
           key: ${{ steps.key.outputs.key }}
@@ -211,7 +216,7 @@ jobs:
       - name: Restore the engine to publish it
         if: steps.published.outputs.exists == 'false' && steps.engine-cache.outputs.cache-hit == 'true'
         continue-on-error: true
-        uses: actions/cache/restore@v4
+        uses: actions/cache/restore@v5
         with:
           path: engine/build/engine/orca-engine.*
           key: ${{ steps.key.outputs.key }}
@@ -254,7 +259,7 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - name: Fetch the pinned Snapmaker Orca submodule (shallow)
         run: |
           sha=$(git ls-tree HEAD engine/orcaslicer | awk '{print $3}')
@@ -262,10 +267,10 @@ jobs:
           cd engine/orcaslicer
           git init -q && git remote add origin "$url"
           git fetch -q --depth 1 origin "$sha" && git checkout -q FETCH_HEAD
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v5
         with:
           node-version: 22
-      - uses: actions/cache/restore@v4
+      - uses: actions/cache/restore@v5
         with:
           path: engine/build/engine/orca-engine.*
           key: ${{ needs.engine.outputs.key }}
@@ -285,7 +290,7 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - name: Fetch the pinned Snapmaker Orca submodule (shallow)
         run: |
           sha=$(git ls-tree HEAD engine/orcaslicer | awk '{print $3}')
@@ -293,12 +298,12 @@ jobs:
           cd engine/orcaslicer
           git init -q && git remote add origin "$url"
           git fetch -q --depth 1 origin "$sha" && git checkout -q FETCH_HEAD
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v5
         with:
           node-version: 22
           cache: npm
           cache-dependency-path: apps/web/package-lock.json
-      - uses: actions/cache/restore@v4
+      - uses: actions/cache/restore@v5
         with:
           path: engine/build/engine/orca-engine.*
           key: ${{ needs.engine.outputs.key }}
@@ -310,7 +315,7 @@ jobs:
           npm ci --no-audit --no-fund
           npm run build
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v6
         with:
           name: web-site
           path: apps/web/dist
@@ -329,20 +334,19 @@ jobs:
       run:
         working-directory: apps/web
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
         with:
           node-version: 22
           cache: npm
           cache-dependency-path: apps/web/package-lock.json
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v7
         with:
           name: web-site
           path: apps/web/dist
       - name: Install
-        run: |
-          npm ci --no-audit --no-fund
-          npx playwright install --with-deps chromium
+        run: npm ci --no-audit --no-fund
+      - uses: ./.github/actions/playwright
 
       - name: Browser smoke test (Chromium)
         if: matrix.suite == 'smoke'
@@ -350,8 +354,10 @@ jobs:
 
       - name: Engine startup matrix (Chromium + current stable Chrome)
         if: matrix.suite == 'startup'
+        # Stable Chrome comes with the runner image; `playwright install chrome`
+        # would download a 138 MB copy again on every run, which sometimes drops.
         run: |
-          npx playwright install --with-deps chrome
+          google-chrome --version
           STARTUP_CHROME=1 node test/startup-matrix.mjs
 
       - name: User presets end to end (Chromium)
@@ -368,7 +374,7 @@ jobs:
           node test/preset-files.mjs preset-shots
           node test/settings-pages.mjs preset-shots
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v6
         if: always() && matrix.suite == 'presetfiles'
         with:
           name: preset-screenshots
@@ -411,13 +417,13 @@ jobs:
         if: matrix.suite == 'toolbar'
         run: node test/toolbar.mjs toolbar-shots
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v6
         if: always() && matrix.suite == 'toolbar'
         with:
           name: toolbar-screenshots
           path: apps/web/toolbar-shots
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v6
         if: always() && matrix.suite == 'smoke'
         with:
           name: smoke-screenshot
@@ -439,7 +445,7 @@ jobs:
       run:
         working-directory: apps/web
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         if: env.CLOUDFLARE_API_TOKEN != '' && env.CLOUDFLARE_ACCOUNT_ID != ''
 
       # Runs on main can finish out of order; an older one must not replace a
@@ -457,13 +463,13 @@ jobs:
           fi
           echo "deploy=true" >> "$GITHUB_OUTPUT"
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v5
         if: steps.current.outputs.deploy == 'true'
         with:
           node-version: 22
           cache: npm
           cache-dependency-path: apps/web/package-lock.json
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v7
         if: steps.current.outputs.deploy == 'true'
         with:
           name: web-site
@@ -496,11 +502,12 @@ jobs:
           echo "url=$url" >> "$GITHUB_OUTPUT"
           echo "### Deployed: $url" >> "$GITHUB_STEP_SUMMARY"
 
+      - uses: ./.github/actions/playwright
+        if: steps.deploy.outputs.url != ''
       - name: Smoke test the deployed site
         if: steps.deploy.outputs.url != ''
         timeout-minutes: 20
         run: |
-          npx playwright install --with-deps chromium
           # A new Pages project or branch alias gets its TLS certificate a few
           # minutes after the first deploy; wait until the site answers over https.
           url='${{ steps.deploy.outputs.url }}'

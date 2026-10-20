@@ -237,6 +237,10 @@ try {
   await until('suggested map', async () => (await page.getByLabel('Tool head for filament 1').inputValue()) === '1' && (await page.getByLabel('Tool head for filament 2').inputValue()) === '0');
   await page.getByTestId('upload-only').click();
   await until('file uploaded', () => u1.files.has('two_colour.gcode'), 20_000);
+  // The printer has the whole file a moment before the page hears back; the
+  // dialog closes then. Opening the next file before that let this upload's
+  // finish close the new dialog (a flaky "no Cancel button" / "no tool map").
+  await page.getByRole('dialog').waitFor({ state: 'detached', timeout: 20_000 });
   if (u1.state.print_stats.state !== 'standby') throw new Error('Upload only started a print');
   if (u1.files.get('two_colour.gcode').size !== gcode.length) throw new Error(`uploaded ${u1.files.get('two_colour.gcode').size} bytes, sent ${gcode.length}`);
   console.log('upload only: file on the printer, no print started');
@@ -359,6 +363,9 @@ try {
   if (shots) await page.getByRole('dialog').screenshot({ path: join(shots, 'send-pick-printer.png') });
   await page.getByTestId('upload-only').click();
   await until('file uploaded to the printer picked', () => u1.files.has('pick_printer.gcode'), 20_000);
+  // Switching printers before the upload has answered left this dialog open for
+  // good, blocking every click after it (a flaky "dialog intercepts pointer events").
+  await page.getByRole('dialog').waitFor({ state: 'detached', timeout: 20_000 });
   if (voron.files.has('pick_printer.gcode')) throw new Error('the file went to the printer on screen, not the one picked');
   if (u1.state.print_stats.state === 'printing') throw new Error('Upload only started a print');
   if ((await page.evaluate(() => localStorage.getItem('cloud-slicer:printer-send:v1'))) !== JSON.stringify(u1Id)) throw new Error('the printer sent to is not remembered');

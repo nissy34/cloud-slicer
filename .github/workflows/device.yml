@@ -19,15 +19,26 @@ on:
 permissions:
   contents: read
 
+env:
+  # npm gives up after 2 tries by default; registry downloads now and then drop
+  # mid-way (ECONNRESET), so try harder before failing the job.
+  npm_config_fetch_retries: 5
+  npm_config_fetch_retry_mintimeout: 20000
+  npm_config_fetch_retry_maxtimeout: 120000
+
 jobs:
   test:
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
         with:
           node-version: 22
+          cache: npm
+          cache-dependency-path: |
+            apps/web/package-lock.json
+            apps/device-relay/package-lock.json
 
       - name: Bridge agent tests
         working-directory: apps/device-bridge
@@ -47,12 +58,12 @@ jobs:
           npm test
           npm run build
 
+      - uses: ./.github/actions/playwright
+
       - name: Device end to end (browser -> relay -> bridge -> mock U1, and direct)
         working-directory: apps/web
         timeout-minutes: 15
-        run: |
-          npx playwright install --with-deps chromium
-          node test/device-smoke.mjs device-shots
+        run: node test/device-smoke.mjs device-shots
 
       - uses: oven-sh/setup-bun@v2
         with:
@@ -78,7 +89,7 @@ jobs:
           cd ../web
           RELAY_TICKET_PRIVATE_KEY="$(cat "$RUNNER_TEMP/priv.json")" node test/device/relay-live.mjs http://127.0.0.1:8798
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v6
         if: always()
         with:
           name: device-screenshots
@@ -94,7 +105,7 @@ jobs:
       run:
         shell: bash
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - uses: oven-sh/setup-bun@v2
         with:
           bun-version: 1.4.2
@@ -114,7 +125,7 @@ jobs:
           $info = (Get-Item "$env:RUNNER_TEMP/bridge.exe").VersionInfo
           $info | Format-List ProductName, FileDescription, FileVersion
           if ($info.ProductName -ne 'Cloud Slicer Bridge') { throw "No version resources in the app" }
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v6
         with:
           name: bridge-app-windows
           path: apps/device-bridge/dist/windows-x64
@@ -124,7 +135,7 @@ jobs:
     runs-on: macos-latest
     timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - uses: oven-sh/setup-bun@v2
         with:
           bun-version: 1.4.2
@@ -140,7 +151,7 @@ jobs:
           "$app/Contents/MacOS/cloud-slicer-bridge" version
           # install copies the program out of the .app; that copy has to run too.
           cp "$app/Contents/MacOS/cloud-slicer-bridge" "$RUNNER_TEMP/copied" && "$RUNNER_TEMP/copied" version
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v6
         with:
           name: bridge-app-mac
           path: |
@@ -157,10 +168,14 @@ jobs:
       CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
       CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
         with:
           node-version: 22
+          cache: npm
+          cache-dependency-path: |
+            apps/web/package-lock.json
+            apps/device-relay/package-lock.json
       - uses: oven-sh/setup-bun@v2
         with:
           bun-version: 1.4.2
@@ -183,7 +198,7 @@ jobs:
           curl -fsS "$url/" && curl -fsS "$url/bridge.mjs" | grep -q runBridge
           echo "url=$url" >> "$GITHUB_OUTPUT"
         id: deploy
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v7
         if: steps.deploy.outputs.r2 == 'ok'
         with:
           pattern: bridge-app-*
