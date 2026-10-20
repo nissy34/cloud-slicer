@@ -28,6 +28,7 @@ import {
   type UserPreset,
   type UserSetting,
 } from '../account/api';
+import type { PresetEngines } from '../lib/preset-engines';
 
 export type AccountStatus = 'loading' | 'unavailable' | 'signedOut' | 'signedIn';
 
@@ -289,7 +290,8 @@ export function useUserPresets(type: PresetType): UserPreset[] {
 
 /**
  * Creates or updates a user preset: `diff` is only the options that differ
- * from the `inherits` system preset. Throws ApiError 409 when the preset was
+ * from the `inherits` system preset (Snapmaker Orca's); `engines` the part
+ * per engine (src/account/preset-save.ts saveFromEngine builds both). Throws ApiError 409 when the preset was
  * changed on another device since this one loaded it, unless `overwrite`.
  */
 export async function saveUserPreset(
@@ -297,12 +299,13 @@ export async function saveUserPreset(
   name: string,
   inherits: string,
   diff: Record<string, string>,
-  opts: { overwrite?: boolean } = {},
+  opts: { overwrite?: boolean; engines?: PresetEngines } = {},
 ): Promise<UserPreset> {
   const existing = useAccount.getState().presets.find((p) => same(p, type, name));
+  const { engines } = opts;
   const saved = signedIn()
-    ? await api.savePreset({ type, name, inherits, config: diff, baseVersion: opts.overwrite ? undefined : (existing?.version ?? 0) })
-    : { type, name, inherits, config: diff, version: 0, updatedAt: Date.now() };
+    ? await api.savePreset({ type, name, inherits, config: diff, engines, baseVersion: opts.overwrite ? undefined : (existing?.version ?? 0) })
+    : { type, name, inherits, config: diff, ...(engines ? { engines } : {}), version: 0, updatedAt: Date.now() };
   const next = [...useAccount.getState().presets.filter((p) => !same(p, type, name)), saved].sort(byTypeAndName);
   useAccount.setState({ presets: next });
   if (!signedIn()) savePresetsLocal(next);

@@ -60,13 +60,33 @@ const allVendors = readdirSync(root)
   .sort((a, b) => a.localeCompare(b));
 for (const v of startup) if (!allVendors.includes(v)) throw new Error(`bundle-profiles: no vendor ${v} under ${root}`);
 
+/**
+ * A printer model file without its "default_materials". Orca marks only those
+ * filaments installed (visible) once any loaded model names some, which would
+ * hide nearly every filament from every printer, the U1 included, as soon as a
+ * second brand is loaded. Snapmaker's models name none, so every filament stays
+ * visible, as the page expects: the setup wizard picks the filaments instead.
+ * (The wizard's starting picks come from each printer's default_filament_profile.)
+ */
+function withoutDefaultMaterials(text) {
+  if (!text.includes('"default_materials"')) return text;
+  try {
+    const json = JSON.parse(text);
+    if (json.type !== 'machine_model') return text;
+    delete json.default_materials;
+    return JSON.stringify(json, null, 4);
+  } catch {
+    return text;
+  }
+}
+
 /** The vendor's preset files ({path: text}); its other files go to assets/ when `assets` is set. */
 function vendorFiles(vendor, assets) {
   const files = { [`${vendor}.json`]: readFileSync(join(root, `${vendor}.json`), 'utf8') };
   let copied = 0;
   for (const file of walk(join(root, vendor))) {
     const rel = relative(root, file).split('\\').join('/');
-    if (file.endsWith('.json')) files[rel] = readFileSync(file, 'utf8');
+    if (file.endsWith('.json')) files[rel] = withoutDefaultMaterials(readFileSync(file, 'utf8'));
     else if (assets) {
       const dest = join(outDir, 'assets', rel);
       mkdirSync(dirname(dest), { recursive: true });

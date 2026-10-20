@@ -30,7 +30,10 @@ hosted on Cloudflare's free tier.
   printer and filament settings windows like desktop's preset editors (with its Extruder 1 to 4
   pages, one per tool head, Motion ability with the machine limits, and the filament's Setting
   Overrides, where a filament can use its own retraction and z-hop values or the printer's), and preset files
-  in and out (desktop Orca's preset JSON, `.orca_printer`, `.orca_filament`, zip).
+  in and out (desktop Orca's preset JSON, `.orca_printer`, `.orca_filament`, zip). One preset
+  works in both engines: settings both have (605, listed in `apps/web/src/lib/shared-settings.json`)
+  stay the same in both, while G-code, Snapmaker's high flow values and settings only one engine
+  has are kept per engine, each on its own base preset (`apps/web/src/lib/preset-engines.ts`).
 - **3MF print settings import**: a project's own settings come in on top of your presets.
   A 3MF made for a printer you don't have (for example a Bambu project) can be converted
   onto one of yours: the print settings its author changed carry over, the ones left at
@@ -264,6 +267,7 @@ Browser end to end tests (Playwright's Chromium) run against the built site
 | `npm run smoke` (`test/smoke.mjs`) | Open Benchy, slice, download the G-code and check it is a real U1 print file |
 | `test/startup-matrix.mjs` | The engine starts under other time zones, languages, CPU counts and in stable Chrome |
 | `test/presets.mjs` | Save, find, rename and delete your own presets |
+| `test/shared-presets.mjs` | A preset saved in Snapmaker Orca shows in OrcaSlicer and back, each engine on its own base |
 | `test/preset-files.mjs` | Printer and filament settings windows, preset export and import |
 | `test/accounts.mjs` | Sign-in, sessions, synced presets/settings/printers, online projects (Pages Functions + local D1, mock Google) |
 | `test/toolbar.mjs` | The object toolbar: add a model, variable layer height, simplify, brim ears, lay on face, measure, the object menu, parts and modifiers, mesh boolean, text and SVG shapes, assemble, fits a phone |

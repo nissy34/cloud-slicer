@@ -90,6 +90,10 @@ try {
   // Next loads the Voron presets (and nothing else) for the filament page.
   await wizard.getByRole('button', { name: 'Next' }).click();
   await wizard.getByText('Pick the filaments you use').waitFor({ timeout: 60000 });
+  // A second brand must not hide the other filaments (Orca's default_materials rule, see bundle-profiles.mjs).
+  const filamentCount = await wizard.locator('.wizard-filaments input[type=checkbox]').count();
+  console.log(`filament page lists ${filamentCount} filaments`);
+  if (filamentCount < 100) fail(`only ${filamentCount} filaments for the U1 and the Voron`);
   console.log(`after picking a Voron, fetched ${fetched.join(', ')}`);
   if (fetched.join() !== 'engine/profiles/Voron.json') fail(`expected only Voron.json, fetched ${fetched.join(', ')}`);
   await wizard.getByRole('button', { name: 'Next' }).click();

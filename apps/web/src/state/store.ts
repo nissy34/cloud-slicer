@@ -33,6 +33,8 @@ import { installedOnly, SETUP_KEY, type Setup } from '../lib/setup';
 import { loadConvertPreference, loadDefaultEngine, loadSaved, save, saveConvertPreference } from '../lib/storage';
 import { engineFolder, engineFromUrl, type EngineFlavor } from '../lib/engines';
 import { loadCatalog, vendorFilesFor, type PrinterCatalog } from '../lib/printer-catalog';
+import { expandPending, presetForEngine } from '../lib/preset-engines';
+import type { UserPreset } from '../account/api';
 import { heavyModel, type HeavyModel, type SimplifyBy, type SimplifyResult } from '../lib/simplify';
 import type { BrimEars, BrimRequest } from '../lib/brim';
 import type { LayerProfile, LayerRequest } from '../lib/layers';
@@ -177,7 +179,8 @@ export interface SlicerState {
    * selects again, with `selection` on top of the current one. Changes now
    * saved in a preset stop counting as changes.
    */
-  setUserPresets(presets: UserPresetFile[], selection?: Partial<Selection>): Promise<void>;
+  /** Loads the user's presets into the engine, as it reads them (engineFiles). */
+  setUserPresets(presets: UserPreset[], selection?: Partial<Selection>): Promise<void>;
   setFilament(slot: number, name: string): Promise<void>;
   setColour(slot: number, colour: string): Promise<void>;
   addFilament(): Promise<void>;
@@ -377,9 +380,24 @@ let pendingRestore: { file: File | null; current: boolean; plate: number; slicin
 let restarting = false;
 let presetsWatched = false;
 
-const presetFile = ({ type, name, inherits, config }: UserPresetFile): UserPresetFile => ({ type, name, inherits, config });
 /** The user presets the engine has loaded. */
-let enginePresets: UserPresetFile[] = [];
+let enginePresets: UserPreset[] = [];
+
+/**
+ * The user's presets as engine `flavor` loads them: each keeps a part per
+ * engine (src/lib/preset-engines.ts). Standard-flow values changed in
+ * OrcaSlicer fill in Snapmaker Orca's lists from the base preset.
+ */
+async function engineFiles(e: EngineClient, flavor: EngineFlavor, presets: UserPreset[], options: Record<string, OptionDef>): Promise<UserPresetFile[]> {
+  return Promise.all(
+    presets.map(async (p) => {
+      const { type, name, inherits, config, pending } = presetForEngine(p, flavor, options);
+      if (!pending) return { type, name, inherits, config };
+      const base = await e.presetConfig(type, inherits).catch(() => null);
+      return { type, name, inherits, config: expandPending(config, pending, base ?? {}, p.engines?.flowIndex) };
+    }),
+  );
+}
 // Brand files the running engine has loaded (lib/printer-catalog.ts).
 const loadedVendors = new Set<string>();
 
@@ -462,10 +480,6 @@ export const useSlicer = create<SlicerState>((set, get) => {
     });
     engine();
   }
-
-  // User presets are built on Snapmaker Orca's presets; OrcaSlicer gets its
-  // own once presets are kept per engine.
-  const userPresetsFit = () => get().flavor === 'snapmaker';
 
   // What the page shows while a new engine starts, with nothing in it yet.
   const emptyEngine = (): Partial<SlicerState> => ({
@@ -590,18 +604,24 @@ export const useSlicer = create<SlicerState>((set, get) => {
       const catalog = await loadCatalog(get().flavor);
       if (e !== client) return;
       set({ catalog });
+      const engineOptions = await e.options();
       // Brands beyond the start-up ones that the user's printers need.
-      const files = vendorFilesFor(catalog, neededPrinters(saved?.selection?.printer));
+      const files = vendorFilesFor(catalog, neededPrinters(engineOptions, saved?.selection?.printer));
       loadedVendors.clear();
       if (files.length) await e.vendors(files);
       for (const f of files) loadedVendors.add(f);
-      enginePresets = userPresetsFit() ? useAccount.getState().presets : [];
-      if (enginePresets.length) await e.userPresets(enginePresets.map(presetFile));
+      enginePresets = useAccount.getState().presets;
+      if (enginePresets.length) await e.userPresets(await engineFiles(e, get().flavor, enginePresets, engineOptions));
+      // A preset saved with an older list of shared settings moves to the new one, once.
+      void import('../account/preset-save')
+        .then((m) => m.upgradeStoredPresets())
+        .then((notes) => notes.length && set({ notice: notes.join(' '), noticeWarn: false }))
+        .catch(() => {});
       // Presets saved on another device (or merged at sign-in) reach the engine too.
       if (!presetsWatched) {
         presetsWatched = true;
         useAccount.subscribe((a) => {
-          if (a.presets !== enginePresets && get().engine === 'ready' && !presetEditing() && userPresetsFit())
+          if (a.presets !== enginePresets && get().engine === 'ready' && !presetEditing())
             void get().setUserPresets(a.presets).catch(fail);
           // Printers picked on another device, or in the setup wizard.
           const setup = a.settings[SETUP_KEY]?.value as Setup | undefined;
@@ -611,7 +631,7 @@ export const useSlicer = create<SlicerState>((set, get) => {
       }
       const [printers, options, layout] = await Promise.all([
         e.printers(),
-        e.options(),
+        engineOptions,
         fetch(`/${engineFolder(get().flavor)}/settings-layout.json?v=${import.meta.env.VITE_ENGINE_VERSION}`).then((r) => (r.ok ? (r.json() as Promise<SettingsLayout>) : null)),
       ]);
       set({ printers, options, layout });
@@ -635,10 +655,11 @@ export const useSlicer = create<SlicerState>((set, get) => {
 
   // The printer presets whose brands the engine should load: the installed
   // ones, the selected one and the ones the user's own printers are built on.
-  const neededPrinters = (selected?: string) => [
+  // (Their base in this engine: preset-engines.ts maps it.)
+  const neededPrinters = (options: Record<string, OptionDef>, selected?: string, presets = useAccount.getState().presets) => [
     ...(getUserSetting<Setup>(SETUP_KEY)?.printers ?? []),
     ...(selected ? [selected] : []),
-    ...useAccount.getState().presets.filter((p) => p.type === 'printer').map((p) => p.inherits),
+    ...presets.filter((p) => p.type === 'printer').map((p) => presetForEngine(p, get().flavor, options).inherits),
   ];
 
   async function applySelection(selection: Partial<Selection>) {
@@ -949,7 +970,13 @@ export const useSlicer = create<SlicerState>((set, get) => {
     setUserPresets: async (presets, selection) => {
       const e = engine();
       enginePresets = presets;
-      await e.userPresets(presets.map(presetFile));
+      // A new printer of the user's built on a brand not loaded yet brings that brand in first.
+      const files = vendorFilesFor(get().catalog, neededPrinters(get().options, undefined, presets)).filter((f) => !loadedVendors.has(f));
+      if (files.length) {
+        await e.vendors(files);
+        for (const f of files) loadedVendors.add(f);
+      }
+      await e.userPresets(await engineFiles(e, get().flavor, presets, get().options));
       const printers = await e.printers();
       set({ printers });
       const want = { ...get().selection, ...selection };
