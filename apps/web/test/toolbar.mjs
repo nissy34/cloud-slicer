@@ -420,6 +420,29 @@ try {
   if (shots) await page.screenshot({ path: join(shots, 'text-on-boat.png') });
   console.log('text shape: a text part on the boat, renamed by its text, in another font');
 
+  // Hebrew: a Latin-only font says which letters it lacks, a built-in Hebrew
+  // font has them. A font file that isn't a font shows its error in the
+  // tool's card (not above Slice plate), and the next edit that works clears it.
+  await textBox.fill('שלום U1');
+  const lettersHint = textPanel.getByText(/This font has no letters for ש/);
+  await lettersHint.waitFor({ timeout: 30000 });
+  await textPanel.getByLabel('Font').selectOption('Rubik');
+  await volumes.locator('.volume-name', { hasText: /^שלום U1$/ }).waitFor({ timeout: 30000 });
+  await lettersHint.waitFor({ state: 'detached', timeout: 30000 });
+  if (shots) await page.screenshot({ path: join(shots, 'text-hebrew.png') });
+  const badFont = async () => {
+    const [chooser] = await Promise.all([page.waitForEvent('filechooser'), textPanel.getByLabel('Font').selectOption('__file')]);
+    await chooser.setFiles({ name: 'NotAFont.ttf', mimeType: 'font/ttf', buffer: Buffer.from('not a font') });
+    await page.locator('.tool-pop .tool-error', { hasText: /can't be read/ }).waitFor({ timeout: 30000 });
+    if (await page.locator('.actionbar .error-text').count()) fail('the tool error shows above Slice plate too');
+  };
+  await badFont();
+  if (shots) await page.screenshot({ path: join(shots, 'text-error-in-card.png') });
+  await textPanel.getByLabel('Font').selectOption('Noto Serif Bold');
+  await textBox.fill('U1');
+  await page.locator('.tool-pop .tool-error').waitFor({ state: 'detached', timeout: 30000 });
+  console.log('text shape: Hebrew in a Hebrew font, missing letters named, a bad font file errors in the card and the next good edit clears it');
+
   // On the boat's surface: it follows the surface, turns with the Rotation
   // field, and a drag on it slides it over the boat (one undo step each).
   const errors = page.locator('.error-text');
@@ -457,7 +480,11 @@ try {
   if (await errors.count()) fail(`sliding the text: ${await errors.first().innerText()}`);
   if (shots) await page.screenshot({ path: join(shots, 'text-slid.png') });
   console.log(`text shape: follows the surface, turns, and slides from ${sx},${sy} to ${(await shapeAt()).join(',')}`);
+  // A tool's error goes when the tool closes.
+  await badFont();
   await textPanel.getByRole('button', { name: 'Done' }).click();
+  await page.waitForTimeout(500);
+  if (await page.locator('.error-text').count()) fail(`the text tool's error stays after Done: ${await page.locator('.error-text').first().innerText()}`);
 
   // SVG from the object menu: an .svg file becomes a part of the boat, then
   // gets wider (its height follows) and engraved.

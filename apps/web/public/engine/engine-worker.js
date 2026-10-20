@@ -211,8 +211,8 @@ if (self.name !== 'em-pthread') {
     },
     // A text part added to object o (-1: a new object on `plate`) or edited (see engine/src/text_api.cpp).
     textVolume(e, o, plate, request) {
-      const { object, volume } = json(e.textVolume(o, plate, JSON.stringify(request)));
-      return { info: JSON.parse(e.modelInfoJson()), object, volume };
+      const { object, volume, missing } = json(e.textVolume(o, plate, JSON.stringify(request)));
+      return { info: JSON.parse(e.modelInfoJson()), object, volume, missing };
     },
     // An SVG shape added to object o (-1: a new object on `plate`) from the file's
     // bytes, or given a new depth or size (see engine/src/svg_api.cpp).
