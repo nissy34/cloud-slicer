@@ -1446,14 +1446,15 @@ test('transform fields, sinking, part fields, copy and paste, like desktop', () 
 
   // A Z below the bed sinks it (sliced only above the bed); above the bed it drops back.
   const full = slice(fullConfig()).result.totalLayers;
-  move(0, 0, { offset: [100, 100, 15 - 10] });
-  near(info().objects[0].instances[0].offset[2], 15 - 10, 'sunk by 10 mm (the origin is the middle)');
+  const z0 = info().objects[0].instances[0].offset[2];
+  move(0, 0, { offset: [100, 100, z0 - 10] });
+  near(info().objects[0].instances[0].offset[2], z0 - 10, 'sunk by 10 mm');
   move(0, 0, { rotation: [0, 0, 45] });
-  near(info().objects[0].instances[0].offset[2], 5, 'stays sunk after turning it');
+  near(info().objects[0].instances[0].offset[2], z0 - 10, 'stays sunk after turning it');
   const sunk = slice(fullConfig()).result.totalLayers;
   assert.ok(sunk < full * 0.75 && sunk > full * 0.5, `a third under the bed: ${sunk} of ${full} layers`);
-  move(0, 0, { offset: [100, 100, 40] });
-  near(info().objects[0].instances[0].offset[2], 15, 'floating drops back onto the bed');
+  move(0, 0, { offset: [100, 100, z0 + 25] });
+  near(info().objects[0].instances[0].offset[2], z0, 'floating drops back onto the bed');
 
   // Part fields: offset, rotation and scale inside the object.
   call(engine, 'volumeAction', 0, JSON.stringify({ op: 'add', type: 'modifier', shape: 'Cube', instance: 0 }));

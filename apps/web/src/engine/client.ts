@@ -90,7 +90,8 @@ export interface History {
 }
 
 export interface InstanceChanges {
-  offset?: [number, number];
+  /** [x, y] or [x, y, z]: a z below the bed sinks the object into it, like desktop. */
+  offset?: [number, number] | [number, number, number];
   plate?: number;
   rotation?: number[];
   scale?: number[];

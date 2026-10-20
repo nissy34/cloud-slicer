@@ -91,6 +91,12 @@ export interface VolumeInfo {
   text?: TextStyle;
   /** An SVG shape's depth and size across its face, mm (the SVG tool edits them). */
   svg?: { depth: number; width: number; height: number; useSurface: boolean };
+  /** Where it sits in its object: mm, degrees and factors (desktop's part fields). */
+  offset: [number, number, number];
+  rotation: [number, number, number];
+  scale: [number, number, number];
+  /** Its mesh's size before its own scale, mm. */
+  meshSize: [number, number, number];
 }
 export interface InstanceInfo {
   plate: number;
@@ -102,6 +108,8 @@ export interface InstanceInfo {
 export interface ObjectInfo {
   name: string;
   size: [number, number, number];
+  /** Unrotated and unscaled: an instance's size along its own axes is this times its scale. */
+  meshSize: [number, number, number];
   /** Converted from inches or meters by the object menu ('' when not). */
   units: '' | 'inch' | 'meter';
   extruder: number;

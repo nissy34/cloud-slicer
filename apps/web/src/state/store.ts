@@ -106,13 +106,18 @@ export interface SlicerState {
   tool: Tool | null;
   /** The object menu (right click, long press or the object list's ⋯), at a point on the page. */
   /** The object menu, or with `volume` the menu of one of its parts, modifiers..., at (x, y) on the page. */
-  objectMenu: { object: number; instance: number; volume?: number; x: number; y: number } | null;
+  objectMenu: { object: number; instance: number; volume?: number; x: number; y: number; form?: 'clone' } | null;
   /** Desktop's menu on the plate (onPlate) or the empty space around it, open at (x, y) on the page. */
   plateMenu: { x: number; y: number; onPlate: boolean } | null;
   /** Files waiting for the user to say how to open the 3MF among them. */
   pendingOpen: File[] | null;
   /** Rotate in 15° steps (and move/scale in steps) without holding Shift, for touch screens. */
   snap: boolean;
+  /** The Scale fields change all three axes together (desktop's lock). */
+  uniformScale: boolean;
+  setUniformScale(on: boolean): void;
+  /** Ctrl+C took something (the engine holds the copy). */
+  copied: boolean;
   /** Desktop's Show labels: object names in the 3D view. */
   labels: boolean;
   setLabels(labels: boolean): void;
@@ -222,6 +227,14 @@ export interface SlicerState {
   setObjectFilament(o: number, volume: number, filament: number): Promise<void>;
   deleteObject(o: number): Promise<void>;
   copyInstance(o: number, i: number): Promise<void>;
+  /** Removes copy i of object o (the object, when it is the last one), like desktop's Remove instance. */
+  removeInstance(o: number, i: number): Promise<void>;
+  /** Part `volume`'s place in object o, from the Move/Rotate/Scale fields. */
+  transformVolume(o: number, volume: number, changes: { offset?: number[]; rotation?: number[]; scale?: number[] }): Promise<void>;
+  /** Ctrl+C: copy i of object o onto the clipboard. */
+  copyToClipboard(o: number, i: number): Promise<void>;
+  /** Ctrl+V: the clipboard as a new object on the plate, picked. */
+  paste(): Promise<void>;
   slice(): Promise<void>;
   /** Stops the running slice (desktop's Cancel next to the progress bar). */
   cancelSlice(): void;
@@ -801,6 +814,9 @@ export const useSlicer = create<SlicerState>((set, get) => {
     plateMenu: null,
     pendingOpen: null,
     snap: false,
+    uniformScale: true,
+    setUniformScale: (uniformScale) => set({ uniformScale }),
+    copied: false,
     labels: false,
     history: { undo: null, redo: null },
     cutZ: 0,
@@ -1089,6 +1105,32 @@ export const useSlicer = create<SlicerState>((set, get) => {
     copyInstance: (o, i) => {
       const size = get().project?.objects[o]?.size ?? [20, 20, 0];
       return projectEdit('Add copy', () => engine().addInstance(o, i, size[0] + 5, 0));
+    },
+    removeInstance: (o, i) =>
+      projectEdit('Remove copy', async () => {
+        const last = (get().project?.objects[o]?.instances.length ?? 1) <= 1;
+        const sel = get().selected;
+        if (sel?.object === o) {
+          if (last) set({ selected: null, tool: null });
+          // The copy before it stays picked, so + and - can be pressed again.
+          else if (sel.instance >= i) set({ selected: { object: o, instance: Math.max(0, sel.instance - 1) } });
+        }
+        return engine().deleteInstance(o, i);
+      }),
+    transformVolume: (o, volume, changes) =>
+      projectEdit(changes.rotation ? 'Rotate part' : changes.scale ? 'Scale part' : 'Move part', async () =>
+        (await engine().volumeAction(o, { op: 'set', volume, ...changes })).info),
+    copyToClipboard: async (o, i) => {
+      try {
+        await engine().plateAction(get().plate, { op: 'copy', object: o, instance: i });
+        set({ copied: true, notice: 'Copied. Ctrl+V pastes it as a new object.', noticeWarn: false });
+      } catch (err) {
+        fail(err);
+      }
+    },
+    paste: async () => {
+      if (!get().copied) return void set({ notice: 'Nothing copied yet: pick an object and press Ctrl+C.', noticeWarn: false });
+      return get().plateAction({ op: 'paste' }, 'Paste');
     },
 
     // 6 mm apart, like desktop's default arrange distance.
