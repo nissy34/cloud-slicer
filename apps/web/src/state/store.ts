@@ -32,6 +32,7 @@ import { accountReady, getUserSetting, presetEditing, useAccount } from './accou
 import { installedOnly, SETUP_KEY, type Setup } from '../lib/setup';
 import { loadConvertPreference, loadDefaultEngine, loadSaved, save, saveConvertPreference } from '../lib/storage';
 import { engineFolder, engineFromUrl, type EngineFlavor } from '../lib/engines';
+import { loadCatalog, vendorFilesFor, type PrinterCatalog } from '../lib/printer-catalog';
 import { heavyModel, type HeavyModel, type SimplifyBy, type SimplifyResult } from '../lib/simplify';
 import type { BrimEars, BrimRequest } from '../lib/brim';
 import type { LayerProfile, LayerRequest } from '../lib/layers';
@@ -82,6 +83,8 @@ export interface SlicerState {
   flavor: EngineFlavor;
 
   printers: PresetSummary[];
+  /** Every printer brand and model the engine ships, loaded or not (lib/printer-catalog.ts). */
+  catalog: PrinterCatalog | null;
   processes: PresetSummary[];
   filaments: PresetSummary[];
   selection: Selection | null;
@@ -158,6 +161,8 @@ export interface SlicerState {
 
   setTab(tab: Tab): void;
   selectPrinter(name: string): Promise<void>;
+  /** Loads the brands of these printer presets into the engine, when not loaded yet. */
+  loadVendors(printers: string[]): Promise<void>;
   /** Filaments that work with a printer, without selecting it (for the setup wizard). */
   filamentsFor(printer: string): Promise<{ filaments: PresetSummary[]; defaults: string[] }>;
   selectProcess(name: string): Promise<void>;
@@ -375,6 +380,8 @@ let presetsWatched = false;
 const presetFile = ({ type, name, inherits, config }: UserPresetFile): UserPresetFile => ({ type, name, inherits, config });
 /** The user presets the engine has loaded. */
 let enginePresets: UserPresetFile[] = [];
+// Brand files the running engine has loaded (lib/printer-catalog.ts).
+const loadedVendors = new Set<string>();
 
 export const useSlicer = create<SlicerState>((set, get) => {
   const engine = () => {
@@ -395,6 +402,8 @@ export const useSlicer = create<SlicerState>((set, get) => {
       },
       get().flavor,
     );
+    // The printer catalog comes down beside the engine (start() waits for it).
+    void loadCatalog(get().flavor);
     // Like desktop: an edit while slicing stops the slice rather than waiting for it.
     // (Something else may already have replaced the slicing state, like opening a file.)
     client.onEditWhileSlicing = () => (get().job.kind === 'slicing' ? set(stale()) : stopSlice());
@@ -578,6 +587,14 @@ export const useSlicer = create<SlicerState>((set, get) => {
       // Waits at most a few seconds: offline, the engine starts without user presets
       // and the subscription below adds them when the account answers.
       await accountReady();
+      const catalog = await loadCatalog(get().flavor);
+      if (e !== client) return;
+      set({ catalog });
+      // Brands beyond the start-up ones that the user's printers need.
+      const files = vendorFilesFor(catalog, neededPrinters(saved?.selection?.printer));
+      loadedVendors.clear();
+      if (files.length) await e.vendors(files);
+      for (const f of files) loadedVendors.add(f);
       enginePresets = userPresetsFit() ? useAccount.getState().presets : [];
       if (enginePresets.length) await e.userPresets(enginePresets.map(presetFile));
       // Presets saved on another device (or merged at sign-in) reach the engine too.
@@ -586,6 +603,10 @@ export const useSlicer = create<SlicerState>((set, get) => {
         useAccount.subscribe((a) => {
           if (a.presets !== enginePresets && get().engine === 'ready' && !presetEditing() && userPresetsFit())
             void get().setUserPresets(a.presets).catch(fail);
+          // Printers picked on another device, or in the setup wizard.
+          const setup = a.settings[SETUP_KEY]?.value as Setup | undefined;
+          if (get().engine === 'ready' && setup?.printers && vendorFilesFor(get().catalog, setup.printers).some((f) => !loadedVendors.has(f)))
+            void get().loadVendors(setup.printers).catch(fail);
         });
       }
       const [printers, options, layout] = await Promise.all([
@@ -611,6 +632,14 @@ export const useSlicer = create<SlicerState>((set, get) => {
       set({ engine: 'failed', engineMessage: (err as Error).message, job: { kind: 'idle' } });
     }
   }
+
+  // The printer presets whose brands the engine should load: the installed
+  // ones, the selected one and the ones the user's own printers are built on.
+  const neededPrinters = (selected?: string) => [
+    ...(getUserSetting<Setup>(SETUP_KEY)?.printers ?? []),
+    ...(selected ? [selected] : []),
+    ...useAccount.getState().presets.filter((p) => p.type === 'printer').map((p) => p.inherits),
+  ];
 
   async function applySelection(selection: Partial<Selection>) {
     const e = engine();
@@ -841,6 +870,7 @@ export const useSlicer = create<SlicerState>((set, get) => {
     engineInfo: null,
     flavor: engineFromUrl() ?? loadDefaultEngine() ?? 'snapmaker',
     printers: [],
+    catalog: null,
     processes: [],
     filaments: [],
     selection: null,
@@ -896,6 +926,20 @@ export const useSlicer = create<SlicerState>((set, get) => {
     selectPrinter: async (name) => {
       await editSelection(() => ({ printer: name, process: '' }));
       await fitPlates().catch(fail);
+    },
+    async loadVendors(names) {
+      const e = engine();
+      const files = vendorFilesFor(get().catalog, names).filter((f) => !loadedVendors.has(f));
+      if (!files.length) return;
+      // Reloading the presets resets the engine's selection: select again.
+      if (await e.vendors(files)) {
+        for (const f of files) loadedVendors.add(f);
+        const printers = await e.printers();
+        if (e !== client) return;
+        set({ printers });
+        const selection = get().selection;
+        if (selection) await applySelection(selection);
+      }
     },
     filamentsFor: (printer) => engine().filamentsFor(printer),
     selectProcess: (name) => editSelection(() => ({ process: name })),

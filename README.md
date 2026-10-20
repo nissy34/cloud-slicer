@@ -13,8 +13,12 @@ hosted on Cloudflare's free tier.
 - **Slices like desktop Snapmaker Orca 2.4.0**, because it is the same engine: STL, OBJ,
   AMF and 3MF projects, Bambu Studio 3MF files with painted colours, per-part filaments,
   multi-plate projects. Plate thumbnails go into the G-code, like desktop.
-- **Snapmaker printer, filament and process presets** bundled from the engine, with a
-  first-run setup wizard (like Orca's) to pick the printers and filaments you have.
+- **Every printer brand the engine ships** (55 in Snapmaker Orca, 63 in OrcaSlicer, with
+  their filaments and processes), with a first-run setup wizard (like Orca's) to pick the
+  printers and filaments you have: search, pictures, and a "can send" mark on the
+  printers this app can send prints to (Klipper ones); for the others you download the
+  G-code. Snapmaker's presets load at start and another brand's only once you pick one
+  of its printers, so the page starts as fast as with Snapmaker alone.
 - **Process settings in desktop's own pages and groups**, with per-object settings and a
   Standard flow / High flow switch for options that hold one value per nozzle flow
   variant (the U1). Like desktop, settings that don't apply grey out or hide (support

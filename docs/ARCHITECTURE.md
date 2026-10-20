@@ -15,7 +15,8 @@ commands.
 - **$0 a month.** Hosting is Cloudflare's free tier only: Pages (site and Functions),
   D1 (accounts), R2 (projects, bridge downloads) and Workers with Durable Objects
   (the device relay).
-- **Snapmaker printers first.** Only Snapmaker's presets are bundled for now.
+- **Snapmaker printers first, every brand offered.** Snapmaker's presets load at start;
+  every other brand the engine ships loads only once one of its printers is picked.
 - **Don't reinvent the wheel.** Call Orca's own code for presets, settings, 3MF and
   slicing; use well-known libraries (Better Auth for sign-in) instead of hand-rolled code.
 - **No telemetry**, no automatic error reporting. Errors are shown with a Copy button.
@@ -89,10 +90,22 @@ nothing on purpose, so a deploy's page and engine never get out of step).
 ## Presets
 
 - **System presets**: `engine/scripts/bundle-profiles.mjs` packs Snapmaker's vendor
-  presets, plus Orca's filament library they inherit from, into one `profiles.json`. The
-  worker writes them into the engine's data folder and the engine loads them with
-  `PresetBundle::load_presets`, exactly like desktop. Every bundled printer is loaded;
-  the setup wizard decides which ones the pickers show.
+  presets, plus Orca's filament library they inherit from, into one `profiles.json`
+  that the engine loads at start, and every other brand into its own
+  `profiles/<brand>.json`, per engine (55 brands in Snapmaker Orca, 63 in OrcaSlicer).
+  The worker writes them into the engine's data folder and the engine loads them with
+  `PresetBundle::load_presets`, exactly like desktop. A brand's file is fetched (and
+  the presets reloaded) only when a printer of that brand is installed in the setup
+  wizard, selected, or under one of the user's own printers (`loadVendors` in
+  `src/state/store.ts`); a reload fetches the same ones again at start. So start-up
+  costs the same as with Snapmaker alone plus the catalog: `profiles/catalog.json`
+  (about 10 KB compressed) lists every brand's models, nozzle presets and picture
+  (`profiles/covers/`) for the wizard. Loading every brand at once would add 0.7 MB
+  (Snapmaker Orca) to 1.3 MB (OrcaSlicer) of compressed downloads and their memory.
+- **Can send**: a catalog printer whose presets run Klipper (`gcode_flavor`, through
+  `inherits`) is one the Device tab can send to through Moonraker. The wizard and the
+  printer picker mark them; a user printer gets its system parent's mark
+  (`src/lib/printer-catalog.ts`). Other printers slice the same; you download the G-code.
 - **Setup wizard**: like Orca's first-run wizard, it asks which printers and filaments
   you have. The choice is an account setting (`setup`): kept in the browser signed out,
   in the account signed in, and merged (lists unioned) at sign-in. "Manage" next to the
