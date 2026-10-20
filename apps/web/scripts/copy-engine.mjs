@@ -69,6 +69,14 @@ const fontSources = {
   'NotoSerif-Regular.ttf': ['@expo-google-fonts/noto-serif', '400Regular/NotoSerif_400Regular.ttf'],
   'NotoSerif-Bold.ttf': ['@expo-google-fonts/noto-serif', '700Bold/NotoSerif_700Bold.ttf'],
   'NotoSansMono-Regular.ttf': ['@expo-google-fonts/noto-sans-mono', '400Regular/NotoSansMono_400Regular.ttf'],
+  'NotoSansHebrew-Regular.ttf': ['@expo-google-fonts/noto-sans-hebrew', '400Regular/NotoSansHebrew_400Regular.ttf'],
+  'NotoSansHebrew-Bold.ttf': ['@expo-google-fonts/noto-sans-hebrew', '700Bold/NotoSansHebrew_700Bold.ttf'],
+  'Rubik-Regular.ttf': ['@expo-google-fonts/rubik', '400Regular/Rubik_400Regular.ttf'],
+  'Rubik-Bold.ttf': ['@expo-google-fonts/rubik', '700Bold/Rubik_700Bold.ttf'],
+  'Heebo-Regular.ttf': ['@expo-google-fonts/heebo', '400Regular/Heebo_400Regular.ttf'],
+  'Heebo-Bold.ttf': ['@expo-google-fonts/heebo', '700Bold/Heebo_700Bold.ttf'],
+  'FrankRuhlLibre-Regular.ttf': ['@expo-google-fonts/frank-ruhl-libre', '400Regular/FrankRuhlLibre_400Regular.ttf'],
+  'FrankRuhlLibre-Bold.ttf': ['@expo-google-fonts/frank-ruhl-libre', '700Bold/FrankRuhlLibre_700Bold.ttf'],
 };
 mkdirSync(join(out, 'fonts'), { recursive: true });
 for (const [file, [pkg, path]] of Object.entries(fontSources)) {

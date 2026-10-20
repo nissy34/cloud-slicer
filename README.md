@@ -42,7 +42,7 @@ hosted on Cloudflare's free tier.
   moved with the gizmos, with their own settings, mesh boolean (union, difference or
   intersection of two of an object's parts), and text shapes (desktop's Text tool: raised,
   engraved or a modifier on the object's surface facing you, or an object of its own;
-  edited live with built-in Noto fonts, a font file, or the computer's fonts in Chrome/Edge;
+  edited live with built-in Noto fonts and Hebrew fonts (Rubik, Heebo, Frank Ruhl Libre, Noto Sans Hebrew), a font file (kept in the browser), or the computer's fonts in Chrome/Edge on a computer; Hebrew is laid out right to left (desktop prints it backwards), and the tool says which letters a font lacks;
   following a curved surface or set letter by letter, aligned left/centre/right and
   top/middle/bottom, slid over the object by dragging it (one finger on a phone), turned
   with its ring or a Rotation field, lifted off the surface, faced to the camera, and kept

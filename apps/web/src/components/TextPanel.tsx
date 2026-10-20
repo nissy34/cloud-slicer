@@ -1,16 +1,22 @@
 import { useEffect, useRef, useState } from 'react';
-import { DEFAULT_TEXT, clampStyle, type FontChoice, type TextStyle } from '../lib/fonts';
+import { DEFAULT_TEXT, clampStyle, missingLettersHint, type FontChoice, type TextStyle } from '../lib/fonts';
 import { KIND_LABELS, keepsAPart } from '../lib/volumes';
-import { addFontFile, availableFonts, canListComputerFonts, loadComputerFonts, nextTextStyle, rememberTextStyle } from '../state/fonts';
+import { addFontFile, availableFonts, canListComputerFonts, loadComputerFonts, nextTextStyle, rememberTextStyle, restoreFonts } from '../state/fonts';
 import { useSlicer } from '../state/store';
 import { ShapeActions, ShapePlacement, placementHint } from './ShapePlacement';
 
 const TYPES = ['part', 'negative', 'modifier'] as const;
-const GROUPS: [FontChoice['source'], string][] = [
-  ['bundled', 'Built in'],
-  ['file', 'Font files'],
-  ['computer', 'On this computer'],
-];
+/** The font list's groups: built-in fonts (Latin, then each other script), font files, the computer's. */
+function fontGroups(fonts: FontChoice[]): [string, FontChoice[]][] {
+  const scripts = [...new Set(fonts.flatMap((f) => (f.source === 'bundled' && f.script ? [f.script] : [])))];
+  const groups: [string, FontChoice[]][] = [
+    ['Built in', fonts.filter((f) => f.source === 'bundled' && !f.script)],
+    ...scripts.map((script): [string, FontChoice[]] => [`Built in: ${script} and Latin`, fonts.filter((f) => f.script === script)]),
+    ['Font files', fonts.filter((f) => f.source === 'file')],
+    ['On this computer', fonts.filter((f) => f.source === 'computer')],
+  ];
+  return groups.filter(([, list]) => list.length);
+}
 
 /** Starts a text where desktop's Text tool would: on the picked object, else as an object of its own. */
 export async function startText(object: number | null, type: (typeof TYPES)[number] = 'part') {
@@ -81,26 +87,45 @@ function TextFields({
 }) {
   const [style, setStyle] = useState<TextStyle>({ ...DEFAULT_TEXT, ...start });
   const [fonts, setFonts] = useState(availableFonts);
+  const [restoring, setRestoring] = useState(true);
+  const [missing, setMissing] = useState('');
   const [working, setWorking] = useState(false);
   const [more, setMore] = useState(false);
   const fileInput = useRef<HTMLInputElement>(null);
   const applied = useRef(JSON.stringify(start));
   const { textVolume, volumeAction } = useSlicer.getState();
-  const missingFont = !fonts.some((f) => f.name === style.font);
+  const missingFont = !restoring && !fonts.some((f) => f.name === style.font);
+
+  // Font files kept in this browser, and the computer's fonts if already allowed.
+  useEffect(() => {
+    let live = true;
+    void restoreFonts().then(() => {
+      if (!live) return;
+      setFonts(availableFonts());
+      setRestoring(false);
+    });
+    return () => {
+      live = false;
+    };
+  }, []);
 
   // Remakes the text a moment after the last change, like desktop's live preview.
   useEffect(() => {
     const want = clampStyle(style);
     const key = JSON.stringify(want);
-    if (key === applied.current || !want.text.trim() || missingFont) return;
+    if (key === applied.current || !want.text.trim() || missingFont || restoring) return;
     const timer = window.setTimeout(async () => {
       applied.current = key;
       setWorking(true);
-      if (await textVolume(object, want, { volume })) rememberTextStyle(want);
+      const done = await textVolume(object, want, { volume });
+      if (done) {
+        rememberTextStyle(want);
+        setMissing(done.missing);
+      }
       setWorking(false);
     }, 450);
     return () => window.clearTimeout(timer);
-  }, [style, object, volume, missingFont, textVolume]);
+  }, [style, object, volume, missingFont, restoring, textVolume]);
 
   const set = <K extends keyof TextStyle>(key: K, value: TextStyle[K]) => setStyle((s) => ({ ...s, [key]: value }));
   const num = (key: 'size' | 'depth' | 'boldness' | 'skew' | 'charGap' | 'lineGap', label: string, unit: string, step: number, title?: string) => (
@@ -129,27 +154,35 @@ function TextFields({
 
   return (
     <>
-      <textarea className="text-input" aria-label="Text" rows={2} value={style.text} onChange={(e) => set('text', e.target.value)} />
+      <textarea className="text-input" aria-label="Text" dir="auto" rows={2} value={style.text} onChange={(e) => set('text', e.target.value)} />
       {!style.text.trim() && <p className="hint simplify-warning">Type some text.</p>}
       <label className="transform-row text-row">
         <span>Font</span>
-        <select aria-label="Font" value={missingFont ? '' : style.font} onChange={(e) => void pickFont(e.target.value)}>
+        <select
+          aria-label="Font"
+          value={missingFont ? '' : style.font}
+          onChange={(e) => void pickFont(e.target.value)}
+          title="Built-in fonts, a font file you load (kept in this browser), or this computer's fonts in Chrome or Edge on a computer"
+        >
           {missingFont && <option value="">{style.font} (not on this device)</option>}
-          {GROUPS.map(([source, label]) => {
-            const list = fonts.filter((f) => f.source === source);
-            return list.length ? (
-              <optgroup key={source} label={label}>
-                {list.map((f) => (
-                  <option key={f.name} value={f.name}>
-                    {f.name}
-                  </option>
-                ))}
-              </optgroup>
-            ) : null;
-          })}
+          {fontGroups(fonts).map(([label, list]) => (
+            <optgroup key={label} label={label}>
+              {list.map((f) => (
+                <option key={f.name} value={f.name}>
+                  {f.name}
+                </option>
+              ))}
+            </optgroup>
+          ))}
           <optgroup label="More fonts">
-            <option value="__file">Load a font file…</option>
-            {canListComputerFonts() && !fonts.some((f) => f.source === 'computer') && <option value="__computer">Use this computer's fonts…</option>}
+            <option value="__file">Load a font file (.ttf, .otf)…</option>
+            {canListComputerFonts() ? (
+              !fonts.some((f) => f.source === 'computer') && <option value="__computer">Use this computer's fonts…</option>
+            ) : (
+              <option value="__nocomputer" disabled>
+                This computer's fonts: Chrome or Edge on a computer only
+              </option>
+            )}
           </optgroup>
         </select>
       </label>
@@ -158,16 +191,17 @@ function TextFields({
         type="file"
         accept=".ttf,.otf,.ttc,font/ttf,font/otf"
         hidden
-        onChange={(e) => {
+        onChange={async (e) => {
           const file = e.target.files?.[0];
           e.target.value = '';
           if (!file) return;
-          const choice = addFontFile(file);
+          const choice = await addFontFile(file);
           setFonts(availableFonts());
           set('font', choice.name);
         }}
       />
       {missingFont && <p className="hint simplify-warning">This text was made with a font that isn't on this device. Pick a font to change the text.</p>}
+      {missing && !missingFont && <p className="hint simplify-warning">{missingLettersHint(missing)}</p>}
       <ShapePlacement
         object={object}
         volume={volume}

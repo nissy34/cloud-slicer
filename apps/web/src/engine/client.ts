@@ -329,7 +329,7 @@ export class EngineClient {
   loadBundledFont = (path: string, file: string) => this.call<void>('loadBundledFont', [path, file]);
   /** A text part added to object o (-1: a new object on `plate`) or changed, like desktop's Text tool. */
   textVolume = (o: number, plate: number, request: TextRequest) =>
-    this.call<{ info: ProjectInfo; object: number; volume: number }>('textVolume', [o, plate, request]);
+    this.call<{ info: ProjectInfo; object: number; volume: number; missing?: string }>('textVolume', [o, plate, request]);
   /** An SVG shape added to object o (-1: a new object on `plate`) from the file's bytes, or changed, like desktop's SVG tool. */
   svgVolume = (o: number, plate: number, request: SvgRequest, bytes?: ArrayBuffer) =>
     this.call<{ info: ProjectInfo; object: number; volume: number }>('svgVolume', [o, plate, request, bytes ?? null], bytes ? [bytes] : []);

@@ -12,6 +12,7 @@
 #include <boost/nowide/convert.hpp>
 
 #include <algorithm>
+#include <cwctype>
 
 using nlohmann::json;
 using namespace Slic3r;
@@ -50,6 +51,133 @@ TextConfiguration configFrom(const json& req) {
     return tc;
 }
 
+// Right-to-left writing (Hebrew, Arabic). Orca's Emboss lays the characters
+// out left to right in the order they were typed, so Hebrew came out
+// backwards (desktop does the same). Each line is put into the order it is
+// read on the page first: a small version of the Unicode bidirectional
+// algorithm (strong letters, numbers, neutrals between them, and marks kept
+// with their letter), enough for words, numbers and punctuation. The text
+// itself is kept as typed. Arabic letters are not joined (no shaping).
+namespace bidi {
+
+enum class Kind { L, R, Number, Neutral, Mark };
+
+bool isRtl(wchar_t c) {
+    return (c >= 0x05BE && c <= 0x05FF && c != 0x05BF && c != 0x05C1 && c != 0x05C2 && c != 0x05C4 && c != 0x05C5 && c != 0x05C7) ||  // Hebrew letters
+           (c >= 0x0600 && c <= 0x07BF && !(c >= 0x064B && c <= 0x065F) && c != 0x0670 && !(c >= 0x0660 && c <= 0x0669)) ||  // Arabic, Syriac, Thaana
+           (c >= 0x0860 && c <= 0x08FF && c < 0x08D3) || (c >= 0xFB1D && c <= 0xFDFF) || (c >= 0xFE70 && c <= 0xFEFF) || (c >= 0x10800 && c <= 0x10FFF);
+}
+bool isMark(wchar_t c) {
+    return (c >= 0x0591 && c <= 0x05C7 && !isRtl(c)) || (c >= 0x064B && c <= 0x065F) || c == 0x0670 || (c >= 0x0300 && c <= 0x036F) || (c >= 0xFE00 && c <= 0xFE0F) ||
+           c == 0x200D || c == 0x200C;
+}
+Kind kindOf(wchar_t c) {
+    if (isMark(c)) return Kind::Mark;
+    if (isRtl(c)) return Kind::R;
+    if ((c >= '0' && c <= '9') || (c >= 0x0660 && c <= 0x0669) || (c >= 0x06F0 && c <= 0x06F9)) return Kind::Number;
+    if (c < 0x80) return ((c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z')) ? Kind::L : Kind::Neutral;
+    if ((c >= 0x00A0 && c <= 0x00BF) || c == 0x00D7 || c == 0x00F7 || (c >= 0x2000 && c <= 0x2BFF) || (c >= 0x3000 && c <= 0x303F) || (c >= 0xFE10 && c <= 0xFE6F) ||
+        (c >= 0xFF00 && c <= 0xFF20))
+        return Kind::Neutral;
+    return Kind::L;
+}
+wchar_t mirrored(wchar_t c) {
+    switch (c) {
+    case '(': return ')'; case ')': return '(';
+    case '[': return ']'; case ']': return '[';
+    case '{': return '}'; case '}': return '{';
+    case '<': return '>'; case '>': return '<';
+    case 0x00AB: return 0x00BB; case 0x00BB: return 0x00AB;
+    default: return c;
+    }
+}
+
+std::wstring line(const std::wstring& text) {
+    const size_t n = text.size();
+    std::vector<Kind> kinds(n);
+    bool anyRtl = false;
+    for (size_t i = 0; i < n; ++i) anyRtl |= (kinds[i] = kindOf(text[i])) == Kind::R;
+    if (!anyRtl) return text;
+    // The line's own direction: its first letter's.
+    bool rtl = false;
+    for (Kind k : kinds)
+        if (k == Kind::L || k == Kind::R) {
+            rtl = k == Kind::R;
+            break;
+        }
+    const int base = rtl ? 1 : 0;
+    std::vector<int> level(n, base);
+    // Letters, and numbers (always read left to right, inside right-to-left words a level up).
+    Kind lastStrong = rtl ? Kind::R : Kind::L;
+    for (size_t i = 0; i < n; ++i) {
+        if (kinds[i] == Kind::L) level[i] = rtl ? 2 : 0, lastStrong = Kind::L;
+        else if (kinds[i] == Kind::R) level[i] = 1, lastStrong = Kind::R;
+        else if (kinds[i] == Kind::Number) level[i] = lastStrong == Kind::R ? 2 : (rtl ? 2 : 0);
+    }
+    // Neutrals between two runs of the same direction take it (numbers count as
+    // right to left there), the rest the line's; marks go with their letter.
+    auto dir = [&](size_t i) { return kinds[i] == Kind::L ? 0 : 1; };
+    for (size_t i = 0; i < n;) {
+        if (kinds[i] != Kind::Neutral && kinds[i] != Kind::Mark) {
+            ++i;
+            continue;
+        }
+        size_t j = i;
+        while (j < n && (kinds[j] == Kind::Neutral || kinds[j] == Kind::Mark)) ++j;
+        const int before = i == 0 ? base : dir(i - 1);
+        const int after = j == n ? base : dir(j);
+        for (size_t k = i; k < j; ++k) {
+            if (kinds[k] == Kind::Mark && k > 0) level[k] = level[k - 1];
+            else level[k] = before == after ? (before == 1 ? 1 : (rtl ? 2 : 0)) : base;
+        }
+        i = j;
+    }
+    // Marks follow their letter: a letter and its marks move as one.
+    std::vector<std::pair<size_t, size_t>> units;  // [start, end)
+    for (size_t i = 0; i < n; ++i) {
+        if (kinds[i] == Kind::Mark && !units.empty()) units.back().second = i + 1;
+        else units.push_back({i, i + 1});
+    }
+    std::vector<int> unitLevel(units.size());
+    for (size_t u = 0; u < units.size(); ++u) unitLevel[u] = level[units[u].first];
+    std::vector<size_t> order(units.size());
+    for (size_t u = 0; u < order.size(); ++u) order[u] = u;
+    // From the highest level down to 1, each run at or above it turns round.
+    const int top = *std::max_element(unitLevel.begin(), unitLevel.end());
+    for (int lv = top; lv >= 1; --lv)
+        for (size_t i = 0; i < order.size();) {
+            if (unitLevel[order[i]] < lv) {
+                ++i;
+                continue;
+            }
+            size_t j = i;
+            while (j < order.size() && unitLevel[order[j]] >= lv) ++j;
+            std::reverse(order.begin() + i, order.begin() + j);
+            i = j;
+        }
+    std::wstring out;
+    out.reserve(n);
+    for (size_t u : order)
+        for (size_t k = units[u].first; k < units[u].second; ++k) out.push_back(level[k] % 2 ? mirrored(text[k]) : text[k]);
+    return out;
+}
+
+} // namespace bidi
+
+// The text in the order it is read on the page, line by line.
+std::wstring visualOrder(const std::wstring& text) {
+    std::wstring out;
+    size_t start = 0;
+    while (true) {
+        const size_t end = text.find(L'\n', start);
+        out += bidi::line(text.substr(start, end == std::wstring::npos ? std::wstring::npos : end - start));
+        if (end == std::wstring::npos) break;
+        out += L'\n';
+        start = end + 1;
+    }
+    return out;
+}
+
 // TextDataBase::create_shape: the letters' outlines in the font, into shape
 // (its depth and surface setting kept). Returns the font, which per glyph needs.
 Emboss::FontFileWithCache textOutlines(const std::string& fontPath, const TextConfiguration& tc, EmbossShape& shape) {
@@ -59,9 +187,19 @@ Emboss::FontFileWithCache textOutlines(const std::string& fontPath, const TextCo
     Emboss::FontFileWithCache font(std::move(file));
     const FontProp& fp = tc.style.prop;
     shape.scale = Emboss::get_text_shape_scale(fp, *font.font_file);
-    shape.shapes_with_ids = Emboss::text2vshapes(font, boost::nowide::widen(tc.text), fp);
+    shape.shapes_with_ids = Emboss::text2vshapes(font, visualOrder(boost::nowide::widen(tc.text)), fp);
     shape.final_shape = {};
     return font;
+}
+
+// The characters of the text the font has no letter for (desktop warns of
+// them too; Emboss leaves them out), each once.
+std::string missingLetters(const Emboss::FontFileWithCache& font, const std::string& text) {
+    const std::wstring known = boost::nowide::widen(Emboss::create_range_text(text, *font.font_file, 0));
+    std::wstring missing;
+    for (wchar_t c : boost::nowide::widen(text))
+        if (!std::iswspace(c) && known.find(c) == std::wstring::npos && missing.find(c) == std::wstring::npos) missing.push_back(c);
+    return boost::nowide::narrow(missing);
 }
 
 // The text's mesh where volume v stands (flat on a new volume).
@@ -121,7 +259,7 @@ std::string textVolume(int o, int plate, const std::string& requestJson) {
             engine::updateEmbossVolume(obj, v, std::move(mesh), volumeName(tc.text));
             v->text_configuration = tc;
             v->emboss_shape = std::move(shape);
-            return json{{"ok", true}, {"object", o}, {"volume", index}}.dump();
+            return json{{"ok", true}, {"object", o}, {"volume", index}, {"missing", missingLetters(font, tc.text)}}.dump();
         }
         if (op != "add") throw std::runtime_error("unknown text action " + op);
 
@@ -138,7 +276,7 @@ std::string textVolume(int o, int plate, const std::string& requestJson) {
             TextConfiguration alone = tc;
             alone.style.prop.per_glyph = false;
             const int object = engine::addEmbossObject(plate, std::move(mesh), volumeName(tc.text), std::move(shape), alone);
-            return json{{"ok", true}, {"object", object}, {"volume", 0}}.dump();
+            return json{{"ok", true}, {"object", object}, {"volume", 0}, {"missing", missingLetters(font, tc.text)}}.dump();
         }
 
         const int volume = engine::addEmbossVolume(o, plate, req, std::move(mesh), type, volumeName(tc.text), std::move(shape), tc);
@@ -155,7 +293,7 @@ std::string textVolume(int o, int plate, const std::string& requestJson) {
                 v->text_configuration->style.prop.per_glyph = false;
             }
         }
-        return json{{"ok", true}, {"object", o}, {"volume", volume}}.dump();
+        return json{{"ok", true}, {"object", o}, {"volume", volume}, {"missing", missingLetters(font, tc.text)}}.dump();
     } catch (const std::exception& e) {
         return json{{"ok", false}, {"error", e.what()}}.dump();
     }
@@ -297,4 +435,5 @@ void updateEmbossVolume(ModelObject* obj, ModelVolume* v, TriangleMesh&& mesh, c
 
 EMSCRIPTEN_BINDINGS(text_api) {
     emscripten::function("textVolume", &textVolume);
+    emscripten::function("textVisualOrder", +[](const std::string& text) { return boost::nowide::narrow(visualOrder(boost::nowide::widen(text))); });
 }

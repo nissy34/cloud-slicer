@@ -58,7 +58,8 @@ export type Job =
   | { kind: 'loading'; name: string; label?: string }
   | { kind: 'slicing'; pct: number; stage: string }
   | { kind: 'sliced'; plate: number; result: SliceResult; gcode: Blob; ms: number }
-  | { kind: 'error'; message: string };
+  /** inTool: it came from the open tool (or paint), so it shows in the tool's card and goes when the tool closes. */
+  | { kind: 'error'; message: string; inTool?: boolean };
 
 export interface SlicerState {
   tab: Tab;
@@ -256,7 +257,8 @@ export interface SlicerState {
    * (null: a new object on the plate) or `volume`'s text and style changed. Picks
    * it; false if it failed.
    */
-  textVolume(o: number | null, style: TextStyle, edit: { type: 'part' | 'negative' | 'modifier' } | { volume: number }): Promise<boolean>;
+  /** Adds or changes a text; on success, the characters its font has no letters for. */
+  textVolume(o: number | null, style: TextStyle, edit: { type: 'part' | 'negative' | 'modifier' } | { volume: number }): Promise<false | { missing: string }>;
   /**
    * An SVG shape like desktop's SVG tool, as one undo step: from a file onto
    * object o (null: an object of its own), or a new depth or size for one. Picks it; false if it failed.
@@ -365,7 +367,13 @@ export const useSlicer = create<SlicerState>((set, get) => {
 
   const fail = (e: unknown) => {
     if (restarting) return console.warn('While the engine restarted:', e);
-    set({ job: { kind: 'error', message: (e as Error).message } });
+    const inTool = !!(get().tool || get().paint);
+    set({ job: { kind: 'error', message: (e as Error).message, inTool } });
+  };
+  // A problem goes once the action is done again without one, or its tool closes.
+  const clearError = (toolErrorsOnly = false) => {
+    const job = get().job;
+    if (job.kind === 'error' && (!toolErrorsOnly || job.inTool)) set({ job: { kind: 'idle' } });
   };
 
   // Replaces a crashed engine with a new one, which reopens the project when
@@ -739,6 +747,7 @@ export const useSlicer = create<SlicerState>((set, get) => {
       set({ history: await e.snapshot(label) });
       remembered = true;
       await refreshPreview(await op());
+      clearError();
     } catch (err) {
       if (remembered) set({ history: await e.dropSnapshot().catch(() => get().history) });
       fail(err);
@@ -918,6 +927,7 @@ export const useSlicer = create<SlicerState>((set, get) => {
     setSnap: (snap) => set({ snap }),
     setLabels: (labels) => set({ labels }),
     setTool: (tool) => {
+      if (tool !== get().tool) clearError(true);
       if (tool && get().paint) void get().setPaint(null);
       const { selected, project } = get();
       // The cut plane starts half way up, like desktop.
@@ -1058,11 +1068,15 @@ export const useSlicer = create<SlicerState>((set, get) => {
       }),
 
     async setPlate(plate) {
+      clearError(true);
       set({ plate, selected: null, tool: null });
       await refreshPreview(get().project ?? undefined);
     },
     // Measure and Assemble work on every part on the plate, so they stay open without a selection.
-    select: (selected) => set(selected ? { selected } : { selected, tool: picking() ? get().tool : null }),
+    select: (selected) => {
+      if (!selected) clearError(true);
+      set(selected ? { selected } : { selected, tool: picking() ? get().tool : null });
+    },
     moveInstance: (o, i, x, y) => projectEdit('Move', () => engine().transform(o, i, { offset: [x, y], plate: get().plate })),
     transformInstance: (o, i, changes) =>
       projectEdit(changes.rotation ? 'Rotate' : changes.scale ? 'Scale' : 'Move', () => engine().transform(o, i, changes)),
@@ -1136,7 +1150,7 @@ export const useSlicer = create<SlicerState>((set, get) => {
       if (get().project?.objects[o]) set({ selected: { object: o, instance, volume } });
     },
     textVolume: async (o, style, edit) => {
-      let out: { object: number; volume: number } | undefined;
+      let out: { object: number; volume: number; missing: string } | undefined;
       const label = 'volume' in edit ? 'Edit text' : 'Add text';
       await projectEdit(label, async () => {
         const e = engine();
@@ -1146,14 +1160,14 @@ export const useSlicer = create<SlicerState>((set, get) => {
             ? { ...style, fontPath, op: 'update' as const, volume: edit.volume }
             : { ...style, fontPath, op: 'add' as const, type: edit.type, camera: cameraPosition() };
         const r = await e.textVolume(o ?? -1, get().plate, request);
-        out = { object: r.object, volume: r.volume };
+        out = { object: r.object, volume: r.volume, missing: r.missing ?? '' };
         return r.info;
       });
       if (!out) return false;
       const sel = get().selected;
       const instance = sel?.object === out.object ? sel.instance : 0;
       set({ selected: { object: out.object, instance, volume: out.volume } });
-      return true;
+      return { missing: out.missing };
     },
     svgVolume: async (o, edit) => {
       let out: { object: number; volume: number } | undefined;
@@ -1258,6 +1272,7 @@ export const useSlicer = create<SlicerState>((set, get) => {
 
     async setPaint(paint) {
       const before = get().paint;
+      if (!paint || paint.kind !== before?.kind) clearError(true);
       set(paint ? { paint, tool: null } : { paint });
       if (!paint || paint.kind === 'color') return set({ overlay: null });
       if (before?.kind === paint.kind && get().overlay) return;
