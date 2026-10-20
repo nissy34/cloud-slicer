@@ -207,6 +207,25 @@ try {
   await page.getByTestId('head-1').getByText('0.6 mm high flow nozzle').waitFor();
   console.log('nozzle size and type saved on the printer');
 
+  // The U1's error codes read in Snapmaker's own words, where the printer state is shown.
+  const runout = { id: 523, index: 1, code: 0, level: 2, message: 'runout' };
+  u1.setExceptions([runout]);
+  const jobCard = page.getByTestId('job-card');
+  await jobCard.getByTestId('printer-error').filter({ hasText: 'Filament Anomaly' }).filter({ hasText: 'Filament runout detected in Toolhead 2' }).filter({ hasText: 'Error code 0002 0523 0001 0000' }).waitFor();
+  await jobCard.getByTestId('print-state').filter({ hasText: 'Needs attention' }).waitFor();
+  if (await jobCard.getByTestId('printer-error').getByRole('button', { name: 'Dismiss' }).count()) throw new Error('an error the printer still reports cannot be dismissed');
+  // A one-off announcement can be dismissed; an unknown code falls back to the printer's own message.
+  u1.announceException({ id: 999, index: 0, code: 3, level: 3, message: 'Mock printer says no' });
+  const oneOff = jobCard.getByTestId('printer-error').filter({ hasText: 'Mock printer says no' });
+  await oneOff.filter({ hasText: 'Printer error' }).waitFor();
+  if (shots) await jobCard.screenshot({ path: join(shots, 'printer-errors.png') });
+  await oneOff.getByRole('button', { name: 'Dismiss' }).click();
+  await oneOff.waitFor({ state: 'detached' });
+  u1.setExceptions([]);
+  await jobCard.getByTestId('printer-errors').waitFor({ state: 'detached' });
+  await jobCard.getByTestId('print-state').filter({ hasText: 'Ready' }).waitFor();
+  console.log('U1 errors shown in words with their code, one-off ones dismissable, cleared when the printer clears them');
+
   if (shots) await page.screenshot({ path: join(shots, 'device-u1.png'), fullPage: true });
 
   const gcode = Buffer.from(
@@ -348,11 +367,15 @@ try {
   console.log('send dialog: printer picker sends to the printer chosen and remembers it');
 
   const phone = await browser.newPage({ viewport: { width: 390, height: 844 } });
+  // Already there when the page connects: read with server.exception.query.
+  u1.setExceptions([runout, { id: 528, index: 0, code: 11, level: 2, message: '' }]);
   await phone.goto(site);
   await phone.evaluate((p) => localStorage.setItem('cloud-slicer:devices:v1', p), await page.evaluate(() => localStorage.getItem('cloud-slicer:devices:v1')));
   await phone.reload();
   await phone.getByRole('tab', { name: 'Device' }).click();
   await phone.getByTestId('connection').filter({ hasText: 'Connected' }).waitFor({ timeout: 20_000 });
+  await phone.getByTestId('printer-error').filter({ hasText: 'Homing Anomaly' }).filter({ hasText: 'Error code 0002 0528 0000 0011' }).waitFor();
+  await phone.getByTestId('printer-error').filter({ hasText: 'Filament Anomaly' }).waitFor();
   // Every card and the top bar fit in a 390 and a narrow 360 px phone, with no sideways scroll.
   for (const width of [390, 360]) {
     await phone.setViewportSize({ width, height: 844 });
@@ -364,7 +387,10 @@ try {
     if (wide) throw new Error(`Device tab is wider than a ${width} px phone: ${wide}`);
   }
   if (shots) await phone.screenshot({ path: join(shots, 'device-phone.png'), fullPage: true });
-  console.log('phone layout fits');
+  if (shots) await phone.getByTestId('job-card').screenshot({ path: join(shots, 'printer-errors-phone.png') });
+  u1.setExceptions([]);
+  await phone.getByTestId('printer-errors').waitFor({ state: 'detached' });
+  console.log('phone layout fits, with the U1 errors read when the page connects');
 
   await phone.setViewportSize({ width: 390, height: 844 });
   await phone.getByTestId('device-gcode-input').setInputFiles(sendFile);

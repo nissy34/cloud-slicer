@@ -763,6 +763,7 @@ select:focus-visible {
 }
 .transform-row.actions {
   display: flex;
+  flex-wrap: wrap;
   justify-content: flex-end;
 }
 
@@ -1025,6 +1026,13 @@ select:focus-visible {
 }
 .transform-row.text-row {
   grid-template-columns: 80px 1fr auto;
+}
+/* Room for "Position X (mm)" over each of three boxes. */
+.tool-pop:has(.axis-fields) {
+  width: min(350px, calc(100% - 16px));
+}
+.axis-fields .num-field > span {
+  white-space: nowrap;
 }
 /* Number boxes side by side across the panel, each captioned above. */
 .num-fields {
@@ -1360,6 +1368,84 @@ select:focus-visible {
 .legend p {
   margin: 0;
 }
+.line-types {
+  display: grid;
+  gap: 4px;
+}
+/* A line type in the key: tap to hide or show it. */
+.legend-item {
+  border: 0;
+  background: none;
+  padding: 1px 0;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.legend-item:hover {
+  color: var(--accent);
+}
+.legend-item.off {
+  opacity: 0.45;
+  text-decoration: line-through;
+}
+.legend-item.off .dot {
+  background: transparent !important;
+  box-shadow: inset 0 0 0 1.5px var(--muted);
+}
+.legend-note {
+  max-width: 220px;
+  color: var(--muted);
+  font-size: 12px;
+}
+.filament-stats {
+  display: grid;
+  gap: 4px;
+}
+.filament-row {
+  flex-wrap: wrap;
+  column-gap: 8px;
+  row-gap: 0;
+}
+.filament-use {
+  margin-left: auto;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+.stats-total {
+  display: grid;
+  grid-template-columns: auto auto;
+  justify-content: space-between;
+  column-gap: 12px;
+  padding-top: 4px;
+  border-top: 1px solid var(--border);
+  font-variant-numeric: tabular-nums;
+}
+.stats-total span:nth-child(even) {
+  text-align: right;
+}
+.range-key {
+  display: grid;
+  gap: 4px;
+}
+.range-title {
+  color: var(--muted);
+}
+.range-body {
+  display: flex;
+  gap: 8px;
+}
+.range-bar {
+  width: 12px;
+  border-radius: 3px;
+}
+.range-ticks {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 2px;
+  font-variant-numeric: tabular-nums;
+}
 .dot {
   width: 10px;
   height: 10px;
@@ -1621,11 +1707,15 @@ select:focus-visible {
   justify-self: start;
   padding: 4px 14px;
 }
+.calib-list small {
+  font-size: 11px;
+}
 .calib-fields {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
   gap: 8px;
 }
+.calib-list input,
 .calib-fields input {
   width: 100%;
   padding: 6px 8px;
@@ -1871,15 +1961,77 @@ select:focus-visible {
     padding: 5px 10px;
     font-size: 13px;
   }
+  /* The colour key is a strip above the 3D view, so it never covers the model. */
+  .preview {
+    display: flex;
+    flex-direction: column;
+  }
+  .preview .viewport {
+    position: relative !important;
+    inset: auto;
+    flex: 1;
+    min-height: 0;
+    height: auto !important;
+  }
   .legend {
-    top: 8px;
-    right: 8px;
+    position: static;
+    order: -1;
+    margin: 6px 8px 0;
     min-width: 0;
-    max-width: 52%;
-    max-height: calc(100% - 90px);
-    overflow-y: auto;
     padding: 6px 8px;
     font-size: 12px;
+    gap: 6px;
+  }
+  .legend-head select {
+    max-width: 180px;
+  }
+  .line-types {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 2px 12px;
+  }
+  .legend-note {
+    max-width: none;
+  }
+  .filament-stats {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 2px 14px;
+  }
+  .filament-row {
+    flex-wrap: nowrap;
+  }
+  .filament-use {
+    margin-left: 0;
+  }
+  .stats-total {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0 6px;
+    width: 100%;
+  }
+  .stats-total span:nth-child(odd) {
+    color: var(--muted);
+  }
+  .stats-total span:nth-child(even):not(:last-child)::after {
+    content: ' ·';
+  }
+  .range-key {
+    grid-template-columns: auto 1fr;
+    align-items: center;
+    column-gap: 8px;
+  }
+  .range-body {
+    flex-direction: column;
+    gap: 2px;
+  }
+  .range-bar {
+    width: auto;
+    height: 10px;
+    background: linear-gradient(to right, var(--stops)) !important;
+  }
+  .range-ticks {
+    flex-direction: row-reverse;
   }
 }
 /* Narrow phones (360-420 px): keep the top bar, with its theme and account buttons, inside the screen. */
@@ -2369,6 +2521,29 @@ select:focus-visible {
   border-radius: 6px;
   background: var(--surface-2);
   border-left: 3px solid var(--dv-warn);
+}
+.dv-errors {
+  display: grid;
+  gap: 8px;
+  margin: 10px 0 0;
+}
+.dv-error {
+  padding: 8px 10px;
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--danger) 10%, var(--surface-2));
+  border-left: 3px solid var(--danger);
+  overflow-wrap: anywhere;
+}
+.dv-error p {
+  margin: 4px 0;
+}
+.dv-error-foot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 4px 12px;
+  font-size: 12px;
 }
 .dv-row {
   display: flex;
@@ -4104,6 +4279,26 @@ button.volume-name {
   justify-items: start;
 }
 
+/* The filament Setting Overrides page: a checkbox before each label, and the
+   printer's value greyed out while the filament leaves it unset. */
+.override-check {
+  margin: 0 6px 0 0;
+  vertical-align: middle;
+}
+.option > .check-row {
+  grid-column: 1 / 3;
+  display: flex;
+  align-items: center;
+  min-width: 0;
+}
+.option.unset .option-label,
+.option.unset input:disabled {
+  opacity: 0.6;
+}
+/* Printer and filament labels can be long ("Maximum acceleration X"): wrap them rather than cut them off. */
+.preset-settings-body .option-label {
+  white-space: normal;
+}
 /* Load filaments from the printer (components/FilamentSync.tsx) */
 .sync-filaments {
   display: grid;

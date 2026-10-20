@@ -8,4 +8,4 @@ export function detectAddons(facts: PrinterFacts): PrinterAddon[] {
   return ADDONS.filter((a) => a.detect(facts));
 }
 
-export type { PrinterAddon, PrinterFacts } from './types';
+export type { PrinterAddon, PrinterError, PrinterFacts } from './types';

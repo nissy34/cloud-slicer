@@ -17,6 +17,8 @@ import { setOverrideChecked } from './SettingsPrompt';
  * like desktop; any other one as a single value while its entries agree.
  * With `slot`, a filament option edits that filament's entry (and, for a
  * flow-variant one, that filament's value for the flow variant shown).
+ * With `entry`, it edits that entry of the vector: one extruder's value on
+ * desktop's Extruder pages, or a Normal / Silent machine limit.
  *
  * `disabled` greys it out when another setting makes it not apply (support
  * settings with support off), like desktop; `choices` narrows a list that
@@ -29,10 +31,15 @@ export function OptionField({
   onChange,
   resetLabel = 'Reset to the preset value',
   slot,
+  entry,
+  before,
   disabled = false,
   choices,
 }: {
   slot?: number;
+  entry?: number;
+  /** Shown before the label (the Setting Overrides page's checkbox). */
+  before?: React.ReactNode;
   disabled?: boolean;
   choices?: string[];
   optKey: string;
@@ -54,10 +61,15 @@ export function OptionField({
   // The one value this field shows and how an edit of it maps back to the whole option.
   const slots = useSlicer((s) => s.selection?.filaments.length ?? 1);
   const baseConfig = useSlicer((s) => s.baseConfig);
-  const vector = def !== undefined && value !== undefined && isVectorType(def.type);
+  const vector = def !== undefined && value !== undefined && (isVectorType(def.type) || (entry !== undefined && def.type === 'points'));
   const entries = vector ? splitValues(value) : [];
-  // A filament slot's own entry, when the value has one per slot.
-  const slotIndex = slot !== undefined && vector ? slotEntryIndex(value, slot, slots, baseConfig, def.flow === 'filament', flowVariant) : null;
+  // The entry asked for, or a filament slot's own entry when the value has one per slot.
+  const slotIndex =
+    entry !== undefined && vector
+      ? entry
+      : slot !== undefined && vector
+        ? slotEntryIndex(value, slot, slots, baseConfig, def.flow === 'filament', flowVariant)
+        : null;
   const slotTexts = slot !== undefined && def?.type === 'strings' && value !== undefined ? splitStrings(value) : null;
   const slotText = slotTexts && slotTexts.length === slots ? slotTexts : null;
   const index = slotIndex ?? (def?.flow === 'process' ? Math.min(flowVariant, variants - 1) : 0);
@@ -74,7 +86,7 @@ export function OptionField({
   const commit = (v: string) => {
     if (v === shown) return;
     if (slotText) setOverride(optKey, slotText.map((t, i) => (i === slot ? encodeString(v) : t)).join(';'));
-    else if (slotIndex !== null) setOverride(optKey, entries.map((e, i) => (i === slotIndex ? v : e)).join(','));
+    else if (slotIndex !== null) setOverride(optKey, withValueAt(value, slotIndex, v));
     else if (!perEntry) setOverride(optKey, v);
     else if (def.flow === 'process') setOverride(optKey, withValueAt(value, index, v, variants));
     else setOverride(optKey, entries.map(() => v).join(','));
@@ -82,12 +94,12 @@ export function OptionField({
   // In a slot, only that filament's entry counts as changed, and reset puts back only it.
   const baseValue = baseConfig[optKey];
   const slotMode = !own && (slotText !== null || slotIndex !== null) && baseValue !== undefined;
-  const slotChanged = slotMode && (slotText ? splitStrings(baseValue)[slot!] !== slotText[slot!] : splitValues(baseValue)[slotIndex!] !== entries[slotIndex!]);
+  const slotChanged = slotMode && (slotText ? splitStrings(baseValue)[slot!] !== slotText[slot!] : valueAt(baseValue, slotIndex!) !== valueAt(value, slotIndex!));
   const changed = slotMode ? slotChanged : modified;
   const resetSlot = () => {
     const next = slotText
       ? slotText.map((t, i) => (i === slot ? splitStrings(baseValue)[i] : t)).join(';')
-      : entries.map((e, i) => (i === slotIndex ? splitValues(baseValue)[i] : e)).join(',');
+      : withValueAt(value, slotIndex!, valueAt(baseValue, slotIndex!));
     setOverride(optKey, next === baseValue ? null : next);
   };
   const reset = changed ? (
@@ -99,10 +111,20 @@ export function OptionField({
   if (type === 'bool') {
     return (
       <div className={`option${changed ? ' modified' : ''}${disabled ? ' disabled' : ''}`} title={title}>
-        <label className="check">
-          <input type="checkbox" disabled={disabled} checked={shown === '1'} onChange={(e) => commit(e.target.checked ? '1' : '0')} />
-          <span>{text}</span>
-        </label>
+        {before ? (
+          <span className="check-row">
+            {before}
+            <label className="check">
+              <input type="checkbox" disabled={disabled} checked={shown === '1'} onChange={(e) => commit(e.target.checked ? '1' : '0')} />
+              <span>{text}</span>
+            </label>
+          </span>
+        ) : (
+          <label className="check">
+            <input type="checkbox" disabled={disabled} checked={shown === '1'} onChange={(e) => commit(e.target.checked ? '1' : '0')} />
+            <span>{text}</span>
+          </label>
+        )}
         {reset}
       </div>
     );
@@ -155,7 +177,10 @@ export function OptionField({
   }
   return (
     <div className={`option${changed ? ' modified' : ''}${disabled ? ' disabled' : ''}`} title={title}>
-      <span className="option-label">{text}</span>
+      <span className="option-label">
+        {before}
+        {text}
+      </span>
       {editor}
       {reset}
     </div>
