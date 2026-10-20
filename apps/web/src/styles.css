@@ -1343,6 +1343,84 @@ select:focus-visible {
 .legend p {
   margin: 0;
 }
+.line-types {
+  display: grid;
+  gap: 4px;
+}
+/* A line type in the key: tap to hide or show it. */
+.legend-item {
+  border: 0;
+  background: none;
+  padding: 1px 0;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.legend-item:hover {
+  color: var(--accent);
+}
+.legend-item.off {
+  opacity: 0.45;
+  text-decoration: line-through;
+}
+.legend-item.off .dot {
+  background: transparent !important;
+  box-shadow: inset 0 0 0 1.5px var(--muted);
+}
+.legend-note {
+  max-width: 220px;
+  color: var(--muted);
+  font-size: 12px;
+}
+.filament-stats {
+  display: grid;
+  gap: 4px;
+}
+.filament-row {
+  flex-wrap: wrap;
+  column-gap: 8px;
+  row-gap: 0;
+}
+.filament-use {
+  margin-left: auto;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+.stats-total {
+  display: grid;
+  grid-template-columns: auto auto;
+  justify-content: space-between;
+  column-gap: 12px;
+  padding-top: 4px;
+  border-top: 1px solid var(--border);
+  font-variant-numeric: tabular-nums;
+}
+.stats-total span:nth-child(even) {
+  text-align: right;
+}
+.range-key {
+  display: grid;
+  gap: 4px;
+}
+.range-title {
+  color: var(--muted);
+}
+.range-body {
+  display: flex;
+  gap: 8px;
+}
+.range-bar {
+  width: 12px;
+  border-radius: 3px;
+}
+.range-ticks {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 2px;
+  font-variant-numeric: tabular-nums;
+}
 .dot {
   width: 10px;
   height: 10px;
@@ -1756,15 +1834,77 @@ select:focus-visible {
     padding: 5px 10px;
     font-size: 13px;
   }
+  /* The colour key is a strip above the 3D view, so it never covers the model. */
+  .preview {
+    display: flex;
+    flex-direction: column;
+  }
+  .preview .viewport {
+    position: relative !important;
+    inset: auto;
+    flex: 1;
+    min-height: 0;
+    height: auto !important;
+  }
   .legend {
-    top: 8px;
-    right: 8px;
+    position: static;
+    order: -1;
+    margin: 6px 8px 0;
     min-width: 0;
-    max-width: 52%;
-    max-height: calc(100% - 90px);
-    overflow-y: auto;
     padding: 6px 8px;
     font-size: 12px;
+    gap: 6px;
+  }
+  .legend-head select {
+    max-width: 180px;
+  }
+  .line-types {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 2px 12px;
+  }
+  .legend-note {
+    max-width: none;
+  }
+  .filament-stats {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 2px 14px;
+  }
+  .filament-row {
+    flex-wrap: nowrap;
+  }
+  .filament-use {
+    margin-left: 0;
+  }
+  .stats-total {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0 6px;
+    width: 100%;
+  }
+  .stats-total span:nth-child(odd) {
+    color: var(--muted);
+  }
+  .stats-total span:nth-child(even):not(:last-child)::after {
+    content: ' ·';
+  }
+  .range-key {
+    grid-template-columns: auto 1fr;
+    align-items: center;
+    column-gap: 8px;
+  }
+  .range-body {
+    flex-direction: column;
+    gap: 2px;
+  }
+  .range-bar {
+    width: auto;
+    height: 10px;
+    background: linear-gradient(to right, var(--stops)) !important;
+  }
+  .range-ticks {
+    flex-direction: row-reverse;
   }
 }
 /* Narrow phones (360-420 px): keep the top bar, with its theme and account buttons, inside the screen. */

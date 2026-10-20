@@ -63,7 +63,10 @@ hosted on Cloudflare's free tier.
   advance, retraction, max volumetric speed, VFA, input shaping, junction deviation.
 - **Slicing you can stop**: Cancel next to the progress bar, and a change while slicing
   (settings, filaments, presets, the model) stops the slice and drops its result, like desktop.
-- **Preview** of the sliced toolpaths by feature or filament, layer by layer.
+- **Preview** of the sliced toolpaths layer by layer, coloured like desktop's view types: line type, filament,
+  speed, layer height, line width, flow, layer time (also on a log scale), fan speed and temperature, with
+  the scale in the colour key. Tap a line type in the key to hide or show it. The Filament view lists each
+  filament's grams, metres and cost (prime tower included) and the number of filament changes.
 - **Camera views** in the corner of the 3D views: Fit all, and desktop's Iso, Top, Bottom,
   Front, Back, Left and Right (keys 0 to 6, Z fits all). On a phone two fingers always zoom
   and turn the camera, even when they land on the model; one finger on a model moves it.
@@ -237,6 +240,7 @@ Browser end to end tests (Playwright's Chromium) run against the built site
 | `test/wipe-tower.mjs` | A two-filament plate shows the prime tower; drag it, and the slice prints it there |
 | `test/view-touch.mjs` | Phone 3D view: pinching on a model that fills the screen zooms out instead of moving it; Fit all and the views menu |
 | `test/loading.mjs` | The loading screen while the engine starts and a project opens |
+| `test/preview-views.mjs` | The Preview's colour key: grams and filament changes match the G-code, every view draws its scale, a tapped line type hides and comes back, and on a phone the key sits above the model |
 | `test/cancel.mjs` | Cancel stops the slice in the engine, and a change while slicing drops its result |
 | `test/restart.mjs` | After an engine crash (mid-slice or after), the engine restarts and reopens the project |
 | `test/heavy.mjs` | A model with over a million triangles offers Simplify, which brings it to about half a million |

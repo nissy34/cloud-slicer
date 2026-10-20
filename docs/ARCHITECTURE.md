@@ -76,7 +76,12 @@ sends. Cancel stops a running slice, and so does any change to settings, filamen
 presets or the model while it runs (its result is dropped, like desktop); engine edits
 sent during a slice cancel it first instead of queueing behind it. After slicing, the
 page switches to Preview; G-code is parsed in its own worker
-and drawn as beads by feature or by filament.
+and drawn as beads, coloured by feature, filament or a value per segment (speed, flow,
+fan, temperature, width, height, layer time) on Orca's blue-to-red scale
+(`lib/preview-colours.ts`); hidden line types are dropped in the vertex shader. Speed,
+flow and layer time are worked out from the G-code (layer times scaled to Orca's
+estimate), and the per-filament grams and cost come from the statistics Orca writes at
+the end of the file.
 
 The site is installable as an app (web manifest and a service worker that caches
 nothing on purpose, so a deploy's page and engine never get out of step).
