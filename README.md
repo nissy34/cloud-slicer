@@ -28,10 +28,14 @@ hosted on Cloudflare's free tier.
   onto one of yours: the print settings its author changed carry over, the ones left at
   the old printer's defaults and the printer's own settings (speeds, accelerations,
   jerk) come from your printer, and filaments are matched by material.
-- **Prepare tools**: move, rotate, scale, lay on face, cut, measure (distances and angles
+- **Prepare tools**: move, rotate, scale (exact fields like desktop's: position X, Y and Z, where a
+  Z below the bed sinks the object into it; rotation; scale in percent or size in mm, all three
+  axes together while "Scale evenly" is on; the same fields for a part inside its object), lay on face, cut, measure (distances and angles
   between faces, edges, circles and corners), variable layer height (adaptive, smooth,
   or by hand on the layer height chart), arrange, auto-orient, split,
-  mirror, simplify (offered by itself when a model has too many triangles to slice comfortably), plates, brim ears (by hand or on the corners), undo and redo,
+  mirror, simplify (offered by itself when a model has too many triangles to slice comfortably), plates, brim ears (by hand or on the corners), undo and redo, desktop's editing keys (Del deletes the
+  picked copy or part, Ctrl+C / Ctrl+V copy and paste an object, Ctrl+K clones it, + and - add or
+  remove a copy, also Add copy / Remove copy in the object list and object menu),
   painting (colours, support and seam enforcers/blockers, fuzzy skin), desktop's plate
   menu (right click or long press the plate or the space around it: add a primitive
   shape, text, an SVG, one of Orca's handy models or a model file, and on the plate
@@ -61,11 +65,17 @@ hosted on Cloudflare's free tier.
   want it, per plate, like desktop.
 - **Colour mixing**: Snapmaker Orca's mixed filaments, virtual filaments made of two or
   more physical ones, usable anywhere a filament is.
+- **Filaments from the printer**: "From printer" in the Filament section loads what is in
+  a U1's tool heads (material, brand, colour) into the project, like desktop's Sync
+  filament: match each project filament to the closest loaded one, or replace the list.
 - **Calibration tests** from desktop's Calibration menu: temperature, flow rate, pressure
   advance, retraction, max volumetric speed, VFA, input shaping, junction deviation.
 - **Slicing you can stop**: Cancel next to the progress bar, and a change while slicing
   (settings, filaments, presets, the model) stops the slice and drops its result, like desktop.
-- **Preview** of the sliced toolpaths by feature or filament, layer by layer.
+- **Preview** of the sliced toolpaths layer by layer, coloured like desktop's view types: line type, filament,
+  speed, layer height, line width, flow, layer time (also on a log scale), fan speed and temperature, with
+  the scale in the colour key. Tap a line type in the key to hide or show it. The Filament view lists each
+  filament's grams, metres and cost (prime tower included) and the number of filament changes.
 - **Camera views** in the corner of the 3D views: Fit all, and desktop's Iso, Top, Bottom,
   Front, Back, Left and Right (keys 0 to 6, Z fits all). On a phone two fingers always zoom
   and turn the camera, even when they land on the model; one finger on a model moves it.
@@ -75,7 +85,7 @@ hosted on Cloudflare's free tier.
   device. Signed out, everything is kept in the browser and merged in at sign-in.
 - **Device tab** for Moonraker (Klipper) printers: cameras, temperatures, motion, files,
   upload and print, plus Snapmaker U1 extras (tool heads, filament sync, the U1 print
-  dialog). Printers on a home network are reached through a small bridge app.
+  dialog, the U1's error codes in Snapmaker's own words). Printers on a home network are reached through a small bridge app.
 - **Light and dark theme**, a layout that works on phones (an open tool stacks the toolbar, its options and the model, with the settings hidden until Done), and installable as an app
   (PWA) on Android.
 
@@ -185,7 +195,9 @@ secrets to Pages and generates `BETTER_AUTH_SECRET` and `ACCOUNT_ENC_KEY` once.
 The Device tab controls Moonraker (Klipper) printers: cameras (all of Moonraker's
 webcams, several at once), temperatures, motion, the console, files, upload and print,
 plus Snapmaker U1 extras (tool heads, filament sync, the U1 print dialog with tool
-mapping). A printer with a public https address is reached directly (the tab shows the
+mapping, and the U1's errors on the Print card with their code and Snapmaker's own
+title and advice; `apps/web/scripts/u1-errors.mjs` rebuilds that list from Snapmaker
+Orca's device page). A printer with a public https address is reached directly (the tab shows the
 `cors_domains` lines Moonraker needs, and a Tailscale hint). A printer on a home network
 is reached through a small **bridge** on any always-on computer near it, which connects
 out to the **relay** (a Cloudflare Worker with one Durable Object per bridge), so no
@@ -239,6 +251,7 @@ Browser end to end tests (Playwright's Chromium) run against the built site
 | `test/wipe-tower.mjs` | A two-filament plate shows the prime tower; drag it, and the slice prints it there |
 | `test/view-touch.mjs` | Phone 3D view: pinching on a model that fills the screen zooms out instead of moving it; Fit all and the views menu |
 | `test/loading.mjs` | The loading screen while the engine starts and a project opens |
+| `test/preview-views.mjs` | The Preview's colour key: grams and filament changes match the G-code, every view draws its scale, a tapped line type hides and comes back, and on a phone the key sits above the model |
 | `test/cancel.mjs` | Cancel stops the slice in the engine, and a change while slicing drops its result |
 | `test/restart.mjs` | After an engine crash (mid-slice or after), the engine restarts and reopens the project |
 | `test/heavy.mjs` | A model with over a million triangles offers Simplify, which brings it to about half a million |

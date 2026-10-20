@@ -43,7 +43,7 @@ function MenuCard() {
   const addInput = useRef<HTMLInputElement>(null);
   const addType = useRef<VolumeKind>('part');
   const [sub, setSub] = useState<Sub>(null);
-  const [form, setForm] = useState<Form>(null);
+  const [form, setForm] = useState<Form>(menu.form ?? null);
   const [name, setName] = useState(vol ? vol.name : obj.name);
   const [count, setCount] = useState(1);
   const [arrange, setArrange] = useState(true);
@@ -276,7 +276,7 @@ function MenuCard() {
             }}
           />
           <hr />
-          {item('Clone…', () => setForm('clone'), { title: 'Copies of this object, as new objects' })}
+          {item('Clone…', () => setForm('clone'), { title: 'Copies of this object, as new objects (Ctrl+K)' })}
           {item('Center', run(() => s.objectAction(o, i, { op: 'center' }, 'Center')), { title: 'Move it to the middle of its plate' })}
           {submenu(
             'split',
@@ -295,7 +295,12 @@ function MenuCard() {
               {item('Along Z axis', run(() => s.mirror(o, i, 2)))}
             </>,
           )}
-          {item('Delete', run(() => s.deleteObject(o)))}
+          {item('Add copy', run(() => s.copyInstance(o, i)), { title: 'One more copy of it, beside it (+)' })}
+          {item('Remove copy', run(() => s.removeInstance(o, i)), {
+            disabled: obj.instances.length < 2,
+            title: obj.instances.length < 2 ? 'It has no other copies; Delete removes it' : 'Remove this copy, keeping the others (-)',
+          })}
+          {item('Delete', run(() => s.deleteObject(o)), { title: obj.instances.length > 1 ? 'The object with all its copies' : 'Delete (Del)' })}
           <hr />
           {item('Auto orient', run(() => s.orientObject(o)))}
           {item(

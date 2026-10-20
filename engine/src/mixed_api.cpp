@@ -184,12 +184,13 @@ void applyRemap(const std::vector<unsigned>& remap, size_t newTotal) {
 //   {definitions, colours: ["#RRGGBB"...], nozzles: [mm...],
 //    settings: {lowerBound, upperBound, localZ, bias, heightWeighted, advancedDithering},
 //    op?: {kind: "add", row} | {kind: "update", index, row} | {kind: "delete", index}
-//         | {kind: "removePhysical", filament (1-based)},
+//         | {kind: "removePhysical", filament (1-based)}
+//         | {kind: "replacePhysical", colours, types?, remap: [new 1-based ID per old filament, 0 = gone], dropMixes?},
 //    types?: [filament_type...],     for each row's `compatible` (desktop's material check)
 //    draft?: row}                    a recipe to preview, not stored
 // Returns {definitions, rows: [...], draftColour?, draftCompatible?}. Rows keep their order in
 // the list (deleted ones too, as desktop keeps them); virtualId is 0 for rows
-// that are not in use. "delete" and "removePhysical" also move the IDs the
+// that are not in use. "delete", "removePhysical" and "replacePhysical" also move the IDs the
 // open project's objects, parts and paint use.
 std::string mixedFilaments(const std::string& requestJson) {
     try {
@@ -255,6 +256,48 @@ std::string mixedFilaments(const std::string& requestJson) {
                 json out{{"definitions", defs}, {"rows", json::array()}};
                 const MixedFilamentDisplayContext ctx = displayContext(after);
                 for (const MixedFilament& mf : rows) out["rows"].push_back(rowJson(mf, newIds.count(mf.stable_id) && mf.enabled ? newIds.at(mf.stable_id) : 0, ctx, after.types));
+                return out.dump();
+            } else if (kind == "replacePhysical") {
+                // Desktop's Sync filament (Plater show_sync_filament_dialog): the
+                // physical filaments become `colours` (op.colours, op.types); old
+                // filament i (1-based) moves to remap[i - 1] (0 = gone).
+                // dropMixes (Direct Override) deletes every mix in use, as their
+                // components changed; otherwise mixes stay and move to their new
+                // virtual IDs (filaments only added at the end).
+                Settings after = s;
+                after.colours.clear();
+                after.types.clear();
+                for (const auto& c : op.at("colours")) after.colours.push_back(c.get<std::string>());
+                for (const auto& t : op.value("types", json::array())) after.types.push_back(t.get<std::string>());
+                const size_t newPhysical = after.colours.size();
+                if (newPhysical < 1) throw std::runtime_error("a project needs at least one filament");
+                const std::vector<unsigned> to = op.value("remap", std::vector<unsigned>{});
+                const auto oldIds = virtualIds(rows, physical);
+                const size_t oldTotal = mgr.total_filaments(physical);
+                const bool drop = op.value("dropMixes", false);
+                if (drop)
+                    for (MixedFilament& mf : rows)
+                        if (mf.enabled && !mf.deleted) {
+                            mf.deleted = true;
+                            mf.enabled = false;
+                        }
+                // With fewer than two filaments Orca reads no rows: keep the
+                // project's list as it came unless it was meant to go.
+                const std::string defs = drop || physical >= 2 ? mgr.serialize_custom_entries() : req.value("definitions", std::string());
+                MixedFilamentManager next;
+                loadManager(next, defs, after);
+                const auto newIds = virtualIds(next.mixed_filaments(), newPhysical);
+                std::vector<unsigned> remap(oldTotal + 1, 0);
+                for (unsigned id = 1; id <= physical; ++id) remap[id] = id - 1 < to.size() && to[id - 1] <= newPhysical ? to[id - 1] : 0;
+                for (const auto& [stable, id] : oldIds) {
+                    const auto it = newIds.find(stable);
+                    remap[id] = it == newIds.end() ? 0 : it->second;
+                }
+                applyRemap(remap, next.total_filaments(newPhysical));
+                json out{{"definitions", defs}, {"rows", json::array()}};
+                const MixedFilamentDisplayContext ctx = displayContext(after);
+                for (const MixedFilament& mf : next.mixed_filaments())
+                    out["rows"].push_back(rowJson(mf, mf.enabled && newIds.count(mf.stable_id) ? newIds.at(mf.stable_id) : 0, ctx, after.types));
                 return out.dump();
             } else {
                 throw std::runtime_error("unknown mixed filament edit " + kind);
