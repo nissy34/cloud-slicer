@@ -51,7 +51,7 @@ func TestPairingCodeMatchesTheNodeBridge(t *testing.T) {
 	if err := json.Unmarshal(raw, &got); err != nil {
 		t.Fatal(err)
 	}
-	// The same value bridge.mjs and the relay derive (computed with node's crypto).
+	// The same value the relay and the device tests derive (computed with node's crypto).
 	want := map[string]string{"r": "https://r.example", "i": "abcdefgh", "k": "T0K4-u5XPGmA1JwjEWTw8vFv7CHmnoVm5sezDOJHS5c"}
 	if !reflect.DeepEqual(got, want) {
 		t.Fatalf("got %v, want %v", got, want)
@@ -379,4 +379,54 @@ func TestBridgeThroughARelay(t *testing.T) {
 		t.Fatalf("printer still there: %v", cfg.Printers)
 	}
 	close(toAgent)
+}
+
+func TestStartWithWindowsUsesARunEntryAndCopiesTheAppOutOfDownloads(t *testing.T) {
+	p := autostartPlan(planEnv{goos: "windows", home: `C:\Users\n`, localAppData: `C:\Users\n\AppData\Local`})
+	if p.copyTo != filepath.Join(`C:\Users\n\AppData\Local`, "Cloud Slicer Bridge", "cloud-slicer-bridge.exe") {
+		t.Fatalf("copy to %s", p.copyTo)
+	}
+	s := p.enable[0]
+	if s.cmd != "reg" || s.args[1] != runKey {
+		t.Fatalf("enable %v", s)
+	}
+	value := s.args[len(s.args)-2]
+	// Paths with spaces stay quoted, and the bridge never opens a browser by itself at sign-in.
+	if !strings.HasPrefix(value, `"`) || !strings.HasSuffix(value, `cloud-slicer-bridge.exe" run --no-browser`) {
+		t.Fatalf("run entry %s", value)
+	}
+}
+
+func TestStartWithMacWritesALaunchAgentThatKeepsTheBridgeRunning(t *testing.T) {
+	p := autostartPlan(planEnv{goos: "darwin", home: "/Users/n"})
+	if p.copyTo != "/Users/n/Library/Application Support/Cloud Slicer Bridge/cloud-slicer-bridge" {
+		t.Fatalf("copy to %s", p.copyTo)
+	}
+	f := p.files[0]
+	if f.path != "/Users/n/Library/LaunchAgents/io.qzz.awesomestuff.cloud-slicer-bridge.plist" {
+		t.Fatalf("plist at %s", f.path)
+	}
+	for _, want := range []string{"<string>/Users/n/Library/Application Support/Cloud Slicer Bridge/cloud-slicer-bridge</string><string>run</string><string>--no-browser</string>", "<key>KeepAlive</key><true/>"} {
+		if !strings.Contains(f.content, want) {
+			t.Fatalf("plist lacks %s:\n%s", want, f.content)
+		}
+	}
+}
+
+func TestStartWithLinuxRunsWithoutASignInAndHasAMenuEntry(t *testing.T) {
+	p := autostartPlan(planEnv{goos: "linux", home: "/home/pi", user: "pi"})
+	unit, menu := p.files[0], p.files[1]
+	if unit.path != "/home/pi/.config/systemd/user/cloud-slicer-bridge.service" || !strings.Contains(unit.content, "\nExecStart=/home/pi/.local/share/cloud-slicer-bridge/cloud-slicer-bridge run --no-browser\n") || !strings.Contains(unit.content, "\nRestart=always\n") {
+		t.Fatalf("unit %s:\n%s", unit.path, unit.content)
+	}
+	last := p.enable[len(p.enable)-1]
+	if last.cmd != "loginctl" || !reflect.DeepEqual(last.args, []string{"enable-linger", "pi"}) {
+		t.Fatalf("linger %v", last)
+	}
+	if menu.path != "/home/pi/.local/share/applications/cloud-slicer-bridge.desktop" || !strings.Contains(menu.content, "\nExec=/home/pi/.local/share/cloud-slicer-bridge/cloud-slicer-bridge pair --open\n") || !strings.Contains(menu.content, "\nIcon=/home/pi/.local/share/cloud-slicer-bridge/icon.png\n") {
+		t.Fatalf("menu %s:\n%s", menu.path, menu.content)
+	}
+	if p.link != "/home/pi/.local/bin/cloud-slicer-bridge" || len(iconPNG) < 1000 {
+		t.Fatalf("link %s, icon %d bytes", p.link, len(iconPNG))
+	}
 }

@@ -4,11 +4,11 @@ A Cloudflare Worker with one Durable Object per bridge, passing messages
 between browsers and the bridge agent (`apps/device-bridge`). Websockets
 hibernate, so an idle bridge costs nothing; it runs on the free plan.
 
-- `GET /bridge.mjs` serves the agent, with this relay as its default.
 - `GET /downloads.json` lists the one-file bridge apps in R2 (`DOWNLOADS`,
   bucket `cloud-slicer-bridge`, uploaded by CI on main), and
-  `GET /download/<windows-x64|mac-arm64|mac-x64|linux-x64|linux-arm64>` serves
-  one. Without R2 the list is empty and the Device tab offers `bridge.mjs`.
+  `GET /download/<windows-x64|mac-arm64|mac-x64|linux-x64|linux-arm64|linux-armv7|linux-mipsle>`
+  serves one. Without R2 the list is empty and the Device tab says the bridge
+  isn't available yet.
 - `GET /install.sh` is the macOS, Linux and Raspberry Pi installer, with this relay
   filled in.
 - `wss://…/v1/bridges/<id>/agent?key=…` the agent, with its secret key. The

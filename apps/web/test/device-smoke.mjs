@@ -12,7 +12,7 @@ import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { chromium } from 'playwright';
-import { runBridge, pairingCode } from '../../device-bridge/bridge.mjs';
+import { bridgeConfig, bridgeProgram, pairingCode, startBridge } from './device/go-bridge.mjs';
 import { startMockPrinter } from './device/mock-printer.mjs';
 
 const web = join(dirname(fileURLToPath(import.meta.url)), '..');
@@ -54,6 +54,7 @@ const u1 = await startMockPrinter();
 const voron = await startMockPrinter({ generic: true });
 const keyed = await startMockPrinter({ generic: true, hostname: 'Keyed-mock', apiKey: 'mock-api-key' });
 let bridge;
+const program = bridgeProgram();
 const browser = await chromium.launch(process.env.PLAYWRIGHT_BROWSERS_PATH === '/opt/pw-browsers' ? { executablePath: '/opt/pw-browsers/chromium' } : {});
 try {
   // Pretend bridge apps in the relay's local R2, as CI uploads the real ones on main.
@@ -69,6 +70,11 @@ try {
       { id: 'u1', name: 'U1-mock', url: u1.url, apiKey: '' },
     ],
   };
+  const config = bridgeConfig(cfg);
+  // What the bridge's network search finds (the real one scans port 7125 on the bridge's networks).
+  const found = join(config.dir, 'found.json');
+  writeFileSync(found, '[]');
+  const uninstallMarker = join(config.dir, 'uninstalled');
 
   const page = await browser.newPage({ viewport: { width: 1280, height: 900 } });
   page.on('pageerror', (e) => console.error(`page error: ${e.message}`));
@@ -80,14 +86,7 @@ try {
   // bridge has connected: the dialog must keep listening until it comes online.
   await page.goto(`${site}#pair=${pairingCode(cfg)}`);
   await page.getByTestId('bridge-state').filter({ hasText: /Connecting to the bridge|The bridge is offline/ }).waitFor();
-  // What the bridge's network search finds (the real one scans port 7125 on the bridge's networks).
-  // The first search finds nothing, like a Mac before its "find devices on your local network" prompt is allowed.
-  let searches = 0;
-  const onTheNetwork = async () => (searches++ === 0 ? [] : [
-    { url: u1.url, name: 'U1-mock' },
-    { url: keyed.url, name: '127.0.0.1', needsKey: true },
-  ]);
-  bridge = runBridge(cfg, { log: (m) => console.log(`bridge: ${m}`), find: onTheNetwork });
+  bridge = startBridge(program, config, { find: found, log: (m) => console.log(`bridge: ${m}`) });
   // One list: every printer the bridge serves or found, each with its own name, profile and API key, and one button for all.
   const printers = page.getByTestId('bridge-printers');
   const row = (url) => printers.locator(`[data-testid="add-row"][data-url="${url}"]`);
@@ -96,16 +95,22 @@ try {
   // Searching is shown plainly, and an empty search goes again by itself.
   await printers.getByTestId('bridge-searching').waitFor();
   if (shots) await page.getByRole('dialog').screenshot({ path: join(shots, 'bridge-searching.png') });
+  // The first search finds nothing, like a Mac before its "find devices on your local network" prompt
+  // is allowed; the printers only show up if the dialog searches again by itself.
+  await new Promise((r) => setTimeout(r, 1500));
+  writeFileSync(found, JSON.stringify([
+    { url: u1.url, name: 'U1-mock' },
+    { url: keyed.url, name: '127.0.0.1', needsKey: true },
+  ]));
   await row(keyed.url).waitFor({ timeout: 20_000 });
-  if (searches < 2) throw new Error('an empty search should go again by itself');
   if ((await printers.getByTestId('add-row').count()) !== 2) throw new Error('U1-mock is both on the bridge and found: it should be one row');
   // Or by its address (any port), when the search doesn't find it.
   const addToBridge = page.getByTestId('bridge-add-printer');
   await addToBridge.locator('summary').click();
   await addToBridge.getByTestId('bridge-new-address').fill(voron.url.replace('http://', ''));
   await addToBridge.getByTestId('bridge-add-submit').click();
-  await until('voron-mock added to the bridge', () => cfg.printers.some((p) => p.name === 'voron-mock'));
-  const voronRow = printers.locator(`[data-testid="add-row"][data-bridge-id="${cfg.printers.find((p) => p.name === 'voron-mock').id}"]`);
+  await until('voron-mock added to the bridge', () => config.printers().some((p) => p.name === 'voron-mock'));
+  const voronRow = printers.locator(`[data-testid="add-row"][data-bridge-id="${config.printers().find((p) => p.name === 'voron-mock').id}"]`);
   await voronRow.getByTestId('add-row-name').waitFor();
   console.log('bridge: printer added from the Device tab by its address');
   // Each printer is added on its own row (name, profile, key checked there), then one button saves the ready ones.
@@ -124,7 +129,7 @@ try {
   await keyedRow.getByRole('alert').filter({ hasText: 'did not accept that API key' }).waitFor();
   await keyedRow.getByTestId('add-row-key').fill('mock-api-key');
   await keyedRow.getByTestId('add-row-done').click();
-  await until('the bridge kept the key and the name', () => cfg.printers.some((p) => p.name === 'Keyed printer' && p.apiKey === 'mock-api-key'));
+  await until('the bridge kept the key and the name', () => config.printers().some((p) => p.name === 'Keyed printer' && p.apiKey === 'mock-api-key'));
   await printers.locator('[data-testid="add-row"][data-step="ready"]').filter({ hasText: 'Keyed printer' }).waitFor();
   // The printer added by address opened for its details; leave it out.
   await voronRow.getByRole('button', { name: 'Cancel' }).click();
@@ -278,26 +283,24 @@ try {
   // The bridge going away is reported, and the page reconnects when it returns.
   bridge.stop();
   await page.getByText('Bridge offline').waitFor({ timeout: 20_000 });
-  // The offline help fits the bridge's computer: this one runs under Node.js on Linux (or wherever the test runs).
+  // The offline help fits the bridge's computer: Linux here, so the installed command and no system choice.
   await page.getByTestId('bridge-offline-help').waitFor();
   const offlineCmd = await page.getByTestId('bridge-offline-command').textContent();
-  if (offlineCmd !== 'node cloud-slicer-bridge.mjs') throw new Error(`offline help for a Node.js bridge shows: ${offlineCmd}`);
-  bridge = runBridge(cfg, { log: () => {} });
+  if (offlineCmd !== '~/.local/bin/cloud-slicer-bridge install') throw new Error(`offline help for a Linux bridge shows: ${offlineCmd}`);
+  bridge = startBridge(program, config);
   await page.getByTestId('connection').filter({ hasText: 'Connected' }).waitFor({ timeout: 40_000 });
   console.log('bridge restart: reconnected by itself');
 
   // A second copy of the bridge (another window) takes over, and the older one stops rather than taking it back.
-  let replaced = false;
   bridge.stop();
   // Wait for the older copy itself to be on the relay: the page may still show the stopped one as connected for a moment.
   let olderUp = false;
-  const older = runBridge(cfg, { log: (m) => /Connected to the relay/.test(m) && (olderUp = true), onReplaced: () => (replaced = true) });
+  const older = startBridge(program, config, { log: (m) => /Connected to the relay/.test(m) && (olderUp = true) });
   await until('the older copy connected', () => olderUp, 40_000);
   await page.getByTestId('connection').filter({ hasText: 'Connected' }).waitFor({ timeout: 40_000 });
-  // This copy can be removed from the Device tab; the real one then uninstalls itself (here: just notes it).
-  let uninstalled = false;
-  bridge = runBridge(cfg, { log: () => {}, uninstall: async () => (uninstalled = true) });
-  await until('the older copy stopped', () => replaced, 20_000);
+  // This copy can be removed from the Device tab; it then uninstalls itself (here: only leaves a note and exits).
+  bridge = startBridge(program, config, { uninstallMarker });
+  await until('the older copy stopped', () => older.exited(), 20_000);
   await new Promise((r) => setTimeout(r, 5000));
   await page.getByTestId('connection').filter({ hasText: 'Connected' }).waitFor({ timeout: 40_000 });
   older.stop();
@@ -432,7 +435,7 @@ try {
   await earlier.close();
   console.log('bridges of printers saved earlier come back on their own');
 
-  // ---- Bridge setup: the apps the relay has, else the Node.js steps ---------------------
+  // ---- Bridge setup: the apps the relay has --------------------------------------------
   const relayUrl = `http://127.0.0.1:${RELAY_PORT}`;
   const liveRelay = 'https://cloud-slicer-relay.nissy34.workers.dev';
   const setup = await browser.newPage({ viewport: { width: 1280, height: 900 } });
@@ -493,8 +496,8 @@ try {
   await setup.reload();
   await setup.getByRole('tab', { name: 'Device' }).click();
   await setup.getByTestId('add-printer').click();
-  await setup.getByText('node cloud-slicer-bridge.mjs', { exact: true }).waitFor();
-  console.log('bridge setup: app downloads and the Linux command from the relay, Node.js steps when it has none');
+  await setup.getByTestId('bridge-not-ready').waitFor();
+  console.log('bridge setup: app downloads and the Linux command from the relay, a plain note when it has none');
   // Printers & bridges: the bridge is its own thing, its printers come and go on their own.
   await page.getByTestId('manage-open').first().click();
   const manage = page.getByTestId('manage-dialog');
@@ -506,7 +509,7 @@ try {
   await managed('U1-mock').getByTestId('manage-printer-remove').click();
   await managed('U1-mock').getByTestId('manage-printer-remove-yes').click();
   await until('U1-mock removed', async () => (await page.getByTestId('printer-select').locator('option', { hasText: 'U1-mock' }).count()) === 0);
-  await until('the bridge forgot U1-mock too', () => !cfg.printers.some((p) => p.id === 'u1'));
+  await until('the bridge forgot U1-mock too', () => !config.printers().some((p) => p.id === 'u1'));
   await managed('Keyed printer').getByTestId('manage-printer-remove').click();
   await managed('Keyed printer').getByTestId('manage-printer-remove-yes').click();
   // No printers left: the bridge stays, empty.
@@ -523,7 +526,7 @@ try {
   await card.getByText('will also uninstall itself').waitFor();
   if (shots) await page.getByRole('dialog').screenshot({ path: join(shots, 'manage-remove-bridge.png') });
   await card.getByTestId('manage-bridge-remove-yes').click();
-  await until('the bridge uninstalled itself', () => uninstalled, 20_000);
+  await until('the bridge uninstalled itself', () => bridge.uninstalled(), 20_000);
   await until('the bridge is gone', async () => (await manage.getByTestId('manage-bridge').count()) === 0);
   if (await manage.getByTestId('manage-leftover').count()) throw new Error('a bridge that removed itself needs no manual command');
   console.log('removing the bridge: it uninstalls itself');

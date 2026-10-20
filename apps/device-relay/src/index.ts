@@ -5,12 +5,11 @@
 //   browser  --text-->  relay  --{c, m: text}-->  agent  --> printer's Moonraker
 //   browser  <--text--  relay  <--{c, m: text}--  agent
 //
-// Control messages: agent -> relay {ctl:'hello', printers, version, system, app, host} and
+// Control messages: agent -> relay {ctl:'hello', printers, version, system, host} and
 // {ctl:'drop', c, reason}; relay -> agent {ctl:'open', c, printer} and
 // {ctl:'close', c}. Browsers also get notify_bridge_status notifications.
 // Sockets hibernate, so an idle bridge costs nothing.
 import { DurableObject } from 'cloudflare:workers';
-import agentSource from '../../device-bridge/bridge.mjs';
 import installScript from '../../device-bridge/install.sh';
 
 export interface Env {
@@ -30,6 +29,8 @@ export const APPS: Record<string, string> = {
   'mac-x64': 'cloud-slicer-bridge-mac-intel.zip',
   'linux-x64': 'cloud-slicer-bridge',
   'linux-arm64': 'cloud-slicer-bridge',
+  'linux-armv7': 'cloud-slicer-bridge',
+  'linux-mipsle': 'cloud-slicer-bridge',
 };
 
 const BRIDGE_ID = /^[\w-]{8,64}$/;
@@ -49,7 +50,7 @@ async function sha256(text: string): Promise<string> {
 /**
  * The key browsers use, derived from the agent's secret key. The pairing code
  * carries only this one, so holding a pairing code is not enough to connect
- * as the bridge agent. Same derivation as browserKey() in bridge.mjs.
+ * as the bridge agent. Same derivation as browserKey() in the bridge (pairing.go).
  */
 async function browserKey(key: string): Promise<string> {
   const hmac = await crypto.subtle.importKey('raw', new TextEncoder().encode(key), { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']);
@@ -70,13 +71,6 @@ function same(a: string, b: string) {
 export default {
   async fetch(req: Request, env: Env): Promise<Response> {
     const url = new URL(req.url);
-    if (url.pathname === '/bridge.mjs') {
-      // ?site= is the page the user downloaded it from, so pairing links open that same site.
-      const site = /^https:\/\/[\w.-]+$|^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.exec(url.searchParams.get('site') ?? '')?.[0];
-      return new Response(agentSource.replaceAll('__RELAY_URL__', url.origin).replaceAll('__SITE_URL__', site ?? '__SITE_URL__'), {
-        headers: { ...cors, 'Content-Type': 'text/javascript; charset=utf-8', 'Content-Disposition': 'attachment; filename="cloud-slicer-bridge.mjs"' },
-      });
-    }
     if (url.pathname === '/install.sh') {
       return new Response(installScript.replaceAll('__RELAY_URL__', url.origin), { headers: { ...cors, 'Content-Type': 'text/x-shellscript; charset=utf-8' } });
     }
@@ -92,7 +86,7 @@ export default {
     if (dl) {
       const file = APPS[dl[1]];
       const object = file && env.DOWNLOADS ? await env.DOWNLOADS.get(`bridge/${dl[1]}`) : null;
-      if (!object) return new Response('That bridge app is not available yet. Use the Node.js version: /bridge.mjs\n', { status: 404, headers: cors });
+      if (!object) return new Response('That bridge app is not available yet.\n', { status: 404, headers: cors });
       return new Response(object.body, {
         headers: {
           ...cors,
@@ -112,7 +106,7 @@ export default {
       return env.BRIDGE.get(env.BRIDGE.idFromName(m[1])).fetch(req);
     }
     if (url.pathname === '/') {
-      return new Response('Cloud Slicer device relay. Bridge apps: /downloads.json and /download/<system>; macOS, Linux and Raspberry Pi: curl -fsSL <this relay>/install.sh | sh; Node.js version: /bridge.mjs.\n', { headers: { ...cors, 'Content-Type': 'text/plain' } });
+      return new Response('Cloud Slicer device relay. Bridge apps: /downloads.json and /download/<system>; macOS, Linux and Raspberry Pi: curl -fsSL <this relay>/install.sh | sh.\n', { headers: { ...cors, 'Content-Type': 'text/plain' } });
     }
     return new Response('Not found', { status: 404, headers: cors });
   },
@@ -126,9 +120,8 @@ interface ClientAttachment {
 interface BridgeInfo {
   printers: { id: string; name: string }[];
   version: string;
-  /** The bridge computer's system (win32, darwin, linux) and whether it runs as the app or under Node.js, so the Device tab's help fits it. */
+  /** The bridge computer's system (win32, darwin, linux), so the Device tab's help fits it. */
   system?: string;
-  app?: boolean;
   /** The bridge computer's name, so the Device tab can call the bridge "Bridge on <name>". */
   host?: string;
 }
@@ -147,7 +140,7 @@ export class Bridge extends DurableObject<Env> {
   }
 
   private statusMessage(info: BridgeInfo, online: boolean) {
-    return JSON.stringify({ jsonrpc: '2.0', method: 'notify_bridge_status', params: [{ agent: online ? 'online' : 'offline', printers: info.printers, version: info.version, system: info.system, app: info.app, host: info.host }] });
+    return JSON.stringify({ jsonrpc: '2.0', method: 'notify_bridge_status', params: [{ agent: online ? 'online' : 'offline', printers: info.printers, version: info.version, system: info.system, host: info.host }] });
   }
 
   private async broadcastStatus(online: boolean) {
@@ -207,7 +200,7 @@ export class Bridge extends DurableObject<Env> {
     const tags = this.ctx.getTags(ws);
 
     if (tags.includes('agent')) {
-      let msg: { ctl?: string; c?: string; m?: string; reason?: string; printers?: unknown; version?: unknown; system?: unknown; app?: unknown; host?: unknown };
+      let msg: { ctl?: string; c?: string; m?: string; reason?: string; printers?: unknown; version?: unknown; system?: unknown; host?: unknown };
       try {
         msg = JSON.parse(message);
       } catch {
@@ -219,7 +212,7 @@ export class Bridge extends DurableObject<Env> {
           .map((p: { id?: unknown; name?: unknown }) => ({ id: String(p.id ?? '').slice(0, 64), name: String(p.name ?? '').slice(0, 80) }));
         const system = ['win32', 'darwin', 'linux'].includes(String(msg.system)) ? String(msg.system) : undefined;
         const host = typeof msg.host === 'string' ? msg.host.replace(/[^\w .'-]/g, '').slice(0, 64) || undefined : undefined;
-        await this.ctx.storage.put('info', { printers, version: String(msg.version ?? ''), system, app: msg.app === true, host } satisfies BridgeInfo);
+        await this.ctx.storage.put('info', { printers, version: String(msg.version ?? ''), system, host } satisfies BridgeInfo);
         await this.broadcastStatus(true);
         // Browsers that were waiting for the agent get their sessions now.
         for (const c of this.clients()) {

@@ -112,7 +112,7 @@ func shortHost() string {
 }
 
 func (b *Bridge) hello() {
-	b.toRelay(map[string]any{"ctl": "hello", "version": version, "system": goosName(), "app": true, "host": shortHost(), "printers": b.cfg.printerList()})
+	b.toRelay(map[string]any{"ctl": "hello", "version": version, "system": goosName(), "host": shortHost(), "printers": b.cfg.printerList()})
 }
 
 func (b *Bridge) loop() {
@@ -135,11 +135,13 @@ func (b *Bridge) loop() {
 			}
 			return
 		}
-		if code == 4003 {
-			b.opts.log("The relay refused this bridge: " + reason)
-		}
 		delay := time.Duration(math.Min(60_000, 2000*math.Pow(2, math.Min(float64(retries), 5)))) * time.Millisecond
 		retries++
+		// Refused (blocked, or never paired with a signed-in account): asking again soon won't change that.
+		if code == 4003 {
+			b.opts.log("The relay refused this bridge: " + reason)
+			delay = 10 * time.Minute
+		}
 		why := ""
 		if reason != "" {
 			why = " (" + reason + ")"

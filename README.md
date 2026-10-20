@@ -113,7 +113,7 @@ How it is built, and why: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 | `engine/` | The engine: Snapmaker Orca's libslic3r in WebAssembly with an embind API, its build, patches, and a Node CLI and tests. See [engine/README.md](engine/README.md) |
 | `engine/orcaslicer/` | Submodule: upstream Snapmaker Orca, pinned to v2.4.0 |
 | `apps/web/` | The web app (React + TypeScript + Vite) and its Cloudflare Pages Functions. See [apps/web/README.md](apps/web/README.md) |
-| `apps/device-bridge/` | The bridge that lets the Device tab reach printers on a home network: `bridge.mjs`, its one-file apps and the Mac/Linux installer. See [apps/device-bridge/README.md](apps/device-bridge/README.md) |
+| `apps/device-bridge/` | The bridge that lets the Device tab reach printers on a home network: one small Go program per system and chip, and the Mac/Linux installer. See [apps/device-bridge/README.md](apps/device-bridge/README.md) |
 | `apps/device-relay/` | The relay Worker between browsers and bridges. See [apps/device-relay/README.md](apps/device-relay/README.md) and [SECURITY.md](apps/device-relay/SECURITY.md) |
 | `packages/printer/` | Printer drivers for the Device tab: Moonraker client, filament library and sync, G-code summary, tool remap, and a mock Moonraker for tests |
 | `fixtures/` | Small test models and G-code |
@@ -225,8 +225,7 @@ Setting up a home printer, from the Device tab's "Add a printer":
 | System | How |
 |---|---|
 | Windows | Download the app and open it ("Windows protected your PC": More info, then Run anyway) |
-| macOS, Linux, Raspberry Pi (64-bit) | `curl -fsSL https://cloud-slicer-relay.nissy34.workers.dev/install.sh \| sh` in Terminal |
-| Anything with Node.js 22+ | Download `cloud-slicer-bridge.mjs` and run `node cloud-slicer-bridge.mjs` |
+| macOS, Linux, Raspberry Pi (64 and 32-bit), Creality K1 (MIPS) | `curl -fsSL https://cloud-slicer-relay.nissy34.workers.dev/install.sh \| sh` in Terminal |
 
 The bridge asks nothing: it starts with the computer (Windows and macOS at login,
 Linux at boot) and opens a pairing link, and the Device tab then searches the
@@ -246,7 +245,7 @@ which is why Windows warns and why macOS uses the Terminal command. More in
 
 ```bash
 (cd packages/printer && npm test)        # printer driver unit tests + mock Moonraker
-(cd apps/device-bridge && npm test)      # bridge unit tests
+(cd apps/device-bridge && go test ./...) # bridge unit tests
 (cd apps/web && npm test)                # web app unit tests (Vitest)
 node --test engine/node/engine.test.mjs  # engine: presets, STL, painted Bambu 3MF, dual-colour 3MF
 ```

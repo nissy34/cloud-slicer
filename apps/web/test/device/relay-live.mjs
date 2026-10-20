@@ -5,14 +5,10 @@
 //
 //   node test/device/relay-live.mjs https://cloud-slicer-relay.<account>.workers.dev [--app <bridge app>]
 //
-// With --app, a one-file bridge app (bun build --compile) is the agent instead
-// of bridge.mjs in this process.
-import { spawn } from 'node:child_process';
+// --app is the bridge program to run (CI passes the one build.sh made); without
+// it the bridge is built here with go build.
 import { randomBytes } from 'node:crypto';
-import { mkdtempSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
-import { join } from 'node:path';
-import { browserKey, pairingCode, runBridge } from '../../../device-bridge/bridge.mjs';
+import { bridgeConfig, bridgeProgram, browserKey, pairingCode, startBridge } from './go-bridge.mjs';
 import { startMockPrinter } from './mock-printer.mjs';
 
 const relay = (process.argv[2] ?? '').replace(/\/+$/, '');
@@ -20,16 +16,7 @@ if (!/^https?:\/\//.test(relay)) throw new Error('usage: relay-live.mjs <relay u
 const mock = await startMockPrinter();
 const cfg = { relay, bridgeId: `ci-${randomBytes(9).toString('base64url')}`, key: randomBytes(24).toString('base64url'), printers: [{ id: 'u1', name: 'U1-mock', url: mock.url, apiKey: '' }] };
 const app = process.argv.indexOf('--app') > 0 ? process.argv[process.argv.indexOf('--app') + 1] : null;
-const bridge = app ? startApp(app) : runBridge(cfg, { log: (m) => console.log(`bridge: ${m}`) });
-
-function startApp(path) {
-  const config = join(mkdtempSync(join(tmpdir(), 'bridge-app-')), 'bridge.json');
-  writeFileSync(config, JSON.stringify(cfg));
-  const child = spawn(path, ['run', '--no-browser', '--config', config], { stdio: ['ignore', 'pipe', 'pipe'] });
-  child.stdout.on('data', (d) => process.stdout.write(`app: ${d}`));
-  child.stderr.on('data', (d) => process.stderr.write(`app: ${d}`));
-  return { stop: () => child.kill() };
-}
+const bridge = startBridge(app ?? bridgeProgram(), bridgeConfig(cfg), { log: (m) => console.log(`bridge: ${m}`) });
 /** Every pretend-browser socket, closed at the end so a failure can't keep the process alive. */
 const open = new Set();
 const clientKey = browserKey(cfg.key);
