@@ -5,5 +5,6 @@ public/engine/settings-layout.json
 public/engine/assets/
 public/engine/calib/
 public/engine/fonts/
+public/engine/handy_models/
 test-results/
 *.tsbuildinfo

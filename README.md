@@ -30,7 +30,11 @@ hosted on Cloudflare's free tier.
   between faces, edges, circles and corners), variable layer height (adaptive, smooth,
   or by hand on the layer height chart), arrange, auto-orient, split,
   mirror, simplify (offered by itself when a model has too many triangles to slice comfortably), plates, brim ears (by hand or on the corners), undo and redo,
-  painting (colours, support and seam enforcers/blockers, fuzzy skin), and desktop's
+  painting (colours, support and seam enforcers/blockers, fuzzy skin), desktop's plate
+  menu (right click or long press the plate or the space around it: add a primitive
+  shape, text, an SVG, one of Orca's handy models or a model file, and on the plate
+  arrange, auto orient, delete all, delete plate and rename plate, the name then shown
+  on the plate; Show labels or Ctrl+E puts each object's name over it), and desktop's
   object menu (right click or long press an object, or ⋯ in the object list: clone,
   center, rename, printable, change filament, scale to fit, unit conversion, replace
   with STL, export as STL), and parts, negative parts, modifiers and support

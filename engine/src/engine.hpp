@@ -51,6 +51,11 @@ Project& project();
 // bed, as an added model is placed (model_api.cpp).
 void placeObject(Slic3r::ModelObject* obj, int plate);
 
+// A primitive shape as desktop's ObjectList::create_mesh makes it, sized by the
+// bed (a tenth of its larger side): Cube, Cylinder, Sphere, Cone, Disc or Torus
+// (volume_api.cpp).
+Slic3r::TriangleMesh shapeMesh(const std::string& shape);
+
 // Calls a JS progress callback (percent, text) when it is a function. Orca
 // reports some stages from worker threads, and an emscripten::val may only be
 // touched on the thread that created it, so off-main-thread updates are dropped.

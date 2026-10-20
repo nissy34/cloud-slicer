@@ -334,6 +334,12 @@ if (self.name !== 'em-pthread') {
     },
     addPlate: (e) => (json(e.addPlate()), JSON.parse(e.modelInfoJson())),
     deletePlate: (e, plate) => (json(e.deletePlate(plate)), JSON.parse(e.modelInfoJson())),
+    // The plate menu's own actions (see engine/src/plate_api.cpp): a primitive
+    // as a new object, delete everything on the plate, rename it.
+    plateAction(e, plate, request) {
+      const { object } = json(e.plateAction(plate, JSON.stringify(request)));
+      return { info: JSON.parse(e.modelInfoJson()), object };
+    },
 
     // Replaces the project with a calibration test (desktop's Calibration
     // menu). Returns the settings the test changes, for the page to apply as

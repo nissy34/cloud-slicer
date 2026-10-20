@@ -1155,6 +1155,24 @@ select:focus-visible {
   font-variant-numeric: tabular-nums;
   text-align: right;
 }
+.object-label {
+  padding: 2px 8px;
+  border-radius: 4px;
+  background: rgb(20 24 28 / 80%);
+  color: #fff;
+  font-size: 12px;
+  white-space: nowrap;
+  pointer-events: none;
+}
+/* Just past the plate's back left corner, like desktop's plate name. */
+.plate-name {
+  transform: translateY(-120%);
+  color: var(--muted);
+  font-size: 14px;
+  font-weight: 600;
+  white-space: nowrap;
+  pointer-events: none;
+}
 .measure-label {
   padding: 1px 6px;
   border-radius: 4px;

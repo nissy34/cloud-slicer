@@ -1362,3 +1362,54 @@ test('SVG shapes: an SVG part, an engraved SVG, an SVG object, depth and size, k
   assert.throws(() => svg(0, { op: 'add', type: 'part', path: '/work/empty.svg', name: 'empty.svg' }), /no paths/);
   assert.throws(() => svg(0, { op: 'add', type: 'part', path: '/work/none.svg', name: 'none.svg' }), /missing/);
 });
+
+test('plate menu: primitives as new objects on the free spot, delete all on a plate, rename a plate, like desktop', () => {
+  select({ printer: DEFAULT_PRINTER });
+  const plate = (p, request) => call(engine, 'plateAction', p, JSON.stringify(request));
+  const [w, d] = bedSize(fullConfig());
+  const side = 0.1 * Math.max(w, d);
+  const near = (a, b, what) => assert.ok(Math.abs(a - b) < 0.05, `${what}: ${a} vs ${b}`);
+  load('gen-cube-20.stl');
+  const at = (o) => info().objects[o].instances[0].offset;
+
+  // On an empty plate a primitive lies in the middle, like desktop's load_shape_object.
+  plate(0, { op: 'deleteAll' });
+  assert.equal(info().objects.length, 0, 'delete all emptied the plate');
+  const first = plate(0, { op: 'addShape', shape: 'Cylinder' });
+  assert.equal(first.object, 0);
+  const cyl = info().objects[0];
+  assert.equal(cyl.name, 'Cylinder');
+  assert.deepEqual(cyl.volumes.map((v) => [v.name, v.kind]), [['Cylinder', 'part']]);
+  near(cyl.size[0], side, 'a tenth of the bed across');
+  near(cyl.size[2], side, 'as tall as wide');
+  near(at(0)[0], w / 2, 'centred in x');
+  near(at(0)[1], d / 2, 'centred in y');
+
+  // A second one goes beside it, not on top of it; every shape desktop offers works.
+  for (const shape of ['Cube', 'Sphere', 'Cone', 'Disc', 'Torus']) plate(0, { op: 'addShape', shape });
+  const objs = info().objects;
+  assert.equal(objs.length, 6);
+  assert.ok(Math.hypot(at(1)[0] - at(0)[0], at(1)[1] - at(0)[1]) >= side, 'the cube is clear of the cylinder');
+  near(objs[2].size[2], side, 'the sphere sits on the bed');
+  near(objs[4].size[2], 0.2, 'the disc is 0.2 mm thick');
+  assert.ok(objs.every((o) => o.instances[0].plate === 0));
+  assert.ok(slice(fullConfig()).result.totalFilamentMm > 0, 'the shapes slice');
+
+  // A primitive goes on the plate it was asked for; delete all leaves the other plates alone.
+  call(engine, 'addPlate');
+  const other = plate(1, { op: 'addShape', shape: 'Cube' });
+  assert.equal(info().objects[other.object].instances[0].plate, 1);
+  plate(0, { op: 'deleteAll' });
+  assert.deepEqual(info().objects.map((o) => o.instances.map((i) => i.plate)), [[1]], 'only plate 2 keeps its cube');
+
+  // Renamed plates keep their names in the 3MF.
+  plate(1, { op: 'rename', name: 'Spares' });
+  assert.deepEqual(info().plates.map((p) => p.name), ['', 'Spares']);
+  call(engine, 'saveProject', '/work/plates.3mf', JSON.stringify(fullConfig()), null);
+  engine.clearModel();
+  call(engine, 'loadModel', '/work/plates.3mf', 0, w, d, false);
+  assert.deepEqual(info().plates.map((p) => p.name), ['', 'Spares']);
+
+  assert.throws(() => plate(0, { op: 'addShape', shape: 'Teapot' }), /unknown shape/);
+  assert.throws(() => plate(5, { op: 'deleteAll' }), /no plate/);
+});
