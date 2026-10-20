@@ -29,7 +29,7 @@ import type { SyncPlan } from '../lib/filament-sync';
 import { DEFAULT_PRINTER, pickFilamentPreset, splitList, SLOT_COLOURS } from '../lib/presets';
 import { changedOnPurpose, emptyProjectMessage, modelProcessKeys, pickProcess, printerLabel, projectOverrides } from '../lib/project-import';
 import { accountReady, getUserSetting, presetEditing, useAccount } from './account';
-import { installedOnly, SETUP_KEY, type Setup } from '../lib/setup';
+import { installedOnly, installedPrinters, SETUP_KEY, startPrinter, type Setup } from '../lib/setup';
 import { loadConvertPreference, loadDefaultEngine, loadSaved, save, saveConvertPreference } from '../lib/storage';
 import { engineFolder, engineFromUrl, engineName, type EngineFlavor } from '../lib/engines';
 import { flowFill, switchedText, switchPlan, type SwitchPlan } from '../lib/engine-switch';
@@ -539,7 +539,7 @@ export const useSlicer = create<SlicerState>((set, get) => {
     set({ job: { kind: 'loading', name: c.file?.name ?? '', label: `Opening your project in ${engineName(c.plan.to)}` } });
     try {
       const want = c.plan.selection;
-      const printer = get().printers.some((p) => p.name === want.printer) ? want.printer : DEFAULT_PRINTER;
+      const printer = get().printers.some((p) => p.name === want.printer) ? want.printer : startPrinter(get().printers, installed());
       await applySelection({ printer, process: '' });
       const { processes, filaments, selection } = get();
       const process = processes.some((p) => p.name === want.process) ? want.process : pickProcess(processes, c.layerHeight, selection?.process ?? '');
@@ -682,9 +682,9 @@ export const useSlicer = create<SlicerState>((set, get) => {
           if (a.presets !== enginePresets && get().engine === 'ready' && !presetEditing())
             void get().setUserPresets(a.presets).catch(fail);
           // Printers picked on another device, or in the setup wizard.
-          const setup = a.settings[SETUP_KEY]?.value as Setup | undefined;
-          if (get().engine === 'ready' && setup?.printers && vendorFilesFor(get().catalog, setup.printers).some((f) => !loadedVendors.has(f)))
-            void get().loadVendors(setup.printers).catch(fail);
+          const setup = installedPrinters(a.settings[SETUP_KEY]?.value as Setup | undefined, get().flavor);
+          if (get().engine === 'ready' && setup && vendorFilesFor(get().catalog, setup).some((f) => !loadedVendors.has(f)))
+            void get().loadVendors(setup).catch(fail);
         });
       }
       const [printers, options, layout] = await Promise.all([
@@ -694,7 +694,8 @@ export const useSlicer = create<SlicerState>((set, get) => {
       ]);
       set({ printers, options, layout });
       const known = saved?.selection && printers.some((p) => p.name === saved.selection?.printer);
-      await applySelection(known && saved?.selection ? saved.selection : { printer: DEFAULT_PRINTER });
+      // Nothing chosen in this engine yet: the first printer picked in the setup wizard.
+      await applySelection(known && saved?.selection ? saved.selection : { printer: startPrinter(printers, installed()) });
       const r = pendingRestore;
       if (r) await restore(r);
       const c = pendingCarry;
@@ -717,8 +718,9 @@ export const useSlicer = create<SlicerState>((set, get) => {
   // The printer presets whose brands the engine should load: the installed
   // ones, the selected one and the ones the user's own printers are built on.
   // (Their base in this engine: preset-engines.ts maps it.)
+  const installed = () => installedPrinters(getUserSetting<Setup>(SETUP_KEY), get().flavor);
   const neededPrinters = (options: Record<string, OptionDef>, selected?: string, presets = useAccount.getState().presets) => [
-    ...(getUserSetting<Setup>(SETUP_KEY)?.printers ?? []),
+    ...(installed() ?? []),
     ...(selected ? [selected] : []),
     ...presets.filter((p) => p.type === 'printer').map((p) => presetForEngine(p, get().flavor, options).inherits),
   ];
@@ -1041,7 +1043,7 @@ export const useSlicer = create<SlicerState>((set, get) => {
       const printers = await e.printers();
       set({ printers });
       const want = { ...get().selection, ...selection };
-      if (!printers.some((p) => p.name === want.printer)) want.printer = DEFAULT_PRINTER;
+      if (!printers.some((p) => p.name === want.printer)) want.printer = startPrinter(printers, installed());
       await applySelection(want);
       const base = get().baseConfig;
       const overrides = get().overrides;
