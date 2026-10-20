@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import type { CutKeep } from '../engine/client';
 import { describeFeature, measurementRows } from '../lib/measure';
+import { scaledBy } from '../lib/transform';
 import { AssemblePanel } from './AssemblePanel';
 import { useSlicer, type Tool } from '../state/store';
 import { SimplifyPanel } from './SimplifyPanel';
@@ -71,56 +72,94 @@ function CutPanel({ object, instance, height, onDone }: { object: number; instan
   );
 }
 
-/** Exact values for the open gizmo, like the fields in desktop's gizmo panels. */
-function TransformFields({ tool, object, instance }: { tool: 'move' | 'rotate' | 'scale'; object: number; instance: number }) {
-  const inst = useSlicer((s) => s.project?.objects[object]?.instances[instance]);
-  const { transformInstance, moveInstance, mirror } = useSlicer.getState();
-  if (!inst) return null;
-  const values = tool === 'move' ? inst.offset.slice(0, 2) : tool === 'rotate' ? inst.rotation : inst.scale.map((v) => v * 100);
-  const [label, unit] = tool === 'move' ? ['Position', 'mm'] : tool === 'rotate' ? ['Rotation', '°'] : ['Scale', '%'];
-  const set = (axis: number, raw: string) => {
-    const v = Number(raw);
-    if (!Number.isFinite(v) || round(v) === round(values[axis])) return;
-    if (tool === 'move') {
-      const at = [inst.offset[0], inst.offset[1]];
-      at[axis] = v;
-      return void moveInstance(object, instance, at[0], at[1]);
-    }
-    if (tool === 'rotate') {
-      const rotation = [...inst.rotation];
-      rotation[axis] = v;
-      return void transformInstance(object, instance, { rotation });
-    }
-    if (v <= 0) return;
-    const scale = [...inst.scale];
-    scale[axis] = v / 100;
-    void transformInstance(object, instance, { scale });
+const AXES = ['X', 'Y', 'Z'] as const;
+
+/** Three number boxes side by side, each captioned with its axis and unit, like desktop's gizmo fields. */
+function AxisFields({ label, unit, values, onSet, only }: { label: string; unit: string; values: number[]; onSet(axis: number, v: number): void; only?: number }) {
+  return (
+    <div className="num-fields axis-fields" role="group" aria-label={`${label} (${unit})`}>
+      {values.slice(0, only ?? 3).map((v, axis) => (
+        <label className="num-field" key={`${axis}-${round(v)}`}>
+          <span>
+            {label} {AXES[axis]} <span className="unit">({unit})</span>
+          </span>
+          <input
+            aria-label={`${label} ${AXES[axis]}`}
+            data-value={round(v)}
+            inputMode="decimal"
+            defaultValue={round(v)}
+            onBlur={(e) => {
+              const n = Number(e.target.value.replace(',', '.'));
+              if (e.target.value.trim() !== '' && Number.isFinite(n) && round(n) !== round(v)) onSet(axis, n);
+              else e.target.value = String(round(v));
+            }}
+            onKeyDown={(e) => e.key === 'Enter' && (e.target as HTMLInputElement).blur()}
+          />
+        </label>
+      ))}
+    </div>
+  );
+}
+
+/** A transform, as the fields show it: an object's copy or a part inside its object. */
+interface Placement {
+  offset: number[];
+  rotation: number[];
+  scale: number[];
+  meshSize: number[];
+}
+
+/** Exact values for the open move/rotate/scale tool, like the fields in desktop's tool panels. */
+function TransformFields({ tool, object, instance, volume }: { tool: 'move' | 'rotate' | 'scale'; object: number; instance: number; volume?: number }) {
+  const obj = useSlicer((s) => s.project?.objects[object]);
+  const uniform = useSlicer((s) => s.uniformScale);
+  const { transformInstance, transformVolume, mirror, setUniformScale } = useSlicer.getState();
+  const inst = obj?.instances[instance];
+  const vol = volume !== undefined ? obj?.volumes[volume] : undefined;
+  const at: Placement | undefined = vol ?? (inst && obj ? { ...inst, meshSize: obj.meshSize } : undefined);
+  if (!at) return null;
+  const apply = (changes: { offset?: number[]; rotation?: number[]; scale?: number[] }) =>
+    vol ? void transformVolume(object, volume!, changes) : void transformInstance(object, instance, changes as never);
+  const replace = (list: number[], axis: number, v: number) => list.map((x, k) => (k === axis ? v : x));
+  const size = at.meshSize.map((m, k) => m * Math.abs(at.scale[k]));
+
+  if (tool === 'move')
+    return (
+      <AxisFields
+        label="Position"
+        unit="mm"
+        values={at.offset}
+        onSet={(axis, v) => apply({ offset: replace(at.offset, axis, v) })}
+      />
+    );
+  if (tool === 'rotate') return <AxisFields label="Rotation" unit="°" values={at.rotation} onSet={(axis, v) => apply({ rotation: replace(at.rotation, axis, v) })} />;
+  const setScale = (axis: number, factor: number) => {
+    if (!(factor > 0)) return;
+    // A mirrored axis keeps its flip.
+    const signed = at.scale.map((v) => Math.abs(v));
+    const next = scaledBy(signed, axis, factor, uniform).map((v, k) => v * Math.sign(at.scale[k] || 1));
+    apply({ scale: next });
   };
   return (
     <>
-      <div className="transform-row">
-        <span>{label} {unit}</span>
-        {values.map((v, axis) => (
-          <input
-            key={`${tool}${axis}-${v}`}
-            aria-label={`${label} ${'XYZ'[axis]}`}
-            inputMode="decimal"
-            defaultValue={round(v)}
-            onBlur={(e) => set(axis, e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && (e.target as HTMLInputElement).blur()}
-          />
-        ))}
+      <AxisFields label="Scale" unit="%" values={at.scale.map((v) => Math.abs(v) * 100)} onSet={(axis, v) => setScale(axis, v / 100)} />
+      <AxisFields label="Size" unit="mm" values={size} onSet={(axis, v) => at.meshSize[axis] > 0 && setScale(axis, v / at.meshSize[axis])} />
+      <div className="tool-row">
+        <label className="check" title="Changing one box changes the other two by as much, so the shape keeps its proportions">
+          <input type="checkbox" checked={uniform} onChange={(e) => setUniformScale(e.target.checked)} />
+          <span>Scale evenly</span>
+        </label>
+        {!vol && (
+          <>
+            <button className="secondary" title="Mirror along X" onClick={() => void mirror(object, instance, 0)}>
+              Mirror X
+            </button>
+            <button className="secondary" title="Mirror along Y" onClick={() => void mirror(object, instance, 1)}>
+              Mirror Y
+            </button>
+          </>
+        )}
       </div>
-      {tool === 'scale' && (
-        <div className="tool-row">
-          <button className="secondary" title="Mirror along X" onClick={() => void mirror(object, instance, 0)}>
-            Mirror X
-          </button>
-          <button className="secondary" title="Mirror along Y" onClick={() => void mirror(object, instance, 1)}>
-            Mirror Y
-          </button>
-        </div>
-      )}
     </>
   );
 }
@@ -224,8 +263,10 @@ export function ToolPanel() {
   const [title, objectHint] = HINTS[tool];
   const onVolume = volume !== null && tool !== 'flatten';
   const hint = onVolume
-    ? `${tool === 'move' ? 'Drag an arrow' : tool === 'rotate' ? 'Drag a ring' : 'Drag a handle'} to change ${volume} inside its object. Pick the object in the list to work on all of it.`
-    : objectHint;
+    ? `${tool === 'move' ? 'Drag an arrow' : tool === 'rotate' ? 'Drag a ring' : 'Drag a handle'} or type below to change ${volume} inside its object${tool === 'move' ? ' (from its middle)' : ''}. Pick the object in the list to work on all of it.`
+    : tool === 'move'
+      ? `${objectHint} A Z below the bed sinks it into the bed; only what is above prints.`
+      : objectHint;
   return (
     <section className="tool-panel" aria-label={title}>
       <div className="tool-panel-head">
@@ -240,7 +281,13 @@ export function ToolPanel() {
           Rotation now: {rotation?.map((r) => `${round(r)}°`).join(', ')}
         </p>
       ) : (
-        !onVolume && <TransformFields tool={tool} object={selected.object} instance={selected.instance} />
+        <TransformFields
+          key={`${selected.object}-${selected.instance}-${onVolume ? selected.volume : ''}`}
+          tool={tool}
+          object={selected.object}
+          instance={selected.instance}
+          volume={onVolume ? selected.volume : undefined}
+        />
       )}
       {tool !== 'flatten' && (
         <label className="check">

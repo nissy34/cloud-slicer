@@ -763,6 +763,7 @@ select:focus-visible {
 }
 .transform-row.actions {
   display: flex;
+  flex-wrap: wrap;
   justify-content: flex-end;
 }
 
@@ -1008,6 +1009,13 @@ select:focus-visible {
 }
 .transform-row.text-row {
   grid-template-columns: 80px 1fr auto;
+}
+/* Room for "Position X (mm)" over each of three boxes. */
+.tool-pop:has(.axis-fields) {
+  width: min(350px, calc(100% - 16px));
+}
+.axis-fields .num-field > span {
+  white-space: nowrap;
 }
 /* Number boxes side by side across the panel, each captioned above. */
 .num-fields {

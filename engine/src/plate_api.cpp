@@ -14,6 +14,13 @@ namespace {
 
 engine::Project& pr() { return engine::project(); }
 
+// Desktop's clipboard (Selection::copy_to_clipboard): a copy of what Ctrl+C
+// took, so Ctrl+V still works after the original is changed or deleted.
+Model& clipboard() {
+    static Model m;
+    return m;
+}
+
 // Plate p, request:
 //   {op: "addShape", shape: Cube|Cylinder|Sphere|Cone|Disc|Torus}
 //        a new object (ObjectList::load_shape_object -> load_mesh_object), on
@@ -21,6 +28,9 @@ engine::Project& pr() { return engine::project(); }
 //   {op: "deleteAll"}   every object on the plate (Plater::remove_curr_plate_all;
 //                       an object with copies on other plates keeps those)
 //   {op: "rename", name}   the plate's name (desktop's Edit Plate Name)
+//   {op: "copy", object, instance}   that copy of the object onto the clipboard (Ctrl+C)
+//   {op: "paste"}       the clipboard as a new object on plate p, on its free
+//                       spot closest to the centre (Ctrl+V)
 // Returns {ok, object?: index of the new object, error?}.
 std::string plateAction(int plate, const std::string& requestJson) {
     try {
@@ -63,6 +73,23 @@ std::string plateAction(int plate, const std::string& requestJson) {
             }
             if (!p.plates[plate]) p.plates[plate] = new PlateData();
             p.plates[plate]->plate_name = req.value("name", "");
+        } else if (op == "copy") {
+            const int o = req.value("object", -1), i = req.value("instance", 0);
+            if (o < 0 || size_t(o) >= p.model.objects.size()) throw std::runtime_error("no object " + std::to_string(o));
+            const ModelObject* src = p.model.objects[o];
+            if (i < 0 || size_t(i) >= src->instances.size()) throw std::runtime_error("no instance " + std::to_string(i));
+            Model& clip = clipboard();
+            clip.clear_objects();
+            ModelObject* copy = clip.add_object(*src);
+            // Only the picked copy, as desktop copies the selected instance.
+            for (int k = int(copy->instances.size()) - 1; k >= 0; --k)
+                if (k != i) copy->delete_instance(size_t(k));
+        } else if (op == "paste") {
+            Model& clip = clipboard();
+            if (clip.objects.empty()) throw std::runtime_error("nothing copied yet");
+            ModelObject* obj = p.model.add_object(*clip.objects.front());
+            engine::placeObject(obj, plate);
+            out["object"] = p.model.objects.size() - 1;
         } else {
             throw std::runtime_error("unknown plate action " + op);
         }

@@ -1525,3 +1525,59 @@ test('plate menu: primitives as new objects on the free spot, delete all on a pl
   assert.throws(() => plate(0, { op: 'addShape', shape: 'Teapot' }), /unknown shape/);
   assert.throws(() => plate(5, { op: 'deleteAll' }), /no plate/);
 });
+
+test('transform fields, sinking, part fields, copy and paste, like desktop', () => {
+  select({ printer: DEFAULT_PRINTER, process: '0.20mm Standard @Snapmaker U1 (0.4 nozzle)' });
+  const near = (a, b, what) => assert.ok(Math.abs(a - b) < 0.01, `${what}: ${a} vs ${b}`);
+  const move = (o, i, changes) => call(engine, 'setInstanceTransform', o, i, JSON.stringify(changes));
+  load('gen-cube-20.stl');
+
+  // The object's own size, unrotated and unscaled: the page shows it times the scale in mm.
+  near(info().objects[0].meshSize[0], 20, 'mesh size');
+  move(0, 0, { scale: [1.5, 1.5, 1.5], rotation: [0, 0, 30] });
+  near(info().objects[0].meshSize[2], 20, 'scale and rotation leave the mesh size alone');
+  near(info().objects[0].size[2], 30, 'the instance is 30 mm tall');
+
+  // A Z below the bed sinks it (sliced only above the bed); above the bed it drops back.
+  const full = slice(fullConfig()).result.totalLayers;
+  // Turning an object on the bed about a corner keeps it on the bed, not partly under it.
+  move(0, 0, { rotation: [40, 0, 30] });
+  move(0, 0, { rotation: [0, 0, 30] });
+  assert.equal(slice(fullConfig()).result.totalLayers, full, 'turned and back, still all above the bed');
+  const z0 = info().objects[0].instances[0].offset[2];
+  move(0, 0, { offset: [100, 100, z0 - 10] });
+  near(info().objects[0].instances[0].offset[2], z0 - 10, 'sunk by 10 mm');
+  move(0, 0, { rotation: [0, 0, 45] });
+  near(info().objects[0].instances[0].offset[2], z0 - 10, 'stays sunk after turning it');
+  const sunk = slice(fullConfig()).result.totalLayers;
+  assert.ok(sunk < full * 0.75 && sunk > full * 0.5, `a third under the bed: ${sunk} of ${full} layers`);
+  move(0, 0, { offset: [100, 100, z0 + 25] });
+  near(info().objects[0].instances[0].offset[2], z0, 'floating drops back onto the bed');
+
+  // Part fields: offset, rotation and scale inside the object.
+  call(engine, 'volumeAction', 0, JSON.stringify({ op: 'add', type: 'modifier', shape: 'Cube', instance: 0 }));
+  const vol = info().objects[0].volumes.findIndex((v) => v.kind === 'modifier');
+  call(engine, 'volumeAction', 0, JSON.stringify({ op: 'set', volume: vol, offset: [1, 2, 3], rotation: [0, 0, 10], scale: [2, 1, 1] }));
+  const v = info().objects[0].volumes[vol];
+  assert.deepEqual(v.offset.map((n) => Math.round(n * 100) / 100), [1, 2, 3]);
+  near(v.rotation[2], 10, 'part rotation');
+  near(v.scale[0], 2, 'part scale');
+  assert.ok(v.meshSize[0] > 0, 'part mesh size');
+  assert.throws(() => call(engine, 'volumeAction', 0, JSON.stringify({ op: 'set', volume: vol, scale: [0, 1, 1] })), /above 0/);
+
+  // Copy, delete the original, paste: the copy comes back with its scale and parts.
+  const plate = (p, request) => call(engine, 'plateAction', p, JSON.stringify(request));
+  call(engine, 'addInstance', 0, 0, 40, 0);
+  plate(0, { op: 'copy', object: 0, instance: 1 });
+  call(engine, 'deleteObject', 0);
+  assert.equal(info().objects.length, 0);
+  assert.equal(plate(0, { op: 'paste' }).object, 0);
+  const pasted = info().objects[0];
+  assert.equal(pasted.instances.length, 1, 'one copy pasted, not every instance');
+  near(pasted.instances[0].scale[0], 1.5, 'keeps its scale');
+  assert.equal(pasted.volumes.length, 2, 'keeps its modifier');
+  plate(0, { op: 'paste' });
+  const [a, b] = info().objects.map((o) => o.instances[0].offset);
+  assert.ok(Math.hypot(a[0] - b[0], a[1] - b[1]) > 30, 'a second paste goes beside the first');
+  assert.throws(() => plate(0, { op: 'copy', object: 9, instance: 0 }), /no object/);
+});

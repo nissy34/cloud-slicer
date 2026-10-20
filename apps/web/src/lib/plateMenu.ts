@@ -2,7 +2,13 @@
 // desktop Orca's plate and empty-space menus offer besides.
 import type { Shape } from './volumes';
 
-export type PlateAction = { op: 'addShape'; shape: Shape } | { op: 'deleteAll' } | { op: 'rename'; name: string };
+export type PlateAction =
+  | { op: 'addShape'; shape: Shape }
+  | { op: 'deleteAll' }
+  | { op: 'rename'; name: string }
+  /** Ctrl+C and Ctrl+V: the engine keeps the copy, so it pastes after the original is gone. */
+  | { op: 'copy'; object: number; instance: number }
+  | { op: 'paste' };
 
 /**
  * Desktop's "Add Handy models" (MenuFactory::append_submenu_add_handy_model):
