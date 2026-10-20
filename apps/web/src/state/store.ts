@@ -119,6 +119,14 @@ export interface SlicerState {
   simplifyHeavy(): Promise<void>;
   /** A 3MF made for a printer we don't have, waiting for the user to convert it. */
   conversion: { from: string; file: OrcaConfig } | null;
+  /**
+   * Slicing stopped on G-code another slicer wrote (`app`): the question
+   * whether to slice with the printer profile's own G-code instead; `error`
+   * is shown if not.
+   */
+  gcodeFallback: { app: string; printer: string; error: string } | null;
+  /** Answers gcodeFallback: the printer's own G-code and slice again, or the error. */
+  answerGcodeFallback(useOwn: boolean): Promise<void>;
   /** Paint mode is on while set: what clicks and drags on the parts paint. */
   paint: PaintSettings | null;
   /** The object tool in use on the selected object. */
@@ -976,6 +984,7 @@ export const useSlicer = create<SlicerState>((set, get) => {
     noticeWarn: false,
     heavy: null,
     conversion: null,
+    gcodeFallback: null,
     paint: null,
     tool: null,
     objectMenu: null,
@@ -1111,7 +1120,7 @@ export const useSlicer = create<SlicerState>((set, get) => {
         return false;
       }
       await get().endCalibration();
-      set({ tab: 'prepare', notice: '', conversion: null, pendingOpen: null, tool: null });
+      set({ tab: 'prepare', notice: '', conversion: null, gcodeFallback: null, pendingOpen: null, tool: null });
       foreignGcode = null;
       // The project first, so the other files land on it.
       const ordered = [...files].sort((a, b) => Number(is3mf(b)) - Number(is3mf(a)));
@@ -1734,25 +1743,25 @@ export const useSlicer = create<SlicerState>((set, get) => {
       } catch (e) {
         if (run !== sliceRun) return;
         const message = (e as Error).message;
-        // Another slicer's G-code this engine can't fill in: the printer's own instead, and slice again.
-        const failed = gcodeErrors(message);
-        if (foreignGcode && failed.some((f) => f.key in foreignGcode!.values)) {
-          const { overrides, dropped } = fallBackGcode(get().overrides, foreignGcode.values);
-          const { app } = foreignGcode;
-          foreignGcode = null;
-          if (dropped) {
-            setOverrides(overrides);
-            // Name a variable the engine doesn't have, if one is the cause.
-            const what = (failed.find((f) => f.variable && /variable name/i.test(f.reason)) ?? failed.find((f) => f.variable))?.variable;
-            await get().slice();
-            if (get().job.kind !== 'error')
-              set({ notice: `${app}'s G-code doesn't work in ${engineName(get().flavor)}${what ? ` (“${what.replace(/\[.*$/, '')}”)` : ''}, so the printer's own G-code is used.`, noticeWarn: true });
-            return;
-          }
+        const error = readableGcodeError(message, (k) => get().options[k]?.label);
+        // Another slicer's G-code this engine can't fill in: ask whether to use the printer's own.
+        const fromFile = foreignGcode && gcodeErrors(message).some((f) => f.key in foreignGcode!.values);
+        if (fromFile && fallBackGcode(get().overrides, foreignGcode!.values).dropped) {
+          set({ job: { kind: 'idle' }, gcodeFallback: { app: foreignGcode!.app, printer: get().selection?.printer ?? 'your printer', error } });
+          return;
         }
         // Custom G-code the engine can't fill in: which one, which line, which variable.
-        fail(new Error(readableGcodeError(message, (k) => get().options[k]?.label)));
+        fail(new Error(error));
       }
+    },
+    async answerGcodeFallback(useOwn) {
+      const question = get().gcodeFallback;
+      if (!question) return;
+      set({ gcodeFallback: null });
+      if (!useOwn || !foreignGcode) return fail(new Error(question.error));
+      setOverrides(fallBackGcode(get().overrides, foreignGcode.values).overrides);
+      foreignGcode = null;
+      await get().slice();
     },
     cancelSlice() {
       if (get().job.kind !== 'slicing') return;

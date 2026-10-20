@@ -4,8 +4,8 @@
 // start and filament-change G-code, written for variables these engines don't
 // all have (flush_volumetric_speeds). Like desktop, the project keeps its own
 // G-code: OrcaSlicer fills it in and its G-code carries Bambu Studio 2.5's
-// start lines; Snapmaker Orca can't, so it slices with the A1 mini's own G-code
-// and says why. The same file marked as made by the engine itself keeps its
+// start lines; Snapmaker Orca can't, so it asks whether to slice with the
+// printer profile's own G-code (Cancel shows the error). The same file marked as made by the engine itself keeps its
 // G-code; given a variable the engine doesn't know, slicing stops with an error
 // naming the G-code, the line and the variable.
 //
@@ -109,26 +109,43 @@ try {
     }
     await picker.selectOption(PRINTER);
 
-    // Bambu Studio 2.5's project slices in both engines.
+    // Bambu Studio 2.5's project keeps its own G-code, like desktop.
     await open(modelPath);
-    const sliced = await slice();
-    if (sliced) fail(`${engine}: the Bambu Studio project didn't slice: ${sliced}`);
-    else console.log(`${engine}: sliced: ${await page.getByTestId('slice-stats').innerText()}`);
-    const [download] = await Promise.all([page.waitForEvent('download'), page.getByRole('button', { name: 'Download G-code' }).click()]);
-    const bambuStart = readFileSync(await download.path(), 'utf8').includes('M1002 gcode_claim_action:54');
-    const note = page.getByText(/so the printer's own G-code is used/);
-    const noteText = (await note.count()) ? (await note.first().innerText()).trim() : '';
-    console.log(`${engine}: Bambu Studio 2.5's start G-code in the output: ${bambuStart}; note: ${noteText || '(none)'}`);
+    const question = page.getByRole('dialog', { name: "Use your printer's G-code?" });
+    const download = async () => {
+      const [file] = await Promise.all([page.waitForEvent('download'), page.getByRole('button', { name: 'Download G-code' }).click()]);
+      return readFileSync(await file.path(), 'utf8').includes('M1002 gcode_claim_action:54');
+    };
+    await page.getByRole('button', { name: /^Slice plate/ }).click();
+    await Promise.race([
+      page.getByTestId('slice-stats').waitFor({ timeout: 300000 }),
+      question.waitFor({ timeout: 300000 }),
+      error.first().waitFor({ timeout: 300000 }),
+    ]);
     if (engine === 'orca') {
-      // OrcaSlicer fills it in: the file's own G-code, as on desktop.
-      if (!bambuStart) fail('orca: the G-code is not the project\'s own Bambu Studio 2.5 G-code');
-      if (noteText) fail(`orca: unexpected note: ${noteText}`);
+      // OrcaSlicer fills it in: it slices with the file's own G-code, no question.
+      if (await question.count()) fail('orca: asked about the G-code although OrcaSlicer can fill it in');
+      else if (await error.count()) fail(`orca: ${await error.first().innerText()}`);
+      else if (!(await download())) fail("orca: the G-code is not the project's own Bambu Studio 2.5 G-code");
+      else console.log('orca: sliced with Bambu Studio 2.5\'s own G-code');
     } else {
-      // Snapmaker Orca can't: the A1 mini's own G-code, and a note saying why.
-      if (bambuStart) fail('snapmaker: the G-code still has Bambu Studio 2.5\'s start lines');
-      if (!/Bambu Studio 2\.5's G-code doesn't work in Snapmaker Orca \(“flush_volumetric_speeds”\)/.test(noteText)) fail(`snapmaker: the note doesn't say why: ${noteText || '(none)'}`);
-      if (shots) await page.waitForTimeout(5000); // the Preview reads the G-code
-      await shoot('bambu-note');
+      // Snapmaker Orca can't: it asks. Cancel shows the error; asked again, the printer's own G-code slices.
+      if (!(await question.count())) fail(`snapmaker: no question about the G-code${(await error.count()) ? `: ${await error.first().innerText()}` : ''}`);
+      else {
+        const text = await question.innerText();
+        console.log(`snapmaker: ${text.replace(/\s+/g, ' ')}`);
+        if (!/from Bambu Studio 2\.5 and doesn't work in Snapmaker Orca/.test(text) || !text.includes(PRINTER)) fail(`snapmaker: the question doesn't say why or which printer: ${text}`);
+        await shoot('gcode-question');
+        await question.getByRole('button', { name: 'Cancel' }).click();
+        await error.first().waitFor({ timeout: 10000 });
+        console.log(`snapmaker: cancelled: ${(await error.first().innerText()).replace(/\n/g, ' | ')}`);
+        await page.getByRole('button', { name: /^Slice plate/ }).click();
+        await question.waitFor({ timeout: 300000 });
+        await question.getByRole('button', { name: 'Use printer G-code' }).click();
+        await page.getByTestId('slice-stats').waitFor({ timeout: 300000 });
+        if (await download()) fail("snapmaker: the G-code still has Bambu Studio 2.5's start lines");
+        else console.log("snapmaker: sliced with the printer's own G-code");
+      }
     }
     await page.getByRole('tab', { name: 'Prepare' }).first().click().catch(() => {});
 
