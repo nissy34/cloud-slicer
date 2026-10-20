@@ -210,7 +210,7 @@ export function ToolPanel() {
   if (tool === 'text') return <TextPanel />;
   if (tool === 'svg') return <SvgPanel />;
   if (!tool || !selected) return null;
-  if (tool === 'boolean') return <BooleanPanel key={selected.object} object={selected.object} />;
+  if (tool === 'boolean') return <BooleanPanel key={selected.object} object={selected.object} instance={selected.instance} />;
   if (tool === 'simplify') return <SimplifyPanel key={selected.object} object={selected.object} />;
   if (tool === 'brim') return <BrimPanel key={selected.object} object={selected.object} />;
   if (tool === 'layers') return <LayersPanel key={selected.object} object={selected.object} />;

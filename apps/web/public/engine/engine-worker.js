@@ -233,10 +233,11 @@ if (self.name !== 'em-pthread') {
       const out = json(e.shapePlace(o, plate, JSON.stringify(request)));
       return out.changed ? { info: JSON.parse(e.modelInfoJson()) } : out;
     },
-    // Union, difference or intersection of two volumes of object o (see engine/src/boolean_api.cpp).
+    // Union, difference or intersection of two volumes of object o, or of o
+    // and another object joined into one first (see engine/src/boolean_api.cpp).
     meshBoolean(e, o, request) {
-      const { volume } = json(e.meshBoolean(o, JSON.stringify(request)));
-      return { info: JSON.parse(e.modelInfoJson()), volume };
+      const { object, volume } = json(e.meshBoolean(o, JSON.stringify(request)));
+      return { info: JSON.parse(e.modelInfoJson()), object, volume };
     },
     // Instance i of object o as a binary STL (the object menu's Export as STL).
     exportStl(e, o, i) {

@@ -281,6 +281,7 @@ export interface SlicerState {
   /** The picked text or SVG shape slid, turned or lifted on its object's surface, as one undo step. False if it failed. */
   shapePlace(o: number, request: DistributiveOmit<ShapePlaceRequest, 'fontPath' | 'keepUp'>, label: string): Promise<boolean>;
   /** Two volumes of object o combined, like desktop's Mesh boolean, as one undo step; picks the result. False if it failed. */
+  /** Mesh boolean on object o's parts (or o's and another object's, joined first: see BooleanRequest). */
   meshBoolean(o: number, request: BooleanRequest): Promise<boolean>;
   /** Saves instance i of object o as an STL file. */
   exportStl(o: number, i: number): Promise<void>;
@@ -1217,15 +1218,18 @@ export const useSlicer = create<SlicerState>((set, get) => {
     },
     meshBoolean: async (o, request) => {
       let volume: number | undefined;
+      let object = o;
       const label = request.op === 'union' ? 'Union' : request.op === 'difference' ? 'Difference' : 'Intersection';
       await projectEdit(label, async () => {
         const out = await engine().meshBoolean(o, request);
         volume = out.volume;
+        object = out.object;
         return out.info;
       });
       if (volume === undefined) return false;
-      const instance = get().selected?.object === o ? get().selected!.instance : 0;
-      set({ selected: { object: o, instance, volume } });
+      // Two objects were joined into a new one with a single copy.
+      const instance = object === o && get().selected?.object === o ? get().selected!.instance : 0;
+      set({ selected: { object, instance, volume } });
       return true;
     },
     exportStl: async (o, i) => {

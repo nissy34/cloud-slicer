@@ -1,41 +1,66 @@
 import { useState } from 'react';
-import { BOOLEAN_OPS, defaultPair, pickerLabels, type BooleanOp } from '../lib/boolean';
+import { BOOLEAN_OPS, booleanChoices, booleanRequest, defaultPair, pickerLabels, type BooleanChoice, type BooleanOp } from '../lib/boolean';
 import { KIND_LABELS } from '../lib/volumes';
 import { useSlicer } from '../state/store';
 
+const touch = typeof window !== 'undefined' && !!window.matchMedia?.('(pointer: coarse)').matches;
+
 /**
  * Desktop's Mesh boolean tool for the selected object: union, difference or
- * intersection of two of its parts, the result in place of the first.
+ * intersection of two of its parts, the result in place of the first. A part
+ * of another object on the plate can be picked too: the two objects are then
+ * joined into one first, as desktop's Assemble does.
  */
-export function BooleanPanel({ object }: { object: number }) {
-  const volumes = useSlicer((s) => s.project?.objects[object]?.volumes ?? []);
+export function BooleanPanel({ object, instance }: { object: number; instance: number }) {
+  const project = useSlicer((s) => s.project);
   const picked = useSlicer((s) => (s.selected?.object === object ? s.selected.volume : undefined));
   const { setTool, meshBoolean } = useSlicer.getState();
+  const choices = booleanChoices(project, object, instance);
   const [op, setOp] = useState<BooleanOp>('union');
-  const [[a, b], setPair] = useState(() => defaultPair(volumes, picked));
+  const [[a, b], setPair] = useState(() => defaultPair(choices, picked));
   const [deleteInput, setDeleteInput] = useState(false);
   const [working, setWorking] = useState(false);
   const [first, second] = pickerLabels(op);
-  const enough = volumes.length >= 2;
-  const valid = enough && a !== b && a < volumes.length && b < volumes.length;
+  const enough = choices.length >= 2;
+  const valid = enough && a !== b && a < choices.length && b < choices.length;
+  const objects = project?.objects ?? [];
+  const severalObjects = choices.some((c) => c.object !== object);
+  const joining = valid && choices[a].object !== choices[b].object;
 
   const apply = async () => {
     setWorking(true);
-    const ok = await meshBoolean(object, { op, a, b, deleteInput: op !== 'union' && deleteInput });
+    const { object: o, request } = booleanRequest(op, choices[a], choices[b], deleteInput);
+    const ok = await meshBoolean(o, request);
     setWorking(false);
     // The result takes the first one's place; pick something else for the next go.
-    if (ok) setPair(defaultPair(useSlicer.getState().project?.objects[object]?.volumes ?? [], useSlicer.getState().selected?.volume));
+    if (ok) {
+      const { project: now, selected } = useSlicer.getState();
+      if (selected) setPair(defaultPair(booleanChoices(now, selected.object, selected.instance), selected.volume));
+    }
   };
 
+  const option = (c: BooleanChoice, k: number) => (
+    <option key={k} value={k}>
+      {c.name} ({KIND_LABELS[c.kind].toLowerCase()})
+    </option>
+  );
+  // With other objects on the plate, their parts are grouped under each object's name.
+  const groups = choices.reduce<{ object: number; items: [BooleanChoice, number][] }[]>((out, c, k) => {
+    if (out[out.length - 1]?.object !== c.object) out.push({ object: c.object, items: [] });
+    out[out.length - 1].items.push([c, k]);
+    return out;
+  }, []);
   const picker = (label: string, value: number, onChange: (v: number) => void) => (
     <label className="transform-row boolean-pick">
       <span>{label}</span>
       <select aria-label={label} value={value} onChange={(e) => onChange(Number(e.target.value))}>
-        {volumes.map((v, k) => (
-          <option key={k} value={k}>
-            {v.name} ({KIND_LABELS[v.kind].toLowerCase()})
-          </option>
-        ))}
+        {severalObjects
+          ? groups.map((g) => (
+              <optgroup key={g.object} label={objects[g.object]?.name ?? ''}>
+                {g.items.map(([c, k]) => option(c, k))}
+              </optgroup>
+            ))
+          : choices.map(option)}
       </select>
     </label>
   );
@@ -57,8 +82,9 @@ export function BooleanPanel({ object }: { object: number }) {
       </div>
       {!enough ? (
         <p className="muted hint">
-          This works on two parts of one object. Add a part, negative part or modifier from the object's menu (right-click it, or the ⋯ button in the
-          object list), place it, then come back here.
+          This combines two parts, or two objects on this plate. Add another object ({touch ? 'long-press' : 'right-click'} the empty plate), or add a
+          part, negative part or modifier from the object's menu ({touch ? 'long-press the object' : 'right-click it'}, or the ⋯ button in the object
+          list), place it, then come back here.
         </p>
       ) : (
         <>
@@ -68,7 +94,8 @@ export function BooleanPanel({ object }: { object: number }) {
               : op === 'difference'
                 ? 'Cuts the second one out of the first.'
                 : 'Keeps only where the two overlap.'}{' '}
-            The result takes the first one's place, type and settings. Undo brings both back.
+            The result takes the first one's place, type and settings.{' '}
+            {joining ? 'The two objects become one object. ' : ''}Undo brings both back.
           </p>
           {picker(first, a, (v) => setPair([v, b]))}
           {picker(second, b, (v) => setPair([a, v]))}

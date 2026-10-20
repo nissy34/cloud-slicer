@@ -340,7 +340,7 @@ export class EngineClient {
   shapePlace = (o: number, plate: number, request: ShapePlaceRequest) =>
     this.call<{ hit?: boolean; matrix?: number[]; info?: ProjectInfo }>('shapePlace', [o, plate, request]);
   /** Two volumes of object o combined into one, like desktop's Mesh boolean. */
-  meshBoolean = (o: number, request: BooleanRequest) => this.call<{ info: ProjectInfo; volume: number }>('meshBoolean', [o, request]);
+  meshBoolean = (o: number, request: BooleanRequest) => this.call<{ info: ProjectInfo; object: number; volume: number }>('meshBoolean', [o, request]);
   /** Instance i of object o as a binary STL. */
   exportStl = (o: number, i: number) => this.call<ArrayBuffer>('exportStl', [o, i]);
   setObjectSettings = (o: number, volume: number, values: Record<string, string | null>) =>
