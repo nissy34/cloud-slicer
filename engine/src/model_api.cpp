@@ -240,7 +240,8 @@ std::string loadModel(const std::string& path, int plate, double bedWidth, doubl
 void clearModel() { g_project.clear(); }
 
 // Everything the page shows about the project:
-// {fileName, plates: [{index, name, objects: [objectIndex...]}],
+// {fileName, plates: [{index, name, objects: [objectIndex...], filaments: [1-based filaments the
+//   plate's parts print with, support left out], layerCodes: [see engine::layerCodesJson]}],
 //  objects: [{name, size, units ("", "inch" or "meter": converted from), volumes: [{name, kind, extruder, painted, text?}],
 //             instances: [{plate, offset, rotation, scale, printable}]}],
 //  file: {bambu, printer, filamentColours, filamentTypes, filamentPresets}}.
@@ -251,7 +252,8 @@ std::string modelInfoJson() {
     for (int p = 0; p < pr.plateCount; ++p) {
         std::string name;
         if (size_t(p) < pr.plates.size() && pr.plates[p]) name = pr.plates[p]->plate_name;
-        plates.push_back({{"index", p}, {"name", name}, {"objects", json::array()}});
+        plates.push_back({{"index", p}, {"name", name}, {"objects", json::array()}, {"filaments", json::array()},
+                          {"layerCodes", layerCodesJson(p)}});
     }
     for (size_t o = 0; o < pr.model.objects.size(); ++o) {
         const ModelObject* obj = pr.model.objects[o];
@@ -300,6 +302,13 @@ std::string modelInfoJson() {
             if (plate >= 0) {
                 auto &list = plates[plate]["objects"];
                 if (std::find(list.begin(), list.end(), json(o)) == list.end()) list.push_back(o);
+                // PartPlate::get_extruders_without_support: what desktop's
+                // layer slider checks before it offers a filament change.
+                auto &used = plates[plate]["filaments"];
+                for (const ModelVolume* v : obj->volumes)
+                    if (v->is_model_part())
+                        for (int e : v->get_extruders())
+                            if (e > 0 && std::find(used.begin(), used.end(), json(e)) == used.end()) used.push_back(e);
             }
         }
         const Vec3d size = obj->instance_bounding_box(0, false).size();
