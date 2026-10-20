@@ -131,11 +131,29 @@ export interface ObjectInfo {
   volumes: VolumeInfo[];
   instances: InstanceInfo[];
 }
+/**
+ * An item of desktop's layer slider (Orca's CustomGCode::Item), run at the
+ * start of the layer whose top is at z mm: a pause, a change to filament
+ * `filament` (1-based), Orca's custom template, or the G-code in `gcode`.
+ * "colour" (M600) only comes from older files; desktop no longer adds it.
+ */
+export interface LayerCode {
+  z: number;
+  type: 'pause' | 'filament' | 'custom' | 'template' | 'colour';
+  filament: number;
+  colour: string;
+  gcode: string;
+}
+
 export interface ProjectInfo {
   fileName: string;
   plateWidth: number;
   plateDepth: number;
-  plates: { index: number; name: string; objects: number[] }[];
+  /**
+   * filaments: what the plate's parts print with (1-based, support left out);
+   * layerCodes: its pauses, filament changes and custom G-code at layers.
+   */
+  plates: { index: number; name: string; objects: number[]; filaments: number[]; layerCodes: LayerCode[] }[];
   objects: ObjectInfo[];
   file: {
     bambu: boolean;

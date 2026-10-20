@@ -143,6 +143,11 @@ void remakeShape(Slic3r::ModelObject* obj, Slic3r::ModelVolume* v, const std::st
 // An SVG shape's outlines read again from its file (svg_api.cpp).
 void svgOutlines(Slic3r::ModelVolume& v);
 
+// Pauses, filament changes and custom G-code at layers of `plate` (desktop's
+// layer slider items, Model::plates_custom_gcodes; plate_api.cpp):
+// [{z, type: "pause"|"filament"|"custom"|"template"|"colour", filament, colour, gcode}].
+nlohmann::json layerCodesJson(int plate);
+
 // The prime tower desktop's Prepare view shows on `plate` with `cfg`, kept on
 // the bed (wipe_tower_api.cpp): {show} or {show: true, x, y, width, depth,
 // height, rotation, brim, filaments}. slicedDepth < 0: Orca's estimate.

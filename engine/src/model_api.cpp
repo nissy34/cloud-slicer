@@ -169,6 +169,7 @@ int Project::plateOf(const ModelInstance& inst) const {
 void Project::clear() {
     model.clear_objects();
     model.clear_materials();
+    model.plates_custom_gcodes.clear();
     release_PlateData_list(plates);
     fileConfig.clear();
     fileName.clear();
@@ -250,7 +251,8 @@ std::string loadModel(const std::string& path, int plate, double bedWidth, doubl
 void clearModel() { g_project.clear(); }
 
 // Everything the page shows about the project:
-// {fileName, plates: [{index, name, objects: [objectIndex...]}],
+// {fileName, plates: [{index, name, objects: [objectIndex...], filaments: [1-based filaments the
+//   plate's parts print with, support left out], layerCodes: [see engine::layerCodesJson]}],
 //  objects: [{name, size, units ("", "inch" or "meter": converted from), volumes: [{name, kind, extruder, painted, text?}],
 //             instances: [{plate, offset, rotation, scale, printable}]}],
 //  file: {bambu, printer, filamentColours, filamentTypes, filamentPresets}}.
@@ -261,7 +263,8 @@ std::string modelInfoJson() {
     for (int p = 0; p < pr.plateCount; ++p) {
         std::string name;
         if (size_t(p) < pr.plates.size() && pr.plates[p]) name = pr.plates[p]->plate_name;
-        plates.push_back({{"index", p}, {"name", name}, {"objects", json::array()}});
+        plates.push_back({{"index", p}, {"name", name}, {"objects", json::array()}, {"filaments", json::array()},
+                          {"layerCodes", layerCodesJson(p)}});
     }
     for (size_t o = 0; o < pr.model.objects.size(); ++o) {
         const ModelObject* obj = pr.model.objects[o];
@@ -319,6 +322,20 @@ std::string modelInfoJson() {
             if (plate >= 0) {
                 auto &list = plates[plate]["objects"];
                 if (std::find(list.begin(), list.end(), json(o)) == list.end()) list.push_back(o);
+                // PartPlate::get_extruders_without_support: what desktop's
+                // layer slider checks before it offers a filament change.
+                // (ModelVolume::get_extruders gives the same, but rebuilds the
+                // paint's triangles to find them; the paint's used states say
+                // which filaments it has without that.)
+                auto &used = plates[plate]["filaments"];
+                const auto use = [&](int e) {
+                    if (e > 0 && std::find(used.begin(), used.end(), json(e)) == used.end()) used.push_back(e);
+                };
+                for (const ModelVolume* v : obj->volumes)
+                    if (v->is_model_part()) {
+                        use(std::max(1, v->extruder_id()));
+                        for (size_t e : v->get_extruders_from_multi_material_painting()) use(int(e) + 1);
+                    }
             }
         }
         const Vec3d size = obj->instance_bounding_box(0, false).size();

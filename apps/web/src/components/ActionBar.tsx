@@ -101,6 +101,12 @@ export function ActionBar() {
             <span className="muted">sliced in {(job.ms / 1000).toFixed(1)} s</span>
           </span>
         )}
+        {job.kind === 'sliced' && job.outdated && (
+          <span className="hint warn" data-testid="layer-codes-outdated">
+            {' '}
+            Layer changes (pauses, filament, G-code) aren't in the G-code yet: slice again.
+          </span>
+        )}
         {errorHere && (
           <span className="error-text" role="alert">
             {sentence(job.message)}

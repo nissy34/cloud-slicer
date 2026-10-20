@@ -24,7 +24,7 @@ describe('project signature', () => {
     fileName: '',
     plateWidth: 270,
     plateDepth: 270,
-    plates: [{ index: 0, name: '', objects: [0] }],
+    plates: [{ index: 0, name: '', objects: [0], filaments: [1], layerCodes: [] }],
     objects: [{ name: 'cube', size: [10, 10, 10], units: '', extruder: 0, settings: {}, volumes: [], instances: [] }],
   } as unknown as ProjectInfo;
   const sel = { printer: 'U1', process: 'p', filaments: ['PLA'], colours: ['#fff'] };

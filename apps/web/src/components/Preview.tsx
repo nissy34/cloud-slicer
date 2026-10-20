@@ -16,10 +16,12 @@ import {
   type ColourBy,
   type ValueRange,
 } from '../lib/preview-colours';
+import { codeAt } from '../lib/layerCodes';
 import { useSceneColours } from '../lib/theme';
 import type { GcodeWorkerMessage } from '../engine/gcode-worker';
 import { useLoading } from '../state/loading';
 import { NO_COLOURS, useOption, useSlicer } from '../state/store';
+import { LayerMarks, LayerMenu, useLayerCodes } from './LayerCodes';
 import { PrintLoader } from './PrintLoader';
 import { CameraViews, ViewButtons, type ViewHandle } from './ViewControls';
 import { Bed } from './Viewport';
@@ -404,7 +406,18 @@ export function Preview() {
   const scene = useSceneColours();
   const [moving, onCameraChange] = useMoving();
   const views: ViewHandle = useRef(null);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const codes = useLayerCodes();
+  const slicing = useSlicer((s) => s.job.kind === 'slicing');
 
+  if (!gcode && slicing) {
+    return (
+      <div className="coming-soon">
+        <h1>Slicing the plate</h1>
+        <p>Its toolpaths show here when it's done.</p>
+      </div>
+    );
+  }
   if (!gcode) {
     return (
       <div className="coming-soon">
@@ -419,7 +432,7 @@ export function Preview() {
 
   const usedFeatures = parsed ? [...new Set(parsed.features)].sort((a, b) => a - b) : [];
   return (
-    <div className="preview">
+    <div className={menuOpen ? 'preview layer-menu-open' : 'preview'}>
       <Canvas className="viewport" frameloop="demand" camera={{ position: [w / 2, -d * 0.6, d * 0.7], fov: 40, near: 1, far: 5000 }} data-testid="gcode-preview">
         <color attach="background" args={[scene.background]} />
         <Bed w={w} d={d} />
@@ -480,19 +493,39 @@ export function Preview() {
           />
         </div>
       )}
+      {parsed && layers > 0 && menuOpen && (
+        <LayerMenu key={upTo} layerZ={parsed.layerZ} layer={upTo} onLayer={setLayer} onClose={() => setMenuOpen(false)} />
+      )}
       {parsed && layers > 0 && (
         <div className="layer-slider">
-          <input
-            type="range"
-            aria-label="Layer"
-            min={0}
-            max={layers - 1}
-            value={upTo}
-            onChange={(e) => setLayer(Number(e.target.value))}
-          />
+          <div className="layer-track">
+            <input
+              type="range"
+              aria-label="Layer"
+              min={0}
+              max={layers - 1}
+              value={upTo}
+              onChange={(e) => setLayer(Number(e.target.value))}
+              // Desktop opens the slider's menu with a right click; a long press here.
+              onContextMenu={(e) => {
+                e.preventDefault();
+                setMenuOpen(true);
+              }}
+            />
+            <LayerMarks layerZ={parsed.layerZ} onLayer={setLayer} />
+          </div>
           <span className="layer-label" data-testid="layer-label">
             {upTo + 1} / {layers} · {parsed.layerZ[upTo].toFixed(2)} mm
           </span>
+          <button
+            className={`layer-add${codeAt(codes, parsed.layerZ, upTo) ? ' has-code' : ''}`}
+            aria-label={codeAt(codes, parsed.layerZ, upTo) ? 'Change what happens at this layer' : 'Add a pause, filament change or G-code at this layer'}
+            title={codeAt(codes, parsed.layerZ, upTo) ? 'Change what happens at this layer' : 'Add a pause, filament change or G-code at this layer'}
+            aria-expanded={menuOpen}
+            onClick={() => setMenuOpen((o) => !o)}
+          >
+            {codeAt(codes, parsed.layerZ, upTo) ? '✎' : '+'}
+          </button>
         </div>
       )}
     </div>

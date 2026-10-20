@@ -378,12 +378,13 @@ jobs:
           node test/mixing.mjs
           node test/sync-filaments.mjs
 
-      - name: Prime tower, phone 3D view gestures, plate menu and transform fields end to end (Chromium)
+      - name: Prime tower, phone 3D view gestures, plate menu, transform fields and layer slider items end to end (Chromium)
         if: matrix.suite == 'wipetower'
         run: |
           node test/wipe-tower.mjs
           node test/view-touch.mjs
           node test/plate-menu.mjs
+          node test/layer-codes.mjs
           node test/transform-fields.mjs
 
       - name: Loading screen and Preview colour key end to end (Chromium)

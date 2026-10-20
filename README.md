@@ -82,6 +82,9 @@ hosted on Cloudflare's free tier.
   speed, layer height, line width, flow, layer time (also on a log scale), fan speed and temperature, with
   the scale in the colour key. Tap a line type in the key to hide or show it. The Filament view lists each
   filament's grams, metres and cost (prime tower included) and the number of filament changes.
+  Desktop's layer slider items: a pause, a filament change, custom G-code or the printer's custom
+  template at the start of a layer (+ beside the slider, or a right click or long press on it),
+  shown as markers on the slider and kept per plate in the project and its 3MF.
 - **Camera views** in the corner of the 3D views: Fit all, and desktop's Iso, Top, Bottom,
   Front, Back, Left and Right (keys 0 to 6, Z fits all). On a phone two fingers always zoom
   and turn the camera, even when they land on the model; one finger on a model moves it.
