@@ -441,8 +441,10 @@ std::string configOptionsJson() {
         if (def.nullable) o["nullable"] = true;
         if (def.multiline) o["multiline"] = true;
         if (def.readonly) o["readonly"] = true;
+#if ENGINE_HAS_FLOW_VARIANTS
         if (is_process_flow_variant_option(key)) o["flow"] = "process";
         else if (is_filament_flow_variant_option(key)) o["flow"] = "filament";
+#endif
         out[key] = std::move(o);
     }
     return out.dump();
@@ -480,6 +482,17 @@ std::string presetsFilamentsFor(const std::string& printerName) {
     }
 }
 
+// Which engine this is and what it can do, so the page can show only the
+// features it has: {flavor: "snapmaker" | "orca", name, version, mixing, flowVariants}.
+std::string engineInfo() {
+    return json{{"flavor", ENGINE_FLAVOR},
+                {"name", ENGINE_NAME},
+                {"version", ENGINE_VERSION},
+                {"mixing", bool(ENGINE_HAS_MIXING)},
+                {"flowVariants", bool(ENGINE_HAS_FLOW_VARIANTS)}}
+        .dump();
+}
+
 } // namespace
 
 bool engine::selectedPrinterIsBambu() { return g_bundle && g_bundle->is_bbl_vendor(); }
@@ -494,4 +507,5 @@ EMSCRIPTEN_BINDINGS(presets_api) {
     emscripten::function("presetExport", &presetExport);
     emscripten::function("presetImportParse", &presetImportParse);
     emscripten::function("configOptionsJson", &configOptionsJson);
+    emscripten::function("engineInfo", &engineInfo);
 }

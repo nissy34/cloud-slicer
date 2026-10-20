@@ -9,10 +9,11 @@ const files = ['engine-worker.js', 'orca-engine.js', 'orca-engine.wasm', 'profil
 
 export function engineVersion() {
   const hash = createHash('sha256');
-  for (const f of files) {
-    const path = new URL(`../public/engine/${f}`, import.meta.url);
-    if (existsSync(path)) hash.update(f).update(readFileSync(path));
-  }
+  for (const dir of ['engine', 'engine-orca'])
+    for (const f of files) {
+      const path = new URL(`../public/${dir}/${f}`, import.meta.url);
+      if (existsSync(path)) hash.update(`${dir}/${f}`).update(readFileSync(path));
+    }
   return hash.digest('hex').slice(0, 12);
 }
 

@@ -147,6 +147,15 @@ const READS = new Set(['printers', 'filamentsFor', 'fullConfig', 'presetConfig',
 /** Engine methods that change the presets, not the project. */
 const PRESET_CALLS = new Set(['select', 'userPresets', 'presetParse', 'mixed']);
 
+/**
+ * Where the engine is served from: public/engine/ (Snapmaker Orca), or
+ * public/engine-orca/ (upstream OrcaSlicer) with ?engine=orca in the page URL,
+ * a test switch until projects choose their engine.
+ */
+export function engineFolder(): string {
+  return new URLSearchParams(location.search).get('engine') === 'orca' ? 'engine-orca' : 'engine';
+}
+
 /** Promise wrapper around the engine worker. Requests run in order. */
 export class EngineClient {
   private worker: Worker;
@@ -169,7 +178,7 @@ export class EngineClient {
     // bytes: what the engine downloads (wasm + presets), for its progress; the
     // server may compress them, so the response can't tell.
     const query = `v=${import.meta.env.VITE_ENGINE_VERSION}&bytes=${import.meta.env.VITE_ENGINE_BYTES}`;
-    this.worker = new Worker(`/engine/engine-worker.js?${query}`, { name: 'engine' });
+    this.worker = new Worker(`/${engineFolder()}/engine-worker.js?${query}`, { name: 'engine' });
     this.worker.onmessage = ({ data }: MessageEvent<WorkerReply>) => this.receive(data);
     this.worker.onerror = (e) => events.onFatal(e.message || 'The engine worker failed to load.');
   }

@@ -11,6 +11,10 @@
 //
 //   ENGINE_DIR  engine build dir (default: ../../engine/build/engine)
 //
+// Upstream OrcaSlicer, the second engine: when ENGINE_ORCA_DIR (default
+// ../../engine/build/engine-orca) holds a build, it goes into public/engine-orca/
+// with its own presets and settings pages; the page loads it with ?engine=orca.
+//
 // Without ENGINE_DIR, and outside CI, it first runs engine/scripts/fetch-engine.mjs,
 // which downloads the engine CI built for this checkout's engine sources (seconds)
 // unless engine/build/engine already has it. ENGINE_FETCH=0 turns that off.
@@ -60,6 +64,21 @@ if (existsSync(join(repo, 'engine/orcaslicer/resources/profiles'))) {
   console.warn('copy-engine: engine/orcaslicer is not checked out; no presets bundled.');
 }
 
+// Upstream OrcaSlicer: the same worker and files from its own build and sources.
+const orcaDir = process.env.ENGINE_ORCA_DIR ?? join(repo, 'engine/build/engine-orca');
+const orcaOut = join(web, 'public/engine-orca');
+rmSync(orcaOut, { recursive: true, force: true });
+if (existsSync(join(orcaDir, 'orca-engine.wasm')) && existsSync(join(repo, 'engine/orcaslicer-upstream/resources/profiles'))) {
+  mkdirSync(orcaOut, { recursive: true });
+  for (const f of ['orca-engine.js', 'orca-engine.wasm']) copyFileSync(join(orcaDir, f), join(orcaOut, f));
+  copyFileSync(join(out, 'engine-worker.js'), join(orcaOut, 'engine-worker.js'));
+  const env = { ...process.env, ENGINE_FLAVOR: 'orca' };
+  execFileSync('node', [join(repo, 'engine/scripts/bundle-profiles.mjs'), orcaOut], { stdio: 'inherit', env });
+  execFileSync('node', [join(repo, 'engine/scripts/extract-settings-layout.mjs'), join(orcaOut, 'settings-layout.json')], { stdio: 'inherit', env });
+  cpSync(join(repo, 'engine/orcaslicer-upstream/resources/calib'), join(orcaOut, 'calib'), { recursive: true, filter: (src) => !/\.(step|stp)$/i.test(src) });
+  cpSync(join(repo, 'engine/orcaslicer-upstream/resources/handy_models'), join(orcaOut, 'handy_models'), { recursive: true });
+}
+
 // The Text tool's bundled fonts, from their npm packages.
 const fontSources = {
   'NotoSans-Regular.ttf': ['@expo-google-fonts/noto-sans', '400Regular/NotoSans_400Regular.ttf'],
@@ -84,3 +103,4 @@ for (const [file, [pkg, path]] of Object.entries(fontSources)) {
   if (existsSync(src)) copyFileSync(src, join(out, 'fonts', file));
   else console.warn(`copy-engine: font not found: ${src} (npm install first)`);
 }
+if (existsSync(orcaOut)) cpSync(join(out, 'fonts'), join(orcaOut, 'fonts'), { recursive: true });
