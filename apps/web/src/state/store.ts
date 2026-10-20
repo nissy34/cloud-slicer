@@ -1421,7 +1421,7 @@ export const useSlicer = create<SlicerState>((set, get) => {
         await refreshPreview(res.info);
         set({
           job: { kind: 'idle' },
-          notice: `${title} test ready. It changed ${keys.length} setting${keys.length === 1 ? '' : 's'}, marked in Settings.`,
+          notice: [`${title} test ready. It changed ${keys.length} setting${keys.length === 1 ? '' : 's'}, marked in Settings.`, ...res.notes].join(' '),
           noticeWarn: false,
         });
       } catch (e) {
