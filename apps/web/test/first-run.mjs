@@ -44,7 +44,7 @@ const browser = await chromium.launch(
  * A first visit: the wizard with engine `engine`, picking `search`'s first
  * model at 0.4 mm. Checks the printer list after Finish holds only `expect`, selected.
  */
-async function firstRun({ label, engine, search, expect, badge }) {
+async function firstRun({ label, engine, search, expect, badge, other }) {
   const context = await browser.newContext({ viewport: { width: 1280, height: 860 } });
   const page = await context.newPage();
   page.on('pageerror', (e) => console.error(`page error: ${e.message}`));
@@ -109,6 +109,18 @@ async function firstRun({ label, engine, search, expect, badge }) {
     if (pickedNow !== 1) fail(`${label}: the wizard shows ${pickedNow} printers picked, not 1`);
     if ((await picker.inputValue()) !== expect) fail(`${label}: opening the wizard changed the printer to "${await picker.inputValue()}"`);
     await shot(`${label}-add-printers`);
+    await wizard.getByRole('button', { name: 'Not now' }).click();
+
+    // Switching the empty project to the other engine keeps only your printer (not the U1 the engine used to start on).
+    if (other) {
+      await page.getByRole('combobox', { name: 'Slicer engine' }).selectOption({ label: other.engine });
+      await page.waitForFunction((n) => document.querySelector('.engine-badge')?.textContent?.startsWith(n), other.engine, { timeout: 180000 });
+      await page.waitForFunction((v) => document.querySelector('select[aria-label="Printer preset"]')?.value === v, other.expect, { timeout: 60000 }).catch(() => {});
+      const there = (await picker.locator('option').allInnerTexts()).map((o) => o.trim()).filter((o) => !o.startsWith('Add or remove printers'));
+      console.log(`${label} -> ${other.engine}: selected "${await picker.inputValue()}", list: ${there.join(' | ')}`);
+      if ((await picker.inputValue()) !== other.expect) fail(`${label}: in ${other.engine} "${await picker.inputValue()}" is selected, not "${other.expect}"`);
+      if (there.length !== 1) fail(`${label}: in ${other.engine} the list holds ${there.join(' | ')}`);
+    }
   } catch (e) {
     fail(`${label}: ${e.message}`);
     const text = await page.locator('body').innerText().catch(() => '');
@@ -119,9 +131,9 @@ async function firstRun({ label, engine, search, expect, badge }) {
 }
 
 try {
-  await firstRun({ label: 'snapmaker', engine: 'Snapmaker Orca', search: 'voron 2.4 350', expect: 'Voron 2.4 350 0.4 nozzle', badge: 'Snapmaker Orca' });
+  await firstRun({ label: 'snapmaker', engine: 'Snapmaker Orca', search: 'voron 2.4 350', expect: 'Voron 2.4 350 0.4 nozzle', badge: 'Snapmaker Orca', other: { engine: 'OrcaSlicer', expect: 'Voron 2.4 350 0.4 nozzle' } });
   // Choosing OrcaSlicer moves the first project to it, taking the printer along under OrcaSlicer's name.
-  await firstRun({ label: 'orca', engine: 'OrcaSlicer', search: 'elegoo neptune 4', expect: 'Elegoo Neptune 4 0.4 nozzle', badge: 'OrcaSlicer' });
+  await firstRun({ label: 'orca', engine: 'OrcaSlicer', search: 'elegoo neptune 4', expect: 'Elegoo Neptune 4 0.4 nozzle', badge: 'OrcaSlicer', other: { engine: 'Snapmaker Orca', expect: 'Elegoo Neptune 4 (0.4 nozzle)' } });
 } finally {
   await browser.close();
   try {
