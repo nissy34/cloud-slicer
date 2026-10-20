@@ -665,9 +665,17 @@ if (withApp)
       await admin.getByText('dave@example.com').waitFor();
       await admin.getByText('Blocked').waitFor();
       await admin.getByText('frank@example.com').waitFor();
-      // Invite only, from the page.
+      // Invite only, from the page: the switch flips at once, and "Saving…" turns into "Saved".
+      let release;
+      const held = new Promise((r) => (release = r));
+      await page.route('**/api/admin/settings', async (r) => (await held, r.continue()));
       await admin.getByLabel(/Invite only/).click();
       await admin.getByText('Only people on the list can sign in.').waitFor();
+      await admin.getByTestId('admin-status').getByText('Saving…').waitFor();
+      if (process.env.ACCOUNTS_SHOTS) await page.screenshot({ path: join(process.env.ACCOUNTS_SHOTS, 'admin-saving.png'), clip: { x: 0, y: 0, width: 1280, height: 330 } });
+      release();
+      await admin.getByTestId('admin-status').getByText('Saved').waitFor();
+      await page.unroute('**/api/admin/settings');
       assert.equal((await (await owner.json('/api/admin')).json()).settings.inviteOnly, true);
       if (process.env.ACCOUNTS_SHOTS) await page.screenshot({ path: join(process.env.ACCOUNTS_SHOTS, 'admin-desktop.png'), fullPage: true });
       await page.setViewportSize({ width: 390, height: 844 });
@@ -686,8 +694,16 @@ if (withApp)
       await admin.getByText(/^Bridges \(/).scrollIntoViewIfNeeded();
       await admin.getByTestId('admin-bridge').last().scrollIntoViewIfNeeded();
       if (process.env.ACCOUNTS_SHOTS) await page.screenshot({ path: join(process.env.ACCOUNTS_SHOTS, 'admin-phone-bridges.png') });
+      // A change the server refuses goes back, with the reason.
+      await page.route('**/api/admin/settings', (r) => r.fulfill({ status: 500, contentType: 'application/json', body: '{"error":"Test refusal"}' }));
+      await admin.getByLabel(/Invite only/).click();
+      await admin.getByText(/That change didn't save.*Test refusal/).waitFor();
+      if (process.env.ACCOUNTS_SHOTS) await page.screenshot({ path: join(process.env.ACCOUNTS_SHOTS, 'admin-phone-failed.png'), clip: { x: 0, y: 0, width: 390, height: 600 } });
+      await admin.getByText('Only people on the list can sign in.').waitFor();
+      await page.unroute('**/api/admin/settings');
       await admin.getByLabel(/Invite only/).click();
       await admin.getByText('Anyone with a Google account can sign in.', { exact: false }).waitFor();
+      await admin.getByTestId('admin-status').getByText('Saved').waitFor();
       await page.getByRole('button', { name: 'Back to the slicer' }).click();
       await page.getByTestId('admin').waitFor({ state: 'detached' });
       // Someone else doesn't get the button.

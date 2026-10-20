@@ -1,6 +1,6 @@
 // The owner's Admin page (OWNER_EMAILS only):
 //
-//   GET    /api/admin                       settings, users, invites, free-tier usage
+//   GET    /api/admin[?quick]               settings, users, invites, free-tier usage (not with ?quick)
 //   PUT    /api/admin/settings              { inviteOnly, storageMb, guestRelay }
 //   POST   /api/admin/users/<id>/<action>   block | unblock | allow | disallow | delete
 //   PUT    /api/admin/users/<id>/storage    { storageMb: number | null }  (null = the site default)
@@ -68,6 +68,8 @@ function validEmail(v: unknown): string {
 export async function overview(env: Env, request: Request): Promise<Response> {
   await requireOwner(env, request);
   const d = env.DB!;
+  // ?quick: the page refreshing after a change; skips the slow free-tier numbers (Cloudflare's analytics).
+  const quick = new URL(request.url).searchParams.has('quick');
   const [settings, users, invites, use, bridges] = await Promise.all([
     accessSettings(env),
     d
@@ -93,7 +95,7 @@ export async function overview(env: Env, request: Request): Promise<Response> {
       email: string;
       added_at: number;
     }>(),
-    usage(env),
+    quick ? null : usage(env),
     d
       .prepare(
         `SELECT b.bridge_id AS id, MAX(b.last_used_at) AS used, group_concat(COALESCE(NULLIF(u.name, ''), u.email), ', ') AS people,
