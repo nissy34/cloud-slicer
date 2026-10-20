@@ -17,7 +17,7 @@ export function GcodeFallbackDialog() {
         <h2 id="gcode-fallback-title">Use {engine}'s G-code for this printer?</h2>
         <p>
           The start and filament change G-code in this file was written for {question.app}, and {engine} can't use it. {engine} has its own G-code for{' '}
-          <b>{question.printer}</b>, which works. This project keeps using it.
+          <b>{question.printer}</b>, which works. This choice is saved with this project.
         </p>
         <div className="dialog-actions">
           <button className="secondary" onClick={() => void answerGcodeFallback(false)}>
