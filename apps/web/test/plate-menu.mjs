@@ -3,7 +3,8 @@
 // plate opens it (with the plate items greyed out while nothing is on it) and
 // adds a primitive as a new object; a second primitive goes beside the first;
 // a right click off the plate opens the add-only menu, which adds a handy
-// model; the plate is renamed, Delete all empties it; and on a phone a long
+// model; the plate is renamed (its name drawn on it), Show labels names the
+// objects, Delete all empties it; and on a phone a long
 // press opens the menu, without lifting the finger picking an item.
 //
 //   node test/plate-menu.mjs [screenshot-dir]
@@ -110,6 +111,20 @@ try {
   await plateMenu.getByRole('menuitem', { name: 'Rename plate…' }).click();
   await plateMenu.getByLabel('Plate name').fill('Shapes');
   await plateMenu.getByRole('button', { name: 'Rename' }).click();
+  // The name shows on the plate even with only one plate.
+  await page.locator('.plate-name', { hasText: 'Shapes' }).waitFor({ timeout: 30000 });
+
+  // Show labels: each object's name in the 3D view, and Ctrl+E turns them off again.
+  if (!(await onFreePlate())) throw new Error('no free spot on the plate for its menu');
+  await plateMenu.getByRole('menuitemcheckbox', { name: 'Show labels' }).click();
+  await page.waitForFunction(() => document.querySelectorAll('.object-label').length === 3, null, { timeout: 10000 });
+  const names = await page.locator('.object-label').allInnerTexts();
+  if (!names.includes('Cube') || !names.includes('Cylinder')) fail(`labels: ${names}`);
+  if (shots) await page.screenshot({ path: join(shots, 'labels-desktop.png') });
+  await page.locator('body').press('Control+e');
+  await page.waitForFunction(() => document.querySelectorAll('.object-label').length === 0, null, { timeout: 10000 });
+  console.log('the plate name shows on the plate, labels show and hide');
+
   await page.getByRole('toolbar', { name: 'Object tools' }).getByRole('button', { name: 'Add plate' }).click();
   await page.getByRole('tab', { name: /Shapes/ }).waitFor({ timeout: 30000 });
   await page.getByRole('tab', { name: /Shapes/ }).click();

@@ -155,6 +155,10 @@ export function Toolbar({ onAdd }: { onAdd(): void }) {
       if (item) {
         e.preventDefault();
         run(item);
+      } else if (combo === 'Ctrl+E') {
+        // Desktop's Show labels.
+        e.preventDefault();
+        useSlicer.getState().setLabels(!useSlicer.getState().labels);
       } else if (e.key === 'Escape' && tool) useSlicer.getState().setTool(null);
     };
     window.addEventListener('keydown', onKey);

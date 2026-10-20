@@ -24,6 +24,7 @@ function MenuCard({ onAdd }: { onAdd(): void }) {
   const menu = useSlicer((s) => s.plateMenu)!;
   const project = useSlicer((s) => s.project);
   const plate = useSlicer((s) => s.plate);
+  const labels = useSlicer((s) => s.labels);
   const s = useSlicer.getState();
   const plates = project?.plates.length ?? 1;
   const name = project?.plates[plate]?.name ?? '';
@@ -167,6 +168,13 @@ function MenuCard({ onAdd }: { onAdd(): void }) {
             </>,
           )}
           {item('Add models…', run(onAdd), { title: 'STL, 3MF, OBJ, STEP or SVG files from this device' })}
+          <hr />
+          <button role="menuitemcheckbox" aria-checked={labels} className="menu-item" title="Object names in the 3D view (Ctrl+E)" onClick={run(() => s.setLabels(!labels))}>
+            <span className="menu-check" aria-hidden="true">
+              {labels ? '✓' : ''}
+            </span>
+            Show labels
+          </button>
         </>
       )}
     </div>

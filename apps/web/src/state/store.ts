@@ -112,6 +112,9 @@ export interface SlicerState {
   pendingOpen: File[] | null;
   /** Rotate in 15° steps (and move/scale in steps) without holding Shift, for touch screens. */
   snap: boolean;
+  /** Desktop's Show labels: object names in the 3D view. */
+  labels: boolean;
+  setLabels(labels: boolean): void;
   /** Support, seam or fuzzy skin paint of the plate, while painting it. */
   overlay: PaintOverlay | null;
   /** The calibration test on the plate, and the settings it changed. */
@@ -789,6 +792,7 @@ export const useSlicer = create<SlicerState>((set, get) => {
     plateMenu: null,
     pendingOpen: null,
     snap: false,
+    labels: false,
     history: { undo: null, redo: null },
     cutZ: 0,
     brim: null,
@@ -912,6 +916,7 @@ export const useSlicer = create<SlicerState>((set, get) => {
     },
     cancelOpen: () => set({ pendingOpen: null }),
     setSnap: (snap) => set({ snap }),
+    setLabels: (labels) => set({ labels }),
     setTool: (tool) => {
       if (tool && get().paint) void get().setPaint(null);
       const { selected, project } = get();

@@ -33,7 +33,8 @@ hosted on Cloudflare's free tier.
   painting (colours, support and seam enforcers/blockers, fuzzy skin), desktop's plate
   menu (right click or long press the plate or the space around it: add a primitive
   shape, text, an SVG, one of Orca's handy models or a model file, and on the plate
-  arrange, auto orient, delete all, delete plate and rename plate), and desktop's
+  arrange, auto orient, delete all, delete plate and rename plate, the name then shown
+  on the plate; Show labels or Ctrl+E puts each object's name over it), and desktop's
   object menu (right click or long press an object, or ⋯ in the object list: clone,
   center, rename, printable, change filament, scale to fit, unit conversion, replace
   with STL, export as STL), and parts, negative parts, modifiers and support

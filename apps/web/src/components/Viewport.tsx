@@ -16,6 +16,7 @@ import { onPlate } from '../lib/plateMenu';
 import { NO_COLOURS, useOption, useSlicer } from '../state/store';
 import { setCameraSource } from '../state/view';
 import { BrimMarks } from './BrimEars';
+import { ObjectLabels, PlateName } from './Labels';
 import { MeasureOverlay } from './MeasureOverlay';
 import { CameraViews, ViewButtons, type ViewHandle } from './ViewControls';
 import { WipeTowerView } from './WipeTower';
@@ -1288,6 +1289,7 @@ function Objects({ w, d }: { w: number; d: number }) {
       )}
       {paint && overlay && paint.kind !== 'color' && <Overlay overlay={overlay} kind={paint.kind} />}
       {paint && brushTool && <BrushRing at={brush} radius={paint.radius} />}
+      <ObjectLabels parts={parts} />
       {measuring && <MeasureOverlay size={Math.max(0.4, Math.min(w, d) / 400)} />}
     </group>
   );
@@ -1365,6 +1367,7 @@ export function Viewport() {
         <hemisphereLight args={['#ffffff', scene.ground, 0.9]} />
         <directionalLight position={[w, -d, d * 2]} intensity={1.6} />
         <Bed w={w} d={d} />
+        <PlateName d={d} />
         <Objects w={w} d={d} />
         <WipeTowerView />
         <OrbitControls target={[w / 2, d / 2, 0]} makeDefault />
