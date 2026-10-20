@@ -7,7 +7,8 @@ import { deleteUserPreset, listUserPresets, saveUserPreset, useAccount } from '.
 import { useSlicer } from '../state/store';
 import { presetNameError, type PresetType } from './api';
 import { changesFor, copyName, systemParent } from './preset-diff';
-import { editPresets, presetTaken, saveAsNew, saveChanges, selectionWith } from './preset-save';
+import { editPresets, presetTaken, sameValuesInBothEngines, saveAsNew, saveChanges, selectionWith } from './preset-save';
+import { engineName } from '../lib/engines';
 import { usePresetImport } from './ImportPresets';
 import { canShareFiles, presetBundle, presetFileName, saveFile } from '../lib/preset-files';
 
@@ -52,6 +53,9 @@ export function PresetMenu({ type, slot }: { type: PresetType; slot?: number }) 
         ? selection.process
         : selection.filaments[slot ?? 0];
   const preset = list.find((p) => p.name === current);
+  const flavor = useSlicer((s) => s.flavor);
+  const apart = useAccount((s) => s.presets.find((p) => p.type === type && p.name === current)?.engines?.apart?.length ?? 0);
+  const other = engineName(flavor === 'orca' ? 'snapmaker' : 'orca');
   const changes = own?.name === current ? changesFor(own.config, overrides) : 0;
 
   useEffect(() => {
@@ -110,7 +114,7 @@ export function PresetMenu({ type, slot }: { type: PresetType; slot?: number }) 
         if (!preset) return;
         const stored = listUserPresets(type).find((p) => p.name === preset.name);
         if (!stored) throw new Error('This preset is not one of yours.');
-        await saveUserPreset(type, name, stored.inherits, stored.config);
+        await saveUserPreset(type, name, stored.inherits, stored.config, { engines: stored.engines });
         await deleteUserPreset(type, preset.name);
         return selectionWith(type, name, slot);
       }),
@@ -245,6 +249,21 @@ export function PresetMenu({ type, slot }: { type: PresetType; slot?: number }) 
                   Import presets…
                 </button>
               </div>
+              {preset.user && apart > 0 && (
+                <>
+                  <p className="account-muted small">
+                    {apart} setting{apart === 1 ? ' differs' : 's differ'} between this engine and {other} in this preset.
+                  </p>
+                  <button className="ghost" disabled={working} onClick={() => void run(() => sameValuesInBothEngines(type, preset.name))}>
+                    Use the same values in both engines
+                  </button>
+                </>
+              )}
+              {preset.user && (
+                <p className="account-muted small">
+                  Your presets are in {other} too: settings both engines have stay the same in both, and G-code and settings only one engine has are kept for each.
+                </p>
+              )}
               {preset.user && changes > 0 && <p className="account-muted small">Export takes the preset as last saved, without your unsaved changes.</p>}
               <p className="account-muted small">{where}</p>
             </>
