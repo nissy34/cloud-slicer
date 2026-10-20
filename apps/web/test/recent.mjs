@@ -78,6 +78,21 @@ try {
   if (inMenu.join() !== 'tetrahedron.stl,3DBenchy.stl') fail(`Project menu should list the reopened file first, got ${JSON.stringify(inMenu)}`);
   if (shots) await page.screenshot({ path: join(shots, 'recent-project-menu.png') });
   await menu.getByRole('menuitem', { name: 'Clear recent files' }).click();
+  // Clearing writes to IndexedDB after any save still running; wait for it before reloading.
+  await page.waitForFunction(
+    () =>
+      new Promise((ok) => {
+        const req = indexedDB.open('keyval-store');
+        req.onsuccess = () => {
+          const get = req.result.transaction('keyval').objectStore('keyval').get('cloud-slicer:recent-files:v1');
+          get.onsuccess = () => ok(Array.isArray(get.result) && get.result.length === 0);
+          get.onerror = () => ok(false);
+        };
+        req.onerror = () => ok(false);
+      }),
+    null,
+    { timeout: 10000, polling: 200 },
+  );
 
   await page.reload();
   await ready();
