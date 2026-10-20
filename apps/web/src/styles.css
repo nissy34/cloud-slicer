@@ -3623,10 +3623,60 @@ select:focus-visible {
   border-color: var(--accent);
 }
 .wizard-models .segmented {
-  flex-wrap: nowrap;
+  flex-wrap: wrap;
+  margin-inline-start: auto;
 }
 .wizard-model {
+  flex: 1 1 140px;
+  min-width: 0;
   font-weight: 600;
+}
+.wizard-model .send-mark {
+  margin-inline-start: 6px;
+}
+.wizard-cover {
+  flex: none;
+  width: 40px;
+  height: 40px;
+  object-fit: contain;
+  border-radius: 4px;
+}
+.wizard-brands {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 6px;
+}
+.wizard-brands details {
+  padding: 6px 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+.wizard-brands summary {
+  cursor: pointer;
+  font-weight: 600;
+}
+.wizard-brands .wizard-models {
+  margin-top: 6px;
+}
+.wizard-filters .check {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+/* Direct print: the app can send prints to this printer (Klipper): wizard, printer picker. */
+.send-mark {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 0 6px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--accent) 14%, transparent);
+  color: var(--accent);
+  font-size: 11px;
+  font-weight: 600;
+  white-space: nowrap;
+  vertical-align: middle;
 }
 .wizard-engines {
   display: grid;
@@ -4589,4 +4639,7 @@ button.volume-name {
 .sync-preset {
   flex-basis: 100%;
   padding-left: 26px;
+}
+.printer-send {
+  margin: -2px 0 0;
 }

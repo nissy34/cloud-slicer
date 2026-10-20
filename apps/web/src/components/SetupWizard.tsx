@@ -3,7 +3,8 @@ import { create } from 'zustand';
 import type { PresetSummary } from '../engine/protocol';
 import { ENGINES, type EngineFlavor } from '../lib/engines';
 import { shortName } from '../lib/presets';
-import { filamentGroups, printerModels, SETUP_KEY, type Setup } from '../lib/setup';
+import { coverUrl } from '../lib/printer-catalog';
+import { filamentGroups, matchModels, SETUP_KEY, wizardBrands, type Setup } from '../lib/setup';
 import { saveUserSetting, useAccount, useDevices, useUserSetting } from '../state/account';
 import { useDevice } from '../state/device';
 import { useSlicer } from '../state/store';
@@ -64,6 +65,7 @@ function Wizard({ onClose }: { onClose: () => void }) {
   const [printers, setPrinters] = useState<string[]>(() => (savedPrinters?.length ? savedPrinters : current ? [current.printer] : []));
   const [filaments, setFilaments] = useState<string[] | null>(savedFilaments?.length ? savedFilaments : null);
   const [saving, setSaving] = useState(false);
+  const [loadingBrands, setLoadingBrands] = useState(false);
   const [error, setError] = useState('');
 
   const finish = async (then?: () => void) => {
@@ -85,6 +87,22 @@ function Wizard({ onClose }: { onClose: () => void }) {
   };
 
   const index = STEPS.findIndex((s) => s.id === step);
+  const next = async () => {
+    setError('');
+    // The filament page asks the engine, which loads a brand's presets only once one of its printers is picked.
+    if (step === 'printers') {
+      setLoadingBrands(true);
+      try {
+        await useSlicer.getState().loadVendors(printers);
+      } catch (e) {
+        setError(`Could not load the printer profiles: ${(e as Error).message}`);
+        return;
+      } finally {
+        setLoadingBrands(false);
+      }
+    }
+    setStep(STEPS[index + 1].id);
+  };
   return (
     <div className="dialog-backdrop" onKeyDown={(e) => e.key === 'Escape' && onClose()}>
       <div className="dialog wizard" role="dialog" aria-modal="true" aria-labelledby="wizard-title">
@@ -99,6 +117,7 @@ function Wizard({ onClose }: { onClose: () => void }) {
         <div className="wizard-body">
           {step === 'engine' && <EngineStep chosen={engine} onChange={setEngine} />}
           {step === 'printers' && <PrinterStep all={allPrinters} chosen={printers} onChange={setPrinters} />}
+          {step === 'printers' && loadingBrands && <p className="muted small">Loading the printer profiles…</p>}
           {step === 'filaments' && <FilamentStep printers={printers} chosen={filaments} onChange={setFilaments} />}
           {step === 'connect' && <ConnectStep />}
         </div>
@@ -133,8 +152,8 @@ function Wizard({ onClose }: { onClose: () => void }) {
           ) : (
             <button
               className="primary"
-              disabled={step === 'printers' ? !printers.length : step === 'filaments' && !filaments?.length}
-              onClick={() => setStep(STEPS[index + 1].id)}
+              disabled={step === 'printers' ? !printers.length || loadingBrands : step === 'filaments' && !filaments?.length}
+              onClick={() => void next()}
             >
               Next
             </button>
@@ -171,41 +190,84 @@ function EngineStep({ chosen, onChange }: { chosen: EngineFlavor; onChange: (eng
 }
 
 function PrinterStep({ all, chosen, onChange }: { all: PresetSummary[]; chosen: string[]; onChange: (names: string[]) => void }) {
-  // The models you already have come first; the order stays put while you pick.
+  const catalog = useSlicer((s) => s.catalog);
+  const flavor = useSlicer((s) => s.flavor);
+  // The brands you already have come first; the order stays put while you pick.
   const [first] = useState(chosen);
-  const models = useMemo(() => {
-    const list = printerModels(all);
-    const mine = (m: (typeof list)[number]) => m.nozzles.some((n) => first.includes(n.name));
-    return [...list.filter(mine), ...list.filter((m) => !mine(m))];
-  }, [all, first]);
+  const [query, setQuery] = useState('');
+  const [sendOnly, setSendOnly] = useState(false);
+  const brands = useMemo(() => wizardBrands(catalog, all, first), [catalog, all, first]);
   const toggle = (name: string) => onChange(chosen.includes(name) ? chosen.filter((n) => n !== name) : [...chosen, name]);
+  const q = query.trim();
+  const shown = brands
+    .map((b) => ({ ...b, models: matchModels(b.models, q).filter((m) => !sendOnly || m.send) }))
+    .filter((b) => b.models.length);
   return (
     <>
-      <p className="muted small">Pick each printer you have and its nozzle sizes. You can change this later from Manage next to the printer picker.</p>
-      <ul className="wizard-models">
-        {models.map((m) => {
-          const on = m.nozzles.some((n) => chosen.includes(n.name));
+      <p className="muted small">
+        Pick each printer you have and its nozzle sizes in mm (you can change this later with Manage). Every printer slices here; <SendMark /> marks the ones this app can
+        also send prints to and start (Klipper printers). For the others you download the G-code.
+      </p>
+      <div className="wizard-filters">
+        <input type="search" placeholder="Search printers" aria-label="Search printers" value={query} onChange={(e) => setQuery(e.target.value)} />
+        <label className="check small">
+          <input type="checkbox" checked={sendOnly} onChange={(e) => setSendOnly(e.target.checked)} />
+          <span>Only direct print</span>
+        </label>
+      </div>
+      <div className="wizard-brands">
+        {shown.map((b) => {
+          const picked = b.models.filter((m) => m.nozzles.some((n) => chosen.includes(n.name))).length;
           return (
-            <li key={`${m.vendor}/${m.model}`} className={on ? 'on' : ''}>
-              <span className="wizard-model">
-                {m.model}
-                <span className="muted small"> {m.vendor}</span>
-              </span>
-              <span className="segmented" role="group" aria-label={`${m.model} nozzles`}>
-                {m.nozzles.map((n) => (
-                  <button key={n.name} className={chosen.includes(n.name) ? 'on' : ''} aria-pressed={chosen.includes(n.name)} onClick={() => toggle(n.name)}>
-                    {n.nozzle} mm
-                  </button>
-                ))}
-              </span>
-            </li>
+            <details key={b.vendor} open={!!q || sendOnly || picked > 0 || shown.length === 1 || (b.vendor === 'Snapmaker' && !chosen.length)}>
+              <summary>
+                {b.vendor}{' '}
+                <span className="muted small">
+                  {picked ? `${picked} of ${b.models.length}` : `${b.models.length} printer${b.models.length === 1 ? '' : 's'}`}
+                </span>
+              </summary>
+              <ul className="wizard-models">
+                {b.models.map((m) => {
+                  const on = m.nozzles.some((n) => chosen.includes(n.name));
+                  return (
+                    <li key={m.model} className={on ? 'on' : ''}>
+                      {m.cover ? <img className="wizard-cover" src={coverUrl(flavor, m.cover)} alt="" loading="lazy" /> : <span className="wizard-cover" />}
+                      <span className="wizard-model">
+                        {m.model}
+                        {m.send && <SendMark />}
+                      </span>
+                      <span className="segmented" role="group" aria-label={`${m.model} nozzles`}>
+                        {m.nozzles.map((n) => (
+                          <button key={n.name} className={chosen.includes(n.name) ? 'on' : ''} aria-pressed={chosen.includes(n.name)} onClick={() => toggle(n.name)}>
+                            {n.nozzle}
+                          </button>
+                        ))}
+                      </span>
+                    </li>
+                  );
+                })}
+              </ul>
+            </details>
           );
         })}
-      </ul>
+        {!shown.length && <p className="muted">No printer matches “{q}”.</p>}
+      </div>
       <p className="muted small">
         {chosen.length} printer profile{chosen.length === 1 ? '' : 's'} selected.
       </p>
     </>
+  );
+}
+
+/** The "Direct print" mark: the app can send prints to this printer and start them (it runs Klipper). */
+export function SendMark() {
+  return (
+    <span className="send-mark" title="Direct print: this app sends prints to it and starts them from the Device tab (Klipper with Moonraker)">
+      <svg viewBox="0 0 16 16" width="12" height="12" aria-hidden="true">
+        <path d="M2 8.5 14 2l-3.5 12-2.7-4.3L2 8.5Zm5.8 1.2 1.6 2.6L11.6 5 7.8 9.7Z" fill="currentColor" />
+      </svg>
+      Direct print
+    </span>
   );
 }
 
