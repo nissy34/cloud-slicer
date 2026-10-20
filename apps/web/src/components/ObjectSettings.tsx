@@ -1,8 +1,9 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { objectSettingGroups, objectSettingLabel } from '../lib/object-settings';
 import { useSlicer } from '../state/store';
 import { FlowVariantSwitch } from './FlowVariantSwitch';
 import { OptionField } from './OptionField';
+import { SettingPicker } from './SettingPicker';
 
 /**
  * The selected object's own settings, on top of the process; with `volume`,
@@ -17,6 +18,7 @@ export function ObjectSettings({ object, volume = -1 }: { object: number; volume
   const overrides = useSlicer((s) => s.overrides);
   const filaments = useSlicer((s) => s.selection?.filaments.length ?? 1);
   // Desktop's list: its per-object settings table, then everything else "Add settings" offers.
+  const [picking, setPicking] = useState(false);
   const groups = useMemo(() => objectSettingGroups(options, kind !== 'object', filaments), [options, kind, filaments]);
   if (!settings) return null;
   const keys = Object.keys(settings).filter((k) => options[k]);
@@ -38,23 +40,11 @@ export function ObjectSettings({ object, volume = -1 }: { object: number; volume
     <div className="object-settings">
       <div className="group-head">
         <span className="subhead">{kind === 'object' ? 'Object settings' : kind === 'modifier' ? 'Modifier settings' : 'Part settings'}</span>
-        <select aria-label={`Add a setting to this ${kind}`} className="add-setting" value="" onChange={(e) => e.target.value && add(e.target.value)}>
-          <option value="">+ Add setting</option>
-          {groups
-            .filter((g) => g.settings.some((o) => !(o.key in settings)))
-            .map((g) => (
-              <optgroup key={g.group} label={g.group}>
-                {g.settings
-                  .filter((o) => !(o.key in settings))
-                  .map((o) => (
-                    <option key={o.key} value={o.key}>
-                      {o.label}
-                    </option>
-                  ))}
-              </optgroup>
-            ))}
-        </select>
+        <button type="button" aria-label={`Add a setting to this ${kind}`} aria-expanded={picking} className="add-setting" onClick={() => setPicking(!picking)}>
+          + Add setting
+        </button>
       </div>
+      {picking && <SettingPicker groups={groups} have={settings} kind={kind} onAdd={add} onClose={() => setPicking(false)} />}
       {keys.some((k) => options[k].flow === 'process') && <FlowVariantSwitch />}
       {keys.length === 0 && (
         <p className="hint">

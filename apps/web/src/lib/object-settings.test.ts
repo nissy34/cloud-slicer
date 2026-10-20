@@ -40,10 +40,9 @@ describe('objectSettingGroups', () => {
       ['Quality', ['bridge_density', 'layer_height', 'seam_position', 'ironing_type']],
       ['Speed', ['outer_wall_speed', 'support_speed']],
       ['Strength', ['wall_loops', 'top_shell_layers']],
-      ['Support', ['enable_support']],
+      ['Support', ['enable_support', 'raft_layers']],
       ['More: Extruders', ['wall_filament']],
       ['More: Others', ['fuzzy_skin', 'slicing_mode']],
-      ['More: Support', ['raft_layers']],
     ]);
   });
 
