@@ -111,7 +111,7 @@ try {
 
     // Bambu Studio 2.5's project keeps its own G-code, like desktop.
     await open(modelPath);
-    const question = page.getByRole('dialog', { name: /G-code for this printer\?/ });
+    const question = page.getByRole('dialog', { name: /printer commands\?/ });
     const download = async () => {
       const [file] = await Promise.all([page.waitForEvent('download'), page.getByRole('button', { name: 'Download G-code' }).click()]);
       return readFileSync(await file.path(), 'utf8').includes('M1002 gcode_claim_action:54');
@@ -134,14 +134,14 @@ try {
       else {
         const text = await question.innerText();
         console.log(`snapmaker: ${text.replace(/\s+/g, ' ')}`);
-        if (!/Use Snapmaker Orca's G-code for this printer\?[\s\S]*written for Bambu Studio 2\.5, and Snapmaker Orca can't use it/.test(text) || !text.includes(PRINTER)) fail(`snapmaker: the question doesn't say why or which printer: ${text}`);
+        if (!/Use Snapmaker Orca's printer commands\?[\s\S]*written for Bambu Studio 2\.5, and Snapmaker Orca can't use them/.test(text) || !text.includes(PRINTER)) fail(`snapmaker: the question doesn't say why or which printer: ${text}`);
         await shoot('gcode-question');
         await question.getByRole('button', { name: 'Cancel' }).click();
         await error.first().waitFor({ timeout: 10000 });
         console.log(`snapmaker: cancelled: ${(await error.first().innerText()).replace(/\n/g, ' | ')}`);
         await page.getByRole('button', { name: /^Slice plate/ }).click();
         await question.waitFor({ timeout: 300000 });
-        await question.getByRole('button', { name: 'Use it and slice' }).click();
+        await question.getByRole('button', { name: 'Use them and slice' }).click();
         await page.getByTestId('slice-stats').waitFor({ timeout: 300000 });
         if (await download()) fail("snapmaker: the G-code still has Bambu Studio 2.5's start lines");
         else console.log("snapmaker: sliced with Snapmaker Orca's own G-code for the printer");
