@@ -121,7 +121,7 @@ export interface SlicerState {
   conversion: { from: string; file: OrcaConfig } | null;
   /**
    * Slicing stopped on G-code another slicer wrote (`app`): the question
-   * whether to slice with the printer profile's own G-code instead; `error`
+   * whether to slice with the printer's standard G-code instead; `error`
    * is shown if not.
    */
   gcodeFallback: { app: string; printer: string; error: string } | null;

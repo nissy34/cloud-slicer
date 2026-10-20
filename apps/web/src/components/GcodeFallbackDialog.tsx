@@ -3,7 +3,7 @@ import { useSlicer } from '../state/store';
 
 /**
  * Slicing stopped on G-code another slicer wrote (Bambu Studio 2.5's, say):
- * slice with the printer profile's own G-code instead, or see the error.
+ * slice with the printer preset's own G-code instead, or see the error.
  */
 export function GcodeFallbackDialog() {
   const question = useSlicer((s) => s.gcodeFallback);
@@ -13,17 +13,16 @@ export function GcodeFallbackDialog() {
   return (
     <div className="dialog-backdrop" onKeyDown={(e) => e.key === 'Escape' && void answerGcodeFallback(false)}>
       <div className="dialog" role="dialog" aria-modal="true" aria-labelledby="gcode-fallback-title" data-testid="gcode-fallback">
-        <h2 id="gcode-fallback-title">Use your printer's G-code?</h2>
+        <h2 id="gcode-fallback-title">This project's G-code doesn't work in {engineName(flavor)}</h2>
         <p>
-          This project's start and filament change G-code is from {question.app} and doesn't work in {engineName(flavor)}. Slice with the G-code from your
-          printer profile (<b>{question.printer}</b>) instead?
+          Its start and filament change G-code was written for {question.app}. Slice with the standard G-code of <b>{question.printer}</b> instead?
         </p>
         <div className="dialog-actions">
           <button className="secondary" onClick={() => void answerGcodeFallback(false)}>
             Cancel
           </button>
           <button className="primary" autoFocus onClick={() => void answerGcodeFallback(true)}>
-            Use printer G-code
+            Slice with standard G-code
           </button>
         </div>
       </div>

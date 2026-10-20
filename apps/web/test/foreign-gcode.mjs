@@ -5,7 +5,7 @@
 // all have (flush_volumetric_speeds). Like desktop, the project keeps its own
 // G-code: OrcaSlicer fills it in and its G-code carries Bambu Studio 2.5's
 // start lines; Snapmaker Orca can't, so it asks whether to slice with the
-// printer profile's own G-code (Cancel shows the error). The same file marked as made by the engine itself keeps its
+// printer preset's own G-code (Cancel shows the error). The same file marked as made by the engine itself keeps its
 // G-code; given a variable the engine doesn't know, slicing stops with an error
 // naming the G-code, the line and the variable.
 //
@@ -111,7 +111,7 @@ try {
 
     // Bambu Studio 2.5's project keeps its own G-code, like desktop.
     await open(modelPath);
-    const question = page.getByRole('dialog', { name: "Use your printer's G-code?" });
+    const question = page.getByRole('dialog', { name: /This project's G-code doesn't work in/ });
     const download = async () => {
       const [file] = await Promise.all([page.waitForEvent('download'), page.getByRole('button', { name: 'Download G-code' }).click()]);
       return readFileSync(await file.path(), 'utf8').includes('M1002 gcode_claim_action:54');
@@ -134,14 +134,14 @@ try {
       else {
         const text = await question.innerText();
         console.log(`snapmaker: ${text.replace(/\s+/g, ' ')}`);
-        if (!/from Bambu Studio 2\.5 and doesn't work in Snapmaker Orca/.test(text) || !text.includes(PRINTER)) fail(`snapmaker: the question doesn't say why or which printer: ${text}`);
+        if (!/doesn't work in Snapmaker Orca[\s\S]*written for Bambu Studio 2\.5/.test(text) || !text.includes(PRINTER)) fail(`snapmaker: the question doesn't say why or which printer: ${text}`);
         await shoot('gcode-question');
         await question.getByRole('button', { name: 'Cancel' }).click();
         await error.first().waitFor({ timeout: 10000 });
         console.log(`snapmaker: cancelled: ${(await error.first().innerText()).replace(/\n/g, ' | ')}`);
         await page.getByRole('button', { name: /^Slice plate/ }).click();
         await question.waitFor({ timeout: 300000 });
-        await question.getByRole('button', { name: 'Use printer G-code' }).click();
+        await question.getByRole('button', { name: 'Slice with standard G-code' }).click();
         await page.getByTestId('slice-stats').waitFor({ timeout: 300000 });
         if (await download()) fail("snapmaker: the G-code still has Bambu Studio 2.5's start lines");
         else console.log("snapmaker: sliced with the printer's own G-code");
