@@ -43,6 +43,22 @@ func stopOtherCopies(path string) {
 	_ = c.Run()
 }
 
+// deleteAfterExit deletes a folder a moment after this program exits: Windows
+// can't delete a program while it runs. The command line goes to cmd as it is
+// (Go would escape the quotes around the folder the C way, which cmd doesn't read).
+func deleteAfterExit(dir string) error {
+	c := exec.Command("cmd")
+	c.SysProcAttr = &syscall.SysProcAttr{
+		HideWindow:    true,
+		CreationFlags: detachedProcess | createNewProcessGroup | createNoWindow,
+		CmdLine:       `cmd /c ping -n 3 127.0.0.1 >nul & rmdir /s /q "` + dir + `"`,
+	}
+	if err := c.Start(); err != nil {
+		return err
+	}
+	return c.Process.Release()
+}
+
 // useParentConsole lets the app, which has no window of its own, print to the
 // terminal it was started from. It says whether there is one: opened with a
 // double click there isn't.

@@ -320,7 +320,7 @@ func removeFiles(p plan, configPath string) {
 	}
 	if err := os.RemoveAll(p.dir); err != nil && runtime.GOOS == "windows" {
 		// Windows can't delete the program that is running this: delete it just after this exits.
-		_ = startDetached("cmd", "/c", fmt.Sprintf(`ping -n 3 127.0.0.1 >nul & rmdir /s /q "%s"`, p.dir))
+		_ = deleteAfterExit(p.dir)
 	}
 }
 

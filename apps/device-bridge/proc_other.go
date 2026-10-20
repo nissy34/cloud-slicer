@@ -25,3 +25,6 @@ func stopOtherCopies(string) {}
 func useParentConsole() bool { return true }
 
 func showMessage(string, string, bool) {}
+
+// deleteAfterExit is only needed on Windows, where a running program can't be deleted.
+func deleteAfterExit(string) error { return nil }
