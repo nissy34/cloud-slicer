@@ -15,7 +15,7 @@
 import { create } from 'zustand';
 import type { Device } from '../account/api';
 import { deleteDevice, getDeviceApiKey, saveDevice, useAccount } from './account';
-import type { PrinterAddon, PrinterFacts } from '../device/addons';
+import type { PrinterAddon, PrinterError, PrinterFacts } from '../device/addons';
 import { coalesce } from '../device/coalesce';
 import { BridgeLink } from '../device/link/bridge';
 import { DirectLink } from '../device/link/direct';
@@ -56,6 +56,8 @@ interface DeviceState {
   objects: KlipperObjects;
   facts: PrinterFacts | null;
   addons: PrinterAddon[];
+  /** The printer's own errors in words, from add-ons that know its codes. */
+  errors: PrinterError[];
   bridge: BridgeStatus | null;
   console: ConsoleLine[];
   files: GcodeFile[] | null;
@@ -278,7 +280,7 @@ export const useDevice = create<DeviceState>((set, get) => {
     session?.stop();
     session = null;
     const seq = ++connectSeq;
-    set({ objects: {}, facts: null, addons: [], bridge: null, console: [], files: null, conn: { state: saved ? 'connecting' : 'idle', message: '' } });
+    set({ objects: {}, facts: null, addons: [], errors: [], bridge: null, console: [], files: null, conn: { state: saved ? 'connecting' : 'idle', message: '' } });
     if (!saved) return;
     const p = await loadSecret(saved);
     if (seq !== connectSeq) return;
@@ -293,6 +295,7 @@ export const useDevice = create<DeviceState>((set, get) => {
       onConsole: (line) => session === s && set({ console: [...get().console, line].slice(-CONSOLE_MAX) }),
       onFilesChanged: () => session === s && void get().refreshFiles(),
       onBridge: (bridge) => session === s && set({ bridge }),
+      onErrors: (errors) => session === s && set({ errors }),
     });
     session = s;
     s.start();
@@ -328,6 +331,7 @@ export const useDevice = create<DeviceState>((set, get) => {
     objects: {},
     facts: null,
     addons: [],
+    errors: [],
     bridge: null,
     console: [],
     files: null,

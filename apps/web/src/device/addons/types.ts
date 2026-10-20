@@ -25,6 +25,30 @@ export interface CameraHints {
   keepalive?: { method: string; params: unknown; everyMs: number };
 }
 
+/** A problem the printer reports, in the printer maker's own words. */
+export interface PrinterError {
+  /** Stable for as long as the printer reports it. */
+  id: string;
+  /** The code as the maker's own app shows it, e.g. "0002 0523 0000 0000". */
+  code: string;
+  title: string;
+  text: string;
+  /** Announced once rather than held by the printer, so the user dismisses it. */
+  once: boolean;
+}
+
+/** How a printer reports its errors beyond Klipper's own state. */
+export interface PrinterErrorSource {
+  /** JSON-RPC call that returns the current errors. */
+  query: string;
+  read(result: unknown): Promise<PrinterError[]>;
+  /**
+   * What a notification says about errors: the full new list, or errors
+   * announced once. null when the notification is about something else.
+   */
+  notified(method: string, params: unknown): Promise<{ current?: PrinterError[]; once?: PrinterError[] }> | null;
+}
+
 export interface PrinterAddon {
   id: string;
   /** Model name shown under the printer's name. */
@@ -35,4 +59,5 @@ export interface PrinterAddon {
   camera?: CameraHints;
   /** A short line for the status card while the printer is busy with something of its own. */
   activity?(o: KlipperObjects): string | null;
+  errors?: PrinterErrorSource;
 }

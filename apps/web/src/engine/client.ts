@@ -68,7 +68,9 @@ export interface MixedRequest {
     | { kind: 'add'; row: MixRecipe }
     | { kind: 'update'; index: number; row: MixRecipe }
     | { kind: 'delete'; index: number }
-    | { kind: 'removePhysical'; filament: number };
+    | { kind: 'removePhysical'; filament: number }
+    /** Sync filament: the filaments become `colours`; old filament i moves to remap[i - 1] (0 = gone). */
+    | { kind: 'replacePhysical'; colours: string[]; types?: string[]; remap: number[]; dropMixes: boolean };
   draft?: MixRecipe;
 }
 export interface MixedReply {
@@ -90,7 +92,8 @@ export interface History {
 }
 
 export interface InstanceChanges {
-  offset?: [number, number];
+  /** [x, y] or [x, y, z]: a z below the bed sinks the object into it, like desktop. */
+  offset?: [number, number] | [number, number, number];
   plate?: number;
   rotation?: number[];
   scale?: number[];

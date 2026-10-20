@@ -268,7 +268,7 @@ if (self.name !== 'em-pthread') {
     mixed(e, request) {
       const out = json(e.mixedFilaments(JSON.stringify(request)));
       const kind = request.op?.kind;
-      return kind === 'delete' || kind === 'removePhysical' ? { ...out, info: JSON.parse(e.modelInfoJson()) } : out;
+      return kind === 'delete' || kind === 'removePhysical' || kind === 'replacePhysical' ? { ...out, info: JSON.parse(e.modelInfoJson()) } : out;
     },
     mixedBlend: (e, request) => json(e.mixedBlend(JSON.stringify(request))).colours,
     mixedMatch: (e, request) => json(e.mixedMatch(JSON.stringify(request))),
