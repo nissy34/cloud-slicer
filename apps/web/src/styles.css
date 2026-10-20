@@ -1409,6 +1409,8 @@ select:focus-visible {
   font-size: 13px;
 }
 .add-setting {
+  /* Fixed: a select is as wide as its longest option, and the long ones would widen the sidebar. */
+  width: 10em;
   max-width: 55%;
   padding: 3px 6px;
   border-radius: 6px;

@@ -365,7 +365,7 @@ try {
     if (!modifierChoices.includes(key)) fail(`a modifier can add ${key}`);
   for (const key of ['layer_height', 'enable_support', 'brim_type']) if (modifierChoices.includes(key)) fail(`a modifier can't add the object-only ${key}`);
   await page.getByLabel('Add a setting to this modifier').selectOption('sparse_infill_density');
-  await page.locator('.object-settings').getByText(/infill density/i).first().waitFor({ timeout: 30000 });
+  await page.locator('.object-settings-group').getByText(/infill density/i).first().waitFor({ timeout: 30000 });
   await toolbar.getByRole('button', { name: 'Move' }).click();
   if (shots) await page.screenshot({ path: join(shots, 'parts-modifier.png') });
   await page.keyboard.press('Escape');
