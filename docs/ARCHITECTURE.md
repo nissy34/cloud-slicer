@@ -115,8 +115,11 @@ nothing on purpose, so a deploy's page and engine never get out of step).
   `initial_layer_speed = "50,50"`, while 2.2 files hold one value. The settings panel
   has desktop's Standard flow / High flow switch and edits one variant at a time
   (`src/lib/flow-variants.ts`); importing older files aligns their values to both.
-- **Per-object settings** come from desktop's "Add settings" categories and are stored
-  on the object, like desktop.
+- **Per-object settings** offer desktop's full list (`src/lib/object-settings.ts`): its
+  per-object settings table (Quality / Speed / Strength / Support), then every other
+  option its "Add settings" menu allows, by category. The engine's option metadata
+  says which options a part can carry (`scope: "region"`) and which only an object can
+  (`"object"`). They are stored on the object, part or modifier, like desktop.
 
 ## Projects and 3MF import
 
