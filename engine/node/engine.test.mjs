@@ -875,6 +875,18 @@ test('sync filament: replacing the filaments moves objects and drops mixes, addi
   assert.equal(info().objects[0].extruder, 1);
 });
 
+test('switching to an engine without mixing: each mix becomes one of its filaments', (t) => {
+  if (needsMixing(t)) return;
+  const THREE = ['#FF0000', '#0000FF', '#FFFF00'];
+  let d = mixed({ definitions: '', colours: THREE, op: { kind: 'add', row: { componentA: 1, componentB: 2 } } }).definitions;
+  d = mixed({ definitions: d, colours: THREE, op: { kind: 'add', row: { componentA: 2, componentB: 3 } } }).definitions;
+  load('calib-cube-10-dual-colour-merged.3mf');
+  call(engine, 'setExtruder', 0, -1, 5);  // the second mix
+  const flat = mixed({ definitions: d, colours: THREE, op: { kind: 'flatten', to: [1, 3] } });
+  assert.equal(flat.rows.filter((r) => r.enabled).length, 0);
+  assert.equal(info().objects[0].extruder, 3);
+});
+
 test('colour mixing: Match finds the recipe for a target colour', (t) => {
   if (needsMixing(t)) return;
   const target = mixed({ definitions: '', colours: TWO, op: { kind: 'add', row: { componentA: 1, componentB: 2, mixBPercent: 30 } } }).rows[0].colour;

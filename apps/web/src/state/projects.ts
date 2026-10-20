@@ -55,6 +55,8 @@ interface ProjectsState {
   onlineChanged(p: OnlineProject | { id: string; deleted: true }): void;
   /** An empty project, with the default engine or the one given. */
   newProject(engine?: EngineFlavor): Promise<void>;
+  /** Moves the open project to the other engine (the Slicer engine dropdown); it then has unsaved changes. */
+  switchEngine(engine: EngineFlavor): Promise<void>;
   setListOpen(open: boolean): void;
   setSaveAsOpen(open: boolean): void;
   clearMessage(): void;
@@ -256,6 +258,15 @@ export const useProjects = create<ProjectsState>((set, get) => {
       else await useSlicer.getState().clearProject();
       set({ current: blank(), message: '' });
       markClean();
+    },
+
+    async switchEngine(engine) {
+      await useSlicer.getState().switchProject(engine);
+      // The engine is part of the project: saving it again records the new one.
+      if (useSlicer.getState().flavor === engine && useSlicer.getState().project?.objects.length) {
+        paintedSinceSave = true;
+        set({ dirty: true });
+      }
     },
 
     setListOpen: (listOpen) => set({ listOpen }),

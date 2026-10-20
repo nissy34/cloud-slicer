@@ -417,6 +417,7 @@ jobs:
           mkdir -p engine-shots
           node test/engines.mjs engine-shots
           node test/shared-presets.mjs engine-shots
+          node test/engine-switch.mjs engine-shots
 
       - uses: actions/upload-artifact@v4
         if: always() && matrix.suite == 'orca'
@@ -424,11 +425,12 @@ jobs:
           name: engine-screenshots
           path: apps/web/engine-shots
 
-      - name: Every printer brand, loaded per brand, with the Direct print mark, and filament counts per printer and engine (Chromium)
+      - name: Every printer brand, loaded per brand, with the Direct print mark, the first visit's wizard, and filament counts per printer and engine (Chromium)
         if: matrix.suite == 'brands'
         run: |
           mkdir -p brand-shots
           node test/brands.mjs brand-shots
+          node test/first-run.mjs brand-shots
           node test/filament-count.mjs brand-shots
 
       - uses: actions/upload-artifact@v4

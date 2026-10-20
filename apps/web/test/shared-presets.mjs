@@ -82,8 +82,7 @@ try {
     await temperature().waitFor();
   };
   const switchTo = async (name) => {
-    await page.getByTestId('engine-chip').click();
-    await page.getByRole('menuitemradio', { name: new RegExp(`^${name}`) }).click();
+    await page.getByTestId('engine-select').selectOption({ label: name });
     await ready(name);
   };
 

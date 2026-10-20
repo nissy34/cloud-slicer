@@ -1,5 +1,5 @@
 import { shortName } from '../lib/presets';
-import { installedOnly, SETUP_KEY, type Setup } from '../lib/setup';
+import { installedOnly, installedPrinters, SETUP_KEY, type Setup } from '../lib/setup';
 import { canSend } from '../lib/printer-catalog';
 import { useUserSetting } from '../state/account';
 import { SendMark, useSetupWizard } from './SetupWizard';
@@ -13,17 +13,21 @@ import { OptionField } from './OptionField';
 import { SettingsPanel } from './SettingsPanel';
 import { PresetMenu } from '../account/PresetMenu';
 import { EditPresetButton } from './PresetSettingsDialog';
+import { EngineSection } from './EngineSection';
 import type { PresetSummary } from '../engine/protocol';
 
 /** The user's own presets always show, whatever the setup wizard installed. */
 const withMine = (installed: string[] | undefined, list: PresetSummary[]) =>
   installed && [...installed, ...list.filter((p) => p.user).map((p) => p.name)];
 
+/** The printer picker's last entry, which opens the setup wizard's printer page. */
+const ADD_PRINTERS = '\u0000add-printers';
+
 function PrinterSection() {
   const allPrinters = useSlicer((s) => s.printers);
   const selection = useSlicer((s) => s.selection);
   const selectPrinter = useSlicer((s) => s.selectPrinter);
-  const installed = useUserSetting<Setup>(SETUP_KEY)?.printers;
+  const installed = installedPrinters(useUserSetting<Setup>(SETUP_KEY), useSlicer((s) => s.flavor));
   const printers = installedOnly(allPrinters, withMine(installed, allPrinters), selection?.printer);
   const manage = useSetupWizard((s) => s.show);
   const busy = useSlicer((s) => s.engine !== 'ready');
@@ -37,7 +41,7 @@ function PrinterSection() {
       <div className="group-head">
         <h2>Printer</h2>
         <div className="group-actions">
-          <button className="link" onClick={manage}>
+          <button className="link" onClick={() => manage()}>
             Manage
           </button>
           <EditPresetButton type="printer" />
@@ -50,7 +54,7 @@ function PrinterSection() {
           aria-label="Printer preset"
           value={selection?.printer ?? ''}
           disabled={busy}
-          onChange={(e) => void selectPrinter(e.target.value)}
+          onChange={(e) => (e.target.value === ADD_PRINTERS ? manage('printers') : void selectPrinter(e.target.value))}
         >
           {vendors.map((v) => (
             <optgroup key={v} label={v}>
@@ -64,6 +68,8 @@ function PrinterSection() {
                 ))}
             </optgroup>
           ))}
+          {/* Like desktop's printer list: the wizard's printer page, to add more or remove some. */}
+          <option value={ADD_PRINTERS}>Add or remove printers…</option>
         </select>
       </label>
       {selectedSends === true && (
@@ -178,6 +184,7 @@ export function Sidebar() {
   return (
     <aside className="panel">
       <CalibrationBanner />
+      <EngineSection />
       <PrinterSection />
       <FilamentSection />
       <ObjectList />

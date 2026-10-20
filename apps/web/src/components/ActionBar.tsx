@@ -4,8 +4,6 @@ import type { SliceWarning } from '../engine/protocol';
 import { formatDuration, formatGrams, gcodeFileName, sentence, stageLabel } from '../lib/format';
 import { blocksPrinting, OBJECT_CLASHED } from '../lib/outside';
 import { LIGHT_TRIANGLES, triangleCount } from '../lib/simplify';
-import { ENGINES } from '../lib/engines';
-import { useProjects } from '../state/projects';
 import { useObjectsOutside, useSlicer } from '../state/store';
 
 function download(blob: Blob, name: string) {
@@ -13,41 +11,6 @@ function download(blob: Blob, name: string) {
   const a = Object.assign(document.createElement('a'), { href: url, download: name });
   a.click();
   setTimeout(() => URL.revokeObjectURL(url), 1000);
-}
-
-/**
- * The engine of an empty project, as a chip: tap it to start the project with
- * the other engine instead. New projects start with the setup wizard's default.
- */
-function EngineChip() {
-  const flavor = useSlicer((s) => s.flavor);
-  const [open, setOpen] = useState(false);
-  const current = ENGINES.find((e) => e.id === flavor)!;
-  const pick = (id: (typeof ENGINES)[number]['id']) => {
-    setOpen(false);
-    if (id !== flavor) void useProjects.getState().newProject(id);
-  };
-  return (
-    <span className="engine-chip-wrap">
-      <button className="engine-chip" aria-haspopup="menu" aria-expanded={open} data-testid="engine-chip" onClick={() => setOpen(!open)}>
-        Slicing with {current.name} ▾
-      </button>
-      {open && (
-        <div className="menu-pop engine-chip-menu" role="menu" aria-label="Engine for this project" onKeyDown={(e) => e.key === 'Escape' && setOpen(false)}>
-          <p className="menu-note">Engine for this project</p>
-          {ENGINES.map((e) => (
-            <button key={e.id} role="menuitemradio" aria-checked={e.id === flavor} onClick={() => pick(e.id)}>
-              <span>
-                <b>{e.name}</b>
-                <span className="muted small"> {e.blurb}</span>
-              </span>
-              {e.id === flavor && <span aria-hidden>✓</span>}
-            </button>
-          ))}
-        </div>
-      )}
-    </span>
-  );
 }
 
 /** The engine start-up error in full, with a button that copies it (and the build and browser) for a bug report. */
@@ -173,7 +136,6 @@ export function ActionBar() {
             {(notice || heavy) && '.'}
           </span>
         )}
-        {engine === 'ready' && !project?.objects.length && job.kind !== 'loading' && <EngineChip />}
         {job.kind === 'loading' && <span className="muted">{job.label ?? `Opening ${job.name}`}…</span>}
         {job.kind === 'slicing' && (
           <SliceProgress pct={job.pct} stage={stageLabel(job.stage) || 'Slicing'} onCancel={cancelSlice} />
