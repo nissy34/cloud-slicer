@@ -6,6 +6,7 @@ import { useSlicer } from '../state/store';
 import { LoadingOverlay } from './LoadingOverlay';
 import { ObjectMenu } from './ObjectMenu';
 import { PlateMenu } from './PlateMenu';
+import { RecentFiles } from './RecentFiles';
 import { Toolbar } from './Toolbar';
 
 /** File button plus drag-and-drop anywhere over the workspace. */
@@ -53,6 +54,7 @@ export function OpenModel({ children }: { children: React.ReactNode }) {
           <button className="primary" onClick={() => input.current?.click()}>
             Open model
           </button>
+          <RecentFiles onOpen={openFiles} />
         </div>
       )}
       {/* Always there, so a first visit shows what the slicer can do; tools that need a model wait greyed out. */}
