@@ -49,6 +49,9 @@ hosted on Cloudflare's free tier.
   onto one of yours: the print settings its author changed carry over, the ones left at
   the old printer's defaults and the printer's own settings (speeds, accelerations,
   jerk) come from your printer, and filaments are matched by material.
+- **Filaments per project** follow the file, like desktop: as many as the file has or you
+  add, in both engines. On the U1 you pick a head for each filament when you send the print
+  (`apps/web/src/lib/filament-limit.ts`).
 - **Prepare tools**: move, rotate, scale (exact fields like desktop's: position X, Y and Z, where a
   Z below the bed sinks the object into it; rotation; scale in percent or size in mm, all three
   axes together while "Scale evenly" is on; the same fields for a part inside its object), lay on face, cut, measure (distances and angles
