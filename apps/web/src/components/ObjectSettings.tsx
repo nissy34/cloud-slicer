@@ -3,6 +3,7 @@ import { objectSettingGroups, objectSettingLabel } from '../lib/object-settings'
 import { useSlicer } from '../state/store';
 import { FlowVariantSwitch } from './FlowVariantSwitch';
 import { OptionField } from './OptionField';
+import { setObjectSettingChecked, useOptionStates } from './SettingsPrompt';
 import { SettingPicker } from './SettingPicker';
 
 /**
@@ -20,6 +21,8 @@ export function ObjectSettings({ object, volume = -1 }: { object: number; volume
   // Desktop's list: its per-object settings table, then everything else "Add settings" offers.
   const [picking, setPicking] = useState(false);
   const groups = useMemo(() => objectSettingGroups(options, kind !== 'object', filaments), [options, kind, filaments]);
+  // Like desktop, a setting that doesn't apply with the object's other settings greys out.
+  const states = useOptionStates('object', undefined, settings);
   if (!settings) return null;
   const keys = Object.keys(settings).filter((k) => options[k]);
   // The object's settings under desktop's group names, in the list's order.
@@ -63,7 +66,9 @@ export function ObjectSettings({ object, volume = -1 }: { object: number; volume
               label={objectSettingLabel(k)}
               value={settings[k]}
               resetLabel={`Remove from this ${kind}`}
-              onChange={(v) => void setObjectSettings(object, volume, { [k]: v })}
+              disabled={states.disabled.has(k) || states.hidden.has(k)}
+              choices={states.enumValues[k]}
+              onChange={(v) => void (v === null ? setObjectSettings(object, volume, { [k]: v }) : setObjectSettingChecked(object, volume, k, v))}
             />
           ))}
         </div>

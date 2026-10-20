@@ -860,6 +860,23 @@ select:focus-visible {
 .option select {
   width: 100%;
 }
+/* A setting another setting switched off, like desktop's greyed fields. */
+.option.disabled {
+  opacity: 0.45;
+}
+.settings-search {
+  box-sizing: border-box;
+  width: 100%;
+  padding: 6px 10px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  color: var(--text);
+  font: inherit;
+}
+.dialog.settings-prompt p {
+  white-space: pre-line;
+}
 .input-unit {
   display: flex;
   align-items: center;

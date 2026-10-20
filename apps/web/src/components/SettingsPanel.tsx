@@ -6,6 +6,7 @@ import { slotEntryIndex } from '../lib/slot-values';
 import { useOption, useSlicer } from '../state/store';
 import { FlowVariantSwitch } from './FlowVariantSwitch';
 import { OptionField } from './OptionField';
+import { useOptionStates } from './SettingsPrompt';
 
 const visible = (def: OptionDef | undefined, advanced: boolean) =>
   def != null && (advanced ? def.mode !== 'develop' : def.mode === 'simple');
@@ -27,40 +28,61 @@ export function SettingsPages({ kind, advanced, slot }: { kind: SettingsKind; ad
   const silent = useOption('silent_mode') === '1';
   const pages = useMemo(() => shownPages(layout, extruders, flavor), [layout, extruders, flavor]);
   const [page, setPage] = useState(0);
+  const [query, setQuery] = useState('');
+  const states = useOptionStates('global', slot);
   const current = pages[Math.min(page, pages.length - 1)];
-  const hasFlowVariants = current?.groups.some((g) => g.options.some((k) => options[k]?.flow && visible(options[k], advanced)));
-  const limits = new Set(current?.limits);
+  const found = query.trim() ? searchSettings(pages, options, query) : null;
+  // A search finds settings in every page and in Advanced too; ones that don't apply show greyed out.
+  const groups =
+    found ??
+    current?.groups.map((g) => ({ title: g.title, page: current, keys: g.options.filter((k) => visible(options[k], advanced) && !states.hidden.has(k)) })) ??
+    [];
+  const hasFlowVariants = groups.some((g) => g.keys.some((k) => options[k]?.flow));
+  const label = kind === 'print' ? 'process' : kind;
+  const field = (k: string, at: ShownPage) => {
+    const off = states.disabled.has(k) || states.hidden.has(k);
+    const choices = states.enumValues[k];
+    if (at.overrides) return <OverrideField key={`${k}:${slot ?? ''}`} optKey={k} slot={slot ?? 0} />;
+    if (at.limits?.includes(k))
+      return (
+        <Fragment key={k}>
+          <OptionField optKey={k} entry={0} disabled={off} label={silent ? `${options[k].fullLabel || options[k].label} (Normal)` : options[k].fullLabel || undefined} />
+          {silent && <OptionField optKey={k} entry={1} disabled={off} label={`${options[k].fullLabel || options[k].label} (Silent)`} />}
+        </Fragment>
+      );
+    return <OptionField key={`${k}:${slot ?? ''}:${at.index ?? ''}`} optKey={k} slot={slot} entry={at.index} disabled={off} choices={choices} />;
+  };
   return (
     <>
-      <div className="pages" role="tablist" aria-label="Settings pages">
-        {pages.map((p, i) => (
-          <button key={p.page} role="tab" aria-selected={p === current} className={p === current ? 'page active' : 'page'} onClick={() => setPage(i)}>
-            {p.page}
-          </button>
-        ))}
-      </div>
+      <input
+        type="search"
+        className="settings-search"
+        placeholder={`Search ${label} settings`}
+        aria-label={`Search ${label} settings`}
+        value={query}
+        onChange={(e) => setQuery(e.target.value)}
+        onKeyDown={(e) => e.key === 'Escape' && setQuery('')}
+      />
+      {!found && (
+        <div className="pages" role="tablist" aria-label="Settings pages">
+          {pages.map((p, i) => (
+            <button key={p.page} role="tab" aria-selected={p === current} className={p === current ? 'page active' : 'page'} onClick={() => setPage(i)}>
+              {p.page}
+            </button>
+          ))}
+        </div>
+      )}
+      {found && found.length === 0 && <p className="hint">No {label} settings match “{query.trim()}”.</p>}
       {hasFlowVariants && <FlowVariantSwitch />}
-      {current?.overrides && (
+      {!found && current?.overrides && (
         <p className="hint">Tick a setting to use this filament&apos;s own value. Unticked ones use the printer&apos;s, shown greyed out.</p>
       )}
-      {current?.groups.map((g) => {
-        const keys = g.options.filter((k) => visible(options[k], advanced));
-        if (!keys.length) return null;
+      {groups.map((g) => {
+        if (!g.keys.length) return null;
         return (
           <fieldset key={g.title} className="optgroup">
             <legend>{g.title}</legend>
-            {keys.map((k) =>
-              current.overrides ? (
-                <OverrideField key={`${k}:${slot ?? ''}`} optKey={k} slot={slot ?? 0} />
-              ) : limits.has(k) ? (
-                <Fragment key={k}>
-                  <OptionField optKey={k} entry={0} label={silent ? `${options[k].fullLabel || options[k].label} (Normal)` : options[k].fullLabel || undefined} />
-                  {silent && <OptionField optKey={k} entry={1} label={`${options[k].fullLabel || options[k].label} (Silent)`} />}
-                </Fragment>
-              ) : (
-                <OptionField key={`${k}:${slot ?? ''}:${current.index ?? ''}`} optKey={k} slot={slot} entry={current.index} />
-              ),
-            )}
+            {g.keys.map((k) => field(k, g.page))}
           </fieldset>
         );
       })}
@@ -69,6 +91,7 @@ export function SettingsPages({ kind, advanced, slot }: { kind: SettingsKind; ad
 }
 
 const NO_PAGES: SettingsPage[] = [];
+type ShownPage = SettingsPage & { index?: number };
 
 /**
  * One option of the filament Setting Overrides page, like desktop's: a
@@ -122,6 +145,26 @@ function OverrideField({ optKey, slot }: { optKey: string; slot: number }) {
       </span>
     </div>
   );
+}
+
+/**
+ * Settings whose name (or key, for people who know Orca's) has every word of
+ * the query, grouped by page and group like desktop's settings search.
+ */
+export function searchSettings(pages: ShownPage[], options: Record<string, OptionDef>, query: string) {
+  const words = query.toLowerCase().split(/\s+/).filter(Boolean);
+  const groups: { title: string; page: ShownPage; keys: string[] }[] = [];
+  for (const p of pages)
+    for (const g of p.groups) {
+      const keys = g.options.filter((k) => {
+        const def = options[k];
+        if (!def || def.mode === 'develop') return false;
+        const text = `${def.label} ${def.fullLabel} ${k} ${k.replace(/_/g, ' ')} ${g.title}`.toLowerCase();
+        return words.every((w) => text.includes(w));
+      });
+      if (keys.length) groups.push({ title: `${p.page} › ${g.title}`, page: p, keys });
+    }
+  return groups;
 }
 
 /**
