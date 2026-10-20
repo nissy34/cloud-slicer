@@ -3985,3 +3985,24 @@ button.volume-name {
   gap: 6px;
   justify-items: start;
 }
+
+/* The filament Setting Overrides page: a checkbox before each label, and the
+   printer's value greyed out while the filament leaves it unset. */
+.override-check {
+  margin: 0 6px 0 0;
+  vertical-align: middle;
+}
+.option > .check-row {
+  grid-column: 1 / 3;
+  display: flex;
+  align-items: center;
+  min-width: 0;
+}
+.option.unset .option-label,
+.option.unset input:disabled {
+  opacity: 0.6;
+}
+/* Printer and filament labels can be long ("Maximum acceleration X"): wrap them rather than cut them off. */
+.preset-settings-body .option-label {
+  white-space: normal;
+}

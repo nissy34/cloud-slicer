@@ -75,6 +75,14 @@ export interface SettingsLayout {
 export interface SettingsPage {
   page: string;
   groups: { title: string; options: string[] }[];
+  /** Desktop's Extruder 1, 2, ... pages: one per extruder, each editing its own entry. */
+  extruder?: boolean;
+  /** Options with a Normal and a Silent value (entries 0 and 1), as on Motion ability. */
+  limits?: string[];
+  /** Only for these gcode_flavor values. */
+  flavors?: string[];
+  /** The filament Setting Overrides page: unset (nil) values use the printer's. */
+  overrides?: boolean;
 }
 
 export interface VolumeInfo {
