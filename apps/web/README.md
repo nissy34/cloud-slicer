@@ -77,6 +77,7 @@ node test/warnings.mjs    # objects over the plate edge, slicing warnings
 node test/loading.mjs
 node test/cancel.mjs
 node test/brands.mjs     # every printer brand, loaded per brand, can-send marks
+node test/bed.mjs        # each printer's own bed shape and picture in the 3D view
 node test/device-smoke.mjs  # browser -> local relay -> bridge -> mock U1, and direct
 ```
 

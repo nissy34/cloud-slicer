@@ -16,6 +16,7 @@ import { onPlate } from '../lib/plateMenu';
 import { plateBounds } from '../lib/outside';
 import { NO_COLOURS, useOption, useSlicer } from '../state/store';
 import { setCameraSource } from '../state/view';
+import { Bed } from './Bed';
 import { BrimMarks } from './BrimEars';
 import { ObjectLabels, PlateName } from './Labels';
 import { MeasureOverlay } from './MeasureOverlay';
@@ -24,29 +25,6 @@ import { WipeTowerView } from './WipeTower';
 
 // Printer coordinates are Z-up with the plate from (0,0) to (w,d).
 THREE.Object3D.DEFAULT_UP.set(0, 0, 1);
-
-export function Bed({ w, d }: { w: number; d: number }) {
-  const scene = useSceneColours();
-  const grid = useMemo(() => {
-    const pts: number[] = [];
-    for (let x = 0; x <= w + 0.01; x += 10) pts.push(x, 0, 0, x, d, 0);
-    for (let y = 0; y <= d + 0.01; y += 10) pts.push(0, y, 0, w, y, 0);
-    const g = new THREE.BufferGeometry();
-    g.setAttribute('position', new THREE.Float32BufferAttribute(pts, 3));
-    return g;
-  }, [w, d]);
-  return (
-    <group>
-      <mesh position={[w / 2, d / 2, -0.2]} receiveShadow>
-        <planeGeometry args={[w, d]} />
-        <meshStandardMaterial color={scene.bed} roughness={0.9} />
-      </mesh>
-      <lineSegments geometry={grid}>
-        <lineBasicMaterial color={scene.grid} transparent opacity={0.6} />
-      </lineSegments>
-    </group>
-  );
-}
 
 interface Part {
   object: number;
@@ -1372,11 +1350,11 @@ function ThumbnailSource() {
   const camera = useThree((s) => s.camera);
   useEffect(() => {
     setCapture(() => {
-      // Desktop leaves the prime tower out of the plate picture.
-      const tower = scene.getObjectByName('wipe-tower');
-      if (tower) tower.visible = false;
+      // Desktop leaves the prime tower and the origin arrows out of the plate picture.
+      const hidden = ['wipe-tower', 'bed-axes'].map((n) => scene.getObjectByName(n)).filter((o) => o?.visible);
+      hidden.forEach((o) => (o!.visible = false));
       gl.render(scene, camera);
-      if (tower) tower.visible = true;
+      hidden.forEach((o) => (o!.visible = true));
       return gl.domElement;
     });
     return () => setCapture(null);
@@ -1418,7 +1396,7 @@ export function Viewport() {
         <color attach="background" args={[scene.background]} />
         <hemisphereLight args={['#ffffff', scene.ground, 0.9]} />
         <directionalLight position={[w, -d, d * 2]} intensity={1.6} />
-        <Bed w={w} d={d} />
+        <Bed />
         <PlateName d={d} />
         <PlateVolume />
         <Objects w={w} d={d} />

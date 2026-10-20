@@ -18,7 +18,11 @@ hosted on Cloudflare's free tier.
   printers and filaments you have: search, pictures, and a "Direct print" mark on the
   printers this app can send prints to (Klipper ones); for the others you download the
   G-code. Snapmaker's presets load at start and another brand's only once you pick one
-  of its printers, so the page starts as fast as with Snapmaker alone.
+  of its printers, so the page starts as fast as with Snapmaker alone. The 3D view shows the
+  selected printer's own bed like desktop: the brand's bed shape under the plate and its
+  print sheet picture (the Snapmaker U1's, a Bambu Lab sheet, Prusa's...) over the printable
+  area, with desktop's grid, the bed's exclusion areas and the X/Y/Z arrows at the origin;
+  a printer without one gets the plain plate.
 - **Process settings in desktop's own pages and groups**, with per-object settings and a
   Standard flow / High flow switch for options that hold one value per nozzle flow
   variant (the U1). Like desktop, settings that don't apply grey out or hide (support
@@ -284,6 +288,7 @@ Browser end to end tests (Playwright's Chromium) run against the built site
 | `test/accounts.mjs` | Sign-in, sessions, synced presets/settings/printers, online projects (Pages Functions + local D1, mock Google) |
 | `test/toolbar.mjs` | The object toolbar: add a model, variable layer height, simplify, brim ears, lay on face, measure, the object menu, parts and modifiers, mesh boolean, text and SVG shapes, assemble, fits a phone |
 | `test/mixing.mjs` | Make a colour mix, slice, the G-code alternates between both tools |
+| `test/bed.mjs` | A Bambu Lab A1, the U1 and a Prusa MK4 each show their own bed shape and picture, fetched only for that printer, in both engines |
 | `test/wipe-tower.mjs` | A two-filament plate shows the prime tower; drag it, and the slice prints it there |
 | `test/view-touch.mjs` | Phone 3D view: pinching on a model that fills the screen zooms out instead of moving it; Fit all and the views menu |
 | `test/loading.mjs` | The loading screen while the engine starts and a project opens |
