@@ -13,12 +13,13 @@
 // (AUTH_ORIGIN), the same split a branch preview has with production.
 import assert from 'node:assert/strict';
 import { spawn, spawnSync } from 'node:child_process';
-import { createHash } from 'node:crypto';
+import { createHash, generateKeyPairSync } from 'node:crypto';
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { createServer } from 'node:http';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { importJWK, jwtVerify } from 'jose';
 import { chromium } from 'playwright';
 
 const web = join(dirname(fileURLToPath(import.meta.url)), '..');
@@ -34,6 +35,8 @@ const MOCK = `http://127.0.0.1:${MOCK_PORT}`;
 const users = {
   alice: { sub: 'g-alice', name: 'Alice', email: 'alice@example.com', email_verified: true },
   bob: { sub: 'g-bob', name: 'Bob', email: 'bob@example.com', email_verified: true },
+  carol: { sub: 'g-carol', name: 'Carol', email: 'carol@example.com', email_verified: true },
+  dave: { sub: 'g-dave', name: 'Dave', email: 'Dave@Example.com', email_verified: true },
 };
 let nextUser = 'alice';
 const codes = new Map(); // code -> { user, challenge }
@@ -98,7 +101,10 @@ const migrate = spawnSync(wrangler, ['d1', 'migrations', 'apply', 'cloud-slicer'
 });
 assert.equal(migrate.status, 0, migrate.stderr + migrate.stdout);
 
+const ticketKeys = generateKeyPairSync('ec', { namedCurve: 'P-256' });
 const bindings = {
+  OWNER_EMAILS: 'alice@example.com',
+  RELAY_TICKET_KEY: JSON.stringify(ticketKeys.privateKey.export({ format: 'jwk' })),
   AUTH_ORIGIN: AUTH,
   TRUSTED_ORIGINS: `${HOST},${AUTH}`,
   BETTER_AUTH_SECRET: 'test-secret-test-secret-test-secret-0123',
@@ -404,6 +410,203 @@ test('projects: save a 3MF online, thumbnail, conflicts, rename, list, delete', 
   assert.equal((await alice.json('/api/projects/bad%20id', 'DELETE')).status, 400);
 });
 
+test('admin: only the owner (OWNER_EMAILS) gets the Admin page', async () => {
+  assert.equal((await alice.me()).owner, true);
+  const bob = new Browser();
+  await signIn(bob, 'bob');
+  assert.equal((await bob.me()).owner, false);
+  assert.equal((await bob.json('/api/admin')).status, 403);
+  assert.equal((await new Browser().json('/api/admin')).status, 401);
+  // Better Auth's own admin endpoints are owner-only too.
+  assert.notEqual((await bob.json('/api/auth/admin/list-users?limit=5')).status, 200);
+  const res = await alice.json('/api/admin');
+  assert.equal(res.status, 200, await res.clone().text());
+  const data = await res.json();
+  assert.deepEqual(data.settings, { inviteOnly: false, storageMb: 200, guestRelay: false });
+  const emails = data.users.map((u) => u.email);
+  assert.ok(emails.includes('alice@example.com') && emails.includes('bob@example.com'), emails.join());
+  const a = data.users.find((u) => u.email === 'alice@example.com');
+  assert.equal(a.owner, true);
+  assert.ok(a.projects >= 1 && a.bytes > 0 && a.presets >= 1, JSON.stringify(a));
+  assert.ok(a.createdAt > Date.now() - 3600_000 && a.lastSeen > Date.now() - 3600_000, `dates: ${a.createdAt} ${a.lastSeen}`);
+  assert.equal(data.usage.analytics, 'not-set-up');
+  assert.ok(data.usage.meters.find((m) => m.key === 'projects').used > 0);
+});
+
+/** The sign-in popup's closing page: the message the app shows, or null when signed in. */
+async function popupResult(browser, user) {
+  const { res } = await signIn(browser, user, { popup: true });
+  const html = await res.text();
+  const m = /"type":"error","message":"([^"]*)"/.exec(html);
+  return m ? m[1] : /"type":"signed-in"/.test(html) ? null : `unexpected page: ${html.slice(0, 200)}`;
+}
+
+test('invite only: new people are refused with a message; existing and invited ones get in', async () => {
+  assert.equal((await alice.json('/api/admin/settings', 'PUT', { inviteOnly: true })).status, 200);
+  const carol = new Browser();
+  assert.match(await popupResult(carol, 'carol'), /invite only/);
+  assert.equal(await carol.me(), null);
+  const data = await (await alice.json('/api/admin')).json();
+  assert.ok(!data.users.some((u) => u.email === 'carol@example.com'), 'no account was made for carol');
+  // Everyone who had an account went on the list when invite only was turned on.
+  const bob = new Browser();
+  assert.equal(await popupResult(bob, 'bob'), null);
+  assert.ok(data.users.find((u) => u.email === 'bob@example.com').allowed);
+  // An invite works for an email written in any case.
+  assert.equal((await alice.json('/api/admin/invites', 'POST', { email: 'dave@example.com' })).status, 200);
+  assert.deepEqual((await (await alice.json('/api/admin')).json()).invites.map((i) => i.email), ['dave@example.com']);
+  const dave = new Browser();
+  assert.equal(await popupResult(dave, 'dave'), null);
+  assert.equal((await dave.me()).name, 'Dave');
+  // Taken off the list while invite only: signed out, and refused next time.
+  const bobId = (await bob.me()).id;
+  assert.equal((await alice.json(`/api/admin/users/${bobId}/disallow`, 'POST', {})).status, 200);
+  assert.equal(await bob.me(), null);
+  assert.match(await popupResult(bob, 'bob'), /invite only/);
+  assert.equal((await alice.json(`/api/admin/users/${bobId}/allow`, 'POST', {})).status, 200);
+  assert.equal(await popupResult(bob, 'bob'), null);
+  assert.equal((await bob.json('/api/admin/settings', 'PUT', { inviteOnly: false })).status, 403);
+  assert.equal((await alice.json('/api/admin/settings', 'PUT', { inviteOnly: false })).status, 200);
+  assert.equal(await popupResult(new Browser(), 'carol'), null, 'open again');
+});
+
+test('block: signed out everywhere and refused; unblock lets them back', async () => {
+  const bob = new Browser();
+  await signIn(bob, 'bob');
+  const bob2 = new Browser();
+  await signIn(bob2, 'bob');
+  const bobId = (await bob.me()).id;
+  assert.equal((await alice.json(`/api/admin/users/${(await alice.me()).id}/block`, 'POST', {})).status, 400, "the owner can't be blocked");
+  assert.equal((await alice.json(`/api/admin/users/${bobId}/block`, 'POST', {})).status, 200);
+  assert.equal(await bob.me(), null);
+  assert.equal(await bob2.me(), null);
+  assert.equal((await bob.json('/api/presets')).status, 401);
+  assert.match(await popupResult(bob, 'bob'), /blocked/);
+  const row = (await (await alice.json('/api/admin')).json()).users.find((u) => u.id === bobId);
+  assert.equal(row.blocked, true);
+  assert.equal((await alice.json(`/api/admin/users/${bobId}/unblock`, 'POST', {})).status, 200);
+  assert.equal(await popupResult(bob, 'bob'), null);
+});
+
+test('storage per user: presets only refuses online projects, presets still save', async () => {
+  const bob = new Browser();
+  await signIn(bob, 'bob');
+  const bobId = (await bob.me()).id;
+  assert.equal((await alice.json(`/api/admin/users/${bobId}/storage`, 'PUT', { storageMb: 0 })).status, 200);
+  const list = await (await bob.json('/api/projects')).json();
+  assert.equal(list.limits.userBytes, 0);
+  const zip = new Uint8Array([0x50, 0x4b, 3, 4, 0, 0]);
+  const put = await bob.fetch(`${HOST}/api/projects/p1?name=x&baseVersion=0`, { method: 'PUT', headers: { Origin: HOST, 'Content-Type': 'model/3mf' }, body: zip });
+  assert.equal(put.status, 403);
+  assert.equal((await put.json()).code, 'presets-only');
+  assert.equal((await bob.json('/api/presets/process/Mine', 'PUT', { inherits: 'x', config: {} })).status, 200);
+  // A site default, then back to it.
+  assert.equal((await alice.json('/api/admin/settings', 'PUT', { storageMb: 50 })).status, 200);
+  assert.equal((await alice.json(`/api/admin/users/${bobId}/storage`, 'PUT', { storageMb: null })).status, 200);
+  assert.equal((await (await bob.json('/api/projects')).json()).limits.userBytes, 50 * 1024 * 1024);
+  assert.equal((await alice.json(`/api/admin/users/${bobId}/storage`, 'PUT', { storageMb: 99999 })).status, 400);
+  await alice.json('/api/admin/settings', 'PUT', { storageMb: 200 });
+});
+
+test('relay tickets: signed-in accounts only, for one bridge, with a bridge cap', async () => {
+  const relay = 'https://relay.example';
+  assert.equal((await new Browser().json('/api/relay/ticket', 'POST', { relay, bridgeId: 'bridge-0001' })).status, 401);
+  const carol = new Browser();
+  await signIn(carol, 'carol');
+  const res = await carol.json('/api/relay/ticket', 'POST', { relay, bridgeId: 'bridge-0001' });
+  assert.equal(res.status, 200, await res.clone().text());
+  const { ticket, expiresAt } = await res.json();
+  const { payload } = await jwtVerify(ticket, await importJWK(ticketKeys.publicKey.export({ format: 'jwk' }), 'ES256'), { audience: 'cloud-slicer-relay' });
+  assert.equal(payload.sub, (await carol.me()).id);
+  assert.equal(payload.b, 'bridge-0001');
+  assert.equal(payload.cams, 2);
+  assert.ok(expiresAt > Date.now() + 3000_000);
+  for (const id of ['bridge-0002', 'bridge-0003', 'bridge-0001']) assert.equal((await carol.json('/api/relay/ticket', 'POST', { relay, bridgeId: id })).status, 200);
+  const fourth = await carol.json('/api/relay/ticket', 'POST', { relay, bridgeId: 'bridge-0004' });
+  assert.equal(fourth.status, 403);
+  assert.equal((await fourth.json()).code, 'bridge-limit');
+  assert.equal((await carol.json('/api/relay/bridges/bridge-0002', 'DELETE')).status, 200);
+  assert.equal((await carol.json('/api/relay/ticket', 'POST', { relay, bridgeId: 'bridge-0004' })).status, 200, 'a removed bridge frees a place');
+  assert.equal((await carol.json('/api/relay/ticket', 'POST', { relay: 'http://evil.example', bridgeId: 'bridge-0005' })).status, 400);
+  const row = (await (await alice.json('/api/admin')).json()).users.find((u) => u.email === 'carol@example.com');
+  assert.equal(row.bridges, 3);
+});
+
+test('relay for signed-out people: off by default, the owner can turn it on (never while invite only)', async () => {
+  const relay = 'https://relay.example';
+  const guest = new Browser();
+  assert.equal((await guest.json('/api/relay/ticket', 'POST', { relay, bridgeId: 'bridge-guest1' })).status, 401);
+  await alice.json('/api/admin/settings', 'PUT', { guestRelay: true });
+  const res = await guest.json('/api/relay/ticket', 'POST', { relay, bridgeId: 'bridge-guest1' });
+  assert.equal(res.status, 200);
+  const { payload } = await jwtVerify((await res.json()).ticket, await importJWK(ticketKeys.publicKey.export({ format: 'jwk' }), 'ES256'));
+  assert.equal(payload.sub, 'guest:bridge-guest1');
+  assert.equal(payload.cams, 1);
+  await alice.json('/api/admin/settings', 'PUT', { inviteOnly: true });
+  assert.equal((await guest.json('/api/relay/ticket', 'POST', { relay, bridgeId: 'bridge-guest1' })).status, 401, 'not while invite only');
+  await alice.json('/api/admin/settings', 'PUT', { inviteOnly: false, guestRelay: false });
+  assert.equal((await guest.json('/api/relay/ticket', 'POST', { relay, bridgeId: 'bridge-guest1' })).status, 401);
+});
+
+test('bridges: the owner turns one off for everyone, or bridges off for one person', async () => {
+  const relay = 'https://relay.example';
+  const carol = new Browser();
+  await signIn(carol, 'carol');
+  const carolId = (await carol.me()).id;
+  assert.equal((await carol.json('/api/relay/ticket', 'POST', { relay, bridgeId: 'bridge-0003' })).status, 200);
+  const listed = (await (await alice.json('/api/admin')).json()).bridges.find((b) => b.id === 'bridge-0003');
+  assert.ok(listed && listed.people.includes('Carol') && !listed.off, JSON.stringify(listed));
+  assert.equal((await alice.json('/api/admin/bridges/bridge-0003/off', 'POST', {})).status, 200);
+  const refused = await carol.json('/api/relay/ticket', 'POST', { relay, bridgeId: 'bridge-0003' });
+  assert.equal(refused.status, 403);
+  assert.equal((await refused.json()).code, 'bridge-off');
+  assert.equal((await (await alice.json('/api/admin')).json()).bridges.find((b) => b.id === 'bridge-0003').off, true);
+  assert.equal((await alice.json('/api/admin/bridges/bridge-0003/on', 'POST', {})).status, 200);
+  assert.equal((await carol.json('/api/relay/ticket', 'POST', { relay, bridgeId: 'bridge-0003' })).status, 200);
+  assert.equal((await alice.json('/api/admin/bridges/no-such-bridge/off', 'POST', {})).status, 404);
+  // One person: no bridges at all, then allowed again; storage settings are kept.
+  await alice.json(`/api/admin/users/${carolId}/storage`, 'PUT', { storageMb: 100 });
+  assert.equal((await alice.json(`/api/admin/users/${carolId}/bridges`, 'PUT', { allowed: false })).status, 200);
+  const none = await carol.json('/api/relay/ticket', 'POST', { relay, bridgeId: 'bridge-0003' });
+  assert.equal(none.status, 403);
+  assert.equal((await none.json()).code, 'no-bridges');
+  const row = (await (await alice.json('/api/admin')).json()).users.find((u) => u.id === carolId);
+  assert.equal(row.bridgesAllowed, false);
+  assert.equal(row.storageMb, 100);
+  await alice.json(`/api/admin/users/${carolId}/storage`, 'PUT', { storageMb: null });
+  assert.equal((await alice.json(`/api/admin/users/${carolId}/bridges`, 'PUT', { allowed: true })).status, 200);
+  assert.equal((await carol.json('/api/relay/ticket', 'POST', { relay, bridgeId: 'bridge-0003' })).status, 200);
+  // Signed-out use shows on the bridge list.
+  await alice.json('/api/admin/settings', 'PUT', { guestRelay: true });
+  await new Browser().json('/api/relay/ticket', 'POST', { relay, bridgeId: 'bridge-guest2' });
+  await alice.json('/api/admin/settings', 'PUT', { guestRelay: false });
+  assert.ok((await (await alice.json('/api/admin')).json()).bridges.find((b) => b.id === 'bridge-guest2').guestUsed > 0);
+});
+
+test('delete a person: account, presets, printers, projects and files go', async () => {
+  const erin = new Browser();
+  users.erin = { sub: 'g-erin', name: 'Erin', email: 'erin@example.com', email_verified: true };
+  await signIn(erin, 'erin');
+  const erinId = (await erin.me()).id;
+  await erin.json('/api/presets/process/Fast', 'PUT', { inherits: 'x', config: {} });
+  await erin.json('/api/devices/e1', 'PUT', { name: 'E1', url: 'http://10.0.0.5', apiKey: 'k' });
+  const zip = new Uint8Array([0x50, 0x4b, 3, 4, 1, 2, 3]);
+  const put = await erin.fetch(`${HOST}/api/projects/ep?name=x&baseVersion=0`, { method: 'PUT', headers: { Origin: HOST, 'Content-Type': 'model/3mf' }, body: zip });
+  assert.equal(put.status, 200, await put.clone().text());
+  const before = (await (await alice.json('/api/admin')).json()).usage.meters.find((m) => m.key === 'projects').used;
+  assert.equal((await alice.json(`/api/admin/users/${(await alice.me()).id}/delete`, 'POST', {})).status, 400, "the owner can't delete themself here");
+  assert.equal((await alice.json(`/api/admin/users/${erinId}/delete`, 'POST', {})).status, 200);
+  assert.equal(await erin.me(), null);
+  const after = await (await alice.json('/api/admin')).json();
+  assert.ok(!after.users.some((u) => u.id === erinId));
+  assert.equal(after.usage.meters.find((m) => m.key === 'projects').used, before - zip.length);
+  // Signing up again starts empty.
+  await signIn(erin, 'erin');
+  assert.notEqual((await erin.me()).id, erinId);
+  assert.equal((await (await erin.json('/api/presets')).json()).presets.length, 0);
+  assert.equal((await (await erin.json('/api/projects')).json()).projects.length, 0);
+});
+
 test('signing in again, on another device, finds the same account', async () => {
   const me = await alice.me();
   assert.equal(me.email, 'alice@example.com');
@@ -434,6 +637,75 @@ test('sign out, then delete the account and its presets', async () => {
 });
 
 const bobBrowser = new Browser();
+if (withApp)
+  test('browser: the owner opens the Admin page from the account menu (desktop and phone)', async () => {
+    const owner = new Browser();
+    await signIn(owner, 'alice');
+    const dave = new Browser();
+    await signIn(dave, 'dave');
+    await owner.json(`/api/admin/users/${(await dave.me()).id}/block`, 'POST', {});
+    await owner.json('/api/admin/invites', 'POST', { email: 'frank@example.com' });
+    const browser = await chromium.launch(
+      process.env.PLAYWRIGHT_BROWSERS_PATH === '/opt/pw-browsers' ? { executablePath: '/opt/pw-browsers/chromium' } : {},
+    );
+    try {
+      const context = await browser.newContext({ viewport: { width: 1280, height: 860 } });
+      await context.addCookies([...owner.jar.get(new URL(HOST).host)].map(([name, value]) => ({ name, value, url: HOST })));
+      const page = await context.newPage();
+      await page.goto(HOST);
+      const wizard = page.getByRole('dialog', { name: 'Set up your printers' });
+      await page.getByText('Open a model to start').waitFor({ timeout: 120000 });
+      await page.getByRole('button', { name: /Alice/ }).waitFor({ timeout: 60000 });
+      await wizard.waitFor({ timeout: 5000 }).catch(() => {});
+      if (await wizard.isVisible().catch(() => false)) await wizard.getByRole('button', { name: 'Not now' }).click();
+      await page.getByRole('button', { name: /Alice/ }).click();
+      await page.getByRole('button', { name: 'Admin: people and limits' }).click();
+      const admin = page.getByTestId('admin');
+      await admin.getByText('Free tier use').waitFor();
+      await admin.getByText('dave@example.com').waitFor();
+      await admin.getByText('Blocked').waitFor();
+      await admin.getByText('frank@example.com').waitFor();
+      // Invite only, from the page.
+      await admin.getByLabel(/Invite only/).click();
+      await admin.getByText('Only people on the list can sign in.').waitFor();
+      assert.equal((await (await owner.json('/api/admin')).json()).settings.inviteOnly, true);
+      if (process.env.ACCOUNTS_SHOTS) await page.screenshot({ path: join(process.env.ACCOUNTS_SHOTS, 'admin-desktop.png'), fullPage: true });
+      await page.setViewportSize({ width: 390, height: 844 });
+      const wide = await page.evaluate(() => [...document.querySelectorAll('.admin *')].filter((e) => e.getBoundingClientRect().right > 391).length);
+      assert.equal(wide, 0, 'nothing wider than a phone');
+      if (process.env.ACCOUNTS_SHOTS) {
+        await page.screenshot({ path: join(process.env.ACCOUNTS_SHOTS, 'admin-phone.png') });
+        await admin.getByText('People (').scrollIntoViewIfNeeded();
+        await page.screenshot({ path: join(process.env.ACCOUNTS_SHOTS, 'admin-phone-people.png') });
+      }
+      const daveRow = admin.getByTestId('admin-user').filter({ hasText: 'dave@example.com' });
+      await daveRow.getByRole('button', { name: 'Delete', exact: true }).click();
+      await daveRow.getByText("This can't be undone.", { exact: false }).scrollIntoViewIfNeeded();
+      if (process.env.ACCOUNTS_SHOTS) await page.screenshot({ path: join(process.env.ACCOUNTS_SHOTS, 'admin-phone-delete.png') });
+      await daveRow.getByRole('button', { name: 'Keep' }).click();
+      await admin.getByText(/^Bridges \(/).scrollIntoViewIfNeeded();
+      await admin.getByTestId('admin-bridge').last().scrollIntoViewIfNeeded();
+      if (process.env.ACCOUNTS_SHOTS) await page.screenshot({ path: join(process.env.ACCOUNTS_SHOTS, 'admin-phone-bridges.png') });
+      await admin.getByLabel(/Invite only/).click();
+      await admin.getByText('Anyone with a Google account can sign in.', { exact: false }).waitFor();
+      await page.getByRole('button', { name: 'Back to the slicer' }).click();
+      await page.getByTestId('admin').waitFor({ state: 'detached' });
+      // Someone else doesn't get the button.
+      const other = await browser.newContext();
+      const bob = new Browser();
+      await signIn(bob, 'bob');
+      await other.addCookies([...bob.jar.get(new URL(HOST).host)].map(([name, value]) => ({ name, value, url: HOST })));
+      const p2 = await other.newPage();
+      await p2.goto(HOST);
+      await p2.getByRole('button', { name: /Bob/ }).click({ timeout: 60000 });
+      await p2.getByText('Signed in with Google').waitFor();
+      assert.equal(await p2.getByRole('button', { name: 'Admin: people and limits' }).count(), 0);
+    } finally {
+      await owner.json(`/api/admin/users/${(await dave.me())?.id ?? ''}/unblock`, 'POST', {}).catch(() => {});
+      await browser.close();
+    }
+  });
+
 if (withApp)
   test('browser: Sign in button, popup sign-in, account menu, sign out', async () => {
     await signIn(bobBrowser, 'bob');

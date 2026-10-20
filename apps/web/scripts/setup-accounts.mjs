@@ -11,11 +11,17 @@
 //     repository secrets) into Pages secrets, for production and previews.
 //  4. Creates BETTER_AUTH_SECRET (sessions) and ACCOUNT_ENC_KEY (printer API
 //     keys) once, if missing. Production and previews share them.
+//  5. The Admin page: copies OWNER_EMAILS (who may open it) and, if set,
+//     CLOUDFLARE_ANALYTICS_TOKEN (a read-only token for its usage numbers).
+//  6. Creates the relay ticket key pair once: the private half signs tickets
+//     (Pages secret RELAY_TICKET_KEY), the public half goes to the relay
+//     Worker (secret RELAY_TICKET_PUBLIC_KEY), which then only lets in
+//     browsers of signed-in, allowed accounts.
 //
 // Prints `d1=ok|missing` and `r2=ok|missing` for $GITHUB_OUTPUT. Never fails the build.
 //
 //   CLOUDFLARE_API_TOKEN=… CLOUDFLARE_ACCOUNT_ID=… PROJECT=cloud-slicer node scripts/setup-accounts.mjs
-import { randomBytes } from 'node:crypto';
+import { generateKeyPairSync, randomBytes } from 'node:crypto';
 import { appendFileSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -27,6 +33,7 @@ const project = process.env.PROJECT || 'cloud-slicer';
 const DB_NAME = 'cloud-slicer';
 const BUCKET = 'cloud-slicer-projects';
 const SECRET_NAMES = ['GOOGLE_CLIENT_ID', 'GOOGLE_CLIENT_SECRET'];
+const RELAY_WORKER = process.env.RELAY_WORKER || 'cloud-slicer-relay';
 
 const warn = (msg) => console.log(`::warning::${msg}`);
 const output = (line) => {
@@ -100,15 +107,51 @@ async function setupSecrets() {
         vars[name] = randomBytes(32).toString('base64');
         console.log(`created ${name}`);
       }
-    if (!Object.keys(vars).length) return;
-    const env_vars = Object.fromEntries(Object.entries(vars).map(([k, value]) => [k, { type: 'secret_text', value }]));
+    // The Admin page.
+    if (process.env.OWNER_EMAILS) vars.OWNER_EMAILS = process.env.OWNER_EMAILS;
+    else warn('No OWNER_EMAILS repository secret: nobody can open the Admin page. Add your Google email as that secret.');
+    const plain = {};
+    if (process.env.CLOUDFLARE_ANALYTICS_TOKEN) {
+      vars.CF_ANALYTICS_TOKEN = process.env.CLOUDFLARE_ANALYTICS_TOKEN;
+      plain.CF_ACCOUNT_ID = account;
+    }
+    // Relay tickets: generated once. The public half is plain text so later runs can hand it to the relay.
+    let publicKey = existing.RELAY_TICKET_PUBLIC_KEY?.value;
+    if (!existing.RELAY_TICKET_KEY || !publicKey) {
+      const pair = generateKeyPairSync('ec', { namedCurve: 'P-256' });
+      vars.RELAY_TICKET_KEY = JSON.stringify(pair.privateKey.export({ format: 'jwk' }));
+      publicKey = JSON.stringify(pair.publicKey.export({ format: 'jwk' }));
+      plain.RELAY_TICKET_PUBLIC_KEY = publicKey;
+      console.log('created RELAY_TICKET_KEY');
+    }
+    await relayPublicKey(publicKey, Boolean(plain.RELAY_TICKET_PUBLIC_KEY));
+    if (!Object.keys(vars).length && !Object.keys(plain).length) return;
+    const env_vars = {
+      ...Object.fromEntries(Object.entries(vars).map(([k, value]) => [k, { type: 'secret_text', value }])),
+      ...Object.fromEntries(Object.entries(plain).map(([k, value]) => [k, { type: 'plain_text', value }])),
+    };
     await cf(`/pages/projects/${project}`, {
       method: 'PATCH',
       body: JSON.stringify({ deployment_configs: { production: { env_vars }, preview: { env_vars } } }),
     });
-    console.log(`Pages secrets set: ${Object.keys(vars).join(', ')}`);
+    console.log(`Pages settings set: ${Object.keys(env_vars).join(', ')}`);
   } catch (e) {
     warn(`Could not set the Pages secrets (${e.message}).`);
+  }
+}
+
+/** Gives the relay Worker the ticket public key when it lacks it (or the key is new). */
+async function relayPublicKey(publicKey, isNew) {
+  try {
+    const names = ((await cf(`/workers/scripts/${RELAY_WORKER}/secrets`)) ?? []).map((x) => x.name);
+    if (names.includes('RELAY_TICKET_PUBLIC_KEY') && !isNew) return;
+    await cf(`/workers/scripts/${RELAY_WORKER}/secrets`, {
+      method: 'PUT',
+      body: JSON.stringify({ name: 'RELAY_TICKET_PUBLIC_KEY', text: publicKey, type: 'secret_text' }),
+    });
+    console.log(`relay ${RELAY_WORKER}: ticket key set`);
+  } catch (e) {
+    warn(`Could not give the relay its ticket key (${e.message}); it lets any pairing code in until it has one.`);
   }
 }
 

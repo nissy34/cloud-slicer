@@ -173,6 +173,43 @@ Every deploy signs in through one host (`AUTH_ORIGIN` in `apps/web/wrangler.toml
 https://slicer.awesomestuff.qzz.io) with Better Auth's oAuthProxy plugin, so branch
 previews work with one Google OAuth client.
 
+## Admin page and limits
+
+The site's owner (the Google emails in the `OWNER_EMAILS` repository secret) gets
+**Admin: people and limits** in the account menu. It lists every account (joined, last
+seen, storage used, projects, presets, printers, bridges) with **Block** / **Unblock** and
+**Delete** (removes the account, presets, printers, projects and their files),
+has an **Invite only** switch with an email list, sets **online project storage** per
+person (a site default plus per-person overrides; "Presets only" turns online projects
+off while presets and printers still save), and shows the site's use against
+Cloudflare's free limits. Nothing changes for people who are allowed.
+
+- Blocking and the user list are Better Auth's admin plugin: a blocked person is signed
+  out everywhere and refused at sign-in. Invite only is a Better Auth database hook on
+  new accounts and new sessions; turning it on keeps everyone who already has an account.
+- The bridge relay only lets in browsers of signed-in, allowed accounts. The site gives
+  the browser a ticket for each bridge (a short-lived JWT signed with `RELAY_TICKET_KEY`;
+  the relay has only the public key) and renews it by itself. Each account can use 3
+  bridges and watch 2 cameras at a time through a bridge. Blocking someone drops their
+  relay connections at once. The first account to use a bridge owns it; a bridge that no
+  signed-in browser opens within 7 days of its first connection is turned away, and so is
+  a bridge whose owner is blocked. Bridges set up before this keep working: their 7 days
+  start at their next connection, and opening the Device tab once while signed in ties
+  them to the account. Signed out, bridge printers show a Sign in button; printers
+  reached directly need no account. The Admin switch **Signed-out people can use bridges**
+(off by default, never while invite only) gives signed-out browsers a ticket too, with one
+camera at a time; they have no account, so they can't be blocked, and turning the switch
+off disconnects them at once. The Admin page's **Bridges** list shows every bridge in use
+and who uses it: **Turn off** closes a bridge for everyone and refuses its bridge app until
+it is turned on again. Each person can also be set to "Bridges: not allowed".
+- Usage: storage, accounts and bridges come from D1. Today's request counts (site and
+  relay, database rows) need a read-only Cloudflare token: create one from the "Read
+  analytics and logs" template and add it as the repository secret
+  `CLOUDFLARE_ANALYTICS_TOKEN`.
+
+Setup, once: add your Google email as the repository secret `OWNER_EMAILS` (several:
+comma separated). CI copies it to Pages and creates the relay ticket key pair.
+
 ## Preset files
 
 Each preset picker's ⋯ menu exports the preset as desktop Orca's preset JSON, exports all
@@ -194,7 +231,7 @@ colour mixes and the full print, filament and printer settings, so it reopens he
 desktop Orca. Signed out, Save downloads the file. Signed in, Save keeps it in the
 account's online projects: the 3MF and a thumbnail in R2 (`PROJECTS` bucket), indexed in
 D1 (`projects` table). Limits keep R2 inside its free 10 GB: 50 MB per project, 200 MB
-and 200 projects per user, 8 GB for the whole site. Saves carry the version they started
+(changeable on the Admin page) and 200 projects per user, 8 GB for the whole site. Saves carry the version they started
 from, so a save from a second device asks before overwriting.
 
 Setup, once: give the Cloudflare token "D1: Edit", create a Google OAuth client
@@ -236,7 +273,8 @@ Printers & bridges window lists each bridge with its printers, removes either on
 its own, adds printers to a saved bridge with no pairing again, and removing a
 running bridge makes it uninstall itself from its computer.
 Pairing links carry a browser key derived from the bridge's secret; the relay stores
-only hashes and rate-limits connects. The apps are unsigned (signing costs money),
+only hashes and rate-limits connects. Using a bridge needs a signed-in account (see
+Admin page and limits). The apps are unsigned (signing costs money),
 which is why Windows warns and why macOS uses the Terminal command. More in
 [apps/device-bridge/README.md](apps/device-bridge/README.md) and
 [apps/device-relay/SECURITY.md](apps/device-relay/SECURITY.md).

@@ -21,10 +21,15 @@
 //   PUT    /api/projects/<id>/thumbnail     set the thumbnail (body: PNG)
 //   PATCH  /api/projects/<id>               rename ({ name, baseVersion? })
 //   DELETE /api/projects/<id>
+//   POST   /api/relay/ticket                a ticket for the bridge relay ({ relay, bridgeId })
+//   DELETE /api/relay/bridges/<id>          a removed bridge stops counting against the cap
+//   *      /api/admin/...                   the owner's Admin page (functions/_lib/admin.ts)
+import * as admin from '../_lib/admin';
 import * as auth from '../_lib/auth';
 import { HttpError, json } from '../_lib/http';
 import * as presets from '../_lib/presets';
 import * as projects from '../_lib/projects';
+import * as relay from '../_lib/relay';
 import type { Env, PagesContext } from '../_lib/types';
 import * as userdata from '../_lib/userdata';
 
@@ -76,6 +81,20 @@ export async function onRequest({ request, env }: PagesContext): Promise<Respons
       if (parts.length === 2 && m === 'PUT') return await projects.put(env, request, b);
       if (parts.length === 2 && m === 'PATCH') return await projects.rename(env, request, b);
       if (parts.length === 2 && m === 'DELETE') return await projects.remove(env, request, b);
+    }
+    if (a === 'relay') {
+      if (b === 'ticket' && parts.length === 2 && m === 'POST') return await relay.ticket(env, request);
+      if (b === 'bridges' && parts.length === 3 && m === 'DELETE') return await relay.forget(env, request, c);
+    }
+    if (a === 'admin') {
+      if (parts.length === 1 && m === 'GET') return await admin.overview(env, request);
+      if (b === 'settings' && parts.length === 2 && m === 'PUT') return await admin.putSettings(env, request);
+      if (b === 'users' && parts.length === 4 && parts[3] === 'storage' && m === 'PUT') return await admin.putUserStorage(env, request, c);
+      if (b === 'users' && parts.length === 4 && parts[3] === 'bridges' && m === 'PUT') return await admin.putUserBridges(env, request, c);
+      if (b === 'users' && parts.length === 4 && m === 'POST') return await admin.userAction(env, request, c, parts[3]);
+      if (b === 'bridges' && parts.length === 4 && m === 'POST') return await admin.bridgeAction(env, request, c, parts[3]);
+      if (b === 'invites' && parts.length === 2 && m === 'POST') return await admin.addInvite(env, request);
+      if (b === 'invites' && parts.length === 3 && m === 'DELETE') return await admin.removeInvite(env, request, c);
     }
     throw new HttpError(404, 'Not found');
   } catch (e) {
