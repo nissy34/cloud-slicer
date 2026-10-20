@@ -3985,3 +3985,120 @@ button.volume-name {
   gap: 6px;
   justify-items: start;
 }
+
+/* Preview layer slider: markers of pauses, filament changes and G-code at layers, and their menu. */
+.layer-track {
+  position: relative;
+  flex: 1;
+  display: flex;
+  align-items: center;
+  min-width: 0;
+}
+.layer-track input {
+  flex: 1;
+  min-width: 0;
+}
+.layer-marks {
+  position: absolute;
+  inset: auto 0 calc(50% + 10px) 0;
+  height: 0;
+  pointer-events: none;
+}
+.layer-mark {
+  position: absolute;
+  bottom: 0;
+  width: 18px;
+  height: 14px;
+  margin-left: -9px;
+  padding: 0;
+  border: 0;
+  background: none;
+  pointer-events: auto;
+  cursor: pointer;
+}
+/* A small flag pointing down at the layer, in the item's colour. */
+.layer-mark::after {
+  content: '';
+  position: absolute;
+  left: 4px;
+  bottom: 0;
+  border-left: 5px solid transparent;
+  border-right: 5px solid transparent;
+  border-top: 9px solid currentColor;
+  /* Outlined, so a dark or light filament still shows on either theme. */
+  filter: drop-shadow(0 0 1px var(--muted));
+}
+.layer-mark.custom::after,
+.layer-mark.template::after {
+  left: 5px;
+  width: 8px;
+  height: 8px;
+  border: 0;
+  border-radius: 50%;
+  background: currentColor;
+}
+.layer-add {
+  flex: none;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  color: var(--text);
+  font-size: 18px;
+  line-height: 1;
+}
+.layer-add.has-code {
+  color: var(--accent);
+  border-color: var(--accent);
+}
+.object-menu.layer-menu {
+  position: absolute;
+  right: max(16px, calc(50% - 260px));
+  bottom: 76px;
+  max-height: min(60%, 420px);
+}
+.layer-menu .menu-label {
+  padding: 6px 10px 2px;
+  font-size: 13px;
+  color: var(--muted);
+}
+.layer-filaments {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 4px 10px 6px;
+}
+.layer-filament {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 34px;
+  padding: 4px 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface-2);
+  color: var(--text);
+}
+.layer-filament.current {
+  border-color: var(--accent);
+}
+.layer-filament:disabled:not(.current) {
+  opacity: 0.5;
+}
+.layer-menu textarea {
+  width: 100%;
+  box-sizing: border-box;
+  font-family: ui-monospace, monospace;
+  font-size: 13px;
+}
+@media (max-width: 760px) {
+  .object-menu.layer-menu {
+    right: 8px;
+    left: 8px;
+    width: auto;
+    bottom: 74px;
+    max-height: 45%;
+  }
+}

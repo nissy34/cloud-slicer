@@ -159,6 +159,7 @@ int Project::plateOf(const ModelInstance& inst) const {
 void Project::clear() {
     model.clear_objects();
     model.clear_materials();
+    model.plates_custom_gcodes.clear();
     release_PlateData_list(plates);
     fileConfig.clear();
     fileName.clear();

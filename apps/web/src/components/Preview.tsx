@@ -5,10 +5,12 @@ import * as THREE from 'three';
 import { bedSize, rgb } from '../lib/colour';
 import { formatMegabytes } from '../lib/format';
 import { FEATURE_COLOURS, FEATURES, type PreviewGcode } from '../lib/gcode';
+import { codeAt } from '../lib/layerCodes';
 import { useSceneColours } from '../lib/theme';
 import type { GcodeWorkerMessage } from '../engine/gcode-worker';
 import { useLoading } from '../state/loading';
 import { NO_COLOURS, useOption, useSlicer } from '../state/store';
+import { LayerMarks, LayerMenu, useLayerCodes } from './LayerCodes';
 import { PrintLoader } from './PrintLoader';
 import { CameraViews, ViewButtons, type ViewHandle } from './ViewControls';
 import { Bed } from './Viewport';
@@ -275,7 +277,18 @@ export function Preview() {
   const scene = useSceneColours();
   const [moving, onCameraChange] = useMoving();
   const views: ViewHandle = useRef(null);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const codes = useLayerCodes();
+  const slicing = useSlicer((s) => s.job.kind === 'slicing');
 
+  if (!gcode && slicing) {
+    return (
+      <div className="coming-soon">
+        <h1>Slicing the plate</h1>
+        <p>Its toolpaths show here when it's done.</p>
+      </div>
+    );
+  }
   if (!gcode) {
     return (
       <div className="coming-soon">
@@ -346,19 +359,39 @@ export function Preview() {
           />
         </div>
       )}
+      {parsed && layers > 0 && menuOpen && (
+        <LayerMenu key={upTo} layerZ={parsed.layerZ} layer={upTo} onLayer={setLayer} onClose={() => setMenuOpen(false)} />
+      )}
       {parsed && layers > 0 && (
         <div className="layer-slider">
-          <input
-            type="range"
-            aria-label="Layer"
-            min={0}
-            max={layers - 1}
-            value={upTo}
-            onChange={(e) => setLayer(Number(e.target.value))}
-          />
+          <div className="layer-track">
+            <input
+              type="range"
+              aria-label="Layer"
+              min={0}
+              max={layers - 1}
+              value={upTo}
+              onChange={(e) => setLayer(Number(e.target.value))}
+              // Desktop opens the slider's menu with a right click; a long press here.
+              onContextMenu={(e) => {
+                e.preventDefault();
+                setMenuOpen(true);
+              }}
+            />
+            <LayerMarks layerZ={parsed.layerZ} onLayer={setLayer} />
+          </div>
           <span className="layer-label" data-testid="layer-label">
             {upTo + 1} / {layers} · {parsed.layerZ[upTo].toFixed(2)} mm
           </span>
+          <button
+            className={`layer-add${codeAt(codes, parsed.layerZ, upTo) ? ' has-code' : ''}`}
+            aria-label={codeAt(codes, parsed.layerZ, upTo) ? 'Change what happens at this layer' : 'Add a pause, filament change or G-code at this layer'}
+            title={codeAt(codes, parsed.layerZ, upTo) ? 'Change what happens at this layer' : 'Add a pause, filament change or G-code at this layer'}
+            aria-expanded={menuOpen}
+            onClick={() => setMenuOpen((o) => !o)}
+          >
+            {codeAt(codes, parsed.layerZ, upTo) ? '✎' : '+'}
+          </button>
         </div>
       )}
     </div>

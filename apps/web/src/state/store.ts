@@ -12,6 +12,7 @@ import type {
   OrcaConfig,
   PresetSummary,
   PreviewMesh,
+  LayerCode,
   ProjectInfo,
   Selection,
   SettingsLayout,
@@ -57,7 +58,8 @@ export type Job =
   /** label: what the loading screen says, when not "Opening <name>". */
   | { kind: 'loading'; name: string; label?: string }
   | { kind: 'slicing'; pct: number; stage: string }
-  | { kind: 'sliced'; plate: number; result: SliceResult; gcode: Blob; ms: number }
+  /** outdated: the plate's layer items (pauses...) changed after this slice, so the G-code lacks them. */
+  | { kind: 'sliced'; plate: number; result: SliceResult; gcode: Blob; ms: number; outdated?: boolean }
   /** inTool: it came from the open tool (or paint), so it shows in the tool's card and goes when the tool closes. */
   | { kind: 'error'; message: string; inTool?: boolean };
 
@@ -240,6 +242,12 @@ export interface SlicerState {
   openPlateMenu(menu: SlicerState['plateMenu']): void;
   /** A plate menu action on the shown plate (engine/src/plate_api.cpp); a new object is picked. */
   plateAction(request: PlateAction, label: string): Promise<void>;
+  /**
+   * Replaces the sliced plate's pauses, filament changes and custom G-code
+   * (from the Preview's layer slider) as one undo step. The preview stays,
+   * marked outdated until the plate is sliced again.
+   */
+  setLayerCodes(codes: LayerCode[], label: string): Promise<void>;
   /** One of the object menu's edits (rename, printable, center, scale to fit, units...); one undo step. */
   objectAction(o: number, i: number, request: ObjectAction, label: string): Promise<void>;
   /** Desktop's Clone: `count` copies as new objects, then (optionally) Arrange. */
@@ -1131,6 +1139,23 @@ export const useSlicer = create<SlicerState>((set, get) => {
         return out.info;
       });
       if (object !== undefined && get().project?.objects[object]) set({ selected: { object, instance: 0 } });
+    },
+    setLayerCodes: async (codes, label) => {
+      const job = get().job;
+      if (job.kind !== 'sliced') return;
+      const e = engine();
+      let remembered = false;
+      try {
+        set({ history: await e.snapshot(label) });
+        remembered = true;
+        const filaments = get().palette.length || (get().selection?.colours.length ?? 1);
+        const { info } = await e.plateAction(job.plate, { op: 'layerCodes', codes, filaments });
+        const now = get().job;
+        set({ project: info, job: now.kind === 'sliced' ? { ...now, outdated: true } : now });
+      } catch (err) {
+        if (remembered) set({ history: await e.dropSnapshot().catch(() => get().history) });
+        fail(err);
+      }
     },
     objectAction: (o, i, request, label) => projectEdit(label, () => engine().objectAction(o, i, request)),
     cloneObject: async (o, count, arrange) => {

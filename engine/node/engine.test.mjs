@@ -1512,41 +1512,41 @@ test('layer slider: a pause, a filament change and custom G-code at a layer, per
   assert.deepEqual(codes(), []);
   assert.deepEqual(info().plates[0].filaments, [1], 'the cube prints with filament 1');
 
-  // Desktop's "Add Pause", "Change Filament > Filament 2" and "Add Custom G-code".
+  // Desktop's "Add Pause" (layer tops are 0.25 mm, then every 0.2 mm), "Change Filament > Filament 2" and "Add Custom G-code".
   selectSlots(2);
   const config = fullConfig({ filament_colour: '#FF0000;#0000FF' });
   plate(0, {
     op: 'layerCodes',
     filaments: 2,
     codes: [
-      { z: 10.2, type: 'filament', filament: 2, colour: '#0000FF' },
-      { z: 4.2, type: 'pause' },
-      { z: 6.2, type: 'custom', gcode: 'M117 LAYER_MARK' },
+      { z: 10.25, type: 'filament', filament: 2, colour: '#0000FF' },
+      { z: 4.25, type: 'pause' },
+      { z: 6.25, type: 'custom', gcode: 'M117 LAYER_MARK' },
     ],
   });
-  assert.deepEqual(codes().map((c) => [c.z, c.type]), [[4.2, 'pause'], [6.2, 'custom'], [10.2, 'filament']], 'kept in height order');
+  assert.deepEqual(codes().map((c) => [c.z, c.type]), [[4.25, 'pause'], [6.25, 'custom'], [10.25, 'filament']], 'kept in height order');
   const { gcode } = slice(config);
   const at = (text) => gcode.indexOf(text);
   const layerAt = (z) => gcode.indexOf(`;Z:${z}\n`);
   assert.ok(at(';PAUSE_PRINT') > 0, 'the pause is in the G-code');
-  assert.ok(at(';PAUSE_PRINT') > layerAt(4.2) && at(';PAUSE_PRINT') < layerAt(4.4), 'at the start of the layer at 4.2 mm');
+  assert.ok(at(';PAUSE_PRINT') > layerAt(4.25) && at(';PAUSE_PRINT') < layerAt(4.45), 'at the start of the layer at 4.25 mm');
   assert.equal(gcode.match(/^M117 LAYER_MARK$/gm)?.length, 1, 'the custom G-code once');
-  assert.ok(at('M117 LAYER_MARK') > layerAt(6.2) && at('M117 LAYER_MARK') < layerAt(6.4));
+  assert.ok(at('M117 LAYER_MARK') > layerAt(6.25) && at('M117 LAYER_MARK') < layerAt(6.45));
   const tools = toolCounts(gcode);
   assert.ok(tools['1'] >= 1, `filament 2 takes over: ${JSON.stringify(tools)}`);
-  assert.ok(gcode.lastIndexOf('\nT0\n') < layerAt(10.2), 'no filament 1 after the change');
+  assert.ok(gcode.lastIndexOf('\nT0\n') < layerAt(10.25), 'no filament 1 after the change');
 
   // One item per layer: the same height replaces it; an empty list removes them all.
-  plate(0, { op: 'layerCodes', filaments: 2, codes: [...codes(), { z: 4.2, type: 'custom', gcode: 'M117 OTHER' }] });
+  plate(0, { op: 'layerCodes', filaments: 2, codes: [...codes(), { z: 4.25, type: 'custom', gcode: 'M117 OTHER' }] });
   assert.deepEqual(codes().map((c) => c.type), ['custom', 'custom', 'filament']);
 
   // Each plate has its own; deleting a plate moves later plates' items with them.
   call(engine, 'addPlate');
   call(engine, 'addPlate');
-  plate(2, { op: 'layerCodes', filaments: 2, codes: [{ z: 2.2, type: 'pause' }] });
+  plate(2, { op: 'layerCodes', filaments: 2, codes: [{ z: 2.25, type: 'pause' }] });
   assert.deepEqual(codes(1), []);
   call(engine, 'deletePlate', 1);
-  assert.deepEqual(codes(1).map((c) => [c.z, c.type]), [[2.2, 'pause']], 'plate 3 became plate 2 with its pause');
+  assert.deepEqual(codes(1).map((c) => [c.z, c.type]), [[2.25, 'pause']], 'plate 3 became plate 2 with its pause');
 
   // Saved in the 3MF the way desktop does (Metadata/custom_gcode_per_layer.xml) and read back.
   call(engine, 'saveProject', '/work/layers.3mf', JSON.stringify(config), null);
@@ -1556,7 +1556,7 @@ test('layer slider: a pause, a filament change and custom G-code at a layer, per
   engine.clearModel();
   const [w, d] = bedSize(config);
   call(engine, 'loadModel', '/work/layers.3mf', 0, w, d, false);
-  assert.deepEqual(codes(0).map((c) => [c.z, c.type, c.gcode]), [[4.2, 'custom', 'M117 OTHER'], [6.2, 'custom', 'M117 LAYER_MARK'], [10.2, 'filament', '']]);
+  assert.deepEqual(codes(0).map((c) => [c.z, c.type, c.gcode]), [[4.25, 'custom', 'M117 OTHER'], [6.25, 'custom', 'M117 LAYER_MARK'], [10.25, 'filament', '']]);
   assert.equal(codes(0)[2].filament, 2);
   assert.deepEqual(codes(1).map((c) => c.type), ['pause']);
 
