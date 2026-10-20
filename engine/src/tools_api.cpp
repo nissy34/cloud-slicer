@@ -124,7 +124,11 @@ std::string splitObject(int o) {
         auto& objs = pr().model.objects;
         const size_t before = objs.size();
         ModelObjectPtrs pieces;
+#if ENGINE_UPSTREAM
+        obj->split(&pieces, true);  // upstream can keep the paint ("keep painting", on by default)
+#else
         obj->split(&pieces);
+#endif
         if (pieces.size() < 2) {
             while (objs.size() > before) pr().model.delete_object(objs.size() - 1);
             throw std::runtime_error("the object is a single piece");
@@ -145,7 +149,11 @@ std::string splitParts(int o) {
         std::vector<ModelVolume*> parts;
         for (ModelVolume* v : obj->volumes)
             if (v->is_model_part()) parts.push_back(v);
+#if ENGINE_UPSTREAM
+        for (ModelVolume* v : parts) v->split(1, true);
+#else
         for (ModelVolume* v : parts) v->split(1);
+#endif
         if (obj->volumes.size() == before) throw std::runtime_error("the parts are single pieces");
         obj->invalidate_bounding_box();
         obj->ensure_on_bed();

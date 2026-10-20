@@ -21,6 +21,14 @@
 using nlohmann::json;
 using namespace Slic3r;
 
+// Upstream OrcaSlicer calls the junction deviation test "cornering" (it also
+// covers jerk); its own settings for it are not ported yet.
+#if ENGINE_UPSTREAM
+constexpr CalibMode CalibJunctionDeviation = CalibMode::Calib_Cornering;
+#else
+constexpr CalibMode CalibJunctionDeviation = CalibMode::Calib_Junction_Deviation;
+#endif
+
 namespace {
 
 engine::Project& pr() { return engine::project(); }
@@ -308,7 +316,7 @@ void paTower(const Calib_Params& params, DynamicPrintConfig& cfg) {
 // Plater::calib_input_shaping_freq / _damp / calib_junction_deviation
 void ringingTower(CalibMode mode, DynamicPrintConfig& cfg) {
     ModelObject* obj = pr().model.objects[0];
-    const bool junction = mode == CalibMode::Calib_Junction_Deviation;
+    const bool junction = mode == CalibJunctionDeviation;
     set(cfg, "machine_max_junction_deviation", new ConfigOptionFloats{junction ? 1.0 : 0.3});
     set(cfg, "slow_down_layer_time", new ConfigOptionFloats{0.0});
     set(cfg, "slow_down_min_speed", new ConfigOptionFloats{0.0});
@@ -340,7 +348,7 @@ const std::map<std::string, CalibMode> MODES = {
     {"paLine", CalibMode::Calib_PA_Line},             {"paTower", CalibMode::Calib_PA_Tower},
     {"retraction", CalibMode::Calib_Retraction_tower}, {"volumetricSpeed", CalibMode::Calib_Vol_speed_Tower},
     {"vfa", CalibMode::Calib_VFA_Tower},              {"inputShapingFrequency", CalibMode::Calib_Input_shaping_freq},
-    {"inputShapingDamping", CalibMode::Calib_Input_shaping_damp}, {"junctionDeviation", CalibMode::Calib_Junction_Deviation},
+    {"inputShapingDamping", CalibMode::Calib_Input_shaping_damp}, {"junctionDeviation", CalibJunctionDeviation},
 };
 
 // Sets up a calibration test as the project.
@@ -373,7 +381,7 @@ std::string calibrationStart(const std::string& optionsJson, const std::string& 
         params.freqEndY = opt.value("freqEndY", 0.0);
         params.test_model = opt.value("testModel", 0);
         if (params.mode != CalibMode::Calib_Flow_Rate && params.mode != CalibMode::Calib_Input_shaping_freq &&
-            params.mode != CalibMode::Calib_Input_shaping_damp && params.mode != CalibMode::Calib_Junction_Deviation &&
+            params.mode != CalibMode::Calib_Input_shaping_damp && params.mode != CalibJunctionDeviation &&
             params.mode != CalibMode::Calib_PA_Line && params.step <= 0)
             throw std::runtime_error("the step must be more than 0");
 
