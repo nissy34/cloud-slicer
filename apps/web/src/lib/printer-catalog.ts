@@ -24,6 +24,8 @@ export interface CatalogVendor {
   file: string;
   /** Download size of that file (compressed). */
   bytes: number;
+  /** Its bed index under profiles/beds/ (lib/bed.ts); '' or missing when it ships no beds. */
+  beds?: string;
   models: CatalogModel[];
 }
 

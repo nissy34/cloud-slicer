@@ -60,6 +60,13 @@ describe('objectSettingGroups', () => {
     expect(objectSettingGroups(options, false, 1).map((g) => g.group)).not.toContain('More: Extruders');
   });
 
+  it('offers the flush options only on a printer that purges between filaments', () => {
+    const keys = (flushes: boolean, filaments = 4) => objectSettingGroups(options, false, filaments, flushes).flatMap((g) => g.settings.map((s) => s.key));
+    expect(keys(false)).not.toContain('flush_into_objects');
+    expect(keys(true)).toContain('flush_into_objects');
+    expect(keys(true, 1)).not.toContain('flush_into_objects');
+  });
+
   it("uses desktop's renamed labels", () => {
     const strength = objectSettingGroups(options, false, 4).find((g) => g.group === 'Strength')!;
     expect(strength.settings.find((s) => s.key === 'top_shell_layers')!.label).toBe('Top Solid Layers');

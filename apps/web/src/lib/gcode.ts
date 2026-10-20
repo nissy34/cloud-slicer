@@ -1,6 +1,7 @@
 // Parses G-code into extrusion segments grouped by layer, for the Preview.
 // Reads what Orca writes: ;LAYER_CHANGE / ;Z: markers, ;TYPE: feature
-// comments, T<n> tool changes, G0/G1 and arcs (G2/G3, from arc fitting),
+// comments (Bambu printers' G-code says ; CHANGE_LAYER / ; Z_HEIGHT: /
+// ; FEATURE: / ; LINE_WIDTH: / ; LAYER_HEIGHT: instead), T<n> tool changes, G0/G1 and arcs (G2/G3, from arc fitting),
 // absolute or relative extrusion, feedrates, fan (M106/M107) and nozzle
 // temperatures (M104/M109), and the filament statistics Orca writes at the end.
 
@@ -194,23 +195,23 @@ export function parseGcode(text: string, onProgress?: (done: number) => void): P
     if (!line) continue;
 
     if (line.charCodeAt(0) === 59 /* ; */) {
-      if (line.startsWith(';LAYER_CHANGE')) {
+      if (line.startsWith(';LAYER_CHANGE') || line.startsWith('; CHANGE_LAYER')) {
         pendingZ = NaN;
-      } else if (line.startsWith(';Z:')) {
-        const v = parseFloat(line.slice(3));
+      } else if (line.startsWith(';Z:') || line.startsWith('; Z_HEIGHT:')) {
+        const v = parseFloat(line.slice(line.indexOf(':') + 1));
         if (pendingZ !== null) {
           if (startGcodeLayer) layerZ[layerZ.length - 1] = v;
           else startLayer(v);
           startGcodeLayer = false;
           pendingZ = null;
         }
-      } else if (line.startsWith(';TYPE:')) {
-        feature = featureIndex.get(line.slice(6).trim().toLowerCase()) ?? OTHER;
-      } else if (line.startsWith(';WIDTH:')) {
-        const v = parseFloat(line.slice(7));
+      } else if (line.startsWith(';TYPE:') || line.startsWith('; FEATURE:')) {
+        feature = featureIndex.get(line.slice(line.indexOf(':') + 1).trim().toLowerCase()) ?? OTHER;
+      } else if (line.startsWith(';WIDTH:') || line.startsWith('; LINE_WIDTH:')) {
+        const v = parseFloat(line.slice(line.indexOf(':') + 1));
         if (v > 0) width = v;
-      } else if (line.startsWith(';HEIGHT:')) {
-        const v = parseFloat(line.slice(8));
+      } else if (line.startsWith(';HEIGHT:') || line.startsWith('; LAYER_HEIGHT:')) {
+        const v = parseFloat(line.slice(line.indexOf(':') + 1));
         if (v > 0) height = v;
       } else if (line.startsWith('; filament used [mm] =')) footer.mm = numbers(line.slice(22));
       else if (line.startsWith('; filament used [g] =')) footer.grams = numbers(line.slice(21));
@@ -310,7 +311,11 @@ export function parseGcode(text: string, onProgress?: (done: number) => void): P
         const v = parseFloat(word[k].slice(1));
         if (c === 101 && !Number.isNaN(v)) e = v;
       }
-    } else if (/^T\d+$/.test(cmd)) t = Number(cmd.slice(1));
+    } else if (/^T\d+$/.test(cmd)) {
+      // Bambu printers use T255, T1000, T1100 ... as control codes, not tools.
+      const n = Number(cmd.slice(1));
+      if (n < 255) t = n;
+    }
   }
 
   // Drop layers that ended up empty.

@@ -72,6 +72,10 @@ export interface SceneColours {
   bed: string;
   grid: string;
   ground: string;
+  /** The printer's bed shape under the plate (desktop's Bed3D model colour). */
+  bedModel: string;
+  /** Bed exclusion areas. */
+  exclude: string;
 }
 
 function readScene(): SceneColours {
@@ -82,6 +86,8 @@ function readScene(): SceneColours {
     bed: v('--scene-bed', '#2b2f36'),
     grid: v('--scene-grid', '#4a5160'),
     ground: v('--scene-ground', '#3a3f48'),
+    bedModel: v('--scene-bed-model', '#414148'),
+    exclude: v('--scene-exclude', '#6f655b'),
   };
 }
 

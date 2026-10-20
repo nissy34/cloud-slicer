@@ -18,7 +18,11 @@ hosted on Cloudflare's free tier.
   printers and filaments you have: search, pictures, and a "Direct print" mark on the
   printers this app can send prints to (Klipper ones); for the others you download the
   G-code. Snapmaker's presets load at start and another brand's only once you pick one
-  of its printers, so the page starts as fast as with Snapmaker alone.
+  of its printers, so the page starts as fast as with Snapmaker alone. The 3D view shows the
+  selected printer's own bed like desktop: the brand's bed shape under the plate and its
+  print sheet picture (the Snapmaker U1's, a Bambu Lab sheet, Prusa's...) over the printable
+  area, with desktop's grid, the bed's exclusion areas and the X/Y/Z arrows at the origin;
+  a printer without one gets the plain plate.
 - **Process settings in desktop's own pages and groups**, with per-object settings and a
   Standard flow / High flow switch for options that hold one value per nozzle flow
   variant (the U1). Like desktop, settings that don't apply grey out or hide (support
@@ -45,6 +49,9 @@ hosted on Cloudflare's free tier.
   onto one of yours: the print settings its author changed carry over, the ones left at
   the old printer's defaults and the printer's own settings (speeds, accelerations,
   jerk) come from your printer, and filaments are matched by material.
+- **Filaments per project** follow the file, like desktop: as many as the file has or you
+  add, in both engines. On the U1 you pick a head for each filament when you send the print
+  (`apps/web/src/lib/filament-limit.ts`).
 - **Prepare tools**: move, rotate, scale (exact fields like desktop's: position X, Y and Z, where a
   Z below the bed sinks the object into it; rotation; scale in percent or size in mm, all three
   axes together while "Scale evenly" is on; the same fields for a part inside its object), lay on face, cut, measure (distances and angles
@@ -80,6 +87,12 @@ hosted on Cloudflare's free tier.
 - **Prime tower on the plate**: when a plate prints with more than one filament the tower
   stands on the Prepare plate at the size Orca will print it, and you drag it where you
   want it, per plate, like desktop.
+- **Flushing volumes** for printers with one nozzle and several filaments (Bambu AMS, Prusa
+  MMU, Creality CFS...), like desktop's window: how much each filament change purges, per
+  pair of filaments, worked out from their colours by each engine's own formula (again for a
+  filament whenever it or its colour changes), with the multiplier, Re-calculate, and where
+  the purge goes (prime tower, infill, support, per object into objects). Printers with a
+  head per filament (the U1) never purge, so they don't show it and say why.
 - **Colour mixing**: Snapmaker Orca's mixed filaments, virtual filaments made of two or
   more physical ones, usable anywhere a filament is.
 - **Filaments from the printer**: "From printer" in the Filament section loads what is in
@@ -278,6 +291,7 @@ Browser end to end tests (Playwright's Chromium) run against the built site
 | `test/accounts.mjs` | Sign-in, sessions, synced presets/settings/printers, online projects (Pages Functions + local D1, mock Google) |
 | `test/toolbar.mjs` | The object toolbar: add a model, variable layer height, simplify, brim ears, lay on face, measure, the object menu, parts and modifiers, mesh boolean, text and SVG shapes, assemble, fits a phone |
 | `test/mixing.mjs` | Make a colour mix, slice, the G-code alternates between both tools |
+| `test/bed.mjs` | A Bambu Lab A1, the U1 and a Prusa MK4 each show their own bed shape and picture, fetched only for that printer, in both engines |
 | `test/wipe-tower.mjs` | A two-filament plate shows the prime tower; drag it, and the slice prints it there |
 | `test/view-touch.mjs` | Phone 3D view: pinching on a model that fills the screen zooms out instead of moving it; Fit all and the views menu |
 | `test/loading.mjs` | The loading screen while the engine starts and a project opens |

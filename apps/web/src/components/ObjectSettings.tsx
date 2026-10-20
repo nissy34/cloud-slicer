@@ -20,7 +20,8 @@ export function ObjectSettings({ object, volume = -1 }: { object: number; volume
   const filaments = useSlicer((s) => s.selection?.filaments.length ?? 1);
   // Desktop's list: its per-object settings table, then everything else "Add settings" offers.
   const [picking, setPicking] = useState(false);
-  const groups = useMemo(() => objectSettingGroups(options, kind !== 'object', filaments), [options, kind, filaments]);
+  const flushes = useSlicer((s) => s.flush?.flushes ?? false);
+  const groups = useMemo(() => objectSettingGroups(options, kind !== 'object', filaments, flushes), [options, kind, filaments, flushes]);
   // Like desktop, a setting that doesn't apply with the object's other settings greys out.
   const states = useOptionStates('object', undefined, settings);
   if (!settings) return null;

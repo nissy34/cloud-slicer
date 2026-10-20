@@ -19,13 +19,19 @@
 //                                       send: the printer runs Klipper (G-code flavor), so the
 //                                       Device tab can send to it through Moonraker.
 //   <out-dir>/profiles/covers/...       each model's picture, shown in the wizard
+//   <out-dir>/profiles/beds/<vendor>.json  the brand's printer beds as desktop draws them,
+//                                       by model: { "<model>": { model, texture } }, file
+//                                       names under profiles/beds/<vendor>/: the bed's 3D
+//                                       shape (its STL as a small mesh file, bed-mesh.mjs)
+//                                       and its print sheet picture (SVG or PNG). The 3D view
+//                                       fetches only the selected printer's (src/lib/bed.ts).
 // The page writes each file under <dataDir>/system/ in the wasm FS and calls
-// presetsLoad(dataDir). The start-up vendors' printer pictures, bed models and
-// textures (non-JSON files) are also copied to <out-dir>/assets/<vendor>/.
+// presetsLoad(dataDir).
 import { copyFileSync, existsSync, mkdirSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { dirname, join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { gzipSync } from 'node:zlib';
+import { encodeBedMesh, readStl } from './bed-mesh.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
 // ENGINE_FLAVOR=orca bundles upstream OrcaSlicer's presets instead.
@@ -80,21 +86,64 @@ function withoutDefaultMaterials(text) {
   }
 }
 
-/** The vendor's preset files ({path: text}); its other files go to assets/ when `assets` is set. */
-function vendorFiles(vendor, assets) {
+/** The vendor's preset files ({path: text}). */
+function vendorFiles(vendor) {
   const files = { [`${vendor}.json`]: readFileSync(join(root, `${vendor}.json`), 'utf8') };
-  let copied = 0;
   for (const file of walk(join(root, vendor))) {
     const rel = relative(root, file).split('\\').join('/');
     if (file.endsWith('.json')) files[rel] = withoutDefaultMaterials(readFileSync(file, 'utf8'));
-    else if (assets) {
-      const dest = join(outDir, 'assets', rel);
-      mkdirSync(dirname(dest), { recursive: true });
-      copyFileSync(file, dest);
-      copied++;
-    }
   }
-  return { files, copied };
+  return files;
+}
+
+/**
+ * The vendor's beds, as desktop shows them under the plate: each printer model's
+ * bed_model (an STL, drawn below the plate) and bed_texture (an SVG or PNG laid
+ * over the printable area), from its machine_model file. Writes profiles/beds/;
+ * returns the index file name ('' when the brand has none) and the bytes written.
+ */
+function vendorBeds(vendor, files) {
+  const index = JSON.parse(files[`${vendor}.json`]);
+  const dir = join(outDir, 'profiles/beds', slug(vendor));
+  const beds = {};
+  const written = new Map();
+  const bytes = { model: 0, texture: 0 };
+  const add = (name, kind) => {
+    if (typeof name !== 'string' || !name || name.includes('..')) return undefined;
+    if (written.has(name)) return written.get(name);
+    const src = join(root, vendor, name);
+    let out;
+    if (!existsSync(src)) out = undefined; // a few machine files name a file the brand doesn't ship
+    else if (kind === 'model' && /\.stl$/i.test(name)) {
+      try {
+        const data = encodeBedMesh(readStl(readFileSync(src)));
+        out = `${slug(name.replace(/\.stl$/i, ''))}.bed`;
+        mkdirSync(dir, { recursive: true });
+        writeFileSync(join(dir, out), data);
+        bytes.model += data.length; // served as is (not a type the server compresses)
+      } catch (e) {
+        console.warn(`bundle-profiles: skipped ${vendor}/${name}: ${e.message}`);
+      }
+    } else if (kind === 'texture' && /\.(svg|png)$/i.test(name)) {
+      out = slug(name).replace(/\.(svg|png)$/i, (ext) => ext.toLowerCase());
+      mkdirSync(dir, { recursive: true });
+      copyFileSync(src, join(dir, out));
+      // The server compresses SVG; PNG is compressed already.
+      bytes.texture += /\.svg$/i.test(out) ? gzipSync(readFileSync(src)).length : statSync(src).size;
+    }
+    written.set(name, out);
+    return out;
+  };
+  for (const { name: model, sub_path } of index.machine_model_list ?? []) {
+    const info = readJson(join(root, vendor, sub_path));
+    if (!info || (info.machine_tech && info.machine_tech !== 'FFF')) continue;
+    const bed = { model: add(info.bed_model, 'model'), texture: add(info.bed_texture, 'texture') };
+    if (bed.model || bed.texture) beds[model] = bed;
+  }
+  if (!Object.keys(beds).length) return { file: '', bytes };
+  const file = `${slug(vendor)}.json`;
+  writeFileSync(join(outDir, 'profiles/beds', file), JSON.stringify(beds));
+  return { file, bytes };
 }
 
 /**
@@ -148,22 +197,21 @@ function vendorModels(vendor, files) {
 rmSync(join(outDir, 'profiles'), { recursive: true, force: true });
 mkdirSync(join(outDir, 'profiles'), { recursive: true });
 
+rmSync(join(outDir, 'assets'), { recursive: true, force: true }); // older builds copied bed files there
+mkdirSync(join(outDir, 'profiles/beds'), { recursive: true });
+
 const bundle = {};
-let assets = 0;
-for (const vendor of startup) {
-  const { files, copied } = vendorFiles(vendor, true);
-  Object.assign(bundle, files);
-  assets += copied;
-}
+for (const vendor of startup) Object.assign(bundle, vendorFiles(vendor));
 const version = JSON.parse(bundle['Snapmaker.json'] ?? bundle[`${startup[1]}.json`] ?? '{}').version ?? '';
 writeFileSync(join(outDir, 'profiles.json'), JSON.stringify({ version, vendors: startup, files: bundle }));
 
 const catalog = [];
+const bedSizes = [];
 let lazyBytes = 0;
 for (const vendor of allVendors) {
   if (vendor === LIBRARY) continue;
   const loaded = startup.includes(vendor);
-  const files = loaded ? Object.fromEntries(Object.entries(bundle).filter(([rel]) => rel === `${vendor}.json` || rel.startsWith(`${vendor}/`))) : vendorFiles(vendor, false).files;
+  const files = loaded ? Object.fromEntries(Object.entries(bundle).filter(([rel]) => rel === `${vendor}.json` || rel.startsWith(`${vendor}/`))) : vendorFiles(vendor);
   const index = JSON.parse(files[`${vendor}.json`]);
   const models = vendorModels(vendor, files);
   if (!models.length) continue;
@@ -177,13 +225,25 @@ for (const vendor of allVendors) {
     bytes = gzipSync(text).length;
     lazyBytes += bytes;
   }
-  catalog.push({ id: vendor, name: index.name || vendor, file, bytes, models });
+  const beds = vendorBeds(vendor, files);
+  bedSizes.push({ vendor, ...beds.bytes });
+  catalog.push({ id: vendor, name: index.name || vendor, file, bytes, beds: beds.file, models });
 }
 writeFileSync(join(outDir, 'profiles/catalog.json'), JSON.stringify({ version, vendors: catalog }));
 
 const kb = (n) => `${Math.round(n / 1024)} KB`;
 const models = catalog.reduce((n, v) => n + v.models.length, 0);
 console.log(
-  `${join(outDir, 'profiles.json')}: ${Object.keys(bundle).length} preset files (${startup.join(', ')}, ${version}), ${assets} assets; ` +
+  `${join(outDir, 'profiles.json')}: ${Object.keys(bundle).length} preset files (${startup.join(', ')}, ${version}); ` +
     `profiles/: ${catalog.length} brands, ${models} printer models, ${kb(lazyBytes)} compressed if every brand were loaded`,
 );
+const bedTotal = (b) => b.model + b.texture;
+bedSizes.sort((a, b) => bedTotal(b) - bedTotal(a));
+console.log(
+  `profiles/beds/: ${catalog.filter((v) => v.beds).length} brands with beds, ${kb(bedSizes.reduce((n, b) => n + bedTotal(b), 0))} compressed in all ` +
+    `(each page fetches only its printer's); largest brands: ${bedSizes
+      .slice(0, 5)
+      .map((b) => `${b.vendor} ${kb(bedTotal(b))}`)
+      .join(', ')}`,
+);
+if (process.env.BED_SIZES) writeFileSync(process.env.BED_SIZES, JSON.stringify(bedSizes, null, 1));
