@@ -1,10 +1,10 @@
 import { useEffect, useRef, useState } from 'react';
 import { api, projectThumbnailUrl, type OnlineProject, type ProjectList } from '../account/api';
-import { engineName, ENGINES } from '../lib/engines';
+import { engineName } from '../lib/engines';
 import { formatBytes, formatWhen, UNTITLED } from '../lib/projects';
 import { MODEL_EXTENSIONS } from '../lib/presets';
 import { useAccount } from '../state/account';
-import { defaultEngine, useProjects } from '../state/projects';
+import { useProjects } from '../state/projects';
 import { useSlicer } from '../state/store';
 
 const isMac = typeof navigator !== 'undefined' && /Mac|iPhone|iPad/.test(navigator.platform);
@@ -103,12 +103,10 @@ export function ProjectMenu() {
       />
       {open && (
         <div className="menu-pop" role="menu" aria-label="Project">
-          {/* The default engine first, then the other one by name. */}
-          {[...ENGINES].sort((a, b) => Number(b.id === defaultEngine()) - Number(a.id === defaultEngine())).map((e) => (
-            <button key={e.id} role="menuitem" onClick={run(() => discardOk() && p.newProject(e.id))}>
-              {e.id === defaultEngine() ? 'New project' : `New project with ${e.name}`}
-            </button>
-          ))}
+          {/* The default engine; the empty plate's engine chip picks the other one. */}
+          <button role="menuitem" onClick={run(() => discardOk() && p.newProject())}>
+            New project
+          </button>
           <button role="menuitem" onClick={run(() => input.current?.click())}>
             Open from this device…<kbd>{MOD}O</kbd>
           </button>

@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // Browser end to end for the two engines: the setup wizard's first step picks
-// the engine new projects use, the page switches to it, New project with the
-// other engine switches back, and a 3MF saved by an engine opens with that
+// the engine new projects use, the page switches to it, the empty plate's
+// engine chip switches back, and a 3MF saved by an engine opens with that
 // engine again.
 //
 //   node test/engines.mjs [screenshot-dir]
@@ -83,14 +83,18 @@ try {
   await download.saveAs(saved);
   console.log(`downloaded ${download.suggestedFilename()} (${readFileSync(saved).length} bytes)`);
 
-  // New project with the other engine.
+  // New project starts with the default (OrcaSlicer); the empty plate's chip picks the other engine.
   await projectButton.click();
   page.once('dialog', (d) => d.accept());
-  await page.getByRole('menuitem', { name: 'New project with Snapmaker Orca' }).click();
+  await page.getByRole('menuitem', { name: 'New project', exact: true }).click();
+  await engineIs('OrcaSlicer');
+  const chip = page.getByTestId('engine-chip');
+  if (!(await chip.innerText()).includes('OrcaSlicer')) fail(`chip says "${await chip.innerText()}"`);
+  await chip.click();
+  if (shots) await page.screenshot({ path: join(shots, 'engine-chip.png') });
+  await page.getByRole('menuitemradio', { name: /^Snapmaker Orca/ }).click();
   await engineIs('Snapmaker Orca');
-  await projectButton.click();
-  if (!(await page.getByRole('menuitem', { name: 'New project with Snapmaker Orca' }).isVisible())) fail('the menu should offer Snapmaker Orca by name (OrcaSlicer is the default now)');
-  await page.keyboard.press('Escape');
+  if (!(await chip.innerText()).includes('Snapmaker Orca')) fail(`chip says "${await chip.innerText()}"`);
 
   // The OrcaSlicer project opens with OrcaSlicer again.
   await page.getByTestId('project-input').setInputFiles(saved);
@@ -112,6 +116,13 @@ try {
   const note = await page.getByTestId('project-engine').innerText();
   if (!note.includes('OrcaSlicer 2.4.2')) fail(`Project menu says "${note}"`);
   if (shots) await page.screenshot({ path: join(shots, 'project-menu-phone.png') });
+  await page.keyboard.press('Escape');
+  await projectButton.click();
+  page.once('dialog', (d) => d.accept());
+  await page.getByRole('menuitem', { name: 'New project', exact: true }).click();
+  await engineIs('OrcaSlicer');
+  await page.getByTestId('engine-chip').click();
+  if (shots) await page.screenshot({ path: join(shots, 'engine-chip-phone.png') });
 } catch (e) {
   fail(e.message);
   const text = await browser.contexts()[0]?.pages()[0]?.locator('body').innerText().catch(() => '');

@@ -21,7 +21,7 @@ let dismissed = typeof location !== 'undefined' && location.hash.startsWith('#pa
 
 type Step = 'engine' | 'printers' | 'filaments' | 'connect';
 const STEPS: { id: Step; label: string }[] = [
-  { id: 'engine', label: 'Engine' },
+  { id: 'engine', label: 'Default engine' },
   { id: 'printers', label: 'Printers' },
   { id: 'filaments', label: 'Filaments' },
   { id: 'connect', label: 'Connect' },
@@ -148,9 +148,10 @@ function Wizard({ onClose }: { onClose: () => void }) {
 function EngineStep({ chosen, onChange }: { chosen: EngineFlavor; onChange: (engine: EngineFlavor) => void }) {
   return (
     <>
+      <h3 className="wizard-engine-title">Default engine</h3>
       <p className="muted small">
-        Pick the slicer new projects use. Each project keeps its own, and a project you open uses the one it was made with. You can change this later from Manage next to the printer
-        picker.
+        New projects start with this engine. You can still pick the other one for any single project: tap the engine's name on an empty plate. A project you open uses the
+        engine it was made with.
       </p>
       <div className="wizard-engines" role="radiogroup" aria-label="Slicing engine">
         {ENGINES.map((e) => (

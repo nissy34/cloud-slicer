@@ -3791,6 +3791,27 @@ select:focus-visible {
   border: 0;
   border-top: 1px solid var(--border);
 }
+.engine-chip-wrap {
+  position: relative;
+  margin-left: 10px;
+}
+.engine-chip {
+  padding: 4px 12px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--surface-2);
+  font-size: 13px;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.menu-pop.engine-chip-menu {
+  top: auto;
+  bottom: calc(100% + 6px);
+  width: min(340px, calc(100vw - 32px));
+}
+.engine-chip-menu button > span {
+  display: grid;
+}
 .menu-note {
   margin: 4px 10px 6px;
   color: var(--muted);
@@ -3923,6 +3944,17 @@ select:focus-visible {
   .project-toast {
     left: 10px;
     top: calc(var(--topbar) + 4px);
+  }
+  /* Opens above the action bar, across its width. */
+  .engine-chip-wrap {
+    position: static;
+  }
+  .menu-pop.engine-chip-menu {
+    left: 12px;
+    right: 12px;
+    top: auto;
+    bottom: calc(100% + 6px);
+    width: auto;
   }
   .projects-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
