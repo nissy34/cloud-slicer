@@ -71,6 +71,7 @@ try {
   await page.getByRole('tab', { name: 'Multimaterial' }).first().click();
   await page.getByTestId('no-flush-hint').waitFor({ timeout: 10000 });
   console.log(`U1: ${await page.getByTestId('no-flush-hint').innerText()}`);
+  await page.getByTestId('no-flush-hint').scrollIntoViewIfNeeded();
   if (shots) await page.screenshot({ path: join(shots, 'u1-no-flush.png') });
 
   for (const engine of ['snapmaker', 'orca']) {

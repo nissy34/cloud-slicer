@@ -105,8 +105,8 @@ function FlushVolumesDialog({ onClose }: { onClose(): void }) {
     >
       <div className="flush-volumes">
         <p className="muted small">
-          When the printer changes filament it pushes out the old one through the nozzle. These are the amounts, in mm³, for each change: from the filament on the
-          left to the one at the top. They are worked out from the colours (dark to light needs more), and again for a filament whenever you change it or its colour.
+          How much the printer pushes out, in mm³, when it changes from the filament on the left to the one at the top. Worked out from the colours: dark to light
+          needs more.
         </p>
         {nozzles > 1 && (
           <div className="dv-segmented" role="radiogroup" aria-label="Nozzle">
@@ -156,7 +156,7 @@ function FlushVolumesDialog({ onClose }: { onClose(): void }) {
           ))}
         </div>
         <p className="small muted">
-          Suggested: {min} to {info.max} mm³; amounts outside it show in red.
+          Suggested: {min} to {info.max} mm³ (outside it shows red).
         </p>
         <label className="flush-multiplier">
           <span>Multiplier</span>
@@ -169,19 +169,16 @@ function FlushVolumesDialog({ onClose }: { onClose(): void }) {
             onCommit={setMultiplier}
           />
           <span className="small muted">
-            Every amount above times this ({MULTIPLIER_RANGE[0]} to {MULTIPLIER_RANGE[1]}); the table shows the result.
+            Scales every amount ({MULTIPLIER_RANGE[0]} to {MULTIPLIER_RANGE[1]}).
           </span>
         </label>
         {note && <p className="hint warn">{note}</p>}
         <fieldset className="optgroup">
           <legend>Where the purge goes</legend>
-          <p className="small muted">
-            Into the prime tower, or into parts of the model nobody sees, which saves filament. Objects can turn this on or off for themselves in their own
-            settings.
-          </p>
           {['enable_prime_tower', ...FLUSH_OPTIONS].filter((k) => !states.hidden.has(k)).map((k) => (
-            <OptionField key={k} optKey={k} disabled={states.disabled.has(k)} />
+            <OptionField key={k} optKey={k} label={k === 'enable_prime_tower' ? 'Prime tower' : undefined} disabled={states.disabled.has(k)} />
           ))}
+          <p className="small muted">Infill and support purging save filament; objects can change it in their own settings.</p>
         </fieldset>
       </div>
     </Dialog>
