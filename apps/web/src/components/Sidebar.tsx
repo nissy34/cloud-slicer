@@ -4,7 +4,8 @@ import { canSend } from '../lib/printer-catalog';
 import { useUserSetting } from '../state/account';
 import { SendMark, useSetupWizard } from './SetupWizard';
 import { CalibrationBanner } from './CalibrationDialog';
-import { useOption, useSlicer } from '../state/store';
+import { useFilamentLimit, useSlicer } from '../state/store';
+import { filamentLimitMessage } from '../lib/filament-limit';
 import { ObjectList } from './ObjectList';
 import { ColorMixPanel } from './ColorMixing';
 import { SyncFilamentsButton } from './FilamentSync';
@@ -89,10 +90,9 @@ function FilamentSection() {
   const installed = useUserSetting<Setup>(SETUP_KEY)?.filaments;
   const filaments = installedOnly(allFilaments, withMine(installed, allFilaments), selection?.filaments);
   const { setFilament, setColour, addFilament, removeFilament } = useSlicer.getState();
-  const extruders = (useOption('nozzle_diameter') ?? '').split(',').filter(Boolean).length;
-  // A printer that changes filament in one nozzle (AMS, MMU...) takes any number of them.
-  const flushes = useSlicer((s) => s.flush?.flushes ?? false);
+  const limit = useFilamentLimit();
   if (!selection) return null;
+  const limitMessage = filamentLimitMessage(limit, selection.filaments.length);
   return (
     <section className="group">
       <div className="group-head">
@@ -134,9 +134,9 @@ function FilamentSection() {
         ))}
       </ol>
       <FlushVolumesButton />
-      {!flushes && extruders > 0 && selection.filaments.length > extruders && (
-        <p className="hint warn">
-          {selection.filaments.length} filaments on a printer with {extruders} extruders.
+      {limitMessage && (
+        <p className={limitMessage.warn ? 'hint warn' : 'hint'} data-testid="filament-limit">
+          {limitMessage.text}
         </p>
       )}
       <ColorMixPanel />
