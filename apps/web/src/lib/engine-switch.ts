@@ -231,7 +231,7 @@ export const losesNothing = (plan: SwitchPlan) =>
 /** The notice after a switch. */
 export function switchedText(plan: SwitchPlan): string {
   const parts = [`This project now slices with ${engineName(plan.to)}.`];
-  if (plan.mixes.length) parts.push(`${plan.mixes.length} colour mix${plan.mixes.length === 1 ? ' is' : 'es are'} now plain filaments.`);
+  if (plan.mixes.length) parts.push(plan.mixes.length === 1 ? 'Its colour mix is now a plain filament.' : `Its ${plan.mixes.length} colour mixes are now plain filaments.`);
   if (plan.dropped.length) parts.push(`${plan.dropped.length} setting${plan.dropped.length === 1 ? '' : 's'} ${engineName(plan.to)} doesn't have were left out.`);
   parts.push('Slice again before printing.');
   return parts.join(' ');
