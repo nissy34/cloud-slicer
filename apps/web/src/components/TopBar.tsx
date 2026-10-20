@@ -24,7 +24,7 @@ export function TopBar() {
         Cloud Slicer
       </div>
       <ProjectMenu />
-      {engineInfo && engineInfo.flavor !== 'snapmaker' && (
+      {engineInfo && (
         <span className="engine-badge" title={`Slicing with ${engineInfo.name} ${engineInfo.version}`}>
           {engineInfo.name} {engineInfo.version}
         </span>

@@ -19,10 +19,10 @@ export function engineVersion() {
 
 // What the engine downloads at start-up (the wasm and the presets), in bytes,
 // so the page can show download progress; 0 without an engine.
-export function engineBytes() {
+export function engineBytes(dir = 'engine') {
   let total = 0;
   for (const f of ['orca-engine.wasm', 'profiles.json']) {
-    const path = new URL(`../public/engine/${f}`, import.meta.url);
+    const path = new URL(`../public/${dir}/${f}`, import.meta.url);
     if (existsSync(path)) total += statSync(path).size;
   }
   return total;

@@ -8,8 +8,11 @@
 import { create } from 'zustand';
 import { api, ApiError, type OnlineProject } from '../account/api';
 import { copyName, nameFromFile, newProjectId, projectFileName, projectSignature, UNTITLED } from '../lib/projects';
+import { engineFromUrl, engineName, engineOf3mf, type EngineFlavor } from '../lib/engines';
+import { SETUP_KEY, type Setup } from '../lib/setup';
 import { snapshot } from '../lib/snapshot';
-import { useAccount } from './account';
+import { saveDefaultEngine } from '../lib/storage';
+import { getUserSetting, useAccount } from './account';
 import { useSlicer, type OpenMode } from './store';
 
 export interface CurrentProject {
@@ -50,13 +53,28 @@ interface ProjectsState {
   openOnline(p: OnlineProject): Promise<void>;
   /** A project in the list was renamed or deleted. */
   onlineChanged(p: OnlineProject | { id: string; deleted: true }): void;
-  newProject(): Promise<void>;
+  /** An empty project, with the default engine or the one given. */
+  newProject(engine?: EngineFlavor): Promise<void>;
   setListOpen(open: boolean): void;
   setSaveAsOpen(open: boolean): void;
   clearMessage(): void;
 }
 
 const blank = (): CurrentProject => ({ name: UNTITLED, id: null, version: 0 });
+
+/** The engine new projects use: the setup wizard's choice, else Snapmaker Orca. */
+export const defaultEngine = (): EngineFlavor => getUserSetting<Setup>(SETUP_KEY)?.engine ?? 'snapmaker';
+
+// Opening a project made with the other engine starts that engine first.
+async function useEngineOf(flavor: EngineFlavor | null) {
+  const slicer = useSlicer.getState();
+  if (!flavor || flavor === slicer.flavor) return false;
+  await slicer.switchEngine(flavor);
+  if (useSlicer.getState().engine !== 'ready') throw new Error(`${engineName(flavor)} could not start`);
+  return true;
+}
+const switchedNotice = (flavor: EngineFlavor) =>
+  useSlicer.setState({ notice: `Opened with ${engineName(flavor)}, the engine this project was made with.`, noticeWarn: false });
 
 // What was last opened or saved, to tell whether anything changed since.
 let savedSignature = '';
@@ -101,7 +119,7 @@ export const useProjects = create<ProjectsState>((set, get) => {
     try {
       const { file, png } = await buildFile();
       const id = target.id ?? newProjectId();
-      const saved = await api.saveProject(id, target.name, file, baseVersion);
+      const saved = await api.saveProject(id, target.name, file, baseVersion, useSlicer.getState().flavor);
       // The project is saved even if its picture isn't.
       if (png) await api.saveProjectThumbnail(id, png).catch(() => {});
       set({ current: { name: saved.name, id: saved.id, version: saved.version }, conflict: null, message: `Saved “${saved.name}” to your projects`, messageWarn: false });
@@ -185,12 +203,24 @@ export const useProjects = create<ProjectsState>((set, get) => {
     },
 
     async openFiles(files, mode) {
-      const slicer = useSlicer.getState();
-      const wasEmpty = !slicer.project?.objects.length;
-      const project = files.find((f) => /\.3mf$/i.test(f.name));
-      if (await slicer.openFiles(files, mode)) {
+      const wasEmpty = !useSlicer.getState().project?.objects.length;
+      const threeMfs = files.filter((f) => /\.3mf$/i.test(f.name));
+      const project = threeMfs[0];
+      // A single 3MF opens as the project (see the slicer store's openFiles), with its own engine.
+      let switched: EngineFlavor | null = null;
+      if (threeMfs.length === 1 && mode !== 'geometry' && (mode === 'project' || wasEmpty)) {
+        const made = await engineOf3mf(project);
+        try {
+          if (await useEngineOf(made)) switched = made;
+        } catch (e) {
+          set({ message: `Couldn't open “${project.name}”: ${errorText(e)}`, messageWarn: true });
+          return;
+        }
+      }
+      if (await useSlicer.getState().openFiles(files, mode)) {
         set({ current: { name: nameFromFile(project!.name), id: null, version: 0 } });
         markClean();
+        if (switched) switchedNotice(switched);
       } else if (wasEmpty && files.length && get().current.name === UNTITLED && !get().current.id) {
         // Like desktop: a new project is named after its first model.
         set({ current: { name: nameFromFile(files[0].name), id: null, version: 0 } });
@@ -203,6 +233,7 @@ export const useProjects = create<ProjectsState>((set, get) => {
         set({ downloading: { name: p.name, loaded: 0, total: 0 } });
         const { bytes, version } = await api.projectFile(p.id, (loaded, total) => set({ downloading: { name: p.name, loaded, total } }));
         set({ downloading: null });
+        if (await useEngineOf(p.engine ?? 'snapmaker')) switchedNotice(p.engine);
         await useSlicer.getState().openFiles([new File([bytes], projectFileName(p.name), { type: 'model/3mf' })], 'project');
         set({ current: { name: p.name, id: p.id, version: version || p.version } });
         markClean();
@@ -220,8 +251,9 @@ export const useProjects = create<ProjectsState>((set, get) => {
       else set({ current: { ...cur, name: p.name, version: p.version } });
     },
 
-    async newProject() {
-      await useSlicer.getState().clearProject();
+    async newProject(engine = defaultEngine()) {
+      if (engine !== useSlicer.getState().flavor) await useSlicer.getState().switchEngine(engine);
+      else await useSlicer.getState().clearProject();
       set({ current: blank(), message: '' });
       markClean();
     },
@@ -244,4 +276,17 @@ useSlicer.subscribe((s, prev) => {
 // A fresh page starts clean once the engine has its presets and selection.
 useSlicer.subscribe((s, prev) => {
   if (s.engine === 'ready' && prev.engine !== 'ready') markClean();
+});
+
+// The default engine reaches this browser's memory, so the next page starts it
+// right away; and a page still on its first, empty project switches to it once
+// the account says what it is.
+useAccount.subscribe((a, prev) => {
+  if (a.settings === prev.settings) return;
+  const engine = defaultEngine();
+  saveDefaultEngine(engine);
+  const s = useSlicer.getState();
+  const p = useProjects.getState().current;
+  const untouched = !s.project?.objects.length && p.name === UNTITLED && !p.id;
+  if (engine !== s.flavor && untouched && s.engine === 'ready' && !engineFromUrl()) void s.switchEngine(engine);
 });

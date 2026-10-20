@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { create } from 'zustand';
 import type { PresetSummary } from '../engine/protocol';
+import { ENGINES, type EngineFlavor } from '../lib/engines';
 import { shortName } from '../lib/presets';
 import { filamentGroups, printerModels, SETUP_KEY, type Setup } from '../lib/setup';
 import { saveUserSetting, useAccount, useDevices, useUserSetting } from '../state/account';
@@ -18,17 +19,19 @@ export const useSetupWizard = create<{ open: boolean; show(): void; hide(): void
 // Device tab's add-printer dialog is waiting).
 let dismissed = typeof location !== 'undefined' && location.hash.startsWith('#pair=');
 
-type Step = 'printers' | 'filaments' | 'connect';
+type Step = 'engine' | 'printers' | 'filaments' | 'connect';
 const STEPS: { id: Step; label: string }[] = [
+  { id: 'engine', label: 'Default engine' },
   { id: 'printers', label: 'Printers' },
   { id: 'filaments', label: 'Filaments' },
   { id: 'connect', label: 'Connect' },
 ];
 
 /**
- * Desktop Orca's setup wizard: which printers and filaments you have, so the
- * pickers only offer those, and how to reach each printer. Opens by itself
- * until it has been finished once; the choices follow the account.
+ * Desktop Orca's setup wizard: which engine new projects use, which printers
+ * and filaments you have, so the pickers only offer those, and how to reach
+ * each printer. Opens by itself until it has been finished once; the choices
+ * follow the account.
  */
 export function SetupWizard() {
   const { open, show, hide } = useSetupWizard();
@@ -54,7 +57,10 @@ function Wizard({ onClose }: { onClose: () => void }) {
   const current = useSlicer((s) => s.selection);
   const savedPrinters = useUserSetting<Setup>(SETUP_KEY)?.printers;
   const savedFilaments = useUserSetting<Setup>(SETUP_KEY)?.filaments;
-  const [step, setStep] = useState<Step>('printers');
+  const savedEngine = useUserSetting<Setup>(SETUP_KEY)?.engine;
+  const running = useSlicer((s) => s.flavor);
+  const [step, setStep] = useState<Step>('engine');
+  const [engine, setEngine] = useState<EngineFlavor>(savedEngine ?? running);
   const [printers, setPrinters] = useState<string[]>(() => (savedPrinters?.length ? savedPrinters : current ? [current.printer] : []));
   const [filaments, setFilaments] = useState<string[] | null>(savedFilaments?.length ? savedFilaments : null);
   const [saving, setSaving] = useState(false);
@@ -64,9 +70,11 @@ function Wizard({ onClose }: { onClose: () => void }) {
     setSaving(true);
     setError('');
     try {
-      await saveUserSetting<Setup>(SETUP_KEY, { printers, filaments: filaments ?? [] });
+      const before = useSlicer.getState().flavor;
+      // An empty first project switches to the chosen engine by itself (state/projects.ts).
+      await saveUserSetting<Setup>(SETUP_KEY, { printers, filaments: filaments ?? [], engine });
       const s = useSlicer.getState();
-      if (s.selection && !printers.includes(s.selection.printer)) await s.selectPrinter(printers[0]);
+      if (s.flavor === before && s.selection && !printers.includes(s.selection.printer)) await s.selectPrinter(printers[0]);
       onClose();
       then?.();
     } catch (e) {
@@ -89,6 +97,7 @@ function Wizard({ onClose }: { onClose: () => void }) {
           ))}
         </ol>
         <div className="wizard-body">
+          {step === 'engine' && <EngineStep chosen={engine} onChange={setEngine} />}
           {step === 'printers' && <PrinterStep all={allPrinters} chosen={printers} onChange={setPrinters} />}
           {step === 'filaments' && <FilamentStep printers={printers} chosen={filaments} onChange={setFilaments} />}
           {step === 'connect' && <ConnectStep />}
@@ -124,7 +133,7 @@ function Wizard({ onClose }: { onClose: () => void }) {
           ) : (
             <button
               className="primary"
-              disabled={step === 'printers' ? !printers.length : !filaments?.length}
+              disabled={step === 'printers' ? !printers.length : step === 'filaments' && !filaments?.length}
               onClick={() => setStep(STEPS[index + 1].id)}
             >
               Next
@@ -133,6 +142,31 @@ function Wizard({ onClose }: { onClose: () => void }) {
         </div>
       </div>
     </div>
+  );
+}
+
+function EngineStep({ chosen, onChange }: { chosen: EngineFlavor; onChange: (engine: EngineFlavor) => void }) {
+  return (
+    <>
+      <h3 className="wizard-engine-title">Default engine</h3>
+      <p className="muted small">
+        New projects start with this engine. You can still pick the other one for any single project: tap the engine's name on an empty plate. A project you open uses the
+        engine it was made with.
+      </p>
+      <div className="wizard-engines" role="radiogroup" aria-label="Slicing engine">
+        {ENGINES.map((e) => (
+          <button key={e.id} role="radio" aria-label={e.name} aria-checked={chosen === e.id} className={chosen === e.id ? 'wizard-engine on' : 'wizard-engine'} onClick={() => onChange(e.id)}>
+            <b>{e.name}</b>
+            <span className="muted small">{e.blurb}</span>
+            <ul className="small">
+              {e.examples.map((x) => (
+                <li key={x}>{x}</li>
+              ))}
+            </ul>
+          </button>
+        ))}
+      </div>
+    </>
   );
 }
 

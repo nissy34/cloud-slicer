@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { api, projectThumbnailUrl, type OnlineProject, type ProjectList } from '../account/api';
+import { engineName } from '../lib/engines';
 import { formatBytes, formatWhen, UNTITLED } from '../lib/projects';
 import { MODEL_EXTENSIONS } from '../lib/presets';
 import { useAccount } from '../state/account';
@@ -19,6 +20,7 @@ export function ProjectMenu() {
   const message = useProjects((s) => s.message);
   const messageWarn = useProjects((s) => s.messageWarn);
   const signedIn = useAccount((s) => s.status === 'signedIn');
+  const engineInfo = useSlicer((s) => s.engineInfo);
   const p = useProjects.getState();
   const [open, setOpen] = useState(false);
   const root = useRef<HTMLDivElement>(null);
@@ -101,6 +103,7 @@ export function ProjectMenu() {
       />
       {open && (
         <div className="menu-pop" role="menu" aria-label="Project">
+          {/* The default engine; the empty plate's engine chip picks the other one. */}
           <button role="menuitem" onClick={run(() => discardOk() && p.newProject())}>
             New project
           </button>
@@ -121,6 +124,11 @@ export function ProjectMenu() {
           <button role="menuitem" disabled={!!busy} onClick={run(() => p.download())}>
             Download 3MF
           </button>
+          {engineInfo && (
+            <p className="menu-note" data-testid="project-engine">
+              This project slices with {engineInfo.name} {engineInfo.version}.
+            </p>
+          )}
           {!signedIn && <p className="menu-note">Sign in to keep projects online and open them on any device.</p>}
         </div>
       )}
@@ -327,7 +335,7 @@ function ProjectsDialog() {
                       </div>
                     )}
                     <div className="muted small">
-                      {formatWhen(proj.updatedAt)} · {formatBytes(proj.size)}
+                      {formatWhen(proj.updatedAt)} · {formatBytes(proj.size)} · {engineName(proj.engine ?? 'snapmaker')}
                     </div>
                     {deleting === proj.id ? (
                       <div className="project-card-actions">

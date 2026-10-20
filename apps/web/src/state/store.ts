@@ -30,7 +30,8 @@ import { DEFAULT_PRINTER, pickFilamentPreset, splitList, SLOT_COLOURS } from '..
 import { changedOnPurpose, emptyProjectMessage, modelProcessKeys, pickProcess, printerLabel, projectOverrides } from '../lib/project-import';
 import { accountReady, getUserSetting, presetEditing, useAccount } from './account';
 import { installedOnly, SETUP_KEY, type Setup } from '../lib/setup';
-import { loadConvertPreference, loadSaved, save, saveConvertPreference } from '../lib/storage';
+import { loadConvertPreference, loadDefaultEngine, loadSaved, save, saveConvertPreference } from '../lib/storage';
+import { engineFolder, engineFromUrl, type EngineFlavor } from '../lib/engines';
 import { heavyModel, type HeavyModel, type SimplifyBy, type SimplifyResult } from '../lib/simplify';
 import type { BrimEars, BrimRequest } from '../lib/brim';
 import type { LayerProfile, LayerRequest } from '../lib/layers';
@@ -77,6 +78,8 @@ export interface SlicerState {
   vendorVersion: string;
   /** The running engine and what it can do; null until it starts. */
   engineInfo: EngineInfo | null;
+  /** The engine the open project slices with (started, or starting). */
+  flavor: EngineFlavor;
 
   printers: PresetSummary[];
   processes: PresetSummary[];
@@ -238,6 +241,11 @@ export interface SlicerState {
   /** The open project as an Orca 3MF project file, with the current settings. */
   projectFile(thumbnail: ProjectThumbnail | null): Promise<ArrayBuffer>;
   clearProject(): Promise<void>;
+  /**
+   * Replaces the running engine with another one, which starts empty (the
+   * project lives in the engine). Resolves once it is up, or failed to start.
+   */
+  switchEngine(flavor: EngineFlavor): Promise<void>;
   setPlate(plate: number): Promise<void>;
   select(sel: { object: number; instance: number; volume?: number } | null): void;
   moveInstance(o: number, i: number, x: number, y: number): Promise<void>;
@@ -370,20 +378,23 @@ let enginePresets: UserPresetFile[] = [];
 
 export const useSlicer = create<SlicerState>((set, get) => {
   const engine = () => {
-    client ??= new EngineClient({
-      onLoading: (engineLoad) => set({ engineLoad }),
-      onReady: (presets) => {
-        set({ vendorVersion: presets.vendorVersion, engineInfo: presets.engine, engineLoad: { ...get().engineLoad, stage: 'printers' } });
-        void start();
+    client ??= new EngineClient(
+      {
+        onLoading: (engineLoad) => set({ engineLoad }),
+        onReady: (presets) => {
+          set({ vendorVersion: presets.vendorVersion, engineInfo: presets.engine, engineLoad: { ...get().engineLoad, stage: 'printers' } });
+          void start();
+        },
+        onFatal: (message) => {
+          // A crash once the engine was up (most likely out of memory while
+          // slicing) restarts it; a crash while starting it, or while reopening
+          // the project after a restart, leaves it stopped as before.
+          if (get().engine === 'ready' || (restarting && pendingRestore?.file)) restart(message);
+          else set({ engine: 'failed', engineMessage: message });
+        },
       },
-      onFatal: (message) => {
-        // A crash once the engine was up (most likely out of memory while
-        // slicing) restarts it; a crash while starting it, or while reopening
-        // the project after a restart, leaves it stopped as before.
-        if (get().engine === 'ready' || (restarting && pendingRestore?.file)) restart(message);
-        else set({ engine: 'failed', engineMessage: message });
-      },
-    });
+      get().flavor,
+    );
     // Like desktop: an edit while slicing stops the slice rather than waiting for it.
     // (Something else may already have replaced the slicing state, like opening a file.)
     client.onEditWhileSlicing = () => (get().job.kind === 'slicing' ? set(stale()) : stopSlice());
@@ -436,17 +447,28 @@ export const useSlicer = create<SlicerState>((set, get) => {
         };
     saved3mf = null;
     set({
-      engine: 'starting',
-      engineLoad: { stage: 'download', loaded: 0, total: 0 },
-      job: { kind: 'idle' },
+      ...emptyEngine(),
       project: retry || !pendingRestore.file ? null : project,
       preview: retry || !pendingRestore.file ? null : get().preview,
-      selected: null, tool: null, paint: null, overlay: null, layers: null, brim: null, brimPicked: [],
-      measure: { ...NO_MEASURE, onlyPlane: get().measure.onlyPlane },
-      history: { undo: null, redo: null },
     });
     engine();
   }
+
+  // User presets are built on Snapmaker Orca's presets; OrcaSlicer gets its
+  // own once presets are kept per engine.
+  const userPresetsFit = () => get().flavor === 'snapmaker';
+
+  // What the page shows while a new engine starts, with nothing in it yet.
+  const emptyEngine = (): Partial<SlicerState> => ({
+    engine: 'starting',
+    engineLoad: { stage: 'download', loaded: 0, total: 0 },
+    job: { kind: 'idle' },
+    project: null,
+    preview: null,
+    selected: null, tool: null, paint: null, overlay: null, layers: null, brim: null, brimPicked: [],
+    measure: { ...NO_MEASURE, onlyPlane: get().measure.onlyPlane },
+    history: { undo: null, redo: null },
+  });
 
   // Puts the project back into a restarted engine, keeping the page's settings,
   // mixes and tower spots (they were never lost).
@@ -550,32 +572,34 @@ export const useSlicer = create<SlicerState>((set, get) => {
   async function start() {
     const e = engine();
     try {
-      const saved = loadSaved();
+      const saved = loadSaved(get().flavor);
       // The user's own presets (this browser's, or the account's) load before
       // the saved selection, which may name one of them.
       // Waits at most a few seconds: offline, the engine starts without user presets
       // and the subscription below adds them when the account answers.
       await accountReady();
-      enginePresets = useAccount.getState().presets;
+      enginePresets = userPresetsFit() ? useAccount.getState().presets : [];
       if (enginePresets.length) await e.userPresets(enginePresets.map(presetFile));
       // Presets saved on another device (or merged at sign-in) reach the engine too.
       if (!presetsWatched) {
         presetsWatched = true;
         useAccount.subscribe((a) => {
-          if (a.presets !== enginePresets && get().engine === 'ready' && !presetEditing())
+          if (a.presets !== enginePresets && get().engine === 'ready' && !presetEditing() && userPresetsFit())
             void get().setUserPresets(a.presets).catch(fail);
         });
       }
       const [printers, options, layout] = await Promise.all([
         e.printers(),
         e.options(),
-        fetch(`/engine/settings-layout.json?v=${import.meta.env.VITE_ENGINE_VERSION}`).then((r) => (r.ok ? (r.json() as Promise<SettingsLayout>) : null)),
+        fetch(`/${engineFolder(get().flavor)}/settings-layout.json?v=${import.meta.env.VITE_ENGINE_VERSION}`).then((r) => (r.ok ? (r.json() as Promise<SettingsLayout>) : null)),
       ]);
       set({ printers, options, layout });
       const known = saved?.selection && printers.some((p) => p.name === saved.selection?.printer);
       await applySelection(known && saved?.selection ? saved.selection : { printer: DEFAULT_PRINTER });
       const r = pendingRestore;
       if (r) await restore(r);
+      // Replaced by another engine while starting (switchEngine): that one carries on.
+      if (e !== client) return;
       pendingRestore = null;
       restarting = false;
       set({ engine: 'ready' });
@@ -687,7 +711,7 @@ export const useSlicer = create<SlicerState>((set, get) => {
   // Saves the preset selection. Changed settings and mixes go with the
   // project (Save / Download 3MF), not across reloads.
   function persist() {
-    save({ selection: get().selection });
+    save({ selection: get().selection }, get().flavor);
   }
 
   const settingsNotice = (n: number, from: string) =>
@@ -815,6 +839,7 @@ export const useSlicer = create<SlicerState>((set, get) => {
     engineLoad: { stage: 'download', loaded: 0, total: 0 },
     vendorVersion: '',
     engineInfo: null,
+    flavor: engineFromUrl() ?? loadDefaultEngine() ?? 'snapmaker',
     printers: [],
     processes: [],
     filaments: [],
@@ -1122,6 +1147,28 @@ export const useSlicer = create<SlicerState>((set, get) => {
       }
     },
     projectFile: (thumbnail) => engine().saveProject(engineOverrides(), thumbnail),
+    async switchEngine(flavor) {
+      if (flavor === get().flavor && client) return;
+      sliceRun++;
+      const old = client;
+      client = null;
+      saved3mf = null;
+      pendingRestore = null;
+      // What the old engine was still doing is dropped, not an error to show.
+      restarting = true;
+      old?.terminate('The slicing engine was switched.');
+      // Settings and mixes belong to a project, and the presets they name to an engine.
+      set({ ...emptyEngine(), flavor, engineInfo: null, overrides: {}, calibration: null, mixDefinitions: '', mixes: [], palette: [], towers: [], notice: '', conversion: null, pendingOpen: null });
+      engine();
+      await new Promise<void>((resolve) => {
+        const off = useSlicer.subscribe((st) => {
+          if (st.engine !== 'starting' || st.flavor !== flavor) {
+            off();
+            resolve();
+          }
+        });
+      });
+    },
     clearProject: () =>
       projectEdit('Delete all', async () => {
         await get().endCalibration();
