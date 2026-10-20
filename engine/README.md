@@ -122,3 +122,7 @@ engines. Each project slices with one of them (`apps/web/src/lib/engines.ts`): n
 use the setup wizard's default (an empty plate's engine chip picks the other one), an online project remembers its engine, and a 3MF opens with
 the engine that made it (Snapmaker Orca writes Application "Snapmaker_Orca-…", OrcaSlicer an
 "OrcaSlicer" entry). `?engine=orca` (or `snapmaker`) starts the page with that engine.
+User presets are shared between the engines (`apps/web/src/lib/preset-engines.ts`): the settings
+both engines have with the same type, from `apps/web/scripts/shared-settings.mjs`, which also
+picks each engine's stand-in for the other's system presets. CI checks the file is current;
+after an engine update, run it in `apps/web` and commit `src/lib/shared-settings.json`.

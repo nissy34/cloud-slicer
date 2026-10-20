@@ -365,6 +365,11 @@ jobs:
         run: |
           npm ci --no-audit --no-fund
           npm run build
+      # The settings a preset shares between the engines, and each engine's
+      # stand-in presets for the other's (src/lib/preset-engines.ts).
+      - name: Shared preset settings are up to date
+        working-directory: apps/web
+        run: node scripts/shared-settings.mjs --check
 
       - uses: actions/upload-artifact@v4
         with:
@@ -410,6 +415,7 @@ jobs:
           SMOKE_ENGINE=orca node test/smoke.mjs ../../fixtures/3DBenchy.stl smoke-orca.png
           mkdir -p engine-shots
           node test/engines.mjs engine-shots
+          node test/shared-presets.mjs engine-shots
 
       - uses: actions/upload-artifact@v4
         if: always() && matrix.suite == 'orca'
