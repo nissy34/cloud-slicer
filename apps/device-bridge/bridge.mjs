@@ -56,11 +56,28 @@ const MAX_FRAME = 700 * 1024;
 const DROPPED = new Set(['notify_proc_stat_update', 'notify_cpu_throttled']);
 
 /**
- * Moonraker calls the bridge refuses to pass on. access.* would let anyone
- * holding the pairing code read or replace the printer's API key, or add
- * Moonraker users; the Device tab never needs them.
+ * The Moonraker calls the bridge passes on: exactly what the Device tab uses.
+ * Everything else is refused, so a pairing code can't reach Moonraker's API
+ * keys and users (access.*), the sudo password and system updates (machine.*),
+ * or move files into the config folder. Keep in step with allowed.go.
  */
-export const refused = (method) => typeof method === 'string' && method.startsWith('access.');
+export const ALLOWED = new Set([
+  'printer.info', 'server.info', 'printer.objects.list', 'printer.objects.subscribe', 'printer.objects.query',
+  'printer.gcode.script', 'printer.print.start', 'printer.print.pause', 'printer.print.resume', 'printer.print.cancel',
+  'printer.emergency_stop', 'printer.firmware_restart', 'server.files.list', 'server.files.metadata',
+  'server.files.delete_file', 'server.webcams.list', 'server.exception.query', 'camera.start_monitor',
+]);
+
+/** Why a browser's call isn't passed on to the printer, or null when it may go. */
+export function refused(method, params) {
+  if (!ALLOWED.has(method)) return `The bridge does not pass on ${method}. If the Device tab needs it, update the bridge.`;
+  // Deleting stays inside the G-code folder: never the printer's config files.
+  if (method === 'server.files.delete_file') {
+    const path = String(params?.path ?? '').replace(/^\/+/, '');
+    if (!path.startsWith('gcodes/') || path.includes('..')) return 'The bridge only deletes files in the G-code folder.';
+  }
+  return null;
+}
 
 // ---- config ------------------------------------------------------------------------
 
@@ -561,8 +578,9 @@ class Session {
       );
       return;
     }
-    if (refused(msg.method)) {
-      if (msg.id != null) this.send(JSON.stringify({ jsonrpc: '2.0', id: msg.id, error: { code: -32601, message: `The bridge does not pass on ${msg.method}.` } }));
+    const why = refused(msg.method, msg.params);
+    if (why) {
+      if (msg.id != null) this.send(JSON.stringify({ jsonrpc: '2.0', id: msg.id, error: { code: -32601, message: why } }));
       return;
     }
     if (this.ws?.readyState === WebSocket.OPEN) this.ws.send(text);
