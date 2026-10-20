@@ -55,7 +55,8 @@ import { estimateLayers, slicePercent } from '../lib/slice-progress';
 import { MATRIX, MULTIPLIER, remapMatrix, type FlushInfo } from '../lib/flush';
 import { OBJECT_CLASHED, objectsOutside, plateBounds } from '../lib/outside';
 
-export type Tab = 'prepare' | 'preview' | 'device';
+/** 'admin' is the owner's Admin page, opened from the account menu (no tab of its own). */
+export type Tab = 'prepare' | 'preview' | 'device' | 'admin';
 /** The object tool open on the 3D view, like desktop's gizmos (paint has its own state). */
 export type Tool = 'move' | 'rotate' | 'scale' | 'flatten' | 'cut' | 'measure' | 'layers' | 'brim' | 'simplify' | 'boolean' | 'text' | 'svg' | 'assemble';
 /** How a 3MF is opened: as the project (replacing it) or its objects added. */

@@ -44,6 +44,20 @@ jobs:
         working-directory: apps/device-bridge
         run: npm test
 
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: apps/device-bridge/go.mod
+          cache-dependency-path: apps/device-bridge/go.sum
+
+      - name: Go bridge tests, and builds for every printer chip (x64, arm64, armv7, MIPS)
+        working-directory: apps/device-bridge
+        run: |
+          go vet ./...
+          test -z "$(gofmt -l .)" || { gofmt -l .; echo "Run gofmt -w on these files"; exit 1; }
+          go test -race -count=1 ./...
+          ./build.sh
+          ./dist/go/linux-x64 version
+
       - name: Relay typecheck
         working-directory: apps/device-relay
         run: |
@@ -69,7 +83,7 @@ jobs:
         with:
           bun-version: 1.4.2
 
-      - name: Bridge apps build, and the Linux one serves the mock U1 through a local relay
+      - name: Bridge apps build, and the Linux ones (Bun and Go) serve the mock U1 through a local relay
         working-directory: apps/device-bridge
         run: |
           ./build-apps.sh
@@ -79,6 +93,16 @@ jobs:
           for i in $(seq 1 60); do curl -fsS -o /dev/null http://127.0.0.1:8797/ && break; sleep 1; done
           cd ../web
           node test/device/relay-live.mjs http://127.0.0.1:8797 --app ../device-bridge/dist/linux-x64
+          node test/device/relay-live.mjs http://127.0.0.1:8797 --app ../device-bridge/dist/go/linux-x64
+
+      - name: Relay with accounts (tickets, camera cap, blocking) on a local relay
+        working-directory: apps/device-relay
+        run: |
+          node -e "const k=require('crypto').generateKeyPairSync('ec',{namedCurve:'P-256'});const f=require('fs');f.writeFileSync('$RUNNER_TEMP/pub.json',JSON.stringify(k.publicKey.export({format:'jwk'})));f.writeFileSync('$RUNNER_TEMP/priv.json',JSON.stringify(k.privateKey.export({format:'jwk'})))"
+          npx wrangler dev --port 8798 --ip 127.0.0.1 --persist-to "$RUNNER_TEMP/relay-accounts" --var "RELAY_TICKET_PUBLIC_KEY:$(cat "$RUNNER_TEMP/pub.json")" > wrangler-accounts.log 2>&1 &
+          for i in $(seq 1 60); do curl -fsS -o /dev/null http://127.0.0.1:8798/ && break; sleep 1; done
+          cd ../web
+          RELAY_TICKET_PRIVATE_KEY="$(cat "$RUNNER_TEMP/priv.json")" node test/device/relay-live.mjs http://127.0.0.1:8798
 
       - uses: actions/upload-artifact@v6
         if: always()
@@ -212,6 +236,12 @@ jobs:
         working-directory: apps/web
         run: |
           npm ci --no-audit --no-fund
+          # The live relay only lets in browsers with the site's tickets. CI can't sign
+          # those, so it gives the relay a throwaway test key of its own (replaced every
+          # run, the private half never leaves this job), good only for "ci-" bridges.
+          node -e "const k=require('crypto').generateKeyPairSync('ec',{namedCurve:'P-256'});const f=require('fs');f.writeFileSync('$RUNNER_TEMP/pub.json',JSON.stringify(k.publicKey.export({format:'jwk'})));f.writeFileSync('$RUNNER_TEMP/priv.json',JSON.stringify(k.privateKey.export({format:'jwk'})))"
+          (cd ../device-relay && npx wrangler secret put RELAY_TEST_PUBLIC_KEY < "$RUNNER_TEMP/pub.json")
+          export RELAY_TICKET_PRIVATE_KEY="$(cat "$RUNNER_TEMP/priv.json")"
           node test/device/relay-live.mjs '${{ steps.deploy.outputs.url }}'
           if [ -x ../device-bridge/dist/linux-x64 ]; then
             node test/device/relay-live.mjs '${{ steps.deploy.outputs.url }}' --app ../device-bridge/dist/linux-x64

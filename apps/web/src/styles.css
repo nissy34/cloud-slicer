@@ -4706,6 +4706,8 @@ button.volume-name {
   .flush-multiplier .small {
     grid-column: 1 / -1;
   }
+}
+
 /* Switch this project to <engine>?: the list scrolls inside, the buttons stay. */
 .dialog.engine-switch {
   width: min(520px, 100%);
@@ -4761,4 +4763,220 @@ button.volume-name {
   border-radius: 6px;
   font-size: 12px;
   font-weight: 600;
+}
+
+/* ---- Admin page (components/AdminScreen.tsx) ---- */
+.admin-wrap {
+  max-width: 900px;
+  margin: 0 auto;
+  display: grid;
+  gap: 12px;
+}
+.admin-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.admin-head h1 {
+  margin: 0;
+  font-size: 18px;
+}
+.admin-intro {
+  margin: 0;
+  font-size: 13px;
+}
+.admin-error {
+  margin: 0;
+  color: var(--danger);
+}
+.admin-meters,
+.admin-users,
+.admin-invites {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 12px;
+}
+.admin-meter {
+  display: grid;
+  gap: 4px;
+}
+.admin-meter-top {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 13px;
+}
+.admin-meter-num {
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.admin-bar {
+  height: 6px;
+  border-radius: 3px;
+  background: var(--surface-2);
+  overflow: hidden;
+}
+.admin-bar span {
+  display: block;
+  height: 100%;
+  background: var(--dv-ok);
+}
+.admin-bar.mid span {
+  background: var(--dv-warn);
+}
+.admin-bar.high span {
+  background: var(--danger);
+}
+.admin-switch {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  cursor: pointer;
+}
+.admin-switch + .admin-switch {
+  margin-top: 10px;
+}
+.admin-switch input {
+  margin-top: 3px;
+}
+.admin-switch > span {
+  display: grid;
+  gap: 2px;
+}
+.admin-invite {
+  display: flex;
+  gap: 8px;
+  align-items: end;
+  margin: 14px 0 8px;
+}
+.admin-field {
+  display: grid;
+  gap: 4px;
+  flex: 1;
+  min-width: 0;
+  margin-top: 10px;
+}
+.admin-invite .admin-field {
+  margin-top: 0;
+}
+.admin-field input,
+.admin-field select,
+.admin-search,
+.admin-user-actions select {
+  min-width: 0;
+  max-width: 100%;
+  padding: 7px 8px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--surface);
+  font-size: 13px;
+  color: var(--text);
+}
+.admin-search {
+  width: 100%;
+  margin-bottom: 10px;
+}
+.admin-invites li {
+  display: flex;
+  gap: 8px;
+  align-items: baseline;
+  flex-wrap: wrap;
+}
+.admin-invites li .dv-link {
+  margin-left: auto;
+}
+.admin-user {
+  display: grid;
+  grid-template-columns: minmax(0, 1.2fr) minmax(0, 1.4fr) auto;
+  gap: 6px 14px;
+  align-items: center;
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+}
+.admin-users li:first-child {
+  border-top: 0;
+  padding-top: 0;
+}
+.admin-user.blocked .admin-user-who strong {
+  color: var(--muted);
+}
+.admin-user-who {
+  min-width: 0;
+}
+.admin-email {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.admin-user-stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px 12px;
+  color: var(--muted);
+}
+.admin-user-actions {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+.admin-tag {
+  display: inline-block;
+  margin-left: 6px;
+  padding: 0 6px;
+  border-radius: 4px;
+  font-size: 11px;
+  background: var(--surface-2);
+  color: var(--muted);
+  vertical-align: 1px;
+}
+.admin-tag.danger {
+  color: var(--danger);
+}
+.admin-tag.warn {
+  color: var(--dv-warn);
+}
+.secondary.admin-danger {
+  color: var(--danger);
+}
+.admin-bridge-id {
+  font-family: ui-monospace, 'Noto Sans Mono', monospace;
+  font-weight: 500;
+  overflow-wrap: anywhere;
+}
+.admin-note {
+  margin: 0 0 10px;
+}
+.admin-confirm {
+  grid-column: 1 / -1;
+  display: grid;
+  gap: 8px;
+  padding: 10px;
+  border: 1px solid var(--danger);
+  border-radius: 6px;
+}
+.primary.admin-delete {
+  background: var(--danger);
+  border-color: var(--danger);
+}
+.account-admin {
+  width: 100%;
+  margin-bottom: 10px;
+}
+@media (max-width: 760px) {
+  .admin-user {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .admin-user-actions {
+    justify-content: flex-start;
+  }
+  .admin-user-actions > * {
+    flex: 1 1 140px;
+  }
+  .admin-head h1 {
+    font-size: 16px;
+  }
 }

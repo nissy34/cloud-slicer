@@ -69,6 +69,23 @@ sets an .exe's icon only there) and the Mac app on a macOS runner (to sign the
 .app ad hoc), and uploads them all to the relay's R2 bucket on every push to
 main.
 
+## The Go bridge (on its way in)
+
+The bridge is being rewritten in Go (`*.go` here), so one small file per chip
+runs on every Klipper printer's own computer too: 64-bit and 32-bit Pis,
+Armbian boards, the Snapmaker U1 and the Creality K1 series (MIPS), with
+nothing to install. `./build.sh` builds `dist/go/linux-{x64,arm64,armv7,mipsle}`
+(about 6 to 7 MB each, against 81 MB for the Bun apps). It speaks exactly the
+same messages and reads the same settings file as `bridge.mjs`, so it can take
+over an existing pairing. It runs and manages printers today (`run`, `add`,
+`list`, `remove`, `pair`, `version`); installing it on a printer and the
+Windows and Mac apps come next, after which `bridge.mjs` is retired.
+
+Both bridges pass on only the Moonraker calls the Device tab uses (`allowed.go`,
+`ALLOWED` in `bridge.mjs`) and delete files only in the G-code folder. The Go
+bridge also streams uploads straight into Moonraker instead of keeping the file
+in a temp folder, which on a printer is often in memory. Tests: `go test ./...`.
+
 ## How it works
 
 Browser ⇄ relay (a Cloudflare Durable Object per bridge, `apps/device-relay`)

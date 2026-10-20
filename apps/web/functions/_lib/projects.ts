@@ -1,13 +1,14 @@
 // Projects saved online: each is an Orca 3MF project in R2 with a PNG
 // thumbnail beside it, indexed by a D1 row. The limits keep the whole site
-// inside R2's free 10 GB.
+// inside R2's free 10 GB. Storage per user is set on the Admin page
+// (access.ts storageBytes; 0 = presets only, no online projects).
+import { storageBytes } from './access';
 import { requireUser } from './auth';
 import { HttpError, json, readJson, requireSameOrigin } from './http';
 import type { Env, R2Bucket } from './types';
 
 export const LIMITS = {
   projectBytes: 50 * 1024 * 1024,
-  userBytes: 200 * 1024 * 1024,
   userProjects: 200,
   siteBytes: 8 * 1024 * 1024 * 1024,
   thumbnailBytes: 512 * 1024,
@@ -92,7 +93,7 @@ export async function list(env: Env, request: Request): Promise<Response> {
     enabled: Boolean(env.PROJECTS),
     projects: rows.results.map(toProject),
     usage: await usage(env, user.id),
-    limits: { projectBytes: LIMITS.projectBytes, userBytes: LIMITS.userBytes, userProjects: LIMITS.userProjects },
+    limits: { projectBytes: LIMITS.projectBytes, userBytes: await storageBytes(env, user.id), userProjects: LIMITS.userProjects },
   });
 }
 
@@ -148,11 +149,13 @@ export async function put(env: Env, request: Request, rawId: string): Promise<Re
   const head = new Uint8Array(bytes, 0, Math.min(2, bytes.byteLength));
   if (head[0] !== 0x50 || head[1] !== 0x4b) throw new HttpError(400, "That isn't a 3MF file");
 
+  const userBytes = await storageBytes(env, user.id);
+  if (!userBytes) throw new HttpError(403, "Online projects aren't available for your account. Your presets and printers still save; download the project to keep it.", { code: 'presets-only' });
   const mine = await usage(env, user.id);
   if (!current && mine.count >= LIMITS.userProjects) throw new HttpError(413, `You can save up to ${LIMITS.userProjects} projects online`);
   const grow = bytes.byteLength - (current?.size ?? 0);
-  if (mine.bytes + grow > LIMITS.userBytes)
-    throw new HttpError(413, `Your online projects would use more than ${LIMITS.userBytes / 1024 / 1024} MB. Delete some or download this one instead.`);
+  if (mine.bytes + grow > userBytes)
+    throw new HttpError(413, `Your online projects would use more than ${Math.round(userBytes / 1024 / 1024)} MB. Delete some or download this one instead.`);
   const site = await env.DB!.prepare('SELECT COALESCE(SUM(size), 0) AS bytes FROM projects').first<{ bytes: number }>();
   if ((site?.bytes ?? 0) + grow > LIMITS.siteBytes) throw new HttpError(507, 'Online project storage is full. Download the project instead.');
 

@@ -35,8 +35,10 @@ Pairing:
   pairing link, never stored by the relay or the site, only sent to the printer.
   When a printer is added from the Device tab, the key typed there passes once
   through the relay (TLS) to the bridge, which keeps it; it never comes back.
-  The bridge refuses Moonraker's `access.*` calls, so a pairing-link holder can't
-  read or replace it or add Moonraker users.
+  The bridge passes on only the Moonraker calls the Device tab uses, so a
+  pairing-link holder can't read or replace it, add Moonraker users, set the
+  sudo password, run system updates or touch the config folder (`access.*`,
+  `machine.*` and file moves are refused; deletes stay in the G-code folder).
 - **The relay** (the Cloudflare account, and Cloudflare) sees all traffic in
   plain text: commands, status, camera frames, uploaded G-code, and the keys on
   each connect. It stores only the two key hashes and printer names.
@@ -64,6 +66,10 @@ Attackers considered: someone on the internet with nothing, someone who got a pa
   if Moonraker answers `/printer/info` there.
 - **Abuse**: per client IP, at most 60 websocket connects and 5 new bridge ids a
   minute (Workers rate limiting), so the free tier can't be exhausted cheaply.
+- **Accounts**: with tickets on, only signed-in, allowed accounts get in, and a
+  pairing link alone is no longer enough. Blocking an account drops its
+  connections at once; each account can use 3 bridges and watch 2 cameras at a
+  time. Tickets are ES256 JWTs; the relay holds only the public key.
 - **Deploys**: the live relay deploys from main only, never from a PR.
 
 ## Still open
