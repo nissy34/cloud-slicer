@@ -305,11 +305,18 @@ std::string modelInfoJson() {
                 if (std::find(list.begin(), list.end(), json(o)) == list.end()) list.push_back(o);
                 // PartPlate::get_extruders_without_support: what desktop's
                 // layer slider checks before it offers a filament change.
+                // (ModelVolume::get_extruders gives the same, but rebuilds the
+                // paint's triangles to find them; the paint's used states say
+                // which filaments it has without that.)
                 auto &used = plates[plate]["filaments"];
+                const auto use = [&](int e) {
+                    if (e > 0 && std::find(used.begin(), used.end(), json(e)) == used.end()) used.push_back(e);
+                };
                 for (const ModelVolume* v : obj->volumes)
-                    if (v->is_model_part())
-                        for (int e : v->get_extruders())
-                            if (e > 0 && std::find(used.begin(), used.end(), json(e)) == used.end()) used.push_back(e);
+                    if (v->is_model_part()) {
+                        use(std::max(1, v->extruder_id()));
+                        for (size_t e : v->get_extruders_from_multi_material_painting()) use(int(e) + 1);
+                    }
             }
         }
         const Vec3d size = obj->instance_bounding_box(0, false).size();
