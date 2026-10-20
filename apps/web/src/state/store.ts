@@ -392,7 +392,7 @@ let pendingRestore: { file: File | null; current: boolean; plate: number; slicin
  * A project moving to the engine that is starting (switchProject): the 3MF the
  * old engine saved, what the switch keeps, and the page state that goes with it.
  */
-let pendingCarry: { file: File; plan: SwitchPlan; towers: TowerSpot[]; plate: number; layerHeight: string; types: string[] } | null = null;
+let pendingCarry: { file: File | null; plan: SwitchPlan; towers: TowerSpot[]; plate: number; layerHeight: string; types: string[] } | null = null;
 /** The engine is restarting: requests the old one dropped are not errors to show. */
 let restarting = false;
 let presetsWatched = false;
@@ -536,7 +536,7 @@ export const useSlicer = create<SlicerState>((set, get) => {
   // without its settings (they were the other engine's).
   async function carry(c: NonNullable<typeof pendingCarry>) {
     const e = engine();
-    set({ job: { kind: 'loading', name: c.file.name, label: `Opening your project in ${engineName(c.plan.to)}` } });
+    set({ job: { kind: 'loading', name: c.file?.name ?? '', label: `Opening your project in ${engineName(c.plan.to)}` } });
     try {
       const want = c.plan.selection;
       const printer = get().printers.some((p) => p.name === want.printer) ? want.printer : DEFAULT_PRINTER;
@@ -556,6 +556,8 @@ export const useSlicer = create<SlicerState>((set, get) => {
       }
       setOverrides(overrides);
       set({ towers: c.towers });
+      // An empty plate: only the settings move over.
+      if (!c.file) return set({ job: { kind: 'idle' }, notice: switchedText(c.plan, false), noticeWarn: false });
       const area = get().overrides.printable_area ?? get().baseConfig.printable_area ?? '';
       const res = await e.load(c.file, 0, area, false);
       set({ plate: Math.min(c.plate, Math.max(0, res.info.plates.length - 1)), history: await e.clearHistory() });
@@ -1319,17 +1321,21 @@ export const useSlicer = create<SlicerState>((set, get) => {
       const plan = get().switchPlan(to);
       const e = engine();
       const config = { ...s.baseConfig, ...s.overrides };
-      let file: File;
+      // An empty plate has no model to move, only its presets and changed settings.
+      const hasModel = !!s.project?.objects.length;
+      let file: File | null = null;
       try {
         await get().endCalibration();
         if (get().job.kind === 'slicing') stopSlice();
         set({ job: { kind: 'loading', name: '', label: `Moving your project to ${engineName(to)}` }, tool: null, paint: null });
-        // The old engine changes what the new one can't read, then saves the project.
-        if (plan.mixes.length) await e.mixed(mixRequest({ op: { kind: 'flatten', to: [...plan.mixes].sort((a, b) => a.id - b.id).map((m) => m.becomes) } }));
-        for (const edit of plan.objectEdits) await e.setObjectSettings(edit.object, edit.volume, edit.values);
-        const bytes = await e.saveProject({ ...get().overrides, mixed_filament_definitions: '' }, null);
-        const name = `${(s.project?.fileName || 'project').replace(/\.\w+$/, '')}.3mf`;
-        file = new File([bytes], name, { type: 'model/3mf' });
+        if (hasModel) {
+          // The old engine changes what the new one can't read, then saves the project.
+          if (plan.mixes.length) await e.mixed(mixRequest({ op: { kind: 'flatten', to: [...plan.mixes].sort((a, b) => a.id - b.id).map((m) => m.becomes) } }));
+          for (const edit of plan.objectEdits) await e.setObjectSettings(edit.object, edit.volume, edit.values);
+          const bytes = await e.saveProject({ ...get().overrides, mixed_filament_definitions: '' }, null);
+          const name = `${(s.project?.fileName || 'project').replace(/\.\w+$/, '')}.3mf`;
+          file = new File([bytes], name, { type: 'model/3mf' });
+        }
       } catch (err) {
         set({ job: { kind: 'idle' } });
         return fail(err);

@@ -23,6 +23,7 @@ export function EngineSwitchDialog({ to, onClose, onSwitch }: { to: EngineFlavor
   const from = useSlicer((s) => s.flavor);
   const palette = useSlicer((s) => s.palette);
   const colours = useSlicer((s) => s.selection?.colours);
+  const hasModel = useSlicer((s) => !!s.project?.objects.length);
   const plan = useMemo(() => useSlicer.getState().switchPlan(to), [to]);
   const target = engineName(to);
   const dropped = settingList(plan.dropped);
@@ -38,7 +39,7 @@ export function EngineSwitchDialog({ to, onClose, onSwitch }: { to: EngineFlavor
         <h2 id="engine-switch-title">Switch this project to {target}?</h2>
         <div className="engine-switch-body">
           <p>
-            Your model, plates, positions, painting and settings move over, except:
+            {hasModel ? 'Your model, plates, positions, painting and settings move over, except:' : 'Your printer, presets and changed settings move over, except:'}
           </p>
           {plan.mixes.length > 0 && (
             <section>
@@ -86,7 +87,7 @@ export function EngineSwitchDialog({ to, onClose, onSwitch }: { to: EngineFlavor
             </section>
           )}
           <p className="muted small">
-            Switching back to {engineName(from)} later won't bring these back. Slice again after switching.
+            Switching back to {engineName(from)} later won't bring these back.{hasModel && ' Slice again after switching.'}
           </p>
         </div>
         <div className="dialog-actions">
