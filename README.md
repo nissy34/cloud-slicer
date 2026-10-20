@@ -73,7 +73,7 @@ hosted on Cloudflare's free tier.
   device. Signed out, everything is kept in the browser and merged in at sign-in.
 - **Device tab** for Moonraker (Klipper) printers: cameras, temperatures, motion, files,
   upload and print, plus Snapmaker U1 extras (tool heads, filament sync, the U1 print
-  dialog). Printers on a home network are reached through a small bridge app.
+  dialog, the U1's error codes in Snapmaker's own words). Printers on a home network are reached through a small bridge app.
 - **Light and dark theme**, a layout that works on phones (an open tool stacks the toolbar, its options and the model, with the settings hidden until Done), and installable as an app
   (PWA) on Android.
 
@@ -183,7 +183,9 @@ secrets to Pages and generates `BETTER_AUTH_SECRET` and `ACCOUNT_ENC_KEY` once.
 The Device tab controls Moonraker (Klipper) printers: cameras (all of Moonraker's
 webcams, several at once), temperatures, motion, the console, files, upload and print,
 plus Snapmaker U1 extras (tool heads, filament sync, the U1 print dialog with tool
-mapping). A printer with a public https address is reached directly (the tab shows the
+mapping, and the U1's errors on the Print card with their code and Snapmaker's own
+title and advice; `apps/web/scripts/u1-errors.mjs` rebuilds that list from Snapmaker
+Orca's device page). A printer with a public https address is reached directly (the tab shows the
 `cors_domains` lines Moonraker needs, and a Tailscale hint). A printer on a home network
 is reached through a small **bridge** on any always-on computer near it, which connects
 out to the **relay** (a Cloudflare Worker with one Durable Object per bridge), so no
