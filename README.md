@@ -64,6 +64,12 @@ hosted on Cloudflare's free tier.
 - **Slicing you can stop**: Cancel next to the progress bar, and a change while slicing
   (settings, filaments, presets, the model) stops the slice and drops its result, like desktop.
 - **Preview** of the sliced toolpaths by feature or filament, layer by layer.
+- **Warnings like desktop's**: an object over the plate's edge or above the printer's height
+  shows darker past the edge and has to be moved before slicing; after a slice its
+  warnings (empty layers, G-code paths of two objects running into each other, objects
+  that need support, risky settings, toolpaths outside the plate or above the printer)
+  are listed under the result, and toolpaths outside the build volume can't be downloaded
+  or sent, as on desktop.
 - **Camera views** in the corner of the 3D views: Fit all, and desktop's Iso, Top, Bottom,
   Front, Back, Left and Right (keys 0 to 6, Z fits all). On a phone two fingers always zoom
   and turn the camera, even when they land on the model; one finger on a model moves it.

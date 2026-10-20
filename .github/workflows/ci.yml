@@ -368,9 +368,11 @@ jobs:
           name: preset-screenshots
           path: apps/web/preset-shots
 
-      - name: Colour mixing end to end (Chromium)
+      - name: Colour mixing and slicing warnings end to end (Chromium)
         if: matrix.suite == 'mixing'
-        run: node test/mixing.mjs
+        run: |
+          node test/mixing.mjs
+          node test/warnings.mjs
 
       - name: Prime tower, phone 3D view gestures and plate menu end to end (Chromium)
         if: matrix.suite == 'wipetower'

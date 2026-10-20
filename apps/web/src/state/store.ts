@@ -1,3 +1,4 @@
+import { useMemo } from 'react';
 import { create } from 'zustand';
 import { EngineClient, type CutKeep, type History, type InstanceChanges, type MixedReply, type MixedRequest, type ParsedPreset, type ProjectThumbnail, type ShapePlaceRequest, type ShapeState, type UserPresetFile } from '../engine/client';
 
@@ -16,6 +17,7 @@ import type {
   Selection,
   SettingsLayout,
   SliceResult,
+  SliceWarning,
   WipeTower,
 } from '../engine/protocol';
 import { calibrationOptions, CALIBRATIONS, type CalibrationMode, type CalibrationValues } from '../lib/calibration';
@@ -41,6 +43,7 @@ import { fontInEngine } from './fonts';
 import { cameraPosition } from './view';
 import { saveFile } from '../lib/preset-files';
 import { estimateLayers, slicePercent } from '../lib/slice-progress';
+import { OBJECT_CLASHED, objectsOutside, plateBounds } from '../lib/outside';
 
 export type Tab = 'prepare' | 'preview' | 'device';
 /** The object tool open on the 3D view, like desktop's gizmos (paint has its own state). */
@@ -135,6 +138,9 @@ export interface SlicerState {
   towers: TowerSpot[];
   /** The prime tower on the plate shown, when it has one (the engine's estimate, or the last slice's size). */
   wipeTower: Extract<WipeTower, { show: true }> | null;
+  /** Desktop's errors about the sliced toolpaths (lib/outside), found when the Preview reads the G-code. */
+  gcodeWarnings: { gcode: Blob; list: SliceWarning[] } | null;
+  setGcodeWarnings(gcode: Blob, list: SliceWarning[]): void;
 
   setTab(tab: Tab): void;
   selectPrinter(name: string): Promise<void>;
@@ -816,6 +822,10 @@ export const useSlicer = create<SlicerState>((set, get) => {
     palette: [],
     towers: [],
     wipeTower: null,
+    gcodeWarnings: null,
+    setGcodeWarnings(gcode, list) {
+      set({ gcodeWarnings: { gcode, list } });
+    },
 
     setTab: (tab) => {
       set({ tab });
@@ -1366,6 +1376,8 @@ export const useSlicer = create<SlicerState>((set, get) => {
     async slice() {
       const { project, plate } = get();
       if (!project?.objects.length) return;
+      // Like desktop, an object over the plate's edge has to be moved first.
+      if (objectsOutside(get().preview ?? { positions: new Float32Array(), partList: new Int32Array() }, configBounds()).length) return fail(new Error(OBJECT_CLASHED));
       // Desktop refuses to slice a mix of materials that can't be mixed.
       if (get().mixes.some((m) => m.enabled && !m.compatible))
         return fail(new Error('Mixed filaments contain incompatible material types. Please correct the mixed filaments settings before slicing.'));
@@ -1426,3 +1438,22 @@ export const NO_COLOURS: string[] = [];
 
 /** Value of an option as it will be sliced: the user's override, else the preset's. */
 export const useOption = (key: string) => useSlicer((s) => s.overrides[key] ?? s.baseConfig[key]);
+
+/** The build volume of the selected printer, in plate coordinates. */
+function configBounds() {
+  const { overrides, baseConfig } = useSlicer.getState();
+  return plateBounds(overrides.printable_area ?? baseConfig.printable_area, overrides.printable_height ?? baseConfig.printable_height);
+}
+
+const NO_OBJECTS: number[] = [];
+/** Objects on the shown plate that are partly outside it or taller than the printer (desktop's ObjectClashed). */
+export function useObjectsOutside(): number[] {
+  const preview = useSlicer((s) => s.preview);
+  const area = useOption('printable_area');
+  const height = useOption('printable_height');
+  return useMemo(() => {
+    if (!preview) return NO_OBJECTS;
+    const out = objectsOutside(preview, plateBounds(area, height));
+    return out.length ? out : NO_OBJECTS;
+  }, [preview, area, height]);
+}

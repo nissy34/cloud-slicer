@@ -73,6 +73,7 @@ node test/preset-files.mjs
 node test/accounts.mjs      # needs NO_PROXY=localhost,127.0.0.1 behind a proxy
 node test/toolbar.mjs
 node test/mixing.mjs
+node test/warnings.mjs    # objects over the plate edge, slicing warnings
 node test/loading.mjs
 node test/cancel.mjs
 node test/device-smoke.mjs  # browser -> local relay -> bridge -> mock U1, and direct
