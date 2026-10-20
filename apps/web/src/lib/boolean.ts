@@ -60,6 +60,25 @@ export function booleanChoices(project: Pick<ProjectInfo, 'objects'> | null, obj
 }
 
 /**
+ * What the pickers show for each choice. One object: its part's name and kind.
+ * Several: the object's name (numbered when two share it), then the part when
+ * the object has more than one, so "Cube 1" and "Cube 2" tell apart.
+ */
+export function choiceLabels(choices: BooleanChoice[], objects: { name: string; volumes: unknown[] }[], kindLabel: (c: BooleanChoice) => string): string[] {
+  const part = (c: BooleanChoice) => `${c.name} (${kindLabel(c)})`;
+  const ids = [...new Set(choices.map((c) => c.object))];
+  if (ids.length < 2) return choices.map(part);
+  const count = (name: string) => ids.filter((o) => objects[o]?.name === name).length;
+  const named = new Map(
+    ids.map((o) => {
+      const name = objects[o]?.name ?? '';
+      return [o, count(name) > 1 ? `${name} ${ids.filter((k) => objects[k]?.name === name).indexOf(o) + 1}` : name];
+    }),
+  );
+  return choices.map((c) => ((objects[c.object]?.volumes.length ?? 0) > 1 ? `${named.get(c.object)}: ${part(c)}` : named.get(c.object)!));
+}
+
+/**
  * The starting pair (indices into the choices): the picked volume of the
  * selected object (else its first) and the next one along, wrapping round.
  */

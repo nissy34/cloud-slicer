@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { BOOLEAN_OPS, booleanChoices, booleanRequest, defaultPair, pickerLabels, type BooleanChoice, type BooleanOp } from '../lib/boolean';
+import { BOOLEAN_OPS, booleanChoices, booleanRequest, choiceLabels, defaultPair, pickerLabels, type BooleanOp } from '../lib/boolean';
 import { KIND_LABELS } from '../lib/volumes';
 import { useSlicer } from '../state/store';
 
@@ -24,7 +24,6 @@ export function BooleanPanel({ object, instance }: { object: number; instance: n
   const enough = choices.length >= 2;
   const valid = enough && a !== b && a < choices.length && b < choices.length;
   const objects = project?.objects ?? [];
-  const severalObjects = choices.some((c) => c.object !== object);
   const joining = valid && choices[a].object !== choices[b].object;
 
   const apply = async () => {
@@ -39,28 +38,16 @@ export function BooleanPanel({ object, instance }: { object: number; instance: n
     }
   };
 
-  const option = (c: BooleanChoice, k: number) => (
-    <option key={k} value={k}>
-      {c.name} ({KIND_LABELS[c.kind].toLowerCase()})
-    </option>
-  );
-  // With other objects on the plate, their parts are grouped under each object's name.
-  const groups = choices.reduce<{ object: number; items: [BooleanChoice, number][] }[]>((out, c, k) => {
-    if (out[out.length - 1]?.object !== c.object) out.push({ object: c.object, items: [] });
-    out[out.length - 1].items.push([c, k]);
-    return out;
-  }, []);
+  const labels = choiceLabels(choices, objects, (c) => KIND_LABELS[c.kind].toLowerCase());
   const picker = (label: string, value: number, onChange: (v: number) => void) => (
     <label className="transform-row boolean-pick">
       <span>{label}</span>
       <select aria-label={label} value={value} onChange={(e) => onChange(Number(e.target.value))}>
-        {severalObjects
-          ? groups.map((g) => (
-              <optgroup key={g.object} label={objects[g.object]?.name ?? ''}>
-                {g.items.map(([c, k]) => option(c, k))}
-              </optgroup>
-            ))
-          : choices.map(option)}
+        {labels.map((text, k) => (
+          <option key={k} value={k}>
+            {text}
+          </option>
+        ))}
       </select>
     </label>
   );

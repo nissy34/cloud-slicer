@@ -104,10 +104,10 @@ async function run(name, viewport, mobile) {
   const panel = page.getByRole('region', { name: 'Mesh boolean' });
   await panel.waitFor();
   const second = panel.getByLabel('Part 2');
-  const groups = await second.locator('optgroup').evaluateAll((gs) => gs.map((g) => g.label));
-  if (groups.length !== 2) fail(`${name}: the parts are not grouped by object: ${groups}`);
-  const picked = await second.evaluate((s) => s.selectedOptions[0]?.parentElement?.label);
-  if (picked !== groups[1]) fail(`${name}: Part 2 does not start on the other object (${picked})`);
+  const options = await second.locator('option').allInnerTexts();
+  if (options.join() !== 'Cube 1,Cube 2') fail(`${name}: the two cubes are not told apart: ${options}`);
+  const picked = await second.evaluate((s) => s.selectedOptions[0]?.textContent);
+  if (picked !== 'Cube 1') fail(`${name}: Part 2 does not start on the other cube (${picked})`);
   await panel.getByText('The two objects become one object.').waitFor();
   if (shots) await page.screenshot({ path: join(shots, `boolean-objects-${name}.png`) });
   await tap(panel.getByRole('button', { name: 'Union', exact: true }));

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { booleanChoices, booleanRequest, defaultPair, pickerLabels } from './boolean';
+import { booleanChoices, booleanRequest, choiceLabels, defaultPair, pickerLabels } from './boolean';
 
 const vols = (n: number, o = 0) => Array.from({ length: n }, (_, k) => ({ object: o, volume: k }));
 const object = (name: string, parts: number, plates: number[]) => ({
@@ -41,5 +41,15 @@ describe('mesh boolean', () => {
       request: { op: 'union', a: 0, b: 0, deleteInput: false, bObject: 1, aInstance: 0, bInstance: 1 },
     });
     expect(booleanRequest('difference', c, a, true).request).toEqual({ op: 'difference', a: 0, b: 0, deleteInput: true, bObject: 0, aInstance: 1, bInstance: 0 });
+  });
+  it('names the choices so two objects called the same tell apart', () => {
+    const objects = [
+      { name: 'Cube', ...object('c', 1, [0]) },
+      { name: 'Cube', ...object('k', 2, [0]) },
+      { name: 'Boat', ...object('b', 1, [0]) },
+    ];
+    const kind = () => 'part';
+    expect(choiceLabels(booleanChoices({ objects } as never, 0, 0), objects, kind)).toEqual(['Cube 1', 'Cube 2: k0 (part)', 'Cube 2: k1 (part)', 'Boat']);
+    expect(choiceLabels(booleanChoices({ objects: [objects[1]] } as never, 0, 0), [objects[1]], kind)).toEqual(['k0 (part)', 'k1 (part)']);
   });
 });
