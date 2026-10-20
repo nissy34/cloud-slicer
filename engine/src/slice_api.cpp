@@ -81,9 +81,12 @@ void padFlushMatrix(DynamicPrintConfig& cfg) {
 
 // Copy of the project holding only `plate`'s instances, moved so the plate's
 // front-left corner is the origin (what desktop's PartPlate hands to Print).
+// It is marked as that plate, as desktop does before slicing a plate, so Print
+// uses that plate's pauses, colour changes and custom G-code.
 Model plateModel(int plate) {
     const engine::Project& pr = engine::project();
     Model m(pr.model);
+    m.curr_plate_index = plate;
     const Vec2d origin = pr.plateOrigin(plate);
     for (int o = int(m.objects.size()) - 1; o >= 0; --o) {
         ModelObject* obj = m.objects[o];

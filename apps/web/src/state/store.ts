@@ -21,6 +21,7 @@ import type {
 import { calibrationOptions, CALIBRATIONS, type CalibrationMode, type CalibrationValues } from '../lib/calibration';
 import { bedSize } from '../lib/colour';
 import { renderThumbnails, thumbnailSizes } from '../lib/thumbnail';
+import type { SyncPlan } from '../lib/filament-sync';
 import { DEFAULT_PRINTER, pickFilamentPreset, splitList, SLOT_COLOURS } from '../lib/presets';
 import { changedOnPurpose, emptyProjectMessage, modelProcessKeys, pickProcess, printerLabel, projectOverrides } from '../lib/project-import';
 import { accountReady, getUserSetting, presetEditing, useAccount } from './account';
@@ -157,6 +158,12 @@ export interface SlicerState {
   setColour(slot: number, colour: string): Promise<void>;
   addFilament(): Promise<void>;
   removeFilament(slot: number): Promise<void>;
+  /**
+   * Loads the printer's filaments (Sync filament): `plan` from
+   * lib/filament-sync, `presets` the filament preset for each, `from` the
+   * printer's name for the notice.
+   */
+  syncFilaments(plan: SyncPlan, presets: string[], from: string): Promise<void>;
   setOverride(key: string, value: string | null): void;
   setFlowVariant(index: number): void;
   resetOverrides(keys?: string[]): void;
@@ -865,6 +872,23 @@ export const useSlicer = create<SlicerState>((set, get) => {
         filaments: s.filaments.filter((_, i) => i !== slot),
         colours: s.colours.filter((_, i) => i !== slot),
       }));
+    },
+
+    // Desktop's Sync filament: objects, parts and paint move first (and mixes
+    // go when the filaments were replaced), then the list itself.
+    syncFilaments: async (plan, presets, from) => {
+      if (!get().selection || !plan.filaments.length) return;
+      const colours = plan.filaments.map((f) => f.colour.toUpperCase());
+      if (plan.remap) {
+        try {
+          await editMixes({ kind: 'replacePhysical', colours, types: plan.filaments.map((f) => f.type), remap: plan.remap, dropMixes: plan.dropMixes });
+        } catch (e) {
+          return fail(e);
+        }
+      }
+      await editSelection(() => ({ filaments: presets, colours }));
+      const n = plan.filaments.length;
+      set({ notice: `Loaded ${n} filament${n === 1 ? '' : 's'} from ${from}.`, noticeWarn: false });
     },
 
     setOverride(key, value) {

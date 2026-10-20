@@ -6,7 +6,7 @@ import { readFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { after, before, test } from 'node:test';
 import { fileURLToPath } from 'node:url';
-import { inflateSync } from 'node:zlib';
+import { crc32, inflateRawSync, inflateSync } from 'node:zlib';
 import { DATA_DIR, DEFAULT_PRINTER, bedSize, call, openEngine } from './engine.mjs';
 
 const fixtures = resolve(dirname(fileURLToPath(import.meta.url)), '../../fixtures');
@@ -64,6 +64,47 @@ const generated = {
   'gen-cylinder.stl': cylinderStl(15, 30),
 };
 
+// The files in a zip (stored or deflated), and a zip (stored) made of files.
+function unzip(bytes) {
+  const buf = Buffer.from(bytes);
+  const files = {};
+  let end = buf.length - 22;
+  while (buf.readUInt32LE(end) !== 0x06054b50) end--;
+  let at = buf.readUInt32LE(end + 16);
+  for (let n = buf.readUInt16LE(end + 10); n > 0; n--) {
+    const [method, size, nameLen, extraLen, commentLen, local] = [10, 20, 28, 30, 32, 42].map((o) => (o === 20 || o === 42 ? buf.readUInt32LE(at + o) : buf.readUInt16LE(at + o)));
+    const name = buf.toString('utf8', at + 46, at + 46 + nameLen);
+    const data = local + 30 + buf.readUInt16LE(local + 26) + buf.readUInt16LE(local + 28);
+    const raw = buf.subarray(data, data + size);
+    files[name] = method === 8 ? inflateRawSync(raw) : Buffer.from(raw);
+    at += 46 + nameLen + extraLen + commentLen;
+  }
+  return files;
+}
+function zip(files) {
+  const locals = [], central = [];
+  let offset = 0;
+  for (const [name, content] of Object.entries(files)) {
+    const data = Buffer.from(content), nameBuf = Buffer.from(name);
+    const head = Buffer.alloc(30);
+    head.writeUInt32LE(0x04034b50, 0); head.writeUInt16LE(20, 4);
+    head.writeUInt32LE(crc32(data), 14); head.writeUInt32LE(data.length, 18); head.writeUInt32LE(data.length, 22);
+    head.writeUInt16LE(nameBuf.length, 26);
+    const dir = Buffer.alloc(46);
+    dir.writeUInt32LE(0x02014b50, 0); dir.writeUInt16LE(20, 4); dir.writeUInt16LE(20, 6);
+    dir.writeUInt32LE(crc32(data), 16); dir.writeUInt32LE(data.length, 20); dir.writeUInt32LE(data.length, 24);
+    dir.writeUInt16LE(nameBuf.length, 28); dir.writeUInt32LE(offset, 42);
+    locals.push(head, nameBuf, data);
+    central.push(dir, nameBuf);
+    offset += 30 + nameBuf.length + data.length;
+  }
+  const dirBuf = Buffer.concat(central), tail = Buffer.alloc(22);
+  tail.writeUInt32LE(0x06054b50, 0);
+  tail.writeUInt16LE(Object.keys(files).length, 8); tail.writeUInt16LE(Object.keys(files).length, 10);
+  tail.writeUInt32LE(dirBuf.length, 12); tail.writeUInt32LE(offset, 16);
+  return Buffer.concat([...locals, dirBuf, tail]);
+}
+
 function slice(config, plate = 0, thumbnails = null) {
   const result = JSON.parse(engine.sliceWithConfig(JSON.stringify(config), plate, '/work/out.gcode', null, thumbnails));
   assert.ok(result.success, `slice failed: ${result.error}`);
@@ -111,6 +152,11 @@ test('option metadata covers the print, filament and printer settings', () => {
   assert.equal(opts.layer_height.type, 'float');
   assert.ok(opts.sparse_infill_pattern.enumValues.includes('gyroid'));
   assert.ok(['simple', 'advanced', 'develop'].includes(opts.wall_loops.mode));
+  // What an object or a part can carry on its own (desktop's "Add settings").
+  assert.equal(opts.wall_loops.scope, 'region');
+  assert.equal(opts.layer_height.scope, 'object');
+  assert.equal(opts.enable_support.scope, 'object');
+  assert.equal(opts.nozzle_temperature.scope, undefined);
 });
 
 test('slices an STL with the U1 presets', () => {
@@ -541,6 +587,37 @@ test('saves the project as an Orca 3MF that opens with everything in it', () => 
   assert.equal(file.filament_colour, '#123456');
 });
 
+test('pauses and custom G-code saved in a 3MF go with their own plate', () => {
+  // Desktop keeps the layer-slider items (pauses, colour changes, custom
+  // G-code) per plate in Metadata/custom_gcode_per_layer.xml.
+  select({ printer: DEFAULT_PRINTER });
+  load('3DBenchy.stl');
+  call(engine, 'addPlate');
+  call(engine, 'addInstance', 0, 0, 0, 0);
+  call(engine, 'setInstanceTransform', 0, 1, JSON.stringify({ offset: [100, 100], plate: 1 }));
+  call(engine, 'saveProject', '/work/plates.3mf', JSON.stringify(fullConfig()), null);
+  const item = (z, mark) => `<layer top_z="${z}" type="4" extruder="1" color="" extra="${mark}" gcode="${mark}"/>`;
+  const files = unzip(engine.FS.readFile('/work/plates.3mf'));
+  files['Metadata/custom_gcode_per_layer.xml'] = `<?xml version="1.0" encoding="utf-8"?>
+<custom_gcodes_per_layer>
+<plate><plate_info id="1"/>${item(2, 'M117 MARK_PLATE_ONE')}<mode value="SingleExtruder"/></plate>
+<plate><plate_info id="2"/>${item(4, 'M117 MARK_PLATE_TWO')}<mode value="SingleExtruder"/></plate>
+</custom_gcodes_per_layer>
+`;
+  engine.FS.writeFile('/work/plates.3mf', zip(files));
+  engine.clearModel();
+  const [bw, bd] = bedSize(fullConfig());
+  call(engine, 'loadModel', '/work/plates.3mf', 0, bw, bd);
+  assert.equal(info().plates.length, 2);
+
+  const one = slice(fullConfig(), 0).gcode;
+  assert.ok(one.includes('MARK_PLATE_ONE'), 'plate 1 prints its own custom G-code');
+  assert.ok(!one.includes('MARK_PLATE_TWO'), 'plate 1 leaves out plate 2\'s');
+  const two = slice(fullConfig(), 1).gcode;
+  assert.ok(two.includes('MARK_PLATE_TWO'), 'plate 2 prints its own custom G-code');
+  assert.ok(!two.includes('MARK_PLATE_ONE'), 'plate 2 leaves out plate 1\'s');
+});
+
 test('lists the filaments that work with a printer, for the setup wizard', () => {
   const before = call(engine, 'presetsSelect', JSON.stringify({})).selection;
   const r = call(engine, 'presetsFilamentsFor', DEFAULT_PRINTER);
@@ -714,6 +791,23 @@ test('colour mixing: deleting a mix or a filament moves what uses later filament
   const live = afterRemove.rows.filter((r) => !r.deleted);
   assert.deepEqual(live.map((r) => [r.componentA, r.componentB, r.virtualId]), [[1, 2, 3]]);
   assert.equal(info().objects[0].extruder, 3);
+});
+
+test('sync filament: replacing the filaments moves objects and drops mixes, adding keeps mixes', () => {
+  const THREE = ['#FF0000', '#0000FF', '#FFFF00'];
+  const d = mixed({ definitions: '', colours: THREE, op: { kind: 'add', row: { componentA: 1, componentB: 2 } } }).definitions;
+  load('calib-cube-10-dual-colour-merged.3mf');
+  call(engine, 'setExtruder', 0, -1, 4);  // the mix
+  // Adding a fourth filament at the end: the mix moves from 4 to 5 and stays.
+  const FOUR = [...THREE, '#FFFFFF'];
+  const added = mixed({ definitions: d, colours: THREE, op: { kind: 'replacePhysical', colours: FOUR, remap: [1, 2, 3], dropMixes: false } });
+  assert.deepEqual(added.rows.filter((r) => r.enabled).map((r) => r.virtualId), [5]);
+  assert.equal(info().objects[0].extruder, 5);
+  // Direct override with two printer filaments: 1 -> 1, 2 -> 2, 3 -> 1, 4 -> 2; the mix goes.
+  call(engine, 'setExtruder', 0, -1, 3);
+  const replaced = mixed({ definitions: added.definitions, colours: FOUR, op: { kind: 'replacePhysical', colours: ['#000000', '#00FF00'], remap: [1, 2, 1, 2], dropMixes: true } });
+  assert.equal(replaced.rows.filter((r) => r.enabled).length, 0);
+  assert.equal(info().objects[0].extruder, 1);
 });
 
 test('colour mixing: Match finds the recipe for a target colour', () => {

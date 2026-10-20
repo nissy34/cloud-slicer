@@ -63,6 +63,9 @@ hosted on Cloudflare's free tier.
   want it, per plate, like desktop.
 - **Colour mixing**: Snapmaker Orca's mixed filaments, virtual filaments made of two or
   more physical ones, usable anywhere a filament is.
+- **Filaments from the printer**: "From printer" in the Filament section loads what is in
+  a U1's tool heads (material, brand, colour) into the project, like desktop's Sync
+  filament: match each project filament to the closest loaded one, or replace the list.
 - **Calibration tests** from desktop's Calibration menu: temperature, flow rate, pressure
   advance, retraction, max volumetric speed, VFA, input shaping, junction deviation.
 - **Slicing you can stop**: Cancel next to the progress bar, and a change while slicing

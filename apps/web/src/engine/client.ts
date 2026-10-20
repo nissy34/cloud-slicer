@@ -68,7 +68,9 @@ export interface MixedRequest {
     | { kind: 'add'; row: MixRecipe }
     | { kind: 'update'; index: number; row: MixRecipe }
     | { kind: 'delete'; index: number }
-    | { kind: 'removePhysical'; filament: number };
+    | { kind: 'removePhysical'; filament: number }
+    /** Sync filament: the filaments become `colours`; old filament i moves to remap[i - 1] (0 = gone). */
+    | { kind: 'replacePhysical'; colours: string[]; types?: string[]; remap: number[]; dropMixes: boolean };
   draft?: MixRecipe;
 }
 export interface MixedReply {
