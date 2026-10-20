@@ -357,10 +357,14 @@ jobs:
         run: |
           node test/presets.mjs
           node test/convert.mjs
+          node test/settings.mjs
+          node test/calibration.mjs
 
       - name: Preset editing, import and export end to end (Chromium)
         if: matrix.suite == 'presetfiles'
-        run: node test/preset-files.mjs preset-shots
+        run: |
+          node test/preset-files.mjs preset-shots
+          node test/settings-pages.mjs preset-shots
 
       - uses: actions/upload-artifact@v4
         if: always() && matrix.suite == 'presetfiles'
@@ -368,22 +372,27 @@ jobs:
           name: preset-screenshots
           path: apps/web/preset-shots
 
-      - name: Colour mixing and slicing warnings end to end (Chromium)
+      - name: Colour mixing, loading the printer's filaments and slicing warnings end to end (Chromium, mock printer)
         if: matrix.suite == 'mixing'
         run: |
           node test/mixing.mjs
+          node test/sync-filaments.mjs
           node test/warnings.mjs
 
-      - name: Prime tower, phone 3D view gestures and plate menu end to end (Chromium)
+      - name: Prime tower, phone 3D view gestures, plate menu, transform fields and layer slider items end to end (Chromium)
         if: matrix.suite == 'wipetower'
         run: |
           node test/wipe-tower.mjs
           node test/view-touch.mjs
           node test/plate-menu.mjs
+          node test/layer-codes.mjs
+          node test/transform-fields.mjs
 
-      - name: Loading screen end to end (Chromium)
+      - name: Loading screen and Preview colour key end to end (Chromium)
         if: matrix.suite == 'loading'
-        run: node test/loading.mjs
+        run: |
+          node test/loading.mjs
+          node test/preview-views.mjs
 
       - name: Slice cancel, engine restart and big models end to end (Chromium)
         if: matrix.suite == 'cancel'

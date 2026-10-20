@@ -14,7 +14,9 @@ export type VolumeAction =
   | { op: 'rename'; volume: number; name: string }
   | { op: 'delete'; volume: number }
   | { op: 'type'; volume: number; type: VolumeKind }
-  | { op: 'transform'; volume: number; instance: number; matrix: number[] };
+  | { op: 'transform'; volume: number; instance: number; matrix: number[] }
+  /** Its place in its object, as desktop's part fields: mm, degrees, factors. */
+  | { op: 'set'; volume: number; offset?: number[]; rotation?: number[]; scale?: number[] };
 
 /** The object menu's add submenus, in desktop's order and words. */
 export const ADD_MENUS: { type: VolumeKind; label: string }[] = [

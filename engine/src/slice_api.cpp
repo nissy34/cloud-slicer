@@ -263,7 +263,9 @@ std::string sliceWithConfig(const std::string& configJson, int plate, const std:
             opt->values = {v};
         }
 
-        for (ModelObject* o : model.objects) o->ensure_on_bed();
+        // Sunk objects stay sunk; Orca slices only what is above the bed.
+        for (ModelObject* o : model.objects) engine::settleOnBed(o, true);
+        engine::addCalibrationGcodes(model, cfg);
         const BuildVolume volume(cfg.option<ConfigOptionPoints>("printable_area")->values, cfg.opt_float("printable_height"));
         model.update_print_volume_state(volume);
         json outside = json::array();

@@ -1,7 +1,7 @@
 // One live connection to one printer: Moonraker JSON-RPC over a link, the
 // Klipper objects it subscribes to, and the commands the screen sends.
 // Reconnects by itself; the UI only reads what the callbacks report.
-import { detectAddons, type PrinterAddon, type PrinterFacts } from './addons';
+import { detectAddons, type PrinterAddon, type PrinterError, type PrinterFacts } from './addons';
 import type { BridgeStatus, PrinterLink, RpcMessage } from './link/types';
 import { parseWebcams, type Webcam } from './camera';
 import { genericObjects, mergeStatus, type KlipperObjects } from './status';
@@ -46,6 +46,8 @@ export interface SessionEvents {
   onConsole(line: ConsoleLine): void;
   onFilesChanged(): void;
   onBridge?(status: BridgeStatus): void;
+  /** The printer's own errors in words (add-ons that know its error codes). */
+  onErrors?(errors: PrinterError[]): void;
 }
 
 const OBJECT_FLUSH_MS = 150;
@@ -61,6 +63,9 @@ export class PrinterSession {
   private retries = 0;
   private stopped = false;
   private subscribed: string[] = [];
+  private errors: { current: PrinterError[]; once: PrinterError[] } = { current: [], once: [] };
+  /** Error updates are worked out asynchronously; this keeps them in arrival order. */
+  private errorQueue: Promise<void> = Promise.resolve();
   facts: PrinterFacts | null = null;
   addons: PrinterAddon[] = [];
 
@@ -150,6 +155,34 @@ export class PrinterSession {
     this.ev.onFacts(facts, this.addons);
     this.ev.onObjects(this.objects);
     this.ev.onState('online', '');
+    for (const a of this.addons) {
+      const source = a.errors;
+      if (!source) continue;
+      // Older firmware may not have the call: then there is nothing to show.
+      void this.rpc(source.query)
+        .then((r) => this.updateErrors(source.read(r).then((current) => ({ current }))))
+        .catch(() => undefined);
+    }
+  }
+
+  private updateErrors(change: Promise<{ current?: PrinterError[]; once?: PrinterError[] }>) {
+    this.errorQueue = this.errorQueue
+      .then(() => change)
+      .then(({ current, once }) => {
+        const shown = new Set((current ?? this.errors.current).map((e) => e.id));
+        this.errors = {
+          current: current ?? this.errors.current,
+          once: [...this.errors.once.filter((e) => !once?.some((n) => n.id === e.id)), ...(once ?? [])].filter((e) => !shown.has(e.id)),
+        };
+        this.ev.onErrors?.([...this.errors.current, ...this.errors.once]);
+      })
+      .catch(() => undefined);
+  }
+
+  /** Hides an error the printer announced once; ones it still reports stay. */
+  dismissError(id: string) {
+    this.errors = { ...this.errors, once: this.errors.once.filter((e) => e.id !== id) };
+    this.ev.onErrors?.([...this.errors.current, ...this.errors.once]);
   }
 
   private onMessage(msg: RpcMessage) {
@@ -184,6 +217,11 @@ export class PrinterSession {
       case 'notify_filelist_changed':
         if (touchesGcodes(msg.params)) this.ev.onFilesChanged();
         break;
+      default:
+        for (const a of this.addons) {
+          const change = a.errors?.notified(msg.method ?? '', msg.params);
+          if (change) this.updateErrors(change);
+        }
     }
   }
 

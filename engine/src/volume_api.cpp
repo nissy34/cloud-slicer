@@ -127,6 +127,8 @@ ModelVolume* addFile(ModelObject* obj, ModelVolumeType type, const std::string& 
 //   {op: "type", volume, type}               part, negative, modifier, supportEnforcer or supportBlocker
 //   {op: "transform", volume, instance, matrix}   matrix: 16 numbers, column major: what to do to
 //                                            the volume in its plate's coordinates (as seen on instance i)
+//   {op: "set", volume, offset?, rotation?, scale?}   the part's place in its object, as desktop's
+//                                            part fields: offset mm, rotation degrees, scale factors
 // type is part, negative, modifier, supportEnforcer or supportBlocker.
 // Returns {ok, volume?: index of the new or changed volume, error?}.
 std::string volumeAction(int o, const std::string& requestJson) {
@@ -192,6 +194,23 @@ std::string volumeAction(int o, const std::string& requestJson) {
             world = toBed * world * toBed.inverse();
             const Transform3d inst = obj->instances[i]->get_matrix();
             v->set_transformation(Geometry::Transformation(inst.inverse() * world * inst * v->get_matrix()));
+            obj->invalidate_bounding_box();
+            obj->ensure_on_bed();
+            out["volume"] = req.value("volume", -1);
+        } else if (op == "set") {
+            ModelVolume* v = volumeAt(obj, req.value("volume", -1));
+            const auto vec = [&](const char* key) {
+                const json& a = req.at(key);
+                if (!a.is_array() || a.size() != 3) throw std::runtime_error(std::string(key) + " needs 3 numbers");
+                return Vec3d(a[0].get<double>(), a[1].get<double>(), a[2].get<double>());
+            };
+            if (req.contains("offset")) v->set_offset(vec("offset"));
+            if (req.contains("rotation")) v->set_rotation(vec("rotation") * (M_PI / 180.0));
+            if (req.contains("scale")) {
+                const Vec3d scale = vec("scale");
+                if (scale.minCoeff() <= 0) throw std::runtime_error("the scale must be above 0");
+                v->set_scaling_factor(scale);
+            }
             obj->invalidate_bounding_box();
             obj->ensure_on_bed();
             out["volume"] = req.value("volume", -1);

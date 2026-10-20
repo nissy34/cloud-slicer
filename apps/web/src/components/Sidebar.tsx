@@ -6,6 +6,7 @@ import { CalibrationBanner } from './CalibrationDialog';
 import { useOption, useSlicer } from '../state/store';
 import { ObjectList } from './ObjectList';
 import { ColorMixPanel } from './ColorMixing';
+import { SyncFilamentsButton } from './FilamentSync';
 import { OptionField } from './OptionField';
 import { SettingsPanel } from './SettingsPanel';
 import { PresetMenu } from '../account/PresetMenu';
@@ -76,9 +77,12 @@ function FilamentSection() {
     <section className="group">
       <div className="group-head">
         <h2>Filament</h2>
-        <button className="link" onClick={() => void addFilament()} aria-label="Add filament">
-          + Add
-        </button>
+        <div className="group-actions spaced">
+          <SyncFilamentsButton />
+          <button className="link" onClick={() => void addFilament()} aria-label="Add filament">
+            + Add
+          </button>
+        </div>
       </div>
       <ol className="slots">
         {selection.filaments.map((name, i) => (

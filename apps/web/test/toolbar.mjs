@@ -359,8 +359,21 @@ try {
   await objectMenu.getByRole('menuitem', { name: 'Cube', exact: true }).click();
   await volumes.nth(1).getByText('Modifier').waitFor({ timeout: 30000 });
   await page.getByText('Modifier settings').waitFor();
-  await page.getByLabel('Add a setting to this modifier').selectOption('sparse_infill_density');
-  await page.locator('.object-settings').getByText(/infill density/i).first().waitFor({ timeout: 30000 });
+  // Desktop's full list: a modifier gets part settings (and everything else a part can carry), never object-only ones.
+  await page.getByLabel('Add a setting to this modifier').click();
+  const picker = page.getByRole('region', { name: 'Settings to add to this modifier' });
+  const search = picker.getByLabel('Search settings');
+  for (const key of ['ironing_type', 'top_shell_thickness', 'overhang_1_4_speed', 'minimum_sparse_infill_area', 'fuzzy_skin', 'layer_height', 'enable_support', 'brim_type']) {
+    await search.fill(key.replace(/_/g, ' '));
+    const offered = (await picker.locator(`[data-key="${key}"]`).count()) > 0;
+    const objectOnly = ['layer_height', 'enable_support', 'brim_type'].includes(key);
+    if (offered === objectOnly) fail(objectOnly ? `a modifier can't add the object-only ${key}` : `a modifier can add ${key}`);
+  }
+  await search.fill('');
+  await picker.getByRole('button', { name: /^Strength/ }).click();
+  await picker.locator('[data-key="sparse_infill_density"]').click();
+  await picker.getByRole('button', { name: 'Done' }).click();
+  await page.locator('.object-settings-group').getByText(/infill density/i).first().waitFor({ timeout: 30000 });
   await toolbar.getByRole('button', { name: 'Move' }).click();
   if (shots) await page.screenshot({ path: join(shots, 'parts-modifier.png') });
   await page.keyboard.press('Escape');
