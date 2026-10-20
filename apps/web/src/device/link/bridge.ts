@@ -14,12 +14,25 @@ export interface BridgeTarget {
   key: string;
   /** Printer id in the agent's list; empty to only ask the bridge what it has. */
   printer: string;
+  /**
+   * The site's ticket for this bridge (signed-in accounts only), or null when
+   * the site doesn't use tickets. Throws a LinkError when the account may not.
+   */
+  ticket?: () => Promise<{ ticket: string; expiresAt: number } | null>;
 }
 
-export function bridgeSocketUrl(t: BridgeTarget): string {
+type TicketSource = (relay: string, bridgeId: string) => Promise<{ ticket: string; expiresAt: number } | null>;
+let ticketSource: TicketSource | null = null;
+/** Where every bridge link gets its relay tickets (the account store sets it), unless its target has its own. */
+export function setBridgeTickets(source: TicketSource) {
+  ticketSource = source;
+}
+
+export function bridgeSocketUrl(t: BridgeTarget, ticket?: string): string {
   const base = t.relay.replace(/\/+$/, '').replace(/^http/i, 'ws');
   const q = new URLSearchParams({ key: t.key });
   if (t.printer) q.set('printer', t.printer);
+  if (ticket) q.set('ticket', ticket);
   return `${base}/v1/bridges/${encodeURIComponent(t.bridgeId)}/client?${q}`;
 }
 
@@ -38,15 +51,44 @@ function fromBase64(b64: string): Uint8Array {
 
 export class BridgeLink implements PrinterLink {
   private ws: WebSocket | null = null;
+  private renewTimer: ReturnType<typeof setTimeout> | null = null;
   private seq = 0;
   private pending = new Map<string, { resolve(v: unknown): void; reject(e: Error): void; timer: ReturnType<typeof setTimeout> }>();
   readonly label = 'through the bridge';
 
   constructor(readonly target: BridgeTarget) {}
 
-  open(h: LinkHandlers): Promise<void> {
+  async open(h: LinkHandlers): Promise<void> {
+    const t = await this.fetchTicket();
+    await this.connect(h, t?.ticket);
+    if (t) this.renewBefore(t.expiresAt);
+  }
+
+  private fetchTicket() {
+    const { ticket, relay, bridgeId } = this.target;
+    if (ticket) return ticket();
+    return ticketSource ? ticketSource(relay, bridgeId) : Promise.resolve(null);
+  }
+
+  /** Renews the ticket over the open socket ten minutes before it runs out. */
+  private renewBefore(expiresAt: number) {
+    if (this.renewTimer) clearTimeout(this.renewTimer);
+    this.renewTimer = setTimeout(async () => {
+      const ws = this.ws;
+      try {
+        const t = await this.fetchTicket();
+        if (!t || this.ws !== ws || !ws) return;
+        ws.send(JSON.stringify({ relay: 'ticket', ticket: t.ticket }));
+        this.renewBefore(t.expiresAt);
+      } catch {
+        // the relay closes the socket when the old one runs out, and the session reconnects
+      }
+    }, Math.max(30_000, expiresAt - Date.now() - 10 * 60_000));
+  }
+
+  private connect(h: LinkHandlers, ticket?: string): Promise<void> {
     return new Promise((resolve, reject) => {
-      const ws = new WebSocket(bridgeSocketUrl(this.target));
+      const ws = new WebSocket(bridgeSocketUrl(this.target, ticket));
       let opened = false;
       const timer = setTimeout(() => {
         ws.close();
@@ -107,6 +149,8 @@ export class BridgeLink implements PrinterLink {
   }
 
   close() {
+    if (this.renewTimer) clearTimeout(this.renewTimer);
+    this.renewTimer = null;
     const ws = this.ws;
     this.ws = null;
     ws?.close();

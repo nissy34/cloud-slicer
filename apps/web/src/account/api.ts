@@ -9,6 +9,8 @@ export interface AccountUser {
   email: string | null;
   createdAt: number;
   identities: { provider: ProviderId; login: string | null; email: string | null }[];
+  /** The site's owner (OWNER_EMAILS): sees the Admin page. */
+  owner?: boolean;
 }
 
 export interface Me {
@@ -157,6 +159,11 @@ export const api = {
   renameProject: (id: string, name: string, baseVersion?: number) =>
     call<{ project: OnlineProject }>(projectPath(id), { method: 'PATCH', body: JSON.stringify({ name, baseVersion }) }).then((r) => r.project),
   deleteProject: (id: string) => call<{ ok: true }>(projectPath(id), { method: 'DELETE' }),
+  /** A ticket that lets this account through the bridge relay for one bridge (about an hour). */
+  relayTicket: (relay: string, bridgeId: string) =>
+    call<{ ticket: string; expiresAt: number }>('/api/relay/ticket', { method: 'POST', body: JSON.stringify({ relay, bridgeId }) }),
+  /** The bridge was removed: it no longer counts against the account's bridges. */
+  forgetBridge: (bridgeId: string) => call<{ ok: true }>(`/api/relay/bridges/${encodeURIComponent(bridgeId)}`, { method: 'DELETE' }),
   /** The project's 3MF and the version it is at. */
   /** `onProgress`: bytes downloaded so far, of `total` (0 when the size is unknown). */
   async projectFile(id: string, onProgress?: (loaded: number, total: number) => void): Promise<{ bytes: ArrayBuffer; version: number }> {
