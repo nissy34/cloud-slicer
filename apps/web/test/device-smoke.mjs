@@ -359,6 +359,9 @@ try {
   if (shots) await page.getByRole('dialog').screenshot({ path: join(shots, 'send-pick-printer.png') });
   await page.getByTestId('upload-only').click();
   await until('file uploaded to the printer picked', () => u1.files.has('pick_printer.gcode'), 20_000);
+  // The mock has the file before the page has its answer: switching printers
+  // before then drops the upload's answer and leaves the dialog open.
+  await page.getByRole('dialog', { name: 'Send to printer' }).waitFor({ state: 'detached', timeout: 20_000 });
   if (voron.files.has('pick_printer.gcode')) throw new Error('the file went to the printer on screen, not the one picked');
   if (u1.state.print_stats.state === 'printing') throw new Error('Upload only started a print');
   if ((await page.evaluate(() => localStorage.getItem('cloud-slicer:printer-send:v1'))) !== JSON.stringify(u1Id)) throw new Error('the printer sent to is not remembered');
