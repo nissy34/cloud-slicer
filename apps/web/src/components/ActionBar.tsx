@@ -4,7 +4,8 @@ import type { SliceWarning } from '../engine/protocol';
 import { formatDuration, formatGrams, gcodeFileName, sentence, stageLabel } from '../lib/format';
 import { blocksPrinting, OBJECT_CLASHED } from '../lib/outside';
 import { LIGHT_TRIANGLES, triangleCount } from '../lib/simplify';
-import { ENGINES } from '../lib/engines';
+import { ENGINES, type EngineFlavor } from '../lib/engines';
+import { EngineSwitchDialog } from './EngineSwitchDialog';
 import { useProjects } from '../state/projects';
 import { useObjectsOutside, useSlicer } from '../state/store';
 
@@ -16,21 +17,27 @@ function download(blob: Blob, name: string) {
 }
 
 /**
- * The engine of an empty project, as a chip: tap it to start the project with
- * the other engine instead. New projects start with the setup wizard's default.
+ * The engine the project slices with, as a chip. On an empty plate, picking
+ * the other one starts the project with it; with a model, it asks first what
+ * the project would lose (EngineSwitchDialog) and moves it over.
  */
 function EngineChip() {
   const flavor = useSlicer((s) => s.flavor);
+  const hasModel = useSlicer((s) => !!s.project?.objects.length);
   const [open, setOpen] = useState(false);
+  const [asking, setAsking] = useState<EngineFlavor | null>(null);
   const current = ENGINES.find((e) => e.id === flavor)!;
-  const pick = (id: (typeof ENGINES)[number]['id']) => {
+  const pick = (id: EngineFlavor) => {
     setOpen(false);
-    if (id !== flavor) void useProjects.getState().newProject(id);
+    if (id === flavor) return;
+    if (hasModel) setAsking(id);
+    else void useProjects.getState().newProject(id);
   };
   return (
     <span className="engine-chip-wrap">
-      <button className="engine-chip" aria-haspopup="menu" aria-expanded={open} data-testid="engine-chip" onClick={() => setOpen(!open)}>
-        Slicing with {current.name} ▾
+      <button className={hasModel ? 'engine-chip short' : 'engine-chip'} aria-haspopup="menu" aria-expanded={open} data-testid="engine-chip" onClick={() => setOpen(!open)}>
+        <span className="engine-chip-long">Slicing with </span>
+        {current.name} ▾
       </button>
       {open && (
         <div className="menu-pop engine-chip-menu" role="menu" aria-label="Engine for this project" onKeyDown={(e) => e.key === 'Escape' && setOpen(false)}>
@@ -45,6 +52,16 @@ function EngineChip() {
             </button>
           ))}
         </div>
+      )}
+      {asking && (
+        <EngineSwitchDialog
+          to={asking}
+          onClose={() => setAsking(null)}
+          onSwitch={() => {
+            setAsking(null);
+            void useProjects.getState().switchEngine(asking);
+          }}
+        />
       )}
     </span>
   );
@@ -173,7 +190,7 @@ export function ActionBar() {
             {(notice || heavy) && '.'}
           </span>
         )}
-        {engine === 'ready' && !project?.objects.length && job.kind !== 'loading' && <EngineChip />}
+        {engine === 'ready' && job.kind !== 'loading' && job.kind !== 'slicing' && <EngineChip />}
         {job.kind === 'loading' && <span className="muted">{job.label ?? `Opening ${job.name}`}…</span>}
         {job.kind === 'slicing' && (
           <SliceProgress pct={job.pct} stage={stageLabel(job.stage) || 'Slicing'} onCancel={cancelSlice} />

@@ -416,6 +416,7 @@ jobs:
           mkdir -p engine-shots
           node test/engines.mjs engine-shots
           node test/shared-presets.mjs engine-shots
+          node test/engine-switch.mjs engine-shots
 
       - uses: actions/upload-artifact@v4
         if: always() && matrix.suite == 'orca'
