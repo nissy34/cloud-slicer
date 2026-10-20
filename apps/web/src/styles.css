@@ -4646,6 +4646,12 @@ button.volume-name {
   padding: 0;
   list-style: none;
 }
+.engine-switch-settings {
+  display: grid;
+  gap: 2px;
+  padding-left: 20px;
+  font-size: 14px;
+}
 .engine-switch-mixes li {
   display: flex;
   align-items: center;
