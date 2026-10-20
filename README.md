@@ -74,6 +74,12 @@ hosted on Cloudflare's free tier.
 - **Prime tower on the plate**: when a plate prints with more than one filament the tower
   stands on the Prepare plate at the size Orca will print it, and you drag it where you
   want it, per plate, like desktop.
+- **Flushing volumes** for printers with one nozzle and several filaments (Bambu AMS, Prusa
+  MMU, Creality CFS...), like desktop's window: how much each filament change purges, per
+  pair of filaments, worked out from their colours by each engine's own formula (again for a
+  filament whenever it or its colour changes), with the multiplier, Re-calculate, and where
+  the purge goes (prime tower, infill, support, per object into objects). Printers with a
+  head per filament (the U1) never purge, so they don't show it and say why.
 - **Colour mixing**: Snapmaker Orca's mixed filaments, virtual filaments made of two or
   more physical ones, usable anywhere a filament is.
 - **Filaments from the printer**: "From printer" in the Filament section loads what is in

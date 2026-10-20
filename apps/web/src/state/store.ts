@@ -50,6 +50,7 @@ import { fontInEngine } from './fonts';
 import { cameraPosition } from './view';
 import { saveFile } from '../lib/preset-files';
 import { estimateLayers, slicePercent } from '../lib/slice-progress';
+import { MATRIX, MULTIPLIER, remapMatrix, type FlushInfo } from '../lib/flush';
 import { OBJECT_CLASHED, objectsOutside, plateBounds } from '../lib/outside';
 
 export type Tab = 'prepare' | 'preview' | 'device';
@@ -150,6 +151,8 @@ export interface SlicerState {
   mixes: MixRow[];
   /** Colour of every filament number: the physical filaments, then the mixes. */
   palette: string[];
+  /** Whether the selected printer purges between filaments, and its suggested range (lib/flush). */
+  flush: FlushInfo | null;
   /**
    * Where the prime tower stands on each plate (wipe_tower_x / wipe_tower_y),
    * kept with the project like the mixes, outside the changed settings.
@@ -666,7 +669,7 @@ export const useSlicer = create<SlicerState>((set, get) => {
     const e = engine();
     const res = await e.select(selection);
     const { config } = await e.fullConfig({});
-    set({ selection: res.selection, processes: res.processes, filaments: res.filaments, baseConfig: config, ...stale() });
+    set({ selection: res.selection, processes: res.processes, filaments: res.filaments, baseConfig: config, flush: res.flush ?? null, ...stale() });
     persist();
     await refreshMixes();
   }
@@ -850,6 +853,23 @@ export const useSlicer = create<SlicerState>((set, get) => {
     }
   };
 
+  // A change of filaments. The engine recalculates the flushing volumes from
+  // the colours, as desktop does; flushing volumes the user typed are kept for
+  // the filaments that stayed the same (`mapping`: the old slot of each new
+  // one, null for a new or changed filament, which gets the new values).
+  const editFilaments = async (change: (s: Selection) => Partial<Selection>, mapping: (s: Selection) => (number | null)[]) => {
+    const s = get().selection;
+    if (!s) return;
+    const own = get().overrides[MATRIX];
+    const map = mapping(s);
+    await editSelection(change);
+    if (own === undefined) return;
+    const nozzles = get().flush?.nozzles ?? 1;
+    const next = get().selection?.filaments.length === map.length ? remapMatrix(own, s.filaments.length, get().baseConfig[MATRIX], map, nozzles) : null;
+    get().setOverride(MATRIX, next);
+  };
+  const same = (s: Selection) => s.filaments.map((_, i) => i);
+
   // An edit of the project: remembered first, so undo can take it back.
   const projectEdit = async (label: string, op: () => Promise<ProjectInfo>) => {
     const e = engine();
@@ -931,6 +951,7 @@ export const useSlicer = create<SlicerState>((set, get) => {
     mixDefinitions: '',
     mixes: [],
     palette: [],
+    flush: null,
     towers: [],
     wipeTower: null,
     gcodeWarnings: null,
@@ -946,6 +967,8 @@ export const useSlicer = create<SlicerState>((set, get) => {
 
     selectPrinter: async (name) => {
       await editSelection(() => ({ printer: name, process: '' }));
+      // A new printer purges its own amounts, recalculated for it (as desktop does).
+      get().resetOverrides([MATRIX, MULTIPLIER]);
       await fitPlates().catch(fail);
     },
     async loadVendors(names) {
@@ -987,13 +1010,24 @@ export const useSlicer = create<SlicerState>((set, get) => {
       if (Object.keys(overrides).some((k) => overrides[k] === base[k]))
         setOverrides(Object.fromEntries(Object.entries(overrides).filter(([k, v]) => base[k] !== v)));
     },
-    setFilament: (slot, name) => editSelection((s) => ({ filaments: s.filaments.map((f, i) => (i === slot ? name : f)) })),
-    setColour: (slot, colour) => editSelection((s) => ({ colours: s.colours.map((c, i) => (i === slot ? colour : c)) })),
+    setFilament: (slot, name) =>
+      editFilaments(
+        (s) => ({ filaments: s.filaments.map((f, i) => (i === slot ? name : f)) }),
+        (s) => same(s).map((i) => (i === slot && s.filaments[slot] !== name ? null : i)),
+      ),
+    setColour: (slot, colour) =>
+      editFilaments(
+        (s) => ({ colours: s.colours.map((c, i) => (i === slot ? colour : c)) }),
+        (s) => same(s).map((i) => (i === slot && s.colours[slot] !== colour ? null : i)),
+      ),
     addFilament: () =>
-      editSelection((s) => ({
-        filaments: [...s.filaments, s.filaments[s.filaments.length - 1]],
-        colours: [...s.colours, SLOT_COLOURS[s.colours.length % SLOT_COLOURS.length]],
-      })),
+      editFilaments(
+        (s) => ({
+          filaments: [...s.filaments, s.filaments[s.filaments.length - 1]],
+          colours: [...s.colours, SLOT_COLOURS[s.colours.length % SLOT_COLOURS.length]],
+        }),
+        (s) => [...same(s), null],
+      ),
     // Like desktop, mixes that use the filament go, and objects, parts and
     // paint on later filaments (mixes included) move down one number.
     removeFilament: async (slot) => {
@@ -1002,10 +1036,13 @@ export const useSlicer = create<SlicerState>((set, get) => {
       } catch (e) {
         return fail(e);
       }
-      await editSelection((s) => ({
-        filaments: s.filaments.filter((_, i) => i !== slot),
-        colours: s.colours.filter((_, i) => i !== slot),
-      }));
+      await editFilaments(
+        (s) => ({
+          filaments: s.filaments.filter((_, i) => i !== slot),
+          colours: s.colours.filter((_, i) => i !== slot),
+        }),
+        (s) => same(s).filter((i) => i !== slot),
+      );
     },
 
     // Desktop's Sync filament: objects, parts and paint move first (and mixes
@@ -1020,7 +1057,8 @@ export const useSlicer = create<SlicerState>((set, get) => {
           return fail(e);
         }
       }
-      await editSelection(() => ({ filaments: presets, colours }));
+      // New filaments: the flushing volumes are recalculated for them.
+      await editFilaments(() => ({ filaments: presets, colours }), () => presets.map(() => null));
       const n = plan.filaments.length;
       set({ notice: `Loaded ${n} filament${n === 1 ? '' : 's'} from ${from}.`, noticeWarn: false });
     },
