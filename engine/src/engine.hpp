@@ -19,6 +19,7 @@
 namespace Slic3r {
 class AABBMesh;
 namespace Emboss { struct FontFileWithCache; }
+class PresetBundle;
 }
 
 namespace engine {
@@ -90,6 +91,12 @@ emscripten::val typedCopy(const std::vector<T>& v) {
 // Whether the selected printer preset is a Bambu Lab printer (desktop sets
 // Print::is_BBL_printer() from this before every slice).
 bool selectedPrinterIsBambu();
+
+// Flushing volumes (src/flush_api.cpp): whether the selected printer purges
+// between filaments, and desktop's automatic table from the filament colours,
+// written into the project config. Returns {flushes, nozzles, min, max}.
+bool printerFlushes(Slic3r::PresetBundle& b);
+nlohmann::json autoFlushVolumes(Slic3r::PresetBundle& b);
 
 // A ray from the page (the camera through the pointer) hitting a part.
 struct RayHit {

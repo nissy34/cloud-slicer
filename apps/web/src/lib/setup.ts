@@ -3,6 +3,8 @@
 // account settings (this browser when signed out, the account when signed in).
 import type { PresetSummary } from '../engine/protocol';
 import type { EngineFlavor } from './engines';
+import { standIn } from './preset-engines';
+import { DEFAULT_PRINTER } from './presets';
 import type { PrinterCatalog } from './printer-catalog';
 
 /** Account setting key; signing in merges this browser's lists into the account's. */
@@ -15,6 +17,23 @@ export interface Setup {
   filaments: string[];
   /** The engine new projects use (left out before the wizard asked: Snapmaker Orca). */
   engine?: EngineFlavor;
+  /** The engine whose printer list the wizard showed, so `printers` names its presets (left out: Snapmaker Orca). */
+  printersIn?: EngineFlavor;
+}
+
+/**
+ * The installed printers as engine `flavor` names them: the wizard lists one
+ * engine's printers, and the other has its own name for some (or a stand-in).
+ */
+export function installedPrinters(setup: Setup | undefined, flavor: EngineFlavor): string[] | undefined {
+  if (!setup?.printers) return undefined;
+  const from = setup.printersIn ?? 'snapmaker';
+  return [...new Set(setup.printers.map((name) => standIn('printer', name, from, flavor)))];
+}
+
+/** The printer a project starts on when nothing was selected before: the first one installed that the engine has. */
+export function startPrinter(printers: { name: string }[], installed: string[] | undefined): string {
+  return installed?.find((name) => printers.some((p) => p.name === name)) ?? DEFAULT_PRINTER;
 }
 
 export interface PrinterModel {

@@ -29,7 +29,7 @@ import type { SyncPlan } from '../lib/filament-sync';
 import { DEFAULT_PRINTER, pickFilamentPreset, splitList, SLOT_COLOURS } from '../lib/presets';
 import { changedOnPurpose, emptyProjectMessage, modelProcessKeys, pickProcess, printerLabel, projectOverrides } from '../lib/project-import';
 import { accountReady, getUserSetting, presetEditing, useAccount } from './account';
-import { installedOnly, SETUP_KEY, type Setup } from '../lib/setup';
+import { installedOnly, installedPrinters, SETUP_KEY, startPrinter, type Setup } from '../lib/setup';
 import { loadConvertPreference, loadDefaultEngine, loadSaved, save, saveConvertPreference } from '../lib/storage';
 import { engineFolder, engineFromUrl, engineName, type EngineFlavor } from '../lib/engines';
 import { flowFill, switchedText, switchPlan, type SwitchPlan } from '../lib/engine-switch';
@@ -51,6 +51,7 @@ import { fontInEngine } from './fonts';
 import { cameraPosition } from './view';
 import { saveFile } from '../lib/preset-files';
 import { estimateLayers, slicePercent } from '../lib/slice-progress';
+import { MATRIX, MULTIPLIER, remapMatrix, type FlushInfo } from '../lib/flush';
 import { OBJECT_CLASHED, objectsOutside, plateBounds } from '../lib/outside';
 
 export type Tab = 'prepare' | 'preview' | 'device';
@@ -151,6 +152,8 @@ export interface SlicerState {
   mixes: MixRow[];
   /** Colour of every filament number: the physical filaments, then the mixes. */
   palette: string[];
+  /** Whether the selected printer purges between filaments, and its suggested range (lib/flush). */
+  flush: FlushInfo | null;
   /**
    * Where the prime tower stands on each plate (wipe_tower_x / wipe_tower_y),
    * kept with the project like the mixes, outside the changed settings.
@@ -392,7 +395,7 @@ let pendingRestore: { file: File | null; current: boolean; plate: number; slicin
  * A project moving to the engine that is starting (switchProject): the 3MF the
  * old engine saved, what the switch keeps, and the page state that goes with it.
  */
-let pendingCarry: { file: File; plan: SwitchPlan; towers: TowerSpot[]; plate: number; layerHeight: string; types: string[] } | null = null;
+let pendingCarry: { file: File | null; plan: SwitchPlan; towers: TowerSpot[]; plate: number; layerHeight: string; types: string[] } | null = null;
 /** The engine is restarting: requests the old one dropped are not errors to show. */
 let restarting = false;
 let presetsWatched = false;
@@ -536,10 +539,10 @@ export const useSlicer = create<SlicerState>((set, get) => {
   // without its settings (they were the other engine's).
   async function carry(c: NonNullable<typeof pendingCarry>) {
     const e = engine();
-    set({ job: { kind: 'loading', name: c.file.name, label: `Opening your project in ${engineName(c.plan.to)}` } });
+    set({ job: { kind: 'loading', name: c.file?.name ?? '', label: `Opening your project in ${engineName(c.plan.to)}` } });
     try {
       const want = c.plan.selection;
-      const printer = get().printers.some((p) => p.name === want.printer) ? want.printer : DEFAULT_PRINTER;
+      const printer = get().printers.some((p) => p.name === want.printer) ? want.printer : startPrinter(get().printers, installed());
       await applySelection({ printer, process: '' });
       const { processes, filaments, selection } = get();
       const process = processes.some((p) => p.name === want.process) ? want.process : pickProcess(processes, c.layerHeight, selection?.process ?? '');
@@ -556,6 +559,8 @@ export const useSlicer = create<SlicerState>((set, get) => {
       }
       setOverrides(overrides);
       set({ towers: c.towers });
+      // An empty plate: only the settings move over.
+      if (!c.file) return set({ job: { kind: 'idle' }, notice: switchedText(c.plan, false), noticeWarn: false });
       const area = get().overrides.printable_area ?? get().baseConfig.printable_area ?? '';
       const res = await e.load(c.file, 0, area, false);
       set({ plate: Math.min(c.plate, Math.max(0, res.info.plates.length - 1)), history: await e.clearHistory() });
@@ -680,9 +685,9 @@ export const useSlicer = create<SlicerState>((set, get) => {
           if (a.presets !== enginePresets && get().engine === 'ready' && !presetEditing())
             void get().setUserPresets(a.presets).catch(fail);
           // Printers picked on another device, or in the setup wizard.
-          const setup = a.settings[SETUP_KEY]?.value as Setup | undefined;
-          if (get().engine === 'ready' && setup?.printers && vendorFilesFor(get().catalog, setup.printers).some((f) => !loadedVendors.has(f)))
-            void get().loadVendors(setup.printers).catch(fail);
+          const setup = installedPrinters(a.settings[SETUP_KEY]?.value as Setup | undefined, get().flavor);
+          if (get().engine === 'ready' && setup && vendorFilesFor(get().catalog, setup).some((f) => !loadedVendors.has(f)))
+            void get().loadVendors(setup).catch(fail);
         });
       }
       const [printers, options, layout] = await Promise.all([
@@ -692,7 +697,8 @@ export const useSlicer = create<SlicerState>((set, get) => {
       ]);
       set({ printers, options, layout });
       const known = saved?.selection && printers.some((p) => p.name === saved.selection?.printer);
-      await applySelection(known && saved?.selection ? saved.selection : { printer: DEFAULT_PRINTER });
+      // Nothing chosen in this engine yet: the first printer picked in the setup wizard.
+      await applySelection(known && saved?.selection ? saved.selection : { printer: startPrinter(printers, installed()) });
       const r = pendingRestore;
       if (r) await restore(r);
       const c = pendingCarry;
@@ -715,8 +721,9 @@ export const useSlicer = create<SlicerState>((set, get) => {
   // The printer presets whose brands the engine should load: the installed
   // ones, the selected one and the ones the user's own printers are built on.
   // (Their base in this engine: preset-engines.ts maps it.)
+  const installed = () => installedPrinters(getUserSetting<Setup>(SETUP_KEY), get().flavor);
   const neededPrinters = (options: Record<string, OptionDef>, selected?: string, presets = useAccount.getState().presets) => [
-    ...(getUserSetting<Setup>(SETUP_KEY)?.printers ?? []),
+    ...(installed() ?? []),
     ...(selected ? [selected] : []),
     ...presets.filter((p) => p.type === 'printer').map((p) => presetForEngine(p, get().flavor, options).inherits),
   ];
@@ -725,7 +732,7 @@ export const useSlicer = create<SlicerState>((set, get) => {
     const e = engine();
     const res = await e.select(selection);
     const { config } = await e.fullConfig({});
-    set({ selection: res.selection, processes: res.processes, filaments: res.filaments, baseConfig: config, ...stale() });
+    set({ selection: res.selection, processes: res.processes, filaments: res.filaments, baseConfig: config, flush: res.flush ?? null, ...stale() });
     persist();
     await refreshMixes();
   }
@@ -909,6 +916,23 @@ export const useSlicer = create<SlicerState>((set, get) => {
     }
   };
 
+  // A change of filaments. The engine recalculates the flushing volumes from
+  // the colours, as desktop does; flushing volumes the user typed are kept for
+  // the filaments that stayed the same (`mapping`: the old slot of each new
+  // one, null for a new or changed filament, which gets the new values).
+  const editFilaments = async (change: (s: Selection) => Partial<Selection>, mapping: (s: Selection) => (number | null)[]) => {
+    const s = get().selection;
+    if (!s) return;
+    const own = get().overrides[MATRIX];
+    const map = mapping(s);
+    await editSelection(change);
+    if (own === undefined) return;
+    const nozzles = get().flush?.nozzles ?? 1;
+    const next = get().selection?.filaments.length === map.length ? remapMatrix(own, s.filaments.length, get().baseConfig[MATRIX], map, nozzles) : null;
+    get().setOverride(MATRIX, next);
+  };
+  const same = (s: Selection) => s.filaments.map((_, i) => i);
+
   // An edit of the project: remembered first, so undo can take it back.
   const projectEdit = async (label: string, op: () => Promise<ProjectInfo>) => {
     const e = engine();
@@ -990,6 +1014,7 @@ export const useSlicer = create<SlicerState>((set, get) => {
     mixDefinitions: '',
     mixes: [],
     palette: [],
+    flush: null,
     towers: [],
     wipeTower: null,
     gcodeWarnings: null,
@@ -1005,6 +1030,8 @@ export const useSlicer = create<SlicerState>((set, get) => {
 
     selectPrinter: async (name) => {
       await editSelection(() => ({ printer: name, process: '' }));
+      // A new printer purges its own amounts, recalculated for it (as desktop does).
+      get().resetOverrides([MATRIX, MULTIPLIER]);
       await fitPlates().catch(fail);
     },
     async loadVendors(names) {
@@ -1039,20 +1066,31 @@ export const useSlicer = create<SlicerState>((set, get) => {
       const printers = await e.printers();
       set({ printers });
       const want = { ...get().selection, ...selection };
-      if (!printers.some((p) => p.name === want.printer)) want.printer = DEFAULT_PRINTER;
+      if (!printers.some((p) => p.name === want.printer)) want.printer = startPrinter(printers, installed());
       await applySelection(want);
       const base = get().baseConfig;
       const overrides = get().overrides;
       if (Object.keys(overrides).some((k) => overrides[k] === base[k]))
         setOverrides(Object.fromEntries(Object.entries(overrides).filter(([k, v]) => base[k] !== v)));
     },
-    setFilament: (slot, name) => editSelection((s) => ({ filaments: s.filaments.map((f, i) => (i === slot ? name : f)) })),
-    setColour: (slot, colour) => editSelection((s) => ({ colours: s.colours.map((c, i) => (i === slot ? colour : c)) })),
+    setFilament: (slot, name) =>
+      editFilaments(
+        (s) => ({ filaments: s.filaments.map((f, i) => (i === slot ? name : f)) }),
+        (s) => same(s).map((i) => (i === slot && s.filaments[slot] !== name ? null : i)),
+      ),
+    setColour: (slot, colour) =>
+      editFilaments(
+        (s) => ({ colours: s.colours.map((c, i) => (i === slot ? colour : c)) }),
+        (s) => same(s).map((i) => (i === slot && s.colours[slot] !== colour ? null : i)),
+      ),
     addFilament: () =>
-      editSelection((s) => ({
-        filaments: [...s.filaments, s.filaments[s.filaments.length - 1]],
-        colours: [...s.colours, SLOT_COLOURS[s.colours.length % SLOT_COLOURS.length]],
-      })),
+      editFilaments(
+        (s) => ({
+          filaments: [...s.filaments, s.filaments[s.filaments.length - 1]],
+          colours: [...s.colours, SLOT_COLOURS[s.colours.length % SLOT_COLOURS.length]],
+        }),
+        (s) => [...same(s), null],
+      ),
     // Like desktop, mixes that use the filament go, and objects, parts and
     // paint on later filaments (mixes included) move down one number.
     removeFilament: async (slot) => {
@@ -1061,10 +1099,13 @@ export const useSlicer = create<SlicerState>((set, get) => {
       } catch (e) {
         return fail(e);
       }
-      await editSelection((s) => ({
-        filaments: s.filaments.filter((_, i) => i !== slot),
-        colours: s.colours.filter((_, i) => i !== slot),
-      }));
+      await editFilaments(
+        (s) => ({
+          filaments: s.filaments.filter((_, i) => i !== slot),
+          colours: s.colours.filter((_, i) => i !== slot),
+        }),
+        (s) => same(s).filter((i) => i !== slot),
+      );
     },
 
     // Desktop's Sync filament: objects, parts and paint move first (and mixes
@@ -1079,7 +1120,8 @@ export const useSlicer = create<SlicerState>((set, get) => {
           return fail(e);
         }
       }
-      await editSelection(() => ({ filaments: presets, colours }));
+      // New filaments: the flushing volumes are recalculated for them.
+      await editFilaments(() => ({ filaments: presets, colours }), () => presets.map(() => null));
       const n = plan.filaments.length;
       set({ notice: `Loaded ${n} filament${n === 1 ? '' : 's'} from ${from}.`, noticeWarn: false });
     },
@@ -1319,17 +1361,21 @@ export const useSlicer = create<SlicerState>((set, get) => {
       const plan = get().switchPlan(to);
       const e = engine();
       const config = { ...s.baseConfig, ...s.overrides };
-      let file: File;
+      // An empty plate has no model to move, only its presets and changed settings.
+      const hasModel = !!s.project?.objects.length;
+      let file: File | null = null;
       try {
         await get().endCalibration();
         if (get().job.kind === 'slicing') stopSlice();
         set({ job: { kind: 'loading', name: '', label: `Moving your project to ${engineName(to)}` }, tool: null, paint: null });
-        // The old engine changes what the new one can't read, then saves the project.
-        if (plan.mixes.length) await e.mixed(mixRequest({ op: { kind: 'flatten', to: [...plan.mixes].sort((a, b) => a.id - b.id).map((m) => m.becomes) } }));
-        for (const edit of plan.objectEdits) await e.setObjectSettings(edit.object, edit.volume, edit.values);
-        const bytes = await e.saveProject({ ...get().overrides, mixed_filament_definitions: '' }, null);
-        const name = `${(s.project?.fileName || 'project').replace(/\.\w+$/, '')}.3mf`;
-        file = new File([bytes], name, { type: 'model/3mf' });
+        if (hasModel) {
+          // The old engine changes what the new one can't read, then saves the project.
+          if (plan.mixes.length) await e.mixed(mixRequest({ op: { kind: 'flatten', to: [...plan.mixes].sort((a, b) => a.id - b.id).map((m) => m.becomes) } }));
+          for (const edit of plan.objectEdits) await e.setObjectSettings(edit.object, edit.volume, edit.values);
+          const bytes = await e.saveProject({ ...get().overrides, mixed_filament_definitions: '' }, null);
+          const name = `${(s.project?.fileName || 'project').replace(/\.\w+$/, '')}.3mf`;
+          file = new File([bytes], name, { type: 'model/3mf' });
+        }
       } catch (err) {
         set({ job: { kind: 'idle' } });
         return fail(err);

@@ -1,5 +1,6 @@
 #!/usr/bin/env node
-// Browser end to end for switching an open project to the other engine: a
+// Browser end to end for switching an open project to the other engine:
+// changed settings on an empty plate carrying over both ways, then a
 // model printed with a colour mix in Snapmaker Orca, the Slicer engine dropdown's
 // "Switch this project to OrcaSlicer?" pop-up listing what won't carry over,
 // then the project in OrcaSlicer with the mix turned into its main filament,
@@ -60,19 +61,59 @@ try {
   await page.getByText('Open a model to start').waitFor({ timeout: 120000 });
   await page.getByRole('dialog', { name: 'Set up your printers' }).getByRole('button', { name: 'Not now' }).click();
   await engineIs('Snapmaker Orca');
+  const engineSelect = page.getByTestId('engine-select');
+  const ask = page.getByTestId('engine-switch');
+  const layer = page.getByLabel('Layer height', { exact: true });
+  const printer = page.getByLabel('Printer preset', { exact: true });
+  const search = page.getByRole('searchbox', { name: 'Search process settings' });
+
+  // An empty plate: a changed setting both engines have moves over with the
+  // printer, without a question (it used to start a fresh project and drop them).
+  await layer.fill('0.28');
+  await layer.press('Enter');
+  const printerBefore = await printer.inputValue();
+  await engineSelect.selectOption('orca');
+  await engineIs('OrcaSlicer');
+  await page.getByText('Your changed settings came along').waitFor({ timeout: 180000 });
+  if (await ask.count()) fail('switching an empty plate with a shared change asked first');
+  if ((await layer.inputValue()) !== '0.28') fail(`empty plate: layer height ${await layer.inputValue()} in OrcaSlicer, not 0.28`);
+  if ((await printer.inputValue()) !== printerBefore) fail(`empty plate: printer ${await printer.inputValue()} in OrcaSlicer, not ${printerBefore}`);
+  console.log('empty plate: layer height 0.28 and the printer carried to OrcaSlicer');
+
+  // And back, with a change Snapmaker Orca doesn't have: the pop-up names it,
+  // the shared change still carries.
+  await search.fill('combine brims');
+  await page.getByLabel('Combine brims', { exact: true }).click();
+  await search.fill('');
+  await engineSelect.selectOption('snapmaker');
+  await ask.waitFor();
+  const emptyText = await ask.innerText();
+  console.log(`empty plate pop-up:\n${emptyText}`);
+  for (const want of ["Settings Snapmaker Orca doesn't have", 'Combine brims', 'Your printer, presets and changed settings move over'])
+    if (!emptyText.includes(want)) fail(`the empty plate pop-up doesn't say "${want}"`);
+  if (emptyText.includes('Layer height')) fail('the pop-up lists layer height, which carries over');
+  await shot(page, 'empty-switch-desktop');
+  await page.setViewportSize({ width: 390, height: 844 });
+  await shot(page, 'empty-switch-phone');
+  await page.setViewportSize({ width: 1280, height: 860 });
+  await ask.getByRole('button', { name: 'Switch to Snapmaker Orca' }).click();
+  await engineIs('Snapmaker Orca');
+  await page.getByText('Now slicing with Snapmaker Orca').waitFor({ timeout: 180000 });
+  if ((await layer.inputValue()) !== '0.28') fail(`empty plate: layer height ${await layer.inputValue()} back in Snapmaker Orca, not 0.28`);
+  console.log('empty plate: back to Snapmaker Orca, layer height still 0.28');
 
   // A model printed with a 30/70 mix of filaments 1 and 2: filament 2 is the main one.
   await page.getByTestId('model-input').setInputFiles(model);
   await page.getByText('Ready to slice').waitFor({ timeout: 120000 });
-  // A plain model on built-in presets loses nothing: the Slicer engine dropdown switches without asking.
-  const engineSelect = page.getByTestId('engine-select');
-  const ask = page.getByTestId('engine-switch');
+  // A plain model on built-in presets with only shared changes loses nothing:
+  // the Slicer engine dropdown switches without asking, and the changes carry.
   await shot(page, 'engine-desktop');
   for (const [to, back] of [['OrcaSlicer', 'Snapmaker Orca'], ['Snapmaker Orca', 'OrcaSlicer']]) {
     await engineSelect.selectOption({ label: to });
     await page.getByText(`This project now slices with ${to}`).waitFor({ timeout: 180000 });
     await engineIs(to);
     if (await ask.count()) fail(`switching a plain model to ${to} asked first`);
+    if ((await layer.inputValue()) !== '0.28') fail(`with a model: layer height ${await layer.inputValue()} in ${to}, not 0.28`);
     console.log(`plain model: ${back} -> ${to} without a question`);
   }
   await page.getByText('Ready to slice').waitFor({ timeout: 120000 });

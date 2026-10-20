@@ -69,6 +69,11 @@ try {
     await page.setViewportSize({ width: 1280, height: 800 });
   }
   await wizard.getByRole('button', { name: 'Next' }).click();
+  // Nothing is picked on a first visit: pick the U1.
+  await wizard
+    .locator('.wizard-models li', { has: page.locator('.wizard-model', { hasText: /^Snapmaker U1/ }) })
+    .getByRole('button', { name: '0.4', exact: true })
+    .click();
   await wizard.getByRole('button', { name: 'Next' }).click();
   await wizard.getByRole('button', { name: 'Next' }).click({ timeout: 60000 });
   await wizard.getByRole('button', { name: 'Finish' }).click();
