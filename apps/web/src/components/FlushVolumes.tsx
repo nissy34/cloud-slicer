@@ -5,7 +5,6 @@
 import { useEffect, useState } from 'react';
 import { Dialog } from '../device/ui/parts';
 import {
-  FLUSH_OPTIONS,
   flushNote,
   flushShown,
   MATRIX,
@@ -20,8 +19,6 @@ import {
   stored,
 } from '../lib/flush';
 import { useOption, useSlicer } from '../state/store';
-import { OptionField } from './OptionField';
-import { useOptionStates } from './SettingsPrompt';
 
 export function FlushVolumesButton() {
   const [open, setOpen] = useState(false);
@@ -51,7 +48,6 @@ function FlushVolumesDialog({ onClose }: { onClose(): void }) {
   const value = useOption(MATRIX);
   const multiplierValue = useOption(MULTIPLIER);
   const setOverride = useSlicer((s) => s.setOverride);
-  const states = useOptionStates('global');
   const [nozzle, setNozzle] = useState(0);
   const n = selection?.filaments.length ?? 0;
   // The window closes by itself when the printer stops being one that flushes.
@@ -173,13 +169,6 @@ function FlushVolumesDialog({ onClose }: { onClose(): void }) {
           </span>
         </label>
         {note && <p className="hint warn">{note}</p>}
-        <fieldset className="optgroup">
-          <legend>Where the purge goes</legend>
-          {['enable_prime_tower', ...FLUSH_OPTIONS].filter((k) => !states.hidden.has(k)).map((k) => (
-            <OptionField key={k} optKey={k} label={k === 'enable_prime_tower' ? 'Prime tower' : undefined} disabled={states.disabled.has(k)} />
-          ))}
-          <p className="small muted">Infill and support purging save filament; objects can change it in their own settings.</p>
-        </fieldset>
       </div>
     </Dialog>
   );
