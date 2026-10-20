@@ -130,6 +130,7 @@ set(LIBSLIC3R_EXCLUDE
     Format/svg.cpp          # SVG import, needs OCCT (compat/stubs.cpp)
     Shape/TextShape.cpp     # text embossing, needs OCCT + FreeType
     Format/DRC.cpp          # Draco meshes (upstream OrcaSlicer), compat/drc_stub.cpp
+    ObjColorUtils.cpp       # OBJ colour clustering for desktop's import dialog, needs OpenCV
 )
 if(NOT ENGINE_WITH_STEP)
     list(APPEND LIBSLIC3R_EXCLUDE Format/STEP.cpp)  # compat/stubs.cpp
