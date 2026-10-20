@@ -63,17 +63,25 @@ export function projectOverrides(
 export const isGcodeKey = (key: string) => key.endsWith('_gcode');
 
 /**
- * A project from another slicer (Bambu Studio, say) keeps the selected
- * printer's own G-code: the file's is written for that slicer's variables
- * (Bambu Studio 2.5's flush_volumetric_speeds) and its own firmware steps, so
- * these engines can't fill it in and slicing fails. Returns the overrides
- * without the file's G-code, and how many G-code settings were left out.
+ * A project from another slicer (Bambu Studio, say) keeps its own G-code, as
+ * desktop does, but that G-code is written for the other slicer's variables
+ * (Bambu Studio 2.5's flush_volumetric_speeds), which an engine may not have.
+ * Returns the project's G-code settings: when slicing can't fill one of them
+ * in, the store puts back the printer's own (see `fallBackGcode`).
  */
-export function withoutForeignGcode(overrides: OrcaConfig): { overrides: OrcaConfig; dropped: number } {
+export function gcodeOverrides(overrides: OrcaConfig): OrcaConfig {
+  return Object.fromEntries(Object.entries(overrides).filter(([key]) => isGcodeKey(key)));
+}
+
+/**
+ * The overrides without the other slicer's G-code that is still as the file
+ * had it (what the user changed since stays), and how many went.
+ */
+export function fallBackGcode(overrides: OrcaConfig, fromFile: OrcaConfig): { overrides: OrcaConfig; dropped: number } {
   const kept: OrcaConfig = {};
   let dropped = 0;
   for (const [key, value] of Object.entries(overrides)) {
-    if (isGcodeKey(key)) dropped++;
+    if (key in fromFile && fromFile[key] === value) dropped++;
     else kept[key] = value;
   }
   return { overrides: kept, dropped };

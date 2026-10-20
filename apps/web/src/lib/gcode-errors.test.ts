@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { readableGcodeError } from './gcode-errors';
+import { gcodeErrors, readableGcodeError } from './gcode-errors';
 
 // The engine's text for Bambu Studio 2.5's A1 mini G-code in Snapmaker Orca 2.4.
 const ENGINE = `Failed to generate G-code for invalid custom G-code.
@@ -15,6 +15,16 @@ machine_start_gcode Parsing error at line 88: Not a variable name
 Please check the custom G-code or use the default custom G-code.`;
 
 const labels: Record<string, string> = { machine_start_gcode: 'Start G-code', change_filament_gcode: 'Change filament G-code' };
+
+describe('gcodeErrors', () => {
+  it('lists each G-code, line and variable', () => {
+    expect(gcodeErrors(ENGINE)).toEqual([
+      { key: 'change_filament_gcode', line: 17, reason: 'Referencing a vector variable with a negative index', variable: 'long_retractions_when_cut[previous_extruder]' },
+      { key: 'machine_start_gcode', line: 88, reason: 'Not a variable name', variable: 'flush_volumetric_speeds[initial_no_support_extruder]' },
+    ]);
+    expect(gcodeErrors('This plate is empty.')).toEqual([]);
+  });
+});
 
 describe('readableGcodeError', () => {
   it('names the G-code, the line and the variable', () => {

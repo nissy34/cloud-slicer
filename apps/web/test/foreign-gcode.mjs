@@ -2,10 +2,12 @@
 // Browser end to end, in both engines, for a project from another slicer: a
 // Bambu Studio 2.5 project for the Bambu Lab A1 mini brings Bambu Studio's own
 // start and filament-change G-code, written for variables these engines don't
-// have (flush_volumetric_speeds). Opening it keeps the A1 mini's own G-code,
-// says so, and slices. The same file marked as made by the engine itself keeps
-// its G-code; given a variable the engine doesn't know, slicing stops with an
-// error naming the G-code, the line and the variable.
+// all have (flush_volumetric_speeds). Like desktop, the project keeps its own
+// G-code: OrcaSlicer fills it in and its G-code carries Bambu Studio 2.5's
+// start lines; Snapmaker Orca can't, so it slices with the A1 mini's own G-code
+// and says why. The same file marked as made by the engine itself keeps its
+// G-code; given a variable the engine doesn't know, slicing stops with an error
+// naming the G-code, the line and the variable.
 //
 //   node test/foreign-gcode.mjs [screenshot-dir]
 //
@@ -62,7 +64,7 @@ const browser = await chromium.launch(
   process.env.PLAYWRIGHT_BROWSERS_PATH === '/opt/pw-browsers' ? { executablePath: '/opt/pw-browsers/chromium' } : {},
 );
 try {
-  const page = await browser.newPage({ viewport: { width: 1280, height: 800 } });
+  const page = await browser.newPage({ viewport: { width: 1280, height: 800 }, acceptDownloads: true });
   page.on('pageerror', (e) => console.error(`page error: ${e.message}`));
   const ready = () => page.getByText('Open a model to start').waitFor({ timeout: 120000 });
   const picker = page.getByRole('combobox', { name: 'Printer preset' });
@@ -107,16 +109,28 @@ try {
     }
     await picker.selectOption(PRINTER);
 
-    // Bambu Studio 2.5's project: the printer's own G-code, a note, and it slices.
+    // Bambu Studio 2.5's project slices in both engines.
     await open(modelPath);
-    const note = page.getByText(/The printer's own G-code is used/);
-    await note.waitFor({ timeout: 30000 }).catch(() => fail(`${engine}: no note about the printer's own G-code`));
-    if (await note.count()) console.log(`${engine}: ${(await note.first().innerText()).trim()}`);
-    if (engine === 'snapmaker') await shoot('bambu-note');
-    if (!(await note.count()) || !/written for Bambu Studio 2\.5/.test(await note.first().innerText())) fail(`${engine}: the note doesn't name Bambu Studio 2.5`);
     const sliced = await slice();
     if (sliced) fail(`${engine}: the Bambu Studio project didn't slice: ${sliced}`);
     else console.log(`${engine}: sliced: ${await page.getByTestId('slice-stats').innerText()}`);
+    const [download] = await Promise.all([page.waitForEvent('download'), page.getByRole('button', { name: 'Download G-code' }).click()]);
+    const bambuStart = readFileSync(await download.path(), 'utf8').includes('M1002 gcode_claim_action:54');
+    const note = page.getByText(/so the printer's own G-code is used/);
+    const noteText = (await note.count()) ? (await note.first().innerText()).trim() : '';
+    console.log(`${engine}: Bambu Studio 2.5's start G-code in the output: ${bambuStart}; note: ${noteText || '(none)'}`);
+    if (engine === 'orca') {
+      // OrcaSlicer fills it in: the file's own G-code, as on desktop.
+      if (!bambuStart) fail('orca: the G-code is not the project\'s own Bambu Studio 2.5 G-code');
+      if (noteText) fail(`orca: unexpected note: ${noteText}`);
+    } else {
+      // Snapmaker Orca can't: the A1 mini's own G-code, and a note saying why.
+      if (bambuStart) fail('snapmaker: the G-code still has Bambu Studio 2.5\'s start lines');
+      if (!/Bambu Studio 2\.5's G-code doesn't work in Snapmaker Orca \(“flush_volumetric_speeds”\)/.test(noteText)) fail(`snapmaker: the note doesn't say why: ${noteText || '(none)'}`);
+      if (shots) await page.waitForTimeout(5000); // the Preview reads the G-code
+      await shoot('bambu-note');
+    }
+    await page.getByRole('tab', { name: 'Prepare' }).first().click().catch(() => {});
 
     // The engine's own project keeps its G-code; an unknown variable is named.
     await open(ownProject(engine));

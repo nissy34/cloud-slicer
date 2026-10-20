@@ -27,11 +27,11 @@ import { bedSize } from '../lib/colour';
 import { renderThumbnails, thumbnailSizes } from '../lib/thumbnail';
 import type { SyncPlan } from '../lib/filament-sync';
 import { DEFAULT_PRINTER, pickFilamentPreset, splitList, SLOT_COLOURS } from '../lib/presets';
-import { changedOnPurpose, emptyProjectMessage, modelProcessKeys, pickProcess, printerLabel, projectOverrides, withoutForeignGcode } from '../lib/project-import';
+import { changedOnPurpose, emptyProjectMessage, modelProcessKeys, pickProcess, printerLabel, projectOverrides, fallBackGcode, gcodeOverrides } from '../lib/project-import';
 import { accountReady, getUserSetting, presetEditing, useAccount } from './account';
 import { installedOnly, SETUP_KEY, type Setup } from '../lib/setup';
 import { loadConvertPreference, loadDefaultEngine, loadSaved, save, saveConvertPreference } from '../lib/storage';
-import { readableGcodeError } from '../lib/gcode-errors';
+import { gcodeErrors, readableGcodeError } from '../lib/gcode-errors';
 import { appOfModelHead, engineFolder, engineFromUrl, engineName, engineOfModelHead, modelHeadOf3mf, type EngineFlavor } from '../lib/engines';
 import { flowFill, switchedText, switchPlan, type SwitchPlan } from '../lib/engine-switch';
 import { loadCatalog, vendorFilesFor, type PrinterCatalog } from '../lib/printer-catalog';
@@ -387,6 +387,9 @@ let sliceRun = 0;
  * one saved before slicing, with the engine's edit count when it was made.
  */
 let saved3mf: { file: File; edits: number } | null = null;
+// The opened project's G-code when another slicer wrote it: which slicer, and
+// the values, put back to the printer's own if the engine can't fill them in.
+let foreignGcode: { app: string; values: OrcaConfig } | null = null;
 /** What to put back once a restarted engine is up. */
 let pendingRestore: { file: File | null; current: boolean; plate: number; slicing: boolean; message: string } | null = null;
 /**
@@ -831,7 +834,7 @@ export const useSlicer = create<SlicerState>((set, get) => {
   // and apply its changes on top (like opening the project in desktop Orca);
   // otherwise offer to convert it to one of our printers. `head` is the start of
   // the file's model, which says what wrote it: G-code from another slicer is
-  // left out (lib/project-import withoutForeignGcode).
+  // kept like desktop does, and remembered in case the engine can't fill it in.
   async function importProject(info: ProjectInfo, head: string) {
     const e = engine();
     const file = await e.fileConfig();
@@ -859,15 +862,14 @@ export const useSlicer = create<SlicerState>((set, get) => {
     // The engine also finds a process by its old name, and keeps the current one when it can't.
     const process = info.file.process || (selection?.process ?? '');
     await applySelection({ printer: info.file.printer, process, filaments: names.length ? names : selection?.filaments, colours: colours.length ? colours : selection?.colours });
-    const { mixed_filament_definitions: mixes = '', ...all } = projectOverrides(file, get().baseConfig, get().options);
-    const { overrides, dropped } = engineOfModelHead(head) ? { overrides: all, dropped: 0 } : withoutForeignGcode(all);
+    const { mixed_filament_definitions: mixes = '', ...overrides } = projectOverrides(file, get().baseConfig, get().options);
+    const gcode = gcodeOverrides(overrides);
+    foreignGcode = !engineOfModelHead(head) && Object.keys(gcode).length ? { app: appOfModelHead(head) || 'another slicer', values: gcode } : null;
     // The project's own mixes replace the current ones, as opening it in desktop does.
     set({ mixDefinitions: file.mixed_filament_definitions ?? mixes });
     setOverrides(overrides);
     await refreshMixes();
-    const app = appOfModelHead(head) || 'another slicer';
-    const gcode = dropped ? `The printer's own G-code is used: the file's was written for ${app}.` : '';
-    set({ notice: [settingsNotice(Object.keys(overrides).length, 'the project'), gcode].filter(Boolean).join(' '), noticeWarn: false });
+    set({ notice: settingsNotice(Object.keys(overrides).length, 'the project'), noticeWarn: false });
   }
 
   // Moves a project to `printer`: its default process of the same layer height,
@@ -1110,6 +1112,7 @@ export const useSlicer = create<SlicerState>((set, get) => {
       }
       await get().endCalibration();
       set({ tab: 'prepare', notice: '', conversion: null, pendingOpen: null, tool: null });
+      foreignGcode = null;
       // The project first, so the other files land on it.
       const ordered = [...files].sort((a, b) => Number(is3mf(b)) - Number(is3mf(a)));
       let opened = false;
@@ -1729,8 +1732,26 @@ export const useSlicer = create<SlicerState>((set, get) => {
         // Like desktop Orca: show the result as soon as slicing finishes.
         get().setTab('preview');
       } catch (e) {
+        if (run !== sliceRun) return;
+        const message = (e as Error).message;
+        // Another slicer's G-code this engine can't fill in: the printer's own instead, and slice again.
+        const failed = gcodeErrors(message);
+        if (foreignGcode && failed.some((f) => f.key in foreignGcode!.values)) {
+          const { overrides, dropped } = fallBackGcode(get().overrides, foreignGcode.values);
+          const { app } = foreignGcode;
+          foreignGcode = null;
+          if (dropped) {
+            setOverrides(overrides);
+            // Name a variable the engine doesn't have, if one is the cause.
+            const what = (failed.find((f) => f.variable && /variable name/i.test(f.reason)) ?? failed.find((f) => f.variable))?.variable;
+            await get().slice();
+            if (get().job.kind !== 'error')
+              set({ notice: `${app}'s G-code doesn't work in ${engineName(get().flavor)}${what ? ` (“${what.replace(/\[.*$/, '')}”)` : ''}, so the printer's own G-code is used.`, noticeWarn: true });
+            return;
+          }
+        }
         // Custom G-code the engine can't fill in: which one, which line, which variable.
-        if (run === sliceRun) fail(new Error(readableGcodeError((e as Error).message, (k) => get().options[k]?.label)));
+        fail(new Error(readableGcodeError(message, (k) => get().options[k]?.label)));
       }
     },
     cancelSlice() {

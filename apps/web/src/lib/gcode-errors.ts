@@ -28,18 +28,30 @@ function why(reason: string, variable: string): string {
   return v ? `${reason.replace(/\.$/, '')} at ${v}.` : `${reason.replace(/\.$/, '')}.`;
 }
 
+export interface GcodeError {
+  /** The setting: machine_start_gcode, change_filament_gcode... */
+  key: string;
+  line: number;
+  reason: string;
+  /** The variable at fault, with its [index] if any; '' when there is none. */
+  variable: string;
+}
+
+/** Each G-code the engine couldn't fill in; empty for any other error. */
+export function gcodeErrors(message: string): GcodeError[] {
+  if (!message.startsWith(HEADER)) return [];
+  return [...message.matchAll(ONE)].map(([, key, line, reason, source, pad]) => ({ key, line: Number(line), reason, variable: variableAt(source, pad.length) }));
+}
+
 /**
  * A readable version of the engine's custom G-code error, or the message as
  * it is when it isn't one. `label` names a setting ("Machine start G-code").
  */
 export function readableGcodeError(message: string, label: (key: string) => string | undefined): string {
-  if (!message.startsWith(HEADER)) return message;
   const lines: string[] = [];
   const where = new Set<string>();
-  for (const m of message.matchAll(ONE)) {
-    const [, key, lineNr, reason, source, pad] = m;
-    const name = label(key) ?? key;
-    lines.push(`${name}, line ${lineNr}: ${why(reason, variableAt(source, pad.length))}`);
+  for (const { key, line, reason, variable } of gcodeErrors(message)) {
+    lines.push(`${label(key) ?? key}, line ${line}: ${why(reason, variable)}`);
     where.add(key.startsWith('filament_') ? 'filament' : 'printer');
   }
   if (!lines.length) return message;
