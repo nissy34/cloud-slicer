@@ -14,6 +14,8 @@
   --scene-bed: #d3d8df;
   --scene-grid: #9ba3af;
   --scene-ground: #b9bfc8;
+  --scene-bed-model: #535656;
+  --scene-exclude: #c9b8a6;
   --scene-text: #3b414b;
   /* Measure tool features, both themes (same as MEASURE_COLOURS in lib/measure.ts) */
   --measure-hover: #f5c542;
@@ -40,6 +42,8 @@
     --scene-bed: #2b2f36;
     --scene-grid: #4a5160;
     --scene-ground: #3a3f48;
+    --scene-bed-model: #414148;
+    --scene-exclude: #6f655b;
     --scene-text: #c9ced6;
     color-scheme: dark;
   }
@@ -60,6 +64,8 @@
   --scene-bed: #2b2f36;
   --scene-grid: #4a5160;
   --scene-ground: #3a3f48;
+  --scene-bed-model: #414148;
+  --scene-exclude: #6f655b;
   --scene-text: #c9ced6;
   color-scheme: dark;
 }
