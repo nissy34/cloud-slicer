@@ -3841,27 +3841,6 @@ select:focus-visible {
   border: 0;
   border-top: 1px solid var(--border);
 }
-.engine-chip-wrap {
-  position: relative;
-  margin-left: 10px;
-}
-.engine-chip {
-  padding: 4px 12px;
-  border: 1px solid var(--border);
-  border-radius: 999px;
-  background: var(--surface-2);
-  font-size: 13px;
-  white-space: nowrap;
-  cursor: pointer;
-}
-.menu-pop.engine-chip-menu {
-  top: auto;
-  bottom: calc(100% + 6px);
-  width: min(340px, calc(100vw - 32px));
-}
-.engine-chip-menu button > span {
-  display: grid;
-}
 .menu-note {
   margin: 4px 10px 6px;
   color: var(--muted);
@@ -3994,17 +3973,6 @@ select:focus-visible {
   .project-toast {
     left: 10px;
     top: calc(var(--topbar) + 4px);
-  }
-  /* Opens above the action bar, across its width. */
-  .engine-chip-wrap {
-    position: static;
-  }
-  .menu-pop.engine-chip-menu {
-    left: 12px;
-    right: 12px;
-    top: auto;
-    bottom: calc(100% + 6px);
-    width: auto;
   }
   .projects-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -4642,4 +4610,55 @@ button.volume-name {
 }
 .printer-send {
   margin: -2px 0 0;
+}
+
+/* Switch this project to <engine>?: the list scrolls inside, the buttons stay. */
+.dialog.engine-switch {
+  width: min(520px, 100%);
+  max-height: calc(100dvh - 32px);
+  grid-template-rows: auto minmax(0, 1fr) auto;
+}
+.engine-switch h2 {
+  margin: 0;
+}
+.engine-switch-body {
+  display: grid;
+  gap: 12px;
+  overflow-y: auto;
+  min-height: 0;
+}
+.engine-switch-body p,
+.engine-switch-body ul {
+  margin: 0;
+}
+.engine-switch-body section {
+  display: grid;
+  gap: 4px;
+}
+.engine-switch-body h3 {
+  margin: 0;
+  font-size: 14px;
+}
+.engine-switch-mixes,
+.engine-switch-presets {
+  display: grid;
+  gap: 4px;
+  padding: 0;
+  list-style: none;
+}
+.engine-switch-mixes li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.engine-switch-swatch {
+  display: inline-grid;
+  place-items: center;
+  min-width: 26px;
+  height: 22px;
+  padding: 0 4px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 600;
 }

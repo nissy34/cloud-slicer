@@ -12,6 +12,7 @@ import { OptionField } from './OptionField';
 import { SettingsPanel } from './SettingsPanel';
 import { PresetMenu } from '../account/PresetMenu';
 import { EditPresetButton } from './PresetSettingsDialog';
+import { EngineSection } from './EngineSection';
 import type { PresetSummary } from '../engine/protocol';
 
 /** The user's own presets always show, whatever the setup wizard installed. */
@@ -176,6 +177,7 @@ export function Sidebar() {
   return (
     <aside className="panel">
       <CalibrationBanner />
+      <EngineSection />
       <PrinterSection />
       <FilamentSection />
       <ObjectList />

@@ -71,7 +71,9 @@ export interface MixedRequest {
     | { kind: 'delete'; index: number }
     | { kind: 'removePhysical'; filament: number }
     /** Sync filament: the filaments become `colours`; old filament i moves to remap[i - 1] (0 = gone). */
-    | { kind: 'replacePhysical'; colours: string[]; types?: string[]; remap: number[]; dropMixes: boolean };
+    | { kind: 'replacePhysical'; colours: string[]; types?: string[]; remap: number[]; dropMixes: boolean }
+    /** Switching to an engine without mixing: the mix numbered physical + 1 + k becomes filament to[k]; the mixes go. */
+    | { kind: 'flatten'; to: number[] };
   draft?: MixRecipe;
 }
 export interface MixedReply {
