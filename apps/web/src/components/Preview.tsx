@@ -25,7 +25,7 @@ import { NO_COLOURS, useOption, useSlicer } from '../state/store';
 import { LayerMarks, LayerMenu, useLayerCodes } from './LayerCodes';
 import { PrintLoader } from './PrintLoader';
 import { CameraViews, ViewButtons, type ViewHandle } from './ViewControls';
-import { Bed } from './Viewport';
+import { Bed } from './Bed';
 
 /** The G-code read in a worker: progress (0..1) while reading, then the segments. */
 function useParsed(gcode: Blob | null) {
@@ -442,7 +442,7 @@ export function Preview() {
     <div className={menuOpen ? 'preview layer-menu-open' : 'preview'}>
       <Canvas className="viewport" frameloop="demand" camera={{ position: [w / 2, -d * 0.6, d * 0.7], fov: 40, near: 1, far: 5000 }} data-testid="gcode-preview">
         <color attach="background" args={[scene.background]} />
-        <Bed w={w} d={d} />
+        <Bed />
         {parsed && (
           <Toolpaths parsed={parsed} upTo={upTo} colourBy={colourBy} colours={colours} range={range} hidden={hidden} moving={moving} />
         )}
