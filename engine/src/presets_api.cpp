@@ -257,9 +257,12 @@ std::string presetsSelect(const std::string& selectionJsonText) {
             if (!fallback.empty() && ((printerChanged && !filamentsGiven) || p == nullptr || !p->is_compatible)) name = fallback;
         }
         if (!fallback.empty() && !b.filament_presets.empty()) b.filaments.select_preset_by_name(b.filament_presets.front(), true);
+        // Like desktop, a changed filament or colour recalculates the flushing volumes.
+        const json flush = engine::autoFlushVolumes(b);
 
         return json{{"ok", true},
                     {"selection", selectionJson(b)},
+                    {"flush", flush},
                     {"processes", collectionJson(b.prints, true)},
                     {"filaments", collectionJson(b.filaments, true)}}
             .dump();

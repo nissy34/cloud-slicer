@@ -104,7 +104,19 @@ nothing on purpose, so a deploy's page and engine never get out of step).
   (Snapmaker Orca) to 1.3 MB (OrcaSlicer) of compressed downloads and their memory.
   Printer models lose their `default_materials` in the bundle: once any loaded model
   names some, Orca shows only those filaments for every printer (Snapmaker's name none),
-  and here the wizard picks filaments instead. `scripts/shared-settings.mjs` loads
+  and here the wizard picks filaments instead.
+- **Printer beds**: each brand's beds (a machine model's `bed_model` STL and
+  `bed_texture` SVG/PNG) go to `profiles/beds/<brand>.json` (model to files) and
+  `profiles/beds/<brand>/`, the STL as a small mesh file (`engine/scripts/bed-mesh.mjs`:
+  shared corners once, 16-bit positions; Snapmaker Orca's 1.6 MB Z-Bolt STL becomes
+  300 KB). `src/components/Bed.tsx` fetches only the selected printer's (a U1 about
+  5 KB, a Bambu Lab A1 11 KB, half of all printers under 15 KB, the largest 350 KB),
+  so start-up doesn't grow. It draws them as desktop does (`Bed3D`, `PartPlate`): the
+  shape centred under the printable area, the picture over it (12 mm further forward on
+  Bambu Lab printers), drawn into a canvas at the bed's proportions (2048 px, 1024 on a
+  phone), then the grid (desktop's step, bold every fifth line), `bed_exclude_area` and
+  the origin arrows. A user printer finds its bed through the system printer it is built
+  on, else its `printer_model`, like desktop. `scripts/shared-settings.mjs` loads
   every brand, so a preset built on any brand has a stand-in in the other engine.
 - **Direct print**: a catalog printer whose presets run Klipper (`gcode_flavor`, through
   `inherits`) is one the Device tab can send to through Moonraker. The wizard and the

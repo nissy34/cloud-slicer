@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { installedOnly, SETUP_KEY, type Setup } from '../lib/setup';
+import { installedOnly, installedPrinters, SETUP_KEY, type Setup } from '../lib/setup';
 import { loadConvertPreference } from '../lib/storage';
 import { useUserSetting } from '../state/account';
 import { useSlicer } from '../state/store';
@@ -8,7 +8,7 @@ import { useSlicer } from '../state/store';
 export function ConvertDialog() {
   const conversion = useSlicer((s) => s.conversion);
   const allPrinters = useSlicer((s) => s.printers);
-  const installed = useUserSetting<Setup>(SETUP_KEY)?.printers;
+  const installed = installedPrinters(useUserSetting<Setup>(SETUP_KEY), useSlicer((s) => s.flavor));
   const current = useSlicer((s) => s.selection?.printer ?? '');
   const { convertProject, dismissConversion } = useSlicer.getState();
   const [target, setTarget] = useState(() => loadConvertPreference()?.printer ?? '');
