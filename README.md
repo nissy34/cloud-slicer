@@ -31,8 +31,8 @@ hosted on Cloudflare's free tier.
   stay the same in both, while G-code, Snapmaker's high flow values and settings only one engine
   has are kept per engine, each on its own base preset (`apps/web/src/lib/preset-engines.ts`).
 - **Two engines, chosen per project**: Snapmaker Orca or OrcaSlicer 2.4.2. The "Slicing with
-  <engine> ▾" chip on the plate switches an open project to the other engine, like desktop's
-  printer change: a pop-up first lists what won't carry over (each colour mix and the filament it
+  <engine> ▾" chip above the printer switches an open project to the other engine, like desktop's
+  printer change: when something would be lost, a pop-up first lists just that (each colour mix and the filament it
   becomes, high flow values, settings the other engine lacks, presets moving to their nearest
   match); model, plates, positions and painting stay (`apps/web/src/lib/engine-switch.ts`).
 - **3MF print settings import**: a project's own settings come in on top of your presets.

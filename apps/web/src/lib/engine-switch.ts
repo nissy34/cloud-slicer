@@ -45,12 +45,15 @@ export interface SwitchPlan {
   from: EngineFlavor;
   to: EngineFlavor;
   mixes: MixChange[];
-  /** The printer has standard and high flow settings (Snapmaker Orca's flow variants), which the other engine lacks. */
-  highFlow: boolean;
-  /** Changed settings whose high-flow value differs from the standard one, which carries over alone. */
+  /** Changed settings whose high-flow value differs from the standard one, which carries over alone (untouched presets lose nothing worth a word). */
   highFlowChanged: DroppedSetting[];
   /** Changed settings, and objects' own settings, the other engine doesn't have. */
   dropped: DroppedSetting[];
+  /**
+   * Presets whose stand-in prints differently: a process of another layer
+   * height. A built-in that moves to the other engine's matching built-in
+   * (same layer height, the same filament) is not worth a word.
+   */
   presets: PresetMove[];
   /** The selection to make in the other engine (its preset names). */
   selection: Selection;
@@ -59,6 +62,9 @@ export interface SwitchPlan {
   /** Per object (and part, volume >= 0): settings to remove before the project leaves the engine, and flow lists cut to their standard value. */
   objectEdits: { object: number; volume: number; values: Record<string, string | null> }[];
 }
+
+/** "0.20mm Standard @U1" -> 0.2 (NaN for a name without one). */
+const layerHeight = (process: string) => parseFloat(/^\s*(\d+(?:\.\d+)?)/.exec(process)?.[1] ?? 'NaN');
 
 /** The filament a mix uses most (the first of them on a tie), 1-based. */
 export function mainFilament(row: MixRow): number {
@@ -167,7 +173,7 @@ export function switchPlan(p: PlanInput, t: SharedTable = SHARED): SwitchPlan {
   const presets: PresetMove[] = [];
   const moved = (type: PresetType, name: string) => {
     const next = move(type, name);
-    if (next !== name && !presets.some((m) => m.type === type && m.from === name)) presets.push({ type, from: name, to: next });
+    if (type === 'process' && next !== name && !Object.is(layerHeight(next), layerHeight(name)) && !presets.some((m) => m.from === name)) presets.push({ type, from: name, to: next });
     return next;
   };
   const selection: Selection = {
@@ -220,13 +226,12 @@ export function switchPlan(p: PlanInput, t: SharedTable = SHARED): SwitchPlan {
   });
 
   const mixes = to === 'snapmaker' ? [] : p.mixes.filter((r) => r.enabled && r.virtualId > 0).map((r) => ({ id: r.virtualId, label: mixLabel(r), colour: r.colour, becomes: mainFilament(r) }));
-  const highFlow = leavingFlow && splitList(config.process_flow_support).length > 1;
-  return { from, to, mixes, highFlow, highFlowChanged, dropped, presets, selection, overrides, objectEdits };
+  return { from, to, mixes, highFlowChanged, dropped, presets, selection, overrides, objectEdits };
 }
 
-/** Nothing to tell: everything carries over. */
+/** Nothing to tell: everything that matters carries over, so the switch needs no question. */
 export const losesNothing = (plan: SwitchPlan) =>
-  !plan.mixes.length && !plan.highFlow && !plan.dropped.length && !plan.presets.length;
+  !plan.mixes.length && !plan.highFlowChanged.length && !plan.dropped.length && !plan.presets.length;
 
 /** The notice after a switch. */
 export function switchedText(plan: SwitchPlan): string {

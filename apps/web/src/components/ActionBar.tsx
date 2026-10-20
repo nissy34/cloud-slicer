@@ -4,9 +4,6 @@ import type { SliceWarning } from '../engine/protocol';
 import { formatDuration, formatGrams, gcodeFileName, sentence, stageLabel } from '../lib/format';
 import { blocksPrinting, OBJECT_CLASHED } from '../lib/outside';
 import { LIGHT_TRIANGLES, triangleCount } from '../lib/simplify';
-import { ENGINES, type EngineFlavor } from '../lib/engines';
-import { EngineSwitchDialog } from './EngineSwitchDialog';
-import { useProjects } from '../state/projects';
 import { useObjectsOutside, useSlicer } from '../state/store';
 
 function download(blob: Blob, name: string) {
@@ -14,57 +11,6 @@ function download(blob: Blob, name: string) {
   const a = Object.assign(document.createElement('a'), { href: url, download: name });
   a.click();
   setTimeout(() => URL.revokeObjectURL(url), 1000);
-}
-
-/**
- * The engine the project slices with, as a chip. On an empty plate, picking
- * the other one starts the project with it; with a model, it asks first what
- * the project would lose (EngineSwitchDialog) and moves it over.
- */
-function EngineChip() {
-  const flavor = useSlicer((s) => s.flavor);
-  const hasModel = useSlicer((s) => !!s.project?.objects.length);
-  const [open, setOpen] = useState(false);
-  const [asking, setAsking] = useState<EngineFlavor | null>(null);
-  const current = ENGINES.find((e) => e.id === flavor)!;
-  const pick = (id: EngineFlavor) => {
-    setOpen(false);
-    if (id === flavor) return;
-    if (hasModel) setAsking(id);
-    else void useProjects.getState().newProject(id);
-  };
-  return (
-    <span className="engine-chip-wrap">
-      <button className={hasModel ? 'engine-chip short' : 'engine-chip'} aria-haspopup="menu" aria-expanded={open} data-testid="engine-chip" onClick={() => setOpen(!open)}>
-        <span className="engine-chip-long">Slicing with </span>
-        {current.name} ▾
-      </button>
-      {open && (
-        <div className="menu-pop engine-chip-menu" role="menu" aria-label="Engine for this project" onKeyDown={(e) => e.key === 'Escape' && setOpen(false)}>
-          <p className="menu-note">Engine for this project</p>
-          {ENGINES.map((e) => (
-            <button key={e.id} role="menuitemradio" aria-checked={e.id === flavor} onClick={() => pick(e.id)}>
-              <span>
-                <b>{e.name}</b>
-                <span className="muted small"> {e.blurb}</span>
-              </span>
-              {e.id === flavor && <span aria-hidden>✓</span>}
-            </button>
-          ))}
-        </div>
-      )}
-      {asking && (
-        <EngineSwitchDialog
-          to={asking}
-          onClose={() => setAsking(null)}
-          onSwitch={() => {
-            setAsking(null);
-            void useProjects.getState().switchEngine(asking);
-          }}
-        />
-      )}
-    </span>
-  );
 }
 
 /** The engine start-up error in full, with a button that copies it (and the build and browser) for a bug report. */
@@ -190,7 +136,6 @@ export function ActionBar() {
             {(notice || heavy) && '.'}
           </span>
         )}
-        {engine === 'ready' && job.kind !== 'loading' && job.kind !== 'slicing' && <EngineChip />}
         {job.kind === 'loading' && <span className="muted">{job.label ?? `Opening ${job.name}`}…</span>}
         {job.kind === 'slicing' && (
           <SliceProgress pct={job.pct} stage={stageLabel(job.stage) || 'Slicing'} onCancel={cancelSlice} />

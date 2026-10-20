@@ -3791,9 +3791,11 @@ select:focus-visible {
   border: 0;
   border-top: 1px solid var(--border);
 }
+/* Above the printer picker, the same place on desktop and phone. */
 .engine-chip-wrap {
   position: relative;
-  margin-left: 10px;
+  display: block;
+  margin-bottom: 8px;
 }
 .engine-chip {
   padding: 4px 12px;
@@ -3805,9 +3807,12 @@ select:focus-visible {
   cursor: pointer;
 }
 @media (max-width: 700px) {
-  /* With a model on the plate the bar is busy: just the engine's name. */
-  .engine-chip.short .engine-chip-long {
-    display: none;
+  /* The phone's settings column scrolls and would cut off a floating menu: open in place. */
+  .menu-pop.engine-chip-menu {
+    position: static;
+    margin-top: 6px;
+    width: 100%;
+    box-shadow: none;
   }
 }
 /* Switch this project to <engine>?: the list scrolls inside, the buttons stay. */
@@ -3861,8 +3866,9 @@ select:focus-visible {
   font-weight: 600;
 }
 .menu-pop.engine-chip-menu {
-  top: auto;
-  bottom: calc(100% + 6px);
+  top: calc(100% + 6px);
+  left: 0;
+  right: auto;
   width: min(340px, calc(100vw - 32px));
 }
 .engine-chip-menu button > span {
@@ -4005,13 +4011,7 @@ select:focus-visible {
   .engine-chip-wrap {
     position: static;
   }
-  @media (max-width: 700px) {
-  /* With a model on the plate the bar is busy: just the engine's name. */
-  .engine-chip.short .engine-chip-long {
-    display: none;
-  }
-}
-/* Switch this project to <engine>?: the list scrolls inside, the buttons stay. */
+  /* Switch this project to <engine>?: the list scrolls inside, the buttons stay. */
 .dialog.engine-switch {
   width: min(520px, 100%);
   max-height: calc(100dvh - 32px);

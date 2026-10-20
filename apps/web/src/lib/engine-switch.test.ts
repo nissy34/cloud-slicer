@@ -60,7 +60,7 @@ describe('switchPlan', () => {
     version: 1,
     shared: ['sparse_infill_density', 'outer_wall_speed', 'wall_loops'],
     flow: { outer_wall_speed: 'process' },
-    names: { 'snapmaker>orca': { process: { '0.20mm Standard @U1': '0.20 Standard @U1' }, filament: { 'Snapmaker PLA': 'Generic PLA @U1' } } },
+    names: { 'snapmaker>orca': { process: { '0.20mm Standard @U1': '0.20 Standard @U1', '0.10mm Color Mixing @U1': '0.12 Fine @U1' }, filament: { 'Snapmaker PLA': 'Generic PLA @U1' } } },
     history: [],
   };
   const options: Record<string, OptionDef> = {
@@ -87,7 +87,6 @@ describe('switchPlan', () => {
   it('lists what switching to OrcaSlicer loses, and what carries over', () => {
     const plan = switchPlan(input, table);
     expect(plan.mixes).toEqual([{ id: 3, label: 'F1 20% + F2 80%', colour: '#808080', becomes: 2 }]);
-    expect(plan.highFlow).toBe(true);
     expect(plan.highFlowChanged.map((d) => [d.key, d.where])).toEqual([
       ['outer_wall_speed', undefined],
       ['outer_wall_speed', 'Cube, Part'],
@@ -96,10 +95,9 @@ describe('switchPlan', () => {
       ['Lower bound', undefined],
       ['dithering_z_step_size', 'Cube'],
     ]);
-    expect(plan.presets).toEqual([
-      { type: 'process', from: '0.20mm Standard @U1', to: '0.20 Standard @U1' },
-      { type: 'filament', from: 'Snapmaker PLA', to: 'Generic PLA @U1' },
-    ]);
+    // Built-ins moving to the matching built-in are not worth a word.
+    expect(plan.presets).toEqual([]);
+    expect(plan.selection.process).toBe('0.20 Standard @U1');
     expect(plan.selection.filaments).toEqual(['Generic PLA @U1', 'My PLA']);
     expect(plan.overrides).toEqual({ sparse_infill_density: '20%', outer_wall_speed: '120' });
     expect(plan.objectEdits).toEqual([
@@ -111,8 +109,19 @@ describe('switchPlan', () => {
 
   it('back to Snapmaker Orca has no mixes or high flow to lose', () => {
     const plan = switchPlan({ ...input, from: 'orca', to: 'snapmaker', overrides: { outer_wall_speed: '120' }, mixes: [], project: null, selection: { ...input.selection, process: 'Mine', filaments: ['My PLA'] }, userPresets: [{ type: 'process', name: 'Mine' }, { type: 'filament', name: 'My PLA' }] }, table);
-    expect(plan.highFlow).toBe(false);
     expect(plan.overrides).toEqual({ outer_wall_speed: '120' });
     expect(losesNothing(plan)).toBe(true);
+  });
+
+  it('a plain model on built-in presets loses nothing, so the switch asks nothing', () => {
+    const plain = { ...input, overrides: { sparse_infill_density: '20%' }, mixes: [], project: { objects: [{ name: 'Cube', settings: {}, volumes: [] }] } as unknown as ProjectInfo };
+    expect(losesNothing(switchPlan(plain, table))).toBe(true);
+    // High flow values only count when they were changed apart from the standard ones.
+    expect(losesNothing(switchPlan({ ...plain, overrides: { outer_wall_speed: '120,120' } }, table))).toBe(true);
+  });
+
+  it('a process with no match of its layer height is worth a word', () => {
+    const plan = switchPlan({ ...input, selection: { ...input.selection, process: '0.10mm Color Mixing @U1' } }, table);
+    expect(plan.presets).toEqual([{ type: 'process', from: '0.10mm Color Mixing @U1', to: '0.12 Fine @U1' }]);
   });
 });

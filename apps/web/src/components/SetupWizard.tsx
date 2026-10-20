@@ -150,7 +150,7 @@ function EngineStep({ chosen, onChange }: { chosen: EngineFlavor; onChange: (eng
     <>
       <h3 className="wizard-engine-title">Default engine</h3>
       <p className="muted small">
-        New projects start with this engine. You can still pick the other one for any single project: tap the engine's name on an empty plate. A project you open uses the
+        New projects start with this engine. You can still pick the other one for any project: tap “Slicing with …” above the printer. A project you open uses the
         engine it was made with.
       </p>
       <div className="wizard-engines" role="radiogroup" aria-label="Slicing engine">

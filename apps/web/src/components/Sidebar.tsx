@@ -11,6 +11,7 @@ import { OptionField } from './OptionField';
 import { SettingsPanel } from './SettingsPanel';
 import { PresetMenu } from '../account/PresetMenu';
 import { EditPresetButton } from './PresetSettingsDialog';
+import { EngineChip } from './EngineChip';
 import type { PresetSummary } from '../engine/protocol';
 
 /** The user's own presets always show, whatever the setup wizard installed. */
@@ -39,6 +40,7 @@ function PrinterSection() {
           <PresetMenu type="printer" />
         </div>
       </div>
+      <EngineChip />
       <label className="field">
         <span className="sr-only">Printer preset</span>
         <select

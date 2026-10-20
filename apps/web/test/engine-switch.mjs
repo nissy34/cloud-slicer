@@ -64,6 +64,20 @@ try {
   // A model printed with a 30/70 mix of filaments 1 and 2: filament 2 is the main one.
   await page.getByTestId('model-input').setInputFiles(model);
   await page.getByText('Ready to slice').waitFor({ timeout: 120000 });
+  // A plain model on built-in presets loses nothing: the chip above the printer switches without asking.
+  const chip = page.getByTestId('engine-chip');
+  const ask = page.getByTestId('engine-switch');
+  await shot(page, 'chip-desktop');
+  for (const [to, back] of [['OrcaSlicer', 'Snapmaker Orca'], ['Snapmaker Orca', 'OrcaSlicer']]) {
+    await chip.click();
+    await page.getByRole('menuitemradio', { name: new RegExp(`^${to}`) }).click();
+    await page.getByText(`This project now slices with ${to}`).waitFor({ timeout: 180000 });
+    await engineIs(to);
+    if (await ask.count()) fail(`switching a plain model to ${to} asked first`);
+    console.log(`plain model: ${back} -> ${to} without a question`);
+  }
+  await page.getByText('Ready to slice').waitFor({ timeout: 120000 });
+
   while ((await page.getByLabel(/^Filament \d+ colour$/).count()) < 2) await page.getByLabel('Add filament').click();
   const mixId = (await page.getByLabel(/^Filament \d+ colour$/).count()) + 1;
   await page.getByLabel('Add mix').click();
@@ -80,14 +94,12 @@ try {
   await page.waitForTimeout(500);
 
   // The chip stays with a model on the plate; the other engine asks first.
-  const chip = page.getByTestId('engine-chip');
   await chip.click();
   await page.getByRole('menuitemradio', { name: /^OrcaSlicer/ }).click();
-  const ask = page.getByTestId('engine-switch');
   await ask.waitFor();
   const text = await ask.innerText();
   console.log(`pop-up:\n${text}`);
-  for (const want of ['Switch this project to OrcaSlicer?', 'Colour mixes become plain filaments', 'High flow values', "won't bring these back"])
+  for (const want of ['Switch this project to OrcaSlicer?', 'Colour mixes become plain filaments', "won't bring these back"])
     if (!text.includes(want)) fail(`the pop-up doesn't say "${want}"`);
   await shot(page, 'switch-desktop');
 
@@ -98,6 +110,7 @@ try {
 
   // On a phone the pop-up fits, its list scrolls inside and the buttons show.
   await page.setViewportSize({ width: 390, height: 844 });
+  await shot(page, 'chip-phone');
   await chip.click();
   await page.getByRole('menuitemradio', { name: /^OrcaSlicer/ }).click();
   await ask.waitFor();
@@ -119,18 +132,15 @@ try {
   const orcaTools = await sliceTools();
   console.log(`OrcaSlicer tool changes: ${orcaTools.join(', ')}`);
 
-  // And back: OrcaSlicer has nothing Snapmaker Orca can't take but its presets.
+  // And back: nothing to lose now, so no question; the mix does not come back.
   await chip.click();
   await page.getByRole('menuitemradio', { name: /^Snapmaker Orca/ }).click();
-  await ask.waitFor();
-  console.log(`pop-up back:\n${await ask.innerText()}`);
-  await shot(page, 'switch-back');
-  await ask.getByRole('button', { name: 'Switch to Snapmaker Orca' }).click();
   await engineIs('Snapmaker Orca');
   await page.getByText('This project now slices with Snapmaker Orca').waitFor({ timeout: 180000 });
   const back = await page.getByLabel(/^Filament for tetrahedron/).first().inputValue();
   if (back !== '2') fail(`back in Snapmaker Orca the object has filament ${back}`);
   if (await page.getByLabel(`Delete mix ${mixId}`).count()) fail('the mix came back');
+  if (await ask.count()) fail('switching back asked first');
   const tools = await sliceTools();
   console.log(`Snapmaker Orca tool changes: ${tools.join(', ')}`);
 } catch (e) {

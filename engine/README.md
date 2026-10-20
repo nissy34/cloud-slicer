@@ -119,7 +119,7 @@ calls whose signatures differ upstream are under `#if ENGINE_UPSTREAM`. `engineI
 tells the page which engine it got. `apps/web/scripts/copy-engine.mjs` puts an upstream
 build (from `engine/build/engine-orca`) in `public/engine-orca/`. CI builds and tests both
 engines. Each project slices with one of them (`apps/web/src/lib/engines.ts`): new projects
-use the setup wizard's default (an empty plate's engine chip picks the other one), an open project can move to the other engine from the same chip (`apps/web/src/lib/engine-switch.ts`: the old engine turns each mix into its main filament with the `flatten` mixed-filament edit, drops object settings the other engine lacks and saves a 3MF; the new engine opens its model and takes the shared settings and preset stand-ins), an online project remembers its engine, and a 3MF opens with
+use the setup wizard's default (the engine chip above the printer picks the other one), an open project moves to the other engine from the same chip (`apps/web/src/lib/engine-switch.ts`: the old engine turns each mix into its main filament with the `flatten` mixed-filament edit, drops object settings the other engine lacks and saves a 3MF; the new engine opens its model and takes the shared settings and preset stand-ins), an online project remembers its engine, and a 3MF opens with
 the engine that made it (Snapmaker Orca writes Application "Snapmaker_Orca-…", OrcaSlicer an
 "OrcaSlicer" entry). `?engine=orca` (or `snapmaker`) starts the page with that engine.
 User presets are shared between the engines (`apps/web/src/lib/preset-engines.ts`): the settings

@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 import { engineName, type EngineFlavor } from '../lib/engines';
-import { losesNothing, type DroppedSetting } from '../lib/engine-switch';
+import type { DroppedSetting } from '../lib/engine-switch';
 import { textOn } from '../lib/mixing';
 import { useSlicer } from '../state/store';
 
@@ -16,8 +16,8 @@ function settingList(list: DroppedSetting[]) {
 
 /**
  * Desktop OrcaSlicer's printer-change question, for the engine: what the open
- * project keeps and what it loses in engine `to`, with Switch / Cancel.
- * Nothing switches without it.
+ * project would lose in engine `to`, with Switch / Cancel. Shown only when
+ * something would be lost (losesNothing): it lists only what applies.
  */
 export function EngineSwitchDialog({ to, onClose, onSwitch }: { to: EngineFlavor; onClose: () => void; onSwitch: () => void }) {
   const from = useSlicer((s) => s.flavor);
@@ -38,7 +38,7 @@ export function EngineSwitchDialog({ to, onClose, onSwitch }: { to: EngineFlavor
         <h2 id="engine-switch-title">Switch this project to {target}?</h2>
         <div className="engine-switch-body">
           <p>
-            Your model, plates, positions and painting stay. {losesNothing(plan) ? `Everything else carries over to ${target} too.` : `These don't carry over to ${target}:`}
+            Your model, plates, positions, painting and settings move over, except:
           </p>
           {plan.mixes.length > 0 && (
             <section>
@@ -57,12 +57,12 @@ export function EngineSwitchDialog({ to, onClose, onSwitch }: { to: EngineFlavor
               </ul>
             </section>
           )}
-          {plan.highFlow && (
+          {highFlow.length > 0 && (
             <section>
               <h3>High flow values</h3>
               <p className="muted small">
-                {target} has one value per setting, not one for standard and one for high flow. The standard flow values carry over.
-                {highFlow.length > 0 && ` Your high flow changes to ${highFlow.join(', ')} are lost.`}
+                {target} has one value per setting, not one for standard and one for high flow. The standard flow values carry over; your high flow changes to{' '}
+                {highFlow.join(', ')} are lost.
               </p>
             </section>
           )}
@@ -74,8 +74,8 @@ export function EngineSwitchDialog({ to, onClose, onSwitch }: { to: EngineFlavor
           )}
           {plan.presets.length > 0 && (
             <section>
-              <h3>Presets move to their nearest match</h3>
-              <p className="muted small">{target} names its presets differently. Your own presets keep their name.</p>
+              <h3>A different layer height</h3>
+              <p className="muted small">{target} has no preset like this one, so the nearest one is used.</p>
               <ul className="engine-switch-presets">
                 {plan.presets.map((m) => (
                   <li key={`${m.type}:${m.from}`}>
