@@ -257,7 +257,8 @@ export interface SlicerState {
    * (null: a new object on the plate) or `volume`'s text and style changed. Picks
    * it; false if it failed.
    */
-  textVolume(o: number | null, style: TextStyle, edit: { type: 'part' | 'negative' | 'modifier' } | { volume: number }): Promise<boolean>;
+  /** Adds or changes a text; on success, the characters its font has no letters for. */
+  textVolume(o: number | null, style: TextStyle, edit: { type: 'part' | 'negative' | 'modifier' } | { volume: number }): Promise<false | { missing: string }>;
   /**
    * An SVG shape like desktop's SVG tool, as one undo step: from a file onto
    * object o (null: an object of its own), or a new depth or size for one. Picks it; false if it failed.
@@ -1149,7 +1150,7 @@ export const useSlicer = create<SlicerState>((set, get) => {
       if (get().project?.objects[o]) set({ selected: { object: o, instance, volume } });
     },
     textVolume: async (o, style, edit) => {
-      let out: { object: number; volume: number } | undefined;
+      let out: { object: number; volume: number; missing: string } | undefined;
       const label = 'volume' in edit ? 'Edit text' : 'Add text';
       await projectEdit(label, async () => {
         const e = engine();
@@ -1159,14 +1160,14 @@ export const useSlicer = create<SlicerState>((set, get) => {
             ? { ...style, fontPath, op: 'update' as const, volume: edit.volume }
             : { ...style, fontPath, op: 'add' as const, type: edit.type, camera: cameraPosition() };
         const r = await e.textVolume(o ?? -1, get().plate, request);
-        out = { object: r.object, volume: r.volume };
+        out = { object: r.object, volume: r.volume, missing: r.missing ?? '' };
         return r.info;
       });
       if (!out) return false;
       const sel = get().selected;
       const instance = sel?.object === out.object ? sel.instance : 0;
       set({ selected: { object: out.object, instance, volume: out.volume } });
-      return true;
+      return { missing: out.missing };
     },
     svgVolume: async (o, edit) => {
       let out: { object: number; volume: number } | undefined;

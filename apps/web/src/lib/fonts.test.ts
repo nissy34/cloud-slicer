@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { BUNDLED_FONTS, DEFAULT_TEXT, clampStyle, computerFontName, fontFileName } from './fonts';
+import { BUNDLED_FONTS, DEFAULT_TEXT, clampStyle, computerFontName, fontFileName, missingLettersHint } from './fonts';
 
 describe('fonts', () => {
   it('gives every bundled font its own name and file', () => {
@@ -17,5 +17,10 @@ describe('fonts', () => {
   });
   it('makes a safe engine file name', () => {
     expect(fontFileName('Noto Sans / Bold')).toBe('/fonts/Noto_Sans_Bold.ttf');
+  });
+  it('says which letters a font lacks, and a built-in font that has them', () => {
+    expect(missingLettersHint('')).toBe('');
+    expect(missingLettersHint('שלום')).toBe('This font has no letters for ש ל ו ם, so they are left out. Pick a Hebrew font, like Noto Sans Hebrew, Rubik, Heebo.');
+    expect(missingLettersHint('漢字')).toMatch(/a font file, or one of this computer's fonts/);
   });
 });

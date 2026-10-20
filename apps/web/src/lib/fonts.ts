@@ -9,9 +9,11 @@ export interface FontChoice {
   source: 'bundled' | 'computer' | 'file';
   /** Bundled: the file under engine/fonts. */
   file?: string;
+  /** Bundled fonts made for a script other than Latin: the list's group for them. */
+  script?: string;
 }
 
-/** The bundled fonts, small Latin TrueType files (Google's Noto, Open Font License). */
+/** The bundled fonts, small TrueType files from Google Fonts (Open Font License): Latin, Greek and Cyrillic, then Hebrew (with Latin too). */
 export const BUNDLED_FONTS: FontChoice[] = [
   { name: 'Noto Sans', source: 'bundled', file: 'NotoSans-Regular.ttf' },
   { name: 'Noto Sans Bold', source: 'bundled', file: 'NotoSans-Bold.ttf' },
@@ -20,6 +22,14 @@ export const BUNDLED_FONTS: FontChoice[] = [
   { name: 'Noto Serif', source: 'bundled', file: 'NotoSerif-Regular.ttf' },
   { name: 'Noto Serif Bold', source: 'bundled', file: 'NotoSerif-Bold.ttf' },
   { name: 'Noto Sans Mono', source: 'bundled', file: 'NotoSansMono-Regular.ttf' },
+  { name: 'Noto Sans Hebrew', source: 'bundled', file: 'NotoSansHebrew-Regular.ttf', script: 'Hebrew' },
+  { name: 'Noto Sans Hebrew Bold', source: 'bundled', file: 'NotoSansHebrew-Bold.ttf', script: 'Hebrew' },
+  { name: 'Rubik', source: 'bundled', file: 'Rubik-Regular.ttf', script: 'Hebrew' },
+  { name: 'Rubik Bold', source: 'bundled', file: 'Rubik-Bold.ttf', script: 'Hebrew' },
+  { name: 'Heebo', source: 'bundled', file: 'Heebo-Regular.ttf', script: 'Hebrew' },
+  { name: 'Heebo Bold', source: 'bundled', file: 'Heebo-Bold.ttf', script: 'Hebrew' },
+  { name: 'Frank Ruhl Libre', source: 'bundled', file: 'FrankRuhlLibre-Regular.ttf', script: 'Hebrew' },
+  { name: 'Frank Ruhl Libre Bold', source: 'bundled', file: 'FrankRuhlLibre-Bold.ttf', script: 'Hebrew' },
 ];
 export const DEFAULT_FONT = BUNDLED_FONTS[0];
 
@@ -79,4 +89,21 @@ export function computerFontName(f: { fullName: string; family: string; style: s
 /** The engine's file for a font name: letters, digits, dashes and dots only. */
 export function fontFileName(name: string): string {
   return `/fonts/${name.replace(/[^A-Za-z0-9.-]+/g, '_')}.ttf`;
+}
+
+/** The scripts with built-in fonts, by their letters' Unicode blocks. */
+const SCRIPTS: [string, RegExp][] = [['Hebrew', /[\u0590-\u05FF\uFB1D-\uFB4F]/]];
+
+/**
+ * What to tell the user when the font has no letters for some of the text
+ * (the engine leaves them out): which characters, and a built-in font that has them.
+ */
+export function missingLettersHint(missing: string): string {
+  if (!missing) return '';
+  const chars = [...missing];
+  const shown = chars.slice(0, 8).join(' ') + (chars.length > 8 ? ' …' : '');
+  const script = SCRIPTS.find(([, re]) => re.test(missing))?.[0];
+  const has = script && BUNDLED_FONTS.filter((f) => f.script === script).map((f) => f.name.replace(/ Bold$/, ''));
+  const pick = has ? ` Pick a ${script} font, like ${[...new Set(has)].slice(0, 3).join(', ')}.` : ' Pick a font that has them: a font file, or one of this computer\'s fonts.';
+  return `This font has no letters for ${shown}, so they are left out.${pick}`;
 }
