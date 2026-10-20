@@ -103,7 +103,7 @@ export function ProjectMenu() {
       />
       {open && (
         <div className="menu-pop" role="menu" aria-label="Project">
-          {/* The default engine; the engine chip above the printer picks the other one. */}
+          {/* The default engine; the sidebar's Slicer engine dropdown picks the other one. */}
           <button role="menuitem" onClick={run(() => discardOk() && p.newProject())}>
             New project
           </button>

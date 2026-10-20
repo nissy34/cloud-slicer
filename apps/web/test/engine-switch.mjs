@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // Browser end to end for switching an open project to the other engine: a
-// model printed with a colour mix in Snapmaker Orca, the engine chip's
+// model printed with a colour mix in Snapmaker Orca, the Slicer engine dropdown's
 // "Switch this project to OrcaSlicer?" pop-up listing what won't carry over,
 // then the project in OrcaSlicer with the mix turned into its main filament,
 // sliced, and back to Snapmaker Orca.
@@ -64,13 +64,12 @@ try {
   // A model printed with a 30/70 mix of filaments 1 and 2: filament 2 is the main one.
   await page.getByTestId('model-input').setInputFiles(model);
   await page.getByText('Ready to slice').waitFor({ timeout: 120000 });
-  // A plain model on built-in presets loses nothing: the chip above the printer switches without asking.
-  const chip = page.getByTestId('engine-chip');
+  // A plain model on built-in presets loses nothing: the Slicer engine dropdown switches without asking.
+  const engineSelect = page.getByTestId('engine-select');
   const ask = page.getByTestId('engine-switch');
-  await shot(page, 'chip-desktop');
+  await shot(page, 'engine-desktop');
   for (const [to, back] of [['OrcaSlicer', 'Snapmaker Orca'], ['Snapmaker Orca', 'OrcaSlicer']]) {
-    await chip.click();
-    await page.getByRole('menuitemradio', { name: new RegExp(`^${to}`) }).click();
+    await engineSelect.selectOption({ label: to });
     await page.getByText(`This project now slices with ${to}`).waitFor({ timeout: 180000 });
     await engineIs(to);
     if (await ask.count()) fail(`switching a plain model to ${to} asked first`);
@@ -93,9 +92,8 @@ try {
   await page.getByLabel(/^Filament for tetrahedron/).first().selectOption(String(mixId));
   await page.waitForTimeout(500);
 
-  // The chip stays with a model on the plate; the other engine asks first.
-  await chip.click();
-  await page.getByRole('menuitemradio', { name: /^OrcaSlicer/ }).click();
+  // With a mix on the model, the other engine asks first.
+  await engineSelect.selectOption('orca');
   await ask.waitFor();
   const text = await ask.innerText();
   console.log(`pop-up:\n${text}`);
@@ -107,12 +105,12 @@ try {
   await ask.getByRole('button', { name: 'Cancel' }).click();
   await engineIs('Snapmaker Orca');
   if (await ask.count()) fail('the pop-up is still open after Cancel');
+  if ((await engineSelect.inputValue()) !== 'snapmaker') fail('Cancel left the dropdown on OrcaSlicer');
 
   // On a phone the pop-up fits, its list scrolls inside and the buttons show.
   await page.setViewportSize({ width: 390, height: 844 });
-  await shot(page, 'chip-phone');
-  await chip.click();
-  await page.getByRole('menuitemradio', { name: /^OrcaSlicer/ }).click();
+  await shot(page, 'engine-phone');
+  await engineSelect.selectOption('orca');
   await ask.waitFor();
   const box = await ask.boundingBox();
   if (!box || box.width > 390 || box.y < 0 || box.y + box.height > 844) fail(`pop-up at ${JSON.stringify(box)} on a 390x844 phone`);
@@ -133,8 +131,7 @@ try {
   console.log(`OrcaSlicer tool changes: ${orcaTools.join(', ')}`);
 
   // And back: nothing to lose now, so no question; the mix does not come back.
-  await chip.click();
-  await page.getByRole('menuitemradio', { name: /^Snapmaker Orca/ }).click();
+  await engineSelect.selectOption('snapmaker');
   await engineIs('Snapmaker Orca');
   await page.getByText('This project now slices with Snapmaker Orca').waitFor({ timeout: 180000 });
   const back = await page.getByLabel(/^Filament for tetrahedron/).first().inputValue();

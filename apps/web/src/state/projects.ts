@@ -55,7 +55,7 @@ interface ProjectsState {
   onlineChanged(p: OnlineProject | { id: string; deleted: true }): void;
   /** An empty project, with the default engine or the one given. */
   newProject(engine?: EngineFlavor): Promise<void>;
-  /** Moves the open project to the other engine (the engine chip's pop-up); it then has unsaved changes. */
+  /** Moves the open project to the other engine (the Slicer engine dropdown); it then has unsaved changes. */
   switchEngine(engine: EngineFlavor): Promise<void>;
   setListOpen(open: boolean): void;
   setSaveAsOpen(open: boolean): void;
