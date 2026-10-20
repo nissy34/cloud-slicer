@@ -31,7 +31,8 @@ import { changedOnPurpose, emptyProjectMessage, modelProcessKeys, pickProcess, p
 import { accountReady, getUserSetting, presetEditing, useAccount } from './account';
 import { installedOnly, SETUP_KEY, type Setup } from '../lib/setup';
 import { loadConvertPreference, loadDefaultEngine, loadSaved, save, saveConvertPreference } from '../lib/storage';
-import { engineFolder, engineFromUrl, type EngineFlavor } from '../lib/engines';
+import { engineFolder, engineFromUrl, engineName, type EngineFlavor } from '../lib/engines';
+import { flowFill, switchedText, switchPlan, type SwitchPlan } from '../lib/engine-switch';
 import { loadCatalog, vendorFilesFor, type PrinterCatalog } from '../lib/printer-catalog';
 import { expandPending, presetForEngine } from '../lib/preset-engines';
 import type { UserPreset } from '../account/api';
@@ -257,6 +258,17 @@ export interface SlicerState {
    * project lives in the engine). Resolves once it is up, or failed to start.
    */
   switchEngine(flavor: EngineFlavor): Promise<void>;
+  /**
+   * What switching the open project to the other engine keeps, changes and
+   * drops (lib/engine-switch), for the "Switch this project to …?" pop-up.
+   */
+  switchPlan(to: EngineFlavor): SwitchPlan;
+  /**
+   * Moves the open project to engine `to`: model, plates, positions and paint
+   * stay; mixes become plain filaments and what `to` lacks is dropped (see
+   * switchPlan). Resolves once it is open there, or failed.
+   */
+  switchProject(to: EngineFlavor): Promise<void>;
   setPlate(plate: number): Promise<void>;
   select(sel: { object: number; instance: number; volume?: number } | null): void;
   moveInstance(o: number, i: number, x: number, y: number): Promise<void>;
@@ -379,6 +391,11 @@ let sliceRun = 0;
 let saved3mf: { file: File; edits: number } | null = null;
 /** What to put back once a restarted engine is up. */
 let pendingRestore: { file: File | null; current: boolean; plate: number; slicing: boolean; message: string } | null = null;
+/**
+ * A project moving to the engine that is starting (switchProject): the 3MF the
+ * old engine saved, what the switch keeps, and the page state that goes with it.
+ */
+let pendingCarry: { file: File; plan: SwitchPlan; towers: TowerSpot[]; plate: number; layerHeight: string; types: string[] } | null = null;
 /** The engine is restarting: requests the old one dropped are not errors to show. */
 let restarting = false;
 let presetsWatched = false;
@@ -516,6 +533,45 @@ export const useSlicer = create<SlicerState>((set, get) => {
     set({ job: { kind: 'idle' }, notice: `${crashed}, so it restarted and reopened your project.${lost} (${r.message})`, noticeWarn: true });
   }
 
+  // Opens a project switchProject brought from the other engine: its presets'
+  // stand-ins (or the nearest by layer height and material when one is
+  // missing here), the changed settings this engine has, and the 3MF's model
+  // without its settings (they were the other engine's).
+  async function carry(c: NonNullable<typeof pendingCarry>) {
+    const e = engine();
+    set({ job: { kind: 'loading', name: c.file.name, label: `Opening your project in ${engineName(c.plan.to)}` } });
+    try {
+      const want = c.plan.selection;
+      const printer = get().printers.some((p) => p.name === want.printer) ? want.printer : DEFAULT_PRINTER;
+      await applySelection({ printer, process: '' });
+      const { processes, filaments, selection } = get();
+      const process = processes.some((p) => p.name === want.process) ? want.process : pickProcess(processes, c.layerHeight, selection?.process ?? '');
+      const names = want.filaments.map((f, i) => (filaments.some((p) => p.name === f) ? f : pickFilament(filaments, c.types[i], selection?.filaments[0], f)));
+      await applySelection({ printer, process, filaments: names, colours: want.colours });
+      const { baseConfig, options } = get();
+      const overrides: OrcaConfig = {};
+      for (const [key, value] of Object.entries(c.plan.overrides)) {
+        const o = options[key];
+        if (!o) continue;
+        // Snapmaker Orca keeps a value per flow variant: this one is the standard flow's.
+        const v = o.flow ? flowFill(value, o.flow, baseConfig[key], baseConfig) : value;
+        if (v !== baseConfig[key]) overrides[key] = v;
+      }
+      setOverrides(overrides);
+      set({ towers: c.towers });
+      const area = get().overrides.printable_area ?? get().baseConfig.printable_area ?? '';
+      const res = await e.load(c.file, 0, area, false);
+      set({ plate: Math.min(c.plate, Math.max(0, res.info.plates.length - 1)), history: await e.clearHistory() });
+      await refreshPreview(res.info);
+      await refreshMixes();
+      await checkHeavy().catch((err) => console.warn('Triangle count:', err));
+      saved3mf = { file: c.file, edits: e.projectEdits };
+      set({ job: { kind: 'idle' }, notice: switchedText(c.plan), noticeWarn: false });
+    } catch (err) {
+      set({ job: { kind: 'error', message: `Couldn't open your project in ${engineName(c.plan.to)}: ${(err as Error).message}` } });
+    }
+  }
+
   // The settings as the engine slices and saves them: the user's changes plus
   // the project's mixed filaments.
   const engineOverrides = (): OrcaConfig => ({
@@ -642,6 +698,9 @@ export const useSlicer = create<SlicerState>((set, get) => {
       await applySelection(known && saved?.selection ? saved.selection : { printer: DEFAULT_PRINTER });
       const r = pendingRestore;
       if (r) await restore(r);
+      const c = pendingCarry;
+      pendingCarry = null;
+      if (c) await carry(c);
       // Replaced by another engine while starting (switchEngine): that one carries on.
       if (e !== client) return;
       pendingRestore = null;
@@ -1277,6 +1336,44 @@ export const useSlicer = create<SlicerState>((set, get) => {
           }
         });
       });
+    },
+    switchPlan(to) {
+      const s = get();
+      return switchPlan({
+        from: s.flavor,
+        to,
+        selection: s.selection ?? { printer: DEFAULT_PRINTER, process: '', filaments: [], colours: [] },
+        userPresets: useAccount.getState().presets,
+        overrides: s.overrides,
+        baseConfig: s.baseConfig,
+        options: s.options,
+        mixes: s.mixes,
+        project: s.project,
+      });
+    },
+    async switchProject(to) {
+      const s = get();
+      if (to === s.flavor || s.engine !== 'ready' || s.job.kind === 'loading') return;
+      const plan = get().switchPlan(to);
+      const e = engine();
+      const config = { ...s.baseConfig, ...s.overrides };
+      let file: File;
+      try {
+        await get().endCalibration();
+        if (get().job.kind === 'slicing') stopSlice();
+        set({ job: { kind: 'loading', name: '', label: `Moving your project to ${engineName(to)}` }, tool: null, paint: null });
+        // The old engine changes what the new one can't read, then saves the project.
+        if (plan.mixes.length) await e.mixed(mixRequest({ op: { kind: 'flatten', to: [...plan.mixes].sort((a, b) => a.id - b.id).map((m) => m.becomes) } }));
+        for (const edit of plan.objectEdits) await e.setObjectSettings(edit.object, edit.volume, edit.values);
+        const bytes = await e.saveProject({ ...get().overrides, mixed_filament_definitions: '' }, null);
+        const name = `${(s.project?.fileName || 'project').replace(/\.\w+$/, '')}.3mf`;
+        file = new File([bytes], name, { type: 'model/3mf' });
+      } catch (err) {
+        set({ job: { kind: 'idle' } });
+        return fail(err);
+      }
+      pendingCarry = { file, plan, towers: get().towers, plate: get().plate, layerHeight: config.layer_height ?? '', types: splitList(config.filament_type) };
+      await get().switchEngine(to);
     },
     clearProject: () =>
       projectEdit('Delete all', async () => {
