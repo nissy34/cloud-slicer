@@ -59,6 +59,11 @@ try {
   const wizard = page.getByRole('dialog', { name: 'Set up your printers' });
   await wizard.waitFor({ timeout: 30000 });
   await wizard.getByRole('button', { name: 'Next' }).click();
+  // Nothing is picked on a first visit: the U1 and the A1 mini.
+  await wizard
+    .locator('.wizard-models li', { has: page.locator('.wizard-model', { hasText: /^Snapmaker U1/ }) })
+    .getByRole('button', { name: '0.4', exact: true })
+    .click();
   await wizard.getByRole('searchbox', { name: 'Search printers' }).fill('a1 mini');
   await wizard.locator('.wizard-models li').first().getByRole('button', { name: '0.4', exact: true }).click();
   await wizard.getByRole('button', { name: 'Next' }).click();

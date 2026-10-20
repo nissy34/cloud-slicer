@@ -4,15 +4,16 @@ import type { PresetSummary } from '../engine/protocol';
 import { ENGINES, type EngineFlavor } from '../lib/engines';
 import { shortName } from '../lib/presets';
 import { coverUrl } from '../lib/printer-catalog';
-import { filamentGroups, matchModels, SETUP_KEY, wizardBrands, type Setup } from '../lib/setup';
+import { filamentGroups, installedPrinters, matchModels, SETUP_KEY, wizardBrands, type Setup } from '../lib/setup';
 import { saveUserSetting, useAccount, useDevices, useUserSetting } from '../state/account';
 import { useDevice } from '../state/device';
 import { useSlicer } from '../state/store';
 
 /** Opens the wizard from anywhere (e.g. "Manage" next to the printer picker). */
-export const useSetupWizard = create<{ open: boolean; show(): void; hide(): void }>((set) => ({
+export const useSetupWizard = create<{ open: boolean; step: Step; show(step?: Step): void; hide(): void }>((set) => ({
   open: false,
-  show: () => set({ open: true }),
+  step: 'engine',
+  show: (step = 'engine') => set({ open: true, step }),
   hide: () => set({ open: false }),
 }));
 
@@ -55,14 +56,14 @@ export function SetupWizard() {
 
 function Wizard({ onClose }: { onClose: () => void }) {
   const allPrinters = useSlicer((s) => s.printers);
-  const current = useSlicer((s) => s.selection);
-  const savedPrinters = useUserSetting<Setup>(SETUP_KEY)?.printers;
+  const running = useSlicer((s) => s.flavor);
+  const savedPrinters = installedPrinters(useUserSetting<Setup>(SETUP_KEY), running);
   const savedFilaments = useUserSetting<Setup>(SETUP_KEY)?.filaments;
   const savedEngine = useUserSetting<Setup>(SETUP_KEY)?.engine;
-  const running = useSlicer((s) => s.flavor);
-  const [step, setStep] = useState<Step>('engine');
+  const [step, setStep] = useState<Step>(useSetupWizard.getState().step);
   const [engine, setEngine] = useState<EngineFlavor>(savedEngine ?? running);
-  const [printers, setPrinters] = useState<string[]>(() => (savedPrinters?.length ? savedPrinters : current ? [current.printer] : []));
+  // The first time nothing is picked, as on desktop: the printer the app starts on is not one you chose.
+  const [printers, setPrinters] = useState<string[]>(() => savedPrinters ?? []);
   const [filaments, setFilaments] = useState<string[] | null>(savedFilaments?.length ? savedFilaments : null);
   const [saving, setSaving] = useState(false);
   const [loadingBrands, setLoadingBrands] = useState(false);
@@ -72,11 +73,13 @@ function Wizard({ onClose }: { onClose: () => void }) {
     setSaving(true);
     setError('');
     try {
-      const before = useSlicer.getState().flavor;
-      // An empty first project switches to the chosen engine by itself (state/projects.ts).
-      await saveUserSetting<Setup>(SETUP_KEY, { printers, filaments: filaments ?? [], engine });
+      // A printer you did not pick gives way to the first one you did. Selected
+      // before saving: an empty first project then switches to the chosen
+      // engine by itself (state/projects.ts) and takes the printer along.
       const s = useSlicer.getState();
-      if (s.flavor === before && s.selection && !printers.includes(s.selection.printer)) await s.selectPrinter(printers[0]);
+      const mine = s.printers.some((p) => p.user && p.name === s.selection?.printer);
+      if (s.selection && !mine && !printers.includes(s.selection.printer)) await s.selectPrinter(printers[0]);
+      await saveUserSetting<Setup>(SETUP_KEY, { printers, printersIn: running, filaments: filaments ?? [], engine });
       onClose();
       then?.();
     } catch (e) {

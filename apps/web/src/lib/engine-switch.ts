@@ -233,11 +233,12 @@ export function switchPlan(p: PlanInput, t: SharedTable = SHARED): SwitchPlan {
 export const losesNothing = (plan: SwitchPlan) =>
   !plan.mixes.length && !plan.highFlowChanged.length && !plan.dropped.length && !plan.presets.length;
 
-/** The notice after a switch. */
-export function switchedText(plan: SwitchPlan): string {
-  const parts = [`This project now slices with ${engineName(plan.to)}.`];
+/** The notice after a switch (`model` false: an empty plate, only the settings moved). */
+export function switchedText(plan: SwitchPlan, model = true): string {
+  const parts = [model ? `This project now slices with ${engineName(plan.to)}.` : `Now slicing with ${engineName(plan.to)}.`];
+  if (!model && Object.keys(plan.overrides).length) parts.push('Your changed settings came along.');
   if (plan.mixes.length) parts.push(plan.mixes.length === 1 ? 'Its colour mix is now a plain filament.' : `Its ${plan.mixes.length} colour mixes are now plain filaments.`);
   if (plan.dropped.length) parts.push(`${plan.dropped.length} setting${plan.dropped.length === 1 ? '' : 's'} ${engineName(plan.to)} doesn't have were left out.`);
-  parts.push('Slice again before printing.');
+  if (model) parts.push('Slice again before printing.');
   return parts.join(' ');
 }

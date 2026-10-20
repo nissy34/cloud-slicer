@@ -8,22 +8,20 @@ import { EngineSwitchDialog } from './EngineSwitchDialog';
 
 /**
  * The sidebar's Slicer engine section, above the printer (the same place on
- * desktop and phone): the engine the project slices with. On an empty plate,
- * picking the other one starts the project with it; with a model, it moves
- * the project over, asking first when something would be lost
- * (EngineSwitchDialog).
+ * desktop and phone): the engine the project slices with. Picking the other
+ * one moves the project over (just its presets and changed settings on an
+ * empty plate), asking first when something would be lost (EngineSwitchDialog).
  */
 export function EngineSection() {
   const flavor = useSlicer((s) => s.flavor);
-  const hasModel = useSlicer((s) => !!s.project?.objects.length);
-  // Not while the engine starts, opens a file or slices.
+    // Not while the engine starts, opens a file or slices.
   const busy = useSlicer((s) => s.engine !== 'ready' || s.job.kind === 'loading' || s.job.kind === 'slicing');
   const [asking, setAsking] = useState<EngineFlavor | null>(null);
   const pick = (id: EngineFlavor) => {
     if (id === flavor) return;
-    if (!hasModel) void useProjects.getState().newProject(id);
+    // The presets and changed settings move over too, with or without a model.
     // Nothing to lose (a plain model on built-in presets): no question.
-    else if (losesNothing(useSlicer.getState().switchPlan(id))) void useProjects.getState().switchEngine(id);
+    if (losesNothing(useSlicer.getState().switchPlan(id))) void useProjects.getState().switchEngine(id);
     else setAsking(id);
   };
   return (
