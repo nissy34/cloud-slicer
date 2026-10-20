@@ -89,6 +89,8 @@ const slice = async (page) => {
 // The filaments the Preview's colour key lists, by number.
 async function filamentsInPreview(page) {
   await page.getByLabel('Colour by').selectOption('filament');
+  // The key fills in once the G-code has been read.
+  await page.getByTestId('legend').getByText('Filament 1', { exact: true }).waitFor({ timeout: 120000 });
   const text = await page.getByTestId('legend').innerText();
   return [...text.matchAll(/^Filament (\d+)$/gm)].map((m) => Number(m[1]));
 }
@@ -138,8 +140,8 @@ try {
         if (viewport.name === 'phone') return void (await page.close());
         await slice(page);
         const used = await filamentsInPreview(page);
-        expect(used.join() === '1,2,3,4,5,6,7,8', `the Preview lists filaments ${used.join()}`);
         await shot(page, `${engine}-u1-preview`);
+        expect(used.join() === '1,2,3,4,5,6,7,8', `the Preview lists filaments ${used.join()}`);
         await page.close();
       });
 } catch {
