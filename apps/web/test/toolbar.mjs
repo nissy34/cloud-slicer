@@ -359,6 +359,11 @@ try {
   await objectMenu.getByRole('menuitem', { name: 'Cube', exact: true }).click();
   await volumes.nth(1).getByText('Modifier').waitFor({ timeout: 30000 });
   await page.getByText('Modifier settings').waitFor();
+  // Desktop's full list: a modifier gets part settings (and everything else a part can carry), never object-only ones.
+  const modifierChoices = await page.getByLabel('Add a setting to this modifier').locator('option').evaluateAll((os) => os.map((o) => o.value));
+  for (const key of ['ironing_type', 'top_shell_thickness', 'overhang_1_4_speed', 'minimum_sparse_infill_area', 'fuzzy_skin'])
+    if (!modifierChoices.includes(key)) fail(`a modifier can add ${key}`);
+  for (const key of ['layer_height', 'enable_support', 'brim_type']) if (modifierChoices.includes(key)) fail(`a modifier can't add the object-only ${key}`);
   await page.getByLabel('Add a setting to this modifier').selectOption('sparse_infill_density');
   await page.locator('.object-settings').getByText(/infill density/i).first().waitFor({ timeout: 30000 });
   await toolbar.getByRole('button', { name: 'Move' }).click();

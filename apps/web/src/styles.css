@@ -1416,6 +1416,17 @@ select:focus-visible {
   background: var(--surface-2);
   color: var(--accent);
 }
+.object-settings-group {
+  display: grid;
+  gap: 6px;
+}
+.object-settings-cat {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--muted);
+}
 
 /* Paint tools */
 .paint-panel {
