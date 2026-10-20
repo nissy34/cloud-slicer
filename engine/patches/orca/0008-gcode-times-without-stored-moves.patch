@@ -1,0 +1,26 @@
+--- a/src/libslic3r/GCode/GCodeProcessor.cpp
++++ b/src/libslic3r/GCode/GCodeProcessor.cpp
+@@ -469,7 +469,11 @@
+         }
+ 
+         time += double(block_time);
++#ifndef __EMSCRIPTEN__ // the browser keeps only the last move (see store_move_vertex), so
++                       // block.move_id no longer indexes result.moves. These per-move times
++                       // and actual-speed moves only feed desktop's preview.
+         result.moves[block.move_id].time[static_cast<size_t>(mode)] = block_time;
++#endif
+         gcode_time.cache += block_time;
+         //BBS
+         if (block.flags.prepare_stage)
+@@ -479,7 +483,11 @@
+             first_layer_time += block_time;
+ 
+         // detect actual speed moves required to render toolpaths using actual speed
++#ifdef __EMSCRIPTEN__
++        if (false) {
++#else
+         if (mode == PrintEstimatedStatistics::ETimeMode::Normal) {
++#endif
+             GCodeProcessorResult::MoveVertex& curr_move = result.moves[block.move_id];
+             if (curr_move.type != EMoveType::Extrude &&
+                 curr_move.type != EMoveType::Travel &&

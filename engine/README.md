@@ -12,6 +12,7 @@ same engine code.
 | Path | What |
 |---|---|
 | `orcaslicer/` | Submodule pinned to the v2.4.0 tag. Never edited in place |
+| `orcaslicer-upstream/` | Upstream OrcaSlicer v2.4.2, the second engine (proof of concept, see "Two engines" below). Never edited in place |
 | `patches/` | Browser-only fixes, applied to copies of the touched files in the build tree |
 | `compat/` | Stand-ins for what a browser lacks: OpenSSL MD5 (on Boost), no-op STEP/SVG import when built without OCCT, thread naming |
 | `cmake/libslic3r.cmake` | Builds libslic3r from the source list in upstream's own `src/libslic3r/CMakeLists.txt` |
@@ -84,7 +85,9 @@ node --test engine/node/engine.test.mjs      # engine tests
 
 ## Patches
 
-Each `patches/*.patch` is a unified diff against the submodule (`a/src/...`, `b/src/...`).
+Each `patches/*.patch` is a unified diff against the submodule (`a/src/...`, `b/src/...`);
+`patches/snapmaker/` and `patches/orca/` hold the ones for one engine only, applied after
+the shared ones.
 CMake copies the files a patch touches into `build/engine/patched-engine/`, applies every
 patch there and compiles those copies instead. Only fixes the browser build needs belong
 here; each patch says why at the top of its hunk.
@@ -92,9 +95,27 @@ here; each patch says why at the top of its hunk.
 | Patch | Why |
 |---|---|
 | `0001-arachne-empty-toolpath-index-wasm32` | Arachne indexes an empty toolpath vector; harmless on 64-bit, a crash on wasm32 |
-| `0002-step-serial-occt-meshing` | OCCT meshing of STEP files without its thread pool |
+| `snapmaker/0002-step-serial-occt-meshing` | OCCT meshing of STEP files without its thread pool |
 | `0003-sla-hollowing-without-openvdb` | Builds SLA hollowing without OpenVDB (no interior is generated) |
 | `0004-skip-thread-naming-barrier` | Thread naming holds every TBB worker on a barrier; browser threads have no names or locales to set |
 | `0005-mcut-api-tasks-without-threads` | mcut (mesh boolean) runs each call on a thread it starts and waits for; a page can't start one while it waits, so the calls run in place |
 | `0006-move-gcode-result-instead-of-copying` | G-code export copies every move into the caller's result at the memory peak; moves it instead, so big slices fit in a phone's browser |
 | `0007-keep-only-the-last-gcode-move` | G-code processing keeps every move for desktop's preview, which the browser doesn't use; on a big print that list alone outgrew the 4 GB a page can have |
+| `orca/0008-gcode-times-without-stored-moves` | Upstream's time estimate writes each move's time and "actual speed" points back into that list by position, which 0007 no longer keeps; skips those preview-only writes |
+
+## Two engines
+
+The same `src/` API builds against Snapmaker Orca (default) or upstream OrcaSlicer:
+
+```bash
+emcmake cmake -S engine -B engine/build/engine-orca -G Ninja -DCMAKE_BUILD_TYPE=Release -DENGINE_FLAVOR=orca
+cmake --build engine/build/engine-orca
+ENGINE_FLAVOR=orca node engine/scripts/bundle-profiles.mjs engine/build/profiles-orca
+```
+
+What only Snapmaker Orca has compiles only for it (`ENGINE_HAS_MIXING`: mixed filaments,
+`src/mixed_api.cpp`; `ENGINE_HAS_FLOW_VARIANTS`: standard/high flow pairs), and the few
+calls whose signatures differ upstream are under `#if ENGINE_UPSTREAM`. `engineInfo()`
+tells the page which engine it got. `apps/web/scripts/copy-engine.mjs` puts an upstream
+build (from `engine/build/engine-orca`) in `public/engine-orca/`, and the page uses it
+when opened with `?engine=orca`. CI doesn't build it yet.
