@@ -63,7 +63,10 @@ hosted on Cloudflare's free tier.
   advance, retraction, max volumetric speed, VFA, input shaping, junction deviation.
 - **Slicing you can stop**: Cancel next to the progress bar, and a change while slicing
   (settings, filaments, presets, the model) stops the slice and drops its result, like desktop.
-- **Preview** of the sliced toolpaths by feature or filament, layer by layer.
+- **Preview** of the sliced toolpaths by feature or filament, layer by layer, and desktop's
+  layer slider items: a pause, a filament change, custom G-code or the printer's custom
+  template at the start of a layer (+ beside the slider, or a right click or long press on
+  it), shown as markers on the slider and kept per plate in the project and its 3MF.
 - **Camera views** in the corner of the 3D views: Fit all, and desktop's Iso, Top, Bottom,
   Front, Back, Left and Right (keys 0 to 6, Z fits all). On a phone two fingers always zoom
   and turn the camera, even when they land on the model; one finger on a model moves it.
