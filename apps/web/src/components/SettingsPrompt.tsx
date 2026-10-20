@@ -76,9 +76,10 @@ export function useOptionStates(scope: Scope, slot?: number, own?: OrcaConfig): 
   const options = useSlicer((s) => s.options);
   const flowVariant = useSlicer((s) => s.flowVariant);
   const slots = useSlicer((s) => s.selection?.filaments.length ?? 1);
+  const bambu = useSlicer((s) => s.flush?.bambu ?? false);
   return useMemo(
-    () => optionStates({ ...baseConfig, ...overrides, ...own }, { flowVariant, slot, slots, scope, options }),
-    [baseConfig, overrides, own, options, flowVariant, slot, slots, scope],
+    () => optionStates({ ...baseConfig, ...overrides, ...own }, { flowVariant, slot, slots, scope, options, bambu }),
+    [baseConfig, overrides, own, options, flowVariant, slot, slots, scope, bambu],
   );
 }
 

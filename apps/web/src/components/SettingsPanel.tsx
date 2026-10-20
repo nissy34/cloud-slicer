@@ -1,6 +1,7 @@
 import { Fragment, useMemo, useState } from 'react';
 import type { OptionDef, SettingsPage } from '../engine/protocol';
 import { splitValues, valueAt, withValueAt } from '../lib/flow-variants';
+import { FLUSH_OPTIONS } from '../lib/flush';
 import { shownPages } from '../lib/settings-pages';
 import { slotEntryIndex } from '../lib/slot-values';
 import { useOption, useSlicer } from '../state/store';
@@ -33,10 +34,15 @@ export function SettingsPages({ kind, advanced, slot }: { kind: SettingsKind; ad
   const current = pages[Math.min(page, pages.length - 1)];
   const found = query.trim() ? searchSettings(pages, options, query) : null;
   // A search finds settings in every page and in Advanced too; ones that don't apply show greyed out.
-  const groups =
+  // Purging between filaments only happens with one nozzle for several filaments (AMS, MMU...); a U1 has a head per filament.
+  const flushes = useSlicer((s) => (s.flush?.flushes ?? false) && (s.selection?.filaments.length ?? 1) > 1);
+  const noFlush = (k: string) => flushes || !FLUSH_OPTIONS.includes(k);
+  const groups = (
     found ??
     current?.groups.map((g) => ({ title: g.title, page: current, keys: g.options.filter((k) => visible(options[k], advanced) && !states.hidden.has(k)) })) ??
-    [];
+    []
+  ).map((g) => ({ ...g, keys: g.keys.filter(noFlush) }));
+  const flushHidden = !flushes && kind === 'print' && !found && current?.groups.some((g) => g.options.some((k) => FLUSH_OPTIONS.includes(k)));
   const hasFlowVariants = groups.some((g) => g.keys.some((k) => options[k]?.flow));
   const label = kind === 'print' ? 'process' : kind;
   const field = (k: string, at: ShownPage) => {
@@ -86,11 +92,24 @@ export function SettingsPages({ kind, advanced, slot }: { kind: SettingsKind; ad
           </fieldset>
         );
       })}
+      {flushHidden && <NoFlushHint />}
     </>
   );
 }
 
 const NO_PAGES: SettingsPage[] = [];
+
+/** Where desktop's Flush options would be, on a printer that never purges between filaments. */
+function NoFlushHint() {
+  const flushes = useSlicer((s) => s.flush?.flushes ?? false);
+  return (
+    <p className="hint" data-testid="no-flush-hint">
+      {flushes
+        ? 'Flush options (purging into infill, objects or support) appear here once the project has more than one filament.'
+        : 'No flush options: this printer has a nozzle for each filament, so it never purges when it changes filament. Printers with one nozzle for several filaments (an AMS, MMU or CFS) show them here and get a Flushing volumes window in the Filament section.'}
+    </p>
+  );
+}
 type ShownPage = SettingsPage & { index?: number };
 
 /**

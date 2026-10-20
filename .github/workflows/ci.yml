@@ -425,12 +425,13 @@ jobs:
           name: engine-screenshots
           path: apps/web/engine-shots
 
-      - name: Every printer brand, loaded per brand, with the Direct print mark, the first visit's wizard, and filament counts per printer and engine (Chromium)
+      - name: Every printer brand, loaded per brand, with the Direct print mark, the first visit's wizard, flushing volumes and filament counts per printer and engine (Chromium)
         if: matrix.suite == 'brands'
         run: |
           mkdir -p brand-shots
           node test/brands.mjs brand-shots
           node test/first-run.mjs brand-shots
+          node test/flush.mjs brand-shots
           node test/filament-count.mjs brand-shots
 
       - uses: actions/upload-artifact@v4

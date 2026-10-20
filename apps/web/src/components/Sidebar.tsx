@@ -9,6 +9,7 @@ import { filamentLimitMessage } from '../lib/filament-limit';
 import { ObjectList } from './ObjectList';
 import { ColorMixPanel } from './ColorMixing';
 import { SyncFilamentsButton } from './FilamentSync';
+import { FlushVolumesButton } from './FlushVolumes';
 import { OptionField } from './OptionField';
 import { SettingsPanel } from './SettingsPanel';
 import { PresetMenu } from '../account/PresetMenu';
@@ -132,6 +133,7 @@ function FilamentSection() {
           </li>
         ))}
       </ol>
+      <FlushVolumesButton />
       {limitMessage && (
         <p className={limitMessage.warn ? 'hint warn' : 'hint'} data-testid="filament-limit">
           {limitMessage.text}
