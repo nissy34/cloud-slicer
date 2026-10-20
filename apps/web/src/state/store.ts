@@ -27,11 +27,12 @@ import { bedSize } from '../lib/colour';
 import { renderThumbnails, thumbnailSizes } from '../lib/thumbnail';
 import type { SyncPlan } from '../lib/filament-sync';
 import { DEFAULT_PRINTER, pickFilamentPreset, splitList, SLOT_COLOURS } from '../lib/presets';
-import { changedOnPurpose, emptyProjectMessage, modelProcessKeys, pickProcess, printerLabel, projectOverrides } from '../lib/project-import';
+import { changedOnPurpose, emptyProjectMessage, modelProcessKeys, pickProcess, printerLabel, projectOverrides, withoutForeignGcode } from '../lib/project-import';
 import { accountReady, getUserSetting, presetEditing, useAccount } from './account';
 import { installedOnly, SETUP_KEY, type Setup } from '../lib/setup';
 import { loadConvertPreference, loadDefaultEngine, loadSaved, save, saveConvertPreference } from '../lib/storage';
-import { engineFolder, engineFromUrl, engineName, type EngineFlavor } from '../lib/engines';
+import { readableGcodeError } from '../lib/gcode-errors';
+import { appOfModelHead, engineFolder, engineFromUrl, engineName, engineOfModelHead, modelHeadOf3mf, type EngineFlavor } from '../lib/engines';
 import { flowFill, switchedText, switchPlan, type SwitchPlan } from '../lib/engine-switch';
 import { loadCatalog, vendorFilesFor, type PrinterCatalog } from '../lib/printer-catalog';
 import { expandPending, presetForEngine } from '../lib/preset-engines';
@@ -828,8 +829,10 @@ export const useSlicer = create<SlicerState>((set, get) => {
 
   // A 3MF's own settings: with a printer we have, select the project's presets
   // and apply its changes on top (like opening the project in desktop Orca);
-  // otherwise offer to convert it to one of our printers.
-  async function importProject(info: ProjectInfo) {
+  // otherwise offer to convert it to one of our printers. `head` is the start of
+  // the file's model, which says what wrote it: G-code from another slicer is
+  // left out (lib/project-import withoutForeignGcode).
+  async function importProject(info: ProjectInfo, head: string) {
     const e = engine();
     const file = await e.fileConfig();
     // Desktop keeps the project's prime tower spots, whatever printer it was for.
@@ -856,12 +859,15 @@ export const useSlicer = create<SlicerState>((set, get) => {
     // The engine also finds a process by its old name, and keeps the current one when it can't.
     const process = info.file.process || (selection?.process ?? '');
     await applySelection({ printer: info.file.printer, process, filaments: names.length ? names : selection?.filaments, colours: colours.length ? colours : selection?.colours });
-    const { mixed_filament_definitions: mixes = '', ...overrides } = projectOverrides(file, get().baseConfig, get().options);
+    const { mixed_filament_definitions: mixes = '', ...all } = projectOverrides(file, get().baseConfig, get().options);
+    const { overrides, dropped } = engineOfModelHead(head) ? { overrides: all, dropped: 0 } : withoutForeignGcode(all);
     // The project's own mixes replace the current ones, as opening it in desktop does.
     set({ mixDefinitions: file.mixed_filament_definitions ?? mixes });
     setOverrides(overrides);
     await refreshMixes();
-    set({ notice: settingsNotice(Object.keys(overrides).length, 'the project'), noticeWarn: false });
+    const app = appOfModelHead(head) || 'another slicer';
+    const gcode = dropped ? `The printer's own G-code is used: the file's was written for ${app}.` : '';
+    set({ notice: [settingsNotice(Object.keys(overrides).length, 'the project'), gcode].filter(Boolean).join(' '), noticeWarn: false });
   }
 
   // Moves a project to `printer`: its default process of the same layer height,
@@ -1121,6 +1127,8 @@ export const useSlicer = create<SlicerState>((set, get) => {
           // Adding a model can be undone; opening a project starts a new history, like desktop.
           const opensProject = is3mf(file) && !geometryOnly;
           if (!opensProject) set({ history: await e.snapshot('Add model') });
+          // What wrote the project decides whether its G-code is kept (importProject).
+          const head = opensProject ? await modelHeadOf3mf(file) : '';
           const res = await e.load(file, get().plate, area, geometryOnly);
           if (res.isProject) {
             opened = true;
@@ -1128,7 +1136,7 @@ export const useSlicer = create<SlicerState>((set, get) => {
           }
           await refreshPreview(res.info);
           if (res.isProject && !res.info.objects.length) throw new Error(emptyProjectMessage(file.name));
-          if (res.isProject && res.info.file.hasConfig) await importProject(res.info);
+          if (res.isProject && res.info.file.hasConfig) await importProject(res.info, head);
           set({ job: { kind: 'idle' } });
         } catch (err) {
           fail(err);
@@ -1721,7 +1729,8 @@ export const useSlicer = create<SlicerState>((set, get) => {
         // Like desktop Orca: show the result as soon as slicing finishes.
         get().setTab('preview');
       } catch (e) {
-        if (run === sliceRun) fail(e);
+        // Custom G-code the engine can't fill in: which one, which line, which variable.
+        if (run === sliceRun) fail(new Error(readableGcodeError((e as Error).message, (k) => get().options[k]?.label)));
       }
     },
     cancelSlice() {

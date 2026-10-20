@@ -56,6 +56,29 @@ export function projectOverrides(
   return out;
 }
 
+/**
+ * Printer and filament G-code: start, end, filament change, layer change,
+ * pause, time-lapse...
+ */
+export const isGcodeKey = (key: string) => key.endsWith('_gcode');
+
+/**
+ * A project from another slicer (Bambu Studio, say) keeps the selected
+ * printer's own G-code: the file's is written for that slicer's variables
+ * (Bambu Studio 2.5's flush_volumetric_speeds) and its own firmware steps, so
+ * these engines can't fill it in and slicing fails. Returns the overrides
+ * without the file's G-code, and how many G-code settings were left out.
+ */
+export function withoutForeignGcode(overrides: OrcaConfig): { overrides: OrcaConfig; dropped: number } {
+  const kept: OrcaConfig = {};
+  let dropped = 0;
+  for (const [key, value] of Object.entries(overrides)) {
+    if (isGcodeKey(key)) dropped++;
+    else kept[key] = value;
+  }
+  return { overrides: kept, dropped };
+}
+
 /** Every option on the process (print) tabs of the settings layout. */
 export function processKeys(layout: SettingsLayout | null): Set<string> {
   const keys = new Set<string>();

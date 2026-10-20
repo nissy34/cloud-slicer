@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { PresetSummary } from '../engine/protocol';
-import { changedOnPurpose, emptyProjectMessage, modelProcessKeys, pickProcess, processKeys, projectOverrides } from './project-import';
+import { changedOnPurpose, emptyProjectMessage, modelProcessKeys, pickProcess, processKeys, projectOverrides, withoutForeignGcode } from './project-import';
 
 const known = { layer_height: {}, wall_loops: {}, nozzle_diameter: {}, wipe_tower_x: {}, print_settings_id: {} };
 
@@ -79,5 +79,12 @@ describe('changedOnPurpose', () => {
   });
   it("is null when the file doesn't say", () => {
     expect(changedOnPurpose({ layer_height: '0.2' })).toBeNull();
+  });
+});
+
+describe('withoutForeignGcode', () => {
+  it('leaves out every G-code setting and counts them', () => {
+    expect(withoutForeignGcode({ machine_start_gcode: 'M620', filament_start_gcode: 'M106', wall_loops: '3' })).toEqual({ overrides: { wall_loops: '3' }, dropped: 2 });
+    expect(withoutForeignGcode({ wall_loops: '3' })).toEqual({ overrides: { wall_loops: '3' }, dropped: 0 });
   });
 });

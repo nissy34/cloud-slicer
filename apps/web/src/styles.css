@@ -327,6 +327,7 @@ select:focus-visible {
 .error-text {
   color: var(--danger);
   overflow-wrap: anywhere;
+  white-space: pre-line;
 }
 .progress {
   display: flex;
