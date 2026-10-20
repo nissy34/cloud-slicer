@@ -716,6 +716,23 @@ test('colour mixing: deleting a mix or a filament moves what uses later filament
   assert.equal(info().objects[0].extruder, 3);
 });
 
+test('sync filament: replacing the filaments moves objects and drops mixes, adding keeps mixes', () => {
+  const THREE = ['#FF0000', '#0000FF', '#FFFF00'];
+  const d = mixed({ definitions: '', colours: THREE, op: { kind: 'add', row: { componentA: 1, componentB: 2 } } }).definitions;
+  load('calib-cube-10-dual-colour-merged.3mf');
+  call(engine, 'setExtruder', 0, -1, 4);  // the mix
+  // Adding a fourth filament at the end: the mix moves from 4 to 5 and stays.
+  const FOUR = [...THREE, '#FFFFFF'];
+  const added = mixed({ definitions: d, colours: THREE, op: { kind: 'replacePhysical', colours: FOUR, remap: [1, 2, 3], dropMixes: false } });
+  assert.deepEqual(added.rows.filter((r) => r.enabled).map((r) => r.virtualId), [5]);
+  assert.equal(info().objects[0].extruder, 5);
+  // Direct override with two printer filaments: 1 -> 1, 2 -> 2, 3 -> 1, 4 -> 2; the mix goes.
+  call(engine, 'setExtruder', 0, -1, 3);
+  const replaced = mixed({ definitions: added.definitions, colours: FOUR, op: { kind: 'replacePhysical', colours: ['#000000', '#00FF00'], remap: [1, 2, 1, 2], dropMixes: true } });
+  assert.equal(replaced.rows.filter((r) => r.enabled).length, 0);
+  assert.equal(info().objects[0].extruder, 1);
+});
+
 test('colour mixing: Match finds the recipe for a target colour', () => {
   const target = mixed({ definitions: '', colours: TWO, op: { kind: 'add', row: { componentA: 1, componentB: 2, mixBPercent: 30 } } }).rows[0].colour;
   const match = call(engine, 'mixedMatch', JSON.stringify({ colours: TWO, types: ['PLA', 'PLA'], target, minPercent: 10 }));
