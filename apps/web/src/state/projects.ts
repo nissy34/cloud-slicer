@@ -11,6 +11,7 @@ import { copyName, nameFromFile, newProjectId, projectFileName, projectSignature
 import { snapshot } from '../lib/snapshot';
 import { useAccount } from './account';
 import { useSlicer, type OpenMode } from './store';
+import { useRecent } from './recent';
 
 export interface CurrentProject {
   name: string;
@@ -185,6 +186,7 @@ export const useProjects = create<ProjectsState>((set, get) => {
     },
 
     async openFiles(files, mode) {
+      void useRecent.getState().remember(files);
       const slicer = useSlicer.getState();
       const wasEmpty = !slicer.project?.objects.length;
       const project = files.find((f) => /\.3mf$/i.test(f.name));

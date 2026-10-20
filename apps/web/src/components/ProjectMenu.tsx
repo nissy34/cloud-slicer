@@ -3,6 +3,8 @@ import { api, projectThumbnailUrl, type OnlineProject, type ProjectList } from '
 import { formatBytes, formatWhen, UNTITLED } from '../lib/projects';
 import { MODEL_EXTENSIONS } from '../lib/presets';
 import { useAccount } from '../state/account';
+import { useRecent } from '../state/recent';
+import { openRecent } from './RecentFiles';
 import { useProjects } from '../state/projects';
 import { useSlicer } from '../state/store';
 
@@ -19,6 +21,7 @@ export function ProjectMenu() {
   const message = useProjects((s) => s.message);
   const messageWarn = useProjects((s) => s.messageWarn);
   const signedIn = useAccount((s) => s.status === 'signedIn');
+  const recent = useRecent((s) => s.files);
   const p = useProjects.getState();
   const [open, setOpen] = useState(false);
   const root = useRef<HTMLDivElement>(null);
@@ -110,6 +113,27 @@ export function ProjectMenu() {
           <button role="menuitem" onClick={run(() => p.setListOpen(true))}>
             Online projects…
           </button>
+          {recent.length > 0 && (
+            <>
+              <hr />
+              <p className="menu-label">Recent files</p>
+              {recent.slice(0, 8).map((f) => (
+                <button
+                  key={f.key}
+                  role="menuitem"
+                  className="menu-recent"
+                  title={f.name}
+                  onClick={run(() => (!/\.3mf$/i.test(f.name) || discardOk()) && openRecent(f, (files) => p.openFiles(files, 'project')))}
+                >
+                  <span className="recent-name">{f.name}</span>
+                  <span className="recent-meta">{formatWhen(f.openedAt)}</span>
+                </button>
+              ))}
+              <button role="menuitem" className="menu-recent-clear" onClick={run(() => useRecent.getState().clear())}>
+                Clear recent files
+              </button>
+            </>
+          )}
           <hr />
           <button role="menuitem" disabled={!!busy} onClick={run(() => p.save())}>
             {signedIn ? 'Save' : 'Save (download)'}

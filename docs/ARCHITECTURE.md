@@ -152,6 +152,11 @@ nothing on purpose, so a deploy's page and engine never get out of step).
   indexed in the D1 `projects` table. Limits: 50 MB per project, 200 MB and 200 projects
   per user, 8 GB for the site (R2's free tier is 10 GB). Each save carries the version it
   started from; a save over a newer one asks whether to overwrite or save a copy.
+- **Recent files**: model and project files opened from the device are kept in the
+  browser (IndexedDB, never uploaded) and listed newest first under the empty plate's
+  Open model button and in the Project menu, because Android's file picker opens sorted
+  by name and a web page can't change that. Up to 10 files, none over 100 MB, 250 MB in
+  all; the oldest go first (`src/lib/recent.ts`, `src/state/recent.ts`).
 
 ## Colour mixing
 
