@@ -84,6 +84,49 @@ try {
   if (!Buffer.from(results.b1.data, 'base64').subarray(1, 4).equals(Buffer.from('PNG'))) throw new Error('snapshot is not a PNG');
   console.log('printer.info and a camera frame came back through the relay');
 
+  // A G-code upload in chunks, as the Device tab sends it, and a call the bridge must refuse.
+  const gcode = Buffer.from('G28\n' + 'G1 X10 Y10 E1\n'.repeat(30_000));
+  const upload = await new Promise((resolve, reject) => {
+    const ws = socket(clientKey, 'u1');
+    open.add(ws);
+    const pending = new Map();
+    let next = 1;
+    const call = (method, params) =>
+      new Promise((res, rej) => {
+        const id = next++;
+        pending.set(id, { res, rej });
+        ws.send(JSON.stringify({ jsonrpc: '2.0', id, method, params }));
+      });
+    ws.onmessage = (e) => {
+      const m = JSON.parse(e.data);
+      const p = pending.get(m.id);
+      if (!p) return;
+      pending.delete(m.id);
+      if (m.error) p.rej(new Error(m.error.message));
+      else p.res(m.result);
+    };
+    ws.onclose = (e) => reject(new Error(`closed: ${e.code} ${e.reason}`));
+    ws.onopen = async () => {
+      try {
+        const refusedKey = await call('access.get_api_key').then(() => null, (e) => e.message);
+        if (!refusedKey) throw new Error('the bridge passed on access.get_api_key');
+        const { uploadId } = await call('bridge.upload_begin', { path: 'relay-live.gcode', size: gcode.length });
+        for (let offset = 0; offset < gcode.length; offset += 192 * 1024) {
+          await call('bridge.upload_chunk', { uploadId, offset, data: gcode.subarray(offset, offset + 192 * 1024).toString('base64') });
+        }
+        const done = await call('bridge.upload_end', { uploadId });
+        const list = await call('server.files.list', { root: 'gcodes' });
+        ws.onclose = null;
+        ws.close();
+        resolve({ done, listed: list.find((f) => f.path === 'relay-live.gcode') });
+      } catch (e) {
+        reject(e);
+      }
+    };
+  });
+  if (upload.done.path !== 'relay-live.gcode' || upload.listed?.size !== gcode.length) throw new Error(`upload went wrong: ${JSON.stringify(upload)}`);
+  console.log(`uploaded ${gcode.length} bytes of G-code in chunks; access.* refused`);
+
   const refused = await closeCode(socket('wrong-key-wrong-key-wrong', 'u1'));
   if (refused.code !== 4003) throw new Error(`a wrong key was not refused (${refused.code})`);
   console.log(`wrong key refused: ${refused.reason}`);

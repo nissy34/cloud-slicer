@@ -35,8 +35,10 @@ Pairing:
   pairing link, never stored by the relay or the site, only sent to the printer.
   When a printer is added from the Device tab, the key typed there passes once
   through the relay (TLS) to the bridge, which keeps it; it never comes back.
-  The bridge refuses Moonraker's `access.*` calls, so a pairing-link holder can't
-  read or replace it or add Moonraker users.
+  The bridge passes on only the Moonraker calls the Device tab uses, so a
+  pairing-link holder can't read or replace it, add Moonraker users, set the
+  sudo password, run system updates or touch the config folder (`access.*`,
+  `machine.*` and file moves are refused; deletes stay in the G-code folder).
 - **The relay** (the Cloudflare account, and Cloudflare) sees all traffic in
   plain text: commands, status, camera frames, uploaded G-code, and the keys on
   each connect. It stores only the two key hashes and printer names.

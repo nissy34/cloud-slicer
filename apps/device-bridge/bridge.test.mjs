@@ -23,11 +23,14 @@ test('pairing code carries relay, id and the browser key, never the secret key',
   assert.match(decoded.k, /^[\w-]{43}$/);
 });
 
-test("refuses Moonraker's access.* calls, which would reveal the printer's API key", () => {
-  assert.equal(refused('access.get_api_key'), true);
-  assert.equal(refused('access.post_user'), true);
-  assert.equal(refused('printer.objects.query'), false);
-  assert.equal(refused(undefined), false);
+test('passes on only what the Device tab uses', () => {
+  for (const m of ['access.get_api_key', 'access.post_user', 'machine.sudo.password', 'machine.update.full', 'server.files.move', 'machine.reboot', undefined]) {
+    assert.ok(refused(m), `${m} should be refused`);
+  }
+  for (const m of ['printer.info', 'printer.objects.subscribe', 'printer.gcode.script', 'camera.start_monitor']) assert.equal(refused(m), null);
+  assert.equal(refused('server.files.delete_file', { path: 'gcodes/cube.gcode' }), null);
+  assert.ok(refused('server.files.delete_file', { path: 'config/printer.cfg' }));
+  assert.ok(refused('server.files.delete_file', { path: 'gcodes/../config/printer.cfg' }));
 });
 
 test('starting with the computer: Windows uses a per-user Run entry and copies the app out of Downloads', () => {
