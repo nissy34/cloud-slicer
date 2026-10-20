@@ -17,6 +17,7 @@ import {
   type ValueRange,
 } from '../lib/preview-colours';
 import { codeAt } from '../lib/layerCodes';
+import { plateBounds, toolpathWarnings } from '../lib/outside';
 import { useSceneColours } from '../lib/theme';
 import type { GcodeWorkerMessage } from '../engine/gcode-worker';
 import { useLoading } from '../state/loading';
@@ -389,6 +390,12 @@ export function Preview() {
   const gcode = job.kind === 'sliced' ? job.gcode : null;
   const { parsed: read, progress } = useParsed(gcode);
   const parsed = useAfterPaint(read);
+  // Desktop checks the toolpaths against the plate when it reads the G-code.
+  const area = useOption('printable_area');
+  const height = useOption('printable_height');
+  useEffect(() => {
+    if (read && gcode) useSlicer.getState().setGcodeWarnings(gcode, toolpathWarnings(read, plateBounds(area, height)));
+  }, [read, gcode, area, height]);
   // The loading card stays from the slice finishing until the first frame of
   // toolpaths is on screen: reading the G-code, then building the 3D view.
   const [drawn, setDrawn] = useState<PreviewGcode | null>(null);

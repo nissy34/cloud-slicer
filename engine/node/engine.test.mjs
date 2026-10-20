@@ -171,6 +171,30 @@ test('slices an STL with the U1 presets', () => {
   assert.ok(result.estimatedTimeSeconds > 0);
 });
 
+test('slicing reports desktop\'s warnings: G-code path conflicts and models that need support', () => {
+  select({ printer: DEFAULT_PRINTER, process: '0.20mm Standard @Snapmaker U1 (0.4 nozzle)' });
+  // Two separate objects overlapping by half: their paths cross on every layer.
+  load('gen-cube-20.stl');
+  load('gen-cube-20.stl', 0, true);
+  call(engine, 'setInstanceTransform', 0, 0, JSON.stringify({ offset: [100, 100] }));
+  call(engine, 'setInstanceTransform', 1, 0, JSON.stringify({ offset: [110, 100] }));
+  const { result } = slice(fullConfig());
+  const conflict = result.warnings.find((w) => /^Conflicts of G-code paths have been found at layer \d+, z = [\d.]+ mm/.test(w.text));
+  assert.ok(conflict, JSON.stringify(result.warnings));
+  assert.equal(conflict.level, 'serious');
+
+  // A 20 mm ledge sticking out at 10 mm, with supports off.
+  engine.FS.writeFile('/work/gen-ledge.stl', cubesStl([[0, 0, 0], [10, 0, 10], [20, 0, 10]]));
+  engine.clearModel();
+  const [w, d] = bedSize(fullConfig());
+  call(engine, 'loadModel', '/work/gen-ledge.stl', 0, w, d, false);
+  const ledge = slice(fullConfig({ enable_support: '0' })).result;
+  const support = ledge.warnings.find((x) => /Please re-orient the object or enable support generation/.test(x.text));
+  assert.ok(support, JSON.stringify(ledge.warnings));
+  assert.equal(support.level, 'warning');
+  assert.match(support.object ?? '', /gen-ledge/);
+});
+
 test('a slice stops when the page cancels it, and the engine slices again after', () => {
   select({ printer: DEFAULT_PRINTER, process: '0.20mm Standard @Snapmaker U1 (0.4 nozzle)' });
   load('3DBenchy.stl');

@@ -372,11 +372,12 @@ jobs:
           name: preset-screenshots
           path: apps/web/preset-shots
 
-      - name: Colour mixing and loading the printer's filaments end to end (Chromium, mock printer)
+      - name: Colour mixing, loading the printer's filaments and slicing warnings end to end (Chromium, mock printer)
         if: matrix.suite == 'mixing'
         run: |
           node test/mixing.mjs
           node test/sync-filaments.mjs
+          node test/warnings.mjs
 
       - name: Prime tower, phone 3D view gestures, plate menu, transform fields and layer slider items end to end (Chromium)
         if: matrix.suite == 'wipetower'

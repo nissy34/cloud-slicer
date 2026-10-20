@@ -85,6 +85,12 @@ hosted on Cloudflare's free tier.
   Desktop's layer slider items: a pause, a filament change, custom G-code or the printer's custom
   template at the start of a layer (+ beside the slider, or a right click or long press on it),
   shown as markers on the slider and kept per plate in the project and its 3MF.
+- **Warnings like desktop's**: an object over the plate's edge or above the printer's height
+  shows darker past the edge and has to be moved before slicing; after a slice its
+  warnings (empty layers, G-code paths of two objects running into each other, objects
+  that need support, risky settings, toolpaths outside the plate or above the printer)
+  are listed under the result, and toolpaths outside the build volume can't be downloaded
+  or sent, as on desktop.
 - **Camera views** in the corner of the 3D views: Fit all, and desktop's Iso, Top, Bottom,
   Front, Back, Left and Right (keys 0 to 6, Z fits all). On a phone two fingers always zoom
   and turn the camera, even when they land on the model; one finger on a model moves it.

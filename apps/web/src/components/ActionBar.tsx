@@ -1,8 +1,10 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { sendToPrinter } from '../device';
+import type { SliceWarning } from '../engine/protocol';
 import { formatDuration, formatGrams, gcodeFileName, sentence, stageLabel } from '../lib/format';
+import { blocksPrinting, OBJECT_CLASHED } from '../lib/outside';
 import { LIGHT_TRIANGLES, triangleCount } from '../lib/simplify';
-import { useSlicer } from '../state/store';
+import { useObjectsOutside, useSlicer } from '../state/store';
 
 function download(blob: Blob, name: string) {
   const url = URL.createObjectURL(blob);
@@ -59,11 +61,62 @@ function SliceProgress({ pct, stage, onCancel }: { pct: number; stage: string; o
   );
 }
 
+/**
+ * The slice's warnings, like desktop's notifications: the engine's (empty
+ * layers, path conflicts, objects that need support, settings) and the
+ * toolpath checks the Preview makes. Desktop leaves out the path conflict
+ * when the paths are outside the plate anyway.
+ */
+function useSliceWarnings(): SliceWarning[] {
+  const job = useSlicer((s) => s.job);
+  const fromGcode = useSlicer((s) => s.gcodeWarnings);
+  if (job.kind !== 'sliced') return [];
+  const outside = fromGcode?.gcode === job.gcode ? fromGcode.list : [];
+  const engine = job.result.warnings ?? [];
+  return [...outside, ...(outside.length ? engine.filter((w) => !w.text.startsWith('Conflicts of G-code paths')) : engine)];
+}
+
+/** One line per warning, serious ones first, folded to a count with Hide. */
+function SliceWarnings({ warnings }: { warnings: SliceWarning[] }) {
+  const options = useSlicer((s) => s.options);
+  const gcode = useSlicer((s) => (s.job.kind === 'sliced' ? s.job.gcode : null));
+  const [open, setOpen] = useState(true);
+  // A new slice shows its warnings again.
+  useEffect(() => setOpen(true), [gcode]);
+  const serious = warnings.filter((w) => w.level === 'serious').length;
+  const sorted = [...warnings].sort((a, b) => Number(b.level === 'serious') - Number(a.level === 'serious'));
+  const count = `${warnings.length} ${warnings.length === 1 ? 'warning' : 'warnings'}`;
+  return (
+    <div className="slice-warnings" data-testid="slice-warnings">
+      <button className={`warnings-toggle${serious ? ' serious' : ''}`} aria-expanded={open} onClick={() => setOpen(!open)}>
+        <span aria-hidden="true">⚠</span> {count}
+        <span className="muted"> · {open ? 'Hide' : 'Show'}</span>
+      </button>
+      {open && (
+        <ul className="warnings-list">
+          {sorted.map((w, k) => (
+            <li key={k} className={w.level === 'serious' ? 'serious' : 'warning'}>
+              {w.object && !w.text.includes(w.object) && <b>{w.object}: </b>}
+              {sentence(w.text)}
+              {w.option && <span className="muted"> (setting: {options[w.option]?.label || w.option})</span>}
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
+
 export function ActionBar() {
   const { engine, engineMessage, project, plate, job, notice, noticeWarn, heavy, simplifyHeavy, slice, cancelSlice, setTab, tab } = useSlicer();
   // A problem with the open tool shows in its card, where the eye is.
   const toolOpen = useSlicer((s) => !!(s.tool || s.paint));
   const errorHere = job.kind === 'error' && !(job.inTool && toolOpen);
+  const warnings = useSliceWarnings();
+  const unprintable = warnings.some(blocksPrinting);
+  // Objects over the plate's edge, which desktop won't slice (shown darker in the 3D view).
+  const outside = useObjectsOutside();
+  const clashed = outside.length > 0 && project && (job.kind === 'idle' || job.kind === 'sliced' || (job.kind === 'error' && !errorHere));
 
   if (engine === 'failed') return <EngineFailed message={engineMessage} />;
 
@@ -77,7 +130,7 @@ export function ActionBar() {
     <div className="actionbar" data-testid="actionbar">
       <div className="status" aria-live="polite">
         {engine === 'starting' && <span className="muted">Loading the engine and Snapmaker presets…</span>}
-        {engine === 'ready' && (job.kind === 'idle' || (job.kind === 'error' && !errorHere)) && (
+        {engine === 'ready' && !clashed && (job.kind === 'idle' || (job.kind === 'error' && !errorHere)) && (
           <span className="muted">
             {onPlate ? 'Ready to slice' : project?.objects.length ? 'This plate is empty' : 'Open a model to start'}
             {(notice || heavy) && '.'}
@@ -112,7 +165,14 @@ export function ActionBar() {
             {sentence(job.message)}
           </span>
         )}
+        {clashed && (
+          <span className="error-text" role="alert" data-testid="objects-outside">
+            {' '}
+            {OBJECT_CLASHED} ({outside.map((o) => project.objects[o]?.name).join(', ')})
+          </span>
+        )}
         {notice && !errorHere && <span className={noticeWarn ? 'hint warn' : 'hint'}> {notice}</span>}
+        {warnings.length > 0 && <SliceWarnings warnings={warnings} />}
         {heavy && job.kind === 'idle' && (
           <span className="hint warn" data-testid="heavy-model">
             {' '}
@@ -129,11 +189,13 @@ export function ActionBar() {
                 Preview
               </button>
             )}
-            <button className="secondary" onClick={() => download(job.gcode, fileName)}>
+            <button className="secondary" disabled={unprintable} title={unprintable ? 'The toolpaths leave the build volume' : undefined} onClick={() => download(job.gcode, fileName)}>
               Download G-code
             </button>
             <button
               className="secondary"
+              disabled={unprintable}
+              title={unprintable ? 'The toolpaths leave the build volume' : undefined}
               onClick={() => {
                 sendToPrinter(job.gcode, fileName, useSlicer.getState().selection?.printer);
                 setTab('device');
@@ -148,7 +210,7 @@ export function ActionBar() {
             Simplify model
           </button>
         )}
-        <button className="primary" disabled={!onPlate || busy || engine !== 'ready'} onClick={() => void slice()}>
+        <button className="primary" disabled={!onPlate || busy || engine !== 'ready' || outside.length > 0} onClick={() => void slice()}>
           {plateLabel}
         </button>
       </div>

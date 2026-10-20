@@ -200,10 +200,22 @@ export interface PaintOverlay {
 /** A ray from the camera through the pointer: origin then direction, plate coordinates. */
 export type PaintRay = [number, number, number, number, number, number];
 
+/**
+ * A warning from a slice, as desktop shows it in a notification: a warning, or
+ * a serious one (empty layers, G-code path conflicts). `object` names the
+ * object it is about; `option` the setting.
+ */
+export interface SliceWarning {
+  text: string;
+  level: 'warning' | 'serious';
+  object?: string;
+  option?: string;
+}
+
 export interface SliceResult {
   success: boolean;
   error: string;
-  warnings: string[];
+  warnings: SliceWarning[];
   gcodePath: string;
   totalLayers: number;
   estimatedTimeSeconds: number;
