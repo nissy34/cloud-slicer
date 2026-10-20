@@ -1,8 +1,8 @@
 // The owner's Admin page (OWNER_EMAILS only):
 //
 //   GET    /api/admin                       settings, users, invites, free-tier usage
-//   PUT    /api/admin/settings              { inviteOnly, storageMb }
-//   POST   /api/admin/users/<id>/<action>   block | unblock | allow | disallow
+//   PUT    /api/admin/settings              { inviteOnly, storageMb, guestRelay }
+//   POST   /api/admin/users/<id>/<action>   block | unblock | allow | disallow | delete
 //   PUT    /api/admin/users/<id>/storage    { storageMb: number | null }  (null = the site default)
 //   POST   /api/admin/invites               { email }
 //   DELETE /api/admin/invites/<email>
@@ -122,11 +122,12 @@ export async function overview(env: Env, request: Request): Promise<Response> {
 export async function putSettings(env: Env, request: Request): Promise<Response> {
   requireSameOrigin(request);
   await requireOwner(env, request);
-  const body = await readJson<{ inviteOnly?: unknown; storageMb?: unknown }>(request, 4096);
+  const body = await readJson<{ inviteOnly?: unknown; storageMb?: unknown; guestRelay?: unknown }>(request, 4096);
   const before = await accessSettings(env);
   const next = {
     inviteOnly: body.inviteOnly === undefined ? before.inviteOnly : body.inviteOnly === true,
     storageMb: body.storageMb === undefined ? before.storageMb : storageMb(body.storageMb),
+    guestRelay: body.guestRelay === undefined ? before.guestRelay : body.guestRelay === true,
   };
   // Turning invite only on keeps everyone who already has an account: they go on the list.
   if (next.inviteOnly && !before.inviteOnly)
@@ -172,6 +173,14 @@ export async function userAction(env: Env, request: Request, id: string, action:
       }
       break;
     }
+    case 'delete':
+      // Everything goes: sessions, presets, printers, projects (and their files, auth.ts's
+      // delete hook), bridges; their relay connections close and they leave the invite list.
+      if (owner) throw new HttpError(400, "The owner's own account can't be deleted here");
+      await revoke(env, id, true);
+      await auth.api.removeUser({ body: { userId: id }, headers });
+      await env.DB!.prepare('DELETE FROM allowed_emails WHERE email = ?').bind(normalEmail(target.email)).run();
+      break;
     default:
       throw new HttpError(404, 'Not found');
   }

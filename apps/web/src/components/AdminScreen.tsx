@@ -157,6 +157,24 @@ function AccessCard({ data, busy, act }: { data: AdminOverview; busy: boolean; a
           </span>
         </span>
       </label>
+      <label className="admin-switch">
+        <input
+          type="checkbox"
+          checked={s.guestRelay && !s.inviteOnly}
+          disabled={busy || s.inviteOnly}
+          onChange={(e) => void act(() => adminApi.saveSettings({ guestRelay: e.target.checked }))}
+        />
+        <span>
+          <strong>Signed-out people can use bridges</strong>
+          <span className="muted small">
+            {s.inviteOnly
+              ? 'Off while invite only is on.'
+              : s.guestRelay
+                ? 'Anyone with a pairing link can reach printers through the relay, one camera at a time. They have no account, so they can\u2019t be blocked.'
+                : 'Only signed-in people can reach printers through the bridge. Printers reached directly never need an account.'}
+          </span>
+        </span>
+      </label>
       <form
         className="admin-invite"
         onSubmit={(e) => {
@@ -224,6 +242,7 @@ function UsersCard({ data, busy, act }: { data: AdminOverview; busy: boolean; ac
 }
 
 function UserRow({ u, defaultMb, inviteOnly, busy, act }: { u: AdminUser; defaultMb: number; inviteOnly: boolean; busy: boolean; act: Act }) {
+  const [confirming, setConfirming] = useState(false);
   const mb = u.storageMb ?? defaultMb;
   const choices = [...new Set([...STORAGE_CHOICES, mb])].sort((a, b) => a - b);
   return (
@@ -264,12 +283,33 @@ function UserRow({ u, defaultMb, inviteOnly, busy, act }: { u: AdminUser; defaul
             {u.allowed ? 'Remove from list' : 'Allow'}
           </button>
         )}
+        {!u.owner && !confirming && (
+          <button className="secondary admin-danger" disabled={busy} onClick={() => setConfirming(true)}>
+            Delete
+          </button>
+        )}
         {!u.owner && (
           <button className={u.blocked ? 'secondary' : 'secondary admin-danger'} disabled={busy} onClick={() => void act(() => adminApi.userAction(u.id, u.blocked ? 'unblock' : 'block'))}>
             {u.blocked ? 'Unblock' : 'Block'}
           </button>
         )}
       </div>
+      {confirming && (
+        <div className="admin-confirm" role="alert">
+          <span>
+            Delete {u.name || u.email} and everything they saved ({formatBytes(u.bytes)} of projects, presets, printers, bridges)? This can't be undone.
+            They can sign up again later unless the site is invite only.
+          </span>
+          <div className="admin-user-actions">
+            <button className="secondary" onClick={() => setConfirming(false)}>
+              Keep
+            </button>
+            <button className="primary admin-delete" disabled={busy} onClick={() => void act(() => adminApi.userAction(u.id, 'delete'))}>
+              Delete for good
+            </button>
+          </div>
+        </div>
+      )}
     </li>
   );
 }

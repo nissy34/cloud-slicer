@@ -177,7 +177,8 @@ previews work with one Google OAuth client.
 
 The site's owner (the Google emails in the `OWNER_EMAILS` repository secret) gets
 **Admin: people and limits** in the account menu. It lists every account (joined, last
-seen, storage used, projects, presets, printers, bridges) with **Block** / **Unblock**,
+seen, storage used, projects, presets, printers, bridges) with **Block** / **Unblock** and
+**Delete** (removes the account, presets, printers, projects and their files),
 has an **Invite only** switch with an email list, sets **online project storage** per
 person (a site default plus per-person overrides; "Presets only" turns online projects
 off while presets and printers still save), and shows the site's use against
@@ -195,7 +196,9 @@ Cloudflare's free limits. Nothing changes for people who are allowed.
   a bridge whose owner is blocked. Bridges set up before this keep working: their 7 days
   start at their next connection, and opening the Device tab once while signed in ties
   them to the account. Signed out, bridge printers show a Sign in button; printers
-  reached directly need no account.
+  reached directly need no account. The Admin switch **Signed-out people can use bridges**
+(off by default, never while invite only) gives signed-out browsers a ticket too, with one
+camera at a time; they have no account, so they can't be blocked.
 - Usage: storage, accounts and bridges come from D1. Today's request counts (site and
   relay, database rows) need a read-only Cloudflare token: create one from the "Read
   analytics and logs" template and add it as the repository secret

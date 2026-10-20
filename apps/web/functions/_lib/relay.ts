@@ -9,7 +9,8 @@
 // the per-user bridge cap and the Admin page's bridge counts work. Blocking a
 // user also tells each relay they used to drop them at once (revoke()).
 import { SignJWT, importJWK, type JWK } from 'jose';
-import { requireUser } from './auth';
+import { accessSettings } from './access';
+import { currentUser, requireUser } from './auth';
 import { HttpError, json, readJson, requireSameOrigin } from './http';
 import type { Env } from './types';
 
@@ -52,12 +53,20 @@ function relayOrigin(v: unknown): string {
 /** POST /api/relay/ticket */
 export async function ticket(env: Env, request: Request): Promise<Response> {
   requireSameOrigin(request);
-  const user = await requireUser(env, request);
+  if (!env.DB || !env.RELAY_TICKET_KEY) throw new HttpError(503, "The printer bridge doesn't need tickets on this site");
   const body = await readJson<{ relay?: unknown; bridgeId?: unknown }>(request, 4096);
   const bridgeId = String(body.bridgeId ?? '');
   if (!BRIDGE_ID.test(bridgeId)) throw new HttpError(400, 'Bad bridge id');
   const relay = relayOrigin(body.relay);
   const now = Date.now();
+  const user = await currentUser(env, request);
+  if (!user) {
+    // Signed out: only when the owner allows it on the Admin page (one camera, no account to block).
+    const s = await accessSettings(env);
+    if (!s.guestRelay || s.inviteOnly) throw new HttpError(401, 'Sign in first');
+    const t = await sign(env, { b: bridgeId, cams: 1 }, `guest:${bridgeId}`, TICKET_SECONDS);
+    return json({ ticket: t, expiresAt: now + TICKET_SECONDS * 1000 });
+  }
   const d = env.DB!;
   const known = await d.prepare('SELECT 1 AS ok FROM relay_bridges WHERE user_id = ? AND bridge_id = ?').bind(user.id, bridgeId).first();
   if (known) {

@@ -31,7 +31,7 @@ export interface AdminUser {
 }
 
 export interface AdminOverview {
-  settings: { inviteOnly: boolean; storageMb: number };
+  settings: { inviteOnly: boolean; storageMb: number; guestRelay: boolean };
   users: AdminUser[];
   invites: { email: string; addedAt: number }[];
   usage: { meters: Meter[]; analytics: 'ok' | 'not-set-up' | 'failed'; analyticsError?: string };
@@ -52,7 +52,7 @@ async function call<T>(path: string, method = 'GET', body?: unknown): Promise<T>
 export const adminApi = {
   overview: () => call<AdminOverview>(''),
   saveSettings: (s: Partial<AdminOverview['settings']>) => call('/settings', 'PUT', s),
-  userAction: (id: string, action: 'block' | 'unblock' | 'allow' | 'disallow') => call(`/users/${encodeURIComponent(id)}/${action}`, 'POST', {}),
+  userAction: (id: string, action: 'block' | 'unblock' | 'allow' | 'disallow' | 'delete') => call(`/users/${encodeURIComponent(id)}/${action}`, 'POST', {}),
   setStorage: (id: string, storageMb: number | null) => call(`/users/${encodeURIComponent(id)}/storage`, 'PUT', { storageMb }),
   invite: (email: string) => call('/invites', 'POST', { email }),
   uninvite: (email: string) => call(`/invites/${encodeURIComponent(email)}`, 'DELETE'),

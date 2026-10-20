@@ -64,13 +64,7 @@ export async function createAuth(env: Env, request: Request) {
         : {},
     session: { expiresIn: 30 * DAY, updateAge: DAY },
     account: { encryptOAuthTokens: true },
-    user: {
-      deleteUser: {
-        enabled: true,
-        // D1 rows go with the user row (ON DELETE CASCADE); saved project files are in R2.
-        beforeDelete: (user) => deleteAllFiles(env, user.id),
-      },
-    },
+    user: { deleteUser: { enabled: true } },
     // Invite only: no new account, and no new session, for an email that isn't allowed.
     // (Blocked users are the admin plugin's: it refuses their sessions itself.)
     databaseHooks: {
@@ -81,6 +75,9 @@ export async function createAuth(env: Env, request: Request) {
             if (why) refuse(why);
           },
         },
+        // Deleting an account (the user's own Delete account, or Delete on the Admin page):
+        // D1 rows go with the user row (ON DELETE CASCADE); saved project files are in R2.
+        delete: { before: async (user) => void (await deleteAllFiles(env, user.id)) },
       },
       session: {
         create: {

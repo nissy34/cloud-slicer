@@ -53,7 +53,7 @@ setBridgeTickets(async (relay, bridgeId) => {
   const status = useAccount.getState().status;
   // A site without accounts (local dev) uses a relay without tickets.
   if (status === 'unavailable') return null;
-  if (status !== 'signedIn') throw new LinkError(BRIDGE_SIGN_IN, 'auth');
+  // Signed out, the site may still give a ticket (when the owner lets signed-out people use bridges).
   try {
     return await api.relayTicket(relay, bridgeId);
   } catch (e) {

@@ -4587,6 +4587,9 @@ button.volume-name {
   align-items: flex-start;
   cursor: pointer;
 }
+.admin-switch + .admin-switch {
+  margin-top: 10px;
+}
 .admin-switch input {
   margin-top: 3px;
 }
@@ -4689,6 +4692,18 @@ button.volume-name {
 }
 .secondary.admin-danger {
   color: var(--danger);
+}
+.admin-confirm {
+  grid-column: 1 / -1;
+  display: grid;
+  gap: 8px;
+  padding: 10px;
+  border: 1px solid var(--danger);
+  border-radius: 6px;
+}
+.primary.admin-delete {
+  background: var(--danger);
+  border-color: var(--danger);
 }
 .account-admin {
   width: 100%;

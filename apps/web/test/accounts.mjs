@@ -422,7 +422,7 @@ test('admin: only the owner (OWNER_EMAILS) gets the Admin page', async () => {
   const res = await alice.json('/api/admin');
   assert.equal(res.status, 200, await res.clone().text());
   const data = await res.json();
-  assert.deepEqual(data.settings, { inviteOnly: false, storageMb: 200 });
+  assert.deepEqual(data.settings, { inviteOnly: false, storageMb: 200, guestRelay: false });
   const emails = data.users.map((u) => u.email);
   assert.ok(emails.includes('alice@example.com') && emails.includes('bob@example.com'), emails.join());
   const a = data.users.find((u) => u.email === 'alice@example.com');
@@ -532,6 +532,46 @@ test('relay tickets: signed-in accounts only, for one bridge, with a bridge cap'
   assert.equal(row.bridges, 3);
 });
 
+test('relay for signed-out people: off by default, the owner can turn it on (never while invite only)', async () => {
+  const relay = 'https://relay.example';
+  const guest = new Browser();
+  assert.equal((await guest.json('/api/relay/ticket', 'POST', { relay, bridgeId: 'bridge-guest1' })).status, 401);
+  await alice.json('/api/admin/settings', 'PUT', { guestRelay: true });
+  const res = await guest.json('/api/relay/ticket', 'POST', { relay, bridgeId: 'bridge-guest1' });
+  assert.equal(res.status, 200);
+  const { payload } = await jwtVerify((await res.json()).ticket, await importJWK(ticketKeys.publicKey.export({ format: 'jwk' }), 'ES256'));
+  assert.equal(payload.sub, 'guest:bridge-guest1');
+  assert.equal(payload.cams, 1);
+  await alice.json('/api/admin/settings', 'PUT', { inviteOnly: true });
+  assert.equal((await guest.json('/api/relay/ticket', 'POST', { relay, bridgeId: 'bridge-guest1' })).status, 401, 'not while invite only');
+  await alice.json('/api/admin/settings', 'PUT', { inviteOnly: false, guestRelay: false });
+  assert.equal((await guest.json('/api/relay/ticket', 'POST', { relay, bridgeId: 'bridge-guest1' })).status, 401);
+});
+
+test('delete a person: account, presets, printers, projects and files go', async () => {
+  const erin = new Browser();
+  users.erin = { sub: 'g-erin', name: 'Erin', email: 'erin@example.com', email_verified: true };
+  await signIn(erin, 'erin');
+  const erinId = (await erin.me()).id;
+  await erin.json('/api/presets/process/Fast', 'PUT', { inherits: 'x', config: {} });
+  await erin.json('/api/devices/e1', 'PUT', { name: 'E1', url: 'http://10.0.0.5', apiKey: 'k' });
+  const zip = new Uint8Array([0x50, 0x4b, 3, 4, 1, 2, 3]);
+  const put = await erin.fetch(`${HOST}/api/projects/ep?name=x&baseVersion=0`, { method: 'PUT', headers: { Origin: HOST, 'Content-Type': 'model/3mf' }, body: zip });
+  assert.equal(put.status, 200, await put.clone().text());
+  const before = (await (await alice.json('/api/admin')).json()).usage.meters.find((m) => m.key === 'projects').used;
+  assert.equal((await alice.json(`/api/admin/users/${(await alice.me()).id}/delete`, 'POST', {})).status, 400, "the owner can't delete themself here");
+  assert.equal((await alice.json(`/api/admin/users/${erinId}/delete`, 'POST', {})).status, 200);
+  assert.equal(await erin.me(), null);
+  const after = await (await alice.json('/api/admin')).json();
+  assert.ok(!after.users.some((u) => u.id === erinId));
+  assert.equal(after.usage.meters.find((m) => m.key === 'projects').used, before - zip.length);
+  // Signing up again starts empty.
+  await signIn(erin, 'erin');
+  assert.notEqual((await erin.me()).id, erinId);
+  assert.equal((await (await erin.json('/api/presets')).json()).presets.length, 0);
+  assert.equal((await (await erin.json('/api/projects')).json()).projects.length, 0);
+});
+
 test('signing in again, on another device, finds the same account', async () => {
   const me = await alice.me();
   assert.equal(me.email, 'alice@example.com');
@@ -569,7 +609,7 @@ if (withApp)
     const dave = new Browser();
     await signIn(dave, 'dave');
     await owner.json(`/api/admin/users/${(await dave.me()).id}/block`, 'POST', {});
-    await owner.json('/api/admin/invites', 'POST', { email: 'erin@example.com' });
+    await owner.json('/api/admin/invites', 'POST', { email: 'frank@example.com' });
     const browser = await chromium.launch(
       process.env.PLAYWRIGHT_BROWSERS_PATH === '/opt/pw-browsers' ? { executablePath: '/opt/pw-browsers/chromium' } : {},
     );
@@ -579,7 +619,9 @@ if (withApp)
       const page = await context.newPage();
       await page.goto(HOST);
       const wizard = page.getByRole('dialog', { name: 'Set up your printers' });
+      await page.getByText('Open a model to start').waitFor({ timeout: 120000 });
       await page.getByRole('button', { name: /Alice/ }).waitFor({ timeout: 60000 });
+      await wizard.waitFor({ timeout: 5000 }).catch(() => {});
       if (await wizard.isVisible().catch(() => false)) await wizard.getByRole('button', { name: 'Not now' }).click();
       await page.getByRole('button', { name: /Alice/ }).click();
       await page.getByRole('button', { name: 'Admin: people and limits' }).click();
@@ -587,7 +629,7 @@ if (withApp)
       await admin.getByText('Free tier use').waitFor();
       await admin.getByText('dave@example.com').waitFor();
       await admin.getByText('Blocked').waitFor();
-      await admin.getByText('erin@example.com').waitFor();
+      await admin.getByText('frank@example.com').waitFor();
       // Invite only, from the page.
       await admin.getByLabel(/Invite only/).click();
       await admin.getByText('Only people on the list can sign in.').waitFor();
@@ -601,6 +643,11 @@ if (withApp)
         await admin.getByText('People (').scrollIntoViewIfNeeded();
         await page.screenshot({ path: join(process.env.ACCOUNTS_SHOTS, 'admin-phone-people.png') });
       }
+      const daveRow = admin.getByTestId('admin-user').filter({ hasText: 'dave@example.com' });
+      await daveRow.getByRole('button', { name: 'Delete', exact: true }).click();
+      await daveRow.getByText("This can't be undone.", { exact: false }).scrollIntoViewIfNeeded();
+      if (process.env.ACCOUNTS_SHOTS) await page.screenshot({ path: join(process.env.ACCOUNTS_SHOTS, 'admin-phone-delete.png') });
+      await daveRow.getByRole('button', { name: 'Keep' }).click();
       await admin.getByLabel(/Invite only/).click();
       await admin.getByText('Anyone with a Google account can sign in.', { exact: false }).waitFor();
       await page.getByRole('button', { name: 'Back to the slicer' }).click();
