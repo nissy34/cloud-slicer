@@ -93,11 +93,11 @@ bool engine::printerFlushes(PresetBundle& b) {
 
 // Fills the project's flushing volumes from the filament colours, as desktop's
 // auto-calculation does, when the printer flushes. Returns what the page's
-// Flushing volumes window needs: {flushes, nozzles, min: [per nozzle], max}.
+// Flushing volumes window needs: {flushes, bambu, nozzles, min: [per nozzle], max}.
 json engine::autoFlushVolumes(PresetBundle& b) {
     const bool flushes = printerFlushes(b);
     const size_t nozzles = nozzleCount(b);
-    json info{{"flushes", flushes}, {"nozzles", nozzles}, {"min", json::array()}, {"max", g_max_flush_volume}};
+    json info{{"flushes", flushes}, {"bambu", b.is_bbl_vendor()}, {"nozzles", nozzles}, {"min", json::array()}, {"max", g_max_flush_volume}};
     const DynamicPrintConfig cfg = b.full_config();
     const auto* colourOpt = b.project_config.option<ConfigOptionStrings>("filament_colour");
     const std::vector<std::string> colours = colourOpt ? colourOpt->values : std::vector<std::string>{};
