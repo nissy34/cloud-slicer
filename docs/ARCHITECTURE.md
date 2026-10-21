@@ -125,7 +125,12 @@ nothing on purpose, so a deploy's page and engine never get out of step).
 - **Setup wizard**: like Orca's first-run wizard, it asks which printers and filaments
   you have. The choice is an account setting (`setup`): kept in the browser signed out,
   in the account signed in, and merged (lists unioned) at sign-in. "Manage" next to the
-  printer picker opens it again.
+  printer picker opens it again, and then its Printers and Filaments pages save on their
+  own. Picking the other engine as default moves the untouched first project to it before
+  the Printers page, so the lists are that engine's. Printers and filaments are saved with
+  the engine that named them (`printersIn`, `filamentsIn`) and shown in the other engine
+  under its names (`installedPrinters`, `installedFilaments` in `src/lib/setup.ts`). The
+  filament page shows each filament once, whatever printers it has presets for.
 - **User presets** are Orca user presets: a JSON file per preset with `name`,
   `inherits` (the system preset, one level, as Orca allows), `from: "User"`,
   `version: "1.0.0"` (Orca skips a user preset without a parseable version) and only the

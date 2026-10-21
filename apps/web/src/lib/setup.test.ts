@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { PresetSummary } from '../engine/protocol';
-import { filamentGroups, installedOnly, installedPrinters, printerModels, startPrinter } from './setup';
+import { filamentGroups, installedFilaments, installedOnly, installedPrinters, printerModels, startPrinter } from './setup';
 
 const printer = (name: string, model: string, nozzle: string, system = true) =>
   ({ name, label: name, type: 'printer', system, user: !system, compatible: true, inherits: '', vendor: 'Snapmaker', model, nozzle }) as PresetSummary;
@@ -53,5 +53,36 @@ describe('setup', () => {
     const f = (name: string, filamentVendor: string) => ({ name, filamentVendor }) as PresetSummary;
     const groups = filamentGroups([f('Snapmaker PLA', 'Snapmaker'), f('Generic PETG', 'Generic'), f('Other', 'X'), f('Bambu PLA', '"Bambu Lab"')], new Set(['Snapmaker PLA', 'Generic PETG', 'Bambu PLA']));
     expect(groups.map((g) => g.vendor)).toEqual(['Bambu Lab', 'Generic', 'Snapmaker']);
+  });
+
+  it('shows a filament once, whatever printers it has presets for, and a brand once, however it is spelt', () => {
+    const f = (name: string, filamentVendor: string) => ({ name, filamentVendor }) as PresetSummary;
+    const list = [
+      f('Generic PLA @U1 0.4 nozzle', 'Generic'),
+      f('Generic PLA @Voron', 'Generic'),
+      f('Generic ABS @U1 0.4 nozzle', 'Generic'),
+      f('Snapmaker PLA SnapSpeed @U1', 'snapmaker'),
+      f('Snapmaker ABS @U1 0.4 nozzle', 'Snapmaker'),
+      f('Snapmaker ABS @U1 0.6 nozzle', 'Snapmaker'),
+    ];
+    const groups = filamentGroups(list, new Set(list.map((x) => x.name)));
+    expect(groups.map((g) => g.vendor)).toEqual(['Generic', 'Snapmaker']);
+    expect(groups[0].rows).toEqual([
+      { label: 'Generic ABS', names: ['Generic ABS @U1 0.4 nozzle'] },
+      { label: 'Generic PLA', names: ['Generic PLA @U1 0.4 nozzle', 'Generic PLA @Voron'] },
+    ]);
+    expect(groups[1].rows.map((r) => r.label)).toEqual(['Snapmaker ABS', 'Snapmaker PLA SnapSpeed']);
+    expect(groups[1].rows[0].names).toHaveLength(2);
+  });
+
+  it('names the installed filaments the way each engine does', () => {
+    const setup = { printers: [], filaments: ['Snapmaker PETG HF', 'Snapmaker ABS @U1 0.4 nozzle', 'Snapmaker PLA Matte @U1'] };
+    const orca = installedFilaments(setup, 'orca')!;
+    expect(orca).toContain('Snapmaker PETG @U1');
+    expect(orca).toContain('Snapmaker ABS @U1');
+    expect(orca).toContain('Snapmaker PLA Matte @U1');
+    expect(installedFilaments(setup, 'snapmaker')).toEqual(setup.filaments);
+    expect(installedFilaments({ ...setup, filaments: ['Snapmaker PETG @U1'], filamentsIn: 'orca' }, 'orca')).toEqual(['Snapmaker PETG @U1']);
+    expect(installedFilaments(undefined, 'orca')).toBeUndefined();
   });
 });

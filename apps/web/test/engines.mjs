@@ -62,7 +62,7 @@ try {
   await page.goto(url);
   await engineIs('Snapmaker Orca');
 
-  // The wizard starts with the engine; picking OrcaSlicer and finishing switches the empty page to it.
+  // The wizard starts with the engine; picking OrcaSlicer moves the empty page to it before the printer page.
   const wizard = page.getByRole('dialog', { name: 'Set up your printers' });
   await wizard.waitFor({ timeout: 30000 });
   const choice = wizard.getByRole('radio', { name: 'OrcaSlicer', exact: true });
@@ -76,10 +76,13 @@ try {
     await page.setViewportSize({ width: 1280, height: 800 });
   }
   await wizard.getByRole('button', { name: 'Next' }).click();
-  // Nothing is picked on a first visit: pick the U1.
+  await wizard.getByRole('searchbox', { name: 'Search printers' }).waitFor({ timeout: 180000 });
+  await engineIs('OrcaSlicer');
+  // Nothing is picked on a first visit: pick the U1 (OrcaSlicer's, whose second 0.4 is its 0.4+0.6 preset).
   await wizard
     .locator('.wizard-models li', { has: page.locator('.wizard-model', { hasText: /^Snapmaker U1/ }) })
     .getByRole('button', { name: '0.4', exact: true })
+    .first()
     .click();
   await wizard.getByRole('button', { name: 'Next' }).click();
   await wizard.getByRole('button', { name: 'Next' }).click({ timeout: 60000 });

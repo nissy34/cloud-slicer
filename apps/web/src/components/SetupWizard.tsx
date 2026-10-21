@@ -1,20 +1,29 @@
 import { useEffect, useMemo, useState } from 'react';
 import { create } from 'zustand';
 import type { PresetSummary } from '../engine/protocol';
-import { ENGINES, type EngineFlavor } from '../lib/engines';
+import { engineFromUrl, ENGINES, type EngineFlavor } from '../lib/engines';
 import { shortName } from '../lib/presets';
 import { coverUrl } from '../lib/printer-catalog';
-import { filamentGroups, installedPrinters, matchModels, SETUP_KEY, wizardBrands, type Setup } from '../lib/setup';
+import { filamentGroups, installedFilaments, installedPrinters, matchModels, SETUP_KEY, wizardBrands, type FilamentRow, type Setup } from '../lib/setup';
 import { saveUserSetting, useAccount, useDevices, useUserSetting } from '../state/account';
 import { useDevice } from '../state/device';
+import { untouchedProject, useProjects } from '../state/projects';
 import { useSlicer } from '../state/store';
 
 /** Opens the wizard from anywhere (e.g. "Manage" next to the printer picker). */
-export const useSetupWizard = create<{ open: boolean; step: Step; show(step?: Step): void; hide(): void }>((set) => ({
+export const useSetupWizard = create<{
+  open: boolean;
+  step: Step;
+  /** The engine picked on the first page, kept while the page restarts on it (see next()). */
+  engine: EngineFlavor | null;
+  show(step?: Step): void;
+  hide(): void;
+}>((set) => ({
   open: false,
   step: 'engine',
-  show: (step = 'engine') => set({ open: true, step }),
-  hide: () => set({ open: false }),
+  engine: null,
+  show: (step = 'engine') => set({ open: true, step, engine: null }),
+  hide: () => set({ open: false, engine: null }),
 }));
 
 // Closed this visit, or the visit started from a printer pairing link (the
@@ -58,10 +67,12 @@ function Wizard({ onClose }: { onClose: () => void }) {
   const allPrinters = useSlicer((s) => s.printers);
   const running = useSlicer((s) => s.flavor);
   const savedPrinters = installedPrinters(useUserSetting<Setup>(SETUP_KEY), running);
-  const savedFilaments = useUserSetting<Setup>(SETUP_KEY)?.filaments;
+  const savedFilaments = installedFilaments(useUserSetting<Setup>(SETUP_KEY), running);
   const savedEngine = useUserSetting<Setup>(SETUP_KEY)?.engine;
+  // Run before: the Printers and Filaments pages can save on their own.
+  const editing = !!savedPrinters?.length;
   const [step, setStep] = useState<Step>(useSetupWizard.getState().step);
-  const [engine, setEngine] = useState<EngineFlavor>(savedEngine ?? running);
+  const [engine, setEngine] = useState<EngineFlavor>(useSetupWizard.getState().engine ?? savedEngine ?? running);
   // The first time nothing is picked, as on desktop: the printer the app starts on is not one you chose.
   const [printers, setPrinters] = useState<string[]>(() => savedPrinters ?? []);
   const [filaments, setFilaments] = useState<string[] | null>(savedFilaments?.length ? savedFilaments : null);
@@ -79,7 +90,7 @@ function Wizard({ onClose }: { onClose: () => void }) {
       const s = useSlicer.getState();
       const mine = s.printers.some((p) => p.user && p.name === s.selection?.printer);
       if (s.selection && !mine && !printers.includes(s.selection.printer)) await s.selectPrinter(printers[0]);
-      await saveUserSetting<Setup>(SETUP_KEY, { printers, printersIn: running, filaments: filaments ?? [], engine });
+      await saveUserSetting<Setup>(SETUP_KEY, { printers, printersIn: running, filaments: filaments ?? savedFilaments ?? [], filamentsIn: running, engine });
       onClose();
       then?.();
     } catch (e) {
@@ -90,26 +101,45 @@ function Wizard({ onClose }: { onClose: () => void }) {
   };
 
   const index = STEPS.findIndex((s) => s.id === step);
+  const loadBrands = async () => {
+    setLoadingBrands(true);
+    try {
+      await useSlicer.getState().loadVendors(printers);
+      return true;
+    } catch (e) {
+      setError(`Could not load the printer profiles: ${(e as Error).message}`);
+      return false;
+    } finally {
+      setLoadingBrands(false);
+    }
+  };
+  // Adding or removing a printer later needn't go through every page.
+  const save = async () => {
+    setError('');
+    if (await loadBrands()) await finish();
+  };
   const next = async () => {
     setError('');
-    // The filament page asks the engine, which loads a brand's presets only once one of its printers is picked.
-    if (step === 'printers') {
-      setLoadingBrands(true);
-      try {
-        await useSlicer.getState().loadVendors(printers);
-      } catch (e) {
-        setError(`Could not load the printer profiles: ${(e as Error).message}`);
-        return;
-      } finally {
-        setLoadingBrands(false);
-      }
+    // A newly chosen default engine: the pages after this list its printers and
+    // filaments. An untouched first project moves to it now (finishing would
+    // move it anyway); the wizard comes back on the Printers page once it has
+    // started. Keeping the default while trying the other engine moves nothing.
+    if (step === 'engine' && engine !== running && engine !== savedEngine && untouchedProject() && !engineFromUrl()) {
+      useSetupWizard.setState({ step: 'printers', engine });
+      await useProjects.getState().switchEngine(engine);
+      return;
     }
+    // The filament page asks the engine, which loads a brand's presets only once one of its printers is picked.
+    if (step === 'printers' && !(await loadBrands())) return;
     setStep(STEPS[index + 1].id);
   };
   return (
     <div className="dialog-backdrop" onKeyDown={(e) => e.key === 'Escape' && onClose()}>
       <div className="dialog wizard" role="dialog" aria-modal="true" aria-labelledby="wizard-title">
         <h2 id="wizard-title">Set up your printers</h2>
+        <p className="wizard-step-now">
+          Step {index + 1} of {STEPS.length}: {STEPS[index].label}
+        </p>
         <ol className="wizard-steps">
           {STEPS.map((s, i) => (
             <li key={s.id} className={i === index ? 'on' : i < index ? 'done' : ''}>
@@ -142,10 +172,21 @@ function Wizard({ onClose }: { onClose: () => void }) {
                 void finish(() => {
                   useSlicer.getState().setTab('device');
                   void useDevice.getState().openEditor({ mode: 'add' });
+                  // Back to this page once the printer is added (or not), to see it listed and finish.
+                  const off = useDevice.subscribe((d, prev) => {
+                    if (!prev.editor || d.editor) return;
+                    off();
+                    useSetupWizard.getState().show('connect');
+                  });
                 })
               }
             >
               Add a printer connection
+            </button>
+          )}
+          {editing && (step === 'printers' || step === 'filaments') && (
+            <button className="secondary" disabled={saving || loadingBrands || !printers.length || (step === 'filaments' && !filaments?.length)} onClick={() => void save()}>
+              Save
             </button>
           )}
           {step === 'connect' ? (
@@ -290,7 +331,9 @@ function FilamentStep({ printers, chosen, onChange }: { printers: string[]; chos
         for (const r of results) for (const f of r.filaments) byName.set(f.name, f);
         setList([...byName.values()]);
         const names = new Set(byName.keys());
-        const kept = chosen?.filter((n) => names.has(n)) ?? [];
+        // A filament picked before covers the presets it has for printers added since (one row, see filamentGroups).
+        const keptRows = new Set(chosen?.filter((n) => names.has(n)).map(shortName));
+        const kept = [...names].filter((n) => keptRows.has(shortName(n)));
         // The Snapmaker profiles name no default materials for the wizard, so
         // start from the printers' default filaments plus the maker's own.
         const vendors = new Set(useSlicer.getState().printers.filter((p) => printers.includes(p.name)).map((p) => p.vendor));
@@ -311,6 +354,8 @@ function FilamentStep({ printers, chosen, onChange }: { printers: string[]; chos
   const q = query.trim().toLowerCase();
   const shown = new Set(list.filter((f) => (!type || (f.filamentType || 'Other') === type) && (!q || f.name.toLowerCase().includes(q))).map((f) => f.name));
   const groups = filamentGroups(list, shown);
+  // Counted as the rows show them: one per filament, not per printer it has a preset for.
+  const chosenRows = new Set(list.filter((f) => picked.has(f.name)).map((f) => shortName(f.name))).size;
   const set = (names: string[], on: boolean) => onChange(on ? [...new Set([...picked, ...names])] : [...picked].filter((n) => !names.includes(n)));
   return (
     <>
@@ -328,22 +373,23 @@ function FilamentStep({ printers, chosen, onChange }: { printers: string[]; chos
       </div>
       <div className="wizard-filaments">
         {groups.map((g) => {
-          const names = g.filaments.map((f) => f.name);
-          const count = names.filter((n) => picked.has(n)).length;
+          const names = g.rows.flatMap((r) => r.names);
+          const on = (r: FilamentRow) => r.names.some((n) => picked.has(n));
+          const count = g.rows.filter(on).length;
           return (
             <details key={g.vendor} open={groups.length <= 3 || count > 0 || !!q}>
               <summary>
-                {g.vendor} <span className="muted small">{count ? `${count} of ${names.length}` : names.length}</span>
+                {g.vendor} <span className="muted small">{count ? `${count} of ${g.rows.length}` : g.rows.length}</span>
               </summary>
-              <button className="link small" onClick={() => set(names, count < names.length)}>
-                {count < names.length ? 'Select all' : 'Select none'}
+              <button className="link small" onClick={() => set(names, count < g.rows.length)}>
+                {count < g.rows.length ? 'Select all' : 'Select none'}
               </button>
               <ul>
-                {g.filaments.map((f) => (
-                  <li key={f.name}>
+                {g.rows.map((r) => (
+                  <li key={r.label}>
                     <label className="check">
-                      <input type="checkbox" checked={picked.has(f.name)} onChange={(e) => set([f.name], e.target.checked)} />
-                      <span>{shortName(f.name)}</span>
+                      <input type="checkbox" checked={on(r)} onChange={(e) => set(r.names, e.target.checked)} />
+                      <span>{r.label}</span>
                     </label>
                   </li>
                 ))}
@@ -353,7 +399,7 @@ function FilamentStep({ printers, chosen, onChange }: { printers: string[]; chos
         })}
       </div>
       <p className="muted small">
-        {picked.size} filament{picked.size === 1 ? '' : 's'} selected.
+        {chosenRows} filament{chosenRows === 1 ? '' : 's'} selected.
       </p>
     </>
   );

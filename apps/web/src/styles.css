@@ -3633,6 +3633,21 @@ select:focus-visible {
   color: var(--text);
   font-weight: 600;
 }
+/* Phones: the current step only, instead of four labels breaking across lines. */
+.wizard-step-now {
+  display: none;
+  margin: 0;
+  font-size: 13px;
+  font-weight: 600;
+}
+@media (max-width: 600px) {
+  .wizard-steps {
+    display: none;
+  }
+  .wizard-step-now {
+    display: block;
+  }
+}
 .wizard-models,
 .wizard-devices,
 .wizard-filaments ul {
