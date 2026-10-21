@@ -251,7 +251,10 @@ jobs:
             apps/device-bridge/install.ps1 > "$RUNNER_TEMP/install.ps1"
           grep -qF "'--relay', 'http://127.0.0.1:9'" "$RUNNER_TEMP/install.ps1"
           # Windows PowerShell, as people have it; it must come back on its own.
-          timeout 90 powershell -NoProfile -ExecutionPolicy Bypass -Command "Get-Content -Raw '$RUNNER_TEMP/install.ps1' | Invoke-Expression"
+          # (It ends with the bridge's own exit status: 0 when it's set up.)
+          rc=0; timeout 90 powershell -NoProfile -ExecutionPolicy Bypass -Command "Get-Content -Raw '$RUNNER_TEMP/install.ps1' | Invoke-Expression; exit "'$LASTEXITCODE' || rc=$?
+          if [ "$rc" = 124 ]; then echo "The PowerShell line never finished"; exit 1; fi
+          if [ "$rc" != 0 ]; then echo "The PowerShell line failed ($rc)"; exit 1; fi
           tasklist //FI 'IMAGENAME eq cloud-slicer-bridge.exe' | grep cloud-slicer-bridge
           "$LOCALAPPDATA/Cloud Slicer Bridge/cloud-slicer-bridge.exe" uninstall
       - uses: actions/upload-artifact@v6
