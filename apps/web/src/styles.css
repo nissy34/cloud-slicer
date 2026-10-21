@@ -5356,6 +5356,7 @@ button.volume-name {
 }
 .dv-bridge-state.connecting {
   border-left-color: var(--accent);
+}
 
 /* AutoSave, Continue and view only (src/components/ContinueCard.tsx, ProjectMenu.tsx) */
 .project-status {
