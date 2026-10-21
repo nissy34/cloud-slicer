@@ -3,6 +3,8 @@
 // Moonraker's JSON-RPC over one socket; only file upload and camera frames,
 // which Moonraker serves over plain HTTP, need their own calls.
 
+import type { DirectCamera } from '../camera';
+
 export type RpcMessage = {
   jsonrpc?: '2.0';
   id?: number | string;
@@ -49,6 +51,19 @@ export interface PrinterLink {
    * WebRTC signalling), or null when only single frames can be fetched.
    */
   mediaUrl(url: string): string | null;
+  /**
+   * Bridge links only: asks the bridge to send a camera straight to this
+   * browser. Takes the browser's WebRTC offer, resolves to the bridge's answer
+   * and whether live video or pictures will come.
+   */
+  cameraOpen?(camera: DirectCamera, sdp: string): Promise<DirectAnswer>;
+  cameraClose?(id: string): void;
+}
+
+export interface DirectAnswer {
+  id: string;
+  mode: 'video' | 'pictures';
+  sdp: string;
 }
 
 export class LinkError extends Error {

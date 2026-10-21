@@ -2693,6 +2693,19 @@ select:focus-visible {
 .dv-camera .muted {
   color: #aaa;
 }
+.dv-camera-note {
+  position: absolute;
+  left: 6px;
+  right: 6px;
+  bottom: 6px;
+  padding: 2px 8px;
+  border-radius: 4px;
+  background: rgb(0 0 0 / 0.6);
+  color: #fff;
+  font-size: 12px;
+  text-align: center;
+  pointer-events: none;
+}
 .dv-job-head {
   display: flex;
   align-items: center;

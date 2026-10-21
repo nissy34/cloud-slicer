@@ -108,7 +108,7 @@ commands: `list`, `remove <name>`, `pair` (print the pairing link again; `--open
 ## Building
 
 It's one Go program (`*.go`, Go 1.24, no cgo) with nothing else to install,
-about 6 to 7 MB per system and chip. `./build.sh` builds `dist/linux-x64`,
+about 10 MB per system and chip. `./build.sh` builds `dist/linux-x64`,
 `dist/linux-arm64` (64-bit Pi OS, Armbian, the Snapmaker U1), `dist/linux-armv7`
 (32-bit Pi OS, Sonic Pad), `dist/linux-mipsle` (Creality K1, soft float) and
 `dist/windows-x64` (with its icon and name, and no window); `./build.sh mac`
@@ -132,6 +132,15 @@ JSON-RPC; the agent adds `bridge.upload_*` and `bridge.snapshot`, which it
 answers itself with HTTP to the printer. Status updates are merged and sent at
 most once a second, and only while a browser is watching, to stay inside the
 relay's free tier.
+
+**Cameras** (`camera.go`): the page sends a WebRTC offer as `bridge.camera_open`
+and the camera then comes straight from this computer to the browser, never over
+the relay. A camera with its own live H.264 video (camera-streamer, MediaMTX,
+go2rtc, and the paxx12 U1 firmware at `/webcam/webrtc`) is forwarded packet for
+packet, without re-encoding; any other camera is sent as pictures over a data
+channel, up to 15 a second. Both sides find each other with a public STUN server,
+so it usually works away from home too; where a network blocks direct links the
+page falls back to `bridge.snapshot`, one picture a second over the relay.
 
 **Print alerts** (`alerts.go`, `watch.go`): when the relay says someone wants
 alerts from a printer (`{ctl:"alerts"}`), the bridge keeps its own Moonraker
