@@ -65,6 +65,8 @@ async function call<T>(path: string, method = 'GET', body?: unknown): Promise<T>
 
 export const adminApi = {
   overview: () => call<AdminOverview>(''),
+  /** The same without the free-tier numbers (usage is null): fast, for refreshing after a change. */
+  quickOverview: () => call<Omit<AdminOverview, 'usage'> & { usage: null }>('?quick'),
   saveSettings: (s: Partial<AdminOverview['settings']>) => call('/settings', 'PUT', s),
   userAction: (id: string, action: 'block' | 'unblock' | 'allow' | 'disallow' | 'delete') => call(`/users/${encodeURIComponent(id)}/${action}`, 'POST', {}),
   setStorage: (id: string, storageMb: number | null) => call(`/users/${encodeURIComponent(id)}/storage`, 'PUT', { storageMb }),
