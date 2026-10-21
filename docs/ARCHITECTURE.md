@@ -224,11 +224,12 @@ Moonraker is reached one of two ways (`src/device/link/`):
 
 Bridge design choices:
 
-- One-file apps built with `bun build --compile` for Windows, macOS, Linux and
-  Raspberry Pi, with the app icon (a `Cloud Slicer Bridge.app` bundle on macOS, a menu
-  entry on Linux), served by the relay from R2 (`cloud-slicer-bridge`), plus
-  `bridge.mjs` for anything with Node.js 22. On Windows the bridge runs with no window,
-  out of the taskbar. They are not code-signed to stay at $0 (the Mac app is signed ad
+- One small Go program (6 to 7 MB, nothing else to install) for Windows, macOS
+  (Apple and Intel), Linux PCs, 64 and 32-bit Raspberry Pis and Armbian boards, and
+  MIPS printers such as the Creality K1, with the app icon (a `Cloud Slicer Bridge.app`
+  bundle on macOS with no Dock icon, a menu entry on Linux), served by the relay from
+  R2 (`cloud-slicer-bridge`). On Windows the bridge runs with no window, out of the
+  taskbar. They are not code-signed to stay at $0 (the Mac app is signed ad
   hoc only), so macOS uses a
   one-line Terminal installer and Windows shows its "protected your PC" warning.
 - The bridge asks nothing. It starts with the computer and opens a pairing link;

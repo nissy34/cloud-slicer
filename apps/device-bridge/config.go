@@ -21,8 +21,8 @@ type Printer struct {
 	APIKey string `json:"apiKey"`
 }
 
-// Config is the bridge's settings file: the same JSON as the Node.js bridge
-// writes, so either one can take over the other's pairing and printers.
+// Config is the bridge's settings file: its pairing (id and secret key), the
+// relay and site it belongs to, and its printers.
 type Config struct {
 	BridgeID string    `json:"bridgeId"`
 	Key      string    `json:"key"`

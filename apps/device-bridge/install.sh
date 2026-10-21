@@ -21,11 +21,9 @@ esac
 case "$(uname -m)" in
   x86_64 | amd64) arch=x64 ;;
   aarch64 | arm64) arch=arm64 ;;
-  *)
-    echo "There is no bridge app for $(uname -m) (a 32-bit Raspberry Pi OS?)." >&2
-    echo "Use the Node.js bridge instead (Node.js 22 or newer): $RELAY/bridge.mjs" >&2
-    exit 1
-    ;;
+  armv7* | armv8l) arch=armv7 ;;
+  mips) arch=mipsle ;;
+  *) echo "There is no bridge app for $(uname -m) yet." >&2; exit 1 ;;
 esac
 
 tmp="$(mktemp -d)"
@@ -49,8 +47,3 @@ chmod +x "$app"
 # install copies the app somewhere stable, starts it with the computer, and
 # prints the pairing link.
 "$app" install
-if [ "$os" = linux ]; then
-  # The command itself, for add / list / uninstall later.
-  mkdir -p "$HOME/.local/bin"
-  ln -sf "$HOME/.local/share/cloud-slicer-bridge/cloud-slicer-bridge" "$HOME/.local/bin/cloud-slicer-bridge"
-fi
