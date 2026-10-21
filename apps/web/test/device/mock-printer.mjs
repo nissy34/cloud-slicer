@@ -128,7 +128,13 @@ function thumbnailBlock(png) {
 
 export async function startMockPrinter({ port = 0, host = '127.0.0.1', generic = false, hostname = generic ? 'voron-mock' : 'U1-mock', apiKey = '' } = {}) {
   let state = u1State(generic);
-  const cube = `${thumbnailBlock(pngFrame(3, 300, 300))}; filament_colour = #FF0000\n; filament_type = PLA\n; filament used [g] = 5.1\n`;
+  // Three objects, the way Orca labels them for Klipper's exclude_object.
+  const labels = [
+    'EXCLUDE_OBJECT_DEFINE NAME=Calibration_cube.stl_id_0_copy_0 CENTER=80,80 POLYGON=[[60,60],[100,60],[100,100],[60,100]]',
+    'EXCLUDE_OBJECT_DEFINE NAME=Calibration_cube.stl_id_0_copy_1 CENTER=190,80 POLYGON=[[170,60],[210,60],[210,100],[170,100]]',
+    'EXCLUDE_OBJECT_DEFINE NAME=Ring_id_1_copy_0 CENTER=135,190 POLYGON=[[115,175],[135,165],[155,175],[155,205],[135,215],[115,205]]',
+  ].join('\n');
+  const cube = `${thumbnailBlock(pngFrame(3, 300, 300))}; filament_colour = #FF0000\n; filament_type = PLA\n; filament used [g] = 5.1\n${labels}\n`;
   const files = new Map([['calibration_cube.gcode', { size: 123456, modified: Date.now() / 1000 - 3600, text: cube }]]);
   const scripts = [];
   const clients = new Set();
@@ -260,6 +266,13 @@ export async function startMockPrinter({ port = 0, host = '127.0.0.1', generic =
         case 'SET_PRINT_PREFERENCES':
           patch({ print_task_config: { auto_bed_leveling: param(line, 'BED_LEVEL') === '1', flow_calibrate: param(line, 'FLOW_CALIBRATE') === '1', time_lapse_camera: param(line, 'TIME_LAPSE_CAMERA') === '1' } });
           break;
+        case 'EXCLUDE_OBJECT': {
+          const name = param(line, 'NAME')?.toUpperCase();
+          const ex = state.exclude_object;
+          if (!ex.objects.some((o) => o.name === name)) throw new Error(`Unknown object ${name}`);
+          if (!ex.excluded_objects.includes(name)) patch({ exclude_object: { excluded_objects: [...ex.excluded_objects, name], ...(ex.current_object === name ? { current_object: null } : {}) } });
+          break;
+        }
         case 'SET_PRINT_EXTRUDER_MAP':
           patch({ print_task_config: { extruder_map_table: setArr(ptc.extruder_map_table, Number(param(line, 'CONFIG_EXTRUDER')), Number(param(line, 'MAP_EXTRUDER'))) } });
           break;
@@ -273,11 +286,22 @@ export async function startMockPrinter({ port = 0, host = '127.0.0.1', generic =
   const startPrint = (filename) => {
     if (!files.has(filename)) throw new Error(`File not found: ${filename}`);
     clearInterval(printTimer);
+    // Klipper reads the file's EXCLUDE_OBJECT_DEFINE lines (names upper-cased).
+    const objects = [...String(files.get(filename).text ?? '').matchAll(/^EXCLUDE_OBJECT_DEFINE NAME=(\S+) CENTER=([\d.]+),([\d.]+) POLYGON=(\S+)$/gm)].map((m) => ({
+      name: m[1].toUpperCase(),
+      center: [Number(m[2]), Number(m[3])],
+      polygon: JSON.parse(m[4]),
+    }));
+    patch({ exclude_object: { objects, excluded_objects: [], current_object: objects[0]?.name ?? null } });
     patch({ print_stats: { state: 'printing', filename, print_duration: 0, info: { current_layer: 1, total_layer: 50 } }, virtual_sdcard: { progress: 0, is_active: true } });
     printTimer = setInterval(() => {
       if (state.print_stats.state !== 'printing') return;
       const p = Math.min(1, state.virtual_sdcard.progress + 0.01);
       patch({ virtual_sdcard: { progress: p }, print_stats: { print_duration: state.print_stats.print_duration + 1, info: { current_layer: Math.ceil(p * 50) || 1, total_layer: 50 } } });
+      // The head moves from object to object, never to a skipped one.
+      const ex = state.exclude_object;
+      const left = ex.objects.filter((o) => !ex.excluded_objects.includes(o.name));
+      if (left.length) patch({ exclude_object: { current_object: left[Math.floor(p * 100) % left.length].name } });
       if (p >= 1) {
         clearInterval(printTimer);
         patch({ print_stats: { state: 'complete' }, virtual_sdcard: { is_active: false } });
@@ -476,6 +500,7 @@ export async function startMockPrinter({ port = 0, host = '127.0.0.1', generic =
       return state;
     },
     patch,
+    startPrint,
     /** Sets the U1's current errors ({ id, index, code, level, message }) and announces the new list. */
     setExceptions(list) {
       exceptions = list;

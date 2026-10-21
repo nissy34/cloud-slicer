@@ -49,7 +49,9 @@ export const flowFactorGcode = (pct: number) => `M221 S${Math.round(clamp(pct, 5
 export const motorsOffGcode = () => 'M84';
 
 export function excludeObjectGcode(name: string): string {
-  if (!/^[\w.\-]+$/.test(name)) throw new Error(`Unexpected object name: ${name}`);
+  // Orca keeps letters of any script and some punctuation in names; whitespace
+  // or ';' would end the parameter or start a comment.
+  if (!/^[^\s;]+$/.test(name)) throw new Error(`Unexpected object name: ${name}`);
   return `EXCLUDE_OBJECT NAME=${name}`;
 }
 
