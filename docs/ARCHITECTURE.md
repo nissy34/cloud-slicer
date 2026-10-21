@@ -232,6 +232,10 @@ Bridge design choices:
   taskbar. They are not code-signed to stay at $0 (the Mac app is signed ad
   hoc only), so macOS uses a
   one-line Terminal installer and Windows shows its "protected your PC" warning.
+- Or on the printer's own Klipper computer (`install.sh --printer` over SSH): a root
+  service (systemd, procd or an init script) with its files in `printer_data`, serving
+  127.0.0.1:7125. It updates itself, so nothing is added to Moonraker and Moonraker
+  never restarts.
 - The bridge asks nothing. It starts with the computer and opens a pairing link;
   printers and their API keys are added from the Device tab, which can search the
   bridge's network for Moonraker. When a bridge is offline, the Device tab shows how to

@@ -77,13 +77,23 @@ jobs:
           CLOUD_SLICER_BRIDGE_BIN: ${{ github.workspace }}/apps/device-bridge/dist/linux-x64
         run: node test/device-smoke.mjs device-shots
 
-      - name: The Linux bridge serves the mock U1 through a local relay (uploads, refusals, wrong keys)
+      - name: The Linux bridge serves the mock U1 through a local relay (uploads, refusals, wrong keys), and runs on a printer
         working-directory: apps/device-relay
         run: |
           npx wrangler dev --port 8797 --ip 127.0.0.1 > wrangler.log 2>&1 &
           for i in $(seq 1 60); do curl -fsS -o /dev/null http://127.0.0.1:8797/ && break; sleep 1; done
           cd ../web
           node test/device/relay-live.mjs http://127.0.0.1:8797 --app ../device-bridge/dist/linux-x64
+          # On a printer (this runner stands in for a Pi: systemd, a printer_data folder):
+          # a root service, a pairing file in the config folder, and Remove bridge removing it all.
+          data="$RUNNER_TEMP/printer_data"
+          mkdir -p "$data/config"
+          sudo ../device-bridge/dist/linux-x64 install-printer --printer-data "$data" --relay http://127.0.0.1:8797
+          systemctl is-active cloud-slicer-bridge
+          node test/device/printer-bridge.mjs http://127.0.0.1:8797 "$data"
+          sleep 2
+          if systemctl is-active cloud-slicer-bridge; then echo "The service still runs"; exit 1; fi
+          if [ -e /etc/systemd/system/cloud-slicer-bridge.service ]; then echo "The service file is still there"; exit 1; fi
 
       - name: Relay with accounts (tickets, camera cap, blocking) on a local relay
         working-directory: apps/device-relay
