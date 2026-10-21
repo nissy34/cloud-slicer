@@ -373,6 +373,7 @@ export const useProjects = create<ProjectsState>((set, get) => {
         }
       }
       if (await useSlicer.getState().openFiles(files, mode)) {
+        offerSettled = true;
         set({ current: { name: nameFromFile(project!.name), id: null, version: 0, draft: false }, elsewhere: null, offer: null });
         markClean();
         // Not saved anywhere yet: AutoSave keeps it as the draft.
@@ -381,11 +382,13 @@ export const useProjects = create<ProjectsState>((set, get) => {
         if (switched) switchedNotice(switched);
       } else if (wasEmpty && files.length && get().current.name === UNTITLED && !get().current.id) {
         // Like desktop: a new project is named after its first model.
+        offerSettled = true;
         set({ current: { name: nameFromFile(files[0].name), id: null, version: 0, draft: false }, offer: null });
       }
     },
 
     async openOnline(p) {
+      offerSettled = true;
       set({ busy: `Opening “${p.name}”…`, message: '', listOpen: false, offer: null });
       try {
         set({ downloading: { name: p.name, loaded: 0, total: 0 } });
@@ -479,18 +482,24 @@ export const useProjects = create<ProjectsState>((set, get) => {
     },
 
     async findOffer() {
+      if (offerSettled) return;
       const offer = await offerNow();
+      // Startup asks more than once (engine ready, signed in): an answer that comes
+      // back after the card was answered or a project opened is dropped.
+      if (offerSettled || get().busy || get().offer) return;
       // "Not now" holds until that project changes again.
       if (offer && untouchedProject() && offerKey(offer) !== readDismissed()) set({ offer });
     },
 
     async acceptOffer() {
       const offer = get().offer;
+      offerSettled = true;
       if (offer) await get().openOnline(offer.project);
     },
 
     async dismissOffer(discard) {
       const offer = get().offer;
+      offerSettled = true;
       set({ offer: null });
       if (offer && !discard) writeDismissed(offerKey(offer));
       if (discard && offer?.kind === 'draft') await api.deleteProject(offer.project.id).catch(() => {});
@@ -503,6 +512,9 @@ export const useProjects = create<ProjectsState>((set, get) => {
 });
 
 // ---- the Continue card ---------------------------------------------------------------
+
+/** The card is offered once a visit: true once it was answered or a project was opened. */
+let offerSettled = false;
 
 /** What the Continue card would offer now (null when signed out, busy with a project, or offline). */
 async function offerNow(): Promise<ContinueOffer | null> {
