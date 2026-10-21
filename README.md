@@ -121,7 +121,13 @@ hosted on Cloudflare's free tier.
   Front, Back, Left and Right (keys 0 to 6, Z fits all). On a phone two fingers always zoom
   and turn the camera, even when they land on the model; one finger on a model moves it.
 - **Projects**: save as an Orca 3MF that reopens here or in desktop Orca; online in your
-  account when signed in, downloaded when signed out.
+  account when signed in, downloaded when signed out. Signed in, **AutoSave** works like
+  Word's: new work is kept as an unsaved draft, the first Save names it, then every change
+  is saved on its own (a switch turns it off). Open the app on another device and a
+  **Continue** card picks up where you left off; one device edits a project at a time,
+  the other shows it view only with "Edit here instead".
+- **Share to Cloud Slicer** on Android (installed app): share a model from another app
+  and it opens here, or is added to the project you have open.
 - **Sign in with Google** to keep presets, setup choices, printers and projects on every
   device. Signed out, everything is kept in the browser and merged in at sign-in.
 - **Device tab** for Moonraker (Klipper) printers: cameras, temperatures, motion, files,
@@ -253,7 +259,7 @@ preset and Save to project (changes kept only in the project 3MF).
 
 ## Projects
 
-The Project menu in the top bar (New, Open, Projects, Save, Save as, Download 3MF) saves
+The Project menu in the top bar (New, Open, Projects, Save, Save a copy, AutoSave, Download 3MF) saves
 the open project as an Orca 3MF project, written by the engine with Orca's own
 `store_bbs_3mf` (like desktop's Save project): plates, objects, part settings, paint,
 colour mixes and the full print, filament and printer settings, so it reopens here or in
@@ -262,6 +268,22 @@ account's online projects: the 3MF and a thumbnail in R2 (`PROJECTS` bucket), in
 D1 (`projects` table). Limits keep R2 inside its free 10 GB: 50 MB per project, 200 MB
 (changeable on the Admin page) and 200 projects per user, 8 GB for the whole site. Saves carry the version they started
 from, so a save from a second device asks before overwriting.
+
+AutoSave (signed in, on by default, the switch is a user setting): a new project is one
+draft in the account (`projects.draft = 1`, a new draft replaces the old one, drafts don't
+count toward the 200 projects but do count toward storage). Leaving it asks Save / Don't
+save / Cancel; the first Save names it and turns it into a project. After that each change
+is saved once things are quiet for 5 s, at most every 30 s (every 3 min for projects of
+5 MB or more, since each save uploads the whole 3MF), and when the tab is hidden; the
+thumbnail goes up at most every 10 min. Each save names the browser it came from
+(`projects.device`, a random id kept in the browser, and `device_name`, like "phone").
+A save from another device than the last one is refused (409 `elsewhere`) until that device
+takes the project over (`POST /api/projects/<id>/device`, "Edit here instead"); the other
+tab notices when it is focused again (no polling) and goes view only, offering "Save mine as
+a copy" when it had unsaved changes. On opening the app with nothing loaded, the Continue card
+offers the draft, or the newest project changed on another device in the last day.
+Share to Cloud Slicer is the manifest's `share_target`: `public/sw.js` keeps the shared files
+in the Cache API and opens `/?shared=1`, which opens them (`src/lib/share-target.ts`).
 
 Setup, once: give the Cloudflare token "D1: Edit", create a Google OAuth client
 (Web application) with redirect URI `https://slicer.awesomestuff.qzz.io/api/auth/callback/google`,
@@ -332,7 +354,7 @@ Browser end to end tests (Playwright's Chromium) run against the built site
 | `test/presets.mjs` | Save, find, rename and delete your own presets |
 | `test/shared-presets.mjs` | A preset saved in Snapmaker Orca shows in OrcaSlicer and back, each engine on its own base |
 | `test/preset-files.mjs` | Printer and filament settings windows, preset export and import |
-| `test/accounts.mjs` | Sign-in, sessions, synced presets/settings/printers, online projects (Pages Functions + local D1, mock Google) |
+| `test/accounts.mjs` | Sign-in, sessions, synced presets/settings/printers, online projects, AutoSave drafts, Continue on another device, view only, Share to Cloud Slicer (Pages Functions + local D1, mock Google) |
 | `test/toolbar.mjs` | The object toolbar: add a model, variable layer height, simplify, brim ears, lay on face, measure, the object menu, parts and modifiers, mesh boolean, text and SVG shapes, assemble, fits a phone |
 | `test/layout-fixes.mjs` | Prepare's layout and dialogs: long object and project names shorten with "…", the Paint card fits, closing the Text tool takes back an unchanged new text, preset menus name presets as their dropdowns and open upward near the bottom, Online projects closes with Esc or a click outside, unsaved changes ask in the app's own dialog, the phone's buttons after slicing fit one row |
 | `test/mixing.mjs` | Make a colour mix, slice, the G-code alternates between both tools |
