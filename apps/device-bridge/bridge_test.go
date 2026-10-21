@@ -430,3 +430,37 @@ func TestStartWithLinuxRunsWithoutASignInAndHasAMenuEntry(t *testing.T) {
 		t.Fatalf("link %s, icon %d bytes", p.link, len(iconPNG))
 	}
 }
+
+// Go quotes a Windows argument that is empty or has a space, tab or quote, the C
+// way, which cmd and some programs misread ("Windows cannot find '\\'"). The
+// command that opens the pairing link must pass every argument as it is.
+func TestBrowserOpensThePairingLinkUnchanged(t *testing.T) {
+	c := &Config{Relay: "wss://relay.example/bridge", BridgeID: "abc", Key: "secret"}
+	link := pairingLink(c, "https://slicer.awesomestuff.qzz.io/")
+	for _, goos := range []string{"windows", "darwin", "linux"} {
+		name, args := browserCommand(goos, link)
+		if args[len(args)-1] != link {
+			t.Fatalf("%s: link not passed as is: %q", goos, args)
+		}
+		if name == "cmd" {
+			t.Fatalf("%s: opens the link through cmd", goos)
+		}
+		for _, a := range args {
+			if a == "" || strings.ContainsAny(a, " \t\"") {
+				t.Fatalf("%s: argument %q would be quoted on Windows", goos, a)
+			}
+		}
+	}
+	if name, args := browserCommand("windows", link); name != "rundll32" || args[0] != "url.dll,FileProtocolHandler" {
+		t.Fatalf("windows: %s %q", name, args)
+	}
+}
+
+func TestDoneMessageGivesTheLinkWhenNoBrowserOpened(t *testing.T) {
+	if m := doneMessage(true, "https://x/#pair=1"); strings.Contains(m, "#pair=") {
+		t.Fatalf("link shown although the browser opened: %q", m)
+	}
+	if m := doneMessage(false, "https://x/#pair=1"); !strings.Contains(m, "https://x/#pair=1") {
+		t.Fatalf("no link to open by hand: %q", m)
+	}
+}

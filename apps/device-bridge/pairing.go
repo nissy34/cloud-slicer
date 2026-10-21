@@ -40,31 +40,42 @@ func pairingLink(c *Config, site string) string {
 	return strings.TrimRight(site, "/") + "/#pair=" + pairingCode(c)
 }
 
-func printPairing(c *Config, site string, open bool) {
+func printPairing(c *Config, site string, open bool) bool {
 	link := pairingLink(c, site)
 	fmt.Println("\nTo use your printer from Cloud Slicer, open this link in your browser:")
 	fmt.Println("  " + link)
-	if open {
-		openInBrowser(link)
-	}
+	opened := open && openInBrowser(link)
 	fmt.Printf("or paste this code:\n  %s\n\n", pairingCode(c))
 	fmt.Println("Anyone with this code can control your printers; keep it private.")
 	fmt.Println()
+	return opened
 }
 
-// openInBrowser opens a link in this computer's browser, if it has one (not on a headless Pi).
-func openInBrowser(url string) {
-	var cmd *exec.Cmd
-	switch runtime.GOOS {
+// browserCommand is the program that opens a link in the default browser. On
+// Windows that is rundll32, not "cmd /c start": Go quotes arguments the C way
+// (an empty "" title becomes \"\"), cmd doesn't read that, and Windows then
+// tried to open a file called "\\" instead of the link. rundll32 gets the link
+// as it is, and a link (no spaces or quotes) is never quoted.
+func browserCommand(goos, url string) (string, []string) {
+	switch goos {
 	case "windows":
-		cmd = exec.Command("cmd", "/c", "start", `""`, url)
+		return "rundll32", []string{"url.dll,FileProtocolHandler", url}
 	case "darwin":
-		cmd = exec.Command("open", url)
+		return "open", []string{url}
 	default:
-		cmd = exec.Command("xdg-open", url)
+		return "xdg-open", []string{url}
 	}
+}
+
+// openInBrowser opens a link in this computer's browser, if it has one (not on a
+// headless Pi). It says whether it could.
+func openInBrowser(url string) bool {
+	name, args := browserCommand(runtime.GOOS, url)
+	cmd := exec.Command(name, args...)
 	// No browser here: the link is printed anyway.
-	if cmd.Start() == nil {
-		go func() { _ = cmd.Wait() }()
+	if cmd.Start() != nil {
+		return false
 	}
+	go func() { _ = cmd.Wait() }()
+	return true
 }
