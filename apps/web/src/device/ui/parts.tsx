@@ -13,7 +13,21 @@ export function Card({ title, actions, className, children, testId }: { title: s
 }
 
 /** A modal built on <dialog>: Escape and the backdrop close it. */
-export function Dialog({ title, onClose, children, footer, wide }: { title: string; onClose(): void; children: ReactNode; footer?: ReactNode; wide?: boolean }) {
+export function Dialog({
+  title,
+  onClose,
+  children,
+  footer,
+  wide,
+  className,
+}: {
+  title: string;
+  onClose(): void;
+  children: ReactNode;
+  footer?: ReactNode;
+  wide?: boolean;
+  className?: string;
+}) {
   const ref = useRef<HTMLDialogElement>(null);
   useEffect(() => {
     const d = ref.current;
@@ -22,7 +36,7 @@ export function Dialog({ title, onClose, children, footer, wide }: { title: stri
   return (
     <dialog
       ref={ref}
-      className={`dv-dialog${wide ? ' wide' : ''}`}
+      className={`dv-dialog${wide ? ' wide' : ''}${className ? ` ${className}` : ''}`}
       onCancel={(e) => {
         e.preventDefault();
         onClose();
@@ -116,15 +130,15 @@ export function PercentSlider({ value, onCommit, label, disabled }: { value: num
 }
 
 export function useConfirm() {
-  const [pending, setPending] = useState<{ text: string; action: string; danger?: boolean; run(): void } | null>(null);
+  const [pending, setPending] = useState<{ text: string; action: string; title?: string; keep?: string; danger?: boolean; run(): void } | null>(null);
   const dialog = pending && (
     <Dialog
-      title={pending.action}
+      title={pending.title ?? pending.action}
       onClose={() => setPending(null)}
       footer={
         <>
           <button className="secondary" onClick={() => setPending(null)}>
-            Keep going
+            {pending.keep ?? 'Keep going'}
           </button>
           <button
             className={pending.danger ? 'primary dv-danger' : 'primary'}

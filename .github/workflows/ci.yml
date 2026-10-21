@@ -67,6 +67,9 @@ jobs:
         working-directory: packages/printer
         run: npm test
 
+      - name: Preset bundling tests
+        run: node --test engine/scripts/klipper-labels.test.mjs
+
       - name: Web app typecheck and unit tests
         working-directory: apps/web
         run: |

@@ -14,6 +14,7 @@
 import { copyFileSync, mkdirSync, readFileSync, readdirSync, statSync, writeFileSync } from 'node:fs';
 import { dirname, join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { labelObjectsForKlipper } from './klipper-labels.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const root = resolve(here, '../orcaslicer/resources/profiles');
@@ -48,8 +49,11 @@ for (const vendor of vendors) {
   }
 }
 
+// Every Klipper printer gets object labels, for skipping objects mid-print.
+const labelled = labelObjectsForKlipper(files);
+
 const version = JSON.parse(files['Snapmaker.json'] ?? '{}').version ?? '';
 mkdirSync(outDir, { recursive: true });
 const out = join(outDir, 'profiles.json');
 writeFileSync(out, JSON.stringify({ version, vendors, files }));
-console.log(`${out}: ${Object.keys(files).length} preset files (${vendors.join(', ')}, Snapmaker ${version}), ${assets} assets`);
+console.log(`${out}: ${Object.keys(files).length} preset files (${vendors.join(', ')}, Snapmaker ${version}), ${assets} assets, Exclude objects turned on in ${labelled.length} Klipper process presets`);
