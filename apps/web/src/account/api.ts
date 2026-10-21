@@ -85,6 +85,17 @@ export interface OnlineProject {
   updatedAt: number;
   /** The engine it slices with. */
   engine: EngineFlavor;
+  /** The person's one unsaved project (AutoSave keeps it until the first Save names it). */
+  draft: boolean;
+  /** The device editing it (see lib/storage.ts deviceId) and its name ("phone"), when known. */
+  device: string | null;
+  deviceName: string | null;
+}
+
+/** Where a save comes from: draft or not, and the device saving. */
+export interface SaveOptions {
+  draft?: boolean;
+  device?: { id: string; name: string };
 }
 
 export interface ProjectList {
@@ -158,9 +169,14 @@ export const api = {
   deleteDevice: (id: string) => call<{ ok: true }>(`/api/devices/${encodeURIComponent(id)}`, { method: 'DELETE' }),
   projects: () => call<ProjectList>('/api/projects'),
   /** baseVersion: the version this save started from (0 = must be new); undefined overwrites. */
-  saveProject: (id: string, name: string, file: Blob, baseVersion: number | undefined, engine: EngineFlavor) => {
+  saveProject: (id: string, name: string, file: Blob, baseVersion: number | undefined, engine: EngineFlavor, opts: SaveOptions = {}) => {
     const q = new URLSearchParams({ name, engine });
     if (baseVersion !== undefined) q.set('baseVersion', String(baseVersion));
+    if (opts.draft) q.set('draft', '1');
+    if (opts.device) {
+      q.set('device', opts.device.id);
+      q.set('deviceName', opts.device.name);
+    }
     return call<{ project: OnlineProject }>(`${projectPath(id)}?${q}`, { method: 'PUT', body: file }, 'model/3mf').then((r) => r.project);
   },
   saveProjectThumbnail: (id: string, png: Blob) =>
@@ -168,6 +184,11 @@ export const api = {
   renameProject: (id: string, name: string, baseVersion?: number) =>
     call<{ project: OnlineProject }>(projectPath(id), { method: 'PATCH', body: JSON.stringify({ name, baseVersion }) }).then((r) => r.project),
   deleteProject: (id: string) => call<{ ok: true }>(projectPath(id), { method: 'DELETE' }),
+  /** One project: its version and the device editing it. */
+  project: (id: string) => call<{ project: OnlineProject }>(projectPath(id)).then((r) => r.project),
+  /** This device edits the project from now on; the one before only views it. */
+  takeOverProject: (id: string, device: { id: string; name: string }) =>
+    call<{ project: OnlineProject }>(`${projectPath(id)}/device`, { method: 'POST', body: JSON.stringify({ device: device.id, deviceName: device.name }) }).then((r) => r.project),
   /** A ticket that lets this account through the bridge relay for one bridge (about an hour). */
   relayTicket: (relay: string, bridgeId: string) =>
     call<{ ticket: string; expiresAt: number }>('/api/relay/ticket', { method: 'POST', body: JSON.stringify({ relay, bridgeId }) }),
