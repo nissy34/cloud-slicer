@@ -234,6 +234,17 @@ export async function claim(env: Env, request: Request): Promise<Response> {
   return json({ claim: token, name });
 }
 
+/**
+ * GET /api/relay/key -> the public half of the key this site signs tickets and
+ * setup-code claims with, so a relay can be given exactly the key that checks them
+ * (CI gives it to the test relay from the branch's preview).
+ */
+export async function publicKey(env: Env): Promise<Response> {
+  if (!env.RELAY_TICKET_KEY) throw new HttpError(404, "This site doesn't sign relay tickets");
+  const { kty, crv, x, y } = JSON.parse(env.RELAY_TICKET_KEY) as JWK;
+  return json({ kty, crv, x, y });
+}
+
 /** DELETE /api/relay/bridges/<id>: the user removed a bridge, so it no longer counts against their cap. */
 export async function forget(env: Env, request: Request, bridgeId: string): Promise<Response> {
   requireSameOrigin(request);

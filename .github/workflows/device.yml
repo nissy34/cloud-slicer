@@ -385,7 +385,10 @@ jobs:
             prev=$(printf '%s' "$cfg" | jq -r '.result.deployment_configs.preview.env_vars.RELAY_TICKET_PUBLIC_KEY.value // empty')
             fp() { [ -n "$1" ] && printf '%s' "$1" | sha256sum | cut -c1-12 || echo none; }
             echo "Ticket keys: production $(fp "$prod"), previews $(fp "$prev")"
-            key=${prev:-$prod}
+            # Best of all, the key the branch's own site actually signs with.
+            site_key=$(curl -fsS --retry 3 "$SITE/api/relay/key" | jq -ce 'select(.x and .y)' || true)
+            echo "Ticket key from $SITE: $(fp "$site_key")"
+            key=${site_key:-${prev:-$prod}}
             if [ -n "$key" ]; then printf '%s' "$key" | npx wrangler secret put RELAY_TICKET_PUBLIC_KEY --name "$WORKER"
             else echo "::warning::The site has no relay ticket key yet; the test relay lets any pairing code in"; fi
           else

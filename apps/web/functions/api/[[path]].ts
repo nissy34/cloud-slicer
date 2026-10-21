@@ -24,6 +24,7 @@
 //   PATCH  /api/projects/<id>               rename ({ name, baseVersion? })
 //   DELETE /api/projects/<id>
 //   POST   /api/relay/ticket                a ticket for the bridge relay ({ relay, bridgeId })
+//   GET    /api/relay/key                   the public key that checks this site's tickets
 //   DELETE /api/relay/bridges/<id>          a removed bridge stops counting against the cap
 //   POST   /api/relay/setup                 a setup code for adding a bridge ({ relay })
 //   GET    /api/relay/setup/<code>          whether a bridge has used it yet
@@ -91,6 +92,7 @@ export async function onRequest({ request, env }: PagesContext): Promise<Respons
     }
     if (a === 'relay') {
       if (b === 'ticket' && parts.length === 2 && m === 'POST') return await relay.ticket(env, request);
+      if (b === 'key' && parts.length === 2 && m === 'GET') return await relay.publicKey(env);
       if (b === 'bridges' && parts.length === 3 && m === 'DELETE') return await relay.forget(env, request, c);
       if (b === 'setup' && parts.length === 2 && m === 'POST') return await relay.setup(env, request);
       if (b === 'setup' && parts.length === 3 && m === 'GET') return await relay.setupState(env, request, c);

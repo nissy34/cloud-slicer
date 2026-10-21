@@ -664,6 +664,9 @@ test('setup codes: a bridge joins the account that made the code, once, within t
   const claim = (body) =>
     fetch(`${HOST}/api/relay/claim`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ relay, browserKey: 'k'.repeat(43), ...body }) });
   assert.equal((await new Browser().json('/api/relay/setup', 'POST', { relay })).status, 401);
+  // The public half, for giving a relay the exact key (CI does that for the test relay).
+  const pub = ticketKeys.publicKey.export({ format: 'jwk' });
+  assert.deepEqual(await (await fetch(`${HOST}/api/relay/key`)).json(), { kty: pub.kty, crv: pub.crv, x: pub.x, y: pub.y });
   const frank = new Browser();
   users.frank = { sub: 'g-frank', name: 'Frank', email: 'frank@example.com', email_verified: true };
   await signIn(frank, 'frank');
