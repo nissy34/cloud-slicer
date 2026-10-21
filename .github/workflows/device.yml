@@ -4,17 +4,33 @@ name: Device
 # end to end against pretend printers (apps/web/test/device/mock-printer.mjs).
 # Never talks to a real printer.
 #
-# The relay Worker deploys when the Cloudflare secrets are set (the token needs
-# Workers Scripts: Edit), from main only: it is one Worker, so a PR deploy would
-# replace the live relay with unreviewed code.
+# Two relays (when the Cloudflare secrets are set; the token needs Workers
+# Scripts: Edit):
+#  - live (cloud-slicer-relay, bridge downloads in R2 cloud-slicer-bridge), the
+#    one everyone uses: deploys from main only.
+#  - test (cloud-slicer-relay-test, downloads in cloud-slicer-bridge-test): where
+#    a pull request's relay and bridge are tried on a real printer before they
+#    merge. Add the label "try on printer" to the PR (or run this workflow on its
+#    branch); every push to that PR then deploys there. One PR at a time: the
+#    newest one sent wins. Its bridges are test builds ("Cloud Slicer Bridge
+#    (test)") that install next to the real bridge and update only from the test
+#    relay. Branch previews of the site set up new bridges on it (ci.yml). It
+#    keeps what was sent last until something else is sent.
 
 on:
   push:
     branches: [main]
     paths: ['apps/device-*/**', 'apps/web/src/device/**', 'apps/web/src/state/device.ts', 'apps/web/src/state/alerts.ts', 'apps/web/public/sw.js', 'apps/web/src/styles.css', 'apps/web/src/components/TopBar.tsx', 'apps/web/src/components/ThemeMenu.tsx', 'apps/web/src/account/AccountMenu.tsx', 'apps/web/test/device*', 'apps/web/test/device/**', '.github/workflows/device.yml']
   pull_request:
+    types: [opened, synchronize, reopened, labeled]
     paths: ['apps/device-*/**', 'apps/web/src/device/**', 'apps/web/src/state/device.ts', 'apps/web/src/state/alerts.ts', 'apps/web/public/sw.js', 'apps/web/src/styles.css', 'apps/web/src/components/TopBar.tsx', 'apps/web/src/components/ThemeMenu.tsx', 'apps/web/src/account/AccountMenu.tsx', 'apps/web/test/device*', 'apps/web/test/device/**', '.github/workflows/device.yml']
   workflow_dispatch:
+    inputs:
+      target:
+        description: 'Which relay to deploy (on main; any other branch always goes to the test relay)'
+        type: choice
+        options: [live, test]
+        default: live
 
 permissions:
   contents: read
@@ -27,6 +43,46 @@ env:
   npm_config_fetch_retry_maxtimeout: 120000
 
 jobs:
+  # Which relays this run deploys, and what the test relay will say it runs.
+  where:
+    runs-on: ubuntu-24.04
+    outputs:
+      targets: ${{ steps.w.outputs.targets }}
+      test: ${{ steps.w.outputs.test }}
+      what: ${{ steps.w.outputs.what }}
+      build: ${{ steps.w.outputs.build }}
+    steps:
+      - id: w
+        env:
+          EVENT: ${{ github.event_name }}
+          REF: ${{ github.ref }}
+          INPUT_TARGET: ${{ inputs.target }}
+          PR: ${{ github.event.pull_request.number }}
+          SAME_REPO: ${{ github.event.pull_request.head.repo.full_name == github.repository }}
+          LABELLED: ${{ contains(github.event.pull_request.labels.*.name, 'try on printer') }}
+          BRANCH: ${{ github.head_ref || github.ref_name }}
+        run: |
+          live=false test=false what=main
+          case "$EVENT" in
+            push)
+              [ "$REF" = refs/heads/main ] && live=true ;;
+            pull_request)
+              # Never the live relay. A PR from a fork has no secrets, so it can't deploy anyway.
+              if [ "$LABELLED" = true ] && [ "$SAME_REPO" = true ]; then test=true what="PR #$PR"; fi ;;
+            workflow_dispatch)
+              if [ "$REF" != refs/heads/main ]; then test=true what="branch $BRANCH"
+              elif [ "$INPUT_TARGET" = test ]; then test=true
+              else live=true; fi ;;
+          esac
+          targets=$(jq -cn --argjson l "$live" --argjson t "$test" '[if $l then "live" else empty end, if $t then "test" else empty end]')
+          echo "targets=$targets" >> "$GITHUB_OUTPUT"
+          echo "test=$test" >> "$GITHUB_OUTPUT"
+          echo "what=$what" >> "$GITHUB_OUTPUT"
+          # One build number for every test app, newer than anything sent before, so
+          # test bridges always take the newest one sent (even an older branch).
+          echo "build=$(date +%s)" >> "$GITHUB_OUTPUT"
+          echo "### Relays: $targets (test relay: $what)" >> "$GITHUB_STEP_SUMMARY"
+
   test:
     runs-on: ubuntu-24.04
     timeout-minutes: 30
@@ -130,6 +186,7 @@ jobs:
   # removes itself) and the Mac apps are built on macOS, the only place they
   # can be signed (ad hoc, free). Free runners for a public repo.
   apps-windows:
+    needs: where
     runs-on: windows-latest
     timeout-minutes: 15
     defaults:
@@ -176,8 +233,26 @@ jobs:
           name: bridge-app-windows
           path: apps/device-bridge/dist/windows-x64
           if-no-files-found: error
+      - name: The test relay's Windows app
+        if: needs.where.outputs.test == 'true'
+        working-directory: apps/device-bridge
+        env:
+          BRIDGE_SIGNING_KEY: ${{ secrets.BRIDGE_SIGNING_KEY }}
+          FLAVOR: test
+          RELAY_URL: https://cloud-slicer-relay-test.nissy34.workers.dev
+          BUILD: ${{ needs.where.outputs.build }}
+        run: |
+          mkdir -p "$RUNNER_TEMP/test" && ./build.sh windows-x64 && cp dist/windows-x64 "$RUNNER_TEMP/test/windows-x64"
+          "$RUNNER_TEMP/test/windows-x64" version | grep -q ' test)'
+      - uses: actions/upload-artifact@v6
+        if: needs.where.outputs.test == 'true'
+        with:
+          name: bridge-test-app-windows
+          path: ${{ runner.temp }}/test/windows-x64
+          if-no-files-found: error
 
   apps-mac:
+    needs: where
     runs-on: macos-latest
     timeout-minutes: 15
     steps:
@@ -207,15 +282,44 @@ jobs:
             apps/device-bridge/dist/mac-arm64
             apps/device-bridge/dist/mac-x64
           if-no-files-found: error
+      - name: The test relay's Mac apps
+        if: needs.where.outputs.test == 'true'
+        working-directory: apps/device-bridge
+        env:
+          BRIDGE_SIGNING_KEY: ${{ secrets.BRIDGE_SIGNING_KEY }}
+          FLAVOR: test
+          RELAY_URL: https://cloud-slicer-relay-test.nissy34.workers.dev
+          BUILD: ${{ needs.where.outputs.build }}
+        run: |
+          ./build.sh mac
+          mkdir -p "$RUNNER_TEMP/test" && cp dist/mac-arm64 dist/mac-x64 "$RUNNER_TEMP/test/"
+      - uses: actions/upload-artifact@v6
+        if: needs.where.outputs.test == 'true'
+        with:
+          name: bridge-test-app-mac
+          path: |
+            ${{ runner.temp }}/test/mac-arm64
+            ${{ runner.temp }}/test/mac-x64
+          if-no-files-found: error
 
   deploy-relay:
-    needs: [test, apps-windows, apps-mac]
-    if: github.event_name != 'pull_request'
+    needs: [where, test, apps-windows, apps-mac]
+    if: needs.where.outputs.targets != '[]'
+    strategy:
+      fail-fast: false
+      matrix:
+        target: ${{ fromJSON(needs.where.outputs.targets) }}
+    # One deploy per relay at a time, in order.
+    concurrency:
+      group: relay-${{ matrix.target }}
+      cancel-in-progress: false
     timeout-minutes: 20
     runs-on: ubuntu-24.04
     env:
       CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
       CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      WORKER: ${{ matrix.target == 'test' && 'cloud-slicer-relay-test' || 'cloud-slicer-relay' }}
+      BUCKET: ${{ matrix.target == 'test' && 'cloud-slicer-bridge-test' || 'cloud-slicer-bridge' }}
     steps:
       - uses: actions/checkout@v5
       - uses: actions/setup-node@v5
@@ -229,31 +333,58 @@ jobs:
         with:
           go-version-file: apps/device-bridge/go.mod
           cache-dependency-path: apps/device-bridge/go.sum
-      - name: Deploy the relay Worker
-        if: env.CLOUDFLARE_API_TOKEN != '' && env.CLOUDFLARE_ACCOUNT_ID != ''
+      - name: The test relay is its own Worker, with its own downloads and limits
+        if: matrix.target == 'test'
         working-directory: apps/device-relay
         run: |
+          sed -i -e 's/^name = "cloud-slicer-relay"$/name = "cloud-slicer-relay-test"/' \
+            -e 's/^bucket_name = "cloud-slicer-bridge"$/bucket_name = "cloud-slicer-bridge-test"/' \
+            -e 's/^namespace_id = "1001"$/namespace_id = "2001"/' -e 's/^namespace_id = "1002"$/namespace_id = "2002"/' wrangler.toml
+          # Never the live relay from here.
+          grep -qx 'name = "cloud-slicer-relay-test"' wrangler.toml
+          grep -qx 'bucket_name = "cloud-slicer-bridge-test"' wrangler.toml
+          if grep -q '"cloud-slicer-relay"\|"cloud-slicer-bridge"' wrangler.toml; then echo "Still names the live relay"; exit 1; fi
+      - name: Deploy the ${{ matrix.target }} relay Worker
+        if: env.CLOUDFLARE_API_TOKEN != '' && env.CLOUDFLARE_ACCOUNT_ID != ''
+        working-directory: apps/device-relay
+        env:
+          WHAT: ${{ needs.where.outputs.what }}
+        run: |
           npm ci --no-audit --no-fund
+          grep -qx "name = \"$WORKER\"" wrangler.toml
           # The bridge apps live in R2. Without R2 (not turned on, or the token
           # lacks "Workers R2 Storage: Edit") the relay offers no downloads.
-          if npx wrangler r2 bucket list | grep -q 'cloud-slicer-bridge' || npx wrangler r2 bucket create cloud-slicer-bridge; then
+          if npx wrangler r2 bucket list | grep -qE "(^|[[:space:]])$BUCKET\$" || npx wrangler r2 bucket create "$BUCKET"; then
             echo "r2=ok" >> "$GITHUB_OUTPUT"
           else
             echo "::warning::R2 isn't usable; the relay deploys without the bridge apps"
             sed -i '/^\[\[r2_buckets\]\]/,/^bucket_name/d' wrangler.toml
           fi
-          npx wrangler deploy | tee deploy.log
+          if [ "$WORKER" = cloud-slicer-relay-test ]; then
+            # The test relay says what it runs; the Device tab shows it.
+            npx wrangler deploy --name "$WORKER" --var "TEST_RELAY:$WHAT" | tee deploy.log
+            # The site's ticket key, so signed-in people get in as they do on the live relay.
+            if ! npx wrangler secret list --name "$WORKER" | grep -q '"RELAY_TICKET_PUBLIC_KEY"'; then
+              key=$(curl -fsS -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" \
+                "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/pages/projects/${{ vars.CF_PAGES_PROJECT || 'cloud-slicer' }}" \
+                | jq -r '.result.deployment_configs.production.env_vars.RELAY_TICKET_PUBLIC_KEY.value // empty')
+              if [ -n "$key" ]; then printf '%s' "$key" | npx wrangler secret put RELAY_TICKET_PUBLIC_KEY --name "$WORKER"
+              else echo "::warning::The site has no relay ticket key yet; the test relay lets any pairing code in"; fi
+            fi
+          else
+            npx wrangler deploy | tee deploy.log
+          fi
           # Print alerts: the relay's push key, made once and then kept (a new one
           # would make every browser turn alerts on again). Only the relay has it.
-          if ! npx wrangler secret list | grep -q '"VAPID_KEY"'; then
-            node -e "const k=require('crypto').generateKeyPairSync('ec',{namedCurve:'P-256'});process.stdout.write(JSON.stringify(k.privateKey.export({format:'jwk'})))" | npx wrangler secret put VAPID_KEY
+          if ! npx wrangler secret list --name "$WORKER" | grep -q '"VAPID_KEY"'; then
+            node -e "const k=require('crypto').generateKeyPairSync('ec',{namedCurve:'P-256'});process.stdout.write(JSON.stringify(k.privateKey.export({format:'jwk'})))" | npx wrangler secret put VAPID_KEY --name "$WORKER"
           fi
           # Alert camera pictures are kept for a day, then R2 deletes them.
-          if grep -q '^\[\[r2_buckets\]\]' wrangler.toml && ! npx wrangler r2 bucket lifecycle list cloud-slicer-bridge | grep -q 'alert-pictures'; then
-            npx wrangler r2 bucket lifecycle add cloud-slicer-bridge alert-pictures alerts/ --expire-days 1 --force || echo "::warning::Could not set the one-day rule for alert pictures"
+          if grep -q '^\[\[r2_buckets\]\]' wrangler.toml && ! npx wrangler r2 bucket lifecycle list "$BUCKET" | grep -q 'alert-pictures'; then
+            npx wrangler r2 bucket lifecycle add "$BUCKET" alert-pictures alerts/ --expire-days 1 --force || echo "::warning::Could not set the one-day rule for alert pictures"
           fi
           url=$(grep -Eo 'https://[^ ]+\.workers\.dev' deploy.log | tail -1)
-          echo "### Relay: $url" >> "$GITHUB_STEP_SUMMARY"
+          echo "### ${{ matrix.target }} relay: $url" >> "$GITHUB_STEP_SUMMARY"
           curl -fsS "$url/"
           echo "url=$url" >> "$GITHUB_OUTPUT"
         id: deploy
@@ -262,17 +393,17 @@ jobs:
         working-directory: apps/web
         run: |
           npm ci --no-audit --no-fund
-          # The live relay only lets in browsers with the site's tickets. CI can't sign
+          # The relay only lets in browsers with the site's tickets. CI can't sign
           # those, so it gives the relay a throwaway test key of its own (replaced every
           # run, the private half never leaves this job), good only for "ci-" bridges.
           node -e "const k=require('crypto').generateKeyPairSync('ec',{namedCurve:'P-256'});const f=require('fs');f.writeFileSync('$RUNNER_TEMP/pub.json',JSON.stringify(k.publicKey.export({format:'jwk'})));f.writeFileSync('$RUNNER_TEMP/priv.json',JSON.stringify(k.privateKey.export({format:'jwk'})))"
-          (cd ../device-relay && npx wrangler secret put RELAY_TEST_PUBLIC_KEY < "$RUNNER_TEMP/pub.json")
+          (cd ../device-relay && npx wrangler secret put RELAY_TEST_PUBLIC_KEY --name "$WORKER" < "$RUNNER_TEMP/pub.json")
           export RELAY_TICKET_PRIVATE_KEY="$(cat "$RUNNER_TEMP/priv.json")"
           node test/device/relay-live.mjs '${{ steps.deploy.outputs.url }}'
       - uses: actions/download-artifact@v7
         if: steps.deploy.outputs.r2 == 'ok'
         with:
-          pattern: bridge-app-*
+          pattern: ${{ matrix.target == 'test' && 'bridge-test-app-*' || 'bridge-app-*' }}
           path: apps/device-bridge/dist
           merge-multiple: true
       - name: Build the bridge apps and upload them to R2
@@ -280,17 +411,23 @@ jobs:
         working-directory: apps/device-bridge
         env:
           BRIDGE_SIGNING_KEY: ${{ secrets.BRIDGE_SIGNING_KEY }}
+          # Test builds: their own names, the test relay built in, one build number for all.
+          FLAVOR: ${{ matrix.target == 'test' && 'test' || '' }}
+          RELAY_URL: ${{ matrix.target == 'test' && 'https://cloud-slicer-relay-test.nissy34.workers.dev' || '' }}
+          TEST_BUILD: ${{ matrix.target == 'test' && needs.where.outputs.build || '' }}
         run: |
+          build=${TEST_BUILD:-$(git log -1 --format=%ct)}
           # The Linux builds here; Windows and Mac came from their own jobs.
-          ./build.sh linux-x64 linux-arm64 linux-armv7 linux-mipsle
+          BUILD=$build ./build.sh linux-x64 linux-arm64 linux-armv7 linux-mipsle
+          if [ -n "$FLAVOR" ]; then ./dist/linux-x64 version | grep -q " $FLAVOR)"; fi
           for name in windows-x64 mac-arm64 mac-x64 linux-x64 linux-arm64 linux-armv7 linux-mipsle; do
-            (cd ../device-relay && npx wrangler r2 object put "cloud-slicer-bridge/bridge/$name" --file "../device-bridge/dist/$name" --remote --content-type application/octet-stream)
+            (cd ../device-relay && npx wrangler r2 object put "$BUCKET/bridge/$name" --file "../device-bridge/dist/$name" --remote --content-type application/octet-stream)
           done
           # Last, the signed release the installed bridges update themselves from: only
           # after every file is up and the new relay passed its live check above.
           if [ -n "$BRIDGE_SIGNING_KEY" ]; then
-            go run ./tools/release sign "$(git log -1 --format=%ct)" dist
-            (cd ../device-relay && npx wrangler r2 object put cloud-slicer-bridge/bridge/release.json --file ../device-bridge/dist/release.json --remote --content-type application/json)
+            go run ./tools/release sign "$build" dist
+            (cd ../device-relay && npx wrangler r2 object put "$BUCKET/bridge/release.json" --file ../device-bridge/dist/release.json --remote --content-type application/json)
             curl -fsS '${{ steps.deploy.outputs.url }}/bridge-release.json' | grep -q '"linux-arm64"'
           else
             echo "::warning::No BRIDGE_SIGNING_KEY secret: bridges won't update themselves"

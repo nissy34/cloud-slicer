@@ -14,11 +14,35 @@ import (
 	"time"
 )
 
-const (
-	service = "cloud-slicer-bridge"
-	label   = "io.qzz.awesomestuff.cloud-slicer-bridge"
-	runKey  = `HKCU\Software\Microsoft\Windows\CurrentVersion\Run`
-	runName = "CloudSlicerBridge"
+const runKey = `HKCU\Software\Microsoft\Windows\CurrentVersion\Run`
+
+// appNames are the names the bridge installs under. A test build (flavor
+// "test", downloaded from the test relay) has names of its own, so it runs
+// next to the real bridge and removing one never touches the other.
+type appNames struct {
+	service string // program, service and folder name
+	label   string // macOS launch agent
+	runName string // Windows Run entry
+	app     string // the name people see
+}
+
+func namesFor(flavor string) appNames {
+	n := appNames{"cloud-slicer-bridge", "io.qzz.awesomestuff.cloud-slicer-bridge", "CloudSlicerBridge", "Cloud Slicer Bridge"}
+	if flavor != "" {
+		n.service += "-" + flavor
+		n.label += "." + flavor
+		n.runName += strings.ToUpper(flavor[:1]) + flavor[1:]
+		n.app += " (" + flavor + ")"
+	}
+	return n
+}
+
+var (
+	names   = namesFor(flavor)
+	service = names.service
+	label   = names.label
+	runName = names.runName
+	appName = names.app
 )
 
 //go:embed icons/icon.png
@@ -89,7 +113,7 @@ func autostartPlan(e planEnv) plan {
 		if base == "" {
 			base = filepath.Join(e.home, "AppData", "Local")
 		}
-		dir := filepath.Join(base, "Cloud Slicer Bridge")
+		dir := filepath.Join(base, appName)
 		exe := filepath.Join(dir, service+".exe")
 		value := fmt.Sprintf(`"%s" run --no-browser`, exe)
 		return plan{
@@ -99,7 +123,7 @@ func autostartPlan(e planEnv) plan {
 			disable: []step{{cmd: "reg", args: []string{"delete", runKey, "/v", runName, "/f"}, optional: true}},
 		}
 	case "darwin":
-		dir := filepath.Join(e.home, "Library", "Application Support", "Cloud Slicer Bridge")
+		dir := filepath.Join(e.home, "Library", "Application Support", appName)
 		exe := filepath.Join(dir, service)
 		plist := filepath.Join(e.home, "Library", "LaunchAgents", label+".plist")
 		log := xmlEscape(filepath.Join(e.home, "Library", "Logs", service+".log"))
@@ -153,7 +177,7 @@ WantedBy=default.target
 			// A menu entry, with the app's icon, that opens the pairing link.
 			{filepath.Join(e.home, ".local", "share", "applications", service+".desktop"), `[Desktop Entry]
 Type=Application
-Name=Cloud Slicer Bridge
+Name=` + appName + `
 Comment=Open the link that pairs this bridge with Cloud Slicer
 Exec=` + quoteArgs(exe, "pair", "--open") + `
 Icon=` + icon + `

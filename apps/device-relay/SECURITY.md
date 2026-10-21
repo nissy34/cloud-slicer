@@ -83,7 +83,11 @@ Attackers considered: someone on the internet with nothing, someone who got a pa
   pairing link alone is no longer enough. Blocking an account drops its
   connections at once; each account can use 3 bridges and watch 2 cameras at a
   time. Tickets are ES256 JWTs; the relay holds only the public key.
-- **Deploys**: the live relay deploys from main only, never from a PR.
+- **Deploys**: the live relay deploys from main only, never from a PR. PRs (labelled
+  `try on printer`) and the Device workflow run on any other branch deploy only to the
+  separate test relay (`cloud-slicer-relay-test`, own bucket, own rate limits, own push
+  key); CI checks the Worker and bucket names before deploying. Test bridges update only
+  from the test relay, so a PR's bridge never reaches anyone's everyday bridge.
 
 ## Still open
 

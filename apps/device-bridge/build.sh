@@ -14,7 +14,8 @@
 # Bridge.app" in a zip, no Dock icon).
 #
 # RELAY_URL and SITE_URL set the relay and site the bridge belongs to (default:
-# the live ones). Every build carries its build number (the commit's time, or
+# the live ones). FLAVOR=test makes a test build (served by the test relay): it
+# installs under its own names, next to the real bridge. Every build carries its build number (the commit's time, or
 # BUILD) and which download it is. With BRIDGE_SIGNING_KEY (CI's secret) it also
 # carries the public key it checks updates with, and updates itself: without
 # it, it never does (tools/release).
@@ -29,6 +30,13 @@ esac
 ldflags="-s -w"
 [ -n "${RELAY_URL:-}" ] && ldflags="$ldflags -X main.defaultRelay=$RELAY_URL"
 [ -n "${SITE_URL:-}" ] && ldflags="$ldflags -X main.defaultSite=$SITE_URL"
+NAME='Cloud Slicer Bridge'
+BUNDLE=io.qzz.awesomestuff.cloud-slicer-bridge
+if [ -n "${FLAVOR:-}" ]; then
+  ldflags="$ldflags -X main.flavor=$FLAVOR"
+  NAME="$NAME ($FLAVOR)"
+  BUNDLE="$BUNDLE.$FLAVOR"
+fi
 BUILD=${BUILD:-$(git log -1 --format=%ct 2>/dev/null || echo 0)}
 ldflags="$ldflags -X main.build=$BUILD"
 if [ -n "${BRIDGE_SIGNING_KEY:-}" ]; then
@@ -53,7 +61,7 @@ for target in $targets; do
       # The icon and name Windows shows (Properties, Task Manager), as resources
       # linked into the .exe. -H windowsgui: a program with no window at all.
       go run github.com/tc-hib/go-winres@v0.3.3 simply --arch amd64 --manifest gui --icon icons/icon.png \
-        --product-name 'Cloud Slicer Bridge' --file-description 'Lets Cloud Slicer reach printers on this network' \
+        --product-name "$NAME" --file-description 'Lets Cloud Slicer reach printers on this network' \
         --product-version "$VERSION.0.0.0" --file-version "$VERSION.0.0.0" --original-filename cloud-slicer-bridge.exe
       build windows amd64 dist/windows-x64 "-H windowsgui"
       rm -f rsrc_windows_amd64.syso
@@ -71,9 +79,9 @@ for target in $targets; do
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-  <key>CFBundleName</key><string>Cloud Slicer Bridge</string>
-  <key>CFBundleDisplayName</key><string>Cloud Slicer Bridge</string>
-  <key>CFBundleIdentifier</key><string>io.qzz.awesomestuff.cloud-slicer-bridge</string>
+  <key>CFBundleName</key><string>$NAME</string>
+  <key>CFBundleDisplayName</key><string>$NAME</string>
+  <key>CFBundleIdentifier</key><string>$BUNDLE</string>
   <key>CFBundleExecutable</key><string>cloud-slicer-bridge</string>
   <key>CFBundleIconFile</key><string>icon</string>
   <key>CFBundlePackageType</key><string>APPL</string>
