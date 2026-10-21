@@ -2,6 +2,11 @@
 // thumbnail beside it, indexed by a D1 row. The limits keep the whole site
 // inside R2's free 10 GB. Storage per user is set on the Admin page
 // (access.ts storageBytes; 0 = presets only, no online projects).
+//
+// AutoSave: a new project is kept as the person's one draft (draft = 1) until
+// its first Save names it; a new draft replaces the old one. The device
+// editing a project is recorded with each save; a save from another device is
+// refused (409, code "elsewhere") until that device takes over (POST .../device).
 import { storageBytes } from './access';
 import { requireUser } from './auth';
 import { HttpError, json, readJson, requireSameOrigin } from './http';
@@ -25,6 +30,11 @@ interface ProjectRow {
   updated_at: number;
   /** null: saved before there were two engines (Snapmaker Orca). */
   engine: string | null;
+  /** 1: the person's unsaved draft. */
+  draft: number;
+  /** The device editing it (an id the browser keeps), and its name ("phone"). */
+  device: string | null;
+  device_name: string | null;
 }
 const toProject = (r: ProjectRow) => ({
   id: r.id,
@@ -33,6 +43,9 @@ const toProject = (r: ProjectRow) => ({
   hasThumbnail: r.thumb_key !== null,
   version: r.version,
   engine: r.engine ?? 'snapmaker',
+  draft: Boolean(r.draft),
+  device: r.device,
+  deviceName: r.device_name,
   createdAt: r.created_at,
   updatedAt: r.updated_at,
 });
@@ -57,6 +70,8 @@ function validEngine(v: string | null) {
   if (!ENGINES.includes(v)) throw new HttpError(400, 'Bad engine');
   return v;
 }
+const validDevice = (v: unknown) => (typeof v === 'string' && /^[A-Za-z0-9_-]{8,64}$/.test(v) ? v : null);
+const validDeviceName = (v: unknown) => (typeof v === 'string' ? v.replace(/[^\w .'-]/g, '').slice(0, 40) || null : null);
 function baseVersion(v: string | null): number | undefined {
   if (v === null || v === '') return undefined;
   const n = Number(v);
@@ -77,15 +92,20 @@ async function mustRow(env: Env, userId: string, id: string) {
 function conflict(current: ProjectRow | null) {
   return new HttpError(409, 'This project was saved on another device', { current: current ? toProject(current) : null });
 }
+/** Another device took the project over: this one only views it until it takes it back. */
+function elsewhere(current: ProjectRow) {
+  return new HttpError(409, `This project is being edited on your ${current.device_name ?? 'other device'}`, { code: 'elsewhere', current: toProject(current) });
+}
 
+// Bytes count every file, the draft too; the project count leaves the draft out.
 async function usage(env: Env, userId: string) {
-  const u = await env.DB!.prepare('SELECT COUNT(*) AS n, COALESCE(SUM(size), 0) AS bytes FROM projects WHERE user_id = ?')
+  const u = await env.DB!.prepare('SELECT COALESCE(SUM(draft = 0), 0) AS n, COALESCE(SUM(size), 0) AS bytes FROM projects WHERE user_id = ?')
     .bind(userId)
     .first<{ n: number; bytes: number }>();
   return { count: u?.n ?? 0, bytes: u?.bytes ?? 0 };
 }
 
-/** GET /api/projects -> { projects, usage, limits } (newest first) */
+/** GET /api/projects -> { projects, usage, limits } (newest first; the draft, if any, is among them with draft: true) */
 export async function list(env: Env, request: Request): Promise<Response> {
   const user = await requireUser(env, request);
   const rows = await env.DB!.prepare('SELECT * FROM projects WHERE user_id = ? ORDER BY updated_at DESC').bind(user.id).all<ProjectRow>();
@@ -95,6 +115,26 @@ export async function list(env: Env, request: Request): Promise<Response> {
     usage: await usage(env, user.id),
     limits: { projectBytes: LIMITS.projectBytes, userBytes: await storageBytes(env, user.id), userProjects: LIMITS.userProjects },
   });
+}
+
+/** GET /api/projects/<id> -> { project }: its version and the device editing it, checked when a tab comes back into view. */
+export async function get(env: Env, request: Request, rawId: string): Promise<Response> {
+  const user = await requireUser(env, request);
+  return json({ project: toProject(await mustRow(env, user.id, validId(rawId))) });
+}
+
+/** POST /api/projects/<id>/device { device, deviceName }: this device edits the project from now on. */
+export async function takeOver(env: Env, request: Request, rawId: string): Promise<Response> {
+  requireSameOrigin(request);
+  const user = await requireUser(env, request);
+  const id = validId(rawId);
+  const body = await readJson<{ device?: unknown; deviceName?: unknown }>(request, 4096);
+  const device = validDevice(body.device);
+  if (!device) throw new HttpError(400, 'Bad device');
+  const r = await mustRow(env, user.id, id);
+  const deviceName = validDeviceName(body.deviceName);
+  await env.DB!.prepare('UPDATE projects SET device = ?, device_name = ? WHERE user_id = ? AND id = ?').bind(device, deviceName, user.id, id).run();
+  return json({ project: toProject({ ...r, device, device_name: deviceName }) });
 }
 
 /** GET /api/projects/<id>/file -> the 3MF */
@@ -128,6 +168,10 @@ export async function thumbnail(env: Env, request: Request, rawId: string): Prom
  * baseVersion: the version this save started from (0 = a new project);
  * left out, the save goes over whatever is there.
  * engine: snapmaker (the default) or orca, the engine the project slices with.
+ * draft=1: the person's one draft (a new draft replaces the old one); a save
+ * without it turns the draft into a normal project.
+ * device, deviceName: the device saving; a save from a device other than the
+ * one editing the project is refused unless baseVersion is left out.
  */
 export async function put(env: Env, request: Request, rawId: string): Promise<Response> {
   requireSameOrigin(request);
@@ -138,11 +182,16 @@ export async function put(env: Env, request: Request, rawId: string): Promise<Re
   const name = validName(url.searchParams.get('name'));
   const base = baseVersion(url.searchParams.get('baseVersion'));
   const engine = validEngine(url.searchParams.get('engine'));
+  const draft = url.searchParams.get('draft') === '1' ? 1 : 0;
+  const device = validDevice(url.searchParams.get('device'));
+  const deviceName = validDeviceName(url.searchParams.get('deviceName'));
 
   const declared = Number(request.headers.get('Content-Length') ?? '0');
   if (declared > LIMITS.projectBytes) throw new HttpError(413, `Projects can be up to ${LIMITS.projectBytes / 1024 / 1024} MB`);
   const current = await row(env, user.id, id);
+  if (base !== undefined && current?.device && device && current.device !== device) throw elsewhere(current);
   if (base !== undefined && (current?.version ?? 0) !== base) throw conflict(current);
+  if (draft && current && !current.draft) throw new HttpError(400, 'A saved project cannot become a draft again');
 
   const bytes = await request.arrayBuffer();
   if (bytes.byteLength > LIMITS.projectBytes) throw new HttpError(413, `Projects can be up to ${LIMITS.projectBytes / 1024 / 1024} MB`);
@@ -152,7 +201,8 @@ export async function put(env: Env, request: Request, rawId: string): Promise<Re
   const userBytes = await storageBytes(env, user.id);
   if (!userBytes) throw new HttpError(403, "Online projects aren't available for your account. Your presets and printers still save; download the project to keep it.", { code: 'presets-only' });
   const mine = await usage(env, user.id);
-  if (!current && mine.count >= LIMITS.userProjects) throw new HttpError(413, `You can save up to ${LIMITS.userProjects} projects online`);
+  if (!draft && (!current || current.draft) && mine.count >= LIMITS.userProjects)
+    throw new HttpError(413, `You can save up to ${LIMITS.userProjects} projects online`);
   const grow = bytes.byteLength - (current?.size ?? 0);
   if (mine.bytes + grow > userBytes)
     throw new HttpError(413, `Your online projects would use more than ${Math.round(userBytes / 1024 / 1024)} MB. Delete some or download this one instead.`);
@@ -168,22 +218,46 @@ export async function put(env: Env, request: Request, rawId: string): Promise<Re
   const d = env.DB!;
   const res = current
     ? await d
-        .prepare('UPDATE projects SET name = ?, size = ?, file_key = ?, version = ?, updated_at = ?, engine = ? WHERE user_id = ? AND id = ? AND version = ?')
-        .bind(name, bytes.byteLength, key, version, now, engine, user.id, id, current.version)
+        .prepare(
+          'UPDATE projects SET name = ?, size = ?, file_key = ?, version = ?, updated_at = ?, engine = ?, draft = ?, device = ?, device_name = ? WHERE user_id = ? AND id = ? AND version = ?',
+        )
+        .bind(name, bytes.byteLength, key, version, now, engine, draft, device, deviceName, user.id, id, current.version)
         .run()
     : await d
         .prepare(
-          `INSERT INTO projects (user_id, id, name, size, file_key, thumb_key, version, created_at, updated_at, engine)
-           VALUES (?, ?, ?, ?, ?, NULL, ?, ?, ?, ?) ON CONFLICT (user_id, id) DO NOTHING`,
+          `INSERT INTO projects (user_id, id, name, size, file_key, thumb_key, version, created_at, updated_at, engine, draft, device, device_name)
+           VALUES (?, ?, ?, ?, ?, NULL, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT (user_id, id) DO NOTHING`,
         )
-        .bind(user.id, id, name, bytes.byteLength, key, version, now, now, engine)
+        .bind(user.id, id, name, bytes.byteLength, key, version, now, now, engine, draft, device, deviceName)
         .run();
   if (!res.meta.changes) {
     await b.delete(key);
     throw conflict(await row(env, user.id, id));
   }
   if (current) await b.delete(current.file_key);
-  return json({ project: toProject({ ...(current ?? { thumb_key: null, created_at: now }), id, name, size: bytes.byteLength, file_key: key, version, updated_at: now, engine } as ProjectRow) });
+  // One draft per person: a new one replaces the one before.
+  if (draft && !current) {
+    const old = await d.prepare('SELECT * FROM projects WHERE user_id = ? AND draft = 1 AND id != ?').bind(user.id, id).all<ProjectRow>();
+    for (const r of old.results) {
+      await d.prepare('DELETE FROM projects WHERE user_id = ? AND id = ?').bind(user.id, r.id).run();
+      await b.delete([r.file_key, ...(r.thumb_key ? [r.thumb_key] : [])]);
+    }
+  }
+  return json({
+    project: toProject({
+      ...(current ?? { thumb_key: null, created_at: now }),
+      id,
+      name,
+      size: bytes.byteLength,
+      file_key: key,
+      version,
+      updated_at: now,
+      engine,
+      draft,
+      device,
+      device_name: deviceName,
+    } as ProjectRow),
+  });
 }
 
 /** PUT /api/projects/<id>/thumbnail  body: PNG. Doesn't change the version. */

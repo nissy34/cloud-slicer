@@ -84,3 +84,23 @@ export function saveConvertPreference(pref: ConvertPreference | null) {
   }
 }
 
+
+const DEVICE_KEY = 'cloud-slicer:device:v1';
+let sessionDevice: string | null = null;
+
+/**
+ * An id for this browser, so online projects know which device is editing
+ * them (AutoSave, Continue). Kept in this browser; without storage, one per
+ * page load, which only means Continue sees each visit as another device.
+ */
+export function deviceId(): string {
+  try {
+    const known = localStorage.getItem(DEVICE_KEY);
+    if (known) return known;
+    const id = crypto.randomUUID().replace(/-/g, '');
+    localStorage.setItem(DEVICE_KEY, id);
+    return id;
+  } catch {
+    return (sessionDevice ??= crypto.randomUUID().replace(/-/g, ''));
+  }
+}

@@ -197,6 +197,14 @@ async function signIn(browser, user, opts) {
 
 const tests = [];
 const test = (name, fn) => tests.push([name, fn]);
+async function waitFor(check, what, ms = 30000) {
+  const end = Date.now() + ms;
+  while (Date.now() < end) {
+    if (await check()) return;
+    await new Promise((r) => setTimeout(r, 500));
+  }
+  throw new Error(`timed out: ${what}`);
+}
 
 test('signed out: /api/me says accounts are on and lists providers', async () => {
   const me = await (await fetch(`${HOST}/api/me`)).json();
@@ -419,6 +427,63 @@ test('projects: save a 3MF online, thumbnail, conflicts, rename, list, delete', 
   assert.deepEqual((await (await alice.json('/api/projects')).json()).projects.map((p) => p.id), ['p1']);
   assert.equal((await alice.fetch(`${HOST}/api/projects/p2/file`)).status, 404);
   assert.equal((await alice.json('/api/projects/bad%20id', 'DELETE')).status, 400);
+});
+
+test('projects: one draft, the device editing a project, taking it over (AutoSave)', async () => {
+  const file = (text) => new Blob([Buffer.concat([Buffer.from('PK\x03\x04'), Buffer.from(text)])]);
+  const save = (b, id, name, body, baseVersion, extra = {}) =>
+    b.fetch(`${HOST}/api/projects/${id}?${new URLSearchParams({ name, ...(baseVersion !== undefined ? { baseVersion: String(baseVersion) } : {}), ...extra })}`, {
+      method: 'PUT',
+      headers: { Origin: HOST, 'Content-Type': 'model/3mf' },
+      body,
+    });
+  const laptop = { device: 'laptop-device-1', deviceName: 'Windows computer' };
+  const phoneDevice = { device: 'phone-device-1', deviceName: 'phone' };
+  const before = (await (await alice.json('/api/projects')).json()).usage.count;
+
+  // A draft: listed with draft: true, not counted as a project; a second draft replaces the first.
+  const d1 = await save(alice, 'd1', 'Benchy', file('draft one'), 0, { draft: '1', ...laptop });
+  assert.equal(d1.status, 200, await d1.clone().text());
+  assert.deepEqual(
+    (({ draft, device, deviceName }) => ({ draft, device, deviceName }))((await d1.json()).project),
+    { draft: true, device: laptop.device, deviceName: 'Windows computer' },
+  );
+  let list = await (await alice.json('/api/projects')).json();
+  assert.equal(list.usage.count, before, "the draft isn't counted as a project");
+  assert.ok(list.projects.find((p) => p.id === 'd1')?.draft);
+  assert.equal((await save(alice, 'd2', 'Cube', file('draft two'), 0, { draft: '1', ...laptop })).status, 200);
+  list = await (await alice.json('/api/projects')).json();
+  assert.deepEqual(list.projects.filter((p) => p.draft).map((p) => p.id), ['d2'], 'one draft per person');
+  assert.equal((await alice.fetch(`${HOST}/api/projects/d1/file`)).status, 404, "the old draft's file is gone");
+
+  // The first Save names it: same id, no longer a draft, now counted.
+  const named = await save(alice, 'd2', 'My cube', file('named'), 1, laptop);
+  assert.equal(named.status, 200, await named.clone().text());
+  assert.equal((await named.json()).project.draft, false);
+  assert.equal((await (await alice.json('/api/projects')).json()).usage.count, before + 1);
+  assert.equal((await save(alice, 'd2', 'My cube', file('again a draft'), 2, { draft: '1', ...laptop })).status, 400, 'a saved project never becomes a draft');
+
+  // The phone takes it over: the laptop's next save is refused with "elsewhere", the phone's goes through.
+  const phone = new Browser();
+  await signIn(phone, 'alice');
+  const took = await phone.json('/api/projects/d2/device', 'POST', phoneDevice);
+  assert.equal(took.status, 200, await took.clone().text());
+  const state = await (await alice.json('/api/projects/d2')).json();
+  assert.deepEqual([state.project.device, state.project.deviceName, state.project.version], [phoneDevice.device, 'phone', 2], 'taking over keeps the version');
+  const refused = await save(alice, 'd2', 'My cube', file('laptop edit'), 2, laptop);
+  assert.equal(refused.status, 409);
+  const body = await refused.json();
+  assert.equal(body.code, 'elsewhere');
+  assert.equal(body.current.deviceName, 'phone');
+  assert.match(body.error, /edited on your phone/);
+  assert.equal((await save(phone, 'd2', 'My cube', file('phone edit'), 2, phoneDevice)).status, 200);
+  // Back on the laptop: "Edit here instead".
+  assert.equal((await alice.json('/api/projects/d2/device', 'POST', laptop)).status, 200);
+  assert.equal((await save(alice, 'd2', 'My cube', file('laptop again'), 3, laptop)).status, 200);
+  assert.equal((await alice.json('/api/projects/d2/device', 'POST', { device: 'x' })).status, 400, 'device ids are checked');
+  assert.equal((await phone.json('/api/projects/nope/device', 'POST', phoneDevice)).status, 404);
+
+  assert.equal((await alice.json('/api/projects/d2', 'DELETE')).status, 200);
 });
 
 test('admin: only the owner (OWNER_EMAILS) gets the Admin page', async () => {
@@ -817,8 +882,19 @@ if (withApp)
       await projectButton.getByText('3DBenchy').waitFor();
       await projectButton.getByLabel('unsaved changes').waitFor();
 
+      // AutoSave keeps a new project as the draft, named after its model.
+      await projectButton.getByText('Draft, not saved yet').waitFor({ timeout: 30000 });
+      await waitFor(async () => (await (await carol.json('/api/projects')).json()).projects.some((p) => p.draft && p.name === '3DBenchy'), 'the draft is saved');
+      if (process.env.ACCOUNTS_SHOTS) await page.screenshot({ path: join(process.env.ACCOUNTS_SHOTS, 'project-draft.png') });
+
+      // The first Save names it, like Word.
       await page.keyboard.press('Control+s');
+      const naming = page.getByRole('dialog', { name: 'Save project' });
+      assert.equal(await naming.getByLabel('Project name').inputValue(), '3DBenchy');
+      if (process.env.ACCOUNTS_SHOTS) await page.screenshot({ path: join(process.env.ACCOUNTS_SHOTS, 'save-naming.png') });
+      await naming.getByRole('button', { name: 'Save' }).click();
       await page.getByText('Saved “3DBenchy” to your projects').waitFor({ timeout: 60000 });
+      await projectButton.getByText('Saved', { exact: true }).waitFor();
       assert.equal(await projectButton.getByLabel('unsaved changes').count(), 0, 'clean after saving');
       const list = await (await carol.json('/api/projects')).json();
       const saved = list.projects.find((p) => p.name === '3DBenchy');
@@ -826,11 +902,70 @@ if (withApp)
       assert.equal(saved.hasThumbnail, true, 'the 3D view was saved as its thumbnail');
       assert.ok(saved.size > 100_000, `3MF is ${saved.size} bytes`);
       assert.equal(saved.engine, 'snapmaker', 'saved with the engine it slices with');
+      assert.equal(saved.draft, false, 'the draft became the project');
+      assert.equal(list.projects.filter((p) => p.draft).length, 0, 'no draft left');
+
+      // AutoSave: a change saves by itself a few seconds later.
+      await layer.fill('0.24');
+      await layer.press('Enter');
+      await waitFor(async () => (await (await carol.json('/api/projects')).json()).projects.find((p) => p.id === saved.id)?.version > saved.version, 'AutoSave saved the change', 60000);
+      await projectButton.getByText('Saved', { exact: true }).waitFor({ timeout: 30000 });
+
+      // Another device takes it over: coming back to this tab, it is view only.
+      const other = await carol.json(`/api/projects/${saved.id}/device`, 'POST', { device: 'other-device-1234', deviceName: 'phone' });
+      assert.equal(other.status, 200);
+      await page.evaluate(() => window.dispatchEvent(new Event('focus')));
+      const banner = page.getByTestId('view-only-banner');
+      await banner.getByText('being edited on your phone').waitFor({ timeout: 15000 });
+      await projectButton.getByText('View only').waitFor();
+      if (process.env.ACCOUNTS_SHOTS) await page.screenshot({ path: join(process.env.ACCOUNTS_SHOTS, 'view-only.png') });
+      await banner.getByRole('button', { name: 'Edit here instead' }).click();
+      await banner.waitFor({ state: 'detached', timeout: 60000 });
+      assert.equal(await layer.inputValue(), '0.24', 'the latest save came back');
+      const mine = await (await carol.json(`/api/projects/${saved.id}`)).json();
+      assert.notEqual(mine.project.device, 'other-device-1234', 'this device edits it again');
+      await layer.fill('0.28');
+      await layer.press('Enter');
+      await page.keyboard.press('Control+s');
+      await page.getByText('Saved “3DBenchy” to your projects').waitFor({ timeout: 60000 });
       if (process.env.ACCOUNTS_SHOTS) await page.screenshot({ path: join(process.env.ACCOUNTS_SHOTS, 'project-saved.png') });
 
       await projectButton.click();
       await page.getByRole('menuitem', { name: 'New project', exact: true }).click();
       await page.getByText('Open a model to start').waitFor();
+
+      // A fresh visit from "another device" offers to continue it.
+      const visitor = await browser.newContext({ viewport: { width: 390, height: 800 } });
+      await visitor.addCookies([...carol.jar.get(new URL(HOST).host)].map(([name, value]) => ({ name, value, url: HOST })));
+      const phonePage = await visitor.newPage();
+      await phonePage.goto(HOST);
+      const card = phonePage.getByTestId('continue-card');
+      await card.getByText('Continue 3DBenchy').waitFor({ timeout: 120000 });
+      await card.getByText(/on your (Linux|Windows) computer|on your Mac/).waitFor();
+      if (process.env.ACCOUNTS_SHOTS) await phonePage.screenshot({ path: join(process.env.ACCOUNTS_SHOTS, 'continue-card-phone.png') });
+      await card.getByRole('button', { name: 'Not now' }).click();
+      await card.waitFor({ state: 'detached' });
+
+      // Files shared to the app (Android's Share menu) open in it.
+      await phonePage.reload();
+      await phonePage.evaluate(() => navigator.serviceWorker?.ready);
+      const shared = await phonePage.evaluate(async () => {
+        const stl = await (await fetch('/fixtures/cube.stl').catch(() => null))?.blob();
+        const form = new FormData();
+        form.append('files', stl ?? new Blob(['solid c\nendsolid c\n']), 'clip.stl');
+        const res = await fetch('/share-target', { method: 'POST', body: form });
+        return res.url;
+      });
+      assert.match(shared, /\?shared=1$/, 'the service worker took the shared file');
+      await phonePage.goto(shared);
+      const ask = phonePage.getByTestId('ask-dialog');
+      await ask.getByText('Open clip.stl').waitFor({ timeout: 120000 });
+      if (process.env.ACCOUNTS_SHOTS) await phonePage.screenshot({ path: join(process.env.ACCOUNTS_SHOTS, 'share-target-phone.png') });
+      await ask.getByRole('button', { name: 'Add to 3DBenchy' }).waitFor();
+      assert.equal(await card.count(), 0, '"Not now" keeps the Continue card away, and the question replaces it');
+      await ask.getByRole('button', { name: 'Cancel' }).click();
+      await visitor.close();
+
       await projectButton.click();
       await page.getByRole('menuitem', { name: 'Online projects…' }).click();
       const dialog = page.getByRole('dialog', { name: 'Online projects' });
