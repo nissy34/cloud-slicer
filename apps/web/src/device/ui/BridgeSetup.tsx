@@ -1,5 +1,5 @@
 import { useEffect, useState, type ReactNode } from 'react';
-import { DEFAULT_RELAY_URL } from '../config';
+import { DEFAULT_RELAY_URL, isTestRelay } from '../config';
 
 /** A bridge app the relay has (apps/device-relay: /downloads.json). */
 interface BridgeApp {
@@ -245,6 +245,20 @@ export function BridgeSetup({ relay, pasteLink }: { relay: string; pasteLink?: R
     };
   }, [relay]);
 
+  // On the test relay: what it runs now (PR #113, main), shown above the steps.
+  const [testRuns, setTestRuns] = useState('');
+  useEffect(() => {
+    if (!isTestRelay(relay)) return;
+    let live = true;
+    fetch(`${relay}/v1/info`)
+      .then((r) => (r.ok ? r.json() : {}))
+      .then((d: { test?: string }) => live && setTestRuns(d.test || ''))
+      .catch(() => {});
+    return () => {
+      live = false;
+    };
+  }, [relay]);
+
   const install = `curl -fsSL ${relay}/install.sh | sh`;
   const onPrinter = `curl -fsSL ${relay}/install.sh | sh -s -- --printer`;
   const has = (name: string) => apps?.find((a) => a.name === name);
@@ -286,6 +300,20 @@ export function BridgeSetup({ relay, pasteLink }: { relay: string; pasteLink?: R
 
   return (
     <div className="dv-bridge-setup">
+      {isTestRelay(relay) && (
+        <p className="dv-note dv-test-note" data-testid="bridge-test-relay">
+          <span className="dv-test-tag">Test</span> This test site sets up a <b>test bridge</b>
+          {testRuns ? (
+            <>
+              {' '}
+              on the test relay, which runs <b>{testRuns}</b>
+            </>
+          ) : (
+            ' on the test relay'
+          )}
+          . It installs next to your everyday bridge without touching it, and only ever updates from the test relay. Remove it with the same steps, or with Remove bridge.
+        </p>
+      )}
       <p>
         Your printer is on your home network, which websites can't reach on their own. A small free app called the <b>bridge</b> connects the two. It runs on the printer
         itself or on a computer in your home that is usually switched on, and you only set it up once.
