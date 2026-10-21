@@ -209,7 +209,9 @@ seen, storage used, projects, presets, printers, bridges) with **Block** / **Unb
 has an **Invite only** switch with an email list, sets **online project storage** per
 person (a site default plus per-person overrides; "Presets only" turns online projects
 off while presets and printers still save), and shows the site's use against
-Cloudflare's free limits. Nothing changes for people who are allowed.
+Cloudflare's free limits. Nothing changes for people who are allowed. Changes on the page
+show at once and save in the background ("Saving…", then "Saved" beside the title); a
+change the server refuses goes back, with the reason.
 
 - Blocking and the user list are Better Auth's admin plugin: a blocked person is signed
   out everywhere and refused at sign-in. Invite only is a Better Auth database hook on
