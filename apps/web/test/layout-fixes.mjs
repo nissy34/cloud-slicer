@@ -90,11 +90,19 @@ try {
   const undoTitle = () => page.getByRole('button', { name: 'Undo' }).getAttribute('title');
 
   // A long project name shortens with "…"; "Project ▾" stays on one line.
-  const button = await page.evaluate(() => {
-    const label = document.querySelector('.project-label').getBoundingClientRect();
-    const name = document.querySelector('.project-name-text');
-    return { labelHeight: label.height, shortened: name.scrollWidth > name.clientWidth };
-  });
+  // Measured again for a few seconds: the name and its font can still be
+  // settling just after "Ready to slice" (seen on the CI runner).
+  const measure = () =>
+    page.evaluate(() => {
+      const label = document.querySelector('.project-label').getBoundingClientRect();
+      const name = document.querySelector('.project-name-text');
+      return { labelHeight: label.height, shortened: name.scrollWidth > name.clientWidth };
+    });
+  let button = await measure();
+  for (let i = 0; i < 20 && !(button.shortened && button.labelHeight <= 24); i++) {
+    await page.waitForTimeout(250);
+    button = await measure();
+  }
   if (button.labelHeight > 24) fail(`"Project ▾" wraps: ${button.labelHeight}px tall`);
   if (!button.shortened) fail('the long project name is not shortened');
   console.log('project button: one line, name shortened');
