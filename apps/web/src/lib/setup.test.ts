@@ -17,6 +17,15 @@ describe('setup', () => {
     expect(models[1].nozzles.map((n) => n.nozzle)).toEqual(['0.4', '0.6']);
   });
 
+  it('labels a printer with mixed heads by both sizes, not as a second 0.4', () => {
+    const models = printerModels([
+      printer('Snapmaker U1 (0.4+0.6 nozzle)', 'Snapmaker U1', '0.4,0.4,0.6,0.6'),
+      printer('Snapmaker U1 (0.6 nozzle)', 'Snapmaker U1', '0.6,0.6,0.6,0.6'),
+      printer('Snapmaker U1 (0.4 nozzle)', 'Snapmaker U1', '0.4,0.4,0.4,0.4'),
+    ]);
+    expect(models[0].nozzles.map((n) => n.nozzle)).toEqual(['0.4', '0.4+0.6', '0.6']);
+  });
+
   it('keeps everything until the wizard has run, then the installed ones and the current value', () => {
     const list = [{ name: 'a' }, { name: 'b' }, { name: 'c' }];
     expect(installedOnly(list, undefined)).toHaveLength(3);

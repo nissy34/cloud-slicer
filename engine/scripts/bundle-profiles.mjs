@@ -169,7 +169,9 @@ function vendorModels(vendor, files) {
     seen.add(p.name);
     return p[key] ?? (p.inherits ? value(byName.get(p.inherits), key, seen) : undefined);
   };
-  const first = (v) => (Array.isArray(v) ? v[0] : typeof v === 'string' ? v.split(/[;,]/)[0] : undefined);
+  const list = (v) => (Array.isArray(v) ? v : typeof v === 'string' ? v.split(/[;,]/) : []);
+  // A printer with mixed heads (U1 "0.4+0.6": two 0.4 and two 0.6) reads "0.4+0.6", not a second "0.4".
+  const nozzleLabel = (p) => [...new Set(list(value(p, 'nozzle_diameter')).map((d) => String(d).trim()).filter(Boolean))].join('+') || String(value(p, 'printer_variant') ?? '');
   const covers = join(outDir, 'profiles/covers', slug(vendor));
   return (index.machine_model_list ?? [])
     .map(({ name: model, sub_path }) => {
@@ -178,8 +180,8 @@ function vendorModels(vendor, files) {
       const presets = [...byName.values()].filter((p) => p.type === 'machine' && p.instantiation !== 'false' && value(p, 'printer_model') === model);
       if (!presets.length) return null;
       const nozzles = presets
-        .map((p) => ({ name: p.name, nozzle: String(first(value(p, 'nozzle_diameter')) ?? value(p, 'printer_variant') ?? '') }))
-        .sort((a, b) => Number(a.nozzle) - Number(b.nozzle) || a.name.localeCompare(b.name));
+        .map((p) => ({ name: p.name, nozzle: nozzleLabel(p) }))
+        .sort((a, b) => parseFloat(a.nozzle) - parseFloat(b.nozzle) || a.nozzle.length - b.nozzle.length || a.name.localeCompare(b.name));
       const send = presets.every((p) => value(p, 'gcode_flavor') === 'klipper');
       let cover = '';
       const picture = join(root, vendor, `${model}_cover.png`);
