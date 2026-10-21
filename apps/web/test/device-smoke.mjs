@@ -185,7 +185,8 @@ try {
       seen.add(await page.locator('[data-view="direct-pictures"]').getAttribute('src'));
       await new Promise((r) => setTimeout(r, 50));
     }
-    if (seen.size < 6) throw new Error(`only ${seen.size} camera pictures in 2 s over the direct link`);
+    // The stock U1's picture file is read at its own gentle 2 a second (addons/u1.ts); the relay's 1 a second would give 2 at most.
+    if (seen.size < 3) throw new Error(`only ${seen.size} camera pictures in 2 s over the direct link`);
     console.log(`camera comes straight from the bridge: ${seen.size} pictures in 2 s`);
   }
   // The U1 announces every camera frame as a file change; none of that may
