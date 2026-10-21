@@ -168,11 +168,14 @@ try {
     if ((await modelShare()) <= top) fail('pinching after the top view should zoom in');
   }
 
-  // One finger on the model still moves it.
+  // One finger on the model still moves it. Each step is past the 6 px a
+  // long press may wander: with 6 px steps the first one still counted as
+  // holding still, and when a slow test machine took over half a second to
+  // deliver the next, the press became a long press and opened the object menu.
   const [cx, cy] = [box.x + box.width / 2, box.y + box.height / 2];
   await touch('touchStart', [[cx, cy]]);
   for (let i = 1; i <= 10; i++) {
-    await touch('touchMove', [[cx + i * 6, cy]]);
+    await touch('touchMove', [[cx + i * 10, cy]]);
     await page.waitForTimeout(16);
   }
   await touch('touchEnd', []);
