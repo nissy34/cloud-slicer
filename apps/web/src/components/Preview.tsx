@@ -442,6 +442,9 @@ export function Preview() {
     <div className={menuOpen ? 'preview layer-menu-open' : 'preview'}>
       <Canvas className="viewport" frameloop="demand" camera={{ position: [w / 2, -d * 0.6, d * 0.7], fov: 40, near: 1, far: 5000 }} data-testid="gcode-preview">
         <color attach="background" args={[scene.background]} />
+        {/* The same light as Prepare: without it the bed shape and plate draw black. */}
+        <hemisphereLight args={['#ffffff', scene.ground, 0.9]} />
+        <directionalLight position={[w, -d, d * 2]} intensity={1.6} />
         <Bed />
         {parsed && (
           <Toolpaths parsed={parsed} upTo={upTo} colourBy={colourBy} colours={colours} range={range} hidden={hidden} moving={moving} />

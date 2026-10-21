@@ -341,6 +341,8 @@ export interface SlicerState {
    */
   /** Adds or changes a text; on success, the characters its font has no letters for. */
   textVolume(o: number | null, style: TextStyle, edit: { type: 'part' | 'negative' | 'modifier' } | { volume: number }): Promise<false | { missing: string }>;
+  /** Takes back a text the Text tool added if it closes with nothing changed since, leaving no undo step. */
+  dropUnusedText(): Promise<void>;
   /**
    * An SVG shape like desktop's SVG tool, as one undo step: from a file onto
    * object o (null: an object of its own), or a new depth or size for one. Picks it; false if it failed.
@@ -779,20 +781,32 @@ export const useSlicer = create<SlicerState>((set, get) => {
     const preview = project.objects.length ? await e.preview(plate) : null;
     const paint = get().paint;
     const overlay = paint && paint.kind !== 'color' && project.objects.length ? await e.paintOverlay(plate, paint.kind) : null;
-    const heavy = get().heavy && get().project?.objects.length === project.objects.length ? get().heavy : null;
+    const heavy = triangleCounts?.length === project.objects.length ? plateHeavy(project, plate) : null;
     set({ project, plate, preview, overlay, heavy, ...stale() });
   }
 
   // A model with millions of triangles can need more memory to slice than a
   // browser page may have; offer to simplify it as soon as it opens.
+  // Only the plate being sliced counts: a light plate of a heavy project slices fine.
+  let triangleCounts: SimplifyResult[] | null = null;
   async function checkHeavy() {
     const e = engine();
     const objects = get().project?.objects ?? [];
     const counts = await Promise.all(objects.map((_, o) => e.simplifyPreview(o)));
-    const plan = heavyModel(counts.map((c) => c.triangles));
+    const project = get().project;
+    if (project?.objects.length !== counts.length) return;
+    triangleCounts = counts;
+    set({ heavy: plateHeavy(project, get().plate) });
+  }
+  function plateHeavy(project: ProjectInfo, plate: number): HeavyModel | null {
+    const counts = triangleCounts;
+    if (!counts) return null;
+    const plan = heavyModel(
+      counts.map((c) => c.triangles),
+      project.plates[plate]?.objects ?? [],
+    );
     // Simplifying removes paint, so say so when it would.
-    if (get().project?.objects.length === counts.length)
-      set({ heavy: plan && { ...plan, painted: plan.objects.some((o) => counts[o].painted) } });
+    return plan && { ...plan, painted: plan.objects.some((o) => counts[o].painted) };
   }
 
   // Paint dabs queue up while the engine is busy and go over in one call, so
@@ -969,6 +983,11 @@ export const useSlicer = create<SlicerState>((set, get) => {
   };
   const same = (s: Selection) => s.filaments.map((_, i) => i);
 
+  // Counts project edits (and undo/redo steps), so the Text tool can tell
+  // whether the text it added was ever changed.
+  let edits = 0;
+  let freshText: { object: number; volume: number; newObject: boolean; edits: number } | null = null;
+
   // An edit of the project: remembered first, so undo can take it back.
   const projectEdit = async (label: string, op: () => Promise<ProjectInfo>) => {
     const e = engine();
@@ -976,6 +995,7 @@ export const useSlicer = create<SlicerState>((set, get) => {
     try {
       set({ history: await e.snapshot(label) });
       remembered = true;
+      edits++;
       await refreshPreview(await op());
       clearError();
     } catch (err) {
@@ -986,6 +1006,7 @@ export const useSlicer = create<SlicerState>((set, get) => {
 
   const stepHistory = async (step: 'undo' | 'redo') => {
     if (!get().history[step]) return;
+    edits++;
     try {
       const { history, info } = await engine()[step]();
       const sel = get().selected;
@@ -1249,6 +1270,7 @@ export const useSlicer = create<SlicerState>((set, get) => {
     async simplifyHeavy() {
       const plan = get().heavy;
       if (!plan) return;
+      triangleCounts = null;
       set({ heavy: null, job: { kind: 'loading', name: '', label: 'Simplifying' } });
       await projectEdit('Simplify', async () => {
         let info = get().project!;
@@ -1558,6 +1580,7 @@ export const useSlicer = create<SlicerState>((set, get) => {
     textVolume: async (o, style, edit) => {
       let out: { object: number; volume: number; missing: string } | undefined;
       const label = 'volume' in edit ? 'Edit text' : 'Add text';
+      const objectsBefore = get().project?.objects.length ?? 0;
       await projectEdit(label, async () => {
         const e = engine();
         const fontPath = await fontInEngine(e, style.font);
@@ -1570,10 +1593,30 @@ export const useSlicer = create<SlicerState>((set, get) => {
         return r.info;
       });
       if (!out) return false;
+      if (!('volume' in edit)) freshText = { object: out.object, volume: out.volume, newObject: out.object >= objectsBefore, edits };
       const sel = get().selected;
       const instance = sel?.object === out.object ? sel.instance : 0;
       set({ selected: { object: out.object, instance, volume: out.volume } });
+      // The tool closed while the text was being made: take it back now.
+      if (!('volume' in edit) && get().tool !== 'text') {
+        await get().dropUnusedText();
+        return false;
+      }
       return { missing: out.missing };
+    },
+    async dropUnusedText() {
+      const fresh = freshText;
+      freshText = null;
+      if (!fresh || fresh.edits !== edits || get().tool === 'text') return;
+      const e = engine();
+      try {
+        // Removed without a snapshot, then the "Add text" snapshot dropped: as if it never happened.
+        const info = fresh.newObject ? await e.deleteObject(fresh.object) : (await e.volumeAction(fresh.object, { op: 'delete', volume: fresh.volume })).info;
+        set({ history: await e.dropSnapshot(), selected: fresh.newObject ? null : { object: fresh.object, instance: get().selected?.instance ?? 0 } });
+        await refreshPreview(info);
+      } catch (err) {
+        fail(err);
+      }
     },
     svgVolume: async (o, edit) => {
       let out: { object: number; volume: number } | undefined;
@@ -1803,6 +1846,7 @@ export const useSlicer = create<SlicerState>((set, get) => {
           if (run === sliceRun && job.kind === 'slicing') set({ job: { kind: 'slicing', pct: slicePercent(job.pct, pct, stage, layers), stage } });
         });
         if (run !== sliceRun) return;
+        triangleCounts = null;
         set({ job: { kind: 'sliced', plate, result, gcode: new Blob([gcode], { type: 'text/plain' }), ms }, notice: '', heavy: null });
         // Like desktop Orca: show the result as soon as slicing finishes.
         get().setTab('preview');

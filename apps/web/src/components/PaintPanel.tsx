@@ -107,7 +107,7 @@ export function PaintPanel() {
         {brush ? 'Drag on a part to paint. Drag off the parts to turn the view.' : 'Click a part to fill.'} Esc finishes.
       </p>
       {object && selected && (
-        <button className="secondary" onClick={() => void clearPaint(selected.object)}>
+        <button className="secondary paint-clear" title={object.name} onClick={() => void clearPaint(selected.object)}>
           Clear {KINDS.find(([k]) => k === paint.kind)![1].toLowerCase()} paint on {object.name || 'this object'}
         </button>
       )}

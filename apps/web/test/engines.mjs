@@ -51,6 +51,13 @@ try {
     console.log(`engine: ${await badge.innerText()}`);
   };
   const projectButton = page.getByRole('button', { name: /^Project/ });
+  // Unsaved changes ask in the app's own dialog (not the browser's confirm).
+  const discardIfAsked = () =>
+    page
+      .getByTestId('ask-dialog')
+      .getByRole('button', { name: 'Discard changes' })
+      .click({ timeout: 3000 })
+      .catch(() => {});
 
   await page.goto(url);
   await engineIs('Snapmaker Orca');
@@ -93,8 +100,8 @@ try {
 
   // New project starts with the default (OrcaSlicer); the Slicer engine dropdown picks the other engine.
   await projectButton.click();
-  page.once('dialog', (d) => d.accept());
   await page.getByRole('menuitem', { name: 'New project', exact: true }).click();
+  await discardIfAsked();
   await engineIs('OrcaSlicer');
   const engineSelect = page.getByTestId('engine-select');
   if ((await engineSelect.inputValue()) !== 'orca') fail(`the dropdown says "${await engineSelect.inputValue()}"`);
@@ -125,8 +132,8 @@ try {
   if (shots) await page.screenshot({ path: join(shots, 'project-menu-phone.png') });
   await page.keyboard.press('Escape');
   await projectButton.click();
-  page.once('dialog', (d) => d.accept());
   await page.getByRole('menuitem', { name: 'New project', exact: true }).click();
+  await discardIfAsked();
   await engineIs('OrcaSlicer');
   if (shots) await page.screenshot({ path: join(shots, 'engine-select-phone.png') });
 } catch (e) {

@@ -36,6 +36,13 @@ import { encodeBedMesh, readStl } from './bed-mesh.mjs';
 const here = dirname(fileURLToPath(import.meta.url));
 // ENGINE_FLAVOR=orca bundles upstream OrcaSlicer's presets instead.
 const root = resolve(here, process.env.ENGINE_FLAVOR === 'orca' ? '../orcaslicer-upstream/resources/profiles' : '../orcaslicer/resources/profiles');
+// Both engines draw the same bed for a printer: its files come from Snapmaker Orca
+// first (upstream's U1 bed is a 13 mm block, Snapmaker's a thin sheet), then from
+// upstream OrcaSlicer for what Snapmaker Orca lacks.
+const bedRoots = ['../orcaslicer/resources/profiles', '../orcaslicer-upstream/resources/profiles']
+  .map((r) => resolve(here, r))
+  .filter((r) => existsSync(r));
+if (!bedRoots.includes(root)) bedRoots.push(root);
 const [outDir, ...vendorArgs] = process.argv.slice(2);
 if (!outDir) {
   console.error('usage: bundle-profiles.mjs <out-dir> [vendor ...]');
@@ -99,7 +106,8 @@ function vendorFiles(vendor) {
 /**
  * The vendor's beds, as desktop shows them under the plate: each printer model's
  * bed_model (an STL, drawn below the plate) and bed_texture (an SVG or PNG laid
- * over the printable area), from its machine_model file. Writes profiles/beds/;
+ * over the printable area), from its machine_model file; model and files from
+ * the first of `bedRoots` that has them. Writes profiles/beds/;
  * returns the index file name ('' when the brand has none) and the bytes written.
  */
 function vendorBeds(vendor, files) {
@@ -111,9 +119,10 @@ function vendorBeds(vendor, files) {
   const add = (name, kind) => {
     if (typeof name !== 'string' || !name || name.includes('..')) return undefined;
     if (written.has(name)) return written.get(name);
-    const src = join(root, vendor, name);
+    // A file of the same name is the same bed in either engine's folder.
+    const src = bedRoots.map((r) => join(r, vendor, name)).find((f) => existsSync(f)) ?? '';
     let out;
-    if (!existsSync(src)) out = undefined; // a few machine files name a file the brand doesn't ship
+    if (!src) out = undefined; // a few machine files name a file the brand doesn't ship
     else if (kind === 'model' && /\.stl$/i.test(name)) {
       try {
         const data = encodeBedMesh(readStl(readFileSync(src)));
@@ -134,8 +143,11 @@ function vendorBeds(vendor, files) {
     written.set(name, out);
     return out;
   };
-  for (const { name: model, sub_path } of index.machine_model_list ?? []) {
-    const info = readJson(join(root, vendor, sub_path));
+  const listed = (r) => new Map((readJson(join(r, `${vendor}.json`))?.machine_model_list ?? []).map((m) => [m.name, m.sub_path]));
+  const lists = bedRoots.map((r) => [r, listed(r)]);
+  for (const { name: model } of index.machine_model_list ?? []) {
+    const [from, sub] = lists.map(([r, m]) => [r, m.get(model)]).find(([, s]) => s) ?? [];
+    const info = from && readJson(join(from, vendor, sub));
     if (!info || (info.machine_tech && info.machine_tech !== 'FFF')) continue;
     const bed = { model: add(info.bed_model, 'model'), texture: add(info.bed_texture, 'texture') };
     if (bed.model || bed.texture) beds[model] = bed;
@@ -169,7 +181,9 @@ function vendorModels(vendor, files) {
     seen.add(p.name);
     return p[key] ?? (p.inherits ? value(byName.get(p.inherits), key, seen) : undefined);
   };
-  const first = (v) => (Array.isArray(v) ? v[0] : typeof v === 'string' ? v.split(/[;,]/)[0] : undefined);
+  const list = (v) => (Array.isArray(v) ? v : typeof v === 'string' ? v.split(/[;,]/) : []);
+  // A printer with mixed heads (U1 "0.4+0.6": two 0.4 and two 0.6) reads "0.4+0.6", not a second "0.4".
+  const nozzleLabel = (p) => [...new Set(list(value(p, 'nozzle_diameter')).map((d) => String(d).trim()).filter(Boolean))].join('+') || String(value(p, 'printer_variant') ?? '');
   const covers = join(outDir, 'profiles/covers', slug(vendor));
   return (index.machine_model_list ?? [])
     .map(({ name: model, sub_path }) => {
@@ -178,8 +192,8 @@ function vendorModels(vendor, files) {
       const presets = [...byName.values()].filter((p) => p.type === 'machine' && p.instantiation !== 'false' && value(p, 'printer_model') === model);
       if (!presets.length) return null;
       const nozzles = presets
-        .map((p) => ({ name: p.name, nozzle: String(first(value(p, 'nozzle_diameter')) ?? value(p, 'printer_variant') ?? '') }))
-        .sort((a, b) => Number(a.nozzle) - Number(b.nozzle) || a.name.localeCompare(b.name));
+        .map((p) => ({ name: p.name, nozzle: nozzleLabel(p) }))
+        .sort((a, b) => parseFloat(a.nozzle) - parseFloat(b.nozzle) || a.nozzle.length - b.nozzle.length || a.name.localeCompare(b.name));
       const send = presets.every((p) => value(p, 'gcode_flavor') === 'klipper');
       let cover = '';
       const picture = join(root, vendor, `${model}_cover.png`);

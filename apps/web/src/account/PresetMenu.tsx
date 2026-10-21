@@ -9,6 +9,8 @@ import { presetNameError, type PresetType } from './api';
 import { changesFor, copyName, systemParent } from './preset-diff';
 import { editPresets, presetTaken, sameValuesInBothEngines, saveAsNew, saveChanges, selectionWith } from './preset-save';
 import { engineName } from '../lib/engines';
+import { useFlipUp } from '../lib/flip-up';
+import { shortName } from '../lib/presets';
 import { usePresetImport } from './ImportPresets';
 import { canShareFiles, presetBundle, presetFileName, saveFile } from '../lib/preset-files';
 
@@ -44,6 +46,7 @@ export function PresetMenu({ type, slot }: { type: PresetType; slot?: number }) 
   const share = canShareFiles();
   const mineCount = useAccount((s) => s.presets.length);
   const root = useRef<HTMLDivElement>(null);
+  const pop = useRef<HTMLDivElement>(null);
 
   const current = !selection
     ? ''
@@ -53,6 +56,8 @@ export function PresetMenu({ type, slot }: { type: PresetType; slot?: number }) 
         ? selection.process
         : selection.filaments[slot ?? 0];
   const preset = list.find((p) => p.name === current);
+  // Near the bottom of the sidebar (Process often is) the menu opens upward.
+  const up = useFlipUp(root, pop, !!mode && !!preset);
   const flavor = useSlicer((s) => s.flavor);
   const apart = useAccount((s) => s.presets.find((p) => p.type === type && p.name === current)?.engines?.apart?.length ?? 0);
   const other = engineName(flavor === 'orca' ? 'snapmaker' : 'orca');
@@ -165,12 +170,14 @@ export function PresetMenu({ type, slot }: { type: PresetType; slot?: number }) 
         ⋯
       </button>
       {mode && preset && (
-        <div className="preset-pop" role="dialog" aria-label={`${label} preset`}>
+        <div ref={pop} className={up ? 'preset-pop up' : 'preset-pop'} role="dialog" aria-label={`${label} preset`}>
           {mode.kind === 'menu' && (
             <>
-              <p className="preset-pop-title">{preset.name}</p>
+              <p className="preset-pop-title" title={preset.name}>
+                {shortName(preset.name)}
+              </p>
               <p className="account-muted">
-                {preset.user ? `Your preset, based on ${preset.inherits || 'a system preset'}.` : 'System preset.'}
+                {preset.user ? `Your preset, based on ${preset.inherits ? shortName(preset.inherits) : 'a system preset'}.` : 'System preset.'}
                 {changes > 0 && ` ${changes} unsaved change${changes === 1 ? '' : 's'}.`}
               </p>
               <div className="preset-pop-actions">

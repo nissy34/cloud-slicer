@@ -27,6 +27,13 @@ describe('heavyModel', () => {
   it('keeps some of every object, however many small ones there are', () => {
     expect(heavyModel([1_200_000, ...Array(30).fill(45_000)])!.ratio).toBe(95);
   });
+  it('counts only the plate being sliced', () => {
+    // Superman: a heavy body on one plate, two light eye pieces on another.
+    expect(heavyModel([5_000_000, 20_000, 20_000], [1, 2])).toBeNull();
+    const plan = heavyModel([5_000_000, 20_000, 20_000], [0])!;
+    expect(plan.objects).toEqual([0]);
+    expect(plan.triangles).toBe(5_000_000);
+  });
   it('writes counts for people', () => {
     expect(triangleCount(3_160_000)).toBe('3.2 million');
     expect(triangleCount(2_000_000)).toBe('2 million');

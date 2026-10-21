@@ -35,6 +35,8 @@ export function TextPanel() {
   const v = selected?.volume !== undefined ? volumes?.[selected.volume] : volumes?.length === 1 ? volumes[0] : undefined;
   const index = selected?.volume ?? 0;
   const { setTool } = useSlicer.getState();
+  // Closing the tool (Done, Esc, another tool) right after it added a text takes that text back.
+  useEffect(() => () => void useSlicer.getState().dropUnusedText(), []);
   return (
     <section className="tool-panel text-panel" aria-label="Text shape">
       <div className="tool-panel-head">
@@ -92,7 +94,8 @@ function TextFields({
   const [working, setWorking] = useState(false);
   const [more, setMore] = useState(false);
   const fileInput = useRef<HTMLInputElement>(null);
-  const applied = useRef(JSON.stringify(start));
+  // As the remake below would write it, so opening a text doesn't remake it unchanged.
+  const applied = useRef(JSON.stringify(clampStyle({ ...DEFAULT_TEXT, ...start })));
   const { textVolume, volumeAction } = useSlicer.getState();
   const missingFont = !restoring && !fonts.some((f) => f.name === style.font);
 

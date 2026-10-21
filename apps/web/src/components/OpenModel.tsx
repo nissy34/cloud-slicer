@@ -3,6 +3,7 @@ import { MODEL_EXTENSIONS } from '../lib/presets';
 import { useLoading } from '../state/loading';
 import { useProjects } from '../state/projects';
 import { useSlicer } from '../state/store';
+import { ask } from './AskDialog';
 import { LoadingOverlay } from './LoadingOverlay';
 import { ObjectMenu } from './ObjectMenu';
 import { PlateMenu } from './PlateMenu';
@@ -67,9 +68,10 @@ export function OpenModel({ children }: { children: React.ReactNode }) {
             )}
             <button
               className="ghost"
-              onClick={() => {
+              onClick={async () => {
                 const p = useProjects.getState();
-                if (!p.dirty || confirm(`Clear the plate? “${p.current.name}” has unsaved changes.`)) void p.newProject();
+                if (!p.dirty || (await ask({ title: 'Clear the plate?', text: `“${p.current.name}” has changes that aren't saved yet.`, action: 'Clear all' })))
+                  void p.newProject();
               }}
             >
               Clear all
