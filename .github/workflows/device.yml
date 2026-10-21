@@ -399,7 +399,13 @@ jobs:
           node -e "const k=require('crypto').generateKeyPairSync('ec',{namedCurve:'P-256'});const f=require('fs');f.writeFileSync('$RUNNER_TEMP/pub.json',JSON.stringify(k.publicKey.export({format:'jwk'})));f.writeFileSync('$RUNNER_TEMP/priv.json',JSON.stringify(k.privateKey.export({format:'jwk'})))"
           (cd ../device-relay && npx wrangler secret put RELAY_TEST_PUBLIC_KEY --name "$WORKER" < "$RUNNER_TEMP/pub.json")
           export RELAY_TICKET_PRIVATE_KEY="$(cat "$RUNNER_TEMP/priv.json")"
-          node test/device/relay-live.mjs '${{ steps.deploy.outputs.url }}'
+          # A new secret takes a few seconds to reach the relay; until then it turns
+          # CI's tickets away ("Sign in"). Give it up to three tries.
+          for try in 1 2 3; do
+            node test/device/relay-live.mjs '${{ steps.deploy.outputs.url }}' && break
+            [ "$try" = 3 ] && exit 1
+            sleep 15
+          done
       - uses: actions/download-artifact@v7
         if: steps.deploy.outputs.r2 == 'ok'
         with:
