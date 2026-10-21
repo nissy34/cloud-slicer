@@ -375,7 +375,7 @@ export function BridgeSetup({ relay, pasteLink }: { relay: string; pasteLink?: R
                 It installs the bridge on the printer as a service that starts with it and serves that printer. It updates itself, and it needs no computer left on.
               </span>
             </Step>
-            <Step n={3} title="Open the link it prints">
+            <Step n={3} title="Open the link shown in the terminal">
               <span>
                 Open it on this phone or computer; the printer is already on its list, so pick it and click <b>Add printer</b>. The link is also saved in Mainsail and
                 Fluidd, in the config folder, as <code>cloud-slicer-bridge-pairing.txt</code>.
