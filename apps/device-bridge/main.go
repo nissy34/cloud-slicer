@@ -254,11 +254,20 @@ func openedByHand(cfg *Config, site string, console bool) bool {
 		fmt.Printf("\nThe bridge now runs in the background and starts by itself with this computer (from %s).\n", p.copyTo)
 	}
 	fmt.Printf("To remove it from this computer: %s uninstall\n", commandFor(p.copyTo))
-	printPairing(cfg, site, true)
+	opened := printPairing(cfg, site, true)
 	if !console {
-		showMessage("Cloud Slicer Bridge", "The bridge is running. It starts by itself whenever you sign in, with no window.\n\nYour browser opened Cloud Slicer: pick your printer there.", false)
+		showMessage("Cloud Slicer Bridge", doneMessage(opened, pairingLink(cfg, site)), false)
 	}
 	return true
+}
+
+// doneMessage is what someone who double-clicked the app reads once it is set up.
+func doneMessage(browserOpened bool, link string) string {
+	text := "The bridge is running in the background. It has no window and starts by itself whenever you sign in to this computer.\n\n"
+	if browserOpened {
+		return text + "Cloud Slicer is opening in your browser: pick your printer there."
+	}
+	return text + "To pick your printer, open this link in your browser:\n" + link
 }
 
 // commandFor is how to run the installed bridge again, for messages. On Windows
