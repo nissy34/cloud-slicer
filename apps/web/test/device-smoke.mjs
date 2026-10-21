@@ -90,6 +90,10 @@ try {
   // bridge has connected: the dialog must keep listening until it comes online.
   await page.goto(`${site}#pair=${pairingCode(cfg)}`);
   await page.getByTestId('bridge-state').filter({ hasText: /Connecting to the bridge|The bridge is offline/ }).waitFor();
+  // Connecting is shown with a spinner, and a stray click outside the dialog doesn't lose the pairing.
+  await page.getByTestId('bridge-state').locator('.dv-spinner').waitFor();
+  await page.mouse.click(5, 895);
+  await page.getByRole('dialog', { name: 'Add a printer' }).getByTestId('bridge-state').waitFor({ timeout: 2000 });
   bridge = startBridge(program, config, { find: found, log: (m) => console.log(`bridge: ${m}`) });
   // One list: every printer the bridge serves or found, each with its own name, profile and API key, and one button for all.
   const printers = page.getByTestId('bridge-printers');

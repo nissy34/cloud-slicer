@@ -4461,6 +4461,41 @@ select:focus-visible {
   color: var(--dv-ok, #1f8a4c);
   font-weight: 600;
 }
+.dv-bridge-state {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  padding: 12px;
+  border-radius: 6px;
+  background: var(--surface-2);
+  border-left: 3px solid var(--accent);
+}
+.dv-bridge-state > div {
+  display: grid;
+  gap: 2px;
+  justify-items: start;
+}
+.dv-bridge-state.online {
+  border-left-color: var(--dv-ok);
+}
+.dv-bridge-state.failed {
+  border-left-color: var(--dv-warn);
+}
+.dv-bridge-state-icon {
+  flex: none;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  font-weight: 700;
+  font-size: 13px;
+  color: #fff;
+  background: var(--dv-ok);
+}
+.dv-bridge-state.failed .dv-bridge-state-icon {
+  background: var(--dv-warn);
+}
 .dv-searching {
   display: flex;
   gap: 12px;
