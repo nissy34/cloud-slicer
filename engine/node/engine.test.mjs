@@ -321,7 +321,8 @@ test('Bambu 3MF with painted colours slices with several tools', () => {
   // paint when it opens the project, and the slice prints those areas with
   // the object's filament: Prepare shows the filaments the G-code uses.
   const mesh = engine.previewMesh(0);
-  assert.ok(Math.max(...mesh.filaments) <= colours.length, `Prepare shows filament ${Math.max(...mesh.filaments)} of ${colours.length}`);
+  const highest = mesh.filaments.reduce((a, b) => Math.max(a, b), 0);
+  assert.ok(highest <= colours.length, `Prepare shows filament ${highest} of ${colours.length}`);
   const printed = info.objects.findIndex((o) => o.instances[0].printable);
   const first = [...mesh.objectTriangles].slice(0, printed).reduce((a, b) => a + b, 0);
   const shown = new Set(mesh.filaments.subarray(first, first + mesh.objectTriangles[printed]));
