@@ -20,8 +20,10 @@
       $argv = @('install', '--no-browser')
       if ($code) { $argv += @('--code', $code) }
       # The bridge writes to this window; exit status 3 means the setup code didn't work.
-      $p = Start-Process -FilePath $exe -ArgumentList $argv -NoNewWindow -Wait -PassThru
-      if ($p.ExitCode -ne 3) { break }
+      # Run it directly: Start-Process -Wait would also wait for the bridge it leaves
+      # running in the background, so this window would never finish.
+      & $exe @argv
+      if ($LASTEXITCODE -ne 3) { break }
       $code = (Read-Host 'Paste the new setup code here').Trim()
       if (-not $code) { Write-Host 'Nothing installed.'; break }
     }

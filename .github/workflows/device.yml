@@ -239,6 +239,21 @@ jobs:
           if reg query 'HKCU\Software\Microsoft\Windows\CurrentVersion\Run' //v CloudSlicerBridge 2>/dev/null; then echo "Still starts at sign-in"; exit 1; fi
           if [ -e "$dir" ]; then ls -la "$dir"; echo "Files left behind"; exit 1; fi
           if [ -e "$USERPROFILE/.cloud-slicer-bridge.json" ]; then echo "Settings left behind"; exit 1; fi
+      - name: The PowerShell install line finishes (it doesn't wait for the bridge it leaves running)
+        timeout-minutes: 3
+        run: |
+          # The app served from a local "relay"; the bridge itself gets a relay that can't be reached.
+          mkdir -p "$RUNNER_TEMP/site/download" && cp "$RUNNER_TEMP/bridge.exe" "$RUNNER_TEMP/site/download/windows-x64"
+          (cd "$RUNNER_TEMP/site" && python -m http.server 8790 >/dev/null 2>&1 &)
+          for i in $(seq 1 20); do curl -fsS -o /dev/null http://127.0.0.1:8790/download/windows-x64 && break; sleep 1; done
+          sed -e 's#__RELAY_URL__#http://127.0.0.1:8790#' -e 's#__SETUP_CODE__##' \
+            -e "s#@('install', '--no-browser')#@('install', '--no-browser', '--relay', 'http://127.0.0.1:9')#" \
+            apps/device-bridge/install.ps1 > "$RUNNER_TEMP/install.ps1"
+          grep -qF "'--relay', 'http://127.0.0.1:9'" "$RUNNER_TEMP/install.ps1"
+          # Windows PowerShell, as people have it; it must come back on its own.
+          timeout 90 powershell -NoProfile -ExecutionPolicy Bypass -Command "Get-Content -Raw '$RUNNER_TEMP/install.ps1' | Invoke-Expression"
+          tasklist //FI 'IMAGENAME eq cloud-slicer-bridge.exe' | grep cloud-slicer-bridge
+          "$LOCALAPPDATA/Cloud Slicer Bridge/cloud-slicer-bridge.exe" uninstall
       - uses: actions/upload-artifact@v6
         with:
           name: bridge-app-windows
