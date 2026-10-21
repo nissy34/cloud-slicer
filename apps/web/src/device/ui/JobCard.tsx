@@ -2,8 +2,10 @@ import { useEffect, useMemo, useState } from 'react';
 import { formatDuration } from '../../lib/format';
 import { currentSession, useDevice } from '../../state/device';
 import { job as jobOf, klippyMessage, klippyState, remainingSeconds } from '../status';
+import { printObjects } from '../objects';
 import type { PrinterError } from '../addons';
 import { Card, useConfirm } from './parts';
+import { SkipObjectsDialog } from './SkipObjects';
 
 const STATE_LABEL: Record<string, string> = {
   standby: 'Ready',
@@ -21,6 +23,8 @@ export function JobCard() {
   const call = useDevice((s) => s.call);
   const openPrintDialog = useDevice((s) => s.openPrintDialog);
   const j = useMemo(() => jobOf(objects), [objects]);
+  const parts = useMemo(() => printObjects(objects), [objects]);
+  const [skipping, setSkipping] = useState(false);
   const klippy = klippyState(objects);
   const activity = addons.map((a) => a.activity?.(objects)).find(Boolean) ?? null;
   const [estimate, setEstimate] = useState<number | null>(null);
@@ -38,6 +42,11 @@ export function JobCard() {
   const active = j.state === 'printing' || j.state === 'paused';
   const remaining = remainingSeconds(j, estimate);
   const pct = Math.round(j.progress * 100);
+  const printingNow = parts.objects.find((o) => o.current && !o.skipped);
+  const canSkip = active && parts.objects.length > 0;
+  // Klipper learns the objects from the top of the file, so only say they are
+  // missing once the print is under way.
+  const noObjectList = active && parts.supported && !parts.objects.length && (j.layer != null ? j.layer >= 1 : j.progress > 0.02);
 
   if (klippy !== 'ready') {
     return (
@@ -96,6 +105,12 @@ export function JobCard() {
                 </dd>
               </div>
             )}
+            {active && printingNow && (
+              <div>
+                <dt>Printing</dt>
+                <dd data-testid="printing-object">{printingNow.label}</dd>
+              </div>
+            )}
           </dl>
         </>
       ) : (
@@ -104,6 +119,11 @@ export function JobCard() {
         </p>
       )}
       {j.message && active && <p className="muted">{j.message}</p>}
+      {noObjectList && (
+        <p className="dv-note dv-job-note" data-testid="no-object-list">
+          This file has no object list, so objects can't be skipped. Files sliced here always have one.
+        </p>
+      )}
       <div className="dv-row">
         {j.state === 'printing' && (
           <button className="secondary" onClick={() => void call('Pausing', (s) => s.pause())}>
@@ -113,6 +133,11 @@ export function JobCard() {
         {j.state === 'paused' && (
           <button className="primary" onClick={() => void call('Resuming', (s) => s.resume())}>
             Resume
+          </button>
+        )}
+        {canSkip && (
+          <button className="secondary" onClick={() => setSkipping(true)}>
+            Skip objects…
           </button>
         )}
         {active && (
@@ -137,6 +162,7 @@ export function JobCard() {
         )}
       </div>
       {dialog}
+      {skipping && canSkip && <SkipObjectsDialog objects={parts.objects} onClose={() => setSkipping(false)} />}
     </Card>
   );
 }
