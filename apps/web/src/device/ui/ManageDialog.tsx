@@ -69,6 +69,9 @@ function BridgeCard({ b, onLeftover }: { b: SavedBridge; onLeftover: (l: Leftove
   const [asking, setAsking] = useState(false);
   const [busy, setBusy] = useState(false);
   const [problem, setProblem] = useState('');
+  const [latest, setLatest] = useState(0);
+  const [updating, setUpdating] = useState<'' | 'asking' | 'restarting'>('');
+  const [updateProblem, setUpdateProblem] = useState('');
 
   useEffect(() => {
     let w: BridgeWatch | null = null;
@@ -92,7 +95,38 @@ function BridgeCard({ b, onLeftover }: { b: SavedBridge; onLeftover: (l: Leftove
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pairing, status?.host, status?.system]);
 
+  // The newest bridge the relay has, to offer an update to an older one (bridges also update themselves every few hours).
+  useEffect(() => {
+    if (!pairing) return;
+    let live = true;
+    fetch(`${pairing.relay}/downloads.json`)
+      .then((r) => (r.ok ? r.json() : {}))
+      .then((d: { build?: number }) => live && setLatest(Number(d.build) || 0))
+      .catch(() => {});
+    return () => {
+      live = false;
+    };
+  }, [pairing]);
+
   const online = status?.agent === 'online';
+  const built = Number(status?.build) || 0;
+  const outdated = online && built > 0 && latest > built;
+  // The bridge came back on the new version.
+  useEffect(() => {
+    if (updating === 'restarting' && !outdated) setUpdating('');
+  }, [updating, outdated]);
+  const update = async () => {
+    if (!watch) return;
+    setUpdating('asking');
+    setUpdateProblem('');
+    try {
+      const r = (await watch.manage('bridge.update', {})) as { updating?: boolean };
+      setUpdating(r.updating ? 'restarting' : '');
+    } catch (e) {
+      setUpdating('');
+      setUpdateProblem((e as Error).message);
+    }
+  };
   const selfRemoving = online && Number(status?.version) >= SELF_REMOVING_FROM;
   const remove = async () => {
     setBusy(true);
@@ -120,6 +154,23 @@ function BridgeCard({ b, onLeftover }: { b: SavedBridge; onLeftover: (l: Leftove
           </span>
         </span>
       </div>
+      {(outdated || updating === 'restarting') && (
+        <div className="dv-manage-update" data-testid="manage-bridge-update-row">
+          <span className="muted">
+            {updating === 'restarting' ? 'Updating: the bridge restarts on the new version in a moment.' : 'A new version of the bridge is ready. It also updates by itself within a few hours.'}
+          </span>
+          {updating !== 'restarting' && (
+            <button className="secondary" disabled={updating === 'asking'} onClick={() => void update()} data-testid="manage-bridge-update">
+              {updating === 'asking' ? 'Downloading…' : 'Update now'}
+            </button>
+          )}
+          {updateProblem && (
+            <p className="dv-alert" role="alert">
+              {updateProblem}
+            </p>
+          )}
+        </div>
+      )}
       {printers.length ? (
         <ul className="dv-manage-list">
           {printers.map((p) => (

@@ -13,6 +13,13 @@ landed (PRs #13, #16, #25, #29).
 | Bridge (`apps/device-bridge`) | An always-on computer on your network | Connects **out** to the relay, opens Moonraker websockets to the printer for each browser, answers `bridge.snapshot` / `bridge.upload_*` itself |
 | Printer | Your network | Moonraker; never exposed to the internet, no router port opened |
 
+Bridge updates: the installed bridge updates itself only to a build signed with
+an ed25519 key that exists only as a GitHub Actions secret (`BRIDGE_SIGNING_KEY`).
+The public half is built into the bridge, and each signature covers the download
+name, the build number and the file's SHA-256. Whoever controls the relay, its R2
+bucket or the Cloudflare token can't push code to bridges, or roll them back to
+an older build. Details: [../device-bridge/README.md](../device-bridge/README.md#updates).
+
 Pairing:
 
 1. On first run the bridge makes a random **bridge id** (96 bits) and **secret

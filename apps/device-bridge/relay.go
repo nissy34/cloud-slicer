@@ -23,6 +23,10 @@ type bridgeOptions struct {
 	onReplaced func()
 	// uninstall removes the bridge from this computer when the Device tab asks; nil if it can't.
 	uninstall func()
+	// autoUpdate: check for and install new versions (the copy that starts with the computer).
+	autoUpdate bool
+	// onConnected runs each time the relay has taken the hello.
+	onConnected func()
 }
 
 // Bridge is the connection to the relay and every browser session over it.
@@ -59,6 +63,9 @@ func runBridge(cfg *Config, opts bridgeOptions) *Bridge {
 	ctx, cancel := context.WithCancel(context.Background())
 	b := &Bridge{cfg: cfg, opts: opts, ctx: ctx, cancel: cancel, sessions: map[string]*Session{}}
 	go b.loop()
+	if opts.autoUpdate {
+		go b.autoUpdate()
+	}
 	return b
 }
 
@@ -112,7 +119,7 @@ func shortHost() string {
 }
 
 func (b *Bridge) hello() {
-	b.toRelay(map[string]any{"ctl": "hello", "version": version, "system": goosName(), "app": true, "host": shortHost(), "printers": b.cfg.printerList()})
+	b.toRelay(map[string]any{"ctl": "hello", "version": version, "build": build, "system": goosName(), "host": shortHost(), "printers": b.cfg.printerList()})
 }
 
 func (b *Bridge) loop() {
@@ -135,11 +142,13 @@ func (b *Bridge) loop() {
 			}
 			return
 		}
-		if code == 4003 {
-			b.opts.log("The relay refused this bridge: " + reason)
-		}
 		delay := time.Duration(math.Min(60_000, 2000*math.Pow(2, math.Min(float64(retries), 5)))) * time.Millisecond
 		retries++
+		// Refused (blocked, or never paired with a signed-in account): asking again soon won't change that.
+		if code == 4003 {
+			b.opts.log("The relay refused this bridge: " + reason)
+			delay = 10 * time.Minute
+		}
 		why := ""
 		if reason != "" {
 			why = " (" + reason + ")"
@@ -176,6 +185,9 @@ func (b *Bridge) connectOnce() (code int, reason string, connected bool) {
 	}
 	b.opts.log(fmt.Sprintf("Connected to the relay (%s). Serving: %s", b.cfg.Relay, serving))
 	b.hello()
+	if b.opts.onConnected != nil {
+		b.opts.onConnected()
+	}
 
 	for {
 		_, data, err := ws.Read(b.ctx)
@@ -362,6 +374,22 @@ func (b *Bridge) manage(method string, params json.RawMessage) (any, error) {
 		b.opts.log("Removed " + printer.Name + " from the Device tab.")
 		b.hello()
 		return map[string]any{"removed": true}, nil
+	case "bridge.update":
+		b.opts.log("Asked from the Device tab to update.")
+		u, err := b.prepareUpdate()
+		if errors.Is(err, errUpToDate) {
+			return map[string]any{"upToDate": true}, nil
+		}
+		if err != nil {
+			return nil, err
+		}
+		// Answer first, then restart into it.
+		time.AfterFunc(300*time.Millisecond, func() {
+			if err := b.applyUpdate(u); err != nil {
+				b.opts.log("Update: " + err.Error())
+			}
+		})
+		return map[string]any{"updating": true, "build": u.build}, nil
 	case "bridge.uninstall":
 		if b.opts.uninstall == nil {
 			return nil, errors.New("This bridge can't remove itself: remove it on its computer.")

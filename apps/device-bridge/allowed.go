@@ -11,8 +11,6 @@ import (
 // users (access.*), the sudo password and system updates (machine.*), or
 // moving files into the config folder. A new Device tab feature that needs
 // another call adds it here, and older bridges say they need an update.
-//
-// Keep in step with ALLOWED in bridge.mjs until the Node.js bridge is retired.
 var allowed = map[string]bool{
 	"printer.info":              true,
 	"server.info":               true,

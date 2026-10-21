@@ -40,23 +40,19 @@ jobs:
             apps/web/package-lock.json
             apps/device-relay/package-lock.json
 
-      - name: Bridge agent tests
-        working-directory: apps/device-bridge
-        run: npm test
-
       - uses: actions/setup-go@v6
         with:
           go-version-file: apps/device-bridge/go.mod
           cache-dependency-path: apps/device-bridge/go.sum
 
-      - name: Go bridge tests, and builds for every printer chip (x64, arm64, armv7, MIPS)
+      - name: Bridge tests, and builds for every Linux chip (x64, arm64, armv7, MIPS) and Windows
         working-directory: apps/device-bridge
         run: |
-          go vet ./...
+          for os in linux windows darwin; do GOOS=$os go vet ./...; done
           test -z "$(gofmt -l .)" || { gofmt -l .; echo "Run gofmt -w on these files"; exit 1; }
           go test -race -count=1 ./...
           ./build.sh
-          ./dist/go/linux-x64 version
+          ./dist/linux-x64 version
 
       - name: Relay typecheck
         working-directory: apps/device-relay
@@ -77,23 +73,17 @@ jobs:
       - name: Device end to end (browser -> relay -> bridge -> mock U1, and direct)
         working-directory: apps/web
         timeout-minutes: 15
+        env:
+          CLOUD_SLICER_BRIDGE_BIN: ${{ github.workspace }}/apps/device-bridge/dist/linux-x64
         run: node test/device-smoke.mjs device-shots
 
-      - uses: oven-sh/setup-bun@v2
-        with:
-          bun-version: 1.4.2
-
-      - name: Bridge apps build, and the Linux ones (Bun and Go) serve the mock U1 through a local relay
-        working-directory: apps/device-bridge
+      - name: The Linux bridge serves the mock U1 through a local relay (uploads, refusals, wrong keys)
+        working-directory: apps/device-relay
         run: |
-          ./build-apps.sh
-          ./dist/linux-x64 version
-          cd ../device-relay
           npx wrangler dev --port 8797 --ip 127.0.0.1 > wrangler.log 2>&1 &
           for i in $(seq 1 60); do curl -fsS -o /dev/null http://127.0.0.1:8797/ && break; sleep 1; done
           cd ../web
           node test/device/relay-live.mjs http://127.0.0.1:8797 --app ../device-bridge/dist/linux-x64
-          node test/device/relay-live.mjs http://127.0.0.1:8797 --app ../device-bridge/dist/go/linux-x64
 
       - name: Relay with accounts (tickets, camera cap, blocking) on a local relay
         working-directory: apps/device-relay
@@ -102,7 +92,7 @@ jobs:
           npx wrangler dev --port 8798 --ip 127.0.0.1 --persist-to "$RUNNER_TEMP/relay-accounts" --var "RELAY_TICKET_PUBLIC_KEY:$(cat "$RUNNER_TEMP/pub.json")" > wrangler-accounts.log 2>&1 &
           for i in $(seq 1 60); do curl -fsS -o /dev/null http://127.0.0.1:8798/ && break; sleep 1; done
           cd ../web
-          RELAY_TICKET_PRIVATE_KEY="$(cat "$RUNNER_TEMP/priv.json")" node test/device/relay-live.mjs http://127.0.0.1:8798
+          RELAY_TICKET_PRIVATE_KEY="$(cat "$RUNNER_TEMP/priv.json")" node test/device/relay-live.mjs http://127.0.0.1:8798 --app ../device-bridge/dist/linux-x64
 
       - uses: actions/upload-artifact@v6
         if: always()
@@ -110,9 +100,9 @@ jobs:
           name: device-screenshots
           path: apps/web/device-shots
 
-  # bun can set an .exe's icon only on Windows, and only macOS can sign the
-  # Mac app (ad hoc, free), so those two apps build on their own runners
-  # (free for a public repo). The Linux apps build in test and deploy-relay.
+  # The Windows app is checked on Windows (starts with sign-in, no window,
+  # removes itself) and the Mac apps are built on macOS, the only place they
+  # can be signed (ad hoc, free). Free runners for a public repo.
   apps-windows:
     runs-on: windows-latest
     timeout-minutes: 15
@@ -121,25 +111,40 @@ jobs:
         shell: bash
     steps:
       - uses: actions/checkout@v5
-      - uses: oven-sh/setup-bun@v2
+      - uses: actions/setup-go@v6
         with:
-          bun-version: 1.4.2
+          go-version-file: apps/device-bridge/go.mod
+          cache-dependency-path: apps/device-bridge/go.sum
       - name: Build the Windows app with its icon
         working-directory: apps/device-bridge
+        env:
+          # Builds the update key's public half into the app (tools/release); without it the app never updates itself.
+          BRIDGE_SIGNING_KEY: ${{ secrets.BRIDGE_SIGNING_KEY }}
         run: |
-          ./build-apps.sh windows
+          ./build.sh windows-x64
           cp dist/windows-x64 "$RUNNER_TEMP/bridge.exe"
           "$RUNNER_TEMP/bridge.exe" version
-          # At sign-in the bridge starts with --background, which starts it again with no window: check that copy runs.
-          "$RUNNER_TEMP/bridge.exe" pair --config "$(cygpath -w "$RUNNER_TEMP/background.json")" --background
-          for i in $(seq 1 20); do [ -s "$RUNNER_TEMP/background.json" ] && break; sleep 1; done
-          test -s "$RUNNER_TEMP/background.json"
       - name: The app carries its name (so its icon and version resources went in)
         shell: pwsh
         run: |
           $info = (Get-Item "$env:RUNNER_TEMP/bridge.exe").VersionInfo
           $info | Format-List ProductName, FileDescription, FileVersion
           if ($info.ProductName -ne 'Cloud Slicer Bridge') { throw "No version resources in the app" }
+      - name: Install starts it in the background and at sign-in; uninstall removes all of it
+        run: |
+          "$RUNNER_TEMP/bridge.exe" install --no-browser
+          reg query 'HKCU\Software\Microsoft\Windows\CurrentVersion\Run' //v CloudSlicerBridge
+          dir="$LOCALAPPDATA/Cloud Slicer Bridge"
+          test -x "$dir/cloud-slicer-bridge.exe"
+          for i in $(seq 1 20); do tasklist //FI 'IMAGENAME eq cloud-slicer-bridge.exe' | grep -q cloud-slicer-bridge && break; sleep 1; done
+          tasklist //FI 'IMAGENAME eq cloud-slicer-bridge.exe' | grep cloud-slicer-bridge
+          "$dir/cloud-slicer-bridge.exe" uninstall
+          # The folder goes just after the program exits (Windows can't delete a running program).
+          for i in $(seq 1 15); do [ -e "$dir" ] || break; sleep 1; done
+          if tasklist //FI 'IMAGENAME eq cloud-slicer-bridge.exe' | grep -q cloud-slicer-bridge; then echo "The bridge still runs"; exit 1; fi
+          if reg query 'HKCU\Software\Microsoft\Windows\CurrentVersion\Run' //v CloudSlicerBridge 2>/dev/null; then echo "Still starts at sign-in"; exit 1; fi
+          if [ -e "$dir" ]; then ls -la "$dir"; echo "Files left behind"; exit 1; fi
+          if [ -e "$USERPROFILE/.cloud-slicer-bridge.json" ]; then echo "Settings left behind"; exit 1; fi
       - uses: actions/upload-artifact@v6
         with:
           name: bridge-app-windows
@@ -151,13 +156,16 @@ jobs:
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v5
-      - uses: oven-sh/setup-bun@v2
+      - uses: actions/setup-go@v6
         with:
-          bun-version: 1.4.2
+          go-version-file: apps/device-bridge/go.mod
+          cache-dependency-path: apps/device-bridge/go.sum
       - name: Build the Mac apps (Cloud Slicer Bridge.app, with its icon, signed ad hoc)
         working-directory: apps/device-bridge
+        env:
+          BRIDGE_SIGNING_KEY: ${{ secrets.BRIDGE_SIGNING_KEY }}
         run: |
-          ./build-apps.sh mac
+          ./build.sh mac
           mkdir -p "$RUNNER_TEMP/app" && cd "$RUNNER_TEMP/app" && unzip -q "$GITHUB_WORKSPACE/apps/device-bridge/dist/mac-arm64"
           app="$RUNNER_TEMP/app/Cloud Slicer Bridge.app"
           codesign --verify --deep --strict --verbose=2 "$app"
@@ -191,16 +199,17 @@ jobs:
           cache-dependency-path: |
             apps/web/package-lock.json
             apps/device-relay/package-lock.json
-      - uses: oven-sh/setup-bun@v2
+      - uses: actions/setup-go@v6
         with:
-          bun-version: 1.4.2
+          go-version-file: apps/device-bridge/go.mod
+          cache-dependency-path: apps/device-bridge/go.sum
       - name: Deploy the relay Worker
         if: env.CLOUDFLARE_API_TOKEN != '' && env.CLOUDFLARE_ACCOUNT_ID != ''
         working-directory: apps/device-relay
         run: |
           npm ci --no-audit --no-fund
           # The bridge apps live in R2. Without R2 (not turned on, or the token
-          # lacks "Workers R2 Storage: Edit") the relay offers only bridge.mjs.
+          # lacks "Workers R2 Storage: Edit") the relay offers no downloads.
           if npx wrangler r2 bucket list | grep -q 'cloud-slicer-bridge' || npx wrangler r2 bucket create cloud-slicer-bridge; then
             echo "r2=ok" >> "$GITHUB_OUTPUT"
           else
@@ -210,27 +219,9 @@ jobs:
           npx wrangler deploy | tee deploy.log
           url=$(grep -Eo 'https://[^ ]+\.workers\.dev' deploy.log | tail -1)
           echo "### Relay: $url" >> "$GITHUB_STEP_SUMMARY"
-          curl -fsS "$url/" && curl -fsS "$url/bridge.mjs" | grep -q runBridge
+          curl -fsS "$url/"
           echo "url=$url" >> "$GITHUB_OUTPUT"
         id: deploy
-      - uses: actions/download-artifact@v7
-        if: steps.deploy.outputs.r2 == 'ok'
-        with:
-          pattern: bridge-app-*
-          path: apps/device-bridge/dist
-          merge-multiple: true
-      - name: Build the bridge apps and upload them to R2
-        if: steps.deploy.outputs.r2 == 'ok'
-        working-directory: apps/device-bridge
-        run: |
-          ./build-apps.sh linux
-          for name in windows-x64 mac-arm64 mac-x64 linux-x64 linux-arm64; do
-            (cd ../device-relay && npx wrangler r2 object put "cloud-slicer-bridge/bridge/$name" --file "../device-bridge/dist/$name" --remote --content-type application/octet-stream)
-          done
-          curl -fsS '${{ steps.deploy.outputs.url }}/downloads.json' | tee /dev/stderr | grep -q '"linux-arm64"'
-          curl -fsS '${{ steps.deploy.outputs.url }}/install.sh' > "$RUNNER_TEMP/install.sh"
-          grep -qF 'RELAY="${{ steps.deploy.outputs.url }}"' "$RUNNER_TEMP/install.sh"
-          grep -qF '/download/$os-$arch' "$RUNNER_TEMP/install.sh"
       - name: Check the deployed relay end to end (mock printer, no browser)
         if: steps.deploy.outputs.url != ''
         working-directory: apps/web
@@ -243,6 +234,33 @@ jobs:
           (cd ../device-relay && npx wrangler secret put RELAY_TEST_PUBLIC_KEY < "$RUNNER_TEMP/pub.json")
           export RELAY_TICKET_PRIVATE_KEY="$(cat "$RUNNER_TEMP/priv.json")"
           node test/device/relay-live.mjs '${{ steps.deploy.outputs.url }}'
-          if [ -x ../device-bridge/dist/linux-x64 ]; then
-            node test/device/relay-live.mjs '${{ steps.deploy.outputs.url }}' --app ../device-bridge/dist/linux-x64
+      - uses: actions/download-artifact@v7
+        if: steps.deploy.outputs.r2 == 'ok'
+        with:
+          pattern: bridge-app-*
+          path: apps/device-bridge/dist
+          merge-multiple: true
+      - name: Build the bridge apps and upload them to R2
+        if: steps.deploy.outputs.r2 == 'ok'
+        working-directory: apps/device-bridge
+        env:
+          BRIDGE_SIGNING_KEY: ${{ secrets.BRIDGE_SIGNING_KEY }}
+        run: |
+          # The Linux builds here; Windows and Mac came from their own jobs.
+          ./build.sh linux-x64 linux-arm64 linux-armv7 linux-mipsle
+          for name in windows-x64 mac-arm64 mac-x64 linux-x64 linux-arm64 linux-armv7 linux-mipsle; do
+            (cd ../device-relay && npx wrangler r2 object put "cloud-slicer-bridge/bridge/$name" --file "../device-bridge/dist/$name" --remote --content-type application/octet-stream)
+          done
+          # Last, the signed release the installed bridges update themselves from: only
+          # after every file is up and the new relay passed its live check above.
+          if [ -n "$BRIDGE_SIGNING_KEY" ]; then
+            go run ./tools/release sign "$(git log -1 --format=%ct)" dist
+            (cd ../device-relay && npx wrangler r2 object put cloud-slicer-bridge/bridge/release.json --file ../device-bridge/dist/release.json --remote --content-type application/json)
+            curl -fsS '${{ steps.deploy.outputs.url }}/bridge-release.json' | grep -q '"linux-arm64"'
+          else
+            echo "::warning::No BRIDGE_SIGNING_KEY secret: bridges won't update themselves"
           fi
+          curl -fsS '${{ steps.deploy.outputs.url }}/downloads.json' | tee /dev/stderr | grep -q '"linux-arm64"'
+          curl -fsS '${{ steps.deploy.outputs.url }}/install.sh' > "$RUNNER_TEMP/install.sh"
+          grep -qF 'RELAY="${{ steps.deploy.outputs.url }}"' "$RUNNER_TEMP/install.sh"
+          grep -qF '/download/$os-$arch' "$RUNNER_TEMP/install.sh"

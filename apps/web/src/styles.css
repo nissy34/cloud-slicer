@@ -4233,6 +4233,20 @@ select:focus-visible {
   justify-content: space-between;
   flex-wrap: wrap;
 }
+.dv-manage-update {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 8px 10px;
+  border-radius: 6px;
+  background: var(--surface-2);
+}
+.dv-manage-update .dv-alert {
+  flex-basis: 100%;
+  margin: 0;
+}
 .dv-manage-confirm {
   display: grid;
   gap: 8px;

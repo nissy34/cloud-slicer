@@ -87,16 +87,17 @@ access the site deploys without accounts or without online projects.
 
 Runs when the Device tab, the bridge, the relay, or shared top-bar files change.
 
-- On every run: bridge unit tests, relay typecheck, web unit tests and build, the
-  Device tab end to end (`apps/web/test/device-smoke.mjs`: browser → local relay →
-  bridge → mock U1, and direct to a mock Klipper printer), and the bridge apps built
-  with Bun: the Linux apps here, with the Linux app serving the mock U1 through a local
-  relay; the Windows app on a Windows runner (Bun sets an .exe's icon only there) and the
-  Mac app on a macOS runner (to build and ad-hoc sign `Cloud Slicer Bridge.app`).
+- On every run: the Go bridge's vet, gofmt and tests, and its builds for every Linux
+  chip and Windows; relay typecheck, web unit tests and build; the Device tab end to
+  end with the real Linux bridge (`apps/web/test/device-smoke.mjs`: browser → local relay →
+  bridge → mock U1, and direct to a mock Klipper printer), and the same bridge serving
+  the mock U1 through a local relay (`relay-live.mjs`). The Windows app is checked on a
+  Windows runner (install starts it at sign-in with no window, uninstall removes it all)
+  and the Mac apps are built on a macOS runner (to ad-hoc sign `Cloud Slicer Bridge.app`).
 - On `main` only: deploys the relay Worker (one shared Worker, so a PR must never
   deploy it), gathers the bridge apps from all three runners and uploads them to the R2 bucket
-  `cloud-slicer-bridge`, then checks the live relay end to end with the script and the
-  Linux app against a mock printer.
+  `cloud-slicer-bridge`, then checks the live relay end to end with the Linux bridge
+  against a mock printer.
 
 ## When a check fails at once
 
