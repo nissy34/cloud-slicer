@@ -11,9 +11,11 @@
 //	cloud-slicer-bridge list | remove <name> | pair [--open] | version
 //	cloud-slicer-bridge install | uninstall  # start with this computer, or remove it from it
 //	cloud-slicer-bridge run [--no-browser]   # just run, in this terminal
+//	cloud-slicer-bridge install-printer      # on a Klipper printer, as root: a service that serves it
 //
 // Options: --config <file> (default ~/.cloud-slicer-bridge.json),
-// --relay <url>, --site <url> (where pairing links point).
+// --relay <url>, --site <url> (where pairing links point),
+// --printer-data <folder> (install-printer and uninstall on a printer with more than one).
 //
 // One small file per system and chip, with nothing else to install:
 // see build.sh. Part of Cloud Slicer (AGPL-3.0): https://github.com/nissy34/cloud-slicer
@@ -26,6 +28,7 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
+	"path/filepath"
 	"runtime"
 	"strings"
 	"syscall"
@@ -92,6 +95,34 @@ func run(argv []string, console bool) error {
 	if cmd == "version" {
 		fmt.Printf("%s (build %s %s)\n", version, build, target)
 		return nil
+	}
+	// On a printer the settings live with the program in printer_data, not in a home folder.
+	if cmd == "install-printer" {
+		p, cfg, err := installOnPrinter(opts["printer-data"], opts["relay"])
+		if err != nil {
+			return err
+		}
+		fmt.Printf("The bridge now runs on this printer (from %s) and starts with it.\n", p.dir)
+		if len(cfg.Printers) > 0 {
+			fmt.Printf("It serves %s.\n", cfg.Printers[0].Name)
+		}
+		fmt.Printf("To remove it: sudo %s uninstall, or Remove bridge in the Device tab.\n", p.exe)
+		fmt.Printf("The pairing link is also in Mainsail and Fluidd, in the config folder: %s\n", filepath.Base(p.pairing))
+		printPairing(cfg, opts["site"], false)
+		return nil
+	}
+	if cmd == "uninstall" {
+		if p, ok := printerInstall(opts["printer-data"]); ok {
+			if os.Geteuid() != 0 {
+				return errors.New("Removing the bridge from the printer needs root: run it with sudo.")
+			}
+			if err := uninstallFromPrinter(p, false); err != nil {
+				return err
+			}
+			fmt.Println("Removed the bridge from this printer: its service, program, printers and pairing are gone.")
+			fmt.Println("Remove it from the Device tab too (Printers & bridges).")
+			return nil
+		}
 	}
 	cfg, err := loadConfig(path, opts["relay"])
 	if err != nil {
@@ -248,6 +279,11 @@ func uninstallFromDeviceTab(configPath string) {
 	if marker := os.Getenv("CLOUD_SLICER_BRIDGE_TEST_UNINSTALL"); marker != "" {
 		_ = os.WriteFile(marker, []byte("uninstall"), 0o644)
 		os.Exit(0)
+	}
+	if p, ok := installedOnPrinter(); ok {
+		// The helper stops the service, which stops this bridge too.
+		_ = uninstallFromPrinter(p, true)
+		select {}
 	}
 	selfUninstall(configPath)
 }

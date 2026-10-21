@@ -467,6 +467,11 @@ try {
   if (shots) await setup.screenshot({ path: join(shots, 'bridge-setup.png') });
   await setup.getByRole('tab', { name: 'Mac' }).click();
   await setup.getByTestId('bridge-steps-mac').getByTestId('bridge-install-command').filter({ hasText: `curl -fsSL ${liveRelay}/install.sh | sh` }).waitFor();
+  // Or on the printer itself: one line over SSH.
+  await setup.getByRole('tab', { name: 'On the printer' }).click();
+  await setup.getByTestId('bridge-steps-printer').getByTestId('bridge-printer-command').filter({ hasText: `curl -fsSL ${liveRelay}/install.sh | sh -s -- --printer` }).waitFor();
+  if (shots) await setup.screenshot({ path: join(shots, 'bridge-setup-printer.png') });
+  await setup.getByRole('tab', { name: 'Mac' }).click();
   await setup.getByText('Rather download the Mac app?').click();
   await setup.getByTestId('bridge-download-mac').waitFor();
   // A pairing link pasted by hand works too, for when the page opened on another computer.

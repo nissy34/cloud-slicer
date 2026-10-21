@@ -57,6 +57,8 @@ function PrinterRow({ p, pairing }: { p: SavedPrinter; pairing?: Pairing | null 
 interface Leftover {
   name: string;
   system?: string;
+  place?: string;
+  relay?: string;
 }
 
 /** One bridge: whether it's running, its printers, and adding to or removing it. */
@@ -141,7 +143,7 @@ function BridgeCard({ b, onLeftover }: { b: SavedBridge; onLeftover: (l: Leftove
       }
     }
     await removeBridge(b.id);
-    if (!gone) onLeftover({ name: b.name, system: status?.system });
+    if (!gone) onLeftover({ name: b.name, system: status?.system, place: status?.place, relay: pairing?.relay });
   };
 
   return (
@@ -259,7 +261,7 @@ export function ManageDialog() {
             <p>
               <strong>{l.name}</strong> was removed from Cloud Slicer. It wasn't running, so remove it from its computer too:
             </p>
-            <UninstallBridge system={l.system} />
+            <UninstallBridge system={l.system} place={l.place} relay={l.relay} />
           </div>
         ))}
         <h3 className="dv-manage-title">Bridges</h3>

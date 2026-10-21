@@ -265,6 +265,7 @@ Setting up a home printer, from the Device tab's "Add a printer":
 |---|---|
 | Windows | Download the app and open it ("Windows protected your PC": More info, then Run anyway) |
 | macOS, Linux, Raspberry Pi (64 and 32-bit), Creality K1 (MIPS) | `curl -fsSL https://cloud-slicer-relay.nissy34.workers.dev/install.sh \| sh` in Terminal |
+| On the printer itself (any Klipper printer) | the same line with `sh -s -- --printer`, over SSH |
 
 The bridge asks nothing: it starts with the computer (Windows and macOS at login,
 Linux at boot) and opens a pairing link, and the Device tab then searches the

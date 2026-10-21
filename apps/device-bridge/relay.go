@@ -119,7 +119,12 @@ func shortHost() string {
 }
 
 func (b *Bridge) hello() {
-	b.toRelay(map[string]any{"ctl": "hello", "version": version, "build": build, "system": goosName(), "host": shortHost(), "printers": b.cfg.printerList()})
+	msg := map[string]any{"ctl": "hello", "version": version, "build": build, "system": goosName(), "host": shortHost(), "printers": b.cfg.printerList()}
+	// On the printer itself, so the Device tab's help fits (restart the printer, not a computer).
+	if _, ok := installedOnPrinter(); ok {
+		msg["place"] = "printer"
+	}
+	b.toRelay(msg)
 }
 
 func (b *Bridge) loop() {

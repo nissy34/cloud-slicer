@@ -19,6 +19,8 @@ export interface BridgeStatus {
   version?: string;
   /** When the bridge was built (the commit's Unix time); "0" or missing for a build that doesn't update itself. */
   build?: string;
+  /** 'printer' when the bridge runs on the printer's own Klipper computer. */
+  place?: 'printer';
   /** The bridge computer's system (win32, darwin, linux). */
   system?: string;
   /** The bridge computer's name (bridges from this build on). */
