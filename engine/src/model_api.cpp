@@ -7,6 +7,9 @@
 
 #include "libslic3r/BoundingBox.hpp"
 #include "libslic3r/Geometry.hpp"
+#if ENGINE_HAS_MIXING
+#include "libslic3r/MixedFilament.hpp"
+#endif
 #include "libslic3r/Preset.hpp"
 #include "libslic3r/TriangleSelector.hpp"
 
@@ -185,6 +188,23 @@ using namespace engine;
 
 namespace {
 
+// Physical filaments in a project's settings plus its enabled colour mixes
+// (numbered after them); 0 when the settings list no filaments.
+size_t filamentCount(const DynamicPrintConfig& cfg) {
+    const auto* colours = cfg.option<ConfigOptionStrings>("filament_colour");
+    if (!colours || colours->values.empty()) return 0;
+    const size_t physical = colours->values.size();
+#if ENGINE_HAS_MIXING
+    MixedFilamentManager mixes;
+    mixes.auto_generate(colours->values);
+    const auto* defs = cfg.option<ConfigOptionString>("mixed_filament_definitions");
+    mixes.load_custom_entries(defs ? defs->value : std::string(), colours->values);
+    return mixes.total_filaments(physical);
+#else
+    return physical;  // this engine has no mixed filaments
+#endif
+}
+
 // Load a model file into the project.
 //   path: file in the wasm FS. Geometry files (STL, OBJ, AMF, STEP) are added
 //   to the current project on plate `plate`; a 3MF replaces the project.
@@ -217,6 +237,14 @@ std::string loadModel(const std::string& path, int plate, double bedWidth, doubl
             g_project.plateDepth = area.defined ? area.size().y() : bedDepth;
             const std::string printer = optString(g_project.fileConfig, "printer_settings_id") + optString(g_project.fileConfig, "printer_model");
             g_project.fromBambu = printer.find("Bambu") != std::string::npos;
+            // Paint on a filament the project doesn't have is dropped, as
+            // desktop does when it opens a project (Plater::on_filaments_change
+            // -> ModelVolume::update_extruder_count): that area prints with the
+            // part's own filament, so Prepare shows what the slice prints.
+            if (const size_t filaments = filamentCount(g_project.fileConfig); filaments > 0)
+                for (ModelObject* o : g_project.model.objects)
+                    for (ModelVolume* v : o->volumes)
+                        if (v->is_model_part() && !v->mmu_segmentation_facets.empty()) v->update_extruder_count(filaments);
             return ok({{"objectsAdded", g_project.model.objects.size()}, {"isProject", true}}).dump();
         }
 

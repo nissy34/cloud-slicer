@@ -375,8 +375,33 @@ std::string sliceWithConfig(const std::string& configJson, int plate, const std:
         if (cancelRequested()) throw CanceledException();
         if (result.conflict_result) warnings.add(conflictText(*result.conflict_result, print), true);
 
+        // Layers as the G-code has them ("; total layer number"), counted as
+        // GCode::_do_export does: one per height printed, so object and
+        // support layers at the same height count once (total_layer_count()
+        // adds them up); printed object by object, each object's layers.
+        const auto heights = [](const PrintObject* o, std::vector<coordf_t>& zs) {
+            for (const Layer* l : o->layers()) zs.push_back(l->print_z);
+            for (const SupportLayer* l : o->support_layers()) zs.push_back(l->print_z);
+        };
+        const auto distinct = [](std::vector<coordf_t> zs) {
+            std::sort(zs.begin(), zs.end());
+            int n = 0;
+            for (size_t i = 0; i < zs.size(); ++i)
+                if (i == 0 || zs[i] - zs[i - 1] >= EPSILON) ++n;
+            return n;
+        };
         int layers = 0;
-        for (const PrintObject* o : print.objects()) layers = std::max(layers, int(o->total_layer_count()));
+        if (print.config().print_sequence == PrintSequence::ByObject) {
+            for (const PrintObject* o : print.objects()) {
+                std::vector<coordf_t> zs;
+                heights(o, zs);
+                layers += int(o->instances().size()) * distinct(zs);
+            }
+        } else {
+            std::vector<coordf_t> zs;
+            for (const PrintObject* o : print.objects()) heights(o, zs);
+            layers = distinct(zs);
+        }
         const PrintStatistics& stats = print.print_statistics();
         const float seconds = result.print_statistics.modes[size_t(PrintEstimatedStatistics::ETimeMode::Normal)].time;
         json mm = json::object();

@@ -23,7 +23,7 @@ import type {
   EngineInfo,
 } from '../engine/protocol';
 import { calibrationOptions, CALIBRATIONS, type CalibrationMode, type CalibrationValues } from '../lib/calibration';
-import { bedSize } from '../lib/colour';
+import { bedSize, solidColour } from '../lib/colour';
 import { renderThumbnails, thumbnailSizes } from '../lib/thumbnail';
 import type { SyncPlan } from '../lib/filament-sync';
 import { DEFAULT_PRINTER, pickFilamentPreset, splitList, SLOT_COLOURS } from '../lib/presets';
@@ -758,6 +758,8 @@ export const useSlicer = create<SlicerState>((set, get) => {
 
   async function applySelection(selection: Partial<Selection>) {
     const e = engine();
+    // Colours go to the 3D views as they are; a colour with alpha isn't one they read.
+    if (selection.colours) selection = { ...selection, colours: selection.colours.map(solidColour) };
     const res = await e.select(selection);
     const { config } = await e.fullConfig({});
     set({ selection: res.selection, processes: res.processes, filaments: res.filaments, baseConfig: config, flush: res.flush ?? null, ...stale() });

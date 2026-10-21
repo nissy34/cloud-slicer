@@ -5,6 +5,11 @@ export function rgb(colour: string | undefined): [number, number, number] {
   return [parseInt(m[1], 16) / 255, parseInt(m[2], 16) / 255, parseInt(m[3], 16) / 255];
 }
 
+/** "#RRGGBBAA" (Bambu Studio writes filament colours with alpha) -> "#RRGGBB"; others unchanged. */
+export function solidColour(colour: string): string {
+  return /^#[0-9a-f]{8}$/i.test(colour) ? colour.slice(0, 7) : colour;
+}
+
 /** Width and depth of an Orca printable_area value ("0x0,270x0,270x270,0x270"). */
 export function bedSize(area: string | undefined): { x0: number; y0: number; w: number; d: number } {
   const pts = String(area || '0x0,270x0,270x270,0x270')

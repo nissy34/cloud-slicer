@@ -179,6 +179,15 @@ test('slices an STL with the U1 presets', () => {
   assert.ok(result.estimatedTimeSeconds > 0);
 });
 
+test('the layer count is the G-code\'s, support layers included only once', () => {
+  select({ printer: DEFAULT_PRINTER, process: STANDARD });
+  load('3DBenchy.stl');
+  const { result, gcode } = slice(fullConfig({ enable_support: '1', support_type: 'normal(auto)' }));
+  assert.match(gcode, /^;TYPE:Support/m, 'the Benchy gets supports');
+  const written = Number(/^; total layer number: (\d+)/m.exec(gcode)?.[1]);
+  assert.equal(result.totalLayers, written, `summary ${result.totalLayers}, G-code ${written}`);
+});
+
 test('slicing reports desktop\'s warnings: G-code path conflicts and models that need support', () => {
   select({ printer: DEFAULT_PRINTER, process: STANDARD });
   // Two separate objects overlapping by half: their paths cross on every layer.
@@ -308,6 +317,16 @@ test('Bambu 3MF with painted colours slices with several tools', () => {
   const { gcode } = slice(cfg);
   const tools = Object.keys(toolCounts(gcode));
   assert.ok(tools.length >= 2, `tools used: ${tools}`);
+  // The file paints with filaments 5-10 too, but lists 4. Desktop drops that
+  // paint when it opens the project, and the slice prints those areas with
+  // the object's filament: Prepare shows the filaments the G-code uses.
+  const mesh = engine.previewMesh(0);
+  const highest = mesh.filaments.reduce((a, b) => Math.max(a, b), 0);
+  assert.ok(highest <= colours.length, `Prepare shows filament ${highest} of ${colours.length}`);
+  const printed = info.objects.findIndex((o) => o.instances[0].printable);
+  const first = [...mesh.objectTriangles].slice(0, printed).reduce((a, b) => a + b, 0);
+  const shown = new Set(mesh.filaments.subarray(first, first + mesh.objectTriangles[printed]));
+  assert.deepEqual([...shown].sort().map((f) => String(f - 1)), tools.sort(), 'Prepare and the G-code use the same filaments');
 });
 
 test('dual-colour 3MF keeps per-part filaments', () => {

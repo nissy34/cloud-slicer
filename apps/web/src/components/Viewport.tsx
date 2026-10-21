@@ -4,7 +4,7 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import * as THREE from 'three';
 import type { TransformControls as TransformControlsImpl } from 'three-stdlib';
 import { acceleratedRaycast, MeshBVH } from 'three-mesh-bvh';
-import type { PaintOverlay, PaintRay, PreviewMesh } from '../engine/protocol';
+import type { ObjectInfo, PaintOverlay, PaintRay, PreviewMesh } from '../engine/protocol';
 import { bedSize, rgb } from '../lib/colour';
 import { hullPlanes, layOnFace, movedOffset, toDegrees, toQuat, DEG, type Placement } from '../lib/placement';
 import { setCapture } from '../lib/snapshot';
@@ -14,6 +14,7 @@ import { layerTexture, type LayerProfile } from '../lib/layers';
 import { KIND_COLOURS, partAt, partRanges, volumeMeshes } from '../lib/volumes';
 import { onPlate } from '../lib/plateMenu';
 import { plateBounds } from '../lib/outside';
+import { unprintableTriangles, UNPRINTABLE } from '../lib/printable';
 import { NO_COLOURS, useOption, useSlicer } from '../state/store';
 import { setCameraSource } from '../state/view';
 import { Bed } from './Bed';
@@ -32,21 +33,28 @@ interface Part {
   centre: THREE.Vector3;
   /** Index of the object's first triangle in the preview. */
   first: number;
+  /** None of it is printed (every instance on the plate is marked not printable). */
+  unprintable?: boolean;
 }
 
-// One geometry per object, coloured per triangle by its filament.
-function useParts(preview: PreviewMesh | null, colours: string[]): Part[] {
+// One geometry per object, coloured per triangle by its filament; instances
+// that won't be printed in desktop's unprintable colour.
+function useParts(preview: PreviewMesh | null, colours: string[], objects: ObjectInfo[] | undefined, plate: number): Part[] {
   return useMemo(() => {
     if (!preview) return [];
     const palette = colours.map(rgb);
+    const skipped = objects ? unprintableTriangles(preview, objects, plate) : null;
     const parts: Part[] = [];
     let tri = 0;
     preview.objectTriangles.forEach((count, object) => {
       if (count === 0) return;
       const pos = preview.positions.subarray(tri * 9, (tri + count) * 9);
       const col = new Float32Array(count * 9);
+      let hidden = 0;
       for (let t = 0; t < count; t++) {
-        const c = palette[(preview.filaments[tri + t] || 1) - 1] ?? [0.8, 0.8, 0.8];
+        const off = skipped?.[tri + t] === 1;
+        hidden += off ? 1 : 0;
+        const c = off ? UNPRINTABLE.colour : (palette[(preview.filaments[tri + t] || 1) - 1] ?? [0.8, 0.8, 0.8]);
         for (let v = 0; v < 3; v++) col.set(c, t * 9 + v * 3);
       }
       const g = new THREE.BufferGeometry();
@@ -56,11 +64,11 @@ function useParts(preview: PreviewMesh | null, colours: string[]): Part[] {
       g.computeBoundingBox();
       const centre = new THREE.Vector3();
       g.boundingBox!.getCenter(centre);
-      parts.push({ object, geometry: g, centre, first: tri });
+      parts.push({ object, geometry: g, centre, first: tri, unprintable: hidden === count });
       tri += count;
     });
     return parts;
-  }, [preview, colours]);
+  }, [preview, colours, objects, plate]);
 }
 
 function geometryOf(pos: Float32Array, col?: Float32Array): THREE.BufferGeometry {
@@ -600,11 +608,17 @@ function tintOutside(shader: THREE.WebGLProgramParametersWithUniforms) {
 }
 const tintKey = () => 'outside-tint';
 
-/** The material of a model part: its filament colours, darker outside the plate, blue when selected. */
-function PartMaterial({ active = false }: { active?: boolean }) {
+/**
+ * The material of a model part: its filament colours, darker outside the
+ * plate, blue when selected; see-through when it won't be printed.
+ */
+function PartMaterial({ active = false, unprintable = false }: { active?: boolean; unprintable?: boolean }) {
   return (
     <meshStandardMaterial
       vertexColors
+      transparent={unprintable}
+      opacity={unprintable ? UNPRINTABLE.opacity : 1}
+      depthWrite={!unprintable}
       roughness={0.55}
       metalness={0.05}
       emissive={active ? '#2f6fe4' : '#000000'}
@@ -698,7 +712,7 @@ function Objects({ w, d }: { w: number; d: number }) {
   const selected = useSlicer((s) => s.selected);
   const tool = useSlicer((s) => s.tool);
   const { select, moveInstance, paintStroke, editBrim, measureHover, measurePick } = useSlicer.getState();
-  const parts = useParts(preview, colours);
+  const parts = useParts(preview, colours, project?.objects, plate);
   useEffect(() => () => parts.forEach((p) => p.geometry.dispose()), [parts]);
   const camera = useThree((s) => s.camera);
   const canvas = useThree((s) => s.gl.domElement);
@@ -1190,7 +1204,7 @@ function Objects({ w, d }: { w: number; d: number }) {
         const material = layered ? (
           <LayerMaterial profile={layered} bottom={p.geometry.boundingBox!.min.z} />
         ) : (
-          <PartMaterial active={active} />
+          <PartMaterial active={active} unprintable={p.unprintable} />
         );
         if (shapePicked && place && p.object === place.object) {
           const pieceMaterial = shapePicked.kind ? (
