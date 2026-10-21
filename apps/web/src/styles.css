@@ -3055,6 +3055,62 @@ select:focus-visible {
   border-top: 1px solid var(--border);
   font-size: 13px;
 }
+/* Print alerts (AlertsCard). */
+.dv-alerts-how {
+  margin: 0 0 6px;
+  font-size: 12px;
+}
+.dv-alerts-group {
+  margin: 10px 0 2px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--muted);
+}
+.dv-alerts-control {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+.dv-alerts-control select,
+.dv-alerts-layer {
+  padding: 3px 6px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--surface);
+  color: var(--text);
+  font-size: 13px;
+}
+.dv-alerts-layer {
+  width: 64px;
+  text-align: right;
+}
+.dv-list li.dv-alerts-wrap {
+  flex-wrap: wrap;
+}
+.dv-steps.dv-alerts-percents {
+  flex-basis: 100%;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(52px, 1fr));
+  margin: 2px 0 4px;
+}
+.dv-alerts-more {
+  margin-top: 8px;
+  border-top: 1px solid var(--border);
+  padding-top: 6px;
+}
+.dv-alerts .dv-note {
+  margin: 6px 0;
+}
+.dv-print-layer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 12px;
+  color: var(--muted);
+}
 .dv-console {
   list-style: none;
   margin: 0;
@@ -3605,7 +3661,8 @@ select:focus-visible {
   [data-testid='motion-card'] {
     order: 5;
   }
-  [data-testid='files-card'] {
+  [data-testid='files-card'],
+  [data-testid='alerts-card'] {
     order: 6;
   }
   .dv-console-card {

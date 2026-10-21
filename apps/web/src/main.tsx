@@ -2,6 +2,8 @@ import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import './lib/theme';
 import { App } from './App';
+import { useDevice } from './state/device';
+import { useSlicer } from './state/store';
 import './styles.css';
 
 createRoot(document.getElementById('root')!).render(
@@ -14,4 +16,14 @@ createRoot(document.getElementById('root')!).render(
 // it would only get in the way of Vite's reloads.
 if (import.meta.env.PROD && 'serviceWorker' in navigator) {
   navigator.serviceWorker.register('/sw.js').catch(() => {});
+}
+
+// A print alert tapped while a tab is open (public/sw.js): show its printer.
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.addEventListener('message', (e) => {
+    const key = (e.data as { alert?: unknown } | null)?.alert;
+    if (typeof key !== 'string') return;
+    useSlicer.getState().setTab('device');
+    useDevice.getState().openAlert(key);
+  });
 }

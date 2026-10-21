@@ -16,11 +16,36 @@
 // {relay:'ticket', ticket}. The first account to use a bridge owns it; a
 // bridge nobody has used within UNOWNED_GRACE_MS of its first connect is
 // turned away, and so is one whose owner was blocked (POST /v1/revoke).
+//
+// Print alerts (src/alerts.ts): a browser turns them on with the JSON-RPC call
+// relay.alerts over its socket; the relay tells the agent what to watch with
+// {ctl:'alerts', printers}, the agent answers {ctl:'alert', printer, event, ...},
+// and the relay sends Web Push to each browser that wants it.
 import { DurableObject } from 'cloudflare:workers';
 import { importJWK, jwtVerify, type JWK, type JWTPayload } from 'jose';
 import installScript from '../../device-bridge/install.sh';
+import {
+  agentConfig,
+  cleanAlert,
+  cleanPrefs,
+  cleanSubscription,
+  fanOut,
+  MAX_ALERTS_PER_HOUR,
+  MAX_PICTURE,
+  MAX_PICTURES_PER_HOUR,
+  MAX_SUBS,
+  OFFLINE_AFTER_MS,
+  pushEndpointOk,
+  sendPush,
+  subKey,
+  urgentEvent,
+  vapidPublicKey,
+  type PushEnv,
+  type StoredSub,
+} from './alerts';
+import { alertText } from '../../web/src/device/alert-text';
 
-export interface Env {
+export interface Env extends PushEnv {
   BRIDGE: DurableObjectNamespace<Bridge>;
   /** Websocket connects per IP (wrangler.toml [[ratelimits]]). */
   CONNECT_LIMIT: RateLimit;
@@ -173,7 +198,14 @@ export default {
         },
       });
     }
-    if (url.pathname === '/v1/info') return Response.json({ accounts: Boolean(env.RELAY_TICKET_PUBLIC_KEY) }, { headers: cors });
+    if (url.pathname === '/v1/info') return Response.json({ accounts: Boolean(env.RELAY_TICKET_PUBLIC_KEY), push: vapidPublicKey(env) }, { headers: cors });
+    const pic = /^\/v1\/pictures\/([0-9a-f-]{36})\.jpg$/.exec(url.pathname);
+    if (pic) {
+      // An alert's camera picture: only someone holding its (random) name can fetch it, for a day.
+      const object = env.DOWNLOADS ? await env.DOWNLOADS.get(`alerts/${pic[1]}`) : null;
+      if (!object) return new Response('That picture is gone.\n', { status: 404, headers: cors });
+      return new Response(object.body, { headers: { ...cors, 'Content-Type': object.httpMetadata?.contentType ?? 'image/jpeg', 'Cache-Control': 'private, max-age=86400' } });
+    }
     if (url.pathname === '/v1/revoke' && req.method === 'POST') {
       // The site blocked (or unblocked) an account: its browsers on these bridges go now.
       if (!env.RELAY_TICKET_PUBLIC_KEY) return new Response('Accounts are off on this relay', { status: 404, headers: cors });
@@ -205,6 +237,9 @@ export default {
       // Browsers need the site's ticket; it is checked here, before the bridge's Durable Object is woken.
       const headers = new Headers(req.headers);
       headers.delete('X-Relay-Ticket');
+      // Where alert pictures are served from, and which bridge this is (alerts name it, to open the right printer).
+      headers.set('X-Relay-Origin', url.origin);
+      headers.set('X-Bridge-Id', m[1]);
       if (m[2] === 'client' && env.RELAY_TICKET_PUBLIC_KEY) {
         const t = await readTicket(env, url.searchParams.get('ticket') ?? '', m[1]);
         if (!t) return refuseSocket(4401, 'Sign in to Cloud Slicer to use the bridge.');
@@ -312,6 +347,13 @@ export class Bridge extends DurableObject<Env> {
       if (!(await this.ctx.storage.get<string>('clientHash'))) await this.ctx.storage.put('clientHash', await sha256(await browserKey(key)));
       for (const old of this.ctx.getWebSockets('agent')) old.close(4000, 'Another bridge agent connected with this id.');
       this.ctx.acceptWebSocket(ours, ['agent']);
+      // Back before the "bridge offline" alert went out.
+      await this.ctx.storage.deleteAlarm();
+      await this.ctx.storage.delete('offlineSent');
+      const origin = req.headers.get('X-Relay-Origin');
+      if (origin) await this.ctx.storage.put('origin', origin);
+      const bridgeId = req.headers.get('X-Bridge-Id');
+      if (bridgeId) await this.ctx.storage.put('bridgeId', bridgeId);
       return new Response(null, { status: 101, webSocket: browserEnd });
     }
 
@@ -360,6 +402,7 @@ export class Bridge extends DurableObject<Env> {
         const host = typeof msg.host === 'string' ? msg.host.replace(/[^\w .'-]/g, '').slice(0, 64) || undefined : undefined;
         await this.ctx.storage.put('info', { printers, version: String(msg.version ?? ''), build: /^\d{1,12}$/.test(String(msg.build)) ? String(msg.build) : undefined, place: msg.place === 'printer' ? 'printer' : undefined, system, host } satisfies BridgeInfo);
         await this.broadcastStatus(true);
+        await this.sendAlertConfig();
         // Browsers that were waiting for the agent get their sessions now.
         for (const c of this.clients()) {
           const a = c.deserializeAttachment() as ClientAttachment;
@@ -367,6 +410,7 @@ export class Bridge extends DurableObject<Env> {
         }
         return;
       }
+      if (msg.ctl === 'alert') return this.alert(msg as Record<string, unknown>);
       if (!msg.c) return;
       const client = this.ctx.getWebSockets(`c:${msg.c}`)[0];
       if (!client) {
@@ -384,6 +428,21 @@ export class Bridge extends DurableObject<Env> {
     const a = ws.deserializeAttachment() as ClientAttachment;
     if (message.startsWith('{"relay":"ticket"')) return this.renew(ws, a, message);
     if (this.expired(ws, a)) return;
+    if (message.includes('"relay.alerts"')) {
+      let call: { id?: unknown; method?: unknown; params?: unknown } = {};
+      try {
+        call = JSON.parse(message);
+      } catch {
+        // not JSON: passed on below like anything else
+      }
+      if (call.method === 'relay.alerts') {
+        const answer = await this.alertsCall(a, call.params as Record<string, unknown>).then(
+          (result) => ({ result }),
+          (e: Error) => ({ error: { code: -32003, message: e.message } }),
+        );
+        return ws.send(JSON.stringify({ jsonrpc: '2.0', id: call.id, ...answer }));
+      }
+    }
     if (a.user && message.includes('"bridge.snapshot"')) {
       const refusal = this.cameraRefusal(a, message);
       if (refusal) return ws.send(refusal);
@@ -481,6 +540,9 @@ export class Bridge extends DurableObject<Env> {
     }
     const owner = await this.ctx.storage.get<string>('owner');
     if (blocked) {
+      // Its alerts stop too.
+      for (const [key, s] of await this.subs()) if (s.user === user) await this.ctx.storage.delete(key);
+      await this.sendAlertConfig();
       for (const ws of this.clients()) {
         const a = ws.deserializeAttachment() as ClientAttachment | null;
         if (a?.user === user) ws.close(4403, 'This account is blocked.');
@@ -504,10 +566,126 @@ export class Bridge extends DurableObject<Env> {
   private async closed(ws: WebSocket) {
     const tags = this.ctx.getTags(ws);
     if (tags.includes('agent')) {
-      if (!this.ctx.getWebSockets('agent').some((other) => other !== ws)) await this.broadcastStatus(false);
+      if (!this.ctx.getWebSockets('agent').some((other) => other !== ws)) {
+        await this.broadcastStatus(false);
+        // Someone wants to know when the bridge goes quiet: check again in a while.
+        if ((await this.subs()).some(([, s]) => Object.values(s.printers).some((p) => p.events.includes('offline')))) await this.ctx.storage.setAlarm(Date.now() + OFFLINE_AFTER_MS);
+      }
       return;
     }
     const a = ws.deserializeAttachment() as ClientAttachment | null;
     if (a) this.agent()?.send(JSON.stringify({ ctl: 'close', c: a.id }));
+  }
+
+  // ---- Print alerts ----
+
+  /** Alerts and pictures sent this hour (kept in memory: a rough cap against a misbehaving bridge). */
+  private sent = { hour: 0, alerts: 0, pictures: 0 };
+
+  private async bridgeId(): Promise<string> {
+    return (await this.ctx.storage.get<string>('bridgeId')) ?? 'bridge';
+  }
+
+  private async subs(): Promise<[string, StoredSub][]> {
+    return [...(await this.ctx.storage.list<StoredSub>({ prefix: 'push:' })).entries()];
+  }
+
+  /** Tells the agent what to watch for (an empty list: watch nothing). */
+  private async sendAlertConfig() {
+    const agent = this.agent();
+    if (!agent) return;
+    agent.send(JSON.stringify({ ctl: 'alerts', printers: agentConfig((await this.subs()).map(([, s]) => s)) }));
+  }
+
+  /** relay.alerts from a browser: get, set or test its alerts for the printer its socket is on. */
+  private async alertsCall(a: ClientAttachment, params: Record<string, unknown> | undefined): Promise<unknown> {
+    if (!vapidPublicKey(this.env)) throw new Error("This relay can't send alerts yet.");
+    if (!a.printer) throw new Error('No printer chosen.');
+    const op = params?.op;
+    const endpoint = typeof params?.endpoint === 'string' ? params.endpoint : '';
+    if (!pushEndpointOk(this.env, endpoint)) throw new Error("This browser's push service isn't one the relay knows.");
+    const key = await subKey(endpoint);
+    const stored = await this.ctx.storage.get<StoredSub>(key);
+    if (op === 'get') return { prefs: stored?.printers[a.printer] ?? null };
+    if (op === 'test') {
+      if (!stored?.printers[a.printer]) throw new Error('Turn alerts on first.');
+      const printer = (await this.info()).printers.find((p) => p.id === a.printer);
+      const text = alertText({ event: 'test' }, printer?.name ?? 'your printer');
+      const bridgeId = await this.bridgeId();
+      const sent = await sendPush(this.env, stored, { ...text, tag: `${bridgeId}.${a.printer}:test`, printer: `${bridgeId}.${a.printer}` }, false);
+      if (sent === 'gone') await this.ctx.storage.delete(key);
+      if (sent !== 'ok') throw new Error(sent === 'gone' ? 'This browser dropped its alerts. Turn them off and on again.' : "The browser's push service didn't take the test alert. Try again in a minute.");
+      return { sent: true };
+    }
+    if (op !== 'set') throw new Error('Unknown alerts call.');
+    const prefs = params?.prefs == null ? null : cleanPrefs(params.prefs);
+    if (params?.prefs != null && !prefs) throw new Error('Those alert settings are not valid.');
+    const next: StoredSub | null = prefs
+      ? (() => {
+          const sub = cleanSubscription(params);
+          if (!sub) throw new Error("This browser's push subscription is not valid.");
+          return { ...sub, user: a.user ?? stored?.user, printers: { ...(stored?.printers ?? {}), [a.printer]: prefs } };
+        })()
+      : stored
+        ? { ...stored, printers: Object.fromEntries(Object.entries(stored.printers).filter(([id]) => id !== a.printer)) }
+        : null;
+    if (next && !stored && (await this.subs()).length >= MAX_SUBS) throw new Error(`Up to ${MAX_SUBS} browsers can get alerts from one bridge.`);
+    if (next && Object.keys(next.printers).length) await this.ctx.storage.put(key, next);
+    else await this.ctx.storage.delete(key);
+    await this.sendAlertConfig();
+    return { prefs: next?.printers[a.printer] ?? null };
+  }
+
+  /** {ctl:'alert'} from the agent: push it to everyone who wants it. */
+  private async alert(msg: Record<string, unknown>) {
+    const alert = cleanAlert(msg);
+    const printer = (await this.info()).printers.find((p) => p.id === String(msg.printer ?? ''));
+    if (!alert || !printer) return;
+    const hour = Math.floor(Date.now() / 3600_000);
+    if (this.sent.hour !== hour) this.sent = { hour, alerts: 0, pictures: 0 };
+    if (++this.sent.alerts > MAX_ALERTS_PER_HOUR) return;
+    const subs = await this.subs();
+    const bridgeId = await this.bridgeId();
+    let image: string | undefined;
+    if (typeof msg.picture === 'string' && msg.picture.length < (MAX_PICTURE * 4) / 3 + 4 && this.env.DOWNLOADS && this.sent.pictures < MAX_PICTURES_PER_HOUR) {
+      const origin = await this.ctx.storage.get<string>('origin');
+      const bytes = Uint8Array.from(atob(msg.picture), (c) => c.charCodeAt(0));
+      if (origin && bytes.length > 0) {
+        this.sent.pictures++;
+        const name = crypto.randomUUID();
+        await this.env.DOWNLOADS.put(`alerts/${name}`, bytes, { httpMetadata: { contentType: 'image/jpeg' } });
+        image = `${origin}/v1/pictures/${name}.jpg`;
+      }
+    }
+    const { to, clearLayer } = fanOut(subs, printer, bridgeId, alert, image);
+    const results = await Promise.all(to.map(([, s, push]) => sendPush(this.env, s, push, urgentEvent(alert.event))));
+    let changed = false;
+    for (let i = 0; i < to.length; i++) {
+      if (results[i] !== 'gone') continue;
+      await this.ctx.storage.delete(to[i][0]);
+      changed = true;
+    }
+    for (const key of clearLayer) {
+      const s = await this.ctx.storage.get<StoredSub>(key);
+      if (!s?.printers[printer.id]) continue;
+      await this.ctx.storage.put(key, { ...s, printers: { ...s.printers, [printer.id]: { ...s.printers[printer.id], layer: null } } });
+      changed = true;
+    }
+    if (changed) await this.sendAlertConfig();
+  }
+
+  /** The bridge has been offline for a while: tell whoever asked, once. */
+  async alarm() {
+    if (this.agent() || (await this.ctx.storage.get<boolean>('offlineSent'))) return;
+    await this.ctx.storage.put('offlineSent', true);
+    const info = await this.info();
+    const bridge = info.host ? `The bridge on ${info.host}` : 'The bridge';
+    const bridgeId = await this.bridgeId();
+    for (const [key, s] of await this.subs()) {
+      const printer = Object.entries(s.printers).find(([, p]) => p.events.includes('offline'));
+      if (!printer) continue;
+      const text = alertText({ event: 'offline' }, '', bridge);
+      if ((await sendPush(this.env, s, { ...text, tag: `${bridgeId}:offline`, printer: `${bridgeId}.${printer[0]}` }, true)) === 'gone') await this.ctx.storage.delete(key);
+    }
   }
 }

@@ -1,0 +1,113 @@
+{
+  "_about": "Print alert rules, shared by the bridge (alerts_test.go) and the browser (apps/web/src/device/alerts.test.ts). Each step is a printer snapshot; fields left out keep the step before's value (the first step starts from 'base'). 'expect' lists what each step fires, by step index.",
+  "base": { "klippy": "ready", "klippyMessage": "", "state": "standby", "file": "", "progress": 0, "duration": 0, "layer": null, "totalLayers": null, "bed": 24, "noFilament": false, "left": null, "message": "" },
+  "cases": [
+    {
+      "name": "a whole print: started, first and third layer, layer N, 50%, every hour, almost done, finished, bed cooled",
+      "watch": { "layers": [10], "percents": [50], "hours": true },
+      "steps": [
+        { "at": 0 },
+        { "at": 1000, "state": "printing", "file": "benchy.gcode", "layer": 0, "totalLayers": 100, "left": 7200, "bed": 60 },
+        { "at": 2000, "layer": 1, "progress": 0.01 },
+        { "at": 3000, "layer": 2, "progress": 0.02 },
+        { "at": 4000, "layer": 4, "progress": 0.04 },
+        { "at": 5000, "layer": 11, "progress": 0.11 },
+        { "at": 6000, "layer": 50, "progress": 0.5, "duration": 3700, "left": 3600 },
+        { "at": 7000, "layer": 95, "progress": 0.95, "duration": 6800, "left": 500 },
+        { "at": 8000, "state": "complete", "progress": 1, "duration": 7300, "left": null },
+        { "at": 9000, "bed": 45 },
+        { "at": 10000, "bed": 39 },
+        { "at": 11000, "bed": 30 }
+      ],
+      "expect": [
+        { "step": 1, "event": "started", "file": "benchy.gcode", "left": 7200, "total": 100 },
+        { "step": 3, "event": "layer1", "layer": 1, "total": 100, "left": 7200 },
+        { "step": 4, "event": "layer3", "layer": 3, "total": 100, "left": 7200 },
+        { "step": 5, "event": "layer", "layer": 10, "total": 100, "left": 7200 },
+        { "step": 6, "event": "progress", "percent": 50, "left": 3600 },
+        { "step": 6, "event": "stillPrinting", "hours": 1, "duration": 3700, "left": 3600 },
+        { "step": 7, "event": "almostDone", "left": 500 },
+        { "step": 8, "event": "finished", "duration": 7300 },
+        { "step": 10, "event": "bedCooled" }
+      ]
+    },
+    {
+      "name": "starting mid-print (a bridge restart) repeats nothing that already passed",
+      "watch": { "layers": [3], "percents": [10, 20], "hours": true },
+      "steps": [
+        { "at": 0, "state": "printing", "file": "a.gcode", "layer": 30, "progress": 0.3, "duration": 4000, "left": 300 },
+        { "at": 1000, "layer": 31, "progress": 0.31, "duration": 4001, "left": 299 }
+      ],
+      "expect": []
+    },
+    {
+      "name": "pause for filament, resume, cancel",
+      "watch": { "layers": [], "percents": [], "hours": false },
+      "steps": [
+        { "at": 0, "state": "printing", "file": "b.gcode", "layer": 5 },
+        { "at": 1000, "state": "paused", "noFilament": true },
+        { "at": 2000, "state": "printing", "noFilament": false },
+        { "at": 3000, "state": "paused" },
+        { "at": 4000, "state": "cancelled" }
+      ],
+      "expect": [
+        { "step": 1, "event": "paused", "layer": 5, "reason": "filament" },
+        { "step": 2, "event": "resumed" },
+        { "step": 3, "event": "paused", "layer": 5 },
+        { "step": 4, "event": "failed", "reason": "cancelled", "layer": 5 }
+      ]
+    },
+    {
+      "name": "the printer stops with an error: one error alert, not also a failed one",
+      "watch": { "layers": [], "percents": [], "hours": false },
+      "steps": [
+        { "at": 0, "state": "printing", "file": "c.gcode", "layer": 7 },
+        { "at": 1000, "klippy": "shutdown", "klippyMessage": "MCU 'mcu' shutdown: Timer too close" },
+        { "at": 2000, "state": "error", "message": "MCU 'mcu' shutdown: Timer too close" }
+      ],
+      "expect": [
+        { "step": 1, "event": "error", "reason": "MCU 'mcu' shutdown: Timer too close", "file": "c.gcode" }
+      ]
+    },
+    {
+      "name": "a print that fails on its own",
+      "watch": { "layers": [], "percents": [], "hours": false },
+      "steps": [
+        { "at": 0, "state": "printing", "file": "d.gcode", "layer": 2 },
+        { "at": 1000, "state": "error", "message": "Heater extruder not heating at expected rate" }
+      ],
+      "expect": [
+        { "step": 1, "event": "failed", "reason": "Heater extruder not heating at expected rate", "layer": 2 }
+      ]
+    },
+    {
+      "name": "progress jumping past two marks fires only the higher; a cold bed never says cooled",
+      "watch": { "layers": [], "percents": [20, 30, 40], "hours": false },
+      "steps": [
+        { "at": 0, "state": "printing", "file": "e.gcode", "progress": 0.1, "bed": 25 },
+        { "at": 1000, "progress": 0.35 },
+        { "at": 2000, "state": "complete", "progress": 1 },
+        { "at": 3000, "bed": 20 }
+      ],
+      "expect": [
+        { "step": 1, "event": "progress", "percent": 30 },
+        { "step": 2, "event": "finished", "duration": 0 }
+      ]
+    },
+    {
+      "name": "almost done needs at least half printed, and only once",
+      "watch": { "layers": [], "percents": [], "hours": false },
+      "steps": [
+        { "at": 0, "state": "printing", "file": "f.gcode", "progress": 0.1, "left": 900 },
+        { "at": 1000, "progress": 0.2, "left": 500 },
+        { "at": 2000, "progress": 0.6, "left": 900 },
+        { "at": 3000, "progress": 0.7, "left": 550 },
+        { "at": 4000, "progress": 0.8, "left": 700 },
+        { "at": 5000, "progress": 0.9, "left": 400 }
+      ],
+      "expect": [
+        { "step": 3, "event": "almostDone", "left": 550 }
+      ]
+    }
+  ]
+}
