@@ -124,6 +124,8 @@ const beadVertex = /* glsl */ `
   attribute float iFeature;
   // 1 for each line type the legend has hidden.
   uniform float uHidden[${FEATURES.length}];
+  // Height of the drawing in pixels.
+  uniform float uViewHeight;
   varying vec3 vColor;
   varying vec3 vNormal;
   void main() {
@@ -138,7 +140,12 @@ const beadVertex = /* glsl */ `
     vec3 side = cross(vec3(0.0, 0.0, 1.0), dir);
     side = length(side) > 1e-6 ? normalize(side) : vec3(0.0, 1.0, 0.0);
     vec3 up = cross(dir, side);
-    float w = iSize.x;
+    // At least a pixel and a bit wide on screen: thinner lines (a first
+    // layer seen from afar) leave pixel gaps that show the bed and its logo
+    // through the print.
+    float dist = max(-(modelViewMatrix * vec4(iStart, 1.0)).z, 0.0);
+    float pixel = 2.0 * dist / (projectionMatrix[1][1] * uViewHeight);
+    float w = max(iSize.x, 1.5 * pixel);
     float h = iSize.y;
     // Run past both ends by half a width so corners close up.
     float along = -0.5 * w + position.x * (len + w);
@@ -222,10 +229,12 @@ function Toolpaths({
       new THREE.ShaderMaterial({
         vertexShader: beadVertex,
         fragmentShader: beadFragment,
-        uniforms: { uHidden: { value: new Array<number>(FEATURES.length).fill(0) } },
+        uniforms: { uHidden: { value: new Array<number>(FEATURES.length).fill(0) }, uViewHeight: { value: 1 } },
       }),
     [],
   );
+  const viewHeight = useThree((s) => s.size.height * s.viewport.dpr);
+  material.uniforms.uViewHeight.value = Math.max(1, viewHeight);
   useMemo(() => {
     material.uniforms.uHidden.value = FEATURES.map((_, i) => (hidden.has(i) ? 1 : 0));
   }, [material, hidden]);

@@ -789,6 +789,10 @@ select:focus-visible {
   padding: 4px 2px;
   cursor: pointer;
 }
+/* Marked not printable: the slice leaves it out. */
+.object-name.unprintable {
+  color: var(--muted);
+}
 .panel .filament-pick {
   width: 64px;
   flex: none;
@@ -1501,6 +1505,8 @@ select:focus-visible {
   height: 10px;
   border-radius: 50%;
   flex: none;
+  /* A ring, so a white (or, in the dark theme, black) filament still shows. */
+  box-shadow: 0 0 0 1px var(--border);
 }
 .layer-slider {
   position: absolute;

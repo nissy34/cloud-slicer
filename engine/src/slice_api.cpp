@@ -375,8 +375,12 @@ std::string sliceWithConfig(const std::string& configJson, int plate, const std:
         if (cancelRequested()) throw CanceledException();
         if (result.conflict_result) warnings.add(conflictText(*result.conflict_result, print), true);
 
-        int layers = 0;
-        for (const PrintObject* o : print.objects()) layers = std::max(layers, int(o->total_layer_count()));
+        // Layers as the G-code has them ("; total layer number"): one per
+        // height printed. Object and support layers at the same height count
+        // once, which total_layer_count() (object + support) doesn't do.
+        int layers = int(result.print_statistics.modes[size_t(PrintEstimatedStatistics::ETimeMode::Normal)].layers_times.size());
+        if (layers == 0)
+            for (const PrintObject* o : print.objects()) layers = std::max(layers, int(o->layers().size()));
         const PrintStatistics& stats = print.print_statistics();
         const float seconds = result.print_statistics.modes[size_t(PrintEstimatedStatistics::ETimeMode::Normal)].time;
         json mm = json::object();

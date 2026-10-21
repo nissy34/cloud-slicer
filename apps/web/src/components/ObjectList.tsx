@@ -1,3 +1,4 @@
+import { printableLabel } from '../lib/printable';
 import { KIND_CODES, KIND_COLOURS, KIND_LABELS } from '../lib/volumes';
 import { NO_COLOURS, useSlicer } from '../state/store';
 import { ObjectSettings } from './ObjectSettings';
@@ -50,12 +51,18 @@ export function ObjectList() {
           const obj = project.objects[o];
           const instance = obj.instances.findIndex((inst) => inst.plate === plate);
           const active = selected?.object === o;
+          const skipped = printableLabel(obj, plate);
           return (
             <li key={o} className={active ? 'object active' : 'object'}>
               <div className="object-row">
-                <button className="object-name" onClick={() => select(active ? null : { object: o, instance: Math.max(0, instance) })} title={obj.name}>
+                <button
+                  className={skipped ? 'object-name unprintable' : 'object-name'}
+                  onClick={() => select(active ? null : { object: o, instance: Math.max(0, instance) })}
+                  title={skipped ? `${obj.name}: ${skipped.toLowerCase()}. Slicing leaves it out; tick Printable in its ⋯ menu to print it.` : obj.name}
+                >
                   {obj.name || `Object ${o + 1}`}
                   {obj.instances.length > 1 && <span className="muted"> ×{obj.instances.length}</span>}
+                  {skipped && <span className="muted"> · {skipped}</span>}
                 </button>
                 {filamentSelect(o, -1, obj.extruder || 1, `Filament for ${obj.name}`)}
                 <button
