@@ -12,7 +12,7 @@ export function Card({ title, actions, className, children, testId }: { title: s
   );
 }
 
-/** A modal built on <dialog>: Escape and the backdrop close it. */
+/** A modal built on <dialog>: only its buttons and Escape close it, so a stray tap outside never loses what's in it. */
 export function Dialog({
   title,
   onClose,
@@ -41,7 +41,6 @@ export function Dialog({
         e.preventDefault();
         onClose();
       }}
-      onClick={(e) => e.target === ref.current && onClose()}
       aria-label={title}
     >
       <div className="dv-dialog-body">

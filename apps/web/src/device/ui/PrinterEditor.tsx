@@ -507,6 +507,59 @@ function BridgeAddList({
   );
 }
 
+/**
+ * Where the pairing stands. Reaching a bridge that is just starting takes a few
+ * seconds through the relay, so "connecting" is shown plainly until it answers;
+ * a problem only shows once it has stayed away a while, and it keeps trying.
+ */
+function BridgeState({ bridge, problem, onDifferent }: { bridge: BridgeStatus | null; problem: string; onDifferent?: () => void }) {
+  const online = bridge?.agent === 'online';
+  const state = online ? 'online' : problem ? 'failed' : 'connecting';
+  const different = onDifferent && (
+    <button className="dv-link" onClick={onDifferent}>
+      Use a different bridge
+    </button>
+  );
+  return (
+    <div className={`dv-bridge-state ${state}`} role="status" data-testid="bridge-state" data-state={state}>
+      {state === 'connecting' && <span className="dv-spinner" aria-hidden />}
+      {state === 'online' && (
+        <span className="dv-bridge-state-icon" aria-hidden>
+          ✓
+        </span>
+      )}
+      {state === 'failed' && (
+        <span className="dv-bridge-state-icon" aria-hidden>
+          !
+        </span>
+      )}
+      <div>
+        {state === 'connecting' && (
+          <>
+            <strong>Connecting to the bridge…</strong>
+            <span className="muted">This takes a few seconds, longer if the bridge has only just started.</span>
+          </>
+        )}
+        {state === 'online' && (
+          <>
+            <strong>Connected to the bridge</strong>
+            {bridgeLabel(bridge) !== 'Bridge' && <span className="muted">{bridgeLabel(bridge)}</span>}
+          </>
+        )}
+        {state === 'failed' && (
+          <>
+            <strong>{bridge ? 'The bridge is offline' : "Can't reach the bridge"}</strong>
+            <span className="muted">
+              {bridge ? 'Start it on its computer.' : problem} Still trying: this changes by itself as soon as the bridge answers.
+            </span>
+          </>
+        )}
+        {different}
+      </div>
+    </div>
+  );
+}
+
 /** Opens the printer's socket and asks Moonraker who it is. */
 async function probeDirect(url: string, apiKey: string): Promise<string> {
   const link = new DirectLink(url, apiKey);
@@ -540,6 +593,8 @@ export function PrinterEditor() {
   const [bridge, setBridge] = useState<BridgeStatus | null>(null);
   const [watch, setWatch] = useState<BridgeWatch | null>(null);
   const [printerId, setPrinterId] = useState(existing?.kind === 'bridge' ? existing.printer : '');
+  // Why the bridge isn't reachable yet; only set once it has stayed away a while (it keeps trying).
+  const [bridgeProblem, setBridgeProblem] = useState('');
   // direct
   const [url, setUrl] = useState(existing?.kind === 'direct' ? existing.url : '');
   const [apiKey, setApiKey] = useState(existing?.kind === 'direct' ? existing.apiKey : '');
@@ -561,23 +616,18 @@ export function PrinterEditor() {
 
   useEffect(() => {
     if (!pairing) return;
-    setChecking(true);
-    setError('');
+    setBridgeProblem('');
     const w = watchBridge(
       pairing,
       (b) => {
-        setChecking(false);
-        setError('');
+        if (b.agent === 'online') setBridgeProblem('');
         setBridge(b);
         if (b.printers[0]) {
           setPrinterId((id) => id || b.printers[0].id);
           setName((n) => n || b.printers[0].name);
         }
       },
-      (e) => {
-        setChecking(false);
-        setError(e.message);
-      },
+      (e) => setBridgeProblem(e.message),
     );
     setWatch(w);
     return () => {
@@ -695,7 +745,7 @@ export function PrinterEditor() {
             </>
           ) : kind === 'bridge' ? (
             pairing && (
-              <button className="primary" disabled={!pairing || !printerId || checking} onClick={saveBridge} data-testid="save-printer">
+              <button className="primary" disabled={!pairing || !printerId} onClick={saveBridge} data-testid="save-printer">
                 {existing ? 'Save' : 'Add printer'}
               </button>
             )
@@ -766,32 +816,21 @@ export function PrinterEditor() {
           )}
           {pairing && (
             <>
-              <p className="muted" data-testid="bridge-state">
-                {checking
-                  ? 'Connecting to the bridge…'
-                  : bridge
-                    ? bridge.agent === 'online'
-                      ? '✓ Connected to the bridge'
-                      : 'The bridge is offline: start it on its computer'
-                    : "Can't reach the bridge"}
-                {!existing && (
-                  <>
-                    {' '}
-                    ·{' '}
-                    <button
-                      className="dv-link"
-                      onClick={() => {
+              <BridgeState
+                bridge={bridge}
+                problem={bridgeProblem}
+                onDifferent={
+                  existing
+                    ? undefined
+                    : () => {
                         setPairing(null);
                         setBridge(null);
+                        setBridgeProblem('');
                         setRows([]);
                         setCode('');
-                      }}
-                    >
-                      Use a different bridge
-                    </button>
-                  </>
-                )}
-              </p>
+                      }
+                }
+              />
               {bridge?.agent === 'online' && listMode && (
                 <BridgeAddList rows={rows} setRows={setRows} watch={watch} searchNow={bridge.printers.length === 0} system={bridge.system} isSaved={isSaved} />
               )}
@@ -824,7 +863,7 @@ export function PrinterEditor() {
               )}
             </>
           )}
-          {pairing && !listMode && (
+          {pairing && !listMode && (existing || bridge?.agent === 'online') && (
             <>
               <label>
                 Name
