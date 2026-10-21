@@ -5,7 +5,7 @@
 //   browser  --text-->  relay  --{c, m: text}-->  agent  --> printer's Moonraker
 //   browser  <--text--  relay  <--{c, m: text}--  agent
 //
-// Control messages: agent -> relay {ctl:'hello', printers, version, system, host} and
+// Control messages: agent -> relay {ctl:'hello', printers, version, build, system, host} and
 // {ctl:'drop', c, reason}; relay -> agent {ctl:'open', c, printer} and
 // {ctl:'close', c}. Browsers also get notify_bridge_status notifications.
 // Sockets hibernate, so an idle bridge costs nothing.
@@ -145,7 +145,17 @@ export default {
       const apps = listed.objects
         .map((o) => ({ name: o.key.slice('bridge/'.length), size: o.size, uploaded: o.uploaded.toISOString() }))
         .filter((a) => a.name in APPS);
-      return Response.json({ apps }, { headers: { ...cors, 'Cache-Control': 'max-age=60' } });
+      // The newest signed build, so the Device tab can offer to update an older bridge.
+      const release = env.DOWNLOADS ? await env.DOWNLOADS.get('bridge/release.json') : null;
+      const build = release ? Number(((await release.json()) as { build?: unknown }).build) || undefined : undefined;
+      return Response.json({ apps, build }, { headers: { ...cors, 'Cache-Control': 'max-age=60' } });
+    }
+    if (url.pathname === '/bridge-release.json') {
+      // What bridges update themselves from: the newest build with each download's size,
+      // SHA-256 and signature (made by CI with a key the relay never has; the bridges check it).
+      const release = env.DOWNLOADS ? await env.DOWNLOADS.get('bridge/release.json') : null;
+      if (!release) return new Response('No bridge release yet.\n', { status: 404, headers: cors });
+      return new Response(release.body, { headers: { ...cors, 'Content-Type': 'application/json', 'Cache-Control': 'max-age=300' } });
     }
     const dl = /^\/download\/([\w-]+)$/.exec(url.pathname);
     if (dl) {
@@ -203,7 +213,7 @@ export default {
       return env.BRIDGE.get(env.BRIDGE.idFromName(m[1])).fetch(new Request(req, { headers }));
     }
     if (url.pathname === '/') {
-      return new Response('Cloud Slicer device relay. Bridge apps: /downloads.json and /download/<system>; macOS, Linux and Raspberry Pi: curl -fsSL <this relay>/install.sh | sh.\n', { headers: { ...cors, 'Content-Type': 'text/plain' } });
+      return new Response('Cloud Slicer device relay. Bridge apps: /downloads.json and /download/<system> (self-update: /bridge-release.json); macOS, Linux and Raspberry Pi: curl -fsSL <this relay>/install.sh | sh.\n', { headers: { ...cors, 'Content-Type': 'text/plain' } });
     }
     return new Response('Not found', { status: 404, headers: cors });
   },
@@ -229,6 +239,8 @@ interface ClientAttachment {
 interface BridgeInfo {
   printers: { id: string; name: string }[];
   version: string;
+  /** When the bridge was built (the commit's Unix time); "0" for a build that doesn't update itself. */
+  build?: string;
   /** The bridge computer's system (win32, darwin, linux), so the Device tab's help fits it. */
   system?: string;
   /** The bridge computer's name, so the Device tab can call the bridge "Bridge on <name>". */
@@ -252,7 +264,7 @@ export class Bridge extends DurableObject<Env> {
   }
 
   private statusMessage(info: BridgeInfo, online: boolean) {
-    return JSON.stringify({ jsonrpc: '2.0', method: 'notify_bridge_status', params: [{ agent: online ? 'online' : 'offline', printers: info.printers, version: info.version, system: info.system, host: info.host }] });
+    return JSON.stringify({ jsonrpc: '2.0', method: 'notify_bridge_status', params: [{ agent: online ? 'online' : 'offline', printers: info.printers, version: info.version, build: info.build, system: info.system, host: info.host }] });
   }
 
   private async broadcastStatus(online: boolean) {
@@ -332,7 +344,7 @@ export class Bridge extends DurableObject<Env> {
     const tags = this.ctx.getTags(ws);
 
     if (tags.includes('agent')) {
-      let msg: { ctl?: string; c?: string; m?: string; reason?: string; printers?: unknown; version?: unknown; system?: unknown; host?: unknown };
+      let msg: { ctl?: string; c?: string; m?: string; reason?: string; printers?: unknown; version?: unknown; build?: unknown; system?: unknown; host?: unknown };
       try {
         msg = JSON.parse(message);
       } catch {
@@ -344,7 +356,7 @@ export class Bridge extends DurableObject<Env> {
           .map((p: { id?: unknown; name?: unknown }) => ({ id: String(p.id ?? '').slice(0, 64), name: String(p.name ?? '').slice(0, 80) }));
         const system = ['win32', 'darwin', 'linux'].includes(String(msg.system)) ? String(msg.system) : undefined;
         const host = typeof msg.host === 'string' ? msg.host.replace(/[^\w .'-]/g, '').slice(0, 64) || undefined : undefined;
-        await this.ctx.storage.put('info', { printers, version: String(msg.version ?? ''), system, host } satisfies BridgeInfo);
+        await this.ctx.storage.put('info', { printers, version: String(msg.version ?? ''), build: /^\d{1,12}$/.test(String(msg.build)) ? String(msg.build) : undefined, system, host } satisfies BridgeInfo);
         await this.broadcastStatus(true);
         // Browsers that were waiting for the agent get their sessions now.
         for (const c of this.clients()) {

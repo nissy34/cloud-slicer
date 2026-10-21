@@ -14,7 +14,10 @@
 # Bridge.app" in a zip, no Dock icon).
 #
 # RELAY_URL and SITE_URL set the relay and site the bridge belongs to (default:
-# the live ones).
+# the live ones). Every build carries its build number (the commit's time, or
+# BUILD) and which download it is. With BRIDGE_SIGNING_KEY (CI's secret) it also
+# carries the public key it checks updates with, and updates itself: without
+# it, it never does (tools/release).
 set -eu
 cd "$(dirname "$0")"
 VERSION=$(sed -n 's/^const version = "\(.*\)"$/\1/p' main.go)
@@ -26,13 +29,18 @@ esac
 ldflags="-s -w"
 [ -n "${RELAY_URL:-}" ] && ldflags="$ldflags -X main.defaultRelay=$RELAY_URL"
 [ -n "${SITE_URL:-}" ] && ldflags="$ldflags -X main.defaultSite=$SITE_URL"
+BUILD=${BUILD:-$(git log -1 --format=%ct 2>/dev/null || echo 0)}
+ldflags="$ldflags -X main.build=$BUILD"
+if [ -n "${BRIDGE_SIGNING_KEY:-}" ]; then
+  ldflags="$ldflags -X main.updateKey=$(go run ./tools/release pubkey)"
+fi
 mkdir -p dist
 rm -rf dist/tmp
 mkdir -p dist/tmp
 
 build() { # <goos> <goarch> <out> [extra ldflags]
   CGO_ENABLED=0 GOOS=$1 GOARCH=$2 GOARM=${GOARM:-} GOMIPS=${GOMIPS:-} \
-    go build -trimpath -ldflags "$ldflags ${4:-}" -o "$3" .
+    go build -trimpath -ldflags "$ldflags -X main.target=$target ${4:-}" -o "$3" .
 }
 
 for target in $targets; do

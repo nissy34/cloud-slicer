@@ -20,7 +20,7 @@ export const pairingCode = (cfg) => Buffer.from(JSON.stringify({ r: cfg.relay, i
 export function bridgeProgram() {
   if (process.env.CLOUD_SLICER_BRIDGE_BIN) return process.env.CLOUD_SLICER_BRIDGE_BIN;
   const out = join(mkdtempSync(join(tmpdir(), 'bridge-bin-')), process.platform === 'win32' ? 'cloud-slicer-bridge.exe' : 'cloud-slicer-bridge');
-  execFileSync('go', ['build', '-o', out, '.'], { cwd: source, stdio: 'inherit' });
+  execFileSync('go', ['build', '-ldflags', '-X main.build=1', '-o', out, '.'], { cwd: source, stdio: 'inherit' });
   return out;
 }
 

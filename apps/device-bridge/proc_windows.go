@@ -87,3 +87,9 @@ func showMessage(title, text string, isError bool) {
 	}
 	_, _, _ = messageBox.Call(0, uintptr(unsafe.Pointer(m)), uintptr(unsafe.Pointer(t)), flags)
 }
+
+// restartIntoProcess starts the program at path with the same arguments, then exits.
+func restartIntoProcess(path string) {
+	_ = startDetached(path, os.Args[1:]...)
+	os.Exit(0)
+}

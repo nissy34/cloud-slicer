@@ -90,7 +90,7 @@ func run(argv []string, console bool) error {
 		cmd, rest = rest[0], rest[1:]
 	}
 	if cmd == "version" {
-		fmt.Println(version)
+		fmt.Printf("%s (build %s %s)\n", version, build, target)
 		return nil
 	}
 	cfg, err := loadConfig(path, opts["relay"])
@@ -175,12 +175,21 @@ func run(argv []string, console bool) error {
 			}
 		}
 		printPairing(cfg, opts["site"], opts["no-browser"] == "")
+		log := func(m string) { fmt.Println(m) }
+		// Just updated: this version has to reach the relay, or the previous one comes back.
+		connected := func() {}
+		installed, updates := installedPath()
+		if updates {
+			connected = afterUpdate(installed, log)
+		}
 		stop := make(chan struct{})
 		b := runBridge(cfg, bridgeOptions{
-			log:        func(m string) { fmt.Println(m) },
-			find:       testFind(),
-			onReplaced: func() { close(stop) },
-			uninstall:  func() { uninstallFromDeviceTab(path) },
+			log:         log,
+			find:        testFind(),
+			onReplaced:  func() { close(stop) },
+			uninstall:   func() { uninstallFromDeviceTab(path) },
+			autoUpdate:  updates,
+			onConnected: connected,
 		})
 		sig := make(chan os.Signal, 1)
 		signal.Notify(sig, os.Interrupt, syscall.SIGTERM)

@@ -64,6 +64,10 @@ try {
   for (const name of ['windows-x64', 'mac-arm64', 'linux-arm64']) {
     execFileSync('npx', ['wrangler', 'r2', 'object', 'put', `cloud-slicer-bridge/bridge/${name}`, '--file', fakeApp, '--local', '--persist-to', persist], { cwd: join(web, '../device-relay'), stdio: 'ignore' });
   }
+  // A release newer than any real build, so Printers & bridges offers an update.
+  const release = join(persist, 'release.json');
+  writeFileSync(release, JSON.stringify({ build: 9_999_999_999, apps: {} }));
+  execFileSync('npx', ['wrangler', 'r2', 'object', 'put', 'cloud-slicer-bridge/bridge/release.json', '--file', release, '--local', '--persist-to', persist], { cwd: join(web, '../device-relay'), stdio: 'ignore' });
   await serve('npx', ['wrangler', 'dev', '--port', String(RELAY_PORT), '--ip', '127.0.0.1', '--persist-to', persist], join(web, '../device-relay'), /Ready on/);
   await serve('npx', ['vite', 'preview', '--port', String(PAGE_PORT), '--strictPort'], web, new RegExp(String(PAGE_PORT)));
   const cfg = { relay: `http://127.0.0.1:${RELAY_PORT}`, bridgeId: 'smoke-test-bridge', key: 'smoke-test-key-0123456789', printers: [
@@ -504,6 +508,11 @@ try {
   const card = manage.getByTestId('manage-bridge');
   await card.getByTestId('manage-bridge-state').filter({ hasText: 'Running' }).waitFor({ timeout: 20_000 });
   await card.getByText(/^Bridge on /).waitFor();
+  // A newer bridge is out: Update now asks the bridge, which says plainly why it can't (it wasn't
+  // set up to start with its computer here). An installed one downloads, checks and restarts.
+  await card.getByTestId('manage-bridge-update').click();
+  await card.getByTestId('manage-bridge-update-row').getByRole('alert').filter({ hasText: "can't update itself" }).waitFor();
+  console.log('a newer bridge is offered, and the bridge answers Update now');
   if (shots) await page.getByRole('dialog').screenshot({ path: join(shots, 'manage.png') });
   const managed = (name) => card.locator(`[data-testid="manage-printer"][data-name="${name}"]`);
   await managed('U1-mock').getByTestId('manage-printer-remove').click();

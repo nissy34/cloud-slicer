@@ -368,7 +368,7 @@ export function BridgeSetup({ relay, pasteLink }: { relay: string; pasteLink?: R
             type an address. Or type the address here and run the command on the bridge's computer:
           </p>
           <ManageCommands />
-          <p>The bridge restarts by itself to use a printer you add. To update it, set it up again the same way (download and open the app, or run the Terminal command).</p>
+          <p>The bridge restarts by itself to use a printer you add. It updates itself, and Printers &amp; bridges offers an update when one is out.</p>
           <p>
             <strong>Is it safe?</strong> The bridge only connects out to Cloud Slicer's relay, so nothing on your router is opened, and it only talks to the printers it
             found or you added. Your printer's API key is kept on that computer (one typed here goes straight to the bridge). The pairing link works like a password: anyone who has it can control your

@@ -50,8 +50,39 @@ Where things go once set up: Windows `%LOCALAPPDATA%\Cloud Slicer Bridge\`,
 macOS `~/Library/Application Support/Cloud Slicer Bridge/` (log in
 `~/Library/Logs/cloud-slicer-bridge.log`), Linux `~/.local/share/cloud-slicer-bridge/`
 (`journalctl --user -u cloud-slicer-bridge` for the log, and the command linked
-in `~/.local/bin`). To update, set it up again the same way: a newly downloaded
-app opened while an older one runs in the background replaces it.
+in `~/.local/bin`).
+
+## Updates
+
+The bridge set up to start with its computer updates itself: 2 minutes after it
+starts and then every 6 hours it asks the relay for the newest release
+(`/bridge-release.json`), and installs a newer one when no browser is
+connected, so an upload is never cut off (a print keeps going either way: it
+runs on Klipper). Printers & bridges in the Device tab also shows "Update now"
+when a bridge is behind. It is safe because:
+
+- **Signed.** CI signs every build with an ed25519 key that exists only in the
+  repo secret `BRIDGE_SIGNING_KEY`; the bridge has the public half built in and
+  installs only files whose signature matches, for its own chip and a newer
+  build (`update.go`, `tools/release`). The relay and its download store can't
+  push code to bridges. Without the secret, builds carry no key and never
+  update themselves.
+- **Checked.** Exact size and SHA-256 before anything changes on disk.
+- **Tested first.** CI publishes the release only after the new relay is
+  deployed and passed its live end-to-end check, and only from main.
+- **Rollback.** The old program stays beside the new one (`.old`) until the new
+  one has reached the relay. If it hasn't within 2 minutes, or it was started
+  twice without getting there, the old one comes back and that build is skipped.
+
+Setting it up again the same way (a newly downloaded app opened while an older
+one runs in the background) also replaces it.
+
+A new key, on any computer with Node.js; paste the output into the repo secret
+`BRIDGE_SIGNING_KEY` (Settings, Secrets and variables, Actions):
+
+```bash
+node -e "console.log(require('crypto').generateKeyPairSync('ed25519').privateKey.export({format:'jwk'}).d)"
+```
 
 Config lives in `~/.cloud-slicer-bridge.json` (`--config` to move it). Other
 commands: `list`, `remove <name>`, `pair` (print the pairing link again; `--open` opens it),

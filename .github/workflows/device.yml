@@ -117,6 +117,9 @@ jobs:
           cache-dependency-path: apps/device-bridge/go.sum
       - name: Build the Windows app with its icon
         working-directory: apps/device-bridge
+        env:
+          # Builds the update key's public half into the app (tools/release); without it the app never updates itself.
+          BRIDGE_SIGNING_KEY: ${{ secrets.BRIDGE_SIGNING_KEY }}
         run: |
           ./build.sh windows-x64
           cp dist/windows-x64 "$RUNNER_TEMP/bridge.exe"
@@ -159,6 +162,8 @@ jobs:
           cache-dependency-path: apps/device-bridge/go.sum
       - name: Build the Mac apps (Cloud Slicer Bridge.app, with its icon, signed ad hoc)
         working-directory: apps/device-bridge
+        env:
+          BRIDGE_SIGNING_KEY: ${{ secrets.BRIDGE_SIGNING_KEY }}
         run: |
           ./build.sh mac
           mkdir -p "$RUNNER_TEMP/app" && cd "$RUNNER_TEMP/app" && unzip -q "$GITHUB_WORKSPACE/apps/device-bridge/dist/mac-arm64"
@@ -217,25 +222,6 @@ jobs:
           curl -fsS "$url/"
           echo "url=$url" >> "$GITHUB_OUTPUT"
         id: deploy
-      - uses: actions/download-artifact@v7
-        if: steps.deploy.outputs.r2 == 'ok'
-        with:
-          pattern: bridge-app-*
-          path: apps/device-bridge/dist
-          merge-multiple: true
-      - name: Build the bridge apps and upload them to R2
-        if: steps.deploy.outputs.r2 == 'ok'
-        working-directory: apps/device-bridge
-        run: |
-          # The Linux builds here; Windows and Mac came from their own jobs.
-          ./build.sh linux-x64 linux-arm64 linux-armv7 linux-mipsle
-          for name in windows-x64 mac-arm64 mac-x64 linux-x64 linux-arm64 linux-armv7 linux-mipsle; do
-            (cd ../device-relay && npx wrangler r2 object put "cloud-slicer-bridge/bridge/$name" --file "../device-bridge/dist/$name" --remote --content-type application/octet-stream)
-          done
-          curl -fsS '${{ steps.deploy.outputs.url }}/downloads.json' | tee /dev/stderr | grep -q '"linux-arm64"'
-          curl -fsS '${{ steps.deploy.outputs.url }}/install.sh' > "$RUNNER_TEMP/install.sh"
-          grep -qF 'RELAY="${{ steps.deploy.outputs.url }}"' "$RUNNER_TEMP/install.sh"
-          grep -qF '/download/$os-$arch' "$RUNNER_TEMP/install.sh"
       - name: Check the deployed relay end to end (mock printer, no browser)
         if: steps.deploy.outputs.url != ''
         working-directory: apps/web
@@ -248,3 +234,33 @@ jobs:
           (cd ../device-relay && npx wrangler secret put RELAY_TEST_PUBLIC_KEY < "$RUNNER_TEMP/pub.json")
           export RELAY_TICKET_PRIVATE_KEY="$(cat "$RUNNER_TEMP/priv.json")"
           node test/device/relay-live.mjs '${{ steps.deploy.outputs.url }}'
+      - uses: actions/download-artifact@v7
+        if: steps.deploy.outputs.r2 == 'ok'
+        with:
+          pattern: bridge-app-*
+          path: apps/device-bridge/dist
+          merge-multiple: true
+      - name: Build the bridge apps and upload them to R2
+        if: steps.deploy.outputs.r2 == 'ok'
+        working-directory: apps/device-bridge
+        env:
+          BRIDGE_SIGNING_KEY: ${{ secrets.BRIDGE_SIGNING_KEY }}
+        run: |
+          # The Linux builds here; Windows and Mac came from their own jobs.
+          ./build.sh linux-x64 linux-arm64 linux-armv7 linux-mipsle
+          for name in windows-x64 mac-arm64 mac-x64 linux-x64 linux-arm64 linux-armv7 linux-mipsle; do
+            (cd ../device-relay && npx wrangler r2 object put "cloud-slicer-bridge/bridge/$name" --file "../device-bridge/dist/$name" --remote --content-type application/octet-stream)
+          done
+          # Last, the signed release the installed bridges update themselves from: only
+          # after every file is up and the new relay passed its live check above.
+          if [ -n "$BRIDGE_SIGNING_KEY" ]; then
+            go run ./tools/release sign "$(git log -1 --format=%ct)" dist
+            (cd ../device-relay && npx wrangler r2 object put cloud-slicer-bridge/bridge/release.json --file ../device-bridge/dist/release.json --remote --content-type application/json)
+            curl -fsS '${{ steps.deploy.outputs.url }}/bridge-release.json' | grep -q '"linux-arm64"'
+          else
+            echo "::warning::No BRIDGE_SIGNING_KEY secret: bridges won't update themselves"
+          fi
+          curl -fsS '${{ steps.deploy.outputs.url }}/downloads.json' | tee /dev/stderr | grep -q '"linux-arm64"'
+          curl -fsS '${{ steps.deploy.outputs.url }}/install.sh' > "$RUNNER_TEMP/install.sh"
+          grep -qF 'RELAY="${{ steps.deploy.outputs.url }}"' "$RUNNER_TEMP/install.sh"
+          grep -qF '/download/$os-$arch' "$RUNNER_TEMP/install.sh"

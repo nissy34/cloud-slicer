@@ -3,6 +3,8 @@
 package main
 
 import (
+	"fmt"
+	"os"
 	"os/exec"
 	"syscall"
 )
@@ -28,3 +30,11 @@ func showMessage(string, string, bool) {}
 
 // deleteAfterExit is only needed on Windows, where a running program can't be deleted.
 func deleteAfterExit(string) error { return nil }
+
+// restartIntoProcess replaces this process with the program at path, same arguments and
+// process id, so a service manager (systemd, launchd, init scripts) sees no change.
+func restartIntoProcess(path string) {
+	err := syscall.Exec(path, append([]string{path}, os.Args[1:]...), os.Environ())
+	fmt.Fprintln(os.Stderr, "Couldn't restart into the updated bridge:", err)
+	os.Exit(1)
+}
