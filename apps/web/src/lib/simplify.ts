@@ -34,7 +34,7 @@ const WORTH_SIMPLIFYING = 50_000;
 export interface HeavyModel {
   /** The objects to simplify. */
   objects: number[];
-  /** Triangles in the whole project now. */
+  /** Triangles on the plate now. */
   triangles: number;
   /** The decimate ratio (% removed) for each of those objects. */
   ratio: number;
@@ -42,11 +42,15 @@ export interface HeavyModel {
   painted: boolean;
 }
 
-/** Given each object's triangles, what to simplify to bring the project near LIGHT_TRIANGLES, or null when it's light enough. */
-export function heavyModel(triangles: number[]): HeavyModel | null {
-  const total = triangles.reduce((a, b) => a + b, 0);
+/**
+ * Given each object's triangles and the objects on the plate being sliced,
+ * what to simplify to bring that plate near LIGHT_TRIANGLES, or null when
+ * it's light enough.
+ */
+export function heavyModel(triangles: number[], onPlate: number[] = triangles.map((_, o) => o)): HeavyModel | null {
+  const total = onPlate.reduce((a, o) => a + (triangles[o] ?? 0), 0);
   if (total <= HEAVY_TRIANGLES) return null;
-  const objects = triangles.flatMap((t, o) => (t >= WORTH_SIMPLIFYING ? [o] : []));
+  const objects = onPlate.filter((o) => triangles[o] >= WORTH_SIMPLIFYING).sort((a, b) => a - b);
   const big = objects.reduce((a, o) => a + triangles[o], 0);
   const keep = Math.max(LIGHT_TRIANGLES - (total - big), big * 0.05);
   return { objects, triangles: total, ratio: Math.min(95, Math.round(100 * (1 - keep / big))), painted: false };

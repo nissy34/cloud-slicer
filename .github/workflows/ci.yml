@@ -512,9 +512,11 @@ jobs:
         if: matrix.suite == 'accounts'
         run: node test/accounts.mjs
 
-      - name: Object toolbar end to end (Chromium)
+      - name: Object toolbar and Prepare layout end to end (Chromium)
         if: matrix.suite == 'toolbar'
-        run: node test/toolbar.mjs toolbar-shots
+        run: |
+          node test/toolbar.mjs toolbar-shots
+          node test/layout-fixes.mjs toolbar-shots
 
       - uses: actions/upload-artifact@v6
         if: always() && matrix.suite == 'toolbar'

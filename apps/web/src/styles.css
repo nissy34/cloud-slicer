@@ -208,6 +208,8 @@ select:focus-visible {
   padding: 12px 16px;
   border-bottom: 1px solid var(--border);
   display: grid;
+  /* One column no wider than the panel: a long object name shortens with "…" instead of widening it. */
+  grid-template-columns: minmax(0, 1fr);
   gap: 10px;
 }
 .group h2 {
@@ -326,6 +328,9 @@ select:focus-visible {
 .actions {
   display: flex;
   gap: 8px;
+}
+.phone-only {
+  display: none;
 }
 .muted {
   color: var(--muted);
@@ -757,6 +762,7 @@ select:focus-visible {
   margin: 0;
   padding: 0;
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   gap: 2px;
 }
 .volumes {
@@ -1671,7 +1677,14 @@ select:focus-visible {
 /* Paint tools */
 .paint-panel {
   display: grid;
+  /* As wide as the card: a long object name in the Clear button shortens with "…". */
+  grid-template-columns: minmax(0, 1fr);
   gap: 8px;
+}
+.paint-clear {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .paint-head {
   display: flex;
@@ -1818,6 +1831,9 @@ select:focus-visible {
 .small {
   font-size: 12px;
 }
+.ask-backdrop {
+  z-index: 60;
+}
 .dialog-actions {
   display: flex;
   justify-content: flex-end;
@@ -1887,6 +1903,12 @@ select:focus-visible {
   .actionbar .actions button {
     flex: 1;
     padding-inline: 8px;
+  }
+  .actionbar .wide-only {
+    display: none;
+  }
+  .actionbar .phone-only {
+    display: inline;
   }
   .stats {
     gap: 2px 12px;
@@ -2286,6 +2308,10 @@ select:focus-visible {
   background: var(--surface);
   box-shadow: 0 12px 32px rgb(0 0 0 / 0.18);
   text-align: left;
+}
+.preset-pop.up {
+  top: auto;
+  bottom: calc(100% + 6px);
 }
 .preset-pop p {
   margin: 0 0 10px;
@@ -3917,6 +3943,8 @@ select:focus-visible {
   background: var(--surface-2);
 }
 .project-label {
+  flex: none;
+  white-space: nowrap;
   color: var(--muted);
 }
 .project-label::after {
@@ -3928,10 +3956,14 @@ select:focus-visible {
   align-items: center;
   gap: 6px;
   min-width: 0;
+  font-weight: 600;
+}
+/* Its own box, so a long name ends in "…" (a flex box can't shorten bare text). */
+.project-name-text {
+  min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  font-weight: 600;
 }
 .project-cloud {
   flex: none;

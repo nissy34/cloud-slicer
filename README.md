@@ -57,7 +57,7 @@ hosted on Cloudflare's free tier.
   axes together while "Scale evenly" is on; the same fields for a part inside its object), lay on face, cut, measure (distances and angles
   between faces, edges, circles and corners), variable layer height (adaptive, smooth,
   or by hand on the layer height chart), arrange, auto-orient, split,
-  mirror, simplify (offered by itself when a model has too many triangles to slice comfortably), plates, brim ears (by hand or on the corners), undo and redo, desktop's editing keys (Del deletes the
+  mirror, simplify (offered by itself when the plate to slice has too many triangles to slice comfortably), plates, brim ears (by hand or on the corners), undo and redo, desktop's editing keys (Del deletes the
   picked copy or part, Ctrl+C / Ctrl+V copy and paste an object, Ctrl+K clones it, + and - add or
   remove a copy, also Add copy / Remove copy in the object list and object menu),
   painting (colours, support and seam enforcers/blockers, fuzzy skin), desktop's plate
@@ -334,6 +334,7 @@ Browser end to end tests (Playwright's Chromium) run against the built site
 | `test/preset-files.mjs` | Printer and filament settings windows, preset export and import |
 | `test/accounts.mjs` | Sign-in, sessions, synced presets/settings/printers, online projects (Pages Functions + local D1, mock Google) |
 | `test/toolbar.mjs` | The object toolbar: add a model, variable layer height, simplify, brim ears, lay on face, measure, the object menu, parts and modifiers, mesh boolean, text and SVG shapes, assemble, fits a phone |
+| `test/layout-fixes.mjs` | Prepare's layout and dialogs: long object and project names shorten with "…", the Paint card fits, closing the Text tool takes back an unchanged new text, preset menus name presets as their dropdowns and open upward near the bottom, Online projects closes with Esc or a click outside, unsaved changes ask in the app's own dialog, the phone's buttons after slicing fit one row |
 | `test/mixing.mjs` | Make a colour mix, slice, the G-code alternates between both tools |
 | `test/bed.mjs` | A Bambu Lab A1, the U1 and a Prusa MK4 each show their own bed shape and picture, fetched only for that printer, in both engines |
 | `test/wipe-tower.mjs` | A two-filament plate shows the prime tower; drag it, and the slice prints it there |

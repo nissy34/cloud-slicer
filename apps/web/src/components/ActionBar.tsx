@@ -176,7 +176,7 @@ export function ActionBar() {
         {heavy && job.kind === 'idle' && (
           <span className="hint warn" data-testid="heavy-model">
             {' '}
-            This model has {triangleCount(heavy.triangles)} triangles, more than a browser can comfortably slice. Simplifying it to
+            {(project?.plates.length ?? 0) > 1 ? 'This plate has' : 'This model has'} {triangleCount(heavy.triangles)} triangles, more than a browser can comfortably slice. Simplifying it to
             about {triangleCount(LIGHT_TRIANGLES)} keeps plenty of detail for printing{heavy.painted ? ', but removes its paint' : ''}.
           </span>
         )}
@@ -189,11 +189,20 @@ export function ActionBar() {
                 Preview
               </button>
             )}
-            <button className="secondary" disabled={unprintable} title={unprintable ? 'The toolpaths leave the build volume' : undefined} onClick={() => download(job.gcode, fileName)}>
-              Download G-code
+            {/* Phones show the short words so all four buttons fit in one row. */}
+            <button
+              className="secondary"
+              aria-label="Download G-code"
+              disabled={unprintable}
+              title={unprintable ? 'The toolpaths leave the build volume' : undefined}
+              onClick={() => download(job.gcode, fileName)}
+            >
+              <span className="wide-only">Download G-code</span>
+              <span className="phone-only">Download</span>
             </button>
             <button
               className="secondary"
+              aria-label="Send to printer"
               disabled={unprintable}
               title={unprintable ? 'The toolpaths leave the build volume' : undefined}
               onClick={() => {
@@ -201,7 +210,8 @@ export function ActionBar() {
                 setTab('device');
               }}
             >
-              Send to printer
+              <span className="wide-only">Send to printer</span>
+              <span className="phone-only">Send</span>
             </button>
           </>
         )}
