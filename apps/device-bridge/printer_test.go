@@ -60,6 +60,9 @@ func TestPrinterPlanInitScriptsAreValidShell(t *testing.T) {
 		}
 	}
 	sysv := printerPlanFor(printerEnv{dataDir: "/home/lava/printer_data", kind: initSysV})
+	if !strings.Contains(sysv.files[0].content, "trap '' HUP") {
+		t.Error("the init script's loop must survive the SSH logout of the install")
+	}
 	if sysv.files[0].path != "/etc/init.d/S99cloud-slicer-bridge" {
 		t.Fatal(sysv.files[0].path)
 	}

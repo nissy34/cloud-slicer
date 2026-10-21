@@ -111,6 +111,8 @@ LOG=` + shellQuote(log) + `
 start() {
 	if [ -f "$PIDFILE" ] && kill -0 "$(cat "$PIDFILE")" 2>/dev/null; then return 0; fi
 	(
+		# Started from an SSH session by the installer: outlive its logout.
+		trap '' HUP
 		while :; do
 			[ "$(wc -c < "$LOG" 2>/dev/null || echo 0)" -gt 1048576 ] && : > "$LOG"
 			` + args + ` >> "$LOG" 2>&1
