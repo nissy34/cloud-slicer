@@ -2,6 +2,7 @@ import { useEffect } from 'react';
 import { useAccount } from '../../state/account';
 import { BRIDGE_SIGN_IN, useDevice } from '../../state/device';
 import '../../state/alerts';
+import { isTestRelay } from '../config';
 import { AlertsCard } from './AlertsCard';
 import { BridgeOffline } from './BridgeSetup';
 import { CameraCard } from './CameraCard';
@@ -68,11 +69,14 @@ export function DeviceScreen() {
                 {printers.map((p) => (
                   <option key={p.id} value={p.id}>
                     {p.name}
+                    {p.kind === 'bridge' && isTestRelay(p.relay) ? ' (test)' : ''}
                   </option>
                 ))}
                 <option value="__add">Add a printer…</option>
               </select>
-              <span className="muted dv-model">{[model, active.kind === 'bridge' ? 'through the bridge' : facts?.hostname].filter(Boolean).join(' · ')}</span>
+              <span className="muted dv-model">
+                {[model, active.kind === 'bridge' ? (isTestRelay(active.relay) ? 'through the test bridge' : 'through the bridge') : facts?.hostname].filter(Boolean).join(' · ')}
+              </span>
             </div>
             <span className={`dv-pill ${pill.cls}`} data-testid="connection" title={conn.message}>
               {pill.text}
