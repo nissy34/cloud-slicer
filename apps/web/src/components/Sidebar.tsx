@@ -1,5 +1,5 @@
 import { shortName } from '../lib/presets';
-import { installedOnly, installedPrinters, SETUP_KEY, type Setup } from '../lib/setup';
+import { installedFilaments, installedOnly, installedPrinters, SETUP_KEY, type Setup } from '../lib/setup';
 import { canSend } from '../lib/printer-catalog';
 import { useUserSetting } from '../state/account';
 import { SendMark, useSetupWizard } from './SetupWizard';
@@ -87,7 +87,7 @@ function PrinterSection() {
 function FilamentSection() {
   const selection = useSlicer((s) => s.selection);
   const allFilaments = useSlicer((s) => s.filaments);
-  const installed = useUserSetting<Setup>(SETUP_KEY)?.filaments;
+  const installed = installedFilaments(useUserSetting<Setup>(SETUP_KEY), useSlicer((s) => s.flavor));
   const filaments = installedOnly(allFilaments, withMine(installed, allFilaments), selection?.filaments);
   const { setFilament, setColour, addFilament, removeFilament } = useSlicer.getState();
   const limit = useFilamentLimit();

@@ -29,7 +29,7 @@ import type { SyncPlan } from '../lib/filament-sync';
 import { DEFAULT_PRINTER, pickFilamentPreset, splitList, SLOT_COLOURS } from '../lib/presets';
 import { changedOnPurpose, emptyProjectMessage, modelProcessKeys, pickProcess, printerLabel, projectOverrides, fallBackGcode, gcodeOverrides } from '../lib/project-import';
 import { accountReady, getUserSetting, presetEditing, useAccount } from './account';
-import { installedOnly, installedPrinters, SETUP_KEY, startPrinter, type Setup } from '../lib/setup';
+import { installedFilaments, installedOnly, installedPrinters, SETUP_KEY, startPrinter, type Setup } from '../lib/setup';
 import { loadConvertPreference, loadDefaultEngine, loadSaved, save, saveConvertPreference } from '../lib/storage';
 import { gcodeErrors, readableGcodeError } from '../lib/gcode-errors';
 import { appOfModelHead, engineFolder, engineFromUrl, engineName, engineOfModelHead, modelHeadOf3mf, type EngineFlavor } from '../lib/engines';
@@ -766,7 +766,7 @@ export const useSlicer = create<SlicerState>((set, get) => {
   // A filament preset for a material: one of the user's installed filaments
   // when one matches, else any compatible preset.
   function pickFilament(filaments: PresetSummary[], type: string | undefined, fallback?: string, source?: string) {
-    const installed = installedOnly(filaments, getUserSetting<Setup>(SETUP_KEY)?.filaments);
+    const installed = installedOnly(filaments, installedFilaments(getUserSetting<Setup>(SETUP_KEY), get().flavor));
     const want = (type ?? '').toUpperCase();
     const mine = installed.length < filaments.length && installed.some((f) => (f.filamentType ?? '').toUpperCase() === want);
     return pickFilamentPreset(mine ? installed : filaments, type, fallback, source);

@@ -4,7 +4,7 @@
 import type { PresetSummary } from '../engine/protocol';
 import type { EngineFlavor } from './engines';
 import { standIn } from './preset-engines';
-import { DEFAULT_PRINTER } from './presets';
+import { DEFAULT_PRINTER, shortName } from './presets';
 import type { PrinterCatalog } from './printer-catalog';
 
 /** Account setting key; signing in merges this browser's lists into the account's. */
@@ -19,6 +19,8 @@ export interface Setup {
   engine?: EngineFlavor;
   /** The engine whose printer list the wizard showed, so `printers` names its presets (left out: Snapmaker Orca). */
   printersIn?: EngineFlavor;
+  /** The engine whose filament list the wizard showed (left out: the same as `printersIn`). */
+  filamentsIn?: EngineFlavor;
 }
 
 /**
@@ -29,6 +31,17 @@ export function installedPrinters(setup: Setup | undefined, flavor: EngineFlavor
   if (!setup?.printers) return undefined;
   const from = setup.printersIn ?? 'snapmaker';
   return [...new Set(setup.printers.map((name) => standIn('printer', name, from, flavor)))];
+}
+
+/**
+ * The installed filaments as engine `flavor` names them. The other engine has
+ * its own names for many ("Snapmaker PETG HF" is "Snapmaker PETG @U1" there),
+ * so without this its pickers would offer only the few that share a name.
+ */
+export function installedFilaments(setup: Setup | undefined, flavor: EngineFlavor): string[] | undefined {
+  if (!setup?.filaments) return undefined;
+  const from = setup.filamentsIn ?? setup.printersIn ?? 'snapmaker';
+  return [...new Set(setup.filaments.map((name) => standIn('filament', name, from, flavor)))];
 }
 
 /** The printer a project starts on when nothing was selected before: the first one installed that the engine has. */
@@ -70,17 +83,34 @@ export function installedOnly<T extends { name: string }>(list: T[], installed: 
   return list.filter((p) => keep.has(p.name));
 }
 
-/** Filament presets grouped by brand, for the wizard's filament page. */
-export function filamentGroups(filaments: PresetSummary[], names: Set<string>): { vendor: string; filaments: PresetSummary[] }[] {
-  const groups = new Map<string, PresetSummary[]>();
+/** One row on the wizard's filament page: a filament by its short name, and every preset behind it. */
+export interface FilamentRow {
+  label: string;
+  /** The presets with this short name, one per printer or nozzle ("Generic PLA @U1", "Generic PLA @Voron"). */
+  names: string[];
+}
+
+/**
+ * Filament presets grouped by brand, for the wizard's filament page. Each
+ * filament is one row: presets that differ only by the printer they're for
+ * share a row, and brands spelt differently ("snapmaker", "Snapmaker") share a group.
+ */
+export function filamentGroups(filaments: PresetSummary[], names: Set<string>): { vendor: string; rows: FilamentRow[] }[] {
+  const groups = new Map<string, { vendor: string; rows: Map<string, FilamentRow> }>();
   for (const f of filaments) {
     if (!names.has(f.name)) continue;
     const vendor = (f.filamentVendor || f.vendor || 'Generic').replace(/^"(.*)"$/, '$1');
-    if (!groups.has(vendor)) groups.set(vendor, []);
-    groups.get(vendor)!.push(f);
+    const key = vendor.toLowerCase();
+    if (!groups.has(key)) groups.set(key, { vendor, rows: new Map() });
+    const g = groups.get(key)!;
+    // The capitalised spelling names the group.
+    if (g.vendor === g.vendor.toLowerCase() && vendor !== vendor.toLowerCase()) g.vendor = vendor;
+    const label = shortName(f.name);
+    if (!g.rows.has(label)) g.rows.set(label, { label, names: [] });
+    g.rows.get(label)!.names.push(f.name);
   }
-  return [...groups]
-    .map(([vendor, list]) => ({ vendor, filaments: list.sort((a, b) => a.name.localeCompare(b.name)) }))
+  return [...groups.values()]
+    .map((g) => ({ vendor: g.vendor, rows: [...g.rows.values()].sort((a, b) => a.label.localeCompare(b.label)) }))
     .sort((a, b) => a.vendor.localeCompare(b.vendor));
 }
 
