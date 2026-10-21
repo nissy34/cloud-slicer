@@ -166,8 +166,7 @@ function useLookingUp(): boolean {
  * the printable area's outline with the brand's picture over it, desktop's grid
  * (bold every fifth line), the exclusion areas and the origin arrows. A printer
  * whose brand ships no bed shows the plain plate and grid. Seen from below,
- * as desktop, the bed shape and picture are left out and the plate is a faint
- * see-through sheet, so the underside of the model shows.
+ * as desktop, only a faint grid is drawn, so the underside of the model shows.
  */
 export function Bed() {
   const scene = useSceneColours();
@@ -215,11 +214,7 @@ export function Bed() {
           <meshStandardMaterial color={scene.bedModel} roughness={0.8} flatShading />
         </mesh>
       )}
-      {below ? (
-        <mesh geometry={plate} position={[0, 0, -0.2]} renderOrder={1}>
-          <meshBasicMaterial color={scene.bed} transparent opacity={0.25} side={THREE.BackSide} depthWrite={false} />
-        </mesh>
-      ) : (
+      {!below && (
         <mesh geometry={plate} position={[0, 0, -0.2]} receiveShadow>
           <meshStandardMaterial color={scene.bed} roughness={0.9} />
         </mesh>
