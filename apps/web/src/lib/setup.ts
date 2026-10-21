@@ -49,12 +49,12 @@ export function printerModels(printers: PresetSummary[]): PrinterModel[] {
   for (const p of printers) {
     if (!p.system) continue;
     const vendor = p.vendor || 'Other';
-    const model = p.model || p.name.replace(/\s*\([\d.]+ nozzle\)$/, '');
+    const model = p.model || p.name.replace(/\s*\([\d.+]+ nozzle\)$/, '');
     const key = `${vendor}\u0000${model}`;
     if (!models.has(key)) models.set(key, { vendor, model, nozzles: [] });
-    models.get(key)!.nozzles.push({ name: p.name, nozzle: (p.nozzle ?? '').split(',')[0] || '?' });
+    models.get(key)!.nozzles.push({ name: p.name, nozzle: [...new Set((p.nozzle ?? '').split(',').map((d) => d.trim()).filter(Boolean))].join('+') || '?' });
   }
-  for (const m of models.values()) m.nozzles.sort((a, b) => Number(a.nozzle) - Number(b.nozzle));
+  for (const m of models.values()) m.nozzles.sort((a, b) => parseFloat(a.nozzle) - parseFloat(b.nozzle) || a.nozzle.length - b.nozzle.length);
   return [...models.values()].sort((a, b) => a.vendor.localeCompare(b.vendor) || a.model.localeCompare(b.model));
 }
 
