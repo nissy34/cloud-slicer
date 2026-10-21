@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 )
 
 func TestPrinterPlanSystemd(t *testing.T) {
@@ -59,6 +60,9 @@ func TestPrinterPlanInitScriptsAreValidShell(t *testing.T) {
 		}
 	}
 	sysv := printerPlanFor(printerEnv{dataDir: "/home/lava/printer_data", kind: initSysV})
+	if !strings.Contains(sysv.files[0].content, "trap '' HUP") {
+		t.Error("the init script's loop must survive the SSH logout of the install")
+	}
 	if sysv.files[0].path != "/etc/init.d/S99cloud-slicer-bridge" {
 		t.Fatal(sysv.files[0].path)
 	}
@@ -97,5 +101,79 @@ func TestShellQuote(t *testing.T) {
 		if got := shellQuote(in); got != want {
 			t.Errorf("shellQuote(%q) = %s, want %s", in, got, want)
 		}
+	}
+}
+
+// The installer downloads a program with the bridge's own name and runs the init
+// script's restart from it: stopping must end the installed bridge only, never
+// every process of that name (that killed the installer on a Snapmaker U1).
+func TestPrinterInitScriptStopsOnlyTheInstalledBridge(t *testing.T) {
+	if _, err := os.Stat("/proc/self/exe"); err != nil {
+		t.Skip("needs /proc")
+	}
+	sleep, err := exec.LookPath("sleep")
+	if err != nil {
+		t.Skip("no sleep")
+	}
+	tmp := t.TempDir()
+	p := printerPlanFor(printerEnv{dataDir: filepath.Join(tmp, "printer data"), kind: initSysV})
+	installer := filepath.Join(tmp, "download", service)
+	for _, path := range []string{p.exe, installer} {
+		if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := copyFile(sleep, path); err != nil {
+			t.Fatal(err)
+		}
+		os.Chmod(path, 0o755)
+	}
+	start := func(path string) *exec.Cmd {
+		c := exec.Command(path, "30")
+		if err := c.Start(); err != nil {
+			t.Fatal(err)
+		}
+		t.Cleanup(func() { c.Process.Kill() })
+		return c
+	}
+	bridge, other := start(p.exe), start(installer)
+	done, otherDone := make(chan struct{}), make(chan struct{})
+	go func() { bridge.Wait(); close(done) }()
+	go func() { other.Wait(); close(otherDone) }()
+
+	script := filepath.Join(tmp, "S99")
+	content := strings.Replace(p.files[0].content, "/var/run/", tmp+"/", 1)
+	if err := os.WriteFile(script, []byte(content), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if out, err := exec.Command("sh", script, "stop").CombinedOutput(); err != nil {
+		t.Fatalf("stop: %v %s", err, out)
+	}
+	select {
+	case <-done:
+	case <-time.After(3 * time.Second):
+		t.Fatal("the installed bridge is still running")
+	}
+	select {
+	case <-otherDone:
+		t.Fatal("stop killed another program with the bridge's name (the installer)")
+	case <-time.After(300 * time.Millisecond):
+	}
+}
+
+// A bridge on the printer finds that printer's Moonraker on 127.0.0.1 and on the
+// printer's network address: the Device tab must list it once.
+func TestOwnPrinterIsListedOnce(t *testing.T) {
+	lo := found{URL: "http://127.0.0.1:7125", Name: "127.0.0.1", NeedsKey: true}
+	lan := found{URL: "http://10.0.0.1:7125", Name: "10.0.0.1", NeedsKey: true}
+	got := ownPrinter([]found{lan, lo}, "lava")
+	if len(got) != 1 || got[0].URL != lo.URL || got[0].Name != "lava" || !got[0].NeedsKey {
+		t.Fatalf("both need a key: %+v", got)
+	}
+	open := found{URL: lan.URL, Name: "lava"}
+	if got := ownPrinter([]found{lo, open}, "lava"); len(got) != 1 || got[0].URL != open.URL || got[0].NeedsKey {
+		t.Fatalf("one answers without a key: %+v", got)
+	}
+	if got := ownPrinter(nil, "lava"); len(got) != 0 {
+		t.Fatalf("no Moonraker: %+v", got)
 	}
 }

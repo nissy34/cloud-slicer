@@ -59,6 +59,10 @@ func runBridge(cfg *Config, opts bridgeOptions) *Bridge {
 	}
 	if opts.find == nil {
 		opts.find = func(ctx context.Context) []found { return discover(ctx, opts.log) }
+		// On the printer itself it serves that printer only.
+		if _, ok := installedOnPrinter(); ok {
+			opts.find = func(ctx context.Context) []found { return discoverOwn(ctx, opts.log) }
+		}
 	}
 	ctx, cancel := context.WithCancel(context.Background())
 	b := &Bridge{cfg: cfg, opts: opts, ctx: ctx, cancel: cancel, sessions: map[string]*Session{}}

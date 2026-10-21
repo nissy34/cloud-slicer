@@ -124,6 +124,55 @@ func discover(ctx context.Context, log func(string)) []found {
 		}
 	}
 	log(fmt.Sprintf("Looking for printers on your network (%d addresses)...", len(hosts)))
+	return probeHosts(ctx, hosts)
+}
+
+// discoverOwn finds the Moonraker of the printer this bridge runs on. It answers
+// on 127.0.0.1 and on each of the printer's own network addresses, so asking
+// all of them would list one printer several times: it gives one.
+func discoverOwn(ctx context.Context, log func(string)) []found {
+	hosts := []string{"127.0.0.1"}
+	addrs, _ := net.InterfaceAddrs()
+	for _, a := range addrs {
+		if ipnet, ok := a.(*net.IPNet); ok && !ipnet.IP.IsLoopback() && ipnet.IP.To4() != nil {
+			hosts = append(hosts, ipnet.IP.To4().String())
+		}
+	}
+	log("Looking for this printer's Moonraker...")
+	return ownPrinter(probeHosts(ctx, hosts), shortHost())
+}
+
+// ownPrinter picks the one entry for this printer: one that answers without a
+// key if any (127.0.0.1 first: it never changes), else 127.0.0.1.
+func ownPrinter(list []found, host string) []found {
+	if len(list) == 0 {
+		return nil
+	}
+	loopback := "http://127.0.0.1:7125"
+	score := func(f found) int {
+		s := 0
+		if !f.NeedsKey {
+			s += 2
+		}
+		if f.URL == loopback {
+			s++
+		}
+		return s
+	}
+	best := list[0]
+	for _, f := range list[1:] {
+		if score(f) > score(best) {
+			best = f
+		}
+	}
+	if net.ParseIP(best.Name) != nil && host != "" {
+		best.Name = host
+	}
+	return []found{best}
+}
+
+// probeHosts asks Moonraker's port on each host at once.
+func probeHosts(ctx context.Context, hosts []string) []found {
 	queue := make(chan string, len(hosts))
 	for _, h := range hosts {
 		queue <- h
