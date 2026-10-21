@@ -114,7 +114,7 @@ export function DeviceScreen() {
           )}
           {agentOffline && (
             <div className="dv-banner dv-banner-help" role="status">
-              <BridgeOffline system={bridge?.system} />
+              <BridgeOffline system={bridge?.system} place={bridge?.place} />
             </div>
           )}
           {/* Two columns on wide screens; one on phones, where CSS order interleaves them. */}

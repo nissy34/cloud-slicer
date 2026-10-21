@@ -127,10 +127,14 @@ func programFrom(name string, data []byte) ([]byte, error) {
 }
 
 // installedPath is the program to replace: this one, but only when it is the
-// copy set up to start with the computer (a copy opened by hand is left alone).
+// copy set up to start with the computer or installed on the printer (a copy
+// opened by hand is left alone).
 func installedPath() (string, bool) {
 	if target == "" || ownBuild() == 0 || updateKey == "" {
 		return "", false
+	}
+	if p, ok := installedOnPrinter(); ok {
+		return p.exe, true
 	}
 	p := autostartPlan(currentEnv())
 	if !autostartInstalled(p) || !samePath(self(), p.copyTo) {

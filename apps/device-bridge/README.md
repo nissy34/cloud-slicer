@@ -23,6 +23,23 @@ The Device tab's "Add a printer" dialog offers the right one for each system:
   curl -fsSL https://<relay>/install.sh | sh
   ```
 
+- **On the printer itself** (any Klipper printer with Moonraker: a Pi, an
+  Armbian board, a Snapmaker U1, a Creality K1 or K2, a Sonic Pad), over SSH:
+  ```bash
+  curl -fsSL https://<relay>/install.sh | sh -s -- --printer
+  ```
+  It finds `printer_data`, puts the program and its settings in
+  `printer_data/cloud-slicer-bridge/` (on a U1 that's the folder that survives
+  restarts), adds the printer's own Moonraker (127.0.0.1:7125), and runs it as
+  a root service: systemd on Pi OS and Armbian, procd on OpenWrt (K2, Sonic Pad),
+  an `S99` init script elsewhere (K1, U1). It prints the pairing link and saves
+  it as `config/cloud-slicer-bridge-pairing.txt`, which Mainsail and Fluidd
+  show. Nothing in Klipper or Moonraker changes, so neither restarts. It
+  updates itself like the computer apps. "Remove bridge" in the Device tab
+  removes the service and the folder; so does
+  `curl -fsSL https://<relay>/install.sh | sh -s -- --printer --uninstall`.
+  A Snapmaker U1 firmware update wipes the service: run the line again.
+
 The bridge asks nothing. Opened by double click it sets itself up to start
 with the computer and opens the pairing link in your browser (it also prints
 it); `install` does the same from a terminal, and `uninstall` stops the bridge
