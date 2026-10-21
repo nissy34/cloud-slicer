@@ -286,6 +286,17 @@ test('presets: save, conflict, update, list, delete', async () => {
   assert.deepEqual(all.map((x) => `${x.type}:${x.name}:${x.version}`), ['filament:My PLA:2', 'printer:My U1:1']);
   const filaments = (await (await alice.json('/api/presets?type=filament')).json()).presets;
   assert.equal(filaments.length, 1);
+  assert.equal(filaments[0].engines, undefined, 'a preset saved by one engine has no other-engine part');
+
+  // OrcaSlicer's part of a preset (src/lib/preset-engines.ts) is stored as sent.
+  const engines = { shared: 1, orca: { inherits: 'Generic PLA @System', config: { machine_start_gcode: 'G28' } }, pending: { nozzle_temperature: '215' } };
+  const both = await alice.json('/api/presets/filament/My%20PLA', 'PUT', { ...body, engines, baseVersion: 2 });
+  assert.deepEqual((await both.json()).preset.engines, engines);
+  const reread = (await (await alice.json('/api/presets?type=filament')).json()).presets[0];
+  assert.deepEqual(reread.engines, engines);
+  assert.equal(reread.version, 3);
+  assert.equal((await alice.json('/api/presets/filament/x', 'PUT', { ...body, engines: { orca: { config: { k: 1 } } } })).status, 400, 'engine part values are strings');
+  assert.equal((await alice.json('/api/presets/filament/x', 'PUT', { ...body, engines: { other: 1 } })).status, 400, 'no unknown engine fields');
 
   assert.equal((await alice.json('/api/presets/filament/a%2Fb', 'PUT', body)).status, 400, 'no slashes in names');
   assert.equal((await alice.json('/api/presets/widget/x', 'PUT', body)).status, 404);
@@ -814,10 +825,11 @@ if (withApp)
       assert.ok(saved, JSON.stringify(list.projects));
       assert.equal(saved.hasThumbnail, true, 'the 3D view was saved as its thumbnail');
       assert.ok(saved.size > 100_000, `3MF is ${saved.size} bytes`);
+      assert.equal(saved.engine, 'snapmaker', 'saved with the engine it slices with');
       if (process.env.ACCOUNTS_SHOTS) await page.screenshot({ path: join(process.env.ACCOUNTS_SHOTS, 'project-saved.png') });
 
       await projectButton.click();
-      await page.getByRole('menuitem', { name: 'New project' }).click();
+      await page.getByRole('menuitem', { name: 'New project', exact: true }).click();
       await page.getByText('Open a model to start').waitFor();
       await projectButton.click();
       await page.getByRole('menuitem', { name: 'Online projects…' }).click();

@@ -17,7 +17,7 @@
 //   GET    /api/projects                    the user's online projects, usage and limits
 //   GET    /api/projects/<id>/file          the project's 3MF
 //   GET    /api/projects/<id>/thumbnail     its PNG thumbnail
-//   PUT    /api/projects/<id>?name=&baseVersion=   save (body: the 3MF)
+//   PUT    /api/projects/<id>?name=&baseVersion=&engine=   save (body: the 3MF)
 //   PUT    /api/projects/<id>/thumbnail     set the thumbnail (body: PNG)
 //   PATCH  /api/projects/<id>               rename ({ name, baseVersion? })
 //   DELETE /api/projects/<id>

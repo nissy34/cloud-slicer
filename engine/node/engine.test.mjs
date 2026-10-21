@@ -12,10 +12,18 @@ import { DATA_DIR, DEFAULT_PRINTER, bedSize, call, openEngine } from './engine.m
 const fixtures = resolve(dirname(fileURLToPath(import.meta.url)), '../../fixtures');
 let engine;
 let presets;
+// Which engine this build is (engine/README.md, "Two engines"): the same tests
+// run on both; preset names differ and colour mixing is Snapmaker Orca's own.
+let flavor = { flavor: 'snapmaker', mixing: true };
+let STANDARD = '0.20mm Standard @Snapmaker U1 (0.4 nozzle)';
 
 before(async () => {
   ({ engine, presets } = await openEngine());
+  if (engine.engineInfo) flavor = JSON.parse(engine.engineInfo());
+  if (flavor.flavor === 'orca') STANDARD = '0.20 Standard @Snapmaker U1 (0.4 nozzle)';
 });
+// Snapmaker Orca's colour mixing (engine/src/mixed_api.cpp) isn't in OrcaSlicer.
+const needsMixing = (t) => !flavor.mixing && (t.skip('colour mixing is Snapmaker Orca only'), true);
 after(() => setImmediate(() => process.exit(process.exitCode ?? 0)));  // pthread workers keep Node alive
 
 const select = (selection) => call(engine, 'presetsSelect', JSON.stringify(selection));
@@ -129,7 +137,7 @@ test('selecting the U1 lists only compatible presets and resolves its full confi
   const sel = select({ printer: DEFAULT_PRINTER });
   assert.equal(sel.selection.printer, DEFAULT_PRINTER);
   assert.ok(sel.processes.length > 0 && sel.processes.every((p) => p.compatible));
-  assert.ok(sel.processes.some((p) => p.name === '0.20mm Standard @Snapmaker U1 (0.4 nozzle)'));
+  assert.ok(sel.processes.some((p) => p.name === STANDARD));
   assert.ok(sel.filaments.some((f) => /PLA/.test(f.name)));
   const cfg = fullConfig();
   assert.equal(cfg.gcode_flavor, 'klipper');
@@ -139,7 +147,7 @@ test('selecting the U1 lists only compatible presets and resolves its full confi
 });
 
 test('overrides apply on top of the presets', () => {
-  select({ printer: DEFAULT_PRINTER, process: '0.20mm Standard @Snapmaker U1 (0.4 nozzle)' });
+  select({ printer: DEFAULT_PRINTER, process: STANDARD });
   const cfg = fullConfig({ sparse_infill_density: '42%', wall_loops: 5 });
   assert.equal(cfg.sparse_infill_density, '42%');
   assert.equal(cfg.wall_loops, '5');
@@ -160,7 +168,7 @@ test('option metadata covers the print, filament and printer settings', () => {
 });
 
 test('slices an STL with the U1 presets', () => {
-  select({ printer: DEFAULT_PRINTER, process: '0.20mm Standard @Snapmaker U1 (0.4 nozzle)' });
+  select({ printer: DEFAULT_PRINTER, process: STANDARD });
   const info = load('tetrahedron.stl');
   assert.equal(info.objects.length, 1);
   assert.equal(info.objects[0].instances[0].plate, 0);
@@ -171,8 +179,17 @@ test('slices an STL with the U1 presets', () => {
   assert.ok(result.estimatedTimeSeconds > 0);
 });
 
+test('the layer count is the G-code\'s, support layers included only once', () => {
+  select({ printer: DEFAULT_PRINTER, process: STANDARD });
+  load('3DBenchy.stl');
+  const { result, gcode } = slice(fullConfig({ enable_support: '1', support_type: 'normal(auto)' }));
+  assert.match(gcode, /^;TYPE:Support/m, 'the Benchy gets supports');
+  const written = Number(/^; total layer number: (\d+)/m.exec(gcode)?.[1]);
+  assert.equal(result.totalLayers, written, `summary ${result.totalLayers}, G-code ${written}`);
+});
+
 test('slicing reports desktop\'s warnings: G-code path conflicts and models that need support', () => {
-  select({ printer: DEFAULT_PRINTER, process: '0.20mm Standard @Snapmaker U1 (0.4 nozzle)' });
+  select({ printer: DEFAULT_PRINTER, process: STANDARD });
   // Two separate objects overlapping by half: their paths cross on every layer.
   load('gen-cube-20.stl');
   load('gen-cube-20.stl', 0, true);
@@ -196,7 +213,7 @@ test('slicing reports desktop\'s warnings: G-code path conflicts and models that
 });
 
 test('a slice stops when the page cancels it, and the engine slices again after', () => {
-  select({ printer: DEFAULT_PRINTER, process: '0.20mm Standard @Snapmaker U1 (0.4 nozzle)' });
+  select({ printer: DEFAULT_PRINTER, process: STANDARD });
   load('3DBenchy.stl');
   const cfg = JSON.stringify(fullConfig());
   // [0] the request id to cancel, [1] the running slice's id (the worker's job in the browser).
@@ -251,7 +268,7 @@ function pngPixel(png, x, y) {
 }
 
 test('embeds the plate picture as the printer profile\'s thumbnails', () => {
-  select({ printer: DEFAULT_PRINTER, process: '0.20mm Standard @Snapmaker U1 (0.4 nozzle)' });
+  select({ printer: DEFAULT_PRINTER, process: STANDARD });
   const cfg = fullConfig();
   assert.equal(cfg.thumbnails, '48x48/PNG, 300x300/PNG');
   load('tetrahedron.stl');
@@ -300,6 +317,16 @@ test('Bambu 3MF with painted colours slices with several tools', () => {
   const { gcode } = slice(cfg);
   const tools = Object.keys(toolCounts(gcode));
   assert.ok(tools.length >= 2, `tools used: ${tools}`);
+  // The file paints with filaments 5-10 too, but lists 4. Desktop drops that
+  // paint when it opens the project, and the slice prints those areas with
+  // the object's filament: Prepare shows the filaments the G-code uses.
+  const mesh = engine.previewMesh(0);
+  const highest = mesh.filaments.reduce((a, b) => Math.max(a, b), 0);
+  assert.ok(highest <= colours.length, `Prepare shows filament ${highest} of ${colours.length}`);
+  const printed = info.objects.findIndex((o) => o.instances[0].printable);
+  const first = [...mesh.objectTriangles].slice(0, printed).reduce((a, b) => a + b, 0);
+  const shown = new Set(mesh.filaments.subarray(first, first + mesh.objectTriangles[printed]));
+  assert.deepEqual([...shown].sort().map((f) => String(f - 1)), tools.sort(), 'Prepare and the G-code use the same filaments');
 });
 
 test('dual-colour 3MF keeps per-part filaments', () => {
@@ -350,14 +377,20 @@ test('prime tower: shown and sized like desktop Prepare, sliced where it was pla
   const box = `X${x0}..${x1} Y${y0}..${y1}`;
   assert.ok(x0 <= 120.5 && x1 >= 120 + t.width - 1 && y0 <= 40.5 && y1 >= 40 + result.wipeTowerDepth - 1, `tower ${box}`);
   assert.ok(x0 >= 105 && x1 <= 120 + t.width + 15 && y0 >= 25 && y1 <= 40 + result.wipeTowerDepth + 15, `tower ${box}`);
-  // Once sliced, the view shows the tower as deep as the slice made it.
-  assert.equal(tower(placed, 0, result.wipeTowerDepth).depth, Math.max(result.wipeTowerDepth, 20));
+  // Once sliced, the view shows the tower as deep as the slice made it, but
+  // never shallower than the engine's minimum for the object's height
+  // (WipeTower::min_depth_per_height): 20 mm up to 100 mm tall in Snapmaker
+  // Orca; OrcaSlicer starts at 5 mm for 5 mm and grows to 20 mm at 100 mm.
+  const minDepth = flavor.flavor === 'orca' ? 5 + ((10 - 5) * (20 - 5)) / (100 - 5) : 20;
+  const shown = tower(placed, 0, result.wipeTowerDepth).depth;
+  assert.ok(Math.abs(shown - Math.max(result.wipeTowerDepth, minDepth)) < 1e-4, `shown ${shown}, sliced ${result.wipeTowerDepth}`);
 
   // A plate printed with one filament has no tower.
   load('tetrahedron.stl');
   assert.ok(!tower(two).show, 'single-filament plate');
   // Printed with a mix only, the slice makes no tower (Orca counts the mix as
   // one filament), so none shows; with the mix and another filament it does.
+  if (!flavor.mixing) return;
   const mix = call(engine, 'mixedFilaments', JSON.stringify({ definitions: '', colours: ['#FF0000', '#0000FF'], op: { kind: 'add', row: { componentA: 1, componentB: 2, mixBPercent: 50, uiMode: 0 } } }));
   call(engine, 'setExtruder', 0, -1, 3);
   const withMix = { ...two, mixed_filament_definitions: mix.definitions };
@@ -654,7 +687,7 @@ test('lists the filaments that work with a printer, for the setup wizard', () =>
 });
 
 test('calibration tests set up like desktop and change settings per layer', () => {
-  select({ printer: DEFAULT_PRINTER, process: '0.20mm Standard @Snapmaker U1 (0.4 nozzle)' });
+  select({ printer: DEFAULT_PRINTER, process: STANDARD });
   selectSlots(1);
   const here = dirname(fileURLToPath(import.meta.url));
   const start = (mode, model, opts = {}) => {
@@ -716,7 +749,7 @@ test('calibration tests set up like desktop and change settings per layer', () =
 });
 
 test('user presets (diffs over a system preset) load like desktop user presets', () => {
-  const PROCESS = '0.20mm Standard @Snapmaker U1 (0.4 nozzle)';
+  const PROCESS = STANDARD;
   select({ printer: DEFAULT_PRINTER, process: PROCESS });
   const filament = call(engine, 'presetsSelect', JSON.stringify({})).selection.filaments[0];
   // What the web worker's userPresets writes (one JSON file per preset).
@@ -735,12 +768,13 @@ test('user presets (diffs over a system preset) load like desktop user presets',
     const sel = select({ printer: 'My U1', process: 'My fast', filaments: ['My PLA'] });
     assert.equal(sel.selection.printer, 'My U1');
     assert.equal(sel.selection.process, 'My fast', 'a system process stays compatible with a user printer of that printer');
-    assert.deepEqual(sel.selection.filaments, ['My PLA']);
+    // OrcaSlicer keeps a filament per tool head (four on the U1), copying the last one.
+    assert.deepEqual(sel.selection.filaments, flavor.flavor === 'orca' ? Array(4).fill('My PLA') : ['My PLA']);
     assert.ok(sel.processes.find((p) => p.name === 'My fast')?.user);
     const cfg = fullConfig();
     assert.equal(cfg.layer_height, '0.28');
     assert.equal(cfg.wall_loops, '3');
-    assert.equal(cfg.nozzle_temperature, '212');
+    assert.ok(cfg.nozzle_temperature.split(',').every((t) => t === '212'), cfg.nozzle_temperature);
     assert.equal(cfg.retraction_length.split(',')[0], '0.6');
     // Everything else comes from the system presets they inherit.
     assert.equal(cfg.sparse_infill_density, JSON.parse(engine.presetConfig('process', PROCESS)).sparse_infill_density);
@@ -757,7 +791,8 @@ test('user presets (diffs over a system preset) load like desktop user presets',
 const mixed = (request) => call(engine, 'mixedFilaments', JSON.stringify(request));
 const TWO = ['#0000FF', '#FFFF00'];
 
-test('colour mixing: a mix of two filaments is filament 3 and prints with both', () => {
+test('colour mixing: a mix of two filaments is filament 3 and prints with both', (t) => {
+  if (needsMixing(t)) return;
   selectSlots(2);
   const added = mixed({ definitions: '', colours: TWO, op: { kind: 'add', row: { componentA: 1, componentB: 2, mixBPercent: 50, uiMode: 0 } } });
   assert.equal(added.rows.length, 1);
@@ -782,7 +817,8 @@ test('colour mixing: a mix of two filaments is filament 3 and prints with both',
   assert.ok(tools[0] + tools[1] >= result.totalLayers - 2, `${JSON.stringify(tools)} over ${result.totalLayers} layers`);
 });
 
-test('colour mixing: a 3:1 ratio prints the first filament three times as often', () => {
+test('colour mixing: a 3:1 ratio prints the first filament three times as often', (t) => {
+  if (needsMixing(t)) return;
   selectSlots(2);
   const { definitions } = mixed({ definitions: '', colours: TWO, op: { kind: 'add', row: { componentA: 1, componentB: 2, mixBPercent: 25, ratioA: 3, ratioB: 1 } } });
   load('tetrahedron.stl');
@@ -800,7 +836,8 @@ test('colour mixing: a 3:1 ratio prints the first filament three times as often'
   assert.ok(share > 0.6 && share < 0.9, `filament 1 on ${Math.round(share * 100)}% of layers`);
 });
 
-test('colour mixing: painted mixes and the mix list survive saving and opening the 3MF', () => {
+test('colour mixing: painted mixes and the mix list survive saving and opening the 3MF', (t) => {
+  if (needsMixing(t)) return;
   selectSlots(2);
   const { definitions } = mixed({ definitions: '', colours: TWO, op: { kind: 'add', row: { componentA: 1, componentB: 2, mixBPercent: 50 } } });
   let m = load('3DBenchy.stl');
@@ -821,7 +858,8 @@ test('colour mixing: painted mixes and the mix list survive saving and opening t
   assert.ok(tools[0] > 0 && tools[1] > 0, JSON.stringify(tools));
 });
 
-test('colour mixing: deleting a mix or a filament moves what uses later filaments', () => {
+test('colour mixing: deleting a mix or a filament moves what uses later filaments', (t) => {
+  if (needsMixing(t)) return;
   const THREE = ['#FF0000', '#0000FF', '#FFFF00'];
   let d = mixed({ definitions: '', colours: THREE, op: { kind: 'add', row: { componentA: 1, componentB: 2 } } }).definitions;
   d = mixed({ definitions: d, colours: THREE, op: { kind: 'add', row: { componentA: 2, componentB: 3 } } }).definitions;
@@ -838,7 +876,8 @@ test('colour mixing: deleting a mix or a filament moves what uses later filament
   assert.equal(info().objects[0].extruder, 3);
 });
 
-test('sync filament: replacing the filaments moves objects and drops mixes, adding keeps mixes', () => {
+test('sync filament: replacing the filaments moves objects and drops mixes, adding keeps mixes', (t) => {
+  if (needsMixing(t)) return;
   const THREE = ['#FF0000', '#0000FF', '#FFFF00'];
   const d = mixed({ definitions: '', colours: THREE, op: { kind: 'add', row: { componentA: 1, componentB: 2 } } }).definitions;
   load('calib-cube-10-dual-colour-merged.3mf');
@@ -855,7 +894,20 @@ test('sync filament: replacing the filaments moves objects and drops mixes, addi
   assert.equal(info().objects[0].extruder, 1);
 });
 
-test('colour mixing: Match finds the recipe for a target colour', () => {
+test('switching to an engine without mixing: each mix becomes one of its filaments', (t) => {
+  if (needsMixing(t)) return;
+  const THREE = ['#FF0000', '#0000FF', '#FFFF00'];
+  let d = mixed({ definitions: '', colours: THREE, op: { kind: 'add', row: { componentA: 1, componentB: 2 } } }).definitions;
+  d = mixed({ definitions: d, colours: THREE, op: { kind: 'add', row: { componentA: 2, componentB: 3 } } }).definitions;
+  load('calib-cube-10-dual-colour-merged.3mf');
+  call(engine, 'setExtruder', 0, -1, 5);  // the second mix
+  const flat = mixed({ definitions: d, colours: THREE, op: { kind: 'flatten', to: [1, 3] } });
+  assert.equal(flat.rows.filter((r) => r.enabled).length, 0);
+  assert.equal(info().objects[0].extruder, 3);
+});
+
+test('colour mixing: Match finds the recipe for a target colour', (t) => {
+  if (needsMixing(t)) return;
   const target = mixed({ definitions: '', colours: TWO, op: { kind: 'add', row: { componentA: 1, componentB: 2, mixBPercent: 30 } } }).rows[0].colour;
   const match = call(engine, 'mixedMatch', JSON.stringify({ colours: TWO, types: ['PLA', 'PLA'], target, minPercent: 10 }));
   assert.ok(match.valid);
@@ -1634,7 +1686,7 @@ test('layer slider: a pause, a filament change and custom G-code at a layer, per
 });
 
 test('transform fields, sinking, part fields, copy and paste, like desktop', () => {
-  select({ printer: DEFAULT_PRINTER, process: '0.20mm Standard @Snapmaker U1 (0.4 nozzle)' });
+  select({ printer: DEFAULT_PRINTER, process: STANDARD });
   const near = (a, b, what) => assert.ok(Math.abs(a - b) < 0.01, `${what}: ${a} vs ${b}`);
   const move = (o, i, changes) => call(engine, 'setInstanceTransform', o, i, JSON.stringify(changes));
   load('gen-cube-20.stl');

@@ -9,7 +9,12 @@ class Model;
 #ifndef ENGINE_WITH_STEP
 // STEP import (Format/STEP.cpp, needs OCCT). Declared by compat/nostep/Format/STEP.hpp.
 Step::Step(std::string, ImportStepProgressFn, StepIsUtf8Fn) {}
+#if ENGINE_UPSTREAM
+Step::Step_Status Step::load() { return Step_Status::LOAD_ERROR; }
+Step::Step_Status Step::mesh(Model*, bool&, bool, double, double) { return Step_Status::MESH_ERROR; }
+#else
 bool Step::load() { return false; }
+#endif
 bool load_step(const char*, Model*, bool&, double, double, bool, ImportStepProgressFn, StepIsUtf8Fn, long&) { return false; }
 #endif
 

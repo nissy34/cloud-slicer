@@ -1,3 +1,4 @@
+import { engineFolder, type EngineFlavor } from '../lib/engines';
 import type {
   EngineLoading,
   OptionDef,
@@ -70,7 +71,9 @@ export interface MixedRequest {
     | { kind: 'delete'; index: number }
     | { kind: 'removePhysical'; filament: number }
     /** Sync filament: the filaments become `colours`; old filament i moves to remap[i - 1] (0 = gone). */
-    | { kind: 'replacePhysical'; colours: string[]; types?: string[]; remap: number[]; dropMixes: boolean };
+    | { kind: 'replacePhysical'; colours: string[]; types?: string[]; remap: number[]; dropMixes: boolean }
+    /** Switching to an engine without mixing: the mix numbered physical + 1 + k becomes filament to[k]; the mixes go. */
+    | { kind: 'flatten'; to: number[] };
   draft?: MixRecipe;
 }
 export interface MixedReply {
@@ -148,7 +151,7 @@ export interface EngineEvents {
 const READS = new Set(['printers', 'filamentsFor', 'fullConfig', 'presetConfig', 'options', 'modelInfo', 'fileConfig', 'saveProject', 'preview', 'paintOverlay', 'mixedBlend', 'mixedMatch', 'measureFeature', 'measureBetween', 'wipeTower', 'exportStl', 'slice']);
 
 /** Engine methods that change the presets, not the project. */
-const PRESET_CALLS = new Set(['select', 'userPresets', 'presetParse', 'mixed']);
+const PRESET_CALLS = new Set(['select', 'userPresets', 'vendors', 'presetParse', 'mixed']);
 
 /** Promise wrapper around the engine worker. Requests run in order. */
 export class EngineClient {
@@ -168,11 +171,15 @@ export class EngineClient {
   /** Requests so far that changed the project (not the presets), to tell whether a saved copy is current. */
   projectEdits = 0;
 
-  constructor(private events: EngineEvents) {
+  constructor(
+    private events: EngineEvents,
+    flavor: EngineFlavor,
+  ) {
     // bytes: what the engine downloads (wasm + presets), for its progress; the
     // server may compress them, so the response can't tell.
-    const query = `v=${import.meta.env.VITE_ENGINE_VERSION}&bytes=${import.meta.env.VITE_ENGINE_BYTES}`;
-    this.worker = new Worker(`/engine/engine-worker.js?${query}`, { name: 'engine' });
+    const bytes = flavor === 'orca' ? import.meta.env.VITE_ENGINE_ORCA_BYTES : import.meta.env.VITE_ENGINE_BYTES;
+    const query = `v=${import.meta.env.VITE_ENGINE_VERSION}&bytes=${bytes}`;
+    this.worker = new Worker(`/${engineFolder(flavor)}/engine-worker.js?${query}`, { name: 'engine' });
     this.worker.onmessage = ({ data }: MessageEvent<WorkerReply>) => this.receive(data);
     this.worker.onerror = (e) => events.onFatal(e.message || 'The engine worker failed to load.');
   }
@@ -257,6 +264,8 @@ export class EngineClient {
   /** Replaces the user presets and reloads all presets (the selection resets). */
   userPresets = (presets: UserPresetFile[]) =>
     this.call<{ printers: number; filaments: number; processes: number }>('userPresets', [presets]);
+  /** Adds printer brands (catalog file names) and reloads all presets when one was new (the selection resets then). */
+  vendors = (files: string[]) => this.call<boolean>('vendors', [files]);
   options = () => this.call<Record<string, OptionDef>>('options');
   modelInfo = () => this.call<ProjectInfo>('modelInfo');
   fileConfig = () => this.call<OrcaConfig>('fileConfig');

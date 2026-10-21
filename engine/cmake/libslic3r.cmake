@@ -1,5 +1,6 @@
 # =============================================================================
-# libslic3r (Snapmaker Orca's slicing core) for WebAssembly.
+# libslic3r (the slicing core of Snapmaker Orca or upstream OrcaSlicer) for
+# WebAssembly.
 #
 # The source list is read from the engine's own src/libslic3r/CMakeLists.txt,
 # so an engine upgrade picks up new files without edits here. The few files
@@ -42,8 +43,21 @@ set(ENGINE_INCLUDES
     ${BUNDLED_DIR}/qhull/src/libqhull_r
     ${BUNDLED_DIR}/boost/nowide
     ${BUNDLED_DIR}/clipper
+    ${BUNDLED_DIR}/clipper2/Clipper2Lib/include
+    ${BUNDLED_DIR}/earcut
     ${LIBSLIC3R_DIR}
+    ${CMAKE_BINARY_DIR}/libslic3r-generated
 )
+
+# Upstream OrcaSlicer generates libslic3r_version.h from its version.inc
+# (Snapmaker Orca defines the same names in common_func.hpp instead).
+if(EXISTS "${LIBSLIC3R_DIR}/libslic3r_version.h.in")
+    include("${ORCA_DIR}/version.inc")
+    set(SLIC3R_BUILD_ID "${SLIC3R_APP_KEY}-${SoftFever_VERSION}-wasm")
+    set(ORCA_CHECK_GCODE_PLACEHOLDERS 0)
+    configure_file("${LIBSLIC3R_DIR}/libslic3r_version.h.in"
+                   "${CMAKE_BINARY_DIR}/libslic3r-generated/libslic3r_version.h" @ONLY)
+endif()
 
 add_compile_definitions(NDEBUG SLIC3R_GUI=0 SLIC3R_OPENVDB=0)
 if(ENGINE_WITH_STEP)
@@ -73,6 +87,15 @@ target_include_directories(qoi PUBLIC ${BUNDLED_DIR}/qoi)
 
 add_library(clipper STATIC ${BUNDLED_DIR}/clipper/clipper.cpp ${BUNDLED_DIR}/clipper/clipper_z.cpp)
 target_include_directories(clipper PUBLIC ${ENGINE_INCLUDES})
+
+# Clipper2 (upstream OrcaSlicer only).
+set(CLIPPER2_LIB "")
+if(EXISTS "${BUNDLED_DIR}/clipper2")
+    file(GLOB CLIPPER2_SOURCES ${BUNDLED_DIR}/clipper2/Clipper2Lib/src/*.cpp)
+    add_library(Clipper2 STATIC ${CLIPPER2_SOURCES})
+    target_include_directories(Clipper2 PUBLIC ${BUNDLED_DIR}/clipper2/Clipper2Lib/include)
+    set(CLIPPER2_LIB Clipper2)
+endif()
 
 file(GLOB QHULL_C_SOURCES ${BUNDLED_DIR}/qhull/src/libqhull_r/*.c)
 list(FILTER QHULL_C_SOURCES EXCLUDE REGEX "userprintf_r\\.c$")  # QhullQh.cpp provides qh_fprintf
@@ -106,6 +129,8 @@ set(LIBSLIC3R_EXCLUDE
     GCodeSender.cpp         # USB serial printing (boost::asio serial ports)
     Format/svg.cpp          # SVG import, needs OCCT (compat/stubs.cpp)
     Shape/TextShape.cpp     # text embossing, needs OCCT + FreeType
+    Format/DRC.cpp          # Draco meshes (upstream OrcaSlicer), compat/drc_stub.cpp
+    ObjColorUtils.cpp       # OBJ colour clustering for desktop's import dialog, needs OpenCV
 )
 if(NOT ENGINE_WITH_STEP)
     list(APPEND LIBSLIC3R_EXCLUDE Format/STEP.cpp)  # compat/stubs.cpp
@@ -122,7 +147,24 @@ foreach(rel ${_rel})
     endif()
 endforeach()
 list(REMOVE_DUPLICATES LIBSLIC3R_SOURCES)
+if("Format/DRC.cpp" IN_LIST _rel)
+    list(APPEND LIBSLIC3R_SOURCES ${COMPAT_DIR}/drc_stub.cpp)
+endif()
+# Desktop's flushing volume maths (FlushVolCalc.cpp, FlushVolPredictor.cpp)
+# calls colour conversions that live with the GUI, in
+# slic3r/Utils/ColorSpaceConvert.cpp. Build that file as it is, without its
+# two wxWidgets helpers (the last two functions) and their include.
+file(READ "${ORCA_DIR}/src/slic3r/Utils/ColorSpaceConvert.cpp" _csc)
+string(FIND "${_csc}" "std::string color_to_string" _csc_cut)
+if(_csc_cut EQUAL -1)
+    message(FATAL_ERROR "ColorSpaceConvert.cpp changed: color_to_string not found")
+endif()
+string(SUBSTRING "${_csc}" 0 ${_csc_cut} _csc)
+string(REPLACE "#include <wx/colordlg.h>" "" _csc "${_csc}")
+string(REPLACE "#include \"ColorSpaceConvert.hpp\"" "#include \"slic3r/Utils/ColorSpaceConvert.hpp\"" _csc "${_csc}")
+file(WRITE "${CMAKE_CURRENT_BINARY_DIR}/ColorSpaceConvert.cpp" "${_csc}")
 list(APPEND LIBSLIC3R_SOURCES
+    ${CMAKE_CURRENT_BINARY_DIR}/ColorSpaceConvert.cpp
     ${COMPAT_DIR}/stubs.cpp
     ${COMPAT_DIR}/boost_locale_stub.cpp
     ${COMPAT_DIR}/nanosvg_impl.c)
@@ -162,7 +204,7 @@ if(ENGINE_WITH_STEP)
         TKBRep TKGeomBase TKG3d TKG2d TKMath TKernel)
 endif()
 
-target_link_libraries(libslic3r PRIVATE admesh clipper glu-libtess qoi libslic3r_cgal miniz qhull mcut)
+target_link_libraries(libslic3r PRIVATE admesh clipper ${CLIPPER2_LIB} glu-libtess qoi libslic3r_cgal miniz qhull mcut)
 target_link_libraries(libslic3r PUBLIC
     semver
     boost_log_setup boost_log boost_filesystem boost_thread boost_regex boost_iostreams

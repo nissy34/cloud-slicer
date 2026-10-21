@@ -18,10 +18,11 @@ import {
   type ImportItem,
 } from '../lib/preset-files';
 import { shortName } from '../lib/presets';
-import { listUserPresets, presetEdit, saveUserPreset, useAccount } from '../state/account';
+import { listUserPresets, presetEdit, useAccount } from '../state/account';
 import { useSlicer } from '../state/store';
 import type { PresetType } from './api';
 import { systemParent } from './preset-diff';
+import { saveFromEngine } from './preset-save';
 
 /** An item with what it would store, worked out for its current base. */
 type Row = ImportItem & { diff: OrcaConfig; gcode: string[]; problem: string | null };
@@ -141,7 +142,7 @@ export function ImportPresetsDialog() {
           if (!name) continue;
           if (!taken.has(`${row.type}\n${name}`) && listUserPresets().length >= MAX_USER_PRESETS)
             throw new Error(`You can keep up to ${MAX_USER_PRESETS} presets; ${added} were imported.`);
-          await saveUserPreset(row.type, name, row.base, row.diff, { overwrite: true });
+          await saveFromEngine(row.type, name, { inherits: row.base, edited: row.diff, parent: {} }, { overwrite: true });
           taken.add(`${row.type}\n${name}`);
           added++;
         }

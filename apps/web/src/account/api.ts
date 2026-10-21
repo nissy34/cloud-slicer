@@ -1,4 +1,6 @@
 // Client for the account API in functions/api (Cloudflare Pages Functions).
+import type { EngineFlavor } from '../lib/engines';
+import type { PresetEngines } from '../lib/preset-engines';
 
 export type ProviderId = 'google';
 export type PresetType = 'printer' | 'filament' | 'process';
@@ -20,12 +22,17 @@ export interface Me {
   user: AccountUser | null;
 }
 
-/** An Orca user preset: `config` holds only what differs from the `inherits` system preset. */
+/**
+ * An Orca user preset: `config` holds only what differs from the `inherits`
+ * system preset; that is what Snapmaker Orca loads. `engines` holds
+ * OrcaSlicer's part (src/lib/preset-engines.ts).
+ */
 export interface UserPreset {
   type: PresetType;
   name: string;
   inherits: string;
   config: Record<string, string>;
+  engines?: PresetEngines;
   /** Server version, 0 for a preset only saved in this browser. */
   version: number;
   updatedAt: number;
@@ -76,6 +83,8 @@ export interface OnlineProject {
   version: number;
   createdAt: number;
   updatedAt: number;
+  /** The engine it slices with. */
+  engine: EngineFlavor;
 }
 
 export interface ProjectList {
@@ -129,10 +138,10 @@ export const api = {
   logout: () => call<{ success: boolean }>('/api/auth/sign-out', { method: 'POST', body: '{}' }),
   deleteAccount: () => call<{ success: boolean }>('/api/auth/delete-user', { method: 'POST', body: '{}' }),
   presets: () => call<{ presets: UserPreset[] }>('/api/presets').then((r) => r.presets),
-  savePreset: (p: { type: PresetType; name: string; inherits: string; config: Record<string, string>; baseVersion?: number }) =>
+  savePreset: (p: { type: PresetType; name: string; inherits: string; config: Record<string, string>; engines?: PresetEngines; baseVersion?: number }) =>
     call<{ preset: UserPreset }>(presetPath(p.type, p.name), {
       method: 'PUT',
-      body: JSON.stringify({ inherits: p.inherits, config: p.config, baseVersion: p.baseVersion }),
+      body: JSON.stringify({ inherits: p.inherits, config: p.config, engines: p.engines, baseVersion: p.baseVersion }),
     }).then((r) => r.preset),
   deletePreset: (type: PresetType, name: string) => call<{ ok: true }>(presetPath(type, name), { method: 'DELETE' }),
   settings: () => call<{ settings: UserSetting[] }>('/api/settings').then((r) => r.settings),
@@ -149,8 +158,8 @@ export const api = {
   deleteDevice: (id: string) => call<{ ok: true }>(`/api/devices/${encodeURIComponent(id)}`, { method: 'DELETE' }),
   projects: () => call<ProjectList>('/api/projects'),
   /** baseVersion: the version this save started from (0 = must be new); undefined overwrites. */
-  saveProject: (id: string, name: string, file: Blob, baseVersion?: number) => {
-    const q = new URLSearchParams({ name });
+  saveProject: (id: string, name: string, file: Blob, baseVersion: number | undefined, engine: EngineFlavor) => {
+    const q = new URLSearchParams({ name, engine });
     if (baseVersion !== undefined) q.set('baseVersion', String(baseVersion));
     return call<{ project: OnlineProject }>(`${projectPath(id)}?${q}`, { method: 'PUT', body: file }, 'model/3mf').then((r) => r.project);
   },

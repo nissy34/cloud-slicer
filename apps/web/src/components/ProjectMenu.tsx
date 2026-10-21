@@ -1,10 +1,12 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { api, projectThumbnailUrl, type OnlineProject, type ProjectList } from '../account/api';
+import { engineName } from '../lib/engines';
 import { formatBytes, formatWhen, UNTITLED } from '../lib/projects';
 import { MODEL_EXTENSIONS } from '../lib/presets';
 import { useAccount } from '../state/account';
 import { useProjects } from '../state/projects';
 import { useSlicer } from '../state/store';
+import { discardOk as askDiscard, useEscape } from './AskDialog';
 
 const isMac = typeof navigator !== 'undefined' && /Mac|iPhone|iPad/.test(navigator.platform);
 const MOD = isMac ? '⌘' : 'Ctrl+';
@@ -19,6 +21,7 @@ export function ProjectMenu() {
   const message = useProjects((s) => s.message);
   const messageWarn = useProjects((s) => s.messageWarn);
   const signedIn = useAccount((s) => s.status === 'signedIn');
+  const engineInfo = useSlicer((s) => s.engineInfo);
   const p = useProjects.getState();
   const [open, setOpen] = useState(false);
   const root = useRef<HTMLDivElement>(null);
@@ -66,7 +69,7 @@ export function ProjectMenu() {
     setOpen(false);
     void fn();
   };
-  const discardOk = () => !useProjects.getState().dirty || confirm(`Discard the unsaved changes to “${useProjects.getState().current.name}”?`);
+  const discardOk = () => askDiscard(useProjects.getState().dirty, useProjects.getState().current.name);
 
   return (
     <div className="project-menu" ref={root}>
@@ -80,7 +83,7 @@ export function ProjectMenu() {
       >
         <span className="project-label">Project</span>
         <span className="project-name">
-          {name}
+          <span className="project-name-text">{name}</span>
           {online && <span className="project-cloud" aria-label="saved online" title="Saved in your online projects" />}
         </span>
         {dirty && <span className="project-dirty" aria-label="unsaved changes" />}
@@ -96,12 +99,16 @@ export function ProjectMenu() {
         onChange={(e) => {
           const files = [...(e.target.files ?? [])];
           e.target.value = '';
-          if (files.length && (!files.some((f) => /\.3mf$/i.test(f.name)) || discardOk())) void useProjects.getState().openFiles(files, 'project');
+          if (!files.length) return;
+          void (async () => {
+            if (!files.some((f) => /\.3mf$/i.test(f.name)) || (await discardOk())) await useProjects.getState().openFiles(files, 'project');
+          })();
         }}
       />
       {open && (
         <div className="menu-pop" role="menu" aria-label="Project">
-          <button role="menuitem" onClick={run(() => discardOk() && p.newProject())}>
+          {/* The default engine; the sidebar's Slicer engine dropdown picks the other one. */}
+          <button role="menuitem" onClick={run(async () => (await discardOk()) && p.newProject())}>
             New project
           </button>
           <button role="menuitem" onClick={run(() => input.current?.click())}>
@@ -121,6 +128,11 @@ export function ProjectMenu() {
           <button role="menuitem" disabled={!!busy} onClick={run(() => p.download())}>
             Download 3MF
           </button>
+          {engineInfo && (
+            <p className="menu-note" data-testid="project-engine">
+              This project slices with {engineInfo.name} {engineInfo.version}.
+            </p>
+          )}
           {!signedIn && <p className="menu-note">Sign in to keep projects online and open them on any device.</p>}
         </div>
       )}
@@ -241,8 +253,9 @@ function ProjectsDialog() {
       setDeleting(null);
     }
   }, [open, status]);
+  const close = useCallback(() => useProjects.getState().setListOpen(false), []);
+  useEscape(open, close);
   if (!open) return null;
-  const close = () => useProjects.getState().setListOpen(false);
   const p = useProjects.getState();
 
   const rename = async (proj: OnlineProject, name: string) => {
@@ -266,13 +279,13 @@ function ProjectsDialog() {
       setError((e as Error).message);
     }
   };
-  const openProject = (proj: OnlineProject) => {
-    if (useProjects.getState().dirty && !confirm(`Discard the unsaved changes to “${useProjects.getState().current.name}”?`)) return;
+  const openProject = async (proj: OnlineProject) => {
+    if (!(await askDiscard(useProjects.getState().dirty, useProjects.getState().current.name))) return;
     void p.openOnline(proj);
   };
 
   return (
-    <div className="dialog-backdrop" onKeyDown={(e) => e.key === 'Escape' && close()}>
+    <div className="dialog-backdrop" onClick={(e) => e.target === e.currentTarget && close()}>
       <div className="dialog projects-dialog" role="dialog" aria-modal="true" aria-labelledby="projects-title">
         <div className="projects-head">
           <h2 id="projects-title">Online projects</h2>
@@ -302,7 +315,7 @@ function ProjectsDialog() {
               <ul className="projects-grid">
                 {list.projects.map((proj) => (
                   <li key={proj.id} className={proj.id === currentId ? 'project-card current' : 'project-card'}>
-                    <button className="project-thumb" title={`Open ${proj.name}`} onClick={() => openProject(proj)}>
+                    <button className="project-thumb" title={`Open ${proj.name}`} onClick={() => void openProject(proj)}>
                       {proj.hasThumbnail ? <img src={projectThumbnailUrl(proj)} alt="" loading="lazy" /> : <span aria-hidden>3MF</span>}
                     </button>
                     {renaming?.id === proj.id ? (
@@ -327,7 +340,7 @@ function ProjectsDialog() {
                       </div>
                     )}
                     <div className="muted small">
-                      {formatWhen(proj.updatedAt)} · {formatBytes(proj.size)}
+                      {formatWhen(proj.updatedAt)} · {formatBytes(proj.size)} · {engineName(proj.engine ?? 'snapmaker')}
                     </div>
                     {deleting === proj.id ? (
                       <div className="project-card-actions">
@@ -341,7 +354,7 @@ function ProjectsDialog() {
                       </div>
                     ) : (
                       <div className="project-card-actions">
-                        <button className="account-link" onClick={() => openProject(proj)}>
+                        <button className="account-link" onClick={() => void openProject(proj)}>
                           Open
                         </button>
                         <button className="account-link" onClick={() => setRenaming({ id: proj.id, name: proj.name })}>

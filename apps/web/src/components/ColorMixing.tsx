@@ -26,7 +26,9 @@ export function ColorMixPanel() {
   const colours = useSlicer((s) => s.selection?.colours ?? NO_COLOURS);
   const deleteMix = useSlicer((s) => s.deleteMix);
   const [editing, setEditing] = useState<{ index: number } | 'new' | null>(null);
-  if (colours.length < 2) return null;
+  // Only Snapmaker Orca has mixed filaments.
+  const mixing = useSlicer((s) => s.engineInfo?.mixing ?? true);
+  if (colours.length < 2 || !mixing) return null;
   const live = mixes.map((row, index) => ({ row, index })).filter(({ row }) => !row.deleted);
   return (
     <div className="mixes">

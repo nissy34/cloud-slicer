@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { installedOnly, SETUP_KEY, type Setup } from '../../lib/setup';
+import { installedOnly, installedPrinters, SETUP_KEY, type Setup } from '../../lib/setup';
 import { useUserSetting } from '../../state/account';
 import { bridgeLabel, useDevice, type SavedPrinter } from '../../state/device';
 import { useSlicer } from '../../state/store';
@@ -16,7 +16,7 @@ const newId = () => Math.random().toString(36).slice(2, 10);
 /** Which printer profile this machine prints with: one of the installed printers. */
 function PresetField({ value, onChange }: { value: string; onChange: (name: string) => void }) {
   const all = useSlicer((s) => s.printers);
-  const installed = useUserSetting<Setup>(SETUP_KEY)?.printers;
+  const installed = installedPrinters(useUserSetting<Setup>(SETUP_KEY), useSlicer((s) => s.flavor));
   const printers = installedOnly(all, installed, value);
   return (
     <label>

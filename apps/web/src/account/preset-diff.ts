@@ -42,6 +42,26 @@ export function slotValue(value: string, type: string | undefined, slot: number,
 }
 
 /**
+ * The preset's own settings with the user's changes (`overrides`, full-config
+ * keys) on top. For a filament, `slot` picks that slot's values.
+ */
+export function presetEdited(args: {
+  own: OrcaConfig;
+  overrides: OrcaConfig;
+  options: Record<string, OptionDef>;
+  slot?: { index: number; count: number; config?: OrcaConfig };
+}): OrcaConfig {
+  const { own, overrides, options, slot } = args;
+  const edited: OrcaConfig = {};
+  for (const [key, value] of Object.entries(own)) {
+    if (META.has(key)) continue;
+    const o = overrides[key];
+    edited[key] = o === undefined ? value : slot ? slotValue(o, options[key]?.type, slot.index, slot.count, slot.config, options[key]?.flow === 'filament') : o;
+  }
+  return edited;
+}
+
+/**
  * The diff a user preset saves: the preset's own settings with the user's
  * changes (`overrides`, full-config keys) on top, minus what the system
  * parent already has. For a filament, `slot` picks that slot's values.
@@ -53,16 +73,8 @@ export function presetDiff(args: {
   options: Record<string, OptionDef>;
   slot?: { index: number; count: number; config?: OrcaConfig };
 }): OrcaConfig {
-  const { own, parent, overrides, options, slot } = args;
-  const diff: OrcaConfig = {};
-  for (const [key, value] of Object.entries(own)) {
-    if (META.has(key)) continue;
-    let edited = value;
-    const o = overrides[key];
-    if (o !== undefined) edited = slot ? slotValue(o, options[key]?.type, slot.index, slot.count, slot.config, options[key]?.flow === 'filament') : o;
-    if (edited !== parent[key]) diff[key] = edited;
-  }
-  return diff;
+  const edited = presetEdited(args);
+  return Object.fromEntries(Object.entries(edited).filter(([k, v]) => v !== args.parent[k]));
 }
 
 /** How many of the user's changes belong to a preset with these settings. */

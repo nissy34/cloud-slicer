@@ -39,7 +39,14 @@ public:
 class Step {
 public:
     Step(std::string path, ImportStepProgressFn stepFn = nullptr, StepIsUtf8Fn isUtf8Fn = nullptr);
+#if ENGINE_UPSTREAM
+    // Upstream OrcaSlicer's Step loads and meshes in two calls with a status.
+    enum class Step_Status { LOAD_SUCCESS, LOAD_ERROR, CANCEL, MESH_SUCCESS, MESH_ERROR };
+    Step_Status load();
+    Step_Status mesh(Model*, bool&, bool, double = 0.003, double = 0.5);
+#else
     bool load();
+#endif
     unsigned int get_triangle_num(double, double) { return 0; }
     unsigned int get_triangle_num_tbb(double, double) { return 0; }
     void clean_mesh_data() {}

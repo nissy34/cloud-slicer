@@ -152,9 +152,11 @@ export function objectSettingLabel(key: string): string | undefined {
  * that category desktop's "Add settings" menu offers, then that menu's other
  * categories, named "More: <category>". With one
  * filament, the Extruders and Wipe options categories are left out, as desktop
- * does, and so are the flushing options, which the U1 doesn't use. Options the engine doesn't know are skipped.
+ * does, and so are the flushing options unless the printer purges between
+ * filaments (`flushes`: one nozzle for several filaments; the U1's four heads
+ * never do). Options the engine doesn't know are skipped.
  */
-export function objectSettingGroups(options: Record<string, OptionDef>, part: boolean, filaments: number): SettingGroup[] {
+export function objectSettingGroups(options: Record<string, OptionDef>, part: boolean, filaments: number, flushes = false): SettingGroup[] {
   const fits = (key: string) => {
     const def = options[key];
     if (!def || key === 'extruder') return false;
@@ -181,8 +183,8 @@ export function objectSettingGroups(options: Record<string, OptionDef>, part: bo
   for (const [key, def] of Object.entries(options)) {
     if (listed.has(key) || !def.scope || !fits(key) || !def.category) continue;
     if (filaments <= 1 && (def.category === 'Extruders' || def.category === 'Wipe options')) continue;
-    // The U1's four heads never flush, so its purge options stay out (Nissan, 2026-10-20).
-    if (def.category === 'Flush options') continue;
+    // Printers with a head per filament (the U1) never flush, so the purge options stay out there (Nissan, 2026-10-20).
+    if (def.category === 'Flush options' && (!flushes || filaments <= 1)) continue;
     // Orca's one-off category names, folded into the groups they sit beside in the process pages.
     const category = def.category === 'Other' ? 'Others' : def.category === 'Layers and Perimeters' ? 'Quality' : def.category;
     const list = more.get(category) ?? [];

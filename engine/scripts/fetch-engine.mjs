@@ -3,6 +3,7 @@
 // (about 40 minutes). Takes seconds.
 //
 //   node engine/scripts/fetch-engine.mjs           # -> engine/build/engine/orca-engine.{js,wasm}
+//                                                  #    and engine/build/engine-orca/ (OrcaSlicer)
 //
 // CI's engine job publishes every engine it builds as a file on the `engine-builds`
 // GitHub release, named after the engine key (engine-key.mjs: the Orca commit plus a
@@ -11,41 +12,49 @@
 // them yet there is no matching file: push and let CI build it, or build it yourself
 // (README.md). It never downloads an engine built from other sources.
 //
-// It also fetches the pinned engine/orcaslicer submodule (shallow, about 15 s) when it
-// isn't checked out, because the web app's presets and the Node tests read it.
+// It also fetches the pinned engine/orcaslicer and engine/orcaslicer-upstream
+// submodules (shallow, about 15 s each) when they aren't checked out, because the web
+// app's presets and the Node tests read them. The OrcaSlicer engine is optional: when
+// it can't be fetched the site is built without it.
 //
 // Uses git, curl and tar, which Linux, macOS and Windows 10+ all have; curl follows the
 // HTTPS_PROXY of a cloud session.
 //
 //   ENGINE_REPO  GitHub repo with the release (default nissy34/cloud-slicer)
-//   --quiet      only print when something is downloaded or goes wrong
+//   --quiet           only print when something is downloaded or goes wrong
+//   --snapmaker-only  skip the second engine, upstream OrcaSlicer (engine/build/engine-orca)
 import { execFileSync } from 'node:child_process';
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { engineKey } from './engine-key.mjs';
+import { FLAVORS, engineKey } from './engine-key.mjs';
 
 const repo = join(dirname(fileURLToPath(import.meta.url)), '../..');
 const quiet = process.argv.includes('--quiet');
 const log = (msg) => quiet || console.log(`fetch-engine: ${msg}`);
 const run = (cmd, args, opts = {}) => execFileSync(cmd, args, { stdio: 'inherit', ...opts });
 
-function fetchOrcaOrWarn() {
+// Where each engine's build goes, and its source submodule (engine/README.md, "Two engines").
+const OUT = { snapmaker: 'engine/build/engine', orca: 'engine/build/engine-orca' };
+const NAME = { snapmaker: 'Snapmaker Orca', orca: 'OrcaSlicer' };
+
+function fetchOrcaOrWarn(flavor = 'snapmaker') {
   try {
-    fetchOrca();
+    fetchOrca(flavor);
   } catch (e) {
-    console.warn(`fetch-engine: couldn't fetch engine/orcaslicer (${e.message}); presets won't be bundled`);
+    console.warn(`fetch-engine: couldn't fetch ${FLAVORS[flavor]} (${e.message}); presets won't be bundled`);
   }
 }
 
-function fetchOrca() {
-  const dir = join(repo, 'engine/orcaslicer');
+function fetchOrca(flavor) {
+  const submodule = FLAVORS[flavor];
+  const dir = join(repo, submodule);
   if (existsSync(join(dir, 'resources/profiles'))) return;
   const git = (args, cwd = repo) => execFileSync('git', args, { cwd, encoding: 'utf8' }).trim();
-  const sha = git(['ls-files', '-s', 'engine/orcaslicer']).split(/\s+/)[1];
-  const url = git(['config', '-f', '.gitmodules', 'submodule.engine/orcaslicer.url']);
-  console.log(`fetch-engine: fetching the Snapmaker Orca submodule at ${sha.slice(0, 12)} (shallow)`);
+  const sha = git(['ls-files', '-s', submodule]).split(/\s+/)[1];
+  const url = git(['config', '-f', '.gitmodules', `submodule.${submodule}.url`]);
+  console.log(`fetch-engine: fetching the ${NAME[flavor]} submodule at ${sha.slice(0, 12)} (shallow)`);
   mkdirSync(dir, { recursive: true });
   // Its own repository first, so no git command below can act on the parent repo.
   if (!existsSync(join(dir, '.git'))) run('git', ['init', '-q'], { cwd: dir });
@@ -53,9 +62,9 @@ function fetchOrca() {
   run('git', ['checkout', '-q', 'FETCH_HEAD'], { cwd: dir });
 }
 
-export function fetchEngine() {
-  const key = engineKey(repo);
-  const outDir = join(repo, 'engine/build/engine');
+export function fetchEngine(flavor = 'snapmaker') {
+  const key = engineKey(repo, flavor);
+  const outDir = join(repo, OUT[flavor]);
   const stamp = join(outDir, '.engine-key');
   const have = existsSync(stamp) && readFileSync(stamp, 'utf8').trim() === key
     && ['orca-engine.js', 'orca-engine.wasm'].every((f) => existsSync(join(outDir, f)));
@@ -80,7 +89,7 @@ export function fetchEngine() {
     mkdirSync(outDir, { recursive: true });
     run('tar', ['-xzf', file, '-C', outDir]);
     writeFileSync(stamp, `${key}\n`);
-    console.log(`fetch-engine: downloaded engine ${key} into engine/build/engine`);
+    console.log(`fetch-engine: downloaded engine ${key} into ${OUT[flavor]}`);
     return true;
   } catch (e) {
     console.warn(`fetch-engine: download failed: ${e.message}`);
@@ -91,6 +100,12 @@ export function fetchEngine() {
 }
 
 if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) {
-  fetchOrcaOrWarn();
-  process.exit(fetchEngine() ? 0 : 1);
+  fetchOrcaOrWarn('snapmaker');
+  const ok = fetchEngine('snapmaker');
+  // The second engine (OrcaSlicer) is optional: the site just leaves it out.
+  if (!process.argv.includes('--snapmaker-only')) {
+    fetchOrcaOrWarn('orca');
+    fetchEngine('orca');
+  }
+  process.exit(ok ? 0 : 1);
 }

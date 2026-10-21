@@ -20,16 +20,24 @@ import type {
   SliceResult,
   SliceWarning,
   WipeTower,
+  EngineInfo,
 } from '../engine/protocol';
 import { calibrationOptions, CALIBRATIONS, type CalibrationMode, type CalibrationValues } from '../lib/calibration';
-import { bedSize } from '../lib/colour';
+import { bedSize, solidColour } from '../lib/colour';
 import { renderThumbnails, thumbnailSizes } from '../lib/thumbnail';
 import type { SyncPlan } from '../lib/filament-sync';
 import { DEFAULT_PRINTER, pickFilamentPreset, splitList, SLOT_COLOURS } from '../lib/presets';
-import { changedOnPurpose, emptyProjectMessage, modelProcessKeys, pickProcess, printerLabel, projectOverrides } from '../lib/project-import';
+import { changedOnPurpose, emptyProjectMessage, modelProcessKeys, pickProcess, printerLabel, projectOverrides, fallBackGcode, gcodeOverrides } from '../lib/project-import';
 import { accountReady, getUserSetting, presetEditing, useAccount } from './account';
-import { installedOnly, SETUP_KEY, type Setup } from '../lib/setup';
-import { loadConvertPreference, loadSaved, save, saveConvertPreference } from '../lib/storage';
+import { installedFilaments, installedOnly, installedPrinters, SETUP_KEY, startPrinter, type Setup } from '../lib/setup';
+import { loadConvertPreference, loadDefaultEngine, loadSaved, save, saveConvertPreference } from '../lib/storage';
+import { gcodeErrors, readableGcodeError } from '../lib/gcode-errors';
+import { appOfModelHead, engineFolder, engineFromUrl, engineName, engineOfModelHead, modelHeadOf3mf, type EngineFlavor } from '../lib/engines';
+import { filamentLimit, filamentLimitMessage, type FilamentLimit } from '../lib/filament-limit';
+import { flowFill, switchedText, switchPlan, type SwitchPlan } from '../lib/engine-switch';
+import { loadCatalog, vendorFilesFor, type PrinterCatalog } from '../lib/printer-catalog';
+import { expandPending, presetForEngine } from '../lib/preset-engines';
+import type { UserPreset } from '../account/api';
 import { heavyModel, type HeavyModel, type SimplifyBy, type SimplifyResult } from '../lib/simplify';
 import type { BrimEars, BrimRequest } from '../lib/brim';
 import type { LayerProfile, LayerRequest } from '../lib/layers';
@@ -45,6 +53,7 @@ import { fontInEngine } from './fonts';
 import { cameraPosition } from './view';
 import { saveFile } from '../lib/preset-files';
 import { estimateLayers, slicePercent } from '../lib/slice-progress';
+import { MATRIX, MULTIPLIER, remapMatrix, type FlushInfo } from '../lib/flush';
 import { OBJECT_CLASHED, objectsOutside, plateBounds } from '../lib/outside';
 
 /** 'admin' is the owner's Admin page, opened from the account menu (no tab of its own). */
@@ -75,8 +84,14 @@ export interface SlicerState {
   /** While the engine starts: download progress, then setting it up and loading the printers. */
   engineLoad: EngineLoading | { stage: 'printers'; loaded: number; total: number };
   vendorVersion: string;
+  /** The running engine and what it can do; null until it starts. */
+  engineInfo: EngineInfo | null;
+  /** The engine the open project slices with (started, or starting). */
+  flavor: EngineFlavor;
 
   printers: PresetSummary[];
+  /** Every printer brand and model the engine ships, loaded or not (lib/printer-catalog.ts). */
+  catalog: PrinterCatalog | null;
   processes: PresetSummary[];
   filaments: PresetSummary[];
   selection: Selection | null;
@@ -107,6 +122,17 @@ export interface SlicerState {
   simplifyHeavy(): Promise<void>;
   /** A 3MF made for a printer we don't have, waiting for the user to convert it. */
   conversion: { from: string; file: OrcaConfig } | null;
+  /**
+   * Slicing stopped on G-code another slicer wrote (`app`): the question
+   * whether to slice with the engine's own G-code for the printer instead; `error`
+   * is shown if not.
+   */
+  gcodeFallback: { app: string; printer: string; error: string } | null;
+  /**
+   * Answers gcodeFallback: the engine's own G-code for the printer from now on
+   * in this project and slice again, or the error.
+   */
+  answerGcodeFallback(useOwn: boolean): Promise<void>;
   /** Paint mode is on while set: what clicks and drags on the parts paint. */
   paint: PaintSettings | null;
   /** The object tool in use on the selected object. */
@@ -140,6 +166,8 @@ export interface SlicerState {
   mixes: MixRow[];
   /** Colour of every filament number: the physical filaments, then the mixes. */
   palette: string[];
+  /** Whether the selected printer purges between filaments, and its suggested range (lib/flush). */
+  flush: FlushInfo | null;
   /**
    * Where the prime tower stands on each plate (wipe_tower_x / wipe_tower_y),
    * kept with the project like the mixes, outside the changed settings.
@@ -153,6 +181,8 @@ export interface SlicerState {
 
   setTab(tab: Tab): void;
   selectPrinter(name: string): Promise<void>;
+  /** Loads the brands of these printer presets into the engine, when not loaded yet. */
+  loadVendors(printers: string[]): Promise<void>;
   /** Filaments that work with a printer, without selecting it (for the setup wizard). */
   filamentsFor(printer: string): Promise<{ filaments: PresetSummary[]; defaults: string[] }>;
   selectProcess(name: string): Promise<void>;
@@ -167,7 +197,8 @@ export interface SlicerState {
    * selects again, with `selection` on top of the current one. Changes now
    * saved in a preset stop counting as changes.
    */
-  setUserPresets(presets: UserPresetFile[], selection?: Partial<Selection>): Promise<void>;
+  /** Loads the user's presets into the engine, as it reads them (engineFiles). */
+  setUserPresets(presets: UserPreset[], selection?: Partial<Selection>): Promise<void>;
   setFilament(slot: number, name: string): Promise<void>;
   setColour(slot: number, colour: string): Promise<void>;
   addFilament(): Promise<void>;
@@ -236,6 +267,22 @@ export interface SlicerState {
   /** The open project as an Orca 3MF project file, with the current settings. */
   projectFile(thumbnail: ProjectThumbnail | null): Promise<ArrayBuffer>;
   clearProject(): Promise<void>;
+  /**
+   * Replaces the running engine with another one, which starts empty (the
+   * project lives in the engine). Resolves once it is up, or failed to start.
+   */
+  switchEngine(flavor: EngineFlavor): Promise<void>;
+  /**
+   * What switching the open project to the other engine keeps, changes and
+   * drops (lib/engine-switch), for the "Switch this project to …?" pop-up.
+   */
+  switchPlan(to: EngineFlavor): SwitchPlan;
+  /**
+   * Moves the open project to engine `to`: model, plates, positions and paint
+   * stay; mixes become plain filaments and what `to` lacks is dropped (see
+   * switchPlan). Resolves once it is open there, or failed.
+   */
+  switchProject(to: EngineFlavor): Promise<void>;
   setPlate(plate: number): Promise<void>;
   select(sel: { object: number; instance: number; volume?: number } | null): void;
   moveInstance(o: number, i: number, x: number, y: number): Promise<void>;
@@ -294,6 +341,8 @@ export interface SlicerState {
    */
   /** Adds or changes a text; on success, the characters its font has no letters for. */
   textVolume(o: number | null, style: TextStyle, edit: { type: 'part' | 'negative' | 'modifier' } | { volume: number }): Promise<false | { missing: string }>;
+  /** Takes back a text the Text tool added if it closes with nothing changed since, leaving no undo step. */
+  dropUnusedText(): Promise<void>;
   /**
    * An SVG shape like desktop's SVG tool, as one undo step: from a file onto
    * object o (null: an object of its own), or a new depth or size for one. Picks it; false if it failed.
@@ -356,32 +405,62 @@ let sliceRun = 0;
  * one saved before slicing, with the engine's edit count when it was made.
  */
 let saved3mf: { file: File; edits: number } | null = null;
+// The opened project's G-code when another slicer wrote it: which slicer, and
+// the values, put back to the printer's own if the engine can't fill them in.
+let foreignGcode: { app: string; values: OrcaConfig } | null = null;
 /** What to put back once a restarted engine is up. */
 let pendingRestore: { file: File | null; current: boolean; plate: number; slicing: boolean; message: string } | null = null;
+/**
+ * A project moving to the engine that is starting (switchProject): the 3MF the
+ * old engine saved, what the switch keeps, and the page state that goes with it.
+ */
+let pendingCarry: { file: File | null; plan: SwitchPlan; towers: TowerSpot[]; plate: number; layerHeight: string; types: string[] } | null = null;
 /** The engine is restarting: requests the old one dropped are not errors to show. */
 let restarting = false;
 let presetsWatched = false;
 
-const presetFile = ({ type, name, inherits, config }: UserPresetFile): UserPresetFile => ({ type, name, inherits, config });
 /** The user presets the engine has loaded. */
-let enginePresets: UserPresetFile[] = [];
+let enginePresets: UserPreset[] = [];
+
+/**
+ * The user's presets as engine `flavor` loads them: each keeps a part per
+ * engine (src/lib/preset-engines.ts). Standard-flow values changed in
+ * OrcaSlicer fill in Snapmaker Orca's lists from the base preset.
+ */
+async function engineFiles(e: EngineClient, flavor: EngineFlavor, presets: UserPreset[], options: Record<string, OptionDef>): Promise<UserPresetFile[]> {
+  return Promise.all(
+    presets.map(async (p) => {
+      const { type, name, inherits, config, pending } = presetForEngine(p, flavor, options);
+      if (!pending) return { type, name, inherits, config };
+      const base = await e.presetConfig(type, inherits).catch(() => null);
+      return { type, name, inherits, config: expandPending(config, pending, base ?? {}, p.engines?.flowIndex) };
+    }),
+  );
+}
+// Brand files the running engine has loaded (lib/printer-catalog.ts).
+const loadedVendors = new Set<string>();
 
 export const useSlicer = create<SlicerState>((set, get) => {
   const engine = () => {
-    client ??= new EngineClient({
-      onLoading: (engineLoad) => set({ engineLoad }),
-      onReady: (presets) => {
-        set({ vendorVersion: presets.vendorVersion, engineLoad: { ...get().engineLoad, stage: 'printers' } });
-        void start();
+    client ??= new EngineClient(
+      {
+        onLoading: (engineLoad) => set({ engineLoad }),
+        onReady: (presets) => {
+          set({ vendorVersion: presets.vendorVersion, engineInfo: presets.engine, engineLoad: { ...get().engineLoad, stage: 'printers' } });
+          void start();
+        },
+        onFatal: (message) => {
+          // A crash once the engine was up (most likely out of memory while
+          // slicing) restarts it; a crash while starting it, or while reopening
+          // the project after a restart, leaves it stopped as before.
+          if (get().engine === 'ready' || (restarting && pendingRestore?.file)) restart(message);
+          else set({ engine: 'failed', engineMessage: message });
+        },
       },
-      onFatal: (message) => {
-        // A crash once the engine was up (most likely out of memory while
-        // slicing) restarts it; a crash while starting it, or while reopening
-        // the project after a restart, leaves it stopped as before.
-        if (get().engine === 'ready' || (restarting && pendingRestore?.file)) restart(message);
-        else set({ engine: 'failed', engineMessage: message });
-      },
-    });
+      get().flavor,
+    );
+    // The printer catalog comes down beside the engine (start() waits for it).
+    void loadCatalog(get().flavor);
     // Like desktop: an edit while slicing stops the slice rather than waiting for it.
     // (Something else may already have replaced the slicing state, like opening a file.)
     client.onEditWhileSlicing = () => (get().job.kind === 'slicing' ? set(stale()) : stopSlice());
@@ -404,6 +483,15 @@ export const useSlicer = create<SlicerState>((set, get) => {
     if (restarting) return console.warn('While the engine restarted:', e);
     const inTool = !!(get().tool || get().paint);
     set({ job: { kind: 'error', message: (e as Error).message, inTool } });
+  };
+  // The engine's own G-code for the printer in place of another slicer's
+  // (what is still as the file had it), then slices again. It stays in the
+  // project's settings, so the project doesn't ask again (also once saved).
+  const useEngineGcode = async () => {
+    if (!foreignGcode) return;
+    setOverrides(fallBackGcode(get().overrides, foreignGcode.values).overrides);
+    foreignGcode = null;
+    await get().slice();
   };
   // A problem goes once the action is done again without one, or its tool closes.
   const clearError = (toolErrorsOnly = false) => {
@@ -434,17 +522,24 @@ export const useSlicer = create<SlicerState>((set, get) => {
         };
     saved3mf = null;
     set({
-      engine: 'starting',
-      engineLoad: { stage: 'download', loaded: 0, total: 0 },
-      job: { kind: 'idle' },
+      ...emptyEngine(),
       project: retry || !pendingRestore.file ? null : project,
       preview: retry || !pendingRestore.file ? null : get().preview,
-      selected: null, tool: null, paint: null, overlay: null, layers: null, brim: null, brimPicked: [],
-      measure: { ...NO_MEASURE, onlyPlane: get().measure.onlyPlane },
-      history: { undo: null, redo: null },
     });
     engine();
   }
+
+  // What the page shows while a new engine starts, with nothing in it yet.
+  const emptyEngine = (): Partial<SlicerState> => ({
+    engine: 'starting',
+    engineLoad: { stage: 'download', loaded: 0, total: 0 },
+    job: { kind: 'idle' },
+    project: null,
+    preview: null,
+    selected: null, tool: null, paint: null, overlay: null, layers: null, brim: null, brimPicked: [],
+    measure: { ...NO_MEASURE, onlyPlane: get().measure.onlyPlane },
+    history: { undo: null, redo: null },
+  });
 
   // Puts the project back into a restarted engine, keeping the page's settings,
   // mixes and tower spots (they were never lost).
@@ -464,6 +559,47 @@ export const useSlicer = create<SlicerState>((set, get) => {
     saved3mf = { file: r.file, edits: e.projectEdits };
     const lost = r.current ? '' : ' Changes made since your last slice were lost.';
     set({ job: { kind: 'idle' }, notice: `${crashed}, so it restarted and reopened your project.${lost} (${r.message})`, noticeWarn: true });
+  }
+
+  // Opens a project switchProject brought from the other engine: its presets'
+  // stand-ins (or the nearest by layer height and material when one is
+  // missing here), the changed settings this engine has, and the 3MF's model
+  // without its settings (they were the other engine's).
+  async function carry(c: NonNullable<typeof pendingCarry>) {
+    const e = engine();
+    set({ job: { kind: 'loading', name: c.file?.name ?? '', label: `Opening your project in ${engineName(c.plan.to)}` } });
+    try {
+      const want = c.plan.selection;
+      const printer = get().printers.some((p) => p.name === want.printer) ? want.printer : startPrinter(get().printers, installed());
+      await applySelection({ printer, process: '' });
+      const { processes, filaments, selection } = get();
+      const process = processes.some((p) => p.name === want.process) ? want.process : pickProcess(processes, c.layerHeight, selection?.process ?? '');
+      const names = want.filaments.map((f, i) => (filaments.some((p) => p.name === f) ? f : pickFilament(filaments, c.types[i], selection?.filaments[0], f)));
+      await applySelection({ printer, process, filaments: names, colours: want.colours });
+      const { baseConfig, options } = get();
+      const overrides: OrcaConfig = {};
+      for (const [key, value] of Object.entries(c.plan.overrides)) {
+        const o = options[key];
+        if (!o) continue;
+        // Snapmaker Orca keeps a value per flow variant: this one is the standard flow's.
+        const v = o.flow ? flowFill(value, o.flow, baseConfig[key], baseConfig) : value;
+        if (v !== baseConfig[key]) overrides[key] = v;
+      }
+      setOverrides(overrides);
+      set({ towers: c.towers });
+      // An empty plate: only the settings move over.
+      if (!c.file) return set({ job: { kind: 'idle' }, notice: switchedText(c.plan, false), noticeWarn: false });
+      const area = get().overrides.printable_area ?? get().baseConfig.printable_area ?? '';
+      const res = await e.load(c.file, 0, area, false);
+      set({ plate: Math.min(c.plate, Math.max(0, res.info.plates.length - 1)), history: await e.clearHistory() });
+      await refreshPreview(res.info);
+      await refreshMixes();
+      await checkHeavy().catch((err) => console.warn('Triangle count:', err));
+      saved3mf = { file: c.file, edits: e.projectEdits };
+      set({ job: { kind: 'idle' }, notice: switchedText(c.plan), noticeWarn: false });
+    } catch (err) {
+      set({ job: { kind: 'error', message: `Couldn't open your project in ${engineName(c.plan.to)}: ${(err as Error).message}` } });
+    }
   }
 
   // The settings as the engine slices and saves them: the user's changes plus
@@ -548,32 +684,56 @@ export const useSlicer = create<SlicerState>((set, get) => {
   async function start() {
     const e = engine();
     try {
-      const saved = loadSaved();
+      const saved = loadSaved(get().flavor);
       // The user's own presets (this browser's, or the account's) load before
       // the saved selection, which may name one of them.
       // Waits at most a few seconds: offline, the engine starts without user presets
       // and the subscription below adds them when the account answers.
       await accountReady();
+      const catalog = await loadCatalog(get().flavor);
+      if (e !== client) return;
+      set({ catalog });
+      const engineOptions = await e.options();
+      // Brands beyond the start-up ones that the user's printers need.
+      const files = vendorFilesFor(catalog, neededPrinters(engineOptions, saved?.selection?.printer));
+      loadedVendors.clear();
+      if (files.length) await e.vendors(files);
+      for (const f of files) loadedVendors.add(f);
       enginePresets = useAccount.getState().presets;
-      if (enginePresets.length) await e.userPresets(enginePresets.map(presetFile));
+      if (enginePresets.length) await e.userPresets(await engineFiles(e, get().flavor, enginePresets, engineOptions));
+      // A preset saved with an older list of shared settings moves to the new one, once.
+      void import('../account/preset-save')
+        .then((m) => m.upgradeStoredPresets())
+        .then((notes) => notes.length && set({ notice: notes.join(' '), noticeWarn: false }))
+        .catch(() => {});
       // Presets saved on another device (or merged at sign-in) reach the engine too.
       if (!presetsWatched) {
         presetsWatched = true;
         useAccount.subscribe((a) => {
           if (a.presets !== enginePresets && get().engine === 'ready' && !presetEditing())
             void get().setUserPresets(a.presets).catch(fail);
+          // Printers picked on another device, or in the setup wizard.
+          const setup = installedPrinters(a.settings[SETUP_KEY]?.value as Setup | undefined, get().flavor);
+          if (get().engine === 'ready' && setup && vendorFilesFor(get().catalog, setup).some((f) => !loadedVendors.has(f)))
+            void get().loadVendors(setup).catch(fail);
         });
       }
       const [printers, options, layout] = await Promise.all([
         e.printers(),
-        e.options(),
-        fetch(`/engine/settings-layout.json?v=${import.meta.env.VITE_ENGINE_VERSION}`).then((r) => (r.ok ? (r.json() as Promise<SettingsLayout>) : null)),
+        engineOptions,
+        fetch(`/${engineFolder(get().flavor)}/settings-layout.json?v=${import.meta.env.VITE_ENGINE_VERSION}`).then((r) => (r.ok ? (r.json() as Promise<SettingsLayout>) : null)),
       ]);
       set({ printers, options, layout });
       const known = saved?.selection && printers.some((p) => p.name === saved.selection?.printer);
-      await applySelection(known && saved?.selection ? saved.selection : { printer: DEFAULT_PRINTER });
+      // Nothing chosen in this engine yet: the first printer picked in the setup wizard.
+      await applySelection(known && saved?.selection ? saved.selection : { printer: startPrinter(printers, installed()) });
       const r = pendingRestore;
       if (r) await restore(r);
+      const c = pendingCarry;
+      pendingCarry = null;
+      if (c) await carry(c);
+      // Replaced by another engine while starting (switchEngine): that one carries on.
+      if (e !== client) return;
       pendingRestore = null;
       restarting = false;
       set({ engine: 'ready' });
@@ -586,11 +746,23 @@ export const useSlicer = create<SlicerState>((set, get) => {
     }
   }
 
+  // The printer presets whose brands the engine should load: the installed
+  // ones, the selected one and the ones the user's own printers are built on.
+  // (Their base in this engine: preset-engines.ts maps it.)
+  const installed = () => installedPrinters(getUserSetting<Setup>(SETUP_KEY), get().flavor);
+  const neededPrinters = (options: Record<string, OptionDef>, selected?: string, presets = useAccount.getState().presets) => [
+    ...(installed() ?? []),
+    ...(selected ? [selected] : []),
+    ...presets.filter((p) => p.type === 'printer').map((p) => presetForEngine(p, get().flavor, options).inherits),
+  ];
+
   async function applySelection(selection: Partial<Selection>) {
     const e = engine();
+    // Colours go to the 3D views as they are; a colour with alpha isn't one they read.
+    if (selection.colours) selection = { ...selection, colours: selection.colours.map(solidColour) };
     const res = await e.select(selection);
     const { config } = await e.fullConfig({});
-    set({ selection: res.selection, processes: res.processes, filaments: res.filaments, baseConfig: config, ...stale() });
+    set({ selection: res.selection, processes: res.processes, filaments: res.filaments, baseConfig: config, flush: res.flush ?? null, ...stale() });
     persist();
     await refreshMixes();
   }
@@ -598,7 +770,7 @@ export const useSlicer = create<SlicerState>((set, get) => {
   // A filament preset for a material: one of the user's installed filaments
   // when one matches, else any compatible preset.
   function pickFilament(filaments: PresetSummary[], type: string | undefined, fallback?: string, source?: string) {
-    const installed = installedOnly(filaments, getUserSetting<Setup>(SETUP_KEY)?.filaments);
+    const installed = installedOnly(filaments, installedFilaments(getUserSetting<Setup>(SETUP_KEY), get().flavor));
     const want = (type ?? '').toUpperCase();
     const mine = installed.length < filaments.length && installed.some((f) => (f.filamentType ?? '').toUpperCase() === want);
     return pickFilamentPreset(mine ? installed : filaments, type, fallback, source);
@@ -611,20 +783,32 @@ export const useSlicer = create<SlicerState>((set, get) => {
     const preview = project.objects.length ? await e.preview(plate) : null;
     const paint = get().paint;
     const overlay = paint && paint.kind !== 'color' && project.objects.length ? await e.paintOverlay(plate, paint.kind) : null;
-    const heavy = get().heavy && get().project?.objects.length === project.objects.length ? get().heavy : null;
+    const heavy = triangleCounts?.length === project.objects.length ? plateHeavy(project, plate) : null;
     set({ project, plate, preview, overlay, heavy, ...stale() });
   }
 
   // A model with millions of triangles can need more memory to slice than a
   // browser page may have; offer to simplify it as soon as it opens.
+  // Only the plate being sliced counts: a light plate of a heavy project slices fine.
+  let triangleCounts: SimplifyResult[] | null = null;
   async function checkHeavy() {
     const e = engine();
     const objects = get().project?.objects ?? [];
     const counts = await Promise.all(objects.map((_, o) => e.simplifyPreview(o)));
-    const plan = heavyModel(counts.map((c) => c.triangles));
+    const project = get().project;
+    if (project?.objects.length !== counts.length) return;
+    triangleCounts = counts;
+    set({ heavy: plateHeavy(project, get().plate) });
+  }
+  function plateHeavy(project: ProjectInfo, plate: number): HeavyModel | null {
+    const counts = triangleCounts;
+    if (!counts) return null;
+    const plan = heavyModel(
+      counts.map((c) => c.triangles),
+      project.plates[plate]?.objects ?? [],
+    );
     // Simplifying removes paint, so say so when it would.
-    if (get().project?.objects.length === counts.length)
-      set({ heavy: plan && { ...plan, painted: plan.objects.some((o) => counts[o].painted) } });
+    return plan && { ...plan, painted: plan.objects.some((o) => counts[o].painted) };
   }
 
   // Paint dabs queue up while the engine is busy and go over in one call, so
@@ -658,9 +842,15 @@ export const useSlicer = create<SlicerState>((set, get) => {
     const { filaments, selection } = get();
     const names = colours.map((_, i) => pickFilament(filaments, types[i], selection?.filaments[0], sources[i]));
     await applySelection({ ...selection, filaments: names, colours });
-    const extruders = splitList(get().baseConfig.nozzle_diameter ?? '').length;
-    if (extruders && colours.length > extruders)
-      set({ notice: `This file uses ${colours.length} filaments; the printer has ${extruders} extruders.`, noticeWarn: true });
+    const { overrides, baseConfig } = get();
+    const config = (k: string) => overrides[k] ?? baseConfig[k];
+    const limit = filamentLimit({
+      printer: get().selection?.printer ?? '',
+      nozzleDiameter: config('nozzle_diameter'),
+      singleExtruderMM: config('single_extruder_multi_material'),
+    });
+    const message = filamentLimitMessage(limit, colours.length);
+    if (message) set({ notice: message.text, noticeWarn: message.warn });
   }
 
   // Plates follow the selected printer's bed; objects keep their place
@@ -685,7 +875,7 @@ export const useSlicer = create<SlicerState>((set, get) => {
   // Saves the preset selection. Changed settings and mixes go with the
   // project (Save / Download 3MF), not across reloads.
   function persist() {
-    save({ selection: get().selection });
+    save({ selection: get().selection }, get().flavor);
   }
 
   const settingsNotice = (n: number, from: string) =>
@@ -693,8 +883,10 @@ export const useSlicer = create<SlicerState>((set, get) => {
 
   // A 3MF's own settings: with a printer we have, select the project's presets
   // and apply its changes on top (like opening the project in desktop Orca);
-  // otherwise offer to convert it to one of our printers.
-  async function importProject(info: ProjectInfo) {
+  // otherwise offer to convert it to one of our printers. `head` is the start of
+  // the file's model, which says what wrote it: G-code from another slicer is
+  // kept like desktop does, and remembered in case the engine can't fill it in.
+  async function importProject(info: ProjectInfo, head: string) {
     const e = engine();
     const file = await e.fileConfig();
     // Desktop keeps the project's prime tower spots, whatever printer it was for.
@@ -722,6 +914,8 @@ export const useSlicer = create<SlicerState>((set, get) => {
     const process = info.file.process || (selection?.process ?? '');
     await applySelection({ printer: info.file.printer, process, filaments: names.length ? names : selection?.filaments, colours: colours.length ? colours : selection?.colours });
     const { mixed_filament_definitions: mixes = '', ...overrides } = projectOverrides(file, get().baseConfig, get().options);
+    const gcode = gcodeOverrides(overrides);
+    foreignGcode = !engineOfModelHead(head) && Object.keys(gcode).length ? { app: appOfModelHead(head) || 'another slicer', values: gcode } : null;
     // The project's own mixes replace the current ones, as opening it in desktop does.
     set({ mixDefinitions: file.mixed_filament_definitions ?? mixes });
     setOverrides(overrides);
@@ -774,6 +968,28 @@ export const useSlicer = create<SlicerState>((set, get) => {
     }
   };
 
+  // A change of filaments. The engine recalculates the flushing volumes from
+  // the colours, as desktop does; flushing volumes the user typed are kept for
+  // the filaments that stayed the same (`mapping`: the old slot of each new
+  // one, null for a new or changed filament, which gets the new values).
+  const editFilaments = async (change: (s: Selection) => Partial<Selection>, mapping: (s: Selection) => (number | null)[]) => {
+    const s = get().selection;
+    if (!s) return;
+    const own = get().overrides[MATRIX];
+    const map = mapping(s);
+    await editSelection(change);
+    if (own === undefined) return;
+    const nozzles = get().flush?.nozzles ?? 1;
+    const next = get().selection?.filaments.length === map.length ? remapMatrix(own, s.filaments.length, get().baseConfig[MATRIX], map, nozzles) : null;
+    get().setOverride(MATRIX, next);
+  };
+  const same = (s: Selection) => s.filaments.map((_, i) => i);
+
+  // Counts project edits (and undo/redo steps), so the Text tool can tell
+  // whether the text it added was ever changed.
+  let edits = 0;
+  let freshText: { object: number; volume: number; newObject: boolean; edits: number } | null = null;
+
   // An edit of the project: remembered first, so undo can take it back.
   const projectEdit = async (label: string, op: () => Promise<ProjectInfo>) => {
     const e = engine();
@@ -781,6 +997,7 @@ export const useSlicer = create<SlicerState>((set, get) => {
     try {
       set({ history: await e.snapshot(label) });
       remembered = true;
+      edits++;
       await refreshPreview(await op());
       clearError();
     } catch (err) {
@@ -791,6 +1008,7 @@ export const useSlicer = create<SlicerState>((set, get) => {
 
   const stepHistory = async (step: 'undo' | 'redo') => {
     if (!get().history[step]) return;
+    edits++;
     try {
       const { history, info } = await engine()[step]();
       const sel = get().selected;
@@ -812,7 +1030,10 @@ export const useSlicer = create<SlicerState>((set, get) => {
     engineMessage: '',
     engineLoad: { stage: 'download', loaded: 0, total: 0 },
     vendorVersion: '',
+    engineInfo: null,
+    flavor: engineFromUrl() ?? loadDefaultEngine() ?? 'snapmaker',
     printers: [],
+    catalog: null,
     processes: [],
     filaments: [],
     selection: null,
@@ -830,6 +1051,7 @@ export const useSlicer = create<SlicerState>((set, get) => {
     noticeWarn: false,
     heavy: null,
     conversion: null,
+    gcodeFallback: null,
     paint: null,
     tool: null,
     objectMenu: null,
@@ -852,6 +1074,7 @@ export const useSlicer = create<SlicerState>((set, get) => {
     mixDefinitions: '',
     mixes: [],
     palette: [],
+    flush: null,
     towers: [],
     wipeTower: null,
     gcodeWarnings: null,
@@ -867,7 +1090,23 @@ export const useSlicer = create<SlicerState>((set, get) => {
 
     selectPrinter: async (name) => {
       await editSelection(() => ({ printer: name, process: '' }));
+      // A new printer purges its own amounts, recalculated for it (as desktop does).
+      get().resetOverrides([MATRIX, MULTIPLIER]);
       await fitPlates().catch(fail);
+    },
+    async loadVendors(names) {
+      const e = engine();
+      const files = vendorFilesFor(get().catalog, names).filter((f) => !loadedVendors.has(f));
+      if (!files.length) return;
+      // Reloading the presets resets the engine's selection: select again.
+      if (await e.vendors(files)) {
+        for (const f of files) loadedVendors.add(f);
+        const printers = await e.printers();
+        if (e !== client) return;
+        set({ printers });
+        const selection = get().selection;
+        if (selection) await applySelection(selection);
+      }
     },
     filamentsFor: (printer) => engine().filamentsFor(printer),
     selectProcess: (name) => editSelection(() => ({ process: name })),
@@ -877,24 +1116,41 @@ export const useSlicer = create<SlicerState>((set, get) => {
     setUserPresets: async (presets, selection) => {
       const e = engine();
       enginePresets = presets;
-      await e.userPresets(presets.map(presetFile));
+      // A new printer of the user's built on a brand not loaded yet brings that brand in first.
+      const files = vendorFilesFor(get().catalog, neededPrinters(get().options, undefined, presets)).filter((f) => !loadedVendors.has(f));
+      if (files.length) {
+        await e.vendors(files);
+        for (const f of files) loadedVendors.add(f);
+      }
+      await e.userPresets(await engineFiles(e, get().flavor, presets, get().options));
       const printers = await e.printers();
       set({ printers });
       const want = { ...get().selection, ...selection };
-      if (!printers.some((p) => p.name === want.printer)) want.printer = DEFAULT_PRINTER;
+      if (!printers.some((p) => p.name === want.printer)) want.printer = startPrinter(printers, installed());
       await applySelection(want);
       const base = get().baseConfig;
       const overrides = get().overrides;
       if (Object.keys(overrides).some((k) => overrides[k] === base[k]))
         setOverrides(Object.fromEntries(Object.entries(overrides).filter(([k, v]) => base[k] !== v)));
     },
-    setFilament: (slot, name) => editSelection((s) => ({ filaments: s.filaments.map((f, i) => (i === slot ? name : f)) })),
-    setColour: (slot, colour) => editSelection((s) => ({ colours: s.colours.map((c, i) => (i === slot ? colour : c)) })),
+    setFilament: (slot, name) =>
+      editFilaments(
+        (s) => ({ filaments: s.filaments.map((f, i) => (i === slot ? name : f)) }),
+        (s) => same(s).map((i) => (i === slot && s.filaments[slot] !== name ? null : i)),
+      ),
+    setColour: (slot, colour) =>
+      editFilaments(
+        (s) => ({ colours: s.colours.map((c, i) => (i === slot ? colour : c)) }),
+        (s) => same(s).map((i) => (i === slot && s.colours[slot] !== colour ? null : i)),
+      ),
     addFilament: () =>
-      editSelection((s) => ({
-        filaments: [...s.filaments, s.filaments[s.filaments.length - 1]],
-        colours: [...s.colours, SLOT_COLOURS[s.colours.length % SLOT_COLOURS.length]],
-      })),
+      editFilaments(
+        (s) => ({
+          filaments: [...s.filaments, s.filaments[s.filaments.length - 1]],
+          colours: [...s.colours, SLOT_COLOURS[s.colours.length % SLOT_COLOURS.length]],
+        }),
+        (s) => [...same(s), null],
+      ),
     // Like desktop, mixes that use the filament go, and objects, parts and
     // paint on later filaments (mixes included) move down one number.
     removeFilament: async (slot) => {
@@ -903,10 +1159,13 @@ export const useSlicer = create<SlicerState>((set, get) => {
       } catch (e) {
         return fail(e);
       }
-      await editSelection((s) => ({
-        filaments: s.filaments.filter((_, i) => i !== slot),
-        colours: s.colours.filter((_, i) => i !== slot),
-      }));
+      await editFilaments(
+        (s) => ({
+          filaments: s.filaments.filter((_, i) => i !== slot),
+          colours: s.colours.filter((_, i) => i !== slot),
+        }),
+        (s) => same(s).filter((i) => i !== slot),
+      );
     },
 
     // Desktop's Sync filament: objects, parts and paint move first (and mixes
@@ -921,7 +1180,8 @@ export const useSlicer = create<SlicerState>((set, get) => {
           return fail(e);
         }
       }
-      await editSelection(() => ({ filaments: presets, colours }));
+      // New filaments: the flushing volumes are recalculated for them.
+      await editFilaments(() => ({ filaments: presets, colours }), () => presets.map(() => null));
       const n = plan.filaments.length;
       set({ notice: `Loaded ${n} filament${n === 1 ? '' : 's'} from ${from}.`, noticeWarn: false });
     },
@@ -945,7 +1205,8 @@ export const useSlicer = create<SlicerState>((set, get) => {
         return false;
       }
       await get().endCalibration();
-      set({ tab: 'prepare', notice: '', conversion: null, pendingOpen: null, tool: null });
+      set({ tab: 'prepare', notice: '', conversion: null, gcodeFallback: null, pendingOpen: null, tool: null });
+      foreignGcode = null;
       // The project first, so the other files land on it.
       const ordered = [...files].sort((a, b) => Number(is3mf(b)) - Number(is3mf(a)));
       let opened = false;
@@ -963,6 +1224,8 @@ export const useSlicer = create<SlicerState>((set, get) => {
           // Adding a model can be undone; opening a project starts a new history, like desktop.
           const opensProject = is3mf(file) && !geometryOnly;
           if (!opensProject) set({ history: await e.snapshot('Add model') });
+          // What wrote the project decides whether its G-code is kept (importProject).
+          const head = opensProject ? await modelHeadOf3mf(file) : '';
           const res = await e.load(file, get().plate, area, geometryOnly);
           if (res.isProject) {
             opened = true;
@@ -970,7 +1233,7 @@ export const useSlicer = create<SlicerState>((set, get) => {
           }
           await refreshPreview(res.info);
           if (res.isProject && !res.info.objects.length) throw new Error(emptyProjectMessage(file.name));
-          if (res.isProject && res.info.file.hasConfig) await importProject(res.info);
+          if (res.isProject && res.info.file.hasConfig) await importProject(res.info, head);
           set({ job: { kind: 'idle' } });
         } catch (err) {
           fail(err);
@@ -1009,6 +1272,7 @@ export const useSlicer = create<SlicerState>((set, get) => {
     async simplifyHeavy() {
       const plan = get().heavy;
       if (!plan) return;
+      triangleCounts = null;
       set({ heavy: null, job: { kind: 'loading', name: '', label: 'Simplifying' } });
       await projectEdit('Simplify', async () => {
         let info = get().project!;
@@ -1119,6 +1383,70 @@ export const useSlicer = create<SlicerState>((set, get) => {
       }
     },
     projectFile: (thumbnail) => engine().saveProject(engineOverrides(), thumbnail),
+    async switchEngine(flavor) {
+      if (flavor === get().flavor && client) return;
+      sliceRun++;
+      const old = client;
+      client = null;
+      saved3mf = null;
+      pendingRestore = null;
+      // What the old engine was still doing is dropped, not an error to show.
+      restarting = true;
+      old?.terminate('The slicing engine was switched.');
+      // Settings and mixes belong to a project, and the presets they name to an engine.
+      set({ ...emptyEngine(), flavor, engineInfo: null, overrides: {}, calibration: null, mixDefinitions: '', mixes: [], palette: [], towers: [], notice: '', conversion: null, pendingOpen: null });
+      engine();
+      await new Promise<void>((resolve) => {
+        const off = useSlicer.subscribe((st) => {
+          if (st.engine !== 'starting' || st.flavor !== flavor) {
+            off();
+            resolve();
+          }
+        });
+      });
+    },
+    switchPlan(to) {
+      const s = get();
+      return switchPlan({
+        from: s.flavor,
+        to,
+        selection: s.selection ?? { printer: DEFAULT_PRINTER, process: '', filaments: [], colours: [] },
+        userPresets: useAccount.getState().presets,
+        overrides: s.overrides,
+        baseConfig: s.baseConfig,
+        options: s.options,
+        mixes: s.mixes,
+        project: s.project,
+      });
+    },
+    async switchProject(to) {
+      const s = get();
+      if (to === s.flavor || s.engine !== 'ready' || s.job.kind === 'loading') return;
+      const plan = get().switchPlan(to);
+      const e = engine();
+      const config = { ...s.baseConfig, ...s.overrides };
+      // An empty plate has no model to move, only its presets and changed settings.
+      const hasModel = !!s.project?.objects.length;
+      let file: File | null = null;
+      try {
+        await get().endCalibration();
+        if (get().job.kind === 'slicing') stopSlice();
+        set({ job: { kind: 'loading', name: '', label: `Moving your project to ${engineName(to)}` }, tool: null, paint: null });
+        if (hasModel) {
+          // The old engine changes what the new one can't read, then saves the project.
+          if (plan.mixes.length) await e.mixed(mixRequest({ op: { kind: 'flatten', to: [...plan.mixes].sort((a, b) => a.id - b.id).map((m) => m.becomes) } }));
+          for (const edit of plan.objectEdits) await e.setObjectSettings(edit.object, edit.volume, edit.values);
+          const bytes = await e.saveProject({ ...get().overrides, mixed_filament_definitions: '' }, null);
+          const name = `${(s.project?.fileName || 'project').replace(/\.\w+$/, '')}.3mf`;
+          file = new File([bytes], name, { type: 'model/3mf' });
+        }
+      } catch (err) {
+        set({ job: { kind: 'idle' } });
+        return fail(err);
+      }
+      pendingCarry = { file, plan, towers: get().towers, plate: get().plate, layerHeight: config.layer_height ?? '', types: splitList(config.filament_type) };
+      await get().switchEngine(to);
+    },
     clearProject: () =>
       projectEdit('Delete all', async () => {
         await get().endCalibration();
@@ -1254,6 +1582,7 @@ export const useSlicer = create<SlicerState>((set, get) => {
     textVolume: async (o, style, edit) => {
       let out: { object: number; volume: number; missing: string } | undefined;
       const label = 'volume' in edit ? 'Edit text' : 'Add text';
+      const objectsBefore = get().project?.objects.length ?? 0;
       await projectEdit(label, async () => {
         const e = engine();
         const fontPath = await fontInEngine(e, style.font);
@@ -1266,10 +1595,30 @@ export const useSlicer = create<SlicerState>((set, get) => {
         return r.info;
       });
       if (!out) return false;
+      if (!('volume' in edit)) freshText = { object: out.object, volume: out.volume, newObject: out.object >= objectsBefore, edits };
       const sel = get().selected;
       const instance = sel?.object === out.object ? sel.instance : 0;
       set({ selected: { object: out.object, instance, volume: out.volume } });
+      // The tool closed while the text was being made: take it back now.
+      if (!('volume' in edit) && get().tool !== 'text') {
+        await get().dropUnusedText();
+        return false;
+      }
       return { missing: out.missing };
+    },
+    async dropUnusedText() {
+      const fresh = freshText;
+      freshText = null;
+      if (!fresh || fresh.edits !== edits || get().tool === 'text') return;
+      const e = engine();
+      try {
+        // Removed without a snapshot, then the "Add text" snapshot dropped: as if it never happened.
+        const info = fresh.newObject ? await e.deleteObject(fresh.object) : (await e.volumeAction(fresh.object, { op: 'delete', volume: fresh.volume })).info;
+        set({ history: await e.dropSnapshot(), selected: fresh.newObject ? null : { object: fresh.object, instance: get().selected?.instance ?? 0 } });
+        await refreshPreview(info);
+      } catch (err) {
+        fail(err);
+      }
     },
     svgVolume: async (o, edit) => {
       let out: { object: number; volume: number } | undefined;
@@ -1499,12 +1848,30 @@ export const useSlicer = create<SlicerState>((set, get) => {
           if (run === sliceRun && job.kind === 'slicing') set({ job: { kind: 'slicing', pct: slicePercent(job.pct, pct, stage, layers), stage } });
         });
         if (run !== sliceRun) return;
+        triangleCounts = null;
         set({ job: { kind: 'sliced', plate, result, gcode: new Blob([gcode], { type: 'text/plain' }), ms }, notice: '', heavy: null });
         // Like desktop Orca: show the result as soon as slicing finishes.
         get().setTab('preview');
       } catch (e) {
-        if (run === sliceRun) fail(e);
+        if (run !== sliceRun) return;
+        const message = (e as Error).message;
+        const error = readableGcodeError(message, (k) => get().options[k]?.label);
+        // Another slicer's G-code this engine can't fill in: ask whether to use the printer's own.
+        const fromFile = foreignGcode && gcodeErrors(message).some((f) => f.key in foreignGcode!.values);
+        if (fromFile && fallBackGcode(get().overrides, foreignGcode!.values).dropped) {
+          set({ job: { kind: 'idle' }, gcodeFallback: { app: foreignGcode!.app, printer: get().selection?.printer ?? 'this printer', error } });
+          return;
+        }
+        // Custom G-code the engine can't fill in: which one, which line, which variable.
+        fail(new Error(error));
       }
+    },
+    async answerGcodeFallback(useOwn) {
+      const question = get().gcodeFallback;
+      if (!question) return;
+      set({ gcodeFallback: null });
+      if (!useOwn || !foreignGcode) return fail(new Error(question.error));
+      await useEngineGcode();
     },
     cancelSlice() {
       if (get().job.kind !== 'slicing') return;
@@ -1530,6 +1897,14 @@ export const NO_COLOURS: string[] = [];
 
 /** Value of an option as it will be sliced: the user's override, else the preset's. */
 export const useOption = (key: string) => useSlicer((s) => s.overrides[key] ?? s.baseConfig[key]);
+
+/** What the selected printer does with more filaments than heads (lib/filament-limit.ts). */
+export function useFilamentLimit(): FilamentLimit {
+  const printer = useSlicer((s) => s.selection?.printer ?? '');
+  const nozzleDiameter = useOption('nozzle_diameter');
+  const singleExtruderMM = useOption('single_extruder_multi_material');
+  return filamentLimit({ printer, nozzleDiameter, singleExtruderMM });
+}
 
 /** The build volume of the selected printer, in plate coordinates. */
 function configBounds() {

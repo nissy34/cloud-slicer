@@ -16,7 +16,7 @@ npm run pages        # dist/ + Functions + a local D1 on http://localhost:8788 (
 `npm run engine` (part of `dev` and `build`, `scripts/copy-engine.mjs`) puts what the
 engine worker loads into `public/engine/`: `orca-engine.{js,wasm}` from `ENGINE_DIR`
 (default `../../engine/build/engine`, which it first fills with the engine CI built for
-these sources, `engine/scripts/fetch-engine.mjs`; `ENGINE_FETCH=0` skips that), the bundled Snapmaker presets, desktop's settings
+these sources, `engine/scripts/fetch-engine.mjs`; `ENGINE_FETCH=0` skips that), the bundled presets (Snapmaker at start, every other brand in `profiles/`), desktop's settings
 layout and the calibration models. The presets, layout and calibration models need the
 `engine/orcaslicer` submodule checked out; without the engine binaries the page loads
 without an engine.
@@ -76,6 +76,9 @@ node test/mixing.mjs
 node test/warnings.mjs    # objects over the plate edge, slicing warnings
 node test/loading.mjs
 node test/cancel.mjs
+node test/brands.mjs     # every printer brand, loaded per brand, can-send marks
+node test/bed.mjs        # each printer's own bed shape and picture in the 3D view
+node test/filament-count.mjs  # 8 filaments on an X1 Carbon and on the U1, in both engines
 node test/device-smoke.mjs  # browser -> local relay -> bridge -> mock U1, and direct
 ```
 

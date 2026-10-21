@@ -9,19 +9,20 @@ const files = ['engine-worker.js', 'orca-engine.js', 'orca-engine.wasm', 'profil
 
 export function engineVersion() {
   const hash = createHash('sha256');
-  for (const f of files) {
-    const path = new URL(`../public/engine/${f}`, import.meta.url);
-    if (existsSync(path)) hash.update(f).update(readFileSync(path));
-  }
+  for (const dir of ['engine', 'engine-orca'])
+    for (const f of files) {
+      const path = new URL(`../public/${dir}/${f}`, import.meta.url);
+      if (existsSync(path)) hash.update(`${dir}/${f}`).update(readFileSync(path));
+    }
   return hash.digest('hex').slice(0, 12);
 }
 
 // What the engine downloads at start-up (the wasm and the presets), in bytes,
 // so the page can show download progress; 0 without an engine.
-export function engineBytes() {
+export function engineBytes(dir = 'engine') {
   let total = 0;
   for (const f of ['orca-engine.wasm', 'profiles.json']) {
-    const path = new URL(`../public/engine/${f}`, import.meta.url);
+    const path = new URL(`../public/${dir}/${f}`, import.meta.url);
     if (existsSync(path)) total += statSync(path).size;
   }
   return total;

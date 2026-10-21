@@ -14,6 +14,8 @@
   --scene-bed: #d3d8df;
   --scene-grid: #9ba3af;
   --scene-ground: #b9bfc8;
+  --scene-bed-model: #535656;
+  --scene-exclude: #c9b8a6;
   --scene-text: #3b414b;
   /* Measure tool features, both themes (same as MEASURE_COLOURS in lib/measure.ts) */
   --measure-hover: #f5c542;
@@ -40,6 +42,8 @@
     --scene-bed: #2b2f36;
     --scene-grid: #4a5160;
     --scene-ground: #3a3f48;
+    --scene-bed-model: #414148;
+    --scene-exclude: #6f655b;
     --scene-text: #c9ced6;
     color-scheme: dark;
   }
@@ -60,6 +64,8 @@
   --scene-bed: #2b2f36;
   --scene-grid: #4a5160;
   --scene-ground: #3a3f48;
+  --scene-bed-model: #414148;
+  --scene-exclude: #6f655b;
   --scene-text: #c9ced6;
   color-scheme: dark;
 }
@@ -202,6 +208,8 @@ select:focus-visible {
   padding: 12px 16px;
   border-bottom: 1px solid var(--border);
   display: grid;
+  /* One column no wider than the panel: a long object name shortens with "…" instead of widening it. */
+  grid-template-columns: minmax(0, 1fr);
   gap: 10px;
 }
 .group h2 {
@@ -321,12 +329,16 @@ select:focus-visible {
   display: flex;
   gap: 8px;
 }
+.phone-only {
+  display: none;
+}
 .muted {
   color: var(--muted);
 }
 .error-text {
   color: var(--danger);
   overflow-wrap: anywhere;
+  white-space: pre-line;
 }
 .progress {
   display: flex;
@@ -750,6 +762,7 @@ select:focus-visible {
   margin: 0;
   padding: 0;
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   gap: 2px;
 }
 .volumes {
@@ -781,6 +794,10 @@ select:focus-visible {
   background: none;
   padding: 4px 2px;
   cursor: pointer;
+}
+/* Marked not printable: the slice leaves it out. */
+.object-name.unprintable {
+  color: var(--muted);
 }
 .panel .filament-pick {
   width: 64px;
@@ -1494,6 +1511,8 @@ select:focus-visible {
   height: 10px;
   border-radius: 50%;
   flex: none;
+  /* A ring, so a white (or, in the dark theme, black) filament still shows. */
+  box-shadow: 0 0 0 1px var(--border);
 }
 .layer-slider {
   position: absolute;
@@ -1664,7 +1683,14 @@ select:focus-visible {
 /* Paint tools */
 .paint-panel {
   display: grid;
+  /* As wide as the card: a long object name in the Clear button shortens with "…". */
+  grid-template-columns: minmax(0, 1fr);
   gap: 8px;
+}
+.paint-clear {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .paint-head {
   display: flex;
@@ -1811,6 +1837,9 @@ select:focus-visible {
 .small {
   font-size: 12px;
 }
+.ask-backdrop {
+  z-index: 60;
+}
 .dialog-actions {
   display: flex;
   justify-content: flex-end;
@@ -1880,6 +1909,12 @@ select:focus-visible {
   .actionbar .actions button {
     flex: 1;
     padding-inline: 8px;
+  }
+  .actionbar .wide-only {
+    display: none;
+  }
+  .actionbar .phone-only {
+    display: inline;
   }
   .stats {
     gap: 2px 12px;
@@ -2279,6 +2314,10 @@ select:focus-visible {
   background: var(--surface);
   box-shadow: 0 12px 32px rgb(0 0 0 / 0.18);
   text-align: left;
+}
+.preset-pop.up {
+  top: auto;
+  bottom: calc(100% + 6px);
 }
 .preset-pop p {
   margin: 0 0 10px;
@@ -3742,6 +3781,21 @@ select:focus-visible {
   color: var(--text);
   font-weight: 600;
 }
+/* Phones: the current step only, instead of four labels breaking across lines. */
+.wizard-step-now {
+  display: none;
+  margin: 0;
+  font-size: 13px;
+  font-weight: 600;
+}
+@media (max-width: 600px) {
+  .wizard-steps {
+    display: none;
+  }
+  .wizard-step-now {
+    display: block;
+  }
+}
 .wizard-models,
 .wizard-devices,
 .wizard-filaments ul {
@@ -3765,10 +3819,87 @@ select:focus-visible {
   border-color: var(--accent);
 }
 .wizard-models .segmented {
-  flex-wrap: nowrap;
+  flex-wrap: wrap;
+  margin-inline-start: auto;
 }
 .wizard-model {
+  flex: 1 1 140px;
+  min-width: 0;
   font-weight: 600;
+}
+.wizard-model .send-mark {
+  margin-inline-start: 6px;
+}
+.wizard-cover {
+  flex: none;
+  width: 40px;
+  height: 40px;
+  object-fit: contain;
+  border-radius: 4px;
+}
+.wizard-brands {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 6px;
+}
+.wizard-brands details {
+  padding: 6px 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+.wizard-brands summary {
+  cursor: pointer;
+  font-weight: 600;
+}
+.wizard-brands .wizard-models {
+  margin-top: 6px;
+}
+.wizard-filters .check {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+/* Direct print: the app can send prints to this printer (Klipper): wizard, printer picker. */
+.send-mark {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 0 6px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--accent) 14%, transparent);
+  color: var(--accent);
+  font-size: 11px;
+  font-weight: 600;
+  white-space: nowrap;
+  vertical-align: middle;
+}
+.wizard-engines {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 8px;
+}
+.wizard-engine {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: start;
+  cursor: pointer;
+}
+.wizard-engine.on {
+  border-color: var(--accent);
+  box-shadow: inset 0 0 0 1px var(--accent);
+}
+.wizard-engine ul {
+  margin: 4px 0 0;
+  padding-inline-start: 18px;
 }
 .wizard-filters {
   display: flex;
@@ -3833,6 +3964,8 @@ select:focus-visible {
   background: var(--surface-2);
 }
 .project-label {
+  flex: none;
+  white-space: nowrap;
   color: var(--muted);
 }
 .project-label::after {
@@ -3844,10 +3977,14 @@ select:focus-visible {
   align-items: center;
   gap: 6px;
   min-width: 0;
+  font-weight: 600;
+}
+/* Its own box, so a long name ends in "…" (a flex box can't shorten bare text). */
+.project-name-text {
+  min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  font-weight: 600;
 }
 .project-cloud {
   flex: none;
@@ -4478,6 +4615,22 @@ button.volume-name {
   justify-items: start;
 }
 
+/* Which engine slices, when it isn't the default Snapmaker Orca. */
+.engine-badge {
+  font-size: 12px;
+  color: var(--muted);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 2px 8px;
+  white-space: nowrap;
+}
+/* No room beside the tabs on a phone: the Project menu names the engine instead. */
+@media (max-width: 760px) {
+  .engine-badge {
+    display: none;
+  }
+}
+
 /* The filament Setting Overrides page: a checkbox before each label, and the
    printer's value greyed out while the filament leaves it unset. */
 .override-check {
@@ -4670,6 +4823,156 @@ button.volume-name {
 .sync-preset {
   flex-basis: 100%;
   padding-left: 26px;
+}
+.printer-send {
+  margin: -2px 0 0;
+}
+
+/* Flushing volumes (components/FlushVolumes.tsx): one grid, number boxes that
+   shrink to fit, so even eight filaments fit a phone without scrolling sideways. */
+.flush-link {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin-top: 6px;
+}
+.flush-volumes {
+  display: grid;
+  gap: 10px;
+}
+.flush-grid {
+  display: grid;
+  gap: 4px;
+  align-items: center;
+}
+.flush-row {
+  display: contents;
+}
+.flush-corner {
+  display: grid;
+  font-size: 10px;
+  line-height: 1.1;
+  color: var(--muted);
+}
+.flush-corner span:last-child {
+  text-align: right;
+}
+.flush-head {
+  display: flex;
+  justify-content: center;
+}
+.flush-chip {
+  display: inline-grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  border: 1px solid var(--border);
+  font-size: 11px;
+  font-weight: 600;
+  color: #fff;
+  text-shadow: 0 0 2px #000, 0 0 2px #000;
+}
+.flush-box,
+.flush-self {
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+.flush-box {
+  padding: 6px 2px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--surface);
+  color: var(--text);
+  font-size: 13px;
+  -moz-appearance: textfield;
+}
+.flush-box::-webkit-inner-spin-button,
+.flush-box::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+.flush-box.warn {
+  color: var(--danger);
+  border-color: var(--danger);
+}
+.flush-self {
+  color: var(--muted);
+}
+.flush-multiplier {
+  display: grid;
+  grid-template-columns: auto 80px 1fr;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+}
+@media (max-width: 760px) {
+  .flush-multiplier {
+    grid-template-columns: auto 80px;
+  }
+  .flush-multiplier .small {
+    grid-column: 1 / -1;
+  }
+}
+
+/* Switch this project to <engine>?: the list scrolls inside, the buttons stay. */
+.dialog.engine-switch {
+  width: min(520px, 100%);
+  max-height: calc(100dvh - 32px);
+  grid-template-rows: auto minmax(0, 1fr) auto;
+}
+.engine-switch h2 {
+  margin: 0;
+}
+.engine-switch-body {
+  display: grid;
+  gap: 12px;
+  overflow-y: auto;
+  min-height: 0;
+}
+.engine-switch-body p,
+.engine-switch-body ul {
+  margin: 0;
+}
+.engine-switch-body section {
+  display: grid;
+  gap: 4px;
+}
+.engine-switch-body h3 {
+  margin: 0;
+  font-size: 14px;
+}
+.engine-switch-mixes,
+.engine-switch-presets {
+  display: grid;
+  gap: 4px;
+  padding: 0;
+  list-style: none;
+}
+.engine-switch-settings {
+  display: grid;
+  gap: 2px;
+  padding-left: 20px;
+  font-size: 14px;
+}
+.engine-switch-mixes li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.engine-switch-swatch {
+  display: inline-grid;
+  place-items: center;
+  min-width: 26px;
+  height: 22px;
+  padding: 0 4px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 600;
 }
 
 /* ---- Admin page (components/AdminScreen.tsx) ---- */

@@ -1,8 +1,10 @@
 import { ImportPresetsDialog } from './account/ImportPresets';
 import { PresetSettingsDialog } from './components/PresetSettingsDialog';
 import { SettingsPromptDialog } from './components/SettingsPrompt';
+import { AskDialog } from './components/AskDialog';
 import { ActionBar } from './components/ActionBar';
 import { ConvertDialog } from './components/ConvertDialog';
+import { GcodeFallbackDialog } from './components/GcodeFallbackDialog';
 import { OpenProjectDialog } from './components/OpenProjectDialog';
 import { SetupWizard } from './components/SetupWizard';
 import { OpenModel } from './components/OpenModel';
@@ -21,11 +23,13 @@ export function App() {
     <div className="app">
       <TopBar />
       <ConvertDialog />
+      <GcodeFallbackDialog />
       <OpenProjectDialog />
       <SetupWizard />
       <ImportPresetsDialog />
       <PresetSettingsDialog />
       <SettingsPromptDialog />
+      <AskDialog />
       {tab !== 'device' && tab !== 'admin' && (
         <div className="body">
           <Sidebar />

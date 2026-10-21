@@ -282,7 +282,9 @@ try {
   await page.getByRole('dialog').getByRole('button', { name: 'Cancel' }).click();
   console.log('mapping rules: other filament types greyed out, printing blocked on a mismatch');
 
-  await page.getByTestId('files-card').getByRole('button', { name: 'Print…' }).first().click();
+  // The two-colour file uploaded above, by name: the file list may not have
+  // refreshed yet, and then the newest row is an older one-colour file.
+  await page.getByTestId('files-card').locator('li', { hasText: 'two_colour.gcode' }).getByRole('button', { name: 'Print…' }).click();
   await page.getByTestId('tool-map').waitFor();
   await page.getByLabel('Level the bed').uncheck();
   await page.getByTestId('upload-and-print').click();

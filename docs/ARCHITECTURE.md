@@ -15,7 +15,8 @@ commands.
 - **$0 a month.** Hosting is Cloudflare's free tier only: Pages (site and Functions),
   D1 (accounts), R2 (projects, bridge downloads) and Workers with Durable Objects
   (the device relay).
-- **Snapmaker printers first.** Only Snapmaker's presets are bundled for now.
+- **Snapmaker printers first, every brand offered.** Snapmaker's presets load at start;
+  every other brand the engine ships loads only once one of its printers is picked.
 - **Don't reinvent the wheel.** Call Orca's own code for presets, settings, 3MF and
   slicing; use well-known libraries (Better Auth for sign-in) instead of hand-rolled code.
 - **No telemetry**, no automatic error reporting. Errors are shown with a Copy button.
@@ -89,14 +90,47 @@ nothing on purpose, so a deploy's page and engine never get out of step).
 ## Presets
 
 - **System presets**: `engine/scripts/bundle-profiles.mjs` packs Snapmaker's vendor
-  presets, plus Orca's filament library they inherit from, into one `profiles.json`. The
-  worker writes them into the engine's data folder and the engine loads them with
-  `PresetBundle::load_presets`, exactly like desktop. Every bundled printer is loaded;
-  the setup wizard decides which ones the pickers show.
+  presets, plus Orca's filament library they inherit from, into one `profiles.json`
+  that the engine loads at start, and every other brand into its own
+  `profiles/<brand>.json`, per engine (55 brands in Snapmaker Orca, 63 in OrcaSlicer).
+  The worker writes them into the engine's data folder and the engine loads them with
+  `PresetBundle::load_presets`, exactly like desktop. A brand's file is fetched (and
+  the presets reloaded) only when a printer of that brand is installed in the setup
+  wizard, selected, or under one of the user's own printers (`loadVendors` in
+  `src/state/store.ts`); a reload fetches the same ones again at start. So start-up
+  costs the same as with Snapmaker alone plus the catalog: `profiles/catalog.json`
+  (about 10 KB compressed) lists every brand's models, nozzle presets and picture
+  (`profiles/covers/`) for the wizard. Loading every brand at once would add 0.7 MB
+  (Snapmaker Orca) to 1.3 MB (OrcaSlicer) of compressed downloads and their memory.
+  Printer models lose their `default_materials` in the bundle: once any loaded model
+  names some, Orca shows only those filaments for every printer (Snapmaker's name none),
+  and here the wizard picks filaments instead.
+- **Printer beds**: each brand's beds (a machine model's `bed_model` STL and
+  `bed_texture` SVG/PNG) go to `profiles/beds/<brand>.json` (model to files) and
+  `profiles/beds/<brand>/`, the STL as a small mesh file (`engine/scripts/bed-mesh.mjs`:
+  shared corners once, 16-bit positions; Snapmaker Orca's 1.6 MB Z-Bolt STL becomes
+  300 KB). `src/components/Bed.tsx` fetches only the selected printer's (a U1 about
+  5 KB, a Bambu Lab A1 11 KB, half of all printers under 15 KB, the largest 350 KB),
+  so start-up doesn't grow. It draws them as desktop does (`Bed3D`, `PartPlate`): the
+  shape centred under the printable area, the picture over it (12 mm further forward on
+  Bambu Lab printers), drawn into a canvas at the bed's proportions (2048 px, 1024 on a
+  phone), then the grid (desktop's step, bold every fifth line), `bed_exclude_area` and
+  the origin arrows. A user printer finds its bed through the system printer it is built
+  on, else its `printer_model`, like desktop. `scripts/shared-settings.mjs` loads
+  every brand, so a preset built on any brand has a stand-in in the other engine.
+- **Direct print**: a catalog printer whose presets run Klipper (`gcode_flavor`, through
+  `inherits`) is one the Device tab can send to through Moonraker. The wizard and the
+  printer picker mark them; a user printer gets its system parent's mark
+  (`src/lib/printer-catalog.ts`). Other printers slice the same; you download the G-code.
 - **Setup wizard**: like Orca's first-run wizard, it asks which printers and filaments
   you have. The choice is an account setting (`setup`): kept in the browser signed out,
   in the account signed in, and merged (lists unioned) at sign-in. "Manage" next to the
-  printer picker opens it again.
+  printer picker opens it again, and then its Printers and Filaments pages save on their
+  own. Picking the other engine as default moves the untouched first project to it before
+  the Printers page, so the lists are that engine's. Printers and filaments are saved with
+  the engine that named them (`printersIn`, `filamentsIn`) and shown in the other engine
+  under its names (`installedPrinters`, `installedFilaments` in `src/lib/setup.ts`). The
+  filament page shows each filament once, whatever printers it has presets for.
 - **User presets** are Orca user presets: a JSON file per preset with `name`,
   `inherits` (the system preset, one level, as Orca allows), `from: "User"`,
   `version: "1.0.0"` (Orca skips a user preset without a parseable version) and only the
@@ -146,6 +180,16 @@ nothing on purpose, so a deploy's page and engine never get out of step).
   (machine speeds, accelerations, jerk) come from the target printer, and filaments are
   matched by material and kind (Matte, Silk, HF, Translucent). A sliced-only `.gcode.3mf`
   is explained instead of opened.
+- **G-code from other slicers**: a project written by another slicer (Bambu Studio,
+  say; `3D/3dmodel.model`'s Application entry tells) keeps its own start, end,
+  filament-change and other G-code, as desktop does. That G-code can use the other
+  slicer's variables (Bambu Studio 2.5's `flush_volumetric_speeds`): when the engine
+  can't fill it in, a pop-up asks whether to slice with the engine's own G-code for the
+  printer (only values still as the file had them go back; Cancel shows the error;
+  the choice stays with the project, so it isn't asked again). OrcaSlicer 2.4.2 fills Bambu Studio
+  2.5's A1 mini G-code in; Snapmaker Orca 2.4 can't. When G-code the user wrote can't
+  be filled in, the slice error names the G-code, the line and the variable
+  (`lib/gcode-errors.ts`).
 - **Saving**: projects are Orca 3MF files written by the engine (`store_bbs_3mf`), so
   they reopen in desktop Orca. Signed out, Save downloads the file. Signed in, they go to
   online projects: the 3MF and a PNG thumbnail in R2 under a new key for each save,

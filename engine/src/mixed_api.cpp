@@ -185,12 +185,13 @@ void applyRemap(const std::vector<unsigned>& remap, size_t newTotal) {
 //    settings: {lowerBound, upperBound, localZ, bias, heightWeighted, advancedDithering},
 //    op?: {kind: "add", row} | {kind: "update", index, row} | {kind: "delete", index}
 //         | {kind: "removePhysical", filament (1-based)}
-//         | {kind: "replacePhysical", colours, types?, remap: [new 1-based ID per old filament, 0 = gone], dropMixes?},
+//         | {kind: "replacePhysical", colours, types?, remap: [new 1-based ID per old filament, 0 = gone], dropMixes?}
+//         | {kind: "flatten", to: [physical 1-based ID per mix in use]},
 //    types?: [filament_type...],     for each row's `compatible` (desktop's material check)
 //    draft?: row}                    a recipe to preview, not stored
 // Returns {definitions, rows: [...], draftColour?, draftCompatible?}. Rows keep their order in
 // the list (deleted ones too, as desktop keeps them); virtualId is 0 for rows
-// that are not in use. "delete", "removePhysical" and "replacePhysical" also move the IDs the
+// that are not in use. "delete", "removePhysical", "replacePhysical" and "flatten" also move the IDs the
 // open project's objects, parts and paint use.
 std::string mixedFilaments(const std::string& requestJson) {
     try {
@@ -299,6 +300,31 @@ std::string mixedFilaments(const std::string& requestJson) {
                 for (const MixedFilament& mf : next.mixed_filaments())
                     out["rows"].push_back(rowJson(mf, mf.enabled && newIds.count(mf.stable_id) ? newIds.at(mf.stable_id) : 0, ctx, after.types));
                 return out.dump();
+            } else if (kind == "flatten") {
+                // Switching the project to an engine without colour mixing
+                // (apps/web/src/lib/engine-switch.ts): the k-th mix in use
+                // (filament physical + 1 + k) becomes physical filament
+                // op.to[k] (1-based) on objects, parts, paint and layer
+                // filament changes, and every mix goes from the list.
+                const std::vector<unsigned> to = op.value("to", std::vector<unsigned>{});
+                const auto ids = virtualIds(rows, physical);
+                const size_t oldTotal = mgr.total_filaments(physical);
+                std::vector<unsigned> remap(oldTotal + 1, 0);
+                for (unsigned id = 1; id <= physical; ++id) remap[id] = id;
+                for (const auto& [stable, id] : ids) {
+                    const size_t k = id - physical - 1;
+                    remap[id] = k < to.size() && to[k] >= 1 && to[k] <= physical ? to[k] : 0;
+                }
+                for (MixedFilament& mf : rows)
+                    if (!mf.deleted) {
+                        mf.deleted = true;
+                        mf.enabled = false;
+                    }
+                applyRemap(remap, physical);
+                for (auto& [plate, info] : engine::project().model.plates_custom_gcodes)
+                    for (CustomGCode::Item& item : info.gcodes)
+                        if (item.extruder > int(physical) && size_t(item.extruder) < remap.size() && remap[item.extruder])
+                            item.extruder = int(remap[item.extruder]);
             } else {
                 throw std::runtime_error("unknown mixed filament edit " + kind);
             }

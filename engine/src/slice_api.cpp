@@ -6,6 +6,7 @@
 #include "libslic3r/BuildVolume.hpp"
 #include "libslic3r/GCode/GCodeProcessor.hpp"
 #include "libslic3r/GCode/ThumbnailData.hpp"
+#include "libslic3r/Layer.hpp"
 #include "libslic3r/Print.hpp"
 
 #include <algorithm>
@@ -66,19 +67,56 @@ emscripten::val sliceCancelFlag() {
 // Orca's wipe tower reads flush_volumes_matrix as N x N for N filaments without
 // bounds checks; desktop keeps it sized as filaments are added. A config
 // assembled outside desktop (or edited by hand) may not be, so pad it the way
-// desktop seeds new entries.
+// desktop seeds new entries. Upstream OrcaSlicer keeps one N x N block per
+// entry of flush_multiplier (per nozzle group) and refuses any other size.
 void padFlushMatrix(DynamicPrintConfig& cfg) {
+#if ENGINE_UPSTREAM
+    // Upstream sizes painted-colour layers by filament_colour and reads them by
+    // filament_diameter; a page that sends fewer colours than filaments (it
+    // keeps one filament per tool head) would read past the end. Pad them.
+    if (const auto* diameters = cfg.option<ConfigOptionFloats>("filament_diameter"))
+        for (const char* key : {"filament_colour", "filament_multi_colour"})
+            if (auto* c = cfg.option<ConfigOptionStrings>(key); c && !c->values.empty() && c->values.size() < diameters->values.size())
+                c->values.resize(diameters->values.size(), c->values.back());
+#endif
     const auto* colours = cfg.option<ConfigOptionStrings>("filament_colour");
     const size_t n = colours ? std::max<size_t>(1, colours->values.size()) : 1;
+#if ENGINE_UPSTREAM
+    const auto* multiplier = cfg.option<ConfigOptionFloats>("flush_multiplier");
+    const size_t blocks = multiplier ? std::max<size_t>(1, multiplier->values.size()) : 1;
+#else
+    const size_t blocks = 1;
+#endif
     auto* m = cfg.option<ConfigOptionFloats>("flush_volumes_matrix", true);
-    if (m->values.size() >= n * n) return;
-    const size_t old = size_t(std::lround(std::sqrt(double(m->values.size()))));
-    const bool square = old * old == m->values.size();
-    std::vector<double> v(n * n, 0.0);
-    for (size_t i = 0; i < n; ++i)
-        for (size_t j = 0; j < n; ++j)
-            v[i * n + j] = i == j ? 0.0 : (square && i < old && j < old) ? m->values[i * old + j] : 280.0;
+    if (blocks == 1 ? m->values.size() >= n * n : m->values.size() == n * n * blocks) return;
+    // The old matrix, as one square block (or the first of several).
+    size_t old = size_t(std::lround(std::sqrt(double(m->values.size()) / double(blocks))));
+    if (old * old * blocks != m->values.size()) old = size_t(std::lround(std::sqrt(double(m->values.size()))));
+    const bool square = old > 0 && old * old <= m->values.size();
+    std::vector<double> v(n * n * blocks, 0.0);
+    for (size_t b = 0; b < blocks; ++b) {
+        const size_t from = (square && (b + 1) * old * old <= m->values.size()) ? b * old * old : 0;
+        for (size_t i = 0; i < n; ++i)
+            for (size_t j = 0; j < n; ++j)
+                v[b * n * n + i * n + j] = i == j ? 0.0 : (square && i < old && j < old) ? m->values[from + i * old + j] : 280.0;
+    }
     m->values = std::move(v);
+}
+
+// Upstream OrcaSlicer prints filament N with extruder N on a printer with
+// several heads (desktop fixes one filament per head there) and reads the
+// extruder settings past their end when a project has more filaments, so a
+// slice crashed. Give it one extruder per filament, as desktop's printer
+// "Extruders" count does (the extra ones copy the last head). Snapmaker Orca
+// slices such projects too; the U1 maps the file's tools onto its heads when
+// the print is sent (SET_PRINT_EXTRUDER_MAP).
+void extruderPerFilament(DynamicPrintConfig& cfg) {
+#if ENGINE_UPSTREAM
+    const auto* nozzles = cfg.option<ConfigOptionFloats>("nozzle_diameter");
+    const auto* filaments = cfg.option<ConfigOptionFloats>("filament_diameter");
+    if (!nozzles || !filaments || nozzles->values.size() <= 1 || cfg.opt_bool("single_extruder_multi_material")) return;
+    if (filaments->values.size() > nozzles->values.size()) cfg.set_num_extruders(unsigned(filaments->values.size()));
+#endif
 }
 
 // Copy of the project holding only `plate`'s instances, moved so the plate's
@@ -251,6 +289,7 @@ std::string sliceWithConfig(const std::string& configJson, int plate, const std:
         DynamicPrintConfig cfg;
         cfg.apply(FullPrintConfig::defaults());
         for (const std::string& w : engine::applyJsonConfig(cfg, json::parse(configJson))) warnings.add("A setting could not be used: " + w, false);
+        extruderPerFilament(cfg);
         padFlushMatrix(cfg);
         // wipe_tower_x/y hold one position per plate. The Print below slices as
         // plate 0, so it gets this plate's, kept on the bed the way desktop
@@ -266,7 +305,12 @@ std::string sliceWithConfig(const std::string& configJson, int plate, const std:
         // Sunk objects stay sunk; Orca slices only what is above the bed.
         for (ModelObject* o : model.objects) engine::settleOnBed(o, true);
         engine::addCalibrationGcodes(model, cfg);
+#if ENGINE_UPSTREAM
+        // Upstream also takes each extruder's own area (none here: the whole bed).
+        const BuildVolume volume(cfg.option<ConfigOptionPoints>("printable_area")->values, cfg.opt_float("printable_height"), {}, {});
+#else
         const BuildVolume volume(cfg.option<ConfigOptionPoints>("printable_area")->values, cfg.opt_float("printable_height"));
+#endif
         model.update_print_volume_state(volume);
         json outside = json::array();
         for (const ModelObject* o : model.objects)
@@ -331,8 +375,33 @@ std::string sliceWithConfig(const std::string& configJson, int plate, const std:
         if (cancelRequested()) throw CanceledException();
         if (result.conflict_result) warnings.add(conflictText(*result.conflict_result, print), true);
 
+        // Layers as the G-code has them ("; total layer number"), counted as
+        // GCode::_do_export does: one per height printed, so object and
+        // support layers at the same height count once (total_layer_count()
+        // adds them up); printed object by object, each object's layers.
+        const auto heights = [](const PrintObject* o, std::vector<coordf_t>& zs) {
+            for (const Layer* l : o->layers()) zs.push_back(l->print_z);
+            for (const SupportLayer* l : o->support_layers()) zs.push_back(l->print_z);
+        };
+        const auto distinct = [](std::vector<coordf_t> zs) {
+            std::sort(zs.begin(), zs.end());
+            int n = 0;
+            for (size_t i = 0; i < zs.size(); ++i)
+                if (i == 0 || zs[i] - zs[i - 1] >= EPSILON) ++n;
+            return n;
+        };
         int layers = 0;
-        for (const PrintObject* o : print.objects()) layers = std::max(layers, int(o->total_layer_count()));
+        if (print.config().print_sequence == PrintSequence::ByObject) {
+            for (const PrintObject* o : print.objects()) {
+                std::vector<coordf_t> zs;
+                heights(o, zs);
+                layers += int(o->instances().size()) * distinct(zs);
+            }
+        } else {
+            std::vector<coordf_t> zs;
+            for (const PrintObject* o : print.objects()) heights(o, zs);
+            layers = distinct(zs);
+        }
         const PrintStatistics& stats = print.print_statistics();
         const float seconds = result.print_statistics.modes[size_t(PrintEstimatedStatistics::ETimeMode::Normal)].time;
         json mm = json::object();

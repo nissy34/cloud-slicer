@@ -6,7 +6,9 @@
 #include "engine.hpp"
 
 #include "libslic3r/GCode/WipeTower.hpp"
+#if ENGINE_HAS_MIXING
 #include "libslic3r/MixedFilament.hpp"
+#endif
 #include "libslic3r/Print.hpp"
 
 #include <algorithm>
@@ -65,21 +67,28 @@ std::vector<int> plateFilaments(const DynamicPrintConfig& cfg, int plate, size_t
     // Filament changes at a layer (desktop's colour change per plate).
     const auto* colours = cfg.option<ConfigOptionStrings>("filament_colour");
     const size_t physical = colours ? colours->values.size() : 1;
+#if ENGINE_HAS_MIXING
     MixedFilamentManager mixes;
     if (colours) {
         mixes.auto_generate(colours->values);
         const auto* defs = cfg.option<ConfigOptionString>("mixed_filament_definitions");
         mixes.load_custom_entries(defs ? defs->value : std::string(), colours->values);
     }
+    const size_t total = mixes.total_filaments(physical);
+#else
+    const size_t total = physical;  // this engine has no mixed filaments
+#endif
     if (auto it = pr.model.plates_custom_gcodes.find(plate); it != pr.model.plates_custom_gcodes.end())
         for (const auto& item : it->second.gcodes)
-            if (item.type == CustomGCode::Type::ToolChange && item.extruder <= int(mixes.total_filaments(physical)))
+            if (item.type == CustomGCode::Type::ToolChange && item.extruder <= int(total))
                 ids.push_back(item.extruder);
 
     std::sort(ids.begin(), ids.end());
     ids.erase(std::unique(ids.begin(), ids.end()), ids.end());
     if (assigned) *assigned = ids.size();
+#if ENGINE_HAS_MIXING
     mixes.expand_virtual_extruder_ids(ids, physical);
+#endif
     std::sort(ids.begin(), ids.end());
     ids.erase(std::unique(ids.begin(), ids.end()), ids.end());
     return ids;
@@ -139,7 +148,19 @@ json wipeTowerFor(const DynamicPrintConfig& cfg, int plate, double slicedDepth) 
     double brim = cfg.opt_float("prime_tower_brim_width");
     if (depth < 0) {
         Print print;
+#if ENGINE_UPSTREAM
+        // Upstream sizes the tower from the tallest object in the Print (and
+        // plans none for an empty one): stand in a block as tall as the plate.
+        Model stand_in;
+        if (height > EPSILON) {
+            ModelObject* block = stand_in.add_object();
+            block->add_volume(TriangleMesh(its_make_cube(10., 10., height)));
+            block->add_instance();
+        }
+        print.apply(stand_in, cfg);
+#else
         print.apply(Model(), cfg);
+#endif
         const WipeTowerData& data = print.wipe_tower_data(filaments);
         depth = data.depth;
         brim = data.brim_width;

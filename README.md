@@ -13,8 +13,16 @@ hosted on Cloudflare's free tier.
 - **Slices like desktop Snapmaker Orca 2.4.0**, because it is the same engine: STL, OBJ,
   AMF and 3MF projects, Bambu Studio 3MF files with painted colours, per-part filaments,
   multi-plate projects. Plate thumbnails go into the G-code, like desktop.
-- **Snapmaker printer, filament and process presets** bundled from the engine, with a
-  first-run setup wizard (like Orca's) to pick the printers and filaments you have.
+- **Every printer brand the engine ships** (55 in Snapmaker Orca, 63 in OrcaSlicer, with
+  their filaments and processes), with a first-run setup wizard (like Orca's) to pick the
+  printers and filaments you have: search, pictures, and a "Direct print" mark on the
+  printers this app can send prints to (Klipper ones); for the others you download the
+  G-code. Snapmaker's presets load at start and another brand's only once you pick one
+  of its printers, so the page starts as fast as with Snapmaker alone. The 3D view shows the
+  selected printer's own bed like desktop: the brand's bed shape under the plate and its
+  print sheet picture (the Snapmaker U1's, a Bambu Lab sheet, Prusa's...) over the printable
+  area, with desktop's grid, the bed's exclusion areas and the X/Y/Z arrows at the origin;
+  a printer without one gets the plain plate.
 - **Process settings in desktop's own pages and groups**, with per-object settings and a
   Standard flow / High flow switch for options that hold one value per nozzle flow
   variant (the U1). Like desktop, settings that don't apply grey out or hide (support
@@ -26,18 +34,30 @@ hosted on Cloudflare's free tier.
   printer and filament settings windows like desktop's preset editors (with its Extruder 1 to 4
   pages, one per tool head, Motion ability with the machine limits, and the filament's Setting
   Overrides, where a filament can use its own retraction and z-hop values or the printer's), and preset files
-  in and out (desktop Orca's preset JSON, `.orca_printer`, `.orca_filament`, zip).
+  in and out (desktop Orca's preset JSON, `.orca_printer`, `.orca_filament`, zip). One preset
+  works in both engines: settings both have (605, listed in `apps/web/src/lib/shared-settings.json`)
+  stay the same in both, while G-code, Snapmaker's high flow values and settings only one engine
+  has are kept per engine, each on its own base preset (`apps/web/src/lib/preset-engines.ts`).
+- **Two engines, chosen per project**: Snapmaker Orca or OrcaSlicer 2.4.2. The Slicer engine
+  dropdown above the printer switches an open project to the other engine, like desktop's
+  printer change: when something would be lost, a pop-up first lists just that (each colour mix
+  and the filament it becomes, high flow values you changed, settings the other engine lacks, a
+  process with no match of its layer height); model, plates, positions and painting stay
+  (`apps/web/src/lib/engine-switch.ts`).
 - **3MF print settings import**: a project's own settings come in on top of your presets.
   A 3MF made for a printer you don't have (for example a Bambu project) can be converted
   onto one of yours: the print settings its author changed carry over, the ones left at
   the old printer's defaults and the printer's own settings (speeds, accelerations,
   jerk) come from your printer, and filaments are matched by material.
+- **Filaments per project** follow the file, like desktop: as many as the file has or you
+  add, in both engines. On the U1 you pick a head for each filament when you send the print
+  (`apps/web/src/lib/filament-limit.ts`).
 - **Prepare tools**: move, rotate, scale (exact fields like desktop's: position X, Y and Z, where a
   Z below the bed sinks the object into it; rotation; scale in percent or size in mm, all three
   axes together while "Scale evenly" is on; the same fields for a part inside its object), lay on face, cut, measure (distances and angles
   between faces, edges, circles and corners), variable layer height (adaptive, smooth,
   or by hand on the layer height chart), arrange, auto-orient, split,
-  mirror, simplify (offered by itself when a model has too many triangles to slice comfortably), plates, brim ears (by hand or on the corners), undo and redo, desktop's editing keys (Del deletes the
+  mirror, simplify (offered by itself when the plate to slice has too many triangles to slice comfortably), plates, brim ears (by hand or on the corners), undo and redo, desktop's editing keys (Del deletes the
   picked copy or part, Ctrl+C / Ctrl+V copy and paste an object, Ctrl+K clones it, + and - add or
   remove a copy, also Add copy / Remove copy in the object list and object menu),
   painting (colours, support and seam enforcers/blockers, fuzzy skin), desktop's plate
@@ -67,6 +87,12 @@ hosted on Cloudflare's free tier.
 - **Prime tower on the plate**: when a plate prints with more than one filament the tower
   stands on the Prepare plate at the size Orca will print it, and you drag it where you
   want it, per plate, like desktop.
+- **Flushing volumes** for printers with one nozzle and several filaments (Bambu AMS, Prusa
+  MMU, Creality CFS...), like desktop's window: how much each filament change purges, per
+  pair of filaments, worked out from their colours by each engine's own formula (again for a
+  filament whenever it or its colour changes), with the multiplier, Re-calculate, and where
+  the purge goes (prime tower, infill, support, per object into objects). Printers with a
+  head per filament (the U1) never purge, so they don't show it and say why.
 - **Colour mixing**: Snapmaker Orca's mixed filaments, virtual filaments made of two or
   more physical ones, usable anywhere a filament is.
 - **Filaments from the printer**: "From printer" in the Filament section loads what is in
@@ -112,6 +138,7 @@ How it is built, and why: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 |---|---|
 | `engine/` | The engine: Snapmaker Orca's libslic3r in WebAssembly with an embind API, its build, patches, and a Node CLI and tests. See [engine/README.md](engine/README.md) |
 | `engine/orcaslicer/` | Submodule: upstream Snapmaker Orca, pinned to v2.4.0 |
+| `engine/orcaslicer-upstream/` | Submodule: OrcaSlicer, pinned to v2.4.2, the second engine (engine/README.md, "Two engines") |
 | `apps/web/` | The web app (React + TypeScript + Vite) and its Cloudflare Pages Functions. See [apps/web/README.md](apps/web/README.md) |
 | `apps/device-bridge/` | The bridge that lets the Device tab reach printers on a home network: one small Go program per system and chip, and the Mac/Linux installer. See [apps/device-bridge/README.md](apps/device-bridge/README.md) |
 | `apps/device-relay/` | The relay Worker between browsers and bridges. See [apps/device-relay/README.md](apps/device-relay/README.md) and [SECURITY.md](apps/device-relay/SECURITY.md) |
@@ -303,10 +330,13 @@ Browser end to end tests (Playwright's Chromium) run against the built site
 | `npm run smoke` (`test/smoke.mjs`) | Open Benchy, slice, download the G-code and check it is a real U1 print file |
 | `test/startup-matrix.mjs` | The engine starts under other time zones, languages, CPU counts and in stable Chrome |
 | `test/presets.mjs` | Save, find, rename and delete your own presets |
+| `test/shared-presets.mjs` | A preset saved in Snapmaker Orca shows in OrcaSlicer and back, each engine on its own base |
 | `test/preset-files.mjs` | Printer and filament settings windows, preset export and import |
 | `test/accounts.mjs` | Sign-in, sessions, synced presets/settings/printers, online projects (Pages Functions + local D1, mock Google) |
 | `test/toolbar.mjs` | The object toolbar: add a model, variable layer height, simplify, brim ears, lay on face, measure, the object menu, parts and modifiers, mesh boolean, text and SVG shapes, assemble, fits a phone |
+| `test/layout-fixes.mjs` | Prepare's layout and dialogs: long object and project names shorten with "…", the Paint card fits, closing the Text tool takes back an unchanged new text, preset menus name presets as their dropdowns and open upward near the bottom, Online projects closes with Esc or a click outside, unsaved changes ask in the app's own dialog, the phone's buttons after slicing fit one row |
 | `test/mixing.mjs` | Make a colour mix, slice, the G-code alternates between both tools |
+| `test/bed.mjs` | A Bambu Lab A1, the U1 and a Prusa MK4 each show their own bed shape and picture, fetched only for that printer, in both engines |
 | `test/wipe-tower.mjs` | A two-filament plate shows the prime tower; drag it, and the slice prints it there |
 | `test/view-touch.mjs` | Phone 3D view: pinching on a model that fills the screen zooms out instead of moving it; Fit all and the views menu |
 | `test/loading.mjs` | The loading screen while the engine starts and a project opens |

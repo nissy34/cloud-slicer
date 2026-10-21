@@ -7,7 +7,7 @@ import { u1Heads } from '../device/addons/u1';
 import { Dialog, Swatch } from '../device/ui/parts';
 import { isLoaded, matchByColour, printerFilaments, syncPlan, syncPreset, type SyncMode } from '../lib/filament-sync';
 import { shortName } from '../lib/presets';
-import { installedOnly, SETUP_KEY, type Setup } from '../lib/setup';
+import { installedFilaments, installedOnly, SETUP_KEY, type Setup } from '../lib/setup';
 import { useUserSetting } from '../state/account';
 import { useDevice } from '../state/device';
 import { useSlicer } from '../state/store';
@@ -34,7 +34,7 @@ function SyncFilamentsDialog({ onClose }: { onClose(): void }) {
   const presets = useSlicer((s) => s.filaments);
   const hasObjects = useSlicer((s) => (s.project?.objects.length ?? 0) > 0);
   const mixCount = useSlicer((s) => s.mixes.filter((m) => m.enabled && !m.deleted).length);
-  const installedNames = useUserSetting<Setup>(SETUP_KEY)?.filaments;
+  const installedNames = installedFilaments(useUserSetting<Setup>(SETUP_KEY), useSlicer((s) => s.flavor));
   const printer = printers.find((p) => p.id === activeId);
 
   // Connects the printer the Device tab shows, if it isn't already.

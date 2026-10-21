@@ -1,30 +1,40 @@
 import { shortName } from '../lib/presets';
-import { installedOnly, SETUP_KEY, type Setup } from '../lib/setup';
+import { installedFilaments, installedOnly, installedPrinters, SETUP_KEY, type Setup } from '../lib/setup';
+import { canSend } from '../lib/printer-catalog';
 import { useUserSetting } from '../state/account';
-import { useSetupWizard } from './SetupWizard';
+import { SendMark, useSetupWizard } from './SetupWizard';
 import { CalibrationBanner } from './CalibrationDialog';
-import { useOption, useSlicer } from '../state/store';
+import { useFilamentLimit, useSlicer } from '../state/store';
+import { filamentLimitMessage } from '../lib/filament-limit';
 import { ObjectList } from './ObjectList';
 import { ColorMixPanel } from './ColorMixing';
 import { SyncFilamentsButton } from './FilamentSync';
+import { FlushVolumesButton } from './FlushVolumes';
 import { OptionField } from './OptionField';
 import { SettingsPanel } from './SettingsPanel';
 import { PresetMenu } from '../account/PresetMenu';
 import { EditPresetButton } from './PresetSettingsDialog';
+import { EngineSection } from './EngineSection';
 import type { PresetSummary } from '../engine/protocol';
 
 /** The user's own presets always show, whatever the setup wizard installed. */
 const withMine = (installed: string[] | undefined, list: PresetSummary[]) =>
   installed && [...installed, ...list.filter((p) => p.user).map((p) => p.name)];
 
+/** The printer picker's last entry, which opens the setup wizard's printer page. */
+const ADD_PRINTERS = '\u0000add-printers';
+
 function PrinterSection() {
   const allPrinters = useSlicer((s) => s.printers);
   const selection = useSlicer((s) => s.selection);
   const selectPrinter = useSlicer((s) => s.selectPrinter);
-  const installed = useUserSetting<Setup>(SETUP_KEY)?.printers;
+  const installed = installedPrinters(useUserSetting<Setup>(SETUP_KEY), useSlicer((s) => s.flavor));
   const printers = installedOnly(allPrinters, withMine(installed, allPrinters), selection?.printer);
   const manage = useSetupWizard((s) => s.show);
   const busy = useSlicer((s) => s.engine !== 'ready');
+  const catalog = useSlicer((s) => s.catalog);
+  const sends = (name: string) => canSend(catalog, name, allPrinters);
+  const selectedSends = selection ? sends(selection.printer) : null;
   const group = (p: PresetSummary) => (p.user ? 'My printers' : p.vendor || 'Other');
   const vendors = [...new Set(printers.map(group))].sort((a, b) => Number(b === 'My printers') - Number(a === 'My printers'));
   return (
@@ -32,7 +42,7 @@ function PrinterSection() {
       <div className="group-head">
         <h2>Printer</h2>
         <div className="group-actions">
-          <button className="link" onClick={manage}>
+          <button className="link" onClick={() => manage()}>
             Manage
           </button>
           <EditPresetButton type="printer" />
@@ -45,7 +55,7 @@ function PrinterSection() {
           aria-label="Printer preset"
           value={selection?.printer ?? ''}
           disabled={busy}
-          onChange={(e) => void selectPrinter(e.target.value)}
+          onChange={(e) => (e.target.value === ADD_PRINTERS ? manage('printers') : void selectPrinter(e.target.value))}
         >
           {vendors.map((v) => (
             <optgroup key={v} label={v}>
@@ -54,12 +64,21 @@ function PrinterSection() {
                 .map((p) => (
                   <option key={p.name} value={p.name}>
                     {p.name}
+                    {sends(p.name) ? ' · direct print' : ''}
                   </option>
                 ))}
             </optgroup>
           ))}
+          {/* Like desktop's printer list: the wizard's printer page, to add more or remove some. */}
+          <option value={ADD_PRINTERS}>Add or remove printers…</option>
         </select>
       </label>
+      {selectedSends === true && (
+        <p className="muted small printer-send">
+          <SendMark /> Send prints to it from the Device tab.
+        </p>
+      )}
+      {selectedSends === false && <p className="muted small printer-send">No direct print for this printer (not Klipper): download the G-code to print it.</p>}
       <OptionField optKey="curr_bed_type" label="Plate type" />
     </section>
   );
@@ -68,11 +87,12 @@ function PrinterSection() {
 function FilamentSection() {
   const selection = useSlicer((s) => s.selection);
   const allFilaments = useSlicer((s) => s.filaments);
-  const installed = useUserSetting<Setup>(SETUP_KEY)?.filaments;
+  const installed = installedFilaments(useUserSetting<Setup>(SETUP_KEY), useSlicer((s) => s.flavor));
   const filaments = installedOnly(allFilaments, withMine(installed, allFilaments), selection?.filaments);
   const { setFilament, setColour, addFilament, removeFilament } = useSlicer.getState();
-  const extruders = (useOption('nozzle_diameter') ?? '').split(',').filter(Boolean).length;
+  const limit = useFilamentLimit();
   if (!selection) return null;
+  const limitMessage = filamentLimitMessage(limit, selection.filaments.length);
   return (
     <section className="group">
       <div className="group-head">
@@ -113,9 +133,10 @@ function FilamentSection() {
           </li>
         ))}
       </ol>
-      {extruders > 0 && selection.filaments.length > extruders && (
-        <p className="hint warn">
-          {selection.filaments.length} filaments on a printer with {extruders} extruders.
+      <FlushVolumesButton />
+      {limitMessage && (
+        <p className={limitMessage.warn ? 'hint warn' : 'hint'} data-testid="filament-limit">
+          {limitMessage.text}
         </p>
       )}
       <ColorMixPanel />
@@ -165,6 +186,7 @@ export function Sidebar() {
   return (
     <aside className="panel">
       <CalibrationBanner />
+      <EngineSection />
       <PrinterSection />
       <FilamentSection />
       <ObjectList />

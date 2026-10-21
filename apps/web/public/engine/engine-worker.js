@@ -25,6 +25,8 @@ if (self.name !== 'em-pthread') {
   const DATA_DIR = '/orca';
   const log = () => {};
   let cancel = null;
+  // Brand files from profiles/ already written into the FS (methods.vendors).
+  const loadedVendors = new Set();
 
   const json = (text) => {
     const out = JSON.parse(text);
@@ -90,6 +92,10 @@ if (self.name !== 'em-pthread') {
     }
     const presets = json(engine.presetsLoad(DATA_DIR));
     presets.vendorVersion = bundle.version;
+    // Engines built before engineInfo() were all Snapmaker Orca.
+    presets.engine = engine.engineInfo
+      ? JSON.parse(engine.engineInfo())
+      : { flavor: 'snapmaker', name: 'Snapmaker Orca', version: '', mixing: true, flowVariants: true };
     engine.FS.mkdirTree('/work');
     // An engine build without slice cancelling still works, without Cancel.
     cancel = engine.sliceCancelFlag ? engine.sliceCancelFlag() : null;
@@ -266,6 +272,8 @@ if (self.name !== 'em-pthread') {
     // An edit that removes a filament also moves the project's IDs, so the
     // project comes back with it.
     mixed(e, request) {
+      // An engine without mixed filaments (upstream OrcaSlicer) has no list.
+      if (!e.mixedFilaments) return { definitions: '', rows: [] };
       const out = json(e.mixedFilaments(JSON.stringify(request)));
       const kind = request.op?.kind;
       return kind === 'delete' || kind === 'removePhysical' || kind === 'replacePhysical' ? { ...out, info: JSON.parse(e.modelInfoJson()) } : out;
@@ -331,6 +339,30 @@ if (self.name !== 'em-pthread') {
         e.FS.writeFile(`${dir}/${p.name}.json`, JSON.stringify(preset));
       }
       return json(e.presetsLoad(DATA_DIR)).counts;
+    },
+    // Adds printer brands beyond the start-up ones: fetches each brand's
+    // profiles/<file> (bundle-profiles.mjs), writes it beside the others and
+    // reloads every preset when one was new. The selection resets then; the
+    // caller selects again. Returns whether anything was added.
+    async vendors(e, files) {
+      const added = [];
+      await Promise.all(
+        (files || []).map(async (file) => {
+          if (loadedVendors.has(file)) return;
+          const res = await fetch(here(`profiles/${file}`));
+          if (!res.ok) throw new Error(`${file}: HTTP ${res.status}`);
+          const bundle = await res.json();
+          for (const [rel, text] of Object.entries(bundle.files)) {
+            const path = `${DATA_DIR}/system/${rel}`;
+            e.FS.mkdirTree(path.slice(0, path.lastIndexOf('/')));
+            e.FS.writeFile(path, text);
+          }
+          loadedVendors.add(file);
+          added.push(file);
+        }),
+      );
+      if (added.length) json(e.presetsLoad(DATA_DIR));
+      return added.length > 0;
     },
     addPlate: (e) => (json(e.addPlate()), JSON.parse(e.modelInfoJson())),
     deletePlate: (e, plate) => (json(e.deletePlate(plate)), JSON.parse(e.modelInfoJson())),

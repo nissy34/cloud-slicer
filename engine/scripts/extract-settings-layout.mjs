@@ -20,7 +20,9 @@ import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const here = dirname(fileURLToPath(import.meta.url));
-const tabCpp = readFileSync(resolve(here, '../orcaslicer/src/slic3r/GUI/Tab.cpp'), 'utf8');
+// ENGINE_FLAVOR=orca reads upstream OrcaSlicer's pages instead.
+const source = process.env.ENGINE_FLAVOR === 'orca' ? '../orcaslicer-upstream' : '../orcaslicer';
+const tabCpp = readFileSync(resolve(here, source, 'src/slic3r/GUI/Tab.cpp'), 'utf8');
 const out = process.argv[2];
 if (!out) {
   console.error('usage: extract-settings-layout.mjs <out.json>');
