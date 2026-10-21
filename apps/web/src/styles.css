@@ -3107,6 +3107,148 @@ select:focus-visible {
 .dv-left {
   margin-right: auto;
 }
+
+/* Skip objects (device/ui/SkipObjects.tsx): plate map beside the list, map above it on a phone */
+.dv-facts dd[data-testid='printing-object'] {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.dv-skip .dv-dialog-content {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+.dv-skip-body {
+  display: grid;
+  grid-template-columns: minmax(0, 240px) minmax(0, 1fr);
+  gap: 16px;
+  align-items: start;
+  min-height: 0;
+}
+.dv-skip-map {
+  width: 100%;
+  height: auto;
+  display: block;
+}
+.dv-skip-bed {
+  fill: var(--surface-2);
+  stroke: var(--border);
+  stroke-width: calc(var(--u) * 1px);
+}
+.dv-skip-shape {
+  fill: color-mix(in srgb, var(--muted) 30%, transparent);
+  stroke: var(--muted);
+  stroke-width: calc(var(--u) * 1.5px);
+  cursor: pointer;
+}
+.dv-skip-shape.current {
+  fill: color-mix(in srgb, var(--accent) 35%, transparent);
+  stroke: var(--accent);
+  stroke-width: calc(var(--u) * 2px);
+}
+.dv-skip-shape.skipped {
+  fill: transparent;
+  stroke-dasharray: calc(var(--u) * 4px) calc(var(--u) * 3px);
+  opacity: 0.6;
+}
+.dv-skip-shape.picked {
+  stroke: var(--text);
+  stroke-width: calc(var(--u) * 2.5px);
+}
+.dv-skip-side {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  min-width: 0;
+}
+.dv-skip-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  overflow: auto;
+  min-height: 0;
+}
+.dv-skip-list li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 6px;
+  border-top: 1px solid var(--border);
+  font-size: 13px;
+  cursor: pointer;
+}
+.dv-skip-list li:first-child {
+  border-top: 0;
+}
+.dv-skip-list li.picked {
+  background: color-mix(in srgb, var(--warn) 16%, transparent);
+  border-radius: 6px;
+}
+.dv-skip-list li.skipped .dv-skip-name {
+  color: var(--muted);
+  text-decoration: line-through;
+}
+.dv-skip-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.dv-skip-now {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--accent);
+}
+.dv-skip-list li > .muted {
+  font-size: 12px;
+}
+.dv-skip-count {
+  font-size: 12px;
+}
+.dv-job-note {
+  font-size: 12px;
+  color: var(--muted);
+  margin: 0;
+}
+@media (max-width: 760px) {
+  /* A sheet from the bottom, at most half the screen: the map stays, the list scrolls. */
+  .dv-dialog.dv-skip {
+    width: 100vw;
+    max-width: 100vw;
+    margin: auto 0 0;
+    border-radius: 12px 12px 0 0;
+    max-height: 50dvh;
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+  .dv-skip .dv-dialog-body {
+    max-height: 50dvh;
+  }
+  .dv-skip-body {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: auto minmax(0, 1fr);
+    justify-items: center;
+    gap: 8px;
+    flex: 1;
+  }
+  .dv-skip-map {
+    width: auto;
+    height: 150px;
+    max-width: 100%;
+  }
+  .dv-skip-side {
+    width: 100%;
+    height: 100%;
+  }
+  .dv-skip-now {
+    font-size: 0;
+  }
+  .dv-skip-now::after {
+    content: 'Now';
+    font-size: 11px;
+  }
+}
 .dv-form {
   display: grid;
   gap: 10px;
