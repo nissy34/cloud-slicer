@@ -335,7 +335,7 @@ which is why Windows warns and why macOS uses the Terminal command. More in
 [apps/device-bridge/README.md](apps/device-bridge/README.md) and
 [apps/device-relay/SECURITY.md](apps/device-relay/SECURITY.md).
 
-**Trying relay and bridge changes before they merge**: add the label `try on printer`
+**Trying relay and bridge changes before they merge**: add the label `use test relay`
 to the pull request. Its relay goes to a separate test relay, its bridges to that relay's
 downloads, and every branch preview of the site sets up new bridges there, shown with a
 **Test** tag. A test bridge ("Cloud Slicer Bridge (test)") installs next to your everyday

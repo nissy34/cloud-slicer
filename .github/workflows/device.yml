@@ -10,7 +10,7 @@ name: Device
 #    one everyone uses: deploys from main only.
 #  - test (cloud-slicer-relay-test, downloads in cloud-slicer-bridge-test): where
 #    a pull request's relay and bridge are tried on a real printer before they
-#    merge. Add the label "try on printer" to the PR (or run this workflow on its
+#    merge. Add the label "use test relay" to the PR (or run this workflow on its
 #    branch); every push to that PR then deploys there. One PR at a time: the
 #    newest one sent wins. Its bridges are test builds ("Cloud Slicer Bridge
 #    (test)") that install next to the real bridge and update only from the test
@@ -59,7 +59,7 @@ jobs:
           INPUT_TARGET: ${{ inputs.target }}
           PR: ${{ github.event.pull_request.number }}
           SAME_REPO: ${{ github.event.pull_request.head.repo.full_name == github.repository }}
-          LABELLED: ${{ contains(github.event.pull_request.labels.*.name, 'try on printer') }}
+          LABELLED: ${{ contains(github.event.pull_request.labels.*.name, 'use test relay') }}
           BRANCH: ${{ github.head_ref || github.ref_name }}
         run: |
           live=false test=false what=main
