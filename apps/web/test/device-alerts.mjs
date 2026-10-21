@@ -94,6 +94,19 @@ const fakePush = (sub) => {
   ServiceWorkerRegistration.prototype.showNotification = async (title, o) => void window.__shown.push({ title, ...o });
 };
 
+/** Turns the card's main switch on once it can be used (it waits for the printer and the saved alerts). */
+const turnOn = async (card) => {
+  const sw = card.getByTestId('alerts-on');
+  await until('the alerts switch usable', async () => !(await sw.isDisabled()), 30_000);
+  await sw.click({ force: true });
+  await card
+    .getByTestId('alert-finished')
+    .waitFor({ timeout: 30_000 })
+    .catch(async (e) => {
+      throw new Error(`${e.message}\ncard said: ${(await card.innerText()).replace(/\s+/g, ' ')}`);
+    });
+};
+
 const voron = await startMockPrinter({ generic: true, hostname: 'Voron-mock' });
 const direct = await startMockPrinter({ generic: true, hostname: 'Direct-mock' });
 const persist = mkdtempSync(join(tmpdir(), 'relay-alerts-'));
@@ -138,8 +151,7 @@ try {
   const card = page.getByTestId('alerts-card');
   await card.getByText('Sent through the bridge, even when the browser is closed.').waitFor();
   if (shots) await card.screenshot({ path: join(shots, 'alerts-off-desktop.png') });
-  await card.getByTestId('alerts-on').click({ force: true });
-  await card.getByTestId('alert-finished').waitFor();
+  await turnOn(card);
   // The agreed defaults: problems and Finished on, every other milestone off, pictures on, offline off.
   const checked = async (id) => card.getByTestId(id).isChecked();
   for (const id of ['alert-failed', 'alert-paused', 'alert-error', 'alert-finished', 'alert-pictures']) if (!(await checked(id))) throw new Error(`${id} should be on by default`);
@@ -187,8 +199,7 @@ try {
   await page.getByTestId('connection').filter({ hasText: 'Connected' }).waitFor({ timeout: 30_000 });
   await card.getByText('only come while Cloud Slicer is open in a tab').waitFor();
   if (await card.getByTestId('alert-pictures').count()) throw new Error('direct printers have no picture switch');
-  await card.getByTestId('alerts-on').click({ force: true });
-  await card.getByTestId('alert-finished').waitFor();
+  await turnOn(card);
   if (shots) await card.screenshot({ path: join(shots, 'alerts-direct-desktop.png') });
   await page.getByTestId('files-card').locator('li', { hasText: 'calibration_cube.gcode' }).getByRole('button', { name: 'Print…' }).click();
   await page.getByRole('dialog').getByTestId('upload-and-print').click();
