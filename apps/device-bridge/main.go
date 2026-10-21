@@ -43,6 +43,8 @@ const version = "6"
 var (
 	defaultRelay = "https://cloud-slicer-relay.nissy34.workers.dev"
 	defaultSite  = "https://slicer.awesomestuff.qzz.io"
+	// flavor is "test" for builds served by the test relay (see namesFor).
+	flavor = ""
 )
 
 // parseArgs splits "--name value" options from the command and its arguments.
@@ -74,7 +76,7 @@ func main() {
 	if err := run(os.Args[1:], console); err != nil {
 		fmt.Fprintln(os.Stderr, err.Error())
 		if !console {
-			showMessage("Cloud Slicer Bridge", err.Error(), true)
+			showMessage(appName, err.Error(), true)
 		}
 		// The install scripts ask for a new setup code on this one.
 		if errors.As(err, new(setupCodeError)) {
@@ -98,6 +100,9 @@ func run(argv []string, console bool) error {
 		cmd, rest = rest[0], rest[1:]
 	}
 	if cmd == "version" {
+		if flavor != "" {
+			target += " " + flavor
+		}
 		fmt.Printf("%s (build %s %s)\n", version, build, target)
 		return nil
 	}
@@ -294,7 +299,7 @@ func openedByHand(cfg *Config, site string, console bool) bool {
 	fmt.Printf("To remove it from this computer: %s uninstall\n", commandFor(p.copyTo))
 	opened := printPairing(cfg, site, true)
 	if !console {
-		showMessage("Cloud Slicer Bridge", doneMessage(opened, pairingLink(cfg, site)), false)
+		showMessage(appName, doneMessage(opened, pairingLink(cfg, site)), false)
 	}
 	return true
 }

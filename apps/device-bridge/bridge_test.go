@@ -381,6 +381,16 @@ func TestBridgeThroughARelay(t *testing.T) {
 	close(toAgent)
 }
 
+func TestTestBuildsInstallUnderTheirOwnNames(t *testing.T) {
+	real, test := namesFor(""), namesFor("test")
+	if real != (appNames{"cloud-slicer-bridge", "io.qzz.awesomestuff.cloud-slicer-bridge", "CloudSlicerBridge", "Cloud Slicer Bridge"}) {
+		t.Fatalf("real names %+v", real)
+	}
+	if test != (appNames{"cloud-slicer-bridge-test", "io.qzz.awesomestuff.cloud-slicer-bridge.test", "CloudSlicerBridgeTest", "Cloud Slicer Bridge (test)"}) {
+		t.Fatalf("test names %+v", test)
+	}
+}
+
 func TestStartWithWindowsUsesARunEntryAndCopiesTheAppOutOfDownloads(t *testing.T) {
 	p := autostartPlan(planEnv{goos: "windows", home: `C:\Users\n`, localAppData: `C:\Users\n\AppData\Local`})
 	if p.copyTo != filepath.Join(`C:\Users\n\AppData\Local`, "Cloud Slicer Bridge", "cloud-slicer-bridge.exe") {

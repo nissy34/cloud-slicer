@@ -2,7 +2,7 @@ import { useEffect, useState, type ReactNode } from 'react';
 import { api } from '../../account/api';
 import { useAccount } from '../../state/account';
 import { useDevice } from '../../state/device';
-import { DEFAULT_RELAY_URL } from '../config';
+import { DEFAULT_RELAY_URL, isTestRelay } from '../config';
 import type { Pairing } from '../pairing';
 
 /** A bridge app the relay has (apps/device-relay: /downloads.json). */
@@ -206,6 +206,37 @@ function CopyStep({ command, testId }: { command: string; testId?: string }) {
 type SetupOs = BridgeOs | 'printer';
 const OS_LABEL: Record<SetupOs, string> = { windows: 'Windows PC', mac: 'Mac', linux: 'Raspberry Pi or Linux', printer: 'On the printer' };
 
+/** On the test relay: says so, and what it runs now (PR #113, main). */
+function TestRelayNote({ relay }: { relay: string }) {
+  const [testRuns, setTestRuns] = useState('');
+  useEffect(() => {
+    if (!isTestRelay(relay)) return;
+    let live = true;
+    fetch(`${relay}/v1/info`)
+      .then((r) => (r.ok ? r.json() : {}))
+      .then((d: { test?: string }) => live && setTestRuns(d.test || ''))
+      .catch(() => {});
+    return () => {
+      live = false;
+    };
+  }, [relay]);
+  if (!isTestRelay(relay)) return null;
+  return (
+    <p className="dv-note dv-test-note" data-testid="bridge-test-relay">
+      <span className="dv-test-tag">Test</span> This test site sets up a <b>test bridge</b>
+      {testRuns ? (
+        <>
+          {' '}
+          on the test relay, which runs <b>{testRuns}</b>
+        </>
+      ) : (
+        ' on the test relay'
+      )}
+      . It installs next to your everyday bridge without touching it, and only ever updates from the test relay. Remove it with the same steps, or with Remove bridge.
+    </p>
+  );
+}
+
 /** Copies this page's address, for someone reading it on a phone who sets the bridge up on a computer. */
 function CopyPageLink() {
   const [copied, setCopied] = useState(false);
@@ -290,6 +321,7 @@ export function BridgeSetup({ relay, pasteLink }: { relay: string; pasteLink?: R
 
   return (
     <div className="dv-bridge-setup">
+      <TestRelayNote relay={relay} />
       <p>
         Your printer is on your home network, which websites can't reach on their own. A small free app called the <b>bridge</b> connects the two. It runs on the printer
         itself or on a computer in your home that is usually switched on, and you only set it up once.
@@ -520,6 +552,7 @@ export function AddBridge({ relay, onJoined }: { relay: string; onJoined: (p: Pa
 
   return (
     <div className="dv-bridge-setup" data-testid="add-bridge">
+      <TestRelayNote relay={relay} />
       <p>Run the bridge on a computer that stays on at home, on the same network as the printer, or on the printer itself.</p>
       {system === 'other' && (
         <p className="dv-note" data-testid="bridge-phone-note">

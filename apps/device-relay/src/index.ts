@@ -62,6 +62,12 @@ export interface Env extends PushEnv {
   RELAY_TEST_PUBLIC_KEY?: string;
   /** The site that makes setup codes; bridges spending one are checked there (POST /api/relay/claim). */
   SITE_ORIGIN?: string;
+  /**
+   * Set only on the test relay (cloud-slicer-relay-test, see device.yml): what it
+   * runs, like "PR #113" or "main". Its bridge downloads are test builds, named
+   * so they install next to the real bridge.
+   */
+  TEST_RELAY?: string;
 }
 
 /** Bridge apps: download name -> the file name people get. Stored in R2 as bridge/<name>. */
@@ -205,13 +211,13 @@ export default {
           ...cors,
           'Content-Type': 'application/octet-stream',
           'Content-Length': String(object.size),
-          'Content-Disposition': `attachment; filename="${file}"`,
+          'Content-Disposition': `attachment; filename="${env.TEST_RELAY ? file.replace('cloud-slicer-bridge', 'cloud-slicer-bridge-test') : file}"`,
           'Cache-Control': 'no-cache',
           ETag: object.httpEtag,
         },
       });
     }
-    if (url.pathname === '/v1/info') return Response.json({ accounts: Boolean(env.RELAY_TICKET_PUBLIC_KEY), push: vapidPublicKey(env) }, { headers: cors });
+    if (url.pathname === '/v1/info') return Response.json({ accounts: Boolean(env.RELAY_TICKET_PUBLIC_KEY), push: vapidPublicKey(env), test: env.TEST_RELAY || undefined }, { headers: cors });
     const pic = /^\/v1\/pictures\/([0-9a-f-]{36})\.jpg$/.exec(url.pathname);
     if (pic) {
       // An alert's camera picture: only someone holding its (random) name can fetch it, for a day.

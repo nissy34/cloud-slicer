@@ -312,6 +312,13 @@ was ruled out (closed service with per-user device certificates, against its ter
   `<branch>.cloud-slicer.pages.dev`. Links shown to users always use the site's own
   origin or https://slicer.awesomestuff.qzz.io.
 - Relay: Worker `cloud-slicer-relay`, deployed from `main` by `device.yml`.
+- Test relay: Worker `cloud-slicer-relay-test` (bridge downloads in R2
+  `cloud-slicer-bridge-test`), where a pull request's relay and bridge are tried on a real
+  printer before they merge: add the label `use test relay` to the PR, or run the Device
+  workflow on its branch. One PR at a time; it keeps what was sent last. Its bridges are
+  test builds ("Cloud Slicer Bridge (test)", `FLAVOR=test` in `build.sh`) that install next
+  to the real bridge and update only from the test relay. Branch previews of the site set
+  up new bridges on it; bridges saved earlier keep their own relay.
 - CI layout, caches and secrets: [CI.md](CI.md).
 
 ## Still to come

@@ -3,6 +3,7 @@ import { useAccount } from '../../state/account';
 import { bridgeLabel, useDevice, type SavedBridge, type SavedPrinter } from '../../state/device';
 import type { BridgeStatus } from '../link/types';
 import type { Pairing } from '../pairing';
+import { isTestRelay } from '../config';
 import { UninstallBridge } from './BridgeSetup';
 import { Dialog } from './parts';
 import { removeFromBridge, SELF_REMOVING_FROM, watchBridge, type BridgeWatch } from './PrinterEditor';
@@ -152,6 +153,11 @@ function BridgeCard({ b, onLeftover }: { b: SavedBridge; onLeftover: (l: Leftove
       <div className="dv-found-head">
         <span>
           <strong>{b.name}</strong>{' '}
+          {isTestRelay(pairing?.relay) && (
+            <span className="dv-test-tag" data-testid="manage-bridge-test" title="Connected to the test relay, where changes are tried before they reach everyone">
+              Test
+            </span>
+          )}{' '}
           <span className={`dv-pill ${online ? 'online' : status ? 'offline' : 'connecting'}`} data-testid="manage-bridge-state">
             {online ? 'Running' : status ? 'Not running' : 'Checking…'}
           </span>

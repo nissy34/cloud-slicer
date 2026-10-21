@@ -157,5 +157,5 @@ func defaultConfigPath() string {
 	if err != nil {
 		home = "."
 	}
-	return filepath.Join(home, ".cloud-slicer-bridge.json")
+	return filepath.Join(home, "."+service+".json")
 }
