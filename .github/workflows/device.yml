@@ -376,13 +376,18 @@ jobs:
             # The test relay says what it runs; the Device tab shows it.
             npx wrangler deploy --name "$WORKER" --var "TEST_RELAY:$WHAT" --var "SITE_ORIGIN:$SITE" | tee deploy.log
             # The site's ticket key, so signed-in people get in as they do on the live relay.
-            if ! npx wrangler secret list --name "$WORKER" | grep -q '"RELAY_TICKET_PUBLIC_KEY"'; then
-              key=$(curl -fsS -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" \
-                "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/pages/projects/${{ vars.CF_PAGES_PROJECT || 'cloud-slicer' }}" \
-                | jq -r '.result.deployment_configs.production.env_vars.RELAY_TICKET_PUBLIC_KEY.value // empty')
-              if [ -n "$key" ]; then printf '%s' "$key" | npx wrangler secret put RELAY_TICKET_PUBLIC_KEY --name "$WORKER"
-              else echo "::warning::The site has no relay ticket key yet; the test relay lets any pairing code in"; fi
-            fi
+            # The test relay serves the branch previews, so it takes the previews' key
+            # (the production one if previews have none), set on every deploy so it
+            # never lags behind the site's.
+            cfg=$(curl -fsS -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" \
+              "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/pages/projects/${{ vars.CF_PAGES_PROJECT || 'cloud-slicer' }}")
+            prod=$(printf '%s' "$cfg" | jq -r '.result.deployment_configs.production.env_vars.RELAY_TICKET_PUBLIC_KEY.value // empty')
+            prev=$(printf '%s' "$cfg" | jq -r '.result.deployment_configs.preview.env_vars.RELAY_TICKET_PUBLIC_KEY.value // empty')
+            fp() { [ -n "$1" ] && printf '%s' "$1" | sha256sum | cut -c1-12 || echo none; }
+            echo "Ticket keys: production $(fp "$prod"), previews $(fp "$prev")"
+            key=${prev:-$prod}
+            if [ -n "$key" ]; then printf '%s' "$key" | npx wrangler secret put RELAY_TICKET_PUBLIC_KEY --name "$WORKER"
+            else echo "::warning::The site has no relay ticket key yet; the test relay lets any pairing code in"; fi
           else
             npx wrangler deploy | tee deploy.log
           fi
