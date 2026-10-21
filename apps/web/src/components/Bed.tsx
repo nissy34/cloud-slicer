@@ -1,4 +1,4 @@
-import { useThree } from '@react-three/fiber';
+import { useFrame, useThree } from '@react-three/fiber';
 import { useEffect, useMemo, useState } from 'react';
 import * as THREE from 'three';
 import { bedFiles, bedModelOffset, bedVendor, bounds, decodeBedMesh, gridLines, parsePoints, texturePolygon, textureSize, type BedFiles, type Point } from '../lib/bed';
@@ -147,10 +147,26 @@ function Axes({ length }: { length: number }) {
 }
 
 /**
+ * Whether the camera looks up at the plate from below, as desktop's
+ * Camera::is_looking_downward turned around. Checked each drawn frame; changes
+ * only when the view tips over the plate's edge.
+ */
+function useLookingUp(): boolean {
+  const [up, setUp] = useState(false);
+  const dir = useMemo(() => new THREE.Vector3(), []);
+  useFrame(({ camera }) => {
+    const now = camera.getWorldDirection(dir).z >= 0;
+    if (now !== up) setUp(now);
+  });
+  return up;
+}
+
+/**
  * The plate as desktop draws it: the printer's bed shape below, the plate in
  * the printable area's outline with the brand's picture over it, desktop's grid
  * (bold every fifth line), the exclusion areas and the origin arrows. A printer
- * whose brand ships no bed shows the plain plate and grid.
+ * whose brand ships no bed shows the plain plate and grid. Seen from below,
+ * as desktop, only a faint grid is drawn, so the underside of the model shows.
  */
 export function Bed() {
   const scene = useSceneColours();
@@ -166,6 +182,7 @@ export function Bed() {
   const sheet = useMemo(() => texturePolygon(area, bambu), [area, bambu]);
   const texture = useBedTexture(files?.texture, sheet);
   const model = useBedModel(files?.model);
+  const below = useLookingUp();
 
   const plate = useMemo(() => flatShape(area), [area]);
   const picture = useMemo(() => flatShape(sheet), [sheet]);
@@ -192,29 +209,31 @@ export function Bed() {
   const offset = model ? bedModelOffset(area, model.boundingBox?.max.z ?? 0) : null;
   return (
     <group name="bed">
-      {model && offset && (
+      {model && offset && !below && (
         <mesh geometry={model} position={offset}>
           <meshStandardMaterial color={scene.bedModel} roughness={0.8} flatShading />
         </mesh>
       )}
-      <mesh geometry={plate} position={[0, 0, -0.2]} receiveShadow>
-        <meshStandardMaterial color={scene.bed} roughness={0.9} />
-      </mesh>
-      {texture && (
+      {!below && (
+        <mesh geometry={plate} position={[0, 0, -0.2]} receiveShadow>
+          <meshStandardMaterial color={scene.bed} roughness={0.9} />
+        </mesh>
+      )}
+      {texture && !below && (
         <mesh geometry={picture} position={[0, 0, -0.1]} renderOrder={-1}>
           <meshBasicMaterial map={texture} transparent depthWrite={false} toneMapped={false} />
         </mesh>
       )}
-      {excluded && (
+      {excluded && !below && (
         <mesh geometry={excluded} position={[0, 0, -0.05]}>
           <meshBasicMaterial color={scene.exclude} transparent opacity={0.7} depthWrite={false} />
         </mesh>
       )}
       <lineSegments geometry={grid.thin}>
-        <lineBasicMaterial color={scene.grid} transparent opacity={0.45} />
+        <lineBasicMaterial color={scene.grid} transparent opacity={below ? 0.2 : 0.45} />
       </lineSegments>
       <lineSegments geometry={grid.bold}>
-        <lineBasicMaterial color={scene.grid} transparent opacity={0.9} />
+        <lineBasicMaterial color={scene.grid} transparent opacity={below ? 0.4 : 0.9} />
       </lineSegments>
       {axis > 0 && <Axes length={axis} />}
     </group>
