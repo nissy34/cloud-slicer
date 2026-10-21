@@ -3,6 +3,7 @@ import { PresetSettingsDialog } from './components/PresetSettingsDialog';
 import { SettingsPromptDialog } from './components/SettingsPrompt';
 import { ActionBar } from './components/ActionBar';
 import { ConvertDialog } from './components/ConvertDialog';
+import { GcodeFallbackDialog } from './components/GcodeFallbackDialog';
 import { OpenProjectDialog } from './components/OpenProjectDialog';
 import { SetupWizard } from './components/SetupWizard';
 import { OpenModel } from './components/OpenModel';
@@ -20,6 +21,7 @@ export function App() {
     <div className="app">
       <TopBar />
       <ConvertDialog />
+      <GcodeFallbackDialog />
       <OpenProjectDialog />
       <SetupWizard />
       <ImportPresetsDialog />

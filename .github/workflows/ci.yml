@@ -447,11 +447,12 @@ jobs:
           npx playwright install --with-deps chrome
           STARTUP_CHROME=1 node test/startup-matrix.mjs
 
-      - name: User presets end to end (Chromium)
+      - name: User presets, converting and other slicers' G-code end to end (Chromium)
         if: matrix.suite == 'presets'
         run: |
           node test/presets.mjs
           node test/convert.mjs
+          node test/foreign-gcode.mjs
           node test/settings.mjs
           node test/calibration.mjs
 
