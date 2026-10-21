@@ -9,8 +9,15 @@ hibernate, so an idle bridge costs nothing; it runs on the free plan.
   `GET /download/<windows-x64|mac-arm64|mac-x64|linux-x64|linux-arm64|linux-armv7|linux-mipsle>`
   serves one. Without R2 the list is empty and the Device tab says the bridge
   isn't available yet.
-- `GET /install.sh` is the macOS, Linux and Raspberry Pi installer, with this relay
-  filled in.
+- `GET /install.sh` is the macOS, Linux and Raspberry Pi installer, `GET /install.ps1`
+  and `GET /install.cmd` the Windows ones (PowerShell, Command Prompt), with this
+  relay and the `?code=` setup code filled in.
+- `POST /v1/bridges/<id>/claim` `{key, code, host, system, place}`: a bridge joins an
+  account with a setup code. The relay asks the site (`SITE_ORIGIN`,
+  `/api/relay/claim`), which spends the code and saves the bridge in the account,
+  checks the site's signed answer, and stores the key hashes and the owner. CI's
+  check of the deployed relay brings `{claim}` signed with its test key instead,
+  for a `ci-` bridge only.
 - `wss://…/v1/bridges/<id>/agent?key=…` the agent, with its secret key. The
   first agent to connect claims the id; the relay stores only a SHA-256 of the
   key, plus one of the browser key derived from it.
@@ -23,9 +30,9 @@ hibernate, so an idle bridge costs nothing; it runs on the free plan.
   signs for one signed-in account and one bridge (`apps/web/functions/_lib/relay.ts`),
   checked in the Worker before the bridge's Durable Object wakes. It lasts an hour;
   the page renews it over the socket (`{"relay":"ticket","ticket":…}`). The ticket
-  also carries the account's camera cap (2 at a time). The first account to use a
-  bridge owns it; a bridge no account has used within 7 days of its first connect is
-  refused, and so is one whose owner is blocked.
+  also carries the account's camera cap (2 at a time). A bridge connects only once it
+  has joined an account with a setup code (above), and that account owns it; one
+  whose owner is blocked is refused.
 - `POST /v1/revoke` (signed by the site): an account was blocked or unblocked; its
   browsers on the listed bridges are closed at once. Orders from the site itself
   (subject `site`) turn whole bridges off or on (`bridgeOff`) or drop signed-out

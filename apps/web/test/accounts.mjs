@@ -594,6 +594,67 @@ test('bridges: the owner turns one off for everyone, or bridges off for one pers
   assert.ok((await (await alice.json('/api/admin')).json()).bridges.find((b) => b.id === 'bridge-guest2').guestUsed > 0);
 });
 
+test('setup codes: a bridge joins the account that made the code, once, within the hour', async () => {
+  const relay = 'https://relay.example';
+  const claim = (body) =>
+    fetch(`${HOST}/api/relay/claim`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ relay, browserKey: 'k'.repeat(43), ...body }) });
+  assert.equal((await new Browser().json('/api/relay/setup', 'POST', { relay })).status, 401);
+  const frank = new Browser();
+  users.frank = { sub: 'g-frank', name: 'Frank', email: 'frank@example.com', email_verified: true };
+  await signIn(frank, 'frank');
+  const made = await frank.json('/api/relay/setup', 'POST', { relay });
+  assert.equal(made.status, 200, await made.clone().text());
+  const { code, expiresAt } = await made.json();
+  assert.match(code, /^[2-9A-HJ-NP-Z]{4}-[2-9A-HJ-NP-Z]{4}$/);
+  assert.ok(expiresAt > Date.now() + 3500_000 && expiresAt <= Date.now() + 3600_000);
+  assert.equal((await (await frank.json(`/api/relay/setup/${code}`)).json()).state, 'waiting');
+  const bob = new Browser();
+  await signIn(bob, 'bob');
+  assert.equal((await bob.json(`/api/relay/setup/${code}`)).status, 404, "someone else's code");
+
+  const wrong = await claim({ code: 'ZZZZ-ZZZZ', bridgeId: 'bridge-f001' });
+  assert.equal(wrong.status, 404);
+  assert.equal((await wrong.json()).code, 'wrong');
+  assert.equal((await claim({ code, bridgeId: 'bridge-f001', relay: 'https://other.example' })).status, 400, 'for another relay');
+  // Typed in lower case without the dash still counts.
+  const ok = await claim({ code: code.toLowerCase().replace('-', ''), bridgeId: 'bridge-f001', host: 'FRANK-PC', system: 'win32' });
+  assert.equal(ok.status, 200, await ok.clone().text());
+  const answer = await ok.json();
+  assert.equal(answer.name, 'Bridge on FRANK-PC');
+  const { payload } = await jwtVerify(answer.claim, await importJWK(ticketKeys.publicKey.export({ format: 'jwk' }), 'ES256'), { audience: 'cloud-slicer-relay' });
+  assert.equal(payload.sub, (await frank.me()).id);
+  assert.equal(payload.b, 'bridge-f001');
+  assert.equal(payload.claim, true);
+  const again = await claim({ code, bridgeId: 'bridge-f002' });
+  assert.equal(again.status, 410, 'works once');
+  assert.equal((await again.json()).code, 'expired');
+  assert.deepEqual(await (await frank.json(`/api/relay/setup/${code}`)).json(), { state: 'used', bridgeId: 'bridge-f001', name: 'Bridge on FRANK-PC' });
+
+  // Saved in the account, with the browser key as its secret.
+  const devices = (await (await frank.json('/api/devices')).json()).devices;
+  const saved = devices.find((d) => d.extra?.bridgeId === 'bridge-f001');
+  assert.ok(saved, JSON.stringify(devices));
+  assert.equal(saved.name, 'Bridge on FRANK-PC');
+  assert.equal(saved.extra.kind, 'bridge-agent');
+  assert.deepEqual(await (await frank.json(`/api/devices/${saved.id}/secret`)).json(), { apiKey: 'k'.repeat(43) });
+
+  // An hour later the code is no good.
+  const late = await (await frank.json('/api/relay/setup', 'POST', { relay })).json();
+  const sql = `UPDATE bridge_setup_codes SET expires_at = 1 WHERE used_at IS NULL`;
+  assert.equal(spawnSync(wrangler, ['d1', 'execute', 'cloud-slicer', '--local', '--persist-to', state, '--command', sql], { cwd: web, encoding: 'utf8' }).status, 0);
+  assert.equal((await (await frank.json(`/api/relay/setup/${late.code}`)).json()).state, 'expired');
+  assert.equal((await claim({ code: late.code, bridgeId: 'bridge-f002' })).status, 410);
+
+  // Three bridges per account: a fourth code isn't given out.
+  for (const id of ['bridge-f002', 'bridge-f003']) {
+    const c = (await (await frank.json('/api/relay/setup', 'POST', { relay })).json()).code;
+    assert.equal((await claim({ code: c, bridgeId: id })).status, 200);
+  }
+  const fourth = await frank.json('/api/relay/setup', 'POST', { relay });
+  assert.equal(fourth.status, 403);
+  assert.equal((await fourth.json()).code, 'bridge-limit');
+});
+
 test('delete a person: account, presets, printers, projects and files go', async () => {
   const erin = new Browser();
   users.erin = { sub: 'g-erin', name: 'Erin', email: 'erin@example.com', email_verified: true };

@@ -25,9 +25,15 @@ Pairing:
 1. On first run the bridge makes a random **bridge id** (96 bits) and **secret
    key** (192 bits), saved in `~/.cloud-slicer-bridge.json` (mode 0600 outside
    Windows) with the printers and their Moonraker API keys.
-2. It connects as the agent with the secret key. The first agent to use an id
-   claims it; the relay stores only `sha256(secret)` and `sha256(browser key)`.
-3. The pairing link carries the relay URL, the id and the **browser key**,
+2. With accounts (the real relay) it first joins an account with a **setup code**:
+   8 characters (40 bits) made in the signed-in Device tab, stored by the site only
+   as a SHA-256, good once and for one hour, and rate-limited per IP at the relay.
+   The relay sends it to the site, which spends it, saves the bridge and its browser
+   key in that account and answers with a short signed claim; only then does the
+   relay store `sha256(secret)`, `sha256(browser key)` and the owner, and only then
+   may the agent connect. An id already joined can't be taken with another key.
+   Without accounts (local tests) the first agent to use an id claims it.
+3. The pairing link (relays without accounts) carries the relay URL, the id and the **browser key**,
    `HMAC-SHA256(secret, "cloud-slicer browser key")`, never the secret. It sits in
    the URL fragment, so it isn't sent to the site's server, and the app clears it
    from the address bar.

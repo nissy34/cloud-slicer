@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useAccount } from '../../state/account';
 import { bridgeLabel, useDevice, type SavedBridge, type SavedPrinter } from '../../state/device';
 import type { BridgeStatus } from '../link/types';
 import type { Pairing } from '../pairing';
@@ -233,6 +234,8 @@ export function ManageDialog() {
   const { openManage, openEditor } = useDevice.getState();
   const [leftovers, setLeftovers] = useState<Leftover[]>([]);
   const close = () => openManage(false);
+  const accountStatus = useAccount((s) => s.status);
+  const signedIn = accountStatus === 'signedIn';
   return (
     <Dialog
       title="Printers & bridges"
@@ -243,6 +246,19 @@ export function ManageDialog() {
           <button className="secondary" onClick={close}>
             Close
           </button>
+          {accountStatus !== 'unavailable' && (
+          <button
+            className="secondary"
+            onClick={() => {
+              close();
+              if (signedIn) void openEditor({ mode: 'add', newBridge: true });
+              else void useAccount.getState().signIn('google');
+            }}
+            data-testid="add-bridge-button"
+          >
+            {signedIn ? 'Add a bridge' : 'Sign in to add a bridge'}
+          </button>
+          )}
           <button
             className="primary"
             onClick={() => {
@@ -268,7 +284,7 @@ export function ManageDialog() {
         {bridges.length ? (
           bridges.map((b) => <BridgeCard key={b.id} b={b} onLeftover={(l) => setLeftovers((list) => [...list, l])} />)
         ) : (
-          <p className="muted">No bridges. A bridge connects printers on your home network: set one up with Add a printer.</p>
+          <p className="muted">No bridges. A bridge connects printers on your home network: set one up with {accountStatus === 'unavailable' ? 'Add a printer' : 'Add a bridge'}.</p>
         )}
         {direct.length > 0 && (
           <>

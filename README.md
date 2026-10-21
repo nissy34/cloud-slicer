@@ -290,23 +290,27 @@ router ports are opened:
 
     browser ⇄ relay (apps/device-relay) ⇄ bridge (apps/device-bridge) ⇄ printer's Moonraker
 
-Setting up a home printer, from the Device tab's "Add a printer":
+Setting up a home printer, signed in, from the Device tab's "Add a bridge" (or Add a
+printer): the dialog makes a one-use **setup code** (good for one hour) and shows one
+command that carries it:
 
 | System | How |
 |---|---|
-| Windows | Download the app and open it ("Windows protected your PC": More info, then Run anyway) |
-| macOS, Linux, Raspberry Pi (64 and 32-bit), Creality K1 (MIPS) | `curl -fsSL https://cloud-slicer-relay.nissy34.workers.dev/install.sh \| sh` in Terminal |
+| Windows | `irm "<relay>/install.ps1?code=<code>" \| iex` in PowerShell, or the `install.cmd` line in Command Prompt |
+| macOS, Linux, Raspberry Pi (64 and 32-bit), Creality K1 (MIPS) | `curl -fsSL "<relay>/install.sh?code=<code>" \| sh` in Terminal |
 | On the printer itself (any Klipper printer) | the same line with `sh -s -- --printer`, over SSH |
 
-The bridge asks nothing: it starts with the computer (Windows and macOS at login,
-Linux at boot) and opens a pairing link, and the Device tab then searches the
+The bridge spends the code as it installs and joins that account at once (a bridge
+without a valid code never connects; an expired code makes the command ask for a new
+one). It starts with the computer (Windows and macOS at login, Linux at boot), the
+dialog turns green by itself, and the Device tab then searches the
 bridge's network for Moonraker printers and adds the ones you pick, with their API
 keys, or any address you type. API keys are only ever entered in the Device tab.
 Bridges are saved on their own, apart from their printers: the Device tab's
 Printers & bridges window lists each bridge with its printers, removes either on
 its own, adds printers to a saved bridge with no pairing again, and removing a
 running bridge makes it uninstall itself from its computer.
-Pairing links carry a browser key derived from the bridge's secret; the relay stores
+The account keeps a browser key derived from the bridge's secret; the relay stores
 only hashes and rate-limits connects. Using a bridge needs a signed-in account (see
 Admin page and limits). The apps are unsigned (signing costs money),
 which is why Windows warns and why macOS uses the Terminal command. More in

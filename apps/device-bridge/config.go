@@ -24,10 +24,12 @@ type Printer struct {
 // Config is the bridge's settings file: its pairing (id and secret key), the
 // relay and site it belongs to, and its printers.
 type Config struct {
-	BridgeID string    `json:"bridgeId"`
-	Key      string    `json:"key"`
-	Relay    string    `json:"relay"`
-	Site     string    `json:"site,omitempty"`
+	BridgeID string `json:"bridgeId"`
+	Key      string `json:"key"`
+	Relay    string `json:"relay"`
+	Site     string `json:"site,omitempty"`
+	// Claimed: the bridge spent a setup code and belongs to a Cloud Slicer account.
+	Claimed  bool      `json:"claimed,omitempty"`
 	Printers []Printer `json:"printers"`
 
 	path string

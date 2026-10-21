@@ -6,15 +6,16 @@
 // browser's Moonraker messages; it passes them to the printer and sends the
 // answers back. It only talks to printers you added here.
 //
-//	cloud-slicer-bridge                     # starts with this computer from now on, opens the pairing link
+//	cloud-slicer-bridge                     # starts with this computer from now on (once it is in an account)
 //	cloud-slicer-bridge add 192.168.1.50 [--name "My U1"] [--api-key KEY]
 //	cloud-slicer-bridge list | remove <name> | pair [--open] | version
-//	cloud-slicer-bridge install | uninstall  # start with this computer, or remove it from it
+//	cloud-slicer-bridge install [--code C] | uninstall  # start with this computer, or remove it from it
 //	cloud-slicer-bridge run [--no-browser]   # just run, in this terminal
 //	cloud-slicer-bridge install-printer      # on a Klipper printer, as root: a service that serves it
 //
 // Options: --config <file> (default ~/.cloud-slicer-bridge.json),
-// --relay <url>, --site <url> (where pairing links point),
+// --relay <url>, --site <url> (where pairing links point), --code <setup code>
+// (from Cloud Slicer's Add a bridge: joins that account; install and install-printer),
 // --printer-data <folder> (install-printer and uninstall on a printer with more than one).
 //
 // One small file per system and chip, with nothing else to install:
@@ -75,6 +76,10 @@ func main() {
 		if !console {
 			showMessage("Cloud Slicer Bridge", err.Error(), true)
 		}
+		// The install scripts ask for a new setup code on this one.
+		if errors.As(err, new(setupCodeError)) {
+			os.Exit(exitSetupCode)
+		}
 		os.Exit(1)
 	}
 }
@@ -98,13 +103,18 @@ func run(argv []string, console bool) error {
 	}
 	// On a printer the settings live with the program in printer_data, not in a home folder.
 	if cmd == "install-printer" {
-		p, cfg, err := installOnPrinter(opts["printer-data"], opts["relay"])
+		p, cfg, err := installOnPrinter(opts["printer-data"], opts["relay"], opts["code"])
 		if err != nil {
 			return err
 		}
 		fmt.Printf("The bridge now runs on this printer (from %s) and starts with it.\n", p.dir)
 		if len(cfg.Printers) > 0 {
 			fmt.Printf("It serves %s.\n", cfg.Printers[0].Name)
+		}
+		if cfg.Claimed {
+			fmt.Println("Find it in Cloud Slicer: Device tab, Printers & bridges.")
+			fmt.Printf("Remove it: Remove bridge in Printers & bridges, or sudo %s uninstall\n", p.exe)
+			return nil
 		}
 		fmt.Printf("To remove it: sudo %s uninstall, or Remove bridge in the Device tab.\n", p.exe)
 		fmt.Printf("The pairing link is also in Mainsail and Fluidd, in the config folder: %s\n", filepath.Base(p.pairing))
@@ -161,7 +171,9 @@ func run(argv []string, console bool) error {
 			return err
 		}
 		fmt.Printf("Added %s (%s).%s\n", name, url, restarted(" The bridge restarted to use it.", " Restart the bridge if it is running."))
-		printPairing(cfg, opts["site"], false)
+		if !cfg.Claimed {
+			printPairing(cfg, opts["site"], false)
+		}
 	case "remove":
 		if len(rest) == 0 {
 			return errors.New("Usage: remove <name>")
@@ -188,9 +200,17 @@ func run(argv []string, console bool) error {
 	case "pair":
 		printPairing(cfg, opts["site"], opts["open"] == "true")
 	case "install":
+		// It joins the account first: a setup code that doesn't work installs nothing.
+		if err := joinAccount(cfg, opts["code"], ""); err != nil {
+			return err
+		}
 		p, err := installAutostart()
 		if err != nil {
 			return err
+		}
+		if cfg.Claimed {
+			printInstalled(p)
+			return nil
 		}
 		fmt.Printf("The bridge now starts by itself with this computer (from %s), and is running.\n", p.copyTo)
 		fmt.Printf("To remove it from this computer: %s uninstall\n", commandFor(p.copyTo))
@@ -205,7 +225,9 @@ func run(argv []string, console bool) error {
 				return nil
 			}
 		}
-		printPairing(cfg, opts["site"], opts["no-browser"] == "")
+		if !cfg.Claimed {
+			printPairing(cfg, opts["site"], opts["no-browser"] == "")
+		}
 		log := func(m string) { fmt.Println(m) }
 		// Just updated: this version has to reach the relay, or the previous one comes back.
 		connected := func() {}
@@ -241,6 +263,15 @@ func run(argv []string, console bool) error {
 // it updates). It says false when the bridge can't start by itself here, so this
 // copy keeps running instead.
 func openedByHand(cfg *Config, site string, console bool) bool {
+	if err := joinAccount(cfg, "", ""); err != nil {
+		// Opened by hand without a setup code: say where to get one, and set nothing up.
+		msg := err.Error() + "\n\nCopy the command shown there and run it."
+		fmt.Println(msg)
+		if !console {
+			showMessage("Cloud Slicer Bridge", msg, false)
+		}
+		return true
+	}
 	p := autostartPlan(currentEnv())
 	updating := autostartInstalled(p)
 	if updating && samePath(self(), p.copyTo) {
@@ -252,6 +283,13 @@ func openedByHand(cfg *Config, site string, console bool) bool {
 		fmt.Println("Updated the bridge that runs in the background to this version.")
 	} else {
 		fmt.Printf("\nThe bridge now runs in the background and starts by itself with this computer (from %s).\n", p.copyTo)
+	}
+	if cfg.Claimed {
+		printInstalled(p)
+		if !console {
+			showMessage("Cloud Slicer Bridge", "The bridge is running and is in your Cloud Slicer account. It starts by itself whenever you sign in, with no window.\n\nFind it in Cloud Slicer: Device tab, Printers & bridges.", false)
+		}
+		return true
 	}
 	fmt.Printf("To remove it from this computer: %s uninstall\n", commandFor(p.copyTo))
 	opened := printPairing(cfg, site, true)
@@ -268,6 +306,21 @@ func doneMessage(browserOpened bool, link string) string {
 		return text + "Cloud Slicer is opening in your browser: pick your printer there."
 	}
 	return text + "To pick your printer, open this link in your browser:\n" + link
+}
+
+// printInstalled says what the install did, once the bridge is in an account.
+func printInstalled(p plan) {
+	fmt.Printf("Installed in %s\n", filepath.Dir(p.copyTo))
+	switch runtime.GOOS {
+	case "windows":
+		fmt.Println("It starts by itself whenever you sign in to Windows, with no window.")
+	case "darwin":
+		fmt.Println("It starts by itself whenever you log in to this Mac, with no window.")
+	default:
+		fmt.Println("It starts by itself with this computer, in the background.")
+	}
+	fmt.Println("Find it in Cloud Slicer: Device tab, Printers & bridges.")
+	fmt.Printf("Remove it: Remove bridge in Printers & bridges, or %s uninstall\n", commandFor(p.copyTo))
 }
 
 // commandFor is how to run the installed bridge again, for messages. On Windows

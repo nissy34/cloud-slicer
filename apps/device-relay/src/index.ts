@@ -13,11 +13,14 @@
 // Accounts: when RELAY_TICKET_PUBLIC_KEY is set, a browser needs a ticket
 // from the site (a JWT for one signed-in, allowed user and one bridge; see
 // apps/web/functions/_lib/relay.ts), renewed over the socket with
-// {relay:'ticket', ticket}. The first account to use a bridge owns it; a
-// bridge nobody has used within UNOWNED_GRACE_MS of its first connect is
-// turned away, and so is one whose owner was blocked (POST /v1/revoke).
+// {relay:'ticket', ticket}. A bridge joins an account with a setup code from
+// the site (POST /v1/bridges/<id>/claim, which the site checks): until then
+// the relay turns it away, and so it does one whose owner was blocked
+// (POST /v1/revoke).
 import { DurableObject } from 'cloudflare:workers';
 import { importJWK, jwtVerify, type JWK, type JWTPayload } from 'jose';
+import installCmd from '../../device-bridge/install.cmd';
+import installPs1 from '../../device-bridge/install.ps1';
 import installScript from '../../device-bridge/install.sh';
 
 export interface Env {
@@ -32,6 +35,8 @@ export interface Env {
   RELAY_TICKET_PUBLIC_KEY?: string;
   /** CI's throwaway key for checking the deployed relay; good only for bridge ids starting "ci-". */
   RELAY_TEST_PUBLIC_KEY?: string;
+  /** The site that makes setup codes; bridges spending one are checked there (POST /api/relay/claim). */
+  SITE_ORIGIN?: string;
 }
 
 /** Bridge apps: download name -> the file name people get. Stored in R2 as bridge/<name>. */
@@ -48,8 +53,10 @@ export const APPS: Record<string, string> = {
 const BRIDGE_ID = /^[\w-]{8,64}$/;
 const MAX_CLIENTS = 16;
 const MAX_MESSAGE = 1024 * 1024;
-/** How long a new bridge may wait for its first signed-in browser before the relay turns it away. */
-const UNOWNED_GRACE_MS = 7 * 24 * 3600 * 1000;
+/** A setup code as the site makes them (functions/_lib/relay.ts). */
+const SETUP_CODE = /^[2-9A-HJ-NP-Z]{4}-[2-9A-HJ-NP-Z]{4}$/;
+/** Not set up yet: what the bridge shows. */
+const NOT_SET_UP = "This bridge isn't set up. In Cloud Slicer open Printers & bridges, Add a bridge, and run the command there.";
 /** A camera counts as watched while frames were asked for in the last few seconds. */
 const CAMERA_WINDOW_MS = 5000;
 
@@ -136,8 +143,14 @@ function same(a: string, b: string) {
 export default {
   async fetch(req: Request, env: Env): Promise<Response> {
     const url = new URL(req.url);
-    if (url.pathname === '/install.sh') {
-      return new Response(installScript.replaceAll('__RELAY_URL__', url.origin), { headers: { ...cors, 'Content-Type': 'text/x-shellscript; charset=utf-8' } });
+    const script = { '/install.sh': installScript, '/install.ps1': installPs1, '/install.cmd': installCmd }[url.pathname];
+    if (script) {
+      // The setup code rides in the link (?code=), so one command does it all.
+      const code = (url.searchParams.get('code') ?? '').toUpperCase();
+      const text = script.replaceAll('__RELAY_URL__', url.origin).replaceAll('__SETUP_CODE__', SETUP_CODE.test(code) ? code : '');
+      const type = url.pathname.endsWith('.sh') ? 'text/x-shellscript' : 'text/plain';
+      // Command Prompt runs batch files with Windows line ends only.
+      return new Response(url.pathname.endsWith('.cmd') ? text.replace(/\r?\n/g, '\r\n') : text, { headers: { ...cors, 'Content-Type': `${type}; charset=utf-8`, 'Cache-Control': 'no-store' } });
     }
     if (url.pathname === '/downloads.json') {
       // Which apps CI has uploaded, so the Device tab only offers what exists.
@@ -197,6 +210,8 @@ export default {
       await Promise.all(bridges.map((b) => env.BRIDGE.get(env.BRIDGE.idFromName(b)).fetch('https://bridge/revoke', { method: 'POST', body })));
       return Response.json({ ok: true, bridges: bridges.length }, { headers: cors });
     }
+    const claim = /^\/v1\/bridges\/([^/]+)\/claim$/.exec(url.pathname);
+    if (claim && req.method === 'POST') return claimBridge(req, env, claim[1]);
     const m = /^\/v1\/bridges\/([^/]+)\/(agent|client)$/.exec(url.pathname);
     if (m) {
       if (!BRIDGE_ID.test(m[1])) return new Response('Bad bridge id', { status: 400, headers: cors });
@@ -213,11 +228,76 @@ export default {
       return env.BRIDGE.get(env.BRIDGE.idFromName(m[1])).fetch(new Request(req, { headers }));
     }
     if (url.pathname === '/') {
-      return new Response('Cloud Slicer device relay. Bridge apps: /downloads.json and /download/<system> (self-update: /bridge-release.json); macOS, Linux and Raspberry Pi: curl -fsSL <this relay>/install.sh | sh.\n', { headers: { ...cors, 'Content-Type': 'text/plain' } });
+      return new Response('Cloud Slicer device relay. Add a bridge from Cloud Slicer (Printers & bridges, Add a bridge): it gives the install command. Self-update: /bridge-release.json.\n', { headers: { ...cors, 'Content-Type': 'text/plain' } });
     }
     return new Response('Not found', { status: 404, headers: cors });
   },
 } satisfies ExportedHandler<Env>;
+
+/**
+ * POST /v1/bridges/<id>/claim { key, code, host?, system?, place? }: a bridge
+ * spends a setup code. The site checks the code and answers with a short claim
+ * it signed; the bridge's Durable Object then keeps the bridge's key and its
+ * owner, and lets it connect from then on.
+ */
+async function claimBridge(req: Request, env: Env, bridgeId: string): Promise<Response> {
+  const fail = (status: number, error: string, code?: string) => Response.json({ error, ...(code && { code }) }, { status, headers: cors });
+  if (!BRIDGE_ID.test(bridgeId)) return fail(400, 'Bad bridge id');
+  if (!env.RELAY_TICKET_PUBLIC_KEY) return fail(404, 'This relay takes no setup codes.');
+  if (!(await env.CLAIM_LIMIT.limit({ key: clientIp(req) })).success) return fail(429, 'Too many tries from this address; wait a minute.');
+  let body: { key?: unknown; code?: unknown; claim?: unknown; host?: unknown; system?: unknown; place?: unknown };
+  try {
+    body = await req.json();
+  } catch {
+    return fail(400, 'Expected JSON');
+  }
+  const key = String(body.key ?? '');
+  if (key.length < 16 || key.length > 128) return fail(400, 'Bad bridge key');
+  const stub = env.BRIDGE.get(env.BRIDGE.idFromName(bridgeId));
+  const keyHash = await sha256(key);
+  const browser = await browserKey(key);
+  // CI's check of the deployed relay brings a claim signed with its own test key, for a "ci-" bridge only.
+  if (typeof body.claim === 'string') {
+    try {
+      const { payload, test } = await verifyTicket(env, body.claim);
+      if (!test || !testBridge(bridgeId) || payload.claim !== true || payload.b !== bridgeId) throw new Error('not a test claim');
+      const done = await stub.fetch('https://bridge/claim', { method: 'POST', body: JSON.stringify({ keyHash, clientHash: await sha256(browser), owner: payload.sub }) });
+      return done.ok ? Response.json({ ok: true, name: 'Bridge' }, { headers: cors }) : fail(409, await done.text());
+    } catch {
+      return fail(403, 'Bad claim');
+    }
+  }
+  // Typed by hand: any case, with or without the dash.
+  const bare = String(body.code ?? '').replace(/[\s-]+/g, '').toUpperCase();
+  const code = `${bare.slice(0, 4)}-${bare.slice(4)}`;
+  if (!SETUP_CODE.test(code)) return fail(404, "That isn't a setup code. Copy it again from Cloud Slicer.", 'wrong');
+  if (!env.SITE_ORIGIN) return fail(503, "This relay doesn't know its site.");
+  const free = await stub.fetch('https://bridge/claimable', { method: 'POST', body: JSON.stringify({ keyHash }) });
+  if (!free.ok) return fail(409, await free.text());
+  let site: Response;
+  try {
+    site = await fetch(`${env.SITE_ORIGIN.replace(/\/+$/, '')}/api/relay/claim`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ code, relay: new URL(req.url).origin, bridgeId, browserKey: browser, host: body.host, system: body.system, place: body.place }),
+    });
+  } catch {
+    return fail(502, "Couldn't reach Cloud Slicer to check the setup code. Try again in a minute.");
+  }
+  const answer = (await site.json().catch(() => ({}))) as { claim?: string; name?: string; error?: string; code?: string };
+  if (!site.ok || !answer.claim) return fail(site.status === 200 ? 502 : site.status, answer.error ?? "Cloud Slicer didn't accept the setup code.", answer.code);
+  let owner: string;
+  try {
+    const { payload, test } = await verifyTicket(env, answer.claim);
+    if (payload.claim !== true || payload.b !== bridgeId || (test && !testBridge(bridgeId))) throw new Error('not this bridge');
+    owner = payload.sub!;
+  } catch {
+    return fail(502, "Cloud Slicer's answer couldn't be checked.");
+  }
+  const done = await stub.fetch('https://bridge/claim', { method: 'POST', body: JSON.stringify({ keyHash, clientHash: await sha256(browser), owner }) });
+  if (!done.ok) return fail(409, await done.text());
+  return Response.json({ ok: true, name: answer.name }, { headers: cors });
+}
 
 interface RevokeOrder {
   user: string;
@@ -277,6 +357,16 @@ export class Bridge extends DurableObject<Env> {
   async fetch(req: Request): Promise<Response> {
     const url = new URL(req.url);
     if (url.pathname === '/revoke') return this.revoke((await req.json()) as RevokeOrder);
+    if (url.pathname === '/claimable' || url.pathname === '/claim') {
+      const c = (await req.json()) as { keyHash: string; clientHash?: string; owner?: string };
+      const stored = await this.ctx.storage.get<string>('keyHash');
+      // A bridge id is its own: another bridge can't take it over with a code.
+      if (stored && !same(stored, c.keyHash)) return new Response('This bridge id belongs to another bridge.', { status: 409 });
+      const owner = await this.ctx.storage.get<string>('owner');
+      if (owner && c.owner && owner !== c.owner) return new Response('This bridge is already in another Cloud Slicer account.', { status: 409 });
+      if (url.pathname === '/claim') await this.ctx.storage.put({ keyHash: c.keyHash, clientHash: c.clientHash!, owner: c.owner! });
+      return new Response('ok');
+    }
     const role = url.pathname.endsWith('/agent') ? 'agent' : 'client';
     const key = url.searchParams.get('key') ?? '';
     const pair = new WebSocketPair();
@@ -294,20 +384,17 @@ export class Bridge extends DurableObject<Env> {
     const stored = await this.ctx.storage.get<string>('keyHash');
 
     if (role === 'agent') {
-      // The first agent to connect claims the bridge id; later ones must hold the same key.
-      if (!stored) {
+      if (this.env.RELAY_TICKET_PUBLIC_KEY) {
+        // With accounts, only a bridge that spent a setup code (claimBridge) gets in, owned by that account.
+        if (!stored || !(await this.ctx.storage.get<string>('owner'))) return reject(4003, NOT_SET_UP);
+        if (!same(stored, hash)) return reject(4003, 'This bridge id belongs to someone else.');
+        if (await this.ctx.storage.get<boolean>('off')) return reject(4003, "The site's owner turned this bridge off.");
+        if (await this.ctx.storage.get<boolean>('blocked')) return reject(4003, "This bridge's Cloud Slicer account is blocked.");
+      } else if (!stored) {
+        // Without accounts (a test or private relay), the first agent to connect claims the bridge id.
         if (!(await this.env.CLAIM_LIMIT.limit({ key: clientIp(req) })).success) return reject(4029, 'Too many new bridges from this address; try again later.');
         await this.ctx.storage.put('keyHash', hash);
       } else if (!same(stored, hash)) return reject(4003, 'This bridge id belongs to someone else.');
-      if (this.env.RELAY_TICKET_PUBLIC_KEY) {
-        if (await this.ctx.storage.get<boolean>('off')) return reject(4003, "The site's owner turned this bridge off.");
-        if (await this.ctx.storage.get<boolean>('blocked')) return reject(4003, "This bridge's Cloud Slicer account is blocked.");
-        // Bridges from before accounts start their wait now.
-        let claimedAt = await this.ctx.storage.get<number>('claimedAt');
-        if (!claimedAt) await this.ctx.storage.put('claimedAt', (claimedAt = Date.now()));
-        if (!(await this.ctx.storage.get<string>('owner')) && Date.now() - claimedAt > UNOWNED_GRACE_MS)
-          return reject(4003, 'Open the pairing link on Cloud Slicer while signed in, then restart the bridge.');
-      }
       // Bridges claimed before browser keys existed learn theirs on their next connect.
       if (!(await this.ctx.storage.get<string>('clientHash'))) await this.ctx.storage.put('clientHash', await sha256(await browserKey(key)));
       for (const old of this.ctx.getWebSockets('agent')) old.close(4000, 'Another bridge agent connected with this id.');
@@ -327,9 +414,7 @@ export class Bridge extends DurableObject<Env> {
       ticket = JSON.parse(req.headers.get('X-Relay-Ticket') ?? 'null') as Ticket | null;
       if (!ticket) return reject(4401, 'Sign in to Cloud Slicer to use the bridge.');
       if (await this.ctx.storage.get<boolean>('off')) return reject(4403, "The site's owner turned this bridge off.");
-      const owner = await this.ctx.storage.get<string>('owner');
-      if (!owner) await this.ctx.storage.put('owner', ticket.user);
-      else if (owner === ticket.user && (await this.ctx.storage.get<boolean>('blocked'))) return reject(4003, 'This account is blocked.');
+      if (ticket.user === (await this.ctx.storage.get<string>('owner')) && (await this.ctx.storage.get<boolean>('blocked'))) return reject(4003, 'This account is blocked.');
     }
     const id = crypto.randomUUID().slice(0, 8);
     const printer = (url.searchParams.get('printer') ?? '').slice(0, 64);

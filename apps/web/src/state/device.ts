@@ -89,7 +89,8 @@ interface DeviceState {
   /** A pairing link opened this page; the add-printer dialog picks it up. */
   pairing: Pairing | null;
   /** In edit mode, the printer with its secret filled in. */
-  editor: { mode: 'add' } | { mode: 'edit'; id: string; printer: SavedPrinter } | null;
+  /** `newBridge`: setting up a new bridge with a setup code, not adding a printer. */
+  editor: { mode: 'add'; newBridge?: boolean } | { mode: 'edit'; id: string; printer: SavedPrinter } | null;
 
   /** Connects to the selected printer; the Device tab calls it when it opens. */
   start(): void;
@@ -104,8 +105,10 @@ interface DeviceState {
   /** A saved bridge's pairing (relay, id and key), to reach it again. */
   bridgePairing(id: string): Promise<Pairing | null>;
   openManage(open: boolean): void;
-  /** `bridge`: add printers from that saved bridge, with no pairing again. */
-  openEditor(editor: { mode: 'add'; bridge?: string } | { mode: 'edit'; id: string } | null): Promise<void>;
+  /** `bridge`: add printers from that saved bridge, with no pairing again. `newBridge`: set up a new bridge first. */
+  openEditor(editor: { mode: 'add'; bridge?: string; newBridge?: boolean } | { mode: 'edit'; id: string } | null): Promise<void>;
+  /** A bridge just joined the account with a setup code: reloads the account's bridges and returns the saved one's pairing. */
+  adoptBridge(bridgeId: string): Promise<Pairing | null>;
   run(script: string): Promise<boolean>;
   call(label: string, fn: (s: PrinterSession) => Promise<unknown>): Promise<boolean>;
   refreshFiles(): Promise<void>;
@@ -454,6 +457,13 @@ export const useDevice = create<DeviceState>((set, get) => {
       return { relay: b.relay, bridgeId: b.bridgeId, key: secrets.get(id)! };
     },
 
+    async adoptBridge(bridgeId) {
+      // The site saved it when the bridge used the code; this page hasn't seen it yet.
+      useAccount.setState({ devices: await api.devices() });
+      const b = get().bridges.find((x) => x.bridgeId === bridgeId);
+      return b ? get().bridgePairing(b.id) : null;
+    },
+
     openManage(open) {
       set({ manageOpen: open });
     },
@@ -465,7 +475,7 @@ export const useDevice = create<DeviceState>((set, get) => {
         return;
       }
       if (editor?.mode !== 'edit') {
-        set({ editor: editor && { mode: 'add' }, ...(editor ? {} : { pairing: null }) });
+        set({ editor: editor && { mode: 'add', ...(editor.newBridge && { newBridge: true }) }, ...(editor ? {} : { pairing: null }) });
         return;
       }
       const p = get().printers.find((x) => x.id === editor.id);

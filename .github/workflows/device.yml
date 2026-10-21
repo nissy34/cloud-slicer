@@ -95,14 +95,15 @@ jobs:
           if systemctl is-active cloud-slicer-bridge; then echo "The service still runs"; exit 1; fi
           if [ -e /etc/systemd/system/cloud-slicer-bridge.service ]; then echo "The service file is still there"; exit 1; fi
 
-      - name: Relay with accounts (tickets, camera cap, blocking) on a local relay
+      - name: Relay with accounts (setup codes, tickets, camera cap, blocking) on a local relay
         working-directory: apps/device-relay
         run: |
           node -e "const k=require('crypto').generateKeyPairSync('ec',{namedCurve:'P-256'});const f=require('fs');f.writeFileSync('$RUNNER_TEMP/pub.json',JSON.stringify(k.publicKey.export({format:'jwk'})));f.writeFileSync('$RUNNER_TEMP/priv.json',JSON.stringify(k.privateKey.export({format:'jwk'})))"
-          npx wrangler dev --port 8798 --ip 127.0.0.1 --persist-to "$RUNNER_TEMP/relay-accounts" --var "RELAY_TICKET_PUBLIC_KEY:$(cat "$RUNNER_TEMP/pub.json")" > wrangler-accounts.log 2>&1 &
+          # The test plays the site on port 8799, to hand out a setup code for its bridge.
+          npx wrangler dev --port 8798 --ip 127.0.0.1 --persist-to "$RUNNER_TEMP/relay-accounts" --var "RELAY_TICKET_PUBLIC_KEY:$(cat "$RUNNER_TEMP/pub.json")" --var "SITE_ORIGIN:http://127.0.0.1:8799" > wrangler-accounts.log 2>&1 &
           for i in $(seq 1 60); do curl -fsS -o /dev/null http://127.0.0.1:8798/ && break; sleep 1; done
           cd ../web
-          RELAY_TICKET_PRIVATE_KEY="$(cat "$RUNNER_TEMP/priv.json")" node test/device/relay-live.mjs http://127.0.0.1:8798 --app ../device-bridge/dist/linux-x64
+          FAKE_SITE_PORT=8799 RELAY_TICKET_PRIVATE_KEY="$(cat "$RUNNER_TEMP/priv.json")" node test/device/relay-live.mjs http://127.0.0.1:8798 --app ../device-bridge/dist/linux-x64
 
       - uses: actions/upload-artifact@v6
         if: always()
@@ -142,7 +143,8 @@ jobs:
           if ($info.ProductName -ne 'Cloud Slicer Bridge') { throw "No version resources in the app" }
       - name: Install starts it in the background and at sign-in; uninstall removes all of it
         run: |
-          "$RUNNER_TEMP/bridge.exe" install --no-browser
+          # A relay that can't be reached: the real one only lets in bridges with a setup code.
+          "$RUNNER_TEMP/bridge.exe" install --no-browser --relay http://127.0.0.1:9
           reg query 'HKCU\Software\Microsoft\Windows\CurrentVersion\Run' //v CloudSlicerBridge
           dir="$LOCALAPPDATA/Cloud Slicer Bridge"
           test -x "$dir/cloud-slicer-bridge.exe"
