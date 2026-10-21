@@ -97,14 +97,12 @@ const fakePush = (sub) => {
 /** Turns the card's main switch on once it can be used (it waits for the printer and the saved alerts). */
 const turnOn = async (card) => {
   const sw = card.getByTestId('alerts-on');
-  await until('the alerts switch usable', async () => !(await sw.isDisabled()), 30_000);
+  const said = async (e) => {
+    throw new Error(`${e.message}\ncard said: ${(await card.innerText()).replace(/\s+/g, ' ')}`);
+  };
+  await until('the alerts switch usable', async () => !(await sw.isDisabled()), 30_000).catch(said);
   await sw.click({ force: true });
-  await card
-    .getByTestId('alert-finished')
-    .waitFor({ timeout: 30_000 })
-    .catch(async (e) => {
-      throw new Error(`${e.message}\ncard said: ${(await card.innerText()).replace(/\s+/g, ' ')}`);
-    });
+  await card.getByTestId('alert-finished').waitFor({ timeout: 30_000 }).catch(said);
 };
 
 const voron = await startMockPrinter({ generic: true, hostname: 'Voron-mock' });
