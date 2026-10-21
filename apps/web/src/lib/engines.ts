@@ -45,8 +45,26 @@ export function engineOfModelHead(head: string): EngineFlavor | null {
   return null;
 }
 
+/**
+ * The program that wrote a 3MF, for messages: "Bambu Studio 2.5" from Application
+ * "BambuStudio-02.05.00.66", the engine's name for the two engines, else the
+ * Application entry as written ("" when there is none).
+ */
+export function appOfModelHead(head: string): string {
+  const engine = engineOfModelHead(head);
+  if (engine) return engineName(engine);
+  const app = /<metadata name="Application">\s*([^<]*?)\s*<\/metadata>/.exec(head)?.[1] ?? '';
+  const bambu = /^BambuStudio-0*(\d+)\.0*(\d+)/.exec(app);
+  return bambu ? `Bambu Studio ${bambu[1]}.${bambu[2]}` : app;
+}
+
 /** engineOfModelHead for a 3MF file; reads only the start of its model. */
 export async function engineOf3mf(file: Blob): Promise<EngineFlavor | null> {
+  return engineOfModelHead(await modelHeadOf3mf(file));
+}
+
+/** The start of a 3MF's 3D/3dmodel.model, up to its first object: the metadata. */
+export async function modelHeadOf3mf(file: Blob): Promise<string> {
   let head = '';
   let done = false;
   const unzip = new Unzip();
@@ -79,5 +97,5 @@ export async function engineOf3mf(file: Blob): Promise<EngineFlavor | null> {
   } catch {
     // Not a zip, or unreadable: the engine says what is wrong when it opens it.
   }
-  return engineOfModelHead(head);
+  return head;
 }

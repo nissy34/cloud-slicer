@@ -175,6 +175,16 @@ nothing on purpose, so a deploy's page and engine never get out of step).
   (machine speeds, accelerations, jerk) come from the target printer, and filaments are
   matched by material and kind (Matte, Silk, HF, Translucent). A sliced-only `.gcode.3mf`
   is explained instead of opened.
+- **G-code from other slicers**: a project written by another slicer (Bambu Studio,
+  say; `3D/3dmodel.model`'s Application entry tells) keeps its own start, end,
+  filament-change and other G-code, as desktop does. That G-code can use the other
+  slicer's variables (Bambu Studio 2.5's `flush_volumetric_speeds`): when the engine
+  can't fill it in, a pop-up asks whether to slice with the engine's own G-code for the
+  printer (only values still as the file had them go back; Cancel shows the error;
+  the choice stays with the project, so it isn't asked again). OrcaSlicer 2.4.2 fills Bambu Studio
+  2.5's A1 mini G-code in; Snapmaker Orca 2.4 can't. When G-code the user wrote can't
+  be filled in, the slice error names the G-code, the line and the variable
+  (`lib/gcode-errors.ts`).
 - **Saving**: projects are Orca 3MF files written by the engine (`store_bbs_3mf`), so
   they reopen in desktop Orca. Signed out, Save downloads the file. Signed in, they go to
   online projects: the 3MF and a PNG thumbnail in R2 under a new key for each save,

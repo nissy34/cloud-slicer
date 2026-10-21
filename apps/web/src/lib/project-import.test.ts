@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { PresetSummary } from '../engine/protocol';
-import { changedOnPurpose, emptyProjectMessage, modelProcessKeys, pickProcess, processKeys, projectOverrides } from './project-import';
+import { changedOnPurpose, emptyProjectMessage, modelProcessKeys, pickProcess, processKeys, projectOverrides, fallBackGcode, gcodeOverrides } from './project-import';
 
 const known = { layer_height: {}, wall_loops: {}, nozzle_diameter: {}, wipe_tower_x: {}, print_settings_id: {} };
 
@@ -79,5 +79,18 @@ describe('changedOnPurpose', () => {
   });
   it("is null when the file doesn't say", () => {
     expect(changedOnPurpose({ layer_height: '0.2' })).toBeNull();
+  });
+});
+
+describe("other slicers' G-code", () => {
+  it('gcodeOverrides picks every G-code setting', () => {
+    expect(gcodeOverrides({ machine_start_gcode: 'M620', filament_start_gcode: 'M106', wall_loops: '3' })).toEqual({ machine_start_gcode: 'M620', filament_start_gcode: 'M106' });
+  });
+  it("fallBackGcode drops the file's G-code but keeps what the user changed since", () => {
+    const file = { machine_start_gcode: 'M620', change_filament_gcode: 'M620 S' };
+    expect(fallBackGcode({ machine_start_gcode: 'M620', change_filament_gcode: 'G1 mine', wall_loops: '3' }, file)).toEqual({
+      overrides: { change_filament_gcode: 'G1 mine', wall_loops: '3' },
+      dropped: 1,
+    });
   });
 });

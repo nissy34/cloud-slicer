@@ -83,3 +83,4 @@ export function saveConvertPreference(pref: ConvertPreference | null) {
     // storage unavailable: ask every time
   }
 }
+
