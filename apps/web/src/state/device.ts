@@ -118,6 +118,8 @@ interface DeviceState {
   uploadAndMaybePrint(source: SendSource, opts: { start: boolean; prep: string[] }): Promise<boolean>;
   setToast(text: string, error?: boolean): void;
   retry(): void;
+  /** A print alert was tapped: show its printer ("<bridgeId>.<printer>" or "direct.<saved id>"). */
+  openAlert(key: string): void;
 }
 
 /** Where printers lived before they moved into the account store. */
@@ -293,10 +295,27 @@ function pairingFromLocation(): Pairing | null {
   return p;
 }
 
+/** The printer a tapped print alert names (#alert=…, see public/sw.js). */
+export function printerForAlert(printers: SavedPrinter[], key: string): SavedPrinter | undefined {
+  const dot = key.indexOf('.');
+  const [a, b] = [key.slice(0, dot), key.slice(dot + 1)];
+  if (dot < 0) return undefined;
+  return a === 'direct' ? printers.find((p) => p.id === b) : printers.find((p) => p.kind === 'bridge' && p.bridgeId === a && p.printer === b);
+}
+
+function alertFromLocation(): string | null {
+  if (typeof location === 'undefined') return null;
+  const m = /[#&]alert=([^&]+)/.exec(location.hash);
+  if (!m) return null;
+  setTimeout(() => history.replaceState(null, '', location.pathname + location.search));
+  return decodeURIComponent(m[1]);
+}
+
 export const useDevice = create<DeviceState>((set, get) => {
   migrateLegacyPrinters();
   const initialPrinters = accountPrinters();
-  const savedActive = load<string | null>(ACTIVE_KEY, null);
+  const alertKey = alertFromLocation();
+  const savedActive = (alertKey && printerForAlert(initialPrinters, alertKey)?.id) || load<string | null>(ACTIVE_KEY, null);
   const initialPairing = pairingFromLocation();
 
   const connect = async (saved: SavedPrinter | undefined) => {
@@ -564,6 +583,11 @@ export const useDevice = create<DeviceState>((set, get) => {
 
     retry() {
       session?.retryNow();
+    },
+
+    openAlert(key) {
+      const p = printerForAlert(get().printers, key);
+      if (p && p.id !== get().activeId) get().select(p.id);
     },
   };
 });

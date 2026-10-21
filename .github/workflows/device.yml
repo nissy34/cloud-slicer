@@ -11,9 +11,9 @@ name: Device
 on:
   push:
     branches: [main]
-    paths: ['apps/device-*/**', 'apps/web/src/device/**', 'apps/web/src/state/device.ts', 'apps/web/src/styles.css', 'apps/web/src/components/TopBar.tsx', 'apps/web/src/components/ThemeMenu.tsx', 'apps/web/src/account/AccountMenu.tsx', 'apps/web/test/device*', 'apps/web/test/device/**', '.github/workflows/device.yml']
+    paths: ['apps/device-*/**', 'apps/web/src/device/**', 'apps/web/src/state/device.ts', 'apps/web/src/state/alerts.ts', 'apps/web/public/sw.js', 'apps/web/src/styles.css', 'apps/web/src/components/TopBar.tsx', 'apps/web/src/components/ThemeMenu.tsx', 'apps/web/src/account/AccountMenu.tsx', 'apps/web/test/device*', 'apps/web/test/device/**', '.github/workflows/device.yml']
   pull_request:
-    paths: ['apps/device-*/**', 'apps/web/src/device/**', 'apps/web/src/state/device.ts', 'apps/web/src/styles.css', 'apps/web/src/components/TopBar.tsx', 'apps/web/src/components/ThemeMenu.tsx', 'apps/web/src/account/AccountMenu.tsx', 'apps/web/test/device*', 'apps/web/test/device/**', '.github/workflows/device.yml']
+    paths: ['apps/device-*/**', 'apps/web/src/device/**', 'apps/web/src/state/device.ts', 'apps/web/src/state/alerts.ts', 'apps/web/public/sw.js', 'apps/web/src/styles.css', 'apps/web/src/components/TopBar.tsx', 'apps/web/src/components/ThemeMenu.tsx', 'apps/web/src/account/AccountMenu.tsx', 'apps/web/test/device*', 'apps/web/test/device/**', '.github/workflows/device.yml']
   workflow_dispatch:
 
 permissions:
@@ -77,6 +77,13 @@ jobs:
           CLOUD_SLICER_BRIDGE_BIN: ${{ github.workspace }}/apps/device-bridge/dist/linux-x64
         run: node test/device-smoke.mjs device-shots
 
+      - name: Print alerts in the Device tab (Alerts card, bridge and direct printers, pretend push service)
+        working-directory: apps/web
+        timeout-minutes: 10
+        env:
+          CLOUD_SLICER_BRIDGE_BIN: ${{ github.workspace }}/apps/device-bridge/dist/linux-x64
+        run: node test/device-alerts.mjs device-shots
+
       - name: The Linux bridge serves the mock U1 through a local relay (uploads, refusals, wrong keys), and runs on a printer
         working-directory: apps/device-relay
         run: |
@@ -94,6 +101,15 @@ jobs:
           sleep 2
           if systemctl is-active cloud-slicer-bridge; then echo "The service still runs"; exit 1; fi
           if [ -e /etc/systemd/system/cloud-slicer-bridge.service ]; then echo "The service file is still there"; exit 1; fi
+
+      - name: Print alerts on a local relay (mock printer -> bridge -> relay -> pretend push service)
+        working-directory: apps/device-relay
+        run: |
+          node -e "const k=require('crypto').generateKeyPairSync('ec',{namedCurve:'P-256'});process.stdout.write(JSON.stringify(k.privateKey.export({format:'jwk'})))" > "$RUNNER_TEMP/vapid.json"
+          npx wrangler dev --port 8796 --ip 127.0.0.1 --persist-to "$RUNNER_TEMP/relay-alerts" --var "VAPID_KEY:$(cat "$RUNNER_TEMP/vapid.json")" --var PUSH_TEST_ENDPOINTS:1 > wrangler-alerts.log 2>&1 &
+          for i in $(seq 1 60); do curl -fsS -o /dev/null http://127.0.0.1:8796/ && break; sleep 1; done
+          cd ../web
+          node test/device/alerts-live.mjs http://127.0.0.1:8796 --app ../device-bridge/dist/linux-x64
 
       - name: Relay with accounts (setup codes, tickets, camera cap, blocking) on a local relay
         working-directory: apps/device-relay
@@ -229,6 +245,15 @@ jobs:
             sed -i '/^\[\[r2_buckets\]\]/,/^bucket_name/d' wrangler.toml
           fi
           npx wrangler deploy | tee deploy.log
+          # Print alerts: the relay's push key, made once and then kept (a new one
+          # would make every browser turn alerts on again). Only the relay has it.
+          if ! npx wrangler secret list | grep -q '"VAPID_KEY"'; then
+            node -e "const k=require('crypto').generateKeyPairSync('ec',{namedCurve:'P-256'});process.stdout.write(JSON.stringify(k.privateKey.export({format:'jwk'})))" | npx wrangler secret put VAPID_KEY
+          fi
+          # Alert camera pictures are kept for a day, then R2 deletes them.
+          if grep -q '^\[\[r2_buckets\]\]' wrangler.toml && ! npx wrangler r2 bucket lifecycle list cloud-slicer-bridge | grep -q 'alert-pictures'; then
+            npx wrangler r2 bucket lifecycle add cloud-slicer-bridge alert-pictures alerts/ --expire-days 1 --force || echo "::warning::Could not set the one-day rule for alert pictures"
+          fi
           url=$(grep -Eo 'https://[^ ]+\.workers\.dev' deploy.log | tail -1)
           echo "### Relay: $url" >> "$GITHUB_STEP_SUMMARY"
           curl -fsS "$url/"

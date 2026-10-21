@@ -105,7 +105,8 @@ export function genericObjects(available: string[]): string[] {
     'exclude_object',
     'heater_bed',
   ];
-  const prefixes = ['heater_generic ', 'temperature_sensor ', 'temperature_fan ', 'fan_generic ', 'heater_fan ', 'controller_fan ', 'led ', 'neopixel ', 'dotstar '];
+  // Filament sensors: a print alert says "filament ran out" when a pause comes with an empty one.
+  const prefixes = ['heater_generic ', 'temperature_sensor ', 'temperature_fan ', 'fan_generic ', 'heater_fan ', 'controller_fan ', 'led ', 'neopixel ', 'dotstar ', 'filament_switch_sensor ', 'filament_motion_sensor '];
   return available.filter((n) => fixed.includes(n) || extruderIndex(n) != null || prefixes.some((p) => n.startsWith(p)));
 }
 

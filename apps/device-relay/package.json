@@ -10,10 +10,12 @@
   },
   "devDependencies": {
     "@cloudflare/workers-types": "5.20261006.1",
+    "@types/web-push": "3.6.4",
     "typescript": "5.9.3",
     "wrangler": "4.151.1"
   },
   "dependencies": {
-    "jose": "6.2.12"
+    "jose": "6.2.12",
+    "web-push": "3.6.7"
   }
 }

@@ -1,6 +1,8 @@
 import { useEffect } from 'react';
 import { useAccount } from '../../state/account';
 import { BRIDGE_SIGN_IN, useDevice } from '../../state/device';
+import '../../state/alerts';
+import { AlertsCard } from './AlertsCard';
 import { BridgeOffline } from './BridgeSetup';
 import { CameraCard } from './CameraCard';
 import { ClimateCard } from './ClimateCard';
@@ -141,6 +143,7 @@ export function DeviceScreen() {
               <JobCard />
               <ToolheadsCard />
               <FilesCard />
+              <AlertsCard />
             </div>
           </div>
         </>

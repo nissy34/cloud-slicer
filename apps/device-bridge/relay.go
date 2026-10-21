@@ -40,6 +40,8 @@ type Bridge struct {
 	mu       sync.Mutex
 	relay    *websocket.Conn
 	sessions map[string]*Session
+	// Printers watched for print alerts, by printer id (watch.go).
+	watches map[string]*printerWatch
 }
 
 // relayMessage is what the relay and the agent send each other: control messages
@@ -50,6 +52,8 @@ type relayMessage struct {
 	M       string `json:"m,omitempty"`
 	Printer string `json:"printer,omitempty"`
 	Reason  string `json:"reason,omitempty"`
+	// {ctl:"alerts"}: what to watch for on each printer, for print alerts.
+	Printers map[string]alertWatch `json:"printers,omitempty"`
 }
 
 // runBridge connects to the relay and keeps reconnecting until stop.
@@ -65,7 +69,7 @@ func runBridge(cfg *Config, opts bridgeOptions) *Bridge {
 		}
 	}
 	ctx, cancel := context.WithCancel(context.Background())
-	b := &Bridge{cfg: cfg, opts: opts, ctx: ctx, cancel: cancel, sessions: map[string]*Session{}}
+	b := &Bridge{cfg: cfg, opts: opts, ctx: ctx, cancel: cancel, sessions: map[string]*Session{}, watches: map[string]*printerWatch{}}
 	go b.loop()
 	if opts.autoUpdate {
 		go b.autoUpdate()
@@ -76,6 +80,38 @@ func runBridge(cfg *Config, opts bridgeOptions) *Bridge {
 func (b *Bridge) stop() {
 	b.cancel()
 	b.closeSessions()
+	b.setAlerts(nil)
+}
+
+// setAlerts starts, changes and stops the printers' alert watches to match what the relay asks.
+func (b *Bridge) setAlerts(want map[string]alertWatch) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	for id, w := range b.watches {
+		if _, ok := want[id]; !ok || b.ctx.Err() != nil {
+			w.stop()
+			delete(b.watches, id)
+		}
+	}
+	if b.ctx.Err() != nil {
+		return
+	}
+	for id, aw := range want {
+		printer, ok := b.cfg.printer(id)
+		if w := b.watches[id]; w != nil {
+			if ok && w.printer == printer {
+				w.setWatch(aw)
+				continue
+			}
+			// Its address or key changed (or it's gone): start over.
+			w.stop()
+			delete(b.watches, id)
+		}
+		if !ok {
+			continue
+		}
+		b.watches[id] = newPrinterWatch(printer, aw, func(msg map[string]any) { b.toRelay(msg) }, b.opts.log)
+	}
 }
 
 func (b *Bridge) closeSessions() {
@@ -230,6 +266,8 @@ func shortError(err error) string {
 
 func (b *Bridge) handle(msg relayMessage) {
 	switch {
+	case msg.Ctl == "alerts":
+		b.setAlerts(msg.Printers)
 	case msg.Ctl == "open":
 		printer, ok := b.cfg.printer(msg.Printer)
 		if !ok {
@@ -380,6 +418,12 @@ func (b *Bridge) manage(method string, params json.RawMessage) (any, error) {
 			s.close()
 			b.toRelay(relayMessage{Ctl: "drop", C: s.id, Reason: "This printer was removed from the bridge."})
 		}
+		b.mu.Lock()
+		if w := b.watches[printer.ID]; w != nil {
+			w.stop()
+			delete(b.watches, printer.ID)
+		}
+		b.mu.Unlock()
 		b.opts.log("Removed " + printer.Name + " from the Device tab.")
 		b.hello()
 		return map[string]any{"removed": true}, nil
