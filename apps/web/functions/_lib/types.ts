@@ -47,6 +47,13 @@ export interface Env {
   GOOGLE_CLIENT_SECRET?: string;
   /** 32 random bytes, base64: encrypts printer API keys at rest. CI creates it once. */
   ACCOUNT_ENC_KEY?: string;
+  /** Who may open the Admin page: Google account emails, comma separated. A Pages secret (CI copies the repository secret). */
+  OWNER_EMAILS?: string;
+  /** ECDSA P-256 private key (JWK) that signs relay tickets. CI creates it once; the relay gets the public half. */
+  RELAY_TICKET_KEY?: string;
+  /** Read-only Cloudflare API token ("Account Analytics: Read") and the account id: today's request counts on the Admin page. */
+  CF_ANALYTICS_TOKEN?: string;
+  CF_ACCOUNT_ID?: string;
   /** Tests only: sends Google's token requests to a mock at this URL. */
   OAUTH_TEST_BASE?: string;
 }

@@ -1,5 +1,6 @@
 import { useEffect } from 'react';
-import { useDevice } from '../../state/device';
+import { useAccount } from '../../state/account';
+import { BRIDGE_SIGN_IN, useDevice } from '../../state/device';
 import { BridgeOffline } from './BridgeSetup';
 import { CameraCard } from './CameraCard';
 import { ClimateCard } from './ClimateCard';
@@ -100,14 +101,20 @@ export function DeviceScreen() {
           {conn.state !== 'online' && conn.message && (
             <div className="dv-banner" role="status">
               <span>{conn.message}</span>
-              <button className="dv-link" onClick={retry}>
-                Try again
-              </button>
+              {conn.message === BRIDGE_SIGN_IN ? (
+                <button className="dv-link" onClick={() => void useAccount.getState().signIn('google')}>
+                  Sign in
+                </button>
+              ) : (
+                <button className="dv-link" onClick={retry}>
+                  Try again
+                </button>
+              )}
             </div>
           )}
           {agentOffline && (
             <div className="dv-banner dv-banner-help" role="status">
-              <BridgeOffline system={bridge?.system} app={bridge?.app} />
+              <BridgeOffline system={bridge?.system} place={bridge?.place} />
             </div>
           )}
           {/* Two columns on wide screens; one on phones, where CSS order interleaves them. */}

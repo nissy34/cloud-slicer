@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { useAccount } from '../state/account';
+import { useSlicer } from '../state/store';
 import type { PresetType, ProviderId } from './api';
 
 const PROVIDER_LABEL: Record<ProviderId, string> = { google: 'Google' };
@@ -160,6 +161,17 @@ function SignedIn({ onDone }: { onDone: () => void }) {
         ))}
         <li>{presetSummary(counts)}</li>
       </ul>
+      {user.owner && (
+        <button
+          className="secondary account-admin"
+          onClick={() => {
+            useSlicer.getState().setTab('admin');
+            onDone();
+          }}
+        >
+          Admin: people and limits
+        </button>
+      )}
       {confirming ? (
         <div className="account-confirm">
           <p>

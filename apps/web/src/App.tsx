@@ -13,6 +13,7 @@ import { TopBar } from './components/TopBar';
 import { Viewport } from './components/Viewport';
 import { LoadingOverlay } from './components/LoadingOverlay';
 import { DeviceScreen } from './device';
+import { AdminScreen } from './components/AdminScreen';
 import { useSlicer } from './state/store';
 
 export function App() {
@@ -27,7 +28,7 @@ export function App() {
       <ImportPresetsDialog />
       <PresetSettingsDialog />
       <SettingsPromptDialog />
-      {tab !== 'device' && (
+      {tab !== 'device' && tab !== 'admin' && (
         <div className="body">
           <Sidebar />
           <main className="main">
@@ -46,6 +47,7 @@ export function App() {
         </div>
       )}
       {tab === 'device' && <DeviceScreen />}
+      {tab === 'admin' && <AdminScreen />}
     </div>
   );
 }

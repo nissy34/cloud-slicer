@@ -364,10 +364,16 @@ function ProjectsDialog() {
                 ))}
               </ul>
             )}
-            <p className="muted small">
-              {formatBytes(list.usage.bytes)} of {formatBytes(list.limits.userBytes)} used · {list.usage.count} of {list.limits.userProjects} projects · up to{' '}
-              {formatBytes(list.limits.projectBytes)} each
-            </p>
+            {list.limits.userBytes ? (
+              <p className="muted small">
+                {formatBytes(list.usage.bytes)} of {formatBytes(list.limits.userBytes)} used · {list.usage.count} of {list.limits.userProjects} projects · up to{' '}
+                {formatBytes(list.limits.projectBytes)} each
+              </p>
+            ) : (
+              <p className="muted small">
+                Online projects are off for your account: your presets and printers still save to it. Download a project to keep it.
+              </p>
+            )}
           </>
         )}
       </div>

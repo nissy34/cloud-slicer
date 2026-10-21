@@ -13,6 +13,13 @@ landed (PRs #13, #16, #25, #29).
 | Bridge (`apps/device-bridge`) | An always-on computer on your network | Connects **out** to the relay, opens Moonraker websockets to the printer for each browser, answers `bridge.snapshot` / `bridge.upload_*` itself |
 | Printer | Your network | Moonraker; never exposed to the internet, no router port opened |
 
+Bridge updates: the installed bridge updates itself only to a build signed with
+an ed25519 key that exists only as a GitHub Actions secret (`BRIDGE_SIGNING_KEY`).
+The public half is built into the bridge, and each signature covers the download
+name, the build number and the file's SHA-256. Whoever controls the relay, its R2
+bucket or the Cloudflare token can't push code to bridges, or roll them back to
+an older build. Details: [../device-bridge/README.md](../device-bridge/README.md#updates).
+
 Pairing:
 
 1. On first run the bridge makes a random **bridge id** (96 bits) and **secret
@@ -35,8 +42,10 @@ Pairing:
   pairing link, never stored by the relay or the site, only sent to the printer.
   When a printer is added from the Device tab, the key typed there passes once
   through the relay (TLS) to the bridge, which keeps it; it never comes back.
-  The bridge refuses Moonraker's `access.*` calls, so a pairing-link holder can't
-  read or replace it or add Moonraker users.
+  The bridge passes on only the Moonraker calls the Device tab uses, so a
+  pairing-link holder can't read or replace it, add Moonraker users, set the
+  sudo password, run system updates or touch the config folder (`access.*`,
+  `machine.*` and file moves are refused; deletes stay in the G-code folder).
 - **The relay** (the Cloudflare account, and Cloudflare) sees all traffic in
   plain text: commands, status, camera frames, uploaded G-code, and the keys on
   each connect. It stores only the two key hashes and printer names.
@@ -64,6 +73,10 @@ Attackers considered: someone on the internet with nothing, someone who got a pa
   if Moonraker answers `/printer/info` there.
 - **Abuse**: per client IP, at most 60 websocket connects and 5 new bridge ids a
   minute (Workers rate limiting), so the free tier can't be exhausted cheaply.
+- **Accounts**: with tickets on, only signed-in, allowed accounts get in, and a
+  pairing link alone is no longer enough. Blocking an account drops its
+  connections at once; each account can use 3 bridges and watch 2 cameras at a
+  time. Tickets are ES256 JWTs; the relay holds only the public key.
 - **Deploys**: the live relay deploys from main only, never from a PR.
 
 ## Still open

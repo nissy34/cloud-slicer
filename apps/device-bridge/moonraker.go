@@ -1,0 +1,176 @@
+package main
+
+import (
+	"context"
+	"encoding/json"
+	"errors"
+	"fmt"
+	"net"
+	"net/http"
+	"regexp"
+	"strings"
+	"sync"
+	"time"
+)
+
+var hasPort = regexp.MustCompile(`:\d+$`)
+
+// candidateURLs turns "192.168.1.50" into Moonraker base URLs, most likely first.
+func candidateURLs(address string) []string {
+	a := strings.TrimRight(strings.TrimSpace(address), "/")
+	lower := strings.ToLower(a)
+	if strings.HasPrefix(lower, "http://") || strings.HasPrefix(lower, "https://") {
+		return []string{a}
+	}
+	if hasPort.MatchString(a) {
+		return []string{"http://" + a}
+	}
+	return []string{"http://" + a + ":7125", "http://" + a}
+}
+
+type probeError struct {
+	msg      string
+	needsKey bool
+}
+
+func (e *probeError) Error() string { return e.msg }
+
+// probe asks Moonraker at url for printer.info.
+func probe(ctx context.Context, url, apiKey string) (map[string]any, error) {
+	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url+"/printer/info", nil)
+	if err != nil {
+		return nil, err
+	}
+	if apiKey != "" {
+		req.Header.Set("X-Api-Key", apiKey)
+	}
+	res, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer res.Body.Close()
+	if res.StatusCode == http.StatusUnauthorized || res.StatusCode == http.StatusForbidden {
+		msg := "Moonraker wants an API key (add --api-key KEY)"
+		if apiKey != "" {
+			msg = "Moonraker did not accept that API key"
+		}
+		return nil, &probeError{msg, true}
+	}
+	if res.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("HTTP %d", res.StatusCode)
+	}
+	var body struct {
+		Result map[string]any `json:"result"`
+	}
+	if err := json.NewDecoder(res.Body).Decode(&body); err != nil {
+		return nil, err
+	}
+	if body.Result == nil {
+		body.Result = map[string]any{}
+	}
+	return body.Result, nil
+}
+
+// probeAddress finds Moonraker at an address the user typed (with or without a port or http://).
+func probeAddress(ctx context.Context, address, apiKey string) (string, map[string]any, error) {
+	var last error
+	for _, url := range candidateURLs(address) {
+		info, err := probe(ctx, url, apiKey)
+		if err == nil {
+			return url, info, nil
+		}
+		last = err
+		var pe *probeError
+		if errors.As(err, &pe) && pe.needsKey {
+			break
+		}
+	}
+	pe := &probeError{msg: fmt.Sprintf("No Moonraker answered at %s: %v", address, last)}
+	var inner *probeError
+	if errors.As(last, &inner) {
+		pe.needsKey = inner.needsKey
+	}
+	return "", nil, pe
+}
+
+type found struct {
+	URL      string `json:"url"`
+	Name     string `json:"name"`
+	NeedsKey bool   `json:"needsKey"`
+}
+
+// discover finds every Moonraker answering on port 7125 on this computer's local networks (each /24).
+func discover(ctx context.Context, log func(string)) []found {
+	hosts := []string{"127.0.0.1"}
+	seen := map[string]bool{"127.0.0.1": true}
+	addrs, _ := net.InterfaceAddrs()
+	for _, a := range addrs {
+		ipnet, ok := a.(*net.IPNet)
+		if !ok || ipnet.IP.IsLoopback() {
+			continue
+		}
+		ip4 := ipnet.IP.To4()
+		if ip4 == nil {
+			continue
+		}
+		for i := 1; i < 255; i++ {
+			h := fmt.Sprintf("%d.%d.%d.%d", ip4[0], ip4[1], ip4[2], i)
+			if !seen[h] {
+				seen[h] = true
+				hosts = append(hosts, h)
+			}
+		}
+	}
+	log(fmt.Sprintf("Looking for printers on your network (%d addresses)...", len(hosts)))
+	queue := make(chan string, len(hosts))
+	for _, h := range hosts {
+		queue <- h
+	}
+	close(queue)
+	client := &http.Client{Timeout: 1500 * time.Millisecond}
+	var mu sync.Mutex
+	var out []found
+	var wg sync.WaitGroup
+	for w := 0; w < 64; w++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for h := range queue {
+				url := "http://" + h + ":7125"
+				req, err := http.NewRequestWithContext(ctx, http.MethodGet, url+"/printer/info", nil)
+				if err != nil {
+					continue
+				}
+				res, err := client.Do(req)
+				if err != nil {
+					continue // nothing there
+				}
+				f := found{URL: url, Name: h}
+				switch {
+				case res.StatusCode == http.StatusUnauthorized || res.StatusCode == http.StatusForbidden:
+					f.NeedsKey = true
+				case res.StatusCode == http.StatusOK:
+					var body struct {
+						Result struct {
+							Hostname string `json:"hostname"`
+						} `json:"result"`
+					}
+					if json.NewDecoder(res.Body).Decode(&body) == nil && body.Result.Hostname != "" {
+						f.Name = body.Result.Hostname
+					}
+				default:
+					res.Body.Close()
+					continue
+				}
+				res.Body.Close()
+				mu.Lock()
+				out = append(out, f)
+				mu.Unlock()
+			}
+		}()
+	}
+	wg.Wait()
+	return out
+}

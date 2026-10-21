@@ -1,4 +1,5 @@
 import { useEffect, useState, type ReactNode } from 'react';
+import { DEFAULT_RELAY_URL } from '../config';
 
 /** A bridge app the relay has (apps/device-relay: /downloads.json). */
 interface BridgeApp {
@@ -92,10 +93,19 @@ function ManageCommands() {
 }
 
 /** How to remove the bridge from its computer, for when its last printer goes. */
-export function UninstallBridge({ system }: { system?: string }) {
+export function UninstallBridge({ system, place, relay }: { system?: string; place?: string; relay?: string }) {
   const known = system ? FROM_PLATFORM[system] : undefined;
   const [picked, setOs] = useBridgeOs();
   const os = known ?? picked;
+  if (place === 'printer') {
+    return (
+      <div className="dv-about-commands" data-testid="bridge-uninstall">
+        <span className="muted">On the printer, over SSH:</span>
+        <CopyCommand command={`curl -fsSL ${relay ?? DEFAULT_RELAY_URL}/install.sh | sh -s -- --printer --uninstall`} testId="bridge-uninstall-command" />
+        <span className="muted">That stops the bridge on the printer and deletes it with its settings and pairing.</span>
+      </div>
+    );
+  }
   return (
     <div className="dv-about-commands" data-testid="bridge-uninstall">
       {!known && <OsTabs os={os} onChange={setOs} />}
@@ -115,18 +125,22 @@ const LOG = { mac: '~/Library/Logs/cloud-slicer-bridge.log', linux: 'journalctl 
 
 /**
  * What to do when the bridge is offline, for the bridge computer's own system
- * when the bridge said which it is (version 4 on), else with a choice of system.
+ * when the bridge said which it is, else with a choice of system.
  */
-export function BridgeOffline({ system, app }: { system?: string; app?: boolean }) {
+export function BridgeOffline({ system, place }: { system?: string; place?: string }) {
   const known = system ? FROM_PLATFORM[system] : undefined;
   const [picked, setOs] = useBridgeOs();
   const os = known ?? picked;
-  if (known && app === false) {
+  if (place === 'printer') {
     return (
       <div className="dv-about-commands" data-testid="bridge-offline-help">
-        <span>The bridge isn't running. On its computer, start it again and keep it running:</span>
-        <CopyCommand command="node cloud-slicer-bridge.mjs" testId="bridge-offline-command" />
-        <span className="muted">This page reconnects by itself.</span>
+        <span>
+          The bridge runs on the printer itself and isn't answering. Check the printer is on and online; the bridge starts with it. This page reconnects by itself.
+        </span>
+        <span className="muted">
+          Still offline? Restart the printer. A Snapmaker U1 loses the bridge with a firmware update: connect to it over SSH and paste the install line from Add a printer,
+          On the printer, again.
+        </span>
       </div>
     );
   }
@@ -184,7 +198,9 @@ function CopyStep({ command, testId }: { command: string; testId?: string }) {
   );
 }
 
-const OS_LABEL: Record<BridgeOs, string> = { windows: 'Windows PC', mac: 'Mac', linux: 'Raspberry Pi or Linux' };
+/** Where the bridge can run: a computer, or the printer's own Klipper computer. */
+type SetupOs = BridgeOs | 'printer';
+const OS_LABEL: Record<SetupOs, string> = { windows: 'Windows PC', mac: 'Mac', linux: 'Raspberry Pi or Linux', printer: 'On the printer' };
 
 /** Copies this page's address, for someone reading it on a phone who sets the bridge up on a computer. */
 function CopyPageLink() {
@@ -211,13 +227,13 @@ function CopyPageLink() {
  * the app, Mac and Linux paste one Terminal command. Every path ends with the
  * bridge opening this page with its pairing link, so the last step is just
  * picking the printer. `pasteLink` is the field for that link, for when the
- * page opened on another computer or not at all; the Node.js script stays for
- * everything else (or while the relay has no apps yet).
+ * page opened on another computer or not at all.
  */
 export function BridgeSetup({ relay, pasteLink }: { relay: string; pasteLink?: ReactNode }) {
   const [apps, setApps] = useState<BridgeApp[] | null>(null);
   const system = guessSystem();
-  const [os, setOs] = useBridgeOs();
+  const [guess] = useBridgeOs();
+  const [os, setOs] = useState<SetupOs>(guess);
   useEffect(() => {
     let live = true;
     fetch(`${relay}/downloads.json`)
@@ -229,9 +245,8 @@ export function BridgeSetup({ relay, pasteLink }: { relay: string; pasteLink?: R
     };
   }, [relay]);
 
-  // The site goes along so the Node.js bridge's pairing links come back to this same site.
-  const script = `${relay}/bridge.mjs?site=${encodeURIComponent(location.origin)}`;
   const install = `curl -fsSL ${relay}/install.sh | sh`;
+  const onPrinter = `curl -fsSL ${relay}/install.sh | sh -s -- --printer`;
   const has = (name: string) => apps?.find((a) => a.name === name);
 
   const paste = pasteLink && (
@@ -245,44 +260,18 @@ export function BridgeSetup({ relay, pasteLink }: { relay: string; pasteLink?: R
     </details>
   );
 
-  const nodeSteps = (
-    <ol className="dv-steps-list">
-      <li>
-        <a href={script} download="cloud-slicer-bridge.mjs">
-          Download the bridge
-        </a>{' '}
-        to that computer (it needs Node.js 22 or newer).
-      </li>
-      <li>
-        Run it, and keep it running:
-        <pre className="dv-code">node cloud-slicer-bridge.mjs</pre>
-      </li>
-      <li>It opens a link to this page (or prints it; you can also paste it below), where you search for your printers and add them.</li>
-    </ol>
-  );
-
   if (apps === null) return <p className="muted">Getting the bridge ready…</p>;
-  if (!apps.length) {
-    return (
-      <>
-        {nodeSteps}
-        {paste}
-      </>
-    );
-  }
-
   const win = has('windows-x64');
   const mac = has('mac-arm64');
   const macIntel = has('mac-x64');
-  const linux = has('linux-x64') || has('linux-arm64');
-  const offered = (['windows', 'mac', 'linux'] as const).filter((k) => (k === 'windows' ? win : k === 'mac' ? mac || macIntel : linux));
+  const linux = has('linux-x64') || has('linux-arm64') || has('linux-armv7');
+  const offered = (['windows', 'mac', 'linux', 'printer'] as const).filter((k) => (k === 'windows' ? win : k === 'mac' ? mac || macIntel : linux));
   const shown = offered.includes(os) ? os : offered[0];
   if (!shown) {
     return (
-      <>
-        {nodeSteps}
-        {paste}
-      </>
+      <p className="muted" data-testid="bridge-not-ready">
+        The bridge app isn't available to download yet. Try again in a few minutes.
+      </p>
     );
   }
 
@@ -298,8 +287,8 @@ export function BridgeSetup({ relay, pasteLink }: { relay: string; pasteLink?: R
   return (
     <div className="dv-bridge-setup">
       <p>
-        Your printer is on your home network, which websites can't reach on their own. A small free app called the <b>bridge</b> connects the two. It runs on a computer
-        in your home that is usually switched on, and you only set it up once.
+        Your printer is on your home network, which websites can't reach on their own. A small free app called the <b>bridge</b> connects the two. It runs on the printer
+        itself or on a computer in your home that is usually switched on, and you only set it up once.
       </p>
       {system === 'other' && (
         <p className="dv-note" data-testid="bridge-phone-note">
@@ -307,7 +296,7 @@ export function BridgeSetup({ relay, pasteLink }: { relay: string; pasteLink?: R
         </p>
       )}
       <div className="dv-setup-os">
-        <span className="dv-setup-question">Which computer will run the bridge?</span>
+        <span className="dv-setup-question">Where will the bridge run?</span>
         <div className="dv-segmented dv-os-tabs" role="tablist" aria-label="The bridge's computer">
           {offered.map((k) => (
             <button key={k} role="tab" aria-selected={shown === k} className={shown === k ? 'on' : ''} onClick={() => setOs(k)}>
@@ -361,11 +350,38 @@ export function BridgeSetup({ relay, pasteLink }: { relay: string; pasteLink?: R
             </Step>
             <Step n={2} title="Paste it into a terminal on that computer and press Enter">
               <span className="muted">
-                On a Raspberry Pi without a screen, connect to it over SSH first. It needs a 64-bit system. With no screen, the bridge prints a link instead of opening
+                On a Raspberry Pi without a screen, connect to it over SSH first. With no screen, the bridge prints a link instead of opening
                 this page: open that link on any computer or phone.
               </span>
             </Step>
             {lastStep(3)}
+          </>
+        )}
+        {shown === 'printer' && (
+          <>
+            <Step n={1} title="Connect to the printer over SSH">
+              <span>
+                From a terminal on your computer: <code>ssh root@&lt;printer address&gt;</code>. Klipper printers on a Raspberry Pi use the Pi's own user instead of
+                root.
+              </span>
+              <span className="muted">
+                Snapmaker U1: first turn on <b>Settings, Maintenance, Root Access</b> on the printer; the password is <b>snapmaker</b>. Creality K1: the password is{' '}
+                <b>creality_2023</b>.
+              </span>
+            </Step>
+            <Step n={2} title="Paste this line and press Enter">
+              <CopyStep command={onPrinter} testId="bridge-printer-command" />
+              <span className="muted">
+                It installs the bridge on the printer as a service that starts with it and serves that printer. It updates itself, and it needs no computer left on.
+              </span>
+            </Step>
+            <Step n={3} title="Open the link it prints">
+              <span>
+                Open it on this phone or computer; the printer is already on its list, so pick it and click <b>Add printer</b>. The link is also saved in Mainsail and
+                Fluidd, in the config folder, as <code>cloud-slicer-bridge-pairing.txt</code>.
+              </span>
+              <span className="muted">On a Snapmaker U1 a firmware update removes the bridge: paste the line again afterwards.</span>
+            </Step>
           </>
         )}
       </ol>
@@ -406,17 +422,13 @@ export function BridgeSetup({ relay, pasteLink }: { relay: string; pasteLink?: R
             type an address. Or type the address here and run the command on the bridge's computer:
           </p>
           <ManageCommands />
-          <p>The bridge restarts by itself to use a printer you add. To update it, set it up again the same way (download and open the app, or run the Terminal command).</p>
+          <p>The bridge restarts by itself to use a printer you add. It updates itself, and Printers &amp; bridges offers an update when one is out.</p>
           <p>
             <strong>Is it safe?</strong> The bridge only connects out to Cloud Slicer's relay, so nothing on your router is opened, and it only talks to the printers it
             found or you added. Your printer's API key is kept on that computer (one typed here goes straight to the bridge). The pairing link works like a password: anyone who has it can control your
             printers, so don't share it.
           </p>
         </div>
-      </details>
-      <details className="dv-node-option">
-        <summary>Another kind of computer (with Node.js)</summary>
-        {nodeSteps}
       </details>
     </div>
   );

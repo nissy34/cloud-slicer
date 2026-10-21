@@ -9,7 +9,9 @@
 // BETTER_AUTH_SECRET, shared by all deploys) to the preview, which sets its
 // own session cookie.
 import { betterAuth } from 'better-auth';
-import { oAuthProxy } from 'better-auth/plugins';
+import { APIError } from 'better-auth/api';
+import { admin, oAuthProxy } from 'better-auth/plugins';
+import { isOwner, ownerEmails, signInRefusal } from './access';
 import { HttpError, json } from './http';
 import { deleteAllFiles } from './projects';
 import type { Env } from './types';
@@ -31,7 +33,23 @@ export function trustedOrigins(env: Env, request: Request): string[] {
 
 const configured = (env: Env) => Boolean(env.DB && env.BETTER_AUTH_SECRET);
 
-export function createAuth(env: Env, request: Request) {
+/** The owners' user ids (OWNER_EMAILS), for the admin plugin. One indexed lookup per request (Better Auth keeps emails lower case). */
+async function ownerIds(env: Env): Promise<string[]> {
+  const emails = ownerEmails(env);
+  if (!emails.length) return [];
+  const rows = await db(env)
+    .prepare(`SELECT id FROM "user" WHERE email IN (${emails.map(() => '?').join(',')})`)
+    .bind(...emails)
+    .all<{ id: string }>();
+  return rows.results.map((r) => r.id);
+}
+
+/** Refuses a sign-in the way Better Auth reports errors: the sign-in page shows `message`. */
+function refuse(message: string): never {
+  throw APIError.from('FORBIDDEN', { code: 'INVITE_ONLY', message });
+}
+
+export async function createAuth(env: Env, request: Request) {
   const origin = new URL(request.url).origin;
   return betterAuth({
     appName: 'Cloud Slicer',
@@ -46,14 +64,39 @@ export function createAuth(env: Env, request: Request) {
         : {},
     session: { expiresIn: 30 * DAY, updateAge: DAY },
     account: { encryptOAuthTokens: true },
-    user: {
-      deleteUser: {
-        enabled: true,
+    user: { deleteUser: { enabled: true } },
+    // Invite only: no new account, and no new session, for an email that isn't allowed.
+    // (Blocked users are the admin plugin's: it refuses their sessions itself.)
+    databaseHooks: {
+      user: {
+        create: {
+          before: async (user) => {
+            const why = await signInRefusal(env, user.email);
+            if (why) refuse(why);
+          },
+        },
+        // Deleting an account (the user's own Delete account, or Delete on the Admin page):
         // D1 rows go with the user row (ON DELETE CASCADE); saved project files are in R2.
-        beforeDelete: (user) => deleteAllFiles(env, user.id),
+        delete: { before: async (user) => void (await deleteAllFiles(env, user.id)) },
+      },
+      session: {
+        create: {
+          before: async (session) => {
+            const u = await db(env).prepare('SELECT email FROM "user" WHERE id = ?').bind(session.userId).first<{ email: string }>();
+            const why = u ? await signInRefusal(env, u.email) : null;
+            if (why) refuse(why);
+          },
+        },
       },
     },
-    plugins: [oAuthProxy({ productionURL: env.AUTH_ORIGIN, currentURL: origin })],
+    plugins: [
+      oAuthProxy({ productionURL: env.AUTH_ORIGIN, currentURL: origin }),
+      // Block / unblock and the user list for the Admin page; only the owners may use it.
+      admin({
+        adminUserIds: await ownerIds(env),
+        bannedUserMessage: "This account has been blocked on Cloud Slicer. Ask the site's owner if you think that's a mistake.",
+      }),
+    ],
     telemetry: { enabled: false },
   });
 }
@@ -63,14 +106,16 @@ export interface SessionUser {
   name: string;
   email: string;
   createdAt: number;
+  /** One of OWNER_EMAILS: may open the Admin page. */
+  owner: boolean;
 }
 
 export async function currentUser(env: Env, request: Request): Promise<SessionUser | null> {
   if (!configured(env)) return null;
-  const session = await createAuth(env, request).api.getSession({ headers: request.headers });
+  const session = await (await createAuth(env, request)).api.getSession({ headers: request.headers });
   if (!session) return null;
   const u = session.user;
-  return { id: u.id, name: u.name, email: u.email, createdAt: new Date(u.createdAt).getTime() };
+  return { id: u.id, name: u.name, email: u.email, createdAt: new Date(u.createdAt).getTime(), owner: isOwner(env, u.email) };
 }
 
 export async function requireUser(env: Env, request: Request): Promise<SessionUser> {
@@ -98,9 +143,9 @@ export async function me(env: Env, request: Request): Promise<Response> {
 }
 
 /** Everything under /api/auth/* is Better Auth's (sign-in/social, callback/google, sign-out, delete-user, ...). */
-export function handle(env: Env, request: Request): Promise<Response> {
+export async function handle(env: Env, request: Request): Promise<Response> {
   if (!configured(env)) throw new HttpError(503, 'Accounts are not set up on this site yet');
-  return createAuth(env, request).handler(request);
+  return (await createAuth(env, request)).handler(request);
 }
 
 /**
@@ -112,7 +157,7 @@ export function handle(env: Env, request: Request): Promise<Response> {
 export function signInDone(request: Request): Response {
   const url = new URL(request.url);
   const error = url.searchParams.get('error');
-  const message = error ? describeError(error) : '';
+  const message = error ? describeError(error, url.searchParams.get('error_description')) : '';
   if (url.searchParams.get('popup') !== '1') {
     const back = new URL(safeReturnPath(url.searchParams.get('return')), url.origin);
     if (error) back.hash = `auth-error=${encodeURIComponent(message)}`;
@@ -129,8 +174,10 @@ export function signInDone(request: Request): Response {
   );
 }
 
-function describeError(code: string): string {
+function describeError(code: string, description: string | null): string {
   if (code === 'access_denied') return 'Sign-in was cancelled';
+  // Our own refusals (invite only, blocked) carry a sentence for the user.
+  if ((code === 'INVITE_ONLY' || code === 'BANNED_USER') && description) return description.slice(0, 300);
   return code.replace(/_/g, ' ').slice(0, 200);
 }
 
