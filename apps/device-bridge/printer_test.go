@@ -159,3 +159,21 @@ func TestPrinterInitScriptStopsOnlyTheInstalledBridge(t *testing.T) {
 	case <-time.After(300 * time.Millisecond):
 	}
 }
+
+// A bridge on the printer finds that printer's Moonraker on 127.0.0.1 and on the
+// printer's network address: the Device tab must list it once.
+func TestOwnPrinterIsListedOnce(t *testing.T) {
+	lo := found{URL: "http://127.0.0.1:7125", Name: "127.0.0.1", NeedsKey: true}
+	lan := found{URL: "http://10.0.0.1:7125", Name: "10.0.0.1", NeedsKey: true}
+	got := ownPrinter([]found{lan, lo}, "lava")
+	if len(got) != 1 || got[0].URL != lo.URL || got[0].Name != "lava" || !got[0].NeedsKey {
+		t.Fatalf("both need a key: %+v", got)
+	}
+	open := found{URL: lan.URL, Name: "lava"}
+	if got := ownPrinter([]found{lo, open}, "lava"); len(got) != 1 || got[0].URL != open.URL || got[0].NeedsKey {
+		t.Fatalf("one answers without a key: %+v", got)
+	}
+	if got := ownPrinter(nil, "lava"); len(got) != 0 {
+		t.Fatalf("no Moonraker: %+v", got)
+	}
+}
