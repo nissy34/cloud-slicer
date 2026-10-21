@@ -82,6 +82,9 @@ const subscription = { endpoint: `http://127.0.0.1:${push.address().port}/push/u
 /** Stands in for the browser's push service and records notifications the page shows itself. */
 const fakePush = (sub) => {
   window.__shown = [];
+  // Headless Chromium reports notifications as blocked even when the permission is granted.
+  Object.defineProperty(Notification, 'permission', { get: () => 'granted' });
+  Notification.requestPermission = async () => 'granted';
   let current = null;
   const make = (key) => ({
     endpoint: sub.endpoint,
