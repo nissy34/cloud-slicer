@@ -15,6 +15,7 @@ import { KIND_COLOURS, partAt, partRanges, volumeMeshes } from '../lib/volumes';
 import { onPlate } from '../lib/plateMenu';
 import { plateBounds } from '../lib/outside';
 import { unprintableTriangles, UNPRINTABLE } from '../lib/printable';
+import { viewOnly } from '../state/projects';
 import { NO_COLOURS, useOption, useSlicer } from '../state/store';
 import { setCameraSource } from '../state/view';
 import { Bed } from './Bed';
@@ -1073,6 +1074,8 @@ function Objects({ w, d }: { w: number; d: number }) {
   });
 
   const onDown = (e: ThreeEvent<PointerEvent>, object: number, tris?: Uint32Array | null) => {
+    // View only: a press just turns the camera.
+    if (viewOnly()) return;
     e.stopPropagation();
     if (twoFingers()) return;
     if (e.button === 2) {
@@ -1128,7 +1131,7 @@ function Objects({ w, d }: { w: number; d: number }) {
   };
   // A press on a see-through volume picks it (its menu on a right click or long press).
   const onVolumeDown = (e: ThreeEvent<PointerEvent>, v: VolumePart) => {
-    if (paint || measuring || brimTool || onGizmo() || twoFingers()) return;
+    if (viewOnly() || paint || measuring || brimTool || onGizmo() || twoFingers()) return;
     e.stopPropagation();
     const info = project?.objects[v.object]?.volumes[v.volume];
     if (shapeTool && e.button === 0 && (info?.text || info?.svg)) return startShapeAt(e.nativeEvent, v.object, v.volume);

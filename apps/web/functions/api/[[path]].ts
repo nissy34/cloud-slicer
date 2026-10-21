@@ -15,9 +15,11 @@
 //   PUT    /api/devices/<id>                save ({ name, preset, url, apiKey?, extra?, baseVersion? })
 //   DELETE /api/devices/<id>
 //   GET    /api/projects                    the user's online projects, usage and limits
+//   GET    /api/projects/<id>                one project (its version and the device editing it)
+//   POST   /api/projects/<id>/device         this device edits it from now on ({ device, deviceName })
 //   GET    /api/projects/<id>/file          the project's 3MF
 //   GET    /api/projects/<id>/thumbnail     its PNG thumbnail
-//   PUT    /api/projects/<id>?name=&baseVersion=&engine=   save (body: the 3MF)
+//   PUT    /api/projects/<id>?name=&baseVersion=&engine=&draft=&device=&deviceName=   save (body: the 3MF)
 //   PUT    /api/projects/<id>/thumbnail     set the thumbnail (body: PNG)
 //   PATCH  /api/projects/<id>               rename ({ name, baseVersion? })
 //   DELETE /api/projects/<id>
@@ -78,6 +80,8 @@ export async function onRequest({ request, env }: PagesContext): Promise<Respons
     }
     if (a === 'projects') {
       if (parts.length === 1 && m === 'GET') return await projects.list(env, request);
+      if (parts.length === 2 && m === 'GET') return await projects.get(env, request, b);
+      if (parts.length === 3 && c === 'device' && m === 'POST') return await projects.takeOver(env, request, b);
       if (parts.length === 3 && c === 'file' && m === 'GET') return await projects.file(env, request, b);
       if (parts.length === 3 && c === 'thumbnail' && m === 'GET') return await projects.thumbnail(env, request, b);
       if (parts.length === 3 && c === 'thumbnail' && m === 'PUT') return await projects.putThumbnail(env, request, b);

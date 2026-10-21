@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { ImportPresetsDialog } from './account/ImportPresets';
 import { PresetSettingsDialog } from './components/PresetSettingsDialog';
 import { SettingsPromptDialog } from './components/SettingsPrompt';
@@ -15,12 +16,28 @@ import { Viewport } from './components/Viewport';
 import { LoadingOverlay } from './components/LoadingOverlay';
 import { DeviceScreen } from './device';
 import { AdminScreen } from './components/AdminScreen';
+import { ContinueCard, ViewOnlyBanner } from './components/ContinueCard';
+import { useProjects } from './state/projects';
 import { useSlicer } from './state/store';
 
 export function App() {
   const tab = useSlicer((s) => s.tab);
+  const viewOnly = useProjects((s) => s.elsewhere !== null);
+  // View only (the project is being edited on another device): editing keys do nothing.
+  useEffect(() => {
+    if (!viewOnly) return;
+    const block = (e: KeyboardEvent) => {
+      const t = e.target as HTMLElement | null;
+      if (t?.closest('.dialog, .view-only-banner, .account, .menu-pop')) return;
+      if (e.key === 'Escape' || e.key === 'Tab') return;
+      e.stopPropagation();
+      if (e.ctrlKey || e.metaKey || e.key === 'Delete' || e.key === 'Backspace') e.preventDefault();
+    };
+    window.addEventListener('keydown', block, true);
+    return () => window.removeEventListener('keydown', block, true);
+  }, [viewOnly]);
   return (
-    <div className="app">
+    <div className={viewOnly ? 'app view-only' : 'app'}>
       <TopBar />
       <ConvertDialog />
       <GcodeFallbackDialog />
@@ -34,6 +51,8 @@ export function App() {
         <div className="body">
           <Sidebar />
           <main className="main">
+            <ViewOnlyBanner />
+            {tab === 'prepare' && <ContinueCard />}
             {tab === 'prepare' ? (
               <OpenModel>
                 <Viewport />
