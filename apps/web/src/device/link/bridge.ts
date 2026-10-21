@@ -161,6 +161,11 @@ export class BridgeLink implements PrinterLink {
     return this.call<T>(method, params, timeoutMs);
   }
 
+  /** A call the relay answers itself, such as this browser's print alerts (relay.alerts). Works with the bridge offline. */
+  relay<T>(method: `relay.${string}`, params: unknown, timeoutMs = 20_000): Promise<T> {
+    return this.call<T>(method, params, timeoutMs);
+  }
+
   private call<T>(method: string, params: unknown, timeoutMs = 30_000): Promise<T> {
     const id = `b${++this.seq}`;
     return new Promise<T>((resolve, reject) => {

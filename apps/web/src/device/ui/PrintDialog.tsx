@@ -5,6 +5,8 @@ import { suggestToolMap, u1Heads, u1MappingCheck, u1NoHeadReason, u1PrintOptions
 import { uploadName } from '../commands';
 import { metaFromMoonraker, readGcodeMeta, type GcodeMeta } from '../gcode-meta';
 import { job } from '../status';
+import { useAlerts } from '../../state/alerts';
+import { LayerField } from './AlertsCard';
 import { Dialog, Swatch } from './parts';
 
 /**
@@ -25,6 +27,7 @@ export function PrintDialog({ source }: { source: SendSource }) {
   const close = () => useDevice.getState().openPrintDialog(null);
   const go = useDevice((s) => s.uploadAndMaybePrint);
   const isU1 = addons.some((a) => a.id === 'u1');
+  const alerts = useAlerts((s) => (s.status === 'on' && s.printerId === activeId ? s.prefs : null));
   const [meta, setMeta] = useState<GcodeMeta | null>(null);
   const [name, setName] = useState(source.kind === 'upload' ? uploadName(source.name) : source.path);
   const heads = useMemo(() => (isU1 ? u1Heads(objects) : []), [isU1, objects]);
@@ -127,6 +130,11 @@ export function PrintDialog({ source }: { source: SendSource }) {
           </label>
         ) : (
           <p className="dv-job-file">{source.path}</p>
+        )}
+        {alerts && (
+          <div className="dv-print-layer" data-testid="send-layer-alert">
+            <LayerField prefs={alerts} onSet={(layer) => void useAlerts.getState().save({ ...alerts, layer })} />
+          </div>
         )}
       </div>
       {meta && (

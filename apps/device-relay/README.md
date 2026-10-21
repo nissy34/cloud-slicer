@@ -30,7 +30,22 @@ hibernate, so an idle bridge costs nothing; it runs on the free plan.
   browsers on the listed bridges are closed at once. Orders from the site itself
   (subject `site`) turn whole bridges off or on (`bridgeOff`) or drop signed-out
   browsers (`guests`).
-- `GET /v1/info` says whether accounts are on. `RELAY_TEST_PUBLIC_KEY` is CI's
+- **Print alerts**, when the Worker has the secret `VAPID_KEY` (an ES256 private
+  JWK that CI makes once, `.github/workflows/device.yml`): a browser sends the
+  JSON-RPC call `relay.alerts` over its socket (`op` `get`, `set` with its push
+  subscription and choices, or `test`), answered by the relay itself, even with
+  the bridge offline. The bridge's Durable Object keeps each browser's push
+  address and choices per printer (at most 20 browsers per bridge), tells the
+  agent what to watch for (`{ctl:'alerts', printers}`, on every hello and
+  change), and turns the agent's `{ctl:'alert', printer, event, …}` into Web Push
+  (the `web-push` library: RFC 8291 encryption, VAPID signature) to every
+  browser that wants it. Push addresses must belong to a browser push service
+  (Google, Mozilla, Apple, Microsoft). A camera picture sent with an alert waits
+  in R2 under `alerts/` (served at `/v1/pictures/<random>.jpg`) until the
+  bucket's one-day lifecycle rule deletes it. "The bridge goes offline" is a
+  Durable Object alarm 10 minutes after the agent drops. Nothing about alerts is
+  logged. At most 120 alerts and 30 pictures per bridge an hour.
+- `GET /v1/info` says whether accounts are on, and gives the public push key (`push`). `RELAY_TEST_PUBLIC_KEY` is CI's
   throwaway key for checking the deployed relay; it only works for `ci-` bridges.
 
 ```bash

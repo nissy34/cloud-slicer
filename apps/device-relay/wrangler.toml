@@ -3,6 +3,8 @@
 name = "cloud-slicer-relay"
 main = "src/index.ts"
 compatibility_date = "2025-10-01"
+# web-push (print alerts) uses Node's crypto and Buffer.
+compatibility_flags = ["nodejs_compat"]
 workers_dev = true
 
 [[durable_objects.bindings]]

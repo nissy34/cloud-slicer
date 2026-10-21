@@ -335,6 +335,25 @@ which is why Windows warns and why macOS uses the Terminal command. More in
 [apps/device-bridge/README.md](apps/device-bridge/README.md) and
 [apps/device-relay/SECURITY.md](apps/device-relay/SECURITY.md).
 
+**Print alerts** (the Device tab's Alerts card): "Send alerts to this phone" turns them
+on for one printer on one device, with a switch per moment. Problems (failed or
+cancelled, paused or filament ran out, printer error) and Finished are on to begin
+with; print started, first and third layer, progress at chosen percentages, almost done
+(10 minutes left), still printing every few hours, resumed and bed cooled down are
+there to turn on, and "Tell me after layer N" is also in the Print dialog (it lasts
+until that print ends). For a printer through a bridge, the bridge watches the
+print itself (any Klipper printer: Moonraker's print state, layers, bed temperature
+and filament sensors), so alerts come with the browser closed: it sends each event
+to the relay, which sends a Web Push message (encrypted for the browser, signed with
+the relay's VAPID key) through the browser's own push service, with a camera
+picture on the key alerts. A printer reached directly can only alert while a tab is
+open; the page runs the same rules itself. "The bridge goes offline" (off to begin
+with) comes from the relay after 10 minutes without the bridge. iPhone and iPad need
+Cloud Slicer on the Home Screen first (iOS 16.4 or later) and show no picture.
+Tapping an alert opens the Device tab on its printer. The rules are in
+`apps/web/src/device/alerts.ts` and `apps/device-bridge/alerts.go`, tested against
+the same cases (`apps/device-bridge/testdata/alert-cases.json`).
+
 ## Tests
 
 ```bash
@@ -367,6 +386,7 @@ Browser end to end tests (Playwright's Chromium) run against the built site
 | `test/restart.mjs` | After an engine crash (mid-slice or after), the engine restarts and reopens the project |
 | `test/heavy.mjs` | A model with over a million triangles offers Simplify, which brings it to about half a million |
 | `test/device-smoke.mjs` | Device tab through relay and bridge to a mock U1, and direct to a mock Klipper printer |
+| `test/device-alerts.mjs` | Print alerts: the Alerts card's defaults, a test alert, layer N from the Print dialog, a whole mock print pushed through bridge and relay to a pretend push service (decrypted), the open page alerting for a direct printer, a tapped alert opening its printer, the iPhone Home Screen note |
 
 CI never talks to a real printer: printer tests use a mock Moonraker. How CI runs all of
 this, its caches and deploys: [docs/CI.md](docs/CI.md).
