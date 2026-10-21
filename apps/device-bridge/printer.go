@@ -123,7 +123,14 @@ start() {
 stop() {
 	[ -f "$PIDFILE" ] && kill "$(cat "$PIDFILE")" 2>/dev/null
 	rm -f "$PIDFILE"
-	killall ` + service + ` 2>/dev/null || pkill -f ` + shellQuote(p.exe) + ` 2>/dev/null
+	# The bridge itself, found by its program file and never by name: the
+	# installer is a program of the same name, and it is what runs this script.
+	for d in /proc/[0-9]*; do
+		case "$(readlink "$d/exe" 2>/dev/null)" in
+			` + shellQuote(p.exe) + ` | ` + shellQuote(p.exe+" (deleted)") + `)
+				[ "${d#/proc/}" != "$PPID" ] && kill "${d#/proc/}" 2>/dev/null ;;
+		esac
+	done
 	return 0
 }
 
@@ -282,7 +289,13 @@ func installOnPrinter(given, relay string) (printerPlan, *Config, error) {
 			cfg.upsert(host, url, "")
 		}
 	} else {
-		fmt.Println("Moonraker didn't answer at 127.0.0.1:7125 (" + err.Error() + "). Add the printer from the Device tab once the bridge is paired.")
+		var pe *probeError
+		if errors.As(err, &pe) && pe.needsKey {
+			// Moonraker locked with an API key (the Snapmaker U1 is): not needed here.
+			fmt.Println("This printer's Moonraker asks for an API key. That's fine: once the bridge is paired, add the printer in the Device tab and type the key there.")
+		} else {
+			fmt.Println("Moonraker didn't answer at 127.0.0.1:7125 (" + err.Error() + "). Add the printer from the Device tab once the bridge is paired.")
+		}
 	}
 	if err := cfg.save(); err != nil {
 		return p, nil, err
