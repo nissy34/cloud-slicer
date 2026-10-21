@@ -136,8 +136,15 @@ async function firstRun({ label, engine, search, expect, badge, other, filaments
     if (other) {
       await page.getByRole('combobox', { name: 'Slicer engine' }).selectOption({ label: other.engine });
       await page.waitForFunction((n) => document.querySelector('.engine-badge')?.textContent?.startsWith(n), other.engine, { timeout: 180000 });
-      // The engine first selects what it had before, then the printer carried over (slow on a busy machine).
-      await page.waitForFunction((v) => document.querySelector('select[aria-label="Printer preset"]')?.value === v, other.expect, { timeout: 180000 }).catch(() => {});
+      // While the engine starts the picker is disabled and passes through other printers (what it had before, then the one carried over).
+      await page.waitForFunction(
+        (v) => {
+          const s = document.querySelector('select[aria-label="Printer preset"]');
+          return s && !s.disabled && s.value === v;
+        },
+        other.expect,
+        { timeout: 180000 },
+      ).catch(() => {});
       const there = (await picker.locator('option').allInnerTexts()).map((o) => o.trim()).filter((o) => !o.startsWith('Add or remove printers'));
       console.log(`${label} -> ${other.engine}: selected "${await picker.inputValue()}", list: ${there.join(' | ')}`);
       if ((await picker.inputValue()) !== other.expect) fail(`${label}: in ${other.engine} "${await picker.inputValue()}" is selected, not "${other.expect}"`);

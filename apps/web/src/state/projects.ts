@@ -64,13 +64,13 @@ interface ProjectsState {
 
 const blank = (): CurrentProject => ({ name: UNTITLED, id: null, version: 0 });
 
-/** The engine new projects use: the setup wizard's choice, else Snapmaker Orca. */
 /** Still the page's first project: nothing on the plate, never named or saved. */
 export function untouchedProject(): boolean {
   const p = useProjects.getState().current;
   return !useSlicer.getState().project?.objects.length && p.name === UNTITLED && !p.id;
 }
 
+/** The engine new projects use: the setup wizard's choice, else Snapmaker Orca. */
 export const defaultEngine = (): EngineFlavor => getUserSetting<Setup>(SETUP_KEY)?.engine ?? 'snapmaker';
 
 // Opening a project made with the other engine starts that engine first.
