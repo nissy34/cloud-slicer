@@ -38,7 +38,8 @@ try {
       };
       ws.onclose = () => resolve(null);
     });
-    if (status?.agent === 'online') {
+    // Online but no version yet: the relay has the bridge's socket but not its hello; ask again.
+    if (status?.agent === 'online' && status.version) {
       if (status.place !== 'printer') throw new Error(`the bridge doesn't say it runs on the printer: ${JSON.stringify(status)}`);
       console.log(`printer bridge online (build ${status.build}, ${status.printers.length} printers)`);
       break;
