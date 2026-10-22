@@ -40,7 +40,7 @@ export function HeadBed({ mood, colour, loaded, temp, scene, size = 60 }: { mood
         </g>
       </g>
       <g className="dv-bed-blanket">
-        <path d="M58 50Q92 42 124 54V80H56Z" fill={blanket} stroke="rgba(0,0,0,.2)" />
+        <path d="M58 50Q92 42 124 54V80H56Z" fill={blanket} stroke="var(--dv-outline)" strokeWidth="2.5" />
         <path d="M58 50Q92 42 124 54" stroke="rgba(255,255,255,.55)" strokeWidth="4" fill="none" />
       </g>
       <g className="dv-bed-sit">

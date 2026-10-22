@@ -3261,6 +3261,7 @@ select:focus-visible {
 }
 /* The character: colours for both themes, and a little life while motion is welcome. */
 .device {
+  --dv-outline: #1f2733;
   --dv-head-body: #2b3442;
   --dv-head-hi: #3a4556;
   --dv-metal: #b9c1cc;
@@ -3270,6 +3271,7 @@ select:focus-visible {
 }
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme='light']) .device {
+    --dv-outline: #e6eaf1;
     --dv-head-body: #46536a;
     --dv-head-hi: #5a6882;
     --dv-metal: #7c8697;
@@ -3277,6 +3279,7 @@ select:focus-visible {
   }
 }
 :root[data-theme='dark'] .device {
+  --dv-outline: #e6eaf1;
   --dv-head-body: #46536a;
   --dv-head-hi: #5a6882;
   --dv-metal: #7c8697;

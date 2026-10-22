@@ -76,6 +76,22 @@ function Extra({ mood }: { mood: HeadMood }) {
   }
 }
 
+/**
+ * A baseball cap in the filament colour. The outline (dark on the light theme,
+ * light on the dark one) keeps black and white filament visible on any card.
+ */
+function Cap({ colour }: { colour: string }) {
+  const edge = { stroke: 'var(--dv-outline)', strokeWidth: 3, strokeLinejoin: 'round' as const };
+  return (
+    <g className="dv-face-cap">
+      <path d="M18 36Q18 12 50 12Q82 12 82 36Z" fill={colour} {...edge} />
+      <path d="M60 34Q86 31 100 37Q86 41 60 39Z" fill={colour} {...edge} />
+      <circle cx="50" cy="12" r="3.5" fill="var(--dv-outline)" />
+      <path d="M28 26Q36 18 48 17" stroke="rgba(255,255,255,.55)" strokeWidth="3" fill="none" strokeLinecap="round" />
+    </g>
+  );
+}
+
 /** The character itself, in the 100 x 120 box both drawings share: filament, body, face and hot end. */
 export function HeadBody({ mood, colour, loaded, temp }: { mood: HeadMood; colour: string | null; loaded: boolean | null; temp: number }) {
   const band = loaded && colour ? colour : 'var(--dv-head-hi)';
@@ -84,6 +100,9 @@ export function HeadBody({ mood, colour, loaded, temp }: { mood: HeadMood; colou
       {loaded === false ? (
         <line x1="50" y1="2" x2="50" y2="22" stroke="var(--dv-metal)" strokeWidth="5" strokeDasharray="3 4" strokeLinecap="round" />
       ) : (
+        <line x1="50" y1="0" x2="50" y2="22" stroke="var(--dv-outline)" strokeWidth="10" strokeLinecap="round" />
+      )}
+      {loaded !== false && (
         <line
           className="dv-face-strand"
           x1="50"
@@ -97,7 +116,7 @@ export function HeadBody({ mood, colour, loaded, temp }: { mood: HeadMood; colou
         />
       )}
       <rect x="18" y="20" width="64" height="66" rx="20" fill="var(--dv-head-body)" />
-      <rect x="18" y="20" width="64" height="12" rx="6" fill={band} />
+      <Cap colour={band} />
       <Eyes mood={mood} />
       <Mouth mood={mood} />
       <rect x="36" y="86" width="28" height="11" rx="3" fill={heat(temp)} />
