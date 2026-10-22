@@ -381,7 +381,8 @@ func (b *Bridge) manage(method string, params json.RawMessage) (any, error) {
 			out = append(out, map[string]any{"url": f.URL, "name": f.Name, "needsKey": f.NeedsKey, "added": added, "kind": f.Kind})
 		}
 		b.cfg.mu.Unlock()
-		return map[string]any{"printers": out}, nil
+		// more: the search ran out of time; asking again carries on where it stopped.
+		return map[string]any{"printers": out, "more": searchLeft()}, nil
 	case "bridge.add_printer":
 		address, apiKey := clip(p.Address, 200), clip(p.APIKey, 200)
 		if address == "" {

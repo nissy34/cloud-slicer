@@ -111,8 +111,51 @@ var searchBudget = 15 * time.Second
 // The ports a search asks: Moonraker's and the web port (PrusaLink). Tests change them.
 var moonrakerPort, webPort = "7125", "80"
 
-// discover finds every Moonraker answering on port 7125 on this computer's local networks (each /24).
+// unfinished is a network search that ran out of time: the addresses it didn't
+// ask yet and what it found so far. The next search (the site asks again by
+// itself) carries on from there instead of starting over.
+var unfinished struct {
+	sync.Mutex
+	left  []string
+	found []found
+	at    time.Time
+}
+
+// searchLeft says whether the last search ran out of time with addresses still to ask.
+func searchLeft() bool {
+	unfinished.Lock()
+	defer unfinished.Unlock()
+	return len(unfinished.left) > 0
+}
+
+// discover finds every Moonraker (and PrusaLink) on this computer's local
+// networks (each /24). A search that runs out of
+// time carries on where it stopped the next time it's asked, within a minute.
 func discover(ctx context.Context, log func(string)) []found {
+	hosts := searchHosts()
+	unfinished.Lock()
+	var before []found
+	if len(unfinished.left) > 0 && time.Since(unfinished.at) < time.Minute {
+		hosts, before = unfinished.left, unfinished.found
+	}
+	unfinished.Unlock()
+	log(fmt.Sprintf("Looking for printers on your network (%d addresses)...", len(hosts)))
+	ctx, cancel := context.WithTimeout(ctx, searchBudget)
+	defer cancel()
+	got, left := probeHosts(ctx, hosts)
+	all := append(append([]found{}, before...), got...)
+	unfinished.Lock()
+	unfinished.left, unfinished.found, unfinished.at = left, nil, time.Now()
+	if len(left) > 0 {
+		unfinished.found = all
+	}
+	unfinished.Unlock()
+	return all
+}
+
+// searchHosts lists every address of this computer's local networks: 127.0.0.1,
+// then each card's /24. 169.254.x.x is a card with no network behind it: skipped.
+func searchHosts() []string {
 	hosts := []string{"127.0.0.1"}
 	seen := map[string]bool{"127.0.0.1": true}
 	addrs, _ := net.InterfaceAddrs()
@@ -122,7 +165,6 @@ func discover(ctx context.Context, log func(string)) []found {
 			continue
 		}
 		ip4 := ipnet.IP.To4()
-		// 169.254.x.x is a network card with no network behind it.
 		if ip4 == nil || ip4.IsLinkLocalUnicast() {
 			continue
 		}
@@ -134,10 +176,7 @@ func discover(ctx context.Context, log func(string)) []found {
 			}
 		}
 	}
-	log(fmt.Sprintf("Looking for printers on your network (%d addresses)...", len(hosts)))
-	ctx, cancel := context.WithTimeout(ctx, searchBudget)
-	defer cancel()
-	return probeHosts(ctx, hosts)
+	return hosts
 }
 
 // discoverOwn finds the Moonraker of the printer this bridge runs on. It answers
@@ -152,7 +191,8 @@ func discoverOwn(ctx context.Context, log func(string)) []found {
 		}
 	}
 	log("Looking for this printer's Moonraker...")
-	return ownPrinter(probeHosts(ctx, hosts), shortHost())
+	list, _ := probeHosts(ctx, hosts)
+	return ownPrinter(list, shortHost())
 }
 
 // ownPrinter picks the one entry for this printer: one that answers without a
@@ -186,8 +226,8 @@ func ownPrinter(list []found, host string) []found {
 
 // probeHosts asks each host, many at once, whether a printer answers: Moonraker
 // on port 7125 and PrusaLink on the web port, both at the same time. Hosts not
-// asked before ctx ends are skipped, so the answer comes back in time.
-func probeHosts(ctx context.Context, hosts []string) []found {
+// asked before ctx ends come back in left, so the answer comes back in time.
+func probeHosts(ctx context.Context, hosts []string) (list []found, left []string) {
 	queue := make(chan string, len(hosts))
 	for _, h := range hosts {
 		queue <- h
@@ -208,26 +248,38 @@ func probeHosts(ctx context.Context, hosts []string) []found {
 			defer wg.Done()
 			for h := range queue {
 				if ctx.Err() != nil {
-					return
+					mu.Lock()
+					left = append(left, h)
+					mu.Unlock()
+					continue
 				}
 				var both sync.WaitGroup
+				var web bool
 				both.Add(1)
 				go func() {
 					defer both.Done()
 					// A Prusa printer answers PrusaLink on its web port instead.
 					if f, ok := probePrusaHost(ctx, client, h); ok {
+						web = true
 						add(f)
 					}
 				}()
-				if f, ok := probeMoonrakerHost(ctx, client, h); ok {
+				f, ok := probeMoonrakerHost(ctx, client, h)
+				if ok {
 					add(f)
 				}
 				both.Wait()
+				if ctx.Err() != nil && !ok && !web {
+					// Cut short: it may not have answered in time, ask it next time.
+					mu.Lock()
+					left = append(left, h)
+					mu.Unlock()
+				}
 			}
 		}()
 	}
 	wg.Wait()
-	return out
+	return out, left
 }
 
 // probeMoonrakerHost says whether Moonraker answers on a host's port 7125.
