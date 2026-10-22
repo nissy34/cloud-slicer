@@ -26,7 +26,7 @@ changes ─┤        ┌─ engine-tests ────────────�
 | `changes` | Decides whether the site needs building (always, except for a bridge- or relay-only pull request) |
 | `unit` | Printer driver tests, web typecheck (app and Functions) and Vitest |
 | `engine` | Builds the wasm engine, or skips the build when an engine built from the same sources is cached, and publishes it (below) |
-| `engine-tests` | Bundles the presets and runs `engine/node/engine.test.mjs` |
+| `engine-tests` | Bundles the presets, runs `engine/node/engine.test.mjs`, and checks that Klipper accepts sliced G-code (`engine/klipper-check/check.sh`, on a U1 stand-in and a Voron) |
 | `site` | Builds the web app with the engine and uploads it as the `web-site` artifact (kept 7 days) |
 | `shared-settings` | Checks `apps/web/src/lib/shared-settings.json` is up to date with both engines' presets |
 | `browser` | One job per group of browser tests in `apps/web/test/` (matrix `suite`), against the built site. The slow Assemble test (`TOOLBAR_PART=assemble`) and phone gestures (`view-touch.mjs`) have jobs of their own |
@@ -122,3 +122,14 @@ A job that fails before starting with "recent account payments have failed or yo
 spending limit needs to be increased" means the account's Actions minutes ran out, not
 a workflow bug. Job logs 404 in that case; the reason is in the check run's
 annotations.
+
+## Real Klipper printers (`.github/workflows/klipper.yml`)
+
+Three pretend printers in Docker (real Klipper and Moonraker on a simulated board,
+`apps/web/test/device/printers`) and `apps/web/test/device-klipper.mjs` driving the Device
+tab against them, directly and through the bridge. It takes about 12 minutes, so it is not
+part of every pull request: it runs every night on `main`, on a pull request labelled
+`real klipper`, on a pull request that changes the pretend printers or that test, and by
+hand (Actions → Real Klipper printers → Run workflow). Its screenshots are the
+`klipper-screenshots` artifact; on failure the printers' Klipper and Moonraker logs are in
+the "Printer logs" step.

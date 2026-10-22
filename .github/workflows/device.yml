@@ -1,7 +1,8 @@
 name: Device
 
 # The Device tab: the bridge agent, the relay Worker and the web screen, tested
-# end to end against pretend printers (apps/web/test/device/mock-printer.mjs).
+# end to end against pretend printers: our own (apps/web/test/device/mock-printer.mjs)
+# Real Klipper on a simulated board runs in klipper.yml (nightly and on demand).
 # Never talks to a real printer.
 #
 # Two relays (when the Cloudflare secrets are set; the token needs Workers
@@ -305,9 +306,9 @@ jobs:
           name: device-screenshots
           path: apps/web/device-shots
 
-  # The Windows app is checked on Windows (starts with sign-in, no window,
-  # removes itself) and the Mac apps are built on macOS, the only place they
-  # can be signed (ad hoc, free). Free runners for a public repo.
+  # The Device tab against the real Klipper and Moonraker: three pretend printers
+  # in Docker (apps/web/test/device/printers), a simulated board, nothing physical.
+  # Catches what our own mock can't: Moonraker or Klipper answering differently.
   apps-windows:
     needs: where
     runs-on: windows-latest
