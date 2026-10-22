@@ -430,6 +430,13 @@ jobs:
             else echo "::warning::The site has no relay ticket key yet; the test relay lets any pairing code in"; fi
           else
             npx wrangler deploy | tee deploy.log
+            # The key the live site really signs tickets and setup-code claims with,
+            # set on every deploy: a relay holding another key turns every bridge away
+            # ("Cloud Slicer's answer couldn't be checked", "Sign in").
+            site_key=$(curl -fsS --retry 3 "$SITE/api/relay/key" | jq -ce 'select(.x and .y)' || true)
+            echo "Ticket key from $SITE: $(printf '%s' "$site_key" | sha256sum | cut -c1-12)"
+            if [ -n "$site_key" ]; then printf '%s' "$site_key" | npx wrangler secret put RELAY_TICKET_PUBLIC_KEY --name "$WORKER"
+            else echo "::warning::Couldn't read the ticket key from $SITE; the live relay keeps the one it has"; fi
           fi
           # Print alerts: the relay's push key, made once and then kept (a new one
           # would make every browser turn alerts on again). Only the relay has it.
