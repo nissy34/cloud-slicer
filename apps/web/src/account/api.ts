@@ -192,6 +192,11 @@ export const api = {
   /** A ticket that lets this account through the bridge relay for one bridge (about an hour). */
   relayTicket: (relay: string, bridgeId: string) =>
     call<{ ticket: string; expiresAt: number }>('/api/relay/ticket', { method: 'POST', body: JSON.stringify({ relay, bridgeId }) }),
+  /** A one-use setup code (one hour) that adds a new bridge to this account. */
+  bridgeSetup: (relay: string) => call<{ code: string; expiresAt: number }>('/api/relay/setup', { method: 'POST', body: JSON.stringify({ relay }) }),
+  /** Whether a bridge has used the setup code yet. */
+  bridgeSetupState: (code: string) =>
+    call<{ state: 'waiting' | 'used' | 'expired'; bridgeId?: string; name?: string }>(`/api/relay/setup/${encodeURIComponent(code)}`),
   /** The bridge was removed: it no longer counts against the account's bridges. */
   forgetBridge: (bridgeId: string) => call<{ ok: true }>(`/api/relay/bridges/${encodeURIComponent(bridgeId)}`, { method: 'DELETE' }),
   /** The project's 3MF and the version it is at. */

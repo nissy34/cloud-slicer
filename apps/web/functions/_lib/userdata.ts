@@ -107,7 +107,7 @@ const str = (v: unknown, field: string, max: number) => {
   if (typeof v !== 'string' || v.length > max) throw new HttpError(400, `${field} must be text up to ${max} characters`);
   return v.trim();
 };
-const keyContext = (userId: string, deviceId: string) => `device-api-key:${userId}:${deviceId}`;
+export const keyContext = (userId: string, deviceId: string) => `device-api-key:${userId}:${deviceId}`;
 
 function encKey(env: Env): string {
   if (!env.ACCOUNT_ENC_KEY) throw new HttpError(503, "Saving printer API keys isn't set up on this site yet");

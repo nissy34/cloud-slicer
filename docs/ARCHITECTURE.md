@@ -289,8 +289,12 @@ Bridge design choices:
   service (systemd, procd or an init script) with its files in `printer_data`, serving
   127.0.0.1:7125. It updates itself, so nothing is added to Moonraker and Moonraker
   never restarts.
-- The bridge asks nothing. It starts with the computer and opens a pairing link;
-  printers and their API keys are added from the Device tab, which can search the
+- Signed in, Add a bridge makes a one-use setup code (one hour) inside one install
+  command per system (PowerShell or Command Prompt on Windows, curl elsewhere). The
+  bridge spends it through the relay, which asks the site (`/api/relay/claim`); the
+  site saves the bridge in that account, and the dialog turns green by itself. A
+  bridge without a valid code never connects to the real relay.
+- After that the bridge asks nothing. It starts with the computer; printers and their API keys are added from the Device tab, which can search the
   bridge's network for Moonraker. When a bridge is offline, the Device tab shows how to
   start it again on that bridge's system.
 - Bridges are saved items of their own (account device with `extra.kind: 'bridge-agent'`,
@@ -298,7 +302,7 @@ Bridge design choices:
   key so they connect alone. Printers saved before this get their bridge record from
   the first printer's key. Removing a running bridge (version 5 on) sends it
   `bridge.uninstall`, and it removes itself from its computer.
-- Pairing links carry a browser key (HMAC of the bridge's secret), never the secret;
+- The account keeps a browser key (HMAC of the bridge's secret), never the secret;
   the relay stores only hashes, rate-limits connects and deploys from main only.
 
 What each part can see and what is still open:

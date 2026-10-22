@@ -7,6 +7,10 @@ compatibility_date = "2025-10-01"
 compatibility_flags = ["nodejs_compat"]
 workers_dev = true
 
+# Where setup codes come from: a bridge spending one is checked there.
+[vars]
+SITE_ORIGIN = "https://slicer.awesomestuff.qzz.io"
+
 [[durable_objects.bindings]]
 name = "BRIDGE"
 class_name = "Bridge"
@@ -34,8 +38,9 @@ simple = { limit = 5, period = 60 }
 binding = "DOWNLOADS"
 bucket_name = "cloud-slicer-bridge"
 
-# The installer for macOS and Linux is served as text at /install.sh.
+# The installers are served as text: /install.sh (macOS, Linux, printers),
+# /install.ps1 (PowerShell) and /install.cmd (Command Prompt).
 [[rules]]
 type = "Text"
-globs = ["**/install.sh"]
+globs = ["**/install.sh", "**/install.ps1", "**/install.cmd"]
 fallthrough = false

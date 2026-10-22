@@ -1,5 +1,9 @@
 import { useEffect, useState, type ReactNode } from 'react';
+import { api } from '../../account/api';
+import { useAccount } from '../../state/account';
+import { useDevice } from '../../state/device';
 import { DEFAULT_RELAY_URL, isTestRelay } from '../config';
+import type { Pairing } from '../pairing';
 
 /** A bridge app the relay has (apps/device-relay: /downloads.json). */
 interface BridgeApp {
@@ -202,6 +206,37 @@ function CopyStep({ command, testId }: { command: string; testId?: string }) {
 type SetupOs = BridgeOs | 'printer';
 const OS_LABEL: Record<SetupOs, string> = { windows: 'Windows PC', mac: 'Mac', linux: 'Raspberry Pi or Linux', printer: 'On the printer' };
 
+/** On the test relay: says so, and what it runs now (PR #113, main). */
+function TestRelayNote({ relay }: { relay: string }) {
+  const [testRuns, setTestRuns] = useState('');
+  useEffect(() => {
+    if (!isTestRelay(relay)) return;
+    let live = true;
+    fetch(`${relay}/v1/info`)
+      .then((r) => (r.ok ? r.json() : {}))
+      .then((d: { test?: string }) => live && setTestRuns(d.test || ''))
+      .catch(() => {});
+    return () => {
+      live = false;
+    };
+  }, [relay]);
+  if (!isTestRelay(relay)) return null;
+  return (
+    <p className="dv-note dv-test-note" data-testid="bridge-test-relay">
+      <span className="dv-test-tag">Test</span> This test site sets up a <b>test bridge</b>
+      {testRuns ? (
+        <>
+          {' '}
+          on the test relay, which runs <b>{testRuns}</b>
+        </>
+      ) : (
+        ' on the test relay'
+      )}
+      . It installs next to your everyday bridge without touching it, and only ever updates from the test relay. Remove it with the same steps, or with Remove bridge.
+    </p>
+  );
+}
+
 /** Copies this page's address, for someone reading it on a phone who sets the bridge up on a computer. */
 function CopyPageLink() {
   const [copied, setCopied] = useState(false);
@@ -240,20 +275,6 @@ export function BridgeSetup({ relay, pasteLink }: { relay: string; pasteLink?: R
       .then((r) => (r.ok ? r.json() : { apps: [] }))
       .then((d: { apps?: BridgeApp[] }) => live && setApps(d.apps ?? []))
       .catch(() => live && setApps([]));
-    return () => {
-      live = false;
-    };
-  }, [relay]);
-
-  // On the test relay: what it runs now (PR #113, main), shown above the steps.
-  const [testRuns, setTestRuns] = useState('');
-  useEffect(() => {
-    if (!isTestRelay(relay)) return;
-    let live = true;
-    fetch(`${relay}/v1/info`)
-      .then((r) => (r.ok ? r.json() : {}))
-      .then((d: { test?: string }) => live && setTestRuns(d.test || ''))
-      .catch(() => {});
     return () => {
       live = false;
     };
@@ -300,20 +321,7 @@ export function BridgeSetup({ relay, pasteLink }: { relay: string; pasteLink?: R
 
   return (
     <div className="dv-bridge-setup">
-      {isTestRelay(relay) && (
-        <p className="dv-note dv-test-note" data-testid="bridge-test-relay">
-          <span className="dv-test-tag">Test</span> This test site sets up a <b>test bridge</b>
-          {testRuns ? (
-            <>
-              {' '}
-              on the test relay, which runs <b>{testRuns}</b>
-            </>
-          ) : (
-            ' on the test relay'
-          )}
-          . It installs next to your everyday bridge without touching it, and only ever updates from the test relay. Remove it with the same steps, or with Remove bridge.
-        </p>
-      )}
+      <TestRelayNote relay={relay} />
       <p>
         Your printer is on your home network, which websites can't reach on their own. A small free app called the <b>bridge</b> connects the two. It runs on the printer
         itself or on a computer in your home that is usually switched on, and you only set it up once.
@@ -458,6 +466,195 @@ export function BridgeSetup({ relay, pasteLink }: { relay: string; pasteLink?: R
           </p>
         </div>
       </details>
+    </div>
+  );
+}
+
+/** The install command for a setup code, for each place a bridge can run. */
+export function setupCommands(relay: string, code: string) {
+  const q = `?code=${encodeURIComponent(code)}`;
+  return {
+    powershell: `irm "${relay}/install.ps1${q}" | iex`,
+    cmd: `curl -fsSL "${relay}/install.cmd${q}" -o "%TEMP%\\cloud-slicer-bridge.cmd" && "%TEMP%\\cloud-slicer-bridge.cmd"`,
+    unix: `curl -fsSL "${relay}/install.sh${q}" | sh`,
+    printer: `curl -fsSL "${relay}/install.sh${q}" | sh -s -- --printer`,
+  };
+}
+
+/** How often the dialog asks whether the bridge has used the setup code. */
+const POLL_MS = 2000;
+
+/**
+ * Setting up a new bridge, signed in: a one-use setup code (one hour) inside
+ * one command per system. The bridge spends the code as it installs, which
+ * saves it to the account; this then calls `onJoined` with its pairing. A
+ * code that runs out is replaced by a new one, with a note saying so.
+ */
+export function AddBridge({ relay, onJoined }: { relay: string; onJoined: (p: Pairing, name: string) => void }) {
+  const [guess] = useBridgeOs();
+  const [os, setOs] = useState<SetupOs>(guess);
+  const [setup, setSetup] = useState<{ code: string; expiresAt: number } | null>(null);
+  const [renewed, setRenewed] = useState(false);
+  const [problem, setProblem] = useState('');
+  const system = guessSystem();
+
+  // A first code, and a new one whenever the last one runs out.
+  useEffect(() => {
+    if (setup) return;
+    let live = true;
+    api.bridgeSetup(relay).then(
+      (s) => live && setSetup(s),
+      (e: Error) => live && setProblem(e.message),
+    );
+    return () => {
+      live = false;
+    };
+  }, [relay, setup]);
+
+  useEffect(() => {
+    if (!setup) return;
+    let live = true;
+    let timer: ReturnType<typeof setTimeout>;
+    const check = async () => {
+      try {
+        const s = Date.now() > setup.expiresAt ? { state: 'expired' as const } : await api.bridgeSetupState(setup.code);
+        if (!live) return;
+        if (s.state === 'used' && s.bridgeId) {
+          const pairing = await useDevice.getState().adoptBridge(s.bridgeId);
+          if (live && pairing) return onJoined(pairing, s.name ?? 'The bridge');
+        }
+        if (s.state === 'expired') {
+          setRenewed(true);
+          return setSetup(null);
+        }
+      } catch {
+        // Offline for a moment: ask again next time.
+      }
+      if (live) timer = setTimeout(() => void check(), POLL_MS);
+    };
+    timer = setTimeout(() => void check(), POLL_MS);
+    return () => {
+      live = false;
+      clearTimeout(timer);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [setup]);
+
+  if (problem) {
+    return (
+      <p className="dv-alert" role="alert" data-testid="bridge-setup-problem">
+        {problem}
+      </p>
+    );
+  }
+  if (!setup) return <p className="muted">Making a setup code…</p>;
+  const c = setupCommands(relay, setup.code);
+
+  return (
+    <div className="dv-bridge-setup" data-testid="add-bridge">
+      <TestRelayNote relay={relay} />
+      <p>Run the bridge on a computer that stays on at home, on the same network as the printer, or on the printer itself.</p>
+      {system === 'other' && (
+        <p className="dv-note" data-testid="bridge-phone-note">
+          Do this on that computer, not on this phone: copy the command and run it there, or <CopyPageLink /> and open it there.
+        </p>
+      )}
+      {renewed && (
+        <div className="dv-bridge-state failed" role="status" data-testid="setup-code-renewed">
+          <span className="dv-bridge-state-icon" aria-hidden>
+            !
+          </span>
+          <div>
+            <strong>That setup code expired</strong>
+            <span className="muted">A setup code works for one hour. Here is a new one. If you already ran the command, paste this code where it asks; otherwise copy the new command.</span>
+          </div>
+        </div>
+      )}
+      <div className="dv-segmented dv-os-tabs" role="tablist" aria-label="Where the bridge runs">
+        {(['windows', 'mac', 'linux', 'printer'] as const).map((k) => (
+          <button key={k} role="tab" aria-selected={os === k} className={os === k ? 'on' : ''} onClick={() => setOs(k)}>
+            {k === 'printer' ? 'On the printer' : SYSTEM_NAME[k]}
+          </button>
+        ))}
+      </div>
+
+      <div className="dv-setup-commands" data-testid={`setup-${os}`}>
+        {os === 'windows' && (
+          <>
+            <strong>In PowerShell</strong>
+            <CopyCommand command={c.powershell} testId="setup-powershell" />
+            <details className="dv-node-option">
+              <summary>How do I open PowerShell?</summary>
+              <p className="muted">
+                Press the <kbd>Windows</kbd> key, type <b>PowerShell</b> and press <kbd>Enter</kbd>. Paste the line with <kbd>Ctrl</kbd> + <kbd>V</kbd> (or a right-click) and
+                press <kbd>Enter</kbd>.
+              </p>
+            </details>
+            <strong>Or in Command Prompt</strong>
+            <CopyCommand command={c.cmd} testId="setup-cmd" />
+          </>
+        )}
+        {os === 'mac' && (
+          <>
+            <strong>In Terminal</strong>
+            <CopyCommand command={c.unix} testId="setup-unix" />
+            <span className="muted">
+              To open Terminal, press <kbd>⌘ Command</kbd> + <kbd>Space</kbd>, type <b>Terminal</b> and press <kbd>Return</kbd>. If your Mac asks whether the bridge may find
+              devices on your local network, click <b>Allow</b>.
+            </span>
+          </>
+        )}
+        {os === 'linux' && (
+          <>
+            <strong>In a terminal on that computer</strong>
+            <CopyCommand command={c.unix} testId="setup-unix" />
+            <span className="muted">On a Raspberry Pi without a screen, connect to it over SSH first.</span>
+          </>
+        )}
+        {os === 'printer' && (
+          <>
+            <strong>In an SSH window on the printer (Klipper printers)</strong>
+            <CopyCommand command={c.printer} testId="setup-printer" />
+            <span className="muted">
+              Connect first with <code>ssh root@&lt;printer address&gt;</code>; Klipper printers on a Raspberry Pi use the Pi's own user instead of root. Snapmaker U1: turn on{' '}
+              <b>Settings, Maintenance, Root Access</b> on the printer first; the password is <b>snapmaker</b>. Creality K1: the password is <b>creality_2023</b>. On a U1 a
+              firmware update removes the bridge: make a new setup code and run the command again afterwards.
+            </span>
+          </>
+        )}
+        <span className="dv-setup-code">
+          Setup code <code data-testid="setup-code">{setup.code}</code>
+          <button className="dv-link" onClick={() => void navigator.clipboard?.writeText(setup.code)}>
+            Copy
+          </button>
+        </span>
+        <span className="muted">The setup code (also inside the command) works once, for the next hour, and adds the bridge to your account.</span>
+      </div>
+
+      <div className="dv-bridge-state connecting" role="status" data-testid="setup-waiting">
+        <span className="dv-spinner" aria-hidden />
+        <div>
+          <strong>Waiting for your bridge…</strong>
+          <span className="muted">This turns green by itself once the command has run.</span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/** Signed out: bridges belong to an account, so adding one starts with signing in. */
+export function SignInForBridge() {
+  const status = useAccount((s) => s.status);
+  if (status === 'loading') return <p className="muted">Checking your account…</p>;
+  return (
+    <div className="dv-bridge-setup" data-testid="bridge-sign-in">
+      <p>
+        Your printer is on your home network, which websites can't reach on their own. A small free app called the <b>bridge</b> connects the two, and it joins your Cloud
+        Slicer account when you set it up.
+      </p>
+      <button className="primary dv-big" onClick={() => void useAccount.getState().signIn('google')} data-testid="bridge-sign-in-button">
+        Sign in to add a bridge
+      </button>
     </div>
   );
 }

@@ -51,6 +51,7 @@ jobs:
       test: ${{ steps.w.outputs.test }}
       what: ${{ steps.w.outputs.what }}
       build: ${{ steps.w.outputs.build }}
+      site: ${{ steps.w.outputs.site }}
     steps:
       - id: w
         env:
@@ -81,6 +82,14 @@ jobs:
           # One build number for every test app, newer than anything sent before, so
           # test bridges always take the newest one sent (even an older branch).
           echo "build=$(date +%s)" >> "$GITHUB_OUTPUT"
+          # The site the test relay checks setup codes with: the branch's own Pages
+          # preview (it makes the codes for the test relay), or the real site for main.
+          site=https://slicer.awesomestuff.qzz.io
+          if [ "$what" != main ]; then
+            alias=$(printf '%s' "$BRANCH" | tr 'A-Z' 'a-z' | sed -e 's/[^a-z0-9]/-/g' | cut -c1-28 | sed -e 's/-*$//')
+            site="https://$alias.${{ vars.CF_PAGES_PROJECT || 'cloud-slicer' }}.pages.dev"
+          fi
+          echo "site=$site" >> "$GITHUB_OUTPUT"
           echo "### Relays: $targets (test relay: $what)" >> "$GITHUB_STEP_SUMMARY"
 
   test:
@@ -167,14 +176,15 @@ jobs:
           cd ../web
           node test/device/alerts-live.mjs http://127.0.0.1:8796 --app ../device-bridge/dist/linux-x64
 
-      - name: Relay with accounts (tickets, camera cap, blocking) on a local relay
+      - name: Relay with accounts (setup codes, tickets, camera cap, blocking) on a local relay
         working-directory: apps/device-relay
         run: |
           node -e "const k=require('crypto').generateKeyPairSync('ec',{namedCurve:'P-256'});const f=require('fs');f.writeFileSync('$RUNNER_TEMP/pub.json',JSON.stringify(k.publicKey.export({format:'jwk'})));f.writeFileSync('$RUNNER_TEMP/priv.json',JSON.stringify(k.privateKey.export({format:'jwk'})))"
-          npx wrangler dev --port 8798 --ip 127.0.0.1 --persist-to "$RUNNER_TEMP/relay-accounts" --var "RELAY_TICKET_PUBLIC_KEY:$(cat "$RUNNER_TEMP/pub.json")" > wrangler-accounts.log 2>&1 &
+          # The test plays the site on port 8799, to hand out a setup code for its bridge.
+          npx wrangler dev --port 8798 --ip 127.0.0.1 --persist-to "$RUNNER_TEMP/relay-accounts" --var "RELAY_TICKET_PUBLIC_KEY:$(cat "$RUNNER_TEMP/pub.json")" --var "SITE_ORIGIN:http://127.0.0.1:8799" > wrangler-accounts.log 2>&1 &
           for i in $(seq 1 60); do curl -fsS -o /dev/null http://127.0.0.1:8798/ && break; sleep 1; done
           cd ../web
-          RELAY_TICKET_PRIVATE_KEY="$(cat "$RUNNER_TEMP/priv.json")" node test/device/relay-live.mjs http://127.0.0.1:8798 --app ../device-bridge/dist/linux-x64
+          FAKE_SITE_PORT=8799 RELAY_TICKET_PRIVATE_KEY="$(cat "$RUNNER_TEMP/priv.json")" node test/device/relay-live.mjs http://127.0.0.1:8798 --app ../device-bridge/dist/linux-x64
 
       - uses: actions/upload-artifact@v6
         if: always()
@@ -215,7 +225,8 @@ jobs:
           if ($info.ProductName -ne 'Cloud Slicer Bridge') { throw "No version resources in the app" }
       - name: Install starts it in the background and at sign-in; uninstall removes all of it
         run: |
-          "$RUNNER_TEMP/bridge.exe" install --no-browser
+          # A relay that can't be reached: the real one only lets in bridges with a setup code.
+          "$RUNNER_TEMP/bridge.exe" install --no-browser --relay http://127.0.0.1:9
           reg query 'HKCU\Software\Microsoft\Windows\CurrentVersion\Run' //v CloudSlicerBridge
           dir="$LOCALAPPDATA/Cloud Slicer Bridge"
           test -x "$dir/cloud-slicer-bridge.exe"
@@ -228,6 +239,25 @@ jobs:
           if reg query 'HKCU\Software\Microsoft\Windows\CurrentVersion\Run' //v CloudSlicerBridge 2>/dev/null; then echo "Still starts at sign-in"; exit 1; fi
           if [ -e "$dir" ]; then ls -la "$dir"; echo "Files left behind"; exit 1; fi
           if [ -e "$USERPROFILE/.cloud-slicer-bridge.json" ]; then echo "Settings left behind"; exit 1; fi
+      - name: The PowerShell install line finishes (it doesn't wait for the bridge it leaves running)
+        timeout-minutes: 3
+        run: |
+          # The app served from a local "relay"; the bridge itself gets a relay that can't be reached.
+          mkdir -p "$RUNNER_TEMP/site/download" && cp "$RUNNER_TEMP/bridge.exe" "$RUNNER_TEMP/site/download/windows-x64"
+          (cd "$RUNNER_TEMP/site" && python -m http.server 8790 >/dev/null 2>&1 &)
+          for i in $(seq 1 20); do curl -fsS -o /dev/null http://127.0.0.1:8790/download/windows-x64 && break; sleep 1; done
+          sed -e 's#__RELAY_URL__#http://127.0.0.1:8790#' -e 's#__SETUP_CODE__##' \
+            -e "s#@('install', '--no-browser')#@('install', '--no-browser', '--relay', 'http://127.0.0.1:9')#" \
+            apps/device-bridge/install.ps1 > "$RUNNER_TEMP/install.ps1"
+          grep -qF "'--relay', 'http://127.0.0.1:9'" "$RUNNER_TEMP/install.ps1"
+          # Windows PowerShell, as people have it; it must come back on its own.
+          # (It ends with the bridge's own exit status: 0 when it's set up.)
+          rc=0; timeout 90 powershell -NoProfile -ExecutionPolicy Bypass -Command "Get-Content -Raw '$RUNNER_TEMP/install.ps1' | Invoke-Expression; exit "'$LASTEXITCODE' || rc=$?
+          if [ "$rc" = 124 ]; then echo "The PowerShell line never finished"; exit 1; fi
+          if [ "$rc" != 0 ]; then echo "The PowerShell line failed ($rc)"; exit 1; fi
+          for i in $(seq 1 20); do tasklist //FI 'IMAGENAME eq cloud-slicer-bridge.exe' | grep -q cloud-slicer-bridge && break; sleep 1; done
+          tasklist //FI 'IMAGENAME eq cloud-slicer-bridge.exe' | grep cloud-slicer-bridge || { echo "The bridge isn't running after the PowerShell line"; exit 1; }
+          "$LOCALAPPDATA/Cloud Slicer Bridge/cloud-slicer-bridge.exe" uninstall
       - uses: actions/upload-artifact@v6
         with:
           name: bridge-app-windows
@@ -349,6 +379,7 @@ jobs:
         working-directory: apps/device-relay
         env:
           WHAT: ${{ needs.where.outputs.what }}
+          SITE: ${{ needs.where.outputs.site }}
         run: |
           npm ci --no-audit --no-fund
           grep -qx "name = \"$WORKER\"" wrangler.toml
@@ -362,15 +393,23 @@ jobs:
           fi
           if [ "$WORKER" = cloud-slicer-relay-test ]; then
             # The test relay says what it runs; the Device tab shows it.
-            npx wrangler deploy --name "$WORKER" --var "TEST_RELAY:$WHAT" | tee deploy.log
+            npx wrangler deploy --name "$WORKER" --var "TEST_RELAY:$WHAT" --var "SITE_ORIGIN:$SITE" | tee deploy.log
             # The site's ticket key, so signed-in people get in as they do on the live relay.
-            if ! npx wrangler secret list --name "$WORKER" | grep -q '"RELAY_TICKET_PUBLIC_KEY"'; then
-              key=$(curl -fsS -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" \
-                "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/pages/projects/${{ vars.CF_PAGES_PROJECT || 'cloud-slicer' }}" \
-                | jq -r '.result.deployment_configs.production.env_vars.RELAY_TICKET_PUBLIC_KEY.value // empty')
-              if [ -n "$key" ]; then printf '%s' "$key" | npx wrangler secret put RELAY_TICKET_PUBLIC_KEY --name "$WORKER"
-              else echo "::warning::The site has no relay ticket key yet; the test relay lets any pairing code in"; fi
-            fi
+            # The test relay serves the branch previews, so it takes the previews' key
+            # (the production one if previews have none), set on every deploy so it
+            # never lags behind the site's.
+            cfg=$(curl -fsS -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" \
+              "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/pages/projects/${{ vars.CF_PAGES_PROJECT || 'cloud-slicer' }}")
+            prod=$(printf '%s' "$cfg" | jq -r '.result.deployment_configs.production.env_vars.RELAY_TICKET_PUBLIC_KEY.value // empty')
+            prev=$(printf '%s' "$cfg" | jq -r '.result.deployment_configs.preview.env_vars.RELAY_TICKET_PUBLIC_KEY.value // empty')
+            fp() { [ -n "$1" ] && printf '%s' "$1" | sha256sum | cut -c1-12 || echo none; }
+            echo "Ticket keys: production $(fp "$prod"), previews $(fp "$prev")"
+            # Best of all, the key the branch's own site actually signs with.
+            site_key=$(curl -fsS --retry 3 "$SITE/api/relay/key" | jq -ce 'select(.x and .y)' || true)
+            echo "Ticket key from $SITE: $(fp "$site_key")"
+            key=${site_key:-${prev:-$prod}}
+            if [ -n "$key" ]; then printf '%s' "$key" | npx wrangler secret put RELAY_TICKET_PUBLIC_KEY --name "$WORKER"
+            else echo "::warning::The site has no relay ticket key yet; the test relay lets any pairing code in"; fi
           else
             npx wrangler deploy | tee deploy.log
           fi

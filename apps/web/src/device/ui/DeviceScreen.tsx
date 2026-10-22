@@ -30,6 +30,7 @@ export function DeviceScreen() {
   const manageOpen = useDevice((s) => s.manageOpen);
   const bridges = useDevice((s) => s.bridges);
   const toast = useDevice((s) => s.toast);
+  const accountStatus = useAccount((s) => s.status);
   const { select, openEditor, openManage, call, retry } = useDevice.getState();
   const active = printers.find((p) => p.id === activeId);
   const { confirm, dialog } = useConfirm();
@@ -54,6 +55,15 @@ export function DeviceScreen() {
           <button className="primary" onClick={() => void openEditor({ mode: 'add' })} data-testid="add-printer">
             Add a printer
           </button>
+          {accountStatus !== 'unavailable' && (
+            <button
+              className="secondary"
+              onClick={() => (accountStatus === 'signedIn' ? void openEditor({ mode: 'add', newBridge: true }) : void useAccount.getState().signIn('google'))}
+              data-testid="add-bridge-button"
+            >
+              {accountStatus === 'signedIn' ? 'Add a bridge' : 'Sign in to add a bridge'}
+            </button>
+          )}
           {send && <p className="muted">Add your printer first, then send the plate again.</p>}
           {bridges.length > 0 && (
             <button className="dv-link" onClick={() => openManage(true)} data-testid="manage-open">

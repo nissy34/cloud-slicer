@@ -12,7 +12,13 @@
 // of the key pair whose public half the relay has) and the pretend browsers
 // carry tickets, as the site would sign them. Then it also checks a browser
 // without one is refused, the camera cap, and that blocking an account drops it.
+//
+// Such a relay only lets in bridges that joined an account with a setup code.
+// With FAKE_SITE_PORT (the port of the relay's SITE_ORIGIN) this plays the site
+// and the bridge spends a real setup code; without it (the deployed relay) the
+// bridge joins with a claim signed by the test key, as only "ci-" bridges may.
 import { randomBytes } from 'node:crypto';
+import { createServer } from 'node:http';
 import { importJWK, SignJWT } from 'jose';
 import { bridgeConfig, bridgeProgram, browserKey, pairingCode, startBridge } from './go-bridge.mjs';
 import { startMockPrinter } from './mock-printer.mjs';
@@ -22,7 +28,6 @@ if (!/^https?:\/\//.test(relay)) throw new Error('usage: relay-live.mjs <relay u
 const mock = await startMockPrinter();
 const cfg = { relay, bridgeId: `ci-${randomBytes(9).toString('base64url')}`, key: randomBytes(24).toString('base64url'), printers: [{ id: 'u1', name: 'U1-mock', url: mock.url, apiKey: '' }] };
 const app = process.argv.indexOf('--app') > 0 ? process.argv[process.argv.indexOf('--app') + 1] : null;
-const bridge = startBridge(app ?? bridgeProgram(), bridgeConfig(cfg), { log: (m) => console.log(`bridge: ${m}`) });
 /** Every pretend-browser socket, closed at the end so a failure can't keep the process alive. */
 const open = new Set();
 const clientKey = browserKey(cfg.key);
@@ -32,6 +37,32 @@ const sign = (user, claims, seconds = 600) =>
   new SignJWT(claims).setProtectedHeader({ alg: 'ES256' }).setSubject(user).setAudience('cloud-slicer-relay').setIssuedAt().setExpirationTime(`${seconds}s`).sign(signer);
 const mint = (user = 'ci-user', claims = {}) => (signer ? sign(user, { b: cfg.bridgeId, cams: 2, ...claims }) : Promise.resolve(''));
 const ownerTicket = await mint();
+const { accounts } = await (await fetch(`${relay}/v1/info`)).json();
+
+/** The site's side of a setup code (apps/web/functions/_lib/relay.ts claim): this one code, once. */
+const SETUP_CODE = 'CK23-4567';
+let spent = false;
+const site =
+  signer && accounts && process.env.FAKE_SITE_PORT
+    ? createServer(async (req, res) => {
+        let body = '';
+        for await (const chunk of req) body += chunk;
+        const b = JSON.parse(body || '{}');
+        const send = (status, answer) => {
+          res.writeHead(status, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify(answer));
+        };
+        if (req.url !== '/api/relay/claim' || b.code !== SETUP_CODE) return send(404, { error: "That setup code isn't right.", code: 'wrong' });
+        if (spent) return send(410, { error: 'This setup code expired or was already used.', code: 'expired' });
+        spent = true;
+        send(200, { claim: await sign('ci-user', { b: b.bridgeId, claim: true }, 300), name: 'Bridge on CI' });
+      })
+    : null;
+if (site) await new Promise((ok) => site.listen(Number(process.env.FAKE_SITE_PORT), '127.0.0.1', ok));
+const claimAt = (bridgeId, body) =>
+  fetch(`${relay}/v1/bridges/${bridgeId}/claim`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+let bridge = { stop() {} };
+
 const socket = (key, printer, role = 'client', ticket = ownerTicket) =>
   new WebSocket(`${relay.replace(/^http/, 'ws')}/v1/bridges/${cfg.bridgeId}/${role}?key=${key}&printer=${printer}${ticket && role === 'client' ? `&ticket=${ticket}` : ''}`);
 /** One call through a fresh socket; resolves to the answer message. */
@@ -54,6 +85,30 @@ const timeout = setTimeout(() => {
 }, 90_000);
 
 try {
+  if (signer && accounts) {
+    // Not set up with a code: the relay turns the bridge away.
+    const unclaimed = await closeCode(new WebSocket(`${relay.replace(/^http/, 'ws')}/v1/bridges/ci-${randomBytes(9).toString('base64url')}/agent?key=${cfg.key}`));
+    if (unclaimed.code !== 4003) throw new Error(`a bridge without a setup code connected (${unclaimed.code})`);
+    console.log(`a bridge without a setup code is refused: ${unclaimed.reason}`);
+    if (site) {
+      const wrong = await claimAt(cfg.bridgeId, { key: cfg.key, code: 'ZZZZ-ZZZZ' });
+      if (wrong.status !== 404 || (await wrong.json()).code !== 'wrong') throw new Error(`a wrong setup code: HTTP ${wrong.status}`);
+      const ok = await claimAt(cfg.bridgeId, { key: cfg.key, code: SETUP_CODE.toLowerCase(), host: 'ci' });
+      if (!ok.ok) throw new Error(`setup code: HTTP ${ok.status} ${await ok.text()}`);
+      const again = await claimAt(`ci-${randomBytes(9).toString('base64url')}`, { key: randomBytes(24).toString('base64url'), code: SETUP_CODE });
+      if (again.status !== 410) throw new Error(`a used setup code worked again (${again.status})`);
+      console.log(`the bridge joined with a setup code (${(await ok.json()).name}); a wrong or used code is refused`);
+    } else {
+      const ok = await claimAt(cfg.bridgeId, { key: cfg.key, claim: await sign('ci-user', { b: cfg.bridgeId, claim: true }, 300) });
+      if (!ok.ok) throw new Error(`test claim: HTTP ${ok.status} ${await ok.text()}`);
+      console.log('the bridge joined with a test claim');
+    }
+    // Once joined, nobody can take the bridge id over with another key.
+    const taken = await claimAt(cfg.bridgeId, { key: randomBytes(24).toString('base64url'), claim: await sign('ci-user', { b: cfg.bridgeId, claim: true }, 300) });
+    if (taken.ok) throw new Error('another key took over the bridge');
+  }
+  bridge = startBridge(app ?? bridgeProgram(), bridgeConfig(cfg), { log: (m) => console.log(`bridge: ${m}`) });
+
   // Wait until the agent has claimed the bridge id.
   for (let i = 0; ; i++) {
     const status = await new Promise((resolve) => {
@@ -152,7 +207,6 @@ try {
   console.log(`secret key refused as a browser: ${secretAsBrowser.reason}`);
   console.log(`pairing code format ok (${pairingCode(cfg).length} chars)`);
 
-  const { accounts } = await (await fetch(`${relay}/v1/info`)).json();
   if (signer && !accounts) console.log('this relay takes no tickets (it has no ticket key): skipping the account checks');
   if (signer && accounts) {
     const none = await closeCode(socket(clientKey, 'u1', 'client', ''));
@@ -225,6 +279,7 @@ try {
   clearTimeout(timeout);
   for (const ws of open) ws.close();
   bridge.stop();
+  site?.close();
   await mock.close();
   // Exit even if a socket or timer is still open: CI waits on this step.
   process.exit();
