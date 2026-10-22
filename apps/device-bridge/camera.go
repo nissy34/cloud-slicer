@@ -214,6 +214,7 @@ func sdpOffersH264(sdp string) bool {
 type videoSignal struct {
 	protocol string // camera-streamer, whep or go2rtc
 	url      *url.URL
+	apiKey   string // the printer's API key: its web server may want it, as it does from Fluidd
 }
 
 // videoSources lists where this camera's live video may be asked for, best first, on the printer's own host only.
@@ -223,16 +224,19 @@ func (s *Session) videoSources(p cameraOpenParams) []videoSignal {
 		if raw == "" {
 			return
 		}
-		u, err := s.resolve(raw)
+		addrs, err := s.cameraAddresses(raw)
 		if err != nil {
 			return
 		}
-		for _, o := range out {
-			if o.url.String() == u.String() {
-				return
+	next:
+		for _, u := range addrs {
+			for _, o := range out {
+				if o.url.String() == u.String() {
+					continue next
+				}
 			}
+			out = append(out, videoSignal{protocol, u, s.printer.APIKey})
 		}
-		out = append(out, videoSignal{protocol, u})
 	}
 	switch p.Service {
 	case "webrtc-camerastreamer":
@@ -346,7 +350,7 @@ func askCamera(ctx context.Context, pc *webrtc.PeerConnection, sig videoSignal) 
 			SDP   string `json:"sdp"`
 			Error string `json:"error"`
 		}
-		if err := postJSON(ctx, sig.url, map[string]any{"type": "request", "keepAlive": true}, &offer); err != nil {
+		if err := postJSON(ctx, sig, map[string]any{"type": "request", "keepAlive": true}, &offer); err != nil {
 			return err
 		}
 		if offer.Error != "" || offer.SDP == "" {
@@ -364,7 +368,7 @@ func askCamera(ctx context.Context, pc *webrtc.PeerConnection, sig videoSignal) 
 			return err
 		}
 		<-gathered
-		return postJSON(ctx, sig.url, map[string]any{"type": "answer", "id": offer.ID, "sdp": pc.LocalDescription().SDP}, nil)
+		return postJSON(ctx, sig, map[string]any{"type": "answer", "id": offer.ID, "sdp": pc.LocalDescription().SDP}, nil)
 	}
 	// WHEP and go2rtc: we offer, the camera answers.
 	if _, err := pc.AddTransceiverFromKind(webrtc.RTPCodecTypeVideo, webrtc.RTPTransceiverInit{Direction: webrtc.RTPTransceiverDirectionRecvonly}); err != nil {
@@ -381,6 +385,7 @@ func askCamera(ctx context.Context, pc *webrtc.PeerConnection, sig videoSignal) 
 	<-gathered
 	req, _ := http.NewRequestWithContext(ctx, http.MethodPost, sig.url.String(), strings.NewReader(pc.LocalDescription().SDP))
 	req.Header.Set("Content-Type", "application/sdp")
+	sig.sign(req)
 	res, err := http.DefaultClient.Do(req)
 	if err != nil {
 		return err
@@ -393,10 +398,18 @@ func askCamera(ctx context.Context, pc *webrtc.PeerConnection, sig videoSignal) 
 	return pc.SetRemoteDescription(webrtc.SessionDescription{Type: webrtc.SDPTypeAnswer, SDP: string(body)})
 }
 
-func postJSON(ctx context.Context, u *url.URL, body any, out any) error {
+// sign adds the printer's API key. Video is only ever asked for on the printer's own host.
+func (sig videoSignal) sign(req *http.Request) {
+	if sig.apiKey != "" {
+		req.Header.Set("X-Api-Key", sig.apiKey)
+	}
+}
+
+func postJSON(ctx context.Context, sig videoSignal, body any, out any) error {
 	data, _ := json.Marshal(body)
-	req, _ := http.NewRequestWithContext(ctx, http.MethodPost, u.String(), bytes.NewReader(data))
+	req, _ := http.NewRequestWithContext(ctx, http.MethodPost, sig.url.String(), bytes.NewReader(data))
 	req.Header.Set("Content-Type", "application/json")
+	sig.sign(req)
 	res, err := http.DefaultClient.Do(req)
 	if err != nil {
 		return err

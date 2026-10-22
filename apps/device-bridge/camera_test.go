@@ -199,7 +199,8 @@ func TestVideoSourcesStayOnThePrintersHost(t *testing.T) {
 		p    cameraOpenParams
 		want []string
 	}{
-		{cameraOpenParams{Service: "iframe", StreamURL: "/webcam/player", SnapshotURL: "/webcam/snapshot.jpg"}, []string{"camera-streamer http://10.0.0.5:7125/webcam/webrtc"}},
+		// A relative camera path belongs to the web server Fluidd is served from first, then Moonraker's port.
+		{cameraOpenParams{Service: "iframe", StreamURL: "/webcam/player", SnapshotURL: "/webcam/snapshot.jpg"}, []string{"camera-streamer http://10.0.0.5/webcam/webrtc", "camera-streamer http://10.0.0.5:7125/webcam/webrtc"}},
 		{cameraOpenParams{Service: "webrtc-camerastreamer", StreamURL: "http://10.0.0.5/webcam/webrtc"}, []string{"camera-streamer http://10.0.0.5/webcam/webrtc"}},
 		{cameraOpenParams{Service: "webrtc-mediamtx", StreamURL: "http://10.0.0.5:8889/cam"}, []string{"whep http://10.0.0.5:8889/cam/whep"}},
 		{cameraOpenParams{Service: "webrtc-go2rtc", StreamURL: "http://10.0.0.5:1984/stream.html?src=cam&mode=webrtc"}, []string{"go2rtc http://10.0.0.5:1984/api/webrtc?src=cam"}},
@@ -211,5 +212,68 @@ func TestVideoSourcesStayOnThePrintersHost(t *testing.T) {
 		if got := urls(c.p); !reflect.DeepEqual(got, c.want) {
 			t.Errorf("%+v: got %v, want %v", c.p, got, c.want)
 		}
+	}
+}
+
+func TestVideoSignalsCarryThePrintersKey(t *testing.T) {
+	s := newSession("c1", Printer{ID: "p", Name: "fake", URL: "http://10.0.0.5:7125", APIKey: "k123"}, func(string) {}, func(string) {})
+	sigs := s.videoSources(cameraOpenParams{Service: "iframe", StreamURL: "/screen/", SnapshotURL: "/screen/snapshot"})
+	if len(sigs) == 0 {
+		t.Fatal("no video sources")
+	}
+	for _, sig := range sigs {
+		req, _ := http.NewRequest(http.MethodPost, sig.url.String(), nil)
+		sig.sign(req)
+		if req.Header.Get("X-Api-Key") != "k123" {
+			t.Errorf("%s: asked without the printer's API key", sig.url)
+		}
+	}
+}
+
+// Pictures behind the printer's web server login (paxx12's remote screen, Fluidd's
+// cameras) need the API key on the web server's port too, not only Moonraker's.
+func TestPicturesOnAnotherPortOfThePrinterGetTheKey(t *testing.T) {
+	web := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Header.Get("X-Api-Key") != "k123" {
+			http.Error(w, "login first", http.StatusUnauthorized)
+			return
+		}
+		w.Header().Set("Content-Type", "image/png")
+		_, _ = w.Write(fakePicture)
+	}))
+	defer web.Close()
+	moonraker := httptest.NewServer(http.NotFoundHandler())
+	defer moonraker.Close()
+	s := newSession("c1", Printer{ID: "p", Name: "fake", URL: moonraker.URL, APIKey: "k123"}, func(string) {}, func(string) {})
+	for i := 0; i < 2; i++ {
+		buf, ct, err := s.frame(web.URL + "/screen/snapshot")
+		if err != nil {
+			t.Fatalf("picture %d: %v", i, err)
+		}
+		if ct != "image/png" || !reflect.DeepEqual(buf, fakePicture) {
+			t.Fatalf("picture %d: %s, %d bytes", i, ct, len(buf))
+		}
+	}
+	// Another computer never gets the key.
+	other, _ := http.NewRequest(http.MethodGet, "http://10.9.9.9/x", nil)
+	s.keyFor(other)
+	if other.Header.Get("X-Api-Key") != "" {
+		t.Fatal("the API key went to another computer")
+	}
+}
+
+func TestRelativeCameraPathsTryTheWebServerFirst(t *testing.T) {
+	s := newSession("c1", Printer{ID: "p", Name: "fake", URL: "http://10.0.0.5:7125"}, func(string) {}, func(string) {})
+	got, err := s.cameraAddresses("/screen/snapshot")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var names []string
+	for _, u := range got {
+		names = append(names, u.String())
+	}
+	want := []string{"http://10.0.0.5/screen/snapshot", "http://10.0.0.5:7125/screen/snapshot"}
+	if !reflect.DeepEqual(names, want) {
+		t.Fatalf("got %v, want %v", names, want)
 	}
 }
