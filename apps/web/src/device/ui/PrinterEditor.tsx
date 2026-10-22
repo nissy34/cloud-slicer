@@ -193,34 +193,39 @@ function useBridgeSearch(watch: BridgeWatch | null, searchNow: boolean) {
   // Searches in a row that found nothing.
   const [tries, setTries] = useState(0);
   const [problem, setProblem] = useState('');
+  // The bridge ran out of time with addresses left: asking again carries on there.
+  const [more, setMore] = useState(false);
   const search = async (again = false) => {
     if (!watch) return;
     setSearching(true);
     setProblem('');
     if (!again) setTries(0);
     try {
-      const list = (await watch.manage<{ printers: FoundPrinter[] }>('bridge.discover', {})).printers;
+      const res = await watch.manage<{ printers: FoundPrinter[]; more?: boolean }>('bridge.discover', {});
+      const list = res.printers;
       setFound(list);
+      setMore(!!res.more);
       setTries((t) => (list.length ? 0 : t + 1));
     } catch (e) {
       setProblem((e as Error).message);
+      setMore(false);
     } finally {
       setSearching(false);
     }
   };
-  const keepLooking = found !== null && !found.length && !problem && tries > 0 && tries < AUTO_SEARCHES;
+  const keepLooking = found !== null && !problem && (more || (!found.length && tries > 0 && tries < AUTO_SEARCHES));
   useEffect(() => {
     if (!keepLooking || searching) return;
-    const t = setTimeout(() => void search(true), 3000);
+    const t = setTimeout(() => void search(true), more ? 0 : 3000);
     return () => clearTimeout(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [keepLooking, searching, tries]);
+  }, [keepLooking, searching, tries, more]);
   // A bridge with no printers yet: look straight away.
   useEffect(() => {
     if (searchNow && watch && found === null && !searching) void search();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchNow, watch]);
-  return { found, setFound, searching, looking: searching || keepLooking, tries, problem, search };
+  return { found, setFound, searching, looking: searching || keepLooking, tries, problem, more, search };
 }
 
 /** The heading with Search again, and what the search is doing: looking (with the Allow hint), failed, or found nothing. */
@@ -244,7 +249,7 @@ function SearchStatus({ s, watch, system, title }: { s: ReturnType<typeof useBri
           <span className="dv-spinner" aria-hidden />
           <div>
             <strong>Looking for printers on your network…</strong>
-            <span className="muted">{s.tries > 0 || system === 'darwin' ? allowHint : 'This takes a few seconds.'}</span>
+            <span className="muted">{s.more ? 'Still looking on your other networks.' : s.tries > 0 || system === 'darwin' ? allowHint : 'This takes a few seconds.'}</span>
           </div>
         </div>
       )}
@@ -338,7 +343,7 @@ function BridgePrinters({ watch, onAdded, searchNow, system }: { watch: BridgeWa
   return (
     <div className="dv-bridge-printers" data-testid="bridge-printers">
       <SearchStatus s={s} watch={watch} system={system} title="Printers on your network" />
-      {s.found && s.found.length > 0 && !s.searching && (
+      {s.found && s.found.length > 0 && (!s.searching || s.more) && (
         <ul className="dv-found-list">
           {s.found.map((f) => (
             <FoundRow key={f.url} printer={f} watch={watch} onAdded={(p) => added(p, f.url)} />
