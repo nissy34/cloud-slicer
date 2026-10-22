@@ -296,8 +296,10 @@ jobs:
           for i in 1 2 3; do docker compose pull -q && break; sleep 10; done
           # Once (2026-10-22) no simulated board answered Klipper on the first start; a
           # restart is the same as switching a printer off and on. Logged so it shows.
+          lscpu | grep -E 'Model name|^CPU\(s\)|Hypervisor'
           if ! docker compose up -d --wait; then
             echo "::warning::The pretend printers didn't start; restarting them once"
+            docker stats --no-stream
             for s in one-head two-heads four-heads; do
               docker compose exec -T $s sh -c 'tail -n 15 /printer/printer_data/logs/simulavr-stdout*; grep -m3 -E "Unable|Timeout|MHz|Mhz" /printer/printer_data/logs/klippy.log'
             done
