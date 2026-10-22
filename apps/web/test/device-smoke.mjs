@@ -190,6 +190,19 @@ try {
   console.log('light and bed heater work');
 
   await page.getByTestId('camera-frame').waitFor({ timeout: 20_000 });
+  // The camera comes straight from the bridge (pictures over a direct WebRTC link), not one frame a second over the relay.
+  await page.locator('[data-testid="camera-frame"][data-view="direct-pictures"]').waitFor({ timeout: 20_000 });
+  {
+    const seen = new Set();
+    const t0 = Date.now();
+    while (Date.now() - t0 < 2000) {
+      seen.add(await page.locator('[data-view="direct-pictures"]').getAttribute('src'));
+      await new Promise((r) => setTimeout(r, 50));
+    }
+    // The stock U1's picture file is read at its own gentle 2 a second (addons/u1.ts); the relay's 1 a second would give 2 at most.
+    if (seen.size < 3) throw new Error(`only ${seen.size} camera pictures in 2 s over the direct link`);
+    console.log(`camera comes straight from the bridge: ${seen.size} pictures in 2 s`);
+  }
   // The U1 announces every camera frame as a file change; none of that may
   // turn into G-code list refreshes (that stalled Moonraker on a real U1).
   const before = { ...u1.stats };

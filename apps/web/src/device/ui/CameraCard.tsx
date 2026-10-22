@@ -4,6 +4,7 @@ import { cameraTransform, cameraViews, type CameraView, type Webcam } from '../c
 import type { CameraHints } from '../addons/types';
 import type { PrinterSession } from '../session';
 import { playWebrtc } from '../webrtc';
+import { playDirect, type DirectBridge } from '../direct-camera';
 import { Card } from './parts';
 
 /**
@@ -159,15 +160,26 @@ function CameraTile({ cam, session, active, labelled }: { cam: Webcam; session: 
   // Streams load straight in the browser, so their addresses resolve against the printer here.
   const views = cameraViews(cam, viaBridge).flatMap((v): CameraView[] => {
     if (v.kind === 'snapshots') return [v];
+    if (v.kind === 'direct') return directBridge(session) && typeof RTCPeerConnection !== 'undefined' ? [v] : [];
     if (v.kind === 'iframe' && !IFRAMES_ALLOWED) return [];
     const url = session.link.mediaUrl(v.url);
     return url ? [{ ...v, url }] : [];
   });
   const [index, setIndex] = useState(0);
+  const [note, setNote] = useState('');
   // A new camera list starts again from the best view.
-  useEffect(() => setIndex(0), [cam, viaBridge]);
+  useEffect(() => {
+    setIndex(0);
+    setNote('');
+  }, [cam, viaBridge]);
   const view = views[index];
-  const next = () => setIndex((i) => i + 1);
+  const next = (why?: string) => {
+    if (view?.kind === 'direct')
+      setNote(
+        why && /Unknown bridge call/.test(why) ? 'Slow camera: update the bridge for a smooth one.' : 'Slow camera: your network blocks a direct connection.',
+      );
+    setIndex((i) => i + 1);
+  };
   const transform = cameraTransform(cam);
 
   return (
@@ -180,18 +192,31 @@ function CameraTile({ cam, session, active, labelled }: { cam: Webcam; session: 
         <ViewFor key={`${index}`} view={view} session={session} transform={transform} onFail={next} />
       )}
       {labelled && <figcaption>{cam.name}</figcaption>}
+      {active && note && view?.kind === 'snapshots' && (
+        <span className="dv-camera-note" data-testid="camera-note">
+          {note}
+        </span>
+      )}
     </figure>
   );
 }
 
-function ViewFor({ view, session, transform, onFail }: { view: CameraView; session: PrinterSession; transform: string; onFail(): void }) {
+/** The bridge link's direct camera calls, or null on a link that has none. */
+function directBridge(session: PrinterSession): DirectBridge | null {
+  const link = session.link;
+  if (!link.cameraOpen || !link.cameraClose) return null;
+  return { cameraOpen: (c, sdp) => link.cameraOpen!(c, sdp), cameraClose: (id) => link.cameraClose!(id) };
+}
+
+function ViewFor({ view, session, transform, onFail }: { view: CameraView; session: PrinterSession; transform: string; onFail(why?: string): void }) {
   const style = transform ? { transform } : undefined;
   if (view.kind === 'snapshots') return <SnapshotView url={view.url} fps={view.fps} session={session} style={style} />;
+  if (view.kind === 'direct') return <DirectView view={view} session={session} style={style} onFail={onFail} />;
   const url = view.url;
   // This page is cross-origin isolated (the engine needs it), so a camera on
   // another origin only loads in CORS mode, or in a credentialless iframe.
   if (view.kind === 'mjpeg')
-    return <img src={url} crossOrigin="anonymous" alt="Printer camera" style={style} onError={onFail} data-testid="camera-frame" data-view="mjpeg" />;
+    return <img src={url} crossOrigin="anonymous" alt="Printer camera" style={style} onError={() => onFail()} data-testid="camera-frame" data-view="mjpeg" />;
   if (view.kind === 'iframe')
     return (
       <iframe
@@ -227,6 +252,65 @@ function WebrtcView({ protocol, url, style, onFail }: { protocol: Parameters<typ
     };
   }, [protocol, url]);
   return <video ref={video} autoPlay muted playsInline style={style} data-testid="camera-frame" data-view="webrtc" />;
+}
+
+/**
+ * The camera straight from the bridge: live video, or pictures as fast as the
+ * camera makes them. Falls back (onFail) when the link can't be made or drops.
+ */
+function DirectView({
+  view,
+  session,
+  style,
+  onFail,
+}: {
+  view: Extract<CameraView, { kind: 'direct' }>;
+  session: PrinterSession;
+  style?: CSSProperties;
+  onFail(why?: string): void;
+}) {
+  const video = useRef<HTMLVideoElement>(null);
+  const fail = useRef(onFail);
+  fail.current = onFail;
+  const [mode, setMode] = useState<'video' | 'pictures' | null>(null);
+  const [frame, setFrame] = useState<string | null>(null);
+  useEffect(() => {
+    const bridge = directBridge(session);
+    if (!video.current || !bridge) return;
+    let cancelled = false;
+    let stop: (() => void) | null = null;
+    let shown: string | null = null;
+    playDirect(bridge, view.camera, {
+      video: video.current,
+      picture: (blob) => {
+        if (cancelled) return;
+        const next = URL.createObjectURL(blob);
+        if (shown) URL.revokeObjectURL(shown);
+        shown = next;
+        setFrame(next);
+        setMode('pictures');
+      },
+      onLost: () => !cancelled && fail.current('lost'),
+    })
+      .then((p) => {
+        if (cancelled) return p.stop();
+        stop = p.stop;
+        setMode(p.mode);
+      })
+      .catch((e: Error) => !cancelled && fail.current(e.message));
+    return () => {
+      cancelled = true;
+      stop?.();
+      if (shown) URL.revokeObjectURL(shown);
+    };
+  }, [view, session]);
+  return (
+    <>
+      <video ref={video} autoPlay muted playsInline style={style} hidden={mode !== 'video'} data-testid={mode === 'video' ? 'camera-frame' : undefined} data-view="direct-video" />
+      {mode === 'pictures' && frame && <img src={frame} alt="Printer camera" style={style} data-testid="camera-frame" data-view="direct-pictures" />}
+      {!mode && <span className="muted">Connecting to the camera…</span>}
+    </>
+  );
 }
 
 /**

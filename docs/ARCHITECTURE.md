@@ -269,11 +269,15 @@ Moonraker is reached one of two ways (`src/device/link/`):
   per bridge), so no router ports are opened. Messages are Moonraker's own JSON-RPC,
   plus a few `bridge.*` calls the bridge answers itself (uploads, snapshots, discovery,
   adding and removing printers). Status is merged and sent at most once a second, and
-  only while a browser is watching, to stay inside the free tier.
+  only while a browser is watching, to stay inside the free tier. Cameras don't use
+  the relay for their pictures: one `bridge.camera_open` swaps a WebRTC offer and
+  answer, then live video (or pictures, for cameras without video) flows straight
+  from the bridge to the browser (`camera.go`, `src/device/direct-camera.ts`). Only
+  when a network blocks that does the page fall back to one relayed snapshot a second.
 
 Bridge design choices:
 
-- One small Go program (6 to 7 MB, nothing else to install) for Windows, macOS
+- One small Go program (about 10 MB, nothing else to install) for Windows, macOS
   (Apple and Intel), Linux PCs, 64 and 32-bit Raspberry Pis and Armbian boards, and
   MIPS printers such as the Creality K1, with the app icon (a `Cloud Slicer Bridge.app`
   bundle on macOS with no Dock icon, a menu entry on Linux), served by the relay from

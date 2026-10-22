@@ -23,7 +23,17 @@ export type CameraView =
   | { kind: 'mjpeg'; url: string }
   | { kind: 'iframe'; url: string }
   | { kind: 'webrtc'; protocol: WebrtcProtocol; url: string }
-  | { kind: 'snapshots'; url: string; fps: number };
+  | { kind: 'snapshots'; url: string; fps: number }
+  | { kind: 'direct'; camera: DirectCamera };
+
+/** What the bridge needs to send a camera straight to this browser (bridge.camera_open). */
+export interface DirectCamera {
+  service: string;
+  streamUrl: string;
+  snapshotUrl: string;
+  /** Pictures per second, for a camera with no live video of its own. */
+  fps: number;
+}
 
 export type WebrtcProtocol = 'camera-streamer' | 'whep' | 'go2rtc';
 
@@ -31,6 +41,8 @@ export type WebrtcProtocol = 'camera-streamer' | 'whep' | 'go2rtc';
 export const MAX_SNAPSHOT_FPS = 5;
 /** Through the bridge every frame crosses the relay, so slower still. */
 export const BRIDGE_SNAPSHOT_FPS = 1;
+/** Pictures over a direct link from the bridge never touch the relay, so they can come faster. */
+export const DIRECT_PICTURE_FPS = 10;
 
 const num = (v: unknown, fallback: number) => (typeof v === 'number' && Number.isFinite(v) ? v : typeof v === 'string' && v.trim() && Number.isFinite(Number(v)) ? Number(v) : fallback);
 
@@ -80,12 +92,19 @@ export function snapshotView(cam: Pick<Webcam, 'snapshotUrl' | 'targetFps'>, via
 
 /**
  * How to show a camera, best first. The UI tries them in order and moves on
- * when one fails. Through the bridge only snapshots work: the browser cannot
- * reach the printer's network, the bridge only relays single frames.
+ * when one fails. Through the bridge the browser cannot reach the printer's
+ * network: the bridge sends the camera straight to the browser when it can
+ * (live video, or pictures), and relays single frames when it can't.
  */
 export function cameraViews(cam: Webcam, viaBridge: boolean): CameraView[] {
   const snap = snapshotView(cam, viaBridge);
-  if (viaBridge) return snap ? [snap] : [];
+  if (viaBridge) {
+    const views: CameraView[] = [];
+    if (cam.snapshotUrl || cam.streamUrl)
+      views.push({ kind: 'direct', camera: { service: cam.service, streamUrl: cam.streamUrl, snapshotUrl: cam.snapshotUrl, fps: Math.min(DIRECT_PICTURE_FPS, cam.targetFps) } });
+    if (snap) views.push(snap);
+    return views;
+  }
   const views: CameraView[] = [];
   const stream = cam.streamUrl;
   switch (cam.service) {

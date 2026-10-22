@@ -52,12 +52,15 @@ type Session struct {
 	pending map[string]any
 	timer   *time.Timer
 	uploads map[string]*upload
+	cameras map[string]*directCamera
 	closed  bool
+	// log is for details only a developer needs (may be nil).
+	log func(string)
 }
 
 func newSession(id string, p Printer, send func(string), drop func(string)) *Session {
 	ctx, cancel := context.WithCancel(context.Background())
-	return &Session{id: id, printer: p, send: send, drop: drop, ctx: ctx, cancel: cancel, uploads: map[string]*upload{}}
+	return &Session{id: id, printer: p, send: send, drop: drop, ctx: ctx, cancel: cancel, uploads: map[string]*upload{}, cameras: map[string]*directCamera{}}
 }
 
 // open connects to the printer's Moonraker websocket, then passes its messages on until either end closes.
@@ -304,14 +307,33 @@ func (s *Session) local(msg rpc) (any, error) {
 		}
 		_ = json.Unmarshal(msg.Params, &p)
 		return s.uploadEnd(p.UploadID)
+	case "bridge.camera_open":
+		var p cameraOpenParams
+		_ = json.Unmarshal(msg.Params, &p)
+		return s.cameraOpen(p)
+	case "bridge.camera_close":
+		var p struct {
+			ID string `json:"id"`
+		}
+		_ = json.Unmarshal(msg.Params, &p)
+		return s.cameraClose(p.ID)
 	}
 	return nil, errors.New("Unknown bridge call " + msg.Method)
 }
 
 func (s *Session) snapshot(raw string) (any, error) {
-	first, err := s.resolve(raw)
+	buf, ct, err := s.frame(raw)
 	if err != nil {
 		return nil, err
+	}
+	return map[string]any{"contentType": ct, "data": base64.StdEncoding.EncodeToString(buf)}, nil
+}
+
+// frame is one camera picture from the printer's own host.
+func (s *Session) frame(raw string) ([]byte, string, error) {
+	first, err := s.resolve(raw)
+	if err != nil {
+		return nil, "", err
 	}
 	tries := []*url.URL{first}
 	if ref, err := url.Parse(raw); err == nil && !ref.IsAbs() {
@@ -322,43 +344,43 @@ func (s *Session) snapshot(raw string) (any, error) {
 	}
 	var last error
 	for _, u := range tries {
-		result, err := s.fetchFrame(u)
+		buf, ct, err := s.fetchBytes(u)
 		if err == nil {
-			return result, nil
+			return buf, ct, nil
 		}
 		last = err
 	}
-	return nil, last
+	return nil, "", last
 }
 
-func (s *Session) fetchFrame(u *url.URL) (any, error) {
+func (s *Session) fetchBytes(u *url.URL) ([]byte, string, error) {
 	ctx, cancel := context.WithTimeout(s.ctx, 5*time.Second)
 	defer cancel()
 	req, _ := http.NewRequestWithContext(ctx, http.MethodGet, u.String(), nil)
 	s.keyFor(req)
 	res, err := http.DefaultClient.Do(req)
 	if err != nil {
-		return nil, err
+		return nil, "", err
 	}
 	defer res.Body.Close()
 	if res.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("Camera answered HTTP %d", res.StatusCode)
+		return nil, "", fmt.Errorf("Camera answered HTTP %d", res.StatusCode)
 	}
 	buf, err := io.ReadAll(io.LimitReader(res.Body, maxFrame+1))
 	if err != nil {
-		return nil, err
+		return nil, "", err
 	}
 	if len(buf) == 0 {
-		return nil, errors.New("Empty frame")
+		return nil, "", errors.New("Empty frame")
 	}
 	if len(buf) > maxFrame {
-		return nil, errors.New("Camera frame too large to relay")
+		return nil, "", errors.New("Camera frame too large to relay")
 	}
 	ct := res.Header.Get("Content-Type")
 	if ct == "" {
 		ct = "image/jpeg"
 	}
-	return map[string]any{"contentType": ct, "data": base64.StdEncoding.EncodeToString(buf)}, nil
+	return buf, ct, nil
 }
 
 func (s *Session) close() {
@@ -374,7 +396,12 @@ func (s *Session) close() {
 	ws := s.ws
 	ups := s.uploads
 	s.uploads = map[string]*upload{}
+	cams := s.cameras
+	s.cameras = map[string]*directCamera{}
 	s.mu.Unlock()
+	for _, c := range cams {
+		c.close()
+	}
 	for _, up := range ups {
 		up.abort(errors.New("The browser went away."))
 	}

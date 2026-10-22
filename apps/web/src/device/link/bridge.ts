@@ -3,7 +3,8 @@
 // computer next to the printer, which pipes it to the printer's Moonraker.
 // The relay is a dumb pipe, so this speaks plain Moonraker JSON-RPC; upload
 // and camera frames become bridge.* calls the agent answers itself.
-import { LinkError, type BridgeStatus, type LinkHandlers, type PrinterLink, type RpcMessage } from './types';
+import type { DirectCamera } from '../camera';
+import { LinkError, type BridgeStatus, type DirectAnswer, type LinkHandlers, type PrinterLink, type RpcMessage } from './types';
 
 /** Chunk size for uploads: well under the relay's 1 MiB message limit once base64-encoded. */
 export const UPLOAD_CHUNK = 512 * 1024;
@@ -205,5 +206,14 @@ export class BridgeLink implements PrinterLink {
   async snapshot(url: string): Promise<Blob> {
     const r = await this.call<{ contentType: string; data: string }>('bridge.snapshot', { url }, 8000);
     return new Blob([fromBase64(r.data) as BlobPart], { type: r.contentType || 'image/jpeg' });
+  }
+
+  cameraOpen(camera: DirectCamera, sdp: string): Promise<DirectAnswer> {
+    // The bridge first tries the camera's own live video, which can take a few seconds.
+    return this.call<DirectAnswer>('bridge.camera_open', { ...camera, sdp }, 15_000);
+  }
+
+  cameraClose(id: string) {
+    this.call('bridge.camera_close', { id }, 5000).catch(() => {});
   }
 }
