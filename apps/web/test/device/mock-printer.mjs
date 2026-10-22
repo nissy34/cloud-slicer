@@ -190,7 +190,7 @@ export async function startMockPrinter({ port = 0, host = '127.0.0.1', generic =
 
   const setArr = (arr, i, v) => arr.map((x, j) => (j === i ? v : x));
   const param = (line, key) => {
-    const m = new RegExp(`${key}=('([^']*)'|"([^"]*)"|(\\S+))`, 'i').exec(line);
+    const m = new RegExp(`(?:^|\\s)${key}=('([^']*)'|"([^"]*)"|(\\S+))`, 'i').exec(line);
     return m ? (m[2] ?? m[3] ?? m[4]) : undefined;
   };
 
