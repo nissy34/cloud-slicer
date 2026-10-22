@@ -42,7 +42,7 @@ const version = "6"
 
 // Set at build time (-ldflags -X) to the relay and site the bridge belongs to.
 var (
-	defaultRelay = "https://cloud-slicer-relay.nissy34.workers.dev"
+	defaultRelay = "https://cloud-slicer-relay.awesomestuff.qzz.io"
 	defaultSite  = "https://slicer.awesomestuff.qzz.io"
 	// flavor is "test" for builds served by the test relay (see namesFor).
 	flavor = ""

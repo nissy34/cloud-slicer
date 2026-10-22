@@ -71,6 +71,12 @@ export interface Env extends PushEnv {
    * so they install next to the real bridge.
    */
   TEST_RELAY?: string;
+  /**
+   * The relay's own address (wrangler.toml; the test relay's from device.yml).
+   * It also answers on its first workers.dev address, which keeps working, but
+   * install lines, bridges and alert pictures are given this one.
+   */
+  RELAY_ORIGIN?: string;
 }
 
 /** Bridge apps: download name -> the file name people get. Stored in R2 as bridge/<name>. */
@@ -170,6 +176,9 @@ const clientIp = (req: Request) => req.headers.get('CF-Connecting-IP') ?? 'unkno
 
 /** The site's address from the relay's settings, without a trailing slash. */
 const siteOrigin = (env: Env) => new URL(env.SITE_ORIGIN!).origin;
+/** Where people and bridges should reach this relay: its own address when asked on the workers.dev one. */
+export const relayOrigin = (url: URL, env: Env) =>
+  env.RELAY_ORIGIN && url.hostname.endsWith('.workers.dev') ? new URL(env.RELAY_ORIGIN).origin : url.origin;
 
 /** Constant-time comparison of two hex digests. */
 function same(a: string, b: string) {
@@ -186,7 +195,7 @@ export default {
     if (script) {
       // The setup code rides in the link (?code=), so one command does it all.
       const code = (url.searchParams.get('code') ?? '').toUpperCase();
-      const text = script.replaceAll('__RELAY_URL__', url.origin).replaceAll('__SETUP_CODE__', SETUP_CODE.test(code) ? code : '')
+      const text = script.replaceAll('__RELAY_URL__', relayOrigin(url, env)).replaceAll('__SETUP_CODE__', SETUP_CODE.test(code) ? code : '')
         .replaceAll('__BRIDGE_NAME__', env.TEST_RELAY ? 'cloud-slicer-bridge-test' : 'cloud-slicer-bridge');
       const type = url.pathname.endsWith('.sh') ? 'text/x-shellscript' : 'text/plain';
       // Command Prompt runs batch files with Windows line ends only.
@@ -269,7 +278,7 @@ export default {
       const headers = new Headers(req.headers);
       headers.delete('X-Relay-Ticket');
       // Where alert pictures are served from, and which bridge this is (alerts name it, to open the right printer).
-      headers.set('X-Relay-Origin', url.origin);
+      headers.set('X-Relay-Origin', relayOrigin(url, env));
       headers.set('X-Bridge-Id', m[1]);
       if (m[2] === 'client' && env.RELAY_TICKET_PUBLIC_KEY) {
         const t = await readTicket(env, url.searchParams.get('ticket') ?? '', m[1]);
@@ -330,7 +339,7 @@ async function claimBridge(req: Request, env: Env, bridgeId: string): Promise<Re
     site = await fetch(`${siteOrigin(env)}/api/relay/claim`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ code, relay: new URL(req.url).origin, bridgeId, browserKey: browser, host: body.host, system: body.system, place: body.place }),
+      body: JSON.stringify({ code, relay: relayOrigin(new URL(req.url), env), bridgeId, browserKey: browser, host: body.host, system: body.system, place: body.place }),
     });
   } catch {
     return fail(502, "Couldn't reach Cloud Slicer to check the setup code. Try again in a minute.");
@@ -377,7 +386,7 @@ async function releaseBridge(req: Request, env: Env, bridgeId: string): Promise<
       const site = await fetch(`${siteOrigin(env)}/api/relay/release`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ relay: new URL(req.url).origin, bridgeId, browserKey: await browserKey(key), owner }),
+        body: JSON.stringify({ relay: relayOrigin(new URL(req.url), env), bridgeId, browserKey: await browserKey(key), owner }),
       });
       account = site.ok;
     } catch {
