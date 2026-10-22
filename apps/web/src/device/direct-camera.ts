@@ -17,6 +17,7 @@ export interface DirectBridge {
 
 export interface DirectPlayer {
   mode: 'video' | 'pictures';
+  why?: string;
   stop(): void;
 }
 
@@ -93,7 +94,7 @@ export async function playDirect(
     id = answer.id;
     await pc.setRemoteDescription({ type: 'answer', sdp: answer.sdp });
     await first;
-    return { mode: answer.mode, stop };
+    return { mode: answer.mode, why: answer.why, stop };
   } catch (e) {
     stop();
     throw e;

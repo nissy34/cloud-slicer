@@ -94,14 +94,21 @@ func (s *Session) cameraOpen(p cameraOpenParams) (any, error) {
 
 	// The camera's own live video, when it has one and the browser can play it.
 	var source *webrtc.TrackRemote
+	// why says, in plain words, why pictures come instead of video.
+	why := "This browser can't play the camera's live video."
 	if sdpOffersH264(p.SDP) {
-		for _, sig := range s.videoSources(p) {
+		sources := s.videoSources(p)
+		why = "The bridge found no live video on this camera."
+		if len(sources) > 0 {
+			why = "The camera's live video didn't answer."
+		}
+		for _, sig := range sources {
 			up, track, err := connectSource(ctx, sig)
 			if err == nil {
 				cam.upstream, source = up, track
 				break
 			}
-			s.debug("camera video from " + sig.url.String() + ": " + err.Error())
+			s.debug("Camera video from " + sig.url.String() + ": " + err.Error())
 		}
 	}
 
@@ -182,7 +189,11 @@ func (s *Session) cameraOpen(p cameraOpenParams) (any, error) {
 		case <-ctx.Done():
 		}
 	}()
-	return map[string]any{"id": cam.id, "mode": mode, "sdp": pc.LocalDescription().SDP}, nil
+	out := map[string]any{"id": cam.id, "mode": mode, "sdp": pc.LocalDescription().SDP}
+	if mode == "pictures" {
+		out["why"] = why
+	}
+	return out, nil
 }
 
 func (s *Session) cameraClose(id string) (any, error) {
@@ -227,12 +238,22 @@ func (s *Session) videoSources(p cameraOpenParams) []videoSignal {
 		if err != nil {
 			return
 		}
-		for _, o := range out {
-			if o.url.String() == u.String() {
-				return
+		tries := []*url.URL{u}
+		if ref, err := url.Parse(raw); err == nil && !ref.IsAbs() {
+			// A relative camera path may belong to the web server on port 80 instead of Moonraker's port.
+			if web, err := s.resolve((&url.URL{Scheme: "http", Host: u.Hostname()}).ResolveReference(ref).String()); err == nil {
+				tries = append(tries, web)
 			}
 		}
-		out = append(out, videoSignal{protocol, u})
+	next:
+		for _, t := range tries {
+			for _, o := range out {
+				if o.url.String() == t.String() {
+					continue next
+				}
+			}
+			out = append(out, videoSignal{protocol, t})
+		}
 	}
 	switch p.Service {
 	case "webrtc-camerastreamer":
@@ -260,6 +281,11 @@ func (s *Session) videoSources(p cameraOpenParams) []videoSignal {
 			ref.RawQuery, ref.Fragment = "", ""
 			ref.Path = ref.Path[:strings.LastIndex(ref.Path, "/")+1] + "webrtc"
 			add("camera-streamer", ref.String())
+		}
+		if len(out) == 0 {
+			// A camera known only by a picture file (the U1's built-in one):
+			// the paxx12 firmware still serves its live video here.
+			add("camera-streamer", "/webcam/webrtc")
 		}
 	}
 	return out

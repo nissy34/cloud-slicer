@@ -199,13 +199,14 @@ func TestVideoSourcesStayOnThePrintersHost(t *testing.T) {
 		p    cameraOpenParams
 		want []string
 	}{
-		{cameraOpenParams{Service: "iframe", StreamURL: "/webcam/player", SnapshotURL: "/webcam/snapshot.jpg"}, []string{"camera-streamer http://10.0.0.5:7125/webcam/webrtc"}},
+		{cameraOpenParams{Service: "iframe", StreamURL: "/webcam/player", SnapshotURL: "/webcam/snapshot.jpg"}, []string{"camera-streamer http://10.0.0.5:7125/webcam/webrtc", "camera-streamer http://10.0.0.5/webcam/webrtc"}},
 		{cameraOpenParams{Service: "webrtc-camerastreamer", StreamURL: "http://10.0.0.5/webcam/webrtc"}, []string{"camera-streamer http://10.0.0.5/webcam/webrtc"}},
 		{cameraOpenParams{Service: "webrtc-mediamtx", StreamURL: "http://10.0.0.5:8889/cam"}, []string{"whep http://10.0.0.5:8889/cam/whep"}},
 		{cameraOpenParams{Service: "webrtc-go2rtc", StreamURL: "http://10.0.0.5:1984/stream.html?src=cam&mode=webrtc"}, []string{"go2rtc http://10.0.0.5:1984/api/webrtc?src=cam"}},
-		// Another computer is never asked, and the stock U1's picture file has no video next to it.
+		// Another computer is never asked.
 		{cameraOpenParams{Service: "webrtc-camerastreamer", StreamURL: "http://169.254.169.254/webrtc"}, nil},
-		{cameraOpenParams{Service: "mjpegstreamer-adaptive", SnapshotURL: "/server/files/camera/monitor.jpg"}, nil},
+		// The U1's built-in camera is only a picture file: the paxx12 firmware's video is asked for where it usually lives.
+		{cameraOpenParams{Service: "mjpegstreamer-adaptive", SnapshotURL: "/server/files/camera/monitor.jpg"}, []string{"camera-streamer http://10.0.0.5:7125/webcam/webrtc", "camera-streamer http://10.0.0.5/webcam/webrtc"}},
 	}
 	for _, c := range cases {
 		if got := urls(c.p); !reflect.DeepEqual(got, c.want) {

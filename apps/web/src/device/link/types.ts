@@ -64,6 +64,8 @@ export interface DirectAnswer {
   id: string;
   mode: 'video' | 'pictures';
   sdp: string;
+  /** With pictures: why the camera's live video isn't used, in plain words. */
+  why?: string;
 }
 
 export class LinkError extends Error {

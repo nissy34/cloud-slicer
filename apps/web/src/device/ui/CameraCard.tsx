@@ -28,6 +28,33 @@ function usePageVisible() {
 
 const NONE: string[] = [];
 
+/** Counts arrivals and reports how many a second came over the last few seconds. */
+function useRate(): [number, () => void] {
+  const times = useRef<number[]>([]);
+  const [rate, setRate] = useState(0);
+  useEffect(() => {
+    const t = setInterval(() => {
+      const since = Date.now() - 4000;
+      times.current = times.current.filter((x) => x > since);
+      setRate(times.current.length / 4);
+    }, 1000);
+    return () => clearInterval(t);
+  }, []);
+  return [rate, () => void times.current.push(Date.now())];
+}
+
+const perSecond = (n: number) => (n >= 1.5 || n === 0 ? String(Math.round(n)) : n.toFixed(1).replace(/\.0$/, ''));
+
+/** Says which way the camera comes, so it is clear whether the direct link is in use. */
+function Badge({ text, why }: { text: string; why?: string }) {
+  return (
+    <span className="dv-camera-badge" data-testid="camera-badge">
+      {text}
+      {why && <small>{why}</small>}
+    </span>
+  );
+}
+
 const builtinCamera = (hint: CameraHints): Webcam => ({
   id: 'builtin',
   name: hint.name,
@@ -210,7 +237,8 @@ function directBridge(session: PrinterSession): DirectBridge | null {
 
 function ViewFor({ view, session, transform, onFail }: { view: CameraView; session: PrinterSession; transform: string; onFail(why?: string): void }) {
   const style = transform ? { transform } : undefined;
-  if (view.kind === 'snapshots') return <SnapshotView url={view.url} fps={view.fps} session={session} style={style} />;
+  if (view.kind === 'snapshots')
+    return <SnapshotView url={view.url} fps={view.fps} session={session} style={style} viaRelay={session.link.mediaUrl('/') === null} />;
   if (view.kind === 'direct') return <DirectView view={view} session={session} style={style} onFail={onFail} />;
   const url = view.url;
   // This page is cross-origin isolated (the engine needs it), so a camera on
@@ -273,7 +301,11 @@ function DirectView({
   const fail = useRef(onFail);
   fail.current = onFail;
   const [mode, setMode] = useState<'video' | 'pictures' | null>(null);
+  const [why, setWhy] = useState<string | undefined>();
   const [frame, setFrame] = useState<string | null>(null);
+  const [rate, tick] = useRate();
+  const tickRef = useRef(tick);
+  tickRef.current = tick;
   useEffect(() => {
     const bridge = directBridge(session);
     if (!video.current || !bridge) return;
@@ -288,6 +320,7 @@ function DirectView({
         if (shown) URL.revokeObjectURL(shown);
         shown = next;
         setFrame(next);
+        tickRef.current();
         setMode('pictures');
       },
       onLost: () => !cancelled && fail.current('lost'),
@@ -296,6 +329,7 @@ function DirectView({
         if (cancelled) return p.stop();
         stop = p.stop;
         setMode(p.mode);
+        setWhy(p.why);
       })
       .catch((e: Error) => !cancelled && fail.current(e.message));
     return () => {
@@ -309,6 +343,8 @@ function DirectView({
       <video ref={video} autoPlay muted playsInline style={style} hidden={mode !== 'video'} data-testid={mode === 'video' ? 'camera-frame' : undefined} data-view="direct-video" />
       {mode === 'pictures' && frame && <img src={frame} alt="Printer camera" style={style} data-testid="camera-frame" data-view="direct-pictures" />}
       {!mode && <span className="muted">Connecting to the camera…</span>}
+      {mode === 'video' && <Badge text="Direct: live video" />}
+      {mode === 'pictures' && <Badge text={`Direct: ${perSecond(rate)} pictures a second`} why={why} />}
     </>
   );
 }
@@ -318,9 +354,24 @@ function DirectView({
  * so a slow camera or link slows the polling rather than piling requests up.
  * A frame that doesn't decode (caught mid-write) is skipped.
  */
-function SnapshotView({ url, fps, session, style }: { url: string; fps: number; session: PrinterSession; style?: CSSProperties }) {
+function SnapshotView({
+  url,
+  fps,
+  session,
+  style,
+  viaRelay,
+}: {
+  url: string;
+  fps: number;
+  session: PrinterSession;
+  style?: CSSProperties;
+  viaRelay?: boolean;
+}) {
   const [frame, setFrame] = useState<string | null>(null);
   const [failed, setFailed] = useState(false);
+  const [rate, tick] = useRate();
+  const tickRef = useRef(tick);
+  tickRef.current = tick;
 
   useEffect(() => {
     let stopped = false;
@@ -348,6 +399,7 @@ function SnapshotView({ url, fps, session, style }: { url: string; fps: number; 
           shown = next;
           setFrame(next);
           setFailed(false);
+          tickRef.current();
           misses = 0;
         } catch {
           if (++misses >= 3) setFailed(true);
@@ -365,5 +417,10 @@ function SnapshotView({ url, fps, session, style }: { url: string; fps: number; 
   }, [url, fps, session]);
 
   if (failed || !frame) return <span className="muted">{failed ? 'No picture from the camera' : 'Connecting to the camera…'}</span>;
-  return <img src={frame} alt="Printer camera" style={style} data-testid="camera-frame" data-view="snapshots" />;
+  return (
+    <>
+      <img src={frame} alt="Printer camera" style={style} data-testid="camera-frame" data-view="snapshots" />
+      {viaRelay && <Badge text={`Through the relay: ${perSecond(rate)} a second`} />}
+    </>
+  );
 }
