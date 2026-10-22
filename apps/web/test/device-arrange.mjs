@@ -110,6 +110,15 @@ try {
   if (await page.locator('[data-zone="top"]').count()) fail('an empty band across the top should not show outside Arrange');
   if (shots) await page.screenshot({ path: join(shots, 'desktop-default.png') });
 
+  // A folded half-width card shrinks to its title instead of staying as tall as the card beside it.
+  await page.getByTestId('motion-card').getByRole('button', { name: 'Move' }).click();
+  const top = (id) => page.getByTestId(id).evaluate((el) => el.getBoundingClientRect().top);
+  if ((await top('climate-card')) !== (await top('motion-card'))) fail('Move should sit beside Bed and chamber by default');
+  const foldedHeight = await page.getByTestId('motion-card').evaluate((el) => el.getBoundingClientRect().height);
+  if (foldedHeight > 90) fail(`a folded card should be only its title, but it is ${Math.round(foldedHeight)}px tall`);
+  if (shots) await page.screenshot({ path: join(shots, 'desktop-move-folded.png') });
+  await page.getByTestId('motion-card').getByRole('button', { name: 'Move' }).click();
+
   // ---- Arrange ------------------------------------------------------------------------
   await page.getByTestId('arrange-open').click();
   await page.getByTestId('arrange-bar').waitFor();

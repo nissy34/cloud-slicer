@@ -340,7 +340,7 @@ function Slot(props: {
     transform: CSS.Translate.toString(transform),
     transition,
   };
-  const cls = ['dv-slot', half && 'dv-half', hidden && 'dv-slot-hidden', isDragging && 'dv-slot-dragging', camera && `dv-cam-${camera}`].filter(Boolean).join(' ');
+  const cls = ['dv-slot', half && 'dv-half', hidden && 'dv-slot-hidden', folded && 'dv-slot-folded', isDragging && 'dv-slot-dragging', camera && `dv-cam-${camera}`].filter(Boolean).join(' ');
   return (
     <div ref={setNodeRef} style={style} className={cls} data-card={id}>
       {arranging && (
