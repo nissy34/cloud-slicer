@@ -211,6 +211,11 @@ try {
   await card.getByText('only come while Cloud Slicer is open in a tab').waitFor();
   if (await card.getByTestId('alert-pictures').count()) throw new Error('direct printers have no picture switch');
   await turnOn(card);
+  // It starts from the choices saved last (on the bridge printer: progress at 50%), not the defaults, and without "after layer N".
+  await card.getByText('Started with the alerts you chose last time.').waitFor();
+  if (!(await checked('alert-progress')) || (await card.getByRole('button', { name: '50%' }).getAttribute('aria-pressed')) !== 'true') throw new Error('turning alerts on did not start from the last-used choices');
+  if ((await card.getByTestId('alert-layer').inputValue()) !== '') throw new Error('"after layer N" carried over to another printer');
+  console.log('turned on again: started from the last-used choices');
   if (shots) await card.screenshot({ path: join(shots, 'alerts-direct-desktop.png') });
   await page.getByTestId('files-card').locator('li', { hasText: 'calibration_cube.gcode' }).getByRole('button', { name: 'Print…' }).click();
   await page.getByRole('dialog').getByTestId('upload-and-print').click();

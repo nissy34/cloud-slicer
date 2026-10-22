@@ -365,7 +365,10 @@ with; print started, first and third layer, progress at chosen percentages, almo
 (10 minutes left), still printing every few hours, resumed and bed cooled down are
 there to turn on, and "Alert me after layer N" is also in the Print dialog (it lasts
 until that print ends; there it also turns alerts on, and refuses a layer past the
-print's last one). For a printer through a bridge, the bridge watches the
+print's last one). Each device keeps its own choices (a phone may want more than the
+computer on the desk); a device that turns alerts on starts from the choices saved last
+on any device of the account (kept as the account setting `alerts.last`), without
+"after layer N". For a printer through a bridge, the bridge watches the
 print itself (any Klipper printer: Moonraker's print state, layers, bed temperature
 and filament sensors), so alerts come with the browser closed: it sends each event
 to the relay, which sends a Web Push message (encrypted for the browser, signed with
@@ -418,7 +421,7 @@ Browser end to end tests (Playwright's Chromium) run against the built site
 | `test/restart.mjs` | After an engine crash (mid-slice or after), the engine restarts and reopens the project |
 | `test/heavy.mjs` | A model with over a million triangles offers Simplify, which brings it to about half a million |
 | `test/device-smoke.mjs` | Device tab through relay and bridge to a mock U1, and direct to a mock Klipper printer |
-| `test/device-alerts.mjs` | Print alerts: the Alerts card's defaults, a test alert, layer N from the Print dialog, a whole mock print pushed through bridge and relay to a pretend push service (decrypted), the open page alerting for a direct printer, a tapped alert opening its printer, the iPhone Home Screen note |
+| `test/device-alerts.mjs` | Print alerts: the Alerts card's defaults, a test alert, layer N from the Print dialog, a whole mock print pushed through bridge and relay to a pretend push service (decrypted), the open page alerting for a direct printer, turning alerts on again starting from the last-used choices, a tapped alert opening its printer, the iPhone Home Screen note |
 
 CI never talks to a real printer: printer tests use a mock Moonraker. How CI runs all of
 this, its caches and deploys: [docs/CI.md](docs/CI.md).
