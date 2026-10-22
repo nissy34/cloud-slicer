@@ -293,6 +293,7 @@ jobs:
           for s in one-head two-heads four-heads; do
             echo "::group::$s klippy.log"; docker compose exec -T $s tail -n 150 /printer/printer_data/logs/klippy.log; echo "::endgroup::"
             echo "::group::$s moonraker.log"; docker compose exec -T $s tail -n 80 /printer/printer_data/logs/moonraker.log; echo "::endgroup::"
+            echo "::group::$s board and services"; docker compose exec -T $s sh -c 'tail -n 40 /printer/printer_data/logs/simulavr-stdout*; tail -n 40 /printer/printer_data/logs/supervisord.log; ls -l /tmp/pseudoserial; ps aux'; echo "::endgroup::"
           done
 
       - uses: actions/upload-artifact@v6
