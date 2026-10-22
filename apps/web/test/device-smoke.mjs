@@ -506,6 +506,8 @@ try {
 
   // Phone: the camera stays at the top while scrolling and, when not printing, the move controls sit right under it.
   {
+    // The job card screenshot above scrolled the page; measure from the top.
+    await phone.evaluate(() => document.querySelector('.device').scrollTo(0, 0));
     const gap = await phone.evaluate(() => {
       const cam = document.querySelector('[data-testid="camera-card"]').getBoundingClientRect();
       const move = document.querySelector('[data-testid="motion-card"]').getBoundingClientRect();
