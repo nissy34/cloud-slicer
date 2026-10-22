@@ -166,6 +166,13 @@ jobs:
 
       - uses: ./.github/actions/playwright
 
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+      - name: Start the real OctoPrint with its virtual printer (test/device/printers/octoprint; it starts while the other tests run)
+        run: |
+          pip install --quiet OctoPrint==1.11.8
+          nohup apps/web/test/device/printers/octoprint/start.sh "$RUNNER_TEMP/octoprint" 7140 > "$RUNNER_TEMP/octoprint.log" 2>&1 &
       - name: Device end to end (browser -> relay -> bridge -> mock U1, and direct)
         working-directory: apps/web
         timeout-minutes: 15
@@ -198,6 +205,12 @@ jobs:
         env:
           CLOUD_SLICER_BRIDGE_BIN: ${{ github.workspace }}/apps/device-bridge/dist/linux-x64
         run: node test/device-prusa.mjs device-shots
+      - name: A printer run by OctoPrint through the bridge's stand-in (add with API key, temperatures, Move, console, camera, upload, print, pause, cancel, connect again)
+        working-directory: apps/web
+        timeout-minutes: 6
+        env:
+          CLOUD_SLICER_BRIDGE_BIN: ${{ github.workspace }}/apps/device-bridge/dist/linux-x64
+        run: node test/device-octoprint.mjs device-shots || { tail -50 "$RUNNER_TEMP/octoprint.log"; exit 1; }
 
       - name: The Linux bridge serves the mock U1 through a local relay (uploads, refusals, wrong keys)
         working-directory: apps/device-relay

@@ -28,7 +28,8 @@ import (
 	"github.com/coder/websocket"
 )
 
-// The brands the bridge can stand in for, by Printer.Kind ("" is Moonraker itself).
+// The brands the bridge can stand in for, by Printer.Kind ("" is Moonraker itself):
+// kindPrusaLink (prusalink.go), kindOctoPrint (octoprint.go).
 const kindPrusaLink = "prusalink"
 
 // pollEvery: how often a stand-in asks its printer how it is, while someone is watching.
@@ -56,6 +57,33 @@ type brand interface {
 	noun() string
 }
 
+// commander is a brand that takes G-code (in Klipper's words; it says which it doesn't know).
+type commander interface {
+	gcode(ctx context.Context, script string) error
+	emergencyStop(ctx context.Context) error
+	// restart gets the printer going again after it stopped (Klipper's firmware restart).
+	restart(ctx context.Context) error
+}
+
+// camerer is a brand with cameras the bridge can fetch.
+type camerer interface {
+	cameras(ctx context.Context) ([]brandCamera, error)
+	// cameraOpen fetches an address one of its cameras gave.
+	cameraOpen(ctx context.Context, raw string) (*http.Response, error)
+}
+
+// follower is a brand whose printer's replies to G-code can be read as they come.
+type follower interface {
+	follow(ctx context.Context, reply func(line string))
+}
+
+// brandCamera is one camera; its addresses are the printer's own, which the stand-in passes on.
+type brandCamera struct {
+	Name, Stream, Snapshot string
+	FlipH, FlipV           bool
+	Rotation               int
+}
+
 type brandFile struct {
 	Path     string  `json:"path"`
 	Modified float64 `json:"modified"`
@@ -66,6 +94,8 @@ func newBrand(p Printer) (brand, error) {
 	switch p.Kind {
 	case kindPrusaLink:
 		return newPrusaLink(p.URL, p.APIKey), nil
+	case kindOctoPrint:
+		return newOctoPrint(p.URL, p.APIKey), nil
 	}
 	return nil, fmt.Errorf("This bridge doesn't know printers of kind %q: update the bridge.", p.Kind)
 }
@@ -83,6 +113,8 @@ type standIn struct {
 	objects map[string]any
 	polling bool
 	wake    chan struct{}
+	// The cameras server.webcams.list gave last, by number in their stand-in address.
+	cams []brandCamera
 }
 
 type standInClient struct {
@@ -161,6 +193,7 @@ func startStandIn(p Printer) (*standIn, error) {
 	mux.HandleFunc("/printer/info", s.servePrinterInfo)
 	mux.HandleFunc("/server/files/upload", s.serveUpload)
 	mux.HandleFunc("/server/files/gcodes/", s.serveThumbnail)
+	mux.HandleFunc("/camera/", s.serveCamera)
 	s.srv = &http.Server{Handler: mux, ReadHeaderTimeout: 10 * time.Second}
 	go func() { _ = s.srv.Serve(ln) }()
 	return s, nil
@@ -253,6 +286,11 @@ var errNoMethod = errors.New("method not found")
 // client what changed in the objects it subscribed to.
 func (s *standIn) poll() {
 	failed := false
+	if f, ok := s.b.(follower); ok {
+		ctx, stop := context.WithCancel(context.Background())
+		defer stop()
+		go f.follow(ctx, s.reply)
+	}
 	for {
 		select {
 		case <-time.After(s.every):
@@ -308,6 +346,19 @@ func (s *standIn) poll() {
 				c.write(map[string]any{"jsonrpc": "2.0", "method": "notify_status_update", "params": []any{mine, now}})
 			}
 		}
+	}
+}
+
+// reply passes on a line the printer said, like Moonraker's console replies.
+func (s *standIn) reply(line string) {
+	s.mu.Lock()
+	clients := make([]*standInClient, 0, len(s.clients))
+	for c := range s.clients {
+		clients = append(clients, c)
+	}
+	s.mu.Unlock()
+	for _, c := range clients {
+		c.write(map[string]any{"jsonrpc": "2.0", "method": "notify_gcode_response", "params": []any{line}})
 	}
 }
 
@@ -392,6 +443,7 @@ func (s *standIn) call(ctx context.Context, c *standInClient, method string, par
 		Filename string         `json:"filename"`
 		Path     string         `json:"path"`
 		Objects  map[string]any `json:"objects"`
+		Script   string         `json:"script"`
 	}
 	_ = json.Unmarshal(params, &p)
 	done := func(err error) (any, error) {
@@ -457,11 +509,112 @@ func (s *standIn) call(ctx context.Context, c *standInClient, method string, par
 		s.filesChanged("delete_file", path)
 		return map[string]any{"item": map[string]any{"root": "gcodes", "path": path}, "action": "delete_file"}, nil
 	case "server.webcams.list":
-		return map[string]any{"webcams": []any{}}, nil
+		return s.webcams(ctx)
 	case "printer.gcode.script", "printer.emergency_stop", "printer.firmware_restart":
-		return nil, fmt.Errorf("%s don't take commands like this from Cloud Slicer: use the printer's screen.", s.b.noun())
+		cmd, ok := s.b.(commander)
+		if !ok {
+			return nil, fmt.Errorf("%s don't take commands like this from Cloud Slicer: use the printer's screen.", s.b.noun())
+		}
+		switch method {
+		case "printer.gcode.script":
+			return done(cmd.gcode(ctx, p.Script))
+		case "printer.emergency_stop":
+			return done(cmd.emergencyStop(ctx))
+		}
+		return done(cmd.restart(ctx))
 	}
 	return nil, fmt.Errorf("%w: %s", errNoMethod, method)
+}
+
+// webcams lists the printer's cameras the way Moonraker does, at addresses
+// on the stand-in (the bridge only fetches cameras from the printer's own
+// host, which is the stand-in's), which pass them on.
+func (s *standIn) webcams(ctx context.Context) (any, error) {
+	list := []any{}
+	cam, ok := s.b.(camerer)
+	if !ok {
+		return map[string]any{"webcams": list}, nil
+	}
+	cams, err := cam.cameras(ctx)
+	if err != nil {
+		return nil, err
+	}
+	s.mu.Lock()
+	s.cams = cams
+	s.mu.Unlock()
+	for i, c := range cams {
+		at := func(which, raw string) string {
+			if raw == "" {
+				return ""
+			}
+			return fmt.Sprintf("%s/camera/%d/%s", s.url, i, which)
+		}
+		list = append(list, map[string]any{
+			"name": c.Name, "uid": fmt.Sprintf("%s-%d", s.printer.Kind, i), "enabled": true, "service": "mjpegstreamer-adaptive",
+			"stream_url": at("stream", c.Stream), "snapshot_url": at("snapshot", c.Snapshot), "target_fps": 15,
+			"flip_horizontal": c.FlipH, "flip_vertical": c.FlipV, "rotation": c.Rotation, "aspect_ratio": "16:9",
+		})
+	}
+	return map[string]any{"webcams": list}, nil
+}
+
+// serveCamera passes on one camera's stream or picture (/camera/<n>/stream|snapshot).
+func (s *standIn) serveCamera(w http.ResponseWriter, r *http.Request) {
+	parts := strings.Split(strings.TrimPrefix(r.URL.Path, "/camera/"), "/")
+	cam, ok := s.b.(camerer)
+	if !ok || len(parts) != 2 {
+		http.NotFound(w, r)
+		return
+	}
+	i, err := strconv.Atoi(parts[0])
+	s.mu.Lock()
+	cams := s.cams
+	s.mu.Unlock()
+	if cams == nil {
+		if cams, err = cam.cameras(r.Context()); err == nil {
+			s.mu.Lock()
+			s.cams = cams
+			s.mu.Unlock()
+		}
+	}
+	if err != nil || i < 0 || i >= len(cams) {
+		http.NotFound(w, r)
+		return
+	}
+	raw := cams[i].Snapshot
+	if parts[1] == "stream" {
+		raw = cams[i].Stream
+	}
+	if raw == "" {
+		http.NotFound(w, r)
+		return
+	}
+	res, err := cam.cameraOpen(r.Context(), raw)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadGateway)
+		return
+	}
+	defer res.Body.Close()
+	if ct := res.Header.Get("Content-Type"); ct != "" {
+		w.Header().Set("Content-Type", ct)
+	}
+	w.WriteHeader(res.StatusCode)
+	flusher, _ := w.(http.Flusher)
+	buf := make([]byte, 32<<10)
+	for {
+		n, err := res.Body.Read(buf)
+		if n > 0 {
+			if _, werr := w.Write(buf[:n]); werr != nil {
+				return
+			}
+			if flusher != nil {
+				flusher.Flush()
+			}
+		}
+		if err != nil {
+			return
+		}
+	}
 }
 
 // filesChanged tells every client the G-code folder changed, as Moonraker does.
@@ -507,7 +660,11 @@ func (s *standIn) serveUpload(w http.ResponseWriter, r *http.Request) {
 		if part.FormName() != "file" {
 			continue
 		}
+		// The whole path, folders too (FileName keeps only its last part).
 		name := part.FileName()
+		if _, dp, err := mime.ParseMediaType(part.Header.Get("Content-Disposition")); err == nil && dp["filename"] != "" {
+			name = strings.TrimLeft(dp["filename"], "/")
+		}
 		head, tail := multipartParts(params["boundary"], name)
 		size := r.ContentLength - int64(len(head)) - int64(len(tail))
 		if r.ContentLength <= 0 || size < 0 {
@@ -549,17 +706,27 @@ func findPrinter(ctx context.Context, address, key, kind string) (string, string
 			return "", "", "", err
 		}
 		// Not Moonraker: maybe another kind. Its own answer wins only when it is one.
-		if url, name, perr := probePrusaLink(ctx, address, key); perr == nil {
-			return url, name, kindPrusaLink, nil
-		} else if errors.As(perr, new(*probeError)) {
-			return "", "", kindPrusaLink, perr
+		for _, k := range []string{kindPrusaLink, kindOctoPrint} {
+			url, name, perr := probeKind(ctx, k, address, key)
+			if perr == nil {
+				return url, name, k, nil
+			}
+			if errors.As(perr, new(*probeError)) {
+				return "", "", k, perr
+			}
 		}
 		return "", "", "", err
 	}
-	switch kind {
-	case kindPrusaLink:
-		url, name, err := probePrusaLink(ctx, address, key)
+	if kind == kindPrusaLink || kind == kindOctoPrint {
+		url, name, err := probeKind(ctx, kind, address, key)
 		return url, name, kind, err
 	}
 	return "", "", "", fmt.Errorf("This bridge doesn't know printers of kind %q: update the bridge.", kind)
+}
+
+func probeKind(ctx context.Context, kind, address, key string) (string, string, error) {
+	if kind == kindOctoPrint {
+		return probeOctoPrint(ctx, address, key)
+	}
+	return probePrusaLink(ctx, address, key)
 }
