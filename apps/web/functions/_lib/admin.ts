@@ -1,7 +1,7 @@
 // The owner's Admin page (OWNER_EMAILS only):
 //
 //   GET    /api/admin[?quick]               settings, users, invites, free-tier usage (not with ?quick)
-//   PUT    /api/admin/settings              { inviteOnly, storageMb, guestRelay }
+//   PUT    /api/admin/settings              { inviteOnly, storageMb }
 //   POST   /api/admin/users/<id>/<action>   block | unblock | allow | disallow | delete
 //   PUT    /api/admin/users/<id>/storage    { storageMb: number | null }  (null = the site default)
 //   PUT    /api/admin/users/<id>/bridges    { allowed: boolean }
@@ -14,7 +14,7 @@
 import { accessSettings, isOwner, MAX_STORAGE_MB, normalEmail, saveAccessSettings } from './access';
 import { createAuth, requireUser, type SessionUser } from './auth';
 import { HttpError, json, readJson, requireSameOrigin } from './http';
-import { dropGuests, revoke, setBridgeOff } from './relay';
+import { revoke, setBridgeOff } from './relay';
 import type { Env } from './types';
 import { usage } from './usage';
 
@@ -99,14 +99,13 @@ export async function overview(env: Env, request: Request): Promise<Response> {
     d
       .prepare(
         `SELECT b.bridge_id AS id, MAX(b.last_used_at) AS used, group_concat(COALESCE(NULLIF(u.name, ''), u.email), ', ') AS people,
-           i.revoked, i.guest_used_at AS guest
-         FROM (SELECT bridge_id, user_id, last_used_at FROM relay_bridges
-               UNION ALL SELECT bridge_id, NULL, guest_used_at FROM relay_bridge_info WHERE guest_used_at IS NOT NULL) b
+           i.revoked
+         FROM relay_bridges b
          LEFT JOIN "user" u ON u.id = b.user_id
          LEFT JOIN relay_bridge_info i ON i.bridge_id = b.bridge_id
          GROUP BY b.bridge_id ORDER BY used DESC LIMIT 500`,
       )
-      .all<{ id: string; used: number; people: string | null; revoked: number | null; guest: number | null }>()
+      .all<{ id: string; used: number; people: string | null; revoked: number | null }>()
       .catch(() => ({ results: [] })),
   ]);
   return json({
@@ -132,7 +131,7 @@ export async function overview(env: Env, request: Request): Promise<Response> {
       };
     }),
     invites: invites.results.map((i) => ({ email: i.email, addedAt: i.added_at })),
-    bridges: bridges.results.map((b) => ({ id: b.id, lastUsed: b.used, people: b.people ?? '', off: !!b.revoked, guestUsed: b.guest })),
+    bridges: bridges.results.map((b) => ({ id: b.id, lastUsed: b.used, people: b.people ?? '', off: !!b.revoked })),
     usage: use,
   });
 }
@@ -141,19 +140,16 @@ export async function overview(env: Env, request: Request): Promise<Response> {
 export async function putSettings(env: Env, request: Request): Promise<Response> {
   requireSameOrigin(request);
   await requireOwner(env, request);
-  const body = await readJson<{ inviteOnly?: unknown; storageMb?: unknown; guestRelay?: unknown }>(request, 4096);
+  const body = await readJson<{ inviteOnly?: unknown; storageMb?: unknown }>(request, 4096);
   const before = await accessSettings(env);
   const next = {
     inviteOnly: body.inviteOnly === undefined ? before.inviteOnly : body.inviteOnly === true,
     storageMb: body.storageMb === undefined ? before.storageMb : storageMb(body.storageMb),
-    guestRelay: body.guestRelay === undefined ? before.guestRelay : body.guestRelay === true,
   };
   // Turning invite only on keeps everyone who already has an account: they go on the list.
   if (next.inviteOnly && !before.inviteOnly)
     await env.DB!.prepare('INSERT OR IGNORE INTO allowed_emails (email, added_at) SELECT lower(email), ? FROM "user"').bind(Date.now()).run();
   await saveAccessSettings(env, next);
-  // Signed-out people just lost the bridge: the ones connected now go too, not in an hour.
-  if (before.guestRelay && !before.inviteOnly && (!next.guestRelay || next.inviteOnly)) await dropGuests(env);
   return json({ settings: next });
 }
 

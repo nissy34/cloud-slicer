@@ -35,8 +35,7 @@ hibernate, so an idle bridge costs nothing; it runs on the free plan.
   whose owner is blocked is refused.
 - `POST /v1/revoke` (signed by the site): an account was blocked or unblocked; its
   browsers on the listed bridges are closed at once. Orders from the site itself
-  (subject `site`) turn whole bridges off or on (`bridgeOff`) or drop signed-out
-  browsers (`guests`).
+  (subject `site`) turn whole bridges off or on (`bridgeOff`).
 - **Print alerts**, when the Worker has the secret `VAPID_KEY` (an ES256 private
   JWK that CI makes once, `.github/workflows/device.yml`): a browser sends the
   JSON-RPC call `relay.alerts` over its socket (`op` `get`, `set` with its push

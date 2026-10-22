@@ -226,15 +226,10 @@ change the server refuses goes back, with the reason.
   the browser a ticket for each bridge (a short-lived JWT signed with `RELAY_TICKET_KEY`;
   the relay has only the public key) and renews it by itself. Each account can use 3
   bridges and watch 2 cameras at a time through a bridge. Blocking someone drops their
-  relay connections at once. The first account to use a bridge owns it; a bridge that no
-  signed-in browser opens within 7 days of its first connection is turned away, and so is
-  a bridge whose owner is blocked. Bridges set up before this keep working: their 7 days
-  start at their next connection, and opening the Device tab once while signed in ties
-  them to the account. Signed out, bridge printers show a Sign in button; printers
-  reached directly need no account. The Admin switch **Signed-out people can use bridges**
-(off by default, never while invite only) gives signed-out browsers a ticket too, with one
-camera at a time; they have no account, so they can't be blocked, and turning the switch
-off disconnects them at once. The Admin page's **Bridges** list shows every bridge in use
+  relay connections at once. A bridge joins an account with a one-use setup code (Add a
+  bridge) and that account owns it; a bridge without one, or whose owner is blocked, is
+  turned away. Signed out, bridge printers show a Sign in button; printers reached
+  directly need no account. The Admin page's **Bridges** list shows every bridge in use
 and who uses it: **Turn off** closes a bridge for everyone and refuses its bridge app until
 it is turned on again. Each person can also be set to "Bridges: not allowed".
 - Usage: storage, accounts and bridges come from D1. Today's request counts (site and
@@ -326,6 +321,7 @@ command that carries it:
 | Windows | `irm "<relay>/install.ps1?code=<code>" \| iex` in PowerShell, or the `install.cmd` line in Command Prompt |
 | macOS, Linux, Raspberry Pi (64 and 32-bit), Creality K1 (MIPS) | `curl -fsSL "<relay>/install.sh?code=<code>" \| sh` in Terminal |
 | On the printer itself (any Klipper printer) | the same line with `sh -s -- --printer`, over SSH |
+| Or download it (Windows, Mac) | open the app; it asks for the setup code shown next to the download |
 
 The bridge spends the code as it installs and joins that account at once (a bridge
 without a valid code never connects; an expired code makes the command ask for a new
@@ -336,7 +332,11 @@ keys, or any address you type. API keys are only ever entered in the Device tab.
 Bridges are saved on their own, apart from their printers: the Device tab's
 Printers & bridges window lists each bridge with its printers, removes either on
 its own, adds printers to a saved bridge with no pairing again, and removing a
-running bridge makes it uninstall itself from its computer.
+running bridge makes it uninstall itself from its computer. The other way works too:
+on Windows the bridge is in the Start menu and in Settings, Apps, Installed apps
+(Uninstall), on a Mac in Applications; opening it shows whether it is connected and
+which printers it serves, with Remove bridge…, and removing it there also takes it
+out of the account.
 The account keeps a browser key derived from the bridge's secret; the relay stores
 only hashes and rate-limits connects. Using a bridge needs a signed-in account (see
 Admin page and limits). The apps are unsigned (signing costs money),

@@ -27,6 +27,8 @@ type bridgeOptions struct {
 	autoUpdate bool
 	// onConnected runs each time the relay has taken the hello.
 	onConnected func()
+	// onState is told how the relay connection is: "online", "offline" or "refused", and why.
+	onState func(state, reason string)
 }
 
 // Bridge is the connection to the relay and every browser session over it.
@@ -60,6 +62,9 @@ type relayMessage struct {
 func runBridge(cfg *Config, opts bridgeOptions) *Bridge {
 	if opts.log == nil {
 		opts.log = func(string) {}
+	}
+	if opts.onState == nil {
+		opts.onState = func(string, string) {}
 	}
 	if opts.find == nil {
 		opts.find = func(ctx context.Context) []found { return discover(ctx, opts.log) }
@@ -189,10 +194,13 @@ func (b *Bridge) loop() {
 		}
 		delay := time.Duration(math.Min(60_000, 2000*math.Pow(2, math.Min(float64(retries), 5)))) * time.Millisecond
 		retries++
-		// Refused (blocked, or never paired with a signed-in account): asking again soon won't change that.
-		if code == 4003 {
+		// Refused (turned off, blocked, removed, or never set up): asking again soon won't change that.
+		if code == 4003 || code == 4410 {
 			b.opts.log("The relay refused this bridge: " + reason)
+			b.opts.onState("refused", reason)
 			delay = 10 * time.Minute
+		} else {
+			b.opts.onState("offline", reason)
 		}
 		why := ""
 		if reason != "" {
@@ -230,6 +238,7 @@ func (b *Bridge) connectOnce() (code int, reason string, connected bool) {
 	}
 	b.opts.log(fmt.Sprintf("Connected to the relay (%s). Serving: %s", b.cfg.Relay, serving))
 	b.hello()
+	b.opts.onState("online", "")
 	if b.opts.onConnected != nil {
 		b.opts.onConnected()
 	}

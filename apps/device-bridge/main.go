@@ -221,12 +221,24 @@ func run(argv []string, console bool) error {
 		fmt.Printf("To remove it from this computer: %s uninstall\n", commandFor(p.copyTo))
 		printPairing(cfg, opts["site"], opts["no-browser"] == "")
 	case "uninstall":
+		// Also from Windows' Settings, Apps, Installed apps, which asked first.
+		left := leaveAccount(cfg)
 		uninstallBridge(path)
-		fmt.Println("Removed the bridge from this computer: it has stopped, no longer starts with the computer, and its printers and pairing are deleted.")
-		fmt.Println("Remove its printers from the Device tab too (Printers & bridges).")
+		msg := "Removed the bridge from this computer: it has stopped, no longer starts with the computer, and its printers and pairing are deleted."
+		if left {
+			msg = "Removed the bridge from this computer and from your Cloud Slicer account."
+		} else if cfg.Claimed {
+			msg += "\nRemove it from Cloud Slicer too: Device tab, Printers & bridges, Remove bridge."
+		} else {
+			msg += "\nRemove its printers from the Device tab too (Printers & bridges)."
+		}
+		fmt.Println(msg)
+		if !console {
+			showMessage(appName, msg, false)
+		}
 	case "run":
 		if interactive {
-			if done := openedByHand(cfg, opts["site"], console); done {
+			if done := openedByHand(cfg, path, opts["site"], console); done {
 				return nil
 			}
 		}
@@ -241,6 +253,10 @@ func run(argv []string, console bool) error {
 			connected = afterUpdate(installed, log)
 		}
 		stop := make(chan struct{})
+		// What the app shows when opened by hand (status.go).
+		status := newStatusWriter(cfg, path)
+		stopStatus := make(chan struct{})
+		go status.keepWriting(stopStatus)
 		b := runBridge(cfg, bridgeOptions{
 			log:         log,
 			find:        testFind(),
@@ -248,6 +264,7 @@ func run(argv []string, console bool) error {
 			uninstall:   func() { uninstallFromDeviceTab(path) },
 			autoUpdate:  updates,
 			onConnected: connected,
+			onState:     status.set,
 		})
 		sig := make(chan os.Signal, 1)
 		signal.Notify(sig, os.Interrupt, syscall.SIGTERM)
@@ -255,62 +272,12 @@ func run(argv []string, console bool) error {
 		case <-sig:
 		case <-stop:
 		}
+		close(stopStatus)
 		b.stop()
 	default:
 		return fmt.Errorf("Unknown command %s. Commands: add, remove, list, pair, run, install, uninstall, version", cmd)
 	}
 	return nil
-}
-
-// openedByHand sets the bridge up to start with the computer and opens the pairing
-// link, then this copy is done: the background copy does the work. A newly
-// downloaded app opened while an older one is installed replaces it (that's how
-// it updates). It says false when the bridge can't start by itself here, so this
-// copy keeps running instead.
-func openedByHand(cfg *Config, site string, console bool) bool {
-	if err := joinAccount(cfg, "", ""); err != nil {
-		// Opened by hand without a setup code: say where to get one, and set nothing up.
-		msg := err.Error() + "\n\nCopy the command shown there and run it."
-		fmt.Println(msg)
-		if !console {
-			showMessage("Cloud Slicer Bridge", msg, false)
-		}
-		return true
-	}
-	p := autostartPlan(currentEnv())
-	updating := autostartInstalled(p)
-	if updating && samePath(self(), p.copyTo) {
-		fmt.Println("The bridge already runs in the background and starts with this computer.")
-	} else if _, err := installAutostart(); err != nil {
-		fmt.Printf("\nThe bridge can't start by itself on this computer (%v). It runs while this stays open.\n", err)
-		return false
-	} else if updating {
-		fmt.Println("Updated the bridge that runs in the background to this version.")
-	} else {
-		fmt.Printf("\nThe bridge now runs in the background and starts by itself with this computer (from %s).\n", p.copyTo)
-	}
-	if cfg.Claimed {
-		printInstalled(p)
-		if !console {
-			showMessage("Cloud Slicer Bridge", "The bridge is running and is in your Cloud Slicer account. It starts by itself whenever you sign in, with no window.\n\nFind it in Cloud Slicer: Device tab, Printers & bridges.", false)
-		}
-		return true
-	}
-	fmt.Printf("To remove it from this computer: %s uninstall\n", commandFor(p.copyTo))
-	opened := printPairing(cfg, site, true)
-	if !console {
-		showMessage(appName, doneMessage(opened, pairingLink(cfg, site)), false)
-	}
-	return true
-}
-
-// doneMessage is what someone who double-clicked the app reads once it is set up.
-func doneMessage(browserOpened bool, link string) string {
-	text := "The bridge is running in the background. It has no window and starts by itself whenever you sign in to this computer.\n\n"
-	if browserOpened {
-		return text + "Cloud Slicer is opening in your browser: pick your printer there."
-	}
-	return text + "To pick your printer, open this link in your browser:\n" + link
 }
 
 // printInstalled says what the install did, once the bridge is in an account.

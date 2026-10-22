@@ -26,9 +26,12 @@ func startDetached(name string, args ...string) error {
 // stopOtherCopies: systemd and launchd stop and replace the background copy themselves.
 func stopOtherCopies(string) {}
 
-func useParentConsole() bool { return true }
+// useParentConsole says whether there's a terminal (or a script) to write to.
+// A Mac app opened from Finder or Applications has none; it shows windows instead.
+func useParentConsole() bool { return hasConsole() }
 
-func showMessage(string, string, bool) {}
+// showMessage tells someone who opened the Mac app what happened, since it has no window of its own.
+func showMessage(title, text string, isError bool) { guiMessage(title, text, isError) }
 
 // deleteAfterExit is only needed on Windows, where a running program can't be deleted.
 func deleteAfterExit(string) error { return nil }

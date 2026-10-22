@@ -7,14 +7,15 @@
 //   POST /api/relay/setup   { relay } -> { code, expiresAt }   a setup code for adding a bridge
 //   GET  /api/relay/setup/<code>      -> { state, bridgeId?, name? }   has a bridge used it yet?
 //   POST /api/relay/claim   (from the relay, for a bridge spending a setup code) -> { claim, name }
+//   POST /api/relay/release (from the relay, for a bridge removed on its own computer) -> { removed }
 //
 // Each bridge a user connects to is recorded (relay_bridges), which is how
 // the per-user bridge cap and the Admin page's bridge counts work. Blocking a
 // user also tells each relay they used to drop them at once (revoke()).
 import { SignJWT, importJWK, type JWK } from 'jose';
-import { accessSettings, isOwner } from './access';
+import { isOwner } from './access';
 import { currentUser, requireUser } from './auth';
-import { encrypt } from './crypto';
+import { decrypt, encrypt } from './crypto';
 import { HttpError, json, readJson, requireSameOrigin } from './http';
 import type { Env } from './types';
 import { keyContext } from './userdata';
@@ -70,20 +71,7 @@ export async function ticket(env: Env, request: Request): Promise<Response> {
   const info = await d.prepare('SELECT revoked FROM relay_bridge_info WHERE bridge_id = ?').bind(bridgeId).first<{ revoked: number }>().catch(() => null);
   if (info?.revoked) throw new HttpError(403, "The site's owner turned this bridge off.", { code: 'bridge-off' });
   const user = await currentUser(env, request);
-  if (!user) {
-    // Signed out: only when the owner allows it on the Admin page (one camera, no account to block).
-    const s = await accessSettings(env);
-    if (!s.guestRelay || s.inviteOnly) throw new HttpError(401, 'Sign in first');
-    await d
-      .prepare(
-        `INSERT INTO relay_bridge_info (bridge_id, relay, guest_used_at, updated_at) VALUES (?, ?, ?, ?)
-         ON CONFLICT (bridge_id) DO UPDATE SET relay = excluded.relay, guest_used_at = excluded.guest_used_at, updated_at = excluded.updated_at`,
-      )
-      .bind(bridgeId, relay, now, now)
-      .run();
-    const t = await sign(env, { b: bridgeId, cams: 1 }, `guest:${bridgeId}`, TICKET_SECONDS);
-    return json({ ticket: t, expiresAt: now + TICKET_SECONDS * 1000 });
-  }
+  if (!user) throw new HttpError(401, 'Sign in first');
   await mayAddBridge(env, user.id, user.owner, bridgeId);
   await recordBridge(env, user.id, bridgeId, relay, now);
   const t = await sign(env, { b: bridgeId, cams: user.owner ? 8 : MAX_CAMERAS }, user.id, TICKET_SECONDS);
@@ -235,6 +223,39 @@ export async function claim(env: Env, request: Request): Promise<Response> {
 }
 
 /**
+ * POST /api/relay/release { relay, bridgeId, browserKey, owner }
+ * The relay calls this when a bridge was removed on its own computer (its
+ * status window, or Windows' Installed apps). Knowing the bridge's browser key,
+ * which only the bridge and its account have, is the proof; the bridge and its
+ * printers then leave the account, as with Remove bridge in the Device tab.
+ */
+export async function release(env: Env, request: Request): Promise<Response> {
+  if (!env.DB || !env.ACCOUNT_ENC_KEY) throw new HttpError(503, "The printer bridge isn't set up on this site yet");
+  const body = await readJson<Record<string, unknown>>(request, 4096);
+  const bridgeId = String(body.bridgeId ?? '');
+  const browserKey = String(body.browserKey ?? '');
+  const owner = String(body.owner ?? '');
+  if (!BRIDGE_ID.test(bridgeId) || !/^[\w-]{16,128}$/.test(browserKey) || !owner) throw new HttpError(400, 'Bad bridge');
+  const relay = relayOrigin(body.relay);
+  const d = env.DB;
+  const rows = (await d.prepare('SELECT id, extra, api_key_enc FROM devices WHERE user_id = ?').bind(owner).all<{ id: string; extra: string; api_key_enc: string | null }>()).results;
+  const ofBridge = rows.filter((r) => {
+    const x = JSON.parse(r.extra) as { bridgeId?: unknown; relay?: unknown };
+    return x.bridgeId === bridgeId && x.relay === relay;
+  });
+  let proven = false;
+  for (const r of ofBridge) {
+    if ((JSON.parse(r.extra) as { kind?: unknown }).kind !== 'bridge-agent' || !r.api_key_enc) continue;
+    const known = await decrypt(env.ACCOUNT_ENC_KEY, r.api_key_enc, keyContext(owner, r.id)).catch(() => '');
+    if (known && known === browserKey) proven = true;
+  }
+  if (!proven) throw new HttpError(404, 'No such bridge in that account');
+  for (const r of ofBridge) await d.prepare('DELETE FROM devices WHERE user_id = ? AND id = ?').bind(owner, r.id).run();
+  await d.prepare('DELETE FROM relay_bridges WHERE user_id = ? AND bridge_id = ?').bind(owner, bridgeId).run();
+  return json({ removed: ofBridge.length });
+}
+
+/**
  * GET /api/relay/key -> the public half of the key this site signs tickets and
  * setup-code claims with, so a relay can be given exactly the key that checks them
  * (CI gives it to the test relay from the branch's preview).
@@ -297,12 +318,4 @@ export async function setBridgeOff(env: Env, bridgeId: string, off: boolean): Pr
     .bind(bridgeId, known.relay, off ? 1 : 0, Date.now())
     .run();
   await order(env, [{ relay: known.relay, bridge_id: bridgeId }], 'site', { bridgeOff: off });
-}
-
-/** Signed-out people may no longer use bridges: drop the ones connected now (bridges they used in the last two hours). */
-export async function dropGuests(env: Env): Promise<void> {
-  const rows = await env.DB!.prepare('SELECT bridge_id, relay FROM relay_bridge_info WHERE guest_used_at > ?')
-    .bind(Date.now() - 2 * 3600_000)
-    .all<{ bridge_id: string; relay: string }>();
-  await order(env, rows.results, 'site', { guests: true });
 }

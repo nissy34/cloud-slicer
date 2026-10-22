@@ -499,7 +499,7 @@ test('admin: only the owner (OWNER_EMAILS) gets the Admin page', async () => {
   const res = await alice.json('/api/admin');
   assert.equal(res.status, 200, await res.clone().text());
   const data = await res.json();
-  assert.deepEqual(data.settings, { inviteOnly: false, storageMb: 200, guestRelay: false });
+  assert.deepEqual(data.settings, { inviteOnly: false, storageMb: 200 });
   const emails = data.users.map((u) => u.email);
   assert.ok(emails.includes('alice@example.com') && emails.includes('bob@example.com'), emails.join());
   const a = data.users.find((u) => u.email === 'alice@example.com');
@@ -609,20 +609,9 @@ test('relay tickets: signed-in accounts only, for one bridge, with a bridge cap'
   assert.equal(row.bridges, 3);
 });
 
-test('relay for signed-out people: off by default, the owner can turn it on (never while invite only)', async () => {
-  const relay = 'https://relay.example';
+test('the relay is for signed-in people only: signed out gets no ticket', async () => {
   const guest = new Browser();
-  assert.equal((await guest.json('/api/relay/ticket', 'POST', { relay, bridgeId: 'bridge-guest1' })).status, 401);
-  await alice.json('/api/admin/settings', 'PUT', { guestRelay: true });
-  const res = await guest.json('/api/relay/ticket', 'POST', { relay, bridgeId: 'bridge-guest1' });
-  assert.equal(res.status, 200);
-  const { payload } = await jwtVerify((await res.json()).ticket, await importJWK(ticketKeys.publicKey.export({ format: 'jwk' }), 'ES256'));
-  assert.equal(payload.sub, 'guest:bridge-guest1');
-  assert.equal(payload.cams, 1);
-  await alice.json('/api/admin/settings', 'PUT', { inviteOnly: true });
-  assert.equal((await guest.json('/api/relay/ticket', 'POST', { relay, bridgeId: 'bridge-guest1' })).status, 401, 'not while invite only');
-  await alice.json('/api/admin/settings', 'PUT', { inviteOnly: false, guestRelay: false });
-  assert.equal((await guest.json('/api/relay/ticket', 'POST', { relay, bridgeId: 'bridge-guest1' })).status, 401);
+  assert.equal((await guest.json('/api/relay/ticket', 'POST', { relay: 'https://relay.example', bridgeId: 'bridge-guest1' })).status, 401);
 });
 
 test('bridges: the owner turns one off for everyone, or bridges off for one person', async () => {
@@ -653,11 +642,6 @@ test('bridges: the owner turns one off for everyone, or bridges off for one pers
   await alice.json(`/api/admin/users/${carolId}/storage`, 'PUT', { storageMb: null });
   assert.equal((await alice.json(`/api/admin/users/${carolId}/bridges`, 'PUT', { allowed: true })).status, 200);
   assert.equal((await carol.json('/api/relay/ticket', 'POST', { relay, bridgeId: 'bridge-0003' })).status, 200);
-  // Signed-out use shows on the bridge list.
-  await alice.json('/api/admin/settings', 'PUT', { guestRelay: true });
-  await new Browser().json('/api/relay/ticket', 'POST', { relay, bridgeId: 'bridge-guest2' });
-  await alice.json('/api/admin/settings', 'PUT', { guestRelay: false });
-  assert.ok((await (await alice.json('/api/admin')).json()).bridges.find((b) => b.id === 'bridge-guest2').guestUsed > 0);
 });
 
 test('setup codes: a bridge joins the account that made the code, once, within the hour', async () => {
@@ -722,6 +706,20 @@ test('setup codes: a bridge joins the account that made the code, once, within t
   const fourth = await frank.json('/api/relay/setup', 'POST', { relay });
   assert.equal(fourth.status, 403);
   assert.equal((await fourth.json()).code, 'bridge-limit');
+
+  // Removed on its own computer: the relay passes on the bridge's key, which proves it, and the account forgets it.
+  const owner = (await frank.me()).id;
+  const release = (body) =>
+    fetch(`${HOST}/api/relay/release`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ relay, bridgeId: 'bridge-f003', owner, ...body }) });
+  assert.equal((await release({ browserKey: 'x'.repeat(43) })).status, 404, 'wrong key');
+  assert.equal((await release({ browserKey: 'k'.repeat(43), owner: (await bob.me()).id })).status, 404, "someone else's account");
+  const gone = await release({ browserKey: 'k'.repeat(43) });
+  assert.equal(gone.status, 200, await gone.clone().text());
+  assert.deepEqual(await gone.json(), { removed: 1 });
+  const left = (await (await frank.json('/api/devices')).json()).devices;
+  assert.ok(!left.some((d) => d.extra?.bridgeId === 'bridge-f003'), JSON.stringify(left));
+  assert.ok(left.some((d) => d.extra?.bridgeId === 'bridge-f002'), 'the other bridges stay');
+  assert.equal((await frank.json('/api/relay/setup', 'POST', { relay })).status, 200, 'its place is free again');
 });
 
 test('delete a person: account, presets, printers, projects and files go', async () => {

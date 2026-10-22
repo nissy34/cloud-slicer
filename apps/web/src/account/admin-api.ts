@@ -40,11 +40,10 @@ export interface AdminBridge {
   /** Turned off by the owner. */
   off: boolean;
   /** Last use by a signed-out browser. */
-  guestUsed: number | null;
 }
 
 export interface AdminOverview {
-  settings: { inviteOnly: boolean; storageMb: number; guestRelay: boolean };
+  settings: { inviteOnly: boolean; storageMb: number };
   users: AdminUser[];
   invites: { email: string; addedAt: number }[];
   bridges: AdminBridge[];

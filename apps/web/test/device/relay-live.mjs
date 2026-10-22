@@ -42,6 +42,8 @@ const { accounts } = await (await fetch(`${relay}/v1/info`)).json();
 /** The site's side of a setup code (apps/web/functions/_lib/relay.ts claim): this one code, once. */
 const SETUP_CODE = 'CK23-4567';
 let spent = false;
+/** What the relay passed on when the bridge was removed on its computer. */
+let released = null;
 const site =
   signer && accounts && process.env.FAKE_SITE_PORT
     ? createServer(async (req, res) => {
@@ -52,6 +54,10 @@ const site =
           res.writeHead(status, { 'Content-Type': 'application/json' });
           res.end(JSON.stringify(answer));
         };
+        if (req.url === '/api/relay/release') {
+          released = b;
+          return send(200, { removed: 1 });
+        }
         if (req.url !== '/api/relay/claim' || b.code !== SETUP_CODE) return send(404, { error: "That setup code isn't right.", code: 'wrong' });
         if (spent) return send(410, { error: 'This setup code expired or was already used.', code: 'expired' });
         spent = true;
@@ -253,13 +259,7 @@ try {
       await new Promise((r, j) => ((ws.onmessage = r), (ws.onclose = (e) => j(new Error(`closed early: ${e.code}`)))));
       return ws;
     };
-    // Signed-out browsers go when the site stops letting them in; signed-in ones stay.
-    const guest = await openSocket(await sign(`guest:${cfg.bridgeId}`, { b: cfg.bridgeId, cams: 1 }));
     const member = await openSocket(ownerTicket);
-    const guestGone = closeCode(guest);
-    await siteOrder({ guests: true });
-    if ((await guestGone).code !== 4401) throw new Error('the signed-out browser was not dropped');
-    if (member.readyState !== WebSocket.OPEN) throw new Error('a signed-in browser was dropped with the guests');
     // The owner turns the whole bridge off: everyone goes, nobody gets back in, until it is turned on.
     const memberGone = closeCode(member);
     await siteOrder({ bridgeOff: true });
@@ -269,7 +269,27 @@ try {
     await siteOrder({ bridgeOff: false });
     const back = await openSocket(ownerTicket);
     back.close();
-    console.log('signed-out browsers dropped on their own; a bridge turned off and on again');
+    console.log('a bridge turned off and on again');
+  }
+  if (site) {
+    // Removed on its own computer: only with its own key; everyone is told, the account is told, and nobody gets back in.
+    const release = (key) =>
+      fetch(`${relay}/v1/bridges/${cfg.bridgeId}/release`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ key }) });
+    const notMine = await release(randomBytes(24).toString('base64url'));
+    if (notMine.status !== 403) throw new Error(`another key removed the bridge (${notMine.status})`);
+    const watching = socket(clientKey, 'u1');
+    open.add(watching);
+    await new Promise((r, j) => ((watching.onmessage = r), (watching.onclose = (e) => j(new Error(`closed early: ${e.code}`)))));
+    const told = closeCode(watching);
+    const done = await release(cfg.key);
+    if (!done.ok) throw new Error(`release: HTTP ${done.status} ${await done.text()}`);
+    const answer = await done.json();
+    if ((await told).code !== 4410) throw new Error('the open browser was not told the bridge was removed');
+    if (!answer.account || released?.bridgeId !== cfg.bridgeId || released.owner !== 'ci-user' || released.browserKey !== clientKey)
+      throw new Error(`the site was not told: ${JSON.stringify({ answer, released })}`);
+    const after = await closeCode(socket(clientKey, 'u1'));
+    if (after.code !== 4410) throw new Error(`a browser got onto a removed bridge (${after.code})`);
+    console.log(`a bridge removed on its computer: ${after.reason}`);
   }
   console.log('RELAY LIVE OK');
 } catch (e) {

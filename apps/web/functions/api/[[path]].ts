@@ -29,6 +29,7 @@
 //   POST   /api/relay/setup                 a setup code for adding a bridge ({ relay })
 //   GET    /api/relay/setup/<code>          whether a bridge has used it yet
 //   POST   /api/relay/claim                 the relay, for a bridge spending a setup code
+//   POST   /api/relay/release               the relay, for a bridge removed on its own computer
 //   *      /api/admin/...                   the owner's Admin page (functions/_lib/admin.ts)
 import * as admin from '../_lib/admin';
 import * as auth from '../_lib/auth';
@@ -97,6 +98,7 @@ export async function onRequest({ request, env }: PagesContext): Promise<Respons
       if (b === 'setup' && parts.length === 2 && m === 'POST') return await relay.setup(env, request);
       if (b === 'setup' && parts.length === 3 && m === 'GET') return await relay.setupState(env, request, c);
       if (b === 'claim' && parts.length === 2 && m === 'POST') return await relay.claim(env, request);
+      if (b === 'release' && parts.length === 2 && m === 'POST') return await relay.release(env, request);
     }
     if (a === 'admin') {
       if (parts.length === 1 && m === 'GET') return await admin.overview(env, request);

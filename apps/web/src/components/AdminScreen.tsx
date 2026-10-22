@@ -226,30 +226,6 @@ function AccessCard({ data, act }: { data: AdminOverview; act: Act }) {
           </span>
         </span>
       </label>
-      <label className="admin-switch">
-        <input
-          type="checkbox"
-          checked={s.guestRelay && !s.inviteOnly}
-          disabled={s.inviteOnly}
-          onChange={(e) => {
-            const on = e.target.checked;
-            act(
-              () => adminApi.saveSettings({ guestRelay: on }),
-              (d) => ({ ...d, settings: { ...d.settings, guestRelay: on } }),
-            );
-          }}
-        />
-        <span>
-          <strong>Signed-out people can use bridges</strong>
-          <span className="muted small">
-            {s.inviteOnly
-              ? 'Off while invite only is on.'
-              : s.guestRelay
-                ? 'Anyone with a pairing link can reach printers through the relay, one camera at a time. They have no account, so they can\u2019t be blocked. Turning this off disconnects them at once.'
-                : 'Only signed-in people can reach printers through the bridge. Printers reached directly never need an account.'}
-          </span>
-        </span>
-      </label>
       <form
         className="admin-invite"
         onSubmit={(e) => {
@@ -495,7 +471,7 @@ function BridgesCard({ bridges, act }: { bridges: AdminBridge[]; act: Act }) {
                 <strong className="admin-bridge-id">{b.id}</strong>
                 {b.off && <span className="admin-tag danger">Off</span>}
                 <div className="muted small admin-email">
-                  {[b.people, b.guestUsed ? 'signed-out people' : ''].filter(Boolean).join(', ') || 'nobody yet'}
+                  {b.people || 'nobody yet'}
                 </div>
               </div>
               <div className="admin-user-stats small">

@@ -8,11 +8,9 @@ export interface AccessSettings {
   inviteOnly: boolean;
   /** Online project storage per user, in MB, unless set per user. 0 = presets only. */
   storageMb: number;
-  /** Signed-out people may use the bridge relay too (never while invite only). */
-  guestRelay: boolean;
 }
 
-export const DEFAULT_ACCESS: AccessSettings = { inviteOnly: false, storageMb: 200, guestRelay: false };
+export const DEFAULT_ACCESS: AccessSettings = { inviteOnly: false, storageMb: 200 };
 /** Most anyone can be given (the site as a whole stays under R2's free 10 GB). */
 export const MAX_STORAGE_MB = 2048;
 
