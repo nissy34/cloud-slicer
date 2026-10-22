@@ -100,7 +100,7 @@ function u1State(generic) {
 }
 
 /** A solid-colour PNG that changes colour each frame: the "camera". */
-function pngFrame(n, w = 64, h = 48) {
+export function pngFrame(n, w = 64, h = 48) {
   const chunk = (type, data) => {
     const len = Buffer.alloc(4);
     len.writeUInt32BE(data.length);
@@ -138,7 +138,7 @@ export function gcodeThumbnails(text) {
 }
 
 // A G-code thumbnail block, as slicers write it.
-function thumbnailBlock(png) {
+export function thumbnailBlock(png) {
   const b64 = png.toString('base64');
   const rows = b64.match(/.{1,78}/g).map((r) => `; ${r}\n`).join('');
   return `; THUMBNAIL_BLOCK_START\n;\n; thumbnail begin ${png.readUInt32BE(16)}x${png.readUInt32BE(20)} ${b64.length}\n${rows}; thumbnail end\n; THUMBNAIL_BLOCK_END\n`;
@@ -398,7 +398,8 @@ export async function startMockPrinter({ port = 0, host = '127.0.0.1', generic =
             relative_path: `.thumbs/${params.filename.replace(/\.[^.]+$/, '')}-${t.width}x${t.height}.png`,
           })),
           filament_colors: (kv('filament_colour') ?? '').split(';').filter(Boolean),
-          filament_type: kv('filament_type') ?? '',
+          // Like Moonraker: one material as is, several as a JSON list in a string.
+          filament_type: ((t) => (t.includes(';') ? JSON.stringify(t.split(';')).replaceAll('","', '", "') : t))(kv('filament_type') ?? ''),
           filament_weights: (kv('filament used [g]') ?? '').split(',').filter(Boolean).map(Number),
           // The whole file's filament, as Moonraker reads it from the slicer's footer.
           filament_total: 2700,

@@ -451,9 +451,11 @@ Browser end to end tests (Playwright's Chromium) run against the built site
 | `test/restart.mjs` | After an engine crash (mid-slice or after), the engine restarts and reopens the project |
 | `test/heavy.mjs` | A model with over a million triangles offers Simplify, which brings it to about half a million |
 | `test/device-smoke.mjs` | Device tab through relay and bridge to a mock U1, and direct to a mock Klipper printer |
+| `test/device-klipper.mjs` | Device tab on real Klipper and Moonraker (pretend printers in Docker with one, two and four heads): heating, homing, console, a print to the end, skip object, pause, resume, cancel, phone layout, and through the bridge |
 | `test/device-alerts.mjs` | Print alerts: the Alerts card's defaults, a test alert, layer N from the Print dialog, a whole mock print pushed through bridge and relay to a pretend push service (decrypted), the open page alerting for a direct printer, turning alerts on again starting from the last-used choices, a tapped alert opening its printer, the iPhone Home Screen note |
 
-CI never talks to a real printer: printer tests use a mock Moonraker. How CI runs all of
+CI never talks to a real printer: printer tests use a mock Moonraker, and real Klipper on a
+simulated board in Docker ([apps/web/test/device/printers](apps/web/test/device/printers/README.md), which you can also run on your computer). How CI runs all of
 this, its caches and deploys: [docs/CI.md](docs/CI.md).
 
 ## Licence
