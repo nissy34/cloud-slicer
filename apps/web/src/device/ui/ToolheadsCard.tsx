@@ -44,7 +44,15 @@ export function ToolheadsCard() {
   const [editing, setEditing] = useState<U1Head | null>(null);
   const [nozzleOf, setNozzleOf] = useState<number | null>(null);
   const { confirm, dialog } = useConfirm();
-  const scenes = useBedScenes(heads);
+  // Only napping heads take a coffee break; hot, hungry or heating ones have other things on their mind.
+  const napping = nozzles.flatMap((n) => {
+    const i = extruderIndex(n.name) ?? 0;
+    const h = heads[i];
+    if (h?.dock !== 'parked') return [];
+    const mood = headMood({ temp: n.temp, target: n.target, inUse: false, printing, loaded: h.loaded, dock: h.dock, feedError: h.feed?.error });
+    return mood === 'napping' ? [i] : [];
+  });
+  const scenes = useBedScenes(heads, napping);
 
   if (!nozzles.length) return null;
 
@@ -228,12 +236,11 @@ const COFFEE_EVERY_MS = [45_000, 80_000] as const;
  * back to bed when it is parked, and now and then a coffee break. Nothing
  * plays when the viewer asks for less motion.
  */
-function useBedScenes(heads: U1Head[]): Partial<Record<number, BedScene>> {
+function useBedScenes(heads: U1Head[], napping: number[]): Partial<Record<number, BedScene>> {
   const [scenes, setScenes] = useState<Partial<Record<number, BedScene>>>({});
   const docks = useRef<Record<number, U1Head['dock']>>({});
   const timers = useRef<Record<number, ReturnType<typeof setTimeout>>>({});
-  const parked = heads.filter((h) => h.dock === 'parked').map((h) => h.index);
-  const parkedKey = parked.join(',');
+  const nappingKey = napping.join(',');
   const play = (i: number, scene: Exclude<BedScene, 'asleep'>) => {
     clearTimeout(timers.current[i]);
     setScenes((s) => ({ ...s, [i]: scene }));
@@ -254,7 +261,7 @@ function useBedScenes(heads: U1Head[]): Partial<Record<number, BedScene>> {
   }, [dockKey]);
 
   useEffect(() => {
-    if (!parked.length) return;
+    if (!napping.length) return;
     let t: ReturnType<typeof setTimeout>;
     const next = () => {
       const [lo, hi] = COFFEE_EVERY_MS;
@@ -262,7 +269,7 @@ function useBedScenes(heads: U1Head[]): Partial<Record<number, BedScene>> {
         if (!calm() && !document.hidden) {
           setScenes((s) => {
             if (Object.values(s).some(Boolean)) return s;
-            const i = parked[Math.floor(Math.random() * parked.length)];
+            const i = napping[Math.floor(Math.random() * napping.length)];
             clearTimeout(timers.current[i]);
             timers.current[i] = setTimeout(() => setScenes((x) => ({ ...x, [i]: undefined })), BED_SCENE_MS.coffee);
             return { ...s, [i]: 'coffee' };
@@ -274,7 +281,7 @@ function useBedScenes(heads: U1Head[]): Partial<Record<number, BedScene>> {
     next();
     return () => clearTimeout(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [parkedKey]);
+  }, [nappingKey]);
 
   useEffect(() => () => Object.values(timers.current).forEach(clearTimeout), []);
   return scenes;

@@ -260,7 +260,9 @@ try {
   // Each head shows how it is as a face: the empty one asks for filament, the docked cold ones nap in bed;
   // the head on the carriage stands up.
   await page.locator('[data-testid="head-3"][data-mood="hungry"]').getByText('Feed me').waitFor();
-  await page.locator('[data-testid="head-2"][data-mood="napping"] .dv-bed').waitFor();
+  await page.locator('[data-testid="head-2"][data-mood="napping"] .dv-bed-pose-nap').waitFor();
+  // In bed the empty head dreams of a spool instead of napping.
+  await page.locator('[data-testid="head-3"] .dv-bed-pose-dream').waitFor();
   await page.locator('[data-testid="head-0"][data-dock="attached"] .dv-face').waitFor();
   if (await page.locator('[data-testid="head-0"] .dv-bed').count()) throw new Error('the head on the carriage is drawn in bed');
   if (shots) await page.getByTestId('toolheads-card').screenshot({ path: join(shots, 'tool-heads.png') });

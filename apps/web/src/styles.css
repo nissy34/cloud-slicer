@@ -3711,6 +3711,55 @@ select:focus-visible {
     transform: scaleY(1);
   }
 }
+@media (prefers-reduced-motion: no-preference) {
+  .dv-bed-blades {
+    animation: dv-bed-spin 0.5s linear infinite;
+  }
+  .dv-bed-wind {
+    animation: dv-bed-wind 1.2s linear infinite;
+  }
+  .dv-bed-dream {
+    animation: dv-bed-dream 3s ease-in-out infinite;
+  }
+  .dv-bed-stretch {
+    transform-origin: 50% 100%;
+    animation: dv-bed-stretch 2.4s ease-in-out infinite;
+  }
+}
+@keyframes dv-bed-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+@keyframes dv-bed-wind {
+  0% {
+    opacity: 0;
+    transform: translateX(6px);
+  }
+  40% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: translateX(-8px);
+  }
+}
+@keyframes dv-bed-dream {
+  50% {
+    transform: translateY(-2px);
+    opacity: 0.8;
+  }
+}
+@keyframes dv-bed-stretch {
+  0%,
+  100% {
+    transform: scaleY(1);
+  }
+  40%,
+  60% {
+    transform: scaleY(1.08);
+  }
+}
 .dv-chip {
   white-space: nowrap;
   font-size: 10px;
