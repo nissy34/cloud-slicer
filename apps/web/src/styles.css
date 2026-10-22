@@ -5551,6 +5551,9 @@ select:focus-visible {
   cursor: pointer;
   width: fit-content;
 }
+.dv-works > * {
+  min-width: 0;
+}
 .dv-works-scroll {
   overflow-x: auto;
   margin-top: 6px;
@@ -5571,6 +5574,30 @@ select:focus-visible {
   font-weight: 600;
   color: var(--muted);
   font-size: 12px;
+  white-space: normal;
+  vertical-align: bottom;
+}
+.dv-works-short {
+  display: none;
+}
+/* Phones: the table fits without sideways scrolling. */
+@media (max-width: 699px) {
+  .dv-works-long {
+    display: none;
+  }
+  .dv-works-short {
+    display: inline;
+  }
+  .dv-works-table {
+    font-size: 12px;
+  }
+  .dv-works-table th,
+  .dv-works-table td {
+    padding: 4px 2px;
+  }
+  .dv-works-table thead th {
+    font-size: 11px;
+  }
 }
 .dv-works-table tbody th {
   text-align: left;

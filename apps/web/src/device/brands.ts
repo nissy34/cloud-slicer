@@ -40,7 +40,8 @@ export function kindWords(kind?: string | null): KindWords {
 }
 
 /** What the Device tab can do with each kind of printer, for "Which printers work" (ui/WorksWith.tsx). */
-export const WORKS_FEATURES = ['Status', 'Send & print', 'Camera', 'Move & temperatures', 'Console'] as const;
+/** Column titles; `short` is shown on phones so the table fits without scrolling sideways. */
+export const WORKS_FEATURES: { name: string; short?: string }[] = [{ name: 'Status' }, { name: 'Send & print' }, { name: 'Camera' }, { name: 'Move & temperatures', short: 'Move & temps' }, { name: 'Console' }];
 
 export const WORKS_WITH: { name: string; examples: string; can: boolean[] }[] = [
   { name: 'Klipper printers', examples: 'Snapmaker U1, Voron, Qidi, Sovol', can: [true, true, true, true, true] },

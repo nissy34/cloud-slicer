@@ -27,8 +27,15 @@ export function WorksWith() {
               <tr>
                 <th scope="col">Printer</th>
                 {WORKS_FEATURES.map((f) => (
-                  <th key={f} scope="col">
-                    {f}
+                  <th key={f.name} scope="col" aria-label={f.name}>
+                    {f.short ? (
+                      <>
+                        <span className="dv-works-long">{f.name}</span>
+                        <span className="dv-works-short">{f.short}</span>
+                      </>
+                    ) : (
+                      f.name
+                    )}
                   </th>
                 ))}
               </tr>
@@ -41,7 +48,7 @@ export function WorksWith() {
                     <span className="muted"> ({w.examples})</span>
                   </th>
                   {w.can.map((yes, i) => (
-                    <td key={WORKS_FEATURES[i]} className={yes ? 'yes' : 'no'} aria-label={yes ? 'Yes' : 'No'}>
+                    <td key={WORKS_FEATURES[i].name} className={yes ? 'yes' : 'no'} aria-label={yes ? 'Yes' : 'No'}>
                       {yes ? '✓' : '–'}
                     </td>
                   ))}
