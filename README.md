@@ -132,7 +132,8 @@ hosted on Cloudflare's free tier.
   device. Signed out, everything is kept in the browser and merged in at sign-in.
 - **Device tab** for Moonraker (Klipper) printers: cameras, temperatures, motion, files,
   upload and print, skipping objects mid-print, and for Prusa printers through PrusaLink
-  (status, files, upload, print, pause and cancel), plus Snapmaker U1 extras (tool heads, filament sync, the U1 print
+  (status, files, upload, print, pause and cancel) and printers run by OctoPrint (all of the
+  above, plus Move, temperatures, the console and its cameras), plus Snapmaker U1 extras (tool heads, filament sync, the U1 print
   dialog, the U1's error codes in Snapmaker's own words). Printers on a home network are reached through a small bridge app.
 - **Light and dark theme**, a layout that works on phones (an open tool stacks the toolbar, its options and the model, with the settings hidden until Done), and installable as an app
   (PWA) on Android.
@@ -309,7 +310,15 @@ login, takes the PrusaLink password, and stands in for Moonraker so the same car
 show their temperatures, print, files with pictures, upload, print, pause and cancel.
 PrusaLink takes no G-code, so their screen has no Move, Console, camera (Prusa's camera
 only reaches Prusa Connect), temperature setting or emergency stop (`addons/prusa.ts`,
-`apps/device-bridge/translate.go` and `prusalink.go`). The add-printer dialog's "Which
+`apps/device-bridge/translate.go` and `prusalink.go`). **Printers run by OctoPrint**
+(OctoPi beside an Ender, a Prusa MK3 or others) work the same way with an OctoPrint API key
+(Settings, Application Keys): the bridge finds OctoPrint by its login page on port 80 or
+5000, and since OctoPrint takes G-code they keep Move, temperatures and the Console (its
+replies come from OctoPrint's push socket), with the few Klipper commands the screen sends
+put in Marlin's words; their cameras come from OctoPrint's settings, and "Connect again"
+replaces "Restart firmware" (`addons/octoprint.ts`, `apps/device-bridge/octoprint.go`;
+tested against the real OctoPrint's virtual printer, `apps/web/test/device/printers/octoprint`).
+The add-printer dialog's "Which
 printers work?" lists the printers the Device tab reaches. The cards can be arranged: **Arrange** at the top of the tab moves
 cards by their grip into 2 or 3 columns or across the top or bottom, hides them, makes
 them half width (two side by side) and sets the camera size; tapping a card's title folds
@@ -345,7 +354,7 @@ The bridge spends the code as it installs and joins that account at once (a brid
 without a valid code never connects; an expired code makes the command ask for a new
 one). It starts with the computer (Windows and macOS at login, Linux at boot), the
 dialog turns green by itself, and the Device tab then searches the
-bridge's network for Moonraker and PrusaLink printers and adds the ones you pick, with their API
+bridge's network for Moonraker, PrusaLink and OctoPrint printers and adds the ones you pick, with their API
 keys or PrusaLink passwords, or any address you type. API keys are only ever entered in the Device tab.
 Bridges are saved on their own, apart from their printers: the Device tab's
 Printers & bridges window lists each bridge with its printers, removes either on

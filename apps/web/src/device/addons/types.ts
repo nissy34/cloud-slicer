@@ -76,4 +76,16 @@ export interface PrinterAddon {
   noCommands?: boolean;
   /** Its camera can't be reached from outside its maker's own app, so there is no camera card. */
   noCamera?: boolean;
+  /**
+   * The program the printer runs instead of Klipper and Moonraker (OctoPrint),
+   * in the words the screen uses where it would name those.
+   */
+  host?: {
+    name: string;
+    /** When it can't reach the printer (Klipper's "firmware stopped"). */
+    stopped: string;
+    /** The button that gets it going again (Klipper's "Restart firmware"). */
+    restart: string;
+    restarting: string;
+  };
 }
