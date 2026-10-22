@@ -387,7 +387,7 @@ jobs:
         run: |
           sed -i -e 's/^name = "cloud-slicer-relay"$/name = "cloud-slicer-relay-test"/' \
             -e 's/^bucket_name = "cloud-slicer-bridge"$/bucket_name = "cloud-slicer-bridge-test"/' \
-            -e 's/^namespace_id = "1001"$/namespace_id = "2001"/' -e 's/^namespace_id = "1002"$/namespace_id = "2002"/' wrangler.toml
+            -e 's/^namespace_id = "1001"$/namespace_id = "2001"/' -e 's/^namespace_id = "1002"$/namespace_id = "2002"/' -e 's/^namespace_id = "1003"$/namespace_id = "2003"/' wrangler.toml
           # Never the live relay from here.
           grep -qx 'name = "cloud-slicer-relay-test"' wrangler.toml
           grep -qx 'bucket_name = "cloud-slicer-bridge-test"' wrangler.toml

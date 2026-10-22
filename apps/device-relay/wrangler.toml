@@ -31,6 +31,12 @@ name = "CLAIM_LIMIT"
 namespace_id = "1002"
 simple = { limit = 5, period = 60 }
 
+# Bridges removed on their computer (/v1/bridges/<id>/release), apart from setup codes.
+[[ratelimits]]
+name = "RELEASE_LIMIT"
+namespace_id = "1003"
+simple = { limit = 5, period = 60 }
+
 # The one-file bridge apps (CI uploads them on main). CI drops this
 # block when the Cloudflare token can't reach R2, and the relay then offers
 # no bridge downloads.

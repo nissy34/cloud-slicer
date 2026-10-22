@@ -56,6 +56,7 @@ export interface Env extends PushEnv {
   CONNECT_LIMIT: RateLimit;
   /** New bridge ids claimed per IP. */
   CLAIM_LIMIT: RateLimit;
+  RELEASE_LIMIT: RateLimit;
   /** The one-file bridge apps, uploaded by CI (.github/workflows/device.yml). */
   DOWNLOADS?: R2Bucket;
   /** The site's ticket public key (JWK). Unset: no accounts, anyone with a pairing code may connect. */
@@ -353,7 +354,7 @@ async function claimBridge(req: Request, env: Env, bridgeId: string): Promise<Re
 async function releaseBridge(req: Request, env: Env, bridgeId: string): Promise<Response> {
   const fail = (status: number, error: string) => Response.json({ error }, { status, headers: cors });
   if (!BRIDGE_ID.test(bridgeId)) return fail(400, 'Bad bridge id');
-  if (!(await env.CLAIM_LIMIT.limit({ key: clientIp(req) })).success) return fail(429, 'Too many tries from this address; wait a minute.');
+  if (!(await env.RELEASE_LIMIT.limit({ key: clientIp(req) })).success) return fail(429, 'Too many tries from this address; wait a minute.');
   let body: { key?: unknown };
   try {
     body = await req.json();
