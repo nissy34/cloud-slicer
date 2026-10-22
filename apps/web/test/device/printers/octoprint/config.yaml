@@ -1,0 +1,26 @@
+# A pretend printer run by the real OctoPrint: its built-in virtual printer
+# (Marlin-like replies, heaters that warm up, prints that take real time).
+# Test settings only: the API key below opens nothing real.
+server:
+  firstRun: false
+  onlineCheck: {enabled: false}
+  pluginBlacklist: {enabled: false}
+  seenWizards: {corewizard: 4, backup: null, tracking: null}
+devel:
+  virtualPrinter:
+    enabled: true
+serial:
+  port: VIRTUAL
+  autoconnect: true
+appearance:
+  name: Pretend Ender
+plugins:
+  tracking: {enabled: false}
+  announcements: {enabled: false}
+  softwareupdate: {enabled: false}
+  achievements: {enabled: false}
+webcam:
+  webcamEnabled: true
+  # OctoPrint's own logo stands in for a camera picture.
+  snapshot: /static/img/tentacle-20x20.png
+  stream: /static/img/tentacle-20x20.png

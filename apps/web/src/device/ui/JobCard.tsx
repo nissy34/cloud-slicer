@@ -49,17 +49,20 @@ export function JobCard() {
   const noObjectList = active && parts.supported && !parts.objects.length && (j.layer != null ? j.layer >= 1 : j.progress > 0.02);
 
   if (klippy !== 'ready') {
+    const host = addons.map((a) => a.host).find(Boolean);
     return (
       <Card title="Print" testId="job-card">
         {takesCommands(addons) ? (
           <>
             <p className="dv-alert">
-              {klippy === 'startup' ? 'The printer firmware is starting.' : 'The printer firmware has stopped.'} {klippyMessage(objects)}
+              {host
+                ? klippyMessage(objects) || host.stopped
+                : `${klippy === 'startup' ? 'The printer firmware is starting.' : 'The printer firmware has stopped.'} ${klippyMessage(objects)}`}
             </p>
             <PrinterErrors errors={errors} />
             <div className="dv-row">
-              <button className="secondary" onClick={() => void call('Restarting the firmware', (s) => s.firmwareRestart())}>
-                Restart firmware
+              <button className="secondary" onClick={() => void call(host?.restarting ?? 'Restarting the firmware', (s) => s.firmwareRestart())}>
+                {host?.restart ?? 'Restart firmware'}
               </button>
             </div>
           </>

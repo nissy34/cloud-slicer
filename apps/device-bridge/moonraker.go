@@ -190,8 +190,12 @@ func probeHosts(ctx context.Context, hosts []string) []found {
 		go func() {
 			defer wg.Done()
 			for h := range queue {
-				// A Prusa printer answers PrusaLink on its web port instead.
+				// A Prusa printer answers PrusaLink on its web port instead, OctoPrint there or on 5000.
 				if f, ok := probePrusaHost(ctx, client, h); ok {
+					mu.Lock()
+					out = append(out, f)
+					mu.Unlock()
+				} else if f, ok := probeOctoHost(ctx, client, h); ok {
 					mu.Lock()
 					out = append(out, f)
 					mu.Unlock()

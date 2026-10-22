@@ -151,7 +151,7 @@ export function CameraCard({
                     ? 'Your cameras are in other camera cards.'
                     : cams?.length
                     ? 'All cameras are hidden. Use Choose to show one.'
-                    : 'This printer has no camera set up in Moonraker.'}
+                    : `This printer has no camera set up in ${addons.map((a) => a.host?.name).find(Boolean) ?? 'Moonraker'}.`}
           </span>
         </div>
       ) : (
