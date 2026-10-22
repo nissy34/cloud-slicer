@@ -13,10 +13,10 @@
 //     keys) once, if missing. Production and previews share them.
 //  5. The Admin page: copies OWNER_EMAILS (who may open it) and, if set,
 //     CLOUDFLARE_ANALYTICS_TOKEN (a read-only token for its usage numbers).
-//  6. Creates the relay ticket key pair once: the private half signs tickets
-//     (Pages secret RELAY_TICKET_KEY), the public half goes to the relay
-//     Worker (secret RELAY_TICKET_PUBLIC_KEY), which then only lets in
-//     browsers of signed-in, allowed accounts.
+//  6. Creates the relay ticket key pair once, if the site has none: the private
+//     half signs tickets (Pages secret RELAY_TICKET_KEY), the public half goes to
+//     the relay Worker (secret RELAY_TICKET_PUBLIC_KEY), which then only lets in
+//     browsers of signed-in, allowed accounts. Never replaced after that.
 //
 // Prints `d1=ok|missing` and `r2=ok|missing` for $GITHUB_OUTPUT. Never fails the build.
 //
@@ -115,16 +115,20 @@ async function setupSecrets() {
       vars.CF_ANALYTICS_TOKEN = process.env.CLOUDFLARE_ANALYTICS_TOKEN;
       plain.CF_ACCOUNT_ID = account;
     }
-    // Relay tickets: generated once. The public half is plain text so later runs can hand it to the relay.
-    let publicKey = existing.RELAY_TICKET_PUBLIC_KEY?.value;
-    if (!existing.RELAY_TICKET_KEY || !publicKey) {
+    // Relay tickets: generated once, when the site has no signing key, and then
+    // never again. The plain public half can't be relied on to still be there
+    // (deploys have been seen to drop it), and making a new pair whenever it was
+    // missing replaced the live relay's key at once while the live site kept
+    // signing with the old one until its next deploy: every new bridge was
+    // turned away. The live relay now takes the key from the site's
+    // /api/relay/key on each of its deploys (device.yml).
+    if (!existing.RELAY_TICKET_KEY) {
       const pair = generateKeyPairSync('ec', { namedCurve: 'P-256' });
       vars.RELAY_TICKET_KEY = JSON.stringify(pair.privateKey.export({ format: 'jwk' }));
-      publicKey = JSON.stringify(pair.publicKey.export({ format: 'jwk' }));
-      plain.RELAY_TICKET_PUBLIC_KEY = publicKey;
+      plain.RELAY_TICKET_PUBLIC_KEY = JSON.stringify(pair.publicKey.export({ format: 'jwk' }));
       console.log('created RELAY_TICKET_KEY');
+      await relayPublicKey(plain.RELAY_TICKET_PUBLIC_KEY);
     }
-    await relayPublicKey(publicKey, Boolean(plain.RELAY_TICKET_PUBLIC_KEY));
     if (!Object.keys(vars).length && !Object.keys(plain).length) return;
     const env_vars = {
       ...Object.fromEntries(Object.entries(vars).map(([k, value]) => [k, { type: 'secret_text', value }])),
@@ -140,18 +144,16 @@ async function setupSecrets() {
   }
 }
 
-/** Gives the relay Worker the ticket public key when it lacks it (or the key is new). */
-async function relayPublicKey(publicKey, isNew) {
+/** Gives the relay Worker a newly made ticket public key (first setup only). */
+async function relayPublicKey(publicKey) {
   try {
-    const names = ((await cf(`/workers/scripts/${RELAY_WORKER}/secrets`)) ?? []).map((x) => x.name);
-    if (names.includes('RELAY_TICKET_PUBLIC_KEY') && !isNew) return;
     await cf(`/workers/scripts/${RELAY_WORKER}/secrets`, {
       method: 'PUT',
       body: JSON.stringify({ name: 'RELAY_TICKET_PUBLIC_KEY', text: publicKey, type: 'secret_text' }),
     });
     console.log(`relay ${RELAY_WORKER}: ticket key set`);
   } catch (e) {
-    warn(`Could not give the relay its ticket key (${e.message}); it lets any pairing code in until it has one.`);
+    warn(`Could not give the relay its ticket key (${e.message}); its next deploy takes it from the site.`);
   }
 }
 
