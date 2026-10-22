@@ -1,5 +1,5 @@
 import { STILL_HOT, type HeadMood } from '../heads';
-import { HeadBody } from './HeadFace';
+import { HeadBody, HeadFeatures } from './HeadFace';
 
 /**
  * What a docked head is doing in its bed: asleep, a coffee break now and then,
@@ -44,37 +44,49 @@ export function HeadBed({ mood, colour, loaded, temp, scene, size = 60 }: { mood
   const blanketColour = loaded && colour ? colour : 'var(--dv-head-hi)';
   const pose = poseOf(mood, temp);
   const edge = { stroke: 'var(--dv-outline)', strokeWidth: 2.5 };
+  // Napping, hot and cooling heads lie down on the pillow; the face stays upright so the mood reads.
+  const lies = pose === 'nap' || pose === 'hot' || pose === 'cooling' || pose === 'worried';
+  const onTop = pose === 'hot' || pose === 'cooling' || pose === 'dream';
+  const blanketPath = lies && !onTop ? 'M70 54Q96 46 124 56V80H68Z' : pose === 'stretch' ? 'M30 66Q76 58 124 64V80H28Z' : onTop && lies ? 'M30 64Q76 58 124 64V80H28Z' : 'M30 58Q76 48 124 56V80H28Z';
   const blanket = (
     <g className="dv-bed-blanket">
-      <path d={pose === 'stretch' ? 'M30 66Q76 58 124 64V80H28Z' : 'M30 58Q76 48 124 56V80H28Z'} fill={blanketColour} {...edge} />
-      <path d={pose === 'stretch' ? 'M30 66Q76 58 124 64' : 'M30 58Q76 48 124 56'} stroke="rgba(255,255,255,.55)" strokeWidth="4" fill="none" />
+      <path d={blanketPath} fill={blanketColour} {...edge} />
+      <path d={blanketPath.replace(/V.*$/, '')} stroke="rgba(255,255,255,.55)" strokeWidth="4" fill="none" />
     </g>
   );
-  const onTop = pose === 'hot' || pose === 'cooling' || pose === 'dream';
-  const lying =
-    pose === 'stretch' ? (
-      <g transform="translate(30 10) scale(.6)" style={PLACED}>
-        <g className="dv-bed-stretch">
-          <HeadBody mood="heating" colour={colour} loaded={loaded} temp={temp} />
-        </g>
-      </g>
-    ) : pose === 'dream' ? (
-      // Sits up on top of the blanket, facing you.
-      <g transform="translate(34 6) scale(.6)" style={PLACED}>
-        <HeadBody mood="hungry" colour={colour} loaded={loaded} temp={temp} />
-      </g>
-    ) : (
-      <g transform={`translate(26 ${onTop ? 12 : 16}) rotate(-16) scale(.6)`} style={PLACED}>
-        <HeadBody mood={pose === 'nap' ? 'napping' : pose === 'worried' ? 'worried' : pose} colour={colour} loaded={loaded} temp={temp} />
+  const faceMood: HeadMood = pose === 'nap' ? 'napping' : pose === 'worried' ? 'worried' : pose === 'hot' ? 'hot' : 'cooling';
+  const lying = lies ? (
+    <>
+      <g transform={`translate(12 ${onTop ? 72 : 90}) rotate(-90) scale(.78)`} style={PLACED}>
+        <HeadBody mood={faceMood} colour={colour} loaded={loaded} temp={temp} face={false} />
         {pose === 'nap' && PHONES}
       </g>
-    );
+      <g transform={`translate(17 ${onTop ? -7 : 11}) scale(.72)`} style={PLACED}>
+        <HeadFeatures mood={faceMood} />
+      </g>
+    </>
+  ) : pose === 'stretch' ? (
+    <g transform="translate(30 10) scale(.6)" style={PLACED}>
+      <g className="dv-bed-stretch">
+        <HeadBody mood="heating" colour={colour} loaded={loaded} temp={temp} />
+      </g>
+    </g>
+  ) : (
+    // Sits up on top of the blanket, facing you.
+    <g transform="translate(34 6) scale(.6)" style={PLACED}>
+      <HeadBody mood="hungry" colour={colour} loaded={loaded} temp={temp} />
+    </g>
+  );
   return (
     <svg className={`dv-bed dv-bed-${scene} dv-bed-pose-${pose}`} viewBox="0 0 170 104" width={size * 1.63} height={size} aria-hidden>
       <rect x="2" y="34" width="9" height="66" rx="3" fill="var(--dv-wood)" />
       <rect x="119" y="60" width="9" height="40" rx="3" fill="var(--dv-wood)" />
       <rect x="4" y="76" width="122" height="12" rx="4" fill="var(--dv-mattress)" />
-      <ellipse cx="20" cy="54" rx="12" ry="20" fill="#fff" stroke="var(--border)" />
+      {lies ? (
+        <ellipse cx="26" cy={onTop ? 62 : 68} rx="17" ry="9" fill="#fff" stroke="var(--border)" />
+      ) : (
+        <ellipse cx="20" cy="54" rx="12" ry="20" fill="#fff" stroke="var(--border)" />
+      )}
       {onTop && blanket}
       <g className="dv-bed-lie">{lying}</g>
       {!onTop && blanket}
