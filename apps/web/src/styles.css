@@ -5334,6 +5334,29 @@ button.volume-name {
     transform: rotate(360deg);
   }
 }
+/* Add a bridge: one command per system, with the setup code it carries. */
+.dv-setup-commands {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+}
+.dv-setup-commands .dv-code {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.dv-setup-code {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: baseline;
+}
+.dv-setup-code code {
+  font-size: 1.05em;
+  letter-spacing: 0.06em;
+}
+.dv-bridge-state.connecting {
+  border-left-color: var(--accent);
+}
 
 /* AutoSave, Continue and view only (src/components/ContinueCard.tsx, ProjectMenu.tsx) */
 .project-status {
