@@ -41,7 +41,8 @@ temperatures set on the page heat the heater, Home all and jog move the head,
 the console shows Klipper's replies, a file goes up with its picture and
 prints to the end, skip object, pause, resume and cancel, a print that uses
 all four heads, the phone layout, and the two-heads printer once more through
-the bridge. CI runs it in the "Device" workflow, job "Real Klipper printers".
+the bridge. CI runs it in the "Real Klipper printers" workflow: every night, on a pull
+request labelled `real klipper`, and when these printers or the test change.
 
 ## How they work
 
