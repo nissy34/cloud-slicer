@@ -219,6 +219,12 @@ jobs:
         env:
           CLOUD_SLICER_BRIDGE_BIN: ${{ github.workspace }}/apps/device-bridge/dist/linux-x64
         run: node test/device-octoprint.mjs device-shots || { tail -50 "$RUNNER_TEMP/octoprint.log"; exit 1; }
+      - name: An Elegoo Centauri Carbon through the bridge's stand-in (found with no password, camera, upload in parts, print, pause, resume, cancel)
+        working-directory: apps/web
+        timeout-minutes: 5
+        env:
+          CLOUD_SLICER_BRIDGE_BIN: ${{ github.workspace }}/apps/device-bridge/dist/linux-x64
+        run: node test/device-elegoo.mjs device-shots
 
       - name: The Linux bridge serves the mock U1 through a local relay (uploads, refusals, wrong keys)
         working-directory: apps/device-relay

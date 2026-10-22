@@ -29,7 +29,7 @@ import (
 )
 
 // The brands the bridge can stand in for, by Printer.Kind ("" is Moonraker itself):
-// kindPrusaLink (prusalink.go), kindOctoPrint (octoprint.go).
+// kindPrusaLink (prusalink.go), kindOctoPrint (octoprint.go), kindElegoo (elegoo.go).
 const kindPrusaLink = "prusalink"
 
 // pollEvery: how often a stand-in asks its printer how it is, while someone is watching.
@@ -96,6 +96,8 @@ func newBrand(p Printer) (brand, error) {
 		return newPrusaLink(p.URL, p.APIKey), nil
 	case kindOctoPrint:
 		return newOctoPrint(p.URL, p.APIKey), nil
+	case kindElegoo:
+		return newElegoo(p.URL), nil
 	}
 	return nil, fmt.Errorf("This bridge doesn't know printers of kind %q: update the bridge.", p.Kind)
 }
@@ -706,7 +708,8 @@ func findPrinter(ctx context.Context, address, key, kind string) (string, string
 			return "", "", "", err
 		}
 		// Not Moonraker: maybe another kind. Its own answer wins only when it is one.
-		for _, k := range []string{kindPrusaLink, kindOctoPrint} {
+		// Elegoo last: it waits for an answer the longest.
+		for _, k := range []string{kindPrusaLink, kindOctoPrint, kindElegoo} {
 			url, name, perr := probeKind(ctx, k, address, key)
 			if perr == nil {
 				return url, name, k, nil
@@ -717,7 +720,7 @@ func findPrinter(ctx context.Context, address, key, kind string) (string, string
 		}
 		return "", "", "", err
 	}
-	if kind == kindPrusaLink || kind == kindOctoPrint {
+	if kind == kindPrusaLink || kind == kindOctoPrint || kind == kindElegoo {
 		url, name, err := probeKind(ctx, kind, address, key)
 		return url, name, kind, err
 	}
@@ -725,8 +728,11 @@ func findPrinter(ctx context.Context, address, key, kind string) (string, string
 }
 
 func probeKind(ctx context.Context, kind, address, key string) (string, string, error) {
-	if kind == kindOctoPrint {
+	switch kind {
+	case kindOctoPrint:
 		return probeOctoPrint(ctx, address, key)
+	case kindElegoo:
+		return probeElegoo(ctx, address)
 	}
 	return probePrusaLink(ctx, address, key)
 }

@@ -47,6 +47,16 @@ describe('printer catalog', () => {
     expect(canSend(catalog, 'Prusa MK4 0.4 nozzle')).toBe(false);
   });
 
+  it('marks the Elegoo Centauri Carbon (its own protocol), not the Carbon 2 or other Elegoo models', () => {
+    const model = (m: string, send = false) => ({ model: m, cover: '', send, nozzles: [{ name: `${m} 0.4 nozzle`, nozzle: '0.4' }] });
+    const elegoo = { id: 'Elegoo', name: 'Elegoo', file: 'Elegoo.json', bytes: 1, models: [model('Elegoo Centauri Carbon'), model('Elegoo Centauri Carbon 2'), model('Elegoo Neptune 4', true), model('Elegoo Neptune 3')] };
+    const marked = withDirectPrint({ ...catalog, vendors: [elegoo] });
+    expect(canSend(marked, 'Elegoo Centauri Carbon 0.4 nozzle')).toBe(true);
+    expect(canSend(marked, 'Elegoo Centauri Carbon 2 0.4 nozzle')).toBe(false);
+    expect(canSend(marked, 'Elegoo Neptune 4 0.4 nozzle')).toBe(true);
+    expect(canSend(marked, 'Elegoo Neptune 3 0.4 nozzle')).toBe(false);
+  });
+
   it('lists brands with picked ones first, then Snapmaker, then by name', () => {
     expect(wizardBrands(catalog, [], []).map((b) => b.vendor)).toEqual(['Snapmaker', 'Prusa', 'Voron']);
     expect(wizardBrands(catalog, [], ['Voron 2.4 350 0.6 nozzle']).map((b) => b.vendor)).toEqual(['Voron', 'Snapmaker', 'Prusa']);
