@@ -350,7 +350,7 @@ func askCamera(ctx context.Context, pc *webrtc.PeerConnection, sig videoSignal) 
 			SDP   string `json:"sdp"`
 			Error string `json:"error"`
 		}
-		if err := postJSON(ctx, sig, map[string]any{"type": "request", "keepAlive": true}, &offer); err != nil {
+		if err := postJSON(ctx, sig.url, sig.apiKey, map[string]any{"type": "request", "keepAlive": true}, &offer); err != nil {
 			return err
 		}
 		if offer.Error != "" || offer.SDP == "" {
@@ -368,7 +368,7 @@ func askCamera(ctx context.Context, pc *webrtc.PeerConnection, sig videoSignal) 
 			return err
 		}
 		<-gathered
-		return postJSON(ctx, sig, map[string]any{"type": "answer", "id": offer.ID, "sdp": pc.LocalDescription().SDP}, nil)
+		return postJSON(ctx, sig.url, sig.apiKey, map[string]any{"type": "answer", "id": offer.ID, "sdp": pc.LocalDescription().SDP}, nil)
 	}
 	// WHEP and go2rtc: we offer, the camera answers.
 	if _, err := pc.AddTransceiverFromKind(webrtc.RTPCodecTypeVideo, webrtc.RTPTransceiverInit{Direction: webrtc.RTPTransceiverDirectionRecvonly}); err != nil {
@@ -400,16 +400,21 @@ func askCamera(ctx context.Context, pc *webrtc.PeerConnection, sig videoSignal) 
 
 // sign adds the printer's API key. Video is only ever asked for on the printer's own host.
 func (sig videoSignal) sign(req *http.Request) {
-	if sig.apiKey != "" {
-		req.Header.Set("X-Api-Key", sig.apiKey)
+	withKey(req, sig.apiKey)
+}
+
+func withKey(req *http.Request, apiKey string) {
+	if apiKey != "" {
+		req.Header.Set("X-Api-Key", apiKey)
 	}
 }
 
-func postJSON(ctx context.Context, sig videoSignal, body any, out any) error {
+// postJSON talks to a camera; u is always on the printer's own host (Session.resolve checks it).
+func postJSON(ctx context.Context, u *url.URL, apiKey string, body any, out any) error {
 	data, _ := json.Marshal(body)
-	req, _ := http.NewRequestWithContext(ctx, http.MethodPost, sig.url.String(), bytes.NewReader(data))
+	req, _ := http.NewRequestWithContext(ctx, http.MethodPost, u.String(), bytes.NewReader(data))
 	req.Header.Set("Content-Type", "application/json")
-	sig.sign(req)
+	withKey(req, apiKey)
 	res, err := http.DefaultClient.Do(req)
 	if err != nil {
 		return err
