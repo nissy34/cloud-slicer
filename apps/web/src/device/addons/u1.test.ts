@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { nozzleGcode, parkHeadGcode, pickHeadGcode, feedChannels, feedGcode, filamentConfigGcode, purifierGcode, suggestToolMap, u1Activity, u1Addon, u1Heads, u1MappingCheck, u1MaterialMatches, u1NoHeadReason, u1PrintPrepGcode, u1Purifier } from './u1';
+import { nozzleGcode, parkHeadGcode, pickHeadGcode, feedChannels, feedGcode, filamentConfigGcode, purifierGcode, suggestToolMap, u1Activity, u1Addon, u1Heads, u1MappingCheck, u1MaterialMatches, u1NoHeadReason, u1PrintPrepGcode, u1Purifier, u1Fans } from './u1';
 
 const objects = {
   print_task_config: {
@@ -132,3 +132,22 @@ describe('U1 add-on', () => {
     expect(() => nozzleGcode(0, 0.4, 'huge')).toThrow();
   });
 });
+
+describe('U1 fans', () => {
+  const fan = (name: string, label: string, settable = true) => ({ name, label, speed: 0, rpm: null, settable });
+  const list = [
+    fan('fan', 'Part cooling'),
+    fan('fan_generic cavity_fan', 'Cavity fan'),
+    fan('heater_fan e0_nozzle_fan', 'E0 nozzle fan', false),
+    fan('fan_generic e1_fan', 'E1 fan'),
+    fan('heater_fan e1_nozzle_fan', 'E1 nozzle fan', false),
+    fan('fan_generic e2_fan', 'E2 fan'),
+    fan('heater_fan e2_nozzle_fan', 'E2 nozzle fan', false),
+  ];
+  it('shows one part fan and only the hotend fan of the head on the carriage', () => {
+    expect(u1Fans(list, 'extruder1').map((f) => f.label)).toEqual(['Part cooling', 'Cavity fan', 'Hotend fan']);
+    expect(u1Fans(list, 'extruder1').find((f) => f.label === 'Hotend fan')?.name).toBe('heater_fan e1_nozzle_fan');
+    expect(u1Fans(list, 'extruder').find((f) => f.label === 'Hotend fan')?.name).toBe('heater_fan e0_nozzle_fan');
+  });
+});
+

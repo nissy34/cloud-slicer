@@ -3,7 +3,7 @@
 // its klippy/extras: print_task_config (filament per tool head, print
 // preferences, tool map), filament_feed (automatic load/unload), purifier
 // (the top cover's air purifier), machine_state_manager and the cavity light.
-import type { KlipperObjects } from '../status';
+import { extruderIndex, type Fan, type KlipperObjects } from '../status';
 import type { PrinterAddon } from './types';
 import { u1Errors } from './u1-errors';
 import { differenceCie76 } from 'culori';
@@ -347,3 +347,20 @@ export function suggestToolMap(filaments: MappedFilament[], heads: U1Head[]): Re
   }
   return map;
 }
+
+/**
+ * The U1 lists a part fan and a hotend fan for each of its four heads, but only
+ * the head on the carriage is wired up: its part fan is the printer's main fan
+ * ("Part cooling"). So the per-head copies are left out, except the hotend fan of
+ * the head on the carriage, shown as "Hotend fan".
+ */
+export function u1Fans(list: Fan[], activeExtruder: string): Fan[] {
+  const active = extruderIndex(activeExtruder);
+  return list.flatMap((f) => {
+    const own = f.name.split(' ')[1] ?? '';
+    const head = /^e(\d+)_(nozzle_)?fan$/i.exec(own);
+    if (!head) return [f];
+    return head[2] && Number(head[1]) === active ? [{ ...f, label: 'Hotend fan' }] : [];
+  });
+}
+
