@@ -78,7 +78,7 @@ function PrinterSection() {
           <SendMark /> Send prints to it from the Device tab.
         </p>
       )}
-      {selectedSends === false && <p className="muted small printer-send">No direct print for this printer (not Klipper or Prusa): download the G-code to print it.</p>}
+      {selectedSends === false && <p className="muted small printer-send">No direct print for this printer (not Klipper or Prusa): download the G-code to print it, or send it from the Device tab if OctoPrint runs the printer.</p>}
       <OptionField optKey="curr_bed_type" label="Plate type" />
     </section>
   );

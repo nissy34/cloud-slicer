@@ -1,0 +1,13 @@
+# User "maker", password "test-pass" (test only).
+_version: 2
+maker:
+  active: true
+  apikey: null
+  groups:
+  - admins
+  password: $argon2id$v=19$m=65536,t=3,p=4$4PyfM0aoNYYQYuw955wTAg$Cd+xROXMWTlT54s2vxwoYskMj3tNCZyF7IpfZWMdlBg
+  permissions: []
+  roles:
+  - user
+  - admin
+  settings: {}

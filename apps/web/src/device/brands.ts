@@ -25,6 +25,12 @@ const KINDS: Record<string, KindWords> = {
     hint: 'The printer shows it under Settings, Network, PrusaLink (the user name there is maker).',
     locked: "Type the PrusaLink password from the printer's screen",
   },
+  octoprint: {
+    tag: 'OctoPrint',
+    key: 'OctoPrint API key',
+    hint: 'In OctoPrint: Settings, Application Keys, then make a key for Cloud Slicer (or copy your user\'s API key under Settings, API).',
+    locked: 'This OctoPrint is locked: type an API key from its settings',
+  },
 };
 
 export function kindWords(kind?: string | null): KindWords {
@@ -40,5 +46,9 @@ export const WORKS_WITH: { title: string; text: string }[] = [
   {
     title: 'Prusa',
     text: 'MK4, MK4S, Core One, XL and Mini, and the MK3 family with PrusaLink, once PrusaLink is turned on (Settings, Network, PrusaLink). Status, files and prints work; the Prusa camera only shows in Prusa Connect, and moving the head or sending G-code is done on the printer.',
+  },
+  {
+    title: 'OctoPrint',
+    text: 'Any printer OctoPrint runs (OctoPi on a Raspberry Pi beside an Ender, a Prusa MK3 or others), with an API key from its settings. Status, files, prints, moving the head, temperatures, the console and its cameras work.',
   },
 ];

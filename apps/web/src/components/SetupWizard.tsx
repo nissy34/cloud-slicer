@@ -256,7 +256,7 @@ function PrinterStep({ all, chosen, onChange }: { all: PresetSummary[]; chosen: 
     <>
       <p className="muted small">
         Pick each printer you have and its nozzle sizes in mm (you can change this later with Manage). Every printer slices here; <SendMark /> marks the ones this app can
-        also send prints to and start (Klipper printers, and Prusa printers through PrusaLink). For the others you download the G-code.
+        also send prints to and start (Klipper printers, and Prusa printers through PrusaLink). For the others you download the G-code, or send it through OctoPrint if OctoPrint runs the printer.
       </p>
       <div className="wizard-filters">
         <input type="search" placeholder="Search printers" aria-label="Search printers" value={query} onChange={(e) => setQuery(e.target.value)} />

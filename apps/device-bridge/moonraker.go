@@ -244,7 +244,7 @@ func ownPrinter(list []found, host string) []found {
 }
 
 // probeHosts asks each host, many at once, whether a printer answers: Moonraker
-// on port 7125 and PrusaLink on the web port, both at the same time. Hosts not
+// on port 7125, PrusaLink and OctoPrint on the web port, all at the same time. Hosts not
 // asked before ctx ends come back in left, so the answer comes back in time.
 func probeHosts(ctx context.Context, hosts []string) (list []found, left []string) {
 	queue := make(chan string, len(hosts))
@@ -272,23 +272,25 @@ func probeHosts(ctx context.Context, hosts []string) (list []found, left []strin
 					mu.Unlock()
 					continue
 				}
-				var both sync.WaitGroup
-				var web bool
-				both.Add(1)
-				go func() {
-					defer both.Done()
-					// A Prusa printer answers PrusaLink on its web port instead.
-					if f, ok := probePrusaHost(ctx, client, h); ok {
-						web = true
-						add(f)
-					}
-				}()
-				f, ok := probeMoonrakerHost(ctx, client, h)
-				if ok {
-					add(f)
+				// Each kind at the same time: a Prusa printer answers PrusaLink on
+				// its web port, OctoPrint answers there or on 5000.
+				var all sync.WaitGroup
+				var mine sync.Mutex
+				answered := false
+				for _, probe := range []func(context.Context, *http.Client, string) (found, bool){probeMoonrakerHost, probePrusaHost, probeOctoHost} {
+					all.Add(1)
+					go func() {
+						defer all.Done()
+						if f, ok := probe(ctx, client, h); ok {
+							mine.Lock()
+							answered = true
+							mine.Unlock()
+							add(f)
+						}
+					}()
 				}
-				both.Wait()
-				if ctx.Err() != nil && !ok && !web {
+				all.Wait()
+				if ctx.Err() != nil && !answered {
 					// Cut short: it may not have answered in time, ask it next time.
 					mu.Lock()
 					left = append(left, h)

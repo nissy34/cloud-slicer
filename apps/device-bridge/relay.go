@@ -397,6 +397,10 @@ func (b *Bridge) manage(method string, params json.RawMessage) (any, error) {
 					return nil, errors.New("The printer did not accept that password.")
 				case kind == kindPrusaLink:
 					return nil, errors.New("This Prusa printer needs its PrusaLink password.")
+				case kind == kindOctoPrint && apiKey != "":
+					return nil, errors.New("OctoPrint did not accept that API key.")
+				case kind == kindOctoPrint:
+					return nil, errors.New("This OctoPrint needs an API key.")
 				case apiKey != "":
 					return nil, errors.New("The printer did not accept that API key.")
 				}

@@ -1,0 +1,5 @@
+# The test API key (Settings, Application Keys in OctoPrint).
+maker:
+- api_key: CLOUDSLICERTESTKEY0123456789ABCD
+  app_id: Cloud Slicer test
+  created: 1760000000

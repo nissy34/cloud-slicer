@@ -173,6 +173,20 @@ Moonraker). The network search knows PrusaLink by its login challenge (realm
 "Printer API") on port 80; adding by address tries Moonraker first, then PrusaLink
 (`add <address> --kind prusalink` to say which).
 
+OctoPrint (`octoprint.go`, kind `octoprint`) is the second brand: its API key in
+`X-Api-Key`, status from `/api/printer` and `/api/job`, files in its `local` storage.
+A brand may do more than the basics through optional interfaces in `translate.go`:
+`commander` (G-code, emergency stop, and "restart", which for OctoPrint connects it to
+the printer again), `camerer` (its cameras, served on the stand-in at
+`/camera/<n>/snapshot|stream`, since the bridge only fetches cameras from the printer's
+own host) and `follower` (the printer's replies for the console, from OctoPrint's push
+socket `/sockjs/websocket`). The Klipper commands the Device tab sends are put in
+Marlin's words (`SET_HEATER_TEMPERATURE` to `M104`/`M140`/`M141`, the jog's saved state
+to `G90`/`M82`); other Klipper-only commands are refused in plain words. OctoPrint
+doesn't say what is homed or where the head is, so the stand-in remembers homing it
+sent and asks `M114` after a move (that answer stays out of the console). The search
+knows OctoPrint by its login page on port 80 or 5000.
+
 ## How it works
 
 Browser ⇄ relay (a Cloudflare Durable Object per bridge, `apps/device-relay`)
