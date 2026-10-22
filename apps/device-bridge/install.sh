@@ -9,10 +9,8 @@
 # expired, this asks for a new one), and makes the bridge start by itself with
 # the computer (a launch agent on macOS, a systemd user service on Linux). On a
 # Mac this also avoids the "could not verify" block: macOS only checks apps
-# downloaded by a browser. Run it again to update. Remove with Remove bridge in
-# Cloud Slicer, or here (a computer, a Pi or a printer alike):
-#
-#   curl -fsSL "__RELAY_URL__/install.sh" | sh -s -- --uninstall
+# downloaded by a browser. Run it again to update. Remove with:
+# cloud-slicer-bridge uninstall, or Remove bridge in Cloud Slicer.
 #
 # On a Klipper printer itself (a Pi, a Snapmaker U1, a Creality K1 or K2, a Sonic
 # Pad...), over SSH:
@@ -20,7 +18,7 @@
 #   curl -fsSL "__RELAY_URL__/install.sh?code=XXXX-XXXX" | sh -s -- --printer
 #
 # installs it as a service on the printer that serves that printer (sudo is used
-# when needed). Remove it with the --uninstall line above (--printer --uninstall works too).
+# when needed). Remove it the same way with: sh -s -- --printer --uninstall
 set -eu
 
 printer=""
@@ -51,8 +49,8 @@ with_code() {
   done
 }
 
-# Removing: one line for a computer, a Pi or a printer. Nothing is downloaded: the
-# bridge already installed here removes itself (on a printer it asks sudo for root).
+# Removing (--uninstall, with or without --printer): nothing is downloaded, the
+# bridge already installed here removes itself (with sudo for a printer service).
 if [ -n "$uninstall" ]; then
   NAME="__BRIDGE_NAME__"
   for d in /usr/data/printer_data "$HOME/printer_data" /home/*/printer_data /root/printer_data; do

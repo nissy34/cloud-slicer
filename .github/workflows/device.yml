@@ -166,12 +166,12 @@ jobs:
           sleep 2
           if systemctl is-active cloud-slicer-bridge; then echo "The service still runs"; exit 1; fi
           if [ -e /etc/systemd/system/cloud-slicer-bridge.service ]; then echo "The service file is still there"; exit 1; fi
-          # The one uninstall line (install.sh --uninstall), typed as a normal user: it downloads
+          # The printer uninstall line (install.sh --printer --uninstall), as a normal user: it downloads
           # nothing, finds the bridge in printer_data (here $HOME/printer_data) and removes it with sudo.
           sudo ../device-bridge/dist/linux-x64 install-printer --printer-data "$data" --relay http://127.0.0.1:8797
           systemctl is-active cloud-slicer-bridge
           curl -fsS http://127.0.0.1:8797/install.sh > "$RUNNER_TEMP/install.sh"
-          HOME="$RUNNER_TEMP" sh "$RUNNER_TEMP/install.sh" --uninstall | tee "$RUNNER_TEMP/uninstall.log"
+          HOME="$RUNNER_TEMP" sh "$RUNNER_TEMP/install.sh" --printer --uninstall | tee "$RUNNER_TEMP/uninstall.log"
           grep -q 'Removed the bridge from this printer' "$RUNNER_TEMP/uninstall.log"
           if grep -q 'Downloading' "$RUNNER_TEMP/uninstall.log"; then echo "Uninstall downloaded the bridge"; exit 1; fi
           sleep 2
