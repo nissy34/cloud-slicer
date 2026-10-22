@@ -163,6 +163,12 @@ function BridgeCard({ b, onLeftover }: { b: SavedBridge; onLeftover: (l: Leftove
           </span>
         </span>
       </div>
+      {online && built > 0 && (
+        <span className="muted dv-manage-version" data-testid="manage-bridge-version">
+          Bridge from {builtWhen(built)}
+          {latest > 0 && (outdated ? ` · newest from ${builtWhen(latest)}` : ' · up to date')}
+        </span>
+      )}
       {(outdated || updating === 'restarting') && (
         <div className="dv-manage-update" data-testid="manage-bridge-update-row">
           <span className="muted">
@@ -307,4 +313,9 @@ export function ManageDialog() {
       </div>
     </Dialog>
   );
+}
+
+/** When a bridge was built (its build number is the time of its last change, in seconds), e.g. "22 Oct, 17:16". */
+export function builtWhen(build: number): string {
+  return new Date(build * 1000).toLocaleString(undefined, { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
 }
