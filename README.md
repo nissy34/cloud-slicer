@@ -298,7 +298,7 @@ secrets to Pages and generates `BETTER_AUTH_SECRET` and `ACCOUNT_ENC_KEY` once.
 
 The Device tab controls Moonraker (Klipper) printers: cameras (all of Moonraker's
 webcams, several at once), temperatures, motion, the console (with Fluidd-style
-**Filters**: temperature reports, timelapse, print progress and plain "ok" lines hidden by
+**Filters** chips: temperature reports, timelapse, print progress and plain "ok" lines hidden by
 default, plus your own "hide lines containing…" words; saved per computer), files, upload and print,
 skipping objects during a print ("Skip objects…" on the Print card: a top-down map of
 the object outlines plus a list, sending Klipper's `EXCLUDE_OBJECT`; it needs the

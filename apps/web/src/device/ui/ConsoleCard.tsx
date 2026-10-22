@@ -29,6 +29,7 @@ export function ConsoleCard() {
   const [filters, setFiltersState] = useState(loadFilters);
   const [editing, setEditing] = useState(false);
   const [word, setWord] = useState('');
+  const [adding, setAdding] = useState(false);
   const log = useRef<HTMLOListElement>(null);
   const shown = lines.filter((l) => !isHidden(l, filters));
   const hidden = lines.length - shown.length;
@@ -41,6 +42,7 @@ export function ConsoleCard() {
     const w = word.trim();
     if (!w) return;
     setWord('');
+    setAdding(false);
     if (!filters.custom.some((c) => c.text.toLowerCase() === w.toLowerCase())) setFilters({ ...filters, custom: [...filters.custom, { text: w, on: true }] });
   };
   useEffect(() => {
@@ -58,39 +60,55 @@ export function ConsoleCard() {
       }
     >
       {editing && (
-        <fieldset className="dv-console-filters" data-testid="console-filters">
-          <legend>Hide these lines</legend>
-          {BUILT_IN_FILTERS.map((b) => (
-            <label key={b.key} title={b.example}>
-              <input type="checkbox" checked={filters[b.key]} onChange={(e) => setFilters({ ...filters, [b.key]: e.target.checked })} />
-              {b.label}
-            </label>
-          ))}
-          {filters.custom.map((c, i) => (
-            <span key={c.text} className="dv-console-word">
-              <label>
-                <input type="checkbox" checked={c.on} onChange={(e) => setFilters({ ...filters, custom: filters.custom.map((x, j) => (j === i ? { ...x, on: e.target.checked } : x)) })} />
-                Containing “{c.text}”
-              </label>
-              <button className="dv-link" aria-label={`Remove the “${c.text}” filter`} title="Remove" onClick={() => setFilters({ ...filters, custom: filters.custom.filter((_, j) => j !== i) })}>
-                ✕
+        <div className="dv-console-filters" role="group" aria-label="Hide these lines" data-testid="console-filters">
+          <span className="dv-console-filters-title">Hide these lines</span>
+          <div className="dv-filter-chips">
+            {BUILT_IN_FILTERS.map((b) => (
+              <button key={b.key} className="dv-filter-chip" aria-pressed={filters[b.key]} title={`Hide lines like: ${b.example}`} onClick={() => setFilters({ ...filters, [b.key]: !filters[b.key] })}>
+                {b.label}
               </button>
-            </span>
-          ))}
-          <form
-            className="dv-console-add"
-            onSubmit={(e) => {
-              e.preventDefault();
-              addWord();
-            }}
-          >
-            <input value={word} onChange={(e) => setWord(e.target.value)} placeholder="Hide lines containing…" aria-label="Hide lines containing" spellCheck={false} autoCapitalize="off" />
-            <button className="secondary" type="submit" disabled={!word.trim()}>
-              Add
-            </button>
-          </form>
-          <p className="muted">What you send and errors always show.</p>
-        </fieldset>
+            ))}
+            {filters.custom.map((c, i) => (
+              <span key={c.text} className="dv-filter-chip dv-filter-word" data-on={c.on}>
+                <button aria-pressed={c.on} title={`Hide lines containing “${c.text}”`} onClick={() => setFilters({ ...filters, custom: filters.custom.map((x, j) => (j === i ? { ...x, on: !x.on } : x)) })}>
+                  “{c.text}”
+                </button>
+                <button className="dv-filter-remove" aria-label={`Remove the “${c.text}” filter`} title="Remove" onClick={() => setFilters({ ...filters, custom: filters.custom.filter((_, j) => j !== i) })}>
+                  ✕
+                </button>
+              </span>
+            ))}
+            {adding ? (
+              <form
+                className="dv-filter-add"
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  addWord();
+                }}
+              >
+                <input
+                  autoFocus
+                  value={word}
+                  onChange={(e) => setWord(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Escape' && (setWord(''), setAdding(false))}
+                  onBlur={() => !word.trim() && setAdding(false)}
+                  placeholder="Hide lines containing…"
+                  aria-label="Hide lines containing"
+                  spellCheck={false}
+                  autoCapitalize="off"
+                />
+                <button className="dv-filter-chip" type="submit" disabled={!word.trim()}>
+                  Add
+                </button>
+              </form>
+            ) : (
+              <button className="dv-filter-chip dv-filter-new" onClick={() => setAdding(true)}>
+                + Add
+              </button>
+            )}
+          </div>
+          <p className="muted">Tap a chip to switch it. What you send and errors always show.</p>
+        </div>
       )}
       <ol className="dv-console" ref={log} aria-live="polite">
         {shown.map((l, i) => (

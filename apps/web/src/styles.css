@@ -4281,45 +4281,88 @@ select:focus-visible {
   color: var(--danger);
 }
 .dv-console-filters {
+  margin: 0 0 8px;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+}
+.dv-console-filters-title {
+  display: block;
+  margin-bottom: 6px;
+  font-size: 12px;
+}
+.dv-filter-chips {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 4px 14px;
-  margin: 0 0 8px;
-  padding: 6px 10px;
-  border: 1px solid var(--border);
-  border-radius: 6px;
-}
-.dv-console-filters legend {
-  padding: 0 4px;
-  font-size: 12px;
-}
-.dv-console-filters label {
-  display: inline-flex;
-  align-items: center;
   gap: 6px;
 }
-.dv-console-word {
+.dv-filter-chip {
   display: inline-flex;
   align-items: center;
-  gap: 2px;
+  gap: 4px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+  border-radius: 999px;
+  padding: 4px 12px;
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
 }
-.dv-console-add {
-  display: flex;
-  gap: 8px;
-  flex-basis: 100%;
+.dv-filter-chip[aria-pressed='true'],
+.dv-filter-word[data-on='true'] {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: #fff;
 }
-.dv-console-add input {
+.dv-filter-chip:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+.dv-filter-word {
+  padding: 0 4px 0 0;
+}
+.dv-filter-word button {
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+.dv-filter-word button[aria-pressed] {
+  padding: 4px 2px 4px 12px;
+}
+.dv-filter-remove {
+  padding: 4px 6px;
+  border-radius: 999px;
+}
+.dv-filter-new {
+  border-style: dashed;
+  color: var(--muted);
+}
+.dv-filter-add {
+  display: inline-flex;
+  gap: 6px;
+  flex: 1 1 200px;
+  min-width: 0;
+}
+.dv-filter-add input {
   flex: 1;
   min-width: 0;
-  padding: 4px 8px;
-  border: 1px solid var(--border);
-  border-radius: 6px;
+  padding: 4px 10px;
+  border: 1px solid var(--accent);
+  border-radius: 999px;
   background: var(--surface);
+  font: inherit;
+  font-size: 13px;
+}
+.dv-filter-add input:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
 }
 .dv-console-filters p {
-  flex-basis: 100%;
-  margin: 0;
+  margin: 6px 0 0;
   font-size: 12px;
 }
 .dv-console-hidden {
