@@ -3818,6 +3818,11 @@ select:focus-visible {
 .dv-temp b.heating {
   color: var(--dv-warn);
 }
+.dv-temp-target {
+  min-width: 2ch;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
 .dv-temp input {
   width: 52px;
   padding: 2px 4px;
@@ -5583,6 +5588,31 @@ select:focus-visible {
 .dv-added {
   color: var(--dv-ok, #1f8a4c);
   font-weight: 600;
+}
+/* A found printer that isn't Klipper: its brand beside its name. */
+.dv-kind {
+  display: inline-block;
+  margin-left: 6px;
+  padding: 0 7px;
+  border-radius: 99px;
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 600;
+  vertical-align: 1px;
+}
+.dv-works-with {
+  display: grid;
+  gap: 8px;
+  margin: 8px 0;
+}
+.dv-works-with dt {
+  font-weight: 600;
+}
+.dv-works-with dd {
+  margin: 2px 0 0;
+  color: var(--muted);
 }
 .dv-bridge-state {
   display: flex;

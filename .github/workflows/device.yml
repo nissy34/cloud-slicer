@@ -161,6 +161,13 @@ jobs:
           CLOUD_SLICER_BRIDGE_BIN: ${{ github.workspace }}/apps/device-bridge/dist/linux-x64
         run: node test/device-pages.mjs device-shots
 
+      - name: A Prusa printer through the bridge's PrusaLink stand-in (add with password, status, upload, print, pause, cancel; no G-code controls)
+        working-directory: apps/web
+        timeout-minutes: 5
+        env:
+          CLOUD_SLICER_BRIDGE_BIN: ${{ github.workspace }}/apps/device-bridge/dist/linux-x64
+        run: node test/device-prusa.mjs device-shots
+
       - name: The Linux bridge serves the mock U1 through a local relay (uploads, refusals, wrong keys)
         working-directory: apps/device-relay
         run: |

@@ -149,6 +149,23 @@ The bridge passes on only the Moonraker calls the Device tab uses
 straight into Moonraker instead of going through a temp folder, which on a
 printer is often in memory.
 
+## Printers that aren't Klipper
+
+Prusa printers (PrusaLink) reach the Device tab through a **stand-in**
+(`translate.go`): for each one the bridge runs a small Moonraker of its own on
+127.0.0.1 that answers the calls the Device tab and print alerts use, and works them
+out with the printer's own API (`prusalink.go`: digest login as `maker` with the
+PrusaLink password, `/api/v1/status`, `/api/v1/job`, `/api/v1/files`). Everything else
+(sessions, uploads, file pictures, alert watches) talks to the stand-in like to any
+Moonraker, so another brand is one more file like `prusalink.go`. The stand-in asks the
+printer every 2 seconds, only while a browser or an alert watch is connected. Calls the
+printer can't do (G-code, emergency stop, firmware restart) answer with a plain-words
+error, and `printer.info` carries `brand`, so the Device tab leaves those controls
+out. A printer's `kind` in the settings says which it is (`prusalink`; none for
+Moonraker). The network search knows PrusaLink by its login challenge (realm
+"Printer API") on port 80; adding by address tries Moonraker first, then PrusaLink
+(`add <address> --kind prusalink` to say which).
+
 ## How it works
 
 Browser ⇄ relay (a Cloudflare Durable Object per bridge, `apps/device-relay`)

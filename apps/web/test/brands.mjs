@@ -71,8 +71,12 @@ try {
   if (shots) await page.screenshot({ path: join(shots, 'wizard-brands.png') });
 
   const search = wizard.getByRole('searchbox', { name: 'Search printers' });
+  // Prusa printers print through PrusaLink; an Anker M5 doesn't print from here.
   await search.fill('prusa mk4');
-  if ((await row('MK4').first().locator('.send-mark').count()) !== 0) fail('a Prusa MK4 has the Direct print mark');
+  if (!(await row('Prusa MK4').first().locator('.send-mark').count())) fail('a Prusa MK4 has no "Direct print" mark');
+  await search.fill('anker m5');
+  if (!(await row('Anker M5').count())) fail('no Anker M5 in the wizard');
+  if ((await row('Anker M5').first().locator('.send-mark').count()) !== 0) fail('an Anker M5 has the Direct print mark');
   await search.fill('voron 2.4 350');
   const voron = row('Voron 2.4 350');
   if (!(await voron.locator('.send-mark').count())) fail('the Voron 2.4 350 has no "Direct print" mark');
@@ -125,21 +129,21 @@ try {
   console.log(`reload fetched ${fetched.join(', ')}`);
   if (!fetched.includes('engine/profiles/Voron.json')) fail('the reload did not load Voron');
 
-  // A non-Klipper printer says to download the G-code.
+  // A printer the Device tab can't reach (not Klipper or Prusa) says to download the G-code.
   await page.getByRole('button', { name: 'Manage' }).click();
   await wizard.getByRole('button', { name: 'Next' }).click();
-  await wizard.getByRole('searchbox', { name: 'Search printers' }).fill('prusa mk4');
+  await wizard.getByRole('searchbox', { name: 'Search printers' }).fill('anker m5c');
   await wizard.locator('.wizard-models li').first().locator('.segmented button').first().click();
   await wizard.getByRole('button', { name: 'Next' }).click();
   await wizard.getByRole('button', { name: 'Next' }).click({ timeout: 60000 });
   await wizard.getByRole('button', { name: 'Finish' }).click();
-  const prusa = (await picker.locator('option').allInnerTexts()).find((o) => /^Prusa MK4/.test(o));
-  if (!prusa) fail('no Prusa MK4 in the picker');
+  const anker = (await picker.locator('option').allInnerTexts()).find((o) => /^Anker M5C/.test(o));
+  if (!anker) fail('no Anker M5C in the picker');
   else {
-    if (prusa.includes('direct print')) fail(`"${prusa}" says direct print`);
-    await picker.selectOption(prusa.trim());
+    if (anker.includes('direct print')) fail(`"${anker}" says direct print`);
+    await picker.selectOption(anker.trim());
     await page.getByText("No direct print for this printer").waitFor({ timeout: 30000 });
-    if (shots) await page.screenshot({ path: join(shots, 'picker-prusa.png') });
+    if (shots) await page.screenshot({ path: join(shots, 'picker-anker.png') });
   }
 
   // OrcaSlicer ships its own catalog.

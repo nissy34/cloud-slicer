@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"net"
 	"net/http"
 	"regexp"
@@ -99,6 +100,8 @@ type found struct {
 	URL      string `json:"url"`
 	Name     string `json:"name"`
 	NeedsKey bool   `json:"needsKey"`
+	// Kind: "" for Moonraker, else the kind the bridge stands in for (Printer.Kind).
+	Kind string `json:"kind,omitempty"`
 }
 
 // discover finds every Moonraker answering on port 7125 on this computer's local networks (each /24).
@@ -187,6 +190,12 @@ func probeHosts(ctx context.Context, hosts []string) []found {
 		go func() {
 			defer wg.Done()
 			for h := range queue {
+				// A Prusa printer answers PrusaLink on its web port instead.
+				if f, ok := probePrusaHost(ctx, client, h); ok {
+					mu.Lock()
+					out = append(out, f)
+					mu.Unlock()
+				}
 				url := "http://" + h + ":7125"
 				req, err := http.NewRequestWithContext(ctx, http.MethodGet, url+"/printer/info", nil)
 				if err != nil {
@@ -222,4 +231,41 @@ func probeHosts(ctx context.Context, hosts []string) []found {
 	}
 	wg.Wait()
 	return out
+}
+
+// probePrusaHost says whether PrusaLink answers on a host's web port: its
+// version without a login, or its own login challenge (realm "Printer API").
+func probePrusaHost(ctx context.Context, client *http.Client, h string) (found, bool) {
+	url := "http://" + h
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url+"/api/version", nil)
+	if err != nil {
+		return found{}, false
+	}
+	res, err := client.Do(req)
+	if err != nil {
+		return found{}, false
+	}
+	defer res.Body.Close()
+	f := found{URL: url, Name: h, Kind: kindPrusaLink}
+	switch res.StatusCode {
+	case http.StatusUnauthorized:
+		if !isPrusaChallenge(res.Header.Get("WWW-Authenticate")) {
+			return found{}, false
+		}
+		f.NeedsKey = true
+		return f, true
+	case http.StatusOK:
+		var v struct {
+			Text     string `json:"text"`
+			Hostname string `json:"hostname"`
+		}
+		if json.NewDecoder(io.LimitReader(res.Body, 64<<10)).Decode(&v) != nil || !strings.Contains(strings.ToLower(v.Text), "prusa") {
+			return found{}, false
+		}
+		if v.Hostname != "" {
+			f.Name = v.Hostname
+		}
+		return f, true
+	}
+	return found{}, false
 }

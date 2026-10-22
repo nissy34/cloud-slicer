@@ -15,7 +15,7 @@
 import { create } from 'zustand';
 import { api, ApiError, type Device } from '../account/api';
 import { accountReady, deleteDevice, getDeviceApiKey, saveDevice, useAccount } from './account';
-import type { PrinterAddon, PrinterError, PrinterFacts } from '../device/addons';
+import { takesCommands, type PrinterAddon, type PrinterError, type PrinterFacts } from '../device/addons';
 import { coalesce } from '../device/coalesce';
 import { BridgeLink, onBridgeRemoved, setBridgeTickets } from '../device/link/bridge';
 import { DirectLink } from '../device/link/direct';
@@ -503,6 +503,10 @@ export const useDevice = create<DeviceState>((set, get) => {
     },
 
     run(script) {
+      if (!takesCommands(get().addons)) {
+        get().setToast("This printer doesn't take commands from Cloud Slicer: use its screen.", true);
+        return Promise.resolve(false);
+      }
       return get().call('', (s) => s.gcode(script));
     },
 

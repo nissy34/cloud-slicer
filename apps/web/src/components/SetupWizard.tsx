@@ -252,7 +252,7 @@ function PrinterStep({ all, chosen, onChange }: { all: PresetSummary[]; chosen: 
     <>
       <p className="muted small">
         Pick each printer you have and its nozzle sizes in mm (you can change this later with Manage). Every printer slices here; <SendMark /> marks the ones this app can
-        also send prints to and start (Klipper printers). For the others you download the G-code.
+        also send prints to and start (Klipper printers, and Prusa printers through PrusaLink). For the others you download the G-code.
       </p>
       <div className="wizard-filters">
         <input type="search" placeholder="Search printers" aria-label="Search printers" value={query} onChange={(e) => setQuery(e.target.value)} />
@@ -305,10 +305,10 @@ function PrinterStep({ all, chosen, onChange }: { all: PresetSummary[]; chosen: 
   );
 }
 
-/** The "Direct print" mark: the app can send prints to this printer and start them (it runs Klipper). */
+/** The "Direct print" mark: the app can send prints to this printer and start them (it runs Klipper, or is a Prusa). */
 export function SendMark() {
   return (
-    <span className="send-mark" title="Direct print: this app sends prints to it and starts them from the Device tab (Klipper with Moonraker)">
+    <span className="send-mark" title="Direct print: this app sends prints to it and starts them from the Device tab (Klipper with Moonraker, or Prusa with PrusaLink)">
       <svg viewBox="0 0 16 16" width="12" height="12" aria-hidden="true">
         <path d="M2 8.5 14 2l-3.5 12-2.7-4.3L2 8.5Zm5.8 1.2 1.6 2.6L11.6 5 7.8 9.7Z" fill="currentColor" />
       </svg>
