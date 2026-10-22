@@ -728,7 +728,7 @@ try {
   await card.getByTestId('manage-bridge-state').filter({ hasText: 'Running' }).waitFor({ timeout: 20_000 });
   await card.getByText(/^Bridge on /).waitFor();
   // Which bridge it is: when it was built, so "is the fix in yet?" has an answer.
-  await card.getByTestId('manage-bridge-version').filter({ hasText: /^Bridge from / }).waitFor();
+  await card.getByTestId('manage-bridge-version').filter({ hasText: /^Version \d+ · from / }).waitFor();
   // A newer bridge is out: Update now asks the bridge, which says plainly why it can't (it wasn't
   // set up to start with its computer here). An installed one downloads, checks and restarts.
   await card.getByTestId('manage-bridge-update').click();
