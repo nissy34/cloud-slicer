@@ -56,8 +56,8 @@ the bridge. CI runs it in the "Device" workflow, job "Real Klipper printers".
   a heater never warms and Klipper stops with "not heating at expected rate".
 - The simulated board runs as fast as the computer lets it (each one keeps a
   processor core busy), and the motors use no microsteps so Klipper keeps up.
-  Slowed down on purpose (`SIMULAVR_PACING_RATE` below about 0.07), Klipper
-  can't connect to it ("Timeout on connect").
+  Slowed down on purpose (`SIMULAVR_PACING_RATE`), it can get too slow for
+  Klipper to connect ("Timeout on connect").
 - `FIRMWARE_RESTART` hangs the simulated board; use `RESTART`, or
   `docker compose restart`.
 
