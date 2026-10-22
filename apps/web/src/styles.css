@@ -2513,7 +2513,7 @@ select:focus-visible {
   --dv-warn: #e7a74a;
 }
 .dv-empty {
-  max-width: 460px;
+  max-width: 640px;
   margin: 12vh auto 0;
   text-align: center;
   display: grid;
@@ -5574,16 +5574,87 @@ select:focus-visible {
   font-weight: 600;
   vertical-align: 1px;
 }
-.dv-works-with {
+.dv-works {
   display: grid;
-  gap: 8px;
-  margin: 8px 0;
+  gap: 6px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface-2);
+  text-align: left;
+  width: 100%;
+  min-width: 0;
 }
-.dv-works-with dt {
+.dv-works p {
+  margin: 0;
+}
+.dv-works-slicing {
   font-weight: 600;
+  color: var(--dv-ok);
 }
-.dv-works-with dd {
-  margin: 2px 0 0;
+.dv-works summary {
+  color: var(--accent);
+  cursor: pointer;
+  width: fit-content;
+}
+.dv-works > * {
+  min-width: 0;
+}
+.dv-works-scroll {
+  overflow-x: auto;
+  margin-top: 6px;
+}
+.dv-works-table {
+  border-collapse: collapse;
+  width: 100%;
+  font-size: 13px;
+}
+.dv-works-table th,
+.dv-works-table td {
+  border-bottom: 1px solid var(--border);
+  padding: 5px 6px;
+  text-align: center;
+  white-space: nowrap;
+}
+.dv-works-table thead th {
+  font-weight: 600;
+  color: var(--muted);
+  font-size: 12px;
+  white-space: normal;
+  vertical-align: bottom;
+}
+.dv-works-short {
+  display: none;
+}
+/* Phones: the table fits without sideways scrolling. */
+@media (max-width: 699px) {
+  .dv-works-long {
+    display: none;
+  }
+  .dv-works-short {
+    display: inline;
+  }
+  .dv-works-table {
+    font-size: 12px;
+  }
+  .dv-works-table th,
+  .dv-works-table td {
+    padding: 4px 2px;
+  }
+  .dv-works-table thead th {
+    font-size: 11px;
+  }
+}
+.dv-works-table tbody th {
+  text-align: left;
+  font-weight: 600;
+  white-space: normal;
+}
+.dv-works-table td.yes {
+  color: var(--dv-ok);
+  font-weight: 700;
+}
+.dv-works-table td.no {
   color: var(--muted);
 }
 .dv-bridge-state {

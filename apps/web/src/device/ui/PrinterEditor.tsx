@@ -3,7 +3,8 @@ import { installedOnly, installedPrinters, SETUP_KEY, type Setup } from '../../l
 import { useAccount, useUserSetting } from '../../state/account';
 import { bridgeLabel, useDevice, type SavedPrinter } from '../../state/device';
 import { useSlicer } from '../../state/store';
-import { kindWords, WORKS_WITH } from '../brands';
+import { kindWords } from '../brands';
+import { WorksWith } from './WorksWith';
 import { DEFAULT_RELAY_URL } from '../config';
 import { BridgeLink } from '../link/bridge';
 import { DirectLink, directBlockedReason, normalizePrinterUrl } from '../link/direct';
@@ -312,24 +313,6 @@ function AddByAddress({ watch, onAdded }: { watch: BridgeWatch | null; onAdded: 
   );
 }
 
-/** Which printers the Device tab works with, folded under the search. */
-function WorksWith() {
-  return (
-    <details className="dv-node-option" data-testid="works-with">
-      <summary>Which printers work?</summary>
-      <dl className="dv-works-with">
-        {WORKS_WITH.map((w) => (
-          <div key={w.title}>
-            <dt>{w.title}</dt>
-            <dd>{w.text}</dd>
-          </div>
-        ))}
-      </dl>
-      <p className="muted">Other printers aren't reached by the bridge yet; slicing for them works all the same, and you can download the file.</p>
-    </details>
-  );
-}
-
 /**
  * Editing a saved bridge printer: search the bridge's network and add
  * printers to the bridge (with their API keys), or add one by its address.
@@ -351,7 +334,6 @@ function BridgePrinters({ watch, onAdded, searchNow, system }: { watch: BridgeWa
         </ul>
       )}
       <AddByAddress watch={watch} onAdded={(p) => added(p)} />
-      <WorksWith />
       <p className="muted">API keys go to the bridge, which keeps them on its computer; Cloud Slicer doesn't store them.</p>
     </div>
   );
@@ -537,7 +519,6 @@ function BridgeAddList({
           )
         }
       />
-      <WorksWith />
     </div>
   );
 }
@@ -804,6 +785,7 @@ export function PrinterEditor() {
         </>
       }
     >
+      {!existing && <WorksWith />}
       {!existing && !newBridge && (
         <div className="dv-segmented" role="tablist" aria-label="How to reach the printer">
           <button role="tab" aria-selected={kind === 'bridge'} className={kind === 'bridge' ? 'on' : ''} onClick={() => setKind('bridge')}>

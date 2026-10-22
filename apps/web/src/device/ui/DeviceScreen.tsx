@@ -11,6 +11,7 @@ import { ManageDialog } from './ManageDialog';
 import { useConfirm } from './parts';
 import { PrintDialog } from './PrintDialog';
 import { PrinterEditor } from './PrinterEditor';
+import { WorksWith } from './WorksWith';
 
 export function DeviceScreen() {
   useEffect(() => useDevice.getState().start(), []);
@@ -48,7 +49,7 @@ export function DeviceScreen() {
       {!active ? (
         <div className="dv-empty">
           <h1>Your printers</h1>
-          <p className="muted">Add a Snapmaker U1, any Klipper printer with Moonraker, a Prusa with PrusaLink, a printer run by OctoPrint or an Elegoo Centauri Carbon, to watch it, control it and send prints from the slicer.</p>
+          <p className="muted">Watch your printers, control them and send prints from the slicer.</p>
           <button className="primary" onClick={() => void openEditor({ mode: 'add' })} data-testid="add-printer">
             Add a printer
           </button>
@@ -62,6 +63,7 @@ export function DeviceScreen() {
             </button>
           )}
           {send && <p className="muted">Add your printer first, then send the plate again.</p>}
+          <WorksWith />
           {bridges.length > 0 && (
             <button className="dv-link" onClick={() => openManage(true)} data-testid="manage-open">
               Printers &amp; bridges
