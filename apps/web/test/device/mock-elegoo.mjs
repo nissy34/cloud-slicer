@@ -196,7 +196,9 @@ export async function startMockElegoo({ name = 'Carbon mock' } = {}) {
     req.on('data', (c) => chunks.push(c));
     req.on('end', () => {
       const body = Buffer.concat(chunks);
-      const boundary = /boundary=(.+)$/.exec(req.headers['content-type'] ?? '')?.[1];
+      const type = req.headers['content-type'] ?? '';
+      const cut = type.indexOf('boundary=');
+      const boundary = cut < 0 ? '' : type.slice(cut + 'boundary='.length);
       if (!boundary) return reply('111111', 'not a form');
       const fields = {};
       let file = null;
