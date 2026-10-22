@@ -2544,6 +2544,58 @@ select:focus-visible {
 }
 .dv-pair {
   grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  /* Bed and chamber beside Move: both cards end at the same line. */
+  align-items: stretch;
+}
+.dv-fan-tiles {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(96px, 1fr));
+  gap: 6px;
+  margin-top: 10px;
+}
+.dv-fan-tile {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  min-width: 0;
+  padding: 6px 8px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface-2);
+  color: var(--text);
+  font: inherit;
+  font-size: 12px;
+  text-align: left;
+  cursor: pointer;
+}
+.dv-fan-tile span {
+  color: var(--muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+}
+.dv-fan-tile b {
+  font-size: 14px;
+  font-variant-numeric: tabular-nums;
+}
+.dv-fan-tile.on b {
+  color: var(--accent);
+}
+.dv-fan-tile.open {
+  border-color: var(--accent);
+}
+.dv-fan-tile:disabled {
+  cursor: default;
+  background: transparent;
+}
+.dv-fan-tile-slider {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-top: 8px;
 }
 .dv-card {
   background: var(--surface);
@@ -2664,8 +2716,66 @@ select:focus-visible {
   display: grid;
   gap: 8px;
 }
+/* Several cameras: one big, the others small in a column beside it; tap a small one to swap.
+   The column has at least two rows, so a lone small camera keeps the size it has among three. */
 .dv-cameras-many {
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  grid-template-columns: minmax(0, 1fr) 28%;
+  grid-template-rows: repeat(var(--small-cameras, 1), minmax(0, 1fr));
+}
+.dv-cameras-many .dv-camera-main {
+  order: -1;
+  grid-column: 1;
+  grid-row: 1 / -1;
+}
+.dv-cameras-many .dv-camera:not(.dv-camera-main) {
+  grid-column: 2;
+  aspect-ratio: auto !important;
+  min-height: 0;
+  /* Small cameras take their height from the big one, never the other way round. */
+  contain: size;
+}
+.dv-cameras-many .dv-camera:not(.dv-camera-main) figcaption {
+  font-size: 10px;
+  left: 3px;
+  top: 3px;
+  padding: 0 4px;
+}
+.dv-cameras-many .dv-camera:not(.dv-camera-main) .dv-camera-note {
+  display: none;
+}
+/* Desktop has room: two cameras side by side; four or more = one big on top, the rest in a row under it. */
+@media (min-width: 761px) {
+  .dv-cameras-many.dv-cameras-pair {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-rows: none;
+  }
+  .dv-cameras-many.dv-cameras-row {
+    grid-template-columns: repeat(var(--small-cameras), minmax(0, 1fr));
+    grid-template-rows: none;
+  }
+  .dv-cameras-pair .dv-camera-main {
+    grid-column: auto;
+    grid-row: auto;
+  }
+  .dv-cameras-pair .dv-camera:not(.dv-camera-main),
+  .dv-cameras-row .dv-camera:not(.dv-camera-main) {
+    grid-column: auto;
+    contain: none;
+    aspect-ratio: var(--aspect) !important;
+  }
+  .dv-cameras-row .dv-camera-main {
+    grid-column: 1 / -1;
+    grid-row: auto;
+  }
+  .dv-cameras-pair .dv-camera:not(.dv-camera-main) figcaption {
+    font-size: 12px;
+    left: 6px;
+    top: 6px;
+    padding: 1px 6px;
+  }
+  .dv-cameras-pair .dv-camera:not(.dv-camera-main) .dv-camera-note {
+    display: block;
+  }
 }
 .dv-camera {
   position: relative;
@@ -2700,7 +2810,11 @@ select:focus-visible {
   color: #aaa;
 }
 .dv-camera-swap {
-  display: none;
+  position: absolute;
+  inset: 0;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
 }
 .dv-camera-note {
   position: absolute;
@@ -3703,37 +3817,8 @@ select:focus-visible {
   .dv-cameras:not(.dv-cameras-many) .dv-camera {
     margin-inline: auto;
   }
-  /* Several cameras: one big, the others small in a column beside it; tap a small one to swap. */
   .dv-camera-card .dv-cameras-many {
-    grid-template-columns: minmax(0, 1fr) 28%;
-    grid-template-rows: repeat(var(--small-cameras, 1), minmax(0, 1fr));
     gap: 4px;
-  }
-  .dv-cameras-many .dv-camera-main {
-    order: -1;
-    grid-column: 1;
-    grid-row: 1 / -1;
-  }
-  .dv-cameras-many .dv-camera:not(.dv-camera-main) {
-    grid-column: 2;
-    aspect-ratio: auto !important;
-    min-height: 0;
-    /* Small cameras take their height from the big one, never the other way round. */
-    contain: size;
-  }
-  .dv-cameras-many .dv-camera:not(.dv-camera-main) figcaption {
-    font-size: 10px;
-    left: 3px;
-    top: 3px;
-    padding: 0 4px;
-  }
-  .dv-camera-swap {
-    display: block;
-    position: absolute;
-    inset: 0;
-    border: 0;
-    background: transparent;
-    cursor: pointer;
   }
   /* Not printing: the move controls sit right under the camera. */
   .dv-cols:not(.dv-busy) [data-testid='motion-card'] {

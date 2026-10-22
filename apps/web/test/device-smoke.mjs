@@ -195,6 +195,19 @@ try {
     await climate.getByText('Hotend fan T3', { exact: true }).waitFor();
     for (const gone of ['Hotend fan T2', 'E1 fan', 'E1 nozzle fan']) if (await climate.getByText(gone, { exact: true }).count()) throw new Error(`U1 fan list shows ${gone}`);
     console.log('U1 fans: part cooling plus the hotend fans that matter');
+    // Fans are tiles with their speed; tapping one opens its slider. Fans the printer runs by itself can't be opened.
+    if (!(await climate.getByRole('button', { name: /Hotend fan T1/ }).isDisabled())) throw new Error('hotend fan tile should not open a slider');
+    await climate.getByRole('button', { name: /Part cooling/ }).click();
+    const slider = climate.getByRole('slider', { name: 'Part cooling' });
+    await slider.focus();
+    await slider.press('End');
+    await until('part cooling fan full', () => u1.state.fan.speed === 1);
+    await climate.getByRole('button', { name: /Part cooling/ }).filter({ hasText: '100%' }).waitFor();
+    console.log('fan tiles show speeds and open a slider');
+    // Desktop: Bed and chamber beside Move, both cards ending on the same line.
+    const [c, m] = await Promise.all([climate.boundingBox(), page.getByTestId('motion-card').boundingBox()]);
+    if (Math.abs(c.y - m.y) > 1 || Math.abs(c.y + c.height - (m.y + m.height)) > 1) throw new Error(`Bed and chamber and Move are not side by side and even (${JSON.stringify({ c, m })})`);
+    console.log('Bed and chamber and Move sit side by side, same height');
   }
 
   // Move arrows say what physically moves. On the U1 the bed moves up and down, so "Bed up" closes the gap (Z−).
@@ -428,6 +441,20 @@ try {
   await page.getByRole('heading', { name: 'Nozzles' }).waitFor();
   await until('both cameras streaming', async () => (await page.getByTestId('camera-tile').count()) === 2, 20_000);
   await page.locator('[data-camera="case"] iframe[data-view="iframe"]').waitFor({ timeout: 20_000 });
+  {
+    // Desktop, two cameras: side by side, same size; clicking the right one moves it to the left.
+    await page.locator('[data-camera="case"][data-main]').waitFor();
+    const [a, b] = await Promise.all(['case', 'nozzle'].map((n) => page.locator(`[data-camera="${n}"]`).boundingBox()));
+    if (Math.abs(a.width - b.width) > 2 || Math.abs(a.y - b.y) > 2 || !(a.x < b.x)) throw new Error(`desktop: two cameras are not side by side (${JSON.stringify({ a, b })})`);
+    await page.getByRole('button', { name: 'Show nozzle big' }).click();
+    await page.locator('[data-camera="nozzle"][data-main]').waitFor();
+    await page.getByRole('button', { name: 'Show case big' }).click();
+    await page.locator('[data-camera="case"][data-main]').waitFor();
+    // Alerts sit above the file list, which can run to hundreds of files.
+    const [alertsY, filesY] = await Promise.all(['alerts-card', 'files-card'].map((id) => page.getByTestId(id).evaluate((el) => el.getBoundingClientRect().top)));
+    if (!(alertsY < filesY)) throw new Error('Alerts card is below the file list');
+    console.log('desktop: two cameras side by side, swap with a click; Alerts above Files');
+  }
   await page.frameLocator('[data-camera="case"] iframe').getByText('mock camera player').waitFor({ timeout: 20_000 });
   await page.locator('[data-camera="nozzle"] img[data-view="mjpeg"]').waitFor({ timeout: 20_000 });
   await until('mjpeg stream decodes', () => page.locator('[data-camera="nozzle"] img').evaluate((img) => img.naturalWidth > 0), 20_000);

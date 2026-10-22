@@ -149,8 +149,9 @@ export function DeviceScreen() {
             <div className="dv-col dv-col-side">
               <JobCard />
               <ToolheadsCard />
-              <FilesCard />
+              {/* Above Files: a printer can hold hundreds of files. */}
               <AlertsCard />
+              <FilesCard />
             </div>
           </div>
         </>
