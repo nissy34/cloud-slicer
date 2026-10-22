@@ -37,6 +37,7 @@ const users = {
   bob: { sub: 'g-bob', name: 'Bob', email: 'bob@example.com', email_verified: true },
   carol: { sub: 'g-carol', name: 'Carol', email: 'carol@example.com', email_verified: true },
   dave: { sub: 'g-dave', name: 'Dave', email: 'Dave@Example.com', email_verified: true },
+  gina: { sub: 'g-gina', name: 'Gina', email: 'gina@example.com', email_verified: true },
 };
 let nextUser = 'alice';
 const codes = new Map(); // code -> { user, challenge }
@@ -983,6 +984,20 @@ if (withApp)
       await banner.getByText('being edited on your phone').waitFor({ timeout: 15000 });
       await projectButton.getByText('View only').waitFor();
       if (process.env.ACCOUNTS_SHOTS) await page.screenshot({ path: join(process.env.ACCOUNTS_SHOTS, 'view-only.png') });
+      // On a phone the banner sits below the top bar, which stays usable.
+      await page.setViewportSize({ width: 390, height: 800 });
+      await page.waitForTimeout(300);
+      const phoneBanner = await page.evaluate(() => {
+        const bar = document.querySelector('.topbar').getBoundingClientRect();
+        const banner = document.querySelector('[data-testid="view-only-banner"]').getBoundingClientRect();
+        const project = document.querySelector('.project-button').getBoundingClientRect();
+        const hit = document.elementFromPoint(project.left + project.width / 2, project.top + project.height / 2);
+        return { below: banner.top >= bar.bottom - 0.5, projectClickable: !!hit?.closest('.project-button') };
+      });
+      assert.ok(phoneBanner.below, 'the view-only banner covers the top bar on a phone');
+      assert.ok(phoneBanner.projectClickable, 'the Project button is under something on a phone');
+      if (process.env.ACCOUNTS_SHOTS) await page.screenshot({ path: join(process.env.ACCOUNTS_SHOTS, 'view-only-phone.png') });
+      await page.setViewportSize({ width: 1280, height: 860 });
       await banner.getByRole('button', { name: 'Edit here instead' }).click();
       await banner.waitFor({ state: 'detached', timeout: 60000 });
       assert.equal(await layer.inputValue(), '0.24', 'the latest save came back');
@@ -1073,11 +1088,58 @@ if (withApp)
       const [download] = await Promise.all([page.waitForEvent('download'), page.getByRole('menuitem', { name: 'Download 3MF' }).click()]);
       assert.equal(download.suggestedFilename(), '3DBenchy.3mf');
 
+      // Save a copy offers "3DBenchy (copy)"; a name another project has gets a number instead of a twin.
+      await projectButton.click();
+      await page.getByRole('menuitem', { name: 'Save a copy…' }).click();
+      const copying = page.getByRole('dialog', { name: 'Save a copy' });
+      assert.equal(await copying.getByLabel('Project name').inputValue(), '3DBenchy (copy)');
+      await copying.getByLabel('Project name').fill('3DBenchy');
+      await copying.getByRole('button', { name: 'Save' }).click();
+      const copied = page.getByText('Saved “3DBenchy (2)” to your projects');
+      await copied.waitFor({ timeout: 60000 });
+      const names = (await (await carol.json('/api/projects')).json()).projects.filter((p) => !p.draft).map((p) => p.name);
+      assert.equal(names.filter((n) => n === '3DBenchy').length, 1, `one 3DBenchy: ${names.join(', ')}`);
+      assert.ok(names.includes('3DBenchy (2)'), `the copy is 3DBenchy (2): ${names.join(', ')}`);
+      // The "Saved" note goes away by itself.
+      await copied.waitFor({ state: 'detached', timeout: 15000 });
+
       await page.setViewportSize({ width: 390, height: 800 });
       await projectButton.click();
       await page.getByRole('menuitem', { name: 'Online projects…' }).click();
       await dialog.getByText('3DBenchy', { exact: true }).waitFor();
       if (process.env.ACCOUNTS_SHOTS) await page.screenshot({ path: join(process.env.ACCOUNTS_SHOTS, 'projects-list-phone.png') });
+    } finally {
+      await browser.close();
+    }
+  });
+
+if (withApp)
+  test('browser: the setup wizard waits until the Continue card is answered', async () => {
+    const browser = await chromium.launch(
+      process.env.PLAYWRIGHT_BROWSERS_PATH === '/opt/pw-browsers' ? { executablePath: '/opt/pw-browsers/chromium' } : {},
+    );
+    try {
+      // Someone new (no printers set up yet) with an unsaved project from another device.
+      const gina = new Browser();
+      await signIn(gina, 'gina');
+      const bytes = readFileSync(join(web, '../../fixtures/colored_3DBenchy.3mf'));
+      const draft = await gina.fetch(`${HOST}/api/projects/draft-gina?${new URLSearchParams({ name: 'Untitled', draft: '1', device: 'gina-laptop', deviceName: 'Windows computer', engine: 'snapmaker' })}`, {
+        method: 'PUT',
+        headers: { Origin: HOST, 'Content-Type': 'model/3mf' },
+        body: bytes,
+      });
+      assert.equal(draft.status, 200, await draft.clone().text());
+      const context = await browser.newContext({ viewport: { width: 1280, height: 860 } });
+      await context.addCookies([...gina.jar.get(new URL(HOST).host)].map(([name, value]) => ({ name, value, url: HOST })));
+      const page = await context.newPage();
+      await page.goto(HOST);
+      const card = page.getByTestId('continue-card');
+      const wizard = page.getByRole('dialog', { name: 'Set up your printers' });
+      await card.getByText('Continue your unsaved project?').waitFor({ timeout: 120000 });
+      await page.waitForTimeout(3000);
+      assert.equal(await wizard.count(), 0, 'the wizard opened over the Continue card');
+      await card.getByRole('button', { name: 'Discard' }).click();
+      await wizard.waitFor({ timeout: 30000 });
     } finally {
       await browser.close();
     }

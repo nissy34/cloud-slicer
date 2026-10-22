@@ -5,8 +5,8 @@
 // opening and closing the Text tool leaves no text behind, the preset menu
 // names the preset as its dropdown does and opens upward near the bottom,
 // Online projects closes with Esc and a click outside, unsaved changes are
-// asked about in the app's own dialog, and on a phone the four buttons
-// after slicing fit in one row.
+// asked about in the app's own dialog, the top bar fits from 768 px up, and
+// on a phone the four buttons after slicing fit in one row.
 //
 //   node test/layout-fixes.mjs [screenshot-dir]
 //
@@ -106,6 +106,31 @@ try {
   if (button.labelHeight > 24) fail(`"Project ▾" wraps: ${button.labelHeight}px tall`);
   if (!button.shortened) fail('the long project name is not shortened');
   console.log('project button: one line, name shortened');
+
+  // The top bar fits between phone and wide desktop: nothing past the window
+  // or below the bar, and the three tabs are whole.
+  for (const width of [768, 900, 1024, 1280]) {
+    await page.setViewportSize({ width, height: 900 });
+    await page.waitForTimeout(300);
+    const bar = await page.evaluate(() => {
+      const top = document.querySelector('.topbar');
+      const box = top.getBoundingClientRect();
+      const out = [...top.querySelectorAll('*')]
+        .filter((e) => {
+          const r = e.getBoundingClientRect();
+          return r.width > 0 && (r.right > innerWidth + 0.5 || r.left < -0.5 || r.bottom > box.bottom + 0.5);
+        })
+        .map((e) => `${e.className || e.tagName}: ${(e.textContent || '').trim().slice(0, 20)}`);
+      const tabs = [...top.querySelectorAll('[role=tab]')].filter((t) => t.scrollWidth > t.clientWidth + 1 || !t.getBoundingClientRect().width);
+      return { out, cut: tabs.map((t) => t.textContent), docWidth: document.documentElement.scrollWidth };
+    });
+    if (bar.out.length) fail(`top bar at ${width}px: ${bar.out.join(' | ')} sticks out`);
+    if (bar.cut.length) fail(`top bar at ${width}px: tabs cut off: ${bar.cut.join(', ')}`);
+    if (bar.docWidth > width) fail(`top bar at ${width}px: the page scrolls sideways (${bar.docWidth}px)`);
+    if (shots) await page.screenshot({ path: join(shots, `layout-topbar-${width}.png`), clip: { x: 0, y: 0, width, height: 60 } });
+  }
+  await page.setViewportSize({ width: 1440, height: 900 });
+  console.log('top bar fits at 768, 900, 1024 and 1280 px');
 
   // A long object name shortens; its filament, ⋯, Delete and the rest stay in the sidebar.
   await page.locator('.object-name').first().click();

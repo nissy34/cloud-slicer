@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { ProjectInfo } from '../engine/protocol';
-import { copyName, formatBytes, formatWhen, nameFromFile, projectFileName, projectSignature } from './projects';
+import { copyName, formatBytes, freeName, formatWhen, nameFromFile, projectFileName, projectSignature } from './projects';
 
 describe('project names', () => {
   it('comes from the file name without its extension', () => {
@@ -16,6 +16,9 @@ describe('project names', () => {
     expect(copyName('Benchy', [])).toBe('Benchy (copy)');
     expect(copyName('Benchy', ['Benchy (copy)'])).toBe('Benchy (copy 2)');
     expect(copyName('Benchy (copy)', ['Benchy (copy)'])).toBe('Benchy (copy 2)');
+    expect(freeName('Benchy', ['Cube'])).toBe('Benchy');
+    expect(freeName('Benchy', ['Benchy'])).toBe('Benchy (2)');
+    expect(freeName('Benchy', ['Benchy', 'Benchy (2)'])).toBe('Benchy (3)');
   });
 });
 

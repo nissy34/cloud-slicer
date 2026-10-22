@@ -351,8 +351,9 @@ on for one printer on one device, with a switch per moment. Problems (failed or
 cancelled, paused or filament ran out, printer error) and Finished are on to begin
 with; print started, first and third layer, progress at chosen percentages, almost done
 (10 minutes left), still printing every few hours, resumed and bed cooled down are
-there to turn on, and "Tell me after layer N" is also in the Print dialog (it lasts
-until that print ends). For a printer through a bridge, the bridge watches the
+there to turn on, and "Alert me after layer N" is also in the Print dialog (it lasts
+until that print ends; there it also turns alerts on, and refuses a layer past the
+print's last one). For a printer through a bridge, the bridge watches the
 print itself (any Klipper printer: Moonraker's print state, layers, bed temperature
 and filament sensors), so alerts come with the browser closed: it sends each event
 to the relay, which sends a Web Push message (encrypted for the browser, signed with

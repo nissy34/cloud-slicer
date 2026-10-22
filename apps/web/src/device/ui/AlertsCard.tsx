@@ -149,7 +149,7 @@ export function AlertsCard() {
             ))}
           </ul>
           <ul className="dv-list dv-alerts-more">
-            <li>
+            <li className="dv-alerts-wrap">
               <LayerField prefs={prefs} onSet={(layer) => set({ layer })} />
             </li>
             {bridge && (
@@ -187,15 +187,32 @@ export function AlertsCard() {
   );
 }
 
-/** "Tell me after layer N": for this print, or the next one. */
-export function LayerField({ prefs, onSet, label = 'Tell me after layer' }: { prefs: AlertPrefs; onSet(layer: number | null): void; label?: string }) {
+/** "Alert me after layer N": for this print, or the next one. */
+export function LayerField({
+  prefs,
+  onSet,
+  label = 'Alert me after layer',
+  max,
+}: {
+  prefs: AlertPrefs | null;
+  onSet(layer: number | null): void;
+  label?: string;
+  /** The print's layer count, when known: a later layer would never come. */
+  max?: number | null;
+}) {
   const [draft, setDraft] = useState<string | null>(null);
+  const [hint, setHint] = useState('');
+  const layerNow = prefs?.layer ?? null;
   const commit = () => {
     if (draft == null) return;
-    const n = Number(draft);
     setDraft(null);
-    const layer = draft.trim() === '' ? null : Number.isInteger(n) && n >= 1 ? n : prefs.layer;
-    if (layer !== prefs.layer) onSet(layer);
+    const n = Number(draft);
+    let layer = layerNow;
+    if (draft.trim() === '') layer = null;
+    else if (!Number.isInteger(n) || n < 1) setHint('Whole layers from 1');
+    else if (max && n > max) setHint(`This print has ${max} layers`);
+    else layer = n;
+    if (layer !== layerNow) onSet(layer);
   };
   return (
     <>
@@ -206,15 +223,26 @@ export function LayerField({ prefs, onSet, label = 'Tell me after layer' }: { pr
           type="number"
           inputMode="numeric"
           min={1}
+          max={max ?? undefined}
           placeholder="–"
           aria-label={label}
-          value={draft ?? (prefs.layer != null ? String(prefs.layer) : '')}
-          onChange={(e) => setDraft(e.target.value)}
+          aria-describedby={hint ? 'alert-layer-hint' : undefined}
+          value={draft ?? (layerNow != null ? String(layerNow) : '')}
+          onChange={(e) => {
+            setDraft(e.target.value);
+            setHint('');
+          }}
           onBlur={commit}
           onKeyDown={(e) => e.key === 'Enter' && (e.target as HTMLInputElement).blur()}
           data-testid="alert-layer"
         />
+        {max ? <span className="muted">of {max}</span> : null}
       </span>
+      {hint && (
+        <span className="dv-alerts-hint" id="alert-layer-hint" role="alert" data-testid="alert-layer-hint">
+          {hint}
+        </span>
+      )}
     </>
   );
 }
