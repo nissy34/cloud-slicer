@@ -150,9 +150,13 @@ try {
 
   // ---- through the bridge --------------------------------------------------------------
   const card = page.getByTestId('alerts-card');
-  await card.getByText('Sent through the bridge, even when the browser is closed.').waitFor();
+  // While off, the card is one line: what alerts are for, and the switch.
+  await card.getByText('Get alerts on this computer').waitFor();
+  if (await card.getByTestId('alert-finished').count()) throw new Error('alert choices show while alerts are off');
   if (shots) await card.screenshot({ path: join(shots, 'alerts-off-desktop.png') });
   await turnOn(card);
+  await card.getByText('Sent through the bridge, even when the browser is closed.').waitFor();
+  await card.getByText('Alerts on this computer').waitFor();
   // The agreed defaults: problems and Finished on, every other milestone off, pictures on, offline off.
   const checked = async (id) => card.getByTestId(id).isChecked();
   for (const id of ['alert-failed', 'alert-paused', 'alert-error', 'alert-finished', 'alert-pictures']) if (!(await checked(id))) throw new Error(`${id} should be on by default`);

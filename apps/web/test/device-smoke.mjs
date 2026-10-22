@@ -251,38 +251,54 @@ try {
   if (monitors > 1) throw new Error(`camera.start_monitor sent ${monitors} times in 6 s`);
   console.log('camera frames arrive through the bridge, without file-list or start_monitor floods');
 
-  await page.getByTestId('head-3').getByRole('button', { name: 'Load', exact: true }).click();
+  // Tapping a tool head opens its buttons under the tiles.
+  const sheet = page.getByTestId('head-sheet');
+  const pickHead = async (i) => {
+    await page.getByTestId(`head-${i}`).locator('.dv-head-tile').click();
+    await page.locator(`[data-testid="head-${i}"].selected`).waitFor();
+  };
+  // Each head shows how it is as a face: the empty one asks for filament, the docked cold ones nap.
+  await page.locator('[data-testid="head-3"][data-mood="hungry"]').getByText('Feed me').waitFor();
+  await page.locator('[data-testid="head-2"][data-mood="napping"]').waitFor();
+  if (shots) await page.getByTestId('toolheads-card').screenshot({ path: join(shots, 'tool-heads.png') });
+  await pickHead(3);
+  await sheet.getByRole('button', { name: 'Load', exact: true }).click();
   await page.getByRole('dialog', { name: 'Load filament' }).getByRole('button', { name: 'Load filament' }).click();
   await until('FEED_AUTO load', () => u1.scripts.includes('FEED_AUTO MODULE=right CHANNEL=1 LOAD=1'));
   await until('head 4 loaded', () => u1.state.print_task_config.filament_exist[3] === true);
   await page.getByTestId('print-state').filter({ hasText: 'Ready' }).waitFor();
   console.log('filament load sent to the right feeder');
 
-  await page.getByTestId('head-1').getByRole('button', { name: 'Edit' }).click();
+  await pickHead(1);
+  await sheet.getByRole('button', { name: 'Filament' }).click();
   await page.getByLabel('Type').fill('Silk');
   await page.getByRole('button', { name: 'Save to printer' }).click();
   await until('filament edited', () => u1.state.print_task_config.filament_sub_type[1] === 'Silk');
   console.log('filament edit saved on the printer');
 
-  await page.getByTestId('head-0').getByText('On carriage').waitFor();
-  await page.getByTestId('head-2').getByRole('button', { name: 'Pick up' }).click();
+  await page.locator('[data-testid="head-0"][data-dock="attached"]').waitFor();
+  await pickHead(2);
+  await sheet.getByTestId('head-dock').filter({ hasText: 'In its dock' }).waitFor();
+  await sheet.getByRole('button', { name: 'Pick up' }).click();
   await page.getByRole('dialog', { name: 'Pick up' }).getByRole('button', { name: 'Pick up' }).click();
   await until('PICK_EXTRUDER2 sent', () => u1.scripts.includes('PICK_EXTRUDER2'));
-  await page.getByTestId('head-2').getByText('On carriage').waitFor();
-  await page.getByTestId('head-0').getByText('Docked').waitFor();
-  await page.getByTestId('head-2').getByRole('button', { name: 'Park' }).click();
+  await page.locator('[data-testid="head-2"][data-dock="attached"]').waitFor();
+  await page.locator('[data-testid="head-0"][data-dock="parked"]').waitFor();
+  await sheet.getByTestId('head-dock').filter({ hasText: 'On the carriage' }).waitFor();
+  await sheet.getByRole('button', { name: 'Park' }).click();
   await page.getByRole('dialog', { name: 'Park' }).getByRole('button', { name: 'Park' }).click();
   await until('PARK_EXTRUDER2 sent', () => u1.scripts.includes('PARK_EXTRUDER2'));
-  await page.getByTestId('head-2').getByText('Docked').waitFor();
+  await page.locator('[data-testid="head-2"][data-dock="parked"]').waitFor();
   console.log('tool head pick up and park');
 
-  await page.getByTestId('head-1').getByRole('button', { name: 'Nozzle' }).click();
+  await pickHead(1);
+  await sheet.getByRole('button', { name: 'Nozzle' }).click();
   await page.getByTestId('head-switches').getByText('121').waitFor();
   await page.getByLabel('Size').selectOption('0.6');
   await page.getByLabel('Type').selectOption('high_flow');
   await page.getByRole('button', { name: 'Save to printer' }).click();
   await until('nozzle saved', () => u1.scripts.includes('SET_NOZZLE_PROPERTIES EXTRUDER=extruder1 DIAMETER=0.6 VOLUME_TYPE=high_flow'));
-  await page.getByTestId('head-1').getByText('0.6 mm high flow nozzle').waitFor();
+  await sheet.getByText('0.6 mm high flow nozzle').waitFor();
   console.log('nozzle size and type saved on the printer');
 
   // The U1's error codes read in Snapmaker's own words, where the printer state is shown.
@@ -438,7 +454,10 @@ try {
   await page.getByTestId('connection').filter({ hasText: 'Connected' }).waitFor({ timeout: 20_000 });
   await page.getByText('Klipper printer').first().waitFor();
   if (await page.getByTestId('tool-map').count()) throw new Error('generic printer shows U1 controls');
-  await page.getByRole('heading', { name: 'Nozzles' }).waitFor();
+  // Any Klipper printer gets the same tool head faces, from its temperatures alone.
+  await page.getByRole('heading', { name: 'Tool heads' }).waitFor();
+  await page.locator('[data-testid="head-0"] .dv-face').waitFor();
+  if (await page.getByTestId('head-sheet').getByRole('button', { name: 'Pick up' }).count()) throw new Error('generic printer offers U1 head buttons');
   await until('both cameras streaming', async () => (await page.getByTestId('camera-tile').count()) === 2, 20_000);
   await page.locator('[data-camera="case"] iframe[data-view="iframe"]').waitFor({ timeout: 20_000 });
   {
