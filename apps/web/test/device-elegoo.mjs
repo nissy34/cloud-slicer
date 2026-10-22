@@ -89,8 +89,7 @@ try {
   const printers = page.getByTestId('bridge-printers');
   await page.getByTestId('bridge-state').filter({ hasText: 'Connected to the bridge' }).waitFor({ timeout: 30_000 });
 
-  await printers.getByTestId('works-with').locator('summary').click();
-  await printers.getByTestId('works-with').getByText('Elegoo Centauri Carbon').waitFor();
+  await page.getByRole('dialog').getByTestId('works-with').getByRole('rowheader', { name: /Elegoo Centauri Carbon/ }).waitFor();
 
   await printers.getByTestId('bridge-search').click();
   const row = printers.locator(`[data-testid="add-row"][data-url="${elegoo.url}"]`);

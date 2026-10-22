@@ -85,8 +85,7 @@ try {
   await page.goto(`http://localhost:${PAGE_PORT}/#pair=${pairingCode(cfg)}`);
   const printers = page.getByTestId('bridge-printers');
   await page.getByTestId('bridge-state').filter({ hasText: 'Connected to the bridge' }).waitFor({ timeout: 30_000 });
-  await printers.getByTestId('works-with').locator('summary').click();
-  await printers.getByTestId('works-with').getByText('Any printer OctoPrint runs', { exact: false }).waitFor();
+  await page.getByRole('dialog').getByTestId('works-with').getByRole('rowheader', { name: /OctoPrint/ }).waitFor();
 
   await printers.getByTestId('bridge-search').click();
   const row = printers.locator(`[data-testid="add-row"][data-url="${OCTO}"]`);
