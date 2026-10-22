@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type CSSProperties, type ReactNode } from 'react';
+import { useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from 'react';
 import {
   closestCorners,
   DndContext,
@@ -80,16 +80,28 @@ function usePhone() {
   return phone;
 }
 
-/** The saved layout, shown at once when changed and saved to the account behind it. */
+/** The saved layout, shown at once when changed and saved to the account behind it. Saves go one at a
+ *  time, and the account's copy only replaces what is shown once none are left on their way: otherwise
+ *  the answer to an earlier save (a card folded) would briefly undo a quick later change (unfolded). */
 function useLayout(): [DeviceLayout, (next: DeviceLayout) => void] {
   const saved = useUserSetting<unknown>(LAYOUT_SETTING);
   const fromAccount = useMemo(() => normalizeLayout(saved), [saved]);
   const [local, setLocal] = useState<DeviceLayout | null>(null);
-  useEffect(() => setLocal(null), [saved]);
+  const pending = useRef(0);
+  const queue = useRef(Promise.resolve());
+  useEffect(() => {
+    if (!pending.current) setLocal(null);
+  }, [saved]);
   const save = (raw: DeviceLayout) => {
     const next = normalizeLayout(raw);
     setLocal(next);
-    saveUserSetting(LAYOUT_SETTING, next).catch(() => useDevice.getState().setToast('Could not save the card layout. It is kept until you reload the page.', true));
+    pending.current++;
+    queue.current = queue.current
+      .then(() => saveUserSetting(LAYOUT_SETTING, next))
+      .catch(() => useDevice.getState().setToast('Could not save the card layout. It is kept until you reload the page.', true))
+      .finally(() => {
+        pending.current--;
+      });
   };
   return [local ?? fromAccount, save];
 }
