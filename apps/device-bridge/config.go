@@ -48,6 +48,14 @@ func base64url(b []byte) string { return base64.RawURLEncoding.EncodeToString(b)
 
 func newPrinterID() string { return randomID(4, hex.EncodeToString) }
 
+// movedRelays: the relays' first addresses and where they live now. Bridges
+// set up before the move switch over on their next start (the old addresses
+// still answer, so nothing breaks in between).
+var movedRelays = map[string]string{
+	"https://cloud-slicer-relay.nissy34.workers.dev":      "https://cloud-slicer-relay.awesomestuff.qzz.io",
+	"https://cloud-slicer-relay-test.nissy34.workers.dev": "https://cloud-slicer-relay-test.awesomestuff.qzz.io",
+}
+
 // loadConfig reads the settings file, making a new bridge id and secret key on first run.
 func loadConfig(path, relay string) (*Config, error) {
 	cfg := &Config{path: path}
@@ -71,10 +79,14 @@ func loadConfig(path, relay string) (*Config, error) {
 		cfg.Relay = defaultRelay
 	}
 	cfg.Relay = strings.TrimRight(cfg.Relay, "/")
+	moved := false
+	if to, ok := movedRelays[cfg.Relay]; ok {
+		cfg.Relay, moved = to, true
+	}
 	if cfg.Printers == nil {
 		cfg.Printers = []Printer{}
 	}
-	if fresh {
+	if fresh || moved {
 		if err := cfg.save(); err != nil {
 			return nil, err
 		}

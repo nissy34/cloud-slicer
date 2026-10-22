@@ -30,6 +30,13 @@ describe('saved printers in the account store', () => {
     expect(printerFromDevice(asDevice({ id: 'x', name: 'n', url: 'https://x', apiKey: null, extra: { kind: 'direct', hiddenCameras: ['a', 3] } }))?.hiddenCameras).toEqual(['a']);
   });
 
+  it('reaches printers saved on the relay\'s first address at its own one', () => {
+    const extra = { kind: 'bridge', relay: 'https://cloud-slicer-relay.nissy34.workers.dev', bridgeId: 'abc', printer: 'u1' };
+    expect(printerFromDevice(asDevice({ id: 'b', name: 'U1', url: '', apiKey: null, extra }))).toMatchObject({ kind: 'bridge', relay: 'https://cloud-slicer-relay.awesomestuff.qzz.io' });
+    const agent = { kind: 'bridge-agent', relay: 'https://cloud-slicer-relay-test.nissy34.workers.dev/', bridgeId: 'abc' };
+    expect(bridgeFromDevice(asDevice({ id: 'x', name: 'Bridge', url: '', apiKey: null, extra: agent }))?.relay).toBe('https://cloud-slicer-relay-test.awesomestuff.qzz.io');
+  });
+
   it('skips account printers without connection details', () => {
     expect(printerFromDevice(asDevice({ id: 'x', name: 'Wizard printer', url: '', apiKey: null, extra: {} }))).toBeNull();
   });

@@ -412,7 +412,7 @@ jobs:
         env:
           # Branch previews set up new bridges on the test relay (device.yml), where
           # pull requests are tried before they merge; main uses the live one.
-          VITE_DEVICE_RELAY_URL: ${{ github.ref != 'refs/heads/main' && 'https://cloud-slicer-relay-test.nissy34.workers.dev' || '' }}
+          VITE_DEVICE_RELAY_URL: ${{ github.ref != 'refs/heads/main' && 'https://cloud-slicer-relay-test.awesomestuff.qzz.io' || '' }}
         run: |
           npm ci --no-audit --no-fund
           npm run build

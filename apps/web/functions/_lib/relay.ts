@@ -48,10 +48,19 @@ const sign = async (env: Env, claims: Record<string, unknown>, subject: string, 
     .setExpirationTime(`${seconds}s`)
     .sign(await signingKey(env));
 
+/** The relays' first addresses: they still answer, but each relay is known by its own one (src/device/config.ts). */
+const MOVED_RELAYS: Record<string, string> = {
+  'https://cloud-slicer-relay.nissy34.workers.dev': 'https://cloud-slicer-relay.awesomestuff.qzz.io',
+  'https://cloud-slicer-relay-test.nissy34.workers.dev': 'https://cloud-slicer-relay-test.awesomestuff.qzz.io',
+};
+
+/** A relay's origin as it is now (the new address of a relay that moved). */
+export const currentRelay = (origin: string): string => MOVED_RELAYS[origin] ?? origin;
+
 function relayOrigin(v: unknown): string {
   try {
     const u = new URL(String(v));
-    if (u.protocol === 'https:' || ((u.hostname === 'localhost' || u.hostname === '127.0.0.1') && u.protocol === 'http:')) return u.origin;
+    if (u.protocol === 'https:' || ((u.hostname === 'localhost' || u.hostname === '127.0.0.1') && u.protocol === 'http:')) return currentRelay(u.origin);
   } catch {
     // fall through
   }
@@ -192,7 +201,7 @@ export async function claim(env: Env, request: Request): Promise<Response> {
   const hash = await sha256(code);
   const row = await d.prepare('SELECT * FROM bridge_setup_codes WHERE code_hash = ?').bind(hash).first<SetupRow>();
   if (!row) throw new HttpError(404, "That setup code isn't right. Copy it again from Cloud Slicer.", { code: 'wrong' });
-  if (row.relay !== relay) throw new HttpError(400, 'This setup code is for another relay.');
+  if (currentRelay(row.relay) !== relay) throw new HttpError(400, 'This setup code is for another relay.');
   const now = Date.now();
   if (row.used_at || row.expires_at < now) throw expired();
   const who = await d.prepare('SELECT email, banned FROM "user" WHERE id = ?').bind(row.user_id).first<{ email: string; banned: number | null }>();
@@ -241,7 +250,7 @@ export async function release(env: Env, request: Request): Promise<Response> {
   const rows = (await d.prepare('SELECT id, extra, api_key_enc FROM devices WHERE user_id = ?').bind(owner).all<{ id: string; extra: string; api_key_enc: string | null }>()).results;
   const ofBridge = rows.filter((r) => {
     const x = JSON.parse(r.extra) as { bridgeId?: unknown; relay?: unknown };
-    return x.bridgeId === bridgeId && x.relay === relay;
+    return x.bridgeId === bridgeId && typeof x.relay === 'string' && currentRelay(x.relay.replace(/\/+$/, '')) === relay;
   });
   let proven = false;
   for (const r of ofBridge) {
@@ -278,7 +287,7 @@ export async function forget(env: Env, request: Request, bridgeId: string): Prom
 async function order(env: Env, targets: { relay: string; bridge_id: string }[], subject: string, claims: Record<string, unknown>) {
   if (!env.RELAY_TICKET_KEY) return;
   const byRelay = new Map<string, string[]>();
-  for (const r of targets) byRelay.set(r.relay, [...(byRelay.get(r.relay) ?? []), r.bridge_id]);
+  for (const r of targets) byRelay.set(currentRelay(r.relay), [...(byRelay.get(currentRelay(r.relay)) ?? []), r.bridge_id]);
   await Promise.all(
     [...byRelay].map(async ([relay, bridges]) => {
       try {

@@ -20,6 +20,7 @@ import { coalesce } from '../device/coalesce';
 import { BridgeLink, onBridgeRemoved, setBridgeTickets } from '../device/link/bridge';
 import { DirectLink } from '../device/link/direct';
 import { LinkError, type BridgeStatus, type PrinterLink } from '../device/link/types';
+import { currentRelay } from '../device/config';
 import { decodePairing, type Pairing } from '../device/pairing';
 import { PrinterSession, type ConnState, type ConsoleLine, type GcodeFile } from '../device/session';
 import type { KlipperObjects } from '../device/status';
@@ -152,7 +153,7 @@ export function printerFromDevice(d: Device): SavedPrinter | null {
   const hidden = Array.isArray(x.hiddenCameras) ? x.hiddenCameras.filter((n): n is string => typeof n === 'string') : [];
   const common = { ...(d.preset && { preset: d.preset }), ...(hidden.length && { hiddenCameras: hidden }) };
   if (x.kind === 'bridge' && typeof x.relay === 'string' && typeof x.bridgeId === 'string') {
-    return { id: d.id, name: d.name, kind: 'bridge', relay: x.relay, bridgeId: x.bridgeId, key: '', printer: typeof x.printer === 'string' ? x.printer : '', ...common };
+    return { id: d.id, name: d.name, kind: 'bridge', relay: currentRelay(x.relay), bridgeId: x.bridgeId, key: '', printer: typeof x.printer === 'string' ? x.printer : '', ...common };
   }
   return d.url ? { id: d.id, name: d.name, kind: 'direct', url: d.url, apiKey: '', ...common } : null;
 }
@@ -160,7 +161,7 @@ export function printerFromDevice(d: Device): SavedPrinter | null {
 /** A saved bridge (extra.kind 'bridge-agent'); printers through it are kind 'bridge'. */
 export function bridgeFromDevice(d: Device): SavedBridge | null {
   const x = d.extra ?? {};
-  return x.kind === 'bridge-agent' && typeof x.relay === 'string' && typeof x.bridgeId === 'string' ? { id: d.id, name: d.name, relay: x.relay, bridgeId: x.bridgeId, key: '' } : null;
+  return x.kind === 'bridge-agent' && typeof x.relay === 'string' && typeof x.bridgeId === 'string' ? { id: d.id, name: d.name, relay: currentRelay(x.relay), bridgeId: x.bridgeId, key: '' } : null;
 }
 
 export const bridgeInput = (b: SavedBridge) => ({ id: b.id, name: b.name, url: '', apiKey: b.key, extra: { kind: 'bridge-agent', relay: b.relay, bridgeId: b.bridgeId } });

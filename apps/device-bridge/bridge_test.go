@@ -8,6 +8,7 @@ import (
 	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"path/filepath"
 	"reflect"
 	"strings"
@@ -88,6 +89,33 @@ func TestConfigRoundTripKeepsTheNodeBridgeFormat(t *testing.T) {
 	}
 	if again.BridgeID != cfg.BridgeID || again.Key != cfg.Key || len(again.Printers) != 1 || again.Printers[0].URL != "http://10.0.0.1:7125" {
 		t.Fatalf("reloaded: %+v", again)
+	}
+}
+
+func TestBridgesOnTheOldRelayAddressMoveToTheNewOne(t *testing.T) {
+	for from, to := range movedRelays {
+		path := filepath.Join(t.TempDir(), "bridge.json")
+		if err := os.WriteFile(path, []byte(`{"bridgeId":"abcdefghijklmnop","key":"k","relay":"`+from+`/","printers":[]}`), 0o600); err != nil {
+			t.Fatal(err)
+		}
+		cfg, err := loadConfig(path, "")
+		if err != nil {
+			t.Fatal(err)
+		}
+		if cfg.Relay != to || cfg.BridgeID != "abcdefghijklmnop" {
+			t.Fatalf("%s: got %+v", from, cfg)
+		}
+		saved, err := loadConfig(path, "")
+		if err != nil || saved.Relay != to {
+			t.Fatalf("%s: the new address wasn't saved: %+v %v", from, saved, err)
+		}
+		// An install line copied before the move lands on the new address too.
+		if given, _ := loadConfig(filepath.Join(t.TempDir(), "b.json"), from); given.Relay != to {
+			t.Fatalf("%s given: %s", from, given.Relay)
+		}
+	}
+	if !strings.HasSuffix(defaultRelay, ".awesomestuff.qzz.io") {
+		t.Fatalf("default relay %s", defaultRelay)
 	}
 }
 

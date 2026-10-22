@@ -365,7 +365,7 @@ jobs:
         env:
           BRIDGE_SIGNING_KEY: ${{ secrets.BRIDGE_SIGNING_KEY }}
           FLAVOR: test
-          RELAY_URL: https://cloud-slicer-relay-test.nissy34.workers.dev
+          RELAY_URL: https://cloud-slicer-relay-test.awesomestuff.qzz.io
           BUILD: ${{ needs.where.outputs.build }}
         run: |
           mkdir -p "$RUNNER_TEMP/test" && ./build.sh windows-x64 && cp dist/windows-x64 "$RUNNER_TEMP/test/windows-x64"
@@ -429,7 +429,7 @@ jobs:
         env:
           BRIDGE_SIGNING_KEY: ${{ secrets.BRIDGE_SIGNING_KEY }}
           FLAVOR: test
-          RELAY_URL: https://cloud-slicer-relay-test.nissy34.workers.dev
+          RELAY_URL: https://cloud-slicer-relay-test.awesomestuff.qzz.io
           BUILD: ${{ needs.where.outputs.build }}
         run: |
           ./build.sh mac
@@ -461,6 +461,9 @@ jobs:
       CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
       WORKER: ${{ matrix.target == 'test' && 'cloud-slicer-relay-test' || 'cloud-slicer-relay' }}
       BUCKET: ${{ matrix.target == 'test' && 'cloud-slicer-bridge-test' || 'cloud-slicer-bridge' }}
+      # The relay's own address: a Workers custom domain, added once in the Cloudflare
+      # dashboard. Its workers.dev address keeps answering too.
+      RELAY_ORIGIN: ${{ matrix.target == 'test' && 'https://cloud-slicer-relay-test.awesomestuff.qzz.io' || 'https://cloud-slicer-relay.awesomestuff.qzz.io' }}
     steps:
       - uses: actions/checkout@v5
       - uses: actions/setup-node@v5
@@ -510,7 +513,7 @@ jobs:
           if [ -n "$sub" ]; then pages=(--var "PAGE_ORIGIN:https://$WORKER.$sub.workers.dev"); else echo "::warning::No workers.dev name found; printer pages use the relay's own address"; fi
           if [ "$WORKER" = cloud-slicer-relay-test ]; then
             # The test relay says what it runs; the Device tab shows it.
-            npx wrangler deploy --name "$WORKER" --var "TEST_RELAY:$WHAT" --var "SITE_ORIGIN:$SITE" "${pages[@]}" | tee deploy.log
+            npx wrangler deploy --name "$WORKER" --var "TEST_RELAY:$WHAT" --var "SITE_ORIGIN:$SITE" --var "RELAY_ORIGIN:$RELAY_ORIGIN" "${pages[@]}" | tee deploy.log
             # The site's ticket key, so signed-in people get in as they do on the live relay.
             # The test relay serves the branch previews, so it takes the previews' key
             # (the production one if previews have none), set on every deploy so it
@@ -546,9 +549,14 @@ jobs:
           if grep -q '^\[\[r2_buckets\]\]' wrangler.toml && ! npx wrangler r2 bucket lifecycle list "$BUCKET" | grep -q 'alert-pictures'; then
             npx wrangler r2 bucket lifecycle add "$BUCKET" alert-pictures alerts/ --expire-days 1 --force || echo "::warning::Could not set the one-day rule for alert pictures"
           fi
-          url=$(grep -Eo 'https://[^ ]+\.workers\.dev' deploy.log | tail -1)
-          echo "### ${{ matrix.target }} relay: $url" >> "$GITHUB_STEP_SUMMARY"
-          curl -fsS "$url/"
+          old=$(grep -Eo 'https://[^ ]+\.workers\.dev' deploy.log | tail -1)
+          url=$RELAY_ORIGIN
+          echo "### ${{ matrix.target }} relay: $url (also $old)" >> "$GITHUB_STEP_SUMMARY"
+          # Both addresses answer, and both hand out install lines with the relay's own one.
+          for at in "$url" "$old"; do
+            curl -fsS --retry 3 "$at/"
+            curl -fsS --retry 3 "$at/install.sh" | grep -qx "RELAY=\"$url\"" || { echo "::error::$at/install.sh doesn't name $url"; exit 1; }
+          done
           echo "url=$url" >> "$GITHUB_OUTPUT"
         id: deploy
       - name: Check the deployed relay end to end (mock printer, no browser)
@@ -582,7 +590,7 @@ jobs:
           BRIDGE_SIGNING_KEY: ${{ secrets.BRIDGE_SIGNING_KEY }}
           # Test builds: their own names, the test relay built in, one build number for all.
           FLAVOR: ${{ matrix.target == 'test' && 'test' || '' }}
-          RELAY_URL: ${{ matrix.target == 'test' && 'https://cloud-slicer-relay-test.nissy34.workers.dev' || '' }}
+          RELAY_URL: ${{ matrix.target == 'test' && 'https://cloud-slicer-relay-test.awesomestuff.qzz.io' || '' }}
           TEST_BUILD: ${{ matrix.target == 'test' && needs.where.outputs.build || '' }}
         run: |
           build=${TEST_BUILD:-$(git log -1 --format=%ct)}
