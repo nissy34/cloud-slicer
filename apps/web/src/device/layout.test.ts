@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { addCameraCard, cameraCardOf, defaultDesktop, placeCamera, removeCameraCard, defaultLayout, moveCard, moveOnPhone, normalizeLayout, phoneOrder, setColumns, zoneOf } from './layout';
+import { addCameraCard, cameraCardOf, defaultDesktop, isPageCard, placeCamera, placePage, removeCameraCard, defaultLayout, moveCard, moveOnPhone, normalizeLayout, phoneOrder, setColumns, zoneOf } from './layout';
 
 describe('device layout', () => {
   it('starts as the D3 layout', () => {
@@ -125,5 +125,25 @@ describe('camera cards', () => {
     expect(l.desktop.cols[0].slice(0, 2)).toEqual(['camera', 'cam:a1']);
     expect(l.desktop.cols.flat()).not.toContain('cam:gone');
     expect(l.desktop.camSizes).toEqual({ 'cam:a1': 'm' });
+  });
+
+  it('a page card shows one page: picking another sends the first back to the camera cards', () => {
+    let l = addCameraCard(defaultLayout(), 'page:p1');
+    l = addCameraCard(l, 'cam:a1');
+    expect(isPageCard('page:p1')).toBe(true);
+    expect(isPageCard('cam:a1')).toBe(false);
+    l = placeCamera(l, 'nozzle', 'cam:a1');
+    l = placePage(l, 'gui', 'page:p1');
+    expect(cameraCardOf(l, 'gui')).toBe('page:p1');
+    l = placePage(l, 'case', 'page:p1');
+    expect(cameraCardOf(l, 'case')).toBe('page:p1');
+    expect(cameraCardOf(l, 'gui')).toBe('camera');
+    expect(cameraCardOf(l, 'nozzle')).toBe('cam:a1');
+    // A page in a camera card moves to the page card.
+    l = placePage(l, 'nozzle', 'page:p1');
+    expect(cameraCardOf(l, 'nozzle')).toBe('page:p1');
+    expect(normalizeLayout(l)).toEqual(l);
+    l = removeCameraCard(l, 'page:p1');
+    expect(cameraCardOf(l, 'nozzle')).toBe('camera');
   });
 });

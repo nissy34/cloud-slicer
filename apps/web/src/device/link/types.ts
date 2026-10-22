@@ -58,6 +58,30 @@ export interface PrinterLink {
    */
   cameraOpen?(camera: DirectCamera, sdp: string): Promise<DirectAnswer>;
   cameraClose?(id: string): void;
+  /**
+   * Bridge links only: printer pages (a camera Moonraker lists as an "iframe"
+   * page, shown in a page card). `pageHolder` is the address the page holder
+   * lives on (the relay's, kept apart from the site); requests go through the
+   * bridge one by one (pageFetch), or over a direct link the bridge answers (pageOpen).
+   */
+  pageHolder?(): Promise<string>;
+  pageFetch?(req: PageRequest): Promise<PageAnswer>;
+  pageOpen?(sdp: string): Promise<{ id: string; sdp: string }>;
+  pageClose?(id: string): void;
+}
+
+/** One request a printer page makes; `path` is on the printer ("/screen/touch?a=tap&x=1&y=2"). */
+export interface PageRequest {
+  method: string;
+  path: string;
+  headers: Record<string, string>;
+  body?: ArrayBuffer;
+}
+
+export interface PageAnswer {
+  status: number;
+  headers: Record<string, string>;
+  body: ArrayBuffer;
 }
 
 export interface DirectAnswer {

@@ -24,8 +24,10 @@ import {
   CARD_NAMES,
   defaultDesktop,
   isCamCard,
+  isPageCard,
   MAX_CAMERA_CARDS,
   placeCamera,
+  placePage,
   removeCameraCard,
   defaultPhone,
   LAYOUT_SETTING,
@@ -54,6 +56,7 @@ import { ConsoleCard } from './ConsoleCard';
 import { FilesCard } from './FilesCard';
 import { JobCard } from './JobCard';
 import { MotionCard } from './MotionCard';
+import { PageCard } from './PrinterPage';
 import { SlotContext } from './parts';
 import { ToolheadsCard } from './ToolheadsCard';
 
@@ -133,9 +136,16 @@ export function DeviceCards({ busy, arranging, onDone }: { busy: boolean; arrang
   const kind = phone ? 'phone' : 'desktop';
   const screen: PhoneLayout | DesktopLayout = layout[kind];
   const setScreen = (next: Partial<PhoneLayout & DesktopLayout>) => save({ ...layout, [kind]: { ...screen, ...next } });
-  const nameOf = (id: SlotId) => (isCamCard(id) ? `Camera card ${layout.cameraCards.indexOf(id) + 2}` : CARD_NAMES[id]);
+  const nameOf = (id: SlotId) =>
+    isPageCard(id)
+      ? `Page card ${layout.cameraCards.filter(isPageCard).indexOf(id) + 1}`
+      : isCamCard(id)
+        ? `Camera card ${layout.cameraCards.filter((c) => !isPageCard(c)).indexOf(id) + 2}`
+        : CARD_NAMES[id];
   const view = (id: SlotId) =>
-    id === 'camera' || isCamCard(id) ? (
+    isPageCard(id) ? (
+      <PageCard card={id} home={layout.cameraHome} onPick={(name) => save(placePage(layout, name, id))} />
+    ) : id === 'camera' || isCamCard(id) ? (
       <CameraCard card={id} home={layout.cameraHome} onPlace={(name, card) => save(placeCamera(layout, name, card))} />
     ) : (
       (() => {
@@ -195,6 +205,11 @@ export function DeviceCards({ busy, arranging, onDone }: { busy: boolean; arrang
         {layout.cameraCards.length < MAX_CAMERA_CARDS && (
           <button className="dv-link" onClick={() => save(addCameraCard(layout, `cam:${Math.random().toString(36).slice(2, 8)}` as CamCardId))} data-testid="add-camera-card">
             Add a camera card
+          </button>
+        )}
+        {layout.cameraCards.length < MAX_CAMERA_CARDS && (
+          <button className="dv-link" onClick={() => save(addCameraCard(layout, `page:${Math.random().toString(36).slice(2, 8)}` as CamCardId))} data-testid="add-page-card">
+            Add a page card
           </button>
         )}
         <button
