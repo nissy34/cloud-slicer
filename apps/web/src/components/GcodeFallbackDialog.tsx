@@ -1,5 +1,6 @@
 import { engineName } from '../lib/engines';
 import { useSlicer } from '../state/store';
+import { Dialog } from './Dialog';
 
 /**
  * Slicing stopped on G-code another slicer wrote (Bambu Studio 2.5's, say):
@@ -12,22 +13,25 @@ export function GcodeFallbackDialog() {
   const { answerGcodeFallback } = useSlicer.getState();
   const engine = engineName(flavor);
   return (
-    <div className="dialog-backdrop" onKeyDown={(e) => e.key === 'Escape' && void answerGcodeFallback(false)}>
-      <div className="dialog" role="dialog" aria-modal="true" aria-labelledby="gcode-fallback-title" data-testid="gcode-fallback">
-        <h2 id="gcode-fallback-title">Use {engine}'s start and filament change G-code?</h2>
-        <p>
-          This file's start and filament change G-code was written for {question.app}, and {engine} can't use it. {engine} has its own for{' '}
-          <b>{question.printer}</b>, which works. This choice is saved with this project.
-        </p>
-        <div className="dialog-actions">
+    <Dialog
+      title={`Use ${engine}'s start and filament change G-code?`}
+      testId="gcode-fallback"
+      onClose={() => void answerGcodeFallback(false)}
+      footer={
+        <>
           <button className="secondary" onClick={() => void answerGcodeFallback(false)}>
             Cancel
           </button>
           <button className="primary" autoFocus onClick={() => void answerGcodeFallback(true)}>
             Yes, slice
           </button>
-        </div>
-      </div>
-    </div>
+        </>
+      }
+    >
+      <p>
+        This file's start and filament change G-code was written for {question.app}, and {engine} can't use it. {engine} has its own for <b>{question.printer}</b>,
+        which works. This choice is saved with this project.
+      </p>
+    </Dialog>
   );
 }

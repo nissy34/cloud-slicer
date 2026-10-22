@@ -12,6 +12,7 @@ import { shortName } from '../lib/presets';
 import { useAccount } from '../state/account';
 import { useProjects } from '../state/projects';
 import { useSlicer } from '../state/store';
+import { Dialog } from './Dialog';
 import { SettingsPages } from './SettingsPanel';
 
 type Target = { type: 'printer' } | { type: 'filament'; slot: number };
@@ -122,31 +123,26 @@ function Editor({ target }: { target: Target }) {
   const where = signedIn ? 'Saved to your account.' : 'Saved in this browser until you sign in.';
   const title = type === 'printer' ? 'Printer settings' : slots > 1 ? `Filament ${(slot ?? 0) + 1} settings` : 'Filament settings';
 
+  // Save as new preset is the main button when nothing else saves (a system preset, no project open).
+  const saveAsMain = !preset?.user && !hasProject;
   return (
-    <div className="dialog-backdrop">
-      <div className="dialog preset-settings" role="dialog" aria-modal="true" aria-labelledby="preset-settings-title">
-        <div className="preset-settings-head">
-          <h2 id="preset-settings-title">
-            {colour && <span className="slot-dot" style={{ background: colour }} />}
-            {title}
-          </h2>
-          <label className="check small">
-            <input type="checkbox" checked={advanced} onChange={(e) => setAdvanced(e.target.checked)} />
-            <span>Advanced</span>
-          </label>
-        </div>
-        <p className="preset-settings-name" title={name}>
-          <b>{type === 'filament' ? shortName(name) : name}</b>
-          {changes > 0 && <span className="muted"> (modified)</span>}
-          <span className="muted small">
-            {' '}
-            {preset?.user ? `Your preset, based on ${systemParent(preset)}.` : 'System preset: use Save as to keep your changes.'}
-          </span>
-        </p>
-        <div className="preset-settings-body">
-          <SettingsPages kind={type} advanced={advanced} slot={slot} />
-        </div>
-        {saveAs !== null ? (
+    <Dialog
+      title={
+        <>
+          {colour && <span className="slot-dot" style={{ background: colour }} />}
+          {title}
+        </>
+      }
+      className="preset-settings"
+      onClose={hide}
+      head={
+        <label className="check small">
+          <input type="checkbox" checked={advanced} onChange={(e) => setAdvanced(e.target.checked)} />
+          <span>Advanced</span>
+        </label>
+      }
+      footer={
+        saveAs !== null ? (
           <form
             className="preset-settings-saveas"
             onSubmit={(e) => {
@@ -158,7 +154,7 @@ function Editor({ target }: { target: Target }) {
               <span>New {type} preset name</span>
               <input autoFocus value={saveAs} maxLength={128} onChange={(e) => setSaveAs(e.target.value)} />
             </label>
-            <div className="dialog-actions">
+            <div className="win-foot-row">
               <button type="button" className="secondary" onClick={() => (setSaveAs(null), setError(''))}>
                 Back
               </button>
@@ -168,17 +164,20 @@ function Editor({ target }: { target: Target }) {
             </div>
           </form>
         ) : (
-          <div className="dialog-actions wrap">
+          <>
             <span className="preset-settings-count muted small" role="status">
               {saved || (changes > 0 ? `${changes} unsaved change${changes === 1 ? '' : 's'}` : 'No changes')}
             </span>
+            <button className="secondary" disabled={working} onClick={hide}>
+              Close
+            </button>
             {changes > 0 && (type === 'printer' || slots < 2) && (
               <button className="secondary" disabled={working} onClick={() => resetOverrides(ownKeys)}>
                 Discard changes
               </button>
             )}
             <button
-              className="secondary"
+              className={saveAsMain ? 'primary' : 'secondary'}
               disabled={working || !preset}
               onClick={() => (setError(''), setSaved(''), setSaveAs(copyName(name, (n) => presetTaken(type, n))))}
             >
@@ -199,21 +198,30 @@ function Editor({ target }: { target: Target }) {
                 Save to project
               </button>
             )}
-            <button className="secondary" disabled={working} onClick={hide}>
-              Close
-            </button>
-          </div>
-        )}
-        {error && (
-          <p className="account-error" role="alert">
-            {error}
-          </p>
-        )}
-        <p className="muted small">
-          Save to project keeps these changes in this project only, and they come back when you open it. A preset keeps them for every project. {where} Export,
-          import, rename and delete are in the ⋯ menu.
-        </p>
+          </>
+        )
+      }
+    >
+      <p className="preset-settings-name" title={name}>
+        <b>{type === 'filament' ? shortName(name) : name}</b>
+        {changes > 0 && <span className="muted"> (modified)</span>}
+        <span className="muted small">
+          {' '}
+          {preset?.user ? `Your preset, based on ${systemParent(preset)}.` : 'System preset: use Save as to keep your changes.'}
+        </span>
+      </p>
+      <div className="preset-settings-body">
+        <SettingsPages kind={type} advanced={advanced} slot={slot} />
       </div>
-    </div>
+      {error && (
+        <p className="account-error" role="alert">
+          {error}
+        </p>
+      )}
+      <p className="muted small">
+        Save to project keeps these changes in this project only, and they come back when you open it. A preset keeps them for every project. {where} Export, import,
+        rename and delete are in the ⋯ menu.
+      </p>
+    </Dialog>
   );
 }

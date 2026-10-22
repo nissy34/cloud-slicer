@@ -198,18 +198,24 @@ try {
   await page.keyboard.press('Escape');
   console.log(`process menu: "${title}", opens upward`);
 
-  // Online projects closes with Esc and with a click outside it.
+  // Online projects closes with Esc and its ✕, never with a click outside it (like every window).
   const projectButton = page.getByRole('button', { name: /^Project/ });
   const online = page.getByRole('dialog', { name: 'Online projects' });
-  for (const how of ['Escape', 'outside']) {
+  for (const how of ['Escape', 'close', 'outside']) {
     await projectButton.click();
     await page.getByRole('menuitem', { name: 'Online projects…' }).click();
     await online.waitFor();
     if (how === 'Escape') await page.keyboard.press('Escape');
-    else await page.mouse.click(8, 890);
+    else if (how === 'close') await online.getByRole('button', { name: 'Close window' }).click();
+    else {
+      await page.mouse.click(8, 890);
+      await page.waitForTimeout(300);
+      if (!(await online.isVisible())) fail('a click outside closed Online projects');
+      await page.keyboard.press('Escape');
+    }
     await online.waitFor({ state: 'detached', timeout: 5000 }).catch(() => fail(`Online projects stays open after ${how}`));
   }
-  console.log('online projects: Esc and a click outside close it');
+  console.log('online projects: Esc and ✕ close it, a click outside does not');
 
   // Unsaved changes: the app's own question; Cancel keeps the model, Discard changes clears it.
   const ask = page.getByTestId('ask-dialog');

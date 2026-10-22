@@ -144,7 +144,7 @@ try {
     await filamentEditor.getByRole('textbox', { name: /preset name/ }).fill('Hot PLA');
     await filamentEditor.getByRole('button', { name: 'Save', exact: true }).click();
     await filamentEditor.getByText('Saved as Hot PLA.').waitFor({ timeout: 60000 });
-    await filamentEditor.getByRole('button', { name: 'Close' }).click();
+    await filamentEditor.getByRole('button', { name: 'Close', exact: true }).click();
     const p = (await stored()).find((x) => x.name === 'Hot PLA');
     expect(p?.type === 'filament' && /^231/.test(p.config.nozzle_temperature ?? ''), JSON.stringify(p));
   });
@@ -156,7 +156,7 @@ try {
     for (let i = 0; i < 60 && (await temperature().inputValue()) !== '231'; i++) await page.waitForTimeout(500);
     expect((await temperature().inputValue()) === '231', `print temperature ${await temperature().inputValue()}`);
     if (shots) await page.screenshot({ path: join(shots, 'filament-in-orca.png') });
-    await filamentEditor.getByRole('button', { name: 'Close' }).click();
+    await filamentEditor.getByRole('button', { name: 'Close', exact: true }).click();
   });
 } finally {
   await browser.close();
