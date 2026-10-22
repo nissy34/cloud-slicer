@@ -174,6 +174,15 @@ async function send(page, p, gcode, name, print) {
 }
 
 const printState = async (p) => (await status(p, ['print_stats'])).print_stats.state;
+// Waits for the page to say Finished; if it doesn't, says where Klipper got to.
+async function finished(page, p, ms) {
+  try {
+    await page.getByTestId('print-state').filter({ hasText: 'Finished' }).waitFor({ timeout: ms });
+  } catch (e) {
+    const s = await status(p, ['print_stats', 'virtual_sdcard', 'extruder', 'toolhead', 'webhooks']).catch((err) => err.message);
+    throw new Error(`${p.name}: the print didn't finish; Klipper says ${JSON.stringify(s)}`, { cause: e });
+  }
+}
 
 for (const p of Object.values(PRINTERS)) await reset(p);
 await serve('npx', ['vite', 'preview', '--port', String(PAGE_PORT), '--strictPort'], web, new RegExp(String(PAGE_PORT)));
@@ -217,7 +226,7 @@ try {
   await page.getByTestId('print-state').filter({ hasText: 'Printing' }).waitFor({ timeout: 30_000 });
   const files = page.getByTestId('files-card');
   await until('one-head: thumbnail from the real Moonraker', () => files.locator('li', { hasText: 'one_head.gcode' }).locator('.dv-file-thumb img').count());
-  await page.getByTestId('print-state').filter({ hasText: 'Finished' }).waitFor({ timeout: 180_000 });
+  await finished(page, one, 300_000);
   if ((await printState(one)) !== 'complete') throw new Error(`one-head: Klipper says ${await printState(one)}, the page says Finished`);
   if (shots) await page.screenshot({ path: join(shots, 'klipper-one-head-finished.png') });
   console.log('one-head: sent, printed to the end, file shown with its picture');
