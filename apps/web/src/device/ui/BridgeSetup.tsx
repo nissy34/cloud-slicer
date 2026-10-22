@@ -101,26 +101,27 @@ function ManageCommands() {
   );
 }
 
+/** Uninstall tabs: Linux, a Pi and a printer share one line (the bridge finds where it was installed). */
+const UNINSTALL_SYSTEM_NAME: Record<BridgeOs, string> = { ...SYSTEM_NAME, linux: 'Linux, Pi or printer' };
+
 /** How to remove the bridge from its computer, for when its last printer goes. */
 export function UninstallBridge({ system, place, relay }: { system?: string; place?: string; relay?: string }) {
-  const known = system ? FROM_PLATFORM[system] : undefined;
-  const [guess] = useBridgeOs();
-  const [picked, setOs] = useState<UninstallPlace>(guess);
-  // A bridge that never connected didn't say where it runs: the printer is one more choice.
-  const os = place === 'printer' ? 'printer' : (known ?? picked);
-  if (os === 'printer') {
+  const known = place === 'printer' ? 'linux' : system ? FROM_PLATFORM[system] : undefined;
+  const [picked, setOs] = useBridgeOs();
+  const os = known ?? picked;
+  if (os === 'linux') {
     return (
       <div className="dv-about-commands" data-testid="bridge-uninstall">
-        {!known && place !== 'printer' && <OsTabs os={os} onChange={setOs} tabs={UNINSTALL_TABS} names={UNINSTALL_NAMES} />}
-        <span className="muted">On the printer, over SSH:</span>
-        <CopyCommand command={`curl -fsSL ${relay ?? DEFAULT_RELAY_URL}/install.sh | sh -s -- --printer --uninstall`} testId="bridge-uninstall-command" />
-        <span className="muted">That stops the bridge on the printer and deletes it with its settings and pairing.</span>
+        {!known && <OsTabs os={os} onChange={setOs} names={UNINSTALL_SYSTEM_NAME} />}
+        <span className="muted">{place === 'printer' ? 'On the printer, over SSH:' : 'On the bridge\'s computer or printer (over SSH), in a terminal:'}</span>
+        <CopyCommand command={`curl -fsSL ${relay ?? DEFAULT_RELAY_URL}/install.sh | sh -s -- --uninstall`} testId="bridge-uninstall-command" />
+        <span className="muted">That stops the bridge, stops it starting by itself, and deletes it with its printers and pairing. On a printer it asks for root when it needs it.</span>
       </div>
     );
   }
   return (
     <div className="dv-about-commands" data-testid="bridge-uninstall">
-      {!known && <OsTabs os={os} onChange={setOs} tabs={UNINSTALL_TABS} names={UNINSTALL_NAMES} />}
+      {!known && <OsTabs os={os} onChange={setOs} names={UNINSTALL_SYSTEM_NAME} />}
       <span className="muted">On the bridge's computer, in {SHELL_NAME[os]}:</span>
       <CopyCommand command={`${BRIDGE_COMMAND[os]} uninstall`} testId="bridge-uninstall-command" />
       <span className="muted">

@@ -166,6 +166,14 @@ jobs:
           sleep 2
           if systemctl is-active cloud-slicer-bridge; then echo "The service still runs"; exit 1; fi
           if [ -e /etc/systemd/system/cloud-slicer-bridge.service ]; then echo "The service file is still there"; exit 1; fi
+          # The one uninstall line (install.sh --uninstall runs the plain "uninstall"), typed as a
+          # normal user: it finds the printer install and asks sudo for root by itself.
+          sudo ../device-bridge/dist/linux-x64 install-printer --printer-data "$data" --relay http://127.0.0.1:8797
+          systemctl is-active cloud-slicer-bridge
+          ../device-bridge/dist/linux-x64 uninstall --printer-data "$data" | tee "$RUNNER_TEMP/uninstall.log"
+          grep -q 'Removed the bridge from this printer' "$RUNNER_TEMP/uninstall.log"
+          sleep 2
+          if systemctl is-active cloud-slicer-bridge; then echo "The service still runs after uninstall"; exit 1; fi
 
       - name: Print alerts on a local relay (mock printer -> bridge -> relay -> pretend push service)
         working-directory: apps/device-relay

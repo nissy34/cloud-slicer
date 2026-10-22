@@ -41,7 +41,8 @@ The Device tab's "Add a printer" dialog offers the right one for each system:
   `config/cloud-slicer-bridge-pairing.txt`, which Mainsail and Fluidd show. Nothing in Klipper or Moonraker changes, so neither restarts. It
   updates itself like the computer apps. "Remove bridge" in the Device tab
   removes the service and the folder; so does
-  `curl -fsSL https://<relay>/install.sh | sh -s -- --printer --uninstall`.
+  `curl -fsSL https://<relay>/install.sh | sh -s -- --uninstall`, the same line that
+  removes a bridge from a Mac, a Linux computer or a Pi (on a printer it asks sudo for root).
   A Snapmaker U1 firmware update wipes the service: run the line again.
 
 **Setup codes.** On a relay with accounts (the real one) a bridge only connects
