@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { BRIDGE_SNAPSHOT_FPS, MAX_SNAPSHOT_FPS, cameraTransform, cameraViews, parseWebcams } from './camera';
+import { BRIDGE_SNAPSHOT_FPS, DIRECT_PICTURE_FPS, MAX_SNAPSHOT_FPS, cameraTransform, cameraViews, parseWebcams } from './camera';
 import { coalesce } from './coalesce';
 import { touchesGcodes } from './session';
 import { go2rtcSocketUrl } from './webrtc';
@@ -51,10 +51,15 @@ describe('cameraViews', () => {
     expect(cameraViews(cam('mjpegstreamer-adaptive'), false)).toEqual([{ kind: 'snapshots', url: '/p', fps: MAX_SNAPSHOT_FPS }]);
   });
 
-  it('only polls snapshots, slowly, through the bridge', () => {
-    expect(cameraViews(caseCam, true)).toEqual([{ kind: 'snapshots', url: '/webcam/snapshot.jpg', fps: BRIDGE_SNAPSHOT_FPS }]);
-    const streamOnly = parseWebcams({ webcams: [{ name: 's', service: 'mjpegstreamer', stream_url: '/s' }] })[0];
-    expect(cameraViews(streamOnly, true)).toEqual([]);
+  it('through the bridge: a direct link first, then slow snapshots over the relay', () => {
+    expect(cameraViews(caseCam, true)).toEqual([
+      { kind: 'direct', camera: { service: caseCam.service, streamUrl: caseCam.streamUrl, snapshotUrl: '/webcam/snapshot.jpg', fps: Math.min(DIRECT_PICTURE_FPS, caseCam.targetFps) } },
+      { kind: 'snapshots', url: '/webcam/snapshot.jpg', fps: BRIDGE_SNAPSHOT_FPS },
+    ]);
+    const streamOnly = parseWebcams({ webcams: [{ name: 's', service: 'webrtc-camerastreamer', stream_url: '/s' }] })[0];
+    expect(cameraViews(streamOnly, true)).toEqual([{ kind: 'direct', camera: { service: 'webrtc-camerastreamer', streamUrl: '/s', snapshotUrl: '', fps: DIRECT_PICTURE_FPS } }]);
+    const none = parseWebcams({ webcams: [{ name: 'n', service: 'mjpegstreamer', snapshot_url: '', stream_url: '' }] });
+    expect(none.length ? cameraViews(none[0], true) : []).toEqual([]);
   });
 
   it('builds the transform from flip and rotation', () => {

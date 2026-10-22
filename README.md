@@ -307,6 +307,11 @@ router ports are opened:
 
     browser ⇄ relay (apps/device-relay) ⇄ bridge (apps/device-bridge) ⇄ printer's Moonraker
 
+Cameras skip the relay: the bridge sends them straight to the browser over WebRTC (the
+camera's own live video when it has some, like the paxx12 U1 firmware or camera-streamer,
+otherwise up to 15 pictures a second). Only on a network that blocks direct links does
+the camera fall back to one picture a second through the relay, with a note saying so.
+
 Setting up a home printer, signed in, from the Device tab's "Add a bridge" (or Add a
 printer): the dialog makes a one-use **setup code** (good for one hour) and shows one
 command that carries it:

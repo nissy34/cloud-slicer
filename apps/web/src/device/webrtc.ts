@@ -3,11 +3,11 @@
 // Adapted from Mainsail's streamers (camera-streamer, MediaMTX WHEP, go2rtc).
 import type { WebrtcProtocol } from './camera';
 
-const STUN: RTCIceServer[] = [{ urls: ['stun:stun.l.google.com:19302'] }];
+export const STUN: RTCIceServer[] = [{ urls: ['stun:stun.l.google.com:19302'] }];
 const SIGNAL_TIMEOUT_MS = 10_000;
 
 /** Waits for ICE gathering so the SDP we send carries every candidate (no trickle needed). */
-function gathered(pc: RTCPeerConnection): Promise<void> {
+export function gathered(pc: RTCPeerConnection): Promise<void> {
   if (pc.iceGatheringState === 'complete') return Promise.resolve();
   return new Promise((resolve) => {
     const done = () => {

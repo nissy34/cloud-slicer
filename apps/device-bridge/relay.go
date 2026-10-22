@@ -295,6 +295,7 @@ func (b *Bridge) handle(msg relayMessage) {
 			b.toRelay(relayMessage{Ctl: "drop", C: c, Reason: reason})
 		}
 		s = newSession(c, printer, func(text string) { b.toRelay(relayMessage{C: c, M: text}) }, dropSession)
+		s.log = b.opts.log
 		b.mu.Lock()
 		old := b.sessions[c]
 		b.sessions[c] = s
