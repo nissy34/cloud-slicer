@@ -3143,12 +3143,47 @@ select:focus-visible {
   text-align: center;
   cursor: pointer;
 }
+/* Blue only ever means "on the carriage"; the tapped head joins the panel below like a tab. */
+.dv-heads:not(.one) {
+  align-items: end;
+}
+.dv-head-tile {
+  position: relative;
+}
+/* The blue frame is drawn as a ring inside the tile, so it stays a closed rounded frame when the tile is a tab. */
 .dv-head.active .dv-head-tile {
-  background: color-mix(in srgb, var(--accent) 10%, var(--surface));
+  border-color: transparent;
+  box-shadow: 0 6px 14px color-mix(in srgb, var(--accent) 25%, transparent);
+  transform: translateY(-4px);
+}
+.dv-head.active .dv-head-tile::after {
+  content: '';
+  position: absolute;
+  inset: -1px;
+  border: 2px solid var(--accent);
+  border-radius: 12px;
+  pointer-events: none;
 }
 .dv-head.selected .dv-head-tile {
-  border-color: var(--accent);
-  box-shadow: 0 0 0 1px var(--accent);
+  background: var(--surface-2);
+  border-color: transparent;
+  border-bottom-left-radius: 0;
+  border-bottom-right-radius: 0;
+  padding-bottom: 14px;
+  margin-bottom: -8px;
+}
+.dv-head.active.selected .dv-head-tile {
+  transform: none;
+  box-shadow: none;
+}
+.dv-head.active.selected .dv-head-tile::after {
+  inset: 3px 3px 9px;
+  border-radius: 10px;
+}
+.dv-head-pic {
+  display: grid;
+  place-items: end center;
+  min-height: 62px;
 }
 .dv-head-say {
   max-width: 100%;
@@ -3230,6 +3265,7 @@ select:focus-visible {
 }
 /* The character: colours for both themes, and a little life while motion is welcome. */
 .device {
+  --dv-outline: #1f2733;
   --dv-head-body: #2b3442;
   --dv-head-hi: #3a4556;
   --dv-metal: #b9c1cc;
@@ -3239,6 +3275,7 @@ select:focus-visible {
 }
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme='light']) .device {
+    --dv-outline: #e6eaf1;
     --dv-head-body: #46536a;
     --dv-head-hi: #5a6882;
     --dv-metal: #7c8697;
@@ -3246,6 +3283,7 @@ select:focus-visible {
   }
 }
 :root[data-theme='dark'] .device {
+  --dv-outline: #e6eaf1;
   --dv-head-body: #46536a;
   --dv-head-hi: #5a6882;
   --dv-metal: #7c8697;
@@ -3373,6 +3411,343 @@ select:focus-visible {
 @keyframes dv-face-glow {
   50% {
     opacity: 0.2;
+  }
+}
+/* A docked head asleep in bed (HeadBed): coffee breaks, getting up, going back to bed. */
+.device {
+  --dv-wood: #b98b5a;
+  --dv-mattress: #d9b48a;
+  --dv-phones: #7b8cff;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) .device {
+    --dv-wood: #8f6a45;
+    --dv-mattress: #a98a68;
+  }
+}
+:root[data-theme='dark'] .device {
+  --dv-wood: #8f6a45;
+  --dv-mattress: #a98a68;
+}
+.dv-bed {
+  overflow: visible;
+  max-width: 100%;
+}
+.dv-bed * {
+  transform-box: fill-box;
+  transform-origin: center;
+}
+.dv-bed-blanket {
+  transform-origin: 100% 100%;
+}
+.dv-bed-sit,
+.dv-bed-sip,
+.dv-bed-post {
+  opacity: 0;
+}
+@media (prefers-reduced-motion: no-preference) {
+  .dv-bed-coffee .dv-bed-lie {
+    animation: dv-bed-coffee-lie 7s steps(1) both;
+  }
+  .dv-bed-coffee .dv-bed-sit {
+    animation: dv-bed-coffee-sit 7s ease-in-out both;
+  }
+  .dv-bed-coffee .dv-bed-blanket {
+    animation: dv-bed-coffee-blanket 7s ease-in-out both;
+  }
+  .dv-bed-coffee .dv-bed-phones,
+  .dv-bed-coffee .dv-bed-z {
+    animation: dv-bed-coffee-phones 7s ease-in-out both;
+  }
+  .dv-bed-coffee .dv-bed-post {
+    animation: dv-bed-coffee-post 7s ease-in-out both;
+  }
+  .dv-bed-coffee .dv-bed-mug {
+    animation: dv-bed-coffee-mug 7s ease-in-out both;
+  }
+  .dv-bed-coffee .dv-bed-sip {
+    animation: dv-bed-coffee-sip 7s steps(1) both;
+  }
+  .dv-bed-mug .dv-bed-steam {
+    animation: dv-bed-steam 1.6s ease-out infinite;
+  }
+  .dv-bed-waking .dv-bed-lie,
+  .dv-bed-waking .dv-bed-z {
+    animation: dv-bed-hide 1.8s steps(1) both;
+    animation-delay: -0.6s;
+  }
+  .dv-bed-waking .dv-bed-phones {
+    animation: dv-bed-fade-out 0.5s ease-in both;
+  }
+  .dv-bed-waking .dv-bed-sit {
+    animation: dv-bed-rise 1.8s ease-in-out both;
+  }
+  .dv-bed-waking .dv-bed-blanket {
+    animation: dv-bed-flatten 1.8s ease-in-out both;
+  }
+  .dv-bed-bedtime .dv-bed-sit {
+    animation: dv-bed-lie-down 1.8s ease-in-out both;
+  }
+  .dv-bed-bedtime .dv-bed-lie,
+  .dv-bed-bedtime .dv-bed-z {
+    animation: dv-bed-show 1.8s steps(1) both;
+  }
+  .dv-bed-bedtime .dv-bed-phones {
+    animation: dv-bed-phones-on 1.8s ease-in-out both;
+  }
+  .dv-bed-bedtime .dv-bed-blanket {
+    animation: dv-bed-fluff 1.8s ease-in-out both;
+  }
+}
+@keyframes dv-bed-coffee-lie {
+  0% {
+    opacity: 1;
+  }
+  20% {
+    opacity: 0;
+  }
+  80% {
+    opacity: 1;
+  }
+}
+@keyframes dv-bed-coffee-sit {
+  0%,
+  18% {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  23%,
+  77% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  81%,
+  100% {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+}
+@keyframes dv-bed-coffee-blanket {
+  0%,
+  17% {
+    transform: scaleY(1);
+  }
+  24%,
+  76% {
+    transform: scaleY(0.45);
+  }
+  83%,
+  100% {
+    transform: scaleY(1);
+  }
+}
+@keyframes dv-bed-coffee-phones {
+  0%,
+  8% {
+    opacity: 1;
+  }
+  15%,
+  85% {
+    opacity: 0;
+  }
+  92%,
+  100% {
+    opacity: 1;
+  }
+}
+@keyframes dv-bed-coffee-post {
+  0%,
+  10% {
+    opacity: 0;
+  }
+  17%,
+  83% {
+    opacity: 1;
+  }
+  90%,
+  100% {
+    opacity: 0;
+  }
+}
+@keyframes dv-bed-coffee-mug {
+  0%,
+  28% {
+    transform: translate(0, 0);
+  }
+  36% {
+    transform: translate(-36px, -6px);
+  }
+  41%,
+  49% {
+    transform: translate(-38px, -12px) rotate(-22deg);
+  }
+  53% {
+    transform: translate(-36px, -6px);
+  }
+  57%,
+  63% {
+    transform: translate(-38px, -12px) rotate(-22deg);
+  }
+  68% {
+    transform: translate(-36px, -6px);
+  }
+  76%,
+  100% {
+    transform: translate(0, 0);
+  }
+}
+@keyframes dv-bed-coffee-sip {
+  0% {
+    opacity: 0;
+  }
+  41% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0;
+  }
+  57% {
+    opacity: 1;
+  }
+  64% {
+    opacity: 0;
+  }
+}
+@keyframes dv-bed-steam {
+  0% {
+    opacity: 0;
+    transform: translateY(2px);
+  }
+  40% {
+    opacity: 0.9;
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-6px);
+  }
+}
+@keyframes dv-bed-hide {
+  0% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+@keyframes dv-bed-show {
+  0% {
+    opacity: 0;
+  }
+  60% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 1;
+  }
+}
+@keyframes dv-bed-fade-out {
+  to {
+    opacity: 0;
+    transform: translateY(-6px);
+  }
+}
+@keyframes dv-bed-rise {
+  0%,
+  25% {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  45% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(-10px);
+  }
+}
+@keyframes dv-bed-lie-down {
+  0% {
+    opacity: 1;
+    transform: translateY(-10px);
+  }
+  40% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  60%,
+  100% {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+}
+@keyframes dv-bed-phones-on {
+  0%,
+  65% {
+    opacity: 0;
+    transform: translateY(-6px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+@keyframes dv-bed-flatten {
+  0%,
+  20% {
+    transform: scaleY(1);
+  }
+  50%,
+  100% {
+    transform: scaleY(0.45);
+  }
+}
+@keyframes dv-bed-fluff {
+  0%,
+  50% {
+    transform: scaleY(0.45);
+  }
+  80%,
+  100% {
+    transform: scaleY(1);
+  }
+}
+@media (prefers-reduced-motion: no-preference) {
+  .dv-bed-blades {
+    animation: dv-bed-spin 0.5s linear infinite;
+  }
+  .dv-bed-wind {
+    animation: dv-bed-wind 1.2s linear infinite;
+  }
+  .dv-bed-dream {
+    animation: dv-bed-dream 3s ease-in-out infinite;
+  }
+}
+@keyframes dv-bed-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+@keyframes dv-bed-wind {
+  0% {
+    opacity: 0;
+    transform: translateX(6px);
+  }
+  40% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: translateX(-8px);
+  }
+}
+@keyframes dv-bed-dream {
+  50% {
+    transform: translateY(-2px);
+    opacity: 0.8;
   }
 }
 .dv-chip {
