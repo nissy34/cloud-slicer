@@ -41,6 +41,20 @@ function u1State(generic) {
     exclude_object: { objects: [], excluded_objects: [], current_object: null },
   };
   if (!generic) {
+    // The U1's fans: one part fan (fan), a hotend fan per head, per-head part fans the UI leaves out, and its case fans.
+    // Head 3's hotend fan still spins while it cools in its dock.
+    delete s['heater_fan hotend_fan'];
+    Object.assign(s, {
+      'fan_generic cavity_fan': { speed: 0 },
+      'fan_generic exhaust_fan': { speed: 0 },
+      'heater_fan e0_nozzle_fan': { speed: 0 },
+      'heater_fan e1_nozzle_fan': { speed: 0 },
+      'heater_fan e2_nozzle_fan': { speed: 1 },
+      'heater_fan e3_nozzle_fan': { speed: 0 },
+      'fan_generic e1_fan': { speed: 0 },
+      'fan_generic e2_fan': { speed: 0 },
+      'fan_generic e3_fan': { speed: 0 },
+    });
     // Head 0 starts on the carriage; the others sit in their docks.
     for (const [i, name] of ['extruder', 'extruder1', 'extruder2', 'extruder3'].entries()) {
       Object.assign(s[name], {

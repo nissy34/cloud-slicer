@@ -3700,6 +3700,9 @@ select:focus-visible {
   .dv-camera-card .dv-camera {
     max-height: 26dvh;
   }
+  .dv-cameras:not(.dv-cameras-many) .dv-camera {
+    margin-inline: auto;
+  }
   /* Several cameras: one big, the others small in a column beside it; tap a small one to swap. */
   .dv-camera-card .dv-cameras-many {
     grid-template-columns: minmax(0, 1fr) 28%;

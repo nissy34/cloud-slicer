@@ -188,6 +188,14 @@ try {
   await page.getByLabel('Bed target').press('Enter');
   await until('bed target 60', () => u1.state.heater_bed.target === 60);
   console.log('light and bed heater work');
+  {
+    // One part fan, the hotend fan of the head on the carriage, and a parked head's while it still spins; no per-head part fans.
+    const climate = page.getByTestId('climate-card');
+    await climate.getByText('Hotend fan T1', { exact: true }).waitFor();
+    await climate.getByText('Hotend fan T3', { exact: true }).waitFor();
+    for (const gone of ['Hotend fan T2', 'E1 fan', 'E1 nozzle fan']) if (await climate.getByText(gone, { exact: true }).count()) throw new Error(`U1 fan list shows ${gone}`);
+    console.log('U1 fans: part cooling plus the hotend fans that matter');
+  }
 
   // Move arrows say what physically moves. On the U1 the bed moves up and down, so "Bed up" closes the gap (Z−).
   {
