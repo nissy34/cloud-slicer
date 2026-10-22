@@ -63,17 +63,22 @@ function useBridgeOs(): [BridgeOs, (os: BridgeOs) => void] {
   return useState<BridgeOs>(guess === 'other' ? 'windows' : guess);
 }
 
-function OsTabs({ os, onChange }: { os: BridgeOs; onChange: (os: BridgeOs) => void }) {
+function OsTabs<K extends string>({ os, onChange, tabs = ['windows', 'mac', 'linux'] as K[], names = SYSTEM_NAME as Record<K, string> }: { os: K; onChange: (os: K) => void; tabs?: K[]; names?: Record<K, string> }) {
   return (
     <div className="dv-segmented dv-os-tabs" role="tablist" aria-label="The bridge's computer">
-      {(['windows', 'mac', 'linux'] as const).map((k) => (
+      {tabs.map((k) => (
         <button key={k} role="tab" aria-selected={os === k} className={os === k ? 'on' : ''} onClick={() => onChange(k)}>
-          {SYSTEM_NAME[k]}
+          {names[k]}
         </button>
       ))}
     </div>
   );
 }
+
+/** Where a bridge that never said where it runs could be: a computer, or the printer itself. */
+type UninstallPlace = BridgeOs | 'printer';
+const UNINSTALL_TABS: UninstallPlace[] = ['windows', 'mac', 'linux', 'printer'];
+const UNINSTALL_NAMES: Record<UninstallPlace, string> = { ...SYSTEM_NAME, printer: 'On the printer' };
 
 /** The add and uninstall commands for one system, with the printer address the user types filled in. */
 function ManageCommands() {
@@ -99,11 +104,14 @@ function ManageCommands() {
 /** How to remove the bridge from its computer, for when its last printer goes. */
 export function UninstallBridge({ system, place, relay }: { system?: string; place?: string; relay?: string }) {
   const known = system ? FROM_PLATFORM[system] : undefined;
-  const [picked, setOs] = useBridgeOs();
-  const os = known ?? picked;
-  if (place === 'printer') {
+  const [guess] = useBridgeOs();
+  const [picked, setOs] = useState<UninstallPlace>(guess);
+  // A bridge that never connected didn't say where it runs: the printer is one more choice.
+  const os = place === 'printer' ? 'printer' : (known ?? picked);
+  if (os === 'printer') {
     return (
       <div className="dv-about-commands" data-testid="bridge-uninstall">
+        {!known && place !== 'printer' && <OsTabs os={os} onChange={setOs} tabs={UNINSTALL_TABS} names={UNINSTALL_NAMES} />}
         <span className="muted">On the printer, over SSH:</span>
         <CopyCommand command={`curl -fsSL ${relay ?? DEFAULT_RELAY_URL}/install.sh | sh -s -- --printer --uninstall`} testId="bridge-uninstall-command" />
         <span className="muted">That stops the bridge on the printer and deletes it with its settings and pairing.</span>
@@ -112,7 +120,7 @@ export function UninstallBridge({ system, place, relay }: { system?: string; pla
   }
   return (
     <div className="dv-about-commands" data-testid="bridge-uninstall">
-      {!known && <OsTabs os={os} onChange={setOs} />}
+      {!known && <OsTabs os={os} onChange={setOs} tabs={UNINSTALL_TABS} names={UNINSTALL_NAMES} />}
       <span className="muted">On the bridge's computer, in {SHELL_NAME[os]}:</span>
       <CopyCommand command={`${BRIDGE_COMMAND[os]} uninstall`} testId="bridge-uninstall-command" />
       <span className="muted">
@@ -133,11 +141,14 @@ const LOG = { mac: '~/Library/Logs/cloud-slicer-bridge.log', linux: 'journalctl 
  */
 export function BridgeOffline({ system, place }: { system?: string; place?: string }) {
   const known = system ? FROM_PLATFORM[system] : undefined;
-  const [picked, setOs] = useBridgeOs();
-  const os = known ?? picked;
-  if (place === 'printer') {
+  const [guess] = useBridgeOs();
+  const [picked, setOs] = useState<UninstallPlace>(guess);
+  // A bridge that never connected didn't say where it runs: the printer is one more choice.
+  const os = place === 'printer' ? 'printer' : (known ?? picked);
+  if (os === 'printer') {
     return (
       <div className="dv-about-commands" data-testid="bridge-offline-help">
+        {!known && place !== 'printer' && <OsTabs os={os} onChange={setOs} tabs={UNINSTALL_TABS} names={UNINSTALL_NAMES} />}
         <span>
           The bridge runs on the printer itself and isn't answering. Check the printer is on and online; the bridge starts with it. This page reconnects by itself.
         </span>
@@ -154,7 +165,7 @@ export function BridgeOffline({ system, place }: { system?: string; place?: stri
         The bridge isn't running{known ? ` on its ${os === 'windows' ? 'Windows PC' : os === 'mac' ? 'Mac' : 'Linux computer'}` : ''}. It starts by itself{' '}
         {STARTS_WHEN[os]}, so first check that computer is on{os === 'linux' ? '' : ', signed in'} and online. This page reconnects by itself.
       </span>
-      {!known && <OsTabs os={os} onChange={setOs} />}
+      {!known && <OsTabs os={os} onChange={setOs} tabs={UNINSTALL_TABS} names={UNINSTALL_NAMES} />}
       <span className="muted">Still offline? Start it again on that computer, in {SHELL_NAME[os]}:</span>
       <CopyCommand command={`${BRIDGE_COMMAND[os]} install`} testId="bridge-offline-command" />
       <span className="muted">
