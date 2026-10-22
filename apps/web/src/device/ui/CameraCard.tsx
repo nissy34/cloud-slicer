@@ -127,7 +127,8 @@ export function CameraCard() {
           </span>
         </div>
       ) : (
-        <div className={`dv-cameras${shown.length > 1 ? ' dv-cameras-many' : ''}`} style={{ '--small-cameras': Math.max(2, shown.length - 1) } as CSSProperties}>
+        <div
+          className={`dv-cameras${shown.length > 1 ? ' dv-cameras-many' : ''}${shown.length === 2 ? ' dv-cameras-pair' : shown.length > 3 ? ' dv-cameras-row' : ''}`} style={{ '--small-cameras': Math.max(2, shown.length - 1) } as CSSProperties}>
           {shown.map((cam) => (
             <CameraTile
               key={cam.id}
@@ -209,7 +210,7 @@ function CameraTile({
   return (
     <figure
       className={`dv-camera${main ? ' dv-camera-main' : ''}`}
-      style={{ aspectRatio: String(cam.aspect) }}
+      style={{ aspectRatio: String(cam.aspect), '--aspect': String(cam.aspect) } as CSSProperties}
       data-testid="camera-tile"
       data-camera={cam.name}
       data-main={main || undefined}

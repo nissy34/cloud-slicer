@@ -2743,6 +2743,40 @@ select:focus-visible {
 .dv-cameras-many .dv-camera:not(.dv-camera-main) .dv-camera-note {
   display: none;
 }
+/* Desktop has room: two cameras side by side; four or more = one big on top, the rest in a row under it. */
+@media (min-width: 761px) {
+  .dv-cameras-many.dv-cameras-pair {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-rows: none;
+  }
+  .dv-cameras-many.dv-cameras-row {
+    grid-template-columns: repeat(var(--small-cameras), minmax(0, 1fr));
+    grid-template-rows: none;
+  }
+  .dv-cameras-pair .dv-camera-main {
+    grid-column: auto;
+    grid-row: auto;
+  }
+  .dv-cameras-pair .dv-camera:not(.dv-camera-main),
+  .dv-cameras-row .dv-camera:not(.dv-camera-main) {
+    grid-column: auto;
+    contain: none;
+    aspect-ratio: var(--aspect) !important;
+  }
+  .dv-cameras-row .dv-camera-main {
+    grid-column: 1 / -1;
+    grid-row: auto;
+  }
+  .dv-cameras-pair .dv-camera:not(.dv-camera-main) figcaption {
+    font-size: 12px;
+    left: 6px;
+    top: 6px;
+    padding: 1px 6px;
+  }
+  .dv-cameras-pair .dv-camera:not(.dv-camera-main) .dv-camera-note {
+    display: block;
+  }
+}
 .dv-camera {
   position: relative;
   margin: 0;
