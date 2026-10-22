@@ -3,6 +3,9 @@
 Two GitHub Actions workflows. Neither ever talks to a real printer: printer tests run
 against a mock Moonraker. The repository is public, so Actions minutes are free.
 
+Screenshots for a pull request go on the `pr-screenshots` branch, which runs no CI; see
+[pr-screenshots.md](pr-screenshots.md).
+
 ## `ci.yml`: engine, site, tests, Pages deploy
 
 Runs on every pull request, on pushes to `main`, and by hand. A change to Markdown files or

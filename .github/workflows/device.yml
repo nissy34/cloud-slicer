@@ -17,6 +17,11 @@ name: Device
 #    (test)") that install next to the real bridge and update only from the test
 #    relay. Branch previews of the site set up new bridges on it (ci.yml). It
 #    keeps what was sent last until something else is sent.
+#
+# On main the live relay deploys only when its own files changed, and the bridge
+# apps are built and sent out (a new version every installed bridge updates to)
+# only when the bridge's own files changed. A push that only changes the site's
+# Device screen runs the tests and sends nothing. A manual run sends both.
 
 on:
   push:
@@ -53,6 +58,8 @@ jobs:
       what: ${{ steps.w.outputs.what }}
       build: ${{ steps.w.outputs.build }}
       site: ${{ steps.w.outputs.site }}
+      relay: ${{ steps.w.outputs.relay }}
+      bridge: ${{ steps.w.outputs.bridge }}
     steps:
       - id: w
         env:
@@ -63,11 +70,33 @@ jobs:
           SAME_REPO: ${{ github.event.pull_request.head.repo.full_name == github.repository }}
           LABELLED: ${{ contains(github.event.pull_request.labels.*.name, 'use test relay') }}
           BRANCH: ${{ github.head_ref || github.ref_name }}
+          BEFORE: ${{ github.event.before }}
+          SHA: ${{ github.sha }}
+          GH_TOKEN: ${{ github.token }}
         run: |
           live=false test=false what=main
+          # What gets sent: the relay Worker, and the bridge apps (a new version for
+          # every installed bridge). Both, unless a push to main says otherwise below.
+          relay=true bridge=true
           case "$EVENT" in
             push)
-              [ "$REF" = refs/heads/main ] && live=true ;;
+              if [ "$REF" = refs/heads/main ]; then
+                # Only what this push changed. If GitHub can't say (first push, or a
+                # list too long for its answer), send both to be safe.
+                files=""
+                if [ -n "$BEFORE" ] && [ "$BEFORE" != 0000000000000000000000000000000000000000 ]; then
+                  files=$(gh api "repos/${{ github.repository }}/compare/$BEFORE...$SHA" --jq '.files[].filename' || true)
+                fi
+                if [ -n "$files" ] && [ "$(printf '%s\n' "$files" | wc -l)" -lt 300 ]; then
+                  # The relay: its own folder, plus the install lines it hands out.
+                  printf '%s\n' "$files" | grep -qE '^apps/device-relay/|^apps/device-bridge/install\.(sh|ps1|cmd)$' || relay=false
+                  # The bridge: its own folder, minus its tests, notes and install lines.
+                  printf '%s\n' "$files" | grep -E '^apps/device-bridge/' \
+                    | grep -vE '_test\.go$|\.md$|^apps/device-bridge/testdata/|^apps/device-bridge/install\.(sh|ps1|cmd)$' | grep -q . || bridge=false
+                fi
+                if [ "$relay" = true ] || [ "$bridge" = true ]; then live=true; fi
+                echo "### Changed on main: relay $relay, bridge $bridge" >> "$GITHUB_STEP_SUMMARY"
+              fi ;;
             pull_request)
               # Never the live relay. A PR from a fork has no secrets, so it can't deploy anyway.
               if [ "$LABELLED" = true ] && [ "$SAME_REPO" = true ]; then test=true what="PR #$PR"; fi ;;
@@ -79,6 +108,8 @@ jobs:
           targets=$(jq -cn --argjson l "$live" --argjson t "$test" '[if $l then "live" else empty end, if $t then "test" else empty end]')
           echo "targets=$targets" >> "$GITHUB_OUTPUT"
           echo "test=$test" >> "$GITHUB_OUTPUT"
+          echo "relay=$relay" >> "$GITHUB_OUTPUT"
+          echo "bridge=$bridge" >> "$GITHUB_OUTPUT"
           echo "what=$what" >> "$GITHUB_OUTPUT"
           # One build number for every test app, newer than anything sent before, so
           # test bridges always take the newest one sent (even an older branch).
@@ -571,6 +602,7 @@ jobs:
         env:
           WHAT: ${{ needs.where.outputs.what }}
           SITE: ${{ needs.where.outputs.site }}
+          RELAY: ${{ needs.where.outputs.relay }}
         run: |
           npm ci --no-audit --no-fund
           grep -qx "name = \"$WORKER\"" wrangler.toml
@@ -582,6 +614,11 @@ jobs:
             echo "::warning::R2 isn't usable; the relay deploys without the bridge apps"
             sed -i '/^\[\[r2_buckets\]\]/,/^bucket_name/d' wrangler.toml
           fi
+          old=""
+          if [ "$RELAY" != true ]; then
+            # The relay's files didn't change: it stays as it is, only the bridge apps go up.
+            echo "### ${{ matrix.target }} relay: unchanged, not deployed" >> "$GITHUB_STEP_SUMMARY"
+          else
           # Printer pages (page cards) stay on the Worker's workers.dev address, a
           # different site from Cloud Slicer's, whatever other name the relay gets.
           sub=$(curl -fsS -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" \
@@ -627,10 +664,11 @@ jobs:
             npx wrangler r2 bucket lifecycle add "$BUCKET" alert-pictures alerts/ --expire-days 1 --force || echo "::warning::Could not set the one-day rule for alert pictures"
           fi
           old=$(grep -Eo 'https://[^ ]+\.workers\.dev' deploy.log | tail -1)
+          echo "### ${{ matrix.target }} relay: $RELAY_ORIGIN (also $old)" >> "$GITHUB_STEP_SUMMARY"
+          fi
           url=$RELAY_ORIGIN
-          echo "### ${{ matrix.target }} relay: $url (also $old)" >> "$GITHUB_STEP_SUMMARY"
           # Both addresses answer, and both hand out install lines with the relay's own one.
-          for at in "$url" "$old"; do
+          for at in "$url" ${old:+"$old"}; do
             curl -fsS --retry 3 "$at/"
             curl -fsS --retry 3 "$at/install.sh" | grep -qx "RELAY=\"$url\"" || { echo "::error::$at/install.sh doesn't name $url"; exit 1; }
           done
@@ -655,13 +693,13 @@ jobs:
             sleep 15
           done
       - uses: actions/download-artifact@v7
-        if: steps.deploy.outputs.r2 == 'ok'
+        if: steps.deploy.outputs.r2 == 'ok' && needs.where.outputs.bridge == 'true'
         with:
           pattern: ${{ matrix.target == 'test' && 'bridge-test-app-*' || 'bridge-app-*' }}
           path: apps/device-bridge/dist
           merge-multiple: true
       - name: Build the bridge apps and upload them to R2
-        if: steps.deploy.outputs.r2 == 'ok'
+        if: steps.deploy.outputs.r2 == 'ok' && needs.where.outputs.bridge == 'true'
         working-directory: apps/device-bridge
         env:
           BRIDGE_SIGNING_KEY: ${{ secrets.BRIDGE_SIGNING_KEY }}
