@@ -27,11 +27,27 @@ function poseOf(mood: HeadMood, temp: number): Pose {
   return 'nap';
 }
 
-const FACE: Record<Pose, HeadMood> = { nap: 'napping', hot: 'hot', cooling: 'cooling', hungry: 'hungry', heating: 'heating', worried: 'worried' };
+// Check me lies in bed with a thermometer in its open mouth, like a sick day.
+const FACE: Record<Pose, HeadMood> = { nap: 'napping', hot: 'hot', cooling: 'cooling', hungry: 'hungry', heating: 'heating', worried: 'hungry' };
+
+const THERMOMETER = (
+  <g className="dv-bed-thermometer">
+    <g transform="rotate(-15 50 66)" style={PLACED}>
+      <rect x="50" y="61.5" width="48" height="9" rx="4.5" fill="#fff" stroke="var(--dv-outline)" strokeWidth="2.5" />
+      <rect x="56" y="64.4" width="24" height="3.2" rx="1.6" fill="#e5484d" />
+      <path d="M83 63v3M87.5 63v3" stroke="#7d8796" strokeWidth="1.6" />
+    </g>
+    <ellipse cx="50" cy="66" rx="7" ry="6" fill="var(--dv-head-hi)" stroke="#fff" strokeWidth="2.2" />
+    <g transform="rotate(-15 50 66)" style={PLACED}>
+      <rect x="50" y="63" width="8" height="6" fill="#fff" />
+    </g>
+  </g>
+);
 
 /**
  * A docked tool head lying back on its pillow, cap on the pillow, the face
- * tilting with it. Napping (headphones on), heating up and check me are
+ * tilting with it. Napping (headphones on), heating up and check me (with a
+ * thermometer in its mouth) are
  * tucked in under a blanket in the filament colour, pulled up to the chin;
  * hot, cooling down (with a fan on the bedside table) and feed me (dreaming
  * of a spool) lie on top of it. Now and then a napping head takes a coffee
@@ -67,6 +83,7 @@ export function HeadBed({ mood, colour, loaded, temp, scene, size = 60 }: { mood
         <g transform={`translate(50 ${b - 22}) rotate(-75) scale(.7) translate(-50 -54)`} style={PLACED}>
           <HeadBody mood={FACE[pose]} colour={colour} loaded={loaded} temp={temp} />
           {pose === 'nap' && PHONES}
+          {pose === 'worried' && THERMOMETER}
         </g>
       </g>
       {!onTop && blanket}
@@ -114,7 +131,7 @@ export function HeadBed({ mood, colour, loaded, temp, scene, size = 60 }: { mood
   );
 }
 
-/** Above the head: z's, sweat, a dream of a spool, heat waves or a "!". Hidden while the head gets up. */
+/** Above the head: z's, sweat, a dream of a spool or heat waves. Hidden while the head gets up. */
 function BedExtra({ pose }: { pose: Pose }) {
   switch (pose) {
     case 'hot':
@@ -144,11 +161,7 @@ function BedExtra({ pose }: { pose: Pose }) {
         <path className="dv-bed-z dv-face-steam" d="M60 34q4-4 0-8t0-8M72 34q4-4 0-8t0-8M84 36q4-4 0-8t0-8" stroke="var(--dv-hot)" strokeWidth="2.5" fill="none" strokeLinecap="round" />
       );
     case 'worried':
-      return (
-        <text className="dv-bed-z" x="64" y="34" fontSize="22" fontWeight="800" fill="var(--dv-warn)">
-          !
-        </text>
-      );
+      return null;
     default:
       return (
         <g className="dv-bed-z" fill="var(--muted)" fontWeight="700">
