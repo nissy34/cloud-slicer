@@ -19,13 +19,14 @@ const PHONES = (
 );
 
 /** How a docked head rests, from its mood: what it does in bed and what is on the bedside table. */
-type Pose = 'nap' | 'hot' | 'dream' | 'stretch' | 'worried';
+type Pose = 'nap' | 'hot' | 'cooling' | 'dream' | 'stretch' | 'worried';
 
 function poseOf(mood: HeadMood, temp: number): Pose {
   if (mood === 'worried') return 'worried';
   if (mood === 'hungry') return 'dream';
   if (mood === 'heating') return 'stretch';
-  if (mood === 'hot' || mood === 'cooling' || temp >= STILL_HOT) return 'hot';
+  if (mood === 'cooling') return 'cooling';
+  if (mood === 'hot' || temp >= STILL_HOT) return 'hot';
   return 'nap';
 }
 
@@ -33,9 +34,11 @@ function poseOf(mood: HeadMood, temp: number): Pose {
  * A docked tool head in bed, propped up on its pillow so the face shows.
  * Napping: headphones on, under a blanket in its filament colour; now and then
  * a coffee break (headphones on the bedpost, sits up, sips from the mug on the
- * bedside table, lies back). Still hot: sprawled on top of the squashed
- * blanket with a fan blowing at it. No filament: dreams of a spool. Heating
- * up: sits up and stretches. Getting up and going to bed are the same moves.
+ * bedside table, lies back). Hot: rests the same way but on top of the
+ * blanket, sweating; cooling down adds a fan on the bedside table. No
+ * filament: sits on top of the blanket, looks at you and thinks of a spool.
+ * Heating up: sits up and stretches as the heat rises. Getting up and going
+ * to bed are the same moves.
  */
 export function HeadBed({ mood, colour, loaded, temp, scene, size = 60 }: { mood: HeadMood; colour: string | null; loaded: boolean | null; temp: number; scene: BedScene; size?: number }) {
   const blanketColour = loaded && colour ? colour : 'var(--dv-head-hi)';
@@ -43,30 +46,26 @@ export function HeadBed({ mood, colour, loaded, temp, scene, size = 60 }: { mood
   const edge = { stroke: 'var(--dv-outline)', strokeWidth: 2.5 };
   const blanket = (
     <g className="dv-bed-blanket">
-      {pose === 'hot' ? (
-        <path d="M30 68Q46 62 62 68Q76 74 90 66Q104 60 124 68V80H28Z" fill={blanketColour} {...edge} />
-      ) : (
-        <>
-          <path d={pose === 'stretch' ? 'M30 66Q76 58 124 64V80H28Z' : 'M30 58Q76 48 124 56V80H28Z'} fill={blanketColour} {...edge} />
-          <path d={pose === 'stretch' ? 'M30 66Q76 58 124 64' : 'M30 58Q76 48 124 56'} stroke="rgba(255,255,255,.55)" strokeWidth="4" fill="none" />
-        </>
-      )}
+      <path d={pose === 'stretch' ? 'M30 66Q76 58 124 64V80H28Z' : 'M30 58Q76 48 124 56V80H28Z'} fill={blanketColour} {...edge} />
+      <path d={pose === 'stretch' ? 'M30 66Q76 58 124 64' : 'M30 58Q76 48 124 56'} stroke="rgba(255,255,255,.55)" strokeWidth="4" fill="none" />
     </g>
   );
+  const onTop = pose === 'hot' || pose === 'cooling' || pose === 'dream';
   const lying =
-    pose === 'hot' ? (
-      <g transform="translate(38 84) rotate(-78) scale(.6)" style={PLACED}>
-        <HeadBody mood="cooling" colour={colour} loaded={loaded} temp={temp} />
-      </g>
-    ) : pose === 'stretch' ? (
+    pose === 'stretch' ? (
       <g transform="translate(30 10) scale(.6)" style={PLACED}>
         <g className="dv-bed-stretch">
           <HeadBody mood="heating" colour={colour} loaded={loaded} temp={temp} />
         </g>
       </g>
+    ) : pose === 'dream' ? (
+      // Sits up on top of the blanket, facing you.
+      <g transform="translate(34 6) scale(.6)" style={PLACED}>
+        <HeadBody mood="hungry" colour={colour} loaded={loaded} temp={temp} />
+      </g>
     ) : (
-      <g transform="translate(26 16) rotate(-16) scale(.6)" style={PLACED}>
-        <HeadBody mood={pose === 'nap' ? 'napping' : pose === 'dream' ? 'hungry' : 'worried'} colour={colour} loaded={loaded} temp={temp} />
+      <g transform={`translate(26 ${onTop ? 12 : 16}) rotate(-16) scale(.6)`} style={PLACED}>
+        <HeadBody mood={pose === 'nap' ? 'napping' : pose === 'worried' ? 'worried' : pose} colour={colour} loaded={loaded} temp={temp} />
         {pose === 'nap' && PHONES}
       </g>
     );
@@ -76,9 +75,9 @@ export function HeadBed({ mood, colour, loaded, temp, scene, size = 60 }: { mood
       <rect x="119" y="60" width="9" height="40" rx="3" fill="var(--dv-wood)" />
       <rect x="4" y="76" width="122" height="12" rx="4" fill="var(--dv-mattress)" />
       <ellipse cx="20" cy="54" rx="12" ry="20" fill="#fff" stroke="var(--border)" />
-      {pose === 'hot' && blanket}
+      {onTop && blanket}
       <g className="dv-bed-lie">{lying}</g>
-      {pose !== 'hot' && blanket}
+      {!onTop && blanket}
       <g className="dv-bed-sit">
         <g transform="translate(60 16) scale(.62)" style={PLACED}>
           <HeadBody mood="ready" colour={colour} loaded={loaded} temp={temp} />
@@ -93,7 +92,7 @@ export function HeadBed({ mood, colour, loaded, temp, scene, size = 60 }: { mood
       <rect x="134" y="66" width="34" height="6" rx="2" fill="var(--dv-wood)" />
       <rect x="138" y="72" width="5" height="28" fill="var(--dv-wood)" />
       <rect x="159" y="72" width="5" height="28" fill="var(--dv-wood)" />
-      {pose === 'hot' ? (
+      {pose === 'cooling' ? (
         <g className="dv-bed-fan">
           <g transform="translate(151 48)" style={PLACED}>
             <rect x="-2" y="8" width="4" height="8" fill="var(--dv-metal)" />
@@ -127,6 +126,7 @@ export function HeadBed({ mood, colour, loaded, temp, scene, size = 60 }: { mood
 function BedExtra({ pose }: { pose: Pose }) {
   switch (pose) {
     case 'hot':
+    case 'cooling':
       return (
         <g className="dv-bed-z" fill="#5db4ff">
           <path className="dv-face-drop" d="M84 30q4 7 0 10q-4-3 0-10z" />
@@ -135,7 +135,7 @@ function BedExtra({ pose }: { pose: Pose }) {
       );
     case 'dream':
       return (
-        <g className="dv-bed-z">
+        <g className="dv-bed-z" transform="translate(14 0)" style={PLACED}>
           <circle cx="80" cy="34" r="2.5" fill="var(--surface)" stroke="var(--border)" />
           <circle cx="88" cy="26" r="3.5" fill="var(--surface)" stroke="var(--border)" />
           <g className="dv-bed-dream">
