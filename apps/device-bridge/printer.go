@@ -293,7 +293,7 @@ func installOnPrinter(given, relay, code string) (printerPlan, *Config, error) {
 			known = known || x.URL == url
 		}
 		if !known {
-			cfg.upsert(host, url, "")
+			cfg.upsert(host, url, "", "")
 		}
 	} else {
 		var pe *probeError

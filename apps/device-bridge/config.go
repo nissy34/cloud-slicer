@@ -19,6 +19,11 @@ type Printer struct {
 	Name   string `json:"name"`
 	URL    string `json:"url"`
 	APIKey string `json:"apiKey"`
+	// Kind: "" for Klipper with Moonraker, else the brand the bridge stands in for (translate.go), like "prusalink".
+	Kind string `json:"kind,omitempty"`
+
+	// shown: the printer's own address, when URL is its stand-in's (for messages).
+	shown string
 }
 
 // Config is the bridge's settings file: its identity (id and secret key), the
@@ -121,17 +126,17 @@ func (c *Config) printer(id string) (Printer, bool) {
 	return Printer{}, false
 }
 
-// upsert adds a printer, or updates the name and key of one already at that address.
-func (c *Config) upsert(name, url, apiKey string) Printer {
+// upsert adds a printer, or updates the name, key and kind of one already at that address.
+func (c *Config) upsert(name, url, apiKey, kind string) Printer {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	for i, p := range c.Printers {
 		if p.URL == url {
-			c.Printers[i].Name, c.Printers[i].APIKey = name, apiKey
+			c.Printers[i].Name, c.Printers[i].APIKey, c.Printers[i].Kind = name, apiKey, kind
 			return c.Printers[i]
 		}
 	}
-	p := Printer{ID: newPrinterID(), Name: name, URL: url, APIKey: apiKey}
+	p := Printer{ID: newPrinterID(), Name: name, URL: url, APIKey: apiKey, Kind: kind}
 	c.Printers = append(c.Printers, p)
 	return p
 }

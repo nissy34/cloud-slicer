@@ -142,9 +142,9 @@ export class PrinterSession {
     }
     const [list, info] = await Promise.all([
       this.rpc<{ objects: string[] }>('printer.objects.list'),
-      this.rpc<{ hostname?: string; software_version?: string }>('printer.info').catch(() => ({}) as { hostname?: string; software_version?: string }),
+      this.rpc<{ hostname?: string; software_version?: string; brand?: string }>('printer.info').catch(() => ({}) as { hostname?: string; software_version?: string; brand?: string }),
     ]);
-    const facts: PrinterFacts = { objects: list.objects ?? [], hostname: info.hostname ?? '', software: info.software_version ?? '' };
+    const facts: PrinterFacts = { objects: list.objects ?? [], hostname: info.hostname ?? '', software: info.software_version ?? '', brand: info.brand ?? '' };
     this.facts = facts;
     this.addons = detectAddons(facts);
     this.subscribed = [...new Set([...genericObjects(facts.objects), ...this.addons.flatMap((a) => a.objects(facts))])];
@@ -264,7 +264,7 @@ export class PrinterSession {
 
   async listFiles(): Promise<GcodeFile[]> {
     const files = await this.rpc<GcodeFile[]>('server.files.list', { root: 'gcodes' });
-    return (files ?? []).filter((f) => /\.(gcode|g|gco)$/i.test(f.path)).sort((a, b) => b.modified - a.modified);
+    return (files ?? []).filter((f) => /\.(gcode|bgcode|g|gco)$/i.test(f.path)).sort((a, b) => b.modified - a.modified);
   }
 
   metadata(filename: string) {

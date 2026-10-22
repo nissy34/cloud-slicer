@@ -17,7 +17,7 @@ const objects = {
 
 describe('U1 add-on', () => {
   it('recognises a U1 and asks for its own objects', () => {
-    const facts = { objects: ['print_task_config', 'purifier', 'filament_feed left', 'extruder', 'led cavity_led'], hostname: '', software: '' };
+    const facts = { objects: ['print_task_config', 'purifier', 'filament_feed left', 'extruder', 'led cavity_led'], hostname: '', software: '', brand: '' };
     expect(u1Addon.detect(facts)).toBe(true);
     expect(u1Addon.detect({ ...facts, objects: ['extruder'] })).toBe(false);
     expect(u1Addon.objects(facts)).toEqual(['print_task_config', 'purifier', 'filament_feed left', 'led cavity_led']);

@@ -78,7 +78,7 @@ func TestConfigRoundTripKeepsTheNodeBridgeFormat(t *testing.T) {
 	if len(cfg.BridgeID) != 16 || len(cfg.Key) != 32 || cfg.Relay != "https://relay.example" {
 		t.Fatalf("fresh config: %+v", cfg)
 	}
-	cfg.upsert("U1", "http://10.0.0.1:7125", "")
+	cfg.upsert("U1", "http://10.0.0.1:7125", "", "")
 	if err := cfg.save(); err != nil {
 		t.Fatal(err)
 	}

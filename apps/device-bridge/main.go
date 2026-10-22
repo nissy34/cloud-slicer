@@ -160,21 +160,21 @@ func run(argv []string, console bool) error {
 	switch cmd {
 	case "add":
 		if len(rest) == 0 {
-			return errors.New("Usage: add <address> [--name NAME] [--api-key KEY]")
+			return errors.New("Usage: add <address> [--name NAME] [--api-key KEY] [--kind moonraker|prusalink]")
 		}
 		apiKey := opts["api-key"]
-		url, info, err := probeAddress(ctx, rest[0], apiKey)
+		url, found, kind, err := findPrinter(ctx, rest[0], apiKey, opts["kind"])
 		if err != nil {
 			return err
 		}
 		name := opts["name"]
 		if name == "" {
-			name, _ = info["hostname"].(string)
+			name = found
 		}
 		if name == "" {
 			name = rest[0]
 		}
-		cfg.upsert(name, url, apiKey)
+		cfg.upsert(name, url, apiKey, kind)
 		if err := cfg.save(); err != nil {
 			return err
 		}

@@ -9,6 +9,8 @@ export interface PrinterFacts {
   objects: string[];
   hostname: string;
   software: string;
+  /** Not Klipper: the kind of printer the bridge stands in for (printer.info's brand), else "". */
+  brand: string;
 }
 
 /** A printer's built-in camera, used only when Moonraker lists no webcams. */
@@ -67,4 +69,11 @@ export interface PrinterAddon {
    * whether a head is loaded (plain Klipper's only notice moving filament).
    */
   motionSensorsFeelFilament?: boolean;
+  /**
+   * It isn't Klipper and takes no G-code (or emergency stop, or firmware
+   * restart), only prints and files, so the screen leaves out what sends them.
+   */
+  noCommands?: boolean;
+  /** Its camera can't be reached from outside its maker's own app, so there is no camera card. */
+  noCamera?: boolean;
 }
