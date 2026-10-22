@@ -5,25 +5,36 @@ against a mock Moonraker. The repository is public, so Actions minutes are free.
 
 ## `ci.yml`: engine, site, tests, Pages deploy
 
-Runs on every pull request, on pushes to `main`, and by hand.
+Runs on every pull request, on pushes to `main`, and by hand. A change to Markdown files or
+`docs/` alone doesn't run it, and a pull request that only changes the bridge or the relay
+(`apps/device-bridge`, `apps/device-relay`, `device.yml`) skips every job after `changes`:
+the Device workflow tests those.
 
 ```
-unit ─────────────────────────────────────────────┐
-engine ─┬─ engine-tests ──────────────────────────┤
-        └─ site ── browser (smoke, startup,       ├─ deploy
-                    presets, presetfiles,         │
-                    accounts, toolbar, mixing,    │
-                    wipetower, loading, cancel) ──┘
+         ┌ unit ──────────────────────────────────────┐
+changes ─┤        ┌─ engine-tests ────────────────────┤
+         └ engine ┼─ shared-settings ─────────────────┼─ deploy (main)
+                  └─ site ─┬─ browser (smoke, ...) ───┘
+                           └─ preview (other branches)
 ```
 
 | Job | Does |
 |---|---|
+| `changes` | Decides whether the site needs building (always, except for a bridge- or relay-only pull request) |
 | `unit` | Printer driver tests, web typecheck (app and Functions) and Vitest |
 | `engine` | Builds the wasm engine, or skips the build when an engine built from the same sources is cached, and publishes it (below) |
 | `engine-tests` | Bundles the presets and runs `engine/node/engine.test.mjs` |
 | `site` | Builds the web app with the engine and uploads it as the `web-site` artifact (kept 7 days) |
-| `browser` | One job per browser test in `apps/web/test/` (matrix `suite`), against the built site |
-| `deploy` | Deploys to Cloudflare Pages, then smoke-tests the deployed site |
+| `shared-settings` | Checks `apps/web/src/lib/shared-settings.json` is up to date with both engines' presets |
+| `browser` | One job per group of browser tests in `apps/web/test/` (matrix `suite`), against the built site. The slow Assemble test (`TOOLBAR_PART=assemble`) and phone gestures (`view-touch.mjs`) have jobs of their own |
+| `preview` | Every branch but `main`: deploys a preview to Cloudflare Pages as soon as `site` is done, beside the tests, then smoke-tests it |
+| `deploy` | `main` only, after every test passed: deploys the live site, smoke-tests it and gives the live relay the site's ticket key |
+
+Both deploy jobs use `.github/actions/deploy-site`. Browser jobs install Playwright's
+Chromium through `.github/actions/playwright`: cached, and without `--with-deps`, since
+the runner already has Chromium's libraries (that flag only added fonts from an Ubuntu
+mirror that sometimes took over 10 minutes). If Chromium doesn't start, the step
+installs the system packages after all.
 
 ### Engine caches
 
@@ -39,7 +50,8 @@ engine ─┬─ engine-tests ────────────────�
 - **ccache** for the engine's own sources, per commit, kept small so it doesn't evict
   the dependency cache (the repository has 10 GB of cache in total).
 
-Typical runs: about 4 to 5 minutes with a cached engine, about 7 with a ccache rebuild.
+Typical runs: about 6 minutes with a cached engine (a preview is up after about 4),
+about 7 more for an engine rebuild with ccache.
 
 ### Published engines
 
@@ -65,6 +77,8 @@ the engine from scratch.
 - `main` deploys production (https://slicer.awesomestuff.qzz.io). Every other branch
   deploys a preview at `<branch>.cloud-slicer.pages.dev`, with sign-in working through
   the production host.
+- A preview deploys before the tests finish, so a pull request with failing tests still
+  gets one, and its D1 migrations are applied. `main` deploys only after every test passed.
 - The deploy creates the Pages project the first time, sets up accounts
   (`apps/web/scripts/setup-accounts.mjs`: the D1 database, R2 bucket, sign-in secrets),
   applies D1 migrations (one database for production and previews, so migrations must
