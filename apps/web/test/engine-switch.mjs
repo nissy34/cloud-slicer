@@ -153,8 +153,6 @@ try {
   await shot(page, 'engine-phone');
   await engineSelect.selectOption('orca');
   await ask.waitFor();
-  // Measured where it rests, after it has slid up from the bottom.
-  await ask.evaluate((e) => Promise.all(e.getAnimations().map((a) => a.finished)));
   const box = await ask.boundingBox();
   if (!box || box.width > 390 || box.y < 0 || box.y + box.height > 844) fail(`pop-up at ${JSON.stringify(box)} on a 390x844 phone`);
   if (!(await ask.getByRole('button', { name: 'Switch to OrcaSlicer' }).isVisible())) fail('Switch is not visible on the phone');
