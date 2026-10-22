@@ -4,6 +4,7 @@
 // provider: the test follows each redirect itself with its own cookie jar.
 //
 //   node test/accounts.mjs [site dir]     # default dist/ (after npm run build)
+//   ACCOUNTS_ONLY='discarded' node test/accounts.mjs   # only tests whose name has that text
 //
 // With the built app it also signs in through the real Sign in button in
 // Chromium, using the popup flow.
@@ -38,6 +39,7 @@ const users = {
   carol: { sub: 'g-carol', name: 'Carol', email: 'carol@example.com', email_verified: true },
   dave: { sub: 'g-dave', name: 'Dave', email: 'Dave@Example.com', email_verified: true },
   gina: { sub: 'g-gina', name: 'Gina', email: 'gina@example.com', email_verified: true },
+  hank: { sub: 'g-hank', name: 'Hank', email: 'hank@example.com', email_verified: true },
 };
 let nextUser = 'alice';
 const codes = new Map(); // code -> { user, challenge }
@@ -197,7 +199,7 @@ async function signIn(browser, user, opts) {
 }
 
 const tests = [];
-const test = (name, fn) => tests.push([name, fn]);
+const test = (name, fn) => (!process.env.ACCOUNTS_ONLY || name.includes(process.env.ACCOUNTS_ONLY)) && tests.push([name, fn]);
 async function waitFor(check, what, ms = 30000) {
   const end = Date.now() + ms;
   while (Date.now() < end) {
@@ -430,7 +432,7 @@ test('projects: save a 3MF online, thumbnail, conflicts, rename, list, delete', 
   assert.equal((await alice.json('/api/projects/bad%20id', 'DELETE')).status, 400);
 });
 
-test('projects: one draft, the device editing a project, taking it over (AutoSave)', async () => {
+test('projects: a draft per device, the device editing a project, taking it over (AutoSave)', async () => {
   const file = (text) => new Blob([Buffer.concat([Buffer.from('PK\x03\x04'), Buffer.from(text)])]);
   const save = (b, id, name, body, baseVersion, extra = {}) =>
     b.fetch(`${HOST}/api/projects/${id}?${new URLSearchParams({ name, ...(baseVersion !== undefined ? { baseVersion: String(baseVersion) } : {}), ...extra })}`, {
@@ -454,8 +456,21 @@ test('projects: one draft, the device editing a project, taking it over (AutoSav
   assert.ok(list.projects.find((p) => p.id === 'd1')?.draft);
   assert.equal((await save(alice, 'd2', 'Cube', file('draft two'), 0, { draft: '1', ...laptop })).status, 200);
   list = await (await alice.json('/api/projects')).json();
-  assert.deepEqual(list.projects.filter((p) => p.draft).map((p) => p.id), ['d2'], 'one draft per person');
+  assert.deepEqual(list.projects.filter((p) => p.draft).map((p) => p.id), ['d2'], 'one draft per device');
   assert.equal((await alice.fetch(`${HOST}/api/projects/d1/file`)).status, 404, "the old draft's file is gone");
+  // Each device keeps its own draft: the phone's doesn't replace the laptop's
+  // (discarding one on a device never takes another device's work with it).
+  assert.equal((await save(alice, 'dp', 'Clip', file('phone draft'), 0, { draft: '1', ...phoneDevice })).status, 200);
+  list = await (await alice.json('/api/projects')).json();
+  assert.deepEqual(list.projects.filter((p) => p.draft).map((p) => p.id).sort(), ['d2', 'dp'], "the phone's draft sits beside the laptop's");
+  // At most three drafts a person: the oldest go first.
+  for (const n of [1, 2, 3]) {
+    assert.equal((await save(alice, `dx${n}`, 'Extra', file(`extra ${n}`), 0, { draft: '1', device: `extra-device-${n}`, deviceName: 'Mac' })).status, 200);
+  }
+  list = await (await alice.json('/api/projects')).json();
+  assert.deepEqual(list.projects.filter((p) => p.draft).map((p) => p.id).sort(), ['dx1', 'dx2', 'dx3'], 'only the newest three drafts are kept');
+  for (const id of ['dx1', 'dx2', 'dx3']) await alice.fetch(`${HOST}/api/projects/${id}`, { method: 'DELETE', headers: { Origin: HOST } });
+  assert.equal((await save(alice, 'd2', 'Cube', file('draft two again'), undefined, { draft: '1', ...laptop })).status, 200, 'the laptop saves its draft again');
 
   // The first Save names it: same id, no longer a draft, now counted.
   const named = await save(alice, 'd2', 'My cube', file('named'), 1, laptop);
@@ -1179,6 +1194,102 @@ if (withApp)
       assert.equal(await wizard.count(), 0, 'the wizard opened over the Continue card');
       await card.getByRole('button', { name: 'Discard' }).click();
       await wizard.waitFor({ timeout: 30000 });
+    } finally {
+      await browser.close();
+    }
+  });
+
+if (withApp)
+  test('browser: a draft discarded on another computer stays open here and is saved again', async () => {
+    const browser = await chromium.launch(
+      process.env.PLAYWRIGHT_BROWSERS_PATH === '/opt/pw-browsers' ? { executablePath: '/opt/pw-browsers/chromium' } : {},
+    );
+    try {
+      const hank = new Browser();
+      await signIn(hank, 'hank');
+      const drafts = async () => (await (await hank.json('/api/projects')).json()).projects.filter((p) => p.draft);
+      const open = async (viewport) => {
+        const context = await browser.newContext({ viewport });
+        await context.addCookies([...hank.jar.get(new URL(HOST).host)].map(([name, value]) => ({ name, value, url: HOST })));
+        const page = await context.newPage();
+        page.on('pageerror', (e) => console.error(`page error: ${e.message}`));
+        await page.goto(HOST);
+        return page;
+      };
+      const skipWizard = async (page) => {
+        const wizard = page.getByRole('dialog', { name: 'Set up your printers' });
+        await page.waitForTimeout(2000);
+        if (await wizard.isVisible().catch(() => false)) await wizard.getByRole('button', { name: 'Not now' }).click();
+      };
+      const changeLayer = async (page, value) => {
+        const layer = page.getByLabel('Layer height', { exact: true });
+        await layer.fill(value);
+        await layer.press('Enter');
+      };
+
+      // Computer A: a new project, kept online as its draft.
+      const a = await open({ width: 1280, height: 860 });
+      await a.getByText('Open a model to start').waitFor({ timeout: 120000 });
+      await skipWizard(a);
+      await a.getByTestId('model-input').setInputFiles(join(web, '../../fixtures/3DBenchy.stl'));
+      await a.getByRole('button', { name: 'Add model' }).waitFor({ timeout: 60000 });
+      const projectButton = a.getByRole('button', { name: /^Project/ });
+      await projectButton.getByText('Draft, not saved yet').waitFor({ timeout: 30000 });
+      await waitFor(async () => (await drafts()).length === 1, 'A saved its draft');
+      const first = (await drafts())[0];
+
+      // Computer B: the Continue card, Discard; then B starts its own project (its own draft).
+      const b = await open({ width: 390, height: 800 });
+      const card = b.getByTestId('continue-card');
+      await card.getByText('Continue your unsaved project?').waitFor({ timeout: 120000 });
+      await card.getByRole('button', { name: 'Discard' }).click();
+      await card.waitFor({ state: 'detached' });
+      await waitFor(async () => (await drafts()).length === 0, "B discarded A's draft");
+      await skipWizard(b);
+      await b.getByTestId('model-input').setInputFiles(join(web, '../../fixtures/3DBenchy.stl'));
+      await waitFor(async () => (await drafts()).length === 1, 'B saved its own draft', 60000);
+      const bDraft = (await drafts())[0];
+
+      // Back on A, a change: AutoSave finds its draft gone. No "Saved on another
+      // device" question (it used to come back after every answer): A says what
+      // happened and keeps its work as a new draft, beside B's.
+      await changeLayer(a, '0.28');
+      const toast = a.getByText('Your unsaved project was discarded on another device. It’s still open here, and AutoSave keeps it as a new draft.');
+      await toast.waitFor({ timeout: 60000 });
+      assert.equal(await a.getByRole('alertdialog').count(), 0, 'A asked about a project it no longer has');
+      if (process.env.ACCOUNTS_SHOTS) await a.screenshot({ path: join(process.env.ACCOUNTS_SHOTS, 'draft-discarded-desktop.png') });
+      await a.setViewportSize({ width: 390, height: 800 });
+      await a.waitForTimeout(500);
+      if (process.env.ACCOUNTS_SHOTS) await a.screenshot({ path: join(process.env.ACCOUNTS_SHOTS, 'draft-discarded-phone.png') });
+      await a.setViewportSize({ width: 1280, height: 860 });
+      await waitFor(async () => (await drafts()).length === 2, "A saved its work again, beside B's draft", 90000);
+      const ids = (await drafts()).map((p) => p.id);
+      assert.ok(ids.includes(bDraft.id), "B's draft is still there");
+      assert.ok(!ids.includes(first.id), 'A saved a new draft');
+      await projectButton.getByText('Draft, not saved yet').waitFor({ timeout: 30000 });
+      assert.equal(await a.getByLabel('Layer height', { exact: true }).inputValue(), '0.28', "A's change is still there");
+
+      // B's next change saves into its own draft, no question either.
+      await changeLayer(b, '0.12');
+      await waitFor(async () => (await drafts()).find((p) => p.id === bDraft.id)?.version > bDraft.version, "B's AutoSave went on", 90000);
+      assert.equal(await b.getByRole('alertdialog').count(), 0, 'B was asked about its draft');
+
+      // A's draft taken over on B (Continue), then discarded there: A's "Edit
+      // here instead" used to spin and stay view only. Now A keeps its work.
+      const aDraft = (await drafts()).find((p) => p.id !== bDraft.id);
+      assert.equal((await hank.json(`/api/projects/${aDraft.id}/device`, 'POST', { device: 'b-device-12345', deviceName: 'phone' })).status, 200);
+      await a.evaluate(() => window.dispatchEvent(new Event('focus')));
+      const banner = a.getByTestId('view-only-banner');
+      await banner.getByText('being edited on your phone').waitFor({ timeout: 15000 });
+      await hank.fetch(`${HOST}/api/projects/${aDraft.id}`, { method: 'DELETE', headers: { Origin: HOST } });
+      await banner.getByRole('button', { name: 'Edit here instead' }).click();
+      await banner.waitFor({ state: 'detached', timeout: 30000 });
+      await a.getByText('Your unsaved project was discarded on your phone. It’s still open here, and AutoSave keeps it as a new draft.').waitFor({ timeout: 15000 });
+      if (process.env.ACCOUNTS_SHOTS) await a.screenshot({ path: join(process.env.ACCOUNTS_SHOTS, 'draft-discarded-edit-here.png') });
+      assert.equal(await projectButton.getByText('View only').count(), 0, 'still view only');
+      await waitFor(async () => (await drafts()).some((p) => p.id !== bDraft.id), 'A saved its work again', 90000);
+      await changeLayer(a, '0.2');
+      assert.equal(await a.getByLabel('Layer height', { exact: true }).inputValue(), '0.2', 'A can edit again');
     } finally {
       await browser.close();
     }

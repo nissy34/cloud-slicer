@@ -3,8 +3,10 @@
 // inside R2's free 10 GB. Storage per user is set on the Admin page
 // (access.ts storageBytes; 0 = presets only, no online projects).
 //
-// AutoSave: a new project is kept as the person's one draft (draft = 1) until
-// its first Save names it; a new draft replaces the old one. The device
+// AutoSave: a new project is kept as a draft (draft = 1) until its first Save
+// names it. Each device keeps one draft (a new one replaces that device's old
+// one), so discarding a draft on one device never takes another device's work
+// with it; a person has at most MAX_DRAFTS, the oldest go first. The device
 // editing a project is recorded with each save; a save from another device is
 // refused (409, code "elsewhere") until that device takes over (POST .../device).
 import { storageBytes } from './access';
@@ -18,6 +20,8 @@ export const LIMITS = {
   siteBytes: 8 * 1024 * 1024 * 1024,
   thumbnailBytes: 512 * 1024,
 };
+/** Drafts kept per person (one per device; past this the oldest go). */
+export const MAX_DRAFTS = 3;
 
 interface ProjectRow {
   id: string;
@@ -168,7 +172,7 @@ export async function thumbnail(env: Env, request: Request, rawId: string): Prom
  * baseVersion: the version this save started from (0 = a new project);
  * left out, the save goes over whatever is there.
  * engine: snapmaker (the default) or orca, the engine the project slices with.
- * draft=1: the person's one draft (a new draft replaces the old one); a save
+ * draft=1: this device's draft (it replaces the device's old one); a save
  * without it turns the draft into a normal project.
  * device, deviceName: the device saving; a save from a device other than the
  * one editing the project is refused unless baseVersion is left out.
@@ -235,10 +239,15 @@ export async function put(env: Env, request: Request, rawId: string): Promise<Re
     throw conflict(await row(env, user.id, id));
   }
   if (current) await b.delete(current.file_key);
-  // One draft per person: a new one replaces the one before.
+  // One draft per device: a new one replaces the one before it on this device,
+  // and the oldest drafts of other devices go past MAX_DRAFTS.
   if (draft && !current) {
-    const old = await d.prepare('SELECT * FROM projects WHERE user_id = ? AND draft = 1 AND id != ?').bind(user.id, id).all<ProjectRow>();
-    for (const r of old.results) {
+    const others = await d
+      .prepare('SELECT * FROM projects WHERE user_id = ? AND draft = 1 AND id != ? ORDER BY updated_at DESC')
+      .bind(user.id, id)
+      .all<ProjectRow>();
+    const old = others.results.filter((r, i) => !device || !r.device || r.device === device || i >= MAX_DRAFTS - 1);
+    for (const r of old) {
       await d.prepare('DELETE FROM projects WHERE user_id = ? AND id = ?').bind(user.id, r.id).run();
       await b.delete([r.file_key, ...(r.thumb_key ? [r.thumb_key] : [])]);
     }

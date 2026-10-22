@@ -196,8 +196,9 @@ nothing on purpose, so a deploy's page and engine never get out of step).
   indexed in the D1 `projects` table. Limits: 50 MB per project, 200 MB and 200 projects
   per user, 8 GB for the site (R2's free tier is 10 GB). Each save carries the version it
   started from; a save over a newer one asks whether to overwrite or save a copy.
-  AutoSave (`state/projects.ts`, timing rules in `lib/autosave.ts`): new work is one draft
-  row (`draft = 1`); saves carry this browser's id, and a save from a device other than the
+  AutoSave (`state/projects.ts`, timing rules in `lib/autosave.ts`): new work is a draft
+  row (`draft = 1`, one per device, at most 3 per person; a tab whose draft was deleted on
+  another device keeps its work and saves a new draft instead of asking); saves carry this browser's id, and a save from a device other than the
   one editing the project is refused (409 `elsewhere`) until it takes the project over.
   There is no polling: the check runs on save and when a tab is focused, so the free tier's
   request budget goes to real saves.

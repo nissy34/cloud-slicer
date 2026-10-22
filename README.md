@@ -264,9 +264,12 @@ D1 (`projects` table). Limits keep R2 inside its free 10 GB: 50 MB per project, 
 (changeable on the Admin page) and 200 projects per user, 8 GB for the whole site. Saves carry the version they started
 from, so a save from a second device asks before overwriting.
 
-AutoSave (signed in, on by default, the switch is a user setting): a new project is one
-draft in the account (`projects.draft = 1`, a new draft replaces the old one, drafts don't
-count toward the 200 projects but do count toward storage). Leaving it asks Save / Don't
+AutoSave (signed in, on by default, the switch is a user setting): a new project is a
+draft in the account (`projects.draft = 1`). Each device keeps one draft (a new one replaces
+that device's old one, at most 3 per person, oldest go first), so Discard on the Continue
+card never takes another device's open work with it: that device says so, keeps what it
+shows and saves it as a new draft. Drafts don't count toward the 200 projects but do count
+toward storage. Leaving it asks Save / Don't
 save / Cancel; the first Save names it and turns it into a project. After that each change
 is saved once things are quiet for 5 s, at most every 30 s (every 3 min for projects of
 5 MB or more, since each save uploads the whole 3MF), and when the tab is hidden; the
