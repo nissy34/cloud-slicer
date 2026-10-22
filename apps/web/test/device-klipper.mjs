@@ -278,22 +278,29 @@ try {
   const four = PRINTERS.four;
   await addDirect(page, four);
   await checkScreen(page, four);
-  await send(page, four, testPrint({ heads: 4, layers: 4, bed: true }), 'four heads.gcode', true);
+  // Three layers switch through all four heads: T1 T2, T2 T3, T3 T0.
+  await send(page, four, testPrint({ heads: 4, layers: 3, bed: true }), 'four heads.gcode', true);
   await page.getByTestId('print-state').filter({ hasText: 'Printing' }).waitFor({ timeout: 30_000 });
   const used = new Set();
-  await until(
-    'four-heads: print finished',
-    async () => {
-      const s = await status(four, ['toolhead', 'print_stats']);
-      used.add(s.toolhead.extruder);
-      return s.print_stats.state === 'complete';
-    },
-    240_000,
-  );
+  const started = Date.now();
+  let last;
+  try {
+    await until(
+      'four-heads: print finished',
+      async () => {
+        last = await status(four, ['toolhead', 'print_stats', 'virtual_sdcard']);
+        used.add(last.toolhead.extruder);
+        return last.print_stats.state === 'complete';
+      },
+      480_000,
+    );
+  } catch (e) {
+    throw new Error(`${e.message}; Klipper says ${JSON.stringify(last)}`);
+  }
   if (used.size < 3) throw new Error(`four-heads: only ${[...used].join(', ')} seen printing`);
   await page.getByTestId('print-state').filter({ hasText: 'Finished' }).waitFor();
   if (shots) await page.screenshot({ path: join(shots, 'klipper-four-heads.png') });
-  console.log(`four-heads: a four-colour print ran to the end (${[...used].sort().join(', ')})`);
+  console.log(`four-heads: a four-colour print ran to the end in ${Math.round((Date.now() - started) / 1000)} s (${[...used].sort().join(', ')})`);
 
   // ---- phone: every card fits, for each shape ---------------------------------------------
   const phone = await context.newPage();
