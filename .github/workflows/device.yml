@@ -306,18 +306,20 @@ jobs:
       - name: Start the pretend printers (one, two and four heads)
         working-directory: apps/web/test/device/printers
         run: |
-          for i in 1 2 3; do docker compose pull -q && break; sleep 10; done
-          # Once (2026-10-22) no simulated board answered Klipper on the first start; a
+          # The Klipper printers only; OctoPrint has its own test in the job above.
+          KLIPPERS='one-head two-heads four-heads'
+          for i in 1 2 3; do docker compose pull -q $KLIPPERS && break; sleep 10; done
+          # On some CI machines no simulated board answers Klipper on the first start; a
           # restart is the same as switching a printer off and on. Logged so it shows.
           lscpu | grep -E 'Model name|^CPU\(s\)|Hypervisor'
-          if ! docker compose up -d --wait; then
+          if ! docker compose up -d --wait $KLIPPERS; then
             echo "::warning::The pretend printers didn't start; restarting them once"
             docker stats --no-stream
             for s in one-head two-heads four-heads; do
               docker compose exec -T $s sh -c 'tail -n 15 /printer/printer_data/logs/simulavr-stdout*; grep -m3 -E "Unable|Timeout|MHz|Mhz" /printer/printer_data/logs/klippy.log'
             done
-            docker compose restart
-            docker compose up -d --wait
+            docker compose restart $KLIPPERS
+            docker compose up -d --wait $KLIPPERS
           fi
 
       - uses: actions/setup-node@v5

@@ -1,6 +1,6 @@
 # Pretend printers
 
-Three Klipper printers that run in Docker, for trying the Device tab without a
+Three Klipper printers and one OctoPrint printer that run in Docker, for trying the Device tab without a
 real printer. Each one is the real Klipper and the real Moonraker on a
 simulated control board, so the page talks to them exactly as it talks to a
 real Klipper printer. Nothing moves and nothing heats: motors, heaters and
@@ -11,6 +11,7 @@ fans are numbers in the simulation.
 | one-head   | `http://127.0.0.1:7131` | 1 head, no heated bed, one camera, 180 mm bed            |
 | two-heads  | `http://127.0.0.1:7132` | 2 heads (T0, T1), heated bed, two cameras                |
 | four-heads | `http://127.0.0.1:7134` | 4 heads (T0 to T3), heated bed, chamber, no camera, 270 mm bed |
+| octoprint  | `http://127.0.0.1:7140` | OctoPrint with its virtual printer; add it through your bridge with the API key in [`octoprint/README.md`](octoprint/README.md) |
 
 They don't have the U1's own parts (docked heads, feeders, its camera, its
 error codes). Those are tested against our own pretend U1,

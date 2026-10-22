@@ -54,3 +54,9 @@ services:
       - ./four-heads/moonraker.conf:/printer/printer_data/config/moonraker.conf:ro
       - ./common.cfg:/printer/printer_data/config/common.cfg:ro
       - ./sim_temperature.py:/printer/klipper/klippy/extras/sim_temperature.py:ro
+
+  # OctoPrint with its built-in virtual printer (see octoprint/README.md):
+  # http://127.0.0.1:7140, through the bridge, API key in octoprint/README.md.
+  octoprint:
+    build: ./octoprint
+    ports: ["7140:7140"]
