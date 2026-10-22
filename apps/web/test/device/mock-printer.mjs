@@ -357,6 +357,8 @@ export async function startMockPrinter({ port = 0, host = '127.0.0.1', generic =
           filename: params.filename,
           size: f.size,
           estimated_time: Number(kv('estimated_time_s') ?? 3600),
+          // Every pretend print here runs 50 layers.
+          layer_count: 50,
           thumbnails: gcodeThumbnails(f.text).map((t) => ({
             width: t.width,
             height: t.height,

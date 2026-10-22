@@ -156,6 +156,20 @@ try {
   if (await page.getByTestId('printer-select').locator('option', { hasText: 'voron-mock' }).count()) throw new Error('only the ready printers should be saved');
   if ((await page.getByTestId('printer-select').locator('option:checked').textContent()) !== 'U1-mock') throw new Error('the first printer in the list should be chosen');
   console.log('bridge: the ready printers saved in one go, with their names and API key');
+  // In the dark theme the printer list's choices are dark too (the open list used to be light).
+  await page.emulateMedia({ colorScheme: 'dark' });
+  await page.waitForFunction(() => document.documentElement.dataset.theme === 'dark');
+  const optionColours = await page.getByTestId('printer-select').evaluate((select) => {
+    // A see-through background leaves the browser's own (light) list showing: count it as light.
+    const lum = (c) => {
+      const [r, g, b, a = 1] = (c.match(/\d+(\.\d+)?/g) ?? []).map(Number);
+      return a === 0 ? 1 : (r + g + b) / 765;
+    };
+    return [...select.options].map((o) => ({ bg: lum(getComputedStyle(o).backgroundColor), fg: lum(getComputedStyle(o).color) }));
+  });
+  if (optionColours.some((o) => o.bg > 0.4 || o.fg < 0.6)) throw new Error(`printer choices aren't dark in the dark theme: ${JSON.stringify(optionColours)}`);
+  await page.emulateMedia({ colorScheme: 'light' });
+  await page.waitForFunction(() => document.documentElement.dataset.theme === 'light');
   console.log('bridge: connected');
 
   await page.getByTestId('head-0').getByText('PLA').waitFor();
@@ -314,6 +328,16 @@ try {
   await skipList.getByTestId('skip-object').filter({ hasText: 'Ring' }).getByText('Skipped').waitFor();
   if (!u1.scripts.includes('EXCLUDE_OBJECT NAME=RING_ID_1_COPY_0')) throw new Error(`no EXCLUDE_OBJECT sent; got ${u1.scripts.slice(-5).join(' | ')}`);
   await skipList.getByText('2 of 3 objects still printing.').waitFor();
+  // The last object left: skipping it would print nothing, so the question offers to cancel instead.
+  await skipList.getByTestId('skip-object').filter({ hasText: 'Calibration cube 2' }).getByRole('button', { name: 'Skip' }).click();
+  await page.getByRole('dialog', { name: 'Skip Calibration cube 2?' }).getByRole('button', { name: 'Skip Calibration cube 2' }).click();
+  await skipList.getByText('1 of 3 objects still printing.').waitFor();
+  await skipList.getByTestId('skip-object').filter({ hasText: /^Calibration cube(?! 2)/ }).getByRole('button', { name: 'Skip' }).click();
+  const last = page.getByRole('dialog', { name: 'Calibration cube is the last object' });
+  await last.getByRole('button', { name: 'Cancel print' }).waitFor();
+  await last.getByRole('button', { name: 'Keep printing' }).click();
+  await last.waitFor({ state: 'detached' });
+  if (u1.scripts.includes('EXCLUDE_OBJECT NAME=CALIBRATION_CUBE.STL_ID_0_COPY_0')) throw new Error('the last object was skipped');
   if (shots) await page.getByRole('dialog', { name: 'Skip objects' }).screenshot({ path: join(shots, 'skip-objects.png') });
   await page.getByRole('dialog', { name: 'Skip objects' }).getByRole('button', { name: 'Close' }).click();
   console.log('skip objects: map + list, confirmed, EXCLUDE_OBJECT sent, shown as skipped');
