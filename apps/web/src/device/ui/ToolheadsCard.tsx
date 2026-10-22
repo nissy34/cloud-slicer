@@ -27,7 +27,7 @@ const MATERIALS = ['PLA', 'PETG', 'ABS', 'ASA', 'TPU', 'PA', 'PC', 'PVA', 'HIPS'
 /**
  * One tile per nozzle, each drawn as a little character whose face says how it
  * is (printing, heating, still hot, napping, out of filament). Tapping a tile
- * opens its temperature and buttons underneath, joined to it like a tab. On a
+ * opens its temperature and buttons in the panel underneath. On a
  * U1 each tile is a tool head: docked heads lie asleep in bed, the one on the
  * carriage stands up in a blue frame (pick up / park plays getting up and going
  * back to bed), plus its filament (colour, material, from the RFID tag or as
