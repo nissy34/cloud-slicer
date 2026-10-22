@@ -326,6 +326,10 @@ try {
   );
   await page.getByTestId('device-gcode-input').setInputFiles({ name: 'two colour.gcode', mimeType: 'text/plain', buffer: gcode });
   await page.getByTestId('tool-map').waitFor();
+  // Even with one printer saved, the dialog names the printer the file goes to.
+  await page.getByRole('dialog').getByRole('heading', { name: 'Send to U1-mock' }).waitFor();
+  if (await page.getByRole('dialog').getByTestId('send-printer').count()) throw new Error('one printer saved, yet the dialog offers a printer picker');
+  if (shots) await page.getByRole('dialog').screenshot({ path: join(shots, 'send-one-printer.png') });
   // Suggested map: red PETG -> T2 (red PETG), dark PLA -> T1.
   await until('suggested map', async () => (await page.getByLabel('Tool head for filament 1').inputValue()) === '1' && (await page.getByLabel('Tool head for filament 2').inputValue()) === '0');
   await page.getByTestId('upload-only').click();
@@ -496,8 +500,10 @@ try {
   if ((await sendTo.locator('option', { hasText: 'voron-mock' }).getAttribute('value')) !== (await sendTo.inputValue())) throw new Error('the dialog should start on the printer on screen');
   if (await page.getByTestId('tool-map').count()) throw new Error('generic printer shows the U1 tool map');
   const u1Id = await sendTo.locator('option', { hasText: 'U1-mock' }).getAttribute('value');
+  await page.getByRole('dialog').getByRole('heading', { name: 'Send to voron-mock' }).waitFor();
   await sendTo.selectOption(u1Id);
   await page.getByTestId('tool-map').waitFor({ timeout: 20_000 });
+  await page.getByRole('dialog').getByRole('heading', { name: 'Send to U1-mock' }).waitFor();
   await page.getByTestId('upload-only').waitFor();
   await until('upload enabled once the U1 is connected', () => page.getByTestId('upload-only').isEnabled());
   if (shots) await page.getByRole('dialog').screenshot({ path: join(shots, 'send-pick-printer.png') });

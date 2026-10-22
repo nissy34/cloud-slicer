@@ -85,7 +85,9 @@ export function PrintDialog({ source }: { source: SendSource }) {
   const uploading = upload && source.kind === 'upload';
   return (
     <Dialog
-      title={source.kind === 'upload' ? 'Send to printer' : 'Print'}
+      title={
+        source.kind === 'upload' ? `Send to ${printer?.name ?? 'printer'}` : printer ? `Print on ${printer.name}` : 'Print'
+      }
       onClose={close}
       wide={isU1}
       footer={
