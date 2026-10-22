@@ -144,7 +144,7 @@ function thumbnailBlock(png) {
   return `; THUMBNAIL_BLOCK_START\n;\n; thumbnail begin ${png.readUInt32BE(16)}x${png.readUInt32BE(20)} ${b64.length}\n${rows}; thumbnail end\n; THUMBNAIL_BLOCK_END\n`;
 }
 
-export async function startMockPrinter({ port = 0, host = '127.0.0.1', generic = false, hostname = generic ? 'voron-mock' : 'U1-mock', apiKey = '' } = {}) {
+export async function startMockPrinter({ port = 0, host = '127.0.0.1', generic = false, hostname = generic ? 'voron-mock' : 'U1-mock', apiKey = '', screen = false } = {}) {
   let state = u1State(generic);
   // Three objects, the way Orca labels them for Klipper's exclude_object.
   const labels = [
@@ -158,7 +158,7 @@ export async function startMockPrinter({ port = 0, host = '127.0.0.1', generic =
   const clients = new Set();
   let frame = 0;
   let printTimer = null;
-  const stats = { fileLists: 0, startMonitor: 0 };
+  const stats = { fileLists: 0, startMonitor: 0, touches: [], screenPictures: 0, pagePolls: 0, refused: [] };
   let monitorUntil = 0;
   let monitorTimer = null;
   const streams = new Set();
@@ -411,6 +411,7 @@ export async function startMockPrinter({ port = 0, host = '127.0.0.1', generic =
             ? [
                 { name: 'case', service: 'iframe', enabled: true, stream_url: '/webcam/player', snapshot_url: '/webcam/snapshot.jpg', aspect_ratio: '16:9', target_fps: 15 },
                 { name: 'nozzle', service: 'mjpegstreamer', enabled: true, stream_url: '/webcam2/?action=stream', snapshot_url: '/webcam2/?action=snapshot', target_fps: 15 },
+                ...(screen ? [{ name: 'gui', service: 'iframe', enabled: true, stream_url: '/screen/', snapshot_url: '/screen/snapshot', aspect_ratio: '3:2', target_fps: 10 }] : []),
               ]
             : [],
         };
@@ -462,6 +463,63 @@ export async function startMockPrinter({ port = 0, host = '127.0.0.1', generic =
     }
     if (generic && (url.pathname === '/webcam/snapshot.jpg' || (url.pathname === '/webcam2/' && url.searchParams.get('action') === 'snapshot'))) {
       return send(200, pngFrame(frame++), 'image/png');
+    }
+    // The bridge reads the camera list over HTTP to know which pages it may open.
+    if (url.pathname === '/server/webcams/list') {
+      if (apiKey && req.headers['x-api-key'] !== apiKey) return send(401, { error: { message: 'Unauthorized' } });
+      return send(200, { result: await rpc('server.webcams.list', {}) });
+    }
+    // Moonraker's API keys and system calls: a printer page must never get here.
+    // What the bridge asks for the websocket when the printer has an API key.
+    if (url.pathname === '/access/oneshot_token') {
+      if (apiKey && req.headers['x-api-key'] !== apiKey) return send(401, { error: { message: 'Unauthorized' } });
+      return send(200, { result: 'mock-oneshot-token' });
+    }
+    if (/^\/(access|machine)\//.test(url.pathname)) {
+      stats.refused.push(url.pathname);
+      return send(200, { result: { api_key: apiKey || 'secret' } });
+    }
+    // A remote screen like paxx12's, behind the web login: polls its picture
+    // (with If-None-Match) ten times a second and sends taps as POST touch?....
+    if (screen && url.pathname.startsWith('/screen/')) {
+      if (apiKey && req.headers['x-api-key'] !== apiKey) return send(401, 'login first', 'text/plain');
+      if (url.pathname === '/screen/')
+        return send(
+          200,
+          `<!doctype html><title>Mock screen</title><style>html,body{margin:0;height:100%;background:#111;color:#fff;font:16px sans-serif}img{width:100%;height:100%;object-fit:contain}p{position:fixed;left:8px;top:0;pointer-events:none}</style>
+<img id="s" src="snapshot" alt="screen"><p id="taps">mock screen: 0 taps</p>
+<script>
+let etag = '', taps = 0;
+setInterval(async () => {
+  const h = etag ? { 'If-None-Match': etag } : {};
+  const r = await fetch('snapshot?ts=' + Date.now(), { headers: h }).catch(() => null);
+  if (r && r.status === 200) { etag = r.headers.get('ETag') || ''; document.getElementById('s').src = URL.createObjectURL(await r.blob()); }
+}, 100);
+document.addEventListener('pointerdown', async (e) => {
+  const r = await fetch('touch?a=tap&x=' + Math.round(e.clientX) + '&y=' + Math.round(e.clientY), { method: 'POST' });
+  if (r.ok) document.getElementById('taps').textContent = 'mock screen: ' + ++taps + ' taps';
+});
+</script>`,
+          'text/html',
+        );
+      if (url.pathname === '/screen/snapshot') {
+        // The page's own polls carry ?ts=; the camera tile's pictures don't.
+        if (url.searchParams.has('ts')) stats.pagePolls++;
+        const etag = `"t${stats.touches.length}"`;
+        if (req.headers['if-none-match'] === etag) {
+          res.writeHead(304, { ...headers, ETag: etag });
+          return res.end();
+        }
+        stats.screenPictures++;
+        res.writeHead(200, { ...headers, 'Content-Type': 'image/png', ETag: etag });
+        return res.end(pngFrame(stats.touches.length, 480, 320));
+      }
+      if (url.pathname === '/screen/touch' && req.method === 'POST') {
+        stats.touches.push(url.search);
+        res.writeHead(204, headers);
+        return res.end();
+      }
+      return send(404, 'no such page', 'text/plain');
     }
     if (generic && url.pathname === '/webcam/player') {
       return send(200, '<!doctype html><title>player</title><body style="margin:0;background:#123"><p style="color:#fff">mock camera player</p></body>', 'text/html');

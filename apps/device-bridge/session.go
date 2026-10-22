@@ -55,14 +55,19 @@ type Session struct {
 	cameras map[string]*directCamera
 	// pictureAt remembers which address answered for each camera picture path.
 	pictureAt map[string]*url.URL
-	closed    bool
+	// Printer pages: open direct links, the folders the printer lists, and which address answered for each folder.
+	pages      map[string]*directPage
+	pageList   []string
+	pageListAt time.Time
+	pageAt     map[string]*url.URL
+	closed     bool
 	// log is for details only a developer needs (may be nil).
 	log func(string)
 }
 
 func newSession(id string, p Printer, send func(string), drop func(string)) *Session {
 	ctx, cancel := context.WithCancel(context.Background())
-	return &Session{id: id, printer: p, send: send, drop: drop, ctx: ctx, cancel: cancel, uploads: map[string]*upload{}, cameras: map[string]*directCamera{}, pictureAt: map[string]*url.URL{}}
+	return &Session{id: id, printer: p, send: send, drop: drop, ctx: ctx, cancel: cancel, uploads: map[string]*upload{}, cameras: map[string]*directCamera{}, pictureAt: map[string]*url.URL{}, pages: map[string]*directPage{}, pageAt: map[string]*url.URL{}}
 }
 
 // open connects to the printer's Moonraker websocket, then passes its messages on until either end closes.
@@ -320,6 +325,22 @@ func (s *Session) local(msg rpc) (any, error) {
 		}
 		_ = json.Unmarshal(msg.Params, &p)
 		return s.cameraClose(p.ID)
+	case "bridge.page_fetch":
+		var p pageRequest
+		_ = json.Unmarshal(msg.Params, &p)
+		return s.pageFetchRelayed(p)
+	case "bridge.page_open":
+		var p struct {
+			SDP string `json:"sdp"`
+		}
+		_ = json.Unmarshal(msg.Params, &p)
+		return s.pageOpen(p.SDP)
+	case "bridge.page_close":
+		var p struct {
+			ID string `json:"id"`
+		}
+		_ = json.Unmarshal(msg.Params, &p)
+		return s.pageClose(p.ID)
 	}
 	return nil, errors.New("Unknown bridge call " + msg.Method)
 }
@@ -430,9 +451,14 @@ func (s *Session) close() {
 	s.uploads = map[string]*upload{}
 	cams := s.cameras
 	s.cameras = map[string]*directCamera{}
+	pages := s.pages
+	s.pages = map[string]*directPage{}
 	s.mu.Unlock()
 	for _, c := range cams {
 		c.close()
+	}
+	for _, p := range pages {
+		p.close()
 	}
 	for _, up := range ups {
 		up.abort(errors.New("The browser went away."))
