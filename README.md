@@ -226,15 +226,10 @@ change the server refuses goes back, with the reason.
   the browser a ticket for each bridge (a short-lived JWT signed with `RELAY_TICKET_KEY`;
   the relay has only the public key) and renews it by itself. Each account can use 3
   bridges and watch 2 cameras at a time through a bridge. Blocking someone drops their
-  relay connections at once. The first account to use a bridge owns it; a bridge that no
-  signed-in browser opens within 7 days of its first connection is turned away, and so is
-  a bridge whose owner is blocked. Bridges set up before this keep working: their 7 days
-  start at their next connection, and opening the Device tab once while signed in ties
-  them to the account. Signed out, bridge printers show a Sign in button; printers
-  reached directly need no account. The Admin switch **Signed-out people can use bridges**
-(off by default, never while invite only) gives signed-out browsers a ticket too, with one
-camera at a time; they have no account, so they can't be blocked, and turning the switch
-off disconnects them at once. The Admin page's **Bridges** list shows every bridge in use
+  relay connections at once. A bridge joins an account with a one-use setup code (Add a
+  bridge) and that account owns it; a bridge without one, or whose owner is blocked, is
+  turned away. Signed out, bridge printers show a Sign in button; printers reached
+  directly need no account. The Admin page's **Bridges** list shows every bridge in use
 and who uses it: **Turn off** closes a bridge for everyone and refuses its bridge app until
 it is turned on again. Each person can also be set to "Bridges: not allowed".
 - Usage: storage, accounts and bridges come from D1. Today's request counts (site and

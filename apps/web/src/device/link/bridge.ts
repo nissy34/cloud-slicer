@@ -28,6 +28,14 @@ export function setBridgeTickets(source: TicketSource) {
   ticketSource = source;
 }
 
+/** The relay's close code for a bridge that was removed on its own computer. */
+export const BRIDGE_REMOVED = 4410;
+let removedListener: ((relay: string, bridgeId: string) => void) | null = null;
+/** Told when the relay says a bridge was removed on its own computer (the device store tidies up the list). */
+export function onBridgeRemoved(fn: (relay: string, bridgeId: string) => void) {
+  removedListener = fn;
+}
+
 export function bridgeSocketUrl(t: BridgeTarget, ticket?: string): string {
   const base = t.relay.replace(/\/+$/, '').replace(/^http/i, 'ws');
   const q = new URLSearchParams({ key: t.key });
@@ -133,6 +141,7 @@ export class BridgeLink implements PrinterLink {
           p.reject(new LinkError('The bridge connection closed.', 'bridge'));
         }
         this.pending.clear();
+        if (ev.code === BRIDGE_REMOVED) removedListener?.(this.target.relay, this.target.bridgeId);
         if (!opened) {
           reject(new LinkError(ev.reason || 'The relay refused this bridge. Check the pairing code.', 'auth'));
         } else if (this.ws === ws) {

@@ -16,7 +16,8 @@
 // {relay:'ticket', ticket}. A bridge joins an account with a setup code from
 // the site (POST /v1/bridges/<id>/claim, which the site checks): until then
 // the relay turns it away, and so it does one whose owner was blocked
-// (POST /v1/revoke).
+// (POST /v1/revoke). A bridge removed on its own computer says so
+// (POST /v1/bridges/<id>/release): it is forgotten here and in its account.
 //
 // Print alerts (src/alerts.ts): a browser turns them on with the JSON-RPC call
 // relay.alerts over its socket; the relay tells the agent what to watch with
@@ -87,6 +88,8 @@ const MAX_MESSAGE = 1024 * 1024;
 /** A setup code as the site makes them (functions/_lib/relay.ts). */
 const SETUP_CODE = /^[2-9A-HJ-NP-Z]{4}-[2-9A-HJ-NP-Z]{4}$/;
 /** Not set up yet: what the bridge shows. */
+/** A bridge removed on its own computer: the Device tab takes it out of the list when it sees this (close code 4410). */
+const REMOVED = 'This bridge was removed from its computer.';
 const NOT_SET_UP = "This bridge isn't set up. In Cloud Slicer open Printers & bridges, Add a bridge, and run the command there.";
 /** A camera counts as watched while frames were asked for in the last few seconds. */
 const CAMERA_WINDOW_MS = 5000;
@@ -241,15 +244,16 @@ export default {
       const body = JSON.stringify({
         user: order.sub,
         blocked: order.blocked === true,
-        // From the site itself: turn whole bridges off or on, or drop signed-out browsers.
+        // From the site itself: turn whole bridges off or on.
         bridgeOff: order.sub === 'site' && typeof order.bridgeOff === 'boolean' ? order.bridgeOff : undefined,
-        guests: order.sub === 'site' && order.guests === true,
       });
       await Promise.all(bridges.map((b) => env.BRIDGE.get(env.BRIDGE.idFromName(b)).fetch('https://bridge/revoke', { method: 'POST', body })));
       return Response.json({ ok: true, bridges: bridges.length }, { headers: cors });
     }
     const claim = /^\/v1\/bridges\/([^/]+)\/claim$/.exec(url.pathname);
     if (claim && req.method === 'POST') return claimBridge(req, env, claim[1]);
+    const release = /^\/v1\/bridges\/([^/]+)\/release$/.exec(url.pathname);
+    if (release && req.method === 'POST') return releaseBridge(req, env, release[1]);
     const m = /^\/v1\/bridges\/([^/]+)\/(agent|client)$/.exec(url.pathname);
     if (m) {
       if (!BRIDGE_ID.test(m[1])) return new Response('Bad bridge id', { status: 400, headers: cors });
@@ -340,11 +344,47 @@ async function claimBridge(req: Request, env: Env, bridgeId: string): Promise<Re
   return Response.json({ ok: true, name: answer.name }, { headers: cors });
 }
 
+/**
+ * POST /v1/bridges/<id>/release { key }: the bridge was removed on its own
+ * computer (its status window, or Windows' Installed apps). Its Durable Object
+ * forgets it and closes its browsers, and the site takes it out of its account.
+ */
+async function releaseBridge(req: Request, env: Env, bridgeId: string): Promise<Response> {
+  const fail = (status: number, error: string) => Response.json({ error }, { status, headers: cors });
+  if (!BRIDGE_ID.test(bridgeId)) return fail(400, 'Bad bridge id');
+  if (!(await env.CLAIM_LIMIT.limit({ key: clientIp(req) })).success) return fail(429, 'Too many tries from this address; wait a minute.');
+  let body: { key?: unknown };
+  try {
+    body = await req.json();
+  } catch {
+    return fail(400, 'Expected JSON');
+  }
+  const key = String(body.key ?? '');
+  if (key.length < 16 || key.length > 128) return fail(400, 'Bad bridge key');
+  const done = await env.BRIDGE.get(env.BRIDGE.idFromName(bridgeId)).fetch('https://bridge/release', { method: 'POST', body: JSON.stringify({ keyHash: await sha256(key) }) });
+  if (!done.ok) return fail(done.status, await done.text());
+  const { owner } = (await done.json()) as { owner?: string };
+  // Best effort: if the site can't be reached, the Device tab tidies up when it sees the bridge gone.
+  let account = false;
+  if (env.SITE_ORIGIN && owner) {
+    try {
+      const site = await fetch(`${env.SITE_ORIGIN.replace(/\/+$/, '')}/api/relay/release`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ relay: new URL(req.url).origin, bridgeId, browserKey: await browserKey(key), owner }),
+      });
+      account = site.ok;
+    } catch {
+      // see above
+    }
+  }
+  return Response.json({ ok: true, account }, { headers: cors });
+}
+
 interface RevokeOrder {
   user: string;
   blocked: boolean;
   bridgeOff?: boolean;
-  guests?: boolean;
 }
 
 interface ClientAttachment {
@@ -405,8 +445,23 @@ export class Bridge extends DurableObject<Env> {
       if (stored && !same(stored, c.keyHash)) return new Response('This bridge id belongs to another bridge.', { status: 409 });
       const owner = await this.ctx.storage.get<string>('owner');
       if (owner && c.owner && owner !== c.owner) return new Response('This bridge is already in another Cloud Slicer account.', { status: 409 });
-      if (url.pathname === '/claim') await this.ctx.storage.put({ keyHash: c.keyHash, clientHash: c.clientHash!, owner: c.owner! });
+      if (url.pathname === '/claim') {
+        await this.ctx.storage.put({ keyHash: c.keyHash, clientHash: c.clientHash!, owner: c.owner! });
+        await this.ctx.storage.delete('removed');
+      }
       return new Response('ok');
+    }
+    if (url.pathname === '/release') {
+      const { keyHash } = (await req.json()) as { keyHash: string };
+      const stored = await this.ctx.storage.get<string>('keyHash');
+      if (!stored || !same(stored, keyHash)) return new Response('This bridge id belongs to another bridge.', { status: 403 });
+      const owner = await this.ctx.storage.get<string>('owner');
+      for (const ws of this.clients()) ws.close(4410, REMOVED);
+      for (const ws of this.ctx.getWebSockets('agent')) ws.close(4410, REMOVED);
+      await this.ctx.storage.deleteAlarm();
+      await this.ctx.storage.deleteAll();
+      await this.ctx.storage.put('removed', true);
+      return Response.json({ owner });
     }
     const role = url.pathname.endsWith('/agent') ? 'agent' : 'client';
     const key = url.searchParams.get('key') ?? '';
@@ -451,6 +506,7 @@ export class Bridge extends DurableObject<Env> {
     }
 
     const clientHash = await this.ctx.storage.get<string>('clientHash');
+    if (!stored && (await this.ctx.storage.get<boolean>('removed'))) return reject(4410, REMOVED);
     if (!stored) return reject(4003, 'This bridge has never connected. Start the bridge first.');
     if (same(stored, hash)) return reject(4003, 'This pairing code is from an older bridge. Download the new bridge, restart it and pair again.');
     if (!clientHash) return reject(4003, 'Restart the bridge, then pair again.');
@@ -610,7 +666,7 @@ export class Bridge extends DurableObject<Env> {
   }
 
   /** The site blocked (or unblocked) an account: close its browsers here; if it owns this bridge, the bridge too. */
-  private async revoke({ user, blocked, bridgeOff, guests }: RevokeOrder): Promise<Response> {
+  private async revoke({ user, blocked, bridgeOff }: RevokeOrder): Promise<Response> {
     if (!user) return new Response('No user', { status: 400 });
     if (bridgeOff !== undefined) {
       if (!bridgeOff) {
@@ -620,13 +676,6 @@ export class Bridge extends DurableObject<Env> {
       await this.ctx.storage.put('off', true);
       for (const ws of this.clients()) ws.close(4403, "The site's owner turned this bridge off.");
       for (const ws of this.ctx.getWebSockets('agent')) ws.close(4003, "The site's owner turned this bridge off.");
-      return Response.json({ ok: true });
-    }
-    if (guests) {
-      for (const ws of this.clients()) {
-        const a = ws.deserializeAttachment() as ClientAttachment | null;
-        if (a?.user?.startsWith('guest:')) ws.close(4401, 'Sign in to Cloud Slicer to use the bridge.');
-      }
       return Response.json({ ok: true });
     }
     const owner = await this.ctx.storage.get<string>('owner');

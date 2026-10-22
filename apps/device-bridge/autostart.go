@@ -16,6 +16,9 @@ import (
 
 const runKey = `HKCU\Software\Microsoft\Windows\CurrentVersion\Run`
 
+// uninstallKey is where Windows' Settings, Apps, Installed apps finds the bridge (per user, no admin).
+const uninstallKey = `HKCU\Software\Microsoft\Windows\CurrentVersion\Uninstall`
+
 // appNames are the names the bridge installs under. A test build (flavor
 // "test", downloaded from the test relay) has names of its own, so it runs
 // next to the real bridge and removing one never touches the other.
@@ -72,12 +75,17 @@ type plan struct {
 	disable []step
 	// marker is a file that exists while the bridge starts with the computer (none on Windows).
 	marker string
+	// shortcut: the Start menu entry on Windows, which opens the status window.
+	shortcut string
+	// opener: on a Mac, the copy of the app in Applications that opens the status window.
+	opener string
 }
 
 type planEnv struct {
 	goos         string
 	home         string
 	localAppData string
+	appData      string
 	user         string
 }
 
@@ -87,7 +95,7 @@ func currentEnv() planEnv {
 	if u, err := user.Current(); err == nil {
 		name = u.Username
 	}
-	return planEnv{goos: runtime.GOOS, home: home, localAppData: os.Getenv("LOCALAPPDATA"), user: name}
+	return planEnv{goos: runtime.GOOS, home: home, localAppData: os.Getenv("LOCALAPPDATA"), appData: os.Getenv("APPDATA"), user: name}
 }
 
 // quoteArgs joins a command line for a systemd unit or a desktop entry, quoting what has spaces.
@@ -116,11 +124,39 @@ func autostartPlan(e planEnv) plan {
 		dir := filepath.Join(base, appName)
 		exe := filepath.Join(dir, service+".exe")
 		value := fmt.Sprintf(`"%s" run --no-browser`, exe)
+		roaming := e.appData
+		if roaming == "" {
+			roaming = filepath.Join(e.home, "AppData", "Roaming")
+		}
+		shortcut := filepath.Join(roaming, "Microsoft", "Windows", "Start Menu", "Programs", appName+".lnk")
+		entry := uninstallKey + `\` + runName
+		set := func(name, kind, data string) step {
+			return step{cmd: "reg", args: []string{"add", entry, "/v", name, "/t", kind, "/d", data, "/f"}}
+		}
+		// PowerShell makes the shortcut (Windows has no command for it); without one, the rest still works.
+		ps := func(s string) string { return "'" + strings.ReplaceAll(s, "'", "''") + "'" }
+		link := "$s = (New-Object -ComObject WScript.Shell).CreateShortcut(" + ps(shortcut) + "); $s.TargetPath = " + ps(exe) +
+			"; $s.WorkingDirectory = " + ps(dir) + "; $s.Description = 'See how the bridge is doing, or remove it'; $s.Save()"
 		return plan{
-			dir:     dir,
-			copyTo:  exe,
-			enable:  []step{{cmd: "reg", args: []string{"add", runKey, "/v", runName, "/t", "REG_SZ", "/d", value, "/f"}}},
-			disable: []step{{cmd: "reg", args: []string{"delete", runKey, "/v", runName, "/f"}, optional: true}},
+			dir:    dir,
+			copyTo: exe,
+			enable: []step{
+				{cmd: "reg", args: []string{"add", runKey, "/v", runName, "/t", "REG_SZ", "/d", value, "/f"}},
+				set("DisplayName", "REG_SZ", appName),
+				set("DisplayIcon", "REG_SZ", exe),
+				set("DisplayVersion", "REG_SZ", version),
+				set("Publisher", "REG_SZ", "Cloud Slicer"),
+				set("InstallLocation", "REG_SZ", dir),
+				set("UninstallString", "REG_SZ", fmt.Sprintf(`"%s" uninstall`, exe)),
+				set("NoModify", "REG_DWORD", "1"),
+				set("NoRepair", "REG_DWORD", "1"),
+				{cmd: "powershell", args: []string{"-NoProfile", "-NonInteractive", "-Command", link}, optional: true},
+			},
+			disable: []step{
+				{cmd: "reg", args: []string{"delete", runKey, "/v", runName, "/f"}, optional: true},
+				{cmd: "reg", args: []string{"delete", entry, "/f"}, optional: true},
+			},
+			shortcut: shortcut,
 		}
 	case "darwin":
 		dir := filepath.Join(e.home, "Library", "Application Support", appName)
@@ -151,6 +187,7 @@ func autostartPlan(e planEnv) plan {
 			restart: []step{{cmd: "launchctl", args: []string{"kickstart", "-k", target}}},
 			disable: []step{{cmd: "launchctl", args: []string{"bootout", target}, optional: true}},
 			marker:  plist,
+			opener:  filepath.Join(e.home, "Applications", appName+".app"),
 		}
 	}
 	dir := filepath.Join(e.home, ".local", "share", service)
@@ -310,11 +347,69 @@ func installAutostart() (plan, error) {
 		return p, err
 	}
 	if runtime.GOOS == "windows" {
+		// Installed apps shows its size.
+		if st, err := os.Stat(p.copyTo); err == nil {
+			_ = runStep(step{cmd: "reg", args: []string{"add", uninstallKey + `\` + runName, "/v", "EstimatedSize", "/t", "REG_DWORD", "/d", fmt.Sprint(st.Size() / 1024), "/f"}, optional: true})
+		}
 		if err := startDetached(p.copyTo, "run", "--no-browser"); err != nil {
 			return p, err
 		}
 	}
+	installOpener(p)
 	return p, nil
+}
+
+// bundleOf is the Mac app (.app folder) the program at path is in, or "".
+func bundleOf(path string) string {
+	dir := filepath.Dir(path)
+	if filepath.Base(dir) != "MacOS" || filepath.Base(filepath.Dir(dir)) != "Contents" {
+		return ""
+	}
+	if app := filepath.Dir(filepath.Dir(dir)); strings.HasSuffix(app, ".app") {
+		return app
+	}
+	return ""
+}
+
+// installOpener puts a copy of the Mac app in Applications (the one in your home
+// folder, no admin): opening it shows the status window. Only when this program is
+// in a .app (a download or the install command), and not when this is that copy.
+func installOpener(p plan) {
+	app := bundleOf(self())
+	if p.opener == "" || app == "" || samePath(app, p.opener) {
+		return
+	}
+	_ = os.RemoveAll(p.opener)
+	if err := copyDir(app, p.opener); err != nil {
+		_ = os.RemoveAll(p.opener)
+	}
+}
+
+// copyDir copies a folder as it is: files keep their permissions, links stay links.
+func copyDir(from, to string) error {
+	return filepath.Walk(from, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+		rel, _ := filepath.Rel(from, path)
+		dst := filepath.Join(to, rel)
+		switch {
+		case info.Mode()&os.ModeSymlink != 0:
+			target, err := os.Readlink(path)
+			if err != nil {
+				return err
+			}
+			return os.Symlink(target, dst)
+		case info.IsDir():
+			return os.MkdirAll(dst, info.Mode().Perm()|0o700)
+		default:
+			data, err := os.ReadFile(path)
+			if err != nil {
+				return err
+			}
+			return os.WriteFile(dst, data, info.Mode().Perm())
+		}
+	})
 }
 
 // restartAutostart restarts the background bridge, if there is one, so it picks up changed printers. It says whether it did.
@@ -336,7 +431,17 @@ func removeFiles(p plan, configPath string) {
 	for _, f := range p.files {
 		_ = os.Remove(f.path)
 	}
+	if p.shortcut != "" {
+		_ = os.Remove(p.shortcut)
+	}
+	if p.opener != "" && !strings.HasPrefix(self(), p.opener+string(filepath.Separator)) {
+		_ = os.RemoveAll(p.opener)
+	} else if p.opener != "" {
+		// Removed from that very copy (its status window): it goes just after this exits.
+		_ = startDetached("/bin/sh", "-c", `sleep 2; rm -rf "$0"`, p.opener)
+	}
 	_ = os.Remove(configPath)
+	_ = os.Remove(statusPath(configPath))
 	if p.link != "" {
 		if target, err := os.Readlink(p.link); err == nil && strings.HasPrefix(target, p.dir) {
 			_ = os.Remove(p.link)

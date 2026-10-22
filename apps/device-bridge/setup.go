@@ -26,6 +26,9 @@ func (e setupCodeError) Error() string { return e.msg }
 
 var relayClient = &http.Client{Timeout: 30 * time.Second}
 
+// joinedAs is the bridge's name in the account, once this run spent a setup code.
+var joinedAs string
+
 // relayTakesCodes says whether bridges on this relay join an account with a setup
 // code (a relay with accounts); a test or private relay without accounts doesn't.
 func relayTakesCodes(relay string) (bool, error) {
@@ -107,6 +110,28 @@ func joinAccount(cfg *Config, code, place string) error {
 	if name == "" {
 		name = "a bridge"
 	}
+	joinedAs = name
 	fmt.Printf("✓ Connected to your Cloud Slicer account as %s.\n", name)
 	return nil
+}
+
+// leaveAccount tells the relay this bridge was removed on this computer: the
+// relay forgets it and Cloud Slicer takes it (and its printers) out of the
+// account. It says whether the account part worked.
+func leaveAccount(cfg *Config) bool {
+	if !cfg.Claimed {
+		return false
+	}
+	body, _ := json.Marshal(map[string]string{"key": cfg.Key})
+	client := &http.Client{Timeout: 15 * time.Second}
+	res, err := client.Post(cfg.Relay+"/v1/bridges/"+cfg.BridgeID+"/release", "application/json", bytes.NewReader(body))
+	if err != nil {
+		return false
+	}
+	defer res.Body.Close()
+	var answer struct {
+		Account bool `json:"account"`
+	}
+	_ = json.NewDecoder(res.Body).Decode(&answer)
+	return res.StatusCode == http.StatusOK && answer.Account
 }

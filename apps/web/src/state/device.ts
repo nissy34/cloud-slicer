@@ -17,7 +17,7 @@ import { api, ApiError, type Device } from '../account/api';
 import { accountReady, deleteDevice, getDeviceApiKey, saveDevice, useAccount } from './account';
 import type { PrinterAddon, PrinterError, PrinterFacts } from '../device/addons';
 import { coalesce } from '../device/coalesce';
-import { BridgeLink, setBridgeTickets } from '../device/link/bridge';
+import { BridgeLink, onBridgeRemoved, setBridgeTickets } from '../device/link/bridge';
 import { DirectLink } from '../device/link/direct';
 import { LinkError, type BridgeStatus, type PrinterLink } from '../device/link/types';
 import { decodePairing, type Pairing } from '../device/pairing';
@@ -590,4 +590,24 @@ export const useDevice = create<DeviceState>((set, get) => {
       if (p && p.id !== get().activeId) get().select(p.id);
     },
   };
+});
+
+// A bridge removed on its own computer (its status window, or Windows' Installed
+// apps) has already left the account on the site; the list catches up, and
+// anything the site couldn't remove goes too.
+let tidying = false;
+onBridgeRemoved(async (_relay, bridgeId) => {
+  if (tidying) return;
+  tidying = true;
+  try {
+    const before = useDevice.getState().bridges.find((b) => b.bridgeId === bridgeId);
+    if (useAccount.getState().status === 'signedIn') useAccount.setState({ devices: await api.devices() });
+    const left = useDevice.getState().bridges.find((b) => b.bridgeId === bridgeId);
+    if (left) await useDevice.getState().removeBridge(left.id);
+    if (before) useDevice.getState().setToast(`${before.name} was removed from its computer, so it's gone from Printers & bridges.`);
+  } catch {
+    // tried again the next time the relay says so
+  } finally {
+    tidying = false;
+  }
 });
