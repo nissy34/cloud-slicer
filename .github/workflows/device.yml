@@ -248,6 +248,9 @@ jobs:
           for i in $(seq 1 20); do tasklist //FI 'IMAGENAME eq cloud-slicer-bridge.exe' | grep -q cloud-slicer-bridge && break; sleep 1; done
           tasklist //FI 'IMAGENAME eq cloud-slicer-bridge.exe' | grep cloud-slicer-bridge
           "$dir/cloud-slicer-bridge.exe" uninstall
+          # Deleting the folder afterwards shows no window (it once opened a console with ping in it).
+          powershell -NoProfile -Command '$end = (Get-Date).AddSeconds(4); while ((Get-Date) -lt $end) { $w = Get-Process cmd, ping, conhost -ErrorAction SilentlyContinue | Where-Object { $_.MainWindowHandle -ne 0 }; if ($w) { $w | Format-Table Id, ProcessName, MainWindowTitle; exit 1 }; Start-Sleep -Milliseconds 100 }' ||
+            { echo "Uninstall opened a window"; exit 1; }
           # The folder goes just after the program exits (Windows can't delete a running program).
           for i in $(seq 1 15); do [ -e "$dir" ] || break; sleep 1; done
           if tasklist //FI 'IMAGENAME eq cloud-slicer-bridge.exe' | grep -q cloud-slicer-bridge; then echo "The bridge still runs"; exit 1; fi
