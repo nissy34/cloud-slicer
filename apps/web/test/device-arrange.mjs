@@ -119,6 +119,20 @@ try {
   if (shots) await page.screenshot({ path: join(shots, 'desktop-move-folded.png') });
   await page.getByTestId('motion-card').getByRole('button', { name: 'Move' }).click();
 
+  // Folding the camera card is how a camera is turned off: the picture goes and the U1 is no
+  // longer asked to keep its camera running (its keep-alive comes every 15 s).
+  const cameraCard = page.getByTestId('camera-card');
+  await cameraCard.getByTestId('camera-frame').waitFor({ timeout: 30_000 });
+  if (await cameraCard.getByRole('button', { name: /Turn (off|on)/ }).count()) fail('the camera card should have no Turn off button; folding turns it off');
+  await cameraCard.getByRole('button', { name: 'Camera' }).click();
+  if (await cameraCard.getByTestId('camera-tile').count()) fail('a folded camera card should show no camera');
+  const monitors = u1.stats.startMonitor;
+  await page.waitForTimeout(16_000);
+  if (u1.stats.startMonitor !== monitors) fail('a folded camera card should stop asking the U1 to keep its camera running');
+  await cameraCard.getByRole('button', { name: 'Camera' }).click();
+  await cameraCard.getByTestId('camera-frame').waitFor({ timeout: 30_000 });
+  console.log('desktop: folding the camera card stops the camera, unfolding starts it again');
+
   // ---- Arrange ------------------------------------------------------------------------
   await page.getByTestId('arrange-open').click();
   await page.getByTestId('arrange-bar').waitFor();
