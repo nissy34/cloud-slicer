@@ -504,6 +504,35 @@ try {
   await phone.getByTestId('printer-errors').waitFor({ state: 'detached' });
   console.log('phone layout fits, with the U1 errors read when the page connects');
 
+  // Phone: the camera stays at the top while scrolling and, when not printing, the move controls sit right under it.
+  {
+    const gap = await phone.evaluate(() => {
+      const cam = document.querySelector('[data-testid="camera-card"]').getBoundingClientRect();
+      const move = document.querySelector('[data-testid="motion-card"]').getBoundingClientRect();
+      return move.top - cam.bottom;
+    });
+    if (gap < 0 || gap > 24) throw new Error(`move controls are not right under the camera on a phone (gap ${gap} px)`);
+    await phone.evaluate(() => document.querySelector('.device').scrollBy(0, 800));
+    const camTop = await phone.getByTestId('camera-card').evaluate((el) => el.getBoundingClientRect().top);
+    const deviceTop = await phone.evaluate(() => document.querySelector('.device').getBoundingClientRect().top);
+    if (Math.abs(camTop - deviceTop) > 2) throw new Error(`camera scrolled away on a phone (camera at ${camTop}, page top ${deviceTop})`);
+    await phone.evaluate(() => document.querySelector('.device').scrollTo(0, 0));
+    // Several cameras: one big, the others small beside it; tapping a small one makes it the big one.
+    const cur = await phone.getByTestId('printer-select').inputValue();
+    await phone.getByTestId('printer-select').selectOption({ label: 'voron-mock' });
+    await phone.getByTestId('connection').filter({ hasText: 'Connected' }).waitFor({ timeout: 20_000 });
+    await until('two cameras on the phone', async () => (await phone.getByTestId('camera-tile').count()) === 2, 20_000);
+    await phone.locator('[data-camera="case"][data-main]').waitFor();
+    const [big, small] = await Promise.all(['case', 'nozzle'].map((n) => phone.locator(`[data-camera="${n}"]`).evaluate((el) => el.getBoundingClientRect().width)));
+    if (!(small < big / 2)) throw new Error(`small camera is not small next to the big one (${small} vs ${big} px)`);
+    if (shots) await phone.getByTestId('camera-card').screenshot({ path: join(shots, 'cameras-phone.png') });
+    await phone.getByRole('button', { name: 'Show nozzle big' }).click();
+    await phone.locator('[data-camera="nozzle"][data-main]').waitFor();
+    await phone.getByTestId('printer-select').selectOption(cur);
+    await phone.getByTestId('connection').filter({ hasText: 'Connected' }).waitFor({ timeout: 20_000 });
+    console.log('phone: camera stays on top, move controls under it, small cameras swap in with a tap');
+  }
+
   await phone.setViewportSize({ width: 390, height: 844 });
   await phone.getByTestId('device-gcode-input').setInputFiles(sendFile);
   await phone.getByRole('dialog').getByTestId('send-printer').waitFor();

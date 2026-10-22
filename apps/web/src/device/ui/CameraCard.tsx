@@ -56,6 +56,8 @@ export function CameraCard() {
   const [choosing, setChoosing] = useState(false);
   const hidden = useDevice((s) => s.printers.find((p) => p.id === s.activeId)?.hiddenCameras ?? NONE);
   const [cams, setCams] = useState<Webcam[] | null>(null);
+  // On phones one camera is shown big and the rest small beside it; tapping a small one swaps it in.
+  const [mainId, setMainId] = useState<string | null>(null);
   const [hint, setHint] = useState<CameraHints | null>(null);
   const session = currentSession();
 
@@ -125,9 +127,17 @@ export function CameraCard() {
           </span>
         </div>
       ) : (
-        <div className={`dv-cameras${shown.length > 1 ? ' dv-cameras-many' : ''}`}>
+        <div className={`dv-cameras${shown.length > 1 ? ' dv-cameras-many' : ''}`} style={{ '--small-cameras': shown.length - 1 } as CSSProperties}>
           {shown.map((cam) => (
-            <CameraTile key={cam.id} cam={cam} session={session} active={active} labelled={cams!.length > 1} />
+            <CameraTile
+              key={cam.id}
+              cam={cam}
+              session={session}
+              active={active}
+              labelled={cams!.length > 1}
+              main={cam.id === (shown.some((c) => c.id === mainId) ? mainId : shown[0].id)}
+              onPick={() => setMainId(cam.id)}
+            />
           ))}
         </div>
       )}
@@ -155,7 +165,21 @@ function useKeepalive(session: PrinterSession | null, keepalive: CameraHints['ke
   }, [session, keepalive]);
 }
 
-function CameraTile({ cam, session, active, labelled }: { cam: Webcam; session: PrinterSession; active: boolean; labelled: boolean }) {
+function CameraTile({
+  cam,
+  session,
+  active,
+  labelled,
+  main,
+  onPick,
+}: {
+  cam: Webcam;
+  session: PrinterSession;
+  active: boolean;
+  labelled: boolean;
+  main: boolean;
+  onPick(): void;
+}) {
   const viaBridge = session.link.mediaUrl('/') === null;
   // Streams load straight in the browser, so their addresses resolve against the printer here.
   const views = cameraViews(cam, viaBridge).flatMap((v): CameraView[] => {
@@ -183,7 +207,13 @@ function CameraTile({ cam, session, active, labelled }: { cam: Webcam; session: 
   const transform = cameraTransform(cam);
 
   return (
-    <figure className="dv-camera" style={{ aspectRatio: String(cam.aspect) }} data-testid="camera-tile" data-camera={cam.name}>
+    <figure
+      className={`dv-camera${main ? ' dv-camera-main' : ''}`}
+      style={{ aspectRatio: String(cam.aspect) }}
+      data-testid="camera-tile"
+      data-camera={cam.name}
+      data-main={main || undefined}
+    >
       {!active ? (
         <span className="muted">Paused</span>
       ) : !view ? (
@@ -192,6 +222,8 @@ function CameraTile({ cam, session, active, labelled }: { cam: Webcam; session: 
         <ViewFor key={`${index}`} view={view} session={session} transform={transform} onFail={next} />
       )}
       {labelled && <figcaption>{cam.name}</figcaption>}
+      {/* Phones only (CSS): covers a small camera, whose player page would otherwise swallow the tap. */}
+      {!main && <button className="dv-camera-swap" onClick={onPick} aria-label={`Show ${cam.name} big`} />}
       {active && note && view?.kind === 'snapshots' && (
         <span className="dv-camera-note" data-testid="camera-note">
           {note}

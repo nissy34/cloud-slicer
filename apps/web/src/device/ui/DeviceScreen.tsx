@@ -3,6 +3,7 @@ import { useAccount } from '../../state/account';
 import { BRIDGE_SIGN_IN, useDevice } from '../../state/device';
 import '../../state/alerts';
 import { isTestRelay } from '../config';
+import { job } from '../status';
 import { AlertsCard } from './AlertsCard';
 import { BridgeOffline } from './BridgeSetup';
 import { CameraCard } from './CameraCard';
@@ -30,6 +31,8 @@ export function DeviceScreen() {
   const manageOpen = useDevice((s) => s.manageOpen);
   const bridges = useDevice((s) => s.bridges);
   const toast = useDevice((s) => s.toast);
+  // While printing or paused the print job sits under the camera on phones; otherwise the move controls do.
+  const busy = useDevice((s) => ['printing', 'paused'].includes(job(s.objects).state));
   const accountStatus = useAccount((s) => s.status);
   const { select, openEditor, openManage, call, retry } = useDevice.getState();
   const active = printers.find((p) => p.id === activeId);
@@ -134,7 +137,7 @@ export function DeviceScreen() {
             </div>
           )}
           {/* Two columns on wide screens; one on phones, where CSS order interleaves them. */}
-          <div className="dv-cols">
+          <div className={`dv-cols${busy ? ' dv-busy' : ''}`}>
             <div className="dv-col dv-col-main">
               <CameraCard />
               <div className="dv-pair">
