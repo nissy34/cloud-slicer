@@ -26,7 +26,7 @@ hibernate, so an idle bridge costs nothing; it runs on the free plan.
   as the agent).
 - Per client IP: at most 60 websocket connects and 5 new bridge ids a minute.
 - **Accounts**, when the Worker has the secret `RELAY_TICKET_PUBLIC_KEY` (CI's
-  `setup-accounts.mjs` sets it, and every deploy of the live relay refreshes it from
+  `setup-accounts.mjs` makes the key pair once; every deploy of the live site and of the live relay copies it from
   the site's `/api/relay/key`, so it always matches the key the site signs with): a browser also needs `&ticket=…`, a JWT the site
   signs for one signed-in account and one bridge (`apps/web/functions/_lib/relay.ts`),
   checked in the Worker before the bridge's Durable Object wakes. It lasts an hour;
