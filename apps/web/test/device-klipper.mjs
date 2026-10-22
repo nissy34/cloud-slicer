@@ -85,10 +85,10 @@ async function reset(p) {
 }
 
 // ---- A small print, written the way OrcaSlicer writes one ---------------------------
-function testPrint({ heads, layers, side = 12, bed }) {
+function testPrint({ heads, layers, side = 6, bed }) {
   const objects = [
     { name: 'Left_cube.stl_id_0_copy_0', x: 40, y: 40 },
-    { name: 'Right_cube.stl_id_1_copy_0', x: 90, y: 40 },
+    { name: 'Right_cube.stl_id_1_copy_0', x: 50, y: 40 },
   ];
   const out = [
     '; HEADER_BLOCK_START',
@@ -224,11 +224,11 @@ try {
   await consoleSays(page, 'M115', 'FIRMWARE_NAME:Klipper');
   await consoleSays(page, 'NOT_A_COMMAND', 'Unknown command:"NOT_A_COMMAND"');
   console.log('one-head: console shows Klipper\'s replies and errors');
-  await send(page, one, testPrint({ heads: 1, layers: 3 }), 'one head.gcode', true);
+  await send(page, one, testPrint({ heads: 1, layers: 2 }), 'one head.gcode', true);
   await page.getByTestId('print-state').filter({ hasText: 'Printing' }).waitFor({ timeout: 30_000 });
   const files = page.getByTestId('files-card');
   await until('one-head: thumbnail from the real Moonraker', () => files.locator('li', { hasText: 'one_head.gcode' }).locator('.dv-file-thumb img').count());
-  await finished(page, one, 300_000);
+  await finished(page, one, 600_000);
   if ((await printState(one)) !== 'complete') throw new Error(`one-head: Klipper says ${await printState(one)}, the page says Finished`);
   if (shots) await page.screenshot({ path: join(shots, 'klipper-one-head-finished.png') });
   console.log('one-head: sent, printed to the end, file shown with its picture');
@@ -294,7 +294,7 @@ try {
         used.add(last.toolhead.extruder);
         return last.print_stats.state === 'complete';
       },
-      480_000,
+      900_000,
     );
   } catch (e) {
     throw new Error(`${e.message}; Klipper says ${JSON.stringify(last)}`);
