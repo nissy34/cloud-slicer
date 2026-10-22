@@ -119,6 +119,80 @@ export interface FiredAlert {
   hours?: number;
   /** "filament", "cancelled", or the printer's own message. */
   reason?: string;
+  /** Where the print is, added when the alert is sent (detailsOf). */
+  details?: PrintDetails;
+}
+
+/** Where the print stands when an alert goes out: what the alert's text adds beyond the moment itself. */
+export interface PrintDetails {
+  /** 0..100 */
+  percent?: number;
+  layer?: number;
+  total?: number;
+  /** Seconds left. */
+  left?: number;
+  /** Seconds printing so far. */
+  printed?: number;
+  /** The slicer's estimate for the whole print, in seconds. */
+  estimate?: number;
+  /** Filament used so far, and in the whole file. */
+  usedMm?: number;
+  totalMm?: number;
+  /** The whole file's filament weight in grams (to 0.1 g), from the slicer. */
+  totalG?: number;
+  /** What ran out of filament: a head ("T3") or a filament sensor's name. */
+  runout?: string;
+  /** The printer's own error in words (the U1's, from Snapmaker's list). */
+  error?: { title: string; text: string; code?: string };
+}
+
+/** What the G-code file says about the whole print (Moonraker's file metadata). */
+export interface FileFacts {
+  estimate: number | null;
+  totalMm: number | null;
+  totalG: number | null;
+}
+
+/** Reads FileFacts from server.files.metadata. */
+export function fileFacts(m: Record<string, unknown> | null | undefined): FileFacts {
+  const pos = (v: unknown) => (typeof v === 'number' && Number.isFinite(v) && v > 0 ? v : null);
+  return { estimate: pos(m?.estimated_time), totalMm: pos(m?.filament_total), totalG: pos(m?.filament_weight_total) };
+}
+
+/** What ran out: the active head on printers whose feeders report per head (U1), else the one sensor without filament. */
+export function runoutOf(o: KlipperObjects): string | undefined {
+  const ext = typeof o.toolhead?.extruder === 'string' ? /^extruder(\d*)$/.exec(o.toolhead.extruder) : null;
+  const head = ext ? Number(ext[1] || 0) : null;
+  if (head != null)
+    for (const name of Object.keys(o).sort()) {
+      if (!name.startsWith('filament_feed ')) continue;
+      const ch = (o[name] ?? {})[`extruder${head}`] as Record<string, unknown> | undefined;
+      if (ch && typeof ch === 'object' && ch.filament_detected === false) return `T${head + 1}`;
+    }
+  const empty = Object.keys(o)
+    .filter((n) => (n.startsWith('filament_switch_sensor ') || n.startsWith('filament_motion_sensor ')) && o[n]?.enabled !== false && o[n]?.filament_detected === false)
+    .sort();
+  return empty.length === 1 ? empty[0].slice(empty[0].indexOf(' ') + 1).replace(/_/g, ' ') : undefined;
+}
+
+/** The details an alert carries, from the printer's objects and the file's facts (the bridge's detailsFrom does the same). */
+export function detailsOf(o: KlipperObjects, f: FileFacts): PrintDetails {
+  const j = job(o);
+  const r = (v: number | null | undefined) => (v != null && Number.isFinite(v) && v >= 0 ? Math.round(v) : undefined);
+  const active = ACTIVE.has(j.state);
+  const d: PrintDetails = {
+    percent: j.state === 'standby' ? undefined : r(Math.min(1, j.progress) * 100),
+    layer: r(j.layer),
+    total: r(j.totalLayers),
+    left: r(remainingSeconds(j, f.estimate)),
+    printed: j.state === 'standby' ? undefined : r(j.printSeconds),
+    estimate: r(f.estimate),
+    usedMm: j.state === 'standby' || !(j.filamentMm > 0) ? undefined : r(j.filamentMm),
+    totalMm: r(f.totalMm),
+    totalG: f.totalG != null ? Math.round(f.totalG * 10) / 10 : undefined,
+    runout: active ? runoutOf(o) : undefined,
+  };
+  return Object.fromEntries(Object.entries(d).filter(([, v]) => v !== undefined)) as PrintDetails;
 }
 
 const ACTIVE = new Set(['printing', 'paused']);

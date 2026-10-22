@@ -293,11 +293,11 @@ export async function startMockPrinter({ port = 0, host = '127.0.0.1', generic =
       polygon: JSON.parse(m[4]),
     }));
     patch({ exclude_object: { objects, excluded_objects: [], current_object: objects[0]?.name ?? null } });
-    patch({ print_stats: { state: 'printing', filename, print_duration: 0, info: { current_layer: 1, total_layer: 50 } }, virtual_sdcard: { progress: 0, is_active: true } });
+    patch({ print_stats: { state: 'printing', filename, print_duration: 0, filament_used: 0, info: { current_layer: 1, total_layer: 50 } }, virtual_sdcard: { progress: 0, is_active: true } });
     printTimer = setInterval(() => {
       if (state.print_stats.state !== 'printing') return;
       const p = Math.min(1, state.virtual_sdcard.progress + 0.01);
-      patch({ virtual_sdcard: { progress: p }, print_stats: { print_duration: state.print_stats.print_duration + 1, info: { current_layer: Math.ceil(p * 50) || 1, total_layer: 50 } } });
+      patch({ virtual_sdcard: { progress: p }, print_stats: { print_duration: state.print_stats.print_duration + 1, filament_used: Math.round(p * 2700), info: { current_layer: Math.ceil(p * 50) || 1, total_layer: 50 } } });
       // The head moves from object to object, never to a skipped one.
       const ex = state.exclude_object;
       const left = ex.objects.filter((o) => !ex.excluded_objects.includes(o.name));
@@ -366,6 +366,9 @@ export async function startMockPrinter({ port = 0, host = '127.0.0.1', generic =
           filament_colors: (kv('filament_colour') ?? '').split(';').filter(Boolean),
           filament_type: kv('filament_type') ?? '',
           filament_weights: (kv('filament used [g]') ?? '').split(',').filter(Boolean).map(Number),
+          // The whole file's filament, as Moonraker reads it from the slicer's footer.
+          filament_total: 2700,
+          filament_weight_total: 8,
         };
       }
       case 'server.files.delete_file':

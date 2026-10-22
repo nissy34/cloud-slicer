@@ -8,8 +8,10 @@
 // Nothing about an alert is logged or kept, except a camera picture, which
 // waits in R2 under alerts/ until the bucket's lifecycle rule deletes it a day later.
 import webpush from 'web-push';
-import { cleanPrefs, ENDS_PRINT, PICTURE_EVENTS, watchFor, wants, type AlertEvent, type AlertPrefs, type FiredAlert } from '../../web/src/device/alerts';
-import { alertText, type AlertPush } from '../../web/src/device/alert-text';
+import { cleanPrefs, ENDS_PRINT, PICTURE_EVENTS, watchFor, wants, type AlertEvent, type AlertPrefs, type FiredAlert, type PrintDetails } from '../../web/src/device/alerts';
+import { alertText, type AlertPush, type Clock } from '../../web/src/device/alert-text';
+import { describeU1Error, type Words } from '../../web/src/device/addons/u1-errors';
+import u1Words from '../../web/src/device/addons/u1-errors.json';
 
 export interface PushEnv {
   /** The relay's push key (an ES256 private JWK), made once by CI (.github/workflows/device.yml). Unset: no alerts. */
@@ -31,6 +33,22 @@ export interface StoredSub extends PushSubscriptionJSON {
   /** The account that turned it on (signed-in relays), so blocking the account drops it. */
   user?: string;
   printers: Record<string, AlertPrefs>;
+  /** How that browser shows times, for "done about 14:35". */
+  clock?: Clock;
+}
+
+/** The time zone and 12/24 h a browser sent, if this runtime knows the zone. */
+export function cleanClock(raw: unknown): Clock | undefined {
+  const r = raw as { timeZone?: unknown; hour12?: unknown } | null;
+  if (!r || typeof r !== 'object') return undefined;
+  const hour12 = r.hour12 === true;
+  if (typeof r.timeZone !== 'string' || r.timeZone.length > 64) return { hour12 };
+  try {
+    new Intl.DateTimeFormat('en-GB', { timeZone: r.timeZone });
+    return { timeZone: r.timeZone, hour12 };
+  } catch {
+    return { hour12 };
+  }
 }
 
 /** Browsers per bridge that can have alerts on. */
@@ -129,7 +147,21 @@ export function cleanAlert(raw: Record<string, unknown>): FiredAlert | null {
   const events: AlertEvent[] = ['started', 'layer1', 'layer3', 'layer', 'progress', 'almostDone', 'stillPrinting', 'finished', 'resumed', 'bedCooled', 'failed', 'paused', 'error'];
   if (!events.includes(raw.event as AlertEvent)) return null;
   const n = (v: unknown) => (typeof v === 'number' && Number.isFinite(v) && v >= 0 && v < 1e9 ? Math.round(v) : undefined);
+  const d = (raw.details ?? {}) as Record<string, unknown>;
+  const details: PrintDetails = {};
+  for (const k of ['percent', 'layer', 'total', 'left', 'printed', 'estimate', 'usedMm', 'totalMm'] as const) {
+    const v = n(d[k]);
+    if (v !== undefined) details[k] = v;
+  }
+  if (typeof d.totalG === 'number' && d.totalG > 0 && d.totalG < 1e6) details.totalG = Math.round(d.totalG * 10) / 10;
+  if (typeof d.runout === 'string' && d.runout) details.runout = d.runout.slice(0, 40);
+  // The U1's own errors: in Snapmaker's words, the newest first.
+  if (Array.isArray(raw.exceptions) && raw.exceptions.length) {
+    const e = describeU1Error(raw.exceptions[raw.exceptions.length - 1], u1Words as unknown as Words);
+    if (e) details.error = { title: e.title.slice(0, 80), text: e.text.slice(0, 300), code: e.code };
+  }
   return {
+    details,
     event: raw.event as AlertEvent,
     file: typeof raw.file === 'string' ? raw.file.slice(0, 200) : '',
     layer: n(raw.layer),
@@ -152,14 +184,13 @@ export function fanOut(
   alert: FiredAlert,
   image: string | undefined,
 ): { to: [string, StoredSub, AlertPush][]; clearLayer: string[] } {
-  const text = alertText(alert, printer.name);
   const to: [string, StoredSub, AlertPush][] = [];
   const clearLayer: string[] = [];
   for (const [key, s] of subs) {
     const prefs = s.printers[printer.id];
     if (!prefs) continue;
     if (wants(prefs, alert))
-      to.push([key, s, { ...text, tag: `${bridgeId}.${printer.id}:${alert.event}`, printer: `${bridgeId}.${printer.id}`, ...(image && prefs.pictures && PICTURE_EVENTS.includes(alert.event) && { image }) }]);
+      to.push([key, s, { ...alertText(alert, printer.name, undefined, s.clock), tag: `${bridgeId}.${printer.id}:${alert.event}`, printer: `${bridgeId}.${printer.id}`, ...(image && prefs.pictures && PICTURE_EVENTS.includes(alert.event) && { image }) }]);
     if (ENDS_PRINT.includes(alert.event) && prefs.layer != null) clearLayer.push(key);
   }
   return { to, clearLayer };

@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import cases from '../../../device-bridge/testdata/alert-cases.json';
-import { AlertWatcher, cleanPrefs, defaultPrefs, snapshotOf, wants, watchFor, type AlertWatch, type FiredAlert, type PrintSnapshot } from './alerts';
+import detailCases from '../../../device-bridge/testdata/alert-details-cases.json';
+import { AlertWatcher, cleanPrefs, defaultPrefs, detailsOf, snapshotOf, wants, watchFor, type AlertWatch, type FiredAlert, type PrintSnapshot } from './alerts';
+import type { KlipperObjects } from './status';
 
 describe('print alert rules (shared with the bridge)', () => {
   for (const c of cases.cases) {
@@ -19,6 +21,10 @@ describe('print alert rules (shared with the bridge)', () => {
       expect(got).toEqual(want);
     });
   }
+});
+
+describe('what an alert says about the print (shared with the bridge)', () => {
+  for (const c of detailCases.cases) it(c.name, () => expect(detailsOf(c.objects as KlipperObjects, c.facts)).toEqual(c.details));
 });
 
 const strip = (a: FiredAlert) => Object.fromEntries(Object.entries(a).filter(([, v]) => v !== undefined));

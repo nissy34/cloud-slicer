@@ -90,3 +90,30 @@ func TestSnapshotFromObjects(t *testing.T) {
 		t.Fatalf("empty snapshot %+v", empty)
 	}
 }
+
+func TestDetailsCases(t *testing.T) {
+	raw, err := os.ReadFile("testdata/alert-details-cases.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var file struct {
+		Cases []struct {
+			Name    string          `json:"name"`
+			Objects map[string]any  `json:"objects"`
+			Facts   fileFacts       `json:"facts"`
+			Details json.RawMessage `json:"details"`
+		} `json:"cases"`
+	}
+	if err := json.Unmarshal(raw, &file); err != nil {
+		t.Fatal(err)
+	}
+	for _, c := range file.Cases {
+		got, _ := json.Marshal(detailsFrom(c.Objects, c.Facts))
+		var a, b any
+		_ = json.Unmarshal(got, &a)
+		_ = json.Unmarshal(c.Details, &b)
+		if !reflect.DeepEqual(a, b) {
+			t.Errorf("%s:\n got  %s\n want %s", c.Name, got, c.Details)
+		}
+	}
+}

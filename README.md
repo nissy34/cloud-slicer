@@ -361,9 +361,17 @@ picture on the key alerts. A printer reached directly can only alert while a tab
 open; the page runs the same rules itself. "The bridge goes offline" (off to begin
 with) comes from the relay after 10 minutes without the bridge. iPhone and iPad need
 Cloud Slicer on the Home Screen first (iOS 16.4 or later) and show no picture.
+Each alert also says where the print stands: progress and layer ("47% · layer 120
+of 250"), time left with the time it should finish in the phone's own time zone,
+filament used so far against the file's total (grams when the slicer wrote the
+weight, else metres), and, when it stops, how long it ran and what it used. A
+filament pause names the head that ran out (U1) or the sensor; an error carries the
+printer's own message, on the U1 Snapmaker's error title, description and code.
 Tapping an alert opens the Device tab on its printer. The rules are in
 `apps/web/src/device/alerts.ts` and `apps/device-bridge/alerts.go`, tested against
-the same cases (`apps/device-bridge/testdata/alert-cases.json`).
+the same cases (`apps/device-bridge/testdata/alert-cases.json`, and
+`alert-details-cases.json` for what an alert says about the print); the words are
+in `apps/web/src/device/alert-text.ts`.
 
 ## Tests
 

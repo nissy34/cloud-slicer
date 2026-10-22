@@ -68,8 +68,8 @@ export function AlertsCard() {
     <Card title="Alerts" testId="alerts-card" className="dv-alerts">
       <p className="muted dv-alerts-how">
         {bridge
-          ? 'Sent through the bridge, even when the browser is closed.'
-          : 'This printer is reached straight from the browser, so alerts only come while Cloud Slicer is open in a tab. Through a bridge they come with the browser closed too.'}
+          ? 'Sent through the bridge, even when the browser is closed. Each says how far the print is, the time left and the filament used.'
+          : 'This printer is reached straight from the browser, so alerts only come while Cloud Slicer is open in a tab. Through a bridge they come with the browser closed too. Each says how far the print is, the time left and the filament used.'}
       </p>
       <ul className="dv-list">
         <li>
