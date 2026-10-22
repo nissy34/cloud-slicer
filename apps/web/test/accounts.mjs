@@ -1030,10 +1030,35 @@ if (withApp)
       await ask.getByRole('button', { name: 'Cancel' }).click();
       await visitor.close();
 
+      // Continue opens the unsaved project, and the card doesn't come back. This tab
+      // starts on the other engine, so opening it restarts the engine, which used to
+      // look for the card again while the project was still loading.
+      const bytes = await (await carol.fetch(`${HOST}/api/projects/${saved.id}/file`)).arrayBuffer();
+      const draftSave = await carol.fetch(`${HOST}/api/projects/draft-continue?${new URLSearchParams({ name: 'Untitled', draft: '1', device: 'laptop-device-9', deviceName: 'Windows computer', engine: 'snapmaker' })}`, {
+        method: 'PUT',
+        headers: { Origin: HOST, 'Content-Type': 'model/3mf' },
+        body: bytes,
+      });
+      assert.equal(draftSave.status, 200, await draftSave.clone().text());
+      const second = await browser.newContext({ viewport: { width: 1280, height: 860 } });
+      await second.addCookies([...carol.jar.get(new URL(HOST).host)].map(([name, value]) => ({ name, value, url: HOST })));
+      const secondPage = await second.newPage();
+      await secondPage.goto(`${HOST}/?engine=orca`);
+      const again = secondPage.getByTestId('continue-card');
+      await again.getByText('Continue your unsaved project?').waitFor({ timeout: 120000 });
+      await again.getByRole('button', { name: 'Continue' }).click();
+      await secondPage.getByText('Snapmaker Orca 2.4').first().waitFor({ timeout: 120000 });
+      await secondPage.locator('.project-busy').waitFor({ state: 'detached', timeout: 120000 });
+      await secondPage.getByRole('button', { name: 'Add model' }).waitFor({ timeout: 60000 });
+      await secondPage.waitForTimeout(3000);
+      assert.equal(await again.count(), 0, 'the Continue card shows once');
+      await second.close();
+      await carol.fetch(`${HOST}/api/projects/draft-continue`, { method: 'DELETE', headers: { Origin: HOST } });
+
       await projectButton.click();
       await page.getByRole('menuitem', { name: 'Online projects…' }).click();
       const dialog = page.getByRole('dialog', { name: 'Online projects' });
-      await dialog.getByText('3DBenchy').waitFor();
+      await dialog.getByText('3DBenchy', { exact: true }).waitFor();
       await dialog.locator('img').first().waitFor();
       if (process.env.ACCOUNTS_SHOTS) await page.screenshot({ path: join(process.env.ACCOUNTS_SHOTS, 'projects-list.png') });
       await dialog.getByRole('button', { name: 'Open', exact: true }).first().click();
@@ -1051,7 +1076,7 @@ if (withApp)
       await page.setViewportSize({ width: 390, height: 800 });
       await projectButton.click();
       await page.getByRole('menuitem', { name: 'Online projects…' }).click();
-      await dialog.getByText('3DBenchy').waitFor();
+      await dialog.getByText('3DBenchy', { exact: true }).waitFor();
       if (process.env.ACCOUNTS_SHOTS) await page.screenshot({ path: join(process.env.ACCOUNTS_SHOTS, 'projects-list-phone.png') });
     } finally {
       await browser.close();
