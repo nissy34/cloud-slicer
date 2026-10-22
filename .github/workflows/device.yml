@@ -149,6 +149,11 @@ jobs:
           CLOUD_SLICER_BRIDGE_BIN: ${{ github.workspace }}/apps/device-bridge/dist/linux-x64
         run: node test/device-alerts.mjs device-shots
 
+      - name: Arrange the Device tab cards (move, hide, half width, columns, fold; kept after a reload; phone)
+        working-directory: apps/web
+        timeout-minutes: 5
+        run: node test/device-arrange.mjs device-shots
+
       - name: The Linux bridge serves the mock U1 through a local relay (uploads, refusals, wrong keys), and runs on a printer
         working-directory: apps/device-relay
         run: |

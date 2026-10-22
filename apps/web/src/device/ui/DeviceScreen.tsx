@@ -1,22 +1,15 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useAccount } from '../../state/account';
 import { BRIDGE_SIGN_IN, useDevice } from '../../state/device';
 import '../../state/alerts';
 import { isTestRelay } from '../config';
 import { job } from '../status';
-import { AlertsCard } from './AlertsCard';
+import { DeviceCards } from './Arrange';
 import { BridgeOffline } from './BridgeSetup';
-import { CameraCard } from './CameraCard';
-import { ClimateCard } from './ClimateCard';
-import { ConsoleCard } from './ConsoleCard';
-import { FilesCard } from './FilesCard';
-import { JobCard } from './JobCard';
 import { ManageDialog } from './ManageDialog';
-import { MotionCard } from './MotionCard';
 import { useConfirm } from './parts';
 import { PrintDialog } from './PrintDialog';
 import { PrinterEditor } from './PrinterEditor';
-import { ToolheadsCard } from './ToolheadsCard';
 
 export function DeviceScreen() {
   useEffect(() => useDevice.getState().start(), []);
@@ -31,12 +24,13 @@ export function DeviceScreen() {
   const manageOpen = useDevice((s) => s.manageOpen);
   const bridges = useDevice((s) => s.bridges);
   const toast = useDevice((s) => s.toast);
-  // While printing or paused the print job sits under the camera on phones; otherwise the move controls do.
+  // Phones, until the cards are arranged by hand: while printing or paused the print job sits under the camera, otherwise the move controls do.
   const busy = useDevice((s) => ['printing', 'paused'].includes(job(s.objects).state));
   const accountStatus = useAccount((s) => s.status);
   const { select, openEditor, openManage, call, retry } = useDevice.getState();
   const active = printers.find((p) => p.id === activeId);
   const { confirm, dialog } = useConfirm();
+  const [arranging, setArranging] = useState(false);
 
   const model = addons[0]?.model ?? (facts ? 'Klipper printer' : '');
   const agentOffline = active?.kind === 'bridge' && bridge?.agent === 'offline';
@@ -95,6 +89,9 @@ export function DeviceScreen() {
               {pill.text}
             </span>
             <div className="dv-header-actions">
+              <button className="dv-link" onClick={() => setArranging(!arranging)} aria-pressed={arranging} data-testid="arrange-open">
+                Arrange
+              </button>
               <button className="dv-link" onClick={() => void openEditor({ mode: 'edit', id: active.id })}>
                 Edit
               </button>
@@ -136,24 +133,7 @@ export function DeviceScreen() {
               <BridgeOffline system={bridge?.system} place={bridge?.place} />
             </div>
           )}
-          {/* Two columns on wide screens; one on phones, where CSS order interleaves them. */}
-          <div className={`dv-cols${busy ? ' dv-busy' : ''}`}>
-            <div className="dv-col dv-col-main">
-              <CameraCard />
-              <div className="dv-pair">
-                <ClimateCard />
-                <MotionCard />
-              </div>
-              <ConsoleCard />
-            </div>
-            <div className="dv-col dv-col-side">
-              <JobCard />
-              <ToolheadsCard />
-              {/* Above Files: a printer can hold hundreds of files. */}
-              <AlertsCard />
-              <FilesCard />
-            </div>
-          </div>
+          <DeviceCards busy={busy} arranging={arranging} onDone={() => setArranging(false)} />
         </>
       )}
       {send && active && <PrintDialog key={send.kind === 'upload' ? send.name : send.path} source={send} />}

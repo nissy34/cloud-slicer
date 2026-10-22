@@ -1,13 +1,27 @@
-import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from 'react';
+
+/** Set by the Device tab's layout around each card: folding a card leaves only its title. */
+export const SlotContext = createContext<{ folded: boolean; toggleFold(): void } | null>(null);
 
 export function Card({ title, actions, className, children, testId }: { title: string; actions?: ReactNode; className?: string; children: ReactNode; testId?: string }) {
+  const slot = useContext(SlotContext);
+  const folded = slot?.folded ?? false;
   return (
-    <section className={`dv-card ${className ?? ''}`} aria-label={title} data-testid={testId}>
+    <section className={`dv-card ${className ?? ''}${folded ? ' dv-folded' : ''}`} aria-label={title} data-testid={testId}>
       <header className="dv-card-head">
-        <h2>{title}</h2>
-        {actions && <div className="dv-card-actions">{actions}</div>}
+        <h2>
+          {slot ? (
+            <button className="dv-fold" aria-expanded={!folded} onClick={slot.toggleFold} title={folded ? 'Show this card' : 'Fold this card'}>
+              <span className="dv-fold-icon" aria-hidden="true" />
+              {title}
+            </button>
+          ) : (
+            title
+          )}
+        </h2>
+        {actions && !folded && <div className="dv-card-actions">{actions}</div>}
       </header>
-      {children}
+      {!folded && children}
     </section>
   );
 }

@@ -299,7 +299,12 @@ Klipper printer's system process presets),
 plus Snapmaker U1 extras (tool heads, filament sync, the U1 print dialog with tool
 mapping, and the U1's errors on the Print card with their code and Snapmaker's own
 title and advice; `apps/web/scripts/u1-errors.mjs` rebuilds that list from Snapmaker
-Orca's device page). A printer with a public https address is reached directly (the tab shows the
+Orca's device page). The cards can be arranged: **Arrange** at the top of the tab moves
+cards by their grip into 2 or 3 columns or across the top or bottom, hides them, makes
+them half width (two side by side) and sets the camera size; tapping a card's title folds
+it. Phones keep their own one-column order. The layout is saved in the account
+(`device-layout` setting, `apps/web/src/device/layout.ts`), so it follows you to every
+device; "Back to default" brings back the standard layout. A printer with a public https address is reached directly (the tab shows the
 `cors_domains` lines Moonraker needs, and a Tailscale hint). A printer on a home network
 is reached through a small **bridge** on any always-on computer near it, which connects
 out to the **relay** (a Cloudflare Worker with one Durable Object per bridge), so no
