@@ -1,27 +1,33 @@
 #!/usr/bin/env node
-// Checks a bridge installed on a printer (install-printer) from the Device tab's
-// side: its pairing file pairs, it comes online through the relay, and "Remove
-// bridge" makes it remove itself, its service and its files.
+// Checks a bridge installed on a printer (install-printer --code, joined to the
+// account "ci-user" through fake-site.mjs) from the Device tab's side: it comes
+// online through the relay, and "Remove bridge" makes it remove itself, its
+// service and its files. The browser carries a ticket, as the site signs it.
 //
-//   node test/device/printer-bridge.mjs <relay url> <printer_data folder>
+//   RELAY_TICKET_PRIVATE_KEY=<jwk> node test/device/printer-bridge.mjs <relay url> <printer_data folder> <copy of its bridge.json>
+//
+// (The bridge's settings are root's only; the job hands over a copy.)
 import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { importJWK, SignJWT } from 'jose';
+import { browserKey } from './go-bridge.mjs';
 
-const [relayArg, dataDir] = process.argv.slice(2);
-if (!relayArg || !dataDir) throw new Error('usage: printer-bridge.mjs <relay url> <printer_data folder>');
+const [relayArg, dataDir, settings] = process.argv.slice(2);
+if (!relayArg || !dataDir || !settings) throw new Error('usage: printer-bridge.mjs <relay url> <printer_data folder> <bridge.json>');
 const relay = relayArg.replace(/\/+$/, '');
-const pairingFile = join(dataDir, 'config', 'cloud-slicer-bridge-pairing.txt');
 const bridgeDir = join(dataDir, 'cloud-slicer-bridge');
+// The Go bridge's settings file: bridgeId, key, relay, claimed.
+const cfg = JSON.parse(readFileSync(settings, 'utf8'));
 const timeout = setTimeout(() => {
   console.error('PRINTER BRIDGE FAIL: timed out');
   process.exit(1);
 }, 60_000);
 
-const code = /#pair=([\w-]+)/.exec(readFileSync(pairingFile, 'utf8'))?.[1];
-if (!code) throw new Error('no pairing link in the pairing file');
-const { r, i, k } = JSON.parse(Buffer.from(code, 'base64url').toString());
-if (r !== relay) throw new Error(`the pairing file names relay ${r}, not ${relay}`);
-const socket = () => new WebSocket(`${relay.replace(/^http/, 'ws')}/v1/bridges/${i}/client?key=${k}&printer=`);
+if (cfg.relay !== relay) throw new Error(`the bridge uses relay ${cfg.relay}, not ${relay}`);
+if (!cfg.claimed) throw new Error('the bridge is not in an account');
+const signer = await importJWK(JSON.parse(process.env.RELAY_TICKET_PRIVATE_KEY), 'ES256');
+const ticket = await new SignJWT({ b: cfg.bridgeId, cams: 2 }).setProtectedHeader({ alg: 'ES256' }).setSubject('ci-user').setAudience('cloud-slicer-relay').setIssuedAt().setExpirationTime('600s').sign(signer);
+const socket = () => new WebSocket(`${relay.replace(/^http/, 'ws')}/v1/bridges/${cfg.bridgeId}/client?key=${browserKey(cfg.key)}&printer=&ticket=${ticket}`);
 const sleep = (ms) => new Promise((res) => setTimeout(res, ms));
 
 try {
@@ -61,8 +67,8 @@ try {
     ws.onclose = (e) => reject(new Error(`closed: ${e.code} ${e.reason}`));
   });
   if (!answer?.uninstalling) throw new Error(`unexpected answer: ${JSON.stringify(answer)}`);
-  for (let n = 0; existsSync(bridgeDir) || existsSync(pairingFile); n++) {
-    if (n > 40) throw new Error('the bridge folder or pairing file is still there');
+  for (let n = 0; existsSync(bridgeDir); n++) {
+    if (n > 40) throw new Error('the bridge folder is still there');
     await sleep(500);
   }
   console.log('Remove bridge: the printer bridge removed itself and its files');

@@ -6,8 +6,6 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
-	"os/user"
-	"strconv"
 	"syscall"
 )
 
@@ -42,20 +40,4 @@ func restartIntoProcess(path string) {
 	err := syscall.Exec(path, append([]string{path}, os.Args[1:]...), os.Environ())
 	fmt.Fprintln(os.Stderr, "Couldn't restart into the updated bridge:", err)
 	os.Exit(1)
-}
-
-// ownerOf is the user that owns path: on a printer, the one Klipper and Moonraker run as.
-func ownerOf(path string) (name string, uid, gid int) {
-	st, err := os.Stat(path)
-	if err != nil {
-		return "root", 0, 0
-	}
-	sys, ok := st.Sys().(*syscall.Stat_t)
-	if !ok {
-		return "root", 0, 0
-	}
-	if u, err := user.LookupId(strconv.Itoa(int(sys.Uid))); err == nil {
-		return u.Username, int(sys.Uid), int(sys.Gid)
-	}
-	return "root", 0, 0
 }

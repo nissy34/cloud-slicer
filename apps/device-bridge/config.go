@@ -21,7 +21,7 @@ type Printer struct {
 	APIKey string `json:"apiKey"`
 }
 
-// Config is the bridge's settings file: its pairing (id and secret key), the
+// Config is the bridge's settings file: its identity (id and secret key), the
 // relay and site it belongs to, and its printers.
 type Config struct {
 	BridgeID string `json:"bridgeId"`
@@ -82,7 +82,7 @@ func loadConfig(path, relay string) (*Config, error) {
 	return cfg, nil
 }
 
-// save writes the settings, readable only by this user (they hold the pairing secret
+// save writes the settings, readable only by this user (they hold the secret key
 // and the printers' API keys). Write then rename, so a crash never leaves half a file.
 func (c *Config) save() error {
 	data, err := json.MarshalIndent(c, "", "  ")

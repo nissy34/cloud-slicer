@@ -73,7 +73,7 @@ for target in $targets; do
       mkdir -p "$app/Contents/MacOS" "$app/Contents/Resources"
       build darwin "$goarch" "$app/Contents/MacOS/cloud-slicer-bridge"
       cp icons/icon.icns "$app/Contents/Resources/icon.icns"
-      # LSUIElement: no Dock icon; opened from Finder the app only sets itself up and opens the pairing link.
+      # LSUIElement: no Dock icon; opened from Finder the app asks for the setup code, sets itself up and shows its status.
       cat > "$app/Contents/Info.plist" <<PLIST
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">

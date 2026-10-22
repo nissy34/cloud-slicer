@@ -10,15 +10,13 @@ import (
 	"testing"
 )
 
-// fakeRelay answers /v1/info and the claim like the relay does, taking one code once.
-func fakeSetupRelay(t *testing.T, accounts bool) (*httptest.Server, *[]map[string]string) {
+// fakeSetupRelay answers the claim like the relay does, taking one code once.
+func fakeSetupRelay(t *testing.T) (*httptest.Server, *[]map[string]string) {
 	t.Helper()
 	var claims []map[string]string
 	used := false
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch {
-		case r.URL.Path == "/v1/info":
-			_ = json.NewEncoder(w).Encode(map[string]bool{"accounts": accounts})
 		case strings.HasSuffix(r.URL.Path, "/claim"):
 			var body map[string]string
 			_ = json.NewDecoder(r.Body).Decode(&body)
@@ -44,7 +42,7 @@ func fakeSetupRelay(t *testing.T, accounts bool) (*httptest.Server, *[]map[strin
 }
 
 func TestJoinAccountSpendsTheSetupCodeOnce(t *testing.T) {
-	srv, claims := fakeSetupRelay(t, true)
+	srv, claims := fakeSetupRelay(t)
 	cfg, err := loadConfig(filepath.Join(t.TempDir(), "bridge.json"), srv.URL)
 	if err != nil {
 		t.Fatal(err)
@@ -86,10 +84,15 @@ func TestJoinAccountSpendsTheSetupCodeOnce(t *testing.T) {
 	}
 }
 
-func TestJoinAccountNeedsNoCodeWithoutAccounts(t *testing.T) {
-	srv, claims := fakeSetupRelay(t, false)
-	cfg, _ := loadConfig(filepath.Join(t.TempDir(), "bridge.json"), srv.URL)
-	if err := joinAccount(cfg, "", ""); err != nil || cfg.Claimed || len(*claims) != 0 {
+// A bridge only ever joins with a setup code: not even a relay that can't be
+// reached lets it set up without one (it used to, and then printed an old-style
+// pairing link nobody can use).
+func TestJoinAccountAlwaysNeedsACode(t *testing.T) {
+	cfg, _ := loadConfig(filepath.Join(t.TempDir(), "bridge.json"), "http://127.0.0.1:9")
+	if err := joinAccount(cfg, "", ""); !errors.As(err, new(setupCodeError)) || cfg.Claimed {
 		t.Fatalf("got %v, claimed %v", err, cfg.Claimed)
+	}
+	if err := joinAccount(cfg, "GOOD-CODE", ""); err == nil || !strings.Contains(err.Error(), "Couldn't reach") || cfg.Claimed {
+		t.Fatalf("unreachable relay: got %v, claimed %v", err, cfg.Claimed)
 	}
 }

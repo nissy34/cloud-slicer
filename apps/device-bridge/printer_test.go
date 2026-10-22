@@ -14,9 +14,6 @@ func TestPrinterPlanSystemd(t *testing.T) {
 	if p.exe != "/home/pi/printer_data/cloud-slicer-bridge/cloud-slicer-bridge" || p.config != "/home/pi/printer_data/cloud-slicer-bridge/bridge.json" {
 		t.Fatalf("paths: %s %s", p.exe, p.config)
 	}
-	if p.pairing != "/home/pi/printer_data/config/cloud-slicer-bridge-pairing.txt" {
-		t.Fatal(p.pairing)
-	}
 	unit := p.files[0]
 	if unit.path != "/etc/systemd/system/cloud-slicer-bridge.service" {
 		t.Fatal(unit.path)
@@ -75,7 +72,7 @@ func TestPrinterPlanInitScriptsAreValidShell(t *testing.T) {
 func TestPrinterRemoveScriptRemovesEverything(t *testing.T) {
 	p := printerPlanFor(printerEnv{dataDir: "/home/pi/printer_data", kind: initSystemd})
 	s := p.removeScript()
-	for _, want := range []string{"systemctl disable --now cloud-slicer-bridge", "rm -f /etc/systemd/system/cloud-slicer-bridge.service", "systemctl daemon-reload", "rm -f /home/pi/printer_data/config/cloud-slicer-bridge-pairing.txt", "rm -rf /home/pi/printer_data/cloud-slicer-bridge"} {
+	for _, want := range []string{"systemctl disable --now cloud-slicer-bridge", "rm -f /etc/systemd/system/cloud-slicer-bridge.service", "systemctl daemon-reload", "rm -rf /home/pi/printer_data/cloud-slicer-bridge"} {
 		if !strings.Contains(s, want) {
 			t.Errorf("remove script lacks %q:\n%s", want, s)
 		}

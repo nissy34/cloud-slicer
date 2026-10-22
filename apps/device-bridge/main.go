@@ -8,13 +8,13 @@
 //
 //	cloud-slicer-bridge                     # starts with this computer from now on (once it is in an account)
 //	cloud-slicer-bridge add 192.168.1.50 [--name "My U1"] [--api-key KEY]
-//	cloud-slicer-bridge list | remove <name> | pair [--open] | version
-//	cloud-slicer-bridge install [--code C] | uninstall  # start with this computer, or remove it from it
+//	cloud-slicer-bridge list | remove <name> | open | version
+//	cloud-slicer-bridge install --code C | uninstall   # join your account and start with this computer, or remove it
 //	cloud-slicer-bridge run [--no-browser]   # just run, in this terminal
-//	cloud-slicer-bridge install-printer      # on a Klipper printer, as root: a service that serves it
+//	cloud-slicer-bridge install-printer --code C  # on a Klipper printer, as root: a service that serves it
 //
 // Options: --config <file> (default ~/.cloud-slicer-bridge.json),
-// --relay <url>, --site <url> (where pairing links point), --code <setup code>
+// --relay <url>, --site <url> (what Open Cloud Slicer opens), --code <setup code>
 // (from Cloud Slicer's Add a bridge: joins that account; install and install-printer),
 // --printer-data <folder> (install-printer and uninstall on a printer with more than one).
 //
@@ -117,14 +117,8 @@ func run(argv []string, console bool) error {
 		if len(cfg.Printers) > 0 {
 			fmt.Printf("It serves %s.\n", cfg.Printers[0].Name)
 		}
-		if cfg.Claimed {
-			fmt.Println("Find it in Cloud Slicer: Device tab, Printers & bridges.")
-			fmt.Printf("Remove it: Remove bridge in Printers & bridges, or sudo %s uninstall\n", p.exe)
-			return nil
-		}
-		fmt.Printf("To remove it: sudo %s uninstall, or Remove bridge in the Device tab.\n", p.exe)
-		fmt.Printf("The pairing link is also in Mainsail and Fluidd, in the config folder: %s\n", filepath.Base(p.pairing))
-		printPairing(cfg, opts["site"], false)
+		fmt.Println("Find it in Cloud Slicer: Device tab, Printers & bridges.")
+		fmt.Printf("Remove it: Remove bridge in Printers & bridges, or sudo %s uninstall\n", p.exe)
 		return nil
 	}
 	if cmd == "uninstall" {
@@ -143,7 +137,7 @@ func run(argv []string, console bool) error {
 			if err := uninstallFromPrinter(p, false); err != nil {
 				return err
 			}
-			fmt.Println("Removed the bridge from this printer: its service, program, printers and pairing are gone.")
+			fmt.Println("Removed the bridge from this printer: its service, program and printers are gone.")
 			fmt.Println("Remove it from the Device tab too (Printers & bridges).")
 			return nil
 		}
@@ -185,9 +179,6 @@ func run(argv []string, console bool) error {
 			return err
 		}
 		fmt.Printf("Added %s (%s).%s\n", name, url, restarted(" The bridge restarted to use it.", " Restart the bridge if it is running."))
-		if !cfg.Claimed {
-			printPairing(cfg, opts["site"], false)
-		}
 	case "remove":
 		if len(rest) == 0 {
 			return errors.New("Usage: remove <name>")
@@ -211,8 +202,12 @@ func run(argv []string, console bool) error {
 		if len(cfg.Printers) == 0 {
 			fmt.Println("No printers yet. Add one: cloud-slicer-bridge add <address>")
 		}
-	case "pair":
-		printPairing(cfg, opts["site"], opts["open"] == "true")
+	case "open":
+		// The Linux menu entry: Cloud Slicer's Device tab, where its printers are.
+		link := deviceTab(cfg, opts["site"])
+		if !openInBrowser(link) {
+			fmt.Println("Open Cloud Slicer in your browser: " + link)
+		}
 	case "install":
 		// It joins the account first: a setup code that doesn't work installs nothing.
 		if err := joinAccount(cfg, opts["code"], ""); err != nil {
@@ -222,24 +217,14 @@ func run(argv []string, console bool) error {
 		if err != nil {
 			return err
 		}
-		if cfg.Claimed {
-			printInstalled(p)
-			return nil
-		}
-		fmt.Printf("The bridge now starts by itself with this computer (from %s), and is running.\n", p.copyTo)
-		fmt.Printf("To remove it from this computer: %s uninstall\n", commandFor(p.copyTo))
-		printPairing(cfg, opts["site"], opts["no-browser"] == "")
+		printInstalled(p)
 	case "uninstall":
 		// Also from Windows' Settings, Apps, Installed apps, which asked first.
 		left := leaveAccount(cfg)
 		uninstallBridge(path)
-		msg := "Removed the bridge from this computer: it has stopped, no longer starts with the computer, and its printers and pairing are deleted."
-		if left {
-			msg = "Removed the bridge from this computer and from your Cloud Slicer account."
-		} else if cfg.Claimed {
-			msg += "\nRemove it from Cloud Slicer too: Device tab, Printers & bridges, Remove bridge."
-		} else {
-			msg += "\nRemove its printers from the Device tab too (Printers & bridges)."
+		msg := "Removed the bridge from this computer and from your Cloud Slicer account."
+		if !left {
+			msg = "Removed the bridge from this computer: it has stopped, no longer starts with the computer, and its printers are deleted.\nRemove it from Cloud Slicer too: Device tab, Printers & bridges, Remove bridge."
 		}
 		fmt.Println(msg)
 		if !console {
@@ -250,9 +235,6 @@ func run(argv []string, console bool) error {
 			if done := openedByHand(cfg, path, opts["site"], console); done {
 				return nil
 			}
-		}
-		if !cfg.Claimed {
-			printPairing(cfg, opts["site"], opts["no-browser"] == "")
 		}
 		log := func(m string) { fmt.Println(m) }
 		// Just updated: this version has to reach the relay, or the previous one comes back.
@@ -284,7 +266,7 @@ func run(argv []string, console bool) error {
 		close(stopStatus)
 		b.stop()
 	default:
-		return fmt.Errorf("Unknown command %s. Commands: add, remove, list, pair, run, install, uninstall, version", cmd)
+		return fmt.Errorf("Unknown command %s. Commands: add, remove, list, open, run, install, uninstall, version", cmd)
 	}
 	return nil
 }

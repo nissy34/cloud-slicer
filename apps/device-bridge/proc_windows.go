@@ -95,6 +95,3 @@ func restartIntoProcess(path string) {
 	_ = startDetached(path, os.Args[1:]...)
 	os.Exit(0)
 }
-
-// ownerOf: printers don't run Windows.
-func ownerOf(string) (string, int, int) { return "root", 0, 0 }

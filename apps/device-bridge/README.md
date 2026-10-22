@@ -36,32 +36,30 @@ The Device tab's "Add a printer" dialog offers the right one for each system:
   `printer_data/cloud-slicer-bridge/` (on a U1 that's the folder that survives
   restarts), adds the printer's own Moonraker (127.0.0.1:7125), and runs it as
   a root service: systemd on Pi OS and Armbian, procd on OpenWrt (K2, Sonic Pad),
-  an `S99` init script elsewhere (K1, U1). With a setup code it joins the account
-  at once; on a relay without accounts it prints the pairing link and saves it as
-  `config/cloud-slicer-bridge-pairing.txt`, which Mainsail and Fluidd show. Nothing in Klipper or Moonraker changes, so neither restarts. It
+  an `S99` init script elsewhere (K1, U1). It joins the account with the setup
+  code before anything is installed. Nothing in Klipper or Moonraker changes, so neither restarts. It
   updates itself like the computer apps. "Remove bridge" in the Device tab
   removes the service and the folder; so does
   `curl -fsSL https://<relay>/install.sh | sh -s -- --printer --uninstall`, which
   downloads nothing: it runs the bridge already in printer_data (with sudo when needed).
   A Snapmaker U1 firmware update wipes the service: run the line again.
 
-**Setup codes.** On a relay with accounts (the real one) a bridge only connects
-once it has joined an account: `install` (and `install-printer`) sends the setup
+**Setup codes.** A bridge only connects once it has joined an account, and a
+setup code is the only way in (there are no pairing links any more): `install` (and `install-printer`) sends the setup
 code to the relay's `/v1/bridges/<id>/claim`, which checks it with the site, and
 prints "Connected to your Cloud Slicer account as …". A code works once, for an
 hour; a wrong or used one exits with status 3, and the install scripts then ask
 "Paste the new setup code here:". After that the bridge keeps its own key for
-good. On a relay without accounts (local tests) it pairs with a link as below.
+good. Without a code (or with a relay it can't reach) nothing is installed.
 
 The bridge asks nothing else. Opened by double click (the download from Add a
 bridge, which has no setup code inside) it asks for the setup code in a small
 window, installs itself to start with the computer and shows "Connected to your
-Cloud Slicer account as …" with Open Cloud Slicer and Close (a relay without
-accounts opens the pairing link instead). `install` does the same from a
+Cloud Slicer account as …" with Open Cloud Slicer and Close. `install` does the same from a
 terminal. Where it starts from: Windows, a Run entry for your user that runs it
 with no window, so it stays out of the taskbar; macOS, a launch agent; Linux, a
 systemd user service with lingering, so a headless Pi starts it at boot, plus a
-menu entry that opens the pairing link.
+menu entry that opens the Device tab (`open`).
 
 Opening it again (Windows: Start menu, Cloud Slicer Bridge; macOS: Cloud Slicer
 Bridge in your Applications folder) shows how the bridge running in the
@@ -88,8 +86,8 @@ port you type, with its API key, after checking Moonraker answers there;
 Remove bridge) makes the running bridge remove itself from its computer, as the
 `uninstall` command does, and exit. From a terminal, `cloud-slicer-bridge add
 192.168.1.50 [--api-key KEY]` does the same; a bridge running in the background
-restarts by itself to use it. The pairing link is the bridge's key: anyone
-holding it can control your printers.
+restarts by itself to use it. Only signed-in browsers of the account it joined
+reach its printers.
 
 Where things go once set up: Windows `%LOCALAPPDATA%\Cloud Slicer Bridge\`,
 macOS `~/Library/Application Support/Cloud Slicer Bridge/` (log in
@@ -130,8 +128,7 @@ node -e "console.log(require('crypto').generateKeyPairSync('ed25519').privateKey
 ```
 
 Config lives in `~/.cloud-slicer-bridge.json` (`--config` to move it). Other
-commands: `list`, `remove <name>`, `pair` (print the pairing link again; `--open` opens it),
-`version`.
+commands: `list`, `remove <name>`, `open` (the Device tab in the browser), `version`.
 
 ## Building
 
