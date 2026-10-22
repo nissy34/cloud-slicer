@@ -257,9 +257,12 @@ try {
     await page.getByTestId(`head-${i}`).locator('.dv-head-tile').click();
     await page.locator(`[data-testid="head-${i}"].selected`).waitFor();
   };
-  // Each head shows how it is as a face: the empty one asks for filament, the docked cold ones nap.
+  // Each head shows how it is as a face: the empty one asks for filament, the docked cold ones nap in bed;
+  // the head on the carriage stands up.
   await page.locator('[data-testid="head-3"][data-mood="hungry"]').getByText('Feed me').waitFor();
-  await page.locator('[data-testid="head-2"][data-mood="napping"]').waitFor();
+  await page.locator('[data-testid="head-2"][data-mood="napping"] .dv-bed').waitFor();
+  await page.locator('[data-testid="head-0"][data-dock="attached"] .dv-face').waitFor();
+  if (await page.locator('[data-testid="head-0"] .dv-bed').count()) throw new Error('the head on the carriage is drawn in bed');
   if (shots) await page.getByTestId('toolheads-card').screenshot({ path: join(shots, 'tool-heads.png') });
   await pickHead(3);
   await sheet.getByRole('button', { name: 'Load', exact: true }).click();
@@ -282,8 +285,11 @@ try {
   await sheet.getByRole('button', { name: 'Pick up' }).click();
   await page.getByRole('dialog', { name: 'Pick up' }).getByRole('button', { name: 'Pick up' }).click();
   await until('PICK_EXTRUDER2 sent', () => u1.scripts.includes('PICK_EXTRUDER2'));
-  await page.locator('[data-testid="head-2"][data-dock="attached"]').waitFor();
-  await page.locator('[data-testid="head-0"][data-dock="parked"]').waitFor();
+  // Picked up: it gets out of bed, and the head it replaces goes back to bed.
+  await page.locator('[data-testid="head-2"][data-dock="attached"][data-scene="waking"]').getByText('Getting up').waitFor();
+  await page.locator('[data-testid="head-0"][data-dock="parked"][data-scene="bedtime"]').getByText('Back to bed').waitFor();
+  await page.locator('[data-testid="head-2"][data-dock="attached"] .dv-face').waitFor();
+  await page.locator('[data-testid="head-0"][data-scene="asleep"] .dv-bed').waitFor();
   await sheet.getByTestId('head-dock').filter({ hasText: 'On the carriage' }).waitFor();
   await sheet.getByRole('button', { name: 'Park' }).click();
   await page.getByRole('dialog', { name: 'Park' }).getByRole('button', { name: 'Park' }).click();
