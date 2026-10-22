@@ -270,6 +270,10 @@ jobs:
           rc=0; timeout 90 powershell -NoProfile -ExecutionPolicy Bypass -Command "Get-Content -Raw '$RUNNER_TEMP/install.ps1' | Invoke-Expression; exit "'$LASTEXITCODE' || rc=$?
           if [ "$rc" = 124 ]; then echo "The PowerShell line never finished"; exit 1; fi
           if [ "$rc" != 0 ]; then echo "The PowerShell line failed ($rc)"; exit 1; fi
+          # It waited for the setup program to finish (PowerShell doesn't wait for a program
+          # with no window unless told to): the program it downloaded is gone, not still running.
+          powershell -NoProfile -Command "if (Test-Path (Join-Path \$env:TEMP 'cloud-slicer-bridge-setup.exe')) { exit 1 }" ||
+            { echo "The PowerShell line came back before the setup finished"; exit 1; }
           for i in $(seq 1 20); do tasklist //FI 'IMAGENAME eq cloud-slicer-bridge.exe' | grep -q cloud-slicer-bridge && break; sleep 1; done
           tasklist //FI 'IMAGENAME eq cloud-slicer-bridge.exe' | grep cloud-slicer-bridge || { echo "The bridge isn't running after the PowerShell line"; exit 1; }
           # Installed apps (Settings, Apps) lists it, with an Uninstall that runs the bridge's own; the Start menu has it.
@@ -278,6 +282,14 @@ jobs:
           reg query "$entry" //v DisplayName | grep -F 'Cloud Slicer Bridge' || { echo "The Installed apps entry has no name"; exit 1; }
           shortcut="$APPDATA/Microsoft/Windows/Start Menu/Programs/Cloud Slicer Bridge.lnk"
           [ -f "$shortcut" ] || { echo "No Start menu entry"; exit 1; }
+          # A setup code that doesn't work: the line passes on the setup's own failure (it
+          # only can when it waits for the setup), and asks for a new code on exit status 3.
+          sed -e 's#__RELAY_URL__#http://127.0.0.1:8790#' -e 's#__SETUP_CODE__#ABCD-EFGH#' \
+            -e "s#@('install', '--no-browser')#@('install', '--no-browser', '--relay', 'http://127.0.0.1:9')#" \
+            apps/device-bridge/install.ps1 > "$RUNNER_TEMP/install-code.ps1"
+          rc=0; echo | timeout 90 powershell -NoProfile -ExecutionPolicy Bypass -Command "Get-Content -Raw '$RUNNER_TEMP/install-code.ps1' | Invoke-Expression; exit "'$LASTEXITCODE' || rc=$?
+          if [ "$rc" = 124 ]; then echo "The PowerShell line with a setup code never finished"; exit 1; fi
+          if [ "$rc" = 0 ]; then echo "The PowerShell line didn't see that the setup failed"; exit 1; fi
           timeout 60 "$LOCALAPPDATA/Cloud Slicer Bridge/cloud-slicer-bridge.exe" uninstall
           if reg query "$entry" >/dev/null 2>&1; then echo "Uninstall left the Installed apps entry"; exit 1; fi
           if [ -e "$shortcut" ]; then echo "Uninstall left the Start menu entry"; exit 1; fi
