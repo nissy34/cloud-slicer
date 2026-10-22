@@ -61,6 +61,19 @@ func TestProbeHostsStopsAtDeadline(t *testing.T) {
 	}
 }
 
+func TestVirtualCardsLast(t *testing.T) {
+	for _, n := range []string{"vEthernet (WSL)", "vEthernet (Default Switch)", "docker0", "br-1a2b", "VirtualBox Host-Only Network", "VMware Network Adapter VMnet8", "utun3", "tailscale0", "wg0"} {
+		if !virtualCard(n) {
+			t.Errorf("%q should count as made by a program", n)
+		}
+	}
+	for _, n := range []string{"Wi-Fi", "Ethernet", "Ethernet 2", "eth0", "wlan0", "en0", "enp3s0", "wlp2s0"} {
+		if virtualCard(n) {
+			t.Errorf("%q is a real network card", n)
+		}
+	}
+}
+
 // A search that ran out of time carries on with the addresses it didn't ask
 // and keeps what it found so far.
 func TestDiscoverCarriesOn(t *testing.T) {

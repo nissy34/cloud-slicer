@@ -9,6 +9,7 @@ import (
 	"net"
 	"net/http"
 	"regexp"
+	"sort"
 	"strings"
 	"sync"
 	"time"
@@ -154,29 +155,47 @@ func discover(ctx context.Context, log func(string)) []found {
 }
 
 // searchHosts lists every address of this computer's local networks: 127.0.0.1,
-// then each card's /24. 169.254.x.x is a card with no network behind it: skipped.
+// then each card's /24, Wi-Fi and cable cards before the ones WSL, Hyper-V,
+// Docker, virtual machines or VPNs made. 169.254.x.x is a card with no network
+// behind it: skipped.
 func searchHosts() []string {
 	hosts := []string{"127.0.0.1"}
 	seen := map[string]bool{"127.0.0.1": true}
-	addrs, _ := net.InterfaceAddrs()
-	for _, a := range addrs {
-		ipnet, ok := a.(*net.IPNet)
-		if !ok || ipnet.IP.IsLoopback() {
-			continue
-		}
-		ip4 := ipnet.IP.To4()
-		if ip4 == nil || ip4.IsLinkLocalUnicast() {
-			continue
-		}
-		for i := 1; i < 255; i++ {
-			h := fmt.Sprintf("%d.%d.%d.%d", ip4[0], ip4[1], ip4[2], i)
-			if !seen[h] {
-				seen[h] = true
-				hosts = append(hosts, h)
+	ifaces, _ := net.Interfaces()
+	sort.SliceStable(ifaces, func(i, j int) bool { return !virtualCard(ifaces[i].Name) && virtualCard(ifaces[j].Name) })
+	for _, ifc := range ifaces {
+		addrs, _ := ifc.Addrs()
+		for _, a := range addrs {
+			ipnet, ok := a.(*net.IPNet)
+			if !ok || ipnet.IP.IsLoopback() {
+				continue
+			}
+			ip4 := ipnet.IP.To4()
+			if ip4 == nil || ip4.IsLinkLocalUnicast() {
+				continue
+			}
+			for i := 1; i < 255; i++ {
+				h := fmt.Sprintf("%d.%d.%d.%d", ip4[0], ip4[1], ip4[2], i)
+				if !seen[h] {
+					seen[h] = true
+					hosts = append(hosts, h)
+				}
 			}
 		}
 	}
 	return hosts
+}
+
+// virtualCard says whether a network card's name looks like one a program made
+// (WSL, Hyper-V, Docker, VirtualBox, VMware, VPNs) rather than Wi-Fi or a cable.
+func virtualCard(name string) bool {
+	n := strings.ToLower(name)
+	for _, w := range []string{"vethernet", "wsl", "hyper-v", "docker", "veth", "br-", "virbr", "vmnet", "vmware", "virtualbox", "vbox", "utun", "tun", "tap", "wg", "tailscale", "zerotier", "vpn"} {
+		if strings.Contains(n, w) {
+			return true
+		}
+	}
+	return false
 }
 
 // discoverOwn finds the Moonraker of the printer this bridge runs on. It answers

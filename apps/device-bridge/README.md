@@ -80,8 +80,10 @@ takes it out of the account: it sends its own key to the relay's
 Printers are found and added in the Device tab's Add a printer dialog, which
 asks the bridge over the relay: `bridge.discover` looks for Moonraker on port
 7125 (and PrusaLink on the web port, asked at the same time) across the bridge's
-local networks, skipping 169.254.x.x cards, and lists what answers within 15 s
-(and which want an API key); `bridge.add_printer` adds the ones you pick, or any address and
+local networks (Wi-Fi and cable cards before WSL, Hyper-V, Docker or VPN ones;
+169.254.x.x cards skipped) and lists what answers within 15 s (and which want an
+API key). A search that runs out of time answers `more: true`, and asking again
+within a minute carries on with the addresses it didn't reach; `bridge.add_printer` adds the ones you pick, or any address and
 port you type, with its API key, after checking Moonraker answers there;
 `bridge.remove_printer` forgets one; `bridge.uninstall` (Printers & bridges,
 Remove bridge) makes the running bridge remove itself from its computer, as the
