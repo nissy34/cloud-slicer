@@ -349,10 +349,11 @@ export function suggestToolMap(filaments: MappedFilament[], heads: U1Head[]): Re
 }
 
 /**
- * The U1 lists a part fan and a hotend fan for each of its four heads, but only
- * the head on the carriage is wired up: its part fan is the printer's main fan
- * ("Part cooling"). So the per-head copies are left out, except the hotend fan of
- * the head on the carriage, shown as "Hotend fan".
+ * The U1 has one part fan, which cools whichever head is on the carriage (the
+ * printer's main fan, "Part cooling"), and a hotend fan on each of its four heads.
+ * Its config also lists per-head part fans (e1_fan...), which are left out. A
+ * head's hotend fan shows while that head is on the carriage or the fan is
+ * spinning (a parked head still cooling down), named like the Tool heads card.
  */
 export function u1Fans(list: Fan[], activeExtruder: string): Fan[] {
   const active = extruderIndex(activeExtruder);
@@ -360,7 +361,8 @@ export function u1Fans(list: Fan[], activeExtruder: string): Fan[] {
     const own = f.name.split(' ')[1] ?? '';
     const head = /^e(\d+)_(nozzle_)?fan$/i.exec(own);
     if (!head) return [f];
-    return head[2] && Number(head[1]) === active ? [{ ...f, label: 'Hotend fan' }] : [];
+    const n = Number(head[1]);
+    return head[2] && (n === active || f.speed > 0) ? [{ ...f, label: `Hotend fan T${n + 1}` }] : [];
   });
 }
 

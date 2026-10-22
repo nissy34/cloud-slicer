@@ -144,10 +144,14 @@ describe('U1 fans', () => {
     fan('fan_generic e2_fan', 'E2 fan'),
     fan('heater_fan e2_nozzle_fan', 'E2 nozzle fan', false),
   ];
-  it('shows one part fan and only the hotend fan of the head on the carriage', () => {
-    expect(u1Fans(list, 'extruder1').map((f) => f.label)).toEqual(['Part cooling', 'Cavity fan', 'Hotend fan']);
-    expect(u1Fans(list, 'extruder1').find((f) => f.label === 'Hotend fan')?.name).toBe('heater_fan e1_nozzle_fan');
-    expect(u1Fans(list, 'extruder').find((f) => f.label === 'Hotend fan')?.name).toBe('heater_fan e0_nozzle_fan');
+  it('shows one part fan and the hotend fan of the head on the carriage', () => {
+    expect(u1Fans(list, 'extruder1').map((f) => f.label)).toEqual(['Part cooling', 'Cavity fan', 'Hotend fan T2']);
+    expect(u1Fans(list, 'extruder1').find((f) => f.label === 'Hotend fan T2')?.name).toBe('heater_fan e1_nozzle_fan');
+    expect(u1Fans(list, 'extruder').map((f) => f.label)).toEqual(['Part cooling', 'Cavity fan', 'Hotend fan T1']);
+  });
+  it('also shows a parked head whose hotend fan is still spinning', () => {
+    const cooling = list.map((f) => (f.name === 'heater_fan e2_nozzle_fan' ? { ...f, speed: 1 } : f));
+    expect(u1Fans(cooling, 'extruder').map((f) => f.label)).toEqual(['Part cooling', 'Cavity fan', 'Hotend fan T1', 'Hotend fan T3']);
   });
 });
 
