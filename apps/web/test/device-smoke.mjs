@@ -158,6 +158,7 @@ try {
   console.log('bridge: the ready printers saved in one go, with their names and API key');
   // In the dark theme the printer list's choices are dark too (the open list used to be light).
   await page.emulateMedia({ colorScheme: 'dark' });
+  await page.waitForFunction(() => document.documentElement.dataset.theme === 'dark');
   const optionColours = await page.getByTestId('printer-select').evaluate((select) => {
     // A see-through background leaves the browser's own (light) list showing: count it as light.
     const lum = (c) => {
@@ -168,6 +169,7 @@ try {
   });
   if (optionColours.some((o) => o.bg > 0.4 || o.fg < 0.6)) throw new Error(`printer choices aren't dark in the dark theme: ${JSON.stringify(optionColours)}`);
   await page.emulateMedia({ colorScheme: 'light' });
+  await page.waitForFunction(() => document.documentElement.dataset.theme === 'light');
   console.log('bridge: connected');
 
   await page.getByTestId('head-0').getByText('PLA').waitFor();
