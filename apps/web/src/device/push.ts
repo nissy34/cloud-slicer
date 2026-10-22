@@ -87,3 +87,13 @@ export function relayPushKey(relay: string): Promise<string | null> {
   }
   return k;
 }
+
+/** This browser's time zone and 12/24 h, so a bridge's alerts can say "done about 14:35" in it. */
+export function localClock(): { timeZone?: string; hour12: boolean } {
+  try {
+    const o = new Intl.DateTimeFormat(undefined, { hour: 'numeric' }).resolvedOptions();
+    return { timeZone: o.timeZone, hour12: o.hour12 === true };
+  } catch {
+    return { hour12: false };
+  }
+}

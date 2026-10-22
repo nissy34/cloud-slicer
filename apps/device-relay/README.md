@@ -45,7 +45,11 @@ hibernate, so an idle bridge costs nothing; it runs on the free plan.
   agent what to watch for (`{ctl:'alerts', printers}`, on every hello and
   change), and turns the agent's `{ctl:'alert', printer, event, …}` into Web Push
   (the `web-push` library: RFC 8291 encryption, VAPID signature) to every
-  browser that wants it. Push addresses must belong to a browser push service
+  browser that wants it, worded in `apps/web/src/device/alert-text.ts`. U1 error
+  codes are put in Snapmaker's words from the Device tab's list
+  (`apps/web/src/device/addons/u1-errors.json`, bundled). A browser sends its time
+  zone and 12/24 h clock (`clock`) with `set` and `get`, so "done about 14:35" is
+  in its own time; without one the alert leaves the clock time out. Push addresses must belong to a browser push service
   (Google, Mozilla, Apple, Microsoft). A camera picture sent with an alert waits
   in R2 under `alerts/` (served at `/v1/pictures/<random>.jpg`) until the
   bucket's one-day lifecycle rule deletes it. "The bridge goes offline" is a

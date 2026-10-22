@@ -1,0 +1,44 @@
+{
+  "_about": "What an alert says about where the print stands, shared by the bridge (detailsFrom, alerts_test.go) and the browser (detailsOf, apps/web/src/device/alerts.test.ts): Klipper objects plus the file's facts in, details out.",
+  "cases": [
+    {
+      "name": "mid-print: progress, layer, time left from the estimate, filament used and the file's totals",
+      "objects": {
+        "print_stats": { "state": "printing", "filename": "benchy.gcode", "print_duration": 3000, "filament_used": 1349.6, "info": { "current_layer": 120, "total_layer": 250 } },
+        "virtual_sdcard": { "progress": 0.474 }
+      },
+      "facts": { "estimate": 6000, "totalMm": 2700, "totalG": 8.14 },
+      "details": { "percent": 47, "layer": 120, "total": 250, "left": 3156, "printed": 3000, "estimate": 6000, "usedMm": 1350, "totalMm": 2700, "totalG": 8.1 }
+    },
+    {
+      "name": "U1 paused: the head in use (T3) has no filament on its feeder",
+      "objects": {
+        "print_stats": { "state": "paused", "filename": "a.gcode", "print_duration": 100, "info": { "current_layer": 5, "total_layer": 50 } },
+        "virtual_sdcard": { "progress": 0.1 },
+        "toolhead": { "extruder": "extruder2" },
+        "filament_feed left": { "extruder0": { "filament_detected": true }, "extruder1": { "filament_detected": false } },
+        "filament_feed right": { "extruder2": { "filament_detected": false }, "extruder3": { "filament_detected": true } }
+      },
+      "facts": { "estimate": null, "totalMm": null, "totalG": null },
+      "details": { "percent": 10, "layer": 5, "total": 50, "left": 900, "printed": 100, "runout": "T3" }
+    },
+    {
+      "name": "any Klipper printer paused: the one filament sensor without filament, by name",
+      "objects": {
+        "print_stats": { "state": "paused", "filename": "a.gcode", "print_duration": 0 },
+        "virtual_sdcard": { "progress": 0 },
+        "toolhead": { "extruder": "extruder" },
+        "filament_switch_sensor runout_sensor": { "enabled": true, "filament_detected": false },
+        "filament_motion_sensor encoder": { "enabled": false, "filament_detected": false }
+      },
+      "facts": { "estimate": 1200, "totalMm": null, "totalG": null },
+      "details": { "percent": 0, "left": 1200, "printed": 0, "estimate": 1200, "runout": "runout sensor" }
+    },
+    {
+      "name": "idle: nothing about a print",
+      "objects": { "print_stats": { "state": "standby", "filename": "" } },
+      "facts": { "estimate": null, "totalMm": null, "totalG": null },
+      "details": {}
+    }
+  ]
+}

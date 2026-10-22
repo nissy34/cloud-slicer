@@ -49,9 +49,11 @@ export function SetupWizard() {
   const ready = useSlicer((s) => s.engine === 'ready');
   const accountReady = useAccount((s) => s.status !== 'loading');
   const installedPrinters = useUserSetting<Setup>(SETUP_KEY)?.printers;
+  // The Continue card goes first: the wizard waits until it is answered.
+  const offerDone = useProjects((s) => s.offerChecked && !s.offer);
   useEffect(() => {
-    if (ready && accountReady && !installedPrinters?.length && !dismissed) show();
-  }, [ready, accountReady, installedPrinters, show]);
+    if (ready && accountReady && offerDone && !installedPrinters?.length && !dismissed) show();
+  }, [ready, accountReady, offerDone, installedPrinters, show]);
   if (!open || !ready) return null;
   return (
     <Wizard

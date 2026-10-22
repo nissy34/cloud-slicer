@@ -31,6 +31,7 @@ import installScript from '../../device-bridge/install.sh';
 import {
   agentConfig,
   cleanAlert,
+  cleanClock,
   cleanPrefs,
   cleanSubscription,
   fanOut,
@@ -746,11 +747,16 @@ export class Bridge extends DurableObject<Env> {
     if (!pushEndpointOk(this.env, endpoint)) throw new Error("This browser's push service isn't one the relay knows.");
     const key = await subKey(endpoint);
     const stored = await this.ctx.storage.get<StoredSub>(key);
-    if (op === 'get') return { prefs: stored?.printers[a.printer] ?? null };
+    if (op === 'get') {
+      // Keeps the browser's clock current (it moved, or turned alerts on before alerts said "done about 14:35").
+      const clock = cleanClock(params?.clock);
+      if (stored && clock && JSON.stringify(clock) !== JSON.stringify(stored.clock ?? null)) await this.ctx.storage.put(key, { ...stored, clock });
+      return { prefs: stored?.printers[a.printer] ?? null };
+    }
     if (op === 'test') {
       if (!stored?.printers[a.printer]) throw new Error('Turn alerts on first.');
       const printer = (await this.info()).printers.find((p) => p.id === a.printer);
-      const text = alertText({ event: 'test' }, printer?.name ?? 'your printer');
+      const text = alertText({ event: 'test' }, printer?.name ?? 'your printer', undefined, stored.clock);
       const bridgeId = await this.bridgeId();
       const sent = await sendPush(this.env, stored, { ...text, tag: `${bridgeId}.${a.printer}:test`, printer: `${bridgeId}.${a.printer}` }, false);
       if (sent === 'gone') await this.ctx.storage.delete(key);
@@ -764,7 +770,7 @@ export class Bridge extends DurableObject<Env> {
       ? (() => {
           const sub = cleanSubscription(params);
           if (!sub) throw new Error("This browser's push subscription is not valid.");
-          return { ...sub, user: a.user ?? stored?.user, printers: { ...(stored?.printers ?? {}), [a.printer]: prefs } };
+          return { ...sub, user: a.user ?? stored?.user, clock: cleanClock(params?.clock) ?? stored?.clock, printers: { ...(stored?.printers ?? {}), [a.printer]: prefs } };
         })()
       : stored
         ? { ...stored, printers: Object.fromEntries(Object.entries(stored.printers).filter(([id]) => id !== a.printer)) }

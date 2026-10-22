@@ -6,9 +6,9 @@
 // already gets.
 import { create } from 'zustand';
 import { alertText, type AlertPush } from '../device/alert-text';
-import { AlertWatcher, cleanPrefs, defaultPrefs, PICTURE_EVENTS, snapshotOf, wants, watchFor, ENDS_PRINT, type AlertPrefs } from '../device/alerts';
+import { AlertWatcher, cleanPrefs, defaultPrefs, detailsOf, fileFacts, PICTURE_EVENTS, snapshotOf, wants, watchFor, ENDS_PRINT, type AlertPrefs, type FileFacts } from '../device/alerts';
 import { BridgeLink } from '../device/link/bridge';
-import { allowNotifications, pushProblem, pushSubscription, relayPushKey, serviceWorker, type PushProblem } from '../device/push';
+import { allowNotifications, localClock, pushProblem, pushSubscription, relayPushKey, serviceWorker, type PushProblem } from '../device/push';
 import { currentSession, useDevice, type SavedPrinter } from './device';
 
 export type AlertsProblem = PushProblem | 'relay' | 'offline';
@@ -104,7 +104,7 @@ export const useAlerts = create<AlertsState>((set, get) => {
         if (!key) return set({ status: 'off', problem: 'relay' });
         const sub = await pushSubscription(key, false);
         if (!sub || Notification.permission !== 'granted') return mine === seq ? set({ status: 'off' }) : undefined;
-        const { prefs } = await relayCall<{ prefs: unknown }>({ op: 'get', endpoint: sub.endpoint });
+        const { prefs } = await relayCall<{ prefs: unknown }>({ op: 'get', endpoint: sub.endpoint, clock: localClock() });
         if (mine !== seq) return;
         const clean = cleanPrefs(prefs);
         set({ status: clean ? 'on' : 'off', prefs: clean });
@@ -129,7 +129,7 @@ export const useAlerts = create<AlertsState>((set, get) => {
         if (!key) return set({ busy: false, problem: 'relay' });
         const sub = await pushSubscription(key, true);
         if (!sub) throw new Error('This browser did not make a push subscription.');
-        const r = await relayCall<{ prefs: unknown }>({ op: 'set', ...sub, prefs: defaultPrefs() });
+        const r = await relayCall<{ prefs: unknown }>({ op: 'set', ...sub, clock: localClock(), prefs: defaultPrefs() });
         set({ busy: false, status: 'on', prefs: cleanPrefs(r.prefs) });
       } catch (e) {
         fail(e);
@@ -164,7 +164,7 @@ export const useAlerts = create<AlertsState>((set, get) => {
         const key = await relayPushKey(p.relay);
         const sub = key ? await pushSubscription(key, false) : null;
         if (!sub) throw new Error('Turn alerts off and on again on this device.');
-        const r = await relayCall<{ prefs: unknown }>({ op: 'set', ...sub, prefs });
+        const r = await relayCall<{ prefs: unknown }>({ op: 'set', ...sub, clock: localClock(), prefs });
         if (get().printerId === p.id) set({ prefs: cleanPrefs(r.prefs) ?? prefs });
       } catch (e) {
         set({ prefs: before, error: `Could not save: ${(e as Error).message}` });
@@ -206,7 +206,7 @@ async function show(push: AlertPush) {
 // ---- Direct printers: the page watches, while it is open ----
 
 const watchers = new Map<string, AlertWatcher>();
-const estimates = new Map<string, { file: string; seconds: number | null }>();
+const facts = new Map<string, { file: string; facts: FileFacts }>();
 
 async function picture(): Promise<string | undefined> {
   const s = currentSession();
@@ -237,25 +237,28 @@ useDevice.subscribe((d, prev) => {
     watchers.set(p.id, w);
   }
   const file = typeof d.objects.print_stats?.filename === 'string' ? d.objects.print_stats.filename : '';
-  let est = estimates.get(p.id);
+  let est = facts.get(p.id);
   if (!est || est.file !== file) {
-    const fresh = { file, seconds: null as number | null };
+    const fresh = { file, facts: fileFacts(null) };
     est = fresh;
-    estimates.set(p.id, fresh);
+    facts.set(p.id, fresh);
     if (file)
       void currentSession()
         ?.metadata(file)
         .then((m) => {
-          if (typeof m?.estimated_time === 'number') fresh.seconds = m.estimated_time;
+          fresh.facts = fileFacts(m as Record<string, unknown> | null);
         });
   }
-  for (const a of w.update(snapshotOf(d.objects, est.seconds), watchFor([prefs]), Date.now())) {
+  for (const a of w.update(snapshotOf(d.objects, est.facts.estimate), watchFor([prefs]), Date.now())) {
     if (ENDS_PRINT.includes(a.event) && prefs.layer != null) {
       setLocalPrefs(p.id, { ...prefs, layer: null });
       if (useAlerts.getState().printerId === p.id) useAlerts.setState({ prefs: { ...prefs, layer: null } });
     }
     if (!wants(prefs, a)) continue;
-    const push: AlertPush = { ...alertText(a, p.name), tag: `direct.${p.id}:${a.event}`, printer: `direct.${p.id}` };
+    const details = detailsOf(d.objects, est.facts);
+    const err = (a.event === 'paused' || a.event === 'failed' || a.event === 'error') && (d.errors.find((e) => !e.once) ?? d.errors[0]);
+    if (err) details.error = { title: err.title, text: err.text, code: err.code };
+    const push: AlertPush = { ...alertText({ ...a, details }, p.name, undefined, localClock()), tag: `direct.${p.id}:${a.event}`, printer: `direct.${p.id}` };
     void (async () => {
       const image = prefs.pictures && PICTURE_EVENTS.includes(a.event) ? await picture() : undefined;
       await show({ ...push, image }).catch(() => undefined);
