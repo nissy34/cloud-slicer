@@ -5,7 +5,7 @@ import { useEffect, useId, useRef, type ReactNode } from 'react';
  * buttons along the bottom with the main one last. Only ✕, its own buttons and
  * Escape close it, so a stray tap outside never loses what's in it. Built on
  * <dialog>: a window opened over another sits on top and takes Escape first.
- * On a phone it slides up from the bottom (styles.css, "Windows").
+ * A phone gets the same centred window (styles.css, "Windows").
  */
 export function Dialog({
   title,
