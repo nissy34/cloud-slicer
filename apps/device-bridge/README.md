@@ -168,6 +168,10 @@ packet, without re-encoding; any other camera is sent as pictures over a data
 channel, up to 15 a second. Both sides find each other with a public STUN server,
 so it usually works away from home too; where a network blocks direct links the
 page falls back to `bridge.snapshot`, one picture a second over the relay.
+Camera addresses Moonraker lists as paths (`/webcam/...`) are opened the way
+Fluidd and Mainsail open them: on the printer's web server first, then on
+Moonraker's port, with the printer's API key (a web server login in front of a
+camera checks the same key).
 
 **Print alerts** (`alerts.go`, `watch.go`): when the relay says someone wants
 alerts from a printer (`{ctl:"alerts"}`), the bridge keeps its own Moonraker

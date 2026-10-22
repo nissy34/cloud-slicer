@@ -53,14 +53,16 @@ type Session struct {
 	timer   *time.Timer
 	uploads map[string]*upload
 	cameras map[string]*directCamera
-	closed  bool
+	// pictureAt remembers which address answered for each camera picture path.
+	pictureAt map[string]*url.URL
+	closed    bool
 	// log is for details only a developer needs (may be nil).
 	log func(string)
 }
 
 func newSession(id string, p Printer, send func(string), drop func(string)) *Session {
 	ctx, cancel := context.WithCancel(context.Background())
-	return &Session{id: id, printer: p, send: send, drop: drop, ctx: ctx, cancel: cancel, uploads: map[string]*upload{}, cameras: map[string]*directCamera{}}
+	return &Session{id: id, printer: p, send: send, drop: drop, ctx: ctx, cancel: cancel, uploads: map[string]*upload{}, cameras: map[string]*directCamera{}, pictureAt: map[string]*url.URL{}}
 }
 
 // open connects to the printer's Moonraker websocket, then passes its messages on until either end closes.
@@ -270,10 +272,11 @@ func (s *Session) resolve(raw string) (*url.URL, error) {
 	return u, nil
 }
 
-// keyFor is the printer's API key header, for requests to the printer's own host and port only.
+// keyFor is the printer's API key header, for requests to the printer's own
+// host only (any port: its web server checks the same key, as for Fluidd's cameras).
 func (s *Session) keyFor(req *http.Request) {
 	base, _ := url.Parse(s.printer.URL)
-	if s.printer.APIKey != "" && base != nil && req.URL.Host == base.Host {
+	if s.printer.APIKey != "" && base != nil && req.URL.Hostname() == base.Hostname() {
 		req.Header.Set("X-Api-Key", s.printer.APIKey)
 	}
 }
@@ -329,23 +332,52 @@ func (s *Session) snapshot(raw string) (any, error) {
 	return map[string]any{"contentType": ct, "data": base64.StdEncoding.EncodeToString(buf)}, nil
 }
 
+// cameraAddresses is where a camera path from Moonraker's webcam list may be
+// fetched, best first, on the printer's own host only. A relative path belongs
+// to the web server Fluidd and Mainsail are served from (they open it next to
+// their own page), so that comes first; Moonraker's port is tried after it.
+func (s *Session) cameraAddresses(raw string) ([]*url.URL, error) {
+	first, err := s.resolve(raw)
+	if err != nil {
+		return nil, err
+	}
+	ref, err := url.Parse(raw)
+	if err != nil || ref.IsAbs() {
+		return []*url.URL{first}, nil
+	}
+	web, err := s.resolve((&url.URL{Scheme: first.Scheme, Host: first.Hostname()}).ResolveReference(ref).String())
+	if err != nil || web.String() == first.String() {
+		return []*url.URL{first}, nil
+	}
+	return []*url.URL{web, first}, nil
+}
+
 // frame is one camera picture from the printer's own host.
 func (s *Session) frame(raw string) ([]byte, string, error) {
-	first, err := s.resolve(raw)
+	tries, err := s.cameraAddresses(raw)
 	if err != nil {
 		return nil, "", err
 	}
-	tries := []*url.URL{first}
-	if ref, err := url.Parse(raw); err == nil && !ref.IsAbs() {
-		// A relative webcam path may belong to the web server on port 80 instead of Moonraker's port.
-		if web, err := s.resolve((&url.URL{Scheme: "http", Host: first.Hostname()}).ResolveReference(ref).String()); err == nil && web.String() != first.String() {
-			tries = append(tries, web)
-		}
+	// Pictures come many times a second: start with the address that answered last time.
+	s.mu.Lock()
+	if known := s.pictureAt[raw]; known != nil {
+		tries = append([]*url.URL{known}, tries...)
 	}
+	s.mu.Unlock()
 	var last error
-	for _, u := range tries {
+	for i, u := range tries {
+		if i > 0 && u.String() == tries[0].String() {
+			continue
+		}
 		buf, ct, err := s.fetchBytes(u)
 		if err == nil {
+			s.mu.Lock()
+			if s.pictureAt == nil {
+				// Sessions made just for one picture (print alerts) start without it.
+				s.pictureAt = map[string]*url.URL{}
+			}
+			s.pictureAt[raw] = u
+			s.mu.Unlock()
 			return buf, ct, nil
 		}
 		last = err
