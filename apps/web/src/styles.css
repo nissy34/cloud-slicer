@@ -2945,6 +2945,22 @@ select:focus-visible {
   gap: 16px;
   justify-content: center;
 }
+.dv-jog-group {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+.dv-jog-label {
+  font-size: 11px;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+.dv-jog .dv-arrow {
+  font-size: 18px;
+  line-height: 1;
+}
 .dv-jog-xy {
   display: grid;
   grid-template-columns: repeat(3, 48px);

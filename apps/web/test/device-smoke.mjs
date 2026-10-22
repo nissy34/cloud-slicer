@@ -189,6 +189,23 @@ try {
   await until('bed target 60', () => u1.state.heater_bed.target === 60);
   console.log('light and bed heater work');
 
+  // Move arrows say what physically moves. On the U1 the bed moves up and down, so "Bed up" closes the gap (Z−).
+  {
+    const motion = page.getByTestId('motion-card');
+    await motion.getByRole('button', { name: 'Home all' }).click();
+    await until('U1 homed', () => u1.state.toolhead.homed_axes === 'xyz');
+    if ((await motion.getByText('Bed', { exact: true }).count()) !== 1) throw new Error('U1 Move card does not label the height arrows "Bed"');
+    await motion.getByRole('button', { name: 'Bed up' }).click();
+    await until('bed up sends Z-', () => u1.scripts.includes('G1 Z-10 F600'));
+    await motion.getByRole('button', { name: 'Bed down' }).click();
+    await until('bed down sends Z+', () => u1.scripts.includes('G1 Z10 F600'));
+    await motion.getByRole('button', { name: 'Head toward you' }).click();
+    await until('head toward you sends Y-', () => u1.scripts.includes('G1 Y-10 F6000'));
+    await motion.getByRole('button', { name: 'Head to the back' }).click();
+    await until('head to the back sends Y+', () => u1.scripts.includes('G1 Y10 F6000'));
+    console.log('U1 move arrows: bed up/down and head front/back send the right moves');
+  }
+
   await page.getByTestId('camera-frame').waitFor({ timeout: 20_000 });
   // The camera comes straight from the bridge (pictures over a direct WebRTC link), not one frame a second over the relay.
   await page.locator('[data-testid="camera-frame"][data-view="direct-pictures"]').waitFor({ timeout: 20_000 });
@@ -416,8 +433,11 @@ try {
   await page.getByTestId('camera-card').getByRole('button', { name: 'Done' }).click();
   await page.getByRole('button', { name: 'Home all' }).click();
   await until('homed', () => voron.state.toolhead.homed_axes === 'xyz');
-  await page.getByRole('button', { name: 'X plus' }).click();
+  await page.getByRole('button', { name: 'Head right' }).click();
   await until('jogged', () => voron.scripts.includes('G1 X10 F6000'));
+  // Printers where the head moves up and down keep "Head up" = Z+.
+  await page.getByRole('button', { name: 'Head up' }).click();
+  await until('head up sends Z+', () => voron.scripts.includes('G1 Z10 F600'));
   console.log('direct generic printer: connected, both cameras live (player page + MJPEG), camera choice saved, home and jog work');
 
   const filesCard = page.getByTestId('files-card');

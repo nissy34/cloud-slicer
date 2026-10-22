@@ -15,6 +15,7 @@ export const u1Addon: PrinterAddon = {
   id: 'u1',
   model: 'Snapmaker U1',
   detect: (f) => f.objects.includes('print_task_config'),
+  bedMovesInZ: true,
   objects: (f) =>
     f.objects.filter(
       (n) => ['print_task_config', 'purifier', 'machine_state_manager', 'filament_detect', U1_LIGHT].includes(n) || n.startsWith('filament_feed '),
