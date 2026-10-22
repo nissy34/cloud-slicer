@@ -4,6 +4,9 @@ import { Dialog } from '../../components/Dialog';
 /** Set by the Device tab's layout around each card: folding a card leaves only its title. */
 export const SlotContext = createContext<{ folded: boolean; toggleFold(): void } | null>(null);
 
+/** True while this card is folded; a folded card's own streams and polling stop. */
+export const useFolded = () => useContext(SlotContext)?.folded ?? false;
+
 export function Card({ title, actions, className, children, testId }: { title: string; actions?: ReactNode; className?: string; children: ReactNode; testId?: string }) {
   const slot = useContext(SlotContext);
   const folded = slot?.folded ?? false;

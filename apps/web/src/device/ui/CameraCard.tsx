@@ -6,7 +6,7 @@ import type { CameraHints } from '../addons/types';
 import type { PrinterSession } from '../session';
 import { playWebrtc } from '../webrtc';
 import { playDirect, type DirectBridge } from '../direct-camera';
-import { Card } from './parts';
+import { Card, useFolded } from './parts';
 
 /**
  * A camera's own player page can only be framed by this cross-origin isolated
@@ -46,7 +46,7 @@ const builtinCamera = (hint: CameraHints): Webcam => ({
  * Every camera Moonraker lists, each as a live stream when it has one
  * (MJPEG, WebRTC or its own player page) and as snapshots otherwise. A
  * printer with no [webcam] sections falls back to its add-on's built-in
- * camera. Nothing streams while the card is off or the page is hidden.
+ * camera. Nothing streams while the card is folded or the page is hidden.
  *
  * `card` is which camera card this is: the main one ('camera') shows every camera not put in an extra
  * camera card and not hidden; an extra one shows the cameras put in it (`home`, chosen with Choose).
@@ -64,7 +64,7 @@ export function CameraCard({
   const addons = useDevice((s) => s.addons);
   const facts = useDevice((s) => s.facts);
   const visible = usePageVisible();
-  const [on, setOn] = useState(true);
+  const folded = useFolded();
   const [choosing, setChoosing] = useState(false);
   const hidden = useDevice((s) => s.printers.find((p) => p.id === s.activeId)?.hiddenCameras ?? NONE);
   const [cams, setCams] = useState<Webcam[] | null>(null);
@@ -90,7 +90,7 @@ export function CameraCard({
     };
   }, [online, facts, addons]);
 
-  const active = on && visible && online && !!session;
+  const active = !folded && visible && online && !!session;
   const main = card === 'camera';
   const here = (c: Webcam) => cameraCardOf({ cameraHome: home }, c.name) === card;
   const shown = cams?.filter((c) => here(c) && !(main && hidden.includes(c.name))) ?? null;
@@ -118,9 +118,6 @@ export function CameraCard({
               {choosing ? 'Done' : 'Choose'}
             </button>
           )}
-          <button className="dv-link" onClick={() => setOn(!on)}>
-            {on ? 'Turn off' : 'Turn on'}
-          </button>
         </>
       }
     >
@@ -136,12 +133,10 @@ export function CameraCard({
           ))}
         </fieldset>
       )}
-      {!on || !online || !session || !shown || shown.length === 0 ? (
+      {!online || !session || !shown || shown.length === 0 ? (
         <div className="dv-camera">
           <span className="muted">
-            {!on
-              ? 'Camera off'
-              : !online
+            {!online
                 ? 'Not connected'
                 : !shown
                   ? 'Looking for cameras…'

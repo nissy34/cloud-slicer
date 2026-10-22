@@ -4,7 +4,7 @@ import type { Webcam } from '../camera';
 import { cameraCardOf, type CamCardId } from '../layout';
 import type { PrinterLink } from '../link/types';
 import { PageLimit, pageCarrier, pagePath, type PageRoute } from '../printer-page';
-import { Card } from './parts';
+import { Card, useFolded } from './parts';
 
 /** True when this link can open a camera's page through the bridge. */
 export function canOpenPages(link: PrinterLink): boolean {
@@ -98,11 +98,11 @@ export function PageCard({ card, home, onPick }: { card: CamCardId; home: Record
   const online = useDevice((s) => s.conn.state === 'online');
   const facts = useDevice((s) => s.facts);
   const visible = useTabVisible();
-  const [on, setOn] = useState(true);
+  const folded = useFolded();
   const [choosing, setChoosing] = useState(false);
   const [pages, setPages] = useState<Webcam[] | null>(null);
   const [error, setError] = useState('');
-  // A new try (after the relay's data limit, or turning the card back on) starts a fresh page.
+  // A new try (after the relay's data limit) starts a fresh page.
   const [round, setRound] = useState(0);
   const session = currentSession();
 
@@ -126,7 +126,7 @@ export function PageCard({ card, home, onPick }: { card: CamCardId; home: Record
   const link = session?.link;
   const viaBridge = !!link && link.mediaUrl('/') === null;
   const direct = cam && link && !viaBridge ? link.mediaUrl(cam.streamUrl) : null;
-  const running = on && visible && online && !!cam && !error;
+  const running = !folded && visible && online && !!cam && !error;
 
   return (
     <Card
@@ -138,11 +138,6 @@ export function PageCard({ card, home, onPick }: { card: CamCardId; home: Record
           {pages && pages.length > 0 && (cam ? pages.length > 1 : true) && (
             <button className="dv-link" onClick={() => setChoosing(!choosing)} aria-expanded={choosing}>
               {choosing ? 'Done' : 'Choose'}
-            </button>
-          )}
-          {cam && (
-            <button className="dv-link" onClick={() => setOn(!on)}>
-              {on ? 'Turn off' : 'Turn on'}
             </button>
           )}
         </>
@@ -185,9 +180,7 @@ export function PageCard({ card, home, onPick }: { card: CamCardId; home: Record
                   ? 'This printer has no page set up in Moonraker. A page is a camera with the "iframe" service, such as a printer screen.'
                   : !cam
                     ? 'Pick the page to show here.'
-                    : !on
-                      ? 'Page off'
-                      : error
+                    : error
                         ? error
                         : 'Paused'}
           </span>
