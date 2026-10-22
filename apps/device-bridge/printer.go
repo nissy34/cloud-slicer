@@ -252,7 +252,7 @@ func printerInstall(given string) (printerPlan, bool) {
 
 // installOnPrinter copies this program into printer_data, adds the printer's own
 // Moonraker, sets up the service and starts it. It needs root (for the service).
-func installOnPrinter(given, relay string) (printerPlan, *Config, error) {
+func installOnPrinter(given, relay, code string) (printerPlan, *Config, error) {
 	dataDir, err := findPrinterData(given)
 	if err != nil {
 		return printerPlan{}, nil, err
@@ -262,6 +262,8 @@ func installOnPrinter(given, relay string) (printerPlan, *Config, error) {
 	if os.Geteuid() != 0 {
 		return p, nil, errors.New("Installing on the printer needs root: run it with sudo (the install line does this for you).")
 	}
+	_, statErr := os.Stat(p.dir)
+	fresh := os.IsNotExist(statErr)
 	if err := os.MkdirAll(p.dir, 0o755); err != nil {
 		return p, nil, err
 	}
@@ -273,6 +275,13 @@ func installOnPrinter(given, relay string) (printerPlan, *Config, error) {
 	}
 	cfg, err := loadConfig(p.config, relay)
 	if err != nil {
+		return p, nil, err
+	}
+	// It joins the account first: a setup code that doesn't work installs nothing.
+	if err := joinAccount(cfg, code, "printer"); err != nil {
+		if fresh {
+			_ = os.RemoveAll(p.dir)
+		}
 		return p, nil, err
 	}
 	// The printer it runs on, unless it is there already.
@@ -294,9 +303,9 @@ func installOnPrinter(given, relay string) (printerPlan, *Config, error) {
 		var pe *probeError
 		if errors.As(err, &pe) && pe.needsKey {
 			// Moonraker locked with an API key (the Snapmaker U1 is): not needed here.
-			fmt.Println("This printer's Moonraker asks for an API key. That's fine: once the bridge is paired, add the printer in the Device tab and type the key there.")
+			fmt.Println("This printer's Moonraker asks for an API key. That's fine: add the printer in the Device tab and type the key there.")
 		} else {
-			fmt.Println("Moonraker didn't answer at 127.0.0.1:7125 (" + err.Error() + "). Add the printer from the Device tab once the bridge is paired.")
+			fmt.Println("Moonraker didn't answer at 127.0.0.1:7125 (" + err.Error() + "). Add the printer from the Device tab.")
 		}
 	}
 	if err := cfg.save(); err != nil {
@@ -313,6 +322,14 @@ func installOnPrinter(given, relay string) (printerPlan, *Config, error) {
 	}
 	if err := os.WriteFile(filepath.Join(p.dir, printerMarker), []byte(string(p.kind)+"\n"), 0o644); err != nil {
 		return p, nil, err
+	}
+	if cfg.Claimed {
+		// In an account: there is no pairing link to keep.
+		_ = os.Remove(p.pairing)
+		if err := runSteps(p.enable); err != nil {
+			return p, cfg, err
+		}
+		return p, cfg, nil
 	}
 	link := pairingLink(cfg, "")
 	_ = os.WriteFile(p.pairing, []byte("To use this printer from Cloud Slicer, open this link on your phone or computer:\n\n"+link+

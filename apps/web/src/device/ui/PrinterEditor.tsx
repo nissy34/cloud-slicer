@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { installedOnly, installedPrinters, SETUP_KEY, type Setup } from '../../lib/setup';
-import { useUserSetting } from '../../state/account';
+import { useAccount, useUserSetting } from '../../state/account';
 import { bridgeLabel, useDevice, type SavedPrinter } from '../../state/device';
 import { useSlicer } from '../../state/store';
 import { DEFAULT_RELAY_URL } from '../config';
@@ -8,7 +8,7 @@ import { BridgeLink } from '../link/bridge';
 import { DirectLink, directBlockedReason, normalizePrinterUrl } from '../link/direct';
 import type { BridgeStatus } from '../link/types';
 import { decodePairing, type Pairing } from '../pairing';
-import { BridgeSetup, CopyCommand } from './BridgeSetup';
+import { AddBridge, BridgeSetup, CopyCommand, SignInForBridge } from './BridgeSetup';
 import { Dialog } from './parts';
 
 const newId = () => Math.random().toString(36).slice(2, 10);
@@ -512,7 +512,8 @@ function BridgeAddList({
  * seconds through the relay, so "connecting" is shown plainly until it answers;
  * a problem only shows once it has stayed away a while, and it keeps trying.
  */
-function BridgeState({ bridge, problem, onDifferent }: { bridge: BridgeStatus | null; problem: string; onDifferent?: () => void }) {
+/** `joined`: the name of a bridge that has just joined the account with a setup code. */
+function BridgeState({ bridge, problem, joined, onDifferent }: { bridge: BridgeStatus | null; problem: string; joined?: string; onDifferent?: () => void }) {
   const online = bridge?.agent === 'online';
   const state = online ? 'online' : problem ? 'failed' : 'connecting';
   const different = onDifferent && (
@@ -540,7 +541,13 @@ function BridgeState({ bridge, problem, onDifferent }: { bridge: BridgeStatus | 
             <span className="muted">This takes a few seconds, longer if the bridge has only just started.</span>
           </>
         )}
-        {state === 'online' && (
+        {state === 'online' && joined && (
+          <>
+            <strong>{joined} connected</strong>
+            <span className="muted">It's in your account and starts with that computer.</span>
+          </>
+        )}
+        {state === 'online' && !joined && (
           <>
             <strong>Connected to the bridge</strong>
             {bridgeLabel(bridge) !== 'Bridge' && <span className="muted">{bridgeLabel(bridge)}</span>}
@@ -582,6 +589,11 @@ export function PrinterEditor() {
   const pairingFromLink = useDevice((s) => s.pairing);
   const { savePrinter, removePrinter, openEditor } = useDevice.getState();
   const existing = editor?.mode === 'edit' ? editor.printer : undefined;
+  const newBridge = editor?.mode === 'add' && !!editor.newBridge;
+  // Signed in, a new bridge joins the account with a setup code; without accounts (local dev), with a pairing link.
+  const accountStatus = useAccount((s) => s.status);
+  const [joined, setJoined] = useState('');
+  const [wantNew, setWantNew] = useState(newBridge);
   // Settings made elsewhere on the Device tab survive an edit.
   const keep = existing?.hiddenCameras?.length ? { hiddenCameras: existing.hiddenCameras } : {};
   const [kind, setKind] = useState<'bridge' | 'direct'>(existing?.kind ?? 'bridge');
@@ -719,7 +731,7 @@ export function PrinterEditor() {
   }
   return (
     <Dialog
-      title={existing ? `Edit ${existing.name}` : 'Add a printer'}
+      title={existing ? `Edit ${existing.name}` : newBridge ? 'Add a bridge' : 'Add a printer'}
       onClose={close}
       wide
       footer={
@@ -757,7 +769,7 @@ export function PrinterEditor() {
         </>
       }
     >
-      {!existing && (
+      {!existing && !newBridge && (
         <div className="dv-segmented" role="tablist" aria-label="How to reach the printer">
           <button role="tab" aria-selected={kind === 'bridge'} className={kind === 'bridge' ? 'on' : ''} onClick={() => setKind('bridge')}>
             At home (recommended)
@@ -770,7 +782,7 @@ export function PrinterEditor() {
 
       {kind === 'bridge' ? (
         <div className="dv-form">
-          {!pairing && !existing && savedBridges.length > 0 && (
+          {!pairing && !existing && !newBridge && savedBridges.length > 0 && (
             <div className="dv-use-bridge" data-testid="use-saved-bridge">
               <strong>Add it through a bridge you already have</strong>
               {savedBridges.map((b) => (
@@ -788,10 +800,28 @@ export function PrinterEditor() {
                   Use {b.name}
                 </button>
               ))}
-              <span className="muted">Or set up a new bridge on another computer:</span>
+              {accountStatus === 'unavailable' ? (
+                <span className="muted">Or set up a new bridge on another computer:</span>
+              ) : (
+                !wantNew && (
+                  <button className="dv-link" onClick={() => setWantNew(true)} data-testid="new-bridge">
+                    Or set up a new bridge
+                  </button>
+                )
+              )}
             </div>
           )}
-          {!pairing && (
+          {!pairing && accountStatus !== 'unavailable' && accountStatus !== 'signedIn' && <SignInForBridge />}
+          {!pairing && accountStatus === 'signedIn' && (wantNew || savedBridges.length === 0) && (
+            <AddBridge
+              relay={relayForCommand}
+              onJoined={(p, n) => {
+                setJoined(n);
+                setPairing(p);
+              }}
+            />
+          )}
+          {!pairing && accountStatus === 'unavailable' && (
             <BridgeSetup
               relay={relayForCommand}
               pasteLink={
@@ -819,8 +849,9 @@ export function PrinterEditor() {
               <BridgeState
                 bridge={bridge}
                 problem={bridgeProblem}
+                joined={joined}
                 onDifferent={
-                  existing
+                  existing || joined
                     ? undefined
                     : () => {
                         setPairing(null);
@@ -828,6 +859,7 @@ export function PrinterEditor() {
                         setBridgeProblem('');
                         setRows([]);
                         setCode('');
+                        setJoined('');
                       }
                 }
               />
