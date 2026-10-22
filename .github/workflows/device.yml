@@ -255,7 +255,8 @@ jobs:
           rc=0; timeout 90 powershell -NoProfile -ExecutionPolicy Bypass -Command "Get-Content -Raw '$RUNNER_TEMP/install.ps1' | Invoke-Expression; exit "'$LASTEXITCODE' || rc=$?
           if [ "$rc" = 124 ]; then echo "The PowerShell line never finished"; exit 1; fi
           if [ "$rc" != 0 ]; then echo "The PowerShell line failed ($rc)"; exit 1; fi
-          tasklist //FI 'IMAGENAME eq cloud-slicer-bridge.exe' | grep cloud-slicer-bridge
+          for i in $(seq 1 20); do tasklist //FI 'IMAGENAME eq cloud-slicer-bridge.exe' | grep -q cloud-slicer-bridge && break; sleep 1; done
+          tasklist //FI 'IMAGENAME eq cloud-slicer-bridge.exe' | grep cloud-slicer-bridge || { echo "The bridge isn't running after the PowerShell line"; exit 1; }
           "$LOCALAPPDATA/Cloud Slicer Bridge/cloud-slicer-bridge.exe" uninstall
       - uses: actions/upload-artifact@v6
         with:
