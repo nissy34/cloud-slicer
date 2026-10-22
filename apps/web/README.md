@@ -80,6 +80,7 @@ node test/brands.mjs     # every printer brand, loaded per brand, can-send marks
 node test/bed.mjs        # each printer's own bed shape and picture in the 3D view
 node test/filament-count.mjs  # 8 filaments on an X1 Carbon and on the U1, in both engines
 node test/device-smoke.mjs  # browser -> local relay -> bridge -> mock U1, and direct
+node test/device-klipper.mjs  # real Klipper in Docker: (cd test/device/printers && docker compose up -d --wait) first
 ```
 
 `SMOKE_URL=https://… node test/smoke.mjs` runs the smoke test against a deployed site.

@@ -52,6 +52,14 @@ describe('G-code metadata', () => {
       { index: 1, colour: '#00FF00', material: 'PETG', grams: 2 },
     ]);
   });
+
+  it('reads the materials of a multi-colour file as Moonraker sends them', () => {
+    // Moonraker turns "PLA;PETG" into a JSON list in a string (seen on a real Moonraker, test/device-klipper.mjs).
+    const materials = (filament_type: unknown) => metaFromMoonraker({ filament_colors: ['#FF0000', '#00FF00'], filament_type }).filaments.map((f) => f.material);
+    expect(materials('["PLA", "PETG"]')).toEqual(['PLA', 'PETG']);
+    expect(materials(['PLA', 'PETG'])).toEqual(['PLA', 'PETG']);
+    expect(materials('PLA;PETG')).toEqual(['PLA', 'PETG']);
+  });
 });
 
 describe('connections', () => {

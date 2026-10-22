@@ -1,0 +1,55 @@
+# Pretend printers: real Klipper and Moonraker on a simulated control board
+# (image by Pedro Lamas, the Fluidd maintainer, rebuilt from upstream Klipper).
+# Nothing here touches a real printer.
+#
+#   docker compose up -d --wait      # start all three (first time downloads ~400 MB)
+#   docker compose down              # stop and forget them
+#
+# Then add a printer in the Device tab: http://127.0.0.1:7131 (one head),
+# :7132 (two heads, two cameras) or :7134 (four heads, no camera).
+# More in README.md.
+
+x-printer: &printer
+  image: ei99070/docker-klipper-simulavr:latest
+  # The simulated board runs its clock at a tenth of a real one, steadily: run
+  # flat out instead ("0.0") it speeds up and slows down with the computer's
+  # load, and Klipper shuts down with "Timer too close".
+  environment:
+    SIMULAVR_PACING_RATE: "0.1"
+  healthcheck:
+    test: ["CMD", "sh", "-c", "curl -fs localhost:7125/printer/info | grep -q '\"state\":\"ready\"'"]
+    interval: 3s
+    timeout: 3s
+    retries: 40
+    start_period: 5s
+
+services:
+  one-head:
+    <<: *printer
+    hostname: one-head
+    ports: ["7131:7125", "8131:8080"]
+    volumes:
+      - ./one-head/printer.cfg:/printer/printer_data/config/printer.cfg:ro
+      - ./one-head/moonraker.conf:/printer/printer_data/config/moonraker.conf:ro
+      - ./common.cfg:/printer/printer_data/config/common.cfg:ro
+      - ./sim_temperature.py:/printer/klipper/klippy/extras/sim_temperature.py:ro
+
+  two-heads:
+    <<: *printer
+    hostname: two-heads
+    ports: ["7132:7125", "8132:8080"]
+    volumes:
+      - ./two-heads/printer.cfg:/printer/printer_data/config/printer.cfg:ro
+      - ./two-heads/moonraker.conf:/printer/printer_data/config/moonraker.conf:ro
+      - ./common.cfg:/printer/printer_data/config/common.cfg:ro
+      - ./sim_temperature.py:/printer/klipper/klippy/extras/sim_temperature.py:ro
+
+  four-heads:
+    <<: *printer
+    hostname: four-heads
+    ports: ["7134:7125"]
+    volumes:
+      - ./four-heads/printer.cfg:/printer/printer_data/config/printer.cfg:ro
+      - ./four-heads/moonraker.conf:/printer/printer_data/config/moonraker.conf:ro
+      - ./common.cfg:/printer/printer_data/config/common.cfg:ro
+      - ./sim_temperature.py:/printer/klipper/klippy/extras/sim_temperature.py:ro

@@ -108,6 +108,11 @@ Runs when the Device tab, the bridge, the relay, or shared top-bar files change.
   the mock U1 through a local relay (`relay-live.mjs`). The Windows app is checked on a
   Windows runner (install starts it at sign-in with no window, uninstall removes it all)
   and the Mac apps are built on a macOS runner (to ad-hoc sign `Cloud Slicer Bridge.app`).
+- Job "Real Klipper printers": three pretend printers in Docker (real Klipper and Moonraker
+  on a simulated board, `apps/web/test/device/printers`) and `apps/web/test/device-klipper.mjs`
+  driving the Device tab against them, directly and through the bridge. Its screenshots are
+  the `klipper-screenshots` artifact; on failure the printers' Klipper and Moonraker logs
+  are in the "Printer logs" step. The relay deploy on `main` waits for it too.
 - On `main` only: deploys the relay Worker (one shared Worker, so a PR must never
   deploy it), gathers the bridge apps from all three runners and uploads them to the R2 bucket
   `cloud-slicer-bridge`, then checks the live relay end to end with the Linux bridge
