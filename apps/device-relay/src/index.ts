@@ -436,6 +436,8 @@ interface ClientAttachment {
 interface BridgeInfo {
   printers: { id: string; name: string }[];
   version: string;
+  /** How many commits changed the bridge: the 42 in version 6.42. */
+  change?: string;
   /** When the bridge was built (the commit's Unix time); "0" for a build that doesn't update itself. */
   build?: string;
   /** 'printer' when the bridge runs on the printer's own Klipper computer. */
@@ -463,7 +465,7 @@ export class Bridge extends DurableObject<Env> {
   }
 
   private statusMessage(info: BridgeInfo, online: boolean) {
-    return JSON.stringify({ jsonrpc: '2.0', method: 'notify_bridge_status', params: [{ agent: online ? 'online' : 'offline', printers: info.printers, version: info.version, build: info.build, place: info.place, system: info.system, host: info.host }] });
+    return JSON.stringify({ jsonrpc: '2.0', method: 'notify_bridge_status', params: [{ agent: online ? 'online' : 'offline', printers: info.printers, version: info.version, change: info.change, build: info.build, place: info.place, system: info.system, host: info.host }] });
   }
 
   private async broadcastStatus(online: boolean) {
@@ -571,7 +573,7 @@ export class Bridge extends DurableObject<Env> {
     const tags = this.ctx.getTags(ws);
 
     if (tags.includes('agent')) {
-      let msg: { ctl?: string; c?: string; m?: string; reason?: string; printers?: unknown; version?: unknown; build?: unknown; place?: unknown; system?: unknown; host?: unknown };
+      let msg: { ctl?: string; c?: string; m?: string; reason?: string; printers?: unknown; version?: unknown; change?: unknown; build?: unknown; place?: unknown; system?: unknown; host?: unknown };
       try {
         msg = JSON.parse(message);
       } catch {
@@ -583,7 +585,7 @@ export class Bridge extends DurableObject<Env> {
           .map((p: { id?: unknown; name?: unknown }) => ({ id: String(p.id ?? '').slice(0, 64), name: String(p.name ?? '').slice(0, 80) }));
         const system = ['win32', 'darwin', 'linux'].includes(String(msg.system)) ? String(msg.system) : undefined;
         const host = typeof msg.host === 'string' ? msg.host.replace(/[^\w .'-]/g, '').slice(0, 64) || undefined : undefined;
-        await this.ctx.storage.put('info', { printers, version: String(msg.version ?? ''), build: /^\d{1,12}$/.test(String(msg.build)) ? String(msg.build) : undefined, place: msg.place === 'printer' ? 'printer' : undefined, system, host } satisfies BridgeInfo);
+        await this.ctx.storage.put('info', { printers, version: String(msg.version ?? ''), change: /^\d{1,9}$/.test(String(msg.change)) ? String(msg.change) : undefined, build: /^\d{1,12}$/.test(String(msg.build)) ? String(msg.build) : undefined, place: msg.place === 'printer' ? 'printer' : undefined, system, host } satisfies BridgeInfo);
         await this.broadcastStatus(true);
         await this.sendAlertConfig();
         // Browsers that were waiting for the agent get their sessions now.
