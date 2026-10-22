@@ -59,6 +59,9 @@ the bridge. CI runs it in the "Device" workflow, job "Real Klipper printers".
   processor core busy), and the motors use no microsteps so Klipper keeps up.
   Slowed down on purpose (`SIMULAVR_PACING_RATE`), it can get too slow for
   Klipper to connect ("Timeout on connect").
+- Klipper gives a board 5 seconds to send its list of commands when it
+  connects; a simulated board on a slow computer can need longer, so
+  `docker-compose.yml` raises that to 60 seconds when each printer starts.
 - `FIRMWARE_RESTART` hangs the simulated board; use `RESTART`, or
   `docker compose restart`.
 

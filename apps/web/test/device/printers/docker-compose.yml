@@ -17,6 +17,15 @@ x-printer: &printer
   # Klipper keeps up even when the board's speed varies.
   environment:
     SIMULAVR_PACING_RATE: "0.0"
+  # Klipper gives a board 5 s to send its list of commands when it connects. A
+  # simulated board on a slow computer (some CI machines) needs longer, and
+  # Klipper then retries forever ("Timeout on connect"): allow 60 s.
+  entrypoint:
+    - sh
+    - -c
+    - sed -i 's/identify_data = completion.wait(self.reactor.monotonic() + 5.)/identify_data = completion.wait(self.reactor.monotonic() + 60.)/' /printer/klipper/klippy/serialhdl.py && exec /docker-entrypoint.sh "$$@"
+    - sh
+  command: ["/usr/bin/supervisord", "-n"]
   healthcheck:
     test: ["CMD", "sh", "-c", "curl -fs localhost:7125/printer/info | grep -q '\"state\":\"ready\"'"]
     interval: 3s
