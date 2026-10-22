@@ -127,7 +127,7 @@ export function CameraCard() {
           </span>
         </div>
       ) : (
-        <div className={`dv-cameras${shown.length > 1 ? ' dv-cameras-many' : ''}`} style={{ '--small-cameras': shown.length - 1 } as CSSProperties}>
+        <div className={`dv-cameras${shown.length > 1 ? ' dv-cameras-many' : ''}`} style={{ '--small-cameras': Math.max(2, shown.length - 1) } as CSSProperties}>
           {shown.map((cam) => (
             <CameraTile
               key={cam.id}

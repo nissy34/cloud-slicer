@@ -2716,7 +2716,8 @@ select:focus-visible {
   display: grid;
   gap: 8px;
 }
-/* Several cameras: one big, the others small in a column beside it; tap a small one to swap. */
+/* Several cameras: one big, the others small in a column beside it; tap a small one to swap.
+   The column has at least two rows, so a lone small camera keeps the size it has among three. */
 .dv-cameras-many {
   grid-template-columns: minmax(0, 1fr) 28%;
   grid-template-rows: repeat(var(--small-cameras, 1), minmax(0, 1fr));
