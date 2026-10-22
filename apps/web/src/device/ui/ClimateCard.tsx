@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
 import { useDevice } from '../../state/device';
+import { takesCommands } from '../addons';
 import { purifierGcode, U1_LIGHT, u1Fans, u1LightGcode, u1Purifier } from '../addons/u1';
 import { fanGcode, lightGcode, setHeaterGcode } from '../commands';
 import { fans, heaters, lights, motion, sensors } from '../status';
@@ -11,6 +12,7 @@ export function ClimateCard() {
   const objects = useDevice((s) => s.objects);
   const addons = useDevice((s) => s.addons);
   const run = useDevice((s) => s.run);
+  const commands = takesCommands(addons);
   const isU1 = addons.some((a) => a.id === 'u1');
   const hs = useMemo(() => heaters(objects).filter((h) => h.kind !== 'nozzle'), [objects]);
   const ss = useMemo(() => sensors(objects), [objects]);
@@ -24,7 +26,7 @@ export function ClimateCard() {
         {hs.map((h) => (
           <li key={h.name}>
             <span>{h.label}</span>
-            <Temperature label={h.label} temp={h.temp} target={h.target} max={h.max} onSet={(t) => void run(setHeaterGcode(h.name, t, h.max))} />
+            <Temperature label={h.label} temp={h.temp} target={h.target} max={h.max} onSet={(t) => void run(setHeaterGcode(h.name, t, h.max))} disabled={!commands} />
           </li>
         ))}
         {ss.map((s) => (
@@ -56,7 +58,7 @@ export function ClimateCard() {
         open={open}
         setOpen={setOpen}
         items={[
-          ...fs.map((f) => ({ id: f.name, label: f.label, speed: f.speed, set: f.settable ? (v: number) => void run(fanGcode(f.name, v)) : null })),
+          ...fs.map((f) => ({ id: f.name, label: f.label, speed: f.speed, set: f.settable && commands ? (v: number) => void run(fanGcode(f.name, v)) : null })),
           ...(purifier
             ? [
                 { id: 'purifier-exhaust', label: 'Purifier exhaust', speed: purifier.exhaust ?? 0, set: (v: number) => void run(purifierGcode('exhaust', v)) },

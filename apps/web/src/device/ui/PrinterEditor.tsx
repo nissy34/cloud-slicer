@@ -3,6 +3,7 @@ import { installedOnly, installedPrinters, SETUP_KEY, type Setup } from '../../l
 import { useAccount, useUserSetting } from '../../state/account';
 import { bridgeLabel, useDevice, type SavedPrinter } from '../../state/device';
 import { useSlicer } from '../../state/store';
+import { kindWords, WORKS_WITH } from '../brands';
 import { DEFAULT_RELAY_URL } from '../config';
 import { BridgeLink } from '../link/bridge';
 import { DirectLink, directBlockedReason, normalizePrinterUrl } from '../link/direct';
@@ -120,6 +121,8 @@ interface FoundPrinter {
   needsKey: boolean;
   /** The bridge's id for it when it's already added. */
   added: string | null;
+  /** "" for Klipper, else what the bridge stands in for, like "prusalink" (brands.ts). */
+  kind?: string;
 }
 
 /** One printer the bridge found: add it, with its API key when Moonraker wants one. */
@@ -132,13 +135,14 @@ function FoundRow({ printer, watch, onAdded }: { printer: FoundPrinter; watch: B
     setBusy(true);
     setProblem('');
     try {
-      onAdded(await watch.manage<{ id: string; name: string }>('bridge.add_printer', { address: printer.url, apiKey: apiKey.trim() }));
+      onAdded(await watch.manage<{ id: string; name: string }>('bridge.add_printer', { address: printer.url, apiKey: apiKey.trim(), kind: printer.kind ?? '' }));
     } catch (e) {
       setProblem((e as Error).message);
     } finally {
       setBusy(false);
     }
   };
+  const words = kindWords(printer.kind);
   const host = printer.url.replace(/^https?:\/\//, '');
   return (
     <li className="dv-found" data-testid="found-printer" data-url={printer.url}>
@@ -151,6 +155,7 @@ function FoundRow({ printer, watch, onAdded }: { printer: FoundPrinter; watch: B
               <strong>{printer.name}</strong> <span className="muted">{host}</span>
             </>
           )}
+          {words.tag && <span className="dv-kind">{words.tag}</span>}
         </span>
         {printer.added ? (
           <span className="dv-added">✓ Added</span>
@@ -162,8 +167,10 @@ function FoundRow({ printer, watch, onAdded }: { printer: FoundPrinter; watch: B
       </div>
       {!printer.added && printer.needsKey && (
         <label>
-          <span className="muted">This printer is locked with an API key. Type it here first (Mainsail and Fluidd show it in their settings):</span>
-          <input value={apiKey} onChange={(e) => setApiKey(e.target.value)} placeholder="API key" spellCheck={false} autoCapitalize="off" autoComplete="off" data-testid="found-key" />
+          <span className="muted">
+            {words.locked}. {words.hint}
+          </span>
+          <input value={apiKey} onChange={(e) => setApiKey(e.target.value)} placeholder={words.key} spellCheck={false} autoCapitalize="off" autoComplete="off" data-testid="found-key" />
         </label>
       )}
       {problem && (
@@ -282,7 +289,7 @@ function AddByAddress({ watch, onAdded }: { watch: BridgeWatch | null; onAdded: 
           <input value={address} onChange={(e) => setAddress(e.target.value)} placeholder="for example 192.168.1.50, or 192.168.1.50:7130 for another port" spellCheck={false} autoCapitalize="off" data-testid="bridge-new-address" />
         </label>
         <label>
-          Moonraker API key <span className="muted">(only if the printer asks for one)</span>
+          API key or password <span className="muted">(only if the printer asks for one: a Klipper printer's Moonraker API key, a Prusa printer's PrusaLink password)</span>
           <input value={apiKey} onChange={(e) => setApiKey(e.target.value)} spellCheck={false} autoCapitalize="off" autoComplete="off" data-testid="bridge-new-key" />
         </label>
         {problem && (
@@ -296,6 +303,24 @@ function AddByAddress({ watch, onAdded }: { watch: BridgeWatch | null; onAdded: 
           </button>
         </div>
       </div>
+    </details>
+  );
+}
+
+/** Which printers the Device tab works with, folded under the search. */
+function WorksWith() {
+  return (
+    <details className="dv-node-option" data-testid="works-with">
+      <summary>Which printers work?</summary>
+      <dl className="dv-works-with">
+        {WORKS_WITH.map((w) => (
+          <div key={w.title}>
+            <dt>{w.title}</dt>
+            <dd>{w.text}</dd>
+          </div>
+        ))}
+      </dl>
+      <p className="muted">Other printers aren't reached by the bridge yet; slicing for them works all the same, and you can download the file.</p>
     </details>
   );
 }
@@ -321,6 +346,7 @@ function BridgePrinters({ watch, onAdded, searchNow, system }: { watch: BridgeWa
         </ul>
       )}
       <AddByAddress watch={watch} onAdded={(p) => added(p)} />
+      <WorksWith />
       <p className="muted">API keys go to the bridge, which keeps them on its computer; Cloud Slicer doesn't store them.</p>
     </div>
   );
@@ -333,6 +359,8 @@ export interface AddRow {
   url: string | null;
   host: string;
   needsKey: boolean;
+  /** What the search said it is (FoundPrinter.kind). */
+  kind?: string;
   /** Already a saved printer in Cloud Slicer. */
   saved: boolean;
   /** idle: not chosen; editing: its name, profile and key are open; ready: checked and waiting for the button below. */
@@ -367,8 +395,8 @@ export function mergeAddRows(
     const mine = f.added ? byBridge(f.added) : next.find((r) => r.url === f.url);
     if (mine) {
       const i = next.indexOf(mine);
-      next[i] = { ...mine, url: f.url, host, needsKey: !f.added && f.needsKey, name: mine.name || name };
-    } else next.push(blank({ key: f.added ? `b:${f.added}` : `u:${f.url}`, bridgeId: f.added, url: f.url, host, needsKey: !f.added && f.needsKey, name }));
+      next[i] = { ...mine, url: f.url, host, needsKey: !f.added && f.needsKey, kind: f.kind ?? '', name: mine.name || name };
+    } else next.push({ ...blank({ key: f.added ? `b:${f.added}` : `u:${f.url}`, bridgeId: f.added, url: f.url, host, needsKey: !f.added && f.needsKey, name }), kind: f.kind ?? '' });
   }
   return next;
 }
@@ -405,11 +433,11 @@ function BridgeAddList({
   const confirm = async (r: AddRow) => {
     if (!r.preset && useSlicer.getState().printers.length) return edit(r.key, { problem: 'Choose its printer profile.' });
     if (r.bridgeId) return edit(r.key, { step: 'ready' });
-    if (r.needsKey && !r.apiKey.trim()) return edit(r.key, { problem: 'Type its API key first.' });
+    if (r.needsKey && !r.apiKey.trim()) return edit(r.key, { problem: `Type its ${kindWords(r.kind).key} first.` });
     if (!watch) return;
     edit(r.key, { busy: true });
     try {
-      const res = await watch.manage<{ id: string; name: string }>('bridge.add_printer', { address: r.url, apiKey: r.apiKey.trim(), ...(r.name.trim() && { name: r.name.trim() }) });
+      const res = await watch.manage<{ id: string; name: string }>('bridge.add_printer', { address: r.url, apiKey: r.apiKey.trim(), kind: r.kind ?? '', ...(r.name.trim() && { name: r.name.trim() }) });
       // The bridge's status may already list it as a row of its own: keep this one.
       setRows((list) => list.filter((x) => x.key === r.key || x.bridgeId !== res.id).map((x) => (x.key === r.key ? { ...x, bridgeId: res.id, needsKey: false, busy: false, step: 'ready' } : x)));
     } catch (e) {
@@ -421,6 +449,7 @@ function BridgeAddList({
   const title = (r: AddRow) => (
     <span>
       <strong>{r.name || r.host}</strong> {r.name && r.host && <span className="muted">{r.host}</span>}
+      {kindWords(r.kind).tag && <span className="dv-kind">{kindWords(r.kind).tag}</span>}
     </span>
   );
   return (
@@ -466,9 +495,9 @@ function BridgeAddList({
                       <PresetField value={r.preset} onChange={(p) => edit(r.key, { preset: p })} />
                       {r.needsKey && (
                         <label className="dv-add-key">
-                          API key
-                          <input value={r.apiKey} onChange={(e) => edit(r.key, { apiKey: e.target.value })} placeholder="This printer is locked: type its API key" spellCheck={false} autoCapitalize="off" autoComplete="off" data-testid="add-row-key" />
-                          <span className="muted">Mainsail and Fluidd show it in their settings. It goes to the bridge, not to Cloud Slicer.</span>
+                          {kindWords(r.kind).key}
+                          <input value={r.apiKey} onChange={(e) => edit(r.key, { apiKey: e.target.value })} placeholder={kindWords(r.kind).locked} spellCheck={false} autoCapitalize="off" autoComplete="off" data-testid="add-row-key" />
+                          <span className="muted">{kindWords(r.kind).hint} It goes to the bridge, not to Cloud Slicer.</span>
                         </label>
                       )}
                     </div>
@@ -503,6 +532,7 @@ function BridgeAddList({
           )
         }
       />
+      <WorksWith />
     </div>
   );
 }

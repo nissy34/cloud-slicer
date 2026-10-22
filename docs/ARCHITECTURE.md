@@ -334,8 +334,14 @@ was ruled out (closed service with per-user device certificates, against its ter
   https://slicer.awesomestuff.qzz.io from `main`, a preview for every other branch at
   `<branch>.cloud-slicer.pages.dev`. Links shown to users always use the site's own
   origin or https://slicer.awesomestuff.qzz.io.
-- Relay: Worker `cloud-slicer-relay`, deployed from `main` by `device.yml`.
-- Test relay: Worker `cloud-slicer-relay-test` (bridge downloads in R2
+- Relay: Worker `cloud-slicer-relay` at https://cloud-slicer-relay.awesomestuff.qzz.io
+  (a Workers custom domain, added once in the Cloudflare dashboard), deployed from `main`
+  by `device.yml`. Its first address, `cloud-slicer-relay.nissy34.workers.dev`, stays on
+  for good: bridges and printers saved with it move to the new one by themselves
+  (`movedRelays` in the bridge, `currentRelay` on the site), and install lines, bridges and
+  alert pictures are always given the relay's own address (`RELAY_ORIGIN`).
+- Test relay: Worker `cloud-slicer-relay-test` at
+  https://cloud-slicer-relay-test.awesomestuff.qzz.io (bridge downloads in R2
   `cloud-slicer-bridge-test`), where a pull request's relay and bridge are tried on a real
   printer before they merge: add the label `use test relay` to the PR, or run the Device
   workflow on its branch. One PR at a time; it keeps what was sent last. Its bridges are

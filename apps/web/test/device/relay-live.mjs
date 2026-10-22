@@ -3,7 +3,7 @@
 // serves the mock U1 through the relay, and a pretend browser asks for the
 // printer's info and a camera frame. Also checks a wrong key is refused.
 //
-//   node test/device/relay-live.mjs https://cloud-slicer-relay.<account>.workers.dev [--app <bridge app>]
+//   node test/device/relay-live.mjs https://cloud-slicer-relay.awesomestuff.qzz.io [--app <bridge app>]
 //
 // --app is the bridge program to run (CI passes the one build.sh made); without
 // it the bridge is built here with go build.

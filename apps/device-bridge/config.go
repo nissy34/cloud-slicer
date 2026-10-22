@@ -19,6 +19,11 @@ type Printer struct {
 	Name   string `json:"name"`
 	URL    string `json:"url"`
 	APIKey string `json:"apiKey"`
+	// Kind: "" for Klipper with Moonraker, else the brand the bridge stands in for (translate.go), like "prusalink".
+	Kind string `json:"kind,omitempty"`
+
+	// shown: the printer's own address, when URL is its stand-in's (for messages).
+	shown string
 }
 
 // Config is the bridge's settings file: its identity (id and secret key), the
@@ -48,6 +53,14 @@ func base64url(b []byte) string { return base64.RawURLEncoding.EncodeToString(b)
 
 func newPrinterID() string { return randomID(4, hex.EncodeToString) }
 
+// movedRelays: the relays' first addresses and where they live now. Bridges
+// set up before the move switch over on their next start (the old addresses
+// still answer, so nothing breaks in between).
+var movedRelays = map[string]string{
+	"https://cloud-slicer-relay.nissy34.workers.dev":      "https://cloud-slicer-relay.awesomestuff.qzz.io",
+	"https://cloud-slicer-relay-test.nissy34.workers.dev": "https://cloud-slicer-relay-test.awesomestuff.qzz.io",
+}
+
 // loadConfig reads the settings file, making a new bridge id and secret key on first run.
 func loadConfig(path, relay string) (*Config, error) {
 	cfg := &Config{path: path}
@@ -71,10 +84,14 @@ func loadConfig(path, relay string) (*Config, error) {
 		cfg.Relay = defaultRelay
 	}
 	cfg.Relay = strings.TrimRight(cfg.Relay, "/")
+	moved := false
+	if to, ok := movedRelays[cfg.Relay]; ok {
+		cfg.Relay, moved = to, true
+	}
 	if cfg.Printers == nil {
 		cfg.Printers = []Printer{}
 	}
-	if fresh {
+	if fresh || moved {
 		if err := cfg.save(); err != nil {
 			return nil, err
 		}
@@ -121,17 +138,17 @@ func (c *Config) printer(id string) (Printer, bool) {
 	return Printer{}, false
 }
 
-// upsert adds a printer, or updates the name and key of one already at that address.
-func (c *Config) upsert(name, url, apiKey string) Printer {
+// upsert adds a printer, or updates the name, key and kind of one already at that address.
+func (c *Config) upsert(name, url, apiKey, kind string) Printer {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	for i, p := range c.Printers {
 		if p.URL == url {
-			c.Printers[i].Name, c.Printers[i].APIKey = name, apiKey
+			c.Printers[i].Name, c.Printers[i].APIKey, c.Printers[i].Kind = name, apiKey, kind
 			return c.Printers[i]
 		}
 	}
-	p := Printer{ID: newPrinterID(), Name: name, URL: url, APIKey: apiKey}
+	p := Printer{ID: newPrinterID(), Name: name, URL: url, APIKey: apiKey, Kind: kind}
 	c.Printers = append(c.Printers, p)
 	return p
 }

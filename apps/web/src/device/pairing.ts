@@ -2,6 +2,8 @@
 // bridge: the relay, the bridge id and its secret key. The agent prints it as
 // a link (https://<site>/#pair=<code>) and as a bare code to paste.
 
+import { currentRelay } from './config';
+
 export interface Pairing {
   relay: string;
   bridgeId: string;
@@ -25,7 +27,7 @@ export function decodePairing(text: string): Pairing | null {
     const o = JSON.parse(unb64url(code)) as { r?: unknown; i?: unknown; k?: unknown };
     if (typeof o.r !== 'string' || typeof o.i !== 'string' || typeof o.k !== 'string') return null;
     if (!/^https?:\/\//.test(o.r) || !/^[\w-]{8,64}$/.test(o.i) || o.k.length < 16) return null;
-    return { relay: o.r.replace(/\/+$/, ''), bridgeId: o.i, key: o.k };
+    return { relay: currentRelay(o.r), bridgeId: o.i, key: o.k };
   } catch {
     return null;
   }

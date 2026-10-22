@@ -655,7 +655,7 @@ try {
 
   // ---- Bridge setup: the apps the relay has --------------------------------------------
   const relayUrl = `http://127.0.0.1:${RELAY_PORT}`;
-  const liveRelay = 'https://cloud-slicer-relay.nissy34.workers.dev';
+  const liveRelay = 'https://cloud-slicer-relay.awesomestuff.qzz.io';
   const setup = await browser.newPage({ viewport: { width: 1280, height: 900 } });
   let noApps = false;
   // The dialog asks the default (live) relay before anything is paired; answer from the local one.

@@ -27,7 +27,7 @@ image or page from another origin needs CORS or a credentialless iframe (see
 `src/device/camera.ts`).
 
 `VITE_DEVICE_RELAY_URL` points the Device tab at your own relay (default
-`https://cloud-slicer-relay.nissy34.workers.dev`).
+`https://cloud-slicer-relay.awesomestuff.qzz.io`).
 
 ## Layout
 

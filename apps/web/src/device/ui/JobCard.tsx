@@ -3,7 +3,7 @@ import { formatDuration } from '../../lib/format';
 import { currentSession, useDevice } from '../../state/device';
 import { job as jobOf, klippyMessage, klippyState, remainingSeconds } from '../status';
 import { printObjects } from '../objects';
-import type { PrinterError } from '../addons';
+import { takesCommands, type PrinterError } from '../addons';
 import { Card, useConfirm } from './parts';
 import { SkipObjectsDialog } from './SkipObjects';
 
@@ -51,15 +51,22 @@ export function JobCard() {
   if (klippy !== 'ready') {
     return (
       <Card title="Print" testId="job-card">
-        <p className="dv-alert">
-          {klippy === 'startup' ? 'The printer firmware is starting.' : 'The printer firmware has stopped.'} {klippyMessage(objects)}
-        </p>
-        <PrinterErrors errors={errors} />
-        <div className="dv-row">
-          <button className="secondary" onClick={() => void call('Restarting the firmware', (s) => s.firmwareRestart())}>
-            Restart firmware
-          </button>
-        </div>
+        {takesCommands(addons) ? (
+          <>
+            <p className="dv-alert">
+              {klippy === 'startup' ? 'The printer firmware is starting.' : 'The printer firmware has stopped.'} {klippyMessage(objects)}
+            </p>
+            <PrinterErrors errors={errors} />
+            <div className="dv-row">
+              <button className="secondary" onClick={() => void call('Restarting the firmware', (s) => s.firmwareRestart())}>
+                Restart firmware
+              </button>
+            </div>
+          </>
+        ) : (
+          // Not Klipper: the bridge says the printer stopped answering, and it keeps asking.
+          <p className="dv-alert">{klippyMessage(objects) || 'The printer is not answering.'}</p>
+        )}
       </Card>
     );
   }

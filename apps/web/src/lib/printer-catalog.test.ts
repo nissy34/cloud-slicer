@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { PresetSummary } from '../engine/protocol';
-import { canSend, vendorFilesFor, type PrinterCatalog } from './printer-catalog';
+import { canSend, vendorFilesFor, withDirectPrint, type PrinterCatalog } from './printer-catalog';
 import { matchModels, wizardBrands } from './setup';
 
 const catalog: PrinterCatalog = {
@@ -38,6 +38,13 @@ describe('printer catalog', () => {
     expect(canSend(catalog, 'My Voron copy', mine)).toBe(true);
     expect(canSend(catalog, 'Loop', mine)).toBeNull();
     expect(canSend(null, 'Voron 2.4 350 0.4 nozzle')).toBeNull();
+  });
+
+  it('marks Prusa printers too: the Device tab reaches them through PrusaLink', () => {
+    const marked = withDirectPrint(catalog);
+    expect(canSend(marked, 'Prusa MK4 0.4 nozzle')).toBe(true);
+    expect(canSend(marked, 'Voron 2.4 350 0.4 nozzle')).toBe(true);
+    expect(canSend(catalog, 'Prusa MK4 0.4 nozzle')).toBe(false);
   });
 
   it('lists brands with picked ones first, then Snapmaker, then by name', () => {

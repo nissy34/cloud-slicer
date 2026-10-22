@@ -10,6 +10,9 @@ workers_dev = true
 # Where setup codes come from: a bridge spending one is checked there.
 [vars]
 SITE_ORIGIN = "https://slicer.awesomestuff.qzz.io"
+# The relay's own address (a Workers custom domain, added in the Cloudflare
+# dashboard). The workers.dev address keeps answering too.
+RELAY_ORIGIN = "https://cloud-slicer-relay.awesomestuff.qzz.io"
 
 [[durable_objects.bindings]]
 name = "BRIDGE"
