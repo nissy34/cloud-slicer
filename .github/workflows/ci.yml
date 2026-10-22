@@ -369,6 +369,24 @@ jobs:
           node engine/node/slice.mjs fixtures/3DBenchy.stl /tmp/benchy.gcode
           grep -q '^PRINT_START' /tmp/benchy.gcode
 
+      # Klipper reads each file like a print, without a printer (batch mode):
+      # Benchy and a two-colour cube on a U1 stand-in, Benchy on a Voron.
+      - name: Klipper accepts the G-code
+        run: |
+          sudo apt-get install -y -qq --no-install-recommends gcc-avr avr-libc > /dev/null
+          pla=$(node engine/node/slice.mjs --list | jq -r '.selection.filaments[0]')
+          node engine/node/slice.mjs fixtures/calib-cube-10-dual-colour-merged.3mf /tmp/cube.gcode --filament "$pla" --filament "$pla"
+          grep -qx T1 /tmp/cube.gcode
+          node engine/scripts/bundle-profiles.mjs /tmp/profiles-voron Snapmaker Voron
+          ORCA_PROFILES=/tmp/profiles-voron/profiles.json node engine/node/slice.mjs fixtures/3DBenchy.stl /tmp/benchy-voron.gcode --printer "Voron 2.4 300 0.4 nozzle"
+          engine/klipper-check/check.sh engine/klipper-check/u1.cfg /tmp/benchy.gcode /tmp/cube.gcode
+          engine/klipper-check/check.sh engine/klipper-check/voron.cfg /tmp/benchy-voron.gcode
+          # And the check itself still catches a move off the bed.
+          printf 'G28\nG1 X400 F3000\n' > /tmp/bad.gcode
+          if engine/klipper-check/check.sh engine/klipper-check/voron.cfg /tmp/bad.gcode; then
+            echo "the Klipper check missed a move off the bed"; exit 1
+          fi
+
   site:
     needs: engine
     runs-on: ubuntu-24.04

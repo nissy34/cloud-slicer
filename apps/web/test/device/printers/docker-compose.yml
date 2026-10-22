@@ -1,0 +1,71 @@
+# Pretend printers: real Klipper and Moonraker on a simulated control board
+# (image by Pedro Lamas, the Fluidd maintainer, rebuilt from upstream Klipper).
+# Nothing here touches a real printer.
+#
+#   docker compose up -d --wait      # start all three (first time downloads ~400 MB)
+#   docker compose down              # stop and forget them
+#
+# Then add a printer in the Device tab: http://127.0.0.1:7131 (one head),
+# :7132 (two heads, two cameras) or :7134 (four heads, no camera).
+# More in README.md.
+
+x-printer: &printer
+  image: ei99070/docker-klipper-simulavr:latest
+  # The simulated board runs as fast as the computer lets it. Held to a fixed
+  # fraction of real speed instead, it fell below what Klipper needs to connect
+  # on a busy CI machine ("Timeout on connect"). Motors use no microsteps, so
+  # Klipper keeps up even when the board's speed varies.
+  environment:
+    SIMULAVR_PACING_RATE: "0.0"
+  # Klipper gives a board 5 s to send its list of commands when it connects. A
+  # simulated board on a slow computer (some CI machines) needs longer, and
+  # Klipper then retries forever ("Timeout on connect"): allow 60 s.
+  entrypoint:
+    - sh
+    - -c
+    - sed -i 's/identify_data = completion.wait(self.reactor.monotonic() + 5.)/identify_data = completion.wait(self.reactor.monotonic() + 60.)/' /printer/klipper/klippy/serialhdl.py && exec /docker-entrypoint.sh "$$@"
+    - sh
+  command: ["/usr/bin/supervisord", "-n"]
+  healthcheck:
+    test: ["CMD", "sh", "-c", "curl -fs localhost:7125/printer/info | grep -q '\"state\":\"ready\"'"]
+    interval: 3s
+    timeout: 3s
+    retries: 40
+    start_period: 5s
+
+services:
+  one-head:
+    <<: *printer
+    hostname: one-head
+    ports: ["7131:7125", "8131:8080"]
+    volumes:
+      - ./one-head/printer.cfg:/printer/printer_data/config/printer.cfg:ro
+      - ./one-head/moonraker.conf:/printer/printer_data/config/moonraker.conf:ro
+      - ./common.cfg:/printer/printer_data/config/common.cfg:ro
+      - ./sim_temperature.py:/printer/klipper/klippy/extras/sim_temperature.py:ro
+
+  two-heads:
+    <<: *printer
+    hostname: two-heads
+    ports: ["7132:7125", "8132:8080"]
+    volumes:
+      - ./two-heads/printer.cfg:/printer/printer_data/config/printer.cfg:ro
+      - ./two-heads/moonraker.conf:/printer/printer_data/config/moonraker.conf:ro
+      - ./common.cfg:/printer/printer_data/config/common.cfg:ro
+      - ./sim_temperature.py:/printer/klipper/klippy/extras/sim_temperature.py:ro
+
+  four-heads:
+    <<: *printer
+    hostname: four-heads
+    ports: ["7134:7125"]
+    volumes:
+      - ./four-heads/printer.cfg:/printer/printer_data/config/printer.cfg:ro
+      - ./four-heads/moonraker.conf:/printer/printer_data/config/moonraker.conf:ro
+      - ./common.cfg:/printer/printer_data/config/common.cfg:ro
+      - ./sim_temperature.py:/printer/klipper/klippy/extras/sim_temperature.py:ro
+
+  # OctoPrint with its built-in virtual printer (see octoprint/README.md):
+  # http://127.0.0.1:7140, through the bridge, API key in octoprint/README.md.
+  octoprint:
+    build: ./octoprint
+    ports: ["7140:7140"]

@@ -95,11 +95,29 @@ export async function readGcodeMeta(blob: Blob): Promise<GcodeMeta> {
   return parseGcodeMeta(`${head}\n${tail}`);
 }
 
+/**
+ * Moonraker's filament_type: one material as is ("PLA"), several as a JSON
+ * list in a string ('["PLA", "PETG"]'), or the slicer's own "PLA;PETG".
+ */
+function materialList(v: unknown): string[] {
+  if (Array.isArray(v)) return v.map((s) => String(s).trim());
+  if (typeof v !== 'string') return [];
+  if (v.trim().startsWith('[')) {
+    try {
+      const list: unknown = JSON.parse(v);
+      if (Array.isArray(list)) return list.map((s) => String(s).trim());
+    } catch {
+      // Not JSON after all: read it as the slicer wrote it.
+    }
+  }
+  return v.split(';').map((s) => s.trim());
+}
+
 /** Moonraker's own file metadata (server.files.metadata) in the same shape. */
 export function metaFromMoonraker(m: Record<string, unknown> | null): GcodeMeta {
   if (!m) return { filaments: [], estimatedSeconds: null, layers: null };
   const colours = Array.isArray(m.filament_colors) ? (m.filament_colors as string[]) : [];
-  const types = typeof m.filament_type === 'string' ? m.filament_type.split(';').map((s) => s.trim()) : [];
+  const types = materialList(m.filament_type);
   const weights = Array.isArray(m.filament_weights) ? (m.filament_weights as number[]) : [];
   const count = Math.max(colours.length, types.length, weights.length);
   const filaments: FileFilament[] = [];

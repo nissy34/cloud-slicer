@@ -69,6 +69,20 @@ node --test engine/node/engine.test.mjs      # engine tests
 
 `--set key=value` overrides any Orca option, with Orca's own key names.
 
+### Does Klipper accept the G-code?
+
+```bash
+engine/klipper-check/check.sh engine/klipper-check/u1.cfg /tmp/benchy.gcode
+```
+
+Runs Klipper in batch mode: Klipper reads the file like a print and works out every
+move against a printer config, without a printer. It fails on anything Klipper would
+stop on (a move outside the bed, a bad parameter) and on commands Klipper doesn't
+know. `u1.cfg` stands in for the Snapmaker U1 (270 mm bed, four heads, its own
+commands as empty macros); `voron.cfg` is a plain 300 mm Klipper printer. The first
+run sets Klipper up in `~/.cache/klipper-check` and needs `gcc-avr` and `avr-libc`.
+CI runs it on Benchy and a two-colour cube from both engines.
+
 ## How it differs from desktop
 
 - **Threads are Web Workers.** TBB runs on Emscripten pthreads, one per core, started
