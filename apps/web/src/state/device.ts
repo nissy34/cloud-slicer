@@ -280,7 +280,6 @@ let session: PrinterSession | null = null;
 let connectSeq = 0;
 /** The printer this browser is saving right now: its secret is already cached. */
 let savingId: string | null = null;
-let toastTimer: ReturnType<typeof setTimeout> | null = null;
 
 /** Moonraker rescans the whole gcodes folder for every list: never ask more than every 2 s. */
 const FILE_LIST_GAP_MS = 2000;
@@ -581,9 +580,8 @@ export const useDevice = create<DeviceState>((set, get) => {
     },
 
     setToast(text, error = false) {
-      if (toastTimer) clearTimeout(toastTimer);
+      // Shown at the bottom by Notices, which also takes good news away after a few seconds.
       set({ toast: { text, error } });
-      toastTimer = setTimeout(() => set({ toast: null }), error ? 8000 : 4000);
     },
 
     retry() {

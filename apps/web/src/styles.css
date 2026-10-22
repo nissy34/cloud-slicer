@@ -617,10 +617,8 @@ select:focus-visible {
   font-size: 13px;
   cursor: pointer;
 }
-.mix-dialog {
-  width: min(480px, 100%);
-  max-height: calc(100dvh - 32px);
-  overflow-y: auto;
+.win.mix-dialog {
+  --win-w: 480px;
 }
 .mix-preview {
   display: flex;
@@ -934,7 +932,7 @@ select:focus-visible {
   color: var(--text);
   font: inherit;
 }
-.dialog.settings-prompt p {
+.settings-prompt p {
   white-space: pre-line;
 }
 .input-unit {
@@ -1794,56 +1792,138 @@ select:focus-visible {
   color: var(--text);
 }
 
-/* Dialogs */
-.dialog-backdrop {
-  position: fixed;
-  inset: 0;
-  z-index: 50;
-  display: grid;
-  place-items: center;
-  padding: 16px;
-  background: rgb(0 0 0 / 45%);
-}
-.dialog {
-  display: grid;
-  gap: 12px;
-  width: min(440px, 100%);
-  padding: 20px;
-  background: var(--surface);
+/* Windows (src/components/Dialog.tsx): every pop-up that needs an answer or holds
+   settings. Title with ✕, what it says, buttons bottom right with the main one last.
+   Only ✕, its buttons and Escape close it. A phone gets the same window. */
+.win {
+  --win-w: 460px;
+  width: min(var(--win-w), calc(100vw - 32px));
+  max-width: none;
+  max-height: calc(100dvh - 32px);
+  padding: 0;
   border: 1px solid var(--border);
-  border-radius: var(--radius);
+  border-radius: 12px;
+  background: var(--surface);
+  color: var(--text);
   box-shadow: 0 12px 40px rgb(0 0 0 / 30%);
 }
-.dialog h2 {
+.win:focus {
+  outline: none;
+}
+.win.wide {
+  --win-w: 620px;
+}
+.win::backdrop {
+  background: rgb(0 0 0 / 45%);
+}
+.win-body {
+  display: flex;
+  flex-direction: column;
+  max-height: calc(100dvh - 32px);
+}
+.win-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 12px 4px 20px;
+}
+.win-head h2 {
+  flex: 1;
+  min-width: 0;
   margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
   font-size: 18px;
+  overflow-wrap: anywhere;
 }
-.dialog p {
+.win-close {
+  flex: none;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  display: grid;
+  place-items: center;
+  border: 0;
+  border-radius: 8px;
+  background: none;
+  color: var(--muted);
+  font-size: 15px;
+  cursor: pointer;
+}
+.win-close:hover {
+  background: var(--surface-2);
+  color: var(--text);
+}
+.win-content {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  align-content: start;
+  gap: 12px;
+  min-height: 0;
+  padding: 8px 20px 16px;
+  overflow: auto;
+}
+.win-content p,
+.win-form p {
   margin: 0;
 }
-.dialog .field {
+.win .field {
   display: grid;
   gap: 4px;
 }
-.dialog select {
+.win select {
   padding: 6px 8px;
   border-radius: 6px;
   border: 1px solid var(--border);
   background: var(--surface-2);
 }
-.dialog .check {
+.win input:not([type='checkbox']):not([type='radio']):not([type='range']) {
+  padding: 6px 8px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+}
+.win .check {
   align-items: flex-start;
+}
+.win-form {
+  display: grid;
+  gap: 12px;
+}
+.win-foot,
+.win-foot-row {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 8px;
+}
+.win-foot {
+  padding: 12px 20px;
+  border-top: 1px solid var(--border);
+}
+/* A phone: the same centred window, a little tighter. */
+@media (max-width: 760px) {
+  .win {
+    width: calc(100vw - 24px);
+    max-height: calc(100dvh - 24px);
+  }
+  .win-body {
+    max-height: calc(100dvh - 24px);
+  }
+  .win-head {
+    padding: 12px 8px 4px 16px;
+  }
+  .win-content {
+    padding: 8px 16px 14px;
+  }
+  .win-foot {
+    padding: 12px 16px;
+  }
 }
 .small {
   font-size: 12px;
-}
-.ask-backdrop {
-  z-index: 60;
-}
-.dialog-actions {
-  display: flex;
-  justify-content: flex-end;
-  gap: 8px;
 }
 
 /* Phone: viewport first, panel below */
@@ -2356,10 +2436,8 @@ select:focus-visible {
 }
 
 /* Import presets */
-.dialog.import-presets {
-  width: min(560px, 100%);
-  max-height: calc(100dvh - 32px);
-  overflow-y: auto;
+.win.import-presets {
+  --win-w: 560px;
 }
 .import-list,
 .import-problems {
@@ -2400,7 +2478,7 @@ select:focus-visible {
 .import-row select {
   width: 100%;
 }
-.dialog .warn,
+.win .warn,
 .import-note.warn {
   color: var(--danger);
 }
@@ -4216,57 +4294,6 @@ select:focus-visible {
   background: var(--surface);
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
 }
-.dv-dialog {
-  border: 0;
-  padding: 0;
-  border-radius: 12px;
-  background: var(--surface);
-  color: var(--text);
-  width: min(460px, calc(100vw - 32px));
-  max-height: calc(100dvh - 32px);
-  box-shadow: 0 12px 40px rgb(0 0 0 / 0.25);
-}
-.dv-dialog.wide {
-  width: min(620px, calc(100vw - 32px));
-}
-.dv-dialog::backdrop {
-  background: rgb(0 0 0 / 0.4);
-}
-.dv-dialog-body {
-  display: flex;
-  flex-direction: column;
-  max-height: calc(100dvh - 32px);
-}
-.dv-dialog-head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 14px 16px 6px;
-}
-.dv-dialog-head h2 {
-  margin: 0;
-  font-size: 16px;
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.dv-dialog-content {
-  padding: 4px 16px 12px;
-  overflow: auto;
-}
-.dv-dialog-content p {
-  margin: 6px 0;
-}
-.dv-dialog-foot {
-  display: flex;
-  gap: 8px;
-  justify-content: flex-end;
-  align-items: center;
-  flex-wrap: wrap;
-  padding: 12px 16px;
-  border-top: 1px solid var(--border);
-}
 .dv-left {
   margin-right: auto;
 }
@@ -4277,7 +4304,7 @@ select:focus-visible {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-.dv-skip .dv-dialog-content {
+.dv-skip .win-content {
   display: flex;
   flex-direction: column;
   min-height: 0;
@@ -4377,7 +4404,7 @@ select:focus-visible {
 }
 @media (max-width: 760px) {
   /* A sheet from the bottom, at most half the screen: the map stays, the list scrolls. */
-  .dv-dialog.dv-skip {
+  .win.dv-skip {
     width: 100vw;
     max-width: 100vw;
     margin: auto 0 0;
@@ -4385,7 +4412,7 @@ select:focus-visible {
     max-height: 50dvh;
     padding-bottom: env(safe-area-inset-bottom, 0px);
   }
-  .dv-skip .dv-dialog-body {
+  .dv-skip .win-body {
     max-height: 50dvh;
   }
   .dv-skip-body {
@@ -4692,23 +4719,6 @@ select:focus-visible {
   align-items: center;
   font-size: 12px;
 }
-.dv-toast {
-  position: fixed;
-  left: 50%;
-  bottom: 24px;
-  transform: translateX(-50%);
-  max-width: min(560px, calc(100vw - 32px));
-  padding: 10px 16px;
-  border-radius: 8px;
-  background: var(--text);
-  color: var(--bg);
-  box-shadow: 0 6px 24px rgb(0 0 0 / 0.2);
-  z-index: 10;
-}
-.dv-toast.error {
-  background: var(--danger);
-  color: #fff;
-}
 @media (max-width: 760px) {
   .device {
     padding: 12px;
@@ -4852,11 +4862,8 @@ select:focus-visible {
 }
 
 /* Setup wizard */
-.wizard {
-  width: min(640px, 100%);
-  grid-template-columns: minmax(0, 1fr);
-  max-height: calc(100dvh - 32px);
-  grid-template-rows: auto auto minmax(0, 1fr) auto;
+.win.wizard {
+  --win-w: 640px;
 }
 .wizard-body {
   display: grid;
@@ -5046,11 +5053,6 @@ select:focus-visible {
 .wizard-later {
   margin-right: auto;
 }
-@media (max-width: 760px) {
-  .wizard .dialog-actions {
-    flex-wrap: wrap;
-  }
-}
 
 /* Project menu and online projects (src/components/ProjectMenu.tsx) */
 .project-menu {
@@ -5156,53 +5158,8 @@ select:focus-visible {
   color: var(--muted);
   font-size: 12px;
 }
-.project-toast {
-  position: absolute;
-  top: calc(100% + 6px);
-  left: 0;
-  z-index: 40;
-  display: flex;
-  align-items: baseline;
-  gap: 10px;
-  width: max-content;
-  max-width: min(420px, calc(100vw - 32px));
-  padding: 8px 12px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  background: var(--surface);
-  box-shadow: 0 8px 24px rgb(0 0 0 / 0.15);
-}
-.project-toast.warn {
-  color: var(--danger);
-}
-.project-toast .account-link {
-  margin: 0;
-}
-.dialog input:not([type='checkbox']) {
-  padding: 6px 8px;
-  border-radius: 6px;
-  border: 1px solid var(--border);
-  background: var(--surface-2);
-}
-.dialog-actions.wrap {
-  flex-wrap: wrap;
-}
-/* Three answers on a phone: one under the other, the main one on top. */
-@media (max-width: 520px) {
-  .dialog-actions.wrap {
-    flex-direction: column-reverse;
-    align-items: stretch;
-  }
-}
-.projects-dialog {
-  width: min(760px, 100%);
-  max-height: calc(100dvh - 32px);
-  overflow-y: auto;
-}
-.projects-head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
+.win.projects-dialog {
+  --win-w: 760px;
 }
 .projects-empty {
   display: grid;
@@ -5286,8 +5243,7 @@ select:focus-visible {
   .project-menu {
     position: static;
   }
-  .menu-pop,
-  .project-toast {
+  .menu-pop {
     left: 10px;
     top: calc(var(--topbar) + 4px);
   }
@@ -5371,23 +5327,19 @@ select:focus-visible {
 }
 
 /* Printer and filament settings windows (src/components/PresetSettingsDialog.tsx) */
-.dialog.preset-settings {
-  width: min(720px, 100%);
+.win.preset-settings {
+  --win-w: 720px;
   height: min(860px, calc(100dvh - 32px));
-  grid-template-rows: auto auto minmax(0, 1fr) auto auto auto;
 }
-.preset-settings-head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
+.preset-settings .win-body {
+  height: 100%;
 }
-.preset-settings-head h2 {
-  display: flex;
-  align-items: center;
-  gap: 8px;
+.preset-settings .win-content {
+  flex: 1;
+  grid-template-rows: auto minmax(0, 1fr);
+  overflow: hidden;
 }
-.preset-settings-head .slot-dot {
+.preset-settings .win-head .slot-dot {
   width: 14px;
   height: 14px;
 }
@@ -5407,19 +5359,13 @@ select:focus-visible {
   align-self: center;
 }
 .preset-settings-saveas {
+  flex: 1;
   display: grid;
   gap: 8px;
 }
 @media (max-width: 760px) {
-  .dialog-backdrop:has(.preset-settings) {
-    padding: 0;
-  }
-  .dialog.preset-settings {
-    width: 100%;
-    height: 100dvh;
-    border-radius: 0;
-    border: 0;
-    padding: 14px 12px;
+  .win.preset-settings {
+    height: calc(100dvh - 24px);
   }
 }
 .dv-bridge-printers {
@@ -6094,10 +6040,8 @@ button.volume-name {
 }
 
 /* Switch this project to <engine>?: the list scrolls inside, the buttons stay. */
-.dialog.engine-switch {
-  width: min(520px, 100%);
-  max-height: calc(100dvh - 32px);
-  grid-template-rows: auto minmax(0, 1fr) auto;
+.win.engine-switch {
+  --win-w: 520px;
 }
 .engine-switch h2 {
   margin: 0;
@@ -6560,22 +6504,96 @@ button.volume-name {
 .main {
   position: relative;
 }
-.continue-card {
-  position: absolute;
-  z-index: 6;
+/* Messages (src/components/Notices.tsx): one card look, bottom centre above the Slice bar,
+   newest at the bottom. Notices.tsx places it over the Slice bar; this is where there is none. */
+.notices {
+  position: fixed;
+  z-index: 40;
   left: 50%;
-  bottom: 72px;
+  bottom: calc(24px + env(safe-area-inset-bottom, 0px));
+  width: min(440px, calc(100vw - 32px));
   transform: translateX(-50%);
-  width: min(380px, calc(100% - 24px));
+  display: grid;
+  gap: 8px;
+  pointer-events: none;
+}
+.notice-slot {
+  pointer-events: auto;
+  animation: notice-in 0.2s ease-out;
+}
+@keyframes notice-in {
+  from {
+    transform: translateY(12px);
+    opacity: 0;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .notice-slot {
+    animation: none;
+  }
+}
+.notice {
   display: grid;
   gap: 10px;
-  padding: 12px;
+  padding: 10px 10px 10px 12px;
   border: 1px solid var(--border);
-  border-radius: 10px;
+  border-radius: 12px;
   background: var(--surface);
-  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.18);
+  box-shadow: 0 6px 24px rgb(0 0 0 / 18%);
 }
-.continue-main,
+.notice-main {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+.notice-icon {
+  flex: none;
+  width: 32px;
+  height: 32px;
+  display: grid;
+  place-items: center;
+  border-radius: 8px;
+  background: var(--surface-2);
+  color: var(--muted);
+  font-size: 14px;
+  font-weight: 700;
+}
+.notice.ok .notice-icon {
+  color: var(--accent);
+}
+.notice.warn .notice-icon {
+  color: var(--warn);
+  background: color-mix(in srgb, var(--warn) 16%, transparent);
+}
+.notice.error .notice-icon {
+  color: var(--danger);
+  background: color-mix(in srgb, var(--danger) 16%, transparent);
+}
+.notice .project-thumb.small {
+  width: 40px;
+  height: 40px;
+}
+.notice-text {
+  flex: 1;
+  min-width: 0;
+  display: grid;
+  gap: 2px;
+}
+.notice-text b {
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+.notice-text span {
+  color: var(--muted);
+  font-size: 13px;
+}
+.notice-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+}
 .continue-row {
   display: flex;
   align-items: center;
@@ -6599,9 +6617,6 @@ button.volume-name {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-.continue-card .dialog-actions {
-  margin: 0;
-}
 .project-thumb.small {
   flex: none;
   width: 48px;
@@ -6618,39 +6633,6 @@ button.volume-name {
   width: 100%;
   height: 100%;
   object-fit: cover;
-}
-.view-only-banner {
-  position: absolute;
-  z-index: 7;
-  top: 8px;
-  left: 50%;
-  transform: translateX(-50%);
-  width: min(620px, calc(100% - 24px));
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px 12px;
-  padding: 8px 12px;
-  border: 1px solid var(--warn);
-  border-radius: 8px;
-  background: var(--surface);
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
-}
-.view-only-text {
-  min-width: 0;
-  flex: 1 1 220px;
-}
-.view-only-actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-}
-/* On a phone the banner is placed against the whole screen: keep it under the top bar. */
-@media (max-width: 760px) {
-  .view-only-banner {
-    top: calc(var(--topbar) + 8px);
-  }
 }
 /* View only: the panels and tools can't change the project; the 3D view still turns. */
 .app.view-only .panel,

@@ -7,7 +7,8 @@ import { metaFromMoonraker, readGcodeMeta, type GcodeMeta } from '../gcode-meta'
 import { job } from '../status';
 import { useAlerts } from '../../state/alerts';
 import { LayerField } from './AlertsCard';
-import { Dialog, Swatch } from './parts';
+import { Swatch } from './parts';
+import { Dialog } from '../../components/Dialog';
 
 /**
  * Sends a file to the printer and optionally starts it. With more than one

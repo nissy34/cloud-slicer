@@ -1,4 +1,5 @@
-import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from 'react';
+import { createContext, useContext, useState, type ReactNode } from 'react';
+import { Dialog } from '../../components/Dialog';
 
 /** Set by the Device tab's layout around each card: folding a card leaves only its title. */
 export const SlotContext = createContext<{ folded: boolean; toggleFold(): void } | null>(null);
@@ -23,51 +24,6 @@ export function Card({ title, actions, className, children, testId }: { title: s
       </header>
       {!folded && children}
     </section>
-  );
-}
-
-/** A modal built on <dialog>: only its buttons and Escape close it, so a stray tap outside never loses what's in it. */
-export function Dialog({
-  title,
-  onClose,
-  children,
-  footer,
-  wide,
-  className,
-}: {
-  title: string;
-  onClose(): void;
-  children: ReactNode;
-  footer?: ReactNode;
-  wide?: boolean;
-  className?: string;
-}) {
-  const ref = useRef<HTMLDialogElement>(null);
-  useEffect(() => {
-    const d = ref.current;
-    if (d && !d.open) d.showModal();
-  }, []);
-  return (
-    <dialog
-      ref={ref}
-      className={`dv-dialog${wide ? ' wide' : ''}${className ? ` ${className}` : ''}`}
-      onCancel={(e) => {
-        e.preventDefault();
-        onClose();
-      }}
-      aria-label={title}
-    >
-      <div className="dv-dialog-body">
-        <header className="dv-dialog-head">
-          <h2>{title}</h2>
-          <button className="dv-icon-btn" onClick={onClose} aria-label="Close">
-            ✕
-          </button>
-        </header>
-        <div className="dv-dialog-content">{children}</div>
-        {footer && <footer className="dv-dialog-foot">{footer}</footer>}
-      </div>
-    </dialog>
   );
 }
 

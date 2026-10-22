@@ -4,7 +4,8 @@
 // (state/device.ts, device/addons/u1.ts); the plan from lib/filament-sync.
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { u1Heads } from '../device/addons/u1';
-import { Dialog, Swatch } from '../device/ui/parts';
+import { Swatch } from '../device/ui/parts';
+import { Dialog } from './Dialog';
 import { isLoaded, matchByColour, printerFilaments, syncPlan, syncPreset, type SyncMode } from '../lib/filament-sync';
 import { shortName } from '../lib/presets';
 import { installedFilaments, installedOnly, SETUP_KEY, type Setup } from '../lib/setup';

@@ -5,7 +5,7 @@ import type { BridgeStatus } from '../link/types';
 import type { Pairing } from '../pairing';
 import { isTestRelay } from '../config';
 import { UninstallBridge } from './BridgeSetup';
-import { Dialog } from './parts';
+import { Dialog } from '../../components/Dialog';
 import { removeFromBridge, SELF_REMOVING_FROM, watchBridge, type BridgeWatch } from './PrinterEditor';
 
 /** One saved printer: its name and profile, with Edit and Remove (asked once, inline). */

@@ -2,6 +2,7 @@ import { projectThumbnailUrl } from '../account/api';
 import { yourDevice } from '../lib/autosave';
 import { formatWhen } from '../lib/projects';
 import { useProjects } from '../state/projects';
+import { Notice } from './Notice';
 
 /** On opening the app with nothing loaded: continue the draft, or a project changed on another device. */
 export function ContinueCard() {
@@ -12,29 +13,26 @@ export function ContinueCard() {
   const { acceptOffer, dismissOffer } = useProjects.getState();
   const draft = offer.kind === 'draft';
   return (
-    <div className="continue-card" role="dialog" aria-labelledby="continue-title" data-testid="continue-card">
-      <div className="continue-main">
-        <div className="project-thumb small" aria-hidden>
-          {p.hasThumbnail ? <img src={projectThumbnailUrl(p)} alt="" /> : <span>3MF</span>}
-        </div>
-        <div className="continue-text">
-          <b id="continue-title">{draft ? 'Continue your unsaved project?' : `Continue ${p.name}`}</b>
-          <span className="muted small">
-            {draft
-              ? `${p.name}, changed ${formatWhen(p.updatedAt)}${p.deviceName ? ` on ${yourDevice(p.deviceName)}` : ''}`
-              : `Edited ${formatWhen(p.updatedAt)} on ${yourDevice(p.deviceName)}`}
-          </span>
-        </div>
-      </div>
-      <div className="dialog-actions">
-        <button className="secondary" onClick={() => void dismissOffer(draft)}>
-          {draft ? 'Discard' : 'Not now'}
-        </button>
-        <button className="primary" onClick={() => void acceptOffer()}>
-          Continue
-        </button>
-      </div>
-    </div>
+    <Notice
+      testId="continue-card"
+      icon={<span className="project-thumb small">{p.hasThumbnail ? <img src={projectThumbnailUrl(p)} alt="" /> : '3MF'}</span>}
+      title={draft ? 'Continue your unsaved project?' : `Continue ${p.name}`}
+      text={
+        draft
+          ? `${p.name}, changed ${formatWhen(p.updatedAt)}${p.deviceName ? ` on ${yourDevice(p.deviceName)}` : ''}`
+          : `Edited ${formatWhen(p.updatedAt)} on ${yourDevice(p.deviceName)}`
+      }
+      actions={
+        <>
+          <button className="secondary" onClick={() => void dismissOffer(draft)}>
+            {draft ? 'Discard' : 'Not now'}
+          </button>
+          <button className="primary" onClick={() => void acceptOffer()}>
+            Continue
+          </button>
+        </>
+      }
+    />
   );
 }
 
@@ -45,21 +43,23 @@ export function ViewOnlyBanner() {
   if (!elsewhere) return null;
   const { editHere, keepMineAsCopy } = useProjects.getState();
   return (
-    <div className="view-only-banner" role="status" data-testid="view-only-banner">
-      <span className="view-only-text">
-        {name} is being edited on {yourDevice(elsewhere.project.deviceName)}. This tab is view only.
-        {elsewhere.unsaved && ' Changes you made here aren’t in it.'}
-      </span>
-      <span className="view-only-actions">
-        {elsewhere.unsaved && (
-          <button className="secondary" onClick={() => void keepMineAsCopy()}>
-            Save mine as a copy
+    <Notice
+      tone="warn"
+      testId="view-only-banner"
+      title={`${name} is being edited on ${yourDevice(elsewhere.project.deviceName)}`}
+      text={`This tab is view only.${elsewhere.unsaved ? ' Changes you made here aren’t in it.' : ''}`}
+      actions={
+        <>
+          {elsewhere.unsaved && (
+            <button className="secondary" onClick={() => void keepMineAsCopy()}>
+              Save mine as a copy
+            </button>
+          )}
+          <button className="primary" onClick={() => void editHere()}>
+            Edit here instead
           </button>
-        )}
-        <button className="primary" onClick={() => void editHere()}>
-          Edit here instead
-        </button>
-      </span>
-    </div>
+        </>
+      }
+    />
   );
 }

@@ -135,7 +135,7 @@ try {
     expect(saved?.type === 'filament' && saved.inherits === systemFilament, JSON.stringify(saved));
     expect(/^231(,231)*$/.test(saved.config.nozzle_temperature ?? ''), `saved ${saved.config.nozzle_temperature}`);
     expect((await field(dialog, 'Print temperature', 'Other layers').inputValue()) === '231', 'shown from the preset');
-    await dialog.getByRole('button', { name: 'Close' }).click();
+    await dialog.getByRole('button', { name: 'Close', exact: true }).click();
     await dialog.waitFor({ state: 'detached' });
   });
 
@@ -191,7 +191,7 @@ try {
     await importDialog.getByRole('listitem', { name: 'Filament Hot PLA' }).waitFor();
     await importDialog.getByRole('button', { name: 'Import 2 presets' }).click();
     await importDialog.getByText('Imported 2 presets.', { exact: false }).waitFor({ timeout: 60000 });
-    await importDialog.getByRole('button', { name: 'Close' }).click();
+    await importDialog.getByRole('button', { name: 'Close', exact: true }).click();
     const saved = await stored();
     const printer = saved.find((p) => p.name === 'My U1 tuned');
     const filament = saved.find((p) => p.name === 'Hot PLA');
@@ -207,7 +207,7 @@ try {
     await row.getByRole('combobox', { name: 'When Hot PLA exists' }).selectOption('keep');
     await importDialog.getByRole('button', { name: 'Import 1 preset' }).click();
     await importDialog.getByText('Imported 1 preset.', { exact: false }).waitFor({ timeout: 60000 });
-    await importDialog.getByRole('button', { name: 'Close' }).click();
+    await importDialog.getByRole('button', { name: 'Close', exact: true }).click();
     const names = (await stored()).filter((p) => p.type === 'filament').map((p) => p.name).sort();
     expect(JSON.stringify(names) === JSON.stringify(['Hot PLA', 'Hot PLA (2)']), names.join(', '));
   });
@@ -252,7 +252,7 @@ try {
     await importDialog.screenshot({ path: join(out, 'import-desktop.png') });
     await importDialog.getByRole('button', { name: 'Import 1 preset' }).click();
     await importDialog.getByText('Imported 1 preset.', { exact: false }).waitFor({ timeout: 60000 });
-    await importDialog.getByRole('button', { name: 'Close' }).click();
+    await importDialog.getByRole('button', { name: 'Close', exact: true }).click();
     const saved = (await stored()).find((p) => p.name === 'My Bambu Silk');
     expect(saved?.inherits === base && /^228/.test(saved.config.nozzle_temperature ?? ''), JSON.stringify(saved));
     expect(!('filament_start_gcode' in saved.config), 'printer-specific filament G-code dropped');
@@ -265,15 +265,15 @@ try {
     let dialog = await openEditor('Edit filament 2 settings', 'Filament 2 settings');
     const before = await field(dialog, 'Print temperature', 'Other layers').inputValue();
     await setField(field(dialog, 'Print temperature', 'Other layers'), '204');
-    await dialog.getByRole('button', { name: 'Close' }).click();
+    await dialog.getByRole('button', { name: 'Close', exact: true }).click();
     dialog = await openEditor('Edit filament 1 settings', 'Filament 1 settings');
     const first = await field(dialog, 'Print temperature', 'Other layers').inputValue();
     expect(first !== '204', `filament 1 shows ${first}, filament 2 had ${before}`);
-    await dialog.getByRole('button', { name: 'Close' }).click();
+    await dialog.getByRole('button', { name: 'Close', exact: true }).click();
     dialog = await openEditor('Edit filament 2 settings', 'Filament 2 settings');
     expect((await field(dialog, 'Print temperature', 'Other layers').inputValue()) === '204', 'filament 2 keeps its change');
     await dialog.getByText('(modified)').waitFor();
-    await dialog.getByRole('button', { name: 'Close' }).click();
+    await dialog.getByRole('button', { name: 'Close', exact: true }).click();
     await page.getByRole('button', { name: 'Remove filament 2' }).click();
   });
 
@@ -288,15 +288,17 @@ try {
     await importDialog.getByRole('button', { name: 'Cancel' }).click();
   });
 
-  await step('the filament window fills a phone screen', async () => {
+  await step('the filament window fits a phone screen, centred', async () => {
     const dialog = await openEditor('Edit filament 1 settings', 'Filament settings');
     await field(dialog, 'Print temperature', 'Other layers').waitFor();
     const box = await dialog.boundingBox();
-    expect(box && box.x >= 0 && Math.round(box.width) === 390, `dialog ${JSON.stringify(box)}`);
+    const fits = box && box.x >= 0 && box.x + box.width <= 390 && box.y >= 0 && box.y + box.height <= 844;
+    const centred = box && Math.abs(box.x - (390 - box.x - box.width)) <= 1 && box.width >= 390 - 32;
+    expect(fits && centred, `dialog ${JSON.stringify(box)}`);
     const scroll = await page.evaluate(() => document.documentElement.scrollWidth);
     expect(scroll <= 390, `page is ${scroll}px wide`);
     await page.screenshot({ path: join(out, 'filament-phone.png') });
-    await dialog.getByRole('button', { name: 'Close' }).click();
+    await dialog.getByRole('button', { name: 'Close', exact: true }).click();
   });
 } catch {
   // reported by step(); a picture of where it stopped
