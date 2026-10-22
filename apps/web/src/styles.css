@@ -2527,25 +2527,235 @@ select:focus-visible {
 .dv-banner-help .dv-about-commands {
   min-width: 0;
 }
-.dv-cols {
+/* Cards sit in zones (see device/layout.ts): a band across the top, 2 or 3 columns, a band across the bottom.
+   In a zone a card fills the width; "half width" cards sit two side by side when there is room. */
+.dv-board {
   max-width: 1400px;
   margin: 0 auto;
+  display: grid;
+  gap: 12px;
+}
+.dv-columns {
   display: grid;
   grid-template-columns: minmax(0, 2fr) minmax(320px, 1fr);
   gap: 12px;
   align-items: start;
 }
-.dv-col,
-.dv-pair {
+.dv-board[data-columns='3'] .dv-columns {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+.dv-zone {
   display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(max(280px, calc(50% - 6px)), 1fr));
   gap: 12px;
   min-width: 0;
-  align-items: start;
-}
-.dv-pair {
-  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-  /* Bed and chamber beside Move: both cards end at the same line. */
+  /* Half-width cards side by side end at the same line. */
   align-items: stretch;
+}
+.dv-slot {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.dv-slot:empty {
+  display: none;
+}
+.dv-slot > .dv-card,
+.dv-slot-body,
+.dv-slot-body > .dv-card {
+  flex: 1;
+}
+.dv-slot.dv-half {
+  grid-column: auto;
+}
+.dv-slot-body {
+  display: flex;
+  flex-direction: column;
+  pointer-events: none;
+}
+/* Camera size, chosen in Arrange: the picture keeps its shape and is centred. */
+.dv-cam-s .dv-cameras {
+  max-width: 47vh;
+  margin-inline: auto;
+  width: 100%;
+}
+.dv-cam-s .dv-cameras-many {
+  max-width: 65vh;
+}
+.dv-cam-m .dv-cameras {
+  max-width: 73vh;
+  margin-inline: auto;
+  width: 100%;
+}
+.dv-cam-m .dv-cameras-many {
+  max-width: 100vh;
+}
+/* Arrange mode */
+.dv-arrange-bar {
+  max-width: 1400px;
+  margin: 0 auto 12px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 16px;
+  padding: 10px 14px;
+  border: 1px solid var(--accent);
+  border-radius: var(--radius);
+  background: color-mix(in srgb, var(--accent) 8%, var(--surface));
+}
+.dv-arrange-bar p {
+  margin: 0;
+  font-size: 13px;
+}
+.dv-arrange-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+}
+.dv-seg {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 13px;
+}
+.dv-seg span {
+  margin-right: 4px;
+}
+.dv-seg button,
+.dv-chip {
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+  border-radius: 6px;
+  padding: 3px 10px;
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+.dv-seg button[aria-pressed='true'],
+.dv-chip[aria-pressed='true'] {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: #fff;
+}
+.dv-arranging .dv-zone {
+  min-height: 48px;
+  padding: 6px;
+  border: 1px dashed var(--border);
+  border-radius: var(--radius);
+}
+.dv-arranging .dv-zone-over {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 6%, transparent);
+}
+.dv-zone-empty {
+  grid-column: 1 / -1;
+  margin: 0;
+  padding: 10px;
+  text-align: center;
+  font-size: 12px;
+  color: var(--muted);
+}
+.dv-arranging .dv-slot {
+  border: 1px solid var(--accent);
+  border-radius: var(--radius);
+  background: var(--surface);
+  overflow: hidden;
+}
+.dv-arranging .dv-slot .dv-card {
+  border: 0;
+  opacity: 0.75;
+}
+.dv-slot-bar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px 10px;
+  padding: 6px 10px;
+  background: color-mix(in srgb, var(--accent) 10%, var(--surface));
+  font-size: 13px;
+}
+.dv-slot-tools {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+}
+.dv-slot-tools select {
+  font: inherit;
+  font-size: 12px;
+}
+.dv-grip {
+  border: 0;
+  background: none;
+  color: var(--accent);
+  font-size: 18px;
+  line-height: 1;
+  padding: 4px 6px;
+  margin: -4px 0 -4px -6px;
+  cursor: grab;
+  /* The grip, not the page, gets the finger: dragging it never scrolls. */
+  touch-action: none;
+}
+.dv-slot-hidden .dv-slot-bar b {
+  color: var(--muted);
+  text-decoration: line-through;
+}
+.dv-slot-hidden {
+  opacity: 0.6;
+}
+.dv-slot-dragging {
+  opacity: 0.35;
+}
+.dv-drag-chip {
+  display: inline-flex;
+  gap: 8px;
+  align-items: center;
+  padding: 8px 14px;
+  border: 1px solid var(--accent);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--text);
+  font-weight: 600;
+  box-shadow: 0 8px 20px rgb(0 0 0 / 0.25);
+  cursor: grabbing;
+}
+.dv-drag-chip span {
+  color: var(--accent);
+}
+/* A card folds to its title by tapping the title. */
+.dv-fold {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: 0;
+  background: none;
+  padding: 0;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+}
+.dv-fold-icon {
+  width: 7px;
+  height: 7px;
+  border-right: 1.5px solid var(--muted);
+  border-bottom: 1.5px solid var(--muted);
+  transform: translateY(-2px) rotate(45deg);
+  transition: transform 0.15s;
+}
+.dv-folded .dv-fold-icon {
+  transform: rotate(-45deg);
+}
+.dv-folded .dv-card-head {
+  margin-bottom: 0;
+}
+@media (prefers-reduced-motion: reduce) {
+  .dv-fold-icon {
+    transition: none;
+  }
 }
 .dv-fan-tiles {
   display: grid;
@@ -4103,20 +4313,19 @@ select:focus-visible {
   .device {
     padding: 12px;
   }
-  .dv-cols {
-    display: flex;
-    flex-direction: column;
+  .dv-zone {
+    grid-template-columns: minmax(0, 1fr);
   }
-  .dv-col,
-  .dv-pair {
-    display: contents;
+  .dv-slot.dv-half {
+    grid-column: 1 / -1;
   }
   /* The camera stays at the top while scrolling, so the controls under it are always next to it. */
-  .dv-camera-card {
-    order: 1;
+  .dv-board:not(.dv-arranging) .dv-slot[data-card='camera'] {
     position: sticky;
     top: -12px;
     z-index: 3;
+  }
+  .dv-camera-card {
     box-shadow: 0 6px 12px -8px rgb(0 0 0 / 0.35);
   }
   .dv-camera-card .dv-camera {
@@ -4127,33 +4336,6 @@ select:focus-visible {
   }
   .dv-camera-card .dv-cameras-many {
     gap: 4px;
-  }
-  /* Not printing: the move controls sit right under the camera. */
-  .dv-cols:not(.dv-busy) [data-testid='motion-card'] {
-    order: 1;
-  }
-  [data-testid='job-card'] {
-    order: 2;
-  }
-  [data-testid='toolheads-card'] {
-    order: 3;
-  }
-  [data-testid='climate-card'] {
-    order: 4;
-  }
-  [data-testid='motion-card'] {
-    order: 5;
-  }
-  [data-testid='files-card'],
-  [data-testid='alerts-card'] {
-    order: 6;
-  }
-  .dv-console-card {
-    order: 7;
-  }
-  /* Cards fill the width instead of shrinking to their content. */
-  .dv-cols {
-    align-items: stretch;
   }
   /* Header: printer name and its status on one line, model under the name,
      Edit and Emergency stop on their own line. */
