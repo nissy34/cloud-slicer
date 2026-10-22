@@ -2716,8 +2716,31 @@ select:focus-visible {
   display: grid;
   gap: 8px;
 }
+/* Several cameras: one big, the others small in a column beside it; tap a small one to swap. */
 .dv-cameras-many {
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  grid-template-columns: minmax(0, 1fr) 28%;
+  grid-template-rows: repeat(var(--small-cameras, 1), minmax(0, 1fr));
+}
+.dv-cameras-many .dv-camera-main {
+  order: -1;
+  grid-column: 1;
+  grid-row: 1 / -1;
+}
+.dv-cameras-many .dv-camera:not(.dv-camera-main) {
+  grid-column: 2;
+  aspect-ratio: auto !important;
+  min-height: 0;
+  /* Small cameras take their height from the big one, never the other way round. */
+  contain: size;
+}
+.dv-cameras-many .dv-camera:not(.dv-camera-main) figcaption {
+  font-size: 10px;
+  left: 3px;
+  top: 3px;
+  padding: 0 4px;
+}
+.dv-cameras-many .dv-camera:not(.dv-camera-main) .dv-camera-note {
+  display: none;
 }
 .dv-camera {
   position: relative;
@@ -2752,7 +2775,11 @@ select:focus-visible {
   color: #aaa;
 }
 .dv-camera-swap {
-  display: none;
+  position: absolute;
+  inset: 0;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
 }
 .dv-camera-note {
   position: absolute;
@@ -3755,37 +3782,8 @@ select:focus-visible {
   .dv-cameras:not(.dv-cameras-many) .dv-camera {
     margin-inline: auto;
   }
-  /* Several cameras: one big, the others small in a column beside it; tap a small one to swap. */
   .dv-camera-card .dv-cameras-many {
-    grid-template-columns: minmax(0, 1fr) 28%;
-    grid-template-rows: repeat(var(--small-cameras, 1), minmax(0, 1fr));
     gap: 4px;
-  }
-  .dv-cameras-many .dv-camera-main {
-    order: -1;
-    grid-column: 1;
-    grid-row: 1 / -1;
-  }
-  .dv-cameras-many .dv-camera:not(.dv-camera-main) {
-    grid-column: 2;
-    aspect-ratio: auto !important;
-    min-height: 0;
-    /* Small cameras take their height from the big one, never the other way round. */
-    contain: size;
-  }
-  .dv-cameras-many .dv-camera:not(.dv-camera-main) figcaption {
-    font-size: 10px;
-    left: 3px;
-    top: 3px;
-    padding: 0 4px;
-  }
-  .dv-camera-swap {
-    display: block;
-    position: absolute;
-    inset: 0;
-    border: 0;
-    background: transparent;
-    cursor: pointer;
   }
   /* Not printing: the move controls sit right under the camera. */
   .dv-cols:not(.dv-busy) [data-testid='motion-card'] {

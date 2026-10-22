@@ -222,7 +222,7 @@ function CameraTile({
         <ViewFor key={`${index}`} view={view} session={session} transform={transform} onFail={next} />
       )}
       {labelled && <figcaption>{cam.name}</figcaption>}
-      {/* Phones only (CSS): covers a small camera, whose player page would otherwise swallow the tap. */}
+      {/* Covers a small camera, whose player page would otherwise swallow the click. */}
       {!main && <button className="dv-camera-swap" onClick={onPick} aria-label={`Show ${cam.name} big`} />}
       {active && note && view?.kind === 'snapshots' && (
         <span className="dv-camera-note" data-testid="camera-note">

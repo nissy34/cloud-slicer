@@ -441,6 +441,20 @@ try {
   await page.getByRole('heading', { name: 'Nozzles' }).waitFor();
   await until('both cameras streaming', async () => (await page.getByTestId('camera-tile').count()) === 2, 20_000);
   await page.locator('[data-camera="case"] iframe[data-view="iframe"]').waitFor({ timeout: 20_000 });
+  {
+    // Desktop too: one big camera, the others small beside it; clicking a small one makes it the big one.
+    await page.locator('[data-camera="case"][data-main]').waitFor();
+    const [big, small] = await Promise.all(['case', 'nozzle'].map((n) => page.locator(`[data-camera="${n}"]`).evaluate((el) => el.getBoundingClientRect().width)));
+    if (!(small < big / 2)) throw new Error(`desktop: small camera is not small next to the big one (${small} vs ${big} px)`);
+    await page.getByRole('button', { name: 'Show nozzle big' }).click();
+    await page.locator('[data-camera="nozzle"][data-main]').waitFor();
+    await page.getByRole('button', { name: 'Show case big' }).click();
+    await page.locator('[data-camera="case"][data-main]').waitFor();
+    // Alerts sit above the file list, which can run to hundreds of files.
+    const [alertsY, filesY] = await Promise.all(['alerts-card', 'files-card'].map((id) => page.getByTestId(id).evaluate((el) => el.getBoundingClientRect().top)));
+    if (!(alertsY < filesY)) throw new Error('Alerts card is below the file list');
+    console.log('desktop: one big camera with small ones beside it; Alerts above Files');
+  }
   await page.frameLocator('[data-camera="case"] iframe').getByText('mock camera player').waitFor({ timeout: 20_000 });
   await page.locator('[data-camera="nozzle"] img[data-view="mjpeg"]').waitFor({ timeout: 20_000 });
   await until('mjpeg stream decodes', () => page.locator('[data-camera="nozzle"] img').evaluate((img) => img.naturalWidth > 0), 20_000);
