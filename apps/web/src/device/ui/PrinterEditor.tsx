@@ -294,7 +294,7 @@ function AddByAddress({ watch, onAdded }: { watch: BridgeWatch | null; onAdded: 
           <input value={address} onChange={(e) => setAddress(e.target.value)} placeholder="for example 192.168.1.50, or 192.168.1.50:7130 for another port" spellCheck={false} autoCapitalize="off" data-testid="bridge-new-address" />
         </label>
         <label>
-          API key or password <span className="muted">(only if the printer asks for one: a Klipper printer's Moonraker API key, a Prusa printer's PrusaLink password, an OctoPrint API key)</span>
+          API key or password <span className="muted">(only if the printer asks for one: a Klipper printer's Moonraker API key, a Prusa printer's PrusaLink password, an OctoPrint API key; an Elegoo needs none)</span>
           <input value={apiKey} onChange={(e) => setApiKey(e.target.value)} spellCheck={false} autoCapitalize="off" autoComplete="off" data-testid="bridge-new-key" />
         </label>
         {problem && (

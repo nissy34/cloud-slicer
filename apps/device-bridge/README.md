@@ -187,6 +187,19 @@ doesn't say what is homed or where the head is, so the stand-in remembers homing
 sent and asks `M114` after a move (that answer stays out of the console). The search
 knows OctoPrint by its login page on port 80 or 5000.
 
+The Elegoo Centauri Carbon (`elegoo.go`, kind `elegoo`) speaks SDCP v3: JSON over a
+websocket on port 3030 (`/websocket`), with no login. The search sends `M99999` over
+UDP to port 3000 for the whole network and each printer answers with its name and
+mainboard ID, which every request names. Status comes as pushes every 2 seconds
+(command 512) or on asking (0); files are listed (258) and deleted (259); prints start
+(128), pause (129), stop (130) and resume (131). Only those commands are ever sent:
+the printer is said to crash on ones it doesn't know. Uploads go to
+`http://<printer>/uploadFile/upload` in 1 MB parts, each with the whole file's MD5, so
+the stand-in keeps the file on disk while it sends it. The camera (an MJPEG stream on
+port 3031, with few connections) is read once and shared: pictures come from its
+latest frame, and the stream closes 15 seconds after nobody asks. It takes no G-code.
+Tests move its ports with `CLOUD_SLICER_ELEGOO_PORTS="ws,find,camera"`.
+
 ## How it works
 
 Browser ⇄ relay (a Cloudflare Durable Object per bridge, `apps/device-relay`)

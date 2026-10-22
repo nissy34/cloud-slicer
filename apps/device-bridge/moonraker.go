@@ -8,6 +8,7 @@ import (
 	"io"
 	"net"
 	"net/http"
+	"net/url"
 	"regexp"
 	"sort"
 	"strings"
@@ -129,8 +130,8 @@ func searchLeft() bool {
 	return len(unfinished.left) > 0
 }
 
-// discover finds every Moonraker (and PrusaLink) on this computer's local
-// networks (each /24). A search that runs out of
+// discover finds every Moonraker (and PrusaLink, OctoPrint, Elegoo) on this
+// computer's local networks (each /24). A search that runs out of
 // time carries on where it stopped the next time it's asked, within a minute.
 func discover(ctx context.Context, log func(string)) []found {
 	hosts := searchHosts()
@@ -143,8 +144,11 @@ func discover(ctx context.Context, log func(string)) []found {
 	log(fmt.Sprintf("Looking for printers on your network (%d addresses)...", len(hosts)))
 	ctx, cancel := context.WithTimeout(ctx, searchBudget)
 	defer cancel()
+	// Elegoo printers answer one question to the whole network, meanwhile.
+	elegoos := make(chan []found, 1)
+	go func() { elegoos <- discoverElegoo(ctx) }()
 	got, left := probeHosts(ctx, hosts)
-	all := append(append([]found{}, before...), got...)
+	all := withElegoos(append(append([]found{}, before...), got...), <-elegoos)
 	unfinished.Lock()
 	unfinished.left, unfinished.found, unfinished.at = left, nil, time.Now()
 	if len(left) > 0 {
@@ -196,6 +200,32 @@ func virtualCard(name string) bool {
 		}
 	}
 	return false
+}
+
+// withElegoos adds the Elegoo printers found, in place of anything else the
+// same address answered as (their web page isn't a printer API).
+func withElegoos(list, elegoos []found) []found {
+	if len(elegoos) == 0 {
+		return list
+	}
+	ips := map[string]bool{}
+	for _, f := range elegoos {
+		ips[hostOf(f.URL)] = true
+	}
+	out := []found{}
+	for _, f := range list {
+		if !ips[hostOf(f.URL)] {
+			out = append(out, f)
+		}
+	}
+	return append(out, elegoos...)
+}
+
+func hostOf(raw string) string {
+	if u, err := url.Parse(raw); err == nil {
+		return u.Hostname()
+	}
+	return raw
 }
 
 // discoverOwn finds the Moonraker of the printer this bridge runs on. It answers

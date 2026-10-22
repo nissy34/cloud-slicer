@@ -3,7 +3,8 @@
 // while the engine loads only Snapmaker's presets at start and each other brand's
 // the first time one of its printers is picked or used. "Can send" printers run
 // Klipper, so the Device tab can send to them through Moonraker, or are Prusa
-// printers, which it reaches through PrusaLink (the bridge stands in for Moonraker).
+// printers or the Elegoo Centauri Carbon, which it reaches through PrusaLink or
+// Elegoo's own protocol (the bridge stands in for Moonraker).
 import type { PresetSummary } from '../engine/protocol';
 import { engineFolder, type EngineFlavor } from './engines';
 
@@ -11,7 +12,7 @@ export interface CatalogModel {
   model: string;
   /** Picture path under profiles/, or ''. */
   cover: string;
-  /** Runs Klipper or is a Prusa (PrusaLink): the Device tab can send prints to it. */
+  /** Runs Klipper, or is a Prusa or Centauri Carbon: the Device tab can send prints to it. */
   send: boolean;
   /** One printer preset per nozzle size, smallest first. */
   nozzles: { name: string; nozzle: string }[];
@@ -52,14 +53,24 @@ export function loadCatalog(flavor: EngineFlavor): Promise<PrinterCatalog | null
   return loads.get(flavor)!;
 }
 
-/** Brands the Device tab reaches without Klipper (the engine's catalog only knows Klipper by its G-code flavor). */
-const DIRECT_PRINT_BRANDS = ['Prusa'];
+/**
+ * Printers the Device tab reaches without Klipper (the engine's catalog only knows
+ * Klipper by its G-code flavor), by brand: every model, or the models named.
+ * The Centauri Carbon 2 speaks another protocol, so only the first Carbon.
+ */
+const DIRECT_PRINT: Record<string, ((model: string) => boolean) | true> = {
+  Prusa: true,
+  Elegoo: (model) => /^(Elegoo )?Centauri Carbon$/i.test(model.trim()),
+};
 
-/** Marks the printers of DIRECT_PRINT_BRANDS as ones the Device tab can send to. */
+/** Marks the printers of DIRECT_PRINT as ones the Device tab can send to. */
 export function withDirectPrint(catalog: PrinterCatalog): PrinterCatalog {
   return {
     ...catalog,
-    vendors: catalog.vendors.map((v) => (DIRECT_PRINT_BRANDS.includes(v.id) ? { ...v, models: v.models.map((m) => ({ ...m, send: true })) } : v)),
+    vendors: catalog.vendors.map((v) => {
+      const rule = DIRECT_PRINT[v.id];
+      return rule ? { ...v, models: v.models.map((m) => (rule === true || rule(m.model) ? { ...m, send: true } : m)) } : v;
+    }),
   };
 }
 
@@ -85,7 +96,7 @@ export function vendorFilesFor(catalog: PrinterCatalog | null, names: Iterable<s
 }
 
 /**
- * Whether the Device tab can send to a printer preset: a Klipper or Prusa system
+ * Whether the Device tab can send to a printer preset: a Klipper, Prusa or Centauri Carbon system
  * printer, or a user printer built on one. Null when the catalog doesn't know it.
  */
 export function canSend(catalog: PrinterCatalog | null, name: string, printers: PresetSummary[] = []): boolean | null {

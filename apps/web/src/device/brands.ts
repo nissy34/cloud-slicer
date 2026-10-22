@@ -31,6 +31,8 @@ const KINDS: Record<string, KindWords> = {
     hint: 'In OctoPrint: Settings, Application Keys, then make a key for Cloud Slicer (or copy your user\'s API key under Settings, API).',
     locked: 'This OctoPrint is locked: type an API key from its settings',
   },
+  // Elegoo printers take no password on the local network.
+  elegoo: { ...KLIPPER, tag: 'Elegoo' },
 };
 
 export function kindWords(kind?: string | null): KindWords {
@@ -50,5 +52,9 @@ export const WORKS_WITH: { title: string; text: string }[] = [
   {
     title: 'OctoPrint',
     text: 'Any printer OctoPrint runs (OctoPi on a Raspberry Pi beside an Ender, a Prusa MK3 or others), with an API key from its settings. Status, files, prints, moving the head, temperatures, the console and its cameras work.',
+  },
+  {
+    title: 'Elegoo Centauri Carbon',
+    text: "Found on your network with nothing to turn on. Status, files, prints, pause and stop, and its camera work; moving the head, temperatures and G-code are done on the printer. The Centauri Carbon 2 isn't supported yet.",
   },
 ];

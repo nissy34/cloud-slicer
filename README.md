@@ -133,7 +133,8 @@ hosted on Cloudflare's free tier.
 - **Device tab** for Moonraker (Klipper) printers: cameras, temperatures, motion, files,
   upload and print, skipping objects mid-print, and for Prusa printers through PrusaLink
   (status, files, upload, print, pause and cancel) and printers run by OctoPrint (all of the
-  above, plus Move, temperatures, the console and its cameras), plus Snapmaker U1 extras (tool heads, filament sync, the U1 print
+  above, plus Move, temperatures, the console and its cameras) and the Elegoo Centauri Carbon
+  (status, files, upload, print, pause, resume, cancel and its camera), plus Snapmaker U1 extras (tool heads, filament sync, the U1 print
   dialog, the U1's error codes in Snapmaker's own words). Printers on a home network are reached through a small bridge app.
 - **Light and dark theme**, a layout that works on phones (an open tool stacks the toolbar, its options and the model, with the settings hidden until Done), and installable as an app
   (PWA) on Android.
@@ -318,6 +319,13 @@ replies come from OctoPrint's push socket), with the few Klipper commands the sc
 put in Marlin's words; their cameras come from OctoPrint's settings, and "Connect again"
 replaces "Restart firmware" (`addons/octoprint.ts`, `apps/device-bridge/octoprint.go`;
 tested against the real OctoPrint's virtual printer, `apps/web/test/device/printers/octoprint`).
+**The Elegoo Centauri Carbon** needs nothing turned on and no password: the bridge finds it
+by asking the whole network, as Elegoo's own apps do, and speaks Elegoo's local protocol
+(SDCP). It shows status, the chamber, files, upload, print, pause, resume, cancel and its
+camera; like PrusaLink it takes no G-code, so moving the head and setting temperatures stay
+on the printer (`addons/elegoo.ts`, `apps/device-bridge/elegoo.go`; tested against a
+pretend Elegoo, `apps/web/test/device/mock-elegoo.mjs`). The Centauri Carbon 2 speaks
+another protocol and isn't covered yet.
 The add-printer dialog's "Which
 printers work?" lists the printers the Device tab reaches. The cards can be arranged: **Arrange** at the top of the tab moves
 cards by their grip into 2 or 3 columns or across the top or bottom, hides them, makes
@@ -354,7 +362,7 @@ The bridge spends the code as it installs and joins that account at once (a brid
 without a valid code never connects; an expired code makes the command ask for a new
 one). It starts with the computer (Windows and macOS at login, Linux at boot), the
 dialog turns green by itself, and the Device tab then searches the
-bridge's network for Moonraker, PrusaLink and OctoPrint printers and adds the ones you pick, with their API
+bridge's network for Moonraker, PrusaLink, OctoPrint and Elegoo printers and adds the ones you pick, with their API
 keys or PrusaLink passwords, or any address you type. API keys are only ever entered in the Device tab.
 Bridges are saved on their own, apart from their printers: the Device tab's
 Printers & bridges window lists each bridge with its printers, removes either on
