@@ -203,7 +203,7 @@ export function pageCarrier(bridge: PageBridge, onRoute: (route: PageRoute) => v
   const viaRelay = async (r: PageRequest): Promise<PageAnswer> => {
     const kept = cache.answer(r);
     if (kept) return kept;
-    if (relayed > RELAY_DATA_LIMIT) throw new PageLimit('Paused to save data: this page has used its share through the relay. Close it and open it again to go on.');
+    if (relayed > RELAY_DATA_LIMIT) throw new PageLimit('Paused to save data: this page has used its share through the relay.');
     const a = await bridge.pageFetch(r);
     relayed += a.body.byteLength;
     cache.learn(r, a);

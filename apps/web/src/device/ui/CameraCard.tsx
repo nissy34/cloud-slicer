@@ -132,7 +132,7 @@ export function CameraCard({
             <label key={c.id}>
               <input type="checkbox" checked={shown?.includes(c) ?? false} onChange={(e) => toggle(c.name, e.target.checked)} />
               {c.name}
-              {!here(c) && <span className="muted"> (in another camera card)</span>}
+              {!here(c) && <span className="muted"> (in another card)</span>}
             </label>
           ))}
         </fieldset>

@@ -3059,6 +3059,16 @@ select:focus-visible {
   border-radius: 6px;
   overflow: hidden;
 }
+/* A page card: the page in the camera's shape, no taller than the screen; Small and Medium cap its width like a camera's */
+.dv-page-card .dv-page {
+  width: min(100%, calc((100dvh - 160px) * var(--aspect, 1.5)));
+}
+.dv-cam-s .dv-page-card .dv-page {
+  max-width: 47vh;
+}
+.dv-cam-m .dv-page-card .dv-page {
+  max-width: 73vh;
+}
 .dv-page iframe {
   width: 100%;
   height: 100%;

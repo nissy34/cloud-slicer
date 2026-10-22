@@ -157,6 +157,29 @@ try {
     await new Promise((r) => setTimeout(r, 1500));
     if (printer.stats.pagePolls !== after) throw new Error('the screen is still being asked for pictures after closing its page');
     if (shots && !viaRelay) await page.getByTestId('camera-card').screenshot({ path: join(shots, `printer-page-tile-${label}.png`) });
+
+    // A page card: the page live on the Device tab, tappable, and that camera leaves the camera card.
+    await page.getByTestId('arrange-open').click();
+    await page.getByTestId('add-page-card').click();
+    await page.getByTestId('arrange-done').click();
+    const card = page.locator('[data-testid^="page-card-"]');
+    await card.getByTestId('page-pick').getByLabel('gui').click();
+    const live = page.frameLocator('[data-testid^="page-card-"] [data-testid="printer-page"] iframe').frameLocator('iframe');
+    await live.getByText(/mock screen: \d+ taps/).waitFor({ timeout: 30_000 });
+    await until('the card shows the screen picture', () => live.locator('#s').evaluate((img) => img.naturalWidth === 480), 30_000);
+    const taps = printer.stats.touches.length;
+    await live.locator('#s').click({ position: { x: 60, y: 40 } });
+    await until('a tap in the page card reached the printer', () => printer.stats.touches.length === taps + 1);
+    await until(`the page card goes ${route}`, async () => (await card.getByTestId('printer-page').getAttribute('data-route')) === route, 30_000);
+    if (await page.locator('[data-camera="gui"]').count()) throw new Error('the screen shows in the page card and still as a camera tile');
+    if (!(await page.locator('[data-camera="case"]').count())) throw new Error('the other cameras left the camera card');
+    const cardBox = await card.boundingBox();
+    if (cardBox.x < 0 || cardBox.x + cardBox.width > viewport.width + 1) throw new Error(`${label}: the page card does not fit (${JSON.stringify(cardBox)})`);
+    console.log(`${label}: the page card shows the screen live, takes taps, and the screen left the camera card`);
+    if (shots) {
+      await card.scrollIntoViewIfNeeded();
+      await page.screenshot({ path: join(shots, `page-card-${label.replace(' ', '-')}.png`) });
+    }
     await context.close();
   }
   console.log('DEVICE PAGES OK');
