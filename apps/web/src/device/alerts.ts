@@ -61,6 +61,12 @@ export interface AlertPrefs {
 
 export const defaultPrefs = (): AlertPrefs => ({ events: [...DEFAULT_EVENTS], percents: [], hours: 0, layer: null, pictures: true });
 
+/** What a device starts with when alerts are turned on: the choices last saved on any device, else the defaults. "After layer N" belongs to one print, so it never carries over. */
+export function startingPrefs(last: unknown): AlertPrefs {
+  const p = cleanPrefs(last);
+  return p ? { ...p, layer: null } : defaultPrefs();
+}
+
 /** Cleans prefs that came from storage or the network. */
 export function cleanPrefs(raw: unknown): AlertPrefs | null {
   if (!raw || typeof raw !== 'object') return null;
