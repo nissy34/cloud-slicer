@@ -39,22 +39,13 @@ export function kindWords(kind?: string | null): KindWords {
   return (kind && KINDS[kind]) || KLIPPER;
 }
 
-/** The printers the Device tab works with, for the add-printer dialog's "Which printers work?". */
-export const WORKS_WITH: { title: string; text: string }[] = [
-  {
-    title: 'Klipper printers',
-    text: 'Any printer running Klipper with Moonraker (the program behind Mainsail and Fluidd): Snapmaker U1, Voron, Qidi, Sovol SV07 and SV08, Elegoo Neptune 4, Creality K1 and K2 after turning on root access, Anycubic Kobra with Rinkhals, Flashforge Adventurer 5M with Klipper Mod.',
-  },
-  {
-    title: 'Prusa',
-    text: 'MK4, MK4S, Core One, XL and Mini, and the MK3 family with PrusaLink, once PrusaLink is turned on (Settings, Network, PrusaLink). Status, files and prints work; the Prusa camera only shows in Prusa Connect, and moving the head or sending G-code is done on the printer.',
-  },
-  {
-    title: 'OctoPrint',
-    text: 'Any printer OctoPrint runs (OctoPi on a Raspberry Pi beside an Ender, a Prusa MK3 or others), with an API key from its settings. Status, files, prints, moving the head, temperatures, the console and its cameras work.',
-  },
-  {
-    title: 'Elegoo Centauri Carbon',
-    text: "Found on your network with nothing to turn on. Status, files, prints, pause and stop, and its camera work; moving the head, temperatures and G-code are done on the printer. The Centauri Carbon 2 isn't supported yet.",
-  },
+/** What the Device tab can do with each kind of printer, for "Which printers work" (ui/WorksWith.tsx). */
+/** Column titles; `short` is shown on phones so the table fits without scrolling sideways. */
+export const WORKS_FEATURES: { name: string; short?: string }[] = [{ name: 'Status' }, { name: 'Send & print' }, { name: 'Camera' }, { name: 'Move & temperatures', short: 'Move & temps' }, { name: 'Console' }];
+
+export const WORKS_WITH: { name: string; examples: string; can: boolean[] }[] = [
+  { name: 'Klipper printers', examples: 'Snapmaker U1, Voron, Qidi, Sovol', can: [true, true, true, true, true] },
+  { name: 'Prusa with PrusaLink', examples: 'MK4, Core One, XL, Mini', can: [true, true, false, false, false] },
+  { name: 'OctoPrint', examples: 'any printer OctoPrint runs', can: [true, true, true, true, true] },
+  { name: 'Elegoo Centauri Carbon', examples: 'not the Carbon 2 yet', can: [true, true, true, false, false] },
 ];

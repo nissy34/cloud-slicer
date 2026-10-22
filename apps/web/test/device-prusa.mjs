@@ -71,9 +71,8 @@ try {
   const printers = page.getByTestId('bridge-printers');
   await page.getByTestId('bridge-state').filter({ hasText: 'Connected to the bridge' }).waitFor({ timeout: 30_000 });
 
-  // Which printers work, in plain words, under the search.
-  await printers.getByTestId('works-with').locator('summary').click();
-  await printers.getByTestId('works-with').getByText('Core One').waitFor();
+  // Which printers work, in plain sight at the top of Add printer.
+  await page.getByRole('dialog').getByTestId('works-with').getByRole('rowheader', { name: /Prusa with PrusaLink/ }).waitFor();
 
   await printers.getByTestId('bridge-search').click();
   const row = printers.locator(`[data-testid="add-row"][data-url="${prusa.url}"]`);
