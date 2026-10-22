@@ -368,7 +368,7 @@ export async function startMockPrinter({ port = 0, host = '127.0.0.1', generic =
         const f = files.get(params.filename);
         if (!f) throw Object.assign(new Error('Metadata not available'), { code: 404 });
         // Like Moonraker's metadata extractor, read the slicer's comments.
-        const kv = (k) => new RegExp(`^;\\s*${k.replace(/[[\]]/g, '\\$&')}\\s*=\\s*(.*)$`, 'm').exec(f.text)?.[1]?.trim();
+        const kv = (k) => new RegExp(`^;\\s*${k.replace(/[[\]\\]/g, '\\$&')}\\s*=\\s*(.*)$`, 'm').exec(f.text)?.[1]?.trim();
         return {
           filename: params.filename,
           size: f.size,
@@ -475,7 +475,7 @@ export async function startMockPrinter({ port = 0, host = '127.0.0.1', generic =
       const chunks = [];
       for await (const c of req) chunks.push(c);
       const body = Buffer.concat(chunks);
-      const boundary = /boundary=(.+)$/.exec(req.headers['content-type'] ?? '')?.[1];
+      const boundary = (req.headers['content-type'] ?? '').split('boundary=')[1];
       const parts = body.toString('latin1').split(`--${boundary}`);
       const filePart = parts.find((p) => /name="file"/.test(p));
       const name = /filename="([^"]+)"/.exec(filePart ?? '')?.[1] ?? 'upload.gcode';

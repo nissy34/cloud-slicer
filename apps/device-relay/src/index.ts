@@ -168,6 +168,9 @@ async function browserKey(key: string): Promise<string> {
 
 const clientIp = (req: Request) => req.headers.get('CF-Connecting-IP') ?? 'unknown';
 
+/** The site's address from the relay's settings, without a trailing slash. */
+const siteOrigin = (env: Env) => new URL(env.SITE_ORIGIN!).origin;
+
 /** Constant-time comparison of two hex digests. */
 function same(a: string, b: string) {
   if (a.length !== b.length) return false;
@@ -324,7 +327,7 @@ async function claimBridge(req: Request, env: Env, bridgeId: string): Promise<Re
   if (!free.ok) return fail(409, await free.text());
   let site: Response;
   try {
-    site = await fetch(`${env.SITE_ORIGIN.replace(/\/+$/, '')}/api/relay/claim`, {
+    site = await fetch(`${siteOrigin(env)}/api/relay/claim`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ code, relay: new URL(req.url).origin, bridgeId, browserKey: browser, host: body.host, system: body.system, place: body.place }),
@@ -371,7 +374,7 @@ async function releaseBridge(req: Request, env: Env, bridgeId: string): Promise<
   let account = false;
   if (env.SITE_ORIGIN && owner) {
     try {
-      const site = await fetch(`${env.SITE_ORIGIN.replace(/\/+$/, '')}/api/relay/release`, {
+      const site = await fetch(`${siteOrigin(env)}/api/relay/release`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ relay: new URL(req.url).origin, bridgeId, browserKey: await browserKey(key), owner }),

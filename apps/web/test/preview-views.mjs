@@ -66,7 +66,7 @@ try {
   await page.getByTestId('slice-stats').waitFor({ timeout: 600000 });
   const [download] = await Promise.all([page.waitForEvent('download'), page.getByRole('button', { name: 'Download G-code' }).click()]);
   const gcode = readFileSync(await download.path(), 'utf8');
-  const footer = (key) => (new RegExp(`^; ${key.replace(/[[\]]/g, '\\$&')} = (.*)$`, 'm').exec(gcode)?.[1] ?? '').split(',').map(Number);
+  const footer = (key) => (new RegExp(`^; ${key.replace(/[[\]\\]/g, '\\$&')} = (.*)$`, 'm').exec(gcode)?.[1] ?? '').split(',').map(Number);
   const grams = footer('filament used [g]');
   // Switches between extruding filaments, like desktop's "Filament change times".
   let changes = 0, last = -1, tool = 0;
