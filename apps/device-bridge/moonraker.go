@@ -104,6 +104,13 @@ type found struct {
 	Kind string `json:"kind,omitempty"`
 }
 
+// searchBudget is how long a network search may take: the site gives up on
+// bridge.discover after 20 s, so the bridge answers with what it found by then.
+var searchBudget = 15 * time.Second
+
+// The ports a search asks: Moonraker's and the web port (PrusaLink). Tests change them.
+var moonrakerPort, webPort = "7125", "80"
+
 // discover finds every Moonraker answering on port 7125 on this computer's local networks (each /24).
 func discover(ctx context.Context, log func(string)) []found {
 	hosts := []string{"127.0.0.1"}
@@ -115,7 +122,8 @@ func discover(ctx context.Context, log func(string)) []found {
 			continue
 		}
 		ip4 := ipnet.IP.To4()
-		if ip4 == nil {
+		// 169.254.x.x is a network card with no network behind it.
+		if ip4 == nil || ip4.IsLinkLocalUnicast() {
 			continue
 		}
 		for i := 1; i < 255; i++ {
@@ -127,6 +135,8 @@ func discover(ctx context.Context, log func(string)) []found {
 		}
 	}
 	log(fmt.Sprintf("Looking for printers on your network (%d addresses)...", len(hosts)))
+	ctx, cancel := context.WithTimeout(ctx, searchBudget)
+	defer cancel()
 	return probeHosts(ctx, hosts)
 }
 
@@ -174,7 +184,9 @@ func ownPrinter(list []found, host string) []found {
 	return []found{best}
 }
 
-// probeHosts asks Moonraker's port on each host at once.
+// probeHosts asks each host, many at once, whether a printer answers: Moonraker
+// on port 7125 and PrusaLink on the web port, both at the same time. Hosts not
+// asked before ctx ends are skipped, so the answer comes back in time.
 func probeHosts(ctx context.Context, hosts []string) []found {
 	queue := make(chan string, len(hosts))
 	for _, h := range hosts {
@@ -184,48 +196,33 @@ func probeHosts(ctx context.Context, hosts []string) []found {
 	client := &http.Client{Timeout: 1500 * time.Millisecond}
 	var mu sync.Mutex
 	var out []found
+	add := func(f found) {
+		mu.Lock()
+		out = append(out, f)
+		mu.Unlock()
+	}
 	var wg sync.WaitGroup
-	for w := 0; w < 64; w++ {
+	for w := 0; w < 128; w++ {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
 			for h := range queue {
-				// A Prusa printer answers PrusaLink on its web port instead.
-				if f, ok := probePrusaHost(ctx, client, h); ok {
-					mu.Lock()
-					out = append(out, f)
-					mu.Unlock()
+				if ctx.Err() != nil {
+					return
 				}
-				url := "http://" + h + ":7125"
-				req, err := http.NewRequestWithContext(ctx, http.MethodGet, url+"/printer/info", nil)
-				if err != nil {
-					continue
-				}
-				res, err := client.Do(req)
-				if err != nil {
-					continue // nothing there
-				}
-				f := found{URL: url, Name: h}
-				switch {
-				case res.StatusCode == http.StatusUnauthorized || res.StatusCode == http.StatusForbidden:
-					f.NeedsKey = true
-				case res.StatusCode == http.StatusOK:
-					var body struct {
-						Result struct {
-							Hostname string `json:"hostname"`
-						} `json:"result"`
+				var both sync.WaitGroup
+				both.Add(1)
+				go func() {
+					defer both.Done()
+					// A Prusa printer answers PrusaLink on its web port instead.
+					if f, ok := probePrusaHost(ctx, client, h); ok {
+						add(f)
 					}
-					if json.NewDecoder(res.Body).Decode(&body) == nil && body.Result.Hostname != "" {
-						f.Name = body.Result.Hostname
-					}
-				default:
-					res.Body.Close()
-					continue
+				}()
+				if f, ok := probeMoonrakerHost(ctx, client, h); ok {
+					add(f)
 				}
-				res.Body.Close()
-				mu.Lock()
-				out = append(out, f)
-				mu.Unlock()
+				both.Wait()
 			}
 		}()
 	}
@@ -233,10 +230,44 @@ func probeHosts(ctx context.Context, hosts []string) []found {
 	return out
 }
 
+// probeMoonrakerHost says whether Moonraker answers on a host's port 7125.
+func probeMoonrakerHost(ctx context.Context, client *http.Client, h string) (found, bool) {
+	url := "http://" + h + ":" + moonrakerPort
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url+"/printer/info", nil)
+	if err != nil {
+		return found{}, false
+	}
+	res, err := client.Do(req)
+	if err != nil {
+		return found{}, false // nothing there
+	}
+	defer res.Body.Close()
+	f := found{URL: url, Name: h}
+	switch {
+	case res.StatusCode == http.StatusUnauthorized || res.StatusCode == http.StatusForbidden:
+		f.NeedsKey = true
+	case res.StatusCode == http.StatusOK:
+		var body struct {
+			Result struct {
+				Hostname string `json:"hostname"`
+			} `json:"result"`
+		}
+		if json.NewDecoder(res.Body).Decode(&body) == nil && body.Result.Hostname != "" {
+			f.Name = body.Result.Hostname
+		}
+	default:
+		return found{}, false
+	}
+	return f, true
+}
+
 // probePrusaHost says whether PrusaLink answers on a host's web port: its
 // version without a login, or its own login challenge (realm "Printer API").
 func probePrusaHost(ctx context.Context, client *http.Client, h string) (found, bool) {
 	url := "http://" + h
+	if webPort != "80" {
+		url += ":" + webPort
+	}
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url+"/api/version", nil)
 	if err != nil {
 		return found{}, false
