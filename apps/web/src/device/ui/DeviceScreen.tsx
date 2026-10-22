@@ -48,7 +48,7 @@ export function DeviceScreen() {
       {!active ? (
         <div className="dv-empty">
           <h1>Your printers</h1>
-          <p className="muted">Add a Snapmaker U1, any Klipper printer with Moonraker, a Prusa with PrusaLink or a printer run by OctoPrint, to watch it, control it and send prints from the slicer.</p>
+          <p className="muted">Add a Snapmaker U1, any Klipper printer with Moonraker, a Prusa with PrusaLink, a printer run by OctoPrint or an Elegoo Centauri Carbon, to watch it, control it and send prints from the slicer.</p>
           <button className="primary" onClick={() => void openEditor({ mode: 'add' })} data-testid="add-printer">
             Add a printer
           </button>

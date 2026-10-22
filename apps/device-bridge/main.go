@@ -160,7 +160,7 @@ func run(argv []string, console bool) error {
 	switch cmd {
 	case "add":
 		if len(rest) == 0 {
-			return errors.New("Usage: add <address> [--name NAME] [--api-key KEY] [--kind moonraker|prusalink|octoprint]")
+			return errors.New("Usage: add <address> [--name NAME] [--api-key KEY] [--kind moonraker|prusalink|octoprint|elegoo]")
 		}
 		apiKey := opts["api-key"]
 		url, found, kind, err := findPrinter(ctx, rest[0], apiKey, opts["kind"])
