@@ -53,6 +53,10 @@ if (opts.list) {
   process.exit(0);
 }
 console.error(`selection: ${JSON.stringify(sel.selection)}`);
+if (sel.selection.printer !== opts.printer) {
+  console.error(`printer preset "${opts.printer}" not found (is its brand in the preset bundle?)`);
+  process.exit(1);
+}
 
 const full = call(engine, 'presetsFullConfig', JSON.stringify(opts.set));
 if (full.errors.length) console.error(`config errors: ${full.errors.join('; ')}`);

@@ -187,7 +187,9 @@ try {
   failShot = page;
   page.on('pageerror', (e) => console.error(`page error: ${e.message}`));
   await page.goto(site);
-  await page.getByRole('dialog', { name: 'Set up your printers' }).getByRole('button', { name: 'Not now' }).click();
+  // The setup wizard only opens once the engine has loaded; CI builds the site without one.
+  await page.getByRole('dialog', { name: 'Set up your printers' }).getByRole('button', { name: 'Not now' })
+    .click({ timeout: 8_000 }).catch(() => {});
   await page.getByRole('tab', { name: 'Device' }).click();
 
   // ---- one head: heats for real, homes, moves, prints a file to the end -----------------

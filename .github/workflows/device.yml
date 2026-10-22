@@ -256,7 +256,16 @@ jobs:
         working-directory: apps/web/test/device/printers
         run: |
           for i in 1 2 3; do docker compose pull -q && break; sleep 10; done
-          docker compose up -d --wait
+          # Once (2026-10-22) no simulated board answered Klipper on the first start; a
+          # restart is the same as switching a printer off and on. Logged so it shows.
+          if ! docker compose up -d --wait; then
+            echo "::warning::The pretend printers didn't start; restarting them once"
+            for s in one-head two-heads four-heads; do
+              docker compose exec -T $s sh -c 'tail -n 15 /printer/printer_data/logs/simulavr-stdout*; grep -m3 -E "Unable|Timeout|MHz|Mhz" /printer/printer_data/logs/klippy.log'
+            done
+            docker compose restart
+            docker compose up -d --wait
+          fi
 
       - uses: actions/setup-node@v5
         with:
@@ -293,7 +302,7 @@ jobs:
           for s in one-head two-heads four-heads; do
             echo "::group::$s klippy.log"; docker compose exec -T $s tail -n 150 /printer/printer_data/logs/klippy.log; echo "::endgroup::"
             echo "::group::$s moonraker.log"; docker compose exec -T $s tail -n 80 /printer/printer_data/logs/moonraker.log; echo "::endgroup::"
-            echo "::group::$s board and services"; docker compose exec -T $s sh -c 'tail -n 40 /printer/printer_data/logs/simulavr-stdout*; tail -n 40 /printer/printer_data/logs/supervisord.log; ls -l /tmp/pseudoserial; ps aux'; echo "::endgroup::"
+            echo "::group::$s board and services"; docker compose exec -T $s sh -c 'tail -n 40 /printer/printer_data/logs/simulavr-stdout*; tail -n 40 /printer/printer_data/logs/supervisord.log; ls -l /tmp/pseudoserial'; echo "::endgroup::"
           done
 
       - uses: actions/upload-artifact@v6
