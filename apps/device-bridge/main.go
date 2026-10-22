@@ -46,6 +46,8 @@ var (
 	defaultSite  = "https://slicer.awesomestuff.qzz.io"
 	// flavor is "test" for builds served by the test relay (see namesFor).
 	flavor = ""
+	// change counts the commits that changed the bridge: the 42 in version 6.42.
+	change = "0"
 )
 
 // parseArgs splits "--name value" options from the command and its arguments.
@@ -104,7 +106,7 @@ func run(argv []string, console bool) error {
 		if flavor != "" {
 			target += " " + flavor
 		}
-		fmt.Printf("%s (build %s %s)\n", version, build, target)
+		fmt.Printf("%s.%s (build %s %s)\n", version, change, build, target)
 		return nil
 	}
 	// On a printer the settings live with the program in printer_data, not in a home folder.

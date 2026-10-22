@@ -22,6 +22,9 @@
 set -eu
 cd "$(dirname "$0")"
 VERSION=$(sed -n 's/^const version = "\(.*\)"$/\1/p' main.go)
+# The change number, the second part of the version (6.42): how many commits changed
+# this folder. CI counts them on GitHub (its checkouts are shallow) and passes CHANGE.
+CHANGE=${CHANGE:-$(git rev-list --count HEAD -- . 2>/dev/null || echo 0)}
 case "${1:-}" in
   '') targets='linux-x64 linux-arm64 linux-armv7 linux-mipsle windows-x64' ;;
   mac) targets='mac-arm64 mac-x64' ;;
@@ -38,7 +41,7 @@ if [ -n "${FLAVOR:-}" ]; then
   BUNDLE="$BUNDLE.$FLAVOR"
 fi
 BUILD=${BUILD:-$(git log -1 --format=%ct 2>/dev/null || echo 0)}
-ldflags="$ldflags -X main.build=$BUILD"
+ldflags="$ldflags -X main.build=$BUILD -X main.change=$CHANGE"
 if [ -n "${BRIDGE_SIGNING_KEY:-}" ]; then
   ldflags="$ldflags -X main.updateKey=$(go run ./tools/release pubkey)"
 fi
@@ -62,7 +65,7 @@ for target in $targets; do
       # linked into the .exe. -H windowsgui: a program with no window at all.
       go run github.com/tc-hib/go-winres@v0.3.3 simply --arch amd64 --manifest gui --icon icons/icon.png \
         --product-name "$NAME" --file-description 'Lets Cloud Slicer reach printers on this network' \
-        --product-version "$VERSION.0.0.0" --file-version "$VERSION.0.0.0" --original-filename cloud-slicer-bridge.exe
+        --product-version "$VERSION.$CHANGE.0.0" --file-version "$VERSION.$CHANGE.0.0" --original-filename cloud-slicer-bridge.exe
       build windows amd64 dist/windows-x64 "-H windowsgui"
       rm -f rsrc_windows_amd64.syso
       ;;
@@ -86,7 +89,7 @@ for target in $targets; do
   <key>CFBundleIconFile</key><string>icon</string>
   <key>CFBundlePackageType</key><string>APPL</string>
   <key>CFBundleVersion</key><string>$VERSION</string>
-  <key>CFBundleShortVersionString</key><string>$VERSION</string>
+  <key>CFBundleShortVersionString</key><string>$VERSION.$CHANGE</string>
   <key>LSUIElement</key><true/>
 </dict>
 </plist>
