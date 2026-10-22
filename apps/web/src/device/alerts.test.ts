@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import cases from '../../../device-bridge/testdata/alert-cases.json';
 import detailCases from '../../../device-bridge/testdata/alert-details-cases.json';
-import { AlertWatcher, cleanPrefs, defaultPrefs, detailsOf, snapshotOf, wants, watchFor, type AlertWatch, type FiredAlert, type PrintSnapshot } from './alerts';
+import { AlertWatcher, cleanPrefs, defaultPrefs, detailsOf, snapshotOf, startingPrefs, wants, watchFor, type AlertWatch, type FiredAlert, type PrintSnapshot } from './alerts';
 import type { KlipperObjects } from './status';
 
 describe('print alert rules (shared with the bridge)', () => {
@@ -64,6 +64,12 @@ describe('who wants which alert', () => {
     expect(wants(p, { event: 'stillPrinting', hours: 1 })).toBe(false);
     expect(wants(p, { event: 'stillPrinting', hours: 4 })).toBe(true);
     expect(watchFor([p, { ...defaultPrefs(), layer: 3 }])).toEqual({ layers: [3, 7], percents: [50], hours: true });
+  });
+  it('a device turned on starts from the choices saved last, without "after layer N"', () => {
+    const last = { ...defaultPrefs(), events: ['finished', 'progress'], percents: [50], hours: 2, layer: 7, pictures: false };
+    expect(startingPrefs(last)).toEqual({ ...last, layer: null });
+    expect(startingPrefs(undefined)).toEqual(defaultPrefs());
+    expect(startingPrefs('nonsense')).toEqual(defaultPrefs());
   });
   it('cleans what comes from storage', () => {
     expect(cleanPrefs({ events: ['finished', 'nope', 'finished'], percents: [50, 0, 150, 'x'], hours: 99, layer: 0 })).toEqual({ events: ['finished'], percents: [50], hours: 0, layer: null, pictures: true });

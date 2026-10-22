@@ -11,7 +11,7 @@ export function Card({ title, actions, className, children, testId }: { title: s
       <header className="dv-card-head">
         <h2>
           {slot ? (
-            <button className="dv-fold" aria-expanded={!folded} onClick={slot.toggleFold} title={folded ? 'Show this card' : 'Fold this card'}>
+            <button className="dv-fold" aria-expanded={!folded} onClick={slot.toggleFold} title={folded ? 'Unfold this card' : 'Fold this card'}>
               <span className="dv-fold-icon" aria-hidden="true" />
               {title}
             </button>

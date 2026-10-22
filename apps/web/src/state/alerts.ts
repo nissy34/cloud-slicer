@@ -4,11 +4,14 @@
 // directly keep them in this browser and alert only while a tab is open: the
 // page runs the same rules itself (src/device/alerts.ts) on the status it
 // already gets.
+// Choices stay per device; the ones saved last on any device are kept in the
+// account (LAST_SETTING), and a device that turns alerts on starts from them.
 import { create } from 'zustand';
 import { alertText, type AlertPush } from '../device/alert-text';
-import { AlertWatcher, cleanPrefs, defaultPrefs, detailsOf, fileFacts, PICTURE_EVENTS, snapshotOf, wants, watchFor, ENDS_PRINT, type AlertPrefs, type FileFacts } from '../device/alerts';
+import { AlertWatcher, cleanPrefs, startingPrefs, detailsOf, fileFacts, PICTURE_EVENTS, snapshotOf, wants, watchFor, ENDS_PRINT, type AlertPrefs, type FileFacts } from '../device/alerts';
 import { BridgeLink } from '../device/link/bridge';
 import { allowNotifications, localClock, pushProblem, pushSubscription, relayPushKey, serviceWorker, type PushProblem } from '../device/push';
+import { getUserSetting, saveUserSetting } from './account';
 import { currentSession, useDevice, type SavedPrinter } from './device';
 
 export type AlertsProblem = PushProblem | 'relay' | 'offline';
@@ -33,6 +36,19 @@ interface AlertsState {
 }
 
 const LOCAL_KEY = 'cloud-slicer:alerts:v1';
+/** The alert choices saved last, on any device of the account. */
+const LAST_SETTING = 'alerts.last';
+
+/** Keeps these choices as the ones a newly turned-on device starts from. */
+function rememberLast(prefs: AlertPrefs) {
+  saveUserSetting(LAST_SETTING, { ...prefs, layer: null }).catch(() => {});
+}
+
+/** The choices to turn alerts on with, and the note that says where they came from. */
+function starting(): { prefs: AlertPrefs; note: string } {
+  const last = getUserSetting<unknown>(LAST_SETTING);
+  return { prefs: startingPrefs(last), note: cleanPrefs(last) ? 'Started with the alerts you chose last time. Change them here for this device.' : '' };
+}
 
 function localPrefs(): Record<string, AlertPrefs> {
   try {
@@ -120,17 +136,17 @@ export const useAlerts = create<AlertsState>((set, get) => {
       try {
         if (!(await allowNotifications())) return set({ busy: false, problem: 'denied' });
         await serviceWorker();
+        const start = starting();
         if (p.kind === 'direct') {
-          const prefs = defaultPrefs();
-          setLocalPrefs(p.id, prefs);
-          return set({ busy: false, status: 'on', prefs });
+          setLocalPrefs(p.id, start.prefs);
+          return set({ busy: false, status: 'on', prefs: start.prefs, note: start.note });
         }
         const key = await relayPushKey(p.relay);
         if (!key) return set({ busy: false, problem: 'relay' });
         const sub = await pushSubscription(key, true);
         if (!sub) throw new Error('This browser did not make a push subscription.');
-        const r = await relayCall<{ prefs: unknown }>({ op: 'set', ...sub, clock: localClock(), prefs: defaultPrefs() });
-        set({ busy: false, status: 'on', prefs: cleanPrefs(r.prefs) });
+        const r = await relayCall<{ prefs: unknown }>({ op: 'set', ...sub, clock: localClock(), prefs: start.prefs });
+        set({ busy: false, status: 'on', prefs: cleanPrefs(r.prefs), note: start.note });
       } catch (e) {
         fail(e);
       }
@@ -160,12 +176,16 @@ export const useAlerts = create<AlertsState>((set, get) => {
       // Show the change at once.
       set({ prefs, error: '', note: '' });
       try {
-        if (p.kind === 'direct') return setLocalPrefs(p.id, prefs);
+        if (p.kind === 'direct') {
+          setLocalPrefs(p.id, prefs);
+          return rememberLast(prefs);
+        }
         const key = await relayPushKey(p.relay);
         const sub = key ? await pushSubscription(key, false) : null;
         if (!sub) throw new Error('Turn alerts off and on again on this device.');
         const r = await relayCall<{ prefs: unknown }>({ op: 'set', ...sub, clock: localClock(), prefs });
         if (get().printerId === p.id) set({ prefs: cleanPrefs(r.prefs) ?? prefs });
+        rememberLast(prefs);
       } catch (e) {
         set({ prefs: before, error: `Could not save: ${(e as Error).message}` });
       }

@@ -2569,6 +2569,10 @@ select:focus-visible {
 .dv-slot.dv-half {
   grid-column: auto;
 }
+/* A folded card is only its title, even beside a taller half-width card. */
+.dv-slot.dv-slot-folded {
+  align-self: start;
+}
 .dv-slot-body {
   display: flex;
   flex-direction: column;
