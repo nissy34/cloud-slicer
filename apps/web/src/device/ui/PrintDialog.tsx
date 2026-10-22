@@ -173,7 +173,7 @@ export function PrintDialog({ source }: { source: SendSource }) {
                     →
                   </span>
                   <span className="dv-map-head">
-                    {head ? <Swatch colour={head.colour} empty={!head.loaded} /> : <Swatch colour="#888888" empty />}
+                    {head ? <Swatch colour={head.colour} empty={!head.ready} /> : <Swatch colour="#888888" empty />}
                     <select
                       aria-label={`Tool head for filament ${f.index + 1}`}
                       aria-invalid={check?.blocked ? true : undefined}
@@ -201,7 +201,7 @@ export function PrintDialog({ source }: { source: SendSource }) {
                     </span>
                   )}
                   {check?.warning && <span className="dv-warn-text">{check.warning}</span>}
-                  {head && !check?.blocked && !head.loaded && <span className="dv-warn-text">No filament in {head.label}</span>}
+                  {head && !check?.blocked && !head.ready && <span className="dv-warn-text">No filament in {head.label}</span>}
                 </li>
               );
             })}

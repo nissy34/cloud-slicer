@@ -32,6 +32,26 @@ describe('U1 add-on', () => {
     expect(feedChannels({}).size).toBe(0);
   });
 
+  it('tells filament in the head from filament waiting at the side feeder', () => {
+    // After an unload the filament goes back to the feeder: filament_exist stays true, the head sensor goes empty.
+    const unloaded = {
+      ...objects,
+      extruder: {},
+      extruder1: {},
+      extruder2: {},
+      extruder3: {},
+      'filament_feed left': { extruder0: { module_exist: true, filament_detected: true, channel_error: 'ok' } },
+      'filament_motion_sensor e0_filament': { enabled: true, filament_detected: false },
+      'filament_motion_sensor e1_filament': { enabled: true, filament_detected: true },
+    };
+    const heads = u1Heads(unloaded);
+    expect(heads[0]).toMatchObject({ loaded: false, ready: true });
+    expect(heads[0].feed?.filamentDetected).toBe(true);
+    expect(heads[1]).toMatchObject({ loaded: true, ready: true });
+    // No head sensor reported: fall back to what the printer says it can print with.
+    expect(heads[2]).toMatchObject({ loaded: true, ready: true });
+  });
+
   it('builds firmware commands that cannot be injected into', () => {
     expect(feedGcode(u1Heads(objects)[2].feed!, 'load')).toBe('FEED_AUTO MODULE=right CHANNEL=0 LOAD=1');
     expect(filamentConfigGcode(1, { material: 'PETG', subType: "Silk'; M112", vendor: 'Acme', colour: '#a0b0c0' })).toBe(

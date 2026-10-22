@@ -4,7 +4,7 @@ import type { U1Head } from '../device/addons/u1';
 import { matchByColour, printerFilamentName, printerFilaments, syncPlan, syncPreset, type PrinterFilament } from './filament-sync';
 
 const head = (index: number, material: string, colour: string, vendor = 'Snapmaker', subType = ''): U1Head => ({
-  index, label: `T${index + 1}`, colour, material, subType, vendor, loaded: Boolean(material), official: false,
+  index, label: `T${index + 1}`, colour, material, subType, vendor, loaded: Boolean(material), ready: Boolean(material), official: false,
   feed: null, dock: null, nozzle: null, switches: null,
 });
 

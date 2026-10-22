@@ -7,6 +7,7 @@ import { extruderIndex, type Fan, type KlipperObjects } from '../status';
 import type { PrinterAddon } from './types';
 import { u1Errors } from './u1-errors';
 import { differenceCie76 } from 'culori';
+import { filamentInExtruders } from '../heads';
 
 export const U1_HEADS = 4;
 export const U1_LIGHT = 'led cavity_led';
@@ -16,6 +17,8 @@ export const u1Addon: PrinterAddon = {
   model: 'Snapmaker U1',
   detect: (f) => f.objects.includes('print_task_config'),
   bedMovesInZ: true,
+  // Its e0_filament..e3_filament sensors in the heads act as plain switches outside a print.
+  motionSensorsFeelFilament: true,
   objects: (f) =>
     f.objects.filter(
       (n) => ['print_task_config', 'purifier', 'machine_state_manager', 'filament_detect', U1_LIGHT].includes(n) || n.startsWith('filament_feed '),
@@ -55,7 +58,14 @@ export interface U1Head {
   material: string;
   subType: string;
   vendor: string;
+  /** Filament in the head itself, from the head's filament sensor. */
   loaded: boolean;
+  /**
+   * Filament the head can print with: in the head, or waiting at its side
+   * feeder, which loads it on its own (print_task_config.filament_exist; the
+   * printer's own print dialog goes by this).
+   */
+  ready: boolean;
   /** Read from a Snapmaker RFID tag: the firmware won't let it be edited. */
   official: boolean;
   feed: FeedChannel | null;
@@ -101,6 +111,7 @@ export function feedChannels(o: KlipperObjects): Map<number, FeedChannel> {
 export function u1Heads(o: KlipperObjects): U1Head[] {
   const ptc = o.print_task_config ?? {};
   const feeds = feedChannels(o);
+  const inHead = filamentInExtruders(o, { motionSensorsFeelFilament: true });
   return Array.from({ length: U1_HEADS }, (_, i) => ({
     index: i,
     label: `T${i + 1}`,
@@ -108,7 +119,8 @@ export function u1Heads(o: KlipperObjects): U1Head[] {
     material: NONE(s(arr(ptc.filament_type)[i])),
     subType: NONE(s(arr(ptc.filament_sub_type)[i])),
     vendor: NONE(s(arr(ptc.filament_vendor)[i])),
-    loaded: Boolean(arr(ptc.filament_exist)[i]),
+    loaded: inHead.get(i) ?? Boolean(arr(ptc.filament_exist)[i]),
+    ready: Boolean(arr(ptc.filament_exist)[i]),
     official: Boolean(arr(ptc.filament_official)[i]),
     feed: feeds.get(i) ?? null,
     ...headState(o[u1ExtruderName(i)]),
@@ -339,7 +351,7 @@ export function suggestToolMap(filaments: MappedFilament[], heads: U1Head[]): Re
   for (const f of filaments) {
     const candidates = heads
       .filter((h) => !u1MappingCheck(f, h).blocked)
-      .map((h) => ({ h, d: colourDistance(f.colour, h.colour) + (used.has(h.index) ? 1000 : 0) + (h.loaded ? 0 : 2000) }))
+      .map((h) => ({ h, d: colourDistance(f.colour, h.colour) + (used.has(h.index) ? 1000 : 0) + (h.ready ? 0 : 2000) }))
       .sort((a, b) => a.d - b.d);
     const pick = candidates[0]?.h.index ?? -1;
     map[f.index] = pick;

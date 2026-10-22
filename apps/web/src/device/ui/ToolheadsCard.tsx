@@ -10,11 +10,13 @@ import {
   U1_NOZZLE_DIAMETERS,
   U1_NOZZLE_TYPES,
   u1Heads,
+  u1Activity,
+  u1MainState,
   type U1Head,
 } from '../addons/u1';
 import { setHeaterGcode } from '../commands';
 import { extruderIndex, heaters, job, motion } from '../status';
-import { headMood, MOOD_WORDS } from '../heads';
+import { filamentInExtruders, headMood, MOOD_WORDS } from '../heads';
 import { BED_SCENE_MS, HeadBed, type BedScene } from './HeadBed';
 import { HeadFace } from './HeadFace';
 import { Icon } from './icons';
@@ -25,7 +27,7 @@ const MATERIALS = ['PLA', 'PETG', 'ABS', 'ASA', 'TPU', 'PA', 'PC', 'PVA', 'HIPS'
 /**
  * One tile per nozzle, each drawn as a little character whose face says how it
  * is (printing, heating, still hot, napping, out of filament). Tapping a tile
- * opens its temperature and buttons underneath, joined to it like a tab. On a
+ * opens its temperature and buttons in the panel underneath. On a
  * U1 each tile is a tool head: docked heads lie asleep in bed, the one on the
  * carriage stands up in a blue frame (pick up / park plays getting up and going
  * back to bed), plus its filament (colour, material, from the RFID tag or as
@@ -38,6 +40,11 @@ export function ToolheadsCard() {
   const isU1 = addons.some((a) => a.id === 'u1');
   const nozzles = useMemo(() => heaters(objects).filter((h) => h.kind === 'nozzle'), [objects]);
   const heads = useMemo(() => (isU1 ? u1Heads(objects) : []), [isU1, objects]);
+  // Any printer: filament in each extruder from its Klipper filament sensors.
+  const motionSensorsFeelFilament = addons.some((a) => a.motionSensorsFeelFilament);
+  const inExtruder = useMemo(() => filamentInExtruders(objects, { motionSensorsFeelFilament }), [objects, motionSensorsFeelFilament]);
+  // The U1 loads or unloads one head at a time and says so; both buttons wait for it.
+  const feeding = isU1 && ['AUTO_LOAD', 'AUTO_UNLOAD', 'MANUAL_LOAD'].includes(u1MainState(objects));
   const active = motion(objects).activeExtruder;
   const printing = ['printing', 'paused'].includes(job(objects).state);
   const [chosen, setChosen] = useState<string | null>(null);
@@ -61,7 +68,7 @@ export function ToolheadsCard() {
     const head: U1Head | undefined = heads[i];
     // With dock sensors (U1) the head on the carriage is the one in use; otherwise Klipper's active extruder.
     const inUse = head?.dock ? head.dock === 'attached' : n.name === active;
-    const loaded = head ? head.loaded : null;
+    const loaded = head ? head.loaded : (inExtruder.get(i) ?? null);
     const mood = headMood({ temp: n.temp, target: n.target, inUse, printing, loaded, dock: head?.dock, feedError: head?.feed?.error });
     const label = head ? head.label : n.label;
     const scene = scenes[i];
@@ -103,7 +110,11 @@ export function ToolheadsCard() {
               <span className="dv-head-name">
                 <b>{t.label}</b> <span className="dv-head-temp">{Math.round(t.n.temp)}°</span>
               </span>
-              {t.head && <span className="dv-head-filament">{t.head.loaded ? [t.head.material || 'Unknown', t.head.vendor].filter(Boolean).join(' ') : 'No filament'}</span>}
+              {t.head ? (
+                <span className="dv-head-filament">{filamentWords(t.head)}</span>
+              ) : (
+                t.loaded === false && <span className="dv-head-filament">No filament</span>
+              )}
             </button>
           </li>
         ))}
@@ -115,20 +126,28 @@ export function ToolheadsCard() {
             <b>{sel.label}</b>
             {head && (
               <span className="muted">
-                {head.loaded ? [head.material || 'Unknown', head.vendor, head.subType].filter(Boolean).join(' ') : 'No filament'}
+                {head.loaded ? [head.material || 'Unknown', head.vendor, head.subType].filter(Boolean).join(' ') : filamentWords(head)}
               </span>
             )}
           </div>
         )}
-        {(head?.dock || head?.nozzle || head?.feed?.error) && (
+        {!head && sel.loaded != null && (
           <div className="dv-head-sheet-state">
-            {head.dock && (
+            <span className={sel.loaded ? 'muted' : 'dv-warn-text'} data-testid="head-loaded">
+              {sel.loaded ? 'Filament loaded' : 'No filament: the filament sensor is empty'}
+            </span>
+          </div>
+        )}
+        {(head?.dock || head?.nozzle || head?.feed?.error || feeding) && (
+          <div className="dv-head-sheet-state">
+            {feeding && <span data-testid="head-feeding">{u1Activity(objects)}…</span>}
+            {head?.dock && (
               <span className={head.dock === 'unknown' ? 'dv-warn-text' : undefined} data-testid="head-dock">
                 {DOCK_LABEL[head.dock]}
               </span>
             )}
-            {head.nozzle && <span className="muted">{nozzleText(head.nozzle)}</span>}
-            {head.feed?.error && <span className="dv-error-text">Feeder: {head.feed.error.replace(/_/g, ' ')}</span>}
+            {head?.nozzle && <span className="muted">{nozzleText(head.nozzle)}</span>}
+            {head?.feed?.error && <span className="dv-error-text">Feeder: {head.feed.error.replace(/_/g, ' ')}</span>}
           </div>
         )}
         <div className="dv-head-sheet-temp">
@@ -173,8 +192,16 @@ export function ToolheadsCard() {
               <>
                 <button
                   className={head.loaded ? 'secondary dv-btn-icon' : 'primary dv-btn-icon'}
-                  disabled={printing || head.loaded}
-                  title={head.loaded ? 'Unload the current filament first' : head.feed.auto ? undefined : 'Automatic loading is off for this feeder on the printer'}
+                  disabled={printing || feeding || head.loaded}
+                  title={
+                    head.loaded
+                      ? 'Unload the current filament first'
+                      : !head.feed.auto
+                        ? 'Automatic loading is off for this feeder on the printer'
+                        : head.feed.filamentDetected
+                          ? undefined
+                          : `Push filament into ${head.label}'s side feeder first`
+                  }
                   onClick={() =>
                     confirm({
                       action: 'Load filament',
@@ -188,7 +215,7 @@ export function ToolheadsCard() {
                 </button>
                 <button
                   className="secondary dv-btn-icon"
-                  disabled={printing || !head.loaded}
+                  disabled={printing || feeding || !head.loaded}
                   onClick={() =>
                     confirm({
                       action: 'Unload filament',
@@ -221,6 +248,10 @@ export function ToolheadsCard() {
     </Card>
   );
 }
+
+/** What is in a U1 head: its filament, filament waiting at the side feeder, or nothing. */
+const filamentWords = (h: U1Head) =>
+  h.loaded ? [h.material || 'Unknown', h.vendor].filter(Boolean).join(' ') : h.feed?.filamentDetected ? 'At the feeder' : 'No filament';
 
 const SCENE_WORDS: Record<Exclude<BedScene, 'asleep'>, string> = {
   coffee: 'Coffee break',
