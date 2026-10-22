@@ -20,7 +20,7 @@
 // (POST /v1/bridges/<id>/release): it is forgotten here and in its account.
 //
 // Printer pages (src/page-shell.ts): /page/shell.html and /page/sw.js hold a
-// printer's own page (Open page in the Device tab) on the relay's address, away
+// printer's own page (page cards in the Device tab) on the relay's address, away
 // from the site; its requests travel over the bridge link like everything else.
 //
 // Print alerts (src/alerts.ts): a browser turns them on with the JSON-RPC call
@@ -77,7 +77,7 @@ export interface Env extends PushEnv {
    */
   TEST_RELAY?: string;
   /**
-   * Where printer pages are held (Open page in the Device tab), when not on this
+   * Where printer pages are held (page cards in the Device tab), when not on this
    * relay's own address: a relay on a name next to the site's (relay.<site's domain>)
    * would put printer pages on the same site as Cloud Slicer, so device.yml points
    * this at the relay's workers.dev address.
@@ -213,7 +213,7 @@ export default {
       // Command Prompt runs batch files with Windows line ends only.
       return new Response(url.pathname.endsWith('.cmd') ? text.replace(/\r?\n/g, '\r\n') : text, { headers: { ...cors, 'Content-Type': `${type}; charset=utf-8`, 'Cache-Control': 'no-store' } });
     }
-    // Printer pages (Device tab, "Open page"): the holder and its service worker, on the relay's own address.
+    // Printer pages (Device tab page cards): the holder and its service worker, on the relay's own address.
     if (url.pathname === '/page/shell.html')
       return new Response(pageShell, { headers: { ...PAGE_ISOLATION, 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-cache' } });
     if (url.pathname === '/page/sw.js')

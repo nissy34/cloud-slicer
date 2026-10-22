@@ -1,9 +1,10 @@
 #!/usr/bin/env node
-// Printer pages (a camera's own page, opened with Open page), end to end against
+// Printer pages (a camera's own page, shown in a page card), end to end against
 // a pretend printer only: browser -> relay (wrangler dev) holder page -> this
 // site -> bridge -> mock printer with a paxx12-like remote screen behind the web
 // login. Checks the page shows, taps reach the printer, the page runs on the
-// relay's address (not the site's), and it can't reach Moonraker's API.
+// relay's address (not the site's), it can't reach Moonraker's API, repeated
+// picture checks are held back, and folding the page card leaves the cameras alone.
 //
 //   npm run build && node test/device-pages.mjs [screenshot-dir]
 import { spawn } from 'node:child_process';
@@ -73,6 +74,17 @@ try {
     const context = await browser.newContext({ viewport, ...(label === 'phone' ? { isMobile: true, hasTouch: true } : {}) });
     const viaRelay = label === 'relay only';
     if (viaRelay) await context.addInitScript(() => delete window.RTCPeerConnection);
+    else
+      // Counts direct links, so a camera that reconnects shows up.
+      await context.addInitScript(() => {
+        const Real = window.RTCPeerConnection;
+        window.__links = 0;
+        window.RTCPeerConnection = function (...a) {
+          window.__links++;
+          return new Real(...a);
+        };
+        window.RTCPeerConnection.prototype = Real.prototype;
+      });
     const page = await context.newPage();
     failShot = page;
     await page.addLocatorHandler(page.getByRole('dialog', { name: 'Set up your printers' }), (d) => d.getByRole('button', { name: 'Not now' }).click());
@@ -89,36 +101,38 @@ try {
     await page.getByRole('tab', { name: 'Device' }).click();
     await page.getByTestId('connection').filter({ hasText: 'Connected' }).waitFor({ timeout: 30_000 });
 
-    // The screen is a camera tile like the others; its page opens from the tile.
-    const tile = page.locator('[data-camera="gui"]');
-    await tile.waitFor({ timeout: 30_000 });
-    if (!(await tile.getAttribute('data-main'))) await tile.locator('.dv-camera-swap').click();
-    await page.locator('[data-camera="gui"][data-main]').waitFor();
-    if ((await page.getByTestId('open-page').count()) !== 1) throw new Error('only the big camera tile, and only a page camera, offers Open page');
-    // The case camera is a page too, but its tile is still live pictures, not a page streaming through the relay.
-    await tile.getByTestId('open-page').click();
-    const panel = page.getByTestId('printer-page');
-    await panel.waitFor();
-    const screen = page.frameLocator('[data-testid="printer-page"] iframe').frameLocator('iframe');
-    await screen.getByText('mock screen: 0 taps').waitFor({ timeout: 30_000 });
+    // Cameras stay cameras: no page buttons on their tiles.
+    await page.locator('[data-camera="gui"]').waitFor({ timeout: 30_000 });
+    if (await page.getByText('Open page').count()) throw new Error('camera tiles should not offer Open page');
+
+    // A page card: the page live on the Device tab, tappable, and that camera leaves the camera card.
+    await page.getByTestId('arrange-open').click();
+    await page.getByTestId('add-page-card').click();
+    await page.getByTestId('arrange-done').click();
+    const card = page.locator('[data-testid^="page-card-"]');
+    await card.getByTestId('page-pick').getByLabel('gui').click();
+    const panel = card.getByTestId('printer-page');
+    const screen = page.frameLocator('[data-testid^="page-card-"] [data-testid="printer-page"] iframe').frameLocator('iframe');
+    await screen.getByText(/mock screen: \d+ taps/).waitFor({ timeout: 30_000 });
     await until('the screen picture shows', () => screen.locator('#s').evaluate((img) => img.naturalWidth === 480), 30_000);
+    const route = viaRelay ? 'relay' : 'direct';
+    await until(`the page card goes ${route}`, async () => (await panel.getAttribute('data-route')) === route, 30_000);
+    if (await page.locator('[data-camera="gui"]').count()) throw new Error('the screen shows in the page card and still as a camera tile');
+    if (!(await page.locator('[data-camera="case"]').count())) throw new Error('the other cameras left the camera card');
+
     // Taps reach the printer, and the picture after them comes back.
     const before = printer.stats.touches.length;
     await screen.locator('#s').click({ position: { x: 40, y: 30 } });
-    await screen.getByText('mock screen: 1 taps').waitFor({ timeout: 15_000 });
+    await screen.getByText("mock screen: 1 taps").waitFor({ timeout: 15_000 });
     await until('the tap reached the printer', () => printer.stats.touches.length === before + 1);
     if (!/^\?a=tap&x=\d+&y=\d+$/.test(printer.stats.touches.at(-1))) throw new Error(`tap arrived as ${printer.stats.touches.at(-1)}`);
-    const route = viaRelay ? 'relay' : 'direct';
-    await until(`the panel goes ${route}`, async () => (await panel.getAttribute('data-route')) === route, 30_000);
-    if (viaRelay) {
-      // The page asks for its picture ten times a second; over the relay about one a second reaches the printer.
-      const start = printer.stats.pagePolls;
-      await new Promise((r) => setTimeout(r, 3000));
-      const polls = printer.stats.pagePolls - start;
-      if (polls > 6) throw new Error(`over the relay the page asked the printer ${polls} times in 3 s`);
-      console.log(`${label}: ${polls} picture checks reached the printer in 3 s`);
-    }
-    console.log(`${label}: the screen page shows, a tap reached the printer, requests go ${viaRelay ? 'over the relay' : 'over the direct link'}`);
+
+    // The page asks for its picture ten times a second; the printer hears about three a second (one over the relay).
+    const start = printer.stats.pagePolls;
+    await new Promise((r) => setTimeout(r, 3000));
+    const polls = printer.stats.pagePolls - start;
+    if (polls > (viaRelay ? 6 : 12)) throw new Error(`the page asked the printer ${polls} times in 3 s`);
+    console.log(`${label}: the screen shows in its card, a tap reached the printer, ${polls} picture checks reached the printer in 3 s ${viaRelay ? 'over the relay' : 'over the direct link'}`);
 
     // The page runs on the relay's address: it can't read the site, and Moonraker's API is out of its reach.
     const inner = page.frames().find((f) => f.url().includes('/page/v/'));
@@ -145,41 +159,27 @@ try {
     if (printer.stats.refused.length) throw new Error(`Moonraker's API was reached: ${printer.stats.refused}`);
     console.log(`${label}: the page runs apart from the site and can't reach Moonraker's API`);
 
-    // The panel fits the screen.
-    const box = await panel.boundingBox();
-    if (box.x < 0 || box.x + box.width > viewport.width + 1 || box.y + box.height > viewport.height + 1) throw new Error(`${label}: the page panel does not fit (${JSON.stringify(box)})`);
-    if (shots) await page.screenshot({ path: join(shots, `printer-page-${label.replace(' ', '-')}.png`) });
-    await page.getByRole('dialog').getByRole('button', { name: 'Close' }).click();
-    await panel.waitFor({ state: 'detached' });
-    // Closed means closed: the page stops asking for pictures.
-    await new Promise((r) => setTimeout(r, 1500));
-    const after = printer.stats.pagePolls;
-    await new Promise((r) => setTimeout(r, 1500));
-    if (printer.stats.pagePolls !== after) throw new Error('the screen is still being asked for pictures after closing its page');
-    if (shots && !viaRelay) await page.getByTestId('camera-card').screenshot({ path: join(shots, `printer-page-tile-${label}.png`) });
-
-    // A page card: the page live on the Device tab, tappable, and that camera leaves the camera card.
-    await page.getByTestId('arrange-open').click();
-    await page.getByTestId('add-page-card').click();
-    await page.getByTestId('arrange-done').click();
-    const card = page.locator('[data-testid^="page-card-"]');
-    await card.getByTestId('page-pick').getByLabel('gui').click();
-    const live = page.frameLocator('[data-testid^="page-card-"] [data-testid="printer-page"] iframe').frameLocator('iframe');
-    await live.getByText(/mock screen: \d+ taps/).waitFor({ timeout: 30_000 });
-    await until('the card shows the screen picture', () => live.locator('#s').evaluate((img) => img.naturalWidth === 480), 30_000);
-    const taps = printer.stats.touches.length;
-    await live.locator('#s').click({ position: { x: 60, y: 40 } });
-    await until('a tap in the page card reached the printer', () => printer.stats.touches.length === taps + 1);
-    await until(`the page card goes ${route}`, async () => (await card.getByTestId('printer-page').getAttribute('data-route')) === route, 30_000);
-    if (await page.locator('[data-camera="gui"]').count()) throw new Error('the screen shows in the page card and still as a camera tile');
-    if (!(await page.locator('[data-camera="case"]').count())) throw new Error('the other cameras left the camera card');
-    const cardBox = await card.boundingBox();
-    if (cardBox.x < 0 || cardBox.x + cardBox.width > viewport.width + 1) throw new Error(`${label}: the page card does not fit (${JSON.stringify(cardBox)})`);
-    console.log(`${label}: the page card shows the screen live, takes taps, and the screen left the camera card`);
+    const box = await card.boundingBox();
+    if (box.x < 0 || box.x + box.width > viewport.width + 1) throw new Error(`${label}: the page card does not fit (${JSON.stringify(box)})`);
     if (shots) {
       await card.scrollIntoViewIfNeeded();
       await page.screenshot({ path: join(shots, `page-card-${label.replace(' ', '-')}.png`) });
     }
+
+    // Folding the page card stops the page, and leaves the cameras running (they used to restart, going black).
+    const links = await page.evaluate(() => window.__links);
+    await card.getByRole('button', { name: 'gui' }).click();
+    await panel.waitFor({ state: 'detached' });
+    await new Promise((r) => setTimeout(r, 1500));
+    const after = printer.stats.pagePolls;
+    await new Promise((r) => setTimeout(r, 1500));
+    if (printer.stats.pagePolls !== after) throw new Error('the screen is still being asked for pictures after folding its card');
+    await card.getByRole('button', { name: 'gui' }).click();
+    await screen.getByText(/mock screen: \d+ taps/).waitFor({ timeout: 30_000 });
+    const opened = (await page.evaluate(() => window.__links)) - links;
+    // Unfolding opens the page's own direct link again; nothing else may reconnect.
+    if (opened > (viaRelay ? 0 : 1)) throw new Error(`folding the page card reconnected the cameras (${opened} new direct links)`);
+    console.log(`${label}: folding the page card stops it and leaves the cameras alone`);
     await context.close();
   }
   console.log('DEVICE PAGES OK');

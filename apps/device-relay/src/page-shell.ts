@@ -1,4 +1,4 @@
-// The holder for printer pages (the Device tab's "Open page"). A printer's own
+// The holder for printer pages (the Device tab's page cards). A printer's own
 // page (paxx12's remote screen, a camera's player page) runs on the relay's
 // address, never on Cloud Slicer's, so it can't reach the signed-in site. The
 // site frames shell.html?sid=<random> and hands it a MessagePort; the shell

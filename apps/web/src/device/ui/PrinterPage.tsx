@@ -4,7 +4,7 @@ import type { Webcam } from '../camera';
 import { cameraCardOf, type CamCardId } from '../layout';
 import type { PrinterLink } from '../link/types';
 import { PageLimit, pageCarrier, pagePath, type PageRoute } from '../printer-page';
-import { Card, Dialog } from './parts';
+import { Card } from './parts';
 
 /** True when this link can open a camera's page through the bridge. */
 export function canOpenPages(link: PrinterLink): boolean {
@@ -77,21 +77,6 @@ function PageView({ cam, link, onError }: { cam: Webcam; link: PrinterLink; onEr
   );
 }
 
-/** Open page: the camera's page in a window, as big as the screen allows. */
-export function PrinterPageDialog({ cam, link, onClose }: { cam: Webcam; link: PrinterLink; onClose(): void }) {
-  const [error, setError] = useState('');
-  return (
-    <Dialog title={cam.name} onClose={onClose} className="dv-page-dialog">
-      <PageView cam={cam} link={link} onError={setError} />
-      {error && (
-        <p className="dv-error" role="alert" data-testid="printer-page-error">
-          {error}
-        </p>
-      )}
-    </Dialog>
-  );
-}
-
 /** True while the browser tab is in front; a page card stops while it is hidden. */
 function useTabVisible() {
   const [visible, setVisible] = useState(() => typeof document === 'undefined' || document.visibilityState === 'visible');
@@ -106,8 +91,8 @@ function useTabVisible() {
 /**
  * A page card: one camera's own page, live on the Device tab and tappable.
  * Choose picks which page; that camera then leaves the camera cards.
- * Through the bridge it opens like Open page; on a direct printer it is framed
- * straight from the printer.
+ * Through the bridge the page runs in the relay's holder (PageView); on a direct
+ * printer it is framed straight from the printer.
  */
 export function PageCard({ card, home, onPick }: { card: CamCardId; home: Record<string, CamCardId>; onPick(name: string): void }) {
   const online = useDevice((s) => s.conn.state === 'online');

@@ -154,7 +154,7 @@ jobs:
         timeout-minutes: 5
         run: node test/device-arrange.mjs device-shots
 
-      - name: Printer pages (Open page on a camera's own page, taps through the bridge, kept apart from the site)
+      - name: Printer pages (a page card shows a camera's own page, taps through the bridge, kept apart from the site)
         working-directory: apps/web
         timeout-minutes: 5
         env:
@@ -512,7 +512,7 @@ jobs:
             echo "::warning::R2 isn't usable; the relay deploys without the bridge apps"
             sed -i '/^\[\[r2_buckets\]\]/,/^bucket_name/d' wrangler.toml
           fi
-          # Printer pages (Open page) stay on the Worker's workers.dev address, a
+          # Printer pages (page cards) stay on the Worker's workers.dev address, a
           # different site from Cloud Slicer's, whatever other name the relay gets.
           sub=$(curl -fsS -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" \
             "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/workers/subdomain" | jq -r '.result.subdomain // empty' || true)

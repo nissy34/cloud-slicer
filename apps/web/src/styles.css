@@ -3030,27 +3030,7 @@ select:focus-visible {
   background: transparent;
   cursor: pointer;
 }
-.dv-camera-page {
-  position: absolute;
-  right: 6px;
-  top: 6px;
-  z-index: 1;
-  padding: 3px 10px;
-  border: 0;
-  border-radius: 4px;
-  background: rgb(0 0 0 / 0.6);
-  color: #fff;
-  font-size: 12px;
-  cursor: pointer;
-}
-.dv-camera-page:hover,
-.dv-camera-page:focus-visible {
-  background: rgb(0 0 0 / 0.8);
-}
-/* A camera's own page (Open page): as big as the screen allows, in the camera's shape */
-.dv-dialog.dv-page-dialog {
-  width: min(960px, calc(100vw - 16px));
-}
+/* A printer page (page card): in the camera's shape */
 .dv-page {
   width: min(100%, calc((100dvh - 120px) * var(--aspect, 1.5)));
   aspect-ratio: var(--aspect, 1.5);

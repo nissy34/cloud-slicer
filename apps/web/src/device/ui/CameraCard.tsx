@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type CSSProperties } from 'react';
+import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import { currentSession, useDevice } from '../../state/device';
 import { cameraTransform, cameraViews, type CameraView, type Webcam } from '../camera';
 import { cameraCardOf, type CamCardId } from '../layout';
@@ -7,7 +7,6 @@ import type { PrinterSession } from '../session';
 import { playWebrtc } from '../webrtc';
 import { playDirect, type DirectBridge } from '../direct-camera';
 import { Card } from './parts';
-import { PrinterPageDialog, canOpenPages } from './PrinterPage';
 
 /**
  * A camera's own player page can only be framed by this cross-origin isolated
@@ -212,21 +211,20 @@ function CameraTile({
 }) {
   const viaBridge = session.link.mediaUrl('/') === null;
   // Streams load straight in the browser, so their addresses resolve against the printer here.
-  const views = cameraViews(cam, viaBridge).flatMap((v): CameraView[] => {
-    if (v.kind === 'snapshots') return [v];
-    if (v.kind === 'direct') return directBridge(session) && typeof RTCPeerConnection !== 'undefined' ? [v] : [];
-    if (v.kind === 'iframe' && !IFRAMES_ALLOWED) return [];
-    const url = session.link.mediaUrl(v.url);
-    return url ? [{ ...v, url }] : [];
-  });
+  // Kept between renders: a new view object restarts the stream (a card folding elsewhere re-renders this one).
+  const views = useMemo(
+    () =>
+      cameraViews(cam, viaBridge).flatMap((v): CameraView[] => {
+        if (v.kind === 'snapshots') return [v];
+        if (v.kind === 'direct') return directBridge(session) && typeof RTCPeerConnection !== 'undefined' ? [v] : [];
+        if (v.kind === 'iframe' && !IFRAMES_ALLOWED) return [];
+        const url = session.link.mediaUrl(v.url);
+        return url ? [{ ...v, url }] : [];
+      }),
+    [cam, viaBridge, session],
+  );
   const [index, setIndex] = useState(0);
   const [note, setNote] = useState('');
-  const [pageOpen, setPageOpen] = useState(false);
-  // A camera that is a page on the printer (Moonraker's "iframe", such as paxx12's
-  // remote screen) can be opened as that page, with taps and clicks working.
-  const isPage = cam.service === 'iframe' && !!cam.streamUrl;
-  const pageViaBridge = isPage && viaBridge && canOpenPages(session.link);
-  const pageUrl = isPage && !viaBridge ? session.link.mediaUrl(cam.streamUrl) : null;
   // A new camera list starts again from the best view.
   useEffect(() => {
     setIndex(0);
@@ -260,16 +258,6 @@ function CameraTile({
       {labelled && <figcaption>{cam.name}</figcaption>}
       {/* Covers a small camera, whose player page would otherwise swallow the click. */}
       {!main && <button className="dv-camera-swap" onClick={onPick} aria-label={`Show ${cam.name} big`} />}
-      {main && (pageViaBridge || pageUrl) && (
-        <button
-          className="dv-camera-page"
-          data-testid="open-page"
-          onClick={() => (pageUrl ? window.open(pageUrl, '_blank', 'noopener') : setPageOpen(true))}
-        >
-          Open page
-        </button>
-      )}
-      {pageOpen && <PrinterPageDialog cam={cam} link={session.link} onClose={() => setPageOpen(false)} />}
       {active && note && view?.kind === 'snapshots' && (
         <span className="dv-camera-note" data-testid="camera-note">
           {note}

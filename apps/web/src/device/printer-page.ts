@@ -1,11 +1,13 @@
 // Printer pages: a page the printer serves for a camera Moonraker lists as an
 // "iframe" (paxx12's remote screen, a camera's player page), opened from its
-// camera tile with Open page. The page runs in a holder on the relay's own
+// page card on the Device tab. The page runs in a holder on the relay's own
 // address (apps/device-relay/src/page-shell.ts), never on this site's, and every
 // request it makes comes here and goes to the bridge: over a direct WebRTC link
 // when one connects (nothing crosses the relay), else one by one over the relay.
-// Over the relay a page that polls (the remote screen asks for its picture ten
-// times a second) is held to one real request a second, and stops after a data limit.
+// A page that polls (the remote screen asks for its picture ten times a second)
+// has its repeated "has it changed?" checks answered here: the printer is asked
+// about three times a second over the direct link, once a second over the relay,
+// and again at once after a tap. Over the relay a page stops after a data limit.
 import type { PageAnswer, PageRequest } from './link/types';
 import { STUN, gathered } from './webrtc';
 
@@ -19,6 +21,8 @@ export interface PageBridge {
 export const DIRECT_PAGE_TIMEOUT_MS = 12_000;
 /** Over the relay, a picture the page already has is asked for again at most this often. */
 export const RELAY_RECHECK_MS = 1000;
+/** Over the direct link, the same: the printer works out each answer, so it isn't asked ten times a second. */
+export const DIRECT_RECHECK_MS = 300;
 /** Over the relay a page stops after this much data; reopening it starts again. */
 export const RELAY_DATA_LIMIT = 25 * 1024 * 1024;
 
@@ -37,18 +41,22 @@ export function pagePath(streamUrl: string): string {
 /**
  * Answers a request the page repeats with "If-None-Match" for the picture it
  * already has (Not Modified) without asking the printer, when the printer said
- * the same less than RELAY_RECHECK_MS ago. Used over the relay only.
+ * the same less than `recheckMs` ago. Anything else the page sends (a tap)
+ * makes the next check go to the printer, so the screen answers it at once.
  */
 export function conditionalCache(now: () => number = Date.now) {
   const seen = new Map<string, { etag: string; at: number }>();
   const key = (r: PageRequest) => r.path.replace(/\?.*$/, '');
   const header = (h: Record<string, string>, name: string) => Object.entries(h).find(([k]) => k.toLowerCase() === name)?.[1];
   return {
-    answer(r: PageRequest): PageAnswer | null {
-      if (r.method !== 'GET') return null;
+    answer(r: PageRequest, recheckMs: number): PageAnswer | null {
+      if (r.method !== 'GET' && r.method !== 'HEAD') {
+        seen.clear();
+        return null;
+      }
       const asked = header(r.headers, 'if-none-match');
       const last = seen.get(key(r));
-      if (!asked || !last || last.etag !== asked || now() - last.at >= RELAY_RECHECK_MS) return null;
+      if (!asked || !last || last.etag !== asked || now() - last.at >= recheckMs) return null;
       return { status: 304, headers: { ETag: last.etag }, body: new ArrayBuffer(0) };
     },
     learn(r: PageRequest, a: PageAnswer) {
@@ -201,7 +209,7 @@ export function pageCarrier(bridge: PageBridge, onRoute: (route: PageRoute) => v
   } else onRoute('relay');
 
   const viaRelay = async (r: PageRequest): Promise<PageAnswer> => {
-    const kept = cache.answer(r);
+    const kept = cache.answer(r, RELAY_RECHECK_MS);
     if (kept) return kept;
     if (relayed > RELAY_DATA_LIMIT) throw new PageLimit('Paused to save data: this page has used its share through the relay.');
     const a = await bridge.pageFetch(r);
@@ -213,8 +221,12 @@ export function pageCarrier(bridge: PageBridge, onRoute: (route: PageRoute) => v
     async fetch(r: PageRequest): Promise<PageAnswer> {
       if (stopped) throw new Error('The page was closed.');
       if (direct) {
+        const kept = cache.answer(r, DIRECT_RECHECK_MS);
+        if (kept) return kept;
         try {
-          return await direct.fetch(r);
+          const a = await direct.fetch(r);
+          cache.learn(r, a);
+          return a;
         } catch (e) {
           if (e instanceof PageRefused) throw e;
           // A link that dropped mid-request: the relay answers this one.

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { PageAnswer, PageRequest } from './link/types';
-import { PageLimit, RELAY_DATA_LIMIT, RELAY_RECHECK_MS, conditionalCache, pageAssembler, pageCarrier, pagePath } from './printer-page';
+import { DIRECT_RECHECK_MS, PageLimit, RELAY_DATA_LIMIT, RELAY_RECHECK_MS, conditionalCache, pageAssembler, pageCarrier, pagePath } from './printer-page';
 
 const get = (path: string, headers: Record<string, string> = {}): PageRequest => ({ method: 'GET', path, headers });
 const ok = (headers: Record<string, string>, size = 3): PageAnswer => ({ status: 200, headers, body: new ArrayBuffer(size) });
@@ -17,21 +17,35 @@ describe('conditionalCache', () => {
   it('answers a repeated picture check itself for a second, then asks the printer again', () => {
     let now = 0;
     const cache = conditionalCache(() => now);
-    expect(cache.answer(get('/screen/snapshot?ts=1', { 'If-None-Match': '"a"' }))).toBeNull();
+    expect(cache.answer(get('/screen/snapshot?ts=1', { 'If-None-Match': '"a"' }), RELAY_RECHECK_MS)).toBeNull();
     cache.learn(get('/screen/snapshot?ts=1'), ok({ ETag: '"a"' }));
     now = 400;
-    expect(cache.answer(get('/screen/snapshot?ts=2', { 'if-none-match': '"a"' }))?.status).toBe(304);
+    expect(cache.answer(get('/screen/snapshot?ts=2', { 'if-none-match': '"a"' }), RELAY_RECHECK_MS)?.status).toBe(304);
     // Another picture than the one the page has, or no check at all: always asked.
-    expect(cache.answer(get('/screen/snapshot?ts=3', { 'If-None-Match': '"b"' }))).toBeNull();
-    expect(cache.answer(get('/screen/snapshot?ts=4'))).toBeNull();
+    expect(cache.answer(get('/screen/snapshot?ts=3', { 'If-None-Match': '"b"' }), RELAY_RECHECK_MS)).toBeNull();
+    expect(cache.answer(get('/screen/snapshot?ts=4'), RELAY_RECHECK_MS)).toBeNull();
     now = RELAY_RECHECK_MS;
-    expect(cache.answer(get('/screen/snapshot?ts=5', { 'If-None-Match': '"a"' }))).toBeNull();
+    expect(cache.answer(get('/screen/snapshot?ts=5', { 'If-None-Match': '"a"' }), RELAY_RECHECK_MS)).toBeNull();
   });
 
   it('never answers a tap', () => {
     const cache = conditionalCache(() => 0);
     cache.learn(get('/screen/touch'), ok({ ETag: '"a"' }));
-    expect(cache.answer({ method: 'POST', path: '/screen/touch', headers: { 'If-None-Match': '"a"' } })).toBeNull();
+    expect(cache.answer({ method: 'POST', path: '/screen/touch', headers: { 'If-None-Match': '"a"' } }, RELAY_RECHECK_MS)).toBeNull();
+  });
+
+  it('asks the printer again right after a tap, and sooner over the direct link', () => {
+    let now = 0;
+    const cache = conditionalCache(() => now);
+    const check = get('/screen/snapshot?ts=1', { 'If-None-Match': '"a"' });
+    cache.learn(get('/screen/snapshot'), ok({ ETag: '"a"' }));
+    now = DIRECT_RECHECK_MS - 1;
+    expect(cache.answer(check, DIRECT_RECHECK_MS)?.status).toBe(304);
+    now = DIRECT_RECHECK_MS;
+    expect(cache.answer(check, DIRECT_RECHECK_MS)).toBeNull();
+    expect(cache.answer(check, RELAY_RECHECK_MS)?.status).toBe(304);
+    cache.answer({ method: 'POST', path: '/screen/touch?a=tap&x=1&y=1', headers: {} }, RELAY_RECHECK_MS);
+    expect(cache.answer(check, RELAY_RECHECK_MS)).toBeNull();
   });
 });
 

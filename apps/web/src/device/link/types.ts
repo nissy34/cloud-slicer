@@ -60,7 +60,7 @@ export interface PrinterLink {
   cameraClose?(id: string): void;
   /**
    * Bridge links only: printer pages (a camera Moonraker lists as an "iframe"
-   * page, opened with Open page). `pageHolder` is the address the page holder
+   * page, shown in a page card). `pageHolder` is the address the page holder
    * lives on (the relay's, kept apart from the site); requests go through the
    * bridge one by one (pageFetch), or over a direct link the bridge answers (pageOpen).
    */
