@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
@@ -275,5 +276,18 @@ func TestRelativeCameraPathsTryTheWebServerFirst(t *testing.T) {
 	want := []string{"http://10.0.0.5/screen/snapshot", "http://10.0.0.5:7125/screen/snapshot"}
 	if !reflect.DeepEqual(names, want) {
 		t.Fatalf("got %v, want %v", names, want)
+	}
+}
+
+// Print alerts make a bare Session just for one picture.
+func TestPictureFromABareSession(t *testing.T) {
+	cam := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "image/jpeg")
+		_, _ = w.Write(fakePicture)
+	}))
+	defer cam.Close()
+	s := &Session{printer: Printer{URL: cam.URL}, ctx: context.Background()}
+	if _, _, err := s.frame("/webcam/snapshot.jpg"); err != nil {
+		t.Fatal(err)
 	}
 }

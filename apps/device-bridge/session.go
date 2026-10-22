@@ -372,6 +372,10 @@ func (s *Session) frame(raw string) ([]byte, string, error) {
 		buf, ct, err := s.fetchBytes(u)
 		if err == nil {
 			s.mu.Lock()
+			if s.pictureAt == nil {
+				// Sessions made just for one picture (print alerts) start without it.
+				s.pictureAt = map[string]*url.URL{}
+			}
 			s.pictureAt[raw] = u
 			s.mu.Unlock()
 			return buf, ct, nil
