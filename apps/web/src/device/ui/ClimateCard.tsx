@@ -1,8 +1,8 @@
 import { useMemo } from 'react';
 import { useDevice } from '../../state/device';
-import { purifierGcode, U1_LIGHT, u1LightGcode, u1Purifier } from '../addons/u1';
+import { purifierGcode, U1_LIGHT, u1Fans, u1LightGcode, u1Purifier } from '../addons/u1';
 import { fanGcode, lightGcode, setHeaterGcode } from '../commands';
-import { fans, heaters, lights, sensors } from '../status';
+import { fans, heaters, lights, motion, sensors } from '../status';
 import { Card, PercentSlider, Temperature } from './parts';
 
 /** Bed, chamber, other sensors, fans and lights; on a U1 also the top cover's purifier. */
@@ -13,7 +13,7 @@ export function ClimateCard() {
   const isU1 = addons.some((a) => a.id === 'u1');
   const hs = useMemo(() => heaters(objects).filter((h) => h.kind !== 'nozzle'), [objects]);
   const ss = useMemo(() => sensors(objects), [objects]);
-  const fs = useMemo(() => fans(objects), [objects]);
+  const fs = useMemo(() => (isU1 ? u1Fans(fans(objects), motion(objects).activeExtruder) : fans(objects)), [objects, isU1]);
   const ls = useMemo(() => lights(objects), [objects]);
   const purifier = isU1 ? u1Purifier(objects) : null;
 

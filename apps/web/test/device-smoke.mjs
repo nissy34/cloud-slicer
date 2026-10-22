@@ -188,6 +188,31 @@ try {
   await page.getByLabel('Bed target').press('Enter');
   await until('bed target 60', () => u1.state.heater_bed.target === 60);
   console.log('light and bed heater work');
+  {
+    // One part fan, the hotend fan of the head on the carriage, and a parked head's while it still spins; no per-head part fans.
+    const climate = page.getByTestId('climate-card');
+    await climate.getByText('Hotend fan T1', { exact: true }).waitFor();
+    await climate.getByText('Hotend fan T3', { exact: true }).waitFor();
+    for (const gone of ['Hotend fan T2', 'E1 fan', 'E1 nozzle fan']) if (await climate.getByText(gone, { exact: true }).count()) throw new Error(`U1 fan list shows ${gone}`);
+    console.log('U1 fans: part cooling plus the hotend fans that matter');
+  }
+
+  // Move arrows say what physically moves. On the U1 the bed moves up and down, so "Bed up" closes the gap (Z−).
+  {
+    const motion = page.getByTestId('motion-card');
+    await motion.getByRole('button', { name: 'Home all' }).click();
+    await until('U1 homed', () => u1.state.toolhead.homed_axes === 'xyz');
+    if ((await motion.getByText('Bed', { exact: true }).count()) !== 1) throw new Error('U1 Move card does not label the height arrows "Bed"');
+    await motion.getByRole('button', { name: 'Bed up' }).click();
+    await until('bed up sends Z-', () => u1.scripts.includes('G1 Z-10 F600'));
+    await motion.getByRole('button', { name: 'Bed down' }).click();
+    await until('bed down sends Z+', () => u1.scripts.includes('G1 Z10 F600'));
+    await motion.getByRole('button', { name: 'Head toward you' }).click();
+    await until('head toward you sends Y-', () => u1.scripts.includes('G1 Y-10 F6000'));
+    await motion.getByRole('button', { name: 'Head to the back' }).click();
+    await until('head to the back sends Y+', () => u1.scripts.includes('G1 Y10 F6000'));
+    console.log('U1 move arrows: bed up/down and head front/back send the right moves');
+  }
 
   await page.getByTestId('camera-frame').waitFor({ timeout: 20_000 });
   // The camera comes straight from the bridge (pictures over a direct WebRTC link), not one frame a second over the relay.
@@ -416,8 +441,11 @@ try {
   await page.getByTestId('camera-card').getByRole('button', { name: 'Done' }).click();
   await page.getByRole('button', { name: 'Home all' }).click();
   await until('homed', () => voron.state.toolhead.homed_axes === 'xyz');
-  await page.getByRole('button', { name: 'X plus' }).click();
+  await page.getByRole('button', { name: 'Head right' }).click();
   await until('jogged', () => voron.scripts.includes('G1 X10 F6000'));
+  // Printers where the head moves up and down keep "Head up" = Z+.
+  await page.getByRole('button', { name: 'Head up' }).click();
+  await until('head up sends Z+', () => voron.scripts.includes('G1 Z10 F600'));
   console.log('direct generic printer: connected, both cameras live (player page + MJPEG), camera choice saved, home and jog work');
 
   const filesCard = page.getByTestId('files-card');
@@ -483,6 +511,37 @@ try {
   u1.setExceptions([]);
   await phone.getByTestId('printer-errors').waitFor({ state: 'detached' });
   console.log('phone layout fits, with the U1 errors read when the page connects');
+
+  // Phone: the camera stays at the top while scrolling and, when not printing, the move controls sit right under it.
+  {
+    // The job card screenshot above scrolled the page; measure from the top.
+    await phone.evaluate(() => document.querySelector('.device').scrollTo(0, 0));
+    const gap = await phone.evaluate(() => {
+      const cam = document.querySelector('[data-testid="camera-card"]').getBoundingClientRect();
+      const move = document.querySelector('[data-testid="motion-card"]').getBoundingClientRect();
+      return move.top - cam.bottom;
+    });
+    if (gap < 0 || gap > 24) throw new Error(`move controls are not right under the camera on a phone (gap ${gap} px)`);
+    await phone.evaluate(() => document.querySelector('.device').scrollBy(0, 800));
+    const camTop = await phone.getByTestId('camera-card').evaluate((el) => el.getBoundingClientRect().top);
+    const deviceTop = await phone.evaluate(() => document.querySelector('.device').getBoundingClientRect().top);
+    if (Math.abs(camTop - deviceTop) > 2) throw new Error(`camera scrolled away on a phone (camera at ${camTop}, page top ${deviceTop})`);
+    await phone.evaluate(() => document.querySelector('.device').scrollTo(0, 0));
+    // Several cameras: one big, the others small beside it; tapping a small one makes it the big one.
+    const cur = await phone.getByTestId('printer-select').inputValue();
+    await phone.getByTestId('printer-select').selectOption({ label: 'voron-mock' });
+    await phone.getByTestId('connection').filter({ hasText: 'Connected' }).waitFor({ timeout: 20_000 });
+    await until('two cameras on the phone', async () => (await phone.getByTestId('camera-tile').count()) === 2, 20_000);
+    await phone.locator('[data-camera="case"][data-main]').waitFor();
+    const [big, small] = await Promise.all(['case', 'nozzle'].map((n) => phone.locator(`[data-camera="${n}"]`).evaluate((el) => el.getBoundingClientRect().width)));
+    if (!(small < big / 2)) throw new Error(`small camera is not small next to the big one (${small} vs ${big} px)`);
+    if (shots) await phone.getByTestId('camera-card').screenshot({ path: join(shots, 'cameras-phone.png') });
+    await phone.getByRole('button', { name: 'Show nozzle big' }).click();
+    await phone.locator('[data-camera="nozzle"][data-main]').waitFor();
+    await phone.getByTestId('printer-select').selectOption(cur);
+    await phone.getByTestId('connection').filter({ hasText: 'Connected' }).waitFor({ timeout: 20_000 });
+    console.log('phone: camera stays on top, move controls under it, small cameras swap in with a tap');
+  }
 
   await phone.setViewportSize({ width: 390, height: 844 });
   await phone.getByTestId('device-gcode-input').setInputFiles(sendFile);

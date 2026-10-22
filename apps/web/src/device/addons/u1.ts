@@ -3,7 +3,7 @@
 // its klippy/extras: print_task_config (filament per tool head, print
 // preferences, tool map), filament_feed (automatic load/unload), purifier
 // (the top cover's air purifier), machine_state_manager and the cavity light.
-import type { KlipperObjects } from '../status';
+import { extruderIndex, type Fan, type KlipperObjects } from '../status';
 import type { PrinterAddon } from './types';
 import { u1Errors } from './u1-errors';
 import { differenceCie76 } from 'culori';
@@ -15,6 +15,7 @@ export const u1Addon: PrinterAddon = {
   id: 'u1',
   model: 'Snapmaker U1',
   detect: (f) => f.objects.includes('print_task_config'),
+  bedMovesInZ: true,
   objects: (f) =>
     f.objects.filter(
       (n) => ['print_task_config', 'purifier', 'machine_state_manager', 'filament_detect', U1_LIGHT].includes(n) || n.startsWith('filament_feed '),
@@ -346,3 +347,22 @@ export function suggestToolMap(filaments: MappedFilament[], heads: U1Head[]): Re
   }
   return map;
 }
+
+/**
+ * The U1 has one part fan, which cools whichever head is on the carriage (the
+ * printer's main fan, "Part cooling"), and a hotend fan on each of its four heads.
+ * Its config also lists per-head part fans (e1_fan...), which are left out. A
+ * head's hotend fan shows while that head is on the carriage or the fan is
+ * spinning (a parked head still cooling down), named like the Tool heads card.
+ */
+export function u1Fans(list: Fan[], activeExtruder: string): Fan[] {
+  const active = extruderIndex(activeExtruder);
+  return list.flatMap((f) => {
+    const own = f.name.split(' ')[1] ?? '';
+    const head = /^e(\d+)_(nozzle_)?fan$/i.exec(own);
+    if (!head) return [f];
+    const n = Number(head[1]);
+    return head[2] && (n === active || f.speed > 0) ? [{ ...f, label: `Hotend fan T${n + 1}` }] : [];
+  });
+}
+

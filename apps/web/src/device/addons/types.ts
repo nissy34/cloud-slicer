@@ -60,4 +60,6 @@ export interface PrinterAddon {
   /** A short line for the status card while the printer is busy with something of its own. */
   activity?(o: KlipperObjects): string | null;
   errors?: PrinterErrorSource;
+  /** The bed, not the head, moves up and down, so the Move card's height arrows move the bed. */
+  bedMovesInZ?: boolean;
 }

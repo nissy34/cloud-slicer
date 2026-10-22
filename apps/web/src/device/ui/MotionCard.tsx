@@ -9,6 +9,7 @@ const STEPS = [0.1, 1, 10, 50];
 export function MotionCard() {
   const objects = useDevice((s) => s.objects);
   const run = useDevice((s) => s.run);
+  const bedZ = useDevice((s) => s.addons.some((a) => a.bedMovesInZ));
   const m = useMemo(() => motion(objects), [objects]);
   const state = job(objects).state;
   const printing = state === 'printing';
@@ -43,37 +44,33 @@ export function MotionCard() {
       ) : (
         <>
           <div className="dv-jog">
-            <div className="dv-jog-xy" role="group" aria-label="Move X and Y">
-              <span />
-              <button onClick={() => jog('y', 1)} disabled={busy || !homed('y')} aria-label="Y plus">
-                Y+
-              </button>
-              <span />
-              <button onClick={() => jog('x', -1)} disabled={busy || !homed('x')} aria-label="X minus">
-                X−
-              </button>
-              <button className="dv-home" onClick={() => void run(homeGcode(['x', 'y']))} disabled={busy} aria-label="Home X and Y">
-                ⌂
-              </button>
-              <button onClick={() => jog('x', 1)} disabled={busy || !homed('x')} aria-label="X plus">
-                X+
-              </button>
-              <span />
-              <button onClick={() => jog('y', -1)} disabled={busy || !homed('y')} aria-label="Y minus">
-                Y−
-              </button>
-              <span />
+            {/* Arrows say which way something physically moves, never X/Y/Z: the head pad is seen from above, standing in front of the printer. */}
+            <div className="dv-jog-group">
+              <span className="dv-jog-label">Head</span>
+              <div className="dv-jog-xy" role="group" aria-label="Move the head">
+                <span />
+                <JogButton label="Head to the back" arrow="↑" disabled={busy || !homed('y')} onClick={() => jog('y', 1)} />
+                <span />
+                <JogButton label="Head left" arrow="←" disabled={busy || !homed('x')} onClick={() => jog('x', -1)} />
+                <button className="dv-home" onClick={() => void run(homeGcode(['x', 'y']))} disabled={busy} aria-label="Home the head" title="Home the head">
+                  ⌂
+                </button>
+                <JogButton label="Head right" arrow="→" disabled={busy || !homed('x')} onClick={() => jog('x', 1)} />
+                <span />
+                <JogButton label="Head toward you" arrow="↓" disabled={busy || !homed('y')} onClick={() => jog('y', -1)} />
+                <span />
+              </div>
             </div>
-            <div className="dv-jog-z" role="group" aria-label="Move Z">
-              <button onClick={() => jog('z', 1)} disabled={busy || !homed('z')} aria-label="Z plus">
-                Z+
-              </button>
-              <button className="dv-home" onClick={() => void run(homeGcode(['z']))} disabled={busy} aria-label="Home Z">
-                ⌂
-              </button>
-              <button onClick={() => jog('z', -1)} disabled={busy || !homed('z')} aria-label="Z minus">
-                Z−
-              </button>
+            <div className="dv-jog-group">
+              <span className="dv-jog-label">{bedZ ? 'Bed' : 'Head height'}</span>
+              <div className="dv-jog-z" role="group" aria-label={bedZ ? 'Move the bed' : 'Move the head up and down'}>
+                {/* Z+ always means more room between nozzle and bed: the head goes up, or the bed goes down. */}
+                <JogButton label={bedZ ? 'Bed up' : 'Head up'} arrow="↑" disabled={busy || !homed('z')} onClick={() => jog('z', bedZ ? -1 : 1)} />
+                <button className="dv-home" onClick={() => void run(homeGcode(['z']))} disabled={busy} aria-label={bedZ ? 'Home the bed' : 'Home the height'} title={bedZ ? 'Home the bed' : 'Home the height'}>
+                  ⌂
+                </button>
+                <JogButton label={bedZ ? 'Bed down' : 'Head down'} arrow="↓" disabled={busy || !homed('z')} onClick={() => jog('z', bedZ ? 1 : -1)} />
+              </div>
             </div>
           </div>
           <div className="dv-steps" role="radiogroup" aria-label="Step">
@@ -101,6 +98,14 @@ export function MotionCard() {
         </>
       )}
     </Card>
+  );
+}
+
+function JogButton({ label, arrow, disabled, onClick }: { label: string; arrow: string; disabled: boolean; onClick(): void }) {
+  return (
+    <button className="dv-arrow" onClick={onClick} disabled={disabled} aria-label={label} title={label}>
+      {arrow}
+    </button>
   );
 }
 
