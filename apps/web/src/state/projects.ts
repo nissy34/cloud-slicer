@@ -11,9 +11,12 @@
 // change saves into the project a few seconds later (lib/autosave.ts has the
 // timing). One device edits a project at a time: opening it elsewhere takes it
 // over, and this tab then only views it (`elsewhere`) until "Edit here instead".
+// Each device keeps its own draft, so discarding one device's draft (the
+// Continue card's Discard) never takes another device's work with it: a tab
+// whose draft was discarded elsewhere keeps what it shows and saves it again.
 import { create } from 'zustand';
 import { api, ApiError, type OnlineProject } from '../account/api';
-import { autosaveDelay, continueOffer, deviceNameFrom, THUMBNAIL_EVERY_MS, type ContinueOffer } from '../lib/autosave';
+import { autosaveDelay, continueOffer, deviceNameFrom, goneText, THUMBNAIL_EVERY_MS, type ContinueOffer } from '../lib/autosave';
 import { copyName, freeName, nameFromFile, newProjectId, projectFileName, projectSignature, UNTITLED } from '../lib/projects';
 import { engineFromUrl, engineName, engineOf3mf, type EngineFlavor } from '../lib/engines';
 import { SETUP_KEY, type Setup } from '../lib/setup';
@@ -195,6 +198,7 @@ let saving: Promise<void> = Promise.resolve();
 const queue = (fn: () => Promise<void>) => (saving = saving.then(fn, fn));
 // AutoSave's way into the store's upload (set when the store is made).
 let uploadFromOutside: (target: CurrentProject, base: number) => Promise<boolean> = async () => false;
+let keepGoneFromOutside: (device: string | null) => void = () => {};
 
 export const useProjects = create<ProjectsState>((set, get) => {
   interface UploadOptions {
@@ -230,6 +234,12 @@ export const useProjects = create<ProjectsState>((set, get) => {
       const code = e instanceof ApiError ? (e.body.code as string | undefined) : undefined;
       if (e instanceof ApiError && e.status === 409 && code === 'elsewhere') {
         set({ elsewhere: { project: e.body.current as OnlineProject, unsaved: get().dirty }, saveState: 'idle' });
+        return false;
+      }
+      if (e instanceof ApiError && e.status === 409 && !e.body.current && get().current.draft) {
+        // The draft was discarded on another device: what is here stays, as a new draft.
+        keepGone(null);
+        if (!auto) return upload({ ...target, id: null, version: 0 }, 0, opts);
         return false;
       }
       if (e instanceof ApiError && e.status === 409) {
@@ -274,6 +284,25 @@ export const useProjects = create<ProjectsState>((set, get) => {
   };
 
   uploadFromOutside = (target, base) => upload(target, base, { auto: true });
+  keepGoneFromOutside = (device) => keepGone(device);
+
+  // The open project was deleted on another device (a draft discarded from the
+  // Continue card, say): nothing here is lost. It stays open as unsaved work,
+  // which AutoSave keeps as this device's draft.
+  function keepGone(device: string | null | undefined) {
+    const cur = get().current;
+    set({
+      current: { name: cur.name, id: null, version: 0, draft: false },
+      elsewhere: null,
+      conflict: null,
+      autosaveStopped: '',
+      saveState: 'idle',
+      message: goneText(cur, device, signedIn() && get().autosaveOn()),
+      messageWarn: true,
+    });
+    paintedSinceSave = true;
+    set({ dirty: hasObjects() });
+  }
 
   /** Names other saved projects have, so a new save doesn't repeat one (`except`: the open project's own id). */
   const takenNames = (except: string | null) =>
@@ -476,7 +505,13 @@ export const useProjects = create<ProjectsState>((set, get) => {
     async editHere() {
       const e = get().elsewhere;
       if (!e) return;
-      const latest = await api.project(e.project.id).catch(() => e.project);
+      let latest = e.project;
+      try {
+        latest = await api.project(e.project.id);
+      } catch (err) {
+        // Deleted on the other device: there is nothing to load, so keep what is here.
+        if (err instanceof ApiError && err.status === 404) return keepGone(e.project.deviceName);
+      }
       await get().openOnline(latest);
     },
 
@@ -660,8 +695,11 @@ async function checkElsewhere() {
     if (online.device && online.device !== deviceId() && useProjects.getState().current.id === id) {
       useProjects.setState({ elsewhere: { project: online, unsaved: useProjects.getState().dirty } });
     }
-  } catch {
-    // offline or deleted: the next save says so
+  } catch (e) {
+    // A draft discarded on another device: keep it here. Offline, or a saved
+    // project deleted: the next save says so.
+    const now = useProjects.getState().current;
+    if (e instanceof ApiError && e.status === 404 && now.id === id && now.draft) keepGoneFromOutside(null);
   }
 }
 

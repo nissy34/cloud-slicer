@@ -14,12 +14,15 @@ name: CI
 # CI never talks to a real printer: printer tests run against a mock Moonraker.
 #
 # Jobs, so independent work runs side by side:
-#   unit ─────────────────────────────────────────────┐
-#   engine ─┬─ engine-tests ──────────────────────────┤
-#           └─ site ── browser (smoke, startup,       ├─ deploy
-#                       presets, accounts, toolbar,   │
-#                       mixing, cancel, orca,         │
-#                       brands) ──────────────────────┘
+#            ┌ unit ──────────────────────────────────────┐
+#   changes ─┤        ┌─ engine-tests ────────────────────┤
+#            └ engine ┼─ shared-settings ─────────────────┼─ deploy (main)
+#                     └─ site ─┬─ browser (smoke, ...) ───┘
+#                              └─ preview (other branches)
+# A branch's preview deploys as soon as its site is built, beside the tests;
+# main's live site waits for every test. `changes` skips everything for a pull
+# request that only touches the bridge or the relay (device.yml tests those);
+# a change to Markdown or docs/ alone doesn't run CI at all.
 # The engine job reuses the last build when nothing it is built from changed
 # (see the engine key below), so most runs skip Emscripten entirely.
 # There are two engines (engine/README.md, "Two engines"): Snapmaker Orca and
@@ -29,7 +32,9 @@ name: CI
 on:
   push:
     branches: [main]
+    paths-ignore: ['**/*.md', 'docs/**']
   pull_request:
+    paths-ignore: ['**/*.md', 'docs/**']
   workflow_dispatch:
 
 # A new push to a PR cancels that PR's older run. Runs on main never wait for
@@ -56,7 +61,36 @@ env:
   npm_config_fetch_retry_maxtimeout: 120000
 
 jobs:
+  # Whether the site needs building and testing: always, except for a pull
+  # request whose files are all the bridge's or the relay's (minus the bridge's
+  # testdata, which the web unit tests read).
+  changes:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      pull-requests: read
+    outputs:
+      site: ${{ steps.files.outputs.site }}
+    steps:
+      - id: files
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR: ${{ github.event.pull_request.number }}
+        run: |
+          if [ "$GITHUB_EVENT_NAME" != pull_request ]; then echo "site=true" >> "$GITHUB_OUTPUT"; exit 0; fi
+          files=$(gh api --paginate "repos/$GITHUB_REPOSITORY/pulls/$PR/files" -q '.[].filename')
+          echo "$files"
+          other=$(printf '%s\n' "$files" | grep -vE '^(apps/device-relay/|apps/device-bridge/|\.github/workflows/device\.yml$|docs/|.*\.md$)' || true)
+          other="$other$(printf '%s\n' "$files" | grep -E '^apps/device-bridge/testdata/' || true)"
+          if [ -n "$other" ] || [ -z "$files" ]; then echo "site=true" >> "$GITHUB_OUTPUT"; else
+            echo "site=false" >> "$GITHUB_OUTPUT"
+            echo "### Only bridge or relay files changed: the Device workflow tests them, CI skips the site" >> "$GITHUB_STEP_SUMMARY"
+          fi
+
   unit:
+    needs: changes
+    if: needs.changes.outputs.site == 'true'
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     steps:
@@ -82,6 +116,8 @@ jobs:
           npm test
 
   engine:
+    needs: changes
+    if: needs.changes.outputs.site == 'true'
     runs-on: ubuntu-24.04
     timeout-minutes: 240
     # Writes the built engine to the engine-builds release (see "Publish the engine").
@@ -380,17 +416,58 @@ jobs:
         run: |
           npm ci --no-audit --no-fund
           npm run build
-      # The settings a preset shares between the engines, and each engine's
-      # stand-in presets for the other's (src/lib/preset-engines.ts).
-      - name: Shared preset settings are up to date
-        working-directory: apps/web
-        run: node scripts/shared-settings.mjs --check
 
       - uses: actions/upload-artifact@v6
         with:
           name: web-site
           path: apps/web/dist
           retention-days: 7
+
+  # The settings a preset shares between the engines, and each engine's
+  # stand-in presets for the other's (src/lib/preset-engines.ts). Its own job
+  # (beside the browser tests) because it takes over a minute.
+  shared-settings:
+    needs: engine
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v5
+      - name: Fetch the pinned Snapmaker Orca and OrcaSlicer submodules (shallow)
+        run: |
+          for sub in engine/orcaslicer engine/orcaslicer-upstream; do
+            sha=$(git ls-tree HEAD "$sub" | awk '{print $3}')
+            url=$(git config -f .gitmodules "submodule.$sub.url")
+            (cd "$sub" && git init -q && git remote add origin "$url" &&
+              git fetch -q --depth 1 origin "$sha" && git checkout -q FETCH_HEAD)
+          done
+      - name: Engine keys
+        id: key
+        run: |
+          echo "snapmaker=engine-out-$(node engine/scripts/engine-key.mjs)" >> "$GITHUB_OUTPUT"
+          echo "orca=engine-out-$(node engine/scripts/engine-key.mjs --flavor orca)" >> "$GITHUB_OUTPUT"
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: apps/web/package-lock.json
+      - name: Restore the Snapmaker Orca engine
+        uses: actions/cache/restore@v5
+        with:
+          path: engine/build/engine/orca-engine.*
+          key: ${{ steps.key.outputs.snapmaker }}
+          fail-on-cache-miss: true
+      - name: Restore the OrcaSlicer engine
+        uses: actions/cache/restore@v5
+        with:
+          path: engine/build/engine-orca/orca-engine.*
+          key: ${{ steps.key.outputs.orca }}
+          fail-on-cache-miss: true
+      - name: Shared preset settings are up to date
+        working-directory: apps/web
+        run: |
+          npm ci --no-audit --no-fund
+          npm run engine
+          node scripts/shared-settings.mjs --check
 
   browser:
     needs: site
@@ -399,7 +476,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        suite: [smoke, startup, presets, presetfiles, accounts, toolbar, mixing, wipetower, loading, cancel, orca, brands]
+        suite: [smoke, startup, presets, presetfiles, accounts, toolbar, assemble, mixing, wipetower, touch, loading, cancel, orca, brands]
     name: browser (${{ matrix.suite }})
     defaults:
       run:
@@ -490,14 +567,17 @@ jobs:
           node test/sync-filaments.mjs
           node test/warnings.mjs
 
-      - name: Prime tower, phone 3D view gestures, plate menu, transform fields and layer slider items end to end (Chromium)
+      - name: Prime tower, plate menu, transform fields and layer slider items end to end (Chromium)
         if: matrix.suite == 'wipetower'
         run: |
           node test/wipe-tower.mjs
-          node test/view-touch.mjs
           node test/plate-menu.mjs
           node test/layer-codes.mjs
           node test/transform-fields.mjs
+
+      - name: Phone 3D view gestures end to end (Chromium)
+        if: matrix.suite == 'touch'
+        run: node test/view-touch.mjs
 
       - name: Loading screen and Preview colour key end to end (Chromium)
         if: matrix.suite == 'loading'
@@ -519,13 +599,19 @@ jobs:
       - name: Object toolbar and Prepare layout end to end (Chromium)
         if: matrix.suite == 'toolbar'
         run: |
-          node test/toolbar.mjs toolbar-shots
+          TOOLBAR_PART=rest node test/toolbar.mjs toolbar-shots
           node test/layout-fixes.mjs toolbar-shots
 
+      # Assemble's face picking takes a few minutes in CI's software rendering,
+      # so it has a job of its own.
+      - name: Assemble tool end to end (Chromium)
+        if: matrix.suite == 'assemble'
+        run: TOOLBAR_PART=assemble node test/toolbar.mjs toolbar-shots
+
       - uses: actions/upload-artifact@v6
-        if: always() && matrix.suite == 'toolbar'
+        if: always() && (matrix.suite == 'toolbar' || matrix.suite == 'assemble')
         with:
-          name: toolbar-screenshots
+          name: ${{ matrix.suite }}-screenshots
           path: apps/web/toolbar-shots
 
       - uses: actions/upload-artifact@v6
@@ -534,9 +620,12 @@ jobs:
           name: ${{ matrix.suite }}-screenshot
           path: apps/web/smoke*.png
 
-  deploy:
-    needs: [unit, engine-tests, browser]
-    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+  # A branch's preview: deploys once the site is built, beside the tests, so
+  # the link is ready sooner. A preview whose tests fail still deploys (and
+  # applies its D1 migrations to the shared database).
+  preview:
+    needs: site
+    if: github.ref != 'refs/heads/main' && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     # One deploy per branch at a time, in order.
@@ -546,83 +635,43 @@ jobs:
     env:
       CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
       CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-    defaults:
-      run:
-        working-directory: apps/web
+      PROJECT: ${{ vars.CF_PAGES_PROJECT || 'cloud-slicer' }}
+      BRANCH: ${{ github.head_ref || github.ref_name }}
+      GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
+      GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
+      OWNER_EMAILS: ${{ secrets.OWNER_EMAILS }}
+      CLOUDFLARE_ANALYTICS_TOKEN: ${{ secrets.CLOUDFLARE_ANALYTICS_TOKEN }}
     steps:
       - uses: actions/checkout@v5
         if: env.CLOUDFLARE_API_TOKEN != '' && env.CLOUDFLARE_ACCOUNT_ID != ''
-
-      # Runs on main can finish out of order; an older one must not replace a
-      # newer deploy. A newer commit on main deploys itself.
-      - name: Still the newest commit?
-        id: current
+      - uses: ./.github/actions/deploy-site
         if: env.CLOUDFLARE_API_TOKEN != '' && env.CLOUDFLARE_ACCOUNT_ID != ''
-        run: |
-          if [ "$GITHUB_EVENT_NAME" = push ]; then
-            head=$(git ls-remote origin "refs/heads/$GITHUB_REF_NAME" | awk '{print $1}')
-            if [ -n "$head" ] && [ "$head" != "$GITHUB_SHA" ]; then
-              echo "::notice::$GITHUB_REF_NAME moved on to $head; that run deploys instead"
-              exit 0
-            fi
-          fi
-          echo "deploy=true" >> "$GITHUB_OUTPUT"
 
-      - uses: actions/setup-node@v5
-        if: steps.current.outputs.deploy == 'true'
-        with:
-          node-version: 22
-          cache: npm
-          cache-dependency-path: apps/web/package-lock.json
-      - uses: actions/download-artifact@v7
-        if: steps.current.outputs.deploy == 'true'
-        with:
-          name: web-site
-          path: apps/web/dist
-
-      - name: Deploy to Cloudflare Pages
-        id: deploy
-        if: steps.current.outputs.deploy == 'true'
-        env:
-          PROJECT: ${{ vars.CF_PAGES_PROJECT || 'cloud-slicer' }}
-          BRANCH: ${{ github.head_ref || github.ref_name }}
-          GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
-          GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
-          OWNER_EMAILS: ${{ secrets.OWNER_EMAILS }}
-          CLOUDFLARE_ANALYTICS_TOKEN: ${{ secrets.CLOUDFLARE_ANALYTICS_TOKEN }}
-        run: |
-          npm ci --no-audit --no-fund
-          # Creates the project on the first run; harmless "already exists" afterwards.
-          npx wrangler pages project create "$PROJECT" --production-branch=main || true
-          # Accounts: D1 database + migrations, sign-in secrets. Every deploy
-          # (previews too) shares one database, so migrations must stay additive.
-          node scripts/setup-accounts.mjs | tee accounts.log
-          if grep -q '^d1=ok' accounts.log; then
-            npx wrangler d1 migrations apply cloud-slicer --remote \
-              || echo "::warning::D1 migrations failed; accounts may not work on this deploy"
-          fi
-          npx wrangler pages deploy dist --project-name="$PROJECT" --branch="$BRANCH" \
-            --commit-hash="$GITHUB_SHA" | tee deploy.log
-          url=$(grep -Eo 'https://[^ ]+\.pages\.dev' deploy.log | tail -1)
-          echo "url=$url" >> "$GITHUB_OUTPUT"
-          echo "### Deployed: $url" >> "$GITHUB_STEP_SUMMARY"
-
-      - uses: ./.github/actions/playwright
-        if: steps.deploy.outputs.url != ''
-      - name: Smoke test the deployed site
-        if: steps.deploy.outputs.url != ''
-        timeout-minutes: 20
-        run: |
-          # A new Pages project or branch alias gets its TLS certificate a few
-          # minutes after the first deploy; wait until the site answers over https.
-          url='${{ steps.deploy.outputs.url }}'
-          for i in $(seq 1 60); do
-            curl -fsS -o /dev/null "$url" && break
-            echo "waiting for $url ($i)"; sleep 10
-          done
-          SMOKE_URL='${{ steps.deploy.outputs.url }}' node test/smoke.mjs ../../fixtures/tetrahedron.stl
-          # The account API answers (Functions deployed), whether or not D1 is set up yet.
-          curl -fsS "$url/api/me" | tee /dev/stderr | grep -q '"providers"'
+  # The live site, from main, only after every test passed.
+  deploy:
+    needs: [unit, engine-tests, shared-settings, browser]
+    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    # One deploy at a time, in order.
+    concurrency:
+      group: deploy-${{ github.ref_name }}
+      cancel-in-progress: false
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      PROJECT: ${{ vars.CF_PAGES_PROJECT || 'cloud-slicer' }}
+      BRANCH: ${{ github.ref_name }}
+      GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
+      GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
+      OWNER_EMAILS: ${{ secrets.OWNER_EMAILS }}
+      CLOUDFLARE_ANALYTICS_TOKEN: ${{ secrets.CLOUDFLARE_ANALYTICS_TOKEN }}
+    steps:
+      - uses: actions/checkout@v5
+        if: env.CLOUDFLARE_API_TOKEN != '' && env.CLOUDFLARE_ACCOUNT_ID != ''
+      - uses: ./.github/actions/deploy-site
+        id: site
+        if: env.CLOUDFLARE_API_TOKEN != '' && env.CLOUDFLARE_ACCOUNT_ID != ''
 
       # The live site picks up its ticket signing key when it deploys; the live relay
       # must hold the matching public half, or it turns every new bridge away ("Cloud
@@ -630,9 +679,9 @@ jobs:
       # the site just deployed, so the two always match (device.yml does the same
       # whenever the relay itself deploys).
       - name: Give the live relay the live site's ticket key
-        if: steps.deploy.outputs.url != '' && github.event_name == 'push' && github.ref == 'refs/heads/main'
+        if: steps.site.outputs.url != '' && github.event_name == 'push'
         run: |
-          key=$(curl -fsS --retry 3 '${{ steps.deploy.outputs.url }}/api/relay/key' | jq -ce 'select(.x and .y)' || true)
+          key=$(curl -fsS --retry 3 '${{ steps.site.outputs.url }}/api/relay/key' | jq -ce 'select(.x and .y)' || true)
           if [ -z "$key" ]; then echo "::warning::The site has no relay ticket key; the live relay keeps the one it has"; exit 0; fi
           echo "Ticket key: $(printf '%s' "$key" | sha256sum | cut -c1-12)"
           jq -cn --arg k "$key" '{name: "RELAY_TICKET_PUBLIC_KEY", text: $k, type: "secret_text"}' |

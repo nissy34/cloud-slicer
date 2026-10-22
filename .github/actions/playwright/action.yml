@@ -1,9 +1,9 @@
 name: Playwright browser
 description: >
-  Installs a Playwright browser and its system libraries, run from a folder
-  where `npm ci` has installed playwright. The browser is cached per
-  Playwright version (one copy, saved by main and read by every branch), and
-  the install is retried, since a download now and then drops mid-way.
+  Installs a Playwright browser, run from a folder where `npm ci` has installed
+  playwright. The browser is cached per Playwright version (one copy, saved by
+  main and read by every branch), and the install is retried, since a download
+  now and then drops mid-way.
 inputs:
   browser:
     description: Playwright browser name
@@ -23,7 +23,10 @@ runs:
       with:
         path: ~/.cache/ms-playwright
         key: playwright-${{ runner.os }}-${{ inputs.browser }}-${{ steps.version.outputs.version }}
-    # With the browser restored this only checks the system libraries.
+    # Only the browser, not its system packages (`--with-deps`): the runner image
+    # already has every library Chromium needs, and all `--with-deps` added was a
+    # few font packages from Ubuntu's mirror, which now and then crawls (12 min
+    # for 21 MB). If the browser doesn't start, the packages go in after all.
     - name: Install ${{ inputs.browser }} (3 tries)
       shell: bash
       working-directory: ${{ inputs.working-directory }}
@@ -31,8 +34,12 @@ runs:
         BROWSER: ${{ inputs.browser }}
       run: |
         for try in 1 2 3; do
-          npx playwright install --with-deps "$BROWSER" && exit 0
+          npx playwright install "$BROWSER" && break
+          [ "$try" = 3 ] && exit 1
           echo "::warning::Playwright install failed (try $try of 3)"
           sleep $((try * 20))
         done
-        exit 1
+        if ! node -e "require('playwright')[process.env.BROWSER].launch().then((b) => b.close())"; then
+          echo "::warning::$BROWSER did not start; installing its system packages"
+          npx playwright install-deps "$BROWSER"
+        fi
