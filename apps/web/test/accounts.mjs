@@ -1067,8 +1067,49 @@ if (withApp)
       await secondPage.getByRole('button', { name: 'Add model' }).waitFor({ timeout: 60000 });
       await secondPage.waitForTimeout(3000);
       assert.equal(await again.count(), 0, 'the Continue card shows once');
-      await second.close();
+      // The draft keeps its engine: this tab started on OrcaSlicer and switched back.
+      assert.equal(await secondPage.getByTestId('engine-select').inputValue(), 'snapmaker', 'the draft opened in the engine it was made with');
+
+      // Changing only the engine is a change AutoSave keeps: Continue on a new tab opens it in the new engine.
+      const draftBefore = (await (await carol.json('/api/projects/draft-continue')).json()).project;
+      await secondPage.getByTestId('engine-select').selectOption('orca');
+      const sw = secondPage.getByRole('dialog').filter({ hasText: /Switch/ });
+      if (await sw.getByRole('button', { name: 'Switch' }).isVisible({ timeout: 3000 }).catch(() => false)) await sw.getByRole('button', { name: 'Switch' }).click();
+      await waitFor(async () => {
+        const d = (await (await carol.json('/api/projects/draft-continue')).json()).project;
+        return d.engine === 'orca' && d.version > draftBefore.version;
+      }, 'AutoSave saved the engine change', 90000);
+      const third = await browser.newContext({ viewport: { width: 1280, height: 860 } });
+      await third.addCookies([...carol.jar.get(new URL(HOST).host)].map(([name, value]) => ({ name, value, url: HOST })));
+      const thirdPage = await third.newPage();
+      await thirdPage.goto(HOST);
+      const card3 = thirdPage.getByTestId('continue-card');
+      await card3.getByText('Continue your unsaved project?').waitFor({ timeout: 120000 });
+      await card3.getByRole('button', { name: 'Continue' }).click();
+      await thirdPage.getByText('OrcaSlicer 2.4').first().waitFor({ timeout: 120000 });
+      await thirdPage.locator('.project-busy').waitFor({ state: 'detached', timeout: 120000 });
+      assert.equal(await thirdPage.getByTestId('engine-select').inputValue(), 'orca', 'Continue opened the draft in the engine it was switched to');
+      await third.close();
       await carol.fetch(`${HOST}/api/projects/draft-continue`, { method: 'DELETE', headers: { Origin: HOST } });
+
+      // A saved project keeps its engine too: one made in OrcaSlicer opens in it here.
+      const orcaSave = await carol.fetch(`${HOST}/api/projects/orca-made?${new URLSearchParams({ name: 'Made in OrcaSlicer', engine: 'orca' })}`, {
+        method: 'PUT',
+        headers: { Origin: HOST, 'Content-Type': 'model/3mf' },
+        body: bytes,
+      });
+      assert.equal(orcaSave.status, 200, await orcaSave.clone().text());
+      await secondPage.getByRole('button', { name: /^Project/ }).click();
+      await secondPage.getByRole('menuitem', { name: 'Online projects…' }).click();
+      const list2 = secondPage.getByRole('dialog', { name: 'Online projects' });
+      await list2.locator('.project-card', { hasText: 'Made in OrcaSlicer' }).getByRole('button', { name: 'Open', exact: true }).click();
+      const leave = secondPage.getByTestId('ask-dialog');
+      if (await leave.isVisible().catch(() => false)) await leave.getByRole('button', { name: /Don.t save|Discard/ }).click();
+      await secondPage.getByText('OrcaSlicer 2.4').first().waitFor({ timeout: 120000 });
+      await secondPage.locator('.project-busy').waitFor({ state: 'detached', timeout: 120000 });
+      assert.equal(await secondPage.getByTestId('engine-select').inputValue(), 'orca', 'the saved project opened in the engine it was made with');
+      await second.close();
+      await carol.fetch(`${HOST}/api/projects/orca-made`, { method: 'DELETE', headers: { Origin: HOST } });
 
       await projectButton.click();
       await page.getByRole('menuitem', { name: 'Online projects…' }).click();
