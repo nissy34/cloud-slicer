@@ -4,7 +4,7 @@
 // The relay is a dumb pipe, so this speaks plain Moonraker JSON-RPC; upload
 // and camera frames become bridge.* calls the agent answers itself.
 import type { DirectCamera } from '../camera';
-import { LinkError, type BridgeStatus, type DirectAnswer, type LinkHandlers, type PrinterLink, type RpcMessage } from './types';
+import { LinkError, type BridgeStatus, type DirectAnswer, type LinkHandlers, type PageAnswer, type PageRequest, type PrinterLink, type RpcMessage } from './types';
 
 /** Chunk size for uploads: well under the relay's 1 MiB message limit once base64-encoded. */
 export const UPLOAD_CHUNK = 512 * 1024;
@@ -224,5 +224,39 @@ export class BridgeLink implements PrinterLink {
 
   cameraClose(id: string) {
     this.call('bridge.camera_close', { id }, 5000).catch(() => {});
+  }
+
+  /**
+   * Printer pages are held on the relay's own address, away from the site; a
+   * relay on a name next to the site's says where else to hold them (/v1/info "pages").
+   */
+  async pageHolder(): Promise<string> {
+    const relay = this.target.relay.replace(/\/+$/, '');
+    try {
+      const info = (await (await fetch(`${relay}/v1/info`)).json()) as { pages?: string };
+      if (info.pages && /^https?:\/\//.test(info.pages)) return new URL(info.pages).origin;
+    } catch {
+      // an older relay: its own address
+    }
+    return relay;
+  }
+
+  async pageFetch(req: PageRequest): Promise<PageAnswer> {
+    const body = req.body && req.body.byteLength ? toBase64(new Uint8Array(req.body)) : '';
+    const r = await this.call<{ status: number; headers?: Record<string, string>; data?: string }>(
+      'bridge.page_fetch',
+      { method: req.method, path: req.path, headers: req.headers, body },
+      20_000,
+    );
+    const bytes = fromBase64(r.data ?? '');
+    return { status: r.status, headers: r.headers ?? {}, body: bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength) as ArrayBuffer };
+  }
+
+  pageOpen(sdp: string): Promise<{ id: string; sdp: string }> {
+    return this.call('bridge.page_open', { sdp }, 15_000);
+  }
+
+  pageClose(id: string) {
+    this.call('bridge.page_close', { id }, 5000).catch(() => {});
   }
 }

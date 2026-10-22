@@ -19,6 +19,10 @@
 // (POST /v1/revoke). A bridge removed on its own computer says so
 // (POST /v1/bridges/<id>/release): it is forgotten here and in its account.
 //
+// Printer pages (src/page-shell.ts): /page/shell.html and /page/sw.js hold a
+// printer's own page (page cards in the Device tab) on the relay's address, away
+// from the site; its requests travel over the bridge link like everything else.
+//
 // Print alerts (src/alerts.ts): a browser turns them on with the JSON-RPC call
 // relay.alerts over its socket; the relay tells the agent what to watch with
 // {ctl:'alerts', printers}, the agent answers {ctl:'alert', printer, event, ...},
@@ -28,6 +32,7 @@ import { importJWK, jwtVerify, type JWK, type JWTPayload } from 'jose';
 import installCmd from '../../device-bridge/install.cmd';
 import installPs1 from '../../device-bridge/install.ps1';
 import installScript from '../../device-bridge/install.sh';
+import { PAGE_ISOLATION, pageShell, pageWorker } from './page-shell';
 import {
   agentConfig,
   cleanAlert,
@@ -71,6 +76,13 @@ export interface Env extends PushEnv {
    * so they install next to the real bridge.
    */
   TEST_RELAY?: string;
+  /**
+   * Where printer pages are held (page cards in the Device tab), when not on this
+   * relay's own address: a relay on a name next to the site's (relay.<site's domain>)
+   * would put printer pages on the same site as Cloud Slicer, so device.yml points
+   * this at the relay's workers.dev address.
+   */
+  PAGE_ORIGIN?: string;
   /**
    * The relay's own address (wrangler.toml; the test relay's from device.yml).
    * It also answers on its first workers.dev address, which keeps working, but
@@ -201,6 +213,11 @@ export default {
       // Command Prompt runs batch files with Windows line ends only.
       return new Response(url.pathname.endsWith('.cmd') ? text.replace(/\r?\n/g, '\r\n') : text, { headers: { ...cors, 'Content-Type': `${type}; charset=utf-8`, 'Cache-Control': 'no-store' } });
     }
+    // Printer pages (Device tab page cards): the holder and its service worker, on the relay's own address.
+    if (url.pathname === '/page/shell.html')
+      return new Response(pageShell, { headers: { ...PAGE_ISOLATION, 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-cache' } });
+    if (url.pathname === '/page/sw.js')
+      return new Response(pageWorker, { headers: { ...PAGE_ISOLATION, 'Content-Type': 'text/javascript; charset=utf-8', 'Cache-Control': 'no-cache' } });
     if (url.pathname === '/downloads.json') {
       // Which apps CI has uploaded, so the Device tab only offers what exists.
       const listed = env.DOWNLOADS ? await env.DOWNLOADS.list({ prefix: 'bridge/' }) : { objects: [] };
@@ -235,7 +252,11 @@ export default {
         },
       });
     }
-    if (url.pathname === '/v1/info') return Response.json({ accounts: Boolean(env.RELAY_TICKET_PUBLIC_KEY), push: vapidPublicKey(env), test: env.TEST_RELAY || undefined }, { headers: cors });
+    if (url.pathname === '/v1/info')
+      return Response.json(
+        { accounts: Boolean(env.RELAY_TICKET_PUBLIC_KEY), push: vapidPublicKey(env), test: env.TEST_RELAY || undefined, pages: env.PAGE_ORIGIN || undefined },
+        { headers: cors },
+      );
     const pic = /^\/v1\/pictures\/([0-9a-f-]{36})\.jpg$/.exec(url.pathname);
     if (pic) {
       // An alert's camera picture: only someone holding its (random) name can fetch it, for a day.
