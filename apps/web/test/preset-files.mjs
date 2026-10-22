@@ -288,11 +288,13 @@ try {
     await importDialog.getByRole('button', { name: 'Cancel' }).click();
   });
 
-  await step('the filament window fills a phone screen', async () => {
+  await step('the filament window fits a phone screen, centred', async () => {
     const dialog = await openEditor('Edit filament 1 settings', 'Filament settings');
     await field(dialog, 'Print temperature', 'Other layers').waitFor();
     const box = await dialog.boundingBox();
-    expect(box && box.x >= 0 && Math.round(box.width) === 390, `dialog ${JSON.stringify(box)}`);
+    const fits = box && box.x >= 0 && box.x + box.width <= 390 && box.y >= 0 && box.y + box.height <= 844;
+    const centred = box && Math.abs(box.x - (390 - box.x - box.width)) <= 1 && box.width >= 390 - 32;
+    expect(fits && centred, `dialog ${JSON.stringify(box)}`);
     const scroll = await page.evaluate(() => document.documentElement.scrollWidth);
     expect(scroll <= 390, `page is ${scroll}px wide`);
     await page.screenshot({ path: join(out, 'filament-phone.png') });
