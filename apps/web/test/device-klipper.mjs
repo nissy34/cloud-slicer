@@ -53,6 +53,8 @@ function serve(cmd, args, cwd, ready) {
 }
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+// The simulated boards run at 1 to 2.5 MHz instead of 20 depending on the computer, so
+// anything that waits on Klipper moving or heating gets minutes, not seconds.
 const until = async (what, fn, ms = 20_000) => {
   const end = Date.now() + ms;
   for (;;) {
@@ -210,14 +212,14 @@ try {
   await page.getByLabel('Nozzle target').fill('200');
   await page.getByLabel('Nozzle target').press('Enter');
   await until('one-head: Klipper heating to 200', async () => (await status(one, ['extruder'])).extruder.target === 200);
-  await until('one-head: the head warms up on screen', async () => Number((await page.getByTestId('head-0').innerText()).match(/(\d+)°/)?.[1]) >= 190, 60_000);
+  await until('one-head: the head warms up on screen', async () => Number((await page.getByTestId('head-0').innerText()).match(/(\d+)°/)?.[1]) >= 190, 180_000);
   await page.getByRole('button', { name: 'Turn Nozzle off' }).click();
   await until('one-head: heater off', async () => (await status(one, ['extruder'])).extruder.target === 0);
   console.log('one-head: a target set on the page heats the real heater, and Off turns it off');
   await page.getByRole('button', { name: 'Home all' }).click();
-  await until('one-head: homed', async () => (await status(one, ['toolhead'])).toolhead.homed_axes === 'xyz', 60_000);
+  await until('one-head: homed', async () => (await status(one, ['toolhead'])).toolhead.homed_axes === 'xyz', 180_000);
   await page.getByRole('button', { name: 'Head right' }).click();
-  await until('one-head: moved right', async () => (await status(one, ['toolhead'])).toolhead.position[0] > 0.5, 30_000);
+  await until('one-head: moved right', async () => (await status(one, ['toolhead'])).toolhead.position[0] > 0.5, 90_000);
   console.log('one-head: Home all and a jog move the real toolhead');
   await consoleSays(page, 'M115', 'FIRMWARE_NAME:Klipper');
   await consoleSays(page, 'NOT_A_COMMAND', 'Unknown command:"NOT_A_COMMAND"');
@@ -250,26 +252,26 @@ try {
   await page.getByTestId('print-state').filter({ hasText: 'Printing' }).waitFor({ timeout: 30_000 });
   await until('two-heads: Klipper printing', async () => (await printState(two)) === 'printing');
   // Past heating up: until then Klipper holds every command (as a real printer does).
-  await until('two-heads: moving', async () => (await status(two, ['print_stats'])).print_stats.print_duration > 0, 90_000);
+  await until('two-heads: moving', async () => (await status(two, ['print_stats'])).print_stats.print_duration > 0, 300_000);
   // Klipper upper-cases object names; the page shows them as words.
-  await until('two-heads: objects known', async () => (await status(two, ['exclude_object'])).exclude_object.objects.length === 2, 30_000);
+  await until('two-heads: objects known', async () => (await status(two, ['exclude_object'])).exclude_object.objects.length === 2, 90_000);
   await page.getByRole('button', { name: 'Skip objects…' }).click();
   const skipList = page.getByTestId('skip-objects');
   await skipList.getByTestId('skip-object').filter({ hasText: 'Left cube' }).getByRole('button', { name: 'Skip' }).click();
   await page.getByRole('dialog', { name: 'Skip Left cube?' }).getByRole('button', { name: 'Skip Left cube' }).click();
-  await until('two-heads: Klipper skipped it', async () => (await status(two, ['exclude_object'])).exclude_object.excluded_objects.includes('LEFT_CUBE.STL_ID_0_COPY_0'));
+  await until('two-heads: Klipper skipped it', async () => (await status(two, ['exclude_object'])).exclude_object.excluded_objects.includes('LEFT_CUBE.STL_ID_0_COPY_0'), 60_000);
   await skipList.getByText('1 of 2 objects still printing.').waitFor();
   if (shots) await page.getByRole('dialog', { name: 'Skip objects' }).screenshot({ path: join(shots, 'klipper-skip.png') });
   await page.getByRole('dialog', { name: 'Skip objects' }).getByRole('button', { name: 'Close' }).click();
   console.log('two-heads: an object skipped on the page is skipped by Klipper');
   await page.getByRole('button', { name: 'Pause' }).click();
-  await page.getByTestId('print-state').filter({ hasText: 'Paused' }).waitFor({ timeout: 30_000 });
-  await until('two-heads: Klipper paused', async () => (await printState(two)) === 'paused');
+  await page.getByTestId('print-state').filter({ hasText: 'Paused' }).waitFor({ timeout: 90_000 });
+  await until('two-heads: Klipper paused', async () => (await printState(two)) === 'paused', 60_000);
   await page.getByRole('button', { name: 'Resume' }).click();
-  await until('two-heads: Klipper printing again', async () => (await printState(two)) === 'printing');
+  await until('two-heads: Klipper printing again', async () => (await printState(two)) === 'printing', 60_000);
   await page.getByRole('button', { name: 'Cancel print' }).click();
   await page.getByRole('dialog', { name: 'Cancel print' }).getByRole('button', { name: 'Cancel print' }).click();
-  await page.getByTestId('print-state').filter({ hasText: 'Cancelled' }).waitFor({ timeout: 30_000 });
+  await page.getByTestId('print-state').filter({ hasText: 'Cancelled' }).waitFor({ timeout: 90_000 });
   if ((await printState(two)) !== 'cancelled') throw new Error(`two-heads: Klipper says ${await printState(two)} after Cancel`);
   if ((await status(two, ['heater_bed'])).heater_bed.target !== 0) throw new Error('two-heads: the bed still heats after Cancel (CANCEL_PRINT macro)');
   console.log('two-heads: pause, resume and cancel reach Klipper');

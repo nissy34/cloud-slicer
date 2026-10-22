@@ -51,7 +51,7 @@ jobs:
     needs: gate
     if: needs.gate.outputs.run == 'true'
     runs-on: ubuntu-24.04
-    timeout-minutes: 30
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@v5
 
@@ -98,7 +98,7 @@ jobs:
 
       - name: Device tab on real Klipper (heat, home, console, print, skip, pause, cancel, four heads, phone, bridge)
         working-directory: apps/web
-        timeout-minutes: 20
+        timeout-minutes: 30
         run: node test/device-klipper.mjs klipper-shots
 
       - name: Printer logs
