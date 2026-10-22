@@ -6,7 +6,7 @@ import { MODEL_EXTENSIONS } from '../lib/presets';
 import { useAccount } from '../state/account';
 import { useProjects } from '../state/projects';
 import { useSlicer } from '../state/store';
-import { useEscape } from './AskDialog';
+import { Dialog } from './Dialog';
 import { continueOffer, yourDevice } from '../lib/autosave';
 import { deviceId } from '../lib/storage';
 
@@ -40,8 +40,6 @@ export function ProjectMenu() {
   const online = useProjects((s) => s.current.id !== null && !s.current.draft);
   const dirty = useProjects((s) => s.dirty);
   const busy = useProjects((s) => s.busy);
-  const message = useProjects((s) => s.message);
-  const messageWarn = useProjects((s) => s.messageWarn);
   const signedIn = useAccount((s) => s.status === 'signedIn');
   const engineInfo = useSlicer((s) => s.engineInfo);
   const autosave = useAccount((s) => s.settings.autosave?.value !== false);
@@ -82,15 +80,6 @@ export function ProjectMenu() {
     document.addEventListener('keydown', keys);
     return () => document.removeEventListener('keydown', keys);
   }, [ready]);
-
-  // "Saved …" and other good news go away by themselves; problems stay until dismissed.
-  useEffect(() => {
-    if (!message || messageWarn) return;
-    const t = setTimeout(() => {
-      if (useProjects.getState().message === message) useProjects.getState().clearMessage();
-    }, 6000);
-    return () => clearTimeout(t);
-  }, [message, messageWarn]);
 
   // Leaving with unsaved changes asks first (AutoSave saves as the tab goes away instead).
   const autosaving = signedIn && autosave && !stopped;
@@ -203,14 +192,6 @@ export function ProjectMenu() {
           {!signedIn && <p className="menu-note">Sign in to keep projects online and open them on any device.</p>}
         </div>
       )}
-      {message && !open && (
-        <div className={messageWarn ? 'project-toast warn' : 'project-toast'} role="status">
-          {message}
-          <button className="account-link" onClick={() => useProjects.getState().clearMessage()}>
-            Dismiss
-          </button>
-        </div>
-      )}
       <SaveAsDialog />
       <ConflictDialog />
       <ProjectsDialog />
@@ -233,19 +214,29 @@ function SaveAsForm({ copy, initial }: { copy: boolean; initial: string }) {
   const close = () => useProjects.getState().setSaveAsOpen(false);
   const trimmed = name.trim();
   return (
-    <div className="dialog-backdrop" onKeyDown={(e) => e.key === 'Escape' && close()}>
+    <Dialog
+      title={copy ? 'Save a copy' : 'Save project'}
+      testId="save-as-dialog"
+      onClose={close}
+      footer={
+        <>
+          <button type="button" className="secondary" onClick={close}>
+            Cancel
+          </button>
+          <button type="submit" form="save-as-form" className="primary" disabled={!trimmed}>
+            {signedIn ? 'Save' : 'Download'}
+          </button>
+        </>
+      }
+    >
       <form
-        className="dialog"
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="save-as-title"
-        data-testid="save-as-dialog"
+        id="save-as-form"
+        className="win-form"
         onSubmit={(e) => {
           e.preventDefault();
           if (trimmed) void useProjects.getState().saveAs(trimmed);
         }}
       >
-        <h2 id="save-as-title">{copy ? 'Save a copy' : 'Save project'}</h2>
         <label className="field">
           <span>Name</span>
           <input aria-label="Project name" autoFocus maxLength={128} value={name} placeholder="My project" onChange={(e) => setName(e.target.value)} />
@@ -257,16 +248,8 @@ function SaveAsForm({ copy, initial }: { copy: boolean; initial: string }) {
               ? 'Saved as a new project in your online projects, with its plates, settings and paint. You carry on in the copy.'
               : 'Kept in your online projects with its plates, settings and paint. After this, AutoSave saves your changes.'}
         </p>
-        <div className="dialog-actions">
-          <button type="button" className="secondary" onClick={close}>
-            Cancel
-          </button>
-          <button type="submit" className="primary" disabled={!trimmed}>
-            {signedIn ? 'Save' : 'Download'}
-          </button>
-        </div>
       </form>
-    </div>
+    </Dialog>
   );
 }
 
@@ -277,16 +260,12 @@ function ConflictDialog() {
   const { resolveConflict } = useProjects.getState();
   const when = conflict.theirs ? formatWhen(conflict.theirs.updatedAt) : null;
   return (
-    <div className="dialog-backdrop">
-      <div className="dialog" role="alertdialog" aria-modal="true" aria-labelledby="conflict-title">
-        <h2 id="conflict-title">Saved on another device</h2>
-        <p>
-          {conflict.theirs
-            ? `“${conflict.theirs.name}” was saved again ${when}, after you opened it here.`
-            : `“${name}” was deleted from your online projects after you opened it here.`}{' '}
-          Overwrite it with this version, or keep both?
-        </p>
-        <div className="dialog-actions wrap">
+    <Dialog
+      title="Saved on another device"
+      role="alertdialog"
+      onClose={() => void resolveConflict('cancel')}
+      footer={
+        <>
           <button className="secondary" onClick={() => void resolveConflict('cancel')}>
             Cancel
           </button>
@@ -296,9 +275,16 @@ function ConflictDialog() {
           <button className="primary" onClick={() => void resolveConflict('overwrite')}>
             Overwrite
           </button>
-        </div>
-      </div>
-    </div>
+        </>
+      }
+    >
+      <p>
+        {conflict.theirs
+          ? `“${conflict.theirs.name}” was saved again ${when}, after you opened it here.`
+          : `“${name}” was deleted from your online projects after you opened it here.`}{' '}
+        Overwrite it with this version, or keep both?
+      </p>
+    </Dialog>
   );
 }
 
@@ -327,7 +313,6 @@ function ProjectsDialog() {
     }
   }, [open, status]);
   const close = useCallback(() => useProjects.getState().setListOpen(false), []);
-  useEscape(open, close);
   if (!open) return null;
   const p = useProjects.getState();
 
@@ -358,105 +343,107 @@ function ProjectsDialog() {
   };
 
   return (
-    <div className="dialog-backdrop" onClick={(e) => e.target === e.currentTarget && close()}>
-      <div className="dialog projects-dialog" role="dialog" aria-modal="true" aria-labelledby="projects-title">
-        <div className="projects-head">
-          <h2 id="projects-title">Online projects</h2>
-          <button className="ghost" onClick={close}>
-            Close
-          </button>
+    <Dialog
+      title="Online projects"
+      wide
+      className="projects-dialog"
+      onClose={close}
+      footer={
+        <button className="secondary" onClick={close}>
+          Close
+        </button>
+      }
+    >
+      {status !== 'signedIn' ? (
+        <div className="projects-empty">
+          <p>Sign in to keep projects online and open them on any device.</p>
+          {status === 'signedOut' && (
+            <button className="primary" onClick={() => void useAccount.getState().signIn('google')}>
+              Sign in with Google
+            </button>
+          )}
+          {status === 'unavailable' && <p className="muted small">Accounts aren't set up on this site yet. Save still downloads the 3MF.</p>}
         </div>
-        {status !== 'signedIn' ? (
-          <div className="projects-empty">
-            <p>Sign in to keep projects online and open them on any device.</p>
-            {status === 'signedOut' && (
-              <button className="primary" onClick={() => void useAccount.getState().signIn('google')}>
-                Sign in with Google
-              </button>
-            )}
-            {status === 'unavailable' && <p className="muted small">Accounts aren't set up on this site yet. Save still downloads the 3MF.</p>}
-          </div>
-        ) : !list ? (
-          <p className="muted">{error || 'Loading…'}</p>
-        ) : (
-          <>
-            {!list.enabled && <p className="account-error">Online projects aren't set up on this site yet. Save as a download instead.</p>}
-            {error && <p className="account-error">{error}</p>}
-            <ContinueRow list={list} onOpen={(proj) => void openProject(proj)} />
-            {list.projects.filter((x) => !x.draft).length === 0 ? (
-              <p className="projects-empty muted">No projects yet. Use Save in the Project menu to keep the open project here.</p>
-            ) : (
-              <ul className="projects-grid">
-                {list.projects.filter((x) => !x.draft).map((proj) => (
-                  <li key={proj.id} className={proj.id === currentId ? 'project-card current' : 'project-card'}>
-                    <button className="project-thumb" title={`Open ${proj.name}`} onClick={() => void openProject(proj)}>
-                      {proj.hasThumbnail ? <img src={projectThumbnailUrl(proj)} alt="" loading="lazy" /> : <span aria-hidden>3MF</span>}
-                    </button>
-                    {renaming?.id === proj.id ? (
-                      <form
-                        onSubmit={(e) => {
-                          e.preventDefault();
-                          void rename(proj, renaming.name);
-                        }}
-                      >
-                        <input
-                          aria-label="New name"
-                          autoFocus
-                          maxLength={128}
-                          value={renaming.name}
-                          onChange={(e) => setRenaming({ id: proj.id, name: e.target.value })}
-                          onBlur={() => void rename(proj, renaming.name)}
-                        />
-                      </form>
-                    ) : (
-                      <div className="project-card-name" title={proj.name}>
-                        {proj.name}
-                      </div>
-                    )}
-                    <div className="muted small">
-                      {formatWhen(proj.updatedAt)} · {formatBytes(proj.size)} · {engineName(proj.engine ?? 'snapmaker')}
+      ) : !list ? (
+        <p className="muted">{error || 'Loading…'}</p>
+      ) : (
+        <>
+          {!list.enabled && <p className="account-error">Online projects aren't set up on this site yet. Save as a download instead.</p>}
+          {error && <p className="account-error">{error}</p>}
+          <ContinueRow list={list} onOpen={(proj) => void openProject(proj)} />
+          {list.projects.filter((x) => !x.draft).length === 0 ? (
+            <p className="projects-empty muted">No projects yet. Use Save in the Project menu to keep the open project here.</p>
+          ) : (
+            <ul className="projects-grid">
+              {list.projects.filter((x) => !x.draft).map((proj) => (
+                <li key={proj.id} className={proj.id === currentId ? 'project-card current' : 'project-card'}>
+                  <button className="project-thumb" title={`Open ${proj.name}`} onClick={() => void openProject(proj)}>
+                    {proj.hasThumbnail ? <img src={projectThumbnailUrl(proj)} alt="" loading="lazy" /> : <span aria-hidden>3MF</span>}
+                  </button>
+                  {renaming?.id === proj.id ? (
+                    <form
+                      onSubmit={(e) => {
+                        e.preventDefault();
+                        void rename(proj, renaming.name);
+                      }}
+                    >
+                      <input
+                        aria-label="New name"
+                        autoFocus
+                        maxLength={128}
+                        value={renaming.name}
+                        onChange={(e) => setRenaming({ id: proj.id, name: e.target.value })}
+                        onBlur={() => void rename(proj, renaming.name)}
+                      />
+                    </form>
+                  ) : (
+                    <div className="project-card-name" title={proj.name}>
+                      {proj.name}
                     </div>
-                    {deleting === proj.id ? (
-                      <div className="project-card-actions">
-                        <span className="small">Delete?</span>
-                        <button className="account-link" onClick={() => setDeleting(null)}>
-                          Keep
-                        </button>
-                        <button className="account-link danger" onClick={() => void remove(proj)}>
-                          Delete
-                        </button>
-                      </div>
-                    ) : (
-                      <div className="project-card-actions">
-                        <button className="account-link" onClick={() => void openProject(proj)}>
-                          Open
-                        </button>
-                        <button className="account-link" onClick={() => setRenaming({ id: proj.id, name: proj.name })}>
-                          Rename
-                        </button>
-                        <button className="account-link danger" aria-label={`Delete ${proj.name}`} onClick={() => setDeleting(proj.id)}>
-                          Delete
-                        </button>
-                      </div>
-                    )}
-                  </li>
-                ))}
-              </ul>
-            )}
-            {list.limits.userBytes ? (
-              <p className="muted small">
-                {formatBytes(list.usage.bytes)} of {formatBytes(list.limits.userBytes)} used · {list.usage.count} of {list.limits.userProjects} projects · up to{' '}
-                {formatBytes(list.limits.projectBytes)} each
-              </p>
-            ) : (
-              <p className="muted small">
-                Online projects are off for your account: your presets and printers still save to it. Download a project to keep it.
-              </p>
-            )}
-          </>
-        )}
-      </div>
-    </div>
+                  )}
+                  <div className="muted small">
+                    {formatWhen(proj.updatedAt)} · {formatBytes(proj.size)} · {engineName(proj.engine ?? 'snapmaker')}
+                  </div>
+                  {deleting === proj.id ? (
+                    <div className="project-card-actions">
+                      <span className="small">Delete?</span>
+                      <button className="account-link" onClick={() => setDeleting(null)}>
+                        Keep
+                      </button>
+                      <button className="account-link danger" onClick={() => void remove(proj)}>
+                        Delete
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="project-card-actions">
+                      <button className="account-link" onClick={() => void openProject(proj)}>
+                        Open
+                      </button>
+                      <button className="account-link" onClick={() => setRenaming({ id: proj.id, name: proj.name })}>
+                        Rename
+                      </button>
+                      <button className="account-link danger" aria-label={`Delete ${proj.name}`} onClick={() => setDeleting(proj.id)}>
+                        Delete
+                      </button>
+                    </div>
+                  )}
+                </li>
+              ))}
+            </ul>
+          )}
+          {list.limits.userBytes ? (
+            <p className="muted small">
+              {formatBytes(list.usage.bytes)} of {formatBytes(list.limits.userBytes)} used · {list.usage.count} of {list.limits.userProjects} projects · up to{' '}
+              {formatBytes(list.limits.projectBytes)} each
+            </p>
+          ) : (
+            <p className="muted small">
+              Online projects are off for your account: your presets and printers still save to it. Download a project to keep it.
+            </p>
+          )}
+        </>
+      )}
+    </Dialog>
   );
 }
 

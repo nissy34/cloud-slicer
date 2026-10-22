@@ -23,7 +23,6 @@ export function DeviceScreen() {
   const editor = useDevice((s) => s.editor);
   const manageOpen = useDevice((s) => s.manageOpen);
   const bridges = useDevice((s) => s.bridges);
-  const toast = useDevice((s) => s.toast);
   // Phones, until the cards are arranged by hand: while printing or paused the print job sits under the camera, otherwise the move controls do.
   const busy = useDevice((s) => ['printing', 'paused'].includes(job(s.objects).state));
   const accountStatus = useAccount((s) => s.status);
@@ -140,11 +139,6 @@ export function DeviceScreen() {
       {manageOpen && <ManageDialog />}
       {editor && <PrinterEditor key={editor.mode === 'edit' ? editor.id : 'add'} />}
       {dialog}
-      {toast && (
-        <div className={`dv-toast${toast.error ? ' error' : ''}`} role={toast.error ? 'alert' : 'status'} data-testid="device-toast">
-          {toast.text}
-        </div>
-      )}
     </div>
   );
 }

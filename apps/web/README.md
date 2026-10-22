@@ -33,7 +33,7 @@ image or page from another origin needs CORS or a credentialless iframe (see
 
 | Path | What |
 |---|---|
-| `src/App.tsx`, `src/components/` | The slicer UI: top bar (Prepare, Preview, Device tabs, Project, Calibration, theme, account menus), sidebar with printer, filament and process pickers, settings panel, object list and per-object settings, 3D viewport with the object toolbar and gizmos, paint and colour mixing panels, setup wizard, convert dialog, loading screen |
+| `src/App.tsx`, `src/components/` | The slicer UI: top bar (Prepare, Preview, Device tabs, Project, Calibration, theme, account menus), sidebar with printer, filament and process pickers, settings panel, object list and per-object settings, 3D viewport with the object toolbar and gizmos, paint and colour mixing panels, setup wizard, convert dialog, loading screen; every pop-up window is `components/Dialog.tsx` and every message card is `components/Notice.tsx` (docs/ARCHITECTURE.md, "Web app") |
 | `src/state/store.ts` | The slicer store: engine status, presets and selection, overrides, the project and plates, tools, paint, mixes, undo/redo, slicing and its result |
 | `src/state/projects.ts` | The open project as a document: name, saved where, unsaved changes, save and open |
 | `src/state/account.ts`, `src/account/` | Who is signed in and everything saved per user (presets, settings, devices); works signed out from localStorage |

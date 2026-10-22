@@ -3,7 +3,8 @@ import { useDevice } from '../../state/device';
 import { excludeObjectGcode } from '../commands';
 import { mapBox, svgPoints, type PlateObject } from '../objects';
 import { motion } from '../status';
-import { Dialog, useConfirm } from './parts';
+import { useConfirm } from './parts';
+import { Dialog } from '../../components/Dialog';
 
 /**
  * Skipping objects of the running print (Klipper's EXCLUDE_OBJECT), like

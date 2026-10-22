@@ -84,6 +84,15 @@ flow and layer time are worked out from the G-code (layer times scaled to Orca's
 estimate), and the per-filament grams and cost come from the statistics Orca writes at
 the end of the file.
 
+Pop-ups come in two kinds only, so they look and behave the same everywhere. A window
+(`components/Dialog.tsx`, on `<dialog>`) is anything that needs an answer or holds
+settings: title with ✕, content, buttons at the bottom right with the main one last. Only
+✕, its buttons and Escape close it, never a tap outside; on a phone it is a sheet from the
+bottom with full-width buttons, main on top. A message (`components/Notice.tsx`, shown by
+`components/Notices.tsx`) is one card at the bottom centre, above the Slice bar: the
+Continue card, "being edited on another device", "Saved", Device tab news. Good news goes
+away after 5 s; problems and messages with buttons stay until answered; at most 3 stack.
+
 The site is installable as an app (web manifest and a service worker that caches
 nothing on purpose, so a deploy's page and engine never get out of step).
 

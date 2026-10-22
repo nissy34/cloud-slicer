@@ -3,7 +3,7 @@
 // per pair of filaments, worked out from their colours (lib/flush). Printers
 // with a head per filament (the U1) never purge, so it isn't offered there.
 import { useEffect, useState } from 'react';
-import { Dialog } from '../device/ui/parts';
+import { Dialog } from './Dialog';
 import {
   flushNote,
   flushShown,

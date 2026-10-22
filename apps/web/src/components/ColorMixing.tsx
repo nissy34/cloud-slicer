@@ -15,6 +15,7 @@ import {
   type MixRow,
 } from '../lib/mixing';
 import { NO_COLOURS, useSlicer } from '../state/store';
+import { Dialog } from './Dialog';
 
 /**
  * Desktop Snapmaker Orca's Color Mixing panel, under the filaments: each mix
@@ -172,180 +173,183 @@ function MixDialog({ row, index, onClose }: { row: MixRow | undefined; index: nu
 
   const sequence = patternIds(draft.pattern).slice(0, 48);
   return (
-    <div className="dialog-backdrop" onClick={(e) => e.target === e.currentTarget && onClose()}>
-      <div className="dialog mix-dialog" role="dialog" aria-modal="true" aria-labelledby="mix-title">
-        <h2 id="mix-title">{index < 0 ? 'Add mix' : 'Edit mix'}</h2>
-        <div className="segmented" role="radiogroup" aria-label="Mix mode">
-          {MODES.map((m) => (
-            <button key={m} role="radio" aria-checked={draft.mode === m} className={draft.mode === m ? 'on' : ''} onClick={() => change({ mode: m })}>
-              {MODE_LABELS[m]}
-            </button>
-          ))}
-        </div>
-
-        <div className="mix-preview">
-          <span className="mix-preview-swatch" style={{ background: look?.colour ?? '#888', color: textOn(look?.colour ?? '#888') }}>
-            {row?.virtualId || nextId}
-          </span>
-          <div>
-            <strong>{matchMissing ? 'No mix found' : mixLabel(recipe)}</strong>
-            <p className="muted small">{MODE_HINTS[draft.mode]}</p>
-          </div>
-        </div>
-
-        {draft.mode === 'ratio' && (
-          <div className="mix-body">
-            {draft.filaments.map((_, k) => (
-              <div key={k} className="mix-row">
-                {pick(k, `Filament ${k + 1} of the mix`)}
-                {draft.filaments.length === 3 && (
-                  <>
-                    <input
-                      type="range"
-                      aria-label={`Share of filament ${draft.filaments[k]}`}
-                      min={0}
-                      max={100}
-                      value={draft.weights[k]}
-                      onChange={(e) => setWeight(k, Number(e.target.value))}
-                    />
-                    <span className="unit">{draft.weights[k]}%</span>
-                  </>
-                )}
-                {draft.filaments.length === 3 && (
-                  <button
-                    className="icon"
-                    aria-label="Remove this filament from the mix"
-                    onClick={() => change({ filaments: draft.filaments.filter((__, i) => i !== k), weights: [34, 33, 33] })}
-                  >
-                    ×
-                  </button>
-                )}
-              </div>
-            ))}
-            {draft.filaments.length === 2 && (
-              <label className="mix-slider">
-                <span className="sr-only">Mix ratio</span>
-                <input
-                  type="range"
-                  aria-label="Mix ratio"
-                  min={0}
-                  max={100}
-                  value={draft.percentB}
-                  style={{ background: gradient(strip) }}
-                  onChange={(e) => change({ percentB: Number(e.target.value) })}
-                />
-                <span className="mix-scale">
-                  <span>
-                    F{a} {100 - draft.percentB}%
-                  </span>
-                  <span>
-                    F{b} {draft.percentB}%
-                  </span>
-                </span>
-              </label>
-            )}
-            {draft.filaments.length === 2 && colours.length >= 3 && (
-              <button
-                className="link"
-                onClick={() => {
-                  const free = colours.findIndex((_, i) => !draft.filaments.includes(i + 1)) + 1;
-                  change({ filaments: [...draft.filaments, free], weights: [34, 33, 33] });
-                }}
-              >
-                + Add a third filament
-              </button>
-            )}
-          </div>
-        )}
-
-        {draft.mode === 'cycle' && (
-          <div className="mix-body">
-            <label className="field">
-              <span>Layer pattern</span>
-              <input
-                aria-label="Layer pattern"
-                inputMode="numeric"
-                value={draft.pattern}
-                onChange={(e) => change({ pattern: normalizePattern(e.target.value) })}
-              />
-            </label>
-            <div className="mix-quick">
-              {colours.map((c, i) => (
-                <button key={i} className="secondary" onClick={() => change({ pattern: draft.pattern + (i < 9 ? `${i + 1}` : `[${i + 1}]`) })}>
-                  <span className="paint-swatch" style={{ background: c }} />+{i + 1}
-                </button>
-              ))}
-              <button className="secondary" onClick={() => change({ pattern: draft.pattern.replace(/(\[\d+\]|\d|,)$/, '') })} aria-label="Remove the last layer">
-                ⌫
-              </button>
-            </div>
-            <div className="mix-sequence" aria-label="Layers, bottom first">
-              {sequence.map((id, i) => (
-                <span key={i} style={{ background: colours[id - 1] ?? '#ccc' }} title={`Layer ${i + 1}: filament ${id}`} />
-              ))}
-            </div>
-          </div>
-        )}
-
-        {draft.mode === 'match' && (
-          <div className="mix-body">
-            <div className="mix-row">
-              <label className="swatch" style={{ background: draft.target }} title="Target colour">
-                <input type="color" aria-label="Target colour" value={draft.target.slice(0, 7)} onChange={(e) => change({ target: e.target.value.toUpperCase() })} />
-              </label>
-              <input
-                aria-label="Target colour hex"
-                className="mix-hex"
-                defaultValue={draft.target}
-                key={draft.target}
-                onKeyDown={(e) => e.key === 'Enter' && e.currentTarget.blur()}
-                onBlur={(e) => /^#?[0-9a-f]{6}$/i.test(e.target.value.trim()) && change({ target: `#${e.target.value.trim().replace('#', '').toUpperCase()}` })}
-              />
-              <span className="muted small">{matching ? 'Matching…' : draft.match?.valid ? closeness(draft.match.deltaE) : ''}</span>
-            </div>
-            <label className="transform-row">
-              <span>Min share</span>
-              <input type="range" aria-label="Minimum share of each filament" min={0} max={50} value={draft.minPercent} onChange={(e) => change({ minPercent: Number(e.target.value) })} />
-              <span className="unit">{draft.minPercent}%</span>
-            </label>
-            {draft.match?.valid && (
-              <div className="mix-compare">
-                <span style={{ background: draft.target }}>Target</span>
-                <span style={{ background: draft.match.colour, color: textOn(draft.match.colour) }}>Mix</span>
-              </div>
-            )}
-          </div>
-        )}
-
-        {draft.mode === 'gradient' && (
-          <div className="mix-body">
-            <div className="mix-row">
-              <span className="muted small mix-end">{draft.reversed ? 'Top' : 'Bottom'}</span>
-              {pick(0, 'Gradient filament A')}
-            </div>
-            <div className="mix-row">
-              <span className="muted small mix-end">{draft.reversed ? 'Bottom' : 'Top'}</span>
-              {pick(1, 'Gradient filament B')}
-            </div>
-            <div className="mix-gradient" style={{ background: gradient(draft.reversed ? [...strip].reverse() : strip, 'to top') }} aria-hidden />
-            <button className="link" onClick={() => change({ reversed: !draft.reversed })}>
-              ⇅ Swap direction
-            </button>
-          </div>
-        )}
-
-        {incompatible && <p className="hint warn">Different filament types cannot be mixed. Please correct the settings.</p>}
-        {!incompatible && warning && <p className="hint warn">{warning}</p>}
-        <div className="dialog-actions">
+    <Dialog
+      title={index < 0 ? 'Add mix' : 'Edit mix'}
+      onClose={onClose}
+      className="mix-dialog"
+      footer={
+        <>
           <button className="secondary" onClick={onClose}>
             Cancel
           </button>
           <button className="primary" disabled={incompatible || matchMissing} onClick={() => void save()}>
             {index < 0 ? 'Add' : 'Save'}
           </button>
+        </>
+      }
+    >
+      <div className="segmented" role="radiogroup" aria-label="Mix mode">
+        {MODES.map((m) => (
+          <button key={m} role="radio" aria-checked={draft.mode === m} className={draft.mode === m ? 'on' : ''} onClick={() => change({ mode: m })}>
+            {MODE_LABELS[m]}
+          </button>
+        ))}
+      </div>
+
+      <div className="mix-preview">
+        <span className="mix-preview-swatch" style={{ background: look?.colour ?? '#888', color: textOn(look?.colour ?? '#888') }}>
+          {row?.virtualId || nextId}
+        </span>
+        <div>
+          <strong>{matchMissing ? 'No mix found' : mixLabel(recipe)}</strong>
+          <p className="muted small">{MODE_HINTS[draft.mode]}</p>
         </div>
       </div>
-    </div>
+
+      {draft.mode === 'ratio' && (
+        <div className="mix-body">
+          {draft.filaments.map((_, k) => (
+            <div key={k} className="mix-row">
+              {pick(k, `Filament ${k + 1} of the mix`)}
+              {draft.filaments.length === 3 && (
+                <>
+                  <input
+                    type="range"
+                    aria-label={`Share of filament ${draft.filaments[k]}`}
+                    min={0}
+                    max={100}
+                    value={draft.weights[k]}
+                    onChange={(e) => setWeight(k, Number(e.target.value))}
+                  />
+                  <span className="unit">{draft.weights[k]}%</span>
+                </>
+              )}
+              {draft.filaments.length === 3 && (
+                <button
+                  className="icon"
+                  aria-label="Remove this filament from the mix"
+                  onClick={() => change({ filaments: draft.filaments.filter((__, i) => i !== k), weights: [34, 33, 33] })}
+                >
+                  ×
+                </button>
+              )}
+            </div>
+          ))}
+          {draft.filaments.length === 2 && (
+            <label className="mix-slider">
+              <span className="sr-only">Mix ratio</span>
+              <input
+                type="range"
+                aria-label="Mix ratio"
+                min={0}
+                max={100}
+                value={draft.percentB}
+                style={{ background: gradient(strip) }}
+                onChange={(e) => change({ percentB: Number(e.target.value) })}
+              />
+              <span className="mix-scale">
+                <span>
+                  F{a} {100 - draft.percentB}%
+                </span>
+                <span>
+                  F{b} {draft.percentB}%
+                </span>
+              </span>
+            </label>
+          )}
+          {draft.filaments.length === 2 && colours.length >= 3 && (
+            <button
+              className="link"
+              onClick={() => {
+                const free = colours.findIndex((_, i) => !draft.filaments.includes(i + 1)) + 1;
+                change({ filaments: [...draft.filaments, free], weights: [34, 33, 33] });
+              }}
+            >
+              + Add a third filament
+            </button>
+          )}
+        </div>
+      )}
+
+      {draft.mode === 'cycle' && (
+        <div className="mix-body">
+          <label className="field">
+            <span>Layer pattern</span>
+            <input
+              aria-label="Layer pattern"
+              inputMode="numeric"
+              value={draft.pattern}
+              onChange={(e) => change({ pattern: normalizePattern(e.target.value) })}
+            />
+          </label>
+          <div className="mix-quick">
+            {colours.map((c, i) => (
+              <button key={i} className="secondary" onClick={() => change({ pattern: draft.pattern + (i < 9 ? `${i + 1}` : `[${i + 1}]`) })}>
+                <span className="paint-swatch" style={{ background: c }} />+{i + 1}
+              </button>
+            ))}
+            <button className="secondary" onClick={() => change({ pattern: draft.pattern.replace(/(\[\d+\]|\d|,)$/, '') })} aria-label="Remove the last layer">
+              ⌫
+            </button>
+          </div>
+          <div className="mix-sequence" aria-label="Layers, bottom first">
+            {sequence.map((id, i) => (
+              <span key={i} style={{ background: colours[id - 1] ?? '#ccc' }} title={`Layer ${i + 1}: filament ${id}`} />
+            ))}
+          </div>
+        </div>
+      )}
+
+      {draft.mode === 'match' && (
+        <div className="mix-body">
+          <div className="mix-row">
+            <label className="swatch" style={{ background: draft.target }} title="Target colour">
+              <input type="color" aria-label="Target colour" value={draft.target.slice(0, 7)} onChange={(e) => change({ target: e.target.value.toUpperCase() })} />
+            </label>
+            <input
+              aria-label="Target colour hex"
+              className="mix-hex"
+              defaultValue={draft.target}
+              key={draft.target}
+              onKeyDown={(e) => e.key === 'Enter' && e.currentTarget.blur()}
+              onBlur={(e) => /^#?[0-9a-f]{6}$/i.test(e.target.value.trim()) && change({ target: `#${e.target.value.trim().replace('#', '').toUpperCase()}` })}
+            />
+            <span className="muted small">{matching ? 'Matching…' : draft.match?.valid ? closeness(draft.match.deltaE) : ''}</span>
+          </div>
+          <label className="transform-row">
+            <span>Min share</span>
+            <input type="range" aria-label="Minimum share of each filament" min={0} max={50} value={draft.minPercent} onChange={(e) => change({ minPercent: Number(e.target.value) })} />
+            <span className="unit">{draft.minPercent}%</span>
+          </label>
+          {draft.match?.valid && (
+            <div className="mix-compare">
+              <span style={{ background: draft.target }}>Target</span>
+              <span style={{ background: draft.match.colour, color: textOn(draft.match.colour) }}>Mix</span>
+            </div>
+          )}
+        </div>
+      )}
+
+      {draft.mode === 'gradient' && (
+        <div className="mix-body">
+          <div className="mix-row">
+            <span className="muted small mix-end">{draft.reversed ? 'Top' : 'Bottom'}</span>
+            {pick(0, 'Gradient filament A')}
+          </div>
+          <div className="mix-row">
+            <span className="muted small mix-end">{draft.reversed ? 'Bottom' : 'Top'}</span>
+            {pick(1, 'Gradient filament B')}
+          </div>
+          <div className="mix-gradient" style={{ background: gradient(draft.reversed ? [...strip].reverse() : strip, 'to top') }} aria-hidden />
+          <button className="link" onClick={() => change({ reversed: !draft.reversed })}>
+            ⇅ Swap direction
+          </button>
+        </div>
+      )}
+
+      {incompatible && <p className="hint warn">Different filament types cannot be mixed. Please correct the settings.</p>}
+      {!incompatible && warning && <p className="hint warn">{warning}</p>}
+    </Dialog>
   );
 }
 

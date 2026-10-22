@@ -9,7 +9,7 @@ import { DirectLink, directBlockedReason, normalizePrinterUrl } from '../link/di
 import type { BridgeStatus } from '../link/types';
 import { decodePairing, type Pairing } from '../pairing';
 import { AddBridge, BridgeSetup, CopyCommand, SignInForBridge } from './BridgeSetup';
-import { Dialog } from './parts';
+import { Dialog } from '../../components/Dialog';
 
 const newId = () => Math.random().toString(36).slice(2, 10);
 

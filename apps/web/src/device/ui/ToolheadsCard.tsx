@@ -20,7 +20,8 @@ import { filamentInExtruders, headMood, MOOD_WORDS } from '../heads';
 import { BED_SCENE_MS, HeadBed, type BedScene } from './HeadBed';
 import { HeadFace } from './HeadFace';
 import { Icon } from './icons';
-import { Card, Dialog, Swatch, Temperature, useConfirm } from './parts';
+import { Card, Swatch, Temperature, useConfirm } from './parts';
+import { Dialog } from '../../components/Dialog';
 
 const MATERIALS = ['PLA', 'PETG', 'ABS', 'ASA', 'TPU', 'PA', 'PC', 'PVA', 'HIPS', 'PLA-CF', 'PETG-CF', 'PA-CF'];
 
