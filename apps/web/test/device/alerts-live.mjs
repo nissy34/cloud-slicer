@@ -109,7 +109,8 @@ try {
   console.log(`a made-up push address is refused: ${refused}`);
 
   const prefs = { events: ['failed', 'paused', 'error', 'finished', 'started', 'layer1', 'progress'], percents: [50], hours: 0, layer: 10, pictures: true };
-  const saved = await t.call('relay.alerts', { op: 'set', ...subscription, prefs });
+  // The browser's clock, for "done about 14:35" in its own time zone.
+  const saved = await t.call('relay.alerts', { op: 'set', ...subscription, clock: { timeZone: 'Asia/Jerusalem', hour12: false }, prefs });
   if (saved.prefs?.layer !== 10) throw new Error(`alerts not saved: ${JSON.stringify(saved)}`);
   const got = await t.call('relay.alerts', { op: 'get', endpoint });
   if (JSON.stringify(got.prefs.events) !== JSON.stringify(prefs.events)) throw new Error(`alerts read back wrong: ${JSON.stringify(got)}`);
@@ -126,10 +127,15 @@ try {
   const finished = pushes.find((p) => p.title === 'calibration_cube finished');
   if (finished.printer !== `${cfg.bridgeId}.voron` || !finished.body.startsWith('Voron-mock')) throw new Error(`finished alert: ${JSON.stringify(finished)}`);
   if (!finished.image) throw new Error('the finished alert has no camera picture');
+  // Where the print stands: progress, layer, time left with the clock time, filament (the mock file: 50 layers, 2.7 m, 8 g).
+  const half = pushes.find((p) => p.title === 'calibration_cube 50% done');
+  if (!/^Voron-mock · layer \d+ of 50\n.*left · done about \d{1,2}:\d{2}( [AP]M)?\nfilament [\d.]+ g of 8 g$/.test(half.body)) throw new Error(`50% alert text: ${JSON.stringify(half.body)}`);
+  if (!/^Voron-mock · \d+ min \(estimate 1 h\)\n/.test(finished.body) || !/8 g filament · 50 layers$/.test(finished.body)) throw new Error(`finished alert text: ${JSON.stringify(finished.body)}`);
   const pic = await fetch(finished.image);
   if (!pic.ok || (await pic.arrayBuffer()).byteLength < 50) throw new Error(`the picture can't be fetched (${pic.status})`);
   if (pushes.find((p) => p.title.startsWith('Printing'))?.image) throw new Error('"Printing" carries a picture; only key alerts should');
   console.log(`a whole print: ${want.length} alerts in order, the finished one with a picture`);
+  for (const p of [half, finished]) console.log(`  ${p.title}: ${JSON.stringify(p.body)}`);
 
   const after = await t.call('relay.alerts', { op: 'get', endpoint });
   if (after.prefs.layer !== null) throw new Error(`"after layer N" was not cleared when the print ended: ${JSON.stringify(after)}`);
@@ -141,10 +147,13 @@ try {
   await until('started again', () => pushes.slice(before).find((p) => p.title === 'Printing calibration_cube'));
   await t.call('printer.print.pause', {});
   const paused = await until('paused', () => pushes.slice(before).find((p) => p.title === 'Print paused'));
+  if (!/^Voron-mock · calibration_cube · \d+% · layer \d+ of 50/.test(paused.body)) throw new Error(`paused alert text: ${JSON.stringify(paused.body)}`);
   if (paused.urgency !== 'high') throw new Error('a pause is not sent as urgent');
   await t.call('printer.print.cancel', {});
-  await until('cancelled', () => pushes.slice(before).find((p) => p.title === 'calibration_cube was cancelled'));
+  const cancelled = await until('cancelled', () => pushes.slice(before).find((p) => p.title === 'calibration_cube was cancelled'));
+  if (!/^Voron-mock · stopped at \d+%, layer \d+ of 50/.test(cancelled.body)) throw new Error(`cancelled alert text: ${JSON.stringify(cancelled.body)}`);
   console.log('pause and cancel alerts arrived, urgent');
+  for (const p of [paused, cancelled]) console.log(`  ${p.title}: ${JSON.stringify(p.body)}`);
 
   // Alerts off: nothing more comes.
   const off = await t.call('relay.alerts', { op: 'set', endpoint, prefs: null });
