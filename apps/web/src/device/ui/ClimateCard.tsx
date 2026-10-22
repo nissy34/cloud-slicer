@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { useDevice } from '../../state/device';
 import { purifierGcode, U1_LIGHT, u1Fans, u1LightGcode, u1Purifier } from '../addons/u1';
 import { fanGcode, lightGcode, setHeaterGcode } from '../commands';
@@ -7,6 +7,7 @@ import { Card, PercentSlider, Temperature } from './parts';
 
 /** Bed, chamber, other sensors, fans and lights; on a U1 also the top cover's purifier. */
 export function ClimateCard() {
+  const [open, setOpen] = useState<string | null>(null);
   const objects = useDevice((s) => s.objects);
   const addons = useDevice((s) => s.addons);
   const run = useDevice((s) => s.run);
@@ -50,29 +51,54 @@ export function ClimateCard() {
             </label>
           </li>
         ))}
-        {fs.map((f) => (
-          <li key={f.name}>
-            <span>{f.label}</span>
-            {f.settable ? (
-              <PercentSlider label={f.label} value={f.speed} onCommit={(v) => void run(fanGcode(f.name, v))} />
-            ) : (
-              <span className="muted">{Math.round(f.speed * 100)}%</span>
-            )}
-          </li>
-        ))}
-        {purifier && (
-          <>
-            <li>
-              <span>Purifier exhaust</span>
-              <PercentSlider label="Purifier exhaust fan" value={purifier.exhaust ?? 0} onCommit={(v) => void run(purifierGcode('exhaust', v))} />
-            </li>
-            <li>
-              <span>Purifier filter</span>
-              <PercentSlider label="Purifier filter fan" value={purifier.inner ?? 0} onCommit={(v) => void run(purifierGcode('inner', v))} />
-            </li>
-          </>
-        )}
       </ul>
+      <FanTiles
+        open={open}
+        setOpen={setOpen}
+        items={[
+          ...fs.map((f) => ({ id: f.name, label: f.label, speed: f.speed, set: f.settable ? (v: number) => void run(fanGcode(f.name, v)) : null })),
+          ...(purifier
+            ? [
+                { id: 'purifier-exhaust', label: 'Purifier exhaust', speed: purifier.exhaust ?? 0, set: (v: number) => void run(purifierGcode('exhaust', v)) },
+                { id: 'purifier-inner', label: 'Purifier filter', speed: purifier.inner ?? 0, set: (v: number) => void run(purifierGcode('inner', v)) },
+              ]
+            : []),
+        ]}
+      />
     </Card>
+  );
+}
+
+type FanTile = { id: string; label: string; speed: number; set: ((v: number) => void) | null };
+
+/** Fans as small tiles with their speed; tap one that can be set to open its slider under the tiles. */
+function FanTiles({ items, open, setOpen }: { items: FanTile[]; open: string | null; setOpen(id: string | null): void }) {
+  if (!items.length) return null;
+  const current = items.find((i) => i.id === open && i.set);
+  return (
+    <div className="dv-fan-tiles-wrap" data-testid="fan-tiles">
+      <div className="dv-fan-tiles">
+        {items.map((i) => (
+          <button
+            key={i.id}
+            type="button"
+            className={`dv-fan-tile${i.speed > 0 ? ' on' : ''}${open === i.id ? ' open' : ''}`}
+            disabled={!i.set}
+            aria-expanded={i.set ? open === i.id : undefined}
+            onClick={() => setOpen(open === i.id ? null : i.id)}
+            title={i.set ? undefined : 'The printer runs this fan by itself'}
+          >
+            <span>{i.label}</span>
+            <b>{Math.round(i.speed * 100)}%</b>
+          </button>
+        ))}
+      </div>
+      {current?.set && (
+        <div className="dv-fan-tile-slider">
+          <span>{current.label}</span>
+          <PercentSlider label={current.label} value={current.speed} onCommit={current.set} />
+        </div>
+      )}
+    </div>
   );
 }
