@@ -249,7 +249,7 @@ function SearchStatus({ s, watch, system, title }: { s: ReturnType<typeof useBri
           <span className="dv-spinner" aria-hidden />
           <div>
             <strong>Looking for printers on your network…</strong>
-            <span className="muted">{s.tries > 0 || system === 'darwin' ? allowHint : 'This takes a few seconds.'}</span>
+            <span className="muted">{s.more ? 'Still looking on your other networks.' : s.tries > 0 || system === 'darwin' ? allowHint : 'This takes a few seconds.'}</span>
           </div>
         </div>
       )}
