@@ -105,7 +105,11 @@ starts and then every 6 hours it asks the relay for the newest release
 (`/bridge-release.json`), and installs a newer one when no browser is
 connected, so an upload is never cut off (a print keeps going either way: it
 runs on Klipper). Printers & bridges in the Device tab also shows "Update now"
-when a bridge is behind. It is safe because:
+when a bridge is behind, and each bridge's version and date, e.g. "Version 6.50 ·
+from 22 Oct, 17:16 · up to date". The 6 is `version` in `main.go` (what the bridge
+can do, raised by hand when the site relies on something new); the 50 counts the
+commits that changed this folder (CI counts them on GitHub, `CHANGE` in
+`build.sh`); the date is the build number (the commit's time). It is safe because:
 
 - **Signed.** CI signs every build with an ed25519 key that exists only in the
   repo secret `BRIDGE_SIGNING_KEY`; the bridge has the public half built in and

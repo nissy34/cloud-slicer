@@ -165,7 +165,7 @@ function BridgeCard({ b, onLeftover }: { b: SavedBridge; onLeftover: (l: Leftove
       </div>
       {online && built > 0 && (
         <span className="muted dv-manage-version" data-testid="manage-bridge-version">
-          {status?.version ? `Version ${status.version} · ` : ''}from {builtWhen(built)}
+          {status?.version ? `Version ${status.version}${status.change ? `.${status.change}` : ''} · ` : ''}from {builtWhen(built)}
           {latest > 0 && (outdated ? ` · newest from ${builtWhen(latest)}` : ' · up to date')}
         </span>
       )}

@@ -56,6 +56,7 @@ jobs:
       test: ${{ steps.w.outputs.test }}
       what: ${{ steps.w.outputs.what }}
       build: ${{ steps.w.outputs.build }}
+      change: ${{ steps.w.outputs.change }}
       site: ${{ steps.w.outputs.site }}
       relay: ${{ steps.w.outputs.relay }}
       bridge: ${{ steps.w.outputs.bridge }}
@@ -113,6 +114,12 @@ jobs:
           # One build number for every test app, newer than anything sent before, so
           # test bridges always take the newest one sent (even an older branch).
           echo "build=$(date +%s)" >> "$GITHUB_OUTPUT"
+          # The bridge's change number (the 42 in version 6.42): how many commits changed
+          # its folder. GitHub counts them (the checkouts here are shallow): the page
+          # number of the last one-commit page.
+          change=$(gh api -i "repos/${{ github.repository }}/commits?path=apps/device-bridge&sha=$SHA&per_page=1" | tr -d '\r' \
+            | sed -n 's/^link:.*[?&]page=\([0-9]*\)>; rel="last".*/\1/ip' || true)
+          echo "change=${change:-1}" >> "$GITHUB_OUTPUT"
           # The site the test relay checks setup codes with: the branch's own Pages
           # preview (it makes the codes for the test relay), or the real site for main.
           site=https://slicer.awesomestuff.qzz.io
@@ -286,6 +293,8 @@ jobs:
     needs: where
     runs-on: windows-latest
     timeout-minutes: 15
+    env:
+      CHANGE: ${{ needs.where.outputs.change }}
     defaults:
       run:
         shell: bash
@@ -419,6 +428,8 @@ jobs:
     needs: where
     runs-on: macos-latest
     timeout-minutes: 15
+    env:
+      CHANGE: ${{ needs.where.outputs.change }}
     steps:
       - uses: actions/checkout@v5
       - uses: actions/setup-go@v6
@@ -498,6 +509,7 @@ jobs:
       CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
       CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
       WORKER: ${{ matrix.target == 'test' && 'cloud-slicer-relay-test' || 'cloud-slicer-relay' }}
+      CHANGE: ${{ needs.where.outputs.change }}
       BUCKET: ${{ matrix.target == 'test' && 'cloud-slicer-bridge-test' || 'cloud-slicer-bridge' }}
       # The relay's own address: a Workers custom domain, added once in the Cloudflare
       # dashboard. Its workers.dev address keeps answering too.
