@@ -183,7 +183,8 @@ export default {
     if (script) {
       // The setup code rides in the link (?code=), so one command does it all.
       const code = (url.searchParams.get('code') ?? '').toUpperCase();
-      const text = script.replaceAll('__RELAY_URL__', url.origin).replaceAll('__SETUP_CODE__', SETUP_CODE.test(code) ? code : '');
+      const text = script.replaceAll('__RELAY_URL__', url.origin).replaceAll('__SETUP_CODE__', SETUP_CODE.test(code) ? code : '')
+        .replaceAll('__BRIDGE_NAME__', env.TEST_RELAY ? 'cloud-slicer-bridge-test' : 'cloud-slicer-bridge');
       const type = url.pathname.endsWith('.sh') ? 'text/x-shellscript' : 'text/plain';
       // Command Prompt runs batch files with Windows line ends only.
       return new Response(url.pathname.endsWith('.cmd') ? text.replace(/\r?\n/g, '\r\n') : text, { headers: { ...cors, 'Content-Type': `${type}; charset=utf-8`, 'Cache-Control': 'no-store' } });

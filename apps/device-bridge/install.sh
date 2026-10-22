@@ -49,6 +49,34 @@ with_code() {
   done
 }
 
+# Removing (--uninstall, with or without --printer): nothing is downloaded, the
+# bridge already installed here removes itself (with sudo for a printer service).
+if [ -n "$uninstall" ]; then
+  NAME="__BRIDGE_NAME__"
+  for d in /usr/data/printer_data "$HOME/printer_data" /home/*/printer_data /root/printer_data; do
+    if [ -x "$d/$NAME/$NAME" ]; then
+      # The service needs root to remove.
+      if [ "$(id -u)" != 0 ] && command -v sudo >/dev/null 2>&1; then
+        sudo "$d/$NAME/$NAME" uninstall --printer-data "$d"
+      else
+        "$d/$NAME/$NAME" uninstall --printer-data "$d"
+      fi
+      exit $?
+    fi
+  done
+  [ -n "$printer" ] && { echo "There is no Cloud Slicer bridge on this printer."; exit 0; }
+  flavor="${NAME#cloud-slicer-bridge-}"
+  [ "$flavor" = "$NAME" ] && mac="Cloud Slicer Bridge" || mac="Cloud Slicer Bridge ($flavor)"
+  for exe in "$HOME/.local/share/$NAME/$NAME" "$HOME/Library/Application Support/$mac/$NAME"; do
+    if [ -x "$exe" ]; then
+      "$exe" uninstall
+      exit $?
+    fi
+  done
+  echo "There is no Cloud Slicer bridge set up to start with this computer. If one is open, closing its window stops it."
+  exit 0
+fi
+
 case "$(uname -s)" in
   Linux) os=linux ;;
   Darwin) os=mac ;;

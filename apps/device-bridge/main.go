@@ -28,6 +28,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"os/exec"
 	"os/signal"
 	"path/filepath"
 	"runtime"
@@ -129,6 +130,14 @@ func run(argv []string, console bool) error {
 	if cmd == "uninstall" {
 		if p, ok := printerInstall(opts["printer-data"]); ok {
 			if os.Geteuid() != 0 {
+				// The same uninstall line serves computers and printers, so ask for root here when sudo is there.
+				if self, err := os.Executable(); err == nil {
+					if sudo, err := exec.LookPath("sudo"); err == nil {
+						c := exec.Command(sudo, append([]string{self, "uninstall"}, os.Args[2:]...)...)
+						c.Stdin, c.Stdout, c.Stderr = os.Stdin, os.Stdout, os.Stderr
+						return c.Run()
+					}
+				}
 				return errors.New("Removing the bridge from the printer needs root: run it with sudo.")
 			}
 			if err := uninstallFromPrinter(p, false); err != nil {
