@@ -16,7 +16,7 @@ import { Viewport } from './components/Viewport';
 import { LoadingOverlay } from './components/LoadingOverlay';
 import { DeviceScreen } from './device';
 import { AdminScreen } from './components/AdminScreen';
-import { ContinueCard, ViewOnlyBanner } from './components/ContinueCard';
+import { Notices } from './components/Notices';
 import { useProjects } from './state/projects';
 import { useSlicer } from './state/store';
 
@@ -28,7 +28,7 @@ export function App() {
     if (!viewOnly) return;
     const block = (e: KeyboardEvent) => {
       const t = e.target as HTMLElement | null;
-      if (t?.closest('.dialog, .view-only-banner, .account, .menu-pop')) return;
+      if (t?.closest('.win, .notice, .account, .menu-pop')) return;
       if (e.key === 'Escape' || e.key === 'Tab') return;
       e.stopPropagation();
       if (e.ctrlKey || e.metaKey || e.key === 'Delete' || e.key === 'Backspace') e.preventDefault();
@@ -51,8 +51,6 @@ export function App() {
         <div className="body">
           <Sidebar />
           <main className="main">
-            <ViewOnlyBanner />
-            {tab === 'prepare' && <ContinueCard />}
             {tab === 'prepare' ? (
               <OpenModel>
                 <Viewport />
@@ -69,6 +67,7 @@ export function App() {
       )}
       {tab === 'device' && <DeviceScreen />}
       {tab === 'admin' && <AdminScreen />}
+      <Notices />
     </div>
   );
 }
