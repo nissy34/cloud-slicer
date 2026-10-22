@@ -211,12 +211,12 @@ RestartSec=5
 [Install]
 WantedBy=default.target
 `},
-			// A menu entry, with the app's icon, that opens the pairing link.
+			// A menu entry, with the app's icon, that opens the Device tab.
 			{filepath.Join(e.home, ".local", "share", "applications", service+".desktop"), `[Desktop Entry]
 Type=Application
 Name=` + appName + `
-Comment=Open the link that pairs this bridge with Cloud Slicer
-Exec=` + quoteArgs(exe, "pair", "--open") + `
+Comment=Open your printers in Cloud Slicer
+Exec=` + quoteArgs(exe, "open") + `
 Icon=` + icon + `
 Terminal=false
 Categories=Utility;
@@ -425,8 +425,8 @@ func restartAutostart() bool {
 	return runSteps(p.restart) == nil
 }
 
-// removeFiles deletes what install wrote, the settings (printers and the pairing secret,
-// so old pairing links stop working) and the installed copy.
+// removeFiles deletes what install wrote, the settings (printers and the bridge's
+// secret key) and the installed copy.
 func removeFiles(p plan, configPath string) {
 	for _, f := range p.files {
 		_ = os.Remove(f.path)

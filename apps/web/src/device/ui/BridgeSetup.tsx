@@ -169,7 +169,7 @@ export function BridgeOffline({ system, place }: { system?: string; place?: stri
       <span className="muted">Still offline? Start it again on that computer, in {SHELL_NAME[os]}:</span>
       <CopyCommand command={`${BRIDGE_COMMAND[os]} install`} testId="bridge-offline-command" />
       <span className="muted">
-        That starts it in the background and sets it to start with the computer again (it also opens the pairing page there, which you can close).
+        That starts it in the background and sets it to start with the computer again.
         {os !== 'windows' && <> If it keeps stopping, its log says why: <code>{LOG[os]}</code>.</>} If the command says the path can't be found, download
         the bridge again from Add a printer and open it.
       </span>

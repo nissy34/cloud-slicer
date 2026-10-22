@@ -54,15 +54,6 @@ func openedByHand(cfg *Config, path, site string, console bool) bool {
 			fmt.Printf("\nThe bridge now runs in the background and starts by itself with this computer (from %s).\n", p.copyTo)
 		}
 	}
-	if !cfg.Claimed {
-		// A relay without accounts (a test or private one): pair with the link, as before.
-		fmt.Printf("To remove it from this computer: %s uninstall\n", commandFor(p.copyTo))
-		opened := printPairing(cfg, site, true)
-		if !console {
-			showMessage(appName, doneMessage(opened, pairingLink(cfg, site)), false)
-		}
-		return true
-	}
 	if console || !guiAvailable {
 		printInstalled(p)
 		if st, running := waitForStatus(path); running {
@@ -241,13 +232,4 @@ func buildOf(versionLine string) (int64, bool) {
 	}
 	n, err := strconv.ParseInt(m[1], 10, 64)
 	return n, err == nil
-}
-
-// doneMessage is what someone who double-clicked the app reads once it is set up (relays without accounts).
-func doneMessage(browserOpened bool, link string) string {
-	text := "The bridge is running in the background. It has no window and starts by itself whenever you sign in to this computer.\n\n"
-	if browserOpened {
-		return text + "Cloud Slicer is opening in your browser: pick your printer there."
-	}
-	return text + "To pick your printer, open this link in your browser:\n" + link
 }

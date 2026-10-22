@@ -34,7 +34,6 @@ type printerPlan struct {
 	dir     string // <printer_data>/cloud-slicer-bridge: the program, its settings, its log
 	exe     string
 	config  string
-	pairing string // <printer_data>/config/cloud-slicer-bridge-pairing.txt, readable in Mainsail and Fluidd
 	kind    initKind
 	files   []file
 	enable  []step
@@ -53,7 +52,6 @@ func printerPlanFor(e printerEnv) printerPlan {
 		dir:     dir,
 		exe:     filepath.Join(dir, service),
 		config:  filepath.Join(dir, "bridge.json"),
-		pairing: filepath.Join(e.dataDir, "config", service+"-pairing.txt"),
 		kind:    e.kind,
 	}
 	args := quoteArgs(p.exe, "run", "--no-browser", "--config", p.config)
@@ -168,7 +166,6 @@ func (p printerPlan) removeScript() string {
 	if p.kind == initSystemd {
 		b.WriteString("systemctl daemon-reload >/dev/null 2>&1\n")
 	}
-	b.WriteString("rm -f " + shellQuote(p.pairing) + "\n")
 	b.WriteString("rm -rf " + shellQuote(p.dir) + "\n")
 	return b.String()
 }
@@ -257,7 +254,6 @@ func installOnPrinter(given, relay, code string) (printerPlan, *Config, error) {
 	if err != nil {
 		return printerPlan{}, nil, err
 	}
-	_, uid, gid := ownerOf(dataDir)
 	p := printerPlanFor(printerEnv{dataDir: dataDir, kind: whichInit()})
 	if os.Geteuid() != 0 {
 		return p, nil, errors.New("Installing on the printer needs root: run it with sudo (the install line does this for you).")
@@ -323,19 +319,6 @@ func installOnPrinter(given, relay, code string) (printerPlan, *Config, error) {
 	if err := os.WriteFile(filepath.Join(p.dir, printerMarker), []byte(string(p.kind)+"\n"), 0o644); err != nil {
 		return p, nil, err
 	}
-	if cfg.Claimed {
-		// In an account: there is no pairing link to keep.
-		_ = os.Remove(p.pairing)
-		if err := runSteps(p.enable); err != nil {
-			return p, cfg, err
-		}
-		return p, cfg, nil
-	}
-	link := pairingLink(cfg, "")
-	_ = os.WriteFile(p.pairing, []byte("To use this printer from Cloud Slicer, open this link on your phone or computer:\n\n"+link+
-		"\n\nAnyone with this link can control the printer; keep it private. Removing the bridge from the Device tab deletes this file.\n"), 0o600)
-	// Moonraker runs as printer_data's owner: it shows the file in Mainsail and Fluidd.
-	_ = os.Chown(p.pairing, uid, gid)
 	if err := runSteps(p.enable); err != nil {
 		return p, cfg, err
 	}

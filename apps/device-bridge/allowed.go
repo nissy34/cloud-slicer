@@ -6,7 +6,7 @@ import (
 )
 
 // The Moonraker calls the bridge passes on: exactly what the Device tab uses.
-// Everything else is refused, so a pairing code (or the relay) can't reach the
+// Everything else is refused, so a browser key (or the relay) can't reach the
 // parts of Moonraker that go beyond running the printer: its API keys and
 // users (access.*), the sudo password and system updates (machine.*), or
 // moving files into the config folder. A new Device tab feature that needs

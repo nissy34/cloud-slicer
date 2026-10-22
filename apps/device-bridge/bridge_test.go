@@ -41,20 +41,10 @@ func TestMergeDiffFieldByField(t *testing.T) {
 	}
 }
 
-func TestPairingCodeMatchesTheNodeBridge(t *testing.T) {
-	cfg := &Config{Relay: "https://r.example", BridgeID: "abcdefgh", Key: strings.Repeat("k", 32)}
-	raw, err := base64.RawURLEncoding.DecodeString(pairingCode(cfg))
-	if err != nil {
-		t.Fatal(err)
-	}
-	var got map[string]string
-	if err := json.Unmarshal(raw, &got); err != nil {
-		t.Fatal(err)
-	}
+func TestBrowserKeyMatchesTheRelay(t *testing.T) {
 	// The same value the relay and the device tests derive (computed with node's crypto).
-	want := map[string]string{"r": "https://r.example", "i": "abcdefgh", "k": "T0K4-u5XPGmA1JwjEWTw8vFv7CHmnoVm5sezDOJHS5c"}
-	if !reflect.DeepEqual(got, want) {
-		t.Fatalf("got %v, want %v", got, want)
+	if got := browserKey(strings.Repeat("k", 32)); got != "T0K4-u5XPGmA1JwjEWTw8vFv7CHmnoVm5sezDOJHS5c" {
+		t.Fatalf("got %s", got)
 	}
 }
 
@@ -433,7 +423,7 @@ func TestStartWithLinuxRunsWithoutASignInAndHasAMenuEntry(t *testing.T) {
 	if last.cmd != "loginctl" || !reflect.DeepEqual(last.args, []string{"enable-linger", "pi"}) {
 		t.Fatalf("linger %v", last)
 	}
-	if menu.path != "/home/pi/.local/share/applications/cloud-slicer-bridge.desktop" || !strings.Contains(menu.content, "\nExec=/home/pi/.local/share/cloud-slicer-bridge/cloud-slicer-bridge pair --open\n") || !strings.Contains(menu.content, "\nIcon=/home/pi/.local/share/cloud-slicer-bridge/icon.png\n") {
+	if menu.path != "/home/pi/.local/share/applications/cloud-slicer-bridge.desktop" || !strings.Contains(menu.content, "\nExec=/home/pi/.local/share/cloud-slicer-bridge/cloud-slicer-bridge open\n") || !strings.Contains(menu.content, "\nIcon=/home/pi/.local/share/cloud-slicer-bridge/icon.png\n") {
 		t.Fatalf("menu %s:\n%s", menu.path, menu.content)
 	}
 	if p.link != "/home/pi/.local/bin/cloud-slicer-bridge" || len(iconPNG) < 1000 {
@@ -443,10 +433,9 @@ func TestStartWithLinuxRunsWithoutASignInAndHasAMenuEntry(t *testing.T) {
 
 // Go quotes a Windows argument that is empty or has a space, tab or quote, the C
 // way, which cmd and some programs misread ("Windows cannot find '\\'"). The
-// command that opens the pairing link must pass every argument as it is.
-func TestBrowserOpensThePairingLinkUnchanged(t *testing.T) {
-	c := &Config{Relay: "wss://relay.example/bridge", BridgeID: "abc", Key: "secret"}
-	link := pairingLink(c, "https://slicer.awesomestuff.qzz.io/")
+// command that opens Cloud Slicer must pass every argument as it is.
+func TestBrowserOpensTheLinkUnchanged(t *testing.T) {
+	link := deviceTab(&Config{}, "https://slicer.awesomestuff.qzz.io/")
 	for _, goos := range []string{"windows", "darwin", "linux"} {
 		name, args := browserCommand(goos, link)
 		if args[len(args)-1] != link {
@@ -463,14 +452,5 @@ func TestBrowserOpensThePairingLinkUnchanged(t *testing.T) {
 	}
 	if name, args := browserCommand("windows", link); name != "rundll32" || args[0] != "url.dll,FileProtocolHandler" {
 		t.Fatalf("windows: %s %q", name, args)
-	}
-}
-
-func TestDoneMessageGivesTheLinkWhenNoBrowserOpened(t *testing.T) {
-	if m := doneMessage(true, "https://x/#pair=1"); strings.Contains(m, "#pair=") {
-		t.Fatalf("link shown although the browser opened: %q", m)
-	}
-	if m := doneMessage(false, "https://x/#pair=1"); !strings.Contains(m, "https://x/#pair=1") {
-		t.Fatalf("no link to open by hand: %q", m)
 	}
 }

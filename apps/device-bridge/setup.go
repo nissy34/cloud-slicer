@@ -29,23 +29,6 @@ var relayClient = &http.Client{Timeout: 30 * time.Second}
 // joinedAs is the bridge's name in the account, once this run spent a setup code.
 var joinedAs string
 
-// relayTakesCodes says whether bridges on this relay join an account with a setup
-// code (a relay with accounts); a test or private relay without accounts doesn't.
-func relayTakesCodes(relay string) (bool, error) {
-	res, err := relayClient.Get(relay + "/v1/info")
-	if err != nil {
-		return false, err
-	}
-	defer res.Body.Close()
-	var info struct {
-		Accounts bool `json:"accounts"`
-	}
-	if err := json.NewDecoder(res.Body).Decode(&info); err != nil {
-		return false, fmt.Errorf("the relay answered oddly (%s)", res.Status)
-	}
-	return info.Accounts, nil
-}
-
 // claimWithCode spends a setup code: it says the bridge's name in the account.
 func claimWithCode(cfg *Config, code, place string) (string, error) {
 	body, _ := json.Marshal(map[string]string{"key": cfg.Key, "code": code, "host": shortHost(), "system": goosName(), "place": place})
@@ -75,25 +58,14 @@ func claimWithCode(cfg *Config, code, place string) (string, error) {
 }
 
 // joinAccount makes sure the bridge belongs to an account before it is installed:
-// with a relay that wants setup codes, it spends the one given. Without a code it
-// says how to get one (a setupCodeError, so the install scripts ask for it).
+// it spends the setup code given. Without a code it says how to get one (a
+// setupCodeError, so the install scripts ask for it). There is no other way in.
 func joinAccount(cfg *Config, code, place string) error {
 	// "--code" with nothing after it reads as "true".
 	if code = strings.TrimSpace(code); code == "true" {
 		code = ""
 	}
 	if cfg.Claimed {
-		return nil
-	}
-	takes, err := relayTakesCodes(cfg.Relay)
-	if err != nil {
-		if code == "" {
-			// No relay to ask and nothing to spend: set up anyway; it joins when run with a code.
-			return nil
-		}
-		return fmt.Errorf("Couldn't reach Cloud Slicer's relay (%v). Check the internet connection and try again.", err)
-	}
-	if !takes {
 		return nil
 	}
 	if code == "" {

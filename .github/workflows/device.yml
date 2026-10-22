@@ -154,39 +154,13 @@ jobs:
         timeout-minutes: 5
         run: node test/device-arrange.mjs device-shots
 
-      - name: The Linux bridge serves the mock U1 through a local relay (uploads, refusals, wrong keys), and runs on a printer
+      - name: The Linux bridge serves the mock U1 through a local relay (uploads, refusals, wrong keys)
         working-directory: apps/device-relay
         run: |
           npx wrangler dev --port 8797 --ip 127.0.0.1 > wrangler.log 2>&1 &
           for i in $(seq 1 60); do curl -fsS -o /dev/null http://127.0.0.1:8797/ && break; sleep 1; done
           cd ../web
           node test/device/relay-live.mjs http://127.0.0.1:8797 --app ../device-bridge/dist/linux-x64
-          # On a printer (this runner stands in for a Pi: systemd, a printer_data folder):
-          # a root service, a pairing file in the config folder, and Remove bridge removing it all.
-          data="$RUNNER_TEMP/printer_data"
-          mkdir -p "$data/config"
-          sudo ../device-bridge/dist/linux-x64 install-printer --printer-data "$data" --relay http://127.0.0.1:8797
-          systemctl is-active cloud-slicer-bridge
-          node test/device/printer-bridge.mjs http://127.0.0.1:8797 "$data"
-          sleep 2
-          if systemctl is-active cloud-slicer-bridge; then echo "The service still runs"; exit 1; fi
-          if [ -e /etc/systemd/system/cloud-slicer-bridge.service ]; then echo "The service file is still there"; exit 1; fi
-          # The printer uninstall line (install.sh --printer --uninstall), as a normal user: it downloads
-          # nothing, finds the bridge in printer_data (here $HOME/printer_data) and removes it with sudo.
-          sudo ../device-bridge/dist/linux-x64 install-printer --printer-data "$data" --relay http://127.0.0.1:8797
-          systemctl is-active cloud-slicer-bridge
-          curl -fsS http://127.0.0.1:8797/install.sh > "$RUNNER_TEMP/install.sh"
-          HOME="$RUNNER_TEMP" sh "$RUNNER_TEMP/install.sh" --printer --uninstall | tee "$RUNNER_TEMP/uninstall.log"
-          grep -q 'Removed the bridge from this printer' "$RUNNER_TEMP/uninstall.log"
-          if grep -q 'Downloading' "$RUNNER_TEMP/uninstall.log"; then echo "Uninstall downloaded the bridge"; exit 1; fi
-          sleep 2
-          if systemctl is-active cloud-slicer-bridge; then echo "The service still runs after uninstall"; exit 1; fi
-          # Typed by hand as a normal user, the bridge asks sudo for root by itself.
-          sudo ../device-bridge/dist/linux-x64 install-printer --printer-data "$data" --relay http://127.0.0.1:8797
-          ../device-bridge/dist/linux-x64 uninstall --printer-data "$data" | grep -q 'Removed the bridge from this printer'
-          sleep 2
-          if systemctl is-active cloud-slicer-bridge; then echo "The service still runs after uninstall"; exit 1; fi
-
       - name: Print alerts on a local relay (mock printer -> bridge -> relay -> pretend push service)
         working-directory: apps/device-relay
         run: |
@@ -205,6 +179,54 @@ jobs:
           for i in $(seq 1 60); do curl -fsS -o /dev/null http://127.0.0.1:8798/ && break; sleep 1; done
           cd ../web
           FAKE_SITE_PORT=8799 RELAY_TICKET_PRIVATE_KEY="$(cat "$RUNNER_TEMP/priv.json")" node test/device/relay-live.mjs http://127.0.0.1:8798 --app ../device-bridge/dist/linux-x64
+
+      - name: The Linux bridge on a printer joins an account with a setup code, and Remove bridge removes it
+        working-directory: apps/device-relay
+        run: |
+          # A relay with accounts (keys from the step above) and a stand-in site that takes the setup code CK23-4567.
+          npx wrangler dev --port 8795 --ip 127.0.0.1 --persist-to "$RUNNER_TEMP/relay-printer" --var "RELAY_TICKET_PUBLIC_KEY:$(cat "$RUNNER_TEMP/pub.json")" --var "SITE_ORIGIN:http://127.0.0.1:8794" > wrangler-printer.log 2>&1 &
+          for i in $(seq 1 60); do curl -fsS -o /dev/null http://127.0.0.1:8795/ && break; sleep 1; done
+          cd ../web
+          export RELAY_TICKET_PRIVATE_KEY="$(cat "$RUNNER_TEMP/priv.json")"
+          node test/device/fake-site.mjs 8794 > "$RUNNER_TEMP/fake-site.log" 2>&1 &
+          for i in $(seq 1 20); do curl -s -o /dev/null http://127.0.0.1:8794/ && break; sleep 1; done
+          relay=http://127.0.0.1:8795
+          bridge=../device-bridge/dist/linux-x64
+          # On a printer (this runner stands in for a Pi: systemd, a printer_data folder):
+          # a root service, in the account, and Remove bridge removing it all.
+          data="$RUNNER_TEMP/printer_data"
+          mkdir -p "$data/config"
+          # Without a setup code nothing is installed.
+          rc=0; sudo $bridge install-printer --printer-data "$data" --relay $relay > "$RUNNER_TEMP/no-code.log" 2>&1 || rc=$?
+          cat "$RUNNER_TEMP/no-code.log"
+          if [ "$rc" != 3 ]; then echo "Without a setup code the printer install didn't ask for one ($rc)"; exit 1; fi
+          if [ -e "$data/cloud-slicer-bridge" ]; then echo "Installed without a setup code"; exit 1; fi
+          sudo $bridge install-printer --printer-data "$data" --relay $relay --code CK23-4567 | tee "$RUNNER_TEMP/install.log"
+          grep -q 'Connected to your Cloud Slicer account as Printer bridge on CI' "$RUNNER_TEMP/install.log" || { echo "The printer bridge didn't join the account"; exit 1; }
+          if grep -qi 'pair' "$RUNNER_TEMP/no-code.log" "$RUNNER_TEMP/install.log"; then echo "The bridge still talks about pairing"; exit 1; fi
+          if ls "$data/config" | grep -qi pair; then echo "The bridge left a pairing file in the config folder"; exit 1; fi
+          systemctl is-active cloud-slicer-bridge
+          sudo cat "$data/cloud-slicer-bridge/bridge.json" > "$RUNNER_TEMP/printer-bridge.json"
+          node test/device/printer-bridge.mjs $relay "$data" "$RUNNER_TEMP/printer-bridge.json"
+          sleep 2
+          if systemctl is-active cloud-slicer-bridge; then echo "The service still runs"; exit 1; fi
+          if [ -e /etc/systemd/system/cloud-slicer-bridge.service ]; then echo "The service file is still there"; exit 1; fi
+          # The printer uninstall line (install.sh --printer --uninstall), as a normal user: it downloads
+          # nothing, finds the bridge in printer_data (here $HOME/printer_data) and removes it with sudo.
+          sudo $bridge install-printer --printer-data "$data" --relay $relay --code CK23-4567
+          systemctl is-active cloud-slicer-bridge
+          curl -fsS $relay/install.sh > "$RUNNER_TEMP/install.sh"
+          HOME="$RUNNER_TEMP" sh "$RUNNER_TEMP/install.sh" --printer --uninstall | tee "$RUNNER_TEMP/uninstall.log"
+          grep -q 'Removed the bridge from this printer' "$RUNNER_TEMP/uninstall.log"
+          if grep -q 'Downloading' "$RUNNER_TEMP/uninstall.log"; then echo "Uninstall downloaded the bridge"; exit 1; fi
+          sleep 2
+          if systemctl is-active cloud-slicer-bridge; then echo "The service still runs after uninstall"; exit 1; fi
+          # Typed by hand as a normal user, the bridge asks sudo for root by itself.
+          sudo $bridge install-printer --printer-data "$data" --relay $relay --code CK23-4567
+          $bridge uninstall --printer-data "$data" | grep -q 'Removed the bridge from this printer'
+          sleep 2
+          if systemctl is-active cloud-slicer-bridge; then echo "The service still runs after uninstall"; exit 1; fi
+          grep -c '^claim ' "$RUNNER_TEMP/fake-site.log"
 
       - uses: actions/upload-artifact@v6
         if: always()
@@ -243,10 +265,22 @@ jobs:
           $info = (Get-Item "$env:RUNNER_TEMP/bridge.exe").VersionInfo
           $info | Format-List ProductName, FileDescription, FileVersion
           if ($info.ProductName -ne 'Cloud Slicer Bridge') { throw "No version resources in the app" }
-      - name: Install starts it in the background and at sign-in; uninstall removes all of it
+      - name: Install joins the account with a setup code, starts it in the background and at sign-in; uninstall removes all of it
         run: |
-          # A relay that can't be reached: the real one only lets in bridges with a setup code.
-          "$RUNNER_TEMP/bridge.exe" install --no-browser --relay http://127.0.0.1:9
+          # A local stand-in for the relay that takes the setup code CK23-4567, as the real one does.
+          node apps/web/test/device/setup-relay.mjs 8791 > "$RUNNER_TEMP/relay-install.log" 2>&1 &
+          for i in $(seq 1 20); do curl -fsS -o /dev/null http://127.0.0.1:8791/v1/info && break; sleep 1; done
+          # Without a setup code it installs nothing and asks for one (exit status 3).
+          rc=0; "$RUNNER_TEMP/bridge.exe" install --no-browser --relay http://127.0.0.1:8791 > "$RUNNER_TEMP/no-code.log" 2>&1 || rc=$?
+          cat "$RUNNER_TEMP/no-code.log"
+          if [ "$rc" != 3 ]; then echo "Without a setup code the install didn't ask for one ($rc)"; exit 1; fi
+          if reg query 'HKCU\Software\Microsoft\Windows\CurrentVersion\Run' //v CloudSlicerBridge 2>/dev/null; then echo "Installed without a setup code"; exit 1; fi
+          "$RUNNER_TEMP/bridge.exe" install --no-browser --relay http://127.0.0.1:8791 --code ck23-4567 > "$RUNNER_TEMP/install.log" 2>&1
+          cat "$RUNNER_TEMP/install.log"
+          grep -q 'Connected to your Cloud Slicer account as Bridge on CI' "$RUNNER_TEMP/install.log" || { echo "The bridge didn't join the account"; exit 1; }
+          grep -q '^claim ok .*(win32' "$RUNNER_TEMP/relay-install.log" || { cat "$RUNNER_TEMP/relay-install.log"; echo "The relay never got the setup code"; exit 1; }
+          # Pairing links are gone: a bridge only ever joins with a setup code.
+          if grep -qi 'pair' "$RUNNER_TEMP/no-code.log" "$RUNNER_TEMP/install.log"; then echo "The bridge still talks about pairing"; exit 1; fi
           reg query 'HKCU\Software\Microsoft\Windows\CurrentVersion\Run' //v CloudSlicerBridge
           dir="$LOCALAPPDATA/Cloud Slicer Bridge"
           test -x "$dir/cloud-slicer-bridge.exe"
@@ -258,7 +292,10 @@ jobs:
           powershell -NoProfile -Command '$end = (Get-Date).AddSeconds(20); $seen = $false; while ((Get-Date) -lt $end) { $p = Get-CimInstance Win32_Process; $ping = @($p | Where-Object Name -eq "ping.exe" | ForEach-Object ProcessId); if ($ping.Count) { $seen = $true } elseif ($seen) { exit 0 }; if ($p | Where-Object { $_.Name -eq "conhost.exe" -and $ping -contains $_.ParentProcessId }) { "ping opened its own console"; exit 1 } }; "The cleanup never ran"; exit 1' &
           watcher=$!
           sleep 3
-          "$dir/cloud-slicer-bridge.exe" uninstall
+          "$dir/cloud-slicer-bridge.exe" uninstall > "$RUNNER_TEMP/uninstall.log" 2>&1
+          cat "$RUNNER_TEMP/uninstall.log"
+          grep -q 'and from your Cloud Slicer account' "$RUNNER_TEMP/uninstall.log" || { echo "Uninstall didn't leave the account"; exit 1; }
+          grep -q '^release ' "$RUNNER_TEMP/relay-install.log" || { echo "The relay never heard the bridge leave"; exit 1; }
           wait $watcher || { echo "Uninstall opened a window"; exit 1; }
           # The folder goes just after the program exits (Windows can't delete a running program).
           for i in $(seq 1 15); do [ -e "$dir" ] || break; sleep 1; done
@@ -269,19 +306,22 @@ jobs:
       - name: The PowerShell install line finishes (it doesn't wait for the bridge it leaves running)
         timeout-minutes: 3
         run: |
-          # The app served from a local "relay"; the bridge itself gets a relay that can't be reached.
-          mkdir -p "$RUNNER_TEMP/site/download" && cp "$RUNNER_TEMP/bridge.exe" "$RUNNER_TEMP/site/download/windows-x64"
-          (cd "$RUNNER_TEMP/site" && python -m http.server 8790 >/dev/null 2>&1 &)
+          # The line as Add a bridge gives it, with its setup code, against the local stand-in
+          # relay, which also serves the app download. (The app built here is set to the real
+          # relay, so the line passes --relay too.)
+          mkdir -p "$RUNNER_TEMP/site" && cp "$RUNNER_TEMP/bridge.exe" "$RUNNER_TEMP/site/windows-x64"
+          node apps/web/test/device/setup-relay.mjs 8790 "$RUNNER_TEMP/site" > "$RUNNER_TEMP/relay-line.log" 2>&1 &
           for i in $(seq 1 20); do curl -fsS -o /dev/null http://127.0.0.1:8790/download/windows-x64 && break; sleep 1; done
-          sed -e 's#__RELAY_URL__#http://127.0.0.1:8790#' -e 's#__SETUP_CODE__##' \
-            -e "s#@('install', '--no-browser')#@('install', '--no-browser', '--relay', 'http://127.0.0.1:9')#" \
+          sed -e 's#__RELAY_URL__#http://127.0.0.1:8790#' -e 's#__SETUP_CODE__#CK23-4567#' \
+            -e "s#@('install', '--no-browser')#@('install', '--no-browser', '--relay', \$relay)#" \
             apps/device-bridge/install.ps1 > "$RUNNER_TEMP/install.ps1"
-          grep -qF "'--relay', 'http://127.0.0.1:9'" "$RUNNER_TEMP/install.ps1"
+          grep -qF "'--relay', \$relay" "$RUNNER_TEMP/install.ps1"
           # Windows PowerShell, as people have it; it must come back on its own.
           # (It ends with the bridge's own exit status: 0 when it's set up.)
           rc=0; timeout 90 powershell -NoProfile -ExecutionPolicy Bypass -Command "Get-Content -Raw '$RUNNER_TEMP/install.ps1' | Invoke-Expression; exit "'$LASTEXITCODE' || rc=$?
           if [ "$rc" = 124 ]; then echo "The PowerShell line never finished"; exit 1; fi
           if [ "$rc" != 0 ]; then echo "The PowerShell line failed ($rc)"; exit 1; fi
+          grep -q '^claim ok ' "$RUNNER_TEMP/relay-line.log" || { cat "$RUNNER_TEMP/relay-line.log"; echo "The PowerShell line didn't spend its setup code"; exit 1; }
           # It waited for the setup program to finish (PowerShell doesn't wait for a program
           # with no window unless told to): the program it downloaded is gone, not still running.
           powershell -NoProfile -Command "if (Test-Path (Join-Path \$env:TEMP 'cloud-slicer-bridge-setup.exe')) { exit 1 }" ||
@@ -294,17 +334,19 @@ jobs:
           reg query "$entry" //v DisplayName | grep -F 'Cloud Slicer Bridge' || { echo "The Installed apps entry has no name"; exit 1; }
           shortcut="$APPDATA/Microsoft/Windows/Start Menu/Programs/Cloud Slicer Bridge.lnk"
           [ -f "$shortcut" ] || { echo "No Start menu entry"; exit 1; }
-          # A setup code that doesn't work: the line passes on the setup's own failure (it
-          # only can when it waits for the setup), and asks for a new code on exit status 3.
+          timeout 60 "$LOCALAPPDATA/Cloud Slicer Bridge/cloud-slicer-bridge.exe" uninstall
+          # A setup code that isn't right: the line passes on the setup's own failure (it
+          # only can when it waits for the setup), and asks for a new code on exit status 3
+          # (none here: it says nothing was installed).
           sed -e 's#__RELAY_URL__#http://127.0.0.1:8790#' -e 's#__SETUP_CODE__#ABCD-EFGH#' \
-            -e "s#@('install', '--no-browser')#@('install', '--no-browser', '--relay', 'http://127.0.0.1:9')#" \
+            -e "s#@('install', '--no-browser')#@('install', '--no-browser', '--relay', \$relay)#" \
             apps/device-bridge/install.ps1 > "$RUNNER_TEMP/install-code.ps1"
           rc=0; echo | timeout 90 powershell -NoProfile -ExecutionPolicy Bypass -Command "Get-Content -Raw '$RUNNER_TEMP/install-code.ps1' | Invoke-Expression; exit "'$LASTEXITCODE' || rc=$?
           if [ "$rc" = 124 ]; then echo "The PowerShell line with a setup code never finished"; exit 1; fi
           if [ "$rc" = 0 ]; then echo "The PowerShell line didn't see that the setup failed"; exit 1; fi
-          timeout 60 "$LOCALAPPDATA/Cloud Slicer Bridge/cloud-slicer-bridge.exe" uninstall
-          if reg query "$entry" >/dev/null 2>&1; then echo "Uninstall left the Installed apps entry"; exit 1; fi
-          if [ -e "$shortcut" ]; then echo "Uninstall left the Start menu entry"; exit 1; fi
+          grep -q '^claim wrong ' "$RUNNER_TEMP/relay-line.log" || { echo "The wrong setup code never reached the relay"; exit 1; }
+          if reg query "$entry" >/dev/null 2>&1; then echo "Uninstall left the Installed apps entry (or a wrong code installed it)"; exit 1; fi
+          if [ -e "$shortcut" ]; then echo "Uninstall left the Start menu entry (or a wrong code installed it)"; exit 1; fi
       - uses: actions/upload-artifact@v6
         with:
           name: bridge-app-windows
@@ -356,7 +398,12 @@ jobs:
         timeout-minutes: 3
         run: |
           app="$RUNNER_TEMP/app/Cloud Slicer Bridge.app"
-          "$app/Contents/MacOS/cloud-slicer-bridge" install --no-browser --relay http://127.0.0.1:9
+          # A local stand-in for the relay that takes the setup code CK23-4567, as the real one does.
+          node apps/web/test/device/setup-relay.mjs 8791 > "$RUNNER_TEMP/relay.log" 2>&1 &
+          for i in $(seq 1 20); do curl -fsS -o /dev/null http://127.0.0.1:8791/v1/info && break; sleep 1; done
+          "$app/Contents/MacOS/cloud-slicer-bridge" install --no-browser --relay http://127.0.0.1:8791 --code CK23-4567 | tee "$RUNNER_TEMP/install.log"
+          grep -q 'Connected to your Cloud Slicer account as Bridge on CI' "$RUNNER_TEMP/install.log" || { echo "The bridge didn't join the account"; exit 1; }
+          if grep -qi 'pair' "$RUNNER_TEMP/install.log"; then echo "The bridge still talks about pairing"; exit 1; fi
           opener="$HOME/Applications/Cloud Slicer Bridge.app"
           test -x "$opener/Contents/MacOS/cloud-slicer-bridge" || { echo "No app in Applications"; exit 1; }
           codesign --verify --deep --strict "$opener"
