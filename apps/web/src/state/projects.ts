@@ -14,7 +14,7 @@
 import { create } from 'zustand';
 import { api, ApiError, type OnlineProject } from '../account/api';
 import { autosaveDelay, continueOffer, deviceNameFrom, THUMBNAIL_EVERY_MS, type ContinueOffer } from '../lib/autosave';
-import { copyName, nameFromFile, newProjectId, projectFileName, projectSignature, UNTITLED } from '../lib/projects';
+import { copyName, freeName, nameFromFile, newProjectId, projectFileName, projectSignature, UNTITLED } from '../lib/projects';
 import { engineFromUrl, engineName, engineOf3mf, type EngineFlavor } from '../lib/engines';
 import { SETUP_KEY, type Setup } from '../lib/setup';
 import { sharedOnLoad, splitShared, takeSharedFiles } from '../lib/share-target';
@@ -67,6 +67,8 @@ interface ProjectsState {
   elsewhere: Elsewhere | null;
   /** The Continue card: a draft or a project changed on another device. */
   offer: ContinueOffer | null;
+  /** The first look for a Continue card is done (the setup wizard waits for it). */
+  offerChecked: boolean;
 
   /** Online when signed in (and the site has project storage), else a download. */
   canSaveOnline(): boolean;
@@ -273,6 +275,13 @@ export const useProjects = create<ProjectsState>((set, get) => {
 
   uploadFromOutside = (target, base) => upload(target, base, { auto: true });
 
+  /** Names other saved projects have, so a new save doesn't repeat one (`except`: the open project's own id). */
+  const takenNames = (except: string | null) =>
+    api
+      .projects()
+      .then((l) => l.projects.filter((p) => p.id !== except && !p.draft).map((p) => p.name))
+      .catch(() => [] as string[]);
+
   return {
     current: blank(),
     dirty: false,
@@ -287,6 +296,7 @@ export const useProjects = create<ProjectsState>((set, get) => {
     autosaveStopped: '',
     elsewhere: null,
     offer: null,
+    offerChecked: false,
 
     canSaveOnline: () => signedIn(),
     autosaveOn: () => getUserSetting<boolean>(AUTOSAVE_KEY) !== false,
@@ -328,11 +338,11 @@ export const useProjects = create<ProjectsState>((set, get) => {
       }
       await queue(async () => {
         if (mode === 'name') {
-          const target = named(clean);
+          const target = named(freeName(clean, await takenNames(get().current.id)));
           await upload(target, target.id ? get().current.version : 0, { thumbnail: true });
         } else {
           const from = get().current;
-          if (await upload({ name: clean, id: null, version: 0, draft: false }, 0, { thumbnail: true })) await dropDraft(from);
+          if (await upload({ name: freeName(clean, await takenNames(null)), id: null, version: 0, draft: false }, 0, { thumbnail: true })) await dropDraft(from);
         }
       });
     },
@@ -373,6 +383,7 @@ export const useProjects = create<ProjectsState>((set, get) => {
         }
       }
       if (await useSlicer.getState().openFiles(files, mode)) {
+        offerSettled = true;
         set({ current: { name: nameFromFile(project!.name), id: null, version: 0, draft: false }, elsewhere: null, offer: null });
         markClean();
         // Not saved anywhere yet: AutoSave keeps it as the draft.
@@ -381,11 +392,13 @@ export const useProjects = create<ProjectsState>((set, get) => {
         if (switched) switchedNotice(switched);
       } else if (wasEmpty && files.length && get().current.name === UNTITLED && !get().current.id) {
         // Like desktop: a new project is named after its first model.
+        offerSettled = true;
         set({ current: { name: nameFromFile(files[0].name), id: null, version: 0, draft: false }, offer: null });
       }
     },
 
     async openOnline(p) {
+      offerSettled = true;
       set({ busy: `Opening “${p.name}”…`, message: '', listOpen: false, offer: null });
       try {
         set({ downloading: { name: p.name, loaded: 0, total: 0 } });
@@ -447,7 +460,7 @@ export const useProjects = create<ProjectsState>((set, get) => {
         }
         let ok = false;
         await queue(async () => {
-          const target = named(current.name === UNTITLED ? 'My project' : current.name);
+          const target = named(freeName(current.name === UNTITLED ? 'My project' : current.name, await takenNames(current.id)));
           ok = await upload(target, target.id ? get().current.version : 0, { thumbnail: true });
         });
         return ok;
@@ -479,18 +492,25 @@ export const useProjects = create<ProjectsState>((set, get) => {
     },
 
     async findOffer() {
-      const offer = await offerNow();
+      if (offerSettled) return set({ offerChecked: true });
+      const offer = await offerNow().catch(() => null);
+      // Startup asks more than once (engine ready, signed in): an answer that comes
+      // back after the card was answered or a project opened is dropped.
+      if (offerSettled || get().busy || get().offer) return set({ offerChecked: true });
       // "Not now" holds until that project changes again.
-      if (offer && untouchedProject() && offerKey(offer) !== readDismissed()) set({ offer });
+      if (offer && untouchedProject() && offerKey(offer) !== readDismissed()) set({ offer, offerChecked: true });
+      else set({ offerChecked: true });
     },
 
     async acceptOffer() {
       const offer = get().offer;
+      offerSettled = true;
       if (offer) await get().openOnline(offer.project);
     },
 
     async dismissOffer(discard) {
       const offer = get().offer;
+      offerSettled = true;
       set({ offer: null });
       if (offer && !discard) writeDismissed(offerKey(offer));
       if (discard && offer?.kind === 'draft') await api.deleteProject(offer.project.id).catch(() => {});
@@ -503,6 +523,9 @@ export const useProjects = create<ProjectsState>((set, get) => {
 });
 
 // ---- the Continue card ---------------------------------------------------------------
+
+/** The card is offered once a visit: true once it was answered or a project was opened. */
+let offerSettled = false;
 
 /** What the Continue card would offer now (null when signed out, busy with a project, or offline). */
 async function offerNow(): Promise<ContinueOffer | null> {
@@ -565,13 +588,17 @@ async function openShared() {
   await accountKnown();
   if (!open.length) return void useProjects.getState().findOffer();
   // The question replaces the Continue card: it isn't shown as well.
-  const offer = await offerNow();
-  if (offer) {
-    const choice = await askAddTo(open.length === 1 ? open[0].name : `${open.length} files`, offer.project.name);
-    if (choice === 'cancel') return;
-    if (choice === 'add') await useProjects.getState().openOnline(offer.project);
+  try {
+    const offer = await offerNow();
+    if (offer) {
+      const choice = await askAddTo(open.length === 1 ? open[0].name : `${open.length} files`, offer.project.name);
+      if (choice === 'cancel') return;
+      if (choice === 'add') await useProjects.getState().openOnline(offer.project);
+    }
+    await useProjects.getState().openFiles(open);
+  } finally {
+    useProjects.setState({ offerChecked: true });
   }
-  await useProjects.getState().openFiles(open);
 }
 
 // ---- AutoSave ----------------------------------------------------------------------
@@ -685,7 +712,10 @@ useProjects.subscribe((p, prev) => {
 // right away; and a page still on its first, empty project switches to it once
 // the account says what it is.
 useAccount.subscribe((a, prev) => {
-  if (a.status !== prev.status && a.status === 'signedIn' && !sharedOnLoad()) void useProjects.getState().findOffer();
+  if (a.status !== prev.status && a.status === 'signedIn' && !sharedOnLoad()) {
+    useProjects.setState({ offerChecked: false });
+    void useProjects.getState().findOffer();
+  }
   if (a.settings === prev.settings) return;
   scheduleAutosave();
   const engine = defaultEngine();

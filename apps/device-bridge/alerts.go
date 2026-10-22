@@ -9,6 +9,8 @@ package main
 import (
 	"math"
 	"sort"
+	"strconv"
+	"strings"
 	"time"
 )
 
@@ -209,4 +211,102 @@ func remainingSeconds(state string, progress, printed float64, estimate *float64
 		return f(printed/progress - printed)
 	}
 	return nil
+}
+
+// printDetails is where the print stands when an alert goes out (as PrintDetails in the browser).
+type printDetails struct {
+	Percent  *int     `json:"percent,omitempty"`
+	Layer    *int     `json:"layer,omitempty"`
+	Total    *int     `json:"total,omitempty"`
+	Left     *int     `json:"left,omitempty"`
+	Printed  *int     `json:"printed,omitempty"`
+	Estimate *int     `json:"estimate,omitempty"`
+	UsedMm   *int     `json:"usedMm,omitempty"`
+	TotalMm  *int     `json:"totalMm,omitempty"`
+	TotalG   *float64 `json:"totalG,omitempty"`
+	Runout   string   `json:"runout,omitempty"`
+}
+
+// fileFacts is what the G-code file says about the whole print (Moonraker's file metadata).
+type fileFacts struct {
+	Estimate *float64 `json:"estimate"`
+	TotalMm  *float64 `json:"totalMm"`
+	TotalG   *float64 `json:"totalG"`
+}
+
+func factsFrom(m map[string]any) fileFacts {
+	pos := func(v any) *float64 {
+		if f, ok := v.(float64); ok && f > 0 && !math.IsInf(f, 0) {
+			return &f
+		}
+		return nil
+	}
+	return fileFacts{Estimate: pos(m["estimated_time"]), TotalMm: pos(m["filament_total"]), TotalG: pos(m["filament_weight_total"])}
+}
+
+// runoutFrom names what ran out: the active head on printers whose feeders report per head (U1), else the one empty sensor.
+func runoutFrom(objects map[string]any) string {
+	names := make([]string, 0, len(objects))
+	for n := range objects {
+		names = append(names, n)
+	}
+	sort.Strings(names)
+	if ext, ok := obj(objects, "toolhead")["extruder"].(string); ok && strings.HasPrefix(ext, "extruder") {
+		head, err := strconv.Atoi(strings.TrimPrefix(ext, "extruder"))
+		if ext == "extruder" {
+			head, err = 0, nil
+		}
+		if err == nil {
+			for _, n := range names {
+				if !strings.HasPrefix(n, "filament_feed ") {
+					continue
+				}
+				if ch, ok := obj(objects, n)["extruder"+strconv.Itoa(head)].(map[string]any); ok && ch["filament_detected"] == false {
+					return "T" + strconv.Itoa(head+1)
+				}
+			}
+		}
+	}
+	var empty []string
+	for _, n := range names {
+		if !strings.HasPrefix(n, "filament_switch_sensor ") && !strings.HasPrefix(n, "filament_motion_sensor ") {
+			continue
+		}
+		m := obj(objects, n)
+		if m["enabled"] != false && m["filament_detected"] == false {
+			empty = append(empty, n)
+		}
+	}
+	if len(empty) == 1 {
+		return strings.ReplaceAll(empty[0][strings.Index(empty[0], " ")+1:], "_", " ")
+	}
+	return ""
+}
+
+// detailsFrom reads printDetails from the printer's objects and the file's facts (as detailsOf in the browser).
+func detailsFrom(objects map[string]any, f fileFacts) printDetails {
+	s := snapshotFrom(objects, f.Estimate)
+	r := func(v *float64) *int {
+		if v == nil || *v < 0 || math.IsNaN(*v) || math.IsInf(*v, 0) {
+			return nil
+		}
+		return roundp(v)
+	}
+	fp := func(v float64) *float64 { return &v }
+	d := printDetails{Layer: s.Layer, Total: s.TotalLayers, Left: r(s.Left), Estimate: r(f.Estimate), TotalMm: r(f.TotalMm)}
+	if f.TotalG != nil {
+		g := math.Round(*f.TotalG*10) / 10
+		d.TotalG = &g
+	}
+	if s.State != "standby" {
+		d.Percent = r(fp(math.Min(1, s.Progress) * 100))
+		d.Printed = r(fp(s.Duration))
+		if used, ok := num(obj(objects, "print_stats")["filament_used"]); ok && used > 0 {
+			d.UsedMm = r(&used)
+		}
+	}
+	if isActive(s.State) {
+		d.Runout = runoutFrom(objects)
+	}
+	return d
 }

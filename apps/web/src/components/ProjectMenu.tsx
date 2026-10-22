@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { api, projectThumbnailUrl, type OnlineProject, type ProjectList } from '../account/api';
 import { engineName } from '../lib/engines';
-import { formatBytes, formatWhen, UNTITLED } from '../lib/projects';
+import { copyName, formatBytes, formatWhen, UNTITLED } from '../lib/projects';
 import { MODEL_EXTENSIONS } from '../lib/presets';
 import { useAccount } from '../state/account';
 import { useProjects } from '../state/projects';
@@ -82,6 +82,15 @@ export function ProjectMenu() {
     document.addEventListener('keydown', keys);
     return () => document.removeEventListener('keydown', keys);
   }, [ready]);
+
+  // "Saved …" and other good news go away by themselves; problems stay until dismissed.
+  useEffect(() => {
+    if (!message || messageWarn) return;
+    const t = setTimeout(() => {
+      if (useProjects.getState().message === message) useProjects.getState().clearMessage();
+    }, 6000);
+    return () => clearTimeout(t);
+  }, [message, messageWarn]);
 
   // Leaving with unsaved changes asks first (AutoSave saves as the tab goes away instead).
   const autosaving = signedIn && autosave && !stopped;
@@ -214,7 +223,8 @@ function SaveAsDialog() {
   if (!open) return null;
   // The name box starts with the project's name when the dialog opens, and keeps what is typed after.
   const current = useProjects.getState().current.name;
-  return <SaveAsForm copy={open === 'copy'} initial={current === UNTITLED ? '' : current} />;
+  const name = current === UNTITLED ? '' : open === 'copy' ? copyName(current, []) : current;
+  return <SaveAsForm copy={open === 'copy'} initial={name} />;
 }
 
 function SaveAsForm({ copy, initial }: { copy: boolean; initial: string }) {

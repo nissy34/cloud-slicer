@@ -159,7 +159,11 @@ alerts from a printer (`{ctl:"alerts"}`), the bridge keeps its own Moonraker
 websocket to that printer, with every browser closed, and checks each change
 against the alert rules (the same as the browser's, `apps/web/src/device/alerts.ts`,
 tested with `testdata/alert-cases.json`). When something happens it sends one
-small `{ctl:"alert"}` to the relay, with a frame from the printer's first camera on
-the key alerts. Nothing else leaves the home network; with no alerts wanted, no
+small `{ctl:"alert"}` to the relay, with where the print stands (`details`:
+progress, layers, time printed and left, filament used and the file's totals from
+its metadata, which head or sensor ran out; `detailsFrom`, tested with
+`testdata/alert-details-cases.json`), the U1's current errors on problem alerts
+(`exceptions`, from `server.exception.query`), and a frame from the printer's
+first camera on the key alerts. Nothing else leaves the home network; with no alerts wanted, no
 watch runs. What each part can see and what's protected:
 [../device-relay/SECURITY.md](../device-relay/SECURITY.md).

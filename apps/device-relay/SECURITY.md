@@ -59,7 +59,8 @@ Pairing:
 - **The bridge computer** holds the secret, the browser key's source, and the
   printers' API keys.
 - **Print alerts**: the relay keeps each browser's push address and alert
-  choices, and sees each alert (file name, layer, time) and its camera picture
+  choices and time zone, and sees each alert (file name, progress, layer, time,
+  filament, the printer's error) and its camera picture
   while passing them on; it logs none of it. The push services (Google, Apple,
   Mozilla, Microsoft) see only that a message arrived: its content is encrypted
   for the browser. A picture can be fetched by anyone holding its random link

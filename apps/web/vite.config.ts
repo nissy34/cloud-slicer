@@ -19,5 +19,6 @@ export default defineConfig({
   },
   server: { headers: isolation },
   preview: { headers: isolation },
-  test: { include: ['src/**/*.test.ts'] },
+  // Stylesheets reach tests as text (src/lib/stylesheets.test.ts checks them).
+  test: { include: ['src/**/*.test.ts'], css: { include: [/\.css/] } },
 });

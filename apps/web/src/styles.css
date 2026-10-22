@@ -2470,6 +2470,12 @@ select:focus-visible {
   max-width: 60vw;
   cursor: pointer;
 }
+/* With no background of its own, the browser draws the open list in the
+   light theme (Chrome on Windows): give the choices the theme's colours. */
+.dv-printer select option {
+  background: var(--surface);
+  color: var(--text);
+}
 .dv-model {
   font-size: 12px;
 }
@@ -2783,7 +2789,8 @@ select:focus-visible {
 }
 .dv-head {
   display: grid;
-  grid-template-columns: 96px minmax(0, 1fr) auto;
+  /* Wide enough for the dot, "T1" and the "On carriage" tag, the widest. */
+  grid-template-columns: 128px minmax(0, 1fr) auto;
   grid-template-areas: 'id filament temp' 'id actions actions';
   gap: 2px 12px;
   align-items: center;
@@ -3118,11 +3125,15 @@ select:focus-visible {
 }
 .dv-print-layer {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
-  gap: 12px;
+  gap: 8px 12px;
+}
+.dv-alerts-hint {
+  flex-basis: 100%;
   font-size: 12px;
-  color: var(--muted);
+  color: var(--warn);
 }
 .dv-console {
   list-style: none;
@@ -5431,9 +5442,53 @@ button.volume-name {
 .menu-note.warn {
   color: var(--warn);
 }
-@media (min-width: 1100px) {
+@media (min-width: 900px) {
   .autosave-pill {
     display: inline-flex;
+  }
+}
+/* Tablets and narrow windows (761-1279 px): the desktop bar, made smaller so
+   the tabs, Calibration, theme and account always stay inside the window. */
+@media (min-width: 761px) and (max-width: 1279px) {
+  .topbar {
+    gap: 12px;
+  }
+  .topbar .project-button {
+    min-width: 0;
+  }
+}
+@media (min-width: 761px) and (max-width: 1099px) {
+  /* The logo alone, Calibration as its icon, the account as its picture. */
+  .brand {
+    font-size: 0;
+  }
+  .topbar .calib-button {
+    display: grid;
+    place-items: center;
+    width: 32px;
+    height: 32px;
+    padding: 0;
+  }
+  .calib-icon {
+    display: block;
+  }
+  .calib-label {
+    display: none;
+  }
+  .account-name {
+    display: none;
+  }
+  .account-button {
+    padding: 3px;
+  }
+  .project-status {
+    display: none;
+  }
+}
+@media (min-width: 761px) and (max-width: 999px) {
+  /* The Project menu names the engine. */
+  .engine-badge {
+    display: none;
   }
 }
 @media (max-width: 760px) {
@@ -5529,6 +5584,12 @@ button.volume-name {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
+}
+/* On a phone the banner is placed against the whole screen: keep it under the top bar. */
+@media (max-width: 760px) {
+  .view-only-banner {
+    top: calc(var(--topbar) + 8px);
+  }
 }
 /* View only: the panels and tools can't change the project; the 3D view still turns. */
 .app.view-only .panel,

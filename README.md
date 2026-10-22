@@ -356,8 +356,9 @@ on for one printer on one device, with a switch per moment. Problems (failed or
 cancelled, paused or filament ran out, printer error) and Finished are on to begin
 with; print started, first and third layer, progress at chosen percentages, almost done
 (10 minutes left), still printing every few hours, resumed and bed cooled down are
-there to turn on, and "Tell me after layer N" is also in the Print dialog (it lasts
-until that print ends). For a printer through a bridge, the bridge watches the
+there to turn on, and "Alert me after layer N" is also in the Print dialog (it lasts
+until that print ends; there it also turns alerts on, and refuses a layer past the
+print's last one). For a printer through a bridge, the bridge watches the
 print itself (any Klipper printer: Moonraker's print state, layers, bed temperature
 and filament sensors), so alerts come with the browser closed: it sends each event
 to the relay, which sends a Web Push message (encrypted for the browser, signed with
@@ -366,9 +367,17 @@ picture on the key alerts. A printer reached directly can only alert while a tab
 open; the page runs the same rules itself. "The bridge goes offline" (off to begin
 with) comes from the relay after 10 minutes without the bridge. iPhone and iPad need
 Cloud Slicer on the Home Screen first (iOS 16.4 or later) and show no picture.
+Each alert also says where the print stands: progress and layer ("47% · layer 120
+of 250"), time left with the time it should finish in the phone's own time zone,
+filament used so far against the file's total (grams when the slicer wrote the
+weight, else metres), and, when it stops, how long it ran and what it used. A
+filament pause names the head that ran out (U1) or the sensor; an error carries the
+printer's own message, on the U1 Snapmaker's error title, description and code.
 Tapping an alert opens the Device tab on its printer. The rules are in
 `apps/web/src/device/alerts.ts` and `apps/device-bridge/alerts.go`, tested against
-the same cases (`apps/device-bridge/testdata/alert-cases.json`).
+the same cases (`apps/device-bridge/testdata/alert-cases.json`, and
+`alert-details-cases.json` for what an alert says about the print); the words are
+in `apps/web/src/device/alert-text.ts`.
 
 ## Tests
 

@@ -171,10 +171,16 @@ try {
   if ((await card.getByRole('button', { name: '50%' }).getAttribute('aria-pressed')) !== 'true') throw new Error('progress should start at 50%');
   if (shots) await card.screenshot({ path: join(shots, 'alerts-on-desktop.png') });
 
-  // "Tell me after layer N" from the print dialog, then a whole print on the mock.
+  // "Alert me after layer N" from the print dialog, then a whole print on the mock.
   await page.getByTestId('files-card').locator('li', { hasText: 'calibration_cube.gcode' }).getByRole('button', { name: 'Print…' }).click();
   const dialog = page.getByRole('dialog');
   await dialog.getByTestId('send-layer-alert').waitFor();
+  // A layer past the print's last one is refused with a note, and nothing is saved.
+  await dialog.getByText('of 50').waitFor();
+  await dialog.getByTestId('alert-layer').fill('99999');
+  await dialog.getByTestId('alert-layer').press('Enter');
+  await dialog.getByTestId('alert-layer-hint').filter({ hasText: 'This print has 50 layers' }).waitFor();
+  if ((await card.getByTestId('alert-layer').inputValue()) !== '') throw new Error('layer 99999 was saved');
   await dialog.getByTestId('alert-layer').fill('5');
   await dialog.getByTestId('alert-layer').press('Enter');
   await until('layer 5 saved', async () => (await card.getByTestId('alert-layer').inputValue()) === '5');

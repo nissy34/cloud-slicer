@@ -16,8 +16,14 @@ import (
 	"github.com/coder/websocket"
 )
 
-// The objects the rules look at; filament sensors are added from the printer's own list.
+// The objects the rules look at; filament sensors and feeders are added from the printer's own list.
 var watchObjects = []string{"webhooks", "print_stats", "virtual_sdcard", "display_status", "heater_bed"}
+
+// watchPrefixes: per-printer objects that say what ran out of filament.
+var watchPrefixes = []string{"filament_switch_sensor ", "filament_motion_sensor ", "filament_feed "}
+
+// problemEvents carry the printer's own errors (the U1's error codes), when it has any.
+var problemEvents = map[string]bool{"paused": true, "failed": true, "error": true}
 
 // watchEvery: the most often the rules run (Moonraker sends temperatures several times a second).
 const watchEvery = time.Second
@@ -231,8 +237,21 @@ func (pw *printerWatch) once() {
 
 	watcher := &alertWatcher{}
 	objects := map[string]any{}
-	var estimate *float64
-	estimateFor := ""
+	var facts fileFacts
+	factsFor := ""
+	// The U1's current errors ("exceptions"); other printers don't have the call.
+	var exceptions json.RawMessage
+	hasExceptions := false
+	queryExceptions := func() {
+		res, ok := conn.call(pw.ctx, "server.exception.query", map[string]any{})
+		hasExceptions = ok
+		var e struct {
+			Exceptions json.RawMessage `json:"exceptions"`
+		}
+		if ok && json.Unmarshal(res, &e) == nil {
+			exceptions = e.Exceptions
+		}
+	}
 	subscribe := func() bool {
 		list, ok := conn.call(pw.ctx, "printer.objects.list", map[string]any{})
 		if !ok {
@@ -246,9 +265,13 @@ func (pw *printerWatch) once() {
 		for _, o := range watchObjects {
 			want[o] = nil
 		}
+		// Only which head is in use: the rest of the toolhead changes many times a second.
+		want["toolhead"] = []string{"extruder"}
 		for _, o := range l.Objects {
-			if strings.HasPrefix(o, "filament_switch_sensor ") || strings.HasPrefix(o, "filament_motion_sensor ") {
-				want[o] = nil
+			for _, p := range watchPrefixes {
+				if strings.HasPrefix(o, p) {
+					want[o] = nil
+				}
 			}
 		}
 		res, ok := conn.call(pw.ctx, "printer.objects.subscribe", map[string]any{"objects": want})
@@ -260,6 +283,8 @@ func (pw *printerWatch) once() {
 		}
 		_ = json.Unmarshal(res, &r)
 		objects = r.Status
+		exceptions = nil
+		queryExceptions()
 		watcher.reset()
 		return true
 	}
@@ -271,27 +296,33 @@ func (pw *printerWatch) once() {
 		dirty = false
 		last = time.Now()
 		file := str(obj(objects, "print_stats")["filename"], "")
-		if file != estimateFor {
-			estimateFor, estimate = file, nil
+		if file != factsFor {
+			factsFor, facts = file, fileFacts{}
 			if file != "" {
 				if res, ok := conn.call(pw.ctx, "server.files.metadata", map[string]any{"filename": file}); ok {
-					var m struct {
-						EstimatedTime *float64 `json:"estimated_time"`
-					}
+					var m map[string]any
 					if json.Unmarshal(res, &m) == nil {
-						estimate = m.EstimatedTime
+						facts = factsFrom(m)
 					}
 				}
 			}
 		}
 		w := pw.current()
-		for _, a := range watcher.update(snapshotFrom(objects, estimate), w, last) {
+		for _, a := range watcher.update(snapshotFrom(objects, facts.Estimate), w, last) {
 			if !w.wants(a.Event) {
 				continue
 			}
 			msg := map[string]any{"ctl": "alert", "printer": pw.printer.ID}
 			data, _ := json.Marshal(a)
 			_ = json.Unmarshal(data, &msg)
+			msg["details"] = detailsFrom(objects, facts)
+			if problemEvents[a.Event] && hasExceptions {
+				// The error may land just after the pause: ask again rather than wait for its notice.
+				queryExceptions()
+			}
+			if problemEvents[a.Event] && len(exceptions) > 2 && len(exceptions) < 8192 {
+				msg["exceptions"] = exceptions
+			}
 			if w.Pictures && pictureEvents[a.Event] {
 				if pic := pw.picture(conn); pic != "" {
 					msg["picture"] = pic
@@ -339,6 +370,13 @@ func (pw *printerWatch) once() {
 			case "notify_klippy_shutdown":
 				mergeDiff(objects, map[string]any{"webhooks": map[string]any{"state": "shutdown"}})
 				evaluate()
+			case "notify_exception_status":
+				var e struct {
+					Exceptions json.RawMessage `json:"exceptions"`
+				}
+				if len(n.Params) > 0 && json.Unmarshal(n.Params[0], &e) == nil {
+					exceptions = e.Exceptions
+				}
 			case "notify_klippy_ready":
 				if subscribe() {
 					evaluate()

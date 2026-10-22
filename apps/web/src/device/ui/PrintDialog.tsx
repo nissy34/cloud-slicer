@@ -27,7 +27,12 @@ export function PrintDialog({ source }: { source: SendSource }) {
   const close = () => useDevice.getState().openPrintDialog(null);
   const go = useDevice((s) => s.uploadAndMaybePrint);
   const isU1 = addons.some((a) => a.id === 'u1');
-  const alerts = useAlerts((s) => (s.status === 'on' && s.printerId === activeId ? s.prefs : null));
+  // Alerts for the printer picked here, as the Alerts card has them.
+  const alertsHere = useAlerts((s) => s.printerId === activeId);
+  const alertStatus = useAlerts((s) => s.status);
+  const alertPrefs = useAlerts((s) => (s.status === 'on' ? s.prefs : null));
+  const alertProblem = useAlerts((s) => s.problem);
+  useEffect(() => void useAlerts.getState().load(), [activeId]);
   const [meta, setMeta] = useState<GcodeMeta | null>(null);
   const [name, setName] = useState(source.kind === 'upload' ? uploadName(source.name) : source.path);
   const heads = useMemo(() => (isU1 ? u1Heads(objects) : []), [isU1, objects]);
@@ -131,11 +136,6 @@ export function PrintDialog({ source }: { source: SendSource }) {
         ) : (
           <p className="dv-job-file">{source.path}</p>
         )}
-        {alerts && (
-          <div className="dv-print-layer" data-testid="send-layer-alert">
-            <LayerField prefs={alerts} onSet={(layer) => void useAlerts.getState().save({ ...alerts, layer })} />
-          </div>
-        )}
       </div>
       {meta && (
         <p className="muted dv-print-facts">
@@ -226,6 +226,32 @@ export function PrintDialog({ source }: { source: SendSource }) {
           </label>
         </fieldset>
       )}
+      {alertsHere && alertStatus !== 'loading' && (
+        <fieldset className="dv-fieldset" data-testid="send-layer-alert">
+          <legend>Alert</legend>
+          {alertProblem && alertProblem !== 'offline' ? (
+            <p className="muted">This device can’t show alerts. The Alerts card on the Device tab says why.</p>
+          ) : (
+            <>
+              <div className="dv-print-layer">
+                <LayerField prefs={alertPrefs} max={meta?.layers} onSet={(layer) => void layerAlert(layer)} />
+              </div>
+              {alertStatus !== 'on' && <p className="muted dv-map-note">Alerts are off for this printer. A layer here turns them on, with the usual alerts (problems and Finished).</p>}
+            </>
+          )}
+        </fieldset>
+      )}
     </Dialog>
   );
+}
+
+/** "Alert me after layer N" from the Print dialog, turning alerts on first when they're off. */
+async function layerAlert(layer: number | null) {
+  const a = useAlerts.getState();
+  if (a.status !== 'on') {
+    if (layer == null) return;
+    await a.enable();
+  }
+  const { status, prefs } = useAlerts.getState();
+  if (status === 'on' && prefs) await useAlerts.getState().save({ ...prefs, layer });
 }
