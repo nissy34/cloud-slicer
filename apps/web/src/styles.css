@@ -2470,6 +2470,12 @@ select:focus-visible {
   max-width: 60vw;
   cursor: pointer;
 }
+/* With no background of its own, the browser draws the open list in the
+   light theme (Chrome on Windows): give the choices the theme's colours. */
+.dv-printer select option {
+  background: var(--surface);
+  color: var(--text);
+}
 .dv-model {
   font-size: 12px;
 }
