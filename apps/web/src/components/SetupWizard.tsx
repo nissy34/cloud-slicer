@@ -9,6 +9,7 @@ import { saveUserSetting, useAccount, useDevices, useUserSetting } from '../stat
 import { useDevice } from '../state/device';
 import { untouchedProject, useProjects } from '../state/projects';
 import { useSlicer } from '../state/store';
+import { Dialog } from './Dialog';
 
 /** Opens the wizard from anywhere (e.g. "Manage" next to the printer picker). */
 export const useSetupWizard = create<{
@@ -136,28 +137,12 @@ function Wizard({ onClose }: { onClose: () => void }) {
     setStep(STEPS[index + 1].id);
   };
   return (
-    <div className="dialog-backdrop" onKeyDown={(e) => e.key === 'Escape' && onClose()}>
-      <div className="dialog wizard" role="dialog" aria-modal="true" aria-labelledby="wizard-title">
-        <h2 id="wizard-title">Set up your printers</h2>
-        <p className="wizard-step-now">
-          Step {index + 1} of {STEPS.length}: {STEPS[index].label}
-        </p>
-        <ol className="wizard-steps">
-          {STEPS.map((s, i) => (
-            <li key={s.id} className={i === index ? 'on' : i < index ? 'done' : ''}>
-              {s.label}
-            </li>
-          ))}
-        </ol>
-        <div className="wizard-body">
-          {step === 'engine' && <EngineStep chosen={engine} onChange={setEngine} />}
-          {step === 'printers' && <PrinterStep all={allPrinters} chosen={printers} onChange={setPrinters} />}
-          {step === 'printers' && loadingBrands && <p className="muted small">Loading the printer profiles…</p>}
-          {step === 'filaments' && <FilamentStep printers={printers} chosen={filaments} onChange={setFilaments} />}
-          {step === 'connect' && <ConnectStep />}
-        </div>
-        {error && <p className="hint warn">{error}</p>}
-        <div className="dialog-actions">
+    <Dialog
+      title="Set up your printers"
+      onClose={onClose}
+      className="wizard"
+      footer={
+        <>
           <button className="secondary wizard-later" onClick={onClose}>
             Not now
           </button>
@@ -204,9 +189,28 @@ function Wizard({ onClose }: { onClose: () => void }) {
               Next
             </button>
           )}
-        </div>
+        </>
+      }
+    >
+      <p className="wizard-step-now">
+        Step {index + 1} of {STEPS.length}: {STEPS[index].label}
+      </p>
+      <ol className="wizard-steps">
+        {STEPS.map((s, i) => (
+          <li key={s.id} className={i === index ? 'on' : i < index ? 'done' : ''}>
+            {s.label}
+          </li>
+        ))}
+      </ol>
+      <div className="wizard-body">
+        {step === 'engine' && <EngineStep chosen={engine} onChange={setEngine} />}
+        {step === 'printers' && <PrinterStep all={allPrinters} chosen={printers} onChange={setPrinters} />}
+        {step === 'printers' && loadingBrands && <p className="muted small">Loading the printer profiles…</p>}
+        {step === 'filaments' && <FilamentStep printers={printers} chosen={filaments} onChange={setFilaments} />}
+        {step === 'connect' && <ConnectStep />}
       </div>
-    </div>
+      {error && <p className="hint warn">{error}</p>}
+    </Dialog>
   );
 }
 

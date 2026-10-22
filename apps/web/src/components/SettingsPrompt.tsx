@@ -7,6 +7,7 @@ import { create } from 'zustand';
 import type { OrcaConfig } from '../engine/protocol';
 import { optionStates, reviewChange, type OptionStates, type SettingsPrompt, type ToggleContext } from '../lib/option-toggles';
 import { useSlicer } from '../state/store';
+import { Dialog } from './Dialog';
 
 type Scope = ToggleContext['scope'];
 type Apply = (changes: OrcaConfig) => void;
@@ -90,17 +91,20 @@ export function SettingsPromptDialog() {
   if (!current) return null;
   const { prompt } = current;
   return (
-    <div className="dialog-backdrop">
-      <div className="dialog settings-prompt" role="alertdialog" aria-modal="true" aria-labelledby="settings-prompt-text">
-        <p id="settings-prompt-text">{prompt.message}</p>
-        <div className="dialog-actions wrap">
-          {prompt.answers.map((a, i) => (
-            <button key={a.label} className={i === prompt.answers.length - 1 ? 'primary' : 'secondary'} autoFocus={i === prompt.answers.length - 1} onClick={() => answer(a.changes)}>
-              {a.label}
-            </button>
-          ))}
-        </div>
-      </div>
-    </div>
+    <Dialog
+      title={prompt.answers.length > 1 ? 'Change settings?' : 'About this setting'}
+      role="alertdialog"
+      describedBy="settings-prompt-text"
+      className="settings-prompt"
+      // Closing answers like desktop's ✕: No, or OK when OK is the only answer.
+      onClose={() => answer(prompt.answers[0].changes)}
+      footer={prompt.answers.map((a, i) => (
+        <button key={a.label} className={i === prompt.answers.length - 1 ? 'primary' : 'secondary'} autoFocus={i === prompt.answers.length - 1} onClick={() => answer(a.changes)}>
+          {a.label}
+        </button>
+      ))}
+    >
+      <p id="settings-prompt-text">{prompt.message}</p>
+    </Dialog>
   );
 }

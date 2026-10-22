@@ -23,6 +23,7 @@ import { useSlicer } from '../state/store';
 import type { PresetType } from './api';
 import { systemParent } from './preset-diff';
 import { saveFromEngine } from './preset-save';
+import { Dialog } from '../components/Dialog';
 
 /** An item with what it would store, worked out for its current base. */
 type Row = ImportItem & { diff: OrcaConfig; gcode: string[]; problem: string | null };
@@ -169,115 +170,12 @@ export function ImportPresetsDialog() {
   const baseChoices = (type: PresetType) => (type === 'filament' ? filaments : processes).filter((p) => p.system);
 
   return (
-    <div className="dialog-backdrop">
-      <div className="dialog import-presets" role="dialog" aria-modal="true" aria-labelledby="import-presets-title">
-        <h2 id="import-presets-title">Import presets</h2>
-        <p className="muted small">
-          Orca preset files (.json) and bundles (.orca_printer, .orca_filament, .zip) from desktop Orca, Snapmaker Orca or this app. Each preset must be based on a
-          printer, filament or process preset this app has.
-        </p>
-        <input
-          ref={input}
-          type="file"
-          multiple
-          accept={PRESET_FILE_TYPES}
-          aria-label="Preset files"
-          className="sr-only"
-          onChange={(e) => void pick(e.target.files)}
-        />
-        <div>
-          <button className="secondary" disabled={working} onClick={() => input.current?.click()}>
-            {rows ? 'Choose other files…' : 'Choose files…'}
-          </button>
-        </div>
-        {working && !rows && <p className="muted">Reading…</p>}
-        {problems.length > 0 && (
-          <ul className="import-problems" aria-label="Files left out">
-            {problems.map((p) => (
-              <li key={p}>{p}</li>
-            ))}
-          </ul>
-        )}
-        {rows && rows.length > 0 && (
-          <ul className="import-list" aria-label="Presets to import">
-            {rows.map((row) => (
-              <li key={row.key} className={row.rejected || row.problem ? 'import-row rejected' : 'import-row'} aria-label={`${TYPE_LABEL[row.type]} ${row.name}`}>
-                <div className="import-row-head">
-                  <span className="import-type">{TYPE_LABEL[row.type]}</span>
-                  <b>{row.name}</b>
-                </div>
-                {row.rejected || row.problem ? (
-                  <p className="import-note warn">{row.rejected ?? `Can't import: ${row.problem}`}</p>
-                ) : (
-                  <>
-                    {row.converted ? (
-                      <label className="field">
-                        <span className="small">
-                          Made for {row.inherits ? <b>{row.inherits}</b> : 'another printer'}. Put it on:
-                        </span>
-                        <select aria-label={`Base for ${row.name}`} value={row.base} disabled={working} onChange={(e) => void rebase(row, e.target.value)}>
-                          {!baseChoices(row.type).some((p) => p.name === row.base) && <option value={row.base}>{row.base}</option>}
-                          {baseChoices(row.type).map((p) => (
-                            <option key={p.name} value={p.name}>
-                              {shortName(p.name)}
-                            </option>
-                          ))}
-                        </select>
-                        <span className="small muted">
-                          {row.type === 'process'
-                            ? 'Keeps its layer, wall, infill, support and other model settings; speeds, line widths and the like come from the new base.'
-                            : 'Keeps its material settings; its filament start/end G-code comes from the new base.'}
-                        </span>
-                      </label>
-                    ) : (
-                      <p className="import-note small muted">
-                        Based on {row.base}, {Object.keys(row.diff).length} setting{Object.keys(row.diff).length === 1 ? '' : 's'} changed.
-                      </p>
-                    )}
-                    {row.taken === 'user' && (
-                      <label className="field">
-                        <span className="small">You already have a {row.type} preset with this name.</span>
-                        <select
-                          aria-label={`When ${row.name} exists`}
-                          value={row.collision}
-                          onChange={(e) => update(row.key, { collision: e.target.value as Collision })}
-                        >
-                          <option value="overwrite">Replace mine</option>
-                          <option value="keep">Keep both</option>
-                          <option value="skip">Skip</option>
-                        </select>
-                      </label>
-                    )}
-                    {row.name !== row.fileName && !row.taken && <p className="import-note small muted">Saved as “{row.name}” (the name “{row.fileName}” is taken or not allowed).</p>}
-                    {row.gcode.length > 0 && (
-                      <p className="import-note small warn">
-                        Changes custom G-code ({row.gcode.join(', ')}). It runs on your printer as written, so only import it if you trust where it came from.
-                      </p>
-                    )}
-                    {row.dropped.length > 0 && (
-                      <p className="import-note small muted" title={row.dropped.join(', ')}>
-                        {row.dropped.length} setting{row.dropped.length === 1 ? '' : 's'} this version of Orca doesn't have {row.dropped.length === 1 ? 'was' : 'were'} left out.
-                      </p>
-                    )}
-                  </>
-                )}
-              </li>
-            ))}
-          </ul>
-        )}
-        {rows && rows.length === 0 && !problems.length && <p>No presets found.</p>}
-        {rows && importable.length > room && <p className="warn small">You can keep up to {MAX_USER_PRESETS} presets; only {Math.max(0, room)} more fit.</p>}
-        {done && (
-          <p className="ok" role="status">
-            {done}
-          </p>
-        )}
-        {error && (
-          <p className="account-error" role="alert">
-            {error}
-          </p>
-        )}
-        <div className="dialog-actions">
+    <Dialog
+      title="Import presets"
+      onClose={close}
+      className="import-presets"
+      footer={
+        <>
           <button className="secondary" onClick={close}>
             {done ? 'Close' : 'Cancel'}
           </button>
@@ -286,8 +184,114 @@ export function ImportPresetsDialog() {
               {working ? 'Importing…' : `Import ${importable.length} preset${importable.length === 1 ? '' : 's'}`}
             </button>
           )}
-        </div>
+        </>
+      }
+    >
+      <p className="muted small">
+        Orca preset files (.json) and bundles (.orca_printer, .orca_filament, .zip) from desktop Orca, Snapmaker Orca or this app. Each preset must be based on a
+        printer, filament or process preset this app has.
+      </p>
+      <input
+        ref={input}
+        type="file"
+        multiple
+        accept={PRESET_FILE_TYPES}
+        aria-label="Preset files"
+        className="sr-only"
+        onChange={(e) => void pick(e.target.files)}
+      />
+      <div>
+        <button className="secondary" disabled={working} onClick={() => input.current?.click()}>
+          {rows ? 'Choose other files…' : 'Choose files…'}
+        </button>
       </div>
-    </div>
+      {working && !rows && <p className="muted">Reading…</p>}
+      {problems.length > 0 && (
+        <ul className="import-problems" aria-label="Files left out">
+          {problems.map((p) => (
+            <li key={p}>{p}</li>
+          ))}
+        </ul>
+      )}
+      {rows && rows.length > 0 && (
+        <ul className="import-list" aria-label="Presets to import">
+          {rows.map((row) => (
+            <li key={row.key} className={row.rejected || row.problem ? 'import-row rejected' : 'import-row'} aria-label={`${TYPE_LABEL[row.type]} ${row.name}`}>
+              <div className="import-row-head">
+                <span className="import-type">{TYPE_LABEL[row.type]}</span>
+                <b>{row.name}</b>
+              </div>
+              {row.rejected || row.problem ? (
+                <p className="import-note warn">{row.rejected ?? `Can't import: ${row.problem}`}</p>
+              ) : (
+                <>
+                  {row.converted ? (
+                    <label className="field">
+                      <span className="small">
+                        Made for {row.inherits ? <b>{row.inherits}</b> : 'another printer'}. Put it on:
+                      </span>
+                      <select aria-label={`Base for ${row.name}`} value={row.base} disabled={working} onChange={(e) => void rebase(row, e.target.value)}>
+                        {!baseChoices(row.type).some((p) => p.name === row.base) && <option value={row.base}>{row.base}</option>}
+                        {baseChoices(row.type).map((p) => (
+                          <option key={p.name} value={p.name}>
+                            {shortName(p.name)}
+                          </option>
+                        ))}
+                      </select>
+                      <span className="small muted">
+                        {row.type === 'process'
+                          ? 'Keeps its layer, wall, infill, support and other model settings; speeds, line widths and the like come from the new base.'
+                          : 'Keeps its material settings; its filament start/end G-code comes from the new base.'}
+                      </span>
+                    </label>
+                  ) : (
+                    <p className="import-note small muted">
+                      Based on {row.base}, {Object.keys(row.diff).length} setting{Object.keys(row.diff).length === 1 ? '' : 's'} changed.
+                    </p>
+                  )}
+                  {row.taken === 'user' && (
+                    <label className="field">
+                      <span className="small">You already have a {row.type} preset with this name.</span>
+                      <select
+                        aria-label={`When ${row.name} exists`}
+                        value={row.collision}
+                        onChange={(e) => update(row.key, { collision: e.target.value as Collision })}
+                      >
+                        <option value="overwrite">Replace mine</option>
+                        <option value="keep">Keep both</option>
+                        <option value="skip">Skip</option>
+                      </select>
+                    </label>
+                  )}
+                  {row.name !== row.fileName && !row.taken && <p className="import-note small muted">Saved as “{row.name}” (the name “{row.fileName}” is taken or not allowed).</p>}
+                  {row.gcode.length > 0 && (
+                    <p className="import-note small warn">
+                      Changes custom G-code ({row.gcode.join(', ')}). It runs on your printer as written, so only import it if you trust where it came from.
+                    </p>
+                  )}
+                  {row.dropped.length > 0 && (
+                    <p className="import-note small muted" title={row.dropped.join(', ')}>
+                      {row.dropped.length} setting{row.dropped.length === 1 ? '' : 's'} this version of Orca doesn't have {row.dropped.length === 1 ? 'was' : 'were'} left out.
+                    </p>
+                  )}
+                </>
+              )}
+            </li>
+          ))}
+        </ul>
+      )}
+      {rows && rows.length === 0 && !problems.length && <p>No presets found.</p>}
+      {rows && importable.length > room && <p className="warn small">You can keep up to {MAX_USER_PRESETS} presets; only {Math.max(0, room)} more fit.</p>}
+      {done && (
+        <p className="ok" role="status">
+          {done}
+        </p>
+      )}
+      {error && (
+        <p className="account-error" role="alert">
+          {error}
+        </p>
+      )}
+    </Dialog>
   );
 }

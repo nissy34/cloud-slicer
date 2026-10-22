@@ -146,7 +146,7 @@ try {
   if (shots) await page.getByRole('dialog').screenshot({ path: join(shots, 'bridge-search.png') });
   // The list fits a phone too.
   await page.setViewportSize({ width: 390, height: 844 });
-  const tooWide = await page.evaluate(() => [...document.querySelectorAll('.dv-dialog *')].find((el) => el.getBoundingClientRect().right > window.innerWidth + 0.5)?.className ?? null);
+  const tooWide = await page.evaluate(() => [...document.querySelectorAll('.win *')].find((el) => el.getBoundingClientRect().right > window.innerWidth + 0.5)?.className ?? null);
   if (tooWide !== null) throw new Error(`the add list is wider than a phone: ${tooWide}`);
   if (shots) await page.screenshot({ path: join(shots, 'bridge-list-phone.png') });
   await page.setViewportSize({ width: 1280, height: 900 });
@@ -616,7 +616,7 @@ try {
   await phone.setViewportSize({ width: 390, height: 844 });
   await phone.getByTestId('device-gcode-input').setInputFiles(sendFile);
   await phone.getByRole('dialog').getByTestId('send-printer').waitFor();
-  const wideDialog = await phone.evaluate(() => [...document.querySelectorAll('.dv-dialog *')].find((el) => el.getBoundingClientRect().right > window.innerWidth + 0.5)?.className ?? null);
+  const wideDialog = await phone.evaluate(() => [...document.querySelectorAll('.win *')].find((el) => el.getBoundingClientRect().right > window.innerWidth + 0.5)?.className ?? null);
   if (wideDialog !== null) throw new Error(`send dialog is wider than a 390 px phone: ${wideDialog}`);
   if (shots) await phone.screenshot({ path: join(shots, 'send-pick-printer-phone.png') });
   await phone.getByRole('dialog').getByRole('button', { name: 'Cancel' }).click();
@@ -711,7 +711,7 @@ try {
   if (shots) await about.screenshot({ path: join(shots, 'bridge-about.png') });
   for (const width of [390, 360]) {
     await setup.setViewportSize({ width, height: 844 });
-    const wide = await setup.evaluate(() => [...document.querySelectorAll('.dv-dialog *')].find((el) => el.getBoundingClientRect().right > window.innerWidth + 0.5)?.className ?? null);
+    const wide = await setup.evaluate(() => [...document.querySelectorAll('.win *')].find((el) => el.getBoundingClientRect().right > window.innerWidth + 0.5)?.className ?? null);
     if (wide !== null) throw new Error(`bridge setup is wider than a ${width} px phone: ${wide}`);
   }
   if (shots) await setup.screenshot({ path: join(shots, 'bridge-setup-phone.png'), fullPage: true });

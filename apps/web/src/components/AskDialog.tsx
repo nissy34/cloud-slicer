@@ -1,5 +1,5 @@
-import { useEffect } from 'react';
 import { create } from 'zustand';
+import { Dialog } from './Dialog';
 import { setLeaveQuestions } from '../state/projects';
 
 interface Question {
@@ -45,36 +45,19 @@ export async function askSave(name: string): Promise<'save' | 'discard' | 'cance
   return choice === 'action' ? 'save' : choice === 'other' ? 'discard' : 'cancel';
 }
 
-/** Calls onClose on Escape anywhere on the page while active (focus may be outside the dialog). */
-export function useEscape(active: boolean, onClose: () => void) {
-  useEffect(() => {
-    if (!active) return;
-    const esc = (e: KeyboardEvent) => e.key === 'Escape' && onClose();
-    document.addEventListener('keydown', esc);
-    return () => document.removeEventListener('keydown', esc);
-  }, [active, onClose]);
-}
-
 export function AskDialog() {
   const q = useAsk((s) => s.question);
-  useEffect(() => {
-    if (!q) return;
-    // Captured on window so a dialog underneath doesn't close on the same Escape.
-    const esc = (e: KeyboardEvent) => {
-      if (e.key !== 'Escape') return;
-      e.stopPropagation();
-      q.answer('cancel');
-    };
-    window.addEventListener('keydown', esc, true);
-    return () => window.removeEventListener('keydown', esc, true);
-  }, [q]);
   if (!q) return null;
   return (
-    <div className="dialog-backdrop ask-backdrop" onClick={(e) => e.target === e.currentTarget && q.answer('cancel')}>
-      <div className="dialog" role="alertdialog" aria-modal="true" aria-labelledby="ask-title" aria-describedby="ask-text" data-testid="ask-dialog">
-        <h2 id="ask-title">{q.title}</h2>
-        <p id="ask-text">{q.text}</p>
-        <div className={q.other ? 'dialog-actions wrap' : 'dialog-actions'}>
+    <Dialog
+      key={q.title}
+      title={q.title}
+      role="alertdialog"
+      describedBy="ask-text"
+      testId="ask-dialog"
+      onClose={() => q.answer('cancel')}
+      footer={
+        <>
           <button className="secondary" onClick={() => q.answer('cancel')}>
             Cancel
           </button>
@@ -86,9 +69,11 @@ export function AskDialog() {
           <button className="primary" autoFocus onClick={() => q.answer('action')}>
             {q.action}
           </button>
-        </div>
-      </div>
-    </div>
+        </>
+      }
+    >
+      <p id="ask-text">{q.text}</p>
+    </Dialog>
   );
 }
 
