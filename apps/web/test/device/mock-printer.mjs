@@ -47,8 +47,6 @@ function u1State(generic) {
     Object.assign(s, {
       'fan_generic cavity_fan': { speed: 0 },
       'fan_generic exhaust_fan': { speed: 0 },
-      'fan_generic circulation_fan': { speed: 0 },
-      'controller_fan power_fan': { speed: 0 },
       'heater_fan e0_nozzle_fan': { speed: 0 },
       'heater_fan e1_nozzle_fan': { speed: 0 },
       'heater_fan e2_nozzle_fan': { speed: 1 },

@@ -142,12 +142,9 @@ export function DeviceScreen() {
               <CameraCard />
               <div className="dv-pair">
                 <ClimateCard />
-                {/* Move and the console share a column, filling the space beside a long list of fans. */}
-                <div className="dv-col">
-                  <MotionCard />
-                  <ConsoleCard />
-                </div>
+                <MotionCard />
               </div>
+              <ConsoleCard />
             </div>
             <div className="dv-col dv-col-side">
               <JobCard />
