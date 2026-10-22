@@ -202,6 +202,10 @@ export async function startMockPrinter({ port = 0, host = '127.0.0.1', generic =
       const cmd = line.split(/\s+/)[0].toUpperCase();
       const ptc = state.print_task_config;
       switch (cmd) {
+        // Klipper's temperature report, the line console filters hide by default.
+        case 'M105':
+          broadcast('notify_gcode_response', [`ok B:${state.heater_bed.temperature.toFixed(1)} /${state.heater_bed.target.toFixed(1)} T0:${state.extruder.temperature.toFixed(1)} /${state.extruder.target.toFixed(1)}`]);
+          continue;
         case 'SET_HEATER_TEMPERATURE': {
           const heater = param(line, 'HEATER');
           const obj = heater === 'heater_bed' || heater?.startsWith('extruder') ? heater : `heater_generic ${heater}`;

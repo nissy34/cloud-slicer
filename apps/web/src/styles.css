@@ -4280,6 +4280,52 @@ select:focus-visible {
 .dv-console .error {
   color: var(--danger);
 }
+.dv-console-filters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 14px;
+  margin: 0 0 8px;
+  padding: 6px 10px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+}
+.dv-console-filters legend {
+  padding: 0 4px;
+  font-size: 12px;
+}
+.dv-console-filters label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.dv-console-word {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+}
+.dv-console-add {
+  display: flex;
+  gap: 8px;
+  flex-basis: 100%;
+}
+.dv-console-add input {
+  flex: 1;
+  min-width: 0;
+  padding: 4px 8px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--surface);
+}
+.dv-console-filters p {
+  flex-basis: 100%;
+  margin: 0;
+  font-size: 12px;
+}
+.dv-console-hidden {
+  margin: 4px 0 0;
+  font-size: 12px;
+}
 .dv-console-input {
   display: flex;
   gap: 8px;
