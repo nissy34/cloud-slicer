@@ -46,11 +46,13 @@ func stopOtherCopies(path string) {
 // deleteAfterExit deletes a folder a moment after this program exits: Windows
 // can't delete a program while it runs. The command line goes to cmd as it is
 // (Go would escape the quotes around the folder the C way, which cmd doesn't read).
+// cmd gets a console with no window rather than none at all: with none
+// (detached), the ping it runs would open a console window of its own.
 func deleteAfterExit(dir string) error {
 	c := exec.Command("cmd")
 	c.SysProcAttr = &syscall.SysProcAttr{
 		HideWindow:    true,
-		CreationFlags: detachedProcess | createNewProcessGroup | createNoWindow,
+		CreationFlags: createNewProcessGroup | createNoWindow,
 		CmdLine:       `cmd /c ping -n 3 127.0.0.1 >nul & rmdir /s /q "` + dir + `"`,
 	}
 	if err := c.Start(); err != nil {
