@@ -9,6 +9,7 @@ import (
 	"net"
 	"net/http"
 	"regexp"
+	"sort"
 	"strings"
 	"sync"
 	"time"
@@ -104,30 +105,97 @@ type found struct {
 	Kind string `json:"kind,omitempty"`
 }
 
-// discover finds every Moonraker answering on port 7125 on this computer's local networks (each /24).
+// searchBudget is how long a network search may take: the site gives up on
+// bridge.discover after 20 s, so the bridge answers with what it found by then.
+var searchBudget = 15 * time.Second
+
+// The ports a search asks: Moonraker's and the web port (PrusaLink). Tests change them.
+var moonrakerPort, webPort = "7125", "80"
+
+// unfinished is a network search that ran out of time: the addresses it didn't
+// ask yet and what it found so far. The next search (the site asks again by
+// itself) carries on from there instead of starting over.
+var unfinished struct {
+	sync.Mutex
+	left  []string
+	found []found
+	at    time.Time
+}
+
+// searchLeft says whether the last search ran out of time with addresses still to ask.
+func searchLeft() bool {
+	unfinished.Lock()
+	defer unfinished.Unlock()
+	return len(unfinished.left) > 0
+}
+
+// discover finds every Moonraker (and PrusaLink) on this computer's local
+// networks (each /24). A search that runs out of
+// time carries on where it stopped the next time it's asked, within a minute.
 func discover(ctx context.Context, log func(string)) []found {
+	hosts := searchHosts()
+	unfinished.Lock()
+	var before []found
+	if len(unfinished.left) > 0 && time.Since(unfinished.at) < time.Minute {
+		hosts, before = unfinished.left, unfinished.found
+	}
+	unfinished.Unlock()
+	log(fmt.Sprintf("Looking for printers on your network (%d addresses)...", len(hosts)))
+	ctx, cancel := context.WithTimeout(ctx, searchBudget)
+	defer cancel()
+	got, left := probeHosts(ctx, hosts)
+	all := append(append([]found{}, before...), got...)
+	unfinished.Lock()
+	unfinished.left, unfinished.found, unfinished.at = left, nil, time.Now()
+	if len(left) > 0 {
+		unfinished.found = all
+	}
+	unfinished.Unlock()
+	return all
+}
+
+// searchHosts lists every address of this computer's local networks: 127.0.0.1,
+// then each card's /24, Wi-Fi and cable cards before the ones WSL, Hyper-V,
+// Docker, virtual machines or VPNs made. 169.254.x.x is a card with no network
+// behind it: skipped.
+func searchHosts() []string {
 	hosts := []string{"127.0.0.1"}
 	seen := map[string]bool{"127.0.0.1": true}
-	addrs, _ := net.InterfaceAddrs()
-	for _, a := range addrs {
-		ipnet, ok := a.(*net.IPNet)
-		if !ok || ipnet.IP.IsLoopback() {
-			continue
-		}
-		ip4 := ipnet.IP.To4()
-		if ip4 == nil {
-			continue
-		}
-		for i := 1; i < 255; i++ {
-			h := fmt.Sprintf("%d.%d.%d.%d", ip4[0], ip4[1], ip4[2], i)
-			if !seen[h] {
-				seen[h] = true
-				hosts = append(hosts, h)
+	ifaces, _ := net.Interfaces()
+	sort.SliceStable(ifaces, func(i, j int) bool { return !virtualCard(ifaces[i].Name) && virtualCard(ifaces[j].Name) })
+	for _, ifc := range ifaces {
+		addrs, _ := ifc.Addrs()
+		for _, a := range addrs {
+			ipnet, ok := a.(*net.IPNet)
+			if !ok || ipnet.IP.IsLoopback() {
+				continue
+			}
+			ip4 := ipnet.IP.To4()
+			if ip4 == nil || ip4.IsLinkLocalUnicast() {
+				continue
+			}
+			for i := 1; i < 255; i++ {
+				h := fmt.Sprintf("%d.%d.%d.%d", ip4[0], ip4[1], ip4[2], i)
+				if !seen[h] {
+					seen[h] = true
+					hosts = append(hosts, h)
+				}
 			}
 		}
 	}
-	log(fmt.Sprintf("Looking for printers on your network (%d addresses)...", len(hosts)))
-	return probeHosts(ctx, hosts)
+	return hosts
+}
+
+// virtualCard says whether a network card's name looks like one a program made
+// (WSL, Hyper-V, Docker, VirtualBox, VMware, VPNs) rather than Wi-Fi or a cable.
+func virtualCard(name string) bool {
+	n := strings.ToLower(name)
+	for _, w := range []string{"vethernet", "wsl", "hyper-v", "docker", "veth", "br-", "virbr", "vmnet", "vmware", "virtualbox", "vbox", "utun", "tun", "tap", "wg", "tailscale", "zerotier", "vpn"} {
+		if strings.Contains(n, w) {
+			return true
+		}
+	}
+	return false
 }
 
 // discoverOwn finds the Moonraker of the printer this bridge runs on. It answers
@@ -142,7 +210,8 @@ func discoverOwn(ctx context.Context, log func(string)) []found {
 		}
 	}
 	log("Looking for this printer's Moonraker...")
-	return ownPrinter(probeHosts(ctx, hosts), shortHost())
+	list, _ := probeHosts(ctx, hosts)
+	return ownPrinter(list, shortHost())
 }
 
 // ownPrinter picks the one entry for this printer: one that answers without a
@@ -174,8 +243,10 @@ func ownPrinter(list []found, host string) []found {
 	return []found{best}
 }
 
-// probeHosts asks Moonraker's port on each host at once.
-func probeHosts(ctx context.Context, hosts []string) []found {
+// probeHosts asks each host, many at once, whether a printer answers: Moonraker
+// on port 7125 and PrusaLink on the web port, both at the same time. Hosts not
+// asked before ctx ends come back in left, so the answer comes back in time.
+func probeHosts(ctx context.Context, hosts []string) (list []found, left []string) {
 	queue := make(chan string, len(hosts))
 	for _, h := range hosts {
 		queue <- h
@@ -184,59 +255,90 @@ func probeHosts(ctx context.Context, hosts []string) []found {
 	client := &http.Client{Timeout: 1500 * time.Millisecond}
 	var mu sync.Mutex
 	var out []found
+	add := func(f found) {
+		mu.Lock()
+		out = append(out, f)
+		mu.Unlock()
+	}
 	var wg sync.WaitGroup
-	for w := 0; w < 64; w++ {
+	for w := 0; w < 128; w++ {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
 			for h := range queue {
-				// A Prusa printer answers PrusaLink on its web port instead.
-				if f, ok := probePrusaHost(ctx, client, h); ok {
+				if ctx.Err() != nil {
 					mu.Lock()
-					out = append(out, f)
+					left = append(left, h)
+					mu.Unlock()
+					continue
+				}
+				var both sync.WaitGroup
+				var web bool
+				both.Add(1)
+				go func() {
+					defer both.Done()
+					// A Prusa printer answers PrusaLink on its web port instead.
+					if f, ok := probePrusaHost(ctx, client, h); ok {
+						web = true
+						add(f)
+					}
+				}()
+				f, ok := probeMoonrakerHost(ctx, client, h)
+				if ok {
+					add(f)
+				}
+				both.Wait()
+				if ctx.Err() != nil && !ok && !web {
+					// Cut short: it may not have answered in time, ask it next time.
+					mu.Lock()
+					left = append(left, h)
 					mu.Unlock()
 				}
-				url := "http://" + h + ":7125"
-				req, err := http.NewRequestWithContext(ctx, http.MethodGet, url+"/printer/info", nil)
-				if err != nil {
-					continue
-				}
-				res, err := client.Do(req)
-				if err != nil {
-					continue // nothing there
-				}
-				f := found{URL: url, Name: h}
-				switch {
-				case res.StatusCode == http.StatusUnauthorized || res.StatusCode == http.StatusForbidden:
-					f.NeedsKey = true
-				case res.StatusCode == http.StatusOK:
-					var body struct {
-						Result struct {
-							Hostname string `json:"hostname"`
-						} `json:"result"`
-					}
-					if json.NewDecoder(res.Body).Decode(&body) == nil && body.Result.Hostname != "" {
-						f.Name = body.Result.Hostname
-					}
-				default:
-					res.Body.Close()
-					continue
-				}
-				res.Body.Close()
-				mu.Lock()
-				out = append(out, f)
-				mu.Unlock()
 			}
 		}()
 	}
 	wg.Wait()
-	return out
+	return out, left
+}
+
+// probeMoonrakerHost says whether Moonraker answers on a host's port 7125.
+func probeMoonrakerHost(ctx context.Context, client *http.Client, h string) (found, bool) {
+	url := "http://" + h + ":" + moonrakerPort
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url+"/printer/info", nil)
+	if err != nil {
+		return found{}, false
+	}
+	res, err := client.Do(req)
+	if err != nil {
+		return found{}, false // nothing there
+	}
+	defer res.Body.Close()
+	f := found{URL: url, Name: h}
+	switch {
+	case res.StatusCode == http.StatusUnauthorized || res.StatusCode == http.StatusForbidden:
+		f.NeedsKey = true
+	case res.StatusCode == http.StatusOK:
+		var body struct {
+			Result struct {
+				Hostname string `json:"hostname"`
+			} `json:"result"`
+		}
+		if json.NewDecoder(res.Body).Decode(&body) == nil && body.Result.Hostname != "" {
+			f.Name = body.Result.Hostname
+		}
+	default:
+		return found{}, false
+	}
+	return f, true
 }
 
 // probePrusaHost says whether PrusaLink answers on a host's web port: its
 // version without a login, or its own login challenge (realm "Printer API").
 func probePrusaHost(ctx context.Context, client *http.Client, h string) (found, bool) {
 	url := "http://" + h
+	if webPort != "80" {
+		url += ":" + webPort
+	}
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url+"/api/version", nil)
 	if err != nil {
 		return found{}, false
