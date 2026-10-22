@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { defaultDesktop, defaultLayout, moveCard, moveOnPhone, normalizeLayout, phoneOrder, setColumns, zoneOf } from './layout';
+import { addCameraCard, cameraCardOf, defaultDesktop, placeCamera, removeCameraCard, defaultLayout, moveCard, moveOnPhone, normalizeLayout, phoneOrder, setColumns, zoneOf } from './layout';
 
 describe('device layout', () => {
   it('starts as the D3 layout', () => {
@@ -80,5 +80,50 @@ describe('device layout', () => {
     const l = normalizeLayout({ phone: { order: ['files', 'camera'] } });
     expect(l.phone.order?.slice(0, 2)).toEqual(['files', 'camera']);
     expect(l.phone.order).toHaveLength(8);
+  });
+});
+
+describe('camera cards', () => {
+  it('adds a camera card right after the main Cameras card, on desktop and on a phone with its own order', () => {
+    let l = normalizeLayout({ phone: { order: ['files', 'camera'] } });
+    l = addCameraCard(l, 'cam:a1');
+    expect(l.cameraCards).toEqual(['cam:a1']);
+    expect(l.desktop.cols[0].slice(0, 2)).toEqual(['camera', 'cam:a1']);
+    expect(l.phone.order?.slice(0, 3)).toEqual(['files', 'camera', 'cam:a1']);
+    expect(phoneOrder(defaultLayout().phone, false, ['cam:a1']).slice(0, 2)).toEqual(['camera', 'cam:a1']);
+  });
+
+  it('puts cameras in cards and back', () => {
+    let l = addCameraCard(defaultLayout(), 'cam:a1');
+    l = placeCamera(l, 'nozzle', 'cam:a1');
+    expect(cameraCardOf(l, 'nozzle')).toBe('cam:a1');
+    expect(cameraCardOf(l, 'case')).toBe('camera');
+    l = placeCamera(l, 'nozzle', 'camera');
+    expect(cameraCardOf(l, 'nozzle')).toBe('camera');
+  });
+
+  it('removing a camera card sends its cameras back to the main card', () => {
+    let l = addCameraCard(defaultLayout(), 'cam:a1');
+    l = placeCamera(l, 'nozzle', 'cam:a1');
+    l = { ...l, desktop: { ...l.desktop, half: [...l.desktop.half, 'cam:a1'], camSizes: { 'cam:a1': 's' } } };
+    l = removeCameraCard(l, 'cam:a1');
+    expect(l.cameraCards).toEqual([]);
+    expect(cameraCardOf(l, 'nozzle')).toBe('camera');
+    expect(l.desktop.cols.flat()).not.toContain('cam:a1');
+    expect(l.desktop.half).not.toContain('cam:a1');
+    expect(l.desktop.camSizes).toEqual({});
+  });
+
+  it('drops camera cards and places that no longer exist, and places a saved card that has no place', () => {
+    const l = normalizeLayout({
+      cameraCards: ['cam:a1', 'bad id', 'cam:a1'],
+      cameraHome: { nozzle: 'cam:a1', case: 'cam:gone' },
+      desktop: { cols: [['camera', 'cam:gone'], ['files']], camSizes: { 'cam:a1': 'm', 'cam:gone': 's' } },
+    });
+    expect(l.cameraCards).toEqual(['cam:a1']);
+    expect(l.cameraHome).toEqual({ nozzle: 'cam:a1' });
+    expect(l.desktop.cols[0].slice(0, 2)).toEqual(['camera', 'cam:a1']);
+    expect(l.desktop.cols.flat()).not.toContain('cam:gone');
+    expect(l.desktop.camSizes).toEqual({ 'cam:a1': 'm' });
   });
 });

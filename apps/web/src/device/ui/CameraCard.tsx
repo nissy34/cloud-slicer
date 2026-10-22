@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type CSSProperties } from 'react';
 import { currentSession, useDevice } from '../../state/device';
 import { cameraTransform, cameraViews, type CameraView, type Webcam } from '../camera';
+import { cameraCardOf, type CamCardId } from '../layout';
 import type { CameraHints } from '../addons/types';
 import type { PrinterSession } from '../session';
 import { playWebrtc } from '../webrtc';
@@ -46,8 +47,19 @@ const builtinCamera = (hint: CameraHints): Webcam => ({
  * (MJPEG, WebRTC or its own player page) and as snapshots otherwise. A
  * printer with no [webcam] sections falls back to its add-on's built-in
  * camera. Nothing streams while the card is off or the page is hidden.
+ *
+ * `card` is which camera card this is: the main one ('camera') shows every camera not put in an extra
+ * camera card and not hidden; an extra one shows the cameras put in it (`home`, chosen with Choose).
  */
-export function CameraCard() {
+export function CameraCard({
+  card = 'camera',
+  home = {},
+  onPlace,
+}: {
+  card?: 'camera' | CamCardId;
+  home?: Record<string, CamCardId>;
+  onPlace?(name: string, card: 'camera' | CamCardId): void;
+}) {
   const online = useDevice((s) => s.conn.state === 'online');
   const addons = useDevice((s) => s.addons);
   const facts = useDevice((s) => s.facts);
@@ -79,18 +91,29 @@ export function CameraCard() {
   }, [online, facts, addons]);
 
   const active = on && visible && online && !!session;
-  const shown = cams?.filter((c) => !hidden.includes(c.name)) ?? null;
-  const toggle = (name: string, show: boolean) => void useDevice.getState().setHiddenCameras(show ? hidden.filter((n) => n !== name) : [...hidden, name]);
-  useKeepalive(active ? session : null, hint?.keepalive);
+  const main = card === 'camera';
+  const here = (c: Webcam) => cameraCardOf({ cameraHome: home }, c.name) === card;
+  const shown = cams?.filter((c) => here(c) && !(main && hidden.includes(c.name))) ?? null;
+  const setHidden = (name: string, hide: boolean) => void useDevice.getState().setHiddenCameras(hide ? [...hidden, name] : hidden.filter((n) => n !== name));
+  // Ticking a camera brings it into this card; unticking hides it (main card) or sends it back to the main card.
+  const toggle = (name: string, show: boolean) => {
+    if (show) {
+      if (hidden.includes(name)) setHidden(name, false);
+      if (onPlace && cameraCardOf({ cameraHome: home }, name) !== card) onPlace(name, card);
+    } else if (main) setHidden(name, true);
+    else onPlace?.(name, 'camera');
+  };
+  useKeepalive(active && shown?.length ? session : null, hint?.keepalive);
+  const title = main ? (shown && shown.length > 1 ? 'Cameras' : 'Camera') : shown?.length === 1 ? shown[0].name : shown && shown.length > 1 ? 'Cameras' : 'Camera card';
 
   return (
     <Card
-      title={shown && shown.length > 1 ? 'Cameras' : 'Camera'}
+      title={title}
       className="dv-camera-card"
-      testId="camera-card"
+      testId={main ? 'camera-card' : `camera-card-${card.slice(4)}`}
       actions={
         <>
-          {cams && cams.length > 1 && (
+          {cams && (cams.length > 1 || (!main && cams.length > 0)) && (
             <button className="dv-link" onClick={() => setChoosing(!choosing)} aria-expanded={choosing}>
               {choosing ? 'Done' : 'Choose'}
             </button>
@@ -101,13 +124,14 @@ export function CameraCard() {
         </>
       }
     >
-      {choosing && cams && cams.length > 1 && (
+      {choosing && cams && cams.length > 0 && (
         <fieldset className="dv-camera-pick" data-testid="camera-pick">
-          <legend>Show these cameras</legend>
+          <legend>{main ? 'Show these cameras' : 'Show these cameras in this card'}</legend>
           {cams.map((c) => (
             <label key={c.id}>
-              <input type="checkbox" checked={!hidden.includes(c.name)} onChange={(e) => toggle(c.name, e.target.checked)} />
+              <input type="checkbox" checked={shown?.includes(c) ?? false} onChange={(e) => toggle(c.name, e.target.checked)} />
               {c.name}
+              {!here(c) && <span className="muted"> (in another camera card)</span>}
             </label>
           ))}
         </fieldset>
@@ -121,7 +145,11 @@ export function CameraCard() {
                 ? 'Not connected'
                 : !shown
                   ? 'Looking for cameras…'
-                  : cams?.length
+                  : !main
+                    ? 'No camera in this card yet. Use Choose to pick one.'
+                    : cams?.length && cams.every((c) => !here(c))
+                    ? 'Your cameras are in other camera cards.'
+                    : cams?.length
                     ? 'All cameras are hidden. Use Choose to show one.'
                     : 'This printer has no camera set up in Moonraker.'}
           </span>
@@ -135,7 +163,7 @@ export function CameraCard() {
               cam={cam}
               session={session}
               active={active}
-              labelled={cams!.length > 1}
+              labelled={shown.length > 1 || (main && cams!.length > 1)}
               main={cam.id === (shown.some((c) => c.id === mainId) ? mainId : shown[0].id)}
               onPick={() => setMainId(cam.id)}
             />

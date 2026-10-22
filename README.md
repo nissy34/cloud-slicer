@@ -302,7 +302,9 @@ title and advice; `apps/web/scripts/u1-errors.mjs` rebuilds that list from Snapm
 Orca's device page). The cards can be arranged: **Arrange** at the top of the tab moves
 cards by their grip into 2 or 3 columns or across the top or bottom, hides them, makes
 them half width (two side by side) and sets the camera size; tapping a card's title folds
-it. Phones keep their own one-column order. The layout is saved in the account
+it. **Add a camera card** makes another camera card; each camera card's Choose picks which
+cameras it shows (a camera is in one card; the rest stay in the main Cameras card), and each
+keeps the usual one-big-and-small-ones camera layout. Phones keep their own one-column order. The layout is saved in the account
 (`device-layout` setting, `apps/web/src/device/layout.ts`), so it follows you to every
 device; "Back to default" brings back the standard layout. A printer with a public https address is reached directly (the tab shows the
 `cors_domains` lines Moonraker needs, and a Tailscale hint). A printer on a home network

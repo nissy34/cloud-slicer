@@ -19,8 +19,13 @@ import { CSS } from '@dnd-kit/utilities';
 import { saveUserSetting, useUserSetting } from '../../state/account';
 import { useDevice } from '../../state/device';
 import {
+  addCameraCard,
   CARD_NAMES,
   defaultDesktop,
+  isCamCard,
+  MAX_CAMERA_CARDS,
+  placeCamera,
+  removeCameraCard,
   defaultPhone,
   LAYOUT_SETTING,
   moveCard,
@@ -33,10 +38,12 @@ import {
   zoneIds,
   zoneOf,
   type CameraSize,
+  type CamCardId,
   type CardId,
   type DesktopLayout,
   type DeviceLayout,
   type PhoneLayout,
+  type SlotId,
   type ZoneId,
 } from '../layout';
 import { AlertsCard } from './AlertsCard';
@@ -49,8 +56,7 @@ import { MotionCard } from './MotionCard';
 import { SlotContext } from './parts';
 import { ToolheadsCard } from './ToolheadsCard';
 
-const VIEWS: Record<CardId, () => ReactNode> = {
-  camera: CameraCard,
+const VIEWS: Record<Exclude<CardId, 'camera'>, () => ReactNode> = {
   climate: ClimateCard,
   motion: MotionCard,
   console: ConsoleCard,
@@ -80,7 +86,8 @@ function useLayout(): [DeviceLayout, (next: DeviceLayout) => void] {
   const fromAccount = useMemo(() => normalizeLayout(saved), [saved]);
   const [local, setLocal] = useState<DeviceLayout | null>(null);
   useEffect(() => setLocal(null), [saved]);
-  const save = (next: DeviceLayout) => {
+  const save = (raw: DeviceLayout) => {
+    const next = normalizeLayout(raw);
     setLocal(next);
     saveUserSetting(LAYOUT_SETTING, next).catch(() => useDevice.getState().setToast('Could not save the card layout. It is kept until you reload the page.', true));
   };
@@ -106,23 +113,36 @@ export function DeviceCards({ busy, arranging, onDone }: { busy: boolean; arrang
     }),
   );
   const [drag, setDrag] = useState<{
-    id: CardId;
+    id: SlotId;
     desktop: DesktopLayout;
   } | null>(null);
 
   const kind = phone ? 'phone' : 'desktop';
   const screen: PhoneLayout | DesktopLayout = layout[kind];
   const setScreen = (next: Partial<PhoneLayout & DesktopLayout>) => save({ ...layout, [kind]: { ...screen, ...next } });
-  const slot = (id: CardId, half = false) => (
+  const nameOf = (id: SlotId) => (isCamCard(id) ? `Camera card ${layout.cameraCards.indexOf(id) + 2}` : CARD_NAMES[id]);
+  const view = (id: SlotId) =>
+    id === 'camera' || isCamCard(id) ? (
+      <CameraCard card={id} home={layout.cameraHome} onPlace={(name, card) => save(placeCamera(layout, name, card))} />
+    ) : (
+      (() => {
+        const View = VIEWS[id];
+        return <View />;
+      })()
+    );
+  const camSize = (id: SlotId) => (phone ? undefined : id === 'camera' ? layout.desktop.camera : isCamCard(id) ? (layout.desktop.camSizes[id] ?? 'l') : undefined);
+  const slot = (id: SlotId, half = false) => (
     <Slot
       key={id}
       id={id}
+      name={nameOf(id)}
+      view={view(id)}
       half={half && !phone}
       folded={screen.folded.includes(id)}
       hidden={screen.hidden.includes(id)}
       arranging={arranging}
       phone={phone}
-      camera={!phone && id === 'camera' ? layout.desktop.camera : undefined}
+      camera={camSize(id)}
       onFold={(on) => setScreen({ folded: toggle(screen.folded, id, on) })}
       onHide={(on) => setScreen({ hidden: toggle(screen.hidden, id, on) })}
       onHalf={(on) =>
@@ -134,10 +154,11 @@ export function DeviceCards({ busy, arranging, onDone }: { busy: boolean; arrang
           },
         })
       }
-      onCamera={(size) => save({ ...layout, desktop: { ...layout.desktop, camera: size } })}
+      onCamera={(size) => save({ ...layout, desktop: id === 'camera' ? { ...layout.desktop, camera: size } : { ...layout.desktop, camSizes: { ...layout.desktop.camSizes, [id]: size } } })}
+      onRemove={isCamCard(id) ? () => save(removeCameraCard(layout, id)) : undefined}
     />
   );
-  const shown = (ids: CardId[]) => (arranging ? ids : ids.filter((id) => !screen.hidden.includes(id)));
+  const shown = (ids: SlotId[]) => (arranging ? ids : ids.filter((id) => !screen.hidden.includes(id)));
 
   const bar = arranging && (
     <div className="dv-arrange-bar" data-testid="arrange-bar">
@@ -152,6 +173,11 @@ export function DeviceCards({ busy, arranging, onDone }: { busy: boolean; arrang
               </button>
             ))}
           </div>
+        )}
+        {layout.cameraCards.length < MAX_CAMERA_CARDS && (
+          <button className="dv-link" onClick={() => save(addCameraCard(layout, `cam:${Math.random().toString(36).slice(2, 8)}` as CamCardId))} data-testid="add-camera-card">
+            Add a camera card
+          </button>
         )}
         <button
           className="dv-link"
@@ -173,13 +199,13 @@ export function DeviceCards({ busy, arranging, onDone }: { busy: boolean; arrang
   );
 
   if (phone) {
-    const order = phoneOrder(layout.phone, busy);
+    const order = phoneOrder(layout.phone, busy, layout.cameraCards);
     const end = ({ active, over }: DragEndEvent) => {
       setDrag(null);
       if (!over || active.id === over.id) return;
       save({
         ...layout,
-        phone: moveOnPhone(layout.phone, busy, active.id as CardId, order.indexOf(over.id as CardId)),
+        phone: moveOnPhone(layout.phone, busy, active.id as SlotId, order.indexOf(over.id as SlotId), layout.cameraCards),
       });
     };
     return (
@@ -189,14 +215,14 @@ export function DeviceCards({ busy, arranging, onDone }: { busy: boolean; arrang
           <DndContext
             sensors={sensors}
             collisionDetection={collision}
-            onDragStart={(e) => setDrag({ id: e.active.id as CardId, desktop: layout.desktop })}
+            onDragStart={(e) => setDrag({ id: e.active.id as SlotId, desktop: layout.desktop })}
             onDragEnd={end}
             onDragCancel={() => setDrag(null)}
           >
             <SortableContext items={order} strategy={verticalListSortingStrategy} disabled={!arranging}>
               <div className="dv-zone">{shown(order).map((id) => slot(id))}</div>
             </SortableContext>
-            <DragOverlay>{drag && <DragChip id={drag.id} />}</DragOverlay>
+            <DragOverlay>{drag && <DragChip name={nameOf(drag.id)} />}</DragOverlay>
           </DndContext>
         </div>
       </>
@@ -209,21 +235,21 @@ export function DeviceCards({ busy, arranging, onDone }: { busy: boolean; arrang
       const zone = overId.slice(ZONE_PREFIX.length) as ZoneId;
       return { zone, index: zoneCards(d, zone).length };
     }
-    const zone = zoneOf(d, overId as CardId);
-    return zone ? { zone, index: zoneCards(d, zone).indexOf(overId as CardId) } : null;
+    const zone = zoneOf(d, overId as SlotId);
+    return zone ? { zone, index: zoneCards(d, zone).indexOf(overId as SlotId) } : null;
   };
-  const start = ({ active }: DragStartEvent) => setDrag({ id: active.id as CardId, desktop: layout.desktop });
+  const start = ({ active }: DragStartEvent) => setDrag({ id: active.id as SlotId, desktop: layout.desktop });
   // Crossing into another zone moves the card there at once, so the zone makes room for it while dragging.
   const over = ({ active, over: o }: DragOverEvent) => {
     if (!drag || !o) return;
-    const id = active.id as CardId;
+    const id = active.id as SlotId;
     const to = targetOf(String(o.id), drag.desktop);
     if (!to || to.zone === zoneOf(drag.desktop, id)) return;
     setDrag({ id, desktop: moveCard(drag.desktop, id, to.zone, to.index) });
   };
   const end = ({ active, over: o }: DragEndEvent) => {
     if (!drag) return;
-    const id = active.id as CardId;
+    const id = active.id as SlotId;
     let next = drag.desktop;
     const to = o && targetOf(String(o.id), next);
     if (to && to.zone === zoneOf(next, id) && !String(o.id).startsWith(ZONE_PREFIX)) next = moveCard(next, id, to.zone, to.index);
@@ -254,7 +280,7 @@ export function DeviceCards({ busy, arranging, onDone }: { busy: boolean; arrang
               .map((z, i) => zone(z, `Column ${i + 1}`, false))}
           </div>
           {zone('bottom', 'Across the bottom', true)}
-          <DragOverlay>{drag && <DragChip id={drag.id} />}</DragOverlay>
+          <DragOverlay>{drag && <DragChip name={nameOf(drag.id)} />}</DragOverlay>
         </DndContext>
       </div>
     </>
@@ -281,7 +307,9 @@ const CAMERA_SIZES: { id: CameraSize; label: string }[] = [
 ];
 
 function Slot(props: {
-  id: CardId;
+  id: SlotId;
+  name: string;
+  view: ReactNode;
   half: boolean;
   folded: boolean;
   hidden: boolean;
@@ -292,11 +320,10 @@ function Slot(props: {
   onHide(on: boolean): void;
   onHalf(on: boolean): void;
   onCamera(size: CameraSize): void;
+  onRemove?(): void;
 }) {
-  const { id, half, folded, hidden, arranging, phone, camera } = props;
+  const { id, name, half, folded, hidden, arranging, phone, camera } = props;
   const { attributes, listeners, setNodeRef, setActivatorNodeRef, transform, transition, isDragging } = useSortable({ id, disabled: !arranging });
-  const View = VIEWS[id];
-  const name = CARD_NAMES[id];
   const style: CSSProperties = {
     transform: CSS.Translate.toString(transform),
     transition,
@@ -328,6 +355,11 @@ function Slot(props: {
             <button className="dv-link" onClick={() => props.onHide(!hidden)} data-testid={`hide-${id}`}>
               {hidden ? 'Show' : 'Hide'}
             </button>
+            {props.onRemove && (
+              <button className="dv-link dv-danger-text" onClick={props.onRemove} data-testid={`remove-${id}`}>
+                Remove
+              </button>
+            )}
           </span>
         </div>
       )}
@@ -335,10 +367,10 @@ function Slot(props: {
         <SlotContext.Provider value={{ folded, toggleFold: () => props.onFold(!folded) }}>
           {arranging ? (
             <div className="dv-slot-body" {...{ inert: '' }}>
-              <View />
+              {props.view}
             </div>
           ) : (
-            <View />
+            props.view
           )}
         </SlotContext.Provider>
       )}
@@ -346,10 +378,10 @@ function Slot(props: {
   );
 }
 
-function DragChip({ id }: { id: CardId }) {
+function DragChip({ name }: { name: string }) {
   return (
     <div className="dv-drag-chip">
-      <span aria-hidden="true">⠿</span> {CARD_NAMES[id]}
+      <span aria-hidden="true">⠿</span> {name}
     </div>
   );
 }

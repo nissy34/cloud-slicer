@@ -1,7 +1,8 @@
 #!/usr/bin/env node
 // Arranging the Device tab cards (device/layout.ts, device/ui/Arrange.tsx), against a pretend U1 only
 // (test/device/mock-printer.mjs): move a card across the top, hide one, half width, 3 columns, fold,
-// reload (kept), back to default; then the phone's one column.
+// reload (kept), back to default; the phone's one column; then a second camera card on a printer with
+// two cameras (test/device/mock-printer.mjs generic: 'case' and 'nozzle').
 //
 //   npm run build && node test/device-arrange.mjs [screenshot-dir]
 import { spawn } from 'node:child_process';
@@ -68,6 +69,7 @@ async function drag(page, card, target) {
 const zoneOf = (page, card) => page.locator(`[data-card='${card}']`).evaluate((el) => el.closest('[data-zone]')?.getAttribute('data-zone') ?? null);
 
 const u1 = await startMockPrinter();
+const voron = await startMockPrinter({ generic: true });
 const browser = await chromium.launch(process.env.PLAYWRIGHT_BROWSERS_PATH === '/opt/pw-browsers' ? { executablePath: '/opt/pw-browsers/chromium' } : {});
 let failShot;
 try {
@@ -84,7 +86,17 @@ try {
   await page.addLocatorHandler(page.getByRole('dialog', { name: 'Set up your printers' }), (d) => d.getByRole('button', { name: 'Not now' }).click());
   page.on('pageerror', (e) => console.error(`page error: ${e.message}`));
   await page.goto(site);
-  await page.evaluate((url) => localStorage.setItem('cloud-slicer:printers:v1', JSON.stringify([{ id: 'u1', name: 'U1-mock', kind: 'direct', url, apiKey: '' }])), u1.url);
+  await page.evaluate(
+    ([url, url2]) =>
+      localStorage.setItem(
+        'cloud-slicer:printers:v1',
+        JSON.stringify([
+          { id: 'u1', name: 'U1-mock', kind: 'direct', url, apiKey: '' },
+          { id: 'voron', name: 'Voron-mock', kind: 'direct', url: url2, apiKey: '' },
+        ]),
+      ),
+    [u1.url, voron.url],
+  );
   const open = async (p) => {
     await p.reload();
     await p.getByRole('tab', { name: 'Device' }).click();
@@ -171,6 +183,35 @@ try {
   if ((await zoneOf(page, 'camera')) !== 'col0' || (await zoneOf(page, 'files')) !== 'col1') fail('Back to default should bring D3 back');
   if (!(await page.getByTestId('console-card').count())) fail('Back to default should show Console again');
   console.log('desktop: back to default');
+
+  // ---- camera cards: two cameras, one in each card --------------------------------------
+  await page.getByTestId('printer-select').selectOption({ label: 'Voron-mock' });
+  await page.getByTestId('connection').filter({ hasText: 'Connected' }).waitFor({ timeout: 30_000 });
+  const mainCam = page.getByTestId('camera-card');
+  await mainCam.getByTestId('camera-tile').nth(1).waitFor();
+  await page.getByTestId('arrange-open').click();
+  await page.getByTestId('add-camera-card').click();
+  await page.getByTestId('arrange-done').click();
+  const extra = page.locator('[data-testid^="camera-card-"]');
+  await extra.getByText('No camera in this card yet. Use Choose to pick one.').waitFor();
+  await extra.getByRole('button', { name: 'Choose' }).click();
+  await extra.getByTestId('camera-pick').getByLabel('nozzle').check();
+  await extra.locator('[data-testid="camera-tile"][data-camera="nozzle"]').waitFor();
+  if ((await mainCam.getByTestId('camera-tile').count()) !== 1) fail('the main card should keep only the case camera');
+  if ((await mainCam.getByTestId('camera-tile').getAttribute('data-camera')) !== 'case') fail('the main card should show the case camera');
+  if (!(await extra.getByRole('heading', { name: 'nozzle' }).count())) fail('a camera card with one camera is named after it');
+  if (shots) await page.screenshot({ path: join(shots, 'desktop-camera-cards.png') });
+  await open(page);
+  await page.getByTestId('camera-card').getByTestId('camera-tile').first().waitFor();
+  await page.locator('[data-testid^="camera-card-"] [data-testid="camera-tile"][data-camera="nozzle"]').waitFor();
+  if ((await page.getByTestId('camera-card').getByTestId('camera-tile').count()) !== 1) fail('camera cards should be kept after a reload');
+  console.log('camera cards: nozzle in its own card, kept after a reload');
+  await page.getByTestId('arrange-open').click();
+  await page.locator('[data-testid^="remove-cam:"]').click();
+  await page.getByTestId('arrange-done').click();
+  await mainCam.getByTestId('camera-tile').nth(1).waitFor();
+  if (await page.locator('[data-testid^="camera-card-"]').count()) fail('Remove should take the camera card away');
+  console.log('camera cards: removing one brings its camera back to the main card');
   console.log('device arrange: all good');
 } catch (e) {
   if (shots && failShot) await failShot.screenshot({ path: join(shots, 'failure.png') }).catch(() => {});
@@ -179,6 +220,7 @@ try {
 } finally {
   await browser.close();
   await u1.close?.();
+  await voron.close?.();
   for (const c of children) {
     try {
       process.kill(-c.pid);
