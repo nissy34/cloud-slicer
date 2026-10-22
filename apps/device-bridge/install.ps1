@@ -20,10 +20,15 @@
       $argv = @('install', '--no-browser')
       if ($code) { $argv += @('--code', $code) }
       # The bridge writes to this window; exit status 3 means the setup code didn't work.
-      # Run it directly: Start-Process -Wait would also wait for the bridge it leaves
-      # running in the background, so this window would never finish.
-      & $exe @argv
-      if ($LASTEXITCODE -ne 3) { break }
+      # It has no window of its own, and PowerShell doesn't wait for such a program when
+      # it's run directly (the prompt came back first and the bridge wrote after it). So
+      # wait for this one process: Start-Process -Wait would also wait for the bridge it
+      # leaves running in the background, so this window would never finish.
+      $p = Start-Process -FilePath $exe -ArgumentList $argv -NoNewWindow -PassThru
+      $null = $p.Handle # keeps its exit status readable after it ends
+      $p.WaitForExit()
+      $global:LASTEXITCODE = $p.ExitCode
+      if ($p.ExitCode -ne 3) { break }
       $code = (Read-Host 'Paste the new setup code here').Trim()
       if (-not $code) { Write-Host 'Nothing installed.'; break }
     }
