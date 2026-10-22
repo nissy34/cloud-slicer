@@ -11,11 +11,12 @@
 
 x-printer: &printer
   image: ei99070/docker-klipper-simulavr:latest
-  # The simulated board runs its clock at a tenth of a real one, steadily: run
-  # flat out instead ("0.0") it speeds up and slows down with the computer's
-  # load, and Klipper shuts down with "Timer too close".
+  # The simulated board runs as fast as the computer lets it. Held to a fixed
+  # fraction of real speed instead, it fell below what Klipper needs to connect
+  # on a busy CI machine ("Timeout on connect"). Motors use no microsteps, so
+  # Klipper keeps up even when the board's speed varies.
   environment:
-    SIMULAVR_PACING_RATE: "0.1"
+    SIMULAVR_PACING_RATE: "0.0"
   healthcheck:
     test: ["CMD", "sh", "-c", "curl -fs localhost:7125/printer/info | grep -q '\"state\":\"ready\"'"]
     interval: 3s
