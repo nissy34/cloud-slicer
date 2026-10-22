@@ -166,12 +166,19 @@ jobs:
           sleep 2
           if systemctl is-active cloud-slicer-bridge; then echo "The service still runs"; exit 1; fi
           if [ -e /etc/systemd/system/cloud-slicer-bridge.service ]; then echo "The service file is still there"; exit 1; fi
-          # The one uninstall line (install.sh --uninstall runs the plain "uninstall"), typed as a
-          # normal user: it finds the printer install and asks sudo for root by itself.
+          # The one uninstall line (install.sh --uninstall), typed as a normal user: it downloads
+          # nothing, finds the bridge in printer_data (here $HOME/printer_data) and removes it with sudo.
           sudo ../device-bridge/dist/linux-x64 install-printer --printer-data "$data" --relay http://127.0.0.1:8797
           systemctl is-active cloud-slicer-bridge
-          ../device-bridge/dist/linux-x64 uninstall --printer-data "$data" | tee "$RUNNER_TEMP/uninstall.log"
+          curl -fsS http://127.0.0.1:8797/install.sh > "$RUNNER_TEMP/install.sh"
+          HOME="$RUNNER_TEMP" sh "$RUNNER_TEMP/install.sh" --uninstall | tee "$RUNNER_TEMP/uninstall.log"
           grep -q 'Removed the bridge from this printer' "$RUNNER_TEMP/uninstall.log"
+          if grep -q 'Downloading' "$RUNNER_TEMP/uninstall.log"; then echo "Uninstall downloaded the bridge"; exit 1; fi
+          sleep 2
+          if systemctl is-active cloud-slicer-bridge; then echo "The service still runs after uninstall"; exit 1; fi
+          # Typed by hand as a normal user, the bridge asks sudo for root by itself.
+          sudo ../device-bridge/dist/linux-x64 install-printer --printer-data "$data" --relay http://127.0.0.1:8797
+          ../device-bridge/dist/linux-x64 uninstall --printer-data "$data" | grep -q 'Removed the bridge from this printer'
           sleep 2
           if systemctl is-active cloud-slicer-bridge; then echo "The service still runs after uninstall"; exit 1; fi
 
