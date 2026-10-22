@@ -103,6 +103,9 @@ func (b *Bridge) setAlerts(want map[string]alertWatch) {
 	}
 	for id, aw := range want {
 		printer, ok := b.cfg.printer(id)
+		if ok {
+			printer = endpointFor(printer)
+		}
 		if w := b.watches[id]; w != nil {
 			if ok && w.printer == printer {
 				w.setWatch(aw)
@@ -294,7 +297,7 @@ func (b *Bridge) handle(msg relayMessage) {
 			s.close()
 			b.toRelay(relayMessage{Ctl: "drop", C: c, Reason: reason})
 		}
-		s = newSession(c, printer, func(text string) { b.toRelay(relayMessage{C: c, M: text}) }, dropSession)
+		s = newSession(c, endpointFor(printer), func(text string) { b.toRelay(relayMessage{C: c, M: text}) }, dropSession)
 		s.log = b.opts.log
 		b.mu.Lock()
 		old := b.sessions[c]
@@ -358,6 +361,8 @@ func (b *Bridge) manage(method string, params json.RawMessage) (any, error) {
 		APIKey  string `json:"apiKey"`
 		Name    string `json:"name"`
 		ID      string `json:"id"`
+		// Kind: what the search said the printer is ("" or missing: find out).
+		Kind string `json:"kind"`
 	}
 	_ = json.Unmarshal(params, &p)
 	switch method {
@@ -373,7 +378,7 @@ func (b *Bridge) manage(method string, params json.RawMessage) (any, error) {
 					added = x.ID
 				}
 			}
-			out = append(out, map[string]any{"url": f.URL, "name": f.Name, "needsKey": f.NeedsKey, "added": added})
+			out = append(out, map[string]any{"url": f.URL, "name": f.Name, "needsKey": f.NeedsKey, "added": added, "kind": f.Kind})
 		}
 		b.cfg.mu.Unlock()
 		return map[string]any{"printers": out}, nil
@@ -382,11 +387,16 @@ func (b *Bridge) manage(method string, params json.RawMessage) (any, error) {
 		if address == "" {
 			return nil, errors.New("Type the printer's address.")
 		}
-		url, info, err := probeAddress(b.ctx, address, apiKey)
+		url, found, kind, err := findPrinter(b.ctx, address, apiKey, p.Kind)
 		if err != nil {
 			var pe *probeError
 			if errors.As(err, &pe) && pe.needsKey {
-				if apiKey != "" {
+				switch {
+				case kind == kindPrusaLink && apiKey != "":
+					return nil, errors.New("The printer did not accept that password.")
+				case kind == kindPrusaLink:
+					return nil, errors.New("This Prusa printer needs its PrusaLink password.")
+				case apiKey != "":
 					return nil, errors.New("The printer did not accept that API key.")
 				}
 				return nil, errors.New("This printer needs its Moonraker API key.")
@@ -395,18 +405,18 @@ func (b *Bridge) manage(method string, params json.RawMessage) (any, error) {
 		}
 		name := p.Name
 		if name == "" {
-			name, _ = info["hostname"].(string)
+			name = found
 		}
 		if name == "" {
 			name = address
 		}
-		printer := b.cfg.upsert(clip(name, 80), url, apiKey)
+		printer := b.cfg.upsert(clip(name, 80), url, apiKey, kind)
 		if err := b.save(); err != nil {
 			return nil, err
 		}
 		b.opts.log(fmt.Sprintf("Added %s (%s) from the Device tab.", printer.Name, url))
 		b.hello()
-		return map[string]any{"id": printer.ID, "name": printer.Name}, nil
+		return map[string]any{"id": printer.ID, "name": printer.Name, "kind": kind}, nil
 	case "bridge.remove_printer":
 		printer, ok := b.cfg.remove(p.ID, false)
 		if !ok {
@@ -434,6 +444,7 @@ func (b *Bridge) manage(method string, params json.RawMessage) (any, error) {
 			delete(b.watches, printer.ID)
 		}
 		b.mu.Unlock()
+		forgetStandIn(printer.ID)
 		b.opts.log("Removed " + printer.Name + " from the Device tab.")
 		b.hello()
 		return map[string]any{"removed": true}, nil

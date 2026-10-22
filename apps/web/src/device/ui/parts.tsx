@@ -88,22 +88,28 @@ export function Temperature({ temp, target, max, onSet, disabled, label }: { tem
     <span className="dv-temp">
       <b className={target > 0 ? 'heating' : ''}>{temp.toFixed(0)}°</b>
       <span className="muted">/</span>
-      <input
-        type="number"
-        inputMode="numeric"
-        min={0}
-        max={max}
-        aria-label={`${label} target`}
-        value={draft ?? String(Math.round(target))}
-        disabled={disabled}
-        onFocus={(e) => e.target.select()}
-        onChange={(e) => setDraft(e.target.value)}
-        onBlur={commit}
-        onKeyDown={(e) => {
-          if (e.key === 'Enter') (e.target as HTMLInputElement).blur();
-          if (e.key === 'Escape') setDraft(null);
-        }}
-      />
+      {disabled ? (
+        // Set on the printer itself: the target as plain text.
+        <span className="dv-temp-target" data-testid="temp-target">
+          {Math.round(target)}
+        </span>
+      ) : (
+        <input
+          type="number"
+          inputMode="numeric"
+          min={0}
+          max={max}
+          aria-label={`${label} target`}
+          value={draft ?? String(Math.round(target))}
+          onFocus={(e) => e.target.select()}
+          onChange={(e) => setDraft(e.target.value)}
+          onBlur={commit}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') (e.target as HTMLInputElement).blur();
+            if (e.key === 'Escape') setDraft(null);
+          }}
+        />
+      )}
       <span className="muted">°C</span>
       {target > 0 && !disabled && (
         <button className="dv-link" onClick={() => onSet(0)} aria-label={`Turn ${label} off`}>

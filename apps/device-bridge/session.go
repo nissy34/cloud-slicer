@@ -85,7 +85,11 @@ func (s *Session) open() error {
 		if errors.Is(err, context.DeadlineExceeded) {
 			return fmt.Errorf("%s did not answer.", s.printer.Name)
 		}
-		return fmt.Errorf("Could not reach %s at %s.", s.printer.Name, s.printer.URL)
+		where := s.printer.URL
+		if s.printer.shown != "" {
+			where = s.printer.shown
+		}
+		return fmt.Errorf("Could not reach %s at %s.", s.printer.Name, where)
 	}
 	// File lists and object lists can be large.
 	ws.SetReadLimit(64 << 20)

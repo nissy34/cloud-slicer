@@ -16,7 +16,7 @@ hosted on Cloudflare's free tier.
 - **Every printer brand the engine ships** (55 in Snapmaker Orca, 63 in OrcaSlicer, with
   their filaments and processes), with a first-run setup wizard (like Orca's) to pick the
   printers and filaments you have: search, pictures, and a "Direct print" mark on the
-  printers this app can send prints to (Klipper ones); for the others you download the
+  printers this app can send prints to (Klipper ones, and Prusa through PrusaLink); for the others you download the
   G-code. Snapmaker's presets load at start and another brand's only once you pick one
   of its printers, so the page starts as fast as with Snapmaker alone. The 3D view shows the
   selected printer's own bed like desktop: the brand's bed shape under the plate and its
@@ -131,7 +131,8 @@ hosted on Cloudflare's free tier.
 - **Sign in with Google** to keep presets, setup choices, printers and projects on every
   device. Signed out, everything is kept in the browser and merged in at sign-in.
 - **Device tab** for Moonraker (Klipper) printers: cameras, temperatures, motion, files,
-  upload and print, skipping objects mid-print, plus Snapmaker U1 extras (tool heads, filament sync, the U1 print
+  upload and print, skipping objects mid-print, and for Prusa printers through PrusaLink
+  (status, files, upload, print, pause and cancel), plus Snapmaker U1 extras (tool heads, filament sync, the U1 print
   dialog, the U1's error codes in Snapmaker's own words). Printers on a home network are reached through a small bridge app.
 - **Light and dark theme**, a layout that works on phones (an open tool stacks the toolbar, its options and the model, with the settings hidden until Done), and installable as an app
   (PWA) on Android.
@@ -302,7 +303,14 @@ Klipper printer's system process presets),
 plus Snapmaker U1 extras (tool heads, filament sync, the U1 print dialog with tool
 mapping, and the U1's errors on the Print card with their code and Snapmaker's own
 title and advice; `apps/web/scripts/u1-errors.mjs` rebuilds that list from Snapmaker
-Orca's device page). The cards can be arranged: **Arrange** at the top of the tab moves
+Orca's device page). **Prusa printers** (MK4/MK4S, Core One, XL, Mini, MK3 with
+PrusaLink) work through the bridge too: it finds them on the network by PrusaLink's
+login, takes the PrusaLink password, and stands in for Moonraker so the same cards
+show their temperatures, print, files with pictures, upload, print, pause and cancel.
+PrusaLink takes no G-code, so their screen has no Move, Console, camera (Prusa's camera
+only reaches Prusa Connect), temperature setting or emergency stop (`addons/prusa.ts`,
+`apps/device-bridge/translate.go` and `prusalink.go`). The add-printer dialog's "Which
+printers work?" lists the printers the Device tab reaches. The cards can be arranged: **Arrange** at the top of the tab moves
 cards by their grip into 2 or 3 columns or across the top or bottom, hides them, makes
 them half width (two side by side) and sets the camera size; tapping a card's title folds
 it. **Add a camera card** makes another camera card; each camera card's Choose picks which
@@ -337,8 +345,8 @@ The bridge spends the code as it installs and joins that account at once (a brid
 without a valid code never connects; an expired code makes the command ask for a new
 one). It starts with the computer (Windows and macOS at login, Linux at boot), the
 dialog turns green by itself, and the Device tab then searches the
-bridge's network for Moonraker printers and adds the ones you pick, with their API
-keys, or any address you type. API keys are only ever entered in the Device tab.
+bridge's network for Moonraker and PrusaLink printers and adds the ones you pick, with their API
+keys or PrusaLink passwords, or any address you type. API keys are only ever entered in the Device tab.
 Bridges are saved on their own, apart from their printers: the Device tab's
 Printers & bridges window lists each bridge with its printers, removes either on
 its own, adds printers to a saved bridge with no pairing again, and removing a

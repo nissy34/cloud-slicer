@@ -18,6 +18,7 @@ import { SortableContext, sortableKeyboardCoordinates, useSortable, verticalList
 import { CSS } from '@dnd-kit/utilities';
 import { saveUserSetting, useUserSetting } from '../../state/account';
 import { useDevice } from '../../state/device';
+import { takesCommands } from '../addons';
 import {
   addCameraCard,
   CARD_NAMES,
@@ -170,7 +171,12 @@ export function DeviceCards({ busy, arranging, onDone }: { busy: boolean; arrang
       onRemove={isCamCard(id) ? () => save(removeCameraCard(layout, id)) : undefined}
     />
   );
-  const shown = (ids: SlotId[]) => (arranging ? ids : ids.filter((id) => !screen.hidden.includes(id)));
+  // Cards that only send commands are left out for printers that take none (Prusa through PrusaLink),
+  // and camera cards for printers whose camera can't be reached.
+  const commands = useDevice((s) => takesCommands(s.addons));
+  const camera = useDevice((s) => !s.addons.some((a) => a.noCamera));
+  const usable = (id: SlotId) => (commands || (id !== 'motion' && id !== 'console')) && (camera || (id !== 'camera' && !isCamCard(id)));
+  const shown = (ids: SlotId[]) => (arranging ? ids : ids.filter((id) => !screen.hidden.includes(id))).filter(usable);
 
   const bar = arranging && (
     <div className="dv-arrange-bar" data-testid="arrange-bar">

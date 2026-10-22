@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useAccount } from '../../state/account';
 import { BRIDGE_SIGN_IN, useDevice } from '../../state/device';
 import '../../state/alerts';
+import { takesCommands } from '../addons';
 import { isTestRelay } from '../config';
 import { job } from '../status';
 import { DeviceCards } from './Arrange';
@@ -98,20 +99,22 @@ export function DeviceScreen() {
               <button className="dv-link" onClick={() => openManage(true)} data-testid="manage-open">
                 Printers &amp; bridges
               </button>
-              <button
-                className="secondary dv-danger-text"
-                disabled={conn.state !== 'online'}
-                onClick={() =>
-                  confirm({
-                    action: 'Emergency stop',
-                    text: 'Stop all motors and heaters right now? The printer firmware will need a restart afterwards.',
-                    danger: true,
-                    run: () => void call('Emergency stop sent', (s) => s.emergencyStop()),
-                  })
-                }
-              >
-                Emergency stop
-              </button>
+              {takesCommands(addons) && (
+                <button
+                  className="secondary dv-danger-text"
+                  disabled={conn.state !== 'online'}
+                  onClick={() =>
+                    confirm({
+                      action: 'Emergency stop',
+                      text: 'Stop all motors and heaters right now? The printer firmware will need a restart afterwards.',
+                      danger: true,
+                      run: () => void call('Emergency stop sent', (s) => s.emergencyStop()),
+                    })
+                  }
+                >
+                  Emergency stop
+                </button>
+              )}
             </div>
           </header>
           {conn.state !== 'online' && conn.message && (
