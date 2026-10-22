@@ -326,6 +326,8 @@ try {
   );
   await page.getByTestId('device-gcode-input').setInputFiles({ name: 'two colour.gcode', mimeType: 'text/plain', buffer: gcode });
   await page.getByTestId('tool-map').waitFor();
+  // The dialog names the printer the file goes to.
+  await page.getByRole('dialog').getByRole('heading', { name: 'Send to U1-mock' }).waitFor();
   // Suggested map: red PETG -> T2 (red PETG), dark PLA -> T1.
   await until('suggested map', async () => (await page.getByLabel('Tool head for filament 1').inputValue()) === '1' && (await page.getByLabel('Tool head for filament 2').inputValue()) === '0');
   await page.getByTestId('upload-only').click();
@@ -496,8 +498,10 @@ try {
   if ((await sendTo.locator('option', { hasText: 'voron-mock' }).getAttribute('value')) !== (await sendTo.inputValue())) throw new Error('the dialog should start on the printer on screen');
   if (await page.getByTestId('tool-map').count()) throw new Error('generic printer shows the U1 tool map');
   const u1Id = await sendTo.locator('option', { hasText: 'U1-mock' }).getAttribute('value');
+  await page.getByRole('dialog').getByRole('heading', { name: 'Send to voron-mock' }).waitFor();
   await sendTo.selectOption(u1Id);
   await page.getByTestId('tool-map').waitFor({ timeout: 20_000 });
+  await page.getByRole('dialog').getByRole('heading', { name: 'Send to U1-mock' }).waitFor();
   await page.getByTestId('upload-only').waitFor();
   await until('upload enabled once the U1 is connected', () => page.getByTestId('upload-only').isEnabled());
   if (shots) await page.getByRole('dialog').screenshot({ path: join(shots, 'send-pick-printer.png') });
@@ -589,6 +593,13 @@ try {
   const moved = await old.evaluate(() => [localStorage.getItem('cloud-slicer:printers:v1'), localStorage.getItem('cloud-slicer:devices:v1')]);
   if (moved[0] !== null || !moved[1]?.includes('Old Voron')) throw new Error(`legacy printers not moved: ${JSON.stringify(moved)}`);
   console.log('printers from the earlier build moved into the account store');
+  // With only one printer saved there's no picker, but the dialog still names the printer.
+  await old.getByTestId('device-gcode-input').setInputFiles(sendFile);
+  const sendOld = old.getByRole('dialog', { name: 'Send to Old Voron' });
+  await sendOld.waitFor();
+  if (await sendOld.getByTestId('send-printer').count()) throw new Error('one printer saved, yet the dialog offers a printer picker');
+  await sendOld.getByRole('button', { name: 'Cancel' }).click();
+  console.log('send dialog names the only printer');
 
   // Bridge printers saved before bridges were saved on their own get their bridge back, with no pairing.
   const earlier = await browser.newPage();

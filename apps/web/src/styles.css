@@ -3542,6 +3542,10 @@ select:focus-visible {
 .dv-dialog-head h2 {
   margin: 0;
   font-size: 16px;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .dv-dialog-content {
   padding: 4px 16px 12px;
