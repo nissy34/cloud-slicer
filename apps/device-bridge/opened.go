@@ -229,12 +229,18 @@ func newerThanInstalled(installed string) bool {
 	if err != nil {
 		return true
 	}
-	m := buildIn.FindStringSubmatch(string(out))
+	have, ok := buildOf(string(out))
+	return !ok || ownBuild() > have
+}
+
+// buildOf reads the build number from what "version" prints: 6 (build 1234 windows-x64).
+func buildOf(versionLine string) (int64, bool) {
+	m := buildIn.FindStringSubmatch(versionLine)
 	if m == nil {
-		return true
+		return 0, false
 	}
-	have, _ := strconv.ParseInt(m[1], 10, 64)
-	return ownBuild() > have
+	n, err := strconv.ParseInt(m[1], 10, 64)
+	return n, err == nil
 }
 
 // doneMessage is what someone who double-clicked the app reads once it is set up (relays without accounts).

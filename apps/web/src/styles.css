@@ -5360,6 +5360,15 @@ button.volume-name {
   font-size: 1.05em;
   letter-spacing: 0.06em;
 }
+.dv-setup-download {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+.dv-setup-download code {
+  letter-spacing: 0.06em;
+}
 .dv-bridge-state.connecting {
   border-left-color: var(--accent);
 }

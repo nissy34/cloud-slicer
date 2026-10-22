@@ -257,7 +257,15 @@ jobs:
           if [ "$rc" != 0 ]; then echo "The PowerShell line failed ($rc)"; exit 1; fi
           for i in $(seq 1 20); do tasklist //FI 'IMAGENAME eq cloud-slicer-bridge.exe' | grep -q cloud-slicer-bridge && break; sleep 1; done
           tasklist //FI 'IMAGENAME eq cloud-slicer-bridge.exe' | grep cloud-slicer-bridge || { echo "The bridge isn't running after the PowerShell line"; exit 1; }
-          "$LOCALAPPDATA/Cloud Slicer Bridge/cloud-slicer-bridge.exe" uninstall
+          # Installed apps (Settings, Apps) lists it, with an Uninstall that runs the bridge's own; the Start menu has it.
+          entry='HKCU\Software\Microsoft\Windows\CurrentVersion\Uninstall\CloudSlicerBridge'
+          reg query "$entry" //v UninstallString | grep -F 'cloud-slicer-bridge.exe" uninstall' || { echo "No Installed apps entry"; exit 1; }
+          reg query "$entry" //v DisplayName | grep -F 'Cloud Slicer Bridge' || { echo "The Installed apps entry has no name"; exit 1; }
+          shortcut="$APPDATA/Microsoft/Windows/Start Menu/Programs/Cloud Slicer Bridge.lnk"
+          [ -f "$shortcut" ] || { echo "No Start menu entry"; exit 1; }
+          timeout 60 "$LOCALAPPDATA/Cloud Slicer Bridge/cloud-slicer-bridge.exe" uninstall
+          if reg query "$entry" >/dev/null 2>&1; then echo "Uninstall left the Installed apps entry"; exit 1; fi
+          if [ -e "$shortcut" ]; then echo "Uninstall left the Start menu entry"; exit 1; fi
       - uses: actions/upload-artifact@v6
         with:
           name: bridge-app-windows
@@ -305,6 +313,16 @@ jobs:
           "$app/Contents/MacOS/cloud-slicer-bridge" version
           # install copies the program out of the .app; that copy has to run too.
           cp "$app/Contents/MacOS/cloud-slicer-bridge" "$RUNNER_TEMP/copied" && "$RUNNER_TEMP/copied" version
+      - name: Installing puts the app in Applications (it opens the status window), and uninstall takes it away
+        timeout-minutes: 3
+        run: |
+          app="$RUNNER_TEMP/app/Cloud Slicer Bridge.app"
+          "$app/Contents/MacOS/cloud-slicer-bridge" install --no-browser --relay http://127.0.0.1:9
+          opener="$HOME/Applications/Cloud Slicer Bridge.app"
+          test -x "$opener/Contents/MacOS/cloud-slicer-bridge" || { echo "No app in Applications"; exit 1; }
+          codesign --verify --deep --strict "$opener"
+          "$HOME/Library/Application Support/Cloud Slicer Bridge/cloud-slicer-bridge" uninstall
+          if [ -e "$opener" ]; then echo "Uninstall left the app in Applications"; exit 1; fi
       - uses: actions/upload-artifact@v6
         with:
           name: bridge-app-mac

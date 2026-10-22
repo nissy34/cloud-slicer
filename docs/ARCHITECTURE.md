@@ -298,6 +298,15 @@ Bridge design choices:
   key so they connect alone. Printers saved before this get their bridge record from
   the first printer's key. Removing a running bridge (version 5 on) sends it
   `bridge.uninstall`, and it removes itself from its computer.
+- The other way round: removing the bridge on its computer (`uninstall`, the app's
+  Remove bridge…, Windows' Installed apps) sends its key to the relay's
+  `/v1/bridges/<id>/release`. The relay forgets it, closes Device tabs with 4410 (they
+  drop it from their list) and asks the site (`/api/relay/release`), which removes it
+  from the account after checking the browser key against the one it keeps.
+- The downloaded app has no setup code inside: opened, it asks for one in a native
+  window (zenity: Windows dialogs, osascript on macOS). Installed, it adds a Start menu
+  entry and an Installed apps entry on Windows, or a copy in ~/Applications on macOS,
+  which opens a status window read from the background bridge's status file.
 - The account keeps a browser key (HMAC of the bridge's secret), never the secret;
   the relay stores only hashes, rate-limits connects and deploys from main only.
 

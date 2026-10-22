@@ -26,9 +26,9 @@ export const useSetupWizard = create<{
   hide: () => set({ open: false, engine: null }),
 }));
 
-// Closed this visit, or the visit started from a printer pairing link (the
+// Closed this visit, or the visit started from a printer pairing link or the bridge app (the
 // Device tab's add-printer dialog is waiting).
-let dismissed = typeof location !== 'undefined' && location.hash.startsWith('#pair=');
+let dismissed = typeof location !== 'undefined' && (location.hash.startsWith('#pair=') || location.hash === '#device');
 
 type Step = 'engine' | 'printers' | 'filaments' | 'connect';
 const STEPS: { id: Step; label: string }[] = [

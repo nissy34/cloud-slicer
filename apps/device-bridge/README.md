@@ -52,16 +52,31 @@ hour; a wrong or used one exits with status 3, and the install scripts then ask
 "Paste the new setup code here:". After that the bridge keeps its own key for
 good. On a relay without accounts (local tests) it pairs with a link as below.
 
-The bridge asks nothing else. Opened by double click it sets itself up to start
-with the computer and opens the pairing link in your browser (it also prints
-it); `install` does the same from a terminal, and `uninstall` stops the bridge
-and removes it from the computer, with its printers and pairing (Windows: a
-Run entry for your user that runs it with no window, so it stays out of the
-taskbar; macOS: a launch agent; Linux: a systemd
-user service with lingering, so a headless Pi starts it at boot, plus a menu
-entry that opens the pairing link). The downloaded Mac app is
-`Cloud Slicer Bridge.app`: opened from Finder it shows no window, sets itself
-up and opens the pairing link.
+The bridge asks nothing else. Opened by double click (the download from Add a
+bridge, which has no setup code inside) it asks for the setup code in a small
+window, installs itself to start with the computer and shows "Connected to your
+Cloud Slicer account as …" with Open Cloud Slicer and Close (a relay without
+accounts opens the pairing link instead). `install` does the same from a
+terminal. Where it starts from: Windows, a Run entry for your user that runs it
+with no window, so it stays out of the taskbar; macOS, a launch agent; Linux, a
+systemd user service with lingering, so a headless Pi starts it at boot, plus a
+menu entry that opens the pairing link.
+
+Opening it again (Windows: Start menu, Cloud Slicer Bridge; macOS: Cloud Slicer
+Bridge in your Applications folder) shows how the bridge running in the
+background is doing: connected with its printers, not connected (no internet),
+or turned off in Cloud Slicer. The background bridge writes this to a small
+status file next to its settings (`<config>.status`) every minute (`status.go`,
+`opened.go`). It never replaces a newer installed bridge with an older download.
+The window has Open Cloud Slicer (the Device tab) and Remove bridge….
+
+`uninstall` (also Remove bridge… there, and Windows' Settings, Apps, Installed
+apps, Cloud Slicer Bridge, Uninstall, which needs no admin rights) stops the
+bridge, stops it starting with the computer, deletes it with its printers, and
+takes it out of the account: it sends its own key to the relay's
+`/v1/bridges/<id>/release`, which forgets the bridge, tells open Device tabs
+(close code 4410) and asks the site to remove it from the account
+(`/api/relay/release`, proven by the bridge's browser key).
 
 Printers are found and added in the Device tab's Add a printer dialog, which
 asks the bridge over the relay: `bridge.discover` looks for Moonraker on port

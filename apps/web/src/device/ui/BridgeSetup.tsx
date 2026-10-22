@@ -481,6 +481,24 @@ export function setupCommands(relay: string, code: string) {
   };
 }
 
+/** The download, which has no setup code inside: the app asks for it when opened. */
+function DownloadWithCode({ code, children }: { code: string; children: ReactNode }) {
+  return (
+    <>
+      <strong>Or download it</strong>
+      <span className="dv-setup-download" data-testid="setup-download">
+        {children}
+        <span>
+          then paste this setup code when it asks: <code>{code}</code>
+        </span>
+        <button className="dv-link" onClick={() => void navigator.clipboard?.writeText(code)}>
+          Copy
+        </button>
+      </span>
+    </>
+  );
+}
+
 /** How often the dialog asks whether the bridge has used the setup code. */
 const POLL_MS = 2000;
 
@@ -592,6 +610,14 @@ export function AddBridge({ relay, onJoined }: { relay: string; onJoined: (p: Pa
             </details>
             <strong>Or in Command Prompt</strong>
             <CopyCommand command={c.cmd} testId="setup-cmd" />
+            <DownloadWithCode code={setup.code}>
+              <a className="secondary" href={`${relay}/download/windows-x64`} data-testid="setup-download-windows">
+                Download for Windows
+              </a>
+            </DownloadWithCode>
+            <span className="muted">
+              If a blue box says "Windows protected your PC" when you open it, click <b>More info</b>, then <b>Run anyway</b>.
+            </span>
           </>
         )}
         {os === 'mac' && (
@@ -601,6 +627,18 @@ export function AddBridge({ relay, onJoined }: { relay: string; onJoined: (p: Pa
             <span className="muted">
               To open Terminal, press <kbd>⌘ Command</kbd> + <kbd>Space</kbd>, type <b>Terminal</b> and press <kbd>Return</kbd>. If your Mac asks whether the bridge may find
               devices on your local network, click <b>Allow</b>.
+            </span>
+            <DownloadWithCode code={setup.code}>
+              <a className="secondary" href={`${relay}/download/mac-arm64`} data-testid="setup-download-mac">
+                Mac with Apple chip
+              </a>
+              <a className="secondary" href={`${relay}/download/mac-x64`}>
+                Mac with Intel chip
+              </a>
+            </DownloadWithCode>
+            <span className="muted">
+              Open the zip, then the app. It isn't signed by Apple yet, so the first time macOS stops it: click <b>Done</b>, open <b>System Settings</b>, then{' '}
+              <b>Privacy &amp; Security</b>, scroll down and click <b>Open Anyway</b>. The Terminal line avoids this.
             </span>
           </>
         )}
@@ -628,7 +666,7 @@ export function AddBridge({ relay, onJoined }: { relay: string; onJoined: (p: Pa
             Copy
           </button>
         </span>
-        <span className="muted">The setup code (also inside the command) works once, for the next hour, and adds the bridge to your account.</span>
+        <span className="muted">The setup code (also inside the commands) works once, for the next hour, and adds the bridge to your account.</span>
       </div>
 
       <div className="dv-bridge-state connecting" role="status" data-testid="setup-waiting">

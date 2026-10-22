@@ -316,6 +316,7 @@ command that carries it:
 | Windows | `irm "<relay>/install.ps1?code=<code>" \| iex` in PowerShell, or the `install.cmd` line in Command Prompt |
 | macOS, Linux, Raspberry Pi (64 and 32-bit), Creality K1 (MIPS) | `curl -fsSL "<relay>/install.sh?code=<code>" \| sh` in Terminal |
 | On the printer itself (any Klipper printer) | the same line with `sh -s -- --printer`, over SSH |
+| Or download it (Windows, Mac) | open the app; it asks for the setup code shown next to the download |
 
 The bridge spends the code as it installs and joins that account at once (a bridge
 without a valid code never connects; an expired code makes the command ask for a new
@@ -326,7 +327,11 @@ keys, or any address you type. API keys are only ever entered in the Device tab.
 Bridges are saved on their own, apart from their printers: the Device tab's
 Printers & bridges window lists each bridge with its printers, removes either on
 its own, adds printers to a saved bridge with no pairing again, and removing a
-running bridge makes it uninstall itself from its computer.
+running bridge makes it uninstall itself from its computer. The other way works too:
+on Windows the bridge is in the Start menu and in Settings, Apps, Installed apps
+(Uninstall), on a Mac in Applications; opening it shows whether it is connected and
+which printers it serves, with Remove bridge…, and removing it there also takes it
+out of the account.
 The account keeps a browser key derived from the bridge's secret; the relay stores
 only hashes and rate-limits connects. Using a bridge needs a signed-in account (see
 Admin page and limits). The apps are unsigned (signing costs money),

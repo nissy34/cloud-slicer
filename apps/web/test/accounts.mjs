@@ -705,6 +705,20 @@ test('setup codes: a bridge joins the account that made the code, once, within t
   const fourth = await frank.json('/api/relay/setup', 'POST', { relay });
   assert.equal(fourth.status, 403);
   assert.equal((await fourth.json()).code, 'bridge-limit');
+
+  // Removed on its own computer: the relay passes on the bridge's key, which proves it, and the account forgets it.
+  const owner = (await frank.me()).id;
+  const release = (body) =>
+    fetch(`${HOST}/api/relay/release`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ relay, bridgeId: 'bridge-f003', owner, ...body }) });
+  assert.equal((await release({ browserKey: 'x'.repeat(43) })).status, 404, 'wrong key');
+  assert.equal((await release({ browserKey: 'k'.repeat(43), owner: (await bob.me()).id })).status, 404, "someone else's account");
+  const gone = await release({ browserKey: 'k'.repeat(43) });
+  assert.equal(gone.status, 200, await gone.clone().text());
+  assert.deepEqual(await gone.json(), { removed: 1 });
+  const left = (await (await frank.json('/api/devices')).json()).devices;
+  assert.ok(!left.some((d) => d.extra?.bridgeId === 'bridge-f003'), JSON.stringify(left));
+  assert.ok(left.some((d) => d.extra?.bridgeId === 'bridge-f002'), 'the other bridges stay');
+  assert.equal((await frank.json('/api/relay/setup', 'POST', { relay })).status, 200, 'its place is free again');
 });
 
 test('delete a person: account, presets, printers, projects and files go', async () => {
