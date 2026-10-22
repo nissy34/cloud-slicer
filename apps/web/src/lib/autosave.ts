@@ -42,12 +42,13 @@ export type ContinueOffer =
 
 /**
  * What the Continue card offers when the app opens with nothing loaded: the
- * draft if there is one, else the newest project changed on another device in
+ * newest draft if there is one (from this device or another), else the newest project changed on another device in
  * the last day. Projects last changed here aren't offered (they're one click
  * away in Online projects).
  */
 export function continueOffer(projects: OnlineProject[], device: string, now = Date.now()): ContinueOffer | null {
-  const draft = projects.find((p) => p.draft);
+  // Each device keeps its own draft: the newest one is offered.
+  const draft = projects.filter((p) => p.draft).sort((a, b) => b.updatedAt - a.updatedAt)[0];
   if (draft) return { kind: 'draft', project: draft };
   const newest = [...projects].filter((p) => !p.draft).sort((a, b) => b.updatedAt - a.updatedAt)[0];
   if (newest && newest.device && newest.device !== device && now - newest.updatedAt < CONTINUE_WITHIN_MS) return { kind: 'elsewhere', project: newest };
@@ -56,3 +57,13 @@ export function continueOffer(projects: OnlineProject[], device: string, now = D
 
 /** "your phone", or "another device" when the name isn't known. */
 export const yourDevice = (name: string | null | undefined) => (name ? `your ${name}` : 'another device');
+
+/**
+ * Said when the open project was deleted on another device: it stays open here.
+ * `device`: the device that had it, when known.
+ */
+export function goneText(p: { name: string; draft: boolean }, device: string | null | undefined, autosave: boolean): string {
+  const where = device ? `on ${yourDevice(device)}` : 'on another device';
+  const kept = autosave ? ' It’s still open here, and AutoSave keeps it as a new draft.' : ' It’s still open here, not saved.';
+  return p.draft ? `Your unsaved project was discarded ${where}.${kept}` : `“${p.name}” was deleted ${where}.${kept}`;
+}

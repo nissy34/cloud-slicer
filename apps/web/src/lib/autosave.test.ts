@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { OnlineProject } from '../account/api';
-import { autosaveDelay, autosaveGap, BIG_PROJECT_BYTES, continueOffer, deviceNameFrom, QUIET_MS, yourDevice } from './autosave';
+import { autosaveDelay, autosaveGap, BIG_PROJECT_BYTES, continueOffer, deviceNameFrom, goneText, QUIET_MS, yourDevice } from './autosave';
 
 const project = (p: Partial<OnlineProject>): OnlineProject => ({
   id: 'p',
@@ -52,6 +52,10 @@ describe('the Continue card', () => {
     const offer = continueOffer([project({ id: 'a', updatedAt: now - 1000, device: 'other' }), project({ id: 'd', draft: true, device: 'me' })], 'me', now);
     expect(offer).toEqual({ kind: 'draft', project: expect.objectContaining({ id: 'd' }) });
   });
+  it('offers the newest draft when devices have one each', () => {
+    const list = [project({ id: 'laptop', draft: true, updatedAt: now - 60_000, device: 'laptop' }), project({ id: 'phone', draft: true, updatedAt: now - 1000, device: 'phone' })];
+    expect(continueOffer(list, 'me', now)?.project.id).toBe('phone');
+  });
   it('offers the newest project changed on another device in the last day', () => {
     const list = [project({ id: 'old', updatedAt: now - 2 * 3600_000, device: 'other' }), project({ id: 'new', updatedAt: now - 60_000, device: 'other', deviceName: 'phone' })];
     expect(continueOffer(list, 'me', now)?.project.id).toBe('new');
@@ -60,5 +64,14 @@ describe('the Continue card', () => {
     expect(continueOffer([project({ updatedAt: now - 60_000, device: 'me' }), project({ id: 'b', updatedAt: now - 120_000, device: 'other' })], 'me', now)).toBeNull();
     expect(continueOffer([project({ updatedAt: now - 30 * 3600_000, device: 'other' })], 'me', now)).toBeNull();
     expect(continueOffer([project({ updatedAt: now - 60_000, device: null })], 'me', now)).toBeNull();
+  });
+});
+
+describe('a project deleted on another device', () => {
+  it('says the draft was discarded and that it is still here', () => {
+    expect(goneText({ name: 'Benchy', draft: true }, null, true)).toBe(
+      'Your unsaved project was discarded on another device. It’s still open here, and AutoSave keeps it as a new draft.',
+    );
+    expect(goneText({ name: 'Benchy', draft: false }, 'phone', false)).toBe('“Benchy” was deleted on your phone. It’s still open here, not saved.');
   });
 });
