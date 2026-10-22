@@ -2706,23 +2706,6 @@ select:focus-visible {
   text-align: center;
   pointer-events: none;
 }
-.dv-camera-badge {
-  position: absolute;
-  right: 6px;
-  text-align: right;
-  top: 6px;
-  max-width: calc(100% - 12px);
-  padding: 2px 8px;
-  border-radius: 4px;
-  background: rgb(0 0 0 / 0.6);
-  color: #fff;
-  font-size: 12px;
-  pointer-events: none;
-}
-.dv-camera-badge small {
-  display: block;
-  opacity: 0.85;
-}
 .dv-job-head {
   display: flex;
   align-items: center;
