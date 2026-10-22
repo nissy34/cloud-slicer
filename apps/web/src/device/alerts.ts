@@ -53,7 +53,7 @@ export interface AlertPrefs {
   percents: number[];
   /** "Still printing" every this many hours; 0 = off. */
   hours: number;
-  /** "Tell me after layer N", for the current or next print; cleared when that print ends. */
+  /** "Alert me after layer N", for the current or next print; cleared when that print ends. */
   layer: number | null;
   /** A camera picture on the alerts that have one. */
   pictures: boolean;

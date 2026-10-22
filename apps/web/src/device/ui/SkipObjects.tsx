@@ -20,7 +20,21 @@ export function SkipObjectsDialog({ objects, onClose }: { objects: PlateObject[]
   const left = objects.filter((o) => !o.skipped).length;
 
   const skip = (o: PlateObject) =>
-    confirm({
+    // Skipping the last object would leave the printer heating and moving through
+    // empty layers until the end: offer to cancel the print instead.
+    left === 1
+      ? confirm({
+          title: `${o.label} is the last object`,
+          text: 'Skipping it leaves nothing to print, but the printer would keep heating and moving until the print ends. Cancel the print instead? It can’t be resumed.',
+          action: 'Cancel print',
+          keep: 'Keep printing',
+          danger: true,
+          run: () => {
+            void call('Cancelling', (s) => s.cancel());
+            onClose();
+          },
+        })
+      : confirm({
       title: `Skip ${o.label}?`,
       text: "The printer stops printing this object for the rest of the print. It can't be printed again in this print.",
       action: `Skip ${o.label}`,

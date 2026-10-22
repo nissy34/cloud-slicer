@@ -25,6 +25,12 @@ export function copyName(name: string, taken: string[]): string {
   }
 }
 
+/** `name`, or "name (2)", "name (3)"... when another project already has it. */
+export function freeName(name: string, taken: string[]): string {
+  if (!taken.includes(name)) return name;
+  for (let n = 2; ; n++) if (!taken.includes(`${name} (${n})`)) return `${name} (${n})`;
+}
+
 /**
  * What would be saved, as text: objects with their settings, instances and
  * paint flags, plates, the preset selection and the user's changes. Two equal

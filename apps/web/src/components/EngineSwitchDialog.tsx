@@ -79,7 +79,7 @@ export function EngineSwitchDialog({ to, onClose, onSwitch }: { to: EngineFlavor
           {plan.dropped.length > 0 && (
             <section>
               <h3>Settings {target} doesn't have</h3>
-              <p className="muted small">Your changes to these are left out:</p>
+              <p className="muted small">This project's values for these are left out:</p>
               <SettingRows list={plan.dropped} />
             </section>
           )}
