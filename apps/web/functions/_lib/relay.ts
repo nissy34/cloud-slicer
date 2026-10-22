@@ -212,7 +212,7 @@ export async function claim(env: Env, request: Request): Promise<Response> {
     return x.kind === 'bridge-agent' && x.bridgeId === bridgeId;
   });
   for (const r of old) await d.prepare('DELETE FROM devices WHERE user_id = ? AND id = ?').bind(row.user_id, r.id).run();
-  const id = [...crypto.getRandomValues(new Uint8Array(6))].map((b) => 'abcdefghijklmnopqrstuvwxyz0123456789'[b % 36]).join('');
+  const id = crypto.randomUUID().slice(0, 8);
   if (!env.ACCOUNT_ENC_KEY) throw new HttpError(503, "Saving bridges isn't set up on this site yet");
   await d
     .prepare('INSERT INTO devices (user_id, id, name, preset, url, api_key_enc, extra, version, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, 1, ?)')

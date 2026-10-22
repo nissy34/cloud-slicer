@@ -444,7 +444,7 @@ double deltaE00(const Lab& p, const Lab& q) {
     float deltaro = 30.0 * std::exp(-(std::pow((avghp - 275.0) / 25.0, 2)));
     float rc = 2.0 * std::sqrt(std::pow(avgCp, 7) / (std::pow(avgCp, 7) + std::pow(25.0, 7)));
     float rt = -rc * std::sin(2.0 * deg2rad(deltaro));
-    return std::sqrt(std::pow(deltalp / sl, 2) + std::pow(deltacp / sc, 2) + std::pow(deltahp / sh, 2) + rt * (deltacp / sc) * (deltahp / sh));
+    return std::sqrt(std::pow(deltalp / sl, 2) + std::pow(deltacp / sc, 2) + std::pow(deltahp / sh, 2) + double(rt) * (deltacp / sc) * (deltahp / sh));
 }
 
 Rgb blendPair(const Rgb& l, const Rgb& r, float t) {
