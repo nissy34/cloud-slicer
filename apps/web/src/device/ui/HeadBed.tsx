@@ -1,5 +1,5 @@
 import { STILL_HOT, type HeadMood } from '../heads';
-import { HeadBody, HeadFeatures } from './HeadFace';
+import { HeadBody } from './HeadFace';
 
 /**
  * What a docked head is doing in its bed: asleep, a coffee break now and then,
@@ -18,77 +18,57 @@ const PHONES = (
   </g>
 );
 
-/** How a docked head rests, from its mood: what it does in bed and what is on the bedside table. */
-type Pose = 'nap' | 'hot' | 'cooling' | 'dream' | 'stretch' | 'worried';
+/** How a docked head rests, from its mood: under or on top of the blanket, and what is around it. */
+type Pose = 'nap' | 'hot' | 'cooling' | 'hungry' | 'heating' | 'worried';
 
 function poseOf(mood: HeadMood, temp: number): Pose {
-  if (mood === 'worried') return 'worried';
-  if (mood === 'hungry') return 'dream';
-  if (mood === 'heating') return 'stretch';
-  if (mood === 'cooling') return 'cooling';
+  if (mood === 'worried' || mood === 'hungry' || mood === 'heating' || mood === 'cooling') return mood;
   if (mood === 'hot' || temp >= STILL_HOT) return 'hot';
   return 'nap';
 }
 
+const FACE: Record<Pose, HeadMood> = { nap: 'napping', hot: 'hot', cooling: 'cooling', hungry: 'hungry', heating: 'heating', worried: 'worried' };
+
 /**
- * A docked tool head in bed, propped up on its pillow so the face shows.
- * Napping: headphones on, under a blanket in its filament colour; now and then
- * a coffee break (headphones on the bedpost, sits up, sips from the mug on the
- * bedside table, lies back). Hot: rests the same way but on top of the
- * blanket, sweating; cooling down adds a fan on the bedside table. No
- * filament: sits on top of the blanket, looks at you and thinks of a spool.
- * Heating up: sits up and stretches as the heat rises. Getting up and going
- * to bed are the same moves.
+ * A docked tool head lying back on its pillow, cap on the pillow, the face
+ * tilting with it. Napping (headphones on), heating up and check me are
+ * tucked in under a blanket in the filament colour, pulled up to the chin;
+ * hot, cooling down (with a fan on the bedside table) and feed me (dreaming
+ * of a spool) lie on top of it. Now and then a napping head takes a coffee
+ * break: headphones on the bedpost, sits up, sips from the mug, lies back.
+ * Getting up and going to bed are the same moves.
  */
 export function HeadBed({ mood, colour, loaded, temp, scene, size = 60 }: { mood: HeadMood; colour: string | null; loaded: boolean | null; temp: number; scene: BedScene; size?: number }) {
   const blanketColour = loaded && colour ? colour : 'var(--dv-head-hi)';
   const pose = poseOf(mood, temp);
-  const edge = { stroke: 'var(--dv-outline)', strokeWidth: 2.5 };
-  // Napping, hot and cooling heads lie down on the pillow; the face stays upright so the mood reads.
-  const lies = pose === 'nap' || pose === 'hot' || pose === 'cooling' || pose === 'worried';
-  const onTop = pose === 'hot' || pose === 'cooling' || pose === 'dream';
-  const blanketPath = lies && !onTop ? 'M70 54Q96 46 124 56V80H68Z' : pose === 'stretch' ? 'M30 66Q76 58 124 64V80H28Z' : onTop && lies ? 'M30 64Q76 58 124 64V80H28Z' : 'M30 58Q76 48 124 56V80H28Z';
-  const blanket = (
+  const onTop = pose === 'hot' || pose === 'cooling' || pose === 'hungry';
+  // Where the head rests: on the mattress, or a little higher on top of the blanket.
+  const b = onTop ? 68 : 76;
+  const edge = { stroke: 'var(--dv-outline)', strokeWidth: 2.5, strokeLinejoin: 'round' as const };
+  const blanket = onTop ? (
     <g className="dv-bed-blanket">
-      <path d={blanketPath} fill={blanketColour} {...edge} />
-      <path d={blanketPath.replace(/V.*$/, '')} stroke="rgba(255,255,255,.55)" strokeWidth="4" fill="none" />
-    </g>
-  );
-  const faceMood: HeadMood = pose === 'nap' ? 'napping' : pose === 'worried' ? 'worried' : pose === 'hot' ? 'hot' : 'cooling';
-  const lying = lies ? (
-    <>
-      <g transform={`translate(12 ${onTop ? 72 : 90}) rotate(-90) scale(.78)`} style={PLACED}>
-        <HeadBody mood={faceMood} colour={colour} loaded={loaded} temp={temp} face={false} />
-        {pose === 'nap' && PHONES}
-      </g>
-      <g transform={`translate(17 ${onTop ? -7 : 11}) scale(.72)`} style={PLACED}>
-        <HeadFeatures mood={faceMood} />
-      </g>
-    </>
-  ) : pose === 'stretch' ? (
-    <g transform="translate(30 10) scale(.6)" style={PLACED}>
-      <g className="dv-bed-stretch">
-        <HeadBody mood="heating" colour={colour} loaded={loaded} temp={temp} />
-      </g>
+      <path d="M28 68Q76 62 124 68V80H28Z" fill={blanketColour} {...edge} />
     </g>
   ) : (
-    // Sits up on top of the blanket, facing you.
-    <g transform="translate(34 6) scale(.6)" style={PLACED}>
-      <HeadBody mood="hungry" colour={colour} loaded={loaded} temp={temp} />
+    <g className="dv-bed-blanket">
+      <path d={`M70 ${b - 44}Q80 ${b - 50} 96 ${b - 40}Q114 ${b - 30} 124 ${b - 20}V${b + 4}H64Q62 ${b - 24} 70 ${b - 44}Z`} fill={blanketColour} {...edge} />
+      <path d={`M70 ${b - 44}Q80 ${b - 50} 96 ${b - 40}L97 ${b - 32}Q82 ${b - 42} 71 ${b - 36}Z`} fill="rgba(255,255,255,.45)" {...edge} strokeWidth={2} />
+      <path d={`M86 ${b - 20}q8-4 16 2M102 ${b - 12}q8-3 14 2`} stroke="rgba(0,0,0,.18)" strokeWidth="2" fill="none" strokeLinecap="round" />
     </g>
   );
   return (
     <svg className={`dv-bed dv-bed-${scene} dv-bed-pose-${pose}`} viewBox="0 0 170 104" width={size * 1.63} height={size} aria-hidden>
-      <rect x="2" y="34" width="9" height="66" rx="3" fill="var(--dv-wood)" />
+      <rect x="2" y="38" width="9" height="62" rx="3" fill="var(--dv-wood)" />
       <rect x="119" y="60" width="9" height="40" rx="3" fill="var(--dv-wood)" />
       <rect x="4" y="76" width="122" height="12" rx="4" fill="var(--dv-mattress)" />
-      {lies ? (
-        <ellipse cx="26" cy={onTop ? 62 : 68} rx="17" ry="9" fill="#fff" stroke="var(--border)" />
-      ) : (
-        <ellipse cx="20" cy="54" rx="12" ry="20" fill="#fff" stroke="var(--border)" />
-      )}
       {onTop && blanket}
-      <g className="dv-bed-lie">{lying}</g>
+      <ellipse cx="24" cy={b - 6} rx="16" ry="8" fill="#fff" stroke="var(--border)" />
+      <g className="dv-bed-lie">
+        <g transform={`translate(50 ${b - 22}) rotate(-75) scale(.7) translate(-50 -54)`} style={PLACED}>
+          <HeadBody mood={FACE[pose]} colour={colour} loaded={loaded} temp={temp} />
+          {pose === 'nap' && PHONES}
+        </g>
+      </g>
       {!onTop && blanket}
       <g className="dv-bed-sit">
         <g transform="translate(60 16) scale(.62)" style={PLACED}>
@@ -97,9 +77,9 @@ export function HeadBed({ mood, colour, loaded, temp, scene, size = 60 }: { mood
         </g>
       </g>
       <g className="dv-bed-post">
-        <path d="M-2 34Q6 18 14 34" stroke="var(--dv-phones)" strokeWidth="3" fill="none" />
-        <rect x="-5" y="32" width="7" height="11" rx="3" fill="var(--dv-phones)" />
-        <rect x="10" y="32" width="7" height="11" rx="3" fill="var(--dv-phones)" />
+        <path d="M-2 38Q6 22 14 38" stroke="var(--dv-phones)" strokeWidth="3" fill="none" />
+        <rect x="-5" y="36" width="7" height="11" rx="3" fill="var(--dv-phones)" />
+        <rect x="10" y="36" width="7" height="11" rx="3" fill="var(--dv-phones)" />
       </g>
       <rect x="134" y="66" width="34" height="6" rx="2" fill="var(--dv-wood)" />
       <rect x="138" y="72" width="5" height="28" fill="var(--dv-wood)" />
@@ -107,15 +87,15 @@ export function HeadBed({ mood, colour, loaded, temp, scene, size = 60 }: { mood
       {pose === 'cooling' ? (
         <g className="dv-bed-fan">
           <g transform="translate(151 48)" style={PLACED}>
-            <rect x="-2" y="8" width="4" height="8" fill="var(--dv-metal)" />
-            <rect x="-8" y="15" width="16" height="3" rx="1.5" fill="var(--dv-metal)" />
+            <rect x="-2" y="8" width="4" height="10" fill="var(--dv-metal)" />
+            <rect x="-8" y="16" width="16" height="3" rx="1.5" fill="var(--dv-metal)" />
             <circle r="11" fill="none" stroke="var(--dv-metal)" strokeWidth="2" />
             <g className="dv-bed-blades">
               <path d="M0 0L-3-10Q0-12 3-10ZM0 0L10-3Q12 0 10 3ZM0 0L3 10Q0 12-3 10ZM0 0L-10 3Q-12 0-10-3Z" fill="var(--dv-mattress)" />
             </g>
             <circle r="2.4" fill="var(--dv-outline)" />
           </g>
-          <path className="dv-bed-wind" d="M134 42q-8-3-16 0M134 50q-10-3-20 0M134 58q-8-3-16 0" stroke="#7fc4ff" strokeWidth="2" fill="none" strokeLinecap="round" />
+          <path className="dv-bed-wind" d="M134 40q-8-3-16 0M134 48q-10-3-20 0M134 56q-8-3-16 0" stroke="#7fc4ff" strokeWidth="2" fill="none" strokeLinecap="round" />
         </g>
       ) : (
         <>
@@ -134,48 +114,48 @@ export function HeadBed({ mood, colour, loaded, temp, scene, size = 60 }: { mood
   );
 }
 
-/** Above the head: z's, sweat, a dream of a spool, steam or a "!". Hidden while the head gets up. */
+/** Above the head: z's, sweat, a dream of a spool, heat waves or a "!". Hidden while the head gets up. */
 function BedExtra({ pose }: { pose: Pose }) {
   switch (pose) {
     case 'hot':
-    case 'cooling':
       return (
         <g className="dv-bed-z" fill="#5db4ff">
-          <path className="dv-face-drop" d="M84 30q4 7 0 10q-4-3 0-10z" />
-          <path className="dv-face-drop dv-face-z2" d="M96 38q3 5 0 8q-3-2 0-8z" />
+          <path className="dv-face-drop" d="M66 22q4 7 0 10q-4-3 0-10z" />
+          <path className="dv-face-drop dv-face-z2" d="M78 28q3 5 0 8q-3-2 0-8z" />
         </g>
       );
-    case 'dream':
+    case 'cooling':
+      return <path className="dv-bed-z dv-face-drop" d="M70 26q3 5 0 8q-3-2 0-8z" fill="#5db4ff" />;
+    case 'hungry':
       return (
-        <g className="dv-bed-z" transform="translate(14 0)" style={PLACED}>
-          <circle cx="80" cy="34" r="2.5" fill="var(--surface)" stroke="var(--border)" />
-          <circle cx="88" cy="26" r="3.5" fill="var(--surface)" stroke="var(--border)" />
+        <g className="dv-bed-z">
+          <circle cx="64" cy="30" r="2.5" fill="var(--surface)" stroke="var(--border)" />
+          <circle cx="72" cy="22" r="3.5" fill="var(--surface)" stroke="var(--border)" />
           <g className="dv-bed-dream">
-            <path d="M92 22q-3-13 10-13q5-10 16-3q13-2 13 10q8 8-3 15h-34q-10-3-2-9z" fill="var(--surface)" stroke="var(--border)" strokeWidth="1.5" />
-            <rect x="101" y="11" width="22" height="16" rx="2" fill="var(--dv-warm)" />
-            <rect x="98" y="8" width="4" height="22" rx="1.5" fill="var(--dv-metal)" />
-            <rect x="122" y="8" width="4" height="22" rx="1.5" fill="var(--dv-metal)" />
-            <path d="M104 16h16M104 21h16" stroke="rgba(0,0,0,.2)" />
+            <path d="M78 18q-3-12 10-12q5-9 15-3q12-2 12 9q8 7-3 14h-30q-9-3-4-8z" fill="var(--surface)" stroke="var(--border)" strokeWidth="1.5" />
+            <rect x="88" y="7" width="18" height="13" rx="2" fill="var(--dv-warm)" />
+            <rect x="86" y="5" width="3" height="17" rx="1" fill="var(--dv-metal)" />
+            <rect x="105" y="5" width="3" height="17" rx="1" fill="var(--dv-metal)" />
           </g>
         </g>
       );
-    case 'stretch':
+    case 'heating':
       return (
-        <path className="dv-bed-z dv-face-steam" d="M80 14q4-5 0-10M90 18q4-5 0-10" stroke="var(--dv-hot)" strokeWidth="2.5" fill="none" strokeLinecap="round" />
+        <path className="dv-bed-z dv-face-steam" d="M60 34q4-4 0-8t0-8M72 34q4-4 0-8t0-8M84 36q4-4 0-8t0-8" stroke="var(--dv-hot)" strokeWidth="2.5" fill="none" strokeLinecap="round" />
       );
     case 'worried':
       return (
-        <text className="dv-bed-z" x="84" y="26" fontSize="22" fontWeight="800" fill="var(--dv-warn)">
+        <text className="dv-bed-z" x="64" y="34" fontSize="22" fontWeight="800" fill="var(--dv-warn)">
           !
         </text>
       );
     default:
       return (
         <g className="dv-bed-z" fill="var(--muted)" fontWeight="700">
-          <text className="dv-face-z" x="78" y="22" fontSize="15">
+          <text className="dv-face-z" x="56" y="34" fontSize="15">
             z
           </text>
-          <text className="dv-face-z dv-face-z2" x="88" y="12" fontSize="11">
+          <text className="dv-face-z dv-face-z2" x="66" y="24" fontSize="11">
             z
           </text>
         </g>

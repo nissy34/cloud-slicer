@@ -92,18 +92,8 @@ function Cap({ colour }: { colour: string }) {
   );
 }
 
-/** Eyes and mouth alone, so a head lying down can keep its face upright. */
-export function HeadFeatures({ mood }: { mood: HeadMood }) {
-  return (
-    <>
-      <Eyes mood={mood} />
-      <Mouth mood={mood} />
-    </>
-  );
-}
-
 /** The character itself, in the 100 x 120 box both drawings share: filament, body, face and hot end. */
-export function HeadBody({ mood, colour, loaded, temp, face = true }: { mood: HeadMood; colour: string | null; loaded: boolean | null; temp: number; face?: boolean }) {
+export function HeadBody({ mood, colour, loaded, temp }: { mood: HeadMood; colour: string | null; loaded: boolean | null; temp: number }) {
   const band = loaded && colour ? colour : 'var(--dv-head-hi)';
   return (
     <g className="dv-face-body">
@@ -127,7 +117,8 @@ export function HeadBody({ mood, colour, loaded, temp, face = true }: { mood: He
       )}
       <rect x="18" y="20" width="64" height="66" rx="20" fill="var(--dv-head-body)" />
       <Cap colour={band} />
-      {face && <HeadFeatures mood={mood} />}
+      <Eyes mood={mood} />
+      <Mouth mood={mood} />
       <rect x="36" y="86" width="28" height="11" rx="3" fill={heat(temp)} />
       <path d="M42 97H58L53 108H47Z" fill="var(--dv-brass)" />
     </g>
