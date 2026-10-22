@@ -62,4 +62,9 @@ export interface PrinterAddon {
   errors?: PrinterErrorSource;
   /** The bed, not the head, moves up and down, so the Move card's height arrows move the bed. */
   bedMovesInZ?: boolean;
+  /**
+   * Its filament motion sensors also feel filament standing still, so they say
+   * whether a head is loaded (plain Klipper's only notice moving filament).
+   */
+  motionSensorsFeelFilament?: boolean;
 }

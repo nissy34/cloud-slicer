@@ -274,6 +274,18 @@ try {
   await page.getByTestId('print-state').filter({ hasText: 'Ready' }).waitFor();
   console.log('filament load sent to the right feeder');
 
+  // Unloading empties the head while the filament waits at the side feeder: the head asks for
+  // filament again, Load comes back and Unload greys out.
+  await page.locator('[data-testid="head-3"]:not([data-mood="hungry"])').waitFor();
+  await sheet.getByRole('button', { name: 'Unload', exact: true }).click();
+  await page.getByRole('dialog', { name: 'Unload filament' }).getByRole('button', { name: 'Unload filament' }).click();
+  await until('FEED_AUTO unload', () => u1.scripts.includes('FEED_AUTO MODULE=right CHANNEL=1 UNLOAD=1'));
+  await page.locator('[data-testid="head-3"][data-mood="hungry"]').getByText('At the feeder').waitFor();
+  if (!(await sheet.getByRole('button', { name: 'Unload', exact: true }).isDisabled())) throw new Error('Unload still on after unloading');
+  if (await sheet.getByRole('button', { name: 'Load', exact: true }).isDisabled()) throw new Error('Load off after unloading');
+  if (!u1.state.print_task_config.filament_exist[3]) throw new Error('mock: filament_exist should stay true after an unload');
+  console.log('filament unload empties the head, filament waits at the feeder');
+
   await pickHead(1);
   await sheet.getByRole('button', { name: 'Filament' }).click();
   await page.getByLabel('Type').fill('Silk');

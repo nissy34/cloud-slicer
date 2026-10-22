@@ -88,8 +88,10 @@ function u1State(generic) {
       },
       'filament_feed right': {
         extruder2: { module_exist: true, filament_detected: true, disable_auto: false, channel_state: 'load_finish', channel_error: 'ok' },
-        extruder3: { module_exist: true, filament_detected: true, disable_auto: false, channel_state: 'none', channel_error: 'ok' },
+        extruder3: { module_exist: true, filament_detected: false, disable_auto: false, channel_state: 'none', channel_error: 'ok' },
       },
+      // The sensors in the heads: filament in the head itself (the feeders above feel filament waiting at the side).
+      ...Object.fromEntries([true, true, true, false].map((d, i) => [`filament_motion_sensor e${i}_filament`, { enabled: true, filament_detected: d }])),
       purifier: { power_detected: true, mode: 'auto', exhaust_fan: { speed: 0 }, inner_fan: { speed: 0 } },
       machine_state_manager: { main_state: 0, action_code: 0 },
     });
@@ -250,7 +252,17 @@ export async function startMockPrinter({ port = 0, host = '127.0.0.1', generic =
           const head = Number(key.replace('extruder', ''));
           const load = param(line, 'LOAD') === '1';
           patch({ machine_state_manager: { main_state: load ? 9 : 10 } });
-          setTimeout(() => patch({ machine_state_manager: { main_state: 0 }, print_task_config: { filament_exist: setArr(state.print_task_config.filament_exist, head, load) } }), 600);
+          // Like the U1: unloading pulls the filament back to the feeder, which still feels it, so filament_exist stays true.
+          const feed = `filament_feed ${module}`;
+          setTimeout(
+            () =>
+              patch({
+                machine_state_manager: { main_state: 0 },
+                [`filament_motion_sensor e${head}_filament`]: { filament_detected: load },
+                ...(load ? { [feed]: { [key]: { ...state[feed][key], filament_detected: true } }, print_task_config: { filament_exist: setArr(state.print_task_config.filament_exist, head, true) } } : {}),
+              }),
+            600,
+          );
           break;
         }
         case 'PICK_EXTRUDER':
