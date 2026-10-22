@@ -155,6 +155,13 @@ jobs:
         timeout-minutes: 5
         run: node test/device-arrange.mjs device-shots
 
+      - name: Printer pages (a page card shows a camera's own page, taps through the bridge, kept apart from the site)
+        working-directory: apps/web
+        timeout-minutes: 5
+        env:
+          CLOUD_SLICER_BRIDGE_BIN: ${{ github.workspace }}/apps/device-bridge/dist/linux-x64
+        run: node test/device-pages.mjs device-shots
+
       - name: A Prusa printer through the bridge's PrusaLink stand-in (add with password, status, upload, print, pause, cancel; no G-code controls)
         working-directory: apps/web
         timeout-minutes: 5
@@ -575,9 +582,15 @@ jobs:
             echo "::warning::R2 isn't usable; the relay deploys without the bridge apps"
             sed -i '/^\[\[r2_buckets\]\]/,/^bucket_name/d' wrangler.toml
           fi
+          # Printer pages (page cards) stay on the Worker's workers.dev address, a
+          # different site from Cloud Slicer's, whatever other name the relay gets.
+          sub=$(curl -fsS -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" \
+            "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/workers/subdomain" | jq -r '.result.subdomain // empty' || true)
+          pages=()
+          if [ -n "$sub" ]; then pages=(--var "PAGE_ORIGIN:https://$WORKER.$sub.workers.dev"); else echo "::warning::No workers.dev name found; printer pages use the relay's own address"; fi
           if [ "$WORKER" = cloud-slicer-relay-test ]; then
             # The test relay says what it runs; the Device tab shows it.
-            npx wrangler deploy --name "$WORKER" --var "TEST_RELAY:$WHAT" --var "SITE_ORIGIN:$SITE" --var "RELAY_ORIGIN:$RELAY_ORIGIN" | tee deploy.log
+            npx wrangler deploy --name "$WORKER" --var "TEST_RELAY:$WHAT" --var "SITE_ORIGIN:$SITE" --var "RELAY_ORIGIN:$RELAY_ORIGIN" "${pages[@]}" | tee deploy.log
             # The site's ticket key, so signed-in people get in as they do on the live relay.
             # The test relay serves the branch previews, so it takes the previews' key
             # (the production one if previews have none), set on every deploy so it
@@ -595,7 +608,7 @@ jobs:
             if [ -n "$key" ]; then printf '%s' "$key" | npx wrangler secret put RELAY_TICKET_PUBLIC_KEY --name "$WORKER"
             else echo "::warning::The site has no relay ticket key yet; the test relay lets any pairing code in"; fi
           else
-            npx wrangler deploy | tee deploy.log
+            npx wrangler deploy "${pages[@]}" | tee deploy.log
             # The key the live site really signs tickets and setup-code claims with,
             # set on every deploy: a relay holding another key turns every bridge away
             # ("Cloud Slicer's answer couldn't be checked", "Sign in").

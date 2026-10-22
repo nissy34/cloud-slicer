@@ -2,7 +2,8 @@
 // Desktop has zones: a band across the top, 2 or 3 columns, and a band across the bottom.
 // Phones are one column, so there only the order, hidden and folded cards are kept.
 // Extra camera cards ("cam:…") each show the cameras the person put in them; the rest stay in the main
-// Cameras card.
+// Cameras card. Page cards ("page:…") each show one camera's own page (a camera Moonraker lists as an
+// "iframe" page, such as a printer's remote screen), live and tappable; that camera leaves the camera cards.
 
 export const CARD_IDS = ['camera', 'climate', 'motion', 'console', 'job', 'toolheads', 'alerts', 'files'] as const;
 export type CardId = (typeof CARD_IDS)[number];
@@ -18,13 +19,14 @@ export const CARD_NAMES: Record<CardId, string> = {
   files: 'Files',
 };
 
-/** An extra camera card. */
-export type CamCardId = `cam:${string}`;
+/** An extra camera card, or a page card. */
+export type CamCardId = `cam:${string}` | `page:${string}`;
 /** Any card: a fixed one or an extra camera card. */
 export type SlotId = CardId | CamCardId;
 export const MAX_CAMERA_CARDS = 6;
 
-export const isCamCard = (x: unknown): x is CamCardId => typeof x === 'string' && /^cam:[a-z0-9]{1,12}$/.test(x);
+export const isCamCard = (x: unknown): x is CamCardId => typeof x === 'string' && /^(cam|page):[a-z0-9]{1,12}$/.test(x);
+export const isPageCard = (x: unknown): x is `page:${string}` => isCamCard(x) && x.startsWith('page:');
 
 export type CameraSize = 's' | 'm' | 'l';
 export type ZoneId = 'top' | 'bottom' | `col${number}`;
@@ -54,9 +56,9 @@ export interface DeviceLayout {
   v: 1;
   desktop: DesktopLayout;
   phone: PhoneLayout;
-  /** Extra camera cards, on both phone and desktop. */
+  /** Extra camera cards and page cards, on both phone and desktop. */
   cameraCards: CamCardId[];
-  /** Which extra camera card shows a camera, by camera name; any other camera is in the main card. */
+  /** Which extra camera card or page card shows a camera, by camera name; any other camera is in the main card. */
   cameraHome: Record<string, CamCardId>;
 }
 
@@ -165,7 +167,7 @@ function normalizePhone(raw: unknown, camCards: CamCardId[]): PhoneLayout {
 
 // ---- camera cards -----------------------------------------------------------------
 
-/** Adds an empty camera card right after the main Cameras card, on phone and desktop. */
+/** Adds an empty camera card (or page card) right after the main Cameras card, on phone and desktop. */
 export function addCameraCard(l: DeviceLayout, id: CamCardId): DeviceLayout {
   if (l.cameraCards.length >= MAX_CAMERA_CARDS || l.cameraCards.includes(id)) return l;
   const desktop = { ...l.desktop, top: [...l.desktop.top], cols: l.desktop.cols.map((c) => [...c]), bottom: [...l.desktop.bottom] };
@@ -208,6 +210,12 @@ export function placeCamera(l: DeviceLayout, name: string, card: 'camera' | CamC
   if (card === 'camera') delete cameraHome[name];
   else cameraHome[name] = card;
   return { ...l, cameraHome };
+}
+
+/** Shows a page in a page card; the page it showed before goes back to the main Cameras card. */
+export function placePage(l: DeviceLayout, name: string, card: CamCardId): DeviceLayout {
+  const cameraHome = Object.fromEntries(Object.entries(l.cameraHome).filter(([n, c]) => c !== card && n !== name));
+  return { ...l, cameraHome: { ...cameraHome, [name]: card } };
 }
 
 /** The card a camera shows in. */
