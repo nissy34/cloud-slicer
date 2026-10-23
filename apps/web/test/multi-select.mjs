@@ -211,6 +211,8 @@ try {
 
   // Copy, then Ctrl+V pastes all three as new objects, chosen together.
   await menu.getByRole('menuitem', { name: 'Copy' }).click();
+  // Copying takes a moment in the engine; Ctrl+V before it ends finds nothing copied.
+  await page.getByText('Copied 3 objects', { exact: false }).first().waitFor({ timeout: 30000 });
   await page.keyboard.press('Control+v');
   await waitObjects(page, 6);
   await waitChosen(page, 3, 'what was pasted');
