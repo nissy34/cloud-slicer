@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { sendToPrinter } from '../device';
 import type { SliceWarning } from '../engine/protocol';
-import { formatDuration, formatGrams, gcodeFileName, sentence, stageLabel } from '../lib/format';
+import { gcodeFileName, sentence, stageLabel } from '../lib/format';
 import { blocksPrinting, OBJECT_CLASHED } from '../lib/outside';
 import { LIGHT_TRIANGLES, triangleCount } from '../lib/simplify';
 import { useObjectsOutside, useSlicer } from '../state/store';
@@ -141,17 +141,9 @@ export function ActionBar() {
           <SliceProgress pct={job.pct} stage={stageLabel(job.stage) || 'Slicing'} onCancel={cancelSlice} />
         )}
         {job.kind === 'sliced' && (
-          <span className="stats" data-testid="slice-stats">
-            <span>
-              <b>{formatDuration(job.result.estimatedTimeSeconds)}</b> print
-            </span>
-            <span>
-              <b>{formatGrams(job.result.totalFilamentGrams)}</b> filament
-            </span>
-            <span>
-              <b>{job.result.totalLayers}</b> layers
-            </span>
-            <span className="muted">sliced in {(job.ms / 1000).toFixed(1)} s</span>
+          // Time and filament are in the Preview's key and the layers on its slider, as on desktop.
+          <span className="stats" data-testid="slice-stats" data-layers={job.result.totalLayers}>
+            <span>Sliced in {(job.ms / 1000).toFixed(1)} s</span>
           </span>
         )}
         {job.kind === 'sliced' && job.outdated && (

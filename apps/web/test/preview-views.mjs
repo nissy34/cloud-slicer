@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // Browser end to end for the Preview's colour key: a two-filament plate shows
 // each filament's grams and the filament changes as in the G-code's own
-// statistics, every "Colour by" view draws its scale, and tapping a line type
+// statistics, split into model / support / tower columns like desktop, every "Colour by" view draws its scale, and tapping a line type
 // hides it from the 3D view and shows it again.
 //
 //   node test/preview-views.mjs [screenshot-dir]
@@ -105,12 +105,42 @@ try {
   await stats.waitFor();
   const text = await stats.innerText();
   console.log(`filament key:\n${text}`);
-  for (const [i, g] of grams.entries())
-    if (g > 0 && !text.includes(`${g < 10 ? g.toFixed(2) : g.toFixed(1)} g`)) fail(`filament ${i + 1}'s ${g} g is not in the key`);
+  // Each filament's total (the table's last column, weight over length) is the
+  // G-code's, give or take the last digit shown.
+  const rows = await stats.locator('tbody tr').all();
+  const shown = await Promise.all(rows.map(async (r) => [Number(await r.locator('td').first().innerText()), parseFloat(await r.locator('td').last().innerText())]));
+  for (const [i, g] of grams.entries()) {
+    const row = shown.find(([f]) => f === i + 1);
+    if (g > 0 && !(row && Math.abs(row[1] - g) <= (g < 10 ? 0.01 : 0.1) + 1e-9)) fail(`filament ${i + 1}'s ${g} g is not in the key (${row?.[1]} g)`);
+  }
   const shownChanges = Number(await page.getByTestId('tool-changes').innerText());
   if (shownChanges !== changes) fail(`key shows ${shownChanges} filament changes, the G-code has ${changes}`);
   if (changes < 1) fail('a two-filament plate should change filament at least once');
+  // Split like desktop: a Model column always, a Tower column when the G-code has a
+  // prime tower, and no column every filament has nothing in.
+  const heads = await stats.locator('thead th').allInnerTexts();
+  console.log(`filament columns: ${heads.join(' | ')}`);
+  if (!heads.includes('Model')) fail(`no Model column: ${heads.join(', ')}`);
+  if (heads.includes('Tower') !== /^;TYPE:Prime tower/m.test(gcode)) fail(`Tower column ${heads.includes('Tower') ? 'shown without' : 'missing with'} a prime tower`);
+  for (const [i, h] of heads.entries()) {
+    if (i === 0 || h === 'Total') continue;
+    const cells = await stats.locator(`tbody tr td:nth-child(${i + 1})`).allInnerTexts();
+    if (cells.every((c) => c.trim() === '–')) fail(`the ${h} column is empty for every filament`);
+  }
   await shot(page, 'filament');
+
+  // Desktop's time estimate under the key, in every view: the total is the G-code's.
+  const printing = /^; estimated printing time \(normal mode\) = (.*)$/m.exec(gcode)?.[1]?.trim();
+  for (const v of ['filament', 'feature', 'speed']) {
+    await colourBy.selectOption(v);
+    const total = (await page.getByTestId('total-time').innerText()).trim();
+    if (total !== printing) fail(`${v}: the key's total time is ${total}, the G-code says ${printing}`);
+  }
+  const times = await page.getByTestId('time-stats').innerText();
+  if (!/Model printing time/.test(times)) fail(`time block: ${times}`);
+  console.log(`time block: ${times.replace(/\n/g, ' | ')}`);
+  if ((await page.getByTestId('slice-stats').innerText()).match(/filament|layers/)) fail('the bottom bar still shows filament or layers');
+  await colourBy.selectOption('filament');
 
   // Every value view draws a scale with numbers and its own colours.
   let previous = await view(page);
