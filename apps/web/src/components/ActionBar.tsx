@@ -108,7 +108,7 @@ function SliceWarnings({ warnings }: { warnings: SliceWarning[] }) {
 }
 
 export function ActionBar() {
-  const { engine, engineMessage, project, plate, job, notice, noticeWarn, heavy, simplifyHeavy, slice, cancelSlice, setTab, tab } = useSlicer();
+  const { engine, engineMessage, project, plate, job, notice, noticeWarn, heavy, simplifyHeavy, slice, cancelSlice, setTab, tab, slicedAway, viewSlice } = useSlicer();
   // A problem with the open tool shows in its card, where the eye is.
   const toolOpen = useSlicer((s) => !!(s.tool || s.paint));
   const baseConfig = useSlicer((s) => s.baseConfig);
@@ -140,12 +140,16 @@ export function ActionBar() {
         {engine === 'ready' && !clashed && (job.kind === 'idle' || (job.kind === 'error' && !errorHere)) && (
           <span className="muted">
             {onPlate ? 'Ready to slice' : project?.objects.length ? 'This plate is empty' : 'Open a model to start'}
-            {(notice || heavy) && '.'}
+            {(notice || heavy || slicedAway !== null) && '.'}
           </span>
         )}
         {job.kind === 'loading' && <span className="muted">{job.label ?? `Opening ${job.name}`}…</span>}
         {job.kind === 'slicing' && (
-          <SliceProgress pct={job.pct} stage={stageLabel(job.stage) || 'Slicing'} onCancel={cancelSlice} />
+          <SliceProgress
+            pct={job.pct}
+            stage={`${job.plate !== plate ? `Plate ${job.plate + 1}: ` : ''}${stageLabel(job.stage) || 'Slicing'}`}
+            onCancel={cancelSlice}
+          />
         )}
         {job.kind === 'sliced' && (
           // Time and filament are in the Preview's key and the layers on its slider, as on desktop.
@@ -168,6 +172,15 @@ export function ActionBar() {
           <span className="error-text" role="alert" data-testid="objects-outside">
             {' '}
             {OBJECT_CLASHED} ({outside.map((o) => project.objects[o]?.name).join(', ')})
+          </span>
+        )}
+        {slicedAway !== null && (
+          <span className="hint" data-testid="sliced-away">
+            {' '}
+            Plate {slicedAway + 1} sliced ·{' '}
+            <button className="link" onClick={() => void viewSlice(slicedAway)}>
+              View
+            </button>
           </span>
         )}
         {notice && !errorHere && <span className={noticeWarn ? 'hint warn' : 'hint'}> {notice}</span>}

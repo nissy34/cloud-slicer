@@ -601,10 +601,11 @@ jobs:
           node test/preview-views.mjs
           node test/busy.mjs
 
-      - name: Slice cancel, engine restart and big models end to end (Chromium)
+      - name: Slice cancel, plate switch while slicing, engine restart and big models end to end (Chromium)
         if: matrix.suite == 'cancel'
         run: |
           node test/cancel.mjs
+          node test/plate-switch.mjs
           node test/restart.mjs
           node test/heavy.mjs
 

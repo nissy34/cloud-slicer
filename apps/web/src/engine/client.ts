@@ -170,6 +170,8 @@ export class EngineClient {
   onEditWhileSlicing: (() => void) | null = null;
   /** Requests so far that changed the project (not the presets), to tell whether a saved copy is current. */
   projectEdits = 0;
+  /** Requests so far that changed the project or the presets, to tell whether a kept plate picture is current. */
+  changes = 0;
 
   constructor(
     private events: EngineEvents,
@@ -220,6 +222,7 @@ export class EngineClient {
       !(method === 'layerHeights' && (args[2] as LayerRequest).op === 'get');
     if (edits && this.sliceId) this.onEditWhileSlicing?.();
     if (edits && !PRESET_CALLS.has(method)) this.projectEdits++;
+    if (edits) this.changes++;
     const id = this.nextId++;
     const done = () => {
       if (this.sliceId === id) this.sliceId = 0;

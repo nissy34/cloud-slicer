@@ -27,6 +27,7 @@ import { LayerMarks, LayerMenu, useLayerCodes } from './LayerCodes';
 import { PrintLoader } from './PrintLoader';
 import { CameraViews, ViewButtons, type ViewHandle } from './ViewControls';
 import { Bed } from './Bed';
+import { PlateTabs } from './Viewport';
 
 /** The G-code read in a worker: progress (0..1) while reading, then the segments. */
 function useParsed(gcode: Blob | null) {
@@ -536,13 +537,38 @@ export function Preview() {
   const views: ViewHandle = useRef(null);
   const [menuOpen, setMenuOpen] = useState(false);
   const codes = useLayerCodes();
-  const slicing = useSlicer((s) => s.job.kind === 'slicing');
+  // Each plate keeps its own slice; job is the shown plate's (or the slice running).
+  const slicingPlate = useSlicer((s) => (s.job.kind === 'slicing' ? s.job.plate : null));
+  const plate = useSlicer((s) => s.plate);
+  const plates = useSlicer((s) => s.project?.plates.length ?? 0);
+  const onPlate = useSlicer((s) => s.project?.plates[s.plate]?.objects.length ?? 0);
 
-  if (!gcode && slicing) {
+  if (!gcode && slicingPlate === plate) {
     return (
       <div className="coming-soon">
-        <h1>Slicing the plate</h1>
+        <PlateTabs />
+        <h1>{plates > 1 ? `Slicing plate ${plate + 1}` : 'Slicing the plate'}</h1>
         <p>Its toolpaths show here when it's done.</p>
+      </div>
+    );
+  }
+  if (!gcode && plates > 1) {
+    return (
+      <div className="coming-soon">
+        <PlateTabs />
+        <h1>Plate {plate + 1} isn't sliced yet</h1>
+        <p>
+          {!onPlate
+            ? 'This plate is empty.'
+            : slicingPlate !== null
+              ? `Plate ${slicingPlate + 1} is slicing now. Slice this one when it's done.`
+              : 'Slice it to see its toolpaths here.'}
+        </p>
+        {!onPlate && (
+          <button className="primary" onClick={() => setTab('prepare')}>
+            Go to Prepare
+          </button>
+        )}
       </div>
     );
   }
@@ -579,6 +605,7 @@ export function Preview() {
         />
       </Canvas>
       <ViewButtons handle={views} className="over-slider" />
+      <PlateTabs />
       <div className="legend" data-testid="legend">
         <div className="legend-head">
           <select aria-label="Colour by" value={colourBy} onChange={(e) => setColourBy(e.target.value as ColourBy)}>
