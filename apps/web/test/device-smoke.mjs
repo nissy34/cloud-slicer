@@ -423,18 +423,19 @@ try {
   }
   console.log('print on the mock: preferences and tool map sent before starting');
 
-  // While printing the Move card keeps its controls, greyed out, with Speed and Flow on top.
+  // While printing the Move card keeps its controls, greyed out with a "Disabled while printing" tooltip, and Speed and Flow on top.
   {
     const motion = page.getByTestId('motion-card');
-    await motion.getByTestId('motion-busy').filter({ hasText: 'Not while printing.' }).waitFor();
+    await motion.locator('.dv-jog[title="Disabled while printing"]').waitFor();
     for (const name of ['Head right', 'Bed up', 'Home the head', 'Home all', '10 mm']) {
       const b = motion.getByRole(name === '10 mm' ? 'radio' : 'button', { name, exact: true });
       if (!(await b.isVisible()) || !(await b.isDisabled())) throw new Error(`"${name}" should stay on the Move card, greyed out, while printing`);
+      if ((await b.getAttribute('title')) !== 'Disabled while printing') throw new Error(`"${name}" has no "Disabled while printing" tooltip`);
     }
     if (!(await motion.getByText('Flow').isVisible())) throw new Error('Flow missing from the Move card while printing');
     if (shots) await motion.screenshot({ path: join(shots, 'move-printing.png') });
   }
-  console.log('move card while printing: controls greyed out, not removed');
+  console.log('move card while printing: controls greyed out with a tooltip, not removed');
 
   // Skipping an object: the file lists three (EXCLUDE_OBJECT_DEFINE), shown by name on a map and in a list.
   await page.getByTestId('printing-object').waitFor();

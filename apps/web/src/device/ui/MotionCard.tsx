@@ -19,6 +19,8 @@ export function MotionCard() {
   const jog = (axis: 'x' | 'y' | 'z', dir: 1 | -1) => void run(jogGcode(axis, dir * step, axis === 'z' ? 600 : 6000));
   const nozzle = heaters(objects).find((h) => h.name === m.activeExtruder);
   const hot = (nozzle?.temp ?? 0) >= 170;
+  // Greyed-out controls say why on hover; the containers carry it too, for browsers that show no tooltip on a disabled button.
+  const why = busy ? `Disabled while ${printing ? 'printing' : 'paused'}` : undefined;
 
   return (
     <Card
@@ -43,21 +45,21 @@ export function MotionCard() {
           </label>
         </div>
       )}
-      <div className="dv-jog">
+      <div className="dv-jog" title={why}>
         {/* Arrows say which way something physically moves, never X/Y/Z: the head pad is seen from above, standing in front of the printer. */}
         <div className="dv-jog-group">
           <span className="dv-jog-label">Head</span>
           <div className="dv-jog-xy" role="group" aria-label="Move the head">
             <span />
-            <JogButton label="Head to the back" arrow="↑" disabled={busy || !homed('y')} onClick={() => jog('y', 1)} />
+            <JogButton why={why} label="Head to the back" arrow="↑" disabled={busy || !homed('y')} onClick={() => jog('y', 1)} />
             <span />
-            <JogButton label="Head left" arrow="←" disabled={busy || !homed('x')} onClick={() => jog('x', -1)} />
-            <button className="dv-home" onClick={() => void run(homeGcode(['x', 'y']))} disabled={busy} aria-label="Home the head" title="Home the head">
+            <JogButton why={why} label="Head left" arrow="←" disabled={busy || !homed('x')} onClick={() => jog('x', -1)} />
+            <button className="dv-home" onClick={() => void run(homeGcode(['x', 'y']))} disabled={busy} aria-label="Home the head" title={why ?? 'Home the head'}>
               ⌂
             </button>
-            <JogButton label="Head right" arrow="→" disabled={busy || !homed('x')} onClick={() => jog('x', 1)} />
+            <JogButton why={why} label="Head right" arrow="→" disabled={busy || !homed('x')} onClick={() => jog('x', 1)} />
             <span />
-            <JogButton label="Head toward you" arrow="↓" disabled={busy || !homed('y')} onClick={() => jog('y', -1)} />
+            <JogButton why={why} label="Head toward you" arrow="↓" disabled={busy || !homed('y')} onClick={() => jog('y', -1)} />
             <span />
           </div>
         </div>
@@ -65,55 +67,49 @@ export function MotionCard() {
           <span className="dv-jog-label">{bedZ ? 'Bed' : 'Head height'}</span>
           <div className="dv-jog-z" role="group" aria-label={bedZ ? 'Move the bed' : 'Move the head up and down'}>
             {/* Z+ always means more room between nozzle and bed: the head goes up, or the bed goes down. */}
-            <JogButton label={bedZ ? 'Bed up' : 'Head up'} arrow="↑" disabled={busy || !homed('z')} onClick={() => jog('z', bedZ ? -1 : 1)} />
+            <JogButton why={why} label={bedZ ? 'Bed up' : 'Head up'} arrow="↑" disabled={busy || !homed('z')} onClick={() => jog('z', bedZ ? -1 : 1)} />
             <button
               className="dv-home"
               onClick={() => void run(homeGcode(['z']))}
               disabled={busy}
               aria-label={bedZ ? 'Home the bed' : 'Home the height'}
-              title={bedZ ? 'Home the bed' : 'Home the height'}
+              title={why ?? (bedZ ? 'Home the bed' : 'Home the height')}
             >
               ⌂
             </button>
-            <JogButton label={bedZ ? 'Bed down' : 'Head down'} arrow="↓" disabled={busy || !homed('z')} onClick={() => jog('z', bedZ ? 1 : -1)} />
+            <JogButton why={why} label={bedZ ? 'Bed down' : 'Head down'} arrow="↓" disabled={busy || !homed('z')} onClick={() => jog('z', bedZ ? 1 : -1)} />
           </div>
         </div>
       </div>
-      <div className="dv-steps" role="radiogroup" aria-label="Step">
+      <div className="dv-steps" role="radiogroup" aria-label="Step" title={why}>
         {STEPS.map((s) => (
-          <button key={s} role="radio" aria-checked={step === s} className={step === s ? 'on' : ''} disabled={busy} onClick={() => setStep(s)}>
+          <button key={s} role="radio" aria-checked={step === s} className={step === s ? 'on' : ''} disabled={busy} title={why} onClick={() => setStep(s)}>
             {s} mm
           </button>
         ))}
       </div>
-      <div className="dv-row">
-        <button className="secondary" disabled={busy} onClick={() => void run(homeGcode())}>
+      <div className="dv-row" title={why}>
+        <button className="secondary" disabled={busy} title={why} onClick={() => void run(homeGcode())}>
           Home all
         </button>
-        <button className="secondary" disabled={busy} onClick={() => void run(motorsOffGcode())}>
+        <button className="secondary" disabled={busy} title={why} onClick={() => void run(motorsOffGcode())}>
           Motors off
         </button>
-        <button className="secondary" disabled={busy || !hot} title={hot ? undefined : 'Heat the nozzle first'} onClick={() => void run(extrudeGcode(10))}>
+        <button className="secondary" disabled={busy || !hot} title={why ?? (hot ? undefined : 'Heat the nozzle first')} onClick={() => void run(extrudeGcode(10))}>
           Extrude 10 mm
         </button>
-        <button className="secondary" disabled={busy || !hot} title={hot ? undefined : 'Heat the nozzle first'} onClick={() => void run(extrudeGcode(-10))}>
+        <button className="secondary" disabled={busy || !hot} title={why ?? (hot ? undefined : 'Heat the nozzle first')} onClick={() => void run(extrudeGcode(-10))}>
           Retract
         </button>
       </div>
-      {busy ? (
-        <p className="muted" data-testid="motion-busy">
-          Not while {printing ? 'printing' : 'a print is paused'}.
-        </p>
-      ) : (
-        !m.homed && <p className="muted">Home the printer before moving it.</p>
-      )}
+      {!busy && !m.homed && <p className="muted">Home the printer before moving it.</p>}
     </Card>
   );
 }
 
-function JogButton({ label, arrow, disabled, onClick }: { label: string; arrow: string; disabled: boolean; onClick(): void }) {
+function JogButton({ label, arrow, disabled, why, onClick }: { label: string; arrow: string; disabled: boolean; why?: string; onClick(): void }) {
   return (
-    <button className="dv-arrow" onClick={onClick} disabled={disabled} aria-label={label} title={label}>
+    <button className="dv-arrow" onClick={onClick} disabled={disabled} aria-label={label} title={why ?? label}>
       {arrow}
     </button>
   );
