@@ -200,6 +200,13 @@ jobs:
         timeout-minutes: 5
         run: node test/device-arrange.mjs device-shots
 
+      - name: Send G-code through the bridge (zipped, over the direct link and over the relay, arrives byte for byte)
+        working-directory: apps/web
+        timeout-minutes: 5
+        env:
+          CLOUD_SLICER_BRIDGE_BIN: ${{ github.workspace }}/apps/device-bridge/dist/linux-x64
+        run: node test/device-upload.mjs
+
       - name: Printer pages (a page card shows a camera's own page, taps through the bridge, kept apart from the site)
         working-directory: apps/web
         timeout-minutes: 5

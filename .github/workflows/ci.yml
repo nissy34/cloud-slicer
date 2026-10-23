@@ -599,11 +599,12 @@ jobs:
           node test/view-touch.mjs
           node test/multi-select.mjs
 
-      - name: Loading screen and Preview colour key end to end (Chromium)
+      - name: Loading screen, busy edits and Preview colour key end to end (Chromium)
         if: matrix.suite == 'loading'
         run: |
           node test/loading.mjs
           node test/preview-views.mjs
+          node test/busy.mjs
 
       - name: Slice cancel, engine restart and big models end to end (Chromium)
         if: matrix.suite == 'cancel'

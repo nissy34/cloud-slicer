@@ -227,7 +227,8 @@ func (b *Bridge) connectOnce() (code int, reason string, connected bool) {
 	if err != nil {
 		return 0, shortError(err), false
 	}
-	ws.SetReadLimit(2 << 20)
+	// An upload piece (relayPiece) is the largest message.
+	ws.SetReadLimit(relayPiece + 64<<10)
 	b.mu.Lock()
 	b.relay = ws
 	b.mu.Unlock()
@@ -247,7 +248,7 @@ func (b *Bridge) connectOnce() (code int, reason string, connected bool) {
 	}
 
 	for {
-		_, data, err := ws.Read(b.ctx)
+		kind, data, err := ws.Read(b.ctx)
 		if err != nil {
 			b.mu.Lock()
 			b.relay = nil
@@ -260,11 +261,30 @@ func (b *Bridge) connectOnce() (code int, reason string, connected bool) {
 			ws.CloseNow()
 			return 0, "", true
 		}
+		if kind == websocket.MessageBinary {
+			b.handleBinary(data)
+			continue
+		}
 		var msg relayMessage
 		if json.Unmarshal(data, &msg) != nil {
 			continue
 		}
 		b.handle(msg)
+	}
+}
+
+// handleBinary takes a browser's binary message from the relay: 1 byte with the
+// length of the browser's id, the id, then the browser's own message.
+func (b *Bridge) handleBinary(data []byte) {
+	if len(data) < 1 || len(data) < 1+int(data[0]) {
+		return
+	}
+	c := string(data[1 : 1+int(data[0])])
+	b.mu.Lock()
+	s := b.sessions[c]
+	b.mu.Unlock()
+	if s != nil {
+		s.fromBrowserBinary(data[1+int(data[0]):])
 	}
 }
 

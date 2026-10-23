@@ -209,6 +209,17 @@ answers itself with HTTP to the printer. Status updates are merged and sent at
 most once a second, and only while a browser is watching, to stay inside the
 relay's free tier.
 
+**Uploads** (`upload.go`): the page zips the G-code (it shrinks 4 to 5 times)
+and starts with `bridge.upload_start`, which carries a WebRTC offer. When the
+direct link connects, the bytes go over data channel "upload" and never cross
+the relay; on the same network that runs at home-network speed. When it
+doesn't (a network that blocks direct links), the page asks
+`bridge.upload_resume` where to carry on and sends 8 MiB pieces over the relay
+as binary messages (`bridge.upload_piece`), each waiting for the bridge's
+answer. Either way the bridge unzips as the bytes arrive and streams them into
+Moonraker, holding at most one piece in memory. A relay from before binary
+messages gets base64 pieces of 512 KiB (`bridge.upload_chunk`).
+
 **Cameras** (`camera.go`): the page sends a WebRTC offer as `bridge.camera_open`
 and the camera then comes straight from this computer to the browser, never over
 the relay. A camera with its own live H.264 video (camera-streamer, MediaMTX,
