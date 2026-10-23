@@ -218,7 +218,9 @@ doesn't (a network that blocks direct links), the page asks
 as binary messages (`bridge.upload_piece`), each waiting for the bridge's
 answer. Either way the bridge unzips as the bytes arrive and streams them into
 Moonraker, holding at most one piece in memory. A relay from before binary
-messages gets base64 pieces of 512 KiB (`bridge.upload_chunk`).
+messages gets base64 pieces of 512 KiB (`bridge.upload_chunk`). Cancel in the
+Send window calls `bridge.upload_cancel`, which stops the request to Moonraker
+(even once every byte is here), so the printer keeps nothing.
 
 **Cameras** (`camera.go`): the page sends a WebRTC offer as `bridge.camera_open`
 and the camera then comes straight from this computer to the browser, never over

@@ -280,8 +280,8 @@ export class PrinterSession {
     return this.rpc('server.files.delete_file', { path: `gcodes/${path}` });
   }
 
-  upload(blob: Blob, name: string, onProgress?: (f: number) => void) {
-    return this.link.upload(blob, name, onProgress);
+  upload(blob: Blob, name: string, onProgress?: (f: number) => void, signal?: AbortSignal) {
+    return this.link.upload(blob, name, onProgress, signal);
   }
 
   /** Starts a print. Callers must only reach this from an explicit user action. */

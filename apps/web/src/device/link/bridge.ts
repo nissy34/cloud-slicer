@@ -195,50 +195,77 @@ export class BridgeLink implements PrinterLink {
     });
   }
 
-  async upload(blob: Blob, path: string, onProgress?: (f: number) => void): Promise<string> {
+  async upload(blob: Blob, path: string, onProgress?: (f: number) => void, signal?: AbortSignal): Promise<string> {
+    const cancelled = () => new LinkError('Upload cancelled.', 'network');
     const zip = await gzipped(blob);
     const wire = zip ?? blob;
     const direct = await offerDirectUpload();
+    if (signal?.aborted) {
+      direct?.close();
+      throw cancelled();
+    }
     let start: { uploadId: string; sdp?: string };
     try {
       start = await this.call('bridge.upload_start', { path, size: blob.size, wire: wire.size, zipped: !!zip, sdp: direct?.sdp ?? '' }, 15_000);
     } catch (e) {
       direct?.close();
       // A bridge from before zipped uploads.
-      if (e instanceof LinkError && e.message.startsWith('Unknown bridge call')) return this.uploadAsIs(blob, path, onProgress);
+      if (e instanceof LinkError && e.message.startsWith('Unknown bridge call')) return this.uploadAsIs(blob, path, onProgress, signal);
       throw e;
     }
     const { uploadId } = start;
-    const progress = (sent: number) => onProgress?.(Math.min(1, sent / Math.max(1, wire.size)));
-    if (direct && start.sdp) {
-      try {
-        return await direct.send(start.sdp, wire, progress);
-      } catch (e) {
-        if (e instanceof DirectUploadRefused) throw new LinkError(e.message, 'bridge');
-        // The link didn't connect or dropped: carry on over the relay from what arrived.
-      } finally {
-        direct.close();
+    // Stopping: the bridge drops the upload, so Moonraker gets an incomplete file and keeps nothing.
+    const stop = () => {
+      direct?.close();
+      this.call('bridge.upload_cancel', { uploadId }, 5000).catch(() => {});
+    };
+    signal?.addEventListener('abort', stop, { once: true });
+    try {
+      if (signal?.aborted) {
+        // Stopped while the bridge was opening it.
+        stop();
+        throw cancelled();
       }
-    } else direct?.close();
-    let { received } = await this.call<{ received: number }>('bridge.upload_resume', { uploadId });
-    const binary = (await this.relayInfo()).binary === true;
-    const piece = binary ? UPLOAD_PIECE : UPLOAD_CHUNK;
-    while (received < wire.size) {
-      const bytes = new Uint8Array(await wire.slice(received, received + piece).arrayBuffer());
-      const params = { uploadId, offset: received };
-      if (binary) await this.call('bridge.upload_piece', params, 120_000, bytes);
-      else await this.call('bridge.upload_chunk', { ...params, data: toBase64(bytes) }, 60_000);
-      received += bytes.length;
-      progress(received);
+      const progress = (sent: number) => onProgress?.(Math.min(1, sent / Math.max(1, wire.size)));
+      if (direct && start.sdp) {
+        try {
+          return await direct.send(start.sdp, wire, progress);
+        } catch (e) {
+          if (signal?.aborted) throw cancelled();
+          if (e instanceof DirectUploadRefused) throw new LinkError(e.message, 'bridge');
+          // The link didn't connect or dropped: carry on over the relay from what arrived.
+        } finally {
+          direct.close();
+        }
+      } else direct?.close();
+      let { received } = await this.call<{ received: number }>('bridge.upload_resume', { uploadId });
+      const binary = (await this.relayInfo()).binary === true;
+      const piece = binary ? UPLOAD_PIECE : UPLOAD_CHUNK;
+      while (received < wire.size) {
+        if (signal?.aborted) throw cancelled();
+        const bytes = new Uint8Array(await wire.slice(received, received + piece).arrayBuffer());
+        const params = { uploadId, offset: received };
+        if (binary) await this.call('bridge.upload_piece', params, 120_000, bytes);
+        else await this.call('bridge.upload_chunk', { ...params, data: toBase64(bytes) }, 60_000);
+        received += bytes.length;
+        progress(received);
+      }
+      if (signal?.aborted) throw cancelled();
+      const done = await this.call<{ path: string }>('bridge.upload_end', { uploadId }, 300_000);
+      return done.path;
+    } catch (e) {
+      throw signal?.aborted ? cancelled() : e;
+    } finally {
+      signal?.removeEventListener('abort', stop);
     }
-    const done = await this.call<{ path: string }>('bridge.upload_end', { uploadId }, 300_000);
-    return done.path;
   }
 
   /** The file as it is, in base64 chunks, one at a time: for a bridge from before zipped uploads. */
-  private async uploadAsIs(blob: Blob, path: string, onProgress?: (f: number) => void): Promise<string> {
+  private async uploadAsIs(blob: Blob, path: string, onProgress?: (f: number) => void, signal?: AbortSignal): Promise<string> {
     const { uploadId } = await this.call<{ uploadId: string }>('bridge.upload_begin', { path, size: blob.size });
     for (let offset = 0; offset < blob.size || offset === 0; offset += UPLOAD_CHUNK) {
+      // Such a bridge drops the half-sent file when this browser leaves.
+      if (signal?.aborted) throw new LinkError('Upload cancelled.', 'network');
       const bytes = new Uint8Array(await blob.slice(offset, offset + UPLOAD_CHUNK).arrayBuffer());
       await this.call('bridge.upload_chunk', { uploadId, offset, data: toBase64(bytes) });
       onProgress?.(Math.min(1, (offset + bytes.length) / Math.max(1, blob.size)));
