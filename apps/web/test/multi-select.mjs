@@ -245,22 +245,29 @@ try {
   if (shots) await phone.screenshot({ path: join(shots, 'choosing-phone.png') });
   const box = await phone.locator('canvas').first().boundingBox();
   // A one-finger drag from an empty corner draws a rectangle while choosing; over nothing, nothing changes.
-  // Up the left edge, away from the bar at the bottom: a drag there and then a tap on Done is a double tap.
   const cdp = await phone.context().newCDPSession(phone);
   const touch = (type, x, y) => cdp.send('Input.dispatchTouchEvent', { type, touchPoints: type === 'touchEnd' ? [] : [{ x: box.x + x, y: box.y + y }] });
-  // The first spot down the left edge where the 3D view itself is (the top bar covers its top).
-  let y0 = 0;
-  for (let y = 30; y < box.height / 2 && !y0; y += 10) {
-    if (await phone.evaluate(([x, y]) => document.elementFromPoint(x, y)?.tagName === 'CANVAS', [box.x + 8, box.y + y])) y0 = y;
-  }
-  await touch('touchStart', 8, y0);
-  await touch('touchMove', 20, y0 + 10);
-  await touch('touchMove', 30, y0 + 20);
-  if (!y0) fail('no free spot on the left edge of the 3D view');
+  // A spot of the 3D view itself far from the models in the middle (bars and buttons cover parts of it).
+  const spot = await phone.evaluate((b) => {
+    let best = null;
+    for (let y = b.y + 10; y < b.y + b.height - 30; y += 10)
+      for (let x = b.x + 10; x < b.x + b.width - 30; x += 10) {
+        const free = [0, 20].every((d) => document.elementFromPoint(x + d, y + d)?.tagName === 'CANVAS');
+        const far = Math.hypot(x - (b.x + b.width / 2), y - (b.y + b.height / 2));
+        if (free && (!best || far > best.far)) best = { x: x - b.x, y: y - b.y, far };
+      }
+    return best;
+  }, box);
+  if (!spot)
+    fail(`no free spot in the 3D view; over its middle: ${await phone.evaluate((b) => { const e = document.elementFromPoint(b.x + b.width / 2, b.y + b.height / 2); return `${e?.tagName}.${e?.className}`; }, box)}`);
+  const [sx, sy] = spot ? [spot.x, spot.y] : [8, 30];
+  await touch('touchStart', sx, sy);
+  await touch('touchMove', sx + 10, sy + 10);
+  await touch('touchMove', sx + 20, sy + 20);
   await phone
     .getByTestId('select-rect')
     .waitFor({ timeout: 5000 })
-    .catch(() => fail(`a drag on empty space while choosing should draw a rectangle (from y ${y0})`));
+    .catch(() => fail(`a drag on empty space while choosing should draw a rectangle (from ${sx}, ${sy})`));
   await touch('touchEnd');
   // A tap straight after another touch can count as a double tap, which gives no click.
   await phone.waitForTimeout(500);
