@@ -12,7 +12,9 @@ hosted on Cloudflare's free tier.
 
 - **Slices like desktop Snapmaker Orca 2.4.0**, because it is the same engine: STL, OBJ,
   AMF and 3MF projects, Bambu Studio 3MF files with painted colours, per-part filaments,
-  multi-plate projects. Plate thumbnails go into the G-code, like desktop.
+  multi-plate projects. Plate thumbnails go into the G-code, like desktop. Each plate keeps
+  its own slice: pick another plate while one slices (it shows at once and the slice goes on,
+  then "Plate N sliced · View"), and Preview has the plate tabs too.
 - **Every printer brand the engine ships** (55 in Snapmaker Orca, 63 in OrcaSlicer, with
   their filaments and processes), with a first-run setup wizard (like Orca's) to pick the
   printers and filaments you have: search, pictures, and a "Direct print" mark on the
@@ -462,6 +464,7 @@ Browser end to end tests (Playwright's Chromium) run against the built site
 | `test/busy.mjs` | The loading screen while Clone with Arrange runs, and every copy landing on the plate |
 | `test/preview-views.mjs` | The Preview's colour key: grams and filament changes match the G-code, every view draws its scale, a tapped line type hides and comes back, and on a phone the key sits above the model |
 | `test/cancel.mjs` | Cancel stops the slice in the engine, and a change while slicing drops its result |
+| `test/plate-switch.mjs` | Picking another plate while one slices shows it at once and keeps the slice; each plate keeps its slice in Prepare and Preview |
 | `test/restart.mjs` | After an engine crash (mid-slice or after), the engine restarts and reopens the project |
 | `test/heavy.mjs` | A model with over a million triangles offers Simplify, which brings it to about half a million |
 | `test/device-smoke.mjs` | Device tab through relay and bridge to a mock U1, and direct to a mock Klipper printer |

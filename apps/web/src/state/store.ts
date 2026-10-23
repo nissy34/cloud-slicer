@@ -86,11 +86,14 @@ export type Job =
   | { kind: 'idle' }
   /** label: what the loading screen says, when not "Opening <name>". */
   | { kind: 'loading'; name: string; label?: string }
-  | { kind: 'slicing'; pct: number; stage: string }
-  /** outdated: the plate's layer items (pauses...) changed after this slice, so the G-code lacks them. */
-  | { kind: 'sliced'; plate: number; result: SliceResult; gcode: Blob; ms: number; outdated?: boolean }
+  /** plate: the plate being sliced, which may no longer be the plate shown. */
+  | { kind: 'slicing'; plate: number; pct: number; stage: string }
+  | SlicedJob
   /** inTool: it came from the open tool (or paint), so it shows in the tool's card and goes when the tool closes. */
   | { kind: 'error'; message: string; inTool?: boolean };
+
+/** outdated: the plate's layer items (pauses...) changed after this slice, so the G-code lacks them. */
+export type SlicedJob = { kind: 'sliced'; plate: number; result: SliceResult; gcode: Blob; ms: number; outdated?: boolean };
 
 export interface SlicerState {
   tab: Tab;
@@ -137,7 +140,15 @@ export interface SlicerState {
   choosing: boolean;
   /** The menu of the group (right click or long press on a chosen model), at (x, y) on the page. */
   groupMenu: { x: number; y: number; form?: 'clone' } | null;
+  /** What the page is doing, or the shown plate's slice (job.plate is then always the plate shown). */
   job: Job;
+  /**
+   * Each plate's slice, as on desktop: picking another plate keeps them, and
+   * Preview shows the picked plate's. Any change to what would be sliced drops them all.
+   */
+  slices: Record<number, SlicedJob>;
+  /** A plate whose slice finished while another plate was shown, for the "Plate N sliced · View" link. */
+  slicedAway: number | null;
   notice: string;
   /** The notice is a problem to fix, not just information. */
   noticeWarn: boolean;
@@ -309,6 +320,8 @@ export interface SlicerState {
    */
   switchProject(to: EngineFlavor): Promise<void>;
   setPlate(plate: number): Promise<void>;
+  /** Shows a plate's slice in Preview (the "Plate N sliced · View" link). */
+  viewSlice(plate: number): Promise<void>;
   select(sel: { object: number; instance: number; volume?: number } | null): void;
   /** Chooses these objects on this plate: none clears, one selects it, several make a group. */
   choose(objects: number[]): void;
@@ -581,6 +594,8 @@ export const useSlicer = create<SlicerState>((set, get) => {
     engine: 'starting',
     engineLoad: { stage: 'download', loaded: 0, total: 0 },
     job: { kind: 'idle' },
+    slices: {},
+    slicedAway: null,
     project: null,
     preview: null,
     selected: null, tool: null, paint: null, overlay: null, layers: null, brim: null, brimPicked: [],
@@ -664,16 +679,42 @@ export const useSlicer = create<SlicerState>((set, get) => {
   let towerRun = 0;
   async function refreshTower() {
     const run = ++towerRun;
-    const { project, plate, job } = get();
+    const { project, plate } = get();
     if (!project?.plates[plate]?.objects.length) return set({ wipeTower: null });
-    const sliced = job.kind === 'sliced' && job.plate === plate ? job.result.wipeTowerDepth : undefined;
+    const kept = keptTower(plate);
+    if (kept !== undefined) return set({ wipeTower: kept });
+    // Another plate's tower doesn't stay up while the engine is busy (slicing).
+    if (get().wipeTower && towerShown !== plate) set({ wipeTower: null });
     try {
-      const tower = await engine().wipeTower(plate, engineOverrides(), sliced);
-      if (run === towerRun) set({ wipeTower: tower.show ? tower : null });
+      const tower = await plateTower(plate);
+      if (run === towerRun) {
+        towerShown = plate;
+        set({ wipeTower: tower });
+      }
     } catch (e) {
       console.warn('Prime tower:', e);
       if (run === towerRun) set({ wipeTower: null });
     }
+  }
+  // Like the plate pictures: each plate's tower, kept while what it was worked out from is the same.
+  let towerShown = -1;
+  type ShownTower = SlicerState['wipeTower'];
+  const plateTowers = new Map<number, { e: EngineClient; key: string; tower: ShownTower }>();
+  const towerKey = (plate: number) => {
+    const slice = get().slices[plate];
+    return JSON.stringify([client?.changes, slice?.result.wipeTowerDepth, engineOverrides()]);
+  };
+  const keptTower = (plate: number) => {
+    const kept = plateTowers.get(plate);
+    return kept && kept.e === client && kept.key === towerKey(plate) ? kept.tower : undefined;
+  };
+  async function plateTower(plate: number) {
+    const e = engine();
+    const key = towerKey(plate);
+    const tower = await e.wipeTower(plate, engineOverrides(), get().slices[plate]?.result.wipeTowerDepth);
+    const shown: ShownTower = tower.show ? tower : null;
+    if (e === client && towerKey(plate) === key) plateTowers.set(plate, { e, key, tower: shown });
+    return shown;
   }
   // Coalesced: one look after a burst of changes.
   let towerQueued = false;
@@ -722,13 +763,17 @@ export const useSlicer = create<SlicerState>((set, get) => {
 
   // Anything that changes what would be sliced makes the last result stale,
   // and, as on desktop, stops a slice that is running.
+  // Every plate's slice goes, not just the shown one's.
   const stale = (): Partial<SlicerState> => {
     const { kind } = get().job;
-    if (kind === 'sliced') return { job: { kind: 'idle' } };
-    if (kind !== 'slicing') return {};
+    const dropped = { slices: {}, slicedAway: null };
+    if (kind === 'sliced') return { ...dropped, job: { kind: 'idle' } };
+    if (kind !== 'slicing') return dropped;
     stopSlice();
-    return { job: { kind: 'idle' }, notice: 'Slicing stopped because something changed. Slice again when ready.', noticeWarn: false };
+    return { ...dropped, job: { kind: 'idle' }, notice: 'Slicing stopped because something changed. Slice again when ready.', noticeWarn: false };
   };
+  // The shown plate's slice, or idle: what job goes back to when nothing runs.
+  const shownSlice = (plate = get().plate): Job => get().slices[plate] ?? { kind: 'idle' };
 
   async function start() {
     const e = engine();
@@ -825,17 +870,39 @@ export const useSlicer = create<SlicerState>((set, get) => {
     return pickFilamentPreset(mine ? installed : filaments, type, fallback, source);
   }
 
-  async function refreshPreview(info?: ProjectInfo) {
+  // keep: only another plate was picked, which changes nothing a slice makes.
+  async function refreshPreview(info?: ProjectInfo, keep = false) {
     const e = engine();
     const project = info ?? (await e.modelInfo());
     const plate = Math.min(get().plate, Math.max(0, project.plates.length - 1));
-    const preview = project.objects.length ? await e.preview(plate) : null;
+    const preview = project.objects.length ? await platePreview(e, plate) : null;
     const paint = get().paint;
     const overlay = paint && paint.kind !== 'color' && project.objects.length ? await e.paintOverlay(plate, paint.kind) : null;
     const heavy = triangleCounts?.length === project.objects.length ? plateHeavy(project, plate) : null;
+    // A plate picked meanwhile wins (its picture may have been kept, so it came first).
+    if (keep && get().plate !== plate) return;
     // Chosen objects that left the plate, or the project, are no longer chosen.
     const group = get().group.filter((o) => project.plates[plate]?.objects.includes(o));
-    set({ project, plate, preview, overlay, heavy, ...stale(), ...(group.length !== get().group.length ? { group: group.length > 1 ? group : [] } : {}) });
+    set({ project, plate, preview, overlay, heavy, ...(keep ? {} : stale()), ...(group.length !== get().group.length ? { group: group.length > 1 ? group : [] } : {}) });
+  }
+
+  // The plates' pictures as the engine last drew them, so picking a plate shows
+  // it at once, even while the engine is busy slicing another one (it does one
+  // thing at a time). A picture is current while the engine and its edit count are.
+  const pictures = new Map<number, { e: EngineClient; changes: number; mesh: PreviewMesh }>();
+  const keptPicture = (plate: number) => {
+    const kept = pictures.get(plate);
+    return kept && kept.e === client && kept.changes === client.changes ? kept.mesh : null;
+  };
+  async function platePreview(e: EngineClient, plate: number) {
+    const kept = keptPicture(plate);
+    if (kept) return kept;
+    const changes = e.changes;
+    const mesh = await e.preview(plate);
+    if (e.changes !== changes) return mesh;
+    for (const [p, old] of pictures) if (old.e !== e || old.changes !== changes) pictures.delete(p);
+    pictures.set(plate, { e, changes, mesh });
+    return mesh;
   }
 
   // A model with millions of triangles can need more memory to slice than a
@@ -1151,6 +1218,8 @@ export const useSlicer = create<SlicerState>((set, get) => {
     choosing: false,
     groupMenu: null,
     job: { kind: 'idle' },
+    slices: {},
+    slicedAway: null,
     notice: '',
     noticeWarn: false,
     heavy: null,
@@ -1568,10 +1637,27 @@ export const useSlicer = create<SlicerState>((set, get) => {
         return engine().clear();
       }),
 
+    // Only what is shown changes: each plate keeps its slice, and a slice
+    // running on another plate goes on.
     async setPlate(plate) {
       clearError(true);
-      set({ plate, selected: null, group: [], tool: null });
-      await refreshPreview(get().project ?? undefined);
+      const { job, slicedAway } = get();
+      const kept = keptPicture(plate);
+      set({
+        plate,
+        selected: null,
+        group: [],
+        tool: null,
+        ...(kept && { preview: kept }),
+        ...(job.kind === 'idle' || job.kind === 'sliced' ? { job: shownSlice(plate) } : {}),
+        ...(slicedAway === plate && { slicedAway: null }),
+      });
+      await refreshPreview(get().project ?? undefined, true);
+    },
+    async viewSlice(plate) {
+      const shown = get().setPlate(plate);
+      get().setTab('preview');
+      await shown;
     },
     // Measure and Assemble work on every part on the plate, so they stay open without a selection.
     select: (selected) => {
@@ -1797,7 +1883,12 @@ export const useSlicer = create<SlicerState>((set, get) => {
         const filaments = get().palette.length || (get().selection?.colours.length ?? 1);
         const { info } = await e.plateAction(job.plate, { op: 'layerCodes', codes, filaments });
         const now = get().job;
-        set({ project: info, job: now.kind === 'sliced' ? { ...now, outdated: true } : now });
+        const outdated = get().slices[job.plate];
+        set({
+          project: info,
+          job: now.kind === 'sliced' && now.plate === job.plate ? { ...now, outdated: true } : now,
+          ...(outdated && { slices: { ...get().slices, [job.plate]: { ...outdated, outdated: true } } }),
+        });
       } catch (err) {
         if (remembered) set({ history: await e.dropSnapshot().catch(() => get().history) });
         fail(err);
@@ -2078,7 +2169,11 @@ export const useSlicer = create<SlicerState>((set, get) => {
       if (get().mixes.some((m) => m.enabled && !m.compatible))
         return fail(new Error('Mixed filaments contain incompatible material types. Please correct the mixed filaments settings before slicing.'));
       const run = ++sliceRun;
-      set({ job: { kind: 'slicing', pct: 0, stage: '' }, notice: '' });
+      // Slicing a plate again replaces its old slice (a cancel leaves it unsliced, as before).
+      const { [plate]: _old, ...others } = get().slices;
+      set({ job: { kind: 'slicing', plate, pct: 0, stage: '' }, slices: others, notice: '', slicedAway: null });
+      // The plate's pictures now, before another plate can be picked.
+      const thumbnails = plateThumbnails();
       // For the G-code step's percentage (lib/slice-progress).
       const config = { ...get().baseConfig, ...get().overrides };
       const onPlate = project.plates[plate]?.objects ?? [];
@@ -2098,13 +2193,28 @@ export const useSlicer = create<SlicerState>((set, get) => {
           saved3mf = { file: new File([bytes], `${project.fileName.replace(/\.\w+$/, '') || 'project'}.3mf`), edits: e.projectEdits };
           if (run !== sliceRun) return;
         }
-        const { result, gcode, ms } = await engine().slice(plate, engineOverrides(), plateThumbnails(), (pct, stage) => {
+        // The other plates' pictures and towers first, so they show at once
+        // when picked while this one slices (the engine does one thing at a time).
+        for (const [p, { objects }] of project.plates.entries()) {
+          if (p === plate || !objects.length) continue;
+          if (!keptPicture(p)) await platePreview(e, p);
+          if (keptTower(p) === undefined) await plateTower(p).catch(() => null);
+          if (run !== sliceRun) return;
+        }
+        const { result, gcode, ms } = await engine().slice(plate, engineOverrides(), thumbnails, (pct, stage) => {
           const job = get().job;
-          if (run === sliceRun && job.kind === 'slicing') set({ job: { kind: 'slicing', pct: slicePercent(job.pct, pct, stage, layers), stage } });
+          if (run === sliceRun && job.kind === 'slicing') set({ job: { ...job, pct: slicePercent(job.pct, pct, stage, layers), stage } });
         });
         if (run !== sliceRun) return;
         triangleCounts = null;
-        set({ job: { kind: 'sliced', plate, result, gcode: new Blob([gcode], { type: 'text/plain' }), ms }, notice: '', heavy: null });
+        const sliced: SlicedJob = { kind: 'sliced', plate, result, gcode: new Blob([gcode], { type: 'text/plain' }), ms };
+        const slices = { ...get().slices, [plate]: sliced };
+        if (get().plate !== plate) {
+          // Another plate was picked meanwhile: stay on it, with a link to this one.
+          set({ slices, job: shownSlice(), slicedAway: plate, notice: '' });
+          return;
+        }
+        set({ slices, job: sliced, notice: '', heavy: null });
         // Like desktop Orca: show the result as soon as slicing finishes.
         get().setTab('preview');
       } catch (e) {
@@ -2114,7 +2224,7 @@ export const useSlicer = create<SlicerState>((set, get) => {
         // Another slicer's G-code this engine can't fill in: ask whether to use the printer's own.
         const fromFile = foreignGcode && gcodeErrors(message).some((f) => f.key in foreignGcode!.values);
         if (fromFile && fallBackGcode(get().overrides, foreignGcode!.values).dropped) {
-          set({ job: { kind: 'idle' }, gcodeFallback: { app: foreignGcode!.app, printer: get().selection?.printer ?? 'this printer', error } });
+          set({ job: shownSlice(), gcodeFallback: { app: foreignGcode!.app, printer: get().selection?.printer ?? 'this printer', error } });
           return;
         }
         // Custom G-code the engine can't fill in: which one, which line, which variable.
@@ -2131,7 +2241,7 @@ export const useSlicer = create<SlicerState>((set, get) => {
     cancelSlice() {
       if (get().job.kind !== 'slicing') return;
       stopSlice();
-      set({ job: { kind: 'idle' }, notice: 'Slicing cancelled.', noticeWarn: false });
+      set({ job: shownSlice(), notice: 'Slicing cancelled.', noticeWarn: false });
     },
   };
 });

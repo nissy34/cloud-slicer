@@ -1321,6 +1321,17 @@ select:focus-visible {
   border-color: var(--accent);
   font-weight: 600;
 }
+/* Preview has no toolbar above the plates; with nothing sliced they sit above the message. */
+.preview .plate-tabs {
+  top: 12px;
+  z-index: 2;
+}
+.coming-soon .plate-tabs {
+  position: static;
+  justify-content: center;
+  max-width: none;
+  margin-bottom: 16px;
+}
 
 /* Fit all and the views menu, in the bottom right corner of a 3D view. */
 .view-buttons {
@@ -2100,6 +2111,11 @@ select:focus-visible {
     max-width: calc(100% - 76px);
     top: auto;
     bottom: 12px;
+  }
+  /* Above the layer slider, as the view buttons are. */
+  .preview .plate-tabs {
+    top: auto;
+    bottom: 64px;
   }
   .view-buttons {
     right: 8px;

@@ -1598,7 +1598,8 @@ function Objects({ w, d }: { w: number; d: number }) {
   );
 }
 
-function PlateTabs() {
+/** The plates to pick from, on Prepare and Preview alike (each plate keeps its own slice). */
+export function PlateTabs() {
   const project = useSlicer((s) => s.project);
   const plate = useSlicer((s) => s.plate);
   const setPlate = useSlicer((s) => s.setPlate);

@@ -23,7 +23,7 @@ describe('loadingState', () => {
 
   it('is gone when idle, slicing, or the engine failed', () => {
     expect(loadingState('ready', ready, idle, null)).toBeNull();
-    expect(loadingState('ready', ready, { kind: 'slicing', pct: 10, stage: '' }, null)).toBeNull();
+    expect(loadingState('ready', ready, { kind: 'slicing', plate: 0, pct: 10, stage: '' }, null)).toBeNull();
     expect(loadingState('failed', ready, idle, null)).toBeNull();
   });
 });
