@@ -37,6 +37,8 @@ type upload struct {
 	mu       sync.Mutex
 	// direct is the upload's own WebRTC link while it may still send pieces.
 	direct *webrtc.PeerConnection
+	// cancel stops the request to Moonraker, even once every byte has arrived here.
+	cancel context.CancelFunc
 }
 
 type uploadResult struct {
@@ -113,7 +115,8 @@ func (s *Session) uploadStart(p uploadParams) (any, error) {
 	}
 	id := randomID(8, func(b []byte) string { return fmt.Sprintf("%x", b) })
 	r, w := io.Pipe()
-	up := &upload{name: path, size: size, wire: wire, w: w, done: make(chan uploadResult, 1)}
+	ctx, cancel := context.WithCancel(s.ctx)
+	up := &upload{name: path, size: size, wire: wire, w: w, done: make(chan uploadResult, 1), cancel: cancel}
 	s.uploads[id] = up
 	s.mu.Unlock()
 
@@ -126,8 +129,9 @@ func (s *Session) uploadStart(p uploadParams) (any, error) {
 	// Content-Length is the unzipped size: Go's client refuses a body that
 	// unzips to more or less, so a damaged or oversized zip can't reach the printer.
 	body := io.MultiReader(strings.NewReader(head), file, strings.NewReader(tail))
-	req, err := http.NewRequestWithContext(s.ctx, http.MethodPost, s.printer.URL+"/server/files/upload", body)
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, s.printer.URL+"/server/files/upload", body)
 	if err != nil {
+		cancel()
 		s.forget(id)
 		return nil, err
 	}
@@ -135,6 +139,7 @@ func (s *Session) uploadStart(p uploadParams) (any, error) {
 	req.Header.Set("Content-Type", "multipart/form-data; boundary="+boundary)
 	s.keyFor(req)
 	go func() {
+		defer cancel()
 		res, err := http.DefaultClient.Do(req)
 		if err != nil {
 			r.CloseWithError(err)
@@ -157,9 +162,9 @@ func (s *Session) uploadStart(p uploadParams) (any, error) {
 		}
 		_ = json.NewDecoder(res.Body).Decode(&out)
 		if res.StatusCode >= 300 {
-			msg := out.Error.Message
-			if msg == "" {
-				msg = fmt.Sprintf("Upload failed: HTTP %d", res.StatusCode)
+			msg := fmt.Sprintf("The printer refused the file (HTTP %d).", res.StatusCode)
+			if why := strings.TrimSuffix(strings.TrimSpace(out.Error.Message), "."); why != "" {
+				msg = fmt.Sprintf("The printer refused the file: %s (HTTP %d).", why, res.StatusCode)
 			}
 			// Moonraker answered early: stop whoever is still writing chunks.
 			r.CloseWithError(errors.New(msg))
@@ -258,12 +263,27 @@ func (s *Session) uploadResume(id string) (any, error) {
 	return map[string]any{"received": received}, nil
 }
 
+// uploadCancel answers bridge.upload_cancel: the browser stopped the upload.
+// Moonraker gets an incomplete file and keeps nothing.
+func (s *Session) uploadCancel(id string) (any, error) {
+	up, err := s.getUpload(id)
+	if err != nil {
+		// Already finished or gone: nothing to stop.
+		return map[string]any{"ok": true}, nil
+	}
+	s.forget(id)
+	up.abort(errors.New("upload cancelled"))
+	s.debug(fmt.Sprintf("Upload %s: cancelled", up.name))
+	return map[string]any{"ok": true}, nil
+}
+
 func (s *Session) uploadEnd(id string) (any, error) {
 	up, err := s.getUpload(id)
 	if err != nil {
 		return nil, err
 	}
-	s.forget(id)
+	// Kept until the printer answers, so Cancel can still stop it.
+	defer s.forget(id)
 	return up.finish()
 }
 
@@ -311,6 +331,8 @@ func (up *upload) failure(err error) error {
 func (up *upload) abort(err error) {
 	// First: a write waiting on Moonraker holds up.mu until this frees it.
 	up.w.CloseWithError(err)
+	// And the request itself, which may already have every byte.
+	up.cancel()
 	up.mu.Lock()
 	pc := up.direct
 	up.direct = nil
@@ -364,9 +386,10 @@ func (s *Session) uploadDirect(id string, up *upload, sdp string) (string, error
 			if !last {
 				return
 			}
-			s.forget(id)
 			s.debug(fmt.Sprintf("Upload %s: %d bytes over the direct link", up.name, up.received))
 			go func() {
+				// Kept until the printer answers, so Cancel can still stop it.
+				defer s.forget(id)
 				res, err := up.finish()
 				if err != nil {
 					answer(map[string]any{"error": err.Error()})

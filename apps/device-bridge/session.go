@@ -311,6 +311,12 @@ func (s *Session) local(msg rpc) (any, error) {
 		var p uploadParams
 		_ = json.Unmarshal(msg.Params, &p)
 		return s.uploadStart(p)
+	case "bridge.upload_cancel":
+		var p struct {
+			UploadID string `json:"uploadId"`
+		}
+		_ = json.Unmarshal(msg.Params, &p)
+		return s.uploadCancel(p.UploadID)
 	case "bridge.upload_resume":
 		var p struct {
 			UploadID string `json:"uploadId"`

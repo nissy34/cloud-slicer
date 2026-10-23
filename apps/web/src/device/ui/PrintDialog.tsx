@@ -25,6 +25,7 @@ export function PrintDialog({ source }: { source: SendSource }) {
   const activeId = useDevice((s) => s.activeId);
   const printer = printers.find((p) => p.id === activeId);
   const upload = useDevice((s) => s.upload);
+  const sendError = useDevice((s) => s.sendError);
   const close = () => useDevice.getState().openPrintDialog(null);
   const go = useDevice((s) => s.uploadAndMaybePrint);
   const isU1 = addons.some((a) => a.id === 'u1');
@@ -93,12 +94,18 @@ export function PrintDialog({ source }: { source: SendSource }) {
       wide={isU1}
       footer={
         <>
+          {sendError && !busy && (
+            <p className="dv-alert dv-send-error" role="alert" data-testid="send-error">
+              {sendError}
+            </p>
+          )}
           {uploading && (
             <span className="dv-upload" aria-live="polite">
               <progress max={1} value={upload.fraction} /> Uploading {Math.round(upload.fraction * 100)}%
             </span>
           )}
-          <button className="secondary" onClick={close} disabled={busy}>
+          {/* While the file goes up, Cancel stops it; once it's starting a print, it waits. */}
+          <button className="secondary" onClick={uploading ? () => useDevice.getState().cancelUpload() : close} disabled={busy && !uploading} data-testid="send-cancel">
             Cancel
           </button>
           {source.kind === 'upload' && (

@@ -4802,6 +4802,13 @@ select:focus-visible {
 .dv-print-facts {
   margin: 8px 0 0;
 }
+/* Why the send failed: a full line above the buttons, where the eye is. */
+.dv-send-error {
+  flex-basis: 100%;
+  margin: 0;
+  border-left-color: var(--danger);
+  overflow-wrap: anywhere;
+}
 .dv-upload {
   margin-right: auto;
   display: flex;

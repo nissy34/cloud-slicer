@@ -5,6 +5,9 @@ import (
 	"compress/gzip"
 	"encoding/binary"
 	"encoding/json"
+	"io"
+	"net/http"
+	"net/http/httptest"
 	"strings"
 	"testing"
 	"time"
@@ -191,4 +194,41 @@ func (f *fakeMoonraker) file(name string) string {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	return f.uploaded[name]
+}
+
+func TestCancelledUploadLeavesNothingOnThePrinter(t *testing.T) {
+	m := newFakeMoonraker(t)
+	s := newSession("c1", Printer{ID: "p", Name: "fake", URL: m.URL}, func(string) {}, func(string) {})
+	defer s.close()
+	id := startUpload(t, s, uploadParams{Path: "c.gcode", Size: 10})["uploadId"].(string)
+	if _, err := s.uploadPiece(id, 0, []byte("12345")); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.uploadCancel(id); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.uploadPiece(id, 5, []byte("67890")); err == nil {
+		t.Fatal("a piece after cancelling was accepted")
+	}
+	time.Sleep(50 * time.Millisecond)
+	if m.file("c.gcode") != "" {
+		t.Fatal("the printer kept a cancelled file")
+	}
+}
+
+func TestRefusedUploadSaysWhy(t *testing.T) {
+	refuse := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, _ = io.Copy(io.Discard, r.Body)
+		w.WriteHeader(http.StatusForbidden)
+		_, _ = w.Write([]byte(`{"error":{"code":403,"message":"Forbidden"}}`))
+	}))
+	defer refuse.Close()
+	s := newSession("c1", Printer{ID: "p", Name: "fake", URL: refuse.URL}, func(string) {}, func(string) {})
+	defer s.close()
+	id := startUpload(t, s, uploadParams{Path: "f.gcode", Size: 3})["uploadId"].(string)
+	_, _ = s.uploadPiece(id, 0, []byte("G28"))
+	_, err := s.uploadEnd(id)
+	if err == nil || err.Error() != "The printer refused the file: Forbidden (HTTP 403)." {
+		t.Fatalf("error %v", err)
+	}
 }
