@@ -314,7 +314,7 @@ export class EngineClient {
   layerHeights = (o: number, overrides: OrcaConfig, request: LayerRequest) =>
     this.call<LayerProfile>('layerHeights', [o, overrides, request]);
   /** Measure tool: the point, edge, circle or plane under a ray (`keep`: feature ids still in use). */
-  measureFeature = (plate: number, options: { ray: PaintRay; onlyPlane?: boolean; keep: number[] }) =>
+  measureFeature = (plate: number, options: { ray: PaintRay; onlyPlane?: boolean; keep: number[]; objects?: number[] }) =>
     this.call<MeasureFeature | null>('measureFeature', [plate, options]);
   measureBetween = (a: number, b: number) => this.call<Measurement>('measureBetween', [a, b]);
   assembleAction = (a: number, b: number, request: AssembleRequest) => this.call<AssembleResult & { info: ProjectInfo }>('assembleAction', [a, b, request]);

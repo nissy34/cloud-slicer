@@ -16,6 +16,7 @@ const pointOf = (f: MeasureFeature): Vec3 | null => (f.type === 'point' ? f.poin
 export function AssemblePanel() {
   const { hover, picks, result } = useSlicer((s) => s.measure);
   const mode = useSlicer((s) => s.assembleMode);
+  const pair = useSlicer((s) => s.group.length === 2);
   const { setTool, measureReset, setAssembleMode, assemble } = useSlicer.getState();
   const [working, setWorking] = useState(false);
   const run = async (request: Parameters<typeof assemble>[0]) => {
@@ -50,6 +51,7 @@ export function AssemblePanel() {
           : picks.length === 1
             ? `Now ${click.toLowerCase()} a ${what} on the part to move onto it.`
             : `${click} another ${what} to start again.`}
+        {pair && ' Only the two chosen objects can be picked.'}
       </p>
       {picks.map((f, i) => (
         <dl className={`measure-figures pick-${i + 1}`} key={`${i}-${f.id}`} aria-label={`Feature ${i + 1}`}>

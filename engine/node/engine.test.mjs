@@ -1797,3 +1797,39 @@ test('several objects chosen together: copy and paste as a block, arrange select
   for (const p of [c, d]) for (const q of still) assert.ok(Math.hypot(p[0] - q[0], p[1] - q[1]) >= 20, `clear of the others: ${p} ${q}`);
   assert.throws(() => plate(0, { op: 'arrangeSelection', objects: [9] }), /no object/);
 });
+
+test('assemble several chosen objects: one object, every part where it stood', () => {
+  select({ printer: DEFAULT_PRINTER, process: STANDARD });
+  const plate = (p, request) => call(engine, 'plateAction', p, JSON.stringify(request));
+  const move = (o, x, y) => call(engine, 'setInstanceTransform', o, 0, JSON.stringify({ offset: [x, y] }));
+  load('gen-cube-20.stl');
+  load('gen-cube-20.stl', 0, true);
+  load('gen-cube-20.stl', 0, true);
+  load('gen-cube-20.stl', 0, true);
+  move(0, 60, 60);
+  move(1, 100, 60);
+  move(2, 100, 120);
+  move(3, 200, 200);
+
+  // Assemble with objects chosen picks only on them: the ray passes through the others.
+  const down = (objects) => call(engine, 'measureFeature', 0, JSON.stringify({ ray: [70, 70, 100, 0, 0, -1], onlyPlane: true, objects })).feature;
+  assert.equal(down([0]).object, 0);
+  assert.equal(down([1, 2]), null);
+
+  // Three of the four: one "Assembly" of three parts, spanning where they stood; the fourth stays.
+  const out = plate(0, { op: 'assemble', items: [0, 1, 2].map((object) => ({ object, instance: 0 })) });
+  const objects = info().objects;
+  assert.equal(objects.length, 2);
+  assert.equal(out.object, 1);
+  assert.equal(objects[1].name, 'Assembly');
+  assert.equal(objects[1].volumes.length, 3);
+  const size = objects[1].size;
+  assert.ok(Math.abs(size[0] - 60) < 0.01 && Math.abs(size[1] - 80) < 0.01 && Math.abs(size[2] - 20) < 0.01, `spans the three cubes: ${size}`);
+  // The cubes' offsets are their corners (x 60..120, y 60..140 together); the assembly's is its middle.
+  const [x, y] = objects[1].instances[0].offset;
+  assert.ok(Math.abs(x - 90) < 0.01 && Math.abs(y - 100) < 0.01, `middle of the three: ${x} ${y}`);
+  assert.deepEqual(objects[0].instances[0].offset.slice(0, 2), [200, 200], 'the fourth stays put');
+
+  assert.throws(() => plate(0, { op: 'assemble', items: [{ object: 0, instance: 0 }] }), /at least two/);
+  assert.throws(() => plate(0, { op: 'assemble', items: [{ object: 9, instance: 0 }, { object: 0, instance: 0 }] }), /no object/);
+});

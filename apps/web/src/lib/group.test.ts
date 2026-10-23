@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { describe, expect, it } from 'vitest';
 import type { PreviewMesh, ProjectInfo } from '../engine/protocol';
-import { groupBox, groupChanges, itemsOnPlate, joinStl, toggled } from './group';
+import { firstCopies, groupBox, groupChanges, itemsOnPlate, joinStl, toggled } from './group';
 
 const inst = (plate: number, offset: [number, number, number], rotation: [number, number, number] = [0, 0, 0], scale: [number, number, number] = [1, 1, 1]) => ({
   plate,
@@ -32,6 +32,21 @@ describe('itemsOnPlate', () => {
       { object: 1, instance: 0 },
     ]);
     expect(itemsOnPlate(project, 1, [0, 1])).toEqual([{ object: 0, instance: 1 }]);
+  });
+});
+
+describe('firstCopies', () => {
+  it('keeps one copy of each object, the first', () => {
+    expect(
+      firstCopies([
+        { object: 2, instance: 1 },
+        { object: 0, instance: 0 },
+        { object: 2, instance: 3 },
+      ]),
+    ).toEqual([
+      { object: 2, instance: 1 },
+      { object: 0, instance: 0 },
+    ]);
   });
 });
 

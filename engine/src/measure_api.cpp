@@ -109,6 +109,8 @@ json featureJson(int id, int object, const SurfaceFeature& f, const Measure::Mea
 //   onlyPlane: pick whole planes only (desktop's "Select plane" mode)
 //   keep:      ids of features the page still uses; others are forgotten once
 //              they are no longer among the latest few
+//   objects:   only these objects' parts (Assemble on the chosen objects);
+//              the ray passes through the rest
 // Returns {ok, feature: {id, object, type, ...} | null}. Points, edges and
 // circles are in plate coordinates (mm); a plane has its normal, a point on it
 // and its triangles (9 floats each).
@@ -125,7 +127,8 @@ std::string measureFeature(int plate, const std::string& optionsJson) {
         const json& r = opt.at("ray");
         const Vec3d s(r[0].get<double>(), r[1].get<double>(), r[2].get<double>());
         const Vec3d dir = Vec3d(r[3].get<double>(), r[4].get<double>(), r[5].get<double>()).normalized();
-        const std::optional<engine::RayHit> hit = engine::castRay(plate, s, dir);
+        const std::vector<int> only = opt.value("objects", std::vector<int>{});
+        const std::optional<engine::RayHit> hit = engine::castRay(plate, s, dir, only);
         if (!hit) return json{{"ok", true}, {"feature", nullptr}}.dump();
 
         const Vec2d origin = engine::project().plateOrigin(plate);
@@ -294,38 +297,9 @@ void moveSecond(const Picked& a, const Picked& b, const Transform3d& t) {
 // ObjectList::merge(true), the object menu's Assemble: the two objects as the
 // parts of one new object, each part where it stood.
 int joinObjects(const Picked& a, const Picked& b) {
-    engine::Project& pr = engine::project();
     const Where wa = locate(a), wb = locate(b);
     if (wa.object == wb.object) throw std::runtime_error("both are on one object already");
-    ModelObject* joined = pr.model.add_object();
-    joined->name = "Assembly";
-    joined->add_instance();
-    for (const Where* w : {&wa, &wb}) {
-        const ModelObject* from = w->obj;
-        for (const ModelVolume* v : from->volumes) {
-            ModelVolume* nv = joined->add_volume(*v);  // keeps the part's id, so the picks follow it
-            nv->set_transformation(Geometry::Transformation(w->inst->get_matrix() * v->get_matrix()));
-            if (!nv->config.option("extruder"))
-                if (const ConfigOption* e = from->config.option("extruder")) nv->config.set_key_value("extruder", new ConfigOptionInt(e->getInt()));
-        }
-        for (const std::string& key : from->config.keys())
-            if (!joined->config.has(key)) joined->config.set_key_value(key, from->config.option(key)->clone());
-        for (const auto& range : from->layer_config_ranges) joined->layer_config_ranges.emplace(range);
-    }
-    joined->sort_volumes(true);
-    joined->ensure_on_bed();
-    joined->center_around_origin();
-    joined->translate_instances(-joined->origin_translation);
-    joined->origin_translation = Vec3d::Zero();
-    // The picked copies leave their objects; an object with no other copy goes.
-    std::vector<int> gone;
-    for (const Where* w : {&wa, &wb}) {
-        if (w->obj->instances.size() == 1) gone.push_back(w->object);
-        else w->obj->delete_instance(size_t(std::find(w->obj->instances.begin(), w->obj->instances.end(), w->inst) - w->obj->instances.begin()));
-    }
-    std::sort(gone.rbegin(), gone.rend());
-    for (int o : gone) pr.model.delete_object(size_t(o));
-    return int(pr.model.objects.size()) - 1;
+    return engine::joinCopies({wa.inst, wb.inst});
 }
 
 // Desktop's Assemble on features a and b from measureFeature (two faces, or

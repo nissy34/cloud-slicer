@@ -47,7 +47,7 @@ import { mixSettings, palette as mixPalette, type MatchResult, type MixRecipe, t
 import { dropPlateTower, moveTower, towerOptions, towersFromConfig, type TowerSpot } from '../lib/wipe-tower';
 import { stlName, type ObjectAction } from '../lib/objectMenu';
 import type { PlateAction } from '../lib/plateMenu';
-import { groupBox, groupChanges, itemsOnPlate, joinStl, toggled, type GroupAction } from '../lib/group';
+import { firstCopies, groupBox, groupChanges, itemsOnPlate, joinStl, toggled, type GroupAction } from '../lib/group';
 import type { VolumeAction } from '../lib/volumes';
 import type { BooleanRequest } from '../lib/boolean';
 import type { TextStyle } from '../lib/fonts';
@@ -875,7 +875,9 @@ export const useSlicer = create<SlicerState>((set, get) => {
   const picking = () => get().tool === 'measure' || get().tool === 'assemble';
   const pickOptions = () => {
     const { tool, assembleMode, measure } = get();
-    return { onlyPlane: tool === 'assemble' ? assembleMode === 'faces' : measure.onlyPlane, keep: measure.picks.map((f) => f.id) };
+    // Assemble with two objects chosen picks on those two only, like desktop.
+    const only = tool === 'assemble' && get().group.length === 2 ? { objects: get().group } : {};
+    return { onlyPlane: tool === 'assemble' ? assembleMode === 'faces' : measure.onlyPlane, keep: measure.picks.map((f) => f.id), ...only };
   };
   const fits = (f: MeasureFeature | null) =>
     f && get().tool === 'assemble' && get().assembleMode === 'points' && f.type !== 'point' && f.type !== 'circle' ? null : f;
@@ -1670,6 +1672,14 @@ export const useSlicer = create<SlicerState>((set, get) => {
         }
         case 'arrange':
           return projectEdit('Arrange selection', async () => (await e.plateAction(plate, { op: 'arrangeSelection', objects: group })).info);
+        case 'assemble':
+          // Desktop's Assemble with several objects selected (ObjectList::merge):
+          // one new object, each part where it stood, picked.
+          return projectEdit('Assemble', async () => {
+            const { info, object } = await e.plateAction(plate, { op: 'assemble', items: firstCopies(items) });
+            if (object !== undefined) set({ group: [], selected: { object, instance: 0 } });
+            return info;
+          });
         case 'clone':
           await projectEdit('Clone', async () => {
             let info = project;

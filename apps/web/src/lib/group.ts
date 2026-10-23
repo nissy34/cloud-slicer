@@ -64,6 +64,11 @@ export function groupChanges(project: ProjectInfo, plate: number, items: Item[],
   });
 }
 
+/** One copy of each chosen object, the first on the plate: what Assemble joins. */
+export function firstCopies(items: Item[]): Item[] {
+  return items.filter((item, k) => items.findIndex((other) => other.object === item.object) === k);
+}
+
 /** Binary STLs as one: desktop's Export as one STL of several objects. */
 export function joinStl(files: ArrayBuffer[]): ArrayBuffer {
   const counts = files.map((f) => (f.byteLength >= 84 ? new DataView(f).getUint32(80, true) : 0));
@@ -89,4 +94,5 @@ export type GroupAction =
   | { op: 'copy' }
   | { op: 'clone'; count: number; arrange: boolean }
   | { op: 'exportStl' }
-  | { op: 'arrange' };
+  | { op: 'arrange' }
+  | { op: 'assemble' };

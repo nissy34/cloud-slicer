@@ -229,6 +229,27 @@ try {
   await waitObjects(page, 3);
   await page.getByRole('button', { name: 'Undo' }).click();
   await waitObjects(page, 6);
+
+  // Assemble: two chosen, the Assemble tool picks only on them; right-click → Assemble joins them into one object.
+  await page.keyboard.press('Escape');
+  await waitChosen(page, 0, 'Esc before Assemble');
+  await rows(page).nth(0).locator('.object-name').click();
+  await rows(page).nth(1).locator('.object-name').click({ modifiers: ['Control'] });
+  await waitChosen(page, 2, 'two for Assemble');
+  await page.getByRole('toolbar', { name: 'Object tools' }).getByRole('button', { name: 'Assemble', exact: true }).click();
+  await page.getByRole('region', { name: 'Assemble' }).getByText('Only the two chosen objects can be picked').waitFor();
+  await waitChosen(page, 2, 'the Assemble tool keeps both chosen');
+  await page.getByRole('region', { name: 'Assemble' }).getByRole('button', { name: 'Done' }).click();
+  await page.keyboard.press('Control+a');
+  await waitChosen(page, 6, 'Ctrl+A before Assemble');
+  await bar(page).getByRole('button', { name: 'What to do with them' }).click();
+  await page.getByRole('menu', { name: '6 objects menu' }).getByRole('menuitem', { name: 'Assemble' }).click();
+  await waitObjects(page, 1);
+  await page.locator('ul.objects .object-name', { hasText: 'Assembly' }).waitFor();
+  await waitChosen(page, 1, 'the assembly is picked');
+  if (shots) await page.screenshot({ path: join(shots, 'assembled-desktop.png') });
+  await page.getByRole('button', { name: 'Undo' }).click();
+  await waitObjects(page, 6);
   await page.close();
 
   // Phone: Choose several from the long-press menu, taps, a drag rectangle, the bar.
@@ -278,6 +299,10 @@ try {
     .getByRole('button', { name: 'Done' })
     .waitFor({ state: 'hidden', timeout: 10000 })
     .catch(() => fail('Done should end choosing'));
+  // The bar's Assemble joins all three.
+  await bar(phone).getByRole('button', { name: 'Assemble' }).tap();
+  await waitObjects(phone, 1);
+  await phone.waitForFunction(() => document.querySelector('ul.objects .object-name')?.textContent?.includes('Assembly'));
   const pageScroll = await phone.evaluate(() => document.documentElement.scrollWidth > window.innerWidth);
   if (pageScroll) fail('the page scrolls sideways on a phone');
 } catch (e) {
