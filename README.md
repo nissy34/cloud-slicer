@@ -71,7 +71,9 @@ hosted on Cloudflare's free tier.
   plate menu, a Shift+drag rectangle that takes what it touches, Alt+drag to take out, Esc to let
   go, Ctrl/Shift+click in the object list; on a phone "Choose several" in the long-press menu,
   then taps and a one-finger drag rectangle): move, rotate and scale work on all of them about
-  their middle, and their own menu (right click or long press a chosen one) changes filament,
+  their middle, and their own menu (right click or long press a chosen one) assembles them into
+  one object with each part where it stood (also on the chosen bar; with two chosen the Assemble
+  tool picks only on those two), changes filament,
   clones, copies (Ctrl+V pastes them as a block), centres, arranges only them, auto-orients,
   toggles Printable, exports them as one STL or deletes them,
   painting (colours, support and seam enforcers/blockers, fuzzy skin), desktop's plate

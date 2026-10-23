@@ -7000,11 +7000,25 @@ button.volume-name {
 .choose-bar button {
   padding: 4px 10px;
 }
+.choose-bar .choose-short {
+  display: none;
+}
 @media (max-width: 760px) {
   /* Clear of the view buttons in the right corner. */
   .choose-bar {
     left: 12px;
     transform: none;
     max-width: calc(100% - 76px);
+    gap: 4px;
+  }
+  /* Room for Assemble on a phone: "All" for Select all, narrower buttons. */
+  .choose-bar button {
+    padding: 4px 8px;
+  }
+  .choose-bar .choose-long {
+    display: none;
+  }
+  .choose-bar .choose-short {
+    display: inline;
   }
 }

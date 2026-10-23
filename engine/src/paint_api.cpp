@@ -10,6 +10,7 @@
 #include "libslic3r/AABBMesh.hpp"
 #include "libslic3r/TriangleSelector.hpp"
 
+#include <algorithm>
 #include <map>
 #include <memory>
 #include <optional>
@@ -41,12 +42,13 @@ const AABBMesh& treeOf(const ModelVolume& v) {
 }
 
 // Nearest part on `plate` hit by the ray from s along dir (plate coordinates).
-std::optional<RayHit> castRay(int plate, Vec3d s, const Vec3d& dir) {
+std::optional<RayHit> castRay(int plate, Vec3d s, const Vec3d& dir, const std::vector<int>& only) {
     Project& p = project();
     const Vec2d origin = p.plateOrigin(plate);
     s += Vec3d(origin.x(), origin.y(), 0);
     std::optional<RayHit> best;
     for (size_t o = 0; o < p.model.objects.size(); ++o) {
+        if (!only.empty() && std::find(only.begin(), only.end(), int(o)) == only.end()) continue;
         ModelObject* obj = p.model.objects[o];
         for (ModelInstance* inst : obj->instances) {
             if (p.plateOf(*inst) != plate) continue;

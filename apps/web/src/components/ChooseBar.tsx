@@ -15,9 +15,15 @@ export function ChooseBar() {
       <span className="choose-count" aria-live="polite">
         {count === 0 ? 'Tap models to choose them' : `${count} chosen`}
       </span>
-      <button className="ghost" onClick={selectAll}>
-        Select all
+      <button className="ghost" aria-label="Select all" onClick={selectAll}>
+        <span className="choose-long">Select all</span>
+        <span className="choose-short">All</span>
       </button>
+      {several && (
+        <button className="ghost" title="Join them into one object, each part where it stands" onClick={() => void useSlicer.getState().groupAction({ op: 'assemble' })}>
+          Assemble
+        </button>
+      )}
       {several && (
         <button
           className="ghost"
