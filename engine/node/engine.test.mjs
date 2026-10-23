@@ -186,6 +186,13 @@ test('the layer count is the G-code\'s, support layers included only once', () =
   assert.match(gcode, /^;TYPE:Support/m, 'the Benchy gets supports');
   const written = Number(/^; total layer number: (\d+)/m.exec(gcode)?.[1]);
   assert.equal(result.totalLayers, written, `summary ${result.totalLayers}, G-code ${written}`);
+  // Filament use split like desktop's Filament view: the model and its support.
+  const parts = result.filamentParts['1'];
+  assert.ok(parts.model.mm > 0 && parts.model.g > 0, JSON.stringify(result.filamentParts));
+  assert.ok(parts.support.mm > 0 && parts.support.g > 0, JSON.stringify(result.filamentParts));
+  assert.ok(!parts.tower && !parts.flushed, 'one filament: no tower, nothing flushed');
+  const sum = Object.values(parts).reduce((a, p) => a + p.mm, 0);
+  assert.ok(Math.abs(sum - result.filamentMm['1']) < 1, `parts ${sum} mm, filament ${result.filamentMm['1']} mm`);
 });
 
 test('slicing reports desktop\'s warnings: G-code path conflicts and models that need support', () => {
@@ -363,6 +370,13 @@ test('prime tower: shown and sized like desktop Prepare, sliced where it was pla
   assert.equal(at.y, 40);
   const { gcode, result } = slice(fullConfig(placed));
   assert.ok(result.wipeTowerDepth > 0, `sliced tower depth: ${result.wipeTowerDepth}`);
+  // Both filaments print part of the model and part of the tower.
+  for (const f of ['1', '2']) {
+    const parts = result.filamentParts[f];
+    assert.ok(parts?.model?.mm > 0 && parts?.tower?.mm > 0, JSON.stringify(result.filamentParts));
+    const sum = Object.values(parts).reduce((a, p) => a + p.mm, 0);
+    assert.ok(Math.abs(sum - result.filamentMm[f]) < 1, `filament ${f}: parts ${sum} mm, filament ${result.filamentMm[f]} mm`);
+  }
   const xs = [], ys = [];
   let inTower = false;
   for (const line of gcode.split('\n')) {

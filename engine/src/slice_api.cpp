@@ -274,7 +274,8 @@ std::string conflictText(const ConflictResult& c, const Print& print) {
 // presetsFullConfig plus edits) and write the G-code to outputPath.
 // Returns {success, cancelled, error, warnings (see Warnings), gcodePath, totalLayers,
 // estimatedTimeSeconds, filamentMm: {"<1-based filament>": mm}, totalFilamentMm,
-// totalFilamentGrams, objectsOutside, wipeTowerDepth (when it made a prime tower)}.
+// totalFilamentGrams, filamentParts: {"<1-based filament>": {model|support|tower|flushed:
+// {mm, g}}}, objectsOutside, wipeTowerDepth (when it made a prime tower)}.
 // `thumbnails` (optional) holds the plate pictures for the G-code; Orca's own
 // GCode export encodes and places them, in the formats `thumbnails` asks for.
 std::string sliceWithConfig(const std::string& configJson, int plate, const std::string& outputPath, emscripten::val onProgress,
@@ -411,11 +412,30 @@ std::string sliceWithConfig(const std::string& configJson, int plate, const std:
             const double d = diameters && !diameters->values.empty() ? diameters->get_at(id) : 1.75;
             mm[std::to_string(id + 1)] = volume / (M_PI * d * d / 4.);
         }
+        // Each filament's use split as desktop's Filament view splits it (model,
+        // support, prime tower, flushed), from the G-code the slice wrote: length
+        // and weight per part, parts the filament has none of left out.
+        const auto* densities = cfg.option<ConfigOptionFloats>("filament_density");
+        json parts = json::object();
+        const auto addPart = [&](const char* part, const std::map<size_t, double>& volumes) {
+            for (const auto& [id, volume] : volumes) {
+                if (volume <= 0) continue;
+                const double d = diameters && !diameters->values.empty() ? diameters->get_at(id) : 1.75;
+                const double density = densities && !densities->values.empty() ? densities->get_at(id) : 0.;
+                parts[std::to_string(id + 1)][part] = {{"mm", volume / (M_PI * d * d / 4.)}, {"g", volume * density / 1000.}};
+            }
+        };
+        const PrintEstimatedStatistics& used = result.print_statistics;
+        addPart("model", used.model_volumes_per_extruder);
+        addPart("support", used.support_volumes_per_extruder);
+        addPart("tower", used.wipe_tower_volumes_per_extruder);
+        addPart("flushed", used.flush_per_filament);
         res["success"] = true;
         res["gcodePath"] = outputPath;
         res["totalLayers"] = layers;
         res["estimatedTimeSeconds"] = std::isfinite(seconds) ? seconds : 0.f;
         res["filamentMm"] = mm;
+        res["filamentParts"] = parts;
         res["totalFilamentMm"] = stats.total_used_filament;
         res["totalFilamentGrams"] = stats.total_weight;
         // The tower this slice made, for the Prepare view (desktop shows its
