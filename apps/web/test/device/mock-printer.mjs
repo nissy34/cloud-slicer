@@ -155,6 +155,8 @@ export async function startMockPrinter({ port = 0, host = '127.0.0.1', generic =
   const cube = `${thumbnailBlock(pngFrame(3, 300, 300))}; filament_colour = #FF0000\n; filament_type = PLA\n; filament used [g] = 5.1\n${labels}\n`;
   const files = new Map([['calibration_cube.gcode', { size: 123456, modified: Date.now() / 1000 - 3600, text: cube }]]);
   const scripts = [];
+  // Upload behaviour tests can change: refuse with Moonraker's message, or read the file slowly.
+  const uploads = { refuse: '', slowMs: 0 };
   const clients = new Set();
   let frame = 0;
   let printTimer = null;
@@ -548,7 +550,16 @@ document.addEventListener('pointerdown', async (e) => {
     }
     if (url.pathname === '/server/files/upload' && req.method === 'POST') {
       const chunks = [];
-      for await (const c of req) chunks.push(c);
+      try {
+        for await (const c of req) {
+          chunks.push(c);
+          if (uploads.slowMs) await new Promise((r) => setTimeout(r, uploads.slowMs));
+        }
+      } catch {
+        // The sender stopped halfway (a cancelled upload): like Moonraker, keep nothing.
+        return;
+      }
+      if (uploads.refuse) return send(403, { error: { code: 403, message: uploads.refuse } });
       const body = Buffer.concat(chunks);
       const boundary = (req.headers['content-type'] ?? '').split('boundary=')[1];
       const parts = body.toString('latin1').split(`--${boundary}`);
@@ -591,6 +602,7 @@ document.addEventListener('pointerdown', async (e) => {
     url: `http://${host}:${server.address().port}`,
     scripts,
     files,
+    uploads,
     stats,
     get state() {
       return state;

@@ -153,7 +153,7 @@ export class DirectLink implements PrinterLink {
     ws?.close();
   }
 
-  upload(blob: Blob, path: string, onProgress?: (f: number) => void): Promise<string> {
+  upload(blob: Blob, path: string, onProgress?: (f: number) => void, signal?: AbortSignal): Promise<string> {
     const blocked = directBlockedReason(this.baseUrl);
     if (blocked) return Promise.reject(new LinkError(blocked, 'blocked'));
     // XMLHttpRequest rather than fetch: it reports upload progress.
@@ -174,10 +174,14 @@ export class DirectLink implements PrinterLink {
             resolve(path);
           }
         } else {
-          reject(new LinkError(`Upload failed: HTTP ${xhr.status}.`, 'http'));
+          reject(new LinkError(uploadRefused(xhr.status, xhr.responseText), 'http'));
         }
       };
       xhr.onerror = () => reject(new LinkError(`Upload to ${this.label} failed.`, 'network'));
+      // A stopped upload leaves nothing on the printer: Moonraker drops an incomplete file.
+      xhr.onabort = () => reject(new LinkError('Upload cancelled.', 'network'));
+      if (signal?.aborted) return xhr.onabort(new ProgressEvent('abort'));
+      signal?.addEventListener('abort', () => xhr.abort(), { once: true });
       xhr.send(form);
     });
   }
@@ -193,4 +197,16 @@ export class DirectLink implements PrinterLink {
     if (!blob.size) throw new LinkError('The camera sent an empty frame.', 'http');
     return blob;
   }
+}
+
+/** Why Moonraker refused an upload, in its own words when it gave them: "The printer refused the file: Forbidden (HTTP 403)." */
+export function uploadRefused(status: number, body: string): string {
+  let reason = '';
+  try {
+    const parsed = JSON.parse(body) as { error?: { message?: string } | string };
+    reason = typeof parsed.error === 'string' ? parsed.error : (parsed.error?.message ?? '');
+  } catch {
+    // not JSON: the status says enough
+  }
+  return reason ? `The printer refused the file: ${reason.replace(/\.$/, '')} (HTTP ${status}).` : `The printer refused the file (HTTP ${status}).`;
 }

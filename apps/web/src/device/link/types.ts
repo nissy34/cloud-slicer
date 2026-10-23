@@ -44,8 +44,8 @@ export interface PrinterLink {
   open(handlers: LinkHandlers): Promise<void>;
   send(msg: RpcMessage): void;
   close(): void;
-  /** Uploads to the gcodes root; never starts a print. Resolves to the stored path. */
-  upload(blob: Blob, path: string, onProgress?: (fraction: number) => void): Promise<string>;
+  /** Uploads to the gcodes root; never starts a print. Resolves to the stored path. Aborting `signal` stops it and the printer keeps nothing. */
+  upload(blob: Blob, path: string, onProgress?: (fraction: number) => void, signal?: AbortSignal): Promise<string>;
   /** One camera frame. `url` may be relative to the printer ("/webcam/?action=snapshot"). */
   snapshot(url: string): Promise<Blob>;
   /**

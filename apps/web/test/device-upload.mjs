@@ -3,13 +3,14 @@
 // browser -> (direct WebRTC link | relay via wrangler dev) -> bridge -> mock printer.
 // The file is zipped on the way and must reach the printer byte for byte, both
 // over the direct link and, when the network blocks direct links, over the relay.
-// Upload only: it never starts a print.
+// A refused file says why inside the Send window, and Cancel stops an upload
+// halfway with nothing left on the printer. Upload only: it never starts a print.
 //
-//   npm run build && node test/device-upload.mjs
+//   npm run build && node test/device-upload.mjs [screenshot-dir]
 import { spawn } from 'node:child_process';
-import { mkdtempSync } from 'node:fs';
+import { mkdirSync, mkdtempSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { dirname, join } from 'node:path';
+import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { chromium } from 'playwright';
 import { bridgeConfig, bridgeProgram, browserKey, startBridge } from './device/go-bridge.mjs';
@@ -17,6 +18,8 @@ import { startMockPrinter } from './device/mock-printer.mjs';
 
 const web = join(dirname(fileURLToPath(import.meta.url)), '..');
 const relayDir = join(web, '../device-relay');
+const shots = process.argv[2] ? resolve(process.argv[2]) : null;
+if (shots) mkdirSync(shots, { recursive: true });
 const PAGE_PORT = 4178;
 const RELAY_PORT = 8796;
 const children = [];
@@ -114,6 +117,43 @@ try {
     const want = label === 'direct' ? /over the direct link/ : /over the relay/;
     if (!route || !want.test(route.how)) throw new Error(`${label}: the bridge says ${route ? route.how : 'nothing'} for ${name}`);
     console.log(`${label}: ${(text.length / 1e6).toFixed(1)} MB reached the printer intact in ${((Date.now() - started) / 1000).toFixed(1)} s (${route.how})`);
+
+    // The printer refuses the file (a file of that name is printing): the reason shows in the window, which stays open.
+    printer.uploads.refuse = 'Forbidden';
+    const refused = `refused_${label}.gcode`;
+    await page.getByTestId('device-gcode-input').setInputFiles({ name: refused, mimeType: 'text/plain', buffer: Buffer.from('G28\n') });
+    await page.getByTestId('upload-only').click();
+    const error = page.getByRole('dialog').getByTestId('send-error');
+    await error.waitFor({ timeout: 30_000 });
+    if ((await error.textContent()) !== 'The printer refused the file: Forbidden (HTTP 403).') throw new Error(`${label}: the window says ${await error.textContent()}`);
+    if (printer.files.has(refused)) throw new Error(`${label}: the refused file is on the printer`);
+    if (shots && label === 'direct') {
+      await page.getByRole('dialog').screenshot({ path: join(shots, 'send-error-desktop.png') });
+      await page.setViewportSize({ width: 390, height: 844 });
+      await page.screenshot({ path: join(shots, 'send-error-phone.png') });
+      await page.setViewportSize({ width: 1280, height: 900 });
+    }
+    printer.uploads.refuse = '';
+    await page.getByTestId('send-cancel').click();
+    await page.getByRole('dialog').waitFor({ state: 'detached' });
+    console.log(`${label}: a refused file says why inside the Send window`);
+
+    // Cancel works while the file goes up, and the printer keeps nothing.
+    printer.uploads.slowMs = 50;
+    const stopped = `cancelled_${label}.gcode`;
+    await page.getByTestId('device-gcode-input').setInputFiles({ name: stopped, mimeType: 'text/plain', buffer: Buffer.from(text) });
+    await page.getByTestId('upload-only').click();
+    // The bridge is passing the file on (the printer reads it slowly).
+    await until(`${label}: the cancelled file on its way`, () => routes.some((r) => r.name === stopped), 30_000);
+    const cancel = page.getByTestId('send-cancel');
+    if (await cancel.isDisabled()) throw new Error(`${label}: Cancel is greyed out during the upload`);
+    await cancel.click();
+    await page.getByRole('dialog').waitFor({ state: 'detached', timeout: 10_000 });
+    await until(`${label}: the bridge drops the cancelled upload`, () => routes.some((r) => r.name === stopped && r.how === 'cancelled'), 15_000);
+    await new Promise((r) => setTimeout(r, 1500));
+    printer.uploads.slowMs = 0;
+    if (printer.files.has(stopped)) throw new Error(`${label}: the cancelled file is on the printer`);
+    console.log(`${label}: Cancel stopped the upload and the printer kept nothing`);
     await context.close();
   }
   console.log('DEVICE UPLOAD OK');

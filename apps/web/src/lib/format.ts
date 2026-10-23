@@ -22,10 +22,44 @@ export function formatGrams(grams: number): string {
   return `${grams < 10 ? grams.toFixed(1) : Math.round(grams)} g`;
 }
 
-/** 3DBenchy.stl -> 3DBenchy.gcode */
-export function gcodeFileName(modelName: string): string {
-  const base = modelName.replace(/\.[^.]+$/, '') || 'model';
-  return `${base}.gcode`;
+/** 16332 -> "4h32m12s", as desktop writes {print_time} into file names. */
+export function timeDhms(seconds: number): string {
+  let left = Math.max(0, Math.round(Number.isFinite(seconds) ? seconds : 0));
+  const parts: string[] = [];
+  for (const [unit, size] of [['d', 86_400], ['h', 3600], ['m', 60]] as const) {
+    const n = Math.floor(left / size);
+    left -= n * size;
+    if (n || parts.length) parts.push(`${n}${unit}`);
+  }
+  parts.push(`${left}s`);
+  return parts.join('');
+}
+
+/**
+ * The G-code file name as desktop makes it, from the process preset's
+ * filename_format (the U1's: "{input_filename_base}_{filament_type[0]}_{print_time}.gcode").
+ * {input_filename_base} is the model or project name (with "-plateN" on a
+ * project with several plates), {print_time} the estimate, and any other
+ * {key} or {key[i]} the setting's value. No format: "<name>.gcode".
+ */
+export function outputFileName(format: string | undefined, base: string, config: Record<string, string>, printSeconds: number): string {
+  const stem = base.replace(/\.[^.]+$/, '') || 'model';
+  if (!format?.trim()) return `${stem}.gcode`;
+  const name = format
+    .trim()
+    .replace(/^"|"$/g, '')
+    .replace(/\{\s*([a-z_]\w*)\s*(?:\[\s*(\d+)\s*\])?\s*\}/gi, (_, key: string, index?: string) => {
+      if (key === 'input_filename_base') return stem;
+      if (key === 'print_time') return timeDhms(printSeconds);
+      const value = config[key] ?? '';
+      const list = value.split(value.includes(';') ? ';' : ',').map((v) => v.trim().replace(/^"|"$/g, ''));
+      return list[index ? Number(index) : 0] ?? '';
+    })
+    // A setting with no value leaves "a__b" or "_.gcode": tidy those up.
+    .replace(/([_-])[_-]+/g, '$1')
+    .replace(/[_-]+(\.[^.]+)$/, '$1')
+    .replace(/[_.-]+$/, '');
+  return /\.(gcode|bgcode)$/i.test(name) ? name : `${name || stem}.gcode`;
 }
 
 /** Engine stage text -> sentence case, e.g. "GENERATING SUPPORT" -> "Generating support" (G-code keeps its capital). */

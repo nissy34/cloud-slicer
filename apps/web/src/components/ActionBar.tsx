@@ -1,7 +1,7 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { sendToPrinter } from '../device';
 import type { SliceWarning } from '../engine/protocol';
-import { gcodeFileName, sentence, stageLabel } from '../lib/format';
+import { outputFileName, sentence, stageLabel } from '../lib/format';
 import { blocksPrinting, OBJECT_CLASHED } from '../lib/outside';
 import { LIGHT_TRIANGLES, triangleCount } from '../lib/simplify';
 import { useObjectsOutside, useSlicer } from '../state/store';
@@ -111,6 +111,9 @@ export function ActionBar() {
   const { engine, engineMessage, project, plate, job, notice, noticeWarn, heavy, simplifyHeavy, slice, cancelSlice, setTab, tab } = useSlicer();
   // A problem with the open tool shows in its card, where the eye is.
   const toolOpen = useSlicer((s) => !!(s.tool || s.paint));
+  const baseConfig = useSlicer((s) => s.baseConfig);
+  const overrides = useSlicer((s) => s.overrides);
+  const config = useMemo(() => ({ ...baseConfig, ...overrides }), [baseConfig, overrides]);
   const errorHere = job.kind === 'error' && !(job.inTool && toolOpen);
   const warnings = useSliceWarnings();
   const unprintable = warnings.some(blocksPrinting);
@@ -125,7 +128,11 @@ export function ActionBar() {
   const plateLabel = (project?.plates.length ?? 0) > 1 ? `Slice plate ${plate + 1}` : 'Slice plate';
   const baseName = project?.fileName || project?.objects[0]?.name || 'plate';
   const plates = project?.plates.length ?? 0;
-  const fileName = job.kind === 'sliced' ? gcodeFileName(plates > 1 ? `${baseName.replace(/\.[^.]+$/, '')}-plate${job.plate + 1}` : baseName) : '';
+  // As desktop names it (the process preset's filename_format), keeping the plate on a project with several.
+  const fileName =
+    job.kind === 'sliced'
+      ? outputFileName(config.filename_format, plates > 1 ? `${baseName.replace(/\.[^.]+$/, '')}-plate${job.plate + 1}` : baseName, config, job.result.estimatedTimeSeconds)
+      : '';
   return (
     <div className="actionbar" data-testid="actionbar">
       <div className="status" aria-live="polite">

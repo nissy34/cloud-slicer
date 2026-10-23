@@ -85,6 +85,8 @@ interface DeviceState {
   /** The print dialog, when open. */
   send: SendSource | null;
   upload: { name: string; fraction: number } | null;
+  /** Why the last send from the open print dialog failed, shown in the dialog itself (a message card would sit behind it). */
+  sendError: string | null;
   /** A short message about the last action, e.g. an error from the printer. */
   toast: { text: string; error: boolean } | null;
   /** A pairing link opened this page; the add-printer dialog picks it up. */
@@ -117,6 +119,8 @@ interface DeviceState {
   requestSend(blob: Blob, name: string, slicedFor?: string): void;
   openPrintDialog(source: SendSource | null): void;
   uploadAndMaybePrint(source: SendSource, opts: { start: boolean; prep: string[] }): Promise<boolean>;
+  /** Stops the upload under way (the printer keeps nothing) and closes the print dialog. */
+  cancelUpload(): void;
   setToast(text: string, error?: boolean): void;
   retry(): void;
   /** A print alert was tapped: show its printer ("<bridgeId>.<printer>" or "direct.<saved id>"). */
@@ -277,6 +281,8 @@ export function linkFor(p: SavedPrinter): PrinterLink {
 }
 
 let session: PrinterSession | null = null;
+/** Stops the upload under way, if any. */
+let uploadAbort: AbortController | null = null;
 let connectSeq = 0;
 /** The printer this browser is saving right now: its secret is already cached. */
 let savingId: string | null = null;
@@ -381,6 +387,7 @@ export const useDevice = create<DeviceState>((set, get) => {
     files: null,
     send: null,
     upload: null,
+    sendError: null,
     toast: null,
     pairing: initialPairing,
     editor: initialPairing ? { mode: 'add' } : null,
@@ -538,11 +545,19 @@ export const useDevice = create<DeviceState>((set, get) => {
     requestSend(blob, name, slicedFor) {
       const target = pickSendTarget(get().printers, get().activeId, load<string | null>(SEND_KEY, null), slicedFor);
       if (target && target !== get().activeId) get().select(target);
-      set({ send: { kind: 'upload', blob, name } });
+      set({ send: { kind: 'upload', blob, name }, sendError: null });
     },
 
     openPrintDialog(source) {
-      set({ send: source });
+      // Closing the dialog mid-upload stops the upload too.
+      if (!source && uploadAbort) return get().cancelUpload();
+      set({ send: source, sendError: null });
+    },
+
+    cancelUpload() {
+      uploadAbort?.abort();
+      uploadAbort = null;
+      set({ upload: null, send: null, sendError: null });
     },
 
     async uploadAndMaybePrint(source, { start, prep }) {
@@ -552,11 +567,15 @@ export const useDevice = create<DeviceState>((set, get) => {
         return false;
       }
       const target = get().activeId;
+      const abort = new AbortController();
+      set({ sendError: null });
       try {
         let path: string;
         if (source.kind === 'upload') {
+          uploadAbort = abort;
           set({ upload: { name: source.name, fraction: 0 } });
-          path = await s.upload(source.blob, source.name, (fraction) => set({ upload: { name: source.name, fraction } }));
+          path = await s.upload(source.blob, source.name, (fraction) => !abort.signal.aborted && set({ upload: { name: source.name, fraction } }), abort.signal);
+          if (uploadAbort === abort) uploadAbort = null;
           set({ upload: null });
           store(SEND_KEY, target);
         } else {
@@ -573,8 +592,15 @@ export const useDevice = create<DeviceState>((set, get) => {
         void get().refreshFiles();
         return true;
       } catch (e) {
+        if (abort.signal.aborted) {
+          get().setToast('Upload cancelled.');
+          return false;
+        }
+        if (uploadAbort === abort) uploadAbort = null;
         set({ upload: null });
-        get().setToast((e as Error).message, true);
+        // The dialog stays open on a failure: say why there, where the eye is.
+        if (get().send) set({ sendError: (e as Error).message });
+        else get().setToast((e as Error).message, true);
         return false;
       }
     },
