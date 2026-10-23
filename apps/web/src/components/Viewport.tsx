@@ -397,8 +397,19 @@ function GroupGizmo({
 function partsInRect(parts: Part[], rect: { left: number; top: number; right: number; bottom: number }, camera: THREE.Camera, canvas: HTMLCanvasElement): number[] {
   const r = canvas.getBoundingClientRect();
   const v = new THREE.Vector3();
-  const caster = new THREE.Raycaster();
-  caster.setFromCamera(new THREE.Vector2((((rect.left + rect.right) / 2 - r.left) / r.width) * 2 - 1, -(((rect.top + rect.bottom) / 2 - r.top) / r.height) * 2 + 1), camera);
+  // Rays through a grid over the rectangle (edges included) catch a model the
+  // rectangle crosses between its corners, even a thin rectangle over a big face.
+  const across = (a: number, b: number) => {
+    const n = Math.min(32, Math.ceil((b - a) / 8));
+    return Array.from({ length: n + 1 }, (_, k) => a + ((b - a) * k) / Math.max(1, n));
+  };
+  const rays = across(rect.left, rect.right).flatMap((x) =>
+    across(rect.top, rect.bottom).map((y) => {
+      const caster = new THREE.Raycaster();
+      caster.setFromCamera(new THREE.Vector2(((x - r.left) / r.width) * 2 - 1, -((y - r.top) / r.height) * 2 + 1), camera);
+      return caster;
+    }),
+  );
   return parts
     .filter((p) => {
       const pos = p.geometry.getAttribute('position') as THREE.BufferAttribute;
@@ -413,7 +424,7 @@ function partsInRect(parts: Part[], rect: { left: number; top: number; right: nu
       }
       const mesh = new THREE.Mesh(p.geometry);
       mesh.raycast = bvhRaycast;
-      return caster.intersectObject(mesh, false).length > 0;
+      return rays.some((caster) => caster.intersectObject(mesh, false).length > 0);
     })
     .map((p) => p.object);
 }
@@ -1199,6 +1210,7 @@ function Objects({ w, d }: { w: number; d: number }) {
   // holds still and a press on a model doesn't pick it alone.
   const lasso = useRef<{ x0: number; y0: number; remove: boolean; hit: number | undefined; box: HTMLDivElement | null } | null>(null);
   const lassoEnded = useRef(0);
+  const lastPress = useRef<PointerEvent | null>(null);
   const objectAt = (x: number, y: number) => {
     const r = canvas.getBoundingClientRect();
     const caster = new THREE.Raycaster();
@@ -1280,6 +1292,11 @@ function Objects({ w, d }: { w: number; d: number }) {
     // View only: a press just turns the camera.
     if (viewOnly()) return;
     e.stopPropagation();
+    // One press, one model: r3f ignores stopPropagation while a pointer capture
+    // from the last press is still held, and hands the press on to the model
+    // behind (a quick Ctrl+click then also took the first model out).
+    if (lastPress.current === e.nativeEvent) return;
+    lastPress.current = e.nativeEvent;
     if (twoFingers() || lasso.current) return;
     if (e.button === 2) {
       if (paint || measuring) return;

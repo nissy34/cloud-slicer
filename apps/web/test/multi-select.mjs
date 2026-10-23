@@ -148,6 +148,9 @@ try {
 
   // In the 3D view (labels mark where the models are): a click picks one,
   // Ctrl+click adds, Shift+click adds or takes out; a rectangle over two takes those two.
+  // Seen from the top, so no model hides behind another wherever they were placed.
+  await page.keyboard.press('1');
+  await page.waitForTimeout(1500);
   await page.keyboard.press('Control+e');
   await page.locator('.object-label').nth(2).waitFor();
   const at = [];
@@ -170,8 +173,10 @@ try {
   await waitChosen(page, 2, 'Shift+click on a chosen model');
   await page.keyboard.press('Escape');
   await waitChosen(page, 0, 'Esc');
-  const [l, r] = [Math.min(at[0][0], at[1][0]), Math.max(at[0][0], at[1][0])];
-  await drag('Shift', [l - 25 - canvas.x, at[0][1] - 30 - canvas.y], [r + 5 - canvas.x, at[0][1] + 30 - canvas.y]);
+  // From one model's middle to another's, picking two whose box leaves the third out.
+  const inside = (p, a, b) => p[0] > Math.min(a[0], b[0]) - 30 && p[0] < Math.max(a[0], b[0]) + 30 && p[1] > Math.min(a[1], b[1]) - 30 && p[1] < Math.max(a[1], b[1]) + 30;
+  const [a, b] = [[0, 1, 2], [0, 2, 1], [1, 2, 0]].find(([i, j, k]) => !inside(at[k], at[i], at[j])) ?? [0, 1];
+  await drag('Shift', [at[a][0] - canvas.x, at[a][1] - canvas.y], [at[b][0] - canvas.x, at[b][1] - canvas.y]);
   await waitChosen(page, 2, 'a rectangle over two of them');
   await page.keyboard.press('r');
   await page.getByRole('region', { name: 'Rotate' }).getByText('both chosen objects').waitFor();
@@ -240,16 +245,28 @@ try {
   if (shots) await phone.screenshot({ path: join(shots, 'choosing-phone.png') });
   const box = await phone.locator('canvas').first().boundingBox();
   // A one-finger drag from an empty corner draws a rectangle while choosing; over nothing, nothing changes.
+  // Up the left edge, away from the bar at the bottom: a drag there and then a tap on Done is a double tap.
   const cdp = await phone.context().newCDPSession(phone);
   const touch = (type, x, y) => cdp.send('Input.dispatchTouchEvent', { type, touchPoints: type === 'touchEnd' ? [] : [{ x: box.x + x, y: box.y + y }] });
-  await touch('touchStart', 8, box.height - 40);
-  await touch('touchMove', 20, box.height - 30);
-  await touch('touchMove', 30, box.height - 20);
+  // The first spot down the left edge where the 3D view itself is (the top bar covers its top).
+  let y0 = 0;
+  for (let y = 30; y < box.height / 2 && !y0; y += 10) {
+    if (await phone.evaluate(([x, y]) => document.elementFromPoint(x, y)?.tagName === 'CANVAS', [box.x + 8, box.y + y])) y0 = y;
+  }
+  await touch('touchStart', 8, y0);
+  await touch('touchMove', 20, y0 + 10);
+  await touch('touchMove', 30, y0 + 20);
+  if (!(await phone.getByTestId('select-rect').count())) fail('a drag on empty space while choosing should draw a rectangle');
   await touch('touchEnd');
+  // A tap straight after another touch can count as a double tap, which gives no click.
+  await phone.waitForTimeout(500);
   await bar(phone).getByText('3 chosen').waitFor();
   await bar(phone).getByRole('button', { name: 'Done' }).tap();
   await bar(phone).getByText('3 chosen').waitFor();
-  if (await bar(phone).getByRole('button', { name: 'Done' }).isVisible()) fail('Done should end choosing');
+  await bar(phone)
+    .getByRole('button', { name: 'Done' })
+    .waitFor({ state: 'hidden', timeout: 10000 })
+    .catch(() => fail('Done should end choosing'));
   const pageScroll = await phone.evaluate(() => document.documentElement.scrollWidth > window.innerWidth);
   if (pageScroll) fail('the page scrolls sideways on a phone');
 } catch (e) {
