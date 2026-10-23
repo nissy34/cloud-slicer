@@ -992,41 +992,51 @@ export const useSlicer = create<SlicerState>((set, get) => {
   let edits = 0;
   let freshText: { object: number; volume: number; newObject: boolean; edits: number } | null = null;
 
-  // An edit of the project: remembered first, so undo can take it back.
-  const projectEdit = async (label: string, op: () => Promise<ProjectInfo>) => {
-    const e = engine();
-    let remembered = false;
-    try {
-      set({ history: await e.snapshot(label) });
-      remembered = true;
-      edits++;
-      await refreshPreview(await op());
-      clearError();
-    } catch (err) {
-      if (remembered) set({ history: await e.dropSnapshot().catch(() => get().history) });
-      fail(err);
-    }
-  };
-
-  // An edit that can take seconds (arrange, clone, auto orient...) shows the
+  // Anything that can take seconds (every project edit, undo, redo) shows the
   // loading screen over the 3D view while it runs, after a short wait so a
-  // quick one does not flash it.
-  const busyWhile = async (label: string, op: () => Promise<unknown>) => {
+  // quick one does not flash it. An outer call's label wins (Clone, then
+  // Arrange, reads "Cloning and arranging"), and so does a loading screen
+  // already up (Simplifying a heavy model).
+  let busyDepth = 0;
+  const busyWhile = async <T,>(label: string, op: () => Promise<T>): Promise<T> => {
+    if (busyDepth > 0 || get().job.kind === 'loading') return op();
+    busyDepth++;
     let shown = false;
     const timer = setTimeout(() => {
       shown = true;
       set({ ...stale(), job: { kind: 'loading', name: '', label } });
     }, BUSY_AFTER_MS);
     try {
-      await op();
+      return await op();
     } finally {
+      busyDepth--;
       clearTimeout(timer);
       if (shown && get().job.kind === 'loading') set({ job: { kind: 'idle' } });
     }
   };
 
+  // An edit of the project: remembered first, so undo can take it back.
+  const projectEdit = (label: string, op: () => Promise<ProjectInfo>) =>
+    busyWhile(label, async () => {
+      const e = engine();
+      let remembered = false;
+      try {
+        set({ history: await e.snapshot(label) });
+        remembered = true;
+        edits++;
+        await refreshPreview(await op());
+        clearError();
+      } catch (err) {
+        if (remembered) set({ history: await e.dropSnapshot().catch(() => get().history) });
+        fail(err);
+      }
+    });
+
   const stepHistory = async (step: 'undo' | 'redo') => {
     if (!get().history[step]) return;
+    await busyWhile(step === 'undo' ? 'Undoing' : 'Redoing', () => stepHistoryNow(step));
+  };
+  const stepHistoryNow = async (step: 'undo' | 'redo') => {
     edits++;
     try {
       const { history, info } = await engine()[step]();
