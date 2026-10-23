@@ -29,7 +29,11 @@ hosted on Cloudflare's free tier.
   settings with support off, ironing settings with ironing off), and a change that makes a
   combination desktop rejects (spiral vase with more than one wall, extrusion fuzzy skin
   without Arachne...) fixes itself or asks how to fix it. A search box above the pages finds
-  any setting by name across every page, Advanced ones included.
+  any setting by name across every page, Advanced ones included. Typed numbers are
+  checked like desktop, from the engine's own limits for each setting (no rule per
+  setting, `apps/web/src/lib/option-check.ts`): a wrong one ("0.7$", a % where the
+  setting takes none) is refused, one out of range is set to the nearest allowed value,
+  a red line under the box says so, and a big "mm or %" value asks which one was meant.
 - **Your own presets**, saved as Orca user presets (a diff over a system preset), with
   printer and filament settings windows like desktop's preset editors (with its Extruder 1 to 4
   pages, one per tool head, Motion ability with the machine limits, and the filament's Setting

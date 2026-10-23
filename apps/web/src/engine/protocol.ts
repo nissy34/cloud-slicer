@@ -67,6 +67,11 @@ export interface OptionDef {
   mode: 'simple' | 'advanced' | 'develop';
   min?: number;
   max?: number;
+  /**
+   * A "mm or %" value above this (and above 100) is probably meant as a
+   * percentage, so desktop asks which one. 1 when left out.
+   */
+  maxLiteral?: number;
   enumValues?: string[];
   enumLabels?: string[];
   default?: string;
