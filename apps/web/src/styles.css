@@ -1510,6 +1510,14 @@ select:focus-visible {
   color: var(--muted);
   font-size: 11px;
 }
+.filament-table .dot {
+  display: inline-block;
+  margin-right: 6px;
+  vertical-align: -1px;
+}
+.filament-table tfoot td small {
+  font-weight: 400;
+}
 .filament-table .none {
   color: var(--muted);
 }

@@ -105,8 +105,14 @@ try {
   await stats.waitFor();
   const text = await stats.innerText();
   console.log(`filament key:\n${text}`);
-  for (const [i, g] of grams.entries())
-    if (g > 0 && !text.includes(`${g < 10 ? g.toFixed(2) : g.toFixed(1)} g`)) fail(`filament ${i + 1}'s ${g} g is not in the key`);
+  // Each filament's total (the table's last column, weight over length) is the
+  // G-code's, give or take the last digit shown.
+  const rows = await stats.locator('tbody tr').all();
+  const shown = await Promise.all(rows.map(async (r) => [Number(await r.locator('td').first().innerText()), parseFloat(await r.locator('td').last().innerText())]));
+  for (const [i, g] of grams.entries()) {
+    const row = shown.find(([f]) => f === i + 1);
+    if (g > 0 && !(row && Math.abs(row[1] - g) <= (g < 10 ? 0.01 : 0.1) + 1e-9)) fail(`filament ${i + 1}'s ${g} g is not in the key (${row?.[1]} g)`);
+  }
   const shownChanges = Number(await page.getByTestId('tool-changes').innerText());
   if (shownChanges !== changes) fail(`key shows ${shownChanges} filament changes, the G-code has ${changes}`);
   if (changes < 1) fail('a two-filament plate should change filament at least once');

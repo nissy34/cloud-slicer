@@ -347,8 +347,8 @@ function Use({ g, mm }: { g: number; mm: number }) {
 /**
  * Each filament's use like desktop's Filament view: a table of what went into
  * the model, support, flushing and the prime tower (columns no filament used
- * are left out) and the total, then the cost and filament changes. Totals are
- * the G-code's own; without the engine's split, one line per filament.
+ * are left out) and their total, then the cost and filament changes. Without
+ * the engine's split, one line per filament with the G-code's own totals.
  */
 function FilamentStats({ stats, used, colours, parts }: { stats: GcodeStats; used: number[]; colours: string[]; parts?: SliceResult['filamentParts'] }) {
   const tools = [...new Set([...used, ...stats.filaments.flatMap((f, i) => (f.grams > 0 || f.mm > 0 ? [i] : []))])].sort((a, b) => a - b);
@@ -356,8 +356,13 @@ function FilamentStats({ stats, used, colours, parts }: { stats: GcodeStats; use
   const totalMm = stats.filaments.reduce((a, f) => a + f.mm, 0);
   const columns = parts ? PARTS.filter(({ part }) => tools.some((t) => (parts[t + 1]?.[part]?.mm ?? 0) > 0)) : [];
   const partOf = (t: number, part: FilamentPart) => parts?.[t + 1]?.[part];
-  const columnTotal = (part: FilamentPart) =>
-    tools.reduce((a, t) => ({ g: a.g + (partOf(t, part)?.g ?? 0), mm: a.mm + (partOf(t, part)?.mm ?? 0) }), { g: 0, mm: 0 });
+  const add = (cells: ({ g: number; mm: number } | undefined)[]) =>
+    cells.reduce<{ g: number; mm: number }>((a, c) => ({ g: a.g + (c?.g ?? 0), mm: a.mm + (c?.mm ?? 0) }), { g: 0, mm: 0 });
+  // As desktop: a filament's total is its columns added up, shown when there is more than Model.
+  const rowTotal = (t: number) => add(columns.map(({ part }) => partOf(t, part)));
+  const columnTotal = (part: FilamentPart) => add(tools.map((t) => partOf(t, part)));
+  const totalColumn = columns.some(({ part }) => part !== 'model');
+  const grandTotal = add(tools.map(rowTotal));
   return (
     <div className="filament-stats" data-testid="filament-stats">
       {columns.length > 0 ? (
@@ -368,12 +373,12 @@ function FilamentStats({ stats, used, colours, parts }: { stats: GcodeStats; use
               {columns.map((c) => (
                 <th key={c.part}>{c.title}</th>
               ))}
-              <th>Total</th>
+              {totalColumn && <th>Total</th>}
             </tr>
           </thead>
           <tbody>
             {tools.map((t) => {
-              const f = stats.filaments[t];
+              const total = rowTotal(t);
               return (
                 <tr key={t}>
                   <td>
@@ -384,7 +389,11 @@ function FilamentStats({ stats, used, colours, parts }: { stats: GcodeStats; use
                     const p = partOf(t, part);
                     return <td key={part}>{p ? <Use g={p.g} mm={p.mm} /> : <span className="none">–</span>}</td>;
                   })}
-                  <td className="filament-total">{f && <Use g={f.grams} mm={f.mm} />}</td>
+                  {totalColumn && (
+                    <td className="filament-total">
+                      <Use g={total.g} mm={total.mm} />
+                    </td>
+                  )}
                 </tr>
               );
             })}
@@ -400,9 +409,11 @@ function FilamentStats({ stats, used, colours, parts }: { stats: GcodeStats; use
                   </td>
                 );
               })}
-              <td className="filament-total">
-                <Use g={stats.totalGrams} mm={totalMm} />
-              </td>
+              {totalColumn && (
+                <td className="filament-total">
+                  <Use g={grandTotal.g} mm={grandTotal.mm} />
+                </td>
+              )}
             </tr>
           </tfoot>
         </table>
