@@ -273,7 +273,7 @@ std::string conflictText(const ConflictResult& c, const Print& print) {
 // Slice `plate` with `configJson` (key -> serialized value, e.g. from
 // presetsFullConfig plus edits) and write the G-code to outputPath.
 // Returns {success, cancelled, error, warnings (see Warnings), gcodePath, totalLayers,
-// estimatedTimeSeconds, filamentMm: {"<1-based filament>": mm}, totalFilamentMm,
+// estimatedTimeSeconds, prepareSeconds, filamentMm: {"<1-based filament>": mm}, totalFilamentMm,
 // totalFilamentGrams, filamentParts: {"<1-based filament>": {model|support|tower|flushed:
 // {mm, g}}}, objectsOutside, wipeTowerDepth (when it made a prime tower)}.
 // `thumbnails` (optional) holds the plate pictures for the G-code; Orca's own
@@ -404,7 +404,8 @@ std::string sliceWithConfig(const std::string& configJson, int plate, const std:
             layers = distinct(zs);
         }
         const PrintStatistics& stats = print.print_statistics();
-        const float seconds = result.print_statistics.modes[size_t(PrintEstimatedStatistics::ETimeMode::Normal)].time;
+        const auto& normal = result.print_statistics.modes[size_t(PrintEstimatedStatistics::ETimeMode::Normal)];
+        const float seconds = normal.time;
         json mm = json::object();
         // filament_stats holds volumes (mm^3); report length like totalFilamentMm.
         const auto* diameters = cfg.option<ConfigOptionFloats>("filament_diameter");
@@ -434,6 +435,8 @@ std::string sliceWithConfig(const std::string& configJson, int plate, const std:
         res["gcodePath"] = outputPath;
         res["totalLayers"] = layers;
         res["estimatedTimeSeconds"] = std::isfinite(seconds) ? seconds : 0.f;
+        // Desktop's "Prepare time": the start G-code (heating, levelling, purge line).
+        res["prepareSeconds"] = std::isfinite(normal.prepare_time) ? normal.prepare_time : 0.f;
         res["filamentMm"] = mm;
         res["filamentParts"] = parts;
         res["totalFilamentMm"] = stats.total_used_filament;

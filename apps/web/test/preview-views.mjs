@@ -129,6 +129,19 @@ try {
   }
   await shot(page, 'filament');
 
+  // Desktop's time estimate under the key, in every view: the total is the G-code's.
+  const printing = /^; estimated printing time \(normal mode\) = (.*)$/m.exec(gcode)?.[1]?.trim();
+  for (const v of ['filament', 'feature', 'speed']) {
+    await colourBy.selectOption(v);
+    const total = (await page.getByTestId('total-time').innerText()).trim();
+    if (total !== printing) fail(`${v}: the key's total time is ${total}, the G-code says ${printing}`);
+  }
+  const times = await page.getByTestId('time-stats').innerText();
+  if (!/Model printing time/.test(times)) fail(`time block: ${times}`);
+  console.log(`time block: ${times.replace(/\n/g, ' | ')}`);
+  if ((await page.getByTestId('slice-stats').innerText()).match(/filament|layers/)) fail('the bottom bar still shows filament or layers');
+  await colourBy.selectOption('filament');
+
   // Every value view draws a scale with numbers and its own colours.
   let previous = await view(page);
   for (const v of ['speed', 'height', 'width', 'flow', 'layerTime', 'layerTimeLog', 'fan', 'temperature']) {

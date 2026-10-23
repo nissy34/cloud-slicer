@@ -180,6 +180,8 @@ test('slices an STL with the U1 presets', () => {
   assert.match(gcode, /^EXCLUDE_OBJECT_DEFINE/m);
   assert.ok(result.totalLayers > 10);
   assert.ok(result.estimatedTimeSeconds > 0);
+  // Desktop's Prepare time: part of the total, the start G-code's share.
+  assert.ok(result.prepareSeconds >= 0 && result.prepareSeconds < result.estimatedTimeSeconds, `prepare ${result.prepareSeconds} s`);
 });
 
 test('the layer count is the G-code\'s, support layers included only once', () => {

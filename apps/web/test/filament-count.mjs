@@ -106,8 +106,8 @@ try {
     expect(await page.getByRole('button', { name: 'Add filament' }).isVisible(), '+ Add is there');
     await shot(page, 'x1c-prepare');
     await slice(page);
-    const layers = await page.getByTestId('slice-stats').innerText();
-    expect(/\b50\b layers/.test(layers), `layers: ${layers}`);
+    const layers = await page.getByTestId('slice-stats').getAttribute('data-layers');
+    expect(layers === '50', `layers: ${layers}`);
     const used = await filamentsInPreview(page);
     expect(used.join() === '1,2,3,4,5,6,7,8', `the Preview lists filaments ${used.join()}`);
     expect(!(await page.getByText('goes beyond the plate').count()), 'no off-plate warning');

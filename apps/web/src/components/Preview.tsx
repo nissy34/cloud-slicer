@@ -3,7 +3,7 @@ import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import * as THREE from 'three';
 import { bedSize } from '../lib/colour';
-import { formatMegabytes } from '../lib/format';
+import { formatClock, formatMegabytes } from '../lib/format';
 import { FEATURE_COLOURS, FEATURES, type GcodeStats, type PreviewGcode } from '../lib/gcode';
 import {
   RANGE_COLOURS,
@@ -449,6 +449,26 @@ function FilamentStats({ stats, used, colours, parts }: { stats: GcodeStats; use
   );
 }
 
+/** Desktop's time estimate under the key, in every view: the start G-code's share, the model's, and the total. */
+function TimeStats({ total, prepare }: { total: number; prepare: number }) {
+  if (!(total > 0)) return null;
+  return (
+    <div className="time-stats" data-testid="time-stats">
+      <span className="time-title">Time</span>
+      {prepare > 0 && (
+        <>
+          <span>Prepare time</span>
+          <span>{formatClock(prepare)}</span>
+        </>
+      )}
+      <span>Model printing time</span>
+      <span>{formatClock(total - prepare)}</span>
+      <span>Total time</span>
+      <span data-testid="total-time">{formatClock(total)}</span>
+    </div>
+  );
+}
+
 /** The scale of a value view: Orca's colours from highest at the top to lowest, with six values along it. */
 function RangeKey({ by, range }: { by: ColourBy; range: ValueRange | null }) {
   const title = VIEW_TYPES.find((v) => v.id === by)?.title;
@@ -585,6 +605,10 @@ export function Preview() {
                 </button>
               </p>
             )}
+            <TimeStats
+              total={(job.kind === 'sliced' && job.result.estimatedTimeSeconds) || parsed.stats.seconds}
+              prepare={job.kind === 'sliced' ? (job.result.prepareSeconds ?? 0) : 0}
+            />
           </>
         )}
       </div>

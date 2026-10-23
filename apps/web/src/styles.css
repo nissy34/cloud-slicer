@@ -1536,6 +1536,28 @@ select:focus-visible {
   border-top: 0;
   padding-top: 0;
 }
+/* Desktop's time estimate, under the key in every view. */
+.time-stats {
+  display: grid;
+  grid-template-columns: auto auto;
+  justify-content: space-between;
+  column-gap: 12px;
+  padding-top: 4px;
+  border-top: 1px solid var(--border);
+  font-variant-numeric: tabular-nums;
+}
+.time-stats .time-title {
+  grid-column: 1 / -1;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 600;
+}
+.time-stats span:nth-child(odd):not(.time-title) {
+  text-align: right;
+}
+.time-stats span:nth-last-child(-n + 2) {
+  font-weight: 600;
+}
 .range-key {
   display: grid;
   gap: 4px;
@@ -2212,6 +2234,24 @@ select:focus-visible {
   }
   .filament-row {
     flex-wrap: nowrap;
+  }
+  /* One line: "Prepare time 19s · Model printing time 49m 48s · Total time 50m 7s". */
+  .time-stats {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0 6px;
+  }
+  .time-stats .time-title {
+    display: none;
+  }
+  .time-stats span:nth-child(odd):not(.time-title) {
+    text-align: left;
+  }
+  .time-stats span:nth-child(even):not(.time-title) {
+    color: var(--muted);
+  }
+  .time-stats span:nth-child(odd):not(:last-child)::after {
+    content: ' ·';
   }
   /* Weights only, so the key stays short; the lengths' total is in the line below. */
   .filament-table {

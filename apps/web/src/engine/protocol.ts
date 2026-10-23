@@ -236,6 +236,8 @@ export interface SliceResult {
   gcodePath: string;
   totalLayers: number;
   estimatedTimeSeconds: number;
+  /** Desktop's "Prepare time": the part of estimatedTimeSeconds spent on the start G-code. */
+  prepareSeconds?: number;
   filamentMm: Record<string, number>;
   totalFilamentMm: number;
   totalFilamentGrams: number;
