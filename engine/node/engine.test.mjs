@@ -1812,7 +1812,7 @@ test('assemble several chosen objects: one object, every part where it stood', (
   move(3, 200, 200);
 
   // Assemble with objects chosen picks only on them: the ray passes through the others.
-  const down = (objects) => call(engine, 'measureFeature', 0, JSON.stringify({ ray: [60, 60, 100, 0, 0, -1], onlyPlane: true, objects })).feature;
+  const down = (objects) => call(engine, 'measureFeature', 0, JSON.stringify({ ray: [70, 70, 100, 0, 0, -1], onlyPlane: true, objects })).feature;
   assert.equal(down([0]).object, 0);
   assert.equal(down([1, 2]), null);
 
@@ -1825,8 +1825,9 @@ test('assemble several chosen objects: one object, every part where it stood', (
   assert.equal(objects[1].volumes.length, 3);
   const size = objects[1].size;
   assert.ok(Math.abs(size[0] - 60) < 0.01 && Math.abs(size[1] - 80) < 0.01 && Math.abs(size[2] - 20) < 0.01, `spans the three cubes: ${size}`);
+  // The cubes' offsets are their corners (x 60..120, y 60..140 together); the assembly's is its middle.
   const [x, y] = objects[1].instances[0].offset;
-  assert.ok(Math.abs(x - 80) < 0.01 && Math.abs(y - 90) < 0.01, `middle of the three: ${x} ${y}`);
+  assert.ok(Math.abs(x - 90) < 0.01 && Math.abs(y - 100) < 0.01, `middle of the three: ${x} ${y}`);
   assert.deepEqual(objects[0].instances[0].offset.slice(0, 2), [200, 200], 'the fourth stays put');
 
   assert.throws(() => plate(0, { op: 'assemble', items: [{ object: 0, instance: 0 }] }), /at least two/);
