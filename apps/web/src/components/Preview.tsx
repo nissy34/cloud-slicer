@@ -380,7 +380,7 @@ function FilamentStats({ stats, used, colours, parts }: { stats: GcodeStats; use
             {tools.map((t) => {
               const total = rowTotal(t);
               return (
-                <tr key={t}>
+                <tr key={t} data-filament={t + 1}>
                   <td>
                     <span className="dot" style={{ background: colours[t] ?? '#ccc' }} />
                     {t + 1}
@@ -421,7 +421,7 @@ function FilamentStats({ stats, used, colours, parts }: { stats: GcodeStats; use
         tools.map((t) => {
           const f = stats.filaments[t];
           return (
-            <div key={t} className="legend-row filament-row">
+            <div key={t} className="legend-row filament-row" data-filament={t + 1}>
               <span className="dot" style={{ background: colours[t] ?? '#ccc' }} />
               <span className="filament-name">Filament {t + 1}</span>
               {f && (

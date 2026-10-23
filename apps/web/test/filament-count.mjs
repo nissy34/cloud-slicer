@@ -89,10 +89,10 @@ const slice = async (page) => {
 // The filaments the Preview's colour key lists, by number.
 async function filamentsInPreview(page) {
   await page.getByLabel('Colour by').selectOption('filament');
-  // The key fills in once the G-code has been read.
-  await page.getByTestId('legend').getByText('Filament 1', { exact: true }).waitFor({ timeout: 120000 });
-  const text = await page.getByTestId('legend').innerText();
-  return [...text.matchAll(/^Filament (\d+)$/gm)].map((m) => Number(m[1]));
+  // The key fills in once the G-code has been read: a row per filament.
+  const rows = page.getByTestId('filament-stats').locator('[data-filament]');
+  await rows.first().waitFor({ timeout: 120000 });
+  return (await rows.evaluateAll((els) => els.map((e) => e.getAttribute('data-filament')))).map(Number);
 }
 
 try {
