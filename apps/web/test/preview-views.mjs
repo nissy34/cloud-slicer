@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // Browser end to end for the Preview's colour key: a two-filament plate shows
 // each filament's grams and the filament changes as in the G-code's own
-// statistics, every "Colour by" view draws its scale, and tapping a line type
+// statistics, split into model / support / tower columns like desktop, every "Colour by" view draws its scale, and tapping a line type
 // hides it from the 3D view and shows it again.
 //
 //   node test/preview-views.mjs [screenshot-dir]
@@ -110,6 +110,17 @@ try {
   const shownChanges = Number(await page.getByTestId('tool-changes').innerText());
   if (shownChanges !== changes) fail(`key shows ${shownChanges} filament changes, the G-code has ${changes}`);
   if (changes < 1) fail('a two-filament plate should change filament at least once');
+  // Split like desktop: a Model column always, a Tower column when the G-code has a
+  // prime tower, and no column every filament has nothing in.
+  const heads = await stats.locator('thead th').allInnerTexts();
+  console.log(`filament columns: ${heads.join(' | ')}`);
+  if (!heads.includes('Model')) fail(`no Model column: ${heads.join(', ')}`);
+  if (heads.includes('Tower') !== /^;TYPE:Prime tower/m.test(gcode)) fail(`Tower column ${heads.includes('Tower') ? 'shown without' : 'missing with'} a prime tower`);
+  for (const [i, h] of heads.entries()) {
+    if (i === 0 || h === 'Total') continue;
+    const cells = await stats.locator(`tbody tr td:nth-child(${i + 1})`).allInnerTexts();
+    if (cells.every((c) => c.trim() === '–')) fail(`the ${h} column is empty for every filament`);
+  }
   await shot(page, 'filament');
 
   // Every value view draws a scale with numbers and its own colours.

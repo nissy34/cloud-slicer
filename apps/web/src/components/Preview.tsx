@@ -20,6 +20,7 @@ import { codeAt } from '../lib/layerCodes';
 import { plateBounds, toolpathWarnings } from '../lib/outside';
 import { useSceneColours } from '../lib/theme';
 import type { GcodeWorkerMessage } from '../engine/gcode-worker';
+import type { FilamentPart, SliceResult } from '../engine/protocol';
 import { useLoading } from '../state/loading';
 import { NO_COLOURS, useOption, useSlicer } from '../state/store';
 import { LayerMarks, LayerMenu, useLayerCodes } from './LayerCodes';
@@ -326,31 +327,106 @@ const grams = (g: number) => `${g < 10 ? g.toFixed(2) : g.toFixed(1)} g`;
 const metres = (mm: number) => `${(mm / 1000).toFixed(2)} m`;
 const money = (c: number) => c.toFixed(2);
 
-/** Each filament's length, weight and cost (prime tower included), then the totals and filament changes, like desktop's Filament view. */
-function FilamentStats({ stats, used, colours }: { stats: GcodeStats; used: number[]; colours: string[] }) {
+const PARTS: { part: FilamentPart; title: string }[] = [
+  { part: 'model', title: 'Model' },
+  { part: 'support', title: 'Support' },
+  { part: 'flushed', title: 'Flushed' },
+  { part: 'tower', title: 'Tower' },
+];
+
+/** A weight with its length under it (the phone shows the weight only). */
+function Use({ g, mm }: { g: number; mm: number }) {
+  return (
+    <>
+      {grams(g)}
+      <small>{metres(mm)}</small>
+    </>
+  );
+}
+
+/**
+ * Each filament's use like desktop's Filament view: a table of what went into
+ * the model, support, flushing and the prime tower (columns no filament used
+ * are left out) and the total, then the cost and filament changes. Totals are
+ * the G-code's own; without the engine's split, one line per filament.
+ */
+function FilamentStats({ stats, used, colours, parts }: { stats: GcodeStats; used: number[]; colours: string[]; parts?: SliceResult['filamentParts'] }) {
   const tools = [...new Set([...used, ...stats.filaments.flatMap((f, i) => (f.grams > 0 || f.mm > 0 ? [i] : []))])].sort((a, b) => a - b);
   const costed = stats.totalCost > 0;
+  const totalMm = stats.filaments.reduce((a, f) => a + f.mm, 0);
+  const columns = parts ? PARTS.filter(({ part }) => tools.some((t) => (parts[t + 1]?.[part]?.mm ?? 0) > 0)) : [];
+  const partOf = (t: number, part: FilamentPart) => parts?.[t + 1]?.[part];
+  const columnTotal = (part: FilamentPart) =>
+    tools.reduce((a, t) => ({ g: a.g + (partOf(t, part)?.g ?? 0), mm: a.mm + (partOf(t, part)?.mm ?? 0) }), { g: 0, mm: 0 });
   return (
     <div className="filament-stats" data-testid="filament-stats">
-      {tools.map((t) => {
-        const f = stats.filaments[t];
-        return (
-          <div key={t} className="legend-row filament-row">
-            <span className="dot" style={{ background: colours[t] ?? '#ccc' }} />
-            <span className="filament-name">Filament {t + 1}</span>
-            {f && (
-              <span className="filament-use">
-                {grams(f.grams)} · {metres(f.mm)}
-                {costed && ` · ${money(f.cost)}`}
-              </span>
-            )}
-          </div>
-        );
-      })}
-      <div className="stats-total">
+      {columns.length > 0 ? (
+        <table className="filament-table">
+          <thead>
+            <tr>
+              <th>Filament</th>
+              {columns.map((c) => (
+                <th key={c.part}>{c.title}</th>
+              ))}
+              <th>Total</th>
+            </tr>
+          </thead>
+          <tbody>
+            {tools.map((t) => {
+              const f = stats.filaments[t];
+              return (
+                <tr key={t}>
+                  <td>
+                    <span className="dot" style={{ background: colours[t] ?? '#ccc' }} />
+                    {t + 1}
+                  </td>
+                  {columns.map(({ part }) => {
+                    const p = partOf(t, part);
+                    return <td key={part}>{p ? <Use g={p.g} mm={p.mm} /> : <span className="none">–</span>}</td>;
+                  })}
+                  <td className="filament-total">{f && <Use g={f.grams} mm={f.mm} />}</td>
+                </tr>
+              );
+            })}
+          </tbody>
+          <tfoot>
+            <tr>
+              <td>Total</td>
+              {columns.map(({ part }) => {
+                const c = columnTotal(part);
+                return (
+                  <td key={part}>
+                    <Use g={c.g} mm={c.mm} />
+                  </td>
+                );
+              })}
+              <td className="filament-total">
+                <Use g={stats.totalGrams} mm={totalMm} />
+              </td>
+            </tr>
+          </tfoot>
+        </table>
+      ) : (
+        tools.map((t) => {
+          const f = stats.filaments[t];
+          return (
+            <div key={t} className="legend-row filament-row">
+              <span className="dot" style={{ background: colours[t] ?? '#ccc' }} />
+              <span className="filament-name">Filament {t + 1}</span>
+              {f && (
+                <span className="filament-use">
+                  {grams(f.grams)} · {metres(f.mm)}
+                  {costed && ` · ${money(f.cost)}`}
+                </span>
+              )}
+            </div>
+          );
+        })
+      )}
+      <div className={columns.length > 0 ? 'stats-total split' : 'stats-total'}>
         <span>Total</span>
         <span>
-          {grams(stats.totalGrams)} · {metres(stats.filaments.reduce((a, f) => a + f.mm, 0))}
+          {grams(stats.totalGrams)} · {metres(totalMm)}
         </span>
         <span>Cost</span>
         <span>{costed ? money(stats.totalCost) : '–'}</span>
@@ -488,7 +564,7 @@ export function Preview() {
         {parsed && keyOpen && (
           <>
             {colourBy === 'feature' && <LineTypes features={usedFeatures} hidden={hidden} setHidden={setHidden} />}
-            {colourBy === 'filament' && <FilamentStats stats={parsed.stats} used={parsed.toolsUsed} colours={colours} />}
+            {colourBy === 'filament' && <FilamentStats stats={parsed.stats} used={parsed.toolsUsed} colours={colours} parts={job.kind === 'sliced' ? job.result.filamentParts : undefined} />}
             {isRangeView(colourBy) && <RangeKey by={colourBy} range={range} />}
             {colourBy !== 'feature' && hidden.size > 0 && (
               <p className="legend-note">
