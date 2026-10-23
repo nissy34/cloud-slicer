@@ -53,6 +53,11 @@ installs the system packages after all.
 - **ccache** for the engine's own sources, per commit, kept small so it doesn't evict
   the dependency cache (the repository has 10 GB of cache in total).
 
+The jobs after `engine` restore it with `.github/actions/restore-engine`. When many
+jobs start at once, GitHub's cache storage sometimes refuses a download ("Egress is
+over the account limit"); the action then waits 20 to 40 seconds (random, so the jobs
+don't all try again together) and tries once more before failing the job.
+
 Typical runs: about 6 minutes with a cached engine (a preview is up after about 4),
 about 7 more for an engine rebuild with ccache.
 
