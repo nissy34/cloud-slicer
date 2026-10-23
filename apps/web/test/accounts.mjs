@@ -1027,6 +1027,7 @@ if (withApp)
       const hereCard = page.getByTestId('continue-card');
       await hereCard.getByText('Continue 3DBenchy?').waitFor({ timeout: 120000 });
       await hereCard.getByText(/You had it open here, edited/).waitFor();
+      await page.getByText('Open a model to start').waitFor({ timeout: 120000 });
       if (process.env.ACCOUNTS_SHOTS) await page.screenshot({ path: join(process.env.ACCOUNTS_SHOTS, 'continue-here.png') });
       await page.setViewportSize({ width: 390, height: 800 });
       if (process.env.ACCOUNTS_SHOTS) await page.screenshot({ path: join(process.env.ACCOUNTS_SHOTS, 'continue-here-phone.png') });
