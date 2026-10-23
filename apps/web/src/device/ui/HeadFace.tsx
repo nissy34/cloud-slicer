@@ -61,6 +61,21 @@ function Extra({ mood }: { mood: HeadMood }) {
       );
     case 'cooling':
       return <path className="dv-face-drop" d="M78 34q4 7 0 10q-4-3 0-10z" fill="#5db4ff" />;
+    case 'hungry':
+      // Thinking of a spool of filament, like the one it dreams of in bed.
+      return (
+        <g className="dv-face-think">
+          <circle cx="85" cy="28" r="2.2" fill="#fff" stroke="var(--dv-outline)" strokeWidth="1.5" />
+          <circle cx="90" cy="21" r="3.2" fill="#fff" stroke="var(--dv-outline)" strokeWidth="1.5" />
+          <g className="dv-bed-dream">
+            <path d="M82 9q-5-12 8-13q5-9 16-4q13-1 13 9q9 8-3 14h-28q-10-1-6-6z" fill="#fff" stroke="var(--dv-outline)" strokeWidth="1.8" />
+            <rect x="91" y="-2" width="20" height="14" rx="2" fill="var(--dv-warm)" />
+            <path d="M91 2.5h20M91 7h20" stroke="rgba(0,0,0,.2)" strokeWidth="1.2" />
+            <rect x="88" y="-4" width="3.5" height="18" rx="1.2" fill="var(--dv-metal)" />
+            <rect x="110.5" y="-4" width="3.5" height="18" rx="1.2" fill="var(--dv-metal)" />
+          </g>
+        </g>
+      );
     case 'printing':
       return <path className="dv-face-spark" d="M86 20l3 6 6 3-6 3-3 6-3-6-6-3 6-3z" fill="var(--dv-warm)" />;
     case 'heating':
@@ -129,6 +144,7 @@ export function HeadBody({ mood, colour, loaded, temp }: { mood: HeadMood; colou
  * A tool head drawn as a little character: the filament going in at the top
  * in its colour (dashed when empty, grey when the printer doesn't say), a
  * heater block and glow that follow the temperature, and a face for its mood.
+ * An empty head thinks of a spool.
  */
 export function HeadFace({ mood, colour, loaded, temp, size = 56 }: { mood: HeadMood; colour: string | null; loaded: boolean | null; temp: number; size?: number }) {
   return (
