@@ -65,6 +65,16 @@ describe('the Continue card', () => {
     expect(continueOffer([project({ updatedAt: now - 30 * 3600_000, device: 'other' })], 'me', now)).toBeNull();
     expect(continueOffer([project({ updatedAt: now - 60_000, device: null })], 'me', now)).toBeNull();
   });
+  it('offers the saved project that was open here first, however long ago', () => {
+    const list = [project({ id: 'mine', updatedAt: now - 30 * 24 * 3600_000, device: 'me' }), project({ id: 'd', draft: true, updatedAt: now - 1000, device: 'phone' })];
+    expect(continueOffer(list, 'me', now, 'mine')).toEqual({ kind: 'here', project: expect.objectContaining({ id: 'mine' }) });
+  });
+  it('falls back to the usual rules when the project open here is gone or became a draft', () => {
+    const list = [project({ id: 'd', draft: true, device: 'me' })];
+    expect(continueOffer(list, 'me', now, 'deleted')?.kind).toBe('draft');
+    expect(continueOffer(list, 'me', now, 'd')?.kind).toBe('draft');
+    expect(continueOffer([], 'me', now, 'deleted')).toBeNull();
+  });
 });
 
 describe('a project deleted on another device', () => {

@@ -4,7 +4,7 @@ import { formatWhen } from '../lib/projects';
 import { useProjects } from '../state/projects';
 import { Notice } from './Notice';
 
-/** On opening the app with nothing loaded: continue the draft, or a project changed on another device. */
+/** On opening the app with nothing loaded: continue the project open here last, the draft, or a project changed on another device. */
 export function ContinueCard() {
   const offer = useProjects((s) => s.offer);
   const busy = useProjects((s) => Boolean(s.busy));
@@ -16,11 +16,13 @@ export function ContinueCard() {
     <Notice
       testId="continue-card"
       icon={<span className="project-thumb small">{p.hasThumbnail ? <img src={projectThumbnailUrl(p)} alt="" /> : '3MF'}</span>}
-      title={draft ? 'Continue your unsaved project?' : `Continue ${p.name}`}
+      title={draft ? 'Continue your unsaved project?' : offer.kind === 'here' ? `Continue ${p.name}?` : `Continue ${p.name}`}
       text={
         draft
           ? `${p.name}, changed ${formatWhen(p.updatedAt)}${p.deviceName ? ` on ${yourDevice(p.deviceName)}` : ''}`
-          : `Edited ${formatWhen(p.updatedAt)} on ${yourDevice(p.deviceName)}`
+          : offer.kind === 'here'
+            ? `You had it open here, edited ${formatWhen(p.updatedAt)}`
+            : `Edited ${formatWhen(p.updatedAt)} on ${yourDevice(p.deviceName)}`
       }
       actions={
         <>

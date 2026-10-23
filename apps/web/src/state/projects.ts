@@ -22,7 +22,7 @@ import { engineFromUrl, engineName, engineOf3mf, type EngineFlavor } from '../li
 import { SETUP_KEY, type Setup } from '../lib/setup';
 import { sharedOnLoad, splitShared, takeSharedFiles } from '../lib/share-target';
 import { snapshot } from '../lib/snapshot';
-import { deviceId, saveDefaultEngine } from '../lib/storage';
+import { deviceId, loadOpenProject, saveDefaultEngine, saveOpenProject } from '../lib/storage';
 import { getUserSetting, saveUserSetting, useAccount } from './account';
 import { useSlicer, type OpenMode } from './store';
 
@@ -566,11 +566,16 @@ let offerSettled = false;
 async function offerNow(): Promise<ContinueOffer | null> {
   if (!signedIn() || !untouchedProject()) return null;
   try {
-    return continueOffer((await api.projects()).projects, deviceId());
+    return continueOffer((await api.projects()).projects, deviceId(), Date.now(), loadOpenProject());
   } catch {
     return null;
   }
 }
+// The saved project open here is remembered, so a reload offers it again; a new
+// project, a draft, a file opened from the device or a deleted project forgets it.
+useProjects.subscribe((p, prev) => {
+  if (p.current !== prev.current) saveOpenProject(p.current.id && !p.current.draft ? p.current.id : null);
+});
 const DISMISSED_KEY = 'cloud-slicer:continue-dismissed:v1';
 const offerKey = (o: ContinueOffer) => `${o.project.id}:${o.project.version}`;
 function readDismissed() {

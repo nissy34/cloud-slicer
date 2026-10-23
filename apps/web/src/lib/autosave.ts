@@ -38,15 +38,21 @@ export type ContinueOffer =
   /** The person's unsaved project, from this device or another. */
   | { kind: 'draft'; project: OnlineProject }
   /** A saved project last changed on another device. */
-  | { kind: 'elsewhere'; project: OnlineProject };
+  | { kind: 'elsewhere'; project: OnlineProject }
+  /** The saved project that was open on this device when the page was left. */
+  | { kind: 'here'; project: OnlineProject };
 
 /**
  * What the Continue card offers when the app opens with nothing loaded: the
- * newest draft if there is one (from this device or another), else the newest project changed on another device in
- * the last day. Projects last changed here aren't offered (they're one click
- * away in Online projects).
+ * saved project that was open here when the page was left (`openHere`, however
+ * long ago), else the newest draft if there is one (from this device or
+ * another), else the newest project changed on another device in the last day.
+ * Other projects last changed here aren't offered (they're one click away in
+ * Online projects).
  */
-export function continueOffer(projects: OnlineProject[], device: string, now = Date.now()): ContinueOffer | null {
+export function continueOffer(projects: OnlineProject[], device: string, now = Date.now(), openHere: string | null = null): ContinueOffer | null {
+  const here = openHere ? projects.find((p) => p.id === openHere && !p.draft) : undefined;
+  if (here) return { kind: 'here', project: here };
   // Each device keeps its own draft: the newest one is offered.
   const draft = projects.filter((p) => p.draft).sort((a, b) => b.updatedAt - a.updatedAt)[0];
   if (draft) return { kind: 'draft', project: draft };
