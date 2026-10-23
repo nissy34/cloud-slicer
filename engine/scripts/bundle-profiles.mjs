@@ -33,6 +33,7 @@ import { fileURLToPath } from 'node:url';
 import { gzipSync } from 'node:zlib';
 import { encodeBedMesh, readStl } from './bed-mesh.mjs';
 import { labelObjectsForKlipper } from './klipper-labels.mjs';
+import { plateInFileNames } from './plate-file-names.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
 // ENGINE_FLAVOR=orca bundles upstream OrcaSlicer's presets instead.
@@ -95,9 +96,11 @@ function withoutDefaultMaterials(text) {
 }
 
 let labelled = 0;
+let plateNamed = 0;
 /**
  * The vendor's preset files ({path: text}). Every Klipper printer gets object
- * labels, for skipping objects mid-print (klipper-labels.mjs).
+ * labels, for skipping objects mid-print (klipper-labels.mjs), and every
+ * G-code file name its plate number (plate-file-names.mjs).
  */
 function vendorFiles(vendor) {
   const files = { [`${vendor}.json`]: readFileSync(join(root, `${vendor}.json`), 'utf8') };
@@ -106,6 +109,7 @@ function vendorFiles(vendor) {
     if (file.endsWith('.json')) files[rel] = withoutDefaultMaterials(readFileSync(file, 'utf8'));
   }
   labelled += labelObjectsForKlipper(files).length;
+  plateNamed += plateInFileNames(files).length;
   return files;
 }
 
@@ -256,7 +260,7 @@ const models = catalog.reduce((n, v) => n + v.models.length, 0);
 console.log(
   `${join(outDir, 'profiles.json')}: ${Object.keys(bundle).length} preset files (${startup.join(', ')}, ${version}); ` +
     `profiles/: ${catalog.length} brands, ${models} printer models, ${kb(lazyBytes)} compressed if every brand were loaded; ` +
-    `Exclude objects turned on in ${labelled} Klipper process presets`,
+    `Exclude objects turned on in ${labelled} Klipper process presets; plate number put in the file name of ${plateNamed}`,
 );
 const bedTotal = (b) => b.model + b.texture;
 bedSizes.sort((a, b) => bedTotal(b) - bedTotal(a));

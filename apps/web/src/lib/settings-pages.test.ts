@@ -31,4 +31,12 @@ describe('shownPages', () => {
     expect(shownPages(layout, 1, 'reprap').map((p) => p.page)).toEqual(['Basic information', 'Multimaterial', 'Extruder 1', 'Notes']);
     expect(shownPages(layout, 1, undefined).some((p) => p.page === 'Motion ability')).toBe(false);
   });
+
+  it("leaves out post-processing scripts, which a browser can't run", () => {
+    const withScripts = [
+      page('Others', { groups: [{ title: 'Output', options: ['filename_format'] }, { title: 'Post-processing Scripts', options: ['post_process'] }] }),
+      page('Scripts only', { groups: [{ title: 'Post-processing Scripts', options: ['post_process'] }] }),
+    ];
+    expect(shownPages(withScripts, 1, 'klipper')).toEqual([{ page: 'Others', groups: [{ title: 'Output', options: ['filename_format'] }] }]);
+  });
 });

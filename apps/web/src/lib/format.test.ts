@@ -53,8 +53,14 @@ describe('sentence', () => {
 describe('outputFileName', () => {
   const u1 = '{input_filename_base}_{filament_type[0]}_{print_time}.gcode';
   it('names the file as desktop does', () => {
-    expect(outputFileName(u1, 'Flexi_Hamster-plate1', { filament_type: 'PLA;PETG' }, 16_332)).toBe('Flexi_Hamster-plate1_PLA_4h32m12s.gcode');
+    expect(outputFileName(u1, 'Flexi_Hamster', { filament_type: 'PLA;PETG' }, 16_332)).toBe('Flexi_Hamster_PLA_4h32m12s.gcode');
     expect(outputFileName(u1, '3DBenchy.stl', { filament_type: '"PETG";"PLA"' }, 2832)).toBe('3DBenchy_PETG_47m12s.gcode');
+  });
+  it("tells plates apart with desktop's {plate_number} and {plate_name}", () => {
+    const withPlate = '{input_filename_base}_plate_{plate_number}_{filament_type[0]}_{print_time}.gcode';
+    expect(outputFileName(withPlate, 'Flexi_Hamster.3mf', { filament_type: 'PLA' }, 16_332)).toBe('Flexi_Hamster_plate_01_PLA_4h32m12s.gcode');
+    expect(outputFileName(withPlate, 'Flexi_Hamster.3mf', { filament_type: 'PLA' }, 16_332, { index: 11 })).toBe('Flexi_Hamster_plate_12_PLA_4h32m12s.gcode');
+    expect(outputFileName('{input_filename_base}_{plate_name}', 'Hamster', {}, 0, { index: 1, name: 'Ears' })).toBe('Hamster_Ears.gcode');
   });
   it('reads any setting, and its n-th value', () => {
     expect(outputFileName('{input_filename_base}_{layer_height}mm_{filament_type[1]}.gcode', 'cube', { layer_height: '0.2', filament_type: 'PLA;TPU' }, 60)).toBe('cube_0.2mm_TPU.gcode');

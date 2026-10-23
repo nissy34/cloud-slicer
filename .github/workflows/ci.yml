@@ -106,7 +106,7 @@ jobs:
         run: npm test
 
       - name: Preset bundling tests
-        run: node --test engine/scripts/klipper-labels.test.mjs
+        run: node --test engine/scripts/klipper-labels.test.mjs engine/scripts/plate-file-names.test.mjs
 
       - name: Web app typecheck and unit tests
         working-directory: apps/web

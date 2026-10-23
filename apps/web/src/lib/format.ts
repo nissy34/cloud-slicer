@@ -37,12 +37,19 @@ export function timeDhms(seconds: number): string {
 
 /**
  * The G-code file name as desktop makes it, from the process preset's
- * filename_format (the U1's: "{input_filename_base}_{filament_type[0]}_{print_time}.gcode").
- * {input_filename_base} is the model or project name (with "-plateN" on a
- * project with several plates), {print_time} the estimate, and any other
- * {key} or {key[i]} the setting's value. No format: "<name>.gcode".
+ * filename_format (the U1's: "{input_filename_base}_plate_{plate_number}_{filament_type[0]}_{print_time}.gcode").
+ * {input_filename_base} is the model or project name, {print_time} the
+ * estimate, {plate_number} the plate as desktop writes it ("01") and
+ * {plate_name} its name, and any other {key} or {key[i]} the setting's value.
+ * No format: "<name>.gcode".
  */
-export function outputFileName(format: string | undefined, base: string, config: Record<string, string>, printSeconds: number): string {
+export function outputFileName(
+  format: string | undefined,
+  base: string,
+  config: Record<string, string>,
+  printSeconds: number,
+  plate: { index: number; name?: string } = { index: 0 },
+): string {
   const stem = base.replace(/\.[^.]+$/, '') || 'model';
   if (!format?.trim()) return `${stem}.gcode`;
   const name = format
@@ -51,6 +58,8 @@ export function outputFileName(format: string | undefined, base: string, config:
     .replace(/\{\s*([a-z_]\w*)\s*(?:\[\s*(\d+)\s*\])?\s*\}/gi, (_, key: string, index?: string) => {
       if (key === 'input_filename_base') return stem;
       if (key === 'print_time') return timeDhms(printSeconds);
+      if (key === 'plate_number') return String(plate.index + 1).padStart(2, '0');
+      if (key === 'plate_name') return plate.name ?? '';
       const value = config[key] ?? '';
       const list = value.split(value.includes(';') ? ';' : ',').map((v) => v.trim().replace(/^"|"$/g, ''));
       return list[index ? Number(index) : 0] ?? '';

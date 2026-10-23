@@ -127,11 +127,10 @@ export function ActionBar() {
   const busy = job.kind === 'loading' || job.kind === 'slicing';
   const plateLabel = (project?.plates.length ?? 0) > 1 ? `Slice plate ${plate + 1}` : 'Slice plate';
   const baseName = project?.fileName || project?.objects[0]?.name || 'plate';
-  const plates = project?.plates.length ?? 0;
-  // As desktop names it (the process preset's filename_format), keeping the plate on a project with several.
+  // As desktop names it: the process preset's filename_format, whose {plate_number} tells plates apart.
   const fileName =
     job.kind === 'sliced'
-      ? outputFileName(config.filename_format, plates > 1 ? `${baseName.replace(/\.[^.]+$/, '')}-plate${job.plate + 1}` : baseName, config, job.result.estimatedTimeSeconds)
+      ? outputFileName(config.filename_format, baseName, config, job.result.estimatedTimeSeconds, { index: job.plate, name: project?.plates[job.plate]?.name })
       : '';
   return (
     <div className="actionbar" data-testid="actionbar">

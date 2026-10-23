@@ -19,6 +19,11 @@ const NEVER = new Set([
   'print_host', 'print_host_webui', 'printhost_apikey', 'printhost_cafile', 'host_type',
   // Prime tower spots are per plate; the page keeps them apart (lib/wipe-tower.ts).
   'wipe_tower_x', 'wipe_tower_y',
+  // Desktop's post-processing scripts: a browser can't run them (lib/settings-pages.ts).
+  'post_process',
+  // How G-code files are named is the preset's, which puts the plate in the name
+  // (engine/scripts/plate-file-names.mjs); a project from desktop carries the old one.
+  'filename_format',
   // Which flow variants the presets have values for; alignFlowVariants lays
   // the project's values out like the presets'.
   'process_flow_support', 'filament_flow_support', 'printer_flow_support', 'filament_flow_step_size',

@@ -271,6 +271,13 @@ sidebar; printer and filament (per slot) settings open in their own window from 
 beside their picker, like desktop's preset editors, with Save to preset, Save as new
 preset and Save to project (changes kept only in the project 3MF).
 
+Downloaded and sent G-code is named from the process preset's **Filename format**, as on
+desktop. The shipped presets put the plate in it (`{input_filename_base}_plate_{plate_number}_…`,
+added by `engine/scripts/plate-file-names.mjs`), so `Flexi_Hamster_plate_01_PLA_4h31m12s.gcode`;
+desktop's `{plate_number}`, `{plate_name}`, `{print_time}` and any setting (`{filament_type[0]}`)
+work. Desktop's **Post-processing Scripts** run a program on the computer, which a browser
+can't, so that box isn't shown.
+
 ## Projects
 
 The Project menu in the top bar (New, Open, Projects, Save, Save a copy, AutoSave, Download 3MF) saves
