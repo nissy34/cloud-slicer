@@ -119,6 +119,9 @@ function slice(config, plate = 0, thumbnails = null) {
   return { result, gcode: new TextDecoder().decode(engine.FS.readFile(result.gcodePath)) };
 }
 
+/** Each filament's length as the G-code's statistics give it ("; filament used [mm] = a, b"). */
+const usedMm = (gcode) => /^; filament used \[mm\] = (.*)$/m.exec(gcode)[1].split(',').map(Number);
+
 const toolCounts = (gcode) => {
   const counts = {};
   for (const m of gcode.matchAll(/^T(\d+)\s*$/gm)) counts[m[1]] = (counts[m[1]] ?? 0) + 1;
@@ -177,6 +180,8 @@ test('slices an STL with the U1 presets', () => {
   assert.match(gcode, /^EXCLUDE_OBJECT_DEFINE/m);
   assert.ok(result.totalLayers > 10);
   assert.ok(result.estimatedTimeSeconds > 0);
+  // Desktop's Prepare time: part of the total, the start G-code's share.
+  assert.ok(result.prepareSeconds >= 0 && result.prepareSeconds < result.estimatedTimeSeconds, `prepare ${result.prepareSeconds} s`);
 });
 
 test('the layer count is the G-code\'s, support layers included only once', () => {
@@ -186,6 +191,14 @@ test('the layer count is the G-code\'s, support layers included only once', () =
   assert.match(gcode, /^;TYPE:Support/m, 'the Benchy gets supports');
   const written = Number(/^; total layer number: (\d+)/m.exec(gcode)?.[1]);
   assert.equal(result.totalLayers, written, `summary ${result.totalLayers}, G-code ${written}`);
+  // Filament use split like desktop's Filament view: the model and its support.
+  const parts = result.filamentParts['1'];
+  assert.ok(parts.model.mm > 0 && parts.model.g > 0, JSON.stringify(result.filamentParts));
+  assert.ok(parts.support.mm > 0 && parts.support.g > 0, JSON.stringify(result.filamentParts));
+  assert.ok(!parts.tower && !parts.flushed, 'one filament: no tower, nothing flushed');
+  const sum = Object.values(parts).reduce((a, p) => a + p.mm, 0);
+  const used = usedMm(gcode)[0];
+  assert.ok(Math.abs(sum - used) < 1, `parts ${sum} mm, G-code ${used} mm`);
 });
 
 test('slicing reports desktop\'s warnings: G-code path conflicts and models that need support', () => {
@@ -363,6 +376,16 @@ test('prime tower: shown and sized like desktop Prepare, sliced where it was pla
   assert.equal(at.y, 40);
   const { gcode, result } = slice(fullConfig(placed));
   assert.ok(result.wipeTowerDepth > 0, `sliced tower depth: ${result.wipeTowerDepth}`);
+  // Both filaments print part of the model and part of the tower, adding up to
+  // the G-code's total. (Per filament OrcaSlicer's statistics charge some tower
+  // filament to the other filament; the parts follow the G-code's tools.)
+  for (const f of ['1', '2']) {
+    const parts = result.filamentParts[f];
+    assert.ok(parts?.model?.mm > 0 && parts?.tower?.mm > 0, JSON.stringify(result.filamentParts));
+  }
+  const sum = Object.values(result.filamentParts).flatMap(Object.values).reduce((a, p) => a + p.mm, 0);
+  const used = usedMm(gcode).reduce((a, mm) => a + mm, 0);
+  assert.ok(Math.abs(sum - used) < 1, `parts ${sum} mm, G-code ${used} mm`);
   const xs = [], ys = [];
   let inTower = false;
   for (const line of gcode.split('\n')) {

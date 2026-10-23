@@ -3,7 +3,7 @@ import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import * as THREE from 'three';
 import { bedSize } from '../lib/colour';
-import { formatMegabytes } from '../lib/format';
+import { formatClock, formatMegabytes } from '../lib/format';
 import { FEATURE_COLOURS, FEATURES, type GcodeStats, type PreviewGcode } from '../lib/gcode';
 import {
   RANGE_COLOURS,
@@ -20,6 +20,7 @@ import { codeAt } from '../lib/layerCodes';
 import { plateBounds, toolpathWarnings } from '../lib/outside';
 import { useSceneColours } from '../lib/theme';
 import type { GcodeWorkerMessage } from '../engine/gcode-worker';
+import type { FilamentPart, SliceResult } from '../engine/protocol';
 import { useLoading } from '../state/loading';
 import { NO_COLOURS, useOption, useSlicer } from '../state/store';
 import { LayerMarks, LayerMenu, useLayerCodes } from './LayerCodes';
@@ -326,31 +327,117 @@ const grams = (g: number) => `${g < 10 ? g.toFixed(2) : g.toFixed(1)} g`;
 const metres = (mm: number) => `${(mm / 1000).toFixed(2)} m`;
 const money = (c: number) => c.toFixed(2);
 
-/** Each filament's length, weight and cost (prime tower included), then the totals and filament changes, like desktop's Filament view. */
-function FilamentStats({ stats, used, colours }: { stats: GcodeStats; used: number[]; colours: string[] }) {
+const PARTS: { part: FilamentPart; title: string }[] = [
+  { part: 'model', title: 'Model' },
+  { part: 'support', title: 'Support' },
+  { part: 'flushed', title: 'Flushed' },
+  { part: 'tower', title: 'Tower' },
+];
+
+/** A weight with its length under it (the phone shows the weight only). */
+function Use({ g, mm }: { g: number; mm: number }) {
+  return (
+    <>
+      {grams(g)}
+      <small>{metres(mm)}</small>
+    </>
+  );
+}
+
+/**
+ * Each filament's use like desktop's Filament view: a table of what went into
+ * the model, support, flushing and the prime tower (columns no filament used
+ * are left out) and their total, then the cost and filament changes. Without
+ * the engine's split, one line per filament with the G-code's own totals.
+ */
+function FilamentStats({ stats, used, colours, parts }: { stats: GcodeStats; used: number[]; colours: string[]; parts?: SliceResult['filamentParts'] }) {
   const tools = [...new Set([...used, ...stats.filaments.flatMap((f, i) => (f.grams > 0 || f.mm > 0 ? [i] : []))])].sort((a, b) => a - b);
   const costed = stats.totalCost > 0;
+  const totalMm = stats.filaments.reduce((a, f) => a + f.mm, 0);
+  const columns = parts ? PARTS.filter(({ part }) => tools.some((t) => (parts[t + 1]?.[part]?.mm ?? 0) > 0)) : [];
+  const partOf = (t: number, part: FilamentPart) => parts?.[t + 1]?.[part];
+  const add = (cells: ({ g: number; mm: number } | undefined)[]) =>
+    cells.reduce<{ g: number; mm: number }>((a, c) => ({ g: a.g + (c?.g ?? 0), mm: a.mm + (c?.mm ?? 0) }), { g: 0, mm: 0 });
+  // As desktop: a filament's total is its columns added up, shown when there is more than Model.
+  const rowTotal = (t: number) => add(columns.map(({ part }) => partOf(t, part)));
+  const columnTotal = (part: FilamentPart) => add(tools.map((t) => partOf(t, part)));
+  const totalColumn = columns.some(({ part }) => part !== 'model');
+  const grandTotal = add(tools.map(rowTotal));
   return (
     <div className="filament-stats" data-testid="filament-stats">
-      {tools.map((t) => {
-        const f = stats.filaments[t];
-        return (
-          <div key={t} className="legend-row filament-row">
-            <span className="dot" style={{ background: colours[t] ?? '#ccc' }} />
-            <span className="filament-name">Filament {t + 1}</span>
-            {f && (
-              <span className="filament-use">
-                {grams(f.grams)} · {metres(f.mm)}
-                {costed && ` · ${money(f.cost)}`}
-              </span>
-            )}
-          </div>
-        );
-      })}
-      <div className="stats-total">
+      {columns.length > 0 ? (
+        <table className="filament-table">
+          <thead>
+            <tr>
+              <th>Filament</th>
+              {columns.map((c) => (
+                <th key={c.part}>{c.title}</th>
+              ))}
+              {totalColumn && <th>Total</th>}
+            </tr>
+          </thead>
+          <tbody>
+            {tools.map((t) => {
+              const total = rowTotal(t);
+              return (
+                <tr key={t} data-filament={t + 1}>
+                  <td>
+                    <span className="dot" style={{ background: colours[t] ?? '#ccc' }} />
+                    {t + 1}
+                  </td>
+                  {columns.map(({ part }) => {
+                    const p = partOf(t, part);
+                    return <td key={part}>{p ? <Use g={p.g} mm={p.mm} /> : <span className="none">–</span>}</td>;
+                  })}
+                  {totalColumn && (
+                    <td className="filament-total">
+                      <Use g={total.g} mm={total.mm} />
+                    </td>
+                  )}
+                </tr>
+              );
+            })}
+          </tbody>
+          <tfoot>
+            <tr>
+              <td>Total</td>
+              {columns.map(({ part }) => {
+                const c = columnTotal(part);
+                return (
+                  <td key={part}>
+                    <Use g={c.g} mm={c.mm} />
+                  </td>
+                );
+              })}
+              {totalColumn && (
+                <td className="filament-total">
+                  <Use g={grandTotal.g} mm={grandTotal.mm} />
+                </td>
+              )}
+            </tr>
+          </tfoot>
+        </table>
+      ) : (
+        tools.map((t) => {
+          const f = stats.filaments[t];
+          return (
+            <div key={t} className="legend-row filament-row" data-filament={t + 1}>
+              <span className="dot" style={{ background: colours[t] ?? '#ccc' }} />
+              <span className="filament-name">Filament {t + 1}</span>
+              {f && (
+                <span className="filament-use">
+                  {grams(f.grams)} · {metres(f.mm)}
+                  {costed && ` · ${money(f.cost)}`}
+                </span>
+              )}
+            </div>
+          );
+        })
+      )}
+      <div className={columns.length > 0 ? 'stats-total split' : 'stats-total'}>
         <span>Total</span>
         <span>
-          {grams(stats.totalGrams)} · {metres(stats.filaments.reduce((a, f) => a + f.mm, 0))}
+          {grams(stats.totalGrams)} · {metres(totalMm)}
         </span>
         <span>Cost</span>
         <span>{costed ? money(stats.totalCost) : '–'}</span>
@@ -358,6 +445,31 @@ function FilamentStats({ stats, used, colours }: { stats: GcodeStats; used: numb
         <span data-testid="tool-changes">{stats.toolChanges}</span>
       </div>
       {!costed && <p className="legend-note">Set the Price in the filament settings to see the cost.</p>}
+    </div>
+  );
+}
+
+/** Desktop's time estimate under the key, in every view: the start G-code's share, the model's, and the total. */
+function TimeStats({ total, prepare }: { total: number; prepare: number }) {
+  if (!(total > 0)) return null;
+  // The phone shows the rows on one line with the short names.
+  const rows: [string, string, number, string?][] = [
+    ...(prepare > 0 ? [['Prepare time', 'Prepare', prepare] as [string, string, number]] : []),
+    ['Model printing time', 'Printing', total - prepare],
+    ['Total time', 'Total', total, 'total-time'],
+  ];
+  return (
+    <div className="time-stats" data-testid="time-stats">
+      <span className="time-title">Time</span>
+      {rows.map(([name, short, seconds, testId]) => (
+        <span key={name} className="time-row">
+          <span className="long">{name}</span>
+          <span className="short">{short}</span>
+          <span className="time-value" data-testid={testId}>
+            {formatClock(seconds)}
+          </span>
+        </span>
+      ))}
     </div>
   );
 }
@@ -488,7 +600,7 @@ export function Preview() {
         {parsed && keyOpen && (
           <>
             {colourBy === 'feature' && <LineTypes features={usedFeatures} hidden={hidden} setHidden={setHidden} />}
-            {colourBy === 'filament' && <FilamentStats stats={parsed.stats} used={parsed.toolsUsed} colours={colours} />}
+            {colourBy === 'filament' && <FilamentStats stats={parsed.stats} used={parsed.toolsUsed} colours={colours} parts={job.kind === 'sliced' ? job.result.filamentParts : undefined} />}
             {isRangeView(colourBy) && <RangeKey by={colourBy} range={range} />}
             {colourBy !== 'feature' && hidden.size > 0 && (
               <p className="legend-note">
@@ -498,6 +610,10 @@ export function Preview() {
                 </button>
               </p>
             )}
+            <TimeStats
+              total={(job.kind === 'sliced' && job.result.estimatedTimeSeconds) || parsed.stats.seconds}
+              prepare={job.kind === 'sliced' ? (job.result.prepareSeconds ?? 0) : 0}
+            />
           </>
         )}
       </div>

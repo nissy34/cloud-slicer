@@ -226,6 +226,9 @@ export interface SliceWarning {
   option?: string;
 }
 
+/** Where a filament went: the model, its support, the prime tower, or flushed when changing filament. */
+export type FilamentPart = 'model' | 'support' | 'tower' | 'flushed';
+
 export interface SliceResult {
   success: boolean;
   error: string;
@@ -233,9 +236,13 @@ export interface SliceResult {
   gcodePath: string;
   totalLayers: number;
   estimatedTimeSeconds: number;
+  /** Desktop's "Prepare time": the part of estimatedTimeSeconds spent on the start G-code. */
+  prepareSeconds?: number;
   filamentMm: Record<string, number>;
   totalFilamentMm: number;
   totalFilamentGrams: number;
+  /** Each filament's use (1-based) split like desktop's Filament view; parts it has none of are left out. */
+  filamentParts?: Record<string, Partial<Record<FilamentPart, { mm: number; g: number }>>>;
   /** Depth of the prime tower the slice made (mm), when it made one. */
   wipeTowerDepth?: number;
 }
