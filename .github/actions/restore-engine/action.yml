@@ -1,0 +1,38 @@
+name: Restore an engine
+description: >
+  Restores a built engine (orca-engine.*) from the Actions cache and fails the
+  job if it isn't there. When many jobs start at once, GitHub's cache storage
+  sometimes refuses a download ("Egress is over the account limit") and the
+  cache action reports that as a miss; so on a miss this waits 20-40 s (random,
+  so parallel jobs don't all come back at the same moment) and tries once more
+  before failing. Used by ci.yml's engine-tests, site and shared-settings jobs.
+inputs:
+  path:
+    description: Where the engine files go, e.g. engine/build/engine/orca-engine.*
+    required: true
+  key:
+    description: The engine's cache key (engine-out-<engine key>)
+    required: true
+runs:
+  using: composite
+  steps:
+    - id: first
+      uses: actions/cache/restore@v5
+      with:
+        path: ${{ inputs.path }}
+        key: ${{ inputs.key }}
+
+    - name: Wait before trying again
+      if: steps.first.outputs.cache-hit != 'true'
+      shell: bash
+      run: |
+        wait=$((20 + RANDOM % 21))
+        echo "::warning::Couldn't restore the engine (${{ inputs.key }}); trying again in ${wait} s"
+        sleep "$wait"
+
+    - if: steps.first.outputs.cache-hit != 'true'
+      uses: actions/cache/restore@v5
+      with:
+        path: ${{ inputs.path }}
+        key: ${{ inputs.key }}
+        fail-on-cache-miss: true

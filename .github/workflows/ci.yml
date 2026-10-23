@@ -354,11 +354,10 @@ jobs:
       - uses: actions/setup-node@v5
         with:
           node-version: 22
-      - uses: actions/cache/restore@v5
+      - uses: ./.github/actions/restore-engine
         with:
           path: ${{ matrix.out }}/orca-engine.*
           key: ${{ steps.key.outputs[matrix.flavor] }}
-          fail-on-cache-miss: true
 
       - name: Bundle the ${{ matrix.name }} presets
         run: node engine/scripts/bundle-profiles.mjs "${{ matrix.profiles }}"
@@ -413,17 +412,15 @@ jobs:
           cache: npm
           cache-dependency-path: apps/web/package-lock.json
       - name: Restore the Snapmaker Orca engine
-        uses: actions/cache/restore@v5
+        uses: ./.github/actions/restore-engine
         with:
           path: engine/build/engine/orca-engine.*
           key: ${{ steps.key.outputs.snapmaker }}
-          fail-on-cache-miss: true
       - name: Restore the OrcaSlicer engine
-        uses: actions/cache/restore@v5
+        uses: ./.github/actions/restore-engine
         with:
           path: engine/build/engine-orca/orca-engine.*
           key: ${{ steps.key.outputs.orca }}
-          fail-on-cache-miss: true
 
       - name: Build the web app
         working-directory: apps/web
@@ -469,17 +466,15 @@ jobs:
           cache: npm
           cache-dependency-path: apps/web/package-lock.json
       - name: Restore the Snapmaker Orca engine
-        uses: actions/cache/restore@v5
+        uses: ./.github/actions/restore-engine
         with:
           path: engine/build/engine/orca-engine.*
           key: ${{ steps.key.outputs.snapmaker }}
-          fail-on-cache-miss: true
       - name: Restore the OrcaSlicer engine
-        uses: actions/cache/restore@v5
+        uses: ./.github/actions/restore-engine
         with:
           path: engine/build/engine-orca/orca-engine.*
           key: ${{ steps.key.outputs.orca }}
-          fail-on-cache-miss: true
       - name: Shared preset settings are up to date
         working-directory: apps/web
         run: |
