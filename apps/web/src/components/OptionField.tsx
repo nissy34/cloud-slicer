@@ -1,7 +1,9 @@
 import { useEffect, useState } from 'react';
 import { entryType, isVectorType, processFlowModes, splitValues, valueAt, withValueAt } from '../lib/flow-variants';
 import { decodeString, encodeString, slotEntryIndex, splitStrings } from '../lib/slot-values';
+import { checkOptionValue } from '../lib/option-check';
 import { useOption, useSlicer } from '../state/store';
+import { Dialog } from './Dialog';
 import { setOverrideChecked } from './SettingsPrompt';
 
 /**
@@ -23,6 +25,10 @@ import { setOverrideChecked } from './SettingsPrompt';
  * `disabled` greys it out when another setting makes it not apply (support
  * settings with support off), like desktop; `choices` narrows a list that
  * depends on another setting. Global edits run desktop's checks afterwards.
+ *
+ * A typed number is checked against the option's type and range first
+ * (lib/option-check.ts): a wrong one is refused and one out of range set to
+ * the nearest allowed value, with a red line under the box saying so.
  */
 export function OptionField({
   optKey,
@@ -77,6 +83,8 @@ export function OptionField({
   const shown = slotText ? decodeString(slotText[slot!] ?? '') : perEntry ? valueAt(value, index) : value;
   const [draft, setDraft] = useState(shown ?? '');
   useEffect(() => setDraft(shown ?? ''), [shown]);
+  const [note, setNote] = useState<string | null>(null);
+  const [ask, setAsk] = useState<{ number: string; unit: string } | null>(null);
   if (!def || value === undefined || shown === undefined) return null;
 
   // One filament's text (its type, vendor, G-code) edits as a single string, or a list when Orca has one.
@@ -90,6 +98,28 @@ export function OptionField({
     else if (!perEntry) setOverride(optKey, v);
     else if (def.flow === 'process') setOverride(optKey, withValueAt(value, index, v, variants));
     else setOverride(optKey, entries.map(() => v).join(','));
+  };
+  // A typed value goes through the option's own checks before it's used.
+  const unit = def.sidetext && !def.sidetext.includes(' or ') && def.sidetext !== '%' ? ` ${def.sidetext}` : '';
+  const submit = (raw: string) => {
+    if (raw === shown) return;
+    const r = checkOptionValue(def, type, raw);
+    if (r.kind === 'invalid') {
+      setDraft(shown);
+      setNote(`${r.problem} ${shown === '' ? 'Kept the old value.' : `Kept ${shown}${unit}.`}`);
+    } else if (r.kind === 'ask') {
+      setAsk({ number: r.number, unit: r.unit });
+    } else {
+      setNote(r.kind === 'clamped' ? r.note : null);
+      setDraft(r.value);
+      commit(r.value);
+    }
+  };
+  const answer = (value: string) => {
+    setAsk(null);
+    setNote(null);
+    setDraft(value);
+    commit(value);
   };
   // In a slot, only that filament's entry counts as changed, and reset puts back only it.
   const baseValue = baseConfig[optKey];
@@ -164,11 +194,18 @@ export function OptionField({
           disabled={disabled}
           value={draft}
           inputMode={/float|int|percent/i.test(type) ? 'decimal' : undefined}
-          onChange={(e) => setDraft(e.target.value)}
-          onBlur={() => commit(draft)}
+          aria-invalid={note ? true : undefined}
+          onChange={(e) => {
+            setDraft(e.target.value);
+            setNote(null);
+          }}
+          onBlur={() => submit(draft)}
           onKeyDown={(e) => {
-            if (e.key === 'Enter') commit(draft);
-            if (e.key === 'Escape') setDraft(shown);
+            if (e.key === 'Enter') submit(draft);
+            if (e.key === 'Escape') {
+              setDraft(shown);
+              setNote(null);
+            }
           }}
         />
         {def.sidetext && <span className="unit">{def.sidetext}</span>}
@@ -176,13 +213,40 @@ export function OptionField({
     );
   }
   return (
-    <div className={`option${changed ? ' modified' : ''}${disabled ? ' disabled' : ''}`} title={title}>
+    <div className={`option${changed ? ' modified' : ''}${disabled ? ' disabled' : ''}${note ? ' invalid' : ''}`} title={title}>
       <span className="option-label">
         {before}
         {text}
       </span>
       {editor}
       {reset}
+      {note && (
+        <p className="option-note" role="alert">
+          {note}
+        </p>
+      )}
+      {ask && (
+        <Dialog
+          title="Percent or mm?"
+          role="alertdialog"
+          describedBy="option-ask-text"
+          onClose={() => answer(ask.number)}
+          footer={
+            <>
+              <button className="secondary" onClick={() => answer(ask.number)}>
+                {ask.number} {ask.unit}
+              </button>
+              <button className="primary" autoFocus onClick={() => answer(`${ask.number}%`)}>
+                {ask.number}%
+              </button>
+            </>
+          }
+        >
+          <p id="option-ask-text">
+            {text}: is it {ask.number}% or {ask.number} {ask.unit}?
+          </p>
+        </Dialog>
+      )}
     </div>
   );
 }

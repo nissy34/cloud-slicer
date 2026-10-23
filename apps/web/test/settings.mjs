@@ -2,8 +2,9 @@
 // Browser end to end for settings that switch other settings on and off
 // (desktop's ConfigManipulation) and the settings search: support settings
 // grey out with support off, the search finds settings on any page, and
-// turning on spiral vase asks to change the settings it needs, on a computer
-// and on a phone.
+// turning on spiral vase asks to change the settings it needs, and typed
+// numbers are checked against the engine's own limits, on a computer and on
+// a phone.
 //
 //   node test/settings.mjs [screenshot-dir]
 //
@@ -108,6 +109,44 @@ async function run(name, options) {
     expect((await page.getByLabel('Wall loops', { exact: true }).inputValue()) === '1', 'wall loops set to 1');
     await search.fill('spiral vase');
     await page.getByLabel('Spiral vase', { exact: true }).uncheck();
+    await search.fill('');
+  });
+
+  await step(`${name}: typed numbers are checked against the setting's own limits`, async () => {
+    const note = page.locator('.option-note');
+    // Not a number: refused, the old value stays, a red line says why.
+    await search.fill('line width');
+    const width = page.getByLabel('Initial layer', { exact: true });
+    const before = await width.inputValue();
+    await width.fill('0.7$');
+    await width.press('Enter');
+    await note.getByText('“0.7$” is not a number.').waitFor();
+    expect((await width.inputValue()) === before, `kept ${before}`);
+    await shot('invalid');
+    // A big "mm or %" number asks which one was meant.
+    await width.fill('150');
+    await width.press('Enter');
+    const dialog = page.getByRole('alertdialog', { name: 'Percent or mm?' });
+    await dialog.waitFor();
+    await shot('percent-or-mm');
+    await dialog.getByRole('button', { name: '150%' }).click();
+    await dialog.waitFor({ state: 'detached' });
+    expect((await width.inputValue()) === '150%', `150% taken, got ${await width.inputValue()}`);
+    expect(!(await note.count()), 'no red line after a good value');
+    await width.fill('0,45');
+    await width.press('Enter');
+    expect((await width.inputValue()) === '0.45', `comma as decimal point, got ${await width.inputValue()}`);
+    // Out of range: set to the nearest allowed value.
+    await search.fill('sparse infill density');
+    const density = page.getByLabel('Sparse infill density', { exact: true });
+    await density.fill('150');
+    await density.press('Enter');
+    await note.getByText(/set to 100%/).waitFor();
+    expect((await density.inputValue()) === '100%', `density set to 100%, got ${await density.inputValue()}`);
+    await shot('clamped');
+    await page.getByRole('button', { name: /Reset to the preset value: Sparse infill density/ }).click();
+    await search.fill('line width');
+    await page.getByRole('button', { name: /Reset to the preset value: Initial layer$/ }).click();
     await search.fill('');
   });
 

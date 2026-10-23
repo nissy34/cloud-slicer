@@ -918,6 +918,17 @@ select:focus-visible {
 .option select {
   width: 100%;
 }
+/* A typed value that was refused or changed: a red line under the box (lib/option-check.ts). */
+.option-note {
+  grid-column: 1 / -1;
+  margin: 0;
+  color: var(--danger);
+  font-size: 12px;
+}
+.option.invalid .input-unit input {
+  border-color: var(--danger);
+  outline-color: var(--danger);
+}
 /* A setting another setting switched off, like desktop's greyed fields. */
 .option.disabled {
   opacity: 0.45;

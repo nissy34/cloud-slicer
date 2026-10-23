@@ -425,7 +425,8 @@ const char* optionTypeName(ConfigOptionType t) {
 
 // Metadata of every option the engine knows, for building settings UIs:
 // {key: {type, label, fullLabel, category, tooltip, sidetext, mode, min, max,
-//        enumValues, enumLabels, default, nullable, multiline, readonly, flow}}.
+//        maxLiteral, enumValues, enumLabels, default, nullable, multiline,
+//        readonly, flow}}.
 // flow is "process" or "filament" for Snapmaker's flow-variant options: one
 // value per flow variant (standard / high flow) in the order of the
 // *_flow_support list, which desktop edits one variant at a time.
@@ -447,6 +448,8 @@ std::string configOptionsJson() {
                {"mode", def.mode == comSimple ? "simple" : def.mode == comAdvanced ? "advanced" : "develop"}};
         if (def.min != INT_MIN) o["min"] = def.min;
         if (def.max != INT_MAX) o["max"] = def.max;
+        // Above this a "mm or %" value is probably meant as % (desktop asks).
+        if (def.max_literal != 1) o["maxLiteral"] = def.max_literal;
         if (!def.enum_values.empty()) o["enumValues"] = def.enum_values;
         if (!def.enum_labels.empty()) o["enumLabels"] = def.enum_labels;
         if (def.type == coEnums) {
