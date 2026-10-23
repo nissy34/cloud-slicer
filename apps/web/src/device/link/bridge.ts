@@ -5,9 +5,7 @@
 // and camera frames become bridge.* calls the agent answers itself.
 import type { DirectCamera } from '../camera';
 import { LinkError, type BridgeStatus, type DirectAnswer, type LinkHandlers, type PageAnswer, type PageRequest, type PrinterLink, type RpcMessage } from './types';
-
-/** Chunk size for uploads: well under the relay's 1 MiB message limit once base64-encoded. */
-export const UPLOAD_CHUNK = 512 * 1024;
+import { DirectUploadRefused, UPLOAD_CHUNK, UPLOAD_PIECE, encodePiece, gzipped, offerDirectUpload } from './upload';
 
 export interface BridgeTarget {
   relay: string;
@@ -176,7 +174,7 @@ export class BridgeLink implements PrinterLink {
     return this.call<T>(method, params, timeoutMs);
   }
 
-  private call<T>(method: string, params: unknown, timeoutMs = 30_000): Promise<T> {
+  private call<T>(method: string, params: unknown, timeoutMs = 30_000, bytes?: Uint8Array): Promise<T> {
     const id = `b${++this.seq}`;
     return new Promise<T>((resolve, reject) => {
       const timer = setTimeout(() => {
@@ -185,7 +183,9 @@ export class BridgeLink implements PrinterLink {
       }, timeoutMs);
       this.pending.set(id, { resolve: resolve as (v: unknown) => void, reject, timer });
       try {
-        this.ws?.send(JSON.stringify({ jsonrpc: '2.0', id, method, params }));
+        const msg = { jsonrpc: '2.0', id, method, params };
+        // An upload piece goes as raw bytes behind its JSON header.
+        this.ws?.send(bytes ? encodePiece(msg, bytes) : JSON.stringify(msg));
         if (!this.ws) throw new Error();
       } catch {
         clearTimeout(timer);
@@ -196,6 +196,47 @@ export class BridgeLink implements PrinterLink {
   }
 
   async upload(blob: Blob, path: string, onProgress?: (f: number) => void): Promise<string> {
+    const zip = await gzipped(blob);
+    const wire = zip ?? blob;
+    const direct = await offerDirectUpload();
+    let start: { uploadId: string; sdp?: string };
+    try {
+      start = await this.call('bridge.upload_start', { path, size: blob.size, wire: wire.size, zipped: !!zip, sdp: direct?.sdp ?? '' }, 15_000);
+    } catch (e) {
+      direct?.close();
+      // A bridge from before zipped uploads.
+      if (e instanceof LinkError && e.message.startsWith('Unknown bridge call')) return this.uploadAsIs(blob, path, onProgress);
+      throw e;
+    }
+    const { uploadId } = start;
+    const progress = (sent: number) => onProgress?.(Math.min(1, sent / Math.max(1, wire.size)));
+    if (direct && start.sdp) {
+      try {
+        return await direct.send(start.sdp, wire, progress);
+      } catch (e) {
+        if (e instanceof DirectUploadRefused) throw new LinkError(e.message, 'bridge');
+        // The link didn't connect or dropped: carry on over the relay from what arrived.
+      } finally {
+        direct.close();
+      }
+    } else direct?.close();
+    let { received } = await this.call<{ received: number }>('bridge.upload_resume', { uploadId });
+    const binary = (await this.relayInfo()).binary === true;
+    const piece = binary ? UPLOAD_PIECE : UPLOAD_CHUNK;
+    while (received < wire.size) {
+      const bytes = new Uint8Array(await wire.slice(received, received + piece).arrayBuffer());
+      const params = { uploadId, offset: received };
+      if (binary) await this.call('bridge.upload_piece', params, 120_000, bytes);
+      else await this.call('bridge.upload_chunk', { ...params, data: toBase64(bytes) }, 60_000);
+      received += bytes.length;
+      progress(received);
+    }
+    const done = await this.call<{ path: string }>('bridge.upload_end', { uploadId }, 300_000);
+    return done.path;
+  }
+
+  /** The file as it is, in base64 chunks, one at a time: for a bridge from before zipped uploads. */
+  private async uploadAsIs(blob: Blob, path: string, onProgress?: (f: number) => void): Promise<string> {
     const { uploadId } = await this.call<{ uploadId: string }>('bridge.upload_begin', { path, size: blob.size });
     for (let offset = 0; offset < blob.size || offset === 0; offset += UPLOAD_CHUNK) {
       const bytes = new Uint8Array(await blob.slice(offset, offset + UPLOAD_CHUNK).arrayBuffer());
@@ -205,6 +246,16 @@ export class BridgeLink implements PrinterLink {
     }
     const done = await this.call<{ path: string }>('bridge.upload_end', { uploadId }, 300_000);
     return done.path;
+  }
+
+  private info: Promise<{ pages?: string; binary?: boolean }> | null = null;
+  /** The relay's /v1/info, asked once per link: where pages are held, and whether it passes raw upload pieces on. */
+  private relayInfo() {
+    const relay = this.target.relay.replace(/\/+$/, '');
+    this.info ??= fetch(`${relay}/v1/info`)
+      .then((r) => r.json() as Promise<{ pages?: string; binary?: boolean }>)
+      .catch(() => ({}));
+    return this.info;
   }
 
   /** The browser can't reach the printer's network: cameras come as single frames only. */
@@ -231,14 +282,15 @@ export class BridgeLink implements PrinterLink {
    * relay on a name next to the site's says where else to hold them (/v1/info "pages").
    */
   async pageHolder(): Promise<string> {
-    const relay = this.target.relay.replace(/\/+$/, '');
-    try {
-      const info = (await (await fetch(`${relay}/v1/info`)).json()) as { pages?: string };
-      if (info.pages && /^https?:\/\//.test(info.pages)) return new URL(info.pages).origin;
-    } catch {
-      // an older relay: its own address
+    const info = await this.relayInfo();
+    if (info.pages && /^https?:\/\//.test(info.pages)) {
+      try {
+        return new URL(info.pages).origin;
+      } catch {
+        // not an address: the relay's own
+      }
     }
-    return relay;
+    return this.target.relay.replace(/\/+$/, '');
   }
 
   async pageFetch(req: PageRequest): Promise<PageAnswer> {
