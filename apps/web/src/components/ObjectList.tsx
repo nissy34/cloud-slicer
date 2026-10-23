@@ -8,11 +8,12 @@ export function ObjectList() {
   const project = useSlicer((s) => s.project);
   const plate = useSlicer((s) => s.plate);
   const selected = useSlicer((s) => s.selected);
+  const group = useSlicer((s) => s.group);
   // Physical filaments, then the colour mixes in use.
   const colours = useSlicer((s) => (s.palette.length ? s.palette : (s.selection?.colours ?? NO_COLOURS)));
   const physical = useSlicer((s) => s.selection?.filaments.length ?? 1);
   const slots = colours.length;
-  const { select, setObjectFilament, deleteObject, copyInstance, removeInstance, openObjectMenu, setTool } = useSlicer.getState();
+  const { select, setObjectFilament, deleteObject, copyInstance, removeInstance, openObjectMenu, setTool, toggleChosen, choose, groupAction, openGroupMenu } = useSlicer.getState();
   if (!project?.objects.length) return null;
   const onPlate = project.plates[plate]?.objects ?? [];
 
@@ -51,13 +52,23 @@ export function ObjectList() {
           const obj = project.objects[o];
           const instance = obj.instances.findIndex((inst) => inst.plate === plate);
           const active = selected?.object === o;
+          const chosen = active || group.includes(o);
           const skipped = printableLabel(obj, plate);
           return (
-            <li key={o} className={active ? 'object active' : 'object'}>
+            <li key={o} className={chosen ? 'object active' : 'object'} aria-selected={chosen}>
               <div className="object-row">
                 <button
                   className={skipped ? 'object-name unprintable' : 'object-name'}
-                  onClick={() => select(active ? null : { object: o, instance: Math.max(0, instance) })}
+                  onClick={(e) => {
+                    // Like any list: Ctrl+click adds or takes out one, Shift+click takes the run from the last one picked.
+                    if (e.ctrlKey || e.metaKey) return toggleChosen(o);
+                    const from = group.length ? group[group.length - 1] : selected?.object;
+                    if (e.shiftKey && from !== undefined) {
+                      const [a, b] = [onPlate.indexOf(from), onPlate.indexOf(o)].sort((x, y) => x - y);
+                      return choose([...(group.length ? group : [from]), ...onPlate.slice(a, b + 1)]);
+                    }
+                    select(active && !group.length ? null : { object: o, instance: Math.max(0, instance) });
+                  }}
                   title={skipped ? `${obj.name}: ${skipped.toLowerCase()}. Slicing leaves it out; tick Printable in its ⋯ menu to print it.` : obj.name}
                 >
                   {obj.name || `Object ${o + 1}`}
@@ -120,6 +131,28 @@ export function ObjectList() {
           );
         })}
       </ul>
+      {group.length > 1 && (
+        <div className="transform">
+          <p className="group-chosen">
+            <strong>{group.length} objects chosen</strong>
+          </p>
+          <p className="hint">Move, rotate and scale work on all of them. Right-click a chosen model, or long press it on a phone, for the rest.</p>
+          <div className="transform-row actions">
+            <button
+              className="secondary"
+              onClick={(e) => {
+                const r = e.currentTarget.getBoundingClientRect();
+                openGroupMenu({ x: r.left, y: r.bottom + 2 });
+              }}
+            >
+              More…
+            </button>
+            <button className="secondary danger" title="Delete them all (Del)" onClick={() => void groupAction({ op: 'delete' })}>
+              Delete
+            </button>
+          </div>
+        </div>
+      )}
       {selected && sel && (
         <div className="transform">
           {selected.volume !== undefined && project.objects[selected.object].volumes[selected.volume] ? (

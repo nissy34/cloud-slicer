@@ -593,9 +593,11 @@ jobs:
           node test/layer-codes.mjs
           node test/transform-fields.mjs
 
-      - name: Phone 3D view gestures end to end (Chromium)
+      - name: Phone 3D view gestures and choosing several models end to end (Chromium)
         if: matrix.suite == 'touch'
-        run: node test/view-touch.mjs
+        run: |
+          node test/view-touch.mjs
+          node test/multi-select.mjs
 
       - name: Loading screen, busy edits and Preview colour key end to end (Chromium)
         if: matrix.suite == 'loading'

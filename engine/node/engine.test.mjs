@@ -1763,3 +1763,37 @@ test('transform fields, sinking, part fields, copy and paste, like desktop', () 
   assert.ok(Math.hypot(a[0] - b[0], a[1] - b[1]) > 30, 'a second paste goes beside the first');
   assert.throws(() => plate(0, { op: 'copy', object: 9, instance: 0 }), /no object/);
 });
+
+test('several objects chosen together: copy and paste as a block, arrange selection', () => {
+  select({ printer: DEFAULT_PRINTER, process: STANDARD });
+  const plate = (p, request) => call(engine, 'plateAction', p, JSON.stringify(request));
+  const move = (o, x, y) => call(engine, 'setInstanceTransform', o, 0, JSON.stringify({ offset: [x, y] }));
+  const at = (o) => info().objects[o].instances[0].offset;
+  load('gen-cube-20.stl');
+  load('gen-cube-20.stl', 0, true);
+  load('gen-cube-20.stl', 0, true);
+  move(0, 60, 60);
+  move(1, 100, 70);
+  move(2, 200, 200);
+
+  // Two copied together paste as two new objects, 40 and 10 mm apart as before.
+  plate(0, { op: 'copy', items: [{ object: 0, instance: 0 }, { object: 1, instance: 0 }] });
+  const out = plate(0, { op: 'paste' });
+  assert.deepEqual(out.objects, [3, 4]);
+  assert.equal(out.object, 3);
+  const [a, b] = [at(3), at(4)];
+  assert.ok(Math.abs(b[0] - a[0] - 40) < 0.01 && Math.abs(b[1] - a[1] - 10) < 0.01, `kept their spacing: ${a} ${b}`);
+  // Clear of the originals.
+  for (const o of [0, 1, 2]) for (const p of [a, b]) assert.ok(Math.hypot(p[0] - at(o)[0], p[1] - at(o)[1]) > 20, `pasted on top of object ${o}`);
+
+  // Arrange selection moves only the chosen ones, onto free spots clear of the rest.
+  const still = [at(0), at(1), at(2)].map((p) => p.slice());
+  move(3, 200, 200);
+  move(4, 205, 205);
+  plate(0, { op: 'arrangeSelection', objects: [3, 4] });
+  assert.deepEqual([at(0), at(1), at(2)], still, 'the others stay put');
+  const [c, d] = [at(3), at(4)];
+  assert.ok(Math.hypot(c[0] - d[0], c[1] - d[1]) >= 20, `no longer on top of each other: ${c} ${d}`);
+  for (const p of [c, d]) for (const q of still) assert.ok(Math.hypot(p[0] - q[0], p[1] - q[1]) >= 20, `clear of the others: ${p} ${q}`);
+  assert.throws(() => plate(0, { op: 'arrangeSelection', objects: [9] }), /no object/);
+});

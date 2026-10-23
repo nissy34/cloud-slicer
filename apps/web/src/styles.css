@@ -6938,3 +6938,50 @@ button.volume-name {
 .dv-test-note .dv-test-tag {
   margin-right: 6px;
 }
+
+/* Rectangle selection in the 3D view (Shift+drag adds, Alt+drag takes out). */
+.select-rect {
+  position: absolute;
+  pointer-events: none;
+  border: 1px dashed var(--accent);
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+  z-index: 2;
+}
+.select-rect.remove {
+  border-color: var(--danger);
+  background: color-mix(in srgb, var(--danger) 10%, transparent);
+}
+.menu-item.danger {
+  color: var(--danger);
+}
+.choose-bar {
+  position: absolute;
+  left: 50%;
+  bottom: 12px;
+  transform: translateX(-50%);
+  z-index: 3;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 6px 4px 12px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--surface);
+  box-shadow: 0 2px 10px rgb(0 0 0 / 0.18);
+  white-space: nowrap;
+  max-width: calc(100% - 24px);
+}
+.choose-bar .choose-count {
+  font-weight: 600;
+}
+.choose-bar button {
+  padding: 4px 10px;
+}
+@media (max-width: 760px) {
+  /* Clear of the view buttons in the right corner. */
+  .choose-bar {
+    left: 12px;
+    transform: none;
+    max-width: calc(100% - 76px);
+  }
+}

@@ -1,7 +1,7 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import type { PaintKind } from '../engine/protocol';
 import { sentence } from '../lib/format';
-import { editKey } from '../lib/transform';
+import { editKey, nudgeKey } from '../lib/transform';
 import { NO_COLOURS, useSlicer, type Tool } from '../state/store';
 import { DEFAULT_PAINT, PaintPanel } from './PaintPanel';
 import { startText } from './TextPanel';
@@ -65,12 +65,15 @@ const GROUPS: Item[][] = [
   [{ id: 'assemblyview', icon: 'toolbar_assemble', label: 'Assembly view', missing: true }],
 ];
 const ALL = GROUPS.flat();
+// What works on several chosen objects at once; the other object tools need one.
+const GROUP_TOOLS = new Set(['move', 'rotate', 'scale']);
 
 /** The tool row over the 3D view, like desktop Orca's top toolbar. Scrolls sideways on a phone. */
 export function Toolbar({ onAdd }: { onAdd(): void }) {
   const project = useSlicer((s) => s.project);
   const plate = useSlicer((s) => s.plate);
   const selected = useSlicer((s) => s.selected);
+  const several = useSlicer((s) => s.group.length > 1);
   const tool = useSlicer((s) => s.tool);
   const paint = useSlicer((s) => s.paint);
   const colourCount = useSlicer((s) => (s.selection?.colours ?? NO_COLOURS).length);
@@ -96,13 +99,15 @@ export function Toolbar({ onAdd }: { onAdd(): void }) {
   const disabled = (item: Item) =>
     item.id === 'undo' || item.id === 'redo'
       ? !history[item.id]
-      : item.missing || (item.needsSelection && !target) || (!onPlate.length && item.id !== 'add' && item.id !== 'addplate' && item.id !== 'text');
+      : item.missing || (item.needsSelection && (several ? !GROUP_TOOLS.has(item.id) : !target)) || (!onPlate.length && item.id !== 'add' && item.id !== 'addplate' && item.id !== 'text');
 
   // Tools waiting for a model say so when tapped (a phone shows no tooltip).
   const needsModel = (item: Item) => !onPlate.length && !item.missing && item.id !== 'undo' && item.id !== 'redo' && disabled(item);
 
   const run = (item: Item) => {
     if (needsModel(item)) return useSlicer.setState({ notice: `${item.label} works on a model: open one first.`, noticeWarn: false });
+    if (several && item.needsSelection && !GROUP_TOOLS.has(item.id))
+      return useSlicer.setState({ notice: `${item.label} works on one model: pick just one.`, noticeWarn: false });
     if (disabled(item)) return;
     const s = useSlicer.getState();
     if (item.needsSelection && target && !selected) s.select(target);
@@ -135,7 +140,7 @@ export function Toolbar({ onAdd }: { onAdd(): void }) {
       case 'addplate':
         return void s.addPlate();
       case 'orient':
-        return void s.orient(selected?.object);
+        return void (several ? s.groupAction({ op: 'orient' }) : s.orient(selected?.object));
       case 'arrange':
         return void s.arrange();
       case 'splitobjects':
@@ -149,6 +154,15 @@ export function Toolbar({ onAdd }: { onAdd(): void }) {
   const runEdit = (edit: NonNullable<ReturnType<typeof editKey>>) => {
     const s = useSlicer.getState();
     if (edit === 'paste') return void s.paste();
+    if (several) {
+      if (edit === 'delete') return void s.groupAction({ op: 'delete' });
+      if (edit === 'copy') return void s.groupAction({ op: 'copy' });
+      if (edit === 'clone') {
+        const box = bar.current?.getBoundingClientRect();
+        return s.openGroupMenu({ x: box ? box.left + 8 : 16, y: box ? box.bottom + 8 : 80, form: 'clone' });
+      }
+      return;
+    }
     if (!selected || !project?.objects[selected.object]?.instances[selected.instance]) return;
     const { object: o, instance: i, volume: v } = selected;
     const obj = project.objects[o];
@@ -185,8 +199,20 @@ export function Toolbar({ onAdd }: { onAdd(): void }) {
       const combo = (e.ctrlKey || e.metaKey ? 'Ctrl+' : '') + key;
       const item = ALL.find((i) => i.key === combo && !i.missing);
       const edit = editKey(e);
-      if (edit) {
-        if (edit === 'paste' || selected) e.preventDefault();
+      const nudge = nudgeKey(e);
+      const s = useSlicer.getState();
+      if (nudge) {
+        // Arrows on a slider or a list keep working there.
+        if (el.closest('input, select, [role="slider"], [role="listbox"], [role="menu"]') || (!several && (!selected || selected.volume !== undefined))) return;
+        e.preventDefault();
+        void s.nudge(nudge);
+      } else if (combo === 'Ctrl+A') {
+        // Desktop's Select all: every object on this plate.
+        if (!onPlate.length) return;
+        e.preventDefault();
+        s.selectAll();
+      } else if (edit) {
+        if (edit === 'paste' || selected || several) e.preventDefault();
         runEdit(edit);
       } else if (item) {
         e.preventDefault();
@@ -195,7 +221,16 @@ export function Toolbar({ onAdd }: { onAdd(): void }) {
         // Desktop's Show labels.
         e.preventDefault();
         useSlicer.getState().setLabels(!useSlicer.getState().labels);
-      } else if (e.key === 'Escape' && tool) useSlicer.getState().setTool(null);
+      } else if (e.key === 'Escape') {
+        // Desktop's Esc: closes the open tool, then lets go of what is chosen.
+        if (tool) s.setTool(null);
+        // Esc closing a menu, pop-up or window leaves what is chosen alone.
+        else if (s.groupMenu || s.objectMenu || s.plateMenu || el.closest('[role="dialog"], [role="menu"], .popover') || document.querySelector('[role="dialog"]')) return;
+        else if (several || selected || s.choosing) {
+          s.setChoosing(false);
+          s.choose([]);
+        }
+      }
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
@@ -209,7 +244,13 @@ export function Toolbar({ onAdd }: { onAdd(): void }) {
             {group.map((item) => {
               const off = disabled(item);
               const step = item.id === 'undo' || item.id === 'redo' ? history[item.id] : null;
-              const why = needsModel(item) ? ': add a model first' : item.needsSelection && !target ? ': select an object first' : '';
+              const why = needsModel(item)
+                ? ': add a model first'
+                : several && item.needsSelection && !GROUP_TOOLS.has(item.id)
+                  ? ': works on one model, pick just one'
+                  : item.needsSelection && !target && !several
+                    ? ': select an object first'
+                    : '';
               const title = item.missing
                 ? `${item.label}: not in the web app yet`
                 : `${item.label}${step ? ` ${step}` : ''}${item.key ? ` (${item.key})` : ''}${why}`;

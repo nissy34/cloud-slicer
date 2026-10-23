@@ -5,6 +5,8 @@ import { useProjects } from '../state/projects';
 import { useSlicer } from '../state/store';
 import { ask } from './AskDialog';
 import { LoadingOverlay } from './LoadingOverlay';
+import { ChooseBar } from './ChooseBar';
+import { GroupMenu } from './GroupMenu';
 import { ObjectMenu } from './ObjectMenu';
 import { PlateMenu } from './PlateMenu';
 import { Toolbar } from './Toolbar';
@@ -80,7 +82,9 @@ export function OpenModel({ children }: { children: React.ReactNode }) {
         </>
       )}
       {dragging && <div className="dropzone">Drop to add</div>}
+      {hasModel && <ChooseBar />}
       <ObjectMenu />
+      <GroupMenu />
       <PlateMenu onAdd={() => input.current?.click()} />
       <LoadingOverlay />
     </div>

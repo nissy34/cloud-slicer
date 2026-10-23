@@ -235,6 +235,15 @@ function MenuCard() {
         </>
       ) : (
         <>
+          {item(
+            'Choose several',
+            run(() => {
+              s.setChoosing(true);
+              s.choose([o]);
+            }),
+            { title: 'Then tap more models to choose them together, or drag on the plate for a rectangle (Ctrl+click and Shift+drag with a mouse)' },
+          )}
+          <hr />
           {ADD_MENUS.map(({ type, label }) => (
             <Fragment key={type}>
               {submenu(

@@ -359,7 +359,7 @@ export class EngineClient {
     this.call<ProjectInfo>('setObjectSettings', [o, volume, values]);
   addPlate = () => this.call<ProjectInfo>('addPlate');
   deletePlate = (plate: number) => this.call<ProjectInfo>('deletePlate', [plate]);
-  plateAction = (plate: number, request: PlateAction) => this.call<{ info: ProjectInfo; object?: number }>('plateAction', [plate, request]);
+  plateAction = (plate: number, request: PlateAction) => this.call<{ info: ProjectInfo; object?: number; objects?: number[] }>('plateAction', [plate, request]);
   calibrate = (options: Record<string, unknown>, overrides: OrcaConfig) =>
     this.call<{ overrides: OrcaConfig; notes: string[]; info: ProjectInfo }>('calibrate', [options, overrides]);
   calibrationStop = () => this.call<void>('calibrationStop');

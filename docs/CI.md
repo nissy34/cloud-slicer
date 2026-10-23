@@ -29,7 +29,7 @@ changes ─┤        ┌─ engine-tests ────────────�
 | `engine-tests` | Bundles the presets, runs `engine/node/engine.test.mjs`, and checks that Klipper accepts sliced G-code (`engine/klipper-check/check.sh`, on a U1 stand-in and a Voron) |
 | `site` | Builds the web app with the engine and uploads it as the `web-site` artifact (kept 7 days) |
 | `shared-settings` | Checks `apps/web/src/lib/shared-settings.json` is up to date with both engines' presets |
-| `browser` | One job per group of browser tests in `apps/web/test/` (matrix `suite`), against the built site. The slow Assemble test (`TOOLBAR_PART=assemble`) and phone gestures (`view-touch.mjs`) have jobs of their own |
+| `browser` | One job per group of browser tests in `apps/web/test/` (matrix `suite`), against the built site. The slow Assemble test (`TOOLBAR_PART=assemble`) and phone gestures with choosing several models (`view-touch.mjs`, `multi-select.mjs`) have jobs of their own |
 | `preview` | Every branch but `main`: deploys a preview to Cloudflare Pages as soon as `site` is done, beside the tests, then smoke-tests it |
 | `deploy` | `main` only, after every test passed: deploys the live site, smoke-tests it and gives the live relay the site's ticket key |
 

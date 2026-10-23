@@ -51,6 +51,12 @@ Project& project();
 // Puts a new object on `plate`, on the free spot closest to the centre, on the
 // bed, as an added model is placed (model_api.cpp).
 void placeObject(Slic3r::ModelObject* obj, int plate);
+// Several objects on `plate` as one block, keeping where they stand from each
+// other, on the free spot closest to the centre (pasting a group).
+void placeTogether(const std::vector<Slic3r::ModelObject*>& objs, int plate);
+// The objects' copies on `plate` each on a free spot closest to the centre,
+// around the objects that stay put (desktop's Arrange selection).
+void placeApart(const std::vector<Slic3r::ModelObject*>& objs, int plate);
 
 // A pressure advance pattern test's G-code, put into the plate model's custom
 // G-code before slicing (calib_api.cpp). Does nothing for other tests.
