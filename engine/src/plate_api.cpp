@@ -67,9 +67,13 @@ Model& clipboard() {
 //        the mode desktop stores with them (one filament, or one at a time
 //        on a printer with several, as desktop's BBS slider always is)
 //   {op: "copy", object, instance}   that copy of the object onto the clipboard (Ctrl+C)
-//   {op: "paste"}       the clipboard as a new object on plate p, on its free
-//                       spot closest to the centre (Ctrl+V)
-// Returns {ok, object?: index of the new object, error?}.
+//   {op: "copy", items: [{object, instance}]}   several copies (chosen together)
+//   {op: "paste"}       the clipboard as new objects on plate p, on the free
+//                       spot closest to the centre, several keeping where they
+//                       stood from each other (Ctrl+V)
+//   {op: "arrangeSelection", objects: [o...]}   those objects' copies on plate p
+//                       each on a free spot, around the rest (Arrange selection)
+// Returns {ok, object?: index of the (first) new object, objects?: all new ones, error?}.
 std::string plateAction(int plate, const std::string& requestJson) {
     try {
         engine::Project& p = pr();
@@ -129,22 +133,41 @@ std::string plateAction(int plate, const std::string& requestJson) {
             if (info.gcodes.empty()) p.model.plates_custom_gcodes.erase(plate);
             else p.model.plates_custom_gcodes[plate] = std::move(info);
         } else if (op == "copy") {
-            const int o = req.value("object", -1), i = req.value("instance", 0);
-            if (o < 0 || size_t(o) >= p.model.objects.size()) throw std::runtime_error("no object " + std::to_string(o));
-            const ModelObject* src = p.model.objects[o];
-            if (i < 0 || size_t(i) >= src->instances.size()) throw std::runtime_error("no instance " + std::to_string(i));
+            json items = req.contains("items") ? req["items"] : json::array({{{"object", req.value("object", -1)}, {"instance", req.value("instance", 0)}}});
+            if (items.empty()) throw std::runtime_error("nothing to copy");
             Model& clip = clipboard();
             clip.clear_objects();
-            ModelObject* copy = clip.add_object(*src);
-            // Only the picked copy, as desktop copies the selected instance.
-            for (int k = int(copy->instances.size()) - 1; k >= 0; --k)
-                if (k != i) copy->delete_instance(size_t(k));
+            for (const json& item : items) {
+                const int o = item.value("object", -1), i = item.value("instance", 0);
+                if (o < 0 || size_t(o) >= p.model.objects.size()) throw std::runtime_error("no object " + std::to_string(o));
+                const ModelObject* src = p.model.objects[o];
+                if (i < 0 || size_t(i) >= src->instances.size()) throw std::runtime_error("no instance " + std::to_string(i));
+                ModelObject* copy = clip.add_object(*src);
+                // Only the picked copy, as desktop copies the selected instance.
+                for (int k = int(copy->instances.size()) - 1; k >= 0; --k)
+                    if (k != i) copy->delete_instance(size_t(k));
+            }
         } else if (op == "paste") {
             Model& clip = clipboard();
             if (clip.objects.empty()) throw std::runtime_error("nothing copied yet");
-            ModelObject* obj = p.model.add_object(*clip.objects.front());
-            engine::placeObject(obj, plate);
-            out["object"] = p.model.objects.size() - 1;
+            std::vector<ModelObject*> pasted;
+            json objects = json::array();
+            for (const ModelObject* src : clip.objects) {
+                pasted.push_back(p.model.add_object(*src));
+                objects.push_back(p.model.objects.size() - 1);
+            }
+            if (pasted.size() == 1) engine::placeObject(pasted.front(), plate);
+            else engine::placeTogether(pasted, plate);
+            out["object"] = objects.front();
+            out["objects"] = objects;
+        } else if (op == "arrangeSelection") {
+            std::vector<ModelObject*> objs;
+            for (const json& o : req.value("objects", json::array())) {
+                const int k = o.get<int>();
+                if (k < 0 || size_t(k) >= p.model.objects.size()) throw std::runtime_error("no object " + std::to_string(k));
+                objs.push_back(p.model.objects[k]);
+            }
+            engine::placeApart(objs, plate);
         } else {
             throw std::runtime_error("unknown plate action " + op);
         }

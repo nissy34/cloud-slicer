@@ -1,5 +1,6 @@
 import { useMemo } from 'react';
 import { create } from 'zustand';
+import * as THREE from 'three';
 import { EngineClient, type CutKeep, type History, type InstanceChanges, type MixedReply, type MixedRequest, type ParsedPreset, type ProjectThumbnail, type ShapePlaceRequest, type ShapeState, type UserPresetFile } from '../engine/client';
 
 /** Omit over each member of a union. */
@@ -46,6 +47,7 @@ import { mixSettings, palette as mixPalette, type MatchResult, type MixRecipe, t
 import { dropPlateTower, moveTower, towerOptions, towersFromConfig, type TowerSpot } from '../lib/wipe-tower';
 import { stlName, type ObjectAction } from '../lib/objectMenu';
 import type { PlateAction } from '../lib/plateMenu';
+import { groupBox, groupChanges, itemsOnPlate, joinStl, toggled, type GroupAction } from '../lib/group';
 import type { VolumeAction } from '../lib/volumes';
 import type { BooleanRequest } from '../lib/boolean';
 import type { TextStyle } from '../lib/fonts';
@@ -112,6 +114,16 @@ export interface SlicerState {
   preview: PreviewMesh | null;
   /** The selected instance, and one of its object's volumes when that is picked (in the object list or the 3D view). */
   selected: { object: number; instance: number; volume?: number } | null;
+  /**
+   * Objects on this plate chosen together, two or more (desktop's
+   * multi-selection; `selected` is null meanwhile). The move, rotate and scale
+   * tools, Delete, copy and paste and the group's menu work on all their copies here.
+   */
+  group: number[];
+  /** "Choose several" from the long-press menu (phones have no Ctrl or Shift): taps add or remove models, a drag on the plate draws a rectangle. */
+  choosing: boolean;
+  /** The menu of the group (right click or long press on a chosen model), at (x, y) on the page. */
+  groupMenu: { x: number; y: number; form?: 'clone' } | null;
   job: Job;
   notice: string;
   /** The notice is a problem to fix, not just information. */
@@ -285,6 +297,22 @@ export interface SlicerState {
   switchProject(to: EngineFlavor): Promise<void>;
   setPlate(plate: number): Promise<void>;
   select(sel: { object: number; instance: number; volume?: number } | null): void;
+  /** Chooses these objects on this plate: none clears, one selects it, several make a group. */
+  choose(objects: number[]): void;
+  /** Ctrl+click (or a tap while choosing): adds the object to what is chosen, or takes it out. */
+  toggleChosen(object: number): void;
+  /** Ctrl+A: every object on this plate. */
+  selectAll(): void;
+  setChoosing(choosing: boolean): void;
+  openGroupMenu(menu: SlicerState['groupMenu']): void;
+  /**
+   * Moves, turns or evenly scales what is chosen (the group, or the selected
+   * copy): `m` (column-major, plate coordinates) on every chosen copy, as one undo step.
+   */
+  transformGroup(m: number[], label: string): Promise<void>;
+  /** Arrow keys and Page Up / Down: moves what is chosen by (dx, dy) mm, or turns it about its middle by `turn` degrees. */
+  nudge(by: { move: [number, number] } | { turn: number }): Promise<void>;
+  groupAction(action: GroupAction): Promise<void>;
   moveInstance(o: number, i: number, x: number, y: number): Promise<void>;
   transformInstance(o: number, i: number, changes: InstanceChanges): Promise<void>;
   setObjectFilament(o: number, volume: number, filament: number): Promise<void>;
@@ -784,7 +812,9 @@ export const useSlicer = create<SlicerState>((set, get) => {
     const paint = get().paint;
     const overlay = paint && paint.kind !== 'color' && project.objects.length ? await e.paintOverlay(plate, paint.kind) : null;
     const heavy = triangleCounts?.length === project.objects.length ? plateHeavy(project, plate) : null;
-    set({ project, plate, preview, overlay, heavy, ...stale() });
+    // Chosen objects that left the plate, or the project, are no longer chosen.
+    const group = get().group.filter((o) => project.plates[plate]?.objects.includes(o));
+    set({ project, plate, preview, overlay, heavy, ...stale(), ...(group.length !== get().group.length ? { group: group.length > 1 ? group : [] } : {}) });
   }
 
   // A model with millions of triangles can need more memory to slice than a
@@ -1015,6 +1045,8 @@ export const useSlicer = create<SlicerState>((set, get) => {
       const gone = sel && !info.objects[sel.object]?.instances[sel.instance];
       const volumeGone = sel && sel.volume !== undefined && !info.objects[sel.object]?.volumes[sel.volume];
       set(gone ? { history, selected: null, tool: null } : volumeGone ? { history, selected: { object: sel.object, instance: sel.instance } } : { history });
+      // Undo can renumber objects: what was chosen together may be others now.
+      if (get().group.length) set({ group: [], tool: picking() ? get().tool : null });
       // Picked features belong to the parts as they were.
       if (picking()) set({ measure: { ...NO_MEASURE, onlyPlane: get().measure.onlyPlane } });
       await refreshPreview(info);
@@ -1046,6 +1078,9 @@ export const useSlicer = create<SlicerState>((set, get) => {
     plate: 0,
     preview: null,
     selected: null,
+    group: [],
+    choosing: false,
+    groupMenu: null,
     job: { kind: 'idle' },
     notice: '',
     noticeWarn: false,
@@ -1456,13 +1491,132 @@ export const useSlicer = create<SlicerState>((set, get) => {
 
     async setPlate(plate) {
       clearError(true);
-      set({ plate, selected: null, tool: null });
+      set({ plate, selected: null, group: [], tool: null });
       await refreshPreview(get().project ?? undefined);
     },
     // Measure and Assemble work on every part on the plate, so they stay open without a selection.
     select: (selected) => {
       if (!selected) clearError(true);
-      set(selected ? { selected } : { selected, tool: picking() ? get().tool : null });
+      set(selected ? { selected, group: [] } : { selected, group: [], tool: picking() ? get().tool : null });
+    },
+    choose: (objects) => {
+      const { project, plate, tool } = get();
+      const here = [...new Set(objects)].filter((o) => project?.plates[plate]?.objects.includes(o));
+      if (here.length < 2) {
+        const o = here[0];
+        const instance = o === undefined ? -1 : project!.objects[o].instances.findIndex((i) => i.plate === plate);
+        return get().select(o === undefined ? null : { object: o, instance: Math.max(0, instance) });
+      }
+      // Tools for one object close; moving, turning and scaling work on the group.
+      const keep = tool === 'move' || tool === 'rotate' || tool === 'scale' || picking();
+      set({ group: here, selected: null, tool: keep ? tool : null });
+    },
+    toggleChosen: (object) => {
+      const { group, selected } = get();
+      get().choose(toggled(group.length ? group : selected ? [selected.object] : [], object));
+    },
+    selectAll: () => get().choose(get().project?.plates[get().plate]?.objects ?? []),
+    setChoosing: (choosing) => set(choosing ? { choosing } : { choosing, groupMenu: null }),
+    openGroupMenu: (groupMenu) => set(groupMenu ? { groupMenu, objectMenu: null, plateMenu: null } : { groupMenu }),
+    transformGroup: async (m, label) => {
+      const { project, plate, group, selected } = get();
+      if (!project) return;
+      const items = group.length > 1 ? itemsOnPlate(project, plate, group) : selected && selected.volume === undefined ? [selected] : [];
+      if (!items.length) return;
+      const changes = groupChanges(project, plate, items, m);
+      await projectEdit(label, async () => {
+        const e = engine();
+        let info = project;
+        for (const c of changes) info = await e.transform(c.object, c.instance, c.changes);
+        return info;
+      });
+    },
+    nudge: async (by) => {
+      const { group, selected, preview } = get();
+      const objects = group.length > 1 ? group : selected && selected.volume === undefined ? [selected.object] : [];
+      if (!objects.length || !preview) return;
+      if ('move' in by) return get().transformGroup([1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, by.move[0], by.move[1], 0, 1], 'Move');
+      const c = groupBox(preview, objects).getCenter(new THREE.Vector3());
+      const m = new THREE.Matrix4()
+        .makeTranslation(c.x, c.y, 0)
+        .multiply(new THREE.Matrix4().makeRotationZ((by.turn * Math.PI) / 180))
+        .multiply(new THREE.Matrix4().makeTranslation(-c.x, -c.y, 0));
+      return get().transformGroup(m.elements.slice(), 'Rotate');
+    },
+    groupAction: async (action) => {
+      const { project, plate, group, preview } = get();
+      if (!project || group.length < 2) return;
+      const items = itemsOnPlate(project, plate, group);
+      const e = engine();
+      const each = (label: string, op: (o: number, i: number) => Promise<ProjectInfo>) =>
+        projectEdit(label, async () => {
+          let info = project;
+          for (const { object, instance } of items) info = await op(object, instance);
+          return info;
+        });
+      switch (action.op) {
+        case 'delete':
+          return projectEdit('Delete', async () => {
+            set({ group: [], selected: null, tool: null, groupMenu: null });
+            let info = project;
+            // From the last object back, so the numbers of the ones still to go stay right.
+            for (const o of [...group].sort((a, b) => b - a)) {
+              const here = items.filter((it) => it.object === o).map((it) => it.instance);
+              if (here.length === project.objects[o].instances.length) info = await e.deleteObject(o);
+              else for (const i of here.sort((a, b) => b - a)) info = await e.deleteInstance(o, i);
+            }
+            return info;
+          });
+        case 'printable':
+          return each('Printable', (o, i) => e.objectAction(o, i, { op: 'printable', value: action.value }));
+        case 'filament':
+          return projectEdit('Change filament', async () => {
+            let info = project;
+            for (const o of group) info = await e.setExtruder(o, -1, action.filament);
+            return info;
+          });
+        case 'orient':
+          return projectEdit('Auto orient', async () => {
+            let info = project;
+            for (const o of group) info = await e.orientObject(o);
+            return info;
+          });
+        case 'center': {
+          if (!preview) return;
+          const box = groupBox(preview, group);
+          const dx = project.plateWidth / 2 - (box.min.x + box.max.x) / 2;
+          const dy = project.plateDepth / 2 - (box.min.y + box.max.y) / 2;
+          if (Math.hypot(dx, dy) < 1e-3) return;
+          return get().transformGroup([1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, dx, dy, 0, 1], 'Center');
+        }
+        case 'arrange':
+          return projectEdit('Arrange selection', async () => (await e.plateAction(plate, { op: 'arrangeSelection', objects: group })).info);
+        case 'clone':
+          await projectEdit('Clone', async () => {
+            let info = project;
+            for (const o of group) info = await e.objectAction(o, 0, { op: 'clone', count: action.count });
+            return info;
+          });
+          if (action.arrange) await get().arrange();
+          return;
+        case 'copy':
+          try {
+            await e.plateAction(plate, { op: 'copy', items });
+            set({ copied: true, notice: `Copied ${group.length} objects. Ctrl+V pastes them as new objects.`, noticeWarn: false });
+          } catch (err) {
+            fail(err);
+          }
+          return;
+        case 'exportStl':
+          try {
+            const files = [];
+            for (const { object, instance } of items) files.push(await e.exportStl(object, instance));
+            await saveFile(new Blob([joinStl(files)], { type: 'model/stl' }), stlName(project.fileName || 'objects'));
+          } catch (err) {
+            fail(err);
+          }
+          return;
+      }
     },
     moveInstance: (o, i, x, y) => projectEdit('Move', () => engine().transform(o, i, { offset: [x, y], plate: get().plate })),
     transformInstance: (o, i, changes) =>
@@ -1537,13 +1691,17 @@ export const useSlicer = create<SlicerState>((set, get) => {
     openPlateMenu: (plateMenu) => set(plateMenu ? { plateMenu, objectMenu: null } : { plateMenu }),
     plateAction: async (request, label) => {
       let object: number | undefined;
+      let objects: number[] = [];
       await projectEdit(label, async () => {
-        if (request.op === 'deleteAll') set({ selected: null, tool: null });
+        if (request.op === 'deleteAll') set({ selected: null, group: [], tool: null });
         const out = await engine().plateAction(get().plate, request);
         object = out.object;
+        objects = out.objects ?? [];
         return out.info;
       });
-      if (object !== undefined && get().project?.objects[object]) set({ selected: { object, instance: 0 } });
+      // Pasted several: they are chosen together, ready to move.
+      if (objects.length > 1) get().choose(objects);
+      else if (object !== undefined && get().project?.objects[object]) set({ selected: { object, instance: 0 }, group: [] });
     },
     setLayerCodes: async (codes, label) => {
       const job = get().job;
