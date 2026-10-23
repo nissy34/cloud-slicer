@@ -116,6 +116,7 @@ function GroupCard() {
         </form>
       ) : (
         <>
+          {item('Assemble', run(() => s.groupAction({ op: 'assemble' })), { title: 'Join them into one object, each part where it stands' })}
           <button role="menuitem" aria-haspopup="menu" aria-expanded={filaments} className="menu-item submenu" onClick={() => setFilaments(!filaments)}>
             Change filament
             <span className="menu-arrow" aria-hidden="true">

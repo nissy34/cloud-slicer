@@ -15,7 +15,8 @@ export type PlateAction =
   | { op: 'copy'; items: { object: number; instance: number }[] }
   | { op: 'paste' }
   /** Desktop's Arrange selection: these objects each on a free spot, around the ones that stay put. */
-  | { op: 'arrangeSelection'; objects: number[] };
+  | { op: 'arrangeSelection'; objects: number[] }
+  | { op: 'assemble'; items: { object: number; instance: number }[] };
 
 /**
  * Desktop's "Add Handy models" (MenuFactory::append_submenu_add_handy_model):

@@ -186,6 +186,47 @@ void placeApart(const std::vector<ModelObject*>& objs, int plate) {
     for (ModelObject* obj : objs) obj->invalidate_bounding_box();
 }
 
+int joinCopies(const std::vector<ModelInstance*>& copies) {
+    if (copies.size() < 2) throw std::runtime_error("choose at least two objects to assemble");
+    std::vector<ModelObject*> from;
+    for (ModelInstance* inst : copies) {
+        ModelObject* obj = inst->get_object();
+        if (std::find(from.begin(), from.end(), obj) != from.end()) throw std::runtime_error("both are on one object already");
+        from.push_back(obj);
+    }
+    ModelObject* joined = g_project.model.add_object();
+    joined->name = "Assembly";
+    joined->add_instance();
+    for (size_t k = 0; k < copies.size(); ++k) {
+        for (const ModelVolume* v : from[k]->volumes) {
+            ModelVolume* nv = joined->add_volume(*v);  // keeps the part's id, so the Assemble tool's picks follow it
+            nv->set_transformation(Geometry::Transformation(copies[k]->get_matrix() * v->get_matrix()));
+            if (!nv->config.option("extruder"))
+                if (const ConfigOption* e = from[k]->config.option("extruder")) nv->config.set_key_value("extruder", new ConfigOptionInt(e->getInt()));
+        }
+        for (const std::string& key : from[k]->config.keys())
+            if (!joined->config.has(key)) joined->config.set_key_value(key, from[k]->config.option(key)->clone());
+        for (const auto& range : from[k]->layer_config_ranges) joined->layer_config_ranges.emplace(range);
+    }
+    joined->sort_volumes(true);
+    joined->ensure_on_bed();
+    joined->center_around_origin();
+    joined->translate_instances(-joined->origin_translation);
+    joined->origin_translation = Vec3d::Zero();
+    // The joined copies leave their objects; an object with no other copy goes.
+    std::vector<size_t> gone;
+    for (size_t k = 0; k < copies.size(); ++k) {
+        ModelObject* obj = from[k];
+        if (obj->instances.size() == 1)
+            gone.push_back(size_t(std::find(g_project.model.objects.begin(), g_project.model.objects.end(), obj) - g_project.model.objects.begin()));
+        else
+            obj->delete_instance(size_t(std::find(obj->instances.begin(), obj->instances.end(), copies[k]) - obj->instances.begin()));
+    }
+    std::sort(gone.rbegin(), gone.rend());
+    for (size_t o : gone) g_project.model.delete_object(o);
+    return int(g_project.model.objects.size()) - 1;
+}
+
 bool isSunk(const ModelObject* obj) { return obj->min_z() < SINKING_Z_THRESHOLD; }
 
 void settleOnBed(ModelObject* obj, bool sinking) {

@@ -58,6 +58,12 @@ void placeTogether(const std::vector<Slic3r::ModelObject*>& objs, int plate);
 // around the objects that stay put (desktop's Arrange selection).
 void placeApart(const std::vector<Slic3r::ModelObject*>& objs, int plate);
 
+// ObjectList::merge(true), the object menu's Assemble: these copies (of
+// different objects) as the parts of one new object "Assembly", each part
+// where it stood. A joined copy leaves its object; an object left with no
+// copy goes. Returns the new object's index.
+int joinCopies(const std::vector<Slic3r::ModelInstance*>& copies);
+
 // A pressure advance pattern test's G-code, put into the plate model's custom
 // G-code before slicing (calib_api.cpp). Does nothing for other tests.
 void addCalibrationGcodes(Slic3r::Model& model, const Slic3r::DynamicPrintConfig& cfg);
@@ -117,8 +123,9 @@ struct RayHit {
 };
 
 // Nearest model part on `plate` hit by the ray from s along dir (plate
-// coordinates), through a ray-cast tree per part mesh (paint_api.cpp).
-std::optional<RayHit> castRay(int plate, Slic3r::Vec3d s, const Slic3r::Vec3d& dir);
+// coordinates), through a ray-cast tree per part mesh (paint_api.cpp). With
+// `only`, just those objects: the ray passes through the rest.
+std::optional<RayHit> castRay(int plate, Slic3r::Vec3d s, const Slic3r::Vec3d& dir, const std::vector<int>& only = {});
 // The part's ray-cast tree, kept while its mesh lives (paint_api.cpp).
 const Slic3r::AABBMesh& treeOf(const Slic3r::ModelVolume& v);
 

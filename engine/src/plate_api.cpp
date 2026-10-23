@@ -73,6 +73,9 @@ Model& clipboard() {
 //                       stood from each other (Ctrl+V)
 //   {op: "arrangeSelection", objects: [o...]}   those objects' copies on plate p
 //                       each on a free spot, around the rest (Arrange selection)
+//   {op: "assemble", items: [{object, instance}]}   those copies (two or more,
+//                       of different objects) made one object, each part where
+//                       it stood (the object menu's Assemble, ObjectList::merge)
 // Returns {ok, object?: index of the (first) new object, objects?: all new ones, error?}.
 std::string plateAction(int plate, const std::string& requestJson) {
     try {
@@ -168,6 +171,16 @@ std::string plateAction(int plate, const std::string& requestJson) {
                 objs.push_back(p.model.objects[k]);
             }
             engine::placeApart(objs, plate);
+        } else if (op == "assemble") {
+            std::vector<ModelInstance*> copies;
+            for (const json& item : req.value("items", json::array())) {
+                const int o = item.value("object", -1), i = item.value("instance", 0);
+                if (o < 0 || size_t(o) >= p.model.objects.size()) throw std::runtime_error("no object " + std::to_string(o));
+                ModelObject* obj = p.model.objects[o];
+                if (i < 0 || size_t(i) >= obj->instances.size()) throw std::runtime_error("no instance " + std::to_string(i));
+                copies.push_back(obj->instances[i]);
+            }
+            out["object"] = engine::joinCopies(copies);
         } else {
             throw std::runtime_error("unknown plate action " + op);
         }
