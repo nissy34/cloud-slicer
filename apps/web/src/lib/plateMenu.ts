@@ -11,7 +11,11 @@ export type PlateAction =
   | { op: 'layerCodes'; codes: LayerCode[]; filaments: number }
   /** Ctrl+C and Ctrl+V: the engine keeps the copy, so it pastes after the original is gone. */
   | { op: 'copy'; object: number; instance: number }
-  | { op: 'paste' };
+  /** Several copies chosen together: they paste as a block, keeping where they stood from each other. */
+  | { op: 'copy'; items: { object: number; instance: number }[] }
+  | { op: 'paste' }
+  /** Desktop's Arrange selection: these objects each on a free spot, around the ones that stay put. */
+  | { op: 'arrangeSelection'; objects: number[] };
 
 /**
  * Desktop's "Add Handy models" (MenuFactory::append_submenu_add_handy_model):

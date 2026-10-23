@@ -136,6 +136,7 @@ function MenuCard({ onAdd }: { onAdd(): void }) {
         <>
           {menu.onPlate && (
             <>
+              {item('Select all', run(() => s.selectAll()), { disabled: empty, title: needsModel ?? 'Choose every object on this plate (Ctrl+A)' })}
               {item('Arrange', run(() => s.arrange()), { disabled: empty, title: needsModel ?? 'Lay out the objects on this plate' })}
               {item('Auto orient', run(() => s.orient()), { disabled: empty, title: needsModel ?? 'Turn every object on this plate to print with the least overhang' })}
               {item('Delete all', run(() => s.plateAction({ op: 'deleteAll' }, 'Delete all')), { disabled: empty, title: needsModel ?? 'Delete every object on this plate' })}

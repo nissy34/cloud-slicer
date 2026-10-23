@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { editKey, scaledBy } from './transform';
+import { editKey, nudgeKey, scaledBy } from './transform';
 
 describe('scaledBy', () => {
   it('scales all three axes together when uniform', () => {
@@ -27,5 +27,21 @@ describe('editKey', () => {
     expect(press('k')).toBeNull();
     expect(press('z', { ctrlKey: true })).toBeNull();
     expect(press('Delete', { altKey: true })).toBeNull();
+  });
+});
+
+describe('nudgeKey', () => {
+  const press = (key: string, mods: Partial<{ ctrlKey: boolean; metaKey: boolean; altKey: boolean; shiftKey: boolean }> = {}) =>
+    nudgeKey({ key, ctrlKey: false, metaKey: false, altKey: false, shiftKey: false, ...mods });
+  it('moves 10 mm with the arrows and turns 45° with Page Up / Down, like desktop', () => {
+    expect(press('ArrowUp')).toEqual({ move: [0, 10] });
+    expect(press('ArrowLeft')).toEqual({ move: [-10, 0] });
+    expect(press('PageUp')).toEqual({ turn: 45 });
+    expect(press('PageDown')).toEqual({ turn: -45 });
+  });
+  it('leaves other keys and combinations alone', () => {
+    expect(press('a')).toBeNull();
+    expect(press('ArrowUp', { shiftKey: true })).toBeNull();
+    expect(press('ArrowUp', { ctrlKey: true })).toBeNull();
   });
 });

@@ -87,11 +87,11 @@ json settingsJson(const DynamicPrintConfig& cfg) {
     return out;
 }
 
-// Bounding boxes (XY) of every instance on `plate` except `skip`'s.
-std::vector<BoundingBoxf> plateBoxes(int plate, const ModelObject* skip) {
+// Bounding boxes (XY) of every instance on `plate` except those of `skip`.
+std::vector<BoundingBoxf> plateBoxes(int plate, const std::vector<ModelObject*>& skip) {
     std::vector<BoundingBoxf> boxes;
     for (const ModelObject* obj : g_project.model.objects) {
-        if (obj == skip) continue;
+        if (std::find(skip.begin(), skip.end(), obj) != skip.end()) continue;
         for (const ModelInstance* inst : obj->instances) {
             if (g_project.plateOf(*inst) != plate) continue;
             const BoundingBoxf3 bb = obj->instance_bounding_box(*inst, false);
@@ -101,37 +101,46 @@ std::vector<BoundingBoxf> plateBoxes(int plate, const ModelObject* skip) {
     return boxes;
 }
 
+constexpr double SPACING = 6;
+
+// The free spot on `plate` closest to its centre for a box of `size`, SPACING mm
+// clear of `taken`; the centre when the plate is empty or nothing fits.
+Vec2d freeSpot(int plate, const Vec2d& size, const std::vector<BoundingBoxf>& taken) {
+    constexpr double STEP = 2;
+    const Vec2d origin = g_project.plateOrigin(plate);
+    const Vec2d centre = origin + Vec2d(g_project.plateWidth / 2, g_project.plateDepth / 2);
+    const Vec2d half = size / 2;
+    Vec2d best = centre;
+    if (taken.empty()) return best;
+    double bestDist = std::numeric_limits<double>::max();
+    for (double y = origin.y() + half.y(); y <= origin.y() + g_project.plateDepth - half.y() + 1e-6; y += STEP)
+        for (double x = origin.x() + half.x(); x <= origin.x() + g_project.plateWidth - half.x() + 1e-6; x += STEP) {
+            const double dist = (Vec2d(x, y) - centre).squaredNorm();
+            if (dist >= bestDist) continue;
+            const BoundingBoxf me(Vec2d(x, y) - half - Vec2d(SPACING, SPACING), Vec2d(x, y) + half + Vec2d(SPACING, SPACING));
+            if (std::none_of(taken.begin(), taken.end(), [&](const BoundingBoxf& t) { return t.overlap(me); })) {
+                best = Vec2d(x, y);
+                bestDist = dist;
+            }
+        }
+    return best;
+}
+
 // Puts a freshly read geometry object on plate `plate` and drops it on the
 // bed: in the centre when the plate is empty, otherwise on the free spot
 // closest to the centre, SPACING mm clear of what is already there (desktop
 // arranges added objects around the ones on the plate the same way). When
 // nothing fits it goes in the centre, for the user to sort out.
 void placeOnPlate(ModelObject* obj, int plate) {
-    constexpr double SPACING = 6, STEP = 2;
     if (obj->instances.empty()) obj->add_instance();
-    const Vec2d origin = g_project.plateOrigin(plate);
-    const Vec2d centre = origin + Vec2d(g_project.plateWidth / 2, g_project.plateDepth / 2);
-    std::vector<BoundingBoxf> taken = plateBoxes(plate, obj);
+    std::vector<BoundingBoxf> taken = plateBoxes(plate, {obj});
     for (ModelInstance* inst : obj->instances) {
         const BoundingBoxf3 bb = obj->instance_bounding_box(*inst, false);
-        const Vec2d half(bb.size().x() / 2, bb.size().y() / 2);
-        Vec2d best = centre;
-        if (!taken.empty()) {
-            double bestDist = std::numeric_limits<double>::max();
-            for (double y = origin.y() + half.y(); y <= origin.y() + g_project.plateDepth - half.y() + 1e-6; y += STEP)
-                for (double x = origin.x() + half.x(); x <= origin.x() + g_project.plateWidth - half.x() + 1e-6; x += STEP) {
-                    const double dist = (Vec2d(x, y) - centre).squaredNorm();
-                    if (dist >= bestDist) continue;
-                    const BoundingBoxf me(Vec2d(x, y) - half - Vec2d(SPACING, SPACING), Vec2d(x, y) + half + Vec2d(SPACING, SPACING));
-                    if (std::none_of(taken.begin(), taken.end(), [&](const BoundingBoxf& t) { return t.overlap(me); })) {
-                        best = Vec2d(x, y);
-                        bestDist = dist;
-                    }
-                }
-        }
+        const Vec2d size(bb.size().x(), bb.size().y());
+        const Vec2d best = freeSpot(plate, size, taken);
         const Vec3d off = inst->get_offset();
         inst->set_offset(Vec3d(off.x() + best.x() - bb.center().x(), off.y() + best.y() - bb.center().y(), off.z()));
-        taken.emplace_back(best - half, best + half);
+        taken.emplace_back(best - size / 2, best + size / 2);
     }
     obj->invalidate_bounding_box();
     obj->ensure_on_bed();
@@ -140,6 +149,42 @@ void placeOnPlate(ModelObject* obj, int plate) {
 } // namespace
 
 void placeObject(ModelObject* obj, int plate) { placeOnPlate(obj, plate); }
+
+void placeTogether(const std::vector<ModelObject*>& objs, int plate) {
+    if (objs.empty()) return;
+    BoundingBoxf3 all;
+    for (ModelObject* obj : objs) {
+        if (obj->instances.empty()) obj->add_instance();
+        obj->invalidate_bounding_box();
+        all.merge(obj->bounding_box_exact());
+    }
+    const Vec2d best = freeSpot(plate, Vec2d(all.size().x(), all.size().y()), plateBoxes(plate, objs));
+    const Vec3d shift(best.x() - all.center().x(), best.y() - all.center().y(), 0);
+    for (ModelObject* obj : objs) {
+        for (ModelInstance* inst : obj->instances) inst->set_offset(inst->get_offset() + shift);
+        obj->invalidate_bounding_box();
+        obj->ensure_on_bed();
+    }
+}
+
+void placeApart(const std::vector<ModelObject*>& objs, int plate) {
+    // The largest first, like desktop's arrange, around what stays put.
+    std::vector<std::pair<ModelInstance*, BoundingBoxf3>> items;
+    for (ModelObject* obj : objs)
+        for (ModelInstance* inst : obj->instances)
+            if (g_project.plateOf(*inst) == plate) items.emplace_back(inst, obj->instance_bounding_box(*inst, false));
+    std::stable_sort(items.begin(), items.end(), [](const auto& a, const auto& b) {
+        return a.second.size().x() * a.second.size().y() > b.second.size().x() * b.second.size().y();
+    });
+    std::vector<BoundingBoxf> taken = plateBoxes(plate, objs);
+    for (auto& [inst, bb] : items) {
+        const Vec2d size(bb.size().x(), bb.size().y());
+        const Vec2d best = freeSpot(plate, size, taken);
+        inst->set_offset(inst->get_offset() + Vec3d(best.x() - bb.center().x(), best.y() - bb.center().y(), 0));
+        taken.emplace_back(best - size / 2, best + size / 2);
+    }
+    for (ModelObject* obj : objs) obj->invalidate_bounding_box();
+}
 
 bool isSunk(const ModelObject* obj) { return obj->min_z() < SINKING_Z_THRESHOLD; }
 
