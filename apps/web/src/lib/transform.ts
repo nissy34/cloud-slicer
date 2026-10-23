@@ -23,3 +23,27 @@ export function editKey(e: { key: string; ctrlKey: boolean; metaKey: boolean; al
   if (key === '-' || key === '_') return 'removeCopy';
   return null;
 }
+
+/**
+ * Desktop's arrow keys and Page Up / Page Down on the chosen objects: arrows
+ * move them 10 mm on the plate (up is away from the front), Page Up turns them
+ * 45° counter-clockwise about their middle, Page Down clockwise.
+ */
+export function nudgeKey(e: { key: string; ctrlKey: boolean; metaKey: boolean; altKey: boolean; shiftKey: boolean }): { move: [number, number] } | { turn: number } | null {
+  if (e.ctrlKey || e.metaKey || e.altKey || e.shiftKey) return null;
+  switch (e.key) {
+    case 'ArrowUp':
+      return { move: [0, 10] };
+    case 'ArrowDown':
+      return { move: [0, -10] };
+    case 'ArrowLeft':
+      return { move: [-10, 0] };
+    case 'ArrowRight':
+      return { move: [10, 0] };
+    case 'PageUp':
+      return { turn: 45 };
+    case 'PageDown':
+      return { turn: -45 };
+  }
+  return null;
+}

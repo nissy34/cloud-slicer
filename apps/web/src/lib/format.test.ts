@@ -1,5 +1,18 @@
 import { describe, expect, it } from 'vitest';
-import { formatDuration, formatGrams, outputFileName, sentence, stageLabel, timeDhms } from './format';
+import { formatClock, formatDuration, formatGrams, outputFileName, sentence, stageLabel, timeDhms } from './format';
+
+describe('formatClock', () => {
+  it('shows hours, minutes and seconds like desktop', () => {
+    expect(formatClock(3007)).toBe('50m 7s');
+    expect(formatClock(5045)).toBe('1h 24m 5s');
+    expect(formatClock(3600)).toBe('1h 0m 0s');
+    expect(formatClock(19.4)).toBe('19s');
+    expect(formatClock(0)).toBe('0s');
+  });
+  it('shows a dash for missing values', () => {
+    expect(formatClock(Number.NaN)).toBe('–');
+  });
+});
 
 describe('formatDuration', () => {
   it('rounds to minutes and shows hours', () => {

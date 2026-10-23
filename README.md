@@ -59,7 +59,15 @@ hosted on Cloudflare's free tier.
   or by hand on the layer height chart), arrange, auto-orient, split,
   mirror, simplify (offered by itself when the plate to slice has too many triangles to slice comfortably), plates, brim ears (by hand or on the corners), undo and redo, desktop's editing keys (Del deletes the
   picked copy or part, Ctrl+C / Ctrl+V copy and paste an object, Ctrl+K clones it, + and - add or
-  remove a copy, also Add copy / Remove copy in the object list and object menu),
+  remove a copy, also Add copy / Remove copy in the object list and object menu; arrow keys move
+  the picked objects 10 mm and Page Up / Page Down turn them 45°),
+  choosing several models like desktop (Ctrl+click or Shift+click, Ctrl+A or Select all in the
+  plate menu, a Shift+drag rectangle that takes what it touches, Alt+drag to take out, Esc to let
+  go, Ctrl/Shift+click in the object list; on a phone "Choose several" in the long-press menu,
+  then taps and a one-finger drag rectangle): move, rotate and scale work on all of them about
+  their middle, and their own menu (right click or long press a chosen one) changes filament,
+  clones, copies (Ctrl+V pastes them as a block), centres, arranges only them, auto-orients,
+  toggles Printable, exports them as one STL or deletes them,
   painting (colours, support and seam enforcers/blockers, fuzzy skin), desktop's plate
   menu (right click or long press the plate or the space around it: add a primitive
   shape, text, an SVG, one of Orca's handy models or a model file, and on the plate

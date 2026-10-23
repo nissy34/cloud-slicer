@@ -1482,6 +1482,84 @@ select:focus-visible {
 .stats-total span:nth-child(even) {
   text-align: right;
 }
+/* Desktop's Filament view: model / support / flushed / tower / total per filament. */
+.filament-table {
+  border-collapse: collapse;
+  font-variant-numeric: tabular-nums;
+}
+.filament-table th {
+  padding: 0 0 2px 10px;
+  color: var(--muted);
+  font-weight: 600;
+  font-size: 12px;
+  text-align: right;
+}
+.filament-table td {
+  padding: 2px 0 2px 10px;
+  text-align: right;
+  vertical-align: top;
+  white-space: nowrap;
+}
+.filament-table th:first-child,
+.filament-table td:first-child {
+  padding-left: 0;
+  text-align: left;
+}
+.filament-table td small {
+  display: block;
+  color: var(--muted);
+  font-size: 11px;
+}
+.filament-table .dot {
+  display: inline-block;
+  margin-right: 6px;
+  vertical-align: -1px;
+}
+.filament-table tfoot td small {
+  font-weight: 400;
+}
+.filament-table .none {
+  color: var(--muted);
+}
+.filament-table .filament-total,
+.filament-table tfoot td {
+  font-weight: 600;
+}
+.filament-table tfoot td {
+  border-top: 1px solid var(--border);
+}
+/* The table's Total row already has the totals. */
+.stats-total.split span:nth-child(-n + 2) {
+  display: none;
+}
+.stats-total.split {
+  border-top: 0;
+  padding-top: 0;
+}
+/* Desktop's time estimate, under the key in every view. */
+.time-stats {
+  display: grid;
+  gap: 1px;
+  padding-top: 4px;
+  border-top: 1px solid var(--border);
+  font-variant-numeric: tabular-nums;
+}
+.time-stats .time-title {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 600;
+}
+.time-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+}
+.time-row:last-child {
+  font-weight: 600;
+}
+.time-row .short {
+  display: none;
+}
 .range-key {
   display: grid;
   gap: 4px;
@@ -2158,6 +2236,38 @@ select:focus-visible {
   }
   .filament-row {
     flex-wrap: nowrap;
+  }
+  /* One line: "Prepare 24s · Printing 48m 6s · Total 48m 30s". */
+  .time-stats {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0 6px;
+  }
+  .time-stats .time-title,
+  .time-row .long {
+    display: none;
+  }
+  .time-row .short {
+    display: inline;
+    color: var(--muted);
+    font-weight: 400;
+  }
+  .time-row {
+    gap: 4px;
+    white-space: nowrap;
+  }
+  .time-row:not(:last-child)::after {
+    content: '·';
+  }
+  /* Weights only, so the key stays short; the lengths' total is in the line below. */
+  .filament-table {
+    width: 100%;
+  }
+  .filament-table td small {
+    display: none;
+  }
+  .stats-total.split span:nth-child(-n + 2) {
+    display: inline;
   }
   .filament-use {
     margin-left: 0;
@@ -6823,4 +6933,51 @@ button.volume-name {
 }
 .dv-test-note .dv-test-tag {
   margin-right: 6px;
+}
+
+/* Rectangle selection in the 3D view (Shift+drag adds, Alt+drag takes out). */
+.select-rect {
+  position: absolute;
+  pointer-events: none;
+  border: 1px dashed var(--accent);
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+  z-index: 2;
+}
+.select-rect.remove {
+  border-color: var(--danger);
+  background: color-mix(in srgb, var(--danger) 10%, transparent);
+}
+.menu-item.danger {
+  color: var(--danger);
+}
+.choose-bar {
+  position: absolute;
+  left: 50%;
+  bottom: 12px;
+  transform: translateX(-50%);
+  z-index: 3;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 6px 4px 12px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--surface);
+  box-shadow: 0 2px 10px rgb(0 0 0 / 0.18);
+  white-space: nowrap;
+  max-width: calc(100% - 24px);
+}
+.choose-bar .choose-count {
+  font-weight: 600;
+}
+.choose-bar button {
+  padding: 4px 10px;
+}
+@media (max-width: 760px) {
+  /* Clear of the view buttons in the right corner. */
+  .choose-bar {
+    left: 12px;
+    transform: none;
+    max-width: calc(100% - 76px);
+  }
 }

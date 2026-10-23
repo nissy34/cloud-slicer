@@ -51,7 +51,7 @@ try {
   const cancel = page.getByTestId('actionbar').getByRole('button', { name: 'Cancel' });
   const stats = page.getByTestId('slice-stats');
   const prepare = () => page.getByRole('tab', { name: 'Prepare' }).click();
-  const layers = async () => Number((await stats.locator('b').nth(2).textContent()) ?? 0);
+  const layers = async () => Number((await stats.getAttribute('data-layers')) ?? 0);
 
   // A full slice, for timing the ones below.
   let t0 = Date.now();

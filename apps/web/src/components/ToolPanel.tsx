@@ -1,7 +1,9 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
+import * as THREE from 'three';
 import type { CutKeep } from '../engine/client';
 import { describeFeature, measurementRows } from '../lib/measure';
 import { scaledBy } from '../lib/transform';
+import { groupBox } from '../lib/group';
 import { AssemblePanel } from './AssemblePanel';
 import { useSlicer, type Tool } from '../state/store';
 import { SimplifyPanel } from './SimplifyPanel';
@@ -164,6 +166,65 @@ function TransformFields({ tool, object, instance, volume }: { tool: 'move' | 'r
   );
 }
 
+/**
+ * Exact values for several chosen objects: the middle of the box around them
+ * (move), a turn about it (rotate) or an even scale (scale), like desktop's
+ * fields with a multi-selection.
+ */
+function GroupFields({ tool }: { tool: 'move' | 'rotate' | 'scale' }) {
+  const preview = useSlicer((s) => s.preview);
+  const group = useSlicer((s) => s.group);
+  const { transformGroup } = useSlicer.getState();
+  const version = useMemo(() => Math.random().toString(36), [preview]);
+  if (!preview) return null;
+  const box = groupBox(preview, group);
+  const c = box.getCenter(new THREE.Vector3());
+  const size = box.getSize(new THREE.Vector3());
+  // Typed values apply once: the fields start fresh after every change.
+  const fresh = version;
+  const about = (inner: THREE.Matrix4) =>
+    new THREE.Matrix4().makeTranslation(c.x, c.y, c.z).multiply(inner).multiply(new THREE.Matrix4().makeTranslation(-c.x, -c.y, -c.z)).elements.slice();
+  if (tool === 'move')
+    return (
+      <AxisFields
+        key={fresh}
+        label="Position"
+        unit="mm"
+        only={2}
+        values={[c.x, c.y]}
+        onSet={(axis, v) => void transformGroup(new THREE.Matrix4().makeTranslation(axis === 0 ? v - c.x : 0, axis === 1 ? v - c.y : 0, 0).elements.slice(), 'Move')}
+      />
+    );
+  if (tool === 'rotate')
+    return (
+      <AxisFields
+        key={fresh}
+        label="Turn by"
+        unit="°"
+        values={[0, 0, 0]}
+        onSet={(axis, v) => {
+          const r = (v * Math.PI) / 180;
+          void transformGroup(about(axis === 0 ? new THREE.Matrix4().makeRotationX(r) : axis === 1 ? new THREE.Matrix4().makeRotationY(r) : new THREE.Matrix4().makeRotationZ(r)), 'Rotate');
+        }}
+      />
+    );
+  return (
+    <>
+      <AxisFields
+        key={fresh}
+        label="Scale"
+        unit="%"
+        only={1}
+        values={[100]}
+        onSet={(_, v) => v > 0 && void transformGroup(about(new THREE.Matrix4().makeScale(v / 100, v / 100, v / 100)), 'Scale')}
+      />
+      <p className="muted hint" aria-label="Group size">
+        Together {size.toArray().map((n) => round(n)).join(' × ')} mm
+      </p>
+    </>
+  );
+}
+
 /** The Measure tool's figures, like desktop's Measure panel. */
 function MeasurePanel() {
   const { hover, picks, result, onlyPlane } = useSlicer((s) => s.measure);
@@ -243,11 +304,34 @@ export function ToolPanel() {
     const v = obj?.volumes[s.selected!.volume!];
     return v && (v.kind !== 'part' || obj!.volumes.filter((x) => x.kind === 'part').length > 1) ? v.name : null;
   });
+  const several = useSlicer((s) => s.group.length);
   const { setTool, setSnap } = useSlicer.getState();
   if (tool === 'measure') return <MeasurePanel />;
   if (tool === 'assemble') return <AssemblePanel />;
   if (tool === 'text') return <TextPanel />;
   if (tool === 'svg') return <SvgPanel />;
+  if (several > 1 && (tool === 'move' || tool === 'rotate' || tool === 'scale')) {
+    const [title] = HINTS[tool];
+    const what = tool === 'move' ? 'Drag an arrow, or drag one of them,' : tool === 'rotate' ? 'Drag a ring' : 'Drag a handle';
+    return (
+      <section className="tool-panel" aria-label={title}>
+        <div className="tool-panel-head">
+          <strong>{title}</strong>
+          <button className="ghost" onClick={() => setTool(null)}>
+            Done
+          </button>
+        </div>
+        <p className="muted hint">
+          {what} or type below to {tool} {several === 2 ? 'both' : `all ${several}`} chosen objects together{tool === 'move' ? '' : ' about their middle'}.
+        </p>
+        <GroupFields key={tool} tool={tool} />
+        <label className="check">
+          <input type="checkbox" checked={snap} onChange={(e) => setSnap(e.target.checked)} />
+          <span>{tool === 'rotate' ? 'Snap to 15°' : tool === 'move' ? 'Snap to 5 mm' : 'Snap to 10%'} (or hold Shift)</span>
+        </label>
+      </section>
+    );
+  }
   if (!tool || !selected) return null;
   if (tool === 'boolean') return <BooleanPanel key={selected.object} object={selected.object} />;
   if (tool === 'simplify') return <SimplifyPanel key={selected.object} object={selected.object} />;

@@ -303,6 +303,132 @@ function Gizmo({
   );
 }
 
+/**
+ * The move, rotate and scale handles of several chosen objects, at the middle
+ * of the box around them, like desktop's with a multi-selection. They turn and
+ * scale (evenly) about that middle; on release each copy goes to the engine.
+ */
+function GroupGizmo({
+  tool,
+  parts,
+  controlsRef,
+  onRelease,
+}: {
+  tool: 'move' | 'rotate' | 'scale';
+  parts: Part[];
+  controlsRef: React.MutableRefObject<TransformControlsImpl | null>;
+  onRelease(): void;
+}) {
+  const [pivot, setPivot] = useState<THREE.Group | null>(null);
+  const shift = useShift();
+  const snap = useSlicer((s) => s.snap) || shift;
+  const coarse = useMemo(() => typeof matchMedia !== 'undefined' && matchMedia('(pointer: coarse)').matches, []);
+  const centre = useMemo(() => {
+    const box = new THREE.Box3();
+    parts.forEach((p) => box.union(p.geometry.boundingBox!));
+    return box.getCenter(new THREE.Vector3());
+  }, [parts]);
+  const negCentre = useMemo(() => centre.clone().negate(), [centre]);
+  useHoldWhileDragging(controlsRef, pivot);
+  const invalidate = useThree((s) => s.invalidate);
+  useLayoutEffect(() => {
+    if (!pivot) return;
+    pivot.position.copy(centre);
+    pivot.quaternion.identity();
+    pivot.scale.set(1, 1, 1);
+    invalidate();
+  }, [pivot, centre, tool, invalidate]);
+
+  // A group has no axes of its own: any scale handle scales it evenly.
+  const even = () => {
+    if (!pivot || tool !== 'scale') return;
+    const s = pivot.scale;
+    const v = [s.x, s.y, s.z].reduce((a, b) => (Math.abs(b - 1) > Math.abs(a - 1) ? b : a), 1);
+    s.setScalar(v);
+  };
+
+  const commit = () => {
+    onRelease();
+    if (!pivot) return;
+    pivot.updateMatrix();
+    const m = new THREE.Matrix4().multiplyMatrices(pivot.matrix, new THREE.Matrix4().makeTranslation(negCentre));
+    const moved = pivot.position.distanceTo(centre) > 1e-3;
+    const turned = pivot.quaternion.angleTo(new THREE.Quaternion()) >= 1e-4;
+    const scaled = Math.abs(pivot.scale.x - 1) >= 1e-4;
+    if (!moved && !turned && !scaled) return;
+    void useSlicer.getState().transformGroup(m.elements.slice(), tool === 'move' ? 'Move' : tool === 'rotate' ? 'Rotate' : 'Scale');
+  };
+
+  return (
+    <>
+      <group ref={setPivot}>
+        <group position={negCentre}>
+          {parts.map((p) => (
+            <mesh key={p.object} geometry={p.geometry} raycast={() => null} castShadow>
+              <PartMaterial active unprintable={p.unprintable} />
+            </mesh>
+          ))}
+        </group>
+      </group>
+      {pivot && (
+        <TransformControls
+          ref={controlsRef}
+          object={pivot}
+          mode={tool === 'move' ? 'translate' : tool}
+          space="world"
+          showZ={tool !== 'move'}
+          size={coarse ? 1.5 : 1.15}
+          translationSnap={snap ? 5 : null}
+          rotationSnap={snap ? 15 * DEG : null}
+          scaleSnap={snap ? 0.1 : null}
+          onObjectChange={even}
+          onMouseUp={commit}
+        />
+      )}
+    </>
+  );
+}
+
+/**
+ * The objects a rectangle on the screen touches (desktop's rectangle
+ * selection): a corner of one of its triangles inside it, or the model under
+ * its middle.
+ */
+function partsInRect(parts: Part[], rect: { left: number; top: number; right: number; bottom: number }, camera: THREE.Camera, canvas: HTMLCanvasElement): number[] {
+  const r = canvas.getBoundingClientRect();
+  const v = new THREE.Vector3();
+  // Rays through a grid over the rectangle (edges included) catch a model the
+  // rectangle crosses between its corners, even a thin rectangle over a big face.
+  const across = (a: number, b: number) => {
+    const n = Math.min(32, Math.ceil((b - a) / 8));
+    return Array.from({ length: n + 1 }, (_, k) => a + ((b - a) * k) / Math.max(1, n));
+  };
+  const rays = across(rect.left, rect.right).flatMap((x) =>
+    across(rect.top, rect.bottom).map((y) => {
+      const caster = new THREE.Raycaster();
+      caster.setFromCamera(new THREE.Vector2(((x - r.left) / r.width) * 2 - 1, -((y - r.top) / r.height) * 2 + 1), camera);
+      return caster;
+    }),
+  );
+  return parts
+    .filter((p) => {
+      const pos = p.geometry.getAttribute('position') as THREE.BufferAttribute;
+      // Big models: a sample of their corners is plenty.
+      const step = Math.max(1, Math.floor(pos.count / 30000));
+      for (let i = 0; i < pos.count; i += step) {
+        v.fromBufferAttribute(pos, i).project(camera);
+        if (v.z > 1) continue;
+        const x = r.left + ((v.x + 1) / 2) * r.width;
+        const y = r.top + ((1 - v.y) / 2) * r.height;
+        if (x >= rect.left && x <= rect.right && y >= rect.top && y <= rect.bottom) return true;
+      }
+      const mesh = new THREE.Mesh(p.geometry);
+      mesh.raycast = bvhRaycast;
+      return rays.some((caster) => caster.intersectObject(mesh, false).length > 0);
+    })
+    .map((p) => p.object);
+}
+
 const CUT_UPPER = '#22d3ee';
 const CUT_LOWER = '#e879f9';
 
@@ -711,8 +837,10 @@ function Objects({ w, d }: { w: number; d: number }) {
   const project = useSlicer((s) => s.project);
   const plate = useSlicer((s) => s.plate);
   const selected = useSlicer((s) => s.selected);
+  const group = useSlicer((s) => s.group);
+  const choosing = useSlicer((s) => s.choosing);
   const tool = useSlicer((s) => s.tool);
-  const { select, moveInstance, paintStroke, editBrim, measureHover, measurePick } = useSlicer.getState();
+  const { select, moveInstance, paintStroke, editBrim, measureHover, measurePick, toggleChosen, transformGroup, openGroupMenu } = useSlicer.getState();
   const parts = useParts(preview, colours, project?.objects, plate);
   useEffect(() => () => parts.forEach((p) => p.geometry.dispose()), [parts]);
   const camera = useThree((s) => s.camera);
@@ -724,7 +852,9 @@ function Objects({ w, d }: { w: number; d: number }) {
   const stroking = useRef(false);
   const [brush, setBrush] = useState<{ point: THREE.Vector3; normal: THREE.Vector3 } | null>(null);
   const brushTool = paint && (paint.tool === 'circle' || paint.tool === 'sphere');
-  const drag = useRef<{ object: number; instance: number; start: THREE.Vector3; offset: [number, number] } | null>(null);
+  // A press that may move a model (or all the chosen ones, `group`); `toggle`:
+  // released without moving, it adds or takes out that model (choosing on a phone).
+  const drag = useRef<{ object: number; instance: number; start: THREE.Vector3; offset: [number, number]; group?: boolean; toggle?: number } | null>(null);
   const [delta, setDelta] = useState<[number, number] | null>(null);
   const plane = useMemo(() => new THREE.Plane(new THREE.Vector3(0, 0, 1), 0), []);
   // The camera must hold still while an object is dragged.
@@ -1073,13 +1203,104 @@ function Objects({ w, d }: { w: number; d: number }) {
     return () => window.removeEventListener('pointerdown', down);
   });
 
+  // Desktop's rectangle selection: Shift+drag adds what the rectangle touches,
+  // Alt+drag takes it out; while choosing (phones), a drag from an empty spot
+  // draws one too. A Shift+click on a model adds it or takes it out. Heard on
+  // window before the camera and the 3D view's own handlers, so the camera
+  // holds still and a press on a model doesn't pick it alone.
+  const lasso = useRef<{ x0: number; y0: number; remove: boolean; hit: number | undefined; box: HTMLDivElement | null } | null>(null);
+  const lassoEnded = useRef(0);
+  const lastPress = useRef<PointerEvent | null>(null);
+  const objectAt = (x: number, y: number) => {
+    const r = canvas.getBoundingClientRect();
+    const caster = new THREE.Raycaster();
+    caster.setFromCamera(new THREE.Vector2(((x - r.left) / r.width) * 2 - 1, -((y - r.top) / r.height) * 2 + 1), camera);
+    let best: { object: number; distance: number } | undefined;
+    for (const p of parts) {
+      const mesh = new THREE.Mesh(p.geometry);
+      mesh.raycast = bvhRaycast;
+      const hit = caster.intersectObject(mesh, false)[0];
+      if (hit && (!best || hit.distance < best.distance)) best = { object: p.object, distance: hit.distance };
+    }
+    return best?.object;
+  };
+  useEffect(() => {
+    const down = (ev: PointerEvent) => {
+      if (ev.target !== canvas || twoFingers() || viewOnly() || ev.button !== 0) return;
+      const { tool, paint, choosing } = useSlicer.getState();
+      if (paint || (tool && tool !== 'move' && tool !== 'rotate' && tool !== 'scale') || onGizmo()) return;
+      const keys = ev.pointerType === 'mouse' && (ev.shiftKey || ev.altKey);
+      const hit = keys || choosing ? objectAt(ev.clientX, ev.clientY) : undefined;
+      if (!keys && !(choosing && hit === undefined)) return;
+      lasso.current = { x0: ev.clientX, y0: ev.clientY, remove: ev.altKey && !ev.shiftKey, hit, box: null };
+      holdCamera(controls, true);
+    };
+    const move = (ev: PointerEvent) => {
+      const l = lasso.current;
+      if (!l) return;
+      if (twoFingers()) return end(null);
+      if (!l.box && Math.hypot(ev.clientX - l.x0, ev.clientY - l.y0) < 5) return;
+      const host = canvas.parentElement;
+      if (!l.box && host) {
+        l.box = document.createElement('div');
+        l.box.className = l.remove ? 'select-rect remove' : 'select-rect';
+        l.box.setAttribute('data-testid', 'select-rect');
+        host.appendChild(l.box);
+      }
+      if (!l.box || !host) return;
+      const h = host.getBoundingClientRect();
+      Object.assign(l.box.style, {
+        left: `${Math.min(l.x0, ev.clientX) - h.left}px`,
+        top: `${Math.min(l.y0, ev.clientY) - h.top}px`,
+        width: `${Math.abs(ev.clientX - l.x0)}px`,
+        height: `${Math.abs(ev.clientY - l.y0)}px`,
+      });
+    };
+    const end = (ev: PointerEvent | null) => {
+      const l = lasso.current;
+      if (!l) return;
+      lasso.current = null;
+      lassoEnded.current = performance.now();
+      holdCamera(controls, false);
+      l.box?.remove();
+      if (!ev || ev.type !== 'pointerup') return;
+      const s = useSlicer.getState();
+      const now = s.group.length ? s.group : s.selected ? [s.selected.object] : [];
+      if (!l.box) {
+        // A Shift+click on a model.
+        if (l.hit !== undefined && !s.choosing) s.toggleChosen(l.hit);
+        return;
+      }
+      const rect = { left: Math.min(l.x0, ev.clientX), right: Math.max(l.x0, ev.clientX), top: Math.min(l.y0, ev.clientY), bottom: Math.max(l.y0, ev.clientY) };
+      const touched = partsInRect(parts, rect, camera, canvas);
+      s.choose(l.remove ? now.filter((o) => !touched.includes(o)) : [...now, ...touched]);
+    };
+    const up = (ev: PointerEvent) => end(ev);
+    window.addEventListener('pointerdown', down, true);
+    window.addEventListener('pointermove', move, true);
+    window.addEventListener('pointerup', up, true);
+    window.addEventListener('pointercancel', up, true);
+    return () => {
+      window.removeEventListener('pointerdown', down, true);
+      window.removeEventListener('pointermove', move, true);
+      window.removeEventListener('pointerup', up, true);
+      window.removeEventListener('pointercancel', up, true);
+    };
+  });
+
   const onDown = (e: ThreeEvent<PointerEvent>, object: number, tris?: Uint32Array | null) => {
     // View only: a press just turns the camera.
     if (viewOnly()) return;
     e.stopPropagation();
-    if (twoFingers()) return;
+    // One press, one model: r3f ignores stopPropagation while a pointer capture
+    // from the last press is still held, and hands the press on to the model
+    // behind (a quick Ctrl+click then also took the first model out).
+    if (lastPress.current === e.nativeEvent) return;
+    lastPress.current = e.nativeEvent;
+    if (twoFingers() || lasso.current) return;
     if (e.button === 2) {
       if (paint || measuring) return;
+      if (group.includes(object)) return pressForMenu(e.nativeEvent, false, () => openGroupMenu({ x: e.nativeEvent.clientX, y: e.nativeEvent.clientY }));
       const inst = project?.objects[object]?.instances.findIndex((i) => i.plate === plate) ?? -1;
       select({ object, instance: Math.max(0, inst) });
       return menuPress(e.nativeEvent, object, Math.max(0, inst), false);
@@ -1112,6 +1333,28 @@ function Objects({ w, d }: { w: number; d: number }) {
       if (v !== undefined && (info?.text || info?.svg)) return startShapeAt(e.nativeEvent, object, v);
       if (selected?.object === object && selected.volume !== undefined) return;
     }
+    // Ctrl+click (Cmd on a Mac) adds the model to what is chosen, or takes it out.
+    if (e.button === 0 && (e.ctrlKey || e.metaKey) && !shapeTool && !brimTool) return toggleChosen(object);
+    // Choosing on a phone: a tap on a model adds it at once (so a drag can move
+    // it with the rest); a tap on a chosen one takes it out.
+    let toggle: number | undefined;
+    if (choosing && !brimTool && !shapeTool) {
+      const chosen = group.length ? group.includes(object) : selected?.object === object && selected.volume === undefined;
+      if (chosen) toggle = object;
+      else toggleChosen(object);
+    }
+    const nowGroup = useSlicer.getState().group;
+    // Several chosen: a press on one of them moves them all (a long press opens their menu).
+    if (nowGroup.length > 1 && nowGroup.includes(object) && !brimTool && !shapeTool) {
+      if (e.pointerType === 'touch') pressForMenu(e.nativeEvent, true, () => openGroupMenu({ x: e.nativeEvent.clientX, y: e.nativeEvent.clientY }));
+      const hit = new THREE.Vector3();
+      e.ray.intersectPlane(plane, hit);
+      drag.current = { object, instance: -1, start: hit, offset: [0, 0], group: true, toggle };
+      holdCamera(controls, true);
+      (e.target as Element).setPointerCapture?.(e.pointerId);
+      return;
+    }
+    if (choosing && toggle === undefined) return;
     const instances = obj?.instances.map((inst, i) => ({ inst, i })).filter(({ inst }) => inst.plate === plate) ?? [];
     const first = instances[0];
     // What was selected before a finger picked this, for when it turns out to be a pinch.
@@ -1125,7 +1368,7 @@ function Objects({ w, d }: { w: number; d: number }) {
     if (instances.length !== 1) return;
     const hit = new THREE.Vector3();
     e.ray.intersectPlane(plane, hit);
-    drag.current = { object, instance: first.i, start: hit, offset: [first.inst.offset[0], first.inst.offset[1]] };
+    drag.current = { object, instance: first.i, start: hit, offset: [first.inst.offset[0], first.inst.offset[1]], toggle };
     holdCamera(controls, true);
     (e.target as Element).setPointerCapture?.(e.pointerId);
   };
@@ -1159,8 +1402,10 @@ function Objects({ w, d }: { w: number; d: number }) {
     const dr = drag.current;
     drag.current = null;
     holdCamera(controls, false);
-    if (dr && delta && Math.hypot(delta[0], delta[1]) > 0.5)
-      void moveInstance(dr.object, dr.instance, dr.offset[0] + delta[0], dr.offset[1] + delta[1]);
+    const moved = !!dr && !!delta && Math.hypot(delta[0], delta[1]) > 0.5;
+    if (dr?.group && moved) void transformGroup([1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, delta![0], delta![1], 0, 1], 'Move');
+    else if (dr && moved) void moveInstance(dr.object, dr.instance, dr.offset[0] + delta![0], dr.offset[1] + delta![1]);
+    else if (dr?.toggle !== undefined) toggleChosen(dr.toggle);
     setDelta(null);
   };
   // Brim ears: a click (not an orbit drag) on the selected object, or on the
@@ -1180,11 +1425,14 @@ function Objects({ w, d }: { w: number; d: number }) {
     if (twoFingers()) return;
     if (measuring) return useSlicer.getState().measureReset();
     // Clicks on a gizmo handle off the part don't deselect it.
-    if (paint || brimTool || onGizmo() || performance.now() - gizmoReleased.current < 400) return;
+    if (paint || brimTool || onGizmo() || performance.now() - gizmoReleased.current < 400 || performance.now() - lassoEnded.current < 400) return;
+    if (useSlicer.getState().choosing) return;
     select(null);
   };
 
   const gizmoTool = !paint && place && (tool === 'move' || tool === 'rotate' || tool === 'scale') ? tool : null;
+  const groupTool = !paint && group.length > 1 && (tool === 'move' || tool === 'rotate' || tool === 'scale') ? tool : null;
+  const groupParts = groupTool ? parts.filter((p) => group.includes(p.object)) : [];
   return (
     <group
       onPointerMove={onMove}
@@ -1200,8 +1448,16 @@ function Objects({ w, d }: { w: number; d: number }) {
           <meshBasicMaterial visible={false} />
         </mesh>
       )}
+      {groupTool && groupParts.length > 0 && (
+        <group position={[delta?.[0] ?? 0, delta?.[1] ?? 0, 0]}>
+          <GroupGizmo key={group.join()} tool={groupTool} parts={groupParts} controlsRef={gizmo} onRelease={() => (gizmoReleased.current = performance.now())} />
+        </group>
+      )}
       {parts.map((p) => {
-        const active = !paint && selected?.object === p.object;
+        const active = !paint && (selected?.object === p.object || group.includes(p.object));
+        // Drawn by the group's handles; the hit target stays where the engine has it.
+        if (groupTool && group.includes(p.object))
+          return <mesh key={p.object} geometry={p.geometry} raycast={partRaycast} onPointerDown={(e) => onDown(e, p.object)} visible={false} />;
         const offset = active && delta ? delta : [0, 0];
         const layered = !paint && tool === 'layers' && layers?.object === p.object ? layers : null;
         const material = layered ? (
@@ -1298,7 +1554,7 @@ function Objects({ w, d }: { w: number; d: number }) {
       {!paint &&
         volumeParts.map((v, k) => {
           if ((gizmoTool || shapePicked) && picked && !picked.rest && v === picked.piece) return null;
-          const offset = selected?.object === v.object && delta ? delta : [0, 0];
+          const offset = (selected?.object === v.object || group.includes(v.object)) && delta ? delta : [0, 0];
           const active = selected?.object === v.object && selected.volume === v.volume;
           return (
             <mesh

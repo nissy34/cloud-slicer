@@ -119,6 +119,9 @@ function slice(config, plate = 0, thumbnails = null) {
   return { result, gcode: new TextDecoder().decode(engine.FS.readFile(result.gcodePath)) };
 }
 
+/** Each filament's length as the G-code's statistics give it ("; filament used [mm] = a, b"). */
+const usedMm = (gcode) => /^; filament used \[mm\] = (.*)$/m.exec(gcode)[1].split(',').map(Number);
+
 const toolCounts = (gcode) => {
   const counts = {};
   for (const m of gcode.matchAll(/^T(\d+)\s*$/gm)) counts[m[1]] = (counts[m[1]] ?? 0) + 1;
@@ -177,6 +180,8 @@ test('slices an STL with the U1 presets', () => {
   assert.match(gcode, /^EXCLUDE_OBJECT_DEFINE/m);
   assert.ok(result.totalLayers > 10);
   assert.ok(result.estimatedTimeSeconds > 0);
+  // Desktop's Prepare time: part of the total, the start G-code's share.
+  assert.ok(result.prepareSeconds >= 0 && result.prepareSeconds < result.estimatedTimeSeconds, `prepare ${result.prepareSeconds} s`);
 });
 
 test('the layer count is the G-code\'s, support layers included only once', () => {
@@ -186,6 +191,14 @@ test('the layer count is the G-code\'s, support layers included only once', () =
   assert.match(gcode, /^;TYPE:Support/m, 'the Benchy gets supports');
   const written = Number(/^; total layer number: (\d+)/m.exec(gcode)?.[1]);
   assert.equal(result.totalLayers, written, `summary ${result.totalLayers}, G-code ${written}`);
+  // Filament use split like desktop's Filament view: the model and its support.
+  const parts = result.filamentParts['1'];
+  assert.ok(parts.model.mm > 0 && parts.model.g > 0, JSON.stringify(result.filamentParts));
+  assert.ok(parts.support.mm > 0 && parts.support.g > 0, JSON.stringify(result.filamentParts));
+  assert.ok(!parts.tower && !parts.flushed, 'one filament: no tower, nothing flushed');
+  const sum = Object.values(parts).reduce((a, p) => a + p.mm, 0);
+  const used = usedMm(gcode)[0];
+  assert.ok(Math.abs(sum - used) < 1, `parts ${sum} mm, G-code ${used} mm`);
 });
 
 test('slicing reports desktop\'s warnings: G-code path conflicts and models that need support', () => {
@@ -363,6 +376,16 @@ test('prime tower: shown and sized like desktop Prepare, sliced where it was pla
   assert.equal(at.y, 40);
   const { gcode, result } = slice(fullConfig(placed));
   assert.ok(result.wipeTowerDepth > 0, `sliced tower depth: ${result.wipeTowerDepth}`);
+  // Both filaments print part of the model and part of the tower, adding up to
+  // the G-code's total. (Per filament OrcaSlicer's statistics charge some tower
+  // filament to the other filament; the parts follow the G-code's tools.)
+  for (const f of ['1', '2']) {
+    const parts = result.filamentParts[f];
+    assert.ok(parts?.model?.mm > 0 && parts?.tower?.mm > 0, JSON.stringify(result.filamentParts));
+  }
+  const sum = Object.values(result.filamentParts).flatMap(Object.values).reduce((a, p) => a + p.mm, 0);
+  const used = usedMm(gcode).reduce((a, mm) => a + mm, 0);
+  assert.ok(Math.abs(sum - used) < 1, `parts ${sum} mm, G-code ${used} mm`);
   const xs = [], ys = [];
   let inTower = false;
   for (const line of gcode.split('\n')) {
@@ -1739,4 +1762,38 @@ test('transform fields, sinking, part fields, copy and paste, like desktop', () 
   const [a, b] = info().objects.map((o) => o.instances[0].offset);
   assert.ok(Math.hypot(a[0] - b[0], a[1] - b[1]) > 30, 'a second paste goes beside the first');
   assert.throws(() => plate(0, { op: 'copy', object: 9, instance: 0 }), /no object/);
+});
+
+test('several objects chosen together: copy and paste as a block, arrange selection', () => {
+  select({ printer: DEFAULT_PRINTER, process: STANDARD });
+  const plate = (p, request) => call(engine, 'plateAction', p, JSON.stringify(request));
+  const move = (o, x, y) => call(engine, 'setInstanceTransform', o, 0, JSON.stringify({ offset: [x, y] }));
+  const at = (o) => info().objects[o].instances[0].offset;
+  load('gen-cube-20.stl');
+  load('gen-cube-20.stl', 0, true);
+  load('gen-cube-20.stl', 0, true);
+  move(0, 60, 60);
+  move(1, 100, 70);
+  move(2, 200, 200);
+
+  // Two copied together paste as two new objects, 40 and 10 mm apart as before.
+  plate(0, { op: 'copy', items: [{ object: 0, instance: 0 }, { object: 1, instance: 0 }] });
+  const out = plate(0, { op: 'paste' });
+  assert.deepEqual(out.objects, [3, 4]);
+  assert.equal(out.object, 3);
+  const [a, b] = [at(3), at(4)];
+  assert.ok(Math.abs(b[0] - a[0] - 40) < 0.01 && Math.abs(b[1] - a[1] - 10) < 0.01, `kept their spacing: ${a} ${b}`);
+  // Clear of the originals.
+  for (const o of [0, 1, 2]) for (const p of [a, b]) assert.ok(Math.hypot(p[0] - at(o)[0], p[1] - at(o)[1]) > 20, `pasted on top of object ${o}`);
+
+  // Arrange selection moves only the chosen ones, onto free spots clear of the rest.
+  const still = [at(0), at(1), at(2)].map((p) => p.slice());
+  move(3, 200, 200);
+  move(4, 205, 205);
+  plate(0, { op: 'arrangeSelection', objects: [3, 4] });
+  assert.deepEqual([at(0), at(1), at(2)], still, 'the others stay put');
+  const [c, d] = [at(3), at(4)];
+  assert.ok(Math.hypot(c[0] - d[0], c[1] - d[1]) >= 20, `no longer on top of each other: ${c} ${d}`);
+  for (const p of [c, d]) for (const q of still) assert.ok(Math.hypot(p[0] - q[0], p[1] - q[1]) >= 20, `clear of the others: ${p} ${q}`);
+  assert.throws(() => plate(0, { op: 'arrangeSelection', objects: [9] }), /no object/);
 });
