@@ -23,6 +23,8 @@ const (
 	maxFrame = 700 * 1024
 	// A G-code file bigger than this is surely a mistake.
 	maxUpload = 4 << 30
+	// The largest upload piece the relay passes on as raw bytes (the browser sends 8 MiB).
+	relayPiece = 9 << 20
 	// Uploads a browser may have open at once.
 	maxUploads = 2
 )
@@ -305,6 +307,16 @@ func (s *Session) local(msg rpc) (any, error) {
 		}
 		_ = json.Unmarshal(msg.Params, &p)
 		return s.uploadBegin(p.Path, int64(p.Size))
+	case "bridge.upload_start":
+		var p uploadParams
+		_ = json.Unmarshal(msg.Params, &p)
+		return s.uploadStart(p)
+	case "bridge.upload_resume":
+		var p struct {
+			UploadID string `json:"uploadId"`
+		}
+		_ = json.Unmarshal(msg.Params, &p)
+		return s.uploadResume(p.UploadID)
 	case "bridge.upload_chunk":
 		var p struct {
 			UploadID string  `json:"uploadId"`
