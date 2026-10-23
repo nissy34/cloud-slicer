@@ -256,7 +256,11 @@ try {
   await touch('touchStart', 8, y0);
   await touch('touchMove', 20, y0 + 10);
   await touch('touchMove', 30, y0 + 20);
-  if (!(await phone.getByTestId('select-rect').count())) fail('a drag on empty space while choosing should draw a rectangle');
+  if (!y0) fail('no free spot on the left edge of the 3D view');
+  await phone
+    .getByTestId('select-rect')
+    .waitFor({ timeout: 5000 })
+    .catch(() => fail(`a drag on empty space while choosing should draw a rectangle (from y ${y0})`));
   await touch('touchEnd');
   // A tap straight after another touch can count as a double tap, which gives no click.
   await phone.waitForTimeout(500);
