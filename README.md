@@ -447,6 +447,7 @@ Browser end to end tests (Playwright's Chromium) run against the built site
 | `test/wipe-tower.mjs` | A two-filament plate shows the prime tower; drag it, and the slice prints it there |
 | `test/view-touch.mjs` | Phone 3D view: pinching on a model that fills the screen zooms out instead of moving it; Fit all and the views menu |
 | `test/loading.mjs` | The loading screen while the engine starts and a project opens |
+| `test/busy.mjs` | The loading screen while Clone with Arrange runs, and every copy landing on the plate |
 | `test/preview-views.mjs` | The Preview's colour key: grams and filament changes match the G-code, every view draws its scale, a tapped line type hides and comes back, and on a phone the key sits above the model |
 | `test/cancel.mjs` | Cancel stops the slice in the engine, and a change while slicing drops its result |
 | `test/restart.mjs` | After an engine crash (mid-slice or after), the engine restarts and reopens the project |

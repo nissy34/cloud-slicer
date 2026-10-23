@@ -66,6 +66,8 @@ const is3mf = (f: File) => /\.3mf$/i.test(f.name);
 const isSvg = (f: File) => /\.svg$/i.test(f.name);
 /** How deep a new SVG shape is, mm. */
 const SVG_DEPTH = 2;
+/** How long an edit runs before the loading screen shows that it is working, ms. */
+const BUSY_AFTER_MS = 300;
 export type EngineStatus = 'starting' | 'ready' | 'failed';
 export type Job =
   | { kind: 'idle' }
@@ -1006,6 +1008,23 @@ export const useSlicer = create<SlicerState>((set, get) => {
     }
   };
 
+  // An edit that can take seconds (arrange, clone, auto orient...) shows the
+  // loading screen over the 3D view while it runs, after a short wait so a
+  // quick one does not flash it.
+  const busyWhile = async (label: string, op: () => Promise<unknown>) => {
+    let shown = false;
+    const timer = setTimeout(() => {
+      shown = true;
+      set({ ...stale(), job: { kind: 'loading', name: '', label } });
+    }, BUSY_AFTER_MS);
+    try {
+      await op();
+    } finally {
+      clearTimeout(timer);
+      if (shown && get().job.kind === 'loading') set({ job: { kind: 'idle' } });
+    }
+  };
+
   const stepHistory = async (step: 'undo' | 'redo') => {
     if (!get().history[step]) return;
     edits++;
@@ -1505,7 +1524,7 @@ export const useSlicer = create<SlicerState>((set, get) => {
     },
 
     // 6 mm apart, like desktop's default arrange distance.
-    arrange: () => projectEdit('Arrange', () => engine().arrangePlate(get().plate, 6)),
+    arrange: () => busyWhile('Arranging the plate', () => projectEdit('Arrange', () => engine().arrangePlate(get().plate, 6))),
     setObjectSettings: (o, volume, values) => projectEdit('Change object settings', () => engine().setObjectSettings(o, volume, values)),
     addPlate: async () => {
       await projectEdit('Add plate', () => engine().addPlate());
@@ -1519,19 +1538,23 @@ export const useSlicer = create<SlicerState>((set, get) => {
       }),
     orientObject: (o) => projectEdit('Auto orient', () => engine().orientObject(o)),
     splitObject: (o) =>
-      projectEdit('Split to objects', () => {
-        set({ selected: null, tool: null });
-        return engine().splitObject(o);
-      }),
-    splitParts: (o) => projectEdit('Split to parts', () => engine().splitParts(o)),
+      busyWhile('Splitting into objects', () =>
+        projectEdit('Split to objects', () => {
+          set({ selected: null, tool: null });
+          return engine().splitObject(o);
+        }),
+      ),
+    splitParts: (o) => busyWhile('Splitting into parts', () => projectEdit('Split to parts', () => engine().splitParts(o))),
     orient: (o) =>
-      projectEdit('Auto orient', async () => {
-        const { project, plate } = get();
-        const objects = o !== undefined ? [o] : (project?.plates[plate]?.objects ?? []);
-        let info = project!;
-        for (const obj of objects) info = await engine().orientObject(obj);
-        return info;
-      }),
+      busyWhile('Auto orienting', () =>
+        projectEdit('Auto orient', async () => {
+          const { project, plate } = get();
+          const objects = o !== undefined ? [o] : (project?.plates[plate]?.objects ?? []);
+          let info = project!;
+          for (const obj of objects) info = await engine().orientObject(obj);
+          return info;
+        }),
+      ),
     mirror: (o, i, axis) => projectEdit('Mirror', () => engine().mirrorInstance(o, i, axis)),
     openObjectMenu: (objectMenu) => set(objectMenu ? { objectMenu, plateMenu: null } : { objectMenu }),
     openPlateMenu: (plateMenu) => set(plateMenu ? { plateMenu, objectMenu: null } : { plateMenu }),
@@ -1563,10 +1586,22 @@ export const useSlicer = create<SlicerState>((set, get) => {
       }
     },
     objectAction: (o, i, request, label) => projectEdit(label, () => engine().objectAction(o, i, request)),
-    cloneObject: async (o, count, arrange) => {
-      await projectEdit('Clone', () => engine().objectAction(o, 0, { op: 'clone', count }));
-      if (arrange) await get().arrange();
-    },
+    cloneObject: (o, count, arrange) =>
+      busyWhile(arrange ? 'Cloning and arranging' : 'Cloning', async () => {
+        await projectEdit('Clone', async () => {
+          const before = get().project!.objects.length;
+          let info = await engine().objectAction(o, 0, { op: 'clone', count });
+          // The engine lines the copies up beside the object, so many of them
+          // land past the plate's edge, where Arrange (this plate only) would
+          // leave them: put them on the object first, for Arrange to lay out.
+          if (arrange) {
+            const [x, y] = info.objects[o].instances[0].offset;
+            for (let k = before; k < info.objects.length; k++) info = await engine().transform(k, 0, { offset: [x, y], plate: get().plate });
+          }
+          return info;
+        });
+        if (arrange) await projectEdit('Arrange', () => engine().arrangePlate(get().plate, 6));
+      }),
     replaceWithStl: async (o, volume, file) =>
       projectEdit('Replace with STL', async () => engine().objectAction(o, 0, { op: 'replace', volume }, await file.arrayBuffer())),
     volumeAction: async (o, request, label, file) => {
