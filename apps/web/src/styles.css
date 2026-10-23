@@ -1539,24 +1539,26 @@ select:focus-visible {
 /* Desktop's time estimate, under the key in every view. */
 .time-stats {
   display: grid;
-  grid-template-columns: auto auto;
-  justify-content: space-between;
-  column-gap: 12px;
+  gap: 1px;
   padding-top: 4px;
   border-top: 1px solid var(--border);
   font-variant-numeric: tabular-nums;
 }
 .time-stats .time-title {
-  grid-column: 1 / -1;
   color: var(--muted);
   font-size: 12px;
   font-weight: 600;
 }
-.time-stats span:nth-child(odd):not(.time-title) {
-  text-align: right;
+.time-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
 }
-.time-stats span:nth-last-child(-n + 2) {
+.time-row:last-child {
   font-weight: 600;
+}
+.time-row .short {
+  display: none;
 }
 .range-key {
   display: grid;
@@ -2235,23 +2237,27 @@ select:focus-visible {
   .filament-row {
     flex-wrap: nowrap;
   }
-  /* One line: "Prepare time 19s · Model printing time 49m 48s · Total time 50m 7s". */
+  /* One line: "Prepare 24s · Printing 48m 6s · Total 48m 30s". */
   .time-stats {
     display: flex;
     flex-wrap: wrap;
     gap: 0 6px;
   }
-  .time-stats .time-title {
+  .time-stats .time-title,
+  .time-row .long {
     display: none;
   }
-  .time-stats span:nth-child(odd):not(.time-title) {
-    text-align: left;
-  }
-  .time-stats span:nth-child(even):not(.time-title) {
+  .time-row .short {
+    display: inline;
     color: var(--muted);
+    font-weight: 400;
   }
-  .time-stats span:nth-child(odd):not(:last-child)::after {
-    content: ' ·';
+  .time-row {
+    gap: 4px;
+    white-space: nowrap;
+  }
+  .time-row:not(:last-child)::after {
+    content: '·';
   }
   /* Weights only, so the key stays short; the lengths' total is in the line below. */
   .filament-table {

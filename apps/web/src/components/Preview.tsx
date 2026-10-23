@@ -452,19 +452,24 @@ function FilamentStats({ stats, used, colours, parts }: { stats: GcodeStats; use
 /** Desktop's time estimate under the key, in every view: the start G-code's share, the model's, and the total. */
 function TimeStats({ total, prepare }: { total: number; prepare: number }) {
   if (!(total > 0)) return null;
+  // The phone shows the rows on one line with the short names.
+  const rows: [string, string, number, string?][] = [
+    ...(prepare > 0 ? [['Prepare time', 'Prepare', prepare] as [string, string, number]] : []),
+    ['Model printing time', 'Printing', total - prepare],
+    ['Total time', 'Total', total, 'total-time'],
+  ];
   return (
     <div className="time-stats" data-testid="time-stats">
       <span className="time-title">Time</span>
-      {prepare > 0 && (
-        <>
-          <span>Prepare time</span>
-          <span>{formatClock(prepare)}</span>
-        </>
-      )}
-      <span>Model printing time</span>
-      <span>{formatClock(total - prepare)}</span>
-      <span>Total time</span>
-      <span data-testid="total-time">{formatClock(total)}</span>
+      {rows.map(([name, short, seconds, testId]) => (
+        <span key={name} className="time-row">
+          <span className="long">{name}</span>
+          <span className="short">{short}</span>
+          <span className="time-value" data-testid={testId}>
+            {formatClock(seconds)}
+          </span>
+        </span>
+      ))}
     </div>
   );
 }
