@@ -4062,7 +4062,8 @@ select:focus-visible {
   border-radius: 6px;
   cursor: pointer;
 }
-.dv-jog button:disabled {
+.dv-jog button:disabled,
+.dv-steps button:disabled {
   opacity: 0.45;
   cursor: default;
 }
