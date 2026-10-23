@@ -104,3 +104,26 @@ export function deviceId(): string {
     return (sessionDevice ??= crypto.randomUUID().replace(/-/g, ''));
   }
 }
+
+const OPEN_KEY = 'cloud-slicer:open-project:v1';
+
+/**
+ * The saved online project open in this browser, so a reload can offer it
+ * again (the Continue card). Null when a new project, a draft or nothing is open.
+ */
+export function loadOpenProject(): string | null {
+  try {
+    return localStorage.getItem(OPEN_KEY);
+  } catch {
+    return null;
+  }
+}
+
+export function saveOpenProject(id: string | null) {
+  try {
+    if (id) localStorage.setItem(OPEN_KEY, id);
+    else localStorage.removeItem(OPEN_KEY);
+  } catch {
+    // storage unavailable: a reload starts empty, as before
+  }
+}

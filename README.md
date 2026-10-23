@@ -305,7 +305,9 @@ A save from another device than the last one is refused (409 `elsewhere`) until 
 takes the project over (`POST /api/projects/<id>/device`, "Edit here instead"); the other
 tab notices when it is focused again (no polling) and goes view only, offering "Save mine as
 a copy" when it had unsaved changes. On opening the app with nothing loaded, the Continue card
-offers the draft, or the newest project changed on another device in the last day.
+offers the saved project that was open in this browser when it was left (its id is kept in
+the browser until a new project, a draft or another file replaces it), else the draft, else
+the newest project changed on another device in the last day.
 Share to Cloud Slicer is the manifest's `share_target`: `public/sw.js` keeps the shared files
 in the Cache API and opens `/?shared=1`, which opens them (`src/lib/share-target.ts`).
 

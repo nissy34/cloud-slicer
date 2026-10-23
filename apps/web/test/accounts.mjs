@@ -1022,9 +1022,31 @@ if (withApp)
       await page.getByText('Saved “3DBenchy” to your projects').waitFor({ timeout: 60000 });
       if (process.env.ACCOUNTS_SHOTS) await page.screenshot({ path: join(process.env.ACCOUNTS_SHOTS, 'project-saved.png') });
 
+      // A reload offers the saved project that was open here.
+      await page.reload();
+      const hereCard = page.getByTestId('continue-card');
+      await hereCard.getByText('Continue 3DBenchy?').waitFor({ timeout: 120000 });
+      await hereCard.getByText(/You had it open here, edited/).waitFor();
+      await page.getByText('Open a model to start').waitFor({ timeout: 120000 });
+      if (process.env.ACCOUNTS_SHOTS) await page.screenshot({ path: join(process.env.ACCOUNTS_SHOTS, 'continue-here.png') });
+      await page.setViewportSize({ width: 390, height: 800 });
+      if (process.env.ACCOUNTS_SHOTS) await page.screenshot({ path: join(process.env.ACCOUNTS_SHOTS, 'continue-here-phone.png') });
+      await page.setViewportSize({ width: 1280, height: 860 });
+      await hereCard.getByRole('button', { name: 'Continue' }).click();
+      await hereCard.waitFor({ state: 'detached' });
+      await projectButton.getByText('Saved', { exact: true }).waitFor({ timeout: 60000 });
+      assert.equal(await layer.inputValue(), '0.28', 'the saved project came back');
+      // Answered, the setup wizard comes next when no printers are set up (this test on its own).
+      if (await wizard.waitFor({ timeout: 3000 }).then(() => true, () => false)) await wizard.getByRole('button', { name: 'Not now' }).click();
+
       await projectButton.click();
       await page.getByRole('menuitem', { name: 'New project', exact: true }).click();
       await page.getByText('Open a model to start').waitFor();
+      // A new project forgets it: the next reload starts empty.
+      await page.reload();
+      await page.getByText('Open a model to start').waitFor({ timeout: 120000 });
+      await page.waitForTimeout(5000);
+      assert.equal(await hereCard.count(), 0, 'a new project still offered the last one');
 
       // A fresh visit from "another device" offers to continue it.
       const visitor = await browser.newContext({ viewport: { width: 390, height: 800 } });
@@ -1132,7 +1154,8 @@ if (withApp)
       if (process.env.ACCOUNTS_SHOTS) await page.screenshot({ path: join(process.env.ACCOUNTS_SHOTS, 'projects-list.png') });
       await dialog.getByRole('button', { name: 'Open', exact: true }).first().click();
       await page.getByRole('button', { name: 'Add model' }).waitFor({ timeout: 60000 });
-      assert.equal(await layer.inputValue(), '0.28', 'the saved setting came back');
+      // After a reload the engine's settings can still be arriving when the model shows.
+      await waitFor(async () => (await layer.inputValue()) === '0.28', 'the saved setting came back', 30000);
       await projectButton.getByText('3DBenchy').waitFor();
       // The settings show before opening finishes (mixes are read after them), so wait for it.
       await projectButton.getByLabel('unsaved changes').waitFor({ state: 'detached', timeout: 30000 }).catch(() => {});
