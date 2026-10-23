@@ -355,7 +355,7 @@ func TestBridgeThroughARelay(t *testing.T) {
 	defer b.stop()
 
 	hello := fromAgent.wait(t, func(m string) bool { return strings.Contains(m, `"ctl":"hello"`) })
-	if !strings.Contains(hello, `"version":"6"`) || !strings.Contains(hello, `"id":"u1"`) || strings.Contains(hello, "secret") {
+	if !strings.Contains(hello, `"version":"7"`) || !strings.Contains(hello, `"id":"u1"`) || strings.Contains(hello, "secret") {
 		t.Fatalf("hello: %s", hello)
 	}
 	toAgent <- `{"ctl":"open","c":"s1","printer":"u1"}`

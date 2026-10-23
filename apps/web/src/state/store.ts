@@ -66,6 +66,19 @@ const is3mf = (f: File) => /\.3mf$/i.test(f.name);
 const isSvg = (f: File) => /\.svg$/i.test(f.name);
 /** How deep a new SVG shape is, mm. */
 const SVG_DEPTH = 2;
+/** How long an ordinary edit runs before the loading screen shows that it is working, ms. */
+const BUSY_AFTER_MS = 1000;
+/** Once the loading screen shows, it stays at least this long, so it never flashes, ms. */
+const BUSY_MIN_MS = 500;
+/** Resolves once the browser has drawn a frame (with what was set before it). */
+const nextPaint = () =>
+  new Promise<void>((done) => (typeof requestAnimationFrame === 'function' ? requestAnimationFrame(() => setTimeout(done, 0)) : setTimeout(done, 0)));
+/**
+ * Resolves once the 3D view has drawn what was just set. Drawing many objects
+ * holds the page for a second or more; a loading screen taken away before that
+ * reads as a freeze, so it goes only after this.
+ */
+const drawn = () => nextPaint().then(nextPaint);
 export type EngineStatus = 'starting' | 'ready' | 'failed';
 export type Job =
   | { kind: 'idle' }
@@ -479,10 +492,16 @@ export const useSlicer = create<SlicerState>((set, get) => {
     }
   };
 
+  // While the loading screen is up, an error waits for it to go (it would
+  // otherwise replace it at once: a flash, then the message).
+  let busyShowing = false;
+  let busyError: Job | null = null;
   const fail = (e: unknown) => {
     if (restarting) return console.warn('While the engine restarted:', e);
     const inTool = !!(get().tool || get().paint);
-    set({ job: { kind: 'error', message: (e as Error).message, inTool } });
+    const job: Job = { kind: 'error', message: (e as Error).message, inTool };
+    if (busyShowing) busyError = job;
+    else set({ job });
   };
   // The engine's own G-code for the printer in place of another slicer's
   // (what is still as the file had it), then slices again. It stays in the
@@ -557,6 +576,7 @@ export const useSlicer = create<SlicerState>((set, get) => {
     await refreshPreview(res.info);
     await checkHeavy().catch((err) => console.warn('Triangle count:', err));
     saved3mf = { file: r.file, edits: e.projectEdits };
+    await drawn();
     const lost = r.current ? '' : ' Changes made since your last slice were lost.';
     set({ job: { kind: 'idle' }, notice: `${crashed}, so it restarted and reopened your project.${lost} (${r.message})`, noticeWarn: true });
   }
@@ -596,6 +616,7 @@ export const useSlicer = create<SlicerState>((set, get) => {
       await refreshMixes();
       await checkHeavy().catch((err) => console.warn('Triangle count:', err));
       saved3mf = { file: c.file, edits: e.projectEdits };
+      await drawn();
       set({ job: { kind: 'idle' }, notice: switchedText(c.plan), noticeWarn: false });
     } catch (err) {
       set({ job: { kind: 'error', message: `Couldn't open your project in ${engineName(c.plan.to)}: ${(err as Error).message}` } });
@@ -990,24 +1011,72 @@ export const useSlicer = create<SlicerState>((set, get) => {
   let edits = 0;
   let freshText: { object: number; volume: number; newObject: boolean; edits: number } | null = null;
 
-  // An edit of the project: remembered first, so undo can take it back.
-  const projectEdit = async (label: string, op: () => Promise<ProjectInfo>) => {
-    const e = engine();
-    let remembered = false;
+  // Anything that can take seconds shows the loading screen over the 3D view
+  // while it runs. Actions known to be slow (clone, arrange, auto orient,
+  // split) show it at once; any other project edit, undo or redo only when the
+  // engine is still at it after BUSY_AFTER_MS, so a quick one does not flash
+  // it. It stays until the 3D view has redrawn the result: drawing many
+  // objects holds the page for a second or more, which reads as a freeze if
+  // the loading screen is already gone (see drawn). An outer call's label wins (Clone,
+  // then Arrange, reads "Cloning and arranging"), and so does a loading
+  // screen already up (Simplifying a heavy model).
+  let busyDepth = 0;
+  const busyWhile = async <T,>(label: string, op: () => Promise<T>, after = 0): Promise<T> => {
+    if (busyDepth > 0 || get().job.kind === 'loading') return op();
+    busyDepth++;
+    let shown = 0;
+    let done = false;
+    const show = () => {
+      if (done) return;
+      shown = Date.now();
+      busyShowing = true;
+      set({ ...stale(), job: { kind: 'loading', name: '', label } });
+    };
+    const timer = after ? setTimeout(show, after) : null;
     try {
-      set({ history: await e.snapshot(label) });
-      remembered = true;
-      edits++;
-      await refreshPreview(await op());
-      clearError();
-    } catch (err) {
-      if (remembered) set({ history: await e.dropSnapshot().catch(() => get().history) });
-      fail(err);
+      if (!after) {
+        show();
+        await nextPaint();
+      }
+      return await op();
+    } finally {
+      done = true;
+      if (timer) clearTimeout(timer);
+      if (shown) {
+        await drawn();
+        const left = shown + BUSY_MIN_MS - Date.now();
+        if (left > 0) await new Promise((wait) => setTimeout(wait, left));
+        busyShowing = false;
+        if (busyError) set({ job: busyError });
+        else if (get().job.kind === 'loading') set({ job: { kind: 'idle' } });
+        busyError = null;
+      }
+      busyDepth--;
     }
   };
 
+  // An edit of the project: remembered first, so undo can take it back.
+  const projectEdit = (label: string, op: () => Promise<ProjectInfo>) =>
+    busyWhile(label, async () => {
+      const e = engine();
+      let remembered = false;
+      try {
+        set({ history: await e.snapshot(label) });
+        remembered = true;
+        edits++;
+        await refreshPreview(await op());
+        clearError();
+      } catch (err) {
+        if (remembered) set({ history: await e.dropSnapshot().catch(() => get().history) });
+        fail(err);
+      }
+    }, BUSY_AFTER_MS);
+
   const stepHistory = async (step: 'undo' | 'redo') => {
     if (!get().history[step]) return;
+    await busyWhile(step === 'undo' ? 'Undoing' : 'Redoing', () => stepHistoryNow(step), BUSY_AFTER_MS);
+  };
+  const stepHistoryNow = async (step: 'undo' | 'redo') => {
     edits++;
     try {
       const { history, info } = await engine()[step]();
@@ -1211,6 +1280,7 @@ export const useSlicer = create<SlicerState>((set, get) => {
       const ordered = [...files].sort((a, b) => Number(is3mf(b)) - Number(is3mf(a)));
       let opened = false;
       saved3mf = null;
+      const started = Date.now();
       for (const file of ordered) {
         // An SVG becomes a shape lying on the plate, like dropping one on desktop.
         if (isSvg(file)) {
@@ -1234,11 +1304,17 @@ export const useSlicer = create<SlicerState>((set, get) => {
           await refreshPreview(res.info);
           if (res.isProject && !res.info.objects.length) throw new Error(emptyProjectMessage(file.name));
           if (res.isProject && res.info.file.hasConfig) await importProject(res.info, head);
-          set({ job: { kind: 'idle' } });
         } catch (err) {
           fail(err);
           return opened;
         }
+      }
+      // Up until the last file is drawn, with no gap between files, and never just a flash.
+      if (get().job.kind === 'loading') {
+        await drawn();
+        const left = started + BUSY_MIN_MS - Date.now();
+        if (left > 0) await new Promise((wait) => setTimeout(wait, left));
+        set({ job: { kind: 'idle' } });
       }
       // A single project file is its own copy to reopen after a crash.
       if (opened && files.length === 1) saved3mf = { file: files[0], edits: e.projectEdits };
@@ -1279,7 +1355,10 @@ export const useSlicer = create<SlicerState>((set, get) => {
         for (const o of plan.objects) info = await engine().simplifyApply(o, { ratio: plan.ratio });
         return info;
       });
-      if (get().job.kind === 'loading') set({ job: { kind: 'idle' } });
+      if (get().job.kind === 'loading') {
+        await drawn();
+        set({ job: { kind: 'idle' } });
+      }
     },
     async measureHover(ray) {
       hoverRay = ray;
@@ -1505,7 +1584,7 @@ export const useSlicer = create<SlicerState>((set, get) => {
     },
 
     // 6 mm apart, like desktop's default arrange distance.
-    arrange: () => projectEdit('Arrange', () => engine().arrangePlate(get().plate, 6)),
+    arrange: () => busyWhile('Arranging the plate', () => projectEdit('Arrange', () => engine().arrangePlate(get().plate, 6))),
     setObjectSettings: (o, volume, values) => projectEdit('Change object settings', () => engine().setObjectSettings(o, volume, values)),
     addPlate: async () => {
       await projectEdit('Add plate', () => engine().addPlate());
@@ -1519,19 +1598,23 @@ export const useSlicer = create<SlicerState>((set, get) => {
       }),
     orientObject: (o) => projectEdit('Auto orient', () => engine().orientObject(o)),
     splitObject: (o) =>
-      projectEdit('Split to objects', () => {
-        set({ selected: null, tool: null });
-        return engine().splitObject(o);
-      }),
-    splitParts: (o) => projectEdit('Split to parts', () => engine().splitParts(o)),
+      busyWhile('Splitting into objects', () =>
+        projectEdit('Split to objects', () => {
+          set({ selected: null, tool: null });
+          return engine().splitObject(o);
+        }),
+      ),
+    splitParts: (o) => busyWhile('Splitting into parts', () => projectEdit('Split to parts', () => engine().splitParts(o))),
     orient: (o) =>
-      projectEdit('Auto orient', async () => {
-        const { project, plate } = get();
-        const objects = o !== undefined ? [o] : (project?.plates[plate]?.objects ?? []);
-        let info = project!;
-        for (const obj of objects) info = await engine().orientObject(obj);
-        return info;
-      }),
+      busyWhile('Auto orienting', () =>
+        projectEdit('Auto orient', async () => {
+          const { project, plate } = get();
+          const objects = o !== undefined ? [o] : (project?.plates[plate]?.objects ?? []);
+          let info = project!;
+          for (const obj of objects) info = await engine().orientObject(obj);
+          return info;
+        }),
+      ),
     mirror: (o, i, axis) => projectEdit('Mirror', () => engine().mirrorInstance(o, i, axis)),
     openObjectMenu: (objectMenu) => set(objectMenu ? { objectMenu, plateMenu: null } : { objectMenu }),
     openPlateMenu: (plateMenu) => set(plateMenu ? { plateMenu, objectMenu: null } : { plateMenu }),
@@ -1563,10 +1646,22 @@ export const useSlicer = create<SlicerState>((set, get) => {
       }
     },
     objectAction: (o, i, request, label) => projectEdit(label, () => engine().objectAction(o, i, request)),
-    cloneObject: async (o, count, arrange) => {
-      await projectEdit('Clone', () => engine().objectAction(o, 0, { op: 'clone', count }));
-      if (arrange) await get().arrange();
-    },
+    cloneObject: (o, count, arrange) =>
+      busyWhile(arrange ? 'Cloning and arranging' : 'Cloning', async () => {
+        await projectEdit('Clone', async () => {
+          const before = get().project!.objects.length;
+          let info = await engine().objectAction(o, 0, { op: 'clone', count });
+          // The engine lines the copies up beside the object, so many of them
+          // land past the plate's edge, where Arrange (this plate only) would
+          // leave them: put them on the object first, for Arrange to lay out.
+          if (arrange) {
+            const [x, y] = info.objects[o].instances[0].offset;
+            for (let k = before; k < info.objects.length; k++) info = await engine().transform(k, 0, { offset: [x, y], plate: get().plate });
+          }
+          return info;
+        });
+        if (arrange) await projectEdit('Arrange', () => engine().arrangePlate(get().plate, 6));
+      }),
     replaceWithStl: async (o, volume, file) =>
       projectEdit('Replace with STL', async () => engine().objectAction(o, 0, { op: 'replace', volume }, await file.arrayBuffer())),
     volumeAction: async (o, request, label, file) => {
@@ -1714,6 +1809,7 @@ export const useSlicer = create<SlicerState>((set, get) => {
       set({ job: { kind: 'loading', name: c.from, label: `Converting to ${printer}` } });
       try {
         await convert(c.file, printer, keepSettings);
+        await drawn();
         set({ job: { kind: 'idle' } });
       } catch (e) {
         fail(e);
@@ -1779,6 +1875,7 @@ export const useSlicer = create<SlicerState>((set, get) => {
         set({ calibration: { title, keys, previous } });
         setOverrides({ ...get().overrides, ...res.overrides });
         await refreshPreview(res.info);
+        await drawn();
         set({
           job: { kind: 'idle' },
           notice: [`${title} test ready. It changed ${keys.length} setting${keys.length === 1 ? '' : 's'}, marked in Settings.`, ...res.notes].join(' '),

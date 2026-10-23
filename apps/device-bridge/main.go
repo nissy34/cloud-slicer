@@ -38,7 +38,7 @@ import (
 
 // version is what the bridge reports to the Device tab; it compares it as a number.
 // The Node.js bridge is version 5.
-const version = "6"
+const version = "7"
 
 // Set at build time (-ldflags -X) to the relay and site the bridge belongs to.
 var (

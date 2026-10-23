@@ -105,6 +105,8 @@ export const APPS: Record<string, string> = {
 const BRIDGE_ID = /^[\w-]{8,64}$/;
 const MAX_CLIENTS = 16;
 const MAX_MESSAGE = 1024 * 1024;
+/** A browser's binary message: an upload piece of up to 8 MiB plus its header (Cloudflare allows 32 MiB). */
+const MAX_BINARY = 9 * 1024 * 1024;
 /** A setup code as the site makes them (functions/_lib/relay.ts). */
 const SETUP_CODE = /^[2-9A-HJ-NP-Z]{4}-[2-9A-HJ-NP-Z]{4}$/;
 /** Not set up yet: what the bridge shows. */
@@ -254,7 +256,7 @@ export default {
     }
     if (url.pathname === '/v1/info')
       return Response.json(
-        { accounts: Boolean(env.RELAY_TICKET_PUBLIC_KEY), push: vapidPublicKey(env), test: env.TEST_RELAY || undefined, pages: env.PAGE_ORIGIN || undefined },
+        { accounts: Boolean(env.RELAY_TICKET_PUBLIC_KEY), push: vapidPublicKey(env), test: env.TEST_RELAY || undefined, pages: env.PAGE_ORIGIN || undefined, binary: true },
         { headers: cors },
       );
     const pic = /^\/v1\/pictures\/([0-9a-f-]{36})\.jpg$/.exec(url.pathname);
@@ -569,7 +571,8 @@ export class Bridge extends DurableObject<Env> {
   }
 
   async webSocketMessage(ws: WebSocket, message: string | ArrayBuffer) {
-    if (typeof message !== 'string' || message.length > MAX_MESSAGE) return;
+    if (typeof message !== 'string') return this.binaryMessage(ws, message);
+    if (message.length > MAX_MESSAGE) return;
     const tags = this.ctx.getTags(ws);
 
     if (tags.includes('agent')) {
@@ -656,6 +659,25 @@ export class Bridge extends DurableObject<Env> {
     } catch {
       // not JSON
     }
+  }
+
+  /**
+   * A browser's binary message (an upload piece) goes to the bridge unread, as
+   * 1 byte with the length of the browser's id, the id, then the message. The
+   * bridge checks what it is; only browsers with a printer chosen can send one.
+   */
+  private binaryMessage(ws: WebSocket, message: ArrayBuffer) {
+    if (message.byteLength > MAX_BINARY || !this.ctx.getTags(ws).includes('client')) return;
+    const a = ws.deserializeAttachment() as ClientAttachment;
+    if (this.expired(ws, a)) return;
+    const agent = this.agent();
+    if (!agent || !a.printer) return;
+    const id = new TextEncoder().encode(a.id);
+    const out = new Uint8Array(1 + id.length + message.byteLength);
+    out[0] = id.length;
+    out.set(id, 1);
+    out.set(new Uint8Array(message), 1 + id.length);
+    agent.send(out);
   }
 
   /** A browser whose ticket ran out (the page renews it well before) is closed; it reconnects with a new one. */
