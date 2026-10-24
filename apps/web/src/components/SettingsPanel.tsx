@@ -1,5 +1,5 @@
-import { Fragment, useMemo, useState } from 'react';
-import type { OptionDef, SettingsPage } from '../engine/protocol';
+import { Fragment, useEffect, useMemo, useState } from 'react';
+import type { OptionDef, OrcaConfig, SettingsPage } from '../engine/protocol';
 import { splitValues, valueAt, withValueAt } from '../lib/flow-variants';
 import { FLUSH_OPTIONS } from '../lib/flush';
 import { GREYED_IN_BROWSER, GREYED_TIP, shownPages } from '../lib/settings-pages';
@@ -21,6 +21,25 @@ export type SettingsKind = 'print' | 'filament' | 'printer';
  * only for Marlin, Klipper and RepRap printers (with a Silent column when
  * silent_mode is on), and the filament a Setting Overrides page.
  */
+/** The selected preset's own settings (Dependencies and other preset-only ones). */
+function usePresetOwn(kind: SettingsKind, slot?: number): OrcaConfig | null {
+  const name = useSlicer((s) => (kind === 'printer' ? s.selection?.printer : kind === 'print' ? s.selection?.process : s.selection?.filaments[slot ?? 0]));
+  const [own, setOwn] = useState<OrcaConfig | null>(null);
+  useEffect(() => {
+    let live = true;
+    setOwn(null);
+    if (name)
+      useSlicer
+        .getState()
+        .presetConfig(kind === 'print' ? 'process' : kind, name)
+        .then((c) => live && setOwn(c), () => {});
+    return () => {
+      live = false;
+    };
+  }, [kind, name]);
+  return own;
+}
+
 export function SettingsPages({ kind, advanced, slot }: { kind: SettingsKind; advanced: boolean; slot?: number }) {
   const layout = useSlicer((s) => s.layout?.[kind] ?? NO_PAGES);
   const options = useSlicer((s) => s.options);
@@ -31,6 +50,7 @@ export function SettingsPages({ kind, advanced, slot }: { kind: SettingsKind; ad
   const [page, setPage] = useState(0);
   const [query, setQuery] = useState('');
   const states = useOptionStates('global', slot);
+  const preset = usePresetOwn(kind, slot);
   const current = pages[Math.min(page, pages.length - 1)];
   const found = query.trim() ? searchSettings(pages, options, query) : null;
   // A search finds settings in every page and in Advanced too; ones that don't apply show greyed out.
@@ -50,6 +70,9 @@ export function SettingsPages({ kind, advanced, slot }: { kind: SettingsKind; ad
     const off = greyed || states.disabled.has(k) || states.hidden.has(k);
     const why = greyed ? GREYED_TIP : undefined;
     const choices = states.enumValues[k];
+    // The Dependencies conditions aren't in the sliced config: shown from the preset itself.
+    if (greyed && options[k]?.type === 'string' && !(k in (useSlicer.getState().baseConfig ?? {})))
+      return <OptionField key={k} optKey={k} disabled why={why} value={preset?.[k] ?? ''} onChange={() => {}} />;
     if (at.overrides) return <OverrideField key={`${k}:${slot ?? ''}`} optKey={k} slot={slot ?? 0} />;
     if (at.limits?.includes(k))
       return (

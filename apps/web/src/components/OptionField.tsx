@@ -66,7 +66,7 @@ export function OptionField({
 
   const own = onChange !== undefined;
   const value = own ? ownValue : globalValue;
-  const modified = own ? true : globalModified;
+  const modified = own ? !disabled : globalModified;
   const setOverride = own ? (_: string, v: string | null) => onChange(v) : (k: string, v: string | null) => setOverrideChecked(k, v, slot);
   const variants = useSlicer((s) => processFlowModes(s.baseConfig).length);
   const flowVariant = useSlicer((s) => s.flowVariant);
