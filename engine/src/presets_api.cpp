@@ -182,9 +182,10 @@ std::string presetsLoad(const std::string& dataDir) {
 
 // Desktop's plate type rules (Plater, the sidebar's plate type list). A
 // printer that takes one kind of plate (not Bambu, no support_multi_bed_types)
-// always prints on its default plate and the list is greyed out; a U1 without
-// support_multi_bed_types offers only its four plates. A newly chosen printer
-// starts on its default plate.
+// always prints on its default plate and the list is greyed out. Snapmaker
+// Orca gives a U1 without support_multi_bed_types its own list
+// (curr_bed_type's enum_values_u1); OrcaSlicer has no such list. A newly
+// chosen printer starts on its default plate.
 bool isSnapmakerU1(const DynamicPrintConfig& printer) {
     const std::string model = printer.has("printer_model") ? printer.opt_string("printer_model") : std::string();
     return boost::icontains(model, "Snapmaker") && boost::icontains(model, "U1");
@@ -205,15 +206,16 @@ BedType defaultBedType(PresetBundle& b) {
 BedType allowedBedType(PresetBundle& b, BedType wanted) {
     Preset& printer = b.printers.get_edited_preset();
     const bool multi = printer.config.has("support_multi_bed_types") && printer.config.opt_bool("support_multi_bed_types");
-    const bool u1 = isSnapmakerU1(printer.config);
-    if (!engine::selectedPrinterIsBambu() && !multi && !u1) return defaultBedType(b);
-#if ENGINE_UPSTREAM
-    const bool u1Plate = wanted == btPTE || wanted == btPEI || wanted == btSuperTack;  // OrcaSlicer has no Graphic Effect plate
-#else
-    const bool u1Plate = wanted == btPTE || wanted == btPEI || wanted == btGESP || wanted == btSuperTack;
+    if (engine::selectedPrinterIsBambu() || multi) return wanted;
+#if !ENGINE_UPSTREAM
+    if (isSnapmakerU1(printer.config)) {
+        const auto& plates = print_config_def.get("curr_bed_type")->enum_values_u1;
+        const auto& names = ConfigOptionEnum<BedType>::get_enum_values();
+        for (const std::string& p : plates)
+            if (auto it = names.find(p); it != names.end() && it->second == wanted) return wanted;
+    }
 #endif
-    if (u1 && !multi && !u1Plate) return btPTE;
-    return wanted;
+    return defaultBedType(b);
 }
 
 void setBedType(DynamicPrintConfig& cfg, BedType type) { cfg.set_key_value("curr_bed_type", new ConfigOptionEnum<BedType>(type)); }
@@ -493,6 +495,10 @@ std::string configOptionsJson() {
         if (def.max_literal != 1) o["maxLiteral"] = def.max_literal;
         if (!def.enum_values.empty()) o["enumValues"] = def.enum_values;
         if (!def.enum_labels.empty()) o["enumLabels"] = def.enum_labels;
+#if !ENGINE_UPSTREAM
+        if (!def.enum_values_u1.empty()) o["enumValuesU1"] = def.enum_values_u1;
+        if (!def.enum_labels_u1.empty()) o["enumLabelsU1"] = def.enum_labels_u1;
+#endif
         if (def.type == coEnums) {
             // The default of an enum-list option can lack its keys map (the
             // filament_* copies of extruder options), and serialize() then walks

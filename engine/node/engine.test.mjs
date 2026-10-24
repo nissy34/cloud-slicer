@@ -1838,7 +1838,13 @@ test('plate type: the U1 starts on its own plate and keeps to the plates it take
   select({ printer: DEFAULT_PRINTER, process: STANDARD });
   assert.equal(fullConfig().curr_bed_type, 'Textured PEI Plate', "the U1's default plate");
   assert.equal(fullConfig({ curr_bed_type: 'Cool Plate' }).curr_bed_type, 'Textured PEI Plate', 'a plate the U1 does not take');
-  assert.equal(fullConfig({ curr_bed_type: 'High Temp Plate' }).curr_bed_type, 'High Temp Plate');
+  // Snapmaker Orca gives the U1 three plates; OrcaSlicer treats it as a one-plate printer.
+  const kept = flavor.flavor === 'orca' ? [] : ['High Temp Plate', 'Graphic Effect Plate'];
+  for (const plate of ['High Temp Plate', 'Graphic Effect Plate', 'Supertack Plate'])
+    if (flavor.flavor !== 'orca' || plate !== 'Graphic Effect Plate')
+      assert.equal(fullConfig({ curr_bed_type: plate }).curr_bed_type, kept.includes(plate) ? plate : 'Textured PEI Plate', plate);
+  const def = JSON.parse(engine.configOptionsJson()).curr_bed_type;
+  assert.deepEqual(def.enumValuesU1, flavor.flavor === 'orca' ? undefined : ['Textured PEI Plate', 'High Temp Plate', 'Graphic Effect Plate']);
 });
 
 test("the G-code's file name comes from the process preset's filename format, like desktop", () => {

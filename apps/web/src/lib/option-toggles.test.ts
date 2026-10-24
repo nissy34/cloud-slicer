@@ -86,14 +86,20 @@ describe('optionStates', () => {
     expect(u1.has('graphic_effect_plate_temp_initial_layer')).toBe(false);
   });
 
-  it('greys out the plate type for a printer that takes one kind of plate, and offers a U1 its four', () => {
+  it("greys out the plate type for a printer that takes one kind of plate, and offers a U1 Snapmaker Orca's U1 plates", () => {
     expect(optionStates(base, ctx).disabled.has('curr_bed_type')).toBe(true);
     expect(optionStates({ ...base, support_multi_bed_types: '1' }, ctx).disabled.has('curr_bed_type')).toBe(false);
     expect(optionStates(base, { ...ctx, bambu: true }).disabled.has('curr_bed_type')).toBe(false);
-    const u1 = optionStates({ ...base, printer_model: 'Snapmaker U1' }, ctx);
+    const plates = ['Textured PEI Plate', 'High Temp Plate', 'Graphic Effect Plate'];
+    const labels = ['Textured PEI Plate', 'Smooth PEI Plate', 'Graphic Effect Plate'];
+    const snapmaker = { ...ctx, options: { ...ctx.options, curr_bed_type: { type: 'enum', enumValuesU1: plates, enumLabelsU1: labels } } };
+    const u1 = optionStates({ ...base, printer_model: 'Snapmaker U1' }, snapmaker);
     expect(u1.disabled.has('curr_bed_type')).toBe(false);
-    expect(u1.enumValues.curr_bed_type).toEqual(['High Temp Plate', 'Textured PEI Plate', 'Graphic Effect Plate', 'Supertack Plate']);
-    expect(optionStates({ ...base, printer_model: 'Snapmaker U1', support_multi_bed_types: '1' }, ctx).enumValues.curr_bed_type).toBeUndefined();
+    expect(u1.enumValues.curr_bed_type).toEqual(plates);
+    expect(u1.enumLabels.curr_bed_type).toEqual(labels);
+    expect(optionStates({ ...base, printer_model: 'Snapmaker U1', support_multi_bed_types: '1' }, snapmaker).enumValues.curr_bed_type).toBeUndefined();
+    // OrcaSlicer has no U1 list: one kind of plate, like any other printer.
+    expect(optionStates({ ...base, printer_model: 'Snapmaker U1' }, ctx).disabled.has('curr_bed_type')).toBe(true);
   });
 
   it('shows parallel printheads only for printers that have them', () => {

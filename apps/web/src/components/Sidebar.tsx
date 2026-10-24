@@ -87,6 +87,7 @@ function PrinterSection() {
         disabled={plateStates.disabled.has('curr_bed_type')}
         why="This printer takes one kind of plate"
         choices={plateStates.enumValues.curr_bed_type}
+        choiceLabels={plateStates.enumLabels.curr_bed_type}
       />
     </section>
   );

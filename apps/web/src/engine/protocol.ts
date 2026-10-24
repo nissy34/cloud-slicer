@@ -74,6 +74,9 @@ export interface OptionDef {
   maxLiteral?: number;
   enumValues?: string[];
   enumLabels?: string[];
+  /** Snapmaker Orca's own list for a U1 that takes one set of plates (the plate type). */
+  enumValuesU1?: string[];
+  enumLabelsU1?: string[];
   default?: string;
   nullable?: boolean;
   multiline?: boolean;

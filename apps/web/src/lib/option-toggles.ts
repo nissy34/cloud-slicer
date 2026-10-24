@@ -20,7 +20,7 @@ export interface ToggleContext {
   /** Global settings (process, printer, filament) or one object's own. */
   scope: 'global' | 'object';
   /** Option metadata, to find list options and flow-variant ones. */
-  options: Record<string, { type?: string; flow?: 'process' | 'filament' } | undefined>;
+  options: Record<string, { type?: string; flow?: 'process' | 'filament'; enumValuesU1?: string[]; enumLabelsU1?: string[] } | undefined>;
   /** A Bambu Lab printer is selected (desktop hides some settings for them). */
   bambu?: boolean;
 }
@@ -32,6 +32,8 @@ export interface OptionStates {
   hidden: Set<string>;
   /** Enum options whose list depends on another setting (support style follows support type). */
   enumValues: Record<string, string[]>;
+  /** Labels for such a list, in its order, when they differ from the option's own. */
+  enumLabels: Record<string, string[]>;
 }
 
 /** Reads one config the way the settings show it: the entry for the flow variant or slot on screen. */
@@ -95,6 +97,7 @@ export function optionStates(cfg: OrcaConfig, ctx: ToggleContext): OptionStates 
   const toggleField = (k: string | string[], on: boolean) => [k].flat().forEach((key) => field.set(key, on));
   const toggleLine = (k: string | string[], on: boolean) => [k].flat().forEach((key) => line.set(key, on));
   const enumValues: Record<string, string[]> = {};
+  const enumLabels: Record<string, string[]> = {};
   const global = ctx.scope === 'global';
 
   const gcflavor = c.str('gcode_flavor');
@@ -317,9 +320,15 @@ export function optionStates(cfg: OrcaConfig, ctx: ToggleContext): OptionStates 
     else on = bed === defaultBed;
     toggleLine([key, `${key}_initial_layer`], on);
   }
-  // The sidebar's plate type (Plater): greyed out for a printer that takes one kind of plate; a U1 offers four.
-  toggleField('curr_bed_type', multiBed || u1);
-  if (u1 && !multiBed) enumValues.curr_bed_type = ['High Temp Plate', 'Textured PEI Plate', 'Graphic Effect Plate', 'Supertack Plate'];
+  // The sidebar's plate type (Plater): greyed out for a printer that takes one kind of plate.
+  // Snapmaker Orca gives the U1 its own list (its engine's enum_values_u1); OrcaSlicer doesn't.
+  const bedDef = ctx.options.curr_bed_type;
+  const u1Plates = u1 && !multiBed ? bedDef?.enumValuesU1 : undefined;
+  toggleField('curr_bed_type', multiBed || !!u1Plates);
+  if (u1Plates) {
+    enumValues.curr_bed_type = u1Plates;
+    if (bedDef?.enumLabelsU1) enumLabels.curr_bed_type = bedDef.enumLabelsU1;
+  }
   const pellet = c.bool('pellet_modded_printer');
   toggleLine('pellet_flow_coefficient', pellet);
   toggleLine('filament_diameter', !pellet);
@@ -352,7 +361,7 @@ export function optionStates(cfg: OrcaConfig, ctx: ToggleContext): OptionStates 
   const disabled = new Set([...field].filter(([, on]) => !on).map(([k]) => k));
   const hidden = new Set([...line].filter(([, on]) => !on).map(([k]) => k));
   enumValues.support_style = isTree(supportType) ? TREE_STYLES : NORMAL_STYLES;
-  return { disabled, hidden, enumValues };
+  return { disabled, hidden, enumValues, enumLabels };
 }
 
 /** One of desktop's "this combination doesn't work" messages, with its answers. */
