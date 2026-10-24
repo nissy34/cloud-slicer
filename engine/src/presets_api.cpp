@@ -17,6 +17,7 @@
 #include <boost/algorithm/string/predicate.hpp>
 #include <boost/nowide/cstdio.hpp>
 
+#include <algorithm>
 #include <climits>
 #include <memory>
 #include <set>
@@ -180,20 +181,11 @@ std::string presetsLoad(const std::string& dataDir) {
     }
 }
 
-// Desktop's plate type rules (Plater, the sidebar's plate type list). A
-// printer that takes one kind of plate (not Bambu, no support_multi_bed_types)
-// always prints on its default plate and the list is greyed out. Snapmaker
-// Orca gives a U1 without support_multi_bed_types its own list
-// (curr_bed_type's enum_values_u1); OrcaSlicer has no such list. A newly
-// chosen printer starts on its default plate.
-bool isSnapmakerU1(const DynamicPrintConfig& printer) {
-    const std::string model = printer.has("printer_model") ? printer.opt_string("printer_model") : std::string();
-    return boost::icontains(model, "Snapmaker") && boost::icontains(model, "U1");
-}
-
-// The printer's default plate. Profiles name it ("Textured PEI Plate"), which
-// OrcaSlicer's get_default_bed_type reads only as a number, so a name is
-// looked up first.
+// A newly chosen printer starts on its default plate, like desktop. Any plate
+// can then be picked (Nissan's call: the site doesn't limit the list the way
+// desktop does for one-plate printers). Profiles name the default plate
+// ("Textured PEI Plate"), which OrcaSlicer's get_default_bed_type reads only
+// as a number, so a name is looked up first.
 BedType defaultBedType(PresetBundle& b) {
     Preset& printer = b.printers.get_edited_preset();
     if (printer.config.has("default_bed_type")) {
@@ -201,21 +193,6 @@ BedType defaultBedType(PresetBundle& b) {
         if (auto it = names.find(printer.config.opt_string("default_bed_type")); it != names.end() && it->second != btDefault) return BedType(it->second);
     }
     return printer.get_default_bed_type(&b);
-}
-
-BedType allowedBedType(PresetBundle& b, BedType wanted) {
-    Preset& printer = b.printers.get_edited_preset();
-    const bool multi = printer.config.has("support_multi_bed_types") && printer.config.opt_bool("support_multi_bed_types");
-    if (engine::selectedPrinterIsBambu() || multi) return wanted;
-#if !ENGINE_UPSTREAM
-    if (isSnapmakerU1(printer.config)) {
-        const auto& plates = print_config_def.get("curr_bed_type")->enum_values_u1;
-        const auto& names = ConfigOptionEnum<BedType>::get_enum_values();
-        for (const std::string& p : plates)
-            if (auto it = names.find(p); it != names.end() && it->second == wanted) return wanted;
-    }
-#endif
-    return defaultBedType(b);
 }
 
 void setBedType(DynamicPrintConfig& cfg, BedType type) { cfg.set_key_value("curr_bed_type", new ConfigOptionEnum<BedType>(type)); }
@@ -297,7 +274,7 @@ std::string presetsSelect(const std::string& selectionJsonText) {
             if (!fallback.empty() && ((printerChanged && !filamentsGiven) || p == nullptr || !p->is_compatible)) name = fallback;
         }
         if (!fallback.empty() && !b.filament_presets.empty()) b.filaments.select_preset_by_name(b.filament_presets.front(), true);
-        if (printerChanged) setBedType(b.project_config, allowedBedType(b, defaultBedType(b)));
+        if (printerChanged) setBedType(b.project_config, defaultBedType(b));
         // Like desktop, a changed filament or colour recalculates the flushing volumes.
         const json flush = engine::autoFlushVolumes(b);
 
@@ -329,8 +306,6 @@ std::string presetsFullConfig(const std::string& overridesJson) {
         DynamicPrintConfig cfg = bundle().full_config();
         std::vector<std::string> errors;
         if (!overridesJson.empty()) errors = applyJsonConfig(cfg, json::parse(overridesJson));
-        // A plate type the printer doesn't take (a project from another printer) becomes one it does.
-        if (const auto* bed = cfg.option<ConfigOptionEnum<BedType>>("curr_bed_type")) setBedType(cfg, allowedBedType(bundle(), bed->value));
         return json{{"ok", true}, {"config", configToJson(cfg)}, {"errors", errors}}.dump();
     } catch (const std::exception& e) {
         return json{{"ok", false}, {"error", e.what()}}.dump();
@@ -493,12 +468,18 @@ std::string configOptionsJson() {
         if (def.max != INT_MAX) o["max"] = def.max;
         // Above this a "mm or %" value is probably meant as % (desktop asks).
         if (def.max_literal != 1) o["maxLiteral"] = def.max_literal;
-        if (!def.enum_values.empty()) o["enumValues"] = def.enum_values;
-        if (!def.enum_labels.empty()) o["enumLabels"] = def.enum_labels;
+        std::vector<std::string> values = def.enum_values, labels = def.enum_labels;
 #if !ENGINE_UPSTREAM
-        if (!def.enum_values_u1.empty()) o["enumValuesU1"] = def.enum_values_u1;
-        if (!def.enum_labels_u1.empty()) o["enumLabelsU1"] = def.enum_labels_u1;
+        // Snapmaker Orca keeps some choices (the Graphic Effect plate) only in
+        // its extended list: offer those too, after the usual ones.
+        for (size_t i = 0; i < def.enum_values_ex.size(); ++i)
+            if (std::find(values.begin(), values.end(), def.enum_values_ex[i]) == values.end()) {
+                values.push_back(def.enum_values_ex[i]);
+                if (!labels.empty()) labels.push_back(i < def.enum_labels_ex.size() ? def.enum_labels_ex[i] : def.enum_values_ex[i]);
+            }
 #endif
+        if (!values.empty()) o["enumValues"] = values;
+        if (!labels.empty()) o["enumLabels"] = labels;
         if (def.type == coEnums) {
             // The default of an enum-list option can lack its keys map (the
             // filament_* copies of extruder options), and serialize() then walks

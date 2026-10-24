@@ -1834,17 +1834,13 @@ test('assemble several chosen objects: one object, every part where it stood', (
   assert.throws(() => plate(0, { op: 'assemble', items: [{ object: 9, instance: 0 }, { object: 0, instance: 0 }] }), /no object/);
 });
 
-test('plate type: the U1 starts on its own plate and keeps to the plates it takes, like desktop', () => {
+test("plate type: a printer starts on its own plate, and any plate can be picked", () => {
   select({ printer: DEFAULT_PRINTER, process: STANDARD });
   assert.equal(fullConfig().curr_bed_type, 'Textured PEI Plate', "the U1's default plate");
-  assert.equal(fullConfig({ curr_bed_type: 'Cool Plate' }).curr_bed_type, 'Textured PEI Plate', 'a plate the U1 does not take');
-  // Snapmaker Orca gives the U1 three plates; OrcaSlicer treats it as a one-plate printer.
-  const kept = flavor.flavor === 'orca' ? [] : ['High Temp Plate', 'Graphic Effect Plate'];
-  for (const plate of ['High Temp Plate', 'Graphic Effect Plate', 'Supertack Plate'])
-    if (flavor.flavor !== 'orca' || plate !== 'Graphic Effect Plate')
-      assert.equal(fullConfig({ curr_bed_type: plate }).curr_bed_type, kept.includes(plate) ? plate : 'Textured PEI Plate', plate);
-  const def = JSON.parse(engine.configOptionsJson()).curr_bed_type;
-  assert.deepEqual(def.enumValuesU1, flavor.flavor === 'orca' ? undefined : ['Textured PEI Plate', 'High Temp Plate', 'Graphic Effect Plate']);
+  for (const plate of ['Cool Plate', 'High Temp Plate', 'Supertack Plate']) assert.equal(fullConfig({ curr_bed_type: plate }).curr_bed_type, plate);
+  // Snapmaker Orca's Graphic Effect plate is in its extended list only; it is offered too.
+  const plates = JSON.parse(engine.configOptionsJson()).curr_bed_type.enumValues;
+  assert.equal(plates.includes('Graphic Effect Plate'), flavor.flavor !== 'orca', plates.join(', '));
 });
 
 test("the G-code's file name comes from the process preset's filename format, like desktop", () => {

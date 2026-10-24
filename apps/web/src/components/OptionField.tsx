@@ -42,7 +42,6 @@ export function OptionField({
   disabled = false,
   why,
   choices,
-  choiceLabels,
 }: {
   slot?: number;
   entry?: number;
@@ -52,8 +51,6 @@ export function OptionField({
   /** Why it's greyed out, shown as its tooltip instead of the option's own. */
   why?: string;
   choices?: string[];
-  /** Labels for `choices`, in their order: the list is shown as given, not in the option's order. */
-  choiceLabels?: string[];
   optKey: string;
   label?: string;
   value?: string;
@@ -170,20 +167,14 @@ export function OptionField({
   if (type === 'enum' && def.enumValues) {
     editor = (
       <select aria-label={text} value={shown} disabled={disabled} onChange={(e) => commit(e.target.value)}>
-        {!(choices && choiceLabels ? choices : def.enumValues).includes(shown) && <option value={shown}>{shown}</option>}
-        {choices && choiceLabels
-          ? choices.map((v, i) => (
-              <option key={v} value={v}>
-                {choiceLabels[i] || v}
-              </option>
-            ))
-          : def.enumValues.map((v, i) =>
-              choices && !choices.includes(v) && v !== shown ? null : (
-                <option key={v} value={v}>
-                  {def.enumLabels?.[i] || v}
-                </option>
-              ),
-            )}
+        {!def.enumValues.includes(shown) && <option value={shown}>{shown}</option>}
+        {def.enumValues.map((v, i) =>
+          choices && !choices.includes(v) && v !== shown ? null : (
+            <option key={v} value={v}>
+              {def.enumLabels?.[i] || v}
+            </option>
+          ),
+        )}
       </select>
     );
   } else if (def.multiline || (def.type === 'strings' && !slotText) || (type === 'string' && shown.length > 60)) {
