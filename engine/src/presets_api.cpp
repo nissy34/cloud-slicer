@@ -190,11 +190,23 @@ bool isSnapmakerU1(const DynamicPrintConfig& printer) {
     return boost::icontains(model, "Snapmaker") && boost::icontains(model, "U1");
 }
 
+// The printer's default plate. Profiles name it ("Textured PEI Plate"), which
+// OrcaSlicer's get_default_bed_type reads only as a number, so a name is
+// looked up first.
+BedType defaultBedType(PresetBundle& b) {
+    Preset& printer = b.printers.get_edited_preset();
+    if (printer.config.has("default_bed_type")) {
+        const auto& names = ConfigOptionEnum<BedType>::get_enum_values();
+        if (auto it = names.find(printer.config.opt_string("default_bed_type")); it != names.end() && it->second != btDefault) return BedType(it->second);
+    }
+    return printer.get_default_bed_type(&b);
+}
+
 BedType allowedBedType(PresetBundle& b, BedType wanted) {
     Preset& printer = b.printers.get_edited_preset();
     const bool multi = printer.config.has("support_multi_bed_types") && printer.config.opt_bool("support_multi_bed_types");
     const bool u1 = isSnapmakerU1(printer.config);
-    if (!engine::selectedPrinterIsBambu() && !multi && !u1) return printer.get_default_bed_type(&b);
+    if (!engine::selectedPrinterIsBambu() && !multi && !u1) return defaultBedType(b);
 #if ENGINE_UPSTREAM
     const bool u1Plate = wanted == btPTE || wanted == btPEI || wanted == btSuperTack;  // OrcaSlicer has no Graphic Effect plate
 #else
@@ -283,7 +295,7 @@ std::string presetsSelect(const std::string& selectionJsonText) {
             if (!fallback.empty() && ((printerChanged && !filamentsGiven) || p == nullptr || !p->is_compatible)) name = fallback;
         }
         if (!fallback.empty() && !b.filament_presets.empty()) b.filaments.select_preset_by_name(b.filament_presets.front(), true);
-        if (printerChanged) setBedType(b.project_config, allowedBedType(b, b.printers.get_edited_preset().get_default_bed_type(&b)));
+        if (printerChanged) setBedType(b.project_config, allowedBedType(b, defaultBedType(b)));
         // Like desktop, a changed filament or colour recalculates the flushing volumes.
         const json flush = engine::autoFlushVolumes(b);
 

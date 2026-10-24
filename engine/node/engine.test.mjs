@@ -1881,7 +1881,8 @@ test("an added model turns by the printer's preferred orientation", () => {
   assert.ok(d2 > 2 * w2, `turned to Y: ${w2} × ${d2}`);
 });
 
-test('a printer that takes a .gcode.3mf gets the plate in one, like desktop', () => {
+test('a printer that takes a .gcode.3mf gets the plate in one, like desktop', (t) => {
+  if (!JSON.parse(engine.configOptionsJson()).use_3mf) return t.skip('Snapmaker Orca has no "Use 3MF instead of G-code"');
   select({ printer: DEFAULT_PRINTER, process: STANDARD });
   load('tetrahedron.stl');
   const { result, gcode } = slice({ ...fullConfig(), use_3mf: '1' }, 0, null, 'tetrahedron');
