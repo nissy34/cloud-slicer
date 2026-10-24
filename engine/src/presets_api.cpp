@@ -195,7 +195,12 @@ BedType allowedBedType(PresetBundle& b, BedType wanted) {
     const bool multi = printer.config.has("support_multi_bed_types") && printer.config.opt_bool("support_multi_bed_types");
     const bool u1 = isSnapmakerU1(printer.config);
     if (!engine::selectedPrinterIsBambu() && !multi && !u1) return printer.get_default_bed_type(&b);
-    if (u1 && !multi && wanted != btPTE && wanted != btPEI && wanted != btGESP && wanted != btSuperTack) return btPTE;
+#if ENGINE_UPSTREAM
+    const bool u1Plate = wanted == btPTE || wanted == btPEI || wanted == btSuperTack;  // OrcaSlicer has no Graphic Effect plate
+#else
+    const bool u1Plate = wanted == btPTE || wanted == btPEI || wanted == btGESP || wanted == btSuperTack;
+#endif
+    if (u1 && !multi && !u1Plate) return btPTE;
     return wanted;
 }
 
