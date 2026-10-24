@@ -65,7 +65,7 @@ const tInit = performance.now();
 
 const modelPath = `/work/${basename(modelArg)}`;
 engine.FS.writeFile(modelPath, readFileSync(modelArg));
-const loaded = call(engine, 'loadModel', modelPath, opts.plate, bedW, bedD, false);
+const loaded = call(engine, 'loadModel', modelPath, opts.plate, bedW, bedD, false, 0);
 const info = JSON.parse(engine.modelInfoJson());
 console.error(`model: ${info.objects.length} objects on ${info.plates.length} plate(s)${loaded.isProject ? ' (project)' : ''}`);
 const tLoad = performance.now();
@@ -76,7 +76,7 @@ const result = JSON.parse(engine.sliceWithConfig(JSON.stringify(full.config), op
     console.error(`  [${String(pct).padStart(3)}%] ${stage}`);
     lastStage = stage;
   }
-}, null));
+}, null, basename(modelArg).replace(/\.[^.]+$/, '')));
 const tSlice = performance.now();
 console.error(`result: ${JSON.stringify(result)}`);
 if (opts.configOut) writeFileSync(opts.configOut, JSON.stringify(full.config, null, 1));

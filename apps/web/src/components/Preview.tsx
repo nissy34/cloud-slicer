@@ -351,9 +351,11 @@ function Use({ g, mm }: { g: number; mm: number }) {
  * are left out) and their total, then the cost and filament changes. Without
  * the engine's split, one line per filament with the G-code's own totals.
  */
-function FilamentStats({ stats, used, colours, parts }: { stats: GcodeStats; used: number[]; colours: string[]; parts?: SliceResult['filamentParts'] }) {
+function FilamentStats({ stats, used, colours, parts, cost }: { stats: GcodeStats; used: number[]; colours: string[]; parts?: SliceResult['filamentParts']; cost?: number }) {
   const tools = [...new Set([...used, ...stats.filaments.flatMap((f, i) => (f.grams > 0 || f.mm > 0 ? [i] : []))])].sort((a, b) => a - b);
-  const costed = stats.totalCost > 0;
+  // The engine's total has the printer's time cost too; a G-code file opened on its own has only the filaments'.
+  const totalCost = cost ?? stats.totalCost;
+  const costed = totalCost > 0;
   const totalMm = stats.filaments.reduce((a, f) => a + f.mm, 0);
   const columns = parts ? PARTS.filter(({ part }) => tools.some((t) => (parts[t + 1]?.[part]?.mm ?? 0) > 0)) : [];
   const partOf = (t: number, part: FilamentPart) => parts?.[t + 1]?.[part];
@@ -441,11 +443,11 @@ function FilamentStats({ stats, used, colours, parts }: { stats: GcodeStats; use
           {grams(stats.totalGrams)} · {metres(totalMm)}
         </span>
         <span>Cost</span>
-        <span>{costed ? money(stats.totalCost) : '–'}</span>
+        <span>{costed ? money(totalCost) : '–'}</span>
         <span>Filament changes</span>
         <span data-testid="tool-changes">{stats.toolChanges}</span>
       </div>
-      {!costed && <p className="legend-note">Set the Price in the filament settings to see the cost.</p>}
+      {!costed && <p className="legend-note">Set the Price in the filament settings, or the Time cost in the printer settings, to see the cost.</p>}
     </div>
   );
 }
@@ -627,7 +629,7 @@ export function Preview() {
         {parsed && keyOpen && (
           <>
             {colourBy === 'feature' && <LineTypes features={usedFeatures} hidden={hidden} setHidden={setHidden} />}
-            {colourBy === 'filament' && <FilamentStats stats={parsed.stats} used={parsed.toolsUsed} colours={colours} parts={job.kind === 'sliced' ? job.result.filamentParts : undefined} />}
+            {colourBy === 'filament' && <FilamentStats stats={parsed.stats} used={parsed.toolsUsed} colours={colours} parts={job.kind === 'sliced' ? job.result.filamentParts : undefined} cost={job.kind === 'sliced' ? job.result.totalCost : undefined} />}
             {isRangeView(colourBy) && <RangeKey by={colourBy} range={range} />}
             {colourBy !== 'feature' && hidden.size > 0 && (
               <p className="legend-note">

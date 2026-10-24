@@ -22,55 +22,6 @@ export function formatGrams(grams: number): string {
   return `${grams < 10 ? grams.toFixed(1) : Math.round(grams)} g`;
 }
 
-/** 16332 -> "4h32m12s", as desktop writes {print_time} into file names. */
-export function timeDhms(seconds: number): string {
-  let left = Math.max(0, Math.round(Number.isFinite(seconds) ? seconds : 0));
-  const parts: string[] = [];
-  for (const [unit, size] of [['d', 86_400], ['h', 3600], ['m', 60]] as const) {
-    const n = Math.floor(left / size);
-    left -= n * size;
-    if (n || parts.length) parts.push(`${n}${unit}`);
-  }
-  parts.push(`${left}s`);
-  return parts.join('');
-}
-
-/**
- * The G-code file name as desktop makes it, from the process preset's
- * filename_format (the U1's: "{input_filename_base}_plate_{plate_number}_{filament_type[0]}_{print_time}.gcode").
- * {input_filename_base} is the model or project name, {print_time} the
- * estimate, {plate_number} the plate as desktop writes it ("01") and
- * {plate_name} its name, and any other {key} or {key[i]} the setting's value.
- * No format: "<name>.gcode".
- */
-export function outputFileName(
-  format: string | undefined,
-  base: string,
-  config: Record<string, string>,
-  printSeconds: number,
-  plate: { index: number; name?: string } = { index: 0 },
-): string {
-  const stem = base.replace(/\.[^.]+$/, '') || 'model';
-  if (!format?.trim()) return `${stem}.gcode`;
-  const name = format
-    .trim()
-    .replace(/^"|"$/g, '')
-    .replace(/\{\s*([a-z_]\w*)\s*(?:\[\s*(\d+)\s*\])?\s*\}/gi, (_, key: string, index?: string) => {
-      if (key === 'input_filename_base') return stem;
-      if (key === 'print_time') return timeDhms(printSeconds);
-      if (key === 'plate_number') return String(plate.index + 1).padStart(2, '0');
-      if (key === 'plate_name') return plate.name ?? '';
-      const value = config[key] ?? '';
-      const list = value.split(value.includes(';') ? ';' : ',').map((v) => v.trim().replace(/^"|"$/g, ''));
-      return list[index ? Number(index) : 0] ?? '';
-    })
-    // A setting with no value leaves "a__b" or "_.gcode": tidy those up.
-    .replace(/([_-])[_-]+/g, '$1')
-    .replace(/[_-]+(\.[^.]+)$/, '$1')
-    .replace(/[_.-]+$/, '');
-  return /\.(gcode|bgcode)$/i.test(name) ? name : `${name || stem}.gcode`;
-}
-
 /** Engine stage text -> sentence case, e.g. "GENERATING SUPPORT" -> "Generating support" (G-code keeps its capital). */
 export function stageLabel(stage: string): string {
   const s = stage.trim().toLowerCase().replace(/\bg-code\b/g, 'G-code');

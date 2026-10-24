@@ -2,7 +2,7 @@ import { Fragment, useMemo, useState } from 'react';
 import type { OptionDef, SettingsPage } from '../engine/protocol';
 import { splitValues, valueAt, withValueAt } from '../lib/flow-variants';
 import { FLUSH_OPTIONS } from '../lib/flush';
-import { shownPages } from '../lib/settings-pages';
+import { GREYED_IN_BROWSER, GREYED_TIP, shownPages } from '../lib/settings-pages';
 import { slotEntryIndex } from '../lib/slot-values';
 import { useOption, useSlicer } from '../state/store';
 import { FlowVariantSwitch } from './FlowVariantSwitch';
@@ -46,7 +46,9 @@ export function SettingsPages({ kind, advanced, slot }: { kind: SettingsKind; ad
   const hasFlowVariants = groups.some((g) => g.keys.some((k) => options[k]?.flow));
   const label = kind === 'print' ? 'process' : kind;
   const field = (k: string, at: ShownPage) => {
-    const off = states.disabled.has(k) || states.hidden.has(k);
+    const greyed = GREYED_IN_BROWSER.has(k);
+    const off = greyed || states.disabled.has(k) || states.hidden.has(k);
+    const why = greyed ? GREYED_TIP : undefined;
     const choices = states.enumValues[k];
     if (at.overrides) return <OverrideField key={`${k}:${slot ?? ''}`} optKey={k} slot={slot ?? 0} />;
     if (at.limits?.includes(k))
@@ -56,7 +58,7 @@ export function SettingsPages({ kind, advanced, slot }: { kind: SettingsKind; ad
           {silent && <OptionField optKey={k} entry={1} disabled={off} label={`${options[k].fullLabel || options[k].label} (Silent)`} />}
         </Fragment>
       );
-    return <OptionField key={`${k}:${slot ?? ''}:${at.index ?? ''}`} optKey={k} slot={slot} entry={at.index} disabled={off} choices={choices} />;
+    return <OptionField key={`${k}:${slot ?? ''}:${at.index ?? ''}`} optKey={k} slot={slot} entry={at.index} disabled={off} why={why} choices={choices} />;
   };
   return (
     <>

@@ -180,6 +180,27 @@ std::string presetsLoad(const std::string& dataDir) {
     }
 }
 
+// Desktop's plate type rules (Plater, the sidebar's plate type list). A
+// printer that takes one kind of plate (not Bambu, no support_multi_bed_types)
+// always prints on its default plate and the list is greyed out; a U1 without
+// support_multi_bed_types offers only its four plates. A newly chosen printer
+// starts on its default plate.
+bool isSnapmakerU1(const DynamicPrintConfig& printer) {
+    const std::string model = printer.has("printer_model") ? printer.opt_string("printer_model") : std::string();
+    return boost::icontains(model, "Snapmaker") && boost::icontains(model, "U1");
+}
+
+BedType allowedBedType(PresetBundle& b, BedType wanted) {
+    Preset& printer = b.printers.get_edited_preset();
+    const bool multi = printer.config.has("support_multi_bed_types") && printer.config.opt_bool("support_multi_bed_types");
+    const bool u1 = isSnapmakerU1(printer.config);
+    if (!engine::selectedPrinterIsBambu() && !multi && !u1) return printer.get_default_bed_type(&b);
+    if (u1 && !multi && wanted != btPTE && wanted != btPEI && wanted != btGESP && wanted != btSuperTack) return btPTE;
+    return wanted;
+}
+
+void setBedType(DynamicPrintConfig& cfg, BedType type) { cfg.set_key_value("curr_bed_type", new ConfigOptionEnum<BedType>(type)); }
+
 // All visible printer presets.
 std::string presetsPrinters() { return collectionJson(bundle().printers, false).dump(); }
 
@@ -257,6 +278,7 @@ std::string presetsSelect(const std::string& selectionJsonText) {
             if (!fallback.empty() && ((printerChanged && !filamentsGiven) || p == nullptr || !p->is_compatible)) name = fallback;
         }
         if (!fallback.empty() && !b.filament_presets.empty()) b.filaments.select_preset_by_name(b.filament_presets.front(), true);
+        if (printerChanged) setBedType(b.project_config, allowedBedType(b, b.printers.get_edited_preset().get_default_bed_type(&b)));
         // Like desktop, a changed filament or colour recalculates the flushing volumes.
         const json flush = engine::autoFlushVolumes(b);
 
@@ -288,6 +310,8 @@ std::string presetsFullConfig(const std::string& overridesJson) {
         DynamicPrintConfig cfg = bundle().full_config();
         std::vector<std::string> errors;
         if (!overridesJson.empty()) errors = applyJsonConfig(cfg, json::parse(overridesJson));
+        // A plate type the printer doesn't take (a project from another printer) becomes one it does.
+        if (const auto* bed = cfg.option<ConfigOptionEnum<BedType>>("curr_bed_type")) setBedType(cfg, allowedBedType(bundle(), bed->value));
         return json{{"ok", true}, {"config", configToJson(cfg)}, {"errors", errors}}.dump();
     } catch (const std::exception& e) {
         return json{{"ok", false}, {"error", e.what()}}.dump();

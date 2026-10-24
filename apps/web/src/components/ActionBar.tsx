@@ -1,7 +1,7 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { sendToPrinter } from '../device';
 import type { SliceWarning } from '../engine/protocol';
-import { outputFileName, sentence, stageLabel } from '../lib/format';
+import { sentence, stageLabel } from '../lib/format';
 import { blocksPrinting, OBJECT_CLASHED } from '../lib/outside';
 import { LIGHT_TRIANGLES, triangleCount } from '../lib/simplify';
 import { useObjectsOutside, useSlicer } from '../state/store';
@@ -111,9 +111,6 @@ export function ActionBar() {
   const { engine, engineMessage, project, plate, job, notice, noticeWarn, heavy, simplifyHeavy, slice, cancelSlice, setTab, tab, slicedAway, viewSlice } = useSlicer();
   // A problem with the open tool shows in its card, where the eye is.
   const toolOpen = useSlicer((s) => !!(s.tool || s.paint));
-  const baseConfig = useSlicer((s) => s.baseConfig);
-  const overrides = useSlicer((s) => s.overrides);
-  const config = useMemo(() => ({ ...baseConfig, ...overrides }), [baseConfig, overrides]);
   const errorHere = job.kind === 'error' && !(job.inTool && toolOpen);
   const warnings = useSliceWarnings();
   const unprintable = warnings.some(blocksPrinting);
@@ -126,12 +123,11 @@ export function ActionBar() {
   const onPlate = project?.plates[plate]?.objects.length ?? 0;
   const busy = job.kind === 'loading' || job.kind === 'slicing';
   const plateLabel = (project?.plates.length ?? 0) > 1 ? `Slice plate ${plate + 1}` : 'Slice plate';
-  const baseName = project?.fileName || project?.objects[0]?.name || 'plate';
-  // As desktop names it: the process preset's filename_format, whose {plate_number} tells plates apart.
-  const fileName =
-    job.kind === 'sliced'
-      ? outputFileName(config.filename_format, baseName, config, job.result.estimatedTimeSeconds, { index: job.plate, name: project?.plates[job.plate]?.name })
-      : '';
+  // As desktop names it: the engine fills the process preset's filename_format in, whose {plate_number} tells plates apart.
+  const gcodeName = job.kind === 'sliced' ? job.result.fileName || 'plate.gcode' : '';
+  // A printer that takes a .gcode.3mf (its "Use 3MF instead of G-code") gets the plate in one, named like desktop's.
+  const bundle = job.kind === 'sliced' ? job.gcode3mf : undefined;
+  const fileName = bundle ? gcodeName.replace(/\.gcode$/i, '') + '.gcode.3mf' : gcodeName;
   return (
     <div className="actionbar" data-testid="actionbar">
       <div className="status" aria-live="polite">
@@ -203,12 +199,12 @@ export function ActionBar() {
             {/* Phones show the short words so all four buttons fit in one row. */}
             <button
               className="secondary"
-              aria-label="Download G-code"
+              aria-label={bundle ? 'Download G-code 3MF' : 'Download G-code'}
               disabled={unprintable}
-              title={unprintable ? 'The toolpaths leave the build volume' : undefined}
-              onClick={() => download(job.gcode, fileName)}
+              title={unprintable ? 'The toolpaths leave the build volume' : bundle ? 'This printer takes the G-code in a .gcode.3mf file' : undefined}
+              onClick={() => download(bundle ?? job.gcode, fileName)}
             >
-              <span className="wide-only">Download G-code</span>
+              <span className="wide-only">{bundle ? 'Download G-code 3MF' : 'Download G-code'}</span>
               <span className="phone-only">Download</span>
             </button>
             <button
@@ -217,7 +213,7 @@ export function ActionBar() {
               disabled={unprintable}
               title={unprintable ? 'The toolpaths leave the build volume' : undefined}
               onClick={() => {
-                sendToPrinter(job.gcode, fileName, useSlicer.getState().selection?.printer);
+                sendToPrinter(bundle ?? job.gcode, fileName, useSlicer.getState().selection?.printer, bundle && job.gcode);
                 setTab('device');
               }}
             >

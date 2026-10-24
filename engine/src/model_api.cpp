@@ -300,8 +300,10 @@ size_t filamentCount(const DynamicPrintConfig& cfg) {
 // Opens a 3MF as the project (its plates, settings and filaments replace
 // the open project), or adds a model file's objects to the project on
 // `plate`. geometryOnly adds a 3MF's objects like a model file, which is
-// desktop's "Import geometry only".
-std::string loadModel(const std::string& path, int plate, double bedWidth, double bedDepth, bool geometryOnly) {
+// desktop's "Import geometry only". orientation: the printer's
+// preferred_orientation in degrees; desktop turns the objects of an added
+// model file (not a 3MF) by it about Z (0, or left out, keeps them as they are).
+std::string loadModel(const std::string& path, int plate, double bedWidth, double bedDepth, bool geometryOnly, double orientation) {
     try {
         const bool is3mf = boost::iends_with(path, ".3mf");
         if (is3mf && !geometryOnly) {
@@ -353,6 +355,7 @@ std::string loadModel(const std::string& path, int plate, double bedWidth, doubl
         const size_t added = loaded.objects.size();
         for (ModelObject* o : loaded.objects) {
             ModelObject* copy = g_project.model.add_object(*o);
+            if (!is3mf && std::isfinite(orientation) && orientation != 0) copy->rotate(Geometry::deg2rad(orientation), Axis::Z);
             placeOnPlate(copy, std::clamp(plate, 0, g_project.plateCount - 1));
         }
         if (added == 0) return fail("the file has no objects").dump();

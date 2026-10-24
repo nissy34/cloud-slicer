@@ -65,7 +65,8 @@ setBridgeTickets(async (relay, bridgeId) => {
   }
 });
 
-export type SendSource = { kind: 'upload'; blob: Blob; name: string } | { kind: 'file'; path: string };
+/** An upload's `gcode` is the G-code inside `blob` when that is a .gcode.3mf (read for the print dialog's details). */
+export type SendSource = { kind: 'upload'; blob: Blob; name: string; gcode?: Blob } | { kind: 'file'; path: string };
 
 interface DeviceState {
   printers: SavedPrinter[];
@@ -116,7 +117,7 @@ interface DeviceState {
   call(label: string, fn: (s: PrinterSession) => Promise<unknown>): Promise<boolean>;
   refreshFiles(): Promise<void>;
   /** `slicedFor` is the printer profile the G-code was sliced with, if known. */
-  requestSend(blob: Blob, name: string, slicedFor?: string): void;
+  requestSend(blob: Blob, name: string, slicedFor?: string, gcode?: Blob): void;
   openPrintDialog(source: SendSource | null): void;
   uploadAndMaybePrint(source: SendSource, opts: { start: boolean; prep: string[] }): Promise<boolean>;
   /** Stops the upload under way (the printer keeps nothing) and closes the print dialog. */
@@ -542,10 +543,10 @@ export const useDevice = create<DeviceState>((set, get) => {
       }
     }, FILE_LIST_GAP_MS),
 
-    requestSend(blob, name, slicedFor) {
+    requestSend(blob, name, slicedFor, gcode) {
       const target = pickSendTarget(get().printers, get().activeId, load<string | null>(SEND_KEY, null), slicedFor);
       if (target && target !== get().activeId) get().select(target);
-      set({ send: { kind: 'upload', blob, name }, sendError: null });
+      set({ send: { kind: 'upload', blob, name, gcode }, sendError: null });
     },
 
     openPrintDialog(source) {

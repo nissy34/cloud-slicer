@@ -94,6 +94,7 @@ export function optionStates(cfg: OrcaConfig, ctx: ToggleContext): OptionStates 
   const line = new Map<string, boolean>();
   const toggleField = (k: string | string[], on: boolean) => [k].flat().forEach((key) => field.set(key, on));
   const toggleLine = (k: string | string[], on: boolean) => [k].flat().forEach((key) => line.set(key, on));
+  const enumValues: Record<string, string[]> = {};
   const global = ctx.scope === 'global';
 
   const gcflavor = c.str('gcode_flavor');
@@ -316,6 +317,9 @@ export function optionStates(cfg: OrcaConfig, ctx: ToggleContext): OptionStates 
     else on = bed === defaultBed;
     toggleLine([key, `${key}_initial_layer`], on);
   }
+  // The sidebar's plate type (Plater): greyed out for a printer that takes one kind of plate; a U1 offers four.
+  toggleField('curr_bed_type', multiBed || u1);
+  if (u1 && !multiBed) enumValues.curr_bed_type = ['High Temp Plate', 'Textured PEI Plate', 'Graphic Effect Plate', 'Supertack Plate'];
   const pellet = c.bool('pellet_modded_printer');
   toggleLine('pellet_flow_coefficient', pellet);
   toggleLine('filament_diameter', !pellet);
@@ -325,6 +329,7 @@ export function optionStates(cfg: OrcaConfig, ctx: ToggleContext): OptionStates 
 
   // ---- Printer (TabPrinter::toggle_options) ----
   toggleLine(['scan_first_layer', 'bbl_calib_mark_logo', 'bbl_use_printhost'], isBBL);
+  toggleLine('parallel_printheads_count', c.bool('support_parallel_printheads'));
   toggleField('extruders_count', !bSEMM);
   toggleField('manual_filament_change', bSEMM);
   toggleField('purge_in_prime_tower', bSEMM && !isBBL);
@@ -346,7 +351,8 @@ export function optionStates(cfg: OrcaConfig, ctx: ToggleContext): OptionStates 
 
   const disabled = new Set([...field].filter(([, on]) => !on).map(([k]) => k));
   const hidden = new Set([...line].filter(([, on]) => !on).map(([k]) => k));
-  return { disabled, hidden, enumValues: { support_style: isTree(supportType) ? TREE_STYLES : NORMAL_STYLES } };
+  enumValues.support_style = isTree(supportType) ? TREE_STYLES : NORMAL_STYLES;
+  return { disabled, hidden, enumValues };
 }
 
 /** One of desktop's "this combination doesn't work" messages, with its answers. */

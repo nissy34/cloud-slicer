@@ -86,6 +86,21 @@ describe('optionStates', () => {
     expect(u1.has('graphic_effect_plate_temp_initial_layer')).toBe(false);
   });
 
+  it('greys out the plate type for a printer that takes one kind of plate, and offers a U1 its four', () => {
+    expect(optionStates(base, ctx).disabled.has('curr_bed_type')).toBe(true);
+    expect(optionStates({ ...base, support_multi_bed_types: '1' }, ctx).disabled.has('curr_bed_type')).toBe(false);
+    expect(optionStates(base, { ...ctx, bambu: true }).disabled.has('curr_bed_type')).toBe(false);
+    const u1 = optionStates({ ...base, printer_model: 'Snapmaker U1' }, ctx);
+    expect(u1.disabled.has('curr_bed_type')).toBe(false);
+    expect(u1.enumValues.curr_bed_type).toEqual(['High Temp Plate', 'Textured PEI Plate', 'Graphic Effect Plate', 'Supertack Plate']);
+    expect(optionStates({ ...base, printer_model: 'Snapmaker U1', support_multi_bed_types: '1' }, ctx).enumValues.curr_bed_type).toBeUndefined();
+  });
+
+  it('shows parallel printheads only for printers that have them', () => {
+    expect(optionStates(base, ctx).hidden.has('parallel_printheads_count')).toBe(true);
+    expect(optionStates({ ...base, support_parallel_printheads: '1' }, ctx).hidden.has('parallel_printheads_count')).toBe(false);
+  });
+
   it('shows the flush into objects switch only in an object\'s settings', () => {
     expect(optionStates(base, ctx).hidden.has('flush_into_objects')).toBe(true);
     expect(optionStates(base, { ...ctx, scope: 'object' }).hidden.has('flush_into_objects')).toBe(false);

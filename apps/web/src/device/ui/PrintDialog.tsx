@@ -58,7 +58,7 @@ export function PrintDialog({ source }: { source: SendSource }) {
 
   useEffect(() => {
     let live = true;
-    const read = source.kind === 'upload' ? readGcodeMeta(source.blob) : (currentSession()?.metadata(source.path) ?? Promise.resolve(null)).then(metaFromMoonraker);
+    const read = source.kind === 'upload' ? readGcodeMeta(source.gcode ?? source.blob) : (currentSession()?.metadata(source.path) ?? Promise.resolve(null)).then(metaFromMoonraker);
     void read.then((m) => live && setMeta(m));
     return () => {
       live = false;

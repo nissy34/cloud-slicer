@@ -4,6 +4,7 @@
 #include "engine.hpp"
 
 #include "libslic3r/BuildVolume.hpp"
+#include "libslic3r/Format/bbs_3mf.hpp"
 #include "libslic3r/GCode/GCodeProcessor.hpp"
 #include "libslic3r/GCode/ThumbnailData.hpp"
 #include "libslic3r/Layer.hpp"
@@ -212,6 +213,17 @@ public:
         set_done(psGCodeExport);
         return out;
     }
+    // Desktop's G-code file name: filename_format through Orca's template
+    // language, with this slice's statistics ({total_weight}, {print_time} ...),
+    // dates, {if} and sums, as plate `plate` of the project. `base` is
+    // {input_filename_base}. Call after the export.
+    std::string fileName(const std::string& base, int plate, const std::string& plateName) {
+        set_plate_index(plate);
+        set_plate_name(plateName);
+        const std::string name = output_filename(base);
+        set_plate_index(0);
+        return name;
+    }
 };
 
 // Warnings for the user from one slice, the ones desktop shows as
@@ -270,16 +282,81 @@ std::string conflictText(const ConflictResult& c, const Print& print) {
     return text;
 }
 
+// The sliced plate as a .gcode.3mf, the file desktop downloads and sends when
+// the printer's use_3mf is on (Plater::send_gcode: export_3mf with Silence |
+// SkipModel | WithGcode | SkipAuxiliary): every plate's entry, this one with
+// its G-code, time, weight and filaments (slice_info.config) and the largest
+// plate picture, as Metadata/plate_<plate + 1>.*.
+bool writeGcode3mf(const std::string& path, int plate, const std::string& gcodePath, DynamicPrintConfig& cfg, GCodeProcessorResult& result,
+                   const Print& print, const ThumbnailsList& pictures) {
+    engine::Project& pr = engine::project();
+    PlateDataPtrs plates;
+    const std::string nozzles = cfg.has("nozzle_diameter") ? cfg.opt_serialize("nozzle_diameter") : std::string();
+    for (int p = 0; p < pr.plateCount; ++p) {
+        PlateData* d = new PlateData();
+        plates.push_back(d);
+        d->plate_index = p;
+        if (size_t(p) < pr.plates.size() && pr.plates[p]) {
+            d->plate_name = pr.plates[p]->plate_name;
+            d->locked = pr.plates[p]->locked;
+            d->config.apply(pr.plates[p]->config);
+        }
+        d->nozzle_diameters = nozzles;
+    }
+    for (size_t o = 0; o < pr.model.objects.size(); ++o)
+        for (size_t i = 0; i < pr.model.objects[o]->instances.size(); ++i) {
+            const int p = pr.plateOf(*pr.model.objects[o]->instances[i]);
+            if (p >= 0) plates[p]->objects_and_instances.emplace_back(int(o), int(i));
+        }
+    PlateData* d = plates[plate];
+    d->gcode_file = gcodePath;
+    d->is_sliced_valid = true;
+    d->gcode_prediction = std::to_string(int(result.print_statistics.modes[size_t(PrintEstimatedStatistics::ETimeMode::Normal)].time));
+    d->toolpath_outside = result.toolpath_outside;
+    d->is_label_object_enabled = result.label_object_enabled;
+    if (print.print_statistics().total_weight != 0.0) {
+        char weight[32];
+        std::snprintf(weight, sizeof weight, "%.2f", print.print_statistics().total_weight);
+        d->gcode_weight = weight;
+    }
+    d->is_support_used = print.is_support_used();
+    d->parse_filament_info(&result);
+
+    std::vector<ThumbnailData> thumbs(plates.size());
+    const ThumbnailData* largest = nullptr;
+    for (const ThumbnailData& t : pictures)
+        if (t.is_valid() && (!largest || t.width * t.height > largest->width * largest->height)) largest = &t;
+    if (largest) thumbs[plate] = *largest;
+    std::vector<ThumbnailData*> thumbPtrs;
+    for (ThumbnailData& t : thumbs) thumbPtrs.push_back(&t);
+
+    StoreParams params;
+    params.path = path.c_str();
+    params.model = &pr.model;
+    params.plate_data_list = plates;
+    params.export_plate_idx = plate;
+    params.config = &cfg;
+    params.thumbnail_data = thumbPtrs;
+    params.strategy = SaveStrategy::Silence | SaveStrategy::SkipModel | SaveStrategy::WithGcode | SaveStrategy::SkipAuxiliary | SaveStrategy::Zip64;
+    const bool saved = store_bbs_3mf(params);
+    release_PlateData_list(plates);
+    return saved;
+}
+
 // Slice `plate` with `configJson` (key -> serialized value, e.g. from
 // presetsFullConfig plus edits) and write the G-code to outputPath.
 // Returns {success, cancelled, error, warnings (see Warnings), gcodePath, totalLayers,
 // estimatedTimeSeconds, prepareSeconds, filamentMm: {"<1-based filament>": mm}, totalFilamentMm,
-// totalFilamentGrams, filamentParts: {"<1-based filament>": {model|support|tower|flushed:
+// totalFilamentGrams, totalCost, filamentParts: {"<1-based filament>": {model|support|tower|flushed:
 // {mm, g}}}, objectsOutside, wipeTowerDepth (when it made a prime tower)}.
 // `thumbnails` (optional) holds the plate pictures for the G-code; Orca's own
 // GCode export encodes and places them, in the formats `thumbnails` asks for.
+// `name` is the project or model name for the file name: with it, the result
+// has `fileName` (desktop's, from filename_format), and a template that can't
+// be read adds a warning instead. When the printer's use_3mf is on, the plate
+// is also written as a .gcode.3mf at outputPath + ".3mf" (result.gcode3mfPath).
 std::string sliceWithConfig(const std::string& configJson, int plate, const std::string& outputPath, emscripten::val onProgress,
-                            emscripten::val thumbnails) {
+                            emscripten::val thumbnails, std::string name) {
     json res{{"success", false}, {"cancelled", false}, {"error", ""}};
     Warnings warnings;
     try {
@@ -441,10 +518,28 @@ std::string sliceWithConfig(const std::string& configJson, int plate, const std:
         res["filamentParts"] = parts;
         res["totalFilamentMm"] = stats.total_used_filament;
         res["totalFilamentGrams"] = stats.total_weight;
+        // Desktop's Cost: the filaments' price plus the printer's time cost per hour
+        // (the G-code's "total filament cost" leaves the time out).
+        res["totalCost"] = stats.total_cost;
         // The tower this slice made, for the Prepare view (desktop shows its
         // real depth once the plate is sliced).
         if (print.has_wipe_tower() && print.is_step_done(psWipeTower) && !print.wipe_tower_data().tool_changes.empty())
             res["wipeTowerDepth"] = print.wipe_tower_data().depth;
+        if (cfg.has("use_3mf") && cfg.opt_bool("use_3mf")) {
+            const std::string bundle = outputPath + ".3mf";
+            if (writeGcode3mf(bundle, plate, outputPath, cfg, result, print, pictures)) res["gcode3mfPath"] = bundle;
+            else warnings.add("The .gcode.3mf file for this printer couldn't be made, so the plain G-code is used.", true, {}, "use_3mf");
+        }
+        if (!name.empty()) {
+            const engine::Project& pr = engine::project();
+            const std::string plateName = size_t(plate) < pr.plates.size() && pr.plates[plate] ? pr.plates[plate]->plate_name : std::string();
+            try {
+                res["fileName"] = print.fileName(name, plate, plateName);
+            } catch (const std::exception& e) {
+                warnings.add(std::string("The file name format couldn't be used, so the file is named after the project. ") + e.what(), false, {},
+                             "filename_format");
+            }
+        }
         engine::report(onProgress, 100, "Done");
     } catch (const CanceledException&) {
         res["cancelled"] = true;

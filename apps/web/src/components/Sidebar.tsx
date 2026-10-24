@@ -11,6 +11,7 @@ import { ColorMixPanel } from './ColorMixing';
 import { SyncFilamentsButton } from './FilamentSync';
 import { FlushVolumesButton } from './FlushVolumes';
 import { OptionField } from './OptionField';
+import { useOptionStates } from './SettingsPrompt';
 import { SettingsPanel } from './SettingsPanel';
 import { PresetMenu } from '../account/PresetMenu';
 import { EditPresetButton } from './PresetSettingsDialog';
@@ -35,6 +36,7 @@ function PrinterSection() {
   const catalog = useSlicer((s) => s.catalog);
   const sends = (name: string) => canSend(catalog, name, allPrinters);
   const selectedSends = selection ? sends(selection.printer) : null;
+  const plateStates = useOptionStates('global');
   const group = (p: PresetSummary) => (p.user ? 'My printers' : p.vendor || 'Other');
   const vendors = [...new Set(printers.map(group))].sort((a, b) => Number(b === 'My printers') - Number(a === 'My printers'));
   return (
@@ -79,7 +81,13 @@ function PrinterSection() {
         </p>
       )}
       {selectedSends === false && <p className="muted small printer-send">No direct print for this printer (not Klipper, a Prusa or a Centauri Carbon): download the G-code to print it, or send it from the Device tab if OctoPrint runs the printer.</p>}
-      <OptionField optKey="curr_bed_type" label="Plate type" />
+      <OptionField
+        optKey="curr_bed_type"
+        label="Plate type"
+        disabled={plateStates.disabled.has('curr_bed_type')}
+        why="This printer takes one kind of plate"
+        choices={plateStates.enumValues.curr_bed_type}
+      />
     </section>
   );
 }
