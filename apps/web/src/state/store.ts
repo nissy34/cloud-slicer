@@ -1625,7 +1625,8 @@ export const useSlicer = create<SlicerState>((set, get) => {
           if (plan.mixes.length) await e.mixed(mixRequest({ op: { kind: 'flatten', to: [...plan.mixes].sort((a, b) => a.id - b.id).map((m) => m.becomes) } }));
           for (const edit of plan.objectEdits) await e.setObjectSettings(edit.object, edit.volume, edit.values);
           const bytes = await e.saveProject({ ...get().overrides, mixed_filament_definitions: '' }, null);
-          const name = `${(s.project?.fileName || 'project').replace(/\.\w+$/, '')}.3mf`;
+          // Named like the model, so the new engine's G-code is named the same (its {input_filename_base}).
+          const name = `${(s.project?.fileName || s.project?.objects[0]?.name || 'project').replace(/\.\w+$/, '')}.3mf`;
           file = new File([bytes], name, { type: 'model/3mf' });
         }
       } catch (err) {
