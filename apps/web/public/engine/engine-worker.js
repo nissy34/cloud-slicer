@@ -137,12 +137,13 @@ if (self.name !== 'em-pthread') {
     fileConfig: (e) => JSON.parse(e.fileConfigJson()),
 
     // Adds a geometry file to the project, or opens a 3MF project
-    // (geometryOnly adds a 3MF's objects instead).
-    load(e, name, bytes, plate, printableArea, geometryOnly) {
+    // (geometryOnly adds a 3MF's objects instead). orientation: degrees the
+    // added objects turn by (the printer's preferred_orientation).
+    load(e, name, bytes, plate, printableArea, geometryOnly, orientation) {
       const path = `/work/${name.replace(/[^\w.\-]+/g, '_')}`;
       e.FS.writeFile(path, new Uint8Array(bytes));
       const [w, d] = bedSize(printableArea);
-      const res = json(e.loadModel(path, plate, w, d, !!geometryOnly));
+      const res = json(e.loadModel(path, plate, w, d, !!geometryOnly, Number(orientation) || 0));
       e.FS.unlink(path);
       return { ...res, info: JSON.parse(e.modelInfoJson()) };
     },
@@ -403,7 +404,8 @@ if (self.name !== 'em-pthread') {
     // through `cancel`, two cells in the engine's shared memory: the page
     // writes the id of the request to cancel to [0]; [1] holds the id of the
     // slice running, and the engine stops when they match.
-    slice(e, plate, overrides, thumbnails, id) {
+    // name: the project or model name, for the G-code's file name (result.fileName).
+    slice(e, plate, overrides, thumbnails, name, id) {
       if (cancel && Atomics.load(cancel, 0) === id) throw new Error('cancelled');
       const t0 = performance.now();
       const { config } = json(e.presetsFullConfig(JSON.stringify(overrides || {})));
@@ -411,14 +413,20 @@ if (self.name !== 'em-pthread') {
       let result;
       try {
         result = JSON.parse(e.sliceWithConfig(JSON.stringify(config), plate, '/work/plate.gcode', (pct, stage) =>
-          postMessage({ type: 'progress', id, pct, stage }), thumbnails || []));
+          postMessage({ type: 'progress', id, pct, stage }), thumbnails || [], name || ''));
       } finally {
         if (cancel) Atomics.store(cancel, 1, 0);
       }
       if (!result.success) throw new Error(result.error || 'Slicing failed');
       const gcode = e.FS.readFile(result.gcodePath).buffer;
       e.FS.unlink(result.gcodePath);
-      return { value: { result, gcode, ms: performance.now() - t0 }, transfer: [gcode] };
+      // The printer takes a .gcode.3mf (its use_3mf): the engine made that too.
+      let gcode3mf = null;
+      if (result.gcode3mfPath) {
+        gcode3mf = e.FS.readFile(result.gcode3mfPath).buffer;
+        e.FS.unlink(result.gcode3mfPath);
+      }
+      return { value: { result, gcode, gcode3mf, ms: performance.now() - t0 }, transfer: gcode3mf ? [gcode, gcode3mf] : [gcode] };
     },
   };
 

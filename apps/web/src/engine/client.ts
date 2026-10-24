@@ -273,11 +273,14 @@ export class EngineClient {
   modelInfo = () => this.call<ProjectInfo>('modelInfo');
   fileConfig = () => this.call<OrcaConfig>('fileConfig');
 
-  /** Adds a model file's objects, or opens a 3MF as the project unless geometryOnly. */
-  async load(file: File, plate: number, printableArea: string, geometryOnly = false) {
+  /**
+   * Adds a model file's objects, turned by `orientation` degrees (the printer's
+   * preferred orientation), or opens a 3MF as the project unless geometryOnly.
+   */
+  async load(file: File, plate: number, printableArea: string, geometryOnly = false, orientation = 0) {
     const bytes = await file.arrayBuffer();
     return this.call<{ objectsAdded: number; isProject: boolean; info: ProjectInfo }>(
-      'load', [file.name, bytes, plate, printableArea, geometryOnly], [bytes]);
+      'load', [file.name, bytes, plate, printableArea, geometryOnly, orientation], [bytes]);
   }
   /** The open project as an Orca 3MF project file (desktop's Save project). */
   saveProject = (overrides: OrcaConfig, thumbnail: ProjectThumbnail | null) =>
@@ -366,8 +369,11 @@ export class EngineClient {
   calibrate = (options: Record<string, unknown>, overrides: OrcaConfig) =>
     this.call<{ overrides: OrcaConfig; notes: string[]; info: ProjectInfo }>('calibrate', [options, overrides]);
   calibrationStop = () => this.call<void>('calibrationStop');
-  /** `thumbnails`: plate pictures for the G-code (see lib/thumbnail.ts). */
-  slice = (plate: number, overrides: OrcaConfig, thumbnails: Thumbnail[], progress: (pct: number, stage: string) => void) =>
-    this.call<{ result: SliceResult; gcode: ArrayBuffer; ms: number }>(
-      'slice', [plate, overrides, thumbnails], thumbnails.map((t) => t.pixels.buffer as ArrayBuffer), progress);
+  /**
+   * `thumbnails`: plate pictures for the G-code (see lib/thumbnail.ts). `name`:
+   * the project or model name the G-code's file name starts from (result.fileName).
+   */
+  slice = (plate: number, overrides: OrcaConfig, thumbnails: Thumbnail[], name: string, progress: (pct: number, stage: string) => void) =>
+    this.call<{ result: SliceResult; gcode: ArrayBuffer; gcode3mf: ArrayBuffer | null; ms: number }>(
+      'slice', [plate, overrides, thumbnails, name], thumbnails.map((t) => t.pixels.buffer as ArrayBuffer), progress);
 }

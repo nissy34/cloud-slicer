@@ -40,6 +40,7 @@ export function OptionField({
   entry,
   before,
   disabled = false,
+  why,
   choices,
 }: {
   slot?: number;
@@ -47,6 +48,8 @@ export function OptionField({
   /** Shown before the label (the Setting Overrides page's checkbox). */
   before?: React.ReactNode;
   disabled?: boolean;
+  /** Why it's greyed out, shown as its tooltip instead of the option's own. */
+  why?: string;
   choices?: string[];
   optKey: string;
   label?: string;
@@ -60,7 +63,7 @@ export function OptionField({
 
   const own = onChange !== undefined;
   const value = own ? ownValue : globalValue;
-  const modified = own ? true : globalModified;
+  const modified = own ? !disabled : globalModified;
   const setOverride = own ? (_: string, v: string | null) => onChange(v) : (k: string, v: string | null) => setOverrideChecked(k, v, slot);
   const variants = useSlicer((s) => processFlowModes(s.baseConfig).length);
   const flowVariant = useSlicer((s) => s.flowVariant);
@@ -89,7 +92,7 @@ export function OptionField({
 
   // One filament's text (its type, vendor, G-code) edits as a single string, or a list when Orca has one.
   const type = slotText ? (def.enumValues ? 'enum' : 'string') : perEntry ? entryType(def.type) : def.type;
-  const title = def.tooltip || undefined;
+  const title = (disabled && why) || def.tooltip || undefined;
   const text = label ?? (def.label || optKey);
   const commit = (v: string) => {
     if (v === shown) return;

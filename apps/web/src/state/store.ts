@@ -93,7 +93,8 @@ export type Job =
   | { kind: 'error'; message: string; inTool?: boolean };
 
 /** outdated: the plate's layer items (pauses...) changed after this slice, so the G-code lacks them. */
-export type SlicedJob = { kind: 'sliced'; plate: number; result: SliceResult; gcode: Blob; ms: number; outdated?: boolean };
+/** `gcode3mf`: the plate as a .gcode.3mf, made when the printer takes one (its use_3mf); downloaded and sent instead of the G-code. */
+export type SlicedJob = { kind: 'sliced'; plate: number; result: SliceResult; gcode: Blob; gcode3mf?: Blob; ms: number; outdated?: boolean };
 
 export interface SlicerState {
   tab: Tab;
@@ -1265,8 +1266,8 @@ export const useSlicer = create<SlicerState>((set, get) => {
 
     selectPrinter: async (name) => {
       await editSelection(() => ({ printer: name, process: '' }));
-      // A new printer purges its own amounts, recalculated for it (as desktop does).
-      get().resetOverrides([MATRIX, MULTIPLIER]);
+      // A new printer purges its own amounts, recalculated for it, and starts on its own default plate (as desktop does).
+      get().resetOverrides([MATRIX, MULTIPLIER, 'curr_bed_type']);
       await fitPlates().catch(fail);
     },
     async loadVendors(names) {
@@ -1402,7 +1403,9 @@ export const useSlicer = create<SlicerState>((set, get) => {
           if (!opensProject) set({ history: await e.snapshot('Add model') });
           // What wrote the project decides whether its G-code is kept (importProject).
           const head = opensProject ? await modelHeadOf3mf(file) : '';
-          const res = await e.load(file, get().plate, area, geometryOnly);
+          // Like desktop, an added model turns by the printer's preferred orientation.
+          const orientation = Number(get().overrides.preferred_orientation ?? get().baseConfig.preferred_orientation) || 0;
+          const res = await e.load(file, get().plate, area, geometryOnly, orientation);
           if (res.isProject) {
             opened = true;
             set({ plate: 0, selected: null, towers: [], history: await e.clearHistory() });
@@ -1622,7 +1625,8 @@ export const useSlicer = create<SlicerState>((set, get) => {
           if (plan.mixes.length) await e.mixed(mixRequest({ op: { kind: 'flatten', to: [...plan.mixes].sort((a, b) => a.id - b.id).map((m) => m.becomes) } }));
           for (const edit of plan.objectEdits) await e.setObjectSettings(edit.object, edit.volume, edit.values);
           const bytes = await e.saveProject({ ...get().overrides, mixed_filament_definitions: '' }, null);
-          const name = `${(s.project?.fileName || 'project').replace(/\.\w+$/, '')}.3mf`;
+          // Named like the model, so the new engine's G-code is named the same (its {input_filename_base}).
+          const name = `${(s.project?.fileName || s.project?.objects[0]?.name || 'project').replace(/\.\w+$/, '')}.3mf`;
           file = new File([bytes], name, { type: 'model/3mf' });
         }
       } catch (err) {
@@ -2211,13 +2215,22 @@ export const useSlicer = create<SlicerState>((set, get) => {
           if (keptTower(p) === undefined) await plateTower(p).catch(() => null);
           if (run !== sliceRun) return;
         }
-        const { result, gcode, ms } = await engine().slice(plate, engineOverrides(), thumbnails, (pct, stage) => {
+        // The file name starts from the project's or first model's name, as desktop's does.
+        const name = (project.fileName || project.objects[0]?.name || 'plate').replace(/\.[^.]+$/, '') || 'model';
+        const { result, gcode, gcode3mf, ms } = await engine().slice(plate, engineOverrides(), thumbnails, name, (pct, stage) => {
           const job = get().job;
           if (run === sliceRun && job.kind === 'slicing') set({ job: { ...job, pct: slicePercent(job.pct, pct, stage, layers), stage } });
         });
         if (run !== sliceRun) return;
         triangleCounts = null;
-        const sliced: SlicedJob = { kind: 'sliced', plate, result, gcode: new Blob([gcode], { type: 'text/plain' }), ms };
+        const sliced: SlicedJob = {
+          kind: 'sliced',
+          plate,
+          result,
+          gcode: new Blob([gcode], { type: 'text/plain' }),
+          ...(gcode3mf ? { gcode3mf: new Blob([gcode3mf], { type: 'model/3mf' }) } : {}),
+          ms,
+        };
         const slices = { ...get().slices, [plate]: sliced };
         if (get().plate !== plate) {
           // Another plate was picked meanwhile: stay on it, with a link to this one.

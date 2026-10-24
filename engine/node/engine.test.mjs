@@ -31,12 +31,12 @@ const fullConfig = (overrides = {}) => call(engine, 'presetsFullConfig', JSON.st
 
 // Opens a fixture as a new project; `add` adds it to the open one instead
 // (a 3MF as geometry only).
-function load(name, plate = 0, add = false) {
+function load(name, plate = 0, add = false, orientation = 0) {
   const path = `/work/${name}`;
   engine.FS.writeFile(path, typeof name === 'string' && !name.startsWith('gen-') ? readFileSync(resolve(fixtures, name)) : generated[name]);
   const [w, d] = bedSize(fullConfig());
   if (!add) engine.clearModel();
-  call(engine, 'loadModel', path, plate, w, d, add);
+  call(engine, 'loadModel', path, plate, w, d, add, orientation);
   return JSON.parse(engine.modelInfoJson());
 }
 
@@ -113,8 +113,8 @@ function zip(files) {
   return Buffer.concat([...locals, dirBuf, tail]);
 }
 
-function slice(config, plate = 0, thumbnails = null) {
-  const result = JSON.parse(engine.sliceWithConfig(JSON.stringify(config), plate, '/work/out.gcode', null, thumbnails));
+function slice(config, plate = 0, thumbnails = null, name = '') {
+  const result = JSON.parse(engine.sliceWithConfig(JSON.stringify(config), plate, '/work/out.gcode', null, thumbnails, name));
   assert.ok(result.success, `slice failed: ${result.error}`);
   return { result, gcode: new TextDecoder().decode(engine.FS.readFile(result.gcodePath)) };
 }
@@ -239,7 +239,7 @@ test('a slice stops when the page cancels it, and the engine slices again after'
         seen.push(pct);
         // The page clicks Cancel while the engine is busy (here, from inside its progress callback).
         if (cancelAt != null && pct >= cancelAt) Atomics.store(cells, 0, cancelAt === -1 ? id + 1 : id);
-      }, null)) };
+      }, null, '')) };
     } finally {
       Atomics.store(cells, 1, 0);
     }
@@ -1832,4 +1832,65 @@ test('assemble several chosen objects: one object, every part where it stood', (
 
   assert.throws(() => plate(0, { op: 'assemble', items: [{ object: 0, instance: 0 }] }), /at least two/);
   assert.throws(() => plate(0, { op: 'assemble', items: [{ object: 9, instance: 0 }, { object: 0, instance: 0 }] }), /no object/);
+});
+
+test("plate type: a printer starts on its own plate, and any plate can be picked", () => {
+  select({ printer: DEFAULT_PRINTER, process: STANDARD });
+  assert.equal(fullConfig().curr_bed_type, 'Textured PEI Plate', "the U1's default plate");
+  for (const plate of ['Cool Plate', 'High Temp Plate', 'Supertack Plate']) assert.equal(fullConfig({ curr_bed_type: plate }).curr_bed_type, plate);
+  // Snapmaker Orca's Graphic Effect plate is in its extended list only; it is offered too.
+  const plates = JSON.parse(engine.configOptionsJson()).curr_bed_type.enumValues;
+  assert.equal(plates.includes('Graphic Effect Plate'), flavor.flavor !== 'orca', plates.join(', '));
+});
+
+test("the G-code's file name comes from the process preset's filename format, like desktop", () => {
+  select({ printer: DEFAULT_PRINTER, process: STANDARD });
+  load('tetrahedron.stl');
+  const cfg = fullConfig({ filename_format: '{input_filename_base}_p{plate_number}_{total_weight}g{if total_weight > 0}_full{endif}.gcode' });
+  const { result } = slice(cfg, 0, null, 'tetrahedron');
+  assert.match(result.fileName, /^tetrahedron_p01_[\d.]+g_full\.gcode$/, result.fileName);
+  // The default format names the plate, the filament and the time.
+  const plain = slice(fullConfig(), 0, null, 'tetrahedron').result.fileName;
+  assert.match(plain, /^tetrahedron_plate_01_PLA_.+\.gcode$/, plain);
+});
+
+test("the cost counts the printer's time cost as well as the filament, like desktop", () => {
+  select({ printer: DEFAULT_PRINTER, process: STANDARD });
+  load('tetrahedron.stl');
+  const cfg = fullConfig();
+  const filamentOnly = slice({ ...cfg, time_cost: '0' }).result;
+  const withTime = slice({ ...cfg, time_cost: '6' }).result;
+  const hours = withTime.estimatedTimeSeconds / 3600;
+  assert.ok(Math.abs(withTime.totalCost - filamentOnly.totalCost - 6 * hours) < 0.01, `${filamentOnly.totalCost} → ${withTime.totalCost} over ${hours} h`);
+});
+
+test("an added model turns by the printer's preferred orientation", () => {
+  select({ printer: DEFAULT_PRINTER });
+  const span = () => {
+    const p = engine.previewMesh(0).positions;
+    const [x, y] = [[Infinity, -Infinity], [Infinity, -Infinity]];
+    for (let i = 0; i < p.length; i += 3) {
+      x[0] = Math.min(x[0], p[i]); x[1] = Math.max(x[1], p[i]);
+      y[0] = Math.min(y[0], p[i + 1]); y[1] = Math.max(y[1], p[i + 1]);
+    }
+    return [x[1] - x[0], y[1] - y[0]];
+  };
+  load('gen-two-cubes.stl');
+  const [w, d] = span();
+  assert.ok(w > 2 * d, `long in X: ${w} × ${d}`);
+  load('gen-two-cubes.stl', 0, false, 90);
+  const [w2, d2] = span();
+  assert.ok(d2 > 2 * w2, `turned to Y: ${w2} × ${d2}`);
+});
+
+test('a printer that takes a .gcode.3mf gets the plate in one, like desktop', (t) => {
+  if (!JSON.parse(engine.configOptionsJson()).use_3mf) return t.skip('Snapmaker Orca has no "Use 3MF instead of G-code"');
+  select({ printer: DEFAULT_PRINTER, process: STANDARD });
+  load('tetrahedron.stl');
+  const { result, gcode } = slice({ ...fullConfig(), use_3mf: '1' }, 0, null, 'tetrahedron');
+  assert.ok(result.gcode3mfPath, JSON.stringify(result.warnings));
+  const files = unzip(engine.FS.readFile(result.gcode3mfPath));
+  assert.equal(files['Metadata/plate_1.gcode'].toString(), gcode);
+  assert.match(files['Metadata/slice_info.config'].toString(), /<plate>/);
+  assert.ok(!slice(fullConfig()).result.gcode3mfPath, 'only when the printer asks for it');
 });

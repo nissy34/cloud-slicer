@@ -6,6 +6,7 @@
 export { DeviceScreen } from './ui/DeviceScreen';
 import { useDevice } from '../state/device';
 
-export function sendToPrinter(gcode: Blob, fileName: string, slicedFor?: string) {
-  useDevice.getState().requestSend(gcode, fileName, slicedFor);
+/** `file` is the G-code, or a .gcode.3mf holding `gcode`. */
+export function sendToPrinter(file: Blob, fileName: string, slicedFor?: string, gcode?: Blob) {
+  useDevice.getState().requestSend(file, fileName, slicedFor, gcode);
 }

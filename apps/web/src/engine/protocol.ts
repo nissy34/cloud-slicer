@@ -246,6 +246,12 @@ export interface SliceResult {
   filamentMm: Record<string, number>;
   totalFilamentMm: number;
   totalFilamentGrams: number;
+  /** Desktop's Cost: the filaments' price plus the printer's time cost per hour of printing. */
+  totalCost?: number;
+  /** The G-code's file name as desktop makes it, from the process preset's filename_format. */
+  fileName?: string;
+  /** Set when the printer takes a .gcode.3mf (its use_3mf): the slice made one too. */
+  gcode3mfPath?: string;
   /** Each filament's use (1-based) split like desktop's Filament view; parts it has none of are left out. */
   filamentParts?: Record<string, Partial<Record<FilamentPart, { mm: number; g: number }>>>;
   /** Depth of the prime tower the slice made (mm), when it made one. */

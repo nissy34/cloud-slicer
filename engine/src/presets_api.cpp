@@ -17,6 +17,7 @@
 #include <boost/algorithm/string/predicate.hpp>
 #include <boost/nowide/cstdio.hpp>
 
+#include <algorithm>
 #include <climits>
 #include <memory>
 #include <set>
@@ -180,6 +181,22 @@ std::string presetsLoad(const std::string& dataDir) {
     }
 }
 
+// A newly chosen printer starts on its default plate, like desktop. Any plate
+// can then be picked (Nissan's call: the site doesn't limit the list the way
+// desktop does for one-plate printers). Profiles name the default plate
+// ("Textured PEI Plate"), which OrcaSlicer's get_default_bed_type reads only
+// as a number, so a name is looked up first.
+BedType defaultBedType(PresetBundle& b) {
+    Preset& printer = b.printers.get_edited_preset();
+    if (printer.config.has("default_bed_type")) {
+        const auto& names = ConfigOptionEnum<BedType>::get_enum_values();
+        if (auto it = names.find(printer.config.opt_string("default_bed_type")); it != names.end() && it->second != btDefault) return BedType(it->second);
+    }
+    return printer.get_default_bed_type(&b);
+}
+
+void setBedType(DynamicPrintConfig& cfg, BedType type) { cfg.set_key_value("curr_bed_type", new ConfigOptionEnum<BedType>(type)); }
+
 // All visible printer presets.
 std::string presetsPrinters() { return collectionJson(bundle().printers, false).dump(); }
 
@@ -257,6 +274,7 @@ std::string presetsSelect(const std::string& selectionJsonText) {
             if (!fallback.empty() && ((printerChanged && !filamentsGiven) || p == nullptr || !p->is_compatible)) name = fallback;
         }
         if (!fallback.empty() && !b.filament_presets.empty()) b.filaments.select_preset_by_name(b.filament_presets.front(), true);
+        if (printerChanged) setBedType(b.project_config, defaultBedType(b));
         // Like desktop, a changed filament or colour recalculates the flushing volumes.
         const json flush = engine::autoFlushVolumes(b);
 
@@ -450,8 +468,18 @@ std::string configOptionsJson() {
         if (def.max != INT_MAX) o["max"] = def.max;
         // Above this a "mm or %" value is probably meant as % (desktop asks).
         if (def.max_literal != 1) o["maxLiteral"] = def.max_literal;
-        if (!def.enum_values.empty()) o["enumValues"] = def.enum_values;
-        if (!def.enum_labels.empty()) o["enumLabels"] = def.enum_labels;
+        std::vector<std::string> values = def.enum_values, labels = def.enum_labels;
+#if !ENGINE_UPSTREAM
+        // Snapmaker Orca keeps some choices (the Graphic Effect plate) only in
+        // its extended list: offer those too, after the usual ones.
+        for (size_t i = 0; i < def.enum_values_ex.size(); ++i)
+            if (std::find(values.begin(), values.end(), def.enum_values_ex[i]) == values.end()) {
+                values.push_back(def.enum_values_ex[i]);
+                if (!labels.empty()) labels.push_back(i < def.enum_labels_ex.size() ? def.enum_labels_ex[i] : def.enum_values_ex[i]);
+            }
+#endif
+        if (!values.empty()) o["enumValues"] = values;
+        if (!labels.empty()) o["enumLabels"] = labels;
         if (def.type == coEnums) {
             // The default of an enum-list option can lack its keys map (the
             // filament_* copies of extruder options), and serialize() then walks

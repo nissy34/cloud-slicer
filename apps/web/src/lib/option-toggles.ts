@@ -325,6 +325,7 @@ export function optionStates(cfg: OrcaConfig, ctx: ToggleContext): OptionStates 
 
   // ---- Printer (TabPrinter::toggle_options) ----
   toggleLine(['scan_first_layer', 'bbl_calib_mark_logo', 'bbl_use_printhost'], isBBL);
+  toggleLine('parallel_printheads_count', c.bool('support_parallel_printheads'));
   toggleField('extruders_count', !bSEMM);
   toggleField('manual_filament_change', bSEMM);
   toggleField('purge_in_prime_tower', bSEMM && !isBBL);

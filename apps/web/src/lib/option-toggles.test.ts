@@ -86,6 +86,11 @@ describe('optionStates', () => {
     expect(u1.has('graphic_effect_plate_temp_initial_layer')).toBe(false);
   });
 
+  it('shows parallel printheads only for printers that have them', () => {
+    expect(optionStates(base, ctx).hidden.has('parallel_printheads_count')).toBe(true);
+    expect(optionStates({ ...base, support_parallel_printheads: '1' }, ctx).hidden.has('parallel_printheads_count')).toBe(false);
+  });
+
   it('shows the flush into objects switch only in an object\'s settings', () => {
     expect(optionStates(base, ctx).hidden.has('flush_into_objects')).toBe(true);
     expect(optionStates(base, { ...ctx, scope: 'object' }).hidden.has('flush_into_objects')).toBe(false);
