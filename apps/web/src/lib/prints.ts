@@ -227,6 +227,33 @@ export function changesBetween(then: PlateSummary, now: PlateSummary, label: (ke
   return out;
 }
 
+/**
+ * The line each G-code sent or downloaded from a saved project carries, right
+ * after its first line, so the file says which plate it is wherever it goes
+ * (renamed, started from the printer's screen, copied to an SD card):
+ *   ; cloud_slicer_print = <project id>/<plate number, from 1>/<fingerprint>
+ * Only the account that owns the project can do anything with it.
+ */
+export const PRINT_TAG = 'cloud_slicer_print';
+
+export function printTagLine(o: { projectId: string; plate: number; fingerprint: string }): string {
+  return `; ${PRINT_TAG} = ${o.projectId}/${o.plate + 1}/${o.fingerprint}\n`;
+}
+
+/** The plate a G-code's text (its first few KB are enough) says it is, or null. */
+export function readPrintTag(text: string): { projectId: string; plate: number; fingerprint: string } | null {
+  const m = new RegExp(`^; ${PRINT_TAG} = ([A-Za-z0-9_-]{1,64})/(\\d{1,4})/([0-9a-f]{8,64})\\s*$`, 'm').exec(text);
+  return m && Number(m[2]) >= 1 ? { projectId: m[1], plate: Number(m[2]) - 1, fingerprint: m[3] } : null;
+}
+
+/** The G-code with its tag line after the first line (the rest is not copied, only referenced). */
+export async function withPrintTag(gcode: Blob, o: { projectId: string; plate: number; fingerprint: string }): Promise<Blob> {
+  const head = await gcode.slice(0, 4096).text();
+  const end = head.indexOf('\n');
+  const at = end < 0 ? 0 : new TextEncoder().encode(head.slice(0, end + 1)).length;
+  return new Blob([gcode.slice(0, at), printTagLine(o), gcode.slice(at)], { type: gcode.type });
+}
+
 /** A file name as the printer reports it, for comparing with what was sent ("gcodes/a.gcode" = "a.gcode"). */
 export function sameFile(a: string, b: string): boolean {
   const norm = (s: string) => s.replace(/\\/g, '/').replace(/^\/+/, '').replace(/^gcodes\//i, '').toLowerCase();

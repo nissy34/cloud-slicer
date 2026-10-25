@@ -4,6 +4,7 @@ import type { SliceWarning } from '../engine/protocol';
 import { sentence, stageLabel } from '../lib/format';
 import { clearanceProblems } from '../lib/clearance';
 import { blocksPrinting, OBJECT_CLASHED } from '../lib/outside';
+import { withPrintTag } from '../lib/prints';
 import { LIGHT_TRIANGLES, triangleCount } from '../lib/simplify';
 import { useProjects } from '../state/projects';
 import { useObjectsOutside, useSlicer } from '../state/store';
@@ -139,6 +140,16 @@ export function ActionBar() {
   // A printer that takes a .gcode.3mf (its "Use 3MF instead of G-code") gets the plate in one, named like desktop's.
   const bundle = job.kind === 'sliced' ? job.gcode3mf : undefined;
   const fileName = bundle ? gcodeName.replace(/\.gcode$/i, '') + '.gcode.3mf' : gcodeName;
+  // A saved project's plate, for the print history; its G-code carries the tag line (lib/prints.ts).
+  const printOrigin = () => {
+    const projectId = useProjects.getState().current.id;
+    return projectId && job.kind === 'sliced' && job.printed ? { projectId, plate: job.plate, ...job.printed } : undefined;
+  };
+  const tagged = async () => {
+    if (job.kind !== 'sliced') throw new Error('not sliced');
+    const origin = printOrigin();
+    return origin ? withPrintTag(job.gcode, origin) : job.gcode;
+  };
   return (
     <div className="actionbar" data-testid="actionbar">
       <div className="status" aria-live="polite">
@@ -227,7 +238,7 @@ export function ActionBar() {
               aria-label={bundle ? 'Download G-code 3MF' : 'Download G-code'}
               disabled={unprintable}
               title={unprintable ? 'The toolpaths leave the build volume' : bundle ? 'This printer takes the G-code in a .gcode.3mf file' : undefined}
-              onClick={() => download(bundle ?? job.gcode, fileName)}
+              onClick={async () => download(bundle ?? (await tagged()), fileName)}
             >
               <span className="wide-only">{bundle ? 'Download G-code 3MF' : 'Download G-code'}</span>
               <span className="phone-only">Download</span>
@@ -237,10 +248,9 @@ export function ActionBar() {
               aria-label="Send to printer"
               disabled={unprintable}
               title={unprintable ? 'The toolpaths leave the build volume' : undefined}
-              onClick={() => {
-                const projectId = useProjects.getState().current.id;
-                const origin = projectId && job.printed ? { projectId, plate: job.plate, ...job.printed } : undefined;
-                sendToPrinter(bundle ?? job.gcode, fileName, useSlicer.getState().selection?.printer, bundle && job.gcode, origin);
+              onClick={async () => {
+                const origin = printOrigin();
+                sendToPrinter(bundle ?? (await tagged()), fileName, useSlicer.getState().selection?.printer, bundle && job.gcode, origin);
                 setTab('device');
               }}
             >
