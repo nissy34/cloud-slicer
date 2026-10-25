@@ -13,7 +13,7 @@
 // file reads the AMS from the one and starts prints with the other, the way
 // Bambu Studio does (OpenBambuAPI's mqtt.md; Orca's SelectMachine.cpp).
 import type { KlipperObjects } from '../status';
-import type { FilamentSlot, PrintOptions } from '../slots';
+import type { FilamentSlot, PrintOptions } from '../slot-types';
 import type { PrinterAddon, PrinterCall, PrintStart } from './types';
 
 /** The outside spool's tray id, in the printer's own numbering. */

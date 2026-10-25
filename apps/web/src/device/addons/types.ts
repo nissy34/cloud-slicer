@@ -3,7 +3,7 @@
 // blends whatever it adds into the same cards (tool heads, print dialog,
 // chamber), so the user sees one screen, not a generic one plus extras.
 import type { KlipperObjects } from '../status';
-import type { FilamentSlot, PrintOptions, SlotWords } from '../slots';
+import type { FilamentSlot, PrintOptions, SlotWords } from '../slot-types';
 
 export interface PrinterFacts {
   /** printer.objects.list */

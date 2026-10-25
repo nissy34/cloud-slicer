@@ -7,7 +7,7 @@ import { extruderIndex, type Fan, type KlipperObjects } from '../status';
 import type { PrinterAddon } from './types';
 import { u1Errors } from './u1-errors';
 import { filamentInExtruders } from '../heads';
-import type { FilamentSlot, PrintOptions } from '../slots';
+import type { FilamentSlot, PrintOptions } from '../slot-types';
 
 export const U1_HEADS = 4;
 export const U1_LIGHT = 'led cavity_led';

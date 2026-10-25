@@ -13,7 +13,7 @@
 // here every loaded head comes in, which is what loading a printer means.
 import { differenceCiede2000 } from 'culori';
 import type { PresetSummary } from '../engine/protocol';
-import type { FilamentSlot } from '../device/slots';
+import type { FilamentSlot } from '../device/slot-types';
 import { pickFilamentPreset } from './presets';
 
 /** One of the printer's filaments (a tool head's, an AMS slot's) as the slicer sees it. */
