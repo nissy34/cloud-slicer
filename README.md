@@ -112,8 +112,9 @@ hosted on Cloudflare's free tier.
 - **Colour mixing**: Snapmaker Orca's mixed filaments, virtual filaments made of two or
   more physical ones, usable anywhere a filament is.
 - **Filaments from the printer**: "From printer" in the Filament section loads what is in
-  a U1's tool heads (material, brand, colour) into the project, like desktop's Sync
-  filament: match each project filament to the closest loaded one, or replace the list.
+  a U1's tool heads or a Bambu Lab AMS (material, brand, colour) into the project, like
+  desktop's Sync filament: match each project filament to the closest loaded one, or
+  replace the list.
 - **Calibration tests** from desktop's Calibration menu: temperature, flow rate, pressure
   advance (tower, lines or pattern, with direct drive / Bowden ranges and the pattern's
   speed and acceleration lists), retraction, max volumetric speed, VFA, input shaping,
@@ -152,7 +153,8 @@ hosted on Cloudflare's free tier.
   above, plus Move, temperatures, the console and its cameras), the Elegoo Centauri Carbon
   (status, files, upload, print, pause, resume, cancel and its camera) and Bambu Lab printers
   (all of that plus Move and temperatures, with LAN Only mode and Developer Mode on; camera on
-  P1 and A1), plus Snapmaker U1 extras (tool heads, filament sync, the U1 print
+  P1 and A1; filament sync from the AMS, and the print dialog picks an AMS slot for each
+  filament), plus Snapmaker U1 extras (tool heads, filament sync, the U1 print
   dialog, the U1's error codes in Snapmaker's own words). Printers on a home network are reached through a small bridge app.
 - **Light and dark theme**, a layout that works on phones (an open tool stacks the toolbar, its options and the model, with the settings hidden until Done), and installable as an app
   (PWA) on Android.
@@ -364,9 +366,18 @@ says so, and without them the printer still shows its status and the Device tab 
 the printer's refusal of anything else. They show status, the chamber (X1, H2), files,
 upload, print, pause, resume, cancel, Move, temperatures and the console (the printer
 sends no replies), and the camera on P1 and A1 (X1, H2 and P2S send video only Bambu's
-apps play) (`addons/bambu.ts`, `apps/device-bridge/bambu.go`; tested against a pretend
-printer, `apps/device-bridge/internal/fakebambu`; not yet tried on a real one). Nothing
-of Bambu's is used to sign commands.
+apps play). Like the desktop slicer, the site makes a **.gcode.3mf** for a Bambu printer
+(Download and Send), since only such a file says which filament goes where: the print
+dialog then picks an AMS slot (or the outside spool) for each filament, same type only,
+closest colour first, and asks for bed levelling, flow calibration and time-lapse, the
+way Bambu Studio's Send does. "From printer" in the Filament section reads the AMS.
+Both come from the printer's own report, which the bridge passes on as it is; the
+print command is the site's own (`addons/bambu.ts`, `device/slots.ts`,
+`apps/device-bridge/bambu.go`; tested against a pretend printer,
+`apps/device-bridge/internal/fakebambu`; not yet tried on a real one). Nothing
+of Bambu's is used to sign commands. Printers of other brands that report no slots
+(Prusa XL and INDX, Klipper printers with a filament changer) print filament n from
+their slot n.
 The add-printer dialog's "Which
 printers work?" lists the printers the Device tab reaches. The cards can be arranged: **Arrange** at the top of the tab moves
 cards by their grip into 2 or 3 columns or across the top or bottom, hides them, makes

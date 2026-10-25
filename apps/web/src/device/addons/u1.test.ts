@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { nozzleGcode, parkHeadGcode, pickHeadGcode, feedChannels, feedGcode, filamentConfigGcode, purifierGcode, suggestToolMap, u1Activity, u1Addon, u1Heads, u1MappingCheck, u1MaterialMatches, u1NoHeadReason, u1PrintPrepGcode, u1Purifier, u1Fans } from './u1';
+import { materialMatches, noSlotReason, slotCheck, suggestSlotMap } from '../slots';
+import { nozzleGcode, parkHeadGcode, pickHeadGcode, feedChannels, feedGcode, filamentConfigGcode, purifierGcode, u1Activity, u1Addon, u1Heads, u1PrintPrepGcode, u1Purifier, u1Fans } from './u1';
 
 const objects = {
   print_task_config: {
@@ -14,6 +15,8 @@ const objects = {
   'filament_feed right': { extruder2: { channel_error: 'ok' }, extruder3: { channel_error: 'feed_timeout' } },
   purifier: { power_detected: true, exhaust_fan: { speed: 0.4 }, inner_fan: { speed: 0 } },
 };
+
+const words = u1Addon.filaments!.words;
 
 describe('U1 add-on', () => {
   it('recognises a U1 and asks for its own objects', () => {
@@ -73,26 +76,27 @@ describe('U1 add-on', () => {
 
   it('suggests a head per filament by material and colour', () => {
     const heads = u1Heads(objects);
-    const map = suggestToolMap(
+    const map = suggestSlotMap(
       [
         { index: 0, colour: '#E0301E', material: 'PETG' },
         { index: 1, colour: '#00EE00', material: 'PLA' },
         { index: 2, colour: '#333333', material: 'PLA' },
       ],
       heads,
+      words,
     );
     expect(map).toEqual({ 0: 1, 1: 2, 2: 0 });
   });
 
   it('matches filament types the way Snapmaker does', () => {
-    expect(u1MaterialMatches('PLA', { material: 'PLA', subType: 'Matte' })).toBe(true);
-    expect(u1MaterialMatches('pla', { material: 'PLA', subType: '' })).toBe(true);
-    expect(u1MaterialMatches('PLA-CF', { material: 'PLA', subType: 'CF' })).toBe(true);
-    expect(u1MaterialMatches('PLA CF', { material: 'PLA-CF', subType: '' })).toBe(true);
-    expect(u1MaterialMatches('PETG', { material: 'PLA', subType: 'Basic' })).toBe(false);
-    expect(u1MaterialMatches('TPU', { material: 'PLA', subType: '' })).toBe(false);
-    expect(u1MaterialMatches('PLA-CF', { material: 'PLA', subType: 'Matte' })).toBe(false);
-    expect(u1MaterialMatches('PLA', { material: '', subType: '' })).toBe(false);
+    expect(materialMatches('PLA', { material: 'PLA', subType: 'Matte' })).toBe(true);
+    expect(materialMatches('pla', { material: 'PLA', subType: '' })).toBe(true);
+    expect(materialMatches('PLA-CF', { material: 'PLA', subType: 'CF' })).toBe(true);
+    expect(materialMatches('PLA CF', { material: 'PLA-CF', subType: '' })).toBe(true);
+    expect(materialMatches('PETG', { material: 'PLA', subType: 'Basic' })).toBe(false);
+    expect(materialMatches('TPU', { material: 'PLA', subType: '' })).toBe(false);
+    expect(materialMatches('PLA-CF', { material: 'PLA', subType: 'Matte' })).toBe(false);
+    expect(materialMatches('PLA', { material: '', subType: '' })).toBe(false);
   });
 
   it('blocks a filament on a head with another type, no filament or another nozzle size', () => {
@@ -103,23 +107,23 @@ describe('U1 add-on', () => {
       extruder2: { nozzle_diameter: 0.6, nozzle_volume_type: 'standard' },
     });
     const pla = { index: 0, colour: '#333333', material: 'PLA', nozzle: 0.4 };
-    expect(u1MappingCheck(pla, heads[0])).toEqual({ blocked: null, warning: null });
-    expect(u1MappingCheck(pla, heads[1]).blocked).toMatch(/T2 has PETG Basic, but this filament was sliced as PLA/);
-    expect(u1MappingCheck(pla, heads[2]).blocked).toMatch(/0\.6 mm nozzle.*0\.4 mm/);
-    expect(u1MappingCheck(pla, heads[3]).blocked).toMatch(/T4 has no filament type/);
+    expect(slotCheck(pla, heads[0], words)).toEqual({ blocked: null, warning: null });
+    expect(slotCheck(pla, heads[1], words).blocked).toMatch(/T2 has PETG Basic, but this filament was sliced as PLA/);
+    expect(slotCheck(pla, heads[2], words).blocked).toMatch(/0\.6 mm nozzle.*0\.4 mm/);
+    expect(slotCheck(pla, heads[3], words).blocked).toMatch(/T4 has no filament type/);
     // Not knowing the file's material or nozzle never blocks.
-    expect(u1MappingCheck({ ...pla, material: '', nozzle: undefined }, heads[1]).blocked).toBeNull();
+    expect(slotCheck({ ...pla, material: '', nozzle: undefined }, heads[1], words).blocked).toBeNull();
     // A high-flow file on a standard nozzle is only a warning.
-    expect(u1MappingCheck({ ...pla, highFlow: true }, heads[0])).toEqual({ blocked: null, warning: expect.stringMatching(/high-flow/) });
+    expect(slotCheck({ ...pla, highFlow: true }, heads[0], words)).toEqual({ blocked: null, warning: expect.stringMatching(/high-flow/) });
   });
 
   it('never suggests a head the filament is not allowed on', () => {
     const heads = u1Heads(objects);
     // No head has TPU: no head at all, never a head of another type.
-    expect(suggestToolMap([{ index: 1, colour: '#E72F1D', material: 'TPU' }], heads)).toEqual({ 1: -1 });
-    expect(u1NoHeadReason({ index: 1, colour: '#E72F1D', material: 'TPU' })).toMatch(/^No tool head has TPU\./);
+    expect(suggestSlotMap([{ index: 1, colour: '#E72F1D', material: 'TPU' }], heads, words)).toEqual({ 1: -1 });
+    expect(noSlotReason({ index: 1, colour: '#E72F1D', material: 'TPU' }, words)).toMatch(/^No tool head has TPU\./);
     // A red PLA goes to a PLA head, not to the red PETG one.
-    expect(suggestToolMap([{ index: 0, colour: '#E72F1D', material: 'PLA' }], heads)[0]).not.toBe(1);
+    expect(suggestSlotMap([{ index: 0, colour: '#E72F1D', material: 'PLA' }], heads, words)[0]).not.toBe(1);
   });
 
   it('sends preferences and the tool map before a print', () => {

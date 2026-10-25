@@ -2,7 +2,7 @@
 // Browser end to end for "From printer" in the Filament section (desktop's Sync
 // filament): load a mock U1's tool heads into the project on an empty plate
 // (replace), then with a model (match colours, add the other heads, replace
-// moving the model's filament), and the dialog on a phone. Only the MOCK
+// moving the model's filament), a Bambu Lab printer's AMS, and the dialog on a phone. Only the MOCK
 // printer (test/device/mock-printer.mjs) is used; nothing is printed.
 //
 //   npm run build && node test/sync-filaments.mjs [screenshot-dir]
@@ -39,11 +39,25 @@ const shot = async (page, name) => shots && (await page.screenshot({ path: join(
 
 const u1 = await startMockPrinter();
 const voron = await startMockPrinter({ generic: true });
+// A Bambu Lab P1S as the bridge passes it on: the printer's own report, with its AMS.
+const tray = (id, type, line, color) => ({ id: String(id), tray_type: type, tray_sub_brands: line, tray_color: color });
+const p1s = await startMockPrinter({
+  generic: true,
+  hostname: 'P1S-mock',
+  brand: 'bambu',
+  objects: {
+    bambu: {
+      ams: { ams: [{ id: '0', tray: [tray(0, 'PLA', 'PLA Basic', 'FFFFFFFF'), tray(1, '', '', '00000000'), tray(2, 'PLA', 'PLA Matte', 'C12E1FFF'), tray(3, 'PETG', 'PETG HF', '000000FF')] }] },
+      vt_tray: tray(254, '', '', '00000000'),
+    },
+  },
+});
 const browser = await chromium.launch(process.env.PLAYWRIGHT_BROWSERS_PATH === '/opt/pw-browsers' ? { executablePath: '/opt/pw-browsers/chromium' } : {});
 // The printers this browser has saved (signed out: the account store's local copy).
 const devices = [
   { id: 'u1', name: 'U1-mock', preset: '', url: u1.url, hasApiKey: false, apiKey: '', extra: { kind: 'direct' }, version: 1, updatedAt: 1 },
   { id: 'voron', name: 'voron-mock', preset: '', url: voron.url, hasApiKey: false, apiKey: '', extra: { kind: 'direct' }, version: 1, updatedAt: 1 },
+  { id: 'p1s', name: 'P1S-mock', preset: '', url: p1s.url, hasApiKey: false, apiKey: '', extra: { kind: 'direct' }, version: 1, updatedAt: 1 },
 ];
 
 async function open(viewport) {
@@ -141,7 +155,7 @@ try {
   u1.patch({ print_task_config: { filament_type: ['PLA', 'PLA', 'PLA', 'PETG'], filament_exist: [true, true, true, true] } });
   await page.getByTestId('sync-filaments').click();
   await dialog.getByTestId('sync-rows').waitFor();
-  await dialog.getByLabel(/Also add the filaments on the other heads/).check();
+  await dialog.getByLabel(/Also add the filaments on the other tool heads/).check();
   await dialog.getByTestId('sync-load').click();
   await dialog.waitFor({ state: 'detached' });
   s = await slots(page);
@@ -151,12 +165,22 @@ try {
   // ---- a printer that isn't a U1 -------------------------------------------------------
   await page.getByTestId('sync-filaments').click();
   await dialog.getByLabel('Printer', { exact: true }).selectOption({ label: 'voron-mock' });
-  await dialog.getByTestId('sync-status').filter({ hasText: 'is not a Snapmaker U1' }).waitFor({ timeout: 30000 });
+  await dialog.getByTestId('sync-status').filter({ hasText: "doesn't say what filament is loaded" }).waitFor({ timeout: 30000 });
   check(await dialog.getByTestId('sync-load').isDisabled(), 'nothing to load from a non-U1');
+  console.log('a generic Klipper printer says it cannot report filaments');
+
+  // ---- a Bambu Lab printer: its AMS slots -------------------------------------------------
+  await dialog.getByLabel('Printer', { exact: true }).selectOption({ label: 'P1S-mock' });
+  await dialog.getByTestId('sync-rows').filter({ hasText: 'A1' }).waitFor({ timeout: 30000 });
+  const ams = await dialog.getByTestId('sync-rows').innerText();
+  for (const word of ['A1 · Bambu PLA Basic', 'A3 · Bambu PLA Matte', 'A4 · Bambu PETG HF']) check(ams.includes(word), `AMS rows: ${ams}`);
+  check(!ams.includes('A2') && !ams.includes('Outside spool'), `empty AMS slots are left out: ${ams}`);
+  await dialog.getByRole('radio', { name: 'Replace all' }).click();
+  await shot(page, 'bambu-ams');
   await dialog.getByLabel('Printer', { exact: true }).selectOption({ label: 'U1-mock' });
   await dialog.getByTestId('sync-rows').waitFor({ timeout: 30000 });
   await dialog.getByRole('button', { name: 'Cancel' }).click();
-  console.log('a generic Klipper printer says it cannot report filaments');
+  console.log('a Bambu Lab printer offers its loaded AMS slots');
   await page.close();
 
   // ---- phone ------------------------------------------------------------------------------
@@ -185,5 +209,6 @@ try {
   await browser.close();
   await u1.close();
   await voron.close();
+  await p1s.close();
   process.kill(-server.pid);
 }

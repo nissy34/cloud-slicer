@@ -144,8 +144,11 @@ export function thumbnailBlock(png) {
   return `; THUMBNAIL_BLOCK_START\n;\n; thumbnail begin ${png.readUInt32BE(16)}x${png.readUInt32BE(20)} ${b64.length}\n${rows}; thumbnail end\n; THUMBNAIL_BLOCK_END\n`;
 }
 
-export async function startMockPrinter({ port = 0, host = '127.0.0.1', generic = false, hostname = generic ? 'voron-mock' : 'U1-mock', apiKey = '', screen = false } = {}) {
-  let state = u1State(generic);
+// `brand` and `objects` make it stand in for the bridge's stand-in for another
+// kind of printer: printer.info's brand, and that printer's own objects.
+export async function startMockPrinter({ port = 0, host = '127.0.0.1', generic = false, hostname = generic ? 'voron-mock' : 'U1-mock', apiKey = '', screen = false, brand = '', objects = {} } = {}) {
+  const fresh = () => ({ ...u1State(generic), ...structuredClone(objects) });
+  let state = fresh();
   // Three objects, the way Orca labels them for Klipper's exclude_object.
   const labels = [
     'EXCLUDE_OBJECT_DEFINE NAME=Calibration_cube.stl_id_0_copy_0 CENTER=80,80 POLYGON=[[60,60],[100,60],[100,100],[60,100]]',
@@ -348,7 +351,7 @@ export async function startMockPrinter({ port = 0, host = '127.0.0.1', generic =
       case 'server.info':
         return { klippy_state: state.webhooks.state, moonraker_version: 'v0.9-mock' };
       case 'printer.info':
-        return { state: 'ready', hostname, software_version: 'mock' };
+        return { state: 'ready', hostname, software_version: 'mock', ...(brand ? { brand } : {}) };
       case 'printer.objects.list':
         return { objects: Object.keys(state) };
       case 'printer.objects.subscribe':
@@ -619,7 +622,7 @@ document.addEventListener('pointerdown', async (e) => {
       broadcast('notify_exception_notification', [e]);
     },
     reset() {
-      state = u1State(generic);
+      state = fresh();
       scripts.length = 0;
       exceptions = [];
     },
