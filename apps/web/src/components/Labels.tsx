@@ -74,7 +74,7 @@ export function PlateIcons({ w, d }: { w: number; d: number }) {
   );
   return (
     <Html position={[w, d, 0]} zIndexRange={[3, 0]}>
-      <div className="plate-icons" role="toolbar" aria-label={`Plate ${plate + 1} icons`} onContextMenu={(e) => e.preventDefault()}>
+      <div className="plate-icons" role="group" aria-label={`Plate ${plate + 1} icons`} onContextMenu={(e) => e.preventDefault()}>
         {plates > 1 && icon('plate_close', 'Delete plate', 'Delete this plate and what is on it', () => void s.deletePlate())}
         {icon('plate_arrange', 'Arrange plate', empty ? 'Nothing on this plate yet' : 'Lay out the objects on this plate', () => void s.arrange(), empty)}
         {icon('plate_orient', 'Auto orient plate', empty ? 'Nothing on this plate yet' : 'Turn every object on this plate to print with the least overhang', () => void s.orient(), empty)}

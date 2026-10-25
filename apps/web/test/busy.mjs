@@ -132,9 +132,9 @@ try {
   await watch(desktop);
   await desktop.getByRole('button', { name: 'Arrange all objects' }).click();
   const arranged = await settle(desktop);
-  if (shows(arranged) !== 1 || !arranged.overlay[0]?.includes('Arranging the plate')) fail(`Arrange: the loading screen should come up once (saw ${JSON.stringify(arranged.overlay)})`);
+  if (shows(arranged) !== 1 || !arranged.overlay[0]?.includes('Arranging all plates')) fail(`Arrange: the loading screen should come up once (saw ${JSON.stringify(arranged.overlay)})`);
   else if (frozenAfter(arranged).length) fail(`Arrange: the loading screen went before the plate was drawn (${JSON.stringify(frozenAfter(arranged))})`);
-  else console.log('Arrange shows "Arranging the plate" once, until the plate is drawn');
+  else console.log('Arrange shows "Arranging all plates" once, until the plate is drawn');
 
   // A failing edit: the loading screen does not flash before its message.
   const first = desktop.locator('ul.objects > li.object').first();

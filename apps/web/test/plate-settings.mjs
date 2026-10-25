@@ -134,7 +134,7 @@ try {
   await phone.getByRole('button', { name: 'Add plate' }).click();
   await phone.getByRole('tab', { name: /^1/ }).click();
   // Desktop's icon beside the plate.
-  await phone.getByRole('toolbar', { name: 'Plate 1 icons' }).getByRole('button', { name: 'Plate 1 settings' }).click();
+  await phone.getByRole('group', { name: 'Plate 1 icons' }).getByRole('button', { name: 'Plate 1 settings' }).click();
   const phoneWin = phone.getByRole('dialog', { name: 'Plate 1 settings' });
   await phoneWin.waitFor({ timeout: 5000 });
   await phoneWin.getByRole('radiogroup', { name: 'Print sequence' }).getByRole('radio', { name: 'By object' }).click();
