@@ -209,6 +209,7 @@ std::string wipeTowerJson(const std::string& configJson, int plate, double slice
         DynamicPrintConfig cfg;
         cfg.apply(FullPrintConfig::defaults());
         engine::applyJsonConfig(cfg, json::parse(configJson));
+        engine::applyPlateSettings(cfg, plate);
         return engine::wipeTowerFor(cfg, plate, slicedDepth).dump();
     } catch (const std::exception& e) {
         return json{{"show", false}, {"error", e.what()}}.dump();

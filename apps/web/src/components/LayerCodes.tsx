@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import type { LayerCode } from '../engine/protocol';
 import { canChangeFilament, codeAt, codeLabel, layerOf, newCode, withCodeAt } from '../lib/layerCodes';
-import { NO_COLOURS, useOption, useSlicer } from '../state/store';
+import { NO_COLOURS, useOption, usePlateOption, useSlicer } from '../state/store';
 
 const NO_CODES: LayerCode[] = [];
 
@@ -66,7 +66,7 @@ export function LayerMenu({ layerZ, layer, onLayer, onClose }: { layerZ: Float32
   const plateFilaments = useSlicer((s) => (s.job.kind === 'sliced' ? s.project?.plates[s.job.plate]?.filaments : undefined));
   const setLayerCodes = useSlicer((s) => s.setLayerCodes);
   const template = String(useOption('template_custom_gcode') ?? '');
-  const byObject = useOption('print_sequence') === 'by object';
+  const byObject = usePlateOption('print_sequence') === 'by object';
   const here = codeAt(codes, layerZ, layer);
   const [form, setForm] = useState<Form>(null);
   const [gcode, setGcode] = useState(here?.type === 'custom' ? here.gcode : '');

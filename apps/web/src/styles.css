@@ -925,6 +925,73 @@ select:focus-visible {
   color: var(--danger);
   font-size: 12px;
 }
+.option-note.plate-note {
+  color: var(--muted);
+}
+.plate-note .link {
+  font-size: 12px;
+}
+/* Plate settings window: the filament order chips and layer ranges. */
+.plate-settings .win-content {
+  display: grid;
+  gap: 12px;
+}
+.filament-order {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.order-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 10px;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: var(--surface);
+  color: var(--text);
+  font-size: 13px;
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+}
+.order-chip.dragging {
+  border-color: var(--accent);
+  cursor: grabbing;
+}
+.order-chip .swatch {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  border: 1px solid var(--border);
+}
+.layer-ranges {
+  display: grid;
+  gap: 10px;
+  justify-items: start;
+}
+.layer-range {
+  display: grid;
+  gap: 6px;
+  padding: 8px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  justify-self: stretch;
+}
+.layer-range-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  color: var(--text);
+  font-size: 13px;
+}
+.win .layer-range-head input {
+  width: 64px;
+}
+.layer-range-head .icon:last-child {
+  margin-left: auto;
+}
 .option.invalid .input-unit input {
   border-color: var(--danger);
   outline-color: var(--danger);
@@ -1269,14 +1336,6 @@ select:focus-visible {
   pointer-events: none;
 }
 /* Just past the plate's back left corner, like desktop's plate name. */
-.plate-name {
-  transform: translateY(-120%);
-  color: var(--muted);
-  font-size: 14px;
-  font-weight: 600;
-  white-space: nowrap;
-  pointer-events: none;
-}
 .measure-label {
   padding: 1px 6px;
   border-radius: 4px;
@@ -1320,6 +1379,38 @@ select:focus-visible {
 .plate.active {
   border-color: var(--accent);
   font-weight: 600;
+}
+/* The shown plate's tab joins its Plate settings button (desktop's plate icon). */
+.plate-tab {
+  display: inline-flex;
+}
+.plate-tab.active .plate {
+  border-top-right-radius: 0;
+  border-bottom-right-radius: 0;
+}
+.plate-gear {
+  display: grid;
+  place-items: center;
+  padding: 0 7px;
+  border: 1px solid var(--accent);
+  border-left: none;
+  border-radius: 0 6px 6px 0;
+  background: var(--surface);
+  color: var(--text);
+  cursor: pointer;
+}
+.plate-gear:hover {
+  color: var(--accent);
+}
+/* A plate with settings of its own (desktop's orange plate settings icon). */
+.plate-own {
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  margin-left: 6px;
+  border-radius: 50%;
+  background: var(--warn);
+  vertical-align: middle;
 }
 /* Preview has no toolbar above the plates; with nothing sliced they sit above the message. */
 .preview .plate-tabs {

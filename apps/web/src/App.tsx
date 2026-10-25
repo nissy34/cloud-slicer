@@ -7,6 +7,7 @@ import { ActionBar } from './components/ActionBar';
 import { ConvertDialog } from './components/ConvertDialog';
 import { GcodeFallbackDialog } from './components/GcodeFallbackDialog';
 import { OpenProjectDialog } from './components/OpenProjectDialog';
+import { PlateSettingsDialog } from './components/PlateSettingsDialog';
 import { SetupWizard } from './components/SetupWizard';
 import { OpenModel } from './components/OpenModel';
 import { Preview } from './components/Preview';
@@ -42,6 +43,7 @@ export function App() {
       <ConvertDialog />
       <GcodeFallbackDialog />
       <OpenProjectDialog />
+      <PlateSettingsDialog />
       <SetupWizard />
       <ImportPresetsDialog />
       <PresetSettingsDialog />

@@ -48,8 +48,21 @@ async function projector(page) {
   const camera = new THREE.PerspectiveCamera(40, box.width / box.height, 1, 5000);
   camera.up.set(0, 0, 1);
   camera.position.set(BED / 2, -BED * 0.75, BED * 0.8);
-  camera.lookAt(BED / 2, BED / 2, 0);
-  camera.updateMatrixWorld();
+  // StartView steps back until the plate, its icons (19 mm a 200 mm plate
+  // past the right edge) and its name (10 mm past the back) are in sight.
+  const target = new THREE.Vector3(BED / 2, BED / 2, 0);
+  const from = camera.position.clone().sub(target);
+  const f = BED / 200;
+  const corners = [0, BED + 19 * f].flatMap((x) => [0, BED + 10 * f].map((y) => new THREE.Vector3(x, y, 0)));
+  const fits = () => {
+    camera.lookAt(target);
+    camera.updateMatrixWorld();
+    return corners.every((c) => Math.abs(c.clone().project(camera).x) <= 0.96);
+  };
+  for (let i = 0; i < 40 && !fits(); i++) {
+    from.multiplyScalar(1.05);
+    camera.position.copy(target).add(from);
+  }
   const toScreen = (p) => {
     const v = new THREE.Vector3(...p).project(camera);
     return [box.x + ((v.x + 1) / 2) * box.width, box.y + ((1 - v.y) / 2) * box.height];

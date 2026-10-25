@@ -369,6 +369,8 @@ std::string sliceWithConfig(const std::string& configJson, int plate, const std:
         DynamicPrintConfig cfg;
         cfg.apply(FullPrintConfig::defaults());
         for (const std::string& w : engine::applyJsonConfig(cfg, json::parse(configJson))) warnings.add("A setting could not be used: " + w, false);
+        // The plate's own settings (desktop's Plate settings) over the project's.
+        engine::applyPlateSettings(cfg, plate);
         extruderPerFilament(cfg);
         padFlushMatrix(cfg);
         // wipe_tower_x/y hold one position per plate. The Print below slices as

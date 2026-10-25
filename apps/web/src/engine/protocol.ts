@@ -170,9 +170,10 @@ export interface ProjectInfo {
   plateDepth: number;
   /**
    * filaments: what the plate's parts print with (1-based, support left out);
-   * layerCodes: its pauses, filament changes and custom G-code at layers.
+   * layerCodes: its pauses, filament changes and custom G-code at layers;
+   * settings: its own settings instead of the project's (lib/plate-settings.ts).
    */
-  plates: { index: number; name: string; objects: number[]; filaments: number[]; layerCodes: LayerCode[] }[];
+  plates: { index: number; name: string; locked?: boolean; objects: number[]; filaments: number[]; layerCodes: LayerCode[]; settings: OrcaConfig }[];
   objects: ObjectInfo[];
   file: {
     bambu: boolean;
