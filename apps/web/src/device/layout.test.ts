@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { addCameraCard, cameraCardOf, defaultDesktop, isPageCard, placeCamera, placePage, removeCameraCard, defaultLayout, moveCard, moveOnPhone, normalizeLayout, phoneOrder, setColumns, zoneOf } from './layout';
+import { addCameraCard, cameraCardOf, defaultDesktop, isPageCard, placeCamera, placePage, removeCameraCard, defaultLayout, layoutSetting, moveCard, moveOnPhone, normalizeLayout, phoneOrder, setColumns, zoneOf } from './layout';
 
 describe('device layout', () => {
   it('starts as the D3 layout', () => {
@@ -145,5 +145,11 @@ describe('camera cards', () => {
     expect(normalizeLayout(l)).toEqual(l);
     l = removeCameraCard(l, 'page:p1');
     expect(cameraCardOf(l, 'nozzle')).toBe('camera');
+  });
+
+  it('keeps one layout per printer, under a setting key the account accepts', () => {
+    expect(layoutSetting('ab12cd34')).toBe('device-layout.ab12cd34');
+    expect(layoutSetting('a')).not.toBe(layoutSetting('b'));
+    expect(layoutSetting('x'.repeat(64))).toMatch(/^[A-Za-z0-9_.-]{1,64}$/);
   });
 });

@@ -406,9 +406,11 @@ them half width (two side by side) and sets the camera size; tapping a card's ti
 it. Folding a camera or page card is also how it is turned off: nothing streams or loads while
 it is folded. **Add a camera card** makes another camera card; each camera card's Choose picks which
 cameras it shows (a camera is in one card; the rest stay in the main Cameras card), and each
-keeps the usual one-big-and-small-ones camera layout. Phones keep their own one-column order. The layout is saved in the account
-(`device-layout` setting, `apps/web/src/device/layout.ts`), so it follows you to every
-device; "Back to default" brings back the standard layout. A printer with a public https address is reached directly (the tab shows the
+keeps the usual one-big-and-small-ones camera layout. Phones keep their own one-column order. Each printer has its own layout (its cards, camera
+cards and page cards), saved in the account (`device-layout.<printer id>` setting,
+`apps/web/src/device/layout.ts`), so it follows you to every device; a new printer starts
+from the standard layout, "Back to default" brings it back for the printer shown, and removing
+a printer removes its layout. A printer with a public https address is reached directly (the tab shows the
 `cors_domains` lines Moonraker needs, and a Tailscale hint). A printer on a home network
 is reached through a small **bridge** on any always-on computer near it, which connects
 out to the **relay** (a Cloudflare Worker with one Durable Object per bridge), so no

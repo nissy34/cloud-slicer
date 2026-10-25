@@ -14,13 +14,14 @@
 // API key and only fetched when connecting or editing.
 import { create } from 'zustand';
 import { api, ApiError, type Device } from '../account/api';
-import { accountReady, deleteDevice, getDeviceApiKey, saveDevice, useAccount } from './account';
+import { accountReady, deleteDevice, deleteUserSetting, getDeviceApiKey, getUserSetting, saveDevice, useAccount } from './account';
 import { takesCommands, type PrinterAddon, type PrinterCall, type PrinterError, type PrinterFacts } from '../device/addons';
 import { coalesce } from '../device/coalesce';
 import { BridgeLink, onBridgeRemoved, setBridgeTickets } from '../device/link/bridge';
 import { DirectLink } from '../device/link/direct';
 import { LinkError, type BridgeStatus, type PrinterLink, type UploadStage } from '../device/link/types';
 import { currentRelay } from '../device/config';
+import { layoutSetting } from '../device/layout';
 import { decodePairing, type Pairing } from '../device/pairing';
 import { PrinterSession, type ConnState, type ConsoleLine, type GcodeFile } from '../device/session';
 import type { KlipperObjects } from '../device/status';
@@ -238,6 +239,11 @@ const accountBridges = () => {
 };
 
 const newId = () => Math.random().toString(36).slice(2, 10);
+
+/** A removed printer's Device tab card layout goes with it. */
+function forgetLayout(printerId: string) {
+  if (getUserSetting(layoutSetting(printerId)) !== undefined) void deleteUserSetting(layoutSetting(printerId)).catch(() => undefined);
+}
 const making = new Set<string>();
 
 /**
@@ -461,6 +467,7 @@ export const useDevice = create<DeviceState>((set, get) => {
     async removePrinter(id) {
       try {
         await deleteDevice(id);
+        forgetLayout(id);
       } catch (e) {
         get().setToast(`Could not remove the printer: ${(e as Error).message}`, true);
         return;
@@ -482,7 +489,11 @@ export const useDevice = create<DeviceState>((set, get) => {
       const b = get().bridges.find((x) => x.id === id);
       if (!b) return;
       try {
-        for (const p of get().printers) if (p.kind === 'bridge' && p.bridgeId === b.bridgeId) await deleteDevice(p.id);
+        for (const p of get().printers)
+          if (p.kind === 'bridge' && p.bridgeId === b.bridgeId) {
+            await deleteDevice(p.id);
+            forgetLayout(p.id);
+          }
         // Older copies of the same bridge's record go too.
         for (const d of useAccount.getState().devices) if (bridgeFromDevice(d)?.bridgeId === b.bridgeId) await deleteDevice(d.id);
         // It no longer counts against the account's bridges.
