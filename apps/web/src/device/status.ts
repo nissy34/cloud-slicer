@@ -47,6 +47,8 @@ export interface Job {
   /** 0..1 */
   progress: number;
   printSeconds: number;
+  /** Seconds from start to end, pauses included (Klipper's total_duration). */
+  totalSeconds: number;
   layer: number | null;
   totalLayers: number | null;
   message: string;
@@ -176,6 +178,7 @@ export function job(o: KlipperObjects): Job {
     // virtual_sdcard tracks the file position; display_status only follows M73.
     progress: num(vsd.progress, num(o.display_status?.progress)),
     printSeconds: num(ps.print_duration),
+    totalSeconds: num(ps.total_duration),
     layer: typeof info.current_layer === 'number' ? info.current_layer : null,
     totalLayers: typeof info.total_layer === 'number' ? info.total_layer : null,
     message: str(ps.message),

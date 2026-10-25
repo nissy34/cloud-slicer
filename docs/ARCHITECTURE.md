@@ -222,9 +222,16 @@ nothing on purpose, so a deploy's page and engine never get out of step).
   paint) and plate settings (`engine/src/fingerprint_api.cpp`, `plateFingerprint`) plus a
   short hash per setting it slices with. A plate whose fingerprint differs now shows
   "changed since" and the window names what changed; Keep as printed stores the plate as it
-  is now. Deleting a plate drops its records and renumbers later ones; Save a copy copies
-  the finished ones; deleting the project deletes them. Status only moves while a page is
-  open and connected to that printer. Unsaved and signed-out projects have no history.
+  is now. Only settings both sides have are compared, so a newer engine's new settings
+  don't make every plate "changed". A send that ended while no page watched counts when
+  the job (Klipper's start-to-end time) fits in the time since the send. Records waiting
+  for the printer get "no word" (`unknown`) after a week, when the same file goes to the
+  same printer again, or when the plate is marked by hand. Mesh and paint hashes are kept
+  in the engine per mesh / paint timestamp, so fingerprinting after each edit is cheap.
+  Deleting a plate drops its records and renumbers later ones; Save a copy copies the
+  finished ones; deleting the project deletes them. Status only moves while a page is
+  open (it connects to the Device tab's printer when one of its prints waits). Unsaved and
+  signed-out projects have no history.
 
 ## Colour mixing
 

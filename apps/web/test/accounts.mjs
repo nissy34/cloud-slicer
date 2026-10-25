@@ -574,11 +574,29 @@ test('print history: sends and marks per plate, the printer\'s word, plates dele
   for (let i = 0; i < 52; i++) await add('copy', { plate: 5, status: i % 2 ? 'marked' : 'unmarked' });
   assert.equal((await list('copy')).filter((p) => p.plate === 5).length, 50);
 
+  // A newer send of the same file to the same printer, or a mark of the plate, ends what still waits: no word.
+  const status = async (id) => (await list('copy')).find((p) => p.id === id).status;
+  const up = (await (await add('copy', { plate: 6, status: 'uploaded', printer: 'u1', file: 'same.gcode' })).json()).print;
+  const resent = (await (await add('copy', { plate: 7, status: 'sent', printer: 'u1', file: 'same.gcode' })).json()).print;
+  assert.equal(await status(up.id), 'unknown');
+  assert.equal(await status(resent.id), 'sent');
+  await add('copy', { plate: 7, status: 'marked' });
+  assert.equal(await status(resent.id), 'unknown');
+  assert.equal((await patch(up.id, { status: 'printed' })).status, 200);
+  assert.equal(await status(up.id), 'unknown', 'no word stays no word');
+  assert.equal((await patch(up.id, { status: 'unknown' })).status, 400, 'only the server says no word');
+  // A week without word: no word.
+  const old = (await (await add('copy', { plate: 8, status: 'sent', printer: 'u1', file: 'old.gcode' })).json()).print;
+  const aged = spawnSync(wrangler, ['d1', 'execute', 'cloud-slicer', '--local', '--persist-to', state, '--command', `UPDATE project_prints SET at = ${Date.now() - 8 * 24 * 3600 * 1000} WHERE id = '${old.id}'`], { cwd: web, encoding: 'utf8' });
+  assert.equal(aged.status, 0, aged.stderr);
+  assert.equal((await (await ivy.json('/api/prints/open')).json()).prints.some((p) => p.id === old.id), false);
+  assert.equal(await status(old.id), 'unknown');
+
   // Deleting the project deletes its history.
   assert.equal((await ivy.json('/api/projects/ten', 'DELETE')).status, 200);
   assert.deepEqual(await list('ten'), []);
   assert.deepEqual((await (await ivy.json('/api/prints/open')).json()).prints, []);
-  assert.equal((await list('copy')).length, 53, 'the copy keeps its own');
+  assert.equal((await list('copy')).length, 57, 'the copy keeps its own');
 });
 
 test('admin: only the owner (OWNER_EMAILS) gets the Admin page', async () => {

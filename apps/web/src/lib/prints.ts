@@ -26,8 +26,10 @@ export interface PlateSummary extends PlateFingerprint {
  * printing   the printer said it is printing it
  * printed / failed / cancelled   how the print ended, as the printer said
  * marked / unmarked              by hand, from the plate menu
+ * unknown    no word from the printer: the same file was sent again, the plate
+ *            was marked by hand, or a week went by
  */
-export type PrintStatus = 'uploaded' | 'sent' | 'printing' | 'printed' | 'failed' | 'cancelled' | 'marked' | 'unmarked';
+export type PrintStatus = 'uploaded' | 'sent' | 'printing' | 'printed' | 'failed' | 'cancelled' | 'marked' | 'unmarked' | 'unknown';
 
 export interface PrintRecord {
   id: string;
@@ -61,6 +63,8 @@ export interface PrintOrigin {
 
 /** Records still waiting for the printer to say how they went. */
 export const OPEN_STATUSES: PrintStatus[] = ['uploaded', 'sent', 'printing'];
+/** How long a record waits for the printer before it counts as "no word" (functions/_lib/prints.ts). */
+export const OPEN_FOR_MS = 7 * 24 * 3600 * 1000;
 
 /** Settings that are names, not values: renaming a preset doesn't change the print. */
 const NAME_KEYS = new Set(['inherits', 'print_settings_id', 'filament_settings_id', 'printer_settings_id', 'printer_model', 'printer_variant', 'default_print_profile', 'default_filament_profile']);
@@ -89,6 +93,18 @@ export function summarize(fp: PlateFingerprint, config: OrcaConfig, plate: numbe
   return { objects: fp.objects, plate: fp.plate, config: hashed };
 }
 
+/**
+ * Whether a plate prints the same as it did: the same objects and plate
+ * settings, and the same value for every setting both have. A setting only
+ * one side has came with another engine version (or the other engine), not
+ * from the person, so it doesn't count.
+ */
+export function samePrint(then: PlateSummary, now: PlateSummary): boolean {
+  const objects = (s: PlateSummary) => s.objects.map((o) => [o.name, o.copies, o.shape, o.place, o.settings, o.paint].join('|')).sort().join(';');
+  if (then.plate !== now.plate || objects(then) !== objects(now)) return false;
+  return Object.keys(then.config).every((k) => !(k in now.config) || then.config[k] === now.config[k]);
+}
+
 /** One string for the whole summary: equal summaries, equal fingerprints. */
 export function fingerprintOf(s: PlateSummary): string {
   const objects = s.objects.map((o) => [o.name, o.copies, o.shape, o.place, o.settings, o.paint].join('|')).join(';');
@@ -109,29 +125,35 @@ export type PlateMark =
 
 const decides = (s: PrintStatus) => s === 'printed' || s === 'marked' || s === 'unmarked';
 
+/** Whether a printed record is for something other than what the plate prints now. */
+function changedSince(r: PrintRecord, now: PlateSummary): boolean {
+  if (r.summary) return !samePrint(r.summary, now);
+  return Boolean(r.fingerprint && r.fingerprint !== fingerprintOf(now));
+}
+
 /**
  * The plate's mark from its records (any order) and what it prints now
  * (undefined: not known yet, so a printed plate shows as printed).
- * The newest started print that hasn't ended shows first; otherwise the newest
- * print or mark decides. A failed or cancelled print doesn't take an earlier
- * good one away.
+ * The newest started print that hasn't ended shows first (for a week at
+ * most); otherwise the newest print or mark decides. A failed or cancelled
+ * print doesn't take an earlier good one away.
  */
-export function plateMark(records: PrintRecord[], fingerprint: string | undefined): PlateMark {
+export function plateMark(records: PrintRecord[], now: PlateSummary | undefined, at = Date.now()): PlateMark {
   const newest = [...records].sort((a, b) => b.at - a.at);
   const started = newest.find((r) => r.status !== 'uploaded');
-  if (started && (started.status === 'sent' || started.status === 'printing')) return { state: 'sent', record: started };
+  if (started && (started.status === 'sent' || started.status === 'printing') && at - started.at < OPEN_FOR_MS) return { state: 'sent', record: started };
   const last = newest.find((r) => decides(r.status));
   if (!last || last.status === 'unmarked') return { state: 'none' };
-  if (fingerprint !== undefined && last.fingerprint && last.fingerprint !== fingerprint) return { state: 'changed', record: last };
+  if (now && changedSince(last, now)) return { state: 'changed', record: last };
   return { state: 'printed', record: last };
 }
 
-/** Each plate's mark: records grouped by plate, fingerprints by plate. */
-export function plateMarks(records: PrintRecord[], plates: number, fingerprints: Record<number, string | undefined>): PlateMark[] {
+/** Each plate's mark: records grouped by plate, what each plate prints now by plate. */
+export function plateMarks(records: PrintRecord[], plates: number, now: Record<number, PlateSummary | undefined>): PlateMark[] {
   return Array.from({ length: plates }, (_, p) =>
     plateMark(
       records.filter((r) => r.plate === p),
-      fingerprints[p],
+      now[p],
     ),
   );
 }
@@ -193,7 +215,10 @@ export function changesBetween(then: PlateSummary, now: PlateSummary, label: (ke
   if (own.length) out.push(`Object settings: ${list(own)}`);
   if (painted.length) out.push(`Paint: ${list(painted)}`);
   if (then.plate !== now.plate) out.push('Plate settings, pauses or custom G-code');
-  const keys = [...new Set([...Object.keys(then.config), ...Object.keys(now.config)])].filter((k) => then.config[k] !== now.config[k]).sort();
+  // Settings only one side has came with another engine version: not a change (samePrint).
+  const keys = Object.keys(then.config)
+    .filter((k) => k in now.config && then.config[k] !== now.config[k])
+    .sort();
   if (keys.length) {
     const names = [...new Set(keys.map((k) => label(k) || k))];
     const shown = names.slice(0, 4).join(', ');
@@ -221,13 +246,24 @@ export function statusFromJob(state: string): PrintStatus | null {
  * What a printer's job means for an open record: the new status, or null when
  * nothing changes. An end only counts after the record was seen printing, so
  * an older finished print of the same file name never marks a new one.
+ * One exception: a print started from the Send window that ended while no
+ * page watched. It counts when the job took no longer than the time since the
+ * send (`totalSeconds`: start to end, as Klipper reports it), so the job must
+ * have run after the send, not before.
  */
-export function nextStatus(record: PrintRecord, printer: string, job: { state: string; filename: string }): PrintStatus | null {
+export function nextStatus(
+  record: PrintRecord,
+  printer: string,
+  job: { state: string; filename: string; totalSeconds?: number },
+  at = Date.now(),
+): PrintStatus | null {
   if (!OPEN_STATUSES.includes(record.status) || record.printer !== printer || !record.file || !sameFile(record.file, job.filename)) return null;
   const s = statusFromJob(job.state);
   if (!s) return null;
   if (s === 'printing') return record.status === 'printing' ? null : 'printing';
-  return record.status === 'printing' ? s : null;
+  if (record.status === 'printing') return s;
+  const total = job.totalSeconds ?? 0;
+  return record.status === 'sent' && total > 0 && at - record.at >= total * 1000 ? s : null;
 }
 
 /** Short words for a record in the history list. */
@@ -249,5 +285,7 @@ export function statusWords(r: PrintRecord): string {
       return 'Marked as printed';
     case 'unmarked':
       return 'Marked as not printed';
+    case 'unknown':
+      return 'No word from the printer';
   }
 }

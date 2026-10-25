@@ -10,8 +10,17 @@ export const MAX_PER_PLATE = 50;
 /** Bytes of one row's summary (a short hash per setting, about 20 KB). */
 const MAX_SUMMARY = 64 * 1024;
 
-const STATUSES = ['uploaded', 'sent', 'printing', 'printed', 'failed', 'cancelled', 'marked', 'unmarked'];
+const STATUSES = ['uploaded', 'sent', 'printing', 'printed', 'failed', 'cancelled', 'marked', 'unmarked', 'unknown'];
 const OPEN = ['uploaded', 'sent', 'printing'];
+/** A record waits this long for the printer's word, then counts as "no word" (src/lib/prints.ts OPEN_FOR_MS). */
+const OPEN_FOR_MS = 7 * 24 * 3600 * 1000;
+const inOpen = `status IN (${OPEN.map((s) => `'${s}'`).join(',')})`;
+
+/** Records waiting longer than a week get no word now: a printer doesn't print one file for a week. */
+function expire(env: Env, userId: string) {
+  const now = Date.now();
+  return env.DB!.prepare(`UPDATE project_prints SET status = 'unknown', ended_at = ? WHERE user_id = ? AND ${inOpen} AND at < ?`).bind(now, userId, now - OPEN_FOR_MS);
+}
 
 interface PrintRow {
   id: string;
@@ -70,6 +79,7 @@ async function mustProject(env: Env, userId: string, id: string) {
 export async function list(env: Env, request: Request, rawId: string): Promise<Response> {
   const user = await requireUser(env, request);
   const id = validId(rawId);
+  await expire(env, user.id).run();
   const rows = await env.DB!.prepare('SELECT * FROM project_prints WHERE user_id = ? AND project_id = ? ORDER BY at, id').bind(user.id, id).all<PrintRow>();
   return json({ prints: rows.results.map(toPrint) });
 }
@@ -77,6 +87,7 @@ export async function list(env: Env, request: Request, rawId: string): Promise<R
 /** GET /api/prints/open -> { prints }: every project's prints still waiting for the printer (no summaries). */
 export async function open(env: Env, request: Request): Promise<Response> {
   const user = await requireUser(env, request);
+  await expire(env, user.id).run();
   const rows = await env.DB!.prepare(
     `SELECT id, project_id, plate, status, at, ended_at, duration, progress, printer, printer_name, file, fingerprint, NULL AS summary
      FROM project_prints WHERE user_id = ? AND status IN (${OPEN.map(() => '?').join(',')}) ORDER BY at`,
@@ -89,6 +100,9 @@ export async function open(env: Env, request: Request): Promise<Response> {
 /**
  * POST /api/projects/<id>/prints { plate, status, printer?, printerName?, file?, fingerprint?, summary? } -> { print }
  * A send (uploaded or sent) or a mark by hand (marked, unmarked).
+ * Records still waiting that this one replaces get "no word" (unknown): a send
+ * of the same file to the same printer (the printer overwrote it; any project),
+ * or a mark of the same plate (the person said how it went).
  */
 export async function add(env: Env, request: Request, rawId: string): Promise<Response> {
   requireSameOrigin(request);
@@ -115,7 +129,14 @@ export async function add(env: Env, request: Request, rawId: string): Promise<Re
     summary: summaryOf(b.summary),
   };
   const d = env.DB!;
+  const superseded =
+    status === 'uploaded' || status === 'sent'
+      ? row.printer && row.file
+        ? d.prepare(`UPDATE project_prints SET status = 'unknown', ended_at = ? WHERE user_id = ? AND ${inOpen} AND printer = ? AND file = ?`).bind(row.at, user.id, row.printer, row.file)
+        : null
+      : d.prepare(`UPDATE project_prints SET status = 'unknown', ended_at = ? WHERE user_id = ? AND ${inOpen} AND project_id = ? AND plate = ?`).bind(row.at, user.id, id, plate);
   await d.batch([
+    ...(superseded ? [superseded] : []),
     d
       .prepare(
         `INSERT INTO project_prints (user_id, project_id, id, plate, status, at, printer, printer_name, file, fingerprint, summary)
@@ -148,7 +169,7 @@ export async function update(env: Env, request: Request, rawId: string): Promise
   const next = { ...r };
   if (b.status !== undefined) {
     const s = String(b.status);
-    if (!STATUSES.includes(s) || ['uploaded', 'sent', 'marked', 'unmarked'].includes(s)) throw new HttpError(400, 'Bad status');
+    if (!STATUSES.includes(s) || ['uploaded', 'sent', 'marked', 'unmarked', 'unknown'].includes(s)) throw new HttpError(400, 'Bad status');
     // Another page may have seen the end first: an ended print stays ended.
     if (!OPEN.includes(r.status)) return json({ print: toPrint(r) });
     next.status = s;

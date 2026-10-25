@@ -97,9 +97,16 @@ export const usePrints = create<PrintsState>((set, get) => ({
 async function add(projectId: string, p: Parameters<typeof api.addPrint>[1]) {
   try {
     const record = await api.addPrint(projectId, p);
+    // The server closed the waiting ones this replaces: the same file on the same printer, or a mark of the plate.
+    const mark = record.status === 'marked' || record.status === 'unmarked';
+    const replaced = (r: PrintRecord) =>
+      OPEN_STATUSES.includes(r.status) && (mark ? r.projectId === record.projectId && r.plate === record.plate : r.printer === record.printer && r.file === record.file);
     const s = usePrints.getState();
-    if (s.projectId === projectId) usePrints.setState({ records: [...s.records, record], error: '' });
-    if (OPEN_STATUSES.includes(record.status)) usePrints.setState({ open: [...usePrints.getState().open, { ...record, summary: null }] });
+    const open = s.open.filter((r) => !replaced(r));
+    usePrints.setState({
+      open: OPEN_STATUSES.includes(record.status) ? [...open, { ...record, summary: null }] : open,
+      ...(s.projectId === projectId && { records: [...s.records.map((r) => (replaced(r) ? { ...r, status: 'unknown' as const, endedAt: record.at } : r)), record], error: '' }),
+    });
     scheduleFingerprints(0);
   } catch (e) {
     usePrints.setState({ error: (e as Error).message });
@@ -122,13 +129,13 @@ async function current(plate: number) {
 export function marksNow(): PlateMark[] {
   const s = usePrints.getState();
   const plates = useSlicer.getState().project?.plates.length ?? 0;
-  return s.projectId && s.projectId === useProjects.getState().current.id ? plateMarks(s.records, plates, s.fingerprints) : [];
+  return s.projectId && s.projectId === useProjects.getState().current.id ? plateMarks(s.records, plates, s.summaries) : [];
 }
 
 /** Each plate's mark, for components (empty when the project has no history). */
 export function usePlateMarks(): PlateMark[] {
   usePrints((s) => s.records);
-  usePrints((s) => s.fingerprints);
+  usePrints((s) => s.summaries);
   usePrints((s) => s.projectId);
   useProjects((s) => s.current.id);
   useSlicer((s) => s.project?.plates.length);
@@ -234,14 +241,26 @@ async function loadOpen() {
   if (!signedIn()) return usePrints.setState({ open: [] });
   try {
     usePrints.setState({ open: await api.openPrints() });
+    watchPrinter();
   } catch {
     // tried again at the next sign-in or send
   }
 }
 
+/**
+ * A print waiting for the printer on the Device tab: connect to it now, not
+ * only when the Device tab opens, so a print that ended while no page watched
+ * is caught (lib/prints.ts nextStatus). Only while records wait (a week at most).
+ */
+function watchPrinter() {
+  const d = useDevice.getState();
+  if (d.activeId && usePrints.getState().open.some((r) => r.printer === d.activeId)) d.start();
+}
+
 // The printer on the Device tab: its job turns waiting records into printing, then how it ended.
 const updating = new Set<string>();
 useDevice.subscribe((d, prev) => {
+  if (d.activeId !== prev.activeId) watchPrinter();
   if (d.objects === prev.objects || !d.activeId) return;
   const open = usePrints.getState().open;
   if (!open.length) return;

@@ -22,6 +22,8 @@
 #include <cstdint>
 #include <cstdio>
 #include <cstring>
+#include <map>
+#include <memory>
 
 using nlohmann::json;
 using namespace Slic3r;
@@ -87,6 +89,37 @@ struct Hash {
     }
 };
 
+// Hashing a big model's mesh and paint takes a while and the page asks after
+// every edit, for every plate: each is hashed once and remembered. A mesh is
+// never changed in place (a new one replaces it), so the same mesh object
+// means the same hash; paint gets a new timestamp with every change.
+std::map<const TriangleMesh*, std::pair<std::weak_ptr<const TriangleMesh>, uint64_t>> meshHashes;
+std::map<uint64_t, uint64_t> paintHashes;
+
+uint64_t meshHash(const ModelVolume& v) {
+    const std::shared_ptr<const TriangleMesh> mesh = v.mesh_ptr();
+    const auto known = meshHashes.find(mesh.get());
+    if (known != meshHashes.end() && known->second.first.lock() == mesh) return known->second.second;
+    if (meshHashes.size() > 4096)
+        for (auto it = meshHashes.begin(); it != meshHashes.end();) it = it->second.first.expired() ? meshHashes.erase(it) : std::next(it);
+    Hash h;
+    const indexed_triangle_set& its = mesh->its;
+    h.bytes(its.vertices.data(), its.vertices.size() * sizeof(its.vertices[0]));
+    h.bytes(its.indices.data(), its.indices.size() * sizeof(its.indices[0]));
+    meshHashes[mesh.get()] = {mesh, h.h};
+    return h.h;
+}
+
+uint64_t paintHash(const FacetsAnnotation& a) {
+    const uint64_t stamp = a.timestamp();
+    const auto known = paintHashes.find(stamp);
+    if (known != paintHashes.end()) return known->second;
+    if (paintHashes.size() > 16384) paintHashes.clear();
+    Hash h;
+    h.facets(a);
+    return paintHashes[stamp] = h.h;
+}
+
 std::string plateFingerprint(int plate) {
     try {
         const engine::Project& pr = engine::project();
@@ -115,17 +148,15 @@ std::string plateFingerprint(int plate) {
             }
             for (const coordf_t v : obj->layer_height_profile.get()) settings.number(v);
             for (const ModelVolume* v : obj->volumes) {
-                const indexed_triangle_set& its = v->mesh().its;
                 shape.word(uint64_t(v->type()));
-                shape.bytes(its.vertices.data(), its.vertices.size() * sizeof(its.vertices[0]));
-                shape.bytes(its.indices.data(), its.indices.size() * sizeof(its.indices[0]));
+                shape.word(meshHash(*v));
                 shape.transform(v->get_matrix());
                 settings.word(uint64_t(v->extruder_id() + 1));
                 settings.config(v->config.get());
-                paint.facets(v->mmu_segmentation_facets);
-                paint.facets(v->supported_facets);
-                paint.facets(v->seam_facets);
-                paint.facets(v->fuzzy_skin_facets);
+                paint.word(paintHash(v->mmu_segmentation_facets));
+                paint.word(paintHash(v->supported_facets));
+                paint.word(paintHash(v->seam_facets));
+                paint.word(paintHash(v->fuzzy_skin_facets));
             }
             paint.word(obj->brim_points.size());
             for (const BrimPoint& b : obj->brim_points) {

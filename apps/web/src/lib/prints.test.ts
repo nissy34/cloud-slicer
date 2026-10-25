@@ -1,11 +1,14 @@
 import { describe, expect, it } from 'vitest';
-import { changesBetween, fingerprintOf, nextStatus, plateMark, plateMarks, progressOf, sameFile, summarize, type PlateFingerprint, type PrintRecord } from './prints';
+import { changesBetween, fingerprintOf, nextStatus, OPEN_FOR_MS, plateMark, plateMarks, progressOf, sameFile, samePrint, summarize, type PlateFingerprint, type PrintRecord } from './prints';
 
 const fp = (over: Partial<PlateFingerprint['objects'][0]> = {}): PlateFingerprint => ({
   objects: [{ name: 'Benchy', copies: 1, shape: 's1', place: 'p1', settings: 'o1', paint: 'n1', ...over }],
   plate: 'pl1',
 });
 const config = { layer_height: '0.2', sparse_infill_density: '15%', wipe_tower_x: '10,20', print_settings_id: 'A' };
+// What the plate prints now (S1), and after a move (S2).
+const S1 = summarize(fp(), config, 0);
+const S2 = summarize(fp({ place: 'p2' }), config, 0);
 
 let n = 0;
 const rec = (over: Partial<PrintRecord>): PrintRecord => ({
@@ -20,8 +23,8 @@ const rec = (over: Partial<PrintRecord>): PrintRecord => ({
   printer: 'u1',
   printerName: 'U1',
   file: 'Benchy_plate_1.gcode',
-  fingerprint: 'F1',
-  summary: null,
+  fingerprint: fingerprintOf(S1),
+  summary: S1,
   ...over,
 });
 
@@ -38,24 +41,32 @@ describe('print history', () => {
   });
 
   it('marks a plate from its newest print or mark', () => {
-    expect(plateMark([], 'F1')).toEqual({ state: 'none' });
-    expect(plateMark([rec({ status: 'printed' })], 'F1').state).toBe('printed');
-    expect(plateMark([rec({ status: 'printed' })], 'F2').state).toBe('changed');
-    expect(plateMark([rec({ status: 'printed' })], undefined).state).toBe('printed');
+    const at = 100_000;
+    const plateMarkAt = (records: PrintRecord[], now: typeof S1 | undefined) => plateMark(records, now, at);
+    expect(plateMarkAt([], S1)).toEqual({ state: 'none' });
+    expect(plateMarkAt([rec({ status: 'printed' })], S1).state).toBe('printed');
+    expect(plateMarkAt([rec({ status: 'printed' })], S2).state).toBe('changed');
+    // Kept before summaries: the fingerprint decides.
+    expect(plateMarkAt([rec({ status: 'printed', summary: null })], S2).state).toBe('changed');
+    expect(plateMarkAt([rec({ status: 'printed', summary: null })], S1).state).toBe('printed');
+    // A send with no word for a week stops showing as on its way; no word at all decides nothing.
+    expect(plateMark([rec({ status: 'sent', at: 0 })], S1, OPEN_FOR_MS + 1).state).toBe('none');
+    expect(plateMarkAt([rec({ status: 'printed' }), rec({ status: 'unknown' })], S1).state).toBe('printed');
+    expect(plateMark([rec({ status: 'printed' })], undefined, 100_000).state).toBe('printed');
     // An upload alone doesn't mark; starting it does.
-    expect(plateMark([rec({ status: 'uploaded' })], 'F1').state).toBe('none');
-    expect(plateMark([rec({ status: 'printed' }), rec({ status: 'sent' })], 'F1').state).toBe('sent');
+    expect(plateMark([rec({ status: 'uploaded' })], S1, 100_000).state).toBe('none');
+    expect(plateMark([rec({ status: 'printed' }), rec({ status: 'sent' })], S1, 100_000).state).toBe('sent');
     // A failed print after a good one keeps the plate printed.
-    expect(plateMark([rec({ status: 'printed' }), rec({ status: 'failed' })], 'F1').state).toBe('printed');
-    expect(plateMark([rec({ status: 'failed' })], 'F1').state).toBe('none');
+    expect(plateMark([rec({ status: 'printed' }), rec({ status: 'failed' })], S1, 100_000).state).toBe('printed');
+    expect(plateMark([rec({ status: 'failed' })], S1, 100_000).state).toBe('none');
     // By hand.
-    expect(plateMark([rec({ status: 'printed' }), rec({ status: 'unmarked', fingerprint: null })], 'F1').state).toBe('none');
-    expect(plateMark([rec({ status: 'sent' }), rec({ status: 'marked' })], 'F1').state).toBe('printed');
+    expect(plateMark([rec({ status: 'printed' }), rec({ status: 'unmarked', fingerprint: null })], S1, 100_000).state).toBe('none');
+    expect(plateMark([rec({ status: 'sent' }), rec({ status: 'marked' })], S1, 100_000).state).toBe('printed');
   });
 
   it('counts printed plates and finds the next one, skipping empty plates', () => {
-    const records = [rec({ plate: 0 }), rec({ plate: 1, fingerprint: 'old' }), rec({ plate: 3, status: 'sent' })];
-    const marks = plateMarks(records, 5, { 0: 'F1', 1: 'F1', 3: 'F1' });
+    const records = [rec({ plate: 0 }), rec({ plate: 1, summary: S2 }), rec({ plate: 3, status: 'sent', at: Date.now() })];
+    const marks = plateMarks(records, 5, { 0: S1, 1: S1, 3: S1 });
     expect(marks.map((m) => m.state)).toEqual(['printed', 'changed', 'none', 'sent', 'none']);
     expect(progressOf(marks, (p) => p === 2)).toEqual({ printed: 2, changed: 1, total: 4, next: 1 });
   });
@@ -74,8 +85,18 @@ describe('print history', () => {
     expect(changesBetween(then, then, () => undefined)).toEqual([]);
   });
 
+  it("doesn't call a plate changed for settings a newer engine (or the other engine) added or dropped", () => {
+    const newer = summarize(fp(), { ...config, brand_new_option: '1' }, 0);
+    const older = summarize(fp(), { layer_height: '0.2', sparse_infill_density: '15%' }, 0);
+    expect(samePrint(S1, newer)).toBe(true);
+    expect(samePrint(S1, older)).toBe(true);
+    expect(changesBetween(S1, newer, () => undefined)).toEqual([]);
+    expect(samePrint(S1, summarize(fp(), { ...config, brand_new_option: '1', layer_height: '0.3' }, 0))).toBe(false);
+    expect(samePrint(S1, S2)).toBe(false);
+  });
+
   it('follows the printer: printing, then how it ended', () => {
-    const job = (state: string, filename = 'gcodes/Benchy_plate_1.gcode') => ({ state, filename });
+    const job = (state: string, filename = 'gcodes/Benchy_plate_1.gcode', totalSeconds = 0) => ({ state, filename, totalSeconds });
     expect(sameFile('Benchy_plate_1.gcode', '/gcodes/benchy_plate_1.gcode')).toBe(true);
     expect(nextStatus(rec({ status: 'sent' }), 'u1', job('printing'))).toBe('printing');
     expect(nextStatus(rec({ status: 'uploaded' }), 'u1', job('printing'))).toBe('printing');
@@ -87,5 +108,14 @@ describe('print history', () => {
     expect(nextStatus(rec({ status: 'printing' }), 'u1', job('complete', 'other.gcode'))).toBeNull();
     expect(nextStatus(rec({ status: 'printing' }), 'ender', job('complete'))).toBeNull();
     expect(nextStatus(rec({ status: 'printed' }), 'u1', job('printing'))).toBeNull();
+    // Started from the Send window and over before a page saw it: counts when the job fits in the time since the send.
+    const sent = rec({ status: 'sent', at: 1_000_000 });
+    expect(nextStatus(sent, 'u1', job('complete', undefined, 3600), 1_000_000 + 3601_000)).toBe('printed');
+    expect(nextStatus(sent, 'u1', job('cancelled', undefined, 600), 1_000_000 + 3601_000)).toBe('cancelled');
+    // The printer's earlier job of that name (longer than the time since the send): not this one.
+    expect(nextStatus(sent, 'u1', job('complete', undefined, 3600), 1_000_000 + 60_000)).toBeNull();
+    // No length from the printer, or only uploaded from here: nothing.
+    expect(nextStatus(sent, 'u1', job('complete', undefined, 0), 1_000_000 + 3601_000)).toBeNull();
+    expect(nextStatus(rec({ status: 'uploaded', at: 1_000_000 }), 'u1', job('complete', undefined, 60), 1_000_000 + 3601_000)).toBeNull();
   });
 });

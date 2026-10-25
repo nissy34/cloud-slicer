@@ -9,7 +9,7 @@ CREATE TABLE IF NOT EXISTS project_prints (
   project_id TEXT NOT NULL,
   id TEXT NOT NULL,
   plate INTEGER NOT NULL,          -- 0-based
-  status TEXT NOT NULL,            -- uploaded sent printing printed failed cancelled marked unmarked
+  status TEXT NOT NULL,            -- uploaded sent printing printed failed cancelled marked unmarked unknown
   at INTEGER NOT NULL,             -- Unix milliseconds of the send or mark
   ended_at INTEGER,
   duration INTEGER,                -- seconds printing, as the printer said
