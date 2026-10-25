@@ -21,7 +21,7 @@ import { NO_COLOURS, useOption, useSlicer } from '../state/store';
 import { setCameraSource } from '../state/view';
 import { Bed } from './Bed';
 import { BrimMarks } from './BrimEars';
-import { ObjectLabels, PlateName } from './Labels';
+import { ObjectLabels, PlateIcons, PlateName } from './Labels';
 import { MeasureOverlay } from './MeasureOverlay';
 import { CameraViews, ViewButtons, type ViewHandle } from './ViewControls';
 import { WipeTowerView } from './WipeTower';
@@ -1695,6 +1695,7 @@ export function Viewport() {
         <directionalLight position={[w, -d, d * 2]} intensity={1.6} />
         <Bed />
         <PlateName d={d} />
+        <PlateIcons w={w} d={d} />
         <PlateVolume />
         <Objects w={w} d={d} />
         <WipeTowerView />
