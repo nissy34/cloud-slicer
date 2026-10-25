@@ -183,7 +183,8 @@ std::string plateAction(int plate, const std::string& requestJson) {
             PlateData& d = plateData(plate);
             if (req.contains("name")) d.plate_name = req.value("name", "");
             DynamicPrintConfig values;
-            for (const auto& [key, value] : req.value("settings", json::object()).items()) {
+            const json settings = req.value("settings", json::object());  // kept: items() refers to it
+            for (const auto& [key, value] : settings.items()) {
                 if (std::find_if(std::begin(PLATE_KEYS), std::end(PLATE_KEYS), [&](const char* k) { return key == k; }) == std::end(PLATE_KEYS))
                     throw std::runtime_error("not a plate setting: " + key);
                 if (value.is_null()) d.config.erase(key);

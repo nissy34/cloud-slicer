@@ -358,7 +358,8 @@ export interface SlicerState {
   slice(): Promise<void>;
   /** Stops the running slice (desktop's Cancel next to the progress bar). */
   cancelSlice(): void;
-  arrange(): Promise<void>;
+  /** Arrange the shown plate, or `all` plates (desktop's A; Shift+A and a plate's icon do one). */
+  arrange(all?: boolean): Promise<void>;
   /** Object (volume -1) or part settings; null removes a setting. */
   setObjectSettings(o: number, volume: number, values: Record<string, string | null>): Promise<void>;
   addPlate(): Promise<void>;
@@ -1842,7 +1843,17 @@ export const useSlicer = create<SlicerState>((set, get) => {
     },
 
     // 6 mm apart, like desktop's default arrange distance.
-    arrange: () => busyWhile('Arranging the plate', () => projectEdit('Arrange', () => engine().arrangePlate(get().plate, 6))),
+    arrange: (all = false) =>
+      busyWhile(all ? 'Arranging all plates' : 'Arranging the plate', () =>
+        projectEdit('Arrange', async () => {
+          if (!all) return engine().arrangePlate(get().plate, 6);
+          // Each plate in turn; what doesn't fit goes onto new plates at the end.
+          const plates = get().project?.plates.length ?? 1;
+          let info = await engine().arrangePlate(0, 6);
+          for (let p = 1; p < plates; p++) if (info.plates[p]?.objects.length) info = await engine().arrangePlate(p, 6);
+          return info;
+        }),
+      ),
     setObjectSettings: (o, volume, values) => projectEdit('Change object settings', () => engine().setObjectSettings(o, volume, values)),
     addPlate: async () => {
       await projectEdit('Add plate', () => engine().addPlate());

@@ -1616,8 +1616,8 @@ export function PlateTabs() {
   const project = useSlicer((s) => s.project);
   const plate = useSlicer((s) => s.plate);
   const setPlate = useSlicer((s) => s.setPlate);
-  if (!project || project.plates.length < 2) return null;
   const openSettings = useSlicer((s) => s.openPlateSettings);
+  if (!project || project.plates.length < 2) return null;
   // Desktop's plate icons: a gear on the shown plate opens its Plate settings; a dot marks plates with their own.
   return (
     <div className="plate-tabs" role="tablist" aria-label="Plates">
