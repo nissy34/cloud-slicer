@@ -57,7 +57,9 @@ export function excludeObjectGcode(name: string): string {
 
 /** Moonraker upload name: keeps the stem readable and safe. */
 export function uploadName(name: string): string {
-  const dot = name.lastIndexOf('.');
+  // A .gcode.3mf (Bambu Lab, or a printer's use_3mf) keeps its double ending.
+  const ext = /\.gcode\.3mf$/i.exec(name)?.[0] ?? /\.3mf$/i.exec(name)?.[0];
+  const dot = ext ? name.length - ext.length : name.lastIndexOf('.');
   const stem = (dot > 0 ? name.slice(0, dot) : name).replace(/[^\w.\-]+/g, '_').replace(/_+/g, '_').replace(/^_|_$/g, '');
-  return `${stem || 'print'}.gcode`;
+  return `${stem || 'print'}${ext ? ext.toLowerCase() : '.gcode'}`;
 }

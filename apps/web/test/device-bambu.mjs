@@ -4,7 +4,9 @@
 // pretend Bambu printer speaking MQTT, FTPS and the P1/A1 camera protocol
 // (apps/device-bridge/tools/mock-bambu). It adds the printer with its access
 // code, shows its status, camera, Move and Console, uploads, prints, pauses,
-// resumes and cancels on the MOCK. It never talks to real hardware.
+// resumes and cancels on the MOCK, prints a .gcode.3mf from the AMS slots
+// picked in the print dialog and reads the AMS for "From printer". It never
+// talks to real hardware.
 //
 //   npm run build && node test/device-bambu.mjs [screenshot-dir]
 import { spawn } from 'node:child_process';
@@ -13,6 +15,7 @@ import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { strToU8, zipSync } from 'fflate';
 import { chromium } from 'playwright';
 import { bridgeConfig, bridgeProgram, pairingCode, startBridge } from './device/go-bridge.mjs';
 
@@ -175,6 +178,55 @@ try {
   const want = ['print.gcode_file: /sdcard/cube.gcode', 'print.pause', 'print.resume', 'print.stop'];
   if (JSON.stringify(commands.filter((c) => !c.startsWith('print.gcode_line'))) !== JSON.stringify(want)) throw new Error(`commands ${JSON.stringify(commands)}`);
   console.log('bambu: upload, print, pause, resume and cancel on the mock');
+
+  // A .gcode.3mf: each filament picks its AMS slot, and the print starts with them.
+  const plate = Buffer.from(
+    ['; filament used [g] = 3.10, 1.20', '; filament_colour = #D02020;#111111', '; filament_type = PLA;PETG', '; estimated printing time (normal mode) = 12m 0s', 'G28', 'M84', ''].join('\n'),
+  );
+  const project = Buffer.from(zipSync({ 'Metadata/plate_2.gcode': new Uint8Array(plate), 'Metadata/slice_info.config': strToU8('<config/>') }));
+  await page.getByTestId('device-gcode-input').setInputFiles({ name: 'duo.gcode.3mf', mimeType: 'model/3mf', buffer: project });
+  const map = page.getByRole('dialog').getByTestId('tool-map');
+  await map.getByText('AMS', { exact: true }).waitFor({ timeout: 20_000 });
+  const first = map.getByLabel('AMS slot for filament 1');
+  const second = map.getByLabel('AMS slot for filament 2');
+  // Picked by type, then colour: the red PLA on the red PLA in A3, PETG on A4.
+  if ((await first.inputValue()) !== '2' || (await second.inputValue()) !== '3') throw new Error(`suggested ${await first.inputValue()} ${await second.inputValue()}`);
+  if (!(await first.locator('option', { hasText: 'A4 · PETG' }).isDisabled())) throw new Error('PETG offered for a PLA filament');
+  await first.selectOption({ label: 'A1 · PLA Basic' });
+  await page.getByRole('dialog').getByLabel('Record a time-lapse').check();
+  if (shots) await page.screenshot({ path: join(shots, 'bambu-ams-map.png') });
+  await page.getByTestId('upload-and-print').click();
+  await page
+    .getByTestId('print-state')
+    .filter({ hasText: 'Printing' })
+    .waitFor({ timeout: 20_000 })
+    .catch(async (e) => {
+      throw new Error(`${e.message}\n${await page.getByTestId('send-error').innerText().catch(() => 'no send error')}\n${JSON.stringify(await state())}`);
+    });
+  const after = await state();
+  const sent = after.project;
+  if (!sent) throw new Error(`no project_file: ${JSON.stringify(after.commands)}`);
+  const wantSent = { param: 'Metadata/plate_2.gcode', url: 'file:///sdcard/duo.gcode.3mf', use_ams: true, ams_mapping: [0, 3], timelapse: true, bed_leveling: true };
+  for (const [k, v] of Object.entries(wantSent))
+    if (JSON.stringify(sent?.[k]) !== JSON.stringify(v)) throw new Error(`project_file ${k}: ${JSON.stringify(sent?.[k])}, want ${JSON.stringify(v)}`);
+  await page.getByRole('button', { name: 'Cancel print' }).click();
+  await page.getByRole('dialog', { name: 'Cancel print' }).getByRole('button', { name: 'Cancel print' }).click();
+  await page.getByTestId('print-state').filter({ hasText: 'Cancelled' }).waitFor();
+  console.log('bambu: a .gcode.3mf prints from the AMS slots picked in the print dialog');
+
+  // From printer: the AMS fills the project's filaments.
+  await page.getByRole('tab', { name: 'Prepare' }).click();
+  const wizard = page.getByRole('dialog', { name: 'Set up your printers' });
+  if (await wizard.isVisible().catch(() => false)) await wizard.getByRole('button', { name: 'Not now' }).click();
+  await page.getByTestId('sync-filaments').click();
+  const sync = page.getByRole('dialog', { name: 'Load filaments from the printer' });
+  await sync.getByTestId('sync-rows').waitFor({ timeout: 30_000 });
+  const rows = await sync.getByTestId('sync-rows').innerText();
+  for (const word of ['A1', 'A3', 'A4']) if (!rows.includes(word)) throw new Error(`sync rows ${rows}`);
+  if (shots) await page.screenshot({ path: join(shots, 'bambu-sync.png') });
+  await sync.getByRole('button', { name: 'Cancel' }).click();
+  await page.getByRole('tab', { name: 'Device' }).click();
+  console.log('bambu: From printer reads the AMS');
 
   await page.setViewportSize({ width: 390, height: 844 });
   const tooWide = await page.evaluate(() => [...document.querySelectorAll('.device *')].find((el) => el.getBoundingClientRect().right > window.innerWidth + 0.5)?.className ?? null);

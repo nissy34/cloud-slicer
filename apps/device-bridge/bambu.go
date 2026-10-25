@@ -353,6 +353,31 @@ func (b *bambu) command(ctx context.Context, typ, cmd string, fields map[string]
 	}
 }
 
+// request sends the page's message, {"<type>": {"command": ..., ...}}, as it
+// is, with the next sequence number, and waits for the printer's answer.
+func (b *bambu) request(ctx context.Context, message map[string]any) (any, error) {
+	if len(message) != 1 {
+		return nil, errors.New("A Bambu Lab message has one part, such as \"print\".")
+	}
+	for typ, v := range message {
+		body, ok := v.(map[string]any)
+		cmd, _ := body["command"].(string)
+		if !ok || cmd == "" {
+			return nil, errors.New("A Bambu Lab message needs a command.")
+		}
+		fields := map[string]any{}
+		for k, f := range body {
+			if k != "command" && k != "sequence_id" {
+				fields[k] = f
+			}
+		}
+		if err := b.command(ctx, typ, cmd, fields); err != nil {
+			return nil, err
+		}
+	}
+	return "ok", nil
+}
+
 func (b *bambu) about(ctx context.Context) (string, string, error) {
 	if err := b.connect(ctx); err != nil {
 		return "", "", err
@@ -489,6 +514,9 @@ func (b *bambu) status(ctx context.Context) (map[string]any, error) {
 		"toolhead":                  map[string]any{"position": []any{0.0, 0.0, 0.0, 0.0}, "extruder": "extruder", "homed_axes": homed},
 		"gcode_move":                map[string]any{"gcode_position": []any{0.0, 0.0, 0.0, 0.0}, "speed_factor": speed, "extrude_factor": 1.0},
 	}
+	// The printer's own report as it is (AMS trays, HMS messages, ...), for the
+	// page's Bambu add-on to read (src/device/addons/bambu.ts).
+	objects["bambu"] = r
 	sensors := []any{"extruder", "heater_bed"}
 	// Only printers with a chamber sensor (X1, H2) say its temperature.
 	if _, ok := r["chamber_temper"]; ok {

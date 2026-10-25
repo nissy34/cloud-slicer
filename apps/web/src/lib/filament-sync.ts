@@ -13,13 +13,13 @@
 // here every loaded head comes in, which is what loading a printer means.
 import { differenceCiede2000 } from 'culori';
 import type { PresetSummary } from '../engine/protocol';
-import type { U1Head } from '../device/addons/u1';
+import type { FilamentSlot } from '../device/slots';
 import { pickFilamentPreset } from './presets';
 
-/** One tool head's filament as the slicer sees it. */
+/** One of the printer's filaments (a tool head's, an AMS slot's) as the slicer sees it. */
 export interface PrinterFilament {
   head: number;
-  /** "T1" */
+  /** "T1", "A1" */
   label: string;
   /** #RRGGBB */
   colour: string;
@@ -56,7 +56,7 @@ export function printerFilamentName(vendor: string, type: string, subType: strin
   return [v, type, subType].filter(Boolean).join(' ');
 }
 
-export function printerFilaments(heads: U1Head[]): PrinterFilament[] {
+export function printerFilaments(heads: FilamentSlot[]): PrinterFilament[] {
   return heads.map((h) => ({
     head: h.index,
     label: h.label,

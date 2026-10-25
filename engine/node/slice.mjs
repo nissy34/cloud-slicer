@@ -11,6 +11,9 @@
 //     --list              print the printer's compatible processes and filaments
 //     --config-out FILE   also write the final config as JSON
 //
+// A printer that takes a .gcode.3mf (Bambu Lab, or its use_3mf on) also gets
+// <out.gcode>.3mf.
+//
 // Needs the engine build (engine/build/engine) and the preset bundle
 // (node engine/scripts/bundle-profiles.mjs engine/build/profiles).
 import { readFileSync, writeFileSync } from 'node:fs';
@@ -83,6 +86,7 @@ if (opts.configOut) writeFileSync(opts.configOut, JSON.stringify(full.config, nu
 if (!result.success) process.exit(1);
 
 writeFileSync(outArg, engine.FS.readFile(result.gcodePath));
+if (result.gcode3mfPath) writeFileSync(`${outArg}.3mf`, engine.FS.readFile(result.gcode3mfPath));
 console.error(
   `timing: init ${(tInit - t0).toFixed(0)}ms, load ${(tLoad - tInit).toFixed(0)}ms, slice ${(tSlice - tLoad).toFixed(0)}ms; ` +
   `rss ${(process.memoryUsage().rss / 2 ** 20).toFixed(0)}MB`);

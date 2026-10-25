@@ -101,6 +101,7 @@ export function FilesCard() {
   const files = useDevice((s) => s.files);
   const call = useDevice((s) => s.call);
   const openPrintDialog = useDevice((s) => s.openPrintDialog);
+  const addons = useDevice((s) => s.addons);
   const input = useRef<HTMLInputElement>(null);
   const { confirm, dialog } = useConfirm();
   const [query, setQuery] = useState('');
@@ -124,7 +125,7 @@ export function FilesCard() {
           <input
             ref={input}
             type="file"
-            accept=".gcode,.g,.gco"
+            accept={['.gcode', '.g', '.gco', ...addons.flatMap((a) => a.uploads ?? [])].join(',')}
             hidden
             data-testid="device-gcode-input"
             onChange={(e) => {

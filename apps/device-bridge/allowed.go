@@ -31,6 +31,9 @@ var allowed = map[string]bool{
 	"server.exception.query":    true,
 	// The U1's own camera: turns the monitor picture on for a while.
 	"camera.start_monitor": true,
+	// A printer the bridge stands in for, in its own language (a Bambu Lab
+	// print with its AMS slots); Moonraker itself has no such call.
+	"printer.request": true,
 }
 
 // refusal says why a browser's call isn't passed on, or "" when it may go to the printer.

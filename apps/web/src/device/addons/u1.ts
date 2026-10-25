@@ -6,8 +6,8 @@
 import { extruderIndex, type Fan, type KlipperObjects } from '../status';
 import type { PrinterAddon } from './types';
 import { u1Errors } from './u1-errors';
-import { differenceCie76 } from 'culori';
 import { filamentInExtruders } from '../heads';
+import type { FilamentSlot, PrintOptions } from '../slots';
 
 export const U1_HEADS = 4;
 export const U1_LIGHT = 'led cavity_led';
@@ -35,6 +35,17 @@ export const u1Addon: PrinterAddon = {
   },
   activity: (o) => u1Activity(o),
   errors: u1Errors,
+  filaments: {
+    title: 'Tool heads',
+    words: { noun: 'tool head', unset: 'Load filament, or set its type on the Tool heads card.' },
+    note: 'As in Snapmaker’s own app, a filament can only go to a head with the same filament type and nozzle size. Brand and colour can differ.',
+    read: (o) => (o.print_task_config ? u1Heads(o) : null),
+  },
+  printOptions: (o) => u1PrintOptions(o),
+  startPrint: ({ path, map, options }) => [
+    ...u1PrintPrepGcode(options, map).map((script) => ({ method: 'printer.gcode.script', params: { script }, timeoutMs: 30_000 })),
+    { method: 'printer.print.start', params: { filename: path }, timeoutMs: 60_000 },
+  ],
 };
 
 const arr = (v: unknown): unknown[] => (Array.isArray(v) ? v : []);
@@ -50,28 +61,11 @@ export interface FeedChannel {
   error: string;
 }
 
-export interface U1Head {
-  index: number;
-  label: string;
-  /** #RRGGBB */
-  colour: string;
-  material: string;
-  subType: string;
-  vendor: string;
-  /** Filament in the head itself, from the head's filament sensor. */
-  loaded: boolean;
-  /**
-   * Filament the head can print with: in the head, or waiting at its side
-   * feeder, which loads it on its own (print_task_config.filament_exist; the
-   * printer's own print dialog goes by this).
-   */
-  ready: boolean;
-  /** Read from a Snapmaker RFID tag: the firmware won't let it be edited. */
-  official: boolean;
+/** A tool head: its filament (print_task_config, the head's sensor) and the head itself. */
+export interface U1Head extends FilamentSlot {
   feed: FeedChannel | null;
   /** Whether the head is in its dock or on the carriage, from the dock sensors. */
   dock: 'parked' | 'attached' | 'unknown' | null;
-  nozzle: { diameter: number; volumeType: string } | null;
   /** Pick-ups since the counter was reset on the printer, and failed ones. */
   switches: { count: number; errors: number; sinceMaintenance: number } | null;
 }
@@ -167,13 +161,7 @@ export function nozzleGcode(i: number, diameter: number, volumeType: string): st
 export const RESET_MAINTENANCE_GCODE = 'RESET_EXTRUDER_MAINTENANCE_COUNT';
 
 /** Print options the U1 keeps between prints (print_task_config). */
-export interface U1PrintOptions {
-  bedLevel: boolean;
-  flowCalibrate: boolean;
-  timeLapse: boolean;
-}
-
-export function u1PrintOptions(o: KlipperObjects): U1PrintOptions {
+export function u1PrintOptions(o: KlipperObjects): PrintOptions {
   const ptc = o.print_task_config ?? {};
   return { bedLevel: ptc.auto_bed_leveling === true, flowCalibrate: ptc.flow_calibrate === true, timeLapse: ptc.time_lapse_camera === true };
 }
@@ -268,7 +256,7 @@ export function u1Activity(o: KlipperObjects): string | null {
  * head prints each of the file's filaments. The firmware applies the map to
  * every T, M104 and M109 in the file and resets it when the print ends.
  */
-export function u1PrintPrepGcode(options: U1PrintOptions, toolMap: Record<number, number>): string[] {
+export function u1PrintPrepGcode(options: PrintOptions, toolMap: Record<number, number>): string[] {
   const out = [
     `SET_PRINT_PREFERENCES BED_LEVEL=${options.bedLevel ? 1 : 0} FLOW_CALIBRATE=${options.flowCalibrate ? 1 : 0} TIME_LAPSE_CAMERA=${options.timeLapse ? 1 : 0}`,
   ];
@@ -278,86 +266,6 @@ export function u1PrintPrepGcode(options: U1PrintOptions, toolMap: Record<number
     out.push(`SET_PRINT_EXTRUDER_MAP CONFIG_EXTRUDER=${f} MAP_EXTRUDER=${head}`);
   }
   return out;
-}
-
-const cie76 = differenceCie76();
-
-/** CIE76 distance between two #RRGGBB colours, for suggesting a head per filament. */
-export function colourDistance(a: string, b: string): number {
-  return cie76(a, b);
-}
-
-/** What the print dialog knows about one filament in the file. */
-export interface MappedFilament {
-  index: number;
-  colour: string;
-  material: string;
-  /** Nozzle diameter the file was sliced for, in mm. */
-  nozzle?: number;
-  /** The file was sliced for a high-flow nozzle. */
-  highFlow?: boolean;
-}
-
-/** Snapmaker's way of comparing material names: case, dashes, underscores and spaces don't count. */
-const materialKey = (v: string) => v.toLowerCase().replace(/[-_ ]/g, '');
-
-/**
- * Whether a head's filament is the type the file asks for, the way Snapmaker's
- * own print dialog decides it: the same material name, or the head's type and
- * sub-type together spelling it ("PLA" + "CF" for a "PLA-CF" file). Brand and
- * colour don't matter.
- */
-export function u1MaterialMatches(fileMaterial: string, head: Pick<U1Head, 'material' | 'subType'>): boolean {
-  const want = materialKey(fileMaterial);
-  const type = materialKey(head.material);
-  if (!want || !type) return false;
-  if (want === type) return true;
-  const sub = materialKey(head.subType);
-  return Boolean(sub) && sub !== type && want === type + sub;
-}
-
-/**
- * Whether a filament can go to a head, with the same rules as Snapmaker's
- * print dialog: a head with another filament type, no filament identified or
- * another nozzle size can't be picked; a standard nozzle for a file sliced for
- * high flow is allowed with a warning. The U1 firmware itself accepts any map.
- */
-/** Why a filament has no head: none of the loaded ones is allowed. */
-export const u1NoHeadReason = (f: MappedFilament) =>
-  `No tool head has ${f.material || 'a matching filament'}${f.nozzle ? ` with a ${f.nozzle} mm nozzle` : ''}. Load it on a head, or change the filament in the slicer and slice again.`;
-
-export function u1MappingCheck(f: MappedFilament, head: U1Head): { blocked: string | null; warning: string | null } {
-  let blocked: string | null = null;
-  if (!head.material) blocked = `${head.label} has no filament type set. Load filament, or set its type on the Tool heads card.`;
-  else if (f.material && !u1MaterialMatches(f.material, head))
-    blocked = `${head.label} has ${[head.material, head.subType].filter(Boolean).join(' ')}, but this filament was sliced as ${f.material}.`;
-  else if (f.nozzle && head.nozzle && Math.abs(f.nozzle - head.nozzle.diameter) >= 0.001)
-    blocked = `${head.label} has a ${head.nozzle.diameter} mm nozzle, but the file was sliced for ${f.nozzle} mm.`;
-  const warning =
-    !blocked && f.highFlow && head.nozzle && head.nozzle.volumeType !== 'high_flow'
-      ? `The file was sliced for a high-flow nozzle, but ${head.label} has a standard one.`
-      : null;
-  return { blocked, warning };
-}
-
-/**
- * Suggested head for each file filament: a head it is allowed on (see
- * u1MappingCheck), loaded ones first, then the closest colour, each head used
- * once while there are spares; -1 (no head) when nothing fits.
- */
-export function suggestToolMap(filaments: MappedFilament[], heads: U1Head[]): Record<number, number> {
-  const map: Record<number, number> = {};
-  const used = new Set<number>();
-  for (const f of filaments) {
-    const candidates = heads
-      .filter((h) => !u1MappingCheck(f, h).blocked)
-      .map((h) => ({ h, d: colourDistance(f.colour, h.colour) + (used.has(h.index) ? 1000 : 0) + (h.ready ? 0 : 2000) }))
-      .sort((a, b) => a.d - b.d);
-    const pick = candidates[0]?.h.index ?? -1;
-    map[f.index] = pick;
-    if (pick >= 0) used.add(pick);
-  }
-  return map;
 }
 
 /**

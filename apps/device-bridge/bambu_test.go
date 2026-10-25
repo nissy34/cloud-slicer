@@ -238,3 +238,57 @@ func TestHomedAfter(t *testing.T) {
 		}
 	}
 }
+
+func TestBambuPassesItsOwnMessages(t *testing.T) {
+	old := pollEvery
+	pollEvery = 50 * time.Millisecond
+	t.Cleanup(func() { pollEvery = old })
+	f := newFakeBambu(t)
+	p := Printer{ID: "p1s-raw", Name: "P1S", URL: "http://127.0.0.1", APIKey: fakebambu.Code, Kind: kindBambu}
+	ep := endpointFor(p)
+	t.Cleanup(func() { forgetStandIn(p.ID) })
+	c := dialStandIn(t, ep.URL)
+
+	// The printer's own report, untouched, for the page to read its AMS.
+	raw := c.must("printer.objects.subscribe", map[string]any{"objects": map[string]any{"bambu": nil, "print_stats": nil}}).(map[string]any)["status"].(map[string]any)["bambu"].(map[string]any)
+	trays := raw["ams"].(map[string]any)["ams"].([]any)[0].(map[string]any)["tray"].([]any)
+	if len(trays) != 4 || trays[2].(map[string]any)["tray_color"] != "C12E1FFF" {
+		t.Fatalf("ams %v", raw["ams"])
+	}
+
+	// The page's message goes to the printer as it is.
+	s := newSession("c1", ep, func(string) {}, func(string) {})
+	t.Cleanup(s.close)
+	data := []byte("PK")
+	begin, err := s.uploadBegin("cube.gcode.3mf", int64(len(data)))
+	if err != nil {
+		t.Fatal(err)
+	}
+	id := begin.(map[string]any)["uploadId"].(string)
+	if _, err := s.uploadChunk(id, 0, base64.StdEncoding.EncodeToString(data)); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.uploadEnd(id); err != nil {
+		t.Fatal(err)
+	}
+	msg := map[string]any{"print": map[string]any{"command": "project_file", "param": "Metadata/plate_2.gcode", "url": "file:///sdcard/cube.gcode.3mf",
+		"use_ams": true, "ams_mapping": []any{0, 2}, "bed_leveling": false}}
+	c.must("printer.request", map[string]any{"message": msg})
+	got := f.Last("project_file")
+	if got == nil || got["param"] != "Metadata/plate_2.gcode" || fmt.Sprint(got["ams_mapping"]) != "[0 2]" || got["bed_leveling"] != false || got["sequence_id"] == nil {
+		t.Fatalf("printer got %v", got)
+	}
+	c.until("printing", func(d map[string]any) bool {
+		ps, _ := d["print_stats"].(map[string]any)
+		return ps["state"] == "printing"
+	})
+
+	// Its refusal comes back.
+	f.Refuse("project_file")
+	if _, err := c.call("printer.request", map[string]any{"message": msg}); err == nil || !strings.Contains(err.Error(), "verify failed") {
+		t.Fatalf("refused: %v", err)
+	}
+	if _, err := c.call("printer.request", map[string]any{"message": map[string]any{"print": map[string]any{}}}); err == nil {
+		t.Fatal("a message without a command went through")
+	}
+}

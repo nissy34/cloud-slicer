@@ -141,7 +141,7 @@ try {
   u1.patch({ print_task_config: { filament_type: ['PLA', 'PLA', 'PLA', 'PETG'], filament_exist: [true, true, true, true] } });
   await page.getByTestId('sync-filaments').click();
   await dialog.getByTestId('sync-rows').waitFor();
-  await dialog.getByLabel(/Also add the filaments on the other heads/).check();
+  await dialog.getByLabel(/Also add the filaments on the other tool heads/).check();
   await dialog.getByTestId('sync-load').click();
   await dialog.waitFor({ state: 'detached' });
   s = await slots(page);
@@ -151,7 +151,7 @@ try {
   // ---- a printer that isn't a U1 -------------------------------------------------------
   await page.getByTestId('sync-filaments').click();
   await dialog.getByLabel('Printer', { exact: true }).selectOption({ label: 'voron-mock' });
-  await dialog.getByTestId('sync-status').filter({ hasText: 'is not a Snapmaker U1' }).waitFor({ timeout: 30000 });
+  await dialog.getByTestId('sync-status').filter({ hasText: "doesn't say what filament is loaded" }).waitFor({ timeout: 30000 });
   check(await dialog.getByTestId('sync-load').isDisabled(), 'nothing to load from a non-U1');
   await dialog.getByLabel('Printer', { exact: true }).selectOption({ label: 'U1-mock' });
   await dialog.getByTestId('sync-rows').waitFor({ timeout: 30000 });

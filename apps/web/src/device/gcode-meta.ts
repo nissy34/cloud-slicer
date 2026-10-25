@@ -2,6 +2,7 @@
 // uses (colour, material, grams) and the time estimate. Orca writes these as
 // comments in the header and in the config block at the end, so only the
 // first and last few hundred kilobytes are read, never the whole file.
+import { unzipSync } from 'fflate';
 
 export interface FileFilament {
   /** Tool index in the file (T0, T1, ...). */
@@ -16,7 +17,10 @@ export interface FileFilament {
 }
 
 export interface GcodeMeta {
+  /** The filaments it prints with (unused ones left out). */
   filaments: FileFilament[];
+  /** How many filaments the project had, used or not. */
+  filamentCount: number;
   estimatedSeconds: number | null;
   layers: number | null;
   /** The printer profile the file was sliced with (Orca's printer_settings_id). */
@@ -76,6 +80,7 @@ export function parseGcodeMeta(text: string): GcodeMeta {
   const layers = Number(kv.get('total layer number') ?? kv.get('total layers count'));
   return {
     filaments,
+    filamentCount: count,
     estimatedSeconds: parseDuration(kv.get('estimated printing time (normal mode)') ?? kv.get('model printing time')),
     layers: Number.isFinite(layers) && layers > 0 ? layers : null,
     ...(kv.get('printer_settings_id') && { printer: kv.get('printer_settings_id')!.replace(/^"|"$/g, '') }),
@@ -115,7 +120,7 @@ function materialList(v: unknown): string[] {
 
 /** Moonraker's own file metadata (server.files.metadata) in the same shape. */
 export function metaFromMoonraker(m: Record<string, unknown> | null): GcodeMeta {
-  if (!m) return { filaments: [], estimatedSeconds: null, layers: null };
+  if (!m) return { filaments: [], filamentCount: 0, estimatedSeconds: null, layers: null };
   const colours = Array.isArray(m.filament_colors) ? (m.filament_colors as string[]) : [];
   const types = materialList(m.filament_type);
   const weights = Array.isArray(m.filament_weights) ? (m.filament_weights as number[]) : [];
@@ -134,6 +139,7 @@ export function metaFromMoonraker(m: Record<string, unknown> | null): GcodeMeta 
   }
   return {
     filaments,
+    filamentCount: count,
     estimatedSeconds: typeof m.estimated_time === 'number' ? m.estimated_time : null,
     layers: typeof m.layer_count === 'number' ? m.layer_count : null,
   };
@@ -152,4 +158,26 @@ export function thumbnailUrl(m: Record<string, unknown> | null, path: string, mi
   if (!pick) return null;
   const dir = path.includes('/') ? path.slice(0, path.lastIndexOf('/') + 1) : '';
   return `/server/files/gcodes/${`${dir}${pick.relative_path}`.split('/').map(encodeURIComponent).join('/')}`;
+}
+
+/**
+ * What a .gcode.3mf holds for printing: the plate (Metadata/plate_<n>.gcode,
+ * 1-based) and that plate's G-code. Null when it isn't one.
+ */
+export async function readGcode3mf(blob: Blob): Promise<{ plate: number; gcode: Blob } | null> {
+  let plate: number | null = null;
+  try {
+    const files = unzipSync(new Uint8Array(await blob.arrayBuffer()), {
+      filter: (f) => {
+        const m = /^Metadata\/plate_(\d+)\.gcode$/.exec(f.name);
+        if (!m || plate != null) return false;
+        plate = Number(m[1]);
+        return true;
+      },
+    });
+    if (plate == null) return null;
+    return { plate, gcode: new Blob([files[`Metadata/plate_${plate}.gcode`] as Uint8Array<ArrayBuffer>]) };
+  } catch {
+    return null;
+  }
 }
