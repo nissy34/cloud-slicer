@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { fanGcode, jogGcode, lightGcode, ownName, setHeaterGcode, uploadName } from './commands';
+import { extrudeGcode, fanGcode, jogGcode, lightGcode, ownName, setHeaterGcode, uploadName } from './commands';
 import { metaFromMoonraker, parseDuration, parseGcodeMeta, thumbnailUrl } from './gcode-meta';
 import { directBlockedReason, normalizePrinterUrl } from './link/direct';
 import { decodePairing, encodePairing } from './pairing';
@@ -15,6 +15,16 @@ describe('device commands', () => {
     expect(lightGcode('neopixel strip', true)).toBe('SET_LED LED=strip RED=1 GREEN=1 BLUE=1 WHITE=1');
     expect(uploadName('my plate (2).gcode')).toBe('my_plate_2.gcode');
     expect(uploadName('Benchy plate 1.gcode.3mf')).toBe('Benchy_plate_1.gcode.3mf');
+  });
+
+  it("writes the same controls in Marlin's words for printers that aren't Klipper", () => {
+    expect(setHeaterGcode('heater_bed', 500, 120, 'marlin')).toBe('M140 S120');
+    expect(setHeaterGcode('extruder', 215.4, 300, 'marlin')).toBe('M104 T0 S215');
+    expect(setHeaterGcode('extruder1', 200, 300, 'marlin')).toBe('M104 T1 S200');
+    expect(setHeaterGcode('heater_generic chamber', 45, 80, 'marlin')).toBe('M141 S45');
+    expect(() => setHeaterGcode('heater_generic dryer', 45, 80, 'marlin')).toThrow();
+    expect(jogGcode('x', -10, 6000, 'marlin')).toBe('G91\nG1 X-10 F6000\nG90');
+    expect(extrudeGcode(-10, 300, 'marlin')).toBe('M83\nG1 E-10 F300\nM82');
   });
 });
 
