@@ -1,8 +1,10 @@
 // Print history of saved projects (src/lib/prints.ts has the logic around it):
 // a row per send or mark of a plate; the page works out each plate's mark.
 // Rows go with their project (deleted with it, copied with "Save a copy").
+import { readPrintTag, sameFile, statusFromJob } from '../../src/lib/prints';
 import { requireUser } from './auth';
 import { HttpError, json, readJson, requireSameOrigin } from './http';
+import { provenBridge } from './relay';
 import type { Env } from './types';
 
 /** Rows kept per plate; past this the oldest go. */
@@ -253,4 +255,98 @@ export async function printedCounts(env: Env, userId: string): Promise<Map<strin
     out.set(p, (out.get(p) ?? 0) + 1);
   }
   return out;
+}
+
+/** A print the printer says ended counts for a waiting send only if it started after it (a minute's slack for clocks). */
+const SLACK_MS = 60_000;
+/** The same end heard twice (the bridge restarted) inside this makes one record. */
+const SAME_END_MS = 10 * 60_000;
+
+/**
+ * POST /api/relay/print (the relay, for a bridge; apps/device-relay/src/prints.ts)
+ * { relay, bridgeId, browserKey, owner, printer, printerName, file, state, duration?, total?, progress?, late?, tag }
+ * A print started (state printing) or ended (complete, cancelled, error) on a
+ * printer of the bridge. The file's tag (cloud_slicer_print, put in by Send and
+ * Download) says which project and plate it is, wherever the print was started;
+ * without one, a waiting send of that file to that printer is the one.
+ */
+export async function fromBridge(env: Env, request: Request): Promise<Response> {
+  const b = await readJson<Record<string, unknown>>(request, 8192);
+  const { owner, rows } = await provenBridge(env, b);
+  const file = text(b.file, 512);
+  const status = statusFromJob(String(b.state));
+  if (!file || !status || status === 'unknown') throw new HttpError(400, 'Bad print');
+  // The account's printers this is: its saved printers on that bridge with that printer id.
+  const printers = rows.filter((r) => r.kind === 'bridge' && r.printer && r.printer === text(b.printer, 64));
+  const ids = printers.map((r) => r.id);
+  const tag = readPrintTag(String(b.tag ?? ''));
+  const late = b.late === true;
+  const now = Date.now();
+  const total = num(b.total) ?? num(b.duration);
+  const d = env.DB!;
+  await expire(env, owner).run();
+  const open = (
+    await d.prepare(`SELECT * FROM project_prints WHERE user_id = ? AND ${inOpen} ORDER BY at DESC`).bind(owner).all<PrintRow>()
+  ).results;
+  const onPrinter = (r: PrintRow) => !!r.printer && ids.includes(r.printer);
+  const candidates = open.filter((r) =>
+    tag ? r.project_id === tag.projectId && r.plate === tag.plate && r.fingerprint === tag.fingerprint && onPrinter(r) : onPrinter(r) && sameFile(r.file ?? '', file),
+  );
+  // A waiting send counts for an end only when that print began after it; one already printing is this print.
+  const fits = (r: PrintRow) => r.status === 'printing' || status === 'printing' || (total != null && total > 0 && r.at <= now - total * 1000 + SLACK_MS) || (!late && total == null);
+  const match = candidates.find(fits);
+
+  if (match) {
+    if (status === 'printing' && match.status === 'printing') return json({ ok: true, print: match.id });
+    await d
+      .prepare(`UPDATE project_prints SET status = ?, ended_at = ?, duration = COALESCE(?, duration), progress = COALESCE(?, progress) WHERE user_id = ? AND id = ? AND ${inOpen}`)
+      .bind(status, status === 'printing' ? null : now, status === 'printing' ? null : num(b.duration), num(b.progress), owner, match.id)
+      .run();
+    return json({ ok: true, print: match.id });
+  }
+  // No waiting record: a tagged file started (or ended, unseen) some other way, from one of this account's projects.
+  if (!tag || late) return json({ ok: true, print: null });
+  const project = await d.prepare('SELECT id FROM projects WHERE user_id = ? AND id = ?').bind(owner, tag.projectId).first();
+  if (!project) return json({ ok: true, print: null });
+  const printer = printers[0];
+  if (status !== 'printing') {
+    const again = await d
+      .prepare('SELECT id FROM project_prints WHERE user_id = ? AND project_id = ? AND plate = ? AND status = ? AND file = ? AND ended_at > ?')
+      .bind(owner, tag.projectId, tag.plate, status, file, now - SAME_END_MS)
+      .first();
+    if (again) return json({ ok: true, print: (again as { id: string }).id });
+  }
+  const id = crypto.randomUUID();
+  const duration = num(b.duration);
+  await d.batch([
+    // Like a send: earlier records waiting on this file on this printer get no word.
+    ...(printer ? [d.prepare(`UPDATE project_prints SET status = 'unknown', ended_at = ? WHERE user_id = ? AND ${inOpen} AND printer = ? AND file = ?`).bind(now, owner, printer.id, file)] : []),
+    d
+      .prepare(
+        `INSERT INTO project_prints (user_id, project_id, id, plate, status, at, ended_at, duration, progress, printer, printer_name, file, fingerprint, summary)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL)`,
+      )
+      .bind(
+        owner,
+        tag.projectId,
+        id,
+        tag.plate,
+        status,
+        status === 'printing' ? now : now - (total ?? 0) * 1000,
+        status === 'printing' ? null : now,
+        status === 'printing' ? null : duration,
+        num(b.progress),
+        printer?.id ?? null,
+        printer?.name ?? text(b.printerName, 80),
+        file,
+        tag.fingerprint,
+      ),
+    d
+      .prepare(
+        `DELETE FROM project_prints WHERE user_id = ? AND project_id = ? AND plate = ? AND id NOT IN
+         (SELECT id FROM project_prints WHERE user_id = ? AND project_id = ? AND plate = ? ORDER BY at DESC LIMIT ?)`,
+      )
+      .bind(owner, tag.projectId, tag.plate, owner, tag.projectId, tag.plate, MAX_PER_PLATE),
+  ]);
+  return json({ ok: true, print: id });
 }

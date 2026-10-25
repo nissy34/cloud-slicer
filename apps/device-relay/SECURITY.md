@@ -65,6 +65,13 @@ Pairing:
   Mozilla, Microsoft) see only that a message arrived: its content is encrypted
   for the browser. A picture can be fetched by anyone holding its random link
   for a day, then R2 deletes it.
+- **Print history**: the bridge reads the first 16 KB of each file that starts
+  printing, on the home network, and sends only its `cloud_slicer_print` line
+  (project id, plate, a hash) with the file name, state and times. The relay
+  passes that to the site with the bridge's browser key as proof; it keeps the
+  browser key with the agent's open socket (not in storage) for that, and logs
+  nothing. The site only takes it for the account that saved the bridge with that
+  key, and only for that account's own projects.
 
 ## Threat model
 

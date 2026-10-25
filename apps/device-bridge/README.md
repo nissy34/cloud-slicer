@@ -165,7 +165,8 @@ out with the printer's own API (`prusalink.go`: digest login as `maker` with the
 PrusaLink password, `/api/v1/status`, `/api/v1/job`, `/api/v1/files`). Everything else
 (sessions, uploads, file pictures, alert watches) talks to the stand-in like to any
 Moonraker, so another brand is one more file like `prusalink.go`. The stand-in asks the
-printer every 2 seconds, only while a browser or an alert watch is connected. Calls the
+printer every 2 seconds while a browser or an alert watch is connected, and every 10
+seconds while only the print history watch is (it connects with `?quiet=1`). Calls the
 printer can't do (G-code, emergency stop, firmware restart) answer with a plain-words
 error, and `printer.info` carries `brand`, so the Device tab leaves those controls
 out. A printer's `kind` in the settings says which it is (`prusalink`; none for
@@ -281,6 +282,17 @@ its metadata, which head or sensor ran out; `detailsFrom`, tested with
 (`exceptions`, from `server.exception.query`) or a Bambu Lab printer's (`bambu`:
 its report's `print_error` and `hms`, as the printer sends them; the relay puts them
 in Bambu's words), and a frame from the printer's
-first camera on the key alerts. Nothing else leaves the home network; with no alerts wanted, no
-watch runs. What each part can see and what's protected:
+first camera on the key alerts.
+
+**Print history** (`printjob.go`): the same watch runs on every printer the bridge
+serves, alerts or not, and says when a print starts and how it ends
+(`{ctl:"print", printer, file, state, duration, total, progress, late, tag}`; `late`
+when the end was already there as the watch began, after a restart). With each it
+reads the first 16 KB of the file (an HTTP Range request to Moonraker's
+`/server/files/gcodes/<file>` with the printer's API key; OctoPrint's
+`/downloads/files/local/<file>`) and passes the `; cloud_slicer_print = …` line the
+site puts in every G-code it sends or downloads as it is; the site works out the
+project and plate (`apps/web/functions/_lib/prints.ts` `fromBridge`). Prusa, Elegoo
+and Bambu Lab printers send no line, and the site goes by the file name. Nothing else
+leaves the home network. What each part can see and what's protected:
 [../device-relay/SECURITY.md](../device-relay/SECURITY.md).

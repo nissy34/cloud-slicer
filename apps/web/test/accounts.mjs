@@ -42,6 +42,7 @@ const users = {
   hank: { sub: 'g-hank', name: 'Hank', email: 'hank@example.com', email_verified: true },
   ivy: { sub: 'g-ivy', name: 'Ivy', email: 'ivy@example.com', email_verified: true },
   june: { sub: 'g-june', name: 'June', email: 'june@example.com', email_verified: true },
+  kim: { sub: 'g-kim', name: 'Kim', email: 'kim@example.com', email_verified: true },
 };
 let nextUser = 'alice';
 const codes = new Map(); // code -> { user, challenge }
@@ -597,6 +598,70 @@ test('print history: sends and marks per plate, the printer\'s word, plates dele
   assert.deepEqual(await list('ten'), []);
   assert.deepEqual((await (await ivy.json('/api/prints/open')).json()).prints, []);
   assert.equal((await list('copy')).length, 57, 'the copy keeps its own');
+});
+
+test("print history from the bridge: the file's tag or its name says which plate, with no page open", async () => {
+  const kim = new Browser();
+  await signIn(kim, 'kim');
+  const owner = (await kim.me()).id;
+  const relay = 'https://relay.example';
+  const browserKey = 'b'.repeat(43);
+  // The bridge and its printer as the Device tab saves them (state/device.ts bridgeInput, printerInput).
+  assert.equal((await kim.json('/api/devices/br-1', 'PUT', { name: 'Bridge', url: '', apiKey: browserKey, extra: { kind: 'bridge-agent', relay, bridgeId: 'bridge-k001' } })).status, 200);
+  assert.equal((await kim.json('/api/devices/u1-k', 'PUT', { name: 'U1 in the garage', url: '', extra: { kind: 'bridge', relay, bridgeId: 'bridge-k001', printer: 'p1' } })).status, 200);
+  const file = new Blob([Buffer.from('PK\x03\x04 plates')]);
+  const saved = await kim.fetch(`${HOST}/api/projects/kp?${new URLSearchParams({ name: 'kp', plates: '3' })}`, { method: 'PUT', headers: { Origin: HOST, 'Content-Type': 'model/3mf' }, body: file });
+  assert.equal(saved.status, 200);
+  const list = async () => (await (await kim.json('/api/projects/kp/prints')).json()).prints;
+  // What the relay sends (apps/device-relay/src/prints.ts).
+  const news = (body) =>
+    fetch(`${HOST}/api/relay/print`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ relay, bridgeId: 'bridge-k001', browserKey, owner, printer: 'p1', printerName: 'U1', tag: '', ...body }) });
+
+  assert.equal((await news({ file: 'a.gcode', state: 'printing', browserKey: 'x'.repeat(43) })).status, 404, 'wrong bridge key');
+  assert.equal((await news({ file: 'a.gcode', state: 'printing', owner: 'someone-else' })).status, 404, "someone else's account");
+  assert.equal((await news({ file: 'a.gcode', state: 'standby' })).status, 400);
+
+  // Sent from the Send window, by name: printing, then printed.
+  const sent = (await (await kim.json('/api/projects/kp/prints', 'POST', { plate: 0, status: 'sent', printer: 'u1-k', printerName: 'U1 in the garage', file: 'kp_plate_1.gcode', fingerprint: 'aaaa1111' })).json()).print;
+  assert.equal((await news({ file: 'kp_plate_1.gcode', state: 'printing', progress: 0.01 })).status, 200);
+  assert.equal((await list()).find((p) => p.id === sent.id).status, 'printing');
+  assert.equal((await news({ file: 'kp_plate_1.gcode', state: 'printing' })).status, 200, 'heard twice: the same');
+  await news({ file: 'kp_plate_1.gcode', state: 'complete', duration: 3600, total: 3700, progress: 1 });
+  let done = (await list()).find((p) => p.id === sent.id);
+  assert.deepEqual([done.status, done.duration, done.progress], ['printed', 3600, 1]);
+  assert.equal((await list()).length, 1);
+
+  // Started on the printer's screen from a downloaded file: its tag says which plate, and a record starts.
+  const tag = (plate) => `; cloud_slicer_print = kp/${plate + 1}/bbbb2222`;
+  await news({ file: 'usb/plate two.gcode', state: 'printing', tag: tag(1) });
+  let two = (await list()).find((p) => p.plate === 1);
+  assert.deepEqual([two.status, two.printer, two.printerName, two.fingerprint, two.file], ['printing', 'u1-k', 'U1 in the garage', 'bbbb2222', 'usb/plate two.gcode']);
+  await news({ file: 'usb/plate two.gcode', state: 'cancelled', duration: 60, tag: tag(1) });
+  two = (await list()).find((p) => p.id === two.id);
+  assert.equal(two.status, 'cancelled');
+  // Its end heard again after the bridge restarted ("late"): nothing new.
+  await news({ file: 'usb/plate two.gcode', state: 'cancelled', duration: 60, tag: tag(1), late: true });
+  assert.equal((await list()).filter((p) => p.plate === 1).length, 1);
+  // An end never seen start (the bridge was off), tagged: a record of how it ended; heard twice, still one.
+  await news({ file: 'p3.gcode', state: 'complete', duration: 120, total: 130, tag: tag(2) });
+  await news({ file: 'p3.gcode', state: 'complete', duration: 120, total: 130, tag: tag(2) });
+  const three = (await list()).filter((p) => p.plate === 2);
+  assert.deepEqual(three.map((p) => p.status), ['printed']);
+
+  // Uploaded only, started later on the printer: by name too. An older end of that name (the printer's last job, longer than since the upload) isn't it.
+  const up = (await (await kim.json('/api/projects/kp/prints', 'POST', { plate: 0, status: 'uploaded', printer: 'u1-k', file: 'kp_plate_1.gcode', fingerprint: 'aaaa1111' })).json()).print;
+  await news({ file: 'kp_plate_1.gcode', state: 'complete', duration: 3600, total: 3700, late: true });
+  assert.equal((await list()).find((p) => p.id === up.id).status, 'uploaded');
+  await news({ file: 'kp_plate_1.gcode', state: 'printing' });
+  await news({ file: 'kp_plate_1.gcode', state: 'error', duration: 10 });
+  assert.equal((await list()).find((p) => p.id === up.id).status, 'failed');
+
+  // Not this account's projects, untagged files nobody sent, a tag with another project: nothing.
+  await news({ file: 'other.gcode', state: 'printing' });
+  await news({ file: 'other.gcode', state: 'printing', tag: '; cloud_slicer_print = nope/1/cccc3333' });
+  await news({ file: 'other.gcode', state: 'printing', tag: '; cloud_slicer_print = ../1/cccc3333' });
+  assert.equal((await list()).length, 4);
+  assert.deepEqual((await (await kim.json('/api/prints/open')).json()).prints, []);
 });
 
 test('admin: only the owner (OWNER_EMAILS) gets the Admin page', async () => {

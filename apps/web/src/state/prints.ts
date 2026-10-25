@@ -3,11 +3,13 @@
 // word on prints still going. Only saved projects of a signed-in person have
 // one; everywhere else it stays empty and nothing shows.
 //
-// Records come from three places: the Send window (Upload only, Upload and
-// print), the plate menu (Mark as printed / not printed, Keep as printed), and
-// the printer connected on the Device tab, whose job status turns a record
-// into printing, then printed, failed or cancelled, for whichever project it
-// belongs to.
+// Records come from four places: the Send window (Upload only, Upload and
+// print), the plate menu (Mark as printed / not printed, Keep as printed), the
+// printer connected on the Device tab, whose job status turns a record into
+// printing, then printed, failed or cancelled, for whichever project it
+// belongs to, and the bridge, which tells the account the same with no page
+// open (functions/_lib/prints.ts fromBridge); the page picks those up when it
+// comes back into view, and every few minutes while a print is waiting.
 import { create } from 'zustand';
 import { api } from '../account/api';
 import { job } from '../device/status';
@@ -283,5 +285,34 @@ useDevice.subscribe((d, prev) => {
       .finally(() => updating.delete(r.id));
   }
 });
+
+// What the bridge told the account while the page was away (or, with a print waiting, every few minutes).
+const REFRESH_MS = 3 * 60_000;
+let refreshed = Date.now();
+async function refresh() {
+  if (!signedIn()) return;
+  refreshed = Date.now();
+  void loadOpen();
+  const id = usePrints.getState().projectId;
+  if (!id) return;
+  try {
+    const records = await api.prints(id);
+    const had = usePrints.getState().records.length;
+    if (usePrints.getState().projectId !== id) return;
+    usePrints.setState({ records });
+    // What the plates print now is worked out only for a project with a history.
+    if (!had && records.length) scheduleFingerprints(0);
+  } catch {
+    // tried again later
+  }
+}
+if (typeof document !== 'undefined') {
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible' && Date.now() - refreshed > 10_000) void refresh();
+  });
+  setInterval(() => {
+    if (document.visibilityState === 'visible' && usePrints.getState().open.length && Date.now() - refreshed >= REFRESH_MS) void refresh();
+  }, 30_000);
+}
 
 void loadOpen();

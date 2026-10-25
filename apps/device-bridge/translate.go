@@ -32,8 +32,11 @@ import (
 // kindPrusaLink (prusalink.go), kindOctoPrint (octoprint.go), kindElegoo (elegoo.go), kindBambu (bambu.go).
 const kindPrusaLink = "prusalink"
 
-// pollEvery: how often a stand-in asks its printer how it is, while someone is watching.
+// pollEvery: how often a stand-in asks its printer how it is, while someone is watching;
+// quietEvery while only the bridge's own watch is, for print history (no alerts wanted, no browser).
 var pollEvery = 2 * time.Second
+
+const quietEvery = 10 * time.Second
 
 // brand is one kind of printer, spoken to in its own language.
 type brand interface {
@@ -133,6 +136,8 @@ type standInClient struct {
 	ctx  context.Context
 	mu   sync.Mutex
 	subs map[string]bool
+	// quiet: the bridge's watch for print history only; it doesn't need the printer every 2 seconds.
+	quiet bool
 }
 
 func (c *standInClient) write(v any) {
@@ -247,7 +252,7 @@ func (s *standIn) serveWebsocket(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	ws.SetReadLimit(1 << 20)
-	c := &standInClient{ws: ws, ctx: r.Context(), subs: map[string]bool{}}
+	c := &standInClient{ws: ws, ctx: r.Context(), subs: map[string]bool{}, quiet: r.URL.Query().Get("quiet") == "1"}
 	s.mu.Lock()
 	if s.objects == nil {
 		s.objects = objects
@@ -256,6 +261,12 @@ func (s *standIn) serveWebsocket(w http.ResponseWriter, r *http.Request) {
 	if !s.polling {
 		s.polling = true
 		go s.poll()
+	} else if !c.quiet {
+		// A browser joined the quiet watch: no waiting out the slow look.
+		select {
+		case s.wake <- struct{}{}:
+		default:
+		}
 	}
 	s.mu.Unlock()
 	defer func() {
@@ -293,6 +304,18 @@ func (s *standIn) serveWebsocket(w http.ResponseWriter, r *http.Request) {
 
 var errNoMethod = errors.New("method not found")
 
+// interval is how long until the next look at the printer: quietEvery while every client is quiet.
+func (s *standIn) interval() time.Duration {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	for c := range s.clients {
+		if !c.quiet {
+			return s.every
+		}
+	}
+	return max(s.every, quietEvery)
+}
+
 // poll asks the printer how it is while anyone is connected, and sends each
 // client what changed in the objects it subscribed to.
 func (s *standIn) poll() {
@@ -304,7 +327,7 @@ func (s *standIn) poll() {
 	}
 	for {
 		select {
-		case <-time.After(s.every):
+		case <-time.After(s.interval()):
 		case <-s.wake:
 		}
 		s.mu.Lock()

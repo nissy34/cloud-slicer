@@ -331,11 +331,11 @@ export async function startMockPrinter({ port = 0, host = '127.0.0.1', generic =
       polygon: JSON.parse(m[4]),
     }));
     patch({ exclude_object: { objects, excluded_objects: [], current_object: objects[0]?.name ?? null } });
-    patch({ print_stats: { state: 'printing', filename, print_duration: 0, filament_used: 0, info: { current_layer: 1, total_layer: 50 } }, virtual_sdcard: { progress: 0, is_active: true } });
+    patch({ print_stats: { state: 'printing', filename, print_duration: 0, total_duration: 0, filament_used: 0, info: { current_layer: 1, total_layer: 50 } }, virtual_sdcard: { progress: 0, is_active: true } });
     printTimer = setInterval(() => {
       if (state.print_stats.state !== 'printing') return;
       const p = Math.min(1, state.virtual_sdcard.progress + printStep);
-      patch({ virtual_sdcard: { progress: p }, print_stats: { print_duration: state.print_stats.print_duration + 1, filament_used: Math.round(p * 2700), info: { current_layer: Math.ceil(p * 50) || 1, total_layer: 50 } } });
+      patch({ virtual_sdcard: { progress: p }, print_stats: { print_duration: state.print_stats.print_duration + 1, total_duration: state.print_stats.total_duration + 1, filament_used: Math.round(p * 2700), info: { current_layer: Math.ceil(p * 50) || 1, total_layer: 50 } } });
       // The head moves from object to object, never to a skipped one.
       const ex = state.exclude_object;
       const left = ex.objects.filter((o) => !ex.excluded_objects.includes(o.name));
@@ -467,6 +467,19 @@ export async function startMockPrinter({ port = 0, host = '127.0.0.1', generic =
       const thumb = file && gcodeThumbnails(file.text).find((t) => t.width === Number(m[2]) && t.height === Number(m[3]));
       if (!thumb) return send(404, { error: { message: 'no thumbnail' } });
       return send(200, thumb.png, 'image/png');
+    }
+    // A G-code file itself, as Moonraker serves it (the bridge reads its start for the print history tag).
+    if (req.method === 'GET' && url.pathname.startsWith('/server/files/gcodes/')) {
+      if (apiKey && req.headers['x-api-key'] !== apiKey) return send(401, { error: { message: 'Unauthorized' } });
+      const file = files.get(decodeURIComponent(url.pathname.slice('/server/files/gcodes/'.length)));
+      if (!file) return send(404, { error: { message: 'File not found' } });
+      stats.heads = (stats.heads ?? 0) + 1;
+      const all = Buffer.from(String(file.text ?? ''), 'latin1');
+      const range = /^bytes=0-(\d+)$/.exec(req.headers.range ?? '');
+      if (!range) return send(200, all, 'text/plain');
+      const part = all.subarray(0, Number(range[1]) + 1);
+      res.writeHead(206, { ...headers, 'Content-Type': 'text/plain', 'Content-Range': `bytes 0-${part.length - 1}/${all.length}` });
+      return res.end(part);
     }
     if (url.pathname === '/server/files/camera/monitor.jpg') {
       if (!generic && Date.now() < monitorUntil) return send(200, pngFrame(frame), 'image/png');
