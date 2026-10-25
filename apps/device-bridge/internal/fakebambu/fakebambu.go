@@ -201,6 +201,21 @@ func (p *Printer) Report() map[string]any {
 	return out
 }
 
+// Set changes fields of the printer's report and sends them, as the printer
+// sends only what changed (an error turning up, say).
+func (p *Printer) Set(fields map[string]any) {
+	p.mu.Lock()
+	for k, v := range fields {
+		p.report[k] = v
+	}
+	p.mu.Unlock()
+	diff := map[string]any{"command": "push_status"}
+	for k, v := range fields {
+		diff[k] = v
+	}
+	p.broadcast(map[string]any{"print": diff})
+}
+
 // Refuse makes the printer refuse a command, as without Developer Mode.
 func (p *Printer) Refuse(cmd string) {
 	p.mu.Lock()

@@ -278,7 +278,9 @@ small `{ctl:"alert"}` to the relay, with where the print stands (`details`:
 progress, layers, time printed and left, filament used and the file's totals from
 its metadata, which head or sensor ran out; `detailsFrom`, tested with
 `testdata/alert-details-cases.json`), the U1's current errors on problem alerts
-(`exceptions`, from `server.exception.query`), and a frame from the printer's
+(`exceptions`, from `server.exception.query`) or a Bambu Lab printer's (`bambu`:
+its report's `print_error` and `hms`, as the printer sends them; the relay puts them
+in Bambu's words), and a frame from the printer's
 first camera on the key alerts. Nothing else leaves the home network; with no alerts wanted, no
 watch runs. What each part can see and what's protected:
 [../device-relay/SECURITY.md](../device-relay/SECURITY.md).

@@ -97,6 +97,11 @@ export interface PrinterAddon {
   /** A short line for the status card while the printer is busy with something of its own. */
   activity?(o: KlipperObjects): string | null;
   errors?: PrinterErrorSource;
+  /**
+   * Errors read from the printer's own objects (a Bambu Lab report), for a
+   * printer that has no call for them: `key` changes when they may have.
+   */
+  objectErrors?: { key(o: KlipperObjects): string; read(o: KlipperObjects): Promise<PrinterError[]> };
   /** The bed, not the head, moves up and down, so the Move card's height arrows move the bed. */
   bedMovesInZ?: boolean;
   /**

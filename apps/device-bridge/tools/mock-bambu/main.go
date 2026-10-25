@@ -45,6 +45,16 @@ func main() {
 		}
 		_ = json.NewEncoder(w).Encode(map[string]any{"files": files, "commands": p.Commands(), "project": p.Last("project_file"), "report": p.Report()})
 	})
+	// POST /set {"print_error": ..., "hms": [...]}: the printer reports a change.
+	mux.HandleFunc("/set", func(w http.ResponseWriter, r *http.Request) {
+		var fields map[string]any
+		if err := json.NewDecoder(r.Body).Decode(&fields); err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+		p.Set(fields)
+		w.WriteHeader(http.StatusNoContent)
+	})
 	mux.HandleFunc("/off", func(w http.ResponseWriter, r *http.Request) {
 		p.Close()
 		w.WriteHeader(http.StatusNoContent)
