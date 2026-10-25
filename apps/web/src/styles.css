@@ -7254,4 +7254,11 @@ button.volume-name {
   .print-next {
     padding: 3px 6px;
   }
+  /* "6/10" instead of "Printed 6 of 10": the top bar is short of room. */
+  .print-progress .wide-only {
+    display: none;
+  }
+  .print-progress .phone-only {
+    display: inline;
+  }
 }

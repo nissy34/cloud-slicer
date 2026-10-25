@@ -1400,7 +1400,7 @@ if (withApp)
 if (withApp)
   test('browser: print history marks plates printed, changed since, kept, marked by hand, and caught after Upload only', async () => {
     const { startMockPrinter } = await import('./device/mock-printer.mjs');
-    const printer = await startMockPrinter({ printStep: 0.05 });
+    const printer = await startMockPrinter({ printStep: 0.01 });
     const browser = await chromium.launch(
       process.env.PLAYWRIGHT_BROWSERS_PATH === '/opt/pw-browsers' ? { executablePath: '/opt/pw-browsers/chromium' } : {},
     );
@@ -1437,7 +1437,11 @@ if (withApp)
       await page.getByRole('button', { name: 'Send to printer' }).click();
       await page.getByRole('dialog').getByTestId('upload-and-print').click();
       await waitFor(async () => (await prints()).some((p) => p.plate === 0 && ['sent', 'printing', 'printed'].includes(p.status)), 'a record for plate 1', 30000);
+      // Sending opens the Device tab (it watches the print); back to Prepare for the plate tabs.
+      await page.getByRole('tab', { name: 'Device' }).waitFor();
+      await page.getByRole('tab', { name: 'Prepare' }).click();
       await tabs.getByTestId('print-mark-sent').waitFor({ timeout: 30000 });
+      await page.waitForTimeout(1500); // the 3D view drawn again after the tab switch
       await shot(page, 'print-history-printing');
       await tabs.getByTestId('print-mark-printed').waitFor({ timeout: 60000 });
       const first = (await prints()).find((p) => p.plate === 0);
@@ -1445,7 +1449,7 @@ if (withApp)
       assert.equal(first.printerName, 'U1-mock');
       assert.ok(first.fingerprint && first.summary, 'kept what the plate printed');
       const progress = page.getByTestId('print-progress');
-      await progress.filter({ hasText: /1\s*of\s*2/ }).waitFor();
+      await progress.filter({ hasText: 'Printed 1 of' }).waitFor();
       await page.getByTestId('print-next').filter({ hasText: 'Next: plate 2' }).waitFor();
       await shot(page, 'print-history-printed');
 
@@ -1461,7 +1465,7 @@ if (withApp)
       await shot(page, 'print-history-changed');
       await history.getByTestId('print-keep').click();
       await tabs.getByTestId('print-mark-printed').waitFor({ timeout: 30000 });
-      await history.getByRole('button', { name: 'Close' }).click();
+      await history.getByRole('button', { name: 'Close', exact: true }).click();
       // Back to how it was printed: still green (Keep made 0.28 the printed one, so 0.2 is a change).
       await layer.fill('0.2');
       await layer.press('Enter');
@@ -1475,11 +1479,11 @@ if (withApp)
       await progress.click();
       await history.getByTestId('print-mark').click();
       await waitFor(async () => (await tabs.getByTestId('print-mark-printed').count()) === 2, 'both plates green');
-      await progress.filter({ hasText: /2\s*of\s*2/ }).waitFor();
+      await progress.filter({ hasText: 'Printed 2 of' }).waitFor();
       assert.equal(await page.getByTestId('print-next').count(), 0);
       await history.getByTestId('print-unmark').click();
       await waitFor(async () => (await tabs.getByTestId('print-mark-printed').count()) === 1, 'plate 2 not printed again');
-      await history.getByRole('button', { name: 'Close' }).click();
+      await history.getByRole('button', { name: 'Close', exact: true }).click();
 
       // Plate 2: Upload only, then started on the Device tab's file list: caught as printed.
       await page.getByRole('button', { name: /^Slice plate/ }).click();
@@ -1495,14 +1499,21 @@ if (withApp)
       await page.getByRole('dialog').getByTestId('upload-and-print').click();
       await waitFor(async () => (await prints()).some((p) => p.plate === 1 && p.status === 'printed'), 'the print started on the printer counts', 60000);
       await page.getByRole('tab', { name: 'Prepare' }).click();
-      await progress.filter({ hasText: /2\s*of\s*2/ }).waitFor({ timeout: 30000 });
+      await progress.filter({ hasText: 'Printed 2 of' }).waitFor({ timeout: 30000 });
       await shot(page, 'print-history-all-printed');
 
-      // The project list says how many plates were printed.
+      // Saved (no longer a draft), the projects list says how many plates were printed.
+      await page.keyboard.press('Control+s');
+      await page.getByRole('dialog', { name: 'Save project' }).getByRole('button', { name: 'Save' }).click();
+      await page.getByText(/Saved “.*” to your projects/).waitFor({ timeout: 60000 });
+      await progress.filter({ hasText: 'Printed 2 of' }).waitFor({ timeout: 30000 });
       await page.getByRole('button', { name: /^Project/ }).click();
-      await page.getByTestId('project-printed').filter({ hasText: '2/2 printed' }).waitFor({ timeout: 30000 });
+      await page.getByRole('menuitem', { name: 'Online projects…' }).click();
+      const projects = page.getByRole('dialog', { name: 'Online projects' });
+      await projects.getByTestId('project-printed').filter({ hasText: '2/2 printed' }).waitFor({ timeout: 30000 });
       await shot(page, 'print-history-projects');
       await page.keyboard.press('Escape');
+      await projects.waitFor({ state: 'detached' });
 
       // Phone width: the top bar and the window fit.
       await page.setViewportSize({ width: 390, height: 844 });
