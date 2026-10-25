@@ -89,12 +89,13 @@ export class PrinterSession {
 
   private async connect() {
     if (this.stopped) return;
+    this.bridgeOnline = null;
     this.ev.onState('connecting', this.retries ? 'Reconnecting…' : `Connecting ${this.link.label}…`);
     try {
       await this.link.open({
         onMessage: (m) => this.onMessage(m),
         onClose: (reason) => this.onClosed(reason),
-        onBridge: (b) => this.ev.onBridge?.(b),
+        onBridge: (b) => this.bridgeSaid(b),
       });
       await this.handshake();
       this.retries = 0;
@@ -111,6 +112,27 @@ export class PrinterSession {
     const delay = Math.min(30_000, 2000 * 2 ** Math.min(this.retries++, 4));
     if (this.retryTimer) clearTimeout(this.retryTimer);
     this.retryTimer = setTimeout(() => void this.connect(), delay);
+  }
+
+  /**
+   * The bridge's own state, from the relay. When the bridge reconnects to the
+   * relay (it restarted, updated itself or its network blinked) while this
+   * window's socket stayed up, it opens a fresh printer connection for us, and
+   * Moonraker subscriptions belong to a connection: without subscribing again
+   * the page keeps showing the last status it got, while commands still work.
+   */
+  private bridgeOnline: boolean | null = null;
+  private bridgeSaid(b: BridgeStatus) {
+    this.ev.onBridge?.(b);
+    const was = this.bridgeOnline;
+    this.bridgeOnline = b.agent === 'online';
+    // The first status comes with the socket; every later "online" means the bridge said hello again.
+    if (was === null || !this.bridgeOnline) return;
+    void this.handshake().catch((e) => {
+      // Couldn't subscribe again: start over rather than show a frozen status.
+      this.link.close();
+      this.onClosed((e as Error).message);
+    });
   }
 
   /** Reconnect now instead of waiting for the back-off. */

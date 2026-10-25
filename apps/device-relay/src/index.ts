@@ -589,13 +589,14 @@ export class Bridge extends DurableObject<Env> {
         const system = ['win32', 'darwin', 'linux'].includes(String(msg.system)) ? String(msg.system) : undefined;
         const host = typeof msg.host === 'string' ? msg.host.replace(/[^\w .'-]/g, '').slice(0, 64) || undefined : undefined;
         await this.ctx.storage.put('info', { printers, version: String(msg.version ?? ''), change: /^\d{1,9}$/.test(String(msg.change)) ? String(msg.change) : undefined, build: /^\d{1,12}$/.test(String(msg.build)) ? String(msg.build) : undefined, place: msg.place === 'printer' ? 'printer' : undefined, system, host } satisfies BridgeInfo);
-        await this.broadcastStatus(true);
-        await this.sendAlertConfig();
-        // Browsers that were waiting for the agent get their sessions now.
+        // Browsers that were waiting for the agent get their sessions now, before
+        // they hear it is back: the page subscribes again on that news (session.ts).
         for (const c of this.clients()) {
           const a = c.deserializeAttachment() as ClientAttachment;
           if (a.printer) ws.send(JSON.stringify({ ctl: 'open', c: a.id, printer: a.printer }));
         }
+        await this.broadcastStatus(true);
+        await this.sendAlertConfig();
         return;
       }
       if (msg.ctl === 'alert') return this.alert(msg as Record<string, unknown>);
