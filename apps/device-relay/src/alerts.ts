@@ -12,6 +12,8 @@ import { cleanPrefs, ENDS_PRINT, PICTURE_EVENTS, watchFor, wants, type AlertEven
 import { alertText, type AlertPush, type Clock } from '../../web/src/device/alert-text';
 import { describeU1Error, type Words } from '../../web/src/device/addons/u1-errors';
 import u1Words from '../../web/src/device/addons/u1-errors.json';
+import { describeBambuErrors, type BambuWords } from '../../web/src/device/addons/bambu-errors';
+import bambuWords from '../../web/src/device/addons/bambu-errors.json';
 
 export interface PushEnv {
   /** The relay's push key (an ES256 private JWK), made once by CI (.github/workflows/device.yml). Unset: no alerts. */
@@ -158,6 +160,11 @@ export function cleanAlert(raw: Record<string, unknown>): FiredAlert | null {
   // The U1's own errors: in Snapmaker's words, the newest first.
   if (Array.isArray(raw.exceptions) && raw.exceptions.length) {
     const e = describeU1Error(raw.exceptions[raw.exceptions.length - 1], u1Words as unknown as Words);
+    if (e) details.error = { title: e.title.slice(0, 80), text: e.text.slice(0, 300), code: e.code };
+  }
+  // A Bambu Lab printer's: its print error and health messages, as its report has them.
+  if (!details.error && raw.bambu && typeof raw.bambu === 'object') {
+    const e = describeBambuErrors(raw.bambu, bambuWords as unknown as BambuWords)[0];
     if (e) details.error = { title: e.title.slice(0, 80), text: e.text.slice(0, 300), code: e.code };
   }
   return {

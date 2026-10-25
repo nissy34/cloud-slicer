@@ -216,6 +216,19 @@ try {
 
   // "From printer" reading the AMS runs in test/sync-filaments.mjs: it needs the engine, which this job doesn't build.
 
+  // The printer's own errors, in Bambu's words with the code its apps show.
+  const set = (fields) => fetch(`${bambu.control}/set`, { method: 'POST', body: JSON.stringify(fields) });
+  await set({ hms: [{ attr: 0x03000100, code: 0x00010007 }], print_error: 0x03008008 });
+  const errors = page.getByTestId('printer-errors');
+  await errors.getByText('The heatbed temperature is abnormal; the sensor may have an open circuit.').waitFor({ timeout: 20_000 });
+  const shown = await errors.innerText();
+  for (const want of ['Motion system problem', 'Error code 0300_0100_0001_0007', 'Nozzle temperature malfunction', 'Error code 0300_8008'])
+    if (!shown.includes(want)) throw new Error(`printer errors: ${shown}`);
+  if (shots) await page.screenshot({ path: join(shots, 'bambu-errors.png') });
+  await set({ hms: [], print_error: 0 });
+  await errors.waitFor({ state: 'detached', timeout: 20_000 });
+  console.log("bambu: its errors show in Bambu's words, and go when it clears them");
+
   await page.setViewportSize({ width: 390, height: 844 });
   const tooWide = await page.evaluate(() => [...document.querySelectorAll('.device *')].find((el) => el.getBoundingClientRect().right > window.innerWidth + 0.5)?.className ?? null);
   if (tooWide !== null) throw new Error(`wider than a phone: ${tooWide}`);

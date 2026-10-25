@@ -22,7 +22,7 @@ var watchObjects = []string{"webhooks", "print_stats", "virtual_sdcard", "displa
 // watchPrefixes: per-printer objects that say what ran out of filament.
 var watchPrefixes = []string{"filament_switch_sensor ", "filament_motion_sensor ", "filament_feed "}
 
-// problemEvents carry the printer's own errors (the U1's error codes), when it has any.
+// problemEvents carry the printer's own errors (the U1's or a Bambu Lab's error codes), when it has any.
 var problemEvents = map[string]bool{"paused": true, "failed": true, "error": true}
 
 // watchEvery: the most often the rules run (Moonraker sends temperatures several times a second).
@@ -268,6 +268,10 @@ func (pw *printerWatch) once() {
 		// Only which head is in use: the rest of the toolhead changes many times a second.
 		want["toolhead"] = []string{"extruder"}
 		for _, o := range l.Objects {
+			if o == "bambu" {
+				// A Bambu Lab printer's own errors, passed on as they are for the relay to put in words.
+				want[o] = []string{"print_error", "hms"}
+			}
 			for _, p := range watchPrefixes {
 				if strings.HasPrefix(o, p) {
 					want[o] = nil
@@ -322,6 +326,9 @@ func (pw *printerWatch) once() {
 			}
 			if problemEvents[a.Event] && len(exceptions) > 2 && len(exceptions) < 8192 {
 				msg["exceptions"] = exceptions
+			}
+			if b, ok := objects["bambu"].(map[string]any); ok && problemEvents[a.Event] {
+				msg["bambu"] = map[string]any{"print_error": b["print_error"], "hms": b["hms"]}
 			}
 			if w.Pictures && pictureEvents[a.Event] {
 				if pic := pw.picture(conn); pic != "" {

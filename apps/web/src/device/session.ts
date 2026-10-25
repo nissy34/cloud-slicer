@@ -154,6 +154,7 @@ export class PrinterSession {
     this.objects = res.status ?? {};
     this.ev.onFacts(facts, this.addons);
     this.ev.onObjects(this.objects);
+    this.objectErrors();
     this.ev.onState('online', '');
     for (const a of this.addons) {
       const source = a.errors;
@@ -230,7 +231,20 @@ export class PrinterSession {
     this.flushTimer = setTimeout(() => {
       this.flushTimer = null;
       this.ev.onObjects(this.objects);
+      this.objectErrors();
     }, OBJECT_FLUSH_MS);
+  }
+
+  /** Errors an add-on reads from the objects, read again when they may have changed. */
+  private objectErrorKeys = new Map<string, string>();
+  private objectErrors() {
+    for (const a of this.addons) {
+      if (!a.objectErrors) continue;
+      const key = a.objectErrors.key(this.objects);
+      if (this.objectErrorKeys.get(a.id) === key) continue;
+      this.objectErrorKeys.set(a.id, key);
+      this.updateErrors(a.objectErrors.read(this.objects).then((current) => ({ current })));
+    }
   }
 
   rpc<T = unknown>(method: string, params?: unknown, timeoutMs = 15_000): Promise<T> {
