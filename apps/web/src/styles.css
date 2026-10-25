@@ -7156,3 +7156,10 @@ button.volume-name {
     height: 36px;
   }
 }
+/* Phones: the plate fills the width, so the icons sit in a row above its back right corner. */
+@media (max-width: 760px) {
+  .plate-icons {
+    flex-direction: row;
+    transform: translate(-100%, calc(-100% - 6px));
+  }
+}
