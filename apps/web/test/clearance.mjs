@@ -72,7 +72,14 @@ async function run(viewport, mobile, name) {
 
   await notice.getByRole('button', { name: 'Arrange' }).click();
   await notice.waitFor({ state: 'detached', timeout: 30000 });
-  if (await sliceButton.isDisabled()) fail(`${name}: Slice still waits after Arrange`);
+  // The notice goes as soon as Arrange starts; the plate is clear once it ends.
+  const ready = await page
+    .waitForFunction(() => {
+      const b = [...document.querySelectorAll('button')].find((x) => /^Slice plate/.test(x.textContent ?? ''));
+      return b && !b.disabled;
+    }, null, { timeout: 60000 })
+    .then(() => true, () => false);
+  if (!ready) fail(`${name}: Slice still waits after Arrange`);
   if ((await page.locator('.clearance-order.bad').count()) !== 0) fail(`${name}: outlines still red after Arrange`);
   await shot(page, `clearance-${name}-arranged`);
   console.log(`${name}: too close is shown and blocks Slice; Arrange spaces the objects for the tool head`);
