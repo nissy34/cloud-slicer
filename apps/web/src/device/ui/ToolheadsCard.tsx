@@ -14,7 +14,7 @@ import {
   u1MainState,
   type U1Head,
 } from '../addons/u1';
-import { takesCommands } from '../addons';
+import { dialect, takesCommands } from '../addons';
 import { setHeaterGcode } from '../commands';
 import { extruderIndex, heaters, job, motion } from '../status';
 import { filamentInExtruders, headMood, MOOD_WORDS } from '../heads';
@@ -154,7 +154,7 @@ export function ToolheadsCard() {
         )}
         <div className="dv-head-sheet-temp">
           <span>Nozzle temperature</span>
-          <Temperature label={n.label} temp={n.temp} target={n.target} max={n.max} onSet={(t) => void run(setHeaterGcode(n.name, t, n.max))} disabled={!takesCommands(addons)} />
+          <Temperature label={n.label} temp={n.temp} target={n.target} max={n.max} onSet={(t) => void run(setHeaterGcode(n.name, t, n.max, dialect(addons)))} disabled={!takesCommands(addons)} />
         </div>
         {head && (
           <div className="dv-head-actions">

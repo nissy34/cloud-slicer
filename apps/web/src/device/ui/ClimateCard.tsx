@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { useDevice } from '../../state/device';
-import { takesCommands } from '../addons';
+import { dialect, takesCommands } from '../addons';
 import { purifierGcode, U1_LIGHT, u1Fans, u1LightGcode, u1Purifier } from '../addons/u1';
 import { fanGcode, lightGcode, setHeaterGcode } from '../commands';
 import { fans, heaters, lights, motion, sensors } from '../status';
@@ -26,7 +26,7 @@ export function ClimateCard() {
         {hs.map((h) => (
           <li key={h.name}>
             <span>{h.label}</span>
-            <Temperature label={h.label} temp={h.temp} target={h.target} max={h.max} onSet={(t) => void run(setHeaterGcode(h.name, t, h.max))} disabled={!commands} />
+            <Temperature label={h.label} temp={h.temp} target={h.target} max={h.max} onSet={(t) => void run(setHeaterGcode(h.name, t, h.max, dialect(addons)))} disabled={!commands} />
           </li>
         ))}
         {ss.map((s) => (

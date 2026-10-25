@@ -109,6 +109,11 @@ export interface PrinterAddon {
    * restart), only prints and files, so the screen leaves out what sends them.
    */
   noCommands?: boolean;
+  /**
+   * It takes plain Marlin G-code rather than Klipper's macros, so the screen
+   * writes its moves and temperatures in Marlin's words (commands.ts).
+   */
+  gcode?: 'marlin';
   /** Its camera can't be reached from outside its maker's own app, so there is no camera card. */
   noCamera?: boolean;
   /**
