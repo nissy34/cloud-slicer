@@ -6,7 +6,8 @@
 //   3. an iPhone without the site on its Home Screen: the card says what to do
 //   4. Android: in the installed app, a blocked site or an Allow question that
 //      never showed sends you to the browser tab, and the note clears once
-//      allowed; in the browser a closed question leaves the switch usable
+//      allowed; in the browser an unanswered question leaves the switch usable
+//      and alerts finish turning on once allowed later
 // The browser's push service is stood in for: pushManager.subscribe returns a
 // subscription to the pretend one, and shown notifications are recorded.
 // It starts prints on the MOCK printers only.
@@ -318,7 +319,7 @@ try {
     await tapOn(pg);
     const note = pg.getByTestId('alerts-dismissed');
     await note.waitFor({ timeout: 15_000 });
-    if (!/didn’t show in the installed app/.test(await note.innerText())) throw new Error(`installed Android app: wrong note: ${await note.innerText()}`);
+    if (!/small bar/.test(await note.innerText()) || !/once in Chrome/.test(await note.innerText())) throw new Error(`installed Android app: wrong note: ${await note.innerText()}`);
     await shoot(pg, 'alerts-android-app-no-question.png');
     await ctx.close();
   }
@@ -329,6 +330,12 @@ try {
     await pg.getByTestId('alerts-dismissed').waitFor({ timeout: 15_000 });
     if (await pg.getByTestId('alerts-on').isDisabled()) throw new Error('alerts switch disabled after the question was only closed');
     await shoot(pg, 'alerts-android-dismissed.png');
+    // Allowed later (Chrome's site controls): alerts finish turning on by themselves.
+    await pg.evaluate(() => {
+      window.__perm = 'granted';
+      document.dispatchEvent(new Event('visibilitychange'));
+    });
+    await pg.getByTestId('alert-finished').waitFor({ timeout: 15_000 });
     await ctx.close();
   }
   {
@@ -340,7 +347,7 @@ try {
     await shoot(pg, 'alerts-android-browser-blocked.png');
     await ctx.close();
   }
-  console.log('Android browser: closed question keeps the switch; Block points to site permissions');
+  console.log('Android browser: no answer keeps the switch and finishes once allowed later; Block points to site permissions');
   console.log('DEVICE ALERTS OK');
 } catch (e) {
   console.error(`DEVICE ALERTS FAIL: ${e.stack ?? e.message}`);

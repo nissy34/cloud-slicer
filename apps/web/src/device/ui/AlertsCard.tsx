@@ -81,13 +81,13 @@ function DeniedNote() {
   );
 }
 
-/** The Allow question closed without an answer, or (installed on Android) never showed. */
+/** The Allow question got no answer: closed, timed out (Chrome's small non-blocking bar) or, installed on Android, maybe never shown. */
 function DismissedNote() {
   return (
     <p className="dv-note" data-testid="alerts-dismissed">
       {isAndroid() && standalone()
-        ? `The Allow question didn’t show in the installed app. Open the site once in Chrome, turn alerts on there and tap Allow. ${BROWSER_TOO}`
-        : 'The question closed without an answer. Turn alerts on again and tap Allow.'}
+        ? `No answer to the Allow question. Chrome asks with a small bar at the bottom of the screen that goes away after a while: turn alerts on again and tap Allow on it. If no bar shows, open the site once in Chrome, turn alerts on there and tap Allow. ${BROWSER_TOO}`
+        : 'No answer to the Allow question. Chrome asks with a small bar that goes away after a while: turn alerts on again and tap Allow on it.'}
     </p>
   );
 }
@@ -114,8 +114,12 @@ export function AlertsCard() {
     return () => clearTimeout(t);
   }, [activeId, conn, ended]);
   // Read again on coming back (from the phone's settings, say) or when the permission changes, so allowing notifications clears the note.
+  // Allowed later after a tap that got no answer (Chrome's small Allow bar timed out, then Allow in site controls): finish turning alerts on.
   useEffect(() => {
-    const again = () => void useAlerts.getState().load();
+    const again = () => {
+      const s = useAlerts.getState();
+      void (s.problem === 'dismissed' && Notification.permission === 'granted' ? s.enable() : s.load());
+    };
     const back = () => document.visibilityState === 'visible' && again();
     document.addEventListener('visibilitychange', back);
     let perm: PermissionStatus | null = null;
