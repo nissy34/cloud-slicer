@@ -124,6 +124,8 @@ void vaseObjectSettings(int plate, const std::vector<std::string>& differ) {
 //   {op: "deleteAll"}   every object on the plate (Plater::remove_curr_plate_all;
 //                       an object with copies on other plates keeps those)
 //   {op: "rename", name}   the plate's name (desktop's Edit Plate Name)
+//   {op: "lock", locked}   desktop's plate lock: Arrange all and Auto orient all
+//                       leave a locked plate as it is (saved in the 3MF)
 //   {op: "settings", name?, settings: {key: value | null}, vase?: [keys]}
 //        desktop's Plate settings window: the plate's own plate type, print
 //        sequence, spiral vase and filament orders (null: the project's), and
@@ -179,6 +181,8 @@ std::string plateAction(int plate, const std::string& requestJson) {
             }
         } else if (op == "rename") {
             plateData(plate).plate_name = req.value("name", "");
+        } else if (op == "lock") {
+            plateData(plate).locked = req.value("locked", true);
         } else if (op == "settings") {
             PlateData& d = plateData(plate);
             if (req.contains("name")) d.plate_name = req.value("name", "");

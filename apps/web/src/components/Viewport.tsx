@@ -21,7 +21,8 @@ import { NO_COLOURS, useOption, useSlicer } from '../state/store';
 import { setCameraSource } from '../state/view';
 import { Bed } from './Bed';
 import { BrimMarks } from './BrimEars';
-import { ObjectLabels, PlateIcons, PlateName } from './Labels';
+import { ObjectLabels } from './Labels';
+import { iconsReach, nameReach, PlateIcons } from './PlateIcons';
 import { MeasureOverlay } from './MeasureOverlay';
 import { CameraViews, ViewButtons, type ViewHandle } from './ViewControls';
 import { WipeTowerView } from './WipeTower';
@@ -1659,6 +1660,36 @@ function ThumbnailSource() {
   return null;
 }
 
+/**
+ * The first view takes in the whole bed and the plate's icons beside it, like
+ * desktop's zoom to bed. On a narrow screen (a phone held upright) that means
+ * stepping back along the starting direction; a wide screen keeps its view.
+ */
+function StartView({ w, d }: { w: number; d: number }) {
+  const camera = useThree((s) => s.camera);
+  const width = useThree((s) => s.size.width);
+  const invalidate = useThree((s) => s.invalidate);
+  const done = useRef(false);
+  useEffect(() => {
+    if (done.current || !width) return;
+    done.current = true;
+    const target = new THREE.Vector3(w / 2, d / 2, 0);
+    const from = camera.position.clone().sub(target);
+    const corners = [0, w + iconsReach(d)].flatMap((x) => [0, d + nameReach(d)].map((y) => new THREE.Vector3(x, y, 0)));
+    const fits = () => {
+      camera.lookAt(target); // the controls haven't turned it yet
+      camera.updateMatrixWorld();
+      return corners.every((c) => Math.abs(c.clone().project(camera).x) <= 0.96);
+    };
+    for (let i = 0; i < 40 && !fits(); i++) {
+      from.multiplyScalar(1.05);
+      camera.position.copy(target).add(from);
+    }
+    invalidate();
+  }, [camera, width, w, d, invalidate]);
+  return null;
+}
+
 /** What Fit all and the views frame: the plate's models and prime tower, or the bed when it is empty. */
 function plateBox(w: number, d: number): THREE.Box3 {
   const { preview, wipeTower } = useSlicer.getState();
@@ -1694,12 +1725,12 @@ export function Viewport() {
         <hemisphereLight args={['#ffffff', scene.ground, 0.9]} />
         <directionalLight position={[w, -d, d * 2]} intensity={1.6} />
         <Bed />
-        <PlateName d={d} />
         <PlateIcons w={w} d={d} />
         <PlateVolume />
         <Objects w={w} d={d} />
         <WipeTowerView />
         <OrbitControls target={[w / 2, d / 2, 0]} makeDefault />
+        <StartView w={w} d={d} />
         <CameraViews handle={views} box={() => plateBox(w, d)} />
         <ThumbnailSource />
       </Canvas>

@@ -100,8 +100,10 @@ hosted on Cloudflare's free tier.
   other, put it face on face middle on middle, flip it, set the distance between them or
   turn it about the face; or pick two points and move one onto the other; two objects are
   joined into one first, as only parts can leave the bed).
-- **Plate icons** beside the shown plate, desktop's own: delete plate, arrange, auto
-  orient, plate settings (orange when the plate has its own) and rename.
+- **Plate icons** lying on the bed beside the shown plate, where desktop draws them: delete
+  plate, auto orient, arrange this plate and plate settings (orange when the plate has its
+  own) past the back right corner; the plate's number past the front right corner; its name
+  past the back left corner with a pencil to rename it.
 - **Plate settings** like desktop's window (plate menu, the plate's icon, or the button
   beside the shown plate's tab): a plate's own plate type, print sequence (by layer or by object), spiral
   vase and first layer / other layers filament order instead of the project's, saved in the

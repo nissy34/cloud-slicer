@@ -380,8 +380,9 @@ std::string modelInfoJson() {
     json plates = json::array();
     for (int p = 0; p < pr.plateCount; ++p) {
         std::string name;
-        if (size_t(p) < pr.plates.size() && pr.plates[p]) name = pr.plates[p]->plate_name;
-        plates.push_back({{"index", p}, {"name", name}, {"objects", json::array()}, {"filaments", json::array()},
+        bool locked = false;
+        if (size_t(p) < pr.plates.size() && pr.plates[p]) name = pr.plates[p]->plate_name, locked = pr.plates[p]->locked;
+        plates.push_back({{"index", p}, {"name", name}, {"locked", locked}, {"objects", json::array()}, {"filaments", json::array()},
                           {"layerCodes", layerCodesJson(p)}, {"settings", plateSettingsJson(p)}});
     }
     for (size_t o = 0; o < pr.model.objects.size(); ++o) {

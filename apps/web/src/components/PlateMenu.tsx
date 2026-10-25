@@ -29,6 +29,7 @@ function MenuCard({ onAdd }: { onAdd(): void }) {
   const plates = project?.plates.length ?? 1;
   const name = project?.plates[plate]?.name ?? '';
   const empty = !project?.plates[plate]?.objects.length;
+  const locked = !!project?.plates[plate]?.locked;
   const card = useRef<HTMLDivElement>(null);
   const [sub, setSub] = useState<Sub>(null);
   const [renaming, setRenaming] = useState(false);
@@ -91,6 +92,7 @@ function MenuCard({ onAdd }: { onAdd(): void }) {
   };
 
   const needsModel = empty ? 'Nothing on this plate yet' : undefined;
+  const lockedTitle = locked ? 'This plate is locked' : undefined;
   const title = menu.onPlate ? `Plate ${plate + 1}${name ? ` · ${name}` : ''}` : 'Add to the plate';
   return (
     <div
@@ -137,8 +139,11 @@ function MenuCard({ onAdd }: { onAdd(): void }) {
           {menu.onPlate && (
             <>
               {item('Select all', run(() => s.selectAll()), { disabled: empty, title: needsModel ?? 'Choose every object on this plate (Ctrl+A)' })}
-              {item('Arrange', run(() => s.arrange()), { disabled: empty, title: needsModel ?? 'Lay out the objects on this plate' })}
-              {item('Auto orient', run(() => s.orient()), { disabled: empty, title: needsModel ?? 'Turn every object on this plate to print with the least overhang' })}
+              {item('Arrange', run(() => s.arrange()), { disabled: empty || locked, title: needsModel ?? lockedTitle ?? 'Lay out the objects on this plate' })}
+              {item('Auto orient', run(() => s.orient()), {
+                disabled: empty || locked,
+                title: needsModel ?? lockedTitle ?? 'Turn every object on this plate to print with the least overhang',
+              })}
               {item('Delete all', run(() => s.plateAction({ op: 'deleteAll' }, 'Delete all')), { disabled: empty, title: needsModel ?? 'Delete every object on this plate' })}
               {item('Delete plate', run(() => s.deletePlate()), {
                 disabled: plates < 2,
@@ -146,6 +151,9 @@ function MenuCard({ onAdd }: { onAdd(): void }) {
               })}
               {item('Plate settings…', () => s.openPlateSettings(true), { title: "Settings this plate uses instead of the project's: plate type, print sequence, spiral vase, filament order" })}
               {item('Rename plate…', () => setRenaming(true), { title: 'Shown on the plate tabs and saved in the project' })}
+              {item(locked ? 'Unlock' : 'Lock', run(() => s.lockPlate(!locked)), {
+                title: locked ? 'Let Arrange and Auto orient change this plate again' : 'Keep this plate as it is: Arrange and Auto orient leave it alone',
+              })}
               <hr />
             </>
           )}

@@ -7,6 +7,8 @@ export type PlateAction =
   | { op: 'addShape'; shape: Shape }
   | { op: 'deleteAll' }
   | { op: 'rename'; name: string }
+  /** Desktop's plate lock: Arrange and Auto orient leave a locked plate as it is. */
+  | { op: 'lock'; locked: boolean }
   /**
    * Desktop's Plate settings window: the plate's own settings (null: the
    * project's) and name; vase: spiral vase turned on here, the spiral vase

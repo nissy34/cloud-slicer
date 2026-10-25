@@ -717,12 +717,18 @@ test('plate settings: a plate slices with its own print sequence, kept in the 3M
   assert.equal(sequence(slice(fullConfig(), 0).gcode), 'by layer', 'plate 1 keeps the project\'s');
   assert.equal(sequence(slice(fullConfig(), 1).gcode), 'by object', 'plate 2 prints with its own');
 
+  // Desktop's plate lock, kept with the plate.
+  call(engine, 'plateAction', 1, JSON.stringify({ op: 'lock', locked: true }));
+  assert.equal(info().plates[1].locked, true);
+  assert.equal(info().plates[0].locked, false);
+
   // Saved and opened again, as desktop's 3MF keeps them per plate.
   call(engine, 'saveProject', '/work/plate-settings.3mf', JSON.stringify(fullConfig()), null);
   engine.clearModel();
   const [bw, bd] = bedSize(fullConfig());
   call(engine, 'loadModel', '/work/plate-settings.3mf', 0, bw, bd);
   assert.equal(info().plates[1].settings.print_sequence, 'by object');
+  assert.equal(info().plates[1].locked, true, 'the lock is saved too');
   assert.equal(sequence(slice(fullConfig(), 1).gcode), 'by object', 'an opened project\'s plate settings are used too');
 
   // Undo puts them back; null gives a setting back to the project.

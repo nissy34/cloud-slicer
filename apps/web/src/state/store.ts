@@ -373,6 +373,8 @@ export interface SlicerState {
   openObjectMenu(menu: SlicerState['objectMenu']): void;
   openPlateMenu(menu: SlicerState['plateMenu']): void;
   openPlateSettings(open: boolean): void;
+  /** Desktop's plate lock on the shown plate: Arrange and Auto orient leave a locked plate alone. */
+  lockPlate(locked: boolean): Promise<void>;
   /** A plate menu action on the shown plate (engine/src/plate_api.cpp); a new object is picked. */
   plateAction(request: PlateAction, label: string): Promise<void>;
   /**
@@ -566,6 +568,14 @@ export const useSlicer = create<SlicerState>((set, get) => {
 
   // Replaces a crashed engine with a new one, which reopens the project when
   // it is up (see start).
+  // Desktop's words when a locked plate is asked to arrange or orient; true when it is locked.
+  function lockedNotice(action: string) {
+    const { project, plate } = get();
+    if (!project?.plates[plate]?.locked) return false;
+    set({ notice: `This plate is locked, so it can't ${action}. Unlock it from its lock icon or the plate menu.`, noticeWarn: true });
+    return true;
+  }
+
   function restart(message: string) {
     console.warn('The slicing engine crashed and restarts:', message);
     const retry = restarting;
@@ -1843,17 +1853,19 @@ export const useSlicer = create<SlicerState>((set, get) => {
     },
 
     // 6 mm apart, like desktop's default arrange distance.
-    arrange: (all = false) =>
-      busyWhile(all ? 'Arranging all plates' : 'Arranging the plate', () =>
+    arrange: (all = false) => {
+      if (!all && lockedNotice('arrange')) return Promise.resolve();
+      return busyWhile(all ? 'Arranging all plates' : 'Arranging the plate', () =>
         projectEdit('Arrange', async () => {
           if (!all) return engine().arrangePlate(get().plate, 6);
-          // Each plate in turn; what doesn't fit goes onto new plates at the end.
+          // Each plate in turn, skipping locked ones; what doesn't fit goes onto new plates at the end.
           const plates = get().project?.plates.length ?? 1;
-          let info = await engine().arrangePlate(0, 6);
-          for (let p = 1; p < plates; p++) if (info.plates[p]?.objects.length) info = await engine().arrangePlate(p, 6);
+          let info = get().project!;
+          for (let p = 0; p < plates; p++) if ((p === 0 || info.plates[p]?.objects.length) && !info.plates[p]?.locked) info = await engine().arrangePlate(p, 6);
           return info;
         }),
-      ),
+      );
+    },
     setObjectSettings: (o, volume, values) => projectEdit('Change object settings', () => engine().setObjectSettings(o, volume, values)),
     addPlate: async () => {
       await projectEdit('Add plate', () => engine().addPlate());
@@ -1874,8 +1886,9 @@ export const useSlicer = create<SlicerState>((set, get) => {
         }),
       ),
     splitParts: (o) => busyWhile('Splitting into parts', () => projectEdit('Split to parts', () => engine().splitParts(o))),
-    orient: (o) =>
-      busyWhile('Auto orienting', () =>
+    orient: (o) => {
+      if (o === undefined && lockedNotice('auto orient')) return Promise.resolve();
+      return busyWhile('Auto orienting', () =>
         projectEdit('Auto orient', async () => {
           const { project, plate } = get();
           const objects = o !== undefined ? [o] : (project?.plates[plate]?.objects ?? []);
@@ -1883,11 +1896,13 @@ export const useSlicer = create<SlicerState>((set, get) => {
           for (const obj of objects) info = await engine().orientObject(obj);
           return info;
         }),
-      ),
+      );
+    },
     mirror: (o, i, axis) => projectEdit('Mirror', () => engine().mirrorInstance(o, i, axis)),
     openObjectMenu: (objectMenu) => set(objectMenu ? { objectMenu, plateMenu: null } : { objectMenu }),
     openPlateMenu: (plateMenu) => set(plateMenu ? { plateMenu, objectMenu: null } : { plateMenu }),
     openPlateSettings: (plateSettings) => set({ plateSettings, plateMenu: null }),
+    lockPlate: (locked) => get().plateAction({ op: 'lock', locked }, locked ? 'Lock plate' : 'Unlock plate'),
     plateAction: async (request, label) => {
       let object: number | undefined;
       let objects: number[] = [];
