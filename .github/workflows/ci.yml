@@ -591,6 +591,7 @@ jobs:
           node test/wipe-tower.mjs
           node test/plate-menu.mjs
           node test/plate-settings.mjs
+          node test/clearance.mjs
           node test/layer-codes.mjs
           node test/transform-fields.mjs
 

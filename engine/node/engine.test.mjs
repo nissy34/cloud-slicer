@@ -563,7 +563,7 @@ test('plates: add, arrange, delete', () => {
   load('3DBenchy.stl');
   call(engine, 'addInstance', 0, 0, 0, 0);  // a copy right on top of the first
   call(engine, 'addInstance', 0, 0, 0, 0);
-  call(engine, 'arrangePlate', 0, 6);
+  call(engine, 'arrangePlate', 0, 6, 0);
   let m = info();
   const xs = m.objects[0].instances.map((i) => [i.offset[0], i.offset[1]]);
   for (let a = 0; a < xs.length; a++)
@@ -744,6 +744,41 @@ test('plate settings: a plate slices with its own print sequence, kept in the 3M
   assert.equal(own.top_shell_layers, '0');
   assert.equal(own.sparse_infill_density, '0%');
   assert.equal(own.wall_loops, undefined, 'a setting the project already has is not copied onto the object');
+});
+
+test('by object: the tool head clearance round each object, and Arrange keeps it, like desktop', () => {
+  // Desktop draws each object's outline grown by half the printer's
+  // extruder_clearance_radius and refuses to slice when two touch; its Arrange
+  // spaces objects by the clearance when printing object by object.
+  select({ printer: DEFAULT_PRINTER });
+  load('3DBenchy.stl');
+  call(engine, 'addInstance', 0, 0, 0, 0);
+  call(engine, 'setInstanceTransform', 0, 1, JSON.stringify({ offset: [info().objects[0].instances[0].offset[0] + 70, info().objects[0].instances[0].offset[1]] }));
+  const clearance = (o = {}) => call(engine, 'clearanceJson', JSON.stringify(fullConfig({ print_sequence: 'by object', ...o })), 0);
+  assert.equal(call(engine, 'clearanceJson', JSON.stringify(fullConfig({ print_sequence: 'by layer' })), 0).byObject, false);
+
+  let c = clearance();
+  const cfg = fullConfig();
+  assert.equal(c.radius, Number(cfg.extruder_clearance_radius), "the printer preset's clearance");
+  assert.equal(c.rod, Number(cfg.extruder_clearance_height_to_rod));
+  assert.equal(c.outlines.length, 2);
+  assert.deepEqual(c.outlines.map((o) => o.order).sort(), [1, 2]);
+  assert.ok(c.collisions.length > 0, 'two Benchies 70 mm apart are too close');
+  assert.match(c.error, /too close to others/);
+  // The outline is the Benchy grown by half the radius on each side.
+  const xs = c.outlines[0].points.map((p) => p[0]);
+  assert.ok(Math.max(...xs) - Math.min(...xs) > 60 + c.radius - 5, `outline ${Math.max(...xs) - Math.min(...xs)} mm wide`);
+
+  // Arrange by the clearance: then it slices.
+  call(engine, 'arrangePlate', 0, Math.max(6, c.spacing), c.short ? 0 : c.rod);
+  c = clearance();
+  assert.equal(c.error, '', 'arranged by the clearance');
+  assert.equal(c.collisions.length, 0);
+
+  // A Benchy (48 mm) is taller than the rod: each ends its row, so the rod
+  // never passes over one printed earlier.
+  const [a, b] = info().objects[0].instances.map((i) => i.offset[1]);
+  assert.ok(Math.abs(a - b) > c.radius, `the tall Benchies are in different rows (y ${a}, ${b})`);
 });
 
 test('lists the filaments that work with a printer, for the setup wizard', () => {

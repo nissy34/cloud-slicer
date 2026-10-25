@@ -2,10 +2,12 @@ import { useEffect, useState } from 'react';
 import { sendToPrinter } from '../device';
 import type { SliceWarning } from '../engine/protocol';
 import { sentence, stageLabel } from '../lib/format';
+import { clearanceProblems } from '../lib/clearance';
 import { blocksPrinting, OBJECT_CLASHED } from '../lib/outside';
 import { LIGHT_TRIANGLES, triangleCount } from '../lib/simplify';
 import { useProjects } from '../state/projects';
 import { useObjectsOutside, useSlicer } from '../state/store';
+import { usePresetSettings } from './PresetSettingsDialog';
 
 function download(blob: Blob, name: string) {
   const url = URL.createObjectURL(blob);
@@ -108,6 +110,9 @@ function SliceWarnings({ warnings }: { warnings: SliceWarning[] }) {
   );
 }
 
+const busy0 = (kind: string) => kind === 'loading' || kind === 'slicing';
+const mm = (v: number) => `${Math.round(v * 10) / 10} mm`;
+
 export function ActionBar() {
   const { engine, engineMessage, project, plate, job, notice, noticeWarn, heavy, simplifyHeavy, slice, cancelSlice, setTab, tab, slicedAway, viewSlice } = useSlicer();
   // A problem with the open tool shows in its card, where the eye is.
@@ -118,6 +123,11 @@ export function ActionBar() {
   // Objects over the plate's edge, which desktop won't slice (shown darker in the 3D view).
   const outside = useObjectsOutside();
   const clashed = outside.length > 0 && project && (job.kind === 'idle' || job.kind === 'sliced' || (job.kind === 'error' && !errorHere));
+
+  // Printing object by object: what the slice would refuse because the tool head would hit an object.
+  const clearance = useSlicer((s) => s.clearance);
+  const tooClose = clearance ? clearanceProblems(clearance.error) : [];
+  const blocked = tooClose.length > 0 && !busy0(job.kind);
 
   if (engine === 'failed') return <EngineFailed message={engineMessage} />;
 
@@ -168,6 +178,20 @@ export function ActionBar() {
           <span className="error-text" role="alert" data-testid="objects-outside">
             {' '}
             {OBJECT_CLASHED} ({outside.map((o) => project.objects[o]?.name).join(', ')})
+          </span>
+        )}
+        {blocked && clearance && (
+          <span className="error-text clearance-notice" role="alert" data-testid="clearance-notice">
+            {' '}
+            Printing object by object, the tool head needs room: {tooClose.map(sentence).join(' ')} This printer keeps {mm(clearance.radius)} round each object, objects
+            printed before others in the same row up to {mm(clearance.rod)} tall and the rest up to {mm(clearance.lid)}.{' '}
+            <button className="link" onClick={() => void useSlicer.getState().arrange()}>
+              Arrange
+            </button>{' '}
+            ·{' '}
+            <button className="link" onClick={() => usePresetSettings.getState().show({ type: 'printer' })}>
+              Printer settings
+            </button>
           </span>
         )}
         {slicedAway !== null && (
@@ -230,7 +254,12 @@ export function ActionBar() {
             Simplify model
           </button>
         )}
-        <button className="primary" disabled={!onPlate || busy || engine !== 'ready' || outside.length > 0} onClick={() => void slice()}>
+        <button
+          className="primary"
+          disabled={!onPlate || busy || engine !== 'ready' || outside.length > 0 || blocked}
+          title={blocked ? 'Printing object by object, the tool head would hit an object: see the message beside this button' : undefined}
+          onClick={() => void slice()}
+        >
           {plateLabel}
         </button>
       </div>

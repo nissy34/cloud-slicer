@@ -15,6 +15,7 @@ import type {
   Selection,
   SliceResult,
   WipeTower,
+  Clearance,
   WorkerReply,
 } from './protocol';
 import type { Thumbnail } from '../lib/thumbnail';
@@ -149,7 +150,7 @@ export interface EngineEvents {
 }
 
 /** Engine methods that only read: anything else changes what a slice would make. */
-const READS = new Set(['printers', 'filamentsFor', 'fullConfig', 'presetConfig', 'options', 'modelInfo', 'fileConfig', 'saveProject', 'preview', 'paintOverlay', 'mixedBlend', 'mixedMatch', 'measureFeature', 'measureBetween', 'wipeTower', 'exportStl', 'slice', 'plateFingerprint']);
+const READS = new Set(['printers', 'filamentsFor', 'fullConfig', 'presetConfig', 'options', 'modelInfo', 'fileConfig', 'saveProject', 'preview', 'paintOverlay', 'mixedBlend', 'mixedMatch', 'measureFeature', 'measureBetween', 'wipeTower', 'clearance', 'exportStl', 'slice', 'plateFingerprint']);
 
 /** Engine methods that change the presets, not the project. */
 const PRESET_CALLS = new Set(['select', 'userPresets', 'vendors', 'presetParse', 'mixed']);
@@ -295,7 +296,8 @@ export class EngineClient {
   addInstance = (o: number, i: number, dx: number, dy: number) => this.call<ProjectInfo>('addInstance', [o, i, dx, dy]);
   deleteInstance = (o: number, i: number) => this.call<ProjectInfo>('deleteInstance', [o, i]);
   resizePlates = (width: number, depth: number) => this.call<ProjectInfo>('resizePlates', [width, depth]);
-  arrangePlate = (plate: number, spacing: number) => this.call<ProjectInfo>('arrangePlate', [plate, spacing]);
+  /** `tall` > 0: arranged for printing object by object, a row ending after any object taller than it. */
+  arrangePlate = (plate: number, spacing: number, tall = 0) => this.call<ProjectInfo>('arrangePlate', [plate, spacing, tall]);
   orientObject = (o: number) => this.call<ProjectInfo>('orientObject', [o]);
   splitObject = (o: number) => this.call<ProjectInfo>('splitObject', [o]);
   splitParts = (o: number) => this.call<ProjectInfo>('splitParts', [o]);
@@ -330,6 +332,8 @@ export class EngineClient {
     this.call<WipeTower>('wipeTower', [plate, overrides, slicedDepth ?? -1]);
   /** What plate `plate` prints, as fingerprints (engine/src/fingerprint_api.cpp), for the print history. */
   plateFingerprint = (plate: number) => this.call<PlateFingerprint>('plateFingerprint', [plate]);
+  /** Printing object by object: the tool head's clearance round each object on `plate` with these settings. */
+  clearance = (plate: number, overrides: OrcaConfig) => this.call<Clearance>('clearance', [plate, overrides]);
   clearPaint = (o: number, kind: PaintKind | 'all') => this.call<ProjectInfo>('clearPaint', [o, kind]);
   /** Remembers the project before an edit called `label`, for undo. */
   snapshot = (label: string) => this.call<History>('snapshot', [label]);
