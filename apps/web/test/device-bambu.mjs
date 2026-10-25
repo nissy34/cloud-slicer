@@ -214,19 +214,7 @@ try {
   await page.getByTestId('print-state').filter({ hasText: 'Cancelled' }).waitFor();
   console.log('bambu: a .gcode.3mf prints from the AMS slots picked in the print dialog');
 
-  // From printer: the AMS fills the project's filaments.
-  await page.getByRole('tab', { name: 'Prepare' }).click();
-  const wizard = page.getByRole('dialog', { name: 'Set up your printers' });
-  if (await wizard.isVisible().catch(() => false)) await wizard.getByRole('button', { name: 'Not now' }).click();
-  await page.getByTestId('sync-filaments').click();
-  const sync = page.getByRole('dialog', { name: 'Load filaments from the printer' });
-  await sync.getByTestId('sync-rows').waitFor({ timeout: 30_000 });
-  const rows = await sync.getByTestId('sync-rows').innerText();
-  for (const word of ['A1', 'A3', 'A4']) if (!rows.includes(word)) throw new Error(`sync rows ${rows}`);
-  if (shots) await page.screenshot({ path: join(shots, 'bambu-sync.png') });
-  await sync.getByRole('button', { name: 'Cancel' }).click();
-  await page.getByRole('tab', { name: 'Device' }).click();
-  console.log('bambu: From printer reads the AMS');
+  // "From printer" reading the AMS runs in test/sync-filaments.mjs: it needs the engine, which this job doesn't build.
 
   await page.setViewportSize({ width: 390, height: 844 });
   const tooWide = await page.evaluate(() => [...document.querySelectorAll('.device *')].find((el) => el.getBoundingClientRect().right > window.innerWidth + 0.5)?.className ?? null);
