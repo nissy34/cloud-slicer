@@ -228,8 +228,8 @@ export function changesBetween(then: PlateSummary, now: PlateSummary, label: (ke
 }
 
 /**
- * The line each G-code sent or downloaded from a saved project carries, right
- * after its first line, so the file says which plate it is wherever it goes
+ * The line each G-code sent or downloaded from a saved project carries near
+ * its top, so the file says which plate it is wherever it goes
  * (renamed, started from the printer's screen, copied to an SD card):
  *   ; cloud_slicer_print = <project id>/<plate number, from 1>/<fingerprint>
  * Only the account that owns the project can do anything with it.
@@ -246,10 +246,15 @@ export function readPrintTag(text: string): { projectId: string; plate: number; 
   return m && Number(m[2]) >= 1 ? { projectId: m[1], plate: Number(m[2]) - 1, fingerprint: m[3] } : null;
 }
 
-/** The G-code with its tag line after the first line (the rest is not copied, only referenced). */
+/**
+ * The G-code with its tag line after Orca's header block (the printer's screen
+ * reads that block, so the tag stays out of it), or after the first line when
+ * there is none. The rest is not copied, only referenced.
+ */
 export async function withPrintTag(gcode: Blob, o: { projectId: string; plate: number; fingerprint: string }): Promise<Blob> {
-  const head = await gcode.slice(0, 4096).text();
-  const end = head.indexOf('\n');
+  const head = await gcode.slice(0, 16384).text();
+  const block = head.indexOf('; HEADER_BLOCK_END');
+  const end = head.indexOf('\n', block < 0 ? 0 : block);
   const at = end < 0 ? 0 : new TextEncoder().encode(head.slice(0, end + 1)).length;
   return new Blob([gcode.slice(0, at), printTagLine(o), gcode.slice(at)], { type: gcode.type });
 }
