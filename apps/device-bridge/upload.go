@@ -35,8 +35,8 @@ type upload struct {
 	w        *io.PipeWriter
 	done     chan uploadResult
 	mu       sync.Mutex
-	// direct is the upload's own WebRTC link while it may still send pieces.
-	direct *webrtc.PeerConnection
+	// direct is what the bytes come over directly while it may still send them.
+	direct *directLink
 	// cancel stops the request to Moonraker, even once every byte has arrived here.
 	cancel context.CancelFunc
 	// finished: the printer's answer, waited for once however many ask (the
@@ -45,6 +45,10 @@ type upload struct {
 	result   any
 	err      error
 }
+
+// directLink is a way an upload's bytes come straight from the browser: the
+// upload's own WebRTC link, or a channel on a camera's link that is already up.
+type directLink struct{ close func() }
 
 type uploadResult struct {
 	path string
@@ -185,8 +189,9 @@ func (s *Session) uploadStart(p uploadParams) (any, error) {
 		}
 		up.done <- uploadResult{path: p}
 	}()
-	// stream: pieces over the relay may come without waiting for each answer.
-	answer := map[string]any{"uploadId": id, "stream": true}
+	// stream: pieces over the relay may come without waiting for each answer;
+	// camera: the bytes may come on a camera's direct link (uploadOverCamera).
+	answer := map[string]any{"uploadId": id, "stream": true, "camera": true}
 	if p.SDP != "" {
 		// No direct link is no failure: the bytes come over the relay instead.
 		if sdp, err := s.uploadDirect(id, up, p.SDP); err == nil {
@@ -258,12 +263,12 @@ func (s *Session) uploadResume(id string) (any, error) {
 		return nil, err
 	}
 	up.mu.Lock()
-	pc := up.direct
+	link := up.direct
 	up.direct = nil
 	received := up.received
 	up.mu.Unlock()
-	if pc != nil {
-		go pc.Close()
+	if link != nil {
+		go link.close()
 	}
 	s.debug(fmt.Sprintf("Upload %s: over the relay from byte %d", up.name, received))
 	return map[string]any{"received": received}, nil
@@ -345,11 +350,11 @@ func (up *upload) abort(err error) {
 	// And the request itself, which may already have every byte.
 	up.cancel()
 	up.mu.Lock()
-	pc := up.direct
+	link := up.direct
 	up.direct = nil
 	up.mu.Unlock()
-	if pc != nil {
-		go pc.Close()
+	if link != nil {
+		go link.close()
 	}
 }
 
@@ -365,53 +370,11 @@ func (s *Session) uploadDirect(id string, up *upload, sdp string) (string, error
 		_ = pc.Close()
 		return "", err
 	}
+	link := &directLink{close: func() { _ = pc.Close() }}
 	pc.OnDataChannel(func(dc *webrtc.DataChannel) {
-		if dc.Label() != "upload" {
-			return
+		if dc.Label() == "upload" {
+			s.takeDirect(id, up, dc, link, "the direct link")
 		}
-		answer := func(v map[string]any) {
-			out, _ := json.Marshal(v)
-			_ = dc.SendText(string(out))
-		}
-		dc.OnMessage(func(m webrtc.DataChannelMessage) {
-			if m.IsString {
-				return
-			}
-			up.mu.Lock()
-			if up.direct != pc {
-				// Resumed over the relay (or ended): this link no longer writes.
-				up.mu.Unlock()
-				return
-			}
-			err := up.write(m.Data)
-			last := err == nil && up.received == up.wire
-			if err != nil || last {
-				up.direct = nil
-			}
-			up.mu.Unlock()
-			if err != nil {
-				s.forget(id)
-				answer(map[string]any{"error": err.Error()})
-				return
-			}
-			if !last {
-				return
-			}
-			s.debug(fmt.Sprintf("Upload %s: %d bytes over the direct link", up.name, up.received))
-			go func() {
-				// Kept until the printer answers, so Cancel can still stop it.
-				defer s.forget(id)
-				res, err := up.finish()
-				if err != nil {
-					answer(map[string]any{"error": err.Error()})
-				} else {
-					answer(res.(map[string]any))
-				}
-				// Let the answer leave before the link closes.
-				time.Sleep(time.Second)
-				_ = pc.Close()
-			}()
-		})
 	})
 	connected := make(chan struct{})
 	var once sync.Once
@@ -438,7 +401,7 @@ func (s *Session) uploadDirect(id string, up *upload, sdp string) (string, error
 		return "", s.ctx.Err()
 	}
 	up.mu.Lock()
-	up.direct = pc
+	up.direct = link
 	up.mu.Unlock()
 	// A link that never connects only holds the upload until the browser resumes over the relay.
 	go func() {
@@ -448,7 +411,7 @@ func (s *Session) uploadDirect(id string, up *upload, sdp string) (string, error
 		case <-connected:
 		case <-ctx.Done():
 			up.mu.Lock()
-			if up.direct == pc {
+			if up.direct == link {
 				up.direct = nil
 			}
 			up.mu.Unlock()
@@ -456,6 +419,78 @@ func (s *Session) uploadDirect(id string, up *upload, sdp string) (string, error
 		}
 	}()
 	return pc.LocalDescription().SDP, nil
+}
+
+// uploadOverCamera takes an upload's bytes on channel "upload:<id>" of a
+// camera's direct link that is already up: nothing to negotiate or wait for.
+func (s *Session) uploadOverCamera(dc *webrtc.DataChannel) {
+	id := strings.TrimPrefix(dc.Label(), "upload:")
+	up, err := s.getUpload(id)
+	if err != nil {
+		_ = dc.Close()
+		return
+	}
+	link := &directLink{close: func() { _ = dc.Close() }}
+	up.mu.Lock()
+	taken := up.direct != nil || up.received != 0
+	if !taken {
+		up.direct = link
+	}
+	up.mu.Unlock()
+	if taken {
+		_ = dc.Close()
+		return
+	}
+	s.takeDirect(id, up, dc, link, "a camera's link")
+}
+
+// takeDirect writes the upload's bytes as they come on the channel, in order.
+// When the last byte is in, the bridge answers on the channel with text
+// {path} or {error}, then closes the link.
+func (s *Session) takeDirect(id string, up *upload, dc *webrtc.DataChannel, link *directLink, how string) {
+	answer := func(v map[string]any) {
+		out, _ := json.Marshal(v)
+		_ = dc.SendText(string(out))
+	}
+	dc.OnMessage(func(m webrtc.DataChannelMessage) {
+		if m.IsString {
+			return
+		}
+		up.mu.Lock()
+		if up.direct != link {
+			// Resumed over the relay (or ended): this link no longer writes.
+			up.mu.Unlock()
+			return
+		}
+		err := up.write(m.Data)
+		last := err == nil && up.received == up.wire
+		if err != nil || last {
+			up.direct = nil
+		}
+		up.mu.Unlock()
+		if err != nil {
+			s.forget(id)
+			answer(map[string]any{"error": err.Error()})
+			return
+		}
+		if !last {
+			return
+		}
+		s.debug(fmt.Sprintf("Upload %s: %d bytes over %s", up.name, up.received, how))
+		go func() {
+			// Kept until the printer answers, so Cancel can still stop it.
+			defer s.forget(id)
+			res, err := up.finish()
+			if err != nil {
+				answer(map[string]any{"error": err.Error()})
+			} else {
+				answer(res.(map[string]any))
+			}
+			// Let the answer leave before the link closes.
+			time.Sleep(time.Second)
+			link.close()
+		}()
+	})
 }
 
 // pieceHeader is the JSON at the front of a binary upload piece from the browser:

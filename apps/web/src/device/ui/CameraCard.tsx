@@ -189,6 +189,8 @@ function useKeepalive(session: PrinterSession | null, keepalive: CameraHints['ke
   }, [session, keepalive]);
 }
 
+const NETWORK_BLOCKS = 'Slow camera: your network blocks a direct connection.';
+
 function CameraTile({
   cam,
   session,
@@ -226,11 +228,11 @@ function CameraTile({
     setNote('');
   }, [cam, viaBridge]);
   const view = views[index];
+  const blocked = note === NETWORK_BLOCKS;
+  // While this camera shows pictures over the relay because direct links are blocked, uploads don't try one either.
+  useEffect(() => (blocked ? session.link.directBlocked?.() : undefined), [blocked, session]);
   const next = (why?: string) => {
-    if (view?.kind === 'direct')
-      setNote(
-        why && /Unknown bridge call/.test(why) ? 'Slow camera: update the bridge for a smooth one.' : 'Slow camera: your network blocks a direct connection.',
-      );
+    if (view?.kind === 'direct') setNote(why && /Unknown bridge call/.test(why) ? 'Slow camera: update the bridge for a smooth one.' : NETWORK_BLOCKS);
     setIndex((i) => i + 1);
   };
   const transform = cameraTransform(cam);
@@ -266,7 +268,7 @@ function CameraTile({
 function directBridge(session: PrinterSession): DirectBridge | null {
   const link = session.link;
   if (!link.cameraOpen || !link.cameraClose) return null;
-  return { cameraOpen: (c, sdp) => link.cameraOpen!(c, sdp), cameraClose: (id) => link.cameraClose!(id) };
+  return { cameraOpen: (c, sdp) => link.cameraOpen!(c, sdp), cameraClose: (id) => link.cameraClose!(id), linked: link.directLinked && ((pc) => link.directLinked!(pc)) };
 }
 
 function ViewFor({ view, session, transform, onFail }: { view: CameraView; session: PrinterSession; transform: string; onFail(why?: string): void }) {

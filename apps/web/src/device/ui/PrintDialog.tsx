@@ -10,6 +10,14 @@ import { LayerField } from './AlertsCard';
 import { Swatch } from './parts';
 import { Dialog } from '../../components/Dialog';
 
+/** What the upload bar says before the first byte leaves. */
+const UPLOAD_STAGE = {
+  start: 'Uploading…',
+  zipping: 'Zipping…',
+  direct: 'Opening a direct link…',
+  relay: 'Direct link blocked, sending through the relay…',
+};
+
 /**
  * Sends a file to the printer and optionally starts it. With more than one
  * saved printer, a new file can go to any of them: picking one connects to
@@ -101,14 +109,14 @@ export function PrintDialog({ source }: { source: SendSource }) {
           )}
           {uploading && (
             <span className="dv-upload" aria-live="polite">
-              {/* Zipping and opening the link come before the first byte leaves. */}
               {upload.fraction > 0 ? (
                 <>
-                  <progress max={1} value={upload.fraction} /> Uploading {Math.round(upload.fraction * 100)}%
+                  <progress max={1} value={upload.fraction} /> Uploading {Math.round(upload.fraction * 100)}%{upload.stage === 'relay' && ' through the relay'}
                 </>
               ) : (
                 <>
-                  <progress max={1} /> Connecting…
+                  {/* Before the first byte leaves: zipping, then opening a direct link or not. */}
+                  <progress max={1} /> {UPLOAD_STAGE[upload.stage ?? 'start']}
                 </>
               )}
             </span>

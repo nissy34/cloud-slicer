@@ -117,6 +117,7 @@ func (s *Session) cameraOpen(p cameraOpenParams) (any, error) {
 		return fail(errors.New("The browser's offer could not be read."))
 	}
 	mode := "pictures"
+	var pictures func(*webrtc.DataChannel)
 	if source != nil {
 		local, err := webrtc.NewTrackLocalStaticRTP(source.Codec().RTPCodecCapability, "video", "camera")
 		if err != nil {
@@ -134,13 +135,17 @@ func (s *Session) cameraOpen(p cameraOpenParams) (any, error) {
 			fps = maxDirectFPS
 		}
 		snap := p.SnapshotURL
-		pc.OnDataChannel(func(dc *webrtc.DataChannel) {
-			if dc.Label() != "frames" {
-				return
-			}
-			dc.OnOpen(func() { go s.sendPictures(ctx, dc, snap, fps) })
-		})
+		pictures = func(dc *webrtc.DataChannel) { dc.OnOpen(func() { go s.sendPictures(ctx, dc, snap, fps) }) }
 	}
+	pc.OnDataChannel(func(dc *webrtc.DataChannel) {
+		switch {
+		case dc.Label() == "frames" && pictures != nil:
+			pictures(dc)
+		case strings.HasPrefix(dc.Label(), "upload:"):
+			// The link is up already: a file to this printer can ride it.
+			s.uploadOverCamera(dc)
+		}
+	})
 	connected := make(chan struct{})
 	var connectedOnce sync.Once
 	pc.OnConnectionStateChange(func(st webrtc.PeerConnectionState) {

@@ -2,7 +2,7 @@
 // Klipper objects it subscribes to, and the commands the screen sends.
 // Reconnects by itself; the UI only reads what the callbacks report.
 import { detectAddons, type PrinterAddon, type PrinterError, type PrinterFacts } from './addons';
-import type { BridgeStatus, PrinterLink, RpcMessage } from './link/types';
+import type { BridgeStatus, PrinterLink, RpcMessage, UploadStage } from './link/types';
 import { parseWebcams, type Webcam } from './camera';
 import { genericObjects, mergeStatus, type KlipperObjects } from './status';
 
@@ -280,8 +280,8 @@ export class PrinterSession {
     return this.rpc('server.files.delete_file', { path: `gcodes/${path}` });
   }
 
-  upload(blob: Blob, name: string, onProgress?: (f: number) => void, signal?: AbortSignal) {
-    return this.link.upload(blob, name, onProgress, signal);
+  upload(blob: Blob, name: string, onProgress?: (f: number) => void, signal?: AbortSignal, onStage?: (stage: UploadStage) => void) {
+    return this.link.upload(blob, name, onProgress, signal, onStage);
   }
 
   /** Starts a print. Callers must only reach this from an explicit user action. */

@@ -1,11 +1,12 @@
 #!/usr/bin/env node
 // Sending G-code through the bridge, end to end against a pretend printer only:
 // browser -> (direct WebRTC link | relay via wrangler dev) -> bridge -> mock printer.
-// The file is zipped on the way and must reach the printer byte for byte, both
-// over the direct link and, when the network blocks direct links, over the relay.
+// The file is zipped on the way and must reach the printer byte for byte: over
+// a camera's direct link when one is up, else over the upload's own direct
+// link, and, when the network blocks direct links, over the relay.
 // A refused file says why inside the Send window, and Cancel stops an upload
-// halfway with nothing left on the printer. The bar says "Connecting…" until the
-// first byte leaves, then moves as the bytes go. Upload only: it never starts a print.
+// halfway with nothing left on the printer. The bar says what it is doing until
+// the first byte leaves (never "0%"), then moves as the bytes go. Upload only: it never starts a print.
 //
 //   npm run build && node test/device-upload.mjs [screenshot-dir]
 import { spawn } from 'node:child_process';
@@ -104,6 +105,8 @@ try {
     await page.getByRole('tab', { name: 'Device' }).click();
     await page.getByTestId('connection').filter({ hasText: 'Connected' }).waitFor({ timeout: 30_000 });
 
+    // A camera showing straight from the bridge: the file rides its link.
+    if (label === 'direct') await page.locator('[data-view="direct-pictures"]').first().waitFor({ timeout: 20_000 });
     const name = `upload_${label}.gcode`;
     // Over the relay, big enough to stream as many pieces.
     const text = gcode(label, label === 'relay' ? 12_000_000 : 3_000_000);
@@ -122,16 +125,32 @@ try {
     await page.getByRole('dialog').waitFor({ state: 'detached', timeout: 30_000 });
     const bar = await page.evaluate(() => window.__bar);
     console.log(`${label}: the bar said ${bar.join(' | ')}`);
-    if (bar[0] !== 'Connecting…') throw new Error(`${label}: the bar started with ${bar[0]}, not Connecting…`);
+    if (bar.some((t) => /Uploading 0%/.test(t))) throw new Error(`${label}: the bar said 0%: ${bar.join(' | ')}`);
+    if (label === 'relay' && !bar.some((t) => t.includes('through the relay'))) throw new Error(`relay: the bar never said it goes through the relay: ${bar.join(' | ')}`);
     const between = bar.map((t) => Number(/Uploading (\d+)%/.exec(t)?.[1])).filter((n) => n > 0 && n < 90);
     if (label === 'relay' && between.length < 2) throw new Error(`${label}: the bar didn't move during the upload: ${bar.join(' | ')}`);
     const got = printer.files.get(name).text;
     if (got !== text) throw new Error(`${label}: the printer got ${got.length} bytes that differ from the ${text.length} sent`);
     if (printer.state.print_stats.state !== 'standby') throw new Error('Upload only started a print');
     const route = routes.find((r) => r.name === name);
-    const want = label === 'direct' ? /over the direct link/ : /over the relay/;
+    const want = label === 'direct' ? /over a camera's link/ : /over the relay/;
     if (!route || !want.test(route.how)) throw new Error(`${label}: the bridge says ${route ? route.how : 'nothing'} for ${name}`);
     console.log(`${label}: ${(text.length / 1e6).toFixed(1)} MB reached the printer intact in ${((Date.now() - started) / 1000).toFixed(1)} s (${route.how})`);
+
+    if (label === 'direct') {
+      // With no camera showing, the upload opens its own direct link.
+      await page.getByTestId('camera-card').getByRole('button', { name: 'Choose' }).click();
+      for (const cam of ['case', 'nozzle']) await page.getByTestId('camera-pick').getByLabel(cam).uncheck();
+      await until('no camera showing', async () => (await page.getByTestId('camera-tile').count()) === 0);
+      const own = 'upload_own_link.gcode';
+      await page.getByTestId('device-gcode-input').setInputFiles({ name: own, mimeType: 'text/plain', buffer: Buffer.from(text) });
+      await page.getByTestId('upload-only').click();
+      await until(`${own} on the printer`, () => printer.files.has(own), 60_000);
+      await page.getByRole('dialog').waitFor({ state: 'detached', timeout: 30_000 });
+      const how = routes.find((r) => r.name === own)?.how ?? 'nothing';
+      if (!/over the direct link/.test(how) || printer.files.get(own).text !== text) throw new Error(`direct: without a camera the bridge says ${how}`);
+      console.log(`direct: without a camera the file went over its own direct link (${how})`);
+    }
 
     // The printer refuses the file (a file of that name is printing): the reason shows in the window, which stays open.
     printer.uploads.refuse = 'Forbidden';

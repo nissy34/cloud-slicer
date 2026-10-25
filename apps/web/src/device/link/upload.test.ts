@@ -22,6 +22,8 @@ class StalledLink {
   }
   async setLocalDescription() {}
   async setRemoteDescription() {}
+  addEventListener() {}
+  removeEventListener() {}
   close() {}
 }
 
