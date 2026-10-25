@@ -367,6 +367,11 @@ jobs:
           node --test engine/node/engine.test.mjs
           node engine/node/slice.mjs fixtures/3DBenchy.stl /tmp/benchy.gcode
           grep -q '^PRINT_START' /tmp/benchy.gcode
+          test ! -e /tmp/benchy.gcode.3mf
+          # A Bambu Lab printer gets the plate as a .gcode.3mf too, like desktop sends it.
+          node engine/scripts/bundle-profiles.mjs /tmp/profiles-bbl Snapmaker BBL
+          ORCA_PROFILES=/tmp/profiles-bbl/profiles.json node engine/node/slice.mjs fixtures/3DBenchy.stl /tmp/benchy-p1s.gcode --printer "Bambu Lab P1S 0.4 nozzle"
+          unzip -l /tmp/benchy-p1s.gcode.3mf | grep -q 'Metadata/plate_1.gcode'
 
       # Klipper reads each file like a print, without a printer (batch mode):
       # Benchy and a two-colour cube on a U1 stand-in, Benchy on a Voron.

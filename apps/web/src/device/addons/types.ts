@@ -3,6 +3,7 @@
 // blends whatever it adds into the same cards (tool heads, print dialog,
 // chamber), so the user sees one screen, not a generic one plus extras.
 import type { KlipperObjects } from '../status';
+import type { FilamentSlot, PrintOptions, SlotWords } from '../slot-types';
 
 export interface PrinterFacts {
   /** printer.objects.list */
@@ -51,6 +52,40 @@ export interface PrinterErrorSource {
   notified(method: string, params: unknown): Promise<{ current?: PrinterError[]; once?: PrinterError[] }> | null;
 }
 
+/** One JSON-RPC call to the printer (or the bridge's stand-in for it). */
+export interface PrinterCall {
+  method: string;
+  params?: unknown;
+  timeoutMs?: number;
+}
+
+/** What the print dialog decided, for an add-on that starts prints its own way. */
+export interface PrintStart {
+  /** The file on the printer. */
+  path: string;
+  /** The slot (FilamentSlot.index) each filament in the file prints from, by the filament's index. */
+  map: Record<number, number>;
+  /** How many filaments the file has (its highest filament number). */
+  filamentCount: number;
+  options: PrintOptions;
+  slots: FilamentSlot[];
+  /** The plate inside a .gcode.3mf, 1-based, when the dialog could read it. */
+  plate: number | null;
+}
+
+/** Where the printer holds its filaments, read from its own objects. */
+export interface FilamentSlots {
+  /** The list's name in the print dialog: "Tool heads". */
+  title: string;
+  words: SlotWords;
+  /** Under the list in the print dialog: the rule it follows. */
+  note: string;
+  /** null until the printer has said. */
+  read(o: KlipperObjects): FilamentSlot[] | null;
+  /** Whether a file on the printer can have its filaments mapped (all when left out). */
+  maps?(path: string): boolean;
+}
+
 export interface PrinterAddon {
   id: string;
   /** Model name shown under the printer's name. */
@@ -90,4 +125,12 @@ export interface PrinterAddon {
   };
   /** What the camera card says when the printer lists no camera, in place of "no camera set up". */
   cameraMissing?: string;
+  /** File types it prints beyond G-code (".3mf"), offered by the Files card's upload. */
+  uploads?: string[];
+  /** It says what filament it holds where: "From printer" and the print dialog's map use it. */
+  filaments?: FilamentSlots;
+  /** The "Before printing" choices it takes, as it has them now. */
+  printOptions?(o: KlipperObjects): PrintOptions;
+  /** How a print starts with the print dialog's choices; without it, Moonraker's printer.print.start. */
+  startPrint?(s: PrintStart): PrinterCall[];
 }

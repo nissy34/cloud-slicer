@@ -68,6 +68,15 @@ func TestRefusesWhatTheDeviceTabNeverSends(t *testing.T) {
 			t.Errorf("delete %s should be refused", p)
 		}
 	}
+	// A printer's own commands: only the ones on the bridge's list.
+	if why := refusal("printer.request", json.RawMessage(`{"message":{"print":{"command":"project_file","param":"Metadata/plate_1.gcode"}}}`)); why != "" {
+		t.Errorf("a Bambu project print refused: %s", why)
+	}
+	for _, p := range []string{`{"message":{"upgrade":{"command":"start"}}}`, `{"message":{"system":{"command":"reset"}}}`, `{"message":{"print":{"command":"gcode_line"}}}`, `{"message":{"print":{}}}`} {
+		if refusal("printer.request", json.RawMessage(p)) == "" {
+			t.Errorf("printer.request %s should be refused", p)
+		}
+	}
 }
 
 func TestConfigRoundTripKeepsTheNodeBridgeFormat(t *testing.T) {

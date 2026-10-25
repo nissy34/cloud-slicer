@@ -14,6 +14,7 @@ import { spawn } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { strFromU8, unzipSync } from 'fflate';
 import { chromium } from 'playwright';
 
 const web = join(dirname(fileURLToPath(import.meta.url)), '..');
@@ -117,7 +118,10 @@ try {
       await page.getByRole('button', { name: /^Slice plate/ }).click();
       await page.getByTestId('slice-stats').waitFor({ timeout: 300000 });
       const [download] = await Promise.all([page.waitForEvent('download'), page.getByRole('button', { name: 'Download G-code' }).click()]);
-      const gcode = readFileSync(await download.path(), 'utf8');
+      // A Bambu printer gets its plate in a .gcode.3mf, like desktop: read the plate's G-code from it.
+      const bytes = readFileSync(await download.path());
+      const zip = bytes[0] === 0x50 && bytes[1] === 0x4b ? unzipSync(new Uint8Array(bytes), { filter: (f) => /^Metadata\/plate_\d+\.gcode$/.test(f.name) }) : null;
+      const gcode = zip ? Object.values(zip).map((f) => strFromU8(f)).join('\n') : bytes.toString('utf8');
       const value = (key) => gcode.match(new RegExp(`^; ${key} = (.*)$`, 'm'))?.[1]?.trim();
       const grams = parseFloat(value('total filament used \\[g\\]') ?? value('filament used \\[g\\]')?.split(',').reduce((a, b) => a + parseFloat(b), 0) ?? 'NaN');
       return { matrix: value('flush_volumes_matrix'), multiplier: value('flush_multiplier'), grams, changes: (gcode.match(/^M620 S\d/gm) ?? []).length };

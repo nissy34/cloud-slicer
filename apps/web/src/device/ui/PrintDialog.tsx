@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useState } from 'react';
 import { formatDuration, formatGrams } from '../../lib/format';
 import { currentSession, useDevice, type SendSource } from '../../state/device';
-import { suggestToolMap, u1Heads, u1MappingCheck, u1NoHeadReason, u1PrintOptions, u1PrintPrepGcode, type U1PrintOptions } from '../addons/u1';
+import type { PrinterCall } from '../addons';
+import { noSlotReason, slotCheck, suggestSlotMap, type PrintOptions } from '../slots';
 import { uploadName } from '../commands';
-import { metaFromMoonraker, readGcodeMeta, type GcodeMeta } from '../gcode-meta';
+import { metaFromMoonraker, readGcode3mf, readGcodeMeta, type GcodeMeta } from '../gcode-meta';
 import { job } from '../status';
 import { useAlerts } from '../../state/alerts';
 import { LayerField } from './AlertsCard';
@@ -21,8 +22,9 @@ const UPLOAD_STAGE = {
 /**
  * Sends a file to the printer and optionally starts it. With more than one
  * saved printer, a new file can go to any of them: picking one connects to
- * it. On a U1 the same dialog also maps each filament in the file to a tool
- * head and sets the printer's own pre-print options.
+ * it. On a printer whose add-on knows where its filaments are (a U1's tool
+ * heads, a Bambu Lab AMS), the same dialog also maps each filament in the file
+ * to one of them, and sets the printer's own pre-print options.
  */
 export function PrintDialog({ source }: { source: SendSource }) {
   const objects = useDevice((s) => s.objects);
@@ -36,7 +38,10 @@ export function PrintDialog({ source }: { source: SendSource }) {
   const sendError = useDevice((s) => s.sendError);
   const close = () => useDevice.getState().openPrintDialog(null);
   const go = useDevice((s) => s.uploadAndMaybePrint);
-  const isU1 = addons.some((a) => a.id === 'u1');
+  const slotAddon = addons.find((a) => a.filaments);
+  const fil = slotAddon?.filaments;
+  const optionsAddon = addons.find((a) => a.printOptions);
+  const starter = addons.find((a) => a.startPrint);
   // Alerts for the printer picked here, as the Alerts card has them.
   const alertsHere = useAlerts((s) => s.printerId === activeId);
   const alertStatus = useAlerts((s) => s.status);
@@ -45,28 +50,42 @@ export function PrintDialog({ source }: { source: SendSource }) {
   useEffect(() => void useAlerts.getState().load(), [activeId]);
   const [meta, setMeta] = useState<GcodeMeta | null>(null);
   const [name, setName] = useState(source.kind === 'upload' ? uploadName(source.name) : source.path);
-  const heads = useMemo(() => (isU1 ? u1Heads(objects) : []), [isU1, objects]);
+  const path = source.kind === 'upload' ? source.name : source.path;
+  // A file the printer can map (a Bambu Lab printer: only a .gcode.3mf).
+  const mapping = Boolean(fil && (!fil.maps || fil.maps(path)));
+  const slots = useMemo(() => (mapping ? (fil?.read(objects) ?? []) : []), [mapping, fil, objects]);
   // What the user changed; the rest follows the printer's own settings.
-  const [optionEdits, setOptionEdits] = useState<Partial<U1PrintOptions>>({});
-  const options = { ...u1PrintOptions(objects), ...optionEdits };
+  const [optionEdits, setOptionEdits] = useState<Partial<PrintOptions>>({});
+  const options = optionsAddon?.printOptions ? { ...optionsAddon.printOptions(objects), ...optionEdits } : null;
   const [toolMap, setToolMap] = useState<Record<number, number> | null>(null);
+  // The plate inside a .gcode.3mf, which the printer is told to print.
+  const [plate, setPlate] = useState<number | null>(null);
   const [busy, setBusy] = useState(false);
   const state = job(objects).state;
   const printerBusy = state === 'printing' || state === 'paused';
   const mapChecks = useMemo(() => {
-    const out = new Map<number, ReturnType<typeof u1MappingCheck>>();
-    if (!isU1 || !meta || !toolMap) return out;
+    const out = new Map<number, ReturnType<typeof slotCheck>>();
+    if (!fil || !mapping || !meta || !toolMap) return out;
     for (const f of meta.filaments) {
-      const head = heads[toolMap[f.index]];
-      out.set(f.index, head ? u1MappingCheck(f, head) : { blocked: u1NoHeadReason(f), warning: null });
+      const slot = slots[toolMap[f.index]];
+      out.set(f.index, slot ? slotCheck(f, slot, fil.words) : { blocked: noSlotReason(f, fil.words), warning: null });
     }
     return out;
-  }, [isU1, meta, toolMap, heads]);
+  }, [fil, mapping, meta, toolMap, slots]);
   const mapBlocked = [...mapChecks.values()].some((c) => c.blocked);
 
   useEffect(() => {
     let live = true;
-    const read = source.kind === 'upload' ? readGcodeMeta(source.gcode ?? source.blob) : (currentSession()?.metadata(source.path) ?? Promise.resolve(null)).then(metaFromMoonraker);
+    setPlate(null);
+    // A .gcode.3mf: the plate inside, and its G-code for the details.
+    const bundle = source.kind === 'upload' && /\.3mf$/i.test(source.name) ? readGcode3mf(source.blob) : Promise.resolve(null);
+    const read =
+      source.kind === 'upload'
+        ? bundle.then((b) => {
+            if (live && b) setPlate(b.plate);
+            return readGcodeMeta(source.gcode ?? b?.gcode ?? source.blob);
+          })
+        : (currentSession()?.metadata(source.path) ?? Promise.resolve(null)).then(metaFromMoonraker);
     void read.then((m) => live && setMeta(m));
     return () => {
       live = false;
@@ -79,16 +98,26 @@ export function PrintDialog({ source }: { source: SendSource }) {
     setOptionEdits({});
   }, [activeId]);
 
-  // Suggest a head per filament once both the file and the printer's spools are known.
+  // Suggest a slot per filament once both the file and the printer's spools are known.
   useEffect(() => {
-    if (meta && isU1 && toolMap == null && heads.length) setToolMap(suggestToolMap(meta.filaments, heads));
-  }, [meta, isU1, heads, toolMap]);
+    if (meta && fil && toolMap == null && slots.length) setToolMap(suggestSlotMap(meta.filaments, slots, fil.words));
+  }, [meta, fil, slots, toolMap]);
 
   const submit = async (start: boolean) => {
     setBusy(true);
     const src: SendSource = source.kind === 'upload' ? { ...source, name: name.trim() || uploadName(source.name) } : source;
-    const prep = start && isU1 ? u1PrintPrepGcode(options, toolMap ?? {}) : [];
-    await go(src, { start, prep });
+    const begin = (at: string): PrinterCall[] =>
+      starter?.startPrint
+        ? starter.startPrint({
+            path: at,
+            map: mapping ? (toolMap ?? {}) : {},
+            filamentCount: meta?.filamentCount ?? 0,
+            options: options ?? { bedLevel: false, flowCalibrate: false, timeLapse: false },
+            slots,
+            plate,
+          })
+        : [{ method: 'printer.print.start', params: { filename: at }, timeoutMs: 60_000 }];
+    await go(src, { start: start ? begin : null });
     setBusy(false);
   };
 
@@ -99,7 +128,7 @@ export function PrintDialog({ source }: { source: SendSource }) {
         source.kind === 'upload' ? `Send to ${printer?.name ?? 'printer'}` : printer ? `Print on ${printer.name}` : 'Print'
       }
       onClose={close}
-      wide={isU1}
+      wide={Boolean(fil)}
       footer={
         <>
           {sendError && !busy && (
@@ -134,7 +163,7 @@ export function PrintDialog({ source }: { source: SendSource }) {
             className="primary"
             onClick={() => void submit(true)}
             disabled={busy || !online || printerBusy || mapBlocked}
-            title={printerBusy ? 'The printer is already printing' : mapBlocked ? 'A filament is mapped to a tool head it can’t print on' : undefined}
+            title={printerBusy ? 'The printer is already printing' : mapBlocked ? `A filament is mapped to a ${fil?.words.noun ?? 'slot'} it can’t print on` : undefined}
             data-testid="upload-and-print"
           >
             {source.kind === 'upload' ? 'Upload and print' : 'Print'}
@@ -179,12 +208,12 @@ export function PrintDialog({ source }: { source: SendSource }) {
         </p>
       )}
 
-      {isU1 && meta && meta.filaments.length > 0 && toolMap && (
+      {fil && mapping && meta && meta.filaments.length > 0 && toolMap && (
         <fieldset className="dv-fieldset" data-testid="tool-map">
-          <legend>Tool heads</legend>
+          <legend>{fil.title}</legend>
           <ul className="dv-map">
             {meta.filaments.map((f) => {
-              const head = heads[toolMap[f.index]];
+              const slot = slots[toolMap[f.index]];
               const check = mapChecks.get(f.index);
               return (
                 <li key={f.index} data-blocked={check?.blocked ? '' : undefined}>
@@ -198,20 +227,20 @@ export function PrintDialog({ source }: { source: SendSource }) {
                     →
                   </span>
                   <span className="dv-map-head">
-                    {head ? <Swatch colour={head.colour} empty={!head.ready} /> : <Swatch colour="#888888" empty />}
+                    {slot ? <Swatch colour={slot.colour} empty={!slot.ready} /> : <Swatch colour="#888888" empty />}
                     <select
-                      aria-label={`Tool head for filament ${f.index + 1}`}
+                      aria-label={`${fil.words.noun[0].toUpperCase()}${fil.words.noun.slice(1)} for filament ${f.index + 1}`}
                       aria-invalid={check?.blocked ? true : undefined}
                       value={toolMap[f.index]}
                       onChange={(e) => setToolMap({ ...toolMap, [f.index]: Number(e.target.value) })}
                     >
-                      {!head && (
+                      {!slot && (
                         <option value={-1} disabled>
-                          No matching head
+                          No matching {fil.words.noun}
                         </option>
                       )}
-                      {heads.map((h) => {
-                        const blocked = u1MappingCheck(f, h).blocked;
+                      {slots.map((h) => {
+                        const blocked = slotCheck(f, h, fil.words).blocked;
                         return (
                           <option key={h.index} value={h.index} disabled={Boolean(blocked)} title={blocked ?? undefined}>
                             {h.label} · {h.material ? `${h.material} ${h.subType}`.trim() : 'empty'}
@@ -226,17 +255,20 @@ export function PrintDialog({ source }: { source: SendSource }) {
                     </span>
                   )}
                   {check?.warning && <span className="dv-warn-text">{check.warning}</span>}
-                  {head && !check?.blocked && !head.ready && <span className="dv-warn-text">No filament in {head.label}</span>}
+                  {slot && !check?.blocked && !slot.ready && <span className="dv-warn-text">No filament in {slot.label}</span>}
                 </li>
               );
             })}
           </ul>
-          <p className="muted dv-map-note">
-            As in Snapmaker’s own app, a filament can only go to a head with the same filament type and nozzle size. Brand and colour can differ.
-          </p>
+          <p className="muted dv-map-note">{fil.note}</p>
         </fieldset>
       )}
-      {isU1 && (
+      {fil && !mapping && meta && meta.filaments.length > 1 && (
+        <p className="muted dv-map-note" data-testid="no-map">
+          Plain G-code prints filament 1 from the first {fil.words.noun}, filament 2 from the second, and so on. Slice for this printer to send a .gcode.3mf and choose them here.
+        </p>
+      )}
+      {options && (!fil || mapping) && (
         <fieldset className="dv-fieldset">
           <legend>Before printing</legend>
           <label className="check">

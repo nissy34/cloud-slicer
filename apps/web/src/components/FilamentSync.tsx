@@ -1,9 +1,9 @@
 // "From printer" in the Filament section: loads the filaments in the printer's
-// tool heads into the project, like desktop Snapmaker Orca's Sync filament
-// button. The printer and its heads come from the Device tab's connection
-// (state/device.ts, device/addons/u1.ts); the plan from lib/filament-sync.
+// tool heads (or AMS) into the project, like desktop Snapmaker Orca's and
+// Bambu Studio's Sync filament button. The printer and its filaments come from
+// the Device tab's connection (state/device.ts, the printer add-on's
+// `filaments`); the plan from lib/filament-sync.
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
-import { u1Heads } from '../device/addons/u1';
 import { Swatch } from '../device/ui/parts';
 import { Dialog } from './Dialog';
 import { isLoaded, matchByColour, printerFilaments, syncPlan, syncPreset, type SyncMode } from '../lib/filament-sync';
@@ -15,9 +15,19 @@ import { useSlicer } from '../state/store';
 
 export function SyncFilamentsButton() {
   const [open, setOpen] = useState(false);
+  // Only a printer that says what it has loaded can be synced: with just one
+  // printer, connected and not saying (Prusa, OctoPrint, Elegoo, plain
+  // Klipper), the button is greyed. With more, the dialog picks another.
+  const silent = useDevice((s) => s.printers.length === 1 && s.conn.state === 'online' && !s.addons.some((a) => a.filaments));
   return (
     <>
-      <button className="link" onClick={() => setOpen(true)} title="Load the filaments in your printer's tool heads into this project" data-testid="sync-filaments">
+      <button
+        className="link"
+        onClick={() => setOpen(true)}
+        disabled={silent}
+        title={silent ? "This printer doesn't say what filament is loaded" : "Load the filaments in your printer's tool heads into this project"}
+        data-testid="sync-filaments"
+      >
         From printer
       </button>
       {open && <SyncFilamentsDialog onClose={() => setOpen(false)} />}
@@ -29,7 +39,7 @@ function SyncFilamentsDialog({ onClose }: { onClose(): void }) {
   const printers = useDevice((s) => s.printers);
   const activeId = useDevice((s) => s.activeId);
   const conn = useDevice((s) => s.conn);
-  const isU1 = useDevice((s) => s.addons.some((a) => a.id === 'u1'));
+  const fil = useDevice((s) => s.addons.find((a) => a.filaments)?.filaments);
   const objects = useDevice((s) => s.objects);
   const selection = useSlicer((s) => s.selection);
   const presets = useSlicer((s) => s.filaments);
@@ -41,7 +51,8 @@ function SyncFilamentsDialog({ onClose }: { onClose(): void }) {
   // Connects the printer the Device tab shows, if it isn't already.
   useEffect(() => useDevice.getState().start(), []);
 
-  const heads = useMemo(() => (isU1 && objects.print_task_config ? printerFilaments(u1Heads(objects)) : []), [isU1, objects]);
+  const slots = useMemo(() => fil?.read(objects) ?? null, [fil, objects]);
+  const heads = useMemo(() => printerFilaments(slots ?? []), [slots]);
   const loaded = heads.filter(isLoaded);
   const project = useMemo(
     () =>
@@ -83,7 +94,7 @@ function SyncFilamentsDialog({ onClose }: { onClose(): void }) {
   if (!printer)
     status = (
       <p data-testid="sync-status">
-        No printer is set up yet. Add your U1 on the Device tab, then come back here.
+        No printer is set up yet. Add your printer on the Device tab, then come back here.
       </p>
     );
   else if (conn.state !== 'online')
@@ -92,17 +103,17 @@ function SyncFilamentsDialog({ onClose }: { onClose(): void }) {
         {conn.state === 'offline' ? `${printer.name} is not connected${conn.message ? `: ${conn.message}` : '.'}` : `Connecting to ${printer.name}…`}
       </p>
     );
-  else if (!isU1)
+  else if (!fil)
     status = (
       <p data-testid="sync-status">
-        {printer.name} is not a Snapmaker U1. Only the U1 tells the slicer which filaments are in its heads.
+        {printer.name} doesn't say what filament is loaded, so there is nothing to load from it.
       </p>
     );
-  else if (!objects.print_task_config) status = <p data-testid="sync-status">Reading the tool heads…</p>;
+  else if (!slots) status = <p data-testid="sync-status">Reading the printer's filaments…</p>;
   else if (!loaded.length)
     status = (
       <p data-testid="sync-status">
-        No filament is loaded on {printer.name}. Load filament first, or set each head's filament on the Device tab's Tool heads card.
+        No filament is loaded on {printer.name}. {fil.words.unset}
       </p>
     );
 
@@ -129,7 +140,7 @@ function SyncFilamentsDialog({ onClose }: { onClose(): void }) {
     >
       <div className="sync-filaments">
         <p className="muted">
-          Reads the material, brand and colour in each of your printer's tool heads and puts them in this project's filament list, so what you slice matches what is loaded.
+          Reads the material, brand and colour in each of your printer's {fil?.words.noun ?? 'tool head'}s and puts them in this project's filament list, so what you slice matches what is loaded.
         </p>
         {printers.length > 1 && (
           <label className="field">
@@ -191,7 +202,7 @@ function SyncFilamentsDialog({ onClose }: { onClose(): void }) {
                 {unused.length > 0 && (
                   <label className="check">
                     <input type="checkbox" checked={addRest} onChange={(e) => setAddRest(e.target.checked)} />
-                    <span>Also add the filaments on the other heads ({unused.map((f) => f.label).join(', ')})</span>
+                    <span>Also add the filaments on the other {fil?.words.noun ?? 'head'}s ({unused.map((f) => f.label).join(', ')})</span>
                   </label>
                 )}
                 {mixCount > 0 && (
@@ -201,7 +212,7 @@ function SyncFilamentsDialog({ onClose }: { onClose(): void }) {
             ) : (
               <>
                 <p className="small muted">
-                  The project's filaments become exactly what is loaded, head by head.
+                  The project's filaments become exactly what is loaded, in the printer's order.
                   {hasObjects && ' Objects on filament 1 go to the first one, filament 2 to the second, and so on.'}
                 </p>
                 <ol className="sync-rows" data-testid="sync-rows">

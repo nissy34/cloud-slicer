@@ -72,6 +72,13 @@ type camerer interface {
 	cameraOpen(ctx context.Context, raw string) (*http.Response, error)
 }
 
+// requester is a brand that passes the page's own messages to the printer as
+// they are (printer.request): the page's printer add-on knows the printer's
+// language, the bridge only carries it.
+type requester interface {
+	request(ctx context.Context, message map[string]any) (any, error)
+}
+
 // follower is a brand whose printer's replies to G-code can be read as they come.
 type follower interface {
 	follow(ctx context.Context, reply func(line string))
@@ -448,6 +455,7 @@ func (s *standIn) call(ctx context.Context, c *standInClient, method string, par
 		Path     string         `json:"path"`
 		Objects  map[string]any `json:"objects"`
 		Script   string         `json:"script"`
+		Message  map[string]any `json:"message"`
 	}
 	_ = json.Unmarshal(params, &p)
 	done := func(err error) (any, error) {
@@ -514,6 +522,17 @@ func (s *standIn) call(ctx context.Context, c *standInClient, method string, par
 		return map[string]any{"item": map[string]any{"root": "gcodes", "path": path}, "action": "delete_file"}, nil
 	case "server.webcams.list":
 		return s.webcams(ctx)
+	case "printer.request":
+		r, ok := s.b.(requester)
+		if !ok {
+			return nil, fmt.Errorf("%w: %s", errNoMethod, method)
+		}
+		out, err := r.request(ctx, p.Message)
+		if err != nil {
+			return nil, err
+		}
+		s.soon()
+		return out, nil
 	case "printer.gcode.script", "printer.emergency_stop", "printer.firmware_restart":
 		cmd, ok := s.b.(commander)
 		if !ok {

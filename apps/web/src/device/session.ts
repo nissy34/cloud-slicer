@@ -284,11 +284,6 @@ export class PrinterSession {
     return this.link.upload(blob, name, onProgress, signal, onStage);
   }
 
-  /** Starts a print. Callers must only reach this from an explicit user action. */
-  startPrint(filename: string) {
-    return this.rpc('printer.print.start', { filename }, 60_000);
-  }
-
   pause = () => this.rpc('printer.print.pause', undefined, 60_000);
   resume = () => this.rpc('printer.print.resume', undefined, 60_000);
   cancel = () => this.rpc('printer.print.cancel', undefined, 60_000);

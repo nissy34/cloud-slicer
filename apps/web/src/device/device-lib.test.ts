@@ -14,6 +14,7 @@ describe('device commands', () => {
     expect(fanGcode('fan_generic aux', 2)).toBe('SET_FAN_SPEED FAN=aux SPEED=1');
     expect(lightGcode('neopixel strip', true)).toBe('SET_LED LED=strip RED=1 GREEN=1 BLUE=1 WHITE=1');
     expect(uploadName('my plate (2).gcode')).toBe('my_plate_2.gcode');
+    expect(uploadName('Benchy plate 1.gcode.3mf')).toBe('Benchy_plate_1.gcode.3mf');
   });
 });
 

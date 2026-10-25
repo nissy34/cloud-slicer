@@ -15,7 +15,7 @@
 import { create } from 'zustand';
 import { api, ApiError, type Device } from '../account/api';
 import { accountReady, deleteDevice, getDeviceApiKey, saveDevice, useAccount } from './account';
-import { takesCommands, type PrinterAddon, type PrinterError, type PrinterFacts } from '../device/addons';
+import { takesCommands, type PrinterAddon, type PrinterCall, type PrinterError, type PrinterFacts } from '../device/addons';
 import { coalesce } from '../device/coalesce';
 import { BridgeLink, onBridgeRemoved, setBridgeTickets } from '../device/link/bridge';
 import { DirectLink } from '../device/link/direct';
@@ -120,7 +120,11 @@ interface DeviceState {
   /** `slicedFor` is the printer profile the G-code was sliced with, if known. */
   requestSend(blob: Blob, name: string, slicedFor?: string, gcode?: Blob): void;
   openPrintDialog(source: SendSource | null): void;
-  uploadAndMaybePrint(source: SendSource, opts: { start: boolean; prep: string[] }): Promise<boolean>;
+  /**
+   * `start`: how to start the print once the file is on the printer, from its
+   * path there (the printer add-on's calls); none for Upload only.
+   */
+  uploadAndMaybePrint(source: SendSource, opts: { start: ((path: string) => PrinterCall[]) | null }): Promise<boolean>;
   /** Stops the upload under way (the printer keeps nothing) and closes the print dialog. */
   cancelUpload(): void;
   setToast(text: string, error?: boolean): void;
@@ -562,7 +566,7 @@ export const useDevice = create<DeviceState>((set, get) => {
       set({ upload: null, send: null, sendError: null });
     },
 
-    async uploadAndMaybePrint(source, { start, prep }) {
+    async uploadAndMaybePrint(source, { start }) {
       const s = session;
       if (!s || get().conn.state !== 'online') {
         get().setToast('The printer is not connected.', true);
@@ -586,8 +590,12 @@ export const useDevice = create<DeviceState>((set, get) => {
           path = source.path;
         }
         if (start) {
-          for (const line of prep) await s.gcode(line, 30_000);
-          await s.startPrint(path);
+          for (const call of start(path)) {
+            const script = call.method === 'printer.gcode.script' ? (call.params as { script?: unknown } | undefined)?.script : undefined;
+            // Commands show in the console like any other.
+            if (typeof script === 'string') await s.gcode(script, call.timeoutMs);
+            else await s.rpc(call.method, call.params, call.timeoutMs);
+          }
           get().setToast(`Printing ${path}`);
         } else {
           get().setToast(`Uploaded ${path}`);

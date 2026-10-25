@@ -282,9 +282,10 @@ std::string conflictText(const ConflictResult& c, const Print& print) {
     return text;
 }
 
-// The sliced plate as a .gcode.3mf, the file desktop downloads and sends when
-// the printer's use_3mf is on (Plater::send_gcode: export_3mf with Silence |
-// SkipModel | WithGcode | SkipAuxiliary): every plate's entry, this one with
+// The sliced plate as a .gcode.3mf, the file desktop downloads and sends to a
+// Bambu Lab printer, or when the printer's use_3mf is on (Plater::send_gcode:
+// export_3mf with Silence | SkipModel | WithGcode | SkipAuxiliary): every
+// plate's entry, this one with
 // its G-code, time, weight and filaments (slice_info.config) and the largest
 // plate picture, as Metadata/plate_<plate + 1>.*.
 bool writeGcode3mf(const std::string& path, int plate, const std::string& gcodePath, DynamicPrintConfig& cfg, GCodeProcessorResult& result,
@@ -353,8 +354,9 @@ bool writeGcode3mf(const std::string& path, int plate, const std::string& gcodeP
 // GCode export encodes and places them, in the formats `thumbnails` asks for.
 // `name` is the project or model name for the file name: with it, the result
 // has `fileName` (desktop's, from filename_format), and a template that can't
-// be read adds a warning instead. When the printer's use_3mf is on, the plate
-// is also written as a .gcode.3mf at outputPath + ".3mf" (result.gcode3mfPath).
+// be read adds a warning instead. When the printer's use_3mf is on, or it is a
+// Bambu Lab printer, the plate is also written as a .gcode.3mf at outputPath +
+// ".3mf" (result.gcode3mfPath).
 std::string sliceWithConfig(const std::string& configJson, int plate, const std::string& outputPath, emscripten::val onProgress,
                             emscripten::val thumbnails, std::string name) {
     json res{{"success", false}, {"cancelled", false}, {"error", ""}};
@@ -525,7 +527,10 @@ std::string sliceWithConfig(const std::string& configJson, int plate, const std:
         // real depth once the plate is sliced).
         if (print.has_wipe_tower() && print.is_step_done(psWipeTower) && !print.wipe_tower_data().tool_changes.empty())
             res["wipeTowerDepth"] = print.wipe_tower_data().depth;
-        if (cfg.has("use_3mf") && cfg.opt_bool("use_3mf")) {
+        // Desktop always sends a Bambu Lab printer the plate as a .gcode.3mf
+        // (its "Print plate", unless it goes through a print host instead).
+        const bool bambuSend = engine::selectedPrinterIsBambu() && !(cfg.has("bbl_use_printhost") && cfg.opt_bool("bbl_use_printhost"));
+        if ((cfg.has("use_3mf") && cfg.opt_bool("use_3mf")) || bambuSend) {
             const std::string bundle = outputPath + ".3mf";
             if (writeGcode3mf(bundle, plate, outputPath, cfg, result, print, pictures)) res["gcode3mfPath"] = bundle;
             else warnings.add("The .gcode.3mf file for this printer couldn't be made, so the plain G-code is used.", true, {}, "use_3mf");

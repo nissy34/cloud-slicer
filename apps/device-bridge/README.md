@@ -216,7 +216,14 @@ printer sends no replies for the console), and emergency stop stops the print. S
 Bambu's 2025 firmware a printer takes prints and G-code from other programs only with
 **LAN Only mode and Developer Mode** on; without them it still reports its status and
 answers commands with `"result": "fail"`, whose reason the stand-in passes on with
-how to fix it. Commands are never signed (no key of Bambu's is used). The search
+how to fix it. The printer's report also goes to the page as it is (the `bambu`
+object), and `printer.request` passes the page's own message to the printer (one
+command, such as `{"print": {"command": "project_file", ...}}`, with the next sequence
+number; it answers once the printer accepts it). Like Moonraker calls, only the commands on the
+bridge's list go through (`requests` in `allowed.go`: today a Bambu `print.project_file`);
+firmware updates, settings and the rest stay with the maker's apps: the site reads
+the AMS from the one and starts a .gcode.3mf with its AMS slots through the other, so
+the bridge knows nothing of filaments. Commands are never signed (no key of Bambu's is used). The search
 listens for the SSDP messages printers send to UDP port 2021 every few seconds (when a
 slicer on the same computer holds that port, the search can't hear them: add by
 address). Sources: [OpenBambuAPI](https://github.com/Doridian/OpenBambuAPI). Tests use

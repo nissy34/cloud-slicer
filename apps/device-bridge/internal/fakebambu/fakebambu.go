@@ -65,6 +65,16 @@ func Start() (*Printer, error) {
 			"nozzle_temper": 25.0, "nozzle_target_temper": 0.0, "bed_temper": 26.0, "bed_target_temper": 0.0, "chamber_temper": 24.0,
 			"cooling_fan_speed": "0", "big_fan1_speed": "0", "big_fan2_speed": "0", "spd_mag": 100, "spd_lvl": 2,
 			"layer_num": 0, "total_layer_num": 0, "gcode_file": "", "subtask_name": "", "print_error": 0, "gcode_start_time": "0",
+			// One AMS: white PLA, an empty slot, red PLA, black PETG; nothing on the outside spool.
+			"ams": map[string]any{"ams_exist_bits": "1", "tray_exist_bits": "d", "tray_now": "255", "ams": []any{
+				map[string]any{"id": "0", "humidity": "4", "temp": "24.0", "tray": []any{
+					tray("0", "PLA", "FFFFFFFF", "PLA Basic", "GFA00"),
+					map[string]any{"id": "1"},
+					tray("2", "PLA", "C12E1FFF", "PLA Matte", "GFA01"),
+					tray("3", "PETG", "000000FF", "PETG HF", "GFG02"),
+				}},
+			}},
+			"vt_tray": map[string]any{"id": "254", "tray_type": "", "tray_color": "00000000"},
 		},
 	}
 	if err := p.makeCert(); err != nil {
@@ -141,6 +151,25 @@ func (p *Printer) Files() map[string][]byte {
 		out[k] = v
 	}
 	return out
+}
+
+func tray(id, typ, colour, name, idx string) map[string]any {
+	return map[string]any{"id": id, "tray_type": typ, "tray_color": colour, "tray_sub_brands": name, "tray_info_idx": idx,
+		"nozzle_temp_min": "190", "nozzle_temp_max": "240", "remain": 80}
+}
+
+// Last is the whole body of the last command named cmd ("project_file"), or nil.
+func (p *Printer) Last(cmd string) map[string]any {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	for i := len(p.commands) - 1; i >= 0; i-- {
+		for _, v := range p.commands[i] {
+			if body, _ := v.(map[string]any); body["command"] == cmd {
+				return body
+			}
+		}
+	}
+	return nil
 }
 
 // Commands are the commands the printer got ("print.pause", "print.gcode_line: G28", ...).
@@ -373,7 +402,7 @@ func (p *Printer) request(m *mqttConn, data []byte) {
 				reply["result"], reply["reason"] = "fail", "file not found"
 				break
 			}
-			change = map[string]any{"gcode_state": "RUNNING", "gcode_file": "/sdcard/" + file, "subtask_name": strings.TrimSuffix(file, ".gcode"),
+			change = map[string]any{"gcode_state": "RUNNING", "gcode_file": "/sdcard/" + file, "subtask_name": strings.TrimSuffix(strings.TrimSuffix(file, ".3mf"), ".gcode"),
 				"mc_percent": 12, "mc_remaining_time": 42, "layer_num": 3, "total_layer_num": 120, "nozzle_target_temper": 220.0, "bed_target_temper": 55.0,
 				"gcode_start_time": strconv.FormatInt(time.Now().Add(-5*time.Minute).Unix(), 10)}
 		case "pause":

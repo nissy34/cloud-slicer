@@ -2,7 +2,8 @@
 // the Device tab's browser test (apps/web/test/device-bambu.mjs). It prints one
 // JSON line saying where it is, then answers on a small local web page:
 //
-//	GET  /state  its files (name: size), the commands it got and its status
+//	GET  /state  its files (name: size), the commands it got, the last
+//	             project_file command whole, and its status
 //	POST /off    turns it off (stops answering)
 //
 //	go run ./tools/mock-bambu
@@ -42,7 +43,7 @@ func main() {
 		for name, body := range p.Files() {
 			files[name] = len(body)
 		}
-		_ = json.NewEncoder(w).Encode(map[string]any{"files": files, "commands": p.Commands(), "report": p.Report()})
+		_ = json.NewEncoder(w).Encode(map[string]any{"files": files, "commands": p.Commands(), "project": p.Last("project_file"), "report": p.Report()})
 	})
 	mux.HandleFunc("/off", func(w http.ResponseWriter, r *http.Request) {
 		p.Close()
