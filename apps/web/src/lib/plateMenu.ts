@@ -7,6 +7,14 @@ export type PlateAction =
   | { op: 'addShape'; shape: Shape }
   | { op: 'deleteAll' }
   | { op: 'rename'; name: string }
+  /** Desktop's plate lock: Arrange and Auto orient leave a locked plate as it is. */
+  | { op: 'lock'; locked: boolean }
+  /**
+   * Desktop's Plate settings window: the plate's own settings (null: the
+   * project's) and name; vase: spiral vase turned on here, the spiral vase
+   * settings the project's differ in (lib/plate-settings.ts), set on the plate's objects.
+   */
+  | { op: 'settings'; name: string; settings: Record<string, string | null>; vase?: string[] }
   /** The plate's layer slider items, all of them (lib/layerCodes.ts); filaments: how many the project has. */
   | { op: 'layerCodes'; codes: LayerCode[]; filaments: number }
   /** Ctrl+C and Ctrl+V: the engine keeps the copy, so it pastes after the original is gone. */

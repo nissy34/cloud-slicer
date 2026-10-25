@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { entryType, isVectorType, processFlowModes, splitValues, valueAt, withValueAt } from '../lib/flow-variants';
 import { decodeString, encodeString, slotEntryIndex, splitStrings } from '../lib/slot-values';
 import { checkOptionValue } from '../lib/option-check';
+import { PLATE_SIDEBAR_KEYS } from '../lib/plate-settings';
 import { useOption, useSlicer } from '../state/store';
 import { Dialog } from './Dialog';
 import { setOverrideChecked } from './SettingsPrompt';
@@ -60,6 +61,9 @@ export function OptionField({
   const def = useSlicer((s) => s.options[optKey]);
   const globalValue = useOption(optKey);
   const globalModified = useSlicer((s) => optKey in s.overrides);
+  // The shown plate's own value of a setting its Plate settings window also sets.
+  const plateValue = useSlicer((s) => (onChange !== undefined || !PLATE_SIDEBAR_KEYS.includes(optKey) ? undefined : s.project?.plates[s.plate]?.settings?.[optKey]));
+  const plateNumber = useSlicer((s) => s.plate + 1);
 
   const own = onChange !== undefined;
   const value = own ? ownValue : globalValue;
@@ -141,6 +145,18 @@ export function OptionField({
     </button>
   ) : null;
 
+  // Says the shown plate slices with its own value, so an edit here doesn't seem to do nothing.
+  const plateNote =
+    plateValue === undefined ? null : (
+      <p className="option-note plate-note">
+        Plate {plateNumber} uses{' '}
+        <b>{type === 'bool' ? (plateValue === '1' ? 'on' : 'off') : def.enumLabels?.[def.enumValues?.indexOf(plateValue) ?? -1] || plateValue}</b> (its own setting).{' '}
+        <button type="button" className="link" onClick={() => useSlicer.getState().openPlateSettings(true)}>
+          Plate settings
+        </button>
+      </p>
+    );
+
   if (type === 'bool') {
     return (
       <div className={`option${changed ? ' modified' : ''}${disabled ? ' disabled' : ''}`} title={title}>
@@ -159,6 +175,7 @@ export function OptionField({
           </label>
         )}
         {reset}
+        {plateNote}
       </div>
     );
   }
@@ -223,6 +240,7 @@ export function OptionField({
       </span>
       {editor}
       {reset}
+      {plateNote}
       {note && (
         <p className="option-note" role="alert">
           {note}

@@ -33,14 +33,3 @@ export function ObjectLabels({ parts }: { parts: { object: number; geometry: THR
     </>
   );
 }
-
-/** The shown plate's name, on the plate past its back left corner, like desktop draws it. */
-export function PlateName({ d }: { d: number }) {
-  const name = useSlicer((s) => s.project?.plates[s.plate]?.name ?? '');
-  if (!name) return null;
-  return (
-    <Html position={[0, d, 0]} zIndexRange={[2, 0]} style={{ pointerEvents: 'none' }}>
-      <div className="plate-name">{name}</div>
-    </Html>
-  );
-}

@@ -168,6 +168,14 @@ void svgOutlines(Slic3r::ModelVolume& v);
 // [{z, type: "pause"|"filament"|"custom"|"template"|"colour", filament, colour, gcode}].
 nlohmann::json layerCodesJson(int plate);
 
+// Desktop's Plate settings (PlateSettingsDialog, kept in PartPlate's config):
+// the settings a plate has of its own instead of the project's, as key ->
+// serialized value.
+nlohmann::json plateSettingsJson(int plate);
+// The plate's own settings over cfg, as desktop applies them before slicing
+// the plate or planning its prime tower (BackgroundSlicingProcess::apply).
+void applyPlateSettings(Slic3r::DynamicPrintConfig& cfg, int plate);
+
 // The prime tower desktop's Prepare view shows on `plate` with `cfg`, kept on
 // the bed (wipe_tower_api.cpp): {show} or {show: true, x, y, width, depth,
 // height, rotation, brim, filaments}. slicedDepth < 0: Orca's estimate.

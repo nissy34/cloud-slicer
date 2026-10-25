@@ -43,6 +43,20 @@ json layerCodesJson(int plate) {
     return out;
 }
 
+// See engine.hpp.
+json plateSettingsJson(int plate) {
+    const Project& p = pr();
+    if (size_t(plate) >= p.plates.size() || !p.plates[plate]) return json::object();
+    return configToJson(p.plates[plate]->config);
+}
+
+// See engine.hpp. Desktop merges the plate's whole config, keys it doesn't
+// show in the window included (upstream's filament map of a two-nozzle printer).
+void applyPlateSettings(DynamicPrintConfig& cfg, int plate) {
+    const Project& p = pr();
+    if (size_t(plate) < p.plates.size() && p.plates[plate]) cfg.apply(p.plates[plate]->config);
+}
+
 } // namespace engine
 
 namespace {
@@ -54,6 +68,55 @@ Model& clipboard() {
     return m;
 }
 
+// Plate p's PlateData; plates of a project made here have none until one is needed.
+PlateData& plateData(int plate) {
+    engine::Project& p = pr();
+    while (p.plates.size() <= size_t(plate)) {
+        PlateData* d = new PlateData();
+        d->plate_index = int(p.plates.size());
+        p.plates.push_back(d);
+    }
+    if (!p.plates[plate]) {
+        p.plates[plate] = new PlateData();
+        p.plates[plate]->plate_index = plate;
+    }
+    return *p.plates[plate];
+}
+
+// What desktop's Plate settings window sets (Plater::open_platesettings_dialog).
+// Each is left out of the plate's config to use the project's.
+constexpr const char* PLATE_KEYS[] = {"curr_bed_type", "print_sequence", "spiral_mode", "first_layer_print_sequence",
+                                      "other_layers_print_sequence", "other_layers_print_sequence_nums"};
+
+// The settings spiral vase needs, set on each object of a plate whose own
+// spiral vase is turned on (PartPlate::set_vase_mode_related_object_config).
+// `differ`: those the project's settings don't already have; an object also
+// gets any its own settings have otherwise.
+void vaseObjectSettings(int plate, const std::vector<std::string>& differ) {
+    DynamicPrintConfig vase;
+    vase.set_key_value("wall_loops", new ConfigOptionInt(1));
+    vase.set_key_value("top_shell_layers", new ConfigOptionInt(0));
+    vase.set_key_value("sparse_infill_density", new ConfigOptionPercent(0));
+    vase.set_key_value("enable_support", new ConfigOptionBool(false));
+    vase.set_key_value("enforce_support_layers", new ConfigOptionInt(0));
+    vase.set_key_value("detect_thin_wall", new ConfigOptionBool(false));
+    vase.set_key_value("timelapse_type", new ConfigOptionEnum<TimelapseType>(tlTraditional));
+    vase.set_key_value("overhang_reverse", new ConfigOptionBool(false));
+#if !ENGINE_UPSTREAM
+    // Upstream has no automatic wall direction, nor sets one here.
+    vase.set_key_value("wall_direction", new ConfigOptionEnum<WallDirection>(WallDirection::Auto));
+#endif
+    engine::Project& p = pr();
+    for (ModelObject* obj : p.model.objects) {
+        if (std::none_of(obj->instances.begin(), obj->instances.end(), [&](const ModelInstance* i) { return p.plateOf(*i) == plate; })) continue;
+        for (const std::string& key : vase.keys()) {
+            const ConfigOption* own = obj->config.option(key);
+            const bool needed = std::find(differ.begin(), differ.end(), key) != differ.end() || (own && *own != *vase.option(key));
+            if (needed) obj->config.set_key_value(key, vase.option(key)->clone());
+        }
+    }
+}
+
 // Plate p, request:
 //   {op: "addShape", shape: Cube|Cylinder|Sphere|Cone|Disc|Torus}
 //        a new object (ObjectList::load_shape_object -> load_mesh_object), on
@@ -61,6 +124,13 @@ Model& clipboard() {
 //   {op: "deleteAll"}   every object on the plate (Plater::remove_curr_plate_all;
 //                       an object with copies on other plates keeps those)
 //   {op: "rename", name}   the plate's name (desktop's Edit Plate Name)
+//   {op: "lock", locked}   desktop's plate lock: Arrange all and Auto orient all
+//                       leave a locked plate as it is (saved in the 3MF)
+//   {op: "settings", name?, settings: {key: value | null}, vase?: [keys]}
+//        desktop's Plate settings window: the plate's own plate type, print
+//        sequence, spiral vase and filament orders (null: the project's), and
+//        its name. vase: spiral vase turned on here; the spiral vase settings
+//        the project's differ in, set on the plate's objects as desktop does
 //   {op: "layerCodes", codes: [{z, type, filament, colour, gcode}], filaments}
 //        the plate's layer slider items, replacing them all (see
 //        engine::layerCodesJson); filaments: how many the project has, for
@@ -110,14 +180,27 @@ std::string plateAction(int plate, const std::string& requestJson) {
                 else obj->invalidate_bounding_box();
             }
         } else if (op == "rename") {
-            // Plates of a project made here have no PlateData until one is needed.
-            while (p.plates.size() <= size_t(plate)) {
-                PlateData* d = new PlateData();
-                d->plate_index = int(p.plates.size());
-                p.plates.push_back(d);
+            plateData(plate).plate_name = req.value("name", "");
+        } else if (op == "lock") {
+            plateData(plate).locked = req.value("locked", true);
+        } else if (op == "settings") {
+            PlateData& d = plateData(plate);
+            if (req.contains("name")) d.plate_name = req.value("name", "");
+            DynamicPrintConfig values;
+            const json settings = req.value("settings", json::object());  // kept: items() refers to it
+            for (const auto& [key, value] : settings.items()) {
+                if (std::find_if(std::begin(PLATE_KEYS), std::end(PLATE_KEYS), [&](const char* k) { return key == k; }) == std::end(PLATE_KEYS))
+                    throw std::runtime_error("not a plate setting: " + key);
+                if (value.is_null()) d.config.erase(key);
+                else values.set_deserialize_strict(key, value.is_string() ? value.get<std::string>() : value.dump());
             }
-            if (!p.plates[plate]) p.plates[plate] = new PlateData();
-            p.plates[plate]->plate_name = req.value("name", "");
+            d.config.apply(values);
+            // Desktop keeps the two halves of the other layers' order together.
+            if (!d.config.has("other_layers_print_sequence") || !d.config.has("other_layers_print_sequence_nums")) {
+                d.config.erase("other_layers_print_sequence");
+                d.config.erase("other_layers_print_sequence_nums");
+            }
+            if (req.contains("vase")) vaseObjectSettings(plate, req["vase"].get<std::vector<std::string>>());
         } else if (op == "layerCodes") {
             CustomGCode::Info info;
             info.mode = req.value("filaments", 1) > 1 ? CustomGCode::MultiAsSingle : CustomGCode::SingleExtruder;

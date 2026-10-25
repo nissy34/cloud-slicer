@@ -14,13 +14,15 @@ import { layerTexture, type LayerProfile } from '../lib/layers';
 import { KIND_COLOURS, partAt, partRanges, volumeMeshes } from '../lib/volumes';
 import { onPlate } from '../lib/plateMenu';
 import { plateBounds } from '../lib/outside';
+import { hasPlateSettings } from '../lib/plate-settings';
 import { unprintableTriangles, UNPRINTABLE } from '../lib/printable';
 import { viewOnly } from '../state/projects';
 import { NO_COLOURS, useOption, useSlicer } from '../state/store';
 import { setCameraSource } from '../state/view';
 import { Bed } from './Bed';
 import { BrimMarks } from './BrimEars';
-import { ObjectLabels, PlateName } from './Labels';
+import { ObjectLabels } from './Labels';
+import { iconsReach, nameReach, PlateIcons } from './PlateIcons';
 import { MeasureOverlay } from './MeasureOverlay';
 import { CameraViews, ViewButtons, type ViewHandle } from './ViewControls';
 import { WipeTowerView } from './WipeTower';
@@ -1599,19 +1601,41 @@ function Objects({ w, d }: { w: number; d: number }) {
 }
 
 /** The plates to pick from, on Prepare and Preview alike (each plate keeps its own slice). */
+/** Desktop's plate settings icon (resources/images/plate_settings.svg): two sliders. */
+const PLATE_SETTINGS_ICON = (
+  <svg viewBox="4 4 35 35" width="16" height="16" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round">
+    <line x1="6.5" y1="12.5" x2="10.5" y2="12.5" />
+    <line x1="17.5" y1="12.5" x2="36.5" y2="12.5" />
+    <rect x="10.5" y="6.5" width="7" height="12" rx="2" />
+    <line x1="36.5" y1="30.5" x2="32.5" y2="30.5" />
+    <line x1="25.5" y1="30.5" x2="6.5" y2="30.5" />
+    <rect x="25.5" y="24.5" width="7" height="12" rx="2" />
+  </svg>
+);
+
 export function PlateTabs() {
   const project = useSlicer((s) => s.project);
   const plate = useSlicer((s) => s.plate);
   const setPlate = useSlicer((s) => s.setPlate);
+  const openSettings = useSlicer((s) => s.openPlateSettings);
   if (!project || project.plates.length < 2) return null;
+  // Desktop's plate icons: a gear on the shown plate opens its Plate settings; a dot marks plates with their own.
   return (
     <div className="plate-tabs" role="tablist" aria-label="Plates">
       {project.plates.map((p) => (
-        <button key={p.index} role="tab" aria-selected={p.index === plate} className={p.index === plate ? 'plate active' : 'plate'} onClick={() => void setPlate(p.index)}>
-          {p.index + 1}
-          {p.name ? ` ${p.name}` : ''}
-          <span className="muted"> · {p.objects.length}</span>
-        </button>
+        <span key={p.index} className={p.index === plate ? 'plate-tab active' : 'plate-tab'}>
+          <button role="tab" aria-selected={p.index === plate} className={p.index === plate ? 'plate active' : 'plate'} onClick={() => void setPlate(p.index)}>
+            {p.index + 1}
+            {p.name ? ` ${p.name}` : ''}
+            <span className="muted"> · {p.objects.length}</span>
+            {hasPlateSettings(p.settings) && <span className="plate-own" title="This plate has settings of its own" aria-label="has its own settings" />}
+          </button>
+          {p.index === plate && (
+            <button className="plate-gear" title="Plate settings" aria-label={`Plate ${p.index + 1} settings`} onClick={() => openSettings(true)}>
+              {PLATE_SETTINGS_ICON}
+            </button>
+          )}
+        </span>
       ))}
     </div>
   );
@@ -1633,6 +1657,36 @@ function ThumbnailSource() {
     });
     return () => setCapture(null);
   }, [gl, scene, camera]);
+  return null;
+}
+
+/**
+ * The first view takes in the whole bed and the plate's icons beside it, like
+ * desktop's zoom to bed. On a narrow screen (a phone held upright) that means
+ * stepping back along the starting direction; a wide screen keeps its view.
+ */
+function StartView({ w, d }: { w: number; d: number }) {
+  const camera = useThree((s) => s.camera);
+  const width = useThree((s) => s.size.width);
+  const invalidate = useThree((s) => s.invalidate);
+  const done = useRef(false);
+  useEffect(() => {
+    if (done.current || !width) return;
+    done.current = true;
+    const target = new THREE.Vector3(w / 2, d / 2, 0);
+    const from = camera.position.clone().sub(target);
+    const corners = [0, w + iconsReach(d)].flatMap((x) => [0, d + nameReach(d)].map((y) => new THREE.Vector3(x, y, 0)));
+    const fits = () => {
+      camera.lookAt(target); // the controls haven't turned it yet
+      camera.updateMatrixWorld();
+      return corners.every((c) => Math.abs(c.clone().project(camera).x) <= 0.96);
+    };
+    for (let i = 0; i < 40 && !fits(); i++) {
+      from.multiplyScalar(1.05);
+      camera.position.copy(target).add(from);
+    }
+    invalidate();
+  }, [camera, width, w, d, invalidate]);
   return null;
 }
 
@@ -1671,11 +1725,12 @@ export function Viewport() {
         <hemisphereLight args={['#ffffff', scene.ground, 0.9]} />
         <directionalLight position={[w, -d, d * 2]} intensity={1.6} />
         <Bed />
-        <PlateName d={d} />
+        <PlateIcons w={w} d={d} />
         <PlateVolume />
         <Objects w={w} d={d} />
         <WipeTowerView />
         <OrbitControls target={[w / 2, d / 2, 0]} makeDefault />
+        <StartView w={w} d={d} />
         <CameraViews handle={views} box={() => plateBox(w, d)} />
         <ThumbnailSource />
       </Canvas>

@@ -22,6 +22,8 @@ interface Item {
   label: string;
   /** Desktop's keyboard shortcut, where this tool has one here too. */
   key?: string;
+  /** More in its tooltip, after the key. */
+  more?: string;
   /** Not in the web app yet: shown greyed out, like desktop greys out tools it can't use. */
   missing?: boolean;
   /** Works on the selected object. */
@@ -41,7 +43,7 @@ const GROUPS: Item[][] = [
     { id: 'add', icon: 'toolbar_open', label: 'Add models', key: 'Ctrl+I' },
     { id: 'addplate', icon: 'toolbar_add_plate', label: 'Add plate' },
     { id: 'orient', icon: 'toolbar_orient', label: 'Auto orient', key: 'Q' },
-    { id: 'arrange', icon: 'toolbar_arrange', label: 'Arrange all objects', key: 'A' },
+    { id: 'arrange', icon: 'toolbar_arrange', label: 'Arrange all objects', key: 'A', more: 'Shift+A: only this plate' },
     { id: 'splitobjects', icon: 'split_objects', label: 'Split to objects', needsSelection: true },
     { id: 'splitparts', icon: 'split_parts', label: 'Split to parts', needsSelection: true },
     { id: 'layers', icon: 'toolbar_variable_layer_height', label: 'Variable layer height', tool: 'layers', needsSelection: true },
@@ -142,7 +144,7 @@ export function Toolbar({ onAdd }: { onAdd(): void }) {
       case 'orient':
         return void (several ? s.groupAction({ op: 'orient' }) : s.orient(selected?.object));
       case 'arrange':
-        return void s.arrange();
+        return void s.arrange(true);
       case 'splitobjects':
         return void s.splitObject(target!.object);
       case 'splitparts':
@@ -214,6 +216,10 @@ export function Toolbar({ onAdd }: { onAdd(): void }) {
       } else if (edit) {
         if (edit === 'paste' || selected || several) e.preventDefault();
         runEdit(edit);
+      } else if (item?.id === 'arrange' && e.shiftKey) {
+        // Desktop's Shift+A: arrange the objects on this plate only.
+        e.preventDefault();
+        void s.arrange();
       } else if (item) {
         e.preventDefault();
         run(item);
@@ -253,7 +259,7 @@ export function Toolbar({ onAdd }: { onAdd(): void }) {
                     : '';
               const title = item.missing
                 ? `${item.label}: not in the web app yet`
-                : `${item.label}${step ? ` ${step}` : ''}${item.key ? ` (${item.key})` : ''}${why}`;
+                : `${item.label}${step ? ` ${step}` : ''}${item.key ? ` (${item.key})` : ''}${item.more && !why ? ` · ${item.more}` : ''}${why}`;
               return (
                 <button
                   key={item.id}
