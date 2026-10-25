@@ -1397,6 +1397,128 @@ if (withApp)
     }
   });
 
+if (withApp)
+  test('browser: print history marks plates printed, changed since, kept, marked by hand, and caught after Upload only', async () => {
+    const { startMockPrinter } = await import('./device/mock-printer.mjs');
+    const printer = await startMockPrinter({ printStep: 0.05 });
+    const browser = await chromium.launch(
+      process.env.PLAYWRIGHT_BROWSERS_PATH === '/opt/pw-browsers' ? { executablePath: '/opt/pw-browsers/chromium' } : {},
+    );
+    const shot = (page, name) => process.env.ACCOUNTS_SHOTS && page.screenshot({ path: join(process.env.ACCOUNTS_SHOTS, `${name}.png`) });
+    try {
+      const ivy = new Browser();
+      await signIn(ivy, 'ivy');
+      assert.equal((await ivy.json('/api/devices/u1-mock', 'PUT', { name: 'U1-mock', preset: 'Snapmaker U1 (0.4 nozzle)', url: printer.url, extra: { kind: 'direct' } })).status, 200);
+      const context = await browser.newContext({ viewport: { width: 1280, height: 860 } });
+      await context.addCookies([...ivy.jar.get(new URL(HOST).host)].map(([name, value]) => ({ name, value, url: HOST })));
+      const page = await context.newPage();
+      page.on('pageerror', (e) => console.error(`page error: ${e.message}`));
+      await page.addLocatorHandler(page.getByRole('dialog', { name: 'Set up your printers' }), (d) => d.getByRole('button', { name: 'Not now' }).click());
+      await page.goto(HOST);
+      await page.getByText('Open a model to start').waitFor({ timeout: 120000 });
+
+      // Two plates: Benchy on plate 1, a tetrahedron on plate 2; AutoSave keeps it online.
+      await page.getByTestId('model-input').setInputFiles(join(web, '../../fixtures/3DBenchy.stl'));
+      await page.getByRole('button', { name: 'Add model' }).waitFor({ timeout: 60000 });
+      await page.getByRole('toolbar', { name: 'Object tools' }).getByRole('button', { name: 'Add plate' }).click();
+      const tabs = page.getByRole('tablist', { name: 'Plates' });
+      await tabs.getByRole('tab', { name: /^2/ }).waitFor();
+      await tabs.getByRole('tab', { name: /^2/ }).click();
+      await page.getByTestId('model-input').setInputFiles(join(web, '../../fixtures/tetrahedron.stl'));
+      await tabs.getByRole('tab', { name: /^2.*· 1/ }).waitFor({ timeout: 60000 });
+      await waitFor(async () => (await (await ivy.json('/api/projects')).json()).projects.some((p) => p.draft), 'the draft is saved', 60000);
+      const projectId = (await (await ivy.json('/api/projects')).json()).projects.find((p) => p.draft).id;
+      const prints = async () => (await (await ivy.json(`/api/projects/${projectId}/prints`)).json()).prints;
+
+      // Plate 1: Upload and print. Blue while it prints, green when the printer says it finished.
+      await tabs.getByRole('tab', { name: /^1/ }).click();
+      await page.getByRole('button', { name: /^Slice plate/ }).click();
+      await page.getByTestId('slice-stats').waitFor({ timeout: 300000 });
+      await page.getByRole('button', { name: 'Send to printer' }).click();
+      await page.getByRole('dialog').getByTestId('upload-and-print').click();
+      await waitFor(async () => (await prints()).some((p) => p.plate === 0 && ['sent', 'printing', 'printed'].includes(p.status)), 'a record for plate 1', 30000);
+      await tabs.getByTestId('print-mark-sent').waitFor({ timeout: 30000 });
+      await shot(page, 'print-history-printing');
+      await tabs.getByTestId('print-mark-printed').waitFor({ timeout: 60000 });
+      const first = (await prints()).find((p) => p.plate === 0);
+      assert.equal(first.status, 'printed');
+      assert.equal(first.printerName, 'U1-mock');
+      assert.ok(first.fingerprint && first.summary, 'kept what the plate printed');
+      const progress = page.getByTestId('print-progress');
+      await progress.filter({ hasText: /1\s*of\s*2/ }).waitFor();
+      await page.getByTestId('print-next').filter({ hasText: 'Next: plate 2' }).waitFor();
+      await shot(page, 'print-history-printed');
+
+      // A change to plate 1 shows amber, the window says what changed; Keep as printed makes it green again.
+      const layer = page.getByLabel('Layer height', { exact: true });
+      await layer.fill('0.28');
+      await layer.press('Enter');
+      await tabs.getByTestId('print-mark-changed').waitFor({ timeout: 30000 });
+      await tabs.getByTestId('print-mark-changed').click();
+      const history = page.getByTestId('print-history');
+      await history.getByTestId('print-changes').filter({ hasText: 'Layer height' }).waitFor();
+      await history.getByTestId('print-list').getByText('U1-mock').waitFor();
+      await shot(page, 'print-history-changed');
+      await history.getByTestId('print-keep').click();
+      await tabs.getByTestId('print-mark-printed').waitFor({ timeout: 30000 });
+      await history.getByRole('button', { name: 'Close' }).click();
+      // Back to how it was printed: still green (Keep made 0.28 the printed one, so 0.2 is a change).
+      await layer.fill('0.2');
+      await layer.press('Enter');
+      await tabs.getByTestId('print-mark-changed').waitFor({ timeout: 30000 });
+      await layer.fill('0.28');
+      await layer.press('Enter');
+      await tabs.getByTestId('print-mark-printed').waitFor({ timeout: 30000 });
+
+      // Plate 2 marked by hand from its history: 2 of 2, no Next.
+      await page.getByTestId('print-next').click();
+      await progress.click();
+      await history.getByTestId('print-mark').click();
+      await waitFor(async () => (await tabs.getByTestId('print-mark-printed').count()) === 2, 'both plates green');
+      await progress.filter({ hasText: /2\s*of\s*2/ }).waitFor();
+      assert.equal(await page.getByTestId('print-next').count(), 0);
+      await history.getByTestId('print-unmark').click();
+      await waitFor(async () => (await tabs.getByTestId('print-mark-printed').count()) === 1, 'plate 2 not printed again');
+      await history.getByRole('button', { name: 'Close' }).click();
+
+      // Plate 2: Upload only, then started on the Device tab's file list: caught as printed.
+      await page.getByRole('button', { name: /^Slice plate/ }).click();
+      await page.getByTestId('slice-stats').waitFor({ timeout: 300000 });
+      await page.getByRole('button', { name: 'Send to printer' }).click();
+      await page.getByRole('dialog').getByTestId('upload-only').click();
+      await page.getByRole('dialog').waitFor({ state: 'detached', timeout: 30000 });
+      await waitFor(async () => (await prints()).some((p) => p.plate === 1 && p.status === 'uploaded'), 'an uploaded record for plate 2');
+      assert.equal(printer.state.print_stats.state, 'complete', 'Upload only started a print');
+      const file = (await prints()).find((p) => p.plate === 1 && p.status === 'uploaded').file;
+      await page.getByRole('tab', { name: 'Device' }).click();
+      await page.getByTestId('files-card').locator('li', { hasText: file.replace(/^.*\//, '') }).getByRole('button', { name: 'Print…' }).click();
+      await page.getByRole('dialog').getByTestId('upload-and-print').click();
+      await waitFor(async () => (await prints()).some((p) => p.plate === 1 && p.status === 'printed'), 'the print started on the printer counts', 60000);
+      await page.getByRole('tab', { name: 'Prepare' }).click();
+      await progress.filter({ hasText: /2\s*of\s*2/ }).waitFor({ timeout: 30000 });
+      await shot(page, 'print-history-all-printed');
+
+      // The project list says how many plates were printed.
+      await page.getByRole('button', { name: /^Project/ }).click();
+      await page.getByTestId('project-printed').filter({ hasText: '2/2 printed' }).waitFor({ timeout: 30000 });
+      await shot(page, 'print-history-projects');
+      await page.keyboard.press('Escape');
+
+      // Phone width: the top bar and the window fit.
+      await page.setViewportSize({ width: 390, height: 844 });
+      await progress.waitFor();
+      await shot(page, 'print-history-phone');
+      await progress.click();
+      await history.waitFor();
+      await shot(page, 'print-history-phone-window');
+      const wide = await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth);
+      assert.equal(wide, false, 'the page scrolls sideways on a phone');
+    } finally {
+      await browser.close();
+      await printer.close?.();
+    }
+  });
+
 let failed = 0;
 try {
   await waitForServer();

@@ -211,6 +211,20 @@ nothing on purpose, so a deploy's page and engine never get out of step).
   one editing the project is refused (409 `elsewhere`) until it takes the project over.
   There is no polling: the check runs on save and when a tab is focused, so the free tier's
   request budget goes to real saves.
+- **Print history** (`lib/prints.ts` rules, `state/prints.ts`, `components/PrintHistory.tsx`,
+  D1 `project_prints`, `functions/_lib/prints.ts`): which plates of a saved project were
+  printed. Sending a plate from the Send window adds a record (`sent` for Upload and print,
+  `uploaded` for Upload only); the printer connected on the Device tab turns it into
+  `printing`, then `printed` / `failed` / `cancelled` by matching the file name (an end only
+  counts after it was seen printing, so an Upload only file started on the printer counts
+  too). Mark as printed / not printed are records too. Each record keeps the plate's
+  fingerprint: the engine's hashes of its objects (shape, placement, copies, own settings,
+  paint) and plate settings (`engine/src/fingerprint_api.cpp`, `plateFingerprint`) plus a
+  short hash per setting it slices with. A plate whose fingerprint differs now shows
+  "changed since" and the window names what changed; Keep as printed stores the plate as it
+  is now. Deleting a plate drops its records and renumbers later ones; Save a copy copies
+  the finished ones; deleting the project deletes them. Status only moves while a page is
+  open and connected to that printer. Unsaved and signed-out projects have no history.
 
 ## Colour mixing
 

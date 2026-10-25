@@ -159,7 +159,7 @@ export function PrintHistoryDialog() {
       }
     >
       <div className="print-history">
-        <p className={`print-state ${mark.state}`} data-testid="print-state">
+        <p className={`print-state ${mark.state}`} data-testid="print-history-state">
           <MarkIcon mark={mark} />
           <b>{markWords(mark)}</b>
           {mark.state !== 'none' && <span className="muted"> {recordLine(mark.record)}</span>}
