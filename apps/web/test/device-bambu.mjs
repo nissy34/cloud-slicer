@@ -107,7 +107,13 @@ try {
   await row.getByTestId('add-row-key').fill('00000000');
   await row.getByTestId('add-row-done').click();
   await row.getByRole('alert').filter({ hasText: 'did not accept that access code' }).waitFor();
-  if (shots) await page.getByRole('dialog').screenshot({ path: join(shots, 'bambu-add-wrong-code.png') });
+  if (shots) {
+    await page.getByRole('dialog').screenshot({ path: join(shots, 'bambu-add-wrong-code.png') });
+    await page.setViewportSize({ width: 390, height: 844 });
+    await row.scrollIntoViewIfNeeded();
+    await page.screenshot({ path: join(shots, 'bambu-add-phone.png') });
+    await page.setViewportSize({ width: 1280, height: 900 });
+  }
   await row.getByTestId('add-row-key').fill(bambu.code);
   await row.getByTestId('add-row-done').click();
   await until('the bridge kept it as a Bambu printer', () => config.printers().some((p) => p.name === 'My P1S' && p.kind === 'bambu' && p.apiKey === bambu.code), 20_000);
@@ -123,7 +129,12 @@ try {
   await page.getByTestId('climate-card').getByText('24°').waitFor();
   for (const kept of ['motion-card', 'console-card']) await page.getByTestId(kept).waitFor();
   await page.getByTestId('files-card').getByText('benchy.gcode').waitFor();
-  console.log('bambu: status, chamber, files, Move and Console');
+  // Move: homing first (the printer doesn't say what is homed; the bridge remembers).
+  const motion = page.getByTestId('motion-card');
+  await motion.getByRole('button', { name: 'Home all' }).click();
+  await until('homed', () => motion.getByRole('button', { name: 'Head right' }).isEnabled(), 20_000);
+  if (!(await state()).commands.includes('print.gcode_line: G28')) throw new Error('Home all sent no G28');
+  console.log('bambu: status, chamber, files, Move (homed) and Console');
 
   // Its camera (P1/A1), through the bridge.
   await page.getByTestId('camera-frame').waitFor({ timeout: 30_000 });

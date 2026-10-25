@@ -607,22 +607,34 @@ func (o *octoPrint) gcode(ctx context.Context, script string) error {
 			}
 			continue
 		}
-		if f[0] != "G28" {
-			continue
-		}
-		o.mu.Lock()
-		if len(f) == 1 {
-			o.homed = "xyz"
-		} else {
+	}
+	o.mu.Lock()
+	o.homed = homedAfter(o.homed, lines)
+	o.mu.Unlock()
+	return nil
+}
+
+// homedAfter is which axes are homed after these lines, for printers that
+// don't say: G28 homes the axes it names (or all), turning the motors off
+// (M84, M18) loses them.
+func homedAfter(homed string, lines []string) string {
+	for _, l := range lines {
+		f := strings.Fields(strings.ToUpper(l))
+		switch {
+		case len(f) == 0:
+		case f[0] == "M84" || f[0] == "M18":
+			homed = ""
+		case f[0] == "G28" && len(f) == 1:
+			homed = "xyz"
+		case f[0] == "G28":
 			for _, a := range f[1:] {
-				if ax := strings.ToLower(a[:1]); strings.Contains("xyz", ax) && !strings.Contains(o.homed, ax) {
-					o.homed += ax
+				if ax := strings.ToLower(a[:1]); strings.Contains("xyz", ax) && !strings.Contains(homed, ax) {
+					homed += ax
 				}
 			}
 		}
-		o.mu.Unlock()
 	}
-	return nil
+	return homed
 }
 
 // emergencyStop: OctoPrint sends M112 ahead of everything else waiting.

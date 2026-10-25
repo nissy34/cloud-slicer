@@ -125,6 +125,11 @@ func TestBambuStandIn(t *testing.T) {
 		bed, _ := d["heater_bed"].(map[string]any)
 		return bed["target"] == 60.0
 	})
+	// It doesn't say what is homed: homing from here is remembered.
+	c.must("printer.gcode.script", map[string]any{"script": "G28"})
+	if th := c.must("printer.objects.query", map[string]any{"objects": map[string]any{"toolhead": nil}}).(map[string]any)["status"].(map[string]any)["toolhead"].(map[string]any); th["homed_axes"] != "xyz" {
+		t.Fatalf("homed after G28: %v", th)
+	}
 	if _, err := c.call("printer.gcode.script", map[string]any{"script": "SET_LED LED=x WHITE=1"}); err == nil || !strings.Contains(err.Error(), "Bambu Lab printers") {
 		t.Fatalf("Klipper command: %v", err)
 	}
@@ -198,7 +203,7 @@ func TestBambuStandIn(t *testing.T) {
 	if _, kept := f.Files()["cube.gcode"]; kept {
 		t.Fatal("the file is still on the printer")
 	}
-	want := []string{"print.gcode_line: M140 S60", "print.gcode_file: /sdcard/cube.gcode", "print.pause", "print.resume", "print.stop", "print.gcode_file: /sdcard/cube.gcode"}
+	want := []string{"print.gcode_line: M140 S60", "print.gcode_line: G28", "print.gcode_file: /sdcard/cube.gcode", "print.pause", "print.resume", "print.stop", "print.gcode_file: /sdcard/cube.gcode"}
 	if got := f.Commands(); strings.Join(got, "|") != strings.Join(want, "|") {
 		t.Fatalf("commands %q, want %q", got, want)
 	}
@@ -219,5 +224,17 @@ func TestBambuState(t *testing.T) {
 	}
 	if got := bambuFile(map[string]any{"gcode_file": "/sdcard/cube.gcode", "subtask_name": "cube"}); got != "cube.gcode" {
 		t.Errorf("plain file %q", got)
+	}
+}
+
+func TestHomedAfter(t *testing.T) {
+	for _, c := range []struct {
+		before string
+		lines  []string
+		want   string
+	}{{"", []string{"G28"}, "xyz"}, {"", []string{"G28 X Y"}, "xy"}, {"x", []string{"G28 Z"}, "xz"}, {"xyz", []string{"M84"}, ""}, {"xyz", []string{"G1 X10"}, "xyz"}} {
+		if got := homedAfter(c.before, c.lines); got != c.want {
+			t.Errorf("%q after %q: %q, want %q", c.before, c.lines, got, c.want)
+		}
 	}
 }

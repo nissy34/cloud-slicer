@@ -143,6 +143,8 @@ type bambu struct {
 	fresh   chan struct{}
 	seq     int
 	waiting map[string]chan map[string]any
+	// Axes homed from here: the printer doesn't say.
+	homed string
 	// The P1/A1 camera: whether there is one, its shared stream and latest picture.
 	camKnown, camHere bool
 	frame             []byte
@@ -462,6 +464,13 @@ func (b *bambu) status(ctx context.Context) (map[string]any, error) {
 		message = fmt.Sprintf("The printer stopped with error %08X: check its screen.", int64(number(r["print_error"])))
 	}
 	fan := func(k string) float64 { return number(r[k]) / 15 }
+	b.mu.Lock()
+	if state == "printing" || state == "paused" {
+		// Prints home first.
+		b.homed = "xyz"
+	}
+	homed := b.homed
+	b.mu.Unlock()
 	speed := number(r["spd_mag"]) / 100
 	if speed <= 0 {
 		speed = 1
@@ -477,7 +486,7 @@ func (b *bambu) status(ctx context.Context) (map[string]any, error) {
 		"fan":                       map[string]any{"speed": fan("cooling_fan_speed")},
 		"fan_generic auxiliary_fan": map[string]any{"speed": fan("big_fan1_speed")},
 		"fan_generic chamber_fan":   map[string]any{"speed": fan("big_fan2_speed")},
-		"toolhead":                  map[string]any{"position": []any{0.0, 0.0, 0.0, 0.0}, "extruder": "extruder", "homed_axes": ""},
+		"toolhead":                  map[string]any{"position": []any{0.0, 0.0, 0.0, 0.0}, "extruder": "extruder", "homed_axes": homed},
 		"gcode_move":                map[string]any{"gcode_position": []any{0.0, 0.0, 0.0, 0.0}, "speed_factor": speed, "extrude_factor": 1.0},
 	}
 	sensors := []any{"extruder", "heater_bed"}
@@ -655,7 +664,13 @@ func (b *bambu) gcode(ctx context.Context, script string) error {
 	if len(lines) == 0 {
 		return nil
 	}
-	return b.command(ctx, "print", "gcode_line", map[string]any{"param": strings.Join(lines, "\n") + "\n"})
+	if err := b.command(ctx, "print", "gcode_line", map[string]any{"param": strings.Join(lines, "\n") + "\n"}); err != nil {
+		return err
+	}
+	b.mu.Lock()
+	b.homed = homedAfter(b.homed, lines)
+	b.mu.Unlock()
+	return nil
 }
 
 // emergencyStop stops the print: the printer has no other way to halt from outside.
