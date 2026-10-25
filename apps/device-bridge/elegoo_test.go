@@ -235,7 +235,7 @@ func TestFindElegoo(t *testing.T) {
 }
 
 func TestWithElegoos(t *testing.T) {
-	list := withElegoos([]found{{URL: "http://10.0.0.5", Kind: kindPrusaLink}, {URL: "http://10.0.0.6:7125"}}, []found{{URL: "http://10.0.0.5", Name: "Carbon", Kind: kindElegoo}})
+	list := withOwnAnswers([]found{{URL: "http://10.0.0.5", Kind: kindPrusaLink}, {URL: "http://10.0.0.6:7125"}}, []found{{URL: "http://10.0.0.5", Name: "Carbon", Kind: kindElegoo}})
 	if len(list) != 2 || list[0].URL != "http://10.0.0.6:7125" || list[1].Kind != kindElegoo {
 		t.Fatalf("list %v", list)
 	}

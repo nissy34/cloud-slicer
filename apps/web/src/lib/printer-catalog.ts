@@ -3,8 +3,8 @@
 // while the engine loads only Snapmaker's presets at start and each other brand's
 // the first time one of its printers is picked or used. "Can send" printers run
 // Klipper, so the Device tab can send to them through Moonraker, or are Prusa
-// printers or the Elegoo Centauri Carbon, which it reaches through PrusaLink or
-// Elegoo's own protocol (the bridge stands in for Moonraker).
+// printers, the Elegoo Centauri Carbon or Bambu Lab printers, which it reaches
+// through PrusaLink or the maker's own local protocol (the bridge stands in for Moonraker).
 import type { PresetSummary } from '../engine/protocol';
 import { engineFolder, type EngineFlavor } from './engines';
 
@@ -12,7 +12,7 @@ export interface CatalogModel {
   model: string;
   /** Picture path under profiles/, or ''. */
   cover: string;
-  /** Runs Klipper, or is a Prusa or Centauri Carbon: the Device tab can send prints to it. */
+  /** Runs Klipper, or is a Prusa, Centauri Carbon or Bambu Lab: the Device tab can send prints to it. */
   send: boolean;
   /** One printer preset per nozzle size, smallest first. */
   nozzles: { name: string; nozzle: string }[];
@@ -56,11 +56,13 @@ export function loadCatalog(flavor: EngineFlavor): Promise<PrinterCatalog | null
 /**
  * Printers the Device tab reaches without Klipper (the engine's catalog only knows
  * Klipper by its G-code flavor), by brand: every model, or the models named.
- * The Centauri Carbon 2 speaks another protocol, so only the first Carbon.
+ * The Centauri Carbon 2 speaks another protocol, so only the first Carbon. Bambu
+ * Lab's folder is BBL.
  */
 const DIRECT_PRINT: Record<string, ((model: string) => boolean) | true> = {
   Prusa: true,
   Elegoo: (model) => /^(Elegoo )?Centauri Carbon$/i.test(model.trim()),
+  BBL: true,
 };
 
 /** Marks the printers of DIRECT_PRINT as ones the Device tab can send to. */
@@ -96,7 +98,7 @@ export function vendorFilesFor(catalog: PrinterCatalog | null, names: Iterable<s
 }
 
 /**
- * Whether the Device tab can send to a printer preset: a Klipper, Prusa or Centauri Carbon system
+ * Whether the Device tab can send to a printer preset: a Klipper, Prusa, Centauri Carbon or Bambu Lab system
  * printer, or a user printer built on one. Null when the catalog doesn't know it.
  */
 export function canSend(catalog: PrinterCatalog | null, name: string, printers: PresetSummary[] = []): boolean | null {

@@ -496,8 +496,9 @@ var (
 	klipperArg     = regexp.MustCompile(`([A-Z_]+)=(\S+)`)
 )
 
-// marlinLines turns a script from the Device tab into lines OctoPrint sends as they are.
-func marlinLines(script string) ([]string, error) {
+// marlinLines turns a script from the Device tab into lines a Marlin-like
+// printer takes as they are; noun names the printers in errors ("OctoPrint printers").
+func marlinLines(script, noun string) ([]string, error) {
 	var out []string
 	relative, relativeE := false, false
 	for _, raw := range strings.Split(script, "\n") {
@@ -539,10 +540,10 @@ func marlinLines(script string) ([]string, error) {
 			case strings.Contains(heater, "chamber"):
 				out = append(out, "M141 S"+s)
 			default:
-				return nil, fmt.Errorf("OctoPrint has no heater called %s.", args["HEATER"])
+				return nil, fmt.Errorf("%s have no heater called %s.", noun, args["HEATER"])
 			}
 		case klipperCommand.MatchString(word):
-			return nil, fmt.Errorf("%s is a Klipper command: OctoPrint printers don't know it.", word)
+			return nil, fmt.Errorf("%s is a Klipper command: %s don't know it.", word, noun)
 		default:
 			switch word {
 			case "G91":
@@ -561,7 +562,7 @@ func marlinLines(script string) ([]string, error) {
 }
 
 func (o *octoPrint) gcode(ctx context.Context, script string) error {
-	lines, err := marlinLines(script)
+	lines, err := marlinLines(script, "OctoPrint printers")
 	if err != nil {
 		return err
 	}
@@ -606,22 +607,34 @@ func (o *octoPrint) gcode(ctx context.Context, script string) error {
 			}
 			continue
 		}
-		if f[0] != "G28" {
-			continue
-		}
-		o.mu.Lock()
-		if len(f) == 1 {
-			o.homed = "xyz"
-		} else {
+	}
+	o.mu.Lock()
+	o.homed = homedAfter(o.homed, lines)
+	o.mu.Unlock()
+	return nil
+}
+
+// homedAfter is which axes are homed after these lines, for printers that
+// don't say: G28 homes the axes it names (or all), turning the motors off
+// (M84, M18) loses them.
+func homedAfter(homed string, lines []string) string {
+	for _, l := range lines {
+		f := strings.Fields(strings.ToUpper(l))
+		switch {
+		case len(f) == 0:
+		case f[0] == "M84" || f[0] == "M18":
+			homed = ""
+		case f[0] == "G28" && len(f) == 1:
+			homed = "xyz"
+		case f[0] == "G28":
 			for _, a := range f[1:] {
-				if ax := strings.ToLower(a[:1]); strings.Contains("xyz", ax) && !strings.Contains(o.homed, ax) {
-					o.homed += ax
+				if ax := strings.ToLower(a[:1]); strings.Contains("xyz", ax) && !strings.Contains(homed, ax) {
+					homed += ax
 				}
 			}
 		}
-		o.mu.Unlock()
 	}
-	return nil
+	return homed
 }
 
 // emergencyStop: OctoPrint sends M112 ahead of everything else waiting.

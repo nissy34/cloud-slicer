@@ -16,7 +16,7 @@ export function WorksWith() {
   return (
     <div className="dv-works" data-testid="works-with">
       <p>
-        <strong>Sending prints and controlling the printer works with</strong> Klipper printers (Snapmaker U1, Voron, Qidi, Sovol…), Prusa with PrusaLink, OctoPrint, and the Elegoo Centauri Carbon.
+        <strong>Sending prints and controlling the printer works with</strong> Klipper printers (Snapmaker U1, Voron, Qidi, Sovol…), Prusa with PrusaLink, OctoPrint, the Elegoo Centauri Carbon, and Bambu Lab printers.
       </p>
       <p className="dv-works-slicing">✓ Slicing works for every printer in the slicer's printer list, listed here or not: download the file to print it.</p>
       <details open={open}>

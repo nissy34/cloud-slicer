@@ -256,7 +256,7 @@ function PrinterStep({ all, chosen, onChange }: { all: PresetSummary[]; chosen: 
     <>
       <p className="muted small">
         Pick each printer you have and its nozzle sizes in mm (you can change this later with Manage). Every printer slices here; <SendMark /> marks the ones this app can
-        also send prints to and start (Klipper printers, Prusa printers through PrusaLink, and the Elegoo Centauri Carbon). For the others you download the G-code, or send it through OctoPrint if OctoPrint runs the printer.
+        also send prints to and start (Klipper printers, Prusa printers through PrusaLink, the Elegoo Centauri Carbon, and Bambu Lab printers with Developer Mode on). For the others you download the G-code, or send it through OctoPrint if OctoPrint runs the printer.
       </p>
       <div className="wizard-filters">
         <input type="search" placeholder="Search printers" aria-label="Search printers" value={query} onChange={(e) => setQuery(e.target.value)} />
@@ -309,10 +309,10 @@ function PrinterStep({ all, chosen, onChange }: { all: PresetSummary[]; chosen: 
   );
 }
 
-/** The "Direct print" mark: the app can send prints to this printer and start them (it runs Klipper, or is a Prusa). */
+/** The "Direct print" mark: the app can send prints to this printer and start them (it runs Klipper, or the bridge reaches it another way: Prusa, Elegoo Centauri Carbon, Bambu Lab). */
 export function SendMark() {
   return (
-    <span className="send-mark" title="Direct print: this app sends prints to it and starts them from the Device tab (Klipper with Moonraker, or Prusa with PrusaLink)">
+    <span className="send-mark" title="Direct print: this app sends prints to it and starts them from the Device tab (Klipper with Moonraker, Prusa with PrusaLink, the Elegoo Centauri Carbon, or Bambu Lab with Developer Mode on)">
       <svg viewBox="0 0 16 16" width="12" height="12" aria-hidden="true">
         <path d="M2 8.5 14 2l-3.5 12-2.7-4.3L2 8.5Zm5.8 1.2 1.6 2.6L11.6 5 7.8 9.7Z" fill="currentColor" />
       </svg>

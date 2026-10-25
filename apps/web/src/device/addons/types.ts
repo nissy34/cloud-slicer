@@ -84,8 +84,10 @@ export interface PrinterAddon {
     name: string;
     /** When it can't reach the printer (Klipper's "firmware stopped"). */
     stopped: string;
-    /** The button that gets it going again (Klipper's "Restart firmware"). */
-    restart: string;
-    restarting: string;
+    /** The button that gets it going again (Klipper's "Restart firmware"); none when it has no such thing. */
+    restart?: string;
+    restarting?: string;
   };
+  /** What the camera card says when the printer lists no camera, in place of "no camera set up". */
+  cameraMissing?: string;
 }
