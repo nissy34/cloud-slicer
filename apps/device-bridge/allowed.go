@@ -36,6 +36,14 @@ var allowed = map[string]bool{
 	"printer.request": true,
 }
 
+// requests are the printer's own commands a page may send with printer.request,
+// by message part and command. Anything else (firmware updates, settings, the
+// printer's own access code) stays with the maker's apps.
+var requests = map[string]map[string]bool{
+	// A Bambu Lab .gcode.3mf print, with its AMS slots and the checks before it.
+	"print": {"project_file": true},
+}
+
 // refusal says why a browser's call isn't passed on, or "" when it may go to the printer.
 func refusal(method string, params json.RawMessage) string {
 	if !allowed[method] {
@@ -49,6 +57,19 @@ func refusal(method string, params json.RawMessage) string {
 		_ = json.Unmarshal(params, &p)
 		if !strings.HasPrefix(strings.TrimLeft(p.Path, "/"), "gcodes/") || strings.Contains(p.Path, "..") {
 			return "The bridge only deletes files in the G-code folder."
+		}
+	}
+	if method == "printer.request" {
+		var p struct {
+			Message map[string]struct {
+				Command string `json:"command"`
+			} `json:"message"`
+		}
+		_ = json.Unmarshal(params, &p)
+		for part, body := range p.Message {
+			if !requests[part][body.Command] {
+				return "The bridge does not pass on the printer command " + part + "." + body.Command + ". If the Device tab needs it, update the bridge."
+			}
 		}
 	}
 	return ""
