@@ -1,4 +1,4 @@
-// The Device tab's card layout, arranged by each person and saved in their account (see ui/Arrange.tsx).
+// The Device tab's card layout, arranged by each person for each printer and saved in their account (see ui/Arrange.tsx).
 // Desktop has zones: a band across the top, 2 or 3 columns, and a band across the bottom.
 // Phones are one column, so there only the order, hidden and folded cards are kept.
 // Extra camera cards ("cam:…") each show the cameras the person put in them; the rest stay in the main
@@ -62,7 +62,13 @@ export interface DeviceLayout {
   cameraHome: Record<string, CamCardId>;
 }
 
-export const LAYOUT_SETTING = 'device-layout';
+/** Before layouts were per printer there was one for every printer; it is deleted once (see ui/Arrange.tsx). */
+export const SHARED_LAYOUT_SETTING = 'device-layout';
+
+/** The setting that holds one printer's layout (setting keys are at most 64 characters). */
+export function layoutSetting(printerId: string): string {
+  return `${SHARED_LAYOUT_SETTING}.${printerId}`.slice(0, 64);
+}
 
 /** D3: camera, then Bed and chamber beside Move, then Console on the left; the print and printer state on the right. */
 export function defaultDesktop(): DesktopLayout {

@@ -16,8 +16,8 @@ import {
 } from '@dnd-kit/core';
 import { SortableContext, sortableKeyboardCoordinates, useSortable, verticalListSortingStrategy, rectSortingStrategy } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { saveUserSetting, useUserSetting } from '../../state/account';
-import { useDevice } from '../../state/device';
+import { accountReady, deleteUserSetting, getUserSetting, saveUserSetting, useUserSetting } from '../../state/account';
+import { useDevice, type SavedPrinter } from '../../state/device';
 import { takesCommands } from '../addons';
 import {
   addCameraCard,
@@ -30,7 +30,8 @@ import {
   placePage,
   removeCameraCard,
   defaultPhone,
-  LAYOUT_SETTING,
+  layoutSetting,
+  SHARED_LAYOUT_SETTING,
   moveCard,
   moveOnPhone,
   normalizeLayout,
@@ -84,15 +85,29 @@ function usePhone() {
   return phone;
 }
 
-/** The saved layout, shown at once when changed and saved to the account behind it. Saves go one at a
- *  time, and the account's copy only replaces what is shown once none are left on their way: otherwise
+/** The old layout shared by every printer is dropped once: each printer now starts from the default. */
+let droppedShared = false;
+function dropShared() {
+  if (droppedShared) return;
+  droppedShared = true;
+  void accountReady()
+    .then(() => (getUserSetting(SHARED_LAYOUT_SETTING) === undefined ? undefined : deleteUserSetting(SHARED_LAYOUT_SETTING)))
+    .catch(() => {
+      droppedShared = false;
+    });
+}
+
+/** This printer's saved layout, shown at once when changed and saved to the account behind it. Saves go one
+ *  at a time, and the account's copy only replaces what is shown once none are left on their way: otherwise
  *  the answer to an earlier save (a card folded) would briefly undo a quick later change (unfolded). */
-function useLayout(): [DeviceLayout, (next: DeviceLayout) => void] {
-  const saved = useUserSetting<unknown>(LAYOUT_SETTING);
+function useLayout(printerId: string): [DeviceLayout, (next: DeviceLayout) => void] {
+  const key = layoutSetting(printerId);
+  const saved = useUserSetting<unknown>(key);
   const fromAccount = useMemo(() => normalizeLayout(saved), [saved]);
   const [local, setLocal] = useState<DeviceLayout | null>(null);
   const pending = useRef(0);
   const queue = useRef(Promise.resolve());
+  useEffect(dropShared, []);
   useEffect(() => {
     if (!pending.current) setLocal(null);
   }, [saved]);
@@ -101,7 +116,7 @@ function useLayout(): [DeviceLayout, (next: DeviceLayout) => void] {
     setLocal(next);
     pending.current++;
     queue.current = queue.current
-      .then(() => saveUserSetting(LAYOUT_SETTING, next))
+      .then(() => saveUserSetting(key, next))
       .catch(() => useDevice.getState().setToast('Could not save the card layout. It is kept until you reload the page.', true))
       .finally(() => {
         pending.current--;
@@ -119,9 +134,9 @@ const collision: CollisionDetection = (args) => {
   return closestCorners(args);
 };
 
-export function DeviceCards({ busy, arranging, onDone }: { busy: boolean; arranging: boolean; onDone(): void }) {
+export function DeviceCards({ printer, busy, arranging, onDone }: { printer: SavedPrinter; busy: boolean; arranging: boolean; onDone(): void }) {
   const phone = usePhone();
-  const [layout, save] = useLayout();
+  const [layout, save] = useLayout(printer.id);
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
     useSensor(KeyboardSensor, {
@@ -190,7 +205,7 @@ export function DeviceCards({ busy, arranging, onDone }: { busy: boolean; arrang
 
   const bar = arranging && (
     <div className="dv-arrange-bar" data-testid="arrange-bar">
-      <p className="muted">{phone ? 'Hold a card by its grip and drag it up or down.' : 'Drag a card by its grip into a column, or across the top or bottom.'} Hidden cards stay here, faded.</p>
+      <p className="muted">{phone ? 'Hold a card by its grip and drag it up or down.' : 'Drag a card by its grip into a column, or across the top or bottom.'} Hidden cards stay here, faded. This layout is for {printer.name} only.</p>
       <div className="dv-arrange-actions">
         {!phone && (
           <div className="dv-seg" role="group" aria-label="Columns">
