@@ -114,7 +114,11 @@ try {
     const question = page.getByRole('dialog', { name: /start and filament change G-code\?/ });
     const download = async () => {
       const [file] = await Promise.all([page.waitForEvent('download'), page.getByRole('button', { name: 'Download G-code' }).click()]);
-      return readFileSync(await file.path(), 'utf8').includes('M1002 gcode_claim_action:54');
+      // A Bambu printer gets its plate in a .gcode.3mf, like desktop: read the plate's G-code from it.
+      const bytes = readFileSync(await file.path());
+      const zip = bytes[0] === 0x50 && bytes[1] === 0x4b ? unzipSync(new Uint8Array(bytes), { filter: (f) => /^Metadata\/plate_\d+\.gcode$/.test(f.name) }) : null;
+      const text = zip ? Object.values(zip).map((f) => strFromU8(f)).join('\n') : bytes.toString('utf8');
+      return text.includes('M1002 gcode_claim_action:54');
     };
     await page.getByRole('button', { name: /^Slice plate/ }).click();
     await Promise.race([
