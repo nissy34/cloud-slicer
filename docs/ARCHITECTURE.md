@@ -229,9 +229,18 @@ nothing on purpose, so a deploy's page and engine never get out of step).
   same printer again, or when the plate is marked by hand. Mesh and paint hashes are kept
   in the engine per mesh / paint timestamp, so fingerprinting after each edit is cheap.
   Deleting a plate drops its records and renumbers later ones; Save a copy copies the
-  finished ones; deleting the project deletes them. Status only moves while a page is
-  open (it connects to the Device tab's printer when one of its prints waits). Unsaved and
-  signed-out projects have no history.
+  finished ones; deleting the project deletes them. A page moves status for the Device
+  tab's printer (it connects when one of its prints waits). The bridge moves it with no
+  page open, for every printer it serves (`apps/device-bridge/printjob.go`, relay
+  `src/prints.ts`, `POST /api/relay/print`): on each start and end it reads the file's
+  `; cloud_slicer_print = <project>/<plate>/<fingerprint>` line, which Send and Download
+  put after Orca's header block. A tagged file finds its plate wherever the print was
+  started (the printer's screen, a renamed copy), and starts a record when none waits;
+  an untagged one (Prusa, Elegoo, Bambu Lab) matches a waiting record by printer and
+  file name. An end counts for a waiting send only if the job fits in the time since
+  it; one heard again after a bridge restart (`late`) never makes a new record. Pages
+  pick up what the bridge told the account when they come back into view, and every
+  3 minutes while a print waits. Unsaved and signed-out projects have no history.
 
 ## Colour mixing
 

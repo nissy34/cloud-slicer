@@ -239,29 +239,37 @@ export async function claim(env: Env, request: Request): Promise<Response> {
  * printers then leave the account, as with Remove bridge in the Device tab.
  */
 export async function release(env: Env, request: Request): Promise<Response> {
+  const { owner, bridgeId, rows: ofBridge } = await provenBridge(env, await readJson<Record<string, unknown>>(request, 4096));
+  const d = env.DB!;
+  for (const r of ofBridge) await d.prepare('DELETE FROM devices WHERE user_id = ? AND id = ?').bind(owner, r.id).run();
+  await d.prepare('DELETE FROM relay_bridges WHERE user_id = ? AND bridge_id = ?').bind(owner, bridgeId).run();
+  return json({ removed: ofBridge.length });
+}
+
+/**
+ * The relay speaking for a bridge ({ relay, bridgeId, browserKey, owner }):
+ * proven when the owner's account holds that bridge with that browser key.
+ * Answers with the account's saved rows of the bridge (the bridge itself and its printers).
+ */
+export async function provenBridge(env: Env, body: Record<string, unknown>) {
   if (!env.DB || !env.ACCOUNT_ENC_KEY) throw new HttpError(503, "The printer bridge isn't set up on this site yet");
-  const body = await readJson<Record<string, unknown>>(request, 4096);
   const bridgeId = String(body.bridgeId ?? '');
   const browserKey = String(body.browserKey ?? '');
   const owner = String(body.owner ?? '');
   if (!BRIDGE_ID.test(bridgeId) || !/^[\w-]{16,128}$/.test(browserKey) || !owner) throw new HttpError(400, 'Bad bridge');
   const relay = relayOrigin(body.relay);
-  const d = env.DB;
-  const rows = (await d.prepare('SELECT id, extra, api_key_enc FROM devices WHERE user_id = ?').bind(owner).all<{ id: string; extra: string; api_key_enc: string | null }>()).results;
-  const ofBridge = rows.filter((r) => {
-    const x = JSON.parse(r.extra) as { bridgeId?: unknown; relay?: unknown };
-    return x.bridgeId === bridgeId && typeof x.relay === 'string' && currentRelay(x.relay.replace(/\/+$/, '')) === relay;
-  });
+  const rows = (await env.DB.prepare('SELECT id, name, extra, api_key_enc FROM devices WHERE user_id = ?').bind(owner).all<{ id: string; name: string; extra: string; api_key_enc: string | null }>()).results;
+  const ofBridge = rows
+    .map((r) => ({ ...r, x: JSON.parse(r.extra) as { kind?: unknown; bridgeId?: unknown; relay?: unknown; printer?: unknown } }))
+    .filter((r) => r.x.bridgeId === bridgeId && typeof r.x.relay === 'string' && currentRelay(r.x.relay.replace(/\/+$/, '')) === relay);
   let proven = false;
   for (const r of ofBridge) {
-    if ((JSON.parse(r.extra) as { kind?: unknown }).kind !== 'bridge-agent' || !r.api_key_enc) continue;
+    if (r.x.kind !== 'bridge-agent' || !r.api_key_enc) continue;
     const known = await decrypt(env.ACCOUNT_ENC_KEY, r.api_key_enc, keyContext(owner, r.id)).catch(() => '');
     if (known && known === browserKey) proven = true;
   }
   if (!proven) throw new HttpError(404, 'No such bridge in that account');
-  for (const r of ofBridge) await d.prepare('DELETE FROM devices WHERE user_id = ? AND id = ?').bind(owner, r.id).run();
-  await d.prepare('DELETE FROM relay_bridges WHERE user_id = ? AND bridge_id = ?').bind(owner, bridgeId).run();
-  return json({ removed: ofBridge.length });
+  return { owner, bridgeId, rows: ofBridge.map((r) => ({ id: r.id, name: r.name, kind: r.x.kind, printer: typeof r.x.printer === 'string' ? r.x.printer : '' })) };
 }
 
 /**

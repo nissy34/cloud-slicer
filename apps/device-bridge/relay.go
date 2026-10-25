@@ -42,8 +42,9 @@ type Bridge struct {
 	mu       sync.Mutex
 	relay    *websocket.Conn
 	sessions map[string]*Session
-	// Printers watched for print alerts, by printer id (watch.go).
+	// Every printer's watch, by printer id (watch.go), and the alerts the relay asked for.
 	watches map[string]*printerWatch
+	alerts  map[string]alertWatch
 }
 
 // relayMessage is what the relay and the agent send each other: control messages
@@ -88,26 +89,39 @@ func (b *Bridge) stop() {
 	b.setAlerts(nil)
 }
 
-// setAlerts starts, changes and stops the printers' alert watches to match what the relay asks.
+// setAlerts takes what the relay asks to watch for (print alerts), and watch keeps every printer watched.
 func (b *Bridge) setAlerts(want map[string]alertWatch) {
 	b.mu.Lock()
+	b.alerts = want
+	b.mu.Unlock()
+	b.watch()
+}
+
+// watch starts, changes and stops the printers' watches: one per printer this
+// bridge serves (print history), looking for the alerts the relay asked for.
+func (b *Bridge) watch() {
+	b.mu.Lock()
 	defer b.mu.Unlock()
+	want := map[string]alertWatch{}
+	if b.ctx.Err() == nil {
+		for _, p := range b.cfg.printerList() {
+			want[p["id"]] = b.alerts[p["id"]]
+		}
+	}
 	for id, w := range b.watches {
-		if _, ok := want[id]; !ok || b.ctx.Err() != nil {
+		if _, ok := want[id]; !ok {
 			w.stop()
 			delete(b.watches, id)
 		}
 	}
-	if b.ctx.Err() != nil {
-		return
-	}
 	for id, aw := range want {
-		printer, ok := b.cfg.printer(id)
+		origin, ok := b.cfg.printer(id)
+		printer := origin
 		if ok {
-			printer = endpointFor(printer)
+			printer = endpointFor(origin)
 		}
 		if w := b.watches[id]; w != nil {
-			if ok && w.printer == printer {
+			if ok && w.printer == printer && w.origin == origin {
 				w.setWatch(aw)
 				continue
 			}
@@ -118,7 +132,7 @@ func (b *Bridge) setAlerts(want map[string]alertWatch) {
 		if !ok {
 			continue
 		}
-		b.watches[id] = newPrinterWatch(printer, aw, func(msg map[string]any) { b.toRelay(msg) }, b.opts.log)
+		b.watches[id] = newPrinterWatch(printer, origin, aw, func(msg map[string]any) { b.toRelay(msg) }, b.opts.log)
 	}
 }
 
@@ -167,6 +181,8 @@ func shortHost() string {
 }
 
 func (b *Bridge) hello() {
+	// Its printers changed, or it's back: each printer is watched (print history).
+	b.watch()
 	msg := map[string]any{"ctl": "hello", "version": version, "change": change, "build": build, "system": goosName(), "host": shortHost(), "printers": b.cfg.printerList()}
 	// On the printer itself, so the Device tab's help fits (restart the printer, not a computer).
 	if _, ok := installedOnPrinter(); ok {

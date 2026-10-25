@@ -56,6 +56,13 @@ hibernate, so an idle bridge costs nothing; it runs on the free plan.
   bucket's one-day lifecycle rule deletes it. "The bridge goes offline" is a
   Durable Object alarm 10 minutes after the agent drops. Nothing about alerts is
   logged. At most 120 alerts and 30 pictures per bridge an hour.
+- **Print history** (`src/prints.ts`): the agent says when a print starts or
+  ends on any of its printers (`{ctl:'print', printer, file, state, tag, …}`),
+  and the relay passes it to the bridge's account with `POST /api/relay/print`
+  on the site, with the bridge's owner and browser key as proof (the site
+  checks the key against the bridge saved in that account, as for a release).
+  The browser key comes from the agent's own key when it connects and stays with
+  its socket only. Only with accounts; at most 120 an hour per bridge.
 - `GET /v1/info` says whether accounts are on, and gives the public push key (`push`). `RELAY_TEST_PUBLIC_KEY` is CI's
   throwaway key for checking the deployed relay; it only works for `ci-` bridges.
 
