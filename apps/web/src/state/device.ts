@@ -19,7 +19,7 @@ import { takesCommands, type PrinterAddon, type PrinterCall, type PrinterError, 
 import { coalesce } from '../device/coalesce';
 import { BridgeLink, onBridgeRemoved, setBridgeTickets } from '../device/link/bridge';
 import { DirectLink } from '../device/link/direct';
-import { LinkError, type BridgeStatus, type PrinterLink } from '../device/link/types';
+import { LinkError, type BridgeStatus, type PrinterLink, type UploadStage } from '../device/link/types';
 import { currentRelay } from '../device/config';
 import { decodePairing, type Pairing } from '../device/pairing';
 import { PrinterSession, type ConnState, type ConsoleLine, type GcodeFile } from '../device/session';
@@ -85,7 +85,8 @@ interface DeviceState {
   files: GcodeFile[] | null;
   /** The print dialog, when open. */
   send: SendSource | null;
-  upload: { name: string; fraction: number } | null;
+  /** The file going up: how much has gone, and (through a bridge) what it is doing before and while bytes go. */
+  upload: { name: string; fraction: number; stage?: UploadStage } | null;
   /** Why the last send from the open print dialog failed, shown in the dialog itself (a message card would sit behind it). */
   sendError: string | null;
   /** A short message about the last action, e.g. an error from the printer. */
@@ -579,7 +580,9 @@ export const useDevice = create<DeviceState>((set, get) => {
         if (source.kind === 'upload') {
           uploadAbort = abort;
           set({ upload: { name: source.name, fraction: 0 } });
-          path = await s.upload(source.blob, source.name, (fraction) => !abort.signal.aborted && set({ upload: { name: source.name, fraction } }), abort.signal);
+          const update = (u: Partial<{ fraction: number; stage: UploadStage }>) =>
+            !abort.signal.aborted && set((st) => ({ upload: { name: source.name, fraction: 0, ...st.upload, ...u } }));
+          path = await s.upload(source.blob, source.name, (fraction) => update({ fraction }), abort.signal, (stage) => update({ stage }));
           if (uploadAbort === abort) uploadAbort = null;
           set({ upload: null });
           store(SEND_KEY, target);

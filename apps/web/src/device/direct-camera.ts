@@ -13,6 +13,8 @@ export const DIRECT_TIMEOUT_MS = 12_000;
 export interface DirectBridge {
   cameraOpen(camera: DirectCamera, sdp: string): Promise<DirectAnswer>;
   cameraClose(id: string): void;
+  /** The link is up: an upload to the same bridge can ride it. Returns its undo. */
+  linked?(pc: RTCPeerConnection): () => void;
 }
 
 export interface DirectPlayer {
@@ -55,9 +57,11 @@ export async function playDirect(
   const pc = new RTCPeerConnection({ iceServers: STUN });
   let id = '';
   let stopped = false;
+  let unlink: (() => void) | undefined;
   const stop = () => {
     if (stopped) return;
     stopped = true;
+    unlink?.();
     pc.close();
     show.video.srcObject = null;
     if (id) bridge.cameraClose(id);
@@ -93,6 +97,7 @@ export async function playDirect(
     id = answer.id;
     await pc.setRemoteDescription({ type: 'answer', sdp: answer.sdp });
     await first;
+    unlink = bridge.linked?.(pc);
     return { mode: answer.mode, stop };
   } catch (e) {
     stop();

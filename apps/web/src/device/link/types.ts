@@ -38,14 +38,20 @@ export interface LinkHandlers {
   onBridge?(status: BridgeStatus): void;
 }
 
+/** What a bridge upload is doing before and while bytes go: zipping, trying a direct link, or over the relay. */
+export type UploadStage = 'zipping' | 'direct' | 'relay';
+
 export interface PrinterLink {
   /** Where the link goes, for the UI ("192.168.1.20" or "via bridge"). */
   readonly label: string;
   open(handlers: LinkHandlers): Promise<void>;
   send(msg: RpcMessage): void;
   close(): void;
-  /** Uploads to the gcodes root; never starts a print. Resolves to the stored path. Aborting `signal` stops it and the printer keeps nothing. */
-  upload(blob: Blob, path: string, onProgress?: (fraction: number) => void, signal?: AbortSignal): Promise<string>;
+  /**
+   * Uploads to the gcodes root; never starts a print. Resolves to the stored path. Aborting `signal` stops it and the printer keeps nothing.
+   * Bridge links also say which stage they are at (`onStage`).
+   */
+  upload(blob: Blob, path: string, onProgress?: (fraction: number) => void, signal?: AbortSignal, onStage?: (stage: UploadStage) => void): Promise<string>;
   /** One camera frame. `url` may be relative to the printer ("/webcam/?action=snapshot"). */
   snapshot(url: string): Promise<Blob>;
   /**
@@ -60,6 +66,13 @@ export interface PrinterLink {
    */
   cameraOpen?(camera: DirectCamera, sdp: string): Promise<DirectAnswer>;
   cameraClose?(id: string): void;
+  /**
+   * Bridge links only: a camera's direct link is up (an upload can ride it at
+   * once), or a camera fell back to the relay because the network blocks
+   * direct links (an upload skips trying). Each returns its undo.
+   */
+  directLinked?(pc: RTCPeerConnection): () => void;
+  directBlocked?(): () => void;
   /**
    * Bridge links only: printer pages (a camera Moonraker lists as an "iframe"
    * page, shown in a page card). `pageHolder` is the address the page holder
