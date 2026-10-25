@@ -95,6 +95,8 @@ try {
   await page.mouse.down();
   for (let i = 1; i <= 8; i++) await page.mouse.move(b.x + b.width / 2 - ((b.x - a.x) * i) / 8, b.y + b.height / 2);
   await page.mouse.up();
+  // dnd-kit ignores clicks for 50 ms after a drop (so the drop isn't also a click); a person never clicks Save that fast.
+  await page.waitForTimeout(100);
   const order = (await chips.allInnerTexts()).map((t) => t.trim()).join(',');
   if (order !== '2,1') fail(`dragging filament 2 first left the order ${order}`);
   await shot(page, 'plate-settings-desktop');
