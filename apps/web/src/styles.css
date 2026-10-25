@@ -7113,3 +7113,18 @@ button.volume-name {
     display: inline;
   }
 }
+
+/* Printing object by object: each object's print order on the plate. */
+.clearance-order {
+  padding: 0 5px;
+  border-radius: 4px;
+  background: rgb(20 24 28 / 70%);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 600;
+  transform: translateY(60%);
+  white-space: nowrap;
+}
+.clearance-order.bad {
+  background: #c4312b;
+}

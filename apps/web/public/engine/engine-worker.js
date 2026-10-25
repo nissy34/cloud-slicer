@@ -172,7 +172,7 @@ if (self.name !== 'em-pthread') {
     addInstance: (e, o, i, dx, dy) => (json(e.addInstance(o, i, dx, dy)), JSON.parse(e.modelInfoJson())),
     deleteInstance: (e, o, i) => (json(e.deleteInstance(o, i)), JSON.parse(e.modelInfoJson())),
     resizePlates: (e, w, d) => (json(e.resizePlates(w, d)), JSON.parse(e.modelInfoJson())),
-    arrangePlate: (e, plate, spacing) => (json(e.arrangePlate(plate, spacing)), JSON.parse(e.modelInfoJson())),
+    arrangePlate: (e, plate, spacing, tall) => (json(e.arrangePlate(plate, spacing, tall ?? 0)), JSON.parse(e.modelInfoJson())),
     orientObject: (e, o) => (json(e.orientObject(o)), JSON.parse(e.modelInfoJson())),
     splitObject: (e, o) => (json(e.splitObject(o)), JSON.parse(e.modelInfoJson())),
     splitParts: (e, o) => (json(e.splitParts(o)), JSON.parse(e.modelInfoJson())),
@@ -307,6 +307,13 @@ if (self.name !== 'em-pthread') {
     wipeTower(e, plate, overrides, slicedDepth) {
       const { config } = json(e.presetsFullConfig(JSON.stringify(overrides || {})));
       return json(e.wipeTowerJson(JSON.stringify(config), plate, slicedDepth ?? -1));
+    },
+    // Printing object by object: the tool head's clearance round each object
+    // on `plate` and the slice's check of it (see clearanceJson in
+    // engine/src/slice_api.cpp).
+    clearance(e, plate, overrides) {
+      const { config } = json(e.presetsFullConfig(JSON.stringify(overrides || {})));
+      return json(e.clearanceJson(JSON.stringify(config), plate));
     },
     clearPaint: (e, o, kind) => (json(e.clearPaint(o, kind)), JSON.parse(e.modelInfoJson())),
     // Undo history: {undo, redo} are the labels of the next steps, or null.

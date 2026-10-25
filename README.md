@@ -110,6 +110,13 @@ hosted on Cloudflare's free tier.
   3MF and used when that plate slices (also those desktop and Bambu Studio projects bring).
   A dot on a plate's tab says it has its own; the sidebar's matching setting says which
   value the shown plate uses.
+- **Tool head clearance when printing object by object**, like desktop: each object on a
+  plate printing By object gets a dashed outline for the room the tool head needs (half
+  the printer preset's extruder clearance radius round it), red where two touch and a red
+  band where an object is too tall for its place in the order (the rod and lid heights
+  from the printer preset), with its print order number. The outlines follow a drag.
+  A message names the objects and the printer's values, Slice waits, and Arrange spaces the
+  objects by the clearance with tall ones last in their row.
 - **Prime tower on the plate**: when a plate prints with more than one filament the tower
   stands on the Prepare plate at the size Orca will print it, and you drag it where you
   want it, per plate, like desktop.
