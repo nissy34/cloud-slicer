@@ -2,8 +2,7 @@
 // They don't run Klipper: the bridge stands in for Moonraker and turns OctoPrint's
 // answers into the same objects (apps/device-bridge/octoprint.go), and says so in
 // printer.info's brand. OctoPrint takes G-code, so Move, Console and temperatures
-// stay; the bridge puts the Klipper commands the screen sends in Marlin's words.
-// Its cameras come from OctoPrint's own settings.
+// stay, written in Marlin's words. Its cameras come from OctoPrint's own settings.
 import type { PrinterAddon } from './types';
 
 export const octoPrintAddon: PrinterAddon = {
@@ -11,6 +10,7 @@ export const octoPrintAddon: PrinterAddon = {
   model: 'OctoPrint',
   detect: (f) => f.brand === 'octoprint',
   objects: () => [],
+  gcode: 'marlin',
   host: {
     name: 'OctoPrint',
     stopped: "OctoPrint isn't connected to the printer.",
