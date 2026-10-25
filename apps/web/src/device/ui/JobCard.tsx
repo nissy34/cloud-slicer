@@ -60,11 +60,13 @@ export function JobCard() {
                 : `${klippy === 'startup' ? 'The printer firmware is starting.' : 'The printer firmware has stopped.'} ${klippyMessage(objects)}`}
             </p>
             <PrinterErrors errors={errors} />
-            <div className="dv-row">
-              <button className="secondary" onClick={() => void call(host?.restarting ?? 'Restarting the firmware', (s) => s.firmwareRestart())}>
-                {host?.restart ?? 'Restart firmware'}
-              </button>
-            </div>
+            {(!host || host.restart) && (
+              <div className="dv-row">
+                <button className="secondary" onClick={() => void call(host?.restarting ?? 'Restarting the firmware', (s) => s.firmwareRestart())}>
+                  {host?.restart ?? 'Restart firmware'}
+                </button>
+              </div>
+            )}
           </>
         ) : (
           // Not Klipper: the bridge says the printer stopped answering, and it keeps asking.

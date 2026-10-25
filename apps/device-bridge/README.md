@@ -158,7 +158,7 @@ printer is often in memory.
 
 ## Printers that aren't Klipper
 
-Prusa printers (PrusaLink) reach the Device tab through a **stand-in**
+Prusa printers (PrusaLink), OctoPrint, the Elegoo Centauri Carbon and Bambu Lab printers reach the Device tab through a **stand-in**
 (`translate.go`): for each one the bridge runs a small Moonraker of its own on
 127.0.0.1 that answers the calls the Device tab and print alerts use, and works them
 out with the printer's own API (`prusalink.go`: digest login as `maker` with the
@@ -199,6 +199,31 @@ the stand-in keeps the file on disk while it sends it. The camera (an MJPEG stre
 port 3031, with few connections) is read once and shared: pictures come from its
 latest frame, and the stream closes 15 seconds after nobody asks. It takes no G-code.
 Tests move its ports with `CLOUD_SLICER_ELEGOO_PORTS="ws,find,camera"`.
+
+Bambu Lab printers (`bambu.go`, kind `bambu`) are reached the way Bambu Studio
+reaches them in LAN mode: MQTT over TLS on port 8883 (user `bblp`, the printer's LAN
+access code as password; topics `device/<serial>/report` and `.../request`), files
+over FTPS (implicit TLS, port 990, same login) and, on P1 and A1, the camera on
+port 6000 (an 80-byte login, then JPEG pictures each after a 16-byte header; X1, H2
+and P2S stream RTSP video, which the bridge doesn't pass on). The serial is the name
+on the printer's certificate, so an address and the access code are all it takes; the
+certificate must come from Bambu Lab's CA (`bambu_ca.pem`, from OpenBambuAPI). The
+printer sends its whole status after `pushall`, then only what changed, which the
+stand-in merges. Plain G-code prints with `gcode_file` (`/sdcard/<name>`), a `.3mf`
+project with `project_file` (its first plate); pause, resume and stop are the printer's
+own commands; G-code goes as `gcode_line`, in Marlin's words like OctoPrint's (the
+printer sends no replies for the console), and emergency stop stops the print. Since
+Bambu's 2025 firmware a printer takes prints and G-code from other programs only with
+**LAN Only mode and Developer Mode** on; without them it still reports its status and
+answers commands with `"result": "fail"`, whose reason the stand-in passes on with
+how to fix it. Commands are never signed (no key of Bambu's is used). The search
+listens for the SSDP messages printers send to UDP port 2021 every few seconds (when a
+slicer on the same computer holds that port, the search can't hear them: add by
+address). Sources: [OpenBambuAPI](https://github.com/Doridian/OpenBambuAPI). Tests use
+a pretend printer (`internal/fakebambu`, and `tools/mock-bambu` for the browser test
+`apps/web/test/device-bambu.mjs`), move its ports with
+`CLOUD_SLICER_BAMBU_PORTS="mqtt,ftp,camera,find"` and trust its certificate with
+`CLOUD_SLICER_BAMBU_CA=<pem file>`. Not yet tried on a real Bambu printer.
 
 ## How it works
 

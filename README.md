@@ -149,8 +149,10 @@ hosted on Cloudflare's free tier.
 - **Device tab** for Moonraker (Klipper) printers: cameras, temperatures, motion, files,
   upload and print, skipping objects mid-print, and for Prusa printers through PrusaLink
   (status, files, upload, print, pause and cancel) and printers run by OctoPrint (all of the
-  above, plus Move, temperatures, the console and its cameras) and the Elegoo Centauri Carbon
-  (status, files, upload, print, pause, resume, cancel and its camera), plus Snapmaker U1 extras (tool heads, filament sync, the U1 print
+  above, plus Move, temperatures, the console and its cameras), the Elegoo Centauri Carbon
+  (status, files, upload, print, pause, resume, cancel and its camera) and Bambu Lab printers
+  (all of that plus Move and temperatures, with LAN Only mode and Developer Mode on; camera on
+  P1 and A1), plus Snapmaker U1 extras (tool heads, filament sync, the U1 print
   dialog, the U1's error codes in Snapmaker's own words). Printers on a home network are reached through a small bridge app.
 - **Light and dark theme**, a layout that works on phones (an open tool stacks the toolbar, its options and the model, with the settings hidden until Done), and installable as an app
   (PWA) on Android.
@@ -353,6 +355,18 @@ camera; like PrusaLink it takes no G-code, so moving the head and setting temper
 on the printer (`addons/elegoo.ts`, `apps/device-bridge/elegoo.go`; tested against a
 pretend Elegoo, `apps/web/test/device/mock-elegoo.mjs`). The Centauri Carbon 2 speaks
 another protocol and isn't covered yet.
+**Bambu Lab printers** (X1, P1, P2S, A1, H2) take the LAN access code from the printer's
+screen; the bridge hears them announce themselves on the network, as Bambu Studio does,
+and talks to them the same local way (MQTT, FTPS). To take prints and G-code from
+anything but Bambu's own apps, a printer needs **LAN Only mode and Developer Mode** on
+(Bambu's cloud and the Handy app stop working while they are); the add-printer dialog
+says so, and without them the printer still shows its status and the Device tab shows
+the printer's refusal of anything else. They show status, the chamber (X1, H2), files,
+upload, print, pause, resume, cancel, Move, temperatures and the console (the printer
+sends no replies), and the camera on P1 and A1 (X1, H2 and P2S send video only Bambu's
+apps play) (`addons/bambu.ts`, `apps/device-bridge/bambu.go`; tested against a pretend
+printer, `apps/device-bridge/internal/fakebambu`; not yet tried on a real one). Nothing
+of Bambu's is used to sign commands.
 The add-printer dialog's "Which
 printers work?" lists the printers the Device tab reaches. The cards can be arranged: **Arrange** at the top of the tab moves
 cards by their grip into 2 or 3 columns or across the top or bottom, hides them, makes
@@ -390,8 +404,8 @@ The bridge spends the code as it installs and joins that account at once (a brid
 without a valid code never connects; an expired code makes the command ask for a new
 one). It starts with the computer (Windows and macOS at login, Linux at boot), the
 dialog turns green by itself, and the Device tab then searches the
-bridge's network for Moonraker, PrusaLink, OctoPrint and Elegoo printers and adds the ones you pick, with their API
-keys or PrusaLink passwords, or any address you type. API keys are only ever entered in the Device tab.
+bridge's network for Moonraker, PrusaLink, OctoPrint, Elegoo and Bambu Lab printers and adds the ones you pick, with their API
+keys, PrusaLink passwords or access codes, or any address you type. API keys are only ever entered in the Device tab.
 Bridges are saved on their own, apart from their printers: the Device tab's
 Printers & bridges window lists each bridge with its printers, removes either on
 its own, adds printers to a saved bridge with no pairing again, and removing a

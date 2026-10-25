@@ -130,7 +130,7 @@ func searchLeft() bool {
 	return len(unfinished.left) > 0
 }
 
-// discover finds every Moonraker (and PrusaLink, OctoPrint, Elegoo) on this
+// discover finds every Moonraker (and PrusaLink, OctoPrint, Elegoo, Bambu Lab) on this
 // computer's local networks (each /24). A search that runs out of
 // time carries on where it stopped the next time it's asked, within a minute.
 func discover(ctx context.Context, log func(string)) []found {
@@ -144,11 +144,13 @@ func discover(ctx context.Context, log func(string)) []found {
 	log(fmt.Sprintf("Looking for printers on your network (%d addresses)...", len(hosts)))
 	ctx, cancel := context.WithTimeout(ctx, searchBudget)
 	defer cancel()
-	// Elegoo printers answer one question to the whole network, meanwhile.
-	elegoos := make(chan []found, 1)
+	// Meanwhile Elegoo printers answer one question to the whole network, and
+	// Bambu Lab printers say they're there on their own.
+	elegoos, bambus := make(chan []found, 1), make(chan []found, 1)
 	go func() { elegoos <- discoverElegoo(ctx) }()
+	go func() { bambus <- discoverBambu(ctx, 8*time.Second) }()
 	got, left := probeHosts(ctx, hosts)
-	all := withElegoos(append(append([]found{}, before...), got...), <-elegoos)
+	all := withOwnAnswers(append(append([]found{}, before...), got...), append(<-elegoos, <-bambus...))
 	unfinished.Lock()
 	unfinished.left, unfinished.found, unfinished.at = left, nil, time.Now()
 	if len(left) > 0 {
@@ -202,9 +204,10 @@ func virtualCard(name string) bool {
 	return false
 }
 
-// withElegoos adds the Elegoo printers found, in place of anything else the
-// same address answered as (their web page isn't a printer API).
-func withElegoos(list, elegoos []found) []found {
+// withOwnAnswers adds the printers that said what they are (Elegoo, Bambu
+// Lab), in place of anything else the same address answered as (their web
+// page isn't a printer API).
+func withOwnAnswers(list, elegoos []found) []found {
 	if len(elegoos) == 0 {
 		return list
 	}

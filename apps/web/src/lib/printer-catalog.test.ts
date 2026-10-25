@@ -57,6 +57,11 @@ describe('printer catalog', () => {
     expect(canSend(marked, 'Elegoo Neptune 3 0.4 nozzle')).toBe(false);
   });
 
+  it('marks every Bambu Lab printer (its own local protocol)', () => {
+    const bbl = { id: 'BBL', name: 'Bambu Lab', file: 'BBL.json', bytes: 1, models: [{ model: 'Bambu Lab P1S', cover: '', send: false, nozzles: [{ name: 'Bambu Lab P1S 0.4 nozzle', nozzle: '0.4' }] }] };
+    expect(canSend(withDirectPrint({ ...catalog, vendors: [bbl] }), 'Bambu Lab P1S 0.4 nozzle')).toBe(true);
+  });
+
   it('lists brands with picked ones first, then Snapmaker, then by name', () => {
     expect(wizardBrands(catalog, [], []).map((b) => b.vendor)).toEqual(['Snapmaker', 'Prusa', 'Voron']);
     expect(wizardBrands(catalog, [], ['Voron 2.4 350 0.6 nozzle']).map((b) => b.vendor)).toEqual(['Voron', 'Snapmaker', 'Prusa']);

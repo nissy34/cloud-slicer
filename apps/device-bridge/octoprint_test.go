@@ -181,13 +181,13 @@ func TestMarlinLines(t *testing.T) {
 		{"G28 X Y", "G28 X Y"},
 		{"M106 S128", "M106 S128"},
 	} {
-		got, err := marlinLines(c.in)
+		got, err := marlinLines(c.in, "OctoPrint printers")
 		if err != nil || strings.Join(got, "|") != c.want {
 			t.Errorf("%q: got %q %v, want %q", c.in, got, err, c.want)
 		}
 	}
 	for _, in := range []string{"SET_FAN_SPEED FAN=aux SPEED=0.5", "SET_LED LED=x WHITE=1", "SET_HEATER_TEMPERATURE HEATER=dryer TARGET=50"} {
-		if _, err := marlinLines(in); err == nil {
+		if _, err := marlinLines(in, "OctoPrint printers"); err == nil {
 			t.Errorf("%q should be refused", in)
 		}
 	}

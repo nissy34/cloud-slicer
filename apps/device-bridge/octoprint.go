@@ -496,8 +496,9 @@ var (
 	klipperArg     = regexp.MustCompile(`([A-Z_]+)=(\S+)`)
 )
 
-// marlinLines turns a script from the Device tab into lines OctoPrint sends as they are.
-func marlinLines(script string) ([]string, error) {
+// marlinLines turns a script from the Device tab into lines a Marlin-like
+// printer takes as they are; noun names the printers in errors ("OctoPrint printers").
+func marlinLines(script, noun string) ([]string, error) {
 	var out []string
 	relative, relativeE := false, false
 	for _, raw := range strings.Split(script, "\n") {
@@ -539,10 +540,10 @@ func marlinLines(script string) ([]string, error) {
 			case strings.Contains(heater, "chamber"):
 				out = append(out, "M141 S"+s)
 			default:
-				return nil, fmt.Errorf("OctoPrint has no heater called %s.", args["HEATER"])
+				return nil, fmt.Errorf("%s have no heater called %s.", noun, args["HEATER"])
 			}
 		case klipperCommand.MatchString(word):
-			return nil, fmt.Errorf("%s is a Klipper command: OctoPrint printers don't know it.", word)
+			return nil, fmt.Errorf("%s is a Klipper command: %s don't know it.", word, noun)
 		default:
 			switch word {
 			case "G91":
@@ -561,7 +562,7 @@ func marlinLines(script string) ([]string, error) {
 }
 
 func (o *octoPrint) gcode(ctx context.Context, script string) error {
-	lines, err := marlinLines(script)
+	lines, err := marlinLines(script, "OctoPrint printers")
 	if err != nil {
 		return err
 	}
