@@ -23,7 +23,7 @@ const (
 	maxFrame = 700 * 1024
 	// A G-code file bigger than this is surely a mistake.
 	maxUpload = 4 << 30
-	// The largest upload piece the relay passes on as raw bytes (the browser sends 1 MiB; older pages 8 MiB).
+	// The largest upload piece the relay passes on as raw bytes (the browser sends 256 KiB, older pages 8 MiB).
 	relayPiece = 9 << 20
 	// Uploads a browser may have open at once.
 	maxUploads = 2
@@ -63,6 +63,9 @@ type Session struct {
 	pageListAt time.Time
 	pageAt     map[string]*url.URL
 	closed     bool
+	// pieces runs upload pieces from the relay in order (takePiece).
+	pieces     chan func()
+	piecesOnce sync.Once
 	// log is for details only a developer needs (may be nil).
 	log func(string)
 }

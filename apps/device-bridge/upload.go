@@ -185,7 +185,8 @@ func (s *Session) uploadStart(p uploadParams) (any, error) {
 		}
 		up.done <- uploadResult{path: p}
 	}()
-	answer := map[string]any{"uploadId": id}
+	// stream: pieces over the relay may come without waiting for each answer.
+	answer := map[string]any{"uploadId": id, "stream": true}
 	if p.SDP != "" {
 		// No direct link is no failure: the bytes come over the relay instead.
 		if sdp, err := s.uploadDirect(id, up, p.SDP); err == nil {
@@ -482,8 +483,32 @@ func (s *Session) fromBrowserBinary(data []byte) {
 		return
 	}
 	piece := data[4+n:]
-	go func() {
+	s.takePiece(func() {
 		result, err := s.uploadPiece(h.Params.UploadID, int64(h.Params.Offset), piece)
 		s.reply(h.ID, result, err)
-	}()
+	})
+}
+
+// takePiece runs upload pieces one after another, in the order they came:
+// the browser streams them without waiting for each answer, and each must
+// follow the last. The browser keeps at most 8 MiB unanswered, so the queue
+// never fills and the relay's reader never waits here.
+func (s *Session) takePiece(f func()) {
+	s.piecesOnce.Do(func() {
+		s.pieces = make(chan func(), 64)
+		go func() {
+			for {
+				select {
+				case f := <-s.pieces:
+					f()
+				case <-s.ctx.Done():
+					return
+				}
+			}
+		}()
+	})
+	select {
+	case s.pieces <- f:
+	case <-s.ctx.Done():
+	}
 }

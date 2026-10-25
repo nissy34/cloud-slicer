@@ -105,9 +105,9 @@ try {
     await page.getByTestId('connection').filter({ hasText: 'Connected' }).waitFor({ timeout: 30_000 });
 
     const name = `upload_${label}.gcode`;
-    // Over the relay, big enough to zip to several 1 MiB pieces.
+    // Over the relay, big enough to stream as many pieces.
     const text = gcode(label, label === 'relay' ? 12_000_000 : 3_000_000);
-    // The bar's words as the file goes up: "Connecting…" first, then over the relay it moves piece by piece.
+    // The bar's words as the file goes up: "Connecting…" first, then over the relay it follows the streamed pieces.
     await page.evaluate(() => {
       window.__bar = [];
       new MutationObserver(() => {

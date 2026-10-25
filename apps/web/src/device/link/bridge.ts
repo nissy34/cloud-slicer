@@ -5,7 +5,7 @@
 // and camera frames become bridge.* calls the agent answers itself.
 import type { DirectCamera } from '../camera';
 import { LinkError, type BridgeStatus, type DirectAnswer, type LinkHandlers, type PageAnswer, type PageRequest, type PrinterLink, type RpcMessage } from './types';
-import { DirectUploadRefused, UPLOAD_CHUNK, UPLOAD_PIECE, encodePiece, gzipped, offerDirectUpload } from './upload';
+import { DirectUploadRefused, STREAM_PIECE, STREAM_WINDOW, UPLOAD_CHUNK, UPLOAD_PIECE, encodePiece, gzipped, offerDirectUpload } from './upload';
 
 export interface BridgeTarget {
   relay: string;
@@ -204,7 +204,7 @@ export class BridgeLink implements PrinterLink {
       direct?.close();
       throw cancelled();
     }
-    let start: { uploadId: string; sdp?: string };
+    let start: { uploadId: string; sdp?: string; stream?: boolean };
     try {
       start = await this.call('bridge.upload_start', { path, size: blob.size, wire: wire.size, zipped: !!zip, sdp: direct?.sdp ?? '' }, 15_000);
     } catch (e) {
@@ -240,6 +240,7 @@ export class BridgeLink implements PrinterLink {
       } else direct?.close();
       let { received } = await this.call<{ received: number }>('bridge.upload_resume', { uploadId });
       const binary = (await this.relayInfo()).binary === true;
+      if (binary && start.stream) received = await this.stream(uploadId, wire, received, progress, signal);
       const piece = binary ? UPLOAD_PIECE : UPLOAD_CHUNK;
       while (received < wire.size) {
         if (signal?.aborted) throw cancelled();
@@ -258,6 +259,43 @@ export class BridgeLink implements PrinterLink {
     } finally {
       signal?.removeEventListener('abort', stop);
     }
+  }
+
+  /**
+   * Streams the rest over the relay: pieces back to back, not waiting for each
+   * answer, with at most STREAM_WINDOW unanswered. The bridge writes them in
+   * the order they come; the bar follows what it says it has.
+   */
+  private async stream(uploadId: string, wire: Blob, from: number, progress: (n: number) => void, signal?: AbortSignal): Promise<number> {
+    let next = from;
+    let confirmed = from;
+    let failure: unknown = null;
+    const waiting = new Set<Promise<void>>();
+    while (next < wire.size && !failure) {
+      if (signal?.aborted) throw new LinkError('Upload cancelled.', 'network');
+      if (next - confirmed >= STREAM_WINDOW) {
+        await Promise.race(waiting);
+        continue;
+      }
+      const offset = next;
+      const bytes = new Uint8Array(await wire.slice(offset, offset + STREAM_PIECE).arrayBuffer());
+      next += bytes.length;
+      const answered: Promise<void> = this.call<{ received: number }>('bridge.upload_piece', { uploadId, offset }, 120_000, bytes)
+        .then(
+          (r) => {
+            confirmed = Math.max(confirmed, r.received);
+            progress(confirmed);
+          },
+          (e) => {
+            failure ??= e;
+          },
+        )
+        .finally(() => waiting.delete(answered));
+      waiting.add(answered);
+    }
+    await Promise.all(waiting);
+    if (failure) throw failure;
+    return confirmed;
   }
 
   /** The file as it is, in base64 chunks, one at a time: for a bridge from before zipped uploads. */

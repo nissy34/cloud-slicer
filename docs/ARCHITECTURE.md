@@ -285,7 +285,7 @@ Moonraker is reached one of two ways (`src/device/link/`):
   from the bridge to the browser (`camera.go`, `src/device/direct-camera.ts`). Only
   when a network blocks that does the page fall back to one relayed snapshot a second.
   Uploads work the same way: the G-code is zipped, sent over a direct WebRTC link
-  when one connects, else over the relay in 1 MiB binary pieces (`upload.go`,
+  when one connects, else streamed over the relay in 256 KiB binary pieces (`upload.go`,
   `src/device/link/upload.ts`).
 
 Bridge design choices:

@@ -239,10 +239,12 @@ and starts with `bridge.upload_start`, which carries a WebRTC offer. When the
 direct link connects, the bytes go over data channel "upload" and never cross
 the relay; on the same network that runs at home-network speed. When it
 doesn't, or opens but then carries nothing for 15 s (a VPN in the way, say), the page asks
-`bridge.upload_resume` where to carry on and sends 1 MiB pieces over the relay
-as binary messages (`bridge.upload_piece`), each waiting for the bridge's
-answer. Either way the bridge unzips as the bytes arrive and streams them into
-Moonraker, holding at most one piece in memory. A relay from before binary
+`bridge.upload_resume` where to carry on and streams the rest over the relay
+as binary messages of 256 KiB (`bridge.upload_piece`) without waiting for each
+answer, keeping at most 8 MiB unanswered; the bridge writes them in order.
+Pages from before streaming send 8 MiB pieces one at a time. Either way the
+bridge unzips as the bytes arrive and streams them into Moonraker, holding at
+most 8 MiB in memory. A relay from before binary
 messages gets base64 pieces of 512 KiB (`bridge.upload_chunk`). Cancel in the
 Send window calls `bridge.upload_cancel`, which stops the request to Moonraker
 (even once every byte is here), so the printer keeps nothing.

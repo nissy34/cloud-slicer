@@ -1,16 +1,21 @@
 // Faster uploads through the bridge. The G-code is zipped first (it shrinks 4
 // to 5 times), then goes over a direct WebRTC link to the bridge when one
 // connects (on the same network: home-network speed, nothing crosses the
-// relay), else over the relay in 1 MiB pieces of raw bytes, each waiting for
-// the bridge's "got it" (so the bar moves piece by piece). A direct link that
-// opens but then carries nothing (a VPN in the way, say) is given up after a
-// while too, and the relay carries on from what arrived. An older relay that only passes text gets base64
-// pieces of 512 KiB, as its 1 MiB limit wants; an older bridge gets the file
-// the old way (bridge.upload_begin).
+// relay), else streamed over the relay: raw 256 KiB pieces sent back to back,
+// at most 8 MiB of them unanswered, the bar following the bridge's answers. A
+// direct link that opens but then carries nothing (a VPN in the way, say) is
+// given up too, and the relay carries on from what arrived. A bridge from
+// before streaming gets 8 MiB pieces one at a time; an older relay that only
+// passes text gets base64 pieces of 512 KiB, as its 1 MiB limit wants; an
+// older bridge still gets the file the old way (bridge.upload_begin).
 import { STUN, gathered } from '../webrtc';
 
-/** A piece over the relay, as raw bytes: small enough that the bar moves (the relay takes up to 9 MiB). */
-export const UPLOAD_PIECE = 1024 * 1024;
+/** A piece streamed over the relay, as raw bytes. */
+export const STREAM_PIECE = 256 * 1024;
+/** Bytes streamed over the relay that the bridge hasn't answered yet, at most. */
+export const STREAM_WINDOW = 8 * 1024 * 1024;
+/** A piece over the relay to a bridge that takes one at a time; Cloudflare allows 32 MiB per message, the relay takes 9 MiB. */
+export const UPLOAD_PIECE = 8 * 1024 * 1024;
 /** A piece over a relay that only passes text: under its 1 MiB limit once base64-encoded. */
 export const UPLOAD_CHUNK = 512 * 1024;
 /** How long the direct link may take to open before the upload goes over the relay. */

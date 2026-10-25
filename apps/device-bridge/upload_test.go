@@ -5,6 +5,7 @@ import (
 	"compress/gzip"
 	"encoding/binary"
 	"encoding/json"
+	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -267,5 +268,45 @@ func TestPrinterAnswerReachesBothWaiters(t *testing.T) {
 		case <-time.After(10 * time.Second):
 			t.Fatal("a waiter never heard the printer")
 		}
+	}
+}
+
+// The browser streams pieces without waiting for answers: they reach the printer in order.
+func TestStreamedPiecesArriveInOrder(t *testing.T) {
+	m := newFakeMoonraker(t)
+	sent := make(chan string, 1000)
+	s := newSession("c1", Printer{ID: "p", Name: "fake", URL: m.URL}, func(msg string) { sent <- msg }, func(string) {})
+	defer s.close()
+	content := strings.Repeat("G1 X5 Y5 E0.2\n", 20_000)
+	res := startUpload(t, s, uploadParams{Path: "s.gcode", Size: float64(len(content))})
+	if res["stream"] != true {
+		t.Fatal("the bridge does not say it takes streamed pieces")
+	}
+	id := res["uploadId"].(string)
+	b := &Bridge{sessions: map[string]*Session{"c1": s}}
+	const piece = 1000
+	n := 0
+	for off := 0; off < len(content); off += piece {
+		head, _ := json.Marshal(map[string]any{"jsonrpc": "2.0", "id": fmt.Sprintf("b%d", off), "method": "bridge.upload_piece", "params": map[string]any{"uploadId": id, "offset": off}})
+		msg := binary.BigEndian.AppendUint32(nil, uint32(len(head)))
+		msg = append(append(msg, head...), content[off:min(off+piece, len(content))]...)
+		b.handleBinary(append([]byte{2, 'c', '1'}, msg...))
+		n++
+	}
+	for range n {
+		select {
+		case reply := <-sent:
+			if strings.Contains(reply, `"error"`) {
+				t.Fatalf("reply %s", reply)
+			}
+		case <-time.After(5 * time.Second):
+			t.Fatal("a piece got no answer")
+		}
+	}
+	if _, err := s.uploadEnd(id); err != nil {
+		t.Fatal(err)
+	}
+	if m.file("s.gcode") != content {
+		t.Fatalf("printer got %d bytes, want %d", len(m.file("s.gcode")), len(content))
 	}
 }
