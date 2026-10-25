@@ -59,7 +59,11 @@ async function sliceGcode(page) {
 
 try {
   const page = await open({ width: 1280, height: 860 }, false);
-  while ((await page.getByLabel(/^Filament \d+ colour$/).count()) < 2) await page.getByLabel('Add filament').click();
+  const filaments = page.getByLabel(/^Filament \d+ colour$/);
+  for (let n = await filaments.count(); n < 2; n++) {
+    await page.getByLabel('Add filament').click();
+    await filaments.nth(n).waitFor();
+  }
   await page.getByTestId('model-input').setInputFiles([model]);
   await page.getByText('Ready to slice').waitFor({ timeout: 120000 });
 
