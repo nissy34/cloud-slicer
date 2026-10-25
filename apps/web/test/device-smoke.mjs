@@ -483,7 +483,11 @@ try {
   if (offlineCmd !== '~/.local/bin/cloud-slicer-bridge install') throw new Error(`offline help for a Linux bridge shows: ${offlineCmd}`);
   bridge = startBridge(program, config);
   await page.getByTestId('connection').filter({ hasText: 'Connected' }).waitFor({ timeout: 40_000 });
-  console.log('bridge restart: reconnected by itself');
+  // The page's own socket to the relay stayed up, but the bridge opened a fresh printer connection:
+  // the status must keep moving (it used to freeze on the last one while commands still worked).
+  u1.patch({ print_stats: { state: 'complete' } });
+  await page.getByTestId('print-state').filter({ hasText: 'Finished' }).waitFor({ timeout: 20_000 });
+  console.log('bridge restart: reconnected by itself, status still live');
 
   // A second copy of the bridge (another window) takes over, and the older one stops rather than taking it back.
   bridge.stop();
