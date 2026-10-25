@@ -2,7 +2,8 @@
 // Arranging the Device tab cards (device/layout.ts, device/ui/Arrange.tsx), against a pretend U1 only
 // (test/device/mock-printer.mjs): move a card across the top, hide one, half width, 3 columns, fold,
 // reload (kept), back to default; the phone's one column; then a second camera card on a printer with
-// two cameras (test/device/mock-printer.mjs generic: 'case' and 'nozzle').
+// two cameras (test/device/mock-printer.mjs generic: 'case' and 'nozzle'). Each printer has its own
+// layout, and the old layout shared by every printer is dropped.
 //
 //   npm run build && node test/device-arrange.mjs [screenshot-dir]
 import { spawn } from 'node:child_process';
@@ -97,6 +98,13 @@ try {
       ),
     [u1.url, voron.url],
   );
+  // The old layout every printer shared: dropped, so each printer starts from the default.
+  await page.evaluate(() =>
+    localStorage.setItem(
+      'cloud-slicer:user-settings:v1',
+      JSON.stringify({ 'device-layout': { key: 'device-layout', value: { v: 1, desktop: { top: ['camera'], cols: [[], []], bottom: [] } }, version: 0, updatedAt: 1 } }),
+    ),
+  );
   const open = async (p) => {
     await p.reload();
     await p.getByRole('tab', { name: 'Device' }).click();
@@ -109,6 +117,9 @@ try {
   if ((await zoneOf(page, 'camera')) !== 'col0' || (await zoneOf(page, 'files')) !== 'col1') fail('the default should be the D3 layout');
   if (await page.locator('[data-zone="top"]').count()) fail('an empty band across the top should not show outside Arrange');
   if (shots) await page.screenshot({ path: join(shots, 'desktop-default.png') });
+  const settings = () => page.evaluate(() => Object.keys(JSON.parse(localStorage.getItem('cloud-slicer:user-settings:v1') ?? '{}')));
+  for (let i = 0; i < 20 && (await settings()).includes('device-layout'); i++) await page.waitForTimeout(100);
+  if ((await settings()).includes('device-layout')) fail('the old layout shared by every printer should be dropped');
 
   // A folded half-width card shrinks to its title instead of staying as tall as the card beside it.
   await page.getByTestId('motion-card').getByRole('button', { name: 'Move' }).click();
@@ -135,7 +146,7 @@ try {
 
   // ---- Arrange ------------------------------------------------------------------------
   await page.getByTestId('arrange-open').click();
-  await page.getByTestId('arrange-bar').waitFor();
+  await page.getByTestId('arrange-bar').getByText('This layout is for U1-mock only.').waitFor();
   if (shots) await page.screenshot({ path: join(shots, 'desktop-arrange.png') });
   await drag(page, 'camera', page.locator('[data-zone="top"]'));
   if ((await zoneOf(page, 'camera')) !== 'top') fail('the camera should move across the top');
@@ -168,6 +179,17 @@ try {
   if (!(await page.locator("[data-card='camera']").evaluate((el) => el.classList.contains('dv-cam-m')))) fail('the camera size should be kept');
   if (shots) await page.screenshot({ path: join(shots, 'desktop-arranged.png') });
   console.log('desktop: the layout is kept after a reload');
+
+  // ---- each printer its own layout ----------------------------------------------------
+  await page.getByTestId('printer-select').selectOption({ label: 'Voron-mock' });
+  await page.getByTestId('connection').filter({ hasText: 'Connected' }).waitFor({ timeout: 30_000 });
+  if ((await zoneOf(page, 'camera')) !== 'col0' || (await zoneOf(page, 'files')) !== 'col1') fail("another printer should not get the U1's layout");
+  if (!(await page.getByTestId('console-card').count())) fail("Console is hidden on the U1 only");
+  if (shots) await page.screenshot({ path: join(shots, 'desktop-other-printer.png') });
+  await page.getByTestId('printer-select').selectOption({ label: 'U1-mock' });
+  await page.getByTestId('connection').filter({ hasText: 'Connected' }).waitFor({ timeout: 30_000 });
+  if ((await zoneOf(page, 'camera')) !== 'top') fail('the U1 should keep its own layout');
+  console.log('desktop: each printer has its own layout');
 
   // ---- phone: its own layout, one column ----------------------------------------------
   const phone = await context.newPage();
@@ -229,6 +251,14 @@ try {
   await page.locator('[data-testid^="camera-card-"] [data-testid="camera-tile"][data-camera="nozzle"]').waitFor();
   if ((await page.getByTestId('camera-card').getByTestId('camera-tile').count()) !== 1) fail('camera cards should be kept after a reload');
   console.log('camera cards: nozzle in its own card, kept after a reload');
+  await page.getByTestId('printer-select').selectOption({ label: 'U1-mock' });
+  await page.getByTestId('connection').filter({ hasText: 'Connected' }).waitFor({ timeout: 30_000 });
+  await page.getByTestId('camera-card').waitFor();
+  if (await page.locator('[data-testid^="camera-card-"]').count()) fail("the Voron's second camera card should not show on the U1");
+  await page.getByTestId('printer-select').selectOption({ label: 'Voron-mock' });
+  await page.getByTestId('connection').filter({ hasText: 'Connected' }).waitFor({ timeout: 30_000 });
+  await page.locator('[data-testid^="camera-card-"]').waitFor();
+  console.log('camera cards: they belong to their printer only');
   await page.getByTestId('arrange-open').click();
   await page.locator('[data-testid^="remove-cam:"]').click();
   await page.getByTestId('arrange-done').click();

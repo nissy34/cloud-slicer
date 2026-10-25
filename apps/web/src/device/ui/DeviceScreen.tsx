@@ -137,7 +137,7 @@ export function DeviceScreen() {
               <BridgeOffline system={bridge?.system} place={bridge?.place} />
             </div>
           )}
-          <DeviceCards busy={busy} arranging={arranging} onDone={() => setArranging(false)} />
+          <DeviceCards key={active.id} printer={active} busy={busy} arranging={arranging} onDone={() => setArranging(false)} />
         </>
       )}
       {send && active && <PrintDialog key={send.kind === 'upload' ? send.name : send.path} source={send} />}
