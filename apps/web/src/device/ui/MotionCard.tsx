@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
 import { useDevice } from '../../state/device';
+import { dialect } from '../addons';
 import { extrudeGcode, flowFactorGcode, homeGcode, jogGcode, motorsOffGcode, speedFactorGcode } from '../commands';
 import { heaters, job, motion } from '../status';
 import { Card } from './parts';
@@ -10,13 +11,14 @@ export function MotionCard() {
   const objects = useDevice((s) => s.objects);
   const run = useDevice((s) => s.run);
   const bedZ = useDevice((s) => s.addons.some((a) => a.bedMovesInZ));
+  const words = dialect(useDevice((s) => s.addons));
   const m = useMemo(() => motion(objects), [objects]);
   const state = job(objects).state;
   const printing = state === 'printing';
   const busy = printing || state === 'paused';
   const [step, setStep] = useState(10);
   const homed = (axis: string) => m.homed.includes(axis);
-  const jog = (axis: 'x' | 'y' | 'z', dir: 1 | -1) => void run(jogGcode(axis, dir * step, axis === 'z' ? 600 : 6000));
+  const jog = (axis: 'x' | 'y' | 'z', dir: 1 | -1) => void run(jogGcode(axis, dir * step, axis === 'z' ? 600 : 6000, words));
   const nozzle = heaters(objects).find((h) => h.name === m.activeExtruder);
   const hot = (nozzle?.temp ?? 0) >= 170;
   // Greyed-out controls say why on hover; the containers carry it too, for browsers that show no tooltip on a disabled button.
@@ -95,10 +97,10 @@ export function MotionCard() {
         <button className="secondary" disabled={busy} title={why} onClick={() => void run(motorsOffGcode())}>
           Motors off
         </button>
-        <button className="secondary" disabled={busy || !hot} title={why ?? (hot ? undefined : 'Heat the nozzle first')} onClick={() => void run(extrudeGcode(10))}>
+        <button className="secondary" disabled={busy || !hot} title={why ?? (hot ? undefined : 'Heat the nozzle first')} onClick={() => void run(extrudeGcode(10, undefined, words))}>
           Extrude 10 mm
         </button>
-        <button className="secondary" disabled={busy || !hot} title={why ?? (hot ? undefined : 'Heat the nozzle first')} onClick={() => void run(extrudeGcode(-10))}>
+        <button className="secondary" disabled={busy || !hot} title={why ?? (hot ? undefined : 'Heat the nozzle first')} onClick={() => void run(extrudeGcode(-10, undefined, words))}>
           Retract
         </button>
       </div>

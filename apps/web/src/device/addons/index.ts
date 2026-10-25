@@ -1,3 +1,4 @@
+import type { Dialect } from '../commands';
 import type { PrinterAddon, PrinterFacts } from './types';
 import { bambuAddon } from './bambu';
 import { elegooAddon } from './elegoo';
@@ -11,6 +12,11 @@ export const ADDONS: PrinterAddon[] = [u1Addon, prusaAddon, octoPrintAddon, eleg
 /** Whether the printer takes G-code and the other Klipper commands (see PrinterAddon.noCommands). */
 export function takesCommands(addons: PrinterAddon[]): boolean {
   return !addons.some((a) => a.noCommands);
+}
+
+/** Whose words the screen writes its commands in (see PrinterAddon.gcode). */
+export function dialect(addons: PrinterAddon[]): Dialect {
+  return addons.some((a) => a.gcode === 'marlin') ? 'marlin' : 'klipper';
 }
 
 export function detectAddons(facts: PrinterFacts): PrinterAddon[] {
