@@ -1,6 +1,6 @@
 import { OrbitControls, TransformControls } from '@react-three/drei';
 import { Canvas, useThree, type ThreeEvent } from '@react-three/fiber';
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import * as THREE from 'three';
 import type { TransformControls as TransformControlsImpl } from 'three-stdlib';
 import { acceleratedRaycast, MeshBVH } from 'three-mesh-bvh';
@@ -21,6 +21,7 @@ import { NO_COLOURS, useOption, useSlicer } from '../state/store';
 import { setCameraSource } from '../state/view';
 import { Bed } from './Bed';
 import { BrimMarks } from './BrimEars';
+import { ClearanceView } from './Clearance';
 import { ObjectLabels } from './Labels';
 import { iconsReach, nameReach, PlateIcons } from './PlateIcons';
 import { MeasureOverlay } from './MeasureOverlay';
@@ -859,6 +860,8 @@ function Objects({ w, d }: { w: number; d: number }) {
   const drag = useRef<{ object: number; instance: number; start: THREE.Vector3; offset: [number, number]; group?: boolean; toggle?: number } | null>(null);
   const [delta, setDelta] = useState<[number, number] | null>(null);
   const plane = useMemo(() => new THREE.Plane(new THREE.Vector3(0, 0, 1), 0), []);
+  // What a drag moves: the selected object, or all the chosen ones.
+  const movingObject = useCallback((o: number) => selected?.object === o || group.includes(o), [selected, group]);
   // The camera must hold still while an object is dragged.
   const controls = useThree((s) => s.controls) as unknown as CameraControls | null;
   const gizmo = useRef<TransformControlsImpl | null>(null);
@@ -1455,6 +1458,7 @@ function Objects({ w, d }: { w: number; d: number }) {
           <GroupGizmo key={group.join()} tool={groupTool} parts={groupParts} controlsRef={gizmo} onRelease={() => (gizmoReleased.current = performance.now())} />
         </group>
       )}
+      <ClearanceView moving={movingObject} delta={delta} />
       {parts.map((p) => {
         const active = !paint && (selected?.object === p.object || group.includes(p.object));
         // Drawn by the group's handles; the hit target stays where the engine has it.

@@ -268,6 +268,35 @@ export type WipeTower =
   | { show: false }
   | { show: true; x: number; y: number; width: number; depth: number; height: number; rotation: number; brim: number; filaments: number[] };
 
+/** A point on the plate (mm). */
+export type PlatePoint = [number, number];
+
+/**
+ * Printing object by object (desktop's By object print sequence): the tool
+ * head's clearance round each object on a plate, as desktop draws it, and the
+ * slice's own check of it (Print::sequential_print_clearance_valid).
+ * `radius`, `rod` and `lid` are the printer's extruder_clearance_radius,
+ * _height_to_rod and _height_to_lid; `short`: every object is lower than the
+ * nozzle, so only the skirt needs room. Each outline is an object's copy seen
+ * from above, grown by half the radius; `order` is when it prints (1 first).
+ * `collisions` are the outlines that touch; `tall` the objects higher than
+ * their place in the order lets them be. `error` is the slice's message.
+ */
+export type Clearance =
+  | { byObject: false; error?: string }
+  | {
+      byObject: true;
+      radius: number;
+      rod: number;
+      lid: number;
+      short: boolean;
+      spacing: number;
+      outlines: { object: number; instance: number; order: number; points: PlatePoint[] }[];
+      collisions: PlatePoint[][];
+      tall: { points: PlatePoint[]; height: number }[];
+      error: string;
+    };
+
 /**
  * Engine start-up before 'ready': downloading the engine and presets (bytes so
  * far of `total`, 0 when unknown), then setting the engine up.

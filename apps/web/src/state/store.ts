@@ -21,6 +21,7 @@ import type {
   SliceResult,
   SliceWarning,
   WipeTower,
+  Clearance,
   EngineInfo,
 } from '../engine/protocol';
 import { calibrationOptions, CALIBRATIONS, type CalibrationMode, type CalibrationValues } from '../lib/calibration';
@@ -214,6 +215,8 @@ export interface SlicerState {
   towers: TowerSpot[];
   /** The prime tower on the plate shown, when it has one (the engine's estimate, or the last slice's size). */
   wipeTower: Extract<WipeTower, { show: true }> | null;
+  /** Printing the shown plate object by object: the tool head's clearance round each object (desktop's outlines). */
+  clearance: Extract<Clearance, { byObject: true }> | null;
   /** Desktop's errors about the sliced toolpaths (lib/outside), found when the Preview reads the G-code. */
   gcodeWarnings: { gcode: Blob; list: SliceWarning[] } | null;
   setGcodeWarnings(gcode: Blob, list: SliceWarning[]): void;
@@ -288,6 +291,7 @@ export interface SlicerState {
   moveWipeTower(x: number, y: number): void;
   /** Asks the engine again for the prime tower of the plate shown. */
   refreshWipeTower(): void;
+  refreshClearance(): void;
   /** Object o's triangles, and (with `by`) how many simplifying would leave; changes nothing. */
   simplifyPreview(o: number, by?: SimplifyBy): Promise<SimplifyResult | null>;
   /** Simplifies object o, like desktop's Simplify, as one undo step. */
@@ -742,6 +746,43 @@ export const useSlicer = create<SlicerState>((set, get) => {
     });
   };
 
+
+  // Printing object by object, the tool head's clearance round each object on
+  // the plate shown, again after anything that may move or change them.
+  let clearanceRun = 0;
+  const byObject = (plate = get().plate) => {
+    const { project, overrides, baseConfig } = get();
+    return (project?.plates[plate]?.settings?.print_sequence ?? overrides.print_sequence ?? baseConfig.print_sequence) === 'by object';
+  };
+  async function refreshClearance() {
+    const run = ++clearanceRun;
+    const { project, plate } = get();
+    if (!project?.plates[plate]?.objects.length || !byObject()) return set({ clearance: null });
+    try {
+      const c = await engine().clearance(plate, engineOverrides());
+      if (run === clearanceRun) set({ clearance: c.byObject ? c : null });
+    } catch (e) {
+      console.warn('Clearance:', e);
+      if (run === clearanceRun) set({ clearance: null });
+    }
+  }
+  let clearanceQueued = false;
+  const queueClearance = () => {
+    if (clearanceQueued) return;
+    clearanceQueued = true;
+    queueMicrotask(() => {
+      clearanceQueued = false;
+      if (get().engine === 'ready') void refreshClearance();
+    });
+  };
+  // Arrange: 6 mm apart, like desktop's default arrange distance; printing
+  // object by object, far enough apart for the tool head and with the tall
+  // ones last in their row, like desktop's ArrangeJob then.
+  const arrangePlate = async (plate: number) => {
+    const e = engine();
+    const c = byObject(plate) ? await e.clearance(plate, engineOverrides()) : null;
+    return c?.byObject ? e.arrangePlate(plate, Math.max(6, c.spacing), c.short ? 0 : c.rod) : e.arrangePlate(plate, 6);
+  };
 
   // A request about the mix list, with what colours its rows.
   const mixRequest = (extra: Partial<MixedRequest> = {}): MixedRequest => {
@@ -1268,6 +1309,7 @@ export const useSlicer = create<SlicerState>((set, get) => {
     flush: null,
     towers: [],
     wipeTower: null,
+    clearance: null,
     gcodeWarnings: null,
     setGcodeWarnings(gcode, list) {
       set({ gcodeWarnings: { gcode, list } });
@@ -1460,6 +1502,7 @@ export const useSlicer = create<SlicerState>((set, get) => {
     },
     setCutZ: (cutZ) => set({ cutZ }),
     refreshWipeTower: queueTower,
+    refreshClearance: queueClearance,
     moveWipeTower(x, y) {
       const towers = moveTower(get().towers, get().plate, [x, y]);
       set({ towers, ...stale() });
@@ -1852,16 +1895,15 @@ export const useSlicer = create<SlicerState>((set, get) => {
       return get().plateAction({ op: 'paste' }, 'Paste');
     },
 
-    // 6 mm apart, like desktop's default arrange distance.
     arrange: (all = false) => {
       if (!all && lockedNotice('arrange')) return Promise.resolve();
       return busyWhile(all ? 'Arranging all plates' : 'Arranging the plate', () =>
         projectEdit('Arrange', async () => {
-          if (!all) return engine().arrangePlate(get().plate, 6);
+          if (!all) return arrangePlate(get().plate);
           // Each plate in turn, skipping locked ones; what doesn't fit goes onto new plates at the end.
           const plates = get().project?.plates.length ?? 1;
           let info = get().project!;
-          for (let p = 0; p < plates; p++) if ((p === 0 || info.plates[p]?.objects.length) && !info.plates[p]?.locked) info = await engine().arrangePlate(p, 6);
+          for (let p = 0; p < plates; p++) if ((p === 0 || info.plates[p]?.objects.length) && !info.plates[p]?.locked) info = await arrangePlate(p);
           return info;
         }),
       );
@@ -1954,7 +1996,7 @@ export const useSlicer = create<SlicerState>((set, get) => {
           }
           return info;
         });
-        if (arrange) await projectEdit('Arrange', () => engine().arrangePlate(get().plate, 6));
+        if (arrange) await projectEdit('Arrange', () => arrangePlate(get().plate));
       }),
     replaceWithStl: async (o, volume, file) =>
       projectEdit('Replace with STL', async () => engine().objectAction(o, 0, { op: 'replace', volume }, await file.arrayBuffer())),
@@ -2309,6 +2351,15 @@ useSlicer.subscribe((s, prev) => {
     (s.job !== prev.job && (s.job.kind === 'sliced' || prev.job.kind === 'sliced'))
   )
     useSlicer.getState().refreshWipeTower();
+});
+
+// The tool head's clearance follows the plate, its objects and the settings.
+useSlicer.subscribe((s, prev) => {
+  if (
+    s.engine !== prev.engine || s.project !== prev.project || s.plate !== prev.plate || s.overrides !== prev.overrides ||
+    s.baseConfig !== prev.baseConfig || s.mixDefinitions !== prev.mixDefinitions
+  )
+    useSlicer.getState().refreshClearance();
 });
 
 /** Stable empty list for selectors (a fresh [] each render loops React). */

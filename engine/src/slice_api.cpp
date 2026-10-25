@@ -4,6 +4,7 @@
 #include "engine.hpp"
 
 #include "libslic3r/BuildVolume.hpp"
+#include "libslic3r/ClipperUtils.hpp"
 #include "libslic3r/Format/bbs_3mf.hpp"
 #include "libslic3r/GCode/GCodeProcessor.hpp"
 #include "libslic3r/GCode/ThumbnailData.hpp"
@@ -560,7 +561,97 @@ std::string sliceWithConfig(const std::string& configJson, int plate, const std:
 
 } // namespace
 
+namespace {
+
+json pointsJson(const Polygon& poly) {
+    json pts = json::array();
+    for (const Point& pt : poly.points) pts.push_back({unscale<double>(pt.x()), unscale<double>(pt.y())});
+    return pts;
+}
+
+} // namespace
+
+// Desktop's tool head clearance for printing object by object, before slicing:
+// the outline GLCanvas3D draws round each object (its outline from above
+// grown by half the printer's extruder_clearance_radius, plus the skirt), and
+// Print::sequential_print_clearance_valid, the check the slice runs, with the
+// outlines that collide and the objects too tall for their place in the
+// order. `configJson` is the config the page would slice `plate` with; the
+// plate's own settings go over it. Returns {byObject: false} when the plate
+// prints layer by layer, else {byObject: true, radius, rod, lid, short,
+// outlines: [{object, instance, order, points: [[x, y]...]}] (plate mm, the
+// order it prints in), spacing (the gap Arrange keeps between objects),
+// collisions: [[[x, y]...]], tall: [{points, height}]
+// (outline, height it may reach), error: the slice's message or ""}.
+std::string clearanceJson(const std::string& configJson, int plate) {
+    try {
+        DynamicPrintConfig cfg;
+        cfg.apply(FullPrintConfig::defaults());
+        engine::applyJsonConfig(cfg, json::parse(configJson));
+        engine::applyPlateSettings(cfg, plate);
+        const auto* seq = cfg.option<ConfigOptionEnum<PrintSequence>>("print_sequence");
+        if (!seq || seq->value != PrintSequence::ByObject) return json{{"byObject", false}}.dump();
+        json out{{"byObject", true},
+                 {"radius", cfg.opt_float("extruder_clearance_radius")},
+                 {"rod", cfg.opt_float("extruder_clearance_height_to_rod")},
+                 {"lid", cfg.opt_float("extruder_clearance_height_to_lid")},
+                 {"short", false},
+                 {"outlines", json::array()},
+                 {"collisions", json::array()},
+                 {"tall", json::array()},
+                 {"error", ""}};
+        // Which object and copy of the project each of the plate model's is.
+        const engine::Project& pr = engine::project();
+        std::vector<std::vector<std::pair<int, int>>> source;
+        for (size_t o = 0; o < pr.model.objects.size(); ++o) {
+            std::vector<std::pair<int, int>> copies;
+            for (size_t i = 0; i < pr.model.objects[o]->instances.size(); ++i)
+                if (pr.plateOf(*pr.model.objects[o]->instances[i]) == plate) copies.emplace_back(int(o), int(i));
+            if (!copies.empty()) source.push_back(std::move(copies));
+        }
+        Model model = plateModel(plate);
+        if (model.objects.empty()) return out.dump();
+        extruderPerFilament(cfg);
+        padFlushMatrix(cfg);
+        for (ModelObject* o : model.objects) engine::settleOnBed(o, true);
+
+        SlicePrint print;
+        print.is_BBL_printer() = engine::selectedPrinterIsBambu();
+        print.set_plate_origin(Vec3d::Zero());
+        print.apply(model, cfg);
+        Polygons collisions;
+        std::vector<std::pair<Polygon, float>> tall;
+        out["error"] = Print::sequential_print_clearance_valid(print, &collisions, &tall).string;
+        for (const Polygon& c : collisions) out["collisions"].push_back(pointsJson(c));
+        for (const auto& [poly, height] : tall) out["tall"].push_back({{"points", pointsJson(poly)}, {"height", height}});
+
+        // The outlines as GLCanvas3D draws them while objects move.
+        const bool allShort = print.is_all_objects_are_short();
+        const double skirt = std::get<0>(print.object_skirt_offset());
+        const double grow = allShort ? std::max(0.5 * MAX_OUTER_NOZZLE_DIAMETER, skirt) - 0.1
+                                     : 0.5 * cfg.opt_float("extruder_clearance_radius") + skirt - 0.1;
+        out["short"] = allShort;
+        // The distance Arrange keeps between objects' outlines from above so their grown outlines don't touch.
+        out["spacing"] = 2 * (grow + 0.1) + 0.5;
+        const ModelObjectPtrs& printed = print.model().objects;
+        for (size_t k = 0; k < printed.size() && k < source.size(); ++k)
+            for (size_t i = 0; i < printed[k]->instances.size() && i < source[k].size(); ++i) {
+                const ModelInstance* inst = printed[k]->instances[i];
+                const Polygon hull = printed[k]->convex_hull_2d(inst->get_matrix());
+                const Polygons grown = offset(hull, float(scale_(grow)), jtRound, scale_(0.1));
+                out["outlines"].push_back({{"object", source[k][i].first},
+                                           {"instance", source[k][i].second},
+                                           {"order", inst->arrange_order},
+                                           {"points", pointsJson(grown.empty() ? hull : grown.front())}});
+            }
+        return out.dump();
+    } catch (const std::exception& e) {
+        return json{{"byObject", false}, {"error", e.what()}}.dump();
+    }
+}
+
 EMSCRIPTEN_BINDINGS(slice_api) {
     emscripten::function("sliceWithConfig", &sliceWithConfig);
+    emscripten::function("clearanceJson", &clearanceJson);
     emscripten::function("sliceCancelFlag", &sliceCancelFlag);
 }

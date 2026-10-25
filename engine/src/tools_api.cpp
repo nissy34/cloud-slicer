@@ -43,24 +43,31 @@ void relayout(int newCount);
 // apart, tallest-first, the whole layout centred on the plate. What does not
 // fit goes onto new plates after the last one.
 //
+// `tall` > 0 arranges for printing object by object, as desktop's ArrangeJob
+// does then: the objects go down in the order they print (the object list),
+// and a row ends after any object taller than `tall` (the printer's
+// extruder_clearance_height_to_rod), so the tool head's rod never passes over
+// it: it is the last of its row to print.
+//
 // Desktop uses libnest2d's no-fit-polygon packer (arrangement::arrange); in
 // this build it places every item on the same spot, so until that is tracked
 // down the page gets this simpler packer.
-std::string arrangePlate(int plate, double spacing) {
+std::string arrangePlate(int plate, double spacing, double tall) {
     return guarded([&] {
         engine::Project& p = pr();
         if (plate < 0 || plate >= p.plateCount) throw std::runtime_error("no plate " + std::to_string(plate));
         spacing = std::max(0.0, spacing);
-        struct Box { ModelInstance* inst; Vec2d centre, size; int plate = 0; Vec2d at; };
+        struct Box { ModelInstance* inst; Vec2d centre, size; double height; int plate = 0; Vec2d at; };
         std::vector<Box> boxes;
         for (ModelObject* obj : p.model.objects)
             for (ModelInstance* inst : obj->instances) {
                 if (p.plateOf(*inst) != plate) continue;
                 const BoundingBoxf3 bb = obj->instance_bounding_box(*inst, false);
-                boxes.push_back({inst, Vec2d(bb.center().x(), bb.center().y()), Vec2d(bb.size().x(), bb.size().y())});
+                boxes.push_back({inst, Vec2d(bb.center().x(), bb.center().y()), Vec2d(bb.size().x(), bb.size().y()), bb.max.z() - std::max(0.0, bb.min.z())});
             }
         if (boxes.empty()) return ok();
-        std::stable_sort(boxes.begin(), boxes.end(), [](const Box& a, const Box& b) { return a.size.y() > b.size.y(); });
+        const bool byObject = tall > 0;
+        if (!byObject) std::stable_sort(boxes.begin(), boxes.end(), [](const Box& a, const Box& b) { return a.size.y() > b.size.y(); });
 
         // Shelf packing: fill a row left to right, start a new row when it is
         // full, and a new plate when the rows run out of depth.
@@ -78,6 +85,7 @@ std::string arrangePlate(int plate, double spacing) {
             b.at = Vec2d(x + b.size.x() / 2, y + b.size.y() / 2);
             x += b.size.x() + spacing;
             rowDepth = std::max(rowDepth, b.size.y());
+            if (byObject && b.height > tall) x = W;  // the next object starts a new row
         }
         if (extra) {
             // New plates first, so the plate origins used below are final.
