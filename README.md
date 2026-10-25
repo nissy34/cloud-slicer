@@ -100,8 +100,10 @@ hosted on Cloudflare's free tier.
   other, put it face on face middle on middle, flip it, set the distance between them or
   turn it about the face; or pick two points and move one onto the other; two objects are
   joined into one first, as only parts can leave the bed).
-- **Plate settings** like desktop's window (plate menu, or the button beside the shown
-  plate's tab): a plate's own plate type, print sequence (by layer or by object), spiral
+- **Plate icons** beside the shown plate, desktop's own: delete plate, arrange, auto
+  orient, plate settings (orange when the plate has its own) and rename.
+- **Plate settings** like desktop's window (plate menu, the plate's icon, or the button
+  beside the shown plate's tab): a plate's own plate type, print sequence (by layer or by object), spiral
   vase and first layer / other layers filament order instead of the project's, saved in the
   3MF and used when that plate slices (also those desktop and Bambu Studio projects bring).
   A dot on a plate's tab says it has its own; the sidebar's matching setting says which
