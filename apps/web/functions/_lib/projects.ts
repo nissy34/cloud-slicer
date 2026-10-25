@@ -10,6 +10,7 @@
 // editing a project is recorded with each save; a save from another device is
 // refused (409, code "elsewhere") until that device takes over (POST .../device).
 import { storageBytes } from './access';
+import { printedCounts } from './prints';
 import { requireUser } from './auth';
 import { HttpError, json, readJson, requireSameOrigin } from './http';
 import type { Env, R2Bucket } from './types';
@@ -39,8 +40,10 @@ interface ProjectRow {
   /** The device editing it (an id the browser keeps), and its name ("phone"). */
   device: string | null;
   device_name: string | null;
+  /** How many plates it has (null: saved before this was kept). */
+  plates: number | null;
 }
-const toProject = (r: ProjectRow) => ({
+const toProject = (r: ProjectRow, printed?: number) => ({
   id: r.id,
   name: r.name,
   size: r.size,
@@ -50,6 +53,9 @@ const toProject = (r: ProjectRow) => ({
   draft: Boolean(r.draft),
   device: r.device,
   deviceName: r.device_name,
+  plates: r.plates ?? null,
+  /** Plates with a printed mark (functions/_lib/prints.ts), in the Projects list only. */
+  ...(printed !== undefined && { printedPlates: printed }),
   createdAt: r.created_at,
   updatedAt: r.updated_at,
 });
@@ -113,9 +119,10 @@ async function usage(env: Env, userId: string) {
 export async function list(env: Env, request: Request): Promise<Response> {
   const user = await requireUser(env, request);
   const rows = await env.DB!.prepare('SELECT * FROM projects WHERE user_id = ? ORDER BY updated_at DESC').bind(user.id).all<ProjectRow>();
+  const printed = await printedCounts(env, user.id);
   return json({
     enabled: Boolean(env.PROJECTS),
-    projects: rows.results.map(toProject),
+    projects: rows.results.map((r) => toProject(r, printed.get(r.id) ?? 0)),
     usage: await usage(env, user.id),
     limits: { projectBytes: LIMITS.projectBytes, userBytes: await storageBytes(env, user.id), userProjects: LIMITS.userProjects },
   });
@@ -176,6 +183,7 @@ export async function thumbnail(env: Env, request: Request, rawId: string): Prom
  * without it turns the draft into a normal project.
  * device, deviceName: the device saving; a save from a device other than the
  * one editing the project is refused unless baseVersion is left out.
+ * plates: how many plates the project has.
  */
 export async function put(env: Env, request: Request, rawId: string): Promise<Response> {
   requireSameOrigin(request);
@@ -189,6 +197,8 @@ export async function put(env: Env, request: Request, rawId: string): Promise<Re
   const draft = url.searchParams.get('draft') === '1' ? 1 : 0;
   const device = validDevice(url.searchParams.get('device'));
   const deviceName = validDeviceName(url.searchParams.get('deviceName'));
+  const platesParam = Number(url.searchParams.get('plates'));
+  const plates = Number.isInteger(platesParam) && platesParam > 0 && platesParam < 1000 ? platesParam : null;
 
   const declared = Number(request.headers.get('Content-Length') ?? '0');
   if (declared > LIMITS.projectBytes) throw new HttpError(413, `Projects can be up to ${LIMITS.projectBytes / 1024 / 1024} MB`);
@@ -223,16 +233,16 @@ export async function put(env: Env, request: Request, rawId: string): Promise<Re
   const res = current
     ? await d
         .prepare(
-          'UPDATE projects SET name = ?, size = ?, file_key = ?, version = ?, updated_at = ?, engine = ?, draft = ?, device = ?, device_name = ? WHERE user_id = ? AND id = ? AND version = ?',
+          'UPDATE projects SET name = ?, size = ?, file_key = ?, version = ?, updated_at = ?, engine = ?, draft = ?, device = ?, device_name = ?, plates = COALESCE(?, plates) WHERE user_id = ? AND id = ? AND version = ?',
         )
-        .bind(name, bytes.byteLength, key, version, now, engine, draft, device, deviceName, user.id, id, current.version)
+        .bind(name, bytes.byteLength, key, version, now, engine, draft, device, deviceName, plates, user.id, id, current.version)
         .run()
     : await d
         .prepare(
-          `INSERT INTO projects (user_id, id, name, size, file_key, thumb_key, version, created_at, updated_at, engine, draft, device, device_name)
-           VALUES (?, ?, ?, ?, ?, NULL, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT (user_id, id) DO NOTHING`,
+          `INSERT INTO projects (user_id, id, name, size, file_key, thumb_key, version, created_at, updated_at, engine, draft, device, device_name, plates)
+           VALUES (?, ?, ?, ?, ?, NULL, ?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT (user_id, id) DO NOTHING`,
         )
-        .bind(user.id, id, name, bytes.byteLength, key, version, now, now, engine, draft, device, deviceName)
+        .bind(user.id, id, name, bytes.byteLength, key, version, now, now, engine, draft, device, deviceName, plates)
         .run();
   if (!res.meta.changes) {
     await b.delete(key);
@@ -248,6 +258,7 @@ export async function put(env: Env, request: Request, rawId: string): Promise<Re
       .all<ProjectRow>();
     const old = others.results.filter((r, i) => !device || !r.device || r.device === device || i >= MAX_DRAFTS - 1);
     for (const r of old) {
+      await d.prepare('DELETE FROM project_prints WHERE user_id = ? AND project_id = ?').bind(user.id, r.id).run();
       await d.prepare('DELETE FROM projects WHERE user_id = ? AND id = ?').bind(user.id, r.id).run();
       await b.delete([r.file_key, ...(r.thumb_key ? [r.thumb_key] : [])]);
     }
@@ -265,6 +276,7 @@ export async function put(env: Env, request: Request, rawId: string): Promise<Re
       draft,
       device,
       device_name: deviceName,
+      plates: plates ?? current?.plates ?? null,
     } as ProjectRow),
   });
 }
@@ -309,6 +321,8 @@ export async function remove(env: Env, request: Request, rawId: string): Promise
   const id = validId(rawId);
   const r = await row(env, user.id, id);
   if (!r) return json({ ok: true });
+  // Its print history goes with it.
+  await env.DB!.prepare('DELETE FROM project_prints WHERE user_id = ? AND project_id = ?').bind(user.id, id).run();
   await env.DB!.prepare('DELETE FROM projects WHERE user_id = ? AND id = ?').bind(user.id, id).run();
   await bucket(env).delete([r.file_key, ...(r.thumb_key ? [r.thumb_key] : [])]);
   return json({ ok: true });

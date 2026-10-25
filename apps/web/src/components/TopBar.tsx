@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { AccountMenu } from '../account/AccountMenu';
 import { useSlicer, type Tab } from '../state/store';
 import { CalibrationDialog } from './CalibrationDialog';
+import { PrintProgress } from './PrintHistory';
 import { ProjectMenu } from './ProjectMenu';
 import { ThemeMenu } from './ThemeMenu';
 
@@ -24,6 +25,7 @@ export function TopBar() {
         Cloud Slicer
       </div>
       <ProjectMenu />
+      <PrintProgress />
       {engineInfo && (
         <span className="engine-badge" title={`Slicing with ${engineInfo.name} ${engineInfo.version}`}>
           {engineInfo.name} {engineInfo.version}

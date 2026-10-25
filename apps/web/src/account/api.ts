@@ -1,6 +1,7 @@
 // Client for the account API in functions/api (Cloudflare Pages Functions).
 import type { EngineFlavor } from '../lib/engines';
 import type { PresetEngines } from '../lib/preset-engines';
+import type { PrintRecord } from '../lib/prints';
 
 export type ProviderId = 'google';
 export type PresetType = 'printer' | 'filament' | 'process';
@@ -90,11 +91,17 @@ export interface OnlineProject {
   /** The device editing it (see lib/storage.ts deviceId) and its name ("phone"), when known. */
   device: string | null;
   deviceName: string | null;
+  /** How many plates it has (null: saved before this was kept). */
+  plates?: number | null;
+  /** Plates with a printed mark (the list only; lib/prints.ts). */
+  printedPlates?: number;
 }
 
 /** Where a save comes from: draft or not, and the device saving. */
 export interface SaveOptions {
   draft?: boolean;
+  /** How many plates the project has (for "6/10 printed" in the list). */
+  plates?: number;
   device?: { id: string; name: string };
 }
 
@@ -173,6 +180,7 @@ export const api = {
     const q = new URLSearchParams({ name, engine });
     if (baseVersion !== undefined) q.set('baseVersion', String(baseVersion));
     if (opts.draft) q.set('draft', '1');
+    if (opts.plates) q.set('plates', String(opts.plates));
     if (opts.device) {
       q.set('device', opts.device.id);
       q.set('deviceName', opts.device.name);
@@ -189,6 +197,20 @@ export const api = {
   /** This device edits the project from now on; the one before only views it. */
   takeOverProject: (id: string, device: { id: string; name: string }) =>
     call<{ project: OnlineProject }>(`${projectPath(id)}/device`, { method: 'POST', body: JSON.stringify({ device: device.id, deviceName: device.name }) }).then((r) => r.project),
+  /** The project's print history, oldest first (lib/prints.ts). */
+  prints: (id: string) => call<{ prints: PrintRecord[] }>(`${projectPath(id)}/prints`).then((r) => r.prints),
+  /** A send or a mark of one plate. */
+  addPrint: (id: string, p: Pick<PrintRecord, 'plate' | 'status'> & Partial<Pick<PrintRecord, 'printer' | 'printerName' | 'file' | 'fingerprint' | 'summary'>>) =>
+    call<{ print: PrintRecord }>(`${projectPath(id)}/prints`, { method: 'POST', body: JSON.stringify(p) }).then((r) => r.print),
+  /** How a print went, or "Keep as printed" (fingerprint + summary). */
+  updatePrint: (printId: string, p: Partial<Pick<PrintRecord, 'status' | 'duration' | 'progress' | 'fingerprint' | 'summary'>>) =>
+    call<{ print: PrintRecord }>(`/api/prints/${encodeURIComponent(printId)}`, { method: 'PATCH', body: JSON.stringify(p) }).then((r) => r.print),
+  /** Prints of every project still waiting for their printer (no summaries). */
+  openPrints: () => call<{ prints: PrintRecord[] }>('/api/prints/open').then((r) => r.prints),
+  /** Plates were deleted or reordered: order[new index] = old index. */
+  reorderPrints: (id: string, order: number[]) => call<{ ok: true }>(`${projectPath(id)}/prints/plates`, { method: 'POST', body: JSON.stringify({ order }) }),
+  /** A saved copy takes the original's history. */
+  copyPrints: (id: string, from: string) => call<{ ok: true }>(`${projectPath(id)}/prints/copy`, { method: 'POST', body: JSON.stringify({ from }) }),
   /** A ticket that lets this account through the bridge relay for one bridge (about an hour). */
   relayTicket: (relay: string, bridgeId: string) =>
     call<{ ticket: string; expiresAt: number }>('/api/relay/ticket', { method: 'POST', body: JSON.stringify({ relay, bridgeId }) }),

@@ -146,7 +146,8 @@ export function thumbnailBlock(png) {
 
 // `brand` and `objects` make it stand in for the bridge's stand-in for another
 // kind of printer: printer.info's brand, and that printer's own objects.
-export async function startMockPrinter({ port = 0, host = '127.0.0.1', generic = false, hostname = generic ? 'voron-mock' : 'U1-mock', apiKey = '', screen = false, brand = '', objects = {} } = {}) {
+// `printStep`: how much of a print each 0.3 s tick does (0.01: a 30 s print).
+export async function startMockPrinter({ port = 0, host = '127.0.0.1', generic = false, hostname = generic ? 'voron-mock' : 'U1-mock', apiKey = '', screen = false, brand = '', objects = {}, printStep = 0.01 } = {}) {
   const fresh = () => ({ ...u1State(generic), ...structuredClone(objects) });
   let state = fresh();
   // Three objects, the way Orca labels them for Klipper's exclude_object.
@@ -333,7 +334,7 @@ export async function startMockPrinter({ port = 0, host = '127.0.0.1', generic =
     patch({ print_stats: { state: 'printing', filename, print_duration: 0, filament_used: 0, info: { current_layer: 1, total_layer: 50 } }, virtual_sdcard: { progress: 0, is_active: true } });
     printTimer = setInterval(() => {
       if (state.print_stats.state !== 'printing') return;
-      const p = Math.min(1, state.virtual_sdcard.progress + 0.01);
+      const p = Math.min(1, state.virtual_sdcard.progress + printStep);
       patch({ virtual_sdcard: { progress: p }, print_stats: { print_duration: state.print_stats.print_duration + 1, filament_used: Math.round(p * 2700), info: { current_layer: Math.ceil(p * 50) || 1, total_layer: 50 } } });
       // The head moves from object to object, never to a skipped one.
       const ex = state.exclude_object;

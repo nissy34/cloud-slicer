@@ -40,6 +40,8 @@ const users = {
   dave: { sub: 'g-dave', name: 'Dave', email: 'Dave@Example.com', email_verified: true },
   gina: { sub: 'g-gina', name: 'Gina', email: 'gina@example.com', email_verified: true },
   hank: { sub: 'g-hank', name: 'Hank', email: 'hank@example.com', email_verified: true },
+  ivy: { sub: 'g-ivy', name: 'Ivy', email: 'ivy@example.com', email_verified: true },
+  june: { sub: 'g-june', name: 'June', email: 'june@example.com', email_verified: true },
 };
 let nextUser = 'alice';
 const codes = new Map(); // code -> { user, challenge }
@@ -500,6 +502,101 @@ test('projects: a draft per device, the device editing a project, taking it over
   assert.equal((await phone.json('/api/projects/nope/device', 'POST', phoneDevice)).status, 404);
 
   assert.equal((await alice.json('/api/projects/d2', 'DELETE')).status, 200);
+});
+
+test('print history: sends and marks per plate, the printer\'s word, plates deleted, copies, gone with the project', async () => {
+  const ivy = new Browser();
+  await signIn(ivy, 'ivy');
+  const other = new Browser();
+  await signIn(other, 'june');
+  const file = new Blob([Buffer.from('PK\x03\x04 plates')]);
+  const save = (id, plates) =>
+    ivy.fetch(`${HOST}/api/projects/${id}?${new URLSearchParams({ name: id, plates: String(plates) })}`, { method: 'PUT', headers: { Origin: HOST, 'Content-Type': 'model/3mf' }, body: file });
+  assert.equal((await save('ten', 10)).status, 200);
+  const add = (id, body, who = ivy) => who.json(`/api/projects/${id}/prints`, 'POST', body);
+  const list = async (id, who = ivy) => (await (await who.json(`/api/projects/${id}/prints`)).json()).prints;
+
+  assert.equal((await add('nope', { plate: 0, status: 'sent' })).status, 404, 'only a saved project');
+  assert.equal((await add('ten', { plate: 0, status: 'sent' }, other)).status, 404, "not someone else's");
+  assert.equal((await add('ten', { plate: 0, status: 'printed' })).status, 400, 'only the printer says printed');
+  assert.equal((await new Browser().json('/api/projects/ten/prints', 'POST', { plate: 0, status: 'sent' })).status, 401);
+
+  const summary = { objects: [{ name: 'Benchy', copies: 1, shape: 'a', place: 'b', settings: 'c', paint: 'd' }], plate: 'e', config: { layer_height: '1234abcd' } };
+  const sent = await (await add('ten', { plate: 0, status: 'sent', printer: 'u1', printerName: 'U1', file: 'ten_plate_1.gcode', fingerprint: 'F0', summary })).json();
+  assert.equal(sent.print.status, 'sent');
+  await add('ten', { plate: 1, status: 'uploaded', printer: 'u1', file: 'ten_plate_2.gcode', fingerprint: 'F1' });
+  await add('ten', { plate: 2, status: 'marked', fingerprint: 'F2' });
+  await add('ten', { plate: 3, status: 'marked', fingerprint: 'F3' });
+  await add('ten', { plate: 3, status: 'unmarked' });
+  const mine = await list('ten');
+  assert.deepEqual(mine.map((p) => [p.plate, p.status]), [[0, 'sent'], [1, 'uploaded'], [2, 'marked'], [3, 'marked'], [3, 'unmarked']]);
+  assert.deepEqual(mine[0].summary, summary, 'the summary comes back');
+  assert.deepEqual(await list('ten', other), [], "someone else sees none");
+
+  // Waiting for the printer, across projects; the printer's word moves them on.
+  const open = (await (await ivy.json('/api/prints/open')).json()).prints;
+  assert.deepEqual(open.map((p) => p.file), ['ten_plate_1.gcode', 'ten_plate_2.gcode']);
+  assert.equal(open[0].summary, null, 'no summaries in the open list');
+  const patch = (id, body, who = ivy) => who.json(`/api/prints/${id}`, 'PATCH', body);
+  assert.equal((await patch(sent.print.id, { status: 'printing' }, other)).status, 404);
+  assert.equal((await patch(sent.print.id, { status: 'marked' })).status, 400);
+  assert.equal((await (await patch(sent.print.id, { status: 'printing' })).json()).print.status, 'printing');
+  const done = (await (await patch(sent.print.id, { status: 'printed', duration: 7980, progress: 1 })).json()).print;
+  assert.equal(done.status, 'printed');
+  assert.equal(done.duration, 7980);
+  assert.ok(done.endedAt > 0);
+  // Another page saw it end too: an ended print stays as it ended.
+  assert.equal((await (await patch(sent.print.id, { status: 'failed' })).json()).print.status, 'printed');
+  // Keep as printed: the plate as it is now.
+  const kept = (await (await patch(sent.print.id, { fingerprint: 'F0b', summary: { ...summary, plate: 'f' } })).json()).print;
+  assert.equal(kept.fingerprint, 'F0b');
+  assert.equal(kept.status, 'printed');
+
+  // The Projects list counts plates with a printed mark (plate 0 printed, 2 marked, 3 unmarked).
+  const row = (await (await ivy.json('/api/projects')).json()).projects.find((p) => p.id === 'ten');
+  assert.equal(row.plates, 10);
+  assert.equal(row.printedPlates, 2);
+
+  // Plate 2 deleted: its rows go, plate 3's become plate 2's.
+  assert.equal((await ivy.json('/api/projects/ten/prints/plates', 'POST', { order: [0, 1, 3, 4, 5, 6, 7, 8, 9] })).status, 200);
+  assert.deepEqual((await list('ten')).map((p) => [p.plate, p.status]), [[0, 'printed'], [1, 'uploaded'], [2, 'marked'], [2, 'unmarked']]);
+  // Reordered: plate 1 and plate 2 swap.
+  await ivy.json('/api/projects/ten/prints/plates', 'POST', { order: [0, 2, 1, 3, 4, 5, 6, 7, 8] });
+  assert.deepEqual((await list('ten')).map((p) => [p.plate, p.status]).sort(), [[0, 'printed'], [1, 'marked'], [1, 'unmarked'], [2, 'uploaded']]);
+  assert.equal((await ivy.json('/api/projects/ten/prints/plates', 'POST', { order: [0, 0] })).status, 400);
+
+  // Save a copy: the copy has the finished history; the print still waiting stays the original's.
+  assert.equal((await save('copy', 9)).status, 200);
+  assert.equal((await ivy.json('/api/projects/copy/prints/copy', 'POST', { from: 'ten' })).status, 200);
+  assert.deepEqual((await list('copy')).map((p) => [p.plate, p.status]).sort(), [[0, 'printed'], [1, 'marked'], [1, 'unmarked']]);
+
+  // Only so many rows per plate: the oldest go.
+  for (let i = 0; i < 52; i++) await add('copy', { plate: 5, status: i % 2 ? 'marked' : 'unmarked' });
+  assert.equal((await list('copy')).filter((p) => p.plate === 5).length, 50);
+
+  // A newer send of the same file to the same printer, or a mark of the plate, ends what still waits: no word.
+  const status = async (id) => (await list('copy')).find((p) => p.id === id).status;
+  const up = (await (await add('copy', { plate: 6, status: 'uploaded', printer: 'u1', file: 'same.gcode' })).json()).print;
+  const resent = (await (await add('copy', { plate: 7, status: 'sent', printer: 'u1', file: 'same.gcode' })).json()).print;
+  assert.equal(await status(up.id), 'unknown');
+  assert.equal(await status(resent.id), 'sent');
+  await add('copy', { plate: 7, status: 'marked' });
+  assert.equal(await status(resent.id), 'unknown');
+  assert.equal((await patch(up.id, { status: 'printed' })).status, 200);
+  assert.equal(await status(up.id), 'unknown', 'no word stays no word');
+  assert.equal((await patch(up.id, { status: 'unknown' })).status, 400, 'only the server says no word');
+  // A week without word: no word.
+  const old = (await (await add('copy', { plate: 8, status: 'sent', printer: 'u1', file: 'old.gcode' })).json()).print;
+  const aged = spawnSync(wrangler, ['d1', 'execute', 'cloud-slicer', '--local', '--persist-to', state, '--command', `UPDATE project_prints SET at = ${Date.now() - 8 * 24 * 3600 * 1000} WHERE id = '${old.id}'`], { cwd: web, encoding: 'utf8' });
+  assert.equal(aged.status, 0, aged.stderr);
+  assert.equal((await (await ivy.json('/api/prints/open')).json()).prints.some((p) => p.id === old.id), false);
+  assert.equal(await status(old.id), 'unknown');
+
+  // Deleting the project deletes its history.
+  assert.equal((await ivy.json('/api/projects/ten', 'DELETE')).status, 200);
+  assert.deepEqual(await list('ten'), []);
+  assert.deepEqual((await (await ivy.json('/api/prints/open')).json()).prints, []);
+  assert.equal((await list('copy')).length, 57, 'the copy keeps its own');
 });
 
 test('admin: only the owner (OWNER_EMAILS) gets the Admin page', async () => {
@@ -1315,6 +1412,139 @@ if (withApp)
       assert.equal(await a.getByLabel('Layer height', { exact: true }).inputValue(), '0.2', 'A can edit again');
     } finally {
       await browser.close();
+    }
+  });
+
+if (withApp)
+  test('browser: print history marks plates printed, changed since, kept, marked by hand, and caught after Upload only', async () => {
+    const { startMockPrinter } = await import('./device/mock-printer.mjs');
+    const printer = await startMockPrinter({ printStep: 0.01 });
+    const browser = await chromium.launch(
+      process.env.PLAYWRIGHT_BROWSERS_PATH === '/opt/pw-browsers' ? { executablePath: '/opt/pw-browsers/chromium' } : {},
+    );
+    const shot = (page, name) => process.env.ACCOUNTS_SHOTS && page.screenshot({ path: join(process.env.ACCOUNTS_SHOTS, `${name}.png`) });
+    try {
+      const ivy = new Browser();
+      await signIn(ivy, 'ivy');
+      assert.equal((await ivy.json('/api/devices/u1-mock', 'PUT', { name: 'U1-mock', preset: 'Snapmaker U1 (0.4 nozzle)', url: printer.url, extra: { kind: 'direct' } })).status, 200);
+      const context = await browser.newContext({ viewport: { width: 1280, height: 860 } });
+      await context.addCookies([...ivy.jar.get(new URL(HOST).host)].map(([name, value]) => ({ name, value, url: HOST })));
+      const page = await context.newPage();
+      page.on('pageerror', (e) => console.error(`page error: ${e.message}`));
+      await page.addLocatorHandler(page.getByRole('dialog', { name: 'Set up your printers' }), (d) => d.getByRole('button', { name: 'Not now' }).click());
+      await page.goto(HOST);
+      await page.getByText('Open a model to start').waitFor({ timeout: 120000 });
+
+      // Two plates: Benchy on plate 1, a tetrahedron on plate 2; AutoSave keeps it online.
+      await page.getByTestId('model-input').setInputFiles(join(web, '../../fixtures/3DBenchy.stl'));
+      await page.getByRole('button', { name: 'Add model' }).waitFor({ timeout: 60000 });
+      await page.getByRole('toolbar', { name: 'Object tools' }).getByRole('button', { name: 'Add plate' }).click();
+      const tabs = page.getByRole('tablist', { name: 'Plates' });
+      await tabs.getByRole('tab', { name: /^2/ }).waitFor();
+      await tabs.getByRole('tab', { name: /^2/ }).click();
+      await page.getByTestId('model-input').setInputFiles(join(web, '../../fixtures/tetrahedron.stl'));
+      await tabs.getByRole('tab', { name: /^2.*· 1/ }).waitFor({ timeout: 60000 });
+      await waitFor(async () => (await (await ivy.json('/api/projects')).json()).projects.some((p) => p.draft), 'the draft is saved', 60000);
+      const projectId = (await (await ivy.json('/api/projects')).json()).projects.find((p) => p.draft).id;
+      const prints = async () => (await (await ivy.json(`/api/projects/${projectId}/prints`)).json()).prints;
+
+      // Plate 1: Upload and print. Blue while it prints, green when the printer says it finished.
+      await tabs.getByRole('tab', { name: /^1/ }).click();
+      await page.getByRole('button', { name: /^Slice plate/ }).click();
+      await page.getByTestId('slice-stats').waitFor({ timeout: 300000 });
+      await page.getByRole('button', { name: 'Send to printer' }).click();
+      await page.getByRole('dialog').getByTestId('upload-and-print').click();
+      await waitFor(async () => (await prints()).some((p) => p.plate === 0 && ['sent', 'printing', 'printed'].includes(p.status)), 'a record for plate 1', 30000);
+      // Sending opens the Device tab (it watches the print); back to Prepare for the plate tabs.
+      await page.getByRole('tab', { name: 'Device' }).waitFor();
+      await page.getByRole('tab', { name: 'Prepare' }).click();
+      await tabs.getByTestId('print-mark-sent').waitFor({ timeout: 30000 });
+      await page.waitForTimeout(1500); // the 3D view drawn again after the tab switch
+      await shot(page, 'print-history-printing');
+      await tabs.getByTestId('print-mark-printed').waitFor({ timeout: 60000 });
+      const first = (await prints()).find((p) => p.plate === 0);
+      assert.equal(first.status, 'printed');
+      assert.equal(first.printerName, 'U1-mock');
+      assert.ok(first.fingerprint && first.summary, 'kept what the plate printed');
+      const progress = page.getByTestId('print-progress');
+      await progress.filter({ hasText: 'Printed 1 of' }).waitFor();
+      await page.getByTestId('print-next').filter({ hasText: 'Next: plate 2' }).waitFor();
+      await shot(page, 'print-history-printed');
+
+      // A change to plate 1 shows amber, the window says what changed; Keep as printed makes it green again.
+      const layer = page.getByLabel('Layer height', { exact: true });
+      await layer.fill('0.28');
+      await layer.press('Enter');
+      await tabs.getByTestId('print-mark-changed').waitFor({ timeout: 30000 });
+      await tabs.getByTestId('print-mark-changed').click();
+      const history = page.getByTestId('print-history');
+      await history.getByTestId('print-changes').filter({ hasText: 'Layer height' }).waitFor();
+      await history.getByTestId('print-list').getByText('U1-mock').waitFor();
+      await shot(page, 'print-history-changed');
+      await history.getByTestId('print-keep').click();
+      await tabs.getByTestId('print-mark-printed').waitFor({ timeout: 30000 });
+      await history.getByRole('button', { name: 'Close', exact: true }).click();
+      // Back to how it was printed: still green (Keep made 0.28 the printed one, so 0.2 is a change).
+      await layer.fill('0.2');
+      await layer.press('Enter');
+      await tabs.getByTestId('print-mark-changed').waitFor({ timeout: 30000 });
+      await layer.fill('0.28');
+      await layer.press('Enter');
+      await tabs.getByTestId('print-mark-printed').waitFor({ timeout: 30000 });
+
+      // Plate 2 marked by hand from its history: 2 of 2, no Next.
+      await page.getByTestId('print-next').click();
+      await progress.click();
+      await history.getByTestId('print-mark').click();
+      await waitFor(async () => (await tabs.getByTestId('print-mark-printed').count()) === 2, 'both plates green');
+      await progress.filter({ hasText: 'Printed 2 of' }).waitFor();
+      assert.equal(await page.getByTestId('print-next').count(), 0);
+      await history.getByTestId('print-unmark').click();
+      await waitFor(async () => (await tabs.getByTestId('print-mark-printed').count()) === 1, 'plate 2 not printed again');
+      await history.getByRole('button', { name: 'Close', exact: true }).click();
+
+      // Plate 2: Upload only, then started on the Device tab's file list: caught as printed.
+      await page.getByRole('button', { name: /^Slice plate/ }).click();
+      await page.getByTestId('slice-stats').waitFor({ timeout: 300000 });
+      await page.getByRole('button', { name: 'Send to printer' }).click();
+      await page.getByRole('dialog').getByTestId('upload-only').click();
+      await page.getByRole('dialog').waitFor({ state: 'detached', timeout: 30000 });
+      await waitFor(async () => (await prints()).some((p) => p.plate === 1 && p.status === 'uploaded'), 'an uploaded record for plate 2');
+      assert.equal(printer.state.print_stats.state, 'complete', 'Upload only started a print');
+      const file = (await prints()).find((p) => p.plate === 1 && p.status === 'uploaded').file;
+      await page.getByRole('tab', { name: 'Device' }).click();
+      await page.getByTestId('files-card').locator('li', { hasText: file.replace(/^.*\//, '') }).getByRole('button', { name: 'Print…' }).click();
+      await page.getByRole('dialog').getByTestId('upload-and-print').click();
+      await waitFor(async () => (await prints()).some((p) => p.plate === 1 && p.status === 'printed'), 'the print started on the printer counts', 60000);
+      await page.getByRole('tab', { name: 'Prepare' }).click();
+      await progress.filter({ hasText: 'Printed 2 of' }).waitFor({ timeout: 30000 });
+      await shot(page, 'print-history-all-printed');
+
+      // Saved (no longer a draft), the projects list says how many plates were printed.
+      await page.keyboard.press('Control+s');
+      await page.getByRole('dialog', { name: 'Save project' }).getByRole('button', { name: 'Save' }).click();
+      await page.getByText(/Saved “.*” to your projects/).waitFor({ timeout: 60000 });
+      await progress.filter({ hasText: 'Printed 2 of' }).waitFor({ timeout: 30000 });
+      await page.getByRole('button', { name: /^Project/ }).click();
+      await page.getByRole('menuitem', { name: 'Online projects…' }).click();
+      const projects = page.getByRole('dialog', { name: 'Online projects' });
+      await projects.getByTestId('project-printed').filter({ hasText: '2/2 printed' }).waitFor({ timeout: 30000 });
+      await shot(page, 'print-history-projects');
+      await page.keyboard.press('Escape');
+      await projects.waitFor({ state: 'detached' });
+
+      // Phone width: the top bar and the window fit.
+      await page.setViewportSize({ width: 390, height: 844 });
+      await progress.waitFor();
+      await shot(page, 'print-history-phone');
+      await progress.click();
+      await history.waitFor();
+      await shot(page, 'print-history-phone-window');
+      const wide = await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth);
+      assert.equal(wide, false, 'the page scrolls sideways on a phone');
+    } finally {
+      await browser.close();
+      await printer.close?.();
     }
   });
 

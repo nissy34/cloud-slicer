@@ -208,6 +208,12 @@ export const useProjects = create<ProjectsState>((set, get) => {
     thumbnail?: boolean;
   }
 
+  // A copy just saved from project `from` starts with its print history (lib/prints.ts).
+  async function copyHistory(from: string | null) {
+    const to = get().current.id;
+    if (from && to && from !== to) await api.copyPrints(to, from).catch((e) => console.warn('Print history not copied:', e));
+  }
+
   // Saves online as `target`. baseVersion undefined overwrites what is there. True when saved.
   async function upload(target: CurrentProject, baseVersion: number | undefined, opts: UploadOptions = {}): Promise<boolean> {
     const auto = Boolean(opts.auto);
@@ -218,7 +224,11 @@ export const useProjects = create<ProjectsState>((set, get) => {
     try {
       const { file, png } = await buildFile();
       const id = target.id ?? newProjectId();
-      const saved = await api.saveProject(id, target.name, file, baseVersion, useSlicer.getState().flavor, { draft: target.draft, device: thisDevice() });
+      const saved = await api.saveProject(id, target.name, file, baseVersion, useSlicer.getState().flavor, {
+        draft: target.draft,
+        device: thisDevice(),
+        plates: useSlicer.getState().project?.plates.length,
+      });
       lastSave = Date.now();
       lastSize = file.size;
       // The project is saved even if its picture isn't.
@@ -371,7 +381,10 @@ export const useProjects = create<ProjectsState>((set, get) => {
           await upload(target, target.id ? get().current.version : 0, { thumbnail: true });
         } else {
           const from = get().current;
-          if (await upload({ name: freeName(clean, await takenNames(null)), id: null, version: 0, draft: false }, 0, { thumbnail: true })) await dropDraft(from);
+          if (await upload({ name: freeName(clean, await takenNames(null)), id: null, version: 0, draft: false }, 0, { thumbnail: true })) {
+            await copyHistory(from.id);
+            await dropDraft(from);
+          }
         }
       });
     },
@@ -386,7 +399,7 @@ export const useProjects = create<ProjectsState>((set, get) => {
         if (choice === 'overwrite') await upload(cur, undefined);
         if (choice === 'copy') {
           const taken = await api.projects().then((l) => l.projects.map((p) => p.name)).catch(() => [theirs?.name ?? cur.name]);
-          await upload({ name: copyName(cur.name, taken), id: null, version: 0, draft: false }, 0);
+          if (await upload({ name: copyName(cur.name, taken), id: null, version: 0, draft: false }, 0)) await copyHistory(cur.id);
         }
       });
     },
@@ -522,7 +535,8 @@ export const useProjects = create<ProjectsState>((set, get) => {
       const taken = await api.projects().then((l) => l.projects.map((p) => p.name)).catch(() => [cur.name]);
       set({ elsewhere: null });
       await queue(async () => {
-        if (!(await upload({ name: copyName(cur.name, taken), id: null, version: 0, draft: false }, 0, { thumbnail: true }))) set({ elsewhere: e });
+        if (await upload({ name: copyName(cur.name, taken), id: null, version: 0, draft: false }, 0, { thumbnail: true })) await copyHistory(cur.id);
+        else set({ elsewhere: e });
       });
     },
 

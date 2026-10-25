@@ -28,6 +28,7 @@ import type { ObjectAction } from '../lib/objectMenu';
 import type { VolumeAction } from '../lib/volumes';
 import type { PlateAction } from '../lib/plateMenu';
 import type { BooleanRequest } from '../lib/boolean';
+import type { PlateFingerprint } from '../lib/prints';
 import type { TextStyle } from '../lib/fonts';
 
 export type TextRequest = TextStyle & { fontPath: string } & ({ op: 'add'; type: 'part' | 'negative' | 'modifier'; camera?: [number, number, number] } | { op: 'update'; volume: number });
@@ -149,7 +150,7 @@ export interface EngineEvents {
 }
 
 /** Engine methods that only read: anything else changes what a slice would make. */
-const READS = new Set(['printers', 'filamentsFor', 'fullConfig', 'presetConfig', 'options', 'modelInfo', 'fileConfig', 'saveProject', 'preview', 'paintOverlay', 'mixedBlend', 'mixedMatch', 'measureFeature', 'measureBetween', 'wipeTower', 'clearance', 'exportStl', 'slice']);
+const READS = new Set(['printers', 'filamentsFor', 'fullConfig', 'presetConfig', 'options', 'modelInfo', 'fileConfig', 'saveProject', 'preview', 'paintOverlay', 'mixedBlend', 'mixedMatch', 'measureFeature', 'measureBetween', 'wipeTower', 'clearance', 'exportStl', 'slice', 'plateFingerprint']);
 
 /** Engine methods that change the presets, not the project. */
 const PRESET_CALLS = new Set(['select', 'userPresets', 'vendors', 'presetParse', 'mixed']);
@@ -329,6 +330,8 @@ export class EngineClient {
   /** The prime tower on `plate` with these settings; slicedDepth: the last slice's tower depth. */
   wipeTower = (plate: number, overrides: OrcaConfig, slicedDepth?: number) =>
     this.call<WipeTower>('wipeTower', [plate, overrides, slicedDepth ?? -1]);
+  /** What plate `plate` prints, as fingerprints (engine/src/fingerprint_api.cpp), for the print history. */
+  plateFingerprint = (plate: number) => this.call<PlateFingerprint>('plateFingerprint', [plate]);
   /** Printing object by object: the tool head's clearance round each object on `plate` with these settings. */
   clearance = (plate: number, overrides: OrcaConfig) => this.call<Clearance>('clearance', [plate, overrides]);
   clearPaint = (o: number, kind: PaintKind | 'all') => this.call<ProjectInfo>('clearPaint', [o, kind]);
