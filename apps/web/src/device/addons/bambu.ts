@@ -14,6 +14,7 @@
 import type { KlipperObjects } from '../status';
 import type { FilamentSlot, PrintOptions } from '../slot-types';
 import type { PrinterAddon, PrinterCall, PrintStart } from './types';
+import { bambuErrors } from './bambu-errors';
 
 /** The outside spool's tray id, in the printer's own numbering. */
 export const BAMBU_OUTSIDE_SPOOL = 254;
@@ -179,5 +180,7 @@ export const bambuAddon: PrinterAddon = {
     flowCalibrate: true,
     timeLapse: s(obj(obj(o.bambu).ipcam).timelapse) === 'enable',
   }),
+  // Its health messages and print errors in Bambu's words, from its own report.
+  objectErrors: bambuErrors,
   startPrint: (st) => (isProject(st.path) ? [bambuProjectStart(st)] : [{ method: 'printer.print.start', params: { filename: st.path }, timeoutMs: 60_000 }]),
 };

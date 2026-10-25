@@ -154,7 +154,7 @@ hosted on Cloudflare's free tier.
   (status, files, upload, print, pause, resume, cancel and its camera) and Bambu Lab printers
   (all of that plus Move and temperatures, with LAN Only mode and Developer Mode on; camera on
   P1 and A1; filament sync from the AMS, and the print dialog picks an AMS slot for each
-  filament), plus Snapmaker U1 extras (tool heads, filament sync, the U1 print
+  filament; its errors in Bambu's own words), plus Snapmaker U1 extras (tool heads, filament sync, the U1 print
   dialog, the U1's error codes in Snapmaker's own words). Printers on a home network are reached through a small bridge app.
 - **Light and dark theme**, a layout that works on phones (an open tool stacks the toolbar, its options and the model, with the settings hidden until Done), and installable as an app
   (PWA) on Android.
@@ -377,7 +377,11 @@ print command is the site's own (`addons/bambu.ts`, `device/slots.ts`,
 `apps/device-bridge/internal/fakebambu`; not yet tried on a real one). Nothing
 of Bambu's is used to sign commands. Printers of other brands that report no slots
 (Prusa XL and INDX, Klipper printers with a filament changer) print filament n from
-their slot n.
+their slot n. Its errors (the stopped print's error and its health messages, "HMS")
+show on the Print card and in alerts in Bambu's own words with the code Bambu's apps
+show; `apps/web/scripts/bambu-errors.mjs` rebuilds that list from the one OrcaSlicer
+ships (`resources/hms`, the newer printer families; most codes mean the same on every
+Bambu printer, and one it doesn't know shows its code and says to check the screen).
 The add-printer dialog's "Which
 printers work?" lists the printers the Device tab reaches. The cards can be arranged: **Arrange** at the top of the tab moves
 cards by their grip into 2 or 3 columns or across the top or bottom, hides them, makes
