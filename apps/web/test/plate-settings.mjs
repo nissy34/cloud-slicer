@@ -4,7 +4,7 @@
 // first layer filament order; the sidebar's Plate type says the plate uses its
 // own; the slice prints with them (the G-code's settings say so); "Project"
 // gives the settings back to the project. On a phone the window opens from the
-// gear on the shown plate's tab.
+// plate settings icon beside the plate.
 //
 //   node test/plate-settings.mjs [screenshot-dir]
 //
@@ -129,7 +129,8 @@ try {
   await phone.getByText('Ready to slice').waitFor({ timeout: 120000 });
   await phone.getByRole('button', { name: 'Add plate' }).click();
   await phone.getByRole('tab', { name: /^1/ }).click();
-  await phone.getByRole('button', { name: 'Plate 1 settings' }).click();
+  // Desktop's icon beside the plate.
+  await phone.getByRole('toolbar', { name: 'Plate 1 icons' }).getByRole('button', { name: 'Plate 1 settings' }).click();
   const phoneWin = phone.getByRole('dialog', { name: 'Plate 1 settings' });
   await phoneWin.waitFor({ timeout: 5000 });
   await phoneWin.getByRole('radiogroup', { name: 'Print sequence' }).getByRole('radio', { name: 'By object' }).click();
@@ -137,7 +138,7 @@ try {
   await phoneWin.getByRole('button', { name: 'Save' }).click();
   await phone.locator('.plate-tab.active .plate-own').waitFor({ timeout: 5000 });
   await shot(phone, 'plate-settings-phone-tabs');
-  console.log('phone: the gear opens the window, the tab shows the plate has its own settings');
+  console.log('phone: the plate icon opens the window, the tab shows the plate has its own settings');
 } catch (e) {
   fail(e.message);
   const text = await browser.contexts()[0]?.pages()[0]?.locator('body').innerText().catch(() => '');
