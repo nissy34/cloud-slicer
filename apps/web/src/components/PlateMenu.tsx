@@ -144,6 +144,7 @@ function MenuCard({ onAdd }: { onAdd(): void }) {
                 disabled: plates < 2,
                 title: plates < 2 ? 'The only plate stays' : 'Delete this plate and what is on it',
               })}
+              {item('Plate settings…', () => s.openPlateSettings(true), { title: "Settings this plate uses instead of the project's: plate type, print sequence, spiral vase, filament order" })}
               {item('Rename plate…', () => setRenaming(true), { title: 'Shown on the plate tabs and saved in the project' })}
               <hr />
             </>

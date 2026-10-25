@@ -179,6 +179,8 @@ export interface SlicerState {
   objectMenu: { object: number; instance: number; volume?: number; x: number; y: number; form?: 'clone' } | null;
   /** Desktop's menu on the plate (onPlate) or the empty space around it, open at (x, y) on the page. */
   plateMenu: { x: number; y: number; onPlate: boolean } | null;
+  /** Desktop's Plate settings window, open for the shown plate. */
+  plateSettings: boolean;
   /** Files waiting for the user to say how to open the 3MF among them. */
   pendingOpen: File[] | null;
   /** Rotate in 15° steps (and move/scale in steps) without holding Shift, for touch screens. */
@@ -369,6 +371,7 @@ export interface SlicerState {
   mirror(o: number, i: number, axis: 0 | 1 | 2): Promise<void>;
   openObjectMenu(menu: SlicerState['objectMenu']): void;
   openPlateMenu(menu: SlicerState['plateMenu']): void;
+  openPlateSettings(open: boolean): void;
   /** A plate menu action on the shown plate (engine/src/plate_api.cpp); a new object is picked. */
   plateAction(request: PlateAction, label: string): Promise<void>;
   /**
@@ -1232,6 +1235,7 @@ export const useSlicer = create<SlicerState>((set, get) => {
     tool: null,
     objectMenu: null,
     plateMenu: null,
+    plateSettings: false,
     pendingOpen: null,
     snap: false,
     uniformScale: true,
@@ -1872,6 +1876,7 @@ export const useSlicer = create<SlicerState>((set, get) => {
     mirror: (o, i, axis) => projectEdit('Mirror', () => engine().mirrorInstance(o, i, axis)),
     openObjectMenu: (objectMenu) => set(objectMenu ? { objectMenu, plateMenu: null } : { objectMenu }),
     openPlateMenu: (plateMenu) => set(plateMenu ? { plateMenu, objectMenu: null } : { plateMenu }),
+    openPlateSettings: (plateSettings) => set({ plateSettings, plateMenu: null }),
     plateAction: async (request, label) => {
       let object: number | undefined;
       let objects: number[] = [];
@@ -2285,6 +2290,8 @@ export const NO_COLOURS: string[] = [];
 
 /** Value of an option as it will be sliced: the user's override, else the preset's. */
 export const useOption = (key: string) => useSlicer((s) => s.overrides[key] ?? s.baseConfig[key]);
+/** An option as the shown plate slices with it: the plate's own setting (desktop's Plate settings) or the project's. */
+export const usePlateOption = (key: string) => useSlicer((s) => s.project?.plates[s.plate]?.settings?.[key] ?? s.overrides[key] ?? s.baseConfig[key]);
 
 /** What the selected printer does with more filaments than heads (lib/filament-limit.ts). */
 export function useFilamentLimit(): FilamentLimit {

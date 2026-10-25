@@ -14,6 +14,7 @@ import { layerTexture, type LayerProfile } from '../lib/layers';
 import { KIND_COLOURS, partAt, partRanges, volumeMeshes } from '../lib/volumes';
 import { onPlate } from '../lib/plateMenu';
 import { plateBounds } from '../lib/outside';
+import { hasPlateSettings } from '../lib/plate-settings';
 import { unprintableTriangles, UNPRINTABLE } from '../lib/printable';
 import { viewOnly } from '../state/projects';
 import { NO_COLOURS, useOption, useSlicer } from '../state/store';
@@ -1599,19 +1600,41 @@ function Objects({ w, d }: { w: number; d: number }) {
 }
 
 /** The plates to pick from, on Prepare and Preview alike (each plate keeps its own slice). */
+/** Desktop's plate settings icon (resources/images/plate_settings.svg): two sliders. */
+const PLATE_SETTINGS_ICON = (
+  <svg viewBox="4 4 35 35" width="16" height="16" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round">
+    <line x1="6.5" y1="12.5" x2="10.5" y2="12.5" />
+    <line x1="17.5" y1="12.5" x2="36.5" y2="12.5" />
+    <rect x="10.5" y="6.5" width="7" height="12" rx="2" />
+    <line x1="36.5" y1="30.5" x2="32.5" y2="30.5" />
+    <line x1="25.5" y1="30.5" x2="6.5" y2="30.5" />
+    <rect x="25.5" y="24.5" width="7" height="12" rx="2" />
+  </svg>
+);
+
 export function PlateTabs() {
   const project = useSlicer((s) => s.project);
   const plate = useSlicer((s) => s.plate);
   const setPlate = useSlicer((s) => s.setPlate);
   if (!project || project.plates.length < 2) return null;
+  const openSettings = useSlicer((s) => s.openPlateSettings);
+  // Desktop's plate icons: a gear on the shown plate opens its Plate settings; a dot marks plates with their own.
   return (
     <div className="plate-tabs" role="tablist" aria-label="Plates">
       {project.plates.map((p) => (
-        <button key={p.index} role="tab" aria-selected={p.index === plate} className={p.index === plate ? 'plate active' : 'plate'} onClick={() => void setPlate(p.index)}>
-          {p.index + 1}
-          {p.name ? ` ${p.name}` : ''}
-          <span className="muted"> · {p.objects.length}</span>
-        </button>
+        <span key={p.index} className={p.index === plate ? 'plate-tab active' : 'plate-tab'}>
+          <button role="tab" aria-selected={p.index === plate} className={p.index === plate ? 'plate active' : 'plate'} onClick={() => void setPlate(p.index)}>
+            {p.index + 1}
+            {p.name ? ` ${p.name}` : ''}
+            <span className="muted"> · {p.objects.length}</span>
+            {hasPlateSettings(p.settings) && <span className="plate-own" title="This plate has settings of its own" aria-label="has its own settings" />}
+          </button>
+          {p.index === plate && (
+            <button className="plate-gear" title="Plate settings" aria-label={`Plate ${p.index + 1} settings`} onClick={() => openSettings(true)}>
+              {PLATE_SETTINGS_ICON}
+            </button>
+          )}
+        </span>
       ))}
     </div>
   );

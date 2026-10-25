@@ -698,6 +698,48 @@ test('pauses and custom G-code saved in a 3MF go with their own plate', () => {
   assert.ok(!two.includes('MARK_PLATE_ONE'), 'plate 2 leaves out plate 1\'s');
 });
 
+test('plate settings: a plate slices with its own print sequence, kept in the 3MF, like desktop', () => {
+  // Desktop's Plate settings window keeps them in the plate's config and lays
+  // them over the project's before slicing that plate.
+  select({ printer: DEFAULT_PRINTER });
+  load('tetrahedron.stl');
+  call(engine, 'addPlate');
+  call(engine, 'addInstance', 0, 0, 0, 0);
+  call(engine, 'setInstanceTransform', 0, 1, JSON.stringify({ offset: [100, 100], plate: 1 }));
+  const settings = (s) => call(engine, 'plateAction', 1, JSON.stringify({ op: 'settings', name: 'Own', settings: s }));
+  settings({ print_sequence: 'by object', first_layer_print_sequence: '1' });
+  assert.deepEqual(info().plates[1].settings, { print_sequence: 'by object', first_layer_print_sequence: '1' });
+  assert.equal(info().plates[1].name, 'Own');
+  assert.deepEqual(info().plates[0].settings, {});
+  assert.throws(() => settings({ layer_height: '0.1' }), /not a plate setting/);
+
+  const sequence = (gcode) => /^; print_sequence = (.*)$/m.exec(gcode)?.[1];
+  assert.equal(sequence(slice(fullConfig(), 0).gcode), 'by layer', 'plate 1 keeps the project\'s');
+  assert.equal(sequence(slice(fullConfig(), 1).gcode), 'by object', 'plate 2 prints with its own');
+
+  // Saved and opened again, as desktop's 3MF keeps them per plate.
+  call(engine, 'saveProject', '/work/plate-settings.3mf', JSON.stringify(fullConfig()), null);
+  engine.clearModel();
+  const [bw, bd] = bedSize(fullConfig());
+  call(engine, 'loadModel', '/work/plate-settings.3mf', 0, bw, bd);
+  assert.equal(info().plates[1].settings.print_sequence, 'by object');
+  assert.equal(sequence(slice(fullConfig(), 1).gcode), 'by object', 'an opened project\'s plate settings are used too');
+
+  // Undo puts them back; null gives a setting back to the project.
+  call(engine, 'snapshot', 'Plate settings');
+  settings({ print_sequence: null, first_layer_print_sequence: null });
+  assert.deepEqual(info().plates[1].settings, {});
+  call(engine, 'undo');
+  assert.equal(info().plates[1].settings.print_sequence, 'by object');
+
+  // Spiral vase turned on for the plate sets what it needs on the plate's objects.
+  call(engine, 'plateAction', 1, JSON.stringify({ op: 'settings', name: 'Own', settings: { spiral_mode: '1' }, vase: ['top_shell_layers', 'sparse_infill_density'] }));
+  const own = info().objects[0].settings;
+  assert.equal(own.top_shell_layers, '0');
+  assert.equal(own.sparse_infill_density, '0%');
+  assert.equal(own.wall_loops, undefined, 'a setting the project already has is not copied onto the object');
+});
+
 test('lists the filaments that work with a printer, for the setup wizard', () => {
   const before = call(engine, 'presetsSelect', JSON.stringify({})).selection;
   const r = call(engine, 'presetsFilamentsFor', DEFAULT_PRINTER);

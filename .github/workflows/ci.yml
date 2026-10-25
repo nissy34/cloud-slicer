@@ -585,11 +585,12 @@ jobs:
           node test/sync-filaments.mjs
           node test/warnings.mjs
 
-      - name: Prime tower, plate menu, transform fields and layer slider items end to end (Chromium)
+      - name: Prime tower, plate menu, plate settings, transform fields and layer slider items end to end (Chromium)
         if: matrix.suite == 'wipetower'
         run: |
           node test/wipe-tower.mjs
           node test/plate-menu.mjs
+          node test/plate-settings.mjs
           node test/layer-codes.mjs
           node test/transform-fields.mjs
 

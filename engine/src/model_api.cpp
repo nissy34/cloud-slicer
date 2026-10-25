@@ -369,7 +369,8 @@ void clearModel() { g_project.clear(); }
 
 // Everything the page shows about the project:
 // {fileName, plates: [{index, name, objects: [objectIndex...], filaments: [1-based filaments the
-//   plate's parts print with, support left out], layerCodes: [see engine::layerCodesJson]}],
+//   plate's parts print with, support left out], layerCodes: [see engine::layerCodesJson],
+//   settings: {the plate's own settings, see engine::plateSettingsJson}}],
 //  objects: [{name, size, units ("", "inch" or "meter": converted from), volumes: [{name, kind, extruder, painted, text?}],
 //             instances: [{plate, offset, rotation, scale, printable}]}],
 //  file: {bambu, printer, filamentColours, filamentTypes, filamentPresets}}.
@@ -381,7 +382,7 @@ std::string modelInfoJson() {
         std::string name;
         if (size_t(p) < pr.plates.size() && pr.plates[p]) name = pr.plates[p]->plate_name;
         plates.push_back({{"index", p}, {"name", name}, {"objects", json::array()}, {"filaments", json::array()},
-                          {"layerCodes", layerCodesJson(p)}});
+                          {"layerCodes", layerCodesJson(p)}, {"settings", plateSettingsJson(p)}});
     }
     for (size_t o = 0; o < pr.model.objects.size(); ++o) {
         const ModelObject* obj = pr.model.objects[o];
