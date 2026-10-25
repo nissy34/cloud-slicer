@@ -25,6 +25,7 @@ import { layoutSetting } from '../device/layout';
 import { decodePairing, type Pairing } from '../device/pairing';
 import { PrinterSession, type ConnState, type ConsoleLine, type GcodeFile } from '../device/session';
 import type { KlipperObjects } from '../device/status';
+import type { PrintOrigin } from '../lib/prints';
 
 /** Shared by both kinds: `hiddenCameras` names the webcams the user chose not to show. */
 type PrinterCommon = { id: string; name: string; preset?: string; hiddenCameras?: string[] };
@@ -66,8 +67,22 @@ setBridgeTickets(async (relay, bridgeId) => {
   }
 });
 
-/** An upload's `gcode` is the G-code inside `blob` when that is a .gcode.3mf (read for the print dialog's details). */
-export type SendSource = { kind: 'upload'; blob: Blob; name: string; gcode?: Blob } | { kind: 'file'; path: string };
+/**
+ * An upload's `gcode` is the G-code inside `blob` when that is a .gcode.3mf (read for the print dialog's details).
+ * `origin`: the saved project's plate it was sliced from, for the print history (state/prints.ts).
+ */
+export type SendSource = { kind: 'upload'; blob: Blob; name: string; gcode?: Blob; origin?: PrintOrigin } | { kind: 'file'; path: string };
+
+/** A file on a printer, uploaded or started from the print dialog; the print history listens (state/prints.ts). */
+export interface SentFile {
+  source: SendSource;
+  /** Where it is on the printer. */
+  path: string;
+  printer: SavedPrinter;
+  started: boolean;
+}
+let onSent: (sent: SentFile) => void = () => {};
+export const onFileSent = (fn: typeof onSent) => void (onSent = fn);
 
 interface DeviceState {
   printers: SavedPrinter[];
@@ -119,7 +134,7 @@ interface DeviceState {
   call(label: string, fn: (s: PrinterSession) => Promise<unknown>): Promise<boolean>;
   refreshFiles(): Promise<void>;
   /** `slicedFor` is the printer profile the G-code was sliced with, if known. */
-  requestSend(blob: Blob, name: string, slicedFor?: string, gcode?: Blob): void;
+  requestSend(blob: Blob, name: string, slicedFor?: string, gcode?: Blob, origin?: PrintOrigin): void;
   openPrintDialog(source: SendSource | null): void;
   /**
    * `start`: how to start the print once the file is on the printer, from its
@@ -559,10 +574,10 @@ export const useDevice = create<DeviceState>((set, get) => {
       }
     }, FILE_LIST_GAP_MS),
 
-    requestSend(blob, name, slicedFor, gcode) {
+    requestSend(blob, name, slicedFor, gcode, origin) {
       const target = pickSendTarget(get().printers, get().activeId, load<string | null>(SEND_KEY, null), slicedFor);
       if (target && target !== get().activeId) get().select(target);
-      set({ send: { kind: 'upload', blob, name, gcode }, sendError: null });
+      set({ send: { kind: 'upload', blob, name, gcode, origin }, sendError: null });
     },
 
     openPrintDialog(source) {
@@ -611,6 +626,8 @@ export const useDevice = create<DeviceState>((set, get) => {
         } else {
           get().setToast(`Uploaded ${path}`);
         }
+        const printer = get().printers.find((p) => p.id === target);
+        if (printer) onSent({ source, path, printer, started: Boolean(start) });
         set({ send: null });
         void get().refreshFiles();
         return true;

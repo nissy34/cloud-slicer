@@ -5,8 +5,9 @@
 //                                                with); show the Device tab after calling it
 export { DeviceScreen } from './ui/DeviceScreen';
 import { useDevice } from '../state/device';
+import type { PrintOrigin } from '../lib/prints';
 
-/** `file` is the G-code, or a .gcode.3mf holding `gcode`. */
-export function sendToPrinter(file: Blob, fileName: string, slicedFor?: string, gcode?: Blob) {
-  useDevice.getState().requestSend(file, fileName, slicedFor, gcode);
+/** `file` is the G-code, or a .gcode.3mf holding `gcode`; `origin`: the saved project's plate, for the print history. */
+export function sendToPrinter(file: Blob, fileName: string, slicedFor?: string, gcode?: Blob, origin?: PrintOrigin) {
+  useDevice.getState().requestSend(file, fileName, slicedFor, gcode, origin);
 }

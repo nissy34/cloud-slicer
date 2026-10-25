@@ -308,6 +308,8 @@ if (self.name !== 'em-pthread') {
       const { config } = json(e.presetsFullConfig(JSON.stringify(overrides || {})));
       return json(e.wipeTowerJson(JSON.stringify(config), plate, slicedDepth ?? -1));
     },
+    // What a plate prints, as fingerprints, for the print history (engine/src/fingerprint_api.cpp).
+    plateFingerprint: (e, plate) => json(e.plateFingerprint(plate)),
     // Printing object by object: the tool head's clearance round each object
     // on `plate` and the slice's check of it (see clearanceJson in
     // engine/src/slice_api.cpp).

@@ -108,7 +108,7 @@ set(ENGINE_FLAVOR_SOURCES "")
 if(ENGINE_HAS_MIXING)
     list(APPEND ENGINE_FLAVOR_SOURCES src/mixed_api.cpp)
 endif()
-add_executable(orca-engine ${ENGINE_FLAVOR_SOURCES} src/presets_api.cpp src/model_api.cpp src/slice_api.cpp src/tools_api.cpp src/paint_api.cpp src/calib_api.cpp src/history_api.cpp src/measure_api.cpp src/layers_api.cpp src/brim_api.cpp src/simplify_api.cpp src/object_api.cpp src/volume_api.cpp src/wipe_tower_api.cpp src/boolean_api.cpp src/text_api.cpp src/svg_api.cpp src/surface_api.cpp src/plate_api.cpp src/flush_api.cpp src/memory.cpp)
+add_executable(orca-engine ${ENGINE_FLAVOR_SOURCES} src/presets_api.cpp src/model_api.cpp src/slice_api.cpp src/tools_api.cpp src/paint_api.cpp src/calib_api.cpp src/history_api.cpp src/measure_api.cpp src/layers_api.cpp src/brim_api.cpp src/simplify_api.cpp src/object_api.cpp src/volume_api.cpp src/wipe_tower_api.cpp src/boolean_api.cpp src/text_api.cpp src/svg_api.cpp src/surface_api.cpp src/plate_api.cpp src/flush_api.cpp src/fingerprint_api.cpp src/memory.cpp)
 # mimalloc.h, for the allocator settings in src/memory.cpp.
 target_include_directories(orca-engine PRIVATE "${EMSCRIPTEN_ROOT_PATH}/system/lib/mimalloc/include")
 target_link_libraries(orca-engine PRIVATE libslic3r embind)

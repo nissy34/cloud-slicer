@@ -211,6 +211,27 @@ nothing on purpose, so a deploy's page and engine never get out of step).
   one editing the project is refused (409 `elsewhere`) until it takes the project over.
   There is no polling: the check runs on save and when a tab is focused, so the free tier's
   request budget goes to real saves.
+- **Print history** (`lib/prints.ts` rules, `state/prints.ts`, `components/PrintHistory.tsx`,
+  D1 `project_prints`, `functions/_lib/prints.ts`): which plates of a saved project were
+  printed. Sending a plate from the Send window adds a record (`sent` for Upload and print,
+  `uploaded` for Upload only); the printer connected on the Device tab turns it into
+  `printing`, then `printed` / `failed` / `cancelled` by matching the file name (an end only
+  counts after it was seen printing, so an Upload only file started on the printer counts
+  too). Mark as printed / not printed are records too. Each record keeps the plate's
+  fingerprint: the engine's hashes of its objects (shape, placement, copies, own settings,
+  paint) and plate settings (`engine/src/fingerprint_api.cpp`, `plateFingerprint`) plus a
+  short hash per setting it slices with. A plate whose fingerprint differs now shows
+  "changed since" and the window names what changed; Keep as printed stores the plate as it
+  is now. Only settings both sides have are compared, so a newer engine's new settings
+  don't make every plate "changed". A send that ended while no page watched counts when
+  the job (Klipper's start-to-end time) fits in the time since the send. Records waiting
+  for the printer get "no word" (`unknown`) after a week, when the same file goes to the
+  same printer again, or when the plate is marked by hand. Mesh and paint hashes are kept
+  in the engine per mesh / paint timestamp, so fingerprinting after each edit is cheap.
+  Deleting a plate drops its records and renumbers later ones; Save a copy copies the
+  finished ones; deleting the project deletes them. Status only moves while a page is
+  open (it connects to the Device tab's printer when one of its prints waits). Unsaved and
+  signed-out projects have no history.
 
 ## Colour mixing
 

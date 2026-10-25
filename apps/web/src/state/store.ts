@@ -58,6 +58,7 @@ import { saveFile } from '../lib/preset-files';
 import { estimateLayers, slicePercent } from '../lib/slice-progress';
 import { MATRIX, MULTIPLIER, remapMatrix, type FlushInfo } from '../lib/flush';
 import { OBJECT_CLASHED, objectsOutside, plateBounds } from '../lib/outside';
+import { fingerprintOf, summarize, type PlateSummary } from '../lib/prints';
 
 /** 'admin' is the owner's Admin page, opened from the account menu (no tab of its own). */
 export type Tab = 'prepare' | 'preview' | 'device' | 'admin';
@@ -95,7 +96,17 @@ export type Job =
 
 /** outdated: the plate's layer items (pauses...) changed after this slice, so the G-code lacks them. */
 /** `gcode3mf`: the plate as a .gcode.3mf, made when the printer takes one (its use_3mf); downloaded and sent instead of the G-code. */
-export type SlicedJob = { kind: 'sliced'; plate: number; result: SliceResult; gcode: Blob; gcode3mf?: Blob; ms: number; outdated?: boolean };
+/** `printed`: what the plate printed, for the print history (lib/prints.ts), when it could be worked out. */
+export type SlicedJob = {
+  kind: 'sliced';
+  plate: number;
+  result: SliceResult;
+  gcode: Blob;
+  gcode3mf?: Blob;
+  ms: number;
+  outdated?: boolean;
+  printed?: { fingerprint: string; summary: PlateSummary };
+};
 
 export interface SlicerState {
   tab: Tab;
@@ -360,6 +371,10 @@ export interface SlicerState {
   /** Ctrl+V: the clipboard as a new object on the plate, picked. */
   paste(): Promise<void>;
   slice(): Promise<void>;
+  /** What plate `plate` prints now, for the print history (lib/prints.ts). */
+  plateFingerprint(plate: number): Promise<{ summary: PlateSummary; fingerprint: string }>;
+  /** Changes whenever the engine's project or the settings may have changed what a plate prints. */
+  printChangesKey(): string;
   /** Stops the running slice (desktop's Cancel next to the progress bar). */
   cancelSlice(): void;
   /** Arrange the shown plate, or `all` plates (desktop's A; Shift+A and a plate's icon do one). */
@@ -462,6 +477,10 @@ export interface SlicerState {
 }
 
 let client: EngineClient | null = null;
+
+/** Called after a plate is deleted (plate index, plates before), for the print history. */
+let plateDeleted: (plate: number, before: number) => void = () => {};
+export const onPlateDeleted = (fn: typeof plateDeleted) => void (plateDeleted = fn);
 /** Counts slices started and stopped; a slice whose number is no longer current is dropped. */
 let sliceRun = 0;
 /**
@@ -1914,11 +1933,15 @@ export const useSlicer = create<SlicerState>((set, get) => {
       const n = get().project?.plates.length ?? 1;
       await get().setPlate(n - 1);
     },
-    deletePlate: () =>
-      projectEdit('Delete plate', () => {
-        set({ selected: null, towers: dropPlateTower(get().towers, get().plate) });
-        return engine().deletePlate(get().plate);
-      }),
+    deletePlate: async () => {
+      const gone = get().plate;
+      const before = get().project?.plates.length ?? 1;
+      await projectEdit('Delete plate', () => {
+        set({ selected: null, towers: dropPlateTower(get().towers, gone) });
+        return engine().deletePlate(gone);
+      });
+      if ((get().project?.plates.length ?? 1) < before) plateDeleted(gone, before);
+    },
     orientObject: (o) => projectEdit('Auto orient', () => engine().orientObject(o)),
     splitObject: (o) =>
       busyWhile('Splitting into objects', () =>
@@ -2247,6 +2270,13 @@ export const useSlicer = create<SlicerState>((set, get) => {
       return engine().mixedMatch({ colours, types: types ?? [], target, minPercent });
     },
 
+    async plateFingerprint(plate) {
+      const fp = await engine().plateFingerprint(plate);
+      const summary = summarize(fp, { ...get().baseConfig, ...engineOverrides() }, plate);
+      return { summary, fingerprint: fingerprintOf(summary) };
+    },
+    printChangesKey: () => `${client?.changes ?? 0}`,
+
     async slice() {
       const { project, plate } = get();
       if (!project?.objects.length) return;
@@ -2295,8 +2325,12 @@ export const useSlicer = create<SlicerState>((set, get) => {
           if (run === sliceRun && job.kind === 'slicing') set({ job: { ...job, pct: slicePercent(job.pct, pct, stage, layers), stage } });
         });
         if (run !== sliceRun) return;
+        // What this slice prints, kept with it for the print history when it is sent.
+        const printed = await get().plateFingerprint(plate).catch((err) => void console.warn('Plate fingerprint:', err));
+        if (run !== sliceRun) return;
         triangleCounts = null;
         const sliced: SlicedJob = {
+          ...(printed && { printed }),
           kind: 'sliced',
           plate,
           result,

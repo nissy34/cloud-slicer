@@ -404,6 +404,11 @@ function ProjectsDialog() {
                   <div className="muted small">
                     {formatWhen(proj.updatedAt)} · {formatBytes(proj.size)} · {engineName(proj.engine ?? 'snapmaker')}
                   </div>
+                  {Boolean(proj.printedPlates) && (
+                    <div className="small print-count" data-testid="project-printed">
+                      {printedText(proj.printedPlates!, proj.plates ?? null)}
+                    </div>
+                  )}
                   {deleting === proj.id ? (
                     <div className="project-card-actions">
                       <span className="small">Delete?</span>
@@ -445,6 +450,12 @@ function ProjectsDialog() {
       )}
     </Dialog>
   );
+}
+
+/** "6/10 printed" for a project card (lib/prints.ts); the plate count is missing on projects saved before it was kept. */
+function printedText(printed: number, plates: number | null): string {
+  if (plates === 1) return '✓ Printed';
+  return plates ? `✓ ${Math.min(printed, plates)}/${plates} printed` : `✓ ${printed} ${printed === 1 ? 'plate' : 'plates'} printed`;
 }
 
 /** The top of Online projects: the draft, or the newest project changed on another device. */

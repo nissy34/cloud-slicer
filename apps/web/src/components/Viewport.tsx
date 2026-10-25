@@ -27,6 +27,8 @@ import { iconsReach, nameReach, PlateIcons } from './PlateIcons';
 import { MeasureOverlay } from './MeasureOverlay';
 import { CameraViews, ViewButtons, type ViewHandle } from './ViewControls';
 import { WipeTowerView } from './WipeTower';
+import { MarkIcon } from './PrintHistory';
+import { usePlateMarks, usePrints } from '../state/prints';
 
 // Printer coordinates are Z-up with the plate from (0,0) to (w,d).
 THREE.Object3D.DEFAULT_UP.set(0, 0, 1);
@@ -1621,6 +1623,7 @@ export function PlateTabs() {
   const project = useSlicer((s) => s.project);
   const plate = useSlicer((s) => s.plate);
   const setPlate = useSlicer((s) => s.setPlate);
+  const marks = usePlateMarks();
   const openSettings = useSlicer((s) => s.openPlateSettings);
   if (!project || project.plates.length < 2) return null;
   // Desktop's plate icons: a gear on the shown plate opens its Plate settings; a dot marks plates with their own.
@@ -1629,6 +1632,7 @@ export function PlateTabs() {
       {project.plates.map((p) => (
         <span key={p.index} className={p.index === plate ? 'plate-tab active' : 'plate-tab'}>
           <button role="tab" aria-selected={p.index === plate} className={p.index === plate ? 'plate active' : 'plate'} onClick={() => void setPlate(p.index)}>
+            <MarkIcon mark={marks[p.index]} onOpen={() => usePrints.getState().openHistory(p.index)} />
             {p.index + 1}
             {p.name ? ` ${p.name}` : ''}
             <span className="muted"> · {p.objects.length}</span>

@@ -1977,3 +1977,51 @@ test('a printer that takes a .gcode.3mf gets the plate in one, like desktop', (t
   assert.match(files['Metadata/slice_info.config'].toString(), /<plate>/);
   assert.ok(!slice(fullConfig()).result.gcode3mfPath, 'only when the printer asks for it');
 });
+
+test('plate fingerprints change with what the plate prints, for the print history', () => {
+  select({ printer: DEFAULT_PRINTER });
+  const m = load('3DBenchy.stl');
+  const fp = (p = 0) => call(engine, 'plateFingerprint', p);
+  const first = fp();
+  assert.equal(first.objects.length, 1);
+  assert.equal(first.objects[0].copies, 1);
+  for (const k of ['shape', 'place', 'settings', 'paint']) assert.match(first.objects[0][k], /^[0-9a-f]{16}$/);
+  assert.match(first.plate, /^[0-9a-f]{16}$/);
+  assert.deepEqual(fp(), first, 'the same project gives the same fingerprint');
+
+  // A plate added beside it changes nothing on plate 1.
+  call(engine, 'addPlate');
+  assert.deepEqual(fp(), first, 'another plate in the grid');
+  assert.deepEqual(fp(1).objects, [], 'the new plate is empty');
+
+  // Each edit changes only its own part.
+  const [x, y] = m.objects[0].instances[0].offset;
+  call(engine, 'setInstanceTransform', 0, 0, JSON.stringify({ offset: [x + 10, y] }));
+  const moved = fp();
+  assert.notEqual(moved.objects[0].place, first.objects[0].place, 'moving changes the place');
+  assert.equal(moved.objects[0].shape, first.objects[0].shape);
+  assert.equal(moved.objects[0].settings, first.objects[0].settings);
+  call(engine, 'setInstanceTransform', 0, 0, JSON.stringify({ offset: [x, y] }));
+  assert.deepEqual(fp(), first, 'moved back is the same again');
+
+  call(engine, 'setObjectSettings', 0, -1, JSON.stringify({ layer_height: '0.3' }));
+  const set = fp();
+  assert.notEqual(set.objects[0].settings, first.objects[0].settings, 'its own settings');
+  assert.equal(set.objects[0].place, first.objects[0].place);
+  call(engine, 'setObjectSettings', 0, -1, JSON.stringify({ layer_height: null }));
+  assert.deepEqual(fp(), first);
+
+  call(engine, 'paint', 0, JSON.stringify({ rays: [[x, y, 200, 0, 0, -1]], kind: 'color', state: 2, tool: 'sphere', radius: 10 }));
+  const painted = fp();
+  assert.notEqual(painted.objects[0].paint, first.objects[0].paint, 'paint');
+  assert.equal(painted.objects[0].shape, first.objects[0].shape);
+  call(engine, 'clearPaint', 0, 'all');
+
+  call(engine, 'plateAction', 0, JSON.stringify({ op: 'layerCodes', filaments: 1, codes: [{ z: 4.25, type: 'pause' }] }));
+  assert.notEqual(fp().plate, first.plate, 'a pause on the plate');
+  call(engine, 'plateAction', 0, JSON.stringify({ op: 'layerCodes', filaments: 1, codes: [] }));
+
+  call(engine, 'addInstance', 0, 0, 30, 0);
+  assert.equal(fp().objects[0].copies, 2, 'a second copy');
+  assert.throws(() => call(engine, 'plateFingerprint', 5), /no plate/);
+});
