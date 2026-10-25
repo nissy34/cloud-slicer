@@ -5,6 +5,7 @@ import (
 	"compress/gzip"
 	"encoding/binary"
 	"encoding/json"
+	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -230,5 +231,159 @@ func TestRefusedUploadSaysWhy(t *testing.T) {
 	_, err := s.uploadEnd(id)
 	if err == nil || err.Error() != "The printer refused the file: Forbidden (HTTP 403)." {
 		t.Fatalf("error %v", err)
+	}
+}
+
+// The direct link stalled after its last byte: the direct side and the relay both wait for the printer, and both hear it.
+func TestPrinterAnswerReachesBothWaiters(t *testing.T) {
+	m := newFakeMoonraker(t)
+	s := newSession("c1", Printer{ID: "p", Name: "fake", URL: m.URL}, func(string) {}, func(string) {})
+	defer s.close()
+	content := "G28\n"
+	id := startUpload(t, s, uploadParams{Path: "twice.gcode", Size: float64(len(content))})["uploadId"].(string)
+	if _, err := s.uploadPiece(id, 0, []byte(content)); err != nil {
+		t.Fatal(err)
+	}
+	up, err := s.getUpload(id)
+	if err != nil {
+		t.Fatal(err)
+	}
+	answers := make(chan any, 2)
+	for range 2 {
+		go func() {
+			res, err := up.finish()
+			if err != nil {
+				answers <- err
+				return
+			}
+			answers <- res.(map[string]any)["path"]
+		}()
+	}
+	for range 2 {
+		select {
+		case a := <-answers:
+			if a != "twice.gcode" {
+				t.Fatalf("answer %v", a)
+			}
+		case <-time.After(10 * time.Second):
+			t.Fatal("a waiter never heard the printer")
+		}
+	}
+}
+
+// The browser streams pieces without waiting for answers: they reach the printer in order.
+func TestStreamedPiecesArriveInOrder(t *testing.T) {
+	m := newFakeMoonraker(t)
+	sent := make(chan string, 1000)
+	s := newSession("c1", Printer{ID: "p", Name: "fake", URL: m.URL}, func(msg string) { sent <- msg }, func(string) {})
+	defer s.close()
+	content := strings.Repeat("G1 X5 Y5 E0.2\n", 20_000)
+	res := startUpload(t, s, uploadParams{Path: "s.gcode", Size: float64(len(content))})
+	if res["stream"] != true {
+		t.Fatal("the bridge does not say it takes streamed pieces")
+	}
+	id := res["uploadId"].(string)
+	b := &Bridge{sessions: map[string]*Session{"c1": s}}
+	const piece = 1000
+	n := 0
+	for off := 0; off < len(content); off += piece {
+		head, _ := json.Marshal(map[string]any{"jsonrpc": "2.0", "id": fmt.Sprintf("b%d", off), "method": "bridge.upload_piece", "params": map[string]any{"uploadId": id, "offset": off}})
+		msg := binary.BigEndian.AppendUint32(nil, uint32(len(head)))
+		msg = append(append(msg, head...), content[off:min(off+piece, len(content))]...)
+		b.handleBinary(append([]byte{2, 'c', '1'}, msg...))
+		n++
+	}
+	for range n {
+		select {
+		case reply := <-sent:
+			if strings.Contains(reply, `"error"`) {
+				t.Fatalf("reply %s", reply)
+			}
+		case <-time.After(5 * time.Second):
+			t.Fatal("a piece got no answer")
+		}
+	}
+	if _, err := s.uploadEnd(id); err != nil {
+		t.Fatal(err)
+	}
+	if m.file("s.gcode") != content {
+		t.Fatalf("printer got %d bytes, want %d", len(m.file("s.gcode")), len(content))
+	}
+}
+
+// A camera's direct link to this browser is already up: the file rides it on channel "upload:<id>".
+func TestUploadOverACamerasLink(t *testing.T) {
+	m := newFakeMoonraker(t)
+	s := newSession("c1", Printer{ID: "p", Name: "fake", URL: m.URL}, func(string) {}, func(string) {})
+	defer s.close()
+	content := strings.Repeat("G1 X3 Y3 E0.1\n", 30_000)
+	res := startUpload(t, s, uploadParams{Path: "cam.gcode", Size: float64(len(content))})
+	if res["camera"] != true {
+		t.Fatal("the bridge does not say it takes uploads over a camera's link")
+	}
+	id := res["uploadId"].(string)
+	// The browser and the bridge, linked as a camera's link is (with its "frames" channel).
+	browser, err := webrtc.NewPeerConnection(webrtc.Configuration{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = browser.Close() })
+	bridge, err := webrtc.NewPeerConnection(webrtc.Configuration{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = bridge.Close() })
+	bridge.OnDataChannel(func(dc *webrtc.DataChannel) {
+		if strings.HasPrefix(dc.Label(), "upload:") {
+			s.uploadOverCamera(dc)
+		}
+	})
+	if _, err := browser.CreateDataChannel("frames", nil); err != nil {
+		t.Fatal(err)
+	}
+	offer, _ := browser.CreateOffer(nil)
+	gathered := webrtc.GatheringCompletePromise(browser)
+	_ = browser.SetLocalDescription(offer)
+	<-gathered
+	_ = bridge.SetRemoteDescription(*browser.LocalDescription())
+	answerSDP, _ := bridge.CreateAnswer(nil)
+	gathered = webrtc.GatheringCompletePromise(bridge)
+	_ = bridge.SetLocalDescription(answerSDP)
+	<-gathered
+	if err := browser.SetRemoteDescription(*bridge.LocalDescription()); err != nil {
+		t.Fatal(err)
+	}
+	// Later, the upload opens its own channel on that link: nothing is negotiated again.
+	dc, err := browser.CreateDataChannel("upload:"+id, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	answer := make(chan string, 1)
+	dc.OnMessage(func(msg webrtc.DataChannelMessage) { answer <- string(msg.Data) })
+	opened := make(chan struct{})
+	dc.OnOpen(func() { close(opened) })
+	select {
+	case <-opened:
+	case <-time.After(10 * time.Second):
+		t.Fatal("the upload channel did not open on the camera's link")
+	}
+	for off := 0; off < len(content); off += 16 << 10 {
+		if err := dc.Send([]byte(content[off:min(off+16<<10, len(content))])); err != nil {
+			t.Fatal(err)
+		}
+	}
+	select {
+	case a := <-answer:
+		if !strings.Contains(a, `"path":"cam.gcode"`) {
+			t.Fatalf("answer %s", a)
+		}
+	case <-time.After(10 * time.Second):
+		t.Fatal("no answer on the camera's link")
+	}
+	if m.file("cam.gcode") != content {
+		t.Fatalf("printer got %d bytes, want %d", len(m.file("cam.gcode")), len(content))
+	}
+	if browser.ConnectionState() == webrtc.PeerConnectionStateClosed {
+		t.Fatal("the upload closed the camera's link")
 	}
 }

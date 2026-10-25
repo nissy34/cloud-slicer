@@ -4,8 +4,19 @@
 // The relay is a dumb pipe, so this speaks plain Moonraker JSON-RPC; upload
 // and camera frames become bridge.* calls the agent answers itself.
 import type { DirectCamera } from '../camera';
-import { LinkError, type BridgeStatus, type DirectAnswer, type LinkHandlers, type PageAnswer, type PageRequest, type PrinterLink, type RpcMessage } from './types';
-import { DirectUploadRefused, UPLOAD_CHUNK, UPLOAD_PIECE, encodePiece, gzipped, offerDirectUpload } from './upload';
+import { LinkError, type BridgeStatus, type DirectAnswer, type LinkHandlers, type PageAnswer, type PageRequest, type PrinterLink, type RpcMessage, type UploadStage } from './types';
+import {
+  DirectUploadRefused,
+  STREAM_PIECE,
+  STREAM_WINDOW,
+  UPLOAD_CHUNK,
+  UPLOAD_PIECE,
+  cameraDirectUpload,
+  encodePiece,
+  gzipped,
+  offerDirectUpload,
+  type DirectUpload,
+} from './upload';
 
 export interface BridgeTarget {
   relay: string;
@@ -195,25 +206,52 @@ export class BridgeLink implements PrinterLink {
     });
   }
 
-  async upload(blob: Blob, path: string, onProgress?: (f: number) => void, signal?: AbortSignal): Promise<string> {
+  /** Cameras' direct links to this bridge that are up: an upload rides one at once. */
+  private cameraLinks = new Set<RTCPeerConnection>();
+  /** Cameras showing pictures over the relay because this network blocks direct links. */
+  private blockedCameras = 0;
+
+  directLinked(pc: RTCPeerConnection) {
+    this.cameraLinks.add(pc);
+    return () => void this.cameraLinks.delete(pc);
+  }
+
+  directBlocked() {
+    this.blockedCameras++;
+    let undone = false;
+    return () => {
+      if (!undone) this.blockedCameras--;
+      undone = true;
+    };
+  }
+
+  async upload(blob: Blob, path: string, onProgress?: (f: number) => void, signal?: AbortSignal, onStage?: (stage: UploadStage) => void): Promise<string> {
     const cancelled = () => new LinkError('Upload cancelled.', 'network');
+    onStage?.('zipping');
     const zip = await gzipped(blob);
     const wire = zip ?? blob;
-    const direct = await offerDirectUpload();
+    const camera = [...this.cameraLinks].find((pc) => pc.connectionState === 'connected');
+    // A camera's link is up: ride it. A camera fell back to the relay: direct links are blocked here, don't wait on one.
+    const blocked = !camera && (this.blockedCameras > 0 || typeof RTCPeerConnection !== 'function');
+    onStage?.(blocked ? 'relay' : 'direct');
+    const own = camera || blocked ? null : await offerDirectUpload();
     if (signal?.aborted) {
-      direct?.close();
+      own?.close();
       throw cancelled();
     }
-    let start: { uploadId: string; sdp?: string };
+    let start: { uploadId: string; sdp?: string; stream?: boolean; camera?: boolean };
     try {
-      start = await this.call('bridge.upload_start', { path, size: blob.size, wire: wire.size, zipped: !!zip, sdp: direct?.sdp ?? '' }, 15_000);
+      start = await this.call('bridge.upload_start', { path, size: blob.size, wire: wire.size, zipped: !!zip, sdp: own?.sdp ?? '' }, 15_000);
     } catch (e) {
-      direct?.close();
+      own?.close();
       // A bridge from before zipped uploads.
       if (e instanceof LinkError && e.message.startsWith('Unknown bridge call')) return this.uploadAsIs(blob, path, onProgress, signal);
       throw e;
     }
     const { uploadId } = start;
+    // An older bridge doesn't take uploads over a camera's link.
+    const direct: DirectUpload | null = own && start.sdp ? own : camera && start.camera ? cameraDirectUpload(camera, uploadId) : null;
+    if (own && own !== direct) own.close();
     // Stopping: the bridge drops the upload, so Moonraker gets an incomplete file and keeps nothing.
     const stop = () => {
       direct?.close();
@@ -227,9 +265,9 @@ export class BridgeLink implements PrinterLink {
         throw cancelled();
       }
       const progress = (sent: number) => onProgress?.(Math.min(1, sent / Math.max(1, wire.size)));
-      if (direct && start.sdp) {
+      if (direct) {
         try {
-          return await direct.send(start.sdp, wire, progress);
+          return await direct.send(start.sdp ?? '', wire, progress);
         } catch (e) {
           if (signal?.aborted) throw cancelled();
           if (e instanceof DirectUploadRefused) throw new LinkError(e.message, 'bridge');
@@ -237,9 +275,11 @@ export class BridgeLink implements PrinterLink {
         } finally {
           direct.close();
         }
-      } else direct?.close();
+      }
+      onStage?.('relay');
       let { received } = await this.call<{ received: number }>('bridge.upload_resume', { uploadId });
       const binary = (await this.relayInfo()).binary === true;
+      if (binary && start.stream) received = await this.stream(uploadId, wire, received, progress, signal);
       const piece = binary ? UPLOAD_PIECE : UPLOAD_CHUNK;
       while (received < wire.size) {
         if (signal?.aborted) throw cancelled();
@@ -258,6 +298,43 @@ export class BridgeLink implements PrinterLink {
     } finally {
       signal?.removeEventListener('abort', stop);
     }
+  }
+
+  /**
+   * Streams the rest over the relay: pieces back to back, not waiting for each
+   * answer, with at most STREAM_WINDOW unanswered. The bridge writes them in
+   * the order they come; the bar follows what it says it has.
+   */
+  private async stream(uploadId: string, wire: Blob, from: number, progress: (n: number) => void, signal?: AbortSignal): Promise<number> {
+    let next = from;
+    let confirmed = from;
+    let failure: unknown = null;
+    const waiting = new Set<Promise<void>>();
+    while (next < wire.size && !failure) {
+      if (signal?.aborted) throw new LinkError('Upload cancelled.', 'network');
+      if (next - confirmed >= STREAM_WINDOW) {
+        await Promise.race(waiting);
+        continue;
+      }
+      const offset = next;
+      const bytes = new Uint8Array(await wire.slice(offset, offset + STREAM_PIECE).arrayBuffer());
+      next += bytes.length;
+      const answered: Promise<void> = this.call<{ received: number }>('bridge.upload_piece', { uploadId, offset }, 120_000, bytes)
+        .then(
+          (r) => {
+            confirmed = Math.max(confirmed, r.received);
+            progress(confirmed);
+          },
+          (e) => {
+            failure ??= e;
+          },
+        )
+        .finally(() => waiting.delete(answered));
+      waiting.add(answered);
+    }
+    await Promise.all(waiting);
+    if (failure) throw failure;
+    return confirmed;
   }
 
   /** The file as it is, in base64 chunks, one at a time: for a bridge from before zipped uploads. */
