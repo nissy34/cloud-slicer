@@ -238,8 +238,8 @@ relay's free tier.
 and starts with `bridge.upload_start`, which carries a WebRTC offer. When the
 direct link connects, the bytes go over data channel "upload" and never cross
 the relay; on the same network that runs at home-network speed. When it
-doesn't (a network that blocks direct links), the page asks
-`bridge.upload_resume` where to carry on and sends 8 MiB pieces over the relay
+doesn't, or opens but then carries nothing for 15 s (a VPN in the way, say), the page asks
+`bridge.upload_resume` where to carry on and sends 1 MiB pieces over the relay
 as binary messages (`bridge.upload_piece`), each waiting for the bridge's
 answer. Either way the bridge unzips as the bytes arrive and streams them into
 Moonraker, holding at most one piece in memory. A relay from before binary

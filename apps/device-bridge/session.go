@@ -23,7 +23,7 @@ const (
 	maxFrame = 700 * 1024
 	// A G-code file bigger than this is surely a mistake.
 	maxUpload = 4 << 30
-	// The largest upload piece the relay passes on as raw bytes (the browser sends 8 MiB).
+	// The largest upload piece the relay passes on as raw bytes (the browser sends 1 MiB; older pages 8 MiB).
 	relayPiece = 9 << 20
 	// Uploads a browser may have open at once.
 	maxUploads = 2

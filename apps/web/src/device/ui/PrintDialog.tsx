@@ -101,7 +101,16 @@ export function PrintDialog({ source }: { source: SendSource }) {
           )}
           {uploading && (
             <span className="dv-upload" aria-live="polite">
-              <progress max={1} value={upload.fraction} /> Uploading {Math.round(upload.fraction * 100)}%
+              {/* Zipping and opening the link come before the first byte leaves. */}
+              {upload.fraction > 0 ? (
+                <>
+                  <progress max={1} value={upload.fraction} /> Uploading {Math.round(upload.fraction * 100)}%
+                </>
+              ) : (
+                <>
+                  <progress max={1} /> Connecting…
+                </>
+              )}
             </span>
           )}
           {/* While the file goes up, Cancel stops it; once it's starting a print, it waits. */}

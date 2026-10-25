@@ -39,6 +39,11 @@ type upload struct {
 	direct *webrtc.PeerConnection
 	// cancel stops the request to Moonraker, even once every byte has arrived here.
 	cancel context.CancelFunc
+	// finished: the printer's answer, waited for once however many ask (the
+	// direct link and, when it stalled after the last byte, the relay).
+	finished sync.Once
+	result   any
+	err      error
 }
 
 type uploadResult struct {
@@ -289,6 +294,11 @@ func (s *Session) uploadEnd(id string) (any, error) {
 
 // finish waits for Moonraker once every byte has arrived.
 func (up *upload) finish() (any, error) {
+	up.finished.Do(func() { up.result, up.err = up.waitPrinter() })
+	return up.result, up.err
+}
+
+func (up *upload) waitPrinter() (any, error) {
 	up.mu.Lock()
 	short := up.received != up.wire
 	received, wire := up.received, up.wire

@@ -1,18 +1,22 @@
 // Faster uploads through the bridge. The G-code is zipped first (it shrinks 4
 // to 5 times), then goes over a direct WebRTC link to the bridge when one
 // connects (on the same network: home-network speed, nothing crosses the
-// relay), else over the relay in 8 MiB pieces of raw bytes, each waiting for
-// the bridge's "got it". An older relay that only passes text gets base64
+// relay), else over the relay in 1 MiB pieces of raw bytes, each waiting for
+// the bridge's "got it" (so the bar moves piece by piece). A direct link that
+// opens but then carries nothing (a VPN in the way, say) is given up after a
+// while too, and the relay carries on from what arrived. An older relay that only passes text gets base64
 // pieces of 512 KiB, as its 1 MiB limit wants; an older bridge gets the file
 // the old way (bridge.upload_begin).
 import { STUN, gathered } from '../webrtc';
 
-/** A piece over the relay, as raw bytes; Cloudflare allows 32 MiB per message, the relay takes 9 MiB. */
-export const UPLOAD_PIECE = 8 * 1024 * 1024;
+/** A piece over the relay, as raw bytes: small enough that the bar moves (the relay takes up to 9 MiB). */
+export const UPLOAD_PIECE = 1024 * 1024;
 /** A piece over a relay that only passes text: under its 1 MiB limit once base64-encoded. */
 export const UPLOAD_CHUNK = 512 * 1024;
 /** How long the direct link may take to open before the upload goes over the relay. */
 export const DIRECT_UPLOAD_TIMEOUT_MS = 10_000;
+/** How long the open direct link may carry nothing (no bytes leave, or no answer once all have) before the relay takes over. */
+export const DIRECT_STALL_MS = 15_000;
 /** A data channel message: small, as every browser and the bridge take it. */
 const DIRECT_PIECE = 16 * 1024;
 /** Bytes queued on the data channel before waiting for them to leave. */
@@ -104,19 +108,39 @@ export async function offerDirectUpload(): Promise<DirectUpload | null> {
         clearTimeout(timer);
       }
       dc.bufferedAmountLowThreshold = DIRECT_BUFFER / 2;
-      for (let offset = 0; offset < wire.size; ) {
-        const block = new Uint8Array(await wire.slice(offset, offset + UPLOAD_PIECE).arrayBuffer());
-        for (let i = 0; i < block.length; i += DIRECT_PIECE) {
-          if (dc.bufferedAmount > DIRECT_BUFFER) {
-            await Promise.race([new Promise<void>((ok) => (dc.onbufferedamountlow = () => ok())), done]);
-          }
-          if (dc.readyState !== 'open') return done;
-          dc.send(block.subarray(i, i + DIRECT_PIECE));
-          onProgress?.(offset + i - dc.bufferedAmount);
+      // What has left this browser: bytes handed to the channel less those still waiting in it.
+      let queued = 0;
+      let left = 0;
+      let moved = Date.now();
+      const tick = setInterval(() => {
+        const now = queued - dc.bufferedAmount;
+        if (now !== left) {
+          left = now;
+          moved = Date.now();
+          onProgress?.(left);
+        } else if (Date.now() - moved > DIRECT_STALL_MS) {
+          lost(new DirectUploadLost('The direct link to the bridge stalled.'));
         }
-        offset += block.length;
+      }, 250);
+      try {
+        for (let offset = 0; offset < wire.size; ) {
+          const block = new Uint8Array(await wire.slice(offset, offset + UPLOAD_PIECE).arrayBuffer());
+          for (let i = 0; i < block.length; i += DIRECT_PIECE) {
+            if (dc.bufferedAmount > DIRECT_BUFFER) {
+              await Promise.race([new Promise<void>((ok) => (dc.onbufferedamountlow = () => ok())), done]);
+            }
+            if (dc.readyState !== 'open') return done;
+            const piece = block.subarray(i, i + DIRECT_PIECE);
+            dc.send(piece);
+            queued += piece.length;
+          }
+          offset += block.length;
+        }
+        // The last bytes leave, the bridge hands the file to the printer, then answers.
+        await done;
+      } finally {
+        clearInterval(tick);
       }
-      // The last bytes leave, the bridge hands the file to the printer, then answers.
       const path = await done;
       onProgress?.(wire.size);
       close();

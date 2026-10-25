@@ -232,3 +232,40 @@ func TestRefusedUploadSaysWhy(t *testing.T) {
 		t.Fatalf("error %v", err)
 	}
 }
+
+// The direct link stalled after its last byte: the direct side and the relay both wait for the printer, and both hear it.
+func TestPrinterAnswerReachesBothWaiters(t *testing.T) {
+	m := newFakeMoonraker(t)
+	s := newSession("c1", Printer{ID: "p", Name: "fake", URL: m.URL}, func(string) {}, func(string) {})
+	defer s.close()
+	content := "G28\n"
+	id := startUpload(t, s, uploadParams{Path: "twice.gcode", Size: float64(len(content))})["uploadId"].(string)
+	if _, err := s.uploadPiece(id, 0, []byte(content)); err != nil {
+		t.Fatal(err)
+	}
+	up, err := s.getUpload(id)
+	if err != nil {
+		t.Fatal(err)
+	}
+	answers := make(chan any, 2)
+	for range 2 {
+		go func() {
+			res, err := up.finish()
+			if err != nil {
+				answers <- err
+				return
+			}
+			answers <- res.(map[string]any)["path"]
+		}()
+	}
+	for range 2 {
+		select {
+		case a := <-answers:
+			if a != "twice.gcode" {
+				t.Fatalf("answer %v", a)
+			}
+		case <-time.After(10 * time.Second):
+			t.Fatal("a waiter never heard the printer")
+		}
+	}
+}

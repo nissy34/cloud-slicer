@@ -4,7 +4,8 @@
 // The file is zipped on the way and must reach the printer byte for byte, both
 // over the direct link and, when the network blocks direct links, over the relay.
 // A refused file says why inside the Send window, and Cancel stops an upload
-// halfway with nothing left on the printer. Upload only: it never starts a print.
+// halfway with nothing left on the printer. The bar says "Connecting…" until the
+// first byte leaves, then moves as the bytes go. Upload only: it never starts a print.
 //
 //   npm run build && node test/device-upload.mjs [screenshot-dir]
 import { spawn } from 'node:child_process';
@@ -53,11 +54,11 @@ const until = async (what, fn, ms = 30_000) => {
   }
 };
 
-// About 3 MB of G-code, varied enough that zipping is realistic (not one repeated line).
-function gcode(seed) {
+// G-code (3 MB unless said), varied enough that zipping is realistic (not one repeated line).
+function gcode(seed, bytes = 3_000_000) {
   const lines = [`; upload test ${seed}`, 'G28'];
   let x = 0;
-  for (let size = 0, i = 0; size < 3_000_000; i++) {
+  for (let size = 0, i = 0; size < bytes; i++) {
     x = (x * 1103515245 + 12345 + i) % 2147483648;
     const line = `G1 X${(x % 27000) / 100} Y${((x >> 8) % 27000) / 100} E${((x >> 4) % 1000) / 1000}`;
     lines.push(line);
@@ -104,12 +105,26 @@ try {
     await page.getByTestId('connection').filter({ hasText: 'Connected' }).waitFor({ timeout: 30_000 });
 
     const name = `upload_${label}.gcode`;
-    const text = gcode(label);
+    // Over the relay, big enough to zip to several 1 MiB pieces.
+    const text = gcode(label, label === 'relay' ? 12_000_000 : 3_000_000);
+    // The bar's words as the file goes up: "Connecting…" first, then over the relay it moves piece by piece.
+    await page.evaluate(() => {
+      window.__bar = [];
+      new MutationObserver(() => {
+        const t = document.querySelector('.dv-upload')?.textContent?.trim();
+        if (t && window.__bar.at(-1) !== t) window.__bar.push(t);
+      }).observe(document.body, { subtree: true, childList: true, characterData: true });
+    });
     const started = Date.now();
     await page.getByTestId('device-gcode-input').setInputFiles({ name, mimeType: 'text/plain', buffer: Buffer.from(text) });
     await page.getByTestId('upload-only').click();
     await until(`${name} on the printer`, () => printer.files.has(name), 60_000);
     await page.getByRole('dialog').waitFor({ state: 'detached', timeout: 30_000 });
+    const bar = await page.evaluate(() => window.__bar);
+    console.log(`${label}: the bar said ${bar.join(' | ')}`);
+    if (bar[0] !== 'Connecting…') throw new Error(`${label}: the bar started with ${bar[0]}, not Connecting…`);
+    const between = bar.map((t) => Number(/Uploading (\d+)%/.exec(t)?.[1])).filter((n) => n > 0 && n < 90);
+    if (label === 'relay' && between.length < 2) throw new Error(`${label}: the bar didn't move during the upload: ${bar.join(' | ')}`);
     const got = printer.files.get(name).text;
     if (got !== text) throw new Error(`${label}: the printer got ${got.length} bytes that differ from the ${text.length} sent`);
     if (printer.state.print_stats.state !== 'standby') throw new Error('Upload only started a print');
