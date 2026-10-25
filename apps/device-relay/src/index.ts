@@ -27,6 +27,10 @@
 // relay.alerts over its socket; the relay tells the agent what to watch with
 // {ctl:'alerts', printers}, the agent answers {ctl:'alert', printer, event, ...},
 // and the relay sends Web Push to each browser that wants it.
+//
+// Print history (src/prints.ts): the agent says when a print starts or ends on
+// any of its printers ({ctl:'print', printer, file, state, tag, ...}); the relay
+// passes it to the bridge's account (POST /api/relay/print on the site).
 import { DurableObject } from 'cloudflare:workers';
 import { importJWK, jwtVerify, type JWK, type JWTPayload } from 'jose';
 import installCmd from '../../device-bridge/install.cmd';
@@ -54,6 +58,7 @@ import {
   type StoredSub,
 } from './alerts';
 import { alertText } from '../../web/src/device/alert-text';
+import { cleanPrint, MAX_PRINTS_PER_HOUR } from './prints';
 
 export interface Env extends PushEnv {
   BRIDGE: DurableObjectNamespace<Bridge>;
@@ -425,6 +430,10 @@ interface RevokeOrder {
   bridgeOff?: boolean;
 }
 
+interface AgentAttachment {
+  browserKey: string;
+}
+
 interface ClientAttachment {
   id: string;
   printer: string;
@@ -535,6 +544,8 @@ export class Bridge extends DurableObject<Env> {
       if (!(await this.ctx.storage.get<string>('clientHash'))) await this.ctx.storage.put('clientHash', await sha256(await browserKey(key)));
       for (const old of this.ctx.getWebSockets('agent')) old.close(4000, 'Another bridge agent connected with this id.');
       this.ctx.acceptWebSocket(ours, ['agent']);
+      // Proof of the bridge when passing its prints to the site (its account holds the same key).
+      ours.serializeAttachment({ browserKey: await browserKey(key) } satisfies AgentAttachment);
       // Back before the "bridge offline" alert went out.
       await this.ctx.storage.deleteAlarm();
       await this.ctx.storage.delete('offlineSent');
@@ -600,6 +611,7 @@ export class Bridge extends DurableObject<Env> {
         return;
       }
       if (msg.ctl === 'alert') return this.alert(msg as Record<string, unknown>);
+      if (msg.ctl === 'print') return this.print(ws, msg as Record<string, unknown>);
       if (!msg.c) return;
       const client = this.ctx.getWebSockets(`c:${msg.c}`)[0];
       if (!client) {
@@ -781,7 +793,7 @@ export class Bridge extends DurableObject<Env> {
   // ---- Print alerts ----
 
   /** Alerts and pictures sent this hour (kept in memory: a rough cap against a misbehaving bridge). */
-  private sent = { hour: 0, alerts: 0, pictures: 0 };
+  private sent = { hour: 0, alerts: 0, pictures: 0, prints: 0 };
 
   private async bridgeId(): Promise<string> {
     return (await this.ctx.storage.get<string>('bridgeId')) ?? 'bridge';
@@ -848,7 +860,7 @@ export class Bridge extends DurableObject<Env> {
     const printer = (await this.info()).printers.find((p) => p.id === String(msg.printer ?? ''));
     if (!alert || !printer) return;
     const hour = Math.floor(Date.now() / 3600_000);
-    if (this.sent.hour !== hour) this.sent = { hour, alerts: 0, pictures: 0 };
+    if (this.sent.hour !== hour) this.sent = { hour, alerts: 0, pictures: 0, prints: 0 };
     if (++this.sent.alerts > MAX_ALERTS_PER_HOUR) return;
     const subs = await this.subs();
     const bridgeId = await this.bridgeId();
@@ -878,6 +890,31 @@ export class Bridge extends DurableObject<Env> {
       changed = true;
     }
     if (changed) await this.sendAlertConfig();
+  }
+
+  /** {ctl:'print'} from the agent: a print started or ended; its account hears of it. */
+  private async print(ws: WebSocket, msg: Record<string, unknown>) {
+    const news = cleanPrint(msg);
+    const owner = await this.ctx.storage.get<string>('owner');
+    const proof = (ws.deserializeAttachment() as AgentAttachment | null)?.browserKey;
+    // Without accounts (a test or private relay) there's no one to tell.
+    if (!news || !owner || !proof || !this.env.SITE_ORIGIN) return;
+    const printer = (await this.info()).printers.find((p) => p.id === news.printer);
+    if (!printer) return;
+    const hour = Math.floor(Date.now() / 3600_000);
+    if (this.sent.hour !== hour) this.sent = { hour, alerts: 0, pictures: 0, prints: 0 };
+    if (++this.sent.prints > MAX_PRINTS_PER_HOUR) return;
+    const body = JSON.stringify({ relay: await this.ctx.storage.get<string>('origin'), bridgeId: await this.bridgeId(), browserKey: proof, owner, printerName: printer.name, ...news });
+    // Once more after a moment if the site couldn't take it; then the record waits for a browser, as before.
+    for (const wait of [0, 5000]) {
+      if (wait) await new Promise((r) => setTimeout(r, wait));
+      try {
+        const res = await fetch(`${siteOrigin(this.env)}/api/relay/print`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body });
+        if (res.ok || (res.status >= 400 && res.status < 500)) return;
+      } catch {
+        // tried again below
+      }
+    }
   }
 
   /** The bridge has been offline for a while: tell whoever asked, once. */

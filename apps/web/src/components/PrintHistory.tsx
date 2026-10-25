@@ -180,7 +180,7 @@ export function PrintHistoryDialog() {
         )}
         {mark.state === 'none' && !mine.length && (
           <p className="muted">
-            Sending this plate with Upload and print marks it. When the printer finishes, the mark says Printed. A plate changed after printing shows “changed since”.
+            Sending this plate with Upload and print marks it. When the printer finishes, the mark says Printed. A printer on a bridge counts it however the print was started, even from its own screen. A plate changed after printing shows “changed since”.
           </p>
         )}
         {mine.length > 0 && (

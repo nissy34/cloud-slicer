@@ -954,3 +954,8 @@ func probeOctoHost(ctx context.Context, client *http.Client, h string) (found, b
 	}
 	return found{}, false
 }
+
+// head is the start of a G-code file (print history reads its tag), from OctoPrint's download address.
+func (o *octoPrint) head(ctx context.Context, path string, n int) ([]byte, error) {
+	return rangeGet(ctx, o.client, o.base+"/downloads/files/local/"+escapePath(path), o.key, n)
+}

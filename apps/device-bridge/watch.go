@@ -1,9 +1,10 @@
 package main
 
-// The bridge's own quiet watch on a printer, for print alerts: one Moonraker
-// websocket per printer someone wants alerts from, kept open whether or not a
-// browser is connected. It stays on the home network; only the alerts
-// themselves (a few small messages per print) go to the relay.
+// The bridge's own quiet watch on a printer, for print alerts and print
+// history: one Moonraker websocket per printer it serves, kept open whether or
+// not a browser is connected. It stays on the home network; only the alerts
+// someone asked for and a word when a print starts or ends (printjob.go), a few
+// small messages per print, go to the relay.
 
 import (
 	"context"
@@ -91,30 +92,71 @@ func snapshotFrom(objects map[string]any, estimate *float64) printSnapshot {
 	return s
 }
 
-// printerWatch keeps one printer watched while the relay asks for it.
+// printerWatch keeps one printer watched while the bridge serves it.
 type printerWatch struct {
 	printer Printer
-	send    func(map[string]any)
-	log     func(string)
+	// origin: the printer as set up (printer is its stand-in, for brands that aren't Moonraker).
+	origin Printer
+	send   func(map[string]any)
+	log    func(string)
 
 	ctx    context.Context
 	cancel context.CancelFunc
 
 	mu    sync.Mutex
 	watch alertWatch
+	// dropConn closes the current connection to the printer (the loop connects again).
+	dropConn func()
+
+	// Prints started and ended, told in order (reading a file's tag takes a moment).
+	jobs chan jobEvent
 }
 
-func newPrinterWatch(p Printer, w alertWatch, send func(map[string]any), log func(string)) *printerWatch {
+// jobEvent is a print that started ("printing") or ended, as the printer said it.
+type jobEvent struct {
+	state, file               string
+	duration, total, progress float64
+	late                      bool
+}
+
+func newPrinterWatch(p, origin Printer, w alertWatch, send func(map[string]any), log func(string)) *printerWatch {
 	ctx, cancel := context.WithCancel(context.Background())
-	pw := &printerWatch{printer: p, watch: w, send: send, log: log, ctx: ctx, cancel: cancel}
+	pw := &printerWatch{printer: p, origin: origin, watch: w, send: send, log: log, ctx: ctx, cancel: cancel, jobs: make(chan jobEvent, 16)}
 	go pw.loop()
+	go pw.tellJobs()
 	return pw
+}
+
+// tellJobs sends each print start and end with the file's cloud_slicer_print line.
+func (pw *printerWatch) tellJobs() {
+	tagFile, tag := "", ""
+	for {
+		select {
+		case <-pw.ctx.Done():
+			return
+		case j := <-pw.jobs:
+			// Read again at each start: a file sent again under the same name is another print.
+			if j.state == "printing" || tagFile != j.file {
+				tagFile, tag = j.file, ""
+				if head, err := fileHead(pw.ctx, pw.origin, j.file); err == nil {
+					tag = printTagIn(head)
+				}
+			}
+			pw.send(map[string]any{"ctl": "print", "printer": pw.printer.ID, "file": j.file, "state": j.state, "duration": j.duration, "total": j.total, "progress": j.progress, "late": j.late, "tag": tag})
+		}
+	}
 }
 
 func (pw *printerWatch) setWatch(w alertWatch) {
 	pw.mu.Lock()
+	was := pw.watch
 	pw.watch = w
+	drop := pw.dropConn
 	pw.mu.Unlock()
+	// A stand-in asks the printer less often while no alerts are wanted: tell it, by connecting again.
+	if pw.origin.Kind != "" && (len(was.Events) == 0) != (len(w.Events) == 0) && drop != nil {
+		drop()
+	}
 }
 
 func (pw *printerWatch) current() alertWatch {
@@ -193,6 +235,9 @@ func (pw *printerWatch) once() {
 			return
 		}
 		wsURL += "?token=" + url.QueryEscape(token)
+	} else if pw.origin.Kind != "" && len(pw.current().Events) == 0 {
+		// Only for print history: a stand-in may ask its printer less often (translate.go quietEvery).
+		wsURL += "?quiet=1"
 	}
 	ctx, cancel := context.WithTimeout(pw.ctx, 10*time.Second)
 	ws, _, err := websocket.Dial(ctx, wsURL, nil)
@@ -201,6 +246,15 @@ func (pw *printerWatch) once() {
 		return
 	}
 	defer ws.CloseNow()
+	connCtx, drop := context.WithCancel(pw.ctx)
+	defer drop()
+	pw.mu.Lock()
+	pw.dropConn = drop
+	pw.mu.Unlock()
+	go func() {
+		<-connCtx.Done()
+		ws.CloseNow()
+	}()
 	ws.SetReadLimit(16 << 20)
 	conn := &moonrakerConn{ws: ws, pending: map[int]chan rpcAnswer{}}
 	// Roomy, so a slow call (file metadata, a camera picture) never holds up its own answer.
@@ -236,6 +290,7 @@ func (pw *printerWatch) once() {
 	}()
 
 	watcher := &alertWatcher{}
+	jobs := &jobWatcher{}
 	objects := map[string]any{}
 	var facts fileFacts
 	factsFor := ""
@@ -287,9 +342,13 @@ func (pw *printerWatch) once() {
 		}
 		_ = json.Unmarshal(res, &r)
 		objects = r.Status
+		if objects == nil {
+			objects = map[string]any{}
+		}
 		exceptions = nil
 		queryExceptions()
 		watcher.reset()
+		jobs.reset()
 		return true
 	}
 	var last time.Time
@@ -311,8 +370,16 @@ func (pw *printerWatch) once() {
 				}
 			}
 		}
+		snap := snapshotFrom(objects, facts.Estimate)
+		if ev := jobs.update(snap.State, file); ev != "" {
+			total, _ := num(obj(objects, "print_stats")["total_duration"])
+			select {
+			case pw.jobs <- jobEvent{state: ev, file: jobs.file, duration: snap.Duration, total: total, progress: snap.Progress, late: jobs.late}:
+			default:
+			}
+		}
 		w := pw.current()
-		for _, a := range watcher.update(snapshotFrom(objects, facts.Estimate), w, last) {
+		for _, a := range watcher.update(snap, w, last) {
 			if !w.wants(a.Event) {
 				continue
 			}
