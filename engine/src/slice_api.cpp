@@ -4,6 +4,7 @@
 #include "engine.hpp"
 
 #include "libslic3r/BuildVolume.hpp"
+#include "libslic3r/ClipperUtils.hpp"
 #include "libslic3r/Format/bbs_3mf.hpp"
 #include "libslic3r/GCode/GCodeProcessor.hpp"
 #include "libslic3r/GCode/ThumbnailData.hpp"
