@@ -40,6 +40,8 @@ const users = {
   dave: { sub: 'g-dave', name: 'Dave', email: 'Dave@Example.com', email_verified: true },
   gina: { sub: 'g-gina', name: 'Gina', email: 'gina@example.com', email_verified: true },
   hank: { sub: 'g-hank', name: 'Hank', email: 'hank@example.com', email_verified: true },
+  ivy: { sub: 'g-ivy', name: 'Ivy', email: 'ivy@example.com', email_verified: true },
+  june: { sub: 'g-june', name: 'June', email: 'june@example.com', email_verified: true },
 };
 let nextUser = 'alice';
 const codes = new Map(); // code -> { user, challenge }
@@ -500,6 +502,83 @@ test('projects: a draft per device, the device editing a project, taking it over
   assert.equal((await phone.json('/api/projects/nope/device', 'POST', phoneDevice)).status, 404);
 
   assert.equal((await alice.json('/api/projects/d2', 'DELETE')).status, 200);
+});
+
+test('print history: sends and marks per plate, the printer\'s word, plates deleted, copies, gone with the project', async () => {
+  const ivy = new Browser();
+  await signIn(ivy, 'ivy');
+  const other = new Browser();
+  await signIn(other, 'june');
+  const file = new Blob([Buffer.from('PK\x03\x04 plates')]);
+  const save = (id, plates) =>
+    ivy.fetch(`${HOST}/api/projects/${id}?${new URLSearchParams({ name: id, plates: String(plates) })}`, { method: 'PUT', headers: { Origin: HOST, 'Content-Type': 'model/3mf' }, body: file });
+  assert.equal((await save('ten', 10)).status, 200);
+  const add = (id, body, who = ivy) => who.json(`/api/projects/${id}/prints`, 'POST', body);
+  const list = async (id, who = ivy) => (await (await who.json(`/api/projects/${id}/prints`)).json()).prints;
+
+  assert.equal((await add('nope', { plate: 0, status: 'sent' })).status, 404, 'only a saved project');
+  assert.equal((await add('ten', { plate: 0, status: 'sent' }, other)).status, 404, "not someone else's");
+  assert.equal((await add('ten', { plate: 0, status: 'printed' })).status, 400, 'only the printer says printed');
+  assert.equal((await new Browser().json('/api/projects/ten/prints', 'POST', { plate: 0, status: 'sent' })).status, 401);
+
+  const summary = { objects: [{ name: 'Benchy', copies: 1, shape: 'a', place: 'b', settings: 'c', paint: 'd' }], plate: 'e', config: { layer_height: '1234abcd' } };
+  const sent = await (await add('ten', { plate: 0, status: 'sent', printer: 'u1', printerName: 'U1', file: 'ten_plate_1.gcode', fingerprint: 'F0', summary })).json();
+  assert.equal(sent.print.status, 'sent');
+  await add('ten', { plate: 1, status: 'uploaded', printer: 'u1', file: 'ten_plate_2.gcode', fingerprint: 'F1' });
+  await add('ten', { plate: 2, status: 'marked', fingerprint: 'F2' });
+  await add('ten', { plate: 3, status: 'marked', fingerprint: 'F3' });
+  await add('ten', { plate: 3, status: 'unmarked' });
+  const mine = await list('ten');
+  assert.deepEqual(mine.map((p) => [p.plate, p.status]), [[0, 'sent'], [1, 'uploaded'], [2, 'marked'], [3, 'marked'], [3, 'unmarked']]);
+  assert.deepEqual(mine[0].summary, summary, 'the summary comes back');
+  assert.deepEqual(await list('ten', other), [], "someone else sees none");
+
+  // Waiting for the printer, across projects; the printer's word moves them on.
+  const open = (await (await ivy.json('/api/prints/open')).json()).prints;
+  assert.deepEqual(open.map((p) => p.file), ['ten_plate_1.gcode', 'ten_plate_2.gcode']);
+  assert.equal(open[0].summary, null, 'no summaries in the open list');
+  const patch = (id, body, who = ivy) => who.json(`/api/prints/${id}`, 'PATCH', body);
+  assert.equal((await patch(sent.print.id, { status: 'printing' }, other)).status, 404);
+  assert.equal((await patch(sent.print.id, { status: 'marked' })).status, 400);
+  assert.equal((await (await patch(sent.print.id, { status: 'printing' })).json()).print.status, 'printing');
+  const done = (await (await patch(sent.print.id, { status: 'printed', duration: 7980, progress: 1 })).json()).print;
+  assert.equal(done.status, 'printed');
+  assert.equal(done.duration, 7980);
+  assert.ok(done.endedAt > 0);
+  // Another page saw it end too: an ended print stays as it ended.
+  assert.equal((await (await patch(sent.print.id, { status: 'failed' })).json()).print.status, 'printed');
+  // Keep as printed: the plate as it is now.
+  const kept = (await (await patch(sent.print.id, { fingerprint: 'F0b', summary: { ...summary, plate: 'f' } })).json()).print;
+  assert.equal(kept.fingerprint, 'F0b');
+  assert.equal(kept.status, 'printed');
+
+  // The Projects list counts plates with a printed mark (plate 0 printed, 2 marked, 3 unmarked).
+  const row = (await (await ivy.json('/api/projects')).json()).projects.find((p) => p.id === 'ten');
+  assert.equal(row.plates, 10);
+  assert.equal(row.printedPlates, 2);
+
+  // Plate 2 deleted: its rows go, plate 3's become plate 2's.
+  assert.equal((await ivy.json('/api/projects/ten/prints/plates', 'POST', { order: [0, 1, 3, 4, 5, 6, 7, 8, 9] })).status, 200);
+  assert.deepEqual((await list('ten')).map((p) => [p.plate, p.status]), [[0, 'printed'], [1, 'uploaded'], [2, 'marked'], [2, 'unmarked']]);
+  // Reordered: plate 1 and plate 2 swap.
+  await ivy.json('/api/projects/ten/prints/plates', 'POST', { order: [0, 2, 1, 3, 4, 5, 6, 7, 8] });
+  assert.deepEqual((await list('ten')).map((p) => [p.plate, p.status]).sort(), [[0, 'printed'], [1, 'marked'], [1, 'unmarked'], [2, 'uploaded']]);
+  assert.equal((await ivy.json('/api/projects/ten/prints/plates', 'POST', { order: [0, 0] })).status, 400);
+
+  // Save a copy: the copy has the finished history; the print still waiting stays the original's.
+  assert.equal((await save('copy', 9)).status, 200);
+  assert.equal((await ivy.json('/api/projects/copy/prints/copy', 'POST', { from: 'ten' })).status, 200);
+  assert.deepEqual((await list('copy')).map((p) => [p.plate, p.status]).sort(), [[0, 'printed'], [1, 'marked'], [1, 'unmarked']]);
+
+  // Only so many rows per plate: the oldest go.
+  for (let i = 0; i < 52; i++) await add('copy', { plate: 5, status: i % 2 ? 'marked' : 'unmarked' });
+  assert.equal((await list('copy')).filter((p) => p.plate === 5).length, 50);
+
+  // Deleting the project deletes its history.
+  assert.equal((await ivy.json('/api/projects/ten', 'DELETE')).status, 200);
+  assert.deepEqual(await list('ten'), []);
+  assert.deepEqual((await (await ivy.json('/api/prints/open')).json()).prints, []);
+  assert.equal((await list('copy')).length, 53, 'the copy keeps its own');
 });
 
 test('admin: only the owner (OWNER_EMAILS) gets the Admin page', async () => {

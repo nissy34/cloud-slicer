@@ -2,8 +2,10 @@ import { Fragment, useEffect, useLayoutEffect, useRef, useState, type ReactNode 
 import { menuPosition } from '../lib/objectMenu';
 import { HANDY_MODELS } from '../lib/plateMenu';
 import { SHAPES } from '../lib/volumes';
+import { usePlateMarks, usePrints } from '../state/prints';
 import { useProjects } from '../state/projects';
 import { useSlicer } from '../state/store';
+import { NO_HISTORY, useHistoryAvailable } from './PrintHistory';
 import { startSvg } from './SvgPanel';
 import { startText } from './TextPanel';
 
@@ -29,6 +31,9 @@ function MenuCard({ onAdd }: { onAdd(): void }) {
   const plates = project?.plates.length ?? 1;
   const name = project?.plates[plate]?.name ?? '';
   const empty = !project?.plates[plate]?.objects.length;
+  const history = useHistoryAvailable();
+  const mark = usePlateMarks()[plate];
+  const printedNow = history && (mark?.state === 'printed' || mark?.state === 'changed');
   const card = useRef<HTMLDivElement>(null);
   const [sub, setSub] = useState<Sub>(null);
   const [renaming, setRenaming] = useState(false);
@@ -145,6 +150,16 @@ function MenuCard({ onAdd }: { onAdd(): void }) {
                 title: plates < 2 ? 'The only plate stays' : 'Delete this plate and what is on it',
               })}
               {item('Rename plate…', () => setRenaming(true), { title: 'Shown on the plate tabs and saved in the project' })}
+              {printedNow
+                ? item('Mark as not printed', run(() => usePrints.getState().unmark(plate)), { title: 'This plate still has to be printed' })
+                : item('Mark as printed', run(() => usePrints.getState().mark(plate)), {
+                    disabled: !history || empty,
+                    title: !history ? NO_HISTORY : (needsModel ?? 'Printed another way, like from an SD card'),
+                  })}
+              {item('Print history…', run(() => usePrints.getState().openHistory(plate)), {
+                disabled: !history,
+                title: history ? 'When this plate was sent and printed' : NO_HISTORY,
+              })}
               <hr />
             </>
           )}

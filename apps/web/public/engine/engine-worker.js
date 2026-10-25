@@ -308,6 +308,8 @@ if (self.name !== 'em-pthread') {
       const { config } = json(e.presetsFullConfig(JSON.stringify(overrides || {})));
       return json(e.wipeTowerJson(JSON.stringify(config), plate, slicedDepth ?? -1));
     },
+    // What a plate prints, as fingerprints, for the print history (engine/src/fingerprint_api.cpp).
+    plateFingerprint: (e, plate) => json(e.plateFingerprint(plate)),
     clearPaint: (e, o, kind) => (json(e.clearPaint(o, kind)), JSON.parse(e.modelInfoJson())),
     // Undo history: {undo, redo} are the labels of the next steps, or null.
     snapshot: (e, label) => json(e.snapshot(label)),

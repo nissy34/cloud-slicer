@@ -9,6 +9,8 @@
   --accent-text: #ffffff;
   --danger: #c4312b;
   --warn: #a35d00;
+  /* Printed (print history). */
+  --ok: #1f8a4c;
   /* 3D views (read by lib/theme.ts) */
   --scene-bg: #e8ebef;
   --scene-bed: #d3d8df;
@@ -38,6 +40,7 @@
     --accent-text: #0b1530;
     --danger: #f08a84;
     --warn: #e7a74a;
+    --ok: #5cc98a;
     --scene-bg: #16191e;
     --scene-bed: #2b2f36;
     --scene-grid: #4a5160;
@@ -60,6 +63,7 @@
   --accent-text: #0b1530;
   --danger: #f08a84;
   --warn: #e7a74a;
+  --ok: #5cc98a;
   --scene-bg: #16191e;
   --scene-bed: #2b2f36;
   --scene-grid: #4a5160;
@@ -7020,5 +7024,143 @@ button.volume-name {
   }
   .choose-bar .choose-short {
     display: inline;
+  }
+}
+
+/* Print history (components/PrintHistory.tsx): a green tick for a printed
+   plate, amber "!" when it changed since, a blue ring while it prints. */
+.print-mark {
+  display: inline-grid;
+  place-items: center;
+  width: 15px;
+  height: 15px;
+  border-radius: 50%;
+  margin-right: 5px;
+  vertical-align: -2px;
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1;
+  color: var(--surface);
+  cursor: pointer;
+}
+.print-mark.printed {
+  background: var(--ok);
+}
+.print-mark.changed {
+  background: var(--warn);
+}
+.print-mark.sent {
+  border: 2px solid var(--accent);
+  box-sizing: border-box;
+}
+.print-progress-group {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+.print-progress {
+  display: inline-grid;
+  gap: 3px;
+  justify-items: stretch;
+  padding: 2px 8px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  font-size: 12px;
+  white-space: nowrap;
+}
+.print-progress.single {
+  display: inline-flex;
+  align-items: center;
+}
+.print-bar {
+  display: flex;
+  height: 3px;
+  border-radius: 2px;
+  background: var(--surface-2);
+  overflow: hidden;
+}
+.print-bar-ok {
+  background: var(--ok);
+}
+.print-bar-changed {
+  background: var(--warn);
+}
+.print-next {
+  font-size: 12px;
+  padding: 3px 8px;
+  white-space: nowrap;
+}
+.print-count {
+  color: var(--ok);
+}
+.print-history {
+  display: grid;
+  gap: 12px;
+  min-width: 0;
+}
+.print-state {
+  margin: 0;
+}
+.print-state.changed b {
+  color: var(--warn);
+}
+.print-state.printed b {
+  color: var(--ok);
+}
+.print-changes p {
+  margin: 0;
+}
+.print-changes ul,
+.print-list {
+  margin: 4px 0 0;
+  padding-left: 20px;
+  display: grid;
+  gap: 4px;
+}
+.print-list {
+  list-style: none;
+  padding: 0;
+  border-top: 1px solid var(--border);
+  padding-top: 10px;
+}
+.print-list li {
+  display: flex;
+  gap: 8px;
+  align-items: baseline;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.print-dot {
+  flex: none;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+}
+.print-dot.printed,
+.print-dot.marked {
+  background: var(--ok);
+  border-color: var(--ok);
+}
+.print-dot.failed {
+  background: var(--danger);
+  border-color: var(--danger);
+}
+.print-dot.sent,
+.print-dot.printing {
+  border: 2px solid var(--accent);
+}
+.print-file {
+  display: block;
+  font-size: 12px;
+}
+@media (max-width: 760px) {
+  .print-progress {
+    padding: 2px 6px;
+  }
+  .print-next {
+    padding: 3px 6px;
   }
 }

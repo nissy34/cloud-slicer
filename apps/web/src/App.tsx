@@ -17,6 +17,8 @@ import { LoadingOverlay } from './components/LoadingOverlay';
 import { DeviceScreen } from './device';
 import { AdminScreen } from './components/AdminScreen';
 import { Notices } from './components/Notices';
+import { PrintHistoryDialog } from './components/PrintHistory';
+import './state/prints';
 import { useProjects } from './state/projects';
 import { useSlicer } from './state/store';
 
@@ -47,6 +49,7 @@ export function App() {
       <PresetSettingsDialog />
       <SettingsPromptDialog />
       <AskDialog />
+      <PrintHistoryDialog />
       {tab !== 'device' && tab !== 'admin' && (
         <div className="body">
           <Sidebar />

@@ -23,6 +23,12 @@
 //   PUT    /api/projects/<id>/thumbnail     set the thumbnail (body: PNG)
 //   PATCH  /api/projects/<id>               rename ({ name, baseVersion? })
 //   DELETE /api/projects/<id>
+//   GET    /api/projects/<id>/prints        its print history (functions/_lib/prints.ts)
+//   POST   /api/projects/<id>/prints        a send or a mark ({ plate, status, printer?, printerName?, file?, fingerprint?, summary? })
+//   POST   /api/projects/<id>/prints/plates plates deleted or reordered ({ order: old index per new index })
+//   POST   /api/projects/<id>/prints/copy   a saved copy takes the original's history ({ from })
+//   GET    /api/prints/open                 prints still waiting for their printer, every project
+//   PATCH  /api/prints/<id>                 how a print went, or "Keep as printed" ({ status?, duration?, progress?, fingerprint?, summary? })
 //   POST   /api/relay/ticket                a ticket for the bridge relay ({ relay, bridgeId })
 //   GET    /api/relay/key                   the public key that checks this site's tickets
 //   DELETE /api/relay/bridges/<id>          a removed bridge stops counting against the cap
@@ -35,6 +41,7 @@ import * as admin from '../_lib/admin';
 import * as auth from '../_lib/auth';
 import { HttpError, json } from '../_lib/http';
 import * as presets from '../_lib/presets';
+import * as prints from '../_lib/prints';
 import * as projects from '../_lib/projects';
 import * as relay from '../_lib/relay';
 import type { Env, PagesContext } from '../_lib/types';
@@ -87,9 +94,17 @@ export async function onRequest({ request, env }: PagesContext): Promise<Respons
       if (parts.length === 3 && c === 'file' && m === 'GET') return await projects.file(env, request, b);
       if (parts.length === 3 && c === 'thumbnail' && m === 'GET') return await projects.thumbnail(env, request, b);
       if (parts.length === 3 && c === 'thumbnail' && m === 'PUT') return await projects.putThumbnail(env, request, b);
+      if (parts.length === 3 && c === 'prints' && m === 'GET') return await prints.list(env, request, b);
+      if (parts.length === 3 && c === 'prints' && m === 'POST') return await prints.add(env, request, b);
+      if (parts.length === 4 && c === 'prints' && parts[3] === 'plates' && m === 'POST') return await prints.plates(env, request, b);
+      if (parts.length === 4 && c === 'prints' && parts[3] === 'copy' && m === 'POST') return await prints.copy(env, request, b);
       if (parts.length === 2 && m === 'PUT') return await projects.put(env, request, b);
       if (parts.length === 2 && m === 'PATCH') return await projects.rename(env, request, b);
       if (parts.length === 2 && m === 'DELETE') return await projects.remove(env, request, b);
+    }
+    if (a === 'prints') {
+      if (b === 'open' && parts.length === 2 && m === 'GET') return await prints.open(env, request);
+      if (parts.length === 2 && m === 'PATCH') return await prints.update(env, request, b);
     }
     if (a === 'relay') {
       if (b === 'ticket' && parts.length === 2 && m === 'POST') return await relay.ticket(env, request);

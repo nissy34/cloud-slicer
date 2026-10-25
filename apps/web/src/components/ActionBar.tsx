@@ -4,6 +4,7 @@ import type { SliceWarning } from '../engine/protocol';
 import { sentence, stageLabel } from '../lib/format';
 import { blocksPrinting, OBJECT_CLASHED } from '../lib/outside';
 import { LIGHT_TRIANGLES, triangleCount } from '../lib/simplify';
+import { useProjects } from '../state/projects';
 import { useObjectsOutside, useSlicer } from '../state/store';
 
 function download(blob: Blob, name: string) {
@@ -213,7 +214,9 @@ export function ActionBar() {
               disabled={unprintable}
               title={unprintable ? 'The toolpaths leave the build volume' : undefined}
               onClick={() => {
-                sendToPrinter(bundle ?? job.gcode, fileName, useSlicer.getState().selection?.printer, bundle && job.gcode);
+                const projectId = useProjects.getState().current.id;
+                const origin = projectId && job.printed ? { projectId, plate: job.plate, ...job.printed } : undefined;
+                sendToPrinter(bundle ?? job.gcode, fileName, useSlicer.getState().selection?.printer, bundle && job.gcode, origin);
                 setTab('device');
               }}
             >
