@@ -190,6 +190,8 @@ export interface SlicerState {
   objectMenu: { object: number; instance: number; volume?: number; x: number; y: number; form?: 'clone' } | null;
   /** Desktop's menu on the plate (onPlate) or the empty space around it, open at (x, y) on the page. */
   plateMenu: { x: number; y: number; onPlate: boolean } | null;
+  /** Desktop's Plate settings window, open for the shown plate. */
+  plateSettings: boolean;
   /** Files waiting for the user to say how to open the 3MF among them. */
   pendingOpen: File[] | null;
   /** Rotate in 15° steps (and move/scale in steps) without holding Shift, for touch screens. */
@@ -371,7 +373,8 @@ export interface SlicerState {
   printChangesKey(): string;
   /** Stops the running slice (desktop's Cancel next to the progress bar). */
   cancelSlice(): void;
-  arrange(): Promise<void>;
+  /** Arrange the shown plate, or `all` plates (desktop's A; Shift+A and a plate's icon do one). */
+  arrange(all?: boolean): Promise<void>;
   /** Object (volume -1) or part settings; null removes a setting. */
   setObjectSettings(o: number, volume: number, values: Record<string, string | null>): Promise<void>;
   addPlate(): Promise<void>;
@@ -384,6 +387,9 @@ export interface SlicerState {
   mirror(o: number, i: number, axis: 0 | 1 | 2): Promise<void>;
   openObjectMenu(menu: SlicerState['objectMenu']): void;
   openPlateMenu(menu: SlicerState['plateMenu']): void;
+  openPlateSettings(open: boolean): void;
+  /** Desktop's plate lock on the shown plate: Arrange and Auto orient leave a locked plate alone. */
+  lockPlate(locked: boolean): Promise<void>;
   /** A plate menu action on the shown plate (engine/src/plate_api.cpp); a new object is picked. */
   plateAction(request: PlateAction, label: string): Promise<void>;
   /**
@@ -581,6 +587,14 @@ export const useSlicer = create<SlicerState>((set, get) => {
 
   // Replaces a crashed engine with a new one, which reopens the project when
   // it is up (see start).
+  // Desktop's words when a locked plate is asked to arrange or orient; true when it is locked.
+  function lockedNotice(action: string) {
+    const { project, plate } = get();
+    if (!project?.plates[plate]?.locked) return false;
+    set({ notice: `This plate is locked, so it can't ${action}. Unlock it from its lock icon or the plate menu.`, noticeWarn: true });
+    return true;
+  }
+
   function restart(message: string) {
     console.warn('The slicing engine crashed and restarts:', message);
     const retry = restarting;
@@ -1251,6 +1265,7 @@ export const useSlicer = create<SlicerState>((set, get) => {
     tool: null,
     objectMenu: null,
     plateMenu: null,
+    plateSettings: false,
     pendingOpen: null,
     snap: false,
     uniformScale: true,
@@ -1857,7 +1872,19 @@ export const useSlicer = create<SlicerState>((set, get) => {
     },
 
     // 6 mm apart, like desktop's default arrange distance.
-    arrange: () => busyWhile('Arranging the plate', () => projectEdit('Arrange', () => engine().arrangePlate(get().plate, 6))),
+    arrange: (all = false) => {
+      if (!all && lockedNotice('arrange')) return Promise.resolve();
+      return busyWhile(all ? 'Arranging all plates' : 'Arranging the plate', () =>
+        projectEdit('Arrange', async () => {
+          if (!all) return engine().arrangePlate(get().plate, 6);
+          // Each plate in turn, skipping locked ones; what doesn't fit goes onto new plates at the end.
+          const plates = get().project?.plates.length ?? 1;
+          let info = get().project!;
+          for (let p = 0; p < plates; p++) if ((p === 0 || info.plates[p]?.objects.length) && !info.plates[p]?.locked) info = await engine().arrangePlate(p, 6);
+          return info;
+        }),
+      );
+    },
     setObjectSettings: (o, volume, values) => projectEdit('Change object settings', () => engine().setObjectSettings(o, volume, values)),
     addPlate: async () => {
       await projectEdit('Add plate', () => engine().addPlate());
@@ -1882,8 +1909,9 @@ export const useSlicer = create<SlicerState>((set, get) => {
         }),
       ),
     splitParts: (o) => busyWhile('Splitting into parts', () => projectEdit('Split to parts', () => engine().splitParts(o))),
-    orient: (o) =>
-      busyWhile('Auto orienting', () =>
+    orient: (o) => {
+      if (o === undefined && lockedNotice('auto orient')) return Promise.resolve();
+      return busyWhile('Auto orienting', () =>
         projectEdit('Auto orient', async () => {
           const { project, plate } = get();
           const objects = o !== undefined ? [o] : (project?.plates[plate]?.objects ?? []);
@@ -1891,10 +1919,13 @@ export const useSlicer = create<SlicerState>((set, get) => {
           for (const obj of objects) info = await engine().orientObject(obj);
           return info;
         }),
-      ),
+      );
+    },
     mirror: (o, i, axis) => projectEdit('Mirror', () => engine().mirrorInstance(o, i, axis)),
     openObjectMenu: (objectMenu) => set(objectMenu ? { objectMenu, plateMenu: null } : { objectMenu }),
     openPlateMenu: (plateMenu) => set(plateMenu ? { plateMenu, objectMenu: null } : { plateMenu }),
+    openPlateSettings: (plateSettings) => set({ plateSettings, plateMenu: null }),
+    lockPlate: (locked) => get().plateAction({ op: 'lock', locked }, locked ? 'Lock plate' : 'Unlock plate'),
     plateAction: async (request, label) => {
       let object: number | undefined;
       let objects: number[] = [];
@@ -2319,6 +2350,8 @@ export const NO_COLOURS: string[] = [];
 
 /** Value of an option as it will be sliced: the user's override, else the preset's. */
 export const useOption = (key: string) => useSlicer((s) => s.overrides[key] ?? s.baseConfig[key]);
+/** An option as the shown plate slices with it: the plate's own setting (desktop's Plate settings) or the project's. */
+export const usePlateOption = (key: string) => useSlicer((s) => s.project?.plates[s.plate]?.settings?.[key] ?? s.overrides[key] ?? s.baseConfig[key]);
 
 /** What the selected printer does with more filaments than heads (lib/filament-limit.ts). */
 export function useFilamentLimit(): FilamentLimit {

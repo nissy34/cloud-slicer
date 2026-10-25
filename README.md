@@ -100,6 +100,16 @@ hosted on Cloudflare's free tier.
   other, put it face on face middle on middle, flip it, set the distance between them or
   turn it about the face; or pick two points and move one onto the other; two objects are
   joined into one first, as only parts can leave the bed).
+- **Plate icons** lying on the bed beside the shown plate, where desktop draws them: delete
+  plate, auto orient, arrange this plate and plate settings (orange when the plate has its
+  own) past the back right corner; the plate's number past the front right corner; its name
+  past the back left corner with a pencil to rename it.
+- **Plate settings** like desktop's window (plate menu, the plate's icon, or the button
+  beside the shown plate's tab): a plate's own plate type, print sequence (by layer or by object), spiral
+  vase and first layer / other layers filament order instead of the project's, saved in the
+  3MF and used when that plate slices (also those desktop and Bambu Studio projects bring).
+  A dot on a plate's tab says it has its own; the sidebar's matching setting says which
+  value the shown plate uses.
 - **Prime tower on the plate**: when a plate prints with more than one filament the tower
   stands on the Prepare plate at the size Orca will print it, and you drag it where you
   want it, per plate, like desktop.

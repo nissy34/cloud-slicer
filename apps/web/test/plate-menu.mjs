@@ -111,8 +111,18 @@ try {
   await plateMenu.getByRole('menuitem', { name: 'Rename plate…' }).click();
   await plateMenu.getByLabel('Plate name').fill('Shapes');
   await plateMenu.getByRole('button', { name: 'Rename' }).click();
-  // The name shows on the plate even with only one plate.
-  await page.locator('.plate-name', { hasText: 'Shapes' }).waitFor({ timeout: 30000 });
+  // The name shows on the plate (drawn on the bed, like desktop) even with only one plate.
+  await page.waitForFunction(() => document.querySelector('canvas[data-plate-name]')?.dataset.plateName === 'Shapes', null, { timeout: 30000 });
+
+  // Lock: Arrange and Auto orient leave the plate alone (greyed in its menu, a notice from the A key) until Unlock.
+  if (!(await onFreePlate())) throw new Error('no free spot on the plate for its menu');
+  await plateMenu.getByRole('menuitem', { name: 'Lock', exact: true }).click();
+  await page.waitForFunction(() => JSON.parse(document.querySelector('canvas[data-plate-icons]')?.dataset.plateIcons ?? '{}')['Unlock plate'], null, { timeout: 10000 });
+  if (!(await onFreePlate())) throw new Error('no free spot on the plate for its menu');
+  if (!(await plateMenu.getByRole('menuitem', { name: 'Arrange', exact: true }).isDisabled())) throw new Error('Arrange is not greyed on a locked plate');
+  await plateMenu.getByRole('menuitem', { name: 'Unlock' }).click();
+  await page.waitForFunction(() => JSON.parse(document.querySelector('canvas[data-plate-icons]')?.dataset.plateIcons ?? '{}')['Lock plate'], null, { timeout: 10000 });
+  console.log('Lock greys Arrange and Auto orient for the plate; Unlock gives them back');
 
   // Show labels: each object's name in the 3D view, and Ctrl+E turns them off again.
   if (!(await onFreePlate())) throw new Error('no free spot on the plate for its menu');
