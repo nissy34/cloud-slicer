@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { useAlerts } from '../../state/alerts';
 import { useDevice } from '../../state/device';
 import type { AlertEvent, AlertPrefs } from '../alerts';
-import { isIos, thisDevice } from '../push';
+import { isAndroid, isIos, standalone, thisDevice } from '../push';
 import { Icon, type IconName } from './icons';
 import { Card } from './parts';
 
@@ -58,6 +58,40 @@ function AlertTile({ icon, words, label, on, tone, onChange, testId, detail }: {
   );
 }
 
+const BROWSER_TOO = 'It then works in the installed app too.';
+
+/** How to unblock notifications here. In an app installed from Chrome on Android, Chrome may not show its Allow question at all: the browser tab can. */
+function DeniedNote() {
+  if (isAndroid() && standalone())
+    return (
+      <p className="dv-note" data-testid="alerts-denied">
+        Notifications are blocked for Cloud Slicer. Open the site once in Chrome, tap the icon left of the address, then Permissions, and turn Notifications on. {BROWSER_TOO}
+      </p>
+    );
+  if (isAndroid())
+    return (
+      <p className="dv-note" data-testid="alerts-denied">
+        Notifications are blocked for this site. Tap the icon left of the address, then Permissions, and turn Notifications on. Then turn alerts on again.
+      </p>
+    );
+  return (
+    <p className="dv-note" data-testid="alerts-denied">
+      Notifications are blocked for this site. Allow them in the browser’s site settings, then turn alerts on again.
+    </p>
+  );
+}
+
+/** The Allow question closed without an answer, or (installed on Android) never showed. */
+function DismissedNote() {
+  return (
+    <p className="dv-note" data-testid="alerts-dismissed">
+      {isAndroid() && standalone()
+        ? `The Allow question didn’t show in the installed app. Open the site once in Chrome, turn alerts on there and tap Allow. ${BROWSER_TOO}`
+        : 'The question closed without an answer. Turn alerts on again and tap Allow.'}
+    </p>
+  );
+}
+
 /**
  * Print alerts for the printer on screen, on this device: through a bridge
  * they come with the browser closed (Web Push from the relay); printers
@@ -79,6 +113,27 @@ export function AlertsCard() {
     const t = setTimeout(() => void useAlerts.getState().load(), 1500);
     return () => clearTimeout(t);
   }, [activeId, conn, ended]);
+  // Read again on coming back (from the phone's settings, say) or when the permission changes, so allowing notifications clears the note.
+  useEffect(() => {
+    const again = () => void useAlerts.getState().load();
+    const back = () => document.visibilityState === 'visible' && again();
+    document.addEventListener('visibilitychange', back);
+    let perm: PermissionStatus | null = null;
+    let gone = false;
+    navigator.permissions
+      ?.query({ name: 'notifications' })
+      .then((p) => {
+        if (gone) return;
+        perm = p;
+        p.addEventListener('change', again);
+      })
+      .catch(() => {});
+    return () => {
+      gone = true;
+      document.removeEventListener('visibilitychange', back);
+      perm?.removeEventListener('change', again);
+    };
+  }, []);
 
   if (!printer) return null;
   const prefs = a.prefs;
@@ -92,7 +147,7 @@ export function AlertsCard() {
     else if (e === 'progress') set({ events, percents: v && !prefs.percents.length ? [50] : prefs.percents });
     else set({ events });
   };
-  const blocked = a.problem && a.problem !== 'offline';
+  const blocked = a.problem && a.problem !== 'offline' && a.problem !== 'dismissed';
   const chosen = prefs?.events.length ?? 0;
 
   return (
@@ -132,7 +187,8 @@ export function AlertsCard() {
         </p>
       )}
       {a.problem === 'unsupported' && <p className="dv-note">This browser can’t show alerts. Chrome, Edge, Firefox and Safari can.</p>}
-      {a.problem === 'denied' && <p className="dv-note">Notifications are blocked for this site. Allow them in the browser’s site settings, then turn alerts on again.</p>}
+      {a.problem === 'denied' && <DeniedNote />}
+      {a.problem === 'dismissed' && <DismissedNote />}
       {a.problem === 'relay' && <p className="dv-note">The bridge’s relay can’t send alerts yet.</p>}
       {bridge && conn !== 'online' && !blocked && <p className="muted">Connect to the printer to change its alerts.</p>}
       {on && prefs && (

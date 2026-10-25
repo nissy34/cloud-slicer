@@ -4,6 +4,9 @@
 //      (wrangler dev) pushes to a pretend push service here, decrypted as a browser would
 //   2. a printer reached directly: the page itself shows the alerts while open
 //   3. an iPhone without the site on its Home Screen: the card says what to do
+//   4. Android: in the installed app, a blocked site or an Allow question that
+//      never showed sends you to the browser tab, and the note clears once
+//      allowed; in the browser a closed question leaves the switch usable
 // The browser's push service is stood in for: pushManager.subscribe returns a
 // subscription to the pretend one, and shown notifications are recorded.
 // It starts prints on the MOCK printers only.
@@ -105,6 +108,8 @@ const turnOn = async (card) => {
   };
   await until('the alerts switch usable', async () => !(await sw.isDisabled()), 30_000).catch(said);
   await sw.click({ force: true });
+  // The first-run wizard can open over the card just then and take the tap: tap again once it is gone.
+  if (!(await card.getByTestId('alert-finished').waitFor({ timeout: 8_000 }).then(() => true, () => false)) && !(await sw.isChecked()) && !(await sw.isDisabled())) await sw.click({ force: true });
   await card.getByTestId('alert-finished').waitFor({ timeout: 30_000 }).catch(said);
 };
 
@@ -247,6 +252,95 @@ try {
     await ios.screenshot({ path: join(shots, 'alerts-iphone.png') });
   }
   console.log('iPhone: Add to Home Screen first');
+
+  // ---- Android: the installed app's notifications off, then the browser's question closed -------
+  const printers = await page.evaluate(() => JSON.stringify(JSON.parse(localStorage.getItem('cloud-slicer:devices:v1')).filter((d) => d.extra?.kind === 'direct').map((d) => ({ id: d.id, name: d.name, kind: 'direct', url: d.url, apiKey: '' }))));
+  const android = async (installed, answer) => {
+    const ctx = await browser.newContext({ ...devices['Pixel 7'] });
+    await ctx.addInitScript(
+      ({ installed, answer }) => {
+        // Installed and blocked: blocked from the start. In the browser: blocked by the tap on Block.
+        window.__perm = installed && answer === 'blocked' ? 'denied' : 'default';
+        Object.defineProperty(Notification, 'permission', { get: () => window.__perm });
+        Notification.requestPermission = async () => (answer === 'blocked' ? (window.__perm = 'denied') : answer);
+        if (installed) {
+          const mm = window.matchMedia.bind(window);
+          window.matchMedia = (q) => q === '(display-mode: standalone)' ? { matches: true, media: q, onchange: null, addEventListener() {}, removeEventListener() {}, addListener() {}, removeListener() {}, dispatchEvent: () => false } : mm(q);
+        }
+      },
+      { installed, answer },
+    );
+    const pg = await ctx.newPage();
+    failShot = pg;
+    pg.on('pageerror', (e) => console.log(`android page error: ${e.message}`));
+    await noWizard(pg);
+    await pg.goto(site);
+    await pg.evaluate((v) => localStorage.setItem('cloud-slicer:printers:v1', v), printers);
+    await pg.reload();
+    await pg.getByRole('tab', { name: 'Device' }).click();
+    return { ctx, pg };
+  };
+  // Taps the switch until a note answers (the first-run wizard can take the first tap).
+  const tapOn = async (pg) => {
+    const sw = pg.getByTestId('alerts-on');
+    const notes = pg.getByTestId('alerts-dismissed').or(pg.getByTestId('alerts-denied'));
+    for (let i = 0; ; i++) {
+      await until('the alerts switch usable', async () => !(await sw.isDisabled()), 30_000);
+      await sw.click({ force: true });
+      if (await notes.first().waitFor({ timeout: 5_000 }).then(() => true, () => false)) return;
+      if (i === 2) throw new Error('no note after tapping the alerts switch');
+    }
+  };
+  const shoot = async (pg, name) => {
+    if (!shots) return;
+    await pg.getByTestId('alerts-card').evaluate((el) => el.scrollIntoView({ block: 'end' }));
+    await pg.screenshot({ path: join(shots, name) });
+  };
+  {
+    const { ctx, pg } = await android(true, 'blocked');
+    const note = pg.getByTestId('alerts-denied');
+    await note.waitFor({ timeout: 30_000 });
+    if (!/once in Chrome/.test(await note.innerText())) throw new Error(`installed Android app: note does not point to Chrome: ${await note.innerText()}`);
+    if (!(await pg.getByTestId('alerts-on').isDisabled())) throw new Error('alerts switch usable while notifications are blocked');
+    await shoot(pg, 'alerts-android-app-blocked.png');
+    // Allowed in the browser tab, then back to the app.
+    await pg.evaluate(() => {
+      window.__perm = 'granted';
+      document.dispatchEvent(new Event('visibilitychange'));
+    });
+    await until('the note gone after coming back', async () => !(await note.count()), 15_000);
+    await until('the alerts switch usable after coming back', async () => !(await pg.getByTestId('alerts-on').isDisabled()), 15_000);
+    await ctx.close();
+  }
+  {
+    // Chrome did not show the Allow question in the installed app.
+    const { ctx, pg } = await android(true, 'default');
+    await tapOn(pg);
+    const note = pg.getByTestId('alerts-dismissed');
+    await note.waitFor({ timeout: 15_000 });
+    if (!/didn’t show in the installed app/.test(await note.innerText())) throw new Error(`installed Android app: wrong note: ${await note.innerText()}`);
+    await shoot(pg, 'alerts-android-app-no-question.png');
+    await ctx.close();
+  }
+  console.log('Android installed app: blocked or no question -> allow once in Chrome; cleared on coming back');
+  {
+    const { ctx, pg } = await android(false, 'default');
+    await tapOn(pg);
+    await pg.getByTestId('alerts-dismissed').waitFor({ timeout: 15_000 });
+    if (await pg.getByTestId('alerts-on').isDisabled()) throw new Error('alerts switch disabled after the question was only closed');
+    await shoot(pg, 'alerts-android-dismissed.png');
+    await ctx.close();
+  }
+  {
+    const { ctx, pg } = await android(false, 'blocked');
+    await tapOn(pg);
+    const note = pg.getByTestId('alerts-denied');
+    await note.waitFor({ timeout: 15_000 });
+    if (!/Permissions/.test(await note.innerText())) throw new Error(`Android browser: note does not point to site permissions: ${await note.innerText()}`);
+    await shoot(pg, 'alerts-android-browser-blocked.png');
+    await ctx.close();
+  }
+  console.log('Android browser: closed question keeps the switch; Block points to site permissions');
   console.log('DEVICE ALERTS OK');
 } catch (e) {
   console.error(`DEVICE ALERTS FAIL: ${e.stack ?? e.message}`);

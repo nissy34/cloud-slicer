@@ -8,11 +8,16 @@ export type PushProblem =
   /** The browser has no notifications or push (or this isn't a secure page). */
   | 'unsupported'
   /** Notifications are blocked for this site. */
-  | 'denied';
+  | 'denied'
+  /** The Allow question was closed without an answer; turning alerts on asks again. */
+  | 'dismissed';
 
 export const isIos = () => typeof navigator !== 'undefined' && (/iPhone|iPad|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1));
 
-const standalone = () => typeof matchMedia !== 'undefined' && (matchMedia('(display-mode: standalone)').matches || (navigator as { standalone?: boolean }).standalone === true);
+export const isAndroid = () => typeof navigator !== 'undefined' && /Android/i.test(navigator.userAgent);
+
+/** Opened as an installed app (Home Screen icon) rather than in a browser tab. */
+export const standalone = () => typeof matchMedia !== 'undefined' && (matchMedia('(display-mode: standalone)').matches || (navigator as { standalone?: boolean }).standalone === true);
 
 /** What stops alerts here, or null. `push`: needs Web Push (bridge printers), not just notifications. */
 export function pushProblem(push: boolean): PushProblem | null {
@@ -38,10 +43,14 @@ export async function serviceWorker(): Promise<ServiceWorkerRegistration> {
   return navigator.serviceWorker.ready;
 }
 
-/** Asks for permission to show notifications (only from a tap); true when given. */
-export async function allowNotifications(): Promise<boolean> {
-  if (Notification.permission === 'granted') return true;
-  return (await Notification.requestPermission()) === 'granted';
+/**
+ * Asks for permission to show notifications (only from a tap): 'granted', or
+ * 'denied' when blocked, or 'default' when the question was closed unanswered
+ * (or, in an app installed from Chrome on Android, never shown).
+ */
+export async function allowNotifications(): Promise<NotificationPermission> {
+  if (Notification.permission === 'granted') return 'granted';
+  return Notification.requestPermission();
 }
 
 const fromBase64Url = (s: string) => {

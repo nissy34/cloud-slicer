@@ -101,6 +101,8 @@ export const useAlerts = create<AlertsState>((set, get) => {
     note: '',
 
     async load() {
+      // Turning alerts on or off is under way and will say how it ended.
+      if (get().busy) return;
       const p = active();
       const mine = ++seq;
       // Another printer starts from scratch; the same one is refreshed in place (a print ended and cleared "after layer N").
@@ -119,11 +121,11 @@ export const useAlerts = create<AlertsState>((set, get) => {
         if (mine !== seq) return;
         if (!key) return set({ status: 'off', problem: 'relay' });
         const sub = await pushSubscription(key, false);
-        if (!sub || Notification.permission !== 'granted') return mine === seq ? set({ status: 'off' }) : undefined;
+        if (!sub || Notification.permission !== 'granted') return mine === seq ? set({ status: 'off', problem: null }) : undefined;
         const { prefs } = await relayCall<{ prefs: unknown }>({ op: 'get', endpoint: sub.endpoint, clock: localClock() });
         if (mine !== seq) return;
         const clean = cleanPrefs(prefs);
-        set({ status: clean ? 'on' : 'off', prefs: clean });
+        set({ status: clean ? 'on' : 'off', prefs: clean, problem: null });
       } catch (e) {
         if (mine === seq) set({ status: 'off', problem: 'offline', error: (e as Error).message });
       }
@@ -132,9 +134,11 @@ export const useAlerts = create<AlertsState>((set, get) => {
     async enable() {
       const p = active();
       if (!p) return;
+      seq++; // a read still under way would say "off" over it
       set({ busy: true, error: '', note: '' });
       try {
-        if (!(await allowNotifications())) return set({ busy: false, problem: 'denied' });
+        const allowed = await allowNotifications();
+        if (allowed !== 'granted') return set({ busy: false, problem: allowed === 'denied' ? 'denied' : 'dismissed' });
         await serviceWorker();
         const start = starting();
         if (p.kind === 'direct') {
@@ -155,6 +159,7 @@ export const useAlerts = create<AlertsState>((set, get) => {
     async disable() {
       const p = active();
       if (!p) return;
+      seq++;
       set({ busy: true, error: '', note: '' });
       try {
         if (p.kind === 'direct') setLocalPrefs(p.id, null);
