@@ -14,6 +14,7 @@ import { spawn } from 'node:child_process';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { chromium } from 'playwright';
+import { pickerOf } from './picker.mjs';
 
 const web = join(dirname(fileURLToPath(import.meta.url)), '..');
 const PORT = 4182;
@@ -73,7 +74,7 @@ try {
     await page.getByText('Open a model to start').waitFor({ timeout: 120000 });
     await processPicker.waitFor();
   };
-  const filamentPicker = page.getByRole('combobox', { name: 'Filament 1 preset' });
+  const filamentPicker = pickerOf(page, 'Filament 1 preset');
   const filamentEditor = page.getByRole('dialog', { name: /^Filament (1 )?settings$/ });
   const temperature = () =>
     filamentEditor.locator('fieldset', { has: page.locator('legend', { hasText: 'Print temperature' }) }).getByLabel('Other layers', { exact: true });

@@ -356,6 +356,20 @@ function PickerDemo() {
         ]}
         onChange={setFilament}
       />
+      <div className="ds-field-picker">
+        <Picker
+          field
+          label="Printer preset"
+          value={printer}
+          options={[
+            { value: 'u1', label: 'Snapmaker U1 (0.4 nozzle)', group: 'Snapmaker', hint: <span className="tag accent">Direct print</span> },
+            { value: 'ender', label: 'Creality Ender-3 V3 (0.4 nozzle)', group: 'Creality' },
+          ]}
+          onChange={setPrinter}
+          actions={[{ id: 'add', label: 'Add or remove printers…', icon: Settings }]}
+          onAction={() => {}}
+        />
+      </div>
     </div>
   );
 }

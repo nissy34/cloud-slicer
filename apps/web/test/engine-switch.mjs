@@ -15,6 +15,7 @@ import { readFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { chromium } from 'playwright';
+import { pickerValue } from './picker.mjs';
 
 const web = join(dirname(fileURLToPath(import.meta.url)), '..');
 const model = join(web, '../../fixtures/tetrahedron.stl');
@@ -64,7 +65,7 @@ try {
   const engineSelect = page.getByTestId('engine-select');
   const ask = page.getByTestId('engine-switch');
   const layer = page.getByLabel('Layer height', { exact: true });
-  const printer = page.getByLabel('Printer preset', { exact: true });
+  const printer = { inputValue: () => pickerValue(page, 'Printer preset') };
   const search = page.getByRole('searchbox', { name: 'Search process settings' });
 
   // An empty plate: a changed setting both engines have moves over with the

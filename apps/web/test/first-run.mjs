@@ -18,6 +18,7 @@ import { spawn } from 'node:child_process';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { chromium } from 'playwright';
+import { openPicker, pickerOf, waitPicked } from './picker.mjs';
 
 const web = join(dirname(fileURLToPath(import.meta.url)), '..');
 const shots = process.argv[2] ? resolve(process.argv[2]) : null;
@@ -93,32 +94,23 @@ async function firstRun({ label, engine, search, expect, badge, other, filaments
     await wizard.getByRole('button', { name: 'Finish' }).click();
     await wizard.waitFor({ state: 'hidden', timeout: 30000 });
     await page.waitForFunction((n) => document.querySelector('.engine-badge')?.textContent?.startsWith(n), badge, { timeout: 180000 });
-    const picker = page.getByRole('combobox', { name: 'Printer preset' });
-    await page.waitForFunction(
-      (v) => {
-        const s = document.querySelector('select[aria-label="Printer preset"]');
-        return s && !s.disabled && s.value === v;
-      },
-      expect,
-      { timeout: 120000 },
-    ).catch(() => {});
+    const picker = pickerOf(page, 'Printer preset');
+    await waitPicked(page, 'Printer preset', expect, 120000);
     const value = await picker.inputValue();
     if (value !== expect) fail(`${label}: "${value}" selected, not "${expect}"`);
-    const options = (await picker.locator('option').allInnerTexts()).map((o) => o.trim());
-    console.log(`${label}: selected "${value}", list: ${options.join(' | ')}`);
-    const printers = options.filter((o) => !o.startsWith('Add or remove printers'));
-    if (printers.length !== 1 || !printers[0].startsWith(expect)) fail(`${label}: the list should hold only ${expect}: ${options.join(' | ')}`);
-    if (!options.includes('Add or remove printers…')) fail(`${label}: no "Add or remove printers…" in the list`);
-    // A native list doesn't show in screenshots: open it as a list box for the picture.
-    const open = (on) => page.evaluate((o) => document.querySelector('select[aria-label="Printer preset"]')?.setAttribute('size', o ? '4' : '1'), on);
-    await open(true);
+    const printers = await picker.choices();
+    const actions = await picker.actions();
+    console.log(`${label}: selected "${value}", list: ${[...printers, ...actions].join(' | ')}`);
+    if (printers.length !== 1 || !printers[0].startsWith(expect)) fail(`${label}: the list should hold only ${expect}: ${printers.join(' | ')}`);
+    if (!actions.includes('Add or remove printers…')) fail(`${label}: no "Add or remove printers…" in the list`);
+    await openPicker(page, 'Printer preset');
     await shot(`${label}-picker`);
-    await open(false);
+    await page.keyboard.press('Escape');
 
     // A reload keeps the printer.
     await page.reload();
     await page.getByText('Open a model to start').waitFor({ timeout: 120000 });
-    await page.waitForFunction((v) => document.querySelector('select[aria-label="Printer preset"]')?.value === v, expect, { timeout: 60000 }).catch(() => {});
+    await waitPicked(page, 'Printer preset', expect);
     if ((await picker.inputValue()) !== expect) fail(`${label}: after a reload "${await picker.inputValue()}" is selected`);
 
     // Once set up, the list's last entry opens Manage on its Printers tab (not the wizard), your printer listed and picked.
@@ -151,7 +143,7 @@ async function firstRun({ label, engine, search, expect, badge, other, filaments
     await askDialog.getByRole('button', { name: 'Discard changes' }).click();
     await manage.waitFor({ state: 'hidden', timeout: 5000 });
     // Nothing was saved: the filament list's last entry opens Manage on Filaments, the printer still there.
-    await page.getByRole('combobox', { name: 'Filament 1 preset' }).selectOption({ label: 'Add or remove filaments…' });
+    await pickerOf(page, 'Filament 1 preset').selectOption({ label: 'Add or remove filaments…' });
     await manage.waitFor({ timeout: 10000 });
     if ((await tab()) !== 'Filaments') fail(`${label}: "Add or remove filaments…" opened Manage on ${await tab()}`);
     await manage.getByRole('tab', { name: 'Printers' }).click();
@@ -166,15 +158,8 @@ async function firstRun({ label, engine, search, expect, badge, other, filaments
       await page.getByRole('combobox', { name: 'Slicer engine' }).selectOption({ label: other.engine });
       await page.waitForFunction((n) => document.querySelector('.engine-badge')?.textContent?.startsWith(n), other.engine, { timeout: 180000 });
       // While the engine starts the picker is disabled and passes through other printers (what it had before, then the one carried over).
-      await page.waitForFunction(
-        (v) => {
-          const s = document.querySelector('select[aria-label="Printer preset"]');
-          return s && !s.disabled && s.value === v;
-        },
-        other.expect,
-        { timeout: 180000 },
-      ).catch(() => {});
-      const there = (await picker.locator('option').allInnerTexts()).map((o) => o.trim()).filter((o) => !o.startsWith('Add or remove printers'));
+      await waitPicked(page, 'Printer preset', other.expect, 180000);
+      const there = await picker.choices();
       console.log(`${label} -> ${other.engine}: selected "${await picker.inputValue()}", list: ${there.join(' | ')}`);
       if ((await picker.inputValue()) !== other.expect) fail(`${label}: in ${other.engine} "${await picker.inputValue()}" is selected, not "${other.expect}"`);
       if (there.length !== 1) fail(`${label}: in ${other.engine} the list holds ${there.join(' | ')}`);
@@ -197,10 +182,10 @@ async function checkFilaments(page, label, filaments) {
   const engine = Object.keys(filaments).find((e) => label.endsWith(e));
   const want = filaments[engine];
   // The picker fills in once the engine has the printer's filaments.
-  const options = page.getByRole('combobox', { name: 'Filament 1 preset' }).locator('option');
+  const options = pickerOf(page, 'Filament 1 preset');
   let offered = [];
   for (let i = 0; i < 60; i++) {
-    offered = (await options.allInnerTexts()).map((o) => o.trim());
+    offered = await options.choices();
     if (want.every((w) => offered.includes(w))) break;
     await page.waitForTimeout(500);
   }

@@ -16,6 +16,7 @@ import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { strFromU8, unzipSync } from 'fflate';
 import { chromium } from 'playwright';
+import { pick } from './picker.mjs';
 
 const web = join(dirname(fileURLToPath(import.meta.url)), '..');
 const model = join(web, '../../fixtures/calib-cube-10-dual-colour-merged.3mf');
@@ -48,7 +49,6 @@ try {
   const page = await browser.newPage({ viewport: { width: 1280, height: 800 }, acceptDownloads: true });
   page.on('pageerror', (e) => console.error(`page error: ${e.message}`));
   const ready = () => page.getByText('Open a model to start').waitFor({ timeout: 120000 });
-  const picker = page.getByRole('combobox', { name: 'Printer preset' });
   const flushButton = page.getByTestId('flush-volumes');
   const dialog = page.getByRole('dialog', { name: 'Flushing volumes' });
   const cell = async (from, to) => Number(await dialog.getByTestId(`flush-${from}-${to}`).getAttribute('data-value'));
@@ -85,7 +85,7 @@ try {
       await page.goto(`${url}?engine=orca`);
       await ready();
     }
-    await picker.selectOption(PRINTER);
+    await pick(page, 'Printer preset', PRINTER);
     // The project: a Bambu Studio 3MF for this printer, dark red and black.
     await page.getByTestId('model-input').setInputFiles(model);
     await page.getByText('Ready to slice').waitFor({ timeout: 120000 });
