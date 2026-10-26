@@ -796,7 +796,7 @@ try {
   await page.getByTestId('bridge-state').filter({ hasText: 'Connected to the bridge' }).waitFor({ timeout: 20_000 });
   await page.getByRole('dialog', { name: 'Add a printer' }).getByRole('button', { name: 'Close' }).click();
   // Removing the bridge, while it runs, makes it uninstall itself.
-  await page.getByTestId('manage-open').first().click();
+  await page.getByTestId('printer-select').selectOption('__manage');
   await card.getByTestId('manage-bridge-state').filter({ hasText: 'Running' }).waitFor({ timeout: 20_000 });
   await card.getByTestId('manage-bridge-remove').click();
   await card.getByText('will also uninstall itself').waitFor();
