@@ -1,5 +1,7 @@
 # Cloud Slicer bridge
 
+Design, rules and why: [docs/architecture/bridge.md](../../docs/architecture/bridge.md). This page has the commands and the protocol detail.
+
 Lets the Device tab reach printers on your home network. Browsers can't talk to
 a printer at `http://192.168.x.x` from a public https site (mixed content and
 private-network blocking), so this small agent runs on any always-on computer
