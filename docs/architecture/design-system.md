@@ -22,7 +22,7 @@ a rule types a value the tokens already name.
 | Spacing | `--s-1` … `--s-8`: 2, 4, 6, 8, 12, 16, 24, 32 px | Gaps in a row 4 to 8, between fields 12, card padding 12 × 16, between cards 12, page edge 16. Older rules still use other values; the test counts them and the count may only go down. |
 | Corners | `--r-sm` 4 (tags, swatches), `--r-md` 6 (buttons, fields), `--r-lg` 10 (cards, menus, panels), `--r-xl` 12 (windows, messages), `--r-full` (chips) | Also `0`, `50%` (circles), `inherit`. |
 | Shadows | `--shadow-1` lifted, `--shadow-2` menus, `--shadow-3` windows | |
-| Layers | `--z-notice` 40, `--z-menu` 50, `--z-context` 60 | Plain numbers up to 10 for stacking inside a part. Windows use the browser's top layer. |
+| Layers | `--z-notice` 40, `--z-menu` 50, `--z-context` 60, `--z-tip` 70 | Plain numbers up to 10 for stacking inside a part. Windows use the browser's top layer. |
 | Controls | `--ctl` 30 px, 40 px on a phone | The height of every button and icon button. |
 | Widths | phone up to 760 px (`PHONE` in `src/lib/breakpoints.ts`), narrow phone up to 420 px, tablet steps 1099/1100 and 1279/1280 px | No other `@media` widths. Code uses `PHONE`, never its own number. |
 
@@ -66,11 +66,15 @@ Shared parts and where they live. A screen uses these instead of styling its own
 | Note | `components/Note.tsx` (`.note`): a sign and words in a tinted box inside the page. Grey information, orange warning, red error (read out at once). A message that comes and goes is a Notice instead; a word or two in a row (Feeder jammed) stays coloured text |
 | Empty place | `components/Empty.tsx` (`.empty-place`): an icon, one sentence and at most one main button, centred where the content would be. No printers, no projects, no G-code files, no camera |
 | Picker | `components/Picker.tsx`, `styles/parts.css` (`.picker`, `.picker-list`): a button showing the current choice and a chevron, opening the site's own list (never the browser's), placed by Floating UI (`@floating-ui/react`). Choices may carry a colour swatch and the current one has a blue ✓; a line, then actions in the normal text colour with a grey icon in front, words ending in "…" (gear + "Printers & bridges…"). Arrow keys, Escape and a tap outside work. Use it when a list needs actions or swatches; a plain list of values stays a native `<select>`. Its rows are the shared menu rows (`.menu-item`, `.menu-check`, `hr`) that the object menu also uses |
+| Menu | `components/Menu.tsx`, `styles/parts.css` (`.menu`): a button that opens a list of actions, placed by Floating UI so it never runs off the screen; Escape or a tap outside closes it. Each row is a `.menu-item`: a grey Lucide icon, the words, then a shortcut (`kbd`) or a › for a sub-menu; `hr` is a line, `.danger` a red Delete row, `.menu-check` a ✓. Theme, Project, Views and the object, plate and layer menus (which open where you right-click, with the same look) |
+| Pop-over | `components/Menu.tsx` with `role="dialog"` (`.pop`): the same box holding a few words and fields instead of rows, spaced by one gap. A preset's ⋯, the account |
+| Tooltip | `components/Tips.tsx` (`.tip`), mounted once for the page: any button's `title` shows as a dark tip after a short hover with a mouse, and on a long press on a phone (which then doesn't tap the button). Shows over windows too. Nothing to add: give the button a `title` (an icon button gets its label) |
+| ⓘ help | `components/InfoTip.tsx` (`.info-tip`): a small ⓘ at the end of a one-line hint; hover or tap shows the rest in a pop-over. Alerts, Admin, bridge setup |
 | Icons | [Lucide](https://lucide.dev) (`lucide-react`), line icons at 16 px (20–24 px for tiles). The Device tab names its icons by meaning in `device/ui/icons.tsx`. Orca's own toolbar, view and plate icons stay as they are (`src/assets/`) |
 
-Still to come (picked on the design-system page): menus and pop-overs (on the
-Picker's rows), phone tooltips, phone polish, words and motion. Each joins this
-table and the design page when it is built.
+Still to come (picked on the design-system page): the sidebar's printer and
+filament lists and the Text tool's font list on the Picker, phone polish, words
+and motion. Each joins this table and the design page when it is built.
 
 ## Stylesheets
 

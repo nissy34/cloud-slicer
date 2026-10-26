@@ -79,7 +79,7 @@ export function Menu({ label, button, children, placement = 'bottom-start', role
     <>
       {button({ ref: refs.setReference, ...getReferenceProps() }, open)}
       {open && (
-        <FloatingFocusManager context={context} modal={false} initialFocus={role === 'menu' ? -1 : 0}>
+        <FloatingFocusManager context={context} modal={false} initialFocus={role === 'menu' ? -1 : refs.floating}>
           <Box
             ref={refs.setFloating}
             className={[role === 'menu' ? 'menu' : 'pop', className].filter(Boolean).join(' ')}
