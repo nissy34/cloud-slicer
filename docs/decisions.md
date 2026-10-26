@@ -100,6 +100,9 @@ down. Add a line with the date when a new choice is made.
   then too and added later, so ask before building one of these.
 - Arrange mode with sizes and camera cards (2026-10-22); layout per printer instead of one
   for all (2026-10-25). Same camera in two cards: parked.
+- Device top row split by what it changes (2026-10-26): the printer list holds the printers and
+  ends with Printers & bridges (add, edit, remove); the right side has only Arrange cards and
+  Emergency stop. The separate Edit and Add a printer items went: Printers & bridges has both.
 - Printer pages as a Device tab card, not a pop-up (2026-10-22).
 - Alerts: choices stay per device; a new device starts from the last saved (2026-10-22).
   Titles plain, no hints (2026-10-26).
