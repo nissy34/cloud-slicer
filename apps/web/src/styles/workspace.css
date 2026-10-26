@@ -160,7 +160,7 @@
 .shape-checks {
   display: flex;
   flex-wrap: wrap;
-  gap: var(--s-2);
+  gap: var(--s-4) var(--s-5);
 }
 .tool-row.shape-row {
   align-items: center;

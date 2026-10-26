@@ -382,8 +382,8 @@ function PrinterStep({ all, chosen, onChange, manage }: { all: PresetSummary[]; 
       </p>
       <div className="wizard-filters">
         <input type="search" placeholder="Search printers" aria-label="Search printers" value={query} onChange={(e) => setQuery(e.target.value)} />
-        <label className="chip">
-          <input type="checkbox" checked={sendOnly} onChange={(e) => setSendOnly(e.target.checked)} />
+        <label className="switch-row">
+          <input className="switch" type="checkbox" checked={sendOnly} onChange={(e) => setSendOnly(e.target.checked)} />
           <span>Only direct print</span>
         </label>
       </div>

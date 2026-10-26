@@ -391,9 +391,10 @@ function Slot(props: {
           <b>{name}</b>
           <span className="dv-slot-tools">
             {!phone && (
-              <button className="chip" aria-pressed={half} onClick={() => props.onHalf(!half)} title="Half width: two half cards sit side by side">
+              <label className="switch-row" title="Half width: two half cards sit side by side">
+                <input className="switch" type="checkbox" checked={half} onChange={(e) => props.onHalf(e.target.checked)} />
                 Half width
-              </button>
+              </label>
             )}
             {camera && (
               <select value={camera} onChange={(e) => props.onCamera(e.target.value as CameraSize)} aria-label="Camera size">

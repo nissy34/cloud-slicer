@@ -272,17 +272,17 @@ export function PrintDialog({ source }: { source: SendSource }) {
       {options && (!fil || mapping) && (
         <fieldset className="dv-fieldset">
           <legend>Before printing</legend>
-          <div className="chips">
-          <label className="chip">
-            <input type="checkbox" checked={options.bedLevel} onChange={(e) => setOptionEdits({ ...optionEdits, bedLevel: e.target.checked })} />
+          <div className="switch-list">
+          <label className="switch-row">
+            <input className="switch" type="checkbox" checked={options.bedLevel} onChange={(e) => setOptionEdits({ ...optionEdits, bedLevel: e.target.checked })} />
             Level the bed
           </label>
-          <label className="chip">
-            <input type="checkbox" checked={options.flowCalibrate} onChange={(e) => setOptionEdits({ ...optionEdits, flowCalibrate: e.target.checked })} />
+          <label className="switch-row">
+            <input className="switch" type="checkbox" checked={options.flowCalibrate} onChange={(e) => setOptionEdits({ ...optionEdits, flowCalibrate: e.target.checked })} />
             Calibrate flow
           </label>
-          <label className="chip">
-            <input type="checkbox" checked={options.timeLapse} onChange={(e) => setOptionEdits({ ...optionEdits, timeLapse: e.target.checked })} />
+          <label className="switch-row">
+            <input className="switch" type="checkbox" checked={options.timeLapse} onChange={(e) => setOptionEdits({ ...optionEdits, timeLapse: e.target.checked })} />
             Record a time-lapse
           </label>
           </div>

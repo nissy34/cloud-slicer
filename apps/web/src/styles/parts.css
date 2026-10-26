@@ -117,6 +117,12 @@
   gap: var(--s-4);
   cursor: pointer;
 }
+/* Several switch rows, one under the other. */
+.switch-list {
+  display: grid;
+  justify-items: start;
+  gap: var(--s-4);
+}
 
 /* Chooser: picks one value of 2 to 4 on a grey track. */
 .chooser {

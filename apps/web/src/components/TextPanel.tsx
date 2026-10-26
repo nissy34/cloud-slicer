@@ -252,12 +252,12 @@ function TextFields({
       </div>
       {onObject && (
         <div className="shape-checks">
-          <label className="chip" title="The text bends with the object's surface instead of standing flat on it">
-            <input type="checkbox" checked={style.useSurface} onChange={(e) => set('useSurface', e.target.checked)} />
+          <label className="switch-row" title="The text bends with the object's surface instead of standing flat on it">
+            <input className="switch" type="checkbox" checked={style.useSurface} onChange={(e) => set('useSurface', e.target.checked)} />
             Use surface
           </label>
-          <label className="chip" title="Each letter sits on the surface on its own, so text can go around a curved object">
-            <input type="checkbox" checked={style.perGlyph} onChange={(e) => set('perGlyph', e.target.checked)} />
+          <label className="switch-row" title="Each letter sits on the surface on its own, so text can go around a curved object">
+            <input className="switch" type="checkbox" checked={style.perGlyph} onChange={(e) => set('perGlyph', e.target.checked)} />
             Per letter
           </label>
         </div>

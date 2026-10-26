@@ -85,11 +85,11 @@ function Choices() {
             {f}
           </button>
         ))}
-        <label className="chip">
-          <input type="checkbox" checked={advanced} onChange={(e) => setAdvanced(e.target.checked)} />
-          Advanced
-        </label>
       </div>
+      <label className="switch-row">
+        <input className="switch" type="checkbox" checked={advanced} onChange={(e) => setAdvanced(e.target.checked)} />
+        Advanced
+      </label>
       <div className="ds-row">
         <span className="tag">Snapmaker Orca 2.4.0</span>
         <span className="tag ok">Printed</span>
