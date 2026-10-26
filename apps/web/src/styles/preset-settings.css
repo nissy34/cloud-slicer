@@ -1,0 +1,352 @@
+/* Printer and filament settings windows, works-with table. */
+/* Printer and filament settings windows (src/components/PresetSettingsDialog.tsx) */
+.win.preset-settings {
+  --win-w: 720px;
+  height: min(860px, calc(100dvh - 32px));
+}
+.preset-settings .win-body {
+  height: 100%;
+}
+.preset-settings .win-content {
+  flex: 1;
+  grid-template-rows: auto minmax(0, 1fr);
+  overflow: hidden;
+}
+.preset-settings .win-head .slot-dot {
+  width: 14px;
+  height: 14px;
+}
+.preset-settings-name {
+  overflow-wrap: anywhere;
+}
+.preset-settings-body {
+  display: grid;
+  align-content: start;
+  gap: 10px;
+  overflow-y: auto;
+  min-height: 0;
+  padding-right: 4px;
+}
+.preset-settings-count {
+  margin-right: auto;
+  align-self: center;
+}
+.preset-settings-saveas {
+  flex: 1;
+  display: grid;
+  gap: 8px;
+}
+@media (max-width: 760px) {
+  .win.preset-settings {
+    height: calc(100dvh - 24px);
+  }
+}
+.dv-bridge-printers {
+  display: grid;
+  gap: 8px;
+  padding: 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+}
+.dv-found-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.dv-found-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 6px;
+}
+.dv-found {
+  display: grid;
+  gap: 6px;
+  padding: 8px;
+  background: var(--surface-2);
+  border-radius: var(--r-md);
+  min-width: 0;
+}
+.dv-found label {
+  display: grid;
+  gap: 4px;
+}
+.dv-found .muted {
+  overflow-wrap: anywhere;
+}
+.dv-add-row {
+  border: 1px solid transparent;
+}
+.dv-add-row.editing {
+  border-color: var(--accent);
+  background: var(--surface);
+}
+.dv-add-row.ready {
+  border-color: var(--ok);
+}
+.dv-row-actions {
+  display: flex;
+  gap: 12px;
+}
+.dv-row-buttons {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+.dv-add-fields {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 8px;
+}
+.dv-add-fields label {
+  display: grid;
+  gap: 4px;
+}
+.dv-add-key {
+  grid-column: 1 / -1;
+}
+.dv-add-summary {
+  align-self: center;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}
+@media (max-width: 760px) {
+  .dv-add-fields {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+.dv-use-bridge {
+  display: grid;
+  gap: 8px;
+  justify-items: start;
+  padding: 12px;
+  border: 1px solid var(--accent);
+  border-radius: var(--r-lg);
+}
+.dv-manage-title {
+  margin: 4px 0 0;
+  font-size: var(--t-lg);
+}
+.dv-manage-card {
+  display: grid;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+}
+.dv-manage-card p {
+  margin: 0;
+}
+.dv-manage-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 6px;
+}
+.dv-manage-printer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  padding: 8px 10px;
+  border-radius: var(--r-md);
+  background: var(--surface-2);
+}
+.dv-manage-actions {
+  justify-content: space-between;
+  flex-wrap: wrap;
+}
+.dv-manage-update {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 8px 10px;
+  border-radius: var(--r-md);
+  background: var(--surface-2);
+}
+.dv-manage-update .dv-alert {
+  flex-basis: 100%;
+  margin: 0;
+}
+.dv-manage-confirm {
+  display: grid;
+  gap: 8px;
+  padding: 10px;
+  border-radius: var(--r-md);
+  background: var(--surface-2);
+}
+.dv-added {
+  color: var(--ok);
+  font-weight: 600;
+}
+/* A found printer that isn't Klipper: its brand beside its name. */
+.dv-kind {
+  display: inline-block;
+  margin-left: 6px;
+  padding: 0 7px;
+  border-radius: var(--r-full);
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  color: var(--muted);
+  font-size: var(--t-sm);
+  font-weight: 600;
+  vertical-align: 1px;
+}
+.dv-works {
+  display: grid;
+  gap: 6px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+  background: var(--surface-2);
+  text-align: left;
+  width: 100%;
+  min-width: 0;
+}
+.dv-works p {
+  margin: 0;
+}
+.dv-works-slicing {
+  font-weight: 600;
+  color: var(--ok);
+}
+.dv-works summary {
+  color: var(--accent);
+  cursor: pointer;
+  width: fit-content;
+}
+.dv-works > * {
+  min-width: 0;
+}
+.dv-works-scroll {
+  overflow-x: auto;
+  margin-top: 6px;
+}
+.dv-works-table {
+  border-collapse: collapse;
+  width: 100%;
+  font-size: var(--t-md);
+}
+.dv-works-table th,
+.dv-works-table td {
+  border-bottom: 1px solid var(--border);
+  padding: 5px 6px;
+  text-align: center;
+  white-space: nowrap;
+}
+.dv-works-table thead th {
+  font-weight: 600;
+  color: var(--muted);
+  font-size: var(--t-sm);
+  white-space: normal;
+  vertical-align: bottom;
+}
+.dv-works-short {
+  display: none;
+}
+/* Phones: the table fits without sideways scrolling. */
+@media (max-width: 760px) {
+  .dv-works-long {
+    display: none;
+  }
+  .dv-works-short {
+    display: inline;
+  }
+  .dv-works-table {
+    font-size: var(--t-sm);
+  }
+  .dv-works-table th,
+  .dv-works-table td {
+    padding: 4px 2px;
+  }
+  .dv-works-table thead th {
+    font-size: var(--t-xs);
+  }
+}
+.dv-works-table tbody th {
+  text-align: left;
+  font-weight: 600;
+  white-space: normal;
+}
+.dv-works-table td.yes {
+  color: var(--ok);
+  font-weight: 600;
+}
+.dv-works-table td.no {
+  color: var(--muted);
+}
+.dv-bridge-state {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  padding: 12px;
+  border-radius: var(--r-md);
+  background: var(--surface-2);
+  border-left: 3px solid var(--accent);
+}
+.dv-bridge-state > div {
+  display: grid;
+  gap: 2px;
+  justify-items: start;
+}
+.dv-bridge-state.online {
+  border-left-color: var(--ok);
+}
+.dv-bridge-state.failed {
+  border-left-color: var(--warn);
+}
+.dv-bridge-state-icon {
+  flex: none;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  font-weight: 600;
+  font-size: var(--t-md);
+  color: var(--on-colour);
+  background: var(--ok-solid);
+}
+.dv-bridge-state.failed .dv-bridge-state-icon {
+  background: var(--warn);
+}
+.dv-searching {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  padding: 12px;
+  border-radius: var(--r-md);
+  background: var(--surface-2);
+}
+.dv-searching > div {
+  display: grid;
+  gap: 2px;
+}
+.dv-spinner {
+  flex: none;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  border: 3px solid var(--border);
+  border-top-color: var(--accent);
+  animation: dv-spin 0.8s linear infinite;
+}
+@keyframes dv-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .dv-spinner {
+    animation-duration: 2.4s;
+  }
+}

@@ -1,0 +1,193 @@
+/* Setup wizard and direct print. */
+/* Setup wizard */
+.win.wizard {
+  --win-w: 640px;
+}
+.wizard-body {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  align-content: start;
+  gap: 10px;
+  min-height: 0;
+  overflow-y: auto;
+}
+.wizard-steps {
+  display: flex;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  counter-reset: step;
+  font-size: var(--t-md);
+  color: var(--muted);
+}
+.wizard-steps li {
+  counter-increment: step;
+}
+.wizard-steps li::before {
+  content: counter(step) '. ';
+}
+.wizard-steps li + li::before {
+  content: '› ' counter(step) '. ';
+}
+.wizard-steps li.on {
+  color: var(--text);
+  font-weight: 600;
+}
+/* Phones: the current step only, instead of four labels breaking across lines. */
+.wizard-step-now {
+  display: none;
+  margin: 0;
+  font-size: var(--t-md);
+  font-weight: 600;
+}
+@media (max-width: 760px) {
+  .wizard-steps {
+    display: none;
+  }
+  .wizard-step-now {
+    display: block;
+  }
+}
+.wizard-models,
+.wizard-devices,
+.wizard-filaments ul {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.wizard-models li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+}
+.wizard-models li.on {
+  border-color: var(--accent);
+}
+.wizard-models .segmented {
+  flex-wrap: wrap;
+  margin-inline-start: auto;
+}
+.wizard-model {
+  flex: 1 1 140px;
+  min-width: 0;
+  font-weight: 600;
+}
+.wizard-model .send-mark {
+  margin-inline-start: 6px;
+}
+.wizard-cover {
+  flex: none;
+  width: 40px;
+  height: 40px;
+  object-fit: contain;
+  border-radius: var(--r-sm);
+}
+.wizard-brands {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 6px;
+}
+.wizard-brands details {
+  padding: 6px 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+}
+.wizard-brands summary {
+  cursor: pointer;
+  font-weight: 600;
+}
+.wizard-brands .wizard-models {
+  margin-top: 6px;
+}
+.wizard-filters .check {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+/* Direct print: the app can send prints to this printer (Klipper): wizard, printer picker. */
+.send-mark {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 0 6px;
+  border-radius: var(--r-full);
+  background: color-mix(in srgb, var(--accent) 14%, transparent);
+  color: var(--accent);
+  font-size: var(--t-xs);
+  font-weight: 600;
+  white-space: nowrap;
+  vertical-align: middle;
+}
+.wizard-engines {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 8px;
+}
+.wizard-engine {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: start;
+  cursor: pointer;
+}
+.wizard-engine.on {
+  border-color: var(--accent);
+  box-shadow: inset 0 0 0 1px var(--accent);
+}
+.wizard-engine ul {
+  margin: 4px 0 0;
+  padding-inline-start: 18px;
+}
+.wizard-filters {
+  display: flex;
+  gap: 8px;
+}
+.wizard-filters select {
+  max-width: 45%;
+}
+.wizard-filters input {
+  flex: 1;
+  min-width: 0;
+  padding: 6px 8px;
+  border-radius: var(--r-md);
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  color: var(--text);
+}
+.wizard-filaments {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 6px;
+}
+.wizard-filaments details {
+  padding: 6px 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+}
+.wizard-filaments summary {
+  cursor: pointer;
+  font-weight: 600;
+}
+.wizard-filaments ul {
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  margin-top: 6px;
+}
+.wizard-later {
+  margin-right: auto;
+}

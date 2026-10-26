@@ -60,6 +60,7 @@ import { MotionCard } from './MotionCard';
 import { PageCard } from './PrinterPage';
 import { SlotContext } from './parts';
 import { ToolheadsCard } from './ToolheadsCard';
+import { PHONE } from '../../lib/breakpoints';
 
 const VIEWS: Record<Exclude<CardId, 'camera'>, () => ReactNode> = {
   climate: ClimateCard,
@@ -71,7 +72,6 @@ const VIEWS: Record<Exclude<CardId, 'camera'>, () => ReactNode> = {
   files: FilesCard,
 };
 
-const PHONE = '(max-width: 760px)';
 
 function usePhone() {
   const [phone, setPhone] = useState(() => typeof matchMedia === 'function' && matchMedia(PHONE).matches);

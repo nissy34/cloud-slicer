@@ -1,14 +1,24 @@
-import { StrictMode } from 'react';
+import { lazy, StrictMode, Suspense } from 'react';
 import { createRoot } from 'react-dom/client';
 import './lib/theme';
 import { App } from './App';
 import { useDevice } from './state/device';
 import { useSlicer } from './state/store';
-import './styles.css';
+import '@fontsource-variable/inter';
+import './styles/index.css';
+
+// #design: every token and shared part, light and dark (docs/DESIGN.md).
+const DesignPage = lazy(() => import('./components/DesignPage').then((m) => ({ default: m.DesignPage })));
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    <App />
+    {location.hash === '#design' ? (
+      <Suspense fallback={null}>
+        <DesignPage />
+      </Suspense>
+    ) : (
+      <App />
+    )}
   </StrictMode>,
 );
 

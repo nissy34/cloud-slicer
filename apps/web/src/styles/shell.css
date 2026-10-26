@@ -1,0 +1,588 @@
+/* Autosave and view only, tablet top bar, messages, selection, print history, print order, bottom tabs. */
+/* AutoSave, Continue and view only (src/components/ContinueCard.tsx, ProjectMenu.tsx) */
+.project-status {
+  color: var(--muted);
+  font-size: var(--t-sm);
+  font-weight: 400;
+  white-space: nowrap;
+}
+.switch {
+  position: relative;
+  flex: none;
+  width: 26px;
+  height: 14px;
+  border-radius: var(--r-md);
+  background: var(--border);
+  transition: background 0.15s;
+}
+.switch::after {
+  content: '';
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--surface);
+  transition: transform 0.15s;
+}
+.switch.on {
+  background: var(--accent);
+}
+.switch.on::after {
+  transform: translateX(12px);
+}
+.autosave-pill {
+  display: none;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 8px;
+  border: 1px solid var(--border);
+  border-radius: var(--r-full);
+  background: none;
+  color: var(--muted);
+  font-size: var(--t-sm);
+  white-space: nowrap;
+  cursor: pointer;
+}
+.project-menu:has(.autosave-pill) {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.menu-pop .menu-switch {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.menu-note.warn {
+  color: var(--warn);
+}
+@media (min-width: 1100px) {
+  .autosave-pill {
+    display: inline-flex;
+  }
+}
+/* Tablets and narrow windows (761-1279 px): the desktop bar, made smaller so
+   the tabs, Calibration, theme and account always stay inside the window. */
+@media (min-width: 761px) and (max-width: 1279px) {
+  .topbar {
+    gap: 12px;
+  }
+  .topbar .project-button {
+    min-width: 0;
+  }
+}
+@media (min-width: 761px) and (max-width: 1099px) {
+  /* The logo alone, Calibration as its icon, the account as its picture. */
+  .brand {
+    font-size: 0;
+  }
+  .topbar .calib-button {
+    display: grid;
+    place-items: center;
+    width: 32px;
+    height: 32px;
+    padding: 0;
+  }
+  .calib-icon {
+    display: block;
+  }
+  .calib-label {
+    display: none;
+  }
+  .account-name {
+    display: none;
+  }
+  .account-button {
+    padding: 3px;
+  }
+  .project-status {
+    display: none;
+  }
+}
+@media (min-width: 761px) and (max-width: 1099px) {
+  /* The Project menu names the engine. */
+  .engine-badge {
+    display: none;
+  }
+}
+@media (max-width: 760px) {
+  .project-status {
+    display: none;
+  }
+}
+.main {
+  position: relative;
+}
+/* Messages (src/components/Notices.tsx): one card look, bottom centre above the Slice bar,
+   newest at the bottom. Notices.tsx places it over the Slice bar; this is where there is none. */
+.notices {
+  position: fixed;
+  z-index: var(--z-notice);
+  left: 50%;
+  bottom: calc(24px + env(safe-area-inset-bottom, 0px));
+  width: min(440px, calc(100vw - 32px));
+  transform: translateX(-50%);
+  display: grid;
+  gap: 8px;
+  pointer-events: none;
+}
+.notice-slot {
+  pointer-events: auto;
+  animation: notice-in 0.2s ease-out;
+}
+@keyframes notice-in {
+  from {
+    transform: translateY(12px);
+    opacity: 0;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .notice-slot {
+    animation: none;
+  }
+}
+.notice {
+  display: grid;
+  gap: 10px;
+  padding: 10px 10px 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--r-xl);
+  background: var(--surface);
+  box-shadow: var(--shadow-2);
+}
+.notice-main {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+.notice-icon {
+  flex: none;
+  width: 32px;
+  height: 32px;
+  display: grid;
+  place-items: center;
+  border-radius: var(--r-lg);
+  background: var(--surface-2);
+  color: var(--muted);
+  font-size: var(--t-lg);
+  font-weight: 600;
+}
+.notice.ok .notice-icon {
+  color: var(--accent);
+}
+.notice.warn .notice-icon {
+  color: var(--warn);
+  background: color-mix(in srgb, var(--warn) 16%, transparent);
+}
+.notice.error .notice-icon {
+  color: var(--danger);
+  background: color-mix(in srgb, var(--danger) 16%, transparent);
+}
+.notice .project-thumb.small {
+  width: 40px;
+  height: 40px;
+}
+.notice-text {
+  flex: 1;
+  min-width: 0;
+  display: grid;
+  gap: 2px;
+}
+.notice-text b {
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+.notice-text span {
+  color: var(--muted);
+  font-size: var(--t-md);
+}
+.notice-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+}
+.continue-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+.continue-row {
+  padding: 10px;
+  margin-bottom: 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+  background: var(--surface-2);
+}
+.continue-text {
+  display: grid;
+  min-width: 0;
+  flex: 1;
+}
+.continue-text b {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.project-thumb.small {
+  flex: none;
+  width: 48px;
+  height: 48px;
+  display: grid;
+  place-items: center;
+  border-radius: var(--r-md);
+  overflow: hidden;
+  background: var(--surface-2);
+  color: var(--muted);
+  font-size: var(--t-xs);
+}
+.project-thumb.small img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+/* View only: the panels and tools can't change the project; the 3D view still turns. */
+.app.view-only .panel,
+.app.view-only .toolbar,
+.app.view-only .workspace-tools,
+.app.view-only .plate-menu {
+  pointer-events: none;
+  opacity: 0.55;
+}
+
+/* Bridges on the test relay, where pull requests are tried before they merge. */
+.dv-test-tag {
+  font-size: var(--t-xs);
+  font-weight: 600;
+  padding: 0 7px;
+  border-radius: var(--r-full);
+  border: 1px solid var(--warn);
+  color: var(--warn);
+  vertical-align: middle;
+}
+.dv-test-note .dv-test-tag {
+  margin-right: 6px;
+}
+
+/* Rectangle selection in the 3D view (Shift+drag adds, Alt+drag takes out). */
+.select-rect {
+  position: absolute;
+  pointer-events: none;
+  border: 1px dashed var(--accent);
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+  z-index: 2;
+}
+.select-rect.remove {
+  border-color: var(--danger);
+  background: color-mix(in srgb, var(--danger) 10%, transparent);
+}
+.menu-item.danger {
+  color: var(--danger);
+}
+.choose-bar {
+  position: absolute;
+  left: 50%;
+  bottom: 12px;
+  transform: translateX(-50%);
+  z-index: 3;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 6px 4px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--r-full);
+  background: var(--surface);
+  box-shadow: var(--shadow-1);
+  white-space: nowrap;
+  max-width: calc(100% - 24px);
+}
+.choose-bar .choose-count {
+  font-weight: 600;
+}
+.choose-bar button {
+  padding: 4px 10px;
+}
+.choose-bar .choose-short {
+  display: none;
+}
+@media (max-width: 760px) {
+  /* Clear of the view buttons in the right corner. */
+  .choose-bar {
+    left: 12px;
+    transform: none;
+    max-width: calc(100% - 76px);
+    gap: 4px;
+  }
+  /* Room for Assemble on a phone: "All" for Select all, narrower buttons. */
+  .choose-bar button {
+    padding: 4px 8px;
+  }
+  .choose-bar .choose-long {
+    display: none;
+  }
+  .choose-bar .choose-short {
+    display: inline;
+  }
+}
+
+/* Print history (components/PrintHistory.tsx): a green tick for a printed
+   plate, amber "!" when it changed since, a blue ring while it prints. */
+.print-mark {
+  display: inline-grid;
+  place-items: center;
+  width: 15px;
+  height: 15px;
+  border-radius: 50%;
+  margin-right: 5px;
+  vertical-align: -2px;
+  font-size: var(--t-xs);
+  font-weight: 600;
+  line-height: 1;
+  color: var(--surface);
+  cursor: pointer;
+}
+.print-mark.printed {
+  background: var(--ok);
+}
+.print-mark.changed {
+  background: var(--warn);
+}
+.print-mark.sent {
+  border: 2px solid var(--accent);
+  box-sizing: border-box;
+}
+.print-progress-group {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+.print-progress {
+  display: inline-grid;
+  gap: 3px;
+  justify-items: stretch;
+  padding: 2px 8px;
+  border: 1px solid var(--border);
+  border-radius: var(--r-full);
+  font-size: var(--t-sm);
+  white-space: nowrap;
+}
+.print-progress.single {
+  display: inline-flex;
+  align-items: center;
+}
+.print-bar {
+  display: flex;
+  height: 3px;
+  border-radius: var(--r-sm);
+  background: var(--surface-2);
+  overflow: hidden;
+}
+.print-bar-ok {
+  background: var(--ok);
+}
+.print-bar-changed {
+  background: var(--warn);
+}
+.print-next {
+  font-size: var(--t-sm);
+  padding: 3px 8px;
+  white-space: nowrap;
+}
+.print-count {
+  color: var(--ok);
+}
+.print-history {
+  display: grid;
+  gap: 12px;
+  min-width: 0;
+}
+.print-state {
+  margin: 0;
+}
+.print-state.changed b {
+  color: var(--warn);
+}
+.print-state.printed b {
+  color: var(--ok);
+}
+.print-changes p {
+  margin: 0;
+}
+.print-changes ul,
+.print-list {
+  margin: 4px 0 0;
+  padding-left: 20px;
+  display: grid;
+  gap: 4px;
+}
+.print-list {
+  list-style: none;
+  padding: 0;
+  border-top: 1px solid var(--border);
+  padding-top: 10px;
+}
+.print-list li {
+  display: flex;
+  gap: 8px;
+  align-items: baseline;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.print-dot {
+  flex: none;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+}
+.print-dot.printed,
+.print-dot.marked {
+  background: var(--ok);
+  border-color: var(--ok);
+}
+.print-dot.failed {
+  background: var(--danger);
+  border-color: var(--danger);
+}
+.print-dot.sent,
+.print-dot.printing {
+  border: 2px solid var(--accent);
+}
+.print-file {
+  display: block;
+  font-size: var(--t-sm);
+}
+@media (max-width: 760px) {
+  .print-progress {
+    padding: 2px 6px;
+  }
+  .print-next {
+    padding: 3px 6px;
+  }
+  /* "6/10" instead of "Printed 6 of 10": the top bar is short of room. */
+  .print-progress .wide-only {
+    display: none;
+  }
+  .print-progress .phone-only {
+    display: inline;
+  }
+}
+
+/* Printing object by object: each object's print order on the plate. */
+.clearance-order {
+  padding: 0 5px;
+  border-radius: var(--r-sm);
+  background: var(--scene-label-bg);
+  color: var(--on-colour);
+  font-size: var(--t-xs);
+  font-weight: 600;
+  transform: translateY(60%);
+  white-space: nowrap;
+}
+.clearance-order.bad {
+  background: var(--danger-solid);
+}
+
+/* Phones: Prepare, Preview and Device as tabs at the bottom (src/components/BottomTabs.tsx). */
+.bottom-tabs {
+  display: none;
+}
+@media (max-width: 760px) {
+  .app {
+    --bottom-tabs: 56px;
+    grid-template-rows: var(--topbar) minmax(0, 1fr) auto;
+  }
+  .app > .topbar {
+    grid-row: 1;
+  }
+  .app > .body,
+  .app > .device {
+    grid-row: 2;
+  }
+  .topbar .tabs {
+    display: none;
+  }
+  /* The project name takes the room the tabs left; the buttons sit at the right. */
+  .topbar .calib-button {
+    margin-left: auto;
+  }
+  .topbar .project-button {
+    max-width: 52vw;
+  }
+  .bottom-tabs {
+    grid-row: 3;
+    display: flex;
+    background: var(--surface);
+    border-top: 1px solid var(--border);
+    padding: 4px max(8px, env(safe-area-inset-right, 0px)) max(6px, env(safe-area-inset-bottom, 0px)) max(8px, env(safe-area-inset-left, 0px));
+  }
+  .bottom-tab {
+    position: relative;
+    flex: 1;
+    display: grid;
+    justify-items: center;
+    gap: 2px;
+    min-height: 46px;
+    padding: 4px 0 2px;
+    border: 0;
+    background: none;
+    color: var(--muted);
+    font-size: var(--t-sm);
+    cursor: pointer;
+  }
+  .bottom-tab.active {
+    color: var(--accent);
+    font-weight: 600;
+  }
+  .bottom-tab:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: -2px;
+    border-radius: var(--r-lg);
+  }
+  .bottom-tab-mark {
+    position: absolute;
+    top: 0;
+    left: calc(50% + 6px);
+    min-width: 10px;
+    height: 16px;
+    padding: 0 5px;
+    box-sizing: border-box;
+    border-radius: var(--r-full);
+    font-size: var(--t-xs);
+    font-weight: 600;
+    line-height: 16px;
+    font-variant-numeric: tabular-nums;
+    color: var(--accent-text);
+    background: var(--accent);
+  }
+  .bottom-tab-mark.warn {
+    background: var(--warn-solid);
+    color: var(--on-colour);
+  }
+  /* A dot alone: the printer needs attention. */
+  .bottom-tab-mark.error {
+    width: 10px;
+    height: 10px;
+    padding: 0;
+    top: 2px;
+    background: var(--danger);
+  }
+  /* The tab bar holds the bottom edge now, so the Slice bar needs no room for the phone's gesture bar. */
+  .actionbar {
+    padding-bottom: 8px;
+  }
+  .actionbar .wide-only-button {
+    display: none;
+  }
+  /* Pop-ups at the bottom of the Device tab stay above the tab bar. */
+  .notices {
+    bottom: calc(16px + var(--bottom-tabs, 0px) + env(safe-area-inset-bottom, 0px));
+  }
+}

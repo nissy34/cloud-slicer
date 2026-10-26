@@ -382,6 +382,7 @@ was ruled out (closed service with per-user device certificates, against its ter
   to the real bridge and update only from the test relay. Branch previews of the site set
   up new bridges on it; bridges saved earlier keep their own relay.
 - CI layout, caches and secrets: [CI.md](CI.md).
+- How the site looks (tokens, parts, rules): [DESIGN.md](DESIGN.md).
 
 ## Still to come
 

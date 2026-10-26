@@ -190,7 +190,7 @@ How it is built, and why: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 | `apps/device-relay/` | The relay Worker between browsers and bridges. See [apps/device-relay/README.md](apps/device-relay/README.md) and [SECURITY.md](apps/device-relay/SECURITY.md) |
 | `packages/printer/` | Printer drivers for the Device tab: Moonraker client, filament library and sync, G-code summary, tool remap, and a mock Moonraker for tests |
 | `fixtures/` | Small test models and G-code |
-| `docs/` | [Architecture and design](docs/ARCHITECTURE.md), [CI and deploys](docs/CI.md) |
+| `docs/` | [Architecture and design](docs/ARCHITECTURE.md), [CI and deploys](docs/CI.md), [Design system](docs/DESIGN.md) |
 
 ## Get the engine
 

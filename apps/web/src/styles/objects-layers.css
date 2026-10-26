@@ -1,0 +1,287 @@
+/* Object menu, parts list, assemble, engine badge, setting overrides, layer markers. */
+/* The object menu (right click, long press or ⋯ in the object list). */
+.object-menu {
+  position: fixed;
+  z-index: var(--z-context);
+  display: grid;
+  width: 240px;
+  max-height: calc(100dvh - 8px);
+  overflow-y: auto;
+  padding: 6px;
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+  background: var(--surface);
+  box-shadow: var(--shadow-2);
+  font-size: var(--t-md);
+}
+.object-menu .menu-title {
+  overflow: hidden;
+  padding: 4px 10px 6px;
+  color: var(--muted);
+  font-size: var(--t-sm);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.object-menu .menu-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 34px;
+  padding: 6px 10px;
+  border: 0;
+  border-radius: var(--r-md);
+  background: none;
+  color: var(--text);
+  text-align: left;
+  cursor: pointer;
+}
+.object-menu .menu-item:hover:not(:disabled),
+.object-menu .menu-item[aria-expanded='true'] {
+  background: var(--surface-2);
+}
+.object-menu .menu-item:disabled {
+  color: var(--muted);
+  cursor: default;
+}
+.object-menu .menu-arrow {
+  margin-left: auto;
+  color: var(--muted);
+}
+.object-menu .menu-check {
+  width: 14px;
+  color: var(--accent);
+}
+.object-menu .menu-sub {
+  display: grid;
+  margin: 0 0 4px 12px;
+  padding-left: 6px;
+  border-left: 2px solid var(--border);
+}
+.object-menu .menu-swatch {
+  width: 14px;
+  height: 14px;
+  border: 1px solid var(--border);
+  border-radius: 50%;
+}
+.object-menu hr {
+  width: 100%;
+  margin: 4px 0;
+  border: 0;
+  border-top: 1px solid var(--border);
+}
+.object-menu .menu-form {
+  display: grid;
+  gap: 10px;
+  padding: 4px 6px;
+}
+.object-menu .menu-form label {
+  display: grid;
+  gap: 4px;
+  font-size: var(--t-md);
+}
+.object-menu .menu-form .menu-check-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.object-menu .menu-form-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 6px;
+}
+.object-more {
+  padding: 2px 8px;
+  line-height: 1;
+}
+@media (pointer: coarse) {
+  .object-menu .menu-item {
+    min-height: 42px;
+  }
+}
+/* Parts, modifiers... in the object list: picked one highlighted, a dot of its see-through colour. */
+button.volume-name {
+  border: 0;
+  background: none;
+  padding: 4px 2px;
+  cursor: pointer;
+  font: inherit;
+  color: inherit;
+}
+.volume.active {
+  background: color-mix(in srgb, var(--accent) 18%, transparent);
+  border-radius: var(--r-sm);
+}
+.volume-kind {
+  display: inline-block;
+  width: 9px;
+  height: 9px;
+  margin-right: 6px;
+  border-radius: 50%;
+  border: 1px solid var(--border);
+  vertical-align: baseline;
+}
+
+/* Assemble: the "join into one object" advice and its button. */
+.assemble-join {
+  display: grid;
+  gap: 6px;
+  justify-items: start;
+}
+
+/* Which engine slices, when it isn't the default Snapmaker Orca. */
+.engine-badge {
+  font-size: var(--t-sm);
+  color: var(--muted);
+  border: 1px solid var(--border);
+  border-radius: var(--r-full);
+  padding: 2px 8px;
+  white-space: nowrap;
+}
+/* No room beside the tabs on a phone: the Project menu names the engine instead. */
+@media (max-width: 760px) {
+  .engine-badge {
+    display: none;
+  }
+}
+
+/* The filament Setting Overrides page: a checkbox before each label, and the
+   printer's value greyed out while the filament leaves it unset. */
+.override-check {
+  margin: 0 6px 0 0;
+  vertical-align: middle;
+}
+.option > .check-row {
+  grid-column: 1 / 3;
+  display: flex;
+  align-items: center;
+  min-width: 0;
+}
+.option.unset .option-label,
+.option.unset input:disabled {
+  opacity: 0.6;
+}
+/* Printer and filament labels can be long ("Maximum acceleration X"): wrap them rather than cut them off. */
+.preset-settings-body .option-label {
+  white-space: normal;
+}
+
+/* Preview layer slider: markers of pauses, filament changes and G-code at layers, and their menu. */
+.layer-track {
+  position: relative;
+  flex: 1;
+  display: flex;
+  align-items: center;
+  min-width: 0;
+}
+.layer-track input {
+  flex: 1;
+  min-width: 0;
+}
+.layer-marks {
+  position: absolute;
+  inset: auto 0 calc(50% + 10px) 0;
+  height: 0;
+  pointer-events: none;
+}
+.layer-mark {
+  position: absolute;
+  bottom: 0;
+  width: 18px;
+  height: 14px;
+  margin-left: -9px;
+  padding: 0;
+  border: 0;
+  background: none;
+  pointer-events: auto;
+  cursor: pointer;
+}
+/* A small flag pointing down at the layer, in the item's colour. */
+.layer-mark::after {
+  content: '';
+  position: absolute;
+  left: 4px;
+  bottom: 0;
+  border-left: 5px solid transparent;
+  border-right: 5px solid transparent;
+  border-top: 9px solid currentColor;
+  /* Outlined, so a dark or light filament still shows on either theme. */
+  filter: drop-shadow(0 0 1px var(--muted));
+}
+.layer-mark.custom::after,
+.layer-mark.template::after {
+  left: 5px;
+  width: 8px;
+  height: 8px;
+  border: 0;
+  border-radius: 50%;
+  background: currentColor;
+}
+.layer-add {
+  flex: none;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border-radius: var(--r-lg);
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  color: var(--text);
+  font-size: var(--t-xl);
+  line-height: 1;
+}
+.layer-add.has-code {
+  color: var(--accent);
+  border-color: var(--accent);
+}
+.object-menu.layer-menu {
+  position: absolute;
+  right: max(16px, calc(50% - 260px));
+  bottom: 76px;
+  max-height: min(60%, 420px);
+}
+.layer-menu .menu-label {
+  padding: 6px 10px 2px;
+  font-size: var(--t-md);
+  color: var(--muted);
+}
+.layer-filaments {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 4px 10px 6px;
+}
+.layer-filament {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 34px;
+  padding: 4px 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+  background: var(--surface-2);
+  color: var(--text);
+}
+.layer-filament.current {
+  border-color: var(--accent);
+}
+.layer-filament:disabled:not(.current) {
+  opacity: 0.5;
+}
+.layer-menu textarea {
+  width: 100%;
+  box-sizing: border-box;
+  font-family: var(--font-mono);
+  font-size: var(--t-md);
+}
+@media (max-width: 760px) {
+  .object-menu.layer-menu {
+    right: 8px;
+    left: 8px;
+    width: auto;
+    bottom: 74px;
+    max-height: 45%;
+  }
+  /* The colour key folds up while the layer menu is open, so the model keeps its room. */
+  .preview.layer-menu-open .legend > :not(.legend-head) {
+    display: none;
+  }
+}
