@@ -11,7 +11,7 @@ const FILES = {
 // Code that sets custom properties of its own (style={{ '--aspect': … }}).
 const CODE = import.meta.glob<string>(['../**/*.{ts,tsx}', '!../**/*.test.ts'], { query: '?raw', import: 'default', eager: true });
 
-const name = (path: string) => path.replace('../', 'src/');
+const name = (path: string) => path.replace(/^\.\.\//, 'src/');
 const roots: [string, Root][] = Object.entries(FILES).map(([path, css]) => [name(path), postcss.parse(css, { from: name(path) })]);
 
 /** Every declaration outside the token definitions, with where it is. */
