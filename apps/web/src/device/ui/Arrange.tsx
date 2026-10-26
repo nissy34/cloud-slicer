@@ -134,7 +134,7 @@ const collision: CollisionDetection = (args) => {
   return closestCorners(args);
 };
 
-export function DeviceCards({ printer, busy, arranging, onDone }: { printer: SavedPrinter; busy: boolean; arranging: boolean; onDone(): void }) {
+export function DeviceCards({ printer, busy, arranging }: { printer: SavedPrinter; busy: boolean; arranging: boolean }) {
   const phone = usePhone();
   const [layout, save] = useLayout(printer.id);
   const sensors = useSensors(
@@ -205,7 +205,12 @@ export function DeviceCards({ printer, busy, arranging, onDone }: { printer: Sav
 
   const bar = arranging && (
     <div className="dv-arrange-bar" data-testid="arrange-bar">
-      <p className="muted">{phone ? 'Hold a card by its grip and drag it up or down.' : 'Drag a card by its grip into a column, or across the top or bottom.'} Hidden cards stay here, faded. This layout is for {printer.name} only.</p>
+      <p>
+        <strong>Arranging cards for {printer.name}.</strong>{' '}
+        <span className="muted">
+          {phone ? 'Hold a card by its grip and drag it up or down.' : 'Drag a card by its grip into a column, or across the top or bottom.'} Hidden cards stay here, faded. Other printers keep their own layout.
+        </span>
+      </p>
       <div className="dv-arrange-actions">
         {!phone && (
           <div className="dv-columns-pick">
@@ -240,9 +245,6 @@ export function DeviceCards({ printer, busy, arranging, onDone }: { printer: Sav
           data-testid="arrange-reset"
         >
           Back to default
-        </button>
-        <button className="primary" onClick={onDone} data-testid="arrange-done">
-          Done
         </button>
       </div>
     </div>

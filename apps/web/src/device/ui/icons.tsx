@@ -9,6 +9,7 @@ import {
   Clock,
   Flag,
   HandGrab,
+  LayoutDashboard,
   Info,
   Layers,
   Percent,
@@ -47,6 +48,7 @@ const ICONS = {
   offline: WifiOff,
   ok: CircleCheck,
   info: Info,
+  arrange: LayoutDashboard,
 } satisfies Record<string, LucideIcon>;
 
 export type IconName = keyof typeof ICONS;

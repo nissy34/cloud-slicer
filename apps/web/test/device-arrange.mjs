@@ -146,7 +146,12 @@ try {
 
   // ---- Arrange ------------------------------------------------------------------------
   await page.getByTestId('arrange-open').click();
-  await page.getByTestId('arrange-bar').getByText('This layout is for U1-mock only.').waitFor();
+  await page.getByTestId('arrange-bar').getByText('Arranging cards for U1-mock.').waitFor();
+  // Layout and printer are apart: the top row has only the layout button (now Done arranging) and Emergency stop;
+  // editing a printer lives in Printers & bridges, the last choice in the printer list.
+  if (await page.getByTestId('arrange-open').count()) fail('while arranging, Arrange cards should turn into Done arranging');
+  if (await page.locator('.dv-header').getByRole('button', { name: 'Edit' }).count()) fail('the top row should not edit the printer');
+  if ((await page.getByTestId('printer-select').locator('option').last().textContent()) !== 'Printers & bridges…') fail('the printer list should end with Printers & bridges');
   if (shots) await page.screenshot({ path: join(shots, 'desktop-arrange.png') });
   await drag(page, 'camera', page.locator('[data-zone="top"]'));
   if ((await zoneOf(page, 'camera')) !== 'top') fail('the camera should move across the top');

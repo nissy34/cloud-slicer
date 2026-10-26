@@ -63,6 +63,10 @@ setting `device-layout.<printer id>`, per-device conveniences in browser storage
 - A folded camera or page card streams and loads nothing.
 - Each printer has its own layout; a new printer starts from the default; removing a
   printer removes its layout.
+- The top row keeps the printer and the layout apart. Printer things live in the printer
+  list, which ends with "Printers & bridges…" (add, edit, remove printers and bridges).
+  The right side has only "Arrange cards" ("Done arranging" while arranging) and
+  Emergency stop.
 - The page is cross-origin isolated (COEP `require-corp`): a camera image from another
   origin needs CORS or a credentialless frame.
 - The app never starts a print by itself. "Upload only" sends; "Upload and print" starts.
