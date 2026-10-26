@@ -1,5 +1,7 @@
 # Web app
 
+How each feature works and why: [docs/README.md](../../docs/README.md). This page has the commands and the layout.
+
 The Cloud Slicer site: React 18 + TypeScript + Vite, three.js through React Three Fiber,
 zustand for state, and Cloudflare Pages Functions for accounts and online projects. The
 slicing engine (`../../engine`) runs in a Web Worker in the page.
@@ -33,7 +35,7 @@ image or page from another origin needs CORS or a credentialless iframe (see
 
 | Path | What |
 |---|---|
-| `src/App.tsx`, `src/components/` | The slicer UI: top bar (Prepare, Preview, Device tabs, Project, Calibration, theme, account menus), sidebar with printer, filament and process pickers, settings panel, object list and per-object settings, 3D viewport with the object toolbar and gizmos, paint and colour mixing panels, setup wizard, convert dialog, loading screen; every pop-up window is `components/Dialog.tsx` and every message card is `components/Notice.tsx` (docs/ARCHITECTURE.md, "Web app") |
+| `src/App.tsx`, `src/components/` | The slicer UI: top bar (Prepare, Preview, Device tabs, Project, Calibration, theme, account menus), sidebar with printer, filament and process pickers, settings panel, object list and per-object settings, 3D viewport with the object toolbar and gizmos, paint and colour mixing panels, setup wizard, convert dialog, loading screen; every pop-up window is `components/Dialog.tsx` and every message card is `components/Notice.tsx` (see [docs/README.md](../../docs/README.md) for the page about each feature) |
 | `src/state/store.ts` | The slicer store: engine status, presets and selection, overrides, the project and plates, tools, paint, mixes, undo/redo, slicing and its result |
 | `src/state/projects.ts` | The open project as a document: name, saved where, unsaved changes, save and open |
 | `src/state/account.ts`, `src/account/` | Who is signed in and everything saved per user (presets, settings, devices); works signed out from localStorage |
@@ -42,9 +44,9 @@ image or page from another origin needs CORS or a credentialless iframe (see
 | `src/engine/` | The engine client (`client.ts`), its message types (`protocol.ts`) and the G-code parser worker for the Preview |
 | `public/engine/engine-worker.js` | The engine's Web Worker: loads the wasm, the presets and user presets, and answers the client's calls |
 | `src/lib/` | Pure helpers with unit tests next to them: G-code parsing, flow variants, project settings import and conversion, colour mixing recipes, calibration tests, setup choices, thumbnails, theme |
-| `functions/` | Pages Functions: `/api/auth/*` (Better Auth, Google), `/api/me`, `/api/presets`, `/api/settings`, `/api/devices`, `/api/projects` |
+| `functions/` | Pages Functions: `/api/auth/*` (Better Auth, Google), `/api/me`, `/api/presets`, `/api/settings`, `/api/devices`, `/api/projects` (and their print history), `/api/prints`, `/api/relay/*`, `/api/admin`; every route is listed at the top of `functions/api/[[path]].ts` |
 | `migrations/` | D1 migrations. One database serves production and every preview, so they must stay additive |
-| `public/` | Static files: `_headers`, the app icon, `manifest.webmanifest` and a service worker that only makes the site installable (it caches nothing, so a new deploy's page and engine always arrive together) |
+| `public/` | Static files: `_headers`, the app icon, `manifest.webmanifest` and a service worker (`sw.js`) that makes the site installable, receives files shared to it (Share to Cloud Slicer) and shows print alerts. It caches nothing, so a new deploy's page and engine always arrive together |
 | `test/` | Browser end to end tests (Playwright) and the Device tab's mock printer |
 
 ## How the pieces talk
@@ -57,8 +59,8 @@ image or page from another origin needs CORS or a credentialless iframe (see
 - If the engine fails to start, the page shows the error with a Copy button (error,
   engine build, browser) for a bug report. Nothing is reported automatically: the site
   has no telemetry.
-- User presets are stored as Orca user preset JSON (see "Presets" in
-  [docs/ARCHITECTURE.md](../../docs/ARCHITECTURE.md)) and written into the engine's data
+- User presets are stored as Orca user preset JSON (see
+  [docs/architecture/presets.md](../../docs/architecture/presets.md)) and written into the engine's data
   folder before it loads presets, so the engine treats them exactly like desktop does.
 
 ## Tests

@@ -1,5 +1,7 @@
 # Device relay
 
+Design, rules and why: [docs/architecture/relay.md](../../docs/architecture/relay.md). This page has the commands and the protocol detail.
+
 A Cloudflare Worker with one Durable Object per bridge, passing messages
 between browsers and the bridge agent (`apps/device-bridge`). Websockets
 hibernate, so an idle bridge costs nothing; it runs on the free plan.
