@@ -3,6 +3,7 @@ import { ImportPresetsDialog } from './account/ImportPresets';
 import { PresetSettingsDialog } from './components/PresetSettingsDialog';
 import { SettingsPromptDialog } from './components/SettingsPrompt';
 import { AskDialog } from './components/AskDialog';
+import { SimplifyFirstDialog } from './components/SimplifyFirstDialog';
 import { ActionBar } from './components/ActionBar';
 import { ConvertDialog } from './components/ConvertDialog';
 import { GcodeFallbackDialog } from './components/GcodeFallbackDialog';
@@ -51,6 +52,7 @@ export function App() {
       <PresetSettingsDialog />
       <SettingsPromptDialog />
       <AskDialog />
+      <SimplifyFirstDialog />
       <PrintHistoryDialog />
       {tab !== 'device' && tab !== 'admin' && (
         <div className="body">

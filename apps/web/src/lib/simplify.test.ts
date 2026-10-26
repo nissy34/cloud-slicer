@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { DETAIL_LEVELS, LIGHT_TRIANGLES, heavyModel, simplifyBy, triangleCount } from './simplify';
+import { DETAIL_LEVELS, LIGHT_TRIANGLES, heavyModel, heavyProject, heavyQuestion, simplifyBy, triangleCount } from './simplify';
 
 describe('simplify', () => {
   it('asks for a detail level or a ratio, within range', () => {
@@ -38,5 +38,28 @@ describe('heavyModel', () => {
     expect(triangleCount(3_160_000)).toBe('3.2 million');
     expect(triangleCount(2_000_000)).toBe('2 million');
     expect(triangleCount(800_000)).toBe('800,000');
+  });
+});
+
+describe('heavyProject', () => {
+  const counts = (...t: [number, boolean?][]) => t.map(([triangles, painted = false]) => ({ triangles, painted }));
+  it('asks nothing when every plate is light', () => {
+    expect(heavyProject(counts([600_000], [600_000]), [[0], [1]])).toBeNull();
+  });
+  it('simplifies every heavy plate, heaviest first, and leaves light plates alone', () => {
+    const plan = heavyProject(counts([1_200_000], [20_000], [1_800_000, true]), [[0], [1], [2]])!;
+    expect(plan.plates).toEqual([
+      { plate: 2, triangles: 1_800_000 },
+      { plate: 0, triangles: 1_200_000 },
+    ]);
+    expect(plan.objects.map((o) => o.object)).toEqual([0, 2]);
+    expect(plan.painted).toBe(true);
+    expect(heavyQuestion(plan, 3)).toContain('2 plates have more than 1 million triangles (up to 1.8 million)');
+  });
+  it('names the plate when the project has several', () => {
+    const plan = heavyProject(counts([1_800_000], [20_000]), [[0], [1]])!;
+    expect(plan.painted).toBe(false);
+    expect(heavyQuestion(plan, 2)).toMatch(/^Plate 1 has 1.8 million triangles/);
+    expect(heavyQuestion(heavyProject(counts([1_800_000]), [[0]])!, 1)).toMatch(/^This model has 1.8 million triangles.*about 500,000/);
   });
 });
