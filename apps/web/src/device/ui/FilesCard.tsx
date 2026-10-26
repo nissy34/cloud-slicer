@@ -5,6 +5,7 @@ import type { GcodeFile } from '../session';
 import { currentSession, useDevice } from '../../state/device';
 import { Card, useConfirm } from './parts';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { Swatch } from '../../components/Swatch';
 
 function size(bytes: number) {
   return bytes >= 1 << 20 ? `${(bytes / (1 << 20)).toFixed(1)} MB` : `${Math.max(1, Math.round(bytes / 1024))} KB`;
@@ -75,7 +76,7 @@ function FileRow({ file: f, onPrint, onDelete }: { file: GcodeFile; onPrint(): v
         {d?.meta.filaments.length ? (
           <span className="dv-file-filaments" title={d.meta.filaments.map((x) => `T${x.index} ${x.material} ${formatGrams(x.grams)}`).join(', ')}>
             {d.meta.filaments.map((x) => (
-              <i key={x.index} className="dv-swatch" style={{ background: x.colour }} />
+              <Swatch key={x.index} colour={x.colour} size="sm" />
             ))}
             {materials}
             {grams > 0 ? ` ${formatGrams(grams)}` : ''}

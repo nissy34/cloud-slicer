@@ -36,7 +36,6 @@
   /* Text on a colour the theme doesn't choose (a filament, a badge, the 3D view, a camera). */
   --on-colour: #ffffff;
   --on-colour-edge: #000000;
-  --thumb-edge: #333333;
   --brand-2: #8b5cf6;
   --overlay: rgb(0 0 0 / 45%);
   --progress-stripe: rgb(255 255 255 / 28%);

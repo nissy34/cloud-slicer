@@ -61,18 +61,6 @@
   display: grid;
   gap: 4px;
 }
-.win select {
-  padding: 6px 8px;
-  border-radius: var(--r-md);
-  border: 1px solid var(--border);
-  background: var(--surface-2);
-}
-.win input:not([type='checkbox']):not([type='radio']):not([type='range']) {
-  padding: 6px 8px;
-  border-radius: var(--r-md);
-  border: 1px solid var(--border);
-  background: var(--surface-2);
-}
 .win .switch-row {
   align-items: flex-start;
 }

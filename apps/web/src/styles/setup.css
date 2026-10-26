@@ -157,11 +157,6 @@
 .wizard-filters input {
   flex: 1;
   min-width: 0;
-  padding: 6px 8px;
-  border-radius: var(--r-md);
-  border: 1px solid var(--border);
-  background: var(--surface-2);
-  color: var(--text);
 }
 .wizard-filaments {
   display: grid;

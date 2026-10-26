@@ -5,6 +5,7 @@ import { NO_COLOURS, useSlicer } from '../state/store';
 import { startSvg } from './SvgPanel';
 import { startText } from './TextPanel';
 import { ChevronDown, ChevronRight } from 'lucide-react';
+import { Swatch } from './Swatch';
 
 type Sub = 'split' | 'mirror' | 'filament' | 'units' | 'type' | `add-${VolumeKind}` | null;
 type Form = 'rename' | 'clone' | null;
@@ -212,7 +213,7 @@ function MenuCard() {
               <>
                 {Array.from({ length: Math.max(physical, colours.length) }, (_, k) => (
                   <button key={k} role="menuitemradio" aria-checked={(vol.extruder || obj.extruder || 1) === k + 1} className="menu-item" onClick={run(() => s.setObjectFilament(o, vi, k + 1))}>
-                    <span className="menu-swatch" style={{ background: colours[k] }} aria-hidden="true" />
+                    <Swatch colour={colours[k]} size="sm" />
                     {k < physical ? `Filament ${k + 1}` : `Mix ${k + 1}`}
                   </button>
                 ))}
@@ -337,7 +338,7 @@ function MenuCard() {
             <>
               {Array.from({ length: Math.max(physical, colours.length) }, (_, k) => (
                 <button key={k} role="menuitemradio" aria-checked={(obj.extruder || 1) === k + 1} className="menu-item" onClick={run(() => s.setObjectFilament(o, -1, k + 1))}>
-                  <span className="menu-swatch" style={{ background: colours[k] }} aria-hidden="true" />
+                  <Swatch colour={colours[k]} size="sm" />
                   {k < physical ? `Filament ${k + 1}` : `Mix ${k + 1}`}
                 </button>
               ))}

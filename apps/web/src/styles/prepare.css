@@ -52,11 +52,6 @@
 }
 .field select {
   width: 100%;
-  padding: 6px 8px;
-  border-radius: var(--r-md);
-  border: 1px solid var(--border);
-  background: var(--surface-2);
-  color: var(--text);
 }
 
 .main {
@@ -297,18 +292,10 @@
   justify-content: space-between;
   gap: 8px;
 }
-/* The docked phone tool card sits outside the panel but keeps its fields. */
-.panel select,
-.panel input:not([type='checkbox']):not([type='color']),
-.panel textarea,
-.tool-pop.docked select,
-.tool-pop.docked input:not([type='checkbox']):not([type='color']):not([type='range']),
-.tool-pop.docked textarea {
+/* Fields in the panel (and the docked phone tool card) shrink to their column. */
+.panel :is(select, input, textarea),
+.tool-pop.docked :is(select, input, textarea) {
   min-width: 0;
-  padding: 5px 8px;
-  border-radius: var(--r-md);
-  border: 1px solid var(--border);
-  background: var(--surface-2);
 }
 .panel textarea {
   width: 100%;
@@ -337,34 +324,12 @@
 }
 .slot {
   display: grid;
-  grid-template-columns: 30px 1fr auto;
+  grid-template-columns: var(--ctl) 1fr auto;
   align-items: center;
   gap: 6px;
 }
 .slot select {
   width: 100%;
-}
-.swatch {
-  position: relative;
-  width: 30px;
-  height: 30px;
-  border-radius: var(--r-md);
-  border: 1px solid var(--border);
-  display: grid;
-  place-content: center;
-  cursor: pointer;
-}
-.swatch input {
-  position: absolute;
-  inset: 0;
-  opacity: 0;
-  cursor: pointer;
-}
-.slot-number {
-  font-weight: 600;
-  font-size: var(--t-sm);
-  color: var(--on-colour);
-  text-shadow: 0 0 3px var(--on-colour-edge), 0 0 1px var(--on-colour-edge);
 }
 
 /* Colour mixing (desktop's Color Mixing panel and Add Mix dialog) */
@@ -377,10 +342,6 @@
   margin: 0;
   font-size: var(--t-md);
   font-weight: 600;
-}
-.mix-badge {
-  padding: 0;
-  font: inherit;
 }
 .mix-label {
   min-width: 0;
@@ -426,11 +387,6 @@
   align-items: center;
   gap: 8px;
 }
-.mix-row input[type='range'] {
-  flex: 1;
-  min-width: 0;
-  accent-color: var(--accent);
-}
 .mix-filament {
   flex: 1 1 auto;
   min-width: 0;
@@ -442,39 +398,16 @@
   flex: 1;
   min-width: 0;
 }
-.mix-filament .paint-swatch {
-  flex: none;
-  width: 20px;
-  height: 20px;
-}
 .mix-slider {
   display: grid;
   gap: 4px;
 }
-.mix-slider input[type='range'] {
+.mix-slider .slider {
+  /* The track is the mix's colour strip, drawn on the slider itself. */
+  --track: transparent;
   width: 100%;
-  height: 22px;
-  margin: 0;
-  border-radius: var(--r-lg);
   border: 1px solid var(--border);
-  appearance: none;
-  -webkit-appearance: none;
-}
-.mix-slider input[type='range']::-webkit-slider-thumb {
-  -webkit-appearance: none;
-  width: 22px;
-  height: 22px;
-  border-radius: 50%;
-  background: var(--on-colour);
-  border: 2px solid var(--thumb-edge);
-  box-shadow: 0 0 2px var(--on-colour-edge);
-}
-.mix-slider input[type='range']::-moz-range-thumb {
-  width: 18px;
-  height: 18px;
-  border-radius: 50%;
-  background: var(--on-colour);
-  border: 2px solid var(--thumb-edge);
+  border-radius: var(--r-lg);
 }
 .mix-scale {
   display: flex;
@@ -605,13 +538,6 @@
 }
 
 /* Settings */
-.slot-dot {
-  flex: none;
-  width: 10px;
-  height: 10px;
-  border-radius: 50%;
-  border: 1px solid var(--border);
-}
 .optgroup {
   border: 0;
   margin: 0;
@@ -690,12 +616,6 @@
   border-color: var(--accent);
   cursor: grabbing;
 }
-.order-chip .swatch {
-  width: 12px;
-  height: 12px;
-  border-radius: 50%;
-  border: 1px solid var(--border);
-}
 .layer-ranges {
   display: grid;
   gap: 10px;
@@ -723,35 +643,15 @@
 .layer-range-head .icon-btn:last-child {
   margin-left: auto;
 }
-.option.invalid .input-unit input {
-  border-color: var(--danger);
-  outline-color: var(--danger);
-}
 /* A setting another setting switched off, like desktop's greyed fields. */
 .option.disabled {
   opacity: 0.45;
 }
 .settings-search {
-  box-sizing: border-box;
   width: 100%;
-  padding: 6px 10px;
-  border-radius: var(--r-full);
-  border: 1px solid var(--border);
-  background: var(--surface-2);
-  color: var(--text);
-  font: inherit;
 }
 .settings-prompt p {
   white-space: pre-line;
-}
-.input-unit {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  min-width: 0;
-}
-.input-unit input {
-  width: 100%;
 }
 .unit {
   color: var(--muted);

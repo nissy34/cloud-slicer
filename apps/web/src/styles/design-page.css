@@ -105,3 +105,14 @@
   font-size: var(--t-xs);
   text-align: center;
 }
+.ds-unit {
+  width: 140px;
+}
+.ds-field-wrong {
+  display: grid;
+  gap: var(--s-1);
+  justify-items: start;
+}
+.ds-row:has(> .slider) {
+  align-items: center;
+}

@@ -4,7 +4,7 @@
 // the Device tab's connection (state/device.ts, the printer add-on's
 // `filaments`); the plan from lib/filament-sync.
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
-import { Swatch } from '../device/ui/parts';
+import { Swatch } from './Swatch';
 import { Dialog } from './Dialog';
 import { isLoaded, matchByColour, printerFilaments, syncPlan, syncPreset, type SyncMode } from '../lib/filament-sync';
 import { shortName } from '../lib/presets';

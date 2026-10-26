@@ -128,7 +128,7 @@
 
 /* Saving user presets (src/account/PresetMenu.tsx) */
 .slot {
-  grid-template-columns: 30px minmax(0, 1fr) auto auto auto;
+  grid-template-columns: var(--ctl) minmax(0, 1fr) auto auto auto;
 }
 .group-actions {
   display: flex;

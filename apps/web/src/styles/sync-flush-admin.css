@@ -33,11 +33,6 @@
 .sync-rows select {
   flex: 1 1 160px;
   min-width: 0;
-  padding: 5px 6px;
-  border-radius: var(--r-md);
-  border: 1px solid var(--border);
-  background: var(--surface-2);
-  color: var(--text);
 }
 .sync-from {
   font-weight: 600;
@@ -84,18 +79,6 @@
   display: flex;
   justify-content: center;
 }
-.flush-chip {
-  display: inline-grid;
-  place-items: center;
-  width: 24px;
-  height: 24px;
-  border-radius: 50%;
-  border: 1px solid var(--border);
-  font-size: var(--t-xs);
-  font-weight: 600;
-  color: var(--on-colour);
-  text-shadow: 0 0 2px var(--on-colour-edge), 0 0 2px var(--on-colour-edge);
-}
 .flush-box,
 .flush-self {
   width: 100%;
@@ -105,12 +88,7 @@
   font-variant-numeric: tabular-nums;
 }
 .flush-box {
-  padding: 6px 2px;
-  border: 1px solid var(--border);
-  border-radius: var(--r-md);
-  background: var(--surface);
-  color: var(--text);
-  font-size: var(--t-md);
+  padding: 0 var(--s-1);
   -moz-appearance: textfield;
 }
 .flush-box::-webkit-inner-spin-button,
@@ -120,7 +98,6 @@
 }
 .flush-box.warn {
   color: var(--danger);
-  border-color: var(--danger);
 }
 .flush-self {
   color: var(--muted);
@@ -185,15 +162,9 @@
   gap: 8px;
 }
 .engine-switch-swatch {
-  display: inline-grid;
-  place-items: center;
-  min-width: 26px;
-  height: 22px;
-  padding: 0 4px;
-  border: 1px solid var(--border);
-  border-radius: var(--r-md);
-  font-size: var(--t-sm);
-  font-weight: 600;
+  width: auto;
+  min-width: 22px;
+  padding: 0 var(--s-2);
 }
 
 /* ---- Admin page (components/AdminScreen.tsx) ---- */
@@ -306,12 +277,6 @@
 .admin-user-actions select {
   min-width: 0;
   max-width: 100%;
-  padding: 7px 8px;
-  border: 1px solid var(--border);
-  border-radius: var(--r-md);
-  background: var(--surface);
-  font-size: var(--t-md);
-  color: var(--text);
 }
 .admin-search {
   width: 100%;
