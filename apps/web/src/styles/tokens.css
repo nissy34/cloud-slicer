@@ -94,6 +94,11 @@
   --z-notice: 40;
   --z-menu: 50;
   --z-context: 60;
+  --z-tip: 70;
+
+  /* Tooltips: dark in both themes, like desktop apps' */
+  --tip-bg: rgb(28 32 38 / 94%);
+  --tip-text: #ffffff;
 
   /* Sizes */
   --topbar: 48px;

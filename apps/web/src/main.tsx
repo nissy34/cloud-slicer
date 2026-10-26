@@ -2,6 +2,7 @@ import { lazy, StrictMode, Suspense } from 'react';
 import { createRoot } from 'react-dom/client';
 import './lib/theme';
 import { App } from './App';
+import { Tips } from './components/Tips';
 import { useDevice } from './state/device';
 import { useSlicer } from './state/store';
 import '@fontsource-variable/inter';
@@ -19,6 +20,7 @@ createRoot(document.getElementById('root')!).render(
     ) : (
       <App />
     )}
+    <Tips />
   </StrictMode>,
 );
 

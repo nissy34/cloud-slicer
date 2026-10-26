@@ -618,3 +618,33 @@ button.swatch {
   max-width: 44ch;
   margin: 0;
 }
+
+/* ===== Tooltip (components/Tips.tsx): any button's title, after a short hover or a long press ===== */
+.tip {
+  /* A popover, so it shows over windows too; Floating UI places it. */
+  inset: auto;
+  margin: 0;
+  border: 0;
+  overflow: visible;
+  z-index: var(--z-tip);
+  max-width: min(280px, calc(100vw - 16px));
+  padding: var(--s-2) var(--s-3);
+  border-radius: var(--r-md);
+  background: var(--tip-bg);
+  color: var(--tip-text);
+  box-shadow: var(--shadow-1);
+  font-size: var(--t-sm);
+  line-height: 1.35;
+  pointer-events: none;
+  animation: tip-in 0.12s ease-out;
+}
+@keyframes tip-in {
+  from {
+    opacity: 0;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .tip {
+    animation: none;
+  }
+}
