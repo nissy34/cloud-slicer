@@ -609,6 +609,8 @@ export const useSlicer = create<SlicerState>((set, get) => {
     client = null;
     restarting = true;
     old?.terminate('The slicing engine restarted.');
+    // A Convert question the opening was waiting on goes with the old engine.
+    convertAnswer?.(null);
     const { project, plate, job } = get();
     // If reopening the project crashed the new engine too, start without it.
     pendingRestore = retry
@@ -1118,7 +1120,7 @@ export const useSlicer = create<SlicerState>((set, get) => {
   // otherwise offer to convert it to one of our printers. `head` is the start of
   // the file's model, which says what wrote it: G-code from another slicer is
   // kept like desktop does, and remembered in case the engine can't fill it in.
-  async function importProject(info: ProjectInfo, head: string) {
+  async function importProject(info: ProjectInfo, head: string, name: string) {
     const e = engine();
     const file = await e.fileConfig();
     // Desktop keeps the project's prime tower spots, whatever printer it was for.
@@ -1132,6 +1134,11 @@ export const useSlicer = create<SlicerState>((set, get) => {
       }
       await adoptFileFilaments(info);
       set({ conversion: { from: printerLabel(file), file } });
+      const answer = await new Promise<{ printer: string; keepSettings: boolean } | null>((resolve) => (convertAnswer = resolve));
+      convertAnswer = null;
+      if (!answer) return set({ conversion: null });
+      set({ job: { kind: 'loading', name, label: `Converting to ${answer.printer}` } });
+      await convert(file, answer.printer, answer.keepSettings);
       return;
     }
     const colours = splitList(info.file.filamentColours);
@@ -1154,6 +1161,9 @@ export const useSlicer = create<SlicerState>((set, get) => {
     await refreshMixes();
     set({ notice: settingsNotice(Object.keys(overrides).length, 'the project'), noticeWarn: false });
   }
+
+  // The answer to the Convert question while a project opens (null: Cancel).
+  let convertAnswer: ((answer: { printer: string; keepSettings: boolean } | null) => void) | null = null;
 
   // Moves a project to `printer`: its default process of the same layer height,
   // filaments matched by material in the file's colours, and (when asked) the
@@ -1550,9 +1560,15 @@ export const useSlicer = create<SlicerState>((set, get) => {
             opened = true;
             set({ plate: 0, selected: null, towers: [], history: await e.clearHistory() });
           }
-          await refreshPreview(res.info);
           if (res.isProject && !res.info.objects.length) throw new Error(emptyProjectMessage(file.name));
-          if (res.isProject && res.info.file.hasConfig) await importProject(res.info, head);
+          if (res.isProject && res.info.file.hasConfig) {
+            // The project's settings, and the Convert question, before it is
+            // drawn: Convert moves it to another bed, which would draw it again
+            // while the first picture is still held (too much for a phone with a big model).
+            set({ project: res.info, preview: null, overlay: null });
+            await importProject(res.info, head, file.name);
+            await refreshPreview();
+          } else await refreshPreview(res.info);
         } catch (err) {
           fail(err);
           return opened;
@@ -2229,6 +2245,8 @@ export const useSlicer = create<SlicerState>((set, get) => {
       const c = get().conversion;
       if (!c) return;
       saveConvertPreference(remember ? { printer, keepSettings, auto: true } : null);
+      // Asked while the project opens: the opening converts it, then draws it.
+      if (convertAnswer) return convertAnswer({ printer, keepSettings });
       set({ job: { kind: 'loading', name: c.from, label: `Converting to ${printer}` } });
       try {
         await convert(c.file, printer, keepSettings);
@@ -2238,7 +2256,10 @@ export const useSlicer = create<SlicerState>((set, get) => {
         fail(e);
       }
     },
-    dismissConversion: () => set({ conversion: null }),
+    dismissConversion: () => {
+      if (convertAnswer) convertAnswer(null);
+      else set({ conversion: null });
+    },
 
     async setPaint(paint) {
       const before = get().paint;
