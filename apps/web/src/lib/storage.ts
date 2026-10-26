@@ -127,3 +127,23 @@ export function saveOpenProject(id: string | null) {
     // storage unavailable: a reload starts empty, as before
   }
 }
+
+const ASK_SIMPLIFY_KEY = 'cloud-slicer:ask-simplify:v1';
+
+/** Whether to ask about simplifying a heavy model before it opens ("Don't ask again" turns it off on this device). */
+export function loadAskSimplify(): boolean {
+  try {
+    return localStorage.getItem(ASK_SIMPLIFY_KEY) !== 'no';
+  } catch {
+    return true;
+  }
+}
+
+export function saveAskSimplify(ask: boolean) {
+  try {
+    if (ask) localStorage.removeItem(ASK_SIMPLIFY_KEY);
+    else localStorage.setItem(ASK_SIMPLIFY_KEY, 'no');
+  } catch {
+    // storage unavailable: ask every time
+  }
+}

@@ -63,7 +63,7 @@ hosted on Cloudflare's free tier.
   axes together while "Scale evenly" is on; the same fields for a part inside its object), lay on face, cut, measure (distances and angles
   between faces, edges, circles and corners), variable layer height (adaptive, smooth,
   or by hand on the layer height chart), arrange, auto-orient, split,
-  mirror, simplify (offered by itself when the plate to slice has too many triangles to slice comfortably), plates, brim ears (by hand or on the corners), undo and redo, desktop's editing keys (Del deletes the
+  mirror, simplify (offered by itself when the plate to slice has too many triangles to slice comfortably; a phone or tablet asks before drawing such a model, since drawing it can take more memory than the phone allows), plates, brim ears (by hand or on the corners), undo and redo, desktop's editing keys (Del deletes the
   picked copy or part, Ctrl+C / Ctrl+V copy and paste an object, Ctrl+K clones it, + and - add or
   remove a copy, also Add copy / Remove copy in the object list and object menu; arrow keys move
   the picked objects 10 mm and Page Up / Page Down turn them 45°),
@@ -525,7 +525,7 @@ Browser end to end tests (Playwright's Chromium) run against the built site
 | `test/cancel.mjs` | Cancel stops the slice in the engine, and a change while slicing drops its result |
 | `test/plate-switch.mjs` | Picking another plate while one slices shows it at once and keeps the slice; each plate keeps its slice in Prepare and Preview |
 | `test/restart.mjs` | After an engine crash (mid-slice or after), the engine restarts and reopens the project |
-| `test/heavy.mjs` | A model with over a million triangles offers Simplify, which brings it to about half a million |
+| `test/heavy.mjs` | A model with over a million triangles offers Simplify, which brings it to about half a million; on a phone the question comes before it is drawn (Cancel, Simplify, Open as is, Don't ask again) |
 | `test/device-smoke.mjs` | Device tab through relay and bridge to a mock U1, and direct to a mock Klipper printer |
 | `test/device-klipper.mjs` | Device tab on real Klipper and Moonraker (pretend printers in Docker with one, two and four heads): heating, homing, console, a print to the end, skip object, pause, resume, cancel, phone layout, and through the bridge |
 | `test/device-alerts.mjs` | Print alerts: the Alerts card's defaults, a test alert, layer N from the Print dialog, a whole mock print pushed through bridge and relay to a pretend push service (decrypted), the open page alerting for a direct printer, turning alerts on again starting from the last-used choices, a tapped alert opening its printer, the iPhone Home Screen note |

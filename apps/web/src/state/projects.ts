@@ -424,7 +424,13 @@ export const useProjects = create<ProjectsState>((set, get) => {
           return;
         }
       }
-      if (await useSlicer.getState().openFiles(files, mode)) {
+      const opened = await useSlicer.getState().openFiles(files, mode);
+      if (opened === 'cancelled') {
+        // Dropped before it was drawn: an empty new project, as New project leaves it (the draft before stays).
+        offerSettled = true;
+        set({ current: blank(), elsewhere: null, offer: null });
+        markClean();
+      } else if (opened) {
         offerSettled = true;
         set({ current: { name: nameFromFile(project!.name), id: null, version: 0, draft: false }, elsewhere: null, offer: null });
         markClean();
@@ -449,7 +455,11 @@ export const useProjects = create<ProjectsState>((set, get) => {
         const { bytes, version } = await api.projectFile(p.id, (loaded, total) => set({ downloading: { name: p.name, loaded, total } }));
         set({ downloading: null });
         if (await useEngineOf(p.engine ?? 'snapmaker')) switchedNotice(p.engine);
-        await useSlicer.getState().openFiles([new File([bytes], projectFileName(p.name), { type: 'model/3mf' })], 'project');
+        if ((await useSlicer.getState().openFiles([new File([bytes], projectFileName(p.name), { type: 'model/3mf' })], 'project')) === 'cancelled') {
+          set({ current: blank(), elsewhere: null, conflict: null });
+          markClean();
+          return;
+        }
         set({ current: { name: p.name, id: p.id, version: version || p.version, draft: p.draft }, elsewhere: null, conflict: null, autosaveStopped: '', saveState: 'idle' });
         lastSize = bytes.byteLength;
         lastSave = Date.now();
