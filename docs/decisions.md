@@ -84,10 +84,12 @@ down. Add a line with the date when a new choice is made.
 - Snapmaker's cloud turned down (closed, per-user certificates, against its terms);
   OctoEverywhere built then shelved (needs a paid plan) (2026-10-18).
 - Brands: Prusa, OctoPrint, Elegoo Centauri Carbon (2026-10-22), Bambu Lab (2026-10-25).
-  Turned down when brands were picked (2026-10-22), no reason recorded: old Snapmaker,
-  Flashforge, stock Creality (a rooted K1 running Moonraker already works), Prusa
-  Connect. Bambu Lab was turned down then too and added later, so ask before building
-  one of these.
+  Turned down (2026-10-22): stock Creality and Anycubic (private, undocumented messages
+  that change between firmware versions; their Klipper route, Creality's root option or
+  Rinkhals, already works); old Snapmaker (J1, A-series, Artisan: older, few users) and
+  Flashforge Adventurer 5M (medium work; its Klipper Mod already works); Prusa Connect
+  (no public API for outside apps, PrusaLink is used instead). Bambu Lab was turned down
+  then too and added later, so ask before building one of these.
 - Arrange mode with sizes and camera cards (2026-10-22); layout per printer instead of one
   for all (2026-10-25). Same camera in two cards: parked.
 - Printer pages as a Device tab card, not a pop-up (2026-10-22).
