@@ -406,7 +406,19 @@
   width: 20px;
   height: 20px;
 }
-/* The views menu opens to the left of its button. */
+/* The views menu: a small box to the left of its button, Iso across the top and
+   the six sides in two columns (shortcut keys in each one's tooltip). */
 .menu.view-menu {
-  min-width: 160px;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--s-1);
+  min-width: 0;
+  padding: var(--s-2);
+}
+.menu.view-menu .menu-item {
+  justify-content: center;
+  min-height: 0;
+  padding: var(--s-2) var(--s-5);
+}
+.menu.view-menu .menu-item:first-child {
+  grid-column: 1 / -1;
 }

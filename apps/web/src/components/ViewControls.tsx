@@ -123,13 +123,13 @@ export function ViewButtons({ handle, className }: { handle: ViewHandle; classNa
               key={v.view}
               className="menu-item"
               role="menuitem"
+              title={`${v.label} view (${v.key})`}
               onClick={() => {
                 close();
                 go(v.view);
               }}
             >
               {v.label}
-              <kbd>{v.key}</kbd>
             </button>
           ))
         }
