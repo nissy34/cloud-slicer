@@ -178,3 +178,115 @@
   color: var(--text);
   font-weight: 600;
 }
+
+
+/* Menu rows, shared by the object menu and the picker: a row per choice or
+   action, the current choice with a blue ✓, a line between groups. */
+:is(.object-menu, .picker-list) .menu-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 34px;
+  padding: 6px 10px;
+  border: 0;
+  border-radius: var(--r-md);
+  background: none;
+  color: var(--text);
+  text-align: left;
+  cursor: pointer;
+}
+:is(.object-menu, .picker-list) .menu-item:hover:not(:disabled),
+:is(.object-menu, .picker-list) .menu-item[aria-expanded='true'] {
+  background: var(--surface-2);
+}
+:is(.object-menu, .picker-list) .menu-item:disabled {
+  color: var(--muted);
+  cursor: default;
+}
+:is(.object-menu, .picker-list) .menu-arrow {
+  margin-left: auto;
+  color: var(--muted);
+}
+:is(.object-menu, .picker-list) .menu-check {
+  width: 14px;
+  color: var(--accent);
+}
+:is(.object-menu, .picker-list) hr {
+  width: 100%;
+  margin: 4px 0;
+  border: 0;
+  border-top: 1px solid var(--border);
+}
+:is(.object-menu, .picker-list) .menu-swatch,
+.picker-swatch {
+  flex: none;
+  width: 14px;
+  height: 14px;
+  border: 1px solid var(--border);
+  border-radius: 50%;
+}
+@media (pointer: coarse) {
+  :is(.object-menu, .picker-list) .menu-item {
+    min-height: 42px;
+  }
+}
+
+/* Picker (components/Picker.tsx): a button showing the current choice and a
+   chevron, opening a list drawn in the theme, never the browser's own list, so a
+   line and actions ("Printers & bridges…") can sit under the choices. Floating UI
+   places the list. */
+.picker {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-3);
+  max-width: 100%;
+  min-width: 0;
+  min-height: var(--ctl);
+  padding: 0 var(--s-3);
+  border: 1px solid transparent;
+  border-radius: var(--r-md);
+  background: none;
+  color: var(--text);
+  cursor: pointer;
+}
+.picker:hover,
+.picker[aria-expanded='true'] {
+  background: var(--surface-2);
+}
+.picker-value,
+.picker-label {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.picker-arrow {
+  flex: none;
+  color: var(--muted);
+}
+.picker-list {
+  z-index: var(--z-menu);
+  display: grid;
+  align-content: start;
+  min-width: 220px;
+  max-width: min(360px, calc(100vw - 16px));
+  overflow-y: auto;
+  padding: var(--s-3);
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+  background: var(--surface);
+  color: var(--text);
+  box-shadow: var(--shadow-2);
+  font-size: var(--t-md);
+}
+.picker-list .menu-item:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+.picker-list .menu-item[aria-selected='true'] {
+  font-weight: 600;
+}
+.picker-list .picker-action {
+  color: var(--accent);
+}

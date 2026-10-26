@@ -35,20 +35,11 @@
   min-width: 0;
   flex-wrap: wrap;
 }
-.dv-printer select {
+.dv-printer-picker {
+  max-width: 60vw;
+  margin-left: calc(-1 * var(--s-3));
   font-size: var(--t-xl);
   font-weight: 600;
-  border: 0;
-  background: none;
-  padding: 2px 0;
-  max-width: 60vw;
-  cursor: pointer;
-}
-/* With no background of its own, the browser draws the open list in the
-   light theme (Chrome on Windows): give the choices the theme's colours. */
-.dv-printer select option {
-  background: var(--surface);
-  color: var(--text);
 }
 .dv-model {
   font-size: var(--t-sm);
@@ -2179,9 +2170,8 @@
     align-items: flex-start;
     gap: 0;
   }
-  .dv-printer select {
+  .dv-printer-picker {
     max-width: 100%;
-    text-overflow: ellipsis;
   }
   .dv-model {
     max-width: 100%;

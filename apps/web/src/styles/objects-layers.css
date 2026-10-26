@@ -1,5 +1,6 @@
 /* Object menu, parts list, assemble, engine badge, setting overrides, layer markers. */
-/* The object menu (right click, long press or ⋯ in the object list). */
+/* The object menu (right click, long press or ⋯ in the object list). Its rows are the
+   shared menu rows in parts.css. */
 .object-menu {
   position: fixed;
   z-index: var(--z-context);
@@ -22,52 +23,11 @@
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-.object-menu .menu-item {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  min-height: 34px;
-  padding: 6px 10px;
-  border: 0;
-  border-radius: var(--r-md);
-  background: none;
-  color: var(--text);
-  text-align: left;
-  cursor: pointer;
-}
-.object-menu .menu-item:hover:not(:disabled),
-.object-menu .menu-item[aria-expanded='true'] {
-  background: var(--surface-2);
-}
-.object-menu .menu-item:disabled {
-  color: var(--muted);
-  cursor: default;
-}
-.object-menu .menu-arrow {
-  margin-left: auto;
-  color: var(--muted);
-}
-.object-menu .menu-check {
-  width: 14px;
-  color: var(--accent);
-}
 .object-menu .menu-sub {
   display: grid;
   margin: 0 0 4px 12px;
   padding-left: 6px;
   border-left: 2px solid var(--border);
-}
-.object-menu .menu-swatch {
-  width: 14px;
-  height: 14px;
-  border: 1px solid var(--border);
-  border-radius: 50%;
-}
-.object-menu hr {
-  width: 100%;
-  margin: 4px 0;
-  border: 0;
-  border-top: 1px solid var(--border);
 }
 .object-menu .menu-form {
   display: grid;
@@ -88,11 +48,6 @@
   display: flex;
   justify-content: flex-end;
   gap: 6px;
-}
-@media (pointer: coarse) {
-  .object-menu .menu-item {
-    min-height: 42px;
-  }
 }
 /* Parts, modifiers... in the object list: picked one highlighted, a dot of its see-through colour. */
 button.volume-name {

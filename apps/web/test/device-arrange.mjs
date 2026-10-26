@@ -12,6 +12,7 @@ import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { chromium } from 'playwright';
 import { startMockPrinter } from './device/mock-printer.mjs';
+import { openPrinterList, pickPrinter } from './device/printer-picker.mjs';
 
 const web = join(dirname(fileURLToPath(import.meta.url)), '..');
 const shots = process.argv[2] ? resolve(process.argv[2]) : null;
@@ -151,7 +152,10 @@ try {
   // editing a printer lives in Printers & bridges, the last choice in the printer list.
   if (await page.getByTestId('arrange-open').count()) fail('while arranging, Arrange cards should turn into Done arranging');
   if (await page.locator('.dv-header').getByRole('button', { name: 'Edit' }).count()) fail('the top row should not edit the printer');
-  if ((await page.getByTestId('printer-select').locator('option').last().textContent()) !== 'Printers & bridges…') fail('the printer list should end with Printers & bridges');
+  const list = await openPrinterList(page);
+  if ((await list.locator('[role="option"]').last().textContent()) !== 'Printers & bridges…') fail('the printer list should end with Printers & bridges');
+  if (await list.locator('hr').count() !== 1) fail('a line should split the printers from Printers & bridges');
+  await page.keyboard.press('Escape');
   if (shots) await page.screenshot({ path: join(shots, 'desktop-arrange.png') });
   await drag(page, 'camera', page.locator('[data-zone="top"]'));
   if ((await zoneOf(page, 'camera')) !== 'top') fail('the camera should move across the top');
@@ -186,12 +190,12 @@ try {
   console.log('desktop: the layout is kept after a reload');
 
   // ---- each printer its own layout ----------------------------------------------------
-  await page.getByTestId('printer-select').selectOption({ label: 'Voron-mock' });
+  await pickPrinter(page, 'Voron-mock');
   await page.getByTestId('connection').filter({ hasText: 'Connected' }).waitFor({ timeout: 30_000 });
   if ((await zoneOf(page, 'camera')) !== 'col0' || (await zoneOf(page, 'files')) !== 'col1') fail("another printer should not get the U1's layout");
   if (!(await page.getByTestId('console-card').count())) fail("Console is hidden on the U1 only");
   if (shots) await page.screenshot({ path: join(shots, 'desktop-other-printer.png') });
-  await page.getByTestId('printer-select').selectOption({ label: 'U1-mock' });
+  await pickPrinter(page, 'U1-mock');
   await page.getByTestId('connection').filter({ hasText: 'Connected' }).waitFor({ timeout: 30_000 });
   if ((await zoneOf(page, 'camera')) !== 'top') fail('the U1 should keep its own layout');
   console.log('desktop: each printer has its own layout');
@@ -235,7 +239,7 @@ try {
   console.log('desktop: back to default');
 
   // ---- camera cards: two cameras, one in each card --------------------------------------
-  await page.getByTestId('printer-select').selectOption({ label: 'Voron-mock' });
+  await pickPrinter(page, 'Voron-mock');
   await page.getByTestId('connection').filter({ hasText: 'Connected' }).waitFor({ timeout: 30_000 });
   const mainCam = page.getByTestId('camera-card');
   await mainCam.getByTestId('camera-tile').nth(1).waitFor();
@@ -256,11 +260,11 @@ try {
   await page.locator('[data-testid^="camera-card-"] [data-testid="camera-tile"][data-camera="nozzle"]').waitFor();
   if ((await page.getByTestId('camera-card').getByTestId('camera-tile').count()) !== 1) fail('camera cards should be kept after a reload');
   console.log('camera cards: nozzle in its own card, kept after a reload');
-  await page.getByTestId('printer-select').selectOption({ label: 'U1-mock' });
+  await pickPrinter(page, 'U1-mock');
   await page.getByTestId('connection').filter({ hasText: 'Connected' }).waitFor({ timeout: 30_000 });
   await page.getByTestId('camera-card').waitFor();
   if (await page.locator('[data-testid^="camera-card-"]').count()) fail("the Voron's second camera card should not show on the U1");
-  await page.getByTestId('printer-select').selectOption({ label: 'Voron-mock' });
+  await pickPrinter(page, 'Voron-mock');
   await page.getByTestId('connection').filter({ hasText: 'Connected' }).waitFor({ timeout: 30_000 });
   await page.locator('[data-testid^="camera-card-"]').waitFor();
   console.log('camera cards: they belong to their printer only');

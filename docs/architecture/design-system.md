@@ -58,10 +58,11 @@ Shared parts and where they live. A screen uses these instead of styling its own
 | Switch | `styles/parts.css`: `<input type="checkbox" class="switch" role="switch">`, or `<span class="switch on">` drawn inside a menu row. `.switch-row` is the label with its words |
 | Chooser | `styles/parts.css`: `.chooser` around 2 to 4 buttons on a grey track; the picked one (`aria-pressed`, `aria-checked`, `aria-selected`, `.on` or `.active`) is white and bold |
 | Line tabs | `styles/parts.css`: `.line-tabs` (role `tablist`) around buttons; the open one (`aria-selected` or `.active`) is underlined in blue. Settings pages |
+| Picker | `components/Picker.tsx`, `styles/parts.css` (`.picker`, `.picker-list`): a button showing the current choice and a chevron, opening the site's own list (never the browser's), placed by Floating UI (`@floating-ui/react`). Choices may carry a colour swatch and the current one has a blue ✓; a line, then actions whose words end in "…" ("Printers & bridges…"). Arrow keys, Escape and a tap outside work. Use it when a list needs actions or swatches; a plain list of values stays a native `<select>`. Its rows are the shared menu rows (`.menu-item`, `.menu-check`, `hr`) that the object menu also uses |
 | Icons | [Lucide](https://lucide.dev) (`lucide-react`), line icons at 16 px (20–24 px for tiles). The Device tab names its icons by meaning in `device/ui/icons.tsx`. Orca's own toolbar, view and plate icons stay as they are (`src/assets/`) |
 
 Still to come (picked on the design-system page): fields, slider, filament
-swatch, card, menu and pop-over,
+swatch, card, pop-over,
 phone tooltips, notes, empty places. Each joins this table and the design page
 when it is built.
 
