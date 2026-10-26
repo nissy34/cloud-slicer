@@ -1,4 +1,5 @@
 import { createContext, useContext, useState, type ReactNode } from 'react';
+import { Card as BaseCard } from '../../components/Card';
 import { Dialog } from '../../components/Dialog';
 import { Slider } from '../../components/Slider';
 
@@ -12,22 +13,24 @@ export function Card({ title, actions, className, children, testId }: { title: s
   const slot = useContext(SlotContext);
   const folded = slot?.folded ?? false;
   return (
-    <section className={`dv-card ${className ?? ''}${folded ? ' dv-folded' : ''}`} aria-label={title} data-testid={testId}>
-      <header className="dv-card-head">
-        <h2>
-          {slot ? (
-            <button className="dv-fold" aria-expanded={!folded} onClick={slot.toggleFold} title={folded ? 'Unfold this card' : 'Fold this card'}>
-              <span className="dv-fold-icon" aria-hidden="true" />
-              {title}
-            </button>
-          ) : (
-            title
-          )}
-        </h2>
-        {actions && !folded && <div className="dv-card-actions">{actions}</div>}
-      </header>
+    <BaseCard
+      label={title}
+      className={[className, folded && 'dv-folded'].filter(Boolean).join(' ')}
+      testId={testId}
+      actions={folded ? undefined : actions}
+      title={
+        slot ? (
+          <button className="dv-fold" aria-expanded={!folded} onClick={slot.toggleFold} title={folded ? 'Unfold this card' : 'Fold this card'}>
+            <span className="dv-fold-icon" aria-hidden="true" />
+            {title}
+          </button>
+        ) : (
+          title
+        )
+      }
+    >
       {!folded && children}
-    </section>
+    </BaseCard>
   );
 }
 

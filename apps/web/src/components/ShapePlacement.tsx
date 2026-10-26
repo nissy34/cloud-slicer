@@ -88,8 +88,8 @@ export function ShapeActions({ object, volume }: { object: number; volume: numbe
   return (
     <div className="tool-row shape-row">
       {shape.surface && (
-        <label className="chip" title="Keeps it upright while you slide it over the surface or face it to the camera">
-          <input type="checkbox" checked={keepUp} onChange={(e) => setKeepUp(e.target.checked)} />
+        <label className="switch-row" title="Keeps it upright while you slide it over the surface or face it to the camera">
+          <input className="switch" type="checkbox" checked={keepUp} onChange={(e) => setKeepUp(e.target.checked)} />
           Keep up
         </label>
       )}

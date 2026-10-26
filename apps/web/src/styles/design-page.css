@@ -116,3 +116,18 @@
 .ds-row:has(> .slider) {
   align-items: center;
 }
+.ds-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: var(--s-5);
+}
+.ds-group {
+  margin-top: var(--s-5);
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+}
+.ds-notes {
+  display: grid;
+  gap: var(--s-4);
+  margin-top: var(--s-5);
+}

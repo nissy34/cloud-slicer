@@ -161,7 +161,7 @@ try {
   if ((await zoneOf(page, 'camera')) !== 'top') fail('the camera should move across the top');
   await page.getByTestId('hide-console').click();
   await page.locator("[data-card='camera'] select[aria-label='Camera size']").selectOption('m');
-  await page.locator("[data-card='files']").getByRole('button', { name: 'Half width' }).click();
+  await page.locator("[data-card='files']").getByLabel('Half width').check();
   await page.getByRole('group', { name: 'Columns' }).getByRole('button', { name: '3' }).click();
   await drag(page, 'files', page.locator('[data-zone="col2"]'));
   if ((await zoneOf(page, 'files')) !== 'col2') fail('Files should move into the third column');

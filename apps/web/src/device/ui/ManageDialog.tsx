@@ -7,6 +7,7 @@ import { isTestRelay } from '../config';
 import { UninstallBridge } from './BridgeSetup';
 import { Dialog } from '../../components/Dialog';
 import { removeFromBridge, SELF_REMOVING_FROM, watchBridge, type BridgeWatch } from './PrinterEditor';
+import { Note } from '../../components/Note';
 
 /** One saved printer: its name and profile, with Edit and Remove (asked once, inline). */
 function PrinterRow({ p, pairing }: { p: SavedPrinter; pairing?: Pairing | null }) {
@@ -149,7 +150,7 @@ function BridgeCard({ b, onLeftover }: { b: SavedBridge; onLeftover: (l: Leftove
   };
 
   return (
-    <section className="dv-manage-card" data-testid="manage-bridge" data-bridge-id={b.bridgeId}>
+    <section className="card dv-manage-card" data-testid="manage-bridge" data-bridge-id={b.bridgeId}>
       <div className="dv-found-head">
         <span>
           <strong>{b.name}</strong>{' '}
@@ -180,9 +181,9 @@ function BridgeCard({ b, onLeftover }: { b: SavedBridge; onLeftover: (l: Leftove
             </button>
           )}
           {updateProblem && (
-            <p className="dv-alert" role="alert">
+            <Note tone="error">
               {updateProblem}
-            </p>
+            </Note>
           )}
         </div>
       )}
@@ -205,9 +206,9 @@ function BridgeCard({ b, onLeftover }: { b: SavedBridge; onLeftover: (l: Leftove
               : "It isn't running, so afterwards you'll get one command to remove it from its computer."}
           </p>
           {problem && (
-            <p className="dv-alert" role="alert">
+            <Note tone="error">
               {problem}
-            </p>
+            </Note>
           )}
           <div className="dv-row-buttons">
             <button className="secondary" onClick={() => setAsking(false)}>
@@ -285,7 +286,7 @@ export function ManageDialog() {
     >
       <div className="dv-form" data-testid="manage-dialog">
         {leftovers.map((l, i) => (
-          <div key={i} className="dv-manage-card" data-testid="manage-leftover">
+          <div key={i} className="card dv-manage-card" data-testid="manage-leftover">
             <p>
               <strong>{l.name}</strong> was removed from Cloud Slicer. It wasn't running, so remove it from its computer too:
             </p>
@@ -301,7 +302,7 @@ export function ManageDialog() {
         {direct.length > 0 && (
           <>
             <h3 className="dv-manage-title">Over the internet</h3>
-            <section className="dv-manage-card">
+            <section className="card dv-manage-card">
               <ul className="dv-manage-list">
                 {direct.map((p) => (
                   <PrinterRow key={p.id} p={p} />

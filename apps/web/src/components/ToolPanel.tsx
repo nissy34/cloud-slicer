@@ -270,8 +270,8 @@ function MeasurePanel() {
           ))}
         </dl>
       )}
-      <label className="chip">
-        <input type="checkbox" checked={onlyPlane} onChange={(e) => setMeasureOnlyPlane(e.target.checked)} />
+      <label className="switch-row">
+        <input className="switch" type="checkbox" checked={onlyPlane} onChange={(e) => setMeasureOnlyPlane(e.target.checked)} />
         <span>Pick whole faces only</span>
       </label>
       {picks.length > 0 && (

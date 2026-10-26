@@ -6,6 +6,7 @@ import { printObjects } from '../objects';
 import { takesCommands, type PrinterError } from '../addons';
 import { Card, useConfirm } from './parts';
 import { SkipObjectsDialog } from './SkipObjects';
+import { Note } from '../../components/Note';
 
 const STATE_LABEL: Record<string, string> = {
   standby: 'Ready',
@@ -54,11 +55,11 @@ export function JobCard() {
       <Card title="Print" testId="job-card">
         {takesCommands(addons) ? (
           <>
-            <p className="dv-alert">
+            <Note tone="warn">
               {host
                 ? klippyMessage(objects) || host.stopped
                 : `${klippy === 'startup' ? 'The printer firmware is starting.' : 'The printer firmware has stopped.'} ${klippyMessage(objects)}`}
-            </p>
+            </Note>
             <PrinterErrors errors={errors} />
             {(!host || host.restart) && (
               <div className="dv-row">
@@ -70,7 +71,7 @@ export function JobCard() {
           </>
         ) : (
           // Not Klipper: the bridge says the printer stopped answering, and it keeps asking.
-          <p className="dv-alert">{klippyMessage(objects) || 'The printer is not answering.'}</p>
+          <Note tone="warn">{klippyMessage(objects) || 'The printer is not answering.'}</Note>
         )}
       </Card>
     );
@@ -132,9 +133,9 @@ export function JobCard() {
       )}
       {j.message && active && <p className="muted">{j.message}</p>}
       {noObjectList && (
-        <p className="dv-note dv-job-note" data-testid="no-object-list">
+        <Note testId="no-object-list">
           This file has no object list, so objects can't be skipped. Files sliced here always have one.
-        </p>
+        </Note>
       )}
       <div className="dv-row">
         {j.state === 'printing' && (
@@ -185,7 +186,7 @@ function PrinterErrors({ errors }: { errors: PrinterError[] }) {
   return (
     <div className="dv-errors" data-testid="printer-errors">
       {errors.map((e) => (
-        <div key={e.id} className="dv-error" role="alert" data-testid="printer-error">
+        <Note key={e.id} tone="error" className="dv-error" testId="printer-error">
           <strong>{e.title}</strong>
           <p>{e.text}</p>
           <div className="dv-error-foot">
@@ -196,7 +197,7 @@ function PrinterErrors({ errors }: { errors: PrinterError[] }) {
               </button>
             )}
           </div>
-        </div>
+        </Note>
       ))}
     </div>
   );

@@ -16,7 +16,7 @@ import { PresetMenu } from '../account/PresetMenu';
 import { EditPresetButton } from './PresetSettingsDialog';
 import { EngineSection } from './EngineSection';
 import type { PresetSummary } from '../engine/protocol';
-import { X } from 'lucide-react';
+import { Printer, SlidersHorizontal, Spool, X } from 'lucide-react';
 import { IconButton } from './IconButton';
 import { textOn } from '../lib/mixing';
 
@@ -44,7 +44,10 @@ function PrinterSection() {
   return (
     <section className="group">
       <div className="group-head">
-        <h2>Printer</h2>
+        <h2>
+          <Printer aria-hidden />
+          Printer
+        </h2>
         <div className="group-actions">
           <button className="quiet" onClick={() => manage('printers')}>
             Manage
@@ -101,7 +104,10 @@ function FilamentSection() {
   return (
     <section className="group">
       <div className="group-head">
-        <h2>Filament</h2>
+        <h2>
+          <Spool aria-hidden />
+          Filament
+        </h2>
         <div className="group-actions spaced">
           <SyncFilamentsButton />
           <button className="quiet" onClick={() => void addFilament()} aria-label="Add filament">
@@ -155,7 +161,10 @@ function ProcessSection() {
   return (
     <section className="group">
       <div className="group-head">
-        <h2>Process</h2>
+        <h2>
+          <SlidersHorizontal aria-hidden />
+          Process
+        </h2>
         <PresetMenu type="process" />
       </div>
       <label className="field">

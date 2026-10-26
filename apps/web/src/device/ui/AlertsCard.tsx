@@ -5,6 +5,7 @@ import type { AlertEvent, AlertPrefs } from '../alerts';
 import { isAndroid, isIos, standalone, thisDevice } from '../push';
 import { Icon, type IconName } from './icons';
 import { Card } from './parts';
+import { Note } from '../../components/Note';
 
 type Tile = [AlertEvent, IconName, string, string];
 
@@ -61,31 +62,31 @@ const BROWSER_TOO = 'It then works in the installed app too.';
 function DeniedNote() {
   if (isAndroid() && standalone())
     return (
-      <p className="dv-note" data-testid="alerts-denied">
+      <Note tone="warn" testId="alerts-denied">
         Notifications are blocked for Cloud Slicer. Open the site once in Chrome, tap the icon left of the address, then Permissions, and turn Notifications on. {BROWSER_TOO}
-      </p>
+      </Note>
     );
   if (isAndroid())
     return (
-      <p className="dv-note" data-testid="alerts-denied">
+      <Note tone="warn" testId="alerts-denied">
         Notifications are blocked for this site. Tap the icon left of the address, then Permissions, and turn Notifications on. Then turn alerts on again.
-      </p>
+      </Note>
     );
   return (
-    <p className="dv-note" data-testid="alerts-denied">
+    <Note tone="warn" testId="alerts-denied">
       Notifications are blocked for this site. Allow them in the browser’s site settings, then turn alerts on again.
-    </p>
+    </Note>
   );
 }
 
 /** The Allow question got no answer: closed, timed out (Chrome's small non-blocking bar) or, installed on Android, maybe never shown. */
 function DismissedNote() {
   return (
-    <p className="dv-note" data-testid="alerts-dismissed">
+    <Note tone="warn" testId="alerts-dismissed">
       {isAndroid() && standalone()
         ? `No answer to the Allow question. Chrome asks with a small bar at the bottom of the screen that goes away after a while: turn alerts on again and tap Allow on it. If no bar shows, open the site once in Chrome, turn alerts on there and tap Allow. ${BROWSER_TOO}`
         : 'No answer to the Allow question. Chrome asks with a small bar that goes away after a while: turn alerts on again and tap Allow on it.'}
-    </p>
+    </Note>
   );
 }
 
@@ -171,26 +172,20 @@ export function AlertsCard() {
       </div>
       {bridge
         ? on && (
-            <p className="dv-alerts-how good">
-              <Icon name="ok" />
-              <span>Sent through the bridge, even when the browser is closed. Each says how far the print is, the time left and the filament used.</span>
-            </p>
+            <Note>Sent through the bridge, even when the browser is closed. Each says how far the print is, the time left and the filament used.</Note>
           )
         : (
-            <p className="dv-alerts-how">
-              <Icon name="info" />
-              <span>This printer is reached straight from the browser, so alerts only come while Cloud Slicer is open in a tab. Through a bridge they come with the browser closed too.</span>
-            </p>
+            <Note>This printer is reached straight from the browser, so alerts only come while Cloud Slicer is open in a tab. Through a bridge they come with the browser closed too.</Note>
           )}
       {a.problem === 'ios-home' && (
-        <p className="dv-note" data-testid="alerts-ios">
+        <Note tone="warn" testId="alerts-ios">
           On iPhone and iPad, alerts work once Cloud Slicer is on your Home Screen: tap Share, then Add to Home Screen, and open it from there (iOS 16.4 or later).
-        </p>
+        </Note>
       )}
-      {a.problem === 'unsupported' && <p className="dv-note">This browser can’t show alerts. Chrome, Edge, Firefox and Safari can.</p>}
+      {a.problem === 'unsupported' && <Note tone="warn">This browser can’t show alerts. Chrome, Edge, Firefox and Safari can.</Note>}
       {a.problem === 'denied' && <DeniedNote />}
       {a.problem === 'dismissed' && <DismissedNote />}
-      {a.problem === 'relay' && <p className="dv-note">The bridge’s relay can’t send alerts yet.</p>}
+      {a.problem === 'relay' && <Note tone="warn">The bridge’s relay can’t send alerts yet.</Note>}
       {bridge && conn !== 'online' && !blocked && <p className="muted">Connect to the printer to change its alerts.</p>}
       {on && prefs && (
         <>
@@ -270,9 +265,9 @@ export function AlertsCard() {
         </>
       )}
       {a.error && a.problem !== 'offline' && (
-        <p className="dv-error-text" role="alert">
+        <Note tone="error">
           {a.error}
-        </p>
+        </Note>
       )}
     </Card>
   );
@@ -330,9 +325,9 @@ export function LayerField({
         {max ? <span className="muted">of {max}</span> : null}
       </span>
       {hint && (
-        <span className="dv-alerts-hint" id="alert-layer-hint" role="alert" data-testid="alert-layer-hint">
+        <Note tone="warn" className="dv-alerts-hint" id="alert-layer-hint" testId="alert-layer-hint">
           {hint}
-        </span>
+        </Note>
       )}
     </>
   );

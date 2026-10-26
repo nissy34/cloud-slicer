@@ -4,6 +4,7 @@ import * as THREE from 'three';
 import { PAINTED } from '../lib/brim';
 import { useSlicer } from '../state/store';
 import { Slider } from './Slider';
+import { Note } from './Note';
 
 // The ears as desktop draws them: teal on the bed, red when loose, picked ones highlighted.
 export const EAR_COLOURS = { ear: '#26a69a', loose: '#e5484d', picked: '#f5c542' };
@@ -91,12 +92,12 @@ export function BrimPanel({ object }: { object: number }) {
       ) : (
         <>
           {brim.brimType !== PAINTED && (
-            <div className="brim-warning" role="note">
+            <Note tone="warn" className="brim-warning">
               <span>The ears only print when this object's brim type is Painted (brim ears).</span>
               <button className="secondary" onClick={() => void setObjectSettings(object, -1, { brim_type: PAINTED })}>
                 Use brim ears for this object
               </button>
-            </div>
+            </Note>
           )}
           <div className="brim-summary" aria-label="Ears">
             {brim.ears.length} {brim.ears.length === 1 ? 'ear' : 'ears'}

@@ -5,6 +5,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { adminApi, type AdminBridge, type AdminOverview, type AdminUser, type Meter } from '../account/admin-api';
 import { useAccount } from '../state/account';
 import { useSlicer } from '../state/store';
+import { Card } from './Card';
+import { Note } from './Note';
 
 const STORAGE_CHOICES = [0, 50, 100, 200, 500, 1000];
 
@@ -96,9 +98,9 @@ export function AdminScreen() {
           free limits. People who are allowed notice nothing. Changes save on their own.
         </p>
         {error && (
-          <p className="admin-error" role="alert">
+          <Note tone="error">
             {error}
-          </p>
+          </Note>
         )}
         {!data ? (
           !error && <p className="muted">Loading…</p>
@@ -141,10 +143,7 @@ function SaveStatus({ status }: { status: Status }) {
 function UsageCard({ data }: { data: AdminOverview }) {
   const u = data.usage;
   return (
-    <section className="dv-card">
-      <div className="dv-card-head">
-        <h2>Free tier use</h2>
-      </div>
+    <Card title="Free tier use">
       <ul className="admin-meters">
         {u.meters.map((m) => (
           <MeterRow key={m.key} m={m} />
@@ -159,7 +158,7 @@ function UsageCard({ data }: { data: AdminOverview }) {
       )}
       {u.analytics === 'failed' && <p className="muted small">Cloudflare didn't give today's counts: {u.analyticsError}</p>}
       <p className="muted small">Over a daily limit, that part stops until 00:00 UTC; nothing is charged on the free plan.</p>
-    </section>
+    </Card>
   );
 }
 
@@ -197,10 +196,7 @@ function AccessCard({ data, act }: { data: AdminOverview; act: Act }) {
   const s = data.settings;
   const [email, setEmail] = useState('');
   return (
-    <section className="dv-card">
-      <div className="dv-card-head">
-        <h2>Who can sign in</h2>
-      </div>
+    <Card title="Who can sign in">
       <label className="admin-switch">
         <input
           className="switch"
@@ -300,7 +296,7 @@ function AccessCard({ data, act }: { data: AdminOverview; act: Act }) {
       <p className="muted small">
         Presets and printers always save to the account. Each account can use up to 3 bridges and watch 2 cameras at a time through a bridge.
       </p>
-    </section>
+    </Card>
   );
 }
 
@@ -311,10 +307,7 @@ function UsersCard({ data, act }: { data: AdminOverview; act: Act }) {
     return t ? data.users.filter((u) => u.name.toLowerCase().includes(t) || u.email.toLowerCase().includes(t)) : data.users;
   }, [data.users, q]);
   return (
-    <section className="dv-card">
-      <div className="dv-card-head">
-        <h2>People ({data.users.length})</h2>
-      </div>
+    <Card title={`People (${data.users.length})`}>
       {data.users.length > 5 && (
         <input className="admin-search" type="search" placeholder="Search by name or email" value={q} onChange={(e) => setQ(e.target.value)} />
       )}
@@ -323,7 +316,7 @@ function UsersCard({ data, act }: { data: AdminOverview; act: Act }) {
           <UserRow key={u.id} u={u} defaultMb={data.settings.storageMb} inviteOnly={data.settings.inviteOnly} act={act} />
         ))}
       </ul>
-    </section>
+    </Card>
   );
 }
 
@@ -454,10 +447,7 @@ function UserRow({ u, defaultMb, inviteOnly, act }: { u: AdminUser; defaultMb: n
 
 function BridgesCard({ bridges, act }: { bridges: AdminBridge[]; act: Act }) {
   return (
-    <section className="dv-card">
-      <div className="dv-card-head">
-        <h2>Bridges ({bridges.length})</h2>
-      </div>
+    <Card title={`Bridges (${bridges.length})`}>
       <p className="muted small admin-note">
         Every bridge someone reached a printer through. Turning one off closes it for everyone at once, and the bridge app is refused until you turn
         it on again.
@@ -498,6 +488,6 @@ function BridgesCard({ bridges, act }: { bridges: AdminBridge[]; act: Act }) {
           ))}
         </ul>
       )}
-    </section>
+    </Card>
   );
 }

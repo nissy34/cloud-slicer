@@ -103,14 +103,11 @@
   color: var(--muted);
   font-size: var(--t-sm);
 }
+.menu-note-box {
+  margin: var(--s-2) var(--s-4) var(--s-3);
+}
 .win.projects-dialog {
   --win-w: 760px;
-}
-.projects-empty {
-  display: grid;
-  gap: 12px;
-  justify-items: start;
-  padding: 8px 0;
 }
 .projects-grid {
   display: grid;
@@ -120,14 +117,12 @@
   padding: 0;
   list-style: none;
 }
+/* A card (parts.css) holding a picture, so a smaller edge. */
 .project-card {
   display: grid;
-  gap: 4px;
+  gap: var(--s-2);
   align-content: start;
-  min-width: 0;
-  padding: 8px;
-  border: 1px solid var(--border);
-  border-radius: var(--r-lg);
+  padding: var(--s-4);
 }
 .project-card.current {
   border-color: var(--accent);

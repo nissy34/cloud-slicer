@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { createPortal } from 'react-dom';
+import { Cpu } from 'lucide-react';
 import { losesNothing } from '../lib/engine-switch';
 import { ENGINES, type EngineFlavor } from '../lib/engines';
 import { useProjects } from '../state/projects';
@@ -27,7 +28,10 @@ export function EngineSection() {
   return (
     <section className="group">
       <div className="group-head">
-        <h2>Slicer engine</h2>
+        <h2>
+          <Cpu aria-hidden />
+          Slicer engine
+        </h2>
       </div>
       <label className="field">
         <span className="sr-only">Slicer engine</span>
