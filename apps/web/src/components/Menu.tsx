@@ -4,11 +4,13 @@ import {
   flip,
   FloatingFocusManager,
   offset,
+  safePolygon,
   shift,
   size,
   useClick,
   useDismiss,
   useFloating,
+  useHover,
   useInteractions,
   useRole,
   type Placement,
@@ -28,6 +30,10 @@ type Props = {
   /** Set both to open or close it from outside (a keyboard shortcut, a finished step). */
   open?: boolean;
   onOpenChange?(open: boolean): void;
+  /** Also open on a mouse hover (the ⓘ help), not only a click or tap. */
+  hover?: boolean;
+  /** Sits inside a line of text: a `span`, so it can go in a `<p>`. */
+  inline?: boolean;
 };
 
 /**
@@ -36,7 +42,7 @@ type Props = {
  * outside. Rows are the shared `.menu-item` look, also used by the object menu and the
  * Picker.
  */
-export function Menu({ label, button, children, placement = 'bottom-start', role = 'menu', className, open: openProp, onOpenChange }: Props) {
+export function Menu({ label, button, children, placement = 'bottom-start', role = 'menu', className, open: openProp, onOpenChange, hover, inline }: Props) {
   const [openState, setOpenState] = useState(false);
   const open = openProp ?? openState;
   const setOpen = (next: boolean) => {
@@ -61,14 +67,20 @@ export function Menu({ label, button, children, placement = 'bottom-start', role
       }),
     ],
   });
-  const { getReferenceProps, getFloatingProps } = useInteractions([useClick(context), useDismiss(context), useRole(context, { role })]);
+  const { getReferenceProps, getFloatingProps } = useInteractions([
+    useClick(context),
+    useHover(context, { enabled: !!hover, mouseOnly: true, delay: { open: 300 }, handleClose: safePolygon() }),
+    useDismiss(context),
+    useRole(context, { role }),
+  ]);
+  const Box = inline ? 'span' : 'div';
   const close = () => setOpen(false);
   return (
     <>
       {button({ ref: refs.setReference, ...getReferenceProps() }, open)}
       {open && (
         <FloatingFocusManager context={context} modal={false} initialFocus={role === 'menu' ? -1 : 0}>
-          <div
+          <Box
             ref={refs.setFloating}
             className={[role === 'menu' ? 'menu' : 'pop', className].filter(Boolean).join(' ')}
             style={floatingStyles}
@@ -76,7 +88,7 @@ export function Menu({ label, button, children, placement = 'bottom-start', role
             {...getFloatingProps()}
           >
             {typeof children === 'function' ? children(close) : children}
-          </div>
+          </Box>
         </FloatingFocusManager>
       )}
     </>

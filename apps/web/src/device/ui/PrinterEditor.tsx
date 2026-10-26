@@ -12,6 +12,7 @@ import type { BridgeStatus } from '../link/types';
 import { decodePairing, type Pairing } from '../pairing';
 import { AddBridge, BridgeSetup, CopyCommand, SignInForBridge } from './BridgeSetup';
 import { Dialog } from '../../components/Dialog';
+import { Note } from '../../components/Note';
 
 const newId = () => Math.random().toString(36).slice(2, 10);
 
@@ -260,7 +261,7 @@ function SearchStatus({ s, watch, system, title }: { s: ReturnType<typeof useBri
         </p>
       )}
       {s.found && !s.looking && !s.found.length && (
-        <p className="dv-alert">No printer found. Check that the printer is switched on and on the same network as the bridge's computer, then search again, or add it by its address below.</p>
+        <Note tone="warn">No printer found. Check that the printer is switched on and on the same network as the bridge's computer, then search again, or add it by its address below.</Note>
       )}
     </>
   );
