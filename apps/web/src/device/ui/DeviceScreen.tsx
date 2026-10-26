@@ -1,4 +1,6 @@
 import { useEffect, useState } from 'react';
+import { Picker } from '../../components/Picker';
+import { Settings } from 'lucide-react';
 import { useAccount } from '../../state/account';
 import { BRIDGE_SIGN_IN, useDevice } from '../../state/device';
 import '../../state/alerts';
@@ -76,16 +78,16 @@ export function DeviceScreen() {
           <header className="dv-header">
             <div className="dv-printer">
               {/* The printer list ends with Printers & bridges, where printers and bridges are added, edited and removed. */}
-              <select value={activeId ?? ''} onChange={(e) => (e.target.value === '__manage' ? openManage(true) : select(e.target.value))} aria-label="Printer" data-testid="printer-select">
-                {printers.map((p) => (
-                  <option key={p.id} value={p.id}>
-                    {p.name}
-                    {p.kind === 'bridge' && isTestRelay(p.relay) ? ' (test)' : ''}
-                  </option>
-                ))}
-                <option disabled>──────────</option>
-                <option value="__manage">Printers &amp; bridges…</option>
-              </select>
+              <Picker
+                label="Printer"
+                value={activeId}
+                options={printers.map((p) => ({ value: p.id, label: p.name + (p.kind === 'bridge' && isTestRelay(p.relay) ? ' (test)' : '') }))}
+                onChange={select}
+                actions={[{ id: 'manage', label: 'Printers & bridges…', icon: Settings, testId: 'manage-open' }]}
+                onAction={() => openManage(true)}
+                className="dv-printer-picker"
+                testId="printer-select"
+              />
               <span className="muted dv-model">
                 {[model, active.kind === 'bridge' ? (isTestRelay(active.relay) ? 'through the test bridge' : 'through the bridge') : facts?.hostname].filter(Boolean).join(' · ')}
               </span>

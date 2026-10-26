@@ -4,8 +4,9 @@
 import { useState, type ReactNode } from 'react';
 import { Dialog } from './Dialog';
 import { Notice } from './Notice';
-import { ArrowDownToLine, ChevronDown, ChevronRight, CircleCheck, Ellipsis, Info, Moon, Pencil, RotateCcw, Sun, TriangleAlert, X, type LucideIcon } from 'lucide-react';
+import { ArrowDownToLine, ChevronDown, ChevronRight, CircleCheck, Ellipsis, Info, Moon, Pencil, RotateCcw, Settings, Sun, TriangleAlert, X, type LucideIcon } from 'lucide-react';
 import { IconButton } from './IconButton';
+import { Picker } from './Picker';
 import { Slider } from './Slider';
 import { Swatch } from './Swatch';
 
@@ -240,6 +241,9 @@ function Sheet({ theme, onWindow }: { theme: 'light' | 'dark'; onWindow(): void 
       <Section title="Fields, slider, swatches">
         <Fields />
       </Section>
+      <Section title="Picker">
+        <PickerDemo />
+      </Section>
       <Section title="Window and messages">
         <div className="ds-row">
           <button className="secondary" onClick={onWindow}>
@@ -280,6 +284,36 @@ export function DesignPage() {
           <p>“Benchy two colours” has changes that aren't saved yet.</p>
         </Dialog>
       )}
+    </div>
+  );
+}
+
+/** The picker: choices with a ✓ on the current one, a line, then actions. */
+function PickerDemo() {
+  const [printer, setPrinter] = useState('u1');
+  const [filament, setFilament] = useState('pla');
+  return (
+    <div className="ds-row">
+      <Picker
+        label="Printer"
+        value={printer}
+        options={[
+          { value: 'u1', label: 'Snapmaker U1' },
+          { value: 'ender', label: 'Ender 3' },
+        ]}
+        onChange={setPrinter}
+        actions={[{ id: 'manage', label: 'Printers & bridges…', icon: Settings }]}
+        onAction={() => {}}
+      />
+      <Picker
+        label="Filament"
+        value={filament}
+        options={[
+          { value: 'pla', label: 'PLA Basic', swatch: '#e72f1d' },
+          { value: 'petg', label: 'PETG HF', swatch: '#3e86d6' },
+        ]}
+        onChange={setFilament}
+      />
     </div>
   );
 }

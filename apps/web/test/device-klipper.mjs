@@ -18,6 +18,7 @@ import { fileURLToPath } from 'node:url';
 import { chromium } from 'playwright';
 import { bridgeConfig, bridgeProgram, pairingCode, startBridge } from './device/go-bridge.mjs';
 import { pngFrame, thumbnailBlock } from './device/mock-printer.mjs';
+import { openManage, pickPrinter } from './device/printer-picker.mjs';
 
 const web = join(dirname(fileURLToPath(import.meta.url)), '..');
 const shots = process.argv[2] ? resolve(process.argv[2]) : null;
@@ -134,7 +135,7 @@ function testPrint({ heads, layers, side = 6, bed }) {
 async function addDirect(page, p) {
   const add = page.getByTestId('printer-select');
   // Printers are added from Printers & bridges, the last choice in the printer list.
-  if (await add.count()) await add.selectOption('__manage');
+  if (await add.count()) await openManage(page);
   await page.getByRole('button', { name: 'Add a printer', exact: true }).click();
   await page.getByRole('tab', { name: 'Over the internet (advanced)' }).click();
   await page.getByTestId('printer-url').fill(p.url);
@@ -312,7 +313,7 @@ try {
   await phone.goto(site);
   await phone.getByRole('tab', { name: 'Device' }).click();
   for (const p of Object.values(PRINTERS)) {
-    await phone.getByTestId('printer-select').selectOption({ label: p.name });
+    await pickPrinter(phone, p.name);
     await connected(phone);
     await phone.getByText(`Klipper printer · ${p.name}`).waitFor();
     const wide = await phone.evaluate(() => {

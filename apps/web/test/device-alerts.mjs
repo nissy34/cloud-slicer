@@ -24,6 +24,7 @@ import { fileURLToPath } from 'node:url';
 import { chromium, devices } from 'playwright';
 import { bridgeConfig, bridgeProgram, browserKey, startBridge } from './device/go-bridge.mjs';
 import { startMockPrinter } from './device/mock-printer.mjs';
+import { currentPrinter, pickPrinter } from './device/printer-picker.mjs';
 
 const web = join(dirname(fileURLToPath(import.meta.url)), '..');
 const relayDir = join(web, '../device-relay');
@@ -212,7 +213,7 @@ try {
   await page.setViewportSize({ width: 1280, height: 900 });
 
   // ---- reached directly: the open page alerts ----------------------------------------
-  await page.getByTestId('printer-select').selectOption({ label: 'Direct-mock' });
+  await pickPrinter(page, 'Direct-mock');
   await page.getByTestId('connection').filter({ hasText: 'Connected' }).waitFor({ timeout: 30_000 });
   await card.getByText('only come while Cloud Slicer is open in a tab').waitFor();
   if (await card.getByTestId('alert-pictures').count()) throw new Error('direct printers have no picture switch');
@@ -235,7 +236,7 @@ try {
   await noWizard(tapped);
   await tapped.goto(`${site}#alert=${encodeURIComponent(`${cfg.bridgeId}.voron`)}`);
   await tapped.getByTestId('printer-select').waitFor();
-  if ((await tapped.getByTestId('printer-select').locator('option:checked').textContent()) !== 'Voron-mock') throw new Error('a tapped alert did not open its printer');
+  if ((await currentPrinter(tapped)) !== 'Voron-mock') throw new Error('a tapped alert did not open its printer');
   console.log('a tapped alert opens the Device tab on its printer');
 
   // ---- iPhone in Safari, not on the Home Screen ----------------------------------------
