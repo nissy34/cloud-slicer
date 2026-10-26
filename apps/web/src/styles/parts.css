@@ -325,6 +325,7 @@
 .picker-value,
 .picker-label {
   flex: 1;
+  text-align: left;
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -333,6 +334,41 @@
 .picker-arrow {
   flex: none;
   color: var(--muted);
+}
+/* A group's name over its choices (a brand, "My presets"). */
+.menu .menu-label {
+  padding: var(--s-4) var(--s-4) var(--s-1);
+  color: var(--muted);
+  font-size: var(--t-sm);
+  font-weight: 600;
+}
+.menu .menu-label:first-child {
+  padding-top: var(--s-2);
+}
+/* A picker among fields looks like one: the field's box, fill and height. */
+.picker.field-picker {
+  display: flex;
+  width: 100%;
+  padding: 0 var(--s-3);
+  border-color: var(--border);
+  background: var(--surface-2);
+}
+.picker.field-picker:hover,
+.picker.field-picker[aria-expanded='true'] {
+  border-color: var(--accent);
+  background: var(--surface-2);
+}
+.picker.field-picker:focus-visible {
+  border-color: var(--accent);
+  outline: 2px solid var(--accent-soft);
+  outline-offset: 0;
+}
+.picker:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+.picker-list {
+  max-width: min(420px, calc(100vw - 16px));
 }
 .picker-list .menu-item[aria-selected='true'] {
   font-weight: 600;

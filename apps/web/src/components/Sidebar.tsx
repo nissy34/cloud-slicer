@@ -16,7 +16,8 @@ import { PresetMenu } from '../account/PresetMenu';
 import { EditPresetButton } from './PresetSettingsDialog';
 import { EngineSection } from './EngineSection';
 import type { PresetSummary } from '../engine/protocol';
-import { Printer, SlidersHorizontal, Spool, X } from 'lucide-react';
+import { Printer, Settings, SlidersHorizontal, Spool, X } from 'lucide-react';
+import { Picker, type PickerOption } from './Picker';
 import { IconButton } from './IconButton';
 import { textOn } from '../lib/mixing';
 
@@ -24,9 +25,6 @@ import { textOn } from '../lib/mixing';
 const withMine = (installed: string[] | undefined, list: PresetSummary[]) =>
   installed && [...installed, ...list.filter((p) => p.user).map((p) => p.name)];
 
-/** The printer and filament pickers' last entries, which open Manage on its Printers or Filaments tab (the setup wizard before setup is done). */
-const ADD_PRINTERS = '\u0000add-printers';
-const ADD_FILAMENTS = '\u0000add-filaments';
 
 function PrinterSection() {
   const allPrinters = useSlicer((s) => s.printers);
@@ -56,30 +54,21 @@ function PrinterSection() {
           <PresetMenu type="printer" />
         </div>
       </div>
-      <label className="field">
-        <span className="sr-only">Printer preset</span>
-        <select
-          aria-label="Printer preset"
-          value={selection?.printer ?? ''}
-          disabled={busy}
-          onChange={(e) => (e.target.value === ADD_PRINTERS ? manage('printers') : void selectPrinter(e.target.value))}
-        >
-          {vendors.map((v) => (
-            <optgroup key={v} label={v}>
-              {printers
-                .filter((p) => group(p) === v)
-                .map((p) => (
-                  <option key={p.name} value={p.name}>
-                    {p.name}
-                    {sends(p.name) ? ' · direct print' : ''}
-                  </option>
-                ))}
-            </optgroup>
-          ))}
-          {/* Like desktop's printer list: to add more or remove some. */}
-          <option value={ADD_PRINTERS}>Add or remove printers…</option>
-        </select>
-      </label>
+      <Picker
+        field
+        label="Printer preset"
+        value={selection?.printer ?? null}
+        disabled={busy}
+        options={vendors.flatMap((v) =>
+          printers
+            .filter((p) => group(p) === v)
+            .map((p) => ({ value: p.name, label: p.name, group: v, hint: sends(p.name) ? <SendMark /> : undefined })),
+        )}
+        onChange={(name) => void selectPrinter(name)}
+        // Like desktop's printer list: to add more or remove some.
+        actions={[{ id: 'add', label: 'Add or remove printers…', icon: Settings }]}
+        onAction={() => manage('printers')}
+      />
       {selectedSends === true && (
         <p className="muted small printer-send">
           <SendMark /> Send prints to it from the Device tab.
@@ -127,16 +116,19 @@ function FilamentSection() {
                 onChange={(e) => void setColour(i, e.target.value.toUpperCase())}
               />
             </label>
-            <select
-              aria-label={`Filament ${i + 1} preset`}
+            <Picker
+              field
+              label={`Filament ${i + 1} preset`}
               value={name}
-              onChange={(e) => (e.target.value === ADD_FILAMENTS ? manage('filaments') : void setFilament(i, e.target.value))}
-            >
-              {!filaments.some((f) => f.name === name) && <option value={name}>{shortName(name)}</option>}
-              <PresetOptions presets={filaments} />
-              {/* Like desktop's filament list. */}
-              <option value={ADD_FILAMENTS}>Add or remove filaments…</option>
-            </select>
+              options={[
+                ...(filaments.some((f) => f.name === name) ? [] : [{ value: name, label: shortName(name) }]),
+                ...presetOptions(filaments),
+              ]}
+              onChange={(next) => void setFilament(i, next)}
+              // Like desktop's filament list.
+              actions={[{ id: 'add', label: 'Add or remove filaments…', icon: Settings }]}
+              onAction={() => manage('filaments')}
+            />
             <EditPresetButton type="filament" slot={i} />
             <PresetMenu type="filament" slot={i} />
             <IconButton icon={X} label="Remove this filament" aria-label={`Remove filament ${i + 1}`} disabled={selection.filaments.length <= 1} onClick={() => void removeFilament(i)} />
@@ -178,21 +170,37 @@ function ProcessSection() {
 }
 
 /** A picker's options, the user's own presets first. */
+/** A native list's choices (the process list has no actions, so it stays a plain dropdown). */
 function PresetOptions({ presets }: { presets: PresetSummary[] }) {
-  const mine = presets.filter((p) => p.user);
-  const options = (list: PresetSummary[]) =>
-    list.map((p) => (
-      <option key={p.name} value={p.name}>
-        {shortName(p.name)}
+  const groups = new Map<string | undefined, PickerOption[]>();
+  for (const o of presetOptions(presets)) groups.set(o.group, [...(groups.get(o.group) ?? []), o]);
+  const options = (list: PickerOption[]) =>
+    list.map((o) => (
+      <option key={o.value} value={o.value}>
+        {o.label}
       </option>
     ));
-  if (!mine.length) return <>{options(presets)}</>;
   return (
     <>
-      <optgroup label="My presets">{options(mine)}</optgroup>
-      <optgroup label="System presets">{options(presets.filter((p) => !p.user))}</optgroup>
+      {[...groups].map(([group, list]) =>
+        group ? (
+          <optgroup key={group} label={group}>
+            {options(list)}
+          </optgroup>
+        ) : (
+          options(list)
+        ),
+      )}
     </>
   );
+}
+
+/** A filament list's choices: the user's own presets first, under their own heading. */
+function presetOptions(presets: PresetSummary[]): PickerOption[] {
+  const mine = presets.filter((p) => p.user);
+  const options = (list: PresetSummary[], group?: string) => list.map((p) => ({ value: p.name, label: shortName(p.name), group }));
+  if (!mine.length) return options(presets);
+  return [...options(mine, 'My presets'), ...options(presets.filter((p) => !p.user), 'System presets')];
 }
 
 export function Sidebar() {
