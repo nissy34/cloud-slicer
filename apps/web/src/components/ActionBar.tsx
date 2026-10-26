@@ -4,7 +4,7 @@ import type { SliceWarning } from '../engine/protocol';
 import { sentence, stageLabel } from '../lib/format';
 import { clearanceProblems } from '../lib/clearance';
 import { blocksPrinting, OBJECT_CLASHED } from '../lib/outside';
-import { withPrintTag } from '../lib/prints';
+import { newPrintId, withPrintTag } from '../lib/prints';
 import { LIGHT_TRIANGLES, triangleCount } from '../lib/simplify';
 import { useProjects } from '../state/projects';
 import { useObjectsOutside, useSlicer } from '../state/store';
@@ -141,13 +141,13 @@ export function ActionBar() {
   const bundle = job.kind === 'sliced' ? job.gcode3mf : undefined;
   const fileName = bundle ? gcodeName.replace(/\.gcode$/i, '') + '.gcode.3mf' : gcodeName;
   // A saved project's plate, for the print history; its G-code carries the tag line (lib/prints.ts).
+  // Each send or download gets its own print id, the record a send makes.
   const printOrigin = () => {
     const projectId = useProjects.getState().current.id;
-    return projectId && job.kind === 'sliced' && job.printed ? { projectId, plate: job.plate, ...job.printed } : undefined;
+    return projectId && job.kind === 'sliced' && job.printed ? { projectId, plate: job.plate, ...job.printed, printId: newPrintId() } : undefined;
   };
-  const tagged = async () => {
+  const tagged = async (origin = printOrigin()) => {
     if (job.kind !== 'sliced') throw new Error('not sliced');
-    const origin = printOrigin();
     return origin ? withPrintTag(job.gcode, origin) : job.gcode;
   };
   return (
@@ -250,7 +250,7 @@ export function ActionBar() {
               title={unprintable ? 'The toolpaths leave the build volume' : undefined}
               onClick={async () => {
                 const origin = printOrigin();
-                sendToPrinter(bundle ?? (await tagged()), fileName, useSlicer.getState().selection?.printer, bundle && job.gcode, origin);
+                sendToPrinter(bundle ?? (await tagged(origin)), fileName, useSlicer.getState().selection?.printer, bundle && job.gcode, origin);
                 setTab('device');
               }}
             >

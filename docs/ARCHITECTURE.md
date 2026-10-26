@@ -233,7 +233,7 @@ nothing on purpose, so a deploy's page and engine never get out of step).
   tab's printer (it connects when one of its prints waits). The bridge moves it with no
   page open, for every printer it serves (`apps/device-bridge/printjob.go`, relay
   `src/prints.ts`, `POST /api/relay/print`): on each start and end it reads the file's
-  `; cloud_slicer_print = <project>/<plate>/<fingerprint>` line, which Send and Download
+  `; cloud_slicer_print = <project>/<plate>/<fingerprint>/<print id>` line (the print id names the record a send makes, so the printer's word lands on it in any order), which Send and Download
   put after Orca's header block. A tagged file finds its plate wherever the print was
   started (the printer's screen, a renamed copy), and starts a record when none waits;
   an untagged one (Prusa, Elegoo, Bambu Lab) matches a waiting record by printer and

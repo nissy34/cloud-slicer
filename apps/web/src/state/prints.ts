@@ -102,12 +102,15 @@ async function add(projectId: string, p: Parameters<typeof api.addPrint>[1]) {
     // The server closed the waiting ones this replaces: the same file on the same printer, or a mark of the plate.
     const mark = record.status === 'marked' || record.status === 'unmarked';
     const replaced = (r: PrintRecord) =>
-      OPEN_STATUSES.includes(r.status) && (mark ? r.projectId === record.projectId && r.plate === record.plate : r.printer === record.printer && r.file === record.file);
+      r.id !== record.id &&
+      OPEN_STATUSES.includes(r.status) &&
+      (mark ? r.projectId === record.projectId && r.plate === record.plate : r.printer === record.printer && r.file === record.file);
     const s = usePrints.getState();
-    const open = s.open.filter((r) => !replaced(r));
+    const open = s.open.filter((r) => !replaced(r) && r.id !== record.id);
+    const others = s.records.filter((r) => r.id !== record.id);
     usePrints.setState({
       open: OPEN_STATUSES.includes(record.status) ? [...open, { ...record, summary: null }] : open,
-      ...(s.projectId === projectId && { records: [...s.records.map((r) => (replaced(r) ? { ...r, status: 'unknown' as const, endedAt: record.at } : r)), record], error: '' }),
+      ...(s.projectId === projectId && { records: [...others.map((r) => (replaced(r) ? { ...r, status: 'unknown' as const, endedAt: record.at } : r)), record], error: '' }),
     });
     scheduleFingerprints(0);
   } catch (e) {
@@ -229,6 +232,7 @@ onFileSent(({ source, path, printer, started }) => {
   if (!origin || !signedIn()) return;
   void add(origin.projectId, {
     plate: origin.plate,
+    id: origin.printId,
     status: started ? 'sent' : 'uploaded',
     printer: printer.id,
     printerName: printer.name,

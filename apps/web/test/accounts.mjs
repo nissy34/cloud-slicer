@@ -632,9 +632,11 @@ test("print history from the bridge: the file's tag or its name says which plate
   assert.equal((await list()).length, 1);
 
   // Started on the printer's screen from a downloaded file: its tag says which plate, and a record starts.
-  const tag = (plate) => `; cloud_slicer_print = kp/${plate + 1}/bbbb2222`;
+  // A downloaded file's tag names the record it would make (lib/prints.ts printTagLine).
+  const tag = (plate, id = `download-${plate}`, fingerprint = 'bbbb2222') => `; cloud_slicer_print = kp/${plate + 1}/${fingerprint}/${id}`;
   await news({ file: 'usb/plate two.gcode', state: 'printing', tag: tag(1) });
   let two = (await list()).find((p) => p.plate === 1);
+  assert.equal(two.id, 'download-1', 'the record the tag names');
   assert.deepEqual([two.status, two.printer, two.printerName, two.fingerprint, two.file], ['printing', 'u1-k', 'U1 in the garage', 'bbbb2222', 'usb/plate two.gcode']);
   await news({ file: 'usb/plate two.gcode', state: 'cancelled', duration: 60, tag: tag(1) });
   two = (await list()).find((p) => p.id === two.id);
@@ -658,10 +660,29 @@ test("print history from the bridge: the file's tag or its name says which plate
 
   // Not this account's projects, untagged files nobody sent, a tag with another project: nothing.
   await news({ file: 'other.gcode', state: 'printing' });
-  await news({ file: 'other.gcode', state: 'printing', tag: '; cloud_slicer_print = nope/1/cccc3333' });
-  await news({ file: 'other.gcode', state: 'printing', tag: '; cloud_slicer_print = ../1/cccc3333' });
+  await news({ file: 'other.gcode', state: 'printing', tag: '; cloud_slicer_print = nope/1/cccc3333/nope-0001' });
+  await news({ file: 'other.gcode', state: 'printing', tag: '; cloud_slicer_print = ../1/cccc3333/nope-0002' });
   assert.equal((await list()).length, 4);
   assert.deepEqual((await (await kim.json('/api/prints/open')).json()).prints, []);
+
+  // Upload and print: the printer starts (and the bridge says so) before the page records the send.
+  // The file's tag names the record the send makes: one record, printing.
+  const summary = { objects: [], plate: 'p', config: {} };
+  await news({ file: 'kp_plate_3.gcode', state: 'printing', tag: tag(2, 'send-0003', 'dddd4444') });
+  const late = (await (await kim.json('/api/projects/kp/prints', 'POST', { id: 'send-0003', plate: 2, status: 'sent', printer: 'u1-k', printerName: 'U1 in the garage', file: 'kp_plate_3.gcode', fingerprint: 'dddd4444', summary })).json()).print;
+  assert.equal(late.id, 'send-0003', 'the send is the print the bridge heard');
+  assert.equal(late.status, 'printing');
+  assert.deepEqual((await list()).filter((p) => p.file === 'kp_plate_3.gcode').map((p) => [p.status, p.summary?.plate]), [['printing', 'p']]);
+  // The same id for another plate: refused.
+  assert.equal((await kim.json('/api/projects/kp/prints', 'POST', { id: 'send-0003', plate: 0, status: 'sent', printer: 'u1-k', file: 'kp_plate_3.gcode' })).status, 409);
+  // The end finds the record by its id, though the file was renamed on the printer.
+  await news({ file: 'renamed.gcode', state: 'complete', duration: 600, total: 610, tag: tag(2, 'send-0003', 'dddd4444') });
+  assert.equal((await list()).find((p) => p.id === 'send-0003').status, 'printed');
+  // Printed again later from the printer's screen: a new record, the first stays printed.
+  await news({ file: 'renamed.gcode', state: 'printing', tag: tag(2, 'send-0003', 'dddd4444') });
+  const again = (await list()).filter((p) => p.file === 'renamed.gcode' || p.id === 'send-0003');
+  assert.deepEqual(again.map((p) => p.status).sort(), ['printed', 'printing']);
+  assert.notEqual(again.find((p) => p.status === 'printing').id, 'send-0003');
 });
 
 test('admin: only the owner (OWNER_EMAILS) gets the Admin page', async () => {
