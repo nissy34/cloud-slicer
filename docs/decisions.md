@@ -47,6 +47,9 @@ down. Add a line with the date when a new choice is made.
 - One user preset works in both engines: shared values plus a per-engine part
   ("option B", 2026-10-20).
 - Printer and filament settings in pop-up windows, like desktop (picked over tabs).
+- The setup wizard only on the first visit; after that Manage opens a tabbed Printers and
+  filaments window (Printers, Filaments, Default engine; no Connect), one Save, asks
+  before discarding, and the filament picker gets "Add or remove filaments…" (2026-10-26).
 - Every plate type on every printer; each printer starts on its own default (2026-10-24).
 - Post-processing scripts removed (a browser can't run programs); file names from the
   preset's Filename format with `{plate_number}` (2026-10-23).

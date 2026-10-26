@@ -61,6 +61,7 @@ try {
 
   // The wizard's printer page: every brand, Klipper printers marked.
   const wizard = page.getByRole('dialog', { name: 'Set up your printers' });
+  const manage = page.getByRole('dialog', { name: 'Printers and filaments' });
   await wizard.waitFor({ timeout: 30000 });
   await wizard.getByRole('button', { name: 'Next' }).click();
   const brands = await wizard.locator('.wizard-brands summary').count();
@@ -130,13 +131,12 @@ try {
   if (!fetched.includes('engine/profiles/Voron.json')) fail('the reload did not load Voron');
 
   // A printer the Device tab can't reach (not Klipper or Prusa) says to download the G-code.
+  // Once set up, Manage opens on the Printers tab and saves from there.
   await page.getByRole('button', { name: 'Manage' }).click();
-  await wizard.getByRole('button', { name: 'Next' }).click();
-  await wizard.getByRole('searchbox', { name: 'Search printers' }).fill('anker m5c');
-  await wizard.locator('.wizard-models li').first().locator('.segmented button').first().click();
-  await wizard.getByRole('button', { name: 'Next' }).click();
-  await wizard.getByRole('button', { name: 'Next' }).click({ timeout: 60000 });
-  await wizard.getByRole('button', { name: 'Finish' }).click();
+  await manage.getByRole('searchbox', { name: 'Search printers' }).fill('anker m5c');
+  await manage.locator('.wizard-models li').first().locator('.segmented button').first().click();
+  await manage.getByRole('button', { name: 'Save', exact: true }).click();
+  await manage.waitFor({ state: 'hidden', timeout: 60000 });
   const anker = (await picker.locator('option').allInnerTexts()).find((o) => /^Anker M5C/.test(o));
   if (!anker) fail('no Anker M5C in the picker');
   else {
@@ -152,8 +152,8 @@ try {
   await ready();
   if (fetched.some((f) => !f.startsWith('engine-orca/'))) fail(`OrcaSlicer fetched ${fetched.join(', ')}`);
   await page.getByRole('button', { name: 'Manage' }).click();
-  await wizard.getByRole('button', { name: 'Next' }).click();
-  const orcaBrands = await wizard.locator('.wizard-brands summary').count();
+  await manage.getByRole('searchbox', { name: 'Search printers' }).waitFor({ timeout: 30000 });
+  const orcaBrands = await manage.locator('.wizard-brands summary').count();
   console.log(`OrcaSlicer wizard lists ${orcaBrands} brands, fetched ${fetched.join(', ')}`);
   if (orcaBrands < 50) fail(`only ${orcaBrands} brands with OrcaSlicer`);
 } catch (e) {

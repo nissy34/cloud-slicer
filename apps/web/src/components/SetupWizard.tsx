@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { X } from 'lucide-react';
 import { create } from 'zustand';
 import type { PresetSummary } from '../engine/protocol';
 import { engineFromUrl, ENGINES, type EngineFlavor } from '../lib/engines';
@@ -9,22 +10,32 @@ import { saveUserSetting, useAccount, useDevices, useUserSetting } from '../stat
 import { useDevice } from '../state/device';
 import { untouchedProject, useProjects } from '../state/projects';
 import { useSlicer } from '../state/store';
+import { ask } from './AskDialog';
 import { Dialog } from './Dialog';
+import { IconButton } from './IconButton';
 
-/** Opens the wizard from anywhere (e.g. "Manage" next to the printer picker). */
+/**
+ * Opens the wizard from anywhere. Once setup is done, "Manage" and the pickers'
+ * "Add or remove…" entries open the tabbed Printers and filaments window on
+ * `step` instead; `wizard` keeps the step-by-step wizard on `step` (the first
+ * visit, which comes back to a step after starting the other engine or adding
+ * a printer connection).
+ */
 export const useSetupWizard = create<{
   open: boolean;
   step: Step;
+  wizard: boolean;
   /** The engine picked on the first page, kept while the page restarts on it (see next()). */
   engine: EngineFlavor | null;
-  show(step?: Step): void;
+  show(step?: Step, wizard?: boolean): void;
   hide(): void;
 }>((set) => ({
   open: false,
   step: 'engine',
+  wizard: false,
   engine: null,
-  show: (step = 'engine') => set({ open: true, step, engine: null }),
-  hide: () => set({ open: false, engine: null }),
+  show: (step = 'engine', wizard = false) => set({ open: true, step, wizard, engine: null }),
+  hide: () => set({ open: false, wizard: false, engine: null }),
 }));
 
 // Closed this visit, or the visit started from a printer pairing link or the bridge app (the
@@ -43,19 +54,21 @@ const STEPS: { id: Step; label: string }[] = [
  * Desktop Orca's setup wizard: which engine new projects use, which printers
  * and filaments you have, so the pickers only offer those, and how to reach
  * each printer. Opens by itself until it has been finished once; the choices
- * follow the account.
+ * follow the account. After that, changing them opens the tabbed Manage
+ * window instead of walking the steps again.
  */
 export function SetupWizard() {
-  const { open, show, hide } = useSetupWizard();
+  const { open, step, wizard, show, hide } = useSetupWizard();
   const ready = useSlicer((s) => s.engine === 'ready');
   const accountReady = useAccount((s) => s.status !== 'loading');
   const installedPrinters = useUserSetting<Setup>(SETUP_KEY)?.printers;
   // The Continue card goes first: the wizard waits until it is answered.
   const offerDone = useProjects((s) => s.offerChecked && !s.offer);
   useEffect(() => {
-    if (ready && accountReady && offerDone && !installedPrinters?.length && !dismissed) show();
+    if (ready && accountReady && offerDone && !installedPrinters?.length && !dismissed) show('engine', true);
   }, [ready, accountReady, offerDone, installedPrinters, show]);
   if (!open || !ready) return null;
+  if (installedPrinters?.length && !wizard) return <Manage tab={step === 'filaments' || step === 'engine' ? step : 'printers'} onClose={hide} />;
   return (
     <Wizard
       onClose={() => {
@@ -72,9 +85,8 @@ function Wizard({ onClose }: { onClose: () => void }) {
   const savedPrinters = installedPrinters(useUserSetting<Setup>(SETUP_KEY), running);
   const savedFilaments = installedFilaments(useUserSetting<Setup>(SETUP_KEY), running);
   const savedEngine = useUserSetting<Setup>(SETUP_KEY)?.engine;
-  // Run before: the Printers and Filaments pages can save on their own.
-  const editing = !!savedPrinters?.length;
-  const [step, setStep] = useState<Step>(useSetupWizard.getState().step);
+  // Opened from a picker before setup was done: from the start.
+  const [step, setStep] = useState<Step>(() => (useSetupWizard.getState().wizard ? useSetupWizard.getState().step : 'engine'));
   const [engine, setEngine] = useState<EngineFlavor>(useSetupWizard.getState().engine ?? savedEngine ?? running);
   // The first time nothing is picked, as on desktop: the printer the app starts on is not one you chose.
   const [printers, setPrinters] = useState<string[]>(() => savedPrinters ?? []);
@@ -116,11 +128,6 @@ function Wizard({ onClose }: { onClose: () => void }) {
       setLoadingBrands(false);
     }
   };
-  // Adding or removing a printer later needn't go through every page.
-  const save = async () => {
-    setError('');
-    if (await loadBrands()) await finish();
-  };
   const next = async () => {
     setError('');
     // A newly chosen default engine: the pages after this list its printers and
@@ -128,7 +135,7 @@ function Wizard({ onClose }: { onClose: () => void }) {
     // move it anyway); the wizard comes back on the Printers page once it has
     // started. Keeping the default while trying the other engine moves nothing.
     if (step === 'engine' && engine !== running && engine !== savedEngine && untouchedProject() && !engineFromUrl()) {
-      useSetupWizard.setState({ step: 'printers', engine });
+      useSetupWizard.setState({ step: 'printers', wizard: true, engine });
       await useProjects.getState().switchEngine(engine);
       return;
     }
@@ -163,17 +170,12 @@ function Wizard({ onClose }: { onClose: () => void }) {
                   const off = useDevice.subscribe((d, prev) => {
                     if (!prev.editor || d.editor) return;
                     off();
-                    useSetupWizard.getState().show('connect');
+                    useSetupWizard.getState().show('connect', true);
                   });
                 })
               }
             >
               Add a printer connection
-            </button>
-          )}
-          {editing && (step === 'printers' || step === 'filaments') && (
-            <button className="secondary" disabled={saving || loadingBrands || !printers.length || (step === 'filaments' && !filaments?.length)} onClick={() => void save()}>
-              Save
             </button>
           )}
           {step === 'connect' ? (
@@ -206,7 +208,7 @@ function Wizard({ onClose }: { onClose: () => void }) {
         {step === 'engine' && <EngineStep chosen={engine} onChange={setEngine} />}
         {step === 'printers' && <PrinterStep all={allPrinters} chosen={printers} onChange={setPrinters} />}
         {step === 'printers' && loadingBrands && <p className="muted small">Loading the printer profiles…</p>}
-        {step === 'filaments' && <FilamentStep printers={printers} chosen={filaments} onChange={setFilaments} />}
+        {step === 'filaments' && <FilamentStep printers={printers} chosen={filaments} onLoad={setFilaments} onChange={setFilaments} />}
         {step === 'connect' && <ConnectStep />}
       </div>
       {error && <p className="hint warn">{error}</p>}
@@ -214,10 +216,110 @@ function Wizard({ onClose }: { onClose: () => void }) {
   );
 }
 
-function EngineStep({ chosen, onChange }: { chosen: EngineFlavor; onChange: (engine: EngineFlavor) => void }) {
+type Tab = 'printers' | 'filaments' | 'engine';
+const TABS: { id: Tab; label: string; short?: string }[] = [
+  { id: 'printers', label: 'Printers' },
+  { id: 'filaments', label: 'Filaments' },
+  { id: 'engine', label: 'Default engine', short: 'Engine' },
+];
+
+const sameSet = (a: string[], b: string[]) => a.length === b.length && a.every((x) => b.includes(x));
+
+/**
+ * Changing your printers, filaments or default engine once setup is done: the
+ * wizard's pages as tabs, saved together. Connect is left out (the Device tab
+ * adds printer connections). Closing with changes asks first.
+ */
+function Manage({ tab: firstTab, onClose }: { tab: Tab; onClose: () => void }) {
+  const allPrinters = useSlicer((s) => s.printers);
+  const running = useSlicer((s) => s.flavor);
+  const setup = useUserSetting<Setup>(SETUP_KEY);
+  const [saved] = useState(() => ({
+    printers: installedPrinters(setup, running) ?? [],
+    filaments: installedFilaments(setup, running) ?? [],
+    engine: setup?.engine ?? running,
+  }));
+  const [tab, setTab] = useState<Tab>(firstTab);
+  const [printers, setPrinters] = useState(saved.printers);
+  // What the Filaments tab starts with, and what you ticked there (null: nothing yet).
+  const [loaded, setLoaded] = useState<string[] | null>(null);
+  const [ticked, setTicked] = useState<string[] | null>(null);
+  const [engine, setEngine] = useState<EngineFlavor>(saved.engine);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
+
+  const printersChanged = !sameSet(printers, saved.printers);
+  const changed = printersChanged || ticked !== null || engine !== saved.engine;
+  const filaments = ticked ?? loaded ?? saved.filaments;
+
+  const close = async () => {
+    if (changed && !(await ask({ title: 'Discard your changes?', text: 'Your changes to printers, filaments or the default engine are not saved yet.', action: 'Discard changes' })))
+      return;
+    onClose();
+  };
+  const save = async () => {
+    setSaving(true);
+    setError('');
+    try {
+      // The filament list and pickers need the brands of printers you added.
+      if (printersChanged) await useSlicer.getState().loadVendors(printers);
+      await saveUserSetting<Setup>(SETUP_KEY, { printers, printersIn: running, filaments, filamentsIn: running, engine });
+      onClose();
+    } catch (e) {
+      setError(`Could not save: ${(e as Error).message}`);
+    } finally {
+      setSaving(false);
+    }
+  };
+  return (
+    <Dialog
+      title="Printers and filaments"
+      onClose={() => void close()}
+      className="manage"
+      footer={
+        <>
+          {error && <p className="hint warn manage-error">{error}</p>}
+          <button className="secondary" onClick={() => void close()}>
+            Cancel
+          </button>
+          <button className="primary" disabled={saving || !changed || !printers.length || !filaments.length} onClick={() => void save()}>
+            {saving ? 'Saving…' : 'Save'}
+          </button>
+        </>
+      }
+    >
+      <div className="manage-tabs" role="tablist" aria-label="Printers and filaments">
+        {TABS.map((t) => (
+          <button key={t.id} role="tab" aria-selected={tab === t.id} aria-label={t.label} className="manage-tab" onClick={() => setTab(t.id)}>
+            <span className="manage-tab-long">{t.label}</span>
+            {t.short && <span className="manage-tab-short">{t.short}</span>}
+          </button>
+        ))}
+      </div>
+      <div className="manage-body" role="tabpanel" aria-label={TABS.find((t) => t.id === tab)?.label}>
+        {tab === 'printers' && <PrinterStep all={allPrinters} chosen={printers} onChange={setPrinters} manage />}
+        {tab === 'filaments' &&
+          (printers.length ? (
+            <FilamentStep
+              printers={printers}
+              chosen={filaments}
+              // Printers changed after ticking: the ticks carry over to the new list.
+              onLoad={(names) => (ticked ? setTicked(names) : setLoaded(names))}
+              onChange={setTicked}
+            />
+          ) : (
+            <p className="muted">Pick a printer first: the filaments listed are the ones your printers have.</p>
+          ))}
+        {tab === 'engine' && <EngineStep chosen={engine} onChange={setEngine} heading={false} />}
+      </div>
+    </Dialog>
+  );
+}
+
+function EngineStep({ chosen, onChange, heading = true }: { chosen: EngineFlavor; onChange: (engine: EngineFlavor) => void; heading?: boolean }) {
   return (
     <>
-      <h3 className="wizard-engine-title">Default engine</h3>
+      {heading && <h3 className="wizard-engine-title">Default engine</h3>}
       <p className="muted small">
         New projects start with this engine. You can still pick the other one for any project: use Slicer engine above the printer. A project you open uses the
         engine it was made with.
@@ -239,7 +341,8 @@ function EngineStep({ chosen, onChange }: { chosen: EngineFlavor; onChange: (eng
   );
 }
 
-function PrinterStep({ all, chosen, onChange }: { all: PresetSummary[]; chosen: string[]; onChange: (names: string[]) => void }) {
+/** `manage`: the Manage window's Printers tab, which lists your printers above instead of explaining the page. */
+function PrinterStep({ all, chosen, onChange, manage }: { all: PresetSummary[]; chosen: string[]; onChange: (names: string[]) => void; manage?: boolean }) {
   const catalog = useSlicer((s) => s.catalog);
   const flavor = useSlicer((s) => s.flavor);
   // The brands you already have come first; the order stays put while you pick.
@@ -254,7 +357,25 @@ function PrinterStep({ all, chosen, onChange }: { all: PresetSummary[]; chosen: 
     .filter((b) => b.models.length);
   return (
     <>
-      <p className="muted small">
+      {manage && (
+        <>
+          <h3 className="manage-label">Your printers</h3>
+          {chosen.length ? (
+            <ul className="manage-mine">
+              {chosen.map((name) => (
+                <li key={name}>
+                  <span>{name}</span>
+                  <IconButton icon={X} label={`Remove ${name}`} onClick={() => toggle(name)} />
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="muted">No printers. Pick at least one below.</p>
+          )}
+          <h3 className="manage-label">Add a printer</h3>
+        </>
+      )}
+      <p className="muted small" hidden={manage}>
         Pick each printer you have and its nozzle sizes in mm (you can change this later with Manage). Every printer slices here; <SendMark /> marks the ones this app can
         also send prints to and start (Klipper printers, Prusa printers through PrusaLink, the Elegoo Centauri Carbon, and Bambu Lab printers with Developer Mode on). For the others you download the G-code, or send it through OctoPrint if OctoPrint runs the printer.
       </p>
@@ -302,9 +423,11 @@ function PrinterStep({ all, chosen, onChange }: { all: PresetSummary[]; chosen: 
         })}
         {!shown.length && <p className="muted">No printer matches “{q}”.</p>}
       </div>
-      <p className="muted small">
-        {chosen.length} printer profile{chosen.length === 1 ? '' : 's'} selected.
-      </p>
+      {!manage && (
+        <p className="muted small">
+          {chosen.length} printer profile{chosen.length === 1 ? '' : 's'} selected.
+        </p>
+      )}
     </>
   );
 }
@@ -321,7 +444,18 @@ export function SendMark() {
   );
 }
 
-function FilamentStep({ printers, chosen, onChange }: { printers: string[]; chosen: string[] | null; onChange: (names: string[]) => void }) {
+/** `onLoad` gets the list it starts with (what you picked before, or the printers' defaults); `onChange` what you tick. */
+function FilamentStep({
+  printers,
+  chosen,
+  onLoad,
+  onChange,
+}: {
+  printers: string[];
+  chosen: string[] | null;
+  onLoad: (names: string[]) => void;
+  onChange: (names: string[]) => void;
+}) {
   const filamentsFor = useSlicer((s) => s.filamentsFor);
   const [list, setList] = useState<PresetSummary[] | null>(null);
   const [error, setError] = useState('');
@@ -344,7 +478,7 @@ function FilamentStep({ printers, chosen, onChange }: { printers: string[]; chos
         // start from the printers' default filaments plus the maker's own.
         const vendors = new Set(useSlicer.getState().printers.filter((p) => printers.includes(p.name)).map((p) => p.vendor));
         const brand = [...byName.values()].filter((f) => f.system && vendors.has(f.filamentVendor ?? '')).map((f) => f.name);
-        onChange(kept.length ? kept : [...new Set([...results.flatMap((r) => r.defaults), ...brand])]);
+        onLoad(kept.length ? kept : [...new Set([...results.flatMap((r) => r.defaults), ...brand])]);
       })
       .catch((e) => live && setError((e as Error).message));
     return () => {
