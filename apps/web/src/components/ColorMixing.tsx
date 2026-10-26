@@ -18,6 +18,8 @@ import { NO_COLOURS, useSlicer } from '../state/store';
 import { Dialog } from './Dialog';
 import { ArrowDownUp, Delete, TriangleAlert, X } from 'lucide-react';
 import { IconButton } from './IconButton';
+import { Swatch } from './Swatch';
+import { Slider } from './Slider';
 
 /**
  * Desktop Snapmaker Orca's Color Mixing panel, under the filaments: each mix
@@ -48,13 +50,13 @@ export function ColorMixPanel() {
           {live.map(({ row, index }) => (
             <li key={row.stableId} className="slot mix-slot">
               <button
-                className="swatch mix-badge"
+                className="swatch lg"
                 style={{ background: row.colour, color: textOn(row.colour) }}
                 onClick={() => setEditing({ index })}
                 title="Edit mix"
                 aria-label={`Edit mix ${row.virtualId}`}
               >
-                <span className="slot-number">{row.virtualId}</span>
+                {row.virtualId}
               </button>
               <button className="mix-label" onClick={() => setEditing({ index })} title={mixLabel(row)}>
                 {!row.compatible && (
@@ -142,7 +144,7 @@ function MixDialog({ row, index, onClose }: { row: MixRow | undefined; index: nu
   );
   const pick = (slot: number, label: string) => (
     <label className="mix-filament">
-      <span className="paint-swatch" style={{ background: colours[(draft.filaments[slot] ?? 1) - 1] }} />
+      <Swatch colour={colours[(draft.filaments[slot] ?? 1) - 1]} number={draft.filaments[slot]} />
       <select
         aria-label={label}
         value={draft.filaments[slot]}
@@ -213,8 +215,7 @@ function MixDialog({ row, index, onClose }: { row: MixRow | undefined; index: nu
               {pick(k, `Filament ${k + 1} of the mix`)}
               {draft.filaments.length === 3 && (
                 <>
-                  <input
-                    type="range"
+                  <Slider
                     aria-label={`Share of filament ${draft.filaments[k]}`}
                     min={0}
                     max={100}
@@ -232,8 +233,7 @@ function MixDialog({ row, index, onClose }: { row: MixRow | undefined; index: nu
           {draft.filaments.length === 2 && (
             <label className="mix-slider">
               <span className="sr-only">Mix ratio</span>
-              <input
-                type="range"
+              <Slider
                 aria-label="Mix ratio"
                 min={0}
                 max={100}
@@ -279,7 +279,7 @@ function MixDialog({ row, index, onClose }: { row: MixRow | undefined; index: nu
           <div className="mix-quick">
             {colours.map((c, i) => (
               <button key={i} className="secondary" onClick={() => change({ pattern: draft.pattern + (i < 9 ? `${i + 1}` : `[${i + 1}]`) })}>
-                <span className="paint-swatch" style={{ background: c }} />+{i + 1}
+                <Swatch colour={c} size="sm" />+{i + 1}
               </button>
             ))}
             <button className="secondary" onClick={() => change({ pattern: draft.pattern.replace(/(\[\d+\]|\d|,)$/, '') })} aria-label="Remove the last layer" title="Remove the last layer">
@@ -297,7 +297,7 @@ function MixDialog({ row, index, onClose }: { row: MixRow | undefined; index: nu
       {draft.mode === 'match' && (
         <div className="mix-body">
           <div className="mix-row">
-            <label className="swatch" style={{ background: draft.target }} title="Target colour">
+            <label className="swatch lg" style={{ background: draft.target }} title="Target colour">
               <input type="color" aria-label="Target colour" value={draft.target.slice(0, 7)} onChange={(e) => change({ target: e.target.value.toUpperCase() })} />
             </label>
             <input
@@ -312,7 +312,7 @@ function MixDialog({ row, index, onClose }: { row: MixRow | undefined; index: nu
           </div>
           <label className="transform-row">
             <span>Min share</span>
-            <input type="range" aria-label="Minimum share of each filament" min={0} max={50} value={draft.minPercent} onChange={(e) => change({ minPercent: Number(e.target.value) })} />
+            <Slider aria-label="Minimum share of each filament" min={0} max={50} value={draft.minPercent} onChange={(e) => change({ minPercent: Number(e.target.value) })} />
             <span className="unit">{draft.minPercent}%</span>
           </label>
           {draft.match?.valid && (

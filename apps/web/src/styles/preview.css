@@ -33,10 +33,6 @@
 .legend-head select {
   flex: 1;
   min-width: 0;
-  padding: 4px 6px;
-  border-radius: var(--r-md);
-  border: 1px solid var(--border);
-  background: var(--surface-2);
 }
 .legend-row {
   display: flex;
@@ -223,10 +219,6 @@
   background: color-mix(in srgb, var(--surface) 92%, transparent);
   border: 1px solid var(--border);
   border-radius: var(--r-lg);
-}
-.layer-slider input {
-  flex: 1;
-  accent-color: var(--accent);
 }
 .layer-label {
   font-variant-numeric: tabular-nums;

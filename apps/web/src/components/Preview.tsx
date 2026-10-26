@@ -29,6 +29,7 @@ import { CameraViews, ViewButtons, type ViewHandle } from './ViewControls';
 import { Bed } from './Bed';
 import { PlateTabs } from './Viewport';
 import { ChevronDown, ChevronUp, Pencil, Plus } from 'lucide-react';
+import { Slider } from './Slider';
 
 /** The G-code read in a worker: progress (0..1) while reading, then the segments. */
 function useParsed(gcode: Blob | null) {
@@ -664,8 +665,7 @@ export function Preview() {
       {parsed && layers > 0 && (
         <div className="layer-slider">
           <div className="layer-track">
-            <input
-              type="range"
+            <Slider
               aria-label="Layer"
               min={0}
               max={layers - 1}

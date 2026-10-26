@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { heightAt, layerColour, type LayerAction, type LayerProfile } from '../lib/layers';
 import { useSlicer } from '../state/store';
+import { Slider } from './Slider';
 
 const ACTIONS: { action: LayerAction; label: string; title: string }[] = [
   { action: 'decrease', label: 'Add detail', title: 'Thinner layers (desktop: left mouse button)' },
@@ -144,7 +145,7 @@ export function LayersPanel({ object }: { object: number }) {
           </div>
           <label className="transform-row">
             <span>Edit band</span>
-            <input type="range" aria-label="Edit band" min={1.5} max={10} step={0.5} value={band} onChange={(e) => setBand(Number(e.target.value))} />
+            <Slider aria-label="Edit band" min={1.5} max={10} step={0.5} value={band} onChange={(e) => setBand(Number(e.target.value))} />
             <span className="unit">{band} mm</span>
           </label>
           <div className="layer-op">
@@ -153,7 +154,7 @@ export function LayersPanel({ object }: { object: number }) {
             </button>
             <label className="transform-row">
               <span>Quality</span>
-              <input type="range" aria-label="Quality or speed" min={0} max={1} step={0.05} value={quality} onChange={(e) => setQuality(Number(e.target.value))} />
+              <Slider aria-label="Quality or speed" min={0} max={1} step={0.05} value={quality} onChange={(e) => setQuality(Number(e.target.value))} />
               <span className="unit">Speed</span>
             </label>
           </div>
@@ -163,7 +164,7 @@ export function LayersPanel({ object }: { object: number }) {
             </button>
             <label className="transform-row">
               <span>Radius</span>
-              <input type="range" aria-label="Smoothing radius" min={1} max={10} step={1} value={radius} onChange={(e) => setRadius(Number(e.target.value))} />
+              <Slider aria-label="Smoothing radius" min={1} max={10} step={1} value={radius} onChange={(e) => setRadius(Number(e.target.value))} />
               <span className="unit">{radius}</span>
             </label>
             <label className="chip">
