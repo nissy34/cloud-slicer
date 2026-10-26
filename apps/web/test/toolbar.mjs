@@ -645,12 +645,16 @@ try {
       pageScroll: window.scrollY,
       topbar: document.querySelector('.topbar').getBoundingClientRect().top,
       actionbar: document.querySelector('.actionbar').getBoundingClientRect().bottom,
+      tabsTop: document.querySelector('.bottom-tabs').getBoundingClientRect().top,
+      tabsBottom: document.querySelector('.bottom-tabs').getBoundingClientRect().bottom,
       screen: window.innerHeight,
     }));
     if (edges.pageScroll !== 0 || edges.topbar !== 0) fail(`the top bar scrolled off a phone: ${JSON.stringify(edges)}`);
-    if (Math.abs(edges.actionbar - edges.screen) > 1) fail(`the action bar is not at the bottom of a phone: ${JSON.stringify(edges)}`);
+    // The tab bar holds the bottom edge; the action bar sits right on it.
+    if (Math.abs(edges.tabsBottom - edges.screen) > 1) fail(`the tab bar is not at the bottom of a phone: ${JSON.stringify(edges)}`);
+    if (Math.abs(edges.actionbar - edges.tabsTop) > 1) fail(`the action bar does not sit on the tab bar: ${JSON.stringify(edges)}`);
     if (shots) await phone.screenshot({ path: join(shots, 'toolbar-phone-layout.png') });
-    console.log('phone: top bar and action bar stay on screen');
+    console.log('phone: top bar, action bar and tab bar stay on screen');
   }
 } catch (e) {
   fail(e.message);
