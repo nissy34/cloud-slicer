@@ -18,6 +18,7 @@ import { EngineSection } from './EngineSection';
 import type { PresetSummary } from '../engine/protocol';
 import { X } from 'lucide-react';
 import { IconButton } from './IconButton';
+import { textOn } from '../lib/mixing';
 
 /** The user's own presets always show, whatever the setup wizard installed. */
 const withMine = (installed: string[] | undefined, list: PresetSummary[]) =>
@@ -111,8 +112,8 @@ function FilamentSection() {
       <ol className="slots">
         {selection.filaments.map((name, i) => (
           <li key={i} className="slot">
-            <label className="swatch" style={{ background: selection.colours[i] }} title="Filament colour">
-              <span className="slot-number">{i + 1}</span>
+            <label className="swatch lg" style={{ background: selection.colours[i], color: textOn(selection.colours[i]) }} title="Filament colour">
+              {i + 1}
               <input
                 type="color"
                 aria-label={`Filament ${i + 1} colour`}

@@ -7,6 +7,8 @@ import { Notice } from './Notice';
 import { ArrowDownToLine, ChevronDown, ChevronRight, CircleCheck, Ellipsis, Info, Moon, Pencil, RotateCcw, Sun, TriangleAlert, X, type LucideIcon } from 'lucide-react';
 import { IconButton } from './IconButton';
 import { Picker } from './Picker';
+import { Slider } from './Slider';
+import { Swatch } from './Swatch';
 
 const COLOURS = [
   ['bg', 'page'],
@@ -115,6 +117,46 @@ function Choices() {
   );
 }
 
+/** Fields, a slider and filament swatches. */
+function Fields() {
+  const [speed, setSpeed] = useState(60);
+  return (
+    <>
+      <div className="ds-row">
+        <input aria-label="Name" defaultValue="Benchy two colours" />
+        <select aria-label="Plate type" defaultValue="Textured PEI Plate">
+          <option>Textured PEI Plate</option>
+          <option>Smooth PEI Plate</option>
+        </select>
+        <span className="input-unit ds-unit">
+          <input aria-label="Layer height" defaultValue="0.2" />
+          <span className="unit">mm</span>
+        </span>
+      </div>
+      <div className="ds-field-wrong">
+        <span className="input-unit ds-unit">
+          <input aria-label="Wall loops" defaultValue="abc" aria-invalid />
+          <span className="unit">loops</span>
+        </span>
+        <p className="option-note">“abc” is not a number. Kept 2.</p>
+      </div>
+      <label className="ds-row">
+        <span>Speed</span>
+        <Slider aria-label="Speed" min={0} max={100} value={speed} onChange={(e) => setSpeed(Number(e.target.value))} />
+        <span className="unit">{speed}%</span>
+      </label>
+      <div className="ds-row">
+        {['#1E9E8F', '#FFEE00', '#FFFFFF', '#1E3A8A', '#D7263D'].map((c, i) => (
+          <Swatch key={c} colour={c} number={i + 1} />
+        ))}
+        <Swatch colour="#FFEE00" number={2} size="lg" />
+        <Swatch colour="#D7263D" size="sm" />
+        <Swatch empty />
+      </div>
+    </>
+  );
+}
+
 function Sheet({ theme, onWindow }: { theme: 'light' | 'dark'; onWindow(): void }) {
   return (
     <div className="ds-sheet" data-theme={theme}>
@@ -195,6 +237,9 @@ function Sheet({ theme, onWindow }: { theme: 'light' | 'dark'; onWindow(): void 
       </Section>
       <Section title="Chips, tags, switch, chooser, tabs">
         <Choices />
+      </Section>
+      <Section title="Fields, slider, swatches">
+        <Fields />
       </Section>
       <Section title="Picker">
         <PickerDemo />

@@ -19,6 +19,7 @@ import {
   stored,
 } from '../lib/flush';
 import { useOption, useSlicer } from '../state/store';
+import { Swatch } from './Swatch';
 
 export function FlushVolumesButton() {
   const [open, setOpen] = useState(false);
@@ -120,17 +121,13 @@ function FlushVolumesDialog({ onClose }: { onClose(): void }) {
           </span>
           {selection.colours.map((c, j) => (
             <span key={j} className="flush-head" role="columnheader" aria-label={`To ${label(j)}`}>
-              <span className="flush-chip" style={{ background: c }}>
-                {j + 1}
-              </span>
+              <Swatch colour={c} number={j + 1} />
             </span>
           ))}
           {selection.colours.map((c, i) => (
             <FlushRow key={i}>
               <span className="flush-head" role="rowheader" aria-label={`From ${label(i)}`}>
-                <span className="flush-chip" style={{ background: c }}>
-                  {i + 1}
-                </span>
+                <Swatch colour={c} number={i + 1} />
               </span>
               {selection.colours.map((_, j) =>
                 i === j ? (

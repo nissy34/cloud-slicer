@@ -12,6 +12,7 @@ import { SvgPanel } from './SvgPanel';
 import { TextPanel } from './TextPanel';
 import { BrimPanel } from './BrimEars';
 import { LayersPanel } from './LayersPanel';
+import { Slider } from './Slider';
 
 const round = (n: number) => Math.round(n * 100) / 100;
 
@@ -27,7 +28,7 @@ function CutPanel({ object, instance, height, onDone }: { object: number; instan
       <p className="muted hint">Drag the arrow on the plane, or set the height here. Cyan is the upper part, pink the lower.</p>
       <label className="transform-row">
         <span>Cut at</span>
-        <input type="range" aria-label="Cut height" min={0.2} max={round(height - 0.2)} step={0.1} value={z} onChange={(e) => setZ(Number(e.target.value))} />
+        <Slider aria-label="Cut height" min={0.2} max={round(height - 0.2)} step={0.1} value={z} onChange={(e) => setZ(Number(e.target.value))} />
         <input
           key={round(z)}
           aria-label="Cut height in mm"

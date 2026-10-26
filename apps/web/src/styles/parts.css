@@ -217,7 +217,6 @@
   border: 0;
   border-top: 1px solid var(--border);
 }
-:is(.object-menu, .picker-list) .menu-swatch,
 .picker-swatch {
   flex: none;
   width: 14px;
@@ -289,4 +288,174 @@
 }
 .picker-list .picker-action {
   color: var(--accent);
+/* Filament swatch (components/Swatch.tsx): a rounded square in the filament's
+   colour, its number inside in black or white (textOn), whichever reads. */
+.swatch {
+  position: relative;
+  flex: none;
+  display: inline-grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  font-size: var(--t-xs);
+  font-weight: 600;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+.swatch.sm {
+  width: 14px;
+  height: 14px;
+}
+.swatch.lg {
+  width: var(--ctl);
+  height: var(--ctl);
+  border-radius: var(--r-md);
+  font-size: var(--t-sm);
+}
+.swatch.unloaded {
+  background: repeating-linear-gradient(45deg, transparent 0 3px, var(--border) 3px 4px);
+}
+/* A swatch that picks its colour: the colour box is invisible, over it. */
+label.swatch,
+button.swatch {
+  padding: 0;
+  cursor: pointer;
+}
+.swatch > input[type='color'] {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  cursor: pointer;
+}
+
+/* Slider (components/Slider.tsx): a thin track that fills in blue up to an
+   18 px thumb, inside a --ctl-tall box so it is easy to grab on a phone.
+   --fill (0 to 1) comes from the component; the track runs half a thumb in
+   from each end, like the layer marks over the preview's slider. */
+.slider {
+  --fill: 0.5;
+  --track: linear-gradient(to right, var(--accent) calc(9px + (100% - 18px) * var(--fill)), var(--border) 0);
+  appearance: none;
+  flex: 1 1 auto;
+  min-width: 0;
+  height: var(--ctl);
+  margin: 0;
+  background: none;
+  cursor: pointer;
+}
+.slider::-webkit-slider-runnable-track {
+  height: 4px;
+  border-radius: var(--r-full);
+  background: var(--track);
+}
+.slider::-moz-range-track {
+  height: 4px;
+  border-radius: var(--r-full);
+  background: var(--track);
+}
+.slider::-webkit-slider-thumb {
+  appearance: none;
+  box-sizing: border-box;
+  width: 18px;
+  height: 18px;
+  margin-top: -7px;
+  border: 2px solid var(--accent);
+  border-radius: 50%;
+  background: var(--surface);
+  box-shadow: var(--shadow-1);
+}
+.slider::-moz-range-thumb {
+  box-sizing: border-box;
+  width: 18px;
+  height: 18px;
+  border: 2px solid var(--accent);
+  border-radius: 50%;
+  background: var(--surface);
+  box-shadow: var(--shadow-1);
+}
+.slider:focus-visible {
+  outline: none;
+}
+.slider:focus-visible::-webkit-slider-thumb {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+.slider:focus-visible::-moz-range-thumb {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+.slider:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+/* Field: every box you type in or pick from, one height and fill. A blue
+   ring while typing; red with a one-line reason under it when the value is
+   wrong (aria-invalid). Zero specificity (:where), so a screen can still size
+   or place a field, never restyle it. */
+:where(input:not([type='checkbox'], [type='radio'], [type='range'], [type='color'], [type='file'], [type='hidden'])),
+:where(select),
+:where(textarea) {
+  box-sizing: border-box;
+  min-height: var(--ctl);
+  padding: 0 var(--s-3);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  background: var(--surface-2);
+  color: var(--text);
+}
+:where(textarea) {
+  padding: var(--s-3);
+}
+:where(input, select, textarea):focus-visible {
+  border-color: var(--accent);
+  outline: 2px solid var(--accent-soft);
+  outline-offset: 0;
+}
+:where(input, select, textarea)[aria-invalid='true'] {
+  border-color: var(--danger);
+  outline-color: var(--danger-soft);
+}
+:where(input, select, textarea):disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+/* A number with its unit inside the box: <span class="input-unit"><input /><span class="unit">mm</span></span>. */
+.input-unit {
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  min-width: 0;
+  min-height: var(--ctl);
+  padding-right: var(--s-3);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  background: var(--surface-2);
+}
+.input-unit > input {
+  flex: 1;
+  width: 100%;
+  min-width: 0;
+  min-height: calc(var(--ctl) - 2px);
+  border: 0;
+  background: none;
+}
+.input-unit > input:focus-visible {
+  outline: none;
+}
+.input-unit:focus-within {
+  border-color: var(--accent);
+  outline: 2px solid var(--accent-soft);
+}
+.input-unit:has(> input[aria-invalid='true']) {
+  border-color: var(--danger);
+  outline-color: var(--danger-soft);
+}
+.input-unit:has(> input:disabled) {
+  opacity: 0.45;
 }

@@ -116,10 +116,6 @@ button.volume-name {
   align-items: center;
   min-width: 0;
 }
-.layer-track input {
-  flex: 1;
-  min-width: 0;
-}
 .layer-marks {
   position: absolute;
   inset: auto 0 calc(50% + 10px) 0;

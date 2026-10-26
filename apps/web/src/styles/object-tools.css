@@ -17,11 +17,6 @@
   border-radius: var(--r-lg);
   background: var(--surface-2);
 }
-.cut-panel input[type='range'] {
-  flex: 1;
-  min-width: 0;
-  accent-color: var(--accent);
-}
 
 /* Per-object settings */
 .object-settings {
@@ -193,17 +188,6 @@
   align-items: center;
   gap: 5px;
 }
-.paint-swatch {
-  width: 14px;
-  height: 14px;
-  border-radius: var(--r-sm);
-  border: 1px solid var(--border);
-}
-.paint-panel input[type='range'] {
-  flex: 1;
-  min-width: 0;
-  accent-color: var(--accent);
-}
 .paint-panel .hint {
   margin: 0;
   font-size: var(--t-sm);
@@ -235,9 +219,4 @@
 .calib-list input,
 .calib-fields input {
   width: 100%;
-  padding: 6px 8px;
-  border-radius: var(--r-md);
-  border: 1px solid var(--border);
-  background: var(--surface-2);
-  color: var(--text);
 }

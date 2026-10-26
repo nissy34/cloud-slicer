@@ -57,12 +57,14 @@ Shared parts and where they live. A screen uses these instead of styling its own
 | Tags | `styles/parts.css`: `.tag`, grey, or `.ok` `.warn` `.danger` `.accent`. Says how something is (Test, Blocked, the engine); never tappable |
 | Switch | `styles/parts.css`: `<input type="checkbox" class="switch" role="switch">`, or `<span class="switch on">` drawn inside a menu row. `.switch-row` is the label with its words |
 | Chooser | `styles/parts.css`: `.chooser` around 2 to 4 buttons on a grey track; the picked one (`aria-pressed`, `aria-checked`, `aria-selected`, `.on` or `.active`) is white and bold |
+| Field | `styles/parts.css`: every `input`, `select` and `textarea` gets one height (`--ctl`), fill and border at zero specificity, so a screen only sizes or places one. A blue ring while typing. A wrong value: `aria-invalid` turns it red, and a one-line reason goes under it (`.option-note`). A number with a unit: `<span class="input-unit"><input/><span class="unit">mm</span></span>`, the unit inside the box |
+| Slider | `components/Slider.tsx` (`.slider`): a thin track that fills in blue up to an 18 px thumb, `--ctl` tall to grab. Layers, cut, paint, mix, brim ears, simplify, Device fans. The mix slider keeps its colour strip as the track |
+| Filament swatch | `components/Swatch.tsx` (`.swatch`): a rounded square in the filament's colour, its number inside in black or white, whichever reads (`textOn` in `lib/mixing.ts`, WCAG contrast). `sm` a dot in menus and file rows, `md` with a number, `lg` the filament list. `empty` (class `unloaded`): striped, no filament loaded |
 | Line tabs | `styles/parts.css`: `.line-tabs` (role `tablist`) around buttons; the open one (`aria-selected` or `.active`) is underlined in blue. Settings pages |
 | Picker | `components/Picker.tsx`, `styles/parts.css` (`.picker`, `.picker-list`): a button showing the current choice and a chevron, opening the site's own list (never the browser's), placed by Floating UI (`@floating-ui/react`). Choices may carry a colour swatch and the current one has a blue ✓; a line, then actions whose words end in "…" ("Printers & bridges…"). Arrow keys, Escape and a tap outside work. Use it when a list needs actions or swatches; a plain list of values stays a native `<select>`. Its rows are the shared menu rows (`.menu-item`, `.menu-check`, `hr`) that the object menu also uses |
 | Icons | [Lucide](https://lucide.dev) (`lucide-react`), line icons at 16 px (20–24 px for tiles). The Device tab names its icons by meaning in `device/ui/icons.tsx`. Orca's own toolbar, view and plate icons stay as they are (`src/assets/`) |
 
-Still to come (picked on the design-system page): fields, slider, filament
-swatch, card, pop-over,
+Still to come (picked on the design-system page): card, pop-over,
 phone tooltips, notes, empty places. Each joins this table and the design page
 when it is built.
 

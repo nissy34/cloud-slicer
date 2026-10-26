@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { DETAIL_LEVELS, simplifyBy, type SimplifyResult } from '../lib/simplify';
 import { useSlicer } from '../state/store';
+import { Slider } from './Slider';
 
 const count = (n: number) => n.toLocaleString('en-US');
 
@@ -69,13 +70,13 @@ export function SimplifyPanel({ object }: { object: number }) {
       {mode === 'level' ? (
         <label className="transform-row">
           <span>Detail</span>
-          <input type="range" aria-label="Detail level" min={0} max={4} step={1} value={level} onChange={(e) => setLevel(Number(e.target.value))} />
+          <Slider aria-label="Detail level" min={0} max={4} step={1} value={level} onChange={(e) => setLevel(Number(e.target.value))} />
           <span className="unit">{DETAIL_LEVELS[level]}</span>
         </label>
       ) : (
         <label className="transform-row" title="Share of the triangles to remove">
           <span>Remove</span>
-          <input type="range" aria-label="Decimate ratio" min={0} max={99} step={1} value={ratio} onChange={(e) => setRatio(Number(e.target.value))} />
+          <Slider aria-label="Decimate ratio" min={0} max={99} step={1} value={ratio} onChange={(e) => setRatio(Number(e.target.value))} />
           <span className="unit">{ratio}%</span>
         </label>
       )}

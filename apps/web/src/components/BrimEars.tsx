@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 import * as THREE from 'three';
 import { PAINTED } from '../lib/brim';
 import { useSlicer } from '../state/store';
+import { Slider } from './Slider';
 
 // The ears as desktop draws them: teal on the bed, red when loose, picked ones highlighted.
 export const EAR_COLOURS = { ear: '#26a69a', loose: '#e5484d', picked: '#f5c542' };
@@ -104,7 +105,7 @@ export function BrimPanel({ object }: { object: number }) {
           </div>
           <label className="transform-row">
             <span>Ear size</span>
-            <input type="range" aria-label="Ear size" min={5} max={20} step={0.5} value={size} onChange={(e) => setBrimDiameter(Number(e.target.value))} />
+            <Slider aria-label="Ear size" min={5} max={20} step={0.5} value={size} onChange={(e) => setBrimDiameter(Number(e.target.value))} />
             <span className="unit">{fmt(size)} mm</span>
           </label>
           <div className="brim-op">
@@ -113,12 +114,12 @@ export function BrimPanel({ object }: { object: number }) {
             </button>
             <label className="transform-row" title="Corners sharper than this get an ear">
               <span>Max angle</span>
-              <input type="range" aria-label="Max angle" min={0} max={180} step={1} value={maxAngle} onChange={(e) => setMaxAngle(Number(e.target.value))} />
+              <Slider aria-label="Max angle" min={0} max={180} step={1} value={maxAngle} onChange={(e) => setMaxAngle(Number(e.target.value))} />
               <span className="unit">{maxAngle}°</span>
             </label>
             <label className="transform-row" title="Small bumps shorter than this are smoothed out first, so they don't get ears">
               <span>Detection length</span>
-              <input type="range" aria-label="Detection length" min={0} max={10} step={0.1} value={detection} onChange={(e) => setDetection(Number(e.target.value))} />
+              <Slider aria-label="Detection length" min={0} max={10} step={0.1} value={detection} onChange={(e) => setDetection(Number(e.target.value))} />
               <span className="unit">{fmt(detection)} mm</span>
             </label>
           </div>

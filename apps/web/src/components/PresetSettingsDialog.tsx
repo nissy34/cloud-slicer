@@ -16,6 +16,7 @@ import { Dialog } from './Dialog';
 import { SettingsPages } from './SettingsPanel';
 import { Pencil } from 'lucide-react';
 import { IconButton } from './IconButton';
+import { Swatch } from './Swatch';
 
 type Target = { type: 'printer' } | { type: 'filament'; slot: number };
 
@@ -129,7 +130,7 @@ function Editor({ target }: { target: Target }) {
     <Dialog
       title={
         <>
-          {colour && <span className="slot-dot" style={{ background: colour }} />}
+          {colour && <Swatch colour={colour} size="sm" />}
           {title}
         </>
       }
