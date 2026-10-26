@@ -2271,6 +2271,8 @@ export const useSlicer = create<SlicerState>((set, get) => {
     },
 
     async plateFingerprint(plate) {
+      // TEST ONLY (do not merge): the fingerprint off, to see whether it slows or crashes big models.
+      if (plate >= 0) throw new Error('Plate fingerprint turned off for this test');
       const fp = await engine().plateFingerprint(plate);
       const summary = summarize(fp, { ...get().baseConfig, ...engineOverrides() }, plate);
       return { summary, fingerprint: fingerprintOf(summary) };
