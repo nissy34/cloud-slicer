@@ -24,6 +24,7 @@ import type { PresetType } from './api';
 import { systemParent } from './preset-diff';
 import { saveFromEngine } from './preset-save';
 import { Dialog } from '../components/Dialog';
+import { Note } from '../components/Note';
 
 /** An item with what it would store, worked out for its current base. */
 type Row = ImportItem & { diff: OrcaConfig; gcode: string[]; problem: string | null };
@@ -222,7 +223,7 @@ export function ImportPresetsDialog() {
                 <b>{row.name}</b>
               </div>
               {row.rejected || row.problem ? (
-                <p className="import-note warn">{row.rejected ?? `Can't import: ${row.problem}`}</p>
+                <Note tone="error">{row.rejected ?? `Can't import: ${row.problem}`}</Note>
               ) : (
                 <>
                   {row.converted ? (
@@ -288,9 +289,9 @@ export function ImportPresetsDialog() {
         </p>
       )}
       {error && (
-        <p className="account-error" role="alert">
+        <Note tone="error">
           {error}
-        </p>
+        </Note>
       )}
     </Dialog>
   );

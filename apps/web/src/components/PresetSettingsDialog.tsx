@@ -17,6 +17,7 @@ import { SettingsPages } from './SettingsPanel';
 import { Pencil } from 'lucide-react';
 import { IconButton } from './IconButton';
 import { Swatch } from './Swatch';
+import { Note } from './Note';
 
 type Target = { type: 'printer' } | { type: 'filament'; slot: number };
 
@@ -215,9 +216,9 @@ function Editor({ target }: { target: Target }) {
         <SettingsPages kind={type} advanced={advanced} slot={slot} />
       </div>
       {error && (
-        <p className="account-error" role="alert">
+        <Note tone="error">
           {error}
-        </p>
+        </Note>
       )}
       <p className="muted small">
         Save to project keeps these changes in this project only, and they come back when you open it. A preset keeps them for every project. {where} Export, import,

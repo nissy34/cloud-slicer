@@ -7,12 +7,14 @@ import { isTestRelay } from '../config';
 import { job } from '../status';
 import { DeviceCards } from './Arrange';
 import { BridgeOffline } from './BridgeSetup';
+import { Printer } from 'lucide-react';
 import { Icon } from './icons';
 import { ManageDialog } from './ManageDialog';
 import { useConfirm } from './parts';
 import { PrintDialog } from './PrintDialog';
 import { PrinterEditor } from './PrinterEditor';
 import { WorksWith } from './WorksWith';
+import { Empty } from '../../components/Empty';
 
 export function DeviceScreen() {
   useEffect(() => useDevice.getState().start(), []);
@@ -48,12 +50,17 @@ export function DeviceScreen() {
   return (
     <div className="device" data-testid="device-screen">
       {!active ? (
-        <div className="dv-empty">
-          <h1>Your printers</h1>
-          <p className="muted">Watch your printers, control them and send prints from the slicer.</p>
-          <button className="primary" onClick={() => void openEditor({ mode: 'add' })} data-testid="add-printer">
-            Add a printer
-          </button>
+        <Empty
+          icon={Printer}
+          className="dv-empty"
+          title="Your printers"
+          text="Watch your printers, control them and send prints from the slicer."
+          action={
+            <button className="primary" onClick={() => void openEditor({ mode: 'add' })} data-testid="add-printer">
+              Add a printer
+            </button>
+          }
+        >
           {accountStatus !== 'unavailable' && (
             <button
               className="secondary"
@@ -70,7 +77,7 @@ export function DeviceScreen() {
               Printers &amp; bridges
             </button>
           )}
-        </div>
+        </Empty>
       ) : (
         <>
           <header className="dv-header">

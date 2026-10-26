@@ -103,13 +103,6 @@
 .account-confirm p {
   margin-bottom: 10px;
 }
-.account-error {
-  margin: 12px 0 0 !important;
-  padding: 8px 10px;
-  border-radius: var(--r-md);
-  background: var(--surface-2);
-  color: var(--danger);
-}
 @media (max-width: 760px) {
   .account-name {
     display: none;
@@ -239,9 +232,6 @@
   width: 100%;
 }
 .win .warn,
-.import-note.warn {
-  color: var(--danger);
-}
 
 .preset-pop-field {
   display: grid;

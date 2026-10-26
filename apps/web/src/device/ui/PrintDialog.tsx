@@ -10,6 +10,7 @@ import { useAlerts } from '../../state/alerts';
 import { LayerField } from './AlertsCard';
 import { Swatch } from '../../components/Swatch';
 import { Dialog } from '../../components/Dialog';
+import { Note } from '../../components/Note';
 
 /** What the upload bar says before the first byte leaves. */
 const UPLOAD_STAGE = {
@@ -132,9 +133,9 @@ export function PrintDialog({ source }: { source: SendSource }) {
       footer={
         <>
           {sendError && !busy && (
-            <p className="dv-alert dv-send-error" role="alert" data-testid="send-error">
+            <Note tone="error" className="dv-send-error" testId="send-error">
               {sendError}
-            </p>
+            </Note>
           )}
           {uploading && (
             <span className="dv-upload" aria-live="polite">

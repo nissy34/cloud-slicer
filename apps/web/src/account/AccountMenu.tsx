@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useAccount } from '../state/account';
 import { useSlicer } from '../state/store';
 import type { PresetType, ProviderId } from './api';
+import { Note } from '../components/Note';
 
 const PROVIDER_LABEL: Record<ProviderId, string> = { google: 'Google' };
 const ALL_PROVIDERS = Object.keys(PROVIDER_LABEL) as ProviderId[];
@@ -76,12 +77,12 @@ export function AccountMenu() {
         <div className="account-pop" role="dialog" aria-label={user ? 'Account' : 'Sign in'}>
           {user ? <SignedIn onDone={() => setOpen(false)} /> : <SignedOut />}
           {error && (
-            <p className="account-error" role="alert">
+            <Note tone="error">
               {error}{' '}
               <button className="quiet" onClick={() => useAccount.getState().clearError()}>
                 Dismiss
               </button>
-            </p>
+            </Note>
           )}
         </div>
       )}

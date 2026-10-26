@@ -61,11 +61,15 @@ Shared parts and where they live. A screen uses these instead of styling its own
 | Slider | `components/Slider.tsx` (`.slider`): a thin track that fills in blue up to an 18 px thumb, `--ctl` tall to grab. Layers, cut, paint, mix, brim ears, simplify, Device fans. The mix slider keeps its colour strip as the track |
 | Filament swatch | `components/Swatch.tsx` (`.swatch`): a rounded square in the filament's colour, its number inside in black or white, whichever reads (`textOn` in `lib/mixing.ts`, WCAG contrast). `sm` a dot in menus and file rows, `md` with a number, `lg` the filament list. `empty` (class `unloaded`): striped, no filament loaded |
 | Line tabs | `styles/parts.css`: `.line-tabs` (role `tablist`) around buttons; the open one (`aria-selected` or `.active`) is underlined in blue. Settings pages |
+| Card | `components/Card.tsx` (`.card`): a bordered box, 12 × 16 inside, a bold title in sentence case with its actions on the right as Quiet or icon buttons. Device cards (which add folding), Admin, the manage window's bridges; project tiles use the same box with a smaller edge |
+| Section title | `.group h2` in `styles/prepare.css`: the sidebar's sections (Printer, Filament, Process, Objects, Process settings, Slicer engine) are bold sentence case with a muted Lucide icon in front |
+| Note | `components/Note.tsx` (`.note`): a sign and words in a tinted box inside the page. Grey information, orange warning, red error (read out at once). A message that comes and goes is a Notice instead; a word or two in a row (Feeder jammed) stays coloured text |
+| Empty place | `components/Empty.tsx` (`.empty-place`): an icon, one sentence and at most one main button, centred where the content would be. No printers, no projects, no G-code files, no camera |
 | Icons | [Lucide](https://lucide.dev) (`lucide-react`), line icons at 16 px (20–24 px for tiles). The Device tab names its icons by meaning in `device/ui/icons.tsx`. Orca's own toolbar, view and plate icons stay as they are (`src/assets/`) |
 
-Still to come (picked on the design-system page): card, menu and pop-over,
-phone tooltips, notes, empty places. Each joins this table and the design page
-when it is built.
+Still to come (picked on the design-system page): menus and pop-overs (built on
+the Picker), phone tooltips, phone polish, words and motion. Each joins this
+table and the design page when it is built.
 
 ## Stylesheets
 

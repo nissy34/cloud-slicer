@@ -350,3 +350,108 @@ button.swatch {
 .input-unit:has(> input:disabled) {
   opacity: 0.45;
 }
+
+/* Card (components/Card.tsx): a bordered box with a bold title in normal case and its
+   actions on the right as Quiet or icon buttons. Device, Admin and project cards. */
+.card {
+  min-width: 0;
+  padding: var(--s-5) var(--s-6);
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+  background: var(--surface);
+}
+.card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s-4);
+  margin-bottom: var(--s-5);
+}
+.card-head h2 {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  min-width: 0;
+  margin: 0;
+  font-size: var(--t-md);
+  font-weight: 600;
+}
+.card-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--s-4);
+}
+@media (max-width: 760px) {
+  .card {
+    padding: var(--s-5);
+  }
+  .card-head {
+    flex-wrap: wrap;
+  }
+}
+
+/* Note (components/Note.tsx): a sign and words in a tinted box, inside the page.
+   Grey = information, orange = warning, red = error. Messages that come and go are Notices. */
+.note {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--s-3);
+  margin: 0;
+  padding: var(--s-3) var(--s-4);
+  border-radius: var(--r-md);
+  background: var(--surface-2);
+  color: var(--text);
+  font-size: var(--t-sm);
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+}
+.note-sign {
+  flex: none;
+  margin-top: 1px;
+  color: var(--muted);
+}
+.note-text {
+  flex: 1;
+  min-width: 0;
+}
+.note-text :is(p, ul) {
+  margin: 0;
+}
+.note-text > * + :is(p, ul, div) {
+  margin-top: var(--s-2);
+}
+.note.warn {
+  background: color-mix(in srgb, var(--warn) 12%, var(--surface-2));
+}
+.note.warn .note-sign {
+  color: var(--warn);
+}
+.note.error {
+  background: color-mix(in srgb, var(--danger) 10%, var(--surface-2));
+}
+.note.error .note-sign {
+  color: var(--danger);
+}
+
+/* Empty place (components/Empty.tsx): icon, one sentence, one main button, centred. */
+.empty-place {
+  display: grid;
+  justify-items: center;
+  align-content: center;
+  gap: var(--s-4);
+  padding: var(--s-7) var(--s-6);
+  text-align: center;
+  color: var(--muted);
+}
+.empty-place-icon {
+  color: var(--muted);
+}
+.empty-place h1 {
+  margin: 0;
+  font-size: var(--t-2xl);
+  color: var(--text);
+}
+.empty-place p {
+  max-width: 44ch;
+  margin: 0;
+}

@@ -83,14 +83,11 @@
   gap: 8px;
 }
 /* The open tool's problem, pinned to the foot of its card so it stays in view. */
+/* The tool's problem note stays in view at the foot of its card while the card scrolls. */
 .tool-error {
   position: sticky;
-  bottom: -10px;
-  margin: 8px -12px -10px;
-  padding: 6px 12px;
-  border-top: 1px solid var(--border);
-  background: var(--surface);
-  font-size: var(--t-md);
+  bottom: 0;
+  margin-top: var(--s-4);
 }
 .tool-panel-head {
   display: flex;
@@ -108,9 +105,6 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-}
-.simplify-warning {
-  color: var(--danger);
 }
 /* Text shape: the words, then rows of a label, a field and its unit. */
 .text-input {
@@ -180,14 +174,6 @@
   min-width: 0;
 }
 /* Brim ears: the brim type note, the count and the auto-generate group. */
-.brim-warning {
-  display: grid;
-  gap: 6px;
-  padding: 8px;
-  border: 1px solid color-mix(in srgb, var(--danger) 50%, transparent);
-  border-radius: var(--r-lg);
-  font-size: var(--t-sm);
-}
 .brim-summary {
   font-size: var(--t-sm);
   font-variant-numeric: tabular-nums;

@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { DETAIL_LEVELS, simplifyBy, type SimplifyResult } from '../lib/simplify';
 import { useSlicer } from '../state/store';
 import { Slider } from './Slider';
+import { Note } from './Note';
 
 const count = (n: number) => n.toLocaleString('en-US');
 
@@ -80,7 +81,7 @@ export function SimplifyPanel({ object }: { object: number }) {
           <span className="unit">{ratio}%</span>
         </label>
       )}
-      {result?.painted && <p className="hint simplify-warning">This object's painting (colours, supports, seams, fuzzy skin) will be removed, as on desktop.</p>}
+      {result?.painted && <Note tone="warn">This object's painting (colours, supports, seams, fuzzy skin) will be removed, as on desktop.</Note>}
       <div className="tool-row">
         <button className="primary" disabled={working || !result || result.after === undefined || result.after === result.triangles} onClick={() => void apply()}>
           Apply

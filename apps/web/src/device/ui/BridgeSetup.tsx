@@ -4,6 +4,7 @@ import { useAccount } from '../../state/account';
 import { useDevice } from '../../state/device';
 import { DEFAULT_RELAY_URL, isTestRelay } from '../config';
 import type { Pairing } from '../pairing';
+import { Note } from '../../components/Note';
 
 /** A bridge app the relay has (apps/device-relay: /downloads.json). */
 interface BridgeApp {
@@ -233,7 +234,7 @@ function TestRelayNote({ relay }: { relay: string }) {
   }, [relay]);
   if (!isTestRelay(relay)) return null;
   return (
-    <p className="dv-note dv-test-note" data-testid="bridge-test-relay">
+    <Note tone="warn" className="dv-test-note" testId="bridge-test-relay">
       <span className="tag warn">Test</span> This test site sets up a <b>test bridge</b>
       {testRuns ? (
         <>
@@ -244,7 +245,7 @@ function TestRelayNote({ relay }: { relay: string }) {
         ' on the test relay'
       )}
       . It installs next to your everyday bridge without touching it, and only ever updates from the test relay. Remove it with the same steps, or with Remove bridge.
-    </p>
+    </Note>
   );
 }
 
@@ -338,9 +339,9 @@ export function BridgeSetup({ relay, pasteLink }: { relay: string; pasteLink?: R
         itself or on a computer in your home that is usually switched on, and you only set it up once.
       </p>
       {system === 'other' && (
-        <p className="dv-note" data-testid="bridge-phone-note">
+        <Note testId="bridge-phone-note">
           Do this on that computer, not on this phone. <CopyPageLink /> and open it there.
-        </p>
+        </Note>
       )}
       <div className="dv-setup-os">
         <span className="dv-setup-question">Where will the bridge run?</span>
@@ -571,9 +572,9 @@ export function AddBridge({ relay, onJoined }: { relay: string; onJoined: (p: Pa
 
   if (problem) {
     return (
-      <p className="dv-alert" role="alert" data-testid="bridge-setup-problem">
+      <Note tone="error" testId="bridge-setup-problem">
         {problem}
-      </p>
+      </Note>
     );
   }
   if (!setup) return <p className="muted">Making a setup code…</p>;
@@ -584,9 +585,9 @@ export function AddBridge({ relay, onJoined }: { relay: string; onJoined: (p: Pa
       <TestRelayNote relay={relay} />
       <p>Run the bridge on a computer that stays on at home, on the same network as the printer, or on the printer itself.</p>
       {system === 'other' && (
-        <p className="dv-note" data-testid="bridge-phone-note">
+        <Note testId="bridge-phone-note">
           Do this on that computer, not on this phone: copy the command and run it there, or <CopyPageLink /> and open it there.
-        </p>
+        </Note>
       )}
       {renewed && (
         <div className="dv-bridge-state failed" role="status" data-testid="setup-code-renewed">

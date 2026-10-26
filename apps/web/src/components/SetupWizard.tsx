@@ -13,6 +13,7 @@ import { useSlicer } from '../state/store';
 import { ask } from './AskDialog';
 import { Dialog } from './Dialog';
 import { IconButton } from './IconButton';
+import { Note } from './Note';
 
 /**
  * Opens the wizard from anywhere. Once setup is done, "Manage" and the pickers'
@@ -278,7 +279,7 @@ function Manage({ tab: firstTab, onClose }: { tab: Tab; onClose: () => void }) {
       className="manage"
       footer={
         <>
-          {error && <p className="hint warn manage-error">{error}</p>}
+          {error && <Note tone="error" className="manage-error">{error}</Note>}
           <button className="secondary" onClick={() => void close()}>
             Cancel
           </button>

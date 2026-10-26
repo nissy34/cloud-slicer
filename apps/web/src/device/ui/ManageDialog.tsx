@@ -149,7 +149,7 @@ function BridgeCard({ b, onLeftover }: { b: SavedBridge; onLeftover: (l: Leftove
   };
 
   return (
-    <section className="dv-manage-card" data-testid="manage-bridge" data-bridge-id={b.bridgeId}>
+    <section className="card dv-manage-card" data-testid="manage-bridge" data-bridge-id={b.bridgeId}>
       <div className="dv-found-head">
         <span>
           <strong>{b.name}</strong>{' '}
@@ -285,7 +285,7 @@ export function ManageDialog() {
     >
       <div className="dv-form" data-testid="manage-dialog">
         {leftovers.map((l, i) => (
-          <div key={i} className="dv-manage-card" data-testid="manage-leftover">
+          <div key={i} className="card dv-manage-card" data-testid="manage-leftover">
             <p>
               <strong>{l.name}</strong> was removed from Cloud Slicer. It wasn't running, so remove it from its computer too:
             </p>
@@ -301,7 +301,7 @@ export function ManageDialog() {
         {direct.length > 0 && (
           <>
             <h3 className="dv-manage-title">Over the internet</h3>
-            <section className="dv-manage-card">
+            <section className="card dv-manage-card">
               <ul className="dv-manage-list">
                 {direct.map((p) => (
                   <PrinterRow key={p.id} p={p} />

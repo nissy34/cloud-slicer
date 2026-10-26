@@ -1,4 +1,5 @@
 import { Fragment, useEffect, useMemo, useState } from 'react';
+import { Settings2 } from 'lucide-react';
 import type { OptionDef, OrcaConfig, SettingsPage } from '../engine/protocol';
 import { splitValues, valueAt, withValueAt } from '../lib/flow-variants';
 import { FLUSH_OPTIONS } from '../lib/flush';
@@ -227,7 +228,10 @@ export function SettingsPanel() {
   return (
     <section className="group settings">
       <div className="group-head">
-        <h2>Process settings</h2>
+        <h2>
+          <Settings2 aria-hidden />
+          Process settings
+        </h2>
         <label className="chip">
           <input type="checkbox" checked={advanced} onChange={(e) => setAdvanced(e.target.checked)} />
           <span>Advanced</span>
