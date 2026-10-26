@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Picker } from '../../components/Picker';
+import { Settings } from 'lucide-react';
 import { useAccount } from '../../state/account';
 import { BRIDGE_SIGN_IN, useDevice } from '../../state/device';
 import '../../state/alerts';
@@ -82,7 +83,7 @@ export function DeviceScreen() {
                 value={activeId}
                 options={printers.map((p) => ({ value: p.id, label: p.name + (p.kind === 'bridge' && isTestRelay(p.relay) ? ' (test)' : '') }))}
                 onChange={select}
-                actions={[{ id: 'manage', label: 'Printers & bridges…', testId: 'manage-open' }]}
+                actions={[{ id: 'manage', label: 'Printers & bridges…', icon: Settings, testId: 'manage-open' }]}
                 onAction={() => openManage(true)}
                 className="dv-printer-picker"
                 testId="printer-select"

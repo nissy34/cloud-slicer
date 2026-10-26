@@ -14,12 +14,13 @@ import {
   useListNavigation,
   useRole,
 } from '@floating-ui/react';
-import { Check, ChevronDown } from 'lucide-react';
+import { Check, ChevronDown, type LucideIcon } from 'lucide-react';
 
 /** A choice in the list; the current one is bold with a ✓. */
 export type PickerOption = { value: string; label: string; swatch?: string };
-/** An action under the choices, after a line. Its words end in "…" when a window follows. */
-export type PickerAction = { id: string; label: string; testId?: string };
+/** An action under the choices, after a line, in the normal text colour with its icon in
+ * front. Its words end in "…" when a window follows. */
+export type PickerAction = { id: string; label: string; icon?: LucideIcon; testId?: string };
 
 type Props = {
   /** What is being picked, for screen readers ("Printer"). */
@@ -108,6 +109,7 @@ export function Picker({ label, value, options, onChange, actions = [], onAction
               {actions.length > 0 && <hr />}
               {actions.map((a, j) => {
                 const i = options.length + j;
+                const ActionIcon = a.icon;
                 return (
                   <button
                     key={a.id}
@@ -122,6 +124,7 @@ export function Picker({ label, value, options, onChange, actions = [], onAction
                     data-testid={a.testId}
                     {...getItemProps({ onClick: () => pick(() => onAction?.(a.id)) })}
                   >
+                    {ActionIcon && <ActionIcon className="picker-action-icon" size={16} aria-hidden />}
                     <span className="picker-label">{a.label}</span>
                   </button>
                 );

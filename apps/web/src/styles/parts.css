@@ -286,8 +286,9 @@
 .picker-list .menu-item[aria-selected='true'] {
   font-weight: 600;
 }
-.picker-list .picker-action {
-  color: var(--accent);
+.picker-list .picker-action-icon {
+  flex: none;
+  color: var(--muted);
 }
 
 /* Filament swatch (components/Swatch.tsx): a rounded square in the filament's

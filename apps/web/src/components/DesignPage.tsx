@@ -4,7 +4,7 @@
 import { useState, type ReactNode } from 'react';
 import { Dialog } from './Dialog';
 import { Notice } from './Notice';
-import { ArrowDownToLine, ChevronDown, ChevronRight, CircleCheck, Ellipsis, Info, Moon, Pencil, RotateCcw, Sun, TriangleAlert, X, type LucideIcon } from 'lucide-react';
+import { ArrowDownToLine, ChevronDown, ChevronRight, CircleCheck, Ellipsis, Info, Moon, Pencil, RotateCcw, Settings, Sun, TriangleAlert, X, type LucideIcon } from 'lucide-react';
 import { IconButton } from './IconButton';
 import { Picker } from './Picker';
 import { Slider } from './Slider';
@@ -302,7 +302,7 @@ function PickerDemo() {
           { value: 'ender', label: 'Ender 3' },
         ]}
         onChange={setPrinter}
-        actions={[{ id: 'manage', label: 'Printers & bridges…' }]}
+        actions={[{ id: 'manage', label: 'Printers & bridges…', icon: Settings }]}
         onAction={() => {}}
       />
       <Picker
