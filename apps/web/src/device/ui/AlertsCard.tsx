@@ -121,7 +121,7 @@ export function AlertsCard() {
           )
         : (
             <Note>
-              Alerts come only while Cloud Slicer is open in a tab.
+              Alerts only come while Cloud Slicer is open in a tab.
               <InfoTip label="About alerts without a bridge">
                 This printer is reached straight from the browser. Through a bridge, alerts come with the browser closed too.
               </InfoTip>
