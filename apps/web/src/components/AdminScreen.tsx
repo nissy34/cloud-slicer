@@ -203,6 +203,7 @@ function AccessCard({ data, act }: { data: AdminOverview; act: Act }) {
       </div>
       <label className="admin-switch">
         <input
+          className="switch"
           type="checkbox"
           checked={s.inviteOnly}
           onChange={(e) => {
@@ -334,9 +335,9 @@ function UserRow({ u, defaultMb, inviteOnly, act }: { u: AdminUser; defaultMb: n
     <li className={u.blocked ? 'admin-user blocked' : 'admin-user'} data-testid="admin-user">
       <div className="admin-user-who">
         <strong>{u.name || u.email}</strong>
-        {u.owner && <span className="admin-tag">You</span>}
-        {u.blocked && <span className="admin-tag danger">Blocked</span>}
-        {inviteOnly && !u.owner && !u.allowed && !u.blocked && <span className="admin-tag warn">Not on the list</span>}
+        {u.owner && <span className="tag">You</span>}
+        {u.blocked && <span className="tag danger">Blocked</span>}
+        {inviteOnly && !u.owner && !u.allowed && !u.blocked && <span className="tag warn">Not on the list</span>}
         <div className="muted small admin-email">{u.email}</div>
       </div>
       <div className="admin-user-stats small">
@@ -347,7 +348,7 @@ function UserRow({ u, defaultMb, inviteOnly, act }: { u: AdminUser; defaultMb: n
           {u.projects === 1 ? '' : 's'}
         </span>
         <span>
-          {!u.bridgesAllowed && <span className="admin-tag warn">No bridges</span>} {u.presets} preset{u.presets === 1 ? '' : 's'} · {u.printers}{' '}
+          {!u.bridgesAllowed && <span className="tag warn">No bridges</span>} {u.presets} preset{u.presets === 1 ? '' : 's'} · {u.printers}{' '}
           printer
           {u.printers === 1 ? '' : 's'} · {u.bridges} bridge
           {u.bridges === 1 ? '' : 's'}
@@ -469,7 +470,7 @@ function BridgesCard({ bridges, act }: { bridges: AdminBridge[]; act: Act }) {
             <li key={b.id} className={b.off ? 'admin-user blocked' : 'admin-user'} data-testid="admin-bridge">
               <div className="admin-user-who">
                 <strong className="admin-bridge-id">{b.id}</strong>
-                {b.off && <span className="admin-tag danger">Off</span>}
+                {b.off && <span className="tag danger">Off</span>}
                 <div className="muted small admin-email">
                   {b.people || 'nobody yet'}
                 </div>

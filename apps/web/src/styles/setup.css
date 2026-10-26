@@ -71,8 +71,7 @@
 .wizard-models li.on {
   border-color: var(--accent);
 }
-.wizard-models .segmented {
-  flex-wrap: wrap;
+.wizard-models .chips {
   margin-inline-start: auto;
 }
 .wizard-model {
@@ -106,12 +105,6 @@
 }
 .wizard-brands .wizard-models {
   margin-top: 6px;
-}
-.wizard-filters .check {
-  flex: none;
-  display: flex;
-  align-items: center;
-  gap: 4px;
 }
 /* Direct print: the app can send prints to this printer (Klipper): wizard, printer picker. */
 .send-mark {

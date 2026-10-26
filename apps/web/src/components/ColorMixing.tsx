@@ -188,7 +188,7 @@ function MixDialog({ row, index, onClose }: { row: MixRow | undefined; index: nu
         </>
       }
     >
-      <div className="segmented" role="radiogroup" aria-label="Mix mode">
+      <div className="chooser" role="radiogroup" aria-label="Mix mode">
         {MODES.map((m) => (
           <button key={m} role="radio" aria-checked={draft.mode === m} className={draft.mode === m ? 'on' : ''} onClick={() => change({ mode: m })}>
             {MODE_LABELS[m]}

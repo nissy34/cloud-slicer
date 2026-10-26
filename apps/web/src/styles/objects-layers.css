@@ -124,16 +124,8 @@ button.volume-name {
   justify-items: start;
 }
 
-/* Which engine slices, when it isn't the default Snapmaker Orca. */
-.engine-badge {
-  font-size: var(--t-sm);
-  color: var(--muted);
-  border: 1px solid var(--border);
-  border-radius: var(--r-full);
-  padding: 2px 8px;
-  white-space: nowrap;
-}
-/* No room beside the tabs on a phone: the Project menu names the engine instead. */
+/* The engine tag in the top bar: no room beside the tabs on a phone, where the
+   Project menu names the engine instead. */
 @media (max-width: 760px) {
   .engine-badge {
     display: none;
