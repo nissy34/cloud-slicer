@@ -194,7 +194,7 @@
   align-items: center;
   gap: 12px;
 }
-.dv-columns {
+.dv-columns-pick {
   display: inline-flex;
   align-items: center;
   gap: var(--s-4);

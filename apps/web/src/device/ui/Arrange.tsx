@@ -208,7 +208,7 @@ export function DeviceCards({ printer, busy, arranging, onDone }: { printer: Sav
       <p className="muted">{phone ? 'Hold a card by its grip and drag it up or down.' : 'Drag a card by its grip into a column, or across the top or bottom.'} Hidden cards stay here, faded. This layout is for {printer.name} only.</p>
       <div className="dv-arrange-actions">
         {!phone && (
-          <div className="dv-columns">
+          <div className="dv-columns-pick">
             <span className="muted">Columns</span>
             <div className="chooser" role="group" aria-label="Columns">
               {([2, 3] as const).map((n) => (
