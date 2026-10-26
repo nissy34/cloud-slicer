@@ -80,6 +80,7 @@ export function ObjectList() {
                 {filamentSelect(o, -1, obj.extruder || 1, `Filament for ${obj.name}`)}
                 <IconButton
                   icon={Ellipsis}
+                  className="object-more"
                   label="More"
                   aria-label={`More for ${obj.name}`}
                   title="More: clone, rename, mirror, export… (or right-click the object)"
@@ -112,6 +113,7 @@ export function ObjectList() {
                         {v.kind === 'part' && filamentSelect(o, i, v.extruder, `Filament for ${v.name}`)}
                         <IconButton
                           icon={Ellipsis}
+                          className="object-more"
                           label="More"
                           aria-label={`More for part ${v.name}`}
                           title="Rename, change type, settings, delete"

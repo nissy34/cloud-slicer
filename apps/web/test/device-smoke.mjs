@@ -561,7 +561,7 @@ try {
   await filesCard.getByTestId('files-pager').filter({ hasText: '1–10 of 25' }).waitFor();
   if ((await fileRows.count()) !== 10) throw new Error(`files card shows ${await fileRows.count()} rows, want 10`);
   if (!(await fileRows.first().textContent()).includes('calibration_cube.gcode')) throw new Error('files card is not newest first');
-  await filesCard.getByRole('button', { name: 'Older ›' }).click();
+  await filesCard.getByRole('button', { name: 'Older' }).click();
   await filesCard.getByTestId('files-pager').filter({ hasText: '11–20 of 25' }).waitFor();
   if (!(await fileRows.first().textContent()).includes('part_09.gcode')) throw new Error(`page 2 starts with ${await fileRows.first().textContent()}`);
   await filesCard.getByLabel('Search files').fill('part_2');
