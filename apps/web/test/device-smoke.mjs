@@ -507,7 +507,10 @@ try {
   // ---- generic Klipper printer, direct ------------------------------------------------
   // A printer that has collected files over months: the card pages them like Fluidd.
   for (let i = 0; i < 24; i++) voron.files.set(`part_${String(i).padStart(2, '0')}.gcode`, { size: 50_000, modified: Date.now() / 1000 - 7200 - i * 600, text: '' });
-  await page.getByTestId('printer-select').selectOption('__add');
+  // Printers & bridges, the last choice in the printer list, is where printers are added.
+  await page.getByTestId('printer-select').selectOption('__manage');
+  await page.getByTestId('manage-dialog').waitFor();
+  await page.getByRole('button', { name: 'Add a printer', exact: true }).click();
   await page.getByRole('tab', { name: 'Over the internet (advanced)' }).click();
   // The exact moonraker.conf lines that let this site reach the printer, ready to copy.
   await page.getByTestId('cors-snippet').filter({ hasText: `[authorization] cors_domains: ${site.replace(/\/$/, '')}` }).waitFor();
@@ -690,7 +693,7 @@ try {
   await earlier.evaluate((v) => localStorage.setItem('cloud-slicer:devices:v1', v), onlyPrinters);
   await earlier.reload();
   await earlier.getByRole('tab', { name: 'Device' }).click();
-  await earlier.getByTestId('manage-open').first().click();
+  await earlier.getByTestId('printer-select').selectOption('__manage');
   await earlier.getByTestId('manage-bridge').getByTestId('manage-bridge-state').filter({ hasText: 'Running' }).waitFor({ timeout: 20_000 });
   await earlier.getByTestId('manage-bridge').locator('[data-testid="manage-printer"][data-name="U1-mock"]').waitFor();
   await earlier.close();
@@ -765,7 +768,7 @@ try {
   await setup.getByTestId('bridge-not-ready').waitFor();
   console.log('bridge setup: app downloads and the Linux command from the relay, a plain note when it has none');
   // Printers & bridges: the bridge is its own thing, its printers come and go on their own.
-  await page.getByTestId('manage-open').first().click();
+  await page.getByTestId('printer-select').selectOption('__manage');
   const manage = page.getByTestId('manage-dialog');
   const card = manage.getByTestId('manage-bridge');
   await card.getByTestId('manage-bridge-state').filter({ hasText: 'Running' }).waitFor({ timeout: 20_000 });
@@ -793,7 +796,7 @@ try {
   await page.getByTestId('bridge-state').filter({ hasText: 'Connected to the bridge' }).waitFor({ timeout: 20_000 });
   await page.getByRole('dialog', { name: 'Add a printer' }).getByRole('button', { name: 'Close' }).click();
   // Removing the bridge, while it runs, makes it uninstall itself.
-  await page.getByTestId('manage-open').first().click();
+  await page.getByTestId('printer-select').selectOption('__manage');
   await card.getByTestId('manage-bridge-state').filter({ hasText: 'Running' }).waitFor({ timeout: 20_000 });
   await card.getByTestId('manage-bridge-remove').click();
   await card.getByText('will also uninstall itself').waitFor();

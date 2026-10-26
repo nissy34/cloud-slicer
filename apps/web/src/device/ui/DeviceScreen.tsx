@@ -7,6 +7,7 @@ import { isTestRelay } from '../config';
 import { job } from '../status';
 import { DeviceCards } from './Arrange';
 import { BridgeOffline } from './BridgeSetup';
+import { Icon } from './icons';
 import { ManageDialog } from './ManageDialog';
 import { useConfirm } from './parts';
 import { PrintDialog } from './PrintDialog';
@@ -74,14 +75,16 @@ export function DeviceScreen() {
         <>
           <header className="dv-header">
             <div className="dv-printer">
-              <select value={activeId ?? ''} onChange={(e) => (e.target.value === '__add' ? void openEditor({ mode: 'add' }) : select(e.target.value))} aria-label="Printer" data-testid="printer-select">
+              {/* The printer list ends with Printers & bridges, where printers and bridges are added, edited and removed. */}
+              <select value={activeId ?? ''} onChange={(e) => (e.target.value === '__manage' ? openManage(true) : select(e.target.value))} aria-label="Printer" data-testid="printer-select">
                 {printers.map((p) => (
                   <option key={p.id} value={p.id}>
                     {p.name}
                     {p.kind === 'bridge' && isTestRelay(p.relay) ? ' (test)' : ''}
                   </option>
                 ))}
-                <option value="__add">Add a printer…</option>
+                <option disabled>──────────</option>
+                <option value="__manage">Printers &amp; bridges…</option>
               </select>
               <span className="muted dv-model">
                 {[model, active.kind === 'bridge' ? (isTestRelay(active.relay) ? 'through the test bridge' : 'through the bridge') : facts?.hostname].filter(Boolean).join(' · ')}
@@ -91,15 +94,17 @@ export function DeviceScreen() {
               {pill.text}
             </span>
             <div className="dv-header-actions">
-              <button className="quiet" onClick={() => setArranging(!arranging)} aria-pressed={arranging} data-testid="arrange-open">
-                Arrange
-              </button>
-              <button className="quiet" onClick={() => void openEditor({ mode: 'edit', id: active.id })}>
-                Edit
-              </button>
-              <button className="quiet" onClick={() => openManage(true)} data-testid="manage-open">
-                Printers &amp; bridges
-              </button>
+              {/* Only the cards' layout here; the printer itself is managed from the printer list. */}
+              {arranging ? (
+                <button className="primary" onClick={() => setArranging(false)} data-testid="arrange-done">
+                  Done arranging
+                </button>
+              ) : (
+                <button className="quiet" onClick={() => setArranging(true)} data-testid="arrange-open">
+                  <Icon name="arrange" />
+                  Arrange cards
+                </button>
+              )}
               {takesCommands(addons) && (
                 <button
                   className="secondary danger"
@@ -137,7 +142,7 @@ export function DeviceScreen() {
               <BridgeOffline system={bridge?.system} place={bridge?.place} />
             </div>
           )}
-          <DeviceCards key={active.id} printer={active} busy={busy} arranging={arranging} onDone={() => setArranging(false)} />
+          <DeviceCards key={active.id} printer={active} busy={busy} arranging={arranging} />
         </>
       )}
       {send && active && <PrintDialog key={send.kind === 'upload' ? send.name : send.path} source={send} />}
