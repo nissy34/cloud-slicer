@@ -13,6 +13,7 @@ import { mkdirSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { chromium } from 'playwright';
+import { pick as pickChoice, pickerChoices } from './picker.mjs';
 
 const web = join(dirname(fileURLToPath(import.meta.url)), '..');
 const shots = process.argv[2] ? resolve(process.argv[2]) : null;
@@ -76,13 +77,12 @@ try {
   await wizard.getByRole('button', { name: 'Finish' }).click();
   await wizard.waitFor({ state: 'detached', timeout: 30000 });
 
-  const picker = page.getByRole('combobox', { name: 'Printer preset' });
-  const options = (await picker.locator('option').allInnerTexts()).map((o) => o.trim());
+  const options = await pickerChoices(page, 'Printer preset');
   const pick = async (p) => {
     const option = options.find((o) => o.startsWith(p.preset));
     if (!option) throw new Error(`no ${p.model} in the picker: ${options.join(' | ')}`);
     beds = [];
-    await picker.selectOption({ label: option });
+    await pickChoice(page, 'Printer preset', { label: option });
   };
 
   for (const p of PRINTERS) {

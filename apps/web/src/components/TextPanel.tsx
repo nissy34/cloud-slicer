@@ -5,6 +5,8 @@ import { addFontFile, availableFonts, canListComputerFonts, loadComputerFonts, n
 import { useSlicer } from '../state/store';
 import { ShapeActions, ShapePlacement, placementHint } from './ShapePlacement';
 import { Note } from './Note';
+import { Picker, type PickerAction } from './Picker';
+import { FileUp, Monitor } from 'lucide-react';
 
 const TYPES = ['part', 'negative', 'modifier'] as const;
 /** The font list's groups: built-in fonts (Latin, then each other script), font files, the computer's. */
@@ -160,36 +162,25 @@ function TextFields({
     <>
       <textarea className="text-input" aria-label="Text" dir="auto" rows={2} value={style.text} onChange={(e) => set('text', e.target.value)} />
       {!style.text.trim() && <Note tone="warn">Type some text.</Note>}
-      <label className="transform-row text-row">
+      <div className="transform-row text-row">
         <span>Font</span>
-        <select
-          aria-label="Font"
-          value={missingFont ? '' : style.font}
-          onChange={(e) => void pickFont(e.target.value)}
+        <Picker
+          field
+          label="Font"
+          value={missingFont ? null : style.font}
+          placeholder={missingFont ? `${style.font} (not on this device)` : undefined}
           title="Built-in fonts, a font file you load (kept in this browser), or this computer's fonts in Chrome or Edge on a computer"
-        >
-          {missingFont && <option value="">{style.font} (not on this device)</option>}
-          {fontGroups(fonts).map(([label, list]) => (
-            <optgroup key={label} label={label}>
-              {list.map((f) => (
-                <option key={f.name} value={f.name}>
-                  {f.name}
-                </option>
-              ))}
-            </optgroup>
-          ))}
-          <optgroup label="More fonts">
-            <option value="__file">Load a font file (.ttf, .otf)…</option>
-            {canListComputerFonts() ? (
-              !fonts.some((f) => f.source === 'computer') && <option value="__computer">Use this computer's fonts…</option>
-            ) : (
-              <option value="__nocomputer" disabled>
-                This computer's fonts: Chrome or Edge on a computer only
-              </option>
-            )}
-          </optgroup>
-        </select>
-      </label>
+          options={fontGroups(fonts).flatMap(([group, list]) => list.map((f) => ({ value: f.name, label: f.name, group })))}
+          onChange={(name) => void pickFont(name)}
+          actions={([
+            { id: '__file', label: 'Load a font file (.ttf, .otf)…', icon: FileUp },
+            canListComputerFonts()
+              ? !fonts.some((f) => f.source === 'computer') && { id: '__computer', label: "Use this computer's fonts…", icon: Monitor }
+              : { id: '__nocomputer', label: "This computer's fonts: Chrome or Edge on a computer only", icon: Monitor, disabled: true },
+          ] as (PickerAction | false)[]).filter((a): a is PickerAction => !!a)}
+          onAction={(id) => void pickFont(id)}
+        />
+      </div>
       <input
         ref={fileInput}
         type="file"

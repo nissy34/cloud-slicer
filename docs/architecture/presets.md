@@ -56,8 +56,9 @@ them), and preset files in and out.
 - Every plate type is offered on every printer; a printer starts on its own default
   (U1: Textured PEI).
 - The step-by-step wizard is only for setup: it opens by itself until finished once.
-  After that, Manage and the pickers' last entries ("Add or remove printers…", "Add or
-  remove filaments…") open **Printers and filaments**: tabs Printers (your printers as
+  After that, Manage and the pickers' last rows ("Add or remove printers…", "Add or
+  remove filaments…", under a line in the site's own Picker list, which also groups
+  printers by brand and marks the ones with direct print) open **Printers and filaments**: tabs Printers (your printers as
   chips with ✕ above the full list), Filaments and Default engine, one Save for all
   tabs, and Cancel or ✕ asks before throwing changes away. No Connect tab: the Device
   tab adds printer connections. Saving keeps the open project's printer, even one you

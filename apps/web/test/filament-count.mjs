@@ -14,6 +14,7 @@ import { mkdirSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { chromium } from 'playwright';
+import { pickerValue } from './picker.mjs';
 
 const web = join(dirname(fileURLToPath(import.meta.url)), '..');
 const model = join(web, '../../fixtures/eight-colour-cubes.3mf');
@@ -81,7 +82,7 @@ async function open(engine, printer, viewport = { width: 1280, height: 900 }) {
   return page;
 }
 
-const slots = (page) => page.locator('select[aria-label^="Filament "][aria-label$=" preset"]');
+const slots = (page) => page.locator('button.picker[aria-label^="Filament "][aria-label$=" preset"]');
 const slice = async (page) => {
   await page.getByRole('button', { name: /^Slice plate/ }).click();
   await page.getByTestId('slice-stats').waitFor({ timeout: 300000 });
@@ -100,7 +101,7 @@ try {
     const page = await open('orca', 'X1 Carbon');
     await page.getByTestId('model-input').setInputFiles(model);
     await page.getByText('Ready to slice').waitFor({ timeout: 120000 });
-    expect((await page.getByRole('combobox', { name: 'Printer preset' }).inputValue()) === X1C, 'the project opens on its X1 Carbon');
+    expect((await pickerValue(page, 'Printer preset')) === X1C, 'the project opens on its X1 Carbon');
     expect((await slots(page).count()) === 8, `${await slots(page).count()} filaments`);
     expect(!(await page.getByTestId('filament-limit').count()), 'no filament-count note on a single-nozzle printer');
     expect(await page.getByRole('button', { name: 'Add filament' }).isVisible(), '+ Add is there');

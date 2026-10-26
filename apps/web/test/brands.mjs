@@ -13,6 +13,7 @@ import { spawn } from 'node:child_process';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { chromium } from 'playwright';
+import { pick, pickerRows, pickerValue, waitPicked } from './picker.mjs';
 
 const web = join(dirname(fileURLToPath(import.meta.url)), '..');
 const model = join(web, '../../fixtures/tetrahedron.stl');
@@ -105,10 +106,9 @@ try {
   await wizard.getByRole('button', { name: 'Finish' }).click();
 
   // The picker offers the Voron, marked, and it slices.
-  const picker = page.getByRole('combobox', { name: 'Printer preset' });
-  const options = await picker.locator('option').allInnerTexts();
-  if (!options.some((o) => o.startsWith(VORON) && o.includes('direct print'))) fail(`picker options: ${options.join(' | ')}`);
-  await picker.selectOption(VORON);
+  const options = await pickerRows(page, 'Printer preset');
+  if (!options.some((o) => o.label.startsWith(VORON) && /direct print/i.test(o.hint))) fail(`picker options: ${options.map((o) => o.label).join(' | ')}`);
+  await pick(page, 'Printer preset', VORON);
   await page.getByText('Send prints to it from the Device tab').waitFor({ timeout: 30000 });
   await page.getByTestId('model-input').setInputFiles(model);
   await page.getByText('Ready to slice').waitFor({ timeout: 120000 });
@@ -126,7 +126,7 @@ try {
   fetched = [];
   await page.reload();
   await ready();
-  await page.waitForFunction((v) => document.querySelector('select[aria-label="Printer preset"]')?.value === v, VORON, { timeout: 60000 });
+  if (!(await waitPicked(page, 'Printer preset', VORON))) fail(`after the reload "${await pickerValue(page, 'Printer preset')}" is picked`);
   console.log(`reload fetched ${fetched.join(', ')}`);
   if (!fetched.includes('engine/profiles/Voron.json')) fail('the reload did not load Voron');
 
@@ -137,11 +137,11 @@ try {
   await manage.locator('.wizard-models li').first().locator('.chips button').first().click();
   await manage.getByRole('button', { name: 'Save', exact: true }).click();
   await manage.waitFor({ state: 'hidden', timeout: 60000 });
-  const anker = (await picker.locator('option').allInnerTexts()).find((o) => /^Anker M5C/.test(o));
+  const anker = (await pickerRows(page, 'Printer preset')).find((o) => /^Anker M5C/.test(o.label));
   if (!anker) fail('no Anker M5C in the picker');
   else {
-    if (anker.includes('direct print')) fail(`"${anker}" says direct print`);
-    await picker.selectOption(anker.trim());
+    if (/direct print/i.test(anker.hint)) fail(`"${anker.label}" says direct print`);
+    await pick(page, 'Printer preset', anker.value);
     await page.getByText("No direct print for this printer").waitFor({ timeout: 30000 });
     if (shots) await page.screenshot({ path: join(shots, 'picker-anker.png') });
   }

@@ -131,3 +131,7 @@
   gap: var(--s-4);
   margin-top: var(--s-5);
 }
+/* The field-look picker at a sidebar's width. */
+.ds-field-picker {
+  width: 260px;
+}

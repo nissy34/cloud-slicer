@@ -141,7 +141,7 @@
   min-width: 0;
   font-variant-numeric: tabular-nums;
 }
-.text-row select,
+.text-row .picker,
 .text-row input {
   min-width: 0;
 }

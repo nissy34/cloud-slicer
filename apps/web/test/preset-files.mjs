@@ -16,6 +16,7 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { unzipSync, strFromU8 } from 'fflate';
 import { chromium } from 'playwright';
+import { pickerOf } from './picker.mjs';
 
 const web = join(dirname(fileURLToPath(import.meta.url)), '..');
 const out = process.argv[2] ?? join(web, 'preset-shots');
@@ -88,8 +89,8 @@ try {
   const filamentPop = page.getByRole('dialog', { name: 'filament preset' });
   const printerMenu = page.getByRole('button', { name: 'Printer preset actions' });
   const printerPop = page.getByRole('dialog', { name: 'printer preset' });
-  const filamentPicker = page.getByRole('combobox', { name: 'Filament 1 preset' });
-  const printerPicker = page.getByRole('combobox', { name: 'Printer preset' });
+  const filamentPicker = pickerOf(page, 'Filament 1 preset');
+  const printerPicker = pickerOf(page, 'Printer preset');
   const importDialog = page.getByRole('dialog', { name: 'Import presets' });
   const saveAs = async (menu, pop, name) => {
     await menu.click();
@@ -197,7 +198,7 @@ try {
     const filament = saved.find((p) => p.name === 'Hot PLA');
     expect(printer?.config.z_offset === '0.05' && printer.inherits === systemPrinter, JSON.stringify(printer));
     expect(/^231/.test(filament?.config.nozzle_temperature ?? '') && filament.inherits === systemFilament, JSON.stringify(filament));
-    expect(await printerPicker.locator('option', { hasText: 'My U1 tuned' }).count(), 'printer back in the picker');
+    expect((await printerPicker.choices()).includes('My U1 tuned'), 'printer back in the picker');
   });
 
   await step('a name already taken can be kept twice', async () => {
@@ -261,7 +262,7 @@ try {
 
   await step('with two filaments each filament window edits its own filament', async () => {
     await page.getByRole('button', { name: 'Add filament' }).click();
-    await page.getByRole('combobox', { name: 'Filament 2 preset' }).waitFor();
+    await pickerOf(page, 'Filament 2 preset').waitFor();
     let dialog = await openEditor('Edit filament 2 settings', 'Filament 2 settings');
     const before = await field(dialog, 'Print temperature', 'Other layers').inputValue();
     await setField(field(dialog, 'Print temperature', 'Other layers'), '204');

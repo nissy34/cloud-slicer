@@ -1,0 +1,13 @@
+{
+    "filament_settings_id": [
+        "Hot PLA"
+    ],
+    "from": "User",
+    "inherits": "Snapmaker PLA Basic @U1",
+    "is_custom_defined": "0",
+    "name": "Hot PLA",
+    "nozzle_temperature": [
+        "231"
+    ],
+    "version": "1.0.0.0"
+}
