@@ -510,7 +510,7 @@ try {
   // Printers & bridges, the last choice in the printer list, is where printers are added.
   await page.getByTestId('printer-select').selectOption('__manage');
   await page.getByTestId('manage-dialog').waitFor();
-  await page.getByRole('button', { name: 'Add a printer' }).click();
+  await page.getByRole('button', { name: 'Add a printer', exact: true }).click();
   await page.getByRole('tab', { name: 'Over the internet (advanced)' }).click();
   // The exact moonraker.conf lines that let this site reach the printer, ready to copy.
   await page.getByTestId('cors-snippet').filter({ hasText: `[authorization] cors_domains: ${site.replace(/\/$/, '')}` }).waitFor();
