@@ -81,7 +81,7 @@ export function SimplifyPanel({ object }: { object: number }) {
           <span className="unit">{ratio}%</span>
         </label>
       )}
-      {result?.painted && <Note tone="warn">This object's painting (colours, supports, seams, fuzzy skin) will be removed, as on desktop.</Note>}
+      {result?.painted && <Note>This object's painting (colours, supports, seams, fuzzy skin) is kept on the simplified mesh.</Note>}
       <div className="tool-row">
         <button className="primary" disabled={working || !result || result.after === undefined || result.after === result.triangles} onClick={() => void apply()}>
           Apply

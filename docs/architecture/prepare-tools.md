@@ -47,8 +47,8 @@ Over 1M triangles on a plate slows slicing and can crash a phone's tab.
 
 - Any device: the action bar offers Simplify (to about 500k per plate).
 - Phones and tablets: before the model is drawn, a question offers Simplify / Open as is /
-  Cancel ("Don't ask again" kept in `cloud-slicer:ask-simplify:v1`). Painted models say
-  painting will be lost.
+  Cancel ("Don't ask again" kept in `cloud-slicer:ask-simplify:v1`). Painted models keep
+  their painting.
 - Convert is asked before the first draw on every device, so the model isn't drawn twice.
 - Only the shown plate is drawn.
 
@@ -67,5 +67,5 @@ Over 1M triangles on a plate slows slicing and can crash a phone's tab.
 
 ## Open
 
-- Cut is horizontal only, no connectors. Simplify drops painting. No assembly view,
+- Cut is horizontal only, no connectors. Simplify remaps painting onto the simplified mesh. No assembly view,
   Reload from disk or text styles (left out).
