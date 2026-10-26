@@ -157,7 +157,7 @@ function SyncFilamentsDialog({ onClose }: { onClose(): void }) {
         {status}
         {ready && plan && (
           <>
-            <div className="dv-segmented" role="radiogroup" aria-label="How to load">
+            <div className="chooser" role="radiogroup" aria-label="How to load">
               <button role="radio" aria-checked={mode === 'match'} className={mode === 'match' ? 'on' : ''} onClick={() => setMode('match')}>
                 Match colours
               </button>
@@ -200,8 +200,8 @@ function SyncFilamentsDialog({ onClose }: { onClose(): void }) {
                   })}
                 </ol>
                 {unused.length > 0 && (
-                  <label className="check">
-                    <input type="checkbox" checked={addRest} onChange={(e) => setAddRest(e.target.checked)} />
+                  <label className="switch-row">
+                    <input className="switch" type="checkbox" checked={addRest} onChange={(e) => setAddRest(e.target.checked)} />
                     <span>Also add the filaments on the other {fil?.words.noun ?? 'head'}s ({unused.map((f) => f.label).join(', ')})</span>
                   </label>
                 )}

@@ -38,7 +38,7 @@ export function AssemblePanel() {
           Done
         </button>
       </div>
-      <div className="segmented" role="radiogroup" aria-label="Pick">
+      <div className="chooser" role="radiogroup" aria-label="Pick">
         {(['faces', 'points'] as const).map((m) => (
           <button key={m} role="radio" aria-checked={mode === m} className={mode === m ? 'on' : ''} onClick={() => mode !== m && setAssembleMode(m)}>
             {m === 'faces' ? 'Face and face' : 'Point and point'}

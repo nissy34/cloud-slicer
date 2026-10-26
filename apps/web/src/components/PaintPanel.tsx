@@ -58,7 +58,7 @@ export function PaintPanel() {
           Done
         </button>
       </div>
-      <div className="segmented" role="radiogroup" aria-label="What to paint">
+      <div className="chooser" role="radiogroup" aria-label="What to paint">
         {KINDS.map(([k, label]) => (
           <button key={k} role="radio" aria-checked={paint.kind === k} className={paint.kind === k ? 'on' : ''} onClick={() => setKind(k)}>
             {label}
@@ -83,7 +83,7 @@ export function PaintPanel() {
           Erase
         </button>
       </div>
-      <div className="segmented" role="radiogroup" aria-label="Tool">
+      <div className="chooser" role="radiogroup" aria-label="Tool">
         {TOOLS.filter(([t]) => t !== 'bucket' || paint.kind === 'color').map(([t, label, title]) => (
           <button key={t} role="radio" aria-checked={paint.tool === t} className={paint.tool === t ? 'on' : ''} title={title} onClick={() => change({ tool: t })}>
             {label}

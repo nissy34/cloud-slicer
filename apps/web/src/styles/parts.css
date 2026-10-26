@@ -1,0 +1,180 @@
+/* Shared parts (docs/architecture/design-system.md): choice chips and status
+   tags, one switch, the chooser and line tabs. A screen uses these instead of
+   styling its own; extra classes only place them. */
+
+/* Choice chip: tap to turn on, blue when on. A <button aria-pressed>, or a
+   <label class="chip"> around a check box (the box is invisible, over the chip). */
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s-2);
+}
+.chip {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--s-2);
+  min-height: var(--ctl);
+  padding: 0 var(--s-5);
+  border: 1px solid var(--border);
+  border-radius: var(--r-full);
+  background: var(--surface);
+  color: var(--text);
+  cursor: pointer;
+  white-space: nowrap;
+  user-select: none;
+}
+.chip:hover:not(:disabled) {
+  background: var(--surface-2);
+}
+.chip:is([aria-pressed='true'], .on, :has(> input:checked)) {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+.chip > input[type='checkbox'] {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+.chip:has(> input:focus-visible) {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+.chip:disabled,
+.chip:has(> input:disabled) {
+  opacity: 0.45;
+  cursor: default;
+}
+
+/* Status tag: says how something is, not tappable. Tones: .ok, .warn, .danger, .accent. */
+.tag {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-2);
+  padding: var(--s-1) var(--s-3);
+  border-radius: var(--r-full);
+  background: var(--surface-2);
+  color: var(--muted);
+  font-size: var(--t-xs);
+  font-weight: 600;
+  line-height: 1.4;
+  white-space: nowrap;
+  vertical-align: middle;
+}
+.tag.ok {
+  background: var(--ok-soft);
+  color: var(--ok);
+}
+.tag.warn {
+  background: var(--warn-soft);
+  color: var(--warn);
+}
+.tag.danger {
+  background: var(--danger-soft);
+  color: var(--danger);
+}
+.tag.accent {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+/* Switch: one thing that acts at once. An <input type="checkbox" class="switch">
+   (or a span with .on, drawn inside a menu row). The knob is part of the background. */
+.switch {
+  appearance: none;
+  display: inline-block;
+  flex: none;
+  width: 34px;
+  height: 20px;
+  margin: 0;
+  border-radius: var(--r-full);
+  background: radial-gradient(circle at 10px 50%, var(--on-colour) 0 7px, transparent 8px) no-repeat, var(--border);
+  vertical-align: middle;
+  cursor: pointer;
+}
+.switch:checked,
+.switch.on {
+  background: radial-gradient(circle at 24px 50%, var(--on-colour) 0 7px, transparent 8px) no-repeat, var(--accent);
+}
+.switch:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+.switch:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+/* A switch with its words: the label row. */
+.switch-row {
+  display: flex;
+  align-items: center;
+  gap: var(--s-4);
+  cursor: pointer;
+}
+
+/* Chooser: picks one value of 2 to 4 on a grey track. */
+.chooser {
+  display: flex;
+  gap: var(--s-1);
+  max-width: 100%;
+  padding: var(--s-1);
+  border-radius: var(--r-md);
+  background: var(--surface-2);
+}
+.chooser > button {
+  flex: 1 1 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--s-2);
+  min-width: 0;
+  min-height: calc(var(--ctl) - 4px);
+  padding: 0 var(--s-4);
+  border: 0;
+  border-radius: var(--r-sm);
+  background: none;
+  color: var(--muted);
+  text-align: center;
+  cursor: pointer;
+}
+.chooser > button:hover:not(:disabled) {
+  color: var(--text);
+}
+.chooser > button:is(.on, .active, [aria-checked='true'], [aria-selected='true'], [aria-pressed='true']) {
+  background: var(--surface);
+  box-shadow: 0 0 0 1px var(--border);
+  color: var(--text);
+  font-weight: 600;
+}
+
+/* Line tabs: change what you see below them; the open one is underlined. */
+.line-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0 var(--s-5);
+  border-bottom: 1px solid var(--border);
+}
+.line-tabs > button {
+  margin-bottom: -1px;
+  padding: var(--s-3) 0;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  background: none;
+  color: var(--muted);
+  cursor: pointer;
+  white-space: nowrap;
+}
+.line-tabs > button:hover {
+  color: var(--text);
+}
+.line-tabs > button:is(.active, [aria-selected='true']) {
+  border-bottom-color: var(--accent);
+  color: var(--text);
+  font-weight: 600;
+}

@@ -63,14 +63,14 @@ export function ConsoleCard() {
       {editing && (
         <div className="dv-console-filters" role="group" aria-label="Hide these lines" data-testid="console-filters">
           <span className="dv-console-filters-title">Hide these lines</span>
-          <div className="dv-filter-chips">
+          <div className="chips">
             {BUILT_IN_FILTERS.map((b) => (
-              <button key={b.key} className="dv-filter-chip" aria-pressed={filters[b.key]} title={`Hide lines like: ${b.example}`} onClick={() => setFilters({ ...filters, [b.key]: !filters[b.key] })}>
+              <button key={b.key} className="chip" aria-pressed={filters[b.key]} title={`Hide lines like: ${b.example}`} onClick={() => setFilters({ ...filters, [b.key]: !filters[b.key] })}>
                 {b.label}
               </button>
             ))}
             {filters.custom.map((c, i) => (
-              <span key={c.text} className="dv-filter-chip dv-filter-word" data-on={c.on}>
+              <span key={c.text} className={c.on ? 'chip dv-filter-word on' : 'chip dv-filter-word'}>
                 <button aria-pressed={c.on} title={`Hide lines containing “${c.text}”`} onClick={() => setFilters({ ...filters, custom: filters.custom.map((x, j) => (j === i ? { ...x, on: !x.on } : x)) })}>
                   “{c.text}”
                 </button>
@@ -98,12 +98,12 @@ export function ConsoleCard() {
                   spellCheck={false}
                   autoCapitalize="off"
                 />
-                <button className="dv-filter-chip" type="submit" disabled={!word.trim()}>
+                <button className="chip" type="submit" disabled={!word.trim()}>
                   Add
                 </button>
               </form>
             ) : (
-              <button className="dv-filter-chip dv-filter-new" onClick={() => setAdding(true)}>
+              <button className="chip dv-filter-new" onClick={() => setAdding(true)}>
                 + Add
               </button>
             )}

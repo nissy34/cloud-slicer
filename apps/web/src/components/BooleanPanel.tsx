@@ -48,7 +48,7 @@ export function BooleanPanel({ object }: { object: number }) {
           Done
         </button>
       </div>
-      <div className="segmented" role="radiogroup" aria-label="Operation">
+      <div className="chooser" role="radiogroup" aria-label="Operation">
         {BOOLEAN_OPS.map(({ op: o, label }) => (
           <button key={o} role="radio" aria-checked={op === o} className={op === o ? 'on' : ''} onClick={() => setOp(o)}>
             {label}
@@ -74,8 +74,8 @@ export function BooleanPanel({ object }: { object: number }) {
           {picker(second, b, (v) => setPair([a, v]))}
           {a === b && <p className="hint simplify-warning">Pick two different parts.</p>}
           {op !== 'union' && (
-            <label className="check">
-              <input type="checkbox" checked={deleteInput} onChange={(e) => setDeleteInput(e.target.checked)} />
+            <label className="switch-row">
+              <input className="switch" type="checkbox" checked={deleteInput} onChange={(e) => setDeleteInput(e.target.checked)} />
               Delete input (also remove the second one)
             </label>
           )}

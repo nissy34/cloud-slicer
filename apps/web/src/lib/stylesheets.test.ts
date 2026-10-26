@@ -118,4 +118,4 @@ describe('design tokens', () => {
   });
 });
 
-const OFF_STEP_SPACING = 194;
+const OFF_STEP_SPACING = 186;
