@@ -47,7 +47,9 @@ D1 `user`, `session`, `account`, `verification` (Better Auth), `presets`,
 - Owners are the emails in the `OWNER_EMAILS` secret; Block and the user list are Better
   Auth's admin plugin; Invite only is a database hook on new accounts and sessions.
 - Per account: storage (site default 200 MB, per-person override, 0 = "Presets only"),
-  3 bridges, 2 cameras at once through a bridge. "Bridges: not allowed" per person.
+  3 bridges, 2 cameras at once through the relay (signed into the ticket as `cams`, 8 for
+  owners; see [relay](relay.md) for the direct-camera cap). "Bridges: not allowed" per
+  person.
 - Blocking someone drops their relay connections at once (`POST /v1/revoke`).
 - The site's ticket key is made once and never replaced; every live deploy of the site
   and the relay copies the public half from `/api/relay/key`, so they always match.

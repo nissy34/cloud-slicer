@@ -53,6 +53,12 @@ person on the Admin page), 8 GB for the whole site (R2's free tier is 10 GB).
   as desktop does. If the engine can't fill it in, a pop-up asks to use the engine's own
   for the printer; the answer is saved with the project.
 - An online project remembers its engine; a 3MF opens with the engine that made it.
+- `version` goes up on every save and on Rename; a save from another tab or device
+  against an older version gets a conflict. Things stored beside the project without
+  changing the file (thumbnail, print history) must **not** raise it, or the device
+  editing the project hits a conflict on its next AutoSave.
+- Something that belongs to the project but needn't travel with the file goes in a D1
+  column beside it (as `project_prints` does), not in the 3MF.
 - A sliced-only `.gcode.3mf` is explained, not opened.
 - Changed settings and colour mixes belong to the project. After a reload, the preset
   selection comes back from the browser; the project itself comes back through AutoSave
@@ -68,7 +74,7 @@ person on the Admin page), 8 GB for the whole site (R2's free tier is 10 GB).
 
 ## Tests
 
-`accounts.mjs` (online projects, conflicts), `convert.mjs`, `foreign-gcode.mjs`,
+`accounts.mjs` (online projects, conflicts; runs Pages Functions with a local D1, see [accounts](accounts.md#tests)), `convert.mjs`, `foreign-gcode.mjs`,
 `engine-switch.mjs`, `engines.mjs`; unit tests `project-import.test.ts`, `projects.test.ts`.
 
 ## Open

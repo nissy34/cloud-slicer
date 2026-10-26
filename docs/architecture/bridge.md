@@ -39,8 +39,11 @@ asks nothing; printers and their keys are added from the Device tab.
 checks the ed25519 signature (key only in the `BRIDGE_SIGNING_KEY` secret), size and
 SHA-256, and installs when no browser is connected. The old program stays as `.old`
 until the new one reaches the relay; otherwise it rolls back and skips that build.
-"Update now" in Printers & bridges does it at once. Version "6.N": 6 = what it can do
-(raised by hand), N = commits that changed the folder.
+"Update now" in Printers & bridges does it at once. Version "7.N": 7 = what it can do
+(`version` in `main.go`, raised by hand when the site needs to tell old bridges apart,
+for example a new message or event; the site compares it as a number), N = commits that
+changed the folder. Old bridges stay in the field for up to 6 hours, or until someone
+taps "Update now": a change the site depends on must keep working with them.
 
 **Brands.** Each non-Klipper printer gets a stand-in Moonraker on 127.0.0.1 that answers
 the calls the Device tab and alerts use, worked out with the printer's own API. New
@@ -65,9 +68,20 @@ printers with their API keys.
   through a per-brand allow list (`allowed.go`) that blocks host takeover (Moonraker
   `machine.*`/`access.*`, OctoPrint plugins, Bambu firmware).
 - Status is merged and sent at most once a second, and only while a browser watches.
-- A new brand = one brand file + a pretend printer + a browser test + a row in
-  `WORKS_WITH` (`apps/web/src/device/brands.ts`) + the bridge README. Its probe runs
-  beside the others, never after them.
+- Before adding a brand, check [decisions.md](../decisions.md#device-tab): some were
+  turned down.
+- A new brand touches:
+  - bridge: one brand file (`<brand>.go` with its test), its kind in `translate.go`
+    (`newBrand`, the kind lists in `findPrinter`, `probeKind`), a probe in `probeHosts`
+    (`moonraker.go`) that runs beside the others, never after them, and `allowed.go` only
+    if it needs a new call;
+  - site: `KINDS` and a row in `WORKS_WITH` (`apps/web/src/device/brands.ts`), and an
+    add-on in `apps/web/src/device/addons/` (registered in `index.ts`) for what it can't
+    do;
+  - tests: a pretend printer (a Node mock in `apps/web/test/device/` or a Go fake in
+    `internal/`), a browser test `test/device-<brand>.mjs` and its step in `device.yml`;
+  - docs: the bridge README, [device tab](device-tab.md), [testing](testing.md),
+    [features.md](../features.md), and [decisions.md](../decisions.md).
 - API keys are typed only in the Device tab, never at install.
 - On a printer it runs as a root service with its files in `printer_data` and never
   restarts Moonraker.

@@ -50,9 +50,19 @@ Cancel stops the printer's request even after the last byte.
 ## Why
 
 - Plain HTTP upload through the relay and a check for an existing file with the same
-  name were both turned down. Big pieces streamed back to back rather than several small
-  pieces in flight ("why not just a big chunk"). See
-  [decisions.md](../decisions.md#bridge-and-relay).
+  name were both turned down. See [decisions.md](../decisions.md#bridge-and-relay).
+- Relay pieces, in two steps. First (#161) "several pieces in flight" was turned down as
+  too complicated ("why not just a big chunk"): 8 MiB pieces, one at a time. Then (#172)
+  the bar jumped 0 → 100 % and a VPN user saw it stuck, so it now streams 256 KiB pieces
+  back to back with at most 8 MiB unanswered. A bridge from before #172 still gets 8 MiB
+  pieces one at a time.
+- The upload's own direct link has 5 s to open and is then dropped only when it carries
+  **nothing** for 15 s (`DIRECT_STALL_MS`); a slow but moving direct link (one routed
+  over a VPN, say) is kept. Direct links use STUN only, no TURN.
+- The bridge answers a relay piece once Moonraker has taken it (the write into the
+  upload request blocks), so the printer's own speed sets the pace.
+- The free-tier budget counts each relay piece as an incoming message (20 to 1, see
+  [relay](relay.md#free-tier-budget)): a 40 MB zipped file is about 160 pieces.
 
 ## Tests
 

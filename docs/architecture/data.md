@@ -17,7 +17,7 @@ One database for production **and every branch preview**. Migrations in
 | `presets` | User presets: `type`, `name`, `inherits`, `config` (diff), `engines`, `version` | 0001, 0006 |
 | `user_settings` | Small JSON values by key (below) | 0001 |
 | `devices` | Saved printers and bridges: `url`, `api_key_enc`, `extra` (bridge, relay, kind) | 0001 |
-| `projects` | Online project index: R2 keys, size, `version`, `engine`, `draft`, `device`, `device_name`, `plates` | 0004, 0005, 0007, 0009 |
+| `projects` | Online project index: `name`, R2 keys (`file_key`, `thumb_key`), size, `version`, `engine`, `draft`, `device`, `device_name`, `plates` | 0004, 0005, 0007, 0009 |
 | `project_prints` | Print history records per plate ([print history](print-history.md)) | 0009 |
 | `site_settings` | Admin switches (invite only, defaults) | 0005 |
 | `allowed_emails` | Invite-only list | 0005 |

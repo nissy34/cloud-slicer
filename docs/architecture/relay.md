@@ -45,6 +45,9 @@ users (4 hours of status and 1 hour of camera each).
   camera fall back to one picture a second through the relay.
 - Rate limits: 60 connects and 5 new bridge ids a minute per IP; 20 alert browsers,
   120 alerts and 30 pictures an hour per bridge; 120 print reports an hour per bridge.
+- Cameras through the relay (pictures, `bridge.snapshot`): at most the ticket's `cams`
+  per account at once (2, the owner 8; checked in `cameraRefusal`). Direct WebRTC cameras
+  are capped by the bridge instead: 4 per browser (`maxDirectCameras`, `camera.go`).
 - Over a limit, that kind of request fails until midnight UTC.
 
 ## Rules

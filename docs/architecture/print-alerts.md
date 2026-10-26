@@ -52,6 +52,15 @@ printers.
 ## Rules
 
 - Rules change in both `alerts.ts` and `alerts.go`, with a new case in the shared JSON.
+- A **new event** must be added everywhere it is listed, or it is dropped without a word:
+  `AlertEvent` and the `PROBLEM_EVENTS`/`MILESTONE_EVENTS`/`DEFAULT_EVENTS`/
+  `PICTURE_EVENTS` lists (`alerts.ts`), `alerts.go` and `problemEvents` (`watch.go`),
+  the relay's `cleanAlert` list and `urgentEvent` (`apps/device-relay/src/alerts.ts`),
+  `alert-text.ts`, and the Alerts card's tiles (`AlertsCard.tsx`). Saved choices
+  (`cleanPrefs`) drop unknown events, and old bridges won't send it until they update
+  (see [bridge](bridge.md) on versions).
+- "Filament ran out" is not its own event: it is `paused` with reason `filament`, so it
+  shares the Paused switch. Only printers that report a filament sensor send it.
 - Titles are plain ("First layer done"), no hints in titles.
 - Push addresses must belong to Google, Mozilla, Apple or Microsoft.
 - Nothing about an alert is logged.

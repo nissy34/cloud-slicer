@@ -84,7 +84,10 @@ down. Add a line with the date when a new choice is made.
 - Snapmaker's cloud turned down (closed, per-user certificates, against its terms);
   OctoEverywhere built then shelved (needs a paid plan) (2026-10-18).
 - Brands: Prusa, OctoPrint, Elegoo Centauri Carbon (2026-10-22), Bambu Lab (2026-10-25).
-  Turned down: old Snapmaker, Flashforge, stock Creality, Prusa Connect.
+  Turned down when brands were picked (2026-10-22), no reason recorded: old Snapmaker,
+  Flashforge, stock Creality (a rooted K1 running Moonraker already works), Prusa
+  Connect. Bambu Lab was turned down then too and added later, so ask before building
+  one of these.
 - Arrange mode with sizes and camera cards (2026-10-22); layout per printer instead of one
   for all (2026-10-25). Same camera in two cards: parked.
 - Printer pages as a Device tab card, not a pop-up (2026-10-22).
@@ -103,8 +106,10 @@ down. Add a line with the date when a new choice is made.
 - Test relay: one shared, by PR label, no reset (2026-10-21).
 - Cameras: WebRTC straight from the bridge, relay pictures as fallback; Cloudflare TURN
   not used (2026-10-21).
-- Uploads: zipped, direct link, then streamed through the relay in big pieces. Turned
-  down: several pieces in flight, plain HTTP upload, a same-name check (2026-10-23/25).
+- Uploads: zipped, direct link, then the relay (2026-10-23): 8 MiB pieces one at a time,
+  "several pieces in flight" turned down as too complicated. Changed 2026-10-25 after a
+  bar stuck at 0 % on a VPN: 256 KiB pieces streamed, at most 8 MiB unanswered; an open
+  camera link carries the upload. Turned down: plain HTTP upload, a same-name check.
 - Relay on its own domain; the old `workers.dev` address stays for good (2026-10-22).
 - Bridge builds published only when bridge files change (2026-10-22).
 - "A/P1": raw brand data passes beside the Klipper objects and the site reads it; the

@@ -38,6 +38,14 @@ there, shown with a **Test** tag. A test bridge ("Cloud Slicer Bridge (test)",
 `FLAVOR=test`) installs beside the real one and updates only from the test relay. The
 test relay keeps whatever was sent last (no reset on merge).
 
+The label only starts `device.yml` when the pull request changes a path that workflow
+watches (bridge, relay, `src/device/`, and the rest listed at the top of `device.yml`).
+For any other pull request, run the Device workflow by hand on the branch: a branch run
+always goes to the test relay.
+
+Trying a change on a preview writes to the **production** database: a new migration and
+anything you set there (limits, projects) is live at once.
+
 ## Why
 
 Cloudflare's free tier is the only budget; previews share production's D1 so sign-in
