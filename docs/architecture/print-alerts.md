@@ -65,7 +65,10 @@ printers.
 - Push addresses must belong to Google, Mozilla, Apple or Microsoft.
 - Nothing about an alert is logged.
 - Android Chrome 155+ asks with a small Allow bar that times out: no answer is not
-  "blocked". iPhone needs the site on the Home Screen (iOS 16.4+), no pictures.
+  "blocked", and allowing later (site controls) finishes turning alerts on. The card
+  re-reads the permission on coming back to the page. An app installed from Chrome
+  shares the site's permission with the browser tab. iPhone needs the site on the
+  Home Screen (iOS 16.4+), no pictures.
 
 ## Why
 
