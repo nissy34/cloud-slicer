@@ -33,10 +33,7 @@ const PERCENTS = [10, 20, 30, 40, 50, 60, 70, 80, 90];
 
 function Switch({ label, checked, onChange, disabled, testId }: { label: string; checked: boolean; onChange(v: boolean): void; disabled?: boolean; testId?: string }) {
   return (
-    <label className="dv-switch">
-      <input type="checkbox" role="switch" aria-label={label} checked={checked} disabled={disabled} onChange={(e) => onChange(e.target.checked)} data-testid={testId} />
-      <span />
-    </label>
+    <input className="switch" type="checkbox" role="switch" aria-label={label} checked={checked} disabled={disabled} onChange={(e) => onChange(e.target.checked)} data-testid={testId} />
   );
 }
 

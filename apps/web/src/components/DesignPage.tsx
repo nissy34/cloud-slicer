@@ -65,6 +65,55 @@ function Section({ title, children }: { title: string; children: ReactNode }) {
   );
 }
 
+/** Chips, tags, the switch, the chooser and line tabs, live so they can be tried. */
+function Choices() {
+  const [filters, setFilters] = useState(['Errors']);
+  const [advanced, setAdvanced] = useState(true);
+  const [light, setLight] = useState(false);
+  const [side, setSide] = useState('Top');
+  const [tab, setTab] = useState('Quality');
+  return (
+    <>
+      <div className="chips">
+        {['Errors', 'Temperatures', 'Moves'].map((f) => (
+          <button key={f} className="chip" aria-pressed={filters.includes(f)} onClick={() => setFilters(filters.includes(f) ? filters.filter((x) => x !== f) : [...filters, f])}>
+            {f}
+          </button>
+        ))}
+        <label className="chip">
+          <input type="checkbox" checked={advanced} onChange={(e) => setAdvanced(e.target.checked)} />
+          Advanced
+        </label>
+      </div>
+      <div className="ds-row">
+        <span className="tag">Snapmaker Orca 2.4.0</span>
+        <span className="tag ok">Printed</span>
+        <span className="tag warn">Test</span>
+        <span className="tag danger">Blocked</span>
+        <span className="tag accent">New</span>
+      </div>
+      <label className="switch-row">
+        <input className="switch" type="checkbox" role="switch" checked={light} onChange={(e) => setLight(e.target.checked)} />
+        Chamber light
+      </label>
+      <div className="chooser" role="group" aria-label="Side">
+        {['Top', 'Bottom', 'Both'].map((v) => (
+          <button key={v} aria-pressed={side === v} onClick={() => setSide(v)}>
+            {v}
+          </button>
+        ))}
+      </div>
+      <div className="line-tabs" role="tablist" aria-label="Pages">
+        {['Quality', 'Strength', 'Speed', 'Support'].map((v) => (
+          <button key={v} role="tab" aria-selected={tab === v} className={tab === v ? 'active' : undefined} onClick={() => setTab(v)}>
+            {v}
+          </button>
+        ))}
+      </div>
+    </>
+  );
+}
+
 function Sheet({ theme, onWindow }: { theme: 'light' | 'dark'; onWindow(): void }) {
   return (
     <div className="ds-sheet" data-theme={theme}>
@@ -142,6 +191,9 @@ function Sheet({ theme, onWindow }: { theme: 'light' | 'dark'; onWindow(): void 
             </span>
           ))}
         </div>
+      </Section>
+      <Section title="Chips, tags, switch, chooser, tabs">
+        <Choices />
       </Section>
       <Section title="Window and messages">
         <div className="ds-row">

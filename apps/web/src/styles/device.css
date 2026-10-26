@@ -194,31 +194,10 @@
   align-items: center;
   gap: 12px;
 }
-.dv-seg {
+.dv-columns {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
-  font-size: var(--t-md);
-}
-.dv-seg span {
-  margin-right: 4px;
-}
-.dv-seg button,
-.dv-chip {
-  border: 1px solid var(--border);
-  background: var(--surface);
-  color: var(--text);
-  border-radius: var(--r-md);
-  padding: 3px 10px;
-  font: inherit;
-  font-size: var(--t-sm);
-  cursor: pointer;
-}
-.dv-seg button[aria-pressed='true'],
-.dv-chip[aria-pressed='true'] {
-  border-color: var(--accent);
-  background: var(--accent);
-  color: var(--accent-text);
+  gap: var(--s-4);
 }
 .dv-arranging .dv-zone {
   min-height: 48px;
@@ -1358,49 +1337,6 @@
   text-align: right;
   font-variant-numeric: tabular-nums;
 }
-.dv-switch {
-  position: relative;
-  display: inline-block;
-  width: 36px;
-  height: 20px;
-}
-.dv-switch input {
-  opacity: 0;
-  width: 100%;
-  height: 100%;
-  margin: 0;
-  position: absolute;
-  cursor: pointer;
-}
-.dv-switch span {
-  position: absolute;
-  inset: 0;
-  border-radius: var(--r-lg);
-  background: var(--border);
-  pointer-events: none;
-  transition: background 0.15s;
-}
-.dv-switch span::after {
-  content: '';
-  position: absolute;
-  top: 2px;
-  left: 2px;
-  width: 16px;
-  height: 16px;
-  border-radius: 50%;
-  background: var(--on-colour);
-  transition: transform 0.15s;
-}
-.dv-switch input:checked + span {
-  background: var(--accent);
-}
-.dv-switch input:checked + span::after {
-  transform: translateX(16px);
-}
-.dv-switch input:focus-visible + span {
-  outline: 2px solid var(--accent);
-  outline-offset: 2px;
-}
 .dv-pos {
   font-size: var(--t-sm);
   color: var(--muted);
@@ -1740,35 +1676,6 @@
   margin-bottom: 6px;
   font-size: var(--t-sm);
 }
-.dv-filter-chips {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 6px;
-}
-.dv-filter-chip {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  border: 1px solid var(--border);
-  background: var(--surface);
-  color: var(--text);
-  border-radius: var(--r-full);
-  padding: 4px 12px;
-  font: inherit;
-  font-size: var(--t-md);
-  cursor: pointer;
-}
-.dv-filter-chip[aria-pressed='true'],
-.dv-filter-word[data-on='true'] {
-  border-color: var(--accent);
-  background: var(--accent);
-  color: var(--accent-text);
-}
-.dv-filter-chip:disabled {
-  opacity: 0.5;
-  cursor: default;
-}
 .dv-filter-word {
   padding: 0 4px 0 0;
 }
@@ -2006,28 +1913,6 @@
   height: 32px;
   padding: 2px;
 }
-.dv-segmented {
-  display: flex;
-  gap: 4px;
-  padding: 3px;
-  background: var(--surface-2);
-  border-radius: var(--r-lg);
-  margin-bottom: 12px;
-}
-.dv-segmented button {
-  flex: 1;
-  border: 0;
-  background: none;
-  padding: 6px;
-  border-radius: var(--r-md);
-  cursor: pointer;
-  color: var(--muted);
-}
-.dv-segmented button.on {
-  background: var(--surface);
-  color: var(--text);
-  font-weight: 600;
-}
 .dv-steps-list {
   margin: 0;
   padding-left: 18px;
@@ -2053,13 +1938,6 @@
 }
 .dv-setup-question {
   font-weight: 600;
-}
-.dv-setup-os .dv-segmented {
-  margin-bottom: 0;
-}
-.dv-setup-os .dv-segmented button {
-  white-space: normal;
-  padding: 8px 6px;
 }
 .dv-setup-steps {
   list-style: none;
@@ -2181,9 +2059,6 @@
 .dv-about-commands label {
   display: grid;
   gap: 4px;
-}
-.dv-about-commands .dv-segmented button {
-  white-space: normal;
 }
 .dv-node-option summary {
   cursor: pointer;

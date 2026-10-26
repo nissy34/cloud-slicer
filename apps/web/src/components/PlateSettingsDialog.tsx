@@ -65,7 +65,7 @@ function PlateSettingsWindow() {
   };
 
   const segmented = <T,>(label: string, value: T, items: { value: T; label: string }[], onPick: (v: T) => void) => (
-    <div className="segmented" role="radiogroup" aria-label={label}>
+    <div className="chooser" role="radiogroup" aria-label={label}>
       {items.map((it) => (
         <button key={String(it.value)} type="button" role="radio" aria-checked={value === it.value} className={value === it.value ? 'on' : ''} onClick={() => onPick(it.value)}>
           {it.label}

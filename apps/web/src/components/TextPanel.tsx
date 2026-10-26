@@ -218,7 +218,7 @@ function TextFields({
         }
       />
       <div className="align-row">
-        <div className="segmented icons" role="radiogroup" aria-label="Alignment">
+        <div className="chooser icons" role="radiogroup" aria-label="Alignment">
           {(['left', 'center', 'right'] as const).map((a) => (
             <button
               key={a}
@@ -233,7 +233,7 @@ function TextFields({
             </button>
           ))}
         </div>
-        <div className="segmented icons" role="radiogroup" aria-label="Vertical alignment">
+        <div className="chooser icons" role="radiogroup" aria-label="Vertical alignment">
           {(['top', 'center', 'bottom'] as const).map((a) => (
             <button
               key={a}
@@ -251,11 +251,11 @@ function TextFields({
       </div>
       {onObject && (
         <div className="shape-checks">
-          <label className="svg-ratio" title="The text bends with the object's surface instead of standing flat on it">
+          <label className="chip" title="The text bends with the object's surface instead of standing flat on it">
             <input type="checkbox" checked={style.useSurface} onChange={(e) => set('useSurface', e.target.checked)} />
             Use surface
           </label>
-          <label className="svg-ratio" title="Each letter sits on the surface on its own, so text can go around a curved object">
+          <label className="chip" title="Each letter sits on the surface on its own, so text can go around a curved object">
             <input type="checkbox" checked={style.perGlyph} onChange={(e) => set('perGlyph', e.target.checked)} />
             Per letter
           </label>
@@ -263,7 +263,7 @@ function TextFields({
       )}
       <ShapeActions object={object} volume={volume} />
       {canChangeType && (
-        <div className="segmented" role="radiogroup" aria-label="Text type">
+        <div className="chooser" role="radiogroup" aria-label="Text type">
           {TYPES.map((t) => (
             <button
               key={t}

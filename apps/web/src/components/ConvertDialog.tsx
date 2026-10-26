@@ -46,12 +46,12 @@ export function ConvertDialog() {
           ))}
         </select>
       </label>
-      <label className="check">
-        <input type="checkbox" checked={keep} onChange={(e) => setKeep(e.target.checked)} />
+      <label className="switch-row">
+        <input className="switch" type="checkbox" checked={keep} onChange={(e) => setKeep(e.target.checked)} />
         <span>Keep the model settings the project changed: layers, walls, infill, supports, seams, brim</span>
       </label>
-      <label className="check">
-        <input type="checkbox" checked={remember} onChange={(e) => setRemember(e.target.checked)} />
+      <label className="switch-row">
+        <input className="switch" type="checkbox" checked={remember} onChange={(e) => setRemember(e.target.checked)} />
         <span>Do this automatically next time</span>
       </label>
       <p className="muted small">

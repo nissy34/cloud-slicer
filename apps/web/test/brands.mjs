@@ -133,7 +133,7 @@ try {
   await page.getByRole('button', { name: 'Manage' }).click();
   await wizard.getByRole('button', { name: 'Next' }).click();
   await wizard.getByRole('searchbox', { name: 'Search printers' }).fill('anker m5c');
-  await wizard.locator('.wizard-models li').first().locator('.segmented button').first().click();
+  await wizard.locator('.wizard-models li').first().locator('.chips button').first().click();
   await wizard.getByRole('button', { name: 'Next' }).click();
   await wizard.getByRole('button', { name: 'Next' }).click({ timeout: 60000 });
   await wizard.getByRole('button', { name: 'Finish' }).click();

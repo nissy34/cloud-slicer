@@ -135,7 +135,7 @@ export function LayersPanel({ object }: { object: number }) {
           }} onPointerLeave={() => setHover(null)}>
             <ProfileChart p={p} action={action} band={band} onEdit={(z, a, first) => editLayers(object, { op: 'adjust', action: a, zs: [z], band }, !first)} />
           </div>
-          <div className="segmented" role="radiogroup" aria-label="Chart edits">
+          <div className="chooser" role="radiogroup" aria-label="Chart edits">
             {ACTIONS.map((a) => (
               <button key={a.action} role="radio" aria-checked={action === a.action} className={action === a.action ? 'on' : ''} title={a.title} onClick={() => setAction(a.action)}>
                 {a.label}
@@ -166,7 +166,7 @@ export function LayersPanel({ object }: { object: number }) {
               <input type="range" aria-label="Smoothing radius" min={1} max={10} step={1} value={radius} onChange={(e) => setRadius(Number(e.target.value))} />
               <span className="unit">{radius}</span>
             </label>
-            <label className="check">
+            <label className="chip">
               <input type="checkbox" checked={keepMin} onChange={(e) => setKeepMin(e.target.checked)} />
               <span>Keep the thinnest layers</span>
             </label>
