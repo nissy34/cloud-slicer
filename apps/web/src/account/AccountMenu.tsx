@@ -1,8 +1,9 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useAccount } from '../state/account';
 import { useSlicer } from '../state/store';
 import type { PresetType, ProviderId } from './api';
 import { Note } from '../components/Note';
+import { Menu } from '../components/Menu';
 
 const PROVIDER_LABEL: Record<ProviderId, string> = { google: 'Google' };
 const ALL_PROVIDERS = Object.keys(PROVIDER_LABEL) as ProviderId[];
@@ -31,7 +32,6 @@ export function AccountMenu() {
   const user = useAccount((s) => s.user);
   const error = useAccount((s) => s.error);
   const [open, setOpen] = useState(false);
-  const root = useRef<HTMLDivElement>(null);
 
   useEffect(() => useAccount.getState().init(), []);
   // Close the sign-in panel once the sign-in (popup) finishes.
@@ -41,51 +41,41 @@ export function AccountMenu() {
   useEffect(() => {
     if (error) setOpen(true);
   }, [error]);
-  useEffect(() => {
-    if (!open) return;
-    const away = (e: PointerEvent) => !root.current?.contains(e.target as Node) && setOpen(false);
-    const esc = (e: KeyboardEvent) => e.key === 'Escape' && setOpen(false);
-    document.addEventListener('pointerdown', away);
-    document.addEventListener('keydown', esc);
-    return () => {
-      document.removeEventListener('pointerdown', away);
-      document.removeEventListener('keydown', esc);
-    };
-  }, [open]);
 
   return (
-    <div className="account" ref={root}>
-      {user ? (
-        <button
-          className="account-button"
-          aria-haspopup="dialog"
-          aria-expanded={open}
-          title={user.name}
-          onClick={() => setOpen(!open)}
-        >
-          <span className="account-avatar" aria-hidden>
-            {initials(user.name)}
-          </span>
-          <span className="account-name">{user.name}</span>
-        </button>
-      ) : (
-        <button className="ghost" aria-haspopup="dialog" aria-expanded={open} disabled={status === 'loading'} onClick={() => setOpen(!open)}>
-          Sign in
-        </button>
-      )}
-      {open && (
-        <div className="account-pop" role="dialog" aria-label={user ? 'Account' : 'Sign in'}>
-          {user ? <SignedIn onDone={() => setOpen(false)} /> : <SignedOut />}
-          {error && (
-            <Note tone="error">
-              {error}{' '}
-              <button className="quiet" onClick={() => useAccount.getState().clearError()}>
-                Dismiss
-              </button>
-            </Note>
-          )}
-        </div>
-      )}
+    <div className="account">
+      <Menu
+        label={user ? 'Account' : 'Sign in'}
+        role="dialog"
+        placement="bottom-end"
+        className="account-pop"
+        open={open}
+        onOpenChange={setOpen}
+        button={(props) =>
+          user ? (
+            <button {...props} className="account-button" title={user.name}>
+              <span className="account-avatar" aria-hidden>
+                {initials(user.name)}
+              </span>
+              <span className="account-name">{user.name}</span>
+            </button>
+          ) : (
+            <button {...props} className="ghost" disabled={status === 'loading'}>
+              Sign in
+            </button>
+          )
+        }
+      >
+        {user ? <SignedIn onDone={() => setOpen(false)} /> : <SignedOut />}
+        {error && (
+          <Note tone="error">
+            {error}{' '}
+            <button className="quiet" onClick={() => useAccount.getState().clearError()}>
+              Dismiss
+            </button>
+          </Note>
+        )}
+      </Menu>
     </div>
   );
 }

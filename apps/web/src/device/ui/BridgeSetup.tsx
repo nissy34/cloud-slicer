@@ -4,6 +4,7 @@ import { useAccount } from '../../state/account';
 import { useDevice } from '../../state/device';
 import { DEFAULT_RELAY_URL, isTestRelay } from '../config';
 import type { Pairing } from '../pairing';
+import { InfoTip } from '../../components/InfoTip';
 import { Note } from '../../components/Note';
 
 /** A bridge app the relay has (apps/device-relay: /downloads.json). */
@@ -335,8 +336,11 @@ export function BridgeSetup({ relay, pasteLink }: { relay: string; pasteLink?: R
     <div className="dv-bridge-setup">
       <TestRelayNote relay={relay} />
       <p>
-        Your printer is on your home network, which websites can't reach on their own. A small free app called the <b>bridge</b> connects the two. It runs on the printer
-        itself or on a computer in your home that is usually switched on, and you only set it up once.
+        A small free app called the <b>bridge</b> connects your printer to this site. You set it up once.
+        <InfoTip label="Why a bridge">
+          Your printer is on your home network, which websites can't reach on their own. The bridge runs on the printer itself or on a computer in your home that is
+          usually switched on.
+        </InfoTip>
       </p>
       {system === 'other' && (
         <Note testId="bridge-phone-note">
@@ -699,8 +703,8 @@ export function SignInForBridge() {
   return (
     <div className="dv-bridge-setup" data-testid="bridge-sign-in">
       <p>
-        Your printer is on your home network, which websites can't reach on their own. A small free app called the <b>bridge</b> connects the two, and it joins your Cloud
-        Slicer account when you set it up.
+        A small free app called the <b>bridge</b> connects your printer to this site, and joins your Cloud Slicer account when you set it up.
+        <InfoTip label="Why a bridge">Your printer is on your home network, which websites can't reach on their own.</InfoTip>
       </p>
       <button className="primary dv-big" onClick={() => void useAccount.getState().signIn('google')} data-testid="bridge-sign-in-button">
         Sign in to add a bridge

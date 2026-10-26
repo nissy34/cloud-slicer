@@ -75,7 +75,7 @@ describe('design tokens', () => {
   });
 
   it('layers above 10 come from the layer tokens', () => {
-    const bad = decls.filter((d) => d.decl.prop === 'z-index' && !/^var\(--z-(notice|menu|context)\)$/.test(d.decl.value) && !(Number(d.decl.value) <= 10));
+    const bad = decls.filter((d) => d.decl.prop === 'z-index' && !/^var\(--z-(notice|menu|context|tip)\)$/.test(d.decl.value) && !(Number(d.decl.value) <= 10));
     expect(bad.map(where)).toEqual([]);
   });
 
@@ -118,4 +118,4 @@ describe('design tokens', () => {
   });
 });
 
-const OFF_STEP_SPACING = 168;
+const OFF_STEP_SPACING = 157;

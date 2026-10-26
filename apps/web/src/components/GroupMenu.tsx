@@ -77,7 +77,7 @@ function GroupCard() {
   return (
     <div
       ref={card}
-      className="object-menu"
+      className="menu object-menu"
       role="menu"
       aria-label={`${group.length} objects menu`}
       style={at ?? { left: menu.x, top: menu.y, visibility: 'hidden' }}

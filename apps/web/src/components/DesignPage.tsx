@@ -12,6 +12,8 @@ import { Swatch } from './Swatch';
 import { Card } from './Card';
 import { Note } from './Note';
 import { Empty } from './Empty';
+import { Menu } from './Menu';
+import { InfoTip } from './InfoTip';
 
 const COLOURS = [
   ['bg', 'page'],
@@ -278,6 +280,9 @@ function Sheet({ theme, onWindow }: { theme: 'light' | 'dark'; onWindow(): void 
       <Section title="Picker">
         <PickerDemo />
       </Section>
+      <Section title="Menus, pop-overs, tooltips, ⓘ help">
+        <MenusDemo />
+      </Section>
       <Section title="Cards, titles, notes, empty places">
         <Containers />
       </Section>
@@ -351,6 +356,76 @@ function PickerDemo() {
         ]}
         onChange={setFilament}
       />
+    </div>
+  );
+}
+
+/** One menu (icon, words, shortcut or ›, a line, a red row), one pop-over card, a tooltip and ⓘ help. */
+function MenusDemo() {
+  return (
+    <div className="ds-row">
+      <Menu
+        label="Object"
+        button={(props) => (
+          <button {...props} className="secondary">
+            Menu
+          </button>
+        )}
+      >
+        {(close) => (
+          <>
+            <button className="menu-item" role="menuitem" onClick={close}>
+              <Pencil size={16} aria-hidden />
+              Rename
+              <kbd>F2</kbd>
+            </button>
+            <button className="menu-item" role="menuitem" aria-haspopup="menu" onClick={close}>
+              <Printer size={16} aria-hidden />
+              Change filament
+              <ChevronRight size={16} className="menu-arrow" aria-hidden />
+            </button>
+            <hr />
+            <button className="menu-item danger" role="menuitem" onClick={close}>
+              <X size={16} aria-hidden />
+              Delete
+              <kbd>Del</kbd>
+            </button>
+          </>
+        )}
+      </Menu>
+      <Menu
+        label="Save preset"
+        role="dialog"
+        button={(props) => (
+          <button {...props} className="secondary">
+            Pop-over
+          </button>
+        )}
+      >
+        {(close) => (
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              close();
+            }}
+          >
+            <label className="field">
+              <span>New preset name</span>
+              <input defaultValue="0.20mm Standard (copy)" />
+            </label>
+            <div className="ds-row">
+              <button type="submit" className="primary">
+                Save
+              </button>
+            </div>
+          </form>
+        )}
+      </Menu>
+      <IconButton icon={RotateCcw} label="Reset to the preset's value" />
+      <span className="muted">
+        Hover the arrow, or long-press it on a phone.
+        <InfoTip>The rest of a long hint goes here, so the card keeps one line of words.</InfoTip>
+      </span>
     </div>
   );
 }

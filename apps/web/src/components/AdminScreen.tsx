@@ -6,6 +6,7 @@ import { adminApi, type AdminBridge, type AdminOverview, type AdminUser, type Me
 import { useAccount } from '../state/account';
 import { useSlicer } from '../state/store';
 import { Card } from './Card';
+import { InfoTip } from './InfoTip';
 import { Note } from './Note';
 
 const STORAGE_CHOICES = [0, 50, 100, 200, 500, 1000];
@@ -94,8 +95,11 @@ export function AdminScreen() {
           </button>
         </header>
         <p className="admin-intro muted">
-          Only you see this page. Here you choose who may sign in and how much each person may store, and see how close the site is to Cloudflare's
-          free limits. People who are allowed notice nothing. Changes save on their own.
+          Only you see this page. Changes save on their own.
+          <InfoTip label="About this page">
+            Here you choose who may sign in and how much each person may store, and see how close the site is to Cloudflare's free limits. People who
+            are allowed notice nothing.
+          </InfoTip>
         </p>
         {error && (
           <Note tone="error">
@@ -449,8 +453,10 @@ function BridgesCard({ bridges, act }: { bridges: AdminBridge[]; act: Act }) {
   return (
     <Card title={`Bridges (${bridges.length})`}>
       <p className="muted small admin-note">
-        Every bridge someone reached a printer through. Turning one off closes it for everyone at once, and the bridge app is refused until you turn
-        it on again.
+        Every bridge someone reached a printer through.
+        <InfoTip label="About turning a bridge off">
+          Turning one off closes it for everyone at once, and the bridge app is refused until you turn it on again.
+        </InfoTip>
       </p>
       {bridges.length === 0 ? (
         <p className="muted small">No bridges yet.</p>
