@@ -28,6 +28,7 @@ import { PrintLoader } from './PrintLoader';
 import { CameraViews, ViewButtons, type ViewHandle } from './ViewControls';
 import { Bed } from './Bed';
 import { PlateTabs } from './Viewport';
+import { ChevronDown, ChevronUp, Pencil, Plus } from 'lucide-react';
 
 /** The G-code read in a worker: progress (0..1) while reading, then the segments. */
 function useParsed(gcode: Blob | null) {
@@ -623,7 +624,7 @@ export function Preview() {
             aria-expanded={keyOpen}
             onClick={() => setKeyOpen((o) => !o)}
           >
-            {keyOpen ? '▴' : '▾'}
+            {keyOpen ? <ChevronUp size={14} aria-hidden /> : <ChevronDown size={14} aria-hidden />}
           </button>
         </div>
         {parsed && keyOpen && (
@@ -634,7 +635,7 @@ export function Preview() {
             {colourBy !== 'feature' && hidden.size > 0 && (
               <p className="legend-note">
                 {hidden.size === 1 ? '1 line type hidden. ' : `${hidden.size} line types hidden. `}
-                <button className="link" onClick={() => setHidden(new Set())}>
+                <button className="quiet" onClick={() => setHidden(new Set())}>
                   Show all
                 </button>
               </p>
@@ -688,7 +689,7 @@ export function Preview() {
             aria-expanded={menuOpen}
             onClick={() => setMenuOpen((o) => !o)}
           >
-            {codeAt(codes, parsed.layerZ, upTo) ? '✎' : '+'}
+            {codeAt(codes, parsed.layerZ, upTo) ? <Pencil size={14} aria-hidden /> : <Plus size={14} aria-hidden />}
           </button>
         </div>
       )}

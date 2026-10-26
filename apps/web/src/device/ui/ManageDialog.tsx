@@ -28,17 +28,17 @@ function PrinterRow({ p, pairing }: { p: SavedPrinter; pairing?: Pairing | null 
       {asking ? (
         <span className="dv-row-actions">
           <span className="muted">Remove it?</span>
-          <button className="dv-link" onClick={() => setAsking(false)}>
+          <button className="quiet" onClick={() => setAsking(false)}>
             No
           </button>
-          <button className="dv-link dv-danger-text" disabled={busy} onClick={() => void remove()} data-testid="manage-printer-remove-yes">
+          <button className="quiet danger" disabled={busy} onClick={() => void remove()} data-testid="manage-printer-remove-yes">
             {busy ? 'Removing…' : 'Yes, remove'}
           </button>
         </span>
       ) : (
         <span className="dv-row-actions">
           <button
-            className="dv-link"
+            className="quiet"
             onClick={() => {
               openManage(false);
               void openEditor({ mode: 'edit', id: p.id });
@@ -46,7 +46,7 @@ function PrinterRow({ p, pairing }: { p: SavedPrinter; pairing?: Pairing | null 
           >
             Edit
           </button>
-          <button className="dv-link dv-danger-text" onClick={() => setAsking(true)} data-testid="manage-printer-remove">
+          <button className="quiet danger" onClick={() => setAsking(true)} data-testid="manage-printer-remove">
             Remove
           </button>
         </span>
@@ -213,14 +213,14 @@ function BridgeCard({ b, onLeftover }: { b: SavedBridge; onLeftover: (l: Leftove
             <button className="secondary" onClick={() => setAsking(false)}>
               Cancel
             </button>
-            <button className="primary dv-danger" disabled={busy} onClick={() => void remove()} data-testid="manage-bridge-remove-yes">
+            <button className="primary danger" disabled={busy} onClick={() => void remove()} data-testid="manage-bridge-remove-yes">
               {busy ? 'Removing…' : 'Remove bridge'}
             </button>
           </div>
         </div>
       ) : (
         <div className="dv-row-buttons dv-manage-actions">
-          <button className="secondary dv-danger-text" onClick={() => setAsking(true)} data-testid="manage-bridge-remove">
+          <button className="secondary danger" onClick={() => setAsking(true)} data-testid="manage-bridge-remove">
             Remove bridge
           </button>
           <button

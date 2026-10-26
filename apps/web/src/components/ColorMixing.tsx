@@ -16,6 +16,8 @@ import {
 } from '../lib/mixing';
 import { NO_COLOURS, useSlicer } from '../state/store';
 import { Dialog } from './Dialog';
+import { ArrowDownUp, Delete, TriangleAlert, X } from 'lucide-react';
+import { IconButton } from './IconButton';
 
 /**
  * Desktop Snapmaker Orca's Color Mixing panel, under the filaments: each mix
@@ -35,7 +37,7 @@ export function ColorMixPanel() {
     <div className="mixes">
       <div className="group-head">
         <h3>Color mixing</h3>
-        <button className="link" onClick={() => setEditing('new')} aria-label="Add mix">
+        <button className="quiet" onClick={() => setEditing('new')} aria-label="Add mix">
           + Add mix
         </button>
       </div>
@@ -57,14 +59,12 @@ export function ColorMixPanel() {
               <button className="mix-label" onClick={() => setEditing({ index })} title={mixLabel(row)}>
                 {!row.compatible && (
                   <span className="danger" title="These materials can't be mixed">
-                    ⚠{' '}
+                    <TriangleAlert size={14} aria-hidden />{' '}
                   </span>
                 )}
                 {mixLabel(row)}
               </button>
-              <button className="icon" aria-label={`Delete mix ${row.virtualId}`} onClick={() => void deleteMix(index)}>
-                ×
-              </button>
+              <IconButton icon={X} label="Delete this mix" aria-label={`Delete mix ${row.virtualId}`} onClick={() => void deleteMix(index)} />
             </li>
           ))}
         </ol>
@@ -225,13 +225,7 @@ function MixDialog({ row, index, onClose }: { row: MixRow | undefined; index: nu
                 </>
               )}
               {draft.filaments.length === 3 && (
-                <button
-                  className="icon"
-                  aria-label="Remove this filament from the mix"
-                  onClick={() => change({ filaments: draft.filaments.filter((__, i) => i !== k), weights: [34, 33, 33] })}
-                >
-                  ×
-                </button>
+                <IconButton icon={X} label="Remove this filament from the mix" onClick={() => change({ filaments: draft.filaments.filter((__, i) => i !== k), weights: [34, 33, 33] })} />
               )}
             </div>
           ))}
@@ -259,7 +253,7 @@ function MixDialog({ row, index, onClose }: { row: MixRow | undefined; index: nu
           )}
           {draft.filaments.length === 2 && colours.length >= 3 && (
             <button
-              className="link"
+              className="quiet"
               onClick={() => {
                 const free = colours.findIndex((_, i) => !draft.filaments.includes(i + 1)) + 1;
                 change({ filaments: [...draft.filaments, free], weights: [34, 33, 33] });
@@ -288,8 +282,8 @@ function MixDialog({ row, index, onClose }: { row: MixRow | undefined; index: nu
                 <span className="paint-swatch" style={{ background: c }} />+{i + 1}
               </button>
             ))}
-            <button className="secondary" onClick={() => change({ pattern: draft.pattern.replace(/(\[\d+\]|\d|,)$/, '') })} aria-label="Remove the last layer">
-              ⌫
+            <button className="secondary" onClick={() => change({ pattern: draft.pattern.replace(/(\[\d+\]|\d|,)$/, '') })} aria-label="Remove the last layer" title="Remove the last layer">
+              <Delete size={16} aria-hidden />
             </button>
           </div>
           <div className="mix-sequence" aria-label="Layers, bottom first">
@@ -341,8 +335,8 @@ function MixDialog({ row, index, onClose }: { row: MixRow | undefined; index: nu
             {pick(1, 'Gradient filament B')}
           </div>
           <div className="mix-gradient" style={{ background: gradient(draft.reversed ? [...strip].reverse() : strip, 'to top') }} aria-hidden />
-          <button className="link" onClick={() => change({ reversed: !draft.reversed })}>
-            ⇅ Swap direction
+          <button className="quiet" onClick={() => change({ reversed: !draft.reversed })}>
+            <ArrowDownUp size={16} aria-hidden /> Swap direction
           </button>
         </div>
       )}

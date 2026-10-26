@@ -329,7 +329,7 @@
   align-items: baseline;
   flex-wrap: wrap;
 }
-.admin-invites li .dv-link {
+.admin-invites li .quiet {
   margin-left: auto;
 }
 .admin-user {
@@ -382,9 +382,6 @@
 }
 .admin-tag.warn {
   color: var(--warn);
-}
-.secondary.admin-danger {
-  color: var(--danger);
 }
 .admin-bridge-id {
   font-family: var(--font-mono);

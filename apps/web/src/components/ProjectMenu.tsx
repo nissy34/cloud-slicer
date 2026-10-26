@@ -412,22 +412,22 @@ function ProjectsDialog() {
                   {deleting === proj.id ? (
                     <div className="project-card-actions">
                       <span className="small">Delete?</span>
-                      <button className="account-link" onClick={() => setDeleting(null)}>
+                      <button className="quiet" onClick={() => setDeleting(null)}>
                         Keep
                       </button>
-                      <button className="account-link danger" onClick={() => void remove(proj)}>
+                      <button className="quiet danger" onClick={() => void remove(proj)}>
                         Delete
                       </button>
                     </div>
                   ) : (
                     <div className="project-card-actions">
-                      <button className="account-link" onClick={() => void openProject(proj)}>
+                      <button className="quiet" onClick={() => void openProject(proj)}>
                         Open
                       </button>
-                      <button className="account-link" onClick={() => setRenaming({ id: proj.id, name: proj.name })}>
+                      <button className="quiet" onClick={() => setRenaming({ id: proj.id, name: proj.name })}>
                         Rename
                       </button>
-                      <button className="account-link danger" aria-label={`Delete ${proj.name}`} onClick={() => setDeleting(proj.id)}>
+                      <button className="quiet danger" aria-label={`Delete ${proj.name}`} onClick={() => setDeleting(proj.id)}>
                         Delete
                       </button>
                     </div>

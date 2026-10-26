@@ -87,14 +87,25 @@ textarea {
   font-weight: 600;
 }
 
-/* Buttons */
+/* Buttons (docs/architecture/design-system.md): Main (.primary), Normal
+   (.secondary; .ghost is Normal without its fill, for bars), Quiet (.quiet: blue
+   words on a faint blue box, for actions in rows and card headers) and the square
+   icon button (.icon-btn, components/IconButton.tsx). Add .danger to any of them
+   for remove and delete. All are one height: --ctl, 30 px, 40 px on a phone. */
 .primary,
 .secondary,
-.ghost {
+.ghost,
+.quiet {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--s-3);
+  min-height: var(--ctl);
+  padding: 0 var(--s-5);
   border-radius: var(--r-md);
-  padding: 7px 14px;
   cursor: pointer;
   white-space: nowrap;
+  text-decoration: none;
 }
 .primary {
   border: 1px solid transparent;
@@ -110,6 +121,65 @@ textarea {
   border: 1px solid var(--border);
   background: none;
   color: var(--muted);
+}
+.quiet {
+  padding: 0 var(--s-4);
+  border: 1px solid transparent;
+  background: var(--accent-faint);
+  color: var(--accent);
+}
+.secondary:hover:not(:disabled),
+.ghost:hover:not(:disabled) {
+  background: var(--surface-2);
+  color: var(--text);
+}
+.quiet:hover:not(:disabled) {
+  background: var(--accent-soft);
+}
+/* A Quiet button inside a line of text keeps to the line. */
+p .quiet,
+.hint .quiet {
+  min-height: 0;
+  padding: 0 var(--s-1);
+  background: none;
+  vertical-align: baseline;
+}
+.quiet.danger {
+  background: var(--danger-faint);
+}
+.danger {
+  color: var(--danger);
+}
+.secondary.danger:hover:not(:disabled),
+.ghost.danger:hover:not(:disabled),
+.quiet.danger:hover:not(:disabled) {
+  background: var(--danger-soft);
+  color: var(--danger);
+}
+.primary.danger {
+  background: var(--danger-solid);
+  color: var(--on-colour);
+}
+.icon-btn {
+  display: inline-grid;
+  place-items: center;
+  flex: none;
+  width: var(--ctl);
+  height: var(--ctl);
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: var(--r-md);
+  background: none;
+  color: var(--muted);
+  cursor: pointer;
+}
+.icon-btn:hover:not(:disabled) {
+  background: var(--surface-2);
+  color: var(--text);
+}
+.icon-btn.danger:hover:not(:disabled) {
+  background: var(--danger-soft);
+  color: var(--danger);
 }
 button:disabled {
   opacity: 0.45;

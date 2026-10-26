@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import type { SettingGroup } from '../lib/object-settings';
 import { useSlicer } from '../state/store';
+import { ChevronRight } from 'lucide-react';
 
 /**
  * Picks settings to add to an object, part or modifier: a search box over
@@ -89,9 +90,7 @@ export function SettingPicker({
               >
                 <span>{groupName(g.group)}</span>
                 <span className="setting-pick-note">{g.settings.length}</span>
-                <span className="setting-group-chevron" aria-hidden>
-                  ›
-                </span>
+                <ChevronRight className="setting-group-chevron" size={14} aria-hidden />
               </button>
               {open === g.group && <ul>{g.settings.map((s) => row(s))}</ul>}
             </div>

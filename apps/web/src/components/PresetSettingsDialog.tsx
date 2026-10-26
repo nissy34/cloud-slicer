@@ -14,6 +14,8 @@ import { useProjects } from '../state/projects';
 import { useSlicer } from '../state/store';
 import { Dialog } from './Dialog';
 import { SettingsPages } from './SettingsPanel';
+import { Pencil } from 'lucide-react';
+import { IconButton } from './IconButton';
 
 type Target = { type: 'printer' } | { type: 'filament'; slot: number };
 
@@ -28,14 +30,12 @@ export const usePresetSettings = create<PresetSettingsState>((set) => ({
   hide: () => set({ open: null }),
 }));
 
-/** The ✎ button beside a printer picker or filament slot. */
+/** The edit (pencil) button beside a printer picker or filament slot. */
 export function EditPresetButton(target: Target) {
   const busy = useSlicer((s) => s.engine !== 'ready' || !s.layout);
   const label = target.type === 'printer' ? 'Edit printer settings' : `Edit filament ${target.slot + 1} settings`;
   return (
-    <button className="icon" aria-label={label} title={label} disabled={busy} onClick={() => usePresetSettings.getState().show(target)}>
-      ✎
-    </button>
+    <IconButton icon={Pencil} label={label} disabled={busy} onClick={() => usePresetSettings.getState().show(target)} />
   );
 }
 

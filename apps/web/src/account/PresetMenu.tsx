@@ -13,6 +13,8 @@ import { useFlipUp } from '../lib/flip-up';
 import { shortName } from '../lib/presets';
 import { usePresetImport } from './ImportPresets';
 import { canShareFiles, presetBundle, presetFileName, saveFile } from '../lib/preset-files';
+import { Ellipsis } from 'lucide-react';
+import { IconButton } from '../components/IconButton';
 
 /** Every user preset as one zip that desktop Orca's Import Configs reads too. */
 export async function exportAllPresets(share = false): Promise<number> {
@@ -159,16 +161,15 @@ export function PresetMenu({ type, slot }: { type: PresetType; slot?: number }) 
   const where = signedIn ? 'Saved to your account.' : 'Saved in this browser until you sign in.';
   return (
     <div className="preset-menu" ref={root}>
-      <button
-        className="icon"
+      <IconButton
+        icon={Ellipsis}
+        label="More"
         aria-label={`${label[0].toUpperCase() + label.slice(1)} preset actions${slot != null ? ` (filament ${slot + 1})` : ''}`}
         aria-haspopup="dialog"
         aria-expanded={!!mode}
         disabled={busy || !preset}
         onClick={() => (mode ? close() : setMode({ kind: 'menu' }))}
-      >
-        ⋯
-      </button>
+      />
       {mode && preset && (
         <div ref={pop} className={up ? 'preset-pop up' : 'preset-pop'} role="dialog" aria-label={`${label} preset`}>
           {mode.kind === 'menu' && (
@@ -311,7 +312,7 @@ export function PresetMenu({ type, slot }: { type: PresetType; slot?: number }) 
                 <button className="ghost" onClick={() => setMode({ kind: 'menu' })}>
                   Back
                 </button>
-                <button className="account-danger" disabled={working} onClick={() => void remove()}>
+                <button className="primary danger" disabled={working} onClick={() => void remove()}>
                   {working ? 'Deleting…' : 'Delete'}
                 </button>
               </div>

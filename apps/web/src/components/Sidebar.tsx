@@ -16,6 +16,8 @@ import { PresetMenu } from '../account/PresetMenu';
 import { EditPresetButton } from './PresetSettingsDialog';
 import { EngineSection } from './EngineSection';
 import type { PresetSummary } from '../engine/protocol';
+import { X } from 'lucide-react';
+import { IconButton } from './IconButton';
 
 /** The user's own presets always show, whatever the setup wizard installed. */
 const withMine = (installed: string[] | undefined, list: PresetSummary[]) =>
@@ -42,7 +44,7 @@ function PrinterSection() {
       <div className="group-head">
         <h2>Printer</h2>
         <div className="group-actions">
-          <button className="link" onClick={() => manage()}>
+          <button className="quiet" onClick={() => manage()}>
             Manage
           </button>
           <EditPresetButton type="printer" />
@@ -99,7 +101,7 @@ function FilamentSection() {
         <h2>Filament</h2>
         <div className="group-actions spaced">
           <SyncFilamentsButton />
-          <button className="link" onClick={() => void addFilament()} aria-label="Add filament">
+          <button className="quiet" onClick={() => void addFilament()} aria-label="Add filament">
             + Add
           </button>
         </div>
@@ -122,14 +124,7 @@ function FilamentSection() {
             </select>
             <EditPresetButton type="filament" slot={i} />
             <PresetMenu type="filament" slot={i} />
-            <button
-              className="icon"
-              aria-label={`Remove filament ${i + 1}`}
-              disabled={selection.filaments.length <= 1}
-              onClick={() => void removeFilament(i)}
-            >
-              ×
-            </button>
+            <IconButton icon={X} label="Remove this filament" aria-label={`Remove filament ${i + 1}`} disabled={selection.filaments.length <= 1} onClick={() => void removeFilament(i)} />
           </li>
         ))}
       </ol>

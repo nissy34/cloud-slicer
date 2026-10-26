@@ -254,7 +254,7 @@ function CopyPageLink() {
   const url = location.origin + location.pathname;
   return (
     <button
-      className="dv-link"
+      className="quiet"
       onClick={() =>
         void navigator.clipboard?.writeText(url).then(() => {
           setCopied(true);
@@ -502,7 +502,7 @@ function DownloadWithCode({ code, children }: { code: string; children: ReactNod
         <span>
           then paste this setup code when it asks: <code>{code}</code>
         </span>
-        <button className="dv-link" onClick={() => void navigator.clipboard?.writeText(code)}>
+        <button className="quiet" onClick={() => void navigator.clipboard?.writeText(code)}>
           Copy
         </button>
       </span>
@@ -673,7 +673,7 @@ export function AddBridge({ relay, onJoined }: { relay: string; onJoined: (p: Pa
         )}
         <span className="dv-setup-code">
           Setup code <code data-testid="setup-code">{setup.code}</code>
-          <button className="dv-link" onClick={() => void navigator.clipboard?.writeText(setup.code)}>
+          <button className="quiet" onClick={() => void navigator.clipboard?.writeText(setup.code)}>
             Copy
           </button>
         </span>

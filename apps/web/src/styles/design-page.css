@@ -93,3 +93,15 @@
   display: grid;
   gap: var(--s-4);
 }
+.ds-icons > span {
+  display: grid;
+  justify-items: center;
+  gap: var(--s-2);
+  width: 72px;
+  color: var(--text);
+}
+.ds-icons small {
+  color: var(--muted);
+  font-size: var(--t-xs);
+  text-align: center;
+}

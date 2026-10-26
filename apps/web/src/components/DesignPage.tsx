@@ -4,6 +4,8 @@
 import { useState, type ReactNode } from 'react';
 import { Dialog } from './Dialog';
 import { Notice } from './Notice';
+import { ArrowDownToLine, ChevronDown, ChevronRight, CircleCheck, Ellipsis, Info, Moon, Pencil, RotateCcw, Sun, TriangleAlert, X, type LucideIcon } from 'lucide-react';
+import { IconButton } from './IconButton';
 
 const COLOURS = [
   ['bg', 'page'],
@@ -34,6 +36,19 @@ const SIZES = [
   ['xs', 'Small labels', 600],
 ] as const;
 const STEPS = [1, 2, 3, 4, 5, 6, 7, 8];
+const ICONS: [LucideIcon, string][] = [
+  [X, 'close, remove'],
+  [Ellipsis, 'more'],
+  [Pencil, 'edit'],
+  [RotateCcw, 'reset'],
+  [ChevronDown, 'open'],
+  [ChevronRight, 'submenu'],
+  [TriangleAlert, 'warning'],
+  [Info, 'info'],
+  [CircleCheck, 'done'],
+  [Sun, 'light'],
+  [Moon, 'dark'],
+];
 const CORNERS = ['sm', 'md', 'lg', 'xl', 'full'];
 const SHADOWS = [
   [1, 'lifted'],
@@ -98,9 +113,34 @@ function Sheet({ theme, onWindow }: { theme: 'light' | 'dark'; onWindow(): void 
           <button className="primary">Slice plate</button>
           <button className="secondary">Send to printer</button>
           <button className="ghost">Cancel</button>
+          <button className="quiet">Arrange</button>
           <button className="secondary" disabled>
             Off
           </button>
+        </div>
+        <div className="ds-row">
+          <button className="primary danger">Remove printer</button>
+          <button className="secondary danger">Emergency stop</button>
+          <button className="quiet danger">Delete</button>
+          <button className="secondary">
+            <ArrowDownToLine size={16} aria-hidden /> Load
+          </button>
+        </div>
+        <div className="ds-row">
+          <IconButton icon={Pencil} label="Edit printer settings" />
+          <IconButton icon={Ellipsis} label="More" />
+          <IconButton icon={RotateCcw} label="Back to the preset's value" className="reset" />
+          <IconButton icon={X} label="Remove" danger />
+        </div>
+      </Section>
+      <Section title="Icons (Lucide)">
+        <div className="ds-row ds-icons">
+          {ICONS.map(([Shape, name]) => (
+            <span key={name} title={name}>
+              <Shape size={20} aria-hidden />
+              <small>{name}</small>
+            </span>
+          ))}
         </div>
       </Section>
       <Section title="Window and messages">

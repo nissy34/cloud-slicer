@@ -15,6 +15,8 @@ import {
 } from '../lib/plate-settings';
 import { NO_COLOURS, useSlicer } from '../state/store';
 import { Dialog } from './Dialog';
+import { X } from 'lucide-react';
+import { IconButton } from './IconButton';
 
 /**
  * Desktop's Plate settings window (PlateSettingsDialog): the shown plate's
@@ -219,9 +221,7 @@ function LayerRanges({ ranges, colours, count, onChange }: { ranges: LayerRange[
                 </button>
               </>
             )}
-            <button type="button" className="icon" aria-label={`Remove range ${i + 1}`} title="Remove this range" onClick={() => onChange(ranges.filter((_, j) => j !== i))}>
-              ✕
-            </button>
+            <IconButton icon={X} label="Remove this range" aria-label={`Remove range ${i + 1}`} onClick={() => onChange(ranges.filter((_, j) => j !== i))} />
           </div>
           <FilamentOrder label={`Range ${i + 1} filament order`} order={fitOrder(r.order, count)} colours={colours} onChange={(order) => set(i, { order })} />
         </div>

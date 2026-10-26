@@ -237,7 +237,7 @@ export function SettingsPanel() {
       {changed > 0 && (
         <p className="hint">
           {changed} setting{changed === 1 ? '' : 's'} changed from the presets. Save them into a preset from its ⋯ menu or its settings window.{' '}
-          <button className="link" onClick={() => resetOverrides()}>
+          <button className="quiet" onClick={() => resetOverrides()}>
             Reset all
           </button>
         </p>
