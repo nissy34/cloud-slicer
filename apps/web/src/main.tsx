@@ -7,7 +7,7 @@ import { useSlicer } from './state/store';
 import '@fontsource-variable/inter';
 import './styles/index.css';
 
-// #design: every token and shared part, light and dark (docs/DESIGN.md).
+// #design: every token and shared part, light and dark (docs/architecture/design-system.md).
 const DesignPage = lazy(() => import('./components/DesignPage').then((m) => ({ default: m.DesignPage })));
 
 createRoot(document.getElementById('root')!).render(

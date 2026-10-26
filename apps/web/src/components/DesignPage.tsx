@@ -1,6 +1,6 @@
 // The design page (#design): every token and every shared part, light and dark
 // side by side. Not linked from the app; it is where a design-system change is
-// checked and screenshotted (docs/DESIGN.md). Parts join it as they are built.
+// checked and screenshotted (docs/architecture/design-system.md). Parts join it as they are built.
 import { useState, type ReactNode } from 'react';
 import { Dialog } from './Dialog';
 import { Notice } from './Notice';

@@ -1,6 +1,6 @@
 /* The site's stylesheet, in cascade order: later files may override earlier
    ones (the phone file comes after the desktop rules it changes), so keep the
-   order when adding a file. Tokens come first; docs/DESIGN.md has the rules. */
+   order when adding a file. Tokens come first; docs/architecture/design-system.md has the rules. */
 @import './tokens.css';
 @import './base.css';
 @import './prepare.css';

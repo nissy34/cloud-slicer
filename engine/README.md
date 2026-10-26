@@ -1,7 +1,9 @@
 # Engine
 
+Design, rules and why: [docs/architecture/engine.md](../docs/architecture/engine.md). This page has the commands and the file list.
+
 Snapmaker Orca's `libslic3r` (upstream [Snapmaker/OrcaSlicer](https://github.com/Snapmaker/OrcaSlicer)
-v2.4.0, the `orcaslicer/` submodule) compiled to WebAssembly with Emscripten, plus a small
+v2.4.0, the `orcaslicer/` submodule; OrcaSlicer 2.4.2 is the second engine, see "Two engines") compiled to WebAssembly with Emscripten, plus a small
 embind API that drives it the way desktop Snapmaker Orca does. Everything the desktop
 slicer can slice (STL, OBJ, AMF, 3MF projects including Bambu Studio files with painted
 colours, per-part filaments, multi-plate projects, mixed filaments) goes through the
@@ -12,7 +14,7 @@ same engine code.
 | Path | What |
 |---|---|
 | `orcaslicer/` | Submodule pinned to the v2.4.0 tag. Never edited in place |
-| `orcaslicer-upstream/` | Upstream OrcaSlicer v2.4.2, the second engine (proof of concept, see "Two engines" below). Never edited in place |
+| `orcaslicer-upstream/` | Upstream OrcaSlicer v2.4.2, the second engine, live beside the first and chosen per project (see "Two engines" below). Never edited in place |
 | `patches/` | Browser-only fixes, applied to copies of the touched files in the build tree |
 | `compat/` | Stand-ins for what a browser lacks: OpenSSL MD5 (on Boost), no-op STEP/SVG import when built without OCCT, thread naming |
 | `cmake/libslic3r.cmake` | Builds libslic3r from the source list in upstream's own `src/libslic3r/CMakeLists.txt` |
@@ -34,6 +36,11 @@ same engine code.
 | `src/mixed_api.cpp` | Colour mixing: reads and edits the project's `mixed_filament_definitions` with Orca's `MixedFilamentManager`, gives each mix its colour, remaps painted and assigned filaments when a mix or a physical filament goes away, and matches a colour |
 | `src/history_api.cpp` | Undo and redo of project edits, like desktop's Ctrl+Z / Ctrl+Y: Model snapshots that share their meshes |
 | `src/slice_api.cpp` | Slices one plate with a full config and exports G-code with Orca's time and filament estimates and the plate thumbnails the page renders |
+| `src/plate_api.cpp` | Desktop's plate menus: add a shape, delete all, rename, lock, copy and paste, plate settings; and the layer slider's pauses, filament changes and custom G-code per plate |
+| `src/wipe_tower_api.cpp` | The prime tower on the Prepare plate before slicing, as desktop shows it: whether there is one, where and how big (`PartPlate::estimate_wipe_tower_size`, `Print::wipe_tower_data`) |
+| `src/flush_api.cpp` | Flushing volumes for single-nozzle printers: the table from the filaments' colours, the multiplier, as desktop's window |
+| `src/fingerprint_api.cpp` | Short fingerprints of what a plate prints (objects, placement, copies, own settings, paint), for print history's "Changed since printed" |
+| `src/memory.cpp` | Allocator set-up for wasm: mimalloc with 128 MB arenas, TBB's allocator sent to malloc |
 | `scripts/engine-key.mjs` | The engine key: names an engine build by the Orca commit and a hash of the sources it is built from |
 | `scripts/fetch-engine.mjs` | Downloads the engine CI built for this checkout's key into `build/engine`, so it needn't be built |
 | `scripts/build-deps.sh` | Builds the third-party libraries for wasm into `build/deps` |

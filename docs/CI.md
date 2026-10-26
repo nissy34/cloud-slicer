@@ -1,7 +1,11 @@
 # CI and deploys
 
-Two GitHub Actions workflows. Neither ever talks to a real printer: printer tests run
-against a mock Moonraker. The repository is public, so Actions minutes are free.
+Three GitHub Actions workflows: `ci.yml` (engines, site, tests, Pages deploy), `device.yml`
+(bridge, relay, Device tab) and `klipper.yml` (real Klipper printers, nightly). None ever
+talks to a real printer: tests use pretend printers (a Node mock Moonraker, real Klipper on
+a simulated board in Docker, the real OctoPrint's virtual printer, and pretend Prusa, Elegoo
+and Bambu Lab printers; see [architecture/testing.md](architecture/testing.md)). The
+repository is public, so Actions minutes are free.
 
 Screenshots for a pull request go on the `pr-screenshots` branch, which runs no CI; see
 [pr-screenshots.md](pr-screenshots.md).
@@ -107,19 +111,27 @@ access the site deploys without accounts or without online projects.
 
 ## `device.yml`: bridge, relay and Device tab
 
-Runs when the Device tab, the bridge, the relay, or shared top-bar files change.
+Runs when the Device tab, the bridge, the relay, or shared top-bar files change (touching
+any file in `src/styles/` alone triggers it).
 
 - On every run: the Go bridge's vet, gofmt and tests, and its builds for every Linux
-  chip and Windows; relay typecheck, web unit tests and build; the Device tab end to
-  end with the real Linux bridge (`apps/web/test/device-smoke.mjs`: browser → local relay →
-  bridge → mock U1, and direct to a mock Klipper printer), and the same bridge serving
-  the mock U1 through a local relay (`relay-live.mjs`). The Windows app is checked on a
-  Windows runner (install starts it at sign-in with no window, uninstall removes it all)
-  and the Mac apps are built on a macOS runner (to ad-hoc sign `Cloud Slicer Bridge.app`).
-- On `main` only: deploys the relay Worker (one shared Worker, so a PR must never
-  deploy it), gathers the bridge apps from all three runners and uploads them to the R2 bucket
-  `cloud-slicer-bridge`, then checks the live relay end to end with the Linux bridge
-  against a mock printer.
+  chip and Windows; relay typecheck, web unit tests and build; then the Device tab end to
+  end with the real Linux bridge: the mock U1 through relay and bridge and a mock Klipper
+  printer directly (`device-smoke.mjs`), alerts (`device-alerts.mjs`, `alerts-live.mjs`
+  with a pretend push service), Arrange, Send (`device-upload.mjs`), page cards, one
+  test per brand (Prusa, the real OctoPrint, Elegoo, Bambu Lab), a relay with accounts
+  (setup codes, tickets, camera cap, blocking) and a bridge installed on a printer. The
+  Windows app is checked on a Windows runner (install, start at sign-in with no window,
+  uninstall) and the Mac apps are built and checked on a macOS runner.
+- A `where` job decides what a run may deploy. On `main`: the live relay Worker only when
+  `apps/device-relay/**` or the install scripts changed, and new bridge builds in R2
+  `cloud-slicer-bridge` only when `apps/device-bridge/**` changed (tests, docs and
+  `testdata/` don't count), so installed bridges don't update to identical code. Then the
+  live relay is checked end to end with the Linux bridge against a mock printer.
+- A pull request labelled `use test relay` (one at a time), or a manual run on any other
+  branch, deploys both to the test relay instead
+  ([architecture/hosting.md](architecture/hosting.md#test-relay)). A manual run on `main`
+  deploys the live relay (or the test relay with `target: test`).
 
 ## When a check fails at once
 

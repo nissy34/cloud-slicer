@@ -1,7 +1,11 @@
 # Design system
 
+> **Read this when** you change how anything looks: a colour, text size, spacing, corner,
+> shadow, a shared part (button, window, message) or any file in `apps/web/src/styles/`.
+> **Related:** [layout and phones](layout.md) (the page frame and phone rules).
+
 How the site looks, and the rules every screen follows. The values live in
-[`apps/web/src/styles/tokens.css`](../apps/web/src/styles/tokens.css); every
+[`apps/web/src/styles/tokens.css`](../../apps/web/src/styles/tokens.css); every
 part, light and dark side by side, is on the design page: open the site with
 `#design` at the end of the address (`/#design`). The design page is not linked
 from the app.

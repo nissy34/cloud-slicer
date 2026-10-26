@@ -47,7 +47,7 @@ describe('stylesheets', () => {
   });
 });
 
-// The design system (docs/DESIGN.md): values come from src/styles/tokens.css.
+// The design system (docs/architecture/design-system.md): values come from src/styles/tokens.css.
 describe('design tokens', () => {
   const decls = declarations();
 

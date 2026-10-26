@@ -1,7 +1,7 @@
 /* ==========================================================================
    Design tokens: the only place a colour, text size, corner, shadow or layer
    is typed. Every other rule uses these (src/lib/stylesheets.test.ts checks).
-   The rules for using them are in docs/DESIGN.md.
+   The rules for using them are in docs/architecture/design-system.md.
 
    Dark theme: index.html and src/lib/theme.ts always set data-theme on <html>
    (System resolves to light or dark there), so dark values are written once,
