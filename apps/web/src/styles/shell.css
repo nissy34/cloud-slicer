@@ -24,11 +24,8 @@
   align-items: center;
   gap: 8px;
 }
-.menu-pop .menu-switch {
-  display: flex;
-  align-items: center;
+.menu .menu-switch {
   justify-content: space-between;
-  gap: 12px;
 }
 @media (min-width: 1100px) {
   .autosave-pill {
@@ -242,9 +239,6 @@
 .select-rect.remove {
   border-color: var(--danger);
   background: color-mix(in srgb, var(--danger) 10%, transparent);
-}
-.menu-item.danger {
-  color: var(--danger);
 }
 .choose-bar {
   position: absolute;

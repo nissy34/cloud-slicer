@@ -1,9 +1,10 @@
 import { Bounds, useBounds } from '@react-three/drei';
 import { useThree } from '@react-three/fiber';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect } from 'react';
 import * as THREE from 'three';
 import fitIcon from '../assets/orca-view/fit_camera.svg?raw';
 import cubeIcon from '../assets/orca-view/menu_obj_cube.svg?raw';
+import { Menu } from './Menu';
 
 export type View = 'fit' | 'iso' | 'top' | 'bottom' | 'front' | 'back' | 'left' | 'right';
 
@@ -103,39 +104,36 @@ const CUBE = cubeIcon.replace(/#949494/g, 'currentColor');
  * screen from wherever the camera is, and a menu of the standard views.
  */
 export function ViewButtons({ handle, className }: { handle: ViewHandle; className?: string }) {
-  const [open, setOpen] = useState(false);
-  const root = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    if (!open) return;
-    const away = (e: PointerEvent) => !root.current?.contains(e.target as Node) && setOpen(false);
-    window.addEventListener('pointerdown', away);
-    return () => window.removeEventListener('pointerdown', away);
-  }, [open]);
-  const go = (view: View) => {
-    setOpen(false);
-    handle.current?.(view);
-  };
+  const go = (view: View) => handle.current?.(view);
   return (
-    <div className={className ? `view-buttons ${className}` : 'view-buttons'} ref={root}>
-      {open && (
-        <div className="view-menu" role="menu" aria-label="Views">
-          {VIEWS.map((v) => (
-            <button key={v.view} role="menuitem" title={`${v.label} view (${v.key})`} onClick={() => go(v.view)}>
-              {v.label}
-            </button>
-          ))}
-        </div>
-      )}
-      <button
-        className="view-button"
-        aria-label="Views"
-        title="Views: top, front, side..."
-        aria-haspopup="menu"
-        aria-expanded={open}
-        onClick={() => setOpen((o) => !o)}
+    <div className={className ? `view-buttons ${className}` : 'view-buttons'}>
+      <Menu
+        label="Views"
+        placement="left-end"
+        className="view-menu"
+        button={(props) => (
+          <button {...props} className="view-button" aria-label="Views" title="Views: top, front, side...">
+            <span className="view-icon small" dangerouslySetInnerHTML={{ __html: CUBE }} />
+          </button>
+        )}
       >
-        <span className="view-icon small" dangerouslySetInnerHTML={{ __html: CUBE }} />
-      </button>
+        {(close) =>
+          VIEWS.map((v) => (
+            <button
+              key={v.view}
+              className="menu-item"
+              role="menuitem"
+              onClick={() => {
+                close();
+                go(v.view);
+              }}
+            >
+              {v.label}
+              <kbd>{v.key}</kbd>
+            </button>
+          ))
+        }
+      </Menu>
       <button className="view-button" aria-label="Fit all" title="Fit all: show everything (Z)" onClick={() => go('fit')}>
         <span className="view-icon" dangerouslySetInnerHTML={{ __html: FIT }} />
       </button>

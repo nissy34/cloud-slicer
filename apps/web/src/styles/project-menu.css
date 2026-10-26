@@ -60,49 +60,6 @@
   font-size: var(--t-sm);
   white-space: nowrap;
 }
-.menu-pop {
-  position: absolute;
-  top: calc(100% + 6px);
-  left: 0;
-  z-index: var(--z-menu);
-  display: grid;
-  min-width: 240px;
-  padding: 6px;
-  border: 1px solid var(--border);
-  border-radius: var(--r-lg);
-  background: var(--surface);
-  box-shadow: var(--shadow-2);
-}
-.menu-pop button {
-  display: flex;
-  justify-content: space-between;
-  gap: 16px;
-  padding: 8px 10px;
-  border: 0;
-  border-radius: var(--r-md);
-  background: none;
-  text-align: left;
-  cursor: pointer;
-}
-.menu-pop button:hover:not(:disabled) {
-  background: var(--surface-2);
-}
-.menu-pop kbd {
-  color: var(--muted);
-  font: inherit;
-  font-size: var(--t-sm);
-}
-.menu-pop hr {
-  width: 100%;
-  margin: 4px 0;
-  border: 0;
-  border-top: 1px solid var(--border);
-}
-.menu-note {
-  margin: 4px 10px 6px;
-  color: var(--muted);
-  font-size: var(--t-sm);
-}
 .menu-note-box {
   margin: var(--s-2) var(--s-4) var(--s-3);
 }
@@ -179,61 +136,18 @@
   .project-menu {
     position: static;
   }
-  .menu-pop {
-    left: 10px;
-    top: calc(var(--topbar) + 4px);
-  }
   .projects-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
 
-/* ===== Theme menu (components/ThemeMenu.tsx) ===== */
-.theme-menu {
-  position: relative;
-}
+/* ===== Theme menu (components/ThemeMenu.tsx): a .menu (parts.css) ===== */
 .topbar .icon-button {
   display: grid;
   place-items: center;
   width: 32px;
   height: 32px;
   padding: 0;
-}
-.theme-pop {
-  position: absolute;
-  top: calc(100% + 8px);
-  right: 0;
-  z-index: var(--z-menu);
-  display: grid;
-  min-width: 200px;
-  padding: 4px;
-  border: 1px solid var(--border);
-  border-radius: var(--r-lg);
-  background: var(--surface);
-  box-shadow: var(--shadow-2);
-}
-.theme-item {
-  display: flex;
-  white-space: nowrap;
-  justify-content: space-between;
-  gap: 12px;
-  padding: 8px 10px;
-  border: 0;
-  border-radius: var(--r-md);
-  background: none;
-  text-align: left;
-  cursor: pointer;
-}
-.theme-item:hover {
-  background: var(--surface-2);
-}
-.theme-item.active {
-  font-weight: 600;
-  color: var(--accent);
-}
-.theme-hint {
-  color: var(--muted);
-  font-weight: 400;
 }
 /* Calibration: the word on a computer, the icon alone on a phone. */
 .calib-icon {

@@ -406,27 +406,7 @@
   width: 20px;
   height: 20px;
 }
-.view-menu {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 4px;
-  padding: 6px;
-  border: 1px solid var(--border);
-  border-radius: var(--r-lg);
-  background: var(--surface);
-  box-shadow: var(--shadow-1);
-}
-.view-menu button {
-  padding: 6px 10px;
-  border: 1px solid var(--border);
-  border-radius: var(--r-md);
-  background: var(--surface-2);
-  font-size: var(--t-md);
-  cursor: pointer;
-}
-.view-menu button:first-child {
-  grid-column: 1 / -1;
-}
-.view-menu button:hover {
-  border-color: var(--accent);
+/* The views menu opens to the left of its button. */
+.menu.view-menu {
+  min-width: 160px;
 }

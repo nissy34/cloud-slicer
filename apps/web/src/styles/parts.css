@@ -186,42 +186,106 @@
 }
 
 
-/* Menu rows, shared by the object menu and the picker: a row per choice or
-   action, the current choice with a blue ✓, a line between groups. */
-:is(.object-menu, .picker-list) .menu-item {
+/* Menu (components/Menu.tsx) and its rows, shared by every menu: the object,
+   plate and layer menus, the Project, theme and view menus, and the Picker's list.
+   A row per action or choice (an icon, the words, a shortcut or › at the end), a
+   red row for delete, a line between groups. Floating UI places the box. */
+.menu,
+.pop {
+  z-index: var(--z-menu);
+  min-width: 220px;
+  max-width: min(360px, calc(100vw - 16px));
+  overflow-y: auto;
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+  background: var(--surface);
+  color: var(--text);
+  box-shadow: var(--shadow-2);
+  font-size: var(--t-md);
+}
+.menu {
+  display: grid;
+  align-content: start;
+  padding: var(--s-3);
+}
+/* A pop-over card: a few words and fields, not a list. */
+.pop {
+  display: grid;
+  align-content: start;
+  gap: var(--s-4);
+  padding: var(--s-5);
+}
+/* Its parts are spaced by the gap, so they carry no margins of their own. */
+.pop :is(h3, p) {
+  margin: 0;
+}
+.pop :is(form, .stack) {
+  display: grid;
+  gap: var(--s-4);
+}
+.menu .menu-item {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--s-4);
   min-height: 34px;
-  padding: 6px 10px;
+  padding: var(--s-3) var(--s-4);
   border: 0;
   border-radius: var(--r-md);
   background: none;
   color: var(--text);
+  font: inherit;
   text-align: left;
+  white-space: nowrap;
   cursor: pointer;
 }
-:is(.object-menu, .picker-list) .menu-item:hover:not(:disabled),
-:is(.object-menu, .picker-list) .menu-item[aria-expanded='true'] {
+.menu .menu-item:hover:not(:disabled),
+.menu .menu-item[aria-expanded='true'] {
   background: var(--surface-2);
 }
-:is(.object-menu, .picker-list) .menu-item:disabled {
+.menu .menu-item:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+.menu .menu-item:disabled {
   color: var(--muted);
   cursor: default;
 }
-:is(.object-menu, .picker-list) .menu-arrow {
-  margin-left: auto;
+.menu .menu-item.danger {
+  color: var(--danger);
+}
+.menu .menu-item > svg {
+  flex: none;
   color: var(--muted);
 }
-:is(.object-menu, .picker-list) .menu-check {
+.menu .menu-item.danger > svg {
+  color: currentColor;
+}
+/* The end of a row: a shortcut, ›, or a muted hint. */
+.menu kbd,
+.menu .menu-arrow,
+.menu .menu-hint {
+  margin-left: auto;
+  color: var(--muted);
+  font: inherit;
+  font-size: var(--t-sm);
+  font-weight: 400;
+}
+.menu .menu-check {
+  flex: none;
   width: 14px;
   color: var(--accent);
 }
-:is(.object-menu, .picker-list) hr {
+.menu hr {
   width: 100%;
-  margin: 4px 0;
+  margin: var(--s-2) 0;
   border: 0;
   border-top: 1px solid var(--border);
+}
+.menu .menu-note {
+  margin: var(--s-2) var(--s-4) var(--s-3);
+  color: var(--muted);
+  font-size: var(--t-sm);
+  white-space: normal;
 }
 .picker-swatch {
   flex: none;
@@ -231,7 +295,7 @@
   border-radius: 50%;
 }
 @media (pointer: coarse) {
-  :is(.object-menu, .picker-list) .menu-item {
+  .menu .menu-item {
     min-height: 42px;
   }
 }
@@ -269,25 +333,6 @@
 .picker-arrow {
   flex: none;
   color: var(--muted);
-}
-.picker-list {
-  z-index: var(--z-menu);
-  display: grid;
-  align-content: start;
-  min-width: 220px;
-  max-width: min(360px, calc(100vw - 16px));
-  overflow-y: auto;
-  padding: var(--s-3);
-  border: 1px solid var(--border);
-  border-radius: var(--r-lg);
-  background: var(--surface);
-  color: var(--text);
-  box-shadow: var(--shadow-2);
-  font-size: var(--t-md);
-}
-.picker-list .menu-item:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: -2px;
 }
 .picker-list .menu-item[aria-selected='true'] {
   font-weight: 600;
