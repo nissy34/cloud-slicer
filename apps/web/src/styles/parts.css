@@ -288,6 +288,8 @@
 }
 .picker-list .picker-action {
   color: var(--accent);
+}
+
 /* Filament swatch (components/Swatch.tsx): a rounded square in the filament's
    colour, its number inside in black or white (textOn), whichever reads. */
 .swatch {
