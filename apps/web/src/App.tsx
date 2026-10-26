@@ -4,6 +4,7 @@ import { PresetSettingsDialog } from './components/PresetSettingsDialog';
 import { SettingsPromptDialog } from './components/SettingsPrompt';
 import { AskDialog } from './components/AskDialog';
 import { ActionBar } from './components/ActionBar';
+import { BottomTabs } from './components/BottomTabs';
 import { ConvertDialog } from './components/ConvertDialog';
 import { GcodeFallbackDialog } from './components/GcodeFallbackDialog';
 import { OpenProjectDialog } from './components/OpenProjectDialog';
@@ -72,6 +73,7 @@ export function App() {
       )}
       {tab === 'device' && <DeviceScreen />}
       {tab === 'admin' && <AdminScreen />}
+      <BottomTabs />
       <Notices />
     </div>
   );

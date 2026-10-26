@@ -134,6 +134,8 @@ export function ActionBar() {
 
   const onPlate = project?.plates[plate]?.objects.length ?? 0;
   const busy = job.kind === 'loading' || job.kind === 'slicing';
+  // As desktop: once sliced, Slice greys out until something changes (a change drops the slice).
+  const upToDate = job.kind === 'sliced' && !job.outdated;
   const plateLabel = (project?.plates.length ?? 0) > 1 ? `Slice plate ${plate + 1}` : 'Slice plate';
   // As desktop names it: the engine fills the process preset's filename_format in, whose {plate_number} tells plates apart.
   const gcodeName = job.kind === 'sliced' ? job.result.fileName || 'plate.gcode' : '';
@@ -227,8 +229,9 @@ export function ActionBar() {
       <div className="actions">
         {job.kind === 'sliced' && (
           <>
+            {/* Phones have the Preview tab right below the bar. */}
             {tab !== 'preview' && (
-              <button className="secondary" onClick={() => setTab('preview')}>
+              <button className="secondary wide-only-button" onClick={() => setTab('preview')}>
                 Preview
               </button>
             )}
@@ -266,8 +269,14 @@ export function ActionBar() {
         )}
         <button
           className="primary"
-          disabled={!onPlate || busy || engine !== 'ready' || outside.length > 0 || blocked}
-          title={blocked ? 'Printing object by object, the tool head would hit an object: see the message beside this button' : undefined}
+          disabled={!onPlate || busy || engine !== 'ready' || outside.length > 0 || blocked || upToDate}
+          title={
+            blocked
+              ? 'Printing object by object, the tool head would hit an object: see the message beside this button'
+              : upToDate
+                ? 'Already sliced. Change something to slice again.'
+                : undefined
+          }
           onClick={() => void slice()}
         >
           {plateLabel}
