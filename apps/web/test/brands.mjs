@@ -85,9 +85,9 @@ try {
     await page.screenshot({ path: join(shots, 'wizard-search.png') });
     await page.setViewportSize({ width: 390, height: 844 });
     await search.fill('');
-    await wizard.getByText('Only direct print').click();
+    await wizard.getByLabel('Only direct print').click();
     await page.screenshot({ path: join(shots, 'wizard-send-only-phone.png') });
-    await wizard.getByText('Only direct print').click();
+    await wizard.getByLabel('Only direct print').click();
     await page.setViewportSize({ width: 1280, height: 800 });
   }
 
