@@ -89,9 +89,9 @@ export function alertText(a: Partial<FiredAlert> & { event: FiredAlert['event'] 
         body: lines(join(printer, total && `${total} layers`), leftS ? join(`about ${duration(leftS)}`, doneAt && `done about ${doneAt}`) : null, d.totalG ? `${grams(d.totalG)} filament` : null),
       };
     case 'layer1':
-      return { title: 'First layer done: check it stuck', body: lines(join(printer, where || layerOf(1, total)), left) };
+      return { title: 'First layer done', body: lines(join(printer, where || layerOf(1, total)), left) };
     case 'layer3':
-      return { title: 'Layer 3 done: check the first layers', body: lines(join(printer, where || layerOf(3, total)), left) };
+      return { title: 'Layer 3 done', body: lines(join(printer, where || layerOf(3, total)), left) };
     case 'layer':
       return { title: `Layer ${a.layer}${total ? ` of ${total}` : ''} done`, body: lines(join(printer, name, d.percent != null && `${d.percent}%`), left) };
     case 'progress':

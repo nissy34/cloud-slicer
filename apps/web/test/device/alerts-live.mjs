@@ -122,7 +122,7 @@ try {
   // A whole print on the mock (about 30 s): started, first layer, layer 10, 50%, finished with a picture.
   await new Promise((r) => setTimeout(r, 1500));
   await printOnce(t);
-  const want = ['Printing calibration_cube', 'First layer done: check it stuck', 'Layer 10 of 50 done', 'calibration_cube 50% done', 'calibration_cube finished'];
+  const want = ['Printing calibration_cube', 'First layer done', 'Layer 10 of 50 done', 'calibration_cube 50% done', 'calibration_cube finished'];
   for (const title of want) await until(title, () => pushes.find((p) => p.title === title));
   const finished = pushes.find((p) => p.title === 'calibration_cube finished');
   if (finished.printer !== `${cfg.bridgeId}.voron` || !finished.body.startsWith('Voron-mock')) throw new Error(`finished alert: ${JSON.stringify(finished)}`);
