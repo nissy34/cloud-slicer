@@ -131,6 +131,24 @@ export async function add(env: Env, request: Request, rawId: string): Promise<Re
     summary: summaryOf(b.summary),
   };
   const d = env.DB!;
+  // The bridge may have heard this print start before the page finished sending
+  // (the printer starts first, then the page records the send): that record is this send.
+  if ((status === 'uploaded' || status === 'sent') && row.printer && row.file) {
+    const heard = await d
+      .prepare(
+        "SELECT * FROM project_prints WHERE user_id = ? AND project_id = ? AND plate = ? AND status = 'printing' AND printer = ? AND file = ? AND at > ? ORDER BY at DESC LIMIT 1",
+      )
+      .bind(user.id, id, plate, row.printer, row.file, row.at - JUST_HEARD_MS)
+      .first<PrintRow>();
+    if (heard && (!heard.fingerprint || heard.fingerprint === row.fingerprint)) {
+      const kept = { ...heard, fingerprint: row.fingerprint ?? heard.fingerprint, summary: row.summary ?? heard.summary, printer_name: row.printer_name ?? heard.printer_name };
+      await d
+        .prepare('UPDATE project_prints SET fingerprint = ?, summary = ?, printer_name = ? WHERE user_id = ? AND id = ?')
+        .bind(kept.fingerprint, kept.summary, kept.printer_name, user.id, heard.id)
+        .run();
+      return json({ print: toPrint(kept) });
+    }
+  }
   const superseded =
     status === 'uploaded' || status === 'sent'
       ? row.printer && row.file
@@ -257,6 +275,8 @@ export async function printedCounts(env: Env, userId: string): Promise<Map<strin
   return out;
 }
 
+/** A send recorded this soon after the bridge heard its print start is that print. */
+const JUST_HEARD_MS = 10 * 60_000;
 /** A print the printer says ended counts for a waiting send only if it started after it (a minute's slack for clocks). */
 const SLACK_MS = 60_000;
 /** The same end heard twice (the bridge restarted) inside this makes one record. */

@@ -662,6 +662,16 @@ test("print history from the bridge: the file's tag or its name says which plate
   await news({ file: 'other.gcode', state: 'printing', tag: '; cloud_slicer_print = ../1/cccc3333' });
   assert.equal((await list()).length, 4);
   assert.deepEqual((await (await kim.json('/api/prints/open')).json()).prints, []);
+
+  // Upload and print: the printer starts (and the bridge says so) before the page records the send. One record, printing.
+  await news({ file: 'kp_plate_3.gcode', state: 'printing', tag: tag(2).replace('bbbb2222', 'dddd4444') });
+  const heard = (await list()).find((p) => p.file === 'kp_plate_3.gcode');
+  const summary = { objects: [], plate: 'p', config: {} };
+  const late = (await (await kim.json('/api/projects/kp/prints', 'POST', { plate: 2, status: 'sent', printer: 'u1-k', printerName: 'U1 in the garage', file: 'kp_plate_3.gcode', fingerprint: 'dddd4444', summary })).json()).print;
+  assert.equal(late.id, heard.id, 'the send is the print the bridge heard');
+  assert.equal(late.status, 'printing');
+  const both = (await list()).filter((p) => p.file === 'kp_plate_3.gcode');
+  assert.deepEqual(both.map((p) => [p.status, p.summary?.plate]), [['printing', 'p']]);
 });
 
 test('admin: only the owner (OWNER_EMAILS) gets the Admin page', async () => {
