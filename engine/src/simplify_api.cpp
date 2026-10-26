@@ -7,7 +7,7 @@
 // colours and painted regions.
 #include "engine.hpp"
 
-#include "libslic3r/AABBTreeIndirect.hpp"
+#include "libslic3r/AABBMesh.hpp"
 #include "libslic3r/QuadricEdgeCollapse.hpp"
 #include "libslic3r/TriangleSelector.hpp"
 
@@ -80,7 +80,7 @@ void remapAnnotation(const ModelVolume& v, FacetsAnnotation& ann, const Triangle
 
     indexed_triangle_set srcIts;
     std::vector<EnforcerBlockerType> srcStates;
-    std::vector<Vec3f> srcNormals;
+    std::vector<Vec3d> srcNormals;
     srcIts.vertices.reserve(totalVerts);
     srcIts.indices.reserve(totalTris);
     srcStates.reserve(totalTris);
@@ -95,43 +95,36 @@ void remapAnnotation(const ModelVolume& v, FacetsAnnotation& ann, const Triangle
             const Vec3i32 idx(tri[0] + offset, tri[1] + offset, tri[2] + offset);
             srcIts.indices.push_back(idx);
             srcStates.push_back(EnforcerBlockerType(s));
-            const Vec3f& v0 = srcIts.vertices[idx[0]];
-            const Vec3f& v1 = srcIts.vertices[idx[1]];
-            const Vec3f& v2 = srcIts.vertices[idx[2]];
-            Vec3f n = (v1 - v0).cross(v2 - v0);
-            const float len = n.norm();
-            srcNormals.push_back(len > 1e-12f ? (n / len) : Vec3f(0.f, 0.f, 1.f));
+            const Vec3d v0 = srcIts.vertices[idx[0]].cast<double>();
+            const Vec3d v1 = srcIts.vertices[idx[1]].cast<double>();
+            const Vec3d v2 = srcIts.vertices[idx[2]].cast<double>();
+            Vec3d n = (v1 - v0).cross(v2 - v0);
+            const double len = n.norm();
+            srcNormals.push_back(len > 1e-12 ? (n / len) : Vec3d(0., 0., 1.));
         }
     }
 
-    const AABBTreeIndirect::Tree3f tree =
-        AABBTreeIndirect::build_aabb_tree_over_indexed_triangle_set(srcIts.vertices, srcIts.indices);
+    const AABBMesh srcTree(srcIts);
 
-    std::vector<igl::Hit<float>> hits;
-    auto sampleState = [&](const Vec3f& p, const Vec3f& targetNormal) -> EnforcerBlockerType {
-        size_t hitIdx = 0;
-        Vec3f hitPoint = Vec3f::Zero();
-        const float distSq = AABBTreeIndirect::squared_distance_to_indexed_triangle_set(
-            srcIts.vertices, srcIts.indices, tree, p, hitIdx, hitPoint);
-        if (distSq >= 0.f && hitIdx < srcStates.size() && srcNormals[hitIdx].dot(targetNormal) >= -0.1f) {
-            return srcStates[hitIdx];
+    auto sampleState = [&](const Vec3d& p, const Vec3d& targetNormal) -> EnforcerBlockerType {
+        int hitIdx = -1;
+        Vec3d hitPoint = Vec3d::Zero();
+        const double distSq = srcTree.squared_distance(p, hitIdx, hitPoint);
+        if (distSq >= 0. && hitIdx >= 0 && size_t(hitIdx) < srcStates.size() &&
+            srcNormals[size_t(hitIdx)].dot(targetNormal) >= -0.1) {
+            return srcStates[size_t(hitIdx)];
         }
-        float bestT = std::numeric_limits<float>::max();
+        double bestT = std::numeric_limits<double>::max();
         EnforcerBlockerType bestState =
-            (distSq >= 0.f && hitIdx < srcStates.size()) ? srcStates[hitIdx] : EnforcerBlockerType::NONE;
-        for (float sign : {1.f, -1.f}) {
-            const Vec3f dir = sign * targetNormal;
-            const Vec3f safeDir(
-                std::abs(dir.x()) < 1e-7f ? 1e-7f : dir.x(),
-                std::abs(dir.y()) < 1e-7f ? 1e-7f : dir.y(),
-                std::abs(dir.z()) < 1e-7f ? 1e-7f : dir.z());
-            if (AABBTreeIndirect::intersect_ray_all_hits(srcIts.vertices, srcIts.indices, tree, p, safeDir, hits)) {
-                for (const auto& h : hits) {
-                    if (h.id >= 0 && size_t(h.id) < srcStates.size() && std::abs(h.t) < bestT &&
-                        srcNormals[size_t(h.id)].dot(targetNormal) > 0.f) {
-                        bestT = std::abs(h.t);
-                        bestState = srcStates[size_t(h.id)];
-                    }
+            (distSq >= 0. && hitIdx >= 0 && size_t(hitIdx) < srcStates.size()) ? srcStates[size_t(hitIdx)] : EnforcerBlockerType::NONE;
+        for (double sign : {1., -1.}) {
+            const Vec3d dir = sign * targetNormal;
+            for (const AABBMesh::hit_result& h : srcTree.query_ray_hits(p, dir)) {
+                const int f = h.face();
+                if (h.is_hit() && f >= 0 && size_t(f) < srcStates.size() && std::abs(h.distance()) < bestT &&
+                    srcNormals[size_t(f)].dot(targetNormal) > 0.) {
+                    bestT = std::abs(h.distance());
+                    bestState = srcStates[size_t(f)];
                 }
             }
         }
@@ -144,18 +137,18 @@ void remapAnnotation(const ModelVolume& v, FacetsAnnotation& ann, const Triangle
 
     for (size_t t = 0; t < newMesh.its.indices.size(); ++t) {
         const auto& tri = newMesh.its.indices[t];
-        const Vec3f& a = newMesh.its.vertices[tri[0]];
-        const Vec3f& b = newMesh.its.vertices[tri[1]];
-        const Vec3f& c = newMesh.its.vertices[tri[2]];
-        Vec3f n = (b - a).cross(c - a);
-        const float len = n.norm();
-        n = len > 1e-12f ? (n / len) : Vec3f(0.f, 0.f, 1.f);
+        const Vec3d a = newMesh.its.vertices[tri[0]].cast<double>();
+        const Vec3d b = newMesh.its.vertices[tri[1]].cast<double>();
+        const Vec3d c = newMesh.its.vertices[tri[2]].cast<double>();
+        Vec3d n = (b - a).cross(c - a);
+        const double len = n.norm();
+        n = len > 1e-12 ? (n / len) : Vec3d(0., 0., 1.);
 
-        const Vec3f center = (a + b + c) / 3.f;
+        const Vec3d center = (a + b + c) / 3.;
         const EnforcerBlockerType sCenter = sampleState(center, n);
-        const EnforcerBlockerType s0 = sampleState(0.6f * a + 0.2f * b + 0.2f * c, n);
-        const EnforcerBlockerType s1 = sampleState(0.2f * a + 0.6f * b + 0.2f * c, n);
-        const EnforcerBlockerType s2 = sampleState(0.2f * a + 0.2f * b + 0.6f * c, n);
+        const EnforcerBlockerType s0 = sampleState(0.6 * a + 0.2 * b + 0.2 * c, n);
+        const EnforcerBlockerType s1 = sampleState(0.2 * a + 0.6 * b + 0.2 * c, n);
+        const EnforcerBlockerType s2 = sampleState(0.2 * a + 0.2 * b + 0.6 * c, n);
 
         EnforcerBlockerType chosen = sCenter;
         if (!(sCenter == s0 && sCenter == s1 && sCenter == s2)) {
@@ -179,21 +172,17 @@ void remapAnnotation(const ModelVolume& v, FacetsAnnotation& ann, const Triangle
     }
 
     // Ensure a small painted patch smaller than a coarse simplified triangle is still represented.
-    AABBTreeIndirect::Tree3f targetTree;
+    std::unique_ptr<AABBMesh> targetTree;
     for (size_t s = 1; s < byState.size() && s < MAX_STATES; ++s) {
         if (byState[s].indices.empty() || stateAssigned[s]) continue;
-        if (targetTree.empty()) {
-            targetTree = AABBTreeIndirect::build_aabb_tree_over_indexed_triangle_set(
-                newMesh.its.vertices, newMesh.its.indices);
-        }
+        if (!targetTree) targetTree = std::make_unique<AABBMesh>(newMesh.its);
         const auto& tri = byState[s].indices.front();
-        const Vec3f pt = (byState[s].vertices[tri[0]] + byState[s].vertices[tri[1]] + byState[s].vertices[tri[2]]) / 3.f;
-        size_t hitIdx = 0;
-        Vec3f hitPt = Vec3f::Zero();
-        if (AABBTreeIndirect::squared_distance_to_indexed_triangle_set(
-                newMesh.its.vertices, newMesh.its.indices, targetTree, pt, hitIdx, hitPt) >= 0.f &&
-            hitIdx < newMesh.its.indices.size()) {
-            selector.set_facet(int(hitIdx), EnforcerBlockerType(s));
+        const Vec3d pt = ((byState[s].vertices[tri[0]] + byState[s].vertices[tri[1]] + byState[s].vertices[tri[2]]) / 3.f).cast<double>();
+        int hitIdx = -1;
+        Vec3d hitPt = Vec3d::Zero();
+        if (targetTree->squared_distance(pt, hitIdx, hitPt) >= 0. && hitIdx >= 0 &&
+            size_t(hitIdx) < newMesh.its.indices.size()) {
+            selector.set_facet(hitIdx, EnforcerBlockerType(s));
             stateAssigned[s] = true;
         }
     }
