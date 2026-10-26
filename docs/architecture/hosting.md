@@ -43,8 +43,14 @@ watches (bridge, relay, `src/device/`, and the rest listed at the top of `device
 For any other pull request, run the Device workflow by hand on the branch: a branch run
 always goes to the test relay.
 
-Trying a change on a preview writes to the **production** database: a new migration and
-anything you set there (limits, projects) is live at once.
+Every build that is not `main` points new bridges at the test relay
+(`VITE_DEVICE_RELAY_URL` in `ci.yml`), label or not; the label only decides whether the
+pull request's relay and bridge code are deployed there.
+
+A preview shares everything else with production: the D1 database, the R2 projects
+bucket, the sign-in host and the Pages secrets. Its D1 migrations are applied as soon as
+it is built, even when its tests then fail, and anything you set on it (limits,
+projects) is live at once.
 
 ## Why
 

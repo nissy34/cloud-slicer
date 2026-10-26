@@ -25,6 +25,7 @@ still working away from home or on a VPN.
 flowchart TD
   z["Zip the G-code (4-5x smaller)"] --> cam{"Camera direct link open?"}
   cam -->|yes| ride["Send over it (channel upload:id)"]
+  cam -->|"a camera fell back to the relay,<br/>or no WebRTC in this browser"| relay
   cam -->|no| own["Open own WebRTC link (5 s)"]
   own -->|bytes flow| direct["Direct to the bridge"]
   own -->|"blocked, or no bytes for 15 s"| relay["Stream through the relay<br/>256 KiB pieces, at most 8 MiB unanswered"]
@@ -35,6 +36,13 @@ flowchart TD
 
 The bar says what is happening: Zipping… / Opening a direct link… / "N% through the relay".
 Cancel stops the printer's request even after the last byte.
+
+- The zip is kept only when it is at least 10 % smaller (`gzipped` in `upload.ts`).
+- Older parts in the field still work: a bridge from before streaming gets 8 MiB pieces
+  one at a time; a relay that only passes text gets base64 pieces of 512 KiB; an older
+  bridge gets the file the old way (`bridge.upload_begin`).
+- A Klipper printer added by a public https address (no bridge) takes the upload straight
+  from the browser ([device tab](device-tab.md)).
 
 ## Rules
 

@@ -73,11 +73,13 @@ printers with their API keys.
 - A new brand touches:
   - bridge: one brand file (`<brand>.go` with its test), its kind in `translate.go`
     (`newBrand`, the kind lists in `findPrinter`, `probeKind`), a probe in `probeHosts`
-    (`moonraker.go`) that runs beside the others, never after them, and `allowed.go` only
-    if it needs a new call;
+    (`moonraker.go`) that runs beside the others, never after them, the `--kind` list in
+    `main.go`'s `add` usage, and `allowed.go` only if it needs a new call;
   - site: `KINDS` and a row in `WORKS_WITH` (`apps/web/src/device/brands.ts`), and an
-    add-on in `apps/web/src/device/addons/` (registered in `index.ts`) for what it can't
-    do;
+    add-on in `apps/web/src/device/addons/` (registered in `index.ts`, see
+    [device tab](device-tab.md)) for what it can't do, `DIRECT_PRINT` in
+    `lib/printer-catalog.ts` if the site can start its prints, and the brand named in the
+    words of `SetupWizard.tsx` and `device/ui/PrinterEditor.tsx` (key or password hint);
   - tests: a pretend printer (a Node mock in `apps/web/test/device/` or a Go fake in
     `internal/`), a browser test `test/device-<brand>.mjs` and its step in `device.yml`;
   - docs: the bridge README, [device tab](device-tab.md), [testing](testing.md),

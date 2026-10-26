@@ -27,7 +27,12 @@ down. Add a line with the date when a new choice is made.
 - Slicing only in the browser; server slicing and a separate phone UI dropped once phones
   sliced fine (2026-10-18).
 - Second engine, OrcaSlicer 2.4.2, chosen per project, not per user (2026-10-20).
-- Turned down as third engines: PrusaSlicer, Bambu Studio.
+- Turned down as third engines: PrusaSlicer (2026-10-21) and Bambu Studio (2026-10-24).
+  Neither has a browser build and our engine code is written against Orca's classes, so
+  each would be 10 to 18 PRs plus upkeep per release, for little gain: PrusaSlicer has no
+  U1 profile, and OrcaSlicer keeps taking Bambu Studio's features (Bambu printers and
+  mixing come with OrcaSlicer 2.5). Sending to Bambu printers goes through the bridge and
+  needs no engine.
 - wasm64: not now (no Safari, phones kill tabs below 4 GB, slower; 2026-10-20).
 - OrcaSlicer 2.5: proposed to wait for its beta and then replace 2.4.2. Its colour mixing
   is incompatible with Snapmaker's. Not decided.
@@ -95,7 +100,8 @@ down. Add a line with the date when a new choice is made.
 - Printer pages as a Device tab card, not a pop-up (2026-10-22).
 - Alerts: choices stay per device; a new device starts from the last saved (2026-10-22).
   Titles plain, no hints (2026-10-26).
-- Phone: Prepare, Preview and Device as tabs at the bottom (2026-10-26).
+- Phone: Prepare, Preview and Device as tabs at the bottom (2026-10-26). All phone rules:
+  [layout and phones](architecture/layout.md).
 - Pop-ups: one window style and one message card style; phone windows centred, not
   bottom sheets; no closing on an outside tap (2026-10-22).
 
