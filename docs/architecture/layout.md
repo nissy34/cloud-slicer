@@ -32,8 +32,10 @@ the same screens rearrange for a phone.
   desktop keeps them in the top bar.
 - The Slice bar shows Download, Send and Slice plate. Slice plate greys out once the plate
   is sliced and comes back after a change (desktop too).
-- Hints say "tap" on touch screens; `title=` tooltips don't show on a phone, so nothing
-  important may live only in one.
+- Hints say "tap" on touch screens. A button's `title=` tooltip shows on a phone only on
+  a long press, so nothing important may live only in one.
+- Every tap is at least 44 px tall and wide, without drawing anything bigger
+  ([design system](design-system.md#taps-on-a-phone)).
 - Pop-ups are centred windows on a phone too, not bottom sheets, and don't close on an
   outside tap.
 - Touch: a drag must move more than 6 px before it counts (long-press wiggle limit); two

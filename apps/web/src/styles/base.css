@@ -189,3 +189,45 @@ button:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
 }
+
+/* Motion (docs/architecture/design-system.md): one speed, --speed, for hover,
+   open and switch. Zero weight (:where), so a part's own transition wins. */
+:where(button, [role='button'], [role='tab'], [role='option'], .menu-item, .chip, select, input, textarea) {
+  transition:
+    background-color var(--speed),
+    border-color var(--speed),
+    color var(--speed),
+    opacity var(--speed);
+}
+@keyframes open-in {
+  from {
+    opacity: 0;
+  }
+}
+/* When the device asks for less motion, nothing moves: no fades, no slides,
+   spinners and stripes stand still. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  ::before,
+  ::after {
+    animation-duration: 0s !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0s !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* Taps on a phone: everything tappable takes a tap at least --tap (44 px) tall
+   and wide, without being drawn any bigger: a smaller one gets an invisible
+   box around it, and a switch or check box takes it with its words. (Fields
+   are wide enough as they are.) */
+@media (max-width: 760px) {
+  :where(button, summary, a.primary, a.secondary, a.ghost, a.quiet, [role='button']:not(input), [role='tab']:not(input), label:has(> input[type='checkbox'])) {
+    position: relative;
+  }
+  :where(button, summary, a.primary, a.secondary, a.ghost, a.quiet, [role='button']:not(input), [role='tab']:not(input), label:has(> input[type='checkbox']))::before {
+    content: '';
+    position: absolute;
+    inset: min(0px, calc(50% - var(--tap) / 2));
+  }
+}

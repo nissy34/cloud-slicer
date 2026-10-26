@@ -103,6 +103,10 @@
   /* Sizes */
   --topbar: 48px;
   --ctl: 30px; /* buttons and icon buttons; 40px on a phone (below) */
+  --tap: 44px; /* the least a tap hits on a phone, drawn or not (base.css) */
+
+  /* Motion: one speed for hover, open and switch; none when the device asks for less (base.css) */
+  --speed: 0.15s;
   /* Phone: up to 760px wide (src/lib/breakpoints.ts). Narrow phone: up to 420px. */
 
   color-scheme: light;
