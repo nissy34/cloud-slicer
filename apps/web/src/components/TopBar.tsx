@@ -6,7 +6,7 @@ import { PrintProgress } from './PrintHistory';
 import { ProjectMenu } from './ProjectMenu';
 import { ThemeMenu } from './ThemeMenu';
 
-const TABS: { id: Tab; label: string }[] = [
+export const TABS: { id: Tab; label: string }[] = [
   { id: 'prepare', label: 'Prepare' },
   { id: 'preview', label: 'Preview' },
   { id: 'device', label: 'Device' },

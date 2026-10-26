@@ -7277,3 +7277,100 @@ button.volume-name {
 .clearance-order.bad {
   background: #c4312b;
 }
+
+/* Phones: Prepare, Preview and Device as tabs at the bottom (src/components/BottomTabs.tsx). */
+.bottom-tabs {
+  display: none;
+}
+@media (max-width: 760px) {
+  .app {
+    --bottom-tabs: 56px;
+    grid-template-rows: var(--topbar) minmax(0, 1fr) auto;
+  }
+  .app > .topbar {
+    grid-row: 1;
+  }
+  .app > .body,
+  .app > .device {
+    grid-row: 2;
+  }
+  .topbar .tabs {
+    display: none;
+  }
+  /* The project name takes the room the tabs left; the buttons sit at the right. */
+  .topbar .calib-button {
+    margin-left: auto;
+  }
+  .topbar .project-button {
+    max-width: 52vw;
+  }
+  .bottom-tabs {
+    grid-row: 3;
+    display: flex;
+    background: var(--surface);
+    border-top: 1px solid var(--border);
+    padding: 4px max(8px, env(safe-area-inset-right, 0px)) max(6px, env(safe-area-inset-bottom, 0px)) max(8px, env(safe-area-inset-left, 0px));
+  }
+  .bottom-tab {
+    position: relative;
+    flex: 1;
+    display: grid;
+    justify-items: center;
+    gap: 2px;
+    min-height: 46px;
+    padding: 4px 0 2px;
+    border: 0;
+    background: none;
+    color: var(--muted);
+    font-size: 12px;
+    cursor: pointer;
+  }
+  .bottom-tab.active {
+    color: var(--accent);
+    font-weight: 600;
+  }
+  .bottom-tab:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: -2px;
+    border-radius: 8px;
+  }
+  .bottom-tab-mark {
+    position: absolute;
+    top: 0;
+    left: calc(50% + 6px);
+    min-width: 10px;
+    height: 16px;
+    padding: 0 5px;
+    box-sizing: border-box;
+    border-radius: 999px;
+    font-size: 10px;
+    font-weight: 600;
+    line-height: 16px;
+    font-variant-numeric: tabular-nums;
+    color: var(--accent-text);
+    background: var(--accent);
+  }
+  .bottom-tab-mark.warn {
+    background: #b26a00;
+    color: #fff;
+  }
+  /* A dot alone: the printer needs attention. */
+  .bottom-tab-mark.error {
+    width: 10px;
+    height: 10px;
+    padding: 0;
+    top: 2px;
+    background: var(--danger);
+  }
+  /* The tab bar holds the bottom edge now, so the Slice bar needs no room for the phone's gesture bar. */
+  .actionbar {
+    padding-bottom: 8px;
+  }
+  .actionbar .wide-only-button {
+    display: none;
+  }
+  /* Pop-ups at the bottom of the Device tab stay above the tab bar. */
+  .notices {
+    bottom: calc(16px + var(--bottom-tabs, 0px) + env(safe-area-inset-bottom, 0px));
+  }
+}

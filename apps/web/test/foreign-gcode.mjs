@@ -150,7 +150,10 @@ try {
         if (await download()) fail("snapmaker: the G-code still has Bambu Studio 2.5's start lines");
         else console.log("snapmaker: sliced with Snapmaker Orca's own G-code for the printer");
         await page.getByRole('tab', { name: 'Prepare' }).first().click().catch(() => {});
-        // The project keeps it: slicing again doesn't ask.
+        // The project keeps it: slicing again doesn't ask. (A change first: Slice greys out while the slice is current.)
+        const layer = page.getByLabel('Layer height', { exact: true });
+        await layer.fill('0.24');
+        await layer.press('Enter');
         await page.getByRole('button', { name: /^Slice plate/ }).click();
         await Promise.race([page.getByTestId('slice-stats').waitFor({ timeout: 300000 }), question.waitFor({ timeout: 300000 })]);
         if (await question.count()) fail('snapmaker: asked again in the same project');
