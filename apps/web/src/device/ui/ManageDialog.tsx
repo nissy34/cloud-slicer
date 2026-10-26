@@ -7,6 +7,7 @@ import { isTestRelay } from '../config';
 import { UninstallBridge } from './BridgeSetup';
 import { Dialog } from '../../components/Dialog';
 import { removeFromBridge, SELF_REMOVING_FROM, watchBridge, type BridgeWatch } from './PrinterEditor';
+import { Note } from '../../components/Note';
 
 /** One saved printer: its name and profile, with Edit and Remove (asked once, inline). */
 function PrinterRow({ p, pairing }: { p: SavedPrinter; pairing?: Pairing | null }) {
@@ -180,9 +181,9 @@ function BridgeCard({ b, onLeftover }: { b: SavedBridge; onLeftover: (l: Leftove
             </button>
           )}
           {updateProblem && (
-            <p className="dv-alert" role="alert">
+            <Note tone="error">
               {updateProblem}
-            </p>
+            </Note>
           )}
         </div>
       )}
@@ -205,9 +206,9 @@ function BridgeCard({ b, onLeftover }: { b: SavedBridge; onLeftover: (l: Leftove
               : "It isn't running, so afterwards you'll get one command to remove it from its computer."}
           </p>
           {problem && (
-            <p className="dv-alert" role="alert">
+            <Note tone="error">
               {problem}
-            </p>
+            </Note>
           )}
           <div className="dv-row-buttons">
             <button className="secondary" onClick={() => setAsking(false)}>

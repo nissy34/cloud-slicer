@@ -14,6 +14,7 @@ import { fileURLToPath } from 'node:url';
 import { chromium } from 'playwright';
 import { bridgeConfig, bridgeProgram, pairingCode, startBridge } from './device/go-bridge.mjs';
 import { startMockPrinter } from './device/mock-printer.mjs';
+import { currentPrinter, openManage, openPrinterList, pickPrinter, printerNames } from './device/printer-picker.mjs';
 
 const web = join(dirname(fileURLToPath(import.meta.url)), '..');
 const shots = process.argv[2] ? resolve(process.argv[2]) : null;
@@ -152,22 +153,24 @@ try {
   await page.setViewportSize({ width: 1280, height: 900 });
   await page.getByTestId('save-printer').click();
   await page.getByTestId('connection').filter({ hasText: 'Connected' }).waitFor({ timeout: 20_000 });
-  await page.getByTestId('printer-select').locator('option', { hasText: 'Keyed printer' }).waitFor({ state: 'attached' });
-  if (await page.getByTestId('printer-select').locator('option', { hasText: 'voron-mock' }).count()) throw new Error('only the ready printers should be saved');
-  if ((await page.getByTestId('printer-select').locator('option:checked').textContent()) !== 'U1-mock') throw new Error('the first printer in the list should be chosen');
+  await until('Keyed printer listed', async () => (await printerNames(page)).includes('Keyed printer'));
+  if ((await printerNames(page)).includes('voron-mock')) throw new Error('only the ready printers should be saved');
+  if ((await currentPrinter(page)) !== 'U1-mock') throw new Error('the first printer in the list should be chosen');
   console.log('bridge: the ready printers saved in one go, with their names and API key');
-  // In the dark theme the printer list's choices are dark too (the open list used to be light).
+  // In the dark theme the printer list is dark too: it is the site's own list, not the browser's.
   await page.emulateMedia({ colorScheme: 'dark' });
   await page.waitForFunction(() => document.documentElement.dataset.theme === 'dark');
-  const optionColours = await page.getByTestId('printer-select').evaluate((select) => {
-    // A see-through background leaves the browser's own (light) list showing: count it as light.
+  const list = await openPrinterList(page);
+  const listColours = await list.evaluate((el) => {
     const lum = (c) => {
       const [r, g, b, a = 1] = (c.match(/\d+(\.\d+)?/g) ?? []).map(Number);
       return a === 0 ? 1 : (r + g + b) / 765;
     };
-    return [...select.options].map((o) => ({ bg: lum(getComputedStyle(o).backgroundColor), fg: lum(getComputedStyle(o).color) }));
+    const row = el.querySelector('[role="option"]');
+    return { bg: lum(getComputedStyle(el).backgroundColor), fg: lum(getComputedStyle(row).color) };
   });
-  if (optionColours.some((o) => o.bg > 0.4 || o.fg < 0.6)) throw new Error(`printer choices aren't dark in the dark theme: ${JSON.stringify(optionColours)}`);
+  if (listColours.bg > 0.4 || listColours.fg < 0.6) throw new Error(`the printer list isn't dark in the dark theme: ${JSON.stringify(listColours)}`);
+  await page.keyboard.press('Escape');
   await page.emulateMedia({ colorScheme: 'light' });
   await page.waitForFunction(() => document.documentElement.dataset.theme === 'light');
   console.log('bridge: connected');
@@ -508,7 +511,7 @@ try {
   // A printer that has collected files over months: the card pages them like Fluidd.
   for (let i = 0; i < 24; i++) voron.files.set(`part_${String(i).padStart(2, '0')}.gcode`, { size: 50_000, modified: Date.now() / 1000 - 7200 - i * 600, text: '' });
   // Printers & bridges, the last choice in the printer list, is where printers are added.
-  await page.getByTestId('printer-select').selectOption('__manage');
+  await openManage(page);
   await page.getByTestId('manage-dialog').waitFor();
   await page.getByRole('button', { name: 'Add a printer', exact: true }).click();
   await page.getByRole('tab', { name: 'Over the internet (advanced)' }).click();
@@ -595,7 +598,7 @@ try {
   if (voron.files.has('pick_printer.gcode')) throw new Error('the file went to the printer on screen, not the one picked');
   if (u1.state.print_stats.state === 'printing') throw new Error('Upload only started a print');
   if ((await page.evaluate(() => localStorage.getItem('cloud-slicer:printer-send:v1'))) !== JSON.stringify(u1Id)) throw new Error('the printer sent to is not remembered');
-  await page.getByTestId('printer-select').selectOption({ label: 'voron-mock' });
+  await pickPrinter(page, 'voron-mock');
   await page.getByTestId('connection').filter({ hasText: 'Connected' }).waitFor({ timeout: 20_000 });
   console.log('send dialog: printer picker sends to the printer chosen and remembers it');
 
@@ -644,8 +647,8 @@ try {
     if (Math.abs(camTop - deviceTop) > 2) throw new Error(`camera scrolled away on a phone (camera at ${camTop}, page top ${deviceTop})`);
     await phone.evaluate(() => document.querySelector('.device').scrollTo(0, 0));
     // Several cameras: one big, the others small beside it; tapping a small one makes it the big one.
-    const cur = await phone.getByTestId('printer-select').inputValue();
-    await phone.getByTestId('printer-select').selectOption({ label: 'voron-mock' });
+    const cur = await currentPrinter(phone);
+    await pickPrinter(phone, 'voron-mock');
     await phone.getByTestId('connection').filter({ hasText: 'Connected' }).waitFor({ timeout: 20_000 });
     await until('two cameras on the phone', async () => (await phone.getByTestId('camera-tile').count()) === 2, 20_000);
     await phone.locator('[data-camera="case"][data-main]').waitFor();
@@ -654,7 +657,7 @@ try {
     if (shots) await phone.getByTestId('camera-card').screenshot({ path: join(shots, 'cameras-phone.png') });
     await phone.getByRole('button', { name: 'Show nozzle big' }).click();
     await phone.locator('[data-camera="nozzle"][data-main]').waitFor();
-    await phone.getByTestId('printer-select').selectOption(cur);
+    await pickPrinter(phone, cur);
     await phone.getByTestId('connection').filter({ hasText: 'Connected' }).waitFor({ timeout: 20_000 });
     console.log('phone: camera stays on top, move controls under it, small cameras swap in with a tap');
   }
@@ -693,7 +696,7 @@ try {
   await earlier.evaluate((v) => localStorage.setItem('cloud-slicer:devices:v1', v), onlyPrinters);
   await earlier.reload();
   await earlier.getByRole('tab', { name: 'Device' }).click();
-  await earlier.getByTestId('printer-select').selectOption('__manage');
+  await openManage(earlier);
   await earlier.getByTestId('manage-bridge').getByTestId('manage-bridge-state').filter({ hasText: 'Running' }).waitFor({ timeout: 20_000 });
   await earlier.getByTestId('manage-bridge').locator('[data-testid="manage-printer"][data-name="U1-mock"]').waitFor();
   await earlier.close();
@@ -768,7 +771,7 @@ try {
   await setup.getByTestId('bridge-not-ready').waitFor();
   console.log('bridge setup: app downloads and the Linux command from the relay, a plain note when it has none');
   // Printers & bridges: the bridge is its own thing, its printers come and go on their own.
-  await page.getByTestId('printer-select').selectOption('__manage');
+  await openManage(page);
   const manage = page.getByTestId('manage-dialog');
   const card = manage.getByTestId('manage-bridge');
   await card.getByTestId('manage-bridge-state').filter({ hasText: 'Running' }).waitFor({ timeout: 20_000 });
@@ -784,7 +787,8 @@ try {
   const managed = (name) => card.locator(`[data-testid="manage-printer"][data-name="${name}"]`);
   await managed('U1-mock').getByTestId('manage-printer-remove').click();
   await managed('U1-mock').getByTestId('manage-printer-remove-yes').click();
-  await until('U1-mock removed', async () => (await page.getByTestId('printer-select').locator('option', { hasText: 'U1-mock' }).count()) === 0);
+  await until('U1-mock removed', async () => (await managed('U1-mock').count()) === 0);
+  await until('U1-mock gone from the saved printers', () => page.evaluate(() => !JSON.parse(localStorage.getItem('cloud-slicer:devices:v1') ?? '[]').some((d) => d.name === 'U1-mock')));
   await until('the bridge forgot U1-mock too', () => !config.printers().some((p) => p.id === 'u1'));
   await managed('Keyed printer').getByTestId('manage-printer-remove').click();
   await managed('Keyed printer').getByTestId('manage-printer-remove-yes').click();
@@ -796,7 +800,7 @@ try {
   await page.getByTestId('bridge-state').filter({ hasText: 'Connected to the bridge' }).waitFor({ timeout: 20_000 });
   await page.getByRole('dialog', { name: 'Add a printer' }).getByRole('button', { name: 'Close' }).click();
   // Removing the bridge, while it runs, makes it uninstall itself.
-  await page.getByTestId('printer-select').selectOption('__manage');
+  await openManage(page);
   await card.getByTestId('manage-bridge-state').filter({ hasText: 'Running' }).waitFor({ timeout: 20_000 });
   await card.getByTestId('manage-bridge-remove').click();
   await card.getByText('will also uninstall itself').waitFor();

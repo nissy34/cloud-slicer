@@ -65,10 +65,11 @@ Shared parts and where they live. A screen uses these instead of styling its own
 | Section title | `.group h2` in `styles/prepare.css`: the sidebar's sections (Printer, Filament, Process, Objects, Process settings, Slicer engine) are bold sentence case with a muted Lucide icon in front |
 | Note | `components/Note.tsx` (`.note`): a sign and words in a tinted box inside the page. Grey information, orange warning, red error (read out at once). A message that comes and goes is a Notice instead; a word or two in a row (Feeder jammed) stays coloured text |
 | Empty place | `components/Empty.tsx` (`.empty-place`): an icon, one sentence and at most one main button, centred where the content would be. No printers, no projects, no G-code files, no camera |
+| Picker | `components/Picker.tsx`, `styles/parts.css` (`.picker`, `.picker-list`): a button showing the current choice and a chevron, opening the site's own list (never the browser's), placed by Floating UI (`@floating-ui/react`). Choices may carry a colour swatch and the current one has a blue ✓; a line, then actions in the normal text colour with a grey icon in front, words ending in "…" (gear + "Printers & bridges…"). Arrow keys, Escape and a tap outside work. Use it when a list needs actions or swatches; a plain list of values stays a native `<select>`. Its rows are the shared menu rows (`.menu-item`, `.menu-check`, `hr`) that the object menu also uses |
 | Icons | [Lucide](https://lucide.dev) (`lucide-react`), line icons at 16 px (20–24 px for tiles). The Device tab names its icons by meaning in `device/ui/icons.tsx`. Orca's own toolbar, view and plate icons stay as they are (`src/assets/`) |
 
-Still to come (picked on the design-system page): menus and pop-overs (built on
-the Picker), phone tooltips, phone polish, words and motion. Each joins this
+Still to come (picked on the design-system page): menus and pop-overs (on the
+Picker's rows), phone tooltips, phone polish, words and motion. Each joins this
 table and the design page when it is built.
 
 ## Stylesheets
