@@ -23,8 +23,9 @@ import { IconButton } from './IconButton';
 const withMine = (installed: string[] | undefined, list: PresetSummary[]) =>
   installed && [...installed, ...list.filter((p) => p.user).map((p) => p.name)];
 
-/** The printer picker's last entry, which opens the setup wizard's printer page. */
+/** The printer and filament pickers' last entries, which open Manage on its Printers or Filaments tab (the setup wizard before setup is done). */
 const ADD_PRINTERS = '\u0000add-printers';
+const ADD_FILAMENTS = '\u0000add-filaments';
 
 function PrinterSection() {
   const allPrinters = useSlicer((s) => s.printers);
@@ -44,7 +45,7 @@ function PrinterSection() {
       <div className="group-head">
         <h2>Printer</h2>
         <div className="group-actions">
-          <button className="quiet" onClick={() => manage()}>
+          <button className="quiet" onClick={() => manage('printers')}>
             Manage
           </button>
           <EditPresetButton type="printer" />
@@ -71,7 +72,7 @@ function PrinterSection() {
                 ))}
             </optgroup>
           ))}
-          {/* Like desktop's printer list: the wizard's printer page, to add more or remove some. */}
+          {/* Like desktop's printer list: to add more or remove some. */}
           <option value={ADD_PRINTERS}>Add or remove printers…</option>
         </select>
       </label>
@@ -92,6 +93,7 @@ function FilamentSection() {
   const installed = installedFilaments(useUserSetting<Setup>(SETUP_KEY), useSlicer((s) => s.flavor));
   const filaments = installedOnly(allFilaments, withMine(installed, allFilaments), selection?.filaments);
   const { setFilament, setColour, addFilament, removeFilament } = useSlicer.getState();
+  const manage = useSetupWizard((s) => s.show);
   const limit = useFilamentLimit();
   if (!selection) return null;
   const limitMessage = filamentLimitMessage(limit, selection.filaments.length);
@@ -118,9 +120,15 @@ function FilamentSection() {
                 onChange={(e) => void setColour(i, e.target.value.toUpperCase())}
               />
             </label>
-            <select aria-label={`Filament ${i + 1} preset`} value={name} onChange={(e) => void setFilament(i, e.target.value)}>
+            <select
+              aria-label={`Filament ${i + 1} preset`}
+              value={name}
+              onChange={(e) => (e.target.value === ADD_FILAMENTS ? manage('filaments') : void setFilament(i, e.target.value))}
+            >
               {!filaments.some((f) => f.name === name) && <option value={name}>{shortName(name)}</option>}
               <PresetOptions presets={filaments} />
+              {/* Like desktop's filament list. */}
+              <option value={ADD_FILAMENTS}>Add or remove filaments…</option>
             </select>
             <EditPresetButton type="filament" slot={i} />
             <PresetMenu type="filament" slot={i} />
