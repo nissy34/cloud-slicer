@@ -3,6 +3,7 @@ import { itemsOnPlate } from '../lib/group';
 import { menuPosition } from '../lib/objectMenu';
 import { NO_COLOURS, useSlicer } from '../state/store';
 import { ChevronDown, ChevronRight } from 'lucide-react';
+import { Swatch } from './Swatch';
 
 /**
  * Desktop Orca's right-click menu with several objects chosen (MenuFactory's
@@ -134,7 +135,7 @@ function GroupCard() {
                   className="menu-item"
                   onClick={run(() => s.groupAction({ op: 'filament', filament: k + 1 }))}
                 >
-                  <span className="menu-swatch" style={{ background: colours[k] }} aria-hidden="true" />
+                  <Swatch colour={colours[k]} size="sm" />
                   {k < physical ? `Filament ${k + 1}` : `Mix ${k + 1}`}
                 </button>
               ))}

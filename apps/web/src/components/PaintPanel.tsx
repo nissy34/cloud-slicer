@@ -1,6 +1,8 @@
 import { useEffect } from 'react';
 import type { PaintKind, PaintSettings, PaintTool } from '../engine/protocol';
 import { NO_COLOURS, useSlicer } from '../state/store';
+import { Swatch } from './Swatch';
+import { Slider } from './Slider';
 
 const KINDS: [PaintKind, string][] = [
   ['color', 'Colour'],
@@ -75,7 +77,7 @@ export function PaintPanel() {
             onClick={() => change({ state: value })}
             title={colour ? `Filament ${label}` : label}
           >
-            {colour && <span className="paint-swatch" style={{ background: colour }} />}
+            {colour && <Swatch colour={colour} size="sm" />}
             {label}
           </button>
         ))}
@@ -93,13 +95,13 @@ export function PaintPanel() {
       {brush ? (
         <label className="transform-row">
           <span>Size</span>
-          <input type="range" aria-label="Brush radius" min={0.5} max={20} step={0.5} value={paint.radius} onChange={(e) => change({ radius: Number(e.target.value) })} />
+          <Slider aria-label="Brush radius" min={0.5} max={20} step={0.5} value={paint.radius} onChange={(e) => change({ radius: Number(e.target.value) })} />
           <span className="unit">{paint.radius} mm</span>
         </label>
       ) : (
         <label className="transform-row">
           <span>Angle</span>
-          <input type="range" aria-label="Fill angle" min={0} max={90} step={1} value={paint.angle} onChange={(e) => change({ angle: Number(e.target.value) })} />
+          <Slider aria-label="Fill angle" min={0} max={90} step={1} value={paint.angle} onChange={(e) => change({ angle: Number(e.target.value) })} />
           <span className="unit">{paint.angle}°</span>
         </label>
       )}

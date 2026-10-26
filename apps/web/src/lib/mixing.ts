@@ -293,10 +293,14 @@ export function mixWarning(r: MixRecipe, colours: string[]): string {
   return '';
 }
 
-/** Black or white text for a swatch. */
+/** Black or white text for a swatch: whichever stands out more from the colour (WCAG contrast). */
 export function textOn(colour: string): string {
   const m = /^#?([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})/i.exec(colour);
   if (!m) return '#000';
-  const [r, g, b] = [m[1], m[2], m[3]].map((h) => parseInt(h, 16));
-  return 0.299 * r + 0.587 * g + 0.114 * b > 150 ? '#000' : '#fff';
+  const [r, g, b] = [m[1], m[2], m[3]].map((h) => {
+    const c = parseInt(h, 16) / 255;
+    return c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4;
+  });
+  // Above this brightness black has more contrast than white.
+  return 0.2126 * r + 0.7152 * g + 0.0722 * b > 0.179 ? '#000' : '#fff';
 }

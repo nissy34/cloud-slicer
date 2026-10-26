@@ -8,7 +8,7 @@ import { metaFromMoonraker, readGcode3mf, readGcodeMeta, type GcodeMeta } from '
 import { job } from '../status';
 import { useAlerts } from '../../state/alerts';
 import { LayerField } from './AlertsCard';
-import { Swatch } from './parts';
+import { Swatch } from '../../components/Swatch';
 import { Dialog } from '../../components/Dialog';
 
 /** What the upload bar says before the first byte leaves. */

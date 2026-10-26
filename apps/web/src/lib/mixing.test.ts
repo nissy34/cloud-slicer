@@ -14,6 +14,7 @@ import {
   recipeFilaments,
   recipeFromDraft,
   SIMPLE,
+  textOn,
   type MixDraft,
   type MixRow,
 } from './mixing';
@@ -115,5 +116,15 @@ describe('colour mixing helpers', () => {
     const m = mixSettings({ nozzle_diameter: '0.4,0.4', dithering_local_z_mode: '1', mixed_filament_height_lower_bound: '0.05' });
     expect(m.nozzles).toEqual([0.4, 0.4]);
     expect(m.settings).toMatchObject({ localZ: true, lowerBound: 0.05, upperBound: 0.16, bias: false });
+  });
+
+  it('picks black or white text so a swatch number always reads', () => {
+    expect(textOn('#FFFF00')).toBe('#000'); // yellow
+    expect(textOn('#FFFFFF')).toBe('#000');
+    expect(textOn('#00FF00FF')).toBe('#000'); // with alpha
+    expect(textOn('#000000')).toBe('#fff');
+    expect(textOn('#0000FF')).toBe('#fff'); // blue
+    expect(textOn('#7F1D1D')).toBe('#fff'); // dark red
+    expect(textOn('not a colour')).toBe('#000');
   });
 });

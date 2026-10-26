@@ -1,9 +1,9 @@
 import { useMemo } from 'react';
 import { engineName, type EngineFlavor } from '../lib/engines';
 import type { DroppedSetting } from '../lib/engine-switch';
-import { textOn } from '../lib/mixing';
 import { useSlicer } from '../state/store';
 import { Dialog } from './Dialog';
+import { Swatch } from './Swatch';
 
 const TYPE_LABEL = { printer: 'Printer', process: 'Process', filament: 'Filament' } as const;
 
@@ -39,9 +39,7 @@ export function EngineSwitchDialog({ to, onClose, onSwitch }: { to: EngineFlavor
   const plan = useMemo(() => useSlicer.getState().switchPlan(to), [to]);
   const target = engineName(to);
   const swatch = (colour: string | undefined, text: string) => (
-    <span className="engine-switch-swatch" style={{ background: colour ?? 'transparent', color: textOn(colour ?? '#fff') }}>
-      {text}
-    </span>
+    <Swatch colour={colour} number={text} className="engine-switch-swatch" />
   );
   return (
     <Dialog

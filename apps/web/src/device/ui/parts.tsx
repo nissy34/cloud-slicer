@@ -1,5 +1,6 @@
 import { createContext, useContext, useState, type ReactNode } from 'react';
 import { Dialog } from '../../components/Dialog';
+import { Slider } from '../../components/Slider';
 
 /** Set by the Device tab's layout around each card: folding a card leaves only its title. */
 export const SlotContext = createContext<{ folded: boolean; toggleFold(): void } | null>(null);
@@ -28,10 +29,6 @@ export function Card({ title, actions, className, children, testId }: { title: s
       {!folded && children}
     </section>
   );
-}
-
-export function Swatch({ colour, empty, title }: { colour: string; empty?: boolean; title?: string }) {
-  return <span className={`dv-swatch${empty ? ' empty' : ''}`} style={empty ? undefined : { background: colour }} title={title} aria-hidden />;
 }
 
 /** "215 / 220 °C" with the target editable in place. */
@@ -89,8 +86,7 @@ export function PercentSlider({ value, onCommit, label, disabled }: { value: num
   };
   return (
     <span className="dv-slider">
-      <input
-        type="range"
+      <Slider
         min={0}
         max={100}
         step={5}

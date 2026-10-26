@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import type { LayerCode } from '../engine/protocol';
 import { canChangeFilament, codeAt, codeLabel, layerOf, newCode, withCodeAt } from '../lib/layerCodes';
 import { NO_COLOURS, useOption, usePlateOption, useSlicer } from '../state/store';
+import { Swatch } from './Swatch';
 
 const NO_CODES: LayerCode[] = [];
 
@@ -110,7 +111,7 @@ export function LayerMenu({ layerZ, layer, onLayer, onClose }: { layerZ: Float32
           title={filamentChoices ? `Print with filament ${i + 1} from this layer on` : undefined}
           onClick={() => put(newCode('filament', z, { filament: i + 1, colour }), 'Change filament')}
         >
-          <span className="menu-swatch" style={{ background: colour }} />
+          <Swatch colour={colour} size="sm" />
           {i + 1}
         </button>
       ))}

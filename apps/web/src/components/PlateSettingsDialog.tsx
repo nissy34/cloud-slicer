@@ -17,6 +17,7 @@ import { NO_COLOURS, useSlicer } from '../state/store';
 import { Dialog } from './Dialog';
 import { X } from 'lucide-react';
 import { IconButton } from './IconButton';
+import { Swatch } from './Swatch';
 
 /**
  * Desktop's Plate settings window (PlateSettingsDialog): the shown plate's
@@ -180,8 +181,7 @@ function OrderChip({ filament, colour }: { filament: number; colour?: string }) 
       aria-roledescription="draggable filament"
       aria-label={`Filament ${filament}`}
     >
-      <span className="swatch" style={{ background: colour ?? '#888' }} aria-hidden="true" />
-      {filament}
+      <Swatch colour={colour} number={filament} />
     </span>
   );
 }
