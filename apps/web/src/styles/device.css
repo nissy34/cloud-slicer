@@ -81,7 +81,8 @@
 .dv-header-actions {
   margin-left: auto;
   display: flex;
-  gap: 12px;
+  flex-wrap: wrap;
+  gap: var(--s-2);
   align-items: center;
 }
 .dv-banner {
@@ -408,33 +409,6 @@
   display: flex;
   gap: 10px;
   align-items: center;
-}
-.dv-link {
-  border: 0;
-  background: none;
-  padding: 0;
-  color: var(--accent);
-  cursor: pointer;
-}
-.dv-link:disabled {
-  color: var(--muted);
-  cursor: default;
-  opacity: 0.6;
-}
-.dv-icon-btn {
-  border: 0;
-  background: none;
-  color: var(--muted);
-  cursor: pointer;
-  font-size: var(--t-lg);
-  padding: 4px;
-}
-.dv-danger-text {
-  color: var(--danger);
-}
-.primary.dv-danger {
-  background: var(--danger-solid);
-  color: var(--on-colour);
 }
 .dv-warn-text {
   color: var(--warn);
@@ -842,13 +816,6 @@
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
-}
-.dv-btn-icon {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 6px 10px;
-  font-size: var(--t-md);
 }
 .dv-icon {
   flex: none;
@@ -2354,17 +2321,12 @@
   .dv-header-actions {
     margin-left: 0;
     width: 100%;
-    justify-content: space-between;
   }
   .dv-banner {
     flex-wrap: wrap;
   }
   .dv-card {
     padding: 12px;
-  }
-  /* Text buttons get finger-sized hit areas. */
-  .dv-link {
-    padding: 6px 0;
   }
   .dv-card-head {
     flex-wrap: wrap;

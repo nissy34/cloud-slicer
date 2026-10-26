@@ -1,29 +1,13 @@
 import { useEffect, useRef, useState } from 'react';
 import { saveUserSetting, useUserSetting } from '../state/account';
 import { isThemeChoice, setLocalTheme, THEME_SETTING, useTheme, useThemeStore, type ThemeChoice } from '../lib/theme';
+import { Moon, Sun } from 'lucide-react';
 
 const CHOICES: { id: ThemeChoice; label: string; hint: string }[] = [
   { id: 'system', label: 'System', hint: 'Match this device' },
   { id: 'light', label: 'Light', hint: '' },
   { id: 'dark', label: 'Dark', hint: '' },
 ];
-
-function SunIcon() {
-  return (
-    <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden>
-      <circle cx="12" cy="12" r="4" />
-      <path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4" />
-    </svg>
-  );
-}
-
-function MoonIcon() {
-  return (
-    <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-      <path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z" />
-    </svg>
-  );
-}
 
 /** Top bar button to pick System / Light / Dark. */
 export function ThemeMenu() {
@@ -67,7 +51,7 @@ export function ThemeMenu() {
         title="Theme"
         onClick={() => setOpen(!open)}
       >
-        {theme === 'dark' ? <MoonIcon /> : <SunIcon />}
+        {theme === 'dark' ? <Moon size={16} aria-hidden /> : <Sun size={16} aria-hidden />}
       </button>
       {open && (
         <div className="theme-pop" role="menu" aria-label="Theme">

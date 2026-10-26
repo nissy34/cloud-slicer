@@ -2,6 +2,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { itemsOnPlate } from '../lib/group';
 import { menuPosition } from '../lib/objectMenu';
 import { NO_COLOURS, useSlicer } from '../state/store';
+import { ChevronDown, ChevronRight } from 'lucide-react';
 
 /**
  * Desktop Orca's right-click menu with several objects chosen (MenuFactory's
@@ -120,7 +121,7 @@ function GroupCard() {
           <button role="menuitem" aria-haspopup="menu" aria-expanded={filaments} className="menu-item submenu" onClick={() => setFilaments(!filaments)}>
             Change filament
             <span className="menu-arrow" aria-hidden="true">
-              {filaments ? '▾' : '▸'}
+              {filaments ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
             </span>
           </button>
           {filaments && (

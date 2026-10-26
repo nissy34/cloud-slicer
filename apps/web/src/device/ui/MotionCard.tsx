@@ -4,6 +4,7 @@ import { dialect } from '../addons';
 import { extrudeGcode, flowFactorGcode, homeGcode, jogGcode, motorsOffGcode, speedFactorGcode } from '../commands';
 import { heaters, job, motion } from '../status';
 import { Card } from './parts';
+import { House } from 'lucide-react';
 
 const STEPS = [0.1, 1, 10, 50];
 
@@ -57,7 +58,7 @@ export function MotionCard() {
             <span />
             <JogButton why={why} label="Head left" arrow="←" disabled={busy || !homed('x')} onClick={() => jog('x', -1)} />
             <button className="dv-home" onClick={() => void run(homeGcode(['x', 'y']))} disabled={busy} aria-label="Home the head" title={why ?? 'Home the head'}>
-              ⌂
+              <House size={18} aria-hidden />
             </button>
             <JogButton why={why} label="Head right" arrow="→" disabled={busy || !homed('x')} onClick={() => jog('x', 1)} />
             <span />
@@ -77,7 +78,7 @@ export function MotionCard() {
               aria-label={bedZ ? 'Home the bed' : 'Home the height'}
               title={why ?? (bedZ ? 'Home the bed' : 'Home the height')}
             >
-              ⌂
+              <House size={18} aria-hidden />
             </button>
             <JogButton why={why} label={bedZ ? 'Bed down' : 'Head down'} arrow="↓" disabled={busy || !homed('z')} onClick={() => jog('z', bedZ ? 1 : -1)} />
           </div>

@@ -22,7 +22,7 @@ export function SyncFilamentsButton() {
   return (
     <>
       <button
-        className="link"
+        className="quiet"
         onClick={() => setOpen(true)}
         disabled={silent}
         title={silent ? "This printer doesn't say what filament is loaded" : "Load the filaments in your printer's tool heads into this project"}

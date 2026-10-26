@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useDevice } from '../../state/device';
 import { activeFilterCount, BUILT_IN_FILTERS, isHidden, readConsoleFilters, type ConsoleFilters } from '../console-filters';
 import { Card } from './parts';
+import { X } from 'lucide-react';
 
 /** Filters are a choice per computer, the same for every printer. */
 const FILTERS_KEY = 'cloud-slicer:console-filters:v1';
@@ -54,7 +55,7 @@ export function ConsoleCard() {
       className="dv-console-card"
       testId="console-card"
       actions={
-        <button className="dv-link" onClick={() => setEditing(!editing)} aria-expanded={editing} data-testid="console-filter-button">
+        <button className="quiet" onClick={() => setEditing(!editing)} aria-expanded={editing} data-testid="console-filter-button">
           {editing ? 'Done' : active ? `Filters (${active})` : 'Filters'}
         </button>
       }
@@ -74,7 +75,7 @@ export function ConsoleCard() {
                   “{c.text}”
                 </button>
                 <button className="dv-filter-remove" aria-label={`Remove the “${c.text}” filter`} title="Remove" onClick={() => setFilters({ ...filters, custom: filters.custom.filter((_, j) => j !== i) })}>
-                  ✕
+                  <X size={12} aria-hidden />
                 </button>
               </span>
             ))}

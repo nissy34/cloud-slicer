@@ -114,7 +114,7 @@ export function CameraCard({
       actions={
         <>
           {cams && (cams.length > 1 || (!main && cams.length > 0)) && (
-            <button className="dv-link" onClick={() => setChoosing(!choosing)} aria-expanded={choosing}>
+            <button className="quiet" onClick={() => setChoosing(!choosing)} aria-expanded={choosing}>
               {choosing ? 'Done' : 'Choose'}
             </button>
           )}

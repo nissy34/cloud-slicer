@@ -89,10 +89,6 @@
   justify-content: flex-end;
   gap: 6px;
 }
-.object-more {
-  padding: 2px 8px;
-  line-height: 1;
-}
 @media (pointer: coarse) {
   .object-menu .menu-item {
     min-height: 42px;

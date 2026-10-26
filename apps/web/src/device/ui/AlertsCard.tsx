@@ -260,7 +260,7 @@ export function AlertsCard() {
           )}
           {bridge && prefs.pictures && <p className="muted dv-alerts-note">Pictures come from the printer’s camera on first and third layer, your layer, paused, failed, error, almost done and finished.{isIos() ? ' iPhone shows alerts without the picture.' : ''}</p>}
           <div className="dv-row">
-            <button className="secondary dv-btn-icon" onClick={() => void a.test()} disabled={a.busy} data-testid="alert-test">
+            <button className="secondary" onClick={() => void a.test()} disabled={a.busy} data-testid="alert-test">
               <Icon name="bell" />
               Send a test alert
             </button>

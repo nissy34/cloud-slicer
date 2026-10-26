@@ -387,7 +387,7 @@ function FilamentStep({ printers, chosen, onChange }: { printers: string[]; chos
               <summary>
                 {g.vendor} <span className="muted small">{count ? `${count} of ${g.rows.length}` : g.rows.length}</span>
               </summary>
-              <button className="link small" onClick={() => set(names, count < g.rows.length)}>
+              <button className="quiet" onClick={() => set(names, count < g.rows.length)}>
                 {count < g.rows.length ? 'Select all' : 'Select none'}
               </button>
               <ul>

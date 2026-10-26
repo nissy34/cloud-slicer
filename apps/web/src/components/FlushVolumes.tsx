@@ -28,7 +28,7 @@ export function FlushVolumesButton() {
   if (!flushShown(info, filaments)) return null;
   return (
     <div className="flush-link">
-      <button className="link" onClick={() => setOpen(true)} data-testid="flush-volumes">
+      <button className="quiet" onClick={() => setOpen(true)} data-testid="flush-volumes">
         Flushing volumes
       </button>
       <span className="muted small">{changed ? 'your own amounts' : 'from the colours'}</span>

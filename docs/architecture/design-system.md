@@ -23,6 +23,7 @@ a rule types a value the tokens already name.
 | Corners | `--r-sm` 4 (tags, swatches), `--r-md` 6 (buttons, fields), `--r-lg` 10 (cards, menus, panels), `--r-xl` 12 (windows, messages), `--r-full` (chips) | Also `0`, `50%` (circles), `inherit`. |
 | Shadows | `--shadow-1` lifted, `--shadow-2` menus, `--shadow-3` windows | |
 | Layers | `--z-notice` 40, `--z-menu` 50, `--z-context` 60 | Plain numbers up to 10 for stacking inside a part. Windows use the browser's top layer. |
+| Controls | `--ctl` 30 px, 40 px on a phone | The height of every button and icon button. |
 | Widths | phone up to 760 px (`PHONE` in `src/lib/breakpoints.ts`), narrow phone up to 420 px, tablet steps 1099/1100 and 1279/1280 px | No other `@media` widths. Code uses `PHONE`, never its own number. |
 
 Dark theme: `index.html` and `src/lib/theme.ts` always set `data-theme` on
@@ -32,7 +33,7 @@ element can carry `data-theme` to show the other theme inside it.
 ## Rules
 
 1. **Tokens only.** No colour, text size, corner, shadow or layer typed by hand.
-2. **Button or link.** Does something: a button. Goes to another page: a link.
+2. **Button or link.** Does something: a button (Quiet when it is small and in a row or card header). Goes to another page: a link. No characters (✕ ⋯ ✎ ⚠ ▾) as icons: use Lucide.
 3. **Chip, switch or check box.** One of a set: a chip. One thing that acts at once: a switch. Picking rows in a long list: a check box, and only there.
 4. **Tabs or chooser.** Changes what you see: tabs. Picks one value of 2 to 4: a chooser. More than 4: a dropdown.
 5. **Tooltip over text.** Help goes in a tooltip or ⓘ. Text on screen only when it changes what you'd do now.
@@ -50,12 +51,14 @@ Shared parts and where they live. A screen uses these instead of styling its own
 | --- | --- |
 | Window | `components/Dialog.tsx`, `styles/windows.css` |
 | Message | `components/Notice.tsx`, `components/Notices.tsx` |
-| Buttons | `.primary`, `.secondary`, `.ghost` in `styles/base.css` |
+| Buttons | `styles/base.css`: Main `.primary` (one per place), Normal `.secondary` (`.ghost` is Normal without its fill, for bars and tool panels), Quiet `.quiet` (blue words on a faint blue box: actions in card headers and rows, such as Arrange, Manage, + Add, Print…, Upload G-code…). Add `.danger` to any of them. An icon goes inside as a Lucide icon at 16 px, before the words. |
+| Icon button | `components/IconButton.tsx` (`.icon-btn`): square, `--ctl` high, a Lucide icon, and its label as tooltip and for screen readers. ✕ (close, remove), ⋯ (more), edit, reset |
+| Icons | [Lucide](https://lucide.dev) (`lucide-react`), line icons at 16 px (20–24 px for tiles). The Device tab names its icons by meaning in `device/ui/icons.tsx`. Orca's own toolbar, view and plate icons stay as they are (`src/assets/`) |
 
-Still to come (picked on the design-system page): Quiet and danger buttons,
-icon button, Lucide icons, chips and tags, one switch, tabs and chooser,
-fields, slider, filament swatch, card, menu and pop-over, phone tooltips, notes,
-empty places. Each joins this table and the design page when it is built.
+Still to come (picked on the design-system page): chips and tags, one switch,
+tabs and chooser, fields, slider, filament swatch, card, menu and pop-over,
+phone tooltips, notes, empty places. Each joins this table and the design page
+when it is built.
 
 ## Stylesheets
 

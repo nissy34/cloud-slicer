@@ -4,6 +4,7 @@ import { ADD_MENUS, KIND_LABELS, keepsAPart, SHAPES, type VolumeKind } from '../
 import { NO_COLOURS, useSlicer } from '../state/store';
 import { startSvg } from './SvgPanel';
 import { startText } from './TextPanel';
+import { ChevronDown, ChevronRight } from 'lucide-react';
 
 type Sub = 'split' | 'mirror' | 'filament' | 'units' | 'type' | `add-${VolumeKind}` | null;
 type Form = 'rename' | 'clone' | null;
@@ -94,7 +95,7 @@ function MenuCard() {
       <button role="menuitem" aria-haspopup="menu" aria-expanded={sub === id} className="menu-item submenu" onClick={() => setSub(sub === id ? null : id)}>
         {label}
         <span className="menu-arrow" aria-hidden="true">
-          {sub === id ? '▾' : '▸'}
+          {sub === id ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
         </span>
       </button>
       {sub === id && (

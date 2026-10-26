@@ -65,7 +65,7 @@ export function DeviceScreen() {
           {send && <p className="muted">Add your printer first, then send the plate again.</p>}
           <WorksWith />
           {bridges.length > 0 && (
-            <button className="dv-link" onClick={() => openManage(true)} data-testid="manage-open">
+            <button className="quiet" onClick={() => openManage(true)} data-testid="manage-open">
               Printers &amp; bridges
             </button>
           )}
@@ -91,18 +91,18 @@ export function DeviceScreen() {
               {pill.text}
             </span>
             <div className="dv-header-actions">
-              <button className="dv-link" onClick={() => setArranging(!arranging)} aria-pressed={arranging} data-testid="arrange-open">
+              <button className="quiet" onClick={() => setArranging(!arranging)} aria-pressed={arranging} data-testid="arrange-open">
                 Arrange
               </button>
-              <button className="dv-link" onClick={() => void openEditor({ mode: 'edit', id: active.id })}>
+              <button className="quiet" onClick={() => void openEditor({ mode: 'edit', id: active.id })}>
                 Edit
               </button>
-              <button className="dv-link" onClick={() => openManage(true)} data-testid="manage-open">
+              <button className="quiet" onClick={() => openManage(true)} data-testid="manage-open">
                 Printers &amp; bridges
               </button>
               {takesCommands(addons) && (
                 <button
-                  className="secondary dv-danger-text"
+                  className="secondary danger"
                   disabled={conn.state !== 'online'}
                   onClick={() =>
                     confirm({
@@ -122,11 +122,11 @@ export function DeviceScreen() {
             <div className="dv-banner" role="status">
               <span>{conn.message}</span>
               {conn.message === BRIDGE_SIGN_IN ? (
-                <button className="dv-link" onClick={() => void useAccount.getState().signIn('google')}>
+                <button className="quiet" onClick={() => void useAccount.getState().signIn('google')}>
                   Sign in
                 </button>
               ) : (
-                <button className="dv-link" onClick={retry}>
+                <button className="quiet" onClick={retry}>
                   Try again
                 </button>
               )}

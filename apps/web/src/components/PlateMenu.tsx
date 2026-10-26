@@ -8,6 +8,7 @@ import { useSlicer } from '../state/store';
 import { NO_HISTORY, useHistoryAvailable } from './PrintHistory';
 import { startSvg } from './SvgPanel';
 import { startText } from './TextPanel';
+import { ChevronDown, ChevronRight } from 'lucide-react';
 
 type Sub = 'primitive' | 'handy' | null;
 
@@ -78,7 +79,7 @@ function MenuCard({ onAdd }: { onAdd(): void }) {
       <button role="menuitem" aria-haspopup="menu" aria-expanded={sub === id} className="menu-item submenu" onClick={() => setSub(sub === id ? null : id)}>
         {label}
         <span className="menu-arrow" aria-hidden="true">
-          {sub === id ? '▾' : '▸'}
+          {sub === id ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
         </span>
       </button>
       {sub === id && (

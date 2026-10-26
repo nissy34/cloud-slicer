@@ -6,6 +6,8 @@ import { PLATE_SIDEBAR_KEYS } from '../lib/plate-settings';
 import { useOption, useSlicer } from '../state/store';
 import { Dialog } from './Dialog';
 import { setOverrideChecked } from './SettingsPrompt';
+import { RotateCcw, X } from 'lucide-react';
+import { IconButton } from './IconButton';
 
 /**
  * Editor for one Orca option, driven by the engine's option metadata: a
@@ -140,9 +142,7 @@ export function OptionField({
     setOverride(optKey, next === baseValue ? null : next);
   };
   const reset = changed ? (
-    <button className="icon reset" title={resetLabel} aria-label={`${resetLabel}: ${text}`} onClick={() => (slotMode ? resetSlot() : setOverride(optKey, null))}>
-      {own ? '×' : '↺'}
-    </button>
+    <IconButton icon={own ? X : RotateCcw} className="reset" label={resetLabel} aria-label={`${resetLabel}: ${text}`} onClick={() => (slotMode ? resetSlot() : setOverride(optKey, null))} />
   ) : null;
 
   // Says the shown plate slices with its own value, so an edit here doesn't seem to do nothing.
@@ -151,7 +151,7 @@ export function OptionField({
       <p className="option-note plate-note">
         Plate {plateNumber} uses{' '}
         <b>{type === 'bool' ? (plateValue === '1' ? 'on' : 'off') : def.enumLabels?.[def.enumValues?.indexOf(plateValue) ?? -1] || plateValue}</b> (its own setting).{' '}
-        <button type="button" className="link" onClick={() => useSlicer.getState().openPlateSettings(true)}>
+        <button type="button" className="quiet" onClick={() => useSlicer.getState().openPlateSettings(true)}>
           Plate settings
         </button>
       </p>

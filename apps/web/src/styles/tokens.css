@@ -24,9 +24,11 @@
   --ok: #1f8a4c;
   /* Tints behind a chip that is on, a note or a tag; they follow the theme by themselves. */
   --accent-soft: color-mix(in srgb, var(--accent) 15%, transparent);
+  --accent-faint: color-mix(in srgb, var(--accent) 8%, transparent); /* a Quiet button at rest */
   --ok-soft: color-mix(in srgb, var(--ok) 15%, transparent);
   --warn-soft: color-mix(in srgb, var(--warn) 15%, transparent);
   --danger-soft: color-mix(in srgb, var(--danger) 15%, transparent);
+  --danger-faint: color-mix(in srgb, var(--danger) 8%, transparent);
   /* Filled badges with white text: the same in both themes so the text stays readable. */
   --ok-solid: #1f8a4c;
   --warn-solid: #b26a00;
@@ -96,6 +98,7 @@
 
   /* Sizes */
   --topbar: 48px;
+  --ctl: 30px; /* buttons and icon buttons; 40px on a phone (below) */
   /* Phone: up to 760px wide (src/lib/breakpoints.ts). Narrow phone: up to 420px. */
 
   color-scheme: light;
@@ -121,4 +124,10 @@
   --scene-exclude: #6f655b;
   --scene-text: #c9ced6;
   color-scheme: dark;
+}
+
+@media (max-width: 760px) {
+  :root {
+    --ctl: 40px;
+  }
 }

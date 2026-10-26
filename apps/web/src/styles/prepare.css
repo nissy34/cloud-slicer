@@ -297,16 +297,6 @@
   justify-content: space-between;
   gap: 8px;
 }
-.link {
-  border: 0;
-  background: none;
-  padding: 0;
-  color: var(--accent);
-  cursor: pointer;
-}
-.link:hover {
-  text-decoration: underline;
-}
 /* The docked phone tool card sits outside the panel but keeps its fields. */
 .panel select,
 .panel input:not([type='checkbox']):not([type='color']),
@@ -325,22 +315,7 @@
   resize: vertical;
   font: var(--t-sm)/1.4 var(--font-mono);
 }
-.icon {
-  width: 26px;
-  height: 26px;
-  flex: none;
-  border: 1px solid transparent;
-  border-radius: var(--r-md);
-  background: none;
-  color: var(--muted);
-  cursor: pointer;
-  line-height: 1;
-}
-.icon:hover:not(:disabled) {
-  background: var(--surface-2);
-  color: var(--text);
-}
-.icon.reset {
+.icon-btn.reset {
   color: var(--accent);
 }
 .hint {
@@ -349,9 +324,6 @@
   font-size: var(--t-sm);
 }
 .hint.warn {
-  color: var(--danger);
-}
-.danger {
   color: var(--danger);
 }
 
@@ -735,9 +707,6 @@
 .option-note.plate-note {
   color: var(--muted);
 }
-.plate-note .link {
-  font-size: var(--t-sm);
-}
 /* Plate settings window: the filament order chips and layer ranges. */
 .plate-settings .win-content {
   display: grid;
@@ -796,7 +765,7 @@
 .win .layer-range-head input {
   width: 64px;
 }
-.layer-range-head .icon:last-child {
+.layer-range-head .icon-btn:last-child {
   margin-left: auto;
 }
 .option.invalid .input-unit input {

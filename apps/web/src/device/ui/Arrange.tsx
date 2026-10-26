@@ -218,17 +218,17 @@ export function DeviceCards({ printer, busy, arranging, onDone }: { printer: Sav
           </div>
         )}
         {layout.cameraCards.length < MAX_CAMERA_CARDS && (
-          <button className="dv-link" onClick={() => save(addCameraCard(layout, `cam:${Math.random().toString(36).slice(2, 8)}` as CamCardId))} data-testid="add-camera-card">
+          <button className="quiet" onClick={() => save(addCameraCard(layout, `cam:${Math.random().toString(36).slice(2, 8)}` as CamCardId))} data-testid="add-camera-card">
             Add a camera card
           </button>
         )}
         {layout.cameraCards.length < MAX_CAMERA_CARDS && (
-          <button className="dv-link" onClick={() => save(addCameraCard(layout, `page:${Math.random().toString(36).slice(2, 8)}` as CamCardId))} data-testid="add-page-card">
+          <button className="quiet" onClick={() => save(addCameraCard(layout, `page:${Math.random().toString(36).slice(2, 8)}` as CamCardId))} data-testid="add-page-card">
             Add a page card
           </button>
         )}
         <button
-          className="dv-link"
+          className="quiet"
           onClick={() =>
             save({
               ...layout,
@@ -400,11 +400,11 @@ function Slot(props: {
                 ))}
               </select>
             )}
-            <button className="dv-link" onClick={() => props.onHide(!hidden)} data-testid={`hide-${id}`}>
+            <button className="quiet" onClick={() => props.onHide(!hidden)} data-testid={`hide-${id}`}>
               {hidden ? 'Show' : 'Hide'}
             </button>
             {props.onRemove && (
-              <button className="dv-link dv-danger-text" onClick={props.onRemove} data-testid={`remove-${id}`}>
+              <button className="quiet danger" onClick={props.onRemove} data-testid={`remove-${id}`}>
                 Remove
               </button>
             )}
