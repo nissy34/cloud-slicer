@@ -157,14 +157,14 @@ function SvgFields({
           </>
         }
       />
-      <label className="chip">
-        <input type="checkbox" checked={keepRatio} onChange={(e) => setKeepRatio(e.target.checked)} />
+      <label className="switch-row">
+        <input className="switch" type="checkbox" checked={keepRatio} onChange={(e) => setKeepRatio(e.target.checked)} />
         Keep proportions
       </label>
       {onObject && (
         <div className="shape-checks">
-          <label className="chip" title="The shape bends with the object's surface instead of standing flat on it">
-            <input
+          <label className="switch-row" title="The shape bends with the object's surface instead of standing flat on it">
+            <input className="switch"
               type="checkbox"
               checked={size.useSurface}
               disabled={working}

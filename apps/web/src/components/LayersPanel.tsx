@@ -167,8 +167,8 @@ export function LayersPanel({ object }: { object: number }) {
               <Slider aria-label="Smoothing radius" min={1} max={10} step={1} value={radius} onChange={(e) => setRadius(Number(e.target.value))} />
               <span className="unit">{radius}</span>
             </label>
-            <label className="chip">
-              <input type="checkbox" checked={keepMin} onChange={(e) => setKeepMin(e.target.checked)} />
+            <label className="switch-row">
+              <input className="switch" type="checkbox" checked={keepMin} onChange={(e) => setKeepMin(e.target.checked)} />
               <span>Keep the thinnest layers</span>
             </label>
           </div>

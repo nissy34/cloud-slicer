@@ -4,8 +4,9 @@ import { metaFromMoonraker, thumbnailUrl, type GcodeMeta } from '../gcode-meta';
 import type { GcodeFile } from '../session';
 import { currentSession, useDevice } from '../../state/device';
 import { Card, useConfirm } from './parts';
-import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { ChevronLeft, ChevronRight, FileCode } from 'lucide-react';
 import { Swatch } from '../../components/Swatch';
+import { Empty } from '../../components/Empty';
 
 function size(bytes: number) {
   return bytes >= 1 << 20 ? `${(bytes / (1 << 20)).toFixed(1)} MB` : `${Math.max(1, Math.round(bytes / 1024))} KB`;
@@ -142,7 +143,7 @@ export function FilesCard() {
       {files == null ? (
         <p className="muted">…</p>
       ) : files.length === 0 ? (
-        <p className="muted">No G-code files yet.</p>
+        <Empty icon={FileCode} text="No G-code files yet." />
       ) : (
         <>
           {files.length > FILES_PER_PAGE && (

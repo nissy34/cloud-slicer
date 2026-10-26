@@ -34,7 +34,7 @@ element can carry `data-theme` to show the other theme inside it.
 
 1. **Tokens only.** No colour, text size, corner, shadow or layer typed by hand.
 2. **Button or link.** Does something: a button (Quiet when it is small and in a row or card header). Goes to another page: a link. No characters (✕ ⋯ ✎ ⚠ ▾) as icons: use Lucide.
-3. **Chip, switch or check box.** One of a set, or a short on/off word in a tool or window (Advanced, Keep up): a chip. One thing that acts at once, or an option written as a sentence: a switch row (chips don't wrap). Picking rows in a long list, and a setting's own box in the settings list: a check box, and only there.
+3. **Chip, switch or check box.** Picking among several (filters, materials, which filaments): chips. One thing on or off (Advanced, Keep up, Half width, Level the bed): a switch row, its words after the switch; several of them stack in a `.switch-list`. Picking rows in a long list, and a setting's own box in the settings list: a check box, and only there.
 4. **Tabs or chooser.** Changes what you see below: line tabs. Picks one value of 2 to 4 (or a few numbers, like columns): a chooser. More than 4: a dropdown. Status words that can't be tapped: a tag.
 5. **Tooltip over text.** Help goes in a tooltip or ⓘ. Text on screen only when it changes what you'd do now.
 6. **Every icon button has a tooltip**, with the same words as its label for screen readers, and it works by long-press on a phone.
@@ -53,7 +53,7 @@ Shared parts and where they live. A screen uses these instead of styling its own
 | Message | `components/Notice.tsx`, `components/Notices.tsx` |
 | Buttons | `styles/base.css`: Main `.primary` (one per place), Normal `.secondary` (`.ghost` is Normal without its fill, for bars and tool panels), Quiet `.quiet` (blue words on a faint blue box: actions in card headers and rows, such as Arrange, Manage, + Add, Print…, Upload G-code…). Add `.danger` to any of them. An icon goes inside as a Lucide icon at 16 px, before the words. |
 | Icon button | `components/IconButton.tsx` (`.icon-btn`): square, `--ctl` high, a Lucide icon, and its label as tooltip and for screen readers. ✕ (close, remove), ⋯ (more), edit, reset |
-| Chips | `styles/parts.css`: `.chips` holds them; `.chip` is a `<button aria-pressed>`, or a `<label class="chip">` around a check box (the box is invisible, over the chip). Blue when on |
+| Chips | `styles/parts.css`: `.chips` holds them; `.chip` is a `<button aria-pressed>`, or a `<label class="chip">` around a check box (the box is invisible, over the chip). Blue when on. Only for picking among several; a lone on/off is a switch |
 | Tags | `styles/parts.css`: `.tag`, grey, or `.ok` `.warn` `.danger` `.accent`. Says how something is (Test, Blocked, the engine); never tappable |
 | Switch | `styles/parts.css`: `<input type="checkbox" class="switch" role="switch">`, or `<span class="switch on">` drawn inside a menu row. `.switch-row` is the label with its words |
 | Chooser | `styles/parts.css`: `.chooser` around 2 to 4 buttons on a grey track; the picked one (`aria-pressed`, `aria-checked`, `aria-selected`, `.on` or `.active`) is white and bold |
@@ -61,12 +61,16 @@ Shared parts and where they live. A screen uses these instead of styling its own
 | Slider | `components/Slider.tsx` (`.slider`): a thin track that fills in blue up to an 18 px thumb, `--ctl` tall to grab. Layers, cut, paint, mix, brim ears, simplify, Device fans. The mix slider keeps its colour strip as the track |
 | Filament swatch | `components/Swatch.tsx` (`.swatch`): a rounded square in the filament's colour, its number inside in black or white, whichever reads (`textOn` in `lib/mixing.ts`, WCAG contrast). `sm` a dot in menus and file rows, `md` with a number, `lg` the filament list. `empty` (class `unloaded`): striped, no filament loaded |
 | Line tabs | `styles/parts.css`: `.line-tabs` (role `tablist`) around buttons; the open one (`aria-selected` or `.active`) is underlined in blue. Settings pages |
+| Card | `components/Card.tsx` (`.card`): a bordered box, 12 × 16 inside, a bold title in sentence case with its actions on the right as Quiet or icon buttons. Device cards (which add folding), Admin, the manage window's bridges; project tiles use the same box with a smaller edge |
+| Section title | `.group h2` in `styles/prepare.css`: the sidebar's sections (Printer, Filament, Process, Objects, Process settings, Slicer engine) are bold sentence case with a muted Lucide icon in front |
+| Note | `components/Note.tsx` (`.note`): a sign and words in a tinted box inside the page. Grey information, orange warning, red error (read out at once). A message that comes and goes is a Notice instead; a word or two in a row (Feeder jammed) stays coloured text |
+| Empty place | `components/Empty.tsx` (`.empty-place`): an icon, one sentence and at most one main button, centred where the content would be. No printers, no projects, no G-code files, no camera |
 | Picker | `components/Picker.tsx`, `styles/parts.css` (`.picker`, `.picker-list`): a button showing the current choice and a chevron, opening the site's own list (never the browser's), placed by Floating UI (`@floating-ui/react`). Choices may carry a colour swatch and the current one has a blue ✓; a line, then actions in the normal text colour with a grey icon in front, words ending in "…" (gear + "Printers & bridges…"). Arrow keys, Escape and a tap outside work. Use it when a list needs actions or swatches; a plain list of values stays a native `<select>`. Its rows are the shared menu rows (`.menu-item`, `.menu-check`, `hr`) that the object menu also uses |
 | Icons | [Lucide](https://lucide.dev) (`lucide-react`), line icons at 16 px (20–24 px for tiles). The Device tab names its icons by meaning in `device/ui/icons.tsx`. Orca's own toolbar, view and plate icons stay as they are (`src/assets/`) |
 
-Still to come (picked on the design-system page): card, pop-over,
-phone tooltips, notes, empty places. Each joins this table and the design page
-when it is built.
+Still to come (picked on the design-system page): menus and pop-overs (on the
+Picker's rows), phone tooltips, phone polish, words and motion. Each joins this
+table and the design page when it is built.
 
 ## Stylesheets
 

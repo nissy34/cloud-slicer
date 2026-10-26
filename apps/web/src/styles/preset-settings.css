@@ -130,10 +130,7 @@
 }
 .dv-manage-card {
   display: grid;
-  gap: 10px;
-  padding: 12px;
-  border: 1px solid var(--border);
-  border-radius: var(--r-lg);
+  gap: var(--s-5);
 }
 .dv-manage-card p {
   margin: 0;
@@ -169,9 +166,8 @@
   border-radius: var(--r-md);
   background: var(--surface-2);
 }
-.dv-manage-update .dv-alert {
+.dv-manage-update .note {
   flex-basis: 100%;
-  margin: 0;
 }
 .dv-manage-confirm {
   display: grid;

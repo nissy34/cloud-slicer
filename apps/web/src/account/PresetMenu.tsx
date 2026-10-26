@@ -15,6 +15,7 @@ import { usePresetImport } from './ImportPresets';
 import { canShareFiles, presetBundle, presetFileName, saveFile } from '../lib/preset-files';
 import { Ellipsis } from 'lucide-react';
 import { IconButton } from '../components/IconButton';
+import { Note } from '../components/Note';
 
 /** Every user preset as one zip that desktop Orca's Import Configs reads too. */
 export async function exportAllPresets(share = false): Promise<number> {
@@ -319,9 +320,9 @@ export function PresetMenu({ type, slot }: { type: PresetType; slot?: number }) 
             </div>
           )}
           {error && (
-            <p className="account-error" role="alert">
+            <Note tone="error">
               {error}
-            </p>
+            </Note>
           )}
         </div>
       )}

@@ -30,9 +30,6 @@
   justify-content: space-between;
   gap: 12px;
 }
-.menu-note.warn {
-  color: var(--warn);
-}
 @media (min-width: 1100px) {
   .autosave-pill {
     display: inline-flex;

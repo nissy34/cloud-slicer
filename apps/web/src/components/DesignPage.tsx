@@ -4,11 +4,14 @@
 import { useState, type ReactNode } from 'react';
 import { Dialog } from './Dialog';
 import { Notice } from './Notice';
-import { ArrowDownToLine, ChevronDown, ChevronRight, CircleCheck, Ellipsis, Info, Moon, Pencil, RotateCcw, Settings, Sun, TriangleAlert, X, type LucideIcon } from 'lucide-react';
+import { ArrowDownToLine, Boxes, ChevronDown, ChevronRight, CircleCheck, Ellipsis, FileCode, Info, Moon, Pencil, Printer, RotateCcw, Settings, Sun, TriangleAlert, X, type LucideIcon } from 'lucide-react';
 import { IconButton } from './IconButton';
 import { Picker } from './Picker';
 import { Slider } from './Slider';
 import { Swatch } from './Swatch';
+import { Card } from './Card';
+import { Note } from './Note';
+import { Empty } from './Empty';
 
 const COLOURS = [
   ['bg', 'page'],
@@ -83,11 +86,11 @@ function Choices() {
             {f}
           </button>
         ))}
-        <label className="chip">
-          <input type="checkbox" checked={advanced} onChange={(e) => setAdvanced(e.target.checked)} />
-          Advanced
-        </label>
       </div>
+      <label className="switch-row">
+        <input className="switch" type="checkbox" checked={advanced} onChange={(e) => setAdvanced(e.target.checked)} />
+        Advanced
+      </label>
       <div className="ds-row">
         <span className="tag">Snapmaker Orca 2.4.0</span>
         <span className="tag ok">Printed</span>
@@ -152,6 +155,37 @@ function Fields() {
         <Swatch colour="#FFEE00" number={2} size="lg" />
         <Swatch colour="#D7263D" size="sm" />
         <Swatch empty />
+      </div>
+    </>
+  );
+}
+
+/** A card, a sidebar section title, the three notes and an empty place. */
+function Containers() {
+  return (
+    <>
+      <div className="ds-cards">
+        <Card title="Print" actions={<button className="quiet">Choose</button>}>
+          <Note tone="warn">The printer firmware has stopped.</Note>
+        </Card>
+        <Card title="Files" actions={<IconButton icon={Ellipsis} label="More" />}>
+          <Empty icon={FileCode} text="No G-code files yet." />
+        </Card>
+      </div>
+      <div className="group ds-group">
+        <h2>
+          <Printer aria-hidden />
+          Printer
+        </h2>
+        <h2>
+          <Boxes aria-hidden />
+          Objects
+        </h2>
+      </div>
+      <div className="ds-notes">
+        <Note>Accounts aren't set up on this site yet. Save still downloads the 3MF.</Note>
+        <Note tone="warn">This object's painting will be removed, as on desktop.</Note>
+        <Note tone="error">Couldn't save: the network is down.</Note>
       </div>
     </>
   );
@@ -243,6 +277,9 @@ function Sheet({ theme, onWindow }: { theme: 'light' | 'dark'; onWindow(): void 
       </Section>
       <Section title="Picker">
         <PickerDemo />
+      </Section>
+      <Section title="Cards, titles, notes, empty places">
+        <Containers />
       </Section>
       <Section title="Window and messages">
         <div className="ds-row">

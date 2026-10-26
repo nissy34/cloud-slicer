@@ -9,6 +9,9 @@ import { useSlicer } from '../state/store';
 import { Dialog } from './Dialog';
 import { continueOffer, yourDevice } from '../lib/autosave';
 import { deviceId } from '../lib/storage';
+import { Note } from './Note';
+import { Empty } from './Empty';
+import { FolderOpen } from 'lucide-react';
 
 const isMac = typeof navigator !== 'undefined' && /Mac|iPhone|iPad/.test(navigator.platform);
 const MOD = isMac ? '⌘' : 'Ctrl+';
@@ -188,7 +191,7 @@ export function ProjectMenu() {
                 : 'AutoSave is off: changes wait for Save.'}
             </p>
           )}
-          {stopped && <p className="menu-note warn">{stopped}</p>}
+          {stopped && <Note tone="warn" className="menu-note-box">{stopped}</Note>}
           {!signedIn && <p className="menu-note">Sign in to keep projects online and open them on any device.</p>}
         </div>
       )}
@@ -355,28 +358,32 @@ function ProjectsDialog() {
       }
     >
       {status !== 'signedIn' ? (
-        <div className="projects-empty">
-          <p>Sign in to keep projects online and open them on any device.</p>
-          {status === 'signedOut' && (
-            <button className="primary" onClick={() => void useAccount.getState().signIn('google')}>
-              Sign in with Google
-            </button>
-          )}
-          {status === 'unavailable' && <p className="muted small">Accounts aren't set up on this site yet. Save still downloads the 3MF.</p>}
-        </div>
+        <Empty
+          icon={FolderOpen}
+          text="Sign in to keep projects online and open them on any device."
+          action={
+            status === 'signedOut' && (
+              <button className="primary" onClick={() => void useAccount.getState().signIn('google')}>
+                Sign in with Google
+              </button>
+            )
+          }
+        >
+          {status === 'unavailable' && <Note tone="info">Accounts aren't set up on this site yet. Save still downloads the 3MF.</Note>}
+        </Empty>
       ) : !list ? (
         <p className="muted">{error || 'Loading…'}</p>
       ) : (
         <>
-          {!list.enabled && <p className="account-error">Online projects aren't set up on this site yet. Save as a download instead.</p>}
-          {error && <p className="account-error">{error}</p>}
+          {!list.enabled && <Note tone="warn">Online projects aren't set up on this site yet. Save as a download instead.</Note>}
+          {error && <Note tone="error">{error}</Note>}
           <ContinueRow list={list} onOpen={(proj) => void openProject(proj)} />
           {list.projects.filter((x) => !x.draft).length === 0 ? (
-            <p className="projects-empty muted">No projects yet. Use Save in the Project menu to keep the open project here.</p>
+            <Empty icon={FolderOpen} text="No projects yet. Use Save in the Project menu to keep the open project here." />
           ) : (
             <ul className="projects-grid">
               {list.projects.filter((x) => !x.draft).map((proj) => (
-                <li key={proj.id} className={proj.id === currentId ? 'project-card current' : 'project-card'}>
+                <li key={proj.id} className={proj.id === currentId ? 'card project-card current' : 'card project-card'}>
                   <button className="project-thumb" title={`Open ${proj.name}`} onClick={() => void openProject(proj)}>
                     {proj.hasThumbnail ? <img src={projectThumbnailUrl(proj)} alt="" loading="lazy" /> : <span aria-hidden>3MF</span>}
                   </button>

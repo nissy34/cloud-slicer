@@ -154,7 +154,7 @@
 .wizard-filters select {
   max-width: 45%;
 }
-.wizard-filters input {
+.wizard-filters input:not(.switch) {
   flex: 1;
   min-width: 0;
 }

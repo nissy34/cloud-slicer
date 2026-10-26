@@ -13,6 +13,7 @@ import { useSlicer } from '../state/store';
 import { ask } from './AskDialog';
 import { Dialog } from './Dialog';
 import { IconButton } from './IconButton';
+import { Note } from './Note';
 
 /**
  * Opens the wizard from anywhere. Once setup is done, "Manage" and the pickers'
@@ -278,7 +279,7 @@ function Manage({ tab: firstTab, onClose }: { tab: Tab; onClose: () => void }) {
       className="manage"
       footer={
         <>
-          {error && <p className="hint warn manage-error">{error}</p>}
+          {error && <Note tone="error" className="manage-error">{error}</Note>}
           <button className="secondary" onClick={() => void close()}>
             Cancel
           </button>
@@ -381,8 +382,8 @@ function PrinterStep({ all, chosen, onChange, manage }: { all: PresetSummary[]; 
       </p>
       <div className="wizard-filters">
         <input type="search" placeholder="Search printers" aria-label="Search printers" value={query} onChange={(e) => setQuery(e.target.value)} />
-        <label className="chip">
-          <input type="checkbox" checked={sendOnly} onChange={(e) => setSendOnly(e.target.checked)} />
+        <label className="switch-row">
+          <input className="switch" type="checkbox" checked={sendOnly} onChange={(e) => setSendOnly(e.target.checked)} />
           <span>Only direct print</span>
         </label>
       </div>

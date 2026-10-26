@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { BOOLEAN_OPS, defaultPair, pickerLabels, type BooleanOp } from '../lib/boolean';
 import { KIND_LABELS } from '../lib/volumes';
 import { useSlicer } from '../state/store';
+import { Note } from './Note';
 
 /**
  * Desktop's Mesh boolean tool for the selected object: union, difference or
@@ -72,7 +73,7 @@ export function BooleanPanel({ object }: { object: number }) {
           </p>
           {picker(first, a, (v) => setPair([v, b]))}
           {picker(second, b, (v) => setPair([a, v]))}
-          {a === b && <p className="hint simplify-warning">Pick two different parts.</p>}
+          {a === b && <Note tone="warn">Pick two different parts.</Note>}
           {op !== 'union' && (
             <label className="switch-row">
               <input className="switch" type="checkbox" checked={deleteInput} onChange={(e) => setDeleteInput(e.target.checked)} />

@@ -2,7 +2,7 @@ import { printableLabel } from '../lib/printable';
 import { KIND_CODES, KIND_COLOURS, KIND_LABELS } from '../lib/volumes';
 import { NO_COLOURS, useSlicer } from '../state/store';
 import { ObjectSettings } from './ObjectSettings';
-import { Ellipsis } from 'lucide-react';
+import { Boxes, Ellipsis } from 'lucide-react';
 import { IconButton } from './IconButton';
 
 /** Objects on the current plate, their filament, and the selected one's settings. */
@@ -48,7 +48,10 @@ export function ObjectList() {
   const sel = selected && project.objects[selected.object]?.instances[selected.instance];
   return (
     <section className="group">
-      <h2>Objects</h2>
+      <h2>
+        <Boxes aria-hidden />
+        Objects
+      </h2>
       <ul className="objects">
         {onPlate.map((o) => {
           const obj = project.objects[o];

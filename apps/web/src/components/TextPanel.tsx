@@ -4,6 +4,7 @@ import { KIND_LABELS, keepsAPart } from '../lib/volumes';
 import { addFontFile, availableFonts, canListComputerFonts, loadComputerFonts, nextTextStyle, rememberTextStyle, restoreFonts } from '../state/fonts';
 import { useSlicer } from '../state/store';
 import { ShapeActions, ShapePlacement, placementHint } from './ShapePlacement';
+import { Note } from './Note';
 
 const TYPES = ['part', 'negative', 'modifier'] as const;
 /** The font list's groups: built-in fonts (Latin, then each other script), font files, the computer's. */
@@ -158,7 +159,7 @@ function TextFields({
   return (
     <>
       <textarea className="text-input" aria-label="Text" dir="auto" rows={2} value={style.text} onChange={(e) => set('text', e.target.value)} />
-      {!style.text.trim() && <p className="hint simplify-warning">Type some text.</p>}
+      {!style.text.trim() && <Note tone="warn">Type some text.</Note>}
       <label className="transform-row text-row">
         <span>Font</span>
         <select
@@ -203,8 +204,8 @@ function TextFields({
           set('font', choice.name);
         }}
       />
-      {missingFont && <p className="hint simplify-warning">This text was made with a font that isn't on this device. Pick a font to change the text.</p>}
-      {missing && !missingFont && <p className="hint simplify-warning">{missingLettersHint(missing)}</p>}
+      {missingFont && <Note tone="warn">This text was made with a font that isn't on this device. Pick a font to change the text.</Note>}
+      {missing && !missingFont && <Note tone="warn">{missingLettersHint(missing)}</Note>}
       <ShapePlacement
         object={object}
         volume={volume}
@@ -251,12 +252,12 @@ function TextFields({
       </div>
       {onObject && (
         <div className="shape-checks">
-          <label className="chip" title="The text bends with the object's surface instead of standing flat on it">
-            <input type="checkbox" checked={style.useSurface} onChange={(e) => set('useSurface', e.target.checked)} />
+          <label className="switch-row" title="The text bends with the object's surface instead of standing flat on it">
+            <input className="switch" type="checkbox" checked={style.useSurface} onChange={(e) => set('useSurface', e.target.checked)} />
             Use surface
           </label>
-          <label className="chip" title="Each letter sits on the surface on its own, so text can go around a curved object">
-            <input type="checkbox" checked={style.perGlyph} onChange={(e) => set('perGlyph', e.target.checked)} />
+          <label className="switch-row" title="Each letter sits on the surface on its own, so text can go around a curved object">
+            <input className="switch" type="checkbox" checked={style.perGlyph} onChange={(e) => set('perGlyph', e.target.checked)} />
             Per letter
           </label>
         </div>

@@ -7,6 +7,8 @@ import type { PrinterSession } from '../session';
 import { playWebrtc } from '../webrtc';
 import { playDirect, type DirectBridge } from '../direct-camera';
 import { Card, useFolded } from './parts';
+import { CameraOff } from 'lucide-react';
+import { Empty } from '../../components/Empty';
 
 /**
  * A camera's own player page can only be framed by this cross-origin isolated
@@ -135,8 +137,9 @@ export function CameraCard({
       )}
       {!online || !session || !shown || shown.length === 0 ? (
         <div className="dv-camera">
-          <span className="muted">
-            {!online
+          <Empty
+            icon={CameraOff}
+            text={!online
                 ? 'Not connected'
                 : !shown
                   ? 'Looking for cameras…'
@@ -147,7 +150,7 @@ export function CameraCard({
                     : cams?.length
                     ? 'All cameras are hidden. Use Choose to show one.'
                     : (addons.map((a) => a.cameraMissing).find(Boolean) ?? `This printer has no camera set up in ${addons.map((a) => a.host?.name).find(Boolean) ?? 'Moonraker'}.`)}
-          </span>
+          />
         </div>
       ) : (
         <div

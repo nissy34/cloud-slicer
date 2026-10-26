@@ -7,6 +7,7 @@ import { DEFAULT_PAINT, PaintPanel } from './PaintPanel';
 import { startText } from './TextPanel';
 import { ToolPanel } from './ToolPanel';
 import { PHONE } from '../lib/breakpoints';
+import { Note } from './Note';
 
 // Desktop Snapmaker Orca's toolbar icons (resources/images, AGPL-3.0 like this
 // app). Their dark grey and teal become the page's text and accent colours.
@@ -352,8 +353,8 @@ function ToolError() {
   const message = useSlicer((s) => (s.job.kind === 'error' && s.job.inTool ? s.job.message : ''));
   if (!message) return null;
   return (
-    <p className="tool-error error-text" role="alert">
+    <Note tone="error" className="tool-error">
       {sentence(message)}
-    </p>
+    </Note>
   );
 }
