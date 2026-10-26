@@ -406,27 +406,19 @@
   width: 20px;
   height: 20px;
 }
-.view-menu {
-  display: grid;
+/* The views menu: a small box to the left of its button, Iso across the top and
+   the six sides in two columns (shortcut keys in each one's tooltip). */
+.menu.view-menu {
   grid-template-columns: 1fr 1fr;
-  gap: 4px;
-  padding: 6px;
-  border: 1px solid var(--border);
-  border-radius: var(--r-lg);
-  background: var(--surface);
-  box-shadow: var(--shadow-1);
+  gap: var(--s-1);
+  min-width: 0;
+  padding: var(--s-2);
 }
-.view-menu button {
-  padding: 6px 10px;
-  border: 1px solid var(--border);
-  border-radius: var(--r-md);
-  background: var(--surface-2);
-  font-size: var(--t-md);
-  cursor: pointer;
+.menu.view-menu .menu-item {
+  justify-content: center;
+  min-height: 0;
+  padding: var(--s-2) var(--s-5);
 }
-.view-menu button:first-child {
+.menu.view-menu .menu-item:first-child {
   grid-column: 1 / -1;
-}
-.view-menu button:hover {
-  border-color: var(--accent);
 }

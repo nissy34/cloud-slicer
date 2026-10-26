@@ -5,6 +5,7 @@ import type { AlertEvent, AlertPrefs } from '../alerts';
 import { isIos, thisDevice } from '../push';
 import { Icon, type IconName } from './icons';
 import { Card } from './parts';
+import { InfoTip } from '../../components/InfoTip';
 import { Note } from '../../components/Note';
 
 type Tile = [AlertEvent, IconName, string, string];
@@ -113,10 +114,18 @@ export function AlertsCard() {
       </div>
       {bridge
         ? on && (
-            <Note>Sent through the bridge, even when the browser is closed. Each says how far the print is, the time left and the filament used.</Note>
+            <Note>
+              Sent through the bridge, even when the browser is closed.
+              <InfoTip label="About bridge alerts">Each says how far the print is, the time left and the filament used.</InfoTip>
+            </Note>
           )
         : (
-            <Note>This printer is reached straight from the browser, so alerts only come while Cloud Slicer is open in a tab. Through a bridge they come with the browser closed too.</Note>
+            <Note>
+              Alerts only come while Cloud Slicer is open in a tab.
+              <InfoTip label="About alerts without a bridge">
+                This printer is reached straight from the browser. Through a bridge, alerts come with the browser closed too.
+              </InfoTip>
+            </Note>
           )}
       {a.problem === 'ios-home' && (
         <Note tone="warn" testId="alerts-ios">
@@ -190,7 +199,14 @@ export function AlertsCard() {
               <AlertTile icon="offline" words="Bridge offline" label="The bridge goes offline" on={has('offline')} onChange={(v) => toggle('offline', v)} testId="alert-offline" />
             </div>
           )}
-          {bridge && prefs.pictures && <p className="muted dv-alerts-note">Pictures come from the printer’s camera on first and third layer, your layer, paused, failed, error, almost done and finished.{isIos() ? ' iPhone shows alerts without the picture.' : ''}</p>}
+          {bridge && prefs.pictures && (
+            <p className="muted dv-alerts-note">
+              Pictures come from the printer’s camera.
+              <InfoTip label="About alert pictures">
+                On first and third layer, your layer, paused, failed, error, almost done and finished.{isIos() ? ' iPhone shows alerts without the picture.' : ''}
+              </InfoTip>
+            </p>
+          )}
           <div className="dv-row">
             <button className="secondary" onClick={() => void a.test()} disabled={a.busy} data-testid="alert-test">
               <Icon name="bell" />

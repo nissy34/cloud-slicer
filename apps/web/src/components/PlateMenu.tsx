@@ -103,7 +103,7 @@ function MenuCard({ onAdd }: { onAdd(): void }) {
   return (
     <div
       ref={card}
-      className="object-menu plate-menu"
+      className="menu object-menu plate-menu"
       role="menu"
       aria-label={menu.onPlate ? 'Plate menu' : 'Add menu'}
       style={at ?? { left: menu.x, top: menu.y, visibility: 'hidden' }}

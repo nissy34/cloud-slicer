@@ -1,7 +1,7 @@
 // Save, rename and delete the user's own presets, next to each preset picker
 // (like desktop Orca's save / delete preset buttons). A preset is saved as a
 // diff over the system preset it inherits; signed in, it follows the account.
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import type { OrcaConfig } from '../engine/protocol';
 import { deleteUserPreset, listUserPresets, saveUserPreset, useAccount } from '../state/account';
 import { useSlicer } from '../state/store';
@@ -9,13 +9,13 @@ import { presetNameError, type PresetType } from './api';
 import { changesFor, copyName, systemParent } from './preset-diff';
 import { editPresets, presetTaken, sameValuesInBothEngines, saveAsNew, saveChanges, selectionWith } from './preset-save';
 import { engineName } from '../lib/engines';
-import { useFlipUp } from '../lib/flip-up';
 import { shortName } from '../lib/presets';
 import { usePresetImport } from './ImportPresets';
 import { canShareFiles, presetBundle, presetFileName, saveFile } from '../lib/preset-files';
 import { Ellipsis } from 'lucide-react';
 import { IconButton } from '../components/IconButton';
 import { Note } from '../components/Note';
+import { Menu } from '../components/Menu';
 
 /** Every user preset as one zip that desktop Orca's Import Configs reads too. */
 export async function exportAllPresets(share = false): Promise<number> {
@@ -48,8 +48,6 @@ export function PresetMenu({ type, slot }: { type: PresetType; slot?: number }) 
   const [error, setError] = useState('');
   const share = canShareFiles();
   const mineCount = useAccount((s) => s.presets.length);
-  const root = useRef<HTMLDivElement>(null);
-  const pop = useRef<HTMLDivElement>(null);
 
   const current = !selection
     ? ''
@@ -59,8 +57,6 @@ export function PresetMenu({ type, slot }: { type: PresetType; slot?: number }) 
         ? selection.process
         : selection.filaments[slot ?? 0];
   const preset = list.find((p) => p.name === current);
-  // Near the bottom of the sidebar (Process often is) the menu opens upward.
-  const up = useFlipUp(root, pop, !!mode && !!preset);
   const flavor = useSlicer((s) => s.flavor);
   const apart = useAccount((s) => s.presets.find((p) => p.type === type && p.name === current)?.engines?.apart?.length ?? 0);
   const other = engineName(flavor === 'orca' ? 'snapmaker' : 'orca');
@@ -77,18 +73,6 @@ export function PresetMenu({ type, slot }: { type: PresetType; slot?: number }) 
       live = false;
     };
   }, [mode, type, current]);
-
-  useEffect(() => {
-    if (!mode) return;
-    const away = (e: PointerEvent) => !root.current?.contains(e.target as Node) && close();
-    const esc = (e: KeyboardEvent) => e.key === 'Escape' && close();
-    document.addEventListener('pointerdown', away);
-    document.addEventListener('keydown', esc);
-    return () => {
-      document.removeEventListener('pointerdown', away);
-      document.removeEventListener('keydown', esc);
-    };
-  }, [mode]);
 
   function close() {
     setMode(null);
@@ -161,18 +145,25 @@ export function PresetMenu({ type, slot }: { type: PresetType; slot?: number }) 
   const label = LABEL[type];
   const where = signedIn ? 'Saved to your account.' : 'Saved in this browser until you sign in.';
   return (
-    <div className="preset-menu" ref={root}>
-      <IconButton
-        icon={Ellipsis}
-        label="More"
-        aria-label={`${label[0].toUpperCase() + label.slice(1)} preset actions${slot != null ? ` (filament ${slot + 1})` : ''}`}
-        aria-haspopup="dialog"
-        aria-expanded={!!mode}
-        disabled={busy || !preset}
-        onClick={() => (mode ? close() : setMode({ kind: 'menu' }))}
-      />
+    <Menu
+      label={`${label} preset`}
+      role="dialog"
+      placement="bottom-end"
+      className="preset-pop"
+      open={!!mode && !!preset}
+      onOpenChange={(next) => (next ? setMode({ kind: 'menu' }) : close())}
+      button={(props) => (
+        <IconButton
+          {...props}
+          icon={Ellipsis}
+          label="More"
+          aria-label={`${label[0].toUpperCase() + label.slice(1)} preset actions${slot != null ? ` (filament ${slot + 1})` : ''}`}
+          disabled={busy || !preset}
+        />
+      )}
+    >
       {mode && preset && (
-        <div ref={pop} className={up ? 'preset-pop up' : 'preset-pop'} role="dialog" aria-label={`${label} preset`}>
+        <>
           {mode.kind === 'menu' && (
             <>
               <p className="preset-pop-title" title={preset.name}>
@@ -305,7 +296,7 @@ export function PresetMenu({ type, slot }: { type: PresetType; slot?: number }) 
             </form>
           )}
           {mode.kind === 'delete' && (
-            <div>
+            <div className="stack">
               <p>
                 Delete <strong>{preset.name}</strong>? {signedIn ? 'It is removed from your account on every device.' : ''}
               </p>
@@ -319,13 +310,9 @@ export function PresetMenu({ type, slot }: { type: PresetType; slot?: number }) 
               </div>
             </div>
           )}
-          {error && (
-            <Note tone="error">
-              {error}
-            </Note>
-          )}
-        </div>
+          {error && <Note tone="error">{error}</Note>}
+        </>
       )}
-    </div>
+    </Menu>
   );
 }

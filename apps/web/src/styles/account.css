@@ -40,24 +40,10 @@
   font-size: var(--t-lg);
 }
 .account-pop {
-  position: absolute;
-  top: calc(100% + 8px);
-  right: 0;
-  z-index: var(--z-menu);
   width: 320px;
-  max-width: calc(100vw - 32px);
-  padding: 16px;
-  border: 1px solid var(--border);
-  border-radius: var(--r-lg);
-  background: var(--surface);
-  box-shadow: var(--shadow-2);
 }
 .account-pop h3 {
-  margin: 0 0 6px;
   font-size: var(--t-lg);
-}
-.account-pop p {
-  margin: 0 0 12px;
 }
 .account-muted {
   color: var(--muted);
@@ -65,7 +51,6 @@
 .account-providers {
   display: grid;
   gap: 8px;
-  margin-bottom: 12px;
 }
 .account-provider {
   width: 100%;
@@ -75,7 +60,6 @@
   display: flex;
   align-items: center;
   gap: 12px;
-  margin-bottom: 12px;
   min-width: 0;
 }
 .account-who > div {
@@ -86,7 +70,7 @@
   font-weight: 600;
 }
 .account-list {
-  margin: 0 0 12px;
+  margin: 0;
   padding: 10px 0 0;
   list-style: none;
   border-top: 1px solid var(--border);
@@ -110,13 +94,6 @@
   .account-button {
     padding: 3px;
   }
-  .account {
-    position: static;
-  }
-  .account-pop {
-    right: 16px;
-    top: calc(var(--topbar) + 4px);
-  }
 }
 
 /* Saving user presets (src/account/PresetMenu.tsx) */
@@ -131,33 +108,12 @@
 .group-actions.spaced {
   gap: 14px;
 }
-.preset-menu {
-  position: relative;
-}
 .preset-pop {
-  position: absolute;
-  top: calc(100% + 6px);
-  right: 0;
-  z-index: var(--z-menu);
   width: 300px;
-  max-width: calc(100vw - 32px);
-  padding: 14px;
-  border: 1px solid var(--border);
-  border-radius: var(--r-lg);
-  background: var(--surface);
-  box-shadow: var(--shadow-2);
   text-align: left;
-}
-.preset-pop.up {
-  top: auto;
-  bottom: calc(100% + 6px);
-}
-.preset-pop p {
-  margin: 0 0 10px;
 }
 .preset-pop .small {
   font-size: var(--t-sm);
-  margin: 10px 0 0;
 }
 .preset-pop-title {
   font-weight: 600;
@@ -170,14 +126,12 @@
 .preset-pop-actions.row {
   display: flex;
   justify-content: flex-end;
-  margin-top: 10px;
 }
 .preset-pop-actions .danger {
   color: var(--danger);
 }
 .preset-pop-actions + .preset-pop-actions {
-  margin-top: 10px;
-  padding-top: 10px;
+  padding-top: var(--s-4);
   border-top: 1px solid var(--border);
 }
 .preset-pop-split {

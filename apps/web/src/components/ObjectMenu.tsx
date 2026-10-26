@@ -110,7 +110,7 @@ function MenuCard() {
   return (
     <div
       ref={card}
-      className="object-menu"
+      className="menu object-menu"
       role="menu"
       aria-label={`${vol ? vol.name : obj.name || `Object ${o + 1}`} menu`}
       style={at ?? { left: menu.x, top: menu.y, visibility: 'hidden' }}

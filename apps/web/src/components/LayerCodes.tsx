@@ -122,7 +122,7 @@ export function LayerMenu({ layerZ, layer, onLayer, onClose }: { layerZ: Float32
   return (
     <div
       ref={card}
-      className="object-menu layer-menu"
+      className="menu object-menu layer-menu"
       role="menu"
       aria-label="Layer menu"
       data-testid="layer-menu"

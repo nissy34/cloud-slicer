@@ -11,6 +11,7 @@ import { continueOffer, yourDevice } from '../lib/autosave';
 import { deviceId } from '../lib/storage';
 import { Note } from './Note';
 import { Empty } from './Empty';
+import { Menu } from './Menu';
 import { FolderOpen } from 'lucide-react';
 
 const isMac = typeof navigator !== 'undefined' && /Mac|iPhone|iPad/.test(navigator.platform);
@@ -51,20 +52,7 @@ export function ProjectMenu() {
   const status = useSaveStatus();
   const p = useProjects.getState();
   const [open, setOpen] = useState(false);
-  const root = useRef<HTMLDivElement>(null);
   const input = useRef<HTMLInputElement>(null);
-
-  useEffect(() => {
-    if (!open) return;
-    const away = (e: PointerEvent) => !root.current?.contains(e.target as Node) && setOpen(false);
-    const esc = (e: KeyboardEvent) => e.key === 'Escape' && setOpen(false);
-    document.addEventListener('pointerdown', away);
-    document.addEventListener('keydown', esc);
-    return () => {
-      document.removeEventListener('pointerdown', away);
-      document.removeEventListener('keydown', esc);
-    };
-  }, [open]);
 
   // Ctrl+S / Ctrl+Shift+S / Ctrl+O, like desktop.
   useEffect(() => {
@@ -100,24 +88,76 @@ export function ProjectMenu() {
   const leaveOk = () => useProjects.getState().leaveOk();
 
   return (
-    <div className="project-menu" ref={root}>
-      <button
-        className="project-button"
-        aria-haspopup="menu"
-        aria-expanded={open}
-        disabled={!ready}
-        title={status ? `${name} (${status})` : dirty ? `${name} (unsaved changes)` : name}
-        onClick={() => setOpen(!open)}
+    <div className="project-menu">
+      <Menu
+        label="Project"
+        open={open}
+        onOpenChange={setOpen}
+        button={(props) => (
+          <button
+            {...props}
+            className="project-button"
+            disabled={!ready}
+            title={status ? `${name} (${status})` : dirty ? `${name} (unsaved changes)` : name}
+          >
+            <span className="project-label">Project</span>
+            <span className="project-name">
+              <span className="project-name-text">{name}</span>
+              {online && <span className="project-cloud" aria-label="saved online" title="Saved in your online projects" />}
+            </span>
+            {dirty && !autosaveBusy && <span className="project-dirty" aria-label="unsaved changes" />}
+            {status && !busy && <span className="project-status" data-testid="save-status">{status}</span>}
+            {busy && <span className="project-busy">{busy}</span>}
+          </button>
+        )}
       >
-        <span className="project-label">Project</span>
-        <span className="project-name">
-          <span className="project-name-text">{name}</span>
-          {online && <span className="project-cloud" aria-label="saved online" title="Saved in your online projects" />}
-        </span>
-        {dirty && !autosaveBusy && <span className="project-dirty" aria-label="unsaved changes" />}
-        {status && !busy && <span className="project-status" data-testid="save-status">{status}</span>}
-        {busy && <span className="project-busy">{busy}</span>}
-      </button>
+        {/* The default engine; the sidebar's Slicer engine dropdown picks the other one. */}
+        <button role="menuitem" className="menu-item" onClick={run(async () => (await leaveOk()) && p.newProject())}>
+          New project
+        </button>
+        <button role="menuitem" className="menu-item" onClick={run(() => input.current?.click())}>
+          Open from this device…<kbd>{MOD}O</kbd>
+        </button>
+        <button role="menuitem" className="menu-item" onClick={run(() => p.setListOpen(true))}>
+          Online projects…
+        </button>
+        <hr />
+        <button role="menuitem" className="menu-item" disabled={!!busy} onClick={run(() => p.save())}>
+          {signedIn ? 'Save' : 'Save (download)'}
+          <kbd>{MOD}S</kbd>
+        </button>
+        <button role="menuitem" className="menu-item" disabled={!!busy} onClick={run(() => p.setSaveAsOpen('copy'))}>
+          Save a copy…
+        </button>
+        <button role="menuitem" className="menu-item" disabled={!!busy} onClick={run(() => p.download())}>
+          Download 3MF
+        </button>
+        {engineInfo && (
+          <p className="menu-note" data-testid="project-engine">
+            This project slices with {engineInfo.name} {engineInfo.version}.
+          </p>
+        )}
+        {signedIn && (
+          <button
+            role="menuitemcheckbox"
+            aria-checked={autosave}
+            className="menu-item menu-switch"
+            onClick={() => void useProjects.getState().setAutosave(!autosave)}
+          >
+            AutoSave
+            <span className={autosave ? 'switch on' : 'switch'} aria-hidden />
+          </button>
+        )}
+        {signedIn && (
+          <p className="menu-note">
+            {autosave
+              ? 'AutoSave keeps changes in your online projects a few seconds after you make them. A new project stays a draft until you Save it.'
+              : 'AutoSave is off: changes wait for Save.'}
+          </p>
+        )}
+        {stopped && <Note tone="warn" className="menu-note-box">{stopped}</Note>}
+        {!signedIn && <p className="menu-note">Sign in to keep projects online and open them on any device.</p>}
+      </Menu>
       {signedIn && (
         <button
           className={autosave ? 'autosave-pill on' : 'autosave-pill'}
@@ -145,56 +185,6 @@ export function ProjectMenu() {
           })();
         }}
       />
-      {open && (
-        <div className="menu-pop" role="menu" aria-label="Project">
-          {/* The default engine; the sidebar's Slicer engine dropdown picks the other one. */}
-          <button role="menuitem" onClick={run(async () => (await leaveOk()) && p.newProject())}>
-            New project
-          </button>
-          <button role="menuitem" onClick={run(() => input.current?.click())}>
-            Open from this device…<kbd>{MOD}O</kbd>
-          </button>
-          <button role="menuitem" onClick={run(() => p.setListOpen(true))}>
-            Online projects…
-          </button>
-          <hr />
-          <button role="menuitem" disabled={!!busy} onClick={run(() => p.save())}>
-            {signedIn ? 'Save' : 'Save (download)'}
-            <kbd>{MOD}S</kbd>
-          </button>
-          <button role="menuitem" disabled={!!busy} onClick={run(() => p.setSaveAsOpen('copy'))}>
-            Save a copy…
-          </button>
-          <button role="menuitem" disabled={!!busy} onClick={run(() => p.download())}>
-            Download 3MF
-          </button>
-          {engineInfo && (
-            <p className="menu-note" data-testid="project-engine">
-              This project slices with {engineInfo.name} {engineInfo.version}.
-            </p>
-          )}
-          {signedIn && (
-            <button
-              role="menuitemcheckbox"
-              aria-checked={autosave}
-              className="menu-switch"
-              onClick={() => void useProjects.getState().setAutosave(!autosave)}
-            >
-              AutoSave
-              <span className={autosave ? 'switch on' : 'switch'} aria-hidden />
-            </button>
-          )}
-          {signedIn && (
-            <p className="menu-note">
-              {autosave
-                ? 'AutoSave keeps changes in your online projects a few seconds after you make them. A new project stays a draft until you Save it.'
-                : 'AutoSave is off: changes wait for Save.'}
-            </p>
-          )}
-          {stopped && <Note tone="warn" className="menu-note-box">{stopped}</Note>}
-          {!signedIn && <p className="menu-note">Sign in to keep projects online and open them on any device.</p>}
-        </div>
-      )}
       <SaveAsDialog />
       <ConflictDialog />
       <ProjectsDialog />

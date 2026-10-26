@@ -87,7 +87,7 @@ export function Picker({ label, value, options, onChange, actions = [], onAction
       {open && (
         <FloatingPortal>
           <FloatingFocusManager context={context} modal={false}>
-            <div ref={refs.setFloating} className="picker-list" style={floatingStyles} aria-label={label} {...getFloatingProps()}>
+            <div ref={refs.setFloating} className="menu picker-list" style={floatingStyles} aria-label={label} {...getFloatingProps()}>
               {options.map((o, i) => (
                 <button
                   key={o.value}
