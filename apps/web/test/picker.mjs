@@ -24,7 +24,7 @@ export async function pick(scope, name, choice) {
   const list = await openPicker(scope, name);
   const row =
     typeof choice === 'string' || 'value' in choice
-      ? list.locator(`[data-value="${(typeof choice === 'string' ? choice : choice.value).replace(/"/g, '\\"')}"]`)
+      ? list.locator(`[data-value=${JSON.stringify(typeof choice === 'string' ? choice : choice.value)}]`)
       : list.locator('[role="option"]').filter({ has: list.page().locator('.picker-label', { hasText: exactly(choice.label) }) });
   await row.first().click();
 }
