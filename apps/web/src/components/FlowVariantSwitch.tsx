@@ -14,7 +14,7 @@ export function FlowVariantSwitch() {
   if (modes.length < 2) return null;
   const current = Math.min(flowVariant, modes.length - 1);
   return (
-    <div className="flow-switch" role="radiogroup" aria-label="Flow variant">
+    <div className="chooser" role="radiogroup" aria-label="Flow variant">
       {modes.map((m, i) => (
         <button key={m} role="radio" aria-checked={i === current} className={i === current ? 'active' : ''} onClick={() => setFlowVariant(i)}>
           {flowModeLabel(m)}

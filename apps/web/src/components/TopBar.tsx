@@ -27,7 +27,7 @@ export function TopBar() {
       <ProjectMenu />
       <PrintProgress />
       {engineInfo && (
-        <span className="engine-badge" title={`Slicing with ${engineInfo.name} ${engineInfo.version}`}>
+        <span className="tag engine-badge" title={`Slicing with ${engineInfo.name} ${engineInfo.version}`}>
           {engineInfo.name} {engineInfo.version}
         </span>
       )}

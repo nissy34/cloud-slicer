@@ -106,7 +106,7 @@ export function CalibrationDialog({ onClose }: { onClose: () => void }) {
       {fields
         .filter((f) => f.kind === 'check')
         .map((f) => (
-          <label key={f.key} className="check">
+          <label key={f.key} className="chip">
             <input type="checkbox" checked={v[f.key] !== false} onChange={(e) => change(f.key, e.target.checked)} />
             {f.label}
           </label>

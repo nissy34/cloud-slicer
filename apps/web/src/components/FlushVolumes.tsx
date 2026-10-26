@@ -105,7 +105,7 @@ function FlushVolumesDialog({ onClose }: { onClose(): void }) {
           needs more.
         </p>
         {nozzles > 1 && (
-          <div className="dv-segmented" role="radiogroup" aria-label="Nozzle">
+          <div className="chooser" role="radiogroup" aria-label="Nozzle">
             {Array.from({ length: nozzles }, (_, i) => (
               <button key={i} role="radio" aria-checked={i === b} className={i === b ? 'on' : ''} onClick={() => setNozzle(i)}>
                 {NOZZLE_NAMES[i] ?? `Nozzle ${i + 1}`}

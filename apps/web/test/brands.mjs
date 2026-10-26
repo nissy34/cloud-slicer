@@ -86,9 +86,9 @@ try {
     await page.screenshot({ path: join(shots, 'wizard-search.png') });
     await page.setViewportSize({ width: 390, height: 844 });
     await search.fill('');
-    await wizard.getByText('Only direct print').click();
+    await wizard.getByLabel('Only direct print').click();
     await page.screenshot({ path: join(shots, 'wizard-send-only-phone.png') });
-    await wizard.getByText('Only direct print').click();
+    await wizard.getByLabel('Only direct print').click();
     await page.setViewportSize({ width: 1280, height: 800 });
   }
 
@@ -134,7 +134,7 @@ try {
   // Once set up, Manage opens on the Printers tab and saves from there.
   await page.getByRole('button', { name: 'Manage' }).click();
   await manage.getByRole('searchbox', { name: 'Search printers' }).fill('anker m5c');
-  await manage.locator('.wizard-models li').first().locator('.segmented button').first().click();
+  await manage.locator('.wizard-models li').first().locator('.chips button').first().click();
   await manage.getByRole('button', { name: 'Save', exact: true }).click();
   await manage.waitFor({ state: 'hidden', timeout: 60000 });
   const anker = (await picker.locator('option').allInnerTexts()).find((o) => /^Anker M5C/.test(o));

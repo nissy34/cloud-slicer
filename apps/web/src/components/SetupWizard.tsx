@@ -288,9 +288,9 @@ function Manage({ tab: firstTab, onClose }: { tab: Tab; onClose: () => void }) {
         </>
       }
     >
-      <div className="manage-tabs" role="tablist" aria-label="Printers and filaments">
+      <div className="line-tabs manage-tabs" role="tablist" aria-label="Printers and filaments">
         {TABS.map((t) => (
-          <button key={t.id} role="tab" aria-selected={tab === t.id} aria-label={t.label} className="manage-tab" onClick={() => setTab(t.id)}>
+          <button key={t.id} role="tab" aria-selected={tab === t.id} aria-label={t.label} onClick={() => setTab(t.id)}>
             <span className="manage-tab-long">{t.label}</span>
             {t.short && <span className="manage-tab-short">{t.short}</span>}
           </button>
@@ -381,7 +381,7 @@ function PrinterStep({ all, chosen, onChange, manage }: { all: PresetSummary[]; 
       </p>
       <div className="wizard-filters">
         <input type="search" placeholder="Search printers" aria-label="Search printers" value={query} onChange={(e) => setQuery(e.target.value)} />
-        <label className="check small">
+        <label className="chip">
           <input type="checkbox" checked={sendOnly} onChange={(e) => setSendOnly(e.target.checked)} />
           <span>Only direct print</span>
         </label>
@@ -407,9 +407,9 @@ function PrinterStep({ all, chosen, onChange, manage }: { all: PresetSummary[]; 
                         {m.model}
                         {m.send && <SendMark />}
                       </span>
-                      <span className="segmented" role="group" aria-label={`${m.model} nozzles`}>
+                      <span className="chips" role="group" aria-label={`${m.model} nozzles`}>
                         {m.nozzles.map((n) => (
-                          <button key={n.name} className={chosen.includes(n.name) ? 'on' : ''} aria-pressed={chosen.includes(n.name)} onClick={() => toggle(n.name)}>
+                          <button key={n.name} className="chip" aria-pressed={chosen.includes(n.name)} onClick={() => toggle(n.name)}>
                             {n.nozzle}
                           </button>
                         ))}

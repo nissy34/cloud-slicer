@@ -71,8 +71,7 @@
 .wizard-models li.on {
   border-color: var(--accent);
 }
-.wizard-models .segmented {
-  flex-wrap: wrap;
+.wizard-models .chips {
   margin-inline-start: auto;
 }
 .wizard-model {
@@ -106,12 +105,6 @@
 }
 .wizard-brands .wizard-models {
   margin-top: 6px;
-}
-.wizard-filters .check {
-  flex: none;
-  display: flex;
-  align-items: center;
-  gap: 4px;
 }
 /* Direct print: the app can send prints to this printer (Klipper): wizard, printer picker. */
 .send-mark {
@@ -209,29 +202,8 @@
   padding-bottom: 0;
   overflow: hidden;
 }
-.manage-tabs {
-  display: flex;
-  gap: var(--s-2);
-  border-bottom: 1px solid var(--border);
-}
-.manage-tab {
-  margin-bottom: -1px;
-  padding: var(--s-4) var(--s-5);
-  border: 0;
-  border-bottom: 2px solid transparent;
-  border-radius: 0;
-  background: none;
-  color: var(--muted);
-  font-size: var(--t-md);
-  font-weight: 600;
-  cursor: pointer;
-}
-.manage-tab:hover {
-  color: var(--text);
-}
-.manage-tab[aria-selected='true'] {
-  color: var(--text);
-  border-bottom-color: var(--accent);
+.manage-tabs > button {
+  padding-block: var(--s-4);
 }
 .manage-tab-short {
   display: none;
@@ -284,7 +256,10 @@
   .win.manage .win-body {
     height: calc(100dvh - 24px);
   }
-  .manage-tab {
+  .manage-tabs {
+    flex-wrap: nowrap;
+  }
+  .manage-tabs > button {
     flex: 1;
     min-height: 44px;
   }

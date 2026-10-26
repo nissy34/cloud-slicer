@@ -58,7 +58,7 @@ export function SimplifyPanel({ object }: { object: number }) {
           {working && <span className="muted"> (working out…)</span>}
         </span>
       </div>
-      <div className="segmented" role="radiogroup" aria-label="Simplify by">
+      <div className="chooser" role="radiogroup" aria-label="Simplify by">
         <button role="radio" aria-checked={mode === 'level'} className={mode === 'level' ? 'on' : ''} onClick={() => setMode('level')}>
           Detail level
         </button>

@@ -73,7 +73,7 @@
   border: 1px solid var(--border);
   background: var(--surface-2);
 }
-.win .check {
+.win .switch-row {
   align-items: flex-start;
 }
 .win-form {

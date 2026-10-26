@@ -11,9 +11,6 @@
   display: grid;
   gap: 4px;
 }
-.sync-filaments .dv-segmented {
-  margin: 0;
-}
 .sync-filaments .warn {
   color: var(--warn);
 }
@@ -283,9 +280,6 @@
 .admin-switch + .admin-switch {
   margin-top: 10px;
 }
-.admin-switch input {
-  margin-top: 3px;
-}
 .admin-switch > span {
   display: grid;
   gap: 2px;
@@ -367,21 +361,8 @@
   flex-wrap: wrap;
   justify-content: flex-end;
 }
-.admin-tag {
-  display: inline-block;
-  margin-left: 6px;
-  padding: 0 6px;
-  border-radius: var(--r-sm);
-  font-size: var(--t-xs);
-  background: var(--surface-2);
-  color: var(--muted);
-  vertical-align: 1px;
-}
-.admin-tag.danger {
-  color: var(--danger);
-}
-.admin-tag.warn {
-  color: var(--warn);
+.admin-user-who .tag {
+  margin-left: var(--s-2);
 }
 .admin-bridge-id {
   font-family: var(--font-mono);

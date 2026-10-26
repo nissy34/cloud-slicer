@@ -50,8 +50,8 @@ function CutPanel({ object, instance, height, onDone }: { object: number; instan
         </select>
       </label>
       {keep !== 'lower' && (
-        <label className="check">
-          <input type="checkbox" checked={flip} onChange={(e) => setFlip(e.target.checked)} />
+        <label className="switch-row">
+          <input className="switch" type="checkbox" checked={flip} onChange={(e) => setFlip(e.target.checked)} />
           <span>Flip the upper part onto its cut face</span>
         </label>
       )}
@@ -147,8 +147,8 @@ function TransformFields({ tool, object, instance, volume }: { tool: 'move' | 'r
       <AxisFields label="Scale" unit="%" values={at.scale.map((v) => Math.abs(v) * 100)} onSet={(axis, v) => setScale(axis, v / 100)} />
       <AxisFields label="Size" unit="mm" values={size} onSet={(axis, v) => at.meshSize[axis] > 0 && setScale(axis, v / at.meshSize[axis])} />
       <div className="tool-row">
-        <label className="check" title="Changing one box changes the other two by as much, so the shape keeps its proportions">
-          <input type="checkbox" checked={uniform} onChange={(e) => setUniformScale(e.target.checked)} />
+        <label className="switch-row" title="Changing one box changes the other two by as much, so the shape keeps its proportions">
+          <input className="switch" type="checkbox" checked={uniform} onChange={(e) => setUniformScale(e.target.checked)} />
           <span>Scale evenly</span>
         </label>
         {!vol && (
@@ -269,7 +269,7 @@ function MeasurePanel() {
           ))}
         </dl>
       )}
-      <label className="check">
+      <label className="chip">
         <input type="checkbox" checked={onlyPlane} onChange={(e) => setMeasureOnlyPlane(e.target.checked)} />
         <span>Pick whole faces only</span>
       </label>
@@ -325,8 +325,8 @@ export function ToolPanel() {
           {what} or type below to {tool} {several === 2 ? 'both' : `all ${several}`} chosen objects together{tool === 'move' ? '' : ' about their middle'}.
         </p>
         <GroupFields key={tool} tool={tool} />
-        <label className="check">
-          <input type="checkbox" checked={snap} onChange={(e) => setSnap(e.target.checked)} />
+        <label className="switch-row">
+          <input className="switch" type="checkbox" checked={snap} onChange={(e) => setSnap(e.target.checked)} />
           <span>{tool === 'rotate' ? 'Snap to 15°' : tool === 'move' ? 'Snap to 5 mm' : 'Snap to 10%'} (or hold Shift)</span>
         </label>
       </section>
@@ -374,8 +374,8 @@ export function ToolPanel() {
         />
       )}
       {tool !== 'flatten' && (
-        <label className="check">
-          <input type="checkbox" checked={snap} onChange={(e) => setSnap(e.target.checked)} />
+        <label className="switch-row">
+          <input className="switch" type="checkbox" checked={snap} onChange={(e) => setSnap(e.target.checked)} />
           <span>{tool === 'rotate' ? 'Snap to 15°' : tool === 'move' ? 'Snap to 5 mm' : 'Snap to 10%'} (or hold Shift)</span>
         </label>
       )}
