@@ -199,8 +199,8 @@ export const api = {
     call<{ project: OnlineProject }>(`${projectPath(id)}/device`, { method: 'POST', body: JSON.stringify({ device: device.id, deviceName: device.name }) }).then((r) => r.project),
   /** The project's print history, oldest first (lib/prints.ts). */
   prints: (id: string) => call<{ prints: PrintRecord[] }>(`${projectPath(id)}/prints`).then((r) => r.prints),
-  /** A send or a mark of one plate. */
-  addPrint: (id: string, p: Pick<PrintRecord, 'plate' | 'status'> & Partial<Pick<PrintRecord, 'printer' | 'printerName' | 'file' | 'fingerprint' | 'summary'>>) =>
+  /** A send (named by the print id in its file's tag) or a mark of one plate. */
+  addPrint: (id: string, p: Pick<PrintRecord, 'plate' | 'status'> & Partial<Pick<PrintRecord, 'id' | 'printer' | 'printerName' | 'file' | 'fingerprint' | 'summary'>>) =>
     call<{ print: PrintRecord }>(`${projectPath(id)}/prints`, { method: 'POST', body: JSON.stringify(p) }).then((r) => r.print),
   /** How a print went, or "Keep as printed" (fingerprint + summary). */
   updatePrint: (printId: string, p: Partial<Pick<PrintRecord, 'status' | 'duration' | 'progress' | 'fingerprint' | 'summary'>>) =>
