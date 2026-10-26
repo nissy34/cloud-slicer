@@ -1,0 +1,134 @@
+/* Windows (components/Dialog.tsx). */
+/* Windows (src/components/Dialog.tsx): every pop-up that needs an answer or holds
+   settings. Title with ✕, what it says, buttons bottom right with the main one last.
+   Only ✕, its buttons and Escape close it. A phone gets the same window. */
+.win {
+  --win-w: 460px;
+  width: min(var(--win-w), calc(100vw - 32px));
+  max-width: none;
+  max-height: calc(100dvh - 32px);
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: var(--r-xl);
+  background: var(--surface);
+  color: var(--text);
+  box-shadow: var(--shadow-3);
+}
+.win:focus {
+  outline: none;
+}
+.win.wide {
+  --win-w: 620px;
+}
+.win::backdrop {
+  background: var(--overlay);
+}
+.win-body {
+  display: flex;
+  flex-direction: column;
+  max-height: calc(100dvh - 32px);
+}
+.win-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 12px 4px 20px;
+}
+.win-head h2 {
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: var(--t-xl);
+  overflow-wrap: anywhere;
+}
+.win-close {
+  flex: none;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  display: grid;
+  place-items: center;
+  border: 0;
+  border-radius: var(--r-lg);
+  background: none;
+  color: var(--muted);
+  font-size: var(--t-lg);
+  cursor: pointer;
+}
+.win-close:hover {
+  background: var(--surface-2);
+  color: var(--text);
+}
+.win-content {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  align-content: start;
+  gap: 12px;
+  min-height: 0;
+  padding: 8px 20px 16px;
+  overflow: auto;
+}
+.win-content p,
+.win-form p {
+  margin: 0;
+}
+.win .field {
+  display: grid;
+  gap: 4px;
+}
+.win select {
+  padding: 6px 8px;
+  border-radius: var(--r-md);
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+}
+.win input:not([type='checkbox']):not([type='radio']):not([type='range']) {
+  padding: 6px 8px;
+  border-radius: var(--r-md);
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+}
+.win .check {
+  align-items: flex-start;
+}
+.win-form {
+  display: grid;
+  gap: 12px;
+}
+.win-foot,
+.win-foot-row {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 8px;
+}
+.win-foot {
+  padding: 12px 20px;
+  border-top: 1px solid var(--border);
+}
+/* A phone: the same centred window, a little tighter. */
+@media (max-width: 760px) {
+  .win {
+    width: calc(100vw - 24px);
+    max-height: calc(100dvh - 24px);
+  }
+  .win-body {
+    max-height: calc(100dvh - 24px);
+  }
+  .win-head {
+    padding: 12px 8px 4px 16px;
+  }
+  .win-content {
+    padding: 8px 16px 14px;
+  }
+  .win-foot {
+    padding: 12px 16px;
+  }
+}
+.small {
+  font-size: var(--t-sm);
+}

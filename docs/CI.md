@@ -112,7 +112,7 @@ access the site deploys without accounts or without online projects.
 ## `device.yml`: bridge, relay and Device tab
 
 Runs when the Device tab, the bridge, the relay, or shared top-bar files change (touching
-`styles.css` alone triggers it).
+any file in `src/styles/` alone triggers it).
 
 - On every run: the Go bridge's vet, gofmt and tests, and its builds for every Linux
   chip and Windows; relay typecheck, web unit tests and build; then the Device tab end to

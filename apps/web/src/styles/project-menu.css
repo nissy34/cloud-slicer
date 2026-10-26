@@ -1,0 +1,272 @@
+/* Project menu, online projects, theme menu, calibration button. */
+/* Project menu and online projects (src/components/ProjectMenu.tsx) */
+.project-menu {
+  position: relative;
+  min-width: 0;
+}
+.project-button {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  max-width: 280px;
+  padding: 5px 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  background: none;
+  cursor: pointer;
+}
+.project-button:hover:not(:disabled) {
+  background: var(--surface-2);
+}
+.project-label {
+  flex: none;
+  white-space: nowrap;
+  color: var(--muted);
+}
+.project-label::after {
+  content: ' ▾';
+  font-size: var(--t-xs);
+}
+.project-name {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  font-weight: 600;
+}
+/* Its own box, so a long name ends in "…" (a flex box can't shorten bare text). */
+.project-name-text {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.project-cloud {
+  flex: none;
+  width: 8px;
+  height: 8px;
+  border-radius: var(--r-sm);
+  background: var(--accent);
+}
+.project-dirty {
+  flex: none;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--warn);
+}
+.project-busy {
+  color: var(--muted);
+  font-size: var(--t-sm);
+  white-space: nowrap;
+}
+.menu-pop {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  z-index: var(--z-menu);
+  display: grid;
+  min-width: 240px;
+  padding: 6px;
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+  background: var(--surface);
+  box-shadow: var(--shadow-2);
+}
+.menu-pop button {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 8px 10px;
+  border: 0;
+  border-radius: var(--r-md);
+  background: none;
+  text-align: left;
+  cursor: pointer;
+}
+.menu-pop button:hover:not(:disabled) {
+  background: var(--surface-2);
+}
+.menu-pop kbd {
+  color: var(--muted);
+  font: inherit;
+  font-size: var(--t-sm);
+}
+.menu-pop hr {
+  width: 100%;
+  margin: 4px 0;
+  border: 0;
+  border-top: 1px solid var(--border);
+}
+.menu-note {
+  margin: 4px 10px 6px;
+  color: var(--muted);
+  font-size: var(--t-sm);
+}
+.win.projects-dialog {
+  --win-w: 760px;
+}
+.projects-empty {
+  display: grid;
+  gap: 12px;
+  justify-items: start;
+  padding: 8px 0;
+}
+.projects-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: 12px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.project-card {
+  display: grid;
+  gap: 4px;
+  align-content: start;
+  min-width: 0;
+  padding: 8px;
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+}
+.project-card.current {
+  border-color: var(--accent);
+}
+.project-thumb {
+  display: grid;
+  place-items: center;
+  aspect-ratio: 1;
+  padding: 0;
+  overflow: hidden;
+  border: 0;
+  border-radius: var(--r-md);
+  background: var(--thumb-bg);
+  color: var(--thumb-text);
+  cursor: pointer;
+}
+.project-thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.project-card-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 600;
+}
+.project-card input {
+  width: 100%;
+}
+.project-card-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 12px;
+}
+.project-card-actions .account-link {
+  display: inline;
+  margin: 0;
+}
+@media (max-width: 760px) {
+  /* Hidden but still read out, so the button stays "Project …" to screen readers. */
+  .project-label {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+  .project-button {
+    max-width: 38vw;
+    padding: 5px 8px;
+  }
+  .project-busy {
+    display: none;
+  }
+  .project-menu {
+    position: static;
+  }
+  .menu-pop {
+    left: 10px;
+    top: calc(var(--topbar) + 4px);
+  }
+  .projects-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+/* ===== Theme menu (components/ThemeMenu.tsx) ===== */
+.theme-menu {
+  position: relative;
+}
+.topbar .icon-button {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+}
+.theme-pop {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  z-index: var(--z-menu);
+  display: grid;
+  min-width: 200px;
+  padding: 4px;
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+  background: var(--surface);
+  box-shadow: var(--shadow-2);
+}
+.theme-item {
+  display: flex;
+  white-space: nowrap;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 10px;
+  border: 0;
+  border-radius: var(--r-md);
+  background: none;
+  text-align: left;
+  cursor: pointer;
+}
+.theme-item:hover {
+  background: var(--surface-2);
+}
+.theme-item.active {
+  font-weight: 600;
+  color: var(--accent);
+}
+.theme-hint {
+  color: var(--muted);
+  font-weight: 400;
+}
+/* Calibration: the word on a computer, the icon alone on a phone. */
+.calib-icon {
+  display: none;
+}
+@media (max-width: 760px) {
+  .topbar {
+    gap: 4px;
+  }
+  .topbar .calib-button {
+    display: grid;
+    place-items: center;
+    width: 28px;
+    height: 28px;
+    padding: 0;
+  }
+  .calib-icon {
+    display: block;
+  }
+  .calib-label {
+    display: none;
+  }
+  .topbar .icon-button {
+    width: 28px;
+    height: 28px;
+  }
+}

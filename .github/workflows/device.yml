@@ -26,10 +26,10 @@ name: Device
 on:
   push:
     branches: [main]
-    paths: ['apps/device-*/**', 'apps/web/src/device/**', 'apps/web/src/state/device.ts', 'apps/web/src/state/alerts.ts', 'apps/web/public/sw.js', 'apps/web/src/styles.css', 'apps/web/src/components/TopBar.tsx', 'apps/web/src/components/ThemeMenu.tsx', 'apps/web/src/account/AccountMenu.tsx', 'apps/web/test/device*', 'apps/web/test/device/**', '.github/workflows/device.yml', '.github/actions/playwright/**']
+    paths: ['apps/device-*/**', 'apps/web/src/device/**', 'apps/web/src/state/device.ts', 'apps/web/src/state/alerts.ts', 'apps/web/public/sw.js', 'apps/web/src/styles/**', 'apps/web/src/components/TopBar.tsx', 'apps/web/src/components/ThemeMenu.tsx', 'apps/web/src/account/AccountMenu.tsx', 'apps/web/test/device*', 'apps/web/test/device/**', '.github/workflows/device.yml', '.github/actions/playwright/**']
   pull_request:
     types: [opened, synchronize, reopened, labeled]
-    paths: ['apps/device-*/**', 'apps/web/src/device/**', 'apps/web/src/state/device.ts', 'apps/web/src/state/alerts.ts', 'apps/web/public/sw.js', 'apps/web/src/styles.css', 'apps/web/src/components/TopBar.tsx', 'apps/web/src/components/ThemeMenu.tsx', 'apps/web/src/account/AccountMenu.tsx', 'apps/web/test/device*', 'apps/web/test/device/**', '.github/workflows/device.yml', '.github/actions/playwright/**']
+    paths: ['apps/device-*/**', 'apps/web/src/device/**', 'apps/web/src/state/device.ts', 'apps/web/src/state/alerts.ts', 'apps/web/public/sw.js', 'apps/web/src/styles/**', 'apps/web/src/components/TopBar.tsx', 'apps/web/src/components/ThemeMenu.tsx', 'apps/web/src/account/AccountMenu.tsx', 'apps/web/test/device*', 'apps/web/test/device/**', '.github/workflows/device.yml', '.github/actions/playwright/**']
   workflow_dispatch:
     inputs:
       target:

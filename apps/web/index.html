@@ -18,7 +18,10 @@
         if (t !== 'light' && t !== 'dark') t = matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
         document.documentElement.dataset.theme = t;
         document.querySelector('meta[name=theme-color]').content = t === 'dark' ? '#17191d' : '#ffffff';
-      } catch (e) {}
+      } catch (e) {
+        // Storage blocked: still follow the system, as the stylesheet has no other dark switch.
+        document.documentElement.dataset.theme = matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+      }
     </script>
   </head>
   <body>

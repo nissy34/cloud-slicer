@@ -52,7 +52,7 @@ export type AssembleRequest =
 
 export type AssembleResult = Measurement & { first: MeasureFeature; second: MeasureFeature; object?: number };
 
-/** Hovered, first and second picked features (the --measure-* colours in styles.css). */
+/** Hovered, first and second picked features (the --measure-* colours in styles/tokens.css). */
 export const MEASURE_COLOURS = { hover: '#f5c542', first: '#ff6b4a', second: '#3fa7ff' } as const;
 
 const NAMES = { point: 'Point', edge: 'Edge', circle: 'Circle', plane: 'Plane' } as const;

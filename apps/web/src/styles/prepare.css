@@ -1,0 +1,849 @@
+/* Prepare: layout, action bar, sidebar, filament slots, colour mixing, objects, settings. */
+/* Prepare layout */
+.body {
+  display: grid;
+  grid-template-columns: 340px 1fr;
+  min-height: 0;
+}
+.panel {
+  overflow-y: auto;
+  background: var(--surface);
+  border-right: 1px solid var(--border);
+  padding: 8px 0;
+}
+.group {
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--border);
+  display: grid;
+  /* One column no wider than the panel: a long object name shortens with "…" instead of widening it. */
+  grid-template-columns: minmax(0, 1fr);
+  gap: 10px;
+}
+.group h2 {
+  margin: 0;
+  font-size: var(--t-xs);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--muted);
+}
+.preset {
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+  background: var(--surface-2);
+  min-width: 0;
+}
+.preset-name {
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.preset-sub {
+  color: var(--muted);
+  font-size: var(--t-sm);
+}
+.field {
+  display: grid;
+  gap: 4px;
+  color: var(--muted);
+  font-size: var(--t-sm);
+}
+.field select {
+  width: 100%;
+  padding: 6px 8px;
+  border-radius: var(--r-md);
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  color: var(--text);
+}
+
+.main {
+  display: grid;
+  grid-template-rows: 1fr auto;
+  min-width: 0;
+  min-height: 0;
+}
+.workspace {
+  position: relative;
+  min-height: 0;
+}
+.viewport {
+  position: absolute !important;
+  inset: 0;
+}
+.empty {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-content: center;
+  justify-items: center;
+  gap: 12px;
+  color: var(--scene-text);
+  pointer-events: none;
+}
+.empty p {
+  margin: 0;
+}
+.empty button {
+  pointer-events: auto;
+}
+.dropzone {
+  position: absolute;
+  inset: 12px;
+  display: grid;
+  place-content: center;
+  border: 2px dashed var(--accent);
+  border-radius: var(--r-xl);
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+  color: var(--text);
+  font-weight: 600;
+  pointer-events: none;
+}
+
+/* Action bar */
+.actionbar {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 10px 16px;
+  background: var(--surface);
+  border-top: 1px solid var(--border);
+  min-height: 56px;
+}
+.actionbar.error {
+  color: var(--danger);
+}
+.engine-failed {
+  align-items: flex-start;
+}
+.error-details {
+  margin: 8px 0 0;
+  max-height: 30vh;
+  overflow: auto;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  font-size: var(--t-sm);
+  color: var(--muted);
+  user-select: text;
+}
+.status {
+  flex: 1;
+  min-width: 0;
+}
+.actions {
+  display: flex;
+  gap: 8px;
+}
+.phone-only {
+  display: none;
+}
+.muted {
+  color: var(--muted);
+}
+.error-text {
+  color: var(--danger);
+  overflow-wrap: anywhere;
+  white-space: pre-line;
+}
+.progress {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.progress-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.progress-bar {
+  position: relative;
+  flex: 1;
+  max-width: 360px;
+  height: 10px;
+  border-radius: var(--r-sm);
+  overflow: hidden;
+  background: color-mix(in srgb, var(--accent) 16%, transparent);
+}
+/* Diagonal stripes slide across the filled part, so the bar always moves. */
+.progress-fill {
+  position: absolute;
+  inset: 0 auto 0 0;
+  border-radius: inherit;
+  background-color: var(--accent);
+  background-image: linear-gradient(
+    135deg,
+    var(--progress-stripe) 25%,
+    transparent 25%,
+    transparent 50%,
+    var(--progress-stripe) 50%,
+    var(--progress-stripe) 75%,
+    transparent 75%
+  );
+  background-size: 20px 20px;
+  animation: progress-stripes 0.8s linear infinite;
+  transition: width 0.3s ease-out;
+}
+@keyframes progress-stripes {
+  to {
+    background-position: 20px 0;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .progress-fill {
+    animation-duration: 3s;
+  }
+}
+.progress-pct {
+  flex: none;
+  min-width: 3.5ch;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+}
+.progress .stage {
+  font-size: var(--t-md);
+  color: var(--muted);
+  overflow-wrap: anywhere;
+}
+.progress button {
+  flex: none;
+  padding-block: 4px;
+}
+.stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 18px;
+  color: var(--muted);
+}
+.stats > span {
+  white-space: nowrap;
+}
+.stats b {
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Slice warnings, like desktop's notifications */
+.slice-warnings {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  margin-top: 4px;
+  font-size: var(--t-md);
+}
+.warnings-toggle {
+  padding: 2px 8px;
+  border: 1px solid color-mix(in srgb, var(--warn) 45%, transparent);
+  background: color-mix(in srgb, var(--warn) 12%, transparent);
+  color: var(--warn);
+  font-size: var(--t-md);
+}
+.warnings-toggle.serious {
+  border-color: color-mix(in srgb, var(--danger) 45%, transparent);
+  background: color-mix(in srgb, var(--danger) 12%, transparent);
+  color: var(--danger);
+}
+.warnings-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  max-height: 25dvh;
+  overflow-y: auto;
+  overflow-wrap: anywhere;
+  white-space: pre-line;
+}
+.warnings-list li {
+  padding: 2px 0 2px 10px;
+  border-left: 3px solid var(--warn);
+  margin-bottom: 4px;
+}
+.warnings-list li.serious {
+  border-left-color: var(--danger);
+  color: var(--danger);
+}
+
+/* Placeholder tabs */
+.coming-soon {
+  display: grid;
+  place-content: center;
+  text-align: center;
+  padding: 16px;
+  max-width: 520px;
+  margin: 0 auto;
+}
+.coming-soon h1 {
+  font-size: var(--t-2xl);
+  margin: 0 0 8px;
+}
+.coming-soon p {
+  margin: 4px 0;
+}
+
+/* Sidebar details */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+.group-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.link {
+  border: 0;
+  background: none;
+  padding: 0;
+  color: var(--accent);
+  cursor: pointer;
+}
+.link:hover {
+  text-decoration: underline;
+}
+/* The docked phone tool card sits outside the panel but keeps its fields. */
+.panel select,
+.panel input:not([type='checkbox']):not([type='color']),
+.panel textarea,
+.tool-pop.docked select,
+.tool-pop.docked input:not([type='checkbox']):not([type='color']):not([type='range']),
+.tool-pop.docked textarea {
+  min-width: 0;
+  padding: 5px 8px;
+  border-radius: var(--r-md);
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+}
+.panel textarea {
+  width: 100%;
+  resize: vertical;
+  font: var(--t-sm)/1.4 var(--font-mono);
+}
+.icon {
+  width: 26px;
+  height: 26px;
+  flex: none;
+  border: 1px solid transparent;
+  border-radius: var(--r-md);
+  background: none;
+  color: var(--muted);
+  cursor: pointer;
+  line-height: 1;
+}
+.icon:hover:not(:disabled) {
+  background: var(--surface-2);
+  color: var(--text);
+}
+.icon.reset {
+  color: var(--accent);
+}
+.hint {
+  margin: 0;
+  color: var(--muted);
+  font-size: var(--t-sm);
+}
+.hint.warn {
+  color: var(--danger);
+}
+.danger {
+  color: var(--danger);
+}
+
+/* Filament slots */
+.slots {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 6px;
+}
+.slot {
+  display: grid;
+  grid-template-columns: 30px 1fr auto;
+  align-items: center;
+  gap: 6px;
+}
+.slot select {
+  width: 100%;
+}
+.swatch {
+  position: relative;
+  width: 30px;
+  height: 30px;
+  border-radius: var(--r-md);
+  border: 1px solid var(--border);
+  display: grid;
+  place-content: center;
+  cursor: pointer;
+}
+.swatch input {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+.slot-number {
+  font-weight: 600;
+  font-size: var(--t-sm);
+  color: var(--on-colour);
+  text-shadow: 0 0 3px var(--on-colour-edge), 0 0 1px var(--on-colour-edge);
+}
+
+/* Colour mixing (desktop's Color Mixing panel and Add Mix dialog) */
+.mixes {
+  display: grid;
+  gap: 6px;
+  margin-top: 6px;
+}
+.mixes h3 {
+  margin: 0;
+  font-size: var(--t-md);
+  font-weight: 600;
+}
+.mix-badge {
+  padding: 0;
+  font: inherit;
+}
+.mix-label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-align: left;
+  padding: 6px 8px;
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  background: var(--surface-2);
+  color: var(--text);
+  font-size: var(--t-md);
+  cursor: pointer;
+}
+.win.mix-dialog {
+  --win-w: 480px;
+}
+.mix-preview {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.mix-preview p {
+  margin: 2px 0 0;
+}
+.mix-preview-swatch {
+  flex: none;
+  display: grid;
+  place-content: center;
+  width: 48px;
+  height: 48px;
+  border-radius: var(--r-lg);
+  border: 1px solid var(--border);
+  font-weight: 600;
+}
+.mix-body {
+  display: grid;
+  gap: 10px;
+}
+.mix-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.mix-row input[type='range'] {
+  flex: 1;
+  min-width: 0;
+  accent-color: var(--accent);
+}
+.mix-filament {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.mix-filament select {
+  flex: 1;
+  min-width: 0;
+}
+.mix-filament .paint-swatch {
+  flex: none;
+  width: 20px;
+  height: 20px;
+}
+.mix-slider {
+  display: grid;
+  gap: 4px;
+}
+.mix-slider input[type='range'] {
+  width: 100%;
+  height: 22px;
+  margin: 0;
+  border-radius: var(--r-lg);
+  border: 1px solid var(--border);
+  appearance: none;
+  -webkit-appearance: none;
+}
+.mix-slider input[type='range']::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: var(--on-colour);
+  border: 2px solid var(--thumb-edge);
+  box-shadow: 0 0 2px var(--on-colour-edge);
+}
+.mix-slider input[type='range']::-moz-range-thumb {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--on-colour);
+  border: 2px solid var(--thumb-edge);
+}
+.mix-scale {
+  display: flex;
+  justify-content: space-between;
+  font-size: var(--t-sm);
+}
+.mix-quick {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.mix-quick button {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-height: 34px;
+}
+.mix-sequence {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px;
+}
+.mix-sequence span {
+  width: 14px;
+  height: 22px;
+  border-radius: var(--r-sm);
+  border: 1px solid var(--border);
+}
+.mix-hex {
+  width: 9ch;
+  font-family: var(--font-mono);
+}
+.mix-compare {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  border-radius: var(--r-lg);
+  overflow: hidden;
+  border: 1px solid var(--border);
+}
+.mix-compare span {
+  padding: 18px 8px;
+  text-align: center;
+  font-size: var(--t-sm);
+  font-weight: 600;
+  color: var(--text);
+  text-shadow: 0 0 3px var(--surface);
+}
+.mix-end {
+  width: 46px;
+  flex: none;
+}
+.mix-gradient {
+  height: 64px;
+  border-radius: var(--r-lg);
+  border: 1px solid var(--border);
+}
+
+/* Objects */
+.objects,
+.volumes {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 2px;
+}
+.volumes {
+  padding: 2px 0 4px 14px;
+}
+.object {
+  border-radius: var(--r-md);
+}
+.object.active {
+  background: var(--surface-2);
+}
+.object-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 4px;
+}
+.object-name,
+.volume-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-align: left;
+}
+.object-name {
+  border: 0;
+  background: none;
+  padding: 4px 2px;
+  cursor: pointer;
+}
+/* Marked not printable: the slice leaves it out. */
+.object-name.unprintable {
+  color: var(--muted);
+}
+.panel .filament-pick {
+  width: 64px;
+  flex: none;
+  border-left: 4px solid;
+}
+.transform {
+  display: grid;
+  gap: 6px;
+  padding-top: 4px;
+}
+.transform-row {
+  display: grid;
+  grid-template-columns: 64px repeat(3, 1fr);
+  align-items: center;
+  gap: 6px;
+  color: var(--muted);
+  font-size: var(--t-sm);
+}
+.transform-row input {
+  width: 100%;
+  font-variant-numeric: tabular-nums;
+}
+.transform-row.actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+/* Settings */
+.pages {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+.page {
+  border: 1px solid var(--border);
+  background: none;
+  border-radius: var(--r-full);
+  padding: 3px 10px;
+  color: var(--muted);
+  cursor: pointer;
+  font-size: var(--t-sm);
+}
+.page.active {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--accent-text);
+}
+.slot-dot {
+  flex: none;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  border: 1px solid var(--border);
+}
+/* Desktop's [Standard flow] [High flow] switch: one segmented control. */
+.flow-switch {
+  display: flex;
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  overflow: hidden;
+  justify-self: start;
+  max-width: 100%;
+}
+.flow-switch button {
+  flex: 1 1 0;
+  border: 0;
+  background: none;
+  padding: 4px 12px;
+  color: var(--muted);
+  cursor: pointer;
+  font-size: var(--t-sm);
+  white-space: nowrap;
+}
+.flow-switch button + button {
+  border-left: 1px solid var(--border);
+}
+.flow-switch button.active {
+  background: var(--accent);
+  color: var(--accent-text);
+}
+.optgroup {
+  border: 0;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 6px;
+}
+.optgroup legend {
+  padding: 0 0 4px;
+  font-weight: 600;
+}
+.option {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 168px) 26px;
+  align-items: center;
+  gap: 6px;
+}
+.option > .check {
+  grid-column: 1 / 3;
+}
+.option > textarea {
+  grid-column: 1 / 3;
+}
+.option:has(> textarea) .option-label {
+  grid-column: 1 / -1;
+}
+.option-label {
+  color: var(--muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.option.modified .option-label,
+.option.modified .check span {
+  color: var(--accent);
+  font-weight: 600;
+}
+.option select {
+  width: 100%;
+}
+/* A typed value that was refused or changed: a red line under the box (lib/option-check.ts). */
+.option-note {
+  grid-column: 1 / -1;
+  margin: 0;
+  color: var(--danger);
+  font-size: var(--t-sm);
+}
+.option-note.plate-note {
+  color: var(--muted);
+}
+.plate-note .link {
+  font-size: var(--t-sm);
+}
+/* Plate settings window: the filament order chips and layer ranges. */
+.plate-settings .win-content {
+  display: grid;
+  gap: 12px;
+}
+.filament-order {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.order-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--r-full);
+  background: var(--surface);
+  color: var(--text);
+  font-size: var(--t-md);
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+}
+.order-chip.dragging {
+  border-color: var(--accent);
+  cursor: grabbing;
+}
+.order-chip .swatch {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  border: 1px solid var(--border);
+}
+.layer-ranges {
+  display: grid;
+  gap: 10px;
+  justify-items: start;
+}
+.layer-range {
+  display: grid;
+  gap: 6px;
+  padding: 8px;
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  justify-self: stretch;
+}
+.layer-range-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  color: var(--text);
+  font-size: var(--t-md);
+}
+.win .layer-range-head input {
+  width: 64px;
+}
+.layer-range-head .icon:last-child {
+  margin-left: auto;
+}
+.option.invalid .input-unit input {
+  border-color: var(--danger);
+  outline-color: var(--danger);
+}
+/* A setting another setting switched off, like desktop's greyed fields. */
+.option.disabled {
+  opacity: 0.45;
+}
+.settings-search {
+  box-sizing: border-box;
+  width: 100%;
+  padding: 6px 10px;
+  border-radius: var(--r-full);
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  color: var(--text);
+  font: inherit;
+}
+.settings-prompt p {
+  white-space: pre-line;
+}
+.input-unit {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+}
+.input-unit input {
+  width: 100%;
+}
+.unit {
+  color: var(--muted);
+  font-size: var(--t-xs);
+  white-space: nowrap;
+}
+.check {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+}
+.check input {
+  accent-color: var(--accent);
+}
+.check.small {
+  font-size: var(--t-sm);
+  color: var(--muted);
+}
