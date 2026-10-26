@@ -12,7 +12,7 @@ why: [README.md](README.md) (the docs map) and [architecture/](architecture/).
   then "Plate N sliced · View"), and Preview has the plate tabs too.
 - **Every printer brand the engine ships** (55 in Snapmaker Orca, 63 in OrcaSlicer, with
   their filaments and processes), with a first-run setup wizard (like Orca's) to pick the
-  printers and filaments you have: search, pictures, and a "Direct print" mark on the
+  printers and filaments you have, then a tabbed Printers and filaments window to change them: search, pictures, and a "Direct print" mark on the
   printers this app can send prints to (Klipper ones, Prusa through PrusaLink, the Elegoo Centauri Carbon and Bambu Lab); for the others you download the
   G-code. Snapmaker's presets load at start and another brand's only once you pick one
   of its printers, so the page starts as fast as with Snapmaker alone. The 3D view shows the

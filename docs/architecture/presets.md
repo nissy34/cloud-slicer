@@ -8,7 +8,8 @@
 
 Printer, filament and process presets exactly as desktop Orca has them: the brands' own
 system presets, the user's own presets saved as a difference from one, a first-run
-wizard to pick the printers and filaments you own, and preset files in and out.
+wizard to pick the printers and filaments you own (then a tabbed Manage window to change
+them), and preset files in and out.
 
 ## Pieces
 
@@ -17,7 +18,7 @@ wizard to pick the printers and filaments you own, and preset files in and out.
 | Bundling every brand, per engine | `engine/scripts/bundle-profiles.mjs` → `profiles.json`, `profiles/<brand>.json`, `profiles/catalog.json`, `profiles/beds/` |
 | Loading brands only when needed | `loadVendors` in `src/state/store.ts`, worker method `vendors` |
 | Catalog, Direct print marks | `src/lib/printer-catalog.ts` |
-| Setup wizard and its saved choice | `components/SetupWizard.tsx`, `lib/setup.ts` |
+| Setup wizard, the Manage window, and their saved choice | `components/SetupWizard.tsx` (`Wizard`, `Manage`), `lib/setup.ts` |
 | User presets: save, rename, delete | `account/PresetMenu.tsx`, `account/preset-save.ts`, `account/preset-diff.ts` |
 | One preset in both engines | `lib/preset-engines.ts`, `lib/shared-settings.json` (from `scripts/shared-settings.mjs`) |
 | Preset files in and out | `lib/preset-files.ts`, engine `presetExport` / `presetImportParse` |
@@ -54,6 +55,13 @@ wizard to pick the printers and filaments you own, and preset files in and out.
   settings are kept per engine on that engine's base preset.
 - Every plate type is offered on every printer; a printer starts on its own default
   (U1: Textured PEI).
+- The step-by-step wizard is only for setup: it opens by itself until finished once.
+  After that, Manage and the pickers' last entries ("Add or remove printers…", "Add or
+  remove filaments…") open **Printers and filaments**: tabs Printers (your printers as
+  chips with ✕ above the full list), Filaments and Default engine, one Save for all
+  tabs, and Cancel or ✕ asks before throwing changes away. No Connect tab: the Device
+  tab adds printer connections. Saving keeps the open project's printer, even one you
+  removed. Before setup is done, those entries open the wizard from its first page.
 - The wizard ticks nothing on a first visit; "Direct print" marks Klipper printers
   (through `inherits`), Prusa, Elegoo Centauri Carbon and Bambu Lab.
 
