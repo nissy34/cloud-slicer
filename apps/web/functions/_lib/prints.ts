@@ -55,6 +55,11 @@ const toPrint = (r: PrintRow) => ({
   summary: r.summary ? (JSON.parse(r.summary) as unknown) : null,
 });
 
+/** A record id the page or a file's tag names (lib/prints.ts newPrintId). */
+const printIdOf = (v: unknown) => {
+  if (typeof v !== 'string' || !/^[A-Za-z0-9_-]{8,64}$/.test(v)) throw new HttpError(400, 'Bad print id');
+  return v;
+};
 const validId = (id: string) => {
   if (!/^[A-Za-z0-9_-]{1,64}$/.test(id)) throw new HttpError(400, 'Bad id');
   return id;
@@ -115,8 +120,10 @@ export async function add(env: Env, request: Request, rawId: string): Promise<Re
   const status = String(b.status);
   if (!['uploaded', 'sent', 'marked', 'unmarked'].includes(status)) throw new HttpError(400, 'Bad status');
   await mustProject(env, user.id, id);
+  const send = status === 'uploaded' || status === 'sent';
   const row: PrintRow = {
-    id: crypto.randomUUID(),
+    // A send names its record (the id is in the file's tag line, so the printer's word finds it).
+    id: send && b.id !== undefined ? printIdOf(b.id) : crypto.randomUUID(),
     project_id: id,
     plate,
     status,
@@ -131,12 +138,23 @@ export async function add(env: Env, request: Request, rawId: string): Promise<Re
     summary: summaryOf(b.summary),
   };
   const d = env.DB!;
-  const superseded =
-    status === 'uploaded' || status === 'sent'
-      ? row.printer && row.file
-        ? d.prepare(`UPDATE project_prints SET status = 'unknown', ended_at = ? WHERE user_id = ? AND ${inOpen} AND printer = ? AND file = ?`).bind(row.at, user.id, row.printer, row.file)
-        : null
-      : d.prepare(`UPDATE project_prints SET status = 'unknown', ended_at = ? WHERE user_id = ? AND ${inOpen} AND project_id = ? AND plate = ?`).bind(row.at, user.id, id, plate);
+  // The bridge heard this print start before the page finished sending (the
+  // printer starts first, then the page records the send): it is the same record.
+  const heard = send && b.id !== undefined ? await d.prepare('SELECT * FROM project_prints WHERE user_id = ? AND id = ?').bind(user.id, row.id).first<PrintRow>() : null;
+  if (heard) {
+    if (heard.project_id !== id || heard.plate !== plate) throw new HttpError(409, 'That print is of another plate');
+    const kept = { ...heard, fingerprint: row.fingerprint ?? heard.fingerprint, summary: row.summary ?? heard.summary, printer_name: row.printer_name ?? heard.printer_name };
+    await d
+      .prepare('UPDATE project_prints SET fingerprint = ?, summary = ?, printer_name = ? WHERE user_id = ? AND id = ?')
+      .bind(kept.fingerprint, kept.summary, kept.printer_name, user.id, heard.id)
+      .run();
+    return json({ print: toPrint(kept) });
+  }
+  const superseded = send
+    ? row.printer && row.file
+      ? d.prepare(`UPDATE project_prints SET status = 'unknown', ended_at = ? WHERE user_id = ? AND ${inOpen} AND printer = ? AND file = ?`).bind(row.at, user.id, row.printer, row.file)
+      : null
+    : d.prepare(`UPDATE project_prints SET status = 'unknown', ended_at = ? WHERE user_id = ? AND ${inOpen} AND project_id = ? AND plate = ?`).bind(row.at, user.id, id, plate);
   await d.batch([
     ...(superseded ? [superseded] : []),
     d
@@ -289,12 +307,18 @@ export async function fromBridge(env: Env, request: Request): Promise<Response> 
     await d.prepare(`SELECT * FROM project_prints WHERE user_id = ? AND ${inOpen} ORDER BY at DESC`).bind(owner).all<PrintRow>()
   ).results;
   const onPrinter = (r: PrintRow) => !!r.printer && ids.includes(r.printer);
-  const candidates = open.filter((r) =>
+  // The file names its record: that one, while it waits. Once it ended, a print
+  // of the same file again (from the printer's screen) is a new record, found
+  // the usual way; not yet there, the page is still recording the send and
+  // will find the one made here.
+  const named = tag?.printId ? await d.prepare('SELECT * FROM project_prints WHERE user_id = ? AND id = ?').bind(owner, tag.printId).first<PrintRow>() : null;
+  const sameNamed = named && named.project_id === tag!.projectId && named.plate === tag!.plate ? named : null;
+  const candidates = tag?.printId && !named ? [] : open.filter((r) =>
     tag ? r.project_id === tag.projectId && r.plate === tag.plate && r.fingerprint === tag.fingerprint && onPrinter(r) : onPrinter(r) && sameFile(r.file ?? '', file),
   );
   // A waiting send counts for an end only when that print began after it; one already printing is this print.
   const fits = (r: PrintRow) => r.status === 'printing' || status === 'printing' || (total != null && total > 0 && r.at <= now - total * 1000 + SLACK_MS) || (!late && total == null);
-  const match = candidates.find(fits);
+  const match = sameNamed && OPEN.includes(sameNamed.status) ? sameNamed : candidates.find(fits);
 
   if (match) {
     if (status === 'printing' && match.status === 'printing') return json({ ok: true, print: match.id });
@@ -316,7 +340,7 @@ export async function fromBridge(env: Env, request: Request): Promise<Response> 
       .first();
     if (again) return json({ ok: true, print: (again as { id: string }).id });
   }
-  const id = crypto.randomUUID();
+  const id = tag.printId && !named ? tag.printId : crypto.randomUUID();
   const duration = num(b.duration);
   await d.batch([
     // Like a send: earlier records waiting on this file on this printer get no word.
