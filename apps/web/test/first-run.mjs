@@ -3,8 +3,9 @@
 // each time: nothing is picked before you pick it; after Finish the printer
 // list holds only the printers you picked (in the engine you chose, which
 // names some of them differently), the first one is selected, and the list's
-// "Add or remove printers…" entry opens the wizard's printer page, which can
-// save on its own. Picking the other engine first moves the empty first
+// "Add or remove printers…" entry opens Manage (the wizard's pages as tabs,
+// saved together) on its Printers tab; the filament list's "Add or remove
+// filaments…" opens its Filaments tab, and closing with changes asks first. Picking the other engine first moves the empty first
 // project to it, so the printer and filament pages list that engine's
 // presets; and the filaments you picked show in both engines under each one's
 // names (one row per filament, however many printers it has presets for).
@@ -120,16 +121,44 @@ async function firstRun({ label, engine, search, expect, badge, other, filaments
     await page.waitForFunction((v) => document.querySelector('select[aria-label="Printer preset"]')?.value === v, expect, { timeout: 60000 }).catch(() => {});
     if ((await picker.inputValue()) !== expect) fail(`${label}: after a reload "${await picker.inputValue()}" is selected`);
 
-    // The list's last entry opens the wizard on its printer page, with your printer picked.
+    // Once set up, the list's last entry opens Manage on its Printers tab (not the wizard), your printer listed and picked.
     await picker.selectOption({ label: 'Add or remove printers…' });
-    await wizard.getByRole('searchbox', { name: 'Search printers' }).waitFor({ timeout: 10000 });
-    const pickedNow = await wizard.locator('.wizard-models button[aria-pressed=true]').count();
-    if (pickedNow !== 1) fail(`${label}: the wizard shows ${pickedNow} printers picked, not 1`);
-    if ((await picker.inputValue()) !== expect) fail(`${label}: opening the wizard changed the printer to "${await picker.inputValue()}"`);
+    const manage = page.getByRole('dialog', { name: 'Printers and filaments' });
+    await manage.getByRole('searchbox', { name: 'Search printers' }).waitFor({ timeout: 10000 });
+    if (await wizard.isVisible()) fail(`${label}: "Add or remove printers…" opened the wizard after setup`);
+    const tab = async () => manage.getByRole('tab', { selected: true }).getAttribute('aria-label');
+    if ((await tab()) !== 'Printers') fail(`${label}: Manage opened on ${await tab()}, not Printers`);
+    const pickedNow = await manage.locator('.wizard-models button[aria-pressed=true]').count();
+    if (pickedNow !== 1) fail(`${label}: Manage shows ${pickedNow} printers picked, not 1`);
+    const mine = (await manage.locator('.manage-mine li').allInnerTexts()).map((t) => t.trim());
+    if (mine.length !== 1 || !mine[0].startsWith(expect)) fail(`${label}: "Your printers" lists ${mine.join(' | ')}`);
+    if ((await picker.inputValue()) !== expect) fail(`${label}: opening Manage changed the printer to "${await picker.inputValue()}"`);
     await shot(`${label}-add-printers`);
-    // Changing your printers later saves from this page.
-    if (!(await wizard.getByRole('button', { name: 'Save', exact: true }).isVisible())) fail(`${label}: no Save on the printer page when changing printers`);
-    await wizard.getByRole('button', { name: 'Not now' }).click();
+    const save = manage.getByRole('button', { name: 'Save', exact: true });
+    if (!(await save.isDisabled())) fail(`${label}: Save works before anything changed`);
+    // Looking at the other tabs changes nothing.
+    await manage.getByRole('tab', { name: 'Filaments' }).click();
+    await manage.locator('.wizard-filaments').waitFor({ timeout: 60000 });
+    await manage.getByRole('tab', { name: 'Default engine' }).click();
+    if (!(await save.isDisabled())) fail(`${label}: Save works after only looking at the tabs`);
+    // A change asks before it is thrown away.
+    await manage.getByRole('tab', { name: 'Printers' }).click();
+    await manage.locator('.manage-mine').getByRole('button', { name: /^Remove / }).click();
+    if (await manage.locator('.manage-mine li').count()) fail(`${label}: the printer is still under "Your printers" after ✕`);
+    await manage.getByRole('button', { name: 'Cancel', exact: true }).click();
+    const askDialog = page.getByTestId('ask-dialog');
+    await askDialog.waitFor({ timeout: 5000 });
+    await askDialog.getByRole('button', { name: 'Discard changes' }).click();
+    await manage.waitFor({ state: 'hidden', timeout: 5000 });
+    // Nothing was saved: the filament list's last entry opens Manage on Filaments, the printer still there.
+    await page.getByRole('combobox', { name: 'Filament 1 preset' }).selectOption({ label: 'Add or remove filaments…' });
+    await manage.waitFor({ timeout: 10000 });
+    if ((await tab()) !== 'Filaments') fail(`${label}: "Add or remove filaments…" opened Manage on ${await tab()}`);
+    await manage.getByRole('tab', { name: 'Printers' }).click();
+    if ((await manage.locator('.manage-mine li').count()) !== 1) fail(`${label}: Discard changes saved the removed printer`);
+    // Closing with no changes asks nothing.
+    await manage.getByRole('button', { name: 'Cancel', exact: true }).click();
+    await manage.waitFor({ state: 'hidden', timeout: 5000 });
     if (filaments) await checkFilaments(page, `${label} in ${badge}`, filaments);
 
     // Switching the empty project to the other engine keeps only your printer (not the U1 the engine used to start on).
