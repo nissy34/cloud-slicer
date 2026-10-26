@@ -1,0 +1,95 @@
+/* The design page (#design, components/DesignPage.tsx): light and dark side by side. */
+.ds-page {
+  position: fixed;
+  inset: 0;
+  overflow: auto;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  background: var(--bg);
+}
+.ds-sheet {
+  display: grid;
+  align-content: start;
+  gap: var(--s-7);
+  padding: var(--s-7) var(--s-6);
+  background: var(--bg);
+  color: var(--text);
+}
+.ds-sheet h1 {
+  margin: 0;
+  font-size: var(--t-2xl);
+  font-weight: 600;
+}
+.ds-section {
+  display: grid;
+  gap: var(--s-5);
+  padding: var(--s-5) var(--s-6);
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+  background: var(--surface);
+}
+.ds-section h2 {
+  margin: 0;
+  font-size: var(--t-lg);
+  font-weight: 600;
+}
+.ds-colours {
+  display: grid;
+  gap: var(--s-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.ds-colours li {
+  display: grid;
+  grid-template-columns: 40px 120px minmax(0, 1fr);
+  gap: var(--s-4);
+  align-items: center;
+}
+.ds-swatch {
+  height: 24px;
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+}
+.ds-muted {
+  color: var(--muted);
+}
+.ds-type {
+  margin: 0;
+}
+.ds-type code {
+  display: inline-block;
+  width: 80px;
+  font-size: var(--t-sm);
+  font-weight: 400;
+  color: var(--muted);
+}
+.ds-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s-4);
+  align-items: end;
+}
+.ds-step {
+  height: 32px;
+  background: var(--accent);
+  border-radius: var(--r-sm);
+}
+.ds-box {
+  display: grid;
+  place-items: center;
+  width: 64px;
+  height: 44px;
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  color: var(--muted);
+  font-size: var(--t-xs);
+}
+.ds-lifted {
+  background: var(--surface);
+  border-radius: var(--r-lg);
+}
+.ds-notices {
+  display: grid;
+  gap: var(--s-4);
+}

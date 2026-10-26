@@ -531,7 +531,7 @@ export function Preview() {
   // Line types (FEATURES indexes) hidden from the legend, as desktop's Display column.
   const [hidden, setHidden] = useState<ReadonlySet<number>>(() => new Set());
   const range = useMemo(() => (parsed ? valueRange(parsed, colourBy, hidden) : null), [parsed, colourBy, hidden]);
-  // On a phone the key is a strip above the 3D view (styles.css), so it can start open there too.
+  // On a phone the key is a strip above the 3D view (styles/phone.css), so it can start open there too.
   const [keyOpen, setKeyOpen] = useState(true);
   const upTo = Math.min(layer, layers - 1);
   const scene = useSceneColours();

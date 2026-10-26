@@ -1,0 +1,270 @@
+/* Accounts, saving and importing presets. */
+/* ===== Accounts (src/account/, phase 3) ===== */
+.account {
+  position: relative;
+}
+.account-button {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  max-width: 200px;
+  padding: 3px 10px 3px 3px;
+  border: 1px solid var(--border);
+  border-radius: var(--r-full);
+  background: none;
+  cursor: pointer;
+}
+.account-button:hover {
+  background: var(--surface-2);
+}
+.account-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.account-avatar {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--accent), var(--brand-2));
+  color: var(--on-colour);
+  font-size: var(--t-xs);
+  font-weight: 600;
+}
+.account-avatar.large {
+  width: 40px;
+  height: 40px;
+  font-size: var(--t-lg);
+}
+.account-pop {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  z-index: var(--z-menu);
+  width: 320px;
+  max-width: calc(100vw - 32px);
+  padding: 16px;
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+  background: var(--surface);
+  box-shadow: var(--shadow-2);
+}
+.account-pop h3 {
+  margin: 0 0 6px;
+  font-size: var(--t-lg);
+}
+.account-pop p {
+  margin: 0 0 12px;
+}
+.account-muted {
+  color: var(--muted);
+}
+.account-providers {
+  display: grid;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+.account-provider {
+  width: 100%;
+  padding: 9px 14px;
+}
+.account-who {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 12px;
+  min-width: 0;
+}
+.account-who > div {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.account-title {
+  font-weight: 600;
+}
+.account-list {
+  margin: 0 0 12px;
+  padding: 10px 0 0;
+  list-style: none;
+  border-top: 1px solid var(--border);
+  color: var(--muted);
+  display: grid;
+  gap: 4px;
+}
+.account-link {
+  display: block;
+  padding: 0;
+  margin: 0 0 12px;
+  border: 0;
+  background: none;
+  color: var(--accent);
+  cursor: pointer;
+}
+.account-actions .account-link {
+  margin: 0;
+}
+.account-link.danger {
+  color: var(--danger);
+}
+.account-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.account-confirm p {
+  margin-bottom: 10px;
+}
+.account-danger {
+  background: var(--danger);
+}
+.account-error {
+  margin: 12px 0 0 !important;
+  padding: 8px 10px;
+  border-radius: var(--r-md);
+  background: var(--surface-2);
+  color: var(--danger);
+}
+@media (max-width: 760px) {
+  .account-name {
+    display: none;
+  }
+  .account-button {
+    padding: 3px;
+  }
+  .account {
+    position: static;
+  }
+  .account-pop {
+    right: 16px;
+    top: calc(var(--topbar) + 4px);
+  }
+}
+
+/* Saving user presets (src/account/PresetMenu.tsx) */
+.slot {
+  grid-template-columns: 30px minmax(0, 1fr) auto auto auto;
+}
+.group-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.group-actions.spaced {
+  gap: 14px;
+}
+.preset-menu {
+  position: relative;
+}
+.preset-pop {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  z-index: var(--z-menu);
+  width: 300px;
+  max-width: calc(100vw - 32px);
+  padding: 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+  background: var(--surface);
+  box-shadow: var(--shadow-2);
+  text-align: left;
+}
+.preset-pop.up {
+  top: auto;
+  bottom: calc(100% + 6px);
+}
+.preset-pop p {
+  margin: 0 0 10px;
+}
+.preset-pop .small {
+  font-size: var(--t-sm);
+  margin: 10px 0 0;
+}
+.preset-pop-title {
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+.preset-pop-actions {
+  display: grid;
+  gap: 6px;
+}
+.preset-pop-actions.row {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 10px;
+}
+.preset-pop-actions .danger {
+  color: var(--danger);
+}
+.preset-pop-actions + .preset-pop-actions {
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid var(--border);
+}
+.preset-pop-split {
+  display: flex;
+  gap: 6px;
+}
+.preset-pop-split > :first-child {
+  flex: 1;
+}
+
+/* Import presets */
+.win.import-presets {
+  --win-w: 560px;
+}
+.import-list,
+.import-problems {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.import-problems li {
+  font-size: var(--t-md);
+  color: var(--danger);
+}
+.import-row {
+  display: grid;
+  gap: 6px;
+  padding: 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+  background: var(--surface-2);
+}
+.import-row.rejected {
+  opacity: 0.85;
+}
+.import-row-head {
+  display: flex;
+  gap: 8px;
+  align-items: baseline;
+  overflow-wrap: anywhere;
+}
+.import-type {
+  flex: none;
+  font-size: var(--t-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--muted);
+}
+.import-row select {
+  width: 100%;
+}
+.win .warn,
+.import-note.warn {
+  color: var(--danger);
+}
+
+.preset-pop-field {
+  display: grid;
+  gap: 4px;
+}
+.preset-pop-field input {
+  width: 100%;
+}

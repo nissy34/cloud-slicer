@@ -1,0 +1,124 @@
+/* ==========================================================================
+   Design tokens: the only place a colour, text size, corner, shadow or layer
+   is typed. Every other rule uses these (src/lib/stylesheets.test.ts checks).
+   The rules for using them are in docs/architecture/design-system.md.
+
+   Dark theme: index.html and src/lib/theme.ts always set data-theme on <html>
+   (System resolves to light or dark there), so dark values are written once,
+   under [data-theme='dark']. Any element can carry data-theme to show the
+   other theme inside it (the design page, #design, shows both side by side).
+   ========================================================================== */
+:root,
+[data-theme='light'] {
+  /* Colours */
+  --bg: #f5f6f8;
+  --surface: #ffffff;
+  --surface-2: #eef0f3;
+  --border: #dde1e7;
+  --text: #16191e;
+  --muted: #5d6573;
+  --accent: #2f6fe4;
+  --accent-text: #ffffff;
+  --danger: #c4312b;
+  --warn: #a35d00;
+  --ok: #1f8a4c;
+  /* Tints behind a chip that is on, a note or a tag; they follow the theme by themselves. */
+  --accent-soft: color-mix(in srgb, var(--accent) 15%, transparent);
+  --ok-soft: color-mix(in srgb, var(--ok) 15%, transparent);
+  --warn-soft: color-mix(in srgb, var(--warn) 15%, transparent);
+  --danger-soft: color-mix(in srgb, var(--danger) 15%, transparent);
+  /* Filled badges with white text: the same in both themes so the text stays readable. */
+  --ok-solid: #1f8a4c;
+  --warn-solid: #b26a00;
+  --danger-solid: #c4312b;
+  /* Text on a colour the theme doesn't choose (a filament, a badge, the 3D view, a camera). */
+  --on-colour: #ffffff;
+  --on-colour-edge: #000000;
+  --thumb-edge: #333333;
+  --brand-2: #8b5cf6;
+  --overlay: rgb(0 0 0 / 45%);
+  --progress-stripe: rgb(255 255 255 / 28%);
+  --media-bg: #000000;
+  --media-veil: rgb(0 0 0 / 55%);
+  --media-muted: #aaaaaa;
+  --thumb-bg: #16191e;
+  --thumb-text: #9aa1ac;
+  /* 3D views (read by lib/theme.ts) */
+  --scene-bg: #e8ebef;
+  --scene-bed: #d3d8df;
+  --scene-grid: #9ba3af;
+  --scene-ground: #b9bfc8;
+  --scene-bed-model: #535656;
+  --scene-exclude: #c9b8a6;
+  --scene-text: #3b414b;
+  --scene-label-bg: rgb(20 24 28 / 80%);
+  /* Measure tool features, both themes (same as MEASURE_COLOURS in lib/measure.ts) */
+  --measure-hover: #f5c542;
+  --measure-first: #ff6b4a;
+  --measure-second: #3fa7ff;
+
+  /* Text: six sizes, two weights (400, 600) */
+  --font-sans: 'Inter Variable', Inter, system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, monospace;
+  --t-xs: 11px; /* small labels, badges */
+  --t-sm: 12px; /* hints, small buttons */
+  --t-md: 13px; /* body */
+  --t-lg: 15px; /* card and section titles */
+  --t-xl: 18px; /* window titles */
+  --t-2xl: 22px; /* page titles */
+
+  /* Spacing steps (gap, padding, margin) */
+  --s-1: 2px;
+  --s-2: 4px;
+  --s-3: 6px;
+  --s-4: 8px;
+  --s-5: 12px;
+  --s-6: 16px;
+  --s-7: 24px;
+  --s-8: 32px;
+
+  /* Corners */
+  --r-sm: 4px; /* tags, swatches */
+  --r-md: 6px; /* buttons, fields */
+  --r-lg: 10px; /* cards, menus, panels */
+  --r-xl: 12px; /* windows, messages */
+  --r-full: 999px; /* chips, pills */
+
+  /* Shadows */
+  --shadow-1: 0 2px 8px rgb(0 0 0 / 18%); /* lifted: toolbar, floating buttons */
+  --shadow-2: 0 10px 28px rgb(0 0 0 / 20%); /* menus and pop-overs */
+  --shadow-3: 0 12px 40px rgb(0 0 0 / 30%); /* windows */
+
+  /* Layers (windows use the browser's own top layer) */
+  --z-notice: 40;
+  --z-menu: 50;
+  --z-context: 60;
+
+  /* Sizes */
+  --topbar: 48px;
+  /* Phone: up to 760px wide (src/lib/breakpoints.ts). Narrow phone: up to 420px. */
+
+  color-scheme: light;
+}
+
+[data-theme='dark'] {
+  --bg: #0f1114;
+  --surface: #17191d;
+  --surface-2: #20242a;
+  --border: #2c3138;
+  --text: #e6e8eb;
+  --muted: #9aa1ac;
+  --accent: #6e9cf5;
+  --accent-text: #0b1530;
+  --danger: #f08a84;
+  --warn: #e7a74a;
+  --ok: #5cc98a;
+  --scene-bg: #16191e;
+  --scene-bed: #2b2f36;
+  --scene-grid: #4a5160;
+  --scene-ground: #3a3f48;
+  --scene-bed-model: #414148;
+  --scene-exclude: #6f655b;
+  --scene-text: #c9ced6;
+  color-scheme: dark;
+}

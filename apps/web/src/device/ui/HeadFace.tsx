@@ -82,7 +82,7 @@ function Extra({ mood }: { mood: HeadMood }) {
       return <path className="dv-face-steam" d="M80 40q4-5 0-10t0-10M88 44q4-5 0-10t0-10" stroke="var(--dv-warm)" strokeWidth="2.5" fill="none" strokeLinecap="round" />;
     case 'worried':
       return (
-        <text x="80" y="30" fontSize="22" fontWeight="800" fill="var(--dv-warn)">
+        <text x="80" y="30" fontSize="22" fontWeight="800" fill="var(--warn)">
           !
         </text>
       );

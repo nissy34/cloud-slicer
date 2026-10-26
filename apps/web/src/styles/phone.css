@@ -1,0 +1,332 @@
+/* Phone layout (up to 760px) and narrow phones (up to 420px). */
+/* Phone: viewport first, panel below */
+@media (max-width: 760px) {
+  .topbar {
+    gap: 8px;
+    padding: 0 10px;
+  }
+  .tabs {
+    gap: 0;
+  }
+  .tab,
+  .topbar .ghost {
+    padding: 6px 8px;
+    font-size: var(--t-md);
+  }
+  .tabs {
+    min-width: 0;
+  }
+  .brand {
+    display: none;
+  }
+  /* One scrolling column: 3D view, then the settings, with the action bar
+     (Slice, stats, download) pinned to the bottom of the screen. */
+  .body {
+    display: flex;
+    flex-direction: column;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  }
+  .main {
+    display: contents;
+  }
+  .workspace {
+    order: 1;
+    flex: none;
+    height: 55dvh;
+    min-height: 300px;
+  }
+  .panel {
+    order: 2;
+    flex: none;
+    overflow: visible;
+    border-right: 0;
+    border-top: 1px solid var(--border);
+  }
+  .actionbar {
+    order: 3;
+    flex: none;
+    position: sticky;
+    bottom: 0;
+    z-index: 5;
+    flex-wrap: wrap;
+    gap: 8px;
+    padding: 8px 12px max(8px, env(safe-area-inset-bottom));
+  }
+  .actionbar .status {
+    flex-basis: 100%;
+  }
+  .actionbar .actions {
+    flex: 1;
+  }
+  .actionbar .actions button {
+    flex: 1;
+    padding-inline: 8px;
+  }
+  .actionbar .wide-only {
+    display: none;
+  }
+  .actionbar .phone-only {
+    display: inline;
+  }
+  .stats {
+    gap: 2px 12px;
+    font-size: var(--t-md);
+  }
+  .stats .muted {
+    display: none;
+  }
+  /* The full panel width is available on a phone, so give values more room. */
+  .option {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 200px) 26px;
+  }
+  .plate-tabs {
+    max-width: calc(100% - 76px);
+    top: auto;
+    bottom: 12px;
+  }
+  /* Above the layer slider, as the view buttons are. */
+  .preview .plate-tabs {
+    top: auto;
+    bottom: 64px;
+  }
+  .view-buttons {
+    right: 8px;
+    bottom: 8px;
+  }
+  .view-buttons.over-slider {
+    bottom: 64px;
+  }
+  .view-button {
+    width: 40px;
+    height: 40px;
+  }
+  .view-menu button {
+    padding: 8px 12px;
+  }
+  .workspace-tools {
+    left: 12px;
+    gap: 6px;
+  }
+  /* Bigger touch targets; the row scrolls sideways. */
+  .toolbar {
+    left: 6px;
+    right: 6px;
+    transform: none;
+    max-width: none;
+  }
+  .tool {
+    width: 40px;
+    height: 40px;
+  }
+  .workspace-tools {
+    top: 64px;
+  }
+  /* Phone with a tool open: the toolbar, then the tool's card, then the 3D
+     view, stacked so nothing covers the plate. The settings hide until Done
+     and the column stops scrolling, so all three stay on screen. A tall card
+     scrolls inside itself and leaves the model at least half the room. */
+  .body:has(.tool-pop.docked) {
+    overflow: hidden;
+  }
+  .body:has(.tool-pop.docked) .panel,
+  .workspace:has(.tool-pop.docked) :is(.workspace-tools, .empty) {
+    display: none;
+  }
+  .workspace:has(.tool-pop.docked) {
+    display: flex;
+    flex-direction: column;
+    flex: 1 1 0;
+    height: auto;
+    min-height: 0;
+  }
+  .workspace:has(.tool-pop.docked) .toolbar {
+    position: relative;
+    top: auto;
+    left: auto;
+    right: auto;
+    order: 0;
+    flex: none;
+    margin: 6px 6px 0;
+  }
+  .tool-pop.docked {
+    position: relative;
+    order: 1;
+    flex: 0 1 auto;
+    width: auto;
+    min-height: 0;
+    max-height: 50%;
+    margin: 6px 6px 0;
+    padding: 8px 10px;
+    box-shadow: none;
+  }
+  .workspace:has(.tool-pop.docked) .viewport {
+    position: relative !important;
+    inset: auto;
+    order: 2;
+    flex: 1 1 0;
+    min-height: 0;
+  }
+  .tool-panel,
+  .paint-panel {
+    gap: 4px;
+  }
+  .layer-chart {
+    height: 140px;
+  }
+  /* The tool's name and Done stay at the top while its card scrolls. */
+  .tool-pop.docked .tool-error {
+    bottom: -8px;
+    margin: 6px -10px -8px;
+    padding: 6px 10px;
+  }
+  .tool-pop.docked .tool-panel-head {
+    position: sticky;
+    top: -8px;
+    z-index: 1;
+    margin: -8px -10px 0;
+    padding: 8px 10px 4px;
+    background: var(--surface);
+  }
+  .tool-pop .segmented button,
+  .tool-pop .paint-states button {
+    padding: 3px 6px;
+    font-size: var(--t-sm);
+  }
+  .workspace-tools button {
+    padding: 5px 10px;
+    font-size: var(--t-md);
+  }
+  /* The colour key is a strip above the 3D view, so it never covers the model. */
+  .preview {
+    display: flex;
+    flex-direction: column;
+  }
+  .preview .viewport {
+    position: relative !important;
+    inset: auto;
+    flex: 1;
+    min-height: 0;
+    height: auto !important;
+  }
+  .legend {
+    position: static;
+    order: -1;
+    margin: 6px 8px 0;
+    min-width: 0;
+    padding: 6px 8px;
+    font-size: var(--t-sm);
+    gap: 6px;
+  }
+  .legend-head select {
+    max-width: 180px;
+  }
+  .line-types {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 2px 12px;
+  }
+  .legend-note {
+    max-width: none;
+  }
+  .filament-stats {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 2px 14px;
+  }
+  .filament-row {
+    flex-wrap: nowrap;
+  }
+  /* One line: "Prepare 24s · Printing 48m 6s · Total 48m 30s". */
+  .time-stats {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0 6px;
+  }
+  .time-stats .time-title,
+  .time-row .long {
+    display: none;
+  }
+  .time-row .short {
+    display: inline;
+    color: var(--muted);
+    font-weight: 400;
+  }
+  .time-row {
+    gap: 4px;
+    white-space: nowrap;
+  }
+  .time-row:not(:last-child)::after {
+    content: '·';
+  }
+  /* Weights only, so the key stays short; the lengths' total is in the line below. */
+  .filament-table {
+    width: 100%;
+  }
+  .filament-table td small {
+    display: none;
+  }
+  .stats-total.split span:nth-child(-n + 2) {
+    display: inline;
+  }
+  .filament-use {
+    margin-left: 0;
+  }
+  .stats-total {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0 6px;
+    width: 100%;
+  }
+  .stats-total span:nth-child(odd) {
+    color: var(--muted);
+  }
+  .stats-total span:nth-child(even):not(:last-child)::after {
+    content: ' ·';
+  }
+  .range-key {
+    grid-template-columns: auto 1fr;
+    align-items: center;
+    column-gap: 8px;
+  }
+  .range-body {
+    flex-direction: column;
+    gap: 2px;
+  }
+  .range-bar {
+    width: auto;
+    height: 10px;
+    background: linear-gradient(to right, var(--stops)) !important;
+  }
+  .range-ticks {
+    flex-direction: row-reverse;
+  }
+}
+/* Narrow phones (360-420 px): keep the top bar, with its theme and account buttons, inside the screen. */
+@media (max-width: 420px) {
+  .topbar {
+    gap: 4px;
+    padding: 0 6px;
+    min-width: 0;
+  }
+  .tab,
+  .topbar .ghost {
+    padding: 6px 5px;
+  }
+  /* If the fonts still make the bar too wide, the tabs scroll instead of the page. */
+  .tabs {
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+  /* A long project name shortens so all three tabs stay readable. */
+  .topbar .project-button {
+    max-width: 84px;
+    padding: 5px 8px;
+  }
+}
+@media (max-width: 420px) {
+  .tab,
+  .topbar .ghost {
+    font-size: var(--t-sm);
+  }
+}

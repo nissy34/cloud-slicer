@@ -3,12 +3,13 @@
 // "See what each can do" opens a table of what works on each (open on wide
 // screens). It says just as plainly that slicing doesn't depend on it.
 import { useState } from 'react';
+import { PHONE } from '../../lib/breakpoints';
 import { WORKS_FEATURES, WORKS_WITH } from '../brands';
 
 export function WorksWith() {
   const [open] = useState(() => {
     try {
-      return window.matchMedia('(min-width: 700px)').matches;
+      return !window.matchMedia(PHONE).matches;
     } catch {
       return true;
     }

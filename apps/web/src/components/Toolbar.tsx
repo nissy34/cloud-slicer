@@ -6,6 +6,7 @@ import { NO_COLOURS, useSlicer, type Tool } from '../state/store';
 import { DEFAULT_PAINT, PaintPanel } from './PaintPanel';
 import { startText } from './TextPanel';
 import { ToolPanel } from './ToolPanel';
+import { PHONE } from '../lib/breakpoints';
 
 // Desktop Snapmaker Orca's toolbar icons (resources/images, AGPL-3.0 like this
 // app). Their dark grey and teal become the page's text and accent colours.
@@ -285,7 +286,6 @@ export function Toolbar({ onAdd }: { onAdd(): void }) {
   );
 }
 
-const PHONE = '(max-width: 760px)';
 
 /** Whether the page has the phone layout (one column: 3D view, then the settings). */
 function usePhone() {

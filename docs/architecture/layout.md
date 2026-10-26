@@ -2,7 +2,7 @@
 
 > **Read this when** you change the page's frame (top bar, sidebar, Slice bar, bottom
 > tabs) or anything about how the site behaves on a phone. **Colours, sizes and parts:**
-> the design-system docs. **Related:** [prepare tools](prepare-tools.md) (tool cards),
+> [design system](design-system.md). **Related:** [prepare tools](prepare-tools.md) (tool cards),
 > [device tab](device-tab.md) (its own card layout).
 
 ## What it does
@@ -19,7 +19,7 @@ the same screens rearrange for a phone.
 | Settings sidebar | `components/Sidebar.tsx` |
 | Slice bar: Download / Send / Slice plate | `components/ActionBar.tsx` |
 | Phone tabs at the bottom, with the print's % or a red dot on Device | `components/BottomTabs.tsx` |
-| Phone rules in CSS | `@media (max-width: 760px)` in `src/styles.css`; the same query as `PHONE` in `components/Toolbar.tsx` and `device/ui/Arrange.tsx` |
+| Phone width | `PHONE` in `src/lib/breakpoints.ts`, used by code (`components/Toolbar.tsx`, `device/ui/Arrange.tsx`, `device/ui/WorksWith.tsx`); `@media (max-width: 760px)` in `src/styles/*.css` (mostly `phone.css`), checked by `lib/stylesheets.test.ts` |
 
 ## Rules
 
