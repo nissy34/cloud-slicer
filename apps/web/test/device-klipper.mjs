@@ -133,8 +133,9 @@ function testPrint({ heads, layers, side = 6, bed }) {
 // ---- The Device tab ---------------------------------------------------------------
 async function addDirect(page, p) {
   const add = page.getByTestId('printer-select');
-  if (await add.count()) await add.selectOption('__add');
-  else await page.getByRole('button', { name: 'Add a printer' }).click();
+  // Printers are added from Printers & bridges, the last choice in the printer list.
+  if (await add.count()) await add.selectOption('__manage');
+  await page.getByRole('button', { name: 'Add a printer' }).click();
   await page.getByRole('tab', { name: 'Over the internet (advanced)' }).click();
   await page.getByTestId('printer-url').fill(p.url);
   await page.getByTestId('save-printer').click();

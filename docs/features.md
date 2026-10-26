@@ -329,7 +329,7 @@ show; `apps/web/scripts/bambu-errors.mjs` rebuilds that list from the one OrcaSl
 ships (`resources/hms`, the newer printer families; most codes mean the same on every
 Bambu printer, and one it doesn't know shows its code and says to check the screen).
 The add-printer dialog's "Which
-printers work?" lists the printers the Device tab reaches. The cards can be arranged: **Arrange** at the top of the tab moves
+printers work?" lists the printers the Device tab reaches. The cards can be arranged: **Arrange cards** at the top right of the tab (it turns into **Done arranging** while you arrange) moves
 cards by their grip into 2 or 3 columns or across the top or bottom, hides them, makes
 them half width (two side by side) and sets the camera size; tapping a card's title folds
 it. Folding a camera or page card is also how it is turned off: nothing streams or loads while
@@ -370,7 +370,7 @@ dialog turns green by itself, and the Device tab then searches the
 bridge's network for Moonraker, PrusaLink, OctoPrint, Elegoo and Bambu Lab printers and adds the ones you pick, with their API
 keys, PrusaLink passwords or access codes, or any address you type. API keys are only ever entered in the Device tab.
 Bridges are saved on their own, apart from their printers: the Device tab's
-Printers & bridges window lists each bridge with its printers, removes either on
+Printers & bridges window (the last choice in the printer list; it is also where printers are added and edited) lists each bridge with its printers, removes either on
 its own, adds printers to a saved bridge with no pairing again, and removing a
 running bridge makes it uninstall itself from its computer. The other way works too:
 on Windows the bridge is in the Start menu and in Settings, Apps, Installed apps
