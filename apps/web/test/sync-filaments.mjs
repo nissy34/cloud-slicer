@@ -79,7 +79,7 @@ const slots = (page) =>
   page.evaluate(() =>
     [...document.querySelectorAll('ol.slots li')].map((li) => ({
       colour: li.querySelector('input[type=color]').value.toUpperCase(),
-      preset: li.querySelector('select').value,
+      preset: li.querySelector('button.picker').dataset.value,
     })),
   );
 
