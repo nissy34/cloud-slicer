@@ -59,6 +59,8 @@ export interface PrintOrigin {
   plate: number;
   fingerprint: string;
   summary: PlateSummary;
+  /** The record the send makes (in the file's tag line). */
+  printId: string;
 }
 
 /** Records still waiting for the printer to say how they went. */
@@ -231,19 +233,32 @@ export function changesBetween(then: PlateSummary, now: PlateSummary, label: (ke
  * The line each G-code sent or downloaded from a saved project carries near
  * its top, so the file says which plate it is wherever it goes
  * (renamed, started from the printer's screen, copied to an SD card):
- *   ; cloud_slicer_print = <project id>/<plate number, from 1>/<fingerprint>
- * Only the account that owns the project can do anything with it.
+ *   ; cloud_slicer_print = <project id>/<plate number, from 1>/<fingerprint>/<print id>
+ * The print id is the record this send makes, so whatever the printer then
+ * says (the bridge reads the line) lands on that record, in whichever order
+ * the page and the printer are heard. Only the account that owns the project
+ * can do anything with it.
  */
 export const PRINT_TAG = 'cloud_slicer_print';
 
-export function printTagLine(o: { projectId: string; plate: number; fingerprint: string }): string {
-  return `; ${PRINT_TAG} = ${o.projectId}/${o.plate + 1}/${o.fingerprint}\n`;
+export interface PrintTag {
+  projectId: string;
+  plate: number;
+  fingerprint: string;
+  printId: string;
 }
 
-/** The plate a G-code's text (its first few KB are enough) says it is, or null. */
-export function readPrintTag(text: string): { projectId: string; plate: number; fingerprint: string } | null {
-  const m = new RegExp(`^; ${PRINT_TAG} = ([A-Za-z0-9_-]{1,64})/(\\d{1,4})/([0-9a-f]{8,64})\\s*$`, 'm').exec(text);
-  return m && Number(m[2]) >= 1 ? { projectId: m[1], plate: Number(m[2]) - 1, fingerprint: m[3] } : null;
+/** A new record's id, made before the file is sent so the file can carry it. */
+export const newPrintId = (): string => crypto.randomUUID();
+
+export function printTagLine(o: PrintTag): string {
+  return `; ${PRINT_TAG} = ${o.projectId}/${o.plate + 1}/${o.fingerprint}/${o.printId}\n`;
+}
+
+/** The plate and record a G-code's text (its first few KB are enough) says it is, or null. */
+export function readPrintTag(text: string): PrintTag | null {
+  const m = new RegExp(`^; ${PRINT_TAG} = ([A-Za-z0-9_-]{1,64})/(\\d{1,4})/([0-9a-f]{8,64})/([A-Za-z0-9_-]{8,64})\\s*$`, 'm').exec(text);
+  return m && Number(m[2]) >= 1 ? { projectId: m[1], plate: Number(m[2]) - 1, fingerprint: m[3], printId: m[4] } : null;
 }
 
 /**
@@ -251,7 +266,7 @@ export function readPrintTag(text: string): { projectId: string; plate: number; 
  * reads that block, so the tag stays out of it), or after the first line when
  * there is none. The rest is not copied, only referenced.
  */
-export async function withPrintTag(gcode: Blob, o: { projectId: string; plate: number; fingerprint: string }): Promise<Blob> {
+export async function withPrintTag(gcode: Blob, o: PrintTag): Promise<Blob> {
   const head = await gcode.slice(0, 16384).text();
   const block = head.indexOf('; HEADER_BLOCK_END');
   const end = head.indexOf('\n', block < 0 ? 0 : block);
