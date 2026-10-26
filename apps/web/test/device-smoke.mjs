@@ -606,6 +606,8 @@ try {
   await phone.getByTestId('connection').filter({ hasText: 'Connected' }).waitFor({ timeout: 20_000 });
   await phone.getByTestId('printer-error').filter({ hasText: 'Homing Anomaly' }).filter({ hasText: 'Error code 0002 0528 0000 0011' }).waitFor();
   await phone.getByTestId('printer-error').filter({ hasText: 'Filament Anomaly' }).waitFor();
+  // The Device tab at the bottom carries a red dot while the printer needs attention.
+  await phone.getByTestId('bottom-tabs').getByTestId('device-tab-mark').and(phone.locator('.error')).waitFor();
   // Every card and the top bar fit in a 390 and a narrow 360 px phone, with no sideways scroll.
   for (const width of [390, 360]) {
     await phone.setViewportSize({ width, height: 844 });
@@ -620,6 +622,7 @@ try {
   if (shots) await phone.getByTestId('job-card').screenshot({ path: join(shots, 'printer-errors-phone.png') });
   u1.setExceptions([]);
   await phone.getByTestId('printer-errors').waitFor({ state: 'detached' });
+  await phone.getByTestId('device-tab-mark').and(phone.locator('.error')).waitFor({ state: 'detached' });
   console.log('phone layout fits, with the U1 errors read when the page connects');
 
   // Phone: the camera stays at the top while scrolling and, when not printing, the move controls sit right under it.

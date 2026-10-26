@@ -52,6 +52,13 @@ try {
   const stats = page.getByTestId('slice-stats');
   const prepare = () => page.getByRole('tab', { name: 'Prepare' }).click();
   const layers = async () => Number((await stats.getAttribute('data-layers')) ?? 0);
+  // Slice greys out while the slice is current, as on desktop: a change makes it slice again.
+  const change = async (height) => {
+    const field = page.getByLabel('Layer height', { exact: true });
+    await field.fill(height);
+    await field.press('Enter');
+    await stats.waitFor({ state: 'hidden' });
+  };
 
   // A full slice, for timing the ones below.
   let t0 = Date.now();
@@ -61,6 +68,7 @@ try {
   const layersAt020 = await layers();
   console.log(`full slice: ${full} ms, ${layersAt020} layers`);
   await prepare();
+  await change('0.24');
 
   // Cancel at once, then slice again: when the engine really stopped, the new
   // result comes in about one slice later, not after the rest of the old one too.
@@ -77,6 +85,7 @@ try {
   console.log(`cancel, then slice again: ${again} ms`);
   expect(again < full * 1.5 + 2000, `the cancelled slice kept the engine busy (${again} ms vs a full slice of ${full} ms)`);
   await prepare();
+  await change('0.22');
 
   // A setting changed mid-slice stops the slice; its result never shows as current.
   await sliceButton.click();
@@ -93,6 +102,7 @@ try {
   const layersAt028 = await layers();
   expect(layersAt028 < layersAt020, `new slice uses the new layer height (${layersAt028} vs ${layersAt020} layers)`);
   await prepare();
+  await change('0.2');
 
   // An edit the engine makes (the filament colour) also stops a running slice.
   await sliceButton.click();

@@ -173,7 +173,7 @@ hosted on Cloudflare's free tier.
   P1 and A1; filament sync from the AMS, and the print dialog picks an AMS slot for each
   filament; its errors in Bambu's own words), plus Snapmaker U1 extras (tool heads, filament sync, the U1 print
   dialog, the U1's error codes in Snapmaker's own words). Printers on a home network are reached through a small bridge app.
-- **Light and dark theme**, a layout that works on phones (an open tool stacks the toolbar, its options and the model, with the settings hidden until Done), and installable as an app
+- **Light and dark theme**, a layout that works on phones (Prepare, Preview and Device as tabs at the bottom, the Device tab showing the print's progress; an open tool stacks the toolbar, its options and the model, with the settings hidden until Done), and installable as an app
   (PWA) on Android.
 
 How it is built, and why: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).

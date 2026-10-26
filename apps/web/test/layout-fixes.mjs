@@ -234,24 +234,41 @@ try {
   console.log('unsaved changes: asked in the app');
   await page.close();
 
-  // Phone: after slicing, Preview, Download, Send and Slice plate fit in one row.
+  // Phone: Prepare, Preview and Device are tabs at the bottom; after slicing, Download, Send and Slice plate fit in one row.
   const phone = await open({ width: 412, height: 915 }, true);
+  const tabBar = phone.getByTestId('bottom-tabs');
+  await tabBar.waitFor();
+  if (await phone.locator('.topbar .tabs').isVisible()) fail('the top bar still shows the tabs on a phone');
+  const tabs = await tabBar.getByRole('tab').allInnerTexts();
+  if (tabs.map((t) => t.trim()).join('|') !== 'Prepare|Preview|Device') fail(`the bottom tabs are ${JSON.stringify(tabs)}`);
+  const barBox = await tabBar.boundingBox();
+  if (!barBox || Math.abs(barBox.y + barBox.height - 915) > 1) fail(`the tab bar is not at the bottom: ${JSON.stringify(barBox)}`);
   await phone.getByRole('button', { name: /^Slice plate/ }).click();
   await phone.getByTestId('slice-stats').waitFor({ timeout: 300000 });
   await phone.getByRole('tab', { name: 'Prepare' }).click();
-  await phone.getByRole('button', { name: 'Preview', exact: true }).waitFor();
+  await phone.getByRole('button', { name: 'Send to printer' }).waitFor();
+  if (await phone.getByRole('button', { name: 'Preview', exact: true }).isVisible()) fail('the Slice bar still has a Preview button beside the Preview tab');
+  // As desktop: nothing changed since slicing, so Slice is greyed out.
+  if (!(await phone.getByRole('button', { name: /^Slice plate/ }).isDisabled())) fail('Slice plate is not greyed out right after slicing');
   const row = await phone.evaluate(() =>
-    [...document.querySelectorAll('.actionbar .actions button')].map((b) => {
-      const r = b.getBoundingClientRect();
-      return { text: b.innerText, right: r.right, top: Math.round(r.top), clipped: b.scrollWidth > b.clientWidth };
-    }),
+    [...document.querySelectorAll('.actionbar .actions button')]
+      .filter((b) => b.offsetParent)
+      .map((b) => {
+        const r = b.getBoundingClientRect();
+        return { text: b.innerText, right: r.right, top: Math.round(r.top), clipped: b.scrollWidth > b.clientWidth };
+      }),
   );
   const width = await phone.evaluate(() => window.innerWidth);
-  if (row.length !== 4) fail(`the action bar has ${row.length} buttons: ${JSON.stringify(row)}`);
+  if (row.length !== 3) fail(`the action bar has ${row.length} buttons: ${JSON.stringify(row)}`);
   if (row.some((b) => b.right > width + 1 || b.clipped)) fail(`a button is cut off: ${JSON.stringify(row)}`);
   if (new Set(row.map((b) => b.top)).size !== 1) fail(`the buttons wrap: ${JSON.stringify(row)}`);
+  const actionBottom = await phone.evaluate(() => document.querySelector('.actionbar').getBoundingClientRect().bottom);
+  if (Math.abs(actionBottom - barBox.y) > 1) fail(`the Slice bar does not sit on the tab bar: ${actionBottom} vs ${barBox.y}`);
   await phone.waitForTimeout(1500);
   if (shots) await phone.screenshot({ path: join(shots, 'layout-phone-sliced.png') });
+  await phone.getByRole('tab', { name: 'Device' }).click();
+  await phone.getByTestId('device-screen').waitFor();
+  if (shots) await phone.screenshot({ path: join(shots, 'layout-phone-device.png') });
   console.log(`phone after slicing: ${row.map((b) => b.text).join(' | ')}`);
 } catch (e) {
   fail(e.message);
