@@ -60,3 +60,56 @@ export function heavyModel(triangles: number[], onPlate: number[] = triangles.ma
 export function triangleCount(n: number): string {
   return n >= 1e6 ? `${(n / 1e6).toFixed(1).replace(/\.0$/, '')} million` : n.toLocaleString('en-US');
 }
+
+/** What simplifying a project's heavy plates takes, worked out when it opens. */
+export interface HeavyProject {
+  /** Each object to simplify, with its decimate ratio (% removed). */
+  objects: { object: number; ratio: number }[];
+  /** The plates over HEAVY_TRIANGLES and their triangles, heaviest first. */
+  plates: { plate: number; triangles: number }[];
+  /** Some of those objects have paint, which simplifying removes. */
+  painted: boolean;
+}
+
+/**
+ * Every plate of the project over HEAVY_TRIANGLES, each brought near
+ * LIGHT_TRIANGLES as heavyModel does it; null when no plate is heavy.
+ * `plates` lists the objects on each plate.
+ */
+export function heavyProject(counts: SimplifyResult[], plates: number[][]): HeavyProject | null {
+  const triangles = counts.map((c) => c.triangles);
+  const ratios = new Map<number, number>();
+  const heavy: HeavyProject['plates'] = [];
+  plates.forEach((objects, plate) => {
+    const plan = heavyModel(triangles, objects);
+    if (!plan) return;
+    heavy.push({ plate, triangles: plan.triangles });
+    for (const o of plan.objects) ratios.set(o, Math.max(ratios.get(o) ?? 0, plan.ratio));
+  });
+  if (!heavy.length) return null;
+  const objects = [...ratios].sort(([a], [b]) => a - b).map(([object, ratio]) => ({ object, ratio }));
+  return { objects, plates: heavy.sort((a, b) => b.triangles - a.triangles), painted: objects.some((o) => counts[o.object]?.painted) };
+}
+
+/** The question before a heavy project is drawn: what's heavy and what simplifying does. */
+export function heavyQuestion(h: HeavyProject, plateCount: number): string {
+  const light = triangleCount(LIGHT_TRIANGLES);
+  const tooMuch = 'which can be more than this device can hold';
+  if (h.plates.length > 1)
+    return `${h.plates.length} plates have more than ${triangleCount(HEAVY_TRIANGLES)} triangles (up to ${triangleCount(h.plates[0].triangles)}), ${tooMuch}. Simplifying each to about ${light} keeps plenty of detail for printing.`;
+  const what = plateCount > 1 ? `Plate ${h.plates[0].plate + 1}` : 'This model';
+  return `${what} has ${triangleCount(h.plates[0].triangles)} triangles, ${tooMuch}. Simplifying it to about ${light} keeps plenty of detail for printing.`;
+}
+
+/**
+ * A phone or tablet: the browser says it's a phone, or a touch screen is its
+ * only pointer. Those run out of memory with a heavy model (a 1.8 million
+ * triangle 3MF crashed the page on an 8 GB phone), where a computer opens
+ * 1.5 million in 16 s using about 180 MB. Chrome reports at most 8 GB of
+ * memory for any device, so that figure can't tell them apart.
+ */
+export function shortOfMemory(): boolean {
+  if (typeof navigator === 'undefined' || typeof matchMedia === 'undefined') return false;
+  const mobile = (navigator as Navigator & { userAgentData?: { mobile?: boolean } }).userAgentData?.mobile;
+  return mobile === true || (matchMedia('(pointer: coarse)').matches && !matchMedia('(any-pointer: fine)').matches);
+}

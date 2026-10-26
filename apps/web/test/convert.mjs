@@ -78,6 +78,9 @@ try {
     await page.getByTestId('model-input').setInputFiles(file);
     const dialog = page.getByRole('dialog', { name: 'Convert this project?' });
     await dialog.waitFor({ timeout: 120000 });
+    // Asked before the model is drawn: the opening's loading screen stays up behind it until answered.
+    await page.waitForTimeout(2000);
+    if (!(await page.locator('.loading-overlay').isVisible())) throw new Error('the Convert question should come before the model is drawn');
     await dialog.getByRole('button', { name: 'Convert' }).click();
     const notice = page.getByText(/Converted from Bambu Lab H2D/);
     await notice.waitFor({ timeout: 120000 });

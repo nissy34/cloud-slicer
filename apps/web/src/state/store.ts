@@ -32,7 +32,7 @@ import { DEFAULT_PRINTER, pickFilamentPreset, splitList, SLOT_COLOURS } from '..
 import { changedOnPurpose, emptyProjectMessage, modelProcessKeys, pickProcess, printerLabel, projectOverrides, fallBackGcode, gcodeOverrides } from '../lib/project-import';
 import { accountReady, getUserSetting, presetEditing, useAccount } from './account';
 import { installedFilaments, installedOnly, installedPrinters, SETUP_KEY, startPrinter, type Setup } from '../lib/setup';
-import { loadConvertPreference, loadDefaultEngine, loadSaved, save, saveConvertPreference } from '../lib/storage';
+import { loadAskSimplify, loadConvertPreference, loadDefaultEngine, loadSaved, save, saveAskSimplify, saveConvertPreference } from '../lib/storage';
 import { gcodeErrors, readableGcodeError } from '../lib/gcode-errors';
 import { appOfModelHead, engineFolder, engineFromUrl, engineName, engineOfModelHead, modelHeadOf3mf, type EngineFlavor } from '../lib/engines';
 import { filamentLimit, filamentLimitMessage, type FilamentLimit } from '../lib/filament-limit';
@@ -40,7 +40,8 @@ import { flowFill, switchedText, switchPlan, type SwitchPlan } from '../lib/engi
 import { loadCatalog, vendorFilesFor, type PrinterCatalog } from '../lib/printer-catalog';
 import { expandPending, presetForEngine } from '../lib/preset-engines';
 import type { UserPreset } from '../account/api';
-import { heavyModel, type HeavyModel, type SimplifyBy, type SimplifyResult } from '../lib/simplify';
+import { heavyModel, heavyProject, heavyQuestion, shortOfMemory, type HeavyModel, type SimplifyBy, type SimplifyResult } from '../lib/simplify';
+import { askSimplifyFirst, type SimplifyAnswer } from '../components/SimplifyFirstDialog';
 import type { BrimEars, BrimRequest } from '../lib/brim';
 import type { LayerProfile, LayerRequest } from '../lib/layers';
 import { sameFeature, type AssembleRequest, type MeasureFeature, type Measurement } from '../lib/measure';
@@ -271,7 +272,8 @@ export interface SlicerState {
    * (pendingOpen) unless `mode` says. Several 3MFs at once add their objects.
    * Resolves true when a 3MF was opened as the project.
    */
-  openFiles(files: File[], mode?: OpenMode): Promise<boolean>;
+  /** True when a project was opened; 'cancelled' when one was dropped at the Simplify question (the plate is empty then). */
+  openFiles(files: File[], mode?: OpenMode): Promise<boolean | 'cancelled'>;
   cancelOpen(): void;
   setTool(tool: Tool | null): void;
   setSnap(snap: boolean): void;
@@ -607,6 +609,8 @@ export const useSlicer = create<SlicerState>((set, get) => {
     client = null;
     restarting = true;
     old?.terminate('The slicing engine restarted.');
+    // A Convert question the opening was waiting on goes with the old engine.
+    convertAnswer?.(null);
     const { project, plate, job } = get();
     // If reopening the project crashed the new engine too, start without it.
     pendingRestore = retry
@@ -624,6 +628,22 @@ export const useSlicer = create<SlicerState>((set, get) => {
       project: retry || !pendingRestore.file ? null : project,
       preview: retry || !pendingRestore.file ? null : get().preview,
     });
+    engine();
+  }
+
+  // A new engine with an empty plate, for a heavy model dropped at the Simplify
+  // question. The old engine keeps much of the memory a big model took (it
+  // can't hand it back), enough that opening another one could run out.
+  function freshEngine() {
+    sliceRun++;
+    const old = client;
+    client = null;
+    restarting = true;
+    old?.terminate('The slicing engine restarted.');
+    pendingRestore = null;
+    saved3mf = null;
+    triangleCounts = null;
+    set({ ...emptyEngine(), plate: 0, towers: [], conversion: null, heavy: null });
     engine();
   }
 
@@ -993,6 +1013,25 @@ export const useSlicer = create<SlicerState>((set, get) => {
     triangleCounts = counts;
     set({ heavy: plateHeavy(project, get().plate) });
   }
+  // On a phone or tablet, a heavy model can take more memory to draw (and to
+  // convert, which draws it again) than the page may have, so the question
+  // comes after the engine has read the file and before anything else. Every
+  // plate over the line is offered; null when none is (nothing was asked).
+  async function simplifyFirst(file: File, info: ProjectInfo): Promise<{ choice: SimplifyAnswer; info: ProjectInfo } | null> {
+    const e = engine();
+    const counts = await Promise.all(info.objects.map((_, o) => e.simplifyPreview(o)));
+    const plan = heavyProject(
+      counts,
+      info.plates.map((p) => p.objects),
+    );
+    if (!plan) return null;
+    const { choice, dontAsk } = await askSimplifyFirst(heavyQuestion(plan, info.plates.length), plan.painted);
+    if (dontAsk) saveAskSimplify(false);
+    if (choice !== 'simplify') return { choice, info };
+    set({ job: { kind: 'loading', name: file.name, label: 'Simplifying' } });
+    for (const { object, ratio } of plan.objects) info = await e.simplifyApply(object, { ratio });
+    return { choice, info };
+  }
   function plateHeavy(project: ProjectInfo, plate: number): HeavyModel | null {
     const counts = triangleCounts;
     if (!counts) return null;
@@ -1081,7 +1120,7 @@ export const useSlicer = create<SlicerState>((set, get) => {
   // otherwise offer to convert it to one of our printers. `head` is the start of
   // the file's model, which says what wrote it: G-code from another slicer is
   // kept like desktop does, and remembered in case the engine can't fill it in.
-  async function importProject(info: ProjectInfo, head: string) {
+  async function importProject(info: ProjectInfo, head: string, name: string) {
     const e = engine();
     const file = await e.fileConfig();
     // Desktop keeps the project's prime tower spots, whatever printer it was for.
@@ -1095,6 +1134,11 @@ export const useSlicer = create<SlicerState>((set, get) => {
       }
       await adoptFileFilaments(info);
       set({ conversion: { from: printerLabel(file), file } });
+      const answer = await new Promise<{ printer: string; keepSettings: boolean } | null>((resolve) => (convertAnswer = resolve));
+      convertAnswer = null;
+      if (!answer) return set({ conversion: null });
+      set({ job: { kind: 'loading', name, label: `Converting to ${answer.printer}` } });
+      await convert(file, answer.printer, answer.keepSettings);
       return;
     }
     const colours = splitList(info.file.filamentColours);
@@ -1117,6 +1161,9 @@ export const useSlicer = create<SlicerState>((set, get) => {
     await refreshMixes();
     set({ notice: settingsNotice(Object.keys(overrides).length, 'the project'), noticeWarn: false });
   }
+
+  // The answer to the Convert question while a project opens (null: Cancel).
+  let convertAnswer: ((answer: { printer: string; keepSettings: boolean } | null) => void) | null = null;
 
   // Moves a project to `printer`: its default process of the same layer height,
   // filaments matched by material in the file's colours, and (when asked) the
@@ -1462,8 +1509,11 @@ export const useSlicer = create<SlicerState>((set, get) => {
       // The project first, so the other files land on it.
       const ordered = [...files].sort((a, b) => Number(is3mf(b)) - Number(is3mf(a)));
       let opened = false;
+      const savedBefore = saved3mf;
       saved3mf = null;
       const started = Date.now();
+      // A phone asks once, before the first heavy file is drawn (see simplifyFirst).
+      let askFirst = shortOfMemory() && loadAskSimplify();
       for (const file of ordered) {
         // An SVG becomes a shape lying on the plate, like dropping one on desktop.
         if (isSvg(file)) {
@@ -1476,19 +1526,49 @@ export const useSlicer = create<SlicerState>((set, get) => {
           const geometryOnly = is3mf(file) && (mode === 'geometry' || threeMfs > 1);
           // Adding a model can be undone; opening a project starts a new history, like desktop.
           const opensProject = is3mf(file) && !geometryOnly;
+          const hadObjects = (get().project?.objects.length ?? 0) > 0;
           if (!opensProject) set({ history: await e.snapshot('Add model') });
           // What wrote the project decides whether its G-code is kept (importProject).
           const head = opensProject ? await modelHeadOf3mf(file) : '';
           // Like desktop, an added model turns by the printer's preferred orientation.
           const orientation = Number(get().overrides.preferred_orientation ?? get().baseConfig.preferred_orientation) || 0;
           const res = await e.load(file, get().plate, area, geometryOnly, orientation);
+          if (askFirst) {
+            const answer = await simplifyFirst(file, res.info);
+            if (answer) askFirst = false;
+            if (answer?.choice === 'cancel') {
+              // A project had already replaced the one before, and an empty
+              // plate has nothing to keep: a new engine, as New project leaves
+              // it, which also gives back all the memory the model took.
+              if (opensProject || !hadObjects) {
+                freshEngine();
+                return 'cancelled';
+              }
+              // An added model is taken back, with nothing left to redo.
+              const back = await e.undo();
+              await e.snapshot('');
+              set({ history: await e.dropSnapshot() });
+              saved3mf = savedBefore;
+              await refreshPreview(back.info);
+              set({ job: { kind: 'idle' } });
+              await checkHeavy().catch((err) => console.warn('Triangle count:', err));
+              return opened;
+            }
+            if (answer) res.info = answer.info;
+          }
           if (res.isProject) {
             opened = true;
             set({ plate: 0, selected: null, towers: [], history: await e.clearHistory() });
           }
-          await refreshPreview(res.info);
           if (res.isProject && !res.info.objects.length) throw new Error(emptyProjectMessage(file.name));
-          if (res.isProject && res.info.file.hasConfig) await importProject(res.info, head);
+          if (res.isProject && res.info.file.hasConfig) {
+            // The project's settings, and the Convert question, before it is
+            // drawn: Convert moves it to another bed, which would draw it again
+            // while the first picture is still held (too much for a phone with a big model).
+            set({ project: res.info, preview: null, overlay: null });
+            await importProject(res.info, head, file.name);
+            await refreshPreview();
+          } else await refreshPreview(res.info);
         } catch (err) {
           fail(err);
           return opened;
@@ -2165,6 +2245,8 @@ export const useSlicer = create<SlicerState>((set, get) => {
       const c = get().conversion;
       if (!c) return;
       saveConvertPreference(remember ? { printer, keepSettings, auto: true } : null);
+      // Asked while the project opens: the opening converts it, then draws it.
+      if (convertAnswer) return convertAnswer({ printer, keepSettings });
       set({ job: { kind: 'loading', name: c.from, label: `Converting to ${printer}` } });
       try {
         await convert(c.file, printer, keepSettings);
@@ -2174,7 +2256,10 @@ export const useSlicer = create<SlicerState>((set, get) => {
         fail(e);
       }
     },
-    dismissConversion: () => set({ conversion: null }),
+    dismissConversion: () => {
+      if (convertAnswer) convertAnswer(null);
+      else set({ conversion: null });
+    },
 
     async setPaint(paint) {
       const before = get().paint;
