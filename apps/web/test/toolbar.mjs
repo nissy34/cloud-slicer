@@ -23,6 +23,7 @@ import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { chromium } from 'playwright';
+import { pick } from './picker.mjs';
 
 const web = join(dirname(fileURLToPath(import.meta.url)), '..');
 const fixtures = join(web, '../../fixtures');
@@ -431,7 +432,7 @@ try {
     await page.waitForFunction(() => document.querySelectorAll('ul.objects > li.object:first-child ul.volumes > li').length === 4, null, { timeout: 60000 });
     await textBox.fill('U1');
     await volumes.locator('.volume-name', { hasText: /^U1$/ }).waitFor({ timeout: 30000 });
-    await textPanel.getByLabel('Font').selectOption('Noto Serif Bold');
+    await pick(textPanel, 'Font', 'Noto Serif Bold');
     await page.waitForTimeout(1500);
     if (await page.getByText('this font').count()) fail('the bundled font did not load');
     if (shots) await page.screenshot({ path: join(shots, 'text-on-boat.png') });
@@ -443,19 +444,19 @@ try {
     await textBox.fill('שלום U1');
     const lettersHint = textPanel.getByText(/This font has no letters for ש/);
     await lettersHint.waitFor({ timeout: 30000 });
-    await textPanel.getByLabel('Font').selectOption('Rubik');
+    await pick(textPanel, 'Font', 'Rubik');
     await volumes.locator('.volume-name', { hasText: /^שלום U1$/ }).waitFor({ timeout: 30000 });
     await lettersHint.waitFor({ state: 'detached', timeout: 30000 });
     if (shots) await page.screenshot({ path: join(shots, 'text-hebrew.png') });
     const badFont = async () => {
-      const [chooser] = await Promise.all([page.waitForEvent('filechooser'), textPanel.getByLabel('Font').selectOption('__file')]);
+      const [chooser] = await Promise.all([page.waitForEvent('filechooser'), pick(textPanel, 'Font', { label: 'Load a font file (.ttf, .otf)…' })]);
       await chooser.setFiles({ name: 'NotAFont.ttf', mimeType: 'font/ttf', buffer: Buffer.from('not a font') });
       await page.locator('.tool-pop .tool-error', { hasText: /can't be read/ }).waitFor({ timeout: 30000 });
       if (await page.locator('.actionbar .error-text').count()) fail('the tool error shows above Slice plate too');
     };
     await badFont();
     if (shots) await page.screenshot({ path: join(shots, 'text-error-in-card.png') });
-    await textPanel.getByLabel('Font').selectOption('Noto Serif Bold');
+    await pick(textPanel, 'Font', 'Noto Serif Bold');
     await textBox.fill('U1');
     await page.locator('.tool-pop .tool-error').waitFor({ state: 'detached', timeout: 30000 });
     console.log('text shape: Hebrew in a Hebrew font, missing letters named, a bad font file errors in the card and the next good edit clears it');

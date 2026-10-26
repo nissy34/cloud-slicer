@@ -19,6 +19,7 @@ import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { strFromU8, strToU8, unzipSync, zipSync } from 'fflate';
 import { chromium } from 'playwright';
+import { pick } from './picker.mjs';
 
 const web = join(dirname(fileURLToPath(import.meta.url)), '..');
 const modelPath = join(web, '../../fixtures/calib-cube-10-dual-colour-merged.3mf');
@@ -67,7 +68,6 @@ try {
   const page = await browser.newPage({ viewport: { width: 1280, height: 800 }, acceptDownloads: true });
   page.on('pageerror', (e) => console.error(`page error: ${e.message}`));
   const ready = () => page.getByText('Open a model to start').waitFor({ timeout: 120000 });
-  const picker = page.getByRole('combobox', { name: 'Printer preset' });
   const error = page.locator('.error-text[role="alert"]');
   const open = async (file) => {
     if (await page.getByRole('tab', { name: 'Prepare' }).count()) await page.getByRole('tab', { name: 'Prepare' }).first().click();
@@ -107,7 +107,7 @@ try {
       await page.goto(`${url}?engine=orca`);
       await ready();
     }
-    await picker.selectOption(PRINTER);
+    await pick(page, 'Printer preset', PRINTER);
 
     // Bambu Studio 2.5's project keeps its own G-code, like desktop.
     await open(modelPath);

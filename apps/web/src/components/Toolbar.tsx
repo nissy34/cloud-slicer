@@ -197,7 +197,8 @@ export function Toolbar({ onAdd }: { onAdd(): void }) {
     const onKey = (e: KeyboardEvent) => {
       const el = e.target as HTMLElement;
       // Typing goes to text boxes; a ticked checkbox or a slider keeps the shortcuts working.
-      if (el.closest('input:not([type="checkbox"]):not([type="radio"]):not([type="range"]), textarea, select, [contenteditable="true"]') || e.altKey) return;
+      // A picker's list (components/Picker.tsx) takes keys like a <select> does.
+      if (el.closest('input:not([type="checkbox"]):not([type="radio"]):not([type="range"]), textarea, select, [role="combobox"], [role="listbox"], [contenteditable="true"]') || e.altKey) return;
       // Ctrl+Shift+Z redoes too, and Cmd works for Ctrl on a Mac.
       const key = e.shiftKey && e.key.toUpperCase() === 'Z' ? 'Y' : e.key.toUpperCase();
       const combo = (e.ctrlKey || e.metaKey ? 'Ctrl+' : '') + key;

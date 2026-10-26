@@ -11,6 +11,7 @@ import { spawn } from 'node:child_process';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { chromium } from 'playwright';
+import { pickerOf } from './picker.mjs';
 
 const web = join(dirname(fileURLToPath(import.meta.url)), '..');
 const PORT = 4174;
@@ -121,7 +122,7 @@ try {
     await fpop.getByRole('textbox').fill('My PLA');
     await fpop.getByRole('button', { name: 'Save', exact: true }).click();
     await fpop.waitFor({ state: 'detached', timeout: 60000 });
-    const slot = page.getByRole('combobox', { name: 'Filament 1 preset' });
+    const slot = pickerOf(page, 'Filament 1 preset');
     expect((await slot.inputValue()) === 'My PLA', `slot 1 is ${await slot.inputValue()}`);
     expect((await stored()).some((p) => p.type === 'filament' && p.name === 'My PLA'), 'stored');
   });

@@ -83,7 +83,7 @@ function Views({ handle, box }: { handle: ViewHandle; box: () => THREE.Box3 }) {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       const el = e.target as HTMLElement;
-      if (el.closest('input, textarea, select, [contenteditable="true"]') || e.altKey || e.ctrlKey || e.metaKey) return;
+      if (el.closest('input, textarea, select, [role="combobox"], [role="listbox"], [contenteditable="true"]') || e.altKey || e.ctrlKey || e.metaKey) return;
       const view = e.key.toUpperCase() === 'Z' ? 'fit' : VIEWS.find((v) => v.key === e.key)?.view;
       if (!view) return;
       e.preventDefault();

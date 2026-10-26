@@ -37,6 +37,16 @@ export async function pickerChoices(scope, name) {
   return words;
 }
 
+/** Every choice as { label, hint, value } (the hint is the row's end, like "Direct print"); the list is closed again after. */
+export async function pickerRows(scope, name) {
+  const list = await openPicker(scope, name);
+  const rows = await list.locator('[role="option"]:not(.picker-action)').evaluateAll((els) =>
+    els.map((e) => ({ label: e.querySelector('.picker-label')?.textContent?.trim() ?? '', hint: e.querySelector('.menu-hint')?.textContent?.trim() ?? '', value: e.dataset.value })),
+  );
+  await (('page' in scope ? scope.page() : scope).keyboard.press('Escape'));
+  return rows;
+}
+
 /** The action rows' words ("Add or remove printers…"); the list is closed again after. */
 export async function pickerActions(scope, name) {
   const list = await openPicker(scope, name);
@@ -60,4 +70,17 @@ export function waitPicked(page, name, value, timeout = 60000) {
       () => true,
       () => false,
     );
+}
+
+/** The picker with the calls tests used on a <select>: inputValue, selectOption ({ label }, or a value), and its choices' words. */
+export function pickerOf(scope, name) {
+  return {
+    button: picker(scope, name),
+    inputValue: () => pickerValue(scope, name),
+    selectOption: (choice) => pick(scope, name, choice),
+    choices: () => pickerChoices(scope, name),
+    actions: () => pickerActions(scope, name),
+    waitFor: (options) => picker(scope, name).waitFor(options),
+    isDisabled: () => picker(scope, name).isDisabled(),
+  };
 }
