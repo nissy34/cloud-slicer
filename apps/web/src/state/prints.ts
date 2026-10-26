@@ -10,24 +10,14 @@
 // belongs to, and the bridge, which tells the account the same with no page
 // open (functions/_lib/prints.ts fromBridge); the page picks those up when it
 // comes back into view, and every few minutes while a print is waiting.
-import { create } from "zustand";
-import { api } from "../account/api";
-import { job } from "../device/status";
-import {
-  changesBetween,
-  nextStatus,
-  OPEN_STATUSES,
-  plateMarks,
-  progressOf,
-  type PlateMark,
-  type PlateSummary,
-  type PrintOrigin,
-  type PrintRecord,
-} from "../lib/prints";
-import { useAccount } from "./account";
-import { onFileSent, useDevice } from "./device";
-import { useProjects } from "./projects";
-import { onPlateDeleted, useSlicer } from "./store";
+import { create } from 'zustand';
+import { api } from '../account/api';
+import { job } from '../device/status';
+import { changesBetween, nextStatus, OPEN_STATUSES, plateMarks, progressOf, type PlateMark, type PlateSummary, type PrintOrigin, type PrintRecord } from '../lib/prints';
+import { useAccount } from './account';
+import { onFileSent, useDevice } from './device';
+import { useProjects } from './projects';
+import { onPlateDeleted, useSlicer } from './store';
 
 interface PrintsState {
   /** The open project's id these are for, or null. */
@@ -53,7 +43,7 @@ interface PrintsState {
   openMark(plate: number | null): void;
 }
 
-const signedIn = () => useAccount.getState().status === "signedIn";
+const signedIn = () => useAccount.getState().status === 'signedIn';
 
 export const usePrints = create<PrintsState>((set, get) => ({
   projectId: null,
@@ -63,15 +53,14 @@ export const usePrints = create<PrintsState>((set, get) => ({
   open: [],
   historyPlate: null,
   markPlate: null,
-  error: "",
+  error: '',
 
   async reload() {
     const id = useProjects.getState().current.id;
     if (!id || !signedIn()) return set({ projectId: id, records: [] });
     try {
       const records = await api.prints(id);
-      if (useProjects.getState().current.id === id)
-        set({ projectId: id, records, error: "" });
+      if (useProjects.getState().current.id === id) set({ projectId: id, records, error: '' });
     } catch (e) {
       set({ projectId: id, records: [], error: (e as Error).message });
     }
@@ -82,32 +71,22 @@ export const usePrints = create<PrintsState>((set, get) => ({
     const id = get().projectId;
     if (!id) return;
     const now = await current(plate);
-    await add(id, {
-      plate,
-      status: "marked",
-      ...(now && { fingerprint: now.fingerprint, summary: now.summary }),
-    });
+    await add(id, { plate, status: 'marked', ...(now && { fingerprint: now.fingerprint, summary: now.summary }) });
   },
 
   async unmark(plate) {
     const id = get().projectId;
-    if (id) await add(id, { plate, status: "unmarked" });
+    if (id) await add(id, { plate, status: 'unmarked' });
   },
 
   async keep(plate) {
     const mark = marksNow()[plate];
-    if (!mark || mark.state !== "changed") return;
+    if (!mark || mark.state !== 'changed') return;
     const now = await current(plate);
     if (!now) return;
     try {
-      const updated = await api.updatePrint(mark.record.id, {
-        fingerprint: now.fingerprint,
-        summary: now.summary,
-      });
-      set({
-        records: get().records.map((r) => (r.id === updated.id ? updated : r)),
-        error: "",
-      });
+      const updated = await api.updatePrint(mark.record.id, { fingerprint: now.fingerprint, summary: now.summary });
+      set({ records: get().records.map((r) => (r.id === updated.id ? updated : r)), error: '' });
     } catch (e) {
       set({ error: (e as Error).message });
     }
@@ -121,31 +100,17 @@ async function add(projectId: string, p: Parameters<typeof api.addPrint>[1]) {
   try {
     const record = await api.addPrint(projectId, p);
     // The server closed the waiting ones this replaces: the same file on the same printer, or a mark of the plate.
-    const mark = record.status === "marked" || record.status === "unmarked";
+    const mark = record.status === 'marked' || record.status === 'unmarked';
     const replaced = (r: PrintRecord) =>
       r.id !== record.id &&
       OPEN_STATUSES.includes(r.status) &&
-      (mark
-        ? r.projectId === record.projectId && r.plate === record.plate
-        : r.printer === record.printer && r.file === record.file);
+      (mark ? r.projectId === record.projectId && r.plate === record.plate : r.printer === record.printer && r.file === record.file);
     const s = usePrints.getState();
     const open = s.open.filter((r) => !replaced(r) && r.id !== record.id);
     const others = s.records.filter((r) => r.id !== record.id);
     usePrints.setState({
-      open: OPEN_STATUSES.includes(record.status)
-        ? [...open, { ...record, summary: null }]
-        : open,
-      ...(s.projectId === projectId && {
-        records: [
-          ...others.map((r) =>
-            replaced(r)
-              ? { ...r, status: "unknown" as const, endedAt: record.at }
-              : r,
-          ),
-          record,
-        ],
-        error: "",
-      }),
+      open: OPEN_STATUSES.includes(record.status) ? [...open, { ...record, summary: null }] : open,
+      ...(s.projectId === projectId && { records: [...others.map((r) => (replaced(r) ? { ...r, status: 'unknown' as const, endedAt: record.at } : r)), record], error: '' }),
     });
     scheduleFingerprints(0);
   } catch (e) {
@@ -156,12 +121,11 @@ async function add(projectId: string, p: Parameters<typeof api.addPrint>[1]) {
 /** What plate `plate` prints now (worked out on the spot when not known yet). */
 async function current(plate: number) {
   const s = usePrints.getState();
-  if (s.fingerprints[plate] && s.summaries[plate])
-    return { fingerprint: s.fingerprints[plate], summary: s.summaries[plate] };
+  if (s.fingerprints[plate] && s.summaries[plate]) return { fingerprint: s.fingerprints[plate], summary: s.summaries[plate] };
   try {
     return await useSlicer.getState().plateFingerprint(plate);
   } catch (e) {
-    console.warn("Plate fingerprint:", e);
+    console.warn('Plate fingerprint:', e);
     return null;
   }
 }
@@ -170,9 +134,7 @@ async function current(plate: number) {
 export function marksNow(): PlateMark[] {
   const s = usePrints.getState();
   const plates = useSlicer.getState().project?.plates.length ?? 0;
-  return s.projectId && s.projectId === useProjects.getState().current.id
-    ? plateMarks(s.records, plates, s.summaries)
-    : [];
+  return s.projectId && s.projectId === useProjects.getState().current.id ? plateMarks(s.records, plates, s.summaries) : [];
 }
 
 /** Each plate's mark, for components (empty when the project has no history). */
@@ -189,7 +151,7 @@ export function usePlateMarks(): PlateMark[] {
 export function usePrintProgress() {
   const marks = usePlateMarks();
   const project = useSlicer((s) => s.project);
-  if (!marks.length || marks.every((m) => m.state === "none")) return null;
+  if (!marks.length || marks.every((m) => m.state === 'none')) return null;
   return progressOf(marks, (p) => !project?.plates[p]?.objects.length);
 }
 
@@ -213,7 +175,7 @@ async function refreshFingerprints() {
   const s = usePrints.getState();
   const slicer = useSlicer.getState();
   const plates = slicer.project?.plates.length ?? 0;
-  if (!s.records.length || !plates || slicer.engine !== "ready") return;
+  if (!s.records.length || !plates || slicer.engine !== 'ready') return;
   const mine = ++run;
   const fingerprints: Record<number, string> = {};
   const summaries: Record<number, PlateSummary> = {};
@@ -224,7 +186,7 @@ async function refreshFingerprints() {
       fingerprints[p] = fingerprint;
       summaries[p] = summary;
     } catch (e) {
-      console.warn("Plate fingerprint:", e);
+      console.warn('Plate fingerprint:', e);
     }
   }
   if (mine === run) usePrints.setState({ fingerprints, summaries });
@@ -235,13 +197,7 @@ let lastId: string | null | undefined;
 useProjects.subscribe((p) => {
   if (p.current.id === lastId) return;
   lastId = p.current.id;
-  usePrints.setState({
-    records: [],
-    fingerprints: {},
-    summaries: {},
-    historyPlate: null,
-    markPlate: null,
-  });
+  usePrints.setState({ records: [], fingerprints: {}, summaries: {}, historyPlate: null, markPlate: null });
   void usePrints.getState().reload();
 });
 let lastStatus = useAccount.getState().status;
@@ -253,19 +209,10 @@ useAccount.subscribe((a) => {
 });
 
 // Anything that may change what a plate prints: the project in the engine, the settings, the towers.
-let lastKey = "";
+let lastKey = '';
 useSlicer.subscribe((s, prev) => {
   const key = s.printChangesKey();
-  if (
-    key === lastKey &&
-    s.project === prev.project &&
-    s.overrides === prev.overrides &&
-    s.baseConfig === prev.baseConfig &&
-    s.towers === prev.towers &&
-    s.mixDefinitions === prev.mixDefinitions &&
-    s.engine === prev.engine
-  )
-    return;
+  if (key === lastKey && s.project === prev.project && s.overrides === prev.overrides && s.baseConfig === prev.baseConfig && s.towers === prev.towers && s.mixDefinitions === prev.mixDefinitions && s.engine === prev.engine) return;
   lastKey = key;
   if (usePrints.getState().records.length) scheduleFingerprints();
 });
@@ -274,29 +221,19 @@ useSlicer.subscribe((s, prev) => {
 onPlateDeleted((plate, before) => {
   const id = usePrints.getState().projectId;
   if (!id || !usePrints.getState().records.length) return;
-  const order = Array.from({ length: before }, (_, i) => i).filter(
-    (i) => i !== plate,
-  );
-  usePrints.setState({
-    records: usePrints
-      .getState()
-      .records.filter((r) => r.plate !== plate)
-      .map((r) => (r.plate > plate ? { ...r, plate: r.plate - 1 } : r)),
-  });
-  api
-    .reorderPrints(id, order)
-    .catch((e) => usePrints.setState({ error: (e as Error).message }));
+  const order = Array.from({ length: before }, (_, i) => i).filter((i) => i !== plate);
+  usePrints.setState({ records: usePrints.getState().records.filter((r) => r.plate !== plate).map((r) => (r.plate > plate ? { ...r, plate: r.plate - 1 } : r)) });
+  api.reorderPrints(id, order).catch((e) => usePrints.setState({ error: (e as Error).message }));
 });
 
 // The Send window put a file on a printer: a record for the plate it came from.
 onFileSent(({ source, path, printer, started }) => {
-  const origin: PrintOrigin | undefined =
-    source.kind === "upload" ? source.origin : undefined;
+  const origin: PrintOrigin | undefined = source.kind === 'upload' ? source.origin : undefined;
   if (!origin || !signedIn()) return;
   void add(origin.projectId, {
     plate: origin.plate,
     id: origin.printId,
-    status: started ? "sent" : "uploaded",
+    status: started ? 'sent' : 'uploaded',
     printer: printer.id,
     printerName: printer.name,
     file: path,
@@ -323,11 +260,7 @@ async function loadOpen() {
  */
 function watchPrinter() {
   const d = useDevice.getState();
-  if (
-    d.activeId &&
-    usePrints.getState().open.some((r) => r.printer === d.activeId)
-  )
-    d.start();
+  if (d.activeId && usePrints.getState().open.some((r) => r.printer === d.activeId)) d.start();
 }
 
 // The printer on the Device tab: its job turns waiting records into printing, then how it ended.
@@ -342,30 +275,17 @@ useDevice.subscribe((d, prev) => {
     const status = nextStatus(r, d.activeId, j);
     if (!status || updating.has(r.id)) continue;
     updating.add(r.id);
-    const ended = status !== "printing";
+    const ended = status !== 'printing';
     api
-      .updatePrint(r.id, {
-        status,
-        ...(ended && {
-          duration: Math.round(j.printSeconds) || null,
-          progress: status === "printed" ? 1 : j.progress,
-        }),
-      })
+      .updatePrint(r.id, { status, ...(ended && { duration: Math.round(j.printSeconds) || null, progress: status === 'printed' ? 1 : j.progress }) })
       .then((u) => {
         const s = usePrints.getState();
         usePrints.setState({
-          open:
-            ended || !OPEN_STATUSES.includes(u.status)
-              ? s.open.filter((x) => x.id !== r.id)
-              : s.open.map((x) =>
-                  x.id === r.id ? { ...x, status: u.status } : x,
-                ),
-          records: s.records.map((x) =>
-            x.id === u.id ? { ...x, ...u, summary: x.summary } : x,
-          ),
+          open: ended || !OPEN_STATUSES.includes(u.status) ? s.open.filter((x) => x.id !== r.id) : s.open.map((x) => (x.id === r.id ? { ...x, status: u.status } : x)),
+          records: s.records.map((x) => (x.id === u.id ? { ...x, ...u, summary: x.summary } : x)),
         });
       })
-      .catch((e) => console.warn("Print history:", e))
+      .catch((e) => console.warn('Print history:', e))
       .finally(() => updating.delete(r.id));
   }
 });
@@ -390,21 +310,12 @@ async function refresh() {
     // tried again later
   }
 }
-if (typeof document !== "undefined") {
-  document.addEventListener("visibilitychange", () => {
-    if (
-      document.visibilityState === "visible" &&
-      Date.now() - refreshed > 10_000
-    )
-      void refresh();
+if (typeof document !== 'undefined') {
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible' && Date.now() - refreshed > 10_000) void refresh();
   });
   setInterval(() => {
-    if (
-      document.visibilityState === "visible" &&
-      usePrints.getState().open.length &&
-      Date.now() - refreshed >= REFRESH_MS
-    )
-      void refresh();
+    if (document.visibilityState === 'visible' && usePrints.getState().open.length && Date.now() - refreshed >= REFRESH_MS) void refresh();
   }, 30_000);
 }
 

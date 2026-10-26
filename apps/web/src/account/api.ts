@@ -1,21 +1,17 @@
 // Client for the account API in functions/api (Cloudflare Pages Functions).
-import type { EngineFlavor } from "../lib/engines";
-import type { PresetEngines } from "../lib/preset-engines";
-import type { PrintRecord } from "../lib/prints";
+import type { EngineFlavor } from '../lib/engines';
+import type { PresetEngines } from '../lib/preset-engines';
+import type { PrintRecord } from '../lib/prints';
 
-export type ProviderId = "google";
-export type PresetType = "printer" | "filament" | "process";
+export type ProviderId = 'google';
+export type PresetType = 'printer' | 'filament' | 'process';
 
 export interface AccountUser {
   id: string;
   name: string;
   email: string | null;
   createdAt: number;
-  identities: {
-    provider: ProviderId;
-    login: string | null;
-    email: string | null;
-  }[];
+  identities: { provider: ProviderId; login: string | null; email: string | null }[];
   /** The site's owner (OWNER_EMAILS): sees the Admin page. */
   owner?: boolean;
 }
@@ -127,254 +123,116 @@ export class ApiError extends Error {
   }
 }
 
-async function call<T>(
-  path: string,
-  init: RequestInit = {},
-  contentType = "application/json",
-): Promise<T> {
+async function call<T>(path: string, init: RequestInit = {}, contentType = 'application/json'): Promise<T> {
   const res = await fetch(path, {
     ...init,
-    credentials: "same-origin",
-    headers: init.body ? { "Content-Type": contentType } : undefined,
+    credentials: 'same-origin',
+    headers: init.body ? { 'Content-Type': contentType } : undefined,
   });
-  const type = res.headers.get("Content-Type") ?? "";
+  const type = res.headers.get('Content-Type') ?? '';
   // Without Functions (vite dev/preview) /api/* falls through to index.html.
-  if (!type.includes("application/json"))
-    throw new ApiError(404, "Accounts are not available on this server");
+  if (!type.includes('application/json')) throw new ApiError(404, 'Accounts are not available on this server');
   const body = (await res.json()) as Record<string, unknown>;
-  if (!res.ok)
-    throw new ApiError(res.status, String(body.error ?? res.statusText), body);
+  if (!res.ok) throw new ApiError(res.status, String(body.error ?? res.statusText), body);
   return body as T;
 }
 
-const presetPath = (type: PresetType, name: string) =>
-  `/api/presets/${type}/${encodeURIComponent(name)}`;
+const presetPath = (type: PresetType, name: string) => `/api/presets/${type}/${encodeURIComponent(name)}`;
 
 export const api = {
-  me: () => call<Me>("/api/me"),
+  me: () => call<Me>('/api/me'),
   /**
    * Starts a sign-in (Better Auth); returns the provider's page to open. The
    * way back is absolute: on a preview the provider returns via AUTH_ORIGIN,
    * which must send the user (or an error) back to this host.
    */
-  startSignIn: (
-    provider: ProviderId,
-    opts: { returnTo: string; popup?: boolean },
-  ) => {
+  startSignIn: (provider: ProviderId, opts: { returnTo: string; popup?: boolean }) => {
     const done = location.origin + signInDoneUrl(opts);
-    return call<{ url: string }>("/api/auth/sign-in/social", {
-      method: "POST",
-      body: JSON.stringify({
-        provider,
-        callbackURL: done,
-        errorCallbackURL: done,
-        disableRedirect: true,
-      }),
+    return call<{ url: string }>('/api/auth/sign-in/social', {
+      method: 'POST',
+      body: JSON.stringify({ provider, callbackURL: done, errorCallbackURL: done, disableRedirect: true }),
     }).then((r) => r.url);
   },
-  logout: () =>
-    call<{ success: boolean }>("/api/auth/sign-out", {
-      method: "POST",
-      body: "{}",
-    }),
-  deleteAccount: () =>
-    call<{ success: boolean }>("/api/auth/delete-user", {
-      method: "POST",
-      body: "{}",
-    }),
-  presets: () =>
-    call<{ presets: UserPreset[] }>("/api/presets").then((r) => r.presets),
-  savePreset: (p: {
-    type: PresetType;
-    name: string;
-    inherits: string;
-    config: Record<string, string>;
-    engines?: PresetEngines;
-    baseVersion?: number;
-  }) =>
+  logout: () => call<{ success: boolean }>('/api/auth/sign-out', { method: 'POST', body: '{}' }),
+  deleteAccount: () => call<{ success: boolean }>('/api/auth/delete-user', { method: 'POST', body: '{}' }),
+  presets: () => call<{ presets: UserPreset[] }>('/api/presets').then((r) => r.presets),
+  savePreset: (p: { type: PresetType; name: string; inherits: string; config: Record<string, string>; engines?: PresetEngines; baseVersion?: number }) =>
     call<{ preset: UserPreset }>(presetPath(p.type, p.name), {
-      method: "PUT",
-      body: JSON.stringify({
-        inherits: p.inherits,
-        config: p.config,
-        engines: p.engines,
-        baseVersion: p.baseVersion,
-      }),
+      method: 'PUT',
+      body: JSON.stringify({ inherits: p.inherits, config: p.config, engines: p.engines, baseVersion: p.baseVersion }),
     }).then((r) => r.preset),
-  deletePreset: (type: PresetType, name: string) =>
-    call<{ ok: true }>(presetPath(type, name), { method: "DELETE" }),
-  settings: () =>
-    call<{ settings: UserSetting[] }>("/api/settings").then((r) => r.settings),
+  deletePreset: (type: PresetType, name: string) => call<{ ok: true }>(presetPath(type, name), { method: 'DELETE' }),
+  settings: () => call<{ settings: UserSetting[] }>('/api/settings').then((r) => r.settings),
   saveSetting: (key: string, value: unknown, baseVersion?: number) =>
     call<{ setting: UserSetting }>(`/api/settings/${encodeURIComponent(key)}`, {
-      method: "PUT",
+      method: 'PUT',
       body: JSON.stringify({ value, baseVersion }),
     }).then((r) => r.setting),
-  deleteSetting: (key: string) =>
-    call<{ ok: true }>(`/api/settings/${encodeURIComponent(key)}`, {
-      method: "DELETE",
-    }),
-  devices: () =>
-    call<{ devices: Device[] }>("/api/devices").then((r) => r.devices),
-  deviceApiKey: (id: string) =>
-    call<{ apiKey: string | null }>(
-      `/api/devices/${encodeURIComponent(id)}/secret`,
-    ).then((r) => r.apiKey),
+  deleteSetting: (key: string) => call<{ ok: true }>(`/api/settings/${encodeURIComponent(key)}`, { method: 'DELETE' }),
+  devices: () => call<{ devices: Device[] }>('/api/devices').then((r) => r.devices),
+  deviceApiKey: (id: string) => call<{ apiKey: string | null }>(`/api/devices/${encodeURIComponent(id)}/secret`).then((r) => r.apiKey),
   saveDevice: ({ id, ...rest }: DeviceInput) =>
-    call<{ device: Device }>(`/api/devices/${encodeURIComponent(id)}`, {
-      method: "PUT",
-      body: JSON.stringify(rest),
-    }).then((r) => r.device),
-  deleteDevice: (id: string) =>
-    call<{ ok: true }>(`/api/devices/${encodeURIComponent(id)}`, {
-      method: "DELETE",
-    }),
-  projects: () => call<ProjectList>("/api/projects"),
+    call<{ device: Device }>(`/api/devices/${encodeURIComponent(id)}`, { method: 'PUT', body: JSON.stringify(rest) }).then((r) => r.device),
+  deleteDevice: (id: string) => call<{ ok: true }>(`/api/devices/${encodeURIComponent(id)}`, { method: 'DELETE' }),
+  projects: () => call<ProjectList>('/api/projects'),
   /** baseVersion: the version this save started from (0 = must be new); undefined overwrites. */
-  saveProject: (
-    id: string,
-    name: string,
-    file: Blob,
-    baseVersion: number | undefined,
-    engine: EngineFlavor,
-    opts: SaveOptions = {},
-  ) => {
+  saveProject: (id: string, name: string, file: Blob, baseVersion: number | undefined, engine: EngineFlavor, opts: SaveOptions = {}) => {
     const q = new URLSearchParams({ name, engine });
-    if (baseVersion !== undefined) q.set("baseVersion", String(baseVersion));
-    if (opts.draft) q.set("draft", "1");
-    if (opts.plates) q.set("plates", String(opts.plates));
+    if (baseVersion !== undefined) q.set('baseVersion', String(baseVersion));
+    if (opts.draft) q.set('draft', '1');
+    if (opts.plates) q.set('plates', String(opts.plates));
     if (opts.device) {
-      q.set("device", opts.device.id);
-      q.set("deviceName", opts.device.name);
+      q.set('device', opts.device.id);
+      q.set('deviceName', opts.device.name);
     }
-    return call<{ project: OnlineProject }>(
-      `${projectPath(id)}?${q}`,
-      { method: "PUT", body: file },
-      "model/3mf",
-    ).then((r) => r.project);
+    return call<{ project: OnlineProject }>(`${projectPath(id)}?${q}`, { method: 'PUT', body: file }, 'model/3mf').then((r) => r.project);
   },
   saveProjectThumbnail: (id: string, png: Blob) =>
-    call<{ ok: true }>(
-      `${projectPath(id)}/thumbnail`,
-      { method: "PUT", body: png },
-      "image/png",
-    ),
+    call<{ ok: true }>(`${projectPath(id)}/thumbnail`, { method: 'PUT', body: png }, 'image/png'),
   renameProject: (id: string, name: string, baseVersion?: number) =>
-    call<{ project: OnlineProject }>(projectPath(id), {
-      method: "PATCH",
-      body: JSON.stringify({ name, baseVersion }),
-    }).then((r) => r.project),
-  deleteProject: (id: string) =>
-    call<{ ok: true }>(projectPath(id), { method: "DELETE" }),
+    call<{ project: OnlineProject }>(projectPath(id), { method: 'PATCH', body: JSON.stringify({ name, baseVersion }) }).then((r) => r.project),
+  deleteProject: (id: string) => call<{ ok: true }>(projectPath(id), { method: 'DELETE' }),
   /** One project: its version and the device editing it. */
-  project: (id: string) =>
-    call<{ project: OnlineProject }>(projectPath(id)).then((r) => r.project),
+  project: (id: string) => call<{ project: OnlineProject }>(projectPath(id)).then((r) => r.project),
   /** This device edits the project from now on; the one before only views it. */
   takeOverProject: (id: string, device: { id: string; name: string }) =>
-    call<{ project: OnlineProject }>(`${projectPath(id)}/device`, {
-      method: "POST",
-      body: JSON.stringify({ device: device.id, deviceName: device.name }),
-    }).then((r) => r.project),
+    call<{ project: OnlineProject }>(`${projectPath(id)}/device`, { method: 'POST', body: JSON.stringify({ device: device.id, deviceName: device.name }) }).then((r) => r.project),
   /** The project's print history, oldest first (lib/prints.ts). */
-  prints: (id: string) =>
-    call<{ prints: PrintRecord[] }>(`${projectPath(id)}/prints`).then(
-      (r) => r.prints,
-    ),
+  prints: (id: string) => call<{ prints: PrintRecord[] }>(`${projectPath(id)}/prints`).then((r) => r.prints),
   /** A send (named by the print id in its file's tag) or a mark of one plate. */
-  addPrint: (
-    id: string,
-    p: Pick<PrintRecord, "plate" | "status"> &
-      Partial<
-        Pick<
-          PrintRecord,
-          "id" | "printer" | "printerName" | "file" | "fingerprint" | "summary"
-        >
-      >,
-  ) =>
-    call<{ print: PrintRecord }>(`${projectPath(id)}/prints`, {
-      method: "POST",
-      body: JSON.stringify(p),
-    }).then((r) => r.print),
+  addPrint: (id: string, p: Pick<PrintRecord, 'plate' | 'status'> & Partial<Pick<PrintRecord, 'id' | 'printer' | 'printerName' | 'file' | 'fingerprint' | 'summary'>>) =>
+    call<{ print: PrintRecord }>(`${projectPath(id)}/prints`, { method: 'POST', body: JSON.stringify(p) }).then((r) => r.print),
   /** How a print went, or "Keep as printed" (fingerprint + summary). */
-  updatePrint: (
-    printId: string,
-    p: Partial<
-      Pick<
-        PrintRecord,
-        "status" | "duration" | "progress" | "fingerprint" | "summary"
-      >
-    >,
-  ) =>
-    call<{ print: PrintRecord }>(`/api/prints/${encodeURIComponent(printId)}`, {
-      method: "PATCH",
-      body: JSON.stringify(p),
-    }).then((r) => r.print),
+  updatePrint: (printId: string, p: Partial<Pick<PrintRecord, 'status' | 'duration' | 'progress' | 'fingerprint' | 'summary'>>) =>
+    call<{ print: PrintRecord }>(`/api/prints/${encodeURIComponent(printId)}`, { method: 'PATCH', body: JSON.stringify(p) }).then((r) => r.print),
   /** Prints of every project still waiting for their printer (no summaries). */
-  openPrints: () =>
-    call<{ prints: PrintRecord[] }>("/api/prints/open").then((r) => r.prints),
+  openPrints: () => call<{ prints: PrintRecord[] }>('/api/prints/open').then((r) => r.prints),
   /** Plates were deleted or reordered: order[new index] = old index. */
-  reorderPrints: (id: string, order: number[]) =>
-    call<{ ok: true }>(`${projectPath(id)}/prints/plates`, {
-      method: "POST",
-      body: JSON.stringify({ order }),
-    }),
+  reorderPrints: (id: string, order: number[]) => call<{ ok: true }>(`${projectPath(id)}/prints/plates`, { method: 'POST', body: JSON.stringify({ order }) }),
   /** A saved copy takes the original's history. */
-  copyPrints: (id: string, from: string) =>
-    call<{ ok: true }>(`${projectPath(id)}/prints/copy`, {
-      method: "POST",
-      body: JSON.stringify({ from }),
-    }),
+  copyPrints: (id: string, from: string) => call<{ ok: true }>(`${projectPath(id)}/prints/copy`, { method: 'POST', body: JSON.stringify({ from }) }),
   /** A ticket that lets this account through the bridge relay for one bridge (about an hour). */
   relayTicket: (relay: string, bridgeId: string) =>
-    call<{ ticket: string; expiresAt: number }>("/api/relay/ticket", {
-      method: "POST",
-      body: JSON.stringify({ relay, bridgeId }),
-    }),
+    call<{ ticket: string; expiresAt: number }>('/api/relay/ticket', { method: 'POST', body: JSON.stringify({ relay, bridgeId }) }),
   /** A one-use setup code (one hour) that adds a new bridge to this account. */
-  bridgeSetup: (relay: string) =>
-    call<{ code: string; expiresAt: number }>("/api/relay/setup", {
-      method: "POST",
-      body: JSON.stringify({ relay }),
-    }),
+  bridgeSetup: (relay: string) => call<{ code: string; expiresAt: number }>('/api/relay/setup', { method: 'POST', body: JSON.stringify({ relay }) }),
   /** Whether a bridge has used the setup code yet. */
   bridgeSetupState: (code: string) =>
-    call<{
-      state: "waiting" | "used" | "expired";
-      bridgeId?: string;
-      name?: string;
-    }>(`/api/relay/setup/${encodeURIComponent(code)}`),
+    call<{ state: 'waiting' | 'used' | 'expired'; bridgeId?: string; name?: string }>(`/api/relay/setup/${encodeURIComponent(code)}`),
   /** The bridge was removed: it no longer counts against the account's bridges. */
-  forgetBridge: (bridgeId: string) =>
-    call<{ ok: true }>(`/api/relay/bridges/${encodeURIComponent(bridgeId)}`, {
-      method: "DELETE",
-    }),
+  forgetBridge: (bridgeId: string) => call<{ ok: true }>(`/api/relay/bridges/${encodeURIComponent(bridgeId)}`, { method: 'DELETE' }),
   /** The project's 3MF and the version it is at. */
   /** `onProgress`: bytes downloaded so far, of `total` (0 when the size is unknown). */
-  async projectFile(
-    id: string,
-    onProgress?: (loaded: number, total: number) => void,
-  ): Promise<{ bytes: ArrayBuffer; version: number }> {
-    const res = await fetch(`${projectPath(id)}/file`, {
-      credentials: "same-origin",
-    });
+  async projectFile(id: string, onProgress?: (loaded: number, total: number) => void): Promise<{ bytes: ArrayBuffer; version: number }> {
+    const res = await fetch(`${projectPath(id)}/file`, { credentials: 'same-origin' });
     if (!res.ok) {
-      const body = (await res.json().catch(() => ({}))) as Record<
-        string,
-        unknown
-      >;
-      throw new ApiError(
-        res.status,
-        String(body.error ?? res.statusText),
-        body,
-      );
+      const body = (await res.json().catch(() => ({}))) as Record<string, unknown>;
+      throw new ApiError(res.status, String(body.error ?? res.statusText), body);
     }
-    const version = Number(res.headers.get("X-Project-Version") ?? 0);
-    if (!onProgress || !res.body)
-      return { bytes: await res.arrayBuffer(), version };
+    const version = Number(res.headers.get('X-Project-Version') ?? 0);
+    if (!onProgress || !res.body) return { bytes: await res.arrayBuffer(), version };
     // A compressed response's length isn't the size of what it reads.
-    const total = res.headers.get("Content-Encoding")
-      ? 0
-      : Number(res.headers.get("Content-Length") ?? 0);
+    const total = res.headers.get('Content-Encoding') ? 0 : Number(res.headers.get('Content-Length') ?? 0);
     const chunks: Uint8Array[] = [];
     let loaded = 0;
     const reader = res.body.getReader();
@@ -394,13 +252,10 @@ export const api = {
 };
 
 const projectPath = (id: string) => `/api/projects/${encodeURIComponent(id)}`;
-export const projectThumbnailUrl = (p: Pick<OnlineProject, "id" | "version">) =>
-  `${projectPath(p.id)}/thumbnail?v=${p.version}`;
+export const projectThumbnailUrl = (p: Pick<OnlineProject, 'id' | 'version'>) => `${projectPath(p.id)}/thumbnail?v=${p.version}`;
 
-const isStringArray = (v: unknown): v is string[] =>
-  Array.isArray(v) && v.every((x) => typeof x === "string");
-const isPlainObject = (v: unknown): v is Record<string, unknown> =>
-  !!v && typeof v === "object" && !Array.isArray(v);
+const isStringArray = (v: unknown): v is string[] => Array.isArray(v) && v.every((x) => typeof x === 'string');
+const isPlainObject = (v: unknown): v is Record<string, unknown> => !!v && typeof v === 'object' && !Array.isArray(v);
 
 /**
  * Combines a setting saved in this browser with the account's copy at sign-in.
@@ -409,10 +264,7 @@ const isPlainObject = (v: unknown): v is Record<string, unknown> =>
  * anything else the account's copy wins. Returns undefined when nothing changes.
  */
 export function mergeSetting(account: unknown, local: unknown): unknown {
-  const union = (a: string[], b: string[]) => [
-    ...a,
-    ...b.filter((x) => !a.includes(x)),
-  ];
+  const union = (a: string[], b: string[]) => [...a, ...b.filter((x) => !a.includes(x))];
   if (isStringArray(account) && isStringArray(local)) {
     const merged = union(account, local);
     return merged.length === account.length ? undefined : merged;
@@ -441,33 +293,20 @@ export function mergeSetting(account: unknown, local: unknown): unknown {
 export const newDeviceId = () => crypto.randomUUID();
 
 /** Where a sign-in ends: back to `returnTo`, or (popup) a page that tells the app and closes. */
-export function signInDoneUrl(opts: {
-  returnTo: string;
-  popup?: boolean;
-}): string {
+export function signInDoneUrl(opts: { returnTo: string; popup?: boolean }): string {
   const q = new URLSearchParams({ return: opts.returnTo });
-  if (opts.popup) q.set("popup", "1");
+  if (opts.popup) q.set('popup', '1');
   return `/api/signin-done?${q.toString()}`;
 }
 
 /** Orca user preset file content (what goes in <dataDir>/user/default/<machine|filament|process>/<name>.json). */
-export function toOrcaPresetJson(
-  p: Pick<UserPreset, "type" | "name" | "inherits" | "config">,
-): Record<string, string> {
+export function toOrcaPresetJson(p: Pick<UserPreset, 'type' | 'name' | 'inherits' | 'config'>): Record<string, string> {
   // Orca skips a user preset file without a version.
-  return {
-    ...p.config,
-    name: p.name,
-    inherits: p.inherits,
-    from: "User",
-    is_custom_defined: "0",
-    version: "1.0.0",
-  };
+  return { ...p.config, name: p.name, inherits: p.inherits, from: 'User', is_custom_defined: '0', version: '1.0.0' };
 }
 
 /** Orca's folder name for a preset type. */
-export const orcaFolder = (type: PresetType) =>
-  type === "printer" ? "machine" : type;
+export const orcaFolder = (type: PresetType) => (type === 'printer' ? 'machine' : type);
 
 /** Same rule as the server: names become file names in the engine. */
 export function presetNameError(name: string): string | null {
