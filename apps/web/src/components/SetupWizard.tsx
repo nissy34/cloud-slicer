@@ -260,7 +260,7 @@ function PrinterStep({ all, chosen, onChange }: { all: PresetSummary[]; chosen: 
       </p>
       <div className="wizard-filters">
         <input type="search" placeholder="Search printers" aria-label="Search printers" value={query} onChange={(e) => setQuery(e.target.value)} />
-        <label className="check small">
+        <label className="chip">
           <input type="checkbox" checked={sendOnly} onChange={(e) => setSendOnly(e.target.checked)} />
           <span>Only direct print</span>
         </label>
@@ -286,9 +286,9 @@ function PrinterStep({ all, chosen, onChange }: { all: PresetSummary[]; chosen: 
                         {m.model}
                         {m.send && <SendMark />}
                       </span>
-                      <span className="segmented" role="group" aria-label={`${m.model} nozzles`}>
+                      <span className="chips" role="group" aria-label={`${m.model} nozzles`}>
                         {m.nozzles.map((n) => (
-                          <button key={n.name} className={chosen.includes(n.name) ? 'on' : ''} aria-pressed={chosen.includes(n.name)} onClick={() => toggle(n.name)}>
+                          <button key={n.name} className="chip" aria-pressed={chosen.includes(n.name)} onClick={() => toggle(n.name)}>
                             {n.nozzle}
                           </button>
                         ))}

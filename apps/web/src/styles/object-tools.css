@@ -161,12 +161,6 @@
 .paint-head button {
   padding: 4px 14px;
 }
-.segmented {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 4px;
-}
-.segmented button,
 .paint-states button {
   flex: 1 1 auto;
   padding: 4px 8px;
@@ -176,7 +170,6 @@
   background: var(--surface);
   color: var(--text);
 }
-.segmented button.on,
 .paint-states button.on {
   border-color: var(--accent);
   box-shadow: inset 0 0 0 1px var(--accent);
@@ -186,14 +179,8 @@
   display: flex;
   gap: 8px;
 }
-.align-row .segmented {
+.align-row .chooser {
   flex: 1;
-  flex-wrap: nowrap;
-}
-.segmented.icons button {
-  display: flex;
-  justify-content: center;
-  padding: 5px 0;
 }
 .paint-states {
   display: flex;

@@ -136,7 +136,7 @@ function Editor({ target }: { target: Target }) {
       className="preset-settings"
       onClose={hide}
       head={
-        <label className="check small">
+        <label className="chip">
           <input type="checkbox" checked={advanced} onChange={(e) => setAdvanced(e.target.checked)} />
           <span>Advanced</span>
         </label>

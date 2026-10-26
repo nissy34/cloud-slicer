@@ -67,7 +67,7 @@ try {
   for (const p of PRINTERS) {
     await search.fill(p.search);
     const row = wizard.locator('.wizard-models li', { has: page.locator('.wizard-model', { hasText: new RegExp(`^${p.model}`) }) }).first();
-    const nozzle = row.locator('.segmented button', { hasText: '0.4' }).first();
+    const nozzle = row.locator('.chips button', { hasText: '0.4' }).first();
     if ((await nozzle.getAttribute('aria-pressed')) !== 'true') await nozzle.click();
   }
   await wizard.getByRole('button', { name: 'Next' }).click();

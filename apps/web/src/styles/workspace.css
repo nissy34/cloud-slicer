@@ -162,16 +162,11 @@
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-.svg-ratio {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
 /* Text and SVG shapes on a surface: the surface options, Keep up and Face the camera. */
 .shape-checks {
   display: flex;
   flex-wrap: wrap;
-  gap: 4px 16px;
+  gap: var(--s-2);
 }
 .tool-row.shape-row {
   align-items: center;

@@ -208,13 +208,15 @@ export function DeviceCards({ printer, busy, arranging, onDone }: { printer: Sav
       <p className="muted">{phone ? 'Hold a card by its grip and drag it up or down.' : 'Drag a card by its grip into a column, or across the top or bottom.'} Hidden cards stay here, faded. This layout is for {printer.name} only.</p>
       <div className="dv-arrange-actions">
         {!phone && (
-          <div className="dv-seg" role="group" aria-label="Columns">
+          <div className="dv-columns-pick">
             <span className="muted">Columns</span>
-            {([2, 3] as const).map((n) => (
-              <button key={n} aria-pressed={layout.desktop.cols.length === n} onClick={() => save({ ...layout, desktop: setColumns(layout.desktop, n) })}>
-                {n}
-              </button>
-            ))}
+            <div className="chooser" role="group" aria-label="Columns">
+              {([2, 3] as const).map((n) => (
+                <button key={n} aria-pressed={layout.desktop.cols.length === n} onClick={() => save({ ...layout, desktop: setColumns(layout.desktop, n) })}>
+                  {n}
+                </button>
+              ))}
+            </div>
           </div>
         )}
         {layout.cameraCards.length < MAX_CAMERA_CARDS && (
@@ -387,7 +389,7 @@ function Slot(props: {
           <b>{name}</b>
           <span className="dv-slot-tools">
             {!phone && (
-              <button className="dv-chip" aria-pressed={half} onClick={() => props.onHalf(!half)} title="Half width: two half cards sit side by side">
+              <button className="chip" aria-pressed={half} onClick={() => props.onHalf(!half)} title="Half width: two half cards sit side by side">
                 Half width
               </button>
             )}

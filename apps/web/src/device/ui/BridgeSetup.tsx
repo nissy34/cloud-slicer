@@ -65,7 +65,7 @@ function useBridgeOs(): [BridgeOs, (os: BridgeOs) => void] {
 
 function OsTabs<K extends string>({ os, onChange, tabs = ['windows', 'mac', 'linux'] as K[], names = SYSTEM_NAME as Record<K, string> }: { os: K; onChange: (os: K) => void; tabs?: K[]; names?: Record<K, string> }) {
   return (
-    <div className="dv-segmented dv-os-tabs" role="tablist" aria-label="The bridge's computer">
+    <div className="chooser dv-os-tabs" role="tablist" aria-label="The bridge's computer">
       {tabs.map((k) => (
         <button key={k} role="tab" aria-selected={os === k} className={os === k ? 'on' : ''} onClick={() => onChange(k)}>
           {names[k]}
@@ -234,7 +234,7 @@ function TestRelayNote({ relay }: { relay: string }) {
   if (!isTestRelay(relay)) return null;
   return (
     <p className="dv-note dv-test-note" data-testid="bridge-test-relay">
-      <span className="dv-test-tag">Test</span> This test site sets up a <b>test bridge</b>
+      <span className="tag warn">Test</span> This test site sets up a <b>test bridge</b>
       {testRuns ? (
         <>
           {' '}
@@ -344,7 +344,7 @@ export function BridgeSetup({ relay, pasteLink }: { relay: string; pasteLink?: R
       )}
       <div className="dv-setup-os">
         <span className="dv-setup-question">Where will the bridge run?</span>
-        <div className="dv-segmented dv-os-tabs" role="tablist" aria-label="The bridge's computer">
+        <div className="chooser dv-os-tabs" role="tablist" aria-label="The bridge's computer">
           {offered.map((k) => (
             <button key={k} role="tab" aria-selected={shown === k} className={shown === k ? 'on' : ''} onClick={() => setOs(k)}>
               {OS_LABEL[k]}
@@ -599,7 +599,7 @@ export function AddBridge({ relay, onJoined }: { relay: string; onJoined: (p: Pa
           </div>
         </div>
       )}
-      <div className="dv-segmented dv-os-tabs" role="tablist" aria-label="Where the bridge runs">
+      <div className="chooser dv-os-tabs" role="tablist" aria-label="Where the bridge runs">
         {(['windows', 'mac', 'linux', 'printer'] as const).map((k) => (
           <button key={k} role="tab" aria-selected={os === k} className={os === k ? 'on' : ''} onClick={() => setOs(k)}>
             {k === 'printer' ? 'On the printer' : SYSTEM_NAME[k]}

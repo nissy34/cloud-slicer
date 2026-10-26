@@ -157,13 +157,13 @@ function SvgFields({
           </>
         }
       />
-      <label className="svg-ratio">
+      <label className="chip">
         <input type="checkbox" checked={keepRatio} onChange={(e) => setKeepRatio(e.target.checked)} />
         Keep proportions
       </label>
       {onObject && (
         <div className="shape-checks">
-          <label className="svg-ratio" title="The shape bends with the object's surface instead of standing flat on it">
+          <label className="chip" title="The shape bends with the object's surface instead of standing flat on it">
             <input
               type="checkbox"
               checked={size.useSurface}
@@ -180,7 +180,7 @@ function SvgFields({
       )}
       <ShapeActions object={object} volume={volume} />
       {canChangeType && (
-        <div className="segmented" role="radiogroup" aria-label="SVG type">
+        <div className="chooser" role="radiogroup" aria-label="SVG type">
           {TYPES.map((t) => (
             <button
               key={t}

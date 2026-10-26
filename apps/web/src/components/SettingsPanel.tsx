@@ -95,9 +95,9 @@ export function SettingsPages({ kind, advanced, slot }: { kind: SettingsKind; ad
         onKeyDown={(e) => e.key === 'Escape' && setQuery('')}
       />
       {!found && (
-        <div className="pages" role="tablist" aria-label="Settings pages">
+        <div className="line-tabs" role="tablist" aria-label="Settings pages">
           {pages.map((p, i) => (
-            <button key={p.page} role="tab" aria-selected={p === current} className={p === current ? 'page active' : 'page'} onClick={() => setPage(i)}>
+            <button key={p.page} role="tab" aria-selected={p === current} className={p === current ? 'active' : undefined} onClick={() => setPage(i)}>
               {p.page}
             </button>
           ))}
@@ -228,7 +228,7 @@ export function SettingsPanel() {
     <section className="group settings">
       <div className="group-head">
         <h2>Process settings</h2>
-        <label className="check small">
+        <label className="chip">
           <input type="checkbox" checked={advanced} onChange={(e) => setAdvanced(e.target.checked)} />
           <span>Advanced</span>
         </label>

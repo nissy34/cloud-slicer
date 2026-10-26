@@ -41,16 +41,14 @@ export function ClimateCard() {
         {ls.map((l) => (
           <li key={l.name}>
             <span>{isU1 && l.name === U1_LIGHT ? 'Chamber light' : l.label}</span>
-            <label className="dv-switch">
-              <input
-                type="checkbox"
-                role="switch"
-                checked={l.on}
-                aria-label={isU1 && l.name === U1_LIGHT ? 'Chamber light' : l.label}
-                onChange={(e) => void run(isU1 && l.name === U1_LIGHT ? u1LightGcode(e.target.checked) : lightGcode(l.name, e.target.checked))}
-              />
-              <span />
-            </label>
+            <input
+              className="switch"
+              type="checkbox"
+              role="switch"
+              checked={l.on}
+              aria-label={isU1 && l.name === U1_LIGHT ? 'Chamber light' : l.label}
+              onChange={(e) => void run(isU1 && l.name === U1_LIGHT ? u1LightGcode(e.target.checked) : lightGcode(l.name, e.target.checked))}
+            />
           </li>
         ))}
       </ul>

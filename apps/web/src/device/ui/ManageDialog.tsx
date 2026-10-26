@@ -154,7 +154,7 @@ function BridgeCard({ b, onLeftover }: { b: SavedBridge; onLeftover: (l: Leftove
         <span>
           <strong>{b.name}</strong>{' '}
           {isTestRelay(pairing?.relay) && (
-            <span className="dv-test-tag" data-testid="manage-bridge-test" title="Connected to the test relay, where changes are tried before they reach everyone">
+            <span className="tag warn" data-testid="manage-bridge-test" title="Connected to the test relay, where changes are tried before they reach everyone">
               Test
             </span>
           )}{' '}

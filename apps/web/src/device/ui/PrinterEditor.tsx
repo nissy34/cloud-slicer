@@ -787,7 +787,7 @@ export function PrinterEditor() {
     >
       {!existing && <WorksWith />}
       {!existing && !newBridge && (
-        <div className="dv-segmented" role="tablist" aria-label="How to reach the printer">
+        <div className="chooser" role="tablist" aria-label="How to reach the printer">
           <button role="tab" aria-selected={kind === 'bridge'} className={kind === 'bridge' ? 'on' : ''} onClick={() => setKind('bridge')}>
             At home (recommended)
           </button>
