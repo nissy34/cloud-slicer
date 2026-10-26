@@ -1,4 +1,6 @@
 import { useSlicer } from '../state/store';
+import { Ellipsis } from 'lucide-react';
+import { IconButton } from './IconButton';
 
 /**
  * A small bar over the 3D view while several models are chosen, or while
@@ -25,17 +27,15 @@ export function ChooseBar() {
         </button>
       )}
       {several && (
-        <button
-          className="ghost"
+        <IconButton
+          icon={Ellipsis}
+          label="What to do with them all (or right-click / long press a chosen model)"
           aria-label="What to do with them"
-          title="What to do with them all (or right-click / long press a chosen model)"
           onClick={(e) => {
             const r = e.currentTarget.getBoundingClientRect();
             openGroupMenu({ x: r.left, y: r.bottom + 4 });
           }}
-        >
-          ⋯
-        </button>
+        />
       )}
       <button
         className={choosing ? 'primary' : 'ghost'}

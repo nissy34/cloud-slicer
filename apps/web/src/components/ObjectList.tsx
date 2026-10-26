@@ -2,6 +2,8 @@ import { printableLabel } from '../lib/printable';
 import { KIND_CODES, KIND_COLOURS, KIND_LABELS } from '../lib/volumes';
 import { NO_COLOURS, useSlicer } from '../state/store';
 import { ObjectSettings } from './ObjectSettings';
+import { Ellipsis } from 'lucide-react';
+import { IconButton } from './IconButton';
 
 /** Objects on the current plate, their filament, and the selected one's settings. */
 export function ObjectList() {
@@ -76,8 +78,9 @@ export function ObjectList() {
                   {skipped && <span className="muted"> · {skipped}</span>}
                 </button>
                 {filamentSelect(o, -1, obj.extruder || 1, `Filament for ${obj.name}`)}
-                <button
-                  className="ghost object-more"
+                <IconButton
+                  icon={Ellipsis}
+                  label="More"
                   aria-label={`More for ${obj.name}`}
                   title="More: clone, rename, mirror, export… (or right-click the object)"
                   onClick={(e) => {
@@ -86,9 +89,7 @@ export function ObjectList() {
                     select({ object: o, instance: i });
                     openObjectMenu({ object: o, instance: i, x: r.left, y: r.bottom + 2 });
                   }}
-                >
-                  ⋯
-                </button>
+                />
               </div>
               {active && obj.volumes.length > 1 && (
                 <ul className="volumes">
@@ -109,8 +110,9 @@ export function ObjectList() {
                           {v.painted && <span className="muted"> (painted)</span>}
                         </button>
                         {v.kind === 'part' && filamentSelect(o, i, v.extruder, `Filament for ${v.name}`)}
-                        <button
-                          className="ghost object-more"
+                        <IconButton
+                          icon={Ellipsis}
+                          label="More"
                           aria-label={`More for part ${v.name}`}
                           title="Rename, change type, settings, delete"
                           onClick={(e) => {
@@ -119,9 +121,7 @@ export function ObjectList() {
                             select({ object: o, instance: inst, volume: i });
                             openObjectMenu({ object: o, instance: inst, volume: i, x: r.left, y: r.bottom + 2 });
                           }}
-                        >
-                          ⋯
-                        </button>
+                        />
                       </li>
                     );
                   })}

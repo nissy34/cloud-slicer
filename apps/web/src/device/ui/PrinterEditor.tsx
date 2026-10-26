@@ -463,10 +463,10 @@ function BridgeAddList({
                   )}
                   {r.step === 'ready' && (
                     <span className="dv-row-actions">
-                      <button className="dv-link" onClick={() => edit(r.key, { step: 'editing' })}>
+                      <button className="quiet" onClick={() => edit(r.key, { step: 'editing' })}>
                         Change
                       </button>
-                      <button className="dv-link" onClick={() => edit(r.key, { step: 'idle' })} data-testid="add-row-drop">
+                      <button className="quiet" onClick={() => edit(r.key, { step: 'idle' })} data-testid="add-row-drop">
                         Don't add
                       </button>
                     </span>
@@ -533,7 +533,7 @@ function BridgeState({ bridge, problem, joined, onDifferent }: { bridge: BridgeS
   const online = bridge?.agent === 'online';
   const state = online ? 'online' : problem ? 'failed' : 'connecting';
   const different = onDifferent && (
-    <button className="dv-link" onClick={onDifferent}>
+    <button className="quiet" onClick={onDifferent}>
       Use a different bridge
     </button>
   );
@@ -721,7 +721,7 @@ export function PrinterEditor() {
               Cancel
             </button>
             <button
-              className="primary dv-danger"
+              className="primary danger"
               disabled={removing}
               onClick={async () => {
                 setRemoving(true);
@@ -753,7 +753,7 @@ export function PrinterEditor() {
       footer={
         <>
           {existing && (
-            <button className="secondary dv-danger-text dv-left" onClick={() => setConfirmRemove(true)} data-testid="remove-printer">
+            <button className="secondary danger dv-left" onClick={() => setConfirmRemove(true)} data-testid="remove-printer">
               Remove printer
             </button>
           )}
@@ -821,7 +821,7 @@ export function PrinterEditor() {
                 <span className="muted">Or set up a new bridge on another computer:</span>
               ) : (
                 !wantNew && (
-                  <button className="dv-link" onClick={() => setWantNew(true)} data-testid="new-bridge">
+                  <button className="quiet" onClick={() => setWantNew(true)} data-testid="new-bridge">
                     Or set up a new bridge
                   </button>
                 )

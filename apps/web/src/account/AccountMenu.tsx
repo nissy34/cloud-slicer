@@ -78,7 +78,7 @@ export function AccountMenu() {
           {error && (
             <p className="account-error" role="alert">
               {error}{' '}
-              <button className="account-link" onClick={() => useAccount.getState().clearError()}>
+              <button className="quiet" onClick={() => useAccount.getState().clearError()}>
                 Dismiss
               </button>
             </p>
@@ -182,7 +182,7 @@ function SignedIn({ onDone }: { onDone: () => void }) {
               Keep it
             </button>
             <button
-              className="primary account-danger"
+              className="primary danger"
               onClick={async () => {
                 await useAccount.getState().deleteAccount();
                 setConfirming(false);
@@ -195,7 +195,7 @@ function SignedIn({ onDone }: { onDone: () => void }) {
         </div>
       ) : (
         <div className="account-actions">
-          <button className="account-link danger" onClick={() => setConfirming(true)}>
+          <button className="quiet danger" onClick={() => setConfirming(true)}>
             Delete account
           </button>
           <button

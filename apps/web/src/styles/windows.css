@@ -44,24 +44,6 @@
   font-size: var(--t-xl);
   overflow-wrap: anywhere;
 }
-.win-close {
-  flex: none;
-  width: 32px;
-  height: 32px;
-  padding: 0;
-  display: grid;
-  place-items: center;
-  border: 0;
-  border-radius: var(--r-lg);
-  background: none;
-  color: var(--muted);
-  font-size: var(--t-lg);
-  cursor: pointer;
-}
-.win-close:hover {
-  background: var(--surface-2);
-  color: var(--text);
-}
 .win-content {
   display: grid;
   grid-template-columns: minmax(0, 1fr);

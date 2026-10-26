@@ -4,6 +4,7 @@ import { metaFromMoonraker, thumbnailUrl, type GcodeMeta } from '../gcode-meta';
 import type { GcodeFile } from '../session';
 import { currentSession, useDevice } from '../../state/device';
 import { Card, useConfirm } from './parts';
+import { ChevronLeft, ChevronRight } from 'lucide-react';
 
 function size(bytes: number) {
   return bytes >= 1 << 20 ? `${(bytes / (1 << 20)).toFixed(1)} MB` : `${Math.max(1, Math.round(bytes / 1024))} KB`;
@@ -83,10 +84,10 @@ function FileRow({ file: f, onPrint, onDelete }: { file: GcodeFile; onPrint(): v
         <span>{when(f.modified)}</span>
       </span>
       <span className="dv-file-actions">
-        <button className="dv-link" onClick={onPrint}>
+        <button className="quiet" onClick={onPrint}>
           Print…
         </button>
-        <button className="dv-link dv-danger-text" aria-label={`Delete ${f.path}`} onClick={onDelete}>
+        <button className="quiet danger" aria-label={`Delete ${f.path}`} onClick={onDelete}>
           Delete
         </button>
       </span>
@@ -119,7 +120,7 @@ export function FilesCard() {
       testId="files-card"
       actions={
         <>
-          <button className="dv-link" onClick={() => input.current?.click()}>
+          <button className="quiet" onClick={() => input.current?.click()}>
             Upload G-code…
           </button>
           <input
@@ -171,14 +172,14 @@ export function FilesCard() {
           </ul>
           {pages > 1 && (
             <nav className="dv-pager" aria-label="File pages" data-testid="files-pager">
-              <button className="dv-link" disabled={at === 0} onClick={() => setPage(at - 1)}>
-                ‹ Newer
+              <button className="quiet" disabled={at === 0} onClick={() => setPage(at - 1)}>
+                <ChevronLeft size={14} aria-hidden /> Newer
               </button>
               <span className="muted">
                 {at * FILES_PER_PAGE + 1}–{at * FILES_PER_PAGE + rows.length} of {shown.length}
               </span>
-              <button className="dv-link" disabled={at === pages - 1} onClick={() => setPage(at + 1)}>
-                Older ›
+              <button className="quiet" disabled={at === pages - 1} onClick={() => setPage(at + 1)}>
+                Older <ChevronRight size={14} aria-hidden />
               </button>
             </nav>
           )}

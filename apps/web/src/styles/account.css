@@ -94,21 +94,6 @@
   display: grid;
   gap: 4px;
 }
-.account-link {
-  display: block;
-  padding: 0;
-  margin: 0 0 12px;
-  border: 0;
-  background: none;
-  color: var(--accent);
-  cursor: pointer;
-}
-.account-actions .account-link {
-  margin: 0;
-}
-.account-link.danger {
-  color: var(--danger);
-}
 .account-actions {
   display: flex;
   align-items: center;
@@ -117,9 +102,6 @@
 }
 .account-confirm p {
   margin-bottom: 10px;
-}
-.account-danger {
-  background: var(--danger);
 }
 .account-error {
   margin: 12px 0 0 !important;

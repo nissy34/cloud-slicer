@@ -164,10 +164,6 @@
   align-items: baseline;
   gap: 12px;
 }
-.project-card-actions .account-link {
-  display: inline;
-  margin: 0;
-}
 @media (max-width: 760px) {
   /* Hidden but still read out, so the button stays "Project …" to screen readers. */
   .project-label {

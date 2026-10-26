@@ -136,7 +136,7 @@ export function PageCard({ card, home, onPick }: { card: CamCardId; home: Record
       actions={
         <>
           {pages && pages.length > 0 && (cam ? pages.length > 1 : true) && (
-            <button className="dv-link" onClick={() => setChoosing(!choosing)} aria-expanded={choosing}>
+            <button className="quiet" onClick={() => setChoosing(!choosing)} aria-expanded={choosing}>
               {choosing ? 'Done' : 'Choose'}
             </button>
           )}
@@ -186,7 +186,7 @@ export function PageCard({ card, home, onPick }: { card: CamCardId; home: Record
           </span>
           {error && (
             <button
-              className="dv-link"
+              className="quiet"
               onClick={() => {
                 setError('');
                 setRound(round + 1);

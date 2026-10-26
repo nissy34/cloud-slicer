@@ -160,7 +160,7 @@ export function ToolheadsCard() {
           <div className="dv-head-actions">
             {head.dock && head.dock !== 'attached' && (
               <button
-                className="secondary dv-btn-icon"
+                className="secondary"
                 disabled={printing}
                 onClick={() =>
                   confirm({
@@ -176,7 +176,7 @@ export function ToolheadsCard() {
             )}
             {head.dock === 'attached' && (
               <button
-                className="secondary dv-btn-icon"
+                className="secondary"
                 disabled={printing}
                 onClick={() =>
                   confirm({
@@ -193,7 +193,7 @@ export function ToolheadsCard() {
             {head.feed && (
               <>
                 <button
-                  className={head.loaded ? 'secondary dv-btn-icon' : 'primary dv-btn-icon'}
+                  className={head.loaded ? 'secondary' : 'primary'}
                   disabled={printing || feeding || head.loaded}
                   title={
                     head.loaded
@@ -216,7 +216,7 @@ export function ToolheadsCard() {
                   Load
                 </button>
                 <button
-                  className="secondary dv-btn-icon"
+                  className="secondary"
                   disabled={printing || feeding || !head.loaded}
                   onClick={() =>
                     confirm({
@@ -231,12 +231,12 @@ export function ToolheadsCard() {
                 </button>
               </>
             )}
-            <button className="secondary dv-btn-icon" disabled={printing} onClick={() => setEditing(head)}>
-              <Icon name="edit" />
+            <button className="secondary" disabled={printing} onClick={() => setEditing(head)}>
+              <Icon name="filament" />
               Filament
             </button>
             {head.nozzle && (
-              <button className="secondary dv-btn-icon" disabled={printing} onClick={() => setNozzleOf(head.index)}>
+              <button className="secondary" disabled={printing} onClick={() => setNozzleOf(head.index)}>
                 <Icon name="nozzle" />
                 Nozzle
               </button>
@@ -380,7 +380,7 @@ function NozzleEditor({ head, onClose }: { head: U1Head; onClose(): void }) {
           Tool changes: {head.switches.count.toLocaleString()} ({head.switches.sinceMaintenance.toLocaleString()} since the docks were last serviced)
           {head.switches.errors > 0 && `, ${head.switches.errors} failed`}.{' '}
           <button
-            className="dv-link"
+            className="quiet"
             onClick={() =>
               confirm({
                 action: 'Reset',

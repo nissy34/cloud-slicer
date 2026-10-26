@@ -1,4 +1,6 @@
 import { useEffect, useId, useRef, type ReactNode } from 'react';
+import { X } from 'lucide-react';
+import { IconButton } from './IconButton';
 
 /**
  * The app's one pop-up window: a title with ✕, what it says or holds, and its
@@ -62,9 +64,7 @@ export function Dialog({
         <header className="win-head">
           <h2 id={titleId}>{title}</h2>
           {head}
-          <button type="button" className="win-close" onClick={onClose} aria-label="Close window">
-            ✕
-          </button>
+          <IconButton icon={X} label="Close" aria-label="Close window" onClick={onClose} />
         </header>
         <div className="win-content">{children}</div>
         {footer && <footer className="win-foot">{footer}</footer>}

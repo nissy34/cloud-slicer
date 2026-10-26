@@ -258,7 +258,7 @@ function AccessCard({ data, act }: { data: AdminOverview; act: Act }) {
               <span>{i.email}</span>
               <span className="muted small">hasn't signed in yet</span>
               <button
-                className="dv-link"
+                className="quiet"
                 onClick={() =>
                   act(
                     () => adminApi.uninvite(i.email),
@@ -402,13 +402,13 @@ function UserRow({ u, defaultMb, inviteOnly, act }: { u: AdminUser; defaultMb: n
           </button>
         )}
         {!u.owner && !confirming && (
-          <button className="secondary admin-danger" onClick={() => setConfirming(true)}>
+          <button className="secondary danger" onClick={() => setConfirming(true)}>
             Delete
           </button>
         )}
         {!u.owner && (
           <button
-            className={u.blocked ? 'secondary' : 'secondary admin-danger'}
+            className={u.blocked ? 'secondary' : 'secondary danger'}
             onClick={() =>
               act(
                 () => adminApi.userAction(u.id, u.blocked ? 'unblock' : 'block'),
@@ -479,7 +479,7 @@ function BridgesCard({ bridges, act }: { bridges: AdminBridge[]; act: Act }) {
               </div>
               <div className="admin-user-actions">
                 <button
-                  className={b.off ? 'secondary' : 'secondary admin-danger'}
+                  className={b.off ? 'secondary' : 'secondary danger'}
                   onClick={() =>
                     act(
                       () => adminApi.bridge(b.id, b.off ? 'on' : 'off'),

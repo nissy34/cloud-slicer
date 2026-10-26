@@ -9,6 +9,7 @@ import { LIGHT_TRIANGLES, triangleCount } from '../lib/simplify';
 import { useProjects } from '../state/projects';
 import { useObjectsOutside, useSlicer } from '../state/store';
 import { usePresetSettings } from './PresetSettingsDialog';
+import { TriangleAlert } from 'lucide-react';
 
 function download(blob: Blob, name: string) {
   const url = URL.createObjectURL(blob);
@@ -93,7 +94,7 @@ function SliceWarnings({ warnings }: { warnings: SliceWarning[] }) {
   return (
     <div className="slice-warnings" data-testid="slice-warnings">
       <button className={`warnings-toggle${serious ? ' serious' : ''}`} aria-expanded={open} onClick={() => setOpen(!open)}>
-        <span aria-hidden="true">⚠</span> {count}
+        <TriangleAlert size={14} aria-hidden /> {count}
         <span className="muted"> · {open ? 'Hide' : 'Show'}</span>
       </button>
       {open && (
@@ -198,11 +199,11 @@ export function ActionBar() {
             {' '}
             Printing object by object, the tool head needs room: {tooClose.map(sentence).join(' ')} This printer keeps {mm(clearance.radius)} round each object, objects
             printed before others in the same row up to {mm(clearance.rod)} tall and the rest up to {mm(clearance.lid)}.{' '}
-            <button className="link" onClick={() => void useSlicer.getState().arrange()}>
+            <button className="quiet" onClick={() => void useSlicer.getState().arrange()}>
               Arrange
             </button>{' '}
             ·{' '}
-            <button className="link" onClick={() => usePresetSettings.getState().show({ type: 'printer' })}>
+            <button className="quiet" onClick={() => usePresetSettings.getState().show({ type: 'printer' })}>
               Printer settings
             </button>
           </span>
@@ -211,7 +212,7 @@ export function ActionBar() {
           <span className="hint" data-testid="sliced-away">
             {' '}
             Plate {slicedAway + 1} sliced ·{' '}
-            <button className="link" onClick={() => void viewSlice(slicedAway)}>
+            <button className="quiet" onClick={() => void viewSlice(slicedAway)}>
               View
             </button>
           </span>

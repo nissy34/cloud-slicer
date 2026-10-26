@@ -1,4 +1,6 @@
 import type { ReactNode } from 'react';
+import { CircleCheck, Info, TriangleAlert, X } from 'lucide-react';
+import { IconButton } from './IconButton';
 
 /** How long good news stays (problems stay until closed). */
 export const NOTICE_MS = 5000;
@@ -22,7 +24,8 @@ export function Notice({
   onClose?: () => void;
   testId?: string;
 }) {
-  const sign = icon ?? (tone === 'ok' ? '✓' : tone === 'info' ? 'i' : '!');
+  const Sign = tone === 'ok' ? CircleCheck : tone === 'info' ? Info : TriangleAlert;
+  const sign = icon ?? <Sign size={18} />;
   return (
     <div className={`notice ${tone}`} role={tone === 'error' ? 'alert' : 'status'} data-testid={testId}>
       <div className="notice-main">
@@ -34,9 +37,7 @@ export function Notice({
           {text && <span>{text}</span>}
         </div>
         {onClose && (
-          <button className="win-close" aria-label="Close message" onClick={onClose}>
-            ✕
-          </button>
+          <IconButton icon={X} label="Close" aria-label="Close message" onClick={onClose} />
         )}
       </div>
       {actions && <div className="notice-actions">{actions}</div>}

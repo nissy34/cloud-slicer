@@ -154,7 +154,7 @@ export function JobCard() {
         )}
         {active && (
           <button
-            className="secondary dv-danger-text"
+            className="secondary danger"
             onClick={() =>
               confirm({
                 action: 'Cancel print',
@@ -191,7 +191,7 @@ function PrinterErrors({ errors }: { errors: PrinterError[] }) {
           <div className="dv-error-foot">
             <span className="muted">Error code {e.code}</span>
             {e.once && (
-              <button className="dv-link" onClick={() => currentSession()?.dismissError(e.id)}>
+              <button className="quiet" onClick={() => currentSession()?.dismissError(e.id)}>
                 Dismiss
               </button>
             )}

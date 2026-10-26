@@ -71,7 +71,7 @@ export function Temperature({ temp, target, max, onSet, disabled, label }: { tem
       )}
       <span className="muted">°C</span>
       {target > 0 && !disabled && (
-        <button className="dv-link" onClick={() => onSet(0)} aria-label={`Turn ${label} off`}>
+        <button className="quiet" onClick={() => onSet(0)} aria-label={`Turn ${label} off`}>
           Off
         </button>
       )}
@@ -119,7 +119,7 @@ export function useConfirm() {
             {pending.keep ?? 'Keep going'}
           </button>
           <button
-            className={pending.danger ? 'primary dv-danger' : 'primary'}
+            className={pending.danger ? 'primary danger' : 'primary'}
             onClick={() => {
               pending.run();
               setPending(null);
