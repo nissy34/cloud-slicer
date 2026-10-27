@@ -3,6 +3,8 @@
 // removing plates. Each returns {ok, error?}; the page re-reads modelInfoJson().
 #include "engine.hpp"
 
+#include "paint_remap.hpp"
+
 #include "libslic3r/CutUtils.hpp"
 #include "libslic3r/Geometry.hpp"
 #include "libslic3r/Orient.hpp"
@@ -12,6 +14,7 @@
 
 using nlohmann::json;
 using namespace Slic3r;
+namespace paint = engine::paint;
 
 namespace {
 
@@ -169,9 +172,14 @@ std::string splitParts(int o) {
     });
 }
 
+constexpr double CUT_PLANE_Z_TOLERANCE = 2e-3;      // 2 microns
+constexpr double CUT_PLANE_NORMAL_TOLERANCE = 0.99; // cos(angle) > 0.99 (~8 deg)
+
 // Cuts instance i of object o with a horizontal plane at height z (mm above
 // the bed), like desktop's Cut tool. keep: "both", "upper" or "lower";
 // flipUpper turns the upper part over so its cut face lies on the bed.
+// Painting on the parts (filament colours, support enforcers/blockers, seam
+// enforcers/blockers and fuzzy skin) is preserved on the cut objects.
 std::string cutObject(int o, int i, double z, const std::string& keep, bool flipUpper) {
     return guarded([&] {
         ModelObject* obj = objectAt(o);
@@ -183,11 +191,101 @@ std::string cutObject(int o, int i, double z, const std::string& keep, bool flip
                                          only_if(upper && !flipUpper, ModelObjectCutAttribute::PlaceOnCutUpper) |
                                          ModelObjectCutAttribute::InvalidateCutInfo;
         const Vec3d offset = obj->instances[i]->get_offset();
+        const Transform3d instance_matrix = obj->instances[i]->get_transformation().get_matrix_no_offset();
+
+        // Prepare paint sources before cutting. Tag each volume with a unique suffix
+        // in its name so that volumes on cut parts can be unambiguously mapped back
+        // to their source volume, even if multiple volumes have identical names or
+        // only some volumes have paint.
+        struct VolumeSource {
+            const ModelVolume* orig;
+            std::unique_ptr<paint::Source> src;
+            bool hasPaint = false;
+        };
+        std::vector<VolumeSource> sources;
+        std::vector<std::string> origNames;
+        origNames.reserve(obj->volumes.size());
+        sources.reserve(obj->volumes.size());
+
+        for (size_t idx = 0; idx < obj->volumes.size(); ++idx) {
+            ModelVolume* v = obj->volumes[idx];
+            origNames.push_back(v->name);
+            v->name = v->name + "__srcvol_" + std::to_string(idx);
+
+            const bool hasPaint = v->is_model_part() && !v->mesh().empty() &&
+                (!v->supported_facets.empty() || !v->seam_facets.empty() ||
+                 !v->mmu_segmentation_facets.empty() || !v->fuzzy_skin_facets.empty());
+
+            std::unique_ptr<paint::Source> src;
+            if (hasPaint) {
+                src = std::make_unique<paint::Source>(v->mesh().its);
+            }
+            sources.push_back({v, std::move(src), hasPaint});
+        }
+
         Cut cut(obj, i, Geometry::translation_transform(z * Vec3d::UnitZ() - offset), attrs);
         const ModelObjectPtrs& parts = cut.perform_with_plane();
-        if (parts.empty()) throw std::runtime_error("the cut plane misses the object");
+        if (parts.empty()) {
+            for (size_t idx = 0; idx < obj->volumes.size(); ++idx) obj->volumes[idx]->name = origNames[idx];
+            throw std::runtime_error("the cut plane misses the object");
+        }
+
         std::vector<ModelObject*> added;
         for (const ModelObject* part : parts) added.push_back(pr().model.add_object(*part));
+
+        // Remap paint annotations onto each added part's volumes before deleting obj
+        for (ModelObject* a : added) {
+            for (ModelVolume* cutVol : a->volumes) {
+                // Find and strip __srcvol_K tag
+                const std::string tag = "__srcvol_";
+                const size_t tagPos = cutVol->name.find(tag);
+                int srcIdx = -1;
+                if (tagPos != std::string::npos) {
+                    const size_t numStart = tagPos + tag.size();
+                    size_t numEnd = numStart;
+                    while (numEnd < cutVol->name.size() && std::isdigit(cutVol->name[numEnd])) ++numEnd;
+                    if (numEnd > numStart) {
+                        srcIdx = std::stoi(cutVol->name.substr(numStart, numEnd - numStart));
+                        cutVol->name = cutVol->name.substr(0, tagPos) + cutVol->name.substr(numEnd);
+                    }
+                }
+
+                if (srcIdx < 0 || size_t(srcIdx) >= sources.size()) continue;
+                const VolumeSource& vs = sources[srcIdx];
+                if (!vs.hasPaint || !cutVol->is_model_part() || cutVol->mesh().empty()) continue;
+
+                // Transform cutVol mesh into original volume's local coordinates
+                const Transform3d T_cut_to_orig = vs.orig->get_matrix().inverse() * cutVol->get_matrix();
+                TriangleMesh localMesh(cutVol->mesh());
+                localMesh.transform(T_cut_to_orig);
+
+                // Detect cut cap triangles: vertices on the cut plane with normal facing along cut plane normal
+                const Transform3d world_matrix = instance_matrix * cutVol->get_matrix();
+                auto isCap = [&](size_t t) -> bool {
+                    const auto& tri = cutVol->mesh().its.indices[t];
+                    const Vec3d va = world_matrix * cutVol->mesh().its.vertices[tri[0]].cast<double>() + offset;
+                    const Vec3d vb = world_matrix * cutVol->mesh().its.vertices[tri[1]].cast<double>() + offset;
+                    const Vec3d vc = world_matrix * cutVol->mesh().its.vertices[tri[2]].cast<double>() + offset;
+                    if (std::abs(va.z() - z) > CUT_PLANE_Z_TOLERANCE ||
+                        std::abs(vb.z() - z) > CUT_PLANE_Z_TOLERANCE ||
+                        std::abs(vc.z() - z) > CUT_PLANE_Z_TOLERANCE) return false;
+                    const Vec3d n = (vb - va).cross(vc - va);
+                    const double len = n.norm();
+                    return len > 1e-12 && (std::abs(n.z()) / len) > CUT_PLANE_NORMAL_TOLERANCE;
+                };
+
+                // recoverSmallPatches is false for Cut (mesh density is preserved; avoids bleeding from other cut half)
+                if (!vs.orig->supported_facets.empty())
+                    paint::remapAnnotation(*vs.src, vs.orig->supported_facets, cutVol->supported_facets, localMesh, isCap, false);
+                if (!vs.orig->seam_facets.empty())
+                    paint::remapAnnotation(*vs.src, vs.orig->seam_facets, cutVol->seam_facets, localMesh, isCap, false);
+                if (!vs.orig->mmu_segmentation_facets.empty())
+                    paint::remapAnnotation(*vs.src, vs.orig->mmu_segmentation_facets, cutVol->mmu_segmentation_facets, localMesh, isCap, false);
+                if (!vs.orig->fuzzy_skin_facets.empty())
+                    paint::remapAnnotation(*vs.src, vs.orig->fuzzy_skin_facets, cutVol->fuzzy_skin_facets, localMesh, isCap, false);
+            }
+        }
+
         pr().model.delete_object(size_t(o));
         for (ModelObject* a : added) a->ensure_on_bed();
         return ok({{"objects", added.size()}});
