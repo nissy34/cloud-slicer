@@ -143,8 +143,13 @@ if (self.name !== 'em-pthread') {
       const path = `/work/${name.replace(/[^\w.\-]+/g, '_')}`;
       e.FS.writeFile(path, new Uint8Array(bytes));
       const [w, d] = bedSize(printableArea);
-      const res = json(e.loadModel(path, plate, w, d, !!geometryOnly, Number(orientation) || 0));
-      e.FS.unlink(path);
+      let res;
+      try {
+        res = json(e.loadModel(path, plate, w, d, !!geometryOnly, Number(orientation) || 0));
+      } finally {
+        // A failed load mustn't leave the file's bytes in the wasm FS.
+        e.FS.unlink(path);
+      }
       return { ...res, info: JSON.parse(e.modelInfoJson()) };
     },
     // The project as an Orca 3MF (desktop's Save project) with the current

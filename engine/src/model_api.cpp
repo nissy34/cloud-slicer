@@ -4,6 +4,7 @@
 // Coordinates the page sees are plate-local millimetres: (0, 0) is the front
 // left corner of the plate, like the desktop Prepare view of one plate.
 #include "engine.hpp"
+#include "paint_walk.hpp"
 
 #include "libslic3r/BoundingBox.hpp"
 #include "libslic3r/Geometry.hpp"
@@ -307,6 +308,11 @@ std::string loadModel(const std::string& path, int plate, double bedWidth, doubl
     try {
         const bool is3mf = boost::iends_with(path, ".3mf");
         if (is3mf && !geometryOnly) {
+            // The open project goes, with everything kept about it, before the
+            // new one is read: both at once may not fit.
+            clearUndoHistory();
+            clearPaintCaches();
+            clearSimplifyPreview();
             g_project.clear();
             DynamicPrintConfig config;
             ConfigSubstitutionContext subs(ForwardCompatibilitySubstitutionRule::Enable);
@@ -329,10 +335,17 @@ std::string loadModel(const std::string& path, int plate, double bedWidth, doubl
             // desktop does when it opens a project (Plater::on_filaments_change
             // -> ModelVolume::update_extruder_count): that area prints with the
             // part's own filament, so Prepare shows what the slice prints.
+            // The paint's used states say which filaments it has; asking
+            // update_extruder_count would rebuild all of the paint's facets
+            // (ModelVolume::get_extruders), too big for a finely painted model.
             if (const size_t filaments = filamentCount(g_project.fileConfig); filaments > 0)
                 for (ModelObject* o : g_project.model.objects)
-                    for (ModelVolume* v : o->volumes)
-                        if (v->is_model_part() && !v->mmu_segmentation_facets.empty()) v->update_extruder_count(filaments);
+                    for (ModelVolume* v : o->volumes) {
+                        if (!v->is_model_part() || v->mmu_segmentation_facets.empty()) continue;
+                        const auto used = v->get_extruders_from_multi_material_painting();  // 0-based
+                        if (std::any_of(used.begin(), used.end(), [&](size_t e) { return e + 1 > filaments; }))
+                            v->mmu_segmentation_facets.set_enforcer_block_type_limit(*v, EnforcerBlockerType(filaments));
+                    }
             return ok({{"objectsAdded", g_project.model.objects.size()}, {"isProject", true}}).dump();
         }
 
@@ -508,6 +521,22 @@ emscripten::val previewMesh(int plate) {
     std::vector<int> extraList;
     std::vector<int> partList;
     const Vec2d origin = g_project.plateOrigin(plate);
+    {
+        // Room for every triangle up front: growing a vector of hundreds of MB
+        // needs it twice over while it moves.
+        size_t tris = 0;
+        for (const ModelObject* obj : g_project.model.objects)
+            for (const ModelInstance* inst : obj->instances) {
+                if (g_project.plateOf(*inst) != plate) continue;
+                for (const ModelVolume* v : obj->volumes)
+                    if (v->is_model_part())
+                        tris += v->mmu_segmentation_facets.empty()
+                                    ? v->mesh().its.indices.size()
+                                    : paint::countFacets(v->mmu_segmentation_facets.get_data(), v->mesh().its.indices.size());
+            }
+        pos.reserve(tris * 9);
+        fil.reserve(tris);
+    }
     for (size_t o = 0; o < g_project.model.objects.size(); ++o) {
         const ModelObject* obj = g_project.model.objects[o];
         const size_t before = fil.size();
@@ -528,10 +557,31 @@ emscripten::val previewMesh(int plate) {
                 if (v->mmu_segmentation_facets.empty()) {
                     appendTriangles(v->mesh().its, m, origin, pos, fil, base);
                 } else {
-                    std::vector<indexed_triangle_set> perState;
-                    v->mmu_segmentation_facets.get_facets(*v, perState);
-                    for (size_t s = 0; s < perState.size(); ++s)
-                        appendTriangles(perState[s], m, origin, pos, fil, s == 0 ? base : uint8_t(std::min<size_t>(s, 255)));
+                    // The painted facets read from the paint's bitstream
+                    // (paint_walk.hpp): get_facets would rebuild them all in
+                    // one TriangleSelector, too big for a finely painted model.
+                    const indexed_triangle_set& its = v->mesh().its;
+                    const auto& data = v->mmu_segmentation_facets.get_data();
+                    const std::vector<int> start = paint::bitstreamStarts(data, its.indices.size());
+                    const auto put = [&](const Vec3f& p0, const Vec3f& p1, const Vec3f& p2, uint8_t filament) {
+                        for (const Vec3f* p : {&p0, &p1, &p2}) {
+                            const Vec3d w = m * p->cast<double>();
+                            pos.insert(pos.end(), {float(w.x() - origin.x()), float(w.y() - origin.y()), float(w.z())});
+                        }
+                        fil.push_back(filament);
+                    };
+                    for (size_t t = 0; t < its.indices.size(); ++t) {
+                        const auto& f = its.indices[t];
+                        const Vec3f &a = its.vertices[f[0]], &b = its.vertices[f[1]], &c = its.vertices[f[2]];
+                        if (start[t] < 0) {
+                            put(a, b, c, base);
+                            continue;
+                        }
+                        paint::forEachFacet(data.bitstream, start[t], a, b, c,
+                                            [&](const Vec3f& p0, const Vec3f& p1, const Vec3f& p2, EnforcerBlockerType s) {
+                                                put(p0, p1, p2, s == EnforcerBlockerType::NONE ? base : uint8_t(std::min<int>(int(s), 255)));
+                                            });
+                    }
                 }
                 partList.insert(partList.end(), {int(o), int(k), int(first), int(fil.size() - first)});
             }
