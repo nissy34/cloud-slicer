@@ -97,6 +97,15 @@ struct Selector {
 };
 Selector g_selector;
 
+} // namespace
+
+void engine::clearPaintCaches() {
+    g_selector = Selector();
+    g_trees.clear();
+}
+
+namespace {
+
 TriangleSelector& selectorOf(ModelVolume& v, const std::string& kind) {
     Selector& s = g_selector;
     FacetsAnnotation& f = facetsOf(v, kind);

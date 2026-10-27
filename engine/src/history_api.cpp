@@ -98,6 +98,8 @@ std::string clearHistory() {
 
 } // namespace
 
+void engine::clearUndoHistory() { clearHistory(); }
+
 EMSCRIPTEN_BINDINGS(history_api) {
     emscripten::function("snapshot", &snapshot);
     emscripten::function("dropSnapshot", &dropSnapshot);
