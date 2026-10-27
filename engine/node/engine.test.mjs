@@ -1060,11 +1060,33 @@ test('simplify: fewer triangles by detail level or ratio, keeping paint', () => 
   // A 0% ratio leaves the mesh as it is.
   assert.equal(simplify({ op: 'preview', ratio: 0 }).after, half.after);
 
-  // Multi-colour painted 3MF keeps its filament colours after simplifying.
+  // Multi-colour painted 3MF keeps its filament colours after simplifying,
+  // previews correctly with zero-deserialization paint traversal, and undo/redo works.
   const colored = load('colored_3DBenchy.3mf');
   assert.ok(colored.objects.some((o) => o.volumes.some((v) => v.painted)));
+  const beforeMesh = engine.previewMesh(0);
+  const beforeUnique = new Set(beforeMesh.filaments);
+  assert.ok(beforeUnique.size >= 4, `multi-filament paint in preview: ${[...beforeUnique]}`);
+  const beforeFacets = beforeMesh.filaments.length;
+
+  call(engine, 'snapshot', 'Simplify');
   const simpColored = call(engine, 'simplifyObject', 0, JSON.stringify({ op: 'apply', ratio: 50 }));
   assert.ok(simpColored.painted && info().objects[0].volumes.some((v) => v.painted), 'colour painting stays on the simplified 3MF');
+
+  const afterMesh = engine.previewMesh(0);
+  const afterUnique = new Set(afterMesh.filaments);
+  assert.deepEqual([...afterUnique].sort(), [...beforeUnique].sort(), 'all painted filaments preserved in previewMesh after simplify');
+  assert.ok(afterMesh.filaments.length < beforeFacets, `previewMesh facets reduced: ${afterMesh.filaments.length} < ${beforeFacets}`);
+
+  call(engine, 'undo');
+  const undoMesh = engine.previewMesh(0);
+  assert.equal(undoMesh.filaments.length, beforeFacets, 'undo restores original painted facets');
+  assert.deepEqual([...new Set(undoMesh.filaments)].sort(), [...beforeUnique].sort(), 'undo restores original filament set');
+
+  call(engine, 'redo');
+  const redoMesh = engine.previewMesh(0);
+  assert.equal(redoMesh.filaments.length, afterMesh.filaments.length, 'redo restores simplified facets');
+  assert.deepEqual([...new Set(redoMesh.filaments)].sort(), [...beforeUnique].sort(), 'redo restores simplified filament set');
 });
 
 test('brim ears: on the corners, by hand, and printed when the brim type is painted', () => {
