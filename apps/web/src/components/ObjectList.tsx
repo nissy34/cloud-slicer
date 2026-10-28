@@ -150,7 +150,7 @@ export function ObjectList() {
                 openGroupMenu({ x: r.left, y: r.bottom + 2 });
               }}
             >
-              More…
+              More
             </button>
             <button className="secondary danger" title="Delete them all (Del)" onClick={() => void groupAction({ op: 'delete' })}>
               Delete

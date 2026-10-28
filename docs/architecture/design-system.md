@@ -24,6 +24,8 @@ a rule types a value the tokens already name.
 | Shadows | `--shadow-1` lifted, `--shadow-2` menus, `--shadow-3` windows | |
 | Layers | `--z-notice` 40, `--z-menu` 50, `--z-context` 60, `--z-tip` 70 | Plain numbers up to 10 for stacking inside a part. Windows use the browser's top layer. |
 | Controls | `--ctl` 30 px, 40 px on a phone | The height of every button and icon button. |
+| Tap | `--tap` 44 px | The least a tap hits on a phone (see Taps below). |
+| Motion | `--speed` 0.15 s | Hover, open (menus, pop-overs, windows, tips, messages) and switch. See Motion below. |
 | Widths | phone up to 760 px (`PHONE` in `src/lib/breakpoints.ts`), narrow phone up to 420 px, tablet steps 1099/1100 and 1279/1280 px | No other `@media` widths. Code uses `PHONE`, never its own number. |
 
 Dark theme: `index.html` and `src/lib/theme.ts` always set `data-theme` on
@@ -41,7 +43,7 @@ element can carry `data-theme` to show the other theme inside it.
 7. **One red.** Red text for remove and delete; a solid red button only when it can't be undone.
 8. **Titles in sentence case**, bold. SMALL CAPITALS only for a small label inside a card.
 9. **Phone is one width** (760 px). Taps at least 44 px tall. The page never scrolls.
-10. **Same words.** Cancel when a window asks, Close when it only shows, Done for tool panels, Delete when it's gone for good, Remove when it's only taken off a list. "…" only when a window follows.
+10. **Same words.** Cancel when a window asks, Close when it only shows, Done for tool panels, Delete when it's gone for good, Remove when it's only taken off a list. "…" only when a window follows (or a file picker, or a form in the menu that asks for more before anything happens); not for a tool panel or a menu. Add or Save on a form's main button, never OK.
 
 ## Parts
 
@@ -72,8 +74,32 @@ Shared parts and where they live. A screen uses these instead of styling its own
 | ⓘ help | `components/InfoTip.tsx` (`.info-tip`): a small ⓘ at the end of a one-line hint; hover or tap shows the rest in a pop-over. Alerts, Admin, bridge setup |
 | Icons | [Lucide](https://lucide.dev) (`lucide-react`), line icons at 16 px (20–24 px for tiles). The Device tab names its icons by meaning in `device/ui/icons.tsx`. Orca's own toolbar, view and plate icons stay as they are (`src/assets/`) |
 
-Still to come (picked on the design-system page): phone polish, words and
-motion. Each joins this table and the design page when it is built.
+## Taps on a phone
+
+On a phone the controls drawn at `--ctl` (buttons, icon buttons, chips, toolbar
+tools, chooser and line tabs) and the small icons on their own (ⓘ, the top bar's)
+take a tap at least `--tap` (44 px) tall and wide, without being drawn any
+bigger: an invisible box around them (`::before`, the end of `styles/base.css`),
+so those parts never use their `::before` for drawing. Rows in lists (legend
+lines, switch and check box rows, menu rows) keep their own size: a box there
+would reach over the next row and take its tap. Fields are wide, so they keep
+`--ctl`. The top bar's icon buttons are `--ctl` square on a phone.
+
+## Motion
+
+One speed, `--speed` (0.15 s), for everything that moves on its own:
+
+- **Hover**: buttons, chips, rows and fields fade their colours (a zero-weight
+  rule in `styles/base.css`; a part's own `transition` wins).
+- **Open**: menus, pop-overs, windows and tooltips fade in (`open-in`), messages
+  slide up.
+- **Switch**: the knob slides; a group's › turns.
+
+When the device asks for less motion (`prefers-reduced-motion`), nothing moves:
+one rule at the end of `styles/base.css` stops every transition and animation,
+spinners and stripes included, and scripts scroll with `scrollMotion()` from
+`src/lib/motion.ts`. The Device tab's printer faces only move when motion is
+allowed. A new animation needs nothing extra.
 
 ## Stylesheets
 

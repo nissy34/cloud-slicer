@@ -148,7 +148,7 @@ export function LayerMenu({ layerZ, layer, onLayer, onClose }: { layerZ: Float32
               Back
             </button>
             <button type="submit" className="primary" disabled={!gcode.trim()}>
-              OK
+              {here ? 'Save' : 'Add'}
             </button>
           </div>
         </form>

@@ -135,3 +135,28 @@
 .ds-field-picker {
   width: 260px;
 }
+/* Taps, words, motion */
+.ds-tap {
+  display: inline-grid;
+  place-items: center;
+  width: var(--tap);
+  height: var(--tap);
+  border: 1px dashed var(--accent);
+  border-radius: var(--r-md);
+}
+.ds-words {
+  display: grid;
+  gap: var(--s-2);
+  margin: 0;
+}
+.ds-words > div {
+  display: grid;
+  grid-template-columns: 90px minmax(0, 1fr);
+  gap: var(--s-4);
+}
+.ds-words :is(dt, dd) {
+  margin: 0;
+}
+.ds-words dt {
+  font-weight: 600;
+}

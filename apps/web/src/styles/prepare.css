@@ -193,11 +193,6 @@
     background-position: 20px 0;
   }
 }
-@media (prefers-reduced-motion: reduce) {
-  .progress-fill {
-    animation-duration: 3s;
-  }
-}
 .progress-pct {
   flex: none;
   min-width: 3.5ch;

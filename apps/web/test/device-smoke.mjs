@@ -330,13 +330,13 @@ try {
   const jobCard = page.getByTestId('job-card');
   await jobCard.getByTestId('printer-error').filter({ hasText: 'Filament Anomaly' }).filter({ hasText: 'Filament runout detected in Toolhead 2' }).filter({ hasText: 'Error code 0002 0523 0001 0000' }).waitFor();
   await jobCard.getByTestId('print-state').filter({ hasText: 'Needs attention' }).waitFor();
-  if (await jobCard.getByTestId('printer-error').getByRole('button', { name: 'Dismiss' }).count()) throw new Error('an error the printer still reports cannot be dismissed');
+  if (await jobCard.getByTestId('printer-error').getByRole('button', { name: 'Close' }).count()) throw new Error('an error the printer still reports cannot be dismissed');
   // A one-off announcement can be dismissed; an unknown code falls back to the printer's own message.
   u1.announceException({ id: 999, index: 0, code: 3, level: 3, message: 'Mock printer says no' });
   const oneOff = jobCard.getByTestId('printer-error').filter({ hasText: 'Mock printer says no' });
   await oneOff.filter({ hasText: 'Printer error' }).waitFor();
   if (shots) await jobCard.screenshot({ path: join(shots, 'printer-errors.png') });
-  await oneOff.getByRole('button', { name: 'Dismiss' }).click();
+  await oneOff.getByRole('button', { name: 'Close' }).click();
   await oneOff.waitFor({ state: 'detached' });
   u1.setExceptions([]);
   await jobCard.getByTestId('printer-errors').waitFor({ state: 'detached' });

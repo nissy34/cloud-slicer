@@ -99,17 +99,12 @@
 }
 .notice-slot {
   pointer-events: auto;
-  animation: notice-in 0.2s ease-out;
+  animation: notice-in var(--speed) ease-out;
 }
 @keyframes notice-in {
   from {
     transform: translateY(12px);
     opacity: 0;
-  }
-}
-@media (prefers-reduced-motion: reduce) {
-  .notice-slot {
-    animation: none;
   }
 }
 .notice {

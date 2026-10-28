@@ -64,6 +64,16 @@ const SHADOWS = [
   [3, 'window'],
 ] as const;
 
+const WORDS: [string, string][] = [
+  ['Cancel', 'A window asks, and this leaves without doing it'],
+  ['Close', 'A window or message only shows something'],
+  ['Done', 'Ends a tool panel'],
+  ['Delete', 'Gone for good'],
+  ['Remove', 'Only taken off a list'],
+  ['Add, Save', "A form's main button, never OK"],
+  ['Words…', 'A window, file picker or form asks for more first'],
+];
+
 function Section({ title, children }: { title: string; children: ReactNode }) {
   return (
     <section className="ds-section">
@@ -286,6 +296,9 @@ function Sheet({ theme, onWindow }: { theme: 'light' | 'dark'; onWindow(): void 
       <Section title="Cards, titles, notes, empty places">
         <Containers />
       </Section>
+      <Section title="Taps, words, motion">
+        <PolishDemo />
+      </Section>
       <Section title="Window and messages">
         <div className="ds-row">
           <button className="secondary" onClick={onWindow}>
@@ -441,5 +454,32 @@ function MenusDemo() {
         <InfoTip>The rest of a long hint goes here, so the card keeps one line of words.</InfoTip>
       </span>
     </div>
+  );
+}
+
+/** Phone taps, the same words everywhere, and the one speed. */
+function PolishDemo() {
+  const [on, setOn] = useState(false);
+  return (
+    <>
+      <div className="ds-row">
+        <span className="ds-tap" title="The tap area on a phone: 44 px, drawn or not">
+          <IconButton icon={Pencil} label="Edit printer settings" />
+        </span>
+        <span className="ds-muted">On a phone a tap hits 44 px around a smaller button (dashed here).</span>
+      </div>
+      <dl className="ds-words">
+        {WORDS.map(([word, when]) => (
+          <div key={word}>
+            <dt>{word}</dt>
+            <dd className="ds-muted">{when}</dd>
+          </div>
+        ))}
+      </dl>
+      <label className="switch-row">
+        <input className="switch" type="checkbox" role="switch" checked={on} onChange={(e) => setOn(e.target.checked)} />
+        Slides in 0.15 s; stands still when the device asks for less motion
+      </label>
+    </>
   );
 }
