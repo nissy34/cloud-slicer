@@ -71,7 +71,8 @@ try {
     const notice = page.getByTestId('pla-petg');
     await notice.waitFor({ timeout: 30000 });
     expect(/PLA and PETG/.test(await notice.innerText()), `notice: ${await notice.innerText()}`);
-    expect((await notice.getByRole('link', { name: 'How to' }).getAttribute('href'))?.includes('wiki.snapmaker.com'), 'links to the guide');
+    const guide = new URL((await notice.getByRole('link', { name: 'How to' }).getAttribute('href')) ?? '', url);
+    expect(guide.hostname === 'wiki.snapmaker.com' && guide.pathname.endsWith('/pla_and_petg'), `links to Snapmaker's guide, got ${guide}`);
     await shot('notice');
   });
 
