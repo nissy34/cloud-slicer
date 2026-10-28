@@ -1,5 +1,6 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { autoUpdate, flip, offset, shift, useFloating } from '@floating-ui/react';
+import { withoutKeys } from '../lib/tip-text';
 
 // Buttons whose title becomes a tip: every button, and anything that acts like one.
 const TIPPED = 'button[title], [role="button"][title], a[title]';
@@ -39,7 +40,8 @@ export function Tips() {
   const [tip, setTip] = useState<{ el: HTMLElement; text: string } | null>(null);
   const { refs, floatingStyles } = useFloating({
     elements: { reference: tip?.el ?? null },
-    placement: 'top',
+    // Beside a menu's row, so it doesn't cover the row above.
+    placement: tip?.el.closest('[role="menu"]') ? 'right' : 'top',
     strategy: 'fixed',
     whileElementsMounted: autoUpdate,
     middleware: [offset(6), flip({ padding: 8 }), shift({ padding: 8 })],
@@ -53,9 +55,11 @@ export function Tips() {
     let press: { el: HTMLElement; x: number; y: number } | null = null;
     let swallowClick = false;
 
-    const show = (el: HTMLElement) => {
+    const show = (el: HTMLElement, touch = false) => {
       if (!el.isConnected) return;
-      const text = el.dataset.tip ?? borrow(el);
+      const title = el.dataset.tip ?? borrow(el);
+      // A phone has no keyboard: its tips leave the shortcuts out.
+      const text = touch ? withoutKeys(title) : title;
       if (!text) return;
       shown = el;
       setTip({ el, text });
@@ -98,7 +102,7 @@ export function Tips() {
       timer = window.setTimeout(() => {
         if (!press) return;
         swallowClick = true;
-        show(press.el);
+        show(press.el, true);
         hideTimer = window.setTimeout(hide, SHOWN_MS);
       }, PRESS_MS);
     };

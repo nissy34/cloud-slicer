@@ -88,14 +88,14 @@
   /* Above the layer slider, as the view buttons are. */
   .preview .plate-tabs {
     top: auto;
-    bottom: 64px;
+    bottom: 72px;
   }
   .view-buttons {
     right: 8px;
     bottom: 8px;
   }
   .view-buttons.over-slider {
-    bottom: 64px;
+    bottom: 72px;
   }
   .view-button {
     width: var(--ctl);
@@ -108,10 +108,14 @@
     left: 12px;
     gap: 6px;
   }
-  /* Bigger touch targets; the row scrolls sideways. */
+  /* Bigger touch targets; the row scrolls sideways. As the column scrolls,
+     the toolbar sticks to the top while any of the 3D view shows and leaves
+     with the view (sticky inside .workspace, so the browser moves it). */
   .toolbar {
-    left: 6px;
-    right: 6px;
+    position: sticky;
+    top: 8px;
+    left: auto;
+    margin: 8px 6px 0;
     transform: none;
     max-width: none;
   }

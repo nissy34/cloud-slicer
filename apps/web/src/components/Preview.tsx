@@ -17,6 +17,7 @@ import {
   type ValueRange,
 } from '../lib/preview-colours';
 import { codeAt } from '../lib/layerCodes';
+import { PHONE } from '../lib/breakpoints';
 import { plateBounds, toolpathWarnings } from '../lib/outside';
 import { useSceneColours } from '../lib/theme';
 import type { GcodeWorkerMessage } from '../engine/gcode-worker';
@@ -608,8 +609,15 @@ export function Preview() {
   // Line types (FEATURES indexes) hidden from the legend, as desktop's Display column.
   const [hidden, setHidden] = useState<ReadonlySet<number>>(() => new Set());
   const range = useMemo(() => (parsed ? valueRange(parsed, colourBy, hidden) : null), [parsed, colourBy, hidden]);
-  // On a phone the key is a strip above the 3D view (styles/phone.css), so it can start open there too.
-  const [keyOpen, setKeyOpen] = useState(true);
+  // On a phone the key is a strip above the 3D view (styles/phone.css); it starts
+  // folded there, so the print gets the room, and opens when a colour view is picked.
+  const [keyOpen, setKeyOpen] = useState(() => {
+    try {
+      return !window.matchMedia(PHONE).matches;
+    } catch {
+      return true;
+    }
+  });
   const upTo = Math.min(layer, layers - 1);
   const scene = useSceneColours();
   const [moving, onCameraChange] = useMoving();
@@ -690,7 +698,11 @@ export function Preview() {
       <PlateTabs />
       <div className="legend" data-testid="legend">
         <div className="legend-head">
-          <select aria-label="Colour by" value={colourBy} onChange={(e) => setColourBy(e.target.value as ColourBy)}>
+          <select aria-label="Colour by" value={colourBy} onChange={(e) => {
+              setColourBy(e.target.value as ColourBy);
+              setKeyOpen(true);
+            }}
+          >
             {VIEW_TYPES.map((v) => (
               <option key={v.id} value={v.id}>
                 {v.label}

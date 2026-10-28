@@ -94,6 +94,8 @@ try {
   const printers = page.getByTestId('bridge-printers');
   await page.getByTestId('bridge-state').filter({ hasText: 'Connected to the bridge' }).waitFor({ timeout: 30_000 });
 
+  // The table starts folded in the window.
+  await page.getByRole('dialog').getByTestId('works-with').getByText('See what each can do').click();
   await page.getByRole('dialog').getByTestId('works-with').getByRole('rowheader', { name: /Bambu Lab/ }).waitFor();
   if (shots) await page.getByRole('dialog').getByTestId('works-with').screenshot({ path: join(shots, 'bambu-works-with.png') });
 

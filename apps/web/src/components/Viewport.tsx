@@ -47,10 +47,11 @@ interface Part {
 
 // One geometry per object, coloured per triangle by its filament; instances
 // that won't be printed in desktop's unprintable colour.
-function useParts(preview: PreviewMesh | null, colours: string[], objects: ObjectInfo[] | undefined, plate: number): Part[] {
+function useParts(preview: PreviewMesh | null, colours: string[], objects: ObjectInfo[] | undefined, plate: number, unprintable: string): Part[] {
   return useMemo(() => {
     if (!preview) return [];
     const palette = colours.map(rgb);
+    const off = rgb(unprintable);
     const skipped = objects ? unprintableTriangles(preview, objects, plate) : null;
     const parts: Part[] = [];
     let tri = 0;
@@ -60,9 +61,9 @@ function useParts(preview: PreviewMesh | null, colours: string[], objects: Objec
       const col = new Float32Array(count * 9);
       let hidden = 0;
       for (let t = 0; t < count; t++) {
-        const off = skipped?.[tri + t] === 1;
-        hidden += off ? 1 : 0;
-        const c = off ? UNPRINTABLE.colour : (palette[(preview.filaments[tri + t] || 1) - 1] ?? [0.8, 0.8, 0.8]);
+        const skip = skipped?.[tri + t] === 1;
+        hidden += skip ? 1 : 0;
+        const c = skip ? off : (palette[(preview.filaments[tri + t] || 1) - 1] ?? [0.8, 0.8, 0.8]);
         for (let v = 0; v < 3; v++) col.set(c, t * 9 + v * 3);
       }
       const g = new THREE.BufferGeometry();
@@ -76,7 +77,7 @@ function useParts(preview: PreviewMesh | null, colours: string[], objects: Objec
       tri += count;
     });
     return parts;
-  }, [preview, colours, objects, plate]);
+  }, [preview, colours, objects, plate, unprintable]);
 }
 
 function geometryOf(pos: Float32Array, col?: Float32Array): THREE.BufferGeometry {
@@ -1353,7 +1354,8 @@ function Objects({ w, d, views }: { w: number; d: number; views: ViewHandle }) {
   const choosing = useSlicer((s) => s.choosing);
   const tool = useSlicer((s) => s.tool);
   const { select, moveInstance, paintStroke, editBrim, measureHover, measurePick, toggleChosen, transformGroup, openGroupMenu } = useSlicer.getState();
-  const parts = useParts(preview, colours, project?.objects, plate);
+  const scene = useSceneColours();
+  const parts = useParts(preview, colours, project?.objects, plate, scene.unprintable);
   useEffect(() => () => parts.forEach((p) => p.geometry.dispose()), [parts]);
   const camera = useThree((s) => s.camera);
   const canvas = useThree((s) => s.gl.domElement);

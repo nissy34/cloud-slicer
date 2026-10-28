@@ -21,7 +21,7 @@ OctoPrint, Elegoo Centauri Carbon and Bambu Lab printers through the bridge.
 | One live connection: Moonraker JSON-RPC, subscriptions, commands | `device/session.ts`, `status.ts`, `commands.ts` |
 | How it reaches the printer | `device/link/direct.ts`, `link/bridge.ts` |
 | Add-ons per printer family | `device/addons/` (`u1`, `prusa`, `octoprint`, `elegoo`, `bambu`), `types.ts` |
-| Kinds of printer, "Which printers work?" | `device/brands.ts`, `ui/WorksWith.tsx` |
+| Kinds of printer, "Which printers work?" (its table starts folded in the add-a-printer window) | `device/brands.ts`, `ui/WorksWith.tsx` |
 | Tool heads, filament slots, "From printer" | `device/heads.ts`, `slots.ts`, `lib/filament-sync.ts`, `components/FilamentSync.tsx` |
 | Cameras | `device/camera.ts`, `direct-camera.ts`, `webrtc.ts`, `ui/CameraCard.tsx` |
 | Page cards (a printer's own page, e.g. its remote screen) | `device/printer-page.ts`, `ui/PrinterPage.tsx`, relay `page-shell.ts` |

@@ -72,6 +72,8 @@ try {
   await page.getByTestId('bridge-state').filter({ hasText: 'Connected to the bridge' }).waitFor({ timeout: 30_000 });
 
   // Which printers work, in plain sight at the top of Add printer.
+  // The table starts folded in the window.
+  await page.getByRole('dialog').getByTestId('works-with').getByText('See what each can do').click();
   await page.getByRole('dialog').getByTestId('works-with').getByRole('rowheader', { name: /Prusa with PrusaLink/ }).waitFor();
 
   await printers.getByTestId('bridge-search').click();
