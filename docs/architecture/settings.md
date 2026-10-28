@@ -44,6 +44,13 @@ and filament windows offer Save to preset, Save as new preset, Save to project.
 - Flow variants: Snapmaker Orca 2.4 keeps many speed and acceleration options as one value
   per nozzle flow (`"50,50"`); the switch edits one at a time; older single-value files
   are aligned to both.
+- Support filaments: picking the support or interface filament asks desktop's questions
+  (`supportFilamentChecks` in `option-toggles.ts`), each engine its own: Snapmaker Orca
+  2.4.1 warns about PLA under PETG (or PETG under PLA) as the base and offers the settings
+  that separate them at the interface; OrcaSlicer offers its support-material settings.
+  The model's filaments come from every plate, mixes counted as their filaments
+  (`physicalFilaments`). A Snapmaker plate printing PLA and PETG shows desktop's notice
+  under the plate, with Snapmaker's guide (`usesPlaAndPetg`, `ActionBar.tsx`).
 - Settings a browser can't honour are greyed with "Not available in the browser"
   (`GREYED_IN_BROWSER`) or hidden (`NOT_IN_BROWSER`, e.g. post-processing scripts).
 - Zustand selectors in components must not return new arrays or objects (endless

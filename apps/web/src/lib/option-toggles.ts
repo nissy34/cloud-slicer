@@ -8,7 +8,7 @@
 // `hidden` below. A later toggle of the same setting wins, like desktop.
 import type { OrcaConfig } from '../engine/protocol';
 import { isVectorType, processFlowModes, splitValues } from './flow-variants';
-import { slotEntryIndex } from './slot-values';
+import { decodeString, slotEntryIndex, splitStrings } from './slot-values';
 
 export interface ToggleContext {
   /** The flow variant the settings show (standard / high flow). */
@@ -23,6 +23,10 @@ export interface ToggleContext {
   options: Record<string, { type?: string; flow?: 'process' | 'filament'; enumValues?: string[]; enumLabels?: string[] } | undefined>;
   /** A Bambu Lab printer is selected (desktop hides some settings for them). */
   bambu?: boolean;
+  /** The engine: each one asks its own desktop's support filament questions. */
+  flavor?: 'snapmaker' | 'orca';
+  /** Filaments (1-based) the objects print with, on every plate, mixes counted as their filaments. */
+  modelFilaments?: number[];
 }
 
 export interface OptionStates {
@@ -474,6 +478,8 @@ export function reviewChange(before: OrcaConfig, after: OrcaConfig, changed: str
     }
   }
 
+  if (global) supportFilamentChecks(after, changed, ctx, prompts);
+
   // Turning support on turns on overhang wall detection, without asking.
   if (global && touched('enable_support') && c.bool('enable_support') && !was.bool('enable_support') && c.has('detect_overhang_wall') && !c.bool('detect_overhang_wall'))
     changes.detect_overhang_wall = '1';
@@ -550,4 +556,87 @@ export function reviewChange(before: OrcaConfig, after: OrcaConfig, changed: str
     );
   }
   return { changes, prompts };
+}
+
+// ---- Support filaments (desktop Tab::on_value_change) ----
+// Picking a filament for the support or its interface: desktop warns about a
+// non-soluble one under the model, and offers the settings that make a support
+// material (or PLA under PETG, PETG under PLA: they don't stick to each other)
+// come off cleanly. Snapmaker Orca 2.4.1 and OrcaSlicer each have their own.
+const INCOMPATIBLE_SUPPORT: Record<string, string[]> = { PETG: ['PLA'], PLA: ['PETG'] };
+const ORCA_SUPPORT_FOR: Record<string, string[]> = { PETG: ['PLA'], PLA: ['PETG', 'TPU', 'TPU-AMS'] };
+
+function supportFilamentChecks(after: OrcaConfig, changed: string[], ctx: ToggleContext, prompts: SettingsPrompt[]) {
+  const touched = (k: string) => changed.includes(k);
+  if (!touched('support_filament') && !touched('support_interface_filament')) return;
+  const c = configReader(after, ctx);
+  const types = splitStrings(after.filament_type ?? '').map(decodeString);
+  // A filament's own setting: its slot's entry (a filament can have one per flow variant).
+  const ofFilament = (k: string, id: number) => (id >= 0 && id < ctx.slots ? configReader(after, { ...ctx, slot: id }).bool(k) : false);
+  const typeOf = (id: number) => (id >= 0 && id < ctx.slots ? (types[id] ?? '') : '');
+  const modelTypes = new Set((ctx.modelFilaments ?? []).map((f) => typeOf(f - 1)).filter(Boolean));
+  const modelHas = (list: string[]) => list.some((t) => modelTypes.has(t));
+  const ask = (message: string, yes: OrcaConfig, no: OrcaConfig, yesLabel: string, noLabel: string) =>
+    prompts.push({ message, answers: [{ label: noLabel, changes: no }, { label: yesLabel, changes: yes }] });
+  const baseWarning = 'Non-soluble support materials are not recommended for support base.\nAre you sure to use them for support base?';
+  const base = c.num('support_filament') - 1;
+  const iface = c.num('support_interface_filament') - 1;
+  const interlaced = 'rectilinear_interlaced';
+
+  if (ctx.flavor === 'orca') {
+    const isSupport = (id: number) => (Object.hasOwn(ORCA_SUPPORT_FOR, typeOf(id)) && modelHas(ORCA_SUPPORT_FOR[typeOf(id)])) || ofFilament('filament_is_support', id);
+    const soluble = (id: number) => ofFilament('filament_soluble', id);
+    if (touched('support_filament') && isSupport(base) && !soluble(base) && !modelHas(['TPU', 'TPU-AMS']))
+      ask(baseWarning, {}, { support_filament: '0' }, 'Use it', 'Use Default');
+    if (touched('support_interface_filament')) {
+      const tuned = c.num('support_top_z_distance') === 0 && c.num('support_interface_spacing') === 0 && c.str('support_interface_pattern') === interlaced;
+      if ((isSupport(iface) && !tuned) || (soluble(iface) && !soluble(base))) {
+        const yes: OrcaConfig = { support_top_z_distance: '0', support_interface_spacing: '0', support_interface_pattern: interlaced, independent_support_layer_height: '0' };
+        if ((typeOf(iface) === 'PLA' && modelHas(['TPU', 'TPU-AMS'])) || (soluble(iface) && !soluble(base))) yes.support_filament = String(iface + 1);
+        const message = soluble(iface)
+          ? 'When using soluble material for the support interface, we recommend the following settings:\n0 top Z distance, 0 interface spacing, interlaced rectilinear pattern, disable independent support layer height\nand use soluble materials for both support interface and support base.'
+          : 'When using support material for the support interface, we recommend the following settings:\n0 top Z distance, 0 interface spacing, interlaced rectilinear pattern and disable independent support layer height.';
+        ask(`${message}\n\nChange these settings automatically?`, yes, {}, 'Change them', 'Leave them');
+      }
+    }
+    return;
+  }
+
+  const pairWithModel = (id: number) => Object.hasOwn(INCOMPATIBLE_SUPPORT, typeOf(id)) && modelHas(INCOMPATIBLE_SUPPORT[typeOf(id)]);
+  if (touched('support_filament') && pairWithModel(base)) ask(baseWarning, {}, { support_filament: '0' }, 'Use it', 'Use Default');
+  if (touched('support_interface_filament') && iface >= 0) {
+    const material = ofFilament('filament_is_support', iface);
+    const pair = !material && pairWithModel(iface);
+    const recommended: [string, string, string][] = material
+      ? [['support_top_z_distance', '0', ''], ['support_interface_spacing', '0', ''], ['support_interface_pattern', interlaced, ''], ['independent_support_layer_height', '0', '']]
+      : pair
+        ? [
+            ['support_top_z_distance', '0', `Top Z distance: ${c.num('support_top_z_distance').toFixed(2)} → 0 mm`],
+            ['support_base_pattern', 'default', 'Base pattern → Default'],
+            ['support_interface_top_layers', '3', `Top interface layers: ${c.num('support_interface_top_layers')} → 3`],
+            ['support_interface_pattern', interlaced, 'Interface pattern → Rectilinear Interlaced'],
+            ['support_interface_spacing', '0', `Interface spacing: ${c.num('support_interface_spacing').toFixed(2)} → 0 mm`],
+          ]
+        : [];
+    // Only the ones not set that way yet; none left, no question.
+    const differ = recommended.filter(([k, v]) => c.has(k) && (/^[\d.]+$/.test(v) ? c.num(k) !== Number(v) : c.str(k) !== v));
+    if (differ.length) {
+      const model = typeOf(iface) === 'PLA' ? 'PETG' : 'PLA';
+      const message = material
+        ? 'When using support material for the support interface, we recommend the following settings:\n0 top Z distance, 0 interface spacing, interlaced rectilinear pattern and disable independent support layer height'
+        : `Detected ${typeOf(iface)} as support interface material for ${model} models. PLA and PETG do not bond together — we recommend adjusting the following parameters:\n\n${differ.map(([, , line]) => `  • ${line}`).join('\n')}`;
+      ask(`${message}\n\nChange these settings automatically?`, Object.fromEntries(differ.map(([k, v]) => [k, v])), {}, 'Change them', 'Leave them');
+    }
+  }
+}
+
+/**
+ * The plate prints with both PLA and PETG (filaments 1-based, mixes already
+ * counted as their filaments): Snapmaker Orca 2.4.1's plate notice, as they
+ * don't stick to each other. A filament with no type counts as PLA, like desktop.
+ */
+export function usesPlaAndPetg(cfg: OrcaConfig, filaments: number[]): boolean {
+  const types = splitStrings(cfg.filament_type ?? '').map(decodeString);
+  const used = new Set(filaments.map((f) => types[f - 1] || 'PLA'));
+  return used.has('PLA') && used.has('PETG');
 }

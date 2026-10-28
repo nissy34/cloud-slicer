@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { optionStates, reviewChange, type ToggleContext } from './option-toggles';
+import { optionStates, reviewChange, usesPlaAndPetg, type ToggleContext } from './option-toggles';
 
 const ctx: ToggleContext = {
   flowVariant: 0,
@@ -148,6 +148,97 @@ describe('reviewChange', () => {
     // A pattern that can fill solid is left alone.
     const fine = { ...after, sparse_infill_pattern: 'rectilinear' };
     expect(reviewChange(base, fine, ['sparse_infill_density'], withEnums).prompts).toEqual([]);
+  });
+
+  describe('support filaments', () => {
+    // Filament 1 PETG (the model), 2 PLA, 3 a support material.
+    const fil: ToggleContext = { ...ctx, slots: 3, modelFilaments: [1], options: { ...ctx.options, filament_type: { type: 'strings' }, filament_is_support: { type: 'bools' } } };
+    const cfg = {
+      ...base,
+      filament_type: '"PETG";"PLA";"PLA"',
+      filament_is_support: '0,0,1',
+      filament_soluble: '0,0,0',
+      support_filament: '0',
+      support_interface_filament: '0',
+      support_top_z_distance: '0.2',
+      support_interface_spacing: '0.5',
+      support_interface_pattern: 'auto',
+      support_interface_top_layers: '2',
+      support_base_pattern: 'rectilinear',
+      independent_support_layer_height: '1',
+    };
+    const snap: ToggleContext = { ...fil, flavor: 'snapmaker' };
+    const orca: ToggleContext = { ...fil, flavor: 'orca' };
+
+    it('Snapmaker: PLA under a PETG model offers the five settings that separate them', () => {
+      const { prompts } = reviewChange(cfg, { ...cfg, support_interface_filament: '2' }, ['support_interface_filament'], snap);
+      expect(prompts).toHaveLength(1);
+      expect(prompts[0].message).toContain('Detected PLA as support interface material for PETG models.');
+      expect(prompts[0].message).toContain('Top Z distance: 0.20 → 0 mm');
+      expect(prompts[0].answers[1].changes).toEqual({
+        support_top_z_distance: '0',
+        support_base_pattern: 'default',
+        support_interface_top_layers: '3',
+        support_interface_pattern: 'rectilinear_interlaced',
+        support_interface_spacing: '0',
+      });
+      expect(prompts[0].answers[0].changes).toEqual({});
+    });
+
+    it('Snapmaker: only asks for the settings not set that way yet', () => {
+      const tuned = { ...cfg, support_top_z_distance: '0', support_base_pattern: 'default', support_interface_top_layers: '3', support_interface_spacing: '0' };
+      const { prompts } = reviewChange(tuned, { ...tuned, support_interface_filament: '2' }, ['support_interface_filament'], snap);
+      expect(prompts[0].answers[1].changes).toEqual({ support_interface_pattern: 'rectilinear_interlaced' });
+      const done = { ...tuned, support_interface_pattern: 'rectilinear_interlaced' };
+      expect(reviewChange(done, { ...done, support_interface_filament: '2' }, ['support_interface_filament'], snap).prompts).toEqual([]);
+    });
+
+    it('Snapmaker: a support material for the interface offers its four settings', () => {
+      const { prompts } = reviewChange(cfg, { ...cfg, support_interface_filament: '3' }, ['support_interface_filament'], snap);
+      expect(prompts[0].message).toContain('When using support material for the support interface');
+      expect(prompts[0].answers[1].changes).toEqual({
+        support_top_z_distance: '0',
+        support_interface_spacing: '0',
+        support_interface_pattern: 'rectilinear_interlaced',
+        independent_support_layer_height: '0',
+      });
+    });
+
+    it('Snapmaker: PLA as the support base under PETG asks, No puts Default back', () => {
+      const { prompts } = reviewChange(cfg, { ...cfg, support_filament: '2' }, ['support_filament'], snap);
+      expect(prompts[0].message).toContain('Non-soluble support materials are not recommended for support base.');
+      expect(prompts[0].answers.map((a) => a.changes)).toEqual([{ support_filament: '0' }, {}]);
+      // The model's own filament for the base: nothing to say.
+      expect(reviewChange(cfg, { ...cfg, support_filament: '1' }, ['support_filament'], snap).prompts).toEqual([]);
+    });
+
+    it('Snapmaker: a PLA model with PLA support asks nothing', () => {
+      const pla = { ...cfg, filament_type: '"PLA";"PLA";"PLA"' };
+      expect(reviewChange(pla, { ...pla, support_interface_filament: '2' }, ['support_interface_filament'], snap).prompts).toEqual([]);
+    });
+
+    it('OrcaSlicer: its own question, the four settings, for PLA under PETG too', () => {
+      const { prompts } = reviewChange(cfg, { ...cfg, support_interface_filament: '2' }, ['support_interface_filament'], orca);
+      expect(prompts[0].message).toContain('When using support material for the support interface');
+      expect(prompts[0].answers[1].changes).toEqual({
+        support_top_z_distance: '0',
+        support_interface_spacing: '0',
+        support_interface_pattern: 'rectilinear_interlaced',
+        independent_support_layer_height: '0',
+      });
+      const base2 = reviewChange(cfg, { ...cfg, support_filament: '2' }, ['support_filament'], orca).prompts;
+      expect(base2[0].answers.map((a) => a.changes)).toEqual([{ support_filament: '0' }, {}]);
+    });
+
+    it('knows a plate printing PLA and PETG', () => {
+      expect(usesPlaAndPetg(cfg, [1, 2])).toBe(true);
+      expect(usesPlaAndPetg(cfg, [2, 3])).toBe(false);
+      expect(usesPlaAndPetg({ filament_type: '"PETG"' }, [1, 2])).toBe(true);
+    });
+
+    it('object settings are not asked about, like desktop', () => {
+      expect(reviewChange(cfg, { ...cfg, support_filament: '2' }, ['support_filament'], { ...snap, scope: 'object' }).prompts).toEqual([]);
+    });
   });
 
   it('only checks combinations the edit touched', () => {

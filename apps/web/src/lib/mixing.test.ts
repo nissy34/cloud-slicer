@@ -10,6 +10,7 @@ import {
   normalizeWeights,
   palette,
   patternIds,
+  physicalFilaments,
   ratioFor,
   recipeFilaments,
   recipeFromDraft,
@@ -126,5 +127,13 @@ describe('colour mixing helpers', () => {
     expect(textOn('#0000FF')).toBe('#fff'); // blue
     expect(textOn('#7F1D1D')).toBe('#fff'); // dark red
     expect(textOn('not a colour')).toBe('#000');
+  });
+});
+
+describe('physicalFilaments (desktop expand_virtual_extruder_ids)', () => {
+  it('replaces each mix in use by its filaments', () => {
+    const mix = { virtualId: 5, enabled: true, componentA: 2, componentB: 3, gradientIds: '', pattern: '' } as unknown as MixRow;
+    expect(physicalFilaments([1, 5], [mix])).toEqual([1, 2, 3]);
+    expect(physicalFilaments([1, 5], [{ ...mix, enabled: false }])).toEqual([1, 5]);
   });
 });
