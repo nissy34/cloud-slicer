@@ -153,9 +153,12 @@ async function run(name, options) {
     await search.fill('sparse infill pattern');
     const pattern = page.getByRole('combobox', { name: 'Sparse infill pattern', exact: true });
     expect((await pattern.inputValue()) === 'rectilinear', `pattern switched to rectilinear, got ${await pattern.inputValue()}`);
-    await page.getByRole('button', { name: /Reset to the preset value: Sparse infill pattern/ }).click();
+    // Density back first: the preset's pattern at 100% would ask again.
     await search.fill('sparse infill density');
     await page.getByRole('button', { name: /Reset to the preset value: Sparse infill density/ }).click();
+    await search.fill('sparse infill pattern');
+    await page.getByRole('button', { name: /Reset to the preset value: Sparse infill pattern/ }).click();
+    expect(!(await fill.count()), 'no question after putting both back');
     await search.fill('line width');
     await page.getByRole('button', { name: /Reset to the preset value: Initial layer$/ }).click();
     await search.fill('');
