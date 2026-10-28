@@ -92,6 +92,8 @@ export type GroupAction =
   | { op: 'orient' }
   | { op: 'filament'; filament: number }
   | { op: 'copy' }
+  | { op: 'cut' }
+  | { op: 'moveToPlate'; plate: number | 'new' }
   | { op: 'clone'; count: number; arrange: boolean }
   | { op: 'exportStl' }
   | { op: 'arrange' }

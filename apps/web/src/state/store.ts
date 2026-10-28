@@ -406,8 +406,14 @@ export interface SlicerState {
   transformVolume(o: number, volume: number, changes: { offset?: number[]; rotation?: number[]; scale?: number[] }): Promise<void>;
   /** Ctrl+C: copy i of object o onto the clipboard. */
   copyToClipboard(o: number, i: number): Promise<void>;
+  /** Ctrl+X: copy i of object o onto the clipboard and remove it (the object, when it is its last copy). */
+  cutToClipboard(o: number, i: number): Promise<void>;
   /** Ctrl+V: the clipboard as a new object on the plate, picked. */
   paste(): Promise<void>;
+  /** Desktop's "Set number of instances": adds copies beside the last one, or removes the last ones, as one undo step. */
+  setInstanceCount(o: number, count: number): Promise<void>;
+  /** "Move to plate": these copies to the same spot on another plate (`'new'`: a new plate after the last), which is then shown. */
+  moveToPlate(items: { object: number; instance: number }[], plate: number | 'new'): Promise<void>;
   slice(): Promise<void>;
   /** What plate `plate` prints now, for the print history (lib/prints.ts). */
   plateFingerprint(plate: number): Promise<{ summary: PlateSummary; fingerprint: string }>;
@@ -2015,6 +2021,12 @@ export const useSlicer = create<SlicerState>((set, get) => {
           });
           if (action.arrange) await get().arrange();
           return;
+        case 'cut':
+          await get().groupAction({ op: 'copy' });
+          if (get().copied) await get().groupAction({ op: 'delete' });
+          return;
+        case 'moveToPlate':
+          return get().moveToPlate(items, action.plate);
         case 'copy':
           try {
             await e.plateAction(plate, { op: 'copy', items });
@@ -2045,10 +2057,10 @@ export const useSlicer = create<SlicerState>((set, get) => {
       }),
     copyInstance: (o, i) => {
       const size = get().project?.objects[o]?.size ?? [20, 20, 0];
-      return projectEdit('Add copy', () => engine().addInstance(o, i, size[0] + 5, 0));
+      return projectEdit('Add instance', () => engine().addInstance(o, i, size[0] + 5, 0));
     },
     removeInstance: (o, i) =>
-      projectEdit('Remove copy', async () => {
+      projectEdit('Remove instance', async () => {
         const last = (get().project?.objects[o]?.instances.length ?? 1) <= 1;
         const sel = get().selected;
         if (sel?.object === o) {
@@ -2069,9 +2081,47 @@ export const useSlicer = create<SlicerState>((set, get) => {
         fail(err);
       }
     },
+    cutToClipboard: async (o, i) => {
+      await get().copyToClipboard(o, i);
+      if (!get().copied) return;
+      await get().removeInstance(o, i);
+      set({ notice: 'Cut. Paste puts it back as a new object (Ctrl+V).', noticeWarn: false });
+    },
     paste: async () => {
-      if (!get().copied) return void set({ notice: 'Nothing copied yet: pick an object and press Ctrl+C.', noticeWarn: false });
+      if (!get().copied) return void set({ notice: 'Nothing copied yet: pick an object and choose Copy (Ctrl+C).', noticeWarn: false });
       return get().plateAction({ op: 'paste' }, 'Paste');
+    },
+    setInstanceCount: (o, count) =>
+      projectEdit('Set number of instances', async () => {
+        const e = engine();
+        let info = get().project!;
+        const width = info.objects[o]?.size[0] ?? 20;
+        let n = info.objects[o]?.instances.length ?? 1;
+        // Each new copy goes beside the last one, as desktop's Plater::increase_instances.
+        for (; n < count; n++) info = await e.addInstance(o, n - 1, width + 5, 0);
+        for (; n > Math.max(1, count); n--) info = await e.deleteInstance(o, n - 1);
+        const sel = get().selected;
+        if (sel?.object === o && sel.instance >= n) set({ selected: { object: o, instance: n - 1 } });
+        return info;
+      }),
+    moveToPlate: async (items, to) => {
+      let target = to === 'new' ? -1 : to;
+      await projectEdit('Move to plate', async () => {
+        const e = engine();
+        let info = get().project!;
+        if (to === 'new') {
+          info = await e.addPlate();
+          target = info.plates.length - 1;
+        }
+        set({ selected: null, group: [], tool: null });
+        // Same place on the other plate: plate-local offsets carry over.
+        for (const { object, instance } of items) {
+          const off = info.objects[object]?.instances[instance]?.offset;
+          if (off) info = await e.transform(object, instance, { offset: [off[0], off[1]], plate: target });
+        }
+        return info;
+      });
+      if (target >= 0 && target !== get().plate && get().project?.plates[target]) await get().setPlate(target);
     },
 
     arrange: (all = false) => {

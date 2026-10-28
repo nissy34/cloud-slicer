@@ -17,6 +17,7 @@ describe('editKey', () => {
     expect(press('Delete')).toBe('delete');
     expect(press('Backspace')).toBe('delete');
     expect(press('c', { ctrlKey: true })).toBe('copy');
+    expect(press('x', { ctrlKey: true })).toBe('cut');
     expect(press('V', { metaKey: true })).toBe('paste');
     expect(press('k', { ctrlKey: true })).toBe('clone');
     expect(press('+')).toBe('addCopy');

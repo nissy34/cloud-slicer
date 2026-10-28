@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { Fragment, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { itemsOnPlate } from '../lib/group';
 import { menuPosition } from '../lib/objectMenu';
 import { NO_COLOURS, useSlicer } from '../state/store';
@@ -23,11 +23,13 @@ function GroupCard() {
   const project = useSlicer((s) => s.project)!;
   const plate = useSlicer((s) => s.plate);
   const choosing = useSlicer((s) => s.choosing);
+  const copied = useSlicer((s) => s.copied);
   const colours = useSlicer((s) => (s.palette.length ? s.palette : (s.selection?.colours ?? NO_COLOURS)));
   const physical = useSlicer((s) => s.selection?.filaments.length ?? 1);
   const s = useSlicer.getState();
   const card = useRef<HTMLDivElement>(null);
   const [filaments, setFilaments] = useState(false);
+  const [plates, setPlates] = useState(false);
   const [cloning, setCloning] = useState(menu.form === 'clone');
   const [count, setCount] = useState(1);
   const [arrange, setArrange] = useState(true);
@@ -59,13 +61,14 @@ function GroupCard() {
   useLayoutEffect(() => {
     const el = card.current;
     if (el) setAt(menuPosition(menu.x, menu.y, el.offsetWidth, el.offsetHeight, window.innerWidth, window.innerHeight));
-  }, [menu.x, menu.y, filaments, cloning]);
+  }, [menu.x, menu.y, filaments, plates, cloning]);
 
-  const item = (label: string, onClick: () => void, extra?: { checked?: boolean; title?: string; danger?: boolean }) => (
+  const item = (label: string, onClick: () => void, extra?: { checked?: boolean; title?: string; danger?: boolean; disabled?: boolean }) => (
     <button
       role={extra?.checked === undefined ? 'menuitem' : 'menuitemcheckbox'}
       aria-checked={extra?.checked}
       className={extra?.danger ? 'menu-item danger' : 'menu-item'}
+      disabled={extra?.disabled}
       title={extra?.title}
       onClick={onClick}
     >
@@ -142,7 +145,30 @@ function GroupCard() {
             </div>
           )}
           {item('Clone…', () => setCloning(true), { title: 'Copies of each of them, as new objects (Ctrl+K)' })}
-          {item('Copy', run(() => s.groupAction({ op: 'copy' })), { title: 'Ctrl+C; Ctrl+V pastes them as new objects, as far apart as now' })}
+          <button role="menuitem" aria-haspopup="menu" aria-expanded={plates} className="menu-item submenu" onClick={() => setPlates(!plates)}>
+            Move to plate
+            <span className="menu-arrow" aria-hidden="true">
+              {plates ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+            </span>
+          </button>
+          {plates && (
+            <div role="menu" aria-label="Move to plate" className="menu-sub">
+              {project.plates.map((p, k) => (
+                <Fragment key={k}>
+                  {item(p.name ? `Plate ${k + 1}: ${p.name}` : `Plate ${k + 1}`, run(() => s.groupAction({ op: 'moveToPlate', plate: k })), {
+                    disabled: k === plate,
+                    title: k === plate ? 'They are on this plate' : 'The same spots on that plate',
+                  })}
+                </Fragment>
+              ))}
+              {item('New plate', run(() => s.groupAction({ op: 'moveToPlate', plate: 'new' })), { title: 'A new plate after the last, with these on it' })}
+            </div>
+          )}
+          <hr />
+          {item('Copy', run(() => s.groupAction({ op: 'copy' })), { title: 'Paste makes them new objects, as far apart as now (Ctrl+C)' })}
+          {item('Cut', run(() => s.groupAction({ op: 'cut' })), { title: 'Copy them and remove them; Paste puts them back (Ctrl+X)' })}
+          {item('Paste', run(() => s.paste()), { disabled: !copied, title: copied ? 'What you copied, as new objects (Ctrl+V)' : 'Copy or cut objects first' })}
+          <hr />
           {item('Center', run(() => s.groupAction({ op: 'center' })), { title: 'Move them together to the middle of the plate' })}
           {item('Arrange selection', run(() => s.groupAction({ op: 'arrange' })), { title: 'Each on a free spot, around the objects that stay put' })}
           {item('Auto orient', run(() => s.groupAction({ op: 'orient' })), { title: 'Turn each so it prints with the least overhang' })}
