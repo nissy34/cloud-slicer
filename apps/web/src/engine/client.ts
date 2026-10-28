@@ -1,4 +1,4 @@
-import type { CutRequest } from '../lib/cut';
+import type { CutPieces, CutRequest } from '../lib/cut';
 import { engineFolder, type EngineFlavor } from '../lib/engines';
 import type {
   EngineLoading,
@@ -302,6 +302,8 @@ export class EngineClient {
   splitObject = (o: number) => this.call<ProjectInfo>('splitObject', [o]);
   splitParts = (o: number) => this.call<ProjectInfo>('splitParts', [o]);
   cutObject = (o: number, i: number, request: CutRequest) => this.call<ProjectInfo>('cutObject', [o, i, JSON.stringify(request)]);
+  /** The separate pieces the cut plane makes, for moving one to the other side. */
+  cutPieces = (o: number, i: number, request: CutRequest) => this.call<CutPieces>('cutPieces', [o, i, JSON.stringify(request)]);
   paint = (plate: number, options: PaintSettings & { rays: PaintRay[] }) =>
     this.call<{ info: ProjectInfo; preview?: PreviewMesh; overlay?: PaintOverlay }>('paint', [plate, options]);
   paintOverlay = (plate: number, kind: PaintKind) => this.call<PaintOverlay>('paintOverlay', [plate, kind]);
