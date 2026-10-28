@@ -1687,7 +1687,8 @@ function Objects({ w, d, views }: { w: number; d: number; views: ViewHandle }) {
     lastPress.current = e.nativeEvent;
     if (twoFingers() || lasso.current) return;
     if (e.button === 2) {
-      if (paint || measuring) return;
+      // Cutting, a right-click sends a piece to the other side (usePiecePress).
+      if (paint || measuring || tool === 'cut') return;
       if (group.includes(object)) return pressForMenu(e.nativeEvent, false, () => openGroupMenu({ x: e.nativeEvent.clientX, y: e.nativeEvent.clientY }));
       const inst = project?.objects[object]?.instances.findIndex((i) => i.plate === plate) ?? -1;
       select({ object, instance: Math.max(0, inst) });
@@ -1748,7 +1749,7 @@ function Objects({ w, d, views }: { w: number; d: number; views: ViewHandle }) {
     // What was selected before a finger picked this, for when it turns out to be a pinch.
     beforeTouch.current = e.pointerType === 'touch' ? { was: useSlicer.getState().selected } : null;
     if (selected?.object !== object || selected.volume !== undefined) select(first ? { object, instance: first.i } : null);
-    if (first && e.pointerType === 'touch') menuPress(e.nativeEvent, object, first.i, true);
+    if (first && e.pointerType === 'touch' && tool !== 'cut') menuPress(e.nativeEvent, object, first.i, true);
     // Brim ears: a click adds an ear (onEarClick); the object stays put. The
     // Text and SVG tools move shapes, not objects with other parts.
     if (brimTool || (shapeTool && (obj?.volumes.length ?? 0) > 1)) return;
@@ -1768,6 +1769,7 @@ function Objects({ w, d, views }: { w: number; d: number; views: ViewHandle }) {
     if (shapeTool && e.button === 0 && (info?.text || info?.svg)) return startShapeAt(e.nativeEvent, v.object, v.volume);
     const instance = Math.max(0, project?.objects[v.object]?.instances.findIndex((i) => i.plate === plate) ?? -1);
     select({ object: v.object, instance, volume: v.volume });
+    if (tool === 'cut') return;
     if (e.button === 2) return menuPress(e.nativeEvent, v.object, instance, false, v.volume);
     if (e.pointerType === 'touch') menuPress(e.nativeEvent, v.object, instance, true, v.volume);
   };
