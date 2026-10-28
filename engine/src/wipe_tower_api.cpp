@@ -171,21 +171,28 @@ json wipeTowerFor(const DynamicPrintConfig& cfg, int plate, double slicedDepth) 
     double width = cfg.opt_float("prime_tower_width");
     double depth = slicedDepth;
     double brim = cfg.opt_float("prime_tower_brim_width");
+    double plannedWidth = width, plannedDepth = depth;
 #if !ENGINE_UPSTREAM
     // Desktop counts the plate's own filaments; one (or a single mix, which
     // the slice prints as one) needs no tower unless timelapse does.
     if (!smooth && (used.size() < 2 || assigned == 1)) return out;
-    if (depth < 0) {
+    // The planned tower always decides where it stands: the slice keeps it on
+    // the bed with this size, so the sliced tower is drawn there too.
+    {
         Print print;
         print.apply(Model(), cfg);
         brim = print.wipe_tower_data(used.size()).brim_width;
-        std::tie(width, depth) = estimateTower(cfg, used.size());
+        std::tie(plannedWidth, plannedDepth) = estimateTower(cfg, used.size());
+    }
+    if (depth < 0) {
+        width = plannedWidth;
+        depth = plannedDepth;
     } else {
         // The sliced tower, never shallower than the engine's minimum.
         depth = std::max(double(minDepth(height)), depth);
     }
 #else
-    if (depth < 0) {
+    {
         Print print;
         // Upstream sizes the tower from the tallest object in the Print (and
         // plans none for an empty one): stand in a block as tall as the plate.
@@ -196,16 +203,21 @@ json wipeTowerFor(const DynamicPrintConfig& cfg, int plate, double slicedDepth) 
             block->add_instance();
         }
         print.apply(stand_in, cfg);
-        const WipeTowerData& data = print.wipe_tower_data(filaments);
-        depth = data.depth;
+        // Sized for the plate's own filaments, as the slice's Print counts
+        // them (the slice pads filament_colour to every filament).
+        const WipeTowerData& data = print.wipe_tower_data(used.size());
+        plannedDepth = data.depth;
         brim = data.brim_width;
     }
     // One filament on the plate: no tower unless timelapse needs it. Desktop
     // counts a mix as the filaments it mixes here, but the slice counts it as
     // one (normalize_fdm_2 turns the tower off), and the view shows what will
     // print: a plate printed with a single mix gets no tower.
-    if (used.size() == 1 || assigned == 1) depth = 0;
-    if (smooth || depth > EPSILON) depth = std::max(double(minDepth(height)), depth);
+    if (used.size() == 1 || assigned == 1) plannedDepth = 0;
+    if (smooth || plannedDepth > EPSILON) plannedDepth = std::max(double(minDepth(height)), plannedDepth);
+    if (depth < 0) depth = plannedDepth;
+    else if (plannedDepth > EPSILON) depth = std::max(double(minDepth(height)), depth);
+    else depth = 0;
 #endif
     if (depth < 0.01) return out;
 
@@ -214,9 +226,9 @@ json wipeTowerFor(const DynamicPrintConfig& cfg, int plate, double slicedDepth) 
     const double margin = WIPE_TOWER_MARGIN + cfg.opt_float("prime_tower_brim_width");
     double x = cfg.option<ConfigOptionFloats>("wipe_tower_x")->get_at(plate);
     double y = cfg.option<ConfigOptionFloats>("wipe_tower_y")->get_at(plate);
-    if (x + margin + width > bed.max.x()) x = bed.max.x() - width - margin;
+    if (x + margin + plannedWidth > bed.max.x()) x = bed.max.x() - plannedWidth - margin;
     else if (x < margin) x = margin;
-    if (y + margin + depth > bed.max.y()) y = bed.max.y() - depth - margin;
+    if (y + margin + plannedDepth > bed.max.y()) y = bed.max.y() - plannedDepth - margin;
     else if (y < margin) y = margin;
 
     out = {{"show", true},

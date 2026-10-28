@@ -543,8 +543,20 @@ std::string cutObject(int o, int i, const std::string& requestJson) {
             }
         }
 
+        const int plate = pr().plateOf(*obj->instances[i]);
+        const std::string name = obj->name;
         pr().model.delete_object(size_t(o));
         for (ModelObject* a : added) a->ensure_on_bed();
+        // Both halves kept as objects: Cut lists the upper one first, then the
+        // lower one (then any dowels). Desktop leaves them where they stood,
+        // often inside each other, under one name; here they get told apart
+        // and set apart on the plate.
+        if (upper && lower && !asParts && added.size() >= 2 && plate >= 0) {
+            added[0]->name = name + " (upper)";
+            added[1]->name = name + " (lower)";
+            engine::placeApart(added, plate);
+            for (ModelObject* a : added) a->ensure_on_bed();
+        }
         return ok({{"objects", added.size()}});
     });
 }
