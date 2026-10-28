@@ -63,6 +63,12 @@ them), and preset files in and out.
   tabs, and Cancel or ✕ asks before throwing changes away. No Connect tab: the Device
   tab adds printer connections. Saving keeps the open project's printer, even one you
   removed. Before setup is done, those entries open the wizard from its first page.
+- The sidebar's filament list is grouped like Snapmaker Orca 2.4.1's filament menu
+  (`lib/filament-order.ts`, a port of `FilamentSort.cpp`): "My presets" first, then a
+  heading per brand (`filament_vendor`, else the name's first word), Snapmaker first and
+  Generic second, the rest by name. Snapmaker's filaments follow the order in its
+  `filament/filament_allow_list.json` (`sections.filament_order`), which the engine
+  worker passes along; brands and engines without one sort by name.
 - The wizard ticks nothing on a first visit; "Direct print" marks Klipper printers
   (through `inherits`), Prusa, Elegoo Centauri Carbon and Bambu Lab.
 

@@ -92,6 +92,8 @@ if (self.name !== 'em-pthread') {
     }
     const presets = json(engine.presetsLoad(DATA_DIR));
     presets.vendorVersion = bundle.version;
+    // Snapmaker's suggested filament order (2.4.1's filament menu, lib/filament-order.ts).
+    presets.filamentAllowList = bundle.files['Snapmaker/filament/filament_allow_list.json'] ?? '';
     // Engines built before engineInfo() were all Snapmaker Orca.
     presets.engine = engine.engineInfo
       ? JSON.parse(engine.engineInfo())
