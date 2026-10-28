@@ -34,6 +34,11 @@ Desktop Orca's Prepare tools, one by one, each backed by Orca's own code.
   edits, worker methods, `ToolPanel` hints. Keep both sides; grep for conflict markers
   after merging.
 - Volume gizmos send a world-space change; the engine applies it in the instance's frame.
+- Rotate rings, like desktop: while one is dragged it shows marks every 15° (bigger every
+  45°) and the angle turned beside it, and the turn holds on a mark within 3° of it
+  (`components/RotateMarks.tsx`, `lib/rotate-marks.ts`). Shift or the Snap switch still
+  steps in 15°. The marks read TransformControls' own drag values, so they work for one
+  object, a part and a chosen group alike.
 - Move's arrows sit on top of the part (desktop draws them from its box), so the up arrow
   isn't hidden inside it; dragging it below the bed sinks the object, like the Z field.
 - Filament choices are the shared Picker with colour, number and preset name, never a

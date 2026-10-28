@@ -29,6 +29,7 @@ import { MeasureOverlay } from './MeasureOverlay';
 import { CameraViews, ViewButtons, type ViewHandle } from './ViewControls';
 import { WipeTowerView } from './WipeTower';
 import { MarkIcon } from './PrintHistory';
+import { RotateMarks } from './RotateMarks';
 import { usePlateMarks, usePrints } from '../state/prints';
 
 // Printer coordinates are Z-up with the plate from (0,0) to (w,d).
@@ -366,6 +367,7 @@ function Gizmo({
           onMouseUp={commit}
         />
       )}
+      {pivot && anchor && tool === 'rotate' && <RotateMarks controlsRef={controlsRef} snap={snap} />}
     </>
   );
 }
@@ -452,6 +454,7 @@ function GroupGizmo({
           onMouseUp={commit}
         />
       )}
+      {pivot && tool === 'rotate' && <RotateMarks controlsRef={controlsRef} snap={snap} />}
     </>
   );
 }
