@@ -68,7 +68,7 @@ them), and preset files in and out.
   heading per brand (`filament_vendor`, else the name's first word), Snapmaker first and
   Generic second, the rest by name. Snapmaker's filaments follow the order in its
   `filament/filament_allow_list.json` (`sections.filament_order`), which the engine
-  worker passes along; brands and engines without one sort by name.
+  worker passes along; brands and engines without one sort by name (`test/filament-list.mjs`).
 - The wizard ticks nothing on a first visit; "Direct print" marks Klipper printers
   (through `inherits`), Prusa, Elegoo Centauri Carbon and Bambu Lab.
 
