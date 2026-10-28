@@ -83,7 +83,7 @@ try {
     await temperature().waitFor();
   };
   const switchTo = async (name) => {
-    await page.getByTestId('engine-select').selectOption({ label: name });
+    await pickerOf(page, 'Slicer engine').selectOption(name === 'OrcaSlicer' ? 'orca' : 'snapmaker');
     await ready(name);
   };
 

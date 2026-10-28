@@ -26,6 +26,8 @@ export type PickerOption = {
   swatch?: string;
   group?: string;
   hint?: ReactNode;
+  /** Small grey words right after the label, on the button too (an engine's version). */
+  note?: string;
   disabled?: boolean;
 };
 /** An action under the choices, after a line, in the normal text colour with its icon in
@@ -109,7 +111,10 @@ export function Picker({ label, value, options, onChange, actions = [], onAction
         {...getReferenceProps()}
       >
         {current?.swatch && <span className="picker-swatch" style={{ background: current.swatch }} />}
-        <span className="picker-value">{current?.short ?? current?.label ?? placeholder ?? ''}</span>
+        <span className="picker-value">
+          {current?.short ?? current?.label ?? placeholder ?? ''}
+          {current?.note && <span className="picker-note">{current.note}</span>}
+        </span>
         <ChevronDown className="picker-arrow" size={16} aria-hidden />
       </button>
       {open && (
@@ -138,7 +143,10 @@ export function Picker({ label, value, options, onChange, actions = [], onAction
                     {...getItemProps({ onClick: () => pick(() => onChange(o.value)) })}
                   >
                     {o.swatch && <span className="picker-swatch" style={{ background: o.swatch }} />}
-                    <span className="picker-label">{o.label}</span>
+                    <span className="picker-label">
+                      {o.label}
+                      {o.note && <span className="picker-note">{o.note}</span>}
+                    </span>
                     {o.hint && <span className="menu-hint">{o.hint}</span>}
                     {o.value === value && <Check className="menu-check" size={16} aria-hidden />}
                   </button>

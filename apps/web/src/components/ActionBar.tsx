@@ -3,6 +3,8 @@ import { sendToPrinter } from '../device';
 import type { SliceWarning } from '../engine/protocol';
 import { sentence, stageLabel } from '../lib/format';
 import { clearanceProblems } from '../lib/clearance';
+import { physicalFilaments } from '../lib/mixing';
+import { usesPlaAndPetg } from '../lib/option-toggles';
 import { blocksPrinting, OBJECT_CLASHED } from '../lib/outside';
 import { newPrintId, withPrintTag } from '../lib/prints';
 import { LIGHT_TRIANGLES, triangleCount } from '../lib/simplify';
@@ -112,6 +114,8 @@ function SliceWarnings({ warnings }: { warnings: SliceWarning[] }) {
   );
 }
 
+// Snapmaker's guide to printing PLA and PETG as support for each other (the link desktop's notice has).
+const PLA_PETG_GUIDE = 'https://wiki.snapmaker.com/en/snapmaker_u1/printing_guides/pla_and_petg';
 const busy0 = (kind: string) => kind === 'loading' || kind === 'slicing';
 const mm = (v: number) => `${Math.round(v * 10) / 10} mm`;
 
@@ -130,6 +134,11 @@ export function ActionBar() {
   const clearance = useSlicer((s) => s.clearance);
   const tooClose = clearance ? clearanceProblems(clearance.error) : [];
   const blocked = tooClose.length > 0 && !busy0(job.kind);
+
+  // Snapmaker Orca 2.4.1's plate notice: PLA and PETG don't stick to each other.
+  const plaPetg = useSlicer(
+    (s) => s.flavor === 'snapmaker' && !!s.project && usesPlaAndPetg({ ...s.baseConfig, ...s.overrides }, physicalFilaments(s.project.plates[s.plate]?.filaments ?? [], s.mixes)),
+  );
 
   if (engine === 'failed') return <EngineFailed message={engineMessage} />;
 
@@ -218,6 +227,15 @@ export function ActionBar() {
           </span>
         )}
         {notice && !errorHere && <span className={noticeWarn ? 'hint warn' : 'hint'}> {notice}</span>}
+        {plaPetg && !busy && (
+          <span className="hint warn" data-testid="pla-petg">
+            {' '}
+            This plate prints PLA and PETG, which don't stick to each other. Used as support for one another, they need adjusted support settings.{' '}
+            <a href={PLA_PETG_GUIDE} target="_blank" rel="noreferrer">
+              How to
+            </a>
+          </span>
+        )}
         {warnings.length > 0 && <SliceWarnings warnings={warnings} />}
         {heavy && job.kind === 'idle' && (
           <span className="hint warn" data-testid="heavy-model">

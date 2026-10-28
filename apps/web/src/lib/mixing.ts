@@ -240,6 +240,16 @@ export function recipeFilaments(r: MixRecipe): number[] {
   return [...new Set([r.componentA, r.componentB, ...decodeIds(r.gradientIds)])].filter((i) => i > 0);
 }
 
+/** Filament numbers with each mix replaced by the filaments it prints with (desktop's expand_virtual_extruder_ids). */
+export function physicalFilaments(ids: number[], rows: MixRow[]): number[] {
+  const out = new Set<number>();
+  for (const id of ids) {
+    const row = rows.find((r) => r.enabled && r.virtualId === id);
+    for (const f of row ? recipeFilaments(row) : [id]) out.add(f);
+  }
+  return [...out].sort((a, b) => a - b);
+}
+
 /** "F1 50% + F2 50%", "F1 → F2", "F1 F1 F2" ... the panel's text for a row. */
 export function mixLabel(r: MixRecipe): string {
   if (r.pattern) {

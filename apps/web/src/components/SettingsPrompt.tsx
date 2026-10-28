@@ -5,6 +5,7 @@
 import { useMemo } from 'react';
 import { create } from 'zustand';
 import type { OrcaConfig } from '../engine/protocol';
+import { physicalFilaments } from '../lib/mixing';
 import { optionStates, reviewChange, type OptionStates, type SettingsPrompt, type ToggleContext } from '../lib/option-toggles';
 import { useSlicer } from '../state/store';
 import { Dialog } from './Dialog';
@@ -29,7 +30,9 @@ export const useSettingsPrompts = create<PromptState>((set, get) => ({
 
 function context(scope: Scope, slot?: number): ToggleContext {
   const s = useSlicer.getState();
-  return { flowVariant: s.flowVariant, slot, slots: s.selection?.filaments.length ?? 1, scope, options: s.options };
+  const used = s.project?.plates.flatMap((p) => p.filaments) ?? [];
+  const modelFilaments = physicalFilaments(used, s.mixes);
+  return { flowVariant: s.flowVariant, slot, slots: s.selection?.filaments.length ?? 1, scope, options: s.options, flavor: s.flavor, modelFilaments };
 }
 
 function review(before: OrcaConfig, after: OrcaConfig, key: string, ctx: ToggleContext, apply: Apply) {

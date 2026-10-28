@@ -338,6 +338,13 @@
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+/* Small grey words after a choice's name (an engine's version). */
+.picker-note {
+  margin-left: var(--s-3);
+  color: var(--muted);
+  font-size: var(--t-sm);
+  font-weight: 400;
+}
 .picker-arrow {
   flex: none;
   color: var(--muted);
