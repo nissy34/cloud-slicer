@@ -193,7 +193,7 @@ function PrinterErrors({ errors }: { errors: PrinterError[] }) {
             <span className="muted">Error code {e.code}</span>
             {e.once && (
               <button className="quiet" onClick={() => currentSession()?.dismissError(e.id)}>
-                Dismiss
+                Close
               </button>
             )}
           </div>

@@ -14,6 +14,10 @@
   color: var(--text);
   box-shadow: var(--shadow-3);
 }
+.win[open],
+.win[open]::backdrop {
+  animation: open-in var(--speed) ease-out;
+}
 .win:focus {
   outline: none;
 }

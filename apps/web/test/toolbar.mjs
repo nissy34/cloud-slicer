@@ -302,7 +302,7 @@ try {
     }
     if (!menuAt) fail('a right click on an object opened no menu');
     else {
-      for (const name of ['Clone…', 'Center', 'Split', 'Mirror', 'Delete', 'Auto orient', 'Simplify model…', 'Printable', 'Rename…', 'Change filament', 'Object settings', 'Scale to fit the plate', 'Units', 'Replace with STL…', 'Export as STL'])
+      for (const name of ['Clone…', 'Center', 'Split', 'Mirror', 'Delete', 'Auto orient', 'Simplify model', 'Printable', 'Rename…', 'Change filament', 'Object settings', 'Scale to fit the plate', 'Units', 'Replace with STL…', 'Export as STL'])
         await objectMenu.getByRole(/^(Printable)$/.test(name) ? 'menuitemcheckbox' : 'menuitem', { name, exact: true }).waitFor({ timeout: 3000 });
       await objectMenu.getByRole('menuitem', { name: 'Mirror' }).click();
       await objectMenu.getByRole('menuitem', { name: 'Along X axis' }).waitFor();
@@ -321,9 +321,9 @@ try {
     await objectRows(page).first().getByText('Boat').waitFor({ timeout: 30000 });
     console.log('rename from the object list');
 
-    // Simplify model… opens the Simplify panel on that object.
+    // Simplify model opens the Simplify panel on that object.
     await more(0).click();
-    await objectMenu.getByRole('menuitem', { name: 'Simplify model…' }).click();
+    await objectMenu.getByRole('menuitem', { name: 'Simplify model' }).click();
     await page.getByRole('region', { name: 'Simplify' }).getByRole('button', { name: 'Done' }).click();
     console.log('Simplify model opens the Simplify panel');
 
@@ -405,7 +405,7 @@ try {
     // Mesh boolean from the object menu: the boat and the tetrahedron part
     // become one part, undone like any edit.
     await more(0).click();
-    await objectMenu.getByRole('menuitem', { name: 'Mesh boolean…' }).click();
+    await objectMenu.getByRole('menuitem', { name: 'Mesh boolean' }).click();
     const booleanPanel = page.getByRole('region', { name: 'Mesh boolean' });
     await booleanPanel.waitFor();
     await booleanPanel.getByRole('radio', { name: 'Difference' }).click();

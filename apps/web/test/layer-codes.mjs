@@ -98,14 +98,14 @@ try {
   await add.click();
   await menu.getByRole('menuitem', { name: 'Add custom G-code…' }).click();
   await menu.getByRole('textbox', { name: 'Custom G-code' }).fill('M117 FIRST');
-  await menu.getByRole('button', { name: 'OK' }).click();
+  await menu.getByRole('button', { name: 'Add', exact: true }).click();
   await page.getByRole('button', { name: `Layer ${far}: Custom G-code: M117 FIRST` }).waitFor({ timeout: 10000 });
   await add.click();
   await menu.getByRole('menuitem', { name: 'Edit custom G-code…' }).click();
   const box = menu.getByRole('textbox', { name: 'Custom G-code' });
   if ((await box.inputValue()) !== 'M117 FIRST') fail('editing does not start from the G-code there');
   await box.fill('M117 LAYER_MARK');
-  await menu.getByRole('button', { name: 'OK' }).click();
+  await menu.getByRole('button', { name: 'Save', exact: true }).click();
   await page.getByRole('button', { name: `Layer ${far}: Custom G-code: M117 LAYER_MARK` }).waitFor({ timeout: 10000 });
   console.log('custom G-code added and edited');
 

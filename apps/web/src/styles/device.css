@@ -286,18 +286,13 @@
   border-right: 1.5px solid var(--muted);
   border-bottom: 1.5px solid var(--muted);
   transform: translateY(-2px) rotate(45deg);
-  transition: transform 0.15s;
+  transition: transform var(--speed);
 }
 .dv-folded .dv-fold-icon {
   transform: rotate(-45deg);
 }
 .dv-folded .card-head {
   margin-bottom: 0;
-}
-@media (prefers-reduced-motion: reduce) {
-  .dv-fold-icon {
-    transition: none;
-  }
 }
 .dv-fan-tiles {
   display: grid;

@@ -337,8 +337,3 @@
     transform: rotate(360deg);
   }
 }
-@media (prefers-reduced-motion: reduce) {
-  .dv-spinner {
-    animation-duration: 2.4s;
-  }
-}

@@ -115,7 +115,7 @@
 }
 .setting-group-chevron {
   color: var(--muted);
-  transition: transform 0.15s;
+  transition: transform var(--speed);
 }
 .setting-group-toggle[aria-expanded='true'] .setting-group-chevron {
   transform: rotate(90deg);

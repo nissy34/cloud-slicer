@@ -94,13 +94,19 @@
   height: 20px;
   margin: 0;
   border-radius: var(--r-full);
-  background: radial-gradient(circle at 10px 50%, var(--on-colour) 0 7px, transparent 8px) no-repeat, var(--border);
+  /* The knob slides 14 px when it turns on. */
+  background: radial-gradient(circle at 10px 50%, var(--on-colour) 0 7px, transparent 8px) no-repeat 0 0 / 100% 100%;
+  background-color: var(--border);
   vertical-align: middle;
   cursor: pointer;
+  transition:
+    background-position var(--speed),
+    background-color var(--speed);
 }
 .switch:checked,
 .switch.on {
-  background: radial-gradient(circle at 24px 50%, var(--on-colour) 0 7px, transparent 8px) no-repeat, var(--accent);
+  background-position: 14px 0;
+  background-color: var(--accent);
 }
 .switch:disabled {
   opacity: 0.45;
@@ -202,6 +208,7 @@
   color: var(--text);
   box-shadow: var(--shadow-2);
   font-size: var(--t-md);
+  animation: open-in var(--speed) ease-out;
 }
 .menu {
   display: grid;
@@ -672,17 +679,7 @@ button.swatch {
   font-size: var(--t-sm);
   line-height: 1.35;
   pointer-events: none;
-  animation: tip-in 0.12s ease-out;
-}
-@keyframes tip-in {
-  from {
-    opacity: 0;
-  }
-}
-@media (prefers-reduced-motion: reduce) {
-  .tip {
-    animation: none;
-  }
+  animation: open-in var(--speed) ease-out;
 }
 
 /* ===== ⓘ help (components/InfoTip.tsx): the rest of a one-line hint ===== */
