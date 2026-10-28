@@ -80,6 +80,13 @@
   position: absolute !important;
   inset: 0;
 }
+/* The 3D views take every touch (camera, gizmos). The camera controls set this
+   on the element themselves, but the gizmos clear it when a drag ends; after
+   that a downward drag on a ring scrolled the page and cut the drag short. */
+.viewport,
+.viewport * {
+  touch-action: none;
+}
 .empty {
   position: absolute;
   inset: 0;

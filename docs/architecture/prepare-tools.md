@@ -39,11 +39,23 @@ Desktop Orca's Prepare tools, one by one, each backed by Orca's own code.
   edits, worker methods, `ToolPanel` hints. Keep both sides; grep for conflict markers
   after merging.
 - Volume gizmos send a world-space change; the engine applies it in the instance's frame.
-- Rotate rings, like desktop: while one is dragged it shows marks every 15° (bigger every
-  45°) and the angle turned beside it, and the turn holds on a mark within 3° of it
-  (`components/RotateMarks.tsx`, `lib/rotate-marks.ts`). Shift or the Snap switch still
-  steps in 15°. The marks read TransformControls' own drag values, so they work for one
-  object, a part and a chosen group alike.
+- Rotate rings, like desktop Orca's GLGizmoRotate (`components/RotateMarks.tsx`,
+  `lib/rotate-marks.ts`). TransformControls turns by how far the pointer slides, which
+  drifts away from the pointer, so while a ring is dragged RotateMarks replaces its angle
+  with the pointer's own turn round the ring (where the pointer ray meets the ring's
+  plane), from where it was pressed. With 0° under the press it draws desktop's scale:
+  marks every 5° (long every 10°) just outside the ring and 8 spokes in the middle third.
+  Over the marks (0.85 to 1.25 of the radius, wider than desktop's so the ring itself and
+  a finger land in it) the turn steps in 5°, over the spokes in 45°, anywhere else it is
+  free, but a pin from the middle always reaches out to the pointer, however far it goes,
+  and holds on a mark it lies on (within 1°). Shift or the Snap switch steps in 15°
+  anywhere. The angle turned shows past the pin's end (on touch, above the finger, which
+  would hide it). The yellow outer ring (turns about
+  the line of sight) works the same. It works for one object, a part and a chosen group
+  alike (`test/rotate-ring.mjs`, desktop and touch).
+- The 3D views have `touch-action: none` in CSS: TransformControls clears the inline value
+  the camera controls set when a drag ends, after which a downward ring drag on a phone
+  scrolled the page and cut the drag short.
 - Move's arrows sit on top of the part (desktop draws them from its box), so the up arrow
   isn't hidden inside it; dragging it below the bed sinks the object, like the Z field.
 - Filament choices are the shared Picker with colour, number and preset name, never a

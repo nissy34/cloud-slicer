@@ -1,30 +1,86 @@
 import { DEG } from './placement';
 
-/** Desktop's rotate ring marks: one every 15°, a bigger one every 45°. */
-export const MARK_STEP = 15 * DEG;
-/** How close to a mark a drag must come for the ring to hold it there. */
-export const MARK_REACH = 3 * DEG;
+/*
+ * Desktop's rotate ring (Orca's GLGizmoRotate): a scale of marks round the
+ * ring, one every 5° and a longer one every 10°, and eight spokes in the
+ * middle third. The turn follows the pointer round the ring; on the marks it
+ * steps in 5°, on the spokes in 45°, anywhere else it turns freely.
+ */
 
-/** The angle turned, held on the nearest mark when it is within reach. */
-export function holdOnMark(angle: number, reach = MARK_REACH): number {
-  const mark = Math.round(angle / MARK_STEP) * MARK_STEP;
-  return Math.abs(angle - mark) <= reach ? mark : angle;
+/** One mark every 5° (desktop's ScaleStepsCount 72). */
+export const MARK_STEP = 5 * DEG;
+/** Every second mark is longer (desktop's ScaleLongEvery). */
+export const LONG_EVERY = 2;
+/** The middle third's spokes, every 45° (desktop's SnapRegionsCount 8). */
+export const SPOKE_STEP = 45 * DEG;
+/** How long the long marks are, as part of the ring's radius (desktop's ScaleLongTooth). */
+export const LONG_TOOTH = 0.1;
+/**
+ * Where on the ring the pointer steps along the marks, as parts of the radius.
+ * Desktop's band is the marks alone (1 to 1.1); it is wider here so the ring
+ * itself, where a drag starts, and a finger on a phone land in it too.
+ */
+export const MARKS_BAND: [number, number] = [0.85, 1.25];
+/** Where the pointer steps along the spokes: the middle third, like desktop. */
+export const SPOKES_BAND: [number, number] = [1 / 3, 2 / 3];
+/** Anywhere else the pin, which always reaches the pointer, holds on a mark it comes this close to. */
+export const PIN_REACH = 1 * DEG;
+
+/**
+ * The turn as the ring gives it: `angle` is the pointer's turn round the ring
+ * since it was pressed, `reach` how far out from the middle it is (1 = on the
+ * ring). With `step` (Shift or the snap setting) it always steps by that.
+ */
+export function ringTurn(angle: number, reach: number, step: number | null = null): number {
+  const by = step ?? (inBand(reach, SPOKES_BAND) ? SPOKE_STEP : inBand(reach, MARKS_BAND) ? MARK_STEP : 0);
+  const mark = Math.round(angle / (by || MARK_STEP)) * (by || MARK_STEP);
+  // Off the marks and spokes the pin turns freely, held only when it lies on a mark.
+  const turned = by || Math.abs(angle - mark) <= PIN_REACH ? mark : angle;
+  return Object.is(turned, -0) ? 0 : turned;
+}
+
+function inBand(reach: number, [from, to]: [number, number]) {
+  return reach >= from && reach <= to;
+}
+
+/** The signed angle from one direction to another round the ring (x, y in the ring's plane). */
+export function turnBetween(from: [number, number], to: [number, number]): number {
+  return Math.atan2(from[0] * to[1] - from[1] * to[0], from[0] * to[0] + from[1] * to[1]);
 }
 
 /**
- * The marks as line segments (x, y, z pairs) round a ring of radius 1 in the
- * XY plane, pointing out from it: short ones every 15°, long ones every 45°.
+ * The scale as line segments (x, y, z pairs) round a ring of radius 1 in the
+ * XY plane, starting at +X: marks pointing out from the ring every 5° (long
+ * every 10°, like desktop), and spokes in the middle third every 45°.
  */
-export function markSegments(short = 0.1, long = 0.22, gap = 0.03): Float32Array {
-  const n = Math.round((2 * Math.PI) / MARK_STEP);
-  const out = new Float32Array(n * 6);
-  for (let k = 0; k < n; k++) {
+export function ringScale(): Float32Array {
+  const marks = Math.round((2 * Math.PI) / MARK_STEP);
+  const spokes = Math.round((2 * Math.PI) / SPOKE_STEP);
+  const out = new Float32Array((marks + spokes) * 6);
+  for (let k = 0; k < marks; k++) {
     const a = k * MARK_STEP;
-    const len = k % 3 === 0 ? long : short;
+    const len = k % LONG_EVERY === 0 ? LONG_TOOTH : LONG_TOOTH / 2;
     const [c, s] = [Math.cos(a), Math.sin(a)];
-    out.set([c * (1 + gap), s * (1 + gap), 0, c * (1 + gap + len), s * (1 + gap + len), 0], k * 6);
+    out.set([c, s, 0, c * (1 + len), s * (1 + len), 0], k * 6);
+  }
+  for (let k = 0; k < spokes; k++) {
+    const a = k * SPOKE_STEP;
+    const [c, s] = [Math.cos(a), Math.sin(a)];
+    const [r0, r1] = SPOKES_BAND;
+    out.set([c * r0, s * r0, 0, c * r1, s * r1, 0], (marks + k) * 6);
   }
   return out;
+}
+
+/** The turn drawn like desktop: a line to where it started and the arc to where it is (radius 1, XY plane); the pin is drawn on its own. */
+export function turnLines(angle: number, arcRadius = 0.5): Float32Array {
+  const steps = Math.max(1, Math.ceil(Math.abs(angle) / (5 * DEG)));
+  const out: number[] = [0, 0, 0, 1, 0, 0];
+  for (let k = 0; k < steps; k++) {
+    const [a, b] = [(angle * k) / steps, (angle * (k + 1)) / steps];
+    out.push(Math.cos(a) * arcRadius, Math.sin(a) * arcRadius, 0, Math.cos(b) * arcRadius, Math.sin(b) * arcRadius, 0);
+  }
+  return new Float32Array(out);
 }
 
 /** The angle turned as people read it: whole degrees, "+" when it turns left. */
