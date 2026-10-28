@@ -61,6 +61,10 @@
 .field select {
   width: 100%;
 }
+.field :is(select, input, textarea) {
+  color: var(--text);
+  font-size: var(--t-md);
+}
 
 .main {
   display: grid;

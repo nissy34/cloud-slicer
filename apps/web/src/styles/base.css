@@ -91,7 +91,7 @@ textarea {
    (.secondary; .ghost is Normal without its fill, for bars), Quiet (.quiet: blue
    words on a faint blue box, for actions in rows and card headers) and the square
    icon button (.icon-btn, components/IconButton.tsx). Add .danger to any of them
-   for remove and delete. All are one height: --ctl, 30 px, 40 px on a phone. */
+   for remove and delete. All are one height: --ctl, 30 px, 36 px on a phone. */
 .primary,
 .secondary,
 .ghost,
@@ -217,7 +217,7 @@ button:focus-visible {
   }
 }
 
-/* Taps on a phone: the controls drawn at --ctl (40 px) and the small icons on
+/* Taps on a phone: the controls drawn at --ctl (36 px) and the small icons on
    their own take a tap at least --tap (44 px) tall and wide, without being drawn
    any bigger: an invisible box around them. Rows in lists (legend lines, switch
    and check box rows, menu rows) keep their own size, so a box never reaches
