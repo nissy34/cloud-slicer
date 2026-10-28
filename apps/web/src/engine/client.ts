@@ -1,3 +1,4 @@
+import type { CutRequest } from '../lib/cut';
 import { engineFolder, type EngineFlavor } from '../lib/engines';
 import type {
   EngineLoading,
@@ -87,7 +88,6 @@ export interface MixedReply {
   info?: ProjectInfo;
 }
 
-export type CutKeep = 'both' | 'upper' | 'lower';
 
 /** Instance changes: offset is on `plate` (mm from its corner), rotation in degrees. */
 /** The labels of the edits undo and redo would take back or redo next, or null. */
@@ -301,8 +301,7 @@ export class EngineClient {
   orientObject = (o: number) => this.call<ProjectInfo>('orientObject', [o]);
   splitObject = (o: number) => this.call<ProjectInfo>('splitObject', [o]);
   splitParts = (o: number) => this.call<ProjectInfo>('splitParts', [o]);
-  cutObject = (o: number, i: number, z: number, keep: CutKeep, flipUpper: boolean) =>
-    this.call<ProjectInfo>('cutObject', [o, i, z, keep, flipUpper]);
+  cutObject = (o: number, i: number, request: CutRequest) => this.call<ProjectInfo>('cutObject', [o, i, JSON.stringify(request)]);
   paint = (plate: number, options: PaintSettings & { rays: PaintRay[] }) =>
     this.call<{ info: ProjectInfo; preview?: PreviewMesh; overlay?: PaintOverlay }>('paint', [plate, options]);
   paintOverlay = (plate: number, kind: PaintKind) => this.call<PaintOverlay>('paintOverlay', [plate, kind]);

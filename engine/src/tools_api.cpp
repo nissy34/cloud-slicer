@@ -172,24 +172,45 @@ std::string splitParts(int o) {
     });
 }
 
-constexpr double CUT_PLANE_Z_TOLERANCE = 2e-3;      // 2 microns
+constexpr double CUT_PLANE_TOLERANCE = 2e-3;        // 2 microns
 constexpr double CUT_PLANE_NORMAL_TOLERANCE = 0.99; // cos(angle) > 0.99 (~8 deg)
 
-// Cuts instance i of object o with a horizontal plane at height z (mm above
-// the bed), like desktop's Cut tool. keep: "both", "upper" or "lower";
-// flipUpper turns the upper part over so its cut face lies on the bed.
+// Cuts instance i of object o with a plane, like desktop's Cut tool. The request
+// (JSON): {position, rotation: [x, y, z] degrees, upper, lower, asParts}. The
+// plane starts flat and turns by `rotation` (X, then Y, then Z, about the bed's
+// axes); its arrow (normal) is the turned +Z. `position` is how far the plane
+// is along its arrow from the bed under the middle of the instance, so a flat
+// plane's position is its height above the bed. upper / lower: "keep" (as it
+// stands), "place" (turned so the cut face lies on the bed) or "drop" (thrown
+// away). asParts keeps both halves as parts of one object, where they stand.
 // Painting on the parts (filament colours, support enforcers/blockers, seam
 // enforcers/blockers and fuzzy skin) is preserved on the cut objects.
-std::string cutObject(int o, int i, double z, const std::string& keep, bool flipUpper) {
+std::string cutObject(int o, int i, const std::string& requestJson) {
     return guarded([&] {
         ModelObject* obj = objectAt(o);
         if (i < 0 || size_t(i) >= obj->instances.size()) throw std::runtime_error("no instance " + std::to_string(i));
-        const bool upper = keep != "lower", lower = keep != "upper";
+        const json req = json::parse(requestJson);
+        const double position = req.value("position", 0.0);
+        const std::vector<double> deg = req.value("rotation", std::vector<double>{0, 0, 0});
+        if (deg.size() != 3) throw std::runtime_error("rotation needs three angles");
+        const std::string upperDo = req.value("upper", std::string("keep")), lowerDo = req.value("lower", std::string("keep"));
+        for (const std::string* d : {&upperDo, &lowerDo})
+            if (*d != "keep" && *d != "place" && *d != "drop") throw std::runtime_error("bad part choice " + *d);
+        const bool asParts = req.value("asParts", false);
+        const bool upper = asParts || upperDo != "drop", lower = asParts || lowerDo != "drop";
+        if (!upper && !lower) throw std::runtime_error("keep at least one part");
         ModelObjectCutAttributes attrs = only_if(upper, ModelObjectCutAttribute::KeepUpper) |
                                          only_if(lower, ModelObjectCutAttribute::KeepLower) |
-                                         only_if(upper && flipUpper, ModelObjectCutAttribute::FlipUpper) |
-                                         only_if(upper && !flipUpper, ModelObjectCutAttribute::PlaceOnCutUpper) |
+                                         only_if(asParts, ModelObjectCutAttribute::KeepAsParts) |
+                                         only_if(!asParts && upperDo == "place", ModelObjectCutAttribute::PlaceOnCutUpper) |
+                                         only_if(!asParts && lowerDo == "place", ModelObjectCutAttribute::PlaceOnCutLower) |
                                          ModelObjectCutAttribute::InvalidateCutInfo;
+        const Transform3d rotation = Geometry::rotation_transform(Vec3d(deg[0], deg[1], deg[2]) * (PI / 180.0));
+        const Vec3d normal = (rotation.linear() * Vec3d::UnitZ()).normalized();
+        // The plane's middle: the instance's middle, slid along the arrow onto the plane.
+        const Vec3d middle = obj->instance_bounding_box(size_t(i)).center();
+        const Vec3d base(middle.x(), middle.y(), 0);
+        const Vec3d centre = middle - (normal.dot(middle - base) - position) * normal;
         const Vec3d offset = obj->instances[i]->get_offset();
         const Transform3d instance_matrix = obj->instances[i]->get_transformation().get_matrix_no_offset();
 
@@ -223,7 +244,7 @@ std::string cutObject(int o, int i, double z, const std::string& keep, bool flip
             sources.push_back({v, std::move(src), hasPaint});
         }
 
-        Cut cut(obj, i, Geometry::translation_transform(z * Vec3d::UnitZ() - offset), attrs);
+        Cut cut(obj, i, Geometry::translation_transform(centre - offset) * rotation, attrs);
         const ModelObjectPtrs& parts = cut.perform_with_plane();
         if (parts.empty()) {
             for (size_t idx = 0; idx < obj->volumes.size(); ++idx) obj->volumes[idx]->name = origNames[idx];
@@ -266,12 +287,11 @@ std::string cutObject(int o, int i, double z, const std::string& keep, bool flip
                     const Vec3d va = world_matrix * cutVol->mesh().its.vertices[tri[0]].cast<double>() + offset;
                     const Vec3d vb = world_matrix * cutVol->mesh().its.vertices[tri[1]].cast<double>() + offset;
                     const Vec3d vc = world_matrix * cutVol->mesh().its.vertices[tri[2]].cast<double>() + offset;
-                    if (std::abs(va.z() - z) > CUT_PLANE_Z_TOLERANCE ||
-                        std::abs(vb.z() - z) > CUT_PLANE_Z_TOLERANCE ||
-                        std::abs(vc.z() - z) > CUT_PLANE_Z_TOLERANCE) return false;
+                    for (const Vec3d* v : {&va, &vb, &vc})
+                        if (std::abs(normal.dot(*v - centre)) > CUT_PLANE_TOLERANCE) return false;
                     const Vec3d n = (vb - va).cross(vc - va);
                     const double len = n.norm();
-                    return len > 1e-12 && (std::abs(n.z()) / len) > CUT_PLANE_NORMAL_TOLERANCE;
+                    return len > 1e-12 && (std::abs(n.dot(normal)) / len) > CUT_PLANE_NORMAL_TOLERANCE;
                 };
 
                 // recoverSmallPatches is false for Cut (mesh density is preserved; avoids bleeding from other cut half)

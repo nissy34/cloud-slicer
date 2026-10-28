@@ -1,4 +1,5 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { usePhone } from '../lib/usePhone';
 import type { PaintKind } from '../engine/protocol';
 import { sentence } from '../lib/format';
 import { editKey, nudgeKey } from '../lib/transform';
@@ -6,7 +7,6 @@ import { NO_COLOURS, useSlicer, type Tool } from '../state/store';
 import { DEFAULT_PAINT, PaintPanel } from './PaintPanel';
 import { startText } from './TextPanel';
 import { ToolPanel } from './ToolPanel';
-import { PHONE } from '../lib/breakpoints';
 import { Note } from './Note';
 
 // Desktop Snapmaker Orca's toolbar icons (resources/images, AGPL-3.0 like this
@@ -289,17 +289,6 @@ export function Toolbar({ onAdd }: { onAdd(): void }) {
 }
 
 
-/** Whether the page has the phone layout (one column: 3D view, then the settings). */
-function usePhone() {
-  const [phone, setPhone] = useState(() => typeof matchMedia === 'function' && matchMedia(PHONE).matches);
-  useEffect(() => {
-    const q = matchMedia(PHONE);
-    const on = () => setPhone(q.matches);
-    q.addEventListener('change', on);
-    return () => q.removeEventListener('change', on);
-  }, []);
-  return phone;
-}
 
 /**
  * The open tool's options in a card under its toolbar button, like desktop's
