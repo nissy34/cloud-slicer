@@ -5,7 +5,7 @@ why: [README.md](README.md) (the docs map) and [architecture/](architecture/).
 
 ## At a glance
 
-- **Slices like desktop Snapmaker Orca 2.4.0**, because it is the same engine: STL, OBJ,
+- **Slices like desktop Snapmaker Orca 2.4.1**, because it is the same engine: STL, OBJ,
   AMF and 3MF projects, Bambu Studio 3MF files with painted colours, per-part filaments,
   multi-plate projects. Plate thumbnails go into the G-code, like desktop. Each plate keeps
   its own slice: pick another plate while one slices (it shows at once and the slice goes on,
