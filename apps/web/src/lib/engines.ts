@@ -21,6 +21,9 @@ export const ENGINES: { id: EngineFlavor; name: string; blurb: string; examples:
 ];
 
 export const engineName = (flavor: EngineFlavor) => ENGINES.find((e) => e.id === flavor)!.name;
+/** Each engine's version (from its version.inc at build time), empty when the build didn't have its sources. */
+export const engineRelease = (flavor: EngineFlavor): string =>
+  (import.meta.env.VITE_ENGINE_RELEASES as Record<EngineFlavor, string> | undefined)?.[flavor] ?? '';
 export const isFlavor = (v: unknown): v is EngineFlavor => v === 'snapmaker' || v === 'orca';
 
 /** Where the engine is served from: public/engine/ or public/engine-orca/. */

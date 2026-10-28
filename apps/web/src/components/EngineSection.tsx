@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Cpu } from 'lucide-react';
 import { losesNothing } from '../lib/engine-switch';
-import { ENGINES, type EngineFlavor } from '../lib/engines';
+import { ENGINES, engineRelease, type EngineFlavor } from '../lib/engines';
 import { useProjects } from '../state/projects';
 import { useSlicer } from '../state/store';
 import { EngineSwitchDialog } from './EngineSwitchDialog';
@@ -15,8 +15,10 @@ import { EngineSwitchDialog } from './EngineSwitchDialog';
  */
 export function EngineSection() {
   const flavor = useSlicer((s) => s.flavor);
-  // The running engine's version, beside its name (phones have no room for the top bar's tag).
-  const version = useSlicer((s) => (s.engineInfo?.flavor === s.flavor ? s.engineInfo.version : ''));
+  // Each engine's version beside its name (phones have no room for the top bar's tag):
+  // the running one's own word, the other's from the build.
+  const running = useSlicer((s) => s.engineInfo);
+  const version = (id: EngineFlavor) => (running?.flavor === id ? running.version : engineRelease(id));
   // Not while the engine starts, opens a file or slices.
   const busy = useSlicer((s) => s.engine !== 'ready' || s.job.kind === 'loading' || s.job.kind === 'slicing');
   const [asking, setAsking] = useState<EngineFlavor | null>(null);
@@ -40,7 +42,7 @@ export function EngineSection() {
         <select aria-label="Slicer engine" data-testid="engine-select" value={flavor} disabled={busy} onChange={(e) => pick(e.target.value as EngineFlavor)}>
           {ENGINES.map((e) => (
             <option key={e.id} value={e.id}>
-              {e.id === flavor && version ? `${e.name} ${version}` : e.name}
+              {version(e.id) ? `${e.name} ${version(e.id)}` : e.name}
             </option>
           ))}
         </select>

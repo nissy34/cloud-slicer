@@ -110,7 +110,7 @@ try {
   // the Slicer engine dropdown switches without asking, and the changes carry.
   await shot(page, 'engine-desktop');
   for (const [to, back] of [['OrcaSlicer', 'Snapmaker Orca'], ['Snapmaker Orca', 'OrcaSlicer']]) {
-    await engineSelect.selectOption({ label: to });
+    await engineSelect.selectOption(to === 'OrcaSlicer' ? 'orca' : 'snapmaker');
     await page.getByText(`This project now slices with ${to}`).waitFor({ timeout: 180000 });
     await engineIs(to);
     if (await ask.count()) fail(`switching a plain model to ${to} asked first`);
