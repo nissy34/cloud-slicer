@@ -71,7 +71,7 @@ export function AccountMenu() {
           <Note tone="error">
             {error}{' '}
             <button className="quiet" onClick={() => useAccount.getState().clearError()}>
-              Dismiss
+              Close
             </button>
           </Note>
         )}

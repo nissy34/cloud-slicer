@@ -6,6 +6,7 @@ import { startSvg } from './SvgPanel';
 import { startText } from './TextPanel';
 import { ChevronDown, ChevronRight } from 'lucide-react';
 import { Swatch } from './Swatch';
+import { scrollMotion } from '../lib/motion';
 
 type Sub = 'split' | 'mirror' | 'filament' | 'units' | 'type' | `add-${VolumeKind}` | null;
 type Form = 'rename' | 'clone' | null;
@@ -178,12 +179,12 @@ function MenuCard() {
       ) : vol && vi !== undefined ? (
         <>
           {vol.text &&
-            item('Edit text…', run(() => {
+            item('Edit text', run(() => {
               s.select({ object: o, instance: i, volume: vi });
               s.setTool('text');
             }), { title: 'Change the words, font or size' })}
           {vol.svg &&
-            item('Edit SVG…', run(() => {
+            item('Edit SVG', run(() => {
               s.select({ object: o, instance: i, volume: vi });
               s.setTool('svg');
             }), { title: 'Change its depth or size' })}
@@ -225,7 +226,7 @@ function MenuCard() {
               vol.kind === 'modifier' ? 'Modifier settings' : 'Part settings',
               run(() => {
                 s.select({ object: o, instance: i, volume: vi });
-                setTimeout(() => document.querySelector('.object-settings')?.scrollIntoView({ block: 'nearest', behavior: 'smooth' }), 50);
+                setTimeout(() => document.querySelector('.object-settings')?.scrollIntoView({ block: 'nearest', behavior: scrollMotion() }), 50);
               }),
               { title: vol.kind === 'modifier' ? 'Settings for where the modifier overlaps the object' : 'Settings for this part only' },
             )}
@@ -315,7 +316,7 @@ function MenuCard() {
           <hr />
           {item('Auto orient', run(() => s.orientObject(o)))}
           {item(
-            'Simplify model…',
+            'Simplify model',
             run(() => {
               s.select({ object: o, instance: i });
               s.setTool('simplify');
@@ -323,7 +324,7 @@ function MenuCard() {
             { title: 'Fewer triangles, keeping the shape' },
           )}
           {item(
-            'Mesh boolean…',
+            'Mesh boolean',
             run(() => {
               s.select({ object: o, instance: i });
               s.setTool('boolean');
@@ -348,7 +349,7 @@ function MenuCard() {
             'Object settings',
             run(() => {
               s.select({ object: o, instance: i });
-              setTimeout(() => document.querySelector('.object-settings')?.scrollIntoView({ block: 'nearest', behavior: 'smooth' }), 50);
+              setTimeout(() => document.querySelector('.object-settings')?.scrollIntoView({ block: 'nearest', behavior: scrollMotion() }), 50);
             }),
             { title: 'Settings for this object only, on top of the process' },
           )}

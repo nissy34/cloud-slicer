@@ -62,7 +62,7 @@ export function SimplifyFirstDialog() {
       }
     >
       <p id="simplify-first-text">{q.text}</p>
-      {q.painted && <p className="warn">Simplifying removes its painting.</p>}
+      {q.painted && <p className="muted">Its painting will be kept on the simplified mesh.</p>}
       <label className="switch-row">
         <input className="switch" type="checkbox" checked={dontAsk} onChange={(e) => setDontAsk(e.target.checked)} />
         <span>Don't ask again on this device</span>

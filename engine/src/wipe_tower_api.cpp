@@ -39,8 +39,10 @@ std::vector<int> plateFilaments(const DynamicPrintConfig& cfg, int plate, size_t
     for (const ModelObject* mo : pr.model.objects) {
         if (std::none_of(mo->instances.begin(), mo->instances.end(), [&](const ModelInstance* i) { return pr.plateOf(*i) == plate; }))
             continue;
-        for (const ModelVolume* mv : mo->volumes)
-            for (int e : mv->get_extruders()) ids.push_back(e);
+        for (const ModelVolume* mv : mo->volumes) {
+            ids.push_back(mv->extruder_id());
+            for (size_t e : mv->get_extruders_from_multi_material_painting()) ids.push_back(int(e) + 1);
+        }
         for (const auto& range : mo->layer_config_ranges)
             if (range.second.has("extruder"))
                 if (const int id = range.second.option("extruder")->getInt(); id > 0) ids.push_back(id);

@@ -467,6 +467,67 @@ test('object tools: cut, split, mirror, orient', () => {
   assert.ok(info().objects[0].instances[0].offset[2] >= -0.01, 'on the bed');
 });
 
+test('cut keeps multi-material paint and support painting on cut parts', () => {
+  select({ printer: DEFAULT_PRINTER });
+  load('colored_3DBenchy.3mf');
+  const startInfo = info();
+  assert.ok(startInfo.objects[0].volumes[0].painted);
+
+  const preMesh = engine.previewMesh(0);
+  const origUnique = new Set(preMesh.filaments);
+  assert.ok(origUnique.size >= 4, 'all filaments present before cut');
+
+  call(engine, 'cutObject', 0, 0, 15, 'both', false);
+
+  const cutInfo = info();
+  assert.equal(cutInfo.objects.length, 3, 'cut creates upper and lower parts');
+  assert.ok(cutInfo.objects[1].volumes[0].painted, 'upper part keeps paint');
+  assert.ok(cutInfo.objects[2].volumes[0].painted, 'lower part keeps paint');
+
+  const cutMesh = engine.previewMesh(0);
+  const start1 = cutMesh.objectTriangles[0];
+  const end1 = start1 + cutMesh.objectTriangles[1];
+  const upperFil = new Set(cutMesh.filaments.subarray(start1, end1));
+  const lowerFil = new Set(cutMesh.filaments.subarray(end1));
+  assert.ok(upperFil.size >= 3, `upper part has multiple painted filaments: ${[...upperFil]}`);
+  assert.ok(lowerFil.size >= 3, `lower part has multiple painted filaments: ${[...lowerFil]}`);
+  engine.clearModel();
+});
+
+test('cut does not cross-contaminate paint onto unpainted volumes in multi-volume objects', () => {
+  select({ printer: DEFAULT_PRINTER });
+  load('calib-cube-10-dual-colour-merged.3mf');
+  const start = info();
+  assert.equal(start.objects[0].volumes.length, 2, 'two volumes in model');
+  assert.equal(start.objects[0].volumes[0].painted, false);
+  assert.equal(start.objects[0].volumes[1].painted, false);
+
+  // Paint only volume 1 at (88, 95)
+  call(engine, 'paint', 0, JSON.stringify({
+    rays: [[88, 95, 200, 0, 0, -1]],
+    kind: 'color',
+    state: 2,
+    tool: 'sphere',
+    radius: 2,
+  }));
+  const paintedInfo = info();
+  assert.equal(paintedInfo.objects[0].volumes[0].painted, false, 'volume 0 is unpainted');
+  assert.equal(paintedInfo.objects[0].volumes[1].painted, true, 'volume 1 is painted');
+
+  // Cut the multi-volume object at z = 5
+  call(engine, 'cutObject', 0, 0, 5, 'both', false);
+
+  const cut = info();
+  assert.equal(cut.objects.length, 2, 'uncut replaced by upper and lower objects');
+  // Upper object (cut.objects[0]) preserves paint on volume 1, volume 0 remains unpainted
+  assert.equal(cut.objects[0].volumes[0].painted, false, 'upper volume 0 remains unpainted (no cross-contamination)');
+  assert.equal(cut.objects[0].volumes[1].painted, true, 'upper volume 1 preserves paint');
+  // Lower object (cut.objects[1]) has no paint bleed onto either volume
+  assert.equal(cut.objects[1].volumes[0].painted, false, 'lower volume 0 remains unpainted');
+  assert.equal(cut.objects[1].volumes[1].painted, false, 'lower volume 1 has no bleed from upper paint');
+  engine.clearModel();
+});
+
 test('split to parts makes each piece a part of the same object', () => {
   select({ printer: DEFAULT_PRINTER });
   load('gen-two-cubes.stl');
@@ -1029,7 +1090,7 @@ test('colour mixing: Match finds the recipe for a target colour', (t) => {
   assert.equal(mixed({ definitions: '', colours: TWO, types: ['PETG', 'TPU'], op: { kind: 'add', row } }).rows[0].compatible, true);
 });
 
-test('simplify: fewer triangles by detail level or ratio, paint dropped, like desktop', () => {
+test('simplify: fewer triangles by detail level or ratio, keeping paint', () => {
   select({ printer: DEFAULT_PRINTER });
   load('3DBenchy.stl');
   const simplify = (request) => call(engine, 'simplifyObject', 0, JSON.stringify(request));
@@ -1053,12 +1114,40 @@ test('simplify: fewer triangles by detail level or ratio, paint dropped, like de
   const applied = simplify({ op: 'apply', ratio: 50 });
   assert.equal(applied.triangles, half.after);
   assert.equal(simplify({ op: 'get' }).triangles, half.after);
-  assert.ok(!info().objects[0].volumes[0].painted && !simplify({ op: 'get' }).painted, 'the paint goes with the old triangles');
+  assert.ok(info().objects[0].volumes[0].paint.support && simplify({ op: 'get' }).painted, 'support paint stays on the simplified mesh');
   assert.ok(info().objects[0].size.every((v, i) => Math.abs(v - size[i]) < 0.5), 'the shape keeps its size');
   slice(fullConfig());
 
   // A 0% ratio leaves the mesh as it is.
   assert.equal(simplify({ op: 'preview', ratio: 0 }).after, half.after);
+
+  // Multi-colour painted 3MF keeps its filament colours after simplifying,
+  // previews correctly with zero-deserialization paint traversal, and undo/redo works.
+  const colored = load('colored_3DBenchy.3mf');
+  assert.ok(colored.objects.some((o) => o.volumes.some((v) => v.painted)));
+  const beforeMesh = engine.previewMesh(0);
+  const beforeUnique = new Set(beforeMesh.filaments);
+  assert.ok(beforeUnique.size >= 4, `multi-filament paint in preview: ${[...beforeUnique]}`);
+  const beforeFacets = beforeMesh.filaments.length;
+
+  call(engine, 'snapshot', 'Simplify');
+  const simpColored = call(engine, 'simplifyObject', 0, JSON.stringify({ op: 'apply', ratio: 50 }));
+  assert.ok(simpColored.painted && info().objects[0].volumes.some((v) => v.painted), 'colour painting stays on the simplified 3MF');
+
+  const afterMesh = engine.previewMesh(0);
+  const afterUnique = new Set(afterMesh.filaments);
+  assert.deepEqual([...afterUnique].sort(), [...beforeUnique].sort(), 'all painted filaments preserved in previewMesh after simplify');
+  assert.ok(afterMesh.filaments.length < beforeFacets, `previewMesh facets reduced: ${afterMesh.filaments.length} < ${beforeFacets}`);
+
+  call(engine, 'undo');
+  const undoMesh = engine.previewMesh(0);
+  assert.equal(undoMesh.filaments.length, beforeFacets, 'undo restores original painted facets');
+  assert.deepEqual([...new Set(undoMesh.filaments)].sort(), [...beforeUnique].sort(), 'undo restores original filament set');
+
+  call(engine, 'redo');
+  const redoMesh = engine.previewMesh(0);
+  assert.equal(redoMesh.filaments.length, afterMesh.filaments.length, 'redo restores simplified facets');
+  assert.deepEqual([...new Set(redoMesh.filaments)].sort(), [...beforeUnique].sort(), 'redo restores simplified filament set');
 });
 
 test('brim ears: on the corners, by hand, and printed when the brim type is painted', () => {
