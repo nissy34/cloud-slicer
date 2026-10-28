@@ -110,7 +110,7 @@ try {
     expect((await length().inputValue()) === '1.5', `extruder 1 length ${await length().inputValue()}`);
     await settingsPage(dialog, 'Extruder 2').click();
     expect((await length().inputValue()) === '2.5', `extruder 2 length ${await length().inputValue()}`);
-    await dialog.getByLabel('Advanced').check();
+    await dialog.getByRole('group', { name: 'Settings shown' }).getByRole('button', { name: 'Advanced', exact: true }).click();
     await page.screenshot({ path: join(out, 'desktop-extruder.png') });
     await settingsPage(dialog, 'Motion ability').click();
     await setField(field(dialog, 'Speed limitation', 'Maximum speed X'), '450');

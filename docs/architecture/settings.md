@@ -51,9 +51,10 @@ and filament windows offer Save to preset, Save as new preset, Save to project.
   The model's filaments come from every plate, mixes counted as their filaments
   (`physicalFilaments`). A Snapmaker plate printing PLA and PETG shows desktop's notice
   under the plate, with Snapmaker's guide (`usesPlaAndPetg`, `ActionBar.tsx`).
-- Modes like desktop: Simple, Advanced, and with Advanced on a Developer switch (desktop's
-  Developer mode preference) that also shows the settings the engine marks `develop`.
-  The choice is kept with the account (`developerMode`), Advanced is not.
+- Modes like desktop, as one Simple · Advanced · Expert chooser (`SettingsLevelChips`) over the
+  process settings and in the preset windows. Expert is Advanced plus desktop's Developer mode
+  preference: it also shows the settings the engine marks `develop`, in the pages and in search.
+  The choice is kept with the account (`settingsLevel`) and is the same everywhere.
 - Settings a browser can't honour are greyed with "Not available in the browser"
   (`GREYED_IN_BROWSER`) or hidden (`NOT_IN_BROWSER`, e.g. post-processing scripts).
 - Zustand selectors in components must not return new arrays or objects (endless

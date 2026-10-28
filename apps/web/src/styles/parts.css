@@ -25,6 +25,28 @@
   white-space: nowrap;
   user-select: none;
 }
+/* Simple · Advanced · Expert: chips joined into one full-width row, each showing more
+   settings than the one before (under the Process settings heading, atop a preset window). */
+.chips.levels {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0;
+}
+.levels .chip {
+  border-radius: 0;
+}
+.levels .chip + .chip {
+  margin-left: -1px;
+}
+.levels .chip:first-child {
+  border-radius: var(--r-full) 0 0 var(--r-full);
+}
+.levels .chip:last-child {
+  border-radius: 0 var(--r-full) var(--r-full) 0;
+}
+.levels .chip[aria-pressed='true'] {
+  z-index: 1;
+}
 .chip:hover:not(:disabled) {
   background: var(--surface-2);
 }
@@ -122,12 +144,6 @@
   align-items: center;
   gap: var(--s-4);
   cursor: pointer;
-}
-/* Switch rows side by side (Advanced, Developer). */
-.mode-switches {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--s-5);
 }
 /* Several switch rows, one under the other. */
 .switch-list {

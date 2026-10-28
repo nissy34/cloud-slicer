@@ -13,7 +13,7 @@ import { useAccount } from '../state/account';
 import { useProjects } from '../state/projects';
 import { useSlicer } from '../state/store';
 import { Dialog } from './Dialog';
-import { ModeSwitches, SettingsPages } from './SettingsPanel';
+import { SettingsLevelChips, SettingsPages } from './SettingsPanel';
 import { Pencil } from 'lucide-react';
 import { IconButton } from './IconButton';
 import { Swatch } from './Swatch';
@@ -59,7 +59,6 @@ function Editor({ target }: { target: Target }) {
   const signedIn = useAccount((s) => s.status === 'signedIn');
   const name = selectedName(selection, type, slot);
   const preset = useSlicer((s) => (type === 'printer' ? s.printers : s.filaments).find((p) => p.name === name));
-  const [advanced, setAdvanced] = useState(false);
   const [own, setOwn] = useState<{ name: string; config: OrcaConfig } | null>(null);
   const [saveAs, setSaveAs] = useState<string | null>(null);
   const [working, setWorking] = useState(false);
@@ -137,7 +136,6 @@ function Editor({ target }: { target: Target }) {
       }
       className="preset-settings"
       onClose={hide}
-      head={<ModeSwitches advanced={advanced} onAdvanced={setAdvanced} />}
       footer={
         saveAs !== null ? (
           <form
@@ -207,8 +205,9 @@ function Editor({ target }: { target: Target }) {
           {preset?.user ? `Your preset, based on ${systemParent(preset)}.` : 'System preset: use Save as to keep your changes.'}
         </span>
       </p>
+      <SettingsLevelChips />
       <div className="preset-settings-body">
-        <SettingsPages kind={type} advanced={advanced} slot={slot} />
+        <SettingsPages kind={type} slot={slot} />
       </div>
       {error && (
         <Note tone="error">
