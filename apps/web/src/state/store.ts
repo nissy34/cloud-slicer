@@ -2433,7 +2433,7 @@ export const useSlicer = create<SlicerState>((set, get) => {
         while (strokeQueue.length) {
           const paint = get().paint;
           if (!paint) break;
-          const fills = paint.tool === 'fill' || paint.tool === 'bucket';
+          const fills = paint.tool === 'fill' || paint.tool === 'bucket' || paint.tool === 'height';
           const batch = lastRay && !fills ? [lastRay, ...strokeQueue] : strokeQueue;
           lastRay = strokeQueue[strokeQueue.length - 1];
           strokeQueue = [];
