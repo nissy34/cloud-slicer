@@ -13,7 +13,7 @@ import { useAccount } from '../state/account';
 import { useProjects } from '../state/projects';
 import { useSlicer } from '../state/store';
 import { Dialog } from './Dialog';
-import { SettingsPages } from './SettingsPanel';
+import { ModeSwitches, SettingsPages } from './SettingsPanel';
 import { Pencil } from 'lucide-react';
 import { IconButton } from './IconButton';
 import { Swatch } from './Swatch';
@@ -137,12 +137,7 @@ function Editor({ target }: { target: Target }) {
       }
       className="preset-settings"
       onClose={hide}
-      head={
-        <label className="switch-row">
-          <input className="switch" type="checkbox" checked={advanced} onChange={(e) => setAdvanced(e.target.checked)} />
-          <span>Advanced</span>
-        </label>
-      }
+      head={<ModeSwitches advanced={advanced} onAdvanced={setAdvanced} />}
       footer={
         saveAs !== null ? (
           <form

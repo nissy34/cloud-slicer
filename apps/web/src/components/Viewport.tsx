@@ -1259,7 +1259,8 @@ function PartMaterial({ active = false, unprintable = false, clip }: { active?: 
       roughness={0.55}
       metalness={0.05}
       emissive={active ? '#2f6fe4' : '#000000'}
-      emissiveIntensity={active ? 0.35 : 0}
+      // Half as strong as before, like Snapmaker Orca 2.4.1's softer selection (#940), so the colours stay readable.
+      emissiveIntensity={active ? 0.18 : 0}
       onBeforeCompile={tintOutside}
       customProgramCacheKey={tintKey}
     />

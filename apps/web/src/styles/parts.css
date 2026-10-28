@@ -123,6 +123,12 @@
   gap: var(--s-4);
   cursor: pointer;
 }
+/* Switch rows side by side (Advanced, Developer). */
+.mode-switches {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s-5);
+}
 /* Several switch rows, one under the other. */
 .switch-list {
   display: grid;

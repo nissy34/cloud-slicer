@@ -5,13 +5,40 @@ import { splitValues, valueAt, withValueAt } from '../lib/flow-variants';
 import { FLUSH_OPTIONS } from '../lib/flush';
 import { GREYED_IN_BROWSER, GREYED_TIP, shownPages } from '../lib/settings-pages';
 import { slotEntryIndex } from '../lib/slot-values';
+import { saveUserSetting, useUserSetting } from '../state/account';
 import { useOption, useSlicer } from '../state/store';
 import { FlowVariantSwitch } from './FlowVariantSwitch';
 import { OptionField } from './OptionField';
 import { useOptionStates } from './SettingsPrompt';
 
-const visible = (def: OptionDef | undefined, advanced: boolean) =>
-  def != null && (advanced ? def.mode !== 'develop' : def.mode === 'simple');
+// Desktop's modes: Simple, Advanced, and Developer (a preference there) adding its develop settings to Advanced.
+const visible = (def: OptionDef | undefined, advanced: boolean, developer: boolean) =>
+  def != null && (advanced ? developer || def.mode !== 'develop' : def.mode === 'simple');
+
+const DEVELOPER_KEY = 'developerMode';
+/** Desktop's Developer mode preference, kept with the account like the setup choices. */
+export function useDeveloperMode(): boolean {
+  return useUserSetting<boolean>(DEVELOPER_KEY) === true;
+}
+
+/** The Advanced switch, and with it on, the Developer one. */
+export function ModeSwitches({ advanced, onAdvanced }: { advanced: boolean; onAdvanced: (on: boolean) => void }) {
+  const developer = useDeveloperMode();
+  return (
+    <span className="mode-switches">
+      <label className="switch-row">
+        <input className="switch" type="checkbox" checked={advanced} onChange={(e) => onAdvanced(e.target.checked)} />
+        <span>Advanced</span>
+      </label>
+      {advanced && (
+        <label className="switch-row" title="Also show the tuning settings desktop keeps for its Developer mode">
+          <input className="switch" type="checkbox" checked={developer} onChange={(e) => void saveUserSetting(DEVELOPER_KEY, e.target.checked)} />
+          <span>Developer</span>
+        </label>
+      )}
+    </span>
+  );
+}
 
 export type SettingsKind = 'print' | 'filament' | 'printer';
 
@@ -53,14 +80,15 @@ export function SettingsPages({ kind, advanced, slot }: { kind: SettingsKind; ad
   const states = useOptionStates('global', slot);
   const preset = usePresetOwn(kind, slot);
   const current = pages[Math.min(page, pages.length - 1)];
-  const found = query.trim() ? searchSettings(pages, options, query) : null;
+  const developer = useDeveloperMode();
+  const found = query.trim() ? searchSettings(pages, options, query, developer) : null;
   // A search finds settings in every page and in Advanced too; ones that don't apply show greyed out.
   // Purging between filaments only happens with one nozzle for several filaments (AMS, MMU...); a U1 has a head per filament.
   const flushes = useSlicer((s) => (s.flush?.flushes ?? false) && (s.selection?.filaments.length ?? 1) > 1);
   const noFlush = (k: string) => flushes || !FLUSH_OPTIONS.includes(k);
   const groups = (
     found ??
-    current?.groups.map((g) => ({ title: g.title, page: current, keys: g.options.filter((k) => visible(options[k], advanced) && !states.hidden.has(k)) })) ??
+    current?.groups.map((g) => ({ title: g.title, page: current, keys: g.options.filter((k) => visible(options[k], advanced, developer) && !states.hidden.has(k)) })) ??
     []
   ).map((g) => ({ ...g, keys: g.keys.filter(noFlush) }));
   const flushHidden = !flushes && kind === 'print' && !found && current?.groups.some((g) => g.options.some((k) => FLUSH_OPTIONS.includes(k)));
@@ -196,14 +224,14 @@ function OverrideField({ optKey, slot }: { optKey: string; slot: number }) {
  * Settings whose name (or key, for people who know Orca's) has every word of
  * the query, grouped by page and group like desktop's settings search.
  */
-export function searchSettings(pages: ShownPage[], options: Record<string, OptionDef>, query: string) {
+export function searchSettings(pages: ShownPage[], options: Record<string, OptionDef>, query: string, developer = false) {
   const words = query.toLowerCase().split(/\s+/).filter(Boolean);
   const groups: { title: string; page: ShownPage; keys: string[] }[] = [];
   for (const p of pages)
     for (const g of p.groups) {
       const keys = g.options.filter((k) => {
         const def = options[k];
-        if (!def || def.mode === 'develop') return false;
+        if (!def || (def.mode === 'develop' && !developer)) return false;
         const text = `${def.label} ${def.fullLabel} ${k} ${k.replace(/_/g, ' ')} ${g.title}`.toLowerCase();
         return words.every((w) => text.includes(w));
       });
@@ -232,10 +260,7 @@ export function SettingsPanel() {
           <Settings2 aria-hidden />
           Process settings
         </h2>
-        <label className="switch-row">
-          <input className="switch" type="checkbox" checked={advanced} onChange={(e) => setAdvanced(e.target.checked)} />
-          <span>Advanced</span>
-        </label>
+        <ModeSwitches advanced={advanced} onAdvanced={setAdvanced} />
       </div>
       <SettingsPages kind="print" advanced={advanced} />
       {changed > 0 && (
