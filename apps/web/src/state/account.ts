@@ -330,12 +330,36 @@ export function useUserSetting<T>(key: string): T | undefined {
   return useAccount((s) => s.settings[key]?.value as T | undefined);
 }
 
-/** Saves a setup choice (any JSON value up to 64 KB). The last save wins. */
-export async function saveUserSetting<T>(key: string, value: T): Promise<void> {
-  const setting: UserSetting = signedIn() ? await api.saveSetting(key, value) : { key, value, version: 0, updatedAt: Date.now() };
-  const next = { ...useAccount.getState().settings, [key]: setting };
+/** The newest save of each setting, so an older reply never overwrites a newer choice. */
+const settingSaves = new Map<string, number>();
+const putSetting = (key: string, setting: UserSetting | undefined) => {
+  const next = { ...useAccount.getState().settings };
+  if (setting) next[key] = setting;
+  else delete next[key];
   useAccount.setState({ settings: next });
-  if (!signedIn()) saveSettingsLocal(next);
+  return next;
+};
+
+/**
+ * Saves a setup choice (any JSON value up to 64 KB). The last save wins.
+ * Signed in, the choice shows at once and goes to the account behind it
+ * (a reply takes about a second); if that fails it goes back and this throws.
+ */
+export async function saveUserSetting<T>(key: string, value: T): Promise<void> {
+  const before = useAccount.getState().settings[key];
+  const local: UserSetting = { key, value, version: 0, updatedAt: Date.now() };
+  const next = putSetting(key, local);
+  if (!signedIn()) return saveSettingsLocal(next);
+  const save = (settingSaves.get(key) ?? 0) + 1;
+  settingSaves.set(key, save);
+  const latest = () => settingSaves.get(key) === save;
+  try {
+    const saved = await api.saveSetting(key, value);
+    if (latest()) putSetting(key, saved);
+  } catch (e) {
+    if (latest()) putSetting(key, before);
+    throw e;
+  }
 }
 
 export async function deleteUserSetting(key: string): Promise<void> {
