@@ -15,7 +15,9 @@ import { EngineSwitchDialog } from './EngineSwitchDialog';
  */
 export function EngineSection() {
   const flavor = useSlicer((s) => s.flavor);
-    // Not while the engine starts, opens a file or slices.
+  // The running engine's version, beside its name (phones have no room for the top bar's tag).
+  const version = useSlicer((s) => (s.engineInfo?.flavor === s.flavor ? s.engineInfo.version : ''));
+  // Not while the engine starts, opens a file or slices.
   const busy = useSlicer((s) => s.engine !== 'ready' || s.job.kind === 'loading' || s.job.kind === 'slicing');
   const [asking, setAsking] = useState<EngineFlavor | null>(null);
   const pick = (id: EngineFlavor) => {
@@ -38,7 +40,7 @@ export function EngineSection() {
         <select aria-label="Slicer engine" data-testid="engine-select" value={flavor} disabled={busy} onChange={(e) => pick(e.target.value as EngineFlavor)}>
           {ENGINES.map((e) => (
             <option key={e.id} value={e.id}>
-              {e.name}
+              {e.id === flavor && version ? `${e.name} ${version}` : e.name}
             </option>
           ))}
         </select>
