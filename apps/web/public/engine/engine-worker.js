@@ -181,7 +181,12 @@ if (self.name !== 'em-pthread') {
     orientObject: (e, o) => (json(e.orientObject(o)), JSON.parse(e.modelInfoJson())),
     splitObject: (e, o) => (json(e.splitObject(o)), JSON.parse(e.modelInfoJson())),
     splitParts: (e, o) => (json(e.splitParts(o)), JSON.parse(e.modelInfoJson())),
-    cutObject: (e, o, i, z, keep, flip) => (json(e.cutObject(o, i, z, keep, flip)), JSON.parse(e.modelInfoJson())),
+    cutObject: (e, o, i, request) => (json(e.cutObject(o, i, request)), JSON.parse(e.modelInfoJson())),
+    cutPieces: (e, o, i, request) => {
+      const p = e.cutPieces(o, i, request);
+      if (p.error) throw new Error(p.error);
+      return { value: p, transfer: [p.positions.buffer, p.pieceTriangles.buffer, p.above.buffer] };
+    },
     mirrorInstance: (e, o, i, axis) => (json(e.mirrorInstance(o, i, axis)), JSON.parse(e.modelInfoJson())),
     // The object menu (see engine/src/object_api.cpp); "replace" brings the STL's bytes.
     objectAction(e, o, i, request, bytes) {

@@ -1,4 +1,4 @@
-import { OrbitControls, TransformControls } from '@react-three/drei';
+import { Html, OrbitControls, TransformControls } from '@react-three/drei';
 import { Canvas, useThree, type ThreeEvent } from '@react-three/fiber';
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import * as THREE from 'three';
@@ -16,7 +16,7 @@ import { onPlate } from '../lib/plateMenu';
 import { plateBounds } from '../lib/outside';
 import { hasPlateSettings } from '../lib/plate-settings';
 import { unprintableTriangles, UNPRINTABLE } from '../lib/printable';
-import { cutCentre, cutNormal, cutQuaternion, positionAt, positionRange, rotationOf } from '../lib/cut';
+import { cutCentre, cutNormal, cutOutline, cutQuaternion, planeSpot, positionRange, rotationOf, SIDES, spotPoint, type CutRotation } from '../lib/cut';
 import { viewOnly } from '../state/projects';
 import { NO_COLOURS, useOption, useSlicer } from '../state/store';
 import { setCameraSource } from '../state/view';
@@ -499,37 +499,30 @@ function partsInRect(parts: Part[], rect: { left: number; top: number; right: nu
     .map((p) => p.object);
 }
 
+/** The clipping plane that keeps what is below the Cut tool's plane on a part. */
+function cutBelow(part: Part, position: number, rotation: CutRotation): THREE.Plane {
+  const normal = cutNormal(rotation);
+  const middle = part.geometry.boundingBox!.getCenter(new THREE.Vector3());
+  return new THREE.Plane().setFromNormalAndCoplanarPoint(normal.clone().negate(), cutCentre(middle, position, normal));
+}
+
 const CUT_UPPER = '#22d3ee';
 const CUT_LOWER = '#e879f9';
 
 /**
- * The Cut tool's plane, like desktop's: a see-through plane with an arrow to
- * drag it along and two rings to tilt it, the part above it tinted cyan and the
- * part below pink. The plane is lib/cut.ts's: a position along its arrow and a
- * turn, which the panel's boxes show too.
+ * The Cut tool's plane, like desktop's: a see-through plane (a click flips it)
+ * with its handles, the outline where it meets the object, the part above it
+ * tinted cyan and the part below pink. Once a right-click (a long press on a
+ * touch screen) moved a separate piece to the other side, the pieces are drawn
+ * in their side's colour instead. The plane is lib/cut.ts's: a position along
+ * its arrow and a turn, which the panel's boxes show too.
  */
-function CutPlane({
-  part,
-  arrowRef,
-  ringsRef,
-  onRelease,
-}: {
-  part: Part;
-  arrowRef: React.MutableRefObject<TransformControlsImpl | null>;
-  ringsRef: React.MutableRefObject<TransformControlsImpl | null>;
-  onRelease(): void;
-}) {
+function CutPlane({ part, active, views, onRelease }: { part: Part; active: React.MutableRefObject<boolean>; views: ViewHandle; onRelease(): void }) {
   const position = useSlicer((s) => s.cutZ);
   const rotation = useSlicer((s) => s.cutRotation);
-  const setPosition = useSlicer((s) => s.setCutZ);
-  const setRotation = useSlicer((s) => s.setCutRotation);
-  const shift = useShift();
-  const snap = useSlicer((s) => s.snap) || shift;
-  const coarse = useMemo(() => typeof matchMedia !== 'undefined' && matchMedia('(pointer: coarse)').matches, []);
-  const [arrow, setArrow] = useState<THREE.Group | null>(null);
-  const [rings, setRings] = useState<THREE.Group | null>(null);
-  useHoldWhileDragging(arrowRef, arrow);
-  useHoldWhileDragging(ringsRef, rings);
+  const placing = useSlicer((s) => s.cutTab === 'connectors');
+  const pieces = useSlicer((s) => s.cutPieces);
+  const flip = useSlicer((s) => s.flipCutPlane);
   const box = part.geometry.boundingBox!;
   const size = box.getSize(new THREE.Vector3());
   const middle = box.getCenter(new THREE.Vector3());
@@ -537,70 +530,465 @@ function CutPlane({
   const quaternion = useMemo(() => cutQuaternion(rotation), [rotation]);
   const normal = useMemo(() => cutNormal(rotation), [rotation]);
   const centre = cutCentre(middle, position, normal);
-  const [lo, hi] = positionRange([size.x, size.y, size.z], rotation).map((v) => v + normal.z * box.min.z);
+  // Where the gizmo sits on the plane: tilting turns the plane there (turnPlane).
+  const spot = useSlicer((s) => s.cutSpot);
+  const gizmo = spotPoint(spot, centre, rotation);
   // Three keeps what is on the positive side of a clipping plane.
   const above = useMemo(() => new THREE.Plane(), []);
   const below = useMemo(() => new THREE.Plane(), []);
   above.setFromNormalAndCoplanarPoint(normal, centre);
   below.setFromNormalAndCoplanarPoint(normal.clone().negate(), centre);
   const invalidate = useThree((s) => s.invalidate);
+  const gl = useThree((s) => s.gl);
+  useLayoutEffect(() => invalidate(), [centre.x, centre.y, centre.z, quaternion, invalidate]); // the clipping planes moved
 
-  useLayoutEffect(() => {
-    for (const g of [arrow, rings]) {
-      g?.position.copy(centre);
-      g?.quaternion.copy(quaternion);
-    }
-    invalidate(); // the clipping planes moved too
-  }, [arrow, rings, centre.x, centre.y, centre.z, quaternion, invalidate]);
+  // Placing connectors, the view looks straight at the cut face, like desktop,
+  // and goes back to where it was when that is done.
+  const camera = useThree((s) => s.camera);
+  const controls = useThree((s) => s.controls) as unknown as { target: THREE.Vector3; update(): void } | null;
+  useEffect(() => {
+    if (!placing) return;
+    const was = { position: camera.position.clone(), up: camera.up.clone(), target: controls?.target.clone() };
+    // Beside the Cut panel when it sits over the view (not on a phone, where it is above).
+    const r = gl.domElement.getBoundingClientRect();
+    const panel = document.querySelector('section[aria-label="Cut"]')?.getBoundingClientRect();
+    const aside = panel && panel.left > r.left + r.width * 0.3 && panel.left < r.right && panel.top < r.top + r.height / 2 ? 0.5 - (panel.left - r.left) / 2 / r.width : 0;
+    views.current?.({ from: normal, box: new THREE.Box3().setFromCenterAndSize(centre, new THREE.Vector3(span, span, span).multiplyScalar(0.6)), aside });
+    return () => {
+      camera.position.copy(was.position);
+      camera.up.copy(was.up);
+      if (controls && was.target) {
+        controls.target.copy(was.target);
+        controls.update();
+      } else camera.lookAt(was.target ?? middle);
+      invalidate();
+    };
+  }, [placing]);
 
-  const tint = (colour: string, plane: THREE.Plane) => (
-    <mesh geometry={part.geometry} raycast={() => null} renderOrder={1}>
-      <meshBasicMaterial color={colour} transparent opacity={0.45} depthWrite={false} clippingPlanes={[plane]} polygonOffset polygonOffsetFactor={-1} polygonOffsetUnits={-1} />
+  const lowerTint = useRef<THREE.Mesh>(null);
+  usePiecePress(part, lowerTint);
+
+  const tint = (colour: string, plane: THREE.Plane | null, geometry = part.geometry, ref?: React.Ref<THREE.Mesh>, key?: number) => (
+    <mesh key={key} ref={ref} geometry={geometry} raycast={() => null} renderOrder={1}>
+      <meshBasicMaterial color={colour} transparent opacity={0.45} depthWrite={false} clippingPlanes={plane ? [plane] : []} polygonOffset polygonOffsetFactor={-1} polygonOffsetUnits={-1} />
     </mesh>
   );
-  const arrowSize = coarse ? 1.5 : 1.15;
+  const pieceGeometries = useMemo(() => {
+    if (!pieces) return [];
+    let first = 0;
+    return [...pieces.pieces.pieceTriangles].map((count) => {
+      const g = new THREE.BufferGeometry();
+      g.setAttribute('position', new THREE.BufferAttribute(pieces.pieces.positions.subarray(first * 9, (first + count) * 9), 3));
+      first += count;
+      return g;
+    });
+  }, [pieces?.pieces]);
+  useEffect(() => () => pieceGeometries.forEach((g) => g.dispose()), [pieceGeometries]);
   return (
     <>
-      {tint(CUT_UPPER, above)}
-      {tint(CUT_LOWER, below)}
-      <mesh position={centre} quaternion={quaternion} raycast={() => null} renderOrder={2}>
-        <planeGeometry args={[span, span]} />
-        <meshBasicMaterial color="#ffffff" transparent opacity={0.22} side={THREE.DoubleSide} depthWrite={false} />
+      {pieces ? (
+        // Pieces moved to the other side: each in its side's colour (placing connectors, only the lower ones).
+        pieceGeometries.map((g, k) => (pieces.upper[k] ? !placing && tint(CUT_UPPER, null, g, undefined, k) : tint(CUT_LOWER, null, g, undefined, k)))
+      ) : (
+        <>
+          {/* Placing connectors, the upper half is hidden so the cut face shows. */}
+          {!placing && tint(CUT_UPPER, above)}
+        </>
+      )}
+      {/* Always drawn (in pink below the plane unless pieces show): long presses and right-clicks hit it. */}
+      {pieces ? <mesh ref={lowerTint} geometry={part.geometry} visible={false} /> : tint(CUT_LOWER, below, part.geometry, lowerTint)}
+      <CutOutline geometry={part.geometry} centre={centre} normal={normal} />
+      {placing ? (
+        <ConnectorSpots centre={centre} rotation={rotation} quaternion={quaternion} span={span} />
+      ) : (
+        <>
+          <mesh
+            position={gizmo}
+            quaternion={quaternion}
+            renderOrder={2}
+            onClick={(e) => {
+              if (e.delta > 4) return; // the view was dragged
+              e.stopPropagation();
+              flip();
+              onRelease();
+            }}
+          >
+            <planeGeometry args={[span, span]} />
+            <meshBasicMaterial color="#ffffff" transparent opacity={0.22} side={THREE.DoubleSide} depthWrite={false} />
+          </mesh>
+          <CutGrabbers centre={gizmo} quaternion={quaternion} middle={middle} size={size} active={active} onRelease={onRelease} />
+        </>
+      )}
+    </>
+  );
+}
+
+/**
+ * A right-click on the object while cutting (a long press on a touch screen)
+ * moves the separate piece under it to the other side of the plane, like
+ * desktop: the first one asks the engine for the pieces.
+ */
+function usePiecePress(part: Part, target: React.RefObject<THREE.Mesh | null>) {
+  const { gl, camera } = useThree();
+  const place = useSlicer((s) => s.selected);
+  useEffect(() => {
+    const el = gl.domElement;
+    const pick = async (x: number, y: number) => {
+      const mesh = target.current;
+      const s = useSlicer.getState();
+      if (!mesh || !place || s.cutTab !== 'plane') return;
+      const r = el.getBoundingClientRect();
+      const ray = new THREE.Raycaster();
+      ray.setFromCamera(new THREE.Vector2(((x - r.left) / r.width) * 2 - 1, -((y - r.top) / r.height) * 2 + 1), camera);
+      const hitMesh = new THREE.Mesh(part.geometry);
+      hitMesh.matrixWorld.copy(mesh.matrixWorld);
+      hitMesh.raycast = acceleratedRaycast;
+      const g = part.geometry as THREE.BufferGeometry & { boundsTree?: MeshBVH };
+      if (!g.boundsTree) g.boundsTree = new MeshBVH(g);
+      if (ray.intersectObject(hitMesh, false).length === 0) return;
+      const pieces = s.cutPieces?.pieces ?? (await s.loadCutPieces(place.object, place.instance));
+      if (!pieces) return;
+      // The nearest piece along the ray.
+      let first = 0;
+      let best = -1;
+      let near = Infinity;
+      pieces.pieceTriangles.forEach((count, k) => {
+        if (count > 0) {
+          const pg = new THREE.BufferGeometry();
+          pg.setAttribute('position', new THREE.BufferAttribute(pieces.positions.subarray(first * 9, (first + count) * 9), 3));
+          const pm = new THREE.Mesh(pg, new THREE.MeshBasicMaterial({ side: THREE.DoubleSide }));
+          pm.matrixWorld.copy(mesh.matrixWorld);
+          const hit = ray.intersectObject(pm, false)[0];
+          if (hit && hit.distance < near) {
+            near = hit.distance;
+            best = k;
+          }
+          pg.dispose();
+        }
+        first += count;
+      });
+      if (best >= 0) useSlicer.getState().swapCutPiece(best);
+    };
+    const onMenu = (e: MouseEvent) => {
+      e.preventDefault();
+      void pick(e.clientX, e.clientY);
+    };
+    // A long press with a finger: held still for half a second.
+    let press: { id: number; x: number; y: number; timer: number } | null = null;
+    const down = (e: PointerEvent) => {
+      if (e.pointerType !== 'touch') return;
+      if (press) clearTimeout(press.timer);
+      press = { id: e.pointerId, x: e.clientX, y: e.clientY, timer: window.setTimeout(() => press && void pick(press.x, press.y), 500) };
+    };
+    const move = (e: PointerEvent) => {
+      if (press && e.pointerId === press.id && Math.hypot(e.clientX - press.x, e.clientY - press.y) > 8) {
+        clearTimeout(press.timer);
+        press = null;
+      }
+    };
+    const up = () => {
+      if (press) clearTimeout(press.timer);
+      press = null;
+    };
+    el.addEventListener('contextmenu', onMenu);
+    el.addEventListener('pointerdown', down);
+    el.addEventListener('pointermove', move);
+    el.addEventListener('pointerup', up);
+    el.addEventListener('pointercancel', up);
+    return () => {
+      up();
+      el.removeEventListener('contextmenu', onMenu);
+      el.removeEventListener('pointerdown', down);
+      el.removeEventListener('pointermove', move);
+      el.removeEventListener('pointerup', up);
+      el.removeEventListener('pointercancel', up);
+    };
+  }, [gl, camera, part, target, place?.object, place?.instance]);
+}
+
+/** Where the Cut tool's plane meets the object, drawn as a white line, like desktop. */
+function CutOutline({ geometry, centre, normal }: { geometry: THREE.BufferGeometry; centre: THREE.Vector3; normal: THREE.Vector3 }) {
+  const lines = useMemo(() => {
+    const out = cutOutline(geometry, centre, normal);
+    if (!out.length) return null;
+    const g = new THREE.BufferGeometry();
+    g.setAttribute('position', new THREE.BufferAttribute(new Float32Array(out), 3));
+    return g;
+  }, [geometry, centre.x, centre.y, centre.z, normal.x, normal.y, normal.z]);
+  useEffect(() => () => lines?.dispose(), [lines]);
+  if (!lines) return null;
+  return (
+    <lineSegments geometry={lines} raycast={() => null} renderOrder={4}>
+      <lineBasicMaterial color="#ffffff" depthTest={false} transparent />
+    </lineSegments>
+  );
+}
+
+const GRAB_BALL = '#9aa0a6';
+const GRAB_STEM = '#facc15';
+const GRAB_X = '#ef4444';
+const GRAB_Y = '#22c55e';
+
+/**
+ * Desktop's cut plane handles: a grey ball on a yellow stem along the plane's
+ * arrow, dragged to move the plane along it, and red and green arrows round the
+ * ball, dragged to tilt the plane about its own X (red) and Y (green). Holding
+ * Shift (or the snap button) moves by 1 mm and tilts by 15°.
+ */
+function CutGrabbers({
+  centre,
+  quaternion,
+  middle,
+  size,
+  active,
+  onRelease,
+}: {
+  centre: THREE.Vector3;
+  quaternion: THREE.Quaternion;
+  middle: THREE.Vector3;
+  size: THREE.Vector3;
+  active: React.MutableRefObject<boolean>;
+  onRelease(): void;
+}) {
+  const setPosition = useSlicer((s) => s.setCutZ);
+  const setRotation = useSlicer((s) => s.setCutRotation);
+  const rotation = useSlicer((s) => s.cutRotation);
+  const shift = useShift();
+  const snap = useSlicer((s) => s.snap) || shift;
+  const controls = useThree((s) => s.controls) as unknown as CameraControls | null;
+  const coarse = useMemo(() => typeof matchMedia !== 'undefined' && matchMedia('(pointer: coarse)').matches, []);
+  // Sizes from the object's, like desktop's (a bigger ball for a finger).
+  const radius = size.length() / 2;
+  const stem = Math.min(0.75 * radius, 35);
+  const ball = Math.min(Math.max(((size.x + size.y + size.z) / 3) * 0.1, 1.5), 8) * (coarse ? 1.5 : 1);
+  const [hover, setHover] = useState<'ball' | 'x' | 'y' | null>(null);
+  // The handle held, and while tilting the turn so far, for desktop's protractor.
+  const [held, setHeld] = useState<{ kind: 'ball' | 'x' | 'y'; quaternion: THREE.Quaternion; angle: number } | null>(null);
+  const drag = useRef<{ kind: 'ball' | 'x' | 'y'; start: number; position: number; quaternion: THREE.Quaternion; from: THREE.Vector3; origin: THREE.Vector3 } | null>(null);
+  const normal = new THREE.Vector3(0, 0, 1).applyQuaternion(quaternion);
+  const axisOf = (kind: 'x' | 'y') => new THREE.Vector3(kind === 'x' ? 1 : 0, kind === 'y' ? 1 : 0, 0).applyQuaternion(quaternion);
+  // How far along the arrow the ray passes closest to it.
+  const along = (ray: THREE.Ray, from: THREE.Vector3, dir: THREE.Vector3) => {
+    const w = from.clone().sub(ray.origin);
+    const b = dir.dot(ray.direction);
+    const d = dir.dot(w);
+    const e = ray.direction.dot(w);
+    const den = 1 - b * b;
+    return Math.abs(den) < 1e-6 ? 0 : (b * e - d) / den;
+  };
+  const onCircle = (ray: THREE.Ray, axis: THREE.Vector3, at: THREE.Vector3) => {
+    const p = ray.intersectPlane(new THREE.Plane().setFromNormalAndCoplanarPoint(axis, at), new THREE.Vector3());
+    return p ? p.sub(at) : null;
+  };
+  const down = (kind: 'ball' | 'x' | 'y') => (e: ThreeEvent<PointerEvent>) => {
+    if (e.button !== 0 || twoFingers()) return;
+    e.stopPropagation();
+    const s = useSlicer.getState();
+    const q = cutQuaternion(s.cutRotation);
+    const from = kind === 'ball' ? new THREE.Vector3() : onCircle(e.ray, axisOf(kind), centre);
+    if (!from) return;
+    drag.current = { kind, start: kind === 'ball' ? along(e.ray, centre, normal) : 0, position: s.cutZ, quaternion: q, from, origin: centre.clone() };
+    setHeld({ kind, quaternion: q, angle: 0 });
+    (e.target as Element).setPointerCapture(e.pointerId);
+    active.current = true;
+    holdCamera(controls, true);
+  };
+  const moveTo = (e: ThreeEvent<PointerEvent>) => {
+    const d = drag.current;
+    if (!d) return;
+    e.stopPropagation();
+    if (d.kind === 'ball') {
+      let p = d.position + along(e.ray, d.origin, normal) - d.start;
+      if (snap) p = Math.round(p);
+      const [lo, hi] = positionRange([size.x, size.y, size.z], rotation).map((v) => v + normal.z * (middle.z - size.z / 2));
+      setPosition(Math.round(Math.min(Math.max(p, lo + 0.2), hi - 0.2) * 100) / 100);
+      return;
+    }
+    const axis = new THREE.Vector3(d.kind === 'x' ? 1 : 0, d.kind === 'y' ? 1 : 0, 0).applyQuaternion(d.quaternion);
+    const now = onCircle(e.ray, axis, centre);
+    if (!now) return;
+    let angle = Math.atan2(d.from.clone().cross(now).dot(axis), d.from.dot(now));
+    if (snap) angle = Math.round(angle / (15 * DEG)) * 15 * DEG;
+    setHeld((h) => h && { ...h, angle });
+    setRotation(rotationOf(new THREE.Quaternion().setFromAxisAngle(axis, angle).multiply(d.quaternion)), middle.z);
+  };
+  const up = (e: ThreeEvent<PointerEvent>) => {
+    if (!drag.current) return;
+    e.stopPropagation();
+    (e.target as Element).releasePointerCapture(e.pointerId);
+    drag.current = null;
+    setHeld(null);
+    active.current = false;
+    holdCamera(controls, false);
+    onRelease();
+  };
+  // A second finger takes over: the drag ends where it is.
+  useEffect(
+    () =>
+      onSecondFinger(() => {
+        if (!drag.current) return;
+        drag.current = null;
+        setHeld(null);
+        active.current = false;
+      }),
+    [active],
+  );
+  const handlers = (kind: 'ball' | 'x' | 'y') => ({
+    onPointerDown: down(kind),
+    onPointerMove: moveTo,
+    onPointerUp: up,
+    onPointerOver: () => setHover(kind),
+    onPointerOut: () => setHover((h) => (h === kind ? null : h)),
+    onClick: (e: ThreeEvent<MouseEvent>) => e.stopPropagation(),
+  });
+  const lit = (kind: 'ball' | 'x' | 'y', colour: string) => (hover === kind || drag.current?.kind === kind ? new THREE.Color(colour).lerp(new THREE.Color('#ffffff'), 0.45) : colour);
+  const cone = (kind: 'x' | 'y', at: [number, number, number], turn: [number, number, number], colour: string) => (
+    <mesh position={at} rotation={turn} renderOrder={5} {...handlers(kind)}>
+      <coneGeometry args={[0.75 * ball, 1.8 * ball, 24]} />
+      <meshBasicMaterial color={lit(kind, colour)} depthTest={false} transparent />
+    </mesh>
+  );
+  const off = 1.25 * ball;
+  // While one handle is held, the others are hidden, like desktop.
+  const shown = (kind: 'ball' | 'x' | 'y') => !held || held.kind === kind || kind === 'ball';
+  const turning = held && held.kind !== 'ball' ? held : null;
+  return (
+    <>
+      {turning && <Protractor centre={centre} quaternion={turning.quaternion} axis={turning.kind as 'x' | 'y'} radius={stem} colour={turning.kind === 'x' ? GRAB_X : GRAB_Y} />}
+    <group position={centre} quaternion={quaternion}>
+      {/* A cylinder stands along Y: turned onto the arrow. */}
+      <mesh position={[0, 0, stem / 2]} rotation={[Math.PI / 2, 0, 0]} raycast={() => null} renderOrder={5}>
+        <cylinderGeometry args={[ball * 0.12, ball * 0.12, stem, 8]} />
+        <meshBasicMaterial color={GRAB_STEM} depthTest={false} transparent />
       </mesh>
-      <group ref={setArrow} />
-      <group ref={setRings} />
-      {arrow && (
-        <TransformControls
-          ref={arrowRef}
-          object={arrow}
-          mode="translate"
-          space="local"
-          showX={false}
-          showY={false}
-          size={arrowSize}
-          translationSnap={snap ? 1 : null}
-          onObjectChange={() => {
-            const p = Math.min(Math.max(positionAt(middle, arrow.position, normal), lo + 0.2), hi - 0.2);
-            arrow.position.copy(cutCentre(middle, p, normal));
-            setPosition(Math.round(p * 100) / 100);
-          }}
-          onMouseUp={onRelease}
-        />
+      <mesh position={[0, 0, stem]} renderOrder={5} {...handlers('ball')}>
+        <sphereGeometry args={[ball, 24, 16]} />
+        <meshBasicMaterial color={lit('ball', GRAB_BALL)} depthTest={false} transparent />
+      </mesh>
+      {/* A cone stands along Y: the red ones point along the plane's Y, the green ones along its X. */}
+      {shown('x') && cone('x', [0, off, stem], [0, 0, 0], GRAB_X)}
+      {shown('x') && cone('x', [0, -off, stem], [Math.PI, 0, 0], GRAB_X)}
+      {shown('y') && cone('y', [off, 0, stem], [0, 0, -Math.PI / 2], GRAB_Y)}
+      {shown('y') && cone('y', [-off, 0, stem], [0, 0, Math.PI / 2], GRAB_Y)}
+      {turning && (
+        <Html position={[0, 0, stem]} zIndexRange={[2, 0]} style={{ pointerEvents: 'none', transform: 'translate(24px, -150%)' }}>
+          <div className="measure-label cut-angle">
+            {turning.kind.toUpperCase()}: {(turning.angle / DEG).toFixed(1)}°
+          </div>
+        </Html>
       )}
-      {rings && (
-        <TransformControls
-          ref={ringsRef}
-          object={rings}
-          mode="rotate"
-          space="world"
-          showZ={false}
-          // Rings round the arrow's tip, so the two never share a spot.
-          size={arrowSize * 1.7}
-          rotationSnap={snap ? 15 * DEG : null}
-          onObjectChange={() => setRotation(rotationOf(rings.quaternion))}
-          onMouseUp={onRelease}
-        />
-      )}
+    </group>
+    </>
+  );
+}
+
+/**
+ * Desktop's protractor while a tilt arrow is held: a circle round the plane's
+ * middle, across the axis it turns about, marked every 5° (longer every 15°),
+ * with spokes every 45°. It stays as the plane was when the arrow was picked up.
+ */
+function Protractor({ centre, quaternion, axis, radius, colour }: { centre: THREE.Vector3; quaternion: THREE.Quaternion; axis: 'x' | 'y'; radius: number; colour: string }) {
+  const lines = useMemo(() => {
+    const out: number[] = [];
+    const at = (a: number, r: number) => [Math.cos(a) * r, Math.sin(a) * r, 0];
+    for (let k = 0; k < 120; k++) out.push(...at((k / 120) * 2 * Math.PI, radius), ...at(((k + 1) / 120) * 2 * Math.PI, radius));
+    for (let d = 0; d < 360; d += 5) out.push(...at(d * DEG, radius), ...at(d * DEG, radius * (d % 15 ? 1.05 : 1.1)));
+    for (let d = 0; d < 360; d += 45) out.push(...at(d * DEG, radius * 0.35), ...at(d * DEG, radius * 0.6));
+    const g = new THREE.BufferGeometry();
+    g.setAttribute('position', new THREE.BufferAttribute(new Float32Array(out), 3));
+    return g;
+  }, [radius]);
+  useEffect(() => () => lines.dispose(), [lines]);
+  return (
+    <group position={centre} quaternion={quaternion}>
+      {/* Drawn flat (XY), then stood across the axis: X turns in the YZ plane, Y in XZ. */}
+      <lineSegments geometry={lines} rotation={axis === 'x' ? [0, Math.PI / 2, 0] : [Math.PI / 2, 0, 0]} raycast={() => null} renderOrder={5}>
+        <lineBasicMaterial color="#ffffff" depthTest={false} transparent />
+      </lineSegments>
+      <mesh rotation={axis === 'x' ? [0, Math.PI / 2, 0] : [Math.PI / 2, 0, 0]} raycast={() => null} renderOrder={4}>
+        <circleGeometry args={[radius, 64]} />
+        <meshBasicMaterial color={colour} transparent opacity={0.12} side={THREE.DoubleSide} depthTest={false} depthWrite={false} />
+      </mesh>
+    </group>
+  );
+}
+
+const CONNECTOR = '#f5a524';
+const CONNECTOR_PICKED = '#4f8cff';
+
+/**
+ * The Cut tool's connectors on the plane, like desktop's: a tap on the plane
+ * adds one, a tap on one chooses it (Ctrl or Shift for more), dragging moves it
+ * along the plane. Each is drawn as its shape, standing out of the cut face by
+ * its depth (a dowel both ways).
+ */
+function ConnectorSpots({ centre, rotation, quaternion, span }: { centre: THREE.Vector3; rotation: CutRotation; quaternion: THREE.Quaternion; span: number }) {
+  const connectors = useSlicer((s) => s.cutConnectors);
+  const picked = useSlicer((s) => s.cutPicked);
+  const add = useSlicer((s) => s.addCutConnector);
+  const move = useSlicer((s) => s.moveCutConnector);
+  const pick = useSlicer((s) => s.pickCutConnector);
+  const controls = useThree((s) => s.controls) as unknown as CameraControls | null;
+  const plane = useMemo(() => new THREE.Plane().setFromNormalAndCoplanarPoint(new THREE.Vector3(0, 0, 1).applyQuaternion(quaternion), centre), [quaternion, centre]);
+  const dragging = useRef<number | null>(null);
+  const moved = useRef(false);
+  const onPlane = (ray: THREE.Ray) => ray.intersectPlane(plane, new THREE.Vector3());
+  return (
+    <>
+      <mesh
+        position={centre}
+        quaternion={quaternion}
+        renderOrder={2}
+        onClick={(e) => {
+          if (e.delta > 4) return; // the view was dragged
+          e.stopPropagation();
+          add(planeSpot(e.point, centre, rotation));
+        }}
+      >
+        <planeGeometry args={[span, span]} />
+        <meshBasicMaterial color="#ffffff" transparent opacity={0.12} side={THREE.DoubleSide} depthWrite={false} />
+      </mesh>
+      {connectors.map((c, k) => {
+        const dowel = c.type === 'dowel';
+        const sides = c.type === 'snap' ? SIDES.circle : SIDES[c.shape];
+        const tip = c.style === 'frustum' && c.type !== 'snap' ? c.size / 4 : c.size / 2;
+        const at = spotPoint(c.at, centre, rotation);
+        return (
+          <group key={k} position={at} quaternion={quaternion}>
+            <mesh
+              // A cylinder stands along Y: turn it onto the plane's arrow, and lift it to stand on the face.
+              rotation={[Math.PI / 2, 0, 0]}
+              position={[0, 0, dowel ? 0 : c.depth / 2]}
+              renderOrder={3}
+              onPointerDown={(e) => {
+                e.stopPropagation();
+                dragging.current = k;
+                moved.current = false;
+                (e.target as Element).setPointerCapture(e.pointerId);
+                holdCamera(controls, true);
+              }}
+              onPointerMove={(e) => {
+                if (dragging.current !== k) return;
+                const p = onPlane(e.ray);
+                if (!p) return;
+                moved.current = true;
+                move(k, planeSpot(p, centre, rotation));
+              }}
+              onPointerUp={(e) => {
+                if (dragging.current !== k) return;
+                (e.target as Element).releasePointerCapture(e.pointerId);
+                dragging.current = null;
+                holdCamera(controls, false);
+                if (!moved.current) pick(k, e.ctrlKey || e.metaKey || e.shiftKey);
+              }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <cylinderGeometry args={[tip, c.size / 2, dowel ? c.depth * 2 : c.depth, sides]} />
+              <meshBasicMaterial color={picked.includes(k) ? CONNECTOR_PICKED : CONNECTOR} />
+            </mesh>
+          </group>
+        );
+      })}
     </>
   );
 }
@@ -840,14 +1228,15 @@ const tintKey = () => 'outside-tint';
  * The material of a model part: its filament colours, darker outside the
  * plate, blue when selected; see-through when it won't be printed.
  */
-function PartMaterial({ active = false, unprintable = false }: { active?: boolean; unprintable?: boolean }) {
-  const planes = useSection();
+function PartMaterial({ active = false, unprintable = false, clip }: { active?: boolean; unprintable?: boolean; clip?: THREE.Plane[] }) {
+  const section = useSection();
+  const planes = clip ?? section;
   return (
     <meshStandardMaterial
       vertexColors
-      clippingPlanes={planes}
+      clippingPlanes={planes ?? null}
       // Cut open by the section view, its inside shows.
-      side={planes ? THREE.DoubleSide : THREE.FrontSide}
+      side={section && !clip ? THREE.DoubleSide : THREE.FrontSide}
       transparent={unprintable}
       opacity={unprintable ? UNPRINTABLE.opacity : 1}
       depthWrite={!unprintable}
@@ -935,7 +1324,7 @@ function VolumeMaterial({ kind, active }: { kind: number; active: boolean }) {
   );
 }
 
-function Objects({ w, d }: { w: number; d: number }) {
+function Objects({ w, d, views }: { w: number; d: number; views: ViewHandle }) {
   const preview = useSlicer((s) => s.preview);
   // Filament numbers past the physical ones are colour mixes.
   const colours = useSlicer((s) => (s.palette.length ? s.palette : (s.selection?.colours ?? NO_COLOURS)));
@@ -967,8 +1356,12 @@ function Objects({ w, d }: { w: number; d: number }) {
   // The camera must hold still while an object is dragged.
   const controls = useThree((s) => s.controls) as unknown as CameraControls | null;
   const gizmo = useRef<TransformControlsImpl | null>(null);
+  const cutPlacing = useSlicer((s) => s.tool === 'cut' && s.cutTab === 'connectors');
+  const cutAt = useSlicer((s) => s.cutZ);
+  const cutTurn = useSlicer((s) => s.cutRotation);
   // The Cut tool's second handle (its rings; the arrow is `gizmo`).
-  const cutRings = useRef<TransformControlsImpl | null>(null);
+  // A cut plane handle is held (CutGrabbers).
+  const cutGrab = useRef(false);
   const gizmoReleased = useRef(0);
   const brimTool = !paint && tool === 'brim' && !!selected;
   const shapeTool = !paint && (tool === 'text' || tool === 'svg');
@@ -1215,7 +1608,7 @@ function Objects({ w, d }: { w: number; d: number }) {
     // A shape being slid stays where it was.
     if (shapeDrag.current) shapeEnd.current(new PointerEvent('pointercancel'));
     holdCamera(controls, false);
-    for (const ref of [gizmo, cutRings]) {
+    for (const ref of [gizmo]) {
       const g = ref.current as unknown as { enabled: boolean; dragging: boolean; reset(): void; pointerUp(p: { button: number }): void } | null;
       if (!g) continue;
       if (g.dragging) {
@@ -1230,7 +1623,7 @@ function Objects({ w, d }: { w: number; d: number }) {
     () =>
       onFingersUp(() => {
         beforeTouch.current = null;
-        for (const ref of [gizmo, cutRings]) {
+        for (const ref of [gizmo]) {
           const g = ref.current as unknown as { enabled: boolean } | null;
           if (g) g.enabled = true;
         }
@@ -1259,10 +1652,8 @@ function Objects({ w, d }: { w: number; d: number }) {
 
   // TransformControls keeps these private; they say a handle is hovered or held.
   const onGizmo = () => {
-    return [gizmo, cutRings].some((ref) => {
-      const g = ref.current as unknown as { dragging: boolean; axis: string | null } | null;
-      return !!g && (g.dragging || g.axis !== null);
-    });
+    const g = gizmo.current as unknown as { dragging: boolean; axis: string | null } | null;
+    return cutGrab.current || (!!g && (g.dragging || g.axis !== null));
   };
 
   // The object menu: a right click (released without dragging, since a
@@ -1417,7 +1808,8 @@ function Objects({ w, d }: { w: number; d: number }) {
     lastPress.current = e.nativeEvent;
     if (twoFingers() || lasso.current) return;
     if (e.button === 2) {
-      if (paint || measuring) return;
+      // Cutting, a right-click sends a piece to the other side (usePiecePress).
+      if (paint || measuring || tool === 'cut') return;
       if (group.includes(object)) return pressForMenu(e.nativeEvent, false, () => openGroupMenu({ x: e.nativeEvent.clientX, y: e.nativeEvent.clientY }));
       const inst = project?.objects[object]?.instances.findIndex((i) => i.plate === plate) ?? -1;
       select({ object, instance: Math.max(0, inst) });
@@ -1463,7 +1855,7 @@ function Objects({ w, d }: { w: number; d: number }) {
     }
     const nowGroup = useSlicer.getState().group;
     // Several chosen: a press on one of them moves them all (a long press opens their menu).
-    if (nowGroup.length > 1 && nowGroup.includes(object) && !brimTool && !shapeTool) {
+    if (nowGroup.length > 1 && nowGroup.includes(object) && !brimTool && !shapeTool && tool !== 'cut') {
       if (e.pointerType === 'touch') pressForMenu(e.nativeEvent, true, () => openGroupMenu({ x: e.nativeEvent.clientX, y: e.nativeEvent.clientY }));
       const hit = new THREE.Vector3();
       e.ray.intersectPlane(plane, hit);
@@ -1478,10 +1870,11 @@ function Objects({ w, d }: { w: number; d: number }) {
     // What was selected before a finger picked this, for when it turns out to be a pinch.
     beforeTouch.current = e.pointerType === 'touch' ? { was: useSlicer.getState().selected } : null;
     if (selected?.object !== object || selected.volume !== undefined) select(first ? { object, instance: first.i } : null);
-    if (first && e.pointerType === 'touch') menuPress(e.nativeEvent, object, first.i, true);
+    if (first && e.pointerType === 'touch' && tool !== 'cut') menuPress(e.nativeEvent, object, first.i, true);
     // Brim ears: a click adds an ear (onEarClick); the object stays put. The
     // Text and SVG tools move shapes, not objects with other parts.
-    if (brimTool || (shapeTool && (obj?.volumes.length ?? 0) > 1)) return;
+    // Cutting, the model stays put (a finger on it would move it by mistake).
+    if (brimTool || tool === 'cut' || (shapeTool && (obj?.volumes.length ?? 0) > 1)) return;
     // Dragging moves an object with a single instance on this plate.
     if (instances.length !== 1) return;
     const hit = new THREE.Vector3();
@@ -1498,6 +1891,7 @@ function Objects({ w, d }: { w: number; d: number }) {
     if (shapeTool && e.button === 0 && (info?.text || info?.svg)) return startShapeAt(e.nativeEvent, v.object, v.volume);
     const instance = Math.max(0, project?.objects[v.object]?.instances.findIndex((i) => i.plate === plate) ?? -1);
     select({ object: v.object, instance, volume: v.volume });
+    if (tool === 'cut') return;
     if (e.button === 2) return menuPress(e.nativeEvent, v.object, instance, false, v.volume);
     if (e.pointerType === 'touch') menuPress(e.nativeEvent, v.object, instance, true, v.volume);
   };
@@ -1579,10 +1973,12 @@ function Objects({ w, d }: { w: number; d: number }) {
           return <mesh key={p.object} geometry={p.geometry} raycast={partRaycast} onPointerDown={(e) => onDown(e, p.object)} visible={false} />;
         const offset = active && delta ? delta : [0, 0];
         const layered = !paint && tool === 'layers' && layers?.object === p.object ? layers : null;
+        // Placing cut connectors, only the lower half shows (and takes no taps), so the cut face can.
+        const lowerOnly = cutPlacing && place?.object === p.object ? [cutBelow(p, cutAt, cutTurn)] : undefined;
         const material = layered ? (
           <LayerMaterial profile={layered} bottom={p.geometry.boundingBox!.min.z} />
         ) : (
-          <PartMaterial active={active} unprintable={p.unprintable} />
+          <PartMaterial active={active} unprintable={p.unprintable} clip={lowerOnly} />
         );
         if (shapePicked && place && p.object === place.object) {
           const pieceMaterial = shapePicked.kind ? (
@@ -1661,7 +2057,7 @@ function Objects({ w, d }: { w: number; d: number }) {
             key={p.object}
             geometry={p.geometry}
             position={[offset[0], offset[1], 0]}
-            raycast={partRaycast}
+            raycast={lowerOnly ? () => null : partRaycast}
             onPointerDown={(e) => onDown(e, p.object)}
             onClick={(e) => onEarClick(e, p.object)}
             castShadow
@@ -1695,8 +2091,8 @@ function Objects({ w, d }: { w: number; d: number }) {
         <CutPlane
           key={place.object}
           part={parts.find((p) => p.object === place.object)!}
-          arrowRef={gizmo}
-          ringsRef={cutRings}
+          active={cutGrab}
+          views={views}
           onRelease={() => (gizmoReleased.current = performance.now())}
         />
       )}
@@ -1848,7 +2244,7 @@ export function Viewport() {
         <Bed />
         <PlateIcons w={w} d={d} />
         <PlateVolume />
-        <Objects w={w} d={d} />
+        <Objects w={w} d={d} views={views} />
         <WipeTowerView />
         <OrbitControls target={[w / 2, d / 2, 0]} makeDefault />
         <StartView w={w} d={d} />
