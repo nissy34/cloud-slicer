@@ -137,8 +137,54 @@ const OVERLAY_COLOURS: Record<string, [string, string]> = {
   fuzzy: ['#b061ff', '#b061ff'],
 };
 
+/**
+ * Desktop's section view while painting: everything above the cut is not
+ * drawn (the engine doesn't hit or paint it either). Undefined when off.
+ */
+function useSection(): THREE.Plane[] | undefined {
+  const clip = useSlicer((s) => s.paint?.clip);
+  return useMemo(() => (clip === undefined ? undefined : [new THREE.Plane(new THREE.Vector3(0, 0, -1), clip)]), [clip]);
+}
+
+/** Desktop's colour for faces that overhang more than the support angle (GLCanvas3D's slope view). */
+const OVERHANG_COLOUR = '#ff6b4a';
+
+/**
+ * Support painting's "Highlight overhangs": the shown plate's faces whose
+ * normal points down more than `angle` from straight down allows, as
+ * TriangleSelector's highlight_by_angle tests them.
+ */
+function Overhangs({ preview, angle }: { preview: PreviewMesh; angle: number }) {
+  const planes = useSection();
+  const geometry = useMemo(() => {
+    const limit = -Math.cos((angle * Math.PI) / 180);
+    const p = preview.positions;
+    const keep: number[] = [];
+    const a = new THREE.Vector3(), b = new THREE.Vector3(), c = new THREE.Vector3();
+    for (let t = 0; t < p.length / 9; t++) {
+      a.fromArray(p, t * 9);
+      b.fromArray(p, t * 9 + 3);
+      c.fromArray(p, t * 9 + 6);
+      const n = b.sub(a).cross(c.sub(a)).normalize();
+      if (n.z < limit) keep.push(t);
+    }
+    const pos = new Float32Array(keep.length * 9);
+    keep.forEach((t, k) => pos.set(p.subarray(t * 9, t * 9 + 9), k * 9));
+    const g = new THREE.BufferGeometry();
+    g.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+    return g;
+  }, [preview, angle]);
+  useEffect(() => () => geometry.dispose(), [geometry]);
+  return (
+    <mesh geometry={geometry} raycast={() => null}>
+      <meshBasicMaterial color={OVERHANG_COLOUR} transparent opacity={0.55} side={THREE.DoubleSide} clippingPlanes={planes} polygonOffset polygonOffsetFactor={-1} polygonOffsetUnits={-2} />
+    </mesh>
+  );
+}
+
 // Support, seam or fuzzy skin paint, drawn just in front of the parts.
 function Overlay({ overlay, kind }: { overlay: PaintOverlay; kind: string }) {
+  const planes = useSection();
   const geometry = useMemo(() => {
     const [enforce, block] = (OVERLAY_COLOURS[kind] ?? OVERLAY_COLOURS.support).map((c) => new THREE.Color(c));
     const n = overlay.states.length;
@@ -156,7 +202,7 @@ function Overlay({ overlay, kind }: { overlay: PaintOverlay; kind: string }) {
   useEffect(() => () => geometry.dispose(), [geometry]);
   return (
     <mesh geometry={geometry} raycast={() => null}>
-      <meshStandardMaterial vertexColors roughness={0.6} polygonOffset polygonOffsetFactor={-2} polygonOffsetUnits={-4} />
+      <meshStandardMaterial vertexColors roughness={0.6} clippingPlanes={planes} polygonOffset polygonOffsetFactor={-2} polygonOffsetUnits={-4} />
     </mesh>
   );
 }
@@ -792,9 +838,13 @@ const tintKey = () => 'outside-tint';
  * plate, blue when selected; see-through when it won't be printed.
  */
 function PartMaterial({ active = false, unprintable = false }: { active?: boolean; unprintable?: boolean }) {
+  const planes = useSection();
   return (
     <meshStandardMaterial
       vertexColors
+      clippingPlanes={planes}
+      // Cut open by the section view, its inside shows.
+      side={planes ? THREE.DoubleSide : THREE.FrontSide}
       transparent={unprintable}
       opacity={unprintable ? UNPRINTABLE.opacity : 1}
       depthWrite={!unprintable}
@@ -1196,9 +1246,12 @@ function Objects({ w, d }: { w: number; d: number }) {
 
   // Hovering only shows the brush; painting needs the button held (onDown).
   const hover = (e: ThreeEvent<PointerEvent>) => {
-    if (!brushTool || !e.face) return setBrush(null);
-    const normal = e.face.normal.clone().transformDirection(e.object.matrixWorld);
-    setBrush({ point: e.point.clone(), normal });
+    // Under the section view the brush sits on the first face below the cut, as the engine paints it.
+    const clip = paint?.clip;
+    const hit = clip === undefined ? e : e.intersections.find((h) => h.point.z <= clip + 1e-3 && h.face);
+    if (!brushTool || !hit?.face) return setBrush(null);
+    const normal = hit.face.normal.clone().transformDirection(hit.object.matrixWorld);
+    setBrush({ point: hit.point.clone(), normal });
   };
 
   // TransformControls keeps these private; they say a handle is hovered or held.
@@ -1655,6 +1708,7 @@ function Objects({ w, d }: { w: number; d: number }) {
         </>
       )}
       {paint && overlay && paint.kind !== 'color' && <Overlay overlay={overlay} kind={paint.kind} />}
+      {paint?.kind === 'support' && paint.highlightOverhangs && preview && <Overhangs preview={preview} angle={paint.overhangAngle ?? 30} />}
       {paint && brushTool && <BrushRing at={brush} radius={paint.radius} />}
       <ObjectLabels parts={parts} />
       {measuring && <MeasureOverlay size={Math.max(0.4, Math.min(w, d) / 400)} />}

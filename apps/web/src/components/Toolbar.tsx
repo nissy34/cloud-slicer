@@ -131,7 +131,7 @@ export function Toolbar({ onAdd }: { onAdd(): void }) {
         ...(paint ?? {}),
         kind: item.paint,
         state,
-        tool: paint?.tool === 'bucket' && item.paint !== 'color' ? 'circle' : (paint?.tool ?? 'circle'),
+        tool: (paint?.tool === 'bucket' || paint?.tool === 'height') && item.paint !== 'color' ? 'circle' : (paint?.tool ?? 'circle'),
       });
     }
     switch (item.id) {

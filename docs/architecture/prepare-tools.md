@@ -59,6 +59,14 @@ Desktop Orca's Prepare tools, one by one, each backed by Orca's own code.
   engine refuses with desktop's "Unable to perform boolean operation on selected parts"
   and the reason it finds (a mesh with holes, one crossing itself), shown in the card and
   as a notice; desktop silently keeps the uncut part.
+- Paint: the toolbar button picks what is painted and the card's title says it (no tabs in
+  the card). Colour painting shows desktop's filament squares with the number inside, and
+  desktop's Height range tool (every part of that object copy, from the tapped height up).
+  Every kind has the Section view slider: nothing above it is drawn (a clipping plane on
+  the part materials), hit (the engine's ray goes on through) or painted (TriangleSelector's
+  clipping plane). Support painting has Highlight overhangs (faces whose normal points down
+  past the angle, TriangleSelector's own test, drawn over the parts) and On overhangs only
+  (the engine's `highlight_by_angle`).
 - Long-press menus ignore clicks until a press starts on the menu, or lifting the finger
   picks an item.
 - Edits that take a while show the loading screen (`busyWhile` in `store.ts`) until the

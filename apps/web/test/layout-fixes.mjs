@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // Browser end to end for Prepare's layout and dialogs (monkey test findings):
 // a long object name ends in "…" and keeps its row's buttons in the sidebar,
-// the Paint card fits, a long project name keeps "Project ▾" on one line,
+// the Paint card fits (titled by what it paints, overhang options for supports), a long project name keeps "Project ▾" on one line,
 // opening and closing the Text tool leaves no text behind, the preset menu
 // names the preset as its dropdown does and opens upward near the bottom,
 // Online projects closes with Esc and a click outside, unsaved changes are
@@ -152,6 +152,13 @@ try {
   const fits = await card.evaluate((e) => e.scrollWidth <= e.clientWidth);
   if (!fits) fail('the Paint card is cut on the right');
   if (shots) await page.screenshot({ path: join(shots, 'layout-paint.png') });
+  // The toolbar button decides what is painted: the card says it, with no tabs of its own.
+  if (!(await card.getByText('Support painting', { exact: true }).isVisible())) fail('the Paint card does not say it paints supports');
+  if (await card.getByRole('radiogroup', { name: 'What to paint' }).count()) fail('the Paint card still has its own what-to-paint tabs');
+  await card.getByText('Highlight overhangs').click();
+  if (!(await card.getByLabel('Overhang angle').isVisible())) fail('Highlight overhangs shows no angle');
+  const fitsAll = await card.evaluate((e) => e.scrollWidth <= e.clientWidth);
+  if (!fitsAll) fail('the Paint card is cut on the right with the overhang options');
   await card.getByRole('button', { name: 'Done' }).click();
   console.log('paint card fits');
 

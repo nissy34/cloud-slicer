@@ -1,33 +1,49 @@
-import { useEffect } from 'react';
+import { useEffect, useMemo } from 'react';
 import type { PaintKind, PaintSettings, PaintTool } from '../engine/protocol';
-import { NO_COLOURS, useSlicer } from '../state/store';
+import { NO_COLOURS, useOption, useSlicer } from '../state/store';
 import { Swatch } from './Swatch';
 import { Slider } from './Slider';
 
-const KINDS: [PaintKind, string][] = [
-  ['color', 'Colour'],
-  ['support', 'Supports'],
-  ['seam', 'Seam'],
-  ['fuzzy', 'Fuzzy skin'],
-];
+/** The card's title: the toolbar button that opened it says what is painted. */
+const TITLES: Record<PaintKind, string> = {
+  color: 'Colour painting',
+  support: 'Support painting',
+  seam: 'Seam painting',
+  fuzzy: 'Fuzzy skin painting',
+};
+const KIND_WORDS: Record<PaintKind, string> = { color: 'colour', support: 'support', seam: 'seam', fuzzy: 'fuzzy skin' };
 
 const TOOLS: [PaintTool, string, string][] = [
   ['circle', 'Brush', 'Paints the faces you see under the circle'],
   ['sphere', 'Sphere', 'Paints everything inside the ball, front and back'],
   ['fill', 'Smart fill', 'Fills connected faces that meet at less than the angle'],
   ['bucket', 'Bucket', 'Fills the painted area you click, up to the angle'],
+  ['height', 'Height range', 'Paints every part all round, from where you click up by the height'],
 ];
+/** Tools desktop has only for colour painting. */
+const COLOUR_ONLY: PaintTool[] = ['bucket', 'height'];
 
-export const DEFAULT_PAINT: PaintSettings = { kind: 'color', state: 2, tool: 'circle', radius: 3, angle: 30 };
+export const DEFAULT_PAINT: PaintSettings = { kind: 'color', state: 2, tool: 'circle', radius: 3, angle: 30, height: 5 };
 
 /** Desktop Orca's paint tools: colours, support and seam enforcers/blockers, fuzzy skin. */
 export function PaintPanel() {
   const paint = useSlicer((s) => s.paint);
   // Physical filaments, then the colour mixes: paint with either.
   const colours = useSlicer((s) => (s.palette.length ? s.palette : (s.selection?.colours ?? NO_COLOURS)));
+  const physical = useSlicer((s) => s.selection?.filaments.length ?? 1);
   const selected = useSlicer((s) => s.selected);
   const project = useSlicer((s) => s.project);
+  const preview = useSlicer((s) => s.preview);
+  // Desktop starts "Highlight overhangs" at the process's support threshold angle.
+  const threshold = Number(useOption('support_threshold_angle')) || 30;
   const { setPaint, clearPaint } = useSlicer.getState();
+  // The section view cuts down from the top of the plate's models.
+  const top = useMemo(() => {
+    let z = 0;
+    const p = preview?.positions;
+    if (p) for (let k = 2; k < p.length; k += 3) z = Math.max(z, p[k]);
+    return Math.ceil(z * 10) / 10;
+  }, [preview]);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => e.key === 'Escape' && void setPaint(null);
@@ -37,56 +53,60 @@ export function PaintPanel() {
 
   if (!paint) return null;
   const change = (c: Partial<PaintSettings>) => void setPaint({ ...paint, ...c });
-  const setKind = (kind: PaintKind) =>
-    change({ kind, state: kind === 'color' ? Math.min(2, colours.length) : 1, tool: paint.tool === 'bucket' && kind !== 'color' ? 'circle' : paint.tool });
-
-  const states: [number, string, string?][] =
-    paint.kind === 'color'
-      ? colours.map((c, i) => [i + 1, `${i + 1}`, c] as [number, string, string])
-      : paint.kind === 'fuzzy'
-        ? [[1, 'Fuzzy skin']]
-        : [
-            [1, paint.kind === 'support' ? 'Add supports' : 'Seam here'],
-            [2, paint.kind === 'support' ? 'Block supports' : 'Avoid seam'],
-          ];
+  const colour = paint.kind === 'color';
   const brush = paint.tool === 'circle' || paint.tool === 'sphere';
   const object = selected ? project?.objects[selected.object] : undefined;
+  const overhangAngle = paint.overhangAngle ?? threshold;
+  const states: [number, string][] =
+    paint.kind === 'fuzzy'
+      ? [[1, 'Fuzzy skin']]
+      : [
+          [1, paint.kind === 'support' ? 'Add supports' : 'Seam here'],
+          [2, paint.kind === 'support' ? 'Block supports' : 'Avoid seam'],
+        ];
 
   return (
     <section className="paint-panel" aria-label="Paint">
       <div className="paint-head">
-        <strong>Paint</strong>
+        <strong>{TITLES[paint.kind]}</strong>
         <button className="primary" onClick={() => void setPaint(null)}>
           Done
         </button>
       </div>
-      <div className="chooser" role="radiogroup" aria-label="What to paint">
-        {KINDS.map(([k, label]) => (
-          <button key={k} role="radio" aria-checked={paint.kind === k} className={paint.kind === k ? 'on' : ''} onClick={() => setKind(k)}>
-            {label}
+      {colour ? (
+        // Desktop's filament squares, the number inside; mixes after the filaments.
+        <div className="paint-filaments" role="radiogroup" aria-label="Paint with">
+          {colours.map((c, i) => (
+            <button
+              key={i}
+              role="radio"
+              aria-checked={paint.state === i + 1}
+              aria-label={i < physical ? `Filament ${i + 1}` : `Mix ${i + 1}`}
+              title={i < physical ? `Filament ${i + 1}` : `Mix ${i + 1}`}
+              className={paint.state === i + 1 ? 'on' : ''}
+              onClick={() => change({ state: i + 1 })}
+            >
+              <Swatch colour={c} number={i + 1} size="lg" />
+            </button>
+          ))}
+          <button role="radio" aria-checked={paint.state === 0} className={paint.state === 0 ? 'paint-erase on' : 'paint-erase'} onClick={() => change({ state: 0 })}>
+            Erase
           </button>
-        ))}
-      </div>
-      <div className="paint-states" role="radiogroup" aria-label="Paint with">
-        {states.map(([value, label, colour]) => (
-          <button
-            key={value}
-            role="radio"
-            aria-checked={paint.state === value}
-            className={paint.state === value ? 'on' : ''}
-            onClick={() => change({ state: value })}
-            title={colour ? `Filament ${label}` : label}
-          >
-            {colour && <Swatch colour={colour} size="sm" />}
-            {label}
+        </div>
+      ) : (
+        <div className="paint-states" role="radiogroup" aria-label="Paint with">
+          {states.map(([value, label]) => (
+            <button key={value} role="radio" aria-checked={paint.state === value} className={paint.state === value ? 'on' : ''} onClick={() => change({ state: value })}>
+              {label}
+            </button>
+          ))}
+          <button role="radio" aria-checked={paint.state === 0} className={paint.state === 0 ? 'on' : ''} onClick={() => change({ state: 0 })}>
+            Erase
           </button>
-        ))}
-        <button role="radio" aria-checked={paint.state === 0} className={paint.state === 0 ? 'on' : ''} onClick={() => change({ state: 0 })}>
-          Erase
-        </button>
-      </div>
+        </div>
+      )}
       <div className="chooser" role="radiogroup" aria-label="Tool">
-        {TOOLS.filter(([t]) => t !== 'bucket' || paint.kind === 'color').map(([t, label, title]) => (
+        {TOOLS.filter(([t]) => colour || !COLOUR_ONLY.includes(t)).map(([t, label, title]) => (
           <button key={t} role="radio" aria-checked={paint.tool === t} className={paint.tool === t ? 'on' : ''} title={title} onClick={() => change({ tool: t })}>
             {label}
           </button>
@@ -98,6 +118,12 @@ export function PaintPanel() {
           <Slider aria-label="Brush radius" min={0.5} max={20} step={0.5} value={paint.radius} onChange={(e) => change({ radius: Number(e.target.value) })} />
           <span className="unit">{paint.radius} mm</span>
         </label>
+      ) : paint.tool === 'height' ? (
+        <label className="transform-row">
+          <span>Height</span>
+          <Slider aria-label="Height range" min={0.1} max={Math.max(1, top)} step={0.1} value={paint.height} onChange={(e) => change({ height: Number(e.target.value) })} />
+          <span className="unit">{paint.height} mm</span>
+        </label>
       ) : (
         <label className="transform-row">
           <span>Angle</span>
@@ -105,12 +131,48 @@ export function PaintPanel() {
           <span className="unit">{paint.angle}°</span>
         </label>
       )}
+      {/* Desktop's section view: hides (and keeps the brush off) everything above the cut. */}
+      <label className="transform-row">
+        <span>Section view</span>
+        <Slider
+          aria-label="Section view"
+          min={0}
+          max={Math.max(top, 0.1)}
+          step={0.1}
+          // Right is the whole model; moving left cuts it down from the top.
+          value={paint.clip ?? top}
+          onChange={(e) => {
+            const z = Number(e.target.value);
+            change({ clip: z >= top ? undefined : z });
+          }}
+        />
+        <span className="unit">{paint.clip === undefined ? 'Off' : `${paint.clip} mm`}</span>
+      </label>
+      {paint.kind === 'support' && (
+        <>
+          <label className="switch-row">
+            <input className="switch" type="checkbox" checked={!!paint.highlightOverhangs} onChange={(e) => change({ highlightOverhangs: e.target.checked, overhangAngle })} />
+            Highlight overhangs
+          </label>
+          {(paint.highlightOverhangs || paint.overhangsOnly) && (
+            <label className="transform-row">
+              <span>Overhang</span>
+              <Slider aria-label="Overhang angle" min={0} max={90} step={1} value={overhangAngle} onChange={(e) => change({ overhangAngle: Number(e.target.value) })} />
+              <span className="unit">{overhangAngle}°</span>
+            </label>
+          )}
+          <label className="switch-row" title="The brush and fills paint only the faces highlighted as overhangs">
+            <input className="switch" type="checkbox" checked={!!paint.overhangsOnly} onChange={(e) => change({ overhangsOnly: e.target.checked, overhangAngle })} />
+            On overhangs only
+          </label>
+        </>
+      )}
       <p className="muted hint">
-        {brush ? 'Drag on a part to paint. Drag off the parts to turn the view.' : 'Click a part to fill.'} Esc finishes.
+        {brush ? 'Drag on a part to paint. Drag off the parts to turn the view.' : paint.tool === 'height' ? 'Tap a part where the band starts.' : 'Tap a part to fill.'} Esc finishes.
       </p>
       {object && selected && (
         <button className="secondary paint-clear" title={object.name} onClick={() => void clearPaint(selected.object)}>
-          Clear {KINDS.find(([k]) => k === paint.kind)![1].toLowerCase()} paint on {object.name || 'this object'}
+          Clear {KIND_WORDS[paint.kind]} paint on {object.name || 'this object'}
         </button>
       )}
     </section>
