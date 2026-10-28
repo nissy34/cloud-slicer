@@ -8,7 +8,7 @@
 ## What it does
 
 Slices in the browser with the same code as desktop: Orca's `libslic3r` compiled to
-WebAssembly. Two engines ship, and each project picks one: Snapmaker Orca 2.4.0
+WebAssembly. Two engines ship, and each project picks one: Snapmaker Orca 2.4.1
 (`engine/orcaslicer`, the default) or OrcaSlicer 2.4.2 (`engine/orcaslicer-upstream`).
 
 ## Pieces
@@ -57,6 +57,16 @@ sequenceDiagram
 
 Nothing of its own between visits. The engine's file system holds the bundled presets,
 the user's presets (written before presets load) and fonts for the Text tool.
+
+## Updating an engine
+
+Move the submodule to the new tag (replace, never add a third engine), then check:
+every patch in `engine/patches/` still applies; `extract-settings-layout.mjs` still reads
+desktop's pages (new settings show by themselves); `option-toggles.ts` gets the new
+`ConfigManipulation.cpp` rules (diff it against the old tag); preset files still parse
+(2.4.1 brought byte order marks, which `bundle-profiles.mjs` strips); and, once CI has
+built the engine, `node scripts/shared-settings.mjs` in `apps/web` (new version, old list kept in
+`history`). Desktop-only screens the release adds go to a pick page first.
 
 ## Rules
 

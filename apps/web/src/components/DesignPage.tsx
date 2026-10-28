@@ -104,7 +104,7 @@ function Choices() {
         Advanced
       </label>
       <div className="ds-row">
-        <span className="tag">Snapmaker Orca 2.4.0</span>
+        <span className="tag">Snapmaker Orca 2.4.1</span>
         <span className="tag ok">Printed</span>
         <span className="tag warn">Test</span>
         <span className="tag danger">Blocked</span>

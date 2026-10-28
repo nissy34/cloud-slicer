@@ -775,7 +775,7 @@ export const useSlicer = create<SlicerState>((set, get) => {
   const engineOverrides = (): OrcaConfig => ({
     ...get().overrides,
     mixed_filament_definitions: get().mixDefinitions,
-    ...towerOptions(get().towers, get().project?.plates.length ?? 1),
+    ...towerOptions(get().towers, get().project?.plates.length ?? 1, get().project?.plateDepth),
   });
 
   // The prime tower on the plate shown, again after anything that may move,
@@ -1702,7 +1702,7 @@ export const useSlicer = create<SlicerState>((set, get) => {
     refreshWipeTower: queueTower,
     refreshClearance: queueClearance,
     moveWipeTower(x, y) {
-      const towers = moveTower(get().towers, get().plate, [x, y]);
+      const towers = moveTower(get().towers, get().plate, [x, y], get().project?.plateDepth);
       set({ towers, ...stale() });
     },
     simplifyPreview: (o, by) =>

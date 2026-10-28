@@ -59,7 +59,7 @@ flowchart LR
 | Piece | Where | What it does | Page |
 |---|---|---|---|
 | Page | `apps/web/src` | The whole UI: Prepare, Preview, Device tabs. State in zustand stores (`state/`), pure rules with tests in `lib/` | each feature |
-| Engine worker | `engine/`, `public/engine/engine-worker.js` | Snapmaker Orca 2.4.0 or OrcaSlicer 2.4.2 compiled to WebAssembly, chosen per project, driven through a small API like desktop's GUI drives it | [engine](architecture/engine.md) |
+| Engine worker | `engine/`, `public/engine/engine-worker.js` | Snapmaker Orca 2.4.1 or OrcaSlicer 2.4.2 compiled to WebAssembly, chosen per project, driven through a small API like desktop's GUI drives it | [engine](architecture/engine.md) |
 | G-code worker | `src/engine/gcode-worker.ts` | Reads sliced G-code into lines for the Preview | [preview](architecture/preview.md) |
 | Service worker | `public/sw.js` | Makes the site installable, receives files shared to it, shows alerts. Caches nothing, so a deploy's page and engine always match | [autosave](architecture/autosave.md), [alerts](architecture/print-alerts.md) |
 | Pages Functions | `apps/web/functions` | `/api/*`: sign-in, presets, settings, printers, projects, print history, admin, the relay's calls | [accounts](architecture/accounts.md) |
