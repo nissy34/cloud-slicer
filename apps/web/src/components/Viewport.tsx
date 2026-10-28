@@ -490,14 +490,27 @@ function CutPlane({ part, active, views, onRelease }: { part: Part; active: Reac
   const gl = useThree((s) => s.gl);
   useLayoutEffect(() => invalidate(), [centre.x, centre.y, centre.z, quaternion, invalidate]); // the clipping planes moved
 
-  // Placing connectors, the view looks straight at the cut face, like desktop.
+  // Placing connectors, the view looks straight at the cut face, like desktop,
+  // and goes back to where it was when that is done.
+  const camera = useThree((s) => s.camera);
+  const controls = useThree((s) => s.controls) as unknown as { target: THREE.Vector3; update(): void } | null;
   useEffect(() => {
     if (!placing) return;
+    const was = { position: camera.position.clone(), up: camera.up.clone(), target: controls?.target.clone() };
     // Beside the Cut panel when it sits over the view (not on a phone, where it is above).
     const r = gl.domElement.getBoundingClientRect();
     const panel = document.querySelector('section[aria-label="Cut"]')?.getBoundingClientRect();
     const aside = panel && panel.left > r.left + r.width * 0.3 && panel.left < r.right && panel.top < r.top + r.height / 2 ? 0.5 - (panel.left - r.left) / 2 / r.width : 0;
     views.current?.({ from: normal, box: new THREE.Box3().setFromCenterAndSize(centre, new THREE.Vector3(span, span, span).multiplyScalar(0.6)), aside });
+    return () => {
+      camera.position.copy(was.position);
+      camera.up.copy(was.up);
+      if (controls && was.target) {
+        controls.target.copy(was.target);
+        controls.update();
+      } else camera.lookAt(was.target ?? middle);
+      invalidate();
+    };
   }, [placing]);
 
   const lowerTint = useRef<THREE.Mesh>(null);

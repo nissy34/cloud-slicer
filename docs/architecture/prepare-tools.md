@@ -82,7 +82,7 @@ Like desktop's Cut (C), on Orca's own `Cut` class (`CutUtils.cpp`).
   cuts the object, splits it into its pieces and says which side each is on; the page
   draws them in their side's colour, and the cut sends `pieces` (per piece: upper?) for
   Orca's `perform_by_contour`. Moving or flipping the plane drops the choice.
-- Connectors tab: the view turns to the cut face (the upper half hidden) and a click
+- Connectors tab: the view turns to the cut face (the upper half hidden), and back when you leave it, and a click
   adds a connector there; drag one to move it, click to choose it (Ctrl + click for
   more), Del removes the chosen ones. Plug, Dowel or Snap; circle, square, hexagon or
   triangle; straight or tapered; size, depth and the gaps round them, like desktop
