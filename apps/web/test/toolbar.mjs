@@ -150,6 +150,10 @@ try {
     if (!/^[+-]\d+°$/.test(ringAngle)) fail(`dragging a rotate ring should show the angle turned, got "${ringAngle}"`);
     await page.waitForTimeout(300);
     if (await page.getByTestId('rotate-angle').count()) fail('the angle should go when the ring is let go');
+    // The drag turns the object in the engine; let that land (the panel's field
+    // is rebuilt with the new angle) before typing, or the typing is lost.
+    await page.waitForFunction(() => document.querySelector('[aria-label="Rotation Z"]')?.value !== '0', null, { timeout: 30000 });
+    await page.waitForTimeout(500);
     console.log(`rotate ring dragged: ${ringAngle}`);
     // Exact values go in the gizmo's own panel, like desktop.
     // The field is rebuilt once the engine has turned the object, so wait for a
