@@ -69,7 +69,14 @@ const at = (r, turn, reach = 1) => {
   return [r.cx + reach * r.a * Math.cos(t), r.cy + reach * r.b * Math.sin(t)];
 };
 
-async function drag(page, r, turn, { reach = 1, touch = false, shot } = {}) {
+// On touch the angle must sit above the finger, not under it.
+async function clearOfFinger(page, [x, y]) {
+  const b = await page.getByTestId('rotate-angle').boundingBox();
+  if (!b) return fail('no angle shown under a finger');
+  if (b.y + b.height > y - 20) fail(`on a phone the angle should sit above the finger (finger at ${Math.round(x)},${Math.round(y)}, angle bottom ${Math.round(b.y + b.height)})`);
+}
+
+async function drag(page, r, turn, { reach = 1, touch = false, shot, check } = {}) {
   const steps = 24;
   // Pressed front left, clear of the X ring seen edge on down the middle.
   const from = -40;
@@ -89,6 +96,7 @@ async function drag(page, r, turn, { reach = 1, touch = false, shot } = {}) {
   }
   await page.waitForTimeout(250);
   const text = await page.getByTestId('rotate-angle').innerText({ timeout: 3000 }).catch(() => '');
+  if (check) await check(page, at(r, from + turn, reach));
   if (shot && shots) await page.screenshot({ path: join(shots, shot) });
   if (touch) await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
   else await page.mouse.up();
@@ -127,7 +135,7 @@ async function run(name, viewport, mobile) {
   if (Math.abs(Number(middle.replace('°', ''))) % 45) fail(`${name}: the middle third should step in 45°, got "${middle}"`);
   // Far outside the ring: the pin still follows the pointer round.
   const r3 = (await zRing(page)) ?? r;
-  const far = await drag(page, r3, 60, { reach: 2.2, touch, shot: `${name}-far.png` });
+  const far = await drag(page, r3, 60, { reach: 2.2, touch, shot: `${name}-far.png`, check: touch && clearOfFinger });
   console.log(`${name}: far outside, pointer 60° round → ${far}`);
   if (!/^\+(4[0-9]|5[0-9]|6[0-9]|7[0-9])°$/.test(far)) fail(`${name}: far out the pin should still follow the pointer, got "${far}"`);
   // The yellow outer ring (a quarter bigger, facing the camera): pressed at its

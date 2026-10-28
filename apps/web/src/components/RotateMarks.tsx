@@ -48,7 +48,7 @@ export function RotateMarks({ controlsRef, snap }: { controlsRef: React.MutableR
   const group = useRef<THREE.Group>(null);
   const turnGeometry = useRef<THREE.BufferGeometry>(null);
   const [axis, setAxis] = useState<string | null>(null);
-  const [label, setLabel] = useState<{ text: string; at: THREE.Vector3 } | null>(null);
+  const [label, setLabel] = useState<{ text: string; at: THREE.Vector3; touch: boolean } | null>(null);
   const [pin, setPin] = useState<[THREE.Vector3, THREE.Vector3] | null>(null);
   const scale = useMemo(() => ringScale(), []);
   const snapRef = useRef(snap);
@@ -59,7 +59,10 @@ export function RotateMarks({ controlsRef, snap }: { controlsRef: React.MutableR
     if (!c) return;
     // The pointer, as TransformControls reads it, kept before it gets the event.
     const pointer = new THREE.Vector2();
+    // A finger hides what is under it, so on touch the angle sits above it.
+    let touch = false;
     const track = (e: PointerEvent) => {
+      touch = e.pointerType === 'touch';
       const r = c.domElement.getBoundingClientRect();
       pointer.set(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1);
     };
@@ -105,7 +108,11 @@ export function RotateMarks({ controlsRef, snap }: { controlsRef: React.MutableR
       // The pin: from the middle out to the pointer, at least to the ring, along the turn.
       const reachOut = Math.max(reach, 1.1) * radius;
       setPin([centre.clone(), centre.clone().addScaledVector(dir, reachOut)]);
-      setLabel({ text: turnedText(angle), at: centre.clone().addScaledVector(dir, reachOut + radius * 0.25) });
+      setLabel(
+        touch
+          ? { text: turnedText(angle), at: centre.clone().addScaledVector(dir, reachOut), touch }
+          : { text: turnedText(angle), at: centre.clone().addScaledVector(dir, reachOut + radius * 0.25), touch },
+      );
     };
 
     const dragging = () => {
@@ -172,7 +179,7 @@ export function RotateMarks({ controlsRef, snap }: { controlsRef: React.MutableR
       {axis && pin && <Line points={pin} color={colour} lineWidth={3} depthTest={false} renderOrder={1001} raycast={() => null} />}
       {axis && label && (
         <Html position={label.at} center zIndexRange={[3, 0]} style={{ pointerEvents: 'none' }}>
-          <div className="object-label" data-testid="rotate-angle">
+          <div className="object-label" data-testid="rotate-angle" style={label.touch ? { transform: 'translateY(-72px)' } : undefined}>
             {label.text}
           </div>
         </Html>

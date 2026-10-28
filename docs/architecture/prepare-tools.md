@@ -49,7 +49,8 @@ Desktop Orca's Prepare tools, one by one, each backed by Orca's own code.
   a finger land in it) the turn steps in 5°, over the spokes in 45°, anywhere else it is
   free, but a pin from the middle always reaches out to the pointer, however far it goes,
   and holds on a mark it lies on (within 1°). Shift or the Snap switch steps in 15°
-  anywhere. The angle turned shows past the pin's end. The yellow outer ring (turns about
+  anywhere. The angle turned shows past the pin's end (on touch, above the finger, which
+  would hide it). The yellow outer ring (turns about
   the line of sight) works the same. It works for one object, a part and a chosen group
   alike (`test/rotate-ring.mjs`, desktop and touch).
 - The 3D views have `touch-action: none` in CSS: TransformControls clears the inline value
