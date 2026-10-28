@@ -12,6 +12,7 @@ import { readFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { chromium } from 'playwright';
+import { pickerOf } from './picker.mjs';
 
 const web = join(dirname(fileURLToPath(import.meta.url)), '..');
 const model = join(web, '../../fixtures/3DBenchy.stl');
@@ -59,7 +60,7 @@ try {
   while ((await page.getByLabel(/^Filament \d+ colour$/).count()) < 2) await page.getByLabel('Add filament').click();
   await page.getByTestId('model-input').setInputFiles([model, second]);
   await page.getByText('Ready to slice').waitFor({ timeout: 120000 });
-  await page.getByLabel(/^Filament for tetrahedron/).first().selectOption('2');
+  await pickerOf(page, 'Filament for tetrahedron.stl').selectOption('2');
   await page.waitForTimeout(500);
 
   await page.getByRole('button', { name: /^Slice plate/ }).click();

@@ -18,7 +18,16 @@ import { Check, ChevronDown, type LucideIcon } from 'lucide-react';
 
 /** A choice in the list; the current one is bold with a ✓. Choices with the same `group`
  * sit together under its name (keep them in order); `hint` sits at the row's end. */
-export type PickerOption = { value: string; label: string; swatch?: string; group?: string; hint?: ReactNode; disabled?: boolean };
+export type PickerOption = {
+  value: string;
+  label: string;
+  /** What the button shows when this is picked, if shorter than the label (a narrow picker). */
+  short?: string;
+  swatch?: string;
+  group?: string;
+  hint?: ReactNode;
+  disabled?: boolean;
+};
 /** An action under the choices, after a line, in the normal text colour with its icon in
  * front. Its words end in "…" when a window follows. */
 export type PickerAction = { id: string; label: string; icon?: LucideIcon; testId?: string; disabled?: boolean };
@@ -100,7 +109,7 @@ export function Picker({ label, value, options, onChange, actions = [], onAction
         {...getReferenceProps()}
       >
         {current?.swatch && <span className="picker-swatch" style={{ background: current.swatch }} />}
-        <span className="picker-value">{current?.label ?? placeholder ?? ''}</span>
+        <span className="picker-value">{current?.short ?? current?.label ?? placeholder ?? ''}</span>
         <ChevronDown className="picker-arrow" size={16} aria-hidden />
       </button>
       {open && (

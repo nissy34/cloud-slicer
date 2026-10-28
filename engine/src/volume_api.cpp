@@ -124,7 +124,9 @@ ModelVolume* addFile(ModelObject* obj, ModelVolumeType type, const std::string& 
 //   {op: "add", type, path, name}            a mesh file (STL, OBJ, 3MF...) as the new one
 //   {op: "rename", volume, name}
 //   {op: "delete", volume}                   not the object's last part
-//   {op: "type", volume, type}               part, negative, modifier, supportEnforcer or supportBlocker
+//   {op: "type", volume, type, remake?}      part, negative, modifier, supportEnforcer or supportBlocker;
+//                                            remake: a text or SVG shape moves out of or into the surface
+//                                            (the Text and SVG tools, like desktop's Emboss gizmo)
 //   {op: "transform", volume, instance, matrix}   matrix: 16 numbers, column major: what to do to
 //                                            the volume in its plate's coordinates (as seen on instance i)
 //   {op: "set", volume, offset?, rotation?, scale?}   the part's place in its object, as desktop's
@@ -163,9 +165,10 @@ std::string volumeAction(int o, const std::string& requestJson) {
                 throw std::runtime_error("an object keeps at least one part");
             const bool wasOutside = v->is_model_part();
             v->set_type(type);
-            // A text or SVG shape stands out of the surface as a part and goes
-            // into it otherwise (desktop remakes it for the new type).
-            if (v->emboss_shape && wasOutside != v->is_model_part()) {
+            // From the Text or SVG tool a shape stands out of the surface as a part
+            // and goes into it otherwise (desktop's Emboss gizmo remakes it). From
+            // the object list it stays where it is (desktop's change_part_type).
+            if (req.value("remake", false) && v->emboss_shape && wasOutside != v->is_model_part()) {
                 const double depth = v->emboss_shape->projection.depth, shift = depth - 2 * engine::embossSurfaceOffset;
                 TriangleMesh mesh = v->mesh();
                 mesh.translate(0, 0, float(v->is_model_part() ? shift : -shift));

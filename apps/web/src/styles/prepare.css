@@ -519,7 +519,6 @@
 .panel .filament-pick {
   width: 64px;
   flex: none;
-  border-left: 4px solid;
 }
 .transform {
   display: grid;
