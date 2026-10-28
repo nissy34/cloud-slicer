@@ -14,7 +14,7 @@ Desktop Orca's Prepare tools, one by one, each backed by Orca's own code.
 | Tool | Page | Engine |
 |---|---|---|
 | Move, rotate, scale, exact fields, keys | `components/Toolbar.tsx`, `ToolPanel.tsx`, `lib/transform.ts` | `model_api.cpp`, `volume_api.cpp` |
-| Lay on face, cut, arrange, orient, split, mirror | `ToolPanel.tsx` | `tools_api.cpp` |
+| Lay on face, cut, arrange, orient, split, mirror | `ToolPanel.tsx`, cut plane in `Viewport.tsx` + `lib/cut.ts` | `tools_api.cpp` |
 | Measure, Assemble | `MeasureOverlay.tsx`, `AssemblePanel.tsx`, `lib/measure.ts` | `measure_api.cpp` |
 | Variable layer height | `LayersPanel.tsx`, `lib/layers.ts` | `layers_api.cpp` |
 | Brim ears | `BrimEars.tsx`, `lib/brim.ts` | `brim_api.cpp` |
@@ -58,6 +58,24 @@ Desktop Orca's Prepare tools, one by one, each backed by Orca's own code.
 - On a phone an open tool stacks toolbar, its card (at most half the screen) and the
   model; settings hide until Done. The toolbar stays visible even with no model.
 
+## Cut
+
+Like desktop's Cut (C), on Orca's own `Cut` class (`CutUtils.cpp`).
+
+- The plane is a position and a turn (`lib/cut.ts`, the store's `cutZ` and
+  `cutRotation`): it starts flat half way up and turns by X, then Y, then Z degrees
+  about the bed's axes, like an instance's rotation. Its arrow (normal) is the turned
+  +Z; the position is how far along the arrow from the bed under the object's middle,
+  so a flat plane's position is its height. The engine's `cutObject(o, i, json)` builds
+  the same plane from the same numbers and the instance's own box.
+- In the 3D view an arrow moves the plane along itself and two rings (world X and Y)
+  tilt it; the panel has the position, Tilt X / Tilt Y, Flip plane (same plane, arrow
+  the other way: X + 180°, position negated) and Reset.
+- Each half: Keep (as it stands), Flip onto cut (Orca's PlaceOnCut: the cut face on
+  the bed) or Throw away; on a phone both fold into one Picker row. "Keep both halves
+  as parts of one object" is Orca's KeepAsParts.
+- Painting is carried onto the halves (`paint_remap.hpp`); the cut faces stay unpainted.
+
 ## Big models
 
 Over 1M triangles on a plate slows slicing and can crash a phone's tab.
@@ -84,5 +102,5 @@ Over 1M triangles on a plate slows slicing and can crash a phone's tab.
 
 ## Open
 
-- Cut is horizontal only, no connectors. Simplify remaps painting onto the simplified mesh. No assembly view,
+- Cut has no connectors or dovetail yet (issue #209, next PRs), nor desktop's line cut. Simplify remaps painting onto the simplified mesh. No assembly view,
   Reload from disk or text styles (left out).

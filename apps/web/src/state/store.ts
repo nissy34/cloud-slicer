@@ -1,7 +1,8 @@
 import { useMemo } from 'react';
 import { create } from 'zustand';
 import * as THREE from 'three';
-import { EngineClient, type CutKeep, type History, type InstanceChanges, type MixedReply, type MixedRequest, type ParsedPreset, type ProjectThumbnail, type ShapePlaceRequest, type ShapeState, type UserPresetFile } from '../engine/client';
+import type { CutRequest, CutRotation } from '../lib/cut';
+import { EngineClient, type History, type InstanceChanges, type MixedReply, type MixedRequest, type ParsedPreset, type ProjectThumbnail, type ShapePlaceRequest, type ShapeState, type UserPresetFile } from '../engine/client';
 
 /** Omit over each member of a union. */
 type DistributiveOmit<T, K extends PropertyKey> = T extends unknown ? Omit<T, K> : never;
@@ -277,8 +278,13 @@ export interface SlicerState {
   cancelOpen(): void;
   setTool(tool: Tool | null): void;
   setSnap(snap: boolean): void;
-  /** Height of the Cut tool's plane above the bed, in mm; the 3D view shows it. */
+  /**
+   * The Cut tool's plane, which the 3D view shows (lib/cut.ts): how far along its
+   * arrow from the bed under the object's middle, in mm (a flat plane's height),
+   * and its turn in degrees.
+   */
   cutZ: number;
+  cutRotation: CutRotation;
   /** The variable layer height tool's object and its profile, while that tool is open. */
   layers: (LayerProfile & { object: number }) | null;
   /** Reads (op "get") or edits object o's layer height profile; an edit starts a new undo step unless `continues`. */
@@ -300,6 +306,7 @@ export interface SlicerState {
   /** Moves the second pick's part or object onto the first, or joins their objects, like desktop's Assemble. */
   assemble(request: AssembleRequest): Promise<void>;
   setCutZ(z: number): void;
+  setCutRotation(rotation: CutRotation): void;
   /** Moves the prime tower on the plate shown (front-left corner, mm). */
   moveWipeTower(x: number, y: number): void;
   /** Asks the engine again for the prime tower of the plate shown. */
@@ -458,7 +465,7 @@ export interface SlicerState {
   meshBoolean(o: number, request: BooleanRequest): Promise<boolean>;
   /** Saves instance i of object o as an STL file. */
   exportStl(o: number, i: number): Promise<void>;
-  cutObject(o: number, i: number, z: number, keep: CutKeep, flipUpper: boolean): Promise<void>;
+  cutObject(o: number, i: number, request: CutRequest): Promise<void>;
   convertProject(printer: string, keepSettings: boolean, remember: boolean): Promise<void>;
   dismissConversion(): void;
   setPaint(paint: PaintSettings | null): Promise<void>;
@@ -1368,6 +1375,7 @@ export const useSlicer = create<SlicerState>((set, get) => {
     labels: false,
     history: { undo: null, redo: null },
     cutZ: 0,
+    cutRotation: [0, 0, 0],
     brim: null,
     brimPicked: [],
     brimDiameter: null,
@@ -1603,9 +1611,10 @@ export const useSlicer = create<SlicerState>((set, get) => {
       const height = selected ? project?.objects[selected.object]?.size[2] : undefined;
       const measure = { ...NO_MEASURE, onlyPlane: get().measure.onlyPlane };
       const reset = { tool, measure, layers: null, brim: null, brimPicked: [] as number[] };
-      set(tool === 'cut' && height ? { ...reset, cutZ: Math.round(height * 50) / 100 } : reset);
+      set(tool === 'cut' && height ? { ...reset, cutZ: Math.round(height * 50) / 100, cutRotation: [0, 0, 0] } : reset);
     },
     setCutZ: (cutZ) => set({ cutZ }),
+    setCutRotation: (cutRotation) => set({ cutRotation }),
     refreshWipeTower: queueTower,
     refreshClearance: queueClearance,
     moveWipeTower(x, y) {
@@ -2285,10 +2294,10 @@ export const useSlicer = create<SlicerState>((set, get) => {
         fail(err);
       }
     },
-    cutObject: (o, i, z, keep, flipUpper) =>
+    cutObject: (o, i, request) =>
       projectEdit('Cut', () => {
         set({ selected: null, tool: null });
-        return engine().cutObject(o, i, z, keep, flipUpper);
+        return engine().cutObject(o, i, request);
       }),
 
     async convertProject(printer, keepSettings, remember) {

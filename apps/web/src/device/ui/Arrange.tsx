@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from 'react';
+import { usePhone } from '../../lib/usePhone';
 import {
   closestCorners,
   DndContext,
@@ -60,7 +61,6 @@ import { MotionCard } from './MotionCard';
 import { PageCard } from './PrinterPage';
 import { SlotContext } from './parts';
 import { ToolheadsCard } from './ToolheadsCard';
-import { PHONE } from '../../lib/breakpoints';
 
 const VIEWS: Record<Exclude<CardId, 'camera'>, () => ReactNode> = {
   climate: ClimateCard,
@@ -73,17 +73,6 @@ const VIEWS: Record<Exclude<CardId, 'camera'>, () => ReactNode> = {
 };
 
 
-function usePhone() {
-  const [phone, setPhone] = useState(() => typeof matchMedia === 'function' && matchMedia(PHONE).matches);
-  useEffect(() => {
-    if (typeof matchMedia !== 'function') return;
-    const q = matchMedia(PHONE);
-    const on = () => setPhone(q.matches);
-    q.addEventListener('change', on);
-    return () => q.removeEventListener('change', on);
-  }, []);
-  return phone;
-}
 
 /** The old layout shared by every printer is dropped once: each printer now starts from the default. */
 let droppedShared = false;
