@@ -420,7 +420,7 @@ std::string cutObject(int o, int i, const std::string& requestJson) {
             for (size_t idx = 0; idx < obj->volumes.size(); ++idx) obj->volumes[idx]->name = origNames[idx];
             throw;
         }
-        if (dowels > 0) attrs |= ModelObjectCutAttribute::CreateDowels;
+        if (dowels > 0) attrs = attrs | ModelObjectCutAttribute::CreateDowels; // (enum_bitmask's |= does not compile)
         const Transform3d cutMatrix = Geometry::translation_transform(centre - offset) * rotation;
         // With `pieces`, each separate piece goes to the side the page chose
         // (desktop's cut by contour); otherwise the plane decides.
