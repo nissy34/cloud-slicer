@@ -3,11 +3,13 @@ import { entryType, isVectorType, processFlowModes, splitValues, valueAt, withVa
 import { decodeString, encodeString, slotEntryIndex, splitStrings } from '../lib/slot-values';
 import { checkOptionValue } from '../lib/option-check';
 import { PLATE_SIDEBAR_KEYS } from '../lib/plate-settings';
-import { useOption, useSlicer } from '../state/store';
+import { FILAMENT_LIST_KEYS, filamentChoices } from '../lib/filament-choices';
+import { NO_COLOURS, useOption, useSlicer } from '../state/store';
 import { Dialog } from './Dialog';
 import { setOverrideChecked } from './SettingsPrompt';
 import { RotateCcw, X } from 'lucide-react';
 import { IconButton } from './IconButton';
+import { Picker } from './Picker';
 
 /**
  * Editor for one Orca option, driven by the engine's option metadata: a
@@ -24,6 +26,9 @@ import { IconButton } from './IconButton';
  * flow-variant one, that filament's value for the flow variant shown).
  * With `entry`, it edits that entry of the vector: one extruder's value on
  * desktop's Extruder pages, or a Normal / Silent machine limit.
+ *
+ * A filament number (walls, support, wipe tower) is a list of the project's
+ * filaments with their colours, like desktop (lib/filament-choices.ts).
  *
  * `disabled` greys it out when another setting makes it not apply (support
  * settings with support off), like desktop; `choices` narrows a list that
@@ -76,6 +81,8 @@ export function OptionField({
   // The one value this field shows and how an edit of it maps back to the whole option.
   const slots = useSlicer((s) => s.selection?.filaments.length ?? 1);
   const baseConfig = useSlicer((s) => s.baseConfig);
+  const colours = useSlicer((s) => s.selection?.colours ?? NO_COLOURS);
+  const presets = useSlicer((s) => s.selection?.filaments ?? NO_COLOURS);
   const vector = def !== undefined && value !== undefined && (isVectorType(def.type) || (entry !== undefined && def.type === 'points'));
   const entries = vector ? splitValues(value) : [];
   // The entry asked for, or a filament slot's own entry when the value has one per slot.
@@ -181,7 +188,14 @@ export function OptionField({
   }
 
   let editor: React.ReactNode;
-  if (type === 'enum' && def.enumValues) {
+  if (type === 'int' && FILAMENT_LIST_KEYS.has(optKey)) {
+    // Desktop's list: "Default" first when the option allows 0, then each filament.
+    const options = [
+      ...((def.min ?? 0) <= 0 ? [{ value: '0', label: 'Default' }] : []),
+      ...filamentChoices(colours, presets, slots, Number(shown) || 0),
+    ];
+    editor = <Picker field label={text} className="filament-field" value={shown} options={options} disabled={disabled} onChange={commit} />;
+  } else if (type === 'enum' && def.enumValues) {
     editor = (
       <select aria-label={text} value={shown} disabled={disabled} onChange={(e) => commit(e.target.value)}>
         {!def.enumValues.includes(shown) && <option value={shown}>{shown}</option>}

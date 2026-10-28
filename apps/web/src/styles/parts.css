@@ -329,13 +329,6 @@
   font-size: var(--t-sm);
   white-space: normal;
 }
-.picker-swatch {
-  flex: none;
-  width: 14px;
-  height: 14px;
-  border: 1px solid var(--border);
-  border-radius: 50%;
-}
 @media (pointer: coarse) {
   .menu .menu-item {
     min-height: 42px;

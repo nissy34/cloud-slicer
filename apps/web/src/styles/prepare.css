@@ -527,6 +527,10 @@
   width: 64px;
   flex: none;
 }
+/* The object column is narrow: the button shows the numbered swatch only, the list its name too. */
+.panel .filament-pick .picker-value {
+  display: none;
+}
 .transform {
   display: grid;
   gap: 6px;
