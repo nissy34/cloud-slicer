@@ -8,8 +8,8 @@ import { ChevronDown, ChevronRight } from 'lucide-react';
 import { Swatch } from './Swatch';
 import { scrollMotion } from '../lib/motion';
 
-type Sub = 'split' | 'mirror' | 'filament' | 'units' | 'type' | `add-${VolumeKind}` | null;
-type Form = 'rename' | 'clone' | null;
+type Sub = 'split' | 'mirror' | 'filament' | 'units' | 'type' | 'copies' | 'plate' | `add-${VolumeKind}` | null;
+type Form = 'rename' | 'clone' | 'instances' | null;
 /** Mesh files the engine reads as a part (Model::read_from_file). */
 const MESH_FILES = '.stl,.obj,.3mf,.amf';
 
@@ -35,6 +35,8 @@ function MenuCard() {
   const colours = useSlicer((s) => (s.palette.length ? s.palette : (s.selection?.colours ?? NO_COLOURS)));
   const physical = useSlicer((s) => s.selection?.filaments.length ?? 1);
   const height = useSlicer((s) => Number(s.overrides.printable_height ?? s.baseConfig.printable_height) || 0);
+  const plate = useSlicer((s) => s.plate);
+  const copied = useSlicer((s) => s.copied);
   const s = useSlicer.getState();
   const { object: o, instance: i, volume: vi } = menu;
   const obj = project.objects[o];
@@ -176,6 +178,27 @@ function MenuCard() {
             </button>
           </div>
         </form>
+      ) : form === 'instances' ? (
+        <form
+          className="menu-form"
+          onSubmit={(e) => {
+            e.preventDefault();
+            run(() => s.setInstanceCount(o, count))();
+          }}
+        >
+          <label>
+            Number of instances
+            <input aria-label="Number of instances" type="number" min={1} max={1000} value={count} autoFocus onChange={(e) => setCount(Math.max(1, Math.min(1000, Number(e.target.value) || 1)))} />
+          </label>
+          <div className="menu-form-actions">
+            <button type="button" className="ghost" onClick={() => setForm(null)}>
+              Back
+            </button>
+            <button type="submit" className="primary">
+              Set
+            </button>
+          </div>
+        </form>
       ) : vol && vi !== undefined ? (
         <>
           {vol.text &&
@@ -307,11 +330,40 @@ function MenuCard() {
               {item('Along Z axis', run(() => s.mirror(o, i, 2)))}
             </>,
           )}
-          {item('Add copy', run(() => s.copyInstance(o, i)), { title: 'One more copy of it, beside it (+)' })}
-          {item('Remove copy', run(() => s.removeInstance(o, i)), {
-            disabled: obj.instances.length < 2,
-            title: obj.instances.length < 2 ? 'It has no other copies; Delete removes it' : 'Remove this copy, keeping the others (-)',
-          })}
+          {submenu(
+            'copies',
+            'Instances',
+            <>
+              {item('Add instance', run(() => s.copyInstance(o, i)), { title: 'One more copy of it, beside it (+)' })}
+              {item('Remove instance', run(() => s.removeInstance(o, i)), {
+                disabled: obj.instances.length < 2,
+                title: obj.instances.length < 2 ? 'It has no other copies; Delete removes it' : 'Remove this copy, keeping the others (-)',
+              })}
+              {item('Set number of instances…', () => {
+                setCount(obj.instances.length);
+                setForm('instances');
+              }, { title: `How many copies of it in all (now ${obj.instances.length})` })}
+            </>,
+          )}
+          {submenu(
+            'plate',
+            'Move to plate',
+            <>
+              {project.plates.map((p, k) => (
+                <Fragment key={k}>
+                  {item(p.name ? `Plate ${k + 1}: ${p.name}` : `Plate ${k + 1}`, run(() => s.moveToPlate([{ object: o, instance: i }], k)), {
+                    disabled: k === plate,
+                    title: k === plate ? 'It is on this plate' : 'The same spot on that plate',
+                  })}
+                </Fragment>
+              ))}
+              {item('New plate', run(() => s.moveToPlate([{ object: o, instance: i }], 'new')), { title: 'A new plate after the last, with this on it' })}
+            </>,
+          )}
+          <hr />
+          {item('Copy', run(() => s.copyToClipboard(o, i)), { title: 'Paste makes it a new object (Ctrl+C)' })}
+          {item('Cut', run(() => s.cutToClipboard(o, i)), { title: 'Copy it and remove it; Paste puts it back (Ctrl+X)' })}
+          {item('Paste', run(() => s.paste()), { disabled: !copied, title: copied ? 'What you copied, as a new object (Ctrl+V)' : 'Copy or cut an object first' })}
           {item('Delete', run(() => s.deleteObject(o)), { title: obj.instances.length > 1 ? 'The object with all its copies' : 'Delete (Del)' })}
           <hr />
           {item('Auto orient', run(() => s.orientObject(o)))}

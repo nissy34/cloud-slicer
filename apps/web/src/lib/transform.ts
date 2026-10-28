@@ -9,13 +9,13 @@ export function scaledBy(scale: number[], axis: number, factor: number, uniform:
 }
 
 /** Desktop's editing keys on the Prepare plate (they work while no text box has the keys). */
-export type EditKey = 'delete' | 'copy' | 'paste' | 'clone' | 'addCopy' | 'removeCopy';
+export type EditKey = 'delete' | 'copy' | 'cut' | 'paste' | 'clone' | 'addCopy' | 'removeCopy';
 
 export function editKey(e: { key: string; ctrlKey: boolean; metaKey: boolean; altKey: boolean }): EditKey | null {
   if (e.altKey) return null;
   const ctrl = e.ctrlKey || e.metaKey;
   const key = e.key.toLowerCase();
-  if (ctrl) return key === 'c' ? 'copy' : key === 'v' ? 'paste' : key === 'k' ? 'clone' : null;
+  if (ctrl) return key === 'c' ? 'copy' : key === 'x' ? 'cut' : key === 'v' ? 'paste' : key === 'k' ? 'clone' : null;
   // Backspace is the Mac keyboard's Delete.
   if (key === 'delete' || key === 'backspace') return 'delete';
   // + is Shift+= on most keyboards; the keypad sends + and - as they are.
