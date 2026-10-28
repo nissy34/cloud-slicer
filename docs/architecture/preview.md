@@ -9,7 +9,9 @@
 Draws the sliced toolpaths layer by layer, coloured like desktop's view types (line
 type, filament, speed, height, width, flow, layer time, fan, temperature), lists grams,
 metres and cost per filament, and lets you add a pause, filament change or custom G-code
-at a layer.
+at a layer. Before a plate is sliced (or while it slices) it shows the plate's models
+see-through in their filaments' colours, as desktop does, with a line saying it isn't
+sliced yet and a Slice plate button.
 
 ## Pieces
 
@@ -37,6 +39,10 @@ come from the statistics Orca writes at the end of the file. The engine's own
   files several times slower.
 - Toolpaths outside the build volume can't be downloaded or sent, as on desktop.
 - Layer codes are kept per plate in the project.
+- Unsliced plate: the models come from the same preview mesh Prepare draws (only the shown
+  plate), see-through with no depth writes. The line's Slice button is hidden on a phone,
+  where the Slice bar sits right under the 3D view. An empty plate, or no project, still
+  says so in words with a "Go to Prepare" button.
 
 ## Why
 
@@ -45,7 +51,7 @@ is what keeps big prints inside a phone's memory ([engine](engine.md#why)).
 
 ## Tests
 
-`preview-views.mjs`, `layer-codes.mjs`, `warnings.mjs`; unit tests `gcode.test.ts`,
+`preview-views.mjs`, `layer-codes.mjs`, `warnings.mjs`, `plate-switch.mjs` (unsliced plate); unit tests `gcode.test.ts`,
 `preview-colours.test.ts`, `layerCodes.test.ts`.
 
 ## Open

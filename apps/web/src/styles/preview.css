@@ -225,3 +225,17 @@
   white-space: nowrap;
   color: var(--muted);
 }
+
+/* Before slicing: the models see-through, and a line saying so with a Slice button where the key goes. */
+.unsliced {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 8px 8px 12px;
+  background: color-mix(in srgb, var(--surface) 92%, transparent);
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+}

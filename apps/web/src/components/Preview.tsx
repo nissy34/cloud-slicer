@@ -2,7 +2,7 @@ import { OrbitControls } from '@react-three/drei';
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import * as THREE from 'three';
-import { bedSize } from '../lib/colour';
+import { bedSize, rgb } from '../lib/colour';
 import { formatClock, formatMegabytes } from '../lib/format';
 import { FEATURE_COLOURS, FEATURES, type GcodeStats, type PreviewGcode } from '../lib/gcode';
 import {
@@ -20,9 +20,9 @@ import { codeAt } from '../lib/layerCodes';
 import { plateBounds, toolpathWarnings } from '../lib/outside';
 import { useSceneColours } from '../lib/theme';
 import type { GcodeWorkerMessage } from '../engine/gcode-worker';
-import type { FilamentPart, SliceResult } from '../engine/protocol';
+import type { FilamentPart, PreviewMesh, SliceResult } from '../engine/protocol';
 import { useLoading } from '../state/loading';
-import { NO_COLOURS, useOption, useSlicer } from '../state/store';
+import { NO_COLOURS, useObjectsOutside, useOption, useSlicer } from '../state/store';
 import { LayerMarks, LayerMenu, useLayerCodes } from './LayerCodes';
 import { PrintLoader } from './PrintLoader';
 import { CameraViews, ViewButtons, type ViewHandle } from './ViewControls';
@@ -508,6 +508,81 @@ function RangeKey({ by, range }: { by: ColourBy; range: ValueRange | null }) {
   );
 }
 
+/**
+ * The plate's models before it is sliced, see-through in their filaments'
+ * colours, as desktop's Preview shows them until there are toolpaths.
+ */
+function SeeThrough({ preview, colours }: { preview: PreviewMesh; colours: string[] }) {
+  const geometry = useMemo(() => {
+    const palette = colours.map(rgb);
+    const count = preview.positions.length / 9;
+    const col = new Float32Array(count * 9);
+    for (let t = 0; t < count; t++) {
+      const c = palette[(preview.filaments[t] || 1) - 1] ?? [0.8, 0.8, 0.8];
+      for (let v = 0; v < 3; v++) col.set(c, t * 9 + v * 3);
+    }
+    const g = new THREE.BufferGeometry();
+    g.setAttribute('position', new THREE.BufferAttribute(preview.positions, 3));
+    g.setAttribute('color', new THREE.BufferAttribute(col, 3));
+    g.computeVertexNormals();
+    return g;
+  }, [preview, colours]);
+  useEffect(() => () => geometry.dispose(), [geometry]);
+  return (
+    <mesh geometry={geometry} raycast={() => null}>
+      <meshStandardMaterial vertexColors roughness={0.6} transparent opacity={0.35} depthWrite={false} side={THREE.DoubleSide} />
+    </mesh>
+  );
+}
+
+/** The plate's models see-through, with a line saying it isn't sliced and a Slice button (or that it is slicing). */
+function Unsliced({ preview }: { preview: PreviewMesh }) {
+  const { w, d } = bedSize(useOption('printable_area'));
+  // Filament numbers past the physical ones are colour mixes, as in Prepare.
+  const colours = useSlicer((s) => (s.palette.length ? s.palette : (s.selection?.colours ?? NO_COLOURS)));
+  const plate = useSlicer((s) => s.plate);
+  const plates = useSlicer((s) => s.project?.plates.length ?? 0);
+  const slicingPlate = useSlicer((s) => (s.job.kind === 'slicing' ? s.job.plate : null));
+  const engine = useSlicer((s) => s.engine);
+  const outside = useObjectsOutside();
+  const scene = useSceneColours();
+  const views: ViewHandle = useRef(null);
+  const box = () => {
+    const b = new THREE.Box3().setFromBufferAttribute(new THREE.BufferAttribute(preview.positions, 3));
+    return b.isEmpty() ? new THREE.Box3(new THREE.Vector3(0, 0, 0), new THREE.Vector3(w, d, 0)) : b;
+  };
+  return (
+    <div className="preview">
+      <Canvas className="viewport" frameloop="demand" camera={{ position: [w / 2, -d * 0.6, d * 0.7], fov: 40, near: 1, far: 5000 }} data-testid="unsliced-preview">
+        <color attach="background" args={[scene.background]} />
+        <hemisphereLight args={['#ffffff', scene.ground, 0.9]} />
+        <directionalLight position={[w, -d, d * 2]} intensity={1.6} />
+        <Bed />
+        <SeeThrough preview={preview} colours={colours} />
+        <OrbitControls target={[w / 2, d / 2, 0]} makeDefault />
+        <CameraViews handle={views} box={box} />
+      </Canvas>
+      <ViewButtons handle={views} />
+      <PlateTabs />
+      <div className="unsliced" role="status" data-testid="not-sliced">
+        {slicingPlate === plate ? (
+          <span>Slicing {plates > 1 ? `plate ${plate + 1}` : 'the plate'}…</span>
+        ) : slicingPlate !== null ? (
+          <span>Not sliced yet. Plate {slicingPlate + 1} is slicing now.</span>
+        ) : (
+          <>
+            <span>{plates > 1 ? `Plate ${plate + 1}` : 'This plate'} isn't sliced yet.</span>
+            {/* Hidden on a phone, where the Slice bar sits right under the 3D view. */}
+            <button className="primary" disabled={engine !== 'ready' || outside.length > 0} onClick={() => void useSlicer.getState().slice()}>
+              {plates > 1 ? `Slice plate ${plate + 1}` : 'Slice plate'}
+            </button>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
 export function Preview() {
   const job = useSlicer((s) => s.job);
   const colours = useSlicer((s) => s.selection?.colours ?? NO_COLOURS);
@@ -546,7 +621,10 @@ export function Preview() {
   const plate = useSlicer((s) => s.plate);
   const plates = useSlicer((s) => s.project?.plates.length ?? 0);
   const onPlate = useSlicer((s) => s.project?.plates[s.plate]?.objects.length ?? 0);
+  const preview = useSlicer((s) => s.preview);
 
+  // Before slicing, desktop shows the plate's models see-through.
+  if (!gcode && onPlate && preview?.positions.length) return <Unsliced preview={preview} />;
   if (!gcode && slicingPlate === plate) {
     return (
       <div className="coming-soon">
