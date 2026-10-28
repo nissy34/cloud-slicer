@@ -7,6 +7,7 @@ describe('formatClock', () => {
     expect(formatClock(5045)).toBe('1h 24m 5s');
     expect(formatClock(3600)).toBe('1h 0m 0s');
     expect(formatClock(19.4)).toBe('19s');
+    expect(formatClock(2891.7)).toBe('48m 11s');
     expect(formatClock(0)).toBe('0s');
   });
   it('shows a dash for missing values', () => {

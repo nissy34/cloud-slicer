@@ -11,7 +11,8 @@ export function formatDuration(seconds: number): string {
 /** To the second, like desktop's time estimates: 3007 -> "50m 7s", 5045 -> "1h 24m 5s", 19 -> "19s". */
 export function formatClock(seconds: number): string {
   if (!Number.isFinite(seconds) || seconds < 0) return '–';
-  const s = Math.round(seconds);
+  // Whole seconds dropped, like desktop's get_time_dhms (the G-code footer's times).
+  const s = Math.floor(seconds);
   const [h, m, r] = [Math.floor(s / 3600), Math.floor((s % 3600) / 60), s % 60];
   return [h && `${h}h`, (h || m) && `${m}m`, `${r}s`].filter(Boolean).join(' ');
 }

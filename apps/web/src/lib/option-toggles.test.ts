@@ -91,6 +91,22 @@ describe('optionStates', () => {
     expect(optionStates({ ...base, support_parallel_printheads: '1' }, ctx).hidden.has('parallel_printheads_count')).toBe(false);
   });
 
+  it('shows the prime tower interface boost on a U1 with a prime tower only', () => {
+    const u1 = { ...base, printer_model: 'Snapmaker U1', enable_prime_tower: '1', enable_tower_interface_features: '0' };
+    expect(optionStates(u1, ctx).hidden.has('enable_tower_interface_features')).toBe(false);
+    expect(optionStates(u1, ctx).hidden.has('enable_tower_interface_cooldown_during_tower')).toBe(true);
+    expect(optionStates({ ...u1, enable_tower_interface_features: '1' }, ctx).hidden.has('enable_tower_interface_cooldown_during_tower')).toBe(false);
+    expect(optionStates({ ...u1, printer_model: 'Bambu Lab X1 Carbon' }, ctx).hidden.has('enable_tower_interface_features')).toBe(true);
+    expect(optionStates({ ...u1, enable_prime_tower: '0' }, ctx).hidden.has('enable_tower_interface_features')).toBe(true);
+  });
+
+  it('uses max bridge length for every tree support, bridge no support otherwise', () => {
+    const organic = { ...base, enable_support: '1', support_type: 'tree(auto)', support_style: 'organic' };
+    expect(optionStates(organic, ctx).hidden.has('max_bridge_length')).toBe(false);
+    expect(optionStates(organic, ctx).hidden.has('bridge_no_support')).toBe(true);
+    expect(optionStates({ ...base, enable_support: '1' }, ctx).hidden.has('max_bridge_length')).toBe(true);
+  });
+
   it('shows the flush into objects switch only in an object\'s settings', () => {
     expect(optionStates(base, ctx).hidden.has('flush_into_objects')).toBe(true);
     expect(optionStates(base, { ...ctx, scope: 'object' }).hidden.has('flush_into_objects')).toBe(false);
@@ -111,6 +127,27 @@ describe('reviewChange', () => {
     const { prompts } = reviewChange(base, { ...base, spiral_mode: '1' }, ['spiral_mode'], { ...ctx, scope: 'object' });
     expect(prompts[0].answers).toHaveLength(1);
     expect(prompts[0].answers[0].changes.wall_loops).toBe('1');
+  });
+
+  it('offers rectilinear when a sparse pattern can\'t fill 100%', () => {
+    const withEnums: ToggleContext = {
+      ...ctx,
+      options: {
+        ...ctx.options,
+        top_surface_pattern: { type: 'enum', enumValues: ['monotonic', 'rectilinear', 'concentric'] },
+        sparse_infill_pattern: { type: 'enum', enumValues: ['rectilinear', 'gyroid'], enumLabels: ['Rectilinear', 'Gyroid'] },
+      },
+    };
+    const after = { ...base, sparse_infill_density: '100%' };
+    const { prompts } = reviewChange(base, after, ['sparse_infill_density'], withEnums);
+    expect(prompts).toHaveLength(1);
+    expect(prompts[0].message).toContain("Gyroid infill pattern doesn't support 100% density.");
+    const [no, yes] = prompts[0].answers;
+    expect(no.changes).toEqual({ sparse_infill_density: '15%' });
+    expect(yes.changes).toEqual({ sparse_infill_pattern: 'rectilinear', sparse_infill_density: '100%' });
+    // A pattern that can fill solid is left alone.
+    const fine = { ...after, sparse_infill_pattern: 'rectilinear' };
+    expect(reviewChange(base, fine, ['sparse_infill_density'], withEnums).prompts).toEqual([]);
   });
 
   it('only checks combinations the edit touched', () => {
