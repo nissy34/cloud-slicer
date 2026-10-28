@@ -9,7 +9,7 @@ import { Menu } from './Menu';
 export type View = 'fit' | 'iso' | 'top' | 'bottom' | 'front' | 'back' | 'left' | 'right';
 /**
  * A look along `from` (towards the scene) at `box`, for a tool that turns the
- * view (the Cut tool's connectors); `aside` moves the box left by that part of
+ * view (the Cut tool's connectors); `aside` moves the box left (right when below 0) by that part of
  * the view's width, out from under a panel.
  */
 export type ViewFrom = { from: THREE.Vector3; box: THREE.Box3; aside?: number };

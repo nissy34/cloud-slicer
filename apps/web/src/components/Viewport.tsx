@@ -560,10 +560,11 @@ function CutPlane({ part, active, views, onRelease }: { part: Part; active: Reac
   useEffect(() => {
     if (!placing) return;
     const was = { position: camera.position.clone(), up: camera.up.clone(), target: controls?.target.clone() };
-    // Beside the Cut panel when it sits over the view (not on a phone, where it is above).
+    // Right of the Cut panel when it sits over the view at its left (not on a
+    // phone, where it is above): the face goes in the middle of the room left.
     const r = gl.domElement.getBoundingClientRect();
     const panel = document.querySelector('section[aria-label="Cut"]')?.getBoundingClientRect();
-    const aside = panel && panel.left > r.left + r.width * 0.3 && panel.left < r.right && panel.top < r.top + r.height / 2 ? 0.5 - (panel.left - r.left) / 2 / r.width : 0;
+    const aside = panel && panel.right > r.left && panel.right < r.left + r.width * 0.7 && panel.top < r.top + r.height / 2 ? -(panel.right - r.left) / 2 / r.width : 0;
     views.current?.({ from: normal, box: new THREE.Box3().setFromCenterAndSize(centre, new THREE.Vector3(span, span, span).multiplyScalar(0.6)), aside });
     return () => {
       camera.position.copy(was.position);
