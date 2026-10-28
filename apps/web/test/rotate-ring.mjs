@@ -2,7 +2,8 @@
 // Browser check for the rotate ring, like desktop Orca's: the turn follows the
 // pointer round the ring (pressed on the ring and taken a quarter of the way
 // round, the angle shown is about that), on the ring it steps in 5°, in the
-// middle third it steps in 45°, on desktop and on a phone (touch).
+// middle third it steps in 45°, far outside the pin still follows the
+// pointer, and the yellow outer ring turns too, on desktop and on a phone (touch).
 //
 //   node test/rotate-ring.mjs [screenshot-dir]
 //
@@ -124,6 +125,37 @@ async function run(name, viewport, mobile) {
   const middle = await drag(page, r2, 60, { reach: 0.5, touch, shot: `${name}-middle.png` });
   console.log(`${name}: in the middle third, pointer 60° round → ${middle}`);
   if (Math.abs(Number(middle.replace('°', ''))) % 45) fail(`${name}: the middle third should step in 45°, got "${middle}"`);
+  // Far outside the ring: the pin still follows the pointer round.
+  const r3 = (await zRing(page)) ?? r;
+  const far = await drag(page, r3, 60, { reach: 2.2, touch, shot: `${name}-far.png` });
+  console.log(`${name}: far outside, pointer 60° round → ${far}`);
+  if (!/^\+(4[0-9]|5[0-9]|6[0-9]|7[0-9])°$/.test(far)) fail(`${name}: far out the pin should still follow the pointer, got "${far}"`);
+  // The yellow outer ring (a quarter bigger, facing the camera): pressed at its
+  // lower left and taken round towards the bottom, it turns and shows the angle.
+  const r4 = (await zRing(page)) ?? r;
+  const e = 1.25 * r4.a;
+  const cy = r4.cy - 10; // the object's middle sits a little above the Z ring seen from above
+  const turnE = async () => {
+    const pt = (deg) => [r4.cx + e * Math.cos((deg * Math.PI) / 180), cy + e * Math.sin((deg * Math.PI) / 180)];
+    const [x, y] = pt(180);
+    const cdp = touch ? await page.context().newCDPSession(page) : null;
+    if (touch) await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x, y }] });
+    else (await page.mouse.move(x, y), await page.mouse.down());
+    for (let k = 1; k <= 12; k++) {
+      const [px, py] = pt(180 - k * 5);
+      if (touch) await cdp.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x: px, y: py }] });
+      else await page.mouse.move(px, py);
+    }
+    await page.waitForTimeout(250);
+    const text = await page.getByTestId('rotate-angle').innerText({ timeout: 3000 }).catch(() => '');
+    if (shots) await page.screenshot({ path: join(shots, `${name}-yellow.png`) });
+    if (touch) await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+    else await page.mouse.up();
+    return text;
+  };
+  const yellow = await turnE();
+  console.log(`${name}: yellow ring, pointer 60° round → ${yellow}`);
+  if (!/^[+-](4[0-9]|5[0-9]|6[0-9]|7[0-9])°$/.test(yellow)) fail(`${name}: the yellow ring should follow the pointer, got "${yellow}"`);
   await page.close();
 }
 

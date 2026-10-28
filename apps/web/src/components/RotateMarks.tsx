@@ -1,4 +1,4 @@
-import { Html } from '@react-three/drei';
+import { Html, Line } from '@react-three/drei';
 import { useThree } from '@react-three/fiber';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import * as THREE from 'three';
@@ -22,20 +22,26 @@ type Turning = {
   quaternionStart: THREE.Quaternion;
   worldPositionStart: THREE.Vector3;
   worldQuaternionStart: THREE.Quaternion;
+  eye: THREE.Vector3;
 };
 
 const AXES: Record<string, THREE.Vector3> = { X: new THREE.Vector3(1, 0, 0), Y: new THREE.Vector3(0, 1, 0), Z: new THREE.Vector3(0, 0, 1) };
 // The gizmo's ring colours, lighter so thin marks show on the dark view too.
-const COLOURS: Record<string, string> = { X: '#ff7070', Y: '#70ff70', Z: '#80a8ff' };
+const COLOURS: Record<string, string> = { X: '#ff7070', Y: '#70ff70', Z: '#80a8ff', E: '#ffe060' };
+// The yellow outer ring turns about the line of sight and is a quarter bigger.
+const ringAxis = (c: Turning) => (c.axis === 'E' ? c.eye : c.axis ? AXES[c.axis] : undefined);
+const ringSize = (axis: string | null) => (axis === 'E' ? 1.25 : 1);
 
 /**
  * Desktop's rotate ring (Orca's GLGizmoRotate) on drei's TransformControls.
  * TransformControls turns by how far the pointer slides, so the turn drifts
  * away from the pointer; here, while a ring is dragged, the turn follows the
  * pointer round the ring instead, from where it was pressed. The scale is
- * drawn round that ring with 0° under the press: on the marks the turn steps
- * in 5°, on the spokes in the middle in 45°, elsewhere it is free (Shift or
- * the snap setting: 15° steps anywhere). The angle turned shows beside it.
+ * drawn round that ring with 0° under the press, and a pin from the middle
+ * always reaches the pointer, however far it goes: on the marks the turn steps
+ * in 5°, on the spokes in the middle in 45°, elsewhere it is free but the pin
+ * holds on a mark it lies on (Shift or the snap setting: 15° steps anywhere).
+ * The angle turned shows beside it. The yellow outer ring works the same.
  */
 export function RotateMarks({ controlsRef, snap }: { controlsRef: React.MutableRefObject<TransformControlsImpl | null>; snap: boolean }) {
   const camera = useThree((s) => s.camera);
@@ -43,6 +49,7 @@ export function RotateMarks({ controlsRef, snap }: { controlsRef: React.MutableR
   const turnGeometry = useRef<THREE.BufferGeometry>(null);
   const [axis, setAxis] = useState<string | null>(null);
   const [label, setLabel] = useState<{ text: string; at: THREE.Vector3 } | null>(null);
+  const [pin, setPin] = useState<[THREE.Vector3, THREE.Vector3] | null>(null);
   const scale = useMemo(() => ringScale(), []);
   const snapRef = useRef(snap);
   snapRef.current = snap;
@@ -83,31 +90,35 @@ export function RotateMarks({ controlsRef, snap }: { controlsRef: React.MutableR
 
     const change = () => {
       const object = c.object;
-      if (!c.dragging || c.mode !== 'rotate' || !c.axis || !AXES[c.axis] || !object) return;
+      if (!c.dragging || c.mode !== 'rotate' || !ringAxis(c) || !object) return;
       const at = onRing();
       if (!at) return;
       const reach = Math.hypot(at[0], at[1]) / radius;
       const angle = ringTurn(turnBetween([1, 0], at), reach, snapRef.current ? 15 * DEG : null);
       // The control's own maths with the ring's angle (TransformControls' rotationAxis is in the parent's space).
       q.setFromAxisAngle(c.rotationAxis, angle);
-      if (c.space === 'local') object.quaternion.copy(c.quaternionStart).multiply(q).normalize();
+      if (c.space === 'local' && c.axis !== 'E') object.quaternion.copy(c.quaternionStart).multiply(q).normalize();
       else object.quaternion.copy(q).multiply(c.quaternionStart).normalize();
       object.updateMatrixWorld();
       turnGeometry.current?.setAttribute('position', new THREE.Float32BufferAttribute(turnLines(angle), 3));
       dir.copy(x).multiplyScalar(Math.cos(angle)).addScaledVector(y, Math.sin(angle));
-      setLabel({ text: turnedText(angle), at: centre.clone().addScaledVector(dir, radius * 1.45) });
+      // The pin: from the middle out to the pointer, at least to the ring, along the turn.
+      const reachOut = Math.max(reach, 1.1) * radius;
+      setPin([centre.clone(), centre.clone().addScaledVector(dir, reachOut)]);
+      setLabel({ text: turnedText(angle), at: centre.clone().addScaledVector(dir, reachOut + radius * 0.25) });
     };
 
     const dragging = () => {
-      const a = c.axis && AXES[c.axis];
+      const a = ringAxis(c);
       if (!(c.dragging && c.mode === 'rotate' && a)) {
         setAxis(null);
         setLabel(null);
+        setPin(null);
         return;
       }
       centre.copy(c.worldPositionStart);
       normal.copy(a);
-      if (c.space === 'local') normal.applyQuaternion(c.worldQuaternionStart);
+      if (c.space === 'local' && c.axis !== 'E') normal.applyQuaternion(c.worldQuaternionStart);
       plane.setFromNormalAndCoplanarPoint(normal, centre);
       // The ring's size on screen, as TransformControls works it out (its rings have radius 1).
       const factor =
@@ -115,7 +126,7 @@ export function RotateMarks({ controlsRef, snap }: { controlsRef: React.MutableR
           ? (camera.top - camera.bottom) / camera.zoom
           : centre.distanceTo(camera.getWorldPosition(dir)) *
             Math.min((1.9 * Math.tan((Math.PI * (camera as THREE.PerspectiveCamera).fov) / 360)) / (camera as THREE.PerspectiveCamera).zoom, 7);
-      radius = (factor * c.size) / 7;
+      radius = ((factor * c.size) / 7) * ringSize(c.axis);
       // 0° where it was pressed; seen edge on (no press point), the camera's right laid on the ring.
       x.set(1, 0, 0).applyQuaternion(camera.quaternion).projectOnPlane(normal).normalize();
       y.crossVectors(normal, x);
@@ -158,6 +169,7 @@ export function RotateMarks({ controlsRef, snap }: { controlsRef: React.MutableR
           <lineBasicMaterial color={colour} depthTest={false} transparent />
         </lineSegments>
       </group>
+      {axis && pin && <Line points={pin} color={colour} lineWidth={3} depthTest={false} renderOrder={1001} raycast={() => null} />}
       {axis && label && (
         <Html position={label.at} center zIndexRange={[3, 0]} style={{ pointerEvents: 'none' }}>
           <div className="object-label" data-testid="rotate-angle">

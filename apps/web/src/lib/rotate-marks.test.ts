@@ -11,10 +11,12 @@ describe('rotate ring, like desktop', () => {
     // In the middle third.
     expect(ringTurn(60 * DEG, 0.5)).toBeCloseTo(45 * DEG);
     expect(ringTurn(70 * DEG, 0.4)).toBeCloseTo(90 * DEG);
-    // Between them, and far outside.
+    // Between them, and far outside: free, held only when the pin lies on a mark.
     expect(ringTurn(37.4 * DEG, 0.75)).toBeCloseTo(37.4 * DEG);
     expect(ringTurn(37.4 * DEG, 2)).toBeCloseTo(37.4 * DEG);
     expect(ringTurn(37.4 * DEG, 0.1)).toBeCloseTo(37.4 * DEG);
+    expect(ringTurn(40.8 * DEG, 2)).toBeCloseTo(40 * DEG);
+    expect(ringTurn(-29.3 * DEG, 0.75)).toBeCloseTo(-30 * DEG);
     // Shift or the snap setting: 15° anywhere.
     expect(ringTurn(37.4 * DEG, 0.75, 15 * DEG)).toBeCloseTo(30 * DEG);
     expect(ringTurn(-1 * DEG, 1)).toBe(0);
@@ -42,12 +44,13 @@ describe('rotate ring, like desktop', () => {
     expect(s[72 * 6 + 3]).toBeCloseTo(2 / 3);
   });
 
-  it('draws the turn: start line, end line and the arc between', () => {
+  it('draws the turn: a line to where it started and the arc to where it is', () => {
     const t = turnLines(90 * DEG);
     expect(t[3]).toBeCloseTo(1);
-    expect(t[9]).toBeCloseTo(0);
-    expect(t[10]).toBeCloseTo(1);
-    expect(t.length).toBe(12 + 18 * 6);
+    expect(t.length).toBe(6 + 18 * 6);
+    // The arc ends a quarter turn round.
+    expect(t[t.length - 3]).toBeCloseTo(0);
+    expect(t[t.length - 2]).toBeCloseTo(0.5);
   });
 
   it('reads the angle in whole degrees with its sign', () => {

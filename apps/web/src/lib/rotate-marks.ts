@@ -23,6 +23,8 @@ export const LONG_TOOTH = 0.1;
 export const MARKS_BAND: [number, number] = [0.85, 1.25];
 /** Where the pointer steps along the spokes: the middle third, like desktop. */
 export const SPOKES_BAND: [number, number] = [1 / 3, 2 / 3];
+/** Anywhere else the pin, which always reaches the pointer, holds on a mark it comes this close to. */
+export const PIN_REACH = 1 * DEG;
 
 /**
  * The turn as the ring gives it: `angle` is the pointer's turn round the ring
@@ -31,8 +33,9 @@ export const SPOKES_BAND: [number, number] = [1 / 3, 2 / 3];
  */
 export function ringTurn(angle: number, reach: number, step: number | null = null): number {
   const by = step ?? (inBand(reach, SPOKES_BAND) ? SPOKE_STEP : inBand(reach, MARKS_BAND) ? MARK_STEP : 0);
-  if (!by) return angle;
-  const turned = Math.round(angle / by) * by;
+  const mark = Math.round(angle / (by || MARK_STEP)) * (by || MARK_STEP);
+  // Off the marks and spokes the pin turns freely, held only when it lies on a mark.
+  const turned = by || Math.abs(angle - mark) <= PIN_REACH ? mark : angle;
   return Object.is(turned, -0) ? 0 : turned;
 }
 
@@ -69,10 +72,10 @@ export function ringScale(): Float32Array {
   return out;
 }
 
-/** The turn drawn like desktop: a line to where it started, one to where it is, and the arc between (radius 1, XY plane). */
+/** The turn drawn like desktop: a line to where it started and the arc to where it is (radius 1, XY plane); the pin is drawn on its own. */
 export function turnLines(angle: number, arcRadius = 0.5): Float32Array {
   const steps = Math.max(1, Math.ceil(Math.abs(angle) / (5 * DEG)));
-  const out: number[] = [0, 0, 0, 1, 0, 0, 0, 0, 0, Math.cos(angle), Math.sin(angle), 0];
+  const out: number[] = [0, 0, 0, 1, 0, 0];
   for (let k = 0; k < steps; k++) {
     const [a, b] = [(angle * k) / steps, (angle * (k + 1)) / steps];
     out.push(Math.cos(a) * arcRadius, Math.sin(a) * arcRadius, 0, Math.cos(b) * arcRadius, Math.sin(b) * arcRadius, 0);
