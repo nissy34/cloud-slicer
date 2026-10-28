@@ -470,6 +470,19 @@ test('object tools: cut, split, mirror, orient', () => {
 
 test('cut with a turned plane: upright cut, parts kept, thrown away or laid on the cut', () => {
   select({ printer: DEFAULT_PRINTER });
+  // The lowest point of each object on plate 1, from its triangles.
+  const lowest = () => {
+    const mesh = engine.previewMesh(0);
+    const out = [];
+    let tri = 0;
+    for (const count of mesh.objectTriangles) {
+      let z = Infinity;
+      for (let k = tri * 9 + 2; k < (tri + count) * 9; k += 3) z = Math.min(z, mesh.positions[k]);
+      if (count) out.push(z);
+      tri += count;
+    }
+    return out;
+  };
   let m = load('3DBenchy.stl');
   const [sx, , sz] = m.objects[0].size;
   // Turned 90° about Y the arrow points along +X: an upright cut through the middle.
@@ -480,7 +493,8 @@ test('cut with a turned plane: upright cut, parts kept, thrown away or laid on t
   assert.ok(Math.abs(widths[0] + widths[1] - sx) < 0.5, `widths ${widths} add up to ${sx}`);
   // Standing upright: the taller half (with the cabin) keeps the boat's height, both stay on the bed.
   assert.ok(Math.abs(Math.max(...m.objects.map((o) => o.size[2])) - sz) < 0.5, `the taller half stays ${sz} tall`);
-  for (const o of m.objects) assert.ok(o.instances[0].offset[2] >= -0.01 && o.size[2] > sz / 2, `each half stands upright on the bed: ${o.size}`);
+  for (const o of m.objects) assert.ok(o.size[2] > sz / 2, `each half stands upright: ${o.size}`);
+  for (const z of lowest()) assert.ok(Math.abs(z) < 0.01, `each half on the bed: ${z}`);
 
   m = load('3DBenchy.stl');
   call(engine, 'cutObject', 0, 0, cut({ position: 0, rotation: [0, 90, 0], asParts: true }));
@@ -500,10 +514,8 @@ test('cut with a turned plane: upright cut, parts kept, thrown away or laid on t
   call(engine, 'cutObject', 0, 0, cut({ position: sz / 2, rotation: [30, 0, 0] }));
   m = info();
   assert.equal(m.objects.length, 2);
-  for (const o of m.objects) {
-    assert.ok(o.size[2] < sz - 1, `each half is lower than the boat: ${o.size}`);
-    assert.ok(o.instances[0].offset[2] >= -0.01, 'on the bed');
-  }
+  for (const o of m.objects) assert.ok(o.size[2] < sz - 1, `each half is lower than the boat: ${o.size}`);
+  for (const z of lowest()) assert.ok(Math.abs(z) < 0.01, `each half on the bed: ${z}`);
   assert.throws(() => call(engine, 'cutObject', 0, 0, cut({ position: 5, upper: 'drop', lower: 'drop' })), /at least one part/);
   engine.clearModel();
 });
