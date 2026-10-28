@@ -1,6 +1,8 @@
 import { useMemo, useState } from 'react';
 import * as THREE from 'three';
-import type { CutKeep } from '../engine/client';
+import { flipPlane, positionRange, wrapAngle, type CutPart, type CutRotation } from '../lib/cut';
+import { usePhone } from '../lib/usePhone';
+import { Picker } from './Picker';
 import { describeFeature, measurementRows } from '../lib/measure';
 import { scaledBy } from '../lib/transform';
 import { groupBox } from '../lib/group';
@@ -16,56 +18,140 @@ import { Slider } from './Slider';
 
 const round = (n: number) => Math.round(n * 100) / 100;
 
-/** Horizontal cut of the selected instance, like desktop's Cut tool (C). */
-function CutPanel({ object, instance, height, onDone }: { object: number; instance: number; height: number; onDone(): void }) {
+const CUT_PARTS: { part: CutPart; label: string; word: string }[] = [
+  { part: 'keep', label: 'Keep', word: 'keep' },
+  { part: 'place', label: 'Flip onto cut', word: 'flip onto cut' },
+  { part: 'drop', label: 'Throw away', word: 'throw away' },
+];
+
+/** A number box that sets its value when it loses focus or on Enter. */
+function NumberBox({ label, value, unit, onSet }: { label: string; value: number; unit: string; onSet(v: number): void }) {
+  return (
+    <span className="input-unit">
+      <input
+        key={round(value)}
+        aria-label={label}
+        inputMode="decimal"
+        defaultValue={round(value)}
+        onBlur={(e) => {
+          const v = Number(e.target.value.replace(',', '.'));
+          if (Number.isFinite(v) && v !== round(value)) onSet(v);
+        }}
+        onKeyDown={(e) => e.key === 'Enter' && (e.target as HTMLInputElement).blur()}
+      />
+      <span className="unit">{unit}</span>
+    </span>
+  );
+}
+
+/** Desktop's Cut tool (C) on the selected instance: a plane to move and tilt, and what to do with each half. */
+function CutPanel({ object, instance, size, onDone }: { object: number; instance: number; size: [number, number, number]; onDone(): void }) {
   const cutObject = useSlicer((s) => s.cutObject);
   const z = useSlicer((s) => s.cutZ);
   const setZ = useSlicer((s) => s.setCutZ);
-  const [keep, setKeep] = useState<CutKeep>('both');
-  const [flip, setFlip] = useState(true);
+  const rotation = useSlicer((s) => s.cutRotation);
+  const setRotation = useSlicer((s) => s.setCutRotation);
+  const phone = usePhone();
+  const [upper, setUpper] = useState<CutPart>('place');
+  const [lower, setLower] = useState<CutPart>('keep');
+  const [asParts, setAsParts] = useState(false);
+  const [lo, hi] = positionRange(size, rotation);
+  const inside = z > lo + 0.1 && z < hi - 0.1;
+  const flat = rotation[0] === 0 && rotation[1] === 0;
+  const tilt = (axis: 0 | 1, v: number) => {
+    const next: CutRotation = [...rotation];
+    next[axis] = wrapAngle(v);
+    setRotation(next);
+  };
+  const partRow = (title: string, value: CutPart, set: (p: CutPart) => void, other: CutPart) => (
+    <div className="cut-part">
+      <span>{title}</span>
+      <div className="chooser" role="radiogroup" aria-label={title}>
+        {CUT_PARTS.map(({ part, label }) => (
+          <button key={part} role="radio" aria-checked={value === part} className={value === part ? 'on' : ''} disabled={part === 'drop' && other === 'drop'} onClick={() => set(part)}>
+            {label}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+  const word = (p: CutPart) => CUT_PARTS.find((c) => c.part === p)!.word;
+  const both = CUT_PARTS.flatMap((u) => CUT_PARTS.filter((l) => !(u.part === 'drop' && l.part === 'drop')).map((l) => `${u.part}/${l.part}`));
   return (
     <div className="cut-panel">
-      <p className="muted hint">Drag the arrow on the plane, or set the height here. Cyan is the upper part, pink the lower.</p>
-      <label className="transform-row">
+      <p className="muted hint">Drag the arrow to move the plane and the rings to tilt it, or type below. Cyan is the upper part, pink the lower.</p>
+      <label className="transform-row cut-at">
         <span>Cut at</span>
-        <Slider aria-label="Cut height" min={0.2} max={round(height - 0.2)} step={0.1} value={z} onChange={(e) => setZ(Number(e.target.value))} />
-        <input
-          key={round(z)}
-          aria-label="Cut height in mm"
-          inputMode="decimal"
-          defaultValue={round(z)}
-          onBlur={(e) => {
-            const v = Number(e.target.value);
-            if (Number.isFinite(v) && v > 0 && v < height) setZ(v);
+        <Slider aria-label="Cut position" min={round(lo + 0.2)} max={round(hi - 0.2)} step={0.1} value={z} onChange={(e) => setZ(Number(e.target.value))} />
+        <NumberBox label="Cut position in mm" value={z} unit="mm" onSet={(v) => setZ(v)} />
+      </label>
+      <div className="transform-row cut-tilt" role="group" aria-label="Tilt">
+        <span>Tilt</span>
+        <NumberBox label="Tilt X" value={rotation[0]} unit="° X" onSet={(v) => tilt(0, v)} />
+        <NumberBox label="Tilt Y" value={rotation[1]} unit="° Y" onSet={(v) => tilt(1, v)} />
+      </div>
+      <div className="tool-row cut-plane-buttons">
+        <button
+          className="quiet"
+          onClick={() => {
+            const f = flipPlane(z, rotation);
+            setRotation(f.rotation);
+            setZ(round(f.position));
           }}
-          onKeyDown={(e) => e.key === 'Enter' && (e.target as HTMLInputElement).blur()}
-        />
-        <span className="unit">mm</span>
+        >
+          Flip plane
+        </button>
+        <button
+          className="quiet"
+          disabled={flat && rotation[2] === 0 && Math.abs(z - size[2] / 2) < 0.01}
+          onClick={() => {
+            setRotation([0, 0, 0]);
+            setZ(round(size[2] / 2));
+          }}
+        >
+          Reset
+        </button>
+      </div>
+      {!asParts &&
+        (phone ? (
+          <label className="transform-row cut-parts-pick">
+            <span>Parts</span>
+            <Picker
+              label="Parts to keep"
+              field
+              value={`${upper}/${lower}`}
+              options={both.map((v) => {
+                const [u, l] = v.split('/') as [CutPart, CutPart];
+                return { value: v, label: `Upper: ${word(u)} · Lower: ${word(l)}` };
+              })}
+              onChange={(v) => {
+                const [u, l] = v.split('/') as [CutPart, CutPart];
+                setUpper(u);
+                setLower(l);
+              }}
+            />
+          </label>
+        ) : (
+          <>
+            {partRow('Upper part', upper, setUpper, lower)}
+            {partRow('Lower part', lower, setLower, upper)}
+          </>
+        ))}
+      <label className="switch-row">
+        <input className="switch" type="checkbox" checked={asParts} onChange={(e) => setAsParts(e.target.checked)} />
+        <span>Keep both halves as parts of one object</span>
       </label>
-      <label className="transform-row">
-        <span>Keep</span>
-        <select aria-label="Parts to keep" value={keep} onChange={(e) => setKeep(e.target.value as CutKeep)}>
-          <option value="both">Both parts</option>
-          <option value="upper">Upper part</option>
-          <option value="lower">Lower part</option>
-        </select>
-      </label>
-      {keep !== 'lower' && (
-        <label className="switch-row">
-          <input className="switch" type="checkbox" checked={flip} onChange={(e) => setFlip(e.target.checked)} />
-          <span>Flip the upper part onto its cut face</span>
-        </label>
-      )}
       <div className="transform-row actions">
         <button className="secondary" onClick={onDone}>
           Cancel
         </button>
         <button
           className="primary"
-          disabled={!(z > 0 && z < height)}
+          disabled={!inside}
+          title={inside ? undefined : 'The plane misses the object: move it onto the object first.'}
           onClick={() => {
             onDone();
-            void cutObject(object, instance, z, keep, flip);
+            void cutObject(object, instance, { position: z, rotation, upper, lower, asParts });
           }}
         >
           Cut
@@ -296,7 +382,7 @@ const HINTS: Record<Exclude<Tool, 'cut' | 'measure' | 'layers' | 'brim' | 'simpl
 export function ToolPanel() {
   const tool = useSlicer((s) => s.tool);
   const selected = useSlicer((s) => s.selected);
-  const height = useSlicer((s) => (s.selected ? s.project?.objects[s.selected.object]?.size[2] : undefined));
+  const size = useSlicer((s) => (s.selected ? s.project?.objects[s.selected.object]?.size : undefined));
   const snap = useSlicer((s) => s.snap);
   const rotation = useSlicer((s) => (s.selected ? s.project?.objects[s.selected.object]?.instances[s.selected.instance]?.rotation : undefined));
   // A part, modifier... picked in an object of several: the gizmos move it inside the object.
@@ -342,7 +428,7 @@ export function ToolPanel() {
     return (
       <section className="tool-panel" aria-label="Cut">
         <strong>Cut</strong>
-        <CutPanel key={`${selected.object}-${selected.instance}`} object={selected.object} instance={selected.instance} height={height ?? 10} onDone={() => setTool(null)} />
+        <CutPanel key={`${selected.object}-${selected.instance}`} object={selected.object} instance={selected.instance} size={size ?? [10, 10, 10]} onDone={() => setTool(null)} />
       </section>
     );
   const [title, objectHint] = HINTS[tool];

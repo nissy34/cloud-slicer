@@ -16,6 +16,7 @@ import { onPlate } from '../lib/plateMenu';
 import { plateBounds } from '../lib/outside';
 import { hasPlateSettings } from '../lib/plate-settings';
 import { unprintableTriangles, UNPRINTABLE } from '../lib/printable';
+import { cutCentre, cutNormal, cutQuaternion, positionAt, positionRange, rotationOf } from '../lib/cut';
 import { viewOnly } from '../state/projects';
 import { NO_COLOURS, useOption, useSlicer } from '../state/store';
 import { setCameraSource } from '../state/view';
@@ -438,70 +439,101 @@ const CUT_UPPER = '#22d3ee';
 const CUT_LOWER = '#e879f9';
 
 /**
- * The Cut tool's plane, like desktop's: a see-through plane at the cut height
- * with an arrow to drag it up and down, the part above it tinted cyan and the
- * part below pink.
+ * The Cut tool's plane, like desktop's: a see-through plane with an arrow to
+ * drag it along and two rings to tilt it, the part above it tinted cyan and the
+ * part below pink. The plane is lib/cut.ts's: a position along its arrow and a
+ * turn, which the panel's boxes show too.
  */
 function CutPlane({
   part,
-  controlsRef,
+  arrowRef,
+  ringsRef,
   onRelease,
 }: {
   part: Part;
-  controlsRef: React.MutableRefObject<TransformControlsImpl | null>;
+  arrowRef: React.MutableRefObject<TransformControlsImpl | null>;
+  ringsRef: React.MutableRefObject<TransformControlsImpl | null>;
   onRelease(): void;
 }) {
-  const z = useSlicer((s) => s.cutZ);
-  const setCutZ = useSlicer((s) => s.setCutZ);
+  const position = useSlicer((s) => s.cutZ);
+  const rotation = useSlicer((s) => s.cutRotation);
+  const setPosition = useSlicer((s) => s.setCutZ);
+  const setRotation = useSlicer((s) => s.setCutRotation);
   const shift = useShift();
   const snap = useSlicer((s) => s.snap) || shift;
   const coarse = useMemo(() => typeof matchMedia !== 'undefined' && matchMedia('(pointer: coarse)').matches, []);
-  const [handle, setHandle] = useState<THREE.Group | null>(null);
-  useHoldWhileDragging(controlsRef, handle);
+  const [arrow, setArrow] = useState<THREE.Group | null>(null);
+  const [rings, setRings] = useState<THREE.Group | null>(null);
+  useHoldWhileDragging(arrowRef, arrow);
+  useHoldWhileDragging(ringsRef, rings);
   const box = part.geometry.boundingBox!;
   const size = box.getSize(new THREE.Vector3());
-  const centre = box.getCenter(new THREE.Vector3());
-  const span = Math.max(size.x, size.y) * 1.3 + 10;
+  const middle = box.getCenter(new THREE.Vector3());
+  const span = size.length() * 1.15 + 10;
+  const quaternion = useMemo(() => cutQuaternion(rotation), [rotation]);
+  const normal = useMemo(() => cutNormal(rotation), [rotation]);
+  const centre = cutCentre(middle, position, normal);
+  const [lo, hi] = positionRange([size.x, size.y, size.z], rotation).map((v) => v + normal.z * box.min.z);
   // Three keeps what is on the positive side of a clipping plane.
-  const above = useMemo(() => new THREE.Plane(new THREE.Vector3(0, 0, 1), 0), []);
-  const below = useMemo(() => new THREE.Plane(new THREE.Vector3(0, 0, -1), 0), []);
-  above.constant = -z;
-  below.constant = z;
+  const above = useMemo(() => new THREE.Plane(), []);
+  const below = useMemo(() => new THREE.Plane(), []);
+  above.setFromNormalAndCoplanarPoint(normal, centre);
+  below.setFromNormalAndCoplanarPoint(normal.clone().negate(), centre);
   const invalidate = useThree((s) => s.invalidate);
 
   useLayoutEffect(() => {
-    handle?.position.set(centre.x, centre.y, z);
+    for (const g of [arrow, rings]) {
+      g?.position.copy(centre);
+      g?.quaternion.copy(quaternion);
+    }
     invalidate(); // the clipping planes moved too
-  }, [handle, centre.x, centre.y, z, invalidate]);
+  }, [arrow, rings, centre.x, centre.y, centre.z, quaternion, invalidate]);
 
   const tint = (colour: string, plane: THREE.Plane) => (
     <mesh geometry={part.geometry} raycast={() => null} renderOrder={1}>
       <meshBasicMaterial color={colour} transparent opacity={0.45} depthWrite={false} clippingPlanes={[plane]} polygonOffset polygonOffsetFactor={-1} polygonOffsetUnits={-1} />
     </mesh>
   );
+  const arrowSize = coarse ? 1.5 : 1.15;
   return (
     <>
       {tint(CUT_UPPER, above)}
       {tint(CUT_LOWER, below)}
-      <mesh position={[centre.x, centre.y, z]} raycast={() => null} renderOrder={2}>
+      <mesh position={centre} quaternion={quaternion} raycast={() => null} renderOrder={2}>
         <planeGeometry args={[span, span]} />
         <meshBasicMaterial color="#ffffff" transparent opacity={0.22} side={THREE.DoubleSide} depthWrite={false} />
       </mesh>
-      <group ref={setHandle} />
-      {handle && (
+      <group ref={setArrow} />
+      <group ref={setRings} />
+      {arrow && (
         <TransformControls
-          ref={controlsRef}
-          object={handle}
+          ref={arrowRef}
+          object={arrow}
           mode="translate"
+          space="local"
           showX={false}
           showY={false}
-          size={coarse ? 1.5 : 1.15}
+          size={arrowSize}
           translationSnap={snap ? 1 : null}
           onObjectChange={() => {
-            const v = Math.min(Math.max(handle.position.z, 0.2), box.max.z - 0.2);
-            handle.position.set(centre.x, centre.y, v);
-            setCutZ(Math.round(v * 100) / 100);
+            const p = Math.min(Math.max(positionAt(middle, arrow.position, normal), lo + 0.2), hi - 0.2);
+            arrow.position.copy(cutCentre(middle, p, normal));
+            setPosition(Math.round(p * 100) / 100);
           }}
+          onMouseUp={onRelease}
+        />
+      )}
+      {rings && (
+        <TransformControls
+          ref={ringsRef}
+          object={rings}
+          mode="rotate"
+          space="world"
+          showZ={false}
+          // Rings round the arrow's tip, so the two never share a spot.
+          size={arrowSize * 1.7}
+          rotationSnap={snap ? 15 * DEG : null}
+          onObjectChange={() => setRotation(rotationOf(rings.quaternion))}
           onMouseUp={onRelease}
         />
       )}
@@ -867,6 +899,8 @@ function Objects({ w, d }: { w: number; d: number }) {
   // The camera must hold still while an object is dragged.
   const controls = useThree((s) => s.controls) as unknown as CameraControls | null;
   const gizmo = useRef<TransformControlsImpl | null>(null);
+  // The Cut tool's second handle (its rings; the arrow is `gizmo`).
+  const cutRings = useRef<TransformControlsImpl | null>(null);
   const gizmoReleased = useRef(0);
   const brimTool = !paint && tool === 'brim' && !!selected;
   const shapeTool = !paint && (tool === 'text' || tool === 'svg');
@@ -1113,21 +1147,25 @@ function Objects({ w, d }: { w: number; d: number }) {
     // A shape being slid stays where it was.
     if (shapeDrag.current) shapeEnd.current(new PointerEvent('pointercancel'));
     holdCamera(controls, false);
-    const g = gizmo.current as unknown as { enabled: boolean; dragging: boolean; reset(): void; pointerUp(p: { button: number }): void } | null;
-    if (!g) return;
-    if (g.dragging) {
-      g.reset(); // back to where the handle was picked up
-      g.pointerUp({ button: 0 });
+    for (const ref of [gizmo, cutRings]) {
+      const g = ref.current as unknown as { enabled: boolean; dragging: boolean; reset(): void; pointerUp(p: { button: number }): void } | null;
+      if (!g) continue;
+      if (g.dragging) {
+        g.reset(); // back to where the handle was picked up
+        g.pointerUp({ button: 0 });
+      }
+      g.enabled = false; // nor may the second finger pick up a handle
     }
-    g.enabled = false; // nor may the second finger pick up a handle
   };
   useEffect(() => onSecondFinger(() => giveWay.current()), []);
   useEffect(
     () =>
       onFingersUp(() => {
         beforeTouch.current = null;
-        const g = gizmo.current as unknown as { enabled: boolean } | null;
-        if (g) g.enabled = true;
+        for (const ref of [gizmo, cutRings]) {
+          const g = ref.current as unknown as { enabled: boolean } | null;
+          if (g) g.enabled = true;
+        }
       }),
     [],
   );
@@ -1150,8 +1188,10 @@ function Objects({ w, d }: { w: number; d: number }) {
 
   // TransformControls keeps these private; they say a handle is hovered or held.
   const onGizmo = () => {
-    const g = gizmo.current as unknown as { dragging: boolean; axis: string | null } | null;
-    return !!g && (g.dragging || g.axis !== null);
+    return [gizmo, cutRings].some((ref) => {
+      const g = ref.current as unknown as { dragging: boolean; axis: string | null } | null;
+      return !!g && (g.dragging || g.axis !== null);
+    });
   };
 
   // The object menu: a right click (released without dragging, since a
@@ -1584,7 +1624,8 @@ function Objects({ w, d }: { w: number; d: number }) {
         <CutPlane
           key={place.object}
           part={parts.find((p) => p.object === place.object)!}
-          controlsRef={gizmo}
+          arrowRef={gizmo}
+          ringsRef={cutRings}
           onRelease={() => (gizmoReleased.current = performance.now())}
         />
       )}

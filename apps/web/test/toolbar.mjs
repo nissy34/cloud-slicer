@@ -140,16 +140,34 @@ try {
     await page.waitForFunction(() => document.querySelector('[aria-label="Rotation Z"]')?.value === '0', null, { timeout: 30000 });
     console.log('Ctrl+Z / Ctrl+Y undo and redo the rotation');
 
-    // Cut shows its plane; the height follows the panel.
+    // Cut shows its plane; the position follows the panel. Tilt, Flip plane
+    // and Reset turn it; the cut itself replaces the boat with its two halves.
     await toolbar.getByRole('button', { name: 'Cut' }).click({ force: true });  // aria-disabled: still clickable, to explain itself
     const cut = page.getByRole('region', { name: 'Cut' });
     await cut.waitFor();
-    await cut.getByLabel('Cut height in mm').fill('12');
-    await cut.getByLabel('Cut height in mm').press('Enter');
-    await page.waitForFunction(() => document.querySelector('[aria-label="Cut height"]')?.value === '12', null, { timeout: 10000 });
+    const typeCut = async (label, value) => {
+      await cut.getByLabel(label).fill(value);
+      await cut.getByLabel(label).press('Enter');
+      await page.waitForFunction(([l, v]) => document.querySelector(`[aria-label="${l}"]`)?.value === v, [label, value], { timeout: 10000 });
+    };
+    await typeCut('Cut position in mm', '12');
+    await page.waitForFunction(() => document.querySelector('[aria-label="Cut position"]')?.value === '12', null, { timeout: 10000 });
+    await typeCut('Tilt X', '30');
     await page.waitForTimeout(300);
     if (shots) await page.screenshot({ path: join(shots, 'toolbar-desktop-cut.png') });
-    console.log('cut plane follows the height');
+    await cut.getByRole('button', { name: 'Flip plane' }).click();
+    await page.waitForFunction(() => document.querySelector('[aria-label="Tilt X"]')?.value === '-150' && document.querySelector('[aria-label="Cut position in mm"]')?.value === '-12', null, { timeout: 10000 });
+    await cut.getByRole('button', { name: 'Reset' }).click();
+    await page.waitForFunction(() => document.querySelector('[aria-label="Tilt X"]')?.value === '0', null, { timeout: 10000 });
+    console.log('cut plane follows the position, tilt, flip and reset');
+    await typeCut('Tilt X', '20');
+    await cut.getByRole('radiogroup', { name: 'Lower part' }).getByRole('radio', { name: 'Flip onto cut' }).click();
+    await cut.getByRole('button', { name: 'Cut', exact: true }).click();
+    await page.waitForFunction(() => document.querySelectorAll('ul.objects > li.object').length === 3, null, { timeout: 60000 });
+    await page.locator('body').press('Control+z');
+    await page.waitForFunction(() => document.querySelectorAll('ul.objects > li.object').length === 2, null, { timeout: 60000 });
+    console.log('a tilted cut makes two objects, and undo puts the boat back');
+    await objectRows(page).first().locator('.object-name').click();
 
     // Simplify (from the object list): the count it would leave, then Apply
     // halves the boat's triangles, and Ctrl+Z brings them back.
