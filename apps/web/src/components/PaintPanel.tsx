@@ -13,13 +13,24 @@ const TITLES: Record<PaintKind, string> = {
 };
 const KIND_WORDS: Record<PaintKind, string> = { color: 'colour', support: 'support', seam: 'seam', fuzzy: 'fuzzy skin' };
 
-const TOOLS: [PaintTool, string, string][] = [
-  ['circle', 'Brush', 'Paints the faces you see under the circle'],
-  ['sphere', 'Sphere', 'Paints everything inside the ball, front and back'],
-  ['fill', 'Smart fill', 'Fills connected faces that meet at less than the angle'],
-  ['bucket', 'Bucket', 'Fills the painted area you click, up to the angle'],
-  ['height', 'Height range', 'Paints every part all round, from where you click up by the height'],
+// Desktop's paint tool icons (resources/images, AGPL-3.0 like this app). Their
+// grey and teal become the page's text and accent colours.
+const ICONS = import.meta.glob<string>('../assets/orca-paint/*.svg', { query: '?raw', import: 'default', eager: true });
+const icon = (name: string) =>
+  (ICONS[`../assets/orca-paint/${name}.svg`] ?? '')
+    .replace(/#54545a/gi, 'currentColor')
+    .replace(/#009688/gi, 'var(--accent)')
+    .replace(/ width="\d+" height="\d+"/, '');
+
+/** Each tool, its desktop icon, its name and what it does (the button shows the icon; the tip, the rest). */
+const TOOLS: [PaintTool, string, string, string][] = [
+  ['circle', 'circle_paint', 'Brush', 'Paints the faces you see under the circle'],
+  ['sphere', 'toolbar_modifier_sphere', 'Sphere', 'Paints everything inside the ball, front and back'],
+  ['fill', 'triangle_paint', 'Smart fill', 'Fills connected faces that meet at less than the angle'],
+  ['bucket', 'fill_paint', 'Bucket', 'Fills the painted area you click, up to the angle'],
+  ['height', 'height_range', 'Height range', 'Paints every part all round, from where you click up by the height'],
 ];
+const SVGS = Object.fromEntries(TOOLS.map(([t, file]) => [t, icon(file)]));
 /** Tools desktop has only for colour painting. */
 const COLOUR_ONLY: PaintTool[] = ['bucket', 'height'];
 
@@ -105,10 +116,18 @@ export function PaintPanel() {
           </button>
         </div>
       )}
-      <div className="chooser" role="radiogroup" aria-label="Tool">
-        {TOOLS.filter(([t]) => colour || !COLOUR_ONLY.includes(t)).map(([t, label, title]) => (
-          <button key={t} role="radio" aria-checked={paint.tool === t} className={paint.tool === t ? 'on' : ''} title={title} onClick={() => change({ tool: t })}>
-            {label}
+      <div className="chooser paint-tools" role="radiogroup" aria-label="Tool">
+        {TOOLS.filter(([t]) => colour || !COLOUR_ONLY.includes(t)).map(([t, , label, what]) => (
+          <button
+            key={t}
+            role="radio"
+            aria-checked={paint.tool === t}
+            aria-label={label}
+            className={paint.tool === t ? 'on' : ''}
+            title={`${label}: ${what}`}
+            onClick={() => change({ tool: t })}
+          >
+            <span className="paint-tool-icon" aria-hidden="true" dangerouslySetInnerHTML={{ __html: SVGS[t] }} />
           </button>
         ))}
       </div>

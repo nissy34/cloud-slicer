@@ -264,3 +264,17 @@
 .cut-part .chooser > button {
   flex: 1;
 }
+/* Paint tools: desktop's icons, the name in the tip. */
+.paint-tools > button {
+  padding: 0;
+}
+.paint-tool-icon,
+.paint-tool-icon svg {
+  display: block;
+  width: 20px;
+  height: 20px;
+}
+/* Room for "Section view" on one line. */
+.paint-panel .transform-row {
+  grid-template-columns: 84px 1fr auto;
+}
