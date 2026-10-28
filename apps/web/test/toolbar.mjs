@@ -179,8 +179,8 @@ try {
     await page.waitForTimeout(800); // the view turning to the face
     const face = await page.getByTestId('viewport').boundingBox();
     const panel = await cut.boundingBox();
-    // The face is in the middle of the view, partly under the panel: just left of it.
-    await page.mouse.click(Math.min(face.x + face.width / 2, panel.x - 30), face.y + face.height / 2);
+    // The face shows in the middle of the view left of the panel.
+    await page.mouse.click(face.x + (panel.x - face.x) / 2, face.y + face.height / 2);
     await cut.getByRole('tab', { name: 'Connectors (1)' }).waitFor({ timeout: 10000 });
     await cut.getByRole('button', { name: 'Cut', exact: true }).click();
     await page.waitForFunction(() => document.querySelectorAll('ul.objects > li.object').length === 4, null, { timeout: 60000 });

@@ -7,8 +7,12 @@ import cubeIcon from '../assets/orca-view/menu_obj_cube.svg?raw';
 import { Menu } from './Menu';
 
 export type View = 'fit' | 'iso' | 'top' | 'bottom' | 'front' | 'back' | 'left' | 'right';
-/** A look along `from` (towards the scene) at `box`, for a tool that turns the view (the Cut tool's connectors). */
-export type ViewFrom = { from: THREE.Vector3; box: THREE.Box3 };
+/**
+ * A look along `from` (towards the scene) at `box`, for a tool that turns the
+ * view (the Cut tool's connectors); `aside` moves the box left by that part of
+ * the view's width, out from under a panel.
+ */
+export type ViewFrom = { from: THREE.Vector3; box: THREE.Box3; aside?: number };
 
 /** Moves the camera of the 3D view it was handed to (CameraViews fills it in). */
 export type ViewHandle = React.MutableRefObject<((view: View | ViewFrom) => void) | null>;
@@ -74,7 +78,13 @@ function Views({ handle, box }: { handle: ViewHandle; box: () => THREE.Box3 }) {
         : view === 'fit'
           ? camera.position.clone().sub(target).normalize()
           : new THREE.Vector3(...VIEWS.find((v) => v.view === view)!.from).normalize();
-    bounds.refresh(b).moveTo(sphere.center.clone().addScaledVector(from, distance)).lookAt({ target: sphere.center, up: Z_UP });
+    const centre = sphere.center.clone();
+    if (typeof view === 'object' && view.aside) {
+      // The view's right, at the box: the target goes that way, so the box shows left of the middle.
+      const right = from.clone().negate().cross(Z_UP).normalize();
+      centre.addScaledVector(right, view.aside * 2 * distance * Math.tan(horizontal / 2));
+    }
+    bounds.refresh(b).moveTo(centre.clone().addScaledVector(from, distance)).lookAt({ target: centre, up: Z_UP });
     // Bounds moves the camera frame by frame, and this view only draws on demand.
     invalidate();
   };

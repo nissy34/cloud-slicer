@@ -487,11 +487,17 @@ function CutPlane({ part, active, views, onRelease }: { part: Part; active: Reac
   above.setFromNormalAndCoplanarPoint(normal, centre);
   below.setFromNormalAndCoplanarPoint(normal.clone().negate(), centre);
   const invalidate = useThree((s) => s.invalidate);
+  const gl = useThree((s) => s.gl);
   useLayoutEffect(() => invalidate(), [centre.x, centre.y, centre.z, quaternion, invalidate]); // the clipping planes moved
 
   // Placing connectors, the view looks straight at the cut face, like desktop.
   useEffect(() => {
-    if (placing) views.current?.({ from: normal, box: new THREE.Box3().setFromCenterAndSize(centre, new THREE.Vector3(span, span, span).multiplyScalar(0.6)) });
+    if (!placing) return;
+    // Beside the Cut panel when it sits over the view (not on a phone, where it is above).
+    const r = gl.domElement.getBoundingClientRect();
+    const panel = document.querySelector('section[aria-label="Cut"]')?.getBoundingClientRect();
+    const aside = panel && panel.left > r.left + r.width * 0.3 && panel.left < r.right && panel.top < r.top + r.height / 2 ? 0.5 - (panel.left - r.left) / 2 / r.width : 0;
+    views.current?.({ from: normal, box: new THREE.Box3().setFromCenterAndSize(centre, new THREE.Vector3(span, span, span).multiplyScalar(0.6)), aside });
   }, [placing]);
 
   const lowerTint = useRef<THREE.Mesh>(null);
