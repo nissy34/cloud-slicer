@@ -2281,7 +2281,12 @@ export const useSlicer = create<SlicerState>((set, get) => {
         volume = out.volume;
         return out.info;
       });
-      if (volume === undefined) return false;
+      if (volume === undefined) {
+        // Desktop shows its warning as a notice too; the card has it in full.
+        const job = get().job;
+        if (job.kind === 'error') set({ notice: job.message, noticeWarn: true });
+        return false;
+      }
       const instance = get().selected?.object === o ? get().selected!.instance : 0;
       set({ selected: { object: o, instance, volume } });
       return true;

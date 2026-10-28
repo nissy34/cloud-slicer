@@ -1,4 +1,4 @@
-// Mesh boolean of two volumes of one object (engine/src/boolean_api.cpp),
+// Mesh boolean of two volumes of one object, or of one and all the others (the object menu joins all parts) (engine/src/boolean_api.cpp),
 // like desktop Orca's Mesh Boolean tool.
 import type { VolumeInfo } from '../engine/protocol';
 
@@ -9,10 +9,14 @@ export const BOOLEAN_OPS: { op: BooleanOp; label: string }[] = [
   { op: 'intersection', label: 'Intersection' },
 ];
 
+/** The second picker's "All the other parts": every other part of the object (and negative part, for a difference). */
+export const ALL = -1;
+
 export interface BooleanRequest {
   op: BooleanOp;
   /** The volume kept (subtracted from, for a difference). */
   a: number;
+  /** The other volume, or ALL. */
   b: number;
   /** Drop the second volume too (a union always does). */
   deleteInput?: boolean;

@@ -1,5 +1,6 @@
 import { Fragment, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 import { menuPosition, unitConversions } from '../lib/objectMenu';
+import { ALL } from '../lib/boolean';
 import { ADD_MENUS, KIND_LABELS, keepsAPart, SHAPES, type VolumeKind } from '../lib/volumes';
 import { NO_COLOURS, useSlicer } from '../state/store';
 import { startSvg } from './SvgPanel';
@@ -375,13 +376,16 @@ function MenuCard() {
             }),
             { title: 'Fewer triangles, keeping the shape' },
           )}
+          {/* Joins all the object's parts into one (the toolbar's Mesh boolean works on two). */}
           {item(
             'Mesh boolean',
             run(() => {
               s.select({ object: o, instance: i });
-              s.setTool('boolean');
+              return s.meshBoolean(o, { op: 'union', a: obj.volumes.findIndex((v) => v.kind === 'part'), b: ALL });
             }),
-            { title: 'Join two parts, cut one out of the other or keep their overlap' },
+            obj.volumes.filter((v) => v.kind === 'part').length < 2
+              ? { disabled: true, title: 'It has only one part: add a part first' }
+              : { title: 'Join all its parts into one part' },
           )}
           {item('Printable', run(() => s.objectAction(o, i, { op: 'printable', value: !inst.printable }, 'Printable')), { checked: inst.printable })}
           {item('Rename…', () => setForm('rename'))}

@@ -464,10 +464,20 @@ try {
     await page.waitForFunction(() => document.querySelectorAll('ul.objects > li.object:first-child ul.volumes > li').length === 3, null, { timeout: 30000 });
     console.log(`parts and modifiers: ${names.join(' | ')}; delete and undo`);
 
-    // Mesh boolean from the object menu: the boat and the tetrahedron part
-    // become one part, undone like any edit.
+    // Mesh boolean from the object menu joins all the object's parts (the boat
+    // and the tetrahedron) into one; the negative part stays. Undo brings them back.
     await more(0).click();
     await objectMenu.getByRole('menuitem', { name: 'Mesh boolean' }).click();
+    await page.waitForFunction(() => document.querySelectorAll('ul.objects > li.object:first-child ul.volumes > li').length === 2, null, { timeout: 60000 });
+    const merged = await volumes.locator('.volume-name').allInnerTexts();
+    if (!/ - union/.test(merged[0]) || !/Negative part/.test(merged[1])) fail(`the menu's Mesh boolean should join the parts and keep the negative part: ${merged}`);
+    await page.locator('body').press('Control+z');
+    await page.waitForFunction(() => document.querySelectorAll('ul.objects > li.object:first-child ul.volumes > li').length === 3, null, { timeout: 30000 });
+    console.log(`object menu Mesh boolean: ${merged.join(' | ')}; undo brings the parts back`);
+
+    // The toolbar's Mesh boolean is desktop's card: two parts, the result undone like any edit.
+    if (!/\bactive\b/.test(await objectRows(page).first().getAttribute('class'))) await objectRows(page).first().locator('.object-name').click();
+    await toolbar.getByRole('button', { name: 'Mesh boolean' }).click();
     const booleanPanel = page.getByRole('region', { name: 'Mesh boolean' });
     await booleanPanel.waitFor();
     await booleanPanel.getByRole('radio', { name: 'Difference' }).click();
