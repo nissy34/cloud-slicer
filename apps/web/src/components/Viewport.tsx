@@ -481,6 +481,9 @@ function CutPlane({ part, active, views, onRelease }: { part: Part; active: Reac
   const quaternion = useMemo(() => cutQuaternion(rotation), [rotation]);
   const normal = useMemo(() => cutNormal(rotation), [rotation]);
   const centre = cutCentre(middle, position, normal);
+  // Where the gizmo sits on the plane: tilting turns the plane there (turnPlane).
+  const spot = useSlicer((s) => s.cutSpot);
+  const gizmo = spotPoint(spot, centre, rotation);
   // Three keeps what is on the positive side of a clipping plane.
   const above = useMemo(() => new THREE.Plane(), []);
   const below = useMemo(() => new THREE.Plane(), []);
@@ -551,7 +554,7 @@ function CutPlane({ part, active, views, onRelease }: { part: Part; active: Reac
       ) : (
         <>
           <mesh
-            position={centre}
+            position={gizmo}
             quaternion={quaternion}
             renderOrder={2}
             onClick={(e) => {
@@ -564,7 +567,7 @@ function CutPlane({ part, active, views, onRelease }: { part: Part; active: Reac
             <planeGeometry args={[span, span]} />
             <meshBasicMaterial color="#ffffff" transparent opacity={0.22} side={THREE.DoubleSide} depthWrite={false} />
           </mesh>
-          <CutGrabbers centre={centre} quaternion={quaternion} middle={middle} size={size} active={active} onRelease={onRelease} />
+          <CutGrabbers centre={gizmo} quaternion={quaternion} middle={middle} size={size} active={active} onRelease={onRelease} />
         </>
       )}
     </>
@@ -712,7 +715,7 @@ function CutGrabbers({
   const [hover, setHover] = useState<'ball' | 'x' | 'y' | null>(null);
   // The handle held, and while tilting the turn so far, for desktop's protractor.
   const [held, setHeld] = useState<{ kind: 'ball' | 'x' | 'y'; quaternion: THREE.Quaternion; angle: number } | null>(null);
-  const drag = useRef<{ kind: 'ball' | 'x' | 'y'; start: number; position: number; rotation: CutRotation; quaternion: THREE.Quaternion; from: THREE.Vector3 } | null>(null);
+  const drag = useRef<{ kind: 'ball' | 'x' | 'y'; start: number; position: number; quaternion: THREE.Quaternion; from: THREE.Vector3; origin: THREE.Vector3 } | null>(null);
   const normal = new THREE.Vector3(0, 0, 1).applyQuaternion(quaternion);
   const axisOf = (kind: 'x' | 'y') => new THREE.Vector3(kind === 'x' ? 1 : 0, kind === 'y' ? 1 : 0, 0).applyQuaternion(quaternion);
   // How far along the arrow the ray passes closest to it.
@@ -735,7 +738,7 @@ function CutGrabbers({
     const q = cutQuaternion(s.cutRotation);
     const from = kind === 'ball' ? new THREE.Vector3() : onCircle(e.ray, axisOf(kind), centre);
     if (!from) return;
-    drag.current = { kind, start: kind === 'ball' ? along(e.ray, centre, normal) : 0, position: s.cutZ, rotation: s.cutRotation, quaternion: q, from };
+    drag.current = { kind, start: kind === 'ball' ? along(e.ray, centre, normal) : 0, position: s.cutZ, quaternion: q, from, origin: centre.clone() };
     setHeld({ kind, quaternion: q, angle: 0 });
     (e.target as Element).setPointerCapture(e.pointerId);
     active.current = true;
@@ -746,8 +749,7 @@ function CutGrabbers({
     if (!d) return;
     e.stopPropagation();
     if (d.kind === 'ball') {
-      const start = cutCentre(middle, d.position, normal);
-      let p = d.position + along(e.ray, start, normal) - d.start;
+      let p = d.position + along(e.ray, d.origin, normal) - d.start;
       if (snap) p = Math.round(p);
       const [lo, hi] = positionRange([size.x, size.y, size.z], rotation).map((v) => v + normal.z * (middle.z - size.z / 2));
       setPosition(Math.round(Math.min(Math.max(p, lo + 0.2), hi - 0.2) * 100) / 100);
@@ -759,7 +761,7 @@ function CutGrabbers({
     let angle = Math.atan2(d.from.clone().cross(now).dot(axis), d.from.dot(now));
     if (snap) angle = Math.round(angle / (15 * DEG)) * 15 * DEG;
     setHeld((h) => h && { ...h, angle });
-    setRotation(rotationOf(new THREE.Quaternion().setFromAxisAngle(axis, angle).multiply(d.quaternion)));
+    setRotation(rotationOf(new THREE.Quaternion().setFromAxisAngle(axis, angle).multiply(d.quaternion)), middle.z);
   };
   const up = (e: ThreeEvent<PointerEvent>) => {
     if (!drag.current) return;
@@ -820,7 +822,7 @@ function CutGrabbers({
       {shown('y') && cone('y', [off, 0, stem], [0, 0, -Math.PI / 2], GRAB_Y)}
       {shown('y') && cone('y', [-off, 0, stem], [0, 0, Math.PI / 2], GRAB_Y)}
       {turning && (
-        <Html position={[0, 0, stem]} zIndexRange={[2, 0]} style={{ pointerEvents: 'none' }}>
+        <Html position={[0, 0, stem]} zIndexRange={[2, 0]} style={{ pointerEvents: 'none', transform: 'translate(24px, -150%)' }}>
           <div className="measure-label cut-angle">
             {turning.kind.toUpperCase()}: {(turning.angle / DEG).toFixed(1)}°
           </div>
@@ -1797,7 +1799,7 @@ function Objects({ w, d, views }: { w: number; d: number; views: ViewHandle }) {
     }
     const nowGroup = useSlicer.getState().group;
     // Several chosen: a press on one of them moves them all (a long press opens their menu).
-    if (nowGroup.length > 1 && nowGroup.includes(object) && !brimTool && !shapeTool) {
+    if (nowGroup.length > 1 && nowGroup.includes(object) && !brimTool && !shapeTool && tool !== 'cut') {
       if (e.pointerType === 'touch') pressForMenu(e.nativeEvent, true, () => openGroupMenu({ x: e.nativeEvent.clientX, y: e.nativeEvent.clientY }));
       const hit = new THREE.Vector3();
       e.ray.intersectPlane(plane, hit);
@@ -1815,7 +1817,8 @@ function Objects({ w, d, views }: { w: number; d: number; views: ViewHandle }) {
     if (first && e.pointerType === 'touch' && tool !== 'cut') menuPress(e.nativeEvent, object, first.i, true);
     // Brim ears: a click adds an ear (onEarClick); the object stays put. The
     // Text and SVG tools move shapes, not objects with other parts.
-    if (brimTool || (shapeTool && (obj?.volumes.length ?? 0) > 1)) return;
+    // Cutting, the model stays put (a finger on it would move it by mistake).
+    if (brimTool || tool === 'cut' || (shapeTool && (obj?.volumes.length ?? 0) > 1)) return;
     // Dragging moves an object with a single instance on this plate.
     if (instances.length !== 1) return;
     const hit = new THREE.Vector3();

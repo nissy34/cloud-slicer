@@ -143,7 +143,9 @@ export function CutPanel({ object, instance, size, onDone }: { object: number; i
   const z = useSlicer((s) => s.cutZ);
   const setZ = useSlicer((s) => s.setCutZ);
   const rotation = useSlicer((s) => s.cutRotation);
+  const spot = useSlicer((s) => s.cutSpot);
   const setRotation = useSlicer((s) => s.setCutRotation);
+  const resetPlane = useSlicer((s) => s.resetCutPlane);
   const tab = useSlicer((s) => s.cutTab);
   const setTab = useSlicer((s) => s.setCutTab);
   const connectors = useSlicer((s) => s.cutConnectors);
@@ -165,7 +167,7 @@ export function CutPanel({ object, instance, size, onDone }: { object: number; i
   const tilt = (axis: 0 | 1, v: number) => {
     const next: CutRotation = [...rotation];
     next[axis] = wrapAngle(v);
-    setRotation(next);
+    setRotation(next, size[2] / 2);
   };
   const partRow = (title: string, value: CutPart, set: (p: CutPart) => void, other: CutPart) => (
     <div className="cut-part">
@@ -212,10 +214,9 @@ export function CutPanel({ object, instance, size, onDone }: { object: number; i
             </button>
             <button
               className="quiet"
-              disabled={flat && rotation[2] === 0 && Math.abs(z - size[2] / 2) < 0.01}
+              disabled={flat && rotation[2] === 0 && Math.abs(z - size[2] / 2) < 0.01 && spot[0] === 0 && spot[1] === 0}
               onClick={() => {
-                setRotation([0, 0, 0]);
-                setZ(round(size[2] / 2));
+                resetPlane(round(size[2] / 2));
               }}
             >
               Reset

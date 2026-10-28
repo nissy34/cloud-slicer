@@ -1,7 +1,7 @@
 import { useMemo } from 'react';
 import { create } from 'zustand';
 import * as THREE from 'three';
-import { DEFAULT_CONNECTOR, flipPlane, type Connector, type ConnectorKind, type CutPieces, type CutRequest, type CutRotation } from '../lib/cut';
+import { DEFAULT_CONNECTOR, flipPlane, turnPlane, type Connector, type ConnectorKind, type CutPieces, type CutRequest, type CutRotation } from '../lib/cut';
 import { EngineClient, type History, type InstanceChanges, type MixedReply, type MixedRequest, type ParsedPreset, type ProjectThumbnail, type ShapePlaceRequest, type ShapeState, type UserPresetFile } from '../engine/client';
 
 /** Omit over each member of a union. */
@@ -285,6 +285,8 @@ export interface SlicerState {
    */
   cutZ: number;
   cutRotation: CutRotation;
+  /** Where the cut gizmo sits on the plane (from the point nearest the object's middle): tilting turns the plane there. */
+  cutSpot: [number, number];
   /** The Cut panel's open tab; on Connectors the 3D view looks at the cut face and a tap adds one. */
   cutTab: 'plane' | 'connectors';
   cutConnectors: Connector[];
@@ -325,7 +327,9 @@ export interface SlicerState {
   /** Moves the second pick's part or object onto the first, or joins their objects, like desktop's Assemble. */
   assemble(request: AssembleRequest): Promise<void>;
   setCutZ(z: number): void;
-  setCutRotation(rotation: CutRotation): void;
+  /** Tilts the plane about the gizmo (the object's middle `middleZ` up from the bed); without it, about the bed under the middle. */
+  setCutRotation(rotation: CutRotation, middleZ?: number): void;
+  resetCutPlane(position: number): void;
   setCutTab(tab: 'plane' | 'connectors'): void;
   /** Adds a connector of the current kind at [u, v] on the plane and chooses it alone. */
   addCutConnector(at: [number, number]): void;
@@ -1405,6 +1409,7 @@ export const useSlicer = create<SlicerState>((set, get) => {
     history: { undo: null, redo: null },
     cutZ: 0,
     cutRotation: [0, 0, 0],
+    cutSpot: [0, 0],
     cutTab: 'plane',
     cutConnectors: [],
     cutPicked: [],
@@ -1645,10 +1650,17 @@ export const useSlicer = create<SlicerState>((set, get) => {
       const height = selected ? project?.objects[selected.object]?.size[2] : undefined;
       const measure = { ...NO_MEASURE, onlyPlane: get().measure.onlyPlane };
       const reset = { tool, measure, layers: null, brim: null, brimPicked: [] as number[] };
-      set(tool === 'cut' && height ? { ...reset, cutZ: Math.round(height * 50) / 100, cutRotation: [0, 0, 0], cutTab: 'plane', cutConnectors: [], cutPicked: [], cutPieces: null } : reset);
+      set(tool === 'cut' && height ? { ...reset, cutZ: Math.round(height * 50) / 100, cutRotation: [0, 0, 0], cutSpot: [0, 0], cutTab: 'plane', cutConnectors: [], cutPicked: [], cutPieces: null } : reset);
     },
     setCutZ: (cutZ) => set((s) => (s.cutZ === cutZ ? {} : { cutZ, cutPieces: null })),
-    setCutRotation: (cutRotation) => set((s) => (s.cutRotation.every((a, k) => a === cutRotation[k]) ? {} : { cutRotation, cutPieces: null })),
+    setCutRotation: (cutRotation, middleZ) =>
+      set((s) => {
+        if (s.cutRotation.every((a, k) => a === cutRotation[k])) return {};
+        if (middleZ === undefined) return { cutRotation, cutPieces: null };
+        const t = turnPlane(middleZ, s.cutZ, s.cutRotation, s.cutSpot, cutRotation);
+        return { cutRotation, cutZ: t.position, cutSpot: t.spot, cutPieces: null };
+      }),
+    resetCutPlane: (cutZ) => set({ cutZ, cutRotation: [0, 0, 0], cutSpot: [0, 0], cutPieces: null }),
     swapCutPiece: (k) => set((s) => (s.cutPieces ? { cutPieces: { ...s.cutPieces, upper: s.cutPieces.upper.map((u, j) => (j === k ? !u : u)) } } : {})),
     async loadCutPieces(o, i) {
       const { cutZ, cutRotation } = get();
@@ -1667,7 +1679,8 @@ export const useSlicer = create<SlicerState>((set, get) => {
       set((s) => {
         const f = flipPlane(s.cutZ, s.cutRotation);
         // The engine numbers the pieces anew for the turned plane, so moved pieces start over.
-        return { cutZ: f.position, cutRotation: f.rotation, cutPieces: null };
+        // Turned over about its X, the gizmo's spot has its Y the other way.
+        return { cutZ: f.position, cutRotation: f.rotation, cutSpot: [s.cutSpot[0], -s.cutSpot[1] || 0], cutPieces: null };
       }),
     setCutTab: (cutTab) => set({ cutTab }),
     addCutConnector: (at) => set((s) => ({ cutConnectors: [...s.cutConnectors, { ...s.cutKind, at }], cutPicked: [s.cutConnectors.length] })),

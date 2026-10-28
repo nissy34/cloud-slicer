@@ -155,9 +155,12 @@ try {
     await page.waitForFunction(() => document.querySelector('[aria-label="Cut position"]')?.value === '12', null, { timeout: 10000 });
     await typeCut('Tilt X', '30');
     await page.waitForTimeout(300);
+    // Tilting turns the plane about the gizmo, as desktop does, so its position along the new arrow changes.
+    const tilted = await cut.getByLabel('Cut position in mm').inputValue();
+    if (tilted === '12') fail('tilting turned the plane about the bed, not the gizmo');
     if (shots) await page.screenshot({ path: join(shots, 'toolbar-desktop-cut.png') });
     await cut.getByRole('button', { name: 'Flip plane' }).click();
-    await page.waitForFunction(() => document.querySelector('[aria-label="Tilt X"]')?.value === '-150' && document.querySelector('[aria-label="Cut position in mm"]')?.value === '-12', null, { timeout: 10000 });
+    await page.waitForFunction((p) => document.querySelector('[aria-label="Tilt X"]')?.value === '-150' && Number(document.querySelector('[aria-label="Cut position in mm"]')?.value) === -Number(p), tilted, { timeout: 10000 });
     await cut.getByRole('button', { name: 'Reset' }).click();
     await page.waitForFunction(() => document.querySelector('[aria-label="Tilt X"]')?.value === '0', null, { timeout: 10000 });
     console.log('cut plane follows the position, tilt, flip and reset');

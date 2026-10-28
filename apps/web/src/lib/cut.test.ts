@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import * as THREE from 'three';
-import { cutOutline, planeSpot, spotPoint, cutCentre, cutNormal, cutQuaternion, flipPlane, positionAt, positionRange, rotationOf, wrapAngle } from './cut';
+import { turnPlane, cutOutline, planeSpot, spotPoint, cutCentre, cutNormal, cutQuaternion, flipPlane, positionAt, positionRange, rotationOf, wrapAngle } from './cut';
 
 const close = (v: THREE.Vector3, x: number, y: number, z: number) => {
   expect(v.x).toBeCloseTo(x, 6);
@@ -74,6 +74,21 @@ describe('cut plane', () => {
     expect(cutOutline(box, new THREE.Vector3(0, 0, 40), new THREE.Vector3(0, 0, 1))).toEqual([]);
     const upright = cutOutline(box.toNonIndexed(), new THREE.Vector3(1, 0, 0), new THREE.Vector3(1, 0, 0));
     expect(length(upright)).toBeCloseTo(100, 4); // 20 x 30
+  });
+
+  it('tilting turns the plane about the gizmo, not the bed', () => {
+    const middle = new THREE.Vector3(0, 0, 24);
+    const at = (position: number, rotation: [number, number, number], spot: [number, number]) => spotPoint(spot, cutCentre(middle, position, cutNormal(rotation)), rotation);
+    // Cut low on the object: the gizmo at z 5 stays there as the plane tilts.
+    let state = { position: 5, rotation: [0, 0, 0] as [number, number, number], spot: [0, 0] as [number, number] };
+    for (const next of [[30, 0, 0], [30, -20, 0], [-60, 45, 0]] as [number, number, number][]) {
+      const t = turnPlane(24, state.position, state.rotation, state.spot, next);
+      state = { position: t.position, rotation: next, spot: t.spot };
+      const p = at(state.position, state.rotation, state.spot);
+      expect(p.x).toBeCloseTo(0, 1);
+      expect(p.y).toBeCloseTo(0, 1);
+      expect(p.z).toBeCloseTo(5, 1);
+    }
   });
 
   it('wraps angles', () => {

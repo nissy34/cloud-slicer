@@ -136,6 +136,20 @@ export function spotPoint(at: [number, number], centre: THREE.Vector3, rotation:
   return new THREE.Vector3(at[0], at[1], 0).applyQuaternion(cutQuaternion(rotation)).add(centre);
 }
 
+/**
+ * Tilts the plane about the gizmo's point, like desktop: the plane turns there
+ * instead of about the bed under the object. `spot` is where the gizmo sits on
+ * the plane, from the point nearest the object's middle (`middleZ` up from
+ * the bed). Gives the plane's new position and the gizmo's new spot.
+ */
+export function turnPlane(middleZ: number, position: number, rotation: CutRotation, spot: [number, number], next: CutRotation): { position: number; spot: [number, number] } {
+  const middle = new THREE.Vector3(0, 0, middleZ);
+  const pivot = spotPoint(spot, cutCentre(middle, position, cutNormal(rotation)), rotation);
+  const normal = cutNormal(next);
+  const moved = Math.round(positionAt(middle, pivot, normal) * 100) / 100;
+  return { position: moved, spot: planeSpot(pivot, cutCentre(middle, moved, normal), next) };
+}
+
 /** Sides of a connector's shape (a circle is drawn with 32). */
 export const SIDES: Record<ConnectorShape, number> = { triangle: 3, square: 4, hexagon: 6, circle: 32 };
 
