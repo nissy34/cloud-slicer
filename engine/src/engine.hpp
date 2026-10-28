@@ -48,6 +48,14 @@ struct Project {
 
 Project& project();
 
+// What the engine keeps beside the project, dropped before another project
+// is opened so the old one's memory is free for it: the undo history
+// (history_api.cpp), the paint selector and ray-cast trees (paint_api.cpp) and
+// the Simplify preview (simplify_api.cpp).
+void clearUndoHistory();
+void clearPaintCaches();
+void clearSimplifyPreview();
+
 // Puts a new object on `plate`, on the free spot closest to the centre, on the
 // bed, as an added model is placed (model_api.cpp).
 void placeObject(Slic3r::ModelObject* obj, int plate);

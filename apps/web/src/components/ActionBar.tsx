@@ -223,7 +223,7 @@ export function ActionBar() {
           <span className="hint warn" data-testid="heavy-model">
             {' '}
             {(project?.plates.length ?? 0) > 1 ? 'This plate has' : 'This model has'} {triangleCount(heavy.triangles)} triangles, more than a browser can comfortably slice. Simplifying it to
-            about {triangleCount(LIGHT_TRIANGLES)} keeps plenty of detail for printing{heavy.painted ? ', but removes its paint' : ''}.
+            about {triangleCount(LIGHT_TRIANGLES)} keeps plenty of detail for printing.
           </span>
         )}
       </div>

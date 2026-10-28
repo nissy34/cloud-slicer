@@ -1,19 +1,26 @@
 // Simplify, like desktop Orca's Simplify tool (GLGizmoSimplify): fewer
 // triangles for an object's parts with Orca's quadric edge collapse
 // (its_quadric_edge_collapse), by a detail level (largest error allowed) or a
-// decimate ratio (share of triangles to remove). As on desktop the new mesh
-// drops the object's paint, which belonged to the old triangles.
+// decimate ratio (share of triangles to remove). Painting on the parts
+// (filament colours, support enforcers/blockers, seam enforcers/blockers and
+// fuzzy skin) is remapped onto the simplified mesh so painted models keep their
+// colours and painted regions.
 #include "engine.hpp"
+#include "paint_remap.hpp"
 
 #include "libslic3r/QuadricEdgeCollapse.hpp"
 
 #include <algorithm>
+#include <array>
 #include <cmath>
 #include <limits>
 #include <memory>
+#include <optional>
+#include <vector>
 
 using nlohmann::json;
 using namespace Slic3r;
+namespace paint = engine::paint;
 
 namespace {
 
@@ -43,7 +50,14 @@ size_t triangles(const ModelObject& obj) {
     return n;
 }
 
-const Preview& simplified(const ModelObject& obj, const json& req) {
+bool isPainted(const ModelObject& obj) {
+    for (const ModelVolume* v : obj.volumes)
+        if (!v->supported_facets.empty() || !v->seam_facets.empty() || !v->mmu_segmentation_facets.empty() || !v->fuzzy_skin_facets.empty())
+            return true;
+    return false;
+}
+
+Preview& simplified(const ModelObject& obj, const json& req) {
     const std::string key = json{{"level", req.value("level", -1)}, {"ratio", req.value("ratio", -1.0)}}.dump();
     bool fresh = g_preview && g_preview->object == obj.id() && g_preview->request == key;
     if (fresh) {
@@ -81,36 +95,37 @@ const Preview& simplified(const ModelObject& obj, const json& req) {
 // request: {op: "get"}                     the object's triangle count
 //          {op: "preview" | "apply", level: 0..4}   desktop's detail level (Extra high .. Extra low)
 //          {op: "preview" | "apply", ratio: 0..100} desktop's decimate ratio, % of triangles removed
-// Returns {ok, triangles (now), after (with this request), painted (apply would
-// remove paint)}.
+// Returns {ok, triangles (now), after (with this request), painted}.
 std::string simplifyObject(int o, const std::string& requestJson) {
     try {
         ModelObject* obj = objectAt(o);
         const json req = json::parse(requestJson);
         const std::string op = req.value("op", "get");
-        bool painted = false;
-        for (const ModelVolume* v : obj->volumes)
-            painted = painted || !v->supported_facets.empty() || !v->seam_facets.empty() || !v->mmu_segmentation_facets.empty() ||
-                      !v->fuzzy_skin_facets.empty();
+        const bool painted = isPainted(*obj);
         json out{{"ok", true}, {"triangles", triangles(*obj)}, {"painted", painted}};
         if (op == "get") return out.dump();
         if (op != "preview" && op != "apply") throw std::runtime_error("unknown simplify op " + op);
 
-        const Preview& p = simplified(*obj, req);
+        Preview& p = simplified(*obj, req);
         size_t after = 0;
         for (const auto& part : p.parts) after += part.second.indices.size();
         out["after"] = after;
         if (op == "preview") return out.dump();
 
-        // Desktop's apply_simplify: the new mesh, paint gone (clear_before_change_mesh), back on the bed.
         size_t k = 0;
         for (ModelVolume* v : obj->volumes) {
-            v->supported_facets.reset();
-            v->seam_facets.reset();
-            v->mmu_segmentation_facets.reset();
-            v->fuzzy_skin_facets.reset();
             if (!v->is_model_part()) continue;
-            v->set_mesh(indexed_triangle_set(p.parts[k++].second));
+            // The preview's mesh is used up here (g_preview goes below).
+            TriangleMesh newMesh(std::move(p.parts[k++].second));
+            if (!v->supported_facets.empty() || !v->seam_facets.empty() || !v->mmu_segmentation_facets.empty() ||
+                !v->fuzzy_skin_facets.empty()) {
+                const paint::Source src(v->mesh().its);
+                paint::remapAnnotation(src, v->supported_facets, v->supported_facets, newMesh);
+                paint::remapAnnotation(src, v->seam_facets, v->seam_facets, newMesh);
+                paint::remapAnnotation(src, v->mmu_segmentation_facets, v->mmu_segmentation_facets, newMesh);
+                paint::remapAnnotation(src, v->fuzzy_skin_facets, v->fuzzy_skin_facets, newMesh);
+            }
+            v->set_mesh(std::move(newMesh));
             v->calculate_convex_hull();
             v->invalidate_convex_hull_2d();
             v->set_new_unique_id();
@@ -119,7 +134,7 @@ std::string simplifyObject(int o, const std::string& requestJson) {
         obj->invalidate_bounding_box();
         obj->ensure_on_bed();
         out["triangles"] = triangles(*obj);
-        out["painted"] = false;
+        out["painted"] = isPainted(*obj);
         return out.dump();
     } catch (const std::exception& e) {
         return json{{"ok", false}, {"error", e.what()}}.dump();
@@ -127,6 +142,8 @@ std::string simplifyObject(int o, const std::string& requestJson) {
 }
 
 } // namespace
+
+void engine::clearSimplifyPreview() { g_preview.reset(); }
 
 EMSCRIPTEN_BINDINGS(simplify_api) {
     emscripten::function("simplifyObject", &simplifyObject);

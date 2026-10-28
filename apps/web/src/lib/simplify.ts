@@ -11,7 +11,7 @@ export interface SimplifyResult {
   triangles: number;
   /** Its triangles with the request applied (preview and apply). */
   after?: number;
-  /** It has paint, which simplifying removes. */
+  /** It has paint (remapped onto the simplified mesh). */
   painted: boolean;
 }
 

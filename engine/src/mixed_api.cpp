@@ -174,7 +174,15 @@ void applyRemap(const std::vector<unsigned>& remap, size_t newTotal) {
         move(obj->config);
         for (ModelVolume* v : obj->volumes) {
             move(v->config);
-            v->remap_extruder_ids(newTotal, states);
+            // ModelVolume::remap_extruder_ids, deciding from the paint's used
+            // states instead of rebuilding all its facets (get_extruders).
+            if (v->mmu_segmentation_facets.empty()) continue;
+            bool remaps = false;
+            for (size_t e : v->get_extruders_from_multi_material_painting()) {
+                const size_t id = e + 1;
+                remaps |= id >= states.size() || id > newTotal || states[id] != EnforcerBlockerType(id);
+            }
+            if (remaps) v->mmu_segmentation_facets.remap_enforcer_block_types(*v, EnforcerBlockerType(newTotal), states);
         }
     }
 }
