@@ -7,9 +7,11 @@ import cubeIcon from '../assets/orca-view/menu_obj_cube.svg?raw';
 import { Menu } from './Menu';
 
 export type View = 'fit' | 'iso' | 'top' | 'bottom' | 'front' | 'back' | 'left' | 'right';
+/** A look along `from` (towards the scene) at `box`, for a tool that turns the view (the Cut tool's connectors). */
+export type ViewFrom = { from: THREE.Vector3; box: THREE.Box3 };
 
 /** Moves the camera of the 3D view it was handed to (CameraViews fills it in). */
-export type ViewHandle = React.MutableRefObject<((view: View) => void) | null>;
+export type ViewHandle = React.MutableRefObject<((view: View | ViewFrom) => void) | null>;
 
 // Desktop Orca's View menu and its number keys (Camera::select_view): Iso
 // looks from the front left, Top has the front of the plate at the bottom of
@@ -55,11 +57,11 @@ function Views({ handle, box }: { handle: ViewHandle; box: () => THREE.Box3 }) {
     return () => controls.removeEventListener('start', up);
   }, [controls, camera]);
 
-  const go = (view: View) => {
+  const go = (view: View | ViewFrom) => {
     // The whole box in sight from any side: its bounding sphere fits the
     // narrower of the two fields of view. (Bounds' own fit is too tight for
     // a tall model, or a phone held upright.)
-    const b = box();
+    const b = typeof view === 'object' ? view.box : box();
     const sphere = b.getBoundingSphere(new THREE.Sphere());
     const cam = camera as THREE.PerspectiveCamera;
     const vertical = THREE.MathUtils.degToRad(cam.fov);
@@ -67,9 +69,11 @@ function Views({ handle, box }: { handle: ViewHandle; box: () => THREE.Box3 }) {
     const distance = (Math.max(sphere.radius, 5) / Math.sin(Math.min(vertical, horizontal) / 2)) * 1.05;
     const target = (controls as unknown as { target?: THREE.Vector3 } | null)?.target ?? sphere.center;
     const from =
-      view === 'fit'
-        ? camera.position.clone().sub(target).normalize()
-        : new THREE.Vector3(...VIEWS.find((v) => v.view === view)!.from).normalize();
+      typeof view === 'object'
+        ? view.from.clone().add(new THREE.Vector3(0, -1e-4, 0)).normalize() // the tiny Y as in Top, for a look straight down
+        : view === 'fit'
+          ? camera.position.clone().sub(target).normalize()
+          : new THREE.Vector3(...VIEWS.find((v) => v.view === view)!.from).normalize();
     bounds.refresh(b).moveTo(sphere.center.clone().addScaledVector(from, distance)).lookAt({ target: sphere.center, up: Z_UP });
     // Bounds moves the camera frame by frame, and this view only draws on demand.
     invalidate();

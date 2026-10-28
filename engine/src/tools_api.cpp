@@ -11,6 +11,7 @@
 
 #include <algorithm>
 #include <map>
+#include <optional>
 
 using nlohmann::json;
 using namespace Slic3r;
@@ -175,14 +176,175 @@ std::string splitParts(int o) {
 constexpr double CUT_PLANE_TOLERANCE = 2e-3;        // 2 microns
 constexpr double CUT_PLANE_NORMAL_TOLERANCE = 0.99; // cos(angle) > 0.99 (~8 deg)
 
+// The connector shapes, as desktop's GLGizmoCut3D::get_connector_mesh makes them
+// (a unit shape, scaled by radius and depth when placed).
+indexed_triangle_set connectorMesh(const CutConnectorAttributes& a, float space, float bulge) {
+    const int sectors = a.shape == CutConnectorShape::Triangle ? 3
+                        : a.shape == CutConnectorShape::Square ? 4
+                        : a.shape == CutConnectorShape::Hexagon ? 6
+                                                                : 360;
+    if (a.type == CutConnectorType::Snap) return its_make_snap(1.0, 1.0, space, bulge);
+    if (a.style == CutConnectorStyle::Prism) return its_make_cylinder(1.0, 1.0, 2 * PI / sectors);
+    if (a.type == CutConnectorType::Plug) return its_make_frustum(1.0, 1.0, 2 * PI / sectors);
+    return its_make_frustum_dowel(1.0, 1.0, sectors);
+}
+
+template<class T> T pickName(const json& c, const char* key, std::initializer_list<std::pair<const char*, T>> names) {
+    const std::string v = c.value(key, std::string(names.begin()->first));
+    for (const auto& [name, value] : names)
+        if (v == name) return value;
+    throw std::runtime_error(std::string("bad connector ") + key + " " + v);
+}
+
+// Adds the request's connectors to obj as negative volumes, like desktop's
+// apply_connectors_in_model + apply_cut_connectors: each at [u, v] mm on the
+// plane (along the plane's turned X and Y from its middle), turned with the
+// plane; plugs and snaps are lifted half their depth into the upper half.
+// `centre` is the plane's middle in the instance's frame without its offset,
+// where Cut works. Returns how many dowels there are.
+int addConnectors(ModelObject& obj, const json& connectors, const Vec3d& centre, const Transform3d& rotation) {
+    using namespace Geometry;
+    const Vec3d normal = rotation.linear() * Vec3d::UnitZ();
+    int dowels = 0, n = 0;
+    for (const json& c : connectors) {
+        const std::vector<double> at = c.value("at", std::vector<double>{0, 0});
+        if (at.size() != 2) throw std::runtime_error("a connector needs [u, v]");
+        CutConnectorAttributes attribs(pickName<CutConnectorType>(c, "type", {{"plug", CutConnectorType::Plug}, {"dowel", CutConnectorType::Dowel}, {"snap", CutConnectorType::Snap}}),
+                                       pickName<CutConnectorStyle>(c, "style", {{"prism", CutConnectorStyle::Prism}, {"frustum", CutConnectorStyle::Frustum}}),
+                                       pickName<CutConnectorShape>(c, "shape",
+                                                                   {{"circle", CutConnectorShape::Circle},
+                                                                    {"square", CutConnectorShape::Square},
+                                                                    {"hexagon", CutConnectorShape::Hexagon},
+                                                                    {"triangle", CutConnectorShape::Triangle}}));
+        const float radius = 0.5f * c.value("size", 5.f), sizeGap = 0.5f * c.value("sizeGap", 0.f), depthGap = c.value("depthGap", 0.1f);
+        float height = c.value("depth", 3.f);
+        if (radius <= 0 || height <= 0) throw std::runtime_error("a connector needs a size and a depth");
+        Vec3d pos = centre + rotation.linear() * Vec3d(at[0], at[1], 0);
+        if (attribs.type == CutConnectorType::Dowel) {
+            if (attribs.style == CutConnectorStyle::Prism) height *= 2;
+            ++dowels;
+        } else
+            pos += normal * 0.5 * double(height);
+        TriangleMesh mesh(connectorMesh(attribs, c.value("space", 0.3f), c.value("bulge", 0.15f)));
+        // Mesh will be centered when loading.
+        ModelVolume* v = obj.add_volume(std::move(mesh), ModelVolumeType::NEGATIVE_VOLUME);
+        v->set_transformation(translation_transform(pos) * rotation * scale_transform(Vec3f(radius, radius, height).cast<double>()));
+        v->cut_info = {attribs.type, sizeGap, depthGap};
+        v->name = "Connector-" + std::to_string(++n);
+    }
+    return dowels;
+}
+
+// The Cut tool's plane for instance i of obj, from a cut request (see cutObject).
+struct CutPlane {
+    Transform3d rotation;
+    Vec3d normal;
+    Vec3d centre; // the plane's middle, on the bed's axes
+};
+
+CutPlane cutPlaneOf(const ModelObject& obj, int i, const json& req) {
+    const double position = req.value("position", 0.0);
+    const std::vector<double> deg = req.value("rotation", std::vector<double>{0, 0, 0});
+    if (deg.size() != 3) throw std::runtime_error("rotation needs three angles");
+    CutPlane p;
+    p.rotation = Geometry::rotation_transform(Vec3d(deg[0], deg[1], deg[2]) * (PI / 180.0));
+    p.normal = (p.rotation.linear() * Vec3d::UnitZ()).normalized();
+    // The plane's middle: the instance's middle, slid along the arrow onto the plane.
+    const Vec3d middle = obj.instance_bounding_box(size_t(i)).center();
+    const Vec3d base(middle.x(), middle.y(), 0);
+    p.centre = middle - (p.normal.dot(middle - base) - position) * p.normal;
+    return p;
+}
+
+// The pieces the plane cuts obj into, like desktop's PartSelection: obj cut and
+// kept as parts, every part split into its separate pieces, each piece above
+// the plane (true) or below it. `model` holds the cut object (its only one).
+struct CutPieces {
+    Model model;
+    std::vector<Cut::Part> parts;
+};
+
+std::unique_ptr<CutPieces> cutIntoPieces(const ModelObject& obj, int i, const CutPlane& plane) {
+    auto out = std::make_unique<CutPieces>();
+    const Vec3d offset = obj.instances[i]->get_offset();
+    Cut cut(&obj, i, Geometry::translation_transform(plane.centre - offset) * plane.rotation);
+    const ModelObjectPtrs& cutObjects = cut.perform_with_plane();
+    if (cutObjects.empty()) throw std::runtime_error("the cut plane misses the object");
+    ModelObject* mo = out->model.add_object(*cutObjects.front());
+    for (int id = int(mo->volumes.size()) - 1; id >= 0; --id)
+        if (mo->volumes[id]->is_splittable())
+#if ENGINE_UPSTREAM
+            mo->volumes[id]->split(1, false);
+#else
+            mo->volumes[id]->split(1);
+#endif
+    for (const ModelVolume* v : mo->volumes) {
+        Cut::Part part{true, !v->is_model_part()};
+        const Transform3d tr = (mo->instances[i]->get_matrix() * v->get_matrix()).inverse();
+        const Vec3f pos = (tr * plane.centre).cast<float>();
+        const Vec3f norm = (tr.linear().inverse().transpose() * plane.normal).cast<float>();
+        for (const Vec3f& p : v->mesh().its.vertices) {
+            const double d = (p - pos).dot(norm);
+            if (std::abs(d) > EPSILON) {
+                part.selected = d > 0.;
+                break;
+            }
+        }
+        out->parts.push_back(part);
+    }
+    return out;
+}
+
+// The pieces the Cut tool's plane cuts instance i of object o into, for the page
+// to show and swap from one side to the other (desktop's right-click on a part):
+// {positions: Float32Array (9 floats / triangle, plate-local mm),
+// pieceTriangles: Int32Array (triangles per piece), above: Uint8Array (1 for a
+// piece above the plane)}. Not-printing pieces (modifiers) have 0 triangles.
+// cutObject's `pieces` lists, in this order, which pieces go with the upper half.
+emscripten::val cutPieces(int o, int i, const std::string& requestJson) {
+    emscripten::val out = emscripten::val::object();
+    try {
+        const ModelObject* obj = objectAt(o);
+        if (i < 0 || size_t(i) >= obj->instances.size()) throw std::runtime_error("no instance " + std::to_string(i));
+        const std::unique_ptr<CutPieces> pieces = cutIntoPieces(*obj, i, cutPlaneOf(*obj, i, json::parse(requestJson)));
+        const ModelObject* mo = pieces->model.objects.front();
+        const Vec2d origin = pr().plateOrigin(pr().plateOf(*obj->instances[i]));
+        std::vector<float> pos;
+        std::vector<int> counts;
+        std::vector<uint8_t> above;
+        for (size_t k = 0; k < mo->volumes.size(); ++k) {
+            const ModelVolume* v = mo->volumes[k];
+            above.push_back(pieces->parts[k].selected ? 1 : 0);
+            if (pieces->parts[k].is_modifier) {
+                counts.push_back(0);
+                continue;
+            }
+            const Transform3d m = mo->instances[i]->get_matrix() * v->get_matrix();
+            const indexed_triangle_set& its = v->mesh().its;
+            for (const auto& f : its.indices)
+                for (int c = 0; c < 3; ++c) {
+                    const Vec3d w = m * its.vertices[f[c]].cast<double>();
+                    pos.insert(pos.end(), {float(w.x() - origin.x()), float(w.y() - origin.y()), float(w.z())});
+                }
+            counts.push_back(int(its.indices.size()));
+        }
+        out.set("positions", engine::typedCopy(pos));
+        out.set("pieceTriangles", engine::typedCopy(counts));
+        out.set("above", engine::typedCopy(above));
+    } catch (const std::exception& e) {
+        out.set("error", std::string(e.what()));
+    }
+    return out;
+}
+
 // Cuts instance i of object o with a plane, like desktop's Cut tool. The request
 // (JSON): {position, rotation: [x, y, z] degrees, upper, lower, asParts}. The
 // plane starts flat and turns by `rotation` (X, then Y, then Z, about the bed's
 // axes); its arrow (normal) is the turned +Z. `position` is how far the plane
 // is along its arrow from the bed under the middle of the instance, so a flat
 // plane's position is its height above the bed. upper / lower: "keep" (as it
-// stands), "place" (turned so the cut face lies on the bed) or "drop" (thrown
-// away). asParts keeps both halves as parts of one object, where they stand.
+// stands), "place" (turned so the cut face lies on the bed), "flip" (turned
+// upside down) or "drop" (thrown away). asParts keeps both halves as parts of one object, where they stand.
 // Painting on the parts (filament colours, support enforcers/blockers, seam
 // enforcers/blockers and fuzzy skin) is preserved on the cut objects.
 std::string cutObject(int o, int i, const std::string& requestJson) {
@@ -190,27 +352,27 @@ std::string cutObject(int o, int i, const std::string& requestJson) {
         ModelObject* obj = objectAt(o);
         if (i < 0 || size_t(i) >= obj->instances.size()) throw std::runtime_error("no instance " + std::to_string(i));
         const json req = json::parse(requestJson);
-        const double position = req.value("position", 0.0);
-        const std::vector<double> deg = req.value("rotation", std::vector<double>{0, 0, 0});
-        if (deg.size() != 3) throw std::runtime_error("rotation needs three angles");
         const std::string upperDo = req.value("upper", std::string("keep")), lowerDo = req.value("lower", std::string("keep"));
         for (const std::string* d : {&upperDo, &lowerDo})
-            if (*d != "keep" && *d != "place" && *d != "drop") throw std::runtime_error("bad part choice " + *d);
-        const bool asParts = req.value("asParts", false);
-        const bool upper = asParts || upperDo != "drop", lower = asParts || lowerDo != "drop";
+            if (*d != "keep" && *d != "place" && *d != "flip" && *d != "drop") throw std::runtime_error("bad part choice " + *d);
+        const json connectors = req.value("connectors", json::array());
+        // Connectors join the two halves: both are kept, as separate objects (like desktop).
+        const bool asParts = connectors.empty() && req.value("asParts", false);
+        const bool upper = asParts || !connectors.empty() || upperDo != "drop";
+        const bool lower = asParts || !connectors.empty() || lowerDo != "drop";
         if (!upper && !lower) throw std::runtime_error("keep at least one part");
         ModelObjectCutAttributes attrs = only_if(upper, ModelObjectCutAttribute::KeepUpper) |
                                          only_if(lower, ModelObjectCutAttribute::KeepLower) |
                                          only_if(asParts, ModelObjectCutAttribute::KeepAsParts) |
                                          only_if(!asParts && upperDo == "place", ModelObjectCutAttribute::PlaceOnCutUpper) |
                                          only_if(!asParts && lowerDo == "place", ModelObjectCutAttribute::PlaceOnCutLower) |
+                                         only_if(!asParts && upperDo == "flip", ModelObjectCutAttribute::FlipUpper) |
+                                         only_if(!asParts && lowerDo == "flip", ModelObjectCutAttribute::FlipLower) |
                                          ModelObjectCutAttribute::InvalidateCutInfo;
-        const Transform3d rotation = Geometry::rotation_transform(Vec3d(deg[0], deg[1], deg[2]) * (PI / 180.0));
-        const Vec3d normal = (rotation.linear() * Vec3d::UnitZ()).normalized();
-        // The plane's middle: the instance's middle, slid along the arrow onto the plane.
-        const Vec3d middle = obj->instance_bounding_box(size_t(i)).center();
-        const Vec3d base(middle.x(), middle.y(), 0);
-        const Vec3d centre = middle - (normal.dot(middle - base) - position) * normal;
+        const CutPlane plane = cutPlaneOf(*obj, i, req);
+        const Transform3d& rotation = plane.rotation;
+        const Vec3d& normal = plane.normal;
+        const Vec3d& centre = plane.centre;
         const Vec3d offset = obj->instances[i]->get_offset();
         const Transform3d instance_matrix = obj->instances[i]->get_transformation().get_matrix_no_offset();
 
@@ -244,8 +406,48 @@ std::string cutObject(int o, int i, const std::string& requestJson) {
             sources.push_back({v, std::move(src), hasPaint});
         }
 
-        Cut cut(obj, i, Geometry::translation_transform(centre - offset) * rotation, attrs);
-        const ModelObjectPtrs& parts = cut.perform_with_plane();
+        // Connectors go into the object as negative volumes for Cut to share out;
+        // Cut works on its own copy, so they come straight back out of obj.
+        const size_t volumesBefore = obj->volumes.size();
+        const auto takeOutConnectors = [&] {
+            while (obj->volumes.size() > volumesBefore) obj->delete_volume(obj->volumes.size() - 1);
+        };
+        int dowels = 0;
+        try {
+            dowels = addConnectors(*obj, connectors, centre - offset, rotation);
+        } catch (...) {
+            takeOutConnectors();
+            for (size_t idx = 0; idx < obj->volumes.size(); ++idx) obj->volumes[idx]->name = origNames[idx];
+            throw;
+        }
+        if (dowels > 0) attrs |= ModelObjectCutAttribute::CreateDowels;
+        const Transform3d cutMatrix = Geometry::translation_transform(centre - offset) * rotation;
+        // With `pieces`, each separate piece goes to the side the page chose
+        // (desktop's cut by contour); otherwise the plane decides.
+        std::unique_ptr<CutPieces> pieces;
+        std::optional<Cut> cut;
+        if (req.contains("pieces") && !asParts) {
+            takeOutConnectors();
+            try {
+                pieces = cutIntoPieces(*obj, i, plane);
+                const std::vector<bool> chosen = req["pieces"].get<std::vector<bool>>();
+                if (chosen.size() != pieces->parts.size()) throw std::runtime_error("the pieces changed: try again");
+                for (size_t k = 0; k < chosen.size(); ++k) pieces->parts[k].selected = chosen[k];
+                addConnectors(*pieces->model.objects.front(), connectors, centre - offset, rotation);
+            } catch (...) {
+                for (size_t idx = 0; idx < obj->volumes.size(); ++idx) obj->volumes[idx]->name = origNames[idx];
+                throw;
+            }
+            cut.emplace(pieces->model.objects.front(), i, cutMatrix, attrs);
+        } else {
+            cut.emplace(obj, i, cutMatrix, attrs);
+            takeOutConnectors();
+        }
+#if ENGINE_UPSTREAM
+        const ModelObjectPtrs& parts = pieces ? cut->perform_by_contour(obj, pieces->parts, dowels) : cut->perform_with_plane();
+#else
+        const ModelObjectPtrs& parts = pieces ? cut->perform_by_contour(pieces->parts, dowels) : cut->perform_with_plane();
+#endif
         if (parts.empty()) {
             for (size_t idx = 0; idx < obj->volumes.size(); ++idx) obj->volumes[idx]->name = origNames[idx];
             throw std::runtime_error("the cut plane misses the object");
@@ -432,6 +634,7 @@ EMSCRIPTEN_BINDINGS(tools_api) {
     emscripten::function("splitObject", &splitObject);
     emscripten::function("splitParts", &splitParts);
     emscripten::function("cutObject", &cutObject);
+    emscripten::function("cutPieces", &cutPieces);
     emscripten::function("mirrorInstance", &mirrorInstance);
     emscripten::function("addPlate", &addPlate);
     emscripten::function("deletePlate", &deletePlate);

@@ -1,7 +1,7 @@
 import { useMemo } from 'react';
 import { create } from 'zustand';
 import * as THREE from 'three';
-import type { CutRequest, CutRotation } from '../lib/cut';
+import { DEFAULT_CONNECTOR, flipPlane, type Connector, type ConnectorKind, type CutPieces, type CutRequest, type CutRotation } from '../lib/cut';
 import { EngineClient, type History, type InstanceChanges, type MixedReply, type MixedRequest, type ParsedPreset, type ProjectThumbnail, type ShapePlaceRequest, type ShapeState, type UserPresetFile } from '../engine/client';
 
 /** Omit over each member of a union. */
@@ -285,6 +285,25 @@ export interface SlicerState {
    */
   cutZ: number;
   cutRotation: CutRotation;
+  /** The Cut panel's open tab; on Connectors the 3D view looks at the cut face and a tap adds one. */
+  cutTab: 'plane' | 'connectors';
+  cutConnectors: Connector[];
+  /** The chosen connectors (indexes into cutConnectors). */
+  cutPicked: number[];
+  /** How new connectors are made; the panel's fields show it. */
+  cutKind: ConnectorKind;
+  /**
+   * The separate pieces the plane cuts the object into and the side each goes
+   * to (true: upper), once a right-click moved one to the other side, like
+   * desktop; null while the plane decides. Moving the plane drops them.
+   */
+  cutPieces: { pieces: CutPieces; upper: boolean[] } | null;
+  /** Moves piece k of cutPieces to the other side. */
+  swapCutPiece(k: number): void;
+  /** Splits the object into its pieces for the plane where it is now (engine cutPieces). */
+  loadCutPieces(o: number, i: number): Promise<CutPieces | null>;
+  /** Flip plane: the arrow turned round, so upper and lower swap. */
+  flipCutPlane(): void;
   /** The variable layer height tool's object and its profile, while that tool is open. */
   layers: (LayerProfile & { object: number }) | null;
   /** Reads (op "get") or edits object o's layer height profile; an edit starts a new undo step unless `continues`. */
@@ -307,6 +326,16 @@ export interface SlicerState {
   assemble(request: AssembleRequest): Promise<void>;
   setCutZ(z: number): void;
   setCutRotation(rotation: CutRotation): void;
+  setCutTab(tab: 'plane' | 'connectors'): void;
+  /** Adds a connector of the current kind at [u, v] on the plane and chooses it alone. */
+  addCutConnector(at: [number, number]): void;
+  moveCutConnector(index: number, at: [number, number]): void;
+  /** Chooses connector `index` (with `add`, as well as the ones already chosen); null chooses none. */
+  pickCutConnector(index: number | null, add?: boolean): void;
+  /** Removes the chosen connectors, or all of them. */
+  removeCutConnectors(all?: boolean): void;
+  /** Changes how connectors are made, and the chosen ones with it. */
+  setCutKind(change: Partial<ConnectorKind>): void;
   /** Moves the prime tower on the plate shown (front-left corner, mm). */
   moveWipeTower(x: number, y: number): void;
   /** Asks the engine again for the prime tower of the plate shown. */
@@ -1370,6 +1399,11 @@ export const useSlicer = create<SlicerState>((set, get) => {
     history: { undo: null, redo: null },
     cutZ: 0,
     cutRotation: [0, 0, 0],
+    cutTab: 'plane',
+    cutConnectors: [],
+    cutPicked: [],
+    cutKind: DEFAULT_CONNECTOR,
+    cutPieces: null,
     brim: null,
     brimPicked: [],
     brimDiameter: null,
@@ -1605,10 +1639,47 @@ export const useSlicer = create<SlicerState>((set, get) => {
       const height = selected ? project?.objects[selected.object]?.size[2] : undefined;
       const measure = { ...NO_MEASURE, onlyPlane: get().measure.onlyPlane };
       const reset = { tool, measure, layers: null, brim: null, brimPicked: [] as number[] };
-      set(tool === 'cut' && height ? { ...reset, cutZ: Math.round(height * 50) / 100, cutRotation: [0, 0, 0] } : reset);
+      set(tool === 'cut' && height ? { ...reset, cutZ: Math.round(height * 50) / 100, cutRotation: [0, 0, 0], cutTab: 'plane', cutConnectors: [], cutPicked: [], cutPieces: null } : reset);
     },
-    setCutZ: (cutZ) => set({ cutZ }),
-    setCutRotation: (cutRotation) => set({ cutRotation }),
+    setCutZ: (cutZ) => set((s) => (s.cutZ === cutZ ? {} : { cutZ, cutPieces: null })),
+    setCutRotation: (cutRotation) => set((s) => (s.cutRotation.every((a, k) => a === cutRotation[k]) ? {} : { cutRotation, cutPieces: null })),
+    swapCutPiece: (k) => set((s) => (s.cutPieces ? { cutPieces: { ...s.cutPieces, upper: s.cutPieces.upper.map((u, j) => (j === k ? !u : u)) } } : {})),
+    async loadCutPieces(o, i) {
+      const { cutZ, cutRotation } = get();
+      try {
+        const pieces = await engine().cutPieces(o, i, { position: cutZ, rotation: cutRotation, upper: 'keep', lower: 'keep', asParts: false });
+        // The plane moved meanwhile: these pieces are for where it was.
+        if (get().cutZ !== cutZ || get().cutRotation !== cutRotation) return null;
+        set({ cutPieces: { pieces, upper: [...pieces.above].map((a) => a === 1) } });
+        return pieces;
+      } catch (err) {
+        fail(err);
+        return null;
+      }
+    },
+    flipCutPlane: () =>
+      set((s) => {
+        const f = flipPlane(s.cutZ, s.cutRotation);
+        // The engine numbers the pieces anew for the turned plane, so moved pieces start over.
+        return { cutZ: f.position, cutRotation: f.rotation, cutPieces: null };
+      }),
+    setCutTab: (cutTab) => set({ cutTab }),
+    addCutConnector: (at) => set((s) => ({ cutConnectors: [...s.cutConnectors, { ...s.cutKind, at }], cutPicked: [s.cutConnectors.length] })),
+    moveCutConnector: (index, at) => set((s) => ({ cutConnectors: s.cutConnectors.map((c, k) => (k === index ? { ...c, at } : c)) })),
+    pickCutConnector: (index, add) =>
+      set((s) => {
+        if (index === null) return { cutPicked: [] };
+        const picked = add ? (s.cutPicked.includes(index) ? s.cutPicked.filter((k) => k !== index) : [...s.cutPicked, index]) : [index];
+        // The fields show the last one chosen.
+        const { at: _, ...kind } = s.cutConnectors[index];
+        return { cutPicked: picked, cutKind: picked.includes(index) ? kind : s.cutKind };
+      }),
+    removeCutConnectors: (all) => set((s) => ({ cutConnectors: all ? [] : s.cutConnectors.filter((_, k) => !s.cutPicked.includes(k)), cutPicked: [] })),
+    setCutKind: (change) =>
+      set((s) => ({
+        cutKind: { ...s.cutKind, ...change },
+        cutConnectors: s.cutConnectors.map((c, k) => (s.cutPicked.includes(k) ? { ...c, ...change } : c)),
+      })),
     refreshWipeTower: queueTower,
     refreshClearance: queueClearance,
     moveWipeTower(x, y) {

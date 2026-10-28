@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import * as THREE from 'three';
-import { cutCentre, cutNormal, cutQuaternion, flipPlane, positionAt, positionRange, rotationOf, wrapAngle } from './cut';
+import { cutOutline, planeSpot, spotPoint, cutCentre, cutNormal, cutQuaternion, flipPlane, positionAt, positionRange, rotationOf, wrapAngle } from './cut';
 
 const close = (v: THREE.Vector3, x: number, y: number, z: number) => {
   expect(v.x).toBeCloseTo(x, 6);
@@ -50,6 +50,30 @@ describe('cut plane', () => {
     const c2 = cutCentre(middle, after.position, cutNormal(after.rotation));
     close(c2, c1.x, c1.y, c1.z);
     expect(after.rotation[0]).toBe(-155);
+  });
+
+  it('a spot on a turned plane goes there and back', () => {
+    const centre = new THREE.Vector3(10, 20, 5);
+    const rotation: [number, number, number] = [30, -20, 15];
+    const p = spotPoint([3, -4], centre, rotation);
+    expect(cutNormal(rotation).dot(p.clone().sub(centre))).toBeCloseTo(0, 6);
+    expect(planeSpot(p, centre, rotation)).toEqual([3, -4]);
+    close(spotPoint([3, -4], centre, [0, 0, 0]), 13, 16, 5);
+  });
+
+  it('outlines where the plane meets a mesh', () => {
+    const box = new THREE.BoxGeometry(10, 20, 30); // indexed, centred on 0
+    const length = (seg: number[]) => {
+      let sum = 0;
+      for (let i = 0; i < seg.length; i += 6) sum += Math.hypot(seg[i + 3] - seg[i], seg[i + 4] - seg[i + 1], seg[i + 5] - seg[i + 2]);
+      return sum;
+    };
+    const flat = cutOutline(box, new THREE.Vector3(0, 0, 3), new THREE.Vector3(0, 0, 1));
+    expect(length(flat)).toBeCloseTo(60, 4); // the 10 x 20 rectangle's sides
+    for (let i = 2; i < flat.length; i += 3) expect(flat[i]).toBeCloseTo(3, 6);
+    expect(cutOutline(box, new THREE.Vector3(0, 0, 40), new THREE.Vector3(0, 0, 1))).toEqual([]);
+    const upright = cutOutline(box.toNonIndexed(), new THREE.Vector3(1, 0, 0), new THREE.Vector3(1, 0, 0));
+    expect(length(upright)).toBeCloseTo(100, 4); // 20 x 30
   });
 
   it('wraps angles', () => {

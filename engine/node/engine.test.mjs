@@ -520,6 +520,53 @@ test('cut with a turned plane: upright cut, parts kept, thrown away or laid on t
   engine.clearModel();
 });
 
+test('cut connectors: a plug sticks out of one half into a hole in the other; dowels print on their own', () => {
+  select({ printer: DEFAULT_PRINTER });
+  const kinds = (o) => o.volumes.map((v) => v.kind).sort().join(',');
+  load('gen-cube-20.stl');
+  const plug = { at: [0, 0], type: 'plug', style: 'prism', shape: 'circle', size: 5, depth: 4 };
+  // Throw away is ignored with connectors: both halves stay.
+  call(engine, 'cutObject', 0, 0, cut({ position: 10, lower: 'drop', connectors: [plug, { ...plug, at: [5, 5], shape: 'hexagon' }] }));
+  let m = info();
+  assert.equal(m.objects.length, 2, 'two halves');
+  const all = m.objects.map(kinds).sort();
+  assert.deepEqual(all, ['negative,negative,part', 'part,part,part'], `one half has the holes, the other the plugs: ${all}`);
+
+  load('gen-cube-20.stl');
+  call(engine, 'cutObject', 0, 0, cut({ position: 10, rotation: [0, 90, 0], connectors: [{ ...plug, type: 'dowel', at: [3, -2] }] }));
+  m = info();
+  assert.equal(m.objects.length, 3, 'two halves and the dowel');
+  assert.ok(m.objects.some((o) => /Dowel/.test(o.name)), `a dowel object: ${m.objects.map((o) => o.name)}`);
+
+  load('gen-cube-20.stl');
+  call(engine, 'cutObject', 0, 0, cut({ position: 10, connectors: [{ ...plug, type: 'snap', size: 6, depth: 6 }] }));
+  assert.equal(info().objects.length, 2);
+  assert.throws(() => call(engine, 'cutObject', 0, 0, cut({ position: 10, connectors: [{ ...plug, shape: 'star' }] })), /bad connector shape/);
+  engine.clearModel();
+});
+
+test('cut pieces: each separate piece can go to the other side, like desktop\'s right-click on a part', () => {
+  select({ printer: DEFAULT_PRINTER });
+  load('gen-two-cubes.stl');
+  const request = { position: 5 };
+  const pieces = engine.cutPieces(0, 0, JSON.stringify(request));
+  assert.equal(pieces.error, undefined);
+  assert.deepEqual([...pieces.above].sort(), [0, 0, 1, 1], 'two cubes cut through: two pieces above, two below');
+  assert.equal(pieces.positions.length, [...pieces.pieceTriangles].reduce((a, b) => a + b, 0) * 9);
+  // The top of the first cube goes with the lower half.
+  const chosen = [...pieces.above].map((a) => a === 1);
+  chosen[chosen.indexOf(true)] = false;
+  call(engine, 'cutObject', 0, 0, cut({ ...request, pieces: chosen }));
+  const m = info();
+  assert.equal(m.objects.length, 2);
+  const widths = m.objects.map((o) => o.size[0]).sort((a, b) => a - b);
+  assert.ok(Math.abs(widths[0] - 10) < 0.5, `the upper half is one cube top: ${widths}`);
+  assert.ok(widths[1] > 35, `the lower half spans both cubes: ${widths}`);
+  load('gen-two-cubes.stl');
+  assert.throws(() => call(engine, 'cutObject', 0, 0, cut({ position: 5, pieces: [true] })), /pieces changed/);
+  engine.clearModel();
+});
+
 test('cut keeps multi-material paint and support painting on cut parts', () => {
   select({ printer: DEFAULT_PRINTER });
   load('colored_3DBenchy.3mf');
