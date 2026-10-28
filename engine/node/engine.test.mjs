@@ -361,7 +361,10 @@ test('prime tower: shown and sized like desktop Prepare, sliced where it was pla
   const t = tower(two);
   assert.ok(t.show, JSON.stringify(t));
   assert.deepEqual(t.filaments, [1, 2]);
-  assert.equal(t.width, Number(fullConfig(two).prime_tower_width));
+  const setWidth = Number(fullConfig(two).prime_tower_width);
+  if (flavor.flavor === 'orca') assert.equal(t.width, setWidth);
+  // Snapmaker Orca 2.4.1 sizes it from the prime volume: the U1's rib tower is square.
+  else assert.ok(fullConfig(two).wipe_tower_wall_type === 'rib' ? t.width === t.depth : t.width === setWidth, JSON.stringify(t));
   assert.ok(t.depth > 0 && t.height > 9, JSON.stringify(t));
   assert.ok(!tower({ ...two, enable_prime_tower: '0' }).show, 'prime tower turned off');
   // Off the bed it comes back on, like desktop.
@@ -398,8 +401,8 @@ test('prime tower: shown and sized like desktop Prepare, sliced where it was pla
   // The tower stands where placed (its brim, wider than set, round it).
   const [x0, x1, y0, y1] = [Math.min(...xs), Math.max(...xs), Math.min(...ys), Math.max(...ys)];
   const box = `X${x0}..${x1} Y${y0}..${y1}`;
-  assert.ok(x0 <= 120.5 && x1 >= 120 + t.width - 1 && y0 <= 40.5 && y1 >= 40 + result.wipeTowerDepth - 1, `tower ${box}`);
-  assert.ok(x0 >= 105 && x1 <= 120 + t.width + 15 && y0 >= 25 && y1 <= 40 + result.wipeTowerDepth + 15, `tower ${box}`);
+  assert.ok(x0 <= 120.5 && x1 >= 120 + setWidth - 1 && y0 <= 40.5 && y1 >= 40 + result.wipeTowerDepth - 1, `tower ${box}`);
+  assert.ok(x0 >= 105 && x1 <= 120 + setWidth + 15 && y0 >= 25 && y1 <= 40 + result.wipeTowerDepth + 15, `tower ${box}`);
   // Once sliced, the view shows the tower as deep as the slice made it, but
   // never shallower than the engine's minimum for the object's height
   // (WipeTower::min_depth_per_height): 20 mm up to 100 mm tall in Snapmaker
