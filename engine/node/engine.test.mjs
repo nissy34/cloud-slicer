@@ -444,12 +444,13 @@ test('resizing plates keeps objects centred on their plate', () => {
 });
 
 const info = () => JSON.parse(engine.modelInfoJson());
+const cut = (request) => JSON.stringify(request);
 
 test('object tools: cut, split, mirror, orient', () => {
   select({ printer: DEFAULT_PRINTER });
   let m = load('3DBenchy.stl');
   const height = m.objects[0].size[2];
-  call(engine, 'cutObject', 0, 0, 20, 'both', true);
+  call(engine, 'cutObject', 0, 0, cut({ position: 20, upper: 'place' }));
   m = info();
   assert.equal(m.objects.length, 2, 'cut gives two objects');
   const heights = m.objects.map((o) => o.size[2]).sort((a, b) => a - b);
@@ -467,6 +468,58 @@ test('object tools: cut, split, mirror, orient', () => {
   assert.ok(info().objects[0].instances[0].offset[2] >= -0.01, 'on the bed');
 });
 
+test('cut with a turned plane: upright cut, parts kept, thrown away or laid on the cut', () => {
+  select({ printer: DEFAULT_PRINTER });
+  // The lowest point of each object on plate 1, from its triangles.
+  const lowest = () => {
+    const mesh = engine.previewMesh(0);
+    const out = [];
+    let tri = 0;
+    for (const count of mesh.objectTriangles) {
+      let z = Infinity;
+      for (let k = tri * 9 + 2; k < (tri + count) * 9; k += 3) z = Math.min(z, mesh.positions[k]);
+      if (count) out.push(z);
+      tri += count;
+    }
+    return out;
+  };
+  let m = load('3DBenchy.stl');
+  const [sx, , sz] = m.objects[0].size;
+  // Turned 90° about Y the arrow points along +X: an upright cut through the middle.
+  call(engine, 'cutObject', 0, 0, cut({ position: 0, rotation: [0, 90, 0] }));
+  m = info();
+  assert.equal(m.objects.length, 2, 'two halves');
+  const widths = m.objects.map((o) => o.size[0]);
+  assert.ok(Math.abs(widths[0] + widths[1] - sx) < 0.5, `widths ${widths} add up to ${sx}`);
+  // Standing upright: the taller half (with the cabin) keeps the boat's height, both stay on the bed.
+  assert.ok(Math.abs(Math.max(...m.objects.map((o) => o.size[2])) - sz) < 0.5, `the taller half stays ${sz} tall`);
+  for (const o of m.objects) assert.ok(o.size[2] > sz / 2, `each half stands upright: ${o.size}`);
+  for (const z of lowest()) assert.ok(Math.abs(z) < 0.01, `each half on the bed: ${z}`);
+
+  m = load('3DBenchy.stl');
+  call(engine, 'cutObject', 0, 0, cut({ position: 0, rotation: [0, 90, 0], asParts: true }));
+  m = info();
+  assert.equal(m.objects.length, 1, 'kept as one object');
+  assert.equal(m.objects[0].volumes.filter((v) => v.kind === 'part').length, 2, 'with two parts');
+  assert.ok(Math.abs(m.objects[0].size[0] - sx) < 0.5, 'the parts stay where they were');
+
+  load('3DBenchy.stl');
+  call(engine, 'cutObject', 0, 0, cut({ position: 0, rotation: [0, 90, 0], upper: 'place', lower: 'drop' }));
+  m = info();
+  assert.equal(m.objects.length, 1, 'the lower half is thrown away');
+  assert.ok(Math.abs(m.objects[0].size[2] - widths[0]) < 1 || Math.abs(m.objects[0].size[2] - widths[1]) < 1, `laid on its cut face: ${m.objects[0].size}`);
+
+  // Tilted 30° about X: both halves are on the bed and smaller than the boat.
+  load('3DBenchy.stl');
+  call(engine, 'cutObject', 0, 0, cut({ position: sz / 2, rotation: [30, 0, 0] }));
+  m = info();
+  assert.equal(m.objects.length, 2);
+  for (const o of m.objects) assert.ok(o.size[2] < sz - 1, `each half is lower than the boat: ${o.size}`);
+  for (const z of lowest()) assert.ok(Math.abs(z) < 0.01, `each half on the bed: ${z}`);
+  assert.throws(() => call(engine, 'cutObject', 0, 0, cut({ position: 5, upper: 'drop', lower: 'drop' })), /at least one part/);
+  engine.clearModel();
+});
+
 test('cut keeps multi-material paint and support painting on cut parts', () => {
   select({ printer: DEFAULT_PRINTER });
   load('colored_3DBenchy.3mf');
@@ -477,7 +530,7 @@ test('cut keeps multi-material paint and support painting on cut parts', () => {
   const origUnique = new Set(preMesh.filaments);
   assert.ok(origUnique.size >= 4, 'all filaments present before cut');
 
-  call(engine, 'cutObject', 0, 0, 15, 'both', false);
+  call(engine, 'cutObject', 0, 0, cut({ position: 15 }));
 
   const cutInfo = info();
   assert.equal(cutInfo.objects.length, 3, 'cut creates upper and lower parts');
@@ -515,16 +568,16 @@ test('cut does not cross-contaminate paint onto unpainted volumes in multi-volum
   assert.equal(paintedInfo.objects[0].volumes[1].painted, true, 'volume 1 is painted');
 
   // Cut the multi-volume object at z = 5
-  call(engine, 'cutObject', 0, 0, 5, 'both', false);
+  call(engine, 'cutObject', 0, 0, cut({ position: 5 }));
 
-  const cut = info();
-  assert.equal(cut.objects.length, 2, 'uncut replaced by upper and lower objects');
-  // Upper object (cut.objects[0]) preserves paint on volume 1, volume 0 remains unpainted
-  assert.equal(cut.objects[0].volumes[0].painted, false, 'upper volume 0 remains unpainted (no cross-contamination)');
-  assert.equal(cut.objects[0].volumes[1].painted, true, 'upper volume 1 preserves paint');
-  // Lower object (cut.objects[1]) has no paint bleed onto either volume
-  assert.equal(cut.objects[1].volumes[0].painted, false, 'lower volume 0 remains unpainted');
-  assert.equal(cut.objects[1].volumes[1].painted, false, 'lower volume 1 has no bleed from upper paint');
+  const halves = info();
+  assert.equal(halves.objects.length, 2, 'uncut replaced by upper and lower objects');
+  // Upper object (halves.objects[0]) preserves paint on volume 1, volume 0 remains unpainted
+  assert.equal(halves.objects[0].volumes[0].painted, false, 'upper volume 0 remains unpainted (no cross-contamination)');
+  assert.equal(halves.objects[0].volumes[1].painted, true, 'upper volume 1 preserves paint');
+  // Lower object (halves.objects[1]) has no paint bleed onto either volume
+  assert.equal(halves.objects[1].volumes[0].painted, false, 'lower volume 0 remains unpainted');
+  assert.equal(halves.objects[1].volumes[1].painted, false, 'lower volume 1 has no bleed from upper paint');
   engine.clearModel();
 });
 

@@ -220,3 +220,22 @@
 .calib-fields input {
   width: 100%;
 }
+.transform-row.cut-at {
+  grid-template-columns: 64px 1fr 88px;
+}
+.transform-row.cut-tilt {
+  grid-template-columns: 64px 1fr 1fr;
+}
+.transform-row.cut-parts-pick {
+  grid-template-columns: 64px 1fr;
+}
+/* A half's choice: its name above a chooser across the panel. */
+.cut-part {
+  display: grid;
+  gap: var(--s-2);
+  color: var(--muted);
+  font-size: var(--t-sm);
+}
+.cut-part .chooser > button {
+  flex: 1;
+}
