@@ -45,6 +45,12 @@ Desktop Orca's Prepare tools, one by one, each backed by Orca's own code.
 - The Text tool's vertical alignment names where the text goes from its point: Top puts
   it above. Orca's stored value is the other way round (its `top` is the text's top on
   the point), so Top saves `bottom`; files stay the same as desktop's.
+- The object menu uses desktop's words for copies: an "Instances" submenu with Add
+  instance, Remove instance and Set number of instances… (new copies go beside the last
+  one, one undo step). Copy, Cut and Paste are in the object and group menus, and Paste in
+  the plate menu, because phones have no Ctrl+C / Ctrl+X / Ctrl+V. "Move to plate" (object
+  and group menus) puts the copies on the same spot of another plate, or a new one, and
+  shows that plate.
 - Long-press menus ignore clicks until a press starts on the menu, or lifting the finger
   picks an item.
 - Edits that take a while show the loading screen (`busyWhile` in `store.ts`) until the

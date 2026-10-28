@@ -154,13 +154,14 @@ export function Toolbar({ onAdd }: { onAdd(): void }) {
     }
   };
 
-  // Desktop's editing keys: Delete, Ctrl+C / Ctrl+V, Ctrl+K (clone) and + / - (a copy more or less).
+  // Desktop's editing keys: Delete, Ctrl+C / Ctrl+X / Ctrl+V, Ctrl+K (clone) and + / - (a copy more or less).
   const runEdit = (edit: NonNullable<ReturnType<typeof editKey>>) => {
     const s = useSlicer.getState();
     if (edit === 'paste') return void s.paste();
     if (several) {
       if (edit === 'delete') return void s.groupAction({ op: 'delete' });
       if (edit === 'copy') return void s.groupAction({ op: 'copy' });
+      if (edit === 'cut') return void s.groupAction({ op: 'cut' });
       if (edit === 'clone') {
         const box = bar.current?.getBoundingClientRect();
         return s.openGroupMenu({ x: box ? box.left + 8 : 16, y: box ? box.bottom + 8 : 80, form: 'clone' });
@@ -180,6 +181,8 @@ export function Toolbar({ onAdd }: { onAdd(): void }) {
       }
       case 'copy':
         return void s.copyToClipboard(o, i);
+      case 'cut':
+        return void s.cutToClipboard(o, i);
       case 'clone': {
         // Desktop's Ctrl+K asks how many copies: the object menu's Clone form, over the plate.
         const box = bar.current?.getBoundingClientRect();

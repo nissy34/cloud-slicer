@@ -4,7 +4,8 @@
 // already there, simplify halves the triangles, brim ears go on the corners and
 // where the bed is clicked, lay on face turns the object, variable layer height
 // makes an adaptive profile, measure picks two features and measures between
-// them, the object menu (right click or ⋯) renames, clones and exports, mesh
+// them, the object menu (right click or ⋯) renames, clones, sets the number of
+// instances, copies and pastes, moves an object to a new plate and back, and exports, mesh
 // boolean joins two parts, text and SVG shapes go on a model (text following
 // its surface, turned and slid over it) or make an object
 // of their own, Assemble joins two cubes and puts a face of one onto the
@@ -337,6 +338,49 @@ try {
     await page.locator('body').press('Control+z');
     await page.waitForFunction(() => document.querySelectorAll('ul.objects > li.object').length === 2, null, { timeout: 60000 });
     console.log('clone adds two objects, undo removes them');
+
+    // Desktop's Set number of instances: three copies of the boat, then undo.
+    await more(0).click();
+    await objectMenu.getByRole('menuitem', { name: 'Instances' }).click();
+    for (const name of ['Add instance', 'Remove instance']) await objectMenu.getByRole('menuitem', { name, exact: true }).waitFor({ timeout: 3000 });
+    await objectMenu.getByRole('menuitem', { name: 'Set number of instances…' }).click();
+    await objectMenu.getByLabel('Number of instances').fill('3');
+    await objectMenu.getByRole('button', { name: 'Set' }).click();
+    await objectRows(page).first().getByText('×3').waitFor({ timeout: 60000 });
+    await page.locator('body').press('Control+z');
+    await objectRows(page).first().getByText('×3').waitFor({ state: 'detached', timeout: 60000 });
+    console.log('set number of instances makes three, undo takes them back');
+
+    // Copy and Paste from the menus (phones have no Ctrl+C): a new object; undo removes it.
+    await more(0).click();
+    await objectMenu.getByRole('menuitem', { name: 'Copy', exact: true }).click();
+    await more(0).click();
+    await objectMenu.getByRole('menuitem', { name: 'Paste', exact: true }).click();
+    await page.waitForFunction(() => document.querySelectorAll('ul.objects > li.object').length === 3, null, { timeout: 60000 });
+    await page.locator('body').press('Control+z');
+    await page.waitForFunction(() => document.querySelectorAll('ul.objects > li.object').length === 2, null, { timeout: 60000 });
+    console.log('copy and paste from the object menu');
+
+    // Move to plate: the second object to a new plate, which is then shown; and back.
+    const plateTabs = page.getByRole('tablist', { name: 'Plates' }).getByRole('tab');
+    await more(1).click();
+    await objectMenu.getByRole('menuitem', { name: 'Move to plate' }).click();
+    if (!(await objectMenu.getByRole('menuitem', { name: 'Plate 1', exact: true }).isDisabled())) fail('Move to plate offers the plate it is on');
+    await objectMenu.getByRole('menuitem', { name: 'New plate' }).click();
+    await page.waitForFunction(() => document.querySelectorAll('.plate-tabs [role="tab"]').length === 2, null, { timeout: 60000 });
+    if ((await plateTabs.nth(1).getAttribute('aria-selected')) !== 'true') fail('the new plate is not shown after Move to plate');
+    await page.waitForFunction(() => document.querySelectorAll('ul.objects > li.object').length === 1, null, { timeout: 60000 });
+    await more(0).click();
+    await objectMenu.getByRole('menuitem', { name: 'Move to plate' }).click();
+    await objectMenu.getByRole('menuitem', { name: 'Plate 1', exact: true }).click();
+    await page.waitForFunction(() => document.querySelectorAll('ul.objects > li.object').length === 2, null, { timeout: 60000 });
+    if ((await plateTabs.nth(0).getAttribute('aria-selected')) !== 'true') fail('plate 1 is not shown after moving back');
+    // Both moves undone: one plate again.
+    await page.locator('body').press('Control+z');
+    await page.locator('body').press('Control+z');
+    await page.waitForFunction(() => document.querySelectorAll('.plate-tabs [role="tab"]').length <= 1, null, { timeout: 60000 });
+    await page.waitForFunction(() => document.querySelectorAll('ul.objects > li.object').length === 2, null, { timeout: 60000 });
+    console.log('move to a new plate and back');
 
     // Not printable, then printable again; the check mark follows.
     await more(0).click();
