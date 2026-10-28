@@ -1,13 +1,12 @@
 import { useState } from 'react';
-import { ALL, BOOLEAN_OPS, defaultPair, pickerLabels, type BooleanOp } from '../lib/boolean';
+import { BOOLEAN_OPS, defaultPair, pickerLabels, type BooleanOp } from '../lib/boolean';
 import { KIND_LABELS } from '../lib/volumes';
 import { useSlicer } from '../state/store';
 import { Note } from './Note';
 
 /**
  * Desktop's Mesh boolean tool for the selected object: union, difference or
- * intersection of two of its parts (or of one and all the others), the result
- * in place of the first.
+ * intersection of two of its parts, the result in place of the first.
  */
 export function BooleanPanel({ object }: { object: number }) {
   const volumes = useSlicer((s) => s.project?.objects[object]?.volumes ?? []);
@@ -19,8 +18,6 @@ export function BooleanPanel({ object }: { object: number }) {
   const [working, setWorking] = useState(false);
   const [first, second] = pickerLabels(op);
   const enough = volumes.length >= 2;
-  // b = ALL: every other part, and negative part for a difference (never modifiers or support ones).
-  const all = b === ALL;
   const valid = enough && a !== b && a < volumes.length && b < volumes.length;
 
   const apply = async () => {
@@ -31,7 +28,7 @@ export function BooleanPanel({ object }: { object: number }) {
     if (ok) setPair(defaultPair(useSlicer.getState().project?.objects[object]?.volumes ?? [], useSlicer.getState().selected?.volume));
   };
 
-  const picker = (label: string, value: number, onChange: (v: number) => void, others = false) => (
+  const picker = (label: string, value: number, onChange: (v: number) => void) => (
     <label className="transform-row boolean-pick">
       <span>{label}</span>
       <select aria-label={label} value={value} onChange={(e) => onChange(Number(e.target.value))}>
@@ -40,7 +37,6 @@ export function BooleanPanel({ object }: { object: number }) {
             {v.name} ({KIND_LABELS[v.kind].toLowerCase()})
           </option>
         ))}
-        {others && <option value={ALL}>All the other parts</option>}
       </select>
     </label>
   );
@@ -69,25 +65,19 @@ export function BooleanPanel({ object }: { object: number }) {
         <>
           <p className="muted hint">
             {op === 'union'
-              ? all
-                ? 'Joins all the parts into one.'
-                : 'Joins the two into one part.'
+              ? 'Joins the two into one part.'
               : op === 'difference'
-                ? all
-                  ? 'Cuts all the other parts out of the first.'
-                  : 'Cuts the second one out of the first.'
-                : all
-                  ? 'Keeps only what all the parts share.'
-                  : 'Keeps only where the two overlap.'}{' '}
-            The result takes the first one's place, type and settings. Undo brings {all ? 'them all' : 'both'} back.
+                ? 'Cuts the second one out of the first.'
+                : 'Keeps only where the two overlap.'}{' '}
+            The result takes the first one's place, type and settings. Undo brings both back.
           </p>
           {picker(first, a, (v) => setPair([v, b]))}
-          {picker(second, b, (v) => setPair([a, v]), true)}
+          {picker(second, b, (v) => setPair([a, v]))}
           {a === b && <Note tone="warn">Pick two different parts.</Note>}
           {op !== 'union' && (
             <label className="switch-row">
               <input className="switch" type="checkbox" checked={deleteInput} onChange={(e) => setDeleteInput(e.target.checked)} />
-              Delete input (also remove {all ? 'the other parts' : 'the second one'})
+              Delete input (also remove the second one)
             </label>
           )}
         </>

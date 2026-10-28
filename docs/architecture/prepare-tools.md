@@ -51,12 +51,14 @@ Desktop Orca's Prepare tools, one by one, each backed by Orca's own code.
   the plate menu, because phones have no Ctrl+C / Ctrl+X / Ctrl+V. "Move to plate" (object
   and group menus) puts the copies on the same spot of another plate, or a new one, and
   shows that plate.
-- Mesh boolean's second picker has "All the other parts": every other part (and, for a
-  difference, every negative part) one after another. When mcut can't do it (an empty
-  result, a difference that cut nothing, a union left side by side where the parts
-  overlap), the engine refuses with desktop's "Unable to perform boolean operation on
-  selected parts" and the reason it finds (a mesh with holes, one crossing itself), shown
-  in the card and as a notice; desktop silently keeps the uncut part.
+- Mesh boolean: the toolbar's card is desktop's (two parts). The object menu's "Mesh
+  boolean" joins all the object's parts into one in a single step (greyed out with one
+  part); negative parts and modifiers stay. The engine takes `b = -1` for "all the other
+  parts" and applies them one after another. When mcut can't do it (an empty result, a
+  difference that cut nothing, a union left side by side where the parts overlap), the
+  engine refuses with desktop's "Unable to perform boolean operation on selected parts"
+  and the reason it finds (a mesh with holes, one crossing itself), shown in the card and
+  as a notice; desktop silently keeps the uncut part.
 - Long-press menus ignore clicks until a press starts on the menu, or lifting the finger
   picks an item.
 - Edits that take a while show the loading screen (`busyWhile` in `store.ts`) until the

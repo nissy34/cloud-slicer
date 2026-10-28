@@ -1,4 +1,4 @@
-// Mesh boolean of two volumes of one object, or of one and all the others (engine/src/boolean_api.cpp),
+// Mesh boolean of two volumes of one object, or of one and all the others (the object menu joins all parts) (engine/src/boolean_api.cpp),
 // like desktop Orca's Mesh Boolean tool.
 import type { VolumeInfo } from '../engine/protocol';
 
