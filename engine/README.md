@@ -3,7 +3,7 @@
 Design, rules and why: [docs/architecture/engine.md](../docs/architecture/engine.md). This page has the commands and the file list.
 
 Snapmaker Orca's `libslic3r` (upstream [Snapmaker/OrcaSlicer](https://github.com/Snapmaker/OrcaSlicer)
-v2.4.0, the `orcaslicer/` submodule; OrcaSlicer 2.4.2 is the second engine, see "Two engines") compiled to WebAssembly with Emscripten, plus a small
+v2.4.1, the `orcaslicer/` submodule; OrcaSlicer 2.4.2 is the second engine, see "Two engines") compiled to WebAssembly with Emscripten, plus a small
 embind API that drives it the way desktop Snapmaker Orca does. Everything the desktop
 slicer can slice (STL, OBJ, AMF, 3MF projects including Bambu Studio files with painted
 colours, per-part filaments, multi-plate projects, mixed filaments) goes through the
@@ -13,7 +13,7 @@ same engine code.
 
 | Path | What |
 |---|---|
-| `orcaslicer/` | Submodule pinned to the v2.4.0 tag. Never edited in place |
+| `orcaslicer/` | Submodule pinned to the v2.4.1 tag. Never edited in place |
 | `orcaslicer-upstream/` | Upstream OrcaSlicer v2.4.2, the second engine, live beside the first and chosen per project (see "Two engines" below). Never edited in place |
 | `patches/` | Browser-only fixes, applied to copies of the touched files in the build tree |
 | `compat/` | Stand-ins for what a browser lacks: OpenSSL MD5 (on Boost), no-op STEP/SVG import when built without OCCT, thread naming |

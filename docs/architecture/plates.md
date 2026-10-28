@@ -28,9 +28,11 @@ printing object by object, a draggable prime tower, and a slice kept per plate.
 - **Plate settings**: kept in the 3MF's plate data, merged over the project's settings
   when that plate slices (as desktop's `BackgroundSlicingProcess::apply`).
 - **Prime tower**: follows desktop's `reload_scene` and `estimate_wipe_tower_size`: the
-  plate's filaments (mixes expanded), Orca's planned depth before slicing or the real one
-  after, the minimum for the plate's height. Positions are Orca's `wipe_tower_x/y`, one
-  per plate, saved with the project.
+  plate's filaments (mixes expanded); before slicing, Snapmaker Orca 2.4.1 sizes it from
+  the prime volume and filament count (a rib tower is square), OrcaSlicer from its planned
+  depth with the minimum for the plate's height; after slicing, the real depth (never
+  under that minimum). Positions are Orca's `wipe_tower_x/y`, one
+  per plate, saved with the project; a new plate's tower starts at the left, halfway down.
 - **Clearance**: half of `extruder_clearance_radius` round each object (plus skirt), red
   where two touch, a red band where an object is too tall for its place (rod and lid
   heights from the printer preset). Slice waits; Arrange spaces by the clearance with

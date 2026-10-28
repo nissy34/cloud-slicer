@@ -20,7 +20,7 @@ const second = join(web, '../../fixtures/tetrahedron.stl');
 const shots = process.argv[2] ? resolve(process.argv[2]) : null;
 const PORT = 4176;
 const BED = 270;  // the U1's plate
-const TOWER = [13, 214.5];  // desktop's spot for a new plate's tower
+const TOWER = [13, 135];  // desktop's spot for a new plate's tower: left, halfway down the U1's 270 mm plate
 const TARGET = [150, 40];
 
 const server = spawn('npx', ['vite', 'preview', '--port', String(PORT), '--strictPort'], { cwd: web, stdio: 'pipe', detached: true });
@@ -96,7 +96,7 @@ try {
   await page.waitForTimeout(1500);
   await shot(page, 'desktop');
 
-  // Drag it from the back-left corner to the front.
+  // Drag it from the left side to the front.
   const { toScreen, onPlate } = await projector(page);
   const grab = [TOWER[0] + 10, TOWER[1] + 10, 15];
   const from = toScreen(grab);

@@ -4,7 +4,7 @@ import type { OptionDef } from '../engine/protocol';
 type Entry = [key: string, label: string, priority: number];
 
 /**
- * Desktop's per-object settings (Snapmaker Orca 2.4 GUI_Factories.cpp,
+ * Desktop's per-object settings (Snapmaker Orca 2.4.1 GUI_Factories.cpp,
  * SettingsFactory::OBJECT_CATEGORY_SETTINGS): what only an object can have,
  * added to the part list below for an object.
  */
@@ -47,6 +47,7 @@ const OBJECT_CATEGORIES: Record<string, Entry[]> = {
     ['support_interface_top_layers', '', 16],
     ['support_interface_bottom_layers', '', 17],
     ['support_interface_spacing', '', 18],
+    ['support_interface_min_area', '', 30],
     ['support_bottom_interface_spacing', '', 19],
     ['support_object_xy_distance', '', 20],
     ['bridge_no_support', '', 21],
@@ -80,9 +81,11 @@ const PART_CATEGORIES: Record<string, Entry[]> = {
     ['top_shell_layers', 'Top Solid Layers', 1],
     ['top_shell_thickness', 'Top Minimum Shell Thickness', 1],
     ['top_surface_density', 'Top Surface Density', 1],
+    ['top_color_penetration_layers', 'Top Paint Penetration Layers', 1],
     ['bottom_shell_layers', 'Bottom Solid Layers', 1],
     ['bottom_shell_thickness', 'Bottom Minimum Shell Thickness', 1],
     ['bottom_surface_density', 'Bottom Surface Density', 1],
+    ['bottom_color_penetration_layers', 'Bottom Paint Penetration Layers', 1],
     ['sparse_infill_density', '', 1],
     ['sparse_infill_pattern', '', 1],
     ['sparse_infill_filament', '', 1],

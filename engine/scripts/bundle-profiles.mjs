@@ -58,9 +58,12 @@ const walk = (dir) =>
     const p = join(dir, name);
     return statSync(p).isDirectory() ? walk(p) : [p];
   });
+// A preset file's text without a leading byte order mark (Snapmaker 2.4.1 ships
+// a few), which JSON.parse refuses.
+const readText = (path) => readFileSync(path, 'utf8').replace(/^\uFEFF/, '');
 const readJson = (path) => {
   try {
-    return JSON.parse(readFileSync(path, 'utf8'));
+    return JSON.parse(readText(path));
   } catch {
     return null;
   }
@@ -103,10 +106,10 @@ let plateNamed = 0;
  * G-code file name its plate number (plate-file-names.mjs).
  */
 function vendorFiles(vendor) {
-  const files = { [`${vendor}.json`]: readFileSync(join(root, `${vendor}.json`), 'utf8') };
+  const files = { [`${vendor}.json`]: readText(join(root, `${vendor}.json`)) };
   for (const file of walk(join(root, vendor))) {
     const rel = relative(root, file).split('\\').join('/');
-    if (file.endsWith('.json')) files[rel] = withoutDefaultMaterials(readFileSync(file, 'utf8'));
+    if (file.endsWith('.json')) files[rel] = withoutDefaultMaterials(readText(file));
   }
   labelled += labelObjectsForKlipper(files).length;
   plateNamed += plateInFileNames(files).length;

@@ -1,8 +1,8 @@
 // The prime (wipe) tower on a plate before slicing, as desktop's Prepare view
 // shows it (GLCanvas3D::reload_scene): whether there is one, where, and how
-// big. Desktop takes the size from PartPlate::estimate_wipe_tower_size, with
-// the depth from Print::wipe_tower_data (Orca's estimate before slicing, the
-// real depth after); the same steps run here.
+// big. Snapmaker Orca 2.4.1 sizes it from the plate's filaments and the prime
+// volume (PartPlate::estimate_wipe_tower_size); upstream OrcaSlicer from
+// Print::wipe_tower_data's depth. After slicing both use the real tower.
 #include "engine.hpp"
 
 #include "libslic3r/GCode/WipeTower.hpp"
@@ -12,6 +12,8 @@
 #include "libslic3r/Print.hpp"
 
 #include <algorithm>
+#include <cmath>
+#include <tuple>
 
 using nlohmann::json;
 using namespace Slic3r;
@@ -110,6 +112,28 @@ float minDepth(double height) {
     return 0.f;
 }
 
+#if !ENGINE_UPSTREAM
+// Snapmaker Orca 2.4.1's PartPlate::estimate_wipe_tower_size: the tower's
+// width and depth for `n` filaments on the plate, before slicing.
+std::pair<double, double> estimateTower(const DynamicPrintConfig& cfg, size_t n) {
+    const double layerHeight = cfg.opt_float("layer_height");
+    const double wipeVolume = cfg.opt_float("prime_volume");
+    const double spacing = cfg.option("wipe_tower_extra_spacing")->getFloat() / 100.;
+    double changeVolume = 0.5;
+    if (const auto* ramming = cfg.option<ConfigOptionFloats>("filament_multitool_ramming_volume"); ramming && !ramming->values.empty())
+        changeVolume = *std::max_element(ramming->values.begin(), ramming->values.end());
+    const double volume = wipeVolume * n + changeVolume * (n - 1);
+    const auto* wall = cfg.option<ConfigOptionEnum<WipeTowerWallType>>("wipe_tower_wall_type");
+    if (wall && wall->value == WipeTowerWallType::wtwRib) {
+        double depth = std::sqrt(volume / layerHeight * spacing);
+        const double rib = std::min(cfg.opt_float("wipe_tower_rib_width"), depth / 2);
+        depth = rib + std::max(depth + cfg.opt_float("wipe_tower_extra_rib_length"), depth);
+        return {depth, depth};
+    }
+    return {cfg.opt_float("prime_tower_width"), volume / (layerHeight * wipeVolume) * spacing};
+}
+#endif
+
 } // namespace
 
 namespace engine {
@@ -143,14 +167,26 @@ json wipeTowerFor(const DynamicPrintConfig& cfg, int plate, double slicedDepth) 
     const std::vector<int> used = plateFilaments(cfg, plate, &assigned);
     if (used.empty()) return out;
 
-    // The depth Orca plans for before slicing (Print::wipe_tower_data with the
-    // project's filament count), or the sliced tower's.
-    const double width = cfg.opt_float("prime_tower_width");
+    // The size Orca plans for before slicing, or the sliced tower's.
+    double width = cfg.opt_float("prime_tower_width");
     double depth = slicedDepth;
     double brim = cfg.opt_float("prime_tower_brim_width");
+#if !ENGINE_UPSTREAM
+    // Desktop counts the plate's own filaments; one (or a single mix, which
+    // the slice prints as one) needs no tower unless timelapse does.
+    if (!smooth && (used.size() < 2 || assigned == 1)) return out;
     if (depth < 0) {
         Print print;
-#if ENGINE_UPSTREAM
+        print.apply(Model(), cfg);
+        brim = print.wipe_tower_data(used.size()).brim_width;
+        std::tie(width, depth) = estimateTower(cfg, used.size());
+    } else {
+        // The sliced tower, never shallower than the engine's minimum.
+        depth = std::max(double(minDepth(height)), depth);
+    }
+#else
+    if (depth < 0) {
+        Print print;
         // Upstream sizes the tower from the tallest object in the Print (and
         // plans none for an empty one): stand in a block as tall as the plate.
         Model stand_in;
@@ -160,9 +196,6 @@ json wipeTowerFor(const DynamicPrintConfig& cfg, int plate, double slicedDepth) 
             block->add_instance();
         }
         print.apply(stand_in, cfg);
-#else
-        print.apply(Model(), cfg);
-#endif
         const WipeTowerData& data = print.wipe_tower_data(filaments);
         depth = data.depth;
         brim = data.brim_width;
@@ -173,6 +206,7 @@ json wipeTowerFor(const DynamicPrintConfig& cfg, int plate, double slicedDepth) 
     // print: a plate printed with a single mix gets no tower.
     if (used.size() == 1 || assigned == 1) depth = 0;
     if (smooth || depth > EPSILON) depth = std::max(double(minDepth(height)), depth);
+#endif
     if (depth < 0.01) return out;
 
     // Kept on the bed, as desktop does whenever it shows the plate.

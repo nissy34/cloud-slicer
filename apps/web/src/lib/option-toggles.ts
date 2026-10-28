@@ -20,7 +20,7 @@ export interface ToggleContext {
   /** Global settings (process, printer, filament) or one object's own. */
   scope: 'global' | 'object';
   /** Option metadata, to find list options and flow-variant ones. */
-  options: Record<string, { type?: string; flow?: 'process' | 'filament' } | undefined>;
+  options: Record<string, { type?: string; flow?: 'process' | 'filament'; enumValues?: string[]; enumLabels?: string[] } | undefined>;
   /** A Bambu Lab printer is selected (desktop hides some settings for them). */
   bambu?: boolean;
 }
@@ -154,10 +154,10 @@ export function optionStates(cfg: OrcaConfig, ctx: ToggleContext): OptionStates 
 
   toggleField(
     ['outer_wall_acceleration', 'inner_wall_acceleration', 'initial_layer_acceleration', 'top_surface_acceleration', 'travel_acceleration',
-      'bridge_acceleration', 'sparse_infill_acceleration', 'internal_solid_infill_acceleration'],
+      'first_layer_travel_acceleration', 'bridge_acceleration', 'sparse_infill_acceleration', 'internal_solid_infill_acceleration'],
     c.num('default_acceleration') > 0,
   );
-  toggleField(['outer_wall_jerk', 'inner_wall_jerk', 'initial_layer_jerk', 'top_surface_jerk', 'travel_jerk', 'infill_jerk'], c.num('default_jerk') > 0);
+  toggleField(['outer_wall_jerk', 'inner_wall_jerk', 'initial_layer_jerk', 'top_surface_jerk', 'travel_jerk', 'first_layer_travel_jerk', 'infill_jerk'], c.num('default_jerk') > 0);
   toggleLine('default_junction_deviation', gcflavor === 'marlin2');
 
   const haveSkirt = c.num('skirt_loops') > 0;
@@ -185,7 +185,7 @@ export function optionStates(cfg: OrcaConfig, ctx: ToggleContext): OptionStates 
     ['support_style', 'support_base_pattern', 'support_base_pattern_spacing', 'support_expansion', 'support_angle', 'support_interface_pattern',
       'support_interface_top_layers', 'support_interface_bottom_layers', 'bridge_no_support', 'max_bridge_length', 'support_top_z_distance',
       'support_bottom_z_distance', 'support_type', 'support_on_build_plate_only', 'support_critical_regions_only', 'support_interface_not_for_body',
-      'support_object_xy_distance', 'support_object_first_layer_gap'],
+      'support_object_xy_distance', 'support_object_first_layer_gap', 'support_interface_min_area'],
     haveSupport,
   );
   toggleField('support_threshold_angle', haveSupport && isAuto(supportType));
@@ -202,8 +202,9 @@ export function optionStates(cfg: OrcaConfig, ctx: ToggleContext): OptionStates 
     organic,
   );
   toggleField('tree_support_brim_width', supportIsTree && !c.bool('tree_support_auto_brim'));
-  toggleLine('max_bridge_length', normalTree);
-  toggleLine('bridge_no_support', !normalTree);
+  // Tree supports use max_bridge_length instead of bridge_no_support.
+  toggleLine('max_bridge_length', supportIsTree);
+  toggleLine('bridge_no_support', !supportIsTree);
   toggleLine('support_critical_regions_only', isAuto(supportType) && supportIsTree);
   toggleField(['support_interface_filament', 'support_interface_loop_pattern', 'support_bottom_interface_spacing'], haveSupport && haveInterface);
 
@@ -218,7 +219,9 @@ export function optionStates(cfg: OrcaConfig, ctx: ToggleContext): OptionStates 
   toggleField('inner_wall_line_width', havePerimeters || haveSkirt || haveBrim);
   toggleField('support_filament', haveSupport || haveSkirt);
   toggleLine('raft_contact_distance', haveRaft && !haveSoluble);
-  toggleField(['raft_first_layer_expansion', 'raft_first_layer_density'], haveSupport && !(normalTree && !haveRaft));
+  // raft_first_layer_expansion also widens a normal tree's first layer without a raft.
+  toggleField('raft_first_layer_expansion', haveSupport);
+  toggleField('raft_first_layer_density', haveSupport && !(normalTree && !haveRaft));
 
   const ironing = c.str('ironing_type') !== 'no ironing';
   toggleLine(['ironing_pattern', 'ironing_flow', 'ironing_spacing', 'ironing_angle', 'ironing_inset'], ironing);
@@ -234,6 +237,10 @@ export function optionStates(cfg: OrcaConfig, ctx: ToggleContext): OptionStates 
   const primeTower = c.bool('enable_prime_tower');
   toggleLine(['prime_tower_width', 'prime_tower_brim_width'], primeTower);
   toggleLine(['wall_filament', 'sparse_infill_filament', 'solid_infill_filament', 'wipe_tower_filament'], !bSEMM);
+  // The prime tower's interface boost is a Snapmaker U1 feature.
+  const towerInterface = primeTower && isSnapmakerU1(cfg);
+  toggleLine('enable_tower_interface_features', towerInterface);
+  toggleLine('enable_tower_interface_cooldown_during_tower', towerInterface && c.bool('enable_tower_interface_features'));
   toggleLine(
     ['wipe_tower_cone_angle', 'wipe_tower_extra_spacing', 'wipe_tower_max_purge_speed', 'wipe_tower_wall_type', 'wipe_tower_extra_rib_length',
       'wipe_tower_rib_width', 'wipe_tower_fillet_wall', 'wipe_tower_bridging', 'wipe_tower_extra_flow', 'wipe_tower_no_sparse_layers'],
@@ -245,6 +252,7 @@ export function optionStates(cfg: OrcaConfig, ctx: ToggleContext): OptionStates 
   toggleLine('wipe_tower_cone_angle', primeTower && !isBBL && wallType === 'cone');
   toggleLine(['wipe_tower_extra_rib_length', 'wipe_tower_rib_width', 'wipe_tower_fillet_wall'], primeTower && !isBBL && wallType === 'rib');
   toggleField('prime_tower_width', primeTower && wallType !== 'rib');
+  toggleLine(['wipe_tower_wall_gap', 'prime_tower_enable_framework', 'prime_tower_brim_chamfer_max_width', 'prime_tower_brim_chamfer'], primeTower);
   toggleLine('single_extruder_multi_material_priming', !bSEMM && primeTower && !isBBL);
   toggleLine('prime_volume', primeTower && (!c.bool('purge_in_prime_tower') || !bSEMM));
   toggleField(['flush_into_infill', 'flush_into_support', 'flush_into_objects'], primeTower);
@@ -449,6 +457,21 @@ export function reviewChange(before: OrcaConfig, after: OrcaConfig, changed: str
     if (global)
       yesNo(`${message}\n\nChange these settings automatically?`, yes, { ensure_vertical_shell_thickness: 'ensure_all', alternate_extra_wall: '0' }, 'Use Moderate', "Don't use alternate extra wall");
     else prompts.push({ message, answers: [{ label: 'OK', changes: yes }] });
+  }
+
+  // A sparse pattern that can't fill 100%: switch to rectilinear, or put the density back.
+  if (touched('sparse_infill_density', 'sparse_infill_pattern') && c.has('sparse_infill_density') && c.num('sparse_infill_density') === 100) {
+    const pattern = c.str('sparse_infill_pattern');
+    const topPatterns = ctx.options.top_surface_pattern?.enumValues;
+    const def = ctx.options.sparse_infill_pattern;
+    if (topPatterns && !topPatterns.includes(pattern)) {
+      const label = def?.enumLabels?.[def.enumValues?.indexOf(pattern) ?? -1] ?? pattern;
+      const message = `${label} infill pattern doesn't support 100% density.`;
+      const back = was.num('sparse_infill_density') === 100 ? '15%' : `${was.num('sparse_infill_density')}%`;
+      const yes = { sparse_infill_pattern: 'rectilinear', sparse_infill_density: '100%' };
+      if (global) yesNo(`${message}\n\nSwitch to the rectilinear pattern?`, yes, { sparse_infill_density: back }, 'Use rectilinear', 'Put density back');
+      else prompts.push({ message, answers: [{ label: 'OK', changes: yes }] });
+    }
   }
 
   // Turning support on turns on overhang wall detection, without asking.

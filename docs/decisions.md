@@ -24,6 +24,8 @@ down. Add a line with the date when a new choice is made.
 
 - Engine = upstream Snapmaker Orca 2.4.0, not the U1 Android fork (2.3.3 plus Android-only
   patches); browser fixes as patch files (2026-10-17).
+- Snapmaker Orca 2.4.0 replaced by 2.4.1 in place, not added beside it (2026-10-28). New
+  desktop screens from 2.4.1 come through a pick page, not silently.
 - Slicing only in the browser; server slicing and a separate phone UI dropped once phones
   sliced fine (2026-10-18).
 - Second engine, OrcaSlicer 2.4.2, chosen per project, not per user (2026-10-20).
