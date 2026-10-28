@@ -155,7 +155,7 @@ async function firstRun({ label, engine, search, expect, badge, other, filaments
 
     // Switching the empty project to the other engine keeps only your printer (not the U1 the engine used to start on).
     if (other) {
-      await page.getByRole('combobox', { name: 'Slicer engine' }).selectOption({ label: other.engine });
+      await pickerOf(page, 'Slicer engine').selectOption(other.engine === 'OrcaSlicer' ? 'orca' : 'snapmaker');
       await page.waitForFunction((n) => document.querySelector('.engine-badge')?.textContent?.startsWith(n), other.engine, { timeout: 180000 });
       // While the engine starts the picker is disabled and passes through other printers (what it had before, then the one carried over).
       await waitPicked(page, 'Printer preset', other.expect, 180000);

@@ -2,10 +2,11 @@ import { useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Cpu } from 'lucide-react';
 import { losesNothing } from '../lib/engine-switch';
-import { ENGINES, type EngineFlavor } from '../lib/engines';
+import { ENGINES, engineRelease, type EngineFlavor } from '../lib/engines';
 import { useProjects } from '../state/projects';
 import { useSlicer } from '../state/store';
 import { EngineSwitchDialog } from './EngineSwitchDialog';
+import { Picker } from './Picker';
 
 /**
  * The sidebar's Slicer engine section, above the printer (the same place on
@@ -15,7 +16,11 @@ import { EngineSwitchDialog } from './EngineSwitchDialog';
  */
 export function EngineSection() {
   const flavor = useSlicer((s) => s.flavor);
-    // Not while the engine starts, opens a file or slices.
+  // Each engine's version beside its name (phones have no room for the top bar's tag):
+  // the running one's own word, the other's from the build.
+  const running = useSlicer((s) => s.engineInfo);
+  const version = (id: EngineFlavor) => (running?.flavor === id ? running.version : engineRelease(id));
+  // Not while the engine starts, opens a file or slices.
   const busy = useSlicer((s) => s.engine !== 'ready' || s.job.kind === 'loading' || s.job.kind === 'slicing');
   const [asking, setAsking] = useState<EngineFlavor | null>(null);
   const pick = (id: EngineFlavor) => {
@@ -33,16 +38,15 @@ export function EngineSection() {
           Slicer engine
         </h2>
       </div>
-      <label className="field">
-        <span className="sr-only">Slicer engine</span>
-        <select aria-label="Slicer engine" data-testid="engine-select" value={flavor} disabled={busy} onChange={(e) => pick(e.target.value as EngineFlavor)}>
-          {ENGINES.map((e) => (
-            <option key={e.id} value={e.id}>
-              {e.name}
-            </option>
-          ))}
-        </select>
-      </label>
+      <Picker
+        field
+        label="Slicer engine"
+        testId="engine-select"
+        value={flavor}
+        disabled={busy}
+        options={ENGINES.map((e) => ({ value: e.id, label: e.name, note: version(e.id) || undefined }))}
+        onChange={(v) => pick(v as EngineFlavor)}
+      />
       {/* On the page itself, not in the settings column, whose headings it would take on. */}
       {asking &&
         createPortal(

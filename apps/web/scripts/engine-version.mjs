@@ -27,3 +27,15 @@ export function engineBytes(dir = 'engine') {
   }
   return total;
 }
+
+// Each engine's own version, read from its sources' version.inc like
+// engine/CMakeLists.txt does, so the page can name the engine that isn't
+// running too. Empty where the sources aren't here.
+export function engineReleases() {
+  const read = (submodule) => {
+    const path = new URL(`../../../engine/${submodule}/version.inc`, import.meta.url);
+    if (!existsSync(path)) return '';
+    return readFileSync(path, 'utf8').match(/set\((?:Snapmaker|SoftFever)_VERSION "([^"]*)"/)?.[1] ?? '';
+  };
+  return { snapmaker: read('orcaslicer'), orca: read('orcaslicer-upstream') };
+}

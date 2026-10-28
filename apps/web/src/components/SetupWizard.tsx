@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { X } from 'lucide-react';
 import { create } from 'zustand';
 import type { PresetSummary } from '../engine/protocol';
-import { engineFromUrl, ENGINES, type EngineFlavor } from '../lib/engines';
+import { engineFromUrl, engineRelease, ENGINES, type EngineFlavor } from '../lib/engines';
 import { shortName } from '../lib/presets';
 import { coverUrl } from '../lib/printer-catalog';
 import { filamentGroups, installedFilaments, installedPrinters, matchModels, SETUP_KEY, wizardBrands, type FilamentRow, type Setup } from '../lib/setup';
@@ -328,7 +328,10 @@ function EngineStep({ chosen, onChange, heading = true }: { chosen: EngineFlavor
       <div className="wizard-engines" role="radiogroup" aria-label="Slicing engine">
         {ENGINES.map((e) => (
           <button key={e.id} role="radio" aria-label={e.name} aria-checked={chosen === e.id} className={chosen === e.id ? 'wizard-engine on' : 'wizard-engine'} onClick={() => onChange(e.id)}>
-            <b>{e.name}</b>
+            <b>
+              {e.name}
+              {engineRelease(e.id) && <span className="picker-note">{engineRelease(e.id)}</span>}
+            </b>
             <span className="muted small">{e.blurb}</span>
             <ul className="small">
               {e.examples.map((x) => (
