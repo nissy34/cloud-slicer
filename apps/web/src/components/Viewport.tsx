@@ -16,7 +16,7 @@ import { onPlate } from '../lib/plateMenu';
 import { plateBounds } from '../lib/outside';
 import { hasPlateSettings } from '../lib/plate-settings';
 import { unprintableTriangles, UNPRINTABLE } from '../lib/printable';
-import { cutCentre, cutNormal, cutOutline, cutQuaternion, planeSpot, positionRange, rotationOf, SIDES, spotPoint, type CutRotation } from '../lib/cut';
+import { cutCentre, cutNormal, cutOutline, cutQuaternion, grooveSurface, planeSpot, positionRange, rotationOf, SIDES, spotPoint, type CutRotation } from '../lib/cut';
 import { viewOnly } from '../state/projects';
 import { NO_COLOURS, useOption, useSlicer } from '../state/store';
 import { setCameraSource } from '../state/view';
@@ -527,6 +527,17 @@ function CutPlane({ part, active, views, onRelease }: { part: Part; active: Reac
   const size = box.getSize(new THREE.Vector3());
   const middle = box.getCenter(new THREE.Vector3());
   const span = size.length() * 1.15 + 10;
+  const groove = useSlicer((s) => (s.cutMode === 'dovetail' ? s.cutGroove : null));
+  // A dovetail shows the surface it cuts along instead of the flat plane, like desktop.
+  const grooveGeometry = useMemo(() => {
+    if (!groove) return null;
+    const g = new THREE.BufferGeometry();
+    g.setAttribute('position', new THREE.BufferAttribute(grooveSurface(groove, span / 2), 3));
+    return g;
+  }, [groove, span]);
+  // Its folds, drawn as lines so the tongue shows from any side.
+  const grooveEdges = useMemo(() => grooveGeometry && new THREE.EdgesGeometry(grooveGeometry, 1), [grooveGeometry]);
+  useEffect(() => () => (grooveGeometry?.dispose(), grooveEdges?.dispose()), [grooveGeometry, grooveEdges]);
   const quaternion = useMemo(() => cutQuaternion(rotation), [rotation]);
   const normal = useMemo(() => cutNormal(rotation), [rotation]);
   const centre = cutCentre(middle, position, normal);
@@ -597,7 +608,7 @@ function CutPlane({ part, active, views, onRelease }: { part: Part; active: Reac
       )}
       {/* Always drawn (in pink below the plane unless pieces show): long presses and right-clicks hit it. */}
       {pieces ? <mesh ref={lowerTint} geometry={part.geometry} visible={false} /> : tint(CUT_LOWER, below, part.geometry, lowerTint)}
-      <CutOutline geometry={part.geometry} centre={centre} normal={normal} />
+      {!groove && <CutOutline geometry={part.geometry} centre={centre} normal={normal} />}
       {placing ? (
         <ConnectorSpots centre={centre} rotation={rotation} quaternion={quaternion} span={span} />
       ) : (
@@ -613,8 +624,13 @@ function CutPlane({ part, active, views, onRelease }: { part: Part; active: Reac
               onRelease();
             }}
           >
-            <planeGeometry args={[span, span]} />
+            {grooveGeometry ? <primitive object={grooveGeometry} attach="geometry" /> : <planeGeometry args={[span, span]} />}
             <meshBasicMaterial color="#ffffff" transparent opacity={0.22} side={THREE.DoubleSide} depthWrite={false} />
+            {grooveEdges && (
+              <lineSegments geometry={grooveEdges} raycast={() => null} renderOrder={3}>
+                <lineBasicMaterial color="#ffffff" depthTest={false} transparent opacity={0.9} />
+              </lineSegments>
+            )}
           </mesh>
           <CutGrabbers centre={gizmo} quaternion={quaternion} middle={middle} size={size} active={active} onRelease={onRelease} />
         </>
@@ -636,7 +652,7 @@ function usePiecePress(part: Part, target: React.RefObject<THREE.Mesh | null>) {
     const pick = async (x: number, y: number) => {
       const mesh = target.current;
       const s = useSlicer.getState();
-      if (!mesh || !place || s.cutTab !== 'plane') return;
+      if (!mesh || !place || s.cutTab !== 'plane' || s.cutMode === 'dovetail') return;
       const r = el.getBoundingClientRect();
       const ray = new THREE.Raycaster();
       ray.setFromCamera(new THREE.Vector2(((x - r.left) / r.width) * 2 - 1, -((y - r.top) / r.height) * 2 + 1), camera);

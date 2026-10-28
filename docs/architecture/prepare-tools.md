@@ -110,6 +110,17 @@ Like desktop's Cut (C), on Orca's own `Cut` class (`CutUtils.cpp`).
   (desktop's 2.5 mm starting size is 5 mm here). The engine adds each as a negative
   volume with Orca's `cut_info`, so `Cut` makes the plug on one half and the hole in
   the other; dowels print as their own objects. With connectors both halves are kept.
+- Cut: Flat or Dovetail (desktop's Dovetail mode, Orca's `perform_with_groove`): a
+  tongue on the lower half along the plane's Y, in a groove of the upper. Depth and
+  width (desktop's start: depth (x+y+z)/60, at least 1 mm; width four depths), flap
+  and groove angles, the gaps (Orca's tolerances), and Turn (the plane's Z angle)
+  for the tongue's direction. The 3D view draws the surface it cuts along
+  (`grooveSurface` in `lib/cut.ts`) at the gizmo, and the request sends `groove` and
+  `spot` (where the gizmo is on the plane). No connectors, moved pieces or parts of
+  one object with a dovetail; Cut is off while its sloping sides cross (`grooveFits`).
+- Tilting turns the plane about the gizmo, like desktop: `turnPlane` keeps the gizmo's
+  point and changes the position; the store's `cutSpot` is where the gizmo sits on the
+  plane. While cutting, a press on the model does not move it.
 - Painting is carried onto the halves (`paint_remap.hpp`); the cut faces stay unpainted.
 
 ## Big models
@@ -138,5 +149,5 @@ Over 1M triangles on a plate slows slicing and can crash a phone's tab.
 
 ## Open
 
-- Cut has no dovetail yet (issue #209, next PR), nor desktop's line cut or connector auto-place. Simplify remaps painting onto the simplified mesh. No assembly view,
+- Cut has neither desktop's line cut nor connector auto-place, nor upstream Orca's several dovetails in a row. Simplify remaps painting onto the simplified mesh. No assembly view,
   Reload from disk or text styles (left out).

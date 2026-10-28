@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import * as THREE from 'three';
-import { turnPlane, cutOutline, planeSpot, spotPoint, cutCentre, cutNormal, cutQuaternion, flipPlane, positionAt, positionRange, rotationOf, wrapAngle } from './cut';
+import { defaultGroove, grooveFits, grooveSurface, turnPlane, cutOutline, planeSpot, spotPoint, cutCentre, cutNormal, cutQuaternion, flipPlane, positionAt, positionRange, rotationOf, wrapAngle } from './cut';
 
 const close = (v: THREE.Vector3, x: number, y: number, z: number) => {
   expect(v.x).toBeCloseTo(x, 6);
@@ -89,6 +89,29 @@ describe('cut plane', () => {
       expect(p.y).toBeCloseTo(0, 1);
       expect(p.z).toBeCloseTo(5, 1);
     }
+  });
+
+  it('starts a dovetail like desktop and knows when its sides cross', () => {
+    expect(defaultGroove([60, 31, 48])).toEqual({ depth: 2.3, width: 9.2, flapAngle: 60, angle: 0, depthTolerance: 0.1, widthTolerance: 0.1 });
+    expect(defaultGroove([10, 10, 10]).depth).toBe(1);
+    const g = defaultGroove([60, 31, 48]);
+    expect(grooveFits(g)).toBe(true);
+    expect(grooveFits({ ...g, flapAngle: 120, width: 1 })).toBe(false); // widening upwards past its own width
+    expect(grooveFits({ ...g, flapAngle: 120 })).toBe(true);
+  });
+
+  it('a dovetail surface: flat below the plane, the tongue rising above it', () => {
+    const g = { depth: 4, width: 6, flapAngle: 60, angle: 0, depthTolerance: 0.1, widthTolerance: 0.1 };
+    const tri = grooveSurface(g, 20);
+    expect(tri.length).toBe(5 * 2 * 9);
+    const zs = new Set<number>();
+    let widest = 0;
+    for (let k = 0; k < tri.length; k += 3) {
+      zs.add(Math.round(tri[k + 2] * 100) / 100);
+      if (tri[k + 2] > 0) widest = Math.max(widest, Math.abs(tri[k]));
+    }
+    expect([...zs].sort()).toEqual([-2, 2]);
+    expect(widest).toBeCloseTo(3, 6); // the tongue's top is its width
   });
 
   it('wraps angles', () => {
