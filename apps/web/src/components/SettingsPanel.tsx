@@ -5,13 +5,49 @@ import { splitValues, valueAt, withValueAt } from '../lib/flow-variants';
 import { FLUSH_OPTIONS } from '../lib/flush';
 import { GREYED_IN_BROWSER, GREYED_TIP, shownPages } from '../lib/settings-pages';
 import { slotEntryIndex } from '../lib/slot-values';
+import { saveUserSetting, useUserSetting } from '../state/account';
 import { useOption, useSlicer } from '../state/store';
 import { FlowVariantSwitch } from './FlowVariantSwitch';
 import { OptionField } from './OptionField';
 import { useOptionStates } from './SettingsPrompt';
 
-const visible = (def: OptionDef | undefined, advanced: boolean) =>
-  def != null && (advanced ? def.mode !== 'develop' : def.mode === 'simple');
+// Desktop's modes: Simple, Advanced, and Expert for Advanced plus desktop's Developer mode (its develop settings).
+export type SettingsLevel = 'simple' | 'advanced' | 'expert';
+const LEVELS: [SettingsLevel, string][] = [
+  ['simple', 'Simple'],
+  ['advanced', 'Advanced'],
+  ['expert', 'Expert'],
+];
+const visible = (def: OptionDef | undefined, level: SettingsLevel) =>
+  def != null && (level === 'expert' || (level === 'advanced' ? def.mode !== 'develop' : def.mode === 'simple'));
+
+const LEVEL_KEY = 'settingsLevel';
+/** Which settings show, kept with the account like desktop's preference; Simple to start with. */
+export function useSettingsLevel(): SettingsLevel {
+  const level = useUserSetting<SettingsLevel>(LEVEL_KEY);
+  return level === 'advanced' || level === 'expert' ? level : 'simple';
+}
+
+/** Simple · Advanced · Expert: each shows more settings than the one before. */
+export function SettingsLevelChips() {
+  const level = useSettingsLevel();
+  return (
+    <span className="chips levels" role="group" aria-label="Settings shown">
+      {LEVELS.map(([id, label]) => (
+        <button
+          key={id}
+          type="button"
+          className="chip"
+          aria-pressed={level === id}
+          title={id === 'expert' ? "Also the tuning settings desktop keeps for its Developer mode" : undefined}
+          onClick={() => void saveUserSetting(LEVEL_KEY, id)}
+        >
+          {label}
+        </button>
+      ))}
+    </span>
+  );
+}
 
 export type SettingsKind = 'print' | 'filament' | 'printer';
 
@@ -41,7 +77,7 @@ function usePresetOwn(kind: SettingsKind, slot?: number): OrcaConfig | null {
   return own;
 }
 
-export function SettingsPages({ kind, advanced, slot }: { kind: SettingsKind; advanced: boolean; slot?: number }) {
+export function SettingsPages({ kind, slot }: { kind: SettingsKind; slot?: number }) {
   const layout = useSlicer((s) => s.layout?.[kind] ?? NO_PAGES);
   const options = useSlicer((s) => s.options);
   const extruders = splitValues(useOption('nozzle_diameter') ?? '').length || 1;
@@ -53,14 +89,15 @@ export function SettingsPages({ kind, advanced, slot }: { kind: SettingsKind; ad
   const states = useOptionStates('global', slot);
   const preset = usePresetOwn(kind, slot);
   const current = pages[Math.min(page, pages.length - 1)];
-  const found = query.trim() ? searchSettings(pages, options, query) : null;
+  const level = useSettingsLevel();
+  const found = query.trim() ? searchSettings(pages, options, query, level === 'expert') : null;
   // A search finds settings in every page and in Advanced too; ones that don't apply show greyed out.
   // Purging between filaments only happens with one nozzle for several filaments (AMS, MMU...); a U1 has a head per filament.
   const flushes = useSlicer((s) => (s.flush?.flushes ?? false) && (s.selection?.filaments.length ?? 1) > 1);
   const noFlush = (k: string) => flushes || !FLUSH_OPTIONS.includes(k);
   const groups = (
     found ??
-    current?.groups.map((g) => ({ title: g.title, page: current, keys: g.options.filter((k) => visible(options[k], advanced) && !states.hidden.has(k)) })) ??
+    current?.groups.map((g) => ({ title: g.title, page: current, keys: g.options.filter((k) => visible(options[k], level) && !states.hidden.has(k)) })) ??
     []
   ).map((g) => ({ ...g, keys: g.keys.filter(noFlush) }));
   const flushHidden = !flushes && kind === 'print' && !found && current?.groups.some((g) => g.options.some((k) => FLUSH_OPTIONS.includes(k)));
@@ -196,14 +233,14 @@ function OverrideField({ optKey, slot }: { optKey: string; slot: number }) {
  * Settings whose name (or key, for people who know Orca's) has every word of
  * the query, grouped by page and group like desktop's settings search.
  */
-export function searchSettings(pages: ShownPage[], options: Record<string, OptionDef>, query: string) {
+export function searchSettings(pages: ShownPage[], options: Record<string, OptionDef>, query: string, developer = false) {
   const words = query.toLowerCase().split(/\s+/).filter(Boolean);
   const groups: { title: string; page: ShownPage; keys: string[] }[] = [];
   for (const p of pages)
     for (const g of p.groups) {
       const keys = g.options.filter((k) => {
         const def = options[k];
-        if (!def || def.mode === 'develop') return false;
+        if (!def || (def.mode === 'develop' && !developer)) return false;
         const text = `${def.label} ${def.fullLabel} ${k} ${k.replace(/_/g, ' ')} ${g.title}`.toLowerCase();
         return words.every((w) => text.includes(w));
       });
@@ -221,7 +258,6 @@ export function SettingsPanel() {
   const hasLayout = useSlicer((s) => !!s.layout?.print.length);
   const overrides = useSlicer((s) => s.overrides);
   const resetOverrides = useSlicer((s) => s.resetOverrides);
-  const [advanced, setAdvanced] = useState(false);
   if (!hasLayout) return null;
   const changed = Object.keys(overrides).length;
 
@@ -232,12 +268,9 @@ export function SettingsPanel() {
           <Settings2 aria-hidden />
           Process settings
         </h2>
-        <label className="switch-row">
-          <input className="switch" type="checkbox" checked={advanced} onChange={(e) => setAdvanced(e.target.checked)} />
-          <span>Advanced</span>
-        </label>
+        <SettingsLevelChips />
       </div>
-      <SettingsPages kind="print" advanced={advanced} />
+      <SettingsPages kind="print" />
       {changed > 0 && (
         <p className="hint">
           {changed} setting{changed === 1 ? '' : 's'} changed from the presets. Save them into a preset from its ⋯ menu or its settings window.{' '}

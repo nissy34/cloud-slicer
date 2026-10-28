@@ -25,6 +25,41 @@
   white-space: nowrap;
   user-select: none;
 }
+/* Simple · Advanced · Expert: small chips joined into one row, each showing more settings
+   than the one before (beside the Process settings heading, atop a preset window). */
+.chips.levels {
+  display: inline-grid;
+  grid-template-columns: repeat(3, auto);
+  justify-self: start;
+  gap: 0;
+}
+.levels .chip {
+  min-height: var(--s-7);
+  padding: 0 var(--s-3);
+  border-radius: 0;
+  font-size: var(--t-sm);
+}
+.levels .chip + .chip {
+  margin-left: -1px;
+}
+.levels .chip:first-child {
+  border-radius: var(--r-full) 0 0 var(--r-full);
+}
+.levels .chip:last-child {
+  border-radius: 0 var(--r-full) var(--r-full) 0;
+}
+.levels .chip[aria-pressed='true'] {
+  z-index: 1;
+}
+/* The heading keeps to one line beside it. */
+.group-head:has(> .levels) h2 {
+  white-space: nowrap;
+}
+@media (pointer: coarse) {
+  .levels .chip {
+    min-height: var(--s-8);
+  }
+}
 .chip:hover:not(:disabled) {
   background: var(--surface-2);
 }
