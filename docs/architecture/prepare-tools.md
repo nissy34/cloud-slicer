@@ -39,6 +39,9 @@ Desktop Orca's Prepare tools, one by one, each backed by Orca's own code.
 - Filament choices are the shared Picker with colour, number and preset name, never a
   `<select>` of bare numbers. Parts and modifiers take a filament (modifiers like desktop:
   "Object" means the object's own).
+- Changing a text or SVG shape's type moves it out of or into the surface only from its
+  own tool (Join / Engraved, desktop's Emboss gizmo). The object list's Change type
+  leaves it where it is (desktop's `change_part_type`).
 - Long-press menus ignore clicks until a press starts on the menu, or lifting the finger
   picks an item.
 - Edits that take a while show the loading screen (`busyWhile` in `store.ts`) until the

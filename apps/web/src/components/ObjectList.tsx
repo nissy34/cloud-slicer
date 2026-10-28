@@ -27,7 +27,7 @@ export function ObjectList() {
   const filamentSelect = (o: number, v: number, value: number, label: string) => {
     const count = Math.max(slots, value, physical);
     const options: PickerOption[] = [
-      ...(v >= 0 ? [{ value: '0', label: 'Object', swatch: colours[Math.max(0, (project.objects[o].extruder || 1) - 1)], hint: 'Same as the object' }] : []),
+      ...(v >= 0 ? [{ value: '0', label: 'Object', short: '', swatch: colours[Math.max(0, (project.objects[o].extruder || 1) - 1)], hint: 'Same as the object' }] : []),
       ...Array.from({ length: count }, (_, i) => ({
         value: String(i + 1),
         label: String(i + 1),

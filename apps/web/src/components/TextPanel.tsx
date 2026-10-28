@@ -262,7 +262,7 @@ function TextFields({
               role="radio"
               aria-checked={kind === t}
               className={kind === t ? 'on' : ''}
-              onClick={() => kind !== t && void volumeAction(object, { op: 'type', volume, type: t }, 'Change type')}
+              onClick={() => kind !== t && void volumeAction(object, { op: 'type', volume, type: t, remake: true }, 'Change type')}
             >
               {t === 'negative' ? 'Engraved' : KIND_LABELS[t]}
             </button>
