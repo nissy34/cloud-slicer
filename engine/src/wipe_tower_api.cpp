@@ -203,7 +203,9 @@ json wipeTowerFor(const DynamicPrintConfig& cfg, int plate, double slicedDepth) 
             block->add_instance();
         }
         print.apply(stand_in, cfg);
-        const WipeTowerData& data = print.wipe_tower_data(filaments);
+        // Sized for the plate's own filaments, as the slice's Print counts
+        // them (the slice pads filament_colour to every filament).
+        const WipeTowerData& data = print.wipe_tower_data(used.size());
         plannedDepth = data.depth;
         brim = data.brim_width;
     }
