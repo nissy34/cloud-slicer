@@ -155,19 +155,42 @@ try {
     await page.waitForFunction(() => document.querySelector('[aria-label="Cut position"]')?.value === '12', null, { timeout: 10000 });
     await typeCut('Tilt X', '30');
     await page.waitForTimeout(300);
+    // Tilting turns the plane about the gizmo, as desktop does, so its position along the new arrow changes.
+    const tilted = await cut.getByLabel('Cut position in mm').inputValue();
+    if (tilted === '12') fail('tilting turned the plane about the bed, not the gizmo');
     if (shots) await page.screenshot({ path: join(shots, 'toolbar-desktop-cut.png') });
     await cut.getByRole('button', { name: 'Flip plane' }).click();
-    await page.waitForFunction(() => document.querySelector('[aria-label="Tilt X"]')?.value === '-150' && document.querySelector('[aria-label="Cut position in mm"]')?.value === '-12', null, { timeout: 10000 });
+    await page.waitForFunction((p) => document.querySelector('[aria-label="Tilt X"]')?.value === '-150' && Number(document.querySelector('[aria-label="Cut position in mm"]')?.value) === -Number(p), tilted, { timeout: 10000 });
     await cut.getByRole('button', { name: 'Reset' }).click();
     await page.waitForFunction(() => document.querySelector('[aria-label="Tilt X"]')?.value === '0', null, { timeout: 10000 });
     console.log('cut plane follows the position, tilt, flip and reset');
     await typeCut('Tilt X', '20');
+    await cut.getByRole('radiogroup', { name: 'Upper part' }).getByRole('radio', { name: 'Upside down' }).click();
     await cut.getByRole('radiogroup', { name: 'Lower part' }).getByRole('radio', { name: 'Flip onto cut' }).click();
     await cut.getByRole('button', { name: 'Cut', exact: true }).click();
     await page.waitForFunction(() => document.querySelectorAll('ul.objects > li.object').length === 3, null, { timeout: 60000 });
     await page.locator('body').press('Control+z');
     await page.waitForFunction(() => document.querySelectorAll('ul.objects > li.object').length === 2, null, { timeout: 60000 });
     console.log('a tilted cut makes two objects, and undo puts the boat back');
+
+    // Connectors: the view turns to the cut face, a click there adds one (a
+    // dowel: it prints as its own object), and the cut keeps both halves.
+    await objectRows(page).first().locator('.object-name').click();
+    await toolbar.getByRole('button', { name: 'Cut' }).click({ force: true });
+    await cut.waitFor();
+    await cut.getByRole('tab', { name: /Connectors/ }).click();
+    await cut.getByRole('radiogroup', { name: 'Connector type' }).getByRole('radio', { name: 'Dowel' }).click();
+    await page.waitForTimeout(800); // the view turning to the face
+    const face = await page.getByTestId('viewport').boundingBox();
+    const panel = await cut.boundingBox();
+    // The face shows in the middle of the view left of the panel.
+    await page.mouse.click(face.x + (panel.x - face.x) / 2, face.y + face.height / 2);
+    await cut.getByRole('tab', { name: 'Connectors (1)' }).waitFor({ timeout: 10000 });
+    await cut.getByRole('button', { name: 'Cut', exact: true }).click();
+    await page.waitForFunction(() => document.querySelectorAll('ul.objects > li.object').length === 4, null, { timeout: 60000 });
+    await page.locator('body').press('Control+z');
+    await page.waitForFunction(() => document.querySelectorAll('ul.objects > li.object').length === 2, null, { timeout: 60000 });
+    console.log('a dowel connector: two halves and the dowel, and undo puts the boat back');
     await objectRows(page).first().locator('.object-name').click();
 
     // Simplify (from the object list): the count it would leave, then Apply

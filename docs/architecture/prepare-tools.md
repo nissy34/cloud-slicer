@@ -14,7 +14,7 @@ Desktop Orca's Prepare tools, one by one, each backed by Orca's own code.
 | Tool | Page | Engine |
 |---|---|---|
 | Move, rotate, scale, exact fields, keys | `components/Toolbar.tsx`, `ToolPanel.tsx`, `lib/transform.ts` | `model_api.cpp`, `volume_api.cpp` |
-| Lay on face, cut, arrange, orient, split, mirror | `ToolPanel.tsx`, cut plane in `Viewport.tsx` + `lib/cut.ts` | `tools_api.cpp` |
+| Lay on face, cut, arrange, orient, split, mirror | `ToolPanel.tsx`, `CutPanel.tsx`, cut plane in `Viewport.tsx` + `lib/cut.ts` | `tools_api.cpp` |
 | Measure, Assemble | `MeasureOverlay.tsx`, `AssemblePanel.tsx`, `lib/measure.ts` | `measure_api.cpp` |
 | Variable layer height | `LayersPanel.tsx`, `lib/layers.ts` | `layers_api.cpp` |
 | Brim ears | `BrimEars.tsx`, `lib/brim.ts` | `brim_api.cpp` |
@@ -76,12 +76,27 @@ Like desktop's Cut (C), on Orca's own `Cut` class (`CutUtils.cpp`).
   +Z; the position is how far along the arrow from the bed under the object's middle,
   so a flat plane's position is its height. The engine's `cutObject(o, i, json)` builds
   the same plane from the same numbers and the instance's own box.
-- In the 3D view an arrow moves the plane along itself and two rings (world X and Y)
-  tilt it; the panel has the position, Tilt X / Tilt Y, Flip plane (same plane, arrow
-  the other way: X + 180°, position negated) and Reset.
+- In the 3D view, desktop's handles (`CutGrabbers` in `Viewport.tsx`): a grey ball on a
+  yellow stem along the arrow moves the plane, red arrows tilt it about its own X and
+  green about its Y (Shift or the snap button: 1 mm, 15°). A click on the plane flips it;
+  a white line (`cutOutline`) shows where it meets the object. The panel has the
+  position, Tilt X / Tilt Y, Flip plane (same plane, arrow the other way: X + 180°,
+  position negated) and Reset.
 - Each half: Keep (as it stands), Flip onto cut (Orca's PlaceOnCut: the cut face on
-  the bed) or Throw away; on a phone both fold into one Picker row. "Keep both halves
-  as parts of one object" is Orca's KeepAsParts.
+  the bed), Upside down (Orca's Flip) or Throw away; on a phone both fold into one
+  Picker row. "Keep both halves as parts of one object" is Orca's KeepAsParts.
+- A right-click on the object (a long press on a touch screen) sends the separate piece
+  under it to the other side, like desktop's part selection: the engine's `cutPieces`
+  cuts the object, splits it into its pieces and says which side each is on; the page
+  draws them in their side's colour, and the cut sends `pieces` (per piece: upper?) for
+  Orca's `perform_by_contour`. Moving or flipping the plane drops the choice.
+- Connectors tab: the view turns to the cut face (the upper half hidden), and back when you leave it, and a click
+  adds a connector there; drag one to move it, click to choose it (Ctrl + click for
+  more), Del removes the chosen ones. Plug, Dowel or Snap; circle, square, hexagon or
+  triangle; straight or tapered; size, depth and the gaps round them, like desktop
+  (desktop's 2.5 mm starting size is 5 mm here). The engine adds each as a negative
+  volume with Orca's `cut_info`, so `Cut` makes the plug on one half and the hole in
+  the other; dowels print as their own objects. With connectors both halves are kept.
 - Painting is carried onto the halves (`paint_remap.hpp`); the cut faces stay unpainted.
 
 ## Big models
@@ -110,5 +125,5 @@ Over 1M triangles on a plate slows slicing and can crash a phone's tab.
 
 ## Open
 
-- Cut has no connectors or dovetail yet (issue #209, next PRs), nor desktop's line cut. Simplify remaps painting onto the simplified mesh. No assembly view,
+- Cut has no dovetail yet (issue #209, next PR), nor desktop's line cut or connector auto-place. Simplify remaps painting onto the simplified mesh. No assembly view,
   Reload from disk or text styles (left out).
