@@ -357,7 +357,7 @@ std::string cutObject(int o, int i, const std::string& requestJson) {
             if (*d != "keep" && *d != "place" && *d != "flip" && *d != "drop") throw std::runtime_error("bad part choice " + *d);
         const json connectors = req.value("connectors", json::array());
         // Connectors join the two halves: both are kept, as separate objects (like desktop).
-        const bool asParts = connectors.empty() && req.value("asParts", false);
+        const bool asParts = connectors.empty() && req.value("asParts", false) && !req.contains("groove");
         const bool upper = asParts || !connectors.empty() || upperDo != "drop";
         const bool lower = asParts || !connectors.empty() || lowerDo != "drop";
         if (!upper && !lower) throw std::runtime_error("keep at least one part");
@@ -368,8 +368,40 @@ std::string cutObject(int o, int i, const std::string& requestJson) {
                                          only_if(!asParts && lowerDo == "place", ModelObjectCutAttribute::PlaceOnCutLower) |
                                          only_if(!asParts && upperDo == "flip", ModelObjectCutAttribute::FlipUpper) |
                                          only_if(!asParts && lowerDo == "flip", ModelObjectCutAttribute::FlipLower) |
-                                         ModelObjectCutAttribute::InvalidateCutInfo;
-        const CutPlane plane = cutPlaneOf(*obj, i, req);
+                                         only_if(!req.contains("groove"), ModelObjectCutAttribute::InvalidateCutInfo);
+        // A dovetail (desktop's Dovetail mode): a tongue on the lower half in a
+        // groove of the upper, along the plane's Y, centred at `spot` on the plane.
+        const bool dovetail = req.contains("groove");
+        Cut::Groove groove;
+        if (dovetail) {
+            if (!connectors.empty()) throw std::runtime_error("a dovetail cut takes no connectors");
+            const json& g = req["groove"];
+            groove.depth = groove.depth_init = g.value("depth", 0.f);
+            groove.width = groove.width_init = g.value("width", 0.f);
+            groove.flaps_angle = groove.flaps_angle_init = float(g.value("flapAngle", 60.0) * PI / 180.0);
+            groove.angle = groove.angle_init = float(g.value("angle", 0.0) * PI / 180.0);
+            groove.depth_tolerance = g.value("depthTolerance", 0.1f);
+            groove.width_tolerance = g.value("widthTolerance", 0.1f);
+            if (groove.depth <= 0.f || groove.width <= 0.f) throw std::runtime_error("the dovetail needs a depth and a width");
+            if (-2.f * groove.depth / std::tan(groove.flaps_angle) > groove.width)
+                throw std::runtime_error("the dovetail is too narrow for its flap angle");
+        }
+        CutPlane plane = cutPlaneOf(*obj, i, req);
+        if (dovetail) {
+            const std::vector<double> spot = req.value("spot", std::vector<double>{0, 0});
+            if (spot.size() != 2) throw std::runtime_error("spot needs two numbers");
+            plane.centre += plane.rotation.linear() * Vec3d(spot[0], spot[1], 0);
+            // Both of its faces must cross the object, or a half comes out empty.
+            const BoundingBoxf3 box = obj->instance_bounding_box(size_t(i));
+            double lo = INFINITY, hi = -INFINITY;
+            for (int k = 0; k < 8; ++k) {
+                const Vec3d corner((k & 1 ? box.max : box.min).x(), (k & 2 ? box.max : box.min).y(), (k & 4 ? box.max : box.min).z());
+                const double d = plane.normal.dot(corner - plane.centre);
+                lo = std::min(lo, d);
+                hi = std::max(hi, d);
+            }
+            if (lo > -0.5 * groove.depth || hi < 0.5 * groove.depth) throw std::runtime_error("the dovetail misses the object: move the plane or make it shallower");
+        }
         const Transform3d& rotation = plane.rotation;
         const Vec3d& normal = plane.normal;
         const Vec3d& centre = plane.centre;
@@ -426,7 +458,7 @@ std::string cutObject(int o, int i, const std::string& requestJson) {
         // (desktop's cut by contour); otherwise the plane decides.
         std::unique_ptr<CutPieces> pieces;
         std::optional<Cut> cut;
-        if (req.contains("pieces") && !asParts) {
+        if (req.contains("pieces") && !asParts && !dovetail) {
             takeOutConnectors();
             try {
                 pieces = cutIntoPieces(*obj, i, plane);
@@ -444,9 +476,12 @@ std::string cutObject(int o, int i, const std::string& requestJson) {
             takeOutConnectors();
         }
 #if ENGINE_UPSTREAM
-        const ModelObjectPtrs& parts = pieces ? cut->perform_by_contour(obj, pieces->parts, dowels) : cut->perform_with_plane();
+        const float radius = float(obj->instance_bounding_box(size_t(i)).radius());
+        const ModelObjectPtrs& parts = dovetail ? cut->perform_with_groove(groove, rotation, 1, 10.f, radius)
+                                       : pieces ? cut->perform_by_contour(obj, pieces->parts, dowels) : cut->perform_with_plane();
 #else
-        const ModelObjectPtrs& parts = pieces ? cut->perform_by_contour(pieces->parts, dowels) : cut->perform_with_plane();
+        const ModelObjectPtrs& parts = dovetail ? cut->perform_with_groove(groove, rotation)
+                                       : pieces ? cut->perform_by_contour(pieces->parts, dowels) : cut->perform_with_plane();
 #endif
         if (parts.empty()) {
             for (size_t idx = 0; idx < obj->volumes.size(); ++idx) obj->volumes[idx]->name = origNames[idx];

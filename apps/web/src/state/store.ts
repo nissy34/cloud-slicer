@@ -1,7 +1,7 @@
 import { useMemo } from 'react';
 import { create } from 'zustand';
 import * as THREE from 'three';
-import { DEFAULT_CONNECTOR, flipPlane, turnPlane, type Connector, type ConnectorKind, type CutPieces, type CutRequest, type CutRotation } from '../lib/cut';
+import { DEFAULT_CONNECTOR, defaultGroove, flipPlane, turnPlane, type Groove, type Connector, type ConnectorKind, type CutPieces, type CutRequest, type CutRotation } from '../lib/cut';
 import { EngineClient, type History, type InstanceChanges, type MixedReply, type MixedRequest, type ParsedPreset, type ProjectThumbnail, type ShapePlaceRequest, type ShapeState, type UserPresetFile } from '../engine/client';
 
 /** Omit over each member of a union. */
@@ -289,6 +289,11 @@ export interface SlicerState {
   cutSpot: [number, number];
   /** The Cut panel's open tab; on Connectors the 3D view looks at the cut face and a tap adds one. */
   cutTab: 'plane' | 'connectors';
+  /** A flat cut, or desktop's Dovetail, with its shape. */
+  cutMode: 'plane' | 'dovetail';
+  cutGroove: Groove;
+  setCutMode(mode: 'plane' | 'dovetail'): void;
+  setCutGroove(change: Partial<Groove>): void;
   cutConnectors: Connector[];
   /** The chosen connectors (indexes into cutConnectors). */
   cutPicked: number[];
@@ -1411,6 +1416,8 @@ export const useSlicer = create<SlicerState>((set, get) => {
     cutRotation: [0, 0, 0],
     cutSpot: [0, 0],
     cutTab: 'plane',
+    cutMode: 'plane',
+    cutGroove: defaultGroove([20, 20, 20]),
     cutConnectors: [],
     cutPicked: [],
     cutKind: DEFAULT_CONNECTOR,
@@ -1650,7 +1657,7 @@ export const useSlicer = create<SlicerState>((set, get) => {
       const height = selected ? project?.objects[selected.object]?.size[2] : undefined;
       const measure = { ...NO_MEASURE, onlyPlane: get().measure.onlyPlane };
       const reset = { tool, measure, layers: null, brim: null, brimPicked: [] as number[] };
-      set(tool === 'cut' && height ? { ...reset, cutZ: Math.round(height * 50) / 100, cutRotation: [0, 0, 0], cutSpot: [0, 0], cutTab: 'plane', cutConnectors: [], cutPicked: [], cutPieces: null } : reset);
+      set(tool === 'cut' && height ? { ...reset, cutZ: Math.round(height * 50) / 100, cutRotation: [0, 0, 0], cutSpot: [0, 0], cutTab: 'plane', cutMode: 'plane', cutGroove: defaultGroove(project!.objects[selected!.object].size), cutConnectors: [], cutPicked: [], cutPieces: null } : reset);
     },
     setCutZ: (cutZ) => set((s) => (s.cutZ === cutZ ? {} : { cutZ, cutPieces: null })),
     setCutRotation: (cutRotation, middleZ) =>
@@ -1683,6 +1690,9 @@ export const useSlicer = create<SlicerState>((set, get) => {
         return { cutZ: f.position, cutRotation: f.rotation, cutSpot: [s.cutSpot[0], -s.cutSpot[1] || 0], cutPieces: null };
       }),
     setCutTab: (cutTab) => set({ cutTab }),
+    // A dovetail has no connectors or moved pieces (desktop's Dovetail mode).
+    setCutMode: (cutMode) => set(cutMode === 'dovetail' ? { cutMode, cutTab: 'plane', cutPieces: null } : { cutMode }),
+    setCutGroove: (change) => set((s) => ({ cutGroove: { ...s.cutGroove, ...change } })),
     addCutConnector: (at) => set((s) => ({ cutConnectors: [...s.cutConnectors, { ...s.cutKind, at }], cutPicked: [s.cutConnectors.length] })),
     moveCutConnector: (index, at) => set((s) => ({ cutConnectors: s.cutConnectors.map((c, k) => (k === index ? { ...c, at } : c)) })),
     pickCutConnector: (index, add) =>
