@@ -4,7 +4,7 @@
 // once even though the engine is busy slicing (the page keeps every plate's
 // picture), the slice still finishes, and the page stays on the picked plate
 // with a "Plate 1 sliced · View" link. Preview has the plate tabs too and shows
-// the picked plate's slice, or says it isn't sliced yet.
+// the picked plate's slice, or its models see-through with a line saying it isn't sliced yet.
 //
 //   node test/plate-switch.mjs [screenshot-dir]
 //
@@ -101,8 +101,14 @@ try {
 
     // Preview's plate tabs: plate 3 isn't sliced, plate 1 still is.
     await tab(3).click();
-    await page.getByRole('heading', { name: "Plate 3 isn't sliced yet" }).waitFor({ timeout: 5000 }).catch(() => fail('Preview of plate 3 does not say it is not sliced'));
+    // Its models show see-through, with a line saying so.
+    const note = page.getByTestId('not-sliced');
+    await note.getByText("Plate 3 isn't sliced yet.").waitFor({ timeout: 5000 }).catch(() => fail('Preview of plate 3 does not say it is not sliced'));
+    await page.getByTestId('unsliced-preview').waitFor({ timeout: 5000 }).catch(() => fail('Preview of plate 3 does not show its models'));
     expect(await sliceButton.innerText() === 'Slice plate 3', 'Preview offers to slice plate 3');
+    // On a phone the Slice bar sits right under the view, so the line has no button.
+    if (phone) expect(!(await note.getByRole('button').isVisible()), "the phone's line has no button");
+    else expect((await note.getByRole('button').innerText()) === 'Slice plate 3', "the line's button slices plate 3");
     await shot('4-preview-plate-3-not-sliced');
     await tab(1).click();
     await stats.waitFor({ timeout: 5000 }).catch(() => fail('plate 1 lost its slice after picking plate 3'));
