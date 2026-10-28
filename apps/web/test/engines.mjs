@@ -109,6 +109,9 @@ try {
   await engineSelect.selectOption('snapmaker');
   await engineIs('Snapmaker Orca');
   if ((await engineSelect.inputValue()) !== 'snapmaker') fail(`the dropdown says "${await engineSelect.inputValue()}"`);
+  // The dropdown names the running engine with its version (phones hide the top bar's tag).
+  const shown = await engineSelect.evaluate((s) => s.selectedOptions[0].textContent);
+  if (!/^Snapmaker Orca \d+\.\d+\.\d+/.test(shown)) fail(`the dropdown shows "${shown}", not the Snapmaker Orca version`);
 
   // The OrcaSlicer project opens with OrcaSlicer again.
   await page.getByTestId('project-input').setInputFiles(saved);
