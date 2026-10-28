@@ -32,7 +32,7 @@ printing object by object, a draggable prime tower, and a slice kept per plate.
   the prime volume and filament count (a rib tower is square), OrcaSlicer from its planned
   depth with the minimum for the plate's height; after slicing, the real depth (never
   under that minimum). Positions are Orca's `wipe_tower_x/y`, one
-  per plate, saved with the project.
+  per plate, saved with the project; a new plate's tower starts at the left, halfway down.
 - **Clearance**: half of `extruder_clearance_radius` round each object (plus skirt), red
   where two touch, a red band where an object is too tall for its place (rod and lid
   heights from the printer preset). Slice waits; Arrange spaces by the clearance with
