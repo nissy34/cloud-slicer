@@ -294,7 +294,7 @@ export function Toolbar({ onAdd }: { onAdd(): void }) {
 
 
 /**
- * The open tool's options in a card under its toolbar button, like desktop's
+ * The open tool's options in a card at the left of the 3D view, like desktop's
  * gizmo panels. On a phone the card is docked between the toolbar and the 3D
  * view (the settings column hides until Done), so it never covers the plate.
  */
@@ -312,23 +312,15 @@ function ToolPopover({ bar, anchor }: { bar: React.RefObject<HTMLDivElement>; an
   useLayoutEffect(() => {
     if (docked) return;
     const place = () => {
-      const button = anchor && bar.current?.querySelector<HTMLElement>(`[data-tool="${anchor}"]`);
       const area = bar.current?.offsetParent?.getBoundingClientRect();
       if (!anchor || !area || !pop.current) return setAt(null);
-      const width = pop.current.offsetWidth;
-      // Under its button, or at the right of the view for a tool without one.
-      const b = button ? button.getBoundingClientRect() : null;
-      const left = b ? Math.min(Math.max(8, b.left - area.left + b.width / 2 - width / 2), area.width - width - 8) : area.width - width - 8;
-      setAt({ left: Math.max(8, left), top: bar.current!.getBoundingClientRect().bottom - area.top + 6 });
+      // At the left of the view under the toolbar, as desktop's tool panels
+      // sit at the side, so the model in the middle stays in sight.
+      setAt({ left: 8, top: bar.current!.getBoundingClientRect().bottom - area.top + 6 });
     };
     place();
-    const el = bar.current;
-    el?.addEventListener('scroll', place);
     window.addEventListener('resize', place);
-    return () => {
-      el?.removeEventListener('scroll', place);
-      window.removeEventListener('resize', place);
-    };
+    return () => window.removeEventListener('resize', place);
   }, [anchor, bar, docked]);
 
   if (!anchor) return null;

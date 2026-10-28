@@ -27,6 +27,11 @@ Desktop Orca's Prepare tools, one by one, each backed by Orca's own code.
 
 ## Rules
 
+- On desktop an open tool's card sits at the left of the 3D view under the toolbar, as
+  desktop's tool panels sit at the side, so the model in the middle stays in sight. On a
+  phone it docks between the toolbar and the view ([layout](layout.md)).
+- The paint card's tools are desktop's icons (`assets/orca-paint/`), each named in its
+  tooltip.
 - One engine file per tool, JSON in and out ([engine rules](engine.md#rules)); a browser
   check in `test/toolbar.mjs`.
 - Parallel tool PRs collide in the same places: `engine/CMakeLists.txt`
