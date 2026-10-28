@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { positionRange, wrapAngle, type ConnectorShape, type ConnectorStyle, type ConnectorType, type CutPart, type CutRotation } from '../lib/cut';
+import { grooveFits, positionRange, wrapAngle, type ConnectorShape, type ConnectorStyle, type ConnectorType, type CutPart, type CutRotation } from '../lib/cut';
 import { usePhone } from '../lib/usePhone';
 import { useSlicer } from '../state/store';
 import { Picker } from './Picker';
@@ -147,6 +147,12 @@ export function CutPanel({ object, instance, size, onDone }: { object: number; i
   const setRotation = useSlicer((s) => s.setCutRotation);
   const resetPlane = useSlicer((s) => s.resetCutPlane);
   const tab = useSlicer((s) => s.cutTab);
+  const mode = useSlicer((s) => s.cutMode);
+  const setMode = useSlicer((s) => s.setCutMode);
+  const groove = useSlicer((s) => s.cutGroove);
+  const setGroove = useSlicer((s) => s.setCutGroove);
+  const dovetail = mode === 'dovetail';
+  const fits = !dovetail || grooveFits(groove);
   const setTab = useSlicer((s) => s.setCutTab);
   const connectors = useSlicer((s) => s.cutConnectors);
   const flipCutPlane = useSlicer((s) => s.flipCutPlane);
@@ -164,7 +170,7 @@ export function CutPanel({ object, instance, size, onDone }: { object: number; i
   const flat = rotation[0] === 0 && rotation[1] === 0;
   // Connectors join the halves: both are kept, as separate objects (like desktop).
   const joined = connectors.length > 0;
-  const tilt = (axis: 0 | 1, v: number) => {
+  const tilt = (axis: 0 | 1 | 2, v: number) => {
     const next: CutRotation = [...rotation];
     next[axis] = wrapAngle(v);
     setRotation(next, size[2] / 2);
@@ -184,7 +190,14 @@ export function CutPanel({ object, instance, size, onDone }: { object: number; i
         <button role="tab" aria-selected={tab === 'plane'} className={tab === 'plane' ? 'active' : undefined} onClick={() => setTab('plane')}>
           Plane
         </button>
-        <button role="tab" aria-selected={tab === 'connectors'} className={tab === 'connectors' ? 'active' : undefined} onClick={() => setTab('connectors')}>
+        <button
+          role="tab"
+          aria-selected={tab === 'connectors'}
+          className={tab === 'connectors' ? 'active' : undefined}
+          disabled={dovetail}
+          title={dovetail ? 'A dovetail cut takes no connectors' : undefined}
+          onClick={() => setTab('connectors')}
+        >
           Connectors{joined ? ` (${connectors.length})` : ''}
         </button>
       </div>
@@ -192,10 +205,24 @@ export function CutPanel({ object, instance, size, onDone }: { object: number; i
         <ConnectorsTab />
       ) : (
         <>
+          <div className="cut-part">
+            <span>Cut</span>
+            <Chooser
+              label="Cut shape"
+              value={mode}
+              options={[
+                { value: 'plane', label: 'Flat' },
+                { value: 'dovetail', label: 'Dovetail', disabled: joined },
+              ]}
+              onChange={setMode}
+            />
+          </div>
           <p className="muted hint">
-            {touch
-              ? 'Drag the ball to move the plane, the red and green arrows to tilt it. Tap the plane to flip it; long-press a piece to send it to the other side.'
-              : 'Drag the ball to move the plane, the red and green arrows to tilt it. Click the plane to flip it; right-click a piece to send it to the other side.'}{' '}
+            {dovetail
+              ? `Drag the ball to move the plane, the red and green arrows to tilt it. ${touch ? 'Tap' : 'Click'} the plane to flip it. The tongue stays on the lower part.`
+              : touch
+                ? 'Drag the ball to move the plane, the red and green arrows to tilt it. Tap the plane to flip it; long-press a piece to send it to the other side.'
+                : 'Drag the ball to move the plane, the red and green arrows to tilt it. Click the plane to flip it; right-click a piece to send it to the other side.'}{' '}
             Cyan is the upper part, pink the lower.
           </p>
           <label className="transform-row cut-at">
@@ -208,6 +235,30 @@ export function CutPanel({ object, instance, size, onDone }: { object: number; i
             <NumberBox label="Tilt X" value={rotation[0]} unit="° X" onSet={(v) => tilt(0, v)} />
             <NumberBox label="Tilt Y" value={rotation[1]} unit="° Y" onSet={(v) => tilt(1, v)} />
           </div>
+          {dovetail && (
+            <>
+              <div className="transform-row cut-tilt" role="group" aria-label="Dovetail">
+                <span>Tongue</span>
+                <NumberBox label="Dovetail depth" value={groove.depth} unit="mm deep" onSet={(depth) => depth > 0 && setGroove({ depth })} />
+                <NumberBox label="Dovetail width" value={groove.width} unit="mm wide" onSet={(width) => width > 0 && setGroove({ width })} />
+              </div>
+              <div className="transform-row cut-tilt">
+                <span>Angles</span>
+                <NumberBox label="Flap angle" value={groove.flapAngle} unit="° sides" onSet={(v) => setGroove({ flapAngle: Math.min(Math.max(v, 30), 120) })} />
+                <NumberBox label="Groove angle" value={groove.angle} unit="° taper" onSet={(v) => setGroove({ angle: Math.min(Math.max(v, 0), 15) })} />
+              </div>
+              <div className="transform-row cut-tilt">
+                <span>Gap</span>
+                <NumberBox label="Dovetail gap in depth" value={groove.depthTolerance} unit="mm deep" onSet={(v) => v >= 0 && setGroove({ depthTolerance: v })} />
+                <NumberBox label="Dovetail gap across" value={groove.widthTolerance} unit="mm across" onSet={(v) => v >= 0 && setGroove({ widthTolerance: v })} />
+              </div>
+              <div className="transform-row cut-tilt">
+                <span>Turn</span>
+                <NumberBox label="Turn the tongue" value={rotation[2]} unit="°" onSet={(v) => tilt(2, v)} />
+              </div>
+              {!fits && <p className="muted hint">The sides cross above the tongue: make it wider or its flap angle smaller.</p>}
+            </>
+          )}
           <div className="tool-row cut-plane-buttons">
             <button className="quiet" onClick={flipCutPlane}>
               Flip plane
@@ -222,7 +273,7 @@ export function CutPanel({ object, instance, size, onDone }: { object: number; i
               Reset
             </button>
           </div>
-          {!(asParts && !joined) &&
+          {!(asParts && !joined && !dovetail) &&
             (phone ? (
               <label className="transform-row cut-parts-pick">
                 <span>Parts</span>
@@ -247,10 +298,12 @@ export function CutPanel({ object, instance, size, onDone }: { object: number; i
                 {partRow('Lower part', shown(lower), setLower, upper)}
               </>
             ))}
-          <label className="switch-row">
-            <input className="switch" type="checkbox" checked={asParts && !joined} disabled={joined} onChange={(e) => setAsParts(e.target.checked)} />
-            <span>Keep both halves as parts of one object</span>
-          </label>
+          {!dovetail && (
+            <label className="switch-row">
+              <input className="switch" type="checkbox" checked={asParts && !joined} disabled={joined} onChange={(e) => setAsParts(e.target.checked)} />
+              <span>Keep both halves as parts of one object</span>
+            </label>
+          )}
           {joined && <p className="muted hint">With connectors both halves are kept, as separate objects.</p>}
           {moved.length > 0 && (
             <div className="tool-row">
@@ -270,10 +323,11 @@ export function CutPanel({ object, instance, size, onDone }: { object: number; i
         </button>
         <button
           className="primary"
-          disabled={!inside}
-          title={inside ? undefined : 'The plane misses the object: move it onto the object first.'}
+          disabled={!inside || !fits}
+          title={!inside ? 'The plane misses the object: move it onto the object first.' : !fits ? 'The sides cross above the tongue: make it wider or its flap angle smaller.' : undefined}
           onClick={() => {
             onDone();
+            if (dovetail) return void cutObject(object, instance, { position: z, rotation, upper: shown(upper), lower: shown(lower), asParts: false, groove, spot });
             void cutObject(object, instance, { position: z, rotation, upper: shown(upper), lower: shown(lower), asParts: asParts && !joined, connectors, ...(moved.length && !(asParts && !joined) ? { pieces: pieces!.upper } : {}) });
           }}
         >

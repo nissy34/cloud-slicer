@@ -1,6 +1,8 @@
 import * as THREE from 'three';
 import { toDegrees, toQuat } from './placement';
 
+const DEG = Math.PI / 180;
+
 /**
  * The Cut tool's plane, as the engine's cutObject takes it (tools_api.cpp): it
  * starts flat and turns by `rotation` (degrees about the bed's X, then Y, then
@@ -47,6 +49,62 @@ export interface Connector extends ConnectorKind {
 /** Desktop's starting values (GLGizmoCut3D), but 5 mm across: 2.5 mm pins snap off. */
 export const DEFAULT_CONNECTOR: ConnectorKind = { type: 'plug', style: 'prism', shape: 'circle', size: 5, depth: 3, sizeGap: 0, depthGap: 0.1, bulge: 0.15, space: 0.3 };
 
+/**
+ * Desktop's Dovetail cut (Cut::Groove): a tongue on the lower half, along the
+ * plane's Y, in a groove of the upper. `width` is across the tongue's top,
+ * `depth` how far it sticks up; the flap angle tilts its sides (above 90° it
+ * widens upwards and locks), the groove angle tapers it along its length.
+ * The tolerances make the groove that much deeper and wider, so it fits.
+ */
+export interface Groove {
+  depth: number;
+  width: number;
+  /** Degrees, 30 to 120. */
+  flapAngle: number;
+  /** Degrees, 0 to 15. */
+  angle: number;
+  depthTolerance: number;
+  widthTolerance: number;
+}
+
+/** Desktop's starting dovetail for an object this size (GLGizmoCut3D: depth half its grabber, width four depths). */
+export function defaultGroove(size: [number, number, number]): Groove {
+  const depth = Math.max(1, Math.round(((size[0] + size[1] + size[2]) / 60) * 10) / 10);
+  return { depth, width: Math.round(4 * depth * 10) / 10, flapAngle: 60, angle: 0, depthTolerance: 0.1, widthTolerance: 0.1 };
+}
+
+/** Desktop's has_valid_groove (its first test): the sloping sides must not cross above the tongue. */
+export function grooveFits(g: Groove): boolean {
+  return g.depth > 0 && g.width > 0 && (-2 * g.depth) / Math.tan(g.flapAngle * DEG) <= g.width;
+}
+
+/**
+ * The surface a dovetail cuts along, as triangles (9 floats each) on the
+ * plane's own axes (X across, Y along the tongue, Z the arrow), `half` mm each
+ * way: flat at half the depth below the plane, the tongue rising to half the
+ * depth above it.
+ */
+export function grooveSurface(g: Groove, half: number): Float32Array {
+  const d = g.depth / 2;
+  const flaps = (2 * g.depth) / Math.tan(g.flapAngle * DEG);
+  const taper = Math.tan(g.angle * DEG);
+  // The profile across at y: x and z of each corner.
+  const profile = (y: number): [number, number][] => {
+    const top = g.width / 2 - y * taper;
+    const foot = (g.width + flaps) / 2 - y * taper;
+    return [[-half, -d], [-foot, -d], [-top, d], [top, d], [foot, -d], [half, -d]];
+  };
+  const a = profile(-half);
+  const b = profile(half);
+  const out: number[] = [];
+  for (let k = 0; k + 1 < a.length; k++) {
+    const p0 = [a[k][0], -half, a[k][1]], p1 = [a[k + 1][0], -half, a[k + 1][1]];
+    const q0 = [b[k][0], half, b[k][1]], q1 = [b[k + 1][0], half, b[k + 1][1]];
+    out.push(...p0, ...p1, ...q1, ...p0, ...q1, ...q0);
+  }
+  return new Float32Array(out);
+}
+
 export interface CutRequest {
   position: number;
   rotation: CutRotation;
@@ -57,6 +115,9 @@ export interface CutRequest {
   connectors?: Connector[];
   /** Per piece (in cutPieces' order), whether it goes with the upper half; without it the plane decides. */
   pieces?: boolean[];
+  /** A dovetail cut instead of a flat one, centred at `spot` on the plane ([u, v] mm). Not with connectors or pieces. */
+  groove?: Groove;
+  spot?: [number, number];
 }
 
 /**

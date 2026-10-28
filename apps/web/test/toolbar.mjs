@@ -236,6 +236,23 @@ try {
     await page.locator('body').press('Control+z');
     await page.waitForFunction(() => document.querySelectorAll('ul.objects > li.object').length === 2, null, { timeout: 60000 });
     console.log('a dowel connector: two halves and the dowel, and undo puts the boat back');
+
+    // Dovetail: the Connectors tab is off, too narrow a tongue can't be cut, and the cut makes two halves.
+    await objectRows(page).first().locator('.object-name').click();
+    await toolbar.getByRole('button', { name: 'Cut' }).click({ force: true });
+    await cut.waitFor();
+    await cut.getByRole('radiogroup', { name: 'Cut shape' }).getByRole('radio', { name: 'Dovetail' }).click();
+    if (!(await cut.getByRole('tab', { name: /Connectors/ }).isDisabled())) fail('a dovetail cut still offers connectors');
+    await typeCut('Flap angle', '120');
+    await typeCut('Dovetail width', '1');
+    if (!(await cut.getByRole('button', { name: 'Cut', exact: true }).isDisabled())) fail('a dovetail whose sides cross can still be cut');
+    await typeCut('Dovetail width', '10');
+    await typeCut('Flap angle', '60');
+    await cut.getByRole('button', { name: 'Cut', exact: true }).click();
+    await page.waitForFunction(() => document.querySelectorAll('ul.objects > li.object').length === 3, null, { timeout: 60000 });
+    await page.locator('body').press('Control+z');
+    await page.waitForFunction(() => document.querySelectorAll('ul.objects > li.object').length === 2, null, { timeout: 60000 });
+    console.log('a dovetail cut: two halves, and undo puts the boat back');
     await objectRows(page).first().locator('.object-name').click();
 
     // Simplify (from the object list): the count it would leave, then Apply

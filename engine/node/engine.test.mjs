@@ -548,6 +548,26 @@ test('cut connectors: a plug sticks out of one half into a hole in the other; do
   engine.clearModel();
 });
 
+test('dovetail cut: a tongue on one half fits a groove in the other, like desktop\'s Dovetail mode', () => {
+  select({ printer: DEFAULT_PRINTER });
+  const groove = { depth: 4, width: 6, flapAngle: 60, angle: 0, depthTolerance: 0.1, widthTolerance: 0.1 };
+  load('gen-cube-20.stl');
+  call(engine, 'cutObject', 0, 0, cut({ position: 10, groove }));
+  let m = info();
+  assert.equal(m.objects.length, 2, 'two halves');
+  // Each half reaches past the plane by about half the depth: the tongue up, the groove's sides down.
+  for (const o of m.objects) assert.ok(o.size[2] > 11.5 && o.size[2] < 12.5, `each half about 12 tall: ${o.size}`);
+  // Turned upright and moved along the plane, it still cuts in two.
+  load('gen-cube-20.stl');
+  call(engine, 'cutObject', 0, 0, cut({ position: 0, rotation: [0, 90, 0], spot: [0, 3], groove }));
+  assert.equal(info().objects.length, 2);
+  load('gen-cube-20.stl');
+  assert.throws(() => call(engine, 'cutObject', 0, 0, cut({ position: 10, groove: { ...groove, width: 1, flapAngle: 120 } })), /too narrow/);
+  assert.throws(() => call(engine, 'cutObject', 0, 0, cut({ position: 19, groove })), /misses the object/);
+  assert.throws(() => call(engine, 'cutObject', 0, 0, cut({ position: 10, groove, connectors: [{ at: [0, 0], type: 'plug', style: 'prism', shape: 'circle', size: 5, depth: 4 }] })), /no connectors/);
+  engine.clearModel();
+});
+
 test('cut pieces: each separate piece can go to the other side, like desktop\'s right-click on a part', () => {
   select({ printer: DEFAULT_PRINTER });
   load('gen-two-cubes.stl');
