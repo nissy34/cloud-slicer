@@ -98,8 +98,8 @@
     bottom: 64px;
   }
   .view-button {
-    width: 40px;
-    height: 40px;
+    width: var(--ctl);
+    height: var(--ctl);
   }
   .view-menu button {
     padding: 8px 12px;
@@ -116,11 +116,22 @@
     max-width: none;
   }
   .tool {
-    width: 40px;
-    height: 40px;
+    width: var(--ctl);
+    height: var(--ctl);
   }
   .workspace-tools {
-    top: 64px;
+    top: 60px;
+  }
+  /* Sections and rows sit closer; a row's icon buttons are narrower, their taps stay 44 px. */
+  .group {
+    gap: var(--s-4);
+    padding: var(--s-4) var(--s-5) var(--s-5);
+  }
+  :is(.slot, .group-actions) .icon-btn {
+    width: 32px;
+  }
+  .group-actions {
+    gap: var(--s-1);
   }
   /* Phone with a tool open: the toolbar, then the tool's card, then the 3D
      view, stacked so nothing covers the plate. The settings hide until Done

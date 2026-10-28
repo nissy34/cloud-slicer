@@ -23,7 +23,7 @@ a rule types a value the tokens already name.
 | Corners | `--r-sm` 4 (tags, swatches), `--r-md` 6 (buttons, fields), `--r-lg` 10 (cards, menus, panels), `--r-xl` 12 (windows, messages), `--r-full` (chips) | Also `0`, `50%` (circles), `inherit`. |
 | Shadows | `--shadow-1` lifted, `--shadow-2` menus, `--shadow-3` windows | |
 | Layers | `--z-notice` 40, `--z-menu` 50, `--z-context` 60, `--z-tip` 70 | Plain numbers up to 10 for stacking inside a part. Windows use the browser's top layer. |
-| Controls | `--ctl` 30 px, 40 px on a phone | The height of every button and icon button. |
+| Controls | `--ctl` 30 px, 36 px on a phone | The height of every button and icon button. On a phone a row's icon buttons (filament ✎ ⋯ ✕, section headers) are 32 px wide. |
 | Tap | `--tap` 44 px | The least a tap hits on a phone (see Taps below). |
 | Motion | `--speed` 0.15 s | Hover, open (menus, pop-overs, windows, tips, messages) and switch. See Motion below. |
 | Widths | phone up to 760 px (`PHONE` in `src/lib/breakpoints.ts`), narrow phone up to 420 px, tablet steps 1099/1100 and 1279/1280 px | No other `@media` widths. Code uses `PHONE`, never its own number. |
