@@ -2,7 +2,8 @@
 // Browser end to end for settings that switch other settings on and off
 // (desktop's ConfigManipulation) and the settings search: support settings
 // grey out with support off, the search finds settings on any page, and
-// turning on spiral vase asks to change the settings it needs, and typed
+// turning on spiral vase asks to change the settings it needs, Developer
+// mode shows desktop's develop settings, and typed
 // numbers are checked against the engine's own limits, on a computer and on
 // a phone.
 //
@@ -85,6 +86,22 @@ async function run(name, options) {
     await page.getByText(/No process settings match/).waitFor();
     await search.fill('');
     await page.getByRole('tab', { name: 'Quality' }).waitFor();
+  });
+
+  await step(`${name}: Developer mode shows desktop's develop settings`, async () => {
+    const sparse = page.getByLabel('No sparse layers (beta)', { exact: true });
+    await search.fill('no sparse layers');
+    await page.getByText(/No process settings match/).waitFor();
+    expect(!(await page.getByLabel('Developer', { exact: true }).count()), 'Developer only with Advanced on');
+    await page.getByLabel('Advanced', { exact: true }).check();
+    await page.getByLabel('Developer', { exact: true }).check();
+    await sparse.waitFor();
+    await page.waitForTimeout(300); // the switch's slide
+    await shot('developer');
+    await page.getByLabel('Developer', { exact: true }).uncheck();
+    await page.getByText(/No process settings match/).waitFor();
+    await page.getByLabel('Advanced', { exact: true }).uncheck();
+    await search.fill('');
   });
 
   await step(`${name}: settings that don't apply are hidden on their page`, async () => {
