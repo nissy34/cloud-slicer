@@ -64,7 +64,7 @@ pop-up windows like desktop (picked over tabs).
 
 ## Tests
 
-`settings.mjs`, `settings-pages.mjs`, `transform-fields.mjs`, `warnings.mjs`; unit tests
+`settings.mjs`, `support-filaments.mjs`, `settings-pages.mjs`, `transform-fields.mjs`, `warnings.mjs`; unit tests
 `option-check.test.ts`, `option-toggles.test.ts`, `flow-variants.test.ts`,
 `object-settings.test.ts`.
 
