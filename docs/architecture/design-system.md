@@ -36,7 +36,7 @@ element can carry `data-theme` to show the other theme inside it.
 
 1. **Tokens only.** No colour, text size, corner, shadow or layer typed by hand.
 2. **Button or link.** Does something: a button (Quiet when it is small and in a row or card header). Goes to another page: a link. No characters (✕ ⋯ ✎ ⚠ ▾) as icons: use Lucide.
-3. **Chip, switch or check box.** Picking among several (filters, materials, which filaments): chips. One thing on or off (Advanced, Keep up, Half width, Level the bed): a switch row, its words after the switch; several of them stack in a `.switch-list`. Picking rows in a long list, and a setting's own box in the settings list: a check box, and only there.
+3. **Chip, switch or check box.** Picking among several (filters, materials, which filaments, Simple · Advanced · Expert): chips. One thing on or off (Keep up, Half width, Level the bed): a switch row, its words after the switch; several of them stack in a `.switch-list`. Picking rows in a long list, and a setting's own box in the settings list: a check box, and only there.
 4. **Tabs or chooser.** Changes what you see below: line tabs. Picks one value of 2 to 4 (or a few numbers, like columns): a chooser. More than 4: a dropdown. Status words that can't be tapped: a tag.
 5. **Tooltip over text.** Help goes in a tooltip or ⓘ. Text on screen only when it changes what you'd do now.
 6. **Every icon button has a tooltip**, with the same words as its label for screen readers, and it works by long-press on a phone.

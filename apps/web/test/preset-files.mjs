@@ -143,7 +143,7 @@ try {
   await step('the printer window edits printer settings, and saves as a printer preset', async () => {
     const dialog = await openEditor('Edit printer settings', 'Printer settings');
     await settingsPage(dialog, 'Basic information').click();
-    await dialog.getByLabel('Advanced').check();
+    await dialog.getByRole('group', { name: 'Settings shown' }).getByRole('button', { name: 'Advanced', exact: true }).click();
     await setField(dialog.getByLabel('Z offset', { exact: true }), '0.05');
     await page.screenshot({ path: join(out, 'printer-desktop.png') });
     await editorSaveAs(dialog, 'My U1 tuned');

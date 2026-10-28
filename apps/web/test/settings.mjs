@@ -2,7 +2,8 @@
 // Browser end to end for settings that switch other settings on and off
 // (desktop's ConfigManipulation) and the settings search: support settings
 // grey out with support off, the search finds settings on any page, and
-// turning on spiral vase asks to change the settings it needs, and typed
+// turning on spiral vase asks to change the settings it needs, Expert
+// mode shows desktop's develop settings, and typed
 // numbers are checked against the engine's own limits, on a computer and on
 // a phone.
 //
@@ -60,6 +61,8 @@ async function run(name, options) {
   if (await wizard.isVisible().catch(() => false)) await wizard.getByRole('button', { name: 'Not now' }).click();
   const search = page.getByRole('searchbox', { name: 'Search process settings' });
   await search.waitFor();
+  // The Simple · Advanced · Expert chooser over the process settings.
+  const level = (words) => page.getByRole('group', { name: 'Settings shown' }).first().getByRole('button', { name: words, exact: true }).click();
   const shot = async (file) => shots && (await page.screenshot({ path: join(shots, `${name}-${file}.png`) }));
 
   await step(`${name}: support settings grey out while support is off`, async () => {
@@ -87,14 +90,28 @@ async function run(name, options) {
     await page.getByRole('tab', { name: 'Quality' }).waitFor();
   });
 
+  await step(`${name}: Expert shows desktop's develop settings`, async () => {
+    const sparse = page.getByLabel('No sparse layers (beta)', { exact: true });
+    await search.fill('no sparse layers');
+    await page.getByText(/No process settings match/).waitFor();
+    await level('Advanced');
+    await page.getByText(/No process settings match/).waitFor();
+    await level('Expert');
+    await sparse.waitFor();
+    await shot('expert');
+    await level('Simple');
+    await page.getByText(/No process settings match/).waitFor();
+    await search.fill('');
+  });
+
   await step(`${name}: settings that don't apply are hidden on their page`, async () => {
     await page.getByRole('tab', { name: 'Quality' }).click();
-    await page.getByLabel('Advanced', { exact: true }).check();
+    await level('Advanced');
     expect(!(await page.getByLabel('Ironing flow', { exact: true }).count()), 'ironing flow hidden with ironing off');
     await page.getByRole('combobox', { name: 'Ironing Type', exact: true }).selectOption('top');
     await page.getByLabel('Ironing flow', { exact: true }).waitFor();
     await page.getByRole('combobox', { name: 'Ironing Type', exact: true }).selectOption('no ironing');
-    await page.getByLabel('Advanced', { exact: true }).uncheck();
+    await level('Simple');
   });
 
   await step(`${name}: spiral vase asks to change the settings it needs`, async () => {

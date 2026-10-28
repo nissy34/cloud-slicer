@@ -95,7 +95,9 @@ try {
     await prompt.getByRole('button', { name: 'Change them' }).click();
     await prompt.waitFor({ state: 'detached' });
     await search.fill('top z distance');
-    const topZ = await page.getByLabel('Top Z distance', { exact: true }).inputValue();
+    const topBox = page.getByLabel('Top Z distance', { exact: true });
+    for (let i = 0; i < 50 && parseFloat(await topBox.inputValue()) !== 0; i++) await page.waitForTimeout(100);
+    const topZ = await topBox.inputValue();
     expect(parseFloat(topZ) === 0, `top Z distance set to 0, got ${topZ}`);
   });
 
@@ -106,7 +108,10 @@ try {
     await shot('base-warning');
     await prompt.getByRole('button', { name: 'Use Default' }).click();
     await prompt.waitFor({ state: 'detached' });
-    const base = await page.getByLabel('Support/raft base', { exact: true }).inputValue();
+    // The field takes the new value a moment after the question closes.
+    const box = page.getByLabel('Support/raft base', { exact: true });
+    for (let i = 0; i < 50 && (await box.inputValue()) !== '0'; i++) await page.waitForTimeout(100);
+    const base = await box.inputValue();
     expect(base === '0', `support base back to Default, got ${base}`);
   });
 } finally {
