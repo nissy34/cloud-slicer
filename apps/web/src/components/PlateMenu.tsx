@@ -28,6 +28,7 @@ function MenuCard({ onAdd }: { onAdd(): void }) {
   const project = useSlicer((s) => s.project);
   const plate = useSlicer((s) => s.plate);
   const labels = useSlicer((s) => s.labels);
+  const copied = useSlicer((s) => s.copied);
   const s = useSlicer.getState();
   const plates = project?.plates.length ?? 1;
   const name = project?.plates[plate]?.name ?? '';
@@ -194,6 +195,7 @@ function MenuCard({ onAdd }: { onAdd(): void }) {
             </>,
           )}
           {item('Add models…', run(onAdd), { title: 'STL, 3MF, OBJ, STEP or SVG files from this device' })}
+          {item('Paste', run(() => s.paste()), { disabled: !copied, title: copied ? 'What you copied or cut, as a new object (Ctrl+V)' : 'Copy or cut an object first (its menu, or Ctrl+C)' })}
           <hr />
           <button role="menuitemcheckbox" aria-checked={labels} className="menu-item" title="Object names in the 3D view (Ctrl+E)" onClick={run(() => s.setLabels(!labels))}>
             <span className="menu-check" aria-hidden="true">

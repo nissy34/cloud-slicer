@@ -168,7 +168,7 @@ export function ObjectList() {
           )}
           <div className="transform-row actions">
             <button className="secondary" title="One more copy of it, beside it (+). Ctrl+C and Ctrl+V paste it as a new object." onClick={() => void copyInstance(selected.object, selected.instance)}>
-              Add copy
+              Add instance
             </button>
             <button
               className="secondary"
@@ -176,7 +176,7 @@ export function ObjectList() {
               title="Remove this copy, keeping the others (-)"
               onClick={() => void removeInstance(selected.object, selected.instance)}
             >
-              Remove copy
+              Remove instance
             </button>
             <button className="secondary" title="Fewer triangles, like desktop's Simplify model" onClick={() => setTool('simplify')}>
               Simplify

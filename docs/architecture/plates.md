@@ -49,6 +49,9 @@ All in the project 3MF: plate settings, names, lock, tower positions, layer code
 - Any project edit drops every plate's slice; re-slicing a plate drops its old one first.
 - Arrange all skips locked plates. Arrange is our own row packer: Orca's libnest2d stacks
   everything in wasm.
+- Move to plate (object and group menus) keeps each copy's plate-local offset, so it lands
+  on the same spot of the other plate; the engine's `transform` with `plate` does it, no
+  plate API of its own.
 - A plate with its own settings shows a dot on its tab and an orange settings icon.
 
 ## Why
