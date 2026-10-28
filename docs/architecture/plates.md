@@ -33,6 +33,9 @@ printing object by object, a draggable prime tower, and a slice kept per plate.
   depth with the minimum for the plate's height; after slicing, the real depth (never
   under that minimum). Positions are Orca's `wipe_tower_x/y`, one
   per plate, saved with the project; a new plate's tower starts at the left, halfway down.
+  A tower too close to the bed edge is pulled in by its planned size, both for the view
+  and the slice; after slicing it stays drawn there (not moved back by the smaller real
+  depth), so Prepare shows where it printed.
 - **Clearance**: half of `extruder_clearance_radius` round each object (plus skirt), red
   where two touch, a red band where an object is too tall for its place (rod and lid
   heights from the printer preset). Slice waits; Arrange spaces by the clearance with

@@ -122,6 +122,9 @@ Like desktop's Cut (C), on Orca's own `Cut` class (`CutUtils.cpp`).
   point and changes the position; the store's `cutSpot` is where the gizmo sits on the
   plane. While cutting, a press on the model does not move it.
 - Painting is carried onto the halves (`paint_remap.hpp`); the cut faces stay unpainted.
+- Both halves kept as objects: they are named "… (upper)" and "… (lower)" and set apart
+  on the plate (`placeApart`, like Arrange selection). Desktop leaves them where they
+  stood, often inside each other, under one name.
 
 ## Big models
 

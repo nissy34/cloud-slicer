@@ -389,14 +389,18 @@ test('prime tower: shown and sized like desktop Prepare, sliced where it was pla
   const sum = Object.values(result.filamentParts).flatMap(Object.values).reduce((a, p) => a + p.mm, 0);
   const used = usedMm(gcode).reduce((a, mm) => a + mm, 0);
   assert.ok(Math.abs(sum - used) < 1, `parts ${sum} mm, G-code ${used} mm`);
-  const xs = [], ys = [];
-  let inTower = false;
-  for (const line of gcode.split('\n')) {
-    if (line.startsWith(';TYPE:')) inTower = line.startsWith(';TYPE:Prime tower');
-    // Extrusions only: the tool change G-code in between parks the head.
-    const m = inTower && /^G1 .*X([-\d.]+) Y([-\d.]+).* E[\d.]+/.exec(line);
-    if (m) xs.push(Number(m[1])), ys.push(Number(m[2]));
-  }
+  const towerMoves = (code) => {
+    const xs = [], ys = [];
+    let inTower = false;
+    for (const line of code.split('\n')) {
+      if (line.startsWith(';TYPE:')) inTower = line.startsWith(';TYPE:Prime tower');
+      // Extrusions only: the tool change G-code in between parks the head.
+      const m = inTower && /^G1 .*X([-\d.]+) Y([-\d.]+).* E[\d.]+/.exec(line);
+      if (m) xs.push(Number(m[1])), ys.push(Number(m[2]));
+    }
+    return [xs, ys];
+  };
+  const [xs, ys] = towerMoves(gcode);
   assert.ok(xs.length > 0, 'no prime tower moves');
   // The tower stands where placed (its brim, wider than set, round it).
   const [x0, x1, y0, y1] = [Math.min(...xs), Math.max(...xs), Math.min(...ys), Math.max(...ys)];
@@ -410,6 +414,17 @@ test('prime tower: shown and sized like desktop Prepare, sliced where it was pla
   const minDepth = flavor.flavor === 'orca' ? 5 + ((10 - 5) * (20 - 5)) / (100 - 5) : 20;
   const shown = tower(placed, 0, result.wipeTowerDepth).depth;
   assert.ok(Math.abs(shown - Math.max(result.wipeTowerDepth, minDepth)) < 1e-4, `shown ${shown}, sliced ${result.wipeTowerDepth}`);
+
+  // Placed near the back edge, the slice pulls the tower onto the bed with its
+  // planned size. Once sliced it stays drawn there, not back where it was
+  // placed: Prepare shows where it printed.
+  const back = { ...two, wipe_tower_x: '20', wipe_tower_y: String(d - 10) };
+  const planned = tower(back);
+  assert.ok(planned.y < d - 10, `pulled in: ${JSON.stringify(planned)}`);
+  const backSlice = slice(fullConfig(back));
+  const backY = Math.min(...towerMoves(backSlice.gcode)[1]);
+  assert.ok(backY <= planned.y + 0.5 && backY >= planned.y - 15, `printed from Y${backY}, planned Y${planned.y}`);
+  assert.equal(tower(back, 0, backSlice.result.wipeTowerDepth).y, planned.y, 'drawn where it printed');
 
   // A plate printed with one filament has no tower.
   load('tetrahedron.stl');
@@ -458,6 +473,23 @@ test('object tools: cut, split, mirror, orient', () => {
   assert.equal(m.objects.length, 2, 'cut gives two objects');
   const heights = m.objects.map((o) => o.size[2]).sort((a, b) => a - b);
   assert.ok(Math.abs(heights[0] - 20) < 0.5 && Math.abs(heights[1] - (height - 20)) < 0.5, `heights ${heights}`);
+  // Told apart and set apart: desktop leaves them inside each other under one name.
+  assert.deepEqual(m.objects.map((o) => o.name), ['3DBenchy.stl (upper)', '3DBenchy.stl (lower)']);
+  assert.ok(Math.abs(m.objects[0].size[2] - (height - 20)) < 0.5, `the upper half is the one above the cut: ${m.objects[0].size}`);
+  const mesh = engine.previewMesh(0);
+  const boxes = [];
+  let tri = 0;
+  for (const count of mesh.objectTriangles) {
+    const b = [Infinity, Infinity, -Infinity, -Infinity];
+    for (let k = tri * 9; k < (tri + count) * 9; k += 3) {
+      b[0] = Math.min(b[0], mesh.positions[k]), b[1] = Math.min(b[1], mesh.positions[k + 1]);
+      b[2] = Math.max(b[2], mesh.positions[k]), b[3] = Math.max(b[3], mesh.positions[k + 1]);
+    }
+    if (count) boxes.push(b);
+    tri += count;
+  }
+  const [a, b] = boxes;
+  assert.ok(a[2] <= b[0] || b[2] <= a[0] || a[3] <= b[1] || b[3] <= a[1], `halves overlap: ${JSON.stringify(boxes)}`);
 
   m = load('calib-cube-10-dual-colour-merged.3mf');
   const objects = m.objects.length;
