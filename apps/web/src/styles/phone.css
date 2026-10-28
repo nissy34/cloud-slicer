@@ -88,14 +88,14 @@
   /* Above the layer slider, as the view buttons are. */
   .preview .plate-tabs {
     top: auto;
-    bottom: 64px;
+    bottom: 72px;
   }
   .view-buttons {
     right: 8px;
     bottom: 8px;
   }
   .view-buttons.over-slider {
-    bottom: 64px;
+    bottom: 72px;
   }
   .view-button {
     width: var(--ctl);

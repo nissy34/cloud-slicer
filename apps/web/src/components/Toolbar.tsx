@@ -1,5 +1,6 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { usePhone } from '../lib/usePhone';
+import { toolbarShift } from '../lib/toolbar-follow';
 import type { PaintKind } from '../engine/protocol';
 import { sentence } from '../lib/format';
 import { editKey, nudgeKey } from '../lib/transform';
@@ -85,6 +86,26 @@ export function Toolbar({ onAdd }: { onAdd(): void }) {
   const onPlate = useMemo(() => project?.plates[plate]?.objects ?? [], [project, plate]);
   const bar = useRef<HTMLDivElement>(null);
   const svgs = useMemo(() => Object.fromEntries(ALL.map((i) => [i.id, icon(i.icon)])), []);
+  const phone = usePhone();
+
+  // Phone: the settings scroll under the 3D view. While any of the view shows,
+  // the toolbar stays at the top of the screen; it leaves with the view's last bit.
+  useEffect(() => {
+    const el = bar.current;
+    const column = el?.closest<HTMLElement>('.body');
+    const view = el?.closest<HTMLElement>('.workspace');
+    if (!phone || !el || !column || !view) return;
+    const follow = () => {
+      const shift = toolbarShift(column.getBoundingClientRect().top - view.getBoundingClientRect().top, view.clientHeight - el.offsetHeight - 2 * el.offsetTop);
+      el.style.transform = shift ? `translateY(${shift}px)` : '';
+    };
+    follow();
+    column.addEventListener('scroll', follow, { passive: true });
+    return () => {
+      column.removeEventListener('scroll', follow);
+      el.style.transform = '';
+    };
+  }, [phone]);
 
   // With nothing selected, the object tools work on the only object on the plate.
   const target =

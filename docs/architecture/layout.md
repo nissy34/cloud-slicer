@@ -25,7 +25,10 @@ the same screens rearrange for a phone.
 
 - **760 px** is the one phone width. Use the same media query everywhere; don't add a
   new breakpoint for one screen.
-- The phone layout never scrolls as a page; the toolbar is always visible.
+- On a phone the 3D view and the settings are one column that scrolls. While any of the
+  view shows, the toolbar stays at its top (`components/Toolbar.tsx`,
+  `lib/toolbar-follow.ts`); once only the settings show, it scrolls away with the view.
+- On a phone the Preview colour key starts folded; picking a Colour by opens it.
 - An open tool stacks the toolbar, its card (at most half the screen) and the model; the
   settings hide until Done ([prepare tools](prepare-tools.md)).
 - On a phone Prepare, Preview and Device are tabs at the bottom, under the Slice bar;
