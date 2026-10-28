@@ -102,7 +102,7 @@
 
   /* Sizes */
   --topbar: 48px;
-  --ctl: 30px; /* buttons and icon buttons; 40px on a phone (below) */
+  --ctl: 30px; /* buttons and icon buttons; 36px on a phone (below) */
   --tap: 44px; /* the least a tap hits on a phone, drawn or not (base.css) */
 
   /* Motion: one speed for hover, open and switch; none when the device asks for less (base.css) */
@@ -136,6 +136,6 @@
 
 @media (max-width: 760px) {
   :root {
-    --ctl: 40px;
+    --ctl: 36px;
   }
 }
