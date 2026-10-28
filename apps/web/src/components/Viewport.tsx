@@ -1,4 +1,4 @@
-import { OrbitControls, TransformControls } from '@react-three/drei';
+import { Html, OrbitControls, TransformControls } from '@react-three/drei';
 import { Canvas, useThree, type ThreeEvent } from '@react-three/fiber';
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import * as THREE from 'three';
@@ -697,6 +697,8 @@ function CutGrabbers({
   const stem = Math.min(0.75 * radius, 35);
   const ball = Math.min(Math.max(((size.x + size.y + size.z) / 3) * 0.1, 1.5), 8) * (coarse ? 1.5 : 1);
   const [hover, setHover] = useState<'ball' | 'x' | 'y' | null>(null);
+  // The handle held, and while tilting the turn so far, for desktop's protractor.
+  const [held, setHeld] = useState<{ kind: 'ball' | 'x' | 'y'; quaternion: THREE.Quaternion; angle: number } | null>(null);
   const drag = useRef<{ kind: 'ball' | 'x' | 'y'; start: number; position: number; rotation: CutRotation; quaternion: THREE.Quaternion; from: THREE.Vector3 } | null>(null);
   const normal = new THREE.Vector3(0, 0, 1).applyQuaternion(quaternion);
   const axisOf = (kind: 'x' | 'y') => new THREE.Vector3(kind === 'x' ? 1 : 0, kind === 'y' ? 1 : 0, 0).applyQuaternion(quaternion);
@@ -721,6 +723,7 @@ function CutGrabbers({
     const from = kind === 'ball' ? new THREE.Vector3() : onCircle(e.ray, axisOf(kind), centre);
     if (!from) return;
     drag.current = { kind, start: kind === 'ball' ? along(e.ray, centre, normal) : 0, position: s.cutZ, rotation: s.cutRotation, quaternion: q, from };
+    setHeld({ kind, quaternion: q, angle: 0 });
     (e.target as Element).setPointerCapture(e.pointerId);
     active.current = true;
     holdCamera(controls, true);
@@ -742,6 +745,7 @@ function CutGrabbers({
     if (!now) return;
     let angle = Math.atan2(d.from.clone().cross(now).dot(axis), d.from.dot(now));
     if (snap) angle = Math.round(angle / (15 * DEG)) * 15 * DEG;
+    setHeld((h) => h && { ...h, angle });
     setRotation(rotationOf(new THREE.Quaternion().setFromAxisAngle(axis, angle).multiply(d.quaternion)));
   };
   const up = (e: ThreeEvent<PointerEvent>) => {
@@ -749,6 +753,7 @@ function CutGrabbers({
     e.stopPropagation();
     (e.target as Element).releasePointerCapture(e.pointerId);
     drag.current = null;
+    setHeld(null);
     active.current = false;
     holdCamera(controls, false);
     onRelease();
@@ -759,6 +764,7 @@ function CutGrabbers({
       onSecondFinger(() => {
         if (!drag.current) return;
         drag.current = null;
+        setHeld(null);
         active.current = false;
       }),
     [active],
@@ -779,7 +785,12 @@ function CutGrabbers({
     </mesh>
   );
   const off = 1.25 * ball;
+  // While one handle is held, the others are hidden, like desktop.
+  const shown = (kind: 'ball' | 'x' | 'y') => !held || held.kind === kind || kind === 'ball';
+  const turning = held && held.kind !== 'ball' ? held : null;
   return (
+    <>
+      {turning && <Protractor centre={centre} quaternion={turning.quaternion} axis={turning.kind as 'x' | 'y'} radius={stem} colour={turning.kind === 'x' ? GRAB_X : GRAB_Y} />}
     <group position={centre} quaternion={quaternion}>
       {/* A cylinder stands along Y: turned onto the arrow. */}
       <mesh position={[0, 0, stem / 2]} rotation={[Math.PI / 2, 0, 0]} raycast={() => null} renderOrder={5}>
@@ -791,10 +802,49 @@ function CutGrabbers({
         <meshBasicMaterial color={lit('ball', GRAB_BALL)} depthTest={false} transparent />
       </mesh>
       {/* A cone stands along Y: the red ones point along the plane's Y, the green ones along its X. */}
-      {cone('x', [0, off, stem], [0, 0, 0], GRAB_X)}
-      {cone('x', [0, -off, stem], [Math.PI, 0, 0], GRAB_X)}
-      {cone('y', [off, 0, stem], [0, 0, -Math.PI / 2], GRAB_Y)}
-      {cone('y', [-off, 0, stem], [0, 0, Math.PI / 2], GRAB_Y)}
+      {shown('x') && cone('x', [0, off, stem], [0, 0, 0], GRAB_X)}
+      {shown('x') && cone('x', [0, -off, stem], [Math.PI, 0, 0], GRAB_X)}
+      {shown('y') && cone('y', [off, 0, stem], [0, 0, -Math.PI / 2], GRAB_Y)}
+      {shown('y') && cone('y', [-off, 0, stem], [0, 0, Math.PI / 2], GRAB_Y)}
+      {turning && (
+        <Html position={[0, 0, stem]} zIndexRange={[2, 0]} style={{ pointerEvents: 'none' }}>
+          <div className="measure-label cut-angle">
+            {turning.kind.toUpperCase()}: {(turning.angle / DEG).toFixed(1)}°
+          </div>
+        </Html>
+      )}
+    </group>
+    </>
+  );
+}
+
+/**
+ * Desktop's protractor while a tilt arrow is held: a circle round the plane's
+ * middle, across the axis it turns about, marked every 5° (longer every 15°),
+ * with spokes every 45°. It stays as the plane was when the arrow was picked up.
+ */
+function Protractor({ centre, quaternion, axis, radius, colour }: { centre: THREE.Vector3; quaternion: THREE.Quaternion; axis: 'x' | 'y'; radius: number; colour: string }) {
+  const lines = useMemo(() => {
+    const out: number[] = [];
+    const at = (a: number, r: number) => [Math.cos(a) * r, Math.sin(a) * r, 0];
+    for (let k = 0; k < 120; k++) out.push(...at((k / 120) * 2 * Math.PI, radius), ...at(((k + 1) / 120) * 2 * Math.PI, radius));
+    for (let d = 0; d < 360; d += 5) out.push(...at(d * DEG, radius), ...at(d * DEG, radius * (d % 15 ? 1.05 : 1.1)));
+    for (let d = 0; d < 360; d += 45) out.push(...at(d * DEG, radius * 0.35), ...at(d * DEG, radius * 0.6));
+    const g = new THREE.BufferGeometry();
+    g.setAttribute('position', new THREE.BufferAttribute(new Float32Array(out), 3));
+    return g;
+  }, [radius]);
+  useEffect(() => () => lines.dispose(), [lines]);
+  return (
+    <group position={centre} quaternion={quaternion}>
+      {/* Drawn flat (XY), then stood across the axis: X turns in the YZ plane, Y in XZ. */}
+      <lineSegments geometry={lines} rotation={axis === 'x' ? [0, Math.PI / 2, 0] : [Math.PI / 2, 0, 0]} raycast={() => null} renderOrder={5}>
+        <lineBasicMaterial color="#ffffff" depthTest={false} transparent />
+      </lineSegments>
+      <mesh rotation={axis === 'x' ? [0, Math.PI / 2, 0] : [Math.PI / 2, 0, 0]} raycast={() => null} renderOrder={4}>
+        <circleGeometry args={[radius, 64]} />
+        <meshBasicMaterial color={colour} transparent opacity={0.12} side={THREE.DoubleSide} depthTest={false} depthWrite={false} />
+      </mesh>
     </group>
   );
 }
