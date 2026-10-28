@@ -144,6 +144,17 @@ async function run(name, options) {
     await note.getByText(/set to 100%/).waitFor();
     expect((await density.inputValue()) === '100%', `density set to 100%, got ${await density.inputValue()}`);
     await shot('clamped');
+    // 100% with a pattern that can't fill it asks, like desktop 2.4.1.
+    const fill = page.getByRole('alertdialog');
+    await fill.getByText(/infill pattern doesn't support 100% density/).waitFor();
+    await fill.getByRole('button', { name: 'Use rectilinear' }).click();
+    await fill.waitFor({ state: 'detached' });
+    expect((await density.inputValue()) === '100%', `density kept at 100%, got ${await density.inputValue()}`);
+    await search.fill('sparse infill pattern');
+    const pattern = page.getByRole('combobox', { name: 'Sparse infill pattern', exact: true });
+    expect((await pattern.inputValue()) === 'rectilinear', `pattern switched to rectilinear, got ${await pattern.inputValue()}`);
+    await page.getByRole('button', { name: /Reset to the preset value: Sparse infill pattern/ }).click();
+    await search.fill('sparse infill density');
     await page.getByRole('button', { name: /Reset to the preset value: Sparse infill density/ }).click();
     await search.fill('line width');
     await page.getByRole('button', { name: /Reset to the preset value: Initial layer$/ }).click();
