@@ -1,4 +1,4 @@
-// "Which printers work": in plain sight at the top of Add printer and on the
+// "Which printers work": in plain sight at the top of Add printer (table folded) and on the
 // empty Device tab. One line names the kinds of printer the Device tab reaches;
 // "See what each can do" opens a table of what works on each (open on wide
 // screens). It says just as plainly that slicing doesn't depend on it.
@@ -6,8 +6,10 @@ import { useState } from 'react';
 import { PHONE } from '../../lib/breakpoints';
 import { WORKS_FEATURES, WORKS_WITH } from '../brands';
 
-export function WorksWith() {
+/** folded: the table starts closed (in the Add a printer window, so its steps come first). */
+export function WorksWith({ folded = false }: { folded?: boolean }) {
   const [open] = useState(() => {
+    if (folded) return false;
     try {
       return !window.matchMedia(PHONE).matches;
     } catch {

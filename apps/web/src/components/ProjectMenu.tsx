@@ -122,15 +122,19 @@ export function ProjectMenu() {
           Online projects…
         </button>
         <hr />
-        <button role="menuitem" className="menu-item" disabled={!!busy} onClick={run(() => p.save())}>
-          {signedIn ? 'Save' : 'Save (download)'}
-          <kbd>{MOD}S</kbd>
-        </button>
+        {/* Signed out, Save downloads the 3MF: one row for both. */}
+        {signedIn && (
+          <button role="menuitem" className="menu-item" disabled={!!busy} onClick={run(() => p.save())}>
+            Save
+            <kbd>{MOD}S</kbd>
+          </button>
+        )}
         <button role="menuitem" className="menu-item" disabled={!!busy} onClick={run(() => p.setSaveAsOpen('copy'))}>
           Save a copy…
         </button>
-        <button role="menuitem" className="menu-item" disabled={!!busy} onClick={run(() => p.download())}>
+        <button role="menuitem" className="menu-item" disabled={!!busy} onClick={run(() => (signedIn ? p.download() : p.save()))}>
           Download 3MF
+          {!signedIn && <kbd>{MOD}S</kbd>}
         </button>
         {engineInfo && (
           <p className="menu-note" data-testid="project-engine">

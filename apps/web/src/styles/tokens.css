@@ -51,6 +51,8 @@
   --scene-ground: #b9bfc8;
   --scene-bed-model: #535656;
   --scene-exclude: #c9b8a6;
+  /* Objects that won't print: desktop's black, see-through */
+  --scene-unprintable: #000000;
   --scene-text: #3b414b;
   --scene-label-bg: rgb(20 24 28 / 80%);
   /* Measure tool features, both themes (same as MEASURE_COLOURS in lib/measure.ts) */
@@ -130,6 +132,7 @@
   --scene-ground: #3a3f48;
   --scene-bed-model: #414148;
   --scene-exclude: #6f655b;
+  --scene-unprintable: #c4c9d1;
   --scene-text: #c9ced6;
   color-scheme: dark;
 }

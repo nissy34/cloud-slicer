@@ -76,6 +76,8 @@ export interface SceneColours {
   bedModel: string;
   /** Bed exclusion areas. */
   exclude: string;
+  /** Objects that won't be printed (desktop's black; light grey on the dark bed). */
+  unprintable: string;
 }
 
 function readScene(): SceneColours {
@@ -88,6 +90,7 @@ function readScene(): SceneColours {
     ground: v('--scene-ground', '#3a3f48'),
     bedModel: v('--scene-bed-model', '#414148'),
     exclude: v('--scene-exclude', '#6f655b'),
+    unprintable: v('--scene-unprintable', '#000000'),
   };
 }
 
