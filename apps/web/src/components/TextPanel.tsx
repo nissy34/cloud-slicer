@@ -226,17 +226,17 @@ function TextFields({
           ))}
         </div>
         <div className="chooser icons" role="radiogroup" aria-label="Vertical alignment">
-          {(['top', 'center', 'bottom'] as const).map((a) => (
+          {VALIGNS.map(({ side, value }) => (
             <button
-              key={a}
+              key={side}
               role="radio"
-              aria-checked={style.valign === a}
-              aria-label={VALIGN_NAMES[a]}
-              title={`${VALIGN_NAMES[a]}: the text's ${a === 'center' ? 'middle' : a} sits on its point`}
-              className={style.valign === a ? 'on' : ''}
-              onClick={() => set('valign', a)}
+              aria-checked={style.valign === value}
+              aria-label={VALIGN_NAMES[side]}
+              title={`${VALIGN_NAMES[side]}: the text sits ${side === 'center' ? 'across' : side === 'top' ? 'above' : 'below'} its point`}
+              className={style.valign === value ? 'on' : ''}
+              onClick={() => set('valign', value)}
             >
-              <VAlignIcon valign={a} />
+              <VAlignIcon side={side} />
             </button>
           ))}
         </div>
@@ -289,6 +289,13 @@ function TextFields({
 
 const ALIGN_NAMES = { left: 'Left', center: 'Centre', right: 'Right' } as const;
 const VALIGN_NAMES = { top: 'Top', center: 'Middle', bottom: 'Bottom' } as const;
+/** Where the text goes from its point, top to bottom. Orca's own words are the other
+ * way round (its "top" is the text's top on the point, so the text hangs below it). */
+const VALIGNS = [
+  { side: 'top', value: 'bottom' },
+  { side: 'center', value: 'center' },
+  { side: 'bottom', value: 'top' },
+] as const;
 
 /** Lines of text lined up left, centre or right, like a word processor's buttons. */
 function AlignIcon({ align }: { align: 'left' | 'center' | 'right' }) {
@@ -303,14 +310,14 @@ function AlignIcon({ align }: { align: 'left' | 'center' | 'right' }) {
   );
 }
 
-/** Two lines of text at the top, middle or bottom of a box, its point marked. */
-function VAlignIcon({ valign }: { valign: 'top' | 'center' | 'bottom' }) {
-  const y = valign === 'top' ? 4 : valign === 'bottom' ? 10 : 7;
+/** Two lines of text above, across or below the text's point (the dot). */
+function VAlignIcon({ side }: { side: 'top' | 'center' | 'bottom' }) {
+  const y = side === 'top' ? 3 : side === 'bottom' ? 11 : 7;
   return (
     <svg viewBox="0 0 18 18" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" aria-hidden>
-      <rect x="1.5" y="1.5" width="15" height="15" rx="2" strokeWidth="1" opacity="0.5" />
-      <line x1="5" x2="13" y1={y} y2={y} />
-      <line x1="5" x2="13" y1={y + 4} y2={y + 4} />
+      <line x1="4" x2="14" y1={y} y2={y} />
+      <line x1="4" x2="14" y1={y + 4} y2={y + 4} />
+      <circle cx="9" cy="9" r="1.6" fill="currentColor" stroke="none" />
     </svg>
   );
 }
