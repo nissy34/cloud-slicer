@@ -206,7 +206,7 @@ function MenuCard() {
               ))}
             </>,
           )}
-          {vol.kind === 'part' &&
+          {(vol.kind === 'part' || vol.kind === 'modifier') &&
             submenu(
               'filament',
               'Change filament',
