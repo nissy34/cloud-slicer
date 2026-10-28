@@ -10,6 +10,7 @@ import { readFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { chromium } from 'playwright';
+import { pickerOf } from './picker.mjs';
 
 const web = join(dirname(fileURLToPath(import.meta.url)), '..');
 const model = join(web, '../../fixtures/3DBenchy.stl');
@@ -84,7 +85,7 @@ try {
   console.log(`mix added as filament ${mixId}`);
 
   // The model prints with the mix.
-  const select = page.getByLabel(/^Filament for 3DBenchy/).first();
+  const select = pickerOf(page, 'Filament for 3DBenchy.stl');
   await select.selectOption(String(mixId));
   await page.waitForTimeout(500);
   await shot(page, 'prepare');

@@ -1783,11 +1783,15 @@ test('SVG shapes: an SVG part, an engraved SVG, an SVG object, depth and size, k
   const onTop = svg(0, { op: 'add', type: 'part', path: '/work/badge.svg', name: 'badge.svg', depth: 1, camera: [135, 135, 200] });
   assert.ok(info().objects[0].size[2] > cubeTop + 0.9, `the SVG on the top stands 1 mm above it: ${info().objects[0].size[2]} vs ${cubeTop}`);
   // Engraved, it goes into the top instead; a part again, it stands out again.
-  const asNegative = call(engine, 'volumeAction', 0, JSON.stringify({ op: 'type', volume: onTop.volume, type: 'negative' }));
+  const asNegative = call(engine, 'volumeAction', 0, JSON.stringify({ op: 'type', volume: onTop.volume, type: 'negative', remake: true }));
   near(info().objects[0].size[2], cubeTop, 'engraved, the SVG is inside the top');
-  const asPart = call(engine, 'volumeAction', 0, JSON.stringify({ op: 'type', volume: asNegative.volume, type: 'part' }));
+  const asPart = call(engine, 'volumeAction', 0, JSON.stringify({ op: 'type', volume: asNegative.volume, type: 'part', remake: true }));
   near(info().objects[0].size[2], cubeTop + 1, 'a part again, the SVG stands out');
-  call(engine, 'volumeAction', 0, JSON.stringify({ op: 'delete', volume: asPart.volume }));
+  // From the object list's Change type it stays where it is, like desktop.
+  const listNegative = call(engine, 'volumeAction', 0, JSON.stringify({ op: 'type', volume: asPart.volume, type: 'negative' }));
+  const listPart = call(engine, 'volumeAction', 0, JSON.stringify({ op: 'type', volume: listNegative.volume, type: 'part' }));
+  near(info().objects[0].size[2], cubeTop + 1, 'Change type keeps the SVG where it was');
+  call(engine, 'volumeAction', 0, JSON.stringify({ op: 'delete', volume: listPart.volume }));
 
   const engraved = svg(0, { op: 'add', type: 'negative', path: '/work/badge.svg', name: 'badge.svg', depth: 1 });
   assert.equal(volumes()[engraved.volume].kind, 'negative');

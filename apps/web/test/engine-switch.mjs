@@ -15,7 +15,7 @@ import { readFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { chromium } from 'playwright';
-import { pickerValue } from './picker.mjs';
+import { pickerOf, pickerValue } from './picker.mjs';
 
 const web = join(dirname(fileURLToPath(import.meta.url)), '..');
 const model = join(web, '../../fixtures/tetrahedron.stl');
@@ -131,7 +131,7 @@ try {
   });
   await mixDialog.getByRole('button', { name: /^(Add|Save)/ }).click();
   await page.getByLabel(`Delete mix ${mixId}`).waitFor();
-  await page.getByLabel(/^Filament for tetrahedron/).first().selectOption(String(mixId));
+  await pickerOf(page, 'Filament for tetrahedron.stl').selectOption(String(mixId));
   await page.waitForTimeout(500);
 
   // With a mix on the model, the other engine asks first.
@@ -167,7 +167,7 @@ try {
   await page.setViewportSize({ width: 1280, height: 860 });
   await page.getByText('Ready to slice').waitFor({ timeout: 120000 });
   await shot(page, 'switched-desktop');
-  const filament = await page.getByLabel(/^Filament for tetrahedron/).first().inputValue();
+  const filament = await pickerOf(page, 'Filament for tetrahedron.stl').inputValue();
   if (filament !== '2') fail(`the mix should have become filament 2, the object has ${filament}`);
   const orcaTools = await sliceTools();
   console.log(`OrcaSlicer tool changes: ${orcaTools.join(', ')}`);
@@ -176,7 +176,7 @@ try {
   await engineSelect.selectOption('snapmaker');
   await engineIs('Snapmaker Orca');
   await page.getByText('This project now slices with Snapmaker Orca').waitFor({ timeout: 180000 });
-  const back = await page.getByLabel(/^Filament for tetrahedron/).first().inputValue();
+  const back = await pickerOf(page, 'Filament for tetrahedron.stl').inputValue();
   if (back !== '2') fail(`back in Snapmaker Orca the object has filament ${back}`);
   if (await page.getByLabel(`Delete mix ${mixId}`).count()) fail('the mix came back');
   if (await ask.count()) fail('switching back asked first');

@@ -382,6 +382,8 @@ try {
     await objectMenu.getByRole('menuitem', { name: 'Cube', exact: true }).click();
     await volumes.nth(1).getByText('Modifier').waitFor({ timeout: 30000 });
     await page.getByText('Modifier settings').waitFor();
+    // A modifier takes a filament too, like desktop.
+    await volumes.nth(1).getByRole('combobox', { name: /^Filament for / }).waitFor();
     // Desktop's full list: a modifier gets part settings (and everything else a part can carry), never object-only ones.
     await page.getByLabel('Add a setting to this modifier').click();
     const picker = page.getByRole('region', { name: 'Settings to add to this modifier' });

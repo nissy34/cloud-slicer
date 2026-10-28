@@ -34,6 +34,17 @@ Desktop Orca's Prepare tools, one by one, each backed by Orca's own code.
   edits, worker methods, `ToolPanel` hints. Keep both sides; grep for conflict markers
   after merging.
 - Volume gizmos send a world-space change; the engine applies it in the instance's frame.
+- Move's arrows sit on top of the part (desktop draws them from its box), so the up arrow
+  isn't hidden inside it; dragging it below the bed sinks the object, like the Z field.
+- Filament choices are the shared Picker with colour, number and preset name, never a
+  `<select>` of bare numbers. Parts and modifiers take a filament (modifiers like desktop:
+  "Object" means the object's own).
+- Changing a text or SVG shape's type moves it out of or into the surface only from its
+  own tool (Join / Engraved, desktop's Emboss gizmo). The object list's Change type
+  leaves it where it is (desktop's `change_part_type`).
+- The Text tool's vertical alignment names where the text goes from its point: Top puts
+  it above. Orca's stored value is the other way round (its `top` is the text's top on
+  the point), so Top saves `bottom`; files stay the same as desktop's.
 - Long-press menus ignore clicks until a press starts on the menu, or lifting the finger
   picks an item.
 - Edits that take a while show the loading screen (`busyWhile` in `store.ts`) until the
