@@ -15,7 +15,7 @@ export const ENGINES: { id: EngineFlavor; name: string; blurb: string; examples:
   {
     id: 'orca',
     name: 'OrcaSlicer',
-    blurb: 'The community OrcaSlicer 2.4.2, with its own presets.',
+    blurb: 'The community OrcaSlicer, with its own presets.',
     examples: ['The newest OrcaSlicer fixes and settings', "OrcaSlicer's own U1 presets", 'No colour mixing'],
   },
 ];

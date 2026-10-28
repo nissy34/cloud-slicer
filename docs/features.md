@@ -40,8 +40,9 @@ why: [README.md](README.md) (the docs map) and [architecture/](architecture/).
   stay the same in both, while G-code, Snapmaker's high flow values and settings only one engine
   has are kept per engine, each on its own base preset (`apps/web/src/lib/preset-engines.ts`).
 - **Two engines, chosen per project**: Snapmaker Orca 2.4.1 or OrcaSlicer 2.4.2. The Slicer engine
-  dropdown above the printer names both engines with their versions (read from each engine's
-  `version.inc` at build time; phones too, where the top bar has no room for the engine tag) and switches an open project to the other engine, like desktop's
+  picker above the printer names both engines with their versions in small grey words (read from
+  each engine's `version.inc` at build time; phones too, where the top bar has no room for the engine
+  tag), as do the setup wizard's engine cards, and switches an open project to the other engine, like desktop's
   printer change: when something would be lost, a pop-up first lists just that (each colour mix
   and the filament it becomes, high flow values you changed, settings the other engine lacks, a
   process with no match of its layer height); model, plates, positions and painting stay

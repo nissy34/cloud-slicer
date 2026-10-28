@@ -6,6 +6,7 @@ import { ENGINES, engineRelease, type EngineFlavor } from '../lib/engines';
 import { useProjects } from '../state/projects';
 import { useSlicer } from '../state/store';
 import { EngineSwitchDialog } from './EngineSwitchDialog';
+import { Picker } from './Picker';
 
 /**
  * The sidebar's Slicer engine section, above the printer (the same place on
@@ -37,16 +38,15 @@ export function EngineSection() {
           Slicer engine
         </h2>
       </div>
-      <label className="field">
-        <span className="sr-only">Slicer engine</span>
-        <select aria-label="Slicer engine" data-testid="engine-select" value={flavor} disabled={busy} onChange={(e) => pick(e.target.value as EngineFlavor)}>
-          {ENGINES.map((e) => (
-            <option key={e.id} value={e.id}>
-              {version(e.id) ? `${e.name} ${version(e.id)}` : e.name}
-            </option>
-          ))}
-        </select>
-      </label>
+      <Picker
+        field
+        label="Slicer engine"
+        testId="engine-select"
+        value={flavor}
+        disabled={busy}
+        options={ENGINES.map((e) => ({ value: e.id, label: e.name, note: version(e.id) || undefined }))}
+        onChange={(v) => pick(v as EngineFlavor)}
+      />
       {/* On the page itself, not in the settings column, whose headings it would take on. */}
       {asking &&
         createPortal(

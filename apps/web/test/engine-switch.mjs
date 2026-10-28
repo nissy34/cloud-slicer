@@ -62,7 +62,7 @@ try {
   await page.getByText('Open a model to start').waitFor({ timeout: 120000 });
   await page.getByRole('dialog', { name: 'Set up your printers' }).getByRole('button', { name: 'Not now' }).click();
   await engineIs('Snapmaker Orca');
-  const engineSelect = page.getByTestId('engine-select');
+  const engineSelect = pickerOf(page, 'Slicer engine');
   const ask = page.getByTestId('engine-switch');
   const layer = page.getByLabel('Layer height', { exact: true });
   const printer = { inputValue: () => pickerValue(page, 'Printer preset') };

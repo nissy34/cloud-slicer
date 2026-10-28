@@ -14,6 +14,7 @@ import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { chromium } from 'playwright';
+import { pickerChoices, pickerOf } from './picker.mjs';
 
 const web = join(dirname(fileURLToPath(import.meta.url)), '..');
 const model = join(web, '../../fixtures/tetrahedron.stl');
@@ -103,15 +104,17 @@ try {
   await page.getByRole('menuitem', { name: 'New project', exact: true }).click();
   await discardIfAsked();
   await engineIs('OrcaSlicer');
-  const engineSelect = page.getByTestId('engine-select');
+  const engineSelect = pickerOf(page, 'Slicer engine');
   if ((await engineSelect.inputValue()) !== 'orca') fail(`the dropdown says "${await engineSelect.inputValue()}"`);
   if (shots) await page.screenshot({ path: join(shots, 'engine-select.png') });
   await engineSelect.selectOption('snapmaker');
   await engineIs('Snapmaker Orca');
   if ((await engineSelect.inputValue()) !== 'snapmaker') fail(`the dropdown says "${await engineSelect.inputValue()}"`);
-  // The dropdown names both engines with their versions (phones hide the top bar's tag).
-  const shown = (await engineSelect.locator('option').allTextContents()).join(' / ');
-  if (!/^Snapmaker Orca \d+\.\d+\.\d+ \/ OrcaSlicer \d+\.\d+\.\d+$/.test(shown)) fail(`the dropdown shows "${shown}", not both engine versions`);
+  // The picker names both engines with their versions (phones hide the top bar's tag).
+  const shown = (await pickerChoices(page, 'Slicer engine')).join(' / ');
+  if (!/^Snapmaker Orca\s*\d+\.\d+\.\d+ \/ OrcaSlicer\s*\d+\.\d+\.\d+$/.test(shown)) fail(`the picker shows "${shown}", not both engine versions`);
+  // The version is the small grey note, on the button too.
+  if (!/^\d+\.\d+\.\d+$/.test((await engineSelect.button.locator('.picker-note').textContent()) ?? '')) fail('the Slicer engine button has no version note');
 
   // The OrcaSlicer project opens with OrcaSlicer again.
   await page.getByTestId('project-input').setInputFiles(saved);

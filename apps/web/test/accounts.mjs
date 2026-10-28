@@ -22,6 +22,7 @@ import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { importJWK, jwtVerify } from 'jose';
 import { chromium } from 'playwright';
+import { pickerOf } from './picker.mjs';
 
 const web = join(dirname(fileURLToPath(import.meta.url)), '..');
 const PORT = 8790;
@@ -1286,11 +1287,11 @@ if (withApp)
       await secondPage.waitForTimeout(3000);
       assert.equal(await again.count(), 0, 'the Continue card shows once');
       // The draft keeps its engine: this tab started on OrcaSlicer and switched back.
-      assert.equal(await secondPage.getByTestId('engine-select').inputValue(), 'snapmaker', 'the draft opened in the engine it was made with');
+      assert.equal(await pickerOf(secondPage, 'Slicer engine').inputValue(), 'snapmaker', 'the draft opened in the engine it was made with');
 
       // Changing only the engine is a change AutoSave keeps: Continue on a new tab opens it in the new engine.
       const draftBefore = (await (await carol.json('/api/projects/draft-continue')).json()).project;
-      await secondPage.getByTestId('engine-select').selectOption('orca');
+      await pickerOf(secondPage, 'Slicer engine').selectOption('orca');
       const sw = secondPage.getByRole('dialog').filter({ hasText: /Switch/ });
       if (await sw.getByRole('button', { name: 'Switch' }).isVisible({ timeout: 3000 }).catch(() => false)) await sw.getByRole('button', { name: 'Switch' }).click();
       await waitFor(async () => {
@@ -1306,7 +1307,7 @@ if (withApp)
       await card3.getByRole('button', { name: 'Continue' }).click();
       await thirdPage.getByText('OrcaSlicer 2.4').first().waitFor({ timeout: 120000 });
       await thirdPage.locator('.project-busy').waitFor({ state: 'detached', timeout: 120000 });
-      assert.equal(await thirdPage.getByTestId('engine-select').inputValue(), 'orca', 'Continue opened the draft in the engine it was switched to');
+      assert.equal(await pickerOf(thirdPage, 'Slicer engine').inputValue(), 'orca', 'Continue opened the draft in the engine it was switched to');
       await third.close();
       await carol.fetch(`${HOST}/api/projects/draft-continue`, { method: 'DELETE', headers: { Origin: HOST } });
 
@@ -1325,7 +1326,7 @@ if (withApp)
       if (await leave.isVisible().catch(() => false)) await leave.getByRole('button', { name: /Don.t save|Discard/ }).click();
       await secondPage.getByText('OrcaSlicer 2.4').first().waitFor({ timeout: 120000 });
       await secondPage.locator('.project-busy').waitFor({ state: 'detached', timeout: 120000 });
-      assert.equal(await secondPage.getByTestId('engine-select').inputValue(), 'orca', 'the saved project opened in the engine it was made with');
+      assert.equal(await pickerOf(secondPage, 'Slicer engine').inputValue(), 'orca', 'the saved project opened in the engine it was made with');
       await second.close();
       await carol.fetch(`${HOST}/api/projects/orca-made`, { method: 'DELETE', headers: { Origin: HOST } });
 
