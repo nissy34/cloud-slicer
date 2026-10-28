@@ -1587,6 +1587,31 @@ test('mesh boolean: union, difference and intersection of two parts, like deskto
   setup();
   assert.throws(() => boolean({ op: 'union', a: 0, b: 0 }), /two different/);
   assert.throws(() => boolean({ op: 'xor', a: 0, b: 1 }), /unknown/);
+
+  // "All the other parts": a second 30 mm cube over the left edge too, both
+  // cut out of the first (only its middle 5 mm stays), or all joined in one.
+  const setupThree = () => {
+    setup();
+    engine.FS.writeFile('/work/c.stl', cubesStl([[-25, -5, -5]], 30));
+    call(engine, 'volumeAction', 0, JSON.stringify({ op: 'add', type: 'part', path: '/work/c.stl', name: 'c.stl' }));
+    assert.equal(volumes().length, 3);
+  };
+  setupThree();
+  boolean({ op: 'difference', a: 0, b: -1, deleteInput: true });
+  assert.equal(volumes().length, 1, 'every other part goes with Delete input');
+  assert.deepEqual(extent(), [5, 20, 20], 'both cut out of the first cube');
+  setupThree();
+  boolean({ op: 'union', a: 0, b: -1 });
+  assert.equal(volumes().length, 1, 'all joined into one');
+  assert.deepEqual(extent(), [65, 30, 30]);
+
+  // A cut that cuts nothing (the second part's pieces sit round the cube,
+  // not in it) says so in desktop's words instead of leaving the part as it was.
+  load('gen-cube-20.stl');
+  engine.FS.writeFile('/work/far.stl', cubesStl([[-10, -10, -10], [25, 25, 25]], 5));
+  call(engine, 'volumeAction', 0, JSON.stringify({ op: 'add', type: 'part', path: '/work/far.stl', name: 'far.stl' }));
+  assert.throws(() => boolean({ op: 'difference', a: 0, b: 1 }), /Unable to perform boolean operation on selected parts: "far\.stl" doesn't cut into/);
+  assert.equal(volumes().length, 2, 'nothing changed');
 });
 
 test('text shapes: a text part, an engraved text, a text object and editing the text, like desktop', () => {

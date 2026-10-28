@@ -474,6 +474,8 @@ try {
     await booleanPanel.getByLabel('Subtract with').waitFor();
     await booleanPanel.getByRole('radio', { name: 'Union' }).click();
     await booleanPanel.getByLabel('Part 1').selectOption({ index: 0 });
+    // Desktop works on all of an object's parts at once: one choice does that here.
+    if (!(await booleanPanel.getByLabel('Part 2').locator('option', { hasText: 'All the other parts' }).count())) fail('no "All the other parts" in the second picker');
     await booleanPanel.getByLabel('Part 2').selectOption({ index: 1 });
     if (shots) await page.screenshot({ path: join(shots, 'boolean-desktop.png') });
     await booleanPanel.getByRole('button', { name: 'Union', exact: true }).click();
