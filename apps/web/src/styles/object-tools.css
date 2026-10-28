@@ -188,6 +188,31 @@
   align-items: center;
   gap: 5px;
 }
+/* Colour painting: desktop's filament squares with the number inside, in a grid. */
+.paint-filaments {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.paint-filaments button {
+  padding: 2px;
+  border: 2px solid transparent;
+  border-radius: var(--r-lg);
+  background: none;
+}
+.paint-filaments button.on {
+  border-color: var(--accent);
+}
+.paint-filaments .paint-erase {
+  min-height: var(--ctl);
+  padding: 2px 12px;
+  border: 1px solid var(--border);
+  color: var(--text);
+}
+.paint-filaments .paint-erase.on {
+  border: 2px solid var(--accent);
+  font-weight: 600;
+}
 .paint-panel .hint {
   margin: 0;
   font-size: var(--t-sm);

@@ -110,6 +110,51 @@ try {
     const rotate = page.getByRole('region', { name: 'Rotate' });
     await rotate.waitFor();
     if (shots) await page.screenshot({ path: join(shots, 'toolbar-desktop-rotate.png') });
+    // Dragging a ring shows desktop's marks and the angle turned beside it,
+    // gone when it is let go. The Z ring is found by its blue pixels (the
+    // corner axes, also blue, sit at the left edge) and dragged at its front.
+    const view = page.getByTestId('viewport');
+    const png = (await view.screenshot()).toString('base64');
+    const ring = await page.evaluate(async (data) => {
+      const img = new Image();
+      img.src = `data:image/png;base64,${data}`;
+      await img.decode();
+      const c = document.createElement('canvas');
+      [c.width, c.height] = [img.width, img.height];
+      const g = c.getContext('2d');
+      g.drawImage(img, 0, 0);
+      const px = g.getImageData(0, 0, c.width, c.height).data;
+      const blue = [];
+      for (let y = 0; y < c.height; y++)
+        for (let x = Math.round(c.width * 0.25); x < c.width; x++) {
+          const i = (y * c.width + x) * 4;
+          if (px[i + 2] > 180 && px[i] < 80 && px[i + 1] < 80) blue.push([x, y]);
+        }
+      if (!blue.length) return null;
+      // A third of the way across, clear of the X ring seen edge on down the middle.
+      const xs = blue.map(([x]) => x);
+      const at = Math.round(Math.min(...xs) + (Math.max(...xs) - Math.min(...xs)) / 3);
+      return blue.filter(([x]) => Math.abs(x - at) <= 1).reduce((a, b) => (b[1] > a[1] ? b : a));
+    }, png);
+    let ringAngle = '';
+    if (ring) {
+      const [x, y] = [box.x + ring[0], box.y + ring[1] - 1];
+      await page.mouse.move(x, y);
+      await page.mouse.down();
+      for (let k = 1; k <= 10; k++) await page.mouse.move(x + k * 8, y);
+      await page.waitForTimeout(200);
+      ringAngle = await page.getByTestId('rotate-angle').innerText({ timeout: 3000 }).catch(() => '');
+      if (shots) await page.screenshot({ path: join(shots, 'toolbar-desktop-rotate-marks.png') });
+      await page.mouse.up();
+    }
+    if (!/^[+-]\d+°$/.test(ringAngle)) fail(`dragging a rotate ring should show the angle turned, got "${ringAngle}"`);
+    await page.waitForTimeout(300);
+    if (await page.getByTestId('rotate-angle').count()) fail('the angle should go when the ring is let go');
+    // The drag turns the object in the engine; let that land (the panel's field
+    // is rebuilt with the new angle) before typing, or the typing is lost.
+    await page.waitForFunction(() => document.querySelector('[aria-label="Rotation Z"]')?.value !== '0', null, { timeout: 30000 });
+    await page.waitForTimeout(500);
+    console.log(`rotate ring dragged: ${ringAngle}`);
     // Exact values go in the gizmo's own panel, like desktop.
     // The field is rebuilt once the engine has turned the object, so wait for a
     // new field rather than the typed value (typing into the old one gets lost).

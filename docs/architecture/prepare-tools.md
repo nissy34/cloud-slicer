@@ -34,6 +34,11 @@ Desktop Orca's Prepare tools, one by one, each backed by Orca's own code.
   edits, worker methods, `ToolPanel` hints. Keep both sides; grep for conflict markers
   after merging.
 - Volume gizmos send a world-space change; the engine applies it in the instance's frame.
+- Rotate rings, like desktop: while one is dragged it shows marks every 15° (bigger every
+  45°) and the angle turned beside it, and the turn holds on a mark within 3° of it
+  (`components/RotateMarks.tsx`, `lib/rotate-marks.ts`). Shift or the Snap switch still
+  steps in 15°. The marks read TransformControls' own drag values, so they work for one
+  object, a part and a chosen group alike.
 - Move's arrows sit on top of the part (desktop draws them from its box), so the up arrow
   isn't hidden inside it; dragging it below the bed sinks the object, like the Z field.
 - Filament choices are the shared Picker with colour, number and preset name, never a
@@ -59,6 +64,14 @@ Desktop Orca's Prepare tools, one by one, each backed by Orca's own code.
   engine refuses with desktop's "Unable to perform boolean operation on selected parts"
   and the reason it finds (a mesh with holes, one crossing itself), shown in the card and
   as a notice; desktop silently keeps the uncut part.
+- Paint: the toolbar button picks what is painted and the card's title says it (no tabs in
+  the card). Colour painting shows desktop's filament squares with the number inside, and
+  desktop's Height range tool (every part of that object copy, from the tapped height up).
+  Every kind has the Section view slider: nothing above it is drawn (a clipping plane on
+  the part materials), hit (the engine's ray goes on through) or painted (TriangleSelector's
+  clipping plane). Support painting has Highlight overhangs (faces whose normal points down
+  past the angle, TriangleSelector's own test, drawn over the parts) and On overhangs only
+  (the engine's `highlight_by_angle`).
 - Long-press menus ignore clicks until a press starts on the menu, or lifting the finger
   picks an item.
 - Edits that take a while show the loading screen (`busyWhile` in `store.ts`) until the

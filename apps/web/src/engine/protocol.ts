@@ -200,7 +200,8 @@ export interface PreviewMesh {
 /** What a paint stroke paints: filament colours, supports, seams or fuzzy skin. */
 export type PaintKind = 'color' | 'support' | 'seam' | 'fuzzy';
 /** Brushes (circle paints the visible side, sphere goes through), smart fill, bucket fill. */
-export type PaintTool = 'circle' | 'sphere' | 'fill' | 'bucket';
+/** Brushes, fills, and desktop's height range (a band all round the object). */
+export type PaintTool = 'circle' | 'sphere' | 'fill' | 'bucket' | 'height';
 export interface PaintSettings {
   kind: PaintKind;
   /** Filament number for colour; 1 enforce / 2 block for supports and seams; 1 for fuzzy skin; 0 erases. */
@@ -210,6 +211,15 @@ export interface PaintSettings {
   radius: number;
   /** Smart fill: faces up to this many degrees apart are filled together. */
   angle: number;
+  /** Height range: the band's height, mm, from where it is clicked up. */
+  height: number;
+  /** Section view: nothing above this height (mm over the plate) is drawn, hit or painted; undefined for none. */
+  clip?: number;
+  /** Supports: show faces overhanging more than overhangAngle (degrees from straight down, desktop's). */
+  highlightOverhangs?: boolean;
+  /** Supports: paint only those faces (desktop's "On overhangs only"). */
+  overhangsOnly?: boolean;
+  overhangAngle?: number;
 }
 /** Support, seam or fuzzy skin paint to draw over the parts. */
 export interface PaintOverlay {

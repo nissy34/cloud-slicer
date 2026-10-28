@@ -790,6 +790,49 @@ test('painting: colour, supports and seams, like the desktop paint tools', () =>
   assert.equal(m.objects[0].volumes[0].paint.seam, false);
 });
 
+test('painting: height range, section view and overhangs only, like desktop', () => {
+  select({ printer: DEFAULT_PRINTER });
+  load('gen-cube-20.stl');
+  // The cube's middle on the plate (its instance offset is a corner), nudged
+  // off the top's diagonal so a ray from above lands inside one triangle.
+  const pos = engine.previewMesh(0).positions;
+  const mid = (k) => {
+    const v = pos.filter((_, i) => i % 3 === k);
+    return (Math.min(...v) + Math.max(...v)) / 2;
+  };
+  const [x, y] = [mid(0) + 3, mid(1) - 2];
+  const paint = (opts) => call(engine, 'paint', 0, JSON.stringify({ kind: 'support', state: 1, ...opts }));
+  const painted = () => {
+    const { positions } = engine.paintOverlay(0, 'support');
+    const zs = positions.filter((_, k) => k % 3 === 2);
+    return { count: positions.length / 9, low: Math.min(...zs), high: Math.max(...zs) };
+  };
+  // Brushes split triangles down to about a millimetre, so edges land that close.
+  const near = (a, b) => Math.abs(a - b) <= 1;
+
+  // Height range: a click on the side at 5 mm paints the band from 5 to 10 mm, all round.
+  paint({ tool: 'height', height: 5, rays: [[x - 50, y, 5, 1, 0, 0]] });
+  let p = painted();
+  assert.ok(p.count > 0 && near(p.low, 5) && near(p.high, 10), `band from 5 to 10 mm, got ${p.low}..${p.high}`);
+  call(engine, 'clearPaint', 0, 'all');
+
+  // Section view at 10 mm: a ray from above goes through what is cut away,
+  // and a big sphere paints nothing above the cut.
+  paint({ tool: 'sphere', radius: 50, clip: 10, rays: [[x, y, 200, 0, 0, -1]] });
+  p = painted();
+  assert.ok(p.count > 0 && p.high <= 11, `nothing painted above the section view, got up to ${p.high}`);
+  call(engine, 'clearPaint', 0, 'all');
+
+  // On overhangs only: a big sphere on the bottom face paints just that face
+  // (the sides and top don't overhang), and one on the top paints nothing.
+  paint({ tool: 'sphere', radius: 50, overhangsOnly: true, overhangAngle: 30, rays: [[x, y, -50, 0, 0, 1]] });
+  p = painted();
+  assert.ok(p.count > 0 && Math.abs(p.low) < 0.01 && Math.abs(p.high) < 0.01, `only the overhanging bottom, got ${p.low}..${p.high}`);
+  call(engine, 'clearPaint', 0, 'all');
+  paint({ tool: 'sphere', radius: 50, overhangsOnly: true, overhangAngle: 30, rays: [[x, y, 200, 0, 0, -1]] });
+  assert.equal(engine.paintOverlay(0, 'support').states.length, 0, 'the top does not overhang');
+});
+
 test('saves the project as an Orca 3MF that opens with everything in it', () => {
   select({ printer: DEFAULT_PRINTER });
   let m = load('3DBenchy.stl');
