@@ -565,6 +565,7 @@ jobs:
           node test/foreign-gcode.mjs
           node test/settings.mjs
           node test/support-filaments.mjs
+          node test/filament-list.mjs
           node test/calibration.mjs
 
       - name: Preset editing, import and export end to end (Chromium)

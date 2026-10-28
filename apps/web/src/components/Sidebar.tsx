@@ -20,6 +20,7 @@ import { Printer, Settings, SlidersHorizontal, Spool, X } from 'lucide-react';
 import { Picker, type PickerOption } from './Picker';
 import { IconButton } from './IconButton';
 import { textOn } from '../lib/mixing';
+import { filamentsByBrand, type FilamentOrder } from '../lib/filament-order';
 
 /** The user's own presets always show, whatever the setup wizard installed. */
 const withMine = (installed: string[] | undefined, list: PresetSummary[]) =>
@@ -83,6 +84,7 @@ function PrinterSection() {
 function FilamentSection() {
   const selection = useSlicer((s) => s.selection);
   const allFilaments = useSlicer((s) => s.filaments);
+  const filamentOrder = useSlicer((s) => s.filamentOrder);
   const installed = installedFilaments(useUserSetting<Setup>(SETUP_KEY), useSlicer((s) => s.flavor));
   const filaments = installedOnly(allFilaments, withMine(installed, allFilaments), selection?.filaments);
   const { setFilament, setColour, addFilament, removeFilament } = useSlicer.getState();
@@ -122,7 +124,7 @@ function FilamentSection() {
               value={name}
               options={[
                 ...(filaments.some((f) => f.name === name) ? [] : [{ value: name, label: shortName(name) }]),
-                ...presetOptions(filaments),
+                ...filamentOptions(filaments, filamentOrder),
               ]}
               onChange={(next) => void setFilament(i, next)}
               // Like desktop's filament list.
@@ -195,7 +197,21 @@ function PresetOptions({ presets }: { presets: PresetSummary[] }) {
   );
 }
 
-/** A filament list's choices: the user's own presets first, under their own heading. */
+/**
+ * The filament list's choices, like Snapmaker Orca 2.4.1's filament menu: the
+ * user's own presets first, then a heading per brand (lib/filament-order.ts).
+ */
+function filamentOptions(presets: PresetSummary[], order: FilamentOrder): PickerOption[] {
+  const option = (p: PresetSummary, group: string) => ({ value: p.name, label: shortName(p.name), group });
+  const brands = filamentsByBrand(
+    presets.filter((p) => !p.user),
+    order,
+    (p) => shortName(p.name),
+  );
+  return [...presets.filter((p) => p.user).map((p) => option(p, 'My presets')), ...brands.flatMap(([brand, list]) => list.map((p) => option(p, brand)))];
+}
+
+/** A list's choices: the user's own presets first, under their own heading. */
 function presetOptions(presets: PresetSummary[]): PickerOption[] {
   const mine = presets.filter((p) => p.user);
   const options = (list: PresetSummary[], group?: string) => list.map((p) => ({ value: p.name, label: shortName(p.name), group }));

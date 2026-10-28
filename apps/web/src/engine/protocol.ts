@@ -54,6 +54,8 @@ export interface PresetsLoaded {
   counts: { printers: number; filaments: number; processes: number };
   selection: Selection;
   vendorVersion: string;
+  /** Snapmaker's filament_allow_list.json text ('' for engines without it). */
+  filamentAllowList?: string;
   engine: EngineInfo;
 }
 

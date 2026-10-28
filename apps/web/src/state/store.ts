@@ -38,6 +38,7 @@ import { gcodeErrors, readableGcodeError } from '../lib/gcode-errors';
 import { appOfModelHead, engineFolder, engineFromUrl, engineName, engineOfModelHead, modelHeadOf3mf, type EngineFlavor } from '../lib/engines';
 import { filamentLimit, filamentLimitMessage, type FilamentLimit } from '../lib/filament-limit';
 import { flowFill, switchedText, switchPlan, type SwitchPlan } from '../lib/engine-switch';
+import { readFilamentOrder, type FilamentOrder } from '../lib/filament-order';
 import { loadCatalog, vendorFilesFor, type PrinterCatalog } from '../lib/printer-catalog';
 import { expandPending, presetForEngine } from '../lib/preset-engines';
 import type { UserPreset } from '../account/api';
@@ -117,6 +118,8 @@ export interface SlicerState {
   /** While the engine starts: download progress, then setting it up and loading the printers. */
   engineLoad: EngineLoading | { stage: 'printers'; loaded: number; total: number };
   vendorVersion: string;
+  /** Each brand's suggested filament order, for the filament list (lib/filament-order.ts). */
+  filamentOrder: FilamentOrder;
   /** The running engine and what it can do; null until it starts. */
   engineInfo: EngineInfo | null;
   /** The engine the open project slices with (started, or starting). */
@@ -583,7 +586,7 @@ export const useSlicer = create<SlicerState>((set, get) => {
       {
         onLoading: (engineLoad) => set({ engineLoad }),
         onReady: (presets) => {
-          set({ vendorVersion: presets.vendorVersion, engineInfo: presets.engine, engineLoad: { ...get().engineLoad, stage: 'printers' } });
+          set({ vendorVersion: presets.vendorVersion, filamentOrder: readFilamentOrder(presets.filamentAllowList), engineInfo: presets.engine, engineLoad: { ...get().engineLoad, stage: 'printers' } });
           void start();
         },
         onFatal: (message) => {
@@ -1373,6 +1376,7 @@ export const useSlicer = create<SlicerState>((set, get) => {
     engineMessage: '',
     engineLoad: { stage: 'download', loaded: 0, total: 0 },
     vendorVersion: '',
+    filamentOrder: {},
     engineInfo: null,
     flavor: engineFromUrl() ?? loadDefaultEngine() ?? 'snapmaker',
     printers: [],
