@@ -34,7 +34,7 @@ the same screens rearrange for a phone.
   is sliced and comes back after a change (desktop too).
 - Hints say "tap" on touch screens. A button's `title=` tooltip shows on a phone only on
   a long press, so nothing important may live only in one.
-- Every tap is at least 44 px tall and wide, without drawing anything bigger
+- Buttons and small icons take a 44 px tap, without drawing anything bigger
   ([design system](design-system.md#taps-on-a-phone)).
 - Pop-ups are centred windows on a phone too, not bottom sheets, and don't close on an
   outside tap.

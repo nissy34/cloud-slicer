@@ -76,12 +76,14 @@ Shared parts and where they live. A screen uses these instead of styling its own
 
 ## Taps on a phone
 
-Every button, tab, `summary` and switch or check box row takes a tap at least
-`--tap` (44 px) tall and wide on a phone, without being drawn any bigger: a
-smaller one gets an invisible box around it (`::before`, the end of
-`styles/base.css`), so a part never uses its button's `::before` for drawing.
-Two buttons side by side share the room between them. Fields are wide, so they
-keep `--ctl`. The top bar's icon buttons are `--ctl` square on a phone.
+On a phone the controls drawn at `--ctl` (buttons, icon buttons, chips, toolbar
+tools, chooser and line tabs) and the small icons on their own (ⓘ, the top bar's)
+take a tap at least `--tap` (44 px) tall and wide, without being drawn any
+bigger: an invisible box around them (`::before`, the end of `styles/base.css`),
+so those parts never use their `::before` for drawing. Rows in lists (legend
+lines, switch and check box rows, menu rows) keep their own size: a box there
+would reach over the next row and take its tap. Fields are wide, so they keep
+`--ctl`. The top bar's icon buttons are `--ctl` square on a phone.
 
 ## Motion
 

@@ -217,15 +217,16 @@ button:focus-visible {
   }
 }
 
-/* Taps on a phone: everything tappable takes a tap at least --tap (44 px) tall
-   and wide, without being drawn any bigger: a smaller one gets an invisible
-   box around it, and a switch or check box takes it with its words. (Fields
-   are wide enough as they are.) */
+/* Taps on a phone: the controls drawn at --ctl (40 px) and the small icons on
+   their own take a tap at least --tap (44 px) tall and wide, without being drawn
+   any bigger: an invisible box around them. Rows in lists (legend lines, switch
+   and check box rows, menu rows) keep their own size, so a box never reaches
+   over the next row and takes its tap. */
 @media (max-width: 760px) {
-  :where(button, summary, a.primary, a.secondary, a.ghost, a.quiet, [role='button']:not(input), [role='tab']:not(input), label:has(> input[type='checkbox'])) {
+  :where(.primary, .secondary, .ghost, .quiet, .icon-btn, .chip, .tool, .info-tip, .chooser > button, .line-tabs > [role='tab'], .topbar button) {
     position: relative;
   }
-  :where(button, summary, a.primary, a.secondary, a.ghost, a.quiet, [role='button']:not(input), [role='tab']:not(input), label:has(> input[type='checkbox']))::before {
+  :where(.primary, .secondary, .ghost, .quiet, .icon-btn, .chip, .tool, .info-tip, .chooser > button, .line-tabs > [role='tab'], .topbar button)::before {
     content: '';
     position: absolute;
     inset: min(0px, calc(50% - var(--tap) / 2));
