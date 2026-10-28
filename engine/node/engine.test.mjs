@@ -745,8 +745,15 @@ test('painting: colour, supports and seams, like the desktop paint tools', () =>
 
 test('painting: height range, section view and overhangs only, like desktop', () => {
   select({ printer: DEFAULT_PRINTER });
-  const m = load('gen-cube-20.stl');
-  const [x, y] = m.objects[0].instances[0].offset;
+  load('gen-cube-20.stl');
+  // The cube's middle on the plate (its instance offset is a corner), nudged
+  // off the top's diagonal so a ray from above lands inside one triangle.
+  const pos = engine.previewMesh(0).positions;
+  const mid = (k) => {
+    const v = pos.filter((_, i) => i % 3 === k);
+    return (Math.min(...v) + Math.max(...v)) / 2;
+  };
+  const [x, y] = [mid(0) + 3, mid(1) - 2];
   const paint = (opts) => call(engine, 'paint', 0, JSON.stringify({ kind: 'support', state: 1, ...opts }));
   const painted = () => {
     const { positions } = engine.paintOverlay(0, 'support');
