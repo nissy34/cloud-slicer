@@ -268,8 +268,8 @@ export function SettingsPanel() {
           <Settings2 aria-hidden />
           Process settings
         </h2>
+        <SettingsLevelChips />
       </div>
-      <SettingsLevelChips />
       <SettingsPages kind="print" />
       {changed > 0 && (
         <p className="hint">

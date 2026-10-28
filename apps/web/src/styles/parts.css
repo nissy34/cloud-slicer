@@ -25,15 +25,19 @@
   white-space: nowrap;
   user-select: none;
 }
-/* Simple · Advanced · Expert: chips joined into one full-width row, each showing more
-   settings than the one before (under the Process settings heading, atop a preset window). */
+/* Simple · Advanced · Expert: small chips joined into one row, each showing more settings
+   than the one before (beside the Process settings heading, atop a preset window). */
 .chips.levels {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  display: inline-grid;
+  grid-template-columns: repeat(3, auto);
+  justify-self: start;
   gap: 0;
 }
 .levels .chip {
+  min-height: var(--s-7);
+  padding: 0 var(--s-3);
   border-radius: 0;
+  font-size: var(--t-sm);
 }
 .levels .chip + .chip {
   margin-left: -1px;
@@ -46,6 +50,15 @@
 }
 .levels .chip[aria-pressed='true'] {
   z-index: 1;
+}
+/* The heading keeps to one line beside it. */
+.group-head:has(> .levels) h2 {
+  white-space: nowrap;
+}
+@media (pointer: coarse) {
+  .levels .chip {
+    min-height: var(--s-8);
+  }
 }
 .chip:hover:not(:disabled) {
   background: var(--surface-2);
