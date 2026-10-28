@@ -478,7 +478,9 @@ test('cut with a turned plane: upright cut, parts kept, thrown away or laid on t
   assert.equal(m.objects.length, 2, 'two halves');
   const widths = m.objects.map((o) => o.size[0]);
   assert.ok(Math.abs(widths[0] + widths[1] - sx) < 0.5, `widths ${widths} add up to ${sx}`);
-  for (const o of m.objects) assert.ok(Math.abs(o.size[2] - sz) < 0.5, `each half stays ${sz} tall: ${o.size[2]}`);
+  // Standing upright: the taller half (with the cabin) keeps the boat's height, both stay on the bed.
+  assert.ok(Math.abs(Math.max(...m.objects.map((o) => o.size[2])) - sz) < 0.5, `the taller half stays ${sz} tall`);
+  for (const o of m.objects) assert.ok(o.instances[0].offset[2] >= -0.01 && o.size[2] > sz / 2, `each half stands upright on the bed: ${o.size}`);
 
   m = load('3DBenchy.stl');
   call(engine, 'cutObject', 0, 0, cut({ position: 0, rotation: [0, 90, 0], asParts: true }));
@@ -556,14 +558,14 @@ test('cut does not cross-contaminate paint onto unpainted volumes in multi-volum
   // Cut the multi-volume object at z = 5
   call(engine, 'cutObject', 0, 0, cut({ position: 5 }));
 
-  const cut = info();
-  assert.equal(cut.objects.length, 2, 'uncut replaced by upper and lower objects');
-  // Upper object (cut.objects[0]) preserves paint on volume 1, volume 0 remains unpainted
-  assert.equal(cut.objects[0].volumes[0].painted, false, 'upper volume 0 remains unpainted (no cross-contamination)');
-  assert.equal(cut.objects[0].volumes[1].painted, true, 'upper volume 1 preserves paint');
-  // Lower object (cut.objects[1]) has no paint bleed onto either volume
-  assert.equal(cut.objects[1].volumes[0].painted, false, 'lower volume 0 remains unpainted');
-  assert.equal(cut.objects[1].volumes[1].painted, false, 'lower volume 1 has no bleed from upper paint');
+  const halves = info();
+  assert.equal(halves.objects.length, 2, 'uncut replaced by upper and lower objects');
+  // Upper object (halves.objects[0]) preserves paint on volume 1, volume 0 remains unpainted
+  assert.equal(halves.objects[0].volumes[0].painted, false, 'upper volume 0 remains unpainted (no cross-contamination)');
+  assert.equal(halves.objects[0].volumes[1].painted, true, 'upper volume 1 preserves paint');
+  // Lower object (halves.objects[1]) has no paint bleed onto either volume
+  assert.equal(halves.objects[1].volumes[0].painted, false, 'lower volume 0 remains unpainted');
+  assert.equal(halves.objects[1].volumes[1].painted, false, 'lower volume 1 has no bleed from upper paint');
   engine.clearModel();
 });
 
