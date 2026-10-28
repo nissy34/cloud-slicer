@@ -11,6 +11,7 @@ import { readFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { chromium } from 'playwright';
+import { pickerOf } from './picker.mjs';
 import * as THREE from 'three';
 
 const web = join(dirname(fileURLToPath(import.meta.url)), '..');
@@ -91,7 +92,7 @@ try {
   await page.getByText('Ready to slice').waitFor({ timeout: 120000 });
 
   // Two objects in two filaments: the plate needs a prime tower.
-  await page.getByLabel(/^Filament for tetrahedron/).first().selectOption('2');
+  await pickerOf(page, 'Filament for tetrahedron.stl').selectOption('2');
   await page.waitForTimeout(1500);
   await shot(page, 'desktop');
 

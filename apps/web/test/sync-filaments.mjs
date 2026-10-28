@@ -11,6 +11,7 @@ import { mkdirSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { chromium } from 'playwright';
+import { pickerOf } from './picker.mjs';
 import { startMockPrinter } from './device/mock-printer.mjs';
 
 const web = join(dirname(fileURLToPath(import.meta.url)), '..');
@@ -105,7 +106,7 @@ try {
   // ---- with a model: match colours keeps the count and the model's filament ---------
   await page.getByTestId('model-input').setInputFiles(model);
   await page.getByText('Ready to slice').waitFor({ timeout: 120000 });
-  const objFilament = page.getByLabel('Filament for 3DBenchy');
+  const objFilament = pickerOf(page, 'Filament for 3DBenchy.stl');
   await objFilament.selectOption('3');
   await page.waitForTimeout(500);
   // The printer's heads change: T1 white PLA, T2 empty, T3 blue PLA, T4 red PETG.

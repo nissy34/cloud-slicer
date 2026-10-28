@@ -4,6 +4,8 @@ import { NO_COLOURS, useSlicer } from '../state/store';
 import { ObjectSettings } from './ObjectSettings';
 import { Boxes, Ellipsis } from 'lucide-react';
 import { IconButton } from './IconButton';
+import { Picker, type PickerOption } from './Picker';
+import { shortName } from '../lib/presets';
 
 /** Objects on the current plate, their filament, and the selected one's settings. */
 export function ObjectList() {
@@ -14,36 +16,28 @@ export function ObjectList() {
   // Physical filaments, then the colour mixes in use.
   const colours = useSlicer((s) => (s.palette.length ? s.palette : (s.selection?.colours ?? NO_COLOURS)));
   const physical = useSlicer((s) => s.selection?.filaments.length ?? 1);
+  const presetNames = useSlicer((s) => s.selection?.filaments);
   const slots = colours.length;
   const { select, setObjectFilament, deleteObject, copyInstance, removeInstance, openObjectMenu, setTool, toggleChosen, choose, groupAction, openGroupMenu } = useSlicer.getState();
   if (!project?.objects.length) return null;
   const onPlate = project.plates[plate]?.objects ?? [];
 
-  const filamentSelect = (o: number, v: number, value: number, label: string) => (
-    <select
-      className="filament-pick"
-      aria-label={label}
-      value={value}
-      style={{ borderLeftColor: colours[Math.max(0, (value || 1) - 1)] }}
-      onChange={(e) => void setObjectFilament(o, v, Number(e.target.value))}
-    >
-      {v >= 0 && <option value={0}>Object</option>}
-      {Array.from({ length: physical }, (_, i) => (
-        <option key={i} value={i + 1}>
-          {i + 1}
-        </option>
-      ))}
-      {Math.max(slots, value) > physical && (
-        <optgroup label="Mixes">
-          {Array.from({ length: Math.max(slots, value) - physical }, (_, i) => (
-            <option key={i} value={physical + i + 1}>
-              {physical + i + 1}
-            </option>
-          ))}
-        </optgroup>
-      )}
-    </select>
-  );
+  // Like desktop's filament column: the colour and number, the preset's name beside each choice.
+  const filaments = presetNames ?? [];
+  const filamentSelect = (o: number, v: number, value: number, label: string) => {
+    const count = Math.max(slots, value, physical);
+    const options: PickerOption[] = [
+      ...(v >= 0 ? [{ value: '0', label: 'Object', short: '', swatch: colours[Math.max(0, (project.objects[o].extruder || 1) - 1)], hint: 'Same as the object' }] : []),
+      ...Array.from({ length: count }, (_, i) => ({
+        value: String(i + 1),
+        label: String(i + 1),
+        swatch: colours[i],
+        hint: i < physical ? shortName(filaments[i] ?? '') : 'Mix',
+        group: i < physical ? undefined : 'Mixes',
+      })),
+    ];
+    return <Picker field label={label} className="filament-pick" value={String(value)} options={options} onChange={(next) => void setObjectFilament(o, v, Number(next))} />;
+  };
 
   const sel = selected && project.objects[selected.object]?.instances[selected.instance];
   return (
@@ -113,7 +107,7 @@ export function ObjectList() {
                           {v.kind !== 'part' && <span className="muted"> · {KIND_LABELS[v.kind]}</span>}
                           {v.painted && <span className="muted"> (painted)</span>}
                         </button>
-                        {v.kind === 'part' && filamentSelect(o, i, v.extruder, `Filament for ${v.name}`)}
+                        {(v.kind === 'part' || v.kind === 'modifier') && filamentSelect(o, i, v.extruder, `Filament for ${v.name}`)}
                         <IconButton
                           icon={Ellipsis}
                           className="object-more"

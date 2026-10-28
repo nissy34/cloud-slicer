@@ -231,6 +231,13 @@ function Gizmo({
   onMatrix?(m: THREE.Matrix4): void;
 }) {
   const [pivot, setPivot] = useState<THREE.Group | null>(null);
+  // Move's arrows sit on top of the part, like desktop's from its box: from its
+  // middle the up arrow would be hidden inside it.
+  const [anchor, setAnchor] = useState<THREE.Group | null>(null);
+  const lift = useMemo(() => {
+    const box = part.geometry.boundingBox ?? (part.geometry.computeBoundingBox(), part.geometry.boundingBox!);
+    return new THREE.Vector3(0, 0, Math.max(0, box.max.z - place.centre.z));
+  }, [part, place]);
   const snapSetting = useSlicer((s) => s.snap);
   const shift = useShift();
   const snap = snapSetting || shift;
@@ -247,8 +254,12 @@ function Gizmo({
     pivot.position.copy(place.centre);
     pivot.quaternion.copy(place.rotation);
     pivot.scale.set(1, 1, 1);
+    anchor?.position.copy(place.centre).add(lift);
     invalidate();
-  }, [pivot, place, tool, invalidate]);
+  }, [pivot, anchor, lift, place, tool, invalidate]);
+  const follow = () => {
+    if (tool === 'move' && pivot && anchor) pivot.position.copy(anchor.position).sub(lift);
+  };
 
   const commit = () => {
     onRelease();
@@ -257,7 +268,10 @@ function Gizmo({
     if (tool === 'move') {
       const d = pivot.position.clone().sub(place.centre);
       if (onMatrix) return d.lengthSq() > 1e-6 && onMatrix(new THREE.Matrix4().makeTranslation(d));
-      if (d.lengthSq() > 1e-6) void moveInstance(object, instance, place.offset.x + d.x, place.offset.y + d.y);
+      if (d.lengthSq() <= 1e-6) return;
+      // Up or down too (desktop's Z arrow): a Z below the bed sinks it, above it drops back.
+      if (Math.abs(d.z) > 1e-3) void transformInstance(object, instance, { offset: [place.offset.x + d.x, place.offset.y + d.y, place.offset.z + d.z], plate });
+      else void moveInstance(object, instance, place.offset.x + d.x, place.offset.y + d.y);
       return;
     }
     // What the gizmo did, about the part's centre.
@@ -290,17 +304,18 @@ function Gizmo({
           </mesh>
         </group>
       </group>
-      {pivot && (
+      <group ref={setAnchor} />
+      {pivot && anchor && (
         <TransformControls
           ref={controlsRef}
-          object={pivot}
+          object={tool === 'move' ? anchor : pivot}
           mode={tool === 'move' ? 'translate' : tool}
           space={tool === 'scale' ? 'local' : 'world'}
-          showZ={tool !== 'move'}
           size={coarse ? 1.5 : 1.15}
           translationSnap={snap ? 5 : null}
           rotationSnap={snap ? 15 * DEG : null}
           scaleSnap={snap ? 0.1 : null}
+          onObjectChange={follow}
           onMouseUp={commit}
         />
       )}

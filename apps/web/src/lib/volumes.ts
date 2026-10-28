@@ -13,7 +13,8 @@ export type VolumeAction =
   | { op: 'add'; type: VolumeKind; name?: string }
   | { op: 'rename'; volume: number; name: string }
   | { op: 'delete'; volume: number }
-  | { op: 'type'; volume: number; type: VolumeKind }
+  /** remake: a text or SVG shape moves out of the surface as a part, into it otherwise (the Text and SVG tools). */
+  | { op: 'type'; volume: number; type: VolumeKind; remake?: boolean }
   | { op: 'transform'; volume: number; instance: number; matrix: number[] }
   /** Its place in its object, as desktop's part fields: mm, degrees, factors. */
   | { op: 'set'; volume: number; offset?: number[]; rotation?: number[]; scale?: number[] };
