@@ -48,35 +48,26 @@ void give(void* ptr)
     else emmalloc_free(ptr);
 }
 
-void* takeOrThrow(size_t size, size_t alignment = 16)
+void* takeOrThrow(size_t size)
 {
-    void* ptr = take(size ? size : 1, alignment);
+    void* ptr = take(size ? size : 1);
     if (!ptr) throw std::bad_alloc();
     return ptr;
 }
 
 } // namespace
 
-void* operator new(size_t size) { return takeOrThrow(size); }
-void* operator new[](size_t size) { return takeOrThrow(size); }
-void* operator new(size_t size, const std::nothrow_t&) noexcept { return take(size ? size : 1); }
-void* operator new[](size_t size, const std::nothrow_t&) noexcept { return take(size ? size : 1); }
-void* operator new(size_t size, std::align_val_t al) { return takeOrThrow(size, size_t(al)); }
-void* operator new[](size_t size, std::align_val_t al) { return takeOrThrow(size, size_t(al)); }
-void* operator new(size_t size, std::align_val_t al, const std::nothrow_t&) noexcept { return take(size ? size : 1, size_t(al)); }
-void* operator new[](size_t size, std::align_val_t al, const std::nothrow_t&) noexcept { return take(size ? size : 1, size_t(al)); }
-void operator delete(void* ptr) noexcept { give(ptr); }
-void operator delete[](void* ptr) noexcept { give(ptr); }
-void operator delete(void* ptr, size_t) noexcept { give(ptr); }
-void operator delete[](void* ptr, size_t) noexcept { give(ptr); }
-void operator delete(void* ptr, const std::nothrow_t&) noexcept { give(ptr); }
-void operator delete[](void* ptr, const std::nothrow_t&) noexcept { give(ptr); }
-void operator delete(void* ptr, std::align_val_t) noexcept { give(ptr); }
-void operator delete[](void* ptr, std::align_val_t) noexcept { give(ptr); }
-void operator delete(void* ptr, size_t, std::align_val_t) noexcept { give(ptr); }
-void operator delete[](void* ptr, size_t, std::align_val_t) noexcept { give(ptr); }
-void operator delete(void* ptr, std::align_val_t, const std::nothrow_t&) noexcept { give(ptr); }
-void operator delete[](void* ptr, std::align_val_t, const std::nothrow_t&) noexcept { give(ptr); }
+// Emscripten's mimalloc defines new and delete itself, so the link wraps the
+// plain ones (CMakeLists.txt: -Wl,--wrap) and every call comes here. The
+// aligned and nothrow ones stay mimalloc's; give() frees their blocks too.
+extern "C" {
+void* __wrap__Znwm(size_t size) { return takeOrThrow(size); }  // new
+void* __wrap__Znam(size_t size) { return takeOrThrow(size); }  // new[]
+void __wrap__ZdlPv(void* ptr) noexcept { give(ptr); }          // delete
+void __wrap__ZdaPv(void* ptr) noexcept { give(ptr); }          // delete[]
+void __wrap__ZdlPvm(void* ptr, size_t) noexcept { give(ptr); } // sized delete
+void __wrap__ZdaPvm(void* ptr, size_t) noexcept { give(ptr); } // sized delete[]
+}
 
 // The engine's memory, which only grows, for the tests: a wasm page can't
 // give memory back, so this is the most it ever needed at once.
