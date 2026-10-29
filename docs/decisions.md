@@ -63,6 +63,7 @@ down. Add a line with the date when a new choice is made.
 ## Projects and autosave
 
 - Online projects in R2 + D1, limits 50 MB / 200 MB / 200 projects / 8 GB site (2026-10-18).
+- One project can be as big as the person's storage, up to 95 MB (the free plan's 100 MB upload), not a fixed 50 MB; uploads stream to R2 (2026-10-29).
 - Convert keeps only settings the author changed (`different_settings_to_system`);
   comparing against Bambu presets was turned down (2026-10-19).
 - Another slicer's G-code kept as desktop does, with a fallback question (2026-10-21).

@@ -779,7 +779,23 @@ test('storage per user: presets only refuses online projects, presets still save
   // A site default, then back to it.
   assert.equal((await alice.json('/api/admin/settings', 'PUT', { storageMb: 50 })).status, 200);
   assert.equal((await alice.json(`/api/admin/users/${bobId}/storage`, 'PUT', { storageMb: null })).status, 200);
-  assert.equal((await (await bob.json('/api/projects')).json()).limits.userBytes, 50 * 1024 * 1024);
+  const fifty = (await (await bob.json('/api/projects')).json()).limits;
+  assert.equal(fifty.userBytes, 50 * 1024 * 1024);
+  assert.equal(fifty.projectBytes, 50 * 1024 * 1024, 'a project can be as big as the storage');
+  // More storage for one person: one project may then be bigger than 50 MB, up to what an upload carries.
+  assert.equal((await alice.json(`/api/admin/users/${bobId}/storage`, 'PUT', { storageMb: 200 })).status, 200);
+  const more = (await (await bob.json('/api/projects')).json()).limits;
+  assert.equal(more.userBytes, 200 * 1024 * 1024);
+  assert.equal(more.projectBytes, 95 * 1024 * 1024);
+  const big = new Uint8Array(60 * 1024 * 1024);
+  big.set([0x50, 0x4b, 3, 4]);
+  const bigPut = await bob.fetch(`${HOST}/api/projects/big?name=big&baseVersion=0`, { method: 'PUT', headers: { Origin: HOST, 'Content-Type': 'model/3mf' }, body: big });
+  assert.equal(bigPut.status, 200, await bigPut.clone().text());
+  assert.equal((await bigPut.json()).project.size, big.byteLength);
+  const notZip = await bob.fetch(`${HOST}/api/projects/nz?name=nz&baseVersion=0`, { method: 'PUT', headers: { Origin: HOST, 'Content-Type': 'model/3mf' }, body: new Uint8Array(10) });
+  assert.equal(notZip.status, 400);
+  assert.equal((await bob.json('/api/projects/big', 'DELETE')).status, 200);
+  assert.equal((await alice.json(`/api/admin/users/${bobId}/storage`, 'PUT', { storageMb: null })).status, 200);
   assert.equal((await alice.json(`/api/admin/users/${bobId}/storage`, 'PUT', { storageMb: 99999 })).status, 400);
   await alice.json('/api/admin/settings', 'PUT', { storageMb: 200 });
 });

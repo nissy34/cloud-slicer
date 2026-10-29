@@ -244,8 +244,8 @@ the open project as an Orca 3MF project, written by the engine with Orca's own
 colour mixes and the full print, filament and printer settings, so it reopens here or in
 desktop Orca. Signed out, Save downloads the file. Signed in, Save keeps it in the
 account's online projects: the 3MF and a thumbnail in R2 (`PROJECTS` bucket), indexed in
-D1 (`projects` table). Limits keep R2 inside its free 10 GB: 50 MB per project, 200 MB
-(changeable on the Admin page) and 200 projects per user, 8 GB for the whole site. Saves carry the version they started
+D1 (`projects` table). Limits keep R2 inside its free 10 GB: 200 MB
+(changeable on the Admin page) and 200 projects per user, one project as big as that storage up to 95 MB, 8 GB for the whole site. Saves carry the version they started
 from, so a save from a second device asks before overwriting.
 
 AutoSave (signed in, on by default, the switch is a user setting): a new project is a

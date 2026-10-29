@@ -44,8 +44,10 @@ over a newer version gets 409 and asks: overwrite, or save a copy.
 ## What it keeps
 
 D1 `projects` (name, size, keys, version, engine, draft, device, plates), R2 3MF and
-thumbnail. Limits: 50 MB per project, 200 MB and 200 projects per person (storage set per
-person on the Admin page), 8 GB for the whole site (R2's free tier is 10 GB).
+thumbnail. Limits: 200 MB and 200 projects per person (storage set per person on the Admin
+page); one project can use all of it, up to 95 MB (Cloudflare's free plan takes uploads
+up to 100 MB, and the 3MF streams straight to R2 so a Worker's 128 MB memory isn't the
+limit); 8 GB for the whole site (R2's free tier is 10 GB).
 
 ## Rules
 
