@@ -601,7 +601,7 @@ function RenameProjectDialog({ project, onClose, onDone }: { project: OnlineProj
           <button type="button" className="secondary" disabled={busy} onClick={onClose}>
             Cancel
           </button>
-          <button type="submit" form="rename-project-form" className="primary" disabled={!ready} aria-busy={busy}>
+          <button type="submit" form="rename-project-form" className="primary" disabled={!ready && !busy} aria-busy={busy}>
             <Working busy={busy} idle="Rename" working="Renaming…" />
           </button>
         </>
@@ -651,7 +651,7 @@ function DeleteProjectDialog({ project, isOpen, onClose, onDone }: { project: On
           <button className="secondary" disabled={busy} onClick={onClose}>
             Cancel
           </button>
-          <button className="primary danger" disabled={busy} aria-busy={busy} onClick={() => void remove()}>
+          <button className="primary danger" aria-busy={busy} onClick={() => !busy && void remove()}>
             <Working busy={busy} idle="Delete" working="Deleting…" />
           </button>
         </>
