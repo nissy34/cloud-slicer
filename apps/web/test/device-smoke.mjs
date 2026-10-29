@@ -425,7 +425,7 @@ try {
   await page.getByLabel('Level the bed').uncheck();
   await page.getByTestId('upload-and-print').click();
   await page.getByTestId('print-state').filter({ hasText: 'Printing' }).waitFor({ timeout: 20_000 });
-  for (const want of ['SET_PRINT_PREFERENCES BED_LEVEL=0 FLOW_CALIBRATE=0 TIME_LAPSE_CAMERA=0', 'SET_PRINT_EXTRUDER_MAP CONFIG_EXTRUDER=0 MAP_EXTRUDER=1', 'SET_PRINT_EXTRUDER_MAP CONFIG_EXTRUDER=1 MAP_EXTRUDER=0']) {
+  for (const want of ['SET_PRINT_PREFERENCES BED_LEVEL=0 FLOW_CALIBRATE=0 TIME_LAPSE_CAMERA=0', 'SET_PRINT_EXTRUDER_MAP CONFIG_EXTRUDER=0 MAP_EXTRUDER=1', 'SET_PRINT_EXTRUDER_MAP CONFIG_EXTRUDER=1 MAP_EXTRUDER=0', 'SET_PRINT_USED_EXTRUDERS EXTRUDERS=0,1']) {
     if (!u1.scripts.includes(want)) throw new Error(`missing ${want}; got ${u1.scripts.join(' | ')}`);
   }
   console.log('print on the mock: preferences and tool map sent before starting');

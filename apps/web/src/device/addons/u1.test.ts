@@ -130,7 +130,19 @@ describe('U1 add-on', () => {
     expect(u1PrintPrepGcode({ bedLevel: true, flowCalibrate: false, timeLapse: true }, { 0: 2, 1: 7, 40: 0 })).toEqual([
       'SET_PRINT_PREFERENCES BED_LEVEL=1 FLOW_CALIBRATE=0 TIME_LAPSE_CAMERA=1',
       'SET_PRINT_EXTRUDER_MAP CONFIG_EXTRUDER=0 MAP_EXTRUDER=2',
+      'SET_PRINT_USED_EXTRUDERS EXTRUDERS=2',
     ]);
+  });
+
+  it('tells the printer which heads the print uses, so it loads their filament', () => {
+    expect(u1PrintPrepGcode({ bedLevel: false, flowCalibrate: false, timeLapse: false }, { 0: 3, 1: 0, 2: 3 }).slice(1)).toEqual([
+      'SET_PRINT_EXTRUDER_MAP CONFIG_EXTRUDER=0 MAP_EXTRUDER=3',
+      'SET_PRINT_EXTRUDER_MAP CONFIG_EXTRUDER=1 MAP_EXTRUDER=0',
+      'SET_PRINT_EXTRUDER_MAP CONFIG_EXTRUDER=2 MAP_EXTRUDER=3',
+      'SET_PRINT_USED_EXTRUDERS EXTRUDERS=0,3',
+    ]);
+    // No filament mapped: nothing to load, so no used list (the firmware refuses an empty one).
+    expect(u1PrintPrepGcode({ bedLevel: false, flowCalibrate: false, timeLapse: false }, {})).toHaveLength(1);
   });
 
   it('reads dock state, nozzle and tool-change counts per head', () => {

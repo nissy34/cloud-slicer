@@ -252,19 +252,27 @@ export function u1Activity(o: KlipperObjects): string | null {
 }
 
 /**
- * Commands run before a print starts: the print preferences, then which tool
- * head prints each of the file's filaments. The firmware applies the map to
- * every T, M104 and M109 in the file and resets it when the print ends.
+ * Commands run before a print starts: the print preferences, which tool head
+ * prints each of the file's filaments, then which heads the print uses. The
+ * firmware applies the map to every T, M104 and M109 in the file and resets
+ * it when the print ends. The start G-code only auto-loads, flow-calibrates
+ * and pre-extrudes the heads in the used list (print_task_config
+ * extruders_used); Moonraker's plain print start never fills it, so without
+ * SET_PRINT_USED_EXTRUDERS no filament loads. Snapmaker Orca's own device page
+ * sends the same lines (setPrePrintConfiguration).
  */
 export function u1PrintPrepGcode(options: PrintOptions, toolMap: Record<number, number>): string[] {
   const out = [
     `SET_PRINT_PREFERENCES BED_LEVEL=${options.bedLevel ? 1 : 0} FLOW_CALIBRATE=${options.flowCalibrate ? 1 : 0} TIME_LAPSE_CAMERA=${options.timeLapse ? 1 : 0}`,
   ];
+  const used = new Set<number>();
   for (const [file, head] of Object.entries(toolMap)) {
     const f = Number(file);
     if (!Number.isInteger(f) || f < 0 || f > 31 || !Number.isInteger(head) || head < 0 || head >= U1_HEADS) continue;
     out.push(`SET_PRINT_EXTRUDER_MAP CONFIG_EXTRUDER=${f} MAP_EXTRUDER=${head}`);
+    used.add(head);
   }
+  if (used.size) out.push(`SET_PRINT_USED_EXTRUDERS EXTRUDERS=${[...used].sort((a, b) => a - b).join(',')}`);
   return out;
 }
 
