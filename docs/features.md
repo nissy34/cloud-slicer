@@ -128,7 +128,9 @@ why: [README.md](README.md) (the docs map) and [architecture/](architecture/).
 - **Filaments from the printer**: "From printer" in the Filament section loads what is in
   a U1's tool heads or a Bambu Lab AMS (material, brand, colour) into the project, like
   desktop's Sync filament: match each project filament to the closest loaded one, or
-  replace the list.
+  replace the list. While the printer is connected, each Filament list also starts with
+  its loaded filaments (like desktop's "AMS filaments"); picking one sets the preset and
+  the colour.
 - **Calibration tests** from desktop's Calibration menu: temperature, flow rate, pressure
   advance (tower, lines or pattern, with direct drive / Bowden ranges and the pattern's
   speed and acceleration lists), retraction, max volumetric speed, VFA, input shaping,
