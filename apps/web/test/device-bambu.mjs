@@ -17,6 +17,7 @@ import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { strToU8, zipSync } from 'fflate';
 import { chromium } from 'playwright';
+import { openPicker, pickerOf } from './picker.mjs';
 import { bridgeConfig, bridgeProgram, pairingCode, startBridge } from './device/go-bridge.mjs';
 
 const web = join(dirname(fileURLToPath(import.meta.url)), '..');
@@ -189,12 +190,14 @@ try {
   await page.getByTestId('device-gcode-input').setInputFiles({ name: 'duo.gcode.3mf', mimeType: 'model/3mf', buffer: project });
   const map = page.getByRole('dialog').getByTestId('tool-map');
   await map.getByText('AMS', { exact: true }).waitFor({ timeout: 20_000 });
-  const first = map.getByLabel('AMS slot for filament 1');
-  const second = map.getByLabel('AMS slot for filament 2');
+  const first = pickerOf(map, 'AMS slot for filament 1');
+  const second = pickerOf(map, 'AMS slot for filament 2');
   // Picked by type, then colour: the red PLA on the red PLA in A3, PETG on A4.
   if ((await first.inputValue()) !== '2' || (await second.inputValue()) !== '3') throw new Error(`suggested ${await first.inputValue()} ${await second.inputValue()}`);
-  if (!(await first.locator('option', { hasText: 'A4 · PETG' }).isDisabled())) throw new Error('PETG offered for a PLA filament');
-  await first.selectOption({ label: 'A1 · PLA Basic' });
+  // A4 (PETG) is greyed out for a PLA filament; A1 is picked by hand.
+  const slots = await openPicker(map, 'AMS slot for filament 1');
+  if (!(await slots.locator('[data-value="3"]').isDisabled())) throw new Error('PETG offered for a PLA filament');
+  await slots.locator('[data-value="0"]').click();
   await page.getByRole('dialog').getByLabel('Record a time-lapse').check();
   if (shots) await page.screenshot({ path: join(shots, 'bambu-ams-map.png') });
   await page.getByTestId('upload-and-print').click();

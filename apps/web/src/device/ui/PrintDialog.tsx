@@ -11,6 +11,7 @@ import { LayerField } from './AlertsCard';
 import { Swatch } from '../../components/Swatch';
 import { Dialog } from '../../components/Dialog';
 import { Note } from '../../components/Note';
+import { Picker } from '../../components/Picker';
 
 /** What the upload bar says before the first byte leaves. */
 const UPLOAD_STAGE = {
@@ -176,13 +177,15 @@ export function PrintDialog({ source }: { source: SendSource }) {
         {source.kind === 'upload' && printers.length > 1 && (
           <label>
             Printer
-            <select value={activeId ?? ''} onChange={(e) => useDevice.getState().select(e.target.value)} disabled={busy} data-testid="send-printer">
-              {printers.map((p) => (
-                <option key={p.id} value={p.id}>
-                  {p.name}
-                </option>
-              ))}
-            </select>
+            <Picker
+              field
+              label="Printer"
+              testId="send-printer"
+              value={activeId}
+              disabled={busy}
+              options={printers.map((p) => ({ value: p.id, label: p.name }))}
+              onChange={(id) => useDevice.getState().select(id)}
+            />
           </label>
         )}
         {source.kind === 'upload' ? (
@@ -219,7 +222,7 @@ export function PrintDialog({ source }: { source: SendSource }) {
               return (
                 <li key={f.index} data-blocked={check?.blocked ? '' : undefined}>
                   <span className="dv-map-file">
-                    <Swatch colour={f.colour} />
+                    <Swatch colour={f.colour} number={f.index + 1} />
                     <span>
                       Filament {f.index + 1} <span className="muted">{[f.material, f.grams ? formatGrams(f.grams) : ''].filter(Boolean).join(' · ')}</span>
                     </span>
@@ -228,27 +231,27 @@ export function PrintDialog({ source }: { source: SendSource }) {
                     →
                   </span>
                   <span className="dv-map-head">
-                    {slot ? <Swatch colour={slot.colour} empty={!slot.ready} /> : <Swatch colour="#888888" empty />}
-                    <select
-                      aria-label={`${fil.words.noun[0].toUpperCase()}${fil.words.noun.slice(1)} for filament ${f.index + 1}`}
-                      aria-invalid={check?.blocked ? true : undefined}
-                      value={toolMap[f.index]}
-                      onChange={(e) => setToolMap({ ...toolMap, [f.index]: Number(e.target.value) })}
-                    >
-                      {!slot && (
-                        <option value={-1} disabled>
-                          No matching {fil.words.noun}
-                        </option>
-                      )}
-                      {slots.map((h) => {
+                    {/* The printer's filaments, its slot name in the square, like every filament picker. */}
+                    <Picker
+                      field
+                      label={`${fil.words.noun[0].toUpperCase()}${fil.words.noun.slice(1)} for filament ${f.index + 1}`}
+                      invalid={Boolean(check?.blocked)}
+                      value={String(toolMap[f.index])}
+                      placeholder={`No matching ${fil.words.noun}`}
+                      options={slots.map((h) => {
                         const blocked = slotCheck(f, h, fil.words).blocked;
-                        return (
-                          <option key={h.index} value={h.index} disabled={Boolean(blocked)} title={blocked ?? undefined}>
-                            {h.label} · {h.material ? `${h.material} ${h.subType}`.trim() : 'empty'}
-                          </option>
-                        );
+                        return {
+                          value: String(h.index),
+                          label: h.material ? `${h.material} ${h.subType}`.trim() : 'Empty',
+                          swatch: h.colour,
+                          swatchNumber: h.label,
+                          swatchEmpty: !h.ready,
+                          disabled: Boolean(blocked),
+                          title: blocked ?? undefined,
+                        };
                       })}
-                    </select>
+                      onChange={(v) => setToolMap({ ...toolMap, [f.index]: Number(v) })}
+                    />
                   </span>
                   {check?.blocked && (
                     <span className="dv-error-text" data-testid="map-blocked">

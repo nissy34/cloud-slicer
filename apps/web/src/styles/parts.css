@@ -405,6 +405,9 @@
   outline: 2px solid var(--accent-soft);
   outline-offset: 0;
 }
+.picker[aria-invalid='true'] {
+  border-color: var(--danger);
+}
 .picker:disabled {
   opacity: 0.45;
   cursor: default;
@@ -530,7 +533,6 @@ button.swatch {
    wrong (aria-invalid). Zero specificity (:where), so a screen can still size
    or place a field, never restyle it. */
 :where(input:not([type='checkbox'], [type='radio'], [type='range'], [type='color'], [type='file'], [type='hidden'])),
-:where(select),
 :where(textarea) {
   box-sizing: border-box;
   min-height: var(--ctl);
@@ -543,16 +545,16 @@ button.swatch {
 :where(textarea) {
   padding: var(--s-3);
 }
-:where(input, select, textarea):focus-visible {
+:where(input, textarea):focus-visible {
   border-color: var(--accent);
   outline: 2px solid var(--accent-soft);
   outline-offset: 0;
 }
-:where(input, select, textarea)[aria-invalid='true'] {
+:where(input, textarea)[aria-invalid='true'] {
   border-color: var(--danger);
   outline-color: var(--danger-soft);
 }
-:where(input, select, textarea):disabled {
+:where(input, textarea):disabled {
   opacity: 0.45;
   cursor: default;
 }

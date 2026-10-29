@@ -30,7 +30,7 @@
   background: var(--surface-2);
   color: var(--muted);
 }
-.legend-head select {
+.legend-head .picker {
   flex: 1;
   min-width: 0;
 }

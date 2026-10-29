@@ -30,7 +30,7 @@
   border: 1px solid var(--border);
   border-radius: var(--r-lg);
 }
-.sync-rows select {
+.sync-rows .picker {
   flex: 1 1 160px;
   min-width: 0;
 }
@@ -268,11 +268,14 @@
   margin-top: 0;
 }
 .admin-field input,
-.admin-field select,
+.admin-field .picker,
 .admin-search,
-.admin-user-actions select {
+.admin-user-actions .picker {
   min-width: 0;
   max-width: 100%;
+}
+.admin-user-actions .picker {
+  width: auto;
 }
 .admin-search {
   width: 100%;

@@ -31,6 +31,7 @@ import { Bed } from './Bed';
 import { PlateTabs } from './Viewport';
 import { ChevronDown, ChevronUp, Pencil, Plus } from 'lucide-react';
 import { Slider } from './Slider';
+import { Picker } from './Picker';
 
 /** The G-code read in a worker: progress (0..1) while reading, then the segments. */
 function useParsed(gcode: Blob | null) {
@@ -698,17 +699,16 @@ export function Preview() {
       <PlateTabs />
       <div className="legend" data-testid="legend">
         <div className="legend-head">
-          <select aria-label="Colour by" value={colourBy} onChange={(e) => {
-              setColourBy(e.target.value as ColourBy);
+          <Picker
+            field
+            label="Colour by"
+            value={colourBy}
+            options={VIEW_TYPES.map((v) => ({ value: v.id, label: v.label }))}
+            onChange={(v) => {
+              setColourBy(v as ColourBy);
               setKeyOpen(true);
             }}
-          >
-            {VIEW_TYPES.map((v) => (
-              <option key={v.id} value={v.id}>
-                {v.label}
-              </option>
-            ))}
-          </select>
+          />
           <button
             className="legend-toggle"
             aria-label={keyOpen ? 'Hide colour key' : 'Show colour key'}

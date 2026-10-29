@@ -11,7 +11,7 @@ import { mkdirSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { chromium } from 'playwright';
-import { pickerOf } from './picker.mjs';
+import { pickerOf, pickerRows } from './picker.mjs';
 import { startMockPrinter } from './device/mock-printer.mjs';
 
 const web = join(dirname(fileURLToPath(import.meta.url)), '..');
@@ -124,11 +124,12 @@ try {
   check((await dialog.getByRole('radio', { name: 'Match colours' }).getAttribute('aria-checked')) === 'true', 'a plate with a model should start on Match colours');
   await page.waitForTimeout(500);
   // Red PETG has one match, T4; the PLAs go to the closest PLA colour, changed by hand here.
-  const pick = (i) => dialog.getByLabel(`Printer filament for filament ${i}`).evaluate((el) => el.selectedOptions[0].textContent);
+  // The picker shows the head's name in its square, then the filament.
+  const pick = (i) => pickerOf(dialog, `Printer filament for filament ${i}`).button.innerText();
   check((await pick(2)).startsWith('T4'), `red PETG goes to T4: ${await pick(2)}`);
-  check(!(await dialog.getByText('T2 ·').count()), 'the empty head is not offered');
-  await dialog.getByLabel('Printer filament for filament 1').selectOption({ label: 'T1 · Snapmaker PLA Basic' });
-  await dialog.getByLabel('Printer filament for filament 3').selectOption({ label: 'T3 · Generic PLA Basic' });
+  check(!(await pickerRows(dialog, 'Printer filament for filament 1')).some((r) => r.value === '1'), 'the empty head (T2) is not offered');
+  await pickerOf(dialog, 'Printer filament for filament 1').selectOption('0');
+  await pickerOf(dialog, 'Printer filament for filament 3').selectOption('2');
   await shot(page, 'desktop-match');
   await dialog.getByTestId('sync-load').click();
   await dialog.waitFor({ state: 'detached' });
@@ -165,20 +166,20 @@ try {
 
   // ---- a printer that isn't a U1 -------------------------------------------------------
   await page.getByTestId('sync-filaments').click();
-  await dialog.getByLabel('Printer', { exact: true }).selectOption({ label: 'voron-mock' });
+  await pickerOf(dialog, 'Printer').selectOption({ label: 'voron-mock' });
   await dialog.getByTestId('sync-status').filter({ hasText: "doesn't say what filament is loaded" }).waitFor({ timeout: 30000 });
   check(await dialog.getByTestId('sync-load').isDisabled(), 'nothing to load from a non-U1');
   console.log('a generic Klipper printer says it cannot report filaments');
 
   // ---- a Bambu Lab printer: its AMS slots -------------------------------------------------
-  await dialog.getByLabel('Printer', { exact: true }).selectOption({ label: 'P1S-mock' });
+  await pickerOf(dialog, 'Printer').selectOption({ label: 'P1S-mock' });
   await dialog.getByTestId('sync-rows').filter({ hasText: 'A1' }).waitFor({ timeout: 30000 });
+  await dialog.getByRole('radio', { name: 'Replace all' }).click();
   const ams = await dialog.getByTestId('sync-rows').innerText();
   for (const word of ['A1 · Bambu PLA Basic', 'A3 · Bambu PLA Matte', 'A4 · Bambu PETG HF']) check(ams.includes(word), `AMS rows: ${ams}`);
   check(!ams.includes('A2') && !ams.includes('Outside spool'), `empty AMS slots are left out: ${ams}`);
-  await dialog.getByRole('radio', { name: 'Replace all' }).click();
   await shot(page, 'bambu-ams');
-  await dialog.getByLabel('Printer', { exact: true }).selectOption({ label: 'U1-mock' });
+  await pickerOf(dialog, 'Printer').selectOption({ label: 'U1-mock' });
   await dialog.getByTestId('sync-rows').waitFor({ timeout: 30000 });
   await dialog.getByRole('button', { name: 'Cancel' }).click();
   console.log('a Bambu Lab printer offers its loaded AMS slots');

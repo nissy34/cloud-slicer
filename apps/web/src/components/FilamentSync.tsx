@@ -6,6 +6,7 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { Swatch } from './Swatch';
 import { Dialog } from './Dialog';
+import { Picker } from './Picker';
 import { isLoaded, matchByColour, printerFilaments, syncPlan, syncPreset, type SyncMode } from '../lib/filament-sync';
 import { shortName } from '../lib/presets';
 import { installedFilaments, installedOnly, SETUP_KEY, type Setup } from '../lib/setup';
@@ -145,13 +146,7 @@ function SyncFilamentsDialog({ onClose }: { onClose(): void }) {
         {printers.length > 1 && (
           <label className="field">
             <span>Printer</span>
-            <select aria-label="Printer" value={activeId ?? ''} onChange={(e) => useDevice.getState().select(e.target.value)}>
-              {printers.map((p) => (
-                <option key={p.id} value={p.id}>
-                  {p.name}
-                </option>
-              ))}
-            </select>
+            <Picker field label="Printer" value={activeId} options={printers.map((p) => ({ value: p.id, label: p.name }))} onChange={(id) => useDevice.getState().select(id)} />
           </label>
         )}
         {status}
@@ -175,25 +170,19 @@ function SyncFilamentsDialog({ onClose }: { onClose(): void }) {
                     const f = heads[picks[i]];
                     return (
                       <li key={i}>
-                        <Swatch colour={p.colour} />
+                        <Swatch colour={p.colour} number={i + 1} />
                         <span className="sync-from">
-                          {i + 1} {p.type || shortName(p.preset)}
+                          {p.type || shortName(p.preset)}
                         </span>
                         <span aria-hidden>→</span>
-                        {f && <Swatch colour={f.colour} />}
-                        <select
-                          aria-label={`Printer filament for filament ${i + 1}`}
-                          value={picks[i]}
-                          onChange={(e) => setChoice({ key: headsKey, picks: picks.map((c, j) => (j === i ? Number(e.target.value) : c)) })}
-                        >
-                          {heads.map((h, j) =>
-                            isLoaded(h) ? (
-                              <option key={j} value={j}>
-                                {h.label} · {h.name}
-                              </option>
-                            ) : null,
-                          )}
-                        </select>
+                        {/* The printer's filaments, its slot name in the square. */}
+                        <Picker
+                          field
+                          label={`Printer filament for filament ${i + 1}`}
+                          value={String(picks[i])}
+                          options={heads.flatMap((h, j) => (isLoaded(h) ? [{ value: String(j), label: h.name, swatch: h.colour, swatchNumber: h.label }] : []))}
+                          onChange={(v) => setChoice({ key: headsKey, picks: picks.map((c, j) => (j === i ? Number(v) : c)) })}
+                        />
                         {f && <span className="sync-preset small muted">{shortName(presetFor(f, i))}</span>}
                       </li>
                     );
@@ -218,8 +207,7 @@ function SyncFilamentsDialog({ onClose }: { onClose(): void }) {
                 <ol className="sync-rows" data-testid="sync-rows">
                   {plan.filaments.map((f, i) => (
                     <li key={f.head}>
-                      <span className="sync-from">{i + 1}</span>
-                      <Swatch colour={f.colour} />
+                      <Swatch colour={f.colour} number={i + 1} />
                       <span>
                         {f.label} · {f.name}
                       </span>

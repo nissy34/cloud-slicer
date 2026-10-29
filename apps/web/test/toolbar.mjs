@@ -24,7 +24,7 @@ import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { chromium } from 'playwright';
-import { pick } from './picker.mjs';
+import { pick, pickerOf } from './picker.mjs';
 
 const web = join(dirname(fileURLToPath(import.meta.url)), '..');
 const fixtures = join(web, '../../fixtures');
@@ -569,8 +569,8 @@ try {
     await booleanPanel.getByRole('radio', { name: 'Difference' }).click();
     await booleanPanel.getByLabel('Subtract with').waitFor();
     await booleanPanel.getByRole('radio', { name: 'Union' }).click();
-    await booleanPanel.getByLabel('Part 1').selectOption({ index: 0 });
-    await booleanPanel.getByLabel('Part 2').selectOption({ index: 1 });
+    await pickerOf(booleanPanel, 'Part 1').selectOption('0');
+    await pickerOf(booleanPanel, 'Part 2').selectOption('1');
     if (shots) await page.screenshot({ path: join(shots, 'boolean-desktop.png') });
     await booleanPanel.getByRole('button', { name: 'Union', exact: true }).click();
     await page.waitForFunction(() => document.querySelectorAll('ul.objects > li.object:first-child ul.volumes > li').length === 2, null, { timeout: 60000 });

@@ -28,11 +28,15 @@ export type PickerOption = {
   swatch?: string;
   /** …with this number inside it (the filament's number). */
   swatchNumber?: string;
+  /** No filament loaded there: the swatch is striped. */
+  swatchEmpty?: boolean;
   group?: string;
   hint?: ReactNode;
   /** Small grey words right after the label, on the button too (an engine's version). */
   note?: string;
   disabled?: boolean;
+  /** Why it can't be picked, in the row's tooltip. */
+  title?: string;
 };
 /** An action under the choices, after a line, in the normal text colour with its icon in
  * front. Its words end in "…" when a window follows. */
@@ -55,6 +59,8 @@ type Props = {
   title?: string;
   /** What the button says when the value isn't one of the choices. */
   placeholder?: string;
+  /** The current choice is wrong (a red box, like a field's). */
+  invalid?: boolean;
 };
 
 /**
@@ -63,7 +69,7 @@ type Props = {
  * actions can sit under the choices. Floating UI places it, keeps it on screen, and gives
  * arrow keys, Escape and closing on a tap outside.
  */
-export function Picker({ label, value, options, onChange, actions = [], onAction, className, testId, disabled, field, title, placeholder }: Props) {
+export function Picker({ label, value, options, onChange, actions = [], onAction, className, testId, disabled, field, title, placeholder, invalid }: Props) {
   const [open, setOpen] = useState(false);
   const [active, setActive] = useState<number | null>(null);
   const rows = useRef<(HTMLElement | null)[]>([]);
@@ -112,9 +118,10 @@ export function Picker({ label, value, options, onChange, actions = [], onAction
         data-value={value ?? ''}
         disabled={disabled}
         title={title}
+        aria-invalid={invalid || undefined}
         {...getReferenceProps()}
       >
-        {current?.swatch && <Swatch colour={current.swatch} number={current.swatchNumber} />}
+        {current?.swatch && <Swatch colour={current.swatch} number={current.swatchNumber} empty={current.swatchEmpty} />}
         <span className="picker-value">
           {current?.short ?? current?.label ?? placeholder ?? ''}
           {current?.note && <span className="picker-note">{current.note}</span>}
@@ -141,12 +148,13 @@ export function Picker({ label, value, options, onChange, actions = [], onAction
                     aria-selected={o.value === value}
                     aria-disabled={o.disabled || undefined}
                     disabled={o.disabled}
+                    title={o.title}
                     tabIndex={active === i ? 0 : -1}
                     className="menu-item"
                     data-value={o.value}
                     {...getItemProps({ onClick: () => pick(() => onChange(o.value)) })}
                   >
-                    {o.swatch && <Swatch colour={o.swatch} number={o.swatchNumber} />}
+                    {o.swatch && <Swatch colour={o.swatch} number={o.swatchNumber} empty={o.swatchEmpty} />}
                     <span className="picker-label">
                       {o.label}
                       {o.note && <span className="picker-note">{o.note}</span>}

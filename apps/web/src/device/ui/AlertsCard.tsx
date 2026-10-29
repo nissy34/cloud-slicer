@@ -7,6 +7,7 @@ import { Icon, type IconName } from './icons';
 import { Card } from './parts';
 import { InfoTip } from '../../components/InfoTip';
 import { Note } from '../../components/Note';
+import { Picker } from '../../components/Picker';
 
 type Tile = [AlertEvent, IconName, string, string];
 
@@ -180,13 +181,14 @@ export function AlertsCard() {
             {has('stillPrinting') && (
               <li>
                 <span>Still printing, every</span>
-                <select aria-label="Every how many hours" value={prefs.hours || 1} onChange={(ev) => set({ hours: Number(ev.target.value) })}>
-                  {[1, 2, 3, 4].map((h) => (
-                    <option key={h} value={h}>
-                      {h} h
-                    </option>
-                  ))}
-                </select>
+                <Picker
+                  field
+                  className="dv-hours"
+                  label="Every how many hours"
+                  value={String(prefs.hours || 1)}
+                  options={[1, 2, 3, 4].map((h) => ({ value: String(h), label: `${h} h` }))}
+                  onChange={(v) => set({ hours: Number(v) })}
+                />
               </li>
             )}
             <li className="dv-alerts-wrap">

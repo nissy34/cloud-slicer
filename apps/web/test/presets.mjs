@@ -57,7 +57,7 @@ try {
     if (await wizard.isVisible().catch(() => false)) await wizard.getByRole('button', { name: 'Not now' }).click();
     await page.getByRole('combobox', { name: 'Process preset' }).waitFor();
   };
-  const processPicker = page.getByRole('combobox', { name: 'Process preset' });
+  const processPicker = pickerOf(page, 'Process preset');
   const processMenu = page.getByRole('button', { name: 'Process preset actions' });
   const pop = page.getByRole('dialog', { name: 'process preset' });
   const stored = () => page.evaluate(() => JSON.parse(localStorage.getItem('cloud-slicer:user-presets:v1') || '[]'));
@@ -133,7 +133,7 @@ try {
     await pop.getByRole('button', { name: 'Delete', exact: true }).click();
     await pop.waitFor({ state: 'detached', timeout: 60000 });
     expect((await processPicker.inputValue()) === systemProcess, `selected ${await processPicker.inputValue()}`);
-    expect(!(await processPicker.locator('option', { hasText: 'My draft' }).count()), 'gone from the list');
+    expect(!(await processPicker.choices()).some((c) => c.includes('My draft')), 'gone from the list');
     expect((await stored()).every((p) => p.type !== 'process'), 'removed from storage');
   });
 } catch {

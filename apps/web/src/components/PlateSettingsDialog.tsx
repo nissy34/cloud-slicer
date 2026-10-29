@@ -18,6 +18,7 @@ import { Dialog } from './Dialog';
 import { X } from 'lucide-react';
 import { IconButton } from './IconButton';
 import { Swatch } from './Swatch';
+import { Picker } from './Picker';
 
 /**
  * Desktop's Plate settings window (PlateSettingsDialog): the shown plate's
@@ -98,14 +99,13 @@ function PlateSettingsWindow() {
       </label>
       <label className="field">
         <span>Plate type</span>
-        <select aria-label="Plate type" value={draft.bedType ?? ''} onChange={(e) => change({ bedType: e.target.value || null })}>
-          <option value="">Project ({labelOf('curr_bed_type', project.curr_bed_type)})</option>
-          {choices('curr_bed_type').map((c) => (
-            <option key={c.value} value={c.value}>
-              {c.label}
-            </option>
-          ))}
-        </select>
+        <Picker
+          field
+          label="Plate type"
+          value={draft.bedType ?? ''}
+          options={[{ value: '', label: `Project (${labelOf('curr_bed_type', project.curr_bed_type)})` }, ...choices('curr_bed_type').map((c) => ({ value: String(c.value), label: c.label }))]}
+          onChange={(v) => change({ bedType: v || null })}
+        />
       </label>
       <div className="field">
         <span>Print sequence</span>

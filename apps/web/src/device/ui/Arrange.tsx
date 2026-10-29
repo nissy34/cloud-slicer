@@ -61,6 +61,7 @@ import { MotionCard } from './MotionCard';
 import { PageCard } from './PrinterPage';
 import { SlotContext } from './parts';
 import { ToolheadsCard } from './ToolheadsCard';
+import { Picker } from '../../components/Picker';
 
 const VIEWS: Record<Exclude<CardId, 'camera'>, () => ReactNode> = {
   climate: ClimateCard,
@@ -386,13 +387,7 @@ function Slot(props: {
               </label>
             )}
             {camera && (
-              <select value={camera} onChange={(e) => props.onCamera(e.target.value as CameraSize)} aria-label="Camera size">
-                {CAMERA_SIZES.map((s) => (
-                  <option key={s.id} value={s.id}>
-                    {s.label}
-                  </option>
-                ))}
-              </select>
+              <Picker field className="dv-camera-size" label="Camera size" value={camera} options={CAMERA_SIZES.map((s) => ({ value: s.id, label: s.label }))} onChange={(v) => props.onCamera(v as CameraSize)} />
             )}
             <button className="quiet" onClick={() => props.onHide(!hidden)} data-testid={`hide-${id}`}>
               {hidden ? 'Show' : 'Hide'}

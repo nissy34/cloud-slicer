@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { shortName } from '../lib/presets';
+import { filamentChoices } from '../lib/filament-choices';
 import {
   draftFromRow,
   MODE_LABELS,
@@ -20,6 +20,7 @@ import { ArrowDownUp, Delete, TriangleAlert, X } from 'lucide-react';
 import { IconButton } from './IconButton';
 import { Swatch } from './Swatch';
 import { Slider } from './Slider';
+import { Picker } from './Picker';
 
 /**
  * Desktop Snapmaker Orca's Color Mixing panel, under the filaments: each mix
@@ -137,22 +138,19 @@ function MixDialog({ row, index, onClose }: { row: MixRow | undefined; index: nu
     };
   }, [draft.mode, draft.target, draft.minPercent, matchColour]);
 
-  const filamentOption = (i: number) => (
-    <option key={i} value={i + 1}>
-      {i + 1} · {shortName(names[i] ?? '')}
-    </option>
-  );
+  // The project's filaments, like every filament picker: numbered square and preset name.
+  // A filament already in the mix isn't offered again.
   const pick = (slot: number, label: string) => (
-    <label className="mix-filament">
-      <Swatch colour={colours[(draft.filaments[slot] ?? 1) - 1]} number={draft.filaments[slot]} />
-      <select
-        aria-label={label}
-        value={draft.filaments[slot]}
-        onChange={(e) => change({ filaments: draft.filaments.map((f, i) => (i === slot ? Number(e.target.value) : f)) })}
-      >
-        {colours.map((_, i) => (i + 1 === draft.filaments[slot] || !draft.filaments.includes(i + 1) ? filamentOption(i) : null))}
-      </select>
-    </label>
+    <div className="mix-filament">
+      <Picker
+        field
+        label={label}
+        className="filament-field"
+        value={String(draft.filaments[slot])}
+        options={filamentChoices(colours, names, colours.length).filter((o) => Number(o.value) === draft.filaments[slot] || !draft.filaments.includes(Number(o.value)))}
+        onChange={(v) => change({ filaments: draft.filaments.map((f, i) => (i === slot ? Number(v) : f)) })}
+      />
+    </div>
   );
 
   const incompatible = look !== null && !look.compatible;
@@ -279,7 +277,7 @@ function MixDialog({ row, index, onClose }: { row: MixRow | undefined; index: nu
           <div className="mix-quick">
             {colours.map((c, i) => (
               <button key={i} className="secondary" onClick={() => change({ pattern: draft.pattern + (i < 9 ? `${i + 1}` : `[${i + 1}]`) })}>
-                <Swatch colour={c} size="sm" />+{i + 1}
+                +<Swatch colour={c} number={i + 1} />
               </button>
             ))}
             <button className="secondary" onClick={() => change({ pattern: draft.pattern.replace(/(\[\d+\]|\d|,)$/, '') })} aria-label="Remove the last layer" title="Remove the last layer">

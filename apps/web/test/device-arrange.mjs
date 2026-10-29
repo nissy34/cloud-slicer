@@ -12,6 +12,7 @@ import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { chromium } from 'playwright';
 import { startMockPrinter } from './device/mock-printer.mjs';
+import { pickerOf } from './picker.mjs';
 import { openPrinterList, pickPrinter } from './device/printer-picker.mjs';
 
 const web = join(dirname(fileURLToPath(import.meta.url)), '..');
@@ -160,7 +161,7 @@ try {
   await drag(page, 'camera', page.locator('[data-zone="top"]'));
   if ((await zoneOf(page, 'camera')) !== 'top') fail('the camera should move across the top');
   await page.getByTestId('hide-console').click();
-  await page.locator("[data-card='camera'] select[aria-label='Camera size']").selectOption('m');
+  await pickerOf(page.locator("[data-card='camera']"), 'Camera size').selectOption('m');
   await page.locator("[data-card='files']").getByLabel('Half width').check();
   await page.getByRole('group', { name: 'Columns' }).getByRole('button', { name: '3' }).click();
   await drag(page, 'files', page.locator('[data-zone="col2"]'));

@@ -14,7 +14,7 @@ import { mkdirSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { chromium } from 'playwright';
-import { pickerValue } from './picker.mjs';
+import { pickerValue, pickerOf } from './picker.mjs';
 
 const web = join(dirname(fileURLToPath(import.meta.url)), '..');
 const model = join(web, '../../fixtures/eight-colour-cubes.3mf');
@@ -89,7 +89,7 @@ const slice = async (page) => {
 };
 // The filaments the Preview's colour key lists, by number.
 async function filamentsInPreview(page) {
-  await page.getByLabel('Colour by').selectOption('filament');
+  await pickerOf(page, 'Colour by').selectOption('filament');
   // The key fills in once the G-code has been read: a row per filament.
   const rows = page.getByTestId('filament-stats').locator('[data-filament]');
   await rows.first().waitFor({ timeout: 120000 });
@@ -112,7 +112,7 @@ try {
     const used = await filamentsInPreview(page);
     expect(used.join() === '1,2,3,4,5,6,7,8', `the Preview lists filaments ${used.join()}`);
     expect(!(await page.getByText('goes beyond the plate').count()), 'no off-plate warning');
-    await page.getByLabel('Colour by').selectOption('feature');
+    await pickerOf(page, 'Colour by').selectOption('feature');
     expect(await page.getByTestId('legend').getByText('Outer wall').isVisible(), 'the Preview reads the Bambu line types');
     await shot(page, 'x1c-preview');
     await page.close();
@@ -128,7 +128,7 @@ try {
         await page.getByTestId('model-input').setInputFiles(model);
         const dialog = page.getByRole('dialog', { name: 'Convert this project?' });
         await dialog.waitFor({ timeout: 120000 });
-        await dialog.getByLabel('Convert to printer').selectOption(U1);
+        await pickerOf(dialog, 'Convert to printer').selectOption(U1);
         await dialog.getByRole('button', { name: 'Convert' }).click();
         await page.getByText(/Converted from/).waitFor({ timeout: 120000 });
         expect((await slots(page).count()) === 8, `${await slots(page).count()} filaments`);

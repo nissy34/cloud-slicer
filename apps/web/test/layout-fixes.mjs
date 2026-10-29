@@ -194,9 +194,7 @@ try {
   const pop = page.getByRole('dialog', { name: 'process preset' });
   await pop.waitFor();
   const title = await pop.locator('.preset-pop-title').innerText();
-  const shown = await page.locator('.panel select').filter({ has: page.locator('option') }).evaluateAll((list) =>
-    list.map((s) => s.selectedOptions[0]?.textContent ?? ''),
-  );
+  const shown = await page.locator('.panel button.picker .picker-value').allInnerTexts();
   if (title.includes('@') || !shown.includes(title)) fail(`the menu says "${title}", the dropdowns "${shown.join('", "')}"`);
   await page.waitForTimeout(200);
   const where = await pop.evaluate((e) => ({ bottom: e.getBoundingClientRect().bottom, top: e.getBoundingClientRect().top, panel: document.querySelector('.panel').getBoundingClientRect().bottom }));

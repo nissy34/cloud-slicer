@@ -3,6 +3,7 @@ import { BOOLEAN_OPS, defaultPair, pickerLabels, type BooleanOp } from '../lib/b
 import { KIND_LABELS } from '../lib/volumes';
 import { useSlicer } from '../state/store';
 import { Note } from './Note';
+import { Picker } from './Picker';
 
 /**
  * Desktop's Mesh boolean tool for the selected object: union, difference or
@@ -31,13 +32,13 @@ export function BooleanPanel({ object }: { object: number }) {
   const picker = (label: string, value: number, onChange: (v: number) => void) => (
     <label className="transform-row boolean-pick">
       <span>{label}</span>
-      <select aria-label={label} value={value} onChange={(e) => onChange(Number(e.target.value))}>
-        {volumes.map((v, k) => (
-          <option key={k} value={k}>
-            {v.name} ({KIND_LABELS[v.kind].toLowerCase()})
-          </option>
-        ))}
-      </select>
+      <Picker
+        field
+        label={label}
+        value={String(value)}
+        options={volumes.map((v, k) => ({ value: String(k), label: `${v.name} (${KIND_LABELS[v.kind].toLowerCase()})` }))}
+        onChange={(v) => onChange(Number(v))}
+      />
     </label>
   );
 

@@ -14,6 +14,7 @@ import { mkdirSync, readFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { chromium } from 'playwright';
+import { pickerOf, pickerRows } from './picker.mjs';
 
 const web = join(dirname(fileURLToPath(import.meta.url)), '..');
 const model = join(web, '../../fixtures/tetrahedron.stl');
@@ -82,10 +83,9 @@ try {
       fail(`${group} doesn't start on the project's`);
 
   await win.getByRole('radiogroup', { name: 'Print sequence' }).getByRole('radio', { name: 'By object' }).click();
-  const types = win.getByLabel('Plate type');
-  const projectType = await page.getByRole('combobox', { name: 'Plate type' }).first().inputValue();
-  const other = (await types.locator('option').evaluateAll((os) => os.map((o) => o.value))).find((v) => v && v !== projectType);
-  await types.selectOption(other);
+  const projectType = await page.getByRole('combobox', { name: 'Plate type', exact: true }).first().getAttribute('data-value');
+  const other = (await pickerRows(win, 'Plate type')).map((r) => r.value).find((v) => v && v !== projectType);
+  await pickerOf(win, 'Plate type').selectOption(other);
   await win.getByRole('radiogroup', { name: 'First layer filament order' }).getByRole('radio', { name: 'Custom' }).click();
   const chips = win.getByRole('list', { name: 'First layer filament order' }).getByRole('listitem');
   if ((await chips.count()) !== 2) fail(`the first layer order lists ${await chips.count()} filaments, not 2`);
@@ -120,7 +120,7 @@ try {
   await note.getByRole('button', { name: 'Plate settings' }).click();
   await win.waitFor({ timeout: 5000 });
   await win.getByRole('radiogroup', { name: 'Print sequence' }).getByRole('radio', { name: 'Project' }).click();
-  await win.getByLabel('Plate type').selectOption('');
+  await pickerOf(win, 'Plate type').selectOption('');
   await win.getByRole('radiogroup', { name: 'First layer filament order' }).getByRole('radio', { name: 'Auto' }).click();
   await win.getByRole('button', { name: 'Save' }).click();
   await page.locator('.plate-note').waitFor({ state: 'detached', timeout: 5000 });

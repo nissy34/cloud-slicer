@@ -14,6 +14,7 @@ import { mkdirSync, readFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { chromium } from 'playwright';
+import { pickerOf } from './picker.mjs';
 
 const web = join(dirname(fileURLToPath(import.meta.url)), '..');
 const shots = process.argv[2] ? resolve(process.argv[2]) : null;
@@ -51,8 +52,8 @@ async function open(viewport, mobile) {
 async function patternDialog(page) {
   await page.getByRole('button', { name: 'Calibration' }).click();
   const dialog = page.getByRole('dialog', { name: 'Calibration' });
-  await dialog.getByLabel('Calibration test').selectOption('pressureAdvance');
-  await dialog.getByLabel('Method').selectOption('pattern');
+  await pickerOf(dialog, 'Calibration test').selectOption('pressureAdvance');
+  await pickerOf(dialog, 'Method').selectOption('pattern');
   return dialog;
 }
 
@@ -63,9 +64,9 @@ try {
   const dialog = await patternDialog(page);
   if ((await value(dialog, 'End PA')) !== '0.08' || (await value(dialog, 'PA step')) !== '0.005')
     fail(`pattern range ${await value(dialog, 'End PA')} / ${await value(dialog, 'PA step')}, expected desktop's 0.08 / 0.005`);
-  await dialog.getByLabel('Extruder type').selectOption('bowden');
+  await pickerOf(dialog, 'Extruder type').selectOption('bowden');
   if ((await value(dialog, 'End PA')) !== '1' || (await value(dialog, 'PA step')) !== '0.05') fail('Bowden does not reset the range to 1 / 0.05');
-  await dialog.getByLabel('Extruder type').selectOption('direct');
+  await pickerOf(dialog, 'Extruder type').selectOption('direct');
   await dialog.getByLabel('Speeds (mm/s)').fill('60, 120');
   await dialog.getByLabel('Accelerations (mm/s²)').fill('3000');
   if (await dialog.getByLabel('Print numbers').count()) fail('Print numbers shows for the pattern');
@@ -92,10 +93,10 @@ try {
   const phoneDialog = await patternDialog(phone);
   await phoneDialog.getByLabel('Speeds (mm/s)').fill('60, 120');
   if (shots) await phone.screenshot({ path: join(shots, 'pa-pattern-phone.png') });
-  await phoneDialog.getByLabel('Method').selectOption('line');
+  await pickerOf(phoneDialog, 'Method').selectOption('line');
   if (!(await phoneDialog.getByLabel('Print numbers').isChecked())) fail('Print numbers is off for lines');
   if (shots) await phone.screenshot({ path: join(shots, 'pa-lines-phone.png') });
-  await phoneDialog.getByLabel('Method').selectOption('pattern');
+  await pickerOf(phoneDialog, 'Method').selectOption('pattern');
   await phoneDialog.getByRole('button', { name: 'Create test' }).click();
   await phone.waitForFunction(() => document.querySelectorAll('ul.objects > li.object, .calib-banner').length > 0, null, { timeout: 60000 });
   if (shots) await phone.screenshot({ path: join(shots, 'pa-pattern-plate-phone.png') });

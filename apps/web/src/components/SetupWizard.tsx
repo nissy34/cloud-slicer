@@ -14,6 +14,7 @@ import { ask } from './AskDialog';
 import { Dialog } from './Dialog';
 import { IconButton } from './IconButton';
 import { Note } from './Note';
+import { Picker } from './Picker';
 
 /**
  * Opens the wizard from anywhere. Once setup is done, "Manage" and the pickers'
@@ -506,14 +507,7 @@ function FilamentStep({
       <p className="muted small">Pick the filaments you use. The filament pickers will offer only these.</p>
       <div className="wizard-filters">
         <input type="search" placeholder="Search filaments" aria-label="Search filaments" value={query} onChange={(e) => setQuery(e.target.value)} />
-        <select aria-label="Material" value={type} onChange={(e) => setType(e.target.value)}>
-          <option value="">All materials</option>
-          {types.map((t) => (
-            <option key={t} value={t}>
-              {t}
-            </option>
-          ))}
-        </select>
+        <Picker field label="Material" value={type} options={[{ value: '', label: 'All materials' }, ...types.map((t) => ({ value: t, label: t }))]} onChange={setType} />
       </div>
       <div className="wizard-filaments">
         {groups.map((g) => {

@@ -205,7 +205,7 @@ try {
     await openImport(filamentMenu, filamentPop, [filamentJson]);
     const row = importDialog.getByRole('listitem', { name: 'Filament Hot PLA' });
     await row.getByText('You already have a filament preset with this name.').waitFor();
-    await row.getByRole('combobox', { name: 'When Hot PLA exists' }).selectOption('keep');
+    await pickerOf(row, 'When Hot PLA exists').selectOption('keep');
     await importDialog.getByRole('button', { name: 'Import 1 preset' }).click();
     await importDialog.getByText('Imported 1 preset.', { exact: false }).waitFor({ timeout: 60000 });
     await importDialog.getByRole('button', { name: 'Close', exact: true }).click();
@@ -247,7 +247,7 @@ try {
     await refused.getByText(/which this app doesn't have/).waitFor();
     const row = importDialog.getByRole('listitem', { name: 'Filament My Bambu Silk' });
     await row.getByText('Bambu PLA Silk @BBL X1C').waitFor();
-    const base = await row.getByRole('combobox', { name: 'Base for My Bambu Silk' }).inputValue();
+    const base = await pickerOf(row, 'Base for My Bambu Silk').inputValue();
     expect(/PLA/.test(base), `base ${base}`);
     await row.getByText(/setting this version of Orca doesn't have was left out/).waitFor();
     await importDialog.screenshot({ path: join(out, 'import-desktop.png') });

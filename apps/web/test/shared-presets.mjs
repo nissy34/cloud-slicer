@@ -55,7 +55,7 @@ const browser = await chromium.launch(
 try {
   const page = await browser.newPage({ viewport: { width: 1280, height: 900 } });
   page.on('pageerror', (e) => console.error(`page error: ${e.message}`));
-  const processPicker = page.getByRole('combobox', { name: 'Process preset' });
+  const processPicker = pickerOf(page, 'Process preset');
   const processMenu = page.getByRole('button', { name: 'Process preset actions' });
   const pop = page.getByRole('dialog', { name: 'process preset' });
   const layer = () => page.getByLabel('Layer height', { exact: true });

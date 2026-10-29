@@ -24,6 +24,7 @@ import { Icon } from './icons';
 import { Swatch } from '../../components/Swatch';
 import { Card, Temperature, useConfirm } from './parts';
 import { Dialog } from '../../components/Dialog';
+import { Picker } from '../../components/Picker';
 
 const MATERIALS = ['PLA', 'PETG', 'ABS', 'ASA', 'TPU', 'PA', 'PC', 'PVA', 'HIPS', 'PLA-CF', 'PETG-CF', 'PA-CF'];
 
@@ -357,23 +358,11 @@ function NozzleEditor({ head, onClose }: { head: U1Head; onClose(): void }) {
       <div className="dv-form">
         <label>
           Size
-          <select value={diameter} onChange={(e) => setDiameter(Number(e.target.value))}>
-            {U1_NOZZLE_DIAMETERS.map((d) => (
-              <option key={d} value={d}>
-                {d} mm
-              </option>
-            ))}
-          </select>
+          <Picker field label="Size" value={String(diameter)} options={U1_NOZZLE_DIAMETERS.map((d) => ({ value: String(d), label: `${d} mm` }))} onChange={(v) => setDiameter(Number(v))} />
         </label>
         <label>
           Type
-          <select value={volumeType} onChange={(e) => setVolumeType(e.target.value)}>
-            {U1_NOZZLE_TYPES.map((t) => (
-              <option key={t.id} value={t.id}>
-                {t.label}
-              </option>
-            ))}
-          </select>
+          <Picker field label="Type" value={volumeType} options={U1_NOZZLE_TYPES.map((t) => ({ value: t.id, label: t.label }))} onChange={setVolumeType} />
         </label>
       </div>
       {head.switches && (
@@ -427,11 +416,7 @@ function FilamentEditor({ head, onClose }: { head: U1Head; onClose(): void }) {
       <div className="dv-form">
         <label>
           Material
-          <select value={material} onChange={(e) => setMaterial(e.target.value)} disabled={head.official}>
-            {[...new Set([material, ...MATERIALS])].map((m) => (
-              <option key={m}>{m}</option>
-            ))}
-          </select>
+          <Picker field label="Material" value={material} disabled={head.official} options={[...new Set([material, ...MATERIALS])].map((m) => ({ value: m, label: m }))} onChange={setMaterial} />
         </label>
         <label>
           Brand
