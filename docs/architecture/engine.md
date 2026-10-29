@@ -89,11 +89,12 @@ built the engine, `node scripts/shared-settings.mjs` in `apps/web` (new version,
   match desktop.
 - **Every core, like desktop**: TBB on Emscripten threads with mimalloc. Plain malloc had
   one lock and made threads useless; mimalloc's default arenas doubled memory, so
-  `memory.cpp` sends TBB's allocator to malloc and sets 128 MB arenas. Blocks over 1 MB
-  skip the arenas for Emscripten's own allocator: in wasm an arena can't give freed
-  space back or join it up, so big blocks left gaps and the engine grew until it ran out
-  ("unreachable"); a 1.1M-triangle model opened twice took 3.7 GB, now 0.76 GB, at the
-  same slicing speed.
+  `memory.cpp` sends TBB's allocator to malloc and sets 128 MB arenas. Blocks of 1 MB
+  and up (`new` and TBB's allocator) skip mimalloc for Emscripten's own allocator: in
+  wasm an arena can't give freed space back or join it up, so big blocks left gaps and
+  the engine grew until it ran out ("unreachable"); a 1.1M-triangle model opened twice
+  took 3.7 GB. mimalloc's own `arena_max_object_size` pads each such block to its page
+  size, so many medium objects ran out instead; Emscripten's allocator pads nothing.
 - **Caches go with their meshes**: ray-cast trees (painting, text on a surface) and
   Measure's data are dropped when their mesh is, and emptying the plate drops them all
   (the undo history stays, so Delete all can be undone).
