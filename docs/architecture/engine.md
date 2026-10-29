@@ -17,7 +17,7 @@ WebAssembly. Two engines ship, and each project picks one: Snapmaker Orca 2.4.1
 |---|---|
 | The two Orca sources, pinned submodules, never edited in place | `engine/orcaslicer`, `engine/orcaslicer-upstream` |
 | Our API over Orca, one file per area (presets, model, slice, each tool) | `engine/src/*_api.cpp` |
-| Browser-only fixes as patch files, applied to copies at build time | `engine/patches/` (`snapmaker/`, `orca/` for one engine only) |
+| Browser-only fixes (and engine bugs that change what prints) as patch files, applied to copies at build time | `engine/patches/` (`snapmaker/`, `orca/` for one engine only) |
 | Stand-ins for what a browser lacks | `engine/compat/` |
 | Memory set-up (mimalloc, arena size) | `engine/src/memory.cpp` |
 | Presets bundling, settings layout, bed meshes | `engine/scripts/` |

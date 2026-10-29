@@ -36,6 +36,9 @@ or its colour changes; a printer change resets the table and multiplier.
 - Flushing volumes show only for single-nozzle multi-material printers (or Bambu) with
   more than one filament. The U1 has a head per filament and never purges; its page says why.
 - The engine's default multiplier is 0.3, so the window shows 0.3× the raw table.
+- A mix counts as the filaments it mixes for the prime tower, so an object printed with a
+  mix alone gets one. Snapmaker Orca's own slice counted it as one filament and dropped
+  the tower; `patches/snapmaker/0009` fixes that.
 - Switching a project to OrcaSlicer turns each mix into the filament it uses most
   (`flatten`), after saying so.
 

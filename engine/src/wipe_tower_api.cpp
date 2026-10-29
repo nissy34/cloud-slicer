@@ -28,10 +28,9 @@ int intOpt(const Config& c, const char* key, int fallback = 0) {
 }
 
 // The filaments `plate` prints with, 1-based, mixes expanded to the filaments
-// they mix (PartPlate::get_extruders(true) + expand_plate_extruders).
-// `assigned`: how many filament numbers before expanding the mixes, which is
-// what the slice counts (Print::apply -> normalize_fdm_2).
-std::vector<int> plateFilaments(const DynamicPrintConfig& cfg, int plate, size_t* assigned = nullptr) {
+// they mix (PartPlate::get_extruders(true) + expand_plate_extruders). The slice
+// counts them the same way (patches/snapmaker/0009).
+std::vector<int> plateFilaments(const DynamicPrintConfig& cfg, int plate) {
     const engine::Project& pr = engine::project();
     std::vector<int> ids;
     const int supportIntf = intOpt(cfg, "support_interface_filament"), support = intOpt(cfg, "support_filament");
@@ -89,7 +88,6 @@ std::vector<int> plateFilaments(const DynamicPrintConfig& cfg, int plate, size_t
 
     std::sort(ids.begin(), ids.end());
     ids.erase(std::unique(ids.begin(), ids.end()), ids.end());
-    if (assigned) *assigned = ids.size();
 #if ENGINE_HAS_MIXING
     mixes.expand_virtual_extruder_ids(ids, physical);
 #endif
@@ -163,8 +161,7 @@ json wipeTowerFor(const DynamicPrintConfig& cfg, int plate, double slicedDepth) 
     const auto* seq = cfg.option<ConfigOptionEnum<PrintSequence>>("print_sequence");
     if (seq && seq->value == PrintSequence::ByObject && printable != 1) return out;
 
-    size_t assigned = 0;
-    const std::vector<int> used = plateFilaments(cfg, plate, &assigned);
+    const std::vector<int> used = plateFilaments(cfg, plate);
     if (used.empty()) return out;
 
     // The size Orca plans for before slicing, or the sliced tower's.
@@ -173,9 +170,9 @@ json wipeTowerFor(const DynamicPrintConfig& cfg, int plate, double slicedDepth) 
     double brim = cfg.opt_float("prime_tower_brim_width");
     double plannedWidth = width, plannedDepth = depth;
 #if !ENGINE_UPSTREAM
-    // Desktop counts the plate's own filaments; one (or a single mix, which
-    // the slice prints as one) needs no tower unless timelapse does.
-    if (!smooth && (used.size() < 2 || assigned == 1)) return out;
+    // Desktop counts the plate's own filaments (a mix as the ones it mixes);
+    // one needs no tower unless timelapse does.
+    if (!smooth && used.size() < 2) return out;
     // The planned tower always decides where it stands: the slice keeps it on
     // the bed with this size, so the sliced tower is drawn there too.
     {
@@ -209,11 +206,8 @@ json wipeTowerFor(const DynamicPrintConfig& cfg, int plate, double slicedDepth) 
         plannedDepth = data.depth;
         brim = data.brim_width;
     }
-    // One filament on the plate: no tower unless timelapse needs it. Desktop
-    // counts a mix as the filaments it mixes here, but the slice counts it as
-    // one (normalize_fdm_2 turns the tower off), and the view shows what will
-    // print: a plate printed with a single mix gets no tower.
-    if (used.size() == 1 || assigned == 1) plannedDepth = 0;
+    // One filament on the plate: no tower unless timelapse needs it.
+    if (used.size() == 1) plannedDepth = 0;
     if (smooth || plannedDepth > EPSILON) plannedDepth = std::max(double(minDepth(height)), plannedDepth);
     if (depth < 0) depth = plannedDepth;
     else if (plannedDepth > EPSILON) depth = std::max(double(minDepth(height)), depth);
