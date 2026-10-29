@@ -126,7 +126,7 @@ export function ToolheadsCard() {
       <div className="dv-head-sheet" data-testid="head-sheet">
         {(!one || head) && (
           <div className="dv-head-sheet-title">
-            {head ? <Swatch colour={head.colour} empty={!head.loaded} /> : null}
+            {head ? <Swatch colour={head.colour} number={head.index + 1} empty={!head.loaded} /> : null}
             <b>{sel.label}</b>
             {head && (
               <span className="muted">
