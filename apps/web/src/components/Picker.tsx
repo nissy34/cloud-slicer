@@ -34,6 +34,9 @@ export type PickerOption = {
   hint?: ReactNode;
   /** Small grey words right after the label, on the button too (an engine's version). */
   note?: string;
+  /** A small boxed tag on the button, in place of the swatch, saying where the choice came from
+   * (the printer's tool head "T3", like desktop's badge on a filament picked from the AMS). */
+  tag?: string;
   disabled?: boolean;
   /** Why it can't be picked, in the row's tooltip. */
   title?: string;
@@ -61,6 +64,8 @@ type Props = {
   placeholder?: string;
   /** The current choice is wrong (a red box, like a field's). */
   invalid?: boolean;
+  /** Each time the list opens (to fetch choices that come late, like the printer's filaments). */
+  onOpen?(): void;
 };
 
 /**
@@ -69,7 +74,7 @@ type Props = {
  * actions can sit under the choices. Floating UI places it, keeps it on screen, and gives
  * arrow keys, Escape and closing on a tap outside.
  */
-export function Picker({ label, value, options, onChange, actions = [], onAction, className, testId, disabled, field, title, placeholder, invalid }: Props) {
+export function Picker({ label, value, options, onChange, actions = [], onAction, className, testId, disabled, field, title, placeholder, invalid, onOpen }: Props) {
   const [open, setOpen] = useState(false);
   const [active, setActive] = useState<number | null>(null);
   const rows = useRef<(HTMLElement | null)[]>([]);
@@ -78,7 +83,10 @@ export function Picker({ label, value, options, onChange, actions = [], onAction
 
   const { refs, floatingStyles, context } = useFloating({
     open,
-    onOpenChange: setOpen,
+    onOpenChange: (next) => {
+      setOpen(next);
+      if (next) onOpen?.();
+    },
     placement: 'bottom-start',
     // Fixed, so a window's scrolling body doesn't clip the list.
     strategy: 'fixed',
@@ -132,10 +140,11 @@ export function Picker({ label, value, options, onChange, actions = [], onAction
         aria-invalid={invalid || undefined}
         {...getReferenceProps({ onKeyDown: keepWindow })}
       >
-        {current?.swatch && <Swatch colour={current.swatch} number={current.swatchNumber} empty={current.swatchEmpty} />}
+        {current?.swatch && !current.tag && <Swatch colour={current.swatch} number={current.swatchNumber} empty={current.swatchEmpty} />}
         <span className="picker-value">
           {current?.short ?? current?.label ?? placeholder ?? ''}
           {current?.note && <span className="picker-note">{current.note}</span>}
+          {current?.tag && <span className="picker-tag">{current.tag}</span>}
         </span>
         <ChevronDown className="picker-arrow" size={16} aria-hidden />
       </button>

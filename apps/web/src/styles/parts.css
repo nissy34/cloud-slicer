@@ -373,6 +373,16 @@
   font-size: var(--t-sm);
   font-weight: 400;
 }
+/* A small boxed tag after the picked choice: where it came from (the tool head, "T3"). */
+.picker-tag {
+  margin-left: var(--s-3);
+  padding: 0 var(--s-2);
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  color: var(--muted);
+  font-size: var(--t-sm);
+  font-weight: 600;
+}
 .picker-arrow {
   flex: none;
   color: var(--muted);

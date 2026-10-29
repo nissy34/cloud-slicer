@@ -14,6 +14,51 @@ import { useUserSetting } from '../state/account';
 import { useDevice } from '../state/device';
 import { useSlicer } from '../state/store';
 
+/** One of the printer's loaded filaments as a row at the top of a Filament list. */
+export interface PrinterFilamentRow {
+  head: number;
+  /** "T1", "A3" */
+  label: string;
+  /** #RRGGBB */
+  colour: string;
+  /** The preset it becomes. */
+  preset: string;
+}
+
+/**
+ * The printer's loaded filaments for the top of each Filament list, like
+ * desktop's "AMS filaments" (PresetComboBoxes.cpp add_ams_filaments): the
+ * Device tab's printer, its loaded heads only, each with the preset "From
+ * printer" would give it (a head with no preset for it is left out, as on
+ * desktop). `reading` while the printer is connecting or hasn't said yet; null
+ * when there is nothing to show (no printer, not connected, it doesn't say).
+ */
+export function usePrinterFilamentRows(): { group: string; reading: boolean; rows: PrinterFilamentRow[] } | null {
+  const printer = useDevice((s) => s.printers.find((p) => p.id === s.activeId));
+  const conn = useDevice((s) => s.conn.state);
+  const facts = useDevice((s) => s.facts);
+  const fil = useDevice((s) => s.addons.find((a) => a.filaments)?.filaments);
+  const objects = useDevice((s) => s.objects);
+  const presets = useSlicer((s) => s.filaments);
+  const installedList = installedFilaments(useUserSetting<Setup>(SETUP_KEY), useSlicer((s) => s.flavor));
+  const installedKey = installedList?.join('\n');
+  // A new array each render with the same names: kept while the names stay.
+  const installedNames = useMemo(() => installedList, [installedKey]);
+  const slots = useMemo(() => fil?.read(objects) ?? null, [fil, objects]);
+  const rows = useMemo(() => {
+    const installed = installedOnly(presets, installedNames);
+    return printerFilaments(slots ?? [])
+      .filter(isLoaded)
+      .map((f) => ({ head: f.head, label: f.label, colour: f.colour.toUpperCase(), preset: syncPreset(presets, installed, f, '') }))
+      .filter((r) => r.preset);
+  }, [slots, presets, installedNames]);
+  if (!printer) return null;
+  const group = `On ${printer.name}`;
+  if (conn === 'connecting' || (conn === 'online' && (!facts || (fil && !slots)))) return { group, reading: true, rows: [] };
+  if (conn !== 'online' || !rows.length) return null;
+  return { group, reading: false, rows };
+}
+
 export function SyncFilamentsButton() {
   const [open, setOpen] = useState(false);
   // Only a printer that says what it has loaded can be synced: with just one
