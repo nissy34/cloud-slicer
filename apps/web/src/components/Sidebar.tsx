@@ -8,7 +8,8 @@ import { useFilamentLimit, useSlicer } from '../state/store';
 import { filamentLimitMessage } from '../lib/filament-limit';
 import { ObjectList } from './ObjectList';
 import { ColorMixPanel } from './ColorMixing';
-import { SyncFilamentsButton } from './FilamentSync';
+import { SyncFilamentsButton, usePrinterFilamentRows, type PrinterFilamentRow } from './FilamentSync';
+import { useDevice } from '../state/device';
 import { FlushVolumesButton } from './FlushVolumes';
 import { OptionField } from './OptionField';
 import { SettingsPanel } from './SettingsPanel';
@@ -90,6 +91,7 @@ function FilamentSection() {
   const { setFilament, setColour, addFilament, removeFilament } = useSlicer.getState();
   const manage = useSetupWizard((s) => s.show);
   const limit = useFilamentLimit();
+  const onPrinter = usePrinterFilamentRows();
   if (!selection) return null;
   const limitMessage = filamentLimitMessage(limit, selection.filaments.length);
   return (
@@ -108,7 +110,7 @@ function FilamentSection() {
       </div>
       <ol className="slots">
         {selection.filaments.map((name, i) => (
-          <li key={i} className="slot">
+          <li key={i} className="slot" data-preset={name}>
             <label className="swatch lg" style={{ background: selection.colours[i], color: textOn(selection.colours[i]) }} title="Filament colour">
               {i + 1}
               <input
@@ -121,12 +123,18 @@ function FilamentSection() {
             <Picker
               field
               label={`Filament ${i + 1} preset`}
-              value={name}
+              value={printerRowFor(onPrinter?.rows, name, selection.colours[i]) ?? name}
               options={[
+                ...printerOptions(onPrinter),
                 ...(filaments.some((f) => f.name === name) ? [] : [{ value: name, label: shortName(name) }]),
                 ...filamentOptions(filaments, filamentOrder),
               ]}
-              onChange={(next) => void setFilament(i, next)}
+              onChange={(next) => {
+                const row = onPrinter?.rows.find((r) => `${PRINTER_ROW}${r.head}` === next);
+                void (row ? setFilament(i, row.preset, row.colour) : setFilament(i, next));
+              }}
+              // Connects the Device tab's printer, so its filaments can show at the top.
+              onOpen={() => useDevice.getState().start()}
               // Like desktop's filament list.
               actions={[{ id: 'add', label: 'Add or remove filaments…', icon: Settings }]}
               onAction={() => manage('filaments')}
@@ -167,6 +175,25 @@ function ProcessSection() {
       </label>
     </section>
   );
+}
+
+const PRINTER_ROW = 'printer-head:';
+
+/**
+ * The printer's loaded filaments at the top of the list, like desktop's "AMS
+ * filaments": the head's colour as the square with its name inside, then the
+ * preset it becomes; picking one sets the preset and the colour.
+ */
+function printerOptions(on: ReturnType<typeof usePrinterFilamentRows>): PickerOption[] {
+  if (!on) return [];
+  if (on.reading) return [{ value: `${PRINTER_ROW}reading`, label: "Reading the printer's filaments…", group: on.group, disabled: true }];
+  return on.rows.map((r) => ({ value: `${PRINTER_ROW}${r.head}`, label: shortName(r.preset), group: on.group, swatch: r.colour, swatchNumber: r.label, tag: r.label }));
+}
+
+/** The printer row this filament is (its preset and colour are that head's, as desktop ticks it), if any. */
+function printerRowFor(rows: PrinterFilamentRow[] | undefined, preset: string, colour: string): string | undefined {
+  const row = rows?.find((r) => r.preset === preset && r.colour === toHex6(colour).toUpperCase());
+  return row && `${PRINTER_ROW}${row.head}`;
 }
 
 /**

@@ -257,7 +257,8 @@ export interface SlicerState {
    */
   /** Loads the user's presets into the engine, as it reads them (engineFiles). */
   setUserPresets(presets: UserPreset[], selection?: Partial<Selection>): Promise<void>;
-  setFilament(slot: number, name: string): Promise<void>;
+  /** With `colour`, its colour too, in one change (a printer filament picked from the list). */
+  setFilament(slot: number, name: string, colour?: string): Promise<void>;
   setColour(slot: number, colour: string): Promise<void>;
   addFilament(): Promise<void>;
   removeFilament(slot: number): Promise<void>;
@@ -1504,10 +1505,13 @@ export const useSlicer = create<SlicerState>((set, get) => {
       if (Object.keys(overrides).some((k) => overrides[k] === base[k]))
         setOverrides(Object.fromEntries(Object.entries(overrides).filter(([k, v]) => base[k] !== v)));
     },
-    setFilament: (slot, name) =>
+    setFilament: (slot, name, colour) =>
       editFilaments(
-        (s) => ({ filaments: s.filaments.map((f, i) => (i === slot ? name : f)) }),
-        (s) => same(s).map((i) => (i === slot && s.filaments[slot] !== name ? null : i)),
+        (s) => ({
+          filaments: s.filaments.map((f, i) => (i === slot ? name : f)),
+          ...(colour ? { colours: s.colours.map((c, i) => (i === slot ? colour : c)) } : {}),
+        }),
+        (s) => same(s).map((i) => (i === slot && (s.filaments[slot] !== name || (colour && s.colours[slot] !== colour)) ? null : i)),
       ),
     setColour: (slot, colour) =>
       editFilaments(

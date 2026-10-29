@@ -22,7 +22,7 @@ OctoPrint, Elegoo Centauri Carbon and Bambu Lab printers through the bridge.
 | How it reaches the printer | `device/link/direct.ts`, `link/bridge.ts` |
 | Add-ons per printer family | `device/addons/` (`u1`, `prusa`, `octoprint`, `elegoo`, `bambu`), `types.ts` |
 | Kinds of printer, "Which printers work?" (its table starts folded in the add-a-printer window) | `device/brands.ts`, `ui/WorksWith.tsx` |
-| Tool heads, filament slots, "From printer" | `device/heads.ts`, `slots.ts`, `lib/filament-sync.ts`, `components/FilamentSync.tsx` |
+| Tool heads, filament slots, "From printer", the printer's filaments at the top of each Filament list | `device/heads.ts`, `slots.ts`, `lib/filament-sync.ts`, `components/FilamentSync.tsx` |
 | Cameras | `device/camera.ts`, `direct-camera.ts`, `webrtc.ts`, `ui/CameraCard.tsx` |
 | Page cards (a printer's own page, e.g. its remote screen) | `device/printer-page.ts`, `ui/PrinterPage.tsx`, relay `page-shell.ts` |
 | Layout and Arrange | `device/layout.ts`, `ui/Arrange.tsx`, `ui/DeviceScreen.tsx` |
@@ -71,6 +71,16 @@ setting `device-layout.<printer id>`, per-device conveniences in browser storage
   Emergency stop.
 - The page is cross-origin isolated (COEP `require-corp`): a camera image from another
   origin needs CORS or a credentialless frame.
+- **Printer filaments in the Filament lists**, like desktop's "AMS filaments"
+  (`PresetComboBoxes.cpp` `add_ams_filaments`): each Filament preset list starts with
+  "On <printer name>", the Device tab's printer's loaded heads (`usePrinterFilamentRows`
+  in `FilamentSync.tsx`). A row is the head's colour as the square with its name inside
+  (T1, A3), then the preset "From printer" would give it (`syncPreset`); a head with no
+  preset for it, or with nothing loaded, is left out. Picking one sets the preset and the
+  colour in one change. The row is ticked, and the closed list shows a small "T3" tag,
+  while the filament's preset and colour are that head's. Opening a list connects the
+  printer (a "Reading the printer's filaments…" row until it says); with no printer, not
+  connected, or one that doesn't say what is loaded, there is no section.
 - The app never starts a print by itself. "Upload only" sends; "Upload and print" starts.
 
 ## Why
