@@ -126,16 +126,17 @@
   .workspace-tools {
     top: 60px;
   }
-  /* Sections and rows sit closer; a row's icon buttons are narrower, their taps stay 44 px. */
-  .group {
-    gap: var(--s-4);
-    padding: var(--s-4) var(--s-5) var(--s-5);
+  /* The sidebar is the column under the view: no edge to drag, nothing to hide. */
+  .side-resize,
+  .side-toggle {
+    display: none;
   }
+  .body.side-hidden > .panel {
+    display: block;
+  }
+  /* A row's icon buttons are narrower, their taps stay 44 px. */
   :is(.slot, .group-actions) .icon-btn {
     width: 32px;
-  }
-  .group-actions {
-    gap: var(--s-1);
   }
   /* Phone with a tool open: the toolbar, then the tool's card, then the 3D
      view, stacked so nothing covers the plate. The settings hide until Done

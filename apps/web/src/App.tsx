@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, type CSSProperties } from 'react';
 import { ImportPresetsDialog } from './account/ImportPresets';
 import { PresetSettingsDialog } from './components/PresetSettingsDialog';
 import { SettingsPromptDialog } from './components/SettingsPrompt';
@@ -14,6 +14,8 @@ import { SetupWizard } from './components/SetupWizard';
 import { OpenModel } from './components/OpenModel';
 import { Preview } from './components/Preview';
 import { Sidebar } from './components/Sidebar';
+import { SidebarResize, SidebarToggle } from './components/SidebarFrame';
+import { useSidebar } from './state/sidebar';
 import { TopBar } from './components/TopBar';
 import { Viewport } from './components/Viewport';
 import { LoadingOverlay } from './components/LoadingOverlay';
@@ -28,6 +30,8 @@ import { useSlicer } from './state/store';
 export function App() {
   const tab = useSlicer((s) => s.tab);
   const viewOnly = useProjects((s) => s.elsewhere !== null);
+  const sideWidth = useSidebar((s) => s.width);
+  const sideHidden = useSidebar((s) => s.hidden);
   // View only (the project is being edited on another device): editing keys do nothing.
   useEffect(() => {
     if (!viewOnly) return;
@@ -56,9 +60,11 @@ export function App() {
       <SimplifyFirstDialog />
       <PrintHistoryDialog />
       {tab !== 'device' && tab !== 'admin' && (
-        <div className="body">
+        <div className={sideHidden ? 'body side-hidden' : 'body'} style={{ '--side-w': `${sideWidth}px` } as CSSProperties}>
           <Sidebar />
+          <SidebarResize />
           <main className="main">
+            <SidebarToggle />
             {tab === 'prepare' ? (
               <OpenModel>
                 <Viewport />
