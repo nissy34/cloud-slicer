@@ -17,6 +17,7 @@ the same screens rearrange for a phone.
 | The frame: top bar, sidebar, 3D view or Preview, Slice bar, Device tab, bottom tabs | `src/App.tsx` |
 | Top bar (project name, Prepare / Preview / Device tabs on desktop, menus) | `components/TopBar.tsx` (`TABS`) |
 | Settings sidebar | `components/Sidebar.tsx` |
+| Sidebar edge (drag to resize) and the hide/show button | `components/SidebarFrame.tsx`, width and hidden kept per browser in `state/sidebar.ts` |
 | Slice bar: Download / Send / Slice plate | `components/ActionBar.tsx` |
 | Phone tabs at the bottom, with the print's % or a red dot on Device | `components/BottomTabs.tsx` |
 | Phone width | `PHONE` in `src/lib/breakpoints.ts`, used by code (`components/Toolbar.tsx`, `device/ui/Arrange.tsx`, `device/ui/WorksWith.tsx`); `@media (max-width: 760px)` in `src/styles/*.css` (mostly `phone.css`), checked by `lib/stylesheets.test.ts` |
@@ -25,6 +26,13 @@ the same screens rearrange for a phone.
 
 - **760 px** is the one phone width. Use the same media query everywhere; don't add a
   new breakpoint for one screen.
+- Desktop sidebar, like desktop Orca's: drag its right edge to resize it (280 to 640 px,
+  never more than half the window; double-click = the usual 340 px). The button in the 3D
+  view's top-left corner hides and shows it; so does Shift+Tab while no field has the
+  focus. Width and hidden are kept per browser (`localStorage`), not per project or
+  account. On a phone neither shows: the settings are the column under the view.
+- Sidebar sections sit close, the same on desktop and phone: `.group` padding 8 / 12 /
+  12 px with 8 px between rows; a row's ✎ ⋯ ✕ buttons are 26 px wide (32 px on a phone).
 - On a phone the 3D view and the settings are one column that scrolls. While any of the
   view shows, the toolbar stays at its top (`position: sticky` inside `.workspace` in
   `phone.css`); once only the settings show, it scrolls away with the view.
@@ -54,6 +62,6 @@ bottom tabs came from a cramped phone top bar (2026-10-26). See
 
 ## Tests
 
-`toolbar.mjs` (fits a phone; tab bar at the bottom edge), `layout-fixes.mjs` (the phone's
-buttons after slicing fit one row), `view-touch.mjs`, `preview-views.mjs` (the colour key
+`toolbar.mjs` (fits a phone; tab bar at the bottom edge), `layout-fixes.mjs` (the sidebar's
+edge and hide button; the phone's buttons after slicing fit one row), `view-touch.mjs`, `preview-views.mjs` (the colour key
 above the model on a phone), `heavy.mjs`.

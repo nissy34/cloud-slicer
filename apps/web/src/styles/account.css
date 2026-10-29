@@ -103,7 +103,11 @@
 .group-actions {
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: var(--s-1);
+}
+/* A row's icon buttons (✎ ⋯ ✕) sit close, like desktop Orca's; 32 px on a phone (phone.css). */
+:is(.slot, .group-actions) .icon-btn {
+  width: 26px;
 }
 .group-actions.spaced {
   gap: 14px;

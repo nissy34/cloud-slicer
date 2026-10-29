@@ -5,8 +5,8 @@
 // opening and closing the Text tool leaves no text behind, the preset menu
 // names the preset as its dropdown does and opens upward near the bottom,
 // Online projects closes with Esc and a click outside, unsaved changes are
-// asked about in the app's own dialog, the top bar fits from 768 px up, and
-// on a phone the four buttons after slicing fit in one row.
+// asked about in the app's own dialog, the top bar fits from 768 px up, the
+// sidebar resizes by its edge and hides (kept after a reload), and on a phone the four buttons after slicing fit in one row.
 //
 //   node test/layout-fixes.mjs [screenshot-dir]
 //
@@ -237,6 +237,40 @@ try {
   await ask.getByRole('button', { name: 'Discard changes' }).click();
   await page.getByText('Open a model to start').waitFor({ timeout: 30000 });
   console.log('unsaved changes: asked in the app');
+
+  // The sidebar: drag its edge to resize (double-click = usual width), hide and show it
+  // (button or Shift+Tab, like desktop Orca); both kept after a reload.
+  const panelWidth = () => page.evaluate(() => Math.round(document.querySelector('.panel')?.getBoundingClientRect().width ?? 0));
+  const edge = await page.getByRole('separator', { name: 'Sidebar width' }).boundingBox();
+  await page.mouse.move(edge.x + edge.width / 2, edge.y + 300);
+  await page.mouse.down();
+  await page.mouse.move(edge.x + edge.width / 2 + 120, edge.y + 300, { steps: 5 });
+  await page.mouse.up();
+  if (Math.abs((await panelWidth()) - 460) > 2) fail(`dragging the edge 120 px right made the sidebar ${await panelWidth()} px, not 460`);
+  await page.mouse.move(edge.x + edge.width / 2 + 120, edge.y + 300);
+  await page.mouse.down();
+  await page.mouse.move(edge.x + 1200, edge.y + 300, { steps: 5 });
+  await page.mouse.up();
+  if ((await panelWidth()) > 640) fail(`the sidebar grew past 640 px: ${await panelWidth()}`);
+  await page.getByRole('separator', { name: 'Sidebar width' }).dblclick();
+  if (Math.abs((await panelWidth()) - 340) > 2) fail(`double-click did not put the sidebar back to 340 px: ${await panelWidth()}`);
+  await page.mouse.move(edge.x + edge.width / 2, edge.y + 300);
+  await page.mouse.down();
+  await page.mouse.move(edge.x + edge.width / 2 + 60, edge.y + 300, { steps: 3 });
+  await page.mouse.up();
+  await page.getByRole('button', { name: 'Hide sidebar (Shift+Tab)' }).click();
+  if (await page.locator('.panel').isVisible()) fail('Hide sidebar left the sidebar showing');
+  if (shots) await page.screenshot({ path: join(shots, 'layout-sidebar-hidden.png') });
+  await page.reload();
+  await page.getByText('Open a model to start').waitFor({ timeout: 120000 });
+  const again = page.getByRole('dialog', { name: 'Set up your printers' });
+  if (await again.isVisible().catch(() => false)) await again.getByRole('button', { name: 'Not now' }).click();
+  if (await page.locator('.panel').isVisible()) fail('the hidden sidebar came back after a reload');
+  await page.evaluate(() => document.activeElement instanceof HTMLElement && document.activeElement.blur());
+  await page.keyboard.press('Shift+Tab');
+  await page.locator('.panel').waitFor();
+  if (Math.abs((await panelWidth()) - 400) > 2) fail(`the dragged width was not kept after a reload: ${await panelWidth()}`);
+  console.log('sidebar: edge drags 280-640 px, hides and shows, kept after a reload');
   await page.close();
 
   // Phone: Prepare, Preview and Device are tabs at the bottom; after slicing, Download, Send and Slice plate fit in one row.
