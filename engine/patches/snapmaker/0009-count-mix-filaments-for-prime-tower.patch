@@ -1,0 +1,65 @@
+u1-wasm: count each colour mix as its filaments when deciding the prime tower.
+
+Print::apply() passes extruders(true).size() to normalize_fdm_2(), which turns
+enable_prime_tower off when only one filament is used. A colour mix is a single
+virtual filament id until G-code export, so a plate printed only with a mix
+(one object on mix 5, say) counted as one filament and lost its prime tower,
+although the G-code changes heads every layer. Expand mix ids to their physical
+components (MixedFilamentManager::expand_virtual_extruder_ids, the same call the
+desktop plate uses) before counting, at both call sites.
+
+diff --git a/src/libslic3r/PrintApply.cpp b/src/libslic3r/PrintApply.cpp
+index 31a5e53..7271c69 100644
+--- a/src/libslic3r/PrintApply.cpp
++++ b/src/libslic3r/PrintApply.cpp
+@@ -102,6 +102,32 @@ static inline void layer_height_ranges_copy_configs(t_layer_config_ranges &lr_ds
+     }
+ }
+ 
++// u1-wasm: how many physical filaments print, with each colour mix counted as the
++// filaments it is made of (see patch 0009). A mix is one virtual filament id until
++// G-code export, so a plate printed only with a mix counted as one filament, and
++// normalize_fdm_2() turned its prime tower off although the G-code changes tools.
++static int used_physical_filaments(const std::vector<unsigned int> &used, const DynamicPrintConfig &config)
++{
++    std::vector<int> ids;
++    for (unsigned int e : used)
++        ids.push_back(int(e) + 1);
++    const auto *diameters = config.option<ConfigOptionFloats>("filament_diameter");
++    const size_t num_physical = diameters ? diameters->values.size() : 0;
++    if (num_physical > 0 && std::any_of(ids.begin(), ids.end(), [num_physical](int id) { return id > int(num_physical); })) {
++        std::vector<std::string> colours;
++        if (const auto *opt = config.option<ConfigOptionStrings>("filament_colour"))
++            colours = opt->values;
++        colours.resize(num_physical, "#26A69A");
++        MixedFilamentManager mixes;
++        mixes.auto_generate(colours);
++        if (const auto *defs = config.option<ConfigOptionString>("mixed_filament_definitions"))
++            mixes.load_custom_entries(defs->value, colours);
++        mixes.expand_virtual_extruder_ids(ids, num_physical);
++    }
++    std::sort(ids.begin(), ids.end());
++    return int(std::unique(ids.begin(), ids.end()) - ids.begin());
++}
++
+ static inline bool transform3d_lower(const Transform3d &lhs, const Transform3d &rhs)
+ {
+     typedef Transform3d::Scalar T;
+@@ -1290,7 +1316,7 @@ Print::ApplyStatus Print::apply(const Model &model, DynamicPrintConfig new_full_
+     m_default_object_config.option("mixed_filament_region_collapse", true);
+     m_default_object_config.option("mixed_filament_definitions", true);
+     // BBS
+-    int used_filaments = this->extruders(true).size();
++    int used_filaments = used_physical_filaments(this->extruders(true), new_full_config); // u1-wasm: see patch 0009
+ 
+     //new_full_config.normalize_fdm(used_filaments);
+     new_full_config.normalize_fdm_1();
+@@ -1786,7 +1812,7 @@ Print::ApplyStatus Print::apply(const Model &model, DynamicPrintConfig new_full_
+     }
+ 
+     //BBS: check the config again
+-    int new_used_filaments = this->extruders(true).size();
++    int new_used_filaments = used_physical_filaments(this->extruders(true), new_full_config); // u1-wasm: see patch 0009
+     t_config_option_keys new_changed_keys = new_full_config.normalize_fdm_2(objects().size(), new_used_filaments);
+     if (new_changed_keys.size() > 0) {
+         BOOST_LOG_TRIVIAL(info) << __FUNCTION__ << boost::format(", got new_changed_keys, size=%1%")%new_changed_keys.size();

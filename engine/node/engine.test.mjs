@@ -429,14 +429,19 @@ test('prime tower: shown and sized like desktop Prepare, sliced where it was pla
   // A plate printed with one filament has no tower.
   load('tetrahedron.stl');
   assert.ok(!tower(two).show, 'single-filament plate');
-  // Printed with a mix only, the slice makes no tower (Orca counts the mix as
-  // one filament), so none shows; with the mix and another filament it does.
+  // A mix prints with the filaments it mixes, so a plate printed with a mix
+  // only changes tools and gets a tower (patches/snapmaker/0009), as with the
+  // mix and another filament.
   if (!flavor.mixing) return;
   const mix = call(engine, 'mixedFilaments', JSON.stringify({ definitions: '', colours: ['#FF0000', '#0000FF'], op: { kind: 'add', row: { componentA: 1, componentB: 2, mixBPercent: 50, uiMode: 0 } } }));
   call(engine, 'setExtruder', 0, -1, 3);
   const withMix = { ...two, mixed_filament_definitions: mix.definitions };
-  assert.ok(!tower(withMix).show, 'only a mix on the plate');
-  assert.ok(!/;TYPE:Prime tower/.test(slice(fullConfig(withMix)).gcode), 'the slice makes no tower for a mix alone');
+  const alone = tower(withMix);
+  assert.ok(alone.show, 'only a mix on the plate');
+  assert.deepEqual(alone.filaments, [1, 2]);
+  const mixSlice = slice(fullConfig(withMix)).gcode;
+  assert.match(mixSlice, /^; enable_prime_tower = 1$/m, 'the slice keeps the tower turned on');
+  assert.ok(/;TYPE:Prime tower/.test(mixSlice), 'the slice makes the tower for a mix alone');
   load('tetrahedron.stl', 0, true);
   call(engine, 'setExtruder', 1, -1, 1);
   const m = tower(withMix);
