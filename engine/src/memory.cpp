@@ -3,15 +3,45 @@
 // defaults suit a 64-bit desktop, not wasm, and together they made a big slice
 // need more than twice the memory, more than a phone's browser allows.
 #include <cstdlib>
+#include <string>
+#include <malloc.h>
+#include <emscripten/bind.h>
+#ifndef ENGINE_DLMALLOC
 #include <mimalloc.h>
+#endif
 
 // mimalloc reserves memory in arenas. Without virtual memory it reserves 16 MB
 // at a time, and aligning each one to 16 MB doubles its cost; from 64 MB up it
 // can align them for free. 512 MB here means 128 MB arenas (mimalloc divides
 // by 4 in wasm). Set before the first allocation so the first arena is one.
+#ifndef ENGINE_DLMALLOC
 __attribute__((constructor(101))) static void setUpMalloc()
 {
     mi_option_set(mi_option_arena_reserve, 512 * 1024); // KiB
+}
+#endif
+
+// DIAGNOSTIC (not for merge): what the allocator holds.
+static std::string allocatorStats()
+{
+#ifdef ENGINE_DLMALLOC
+    const struct mallinfo m = mallinfo();
+    return "{\"arena\":" + std::to_string(m.arena) + ",\"inUse\":" + std::to_string(m.uordblks) + ",\"free\":" + std::to_string(m.fordblks) + "}";
+#else
+    std::string out;
+    mi_stats_print_out([](const char* msg, void* arg) { *static_cast<std::string*>(arg) += msg; }, &out);
+    return out;
+#endif
+}
+static void allocatorCollect()
+{
+#ifndef ENGINE_DLMALLOC
+    mi_collect(true);
+#endif
+}
+EMSCRIPTEN_BINDINGS(memory_api) {
+    emscripten::function("allocatorStats", &allocatorStats);
+    emscripten::function("allocatorCollect", &allocatorCollect);
 }
 
 // TBB's scalable allocator, which Orca's polygon vectors use. tbbmalloc takes
