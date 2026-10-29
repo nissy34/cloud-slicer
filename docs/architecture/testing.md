@@ -37,8 +37,9 @@ slightly different order. It fails on:
 | Every setting in the file's config block | exact |
 
 Cases: Benchy (default process, a 0.12 mm process, normal supports, tree supports,
-ironing), the 4-colour Benchy, the dual-colour cube and, on Snapmaker Orca, a Benchy
-printed with only a colour mix. It also compares the settings our app picks for the U1
+ironing), the 4-colour Benchy, the dual-colour cube, on Snapmaker Orca a Benchy printed
+with only a colour mix, and a Benchy on other kinds of printer (Bambu Lab P1S, Prusa MK4,
+Voron 2.4, Creality K1). It also compares the settings our app picks for the U1
 presets with desktop's own preset files (each resolved through its `inherits`), and
 proves itself with `--self-test`: our slice with one wall fewer must not match.
 
@@ -46,7 +47,9 @@ Differences on purpose are listed in `check.mjs`, each with its reason: the file
 format (we add the plate number), two flush settings desktop's command line fills in by
 itself (OrcaSlicer only), the colour-mix prime tower we keep and desktop drops
 (`patches/snapmaker/0009`), and tree supports, whose branches round a little differently in
-the browser build (2% and 1.5 mm there). Desktop's command line crashes on loose preset
+the browser build (2% and 1.5 mm there). OrcaSlicer 2.4.2's supports also depend on which
+thread finishes first, in desktop as much as in ours (on a busy computer the same Benchy
+gives one of two results), so on that engine the support cases get three tries. Desktop's command line crashes on loose preset
 files, which is why it gets our saved 3MF.
 
 CI runs it on pull requests that change the engine, its presets or the check, and every

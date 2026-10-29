@@ -79,20 +79,43 @@ const CASES = [
     expect: (ours, theirs) => /;TYPE:Prime tower/.test(ours) && !/;TYPE:Prime tower/.test(theirs)
       ? null : 'expected a prime tower in ours and none from desktop (patches/snapmaker/0009)',
   },
+  // Other kinds of printer: Bambu Lab's own G-code, Prusa's, Klipper.
+  ...['Bambu Lab P1S 0.4 nozzle', 'Prusa MK4 0.4 nozzle', 'Voron 2.4 300 0.4 nozzle', 'Creality K1 (0.4 nozzle)']
+    .map((printer) => ({ name: `benchy-${printer.split(' ').slice(0, -2).join('-').replace(/[()]/g, '').toLowerCase()}`, model: '3DBenchy.stl', printer })),
 ].filter((c) => (!only || c.name === only) && !(c.snapmakerOnly && flavor !== 'snapmaker'));
+
+// OrcaSlicer 2.4.2's supports depend on which thread finishes first, in
+// desktop too: on a busy computer about one slice in three of the same Benchy
+// comes out 0.4% different, either side. Those cases get three tries.
+for (const c of CASES) if (flavor === 'orca' && c.set?.enable_support === '1') c.tries = 3;
 
 rmSync(outDir, { recursive: true, force: true });
 mkdirSync(outDir, { recursive: true });
 const { engine } = await openEngine();
 const results = [];
-// The printer's own default process; a selection keeps the last process otherwise.
-const DEFAULT_PROCESS = call(engine, 'presetsSelect', JSON.stringify({ printer: DEFAULT_PRINTER })).selection.process;
+// Each printer's own default process, from its first selection (a selection
+// keeps the last process otherwise).
+const defaultProcess = new Map();
+let lastPrinter = '';
+function processFor(printer) {
+  if (!defaultProcess.has(printer)) {
+    if (printer === lastPrinter) call(engine, 'presetsSelect', JSON.stringify({ printer: printer === DEFAULT_PRINTER ? 'Voron 2.4 300 0.4 nozzle' : DEFAULT_PRINTER }));
+    const sel = call(engine, 'presetsSelect', JSON.stringify({ printer })).selection;
+    if (sel.printer !== printer) throw new Error(`printer "${printer}" not found (bundle its brand: see .github/actions/desktop-check)`);
+    defaultProcess.set(printer, sel.process);
+    lastPrinter = printer;
+  }
+  return defaultProcess.get(printer);
+}
+const DEFAULT_PROCESS = processFor(DEFAULT_PRINTER);
 
 function select(c) {
-  const process = c.process ?? DEFAULT_PROCESS;
-  const first = call(engine, 'presetsSelect', JSON.stringify({ printer: DEFAULT_PRINTER, process }));
+  const printer = c.printer ?? DEFAULT_PRINTER;
+  const process = c.process ?? processFor(printer);
+  const first = call(engine, 'presetsSelect', JSON.stringify({ printer, process }));
   const fil = first.selection.filaments[0];
-  const sel = call(engine, 'presetsSelect', JSON.stringify({ printer: DEFAULT_PRINTER, process, filaments: Array(c.filaments ?? 1).fill(fil) }));
+  const sel = call(engine, 'presetsSelect', JSON.stringify({ printer, process, filaments: Array(c.filaments ?? 1).fill(fil) }));
+  lastPrinter = printer;
   if (sel.selection.process !== process) throw new Error(`process "${process}" not found`);
   return sel.selection;
 }
@@ -151,18 +174,23 @@ for (const c of CASES) {
   mkdirSync(dir, { recursive: true });
   console.log(`\n=== ${c.name}`);
   try {
-    const selection = select(c);
-    const config = prepare(c);
-    const ours = join(dir, 'ours.gcode');
-    sliceOurs(config, ours);
-    call(engine, 'saveProject', '/work/project.3mf', JSON.stringify(config), null);
-    writeFileSync(join(dir, 'project.3mf'), engine.FS.readFile('/work/project.3mf'));
-    const theirs = sliceDesktop(join(dir, 'desktop'), join(dir, 'project.3mf'));
-    const cmp = compare(theirs.gcode, ours, c.allowed);
-    writeFileSync(join(dir, 'compare.txt'), cmp.report);
-    const extra = c.expect?.(readFileSync(ours, 'utf8'), readFileSync(theirs.gcode, 'utf8'));
-    console.log(cmp.report.trim());
-    if (extra) console.log(`  <-- ${extra}`);
+    let selection, theirs, cmp, extra;
+    for (let attempt = 1; attempt <= (c.tries ?? 1); attempt++) {
+      if (attempt > 1) console.log(`  (try ${attempt} of ${c.tries}: this case depends on thread timing)`);
+      selection = select(c);
+      const config = prepare(c);
+      const ours = join(dir, 'ours.gcode');
+      sliceOurs(config, ours);
+      call(engine, 'saveProject', '/work/project.3mf', JSON.stringify(config), null);
+      writeFileSync(join(dir, 'project.3mf'), engine.FS.readFile('/work/project.3mf'));
+      theirs = sliceDesktop(join(dir, 'desktop'), join(dir, 'project.3mf'));
+      cmp = compare(theirs.gcode, ours, c.allowed);
+      writeFileSync(join(dir, 'compare.txt'), cmp.report);
+      extra = c.expect?.(readFileSync(ours, 'utf8'), readFileSync(theirs.gcode, 'utf8'));
+      console.log(cmp.report.trim());
+      if (extra) console.log(`  <-- ${extra}`);
+      if (cmp.ok && !extra) break;
+    }
     results.push({ name: c.name, ok: cmp.ok && !extra, note: extra ?? summary(cmp.report), process: selection.process, desktopSeconds: theirs.seconds });
   } catch (e) {
     console.log(`  failed: ${e.message}`);

@@ -58,7 +58,8 @@ def parse(path):
                 else:
                     m = re.match(r"; ([a-z0-9_]+) = ?(.*)", line)
                     if m:
-                        settings[m.group(1)] = m.group(2)
+                        # "a, b" and "a,b" are the same list (desktop writes thumbnails spaced).
+                        settings[m.group(1)] = re.sub(r",\s+", ",", m.group(2))
                 continue
             if line == "; CONFIG_BLOCK_START":
                 in_config = True

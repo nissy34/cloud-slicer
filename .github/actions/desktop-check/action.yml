@@ -35,10 +35,12 @@ runs:
       id: desktop
       shell: bash
       run: |
+        # The U1 plus the other printers check.mjs slices for.
+        brands='Snapmaker BBL Prusa Voron Creality'
         if [ "${{ inputs.flavor }}" = orca ]; then
-          ENGINE_FLAVOR=orca node engine/scripts/bundle-profiles.mjs engine/build/profiles-orca > /dev/null
+          ENGINE_FLAVOR=orca node engine/scripts/bundle-profiles.mjs engine/build/profiles-orca $brands > /dev/null
         else
-          node engine/scripts/bundle-profiles.mjs engine/build/profiles > /dev/null
+          node engine/scripts/bundle-profiles.mjs engine/build/profiles $brands > /dev/null
         fi
         echo "app=$(engine/desktop-check/desktop.sh ${{ inputs.flavor }})" >> "$GITHUB_OUTPUT"
 
