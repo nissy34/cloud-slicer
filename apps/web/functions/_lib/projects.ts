@@ -16,7 +16,9 @@ import { HttpError, json, readJson, requireSameOrigin } from './http';
 import type { Env, R2Bucket } from './types';
 
 export const LIMITS = {
-  projectBytes: 50 * 1024 * 1024,
+  /** One project can use all of the person's storage, up to what one upload can carry
+   * (Cloudflare's free plan takes request bodies up to 100 MB). */
+  projectBytes: 95 * 1024 * 1024,
   userProjects: 200,
   siteBytes: 8 * 1024 * 1024 * 1024,
   thumbnailBytes: 512 * 1024,
@@ -107,6 +109,13 @@ function elsewhere(current: ProjectRow) {
   return new HttpError(409, `This project is being edited on your ${current.device_name ?? 'other device'}`, { code: 'elsewhere', current: toProject(current) });
 }
 
+/** The person's limits: a project can be as big as their whole storage, up to LIMITS.projectBytes. */
+export const limitsFor = (userBytes: number) => ({
+  projectBytes: Math.min(userBytes, LIMITS.projectBytes),
+  userBytes,
+  userProjects: LIMITS.userProjects,
+});
+
 // Bytes count every file, the draft too; the project count leaves the draft out.
 async function usage(env: Env, userId: string) {
   const u = await env.DB!.prepare('SELECT COALESCE(SUM(draft = 0), 0) AS n, COALESCE(SUM(size), 0) AS bytes FROM projects WHERE user_id = ?')
@@ -124,7 +133,7 @@ export async function list(env: Env, request: Request): Promise<Response> {
     enabled: Boolean(env.PROJECTS),
     projects: rows.results.map((r) => toProject(r, printed.get(r.id) ?? 0)),
     usage: await usage(env, user.id),
-    limits: { projectBytes: LIMITS.projectBytes, userBytes: await storageBytes(env, user.id), userProjects: LIMITS.userProjects },
+    limits: limitsFor(await storageBytes(env, user.id)),
   });
 }
 
@@ -200,24 +209,23 @@ export async function put(env: Env, request: Request, rawId: string): Promise<Re
   const platesParam = Number(url.searchParams.get('plates'));
   const plates = Number.isInteger(platesParam) && platesParam > 0 && platesParam < 1000 ? platesParam : null;
 
-  const declared = Number(request.headers.get('Content-Length') ?? '0');
-  if (declared > LIMITS.projectBytes) throw new HttpError(413, `Projects can be up to ${LIMITS.projectBytes / 1024 / 1024} MB`);
+  // The body streams straight to R2 (a Worker has 128 MB of memory, a project up to 95 MB),
+  // so its size is known up front from Content-Length, which the runtime holds the body to.
+  const size = Number(request.headers.get('Content-Length') ?? '');
+  if (!request.body || !Number.isInteger(size) || size <= 0) throw new HttpError(411, 'The project file has no size');
+  const userBytes = await storageBytes(env, user.id);
+  if (!userBytes) throw new HttpError(403, "Online projects aren't available for your account. Your presets and printers still save; download the project to keep it.", { code: 'presets-only' });
+  const maxBytes = limitsFor(userBytes).projectBytes;
+  if (size > maxBytes) throw new HttpError(413, `Projects can be up to ${Math.round(maxBytes / 1024 / 1024)} MB`);
   const current = await row(env, user.id, id);
   if (base !== undefined && current?.device && device && current.device !== device) throw elsewhere(current);
   if (base !== undefined && (current?.version ?? 0) !== base) throw conflict(current);
   if (draft && current && !current.draft) throw new HttpError(400, 'A saved project cannot become a draft again');
 
-  const bytes = await request.arrayBuffer();
-  if (bytes.byteLength > LIMITS.projectBytes) throw new HttpError(413, `Projects can be up to ${LIMITS.projectBytes / 1024 / 1024} MB`);
-  const head = new Uint8Array(bytes, 0, Math.min(2, bytes.byteLength));
-  if (head[0] !== 0x50 || head[1] !== 0x4b) throw new HttpError(400, "That isn't a 3MF file");
-
-  const userBytes = await storageBytes(env, user.id);
-  if (!userBytes) throw new HttpError(403, "Online projects aren't available for your account. Your presets and printers still save; download the project to keep it.", { code: 'presets-only' });
   const mine = await usage(env, user.id);
   if (!draft && (!current || current.draft) && mine.count >= LIMITS.userProjects)
     throw new HttpError(413, `You can save up to ${LIMITS.userProjects} projects online`);
-  const grow = bytes.byteLength - (current?.size ?? 0);
+  const grow = size - (current?.size ?? 0);
   if (mine.bytes + grow > userBytes)
     throw new HttpError(413, `Your online projects would use more than ${Math.round(userBytes / 1024 / 1024)} MB. Delete some or download this one instead.`);
   const site = await env.DB!.prepare('SELECT COALESCE(SUM(size), 0) AS bytes FROM projects').first<{ bytes: number }>();
@@ -227,7 +235,13 @@ export async function put(env: Env, request: Request, rawId: string): Promise<Re
   // below passes, so a save that lost a race leaves the newer file alone.
   const version = (current?.version ?? 0) + 1;
   const key = `${prefix(user.id)}${id}/${version}-${randomPart()}.3mf`;
-  await b.put(key, bytes, { httpMetadata: { contentType: 'model/3mf' } });
+  const stored = await b.put(key, request.body, { httpMetadata: { contentType: 'model/3mf' } });
+  const head = await b.get(key, { range: { offset: 0, length: 2 } });
+  const magic = head ? new Uint8Array(await head.arrayBuffer()) : new Uint8Array();
+  if (stored?.size !== size || magic[0] !== 0x50 || magic[1] !== 0x4b) {
+    await b.delete(key);
+    throw new HttpError(400, "That isn't a 3MF file");
+  }
   const now = Date.now();
   const d = env.DB!;
   const res = current
@@ -235,14 +249,14 @@ export async function put(env: Env, request: Request, rawId: string): Promise<Re
         .prepare(
           'UPDATE projects SET name = ?, size = ?, file_key = ?, version = ?, updated_at = ?, engine = ?, draft = ?, device = ?, device_name = ?, plates = COALESCE(?, plates) WHERE user_id = ? AND id = ? AND version = ?',
         )
-        .bind(name, bytes.byteLength, key, version, now, engine, draft, device, deviceName, plates, user.id, id, current.version)
+        .bind(name, size, key, version, now, engine, draft, device, deviceName, plates, user.id, id, current.version)
         .run()
     : await d
         .prepare(
           `INSERT INTO projects (user_id, id, name, size, file_key, thumb_key, version, created_at, updated_at, engine, draft, device, device_name, plates)
            VALUES (?, ?, ?, ?, ?, NULL, ?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT (user_id, id) DO NOTHING`,
         )
-        .bind(user.id, id, name, bytes.byteLength, key, version, now, now, engine, draft, device, deviceName, plates)
+        .bind(user.id, id, name, size, key, version, now, now, engine, draft, device, deviceName, plates)
         .run();
   if (!res.meta.changes) {
     await b.delete(key);
@@ -268,7 +282,7 @@ export async function put(env: Env, request: Request, rawId: string): Promise<Re
       ...(current ?? { thumb_key: null, created_at: now }),
       id,
       name,
-      size: bytes.byteLength,
+      size,
       file_key: key,
       version,
       updated_at: now,
