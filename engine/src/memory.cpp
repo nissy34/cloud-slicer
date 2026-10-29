@@ -1,58 +1,36 @@
 // How the engine's threads get memory. The engine links mimalloc (see
-// CMakeLists.txt), which gives every thread its own heap, but two of its
-// defaults suit a 64-bit desktop, not wasm, and together they made a big slice
-// need more than twice the memory, more than a phone's browser allows.
+// CMakeLists.txt), which gives every thread its own heap, but some of its
+// defaults suit a 64-bit desktop, not wasm: they made a big model need several
+// times its memory, more than a browser page has.
 #include <cstdlib>
-#include <string>
-#include <malloc.h>
 #include <emscripten/bind.h>
-#ifndef ENGINE_DLMALLOC
+#include <emscripten/heap.h>
 #include <mimalloc.h>
-#endif
 
 // mimalloc reserves memory in arenas. Without virtual memory it reserves 16 MB
 // at a time, and aligning each one to 16 MB doubles its cost; from 64 MB up it
 // can align them for free. 512 MB here means 128 MB arenas (mimalloc divides
 // by 4 in wasm). Set before the first allocation so the first arena is one.
-#ifndef ENGINE_DLMALLOC
+//
+// Blocks over 1 MB (a model's mesh, a layer's paths) skip the arenas and come
+// from Emscripten's own allocator, which mimalloc runs on. In wasm an arena
+// can't hand freed space back or join it up, so big blocks there left gaps
+// nothing else fitted in: opening a 1.1 million triangle model twice took
+// 3.7 GB of the 4 GB a page can have, slicing it ran out ("unreachable").
+// From the plain allocator the same took 0.76 GB, at the same slicing speed:
+// the many small blocks, where mimalloc's speed is, stay in its arenas.
 __attribute__((constructor(101))) static void setUpMalloc()
 {
-    mi_option_set(mi_option_arena_reserve, 512 * 1024); // KiB
+    mi_option_set(mi_option_arena_reserve, 512 * 1024);      // KiB
+    mi_option_set(mi_option_arena_max_object_size, 1024);    // KiB
 }
-#endif
 
-// DIAGNOSTIC (not for merge): what the allocator holds.
-static std::string allocatorStats()
-{
-#ifdef ENGINE_DLMALLOC
-    const struct mallinfo m = mallinfo();
-    return "{\"arena\":" + std::to_string(m.arena) + ",\"inUse\":" + std::to_string(m.uordblks) + ",\"free\":" + std::to_string(m.fordblks) + "}";
-#else
-    std::string out;
-    mi_stats_print_out([](const char* msg, void* arg) { *static_cast<std::string*>(arg) += msg; }, &out);
-    return out;
-#endif
-}
-static void allocatorCollect()
-{
-#ifndef ENGINE_DLMALLOC
-    mi_collect(true);
-#endif
-}
-static double allocatorOption(int option, double value)
-{
-#ifndef ENGINE_DLMALLOC
-    const long before = mi_option_get(mi_option_t(option));
-    if (value >= -1) mi_option_set(mi_option_t(option), long(value));
-    return double(before);
-#else
-    return -2;
-#endif
-}
+// The engine's memory, which only grows, for the tests: a wasm page can't
+// give memory back, so this is the most it ever needed at once.
+static double heapSize() { return double(emscripten_get_heap_size()); }
+
 EMSCRIPTEN_BINDINGS(memory_api) {
-    emscripten::function("allocatorOption", &allocatorOption);
-    emscripten::function("allocatorStats", &allocatorStats);
-    emscripten::function("allocatorCollect", &allocatorCollect);
+    emscripten::function("heapSize", &heapSize);
 }
 
 // TBB's scalable allocator, which Orca's polygon vectors use. tbbmalloc takes

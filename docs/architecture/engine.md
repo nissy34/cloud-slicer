@@ -89,7 +89,17 @@ built the engine, `node scripts/shared-settings.mjs` in `apps/web` (new version,
   match desktop.
 - **Every core, like desktop**: TBB on Emscripten threads with mimalloc. Plain malloc had
   one lock and made threads useless; mimalloc's default arenas doubled memory, so
-  `memory.cpp` sends TBB's allocator to malloc and sets 128 MB arenas.
+  `memory.cpp` sends TBB's allocator to malloc and sets 128 MB arenas. Blocks over 1 MB
+  skip the arenas for Emscripten's own allocator: in wasm an arena can't give freed
+  space back or join it up, so big blocks left gaps and the engine grew until it ran out
+  ("unreachable"); a 1.1M-triangle model opened twice took 3.7 GB, now 0.76 GB, at the
+  same slicing speed.
+- **Caches go with their meshes**: ray-cast trees (painting, text on a surface) and
+  Measure's data are dropped when their mesh is, and emptying the plate drops them all
+  (the undo history stays, so Delete all can be undone).
+- **A wasm trap restarts the engine**: a trap inside a call (out of memory) leaves the
+  engine unusable, so the worker reports it like a crash and the page starts a new engine
+  and reopens the project, saying it ran out of memory.
 - **Patches 0006 and 0007** keep big slices inside a phone's memory: G-code results are
   moved rather than copied, and only the last move is kept (desktop keeps every move for
   its preview; we parse the G-code instead).
@@ -98,14 +108,12 @@ built the engine, `node scripts/shared-settings.mjs` in `apps/web` (new version,
 
 ## Tests
 
-`engine/node/engine.test.mjs` (both engines, in CI `engine-tests`),
+`engine/node/engine.test.mjs` (both engines, in CI `engine-tests`; its memory test keeps
+a heavy model and repeated painting under 1.25 GB),
 `engine/klipper-check/check.sh` (Klipper accepts the G-code), browser tests
 `smoke.mjs`, `cancel.mjs`, `restart.mjs`, `startup-matrix.mjs`, `engines.mjs`,
 `engine-switch.mjs`.
 
 ## Open
 
-- A dropped big model's memory isn't freed: load a 1.1M-triangle model, clear, load again,
-  simplify, and the engine runs out. Cancel in the Simplify question works round it by
-  starting a fresh engine.
 - No STEP reader in the default build (no OpenCASCADE), no SLA hollowing.

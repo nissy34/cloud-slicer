@@ -461,7 +461,9 @@ if (self.name !== 'em-pthread') {
       if (out && out.transfer) postMessage({ type: 'result', id, value: out.value }, out.transfer);
       else postMessage({ type: 'result', id, value: out });
     } catch (e) {
-      postMessage({ type: 'error', id, message: e?.message ?? String(e) });
+      // A wasm trap (most often running out of memory: "unreachable") leaves
+      // the engine unusable: no id, so the page starts a new one, as for a crash.
+      postMessage({ type: 'error', id: e instanceof WebAssembly.RuntimeError ? null : id, message: e?.message ?? String(e) });
     }
   };
 

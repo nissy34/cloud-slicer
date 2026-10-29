@@ -719,9 +719,17 @@ export const useSlicer = create<SlicerState>((set, get) => {
   // mixes and tower spots (they were never lost).
   async function restore(r: NonNullable<typeof pendingRestore>) {
     const e = engine();
-    const crashed = r.slicing ? 'The slicing engine crashed while slicing, most likely because it needed more memory than this browser allows' : 'The slicing engine crashed';
+    // What a browser engine says when it runs out of memory ("unreachable" is
+    // the allocator giving up); the page says it in words, with what helps.
+    const outOfMemory = /unreachable|out of memory|bad_alloc|Cannot enlarge memory|Aborted\(\)/i.test(r.message);
+    const crashed = outOfMemory
+      ? 'The slicing engine ran out of memory'
+      : r.slicing
+        ? 'The slicing engine crashed while slicing, most likely because it needed more memory than this browser allows'
+        : 'The slicing engine crashed';
+    const why = outOfMemory ? ' A lighter model needs less: try Simplify model, or fewer plates in one project.' : ` (${r.message})`;
     if (!r.file) {
-      set({ project: null, preview: null, notice: `${crashed}, so it restarted. Your project could not be reopened. (${r.message})`, noticeWarn: true });
+      set({ project: null, preview: null, notice: `${crashed}, so it restarted. Your project could not be reopened.${why}`, noticeWarn: true });
       return;
     }
     set({ job: { kind: 'loading', name: r.file.name, label: 'Reopening your project' } });
@@ -733,7 +741,7 @@ export const useSlicer = create<SlicerState>((set, get) => {
     saved3mf = { file: r.file, edits: e.projectEdits };
     await drawn();
     const lost = r.current ? '' : ' Changes made since your last slice were lost.';
-    set({ job: { kind: 'idle' }, notice: `${crashed}, so it restarted and reopened your project.${lost} (${r.message})`, noticeWarn: true });
+    set({ job: { kind: 'idle' }, notice: `${crashed}, so it restarted and reopened your project.${lost}${why}`, noticeWarn: true });
   }
 
   // Opens a project switchProject brought from the other engine: its presets'

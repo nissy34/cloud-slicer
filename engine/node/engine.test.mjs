@@ -2346,3 +2346,53 @@ test('plate fingerprints change with what the plate prints, for the print histor
   assert.equal(fp().objects[0].copies, 2, 'a second copy');
   assert.throws(() => call(engine, 'plateFingerprint', 5), /no plate/);
 });
+
+// Binary STL of a sphere (radius r) made of 2 n² triangles: n = 750 is 1.1
+// million, a model as heavy as the ones that ran the page out of memory.
+function sphereStl(r, n) {
+  const at = (i, j) => {
+    const th = (Math.PI * i) / n, ph = (2 * Math.PI * j) / n;
+    return [r * Math.sin(th) * Math.cos(ph), r * Math.sin(th) * Math.sin(ph), r + r * Math.cos(th)];
+  };
+  const count = 2 * n * n;
+  const buf = Buffer.alloc(84 + 50 * count);
+  buf.writeUInt32LE(count, 80);
+  let o = 84;
+  for (let i = 0; i < n; i++)
+    for (let j = 0; j < n; j++) {
+      const [a, b, c, d] = [at(i, j), at(i + 1, j), at(i + 1, j + 1), at(i, j + 1)];
+      for (const tri of [[a, b, c], [a, c, d]]) {
+        o += 12;  // normal 0 0 0
+        for (const v of tri) for (const x of v) o = buf.writeFloatLE(x, o);
+        o += 2;
+      }
+    }
+  return buf;
+}
+
+test('memory: a heavy model opened again, and parts painted, reuse the memory they had', async () => {
+  // An engine of its own: how much it takes is only this test's.
+  const { engine: e } = await openEngine();
+  const gb = () => e.heapSize() / 2 ** 30;
+  call(e, 'presetsSelect', JSON.stringify({ printer: DEFAULT_PRINTER }));
+  const open = (name, bytes) => {
+    e.FS.writeFile(`/work/${name}`, bytes);
+    e.clearModel();
+    call(e, 'loadModel', `/work/${name}`, 0, 270, 270, false, 0);
+    e.FS.unlink(`/work/${name}`);
+    return JSON.parse(e.modelInfoJson());
+  };
+  const sphere = sphereStl(40, 750);
+  open('sphere.stl', sphere);
+  open('sphere.stl', sphere);
+  // Opening it twice once took 3.7 GB of the 4 GB, and slicing it then ran out.
+  assert.ok(gb() < 1.25, `opening a 1.1M triangle model twice: ${gb().toFixed(2)} GB`);
+
+  const benchy = readFileSync(resolve(fixtures, '3DBenchy.stl'));
+  for (let k = 0; k < 8; k++) {
+    const [x, y] = open('benchy.stl', benchy).objects[0].instances[0].offset;
+    call(e, 'paint', 0, JSON.stringify({ rays: [[x, y, 200, 0, 0, -1]], kind: 'color', state: 2, tool: 'sphere', radius: 10 }));
+  }
+  // Each one painted once grew the engine by 150-250 MB, out of memory after 20.
+  assert.ok(gb() < 1.25, `painting 8 models one after another: ${gb().toFixed(2)} GB`);
+});

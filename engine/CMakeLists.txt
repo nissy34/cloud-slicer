@@ -128,15 +128,8 @@ target_link_options(orca-engine PRIVATE
     -sPTHREAD_POOL_SIZE=navigator.hardwareConcurrency+1
     # Emscripten's default malloc takes one lock for every thread, which leaves
     # the threads queueing for memory instead of slicing.
-    --profiling-funcs
+    -sMALLOC=mimalloc
 )
-# DIAGNOSTIC (not for merge): the OrcaSlicer engine uses dlmalloc, to compare memory.
-if(ENGINE_FLAVOR STREQUAL "orca")
-    target_link_options(orca-engine PRIVATE -sMALLOC=dlmalloc)
-    target_compile_definitions(orca-engine PRIVATE ENGINE_DLMALLOC=1)
-else()
-    target_link_options(orca-engine PRIVATE -sMALLOC=mimalloc)
-endif()
 # Upstream OrcaSlicer's flushing volumes come from measured colour pairs in
 # resources/flush (FlushVolPredictor reads them from resources_dir(), "" here).
 if(ENGINE_FLAVOR STREQUAL "orca")

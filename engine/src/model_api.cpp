@@ -312,6 +312,7 @@ std::string loadModel(const std::string& path, int plate, double bedWidth, doubl
             // new one is read: both at once may not fit.
             clearUndoHistory();
             clearPaintCaches();
+            clearMeasureCaches();
             clearSimplifyPreview();
             g_project.clear();
             DynamicPrintConfig config;
@@ -378,7 +379,14 @@ std::string loadModel(const std::string& path, int plate, double bedWidth, doubl
     }
 }
 
-void clearModel() { g_project.clear(); }
+// Empties the plate (desktop's Delete all, New project). The undo history
+// stays, so Delete all can be undone.
+void clearModel() {
+    clearPaintCaches();
+    clearMeasureCaches();
+    clearSimplifyPreview();
+    g_project.clear();
+}
 
 // Everything the page shows about the project:
 // {fileName, plates: [{index, name, objects: [objectIndex...], filaments: [1-based filaments the
