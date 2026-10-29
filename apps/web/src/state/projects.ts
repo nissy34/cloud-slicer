@@ -236,7 +236,8 @@ export const useProjects = create<ProjectsState>((set, get) => {
         lastThumbnail = lastSave;
         await api.saveProjectThumbnail(id, png).catch(() => {});
       }
-      set({ current: { name: saved.name, id: saved.id, version: saved.version, draft: saved.draft }, conflict: null, saveState: 'idle' });
+      // A save that works also ends an AutoSave that had stopped on an error.
+      set({ current: { name: saved.name, id: saved.id, version: saved.version, draft: saved.draft }, conflict: null, saveState: 'idle', autosaveStopped: '' });
       if (!auto) set({ message: `Saved “${saved.name}” to your projects`, messageWarn: false });
       markSaved(sig, paints);
       return true;
@@ -342,6 +343,8 @@ export const useProjects = create<ProjectsState>((set, get) => {
 
     async setAutosave(on) {
       await saveUserSetting(AUTOSAVE_KEY, on);
+      // Turned on again: AutoSave tries again after an error stopped it.
+      if (on) set({ autosaveStopped: '', saveState: 'idle' });
       scheduleAutosave();
     },
 

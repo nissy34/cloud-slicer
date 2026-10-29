@@ -52,6 +52,9 @@ There is no polling: a device finds out on its next save or when its tab is focu
 - Timing: save 5 s after the last change, at most every 30 s (every 3 min for projects of
   5 MB or more, since each save uploads the whole 3MF), and when the tab is hidden;
   thumbnail at most every 10 min.
+- A save the server refuses stops AutoSave and shows "Not saved" (the reason is in the
+  Project menu). The next save that works, a Save or turning AutoSave back on, starts it
+  again; no connection just retries every 30 s.
 - One draft per device, at most 3 per person (oldest go first). Drafts don't count
   toward the 200 projects but do count toward storage.
 - A device whose draft was deleted elsewhere keeps its work, says so and saves a new draft.

@@ -1189,6 +1189,26 @@ if (withApp)
       await waitFor(async () => (await (await carol.json('/api/projects')).json()).projects.find((p) => p.id === saved.id)?.version > saved.version, 'AutoSave saved the change', 60000);
       await projectButton.getByText('Saved', { exact: true }).waitFor({ timeout: 30000 });
 
+      // An AutoSave the server refuses stops AutoSave and says so; a Save that works ends that.
+      const refuse = (route) =>
+        route.request().method() === 'PUT' && !route.request().url().includes('/thumbnail')
+          ? route.fulfill({ status: 500, contentType: 'application/json', body: JSON.stringify({ error: 'Test refusal' }) })
+          : route.fallback();
+      await page.route('**/api/projects/**', refuse);
+      await layer.fill('0.2');
+      await layer.press('Enter');
+      await projectButton.getByText('Not saved', { exact: true }).waitFor({ timeout: 60000 });
+      await page.unroute('**/api/projects/**', refuse);
+      await page.keyboard.press('Control+s');
+      await page.getByText('Saved “3DBenchy” to your projects').waitFor({ timeout: 60000 });
+      await projectButton.getByText('Saved', { exact: true }).waitFor({ timeout: 10000 });
+      // ...and AutoSave carries on.
+      const now = (await (await carol.json('/api/projects')).json()).projects.find((p) => p.id === saved.id).version;
+      await layer.fill('0.24');
+      await layer.press('Enter');
+      await waitFor(async () => (await (await carol.json('/api/projects')).json()).projects.find((p) => p.id === saved.id)?.version > now, 'AutoSave saved after the error', 60000);
+      await projectButton.getByText('Saved', { exact: true }).waitFor({ timeout: 30000 });
+
       // Another device takes it over: coming back to this tab, it is view only.
       const other = await carol.json(`/api/projects/${saved.id}/device`, 'POST', { device: 'other-device-1234', deviceName: 'phone' });
       assert.equal(other.status, 200);
