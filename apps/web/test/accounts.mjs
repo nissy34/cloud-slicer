@@ -22,7 +22,7 @@ import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { importJWK, jwtVerify } from 'jose';
 import { chromium } from 'playwright';
-import { pickerOf } from './picker.mjs';
+import { pick, pickerOf } from './picker.mjs';
 
 const web = join(dirname(fileURLToPath(import.meta.url)), '..');
 const PORT = 8790;
@@ -1357,7 +1357,7 @@ if (withApp)
       await secondPage.getByRole('button', { name: /^Project/ }).click();
       await secondPage.getByRole('menuitem', { name: 'Online projects…' }).click();
       const list2 = secondPage.getByRole('dialog', { name: 'Online projects' });
-      await list2.locator('.project-card', { hasText: 'Made in OrcaSlicer' }).getByRole('button', { name: 'Open', exact: true }).click();
+      await list2.getByRole('button', { name: 'Made in OrcaSlicer', exact: true }).click();
       const leave = secondPage.getByTestId('ask-dialog');
       if (await leave.isVisible().catch(() => false)) await leave.getByRole('button', { name: /Don.t save|Discard/ }).click();
       await secondPage.getByText('OrcaSlicer 2.4').first().waitFor({ timeout: 120000 });
@@ -1372,7 +1372,7 @@ if (withApp)
       await dialog.getByText('3DBenchy', { exact: true }).waitFor();
       await dialog.locator('img').first().waitFor();
       if (process.env.ACCOUNTS_SHOTS) await page.screenshot({ path: join(process.env.ACCOUNTS_SHOTS, 'projects-list.png') });
-      await dialog.getByRole('button', { name: 'Open', exact: true }).first().click();
+      await dialog.getByRole('button', { name: 'Open 3DBenchy', exact: true }).click();
       await page.getByRole('button', { name: 'Add model' }).waitFor({ timeout: 60000 });
       // After a reload the engine's settings can still be arriving when the model shows.
       await waitFor(async () => (await layer.inputValue()) === '0.28', 'the saved setting came back', 30000);
@@ -1399,6 +1399,43 @@ if (withApp)
       assert.ok(names.includes('3DBenchy (2)'), `the copy is 3DBenchy (2): ${names.join(', ')}`);
       // The "Saved" note goes away by itself.
       await copied.waitFor({ state: 'detached', timeout: 15000 });
+
+      // Online projects: search, sort, the List view, and Rename and Delete in their own windows.
+      await projectButton.click();
+      await page.getByRole('menuitem', { name: 'Online projects…' }).click();
+      await dialog.getByRole('button', { name: '3DBenchy (2)', exact: true }).waitFor();
+      await dialog.getByLabel('Search projects').fill('benchy (2');
+      await waitFor(async () => (await dialog.locator('.project-card').count()) === 1, 'search leaves only the copy', 10000);
+      await dialog.getByLabel('Search projects').fill('no such project');
+      await dialog.getByText('No projects match “no such project”.').waitFor();
+      await dialog.getByLabel('Search projects').fill('');
+      await pick(dialog, 'Sort', 'name');
+      const byName = await dialog.locator('.project-card-name').allTextContents();
+      assert.deepEqual(byName, [...byName].sort((a, b) => a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' })), `Name A–Z: ${byName.join(', ')}`);
+      await dialog.getByRole('radio', { name: 'List' }).click();
+      await dialog.locator('.project-row').first().waitFor();
+      if (process.env.ACCOUNTS_SHOTS) await page.screenshot({ path: join(process.env.ACCOUNTS_SHOTS, 'projects-list-rows.png') });
+      await dialog.getByRole('button', { name: 'More for 3DBenchy (2)' }).click();
+      await page.getByRole('menuitem', { name: 'Rename…' }).click();
+      const renameWin = page.getByTestId('rename-project');
+      await renameWin.getByLabel('Project name').fill('Benchy renamed');
+      await renameWin.getByRole('button', { name: 'Rename' }).click();
+      await renameWin.waitFor({ state: 'detached', timeout: 30000 });
+      await dialog.getByRole('button', { name: 'Benchy renamed', exact: true }).waitFor();
+      await dialog.getByRole('button', { name: 'More for Benchy renamed' }).click();
+      await page.getByRole('menuitem', { name: 'Delete…' }).click();
+      const deleteWin = page.getByTestId('delete-project');
+      // The copy is the open project: it stays open, unsaved.
+      await deleteWin.getByText('it stays open here as an unsaved project').waitFor();
+      if (process.env.ACCOUNTS_SHOTS) await page.screenshot({ path: join(process.env.ACCOUNTS_SHOTS, 'projects-delete.png') });
+      await deleteWin.getByRole('button', { name: 'Delete' }).click();
+      await deleteWin.waitFor({ state: 'detached', timeout: 30000 });
+      await dialog.getByRole('button', { name: 'Benchy renamed', exact: true }).waitFor({ state: 'detached' });
+      const left = (await (await carol.json('/api/projects')).json()).projects.map((p) => p.name);
+      assert.ok(!left.includes('Benchy renamed'), `deleted on the server: ${left.join(', ')}`);
+      await dialog.getByRole('radio', { name: 'Cards' }).click();
+      await page.keyboard.press('Escape');
+      await dialog.waitFor({ state: 'detached' });
 
       await page.setViewportSize({ width: 390, height: 800 });
       await projectButton.click();

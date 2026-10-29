@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { api, projectThumbnailUrl, type OnlineProject, type ProjectList } from '../account/api';
 import { engineName } from '../lib/engines';
-import { copyName, formatBytes, formatWhen, UNTITLED } from '../lib/projects';
+import { copyName, findProjects, formatBytes, formatWhen, PROJECT_SORTS, UNTITLED, type ProjectSort } from '../lib/projects';
 import { MODEL_EXTENSIONS } from '../lib/presets';
 import { useAccount } from '../state/account';
 import { useProjects } from '../state/projects';
@@ -12,7 +12,9 @@ import { deviceId } from '../lib/storage';
 import { Note } from './Note';
 import { Empty } from './Empty';
 import { Menu } from './Menu';
-import { FolderOpen } from 'lucide-react';
+import { Picker } from './Picker';
+import { IconButton } from './IconButton';
+import { FolderOpen, LoaderCircle, MoreHorizontal, Search } from 'lucide-react';
 
 const isMac = typeof navigator !== 'undefined' && /Mac|iPhone|iPad/.test(navigator.platform);
 const MOD = isMac ? '⌘' : 'Ctrl+';
@@ -285,14 +287,44 @@ function ConflictDialog() {
   );
 }
 
+const SORT_KEY = 'cloud-slicer:projects-sort:v1';
+const VIEW_KEY = 'cloud-slicer:projects-view:v1';
+type ProjectView = 'cards' | 'list';
+
+/** A choice of this window kept in this browser (Sort, Cards or List); the default without storage. */
+function useRemembered<T extends string>(key: string, allowed: readonly T[], fallback: T): [T, (v: T) => void] {
+  const [value, setValue] = useState<T>(() => {
+    try {
+      const v = localStorage.getItem(key) as T | null;
+      return v && allowed.includes(v) ? v : fallback;
+    } catch {
+      return fallback;
+    }
+  });
+  const set = (v: T) => {
+    setValue(v);
+    try {
+      localStorage.setItem(key, v);
+    } catch {
+      // storage unavailable: remembered until the window closes
+    }
+  };
+  return [value, set];
+}
+
 function ProjectsDialog() {
   const open = useProjects((s) => s.listOpen);
   const status = useAccount((s) => s.status);
   const currentId = useProjects((s) => s.current.id);
   const [list, setList] = useState<ProjectList | null>(null);
   const [error, setError] = useState('');
-  const [renaming, setRenaming] = useState<{ id: string; name: string } | null>(null);
-  const [deleting, setDeleting] = useState<string | null>(null);
+  const [renaming, setRenaming] = useState<OnlineProject | null>(null);
+  const [deleting, setDeleting] = useState<OnlineProject | null>(null);
+  // The project being opened while the open one is saved or asked about first.
+  const [opening, setOpening] = useState<string | null>(null);
+  const [search, setSearch] = useState('');
+  const [sort, setSort] = useRemembered<ProjectSort>(SORT_KEY, PROJECT_SORTS.map((s) => s.value), 'newest');
+  const [view, setView] = useRemembered<ProjectView>(VIEW_KEY, ['cards', 'list'], 'cards');
 
   const load = () =>
     api
@@ -307,37 +339,82 @@ function ProjectsDialog() {
     if (!open) {
       setRenaming(null);
       setDeleting(null);
+      setOpening(null);
+      setSearch('');
     }
   }, [open, status]);
   const close = useCallback(() => useProjects.getState().setListOpen(false), []);
   if (!open) return null;
   const p = useProjects.getState();
 
-  const rename = async (proj: OnlineProject, name: string) => {
-    setRenaming(null);
-    if (!name.trim() || name.trim() === proj.name) return;
-    try {
-      const updated = await api.renameProject(proj.id, name.trim());
-      p.onlineChanged(updated);
-      await load();
-    } catch (e) {
-      setError((e as Error).message);
-    }
-  };
-  const remove = async (proj: OnlineProject) => {
-    setDeleting(null);
-    try {
-      await api.deleteProject(proj.id);
-      p.onlineChanged({ id: proj.id, deleted: true });
-      await load();
-    } catch (e) {
-      setError((e as Error).message);
-    }
-  };
   const openProject = async (proj: OnlineProject) => {
-    if (!(await useProjects.getState().leaveOk())) return;
-    void p.openOnline(proj);
+    if (opening) return;
+    setOpening(proj.id);
+    try {
+      if (!(await useProjects.getState().leaveOk())) return;
+      void p.openOnline(proj);
+    } finally {
+      setOpening(null);
+    }
   };
+  const saved = list?.projects.filter((x) => !x.draft) ?? [];
+  const shown = findProjects(saved, search, sort);
+
+  const actions = (proj: OnlineProject) => (
+    <Menu
+      label={`${proj.name} menu`}
+      placement="bottom-end"
+      button={(props) => <IconButton {...props} icon={MoreHorizontal} label="More" aria-label={`More for ${proj.name}`} className="project-more" disabled={!!opening} />}
+    >
+      {(closeMenu) => (
+        <>
+          <button role="menuitem" className="menu-item" onClick={() => (closeMenu(), void openProject(proj))}>
+            Open
+          </button>
+          <button role="menuitem" className="menu-item" onClick={() => (closeMenu(), setRenaming(proj))}>
+            Rename…
+          </button>
+          <button role="menuitem" className="menu-item danger" onClick={() => (closeMenu(), setDeleting(proj))}>
+            Delete…
+          </button>
+        </>
+      )}
+    </Menu>
+  );
+  const thumb = (proj: OnlineProject, small?: boolean) => (
+    <button
+      className={small ? 'project-thumb small' : 'project-thumb'}
+      title={`Open ${proj.name}`}
+      aria-label={small ? `Open ${proj.name}` : undefined}
+      disabled={!!opening}
+      onClick={() => void openProject(proj)}
+    >
+      {proj.hasThumbnail ? <img src={projectThumbnailUrl(proj)} alt="" loading="lazy" /> : <span aria-hidden>3MF</span>}
+      {opening === proj.id && (
+        <span className="project-opening" role="status">
+          <LoaderCircle className="spin" size={16} aria-hidden />
+          Opening…
+        </span>
+      )}
+    </button>
+  );
+  const name = (proj: OnlineProject) => (
+    <button className="project-card-name" title={proj.name} disabled={!!opening} onClick={() => void openProject(proj)}>
+      {proj.name}
+    </button>
+  );
+  const details = (proj: OnlineProject) => (
+    <>
+      <div className="muted small">
+        {formatWhen(proj.updatedAt)} · {formatBytes(proj.size)} · {engineName(proj.engine ?? 'snapmaker')}
+      </div>
+      {Boolean(proj.printedPlates) && (
+        <div className="small print-count" data-testid="project-printed">
+          {printedText(proj.printedPlates!, proj.plates ?? null)}
+        </div>
+      )}
+    </>
+  );
 
   return (
     <Dialog
@@ -346,9 +423,23 @@ function ProjectsDialog() {
       className="projects-dialog"
       onClose={close}
       footer={
-        <button className="secondary" onClick={close}>
-          Close
-        </button>
+        <>
+          {list &&
+            status === 'signedIn' &&
+            (list.limits.userBytes ? (
+              <p className="muted small projects-usage">
+                {formatBytes(list.usage.bytes)} of {formatBytes(list.limits.userBytes)} used · {list.usage.count} of {list.limits.userProjects} projects · up to{' '}
+                {formatBytes(list.limits.projectBytes)} each
+              </p>
+            ) : (
+              <p className="muted small projects-usage">
+                Online projects are off for your account: your presets and printers still save to it. Download a project to keep it.
+              </p>
+            ))}
+          <button className="secondary" onClick={close}>
+            Close
+          </button>
+        </>
       }
     >
       {status !== 'signedIn' ? (
@@ -370,85 +461,208 @@ function ProjectsDialog() {
       ) : (
         <>
           {!list.enabled && <Note tone="warn">Online projects aren't set up on this site yet. Save as a download instead.</Note>}
-          {error && <Note tone="error">{error}</Note>}
+          {error && <ErrorNote message={error} />}
           <ContinueRow list={list} onOpen={(proj) => void openProject(proj)} />
-          {list.projects.filter((x) => !x.draft).length === 0 ? (
+          {saved.length === 0 ? (
             <Empty icon={FolderOpen} text="No projects yet. Use Save in the Project menu to keep the open project here." />
           ) : (
-            <ul className="projects-grid">
-              {list.projects.filter((x) => !x.draft).map((proj) => (
-                <li key={proj.id} className={proj.id === currentId ? 'card project-card current' : 'card project-card'}>
-                  <button className="project-thumb" title={`Open ${proj.name}`} onClick={() => void openProject(proj)}>
-                    {proj.hasThumbnail ? <img src={projectThumbnailUrl(proj)} alt="" loading="lazy" /> : <span aria-hidden>3MF</span>}
-                  </button>
-                  {renaming?.id === proj.id ? (
-                    <form
-                      onSubmit={(e) => {
-                        e.preventDefault();
-                        void rename(proj, renaming.name);
-                      }}
-                    >
-                      <input
-                        aria-label="New name"
-                        autoFocus
-                        maxLength={128}
-                        value={renaming.name}
-                        onChange={(e) => setRenaming({ id: proj.id, name: e.target.value })}
-                        onBlur={() => void rename(proj, renaming.name)}
-                      />
-                    </form>
-                  ) : (
-                    <div className="project-card-name" title={proj.name}>
-                      {proj.name}
-                    </div>
-                  )}
-                  <div className="muted small">
-                    {formatWhen(proj.updatedAt)} · {formatBytes(proj.size)} · {engineName(proj.engine ?? 'snapmaker')}
-                  </div>
-                  {Boolean(proj.printedPlates) && (
-                    <div className="small print-count" data-testid="project-printed">
-                      {printedText(proj.printedPlates!, proj.plates ?? null)}
-                    </div>
-                  )}
-                  {deleting === proj.id ? (
-                    <div className="project-card-actions">
-                      <span className="small">Delete?</span>
-                      <button className="quiet" onClick={() => setDeleting(null)}>
-                        Keep
-                      </button>
-                      <button className="quiet danger" onClick={() => void remove(proj)}>
-                        Delete
-                      </button>
-                    </div>
-                  ) : (
-                    <div className="project-card-actions">
-                      <button className="quiet" onClick={() => void openProject(proj)}>
-                        Open
-                      </button>
-                      <button className="quiet" onClick={() => setRenaming({ id: proj.id, name: proj.name })}>
-                        Rename
-                      </button>
-                      <button className="quiet danger" aria-label={`Delete ${proj.name}`} onClick={() => setDeleting(proj.id)}>
-                        Delete
-                      </button>
-                    </div>
-                  )}
-                </li>
-              ))}
-            </ul>
-          )}
-          {list.limits.userBytes ? (
-            <p className="muted small">
-              {formatBytes(list.usage.bytes)} of {formatBytes(list.limits.userBytes)} used · {list.usage.count} of {list.limits.userProjects} projects · up to{' '}
-              {formatBytes(list.limits.projectBytes)} each
-            </p>
-          ) : (
-            <p className="muted small">
-              Online projects are off for your account: your presets and printers still save to it. Download a project to keep it.
-            </p>
+            <>
+              <div className="projects-bar">
+                <label className="projects-search">
+                  <Search size={16} aria-hidden />
+                  <input type="search" aria-label="Search projects" placeholder="Search projects" value={search} onChange={(e) => setSearch(e.target.value)} />
+                </label>
+                <Picker label="Sort" value={sort} options={PROJECT_SORTS} onChange={(v) => setSort(v as ProjectSort)} testId="projects-sort" />
+                <div className="chooser" role="radiogroup" aria-label="Show as">
+                  {(['cards', 'list'] as const).map((v) => (
+                    <button key={v} role="radio" aria-checked={view === v} className={view === v ? 'active' : ''} onClick={() => setView(v)}>
+                      {v === 'cards' ? 'Cards' : 'List'}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              {shown.length === 0 ? (
+                <p className="muted">No projects match “{search.trim()}”.</p>
+              ) : view === 'cards' ? (
+                <ul className="projects-grid">
+                  {shown.map((proj) => (
+                    <li key={proj.id} className={proj.id === currentId ? 'card project-card current' : 'card project-card'}>
+                      {thumb(proj)}
+                      <div className="project-card-head">
+                        {name(proj)}
+                        {actions(proj)}
+                      </div>
+                      {details(proj)}
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <ul className="projects-list">
+                  {shown.map((proj) => (
+                    <li key={proj.id} className={proj.id === currentId ? 'project-row current' : 'project-row'}>
+                      {thumb(proj, true)}
+                      <div className="project-row-text">
+                        {name(proj)}
+                        {details(proj)}
+                      </div>
+                      {actions(proj)}
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </>
           )}
         </>
       )}
+      {renaming && (
+        <RenameProjectDialog
+          project={renaming}
+          onClose={() => setRenaming(null)}
+          onDone={(updated) => {
+            setRenaming(null);
+            p.onlineChanged(updated);
+            setList((l) => l && { ...l, projects: l.projects.map((x) => (x.id === updated.id ? { ...x, ...updated } : x)) });
+            void load();
+          }}
+        />
+      )}
+      {deleting && (
+        <DeleteProjectDialog
+          project={deleting}
+          isOpen={deleting.id === currentId}
+          onClose={() => setDeleting(null)}
+          onDone={() => {
+            const gone = deleting;
+            setDeleting(null);
+            p.onlineChanged({ id: gone.id, deleted: true });
+            setList((l) => l && { ...l, projects: l.projects.filter((x) => x.id !== gone.id) });
+            void load();
+          }}
+        />
+      )}
+    </Dialog>
+  );
+}
+
+/** A red note with what went wrong and a Copy button for the words. */
+function ErrorNote({ message }: { message: string }) {
+  const [copied, setCopied] = useState(false);
+  const copy = () =>
+    navigator.clipboard.writeText(message).then(
+      () => setCopied(true),
+      () => setCopied(false),
+    );
+  return (
+    <Note tone="error" className="error-note">
+      {message}{' '}
+      <button type="button" className="quiet small-btn" onClick={() => void copy()}>
+        {copied ? 'Copied' : 'Copy'}
+      </button>
+    </Note>
+  );
+}
+
+/** A window's main button while the server works: a spinner and "Deleting…"; every button locked. */
+function Working({ busy, idle, working }: { busy: boolean; idle: string; working: string }) {
+  return busy ? (
+    <>
+      <LoaderCircle className="spin" size={16} aria-hidden />
+      {working}
+    </>
+  ) : (
+    <>{idle}</>
+  );
+}
+
+function RenameProjectDialog({ project, onClose, onDone }: { project: OnlineProject; onClose(): void; onDone(updated: OnlineProject): void }) {
+  const [name, setName] = useState(project.name);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState('');
+  const trimmed = name.trim();
+  const ready = !!trimmed && trimmed !== project.name && !busy;
+  const submit = async () => {
+    if (!ready) return;
+    setBusy(true);
+    setError('');
+    try {
+      onDone(await api.renameProject(project.id, trimmed));
+    } catch (e) {
+      setError(`Couldn't rename: ${(e as Error).message}`);
+      setBusy(false);
+    }
+  };
+  return (
+    <Dialog
+      title="Rename project"
+      testId="rename-project"
+      onClose={() => !busy && onClose()}
+      footer={
+        <>
+          <button type="button" className="secondary" disabled={busy} onClick={onClose}>
+            Cancel
+          </button>
+          <button type="submit" form="rename-project-form" className="primary" disabled={!ready} aria-busy={busy}>
+            <Working busy={busy} idle="Rename" working="Renaming…" />
+          </button>
+        </>
+      }
+    >
+      <form
+        id="rename-project-form"
+        className="win-form"
+        onSubmit={(e) => {
+          e.preventDefault();
+          void submit();
+        }}
+      >
+        <label className="field">
+          <span>Name</span>
+          <input aria-label="Project name" autoFocus maxLength={128} value={name} disabled={busy} onFocus={(e) => e.target.select()} onChange={(e) => setName(e.target.value)} />
+        </label>
+        {error && <ErrorNote message={error} />}
+      </form>
+    </Dialog>
+  );
+}
+
+function DeleteProjectDialog({ project, isOpen, onClose, onDone }: { project: OnlineProject; isOpen: boolean; onClose(): void; onDone(): void }) {
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState('');
+  const remove = async () => {
+    setBusy(true);
+    setError('');
+    try {
+      await api.deleteProject(project.id);
+      onDone();
+    } catch (e) {
+      setError(`Couldn't delete: ${(e as Error).message}`);
+      setBusy(false);
+    }
+  };
+  return (
+    <Dialog
+      title={`Delete “${project.name}”?`}
+      role="alertdialog"
+      describedBy="delete-project-text"
+      testId="delete-project"
+      onClose={() => !busy && onClose()}
+      footer={
+        <>
+          <button className="secondary" disabled={busy} onClick={onClose}>
+            Cancel
+          </button>
+          <button className="primary danger" disabled={busy} aria-busy={busy} onClick={() => void remove()}>
+            <Working busy={busy} idle="Delete" working="Deleting…" />
+          </button>
+        </>
+      }
+    >
+      <p id="delete-project-text">
+        {isOpen
+          ? "It's removed from your online projects for good. You have it open: it stays open here as an unsaved project."
+          : "It's removed from your online projects for good. Files you downloaded stay."}
+      </p>
+      {error && <ErrorNote message={error} />}
     </Dialog>
   );
 }

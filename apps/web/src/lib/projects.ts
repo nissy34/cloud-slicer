@@ -62,3 +62,29 @@ export function formatWhen(ms: number, now = Date.now()): string {
 }
 
 export const newProjectId = () => crypto.randomUUID();
+
+/** How Online projects orders its list (the Sort picker). */
+export type ProjectSort = 'newest' | 'oldest' | 'name' | 'size';
+export const PROJECT_SORTS: { value: ProjectSort; label: string }[] = [
+  { value: 'newest', label: 'Newest first' },
+  { value: 'oldest', label: 'Oldest first' },
+  { value: 'name', label: 'Name A–Z' },
+  { value: 'size', label: 'Biggest first' },
+];
+
+/** The projects whose name holds every word typed in Search (any case), in the chosen order. */
+export function findProjects<P extends { name: string; updatedAt: number; size: number }>(projects: P[], search: string, sort: ProjectSort): P[] {
+  const words = search.toLocaleLowerCase().split(/\s+/).filter(Boolean);
+  const found = projects.filter((p) => {
+    const name = p.name.toLocaleLowerCase();
+    return words.every((w) => name.includes(w));
+  });
+  const byName = (a: P, b: P) => a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: 'base' });
+  const order: Record<ProjectSort, (a: P, b: P) => number> = {
+    newest: (a, b) => b.updatedAt - a.updatedAt,
+    oldest: (a, b) => a.updatedAt - b.updatedAt,
+    name: byName,
+    size: (a, b) => b.size - a.size || byName(a, b),
+  };
+  return [...found].sort(order[sort]);
+}

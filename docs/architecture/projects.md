@@ -21,6 +21,7 @@ online when signed in.
 | Another slicer's start/end G-code that our engine can't fill in | `components/GcodeFallbackDialog.tsx`, `lib/gcode-errors.ts` |
 | Engine switch for an open project | `lib/engine-switch.ts`, `components/EngineSection.tsx`, `EngineSwitchDialog.tsx` |
 | The open project as a document | `state/projects.ts`, `lib/projects.ts`, `components/ProjectMenu.tsx`, `OpenProjectDialog.tsx` |
+| The Online projects window (search, sort, Cards/List, Rename and Delete windows) | `components/ProjectMenu.tsx` (`ProjectsDialog`), `lib/projects.ts` (`findProjects`), `styles/project-menu.css` |
 | Online projects API | `functions/_lib/projects.ts` (`/api/projects`) |
 | Writing the 3MF | engine `saveProject` (Orca's `store_bbs_3mf`) |
 
@@ -40,6 +41,15 @@ target printer; filaments are matched by material and kind (Matte, Silk, HF, Tra
 **Save (signed in).** Engine writes the 3MF → `PUT /api/projects/<id>` with
 `baseVersion` → R2 under a new key, D1 row updated → thumbnail PNG separately. A save
 over a newer version gets 409 and asks: overwrite, or save a copy.
+
+**Online projects window.** Tapping a project's picture or name opens it; its ⋯ menu holds
+Open, Rename… and Delete…. Rename and Delete each ask in their own small window, whose
+button shows a spinner ("Renaming…", "Deleting…") with every button locked until the
+server answers; a failure stays in that window with a Copy button and changes nothing.
+While the open project is saved or asked about before another opens, that card shows
+"Opening…". Search (every typed word, any case), Sort (newest, oldest, name, biggest) and
+Cards or List sit at the top and stay put while the projects scroll; Sort and the view are
+remembered per browser. The storage line sits in the window's footer.
 
 ## What it keeps
 
