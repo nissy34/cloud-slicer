@@ -57,6 +57,8 @@ export interface PrinterCall {
   method: string;
   params?: unknown;
   timeoutMs?: number;
+  /** Run instead when the printer has no such call (older firmware, or an older bridge). */
+  orElse?: PrinterCall[];
 }
 
 /** What the print dialog decided, for an add-on that starts prints its own way. */
@@ -71,6 +73,8 @@ export interface PrintStart {
   slots: FilamentSlot[];
   /** The plate inside a .gcode.3mf, 1-based, when the dialog could read it. */
   plate: number | null;
+  /** The plate type the file was sliced for (Orca's curr_bed_type, "Textured PEI Plate"), when known. */
+  bedType?: string;
 }
 
 /** Where the printer holds its filaments, read from its own objects. */

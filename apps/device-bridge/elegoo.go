@@ -649,7 +649,19 @@ var elegooStartErrors = map[int]string{
 }
 
 func (e *elegoo) start(ctx context.Context, path string) error {
-	out, err := e.request(ctx, 128, map[string]any{"Filename": "/local/" + path, "StartLayer": 0, "Calibration_switch": 0, "PrintPlatformType": 0, "Tlp_Switch": 0})
+	return e.startWith(ctx, path, startOptions{})
+}
+
+// startWith starts a print the way Orca's ElegooLink does (print()): bed
+// levelling and time-lapse as chosen, and the plate side the file was sliced for.
+func (e *elegoo) startWith(ctx context.Context, path string, o startOptions) error {
+	flag := func(v int) int {
+		if v != 0 {
+			return 1
+		}
+		return 0
+	}
+	out, err := e.request(ctx, 128, map[string]any{"Filename": "/local/" + path, "StartLayer": 0, "Calibration_switch": flag(o.BedLevel), "PrintPlatformType": flag(o.PlateType), "Tlp_Switch": flag(o.TimeLapse)})
 	if err != nil {
 		return err
 	}

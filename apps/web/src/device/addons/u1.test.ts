@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { materialMatches, noSlotReason, slotCheck, suggestSlotMap } from '../slots';
-import { nozzleGcode, parkHeadGcode, pickHeadGcode, feedChannels, feedGcode, filamentConfigGcode, purifierGcode, u1Activity, u1Addon, u1Heads, u1PrintPrepGcode, u1Purifier, u1Fans } from './u1';
+import { nozzleGcode, parkHeadGcode, pickHeadGcode, feedChannels, feedGcode, filamentConfigGcode, purifierGcode, u1Activity, u1Addon, u1Heads, u1PrintPrepGcode, u1StartCalls, u1Purifier, u1Fans } from './u1';
 
 const objects = {
   print_task_config: {
@@ -126,23 +126,32 @@ describe('U1 add-on', () => {
     expect(suggestSlotMap([{ index: 0, colour: '#E72F1D', material: 'PLA' }], heads, words)[0]).not.toBe(1);
   });
 
-  it('sends preferences and the tool map before a print', () => {
-    expect(u1PrintPrepGcode({ bedLevel: true, flowCalibrate: false, timeLapse: true }, { 0: 2, 1: 7, 40: 0 })).toEqual([
-      'SET_PRINT_PREFERENCES BED_LEVEL=1 FLOW_CALIBRATE=0 TIME_LAPSE_CAMERA=1',
-      'SET_PRINT_EXTRUDER_MAP CONFIG_EXTRUDER=0 MAP_EXTRUDER=2',
-      'SET_PRINT_USED_EXTRUDERS EXTRUDERS=2',
-    ]);
-  });
-
-  it('tells the printer which heads the print uses, so it loads their filament', () => {
-    expect(u1PrintPrepGcode({ bedLevel: false, flowCalibrate: false, timeLapse: false }, { 0: 3, 1: 0, 2: 3 }).slice(1)).toEqual([
+  it('maps filaments to heads and marks the used heads before a print', () => {
+    expect(u1PrintPrepGcode({ 0: 3, 1: 0, 2: 3, 40: 0, 5: 7 })).toEqual([
       'SET_PRINT_EXTRUDER_MAP CONFIG_EXTRUDER=0 MAP_EXTRUDER=3',
       'SET_PRINT_EXTRUDER_MAP CONFIG_EXTRUDER=1 MAP_EXTRUDER=0',
       'SET_PRINT_EXTRUDER_MAP CONFIG_EXTRUDER=2 MAP_EXTRUDER=3',
       'SET_PRINT_USED_EXTRUDERS EXTRUDERS=0,3',
     ]);
-    // No filament mapped: nothing to load, so no used list (the firmware refuses an empty one).
-    expect(u1PrintPrepGcode({ bedLevel: false, flowCalibrate: false, timeLapse: false }, {})).toHaveLength(1);
+    // No filament mapped: nothing to send (the firmware refuses an empty used list).
+    expect(u1PrintPrepGcode({})).toEqual([]);
+  });
+
+  it('starts a print like Snapmaker Orca: map, used heads, then start_local_print with the options', () => {
+    const calls = u1StartCalls('cube.gcode', { 0: 1, 1: 0 }, { bedLevel: true, flowCalibrate: false, timeLapse: true }, null);
+    expect(calls.map((c) => c.method)).toEqual(['printer.gcode.script', 'printer.gcode.script', 'printer.gcode.script', 'server.files.start_local_print']);
+    expect(calls[2].params).toEqual({ script: 'SET_PRINT_USED_EXTRUDERS EXTRUDERS=0,1' });
+    expect(calls[3].params).toEqual({
+      type: 'gcode',
+      path: 'cube.gcode',
+      print_plate: 1,
+      options: { bed_level: 1, flow_calibrate: 0, time_lapse_camera: 1, map_table: [[0, 1], [1, 0]] },
+    });
+    // Firmware before 1.3.0: the options as G-code, then the plain start.
+    expect(calls[3].orElse).toEqual([
+      { method: 'printer.gcode.script', params: { script: 'SET_PRINT_PREFERENCES BED_LEVEL=1 FLOW_CALIBRATE=0 TIME_LAPSE_CAMERA=1' }, timeoutMs: 30_000 },
+      { method: 'printer.print.start', params: { filename: 'cube.gcode' }, timeoutMs: 60_000 },
+    ]);
   });
 
   it('reads dock state, nozzle and tool-change counts per head', () => {

@@ -44,14 +44,33 @@ Cancel stops the printer's request even after the last byte.
 - A Klipper printer added by a public https address (no bridge) takes the upload straight
   from the browser ([device tab](device-tab.md)).
 
+## Starting a print
+
+Each printer type starts a print the way its maker's own app does. The steps and where
+they were read are in `device/addons/print-start-reference.test.ts`; a test fails when an
+add-on starts prints its own way without a reference there. Past the bridge, the fakes in
+`apps/device-bridge/*_test.go` refuse what the real printer refuses.
+
+| Printer | Start | Copied from |
+|---|---|---|
+| Snapmaker U1 | `SET_PRINT_EXTRUDER_MAP` per filament, `SET_PRINT_USED_EXTRUDERS`, then `server.files.start_local_print` with `bed_level`, `flow_calibrate`, `time_lapse_camera` and `map_table`. Firmware before 1.3.0 has no such call (-32601): `SET_PRINT_PREFERENCES` then `printer.print.start` | Snapmaker Orca's device page (setPrePrintConfiguration, startPrintMachineLocalFileWithOptions) |
+| Bambu Lab | MQTT `print.project_file` with the plate, AMS mapping and checks, built only in `addons/bambu.ts` (the bridge refuses a `.3mf` through `printer.print.start`) | Bambu Studio's print job |
+| Elegoo | SDCP Cmd 128 with bed levelling, time-lapse and the plate side the file was sliced for (`curr_bed_type` "Cool Plate" = smooth side) | Orca's ElegooLink |
+| Klipper, OctoPrint, PrusaLink | `printer.print.start`; the bridge sends OctoPrint's select + print and PrusaLink's POST on the file | Mainsail and Fluidd, OctoPrint's and PrusaLink's own pages |
+
+- The U1 start G-code only auto-loads, flow-calibrates and pre-extrudes heads marked as
+  used, and the firmware clears that list after every print. Without
+  `SET_PRINT_USED_EXTRUDERS` no filament loads (the 2026-10-29 bug).
+- `start_local_print` lets the printer check each used head's nozzle and filament before
+  it starts; it answers a refusal with `{ state: "error" }`, which stops the start
+  (`runCalls` in `state/device.ts`) rather than starting another way.
+- The pretend U1 (`test/device/mock-printer.mjs`) loads only used heads, like the real one,
+  and the device test checks that every head the file uses was loaded.
+
 ## Rules
 
 - Never start a print in tests on a real printer: "Upload only" there.
-- A U1 maps each filament to a head when sending (several filaments per head allowed:
-  `SET_PRINT_EXTRUDER_MAP`), then lists the heads the print uses
-  (`SET_PRINT_USED_EXTRUDERS`), as Snapmaker Orca's own device page does. The U1 start
-  G-code only auto-loads, flow-calibrates and pre-extrudes the listed heads, and
-  Moonraker's plain print start never fills that list, so without it no filament loads.
+- A U1 maps each filament to a head when sending (several filaments per head allowed).
   A Bambu Lab printer gets a `.gcode.3mf` and picks an AMS
   slot per filament (same type, closest colour). Other printers print filament n from
   slot n.

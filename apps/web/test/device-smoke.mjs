@@ -425,10 +425,18 @@ try {
   await page.getByLabel('Level the bed').uncheck();
   await page.getByTestId('upload-and-print').click();
   await page.getByTestId('print-state').filter({ hasText: 'Printing' }).waitFor({ timeout: 20_000 });
-  for (const want of ['SET_PRINT_PREFERENCES BED_LEVEL=0 FLOW_CALIBRATE=0 TIME_LAPSE_CAMERA=0', 'SET_PRINT_EXTRUDER_MAP CONFIG_EXTRUDER=0 MAP_EXTRUDER=1', 'SET_PRINT_EXTRUDER_MAP CONFIG_EXTRUDER=1 MAP_EXTRUDER=0', 'SET_PRINT_USED_EXTRUDERS EXTRUDERS=0,1']) {
+  for (const want of ['SET_PRINT_EXTRUDER_MAP CONFIG_EXTRUDER=0 MAP_EXTRUDER=1', 'SET_PRINT_EXTRUDER_MAP CONFIG_EXTRUDER=1 MAP_EXTRUDER=0', 'SET_PRINT_USED_EXTRUDERS EXTRUDERS=0,1']) {
     if (!u1.scripts.includes(want)) throw new Error(`missing ${want}; got ${u1.scripts.join(' | ')}`);
   }
-  console.log('print on the mock: preferences and tool map sent before starting');
+  // Started like Snapmaker Orca: start_local_print with the options and the map table.
+  {
+    const sent = JSON.stringify(u1.stats.localPrints.at(-1));
+    const want = JSON.stringify({ type: 'gcode', path: 'two_colour.gcode', print_plate: 1, options: { bed_level: 0, flow_calibrate: 0, time_lapse_camera: 0, map_table: [[0, 1], [1, 0]] } });
+    if (sent !== want) throw new Error(`start_local_print sent ${sent}, want ${want}`);
+  }
+  // Like the real U1, the start G-code only auto-loads the heads the print uses.
+  if (JSON.stringify(u1.stats.autoFed) !== '[0,1]') throw new Error(`auto-loaded heads ${JSON.stringify(u1.stats.autoFed)}, want [0,1]`);
+  console.log('print on the mock: tool map and used heads sent, started like Snapmaker Orca, both heads auto-loaded');
 
   // While printing the Move card keeps its controls, greyed out with a "Disabled while printing" tooltip, and Speed and Flow on top.
   {

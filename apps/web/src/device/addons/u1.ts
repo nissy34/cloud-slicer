@@ -4,7 +4,7 @@
 // preferences, tool map), filament_feed (automatic load/unload), purifier
 // (the top cover's air purifier), machine_state_manager and the cavity light.
 import { extruderIndex, type Fan, type KlipperObjects } from '../status';
-import type { PrinterAddon } from './types';
+import type { PrinterAddon, PrinterCall } from './types';
 import { u1Errors } from './u1-errors';
 import { filamentInExtruders } from '../heads';
 import type { FilamentSlot, PrintOptions } from '../slot-types';
@@ -42,10 +42,7 @@ export const u1Addon: PrinterAddon = {
     read: (o) => (o.print_task_config ? u1Heads(o) : null),
   },
   printOptions: (o) => u1PrintOptions(o),
-  startPrint: ({ path, map, options }) => [
-    ...u1PrintPrepGcode(options, map).map((script) => ({ method: 'printer.gcode.script', params: { script }, timeoutMs: 30_000 })),
-    { method: 'printer.print.start', params: { filename: path }, timeoutMs: 60_000 },
-  ],
+  startPrint: ({ path, map, options, plate }) => u1StartCalls(path, map, options, plate),
 };
 
 const arr = (v: unknown): unknown[] => (Array.isArray(v) ? v : []);
@@ -251,29 +248,63 @@ export function u1Activity(o: KlipperObjects): string | null {
   return ACTIVITIES[st] ?? st.charAt(0) + st.slice(1).toLowerCase().replace(/_/g, ' ');
 }
 
+/** The file's filament -> tool head pairs the printer accepts, in filament order. */
+function u1MapPairs(toolMap: Record<number, number>): [number, number][] {
+  return Object.entries(toolMap)
+    .map(([file, head]): [number, number] => [Number(file), head])
+    .filter(([f, head]) => Number.isInteger(f) && f >= 0 && f <= 31 && Number.isInteger(head) && head >= 0 && head < U1_HEADS)
+    .sort((a, b) => a[0] - b[0]);
+}
+
+const gcodeCall = (script: string): PrinterCall => ({ method: 'printer.gcode.script', params: { script }, timeoutMs: 30_000 });
+
 /**
- * Commands run before a print starts: the print preferences, which tool head
- * prints each of the file's filaments, then which heads the print uses. The
- * firmware applies the map to every T, M104 and M109 in the file and resets
- * it when the print ends. The start G-code only auto-loads, flow-calibrates
- * and pre-extrudes the heads in the used list (print_task_config
- * extruders_used); Moonraker's plain print start never fills it, so without
- * SET_PRINT_USED_EXTRUDERS no filament loads. Snapmaker Orca's own device page
- * sends the same lines (setPrePrintConfiguration).
+ * Starts a print the way Snapmaker Orca's own device page does (its
+ * setPrePrintConfiguration, then startPrintMachineLocalFileWithOptions):
+ *
+ * 1. Which head prints each filament (SET_PRINT_EXTRUDER_MAP) and which heads
+ *    the print uses (SET_PRINT_USED_EXTRUDERS). The start G-code only
+ *    auto-loads, flow-calibrates and pre-extrudes used heads, and the firmware
+ *    clears the list after every print.
+ * 2. Firmware 1.3.0 and later: Snapmaker's server.files.start_local_print with
+ *    the print options and the map. The printer then reads the file's
+ *    filament use itself and checks every used head's nozzle and filament
+ *    before it starts (SDCARD_PRINT_FILE_WITH_PARAMETERS).
+ * 3. Older firmware has no such call: the options as SET_PRINT_PREFERENCES,
+ *    then Moonraker's plain print start.
  */
-export function u1PrintPrepGcode(options: PrintOptions, toolMap: Record<number, number>): string[] {
-  const out = [
-    `SET_PRINT_PREFERENCES BED_LEVEL=${options.bedLevel ? 1 : 0} FLOW_CALIBRATE=${options.flowCalibrate ? 1 : 0} TIME_LAPSE_CAMERA=${options.timeLapse ? 1 : 0}`,
+export function u1StartCalls(path: string, toolMap: Record<number, number>, options: PrintOptions, plate: number | null): PrinterCall[] {
+  const pairs = u1MapPairs(toolMap);
+  const flags = { bed_level: options.bedLevel ? 1 : 0, flow_calibrate: options.flowCalibrate ? 1 : 0, time_lapse_camera: options.timeLapse ? 1 : 0 };
+  return [
+    ...u1PrintPrepGcode(toolMap).map(gcodeCall),
+    {
+      method: 'server.files.start_local_print',
+      params: {
+        type: (/\.([^./]+)$/.exec(path)?.[1] ?? 'gcode').toLowerCase(),
+        path,
+        print_plate: plate ?? 1,
+        options: { ...flags, map_table: pairs },
+      },
+      timeoutMs: 60_000,
+      orElse: [
+        gcodeCall(`SET_PRINT_PREFERENCES BED_LEVEL=${flags.bed_level} FLOW_CALIBRATE=${flags.flow_calibrate} TIME_LAPSE_CAMERA=${flags.time_lapse_camera}`),
+        { method: 'printer.print.start', params: { filename: path }, timeoutMs: 60_000 },
+      ],
+    },
   ];
-  const used = new Set<number>();
-  for (const [file, head] of Object.entries(toolMap)) {
-    const f = Number(file);
-    if (!Number.isInteger(f) || f < 0 || f > 31 || !Number.isInteger(head) || head < 0 || head >= U1_HEADS) continue;
-    out.push(`SET_PRINT_EXTRUDER_MAP CONFIG_EXTRUDER=${f} MAP_EXTRUDER=${head}`);
-    used.add(head);
-  }
-  if (used.size) out.push(`SET_PRINT_USED_EXTRUDERS EXTRUDERS=${[...used].sort((a, b) => a - b).join(',')}`);
-  return out;
+}
+
+/**
+ * Which tool head prints each of the file's filaments, then which heads the
+ * print uses. The firmware applies the map to every T, M104 and M109 in the
+ * file and resets both when the print ends.
+ */
+export function u1PrintPrepGcode(toolMap: Record<number, number>): string[] {
+  const pairs = u1MapPairs(toolMap);
+  if (!pairs.length) return [];
+  const used = [...new Set(pairs.map(([, head]) => head))].sort((a, b) => a - b);
+  return [...pairs.map(([f, head]) => `SET_PRINT_EXTRUDER_MAP CONFIG_EXTRUDER=${f} MAP_EXTRUDER=${head}`), `SET_PRINT_USED_EXTRUDERS EXTRUDERS=${used.join(',')}`];
 }
 
 /**

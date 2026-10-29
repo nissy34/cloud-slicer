@@ -656,17 +656,12 @@ func (c *countingReader) Read(p []byte) (int, error) {
 	return n, err
 }
 
-// start prints a file from the printer's storage: plain G-code as it is, a
-// project (.3mf) its first plate, as Bambu Studio's "print from SD card" does.
+// start prints plain G-code from the printer's storage. A project (.3mf)
+// starts only from the page (bambuProjectStart in addons/bambu.ts, sent with
+// printer.request), so its plate, AMS slots and checks come from one place.
 func (b *bambu) start(ctx context.Context, p string) error {
 	if strings.HasSuffix(strings.ToLower(p), ".3mf") {
-		name := strings.TrimSuffix(strings.TrimSuffix(p, ".3mf"), ".gcode")
-		return b.command(ctx, "print", "project_file", map[string]any{
-			"param": "Metadata/plate_1.gcode", "url": "file:///sdcard/" + p, "subtask_name": name,
-			"project_id": "0", "profile_id": "0", "task_id": "0", "subtask_id": "0", "md5": "",
-			"timelapse": false, "bed_type": "auto", "bed_levelling": true, "flow_cali": false, "vibration_cali": false, "layer_inspect": false,
-			"use_ams": false, "ams_mapping": "",
-		})
+		return errors.New("A .gcode.3mf starts from the print dialog, which picks its AMS slots.")
 	}
 	return b.command(ctx, "print", "gcode_file", map[string]any{"param": "/sdcard/" + p})
 }

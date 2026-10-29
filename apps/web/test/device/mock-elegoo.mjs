@@ -120,7 +120,7 @@ export async function startMockElegoo({ name = 'Carbon mock' } = {}) {
         case 128:
           if (state.status !== 0 && state.status !== 8 && state.status !== 9) out.Ack = 1;
           else if (!files.has(d.Filename)) out.Ack = 2;
-          else Object.assign(state, { status: 13, file: d.Filename, layer: 50 });
+          else Object.assign(state, { status: 13, file: d.Filename, layer: 50, started: { ...d } });
           break;
         case 129:
           if (state.status === 13) state.status = 6;

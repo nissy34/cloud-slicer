@@ -25,6 +25,8 @@ export interface GcodeMeta {
   layers: number | null;
   /** The printer profile the file was sliced with (Orca's printer_settings_id). */
   printer?: string;
+  /** The plate type it was sliced for (Orca's curr_bed_type, "Textured PEI Plate"). */
+  bedType?: string;
 }
 
 const HEAD = 256 * 1024;
@@ -84,6 +86,7 @@ export function parseGcodeMeta(text: string): GcodeMeta {
     estimatedSeconds: parseDuration(kv.get('estimated printing time (normal mode)') ?? kv.get('model printing time')),
     layers: Number.isFinite(layers) && layers > 0 ? layers : null,
     ...(kv.get('printer_settings_id') && { printer: kv.get('printer_settings_id')!.replace(/^"|"$/g, '') }),
+    ...(kv.get('curr_bed_type') && { bedType: kv.get('curr_bed_type')!.replace(/^"|"$/g, '') }),
   };
 }
 
