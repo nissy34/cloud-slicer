@@ -20,6 +20,7 @@ a search box, and checks on every typed value.
 | Standard flow / High flow values | `lib/flow-variants.ts`, `components/FlowVariantSwitch.tsx` |
 | Per-object and per-part settings | `lib/object-settings.ts`, `components/ObjectSettings.tsx`, `SettingPicker.tsx` |
 | One field | `components/OptionField.tsx` |
+| Filament lists (walls, infill, support, wipe tower) | `lib/filament-choices.ts`, `components/Picker.tsx` |
 | Printer and filament windows | `components/PresetSettingsDialog.tsx`, `lib/slot-values.ts` |
 
 ## How it flows
@@ -44,6 +45,12 @@ and filament windows offer Save to preset, Save as new preset, Save to project.
 - Flow variants: Snapmaker Orca 2.4 keeps many speed and acceleration options as one value
   per nozzle flow (`"50,50"`); the switch edits one at a time; older single-value files
   are aligned to both.
+- Filament settings are lists, like desktop: the options desktop registers as filament
+  lists (`register_dynamic_list` in `Plater.cpp`; `FILAMENT_LIST_KEYS`, both engines) show
+  the shared Picker with each filament's numbered swatch and preset name, the same rows as
+  the per-object filament picker. "Default" (0) comes first only when the option's `min`
+  allows 0 (support, wipe tower, upstream's per-feature ones), not for Snapmaker's walls
+  and infills. Only the physical filaments are offered, as on desktop.
 - Support filaments: picking the support or interface filament asks desktop's questions
   (`supportFilamentChecks` in `option-toggles.ts`), each engine its own: Snapmaker Orca
   2.4.1 warns about PLA under PETG (or PETG under PLA) as the base and offers the settings

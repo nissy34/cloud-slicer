@@ -15,6 +15,7 @@ import {
   useRole,
 } from '@floating-ui/react';
 import { Check, ChevronDown, type LucideIcon } from 'lucide-react';
+import { Swatch } from './Swatch';
 
 /** A choice in the list; the current one is bold with a ✓. Choices with the same `group`
  * sit together under its name (keep them in order); `hint` sits at the row's end. */
@@ -23,7 +24,10 @@ export type PickerOption = {
   label: string;
   /** What the button shows when this is picked, if shorter than the label (a narrow picker). */
   short?: string;
+  /** A filament's colour, drawn as the app's one swatch (components/Swatch.tsx)… */
   swatch?: string;
+  /** …with this number inside it (the filament's number). */
+  swatchNumber?: string;
   group?: string;
   hint?: ReactNode;
   /** Small grey words right after the label, on the button too (an engine's version). */
@@ -110,7 +114,7 @@ export function Picker({ label, value, options, onChange, actions = [], onAction
         title={title}
         {...getReferenceProps()}
       >
-        {current?.swatch && <span className="picker-swatch" style={{ background: current.swatch }} />}
+        {current?.swatch && <Swatch colour={current.swatch} number={current.swatchNumber} />}
         <span className="picker-value">
           {current?.short ?? current?.label ?? placeholder ?? ''}
           {current?.note && <span className="picker-note">{current.note}</span>}
@@ -142,7 +146,7 @@ export function Picker({ label, value, options, onChange, actions = [], onAction
                     data-value={o.value}
                     {...getItemProps({ onClick: () => pick(() => onChange(o.value)) })}
                   >
-                    {o.swatch && <span className="picker-swatch" style={{ background: o.swatch }} />}
+                    {o.swatch && <Swatch colour={o.swatch} number={o.swatchNumber} />}
                     <span className="picker-label">
                       {o.label}
                       {o.note && <span className="picker-note">{o.note}</span>}

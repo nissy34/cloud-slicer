@@ -3,7 +3,9 @@
 // plate notice (Snapmaker Orca 2.4.1, lib/option-toggles.ts): a two-colour
 // Benchy printed in PETG and PLA shows the notice under the plate; picking PLA
 // as the support interface offers the settings that separate the two, and
-// picking PLA as the support base warns, No putting Default back.
+// picking PLA as the support base warns, No putting Default back. The
+// filament settings (walls, infill, support, wipe tower) are lists of the
+// project's filaments with their colours, like desktop.
 //
 //   node test/support-filaments.mjs [screenshot-dir]
 //
@@ -13,7 +15,7 @@ import { mkdirSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { chromium } from 'playwright';
-import { pick, pickerRows } from './picker.mjs';
+import { openPicker, pick, pickerRows, pickerValue } from './picker.mjs';
 
 const web = join(dirname(fileURLToPath(import.meta.url)), '..');
 const PORT = 4181;
@@ -78,17 +80,29 @@ try {
 
   const search = page.getByRole('searchbox', { name: 'Search process settings' });
   const prompt = page.getByRole('alertdialog');
-  const setNumber = async (label, value) => {
-    const box = page.getByLabel(label, { exact: true });
-    await box.fill(value);
-    await box.press('Enter');
-  };
+
+  await step('filament settings are lists of the filaments, Default only where desktop has it', async () => {
+    await search.fill('filament for features');
+    const walls = await pickerRows(page, 'Walls');
+    expect(walls.length >= 2 && walls.every((r, i) => r.value === String(i + 1)), `walls: filaments 1..N, got ${JSON.stringify(walls)}`);
+    expect(/PETG/.test(walls[0].label), `filament 1 shows its preset, got ${walls[0].label}`);
+    const tower = await pickerRows(page, 'Wipe tower');
+    expect(tower[0].value === '0' && tower[0].label === 'Default', `wipe tower starts with Default, got ${JSON.stringify(tower[0])}`);
+    await pick(page, 'Walls', '2');
+    for (let i = 0; i < 50 && (await pickerValue(page, 'Walls')) !== '2'; i++) await page.waitForTimeout(100);
+    expect((await pickerValue(page, 'Walls')) === '2', 'walls set to filament 2');
+    await shot('features-desktop');
+    await openPicker(page, 'Walls');
+    await shot('features-list-desktop');
+    await page.keyboard.press('Escape');
+    await page.getByRole('button', { name: 'Reset to the preset value: Walls' }).click();
+  });
 
   await step('PLA as the interface under PETG offers the settings that separate them', async () => {
     await search.fill('enable support');
     await page.getByLabel('Enable support', { exact: true }).check();
     await search.fill('support/raft');
-    await setNumber('Support/raft interface', '2');
+    await pick(page, 'Support/raft interface', '2');
     await prompt.getByText(/Detected PLA as support interface material for PETG models/).waitFor();
     expect(/Top Z distance: .* → 0 mm/.test(await prompt.innerText()), 'lists what changes');
     await shot('interface-question');
@@ -103,15 +117,14 @@ try {
 
   await step('PLA as the support base under PETG warns, Use Default puts it back', async () => {
     await search.fill('support/raft');
-    await setNumber('Support/raft base', '2');
+    await pick(page, 'Support/raft base', '2');
     await prompt.getByText(/Non-soluble support materials are not recommended for support base/).waitFor();
     await shot('base-warning');
     await prompt.getByRole('button', { name: 'Use Default' }).click();
     await prompt.waitFor({ state: 'detached' });
     // The field takes the new value a moment after the question closes.
-    const box = page.getByLabel('Support/raft base', { exact: true });
-    for (let i = 0; i < 50 && (await box.inputValue()) !== '0'; i++) await page.waitForTimeout(100);
-    const base = await box.inputValue();
+    for (let i = 0; i < 50 && (await pickerValue(page, 'Support/raft base')) !== '0'; i++) await page.waitForTimeout(100);
+    const base = await pickerValue(page, 'Support/raft base');
     expect(base === '0', `support base back to Default, got ${base}`);
   });
 } finally {
