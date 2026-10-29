@@ -11,7 +11,7 @@ import { mkdirSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { chromium } from 'playwright';
-import { pickerOf, pickerRows } from './picker.mjs';
+import { openPicker, pickerOf, pickerRows } from './picker.mjs';
 import { startMockPrinter } from './device/mock-printer.mjs';
 
 const web = join(dirname(fileURLToPath(import.meta.url)), '..');
@@ -80,13 +80,42 @@ const slots = (page) =>
   page.evaluate(() =>
     [...document.querySelectorAll('ol.slots li')].map((li) => ({
       colour: li.querySelector('input[type=color]').value.toUpperCase(),
-      preset: li.querySelector('button.picker').dataset.value,
+      preset: li.dataset.preset,
+      tag: li.querySelector('button.picker .picker-tag')?.textContent ?? '',
     })),
   );
 
 try {
   const page = await open({ width: 1280, height: 900 });
   const dialog = page.getByRole('dialog', { name: 'Load filaments from the printer' });
+
+  // ---- the printer's filaments at the top of a filament list (desktop's "AMS filaments") ----
+  // Opening the list connects the printer; its loaded heads come first, under its name.
+  let list = await openPicker(page, 'Filament 1 preset');
+  const heads = list.locator('[role="option"][data-value^="printer-head:"]:not([disabled])');
+  await heads.first().waitFor({ timeout: 30000 });
+  check((await list.locator('.menu-label').first().innerText()) === 'On U1-mock', `heading: ${await list.locator('.menu-label').first().innerText()}`);
+  const headRows = await heads.evaluateAll((els) => els.map((e) => ({ value: e.dataset.value, square: e.querySelector('.swatch')?.textContent, label: e.querySelector('.picker-label')?.textContent })));
+  check(JSON.stringify(headRows.map((r) => r.square)) === JSON.stringify(['T1', 'T2', 'T3']), `loaded heads only (T4 is empty): ${JSON.stringify(headRows)}`);
+  check(/^Snapmaker PLA Matte/.test(headRows[0].label) && /^Generic PETG/.test(headRows[1].label), `rows show the preset each head becomes: ${JSON.stringify(headRows)}`);
+  await shot(page, 'desktop-list');
+  await heads.nth(1).click();
+  await page.waitForTimeout(500);
+  let first = (await slots(page))[0];
+  check(first.colour === '#E72F1D' && /^Generic PETG/.test(first.preset) && first.tag === 'T2', `picking T2 sets preset, colour and the tag: ${JSON.stringify(first)}`);
+  list = await openPicker(page, 'Filament 1 preset');
+  check((await list.locator('[aria-selected="true"]').getAttribute('data-value')) === 'printer-head:1', 'the T2 row is ticked');
+  await page.keyboard.press('Escape');
+  await shot(page, 'desktop-picked');
+  // Another colour: no longer the head's filament, so no tag and the preset row is ticked.
+  await page.getByLabel('Filament 1 colour').evaluate((el) => {
+    Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(el, '#123456');
+    el.dispatchEvent(new Event('input', { bubbles: true }));
+  });
+  await page.waitForTimeout(500);
+  first = (await slots(page))[0];
+  check(first.colour === '#123456' && first.tag === '', `a changed colour drops the tag: ${JSON.stringify(first)}`);
+  console.log('filament list: the printer heads come first; picking one sets preset and colour');
 
   // ---- empty plate: the printer's three loaded heads replace the list --------------
   await page.getByTestId('sync-filaments').click();
@@ -192,6 +221,12 @@ try {
   await phone.getByText('Ready to slice').waitFor({ timeout: 120000 });
   await phone.getByTestId('sync-filaments').scrollIntoViewIfNeeded();
   await shot(phone, 'phone-button');
+  const phoneList = await openPicker(phone, 'Filament 1 preset');
+  await phoneList.locator('[role="option"][data-value^="printer-head:"]:not([disabled])').first().waitFor({ timeout: 30000 });
+  await phoneList.evaluate((el) => (el.scrollTop = 0));
+  await phone.waitForTimeout(400);
+  await shot(phone, 'phone-list');
+  await phone.keyboard.press('Escape');
   await phone.getByTestId('sync-filaments').click();
   const pd = phone.getByRole('dialog', { name: 'Load filaments from the printer' });
   await pd.getByTestId('sync-rows').waitFor({ timeout: 30000 });
