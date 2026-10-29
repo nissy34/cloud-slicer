@@ -22,7 +22,7 @@ const visible = (def: OptionDef | undefined, level: SettingsLevel) =>
   def != null && (level === 'expert' || (level === 'advanced' ? def.mode !== 'develop' : def.mode === 'simple'));
 
 const LEVEL_KEY = 'settingsLevel';
-/** Which settings show, kept with the account like desktop's preference; Simple to start with. */
+/** Which settings show, kept with the account like desktop's preference; Simple to start with. Switches at once; the account save follows. */
 export function useSettingsLevel(): SettingsLevel {
   const level = useUserSetting<SettingsLevel>(LEVEL_KEY);
   return level === 'advanced' || level === 'expert' ? level : 'simple';
@@ -40,7 +40,7 @@ export function SettingsLevelChips() {
           className="chip"
           aria-pressed={level === id}
           title={id === 'expert' ? "Also the tuning settings desktop keeps for its Developer mode" : undefined}
-          onClick={() => void saveUserSetting(LEVEL_KEY, id)}
+          onClick={() => saveUserSetting(LEVEL_KEY, id).catch(() => {})}
         >
           {label}
         </button>

@@ -30,6 +30,10 @@ OAuth client serves them all. The client passes an absolute `callbackURL`.
 **Signed out → signed in.** Presets, settings and printers saved in the browser are
 merged into the account (setup lists unioned).
 
+**Saving a setting.** `saveUserSetting` shows the new value at once and saves it to the
+account behind it; an older reply never overwrites a newer choice, and a failed save
+puts the old value back and throws.
+
 **Relay ticket.** A browser asks `/api/relay/ticket` for a bridge; the site signs a JWT
 (ES256, one hour, one account and one bridge, with the camera cap) with
 `RELAY_TICKET_KEY`; the relay checks it with the public key before waking the bridge's

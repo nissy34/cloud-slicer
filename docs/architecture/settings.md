@@ -61,7 +61,8 @@ and filament windows offer Save to preset, Save as new preset, Save to project.
 - Modes like desktop, as one small Simple · Advanced · Expert chooser (`SettingsLevelChips`) beside the
   Process settings heading and above the search in the preset windows. Expert is Advanced plus desktop's Developer mode
   preference: it also shows the settings the engine marks `develop`, in the pages and in search.
-  The choice is kept with the account (`settingsLevel`) and is the same everywhere.
+  The choice is kept with the account (`settingsLevel`) and is the same everywhere. It switches at once; the
+  account save (about a second) follows behind.
 - Settings a browser can't honour are greyed with "Not available in the browser"
   (`GREYED_IN_BROWSER`) or hidden (`NOT_IN_BROWSER`, e.g. post-processing scripts).
 - Zustand selectors in components must not return new arrays or objects (endless
