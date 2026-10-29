@@ -80,6 +80,8 @@ export function Picker({ label, value, options, onChange, actions = [], onAction
     open,
     onOpenChange: setOpen,
     placement: 'bottom-start',
+    // Fixed, so a window's scrolling body doesn't clip the list.
+    strategy: 'fixed',
     whileElementsMounted: autoUpdate,
     middleware: [
       offset(4),
@@ -101,6 +103,10 @@ export function Picker({ label, value, options, onChange, actions = [], onAction
     useRole(context, { role: 'listbox' }),
     useListNavigation(context, { listRef: rows, activeIndex: active, selectedIndex, onNavigate: setActive, loop: true }),
   ]);
+
+  // Inside a window (a modal <dialog>) the list must hang off the window: the
+  // browser draws an open window above the page and makes the rest unclickable.
+  const host = open ? ((refs.domReference.current as HTMLElement | null)?.closest('dialog') ?? undefined) : undefined;
 
   const pick = (run: () => void) => {
     setOpen(false);
@@ -129,7 +135,7 @@ export function Picker({ label, value, options, onChange, actions = [], onAction
         <ChevronDown className="picker-arrow" size={16} aria-hidden />
       </button>
       {open && (
-        <FloatingPortal>
+        <FloatingPortal root={host}>
           <FloatingFocusManager context={context} modal={false}>
             <div ref={refs.setFloating} className="menu picker-list" style={floatingStyles} aria-label={label} {...getFloatingProps()}>
               {options.map((o, i) => (
