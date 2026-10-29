@@ -126,8 +126,15 @@ export function ToolheadsCard() {
       <div className="dv-head-sheet" data-testid="head-sheet">
         {(!one || head) && (
           <div className="dv-head-sheet-title">
-            {head ? <Swatch colour={head.colour} number={head.index + 1} empty={!head.loaded} /> : null}
-            <b>{sel.label}</b>
+            {/* The head's name in its filament colour, like the cap on its tile. */}
+            {head ? (
+              <>
+                <Swatch className="dv-head-swatch" colour={head.colour} number={sel.label} empty={!head.loaded} />
+                <span className="sr-only">{sel.label}</span>
+              </>
+            ) : (
+              <b>{sel.label}</b>
+            )}
             {head && (
               <span className="muted">
                 {head.loaded ? [head.material || 'Unknown', head.vendor, head.subType].filter(Boolean).join(' ') : filamentWords(head)}
