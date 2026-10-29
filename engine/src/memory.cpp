@@ -39,7 +39,18 @@ static void allocatorCollect()
     mi_collect(true);
 #endif
 }
+static double allocatorOption(int option, double value)
+{
+#ifndef ENGINE_DLMALLOC
+    const long before = mi_option_get(mi_option_t(option));
+    if (value >= -1) mi_option_set(mi_option_t(option), long(value));
+    return double(before);
+#else
+    return -2;
+#endif
+}
 EMSCRIPTEN_BINDINGS(memory_api) {
+    emscripten::function("allocatorOption", &allocatorOption);
     emscripten::function("allocatorStats", &allocatorStats);
     emscripten::function("allocatorCollect", &allocatorCollect);
 }
