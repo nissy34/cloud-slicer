@@ -32,7 +32,8 @@ slightly different order. It fails on:
 | Filament per layer | 2%, at least 0.5 mm |
 | Estimated print time (speeds, accelerations) | 1% |
 | Where the print sits (bounding box of every extrusion) | 0.1 mm |
-| Tool changes, temperature waits, temperatures set, fan commands, object labels | exact |
+| Tool changes, temperature waits, temperatures and fan speeds set, object labels | exact |
+| Number of fan changes (a fan change rides a line type whose place in the layer can move) | 1% |
 | Every setting in the file's config block | exact |
 
 Cases: Benchy (default process, a 0.12 mm process, normal supports, tree supports,

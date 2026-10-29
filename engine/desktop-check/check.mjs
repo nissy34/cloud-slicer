@@ -188,7 +188,7 @@ if (selfTest) {
     const theirs = sliceDesktop(join(dir, 'desktop'), join(dir, 'project.3mf'));
     const cmp = compare(theirs.gcode, ours);
     console.log(cmp.report.split('\n').filter((l) => l.includes('<--') || l.startsWith('RESULT')).join('\n'));
-    results.push({ name: c.name, ok: !cmp.ok, note: cmp.ok ? 'the comparison missed one wall fewer' : `caught: ${summary(cmp.report)}` });
+    results.push({ name: c.name, ok: !cmp.ok, label: cmp.ok ? '**missed it**' : 'caught it', note: cmp.ok ? 'the comparison missed one wall fewer' : summary(cmp.report) });
   } catch (e) {
     results.push({ name: c.name, ok: false, note: e.message });
   }
@@ -276,8 +276,11 @@ function sameSetting(theirs, oursText) {
   const want = (Array.isArray(theirs) ? theirs : [theirs]).map(String);
   return readings(String(oursText)).some((list) =>
     (list.length === want.length && list.every((x, i) => sameValue(want[i], x)))
-    // One value in the file, repeated for every extruder or filament in ours.
-    || (want.length === 1 && list.every((x) => sameValue(want[0], x))));
+    // One value in the file, repeated for every extruder or filament in ours,
+    // or the file's values grown to more extruders the way Orca grows a list
+    // (the rest copies the first).
+    || (list.length > want.length && want.every((x, i) => sameValue(x, list[i]))
+      && list.slice(want.length).every((x) => sameValue(want[0], x))));
 }
 function show(v) {
   return JSON.stringify(Array.isArray(v) ? v.join(';') : v).slice(0, 60);
@@ -291,7 +294,7 @@ const lines = [
   '',
   '| Check | Result | Details |',
   '|---|---|---|',
-  ...results.map((r) => `| ${r.name} | ${r.ok ? 'match' : '**differs**'} | ${String(r.note).replace(/\\/g, '\\\\').replace(/\|/g, '\\|').replace(/\n/g, ' ')} |`),
+  ...results.map((r) => `| ${r.name} | ${r.label ?? (r.ok ? 'match' : '**differs**')} | ${String(r.note).replace(/\\/g, '\\\\').replace(/\|/g, '\\|').replace(/\n/g, ' ')} |`),
   '',
   'On purpose: ' + Object.entries(EXPECTED_SETTINGS).map(([k, why]) => `\`${k}\` (${why})`).join('; ') + '; the colour-mix prime tower (patches/snapmaker/0009).',
 ];

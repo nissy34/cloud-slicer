@@ -9,7 +9,9 @@ matters for the print instead, with small tolerances:
   * filament extruded per feature type (;TYPE:), per layer and in total (--tol %)
   * the estimated print time (--time-tol %), which speeds and accelerations set
   * where the print sits: the bounding box of every extrusion (--mm)
-  * tool changes, fan speeds and Klipper object definitions (exact)
+  * tool changes and Klipper object definitions (exact)
+  * fans: the same set of speeds, and as many changes to within 1% (a fan
+    change sits on a line type whose place in the layer can move)
   * temperatures: every wait (M109/M190) in order, and the set of targets set
     (M104/M140), since when a nozzle is warmed ahead of its turn follows the
     time estimate
@@ -191,7 +193,12 @@ def main():
     if box > args.mm:
         fail(f"print area moved by {box:.2f} mm", "area")
 
-    for key in ("tools", "waits", "temps", "fans", "objects"):
+    fa, fb = len(A["fans"]), len(B["fans"])
+    print(f"\nfan changes: {fa} vs {fb}")
+    if abs(fa - fb) > max(1, fa // 100):
+        fail(f"fan changes {fa} vs {fb}", "fans")
+    A["fan speeds"], B["fan speeds"] = sorted(set(A["fans"])), sorted(set(B["fans"]))
+    for key in ("tools", "waits", "temps", "fan speeds", "objects"):
         same = A[key] == B[key]
         print(f"\n{key}: {'identical' if same else 'DIFFER'}")
         if not same:
@@ -200,7 +207,7 @@ def main():
             print(f"  {len(seq_a)} vs {len(seq_b)}; first difference at #{first + 1}:")
             print("  a:", seq_a[first:first + 3])
             print("  b:", seq_b[first:first + 3])
-            fail(f"{key} differ", key)
+            fail(f"{key} differ", key.split()[0])
 
     ignored = ALWAYS_IGNORED | set(args.ignore_setting)
     keys = sorted(set(A["settings"]) | set(B["settings"]))
