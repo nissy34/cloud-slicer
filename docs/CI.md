@@ -1,7 +1,8 @@
 # CI and deploys
 
-Three GitHub Actions workflows: `ci.yml` (engines, site, tests, Pages deploy), `device.yml`
-(bridge, relay, Device tab) and `klipper.yml` (real Klipper printers, nightly). None ever
+Four GitHub Actions workflows: `ci.yml` (engines, site, tests, Pages deploy), `device.yml`
+(bridge, relay, Device tab), `klipper.yml` (real Klipper printers, nightly) and
+`desktop-orca.yml` (our G-code against the real desktop apps, nightly). None ever
 talks to a real printer: tests use pretend printers (a Node mock Moonraker, real Klipper on
 a simulated board in Docker, the real OctoPrint's virtual printer, and pretend Prusa, Elegoo
 and Bambu Lab printers; see [architecture/testing.md](architecture/testing.md)). The
@@ -20,6 +21,7 @@ the Device workflow tests those.
 ```
          ┌ unit ──────────────────────────────────────┐
 changes ─┤        ┌─ engine-tests ────────────────────┤
+         │        ├─ desktop-orca (engine PRs)
          └ engine ┼─ shared-settings ─────────────────┼─ deploy (main)
                   └─ site ─┬─ browser (smoke, ...) ───┘
                            └─ preview (other branches)
@@ -31,6 +33,7 @@ changes ─┤        ┌─ engine-tests ────────────�
 | `unit` | Printer driver tests, web typecheck (app and Functions) and Vitest |
 | `engine` | Builds the wasm engine, or skips the build when an engine built from the same sources is cached, and publishes it (below) |
 | `engine-tests` | Bundles the presets, runs `engine/node/engine.test.mjs`, and checks that Klipper accepts sliced G-code (`engine/klipper-check/check.sh`, on a U1 stand-in and a Voron) |
+| `desktop-orca` | Pull requests that change the engine, its presets or the desktop check, and runs by hand: slices the test files with our engine and with the real desktop app of the same version, and fails if what gets printed differs ([testing.md](architecture/testing.md#same-as-desktop-orca)) |
 | `site` | Builds the web app with the engine and uploads it as the `web-site` artifact (kept 7 days) |
 | `shared-settings` | Checks `apps/web/src/lib/shared-settings.json` is up to date with both engines' presets |
 | `browser` | One job per group of browser tests in `apps/web/test/` (matrix `suite`), against the built site. The slow Assemble test (`TOOLBAR_PART=assemble`) and phone gestures with choosing several models (`view-touch.mjs`, `multi-select.mjs`) have jobs of their own |
@@ -150,3 +153,15 @@ part of every pull request: it runs every night on `main`, on a pull request lab
 hand (Actions → Real Klipper printers → Run workflow). Its screenshots are the
 `klipper-screenshots` artifact; on failure the printers' Klipper and Moonraker logs are in
 the "Printer logs" step.
+
+## Desktop Orca comparison (`.github/workflows/desktop-orca.yml`)
+
+Every night on `main` and by hand (Actions → Desktop Orca comparison → Run workflow): gets
+main's engines from the `engine-builds` release, downloads desktop Snapmaker Orca and
+OrcaSlicer for Linux of the same versions (cached; `engine/desktop-check/desktop.sh`
+checks each download's SHA-256) and runs `engine/desktop-check/check.mjs` for each. The
+steps live in `.github/actions/desktop-check`, shared with ci.yml's `desktop-orca` job,
+which runs the same check on pull requests that change the engine. About 3 minutes per
+engine. The table of results is in the run's summary; on failure every case's files are
+the `desktop-check-<flavor>` artifact.
+

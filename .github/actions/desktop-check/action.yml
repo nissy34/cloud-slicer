@@ -1,0 +1,58 @@
+name: Compare with desktop Orca
+description: >
+  Slices the test cases in engine/desktop-check/check.mjs with our engine and
+  with the real desktop app of the same version (its Linux command line, no
+  screen), and fails if what gets printed differs. Needs the engine in
+  engine/build/engine (snapmaker) or engine/build/engine-orca (orca) and both
+  Orca submodules checked out. Used by ci.yml (engine pull requests) and
+  desktop-orca.yml (nightly).
+inputs:
+  flavor:
+    description: snapmaker or orca
+    required: true
+runs:
+  using: composite
+  steps:
+    - name: Libraries desktop's command line loads
+      shell: bash
+      run: |
+        for i in 1 2 3; do
+          sudo apt-get install -y -qq --no-install-recommends libopengl0 libglu1-mesa libegl1 libwebkit2gtk-4.1-0 > /dev/null && break
+          sudo apt-get update -qq; sleep 5
+        done
+
+    - name: Desktop version
+      id: version
+      shell: bash
+      run: echo "key=desktop-orca-${{ inputs.flavor }}-${{ hashFiles('engine/orcaslicer/version.inc', 'engine/orcaslicer-upstream/version.inc', 'engine/desktop-check/desktop.sh') }}" >> "$GITHUB_OUTPUT"
+
+    - uses: actions/cache@v5
+      with:
+        path: ~/.cache/desktop-orca
+        key: ${{ steps.version.outputs.key }}
+
+    - name: Bundle the presets and get desktop
+      id: desktop
+      shell: bash
+      run: |
+        # The U1 plus the other printers check.mjs slices for.
+        brands='Snapmaker BBL Prusa Voron Creality'
+        if [ "${{ inputs.flavor }}" = orca ]; then
+          ENGINE_FLAVOR=orca node engine/scripts/bundle-profiles.mjs engine/build/profiles-orca $brands > /dev/null
+        else
+          node engine/scripts/bundle-profiles.mjs engine/build/profiles $brands > /dev/null
+        fi
+        echo "app=$(engine/desktop-check/desktop.sh ${{ inputs.flavor }})" >> "$GITHUB_OUTPUT"
+
+    - name: Slice with both and compare
+      shell: bash
+      run: node engine/desktop-check/check.mjs --flavor ${{ inputs.flavor }} --desktop "${{ steps.desktop.outputs.app }}" --self-test
+
+    - uses: actions/upload-artifact@v6
+      if: failure()
+      with:
+        name: desktop-check-${{ inputs.flavor }}
+        path: |
+          engine/build/desktop-check/${{ inputs.flavor }}
+          !engine/build/desktop-check/${{ inputs.flavor }}/.home
+        retention-days: 7

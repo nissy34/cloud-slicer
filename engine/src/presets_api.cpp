@@ -275,6 +275,14 @@ std::string presetsSelect(const std::string& selectionJsonText) {
         }
         if (!fallback.empty() && !b.filament_presets.empty()) b.filaments.select_preset_by_name(b.filament_presets.front(), true);
         if (printerChanged) setBedType(b.project_config, defaultBedType(b));
+#if ENGINE_UPSTREAM
+        // Like desktop's TabPrinter::on_preset_loaded: a newly chosen printer
+        // sets each tool head's nozzle volume type from its default. Left at one
+        // value, a four-head U1 project made desktop read past the end and crash.
+        if (printerChanged)
+            if (const auto* d = printerCfg.option<ConfigOptionEnumsGeneric>("default_nozzle_volume_type"))
+                b.project_config.option<ConfigOptionEnumsGeneric>("nozzle_volume_type", true)->values = d->values;
+#endif
         // Like desktop, a changed filament or colour recalculates the flushing volumes.
         const json flush = engine::autoFlushVolumes(b);
 
