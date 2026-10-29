@@ -70,7 +70,10 @@ built the engine, `node scripts/shared-settings.mjs` in `apps/web` (new version,
 new release starts a print on each printer it sends to (Snapmaker Orca's device page in
 `resources/web/flutter_web`, Orca's `src/slic3r/Utils/*` print hosts) with
 `device/addons/print-start-reference.test.ts`, and update the reference and our start
-when they differ ([send to printer](send-to-printer.md#starting-a-print)).
+when they differ ([send to printer](send-to-printer.md#starting-a-print)). The desktop
+comparison downloads the new desktop release by itself and fails until its SHA-256 is
+added to `engine/desktop-check/desktop.sh` (the error prints the line); then it must
+match ([testing](testing.md#same-as-desktop-orca)).
 
 ## Rules
 

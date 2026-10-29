@@ -16,6 +16,7 @@ name: CI
 # Jobs, so independent work runs side by side:
 #            ┌ unit ──────────────────────────────────────┐
 #   changes ─┤        ┌─ engine-tests ────────────────────┤
+#            │        ├─ desktop-orca (engine PRs)
 #            └ engine ┼─ shared-settings ─────────────────┼─ deploy (main)
 #                     └─ site ─┬─ browser (smoke, ...) ───┘
 #                              └─ preview (other branches)

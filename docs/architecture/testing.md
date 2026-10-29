@@ -11,9 +11,56 @@
 | Web unit tests (Vitest), beside each `lib/` and `device/` file | `cd apps/web && npm test` | `src/**/*.test.ts` |
 | Engine tests in Node, both engines | `node --test engine/node/engine.test.mjs` | `engine/node/` |
 | Does Klipper accept the G-code (batch mode, U1 stand-in and a Voron) | `engine/klipper-check/check.sh` | `engine/klipper-check/` |
+| Does our G-code print the same as the real desktop app's (below) | `node engine/desktop-check/check.mjs` | `engine/desktop-check/` |
 | Bridge unit tests | `cd apps/device-bridge && go test ./...` | `*_test.go`, `testdata/` |
 | Browser end-to-end (Playwright Chromium, against the built site) | `node test/<name>.mjs` | `apps/web/test/*.mjs` |
 | Printer helper tests (not used by the site) | `cd packages/printer && npm test` | `packages/printer/test` |
+
+## Same as desktop Orca
+
+`engine/desktop-check/check.mjs` slices each test case with our engine, saves it as a 3MF
+project, and slices that 3MF again with the real desktop app of the same version
+(Snapmaker Orca or OrcaSlicer for Linux, `engine/desktop-check/desktop.sh` downloads it;
+its command line needs no screen). `engine/scripts/compare-gcode.py` then compares what
+gets printed, never the lines: the two builds round differently, so moves come out in a
+slightly different order. It fails on:
+
+| Check | Tolerance |
+|---|---|
+| Layer count and every layer height | exact |
+| Filament per line type (walls, infill, supports, tower...) | 0.5% |
+| Filament per layer | 2%, at least 0.5 mm |
+| Estimated print time (speeds, accelerations) | 1% |
+| Where the print sits (bounding box of every extrusion) | 0.1 mm |
+| Tool changes, temperature waits, temperatures set, fan commands, object labels | exact |
+| Every setting in the file's config block | exact |
+
+Cases: Benchy (default process, a 0.12 mm process, normal supports, tree supports,
+ironing), the 4-colour Benchy, the dual-colour cube and, on Snapmaker Orca, a Benchy
+printed with only a colour mix. It also compares the settings our app picks for the U1
+presets with desktop's own preset files (each resolved through its `inherits`), and
+proves itself with `--self-test`: our slice with one wall fewer must not match.
+
+Differences on purpose are listed in `check.mjs`, each with its reason: the file name
+format (we add the plate number), two flush settings desktop's command line fills in by
+itself (OrcaSlicer only), the colour-mix prime tower we keep and desktop drops
+(`patches/snapmaker/0009`), and tree supports, whose branches round a little differently in
+the browser build (2% and 1.5 mm there). Desktop's command line crashes on loose preset
+files, which is why it gets our saved 3MF.
+
+CI runs it on pull requests that change the engine, its presets or the check, and every
+night on `main` ([CI.md](../CI.md#desktop-orca-comparison-githubworkflowsdesktop-orcayml)).
+Locally (Ubuntu 24.04, `libopengl0 libglu1-mesa libegl1 libwebkit2gtk-4.1-0`):
+
+```bash
+node engine/scripts/fetch-engine.mjs
+node engine/scripts/bundle-profiles.mjs engine/build/profiles
+node engine/desktop-check/check.mjs --flavor snapmaker --desktop "$(engine/desktop-check/desktop.sh snapmaker)"
+```
+
+Each case's files (both G-code files, the 3MF, `compare.txt`) land in
+`engine/build/desktop-check/<flavor>/<case>/`; CI uploads them as `desktop-check-<flavor>`
+when it fails.
 
 ## Pretend printers
 
