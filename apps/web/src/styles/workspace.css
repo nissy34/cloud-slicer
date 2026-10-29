@@ -9,7 +9,8 @@
   transform: translateX(-50%);
   z-index: 2;
   display: flex;
-  max-width: calc(100% - 16px);
+  /* Clear of the hide-sidebar button in the view's top-left corner (prepare.css .side-toggle). */
+  max-width: calc(100% - 2 * (var(--ctl) + 2 * var(--s-4)));
   padding: 3px;
   border: 1px solid var(--border);
   border-radius: var(--r-lg);
@@ -351,9 +352,11 @@
   background: var(--warn);
   vertical-align: middle;
 }
-/* Preview has no toolbar above the plates; with nothing sliced they sit above the message. */
+/* Preview has no toolbar above the plates; with nothing sliced they sit above the message.
+   They start right of the hide-sidebar button (prepare.css .side-toggle). */
 .preview .plate-tabs {
   top: 12px;
+  left: calc(var(--ctl) + 2 * var(--s-4));
   z-index: 2;
 }
 .coming-soon .plate-tabs {
