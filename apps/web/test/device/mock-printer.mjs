@@ -314,6 +314,11 @@ export async function startMockPrinter({ port = 0, host = '127.0.0.1', generic =
         case 'SET_PRINT_EXTRUDER_MAP':
           patch({ print_task_config: { extruder_map_table: setArr(ptc.extruder_map_table, Number(param(line, 'CONFIG_EXTRUDER')), Number(param(line, 'MAP_EXTRUDER'))) } });
           break;
+        case 'SET_PRINT_USED_EXTRUDERS': {
+          const used = String(param(line, 'EXTRUDERS') ?? '').split(',').map(Number);
+          patch({ print_task_config: { extruders_used: [0, 1, 2, 3].map((h) => used.includes(h)) } });
+          break;
+        }
         default:
           break;
       }

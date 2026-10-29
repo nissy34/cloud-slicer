@@ -48,7 +48,11 @@ Cancel stops the printer's request even after the last byte.
 
 - Never start a print in tests on a real printer: "Upload only" there.
 - A U1 maps each filament to a head when sending (several filaments per head allowed:
-  `SET_PRINT_EXTRUDER_MAP`). A Bambu Lab printer gets a `.gcode.3mf` and picks an AMS
+  `SET_PRINT_EXTRUDER_MAP`), then lists the heads the print uses
+  (`SET_PRINT_USED_EXTRUDERS`), as Snapmaker Orca's own device page does. The U1 start
+  G-code only auto-loads, flow-calibrates and pre-extrudes the listed heads, and
+  Moonraker's plain print start never fills that list, so without it no filament loads.
+  A Bambu Lab printer gets a `.gcode.3mf` and picks an AMS
   slot per filament (same type, closest colour). Other printers print filament n from
   slot n.
 - Send and Download put the print-history tag line after Orca's header.
