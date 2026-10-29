@@ -101,20 +101,150 @@
   height: 100%;
   object-fit: cover;
 }
+/* The name opens the project like the picture; ⋯ beside it holds Open, Rename… and Delete…. */
+.project-card-head {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--s-2);
+  min-width: 0;
+}
 .project-card-name {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  flex: 1;
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--text);
+  font: inherit;
   font-weight: 600;
+  text-align: start;
+  overflow-wrap: anywhere;
+  cursor: pointer;
 }
-.project-card input {
-  width: 100%;
+/* A long name takes two lines on a card (the whole name is in its tooltip); a row shows it all. */
+.project-card .project-card-name {
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
 }
-.project-card-actions {
+.project-card-name:hover:not(:disabled) {
+  color: var(--accent);
+}
+.project-more {
+  flex: none;
+}
+.project-thumb {
+  position: relative;
+}
+/* Shown over the picture while the open project is saved or asked about first. */
+.project-opening {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  grid-auto-flow: column;
+  place-content: center;
+  align-items: center;
+  gap: var(--s-3);
+  background: var(--media-veil);
+  color: var(--on-colour);
+  font-size: var(--t-sm);
+}
+.spin {
+  flex: none;
+  animation: spin 0.8s linear infinite;
+}
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+.win-foot .spin {
+  margin-inline-end: var(--s-3);
+  vertical-align: -3px;
+}
+/* While the list loads: the app's loading card, the one the 3D view shows. */
+.projects-loading {
+  display: grid;
+  place-items: center;
+  padding-block: var(--s-7);
+}
+.projects-loading .print-loader {
+  border: 0;
+  box-shadow: none;
+}
+/* Search, Sort and Cards/List stay at the top while the projects scroll under them. */
+.projects-bar {
+  position: sticky;
+  top: calc(-1 * var(--s-4));
+  z-index: 1;
   display: flex;
   flex-wrap: wrap;
-  align-items: baseline;
-  gap: 12px;
+  align-items: center;
+  gap: var(--s-4);
+  margin-top: calc(-1 * var(--s-4));
+  padding-block: var(--s-4);
+  background: var(--surface);
+}
+.projects-search {
+  display: flex;
+  flex: 1 1 180px;
+  align-items: center;
+  gap: var(--s-3);
+  min-width: 0;
+  padding-inline: var(--s-4);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  color: var(--muted);
+}
+.projects-search:focus-within {
+  border-color: var(--accent);
+}
+.projects-search input {
+  flex: 1;
+  min-width: 0;
+  height: calc(var(--ctl) - 2px);
+  padding: 0;
+  border: 0;
+  outline: none;
+  background: none;
+}
+/* The List view: a small picture, the name and details, and ⋯ on each row. */
+.projects-list {
+  display: grid;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.project-row {
+  display: grid;
+  grid-template-columns: 40px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--s-5);
+  padding-block: var(--s-4);
+  border-bottom: 1px solid var(--border);
+}
+.project-row:last-child {
+  border-bottom: 0;
+}
+.project-row.current .project-card-name {
+  color: var(--accent);
+}
+.project-row .project-opening {
+  font-size: 0;
+}
+.project-row-text {
+  display: grid;
+  min-width: 0;
+}
+.projects-usage {
+  margin: 0 auto 0 0;
+}
+.error-note .small-btn {
+  min-height: 0;
+  padding: 0 var(--s-3);
+  font-size: var(--t-sm);
 }
 @media (max-width: 760px) {
   /* Hidden but still read out, so the button stays "Project …" to screen readers. */
