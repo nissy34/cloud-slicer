@@ -108,6 +108,11 @@ export function Picker({ label, value, options, onChange, actions = [], onAction
   // browser draws an open window above the page and makes the rest unclickable.
   const host = open ? ((refs.domReference.current as HTMLElement | null)?.closest('dialog') ?? undefined) : undefined;
 
+  // Escape closes only the list, not the window it sits in (the browser would cancel the <dialog>).
+  const keepWindow = (e: React.KeyboardEvent) => {
+    if (open && e.key === 'Escape') e.preventDefault();
+  };
+
   const pick = (run: () => void) => {
     setOpen(false);
     run();
@@ -125,7 +130,7 @@ export function Picker({ label, value, options, onChange, actions = [], onAction
         disabled={disabled}
         title={title}
         aria-invalid={invalid || undefined}
-        {...getReferenceProps()}
+        {...getReferenceProps({ onKeyDown: keepWindow })}
       >
         {current?.swatch && <Swatch colour={current.swatch} number={current.swatchNumber} empty={current.swatchEmpty} />}
         <span className="picker-value">
@@ -137,7 +142,7 @@ export function Picker({ label, value, options, onChange, actions = [], onAction
       {open && (
         <FloatingPortal root={host}>
           <FloatingFocusManager context={context} modal={false}>
-            <div ref={refs.setFloating} className="menu picker-list" style={floatingStyles} aria-label={label} {...getFloatingProps()}>
+            <div ref={refs.setFloating} className="menu picker-list" style={floatingStyles} aria-label={label} {...getFloatingProps({ onKeyDown: keepWindow })}>
               {options.map((o, i) => (
                 <Fragment key={o.value}>
                   {o.group && o.group !== options[i - 1]?.group && (
