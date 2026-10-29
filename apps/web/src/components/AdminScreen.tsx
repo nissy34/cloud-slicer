@@ -8,6 +8,7 @@ import { useSlicer } from '../state/store';
 import { Card } from './Card';
 import { InfoTip } from './InfoTip';
 import { Note } from './Note';
+import { Picker } from './Picker';
 
 const STORAGE_CHOICES = [0, 50, 100, 200, 500, 1000];
 
@@ -278,24 +279,21 @@ function AccessCard({ data, act }: { data: AdminOverview; act: Act }) {
       )}
       <label className="admin-field">
         <span className="small muted">Online project storage for each person (unless set below)</span>
-        <select
-          value={s.storageMb}
-          onChange={(e) => {
-            const mb = Number(e.target.value);
+        <Picker
+          field
+          label="Online project storage for each person"
+          value={String(s.storageMb)}
+          options={[...new Set([...STORAGE_CHOICES, s.storageMb])]
+            .sort((x, y) => x - y)
+            .map((mb) => ({ value: String(mb), label: mb === 0 ? 'Presets only: no online projects' : storageLabel(mb) }))}
+          onChange={(v) => {
+            const mb = Number(v);
             act(
               () => adminApi.saveSettings({ storageMb: mb }),
               (d) => ({ ...d, settings: { ...d.settings, storageMb: mb } }),
             );
           }}
-        >
-          {[...new Set([...STORAGE_CHOICES, s.storageMb])]
-            .sort((a, b) => a - b)
-            .map((mb) => (
-              <option key={mb} value={mb}>
-                {mb === 0 ? 'Presets only: no online projects' : storageLabel(mb)}
-              </option>
-            ))}
-        </select>
+        />
       </label>
       <p className="muted small">
         Presets and printers always save to the account. Each account can use up to 3 bridges and watch 2 cameras at a time through a bridge.
@@ -352,39 +350,36 @@ function UserRow({ u, defaultMb, inviteOnly, act }: { u: AdminUser; defaultMb: n
         </span>
       </div>
       <div className="admin-user-actions">
-        <select
-          aria-label={`Storage for ${u.email}`}
+        <Picker
+          field
+          label={`Storage for ${u.email}`}
           value={u.storageMb === null ? 'default' : String(u.storageMb)}
-          onChange={(e) => {
-            const mb = e.target.value === 'default' ? null : Number(e.target.value);
+          options={[{ value: 'default', label: `Storage: default (${storageLabel(defaultMb)})` }, ...choices.map((c) => ({ value: String(c), label: `Storage: ${storageLabel(c)}` }))]}
+          onChange={(v) => {
+            const mb = v === 'default' ? null : Number(v);
             act(
               () => adminApi.setStorage(u.id, mb),
               patchUser(u.id, (x) => ({ ...x, storageMb: mb })),
             );
           }}
-        >
-          <option value="default">Storage: default ({storageLabel(defaultMb)})</option>
-          {choices.map((c) => (
-            <option key={c} value={c}>
-              Storage: {storageLabel(c)}
-            </option>
-          ))}
-        </select>
+        />
         {!u.owner && (
-          <select
-            aria-label={`Bridges for ${u.email}`}
+          <Picker
+            field
+            label={`Bridges for ${u.email}`}
             value={u.bridgesAllowed ? 'yes' : 'no'}
-            onChange={(e) => {
-              const yes = e.target.value === 'yes';
+            options={[
+              { value: 'yes', label: 'Bridges: allowed' },
+              { value: 'no', label: 'Bridges: not allowed' },
+            ]}
+            onChange={(v) => {
+              const yes = v === 'yes';
               act(
                 () => adminApi.setBridges(u.id, yes),
                 patchUser(u.id, (x) => ({ ...x, bridgesAllowed: yes })),
               );
             }}
-          >
-            <option value="yes">Bridges: allowed</option>
-            <option value="no">Bridges: not allowed</option>
-          </select>
+          />
         )}
         {!u.owner && inviteOnly && !u.blocked && (
           <button

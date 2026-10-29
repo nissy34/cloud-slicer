@@ -13,6 +13,7 @@ import { decodePairing, type Pairing } from '../pairing';
 import { AddBridge, BridgeSetup, CopyCommand, SignInForBridge } from './BridgeSetup';
 import { Dialog } from '../../components/Dialog';
 import { Note } from '../../components/Note';
+import { Picker } from '../../components/Picker';
 
 const newId = () => Math.random().toString(36).slice(2, 10);
 
@@ -24,14 +25,14 @@ function PresetField({ value, onChange }: { value: string; onChange: (name: stri
   return (
     <label>
       Printer profile
-      <select value={value} onChange={(e) => onChange(e.target.value)} aria-label="Printer profile">
-        {!printers.some((p) => p.name === value) && <option value={value}>{value || 'Choose a printer profile'}</option>}
-        {printers.map((p) => (
-          <option key={p.name} value={p.name}>
-            {p.name}
-          </option>
-        ))}
-      </select>
+      <Picker
+        field
+        label="Printer profile"
+        value={value}
+        placeholder="Choose a printer profile"
+        options={[...(value && !printers.some((p) => p.name === value) ? [{ value, label: value }] : []), ...printers.map((p) => ({ value: p.name, label: p.name }))]}
+        onChange={onChange}
+      />
     </label>
   );
 }
@@ -902,13 +903,7 @@ export function PrinterEditor() {
               {bridge && !listMode && bridge.printers.length > 0 && (
                 <label>
                   Printer
-                  <select value={printerId} onChange={(e) => setPrinterId(e.target.value)}>
-                    {bridge.printers.map((p) => (
-                      <option key={p.id} value={p.id}>
-                        {p.name}
-                      </option>
-                    ))}
-                  </select>
+                  <Picker field label="Printer" value={printerId} options={bridge.printers.map((p) => ({ value: p.id, label: p.name }))} onChange={setPrinterId} />
                 </label>
               )}
             </>

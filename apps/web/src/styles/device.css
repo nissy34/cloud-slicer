@@ -226,8 +226,8 @@
   align-items: center;
   gap: 10px;
 }
-.dv-slot-tools select {
-  font: inherit;
+.dv-slot-tools .picker {
+  width: auto;
   font-size: var(--t-sm);
 }
 .dv-grip {
@@ -2101,7 +2101,7 @@
   .dv-map li > [aria-hidden] {
     justify-self: center;
   }
-  .dv-map-head select {
+  .dv-map-head .picker {
     flex: 1;
     min-width: 0;
   }
@@ -2109,4 +2109,9 @@
   .dv-map .dv-error-text {
     grid-column: 2;
   }
+}
+
+/* "Still printing, every N h": a small picker after the words. */
+.picker.dv-hours {
+  width: auto;
 }

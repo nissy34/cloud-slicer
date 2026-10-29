@@ -175,28 +175,9 @@ button.volume-name {
   font-size: var(--t-md);
   color: var(--muted);
 }
+/* Change filament: the same rows as every filament picker (numbered square, preset name). */
 .layer-filaments {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-  padding: 4px 10px 6px;
-}
-.layer-filament {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  min-height: 34px;
-  padding: 4px 10px;
-  border: 1px solid var(--border);
-  border-radius: var(--r-lg);
-  background: var(--surface-2);
-  color: var(--text);
-}
-.layer-filament.current {
-  border-color: var(--accent);
-}
-.layer-filament:disabled:not(.current) {
-  opacity: 0.5;
+  display: grid;
 }
 .layer-menu textarea {
   width: 100%;

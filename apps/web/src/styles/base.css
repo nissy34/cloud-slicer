@@ -27,7 +27,6 @@ body {
 }
 
 button,
-select,
 input,
 textarea {
   font: inherit;
@@ -192,7 +191,7 @@ button:focus-visible {
 
 /* Motion (docs/architecture/design-system.md): one speed, --speed, for hover,
    open and switch. Zero weight (:where), so a part's own transition wins. */
-:where(button, [role='button'], [role='tab'], [role='option'], .menu-item, .chip, select, input, textarea) {
+:where(button, [role='button'], [role='tab'], [role='option'], .menu-item, .chip, input, textarea) {
   transition:
     background-color var(--speed),
     border-color var(--speed),

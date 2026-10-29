@@ -18,7 +18,7 @@
 | Part | Where |
 |---|---|
 | Mix list, editing, remapping, Match a colour | `engine/src/mixed_api.cpp` (Orca's `MixedFilamentManager`) |
-| Add Mix dialog modes (desktop's `MixedFilamentDialog`) | `lib/mixing.ts`, `components/ColorMixing.tsx` |
+| Add Mix dialog modes (desktop's `MixedFilamentDialog`); each part of a mix is picked with the shared filament Picker (numbered square, preset name) | `lib/mixing.ts`, `components/ColorMixing.tsx` |
 | Flush table, multiplier, where the purge goes | `engine/src/flush_api.cpp`, `lib/flush.ts`, `components/FlushVolumes.tsx` |
 
 ## How it flows

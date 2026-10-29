@@ -15,6 +15,7 @@ import { mkdirSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { chromium } from 'playwright';
+import { pickerOf } from './picker.mjs';
 
 const web = join(dirname(fileURLToPath(import.meta.url)), '..');
 const PORT = 4179;
@@ -108,9 +109,9 @@ async function run(name, options) {
     await page.getByRole('tab', { name: 'Quality' }).click();
     await level('Advanced');
     expect(!(await page.getByLabel('Ironing flow', { exact: true }).count()), 'ironing flow hidden with ironing off');
-    await page.getByRole('combobox', { name: 'Ironing Type', exact: true }).selectOption('top');
+    await pickerOf(page, 'Ironing Type').selectOption('top');
     await page.getByLabel('Ironing flow', { exact: true }).waitFor();
-    await page.getByRole('combobox', { name: 'Ironing Type', exact: true }).selectOption('no ironing');
+    await pickerOf(page, 'Ironing Type').selectOption('no ironing');
     await level('Simple');
   });
 
@@ -168,7 +169,7 @@ async function run(name, options) {
     await fill.waitFor({ state: 'detached' });
     expect((await density.inputValue()) === '100%', `density kept at 100%, got ${await density.inputValue()}`);
     await search.fill('sparse infill pattern');
-    const pattern = page.getByRole('combobox', { name: 'Sparse infill pattern', exact: true });
+    const pattern = pickerOf(page, 'Sparse infill pattern');
     expect((await pattern.inputValue()) === 'rectilinear', `pattern switched to rectilinear, got ${await pattern.inputValue()}`);
     // Density back first: the preset's pattern at 100% would ask again.
     await search.fill('sparse infill density');

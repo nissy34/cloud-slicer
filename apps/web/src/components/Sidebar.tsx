@@ -163,37 +163,9 @@ function ProcessSection() {
       </div>
       <label className="field">
         <span className="sr-only">Process preset</span>
-        <select aria-label="Process preset" value={selection?.process ?? ''} onChange={(e) => void selectProcess(e.target.value)}>
-          <PresetOptions presets={processes} />
-        </select>
+        <Picker field label="Process preset" value={selection?.process ?? null} options={presetOptions(processes)} onChange={(v) => void selectProcess(v)} />
       </label>
     </section>
-  );
-}
-
-/** A picker's options, the user's own presets first. */
-/** A native list's choices (the process list has no actions, so it stays a plain dropdown). */
-function PresetOptions({ presets }: { presets: PresetSummary[] }) {
-  const groups = new Map<string | undefined, PickerOption[]>();
-  for (const o of presetOptions(presets)) groups.set(o.group, [...(groups.get(o.group) ?? []), o]);
-  const options = (list: PickerOption[]) =>
-    list.map((o) => (
-      <option key={o.value} value={o.value}>
-        {o.label}
-      </option>
-    ));
-  return (
-    <>
-      {[...groups].map(([group, list]) =>
-        group ? (
-          <optgroup key={group} label={group}>
-            {options(list)}
-          </optgroup>
-        ) : (
-          options(list)
-        ),
-      )}
-    </>
   );
 }
 

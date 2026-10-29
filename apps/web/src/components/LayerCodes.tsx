@@ -3,6 +3,7 @@ import type { LayerCode } from '../engine/protocol';
 import { canChangeFilament, codeAt, codeLabel, layerOf, newCode, withCodeAt } from '../lib/layerCodes';
 import { NO_COLOURS, useOption, usePlateOption, useSlicer } from '../state/store';
 import { Swatch } from './Swatch';
+import { filamentChoices } from '../lib/filament-choices';
 
 const NO_CODES: LayerCode[] = [];
 
@@ -64,6 +65,8 @@ type Form = null | 'gcode' | 'jump';
 export function LayerMenu({ layerZ, layer, onLayer, onClose }: { layerZ: Float32Array; layer: number; onLayer(layer: number): void; onClose(): void }) {
   const codes = useLayerCodes();
   const palette = usePalette();
+  const presets = useSlicer((s) => s.selection?.filaments ?? NO_COLOURS);
+  const physical = presets.length || 1;
   const plateFilaments = useSlicer((s) => (s.job.kind === 'sliced' ? s.project?.plates[s.job.plate]?.filaments : undefined));
   const setLayerCodes = useSlicer((s) => s.setLayerCodes);
   const template = String(useOption('template_custom_gcode') ?? '');
@@ -94,25 +97,28 @@ export function LayerMenu({ layerZ, layer, onLayer, onClose }: { layerZ: Float32
     void setLayerCodes(withCodeAt(codes, layerZ, layer, code), label);
   };
   const z = layerZ[layer];
-  const filamentChoices = !byObject && canChangeFilament(palette.length, plateFilaments ?? []);
+  const canChange = !byObject && canChangeFilament(palette.length, plateFilaments ?? []);
   const item = (label: string, onClick: () => void, extra?: { disabled?: boolean; title?: string }) => (
     <button role="menuitem" className="menu-item" disabled={extra?.disabled} title={extra?.title} onClick={onClick}>
       {label}
     </button>
   );
+  // The rows every filament picker shows: numbered square, then the preset's name.
   const filaments = (current?: number) => (
     <div className="layer-filaments" role="group" aria-label="Change filament">
-      {palette.map((colour, i) => (
+      {filamentChoices(palette, presets, physical).map((f, i) => (
         <button
           key={i}
-          role="menuitem"
-          className={`layer-filament${current === i + 1 ? ' current' : ''}`}
-          disabled={!filamentChoices || current === i + 1}
-          title={filamentChoices ? `Print with filament ${i + 1} from this layer on` : undefined}
-          onClick={() => put(newCode('filament', z, { filament: i + 1, colour }), 'Change filament')}
+          role="menuitemradio"
+          aria-checked={current === i + 1}
+          className="menu-item"
+          data-filament={i + 1}
+          disabled={!canChange || current === i + 1}
+          title={canChange ? `Print with filament ${i + 1} from this layer on` : undefined}
+          onClick={() => put(newCode('filament', z, { filament: i + 1, colour: f.swatch }), 'Change filament')}
         >
-          <Swatch colour={colour} size="sm" />
-          {i + 1}
+          <Swatch colour={f.swatch} number={f.swatchNumber} />
+          {f.label}
         </button>
       ))}
     </div>
@@ -213,7 +219,7 @@ export function LayerMenu({ layerZ, layer, onLayer, onClose }: { layerZ: Float32
           {palette.length > 1 && (
             <>
               <div className="menu-label">
-                Change filament{!filamentChoices && (byObject ? ' (not when printing object by object)' : ' (only when the plate prints with one filament)')}
+                Change filament{!canChange && (byObject ? ' (not when printing object by object)' : ' (only when the plate prints with one filament)')}
               </div>
               {filaments()}
             </>

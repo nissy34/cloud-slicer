@@ -114,7 +114,7 @@ try {
   await toLayer(page, top);
   const topZ = Number((await label(page)).split('·')[1].trim().replace(' mm', ''));
   await add.click();
-  await menu.getByRole('menuitem', { name: '2', exact: true }).click();
+  await menu.locator('[data-filament="2"]').click();
   await page.getByRole('button', { name: `Layer ${top}: Change to filament 2` }).waitFor({ timeout: 10000 });
   if (shots) await page.screenshot({ path: join(shots, 'layer-markers-desktop.png') });
   console.log('filament change added');

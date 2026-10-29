@@ -7,6 +7,7 @@ import { startSvg } from './SvgPanel';
 import { startText } from './TextPanel';
 import { ChevronDown, ChevronRight } from 'lucide-react';
 import { Swatch } from './Swatch';
+import { filamentChoices } from '../lib/filament-choices';
 import { scrollMotion } from '../lib/motion';
 
 type Sub = 'split' | 'mirror' | 'filament' | 'units' | 'type' | 'copies' | 'plate' | `add-${VolumeKind}` | null;
@@ -35,6 +36,9 @@ function MenuCard() {
   const project = useSlicer((s) => s.project)!;
   const colours = useSlicer((s) => (s.palette.length ? s.palette : (s.selection?.colours ?? NO_COLOURS)));
   const physical = useSlicer((s) => s.selection?.filaments.length ?? 1);
+  const presets = useSlicer((s) => s.selection?.filaments ?? NO_COLOURS);
+  // The rows every filament picker shows: numbered square, then the preset's name.
+  const filamentRows = filamentChoices(colours, presets, physical);
   const height = useSlicer((s) => Number(s.overrides.printable_height ?? s.baseConfig.printable_height) || 0);
   const plate = useSlicer((s) => s.plate);
   const copied = useSlicer((s) => s.copied);
@@ -236,10 +240,10 @@ function MenuCard() {
               'filament',
               'Change filament',
               <>
-                {Array.from({ length: Math.max(physical, colours.length) }, (_, k) => (
+                {filamentRows.map((f, k) => (
                   <button key={k} role="menuitemradio" aria-checked={(vol.extruder || obj.extruder || 1) === k + 1} className="menu-item" onClick={run(() => s.setObjectFilament(o, vi, k + 1))}>
-                    <Swatch colour={colours[k]} size="sm" />
-                    {k < physical ? `Filament ${k + 1}` : `Mix ${k + 1}`}
+                    <Swatch colour={f.swatch} number={f.swatchNumber} />
+                    {f.label}
                   </button>
                 ))}
               </>,
@@ -393,10 +397,10 @@ function MenuCard() {
             'filament',
             'Change filament',
             <>
-              {Array.from({ length: Math.max(physical, colours.length) }, (_, k) => (
+              {filamentRows.map((f, k) => (
                 <button key={k} role="menuitemradio" aria-checked={(obj.extruder || 1) === k + 1} className="menu-item" onClick={run(() => s.setObjectFilament(o, -1, k + 1))}>
-                  <Swatch colour={colours[k]} size="sm" />
-                  {k < physical ? `Filament ${k + 1}` : `Mix ${k + 1}`}
+                  <Swatch colour={f.swatch} number={f.swatchNumber} />
+                  {f.label}
                 </button>
               ))}
             </>,

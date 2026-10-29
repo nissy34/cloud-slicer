@@ -135,14 +135,19 @@ function Choices() {
 /** Fields, a slider and filament swatches. */
 function Fields() {
   const [speed, setSpeed] = useState(60);
+  const [plate, setPlate] = useState('Textured PEI Plate');
   return (
     <>
       <div className="ds-row">
         <input aria-label="Name" defaultValue="Benchy two colours" />
-        <select aria-label="Plate type" defaultValue="Textured PEI Plate">
-          <option>Textured PEI Plate</option>
-          <option>Smooth PEI Plate</option>
-        </select>
+        <Picker
+          field
+          className="ds-field-picker"
+          label="Plate type"
+          value={plate}
+          options={['Textured PEI Plate', 'Smooth PEI Plate'].map((p) => ({ value: p, label: p }))}
+          onChange={setPlate}
+        />
         <span className="input-unit ds-unit">
           <input aria-label="Layer height" defaultValue="0.2" />
           <span className="unit">mm</span>

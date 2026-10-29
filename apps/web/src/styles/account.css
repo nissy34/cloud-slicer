@@ -182,9 +182,6 @@
   letter-spacing: 0.04em;
   color: var(--muted);
 }
-.import-row select {
-  width: 100%;
-}
 .win .warn,
 
 .preset-pop-field {

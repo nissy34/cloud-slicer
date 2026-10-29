@@ -100,7 +100,7 @@ try {
   console.log('Outer wall hides and shows');
 
   // The filament view: grams per filament as in the G-code, and the filament changes.
-  const colourBy = page.getByLabel('Colour by');
+  const colourBy = pickerOf(page, 'Colour by');
   await colourBy.selectOption('filament');
   const stats = page.getByTestId('filament-stats');
   await stats.waitFor();

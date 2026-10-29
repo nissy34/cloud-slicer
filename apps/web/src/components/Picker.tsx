@@ -28,11 +28,15 @@ export type PickerOption = {
   swatch?: string;
   /** …with this number inside it (the filament's number). */
   swatchNumber?: string;
+  /** No filament loaded there: the swatch is striped. */
+  swatchEmpty?: boolean;
   group?: string;
   hint?: ReactNode;
   /** Small grey words right after the label, on the button too (an engine's version). */
   note?: string;
   disabled?: boolean;
+  /** Why it can't be picked, in the row's tooltip. */
+  title?: string;
 };
 /** An action under the choices, after a line, in the normal text colour with its icon in
  * front. Its words end in "…" when a window follows. */
@@ -55,6 +59,8 @@ type Props = {
   title?: string;
   /** What the button says when the value isn't one of the choices. */
   placeholder?: string;
+  /** The current choice is wrong (a red box, like a field's). */
+  invalid?: boolean;
 };
 
 /**
@@ -63,7 +69,7 @@ type Props = {
  * actions can sit under the choices. Floating UI places it, keeps it on screen, and gives
  * arrow keys, Escape and closing on a tap outside.
  */
-export function Picker({ label, value, options, onChange, actions = [], onAction, className, testId, disabled, field, title, placeholder }: Props) {
+export function Picker({ label, value, options, onChange, actions = [], onAction, className, testId, disabled, field, title, placeholder, invalid }: Props) {
   const [open, setOpen] = useState(false);
   const [active, setActive] = useState<number | null>(null);
   const rows = useRef<(HTMLElement | null)[]>([]);
@@ -74,6 +80,8 @@ export function Picker({ label, value, options, onChange, actions = [], onAction
     open,
     onOpenChange: setOpen,
     placement: 'bottom-start',
+    // Fixed, so a window's scrolling body doesn't clip the list.
+    strategy: 'fixed',
     whileElementsMounted: autoUpdate,
     middleware: [
       offset(4),
@@ -96,6 +104,15 @@ export function Picker({ label, value, options, onChange, actions = [], onAction
     useListNavigation(context, { listRef: rows, activeIndex: active, selectedIndex, onNavigate: setActive, loop: true }),
   ]);
 
+  // Inside a window (a modal <dialog>) the list must hang off the window: the
+  // browser draws an open window above the page and makes the rest unclickable.
+  const host = open ? ((refs.domReference.current as HTMLElement | null)?.closest('dialog') ?? undefined) : undefined;
+
+  // Escape closes only the list, not the window it sits in (the browser would cancel the <dialog>).
+  const keepWindow = (e: React.KeyboardEvent) => {
+    if (open && e.key === 'Escape') e.preventDefault();
+  };
+
   const pick = (run: () => void) => {
     setOpen(false);
     run();
@@ -112,9 +129,10 @@ export function Picker({ label, value, options, onChange, actions = [], onAction
         data-value={value ?? ''}
         disabled={disabled}
         title={title}
-        {...getReferenceProps()}
+        aria-invalid={invalid || undefined}
+        {...getReferenceProps({ onKeyDown: keepWindow })}
       >
-        {current?.swatch && <Swatch colour={current.swatch} number={current.swatchNumber} />}
+        {current?.swatch && <Swatch colour={current.swatch} number={current.swatchNumber} empty={current.swatchEmpty} />}
         <span className="picker-value">
           {current?.short ?? current?.label ?? placeholder ?? ''}
           {current?.note && <span className="picker-note">{current.note}</span>}
@@ -122,9 +140,9 @@ export function Picker({ label, value, options, onChange, actions = [], onAction
         <ChevronDown className="picker-arrow" size={16} aria-hidden />
       </button>
       {open && (
-        <FloatingPortal>
+        <FloatingPortal root={host}>
           <FloatingFocusManager context={context} modal={false}>
-            <div ref={refs.setFloating} className="menu picker-list" style={floatingStyles} aria-label={label} {...getFloatingProps()}>
+            <div ref={refs.setFloating} className="menu picker-list" style={floatingStyles} aria-label={label} {...getFloatingProps({ onKeyDown: keepWindow })}>
               {options.map((o, i) => (
                 <Fragment key={o.value}>
                   {o.group && o.group !== options[i - 1]?.group && (
@@ -141,12 +159,13 @@ export function Picker({ label, value, options, onChange, actions = [], onAction
                     aria-selected={o.value === value}
                     aria-disabled={o.disabled || undefined}
                     disabled={o.disabled}
+                    title={o.title}
                     tabIndex={active === i ? 0 : -1}
                     className="menu-item"
                     data-value={o.value}
                     {...getItemProps({ onClick: () => pick(() => onChange(o.value)) })}
                   >
-                    {o.swatch && <Swatch colour={o.swatch} number={o.swatchNumber} />}
+                    {o.swatch && <Swatch colour={o.swatch} number={o.swatchNumber} empty={o.swatchEmpty} />}
                     <span className="picker-label">
                       {o.label}
                       {o.note && <span className="picker-note">{o.note}</span>}

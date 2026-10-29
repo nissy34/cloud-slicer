@@ -10,6 +10,7 @@ import {
 } from '../lib/calibration';
 import { useSlicer } from '../state/store';
 import { Dialog } from './Dialog';
+import { Picker } from './Picker';
 
 /** Desktop Orca's Calibration menu: pick a test, set its range, and it replaces the plate. */
 export function CalibrationDialog({ onClose }: { onClose: () => void }) {
@@ -48,29 +49,19 @@ export function CalibrationDialog({ onClose }: { onClose: () => void }) {
     >
       <label className="field">
         <span>Test</span>
-        <select aria-label="Calibration test" value={mode} onChange={(e) => setMode(e.target.value as typeof mode)}>
-          {CALIBRATIONS.map((c) => (
-            <option key={c.mode} value={c.mode}>
-              {c.title}
-            </option>
-          ))}
-        </select>
+        <Picker field label="Calibration test" value={mode} options={CALIBRATIONS.map((c) => ({ value: c.mode, label: c.title }))} onChange={(m) => setMode(m as typeof mode)} />
       </label>
       <p className="muted small">{calibrationHint(test, v)}</p>
       {test.choices?.map((c) => (
         <label key={c.key} className="field">
           <span>{c.label}</span>
-          <select
-            aria-label={c.label}
+          <Picker
+            field
+            label={c.label}
             value={String(v[c.key])}
-            onChange={(e) => setValues({ ...values, [mode]: changeChoice(test, v, c.key, e.target.value) })}
-          >
-            {c.options.map((o) => (
-              <option key={o.value} value={o.value}>
-                {o.label}
-              </option>
-            ))}
-          </select>
+            options={c.options.map((o) => ({ value: String(o.value), label: o.label }))}
+            onChange={(next) => setValues({ ...values, [mode]: changeChoice(test, v, c.key, next) })}
+          />
         </label>
       ))}
       {numbers.length > 0 && (

@@ -9,7 +9,7 @@ import { Dialog } from './Dialog';
 import { setOverrideChecked } from './SettingsPrompt';
 import { RotateCcw, X } from 'lucide-react';
 import { IconButton } from './IconButton';
-import { Picker } from './Picker';
+import { Picker, type PickerOption } from './Picker';
 
 /**
  * Editor for one Orca option, driven by the engine's option metadata: a
@@ -196,18 +196,9 @@ export function OptionField({
     ];
     editor = <Picker field label={text} className="filament-field" value={shown} options={options} disabled={disabled} onChange={commit} />;
   } else if (type === 'enum' && def.enumValues) {
-    editor = (
-      <select aria-label={text} value={shown} disabled={disabled} onChange={(e) => commit(e.target.value)}>
-        {!def.enumValues.includes(shown) && <option value={shown}>{shown}</option>}
-        {def.enumValues.map((v, i) =>
-          choices && !choices.includes(v) && v !== shown ? null : (
-            <option key={v} value={v}>
-              {def.enumLabels?.[i] || v}
-            </option>
-          ),
-        )}
-      </select>
-    );
+    const options: PickerOption[] = def.enumValues.flatMap((v, i) => (choices && !choices.includes(v) && v !== shown ? [] : [{ value: v, label: def.enumLabels?.[i] || v }]));
+    if (!def.enumValues.includes(shown)) options.unshift({ value: shown, label: shown });
+    editor = <Picker field label={text} value={shown} options={options} disabled={disabled} onChange={commit} />;
   } else if (def.multiline || (def.type === 'strings' && !slotText) || (type === 'string' && shown.length > 60)) {
     editor = (
       <textarea

@@ -15,6 +15,7 @@ import { chromium } from 'playwright';
 import { bridgeConfig, bridgeProgram, pairingCode, startBridge } from './device/go-bridge.mjs';
 import { startMockPrinter } from './device/mock-printer.mjs';
 import { currentPrinter, openManage, openPrinterList, pickPrinter, printerNames } from './device/printer-picker.mjs';
+import { openPicker, pickerOf, pickerRows } from './picker.mjs';
 
 const web = join(dirname(fileURLToPath(import.meta.url)), '..');
 const shots = process.argv[2] ? resolve(process.argv[2]) : null;
@@ -317,8 +318,8 @@ try {
   await pickHead(1);
   await sheet.getByRole('button', { name: 'Nozzle' }).click();
   await page.getByTestId('head-switches').getByText('121').waitFor();
-  await page.getByLabel('Size').selectOption('0.6');
-  await page.getByLabel('Type').selectOption('high_flow');
+  await pickerOf(page, 'Size').selectOption('0.6');
+  await pickerOf(page, 'Type').selectOption('high_flow');
   await page.getByRole('button', { name: 'Save to printer' }).click();
   await until('nozzle saved', () => u1.scripts.includes('SET_NOZZLE_PROPERTIES EXTRUDER=extruder1 DIAMETER=0.6 VOLUME_TYPE=high_flow'));
   await sheet.getByText('0.6 mm high flow nozzle').waitFor();
@@ -390,7 +391,7 @@ try {
   // The dialog names the printer the file goes to.
   await page.getByRole('dialog').getByRole('heading', { name: 'Send to U1-mock' }).waitFor();
   // Suggested map: red PETG -> T2 (red PETG), dark PLA -> T1.
-  await until('suggested map', async () => (await page.getByLabel('Tool head for filament 1').inputValue()) === '1' && (await page.getByLabel('Tool head for filament 2').inputValue()) === '0');
+  await until('suggested map', async () => (await pickerOf(page, 'Tool head for filament 1').inputValue()) === '1' && (await pickerOf(page, 'Tool head for filament 2').inputValue()) === '0');
   await page.getByTestId('upload-only').click();
   await until('file uploaded', () => u1.files.has('two_colour.gcode'), 20_000);
   // The printer has the whole file a moment before the page hears back; the
@@ -406,9 +407,12 @@ try {
   await page.getByTestId('device-gcode-input').setInputFiles({ name: 'flexible.gcode', mimeType: 'text/plain', buffer: tpu });
   await page.getByTestId('tool-map').waitFor();
   await page.getByTestId('map-blocked').filter({ hasText: 'No tool head has TPU' }).waitFor();
-  if ((await page.getByLabel('Tool head for filament 2').locator('option:not(:disabled)').count()) !== 0) throw new Error('a head of another type can be chosen for TPU');
+  const tpuHeads = await openPicker(page, 'Tool head for filament 2');
+  if ((await tpuHeads.locator('[role="option"]:not(:disabled)').count()) !== 0) throw new Error('a head of another type can be chosen for TPU');
+  await page.keyboard.press('Escape');
   if (!(await page.getByTestId('upload-and-print').isDisabled())) throw new Error('printing allowed with a TPU filament on a PLA head');
-  const disabled = await page.getByLabel('Tool head for filament 1').locator('option:disabled').allTextContents();
+  const disabled = await (await openPicker(page, 'Tool head for filament 1')).locator('[role="option"]:disabled').allTextContents();
+  await page.keyboard.press('Escape');
   if (disabled.length !== 3 || disabled.some((t) => t.includes('PETG'))) throw new Error(`PETG filament: expected the 3 non-PETG heads disabled, got ${disabled.join(' | ')}`);
   if (shots) await page.getByRole('dialog').screenshot({ path: join(shots, 'print-dialog-blocked.png') });
   await page.getByRole('dialog').getByRole('button', { name: 'Cancel' }).click();
@@ -578,11 +582,12 @@ try {
   // With two printers saved, a new file can go to either one: picking the U1 in the dialog connects to it.
   const sendFile = { name: 'pick printer.gcode', mimeType: 'text/plain', buffer: gcode };
   await page.getByTestId('device-gcode-input').setInputFiles(sendFile);
-  const sendTo = page.getByRole('dialog').getByTestId('send-printer');
-  await sendTo.locator('option', { hasText: 'voron-mock' }).waitFor({ state: 'attached' });
-  if ((await sendTo.locator('option', { hasText: 'voron-mock' }).getAttribute('value')) !== (await sendTo.inputValue())) throw new Error('the dialog should start on the printer on screen');
+  const sendTo = pickerOf(page.getByRole('dialog'), 'Printer');
+  await sendTo.waitFor();
+  const sendRows = await pickerRows(page.getByRole('dialog'), 'Printer');
+  if (sendRows.find((r) => r.label === 'voron-mock')?.value !== (await sendTo.inputValue())) throw new Error('the dialog should start on the printer on screen');
   if (await page.getByTestId('tool-map').count()) throw new Error('generic printer shows the U1 tool map');
-  const u1Id = await sendTo.locator('option', { hasText: 'U1-mock' }).getAttribute('value');
+  const u1Id = sendRows.find((r) => r.label === 'U1-mock')?.value;
   await page.getByRole('dialog').getByRole('heading', { name: 'Send to voron-mock' }).waitFor();
   await sendTo.selectOption(u1Id);
   await page.getByTestId('tool-map').waitFor({ timeout: 20_000 });

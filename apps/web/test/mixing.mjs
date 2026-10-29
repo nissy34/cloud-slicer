@@ -93,7 +93,7 @@ try {
   await page.getByRole('button', { name: /^Slice plate/ }).click();
   await page.getByTestId('slice-stats').waitFor({ timeout: 600000 });
   await page.getByTestId('layer-label').waitFor({ timeout: 120000 });
-  await page.getByLabel('Colour by').selectOption('filament');
+  await pickerOf(page, 'Colour by').selectOption('filament');
   await page.waitForTimeout(1000);
   await shot(page, 'preview');
 

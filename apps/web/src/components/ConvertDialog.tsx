@@ -4,6 +4,7 @@ import { loadConvertPreference } from '../lib/storage';
 import { useUserSetting } from '../state/account';
 import { useSlicer } from '../state/store';
 import { Dialog } from './Dialog';
+import { Picker } from './Picker';
 
 /** Asks how to bring a 3MF made for a printer we don't have onto one we do. */
 export function ConvertDialog() {
@@ -38,13 +39,7 @@ export function ConvertDialog() {
       </p>
       <label className="field">
         <span>Printer</span>
-        <select aria-label="Convert to printer" value={printer} onChange={(e) => setTarget(e.target.value)}>
-          {printers.map((p) => (
-            <option key={p.name} value={p.name}>
-              {p.name}
-            </option>
-          ))}
-        </select>
+        <Picker field label="Convert to printer" value={printer} options={printers.map((p) => ({ value: p.name, label: p.name }))} onChange={setTarget} />
       </label>
       <label className="switch-row">
         <input className="switch" type="checkbox" checked={keep} onChange={(e) => setKeep(e.target.checked)} />

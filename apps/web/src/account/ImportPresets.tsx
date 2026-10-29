@@ -25,6 +25,7 @@ import { systemParent } from './preset-diff';
 import { saveFromEngine } from './preset-save';
 import { Dialog } from '../components/Dialog';
 import { Note } from '../components/Note';
+import { Picker } from '../components/Picker';
 
 /** An item with what it would store, worked out for its current base. */
 type Row = ImportItem & { diff: OrcaConfig; gcode: string[]; problem: string | null };
@@ -231,14 +232,17 @@ export function ImportPresetsDialog() {
                       <span className="small">
                         Made for {row.inherits ? <b>{row.inherits}</b> : 'another printer'}. Put it on:
                       </span>
-                      <select aria-label={`Base for ${row.name}`} value={row.base} disabled={working} onChange={(e) => void rebase(row, e.target.value)}>
-                        {!baseChoices(row.type).some((p) => p.name === row.base) && <option value={row.base}>{row.base}</option>}
-                        {baseChoices(row.type).map((p) => (
-                          <option key={p.name} value={p.name}>
-                            {shortName(p.name)}
-                          </option>
-                        ))}
-                      </select>
+                      <Picker
+                        field
+                        label={`Base for ${row.name}`}
+                        value={row.base}
+                        disabled={working}
+                        options={[
+                          ...(baseChoices(row.type).some((p) => p.name === row.base) ? [] : [{ value: row.base, label: row.base }]),
+                          ...baseChoices(row.type).map((p) => ({ value: p.name, label: shortName(p.name) })),
+                        ]}
+                        onChange={(v) => void rebase(row, v)}
+                      />
                       <span className="small muted">
                         {row.type === 'process'
                           ? 'Keeps its layer, wall, infill, support and other model settings; speeds, line widths and the like come from the new base.'
@@ -253,15 +257,17 @@ export function ImportPresetsDialog() {
                   {row.taken === 'user' && (
                     <label className="field">
                       <span className="small">You already have a {row.type} preset with this name.</span>
-                      <select
-                        aria-label={`When ${row.name} exists`}
+                      <Picker
+                        field
+                        label={`When ${row.name} exists`}
                         value={row.collision}
-                        onChange={(e) => update(row.key, { collision: e.target.value as Collision })}
-                      >
-                        <option value="overwrite">Replace mine</option>
-                        <option value="keep">Keep both</option>
-                        <option value="skip">Skip</option>
-                      </select>
+                        options={[
+                          { value: 'overwrite', label: 'Replace mine' },
+                          { value: 'keep', label: 'Keep both' },
+                          { value: 'skip', label: 'Skip' },
+                        ]}
+                        onChange={(v) => update(row.key, { collision: v as Collision })}
+                      />
                     </label>
                   )}
                   {row.name !== row.fileName && !row.taken && <p className="import-note small muted">Saved as “{row.name}” (the name “{row.fileName}” is taken or not allowed).</p>}

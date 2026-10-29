@@ -151,7 +151,7 @@
   display: flex;
   gap: 8px;
 }
-.wizard-filters select {
+.wizard-filters .picker {
   max-width: 45%;
 }
 .wizard-filters input:not(.switch) {

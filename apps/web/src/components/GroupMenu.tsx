@@ -4,6 +4,7 @@ import { menuPosition } from '../lib/objectMenu';
 import { NO_COLOURS, useSlicer } from '../state/store';
 import { ChevronDown, ChevronRight } from 'lucide-react';
 import { Swatch } from './Swatch';
+import { filamentChoices } from '../lib/filament-choices';
 
 /**
  * Desktop Orca's right-click menu with several objects chosen (MenuFactory's
@@ -26,6 +27,9 @@ function GroupCard() {
   const copied = useSlicer((s) => s.copied);
   const colours = useSlicer((s) => (s.palette.length ? s.palette : (s.selection?.colours ?? NO_COLOURS)));
   const physical = useSlicer((s) => s.selection?.filaments.length ?? 1);
+  const presets = useSlicer((s) => s.selection?.filaments ?? NO_COLOURS);
+  // The rows every filament picker shows: numbered square, then the preset's name.
+  const filamentRows = filamentChoices(colours, presets, physical);
   const s = useSlicer.getState();
   const card = useRef<HTMLDivElement>(null);
   const [filaments, setFilaments] = useState(false);
@@ -130,7 +134,7 @@ function GroupCard() {
           </button>
           {filaments && (
             <div role="menu" aria-label="Change filament" className="menu-sub">
-              {Array.from({ length: Math.max(physical, colours.length) }, (_, k) => (
+              {filamentRows.map((f, k) => (
                 <button
                   key={k}
                   role="menuitemradio"
@@ -138,8 +142,8 @@ function GroupCard() {
                   className="menu-item"
                   onClick={run(() => s.groupAction({ op: 'filament', filament: k + 1 }))}
                 >
-                  <Swatch colour={colours[k]} size="sm" />
-                  {k < physical ? `Filament ${k + 1}` : `Mix ${k + 1}`}
+                  <Swatch colour={f.swatch} number={f.swatchNumber} />
+                  {f.label}
                 </button>
               ))}
             </div>
