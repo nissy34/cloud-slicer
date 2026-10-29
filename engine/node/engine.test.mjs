@@ -2370,7 +2370,7 @@ function sphereStl(r, n) {
   return buf;
 }
 
-test('memory: a heavy model opened again, and parts painted, reuse the memory they had', async () => {
+test('memory: a heavy model opened again, parts painted and many objects fit, reusing the memory they had', async () => {
   // An engine of its own: how much it takes is only this test's.
   const { engine: e } = await openEngine();
   const gb = () => e.heapSize() / 2 ** 30;
@@ -2395,4 +2395,13 @@ test('memory: a heavy model opened again, and parts painted, reuse the memory th
   }
   // Each one painted once grew the engine by 150-250 MB, out of memory after 20.
   assert.ok(gb() < 1.25, `painting 8 models one after another: ${gb().toFixed(2)} GB`);
+
+  // Many medium objects on one plate: with mimalloc padding each block over
+  // 1 MB, 40 of these ran out (the live engine needed 1.5 GB for 60).
+  const medium = sphereStl(40, 300);
+  open('medium.stl', medium);
+  e.FS.writeFile('/work/medium.stl', medium);
+  for (let k = 1; k < 40; k++) call(e, 'loadModel', '/work/medium.stl', 0, 270, 270, false, 0);
+  e.previewMesh(0);
+  assert.ok(gb() < 1.25, `40 objects of 180k triangles: ${gb().toFixed(2)} GB`);
 });

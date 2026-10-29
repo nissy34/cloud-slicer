@@ -110,7 +110,7 @@ built the engine, `node scripts/shared-settings.mjs` in `apps/web` (new version,
 ## Tests
 
 `engine/node/engine.test.mjs` (both engines, in CI `engine-tests`; its memory test keeps
-a heavy model and repeated painting under 1.25 GB),
+a heavy model, repeated painting and 40 medium objects under 1.25 GB),
 `engine/klipper-check/check.sh` (Klipper accepts the G-code), browser tests
 `smoke.mjs`, `cancel.mjs`, `restart.mjs`, `startup-matrix.mjs`, `engines.mjs`,
 `engine-switch.mjs`.
