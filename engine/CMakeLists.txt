@@ -129,6 +129,8 @@ target_link_options(orca-engine PRIVATE
     # Emscripten's default malloc takes one lock for every thread, which leaves
     # the threads queueing for memory instead of slicing.
     -sMALLOC=mimalloc
+    # new and delete send big blocks past mimalloc (src/memory.cpp).
+    "SHELL:-Wl,--wrap=_Znwm -Wl,--wrap=_Znam -Wl,--wrap=_ZdlPv -Wl,--wrap=_ZdaPv -Wl,--wrap=_ZdlPvm -Wl,--wrap=_ZdaPvm"
 )
 # Upstream OrcaSlicer's flushing volumes come from measured colour pairs in
 # resources/flush (FlushVolPredictor reads them from resources_dir(), "" here).

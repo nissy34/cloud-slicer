@@ -50,10 +50,12 @@ Project& project();
 
 // What the engine keeps beside the project, dropped before another project
 // is opened so the old one's memory is free for it: the undo history
-// (history_api.cpp), the paint selector and ray-cast trees (paint_api.cpp) and
-// the Simplify preview (simplify_api.cpp).
+// (history_api.cpp), the paint selector and ray-cast trees (paint_api.cpp),
+// the measuring data (measure_api.cpp) and the Simplify preview
+// (simplify_api.cpp). Emptying the plate drops all but the undo history.
 void clearUndoHistory();
 void clearPaintCaches();
+void clearMeasureCaches();
 void clearSimplifyPreview();
 
 // Puts a new object on `plate`, on the free spot closest to the centre, on the

@@ -79,6 +79,9 @@ try {
   await page.getByText(/so it restarted/).waitFor({ timeout: 120000 });
   expect(await page.getByText('restarted and reopened your project').isVisible(), `project reopened: ${await page.getByTestId('actionbar').textContent()}`);
   expect(await workers() === 2, 'a second engine started');
+  // "unreachable" is how wasm says it ran out of memory: the page says it in words.
+  expect(await page.getByText('ran out of memory').isVisible(), 'says it ran out of memory');
+  expect(!(await page.getByText('unreachable').isVisible()), 'no bare "unreachable"');
   expect(!(await page.getByText('Changes made since your last slice were lost').isVisible()), 'nothing was lost');
   expect(!(await page.getByText('could not start').isVisible()), 'no "could not start" message');
   await page.getByText('Ready to slice').waitFor({ timeout: 10000 });

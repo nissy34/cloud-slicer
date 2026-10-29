@@ -34,6 +34,10 @@ std::map<size_t, Tree> g_trees;
 
 const AABBMesh& treeOf(const ModelVolume& v) {
     const auto& mesh = v.get_mesh_shared_ptr();
+    if (g_trees.find(v.id().id) == g_trees.end())
+        // A new part: drop the trees of meshes gone since (deleted, cut or
+        // simplified parts, closed models), which nothing else frees.
+        for (auto it = g_trees.begin(); it != g_trees.end();) it = it->second.mesh.expired() ? g_trees.erase(it) : std::next(it);
     Tree& t = g_trees[v.id().id];
     if (!t.aabb || t.mesh.lock() != mesh) {
         t.aabb = std::make_unique<AABBMesh>(*mesh);

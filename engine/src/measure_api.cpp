@@ -41,6 +41,8 @@ std::map<size_t, Cached> g_measuring;
 
 Measure::Measuring& measuringOf(const ModelVolume& v) {
     const auto& mesh = v.get_mesh_shared_ptr();
+    if (g_measuring.find(v.id().id) == g_measuring.end())
+        for (auto it = g_measuring.begin(); it != g_measuring.end();) it = it->second.mesh.expired() ? g_measuring.erase(it) : std::next(it);  // as paint_api's trees
     Cached& c = g_measuring[v.id().id];
     if (!c.measuring || c.mesh.lock() != mesh) {
         c.measuring = std::make_unique<Measure::Measuring>(mesh->its);
@@ -366,6 +368,8 @@ std::string assembleAction(int a, int b, const std::string& requestJson) {
 }
 
 } // namespace
+
+void engine::clearMeasureCaches() { g_measuring.clear(); }
 
 EMSCRIPTEN_BINDINGS(measure_api) {
     emscripten::function("measureFeature", &measureFeature);
