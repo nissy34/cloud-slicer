@@ -143,7 +143,7 @@ export function bambuProjectStart({ path, map, filamentCount, options, slots, pl
           timelapse: options.timeLapse,
           bed_leveling: options.bedLevel,
           bed_levelling: options.bedLevel,
-          flow_cali: options.flowCalibrate,
+          flow_cali: options.flowCalibrate === true,
           vibration_cali: false,
           layer_inspect: false,
           use_ams: ams || !outside,

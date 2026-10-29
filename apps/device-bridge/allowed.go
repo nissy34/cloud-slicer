@@ -31,6 +31,9 @@ var allowed = map[string]bool{
 	"server.exception.query":    true,
 	// The U1's own camera: turns the monitor picture on for a while.
 	"camera.start_monitor": true,
+	// The U1's own print start (firmware 1.3.0+), as Snapmaker Orca sends it:
+	// the printer checks each head's nozzle and filament before it starts.
+	"server.files.start_local_print": true,
 	// A printer the bridge stands in for, in its own language (a Bambu Lab
 	// print with its AMS slots); Moonraker itself has no such call.
 	"printer.request": true,

@@ -134,11 +134,20 @@ func (f *fakeOcto) serve(w http.ResponseWriter, r *http.Request) {
 			delete(f.files, name)
 			w.WriteHeader(204)
 		case http.MethodPost:
+			// Like OctoPrint's own page (its file "Print" button): select with print on.
+			// Another command is refused; select without print only selects.
+			if body["command"] != "select" {
+				writeJSON(w, http.StatusBadRequest, map[string]any{"error": "Unknown command"})
+				return
+			}
 			if f.state != "Operational" {
 				writeJSON(w, http.StatusConflict, map[string]any{"error": "Printer is busy"})
 				return
 			}
-			f.state, f.job, f.done = "Printing", name, 25
+			f.job = name
+			if body["print"] == true {
+				f.state, f.done = "Printing", 25
+			}
 			w.WriteHeader(204)
 		}
 	case strings.HasPrefix(p, "/plugin/thumbs/"):

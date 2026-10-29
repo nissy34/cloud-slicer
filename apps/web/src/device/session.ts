@@ -52,7 +52,15 @@ export interface SessionEvents {
 
 const OBJECT_FLUSH_MS = 150;
 
-export class RpcError extends Error {}
+export class RpcError extends Error {
+  /** The JSON-RPC error code, when the printer gave one (-32601: it has no such call). */
+  constructor(
+    message: string,
+    readonly code?: number,
+  ) {
+    super(message);
+  }
+}
 
 export class PrinterSession {
   private seq = 0;
@@ -213,7 +221,7 @@ export class PrinterSession {
       const p = this.pending.get(msg.id)!;
       this.pending.delete(msg.id);
       clearTimeout(p.timer);
-      if (msg.error) p.reject(new RpcError(msg.error.message ?? 'The printer refused the command.'));
+      if (msg.error) p.reject(new RpcError(msg.error.message ?? 'The printer refused the command.', msg.error.code));
       else p.resolve(msg.result);
       return;
     }

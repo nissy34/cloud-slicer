@@ -30,7 +30,8 @@ type fakeElegoo struct {
 	files        map[string][]byte
 	parts        map[string][]byte
 	commands     []int
-	status       int // PrintInfo.Status
+	started      map[string]any // the last print start's Data (Cmd 128)
+	status       int            // PrintInfo.Status
 	file         string
 }
 
@@ -128,6 +129,7 @@ func (f *fakeElegoo) socket(w http.ResponseWriter, r *http.Request) {
 		f.commands = append(f.commands, req.Data.Cmd)
 		switch req.Data.Cmd {
 		case 128:
+			f.started = req.Data.Data
 			name, _ := req.Data.Data["Filename"].(string)
 			switch {
 			case f.status != 0:
@@ -306,8 +308,15 @@ func TestElegooStandIn(t *testing.T) {
 		t.Fatalf("metadata %v", meta)
 	}
 
-	// Print, pause, resume, cancel.
-	c.must("printer.print.start", map[string]any{"filename": "cube.gcode"})
+	// Print, pause, resume, cancel. The dialog's choices reach the printer in
+	// its own fields, as Orca's ElegooLink sends them.
+	c.must("printer.print.start", map[string]any{"filename": "cube.gcode", "options": map[string]any{"bed_level": 1, "time_lapse_camera": 0, "plate_type": 1}})
+	f.mu.Lock()
+	started := fmt.Sprint(f.started)
+	f.mu.Unlock()
+	if started != "map[Calibration_switch:1 Filename:/local/cube.gcode PrintPlatformType:1 StartLayer:0 Tlp_Switch:0]" {
+		t.Fatalf("start sent %s", started)
+	}
 	c.until("printing", func(d map[string]any) bool {
 		ps, _ := d["print_stats"].(map[string]any)
 		return ps["state"] == "printing" && ps["filename"] == "cube.gcode"

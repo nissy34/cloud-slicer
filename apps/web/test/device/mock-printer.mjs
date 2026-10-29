@@ -78,6 +78,7 @@ function u1State(generic) {
         filament_exist: [true, true, true, false],
         filament_official: [true, false, false, false],
         extruder_map_table: [0, 1, 2, 3],
+        extruders_used: [false, false, false, false],
         auto_bed_leveling: true,
         flow_calibrate: false,
         time_lapse_camera: false,
@@ -147,7 +148,8 @@ export function thumbnailBlock(png) {
 // `brand` and `objects` make it stand in for the bridge's stand-in for another
 // kind of printer: printer.info's brand, and that printer's own objects.
 // `printStep`: how much of a print each 0.3 s tick does (0.01: a 30 s print).
-export async function startMockPrinter({ port = 0, host = '127.0.0.1', generic = false, hostname = generic ? 'voron-mock' : 'U1-mock', apiKey = '', screen = false, brand = '', objects = {}, printStep = 0.01 } = {}) {
+// The U1 firmware below 1.3.0 has no server.files.start_local_print; tests pass u1Firmware: '1.2.0' to try that path.
+export async function startMockPrinter({ port = 0, host = '127.0.0.1', generic = false, hostname = generic ? 'voron-mock' : 'U1-mock', apiKey = '', screen = false, brand = '', objects = {}, printStep = 0.01, u1Firmware = '1.3.0' } = {}) {
   const fresh = () => ({ ...u1State(generic), ...structuredClone(objects) });
   let state = fresh();
   // Three objects, the way Orca labels them for Klipper's exclude_object.
@@ -164,7 +166,8 @@ export async function startMockPrinter({ port = 0, host = '127.0.0.1', generic =
   const clients = new Set();
   let frame = 0;
   let printTimer = null;
-  const stats = { fileLists: 0, startMonitor: 0, touches: [], screenPictures: 0, pagePolls: 0, refused: [] };
+  // localPrints: every start_local_print's params. autoFed: the heads the U1's start G-code loaded for the last print.
+  const stats = { fileLists: 0, startMonitor: 0, touches: [], screenPictures: 0, pagePolls: 0, refused: [], localPrints: [], autoFed: [] };
   let monitorUntil = 0;
   let monitorTimer = null;
   const streams = new Set();
@@ -326,9 +329,37 @@ export async function startMockPrinter({ port = 0, host = '127.0.0.1', generic =
     }
   };
 
+  // Like the U1 firmware (print_task_config reset_print_info): the map and the used heads clear when a print ends.
+  const endPrint = (how) => {
+    clearInterval(printTimer);
+    patch({ print_stats: { state: how }, virtual_sdcard: { is_active: false } });
+    if (!generic) patch({ print_task_config: { extruder_map_table: [0, 1, 2, 3], extruders_used: [false, false, false, false] } });
+  };
+
+  // The U1's SDCARD_PRINT_FILE_WITH_PARAMETERS (what start_local_print runs):
+  // the options and map from the page, the used heads from the file's filament use.
+  const withParameters = (filename, options = {}) => {
+    const map = [0, 1, 2, 3, ...Array(28).fill(0)];
+    for (const [f, head] of options.map_table ?? []) map[f] = head;
+    const grams = (/^;\s*filament used \[g\]\s*=\s*(.*)$/m.exec(String(files.get(filename)?.text ?? ''))?.[1] ?? '').split(',').map(Number);
+    const used = [false, false, false, false];
+    grams.forEach((g, f) => g > 0 && (used[map[f]] = true));
+    patch({
+      print_task_config: {
+        extruder_map_table: map.slice(0, 4),
+        extruders_used: used,
+        auto_bed_leveling: options.bed_level === 1,
+        flow_calibrate: options.flow_calibrate === 1,
+        time_lapse_camera: options.time_lapse_camera === 1,
+      },
+    });
+  };
+
   const startPrint = (filename) => {
     if (!files.has(filename)) throw new Error(`File not found: ${filename}`);
     clearInterval(printTimer);
+    // The U1 start G-code: SM_PRINT_AUTO_FEED loads only heads marked as used (print_task_config extruders_used).
+    if (!generic) stats.autoFed = state.print_task_config.extruders_used.flatMap((u, h) => (u ? [h] : []));
     // Klipper reads the file's EXCLUDE_OBJECT_DEFINE lines (names upper-cased).
     const objects = [...String(files.get(filename).text ?? '').matchAll(/^EXCLUDE_OBJECT_DEFINE NAME=(\S+) CENTER=([\d.]+),([\d.]+) POLYGON=(\S+)$/gm)].map((m) => ({
       name: m[1].toUpperCase(),
@@ -345,10 +376,7 @@ export async function startMockPrinter({ port = 0, host = '127.0.0.1', generic =
       const ex = state.exclude_object;
       const left = ex.objects.filter((o) => !ex.excluded_objects.includes(o.name));
       if (left.length) patch({ exclude_object: { current_object: left[Math.floor(p * 100) % left.length].name } });
-      if (p >= 1) {
-        clearInterval(printTimer);
-        patch({ print_stats: { state: 'complete' }, virtual_sdcard: { is_active: false } });
-      }
+      if (p >= 1) endPrint('complete');
     }, 300);
   };
 
@@ -379,9 +407,17 @@ export async function startMockPrinter({ port = 0, host = '127.0.0.1', generic =
         patch({ print_stats: { state: 'printing' } });
         return 'ok';
       case 'printer.print.cancel':
-        clearInterval(printTimer);
-        patch({ print_stats: { state: 'cancelled' }, virtual_sdcard: { is_active: false } });
+        endPrint('cancelled');
         return 'ok';
+      case 'server.files.start_local_print': {
+        // Snapmaker's Moonraker, U1 firmware 1.3.0 and later.
+        if (generic || u1Firmware < '1.3') throw Object.assign(new Error(`Method not found: ${method}`), { code: -32601 });
+        stats.localPrints.push(structuredClone(params));
+        if (!files.has(params.path)) return { state: 'error', message: `File not found: ${params.path}` };
+        withParameters(params.path, params.options);
+        startPrint(params.path);
+        return { state: 'success', message: 'Print started', filename: params.path };
+      }
       case 'printer.emergency_stop':
         patch({ webhooks: { state: 'shutdown', state_message: 'Emergency stop' } });
         return 'ok';

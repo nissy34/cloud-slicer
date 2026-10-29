@@ -23,7 +23,7 @@ import { LinkError, type BridgeStatus, type PrinterLink, type UploadStage } from
 import { currentRelay } from '../device/config';
 import { layoutSetting } from '../device/layout';
 import { decodePairing, type Pairing } from '../device/pairing';
-import { PrinterSession, type ConnState, type ConsoleLine, type GcodeFile } from '../device/session';
+import { PrinterSession, RpcError, type ConnState, type ConsoleLine, type GcodeFile } from '../device/session';
 import type { KlipperObjects } from '../device/status';
 import type { PrintOrigin } from '../lib/prints';
 
@@ -199,6 +199,34 @@ export function bridgeLabel(status?: { host?: string; system?: string } | null):
 }
 
 const secretOf = (p: SavedPrinter) => (p.kind === 'direct' ? p.apiKey : p.key);
+/**
+ * Runs a print start's calls in order. Commands show in the console like any
+ * other. A call the printer doesn't have (-32601: older firmware, or a bridge
+ * that doesn't pass it on) runs its orElse calls instead, and an answer of
+ * { state: 'error' } (Snapmaker's own calls refuse that way) stops the start.
+ */
+export async function runCalls(s: Pick<PrinterSession, 'gcode' | 'rpc'>, calls: PrinterCall[]): Promise<void> {
+  for (const call of calls) {
+    const script = call.method === 'printer.gcode.script' ? (call.params as { script?: unknown } | undefined)?.script : undefined;
+    if (typeof script === 'string') {
+      await s.gcode(script, call.timeoutMs);
+      continue;
+    }
+    let result: unknown;
+    try {
+      result = await s.rpc(call.method, call.params, call.timeoutMs);
+    } catch (e) {
+      if (call.orElse && e instanceof RpcError && e.code === -32601) {
+        await runCalls(s, call.orElse);
+        continue;
+      }
+      throw e;
+    }
+    const r = result as { state?: unknown; message?: unknown } | null;
+    if (r && typeof r === 'object' && r.state === 'error') throw new Error(typeof r.message === 'string' && r.message ? r.message : 'The printer did not start the print.');
+  }
+}
+
 const withSecret = (p: SavedPrinter, secret: string): SavedPrinter => (p.kind === 'direct' ? { ...p, apiKey: secret } : { ...p, key: secret });
 
 export function deviceInput(p: SavedPrinter) {
@@ -616,12 +644,7 @@ export const useDevice = create<DeviceState>((set, get) => {
           path = source.path;
         }
         if (start) {
-          for (const call of start(path)) {
-            const script = call.method === 'printer.gcode.script' ? (call.params as { script?: unknown } | undefined)?.script : undefined;
-            // Commands show in the console like any other.
-            if (typeof script === 'string') await s.gcode(script, call.timeoutMs);
-            else await s.rpc(call.method, call.params, call.timeoutMs);
-          }
+          await runCalls(s, start(path));
           get().setToast(`Printing ${path}`);
         } else {
           get().setToast(`Uploaded ${path}`);

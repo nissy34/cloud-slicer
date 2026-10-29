@@ -117,6 +117,7 @@ export function PrintDialog({ source }: { source: SendSource }) {
             options: options ?? { bedLevel: false, flowCalibrate: false, timeLapse: false },
             slots,
             plate,
+            ...(meta?.bedType && { bedType: meta.bedType }),
           })
         : [{ method: 'printer.print.start', params: { filename: at }, timeoutMs: 60_000 }];
     await go(src, { start: start ? begin : null });
@@ -280,10 +281,12 @@ export function PrintDialog({ source }: { source: SendSource }) {
             <input className="switch" type="checkbox" checked={options.bedLevel} onChange={(e) => setOptionEdits({ ...optionEdits, bedLevel: e.target.checked })} />
             Level the bed
           </label>
-          <label className="switch-row">
-            <input className="switch" type="checkbox" checked={options.flowCalibrate} onChange={(e) => setOptionEdits({ ...optionEdits, flowCalibrate: e.target.checked })} />
-            Calibrate flow
-          </label>
+          {options.flowCalibrate !== undefined && (
+            <label className="switch-row">
+              <input className="switch" type="checkbox" checked={options.flowCalibrate} onChange={(e) => setOptionEdits({ ...optionEdits, flowCalibrate: e.target.checked })} />
+              Calibrate flow
+            </label>
+          )}
           <label className="switch-row">
             <input className="switch" type="checkbox" checked={options.timeLapse} onChange={(e) => setOptionEdits({ ...optionEdits, timeLapse: e.target.checked })} />
             Record a time-lapse

@@ -148,9 +148,16 @@ try {
   await page.getByRole('dialog').waitFor({ state: 'detached', timeout: 20_000 });
   if (elegoo.state.status !== 0) throw new Error('Upload only started a print');
   await page.getByTestId('files-card').locator('li', { hasText: 'cube.gcode' }).getByRole('button', { name: 'Print…' }).click();
+  // Orca's send window for Elegoo: Level the bed and Record a time-lapse, no flow calibration.
+  if (await page.getByRole('dialog').getByLabel('Calibrate flow').count()) throw new Error('Elegoo offers flow calibration');
+  await page.getByRole('dialog').getByLabel('Level the bed').check();
   await page.getByTestId('upload-and-print').click();
   await page.getByTestId('print-state').filter({ hasText: 'Printing' }).waitFor({ timeout: 20_000 });
   if (elegoo.state.file !== '/local/cube.gcode') throw new Error(`printing ${elegoo.state.file}`);
+  {
+    const { Calibration_switch, Tlp_Switch, PrintPlatformType } = elegoo.state.started ?? {};
+    if (Calibration_switch !== 1 || Tlp_Switch !== 0 || PrintPlatformType !== 0) throw new Error(`print start sent ${JSON.stringify(elegoo.state.started)}`);
+  }
   await page.getByTestId('job-card').getByText('cube.gcode').waitFor();
   await page.getByTestId('job-card').getByText('25%').waitFor();
   if (shots) await page.screenshot({ path: join(shots, 'elegoo-printing.png') });

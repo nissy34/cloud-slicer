@@ -66,7 +66,11 @@ desktop's pages (new settings show by themselves); `option-toggles.ts` gets the 
 `ConfigManipulation.cpp` rules (diff it against the old tag); preset files still parse
 (2.4.1 brought byte order marks, which `bundle-profiles.mjs` strips); and, once CI has
 built the engine, `node scripts/shared-settings.mjs` in `apps/web` (new version, old list kept in
-`history`). Desktop-only screens the release adds go to a pick page first.
+`history`). Desktop-only screens the release adds go to a pick page first. Compare how the
+new release starts a print on each printer it sends to (Snapmaker Orca's device page in
+`resources/web/flutter_web`, Orca's `src/slic3r/Utils/*` print hosts) with
+`device/addons/print-start-reference.test.ts`, and update the reference and our start
+when they differ ([send to printer](send-to-printer.md#starting-a-print)).
 
 ## Rules
 

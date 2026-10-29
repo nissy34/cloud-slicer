@@ -43,6 +43,7 @@ export interface SlotWords {
 /** Print options a printer can be asked for before a print starts. */
 export interface PrintOptions {
   bedLevel: boolean;
-  flowCalibrate: boolean;
+  /** Left out for a printer that has no flow calibration. */
+  flowCalibrate?: boolean;
   timeLapse: boolean;
 }

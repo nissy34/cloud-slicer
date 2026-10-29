@@ -60,6 +60,20 @@ type brand interface {
 	noun() string
 }
 
+// startOptions are the print dialog's choices a brand's own print start takes
+// (Orca's send window for that brand), sent with printer.print.start.
+type startOptions struct {
+	BedLevel  int `json:"bed_level"`
+	TimeLapse int `json:"time_lapse_camera"`
+	// PlateType is the side of the plate the file was sliced for (Elegoo: 1 = smooth PC, 0 = textured PEI).
+	PlateType int `json:"plate_type"`
+}
+
+// optionStarter is a brand whose print start takes the dialog's choices.
+type optionStarter interface {
+	startWith(ctx context.Context, path string, o startOptions) error
+}
+
 // commander is a brand that takes G-code (in Klipper's words; it says which it doesn't know).
 type commander interface {
 	gcode(ctx context.Context, script string) error
@@ -479,6 +493,7 @@ func (s *standIn) call(ctx context.Context, c *standInClient, method string, par
 		Objects  map[string]any `json:"objects"`
 		Script   string         `json:"script"`
 		Message  map[string]any `json:"message"`
+		Options  startOptions   `json:"options"`
 	}
 	_ = json.Unmarshal(params, &p)
 	done := func(err error) (any, error) {
@@ -518,6 +533,9 @@ func (s *standIn) call(ctx context.Context, c *standInClient, method string, par
 		}
 		return map[string]any{"eventtime": float64(time.Now().UnixMilli()) / 1000, "status": subset(objects, p.Objects)}, nil
 	case "printer.print.start":
+		if o, ok := s.b.(optionStarter); ok {
+			return done(o.startWith(ctx, gcodePath(p.Filename), p.Options))
+		}
 		return done(s.b.start(ctx, gcodePath(p.Filename)))
 	case "printer.print.pause":
 		return done(s.b.pause(ctx))

@@ -168,6 +168,10 @@ func TestBambuStandIn(t *testing.T) {
 	}
 
 	// Print, pause, resume, cancel.
+	// A project starts only from the page's command (one builder for its AMS slots and checks).
+	if _, err := c.call("printer.print.start", map[string]any{"filename": "cube.gcode.3mf"}); err == nil || !strings.Contains(err.Error(), "print dialog") {
+		t.Fatalf(".3mf through printer.print.start: %v", err)
+	}
 	c.must("printer.print.start", map[string]any{"filename": "cube.gcode"})
 	c.until("printing", func(d map[string]any) bool {
 		ps, _ := d["print_stats"].(map[string]any)
