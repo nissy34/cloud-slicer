@@ -352,9 +352,11 @@
   background: var(--warn);
   vertical-align: middle;
 }
-/* Preview has no toolbar above the plates; with nothing sliced they sit above the message. */
+/* Preview has no toolbar above the plates; with nothing sliced they sit above the message.
+   They start right of the hide-sidebar button (prepare.css .side-toggle). */
 .preview .plate-tabs {
   top: 12px;
+  left: calc(var(--ctl) + 2 * var(--s-4));
   z-index: 2;
 }
 .coming-soon .plate-tabs {
