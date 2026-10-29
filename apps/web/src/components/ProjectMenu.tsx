@@ -13,6 +13,7 @@ import { Note } from './Note';
 import { Empty } from './Empty';
 import { Menu } from './Menu';
 import { Picker } from './Picker';
+import { PrintLoader } from './PrintLoader';
 import { IconButton } from './IconButton';
 import { FolderOpen, LoaderCircle, MoreHorizontal, Search } from 'lucide-react';
 
@@ -457,7 +458,13 @@ function ProjectsDialog() {
           {status === 'unavailable' && <Note tone="info">Accounts aren't set up on this site yet. Save still downloads the 3MF.</Note>}
         </Empty>
       ) : !list ? (
-        <p className="muted">{error || 'Loading…'}</p>
+        error ? (
+          <ErrorNote message={`Couldn't load your projects: ${error}`} />
+        ) : (
+          <div className="projects-loading" role="status">
+            <PrintLoader loading={{ label: 'Loading your projects…' }} />
+          </div>
+        )
       ) : (
         <>
           {!list.enabled && <Note tone="warn">Online projects aren't set up on this site yet. Save as a download instead.</Note>}

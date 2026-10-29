@@ -104,7 +104,7 @@
 /* The name opens the project like the picture; ⋯ beside it holds Open, Rename… and Delete…. */
 .project-card-head {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: var(--s-2);
   min-width: 0;
 }
@@ -112,16 +112,22 @@
   flex: 1;
   min-width: 0;
   padding: 0;
-  overflow: hidden;
   border: 0;
   background: none;
   color: var(--text);
   font: inherit;
   font-weight: 600;
   text-align: start;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  overflow-wrap: anywhere;
   cursor: pointer;
+}
+/* A long name takes two lines on a card (the whole name is in its tooltip); a row shows it all. */
+.project-card .project-card-name {
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
 }
 .project-card-name:hover:not(:disabled) {
   color: var(--accent);
@@ -157,6 +163,16 @@
 .win-foot .spin {
   margin-inline-end: var(--s-3);
   vertical-align: -3px;
+}
+/* While the list loads: the app's loading card, the one the 3D view shows. */
+.projects-loading {
+  display: grid;
+  place-items: center;
+  padding-block: var(--s-7);
+}
+.projects-loading .print-loader {
+  border: 0;
+  box-shadow: none;
 }
 /* Search, Sort and Cards/List stay at the top while the projects scroll under them. */
 .projects-bar {

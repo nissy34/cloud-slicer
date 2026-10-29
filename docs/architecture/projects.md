@@ -49,7 +49,9 @@ server answers; a failure stays in that window with a Copy button and changes no
 While the open project is saved or asked about before another opens, that card shows
 "Opening…". Search (every typed word, any case), Sort (newest, oldest, name, biggest) and
 Cards or List sit at the top and stay put while the projects scroll; Sort and the view are
-remembered per browser. The storage line sits in the window's footer.
+remembered per browser. The storage line sits in the window's footer. While the list loads
+the window shows the app's loading card (components/PrintLoader.tsx) with a moving bar, and
+a long name takes two lines on a card and shows in full in List.
 
 ## What it keeps
 
