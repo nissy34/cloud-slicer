@@ -716,6 +716,13 @@
   align-items: center;
   gap: 4px 8px;
 }
+/* The head's name inside its filament swatch: as wide as the name. */
+.dv-head-swatch {
+  width: auto;
+  min-width: 22px;
+  padding: 0 6px;
+  font-size: var(--t-sm);
+}
 .dv-head-sheet-state {
   display: flex;
   flex-wrap: wrap;
