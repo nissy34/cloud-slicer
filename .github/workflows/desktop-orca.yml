@@ -1,0 +1,43 @@
+name: Desktop Orca comparison
+
+# Every night, main's engines against the real desktop apps of the same
+# versions (Snapmaker Orca and OrcaSlicer for Linux, their command line with no
+# screen): each slices the same test files and what gets printed must match
+# (engine/desktop-check). Also by hand (Actions, Run workflow). Pull requests
+# that change the engine run the same check in ci.yml.
+
+on:
+  schedule:
+    - cron: '0 3 * * *'
+  workflow_dispatch:
+
+concurrency:
+  group: desktop-orca-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  desktop-orca:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        flavor: [snapmaker, orca]
+    name: desktop-orca (${{ matrix.flavor == 'orca' && 'OrcaSlicer' || 'Snapmaker Orca' }})
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+      # The engines CI built from these sources (the engine-builds release),
+      # and the pinned Orca submodules.
+      - name: Get the engines
+        run: |
+          for i in 1 2 3; do node engine/scripts/fetch-engine.mjs && break; sleep 20; done
+          test -f engine/build/engine/orca-engine.wasm && test -f engine/build/engine-orca/orca-engine.wasm
+      - uses: ./.github/actions/desktop-check
+        with:
+          flavor: ${{ matrix.flavor }}

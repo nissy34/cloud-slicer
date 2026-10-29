@@ -72,15 +72,25 @@ jobs:
       pull-requests: read
     outputs:
       site: ${{ steps.files.outputs.site }}
+      engine: ${{ steps.files.outputs.engine }}
     steps:
       - id: files
         env:
           GH_TOKEN: ${{ github.token }}
           PR: ${{ github.event.pull_request.number }}
         run: |
-          if [ "$GITHUB_EVENT_NAME" != pull_request ]; then echo "site=true" >> "$GITHUB_OUTPUT"; exit 0; fi
+          if [ "$GITHUB_EVENT_NAME" != pull_request ]; then
+            echo "site=true" >> "$GITHUB_OUTPUT"
+            # Run by hand: compare with desktop too. Main is compared every night (desktop-orca.yml).
+            [ "$GITHUB_EVENT_NAME" = workflow_dispatch ] && echo "engine=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
           files=$(gh api --paginate "repos/$GITHUB_REPOSITORY/pulls/$PR/files" -q '.[].filename')
           echo "$files"
+          # What the engine is built from, its presets, and the desktop check itself.
+          if printf '%s\n' "$files" | grep -qE '^(engine/(CMakeLists\.txt|cmake/|compat/|patches/|src/|orcaslicer$|orcaslicer-upstream$|desktop-check/|scripts/(build-deps\.sh|bundle-profiles\.mjs|plate-file-names\.mjs|klipper-labels\.mjs|compare-gcode\.py))|\.github/actions/desktop-check/)'; then
+            echo "engine=true" >> "$GITHUB_OUTPUT"
+          fi
           other=$(printf '%s\n' "$files" | grep -vE '^(apps/device-relay/|apps/device-bridge/|\.github/workflows/device\.yml$|docs/|.*\.md$)' || true)
           other="$other$(printf '%s\n' "$files" | grep -E '^apps/device-bridge/testdata/' || true)"
           if [ -n "$other" ] || [ -z "$files" ]; then echo "site=true" >> "$GITHUB_OUTPUT"; else
@@ -390,6 +400,50 @@ jobs:
           if engine/klipper-check/check.sh engine/klipper-check/voron.cfg /tmp/bad.gcode; then
             echo "the Klipper check missed a move off the bed"; exit 1
           fi
+
+  # The real desktop app of the same version slices the same test files, and
+  # what gets printed must match (engine/desktop-check). Only on pull requests
+  # that change the engine, its presets or this check: without such a change
+  # the G-code can't change. Main is checked every night (desktop-orca.yml).
+  desktop-orca:
+    needs: [changes, engine]
+    if: needs.changes.outputs.engine == 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - flavor: snapmaker
+            name: Snapmaker Orca
+            out: engine/build/engine
+          - flavor: orca
+            name: OrcaSlicer
+            out: engine/build/engine-orca
+    name: desktop-orca (${{ matrix.name }})
+    steps:
+      - uses: actions/checkout@v5
+      - name: Fetch the pinned Snapmaker Orca and OrcaSlicer submodules (shallow)
+        run: |
+          for sub in engine/orcaslicer engine/orcaslicer-upstream; do
+            sha=$(git ls-tree HEAD "$sub" | awk '{print $3}')
+            url=$(git config -f .gitmodules "submodule.$sub.url")
+            (cd "$sub" && git init -q && git remote add origin "$url" &&
+              git fetch -q --depth 1 origin "$sha" && git checkout -q FETCH_HEAD)
+          done
+      - name: Engine key
+        id: key
+        run: echo "key=engine-out-$(node engine/scripts/engine-key.mjs --flavor ${{ matrix.flavor }})" >> "$GITHUB_OUTPUT"
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+      - uses: ./.github/actions/restore-engine
+        with:
+          path: ${{ matrix.out }}/orca-engine.*
+          key: ${{ steps.key.outputs.key }}
+      - uses: ./.github/actions/desktop-check
+        with:
+          flavor: ${{ matrix.flavor }}
 
   site:
     needs: engine
