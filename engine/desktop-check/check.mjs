@@ -291,7 +291,7 @@ const lines = [
   '',
   '| Check | Result | Details |',
   '|---|---|---|',
-  ...results.map((r) => `| ${r.name} | ${r.ok ? 'match' : '**differs**'} | ${String(r.note).replace(/\|/g, '\\|').replace(/\n/g, ' ')} |`),
+  ...results.map((r) => `| ${r.name} | ${r.ok ? 'match' : '**differs**'} | ${String(r.note).replace(/\\/g, '\\\\').replace(/\|/g, '\\|').replace(/\n/g, ' ')} |`),
   '',
   'On purpose: ' + Object.entries(EXPECTED_SETTINGS).map(([k, why]) => `\`${k}\` (${why})`).join('; ') + '; the colour-mix prime tower (patches/snapmaker/0009).',
 ];
