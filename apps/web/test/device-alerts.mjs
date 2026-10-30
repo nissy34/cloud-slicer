@@ -173,7 +173,7 @@ try {
   const checked = async (id) => card.getByTestId(id).isChecked();
   for (const id of ['alert-failed', 'alert-paused', 'alert-error', 'alert-finished']) if (!(await checked(id))) throw new Error(`${id} should be on by default`);
   await card.getByTestId('alert-finished-more').filter({ hasText: '📷 case' }).waitFor();
-  for (const id of ['alert-started', 'alert-layer1', 'alert-layer3', 'alert-progress', 'alert-almostDone', 'alert-stillPrinting', 'alert-resumed', 'alert-bedCooled', 'alert-layer', 'alert-offline'])
+  for (const id of ['alert-started', 'alert-layer1', 'alert-progress', 'alert-almostDone', 'alert-stillPrinting', 'alert-resumed', 'alert-bedCooled', 'alert-layer', 'alert-offline'])
     if (await checked(id)) throw new Error(`${id} should be off by default`);
   console.log('alerts on through the bridge, with the agreed defaults');
 
@@ -208,18 +208,20 @@ try {
   await card.getByTestId('alert-paused-more').click();
   if (await settings.count()) throw new Error('tapping the strip again did not close the settings');
 
-  // "Layer you pick": its tile opens a layer box; left empty it turns off again, a layer keeps it on.
+  // "After layer": on starts at layer 3 every print; more chips, any layer typed in, and one for this print only.
   await card.getByTestId('alert-layer').click();
-  await settings.getByTestId('alert-layer-number').waitFor();
-  await card.getByTestId('alert-layer-more').filter({ hasText: 'Pick a layer' }).click();
-  if (await checked('alert-layer')) throw new Error('"Layer you pick" stayed on with no layer');
-  await card.getByTestId('alert-layer').click();
+  await card.getByTestId('alert-layer-more').filter({ hasText: 'Layer 3' }).waitFor();
+  await settings.getByTestId('alert-layer-5').click();
+  await settings.getByTestId('alert-layer-add').fill('12');
+  await settings.getByTestId('alert-layer-add').press('Enter');
+  await card.getByTestId('alert-layer-more').filter({ hasText: 'Layers 3, 5, 12' }).waitFor();
+  if ((await settings.getByTestId('alert-layer-12').getAttribute('aria-pressed')) !== 'true') throw new Error('a typed layer did not become a chip');
   await settings.getByTestId('alert-layer-number').fill('7');
   await settings.getByTestId('alert-layer-number').press('Enter');
-  await card.getByTestId('alert-layer-more').filter({ hasText: 'Layer 7' }).waitFor();
+  await card.getByTestId('alert-layer-more').filter({ hasText: 'Layers 3, 5, 12 · 7 once' }).waitFor();
   if (shots) await card.screenshot({ path: join(shots, 'alerts-layer-desktop.png') });
   await card.getByTestId('alert-layer').click();
-  await until('"Layer you pick" off', async () => !(await checked('alert-layer')));
+  await until('"After layer" off', async () => !(await checked('alert-layer')));
 
   // "Alert me after layer N" from the print dialog, then a whole print on the mock.
   await page.getByTestId('files-card').locator('li', { hasText: 'calibration_cube.gcode' }).getByRole('button', { name: 'Print…' }).click();
@@ -233,7 +235,7 @@ try {
   if (await checked('alert-layer')) throw new Error('layer 99999 was saved');
   await dialog.getByTestId('alert-layer').fill('5');
   await dialog.getByTestId('alert-layer').press('Enter');
-  await until('layer 5 saved', async () => (await card.getByTestId('alert-layer-more').innerText()).includes('Layer 5'));
+  await until('layer 5 saved', async () => (await card.getByTestId('alert-layer-more').innerText()).includes('Layer 5 once'));
   if (shots) await dialog.screenshot({ path: join(shots, 'alerts-print-dialog-desktop.png') });
   await dialog.getByTestId('upload-and-print').click();
   for (const title of ['Layer 5 of 50 done', 'calibration_cube 50% done', 'calibration_cube finished']) await until(title, () => pushes.find((p) => p.title === title));

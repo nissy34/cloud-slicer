@@ -1475,17 +1475,20 @@
 .dv-alert-tile.on,
 .dv-alert-settings {
   --tint: color-mix(in srgb, var(--accent) 14%, var(--surface));
+  --edge: color-mix(in srgb, var(--accent) 45%, var(--surface));
 }
 .dv-alert-tile.on.red,
 .dv-alert-settings.red {
   --tint: color-mix(in srgb, var(--danger) 14%, var(--surface));
+  --edge: color-mix(in srgb, var(--danger) 45%, var(--surface));
 }
 .dv-alert-tile.on.amber,
 .dv-alert-settings.amber {
   --tint: color-mix(in srgb, var(--warn) 16%, var(--surface));
+  --edge: color-mix(in srgb, var(--warn) 50%, var(--surface));
 }
 .dv-alert-tile.on {
-  border-color: transparent;
+  border-color: var(--edge);
   background: var(--tint);
   color: var(--accent);
 }
@@ -1564,7 +1567,9 @@
 }
 .dv-alert-tiles.joined > .dv-alert-tile.open {
   z-index: 1;
-  margin-bottom: 0;
+  /* Over the settings' top edge, so one outline runs round the tile and its settings. */
+  margin-bottom: -1px;
+  border-bottom-color: var(--tint);
   border-bottom-left-radius: 0;
   border-bottom-right-radius: 0;
 }
@@ -1576,18 +1581,31 @@
 .dv-alert-tile.open::after {
   content: '';
   position: absolute;
-  bottom: 0;
+  bottom: -1px;
   width: var(--r-lg);
   height: var(--r-lg);
   pointer-events: none;
 }
+/* The inside corners where the tile meets its settings, outline included. */
 .dv-alert-tile.open:not(.col0)::before {
-  left: calc(-1 * var(--r-lg));
-  background: radial-gradient(circle at 0 0, transparent calc(var(--r-lg) - 0.5px), var(--tint) var(--r-lg));
+  left: calc(-1 * var(--r-lg) - 1px);
+  background: radial-gradient(
+    circle at 0 0,
+    transparent calc(var(--r-lg) - 1.5px),
+    var(--edge) calc(var(--r-lg) - 1px),
+    var(--edge) calc(var(--r-lg) - 0.5px),
+    var(--tint) var(--r-lg)
+  );
 }
 .dv-alert-tile.open:not(.col2)::after {
-  right: calc(-1 * var(--r-lg));
-  background: radial-gradient(circle at 100% 0, transparent calc(var(--r-lg) - 0.5px), var(--tint) var(--r-lg));
+  right: calc(-1 * var(--r-lg) - 1px);
+  background: radial-gradient(
+    circle at 100% 0,
+    transparent calc(var(--r-lg) - 1.5px),
+    var(--edge) calc(var(--r-lg) - 1px),
+    var(--edge) calc(var(--r-lg) - 0.5px),
+    var(--tint) var(--r-lg)
+  );
 }
 .dv-alert-settings {
   grid-column: 1 / -1;
@@ -1595,6 +1613,7 @@
   gap: 8px;
   margin-bottom: 6px;
   padding: 10px;
+  border: 1px solid var(--edge);
   border-radius: var(--r-lg);
   background: var(--tint);
   color: var(--text);
@@ -1650,6 +1669,10 @@
 .dv-alerts-layer {
   width: 64px;
   text-align: right;
+}
+.dv-alerts-layer.dv-alerts-add {
+  width: 84px;
+  text-align: left;
 }
 .dv-print-layer {
   display: flex;

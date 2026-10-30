@@ -7,8 +7,8 @@
 ## What it does
 
 Phone or computer notifications for a printer, even with every tab closed: failed,
-paused or filament out, error and finished by default; started, first and third layer,
-percentages, almost done, still printing, resumed, bed cooled and bridge offline on
+paused or filament out, error and finished by default; started, first layer,
+chosen layers, percentages, almost done, still printing, resumed, bed cooled and bridge offline on
 request. Each says where the print stands (progress, layer, time left in the phone's own
 time zone, filament used) and can carry a camera picture.
 
@@ -21,10 +21,13 @@ tile like a tab (one at a time; turning an alert on opens them). Inside: Progres
 percentages, Still printing hours, and the cameras its picture comes from (chips; a switch
 when the printer has one camera).
 
-"Layer you pick" is the one-off "after layer N" (also set from the Print dialog) as a tile:
-turning it on opens a layer box; it stays on while a layer is set and turns off when the box
-is left empty or the print ends (the relay clears the layer then). Its pictures use the
-`layer` camera choice.
+"After layer" holds every chosen layer: `layers` (every print; chips 2 3 5 10 plus any typed
+in, starts at 3 when turned on) and `layer` (this print only, also set from the Print dialog,
+cleared by the relay when the print ends). Both reach the bridge as its existing `layers`
+watch list and fire the `layer` alert, so no bridge update is needed. The old "Third layer"
+switch (`layer3`) becomes `layers: [3]` when choices are read (`cleanPrefs`). Its pictures use
+the `layer` camera choice. Tiles that are on have an outline in their colour, which runs round
+the open tile and its settings as one shape.
 
 Any alert can carry a picture from up to four cameras. A notification shows one picture, so
 several are joined into one: two side by side, three or four in a 2×2 grid, each named in its

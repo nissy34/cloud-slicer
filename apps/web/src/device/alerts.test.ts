@@ -70,14 +70,27 @@ describe('who wants which alert', () => {
     expect(wants(p, { event: 'stillPrinting', hours: 4 })).toBe(true);
     expect(watchFor([p, { ...defaultPrefs(), layer: 3 }])).toEqual({ layers: [3, 7], percents: [50], hours: true });
   });
+  it('layers on every print, alongside this print\'s one', () => {
+    const p = { ...defaultPrefs(), layers: [3, 10], layer: 7 };
+    for (const n of [3, 7, 10]) expect(wants(p, { event: 'layer', layer: n })).toBe(true);
+    expect(wants(p, { event: 'layer', layer: 5 })).toBe(false);
+    expect(watchFor([p, { ...defaultPrefs(), layers: [3, 5] }]).layers).toEqual([3, 5, 7, 10]);
+  });
+  it('the old "Third layer" switch becomes layer 3 on every print, with its cameras', () => {
+    const p = cleanPrefs({ events: ['finished', 'layer3'], layers: [10], cameras: { layer3: ['nozzle'] } });
+    expect(p?.events).toEqual(['finished']);
+    expect(p?.layers).toEqual([3, 10]);
+    expect(p?.cameras.layer).toEqual(['nozzle']);
+    expect(cleanPrefs({ events: [], layers: [0, 5, 5, 'x', 200000] })?.layers).toEqual([5]);
+  });
   it('a device turned on starts from the choices saved last, without "after layer N"', () => {
-    const last = { ...defaultPrefs(), events: ['finished', 'progress'], percents: [50], hours: 2, layer: 7, cameras: { finished: ['nozzle'] } };
+    const last = { ...defaultPrefs(), events: ['finished', 'progress'], percents: [50], hours: 2, layers: [3], layer: 7, cameras: { finished: ['nozzle'] } };
     expect(startingPrefs(last)).toEqual({ ...last, layer: null });
     expect(startingPrefs(undefined)).toEqual(defaultPrefs());
     expect(startingPrefs('nonsense')).toEqual(defaultPrefs());
   });
   it('cleans what comes from storage', () => {
-    expect(cleanPrefs({ events: ['finished', 'nope', 'finished'], percents: [50, 0, 150, 'x'], hours: 99, layer: 0 })).toEqual({ events: ['finished'], percents: [50], hours: 0, layer: null, cameras: defaultPrefs().cameras });
+    expect(cleanPrefs({ events: ['finished', 'nope', 'finished'], percents: [50, 0, 150, 'x'], hours: 99, layer: 0 })).toEqual({ events: ['finished'], percents: [50], hours: 0, layers: [], layer: null, cameras: defaultPrefs().cameras });
     expect(cleanPrefs(null)).toBeNull();
   });
   it('keeps the cameras chosen for each alert', () => {
