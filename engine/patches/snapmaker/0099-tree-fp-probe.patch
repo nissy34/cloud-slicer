@@ -31,7 +31,7 @@ Debug probe, never for main: dumps tree-support fingerprints to /work/tree-fp.tx
      // Assumption is that roof will support roof further up to avoid a lot of unnecessary branches. Each layer down it is checked whether the roof area
      // is still large enough to be a roof and aborted as soon as it is not. This part was already reworked a few times, and there could be an argument
      // made to change it again if there are actual issues encountered regarding supporting roofs.
-@@ -2447,6 +2455,61 @@
+@@ -2447,6 +2455,73 @@
   *
   * \param move_bounds[in,out] All currently existing influence areas
   */
@@ -82,6 +82,18 @@ Debug probe, never for main: dumps tree-support fingerprints to /work/tree-fp.tx
 +    }
 +    fclose(f);
 +}
++static void tree_fp_object(const PrintObject &obj, const char *path, const char *tag)
++{
++    FILE *f = fopen(path, "a");
++    if (!f) return;
++    fprintf(f, "== %s %zu\n", tag, obj.layers().size());
++    for (const Layer *l : obj.layers()) {
++        long long sx = 0, sy = 0, n = 0;
++        for (const ExPolygon &e : l->lslices) { for (const Point &pt : e.contour.points) { sx += pt.x(); sy += pt.y(); ++n; } for (const Polygon &h : e.holes) for (const Point &pt : h.points) { sx += pt.x(); sy += pt.y(); ++n; } }
++        fprintf(f, "%zu z%.9g e%zu n%lld %lld %lld\n", l->id(), l->print_z, l->lslices.size(), n, sx, sy);
++    }
++    fclose(f);
++}
 +static const char *tree_fp_path()
 +{
 +    // Only when the caller created this file (engine/node probe), so a normal slice writes nothing.
@@ -93,7 +105,15 @@ Debug probe, never for main: dumps tree-support fingerprints to /work/tree-fp.tx
  static void create_layer_pathing(const TreeModelVolumes &volumes, const TreeSupportSettings &config, std::vector<SupportElements> &move_bounds, std::function<void()> throw_on_cancel)
  {
  #ifdef SLIC3R_TREESUPPORTS_PROGRESS
-@@ -3565,6 +3628,7 @@
+@@ -3409,6 +3484,7 @@
+  */
+ static void generate_support_areas(Print &print, TreeSupport* tree_support, const BuildVolume &build_volume, const std::vector<size_t> &print_object_ids, std::function<void()> throw_on_cancel)
+ {
++    if (const char *fp = tree_fp_path()) for (size_t id : print_object_ids) tree_fp_object(*print.get_object(id), fp, "slices");
+     // Settings with the indexes of meshes that use these settings.
+     std::vector<std::pair<TreeSupportSettings, std::vector<size_t>>> grouped_meshes = group_meshes(print, print_object_ids);
+     if (grouped_meshes.empty())
+@@ -3565,6 +3641,7 @@
  
              // ### Propagate the influence areas downwards. This is an inherently serial operation.
              print.set_status(60, _L("Generating support"));
@@ -101,7 +121,7 @@ Debug probe, never for main: dumps tree-support fingerprints to /work/tree-fp.tx
              create_layer_pathing(volumes, config, move_bounds, throw_on_cancel);
              auto t_path = std::chrono::high_resolution_clock::now();
  
-@@ -3574,10 +3638,17 @@
+@@ -3574,10 +3651,17 @@
  
              // ### draw these points as circles
              // this new function give correct result when raft is also enabled
