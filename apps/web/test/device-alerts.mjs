@@ -98,6 +98,17 @@ const fakePush = (sub) => {
   ServiceWorkerRegistration.prototype.showNotification = async (title, o) => void window.__shown.push({ title, ...o });
 };
 
+/** A JPEG's width and height, from its frame header. */
+function jpegSize(b) {
+  for (let i = 2; i + 9 < b.length; ) {
+    if (b[i] !== 0xff) return null;
+    const marker = b[i + 1];
+    if (marker >= 0xc0 && marker <= 0xc3) return { height: b.readUInt16BE(i + 5), width: b.readUInt16BE(i + 7) };
+    i += 2 + b.readUInt16BE(i + 2);
+  }
+  return null;
+}
+
 /** Turns the card's main switch on once it can be used (it waits for the printer and the saved alerts). */
 const turnOn = async (card) => {
   const sw = card.getByTestId('alerts-on');
@@ -158,9 +169,10 @@ try {
   await turnOn(card);
   await card.getByText('Sent through the bridge, even when the browser is closed.').waitFor();
   await card.getByText('Alerts on this computer').waitFor();
-  // The agreed defaults: problems and Finished on, every other milestone off, pictures on, offline off.
+  // The agreed defaults: problems and Finished on, every other milestone off, offline off; key alerts carry the first camera's picture.
   const checked = async (id) => card.getByTestId(id).isChecked();
-  for (const id of ['alert-failed', 'alert-paused', 'alert-error', 'alert-finished', 'alert-pictures']) if (!(await checked(id))) throw new Error(`${id} should be on by default`);
+  for (const id of ['alert-failed', 'alert-paused', 'alert-error', 'alert-finished']) if (!(await checked(id))) throw new Error(`${id} should be on by default`);
+  await card.getByTestId('alert-finished-more').filter({ hasText: '📷 case' }).waitFor();
   for (const id of ['alert-started', 'alert-layer1', 'alert-layer3', 'alert-progress', 'alert-almostDone', 'alert-stillPrinting', 'alert-resumed', 'alert-bedCooled', 'alert-offline'])
     if (await checked(id)) throw new Error(`${id} should be off by default`);
   console.log('alerts on through the bridge, with the agreed defaults');
@@ -170,11 +182,27 @@ try {
   await card.getByText('Sent. It should show in a few seconds.').waitFor();
   console.log('test alert pushed through the relay');
 
-  // Progress at 50% too.
+  // Progress at 50% too: turning it on opens its settings under it.
   await card.getByTestId('alert-progress').click({ force: true });
-  await card.getByRole('button', { name: '50%' }).waitFor();
-  if ((await card.getByRole('button', { name: '50%' }).getAttribute('aria-pressed')) !== 'true') throw new Error('progress should start at 50%');
+  const settings = card.getByTestId('alert-settings');
+  await settings.getByRole('button', { name: '50%' }).waitFor();
+  if ((await settings.getByRole('button', { name: '50%' }).getAttribute('aria-pressed')) !== 'true') throw new Error('progress should start at 50%');
+  await card.getByTestId('alert-progress-more').filter({ hasText: '50%' }).waitFor();
+  if (shots) await card.screenshot({ path: join(shots, 'alerts-progress-desktop.png') });
+
+  // Finished from both cameras: the bridge joins them into one picture.
+  await card.getByTestId('alert-finished-more').click();
+  if (await settings.getByRole('button', { name: '50%' }).count()) throw new Error('two alerts open at once');
+  await settings.getByTestId('alert-camera-nozzle').click();
+  await card.getByTestId('alert-finished-more').filter({ hasText: '📷 2' }).waitFor();
+  await settings.getByText('2 cameras, joined into one picture.').waitFor();
   if (shots) await card.screenshot({ path: join(shots, 'alerts-on-desktop.png') });
+  // Paused without a picture.
+  await card.getByTestId('alert-paused-more').click();
+  await settings.getByTestId('alert-camera-case').click();
+  await card.getByTestId('alert-paused-more').filter({ hasText: 'No picture' }).waitFor();
+  await card.getByTestId('alert-paused-more').click();
+  if (await settings.count()) throw new Error('tapping the strip again did not close the settings');
 
   // "Alert me after layer N" from the print dialog, then a whole print on the mock.
   await page.getByTestId('files-card').locator('li', { hasText: 'calibration_cube.gcode' }).getByRole('button', { name: 'Print…' }).click();
@@ -194,27 +222,45 @@ try {
   for (const title of ['Layer 5 of 50 done', 'calibration_cube 50% done', 'calibration_cube finished']) await until(title, () => pushes.find((p) => p.title === title));
   const finished = pushes.find((p) => p.title === 'calibration_cube finished');
   if (!finished.image || finished.printer !== `${cfg.bridgeId}.voron`) throw new Error(`finished alert: ${JSON.stringify(finished)}`);
+  // Two cameras side by side: one JPEG, two cells of 640 × 480.
+  const joined = Buffer.from(await (await fetch(finished.image)).arrayBuffer());
+  const size = jpegSize(joined);
+  if (size?.width !== 1280 || size?.height !== 480) throw new Error(`the finished picture is not two cameras side by side: ${JSON.stringify(size)}`);
   if (pushes.some((p) => p.title.startsWith('Printing'))) throw new Error('"Print started" is off but was sent');
   await until('layer N cleared on the card', async () => (await card.getByTestId('alert-layer').inputValue()) === '');
-  console.log('layer 5, 50% and finished (with a camera picture) pushed; layer N cleared after the print');
+  console.log('layer 5, 50% and finished (with both cameras joined in one picture) pushed; layer N cleared after the print');
 
   // Phone width: the card fits, nothing wider than the screen.
   await page.setViewportSize({ width: 390, height: 844 });
   await card.evaluate((el) => el.scrollIntoView({ block: 'start' }));
   const wide = await page.evaluate(() => [...document.querySelectorAll('[data-testid="alerts-card"] *')].find((el) => el.getBoundingClientRect().right > window.innerWidth + 0.5)?.className ?? null);
   if (wide !== null) throw new Error(`the Alerts card is wider than a phone: ${wide}`);
-  if (shots) await page.screenshot({ path: join(shots, 'alerts-on-phone.png') });
+  await card.getByTestId('alert-finished-more').click();
+  await card.getByTestId('alert-settings').waitFor();
+  const wider = await page.evaluate(() => [...document.querySelectorAll('[data-testid="alerts-card"] *')].find((el) => el.getBoundingClientRect().right > window.innerWidth + 0.5)?.className ?? null);
+  if (wider !== null) throw new Error(`the open alert settings are wider than a phone: ${wider}`);
+  if (shots) {
+    // The phone keeps the camera on top while scrolling: let it go for a picture of the whole card.
+    const unstick = await page.addStyleTag({ content: ".dv-slot[data-card='camera'] { position: static !important; }" });
+    await page.waitForTimeout(400);
+    await card.screenshot({ path: join(shots, 'alerts-on-phone.png') });
+    await page.emulateMedia({ colorScheme: 'dark' });
+    await page.waitForTimeout(400);
+    await card.screenshot({ path: join(shots, 'alerts-on-phone-dark.png') });
+    await page.emulateMedia({ colorScheme: 'light' });
+    await unstick.evaluate((el) => el.remove());
+  }
+  await card.getByTestId('alert-finished-more').click();
   await page.setViewportSize({ width: 1280, height: 900 });
 
   // ---- reached directly: the open page alerts ----------------------------------------
   await pickPrinter(page, 'Direct-mock');
   await page.getByTestId('connection').filter({ hasText: 'Connected' }).waitFor({ timeout: 30_000 });
   await card.getByText('only come while Cloud Slicer is open in a tab').waitFor();
-  if (await card.getByTestId('alert-pictures').count()) throw new Error('direct printers have no picture switch');
   await turnOn(card);
   // It starts from the choices saved last (on the bridge printer: progress at 50%), not the defaults, and without "after layer N".
   await card.getByText('Started with the alerts you chose last time.').waitFor();
-  if (!(await checked('alert-progress')) || (await card.getByRole('button', { name: '50%' }).getAttribute('aria-pressed')) !== 'true') throw new Error('turning alerts on did not start from the last-used choices');
+  if (!(await checked('alert-progress')) || !(await card.getByTestId('alert-progress-more').innerText()).includes('50%')) throw new Error('turning alerts on did not start from the last-used choices');
   if ((await card.getByTestId('alert-layer').inputValue()) !== '') throw new Error('"after layer N" carried over to another printer');
   console.log('turned on again: started from the last-used choices');
   if (shots) await card.screenshot({ path: join(shots, 'alerts-direct-desktop.png') });
@@ -222,8 +268,8 @@ try {
   await page.getByRole('dialog').getByTestId('upload-and-print').click();
   await until('direct: finished shown by the page', () => page.evaluate(() => window.__shown.find((n) => n.title === 'calibration_cube finished')), 60_000);
   const shown = await page.evaluate(() => window.__shown.find((n) => n.title === 'calibration_cube finished'));
-  if (shown.data?.printer !== 'direct.direct' || !String(shown.image ?? '').startsWith('data:image/')) throw new Error(`direct alert: ${JSON.stringify({ ...shown, image: String(shown.image).slice(0, 30) })}`);
-  console.log('direct printer: the open page showed "finished", with a camera picture');
+  if (shown.data?.printer !== 'direct.direct' || !String(shown.image ?? '').startsWith('data:image/jpeg')) throw new Error(`direct alert: ${JSON.stringify({ ...shown, image: String(shown.image).slice(0, 30) })}`);
+  console.log('direct printer: the open page showed "finished", with both cameras joined in one picture');
 
   // A tapped alert opens the Device tab on its printer.
   const tapped = await context.newPage();

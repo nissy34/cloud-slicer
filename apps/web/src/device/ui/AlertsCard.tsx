@@ -1,13 +1,12 @@
-import { useEffect, useState } from 'react';
+import { Fragment, useEffect, useState } from 'react';
 import { useAlerts } from '../../state/alerts';
-import { useDevice } from '../../state/device';
-import type { AlertEvent, AlertPrefs } from '../alerts';
+import { currentSession, useDevice } from '../../state/device';
+import { camerasFor, MAX_ALERT_CAMERAS, type AlertEvent, type AlertPrefs } from '../alerts';
 import { isIos, thisDevice } from '../push';
 import { Icon, type IconName } from './icons';
 import { Card } from './parts';
 import { InfoTip } from '../../components/InfoTip';
 import { Note } from '../../components/Note';
-import { Picker } from '../../components/Picker';
 
 type Tile = [AlertEvent, IconName, string, string];
 
@@ -40,22 +39,76 @@ function Switch({ label, checked, onChange, disabled, testId }: { label: string;
   );
 }
 
-/** One alert as a tile with an icon: tap to turn it on or off. */
-function AlertTile({ icon, words, label, on, tone, onChange, testId, detail }: { icon: IconName; words: string; label: string; on: boolean; tone?: string; onChange(v: boolean): void; testId: string; detail?: string }) {
+/** The tiles sit three to a row, on desktop and phone. */
+const COLUMNS = 3;
+
+/**
+ * One alert as a tile: tap it to turn it on or off. An alert that is on and has
+ * something to set gets a strip along its bottom that says what is set (percentages,
+ * cameras) and opens its settings, joined below the tile like a tab.
+ */
+function AlertTile({
+  icon,
+  words,
+  label,
+  on,
+  tone,
+  onChange,
+  testId,
+  summary,
+  open,
+  onOpen,
+  column,
+}: {
+  icon: IconName;
+  words: string;
+  label: string;
+  on: boolean;
+  tone?: string;
+  onChange(v: boolean): void;
+  testId: string;
+  /** What the strip says; no strip without it. */
+  summary?: string;
+  open?: boolean;
+  onOpen?(): void;
+  column?: number;
+}) {
+  const strip = on && summary !== undefined && onOpen;
   return (
-    <button
-      role="switch"
-      aria-checked={on}
-      aria-label={label}
-      className={`dv-alert-tile${on ? ' on' : ''}${tone ? ` ${tone}` : ''}`}
-      onClick={() => onChange(!on)}
-      data-testid={testId}
-    >
-      <Icon name={icon} size={22} />
-      <span>{words}</span>
-      {detail && <small>{detail}</small>}
-    </button>
+    <div className={`dv-alert-tile${on ? ' on' : ''}${tone ? ` ${tone}` : ''}${strip ? ' split' : ''}${open ? ` open col${column ?? 0}` : ''}`}>
+      <button role="switch" aria-checked={on} aria-label={label} className="dv-alert-tile-top" onClick={() => onChange(!on)} data-testid={testId}>
+        <Icon name={icon} size={22} />
+        <span>{words}</span>
+      </button>
+      {strip && (
+        <button className="dv-alert-strip" aria-expanded={!!open} aria-label={`${label}: ${open ? 'hide' : 'show'} its settings`} onClick={onOpen} data-testid={`${testId}-more`}>
+          <span>{summary}</span>
+          <Icon name="expand" size={14} />
+        </button>
+      )}
+    </div>
   );
+}
+
+/** The cameras an alert's picture can come from: the printer's own list (names of those with a picture address). */
+function useCameraNames(): string[] | null {
+  const activeId = useDevice((s) => s.activeId);
+  const online = useDevice((s) => s.conn.state === 'online');
+  const [names, setNames] = useState<string[] | null>(null);
+  useEffect(() => {
+    setNames(null);
+    const s = currentSession();
+    if (!online || !s) return;
+    let stale = false;
+    void s
+      .webcams()
+      .then((list) => !stale && setNames(list.filter((c) => c.snapshotUrl).map((c) => c.name)))
+      .catch(() => !stale && setNames([]));
+    return () => {
+      stale = true;
+    };
+  }, [activeId, online]);
+  return names;
 }
 
 /**
@@ -68,6 +121,9 @@ export function AlertsCard() {
   const conn = useDevice((s) => s.conn.state);
   const printer = useDevice((s) => s.printers.find((p) => p.id === s.activeId));
   const a = useAlerts();
+  const cams = useCameraNames();
+  /** The alert whose settings are open, one at a time. */
+  const [open, setOpen] = useState<AlertEvent | null>(null);
   const bridge = printer?.kind === 'bridge';
   const device = thisDevice();
 
@@ -94,6 +150,68 @@ export function AlertsCard() {
   };
   const blocked = a.problem && a.problem !== 'offline';
   const chosen = prefs?.events.length ?? 0;
+  const names = cams ?? [];
+  /** The cameras an alert's picture comes from now, as the printer will take them. */
+  const camsOf = (e: AlertEvent) => camerasFor(prefs?.cameras[e], names);
+  /** What an alert's strip says; nothing to say (no strip) when it has nothing to set. */
+  const summary = (e: AlertEvent): string | undefined => {
+    if (!prefs) return undefined;
+    const bits: string[] = [];
+    if (e === 'progress') bits.push(prefs.percents.map((p) => `${p}%`).join(' '));
+    if (e === 'stillPrinting') bits.push(`every ${prefs.hours || 1} h`);
+    if (names.length) {
+      const c = camsOf(e);
+      bits.push(c.length === 0 ? (bits.length ? '' : 'No picture') : c.length > 1 ? `📷 ${c.length}` : bits.length ? '📷' : `📷 ${c[0]}`);
+    }
+    const said = bits.filter(Boolean);
+    return said.length ? said.join(' · ') : undefined;
+  };
+  const tile = ([e, icon, words, label]: Tile, column: number) => (
+    <AlertTile
+      key={e}
+      icon={icon}
+      words={words}
+      label={label}
+      tone={TONE[e]}
+      on={has(e)}
+      onChange={(v) => {
+        toggle(e, v);
+        // Turning an alert on opens its settings when it has some; turning it off closes them.
+        setOpen(v && (names.length || e === 'progress' || e === 'stillPrinting') ? e : open === e ? null : open);
+      }}
+      testId={`alert-${e}`}
+      summary={summary(e)}
+      open={open === e}
+      onOpen={() => setOpen(open === e ? null : e)}
+      column={column}
+    />
+  );
+  /** A group of tiles, with the open alert's settings right under its row. */
+  const tiles = (list: Tile[]) => {
+    const at = list.findIndex(([e]) => e === open && has(e));
+    const after = at < 0 ? -1 : Math.min(list.length - 1, Math.floor(at / COLUMNS) * COLUMNS + COLUMNS - 1);
+    return (
+      <div className={`dv-alert-tiles${at >= 0 ? ' joined' : ''}`}>
+        {list.map((t, i) => (
+          <Fragment key={t[0]}>
+            {tile(t, i % COLUMNS)}
+            {i === after && prefs && (
+              <AlertSettings
+                event={list[at][0]}
+                label={list[at][3]}
+                tone={TONE[list[at][0]]}
+                column={at % COLUMNS}
+                prefs={prefs}
+                names={names}
+                chosen={camsOf(list[at][0])}
+                onSet={set}
+              />
+            )}
+          </Fragment>
+        ))}
+      </div>
+    );
+  };
 
   return (
     <Card title="Alerts" testId="alerts-card" className="dv-alerts">
@@ -140,72 +258,24 @@ export function AlertsCard() {
       {on && prefs && (
         <>
           <h3 className="dv-alerts-group">When something goes wrong</h3>
-          <div className="dv-alert-tiles">
-            {PROBLEMS.map(([e, icon, words, label]) => (
-              <AlertTile key={e} icon={icon} words={words} label={label} tone={TONE[e]} on={has(e)} onChange={(v) => toggle(e, v)} testId={`alert-${e}`} />
-            ))}
-          </div>
+          {tiles(PROBLEMS)}
           <h3 className="dv-alerts-group">During the print</h3>
-          <div className="dv-alert-tiles">
-            {MILESTONES.map(([e, icon, words, label]) => (
-              <AlertTile
-                key={e}
-                icon={icon}
-                words={words}
-                label={label}
-                on={has(e)}
-                onChange={(v) => toggle(e, v)}
-                testId={`alert-${e}`}
-                detail={e === 'progress' && has(e) ? prefs.percents.map((p) => `${p}%`).join(' ') : e === 'stillPrinting' && has(e) ? `every ${prefs.hours || 1} h` : undefined}
-              />
-            ))}
-          </div>
+          {tiles(MILESTONES)}
           <ul className="dv-list dv-alerts-more">
-            {has('progress') && (
-              <li className="dv-alerts-wrap">
-                <span>Progress alerts at</span>
-                <span className="dv-steps dv-alerts-percents" role="group" aria-label="Progress alerts at">
-                  {PERCENTS.map((pc) => (
-                    <button
-                      key={pc}
-                      className={prefs.percents.includes(pc) ? 'on' : ''}
-                      aria-pressed={prefs.percents.includes(pc)}
-                      onClick={() => set({ percents: prefs.percents.includes(pc) ? prefs.percents.filter((x) => x !== pc) : [...prefs.percents, pc].sort((x, y) => x - y) })}
-                    >
-                      {pc}%
-                    </button>
-                  ))}
-                </span>
-              </li>
-            )}
-            {has('stillPrinting') && (
-              <li>
-                <span>Still printing, every</span>
-                <Picker
-                  field
-                  className="dv-hours"
-                  label="Every how many hours"
-                  value={String(prefs.hours || 1)}
-                  options={[1, 2, 3, 4].map((h) => ({ value: String(h), label: `${h} h` }))}
-                  onChange={(v) => set({ hours: Number(v) })}
-                />
-              </li>
-            )}
             <li className="dv-alerts-wrap">
               <LayerField prefs={prefs} onSet={(layer) => set({ layer })} />
             </li>
           </ul>
           {bridge && (
-            <div className="dv-alert-tiles two">
-              <AlertTile icon="camera" words="Camera picture" label="Camera picture on key alerts" on={prefs.pictures} onChange={(v) => set({ pictures: v })} testId="alert-pictures" />
+            <div className="dv-alert-tiles dv-alerts-bridge">
               <AlertTile icon="offline" words="Bridge offline" label="The bridge goes offline" on={has('offline')} onChange={(v) => toggle('offline', v)} testId="alert-offline" />
             </div>
           )}
-          {bridge && prefs.pictures && (
+          {names.length > 0 && (
             <p className="muted dv-alerts-note">
-              Pictures come from the printer’s camera.
+              Tap the strip under an alert to choose its cameras.
               <InfoTip label="About alert pictures">
-                On first and third layer, your layer, paused, failed, error, almost done and finished.{isIos() ? ' iPhone shows alerts without the picture.' : ''}
+                Several cameras are joined into one picture. Pictures from a bridge printer need its bridge up to date (Update now in Printers and bridges).{isIos() ? ' iPhone shows alerts without the picture.' : ''}
               </InfoTip>
             </p>
           )}
@@ -228,6 +298,100 @@ export function AlertsCard() {
         </Note>
       )}
     </Card>
+  );
+}
+
+/** One alert's settings, joined under its tile: progress marks, hours, and the cameras its picture comes from. */
+function AlertSettings({
+  event,
+  label,
+  tone,
+  column,
+  prefs,
+  names,
+  chosen,
+  onSet,
+}: {
+  event: AlertEvent;
+  label: string;
+  tone?: string;
+  column: number;
+  prefs: AlertPrefs;
+  names: string[];
+  chosen: string[];
+  onSet(patch: Partial<AlertPrefs>): void;
+}) {
+  const setCameras = (list: string[]) => onSet({ cameras: { ...prefs.cameras, [event]: names.filter((n) => list.includes(n)) } });
+  return (
+    <div className={`dv-alert-settings${tone ? ` ${tone}` : ''} col${column}`} role="group" aria-label={`${label} settings`} data-testid="alert-settings">
+      {event === 'progress' && (
+        <div className="dv-alert-setting">
+          <span>At</span>
+          <span className="chips" role="group" aria-label="Progress alerts at">
+            {PERCENTS.map((pc) => (
+              <button
+                key={pc}
+                className="chip"
+                aria-pressed={prefs.percents.includes(pc)}
+                onClick={() => onSet({ percents: prefs.percents.includes(pc) ? prefs.percents.filter((x) => x !== pc) : [...prefs.percents, pc].sort((x, y) => x - y) })}
+              >
+                {pc}%
+              </button>
+            ))}
+          </span>
+        </div>
+      )}
+      {event === 'stillPrinting' && (
+        <div className="dv-alert-setting">
+          <span>Every</span>
+          <span className="chips" role="group" aria-label="Every how many hours">
+            {[1, 2, 3, 4].map((h) => (
+              <button key={h} className="chip" aria-pressed={(prefs.hours || 1) === h} onClick={() => onSet({ hours: h })}>
+                {h} h
+              </button>
+            ))}
+          </span>
+        </div>
+      )}
+      {names.length === 1 && (
+        <div className="dv-alert-setting">
+          <span>Camera picture</span>
+          <input
+            className="switch"
+            type="checkbox"
+            role="switch"
+            aria-label={`Camera picture with ${label}`}
+            checked={chosen.length > 0}
+            onChange={(e) => setCameras(e.target.checked ? names : [])}
+            data-testid="alert-picture"
+          />
+        </div>
+      )}
+      {names.length > 1 && (
+        <div className="dv-alert-setting">
+          <span>Picture</span>
+          <span className="chips" role="group" aria-label={`Cameras for ${label}`}>
+            {names.map((n) => {
+              const on = chosen.includes(n);
+              return (
+                <button
+                  key={n}
+                  className="chip"
+                  aria-pressed={on}
+                  disabled={!on && chosen.length >= MAX_ALERT_CAMERAS}
+                  onClick={() => setCameras(on ? chosen.filter((c) => c !== n) : [...chosen, n])}
+                  data-testid={`alert-camera-${n}`}
+                >
+                  <Icon name="camera" size={14} />
+                  {n}
+                </button>
+              );
+            })}
+          </span>
+        </div>
+      )}
+      {names.length > 1 && <span className="muted dv-alert-setting-note">{chosen.length > 1 ? `${chosen.length} cameras, joined into one picture.` : chosen.length ? 'Tap more cameras to join them into one picture.' : 'No picture.'}</span>}
+    </div>
   );
 }
 

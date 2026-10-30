@@ -111,7 +111,11 @@ down. Add a line with the date when a new choice is made.
   Emergency stop. The separate Edit and Add a printer items went: Printers & bridges has both.
 - Printer pages as a Device tab card, not a pop-up (2026-10-22).
 - Alerts: choices stay per device; a new device starts from the last saved (2026-10-22).
-  Titles plain, no hints (2026-10-26).
+  Titles plain, no hints (2026-10-26). Cameras per alert (2026-10-30): any alert, up to
+  four cameras joined into one picture (one notification, not one per camera); settings
+  open from a strip under the tile, joined like a tab. Turned down: rows of camera chips
+  under the tiles, a table of alerts by cameras, tiles that grow when on (mixed sizes), a
+  corner gear or arrow on every tile.
 - Phone: Prepare, Preview and Device as tabs at the bottom (2026-10-26). All phone rules:
   [layout and phones](architecture/layout.md).
 - Pop-ups: one window style and one message card style; phone windows centred, not

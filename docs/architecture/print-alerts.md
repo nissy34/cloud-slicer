@@ -10,7 +10,23 @@ Phone or computer notifications for a printer, even with every tab closed: faile
 paused or filament out, error and finished by default; started, first and third layer,
 percentages, almost done, still printing, resumed, bed cooled and bridge offline on
 request. Each says where the print stands (progress, layer, time left in the phone's own
-time zone, filament used) and key ones carry a camera picture.
+time zone, filament used) and can carry a camera picture.
+
+## Choosing alerts and cameras
+
+The Alerts card shows each alert as a tile: tapping it turns it on or off. An alert that is
+on and has something to set gets a strip along its bottom saying what is set ("50% 80%",
+"📷 Nozzle", "📷 2"); tapping the strip opens its settings right under its row, joined to the
+tile like a tab (one at a time; turning an alert on opens them). Inside: Progress
+percentages, Still printing hours, and the cameras its picture comes from (chips; a switch
+when the printer has one camera).
+
+Any alert can carry a picture from up to four cameras. A notification shows one picture, so
+several are joined into one: two side by side, three or four in a 2×2 grid, each named in its
+corner (bridge `alert_picture.go`, browser `device/alert-picture.ts`). Choices are camera
+names; one the printer no longer has is skipped, and when none is left its first camera
+stands in (`camerasFor`, cases `testdata/camera-cases.json`). New choices start as before:
+the first camera (`*`) on the key alerts.
 
 ## Pieces
 
@@ -19,6 +35,7 @@ time zone, filament used) and key ones carry a camera picture.
 | Rules: when an event fires | `apps/web/src/device/alerts.ts` and bridge `alerts.go` (same cases: `testdata/alert-cases.json`) |
 | What an alert says | `device/alert-text.ts` (details: `testdata/alert-details-cases.json`) |
 | Choices per device and printer | `state/alerts.ts`, `device/ui/AlertsCard.tsx` |
+| Cameras for an alert, joining their pictures | `camerasFor` in `device/alerts.ts`, `device/alert-picture.ts`; bridge `cameraList` (`alerts.go`), `alert_picture.go` |
 | Permission, service worker, push subscription | `device/push.ts`, `public/sw.js` |
 | Watching printers with no page open | bridge `watch.go` |
 | Storing subscriptions, sending Web Push | relay `alerts.ts` (`web-push` library, `VAPID_KEY`) |
@@ -35,12 +52,19 @@ sequenceDiagram
   R->>B: {ctl:'alerts', printers}
   B->>K: own Moonraker watch
   K-->>B: status changes
-  B->>R: {ctl:'alert', event, details, picture}
+  B->>R: {ctl:'alert', event, details, pictures}
   R->>P: Web Push (encrypted for this browser)
 ```
 
 "Bridge offline" comes from a Durable Object alarm 10 minutes after the bridge drops.
 A printer reached directly alerts only while a tab is open: the page runs the same rules.
+
+Pictures: the relay tells the bridge, per alert, every different choice of cameras asked
+for (`cameras`); the bridge sends one picture per choice (`pictures`, keyed by the names
+joined with newlines, under 900 KB in all for the relay's 1 MB message limit) and the relay
+gives each browser the one for its choice. A bridge from before cameras could be chosen
+gets `pictures: true` and sends one `picture` from its first camera, which goes to everyone
+who asked for any camera.
 
 ## What it keeps
 
@@ -54,7 +78,7 @@ printers.
 - Rules change in both `alerts.ts` and `alerts.go`, with a new case in the shared JSON.
 - A **new event** must be added everywhere it is listed, or it is dropped without a word:
   `AlertEvent` and the `PROBLEM_EVENTS`/`MILESTONE_EVENTS`/`DEFAULT_EVENTS`/
-  `PICTURE_EVENTS` lists (`alerts.ts`), `alerts.go` and `problemEvents` (`watch.go`),
+  `PICTURE_EVENTS`/`CAMERA_EVENTS` lists (`alerts.ts`), `alerts.go` and `problemEvents` (`watch.go`),
   the relay's `cleanAlert` list and `urgentEvent` (`apps/device-relay/src/alerts.ts`),
   `alert-text.ts`, and the Alerts card's tiles (`AlertsCard.tsx`). Saved choices
   (`cleanPrefs`) drop unknown events, and old bridges won't send it until they update
@@ -76,9 +100,12 @@ live was turned down. See [decisions.md](../decisions.md#device-tab).
 
 ## Tests
 
-`device-alerts.mjs` (UI, fakes PushManager), `alerts-live.mjs` (pretend push service,
-decrypts), bridge `alerts_test.go`.
+`device-alerts.mjs` (UI, fakes PushManager; picks two cameras for Finished and checks the
+pushed picture is one 1280 × 480 JPEG), `alerts-live.mjs` (pretend push service,
+decrypts), bridge `alerts_test.go` and `alert_picture_test.go`.
 
 ## Open
 
 - Not built: a pause button in the alert, per-head filament in alerts.
+- "Alert me after layer N" keeps the default camera; it has no strip of its own.
+- Printers whose only camera is built in (no Moonraker webcam list) get no pictures.
