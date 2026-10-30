@@ -173,7 +173,7 @@ try {
   const checked = async (id) => card.getByTestId(id).isChecked();
   for (const id of ['alert-failed', 'alert-paused', 'alert-error', 'alert-finished']) if (!(await checked(id))) throw new Error(`${id} should be on by default`);
   await card.getByTestId('alert-finished-more').filter({ hasText: '📷 case' }).waitFor();
-  for (const id of ['alert-started', 'alert-layer1', 'alert-layer3', 'alert-progress', 'alert-almostDone', 'alert-stillPrinting', 'alert-resumed', 'alert-bedCooled', 'alert-offline'])
+  for (const id of ['alert-started', 'alert-layer1', 'alert-progress', 'alert-almostDone', 'alert-stillPrinting', 'alert-resumed', 'alert-bedCooled', 'alert-layer', 'alert-offline'])
     if (await checked(id)) throw new Error(`${id} should be off by default`);
   console.log('alerts on through the bridge, with the agreed defaults');
 
@@ -208,6 +208,18 @@ try {
   await card.getByTestId('alert-paused-more').click();
   if (await settings.count()) throw new Error('tapping the strip again did not close the settings');
 
+  // "After layer": on starts at layer 3 every print; more chips, and any layer typed in (this print only is in the Print dialog).
+  await card.getByTestId('alert-layer').click();
+  await card.getByTestId('alert-layer-more').filter({ hasText: 'Layer 3' }).waitFor();
+  await settings.getByTestId('alert-layer-5').click();
+  await settings.getByTestId('alert-layer-add').fill('12');
+  await settings.getByTestId('alert-layer-add').press('Enter');
+  await card.getByTestId('alert-layer-more').filter({ hasText: 'Layers 3, 5, 12' }).waitFor();
+  if ((await settings.getByTestId('alert-layer-12').getAttribute('aria-pressed')) !== 'true') throw new Error('a typed layer did not become a chip');
+  if (shots) await card.screenshot({ path: join(shots, 'alerts-layer-desktop.png') });
+  await card.getByTestId('alert-layer').click();
+  await until('"After layer" off', async () => !(await checked('alert-layer')));
+
   // "Alert me after layer N" from the print dialog, then a whole print on the mock.
   await page.getByTestId('files-card').locator('li', { hasText: 'calibration_cube.gcode' }).getByRole('button', { name: 'Print…' }).click();
   const dialog = page.getByRole('dialog');
@@ -217,10 +229,10 @@ try {
   await dialog.getByTestId('alert-layer').fill('99999');
   await dialog.getByTestId('alert-layer').press('Enter');
   await dialog.getByTestId('alert-layer-hint').filter({ hasText: 'This print has 50 layers' }).waitFor();
-  if ((await card.getByTestId('alert-layer').inputValue()) !== '') throw new Error('layer 99999 was saved');
+  if (await checked('alert-layer')) throw new Error('layer 99999 was saved');
   await dialog.getByTestId('alert-layer').fill('5');
   await dialog.getByTestId('alert-layer').press('Enter');
-  await until('layer 5 saved', async () => (await card.getByTestId('alert-layer').inputValue()) === '5');
+  await until('layer 5 saved', async () => (await card.getByTestId('alert-layer-more').innerText()).includes('Layer 5 once'));
   if (shots) await dialog.screenshot({ path: join(shots, 'alerts-print-dialog-desktop.png') });
   await dialog.getByTestId('upload-and-print').click();
   for (const title of ['Layer 5 of 50 done', 'calibration_cube 50% done', 'calibration_cube finished']) await until(title, () => pushes.find((p) => p.title === title));
@@ -231,7 +243,7 @@ try {
   const size = jpegSize(joined);
   if (size?.width !== 1280 || size?.height !== 480) throw new Error(`the finished picture is not two cameras side by side: ${JSON.stringify(size)}`);
   if (pushes.some((p) => p.title.startsWith('Printing'))) throw new Error('"Print started" is off but was sent');
-  await until('layer N cleared on the card', async () => (await card.getByTestId('alert-layer').inputValue()) === '');
+  await until('layer N cleared on the card', async () => !(await checked('alert-layer')));
   console.log('layer 5, 50% and finished (with both cameras joined in one picture) pushed; layer N cleared after the print');
 
   // Phone width: the card fits, nothing wider than the screen.
@@ -265,7 +277,7 @@ try {
   // It starts from the choices saved last (on the bridge printer: progress at 50%), not the defaults, and without "after layer N".
   await card.getByText('Started with the alerts you chose last time.').waitFor();
   if (!(await checked('alert-progress')) || !(await card.getByTestId('alert-progress-more').innerText()).includes('50%')) throw new Error('turning alerts on did not start from the last-used choices');
-  if ((await card.getByTestId('alert-layer').inputValue()) !== '') throw new Error('"after layer N" carried over to another printer');
+  if (await checked('alert-layer')) throw new Error('"after layer N" carried over to another printer');
   console.log('turned on again: started from the last-used choices');
   if (shots) await card.screenshot({ path: join(shots, 'alerts-direct-desktop.png') });
   await page.getByTestId('files-card').locator('li', { hasText: 'calibration_cube.gcode' }).getByRole('button', { name: 'Print…' }).click();

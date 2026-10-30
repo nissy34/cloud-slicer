@@ -7,8 +7,8 @@
 ## What it does
 
 Phone or computer notifications for a printer, even with every tab closed: failed,
-paused or filament out, error and finished by default; started, first and third layer,
-percentages, almost done, still printing, resumed, bed cooled and bridge offline on
+paused or filament out, error and finished by default; started, first layer,
+chosen layers, percentages, almost done, still printing, resumed, bed cooled and bridge offline on
 request. Each says where the print stands (progress, layer, time left in the phone's own
 time zone, filament used) and can carry a camera picture.
 
@@ -20,6 +20,14 @@ on and has something to set gets a strip along its bottom saying what is set ("5
 tile like a tab (one at a time; turning an alert on opens them). Inside: Progress
 percentages, Still printing hours, and the cameras its picture comes from (chips; a switch
 when the printer has one camera).
+
+"After layer" holds every chosen layer: `layers` (every print; chips 2 3 5 10 plus any typed
+in, starts at 3 when turned on) and `layer` (this print only, set in the Print dialog and shown
+on the strip as "7 once"; cleared by the relay when the print ends). Both reach the bridge as its existing `layers`
+watch list and fire the `layer` alert, so no bridge update is needed. The old "Third layer"
+switch (`layer3`) becomes `layers: [3]` when choices are read (`cleanPrefs`). Its pictures use
+the `layer` camera choice. Tiles that are on have an outline in their colour, which runs round
+the open tile and its settings as one shape.
 
 Any alert can carry a picture from up to four cameras. A notification shows one picture, so
 several are joined into one: two side by side, three or four in a 2×2 grid, each named in its
@@ -110,5 +118,4 @@ decrypts), bridge `alerts_test.go` and `alert_picture_test.go`.
 ## Open
 
 - Not built: a pause button in the alert, per-head filament in alerts.
-- "Alert me after layer N" keeps the default camera; it has no strip of its own.
 - Printers whose only camera is built in (no Moonraker webcam list) get no pictures.

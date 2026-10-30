@@ -22,7 +22,7 @@ const TONE: Partial<Record<AlertEvent, string>> = { failed: 'red', paused: 'ambe
 const MILESTONES: Tile[] = [
   ['started', 'started', 'Started', 'Print started'],
   ['layer1', 'layer', 'First layer', 'First layer done'],
-  ['layer3', 'layer', 'Third layer', 'Third layer done'],
+  ['layer', 'layer', 'After layer', 'After chosen layers'],
   ['progress', 'progress', 'Progress', 'Progress'],
   ['stillPrinting', 'clock', 'Still printing', 'Still printing, every few hours'],
   ['almostDone', 'almost', '10 min left', 'Almost done (10 min left)'],
@@ -32,6 +32,8 @@ const MILESTONES: Tile[] = [
 ];
 
 const PERCENTS = [10, 20, 30, 40, 50, 60, 70, 80, 90];
+/** Layers offered as chips; any other can be typed in. */
+const LAYERS = [2, 3, 5, 10];
 
 function Switch({ label, checked, onChange, disabled, testId }: { label: string; checked: boolean; onChange(v: boolean): void; disabled?: boolean; testId?: string }) {
   return (
@@ -140,16 +142,18 @@ export function AlertsCard() {
   const prefs = a.prefs;
   const on = a.status === 'on' && !!prefs;
   const set = (patch: Partial<AlertPrefs>) => prefs && void a.save({ ...prefs, ...patch });
-  const has = (e: AlertEvent) => !!prefs?.events.includes(e);
+  // "After layer" is on while any layer is chosen: every print, or this print only.
+  const has = (e: AlertEvent) => (e === 'layer' ? !!prefs && (prefs.layers.length > 0 || prefs.layer != null) : !!prefs?.events.includes(e));
   const toggle = (e: AlertEvent, v: boolean) => {
     if (!prefs) return;
+    if (e === 'layer') return set(v ? { layers: [3] } : { layers: [], layer: null });
     const events = v ? [...prefs.events, e] : prefs.events.filter((x) => x !== e);
     if (e === 'stillPrinting') set({ events, hours: v ? prefs.hours || 1 : 0 });
     else if (e === 'progress') set({ events, percents: v && !prefs.percents.length ? [50] : prefs.percents });
     else set({ events });
   };
   const blocked = a.problem && a.problem !== 'offline';
-  const chosen = prefs?.events.length ?? 0;
+  const chosen = (prefs?.events.length ?? 0) + (has('layer') ? 1 : 0);
   const names = cams ?? [];
   /** The cameras an alert's picture comes from now, as the printer will take them. */
   const camsOf = (e: AlertEvent) => camerasFor(prefs?.cameras[e], names);
@@ -159,6 +163,10 @@ export function AlertsCard() {
     const bits: string[] = [];
     if (e === 'progress') bits.push(prefs.percents.map((p) => `${p}%`).join(' '));
     if (e === 'stillPrinting') bits.push(`every ${prefs.hours || 1} h`);
+    if (e === 'layer') {
+      const every = prefs.layers.length ? `${prefs.layers.length > 1 ? 'Layers' : 'Layer'} ${prefs.layers.join(', ')}` : '';
+      bits.push([every, prefs.layer != null && `${every ? '' : 'Layer '}${prefs.layer} once`].filter(Boolean).join(' · '));
+    }
     if (names.length) {
       const c = camsOf(e);
       bits.push(c.length === 0 ? (bits.length ? '' : 'No picture') : c.length > 1 ? `📷 ${c.length}` : bits.length ? '📷' : `📷 ${c[0]}`);
@@ -177,7 +185,7 @@ export function AlertsCard() {
       onChange={(v) => {
         toggle(e, v);
         // Turning an alert on opens its settings when it has some; turning it off closes them.
-        setOpen(v && (names.length || e === 'progress' || e === 'stillPrinting') ? e : open === e ? null : open);
+        setOpen(v && (names.length || e === 'progress' || e === 'stillPrinting' || e === 'layer') ? e : open === e ? null : open);
       }}
       testId={`alert-${e}`}
       summary={summary(e)}
@@ -233,18 +241,10 @@ export function AlertsCard() {
       </div>
       {bridge
         ? on && (
-            <Note>
-              Sent through the bridge, even when the browser is closed.
-              <InfoTip label="About bridge alerts">Each says how far the print is, the time left and the filament used.</InfoTip>
-            </Note>
+            <Note>Sent through the bridge, even when the browser is closed.</Note>
           )
         : (
-            <Note>
-              Alerts only come while Cloud Slicer is open in a tab.
-              <InfoTip label="About alerts without a bridge">
-                This printer is reached straight from the browser. Through a bridge, alerts come with the browser closed too.
-              </InfoTip>
-            </Note>
+            <Note>Alerts only come while Cloud Slicer is open in a tab. Through a bridge they come with the browser closed too.</Note>
           )}
       {a.problem === 'ios-home' && (
         <Note tone="warn" testId="alerts-ios">
@@ -261,11 +261,6 @@ export function AlertsCard() {
           {tiles(PROBLEMS)}
           <h3 className="dv-alerts-group">During the print</h3>
           {tiles(MILESTONES)}
-          <ul className="dv-list dv-alerts-more">
-            <li className="dv-alerts-wrap">
-              <LayerField prefs={prefs} onSet={(layer) => set({ layer })} />
-            </li>
-          </ul>
           {bridge && (
             <div className="dv-alert-tiles dv-alerts-bridge">
               <AlertTile icon="offline" words="Bridge offline" label="The bridge goes offline" on={has('offline')} onChange={(v) => toggle('offline', v)} testId="alert-offline" />
@@ -353,6 +348,27 @@ function AlertSettings({
           </span>
         </div>
       )}
+      {event === 'layer' && (
+        <>
+          <div className="dv-alert-setting">
+            <span>Every print</span>
+            <span className="chips" role="group" aria-label="After these layers, every print">
+              {[...new Set([...LAYERS, ...prefs.layers])].sort((x, y) => x - y).map((n) => (
+                <button
+                  key={n}
+                  className="chip"
+                  aria-pressed={prefs.layers.includes(n)}
+                  onClick={() => onSet({ layers: prefs.layers.includes(n) ? prefs.layers.filter((x) => x !== n) : [...prefs.layers, n].sort((x, y) => x - y) })}
+                  data-testid={`alert-layer-${n}`}
+                >
+                  {n}
+                </button>
+              ))}
+              <AddLayer onAdd={(n) => !prefs.layers.includes(n) && onSet({ layers: [...prefs.layers, n].sort((x, y) => x - y) })} />
+            </span>
+          </div>
+        </>
+      )}
       {names.length === 1 && (
         <div className="dv-alert-setting">
           <span>Camera picture</span>
@@ -392,6 +408,31 @@ function AlertSettings({
       )}
       {names.length > 1 && <span className="muted dv-alert-setting-note">{chosen.length > 1 ? `${chosen.length} cameras, joined into one picture.` : chosen.length ? 'Tap more cameras to join them into one picture.' : 'No picture.'}</span>}
     </div>
+  );
+}
+
+/** A box to add any layer to the "every print" chips. */
+function AddLayer({ onAdd }: { onAdd(n: number): void }) {
+  const [v, setV] = useState('');
+  const add = () => {
+    const n = Number(v);
+    if (Number.isInteger(n) && n >= 1 && n <= 100_000) onAdd(n);
+    setV('');
+  };
+  return (
+    <input
+      className="dv-alerts-layer dv-alerts-add"
+      type="number"
+      inputMode="numeric"
+      min={1}
+      placeholder="+ layer"
+      aria-label="Add a layer"
+      value={v}
+      onChange={(e) => setV(e.target.value)}
+      onBlur={add}
+      onKeyDown={(e) => e.key === 'Enter' && (e.target as HTMLInputElement).blur()}
+      data-testid="alert-layer-add"
+    />
   );
 }
 
