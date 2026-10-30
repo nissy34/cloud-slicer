@@ -201,6 +201,26 @@ test('the layer count is the G-code\'s, support layers included only once', () =
   assert.ok(Math.abs(sum - used) < 1, `parts ${sum} mm, G-code ${used} mm`);
 });
 
+test('a slice does not depend on what the tab sliced before (patches/0010)', async () => {
+  // The support infill once kept limits from the first support slice of the
+  // engine's life, so the same model printed differently after another slice.
+  const supports = (spacing) => ({ enable_support: '1', support_type: 'normal(auto)', support_base_pattern_spacing: spacing });
+  select({ printer: DEFAULT_PRINTER, process: STANDARD });
+  load('3DBenchy.stl');
+  slice(fullConfig(supports('2.5')));
+  const after = usedMm(slice(fullConfig(supports('5'))).gcode)[0];
+  const fresh = (await openEngine()).engine;
+  call(fresh, 'presetsSelect', JSON.stringify({ printer: DEFAULT_PRINTER, process: STANDARD }));
+  const config = call(fresh, 'presetsFullConfig', JSON.stringify(supports('5'))).config;
+  const [w, d] = bedSize(config);
+  fresh.FS.writeFile('/work/3DBenchy.stl', readFileSync(resolve(fixtures, '3DBenchy.stl')));
+  call(fresh, 'loadModel', '/work/3DBenchy.stl', 0, w, d, false, 0);
+  const result = JSON.parse(fresh.sliceWithConfig(JSON.stringify(config), 0, '/work/out.gcode', null, null, ''));
+  assert.ok(result.success, result.error);
+  const first = usedMm(new TextDecoder().decode(fresh.FS.readFile(result.gcodePath)))[0];
+  assert.equal(after, first, `support spacing 5: ${after} mm after another slice, ${first} mm in a fresh engine`);
+});
+
 test('slicing reports desktop\'s warnings: G-code path conflicts and models that need support', () => {
   select({ printer: DEFAULT_PRINTER, process: STANDARD });
   // Two separate objects overlapping by half: their paths cross on every layer.

@@ -59,12 +59,13 @@ const CASES = [
   { name: 'benchy', model: '3DBenchy.stl' },
   { name: 'benchy-fine', model: '3DBenchy.stl', process: PROCESS.fine },
   { name: 'benchy-supports', model: '3DBenchy.stl', set: { enable_support: '1', support_type: 'normal(auto)' } },
-  // Tree supports grow their branches with a lot of floating-point maths, and
-  // the browser build rounds a little differently from desktop's: on Benchy
-  // one branch ends 0.8 mm further and the interface is 0.6% longer, every run.
+  // Snapmaker Orca's tree supports come out a little different from desktop's
+  // on Benchy, every run: one branch ends 0.8 mm further and the interface is
+  // 0.6% longer. Not threads, libm or patches/0010's bug; still looking.
+  // OrcaSlicer's tree supports match desktop's.
   {
     name: 'benchy-tree-supports', model: '3DBenchy.stl', set: { enable_support: '1', support_type: 'tree(auto)' },
-    allowed: ['--tol', '2', '--mm', '1.5'],
+    allowed: flavor === 'snapmaker' ? ['--tol', '2', '--mm', '1.5'] : [],
   },
   { name: 'benchy-ironing', model: '3DBenchy.stl', set: { ironing_type: 'top' } },
   { name: 'benchy-4-colours', model: 'colored_3DBenchy.3mf', filaments: 4 },
@@ -84,10 +85,13 @@ const CASES = [
     .map((printer) => ({ name: `benchy-${printer.split(' ').slice(0, -2).join('-').replace(/[()]/g, '').toLowerCase()}`, model: '3DBenchy.stl', printer })),
 ].filter((c) => (!only || c.name === only) && !(c.snapmakerOnly && flavor !== 'snapmaker'));
 
-// OrcaSlicer 2.4.2's supports depend on which thread finishes first, in
-// desktop too: on a busy computer about one slice in three of the same Benchy
-// comes out 0.4% different, either side. Those cases get three tries.
-for (const c of CASES) if (flavor === 'orca' && c.set?.enable_support === '1') c.tries = 3;
+// Desktop's support infill keeps three limits from whichever support fill ran
+// first (OrcaSlicer #15564, fixed in our engines by patches/0010): normal
+// supports come out about 1.2% different. So for support cases desktop runs
+// with that fix applied as it runs (desktop-fix.py, under gdb). Even then
+// desktop's supports vary a little from run to run (under 0.1%), so those
+// cases get three tries.
+for (const c of CASES) if (c.set?.enable_support === '1') Object.assign(c, { desktopFix: true, tries: 3 });
 
 rmSync(outDir, { recursive: true, force: true });
 mkdirSync(outDir, { recursive: true });
@@ -147,13 +151,24 @@ function sliceOurs(config, file) {
   writeFileSync(file, engine.FS.readFile(r.gcodePath));
 }
 
-function sliceDesktop(dir, project) {
+// fixed: run desktop under gdb with the fix of patches/0010 applied
+// (desktop-fix.py), for the cases where desktop still has that bug.
+function sliceDesktop(dir, project, fixed) {
   mkdirSync(dir, { recursive: true });
   const home = join(outDir, '.home');
   mkdirSync(home, { recursive: true });
   const t0 = Date.now();
-  const run = spawnSync(desktop, ['--allow-newer-file', '--slice', '0', '--outputdir', dir, project],
-    { cwd: dir, env: { ...process.env, HOME: home }, encoding: 'utf8', timeout: 15 * 60_000 });
+  const sliceArgs = ['--allow-newer-file', '--slice', '0', '--outputdir', dir, project];
+  let [cmd, cmdArgs, env] = [desktop, sliceArgs, { ...process.env, HOME: home }];
+  if (fixed) {
+    // What AppRun sets up, then its binary under gdb.
+    const app = dirname(desktop);
+    const binary = join(app, 'bin', flavor === 'orca' ? 'orca-slicer' : 'snapmaker-orca');
+    const libs = [join(app, 'lib/orca-runtime'), join(app, 'bin'), process.env.LD_LIBRARY_PATH].filter(Boolean).join(':');
+    Object.assign(env, { APPDIR: app, LD_LIBRARY_PATH: libs, LC_ALL: 'C' });
+    [cmd, cmdArgs] = ['gdb', ['-q', '-batch', '-x', join(here, 'desktop-fix.py'), '--args', binary, ...sliceArgs]];
+  }
+  const run = spawnSync(cmd, cmdArgs, { cwd: dir, env, encoding: 'utf8', timeout: 15 * 60_000 });
   writeFileSync(join(dir, 'desktop.log'), `${run.stdout ?? ''}${run.stderr ?? ''}`);
   const gcode = join(dir, 'plate_1.gcode');
   if (run.status !== 0 || !existsSync(gcode)) {
@@ -183,7 +198,7 @@ for (const c of CASES) {
       sliceOurs(config, ours);
       call(engine, 'saveProject', '/work/project.3mf', JSON.stringify(config), null);
       writeFileSync(join(dir, 'project.3mf'), engine.FS.readFile('/work/project.3mf'));
-      theirs = sliceDesktop(join(dir, 'desktop'), join(dir, 'project.3mf'));
+      theirs = sliceDesktop(join(dir, 'desktop'), join(dir, 'project.3mf'), c.desktopFix);
       cmp = compare(theirs.gcode, ours, c.allowed);
       writeFileSync(join(dir, 'compare.txt'), cmp.report);
       extra = c.expect?.(readFileSync(ours, 'utf8'), readFileSync(theirs.gcode, 'utf8'));
@@ -213,7 +228,7 @@ if (selfTest) {
     const changed = { ...config, wall_loops: String(Number(config.wall_loops) - 1) };
     const ours = join(dir, 'ours.gcode');
     sliceOurs(changed, ours);
-    const theirs = sliceDesktop(join(dir, 'desktop'), join(dir, 'project.3mf'));
+    const theirs = sliceDesktop(join(dir, 'desktop'), join(dir, 'project.3mf'), c.desktopFix);
     const cmp = compare(theirs.gcode, ours);
     console.log(cmp.report.split('\n').filter((l) => l.includes('<--') || l.startsWith('RESULT')).join('\n'));
     results.push({ name: c.name, ok: !cmp.ok, label: cmp.ok ? '**missed it**' : 'caught it', note: cmp.ok ? 'the comparison missed one wall fewer' : summary(cmp.report) });
@@ -324,7 +339,7 @@ const lines = [
   '|---|---|---|',
   ...results.map((r) => `| ${r.name} | ${r.label ?? (r.ok ? 'match' : '**differs**')} | ${String(r.note).replace(/\\/g, '\\\\').replace(/\|/g, '\\|').replace(/\n/g, ' ')} |`),
   '',
-  'On purpose: ' + Object.entries(EXPECTED_SETTINGS).map(([k, why]) => `\`${k}\` (${why})`).join('; ') + '; the colour-mix prime tower (patches/snapmaker/0009).',
+  'On purpose: ' + Object.entries(EXPECTED_SETTINGS).map(([k, why]) => `\`${k}\` (${why})`).join('; ') + '; the colour-mix prime tower (patches/snapmaker/0009); support cases run desktop with the fix of patches/0010 applied (desktop-fix.py).',
 ];
 console.log('\n' + lines.join('\n'));
 writeFileSync(join(outDir, 'summary.md'), lines.join('\n') + '\n');

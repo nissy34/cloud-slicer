@@ -1,0 +1,27 @@
+Support infill: work out the arch cost limits on every call.
+
+connect_base_support() kept three limits in function-level statics, so the
+first support fill of the process fixed them for every later one, although
+they scale with that fill's line spacing (base and interface spacing differ).
+Which fill ran first depends on how the layers were split between threads,
+and the browser engine keeps them for the whole tab: the same supported
+Benchy sliced 6049.6 mm fresh and 6026.3 mm after a slice with another
+support spacing. Same change as OrcaSlicer #15564 (after 2.4.2).
+
+--- a/src/libslic3r/Fill/FillBase.cpp
++++ b/src/libslic3r/Fill/FillBase.cpp
+@@ -2453,9 +2453,11 @@
+ #endif // INFILL_DEBUG_OUTPUT
+ 
+     const std::vector<SupportArcCost> arches = evaluate_support_arches(infill_ordered, graph, spacing, params);
+-    static const double cost_low      = line_spacing * 1.3;
+-    static const double cost_high     = line_spacing * 2.;
+-    static const double cost_veryhigh = line_spacing * 3.;
++    // Must not be static: line_spacing differs per call (base and interface
++    // fills), a static keeps whichever call ran first (OrcaSlicer #15564).
++    const double cost_low      = line_spacing * 1.3;
++    const double cost_high     = line_spacing * 2.;
++    const double cost_veryhigh = line_spacing * 3.;
+ 
+     {
+         std::vector<const SupportArcCost*> selected;
