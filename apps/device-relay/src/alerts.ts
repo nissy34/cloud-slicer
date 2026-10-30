@@ -8,7 +8,7 @@
 // Nothing about an alert is logged or kept, except a camera picture, which
 // waits in R2 under alerts/ until the bucket's lifecycle rule deletes it a day later.
 import webpush from 'web-push';
-import { cameraKey, cleanPrefs, ENDS_PRINT, PICTURE_EVENTS, watchFor, wants, type AlertEvent, type AlertPrefs, type FiredAlert, type PrintDetails } from '../../web/src/device/alerts';
+import { cameraKey, cleanPrefs, cleanPrinterPrefs, ENDS_PRINT, PICTURE_EVENTS, watchFor, wants, type AlertEvent, type AlertPrefs, type FiredAlert, type PrintDetails } from '../../web/src/device/alerts';
 import { alertText, type AlertPush, type Clock } from '../../web/src/device/alert-text';
 import { describeU1Error, type Words } from '../../web/src/device/addons/u1-errors';
 import u1Words from '../../web/src/device/addons/u1-errors.json';
@@ -127,6 +127,11 @@ export async function sendPush(env: PushEnv, sub: PushSubscriptionJSON, push: Al
   } catch {
     return 'failed';
   }
+}
+
+/** A stored subscription with every printer's choices up to date (see cleanPrinterPrefs). */
+export function readSub<T extends StoredSub | undefined>(s: T): T {
+  return s && { ...s, printers: cleanPrinterPrefs(s.printers) };
 }
 
 /**

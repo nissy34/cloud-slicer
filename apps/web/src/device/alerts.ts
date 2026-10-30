@@ -117,6 +117,18 @@ export function cleanPrefs(raw: unknown): AlertPrefs | null {
   return { events, percents, hours, layer, cameras };
 }
 
+/**
+ * Each printer's choices as kept by the relay, brought up to date: ones saved by an
+ * older build lack newer fields (cameras), and rules that read them must not trip.
+ */
+export function cleanPrinterPrefs(raw: unknown): Record<string, AlertPrefs> {
+  if (!raw || typeof raw !== 'object') return {};
+  return Object.fromEntries(Object.entries(raw).flatMap(([id, p]) => {
+    const prefs = cleanPrefs(p);
+    return prefs ? [[id, prefs]] : [];
+  }));
+}
+
 /** What the watcher needs to look for, merged over everyone watching one printer. */
 export interface AlertWatch {
   /** The "after layer N" layers. */

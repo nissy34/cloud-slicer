@@ -50,6 +50,7 @@ import {
   MAX_SUBS,
   OFFLINE_AFTER_MS,
   pushEndpointOk,
+  readSub,
   sendPush,
   subKey,
   urgentEvent,
@@ -800,7 +801,7 @@ export class Bridge extends DurableObject<Env> {
   }
 
   private async subs(): Promise<[string, StoredSub][]> {
-    return [...(await this.ctx.storage.list<StoredSub>({ prefix: 'push:' })).entries()];
+    return [...(await this.ctx.storage.list<StoredSub>({ prefix: 'push:' })).entries()].map(([key, s]) => [key, readSub(s)]);
   }
 
   /** Tells the agent what to watch for (an empty list: watch nothing). */
@@ -818,7 +819,7 @@ export class Bridge extends DurableObject<Env> {
     const endpoint = typeof params?.endpoint === 'string' ? params.endpoint : '';
     if (!pushEndpointOk(this.env, endpoint)) throw new Error("This browser's push service isn't one the relay knows.");
     const key = await subKey(endpoint);
-    const stored = await this.ctx.storage.get<StoredSub>(key);
+    const stored = readSub(await this.ctx.storage.get<StoredSub>(key));
     if (op === 'get') {
       // Keeps the browser's clock current (it moved, or turned alerts on before alerts said "done about 14:35").
       const clock = cleanClock(params?.clock);
@@ -891,7 +892,7 @@ export class Bridge extends DurableObject<Env> {
       changed = true;
     }
     for (const key of clearLayer) {
-      const s = await this.ctx.storage.get<StoredSub>(key);
+      const s = readSub(await this.ctx.storage.get<StoredSub>(key));
       if (!s?.printers[printer.id]) continue;
       await this.ctx.storage.put(key, { ...s, printers: { ...s.printers, [printer.id]: { ...s.printers[printer.id], layer: null } } });
       changed = true;

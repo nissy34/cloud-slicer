@@ -196,6 +196,10 @@ try {
   await settings.getByTestId('alert-camera-nozzle').click();
   await card.getByTestId('alert-finished-more').filter({ hasText: '📷 2' }).waitFor();
   await settings.getByText('2 cameras, joined into one picture.').waitFor();
+  // The relay's answer keeps the tap (a failed save would put the old choice back).
+  await page.waitForTimeout(1500);
+  if ((await settings.getByTestId('alert-camera-nozzle').getAttribute('aria-pressed')) !== 'true' || (await card.getByText('Could not save').count()))
+    throw new Error('the camera tap did not stay after the relay answered');
   if (shots) await card.screenshot({ path: join(shots, 'alerts-on-desktop.png') });
   // Paused without a picture.
   await card.getByTestId('alert-paused-more').click();
