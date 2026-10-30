@@ -13,11 +13,11 @@ inputs:
 runs:
   using: composite
   steps:
-    - name: Libraries desktop's command line loads
+    - name: Libraries desktop's command line loads, and gdb (desktop-fix.py)
       shell: bash
       run: |
         for i in 1 2 3; do
-          sudo apt-get install -y -qq --no-install-recommends libopengl0 libglu1-mesa libegl1 libwebkit2gtk-4.1-0 > /dev/null && break
+          sudo apt-get install -y -qq --no-install-recommends libopengl0 libglu1-mesa libegl1 libwebkit2gtk-4.1-0 gdb > /dev/null && break
           sudo apt-get update -qq; sleep 5
         done
 

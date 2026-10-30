@@ -46,17 +46,18 @@ proves itself with `--self-test`: our slice with one wall fewer must not match.
 Differences on purpose are listed in `check.mjs`, each with its reason: the file name
 format (we add the plate number), two flush settings desktop's command line fills in by
 itself (OrcaSlicer only), the colour-mix prime tower we keep and desktop drops
-(`patches/snapmaker/0009`), and tree supports, whose branches round a little differently in
-the browser build (2% and 1.5 mm there). OrcaSlicer 2.4.2's supports also depend on which
-thread finishes first on desktop (on a busy computer the same Benchy gives one of two
-results): its support infill keeps three limits from whichever support fill ran first.
-Our engines don't (`patches/0010`, the same fix as OrcaSlicer #15564), so on that engine
-the support cases get three tries at desktop's answer. Desktop's command line crashes on loose preset
+(`patches/snapmaker/0009`), and Snapmaker Orca's tree supports, which come out a little
+different (one branch 0.8 mm longer on Benchy, every run; the cause is not found yet, so
+2% and 1.5 mm there). Desktop's support infill keeps three limits from whichever support
+fill ran first (OrcaSlicer #15564); our engines work them out on every call
+(`patches/0010`), so for the support cases desktop runs under gdb with that same fix
+applied as it runs (`desktop-fix.py`), and gets three tries, because its supports still
+vary a little from run to run. Desktop's command line crashes on loose preset
 files, which is why it gets our saved 3MF.
 
 CI runs it on pull requests that change the engine, its presets or the check, and every
 night on `main` ([CI.md](../CI.md#desktop-orca-comparison-githubworkflowsdesktop-orcayml)).
-Locally (Ubuntu 24.04, `libopengl0 libglu1-mesa libegl1 libwebkit2gtk-4.1-0`):
+Locally (Ubuntu 24.04, `libopengl0 libglu1-mesa libegl1 libwebkit2gtk-4.1-0 gdb`):
 
 ```bash
 node engine/scripts/fetch-engine.mjs
