@@ -7,8 +7,9 @@
 // Choices stay per device; the ones saved last on any device are kept in the
 // account (LAST_SETTING), and a device that turns alerts on starts from them.
 import { create } from 'zustand';
+import { joinPictures } from '../device/alert-picture';
 import { alertText, type AlertPush } from '../device/alert-text';
-import { AlertWatcher, cleanPrefs, startingPrefs, detailsOf, fileFacts, PICTURE_EVENTS, snapshotOf, wants, watchFor, ENDS_PRINT, type AlertPrefs, type FileFacts } from '../device/alerts';
+import { AlertWatcher, camerasFor, cleanPrefs, startingPrefs, detailsOf, fileFacts, snapshotOf, wants, watchFor, ENDS_PRINT, type AlertPrefs, type FileFacts } from '../device/alerts';
 import { BridgeLink } from '../device/link/bridge';
 import { allowNotifications, localClock, pushProblem, pushSubscription, relayPushKey, serviceWorker, type PushProblem } from '../device/push';
 import { getUserSetting, saveUserSetting } from './account';
@@ -228,12 +229,18 @@ async function show(push: AlertPush) {
 const watchers = new Map<string, AlertWatcher>();
 const facts = new Map<string, { file: string; facts: FileFacts }>();
 
-async function picture(): Promise<string | undefined> {
+/** The picture for an alert from the cameras chosen for it, joined into one, as a data address. */
+async function picture(chosen: string[] | undefined): Promise<string | undefined> {
   const s = currentSession();
-  const cam = (await s?.webcams())?.find((c) => c.snapshotUrl);
-  if (!s || !cam) return undefined;
+  if (!s || !chosen?.length) return undefined;
   try {
-    const blob = await s.link.snapshot(cam.snapshotUrl);
+    const cams = ((await s.webcams()) ?? []).filter((c) => c.snapshotUrl);
+    const use = camerasFor(chosen, cams.map((c) => c.name));
+    const pics = (await Promise.all(use.map(async (name) => ({ name, blob: await s.link.snapshot(cams.find((c) => c.name === name)!.snapshotUrl).catch(() => null) })))).filter(
+      (p): p is { name: string; blob: Blob } => !!p.blob,
+    );
+    if (!pics.length) return undefined;
+    const blob = await joinPictures(pics);
     return await new Promise<string>((ok, bad) => {
       const r = new FileReader();
       r.onload = () => ok(String(r.result));
@@ -280,7 +287,7 @@ useDevice.subscribe((d, prev) => {
     if (err) details.error = { title: err.title, text: err.text, code: err.code };
     const push: AlertPush = { ...alertText({ ...a, details }, p.name, undefined, localClock()), tag: `direct.${p.id}:${a.event}`, printer: `direct.${p.id}` };
     void (async () => {
-      const image = prefs.pictures && PICTURE_EVENTS.includes(a.event) ? await picture() : undefined;
+      const image = await picture(prefs.cameras[a.event]);
       await show({ ...push, image }).catch(() => undefined);
     })();
   }

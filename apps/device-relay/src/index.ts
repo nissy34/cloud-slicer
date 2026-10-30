@@ -864,18 +864,25 @@ export class Bridge extends DurableObject<Env> {
     if (++this.sent.alerts > MAX_ALERTS_PER_HOUR) return;
     const subs = await this.subs();
     const bridgeId = await this.bridgeId();
-    let image: string | undefined;
-    if (typeof msg.picture === 'string' && msg.picture.length < (MAX_PICTURE * 4) / 3 + 4 && this.env.DOWNLOADS && this.sent.pictures < MAX_PICTURES_PER_HOUR) {
+    // One picture per choice of cameras (`pictures`), or one picture from a bridge from before cameras could be chosen.
+    const images: { byCameras: Record<string, string>; single?: string } = { byCameras: {} };
+    const keep = async (b64: unknown): Promise<string | undefined> => {
+      if (typeof b64 !== 'string' || b64.length >= (MAX_PICTURE * 4) / 3 + 4 || !this.env.DOWNLOADS || this.sent.pictures >= MAX_PICTURES_PER_HOUR) return undefined;
       const origin = await this.ctx.storage.get<string>('origin');
-      const bytes = Uint8Array.from(atob(msg.picture), (c) => c.charCodeAt(0));
-      if (origin && bytes.length > 0) {
-        this.sent.pictures++;
-        const name = crypto.randomUUID();
-        await this.env.DOWNLOADS.put(`alerts/${name}`, bytes, { httpMetadata: { contentType: 'image/jpeg' } });
-        image = `${origin}/v1/pictures/${name}.jpg`;
+      const bytes = Uint8Array.from(atob(b64), (c) => c.charCodeAt(0));
+      if (!origin || !bytes.length) return undefined;
+      this.sent.pictures++;
+      const name = crypto.randomUUID();
+      await this.env.DOWNLOADS.put(`alerts/${name}`, bytes, { httpMetadata: { contentType: 'image/jpeg' } });
+      return `${origin}/v1/pictures/${name}.jpg`;
+    };
+    if (msg.pictures && typeof msg.pictures === 'object')
+      for (const [key, b64] of Object.entries(msg.pictures as Record<string, unknown>).slice(0, 8)) {
+        const url = await keep(b64);
+        if (url) images.byCameras[key] = url;
       }
-    }
-    const { to, clearLayer } = fanOut(subs, printer, bridgeId, alert, image);
+    images.single = await keep(msg.picture);
+    const { to, clearLayer } = fanOut(subs, printer, bridgeId, alert, images);
     const results = await Promise.all(to.map(([, s, push]) => sendPush(this.env, s, push, urgentEvent(alert.event))));
     let changed = false;
     for (let i = 0; i < to.length; i++) {

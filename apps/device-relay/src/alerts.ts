@@ -8,7 +8,7 @@
 // Nothing about an alert is logged or kept, except a camera picture, which
 // waits in R2 under alerts/ until the bucket's lifecycle rule deletes it a day later.
 import webpush from 'web-push';
-import { cleanPrefs, ENDS_PRINT, PICTURE_EVENTS, watchFor, wants, type AlertEvent, type AlertPrefs, type FiredAlert, type PrintDetails } from '../../web/src/device/alerts';
+import { cameraKey, cleanPrefs, ENDS_PRINT, PICTURE_EVENTS, watchFor, wants, type AlertEvent, type AlertPrefs, type FiredAlert, type PrintDetails } from '../../web/src/device/alerts';
 import { alertText, type AlertPush, type Clock } from '../../web/src/device/alert-text';
 import { describeU1Error, type Words } from '../../web/src/device/addons/u1-errors';
 import u1Words from '../../web/src/device/addons/u1-errors.json';
@@ -129,8 +129,15 @@ export async function sendPush(env: PushEnv, sub: PushSubscriptionJSON, push: Al
   }
 }
 
-/** What each printer's watcher on the bridge should look for, over every browser with alerts on. */
-export function agentConfig(subs: StoredSub[]): Record<string, { events: AlertEvent[]; layers: number[]; percents: number[]; hours: boolean; pictures: boolean }> {
+/**
+ * What each printer's watcher on the bridge should look for, over every browser with alerts on.
+ * `cameras`: for each alert, every different choice of cameras asked for; the bridge sends one
+ * picture per choice. `pictures` is for bridges from before cameras could be chosen (the first
+ * camera on the key alerts).
+ */
+export function agentConfig(
+  subs: StoredSub[],
+): Record<string, { events: AlertEvent[]; layers: number[]; percents: number[]; hours: boolean; pictures: boolean; cameras: Partial<Record<AlertEvent, string[][]>> }> {
   const by = new Map<string, AlertPrefs[]>();
   for (const s of subs) for (const [printer, prefs] of Object.entries(s.printers)) by.set(printer, [...(by.get(printer) ?? []), prefs]);
   const out: ReturnType<typeof agentConfig> = {};
@@ -139,7 +146,14 @@ export function agentConfig(subs: StoredSub[]): Record<string, { events: AlertEv
     for (const p of all) for (const e of p.events) if (e !== 'offline') events.add(e);
     if (all.some((p) => p.layer != null)) events.add('layer');
     if (!events.size) continue;
-    out[printer] = { events: [...events], ...watchFor(all), pictures: all.some((p) => p.pictures) };
+    const cameras: Partial<Record<AlertEvent, string[][]>> = {};
+    for (const e of events) {
+      const sets = new Map<string, string[]>();
+      for (const p of all) if (p.cameras[e]?.length && (e === 'layer' ? p.layer != null : p.events.includes(e))) sets.set(cameraKey(p.cameras[e]!), p.cameras[e]!);
+      if (sets.size) cameras[e] = [...sets.values()];
+    }
+    const pictures = PICTURE_EVENTS.some((e) => cameras[e]);
+    out[printer] = { events: [...events], ...watchFor(all), pictures, cameras };
   }
   return out;
 }
@@ -189,15 +203,18 @@ export function fanOut(
   printer: { id: string; name: string },
   bridgeId: string,
   alert: FiredAlert,
-  image: string | undefined,
+  /** Picture addresses by choice of cameras (cameraKey), and the one picture an older bridge sends. */
+  images: { byCameras: Record<string, string>; single?: string },
 ): { to: [string, StoredSub, AlertPush][]; clearLayer: string[] } {
   const to: [string, StoredSub, AlertPush][] = [];
   const clearLayer: string[] = [];
   for (const [key, s] of subs) {
     const prefs = s.printers[printer.id];
     if (!prefs) continue;
+    const cams = prefs.cameras[alert.event];
+    const image = cams?.length ? (images.byCameras[cameraKey(cams)] ?? images.single) : undefined;
     if (wants(prefs, alert))
-      to.push([key, s, { ...alertText(alert, printer.name, undefined, s.clock), tag: `${bridgeId}.${printer.id}:${alert.event}`, printer: `${bridgeId}.${printer.id}`, ...(image && prefs.pictures && PICTURE_EVENTS.includes(alert.event) && { image }) }]);
+      to.push([key, s, { ...alertText(alert, printer.name, undefined, s.clock), tag: `${bridgeId}.${printer.id}:${alert.event}`, printer: `${bridgeId}.${printer.id}`, ...(image && { image }) }]);
     if (ENDS_PRINT.includes(alert.event) && prefs.layer != null) clearLayer.push(key);
   }
   return { to, clearLayer };
