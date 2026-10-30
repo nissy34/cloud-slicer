@@ -22,8 +22,8 @@ percentages, Still printing hours, and the cameras its picture comes from (chips
 when the printer has one camera).
 
 "After layer" holds every chosen layer: `layers` (every print; chips 2 3 5 10 plus any typed
-in, starts at 3 when turned on) and `layer` (this print only, also set from the Print dialog,
-cleared by the relay when the print ends). Both reach the bridge as its existing `layers`
+in, starts at 3 when turned on) and `layer` (this print only, set in the Print dialog and shown
+on the strip as "7 once"; cleared by the relay when the print ends). Both reach the bridge as its existing `layers`
 watch list and fire the `layer` alert, so no bridge update is needed. The old "Third layer"
 switch (`layer3`) becomes `layers: [3]` when choices are read (`cleanPrefs`). Its pictures use
 the `layer` camera choice. Tiles that are on have an outline in their colour, which runs round

@@ -208,7 +208,7 @@ try {
   await card.getByTestId('alert-paused-more').click();
   if (await settings.count()) throw new Error('tapping the strip again did not close the settings');
 
-  // "After layer": on starts at layer 3 every print; more chips, any layer typed in, and one for this print only.
+  // "After layer": on starts at layer 3 every print; more chips, and any layer typed in (this print only is in the Print dialog).
   await card.getByTestId('alert-layer').click();
   await card.getByTestId('alert-layer-more').filter({ hasText: 'Layer 3' }).waitFor();
   await settings.getByTestId('alert-layer-5').click();
@@ -216,9 +216,6 @@ try {
   await settings.getByTestId('alert-layer-add').press('Enter');
   await card.getByTestId('alert-layer-more').filter({ hasText: 'Layers 3, 5, 12' }).waitFor();
   if ((await settings.getByTestId('alert-layer-12').getAttribute('aria-pressed')) !== 'true') throw new Error('a typed layer did not become a chip');
-  await settings.getByTestId('alert-layer-number').fill('7');
-  await settings.getByTestId('alert-layer-number').press('Enter');
-  await card.getByTestId('alert-layer-more').filter({ hasText: 'Layers 3, 5, 12 · 7 once' }).waitFor();
   if (shots) await card.screenshot({ path: join(shots, 'alerts-layer-desktop.png') });
   await card.getByTestId('alert-layer').click();
   await until('"After layer" off', async () => !(await checked('alert-layer')));

@@ -367,9 +367,6 @@ function AlertSettings({
               <AddLayer onAdd={(n) => !prefs.layers.includes(n) && onSet({ layers: [...prefs.layers, n].sort((x, y) => x - y) })} />
             </span>
           </div>
-          <div className="dv-alert-setting">
-            <LayerField prefs={prefs} label="This print only" onSet={(layer) => onSet({ layer })} testId="alert-layer-number" />
-          </div>
         </>
       )}
       {names.length === 1 && (
@@ -445,14 +442,12 @@ export function LayerField({
   onSet,
   label = 'Alert me after layer',
   max,
-  testId = 'alert-layer',
 }: {
   prefs: AlertPrefs | null;
   onSet(layer: number | null): void;
   label?: string;
   /** The print's layer count, when known: a later layer would never come. */
   max?: number | null;
-  testId?: string;
 }) {
   const [draft, setDraft] = useState<string | null>(null);
   const [hint, setHint] = useState('');
@@ -488,7 +483,7 @@ export function LayerField({
           }}
           onBlur={commit}
           onKeyDown={(e) => e.key === 'Enter' && (e.target as HTMLInputElement).blur()}
-          data-testid={testId}
+          data-testid="alert-layer"
         />
         {max ? <span className="muted">of {max}</span> : null}
       </span>
