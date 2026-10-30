@@ -2,7 +2,36 @@ Debug probe, never for main: dumps tree-support fingerprints to /work/tree-fp.tx
 
 --- a/src/libslic3r/Support/TreeSupport3D.cpp
 +++ b/src/libslic3r/Support/TreeSupport3D.cpp
-@@ -2447,6 +2447,47 @@
+@@ -27,6 +27,7 @@
+ #include <cassert>
+ #include <chrono>
+ #include <fstream>
++#include <mutex>
+ #include <optional>
+ #include <stdio.h>
+ #include <string>
+@@ -61,6 +62,8 @@
+ 
+ namespace TreeSupport3D
+ {
++static const char *tree_fp_path();
++static void tree_fp_polys(const Polygons &polys, const char *path, const char *tag, size_t layer, int large);
+ 
+ using LineInformation = std::vector<std::pair<Point, LineStatus>>;
+ using LineInformations = std::vector<LineInformation>;
+@@ -1116,6 +1119,11 @@
+     // Configuration & Output
+     RichInterfacePlacer& interface_placer)
+ {
++    if (const char *fp = tree_fp_path()) {
++        static std::mutex fp_mutex;
++        std::lock_guard<std::mutex> lock(fp_mutex);
++        tree_fp_polys(overhang_area, fp, "sample", layer_idx, int(large_horizontal_roof));
++    }
+     // Assumption is that roof will support roof further up to avoid a lot of unnecessary branches. Each layer down it is checked whether the roof area
+     // is still large enough to be a roof and aborted as soon as it is not. This part was already reworked a few times, and there could be an argument
+     // made to change it again if there are actual issues encountered regarding supporting roofs.
+@@ -2447,6 +2455,61 @@
   *
   * \param move_bounds[in,out] All currently existing influence areas
   */
@@ -39,6 +68,20 @@ Debug probe, never for main: dumps tree-support fingerprints to /work/tree-fp.tx
 +    fclose(f);
 +}
 +// ---- end fingerprints ----
++static void tree_fp_polys(const Polygons &polys, const char *path, const char *tag, size_t layer, int large)
++{
++    FILE *f = fopen(path, "a");
++    if (!f) return;
++    long long sx = 0, sy = 0, n = 0;
++    for (const Polygon &poly : polys) for (const Point &pt : poly.points) { sx += pt.x(); sy += pt.y(); ++n; }
++    fprintf(f, "== %s %zu large%d p%zu n%lld %lld %lld\n", tag, layer, large, polys.size(), n, sx, sy);
++    for (const Polygon &poly : polys) {
++        fprintf(f, "  %zu:", poly.points.size());
++        for (const Point &pt : poly.points) fprintf(f, " %lld,%lld", (long long)pt.x(), (long long)pt.y());
++        fprintf(f, "\n");
++    }
++    fclose(f);
++}
 +static const char *tree_fp_path()
 +{
 +    // Only when the caller created this file (engine/node probe), so a normal slice writes nothing.
@@ -50,7 +93,7 @@ Debug probe, never for main: dumps tree-support fingerprints to /work/tree-fp.tx
  static void create_layer_pathing(const TreeModelVolumes &volumes, const TreeSupportSettings &config, std::vector<SupportElements> &move_bounds, std::function<void()> throw_on_cancel)
  {
  #ifdef SLIC3R_TREESUPPORTS_PROGRESS
-@@ -3565,6 +3606,7 @@
+@@ -3565,6 +3628,7 @@
  
              // ### Propagate the influence areas downwards. This is an inherently serial operation.
              print.set_status(60, _L("Generating support"));
@@ -58,7 +101,7 @@ Debug probe, never for main: dumps tree-support fingerprints to /work/tree-fp.tx
              create_layer_pathing(volumes, config, move_bounds, throw_on_cancel);
              auto t_path = std::chrono::high_resolution_clock::now();
  
-@@ -3574,10 +3616,17 @@
+@@ -3574,10 +3638,17 @@
  
              // ### draw these points as circles
              // this new function give correct result when raft is also enabled
