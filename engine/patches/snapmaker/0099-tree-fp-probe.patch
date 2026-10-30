@@ -1,0 +1,78 @@
+Debug probe, never for main: dumps tree-support fingerprints to /work/tree-fp.txt when that file exists.
+
+--- a/src/libslic3r/Support/TreeSupport3D.cpp	2026-10-30 06:34:08.837258188 +0000
++++ b/src/libslic3r/Support/TreeSupport3D.cpp	2026-10-30 06:34:08.853384094 +0000
+@@ -2447,6 +2447,47 @@
+  *
+  * \param move_bounds[in,out] All currently existing influence areas
+  */
++// ---- tree-support fingerprints (debug probe, not for main) ----
++static void tree_fp_move_bounds(const std::vector<SupportElements> &mb, const char *path, const char *tag)
++{
++    FILE *f = fopen(path, "a");
++    if (!f) return;
++    fprintf(f, "== %s %zu\n", tag, mb.size());
++    for (size_t l = 0; l < mb.size(); ++l)
++        for (const SupportElement &e : mb[l]) {
++            const SupportElementState &s = e.state;
++            long long ip = 0, n = 0;
++            for (const Polygon &poly : e.influence_area) for (const Point &pt : poly.points) { ip += (long long)pt.x() * 3 + (long long)pt.y(); ++n; }
++            fprintf(f, "%zu t%d h%d r%.17g z%.9g tp%lld,%lld np%lld,%lld res%lld,%lld erh%u dtt%u bp%d g%d roof%d par%d ia%zu/%lld/%lld\n", l, s.type, int(s.target_height), double(s.radius), double(s.print_z),
++                (long long)s.target_position.x(), (long long)s.target_position.y(), (long long)s.next_position.x(), (long long)s.next_position.y(),
++                (long long)s.result_on_layer.x(), (long long)s.result_on_layer.y(), unsigned(s.effective_radius_height), unsigned(s.distance_to_top),
++                int(s.to_buildplate), int(s.to_model_gracious), int(s.supports_roof), int(e.parents.size()), e.influence_area.size(), n, ip);
++        }
++    fclose(f);
++}
++static void tree_fp_layers(const SupportGeneratorLayersPtr &layers, const char *path, const char *tag)
++{
++    FILE *f = fopen(path, "a");
++    if (!f) return;
++    fprintf(f, "== %s %zu\n", tag, layers.size());
++    for (size_t i = 0; i < layers.size(); ++i) {
++        const SupportGeneratorLayer *l = layers[i];
++        if (!l) { fprintf(f, "%zu null\n", i); continue; }
++        long long sx = 0, sy = 0, n = 0;
++        for (const Polygon &poly : l->polygons) for (const Point &pt : poly.points) { sx += pt.x(); sy += pt.y(); ++n; }
++        fprintf(f, "%zu z%.9g b%.9g h%.9g p%zu n%lld %lld %lld\n", i, l->print_z, l->bottom_z, l->height, l->polygons.size(), n, sx, sy);
++    }
++    fclose(f);
++}
++// ---- end fingerprints ----
++static const char *tree_fp_path()
++{
++    // Only when the caller created this file (engine/node probe), so a normal slice writes nothing.
++    FILE *f = fopen("/work/tree-fp.txt", "r");
++    if (!f) return nullptr;
++    fclose(f);
++    return "/work/tree-fp.txt";
++}
+ static void create_layer_pathing(const TreeModelVolumes &volumes, const TreeSupportSettings &config, std::vector<SupportElements> &move_bounds, std::function<void()> throw_on_cancel)
+ {
+ #ifdef SLIC3R_TREESUPPORTS_PROGRESS
+@@ -3565,6 +3606,7 @@
+ 
+             // ### Propagate the influence areas downwards. This is an inherently serial operation.
+             print.set_status(60, _L("Generating support"));
++            if (const char *fp = tree_fp_path()) tree_fp_move_bounds(move_bounds, fp, "pathing-in");
+             create_layer_pathing(volumes, config, move_bounds, throw_on_cancel);
+             auto t_path = std::chrono::high_resolution_clock::now();
+ 
+@@ -3574,10 +3616,17 @@
+ 
+             // ### draw these points as circles
+             // this new function give correct result when raft is also enabled
++            if (const char *fp = tree_fp_path()) tree_fp_move_bounds(move_bounds, fp, "draw-in");
+             organic_draw_branches(
+                 *print.get_object(processing.second.front()), volumes, config, move_bounds,
+                 bottom_contacts, top_contacts, interface_placer, intermediate_layers, layer_storage,
+                 throw_on_cancel);
++            if (const char *fp = tree_fp_path()) {
++                tree_fp_move_bounds(move_bounds, fp, "draw-out");
++                tree_fp_layers(bottom_contacts, fp, "bottom");
++                tree_fp_layers(top_contacts, fp, "top");
++                tree_fp_layers(intermediate_layers, fp, "inter");
++            }
+ 
+             //tree_support->move_bounds_to_contact_nodes(move_bounds, print_object, config);
+ 
