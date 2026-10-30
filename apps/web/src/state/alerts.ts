@@ -124,7 +124,7 @@ export const useAlerts = create<AlertsState>((set, get) => {
         const { prefs } = await relayCall<{ prefs: unknown }>({ op: 'get', endpoint: sub.endpoint, clock: localClock() });
         if (mine !== seq) return;
         const clean = cleanPrefs(prefs);
-        set({ status: clean ? 'on' : 'off', prefs: clean });
+        set({ status: clean ? 'on' : 'off', prefs: clean, problem: null });
       } catch (e) {
         if (mine === seq) set({ status: 'off', problem: 'offline', error: (e as Error).message });
       }

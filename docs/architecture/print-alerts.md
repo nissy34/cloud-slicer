@@ -72,6 +72,9 @@ Durable Object `push:<hash>` per browser (subscription, choices per printer, tim
 camera pictures in R2 `alerts/` for a day; the account setting `alerts.last` (a new
 device starts from the last choices saved anywhere); `cloud-slicer:alerts:v1` for direct
 printers.
+Choices kept by an older build are brought up to date every time the relay reads them
+(`readSub` in the relay, `cleanPrinterPrefs` in `device/alerts.ts`), so a field added later,
+like `cameras`, is never missing when the rules run.
 
 ## Rules
 

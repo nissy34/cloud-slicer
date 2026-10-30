@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import cases from '../../../device-bridge/testdata/alert-cases.json';
 import detailCases from '../../../device-bridge/testdata/alert-details-cases.json';
 import cameraCases from '../../../device-bridge/testdata/camera-cases.json';
-import { AlertWatcher, camerasFor, cleanPrefs, defaultPrefs, detailsOf, snapshotOf, startingPrefs, wants, watchFor, type AlertWatch, type FiredAlert, type PrintSnapshot } from './alerts';
+import { AlertWatcher, camerasFor, cleanPrefs, cleanPrinterPrefs, defaultPrefs, detailsOf, snapshotOf, startingPrefs, wants, watchFor, type AlertWatch, type FiredAlert, type PrintSnapshot } from './alerts';
 import type { KlipperObjects } from './status';
 
 describe('print alert rules (shared with the bridge)', () => {
@@ -89,5 +89,12 @@ describe('who wants which alert', () => {
     expect(cleanPrefs({ events: [], pictures: false })?.cameras).toEqual({});
     expect(defaultPrefs().cameras.finished).toEqual(['*']);
     expect(defaultPrefs().cameras.started).toBeUndefined();
+  });
+  it('choices the relay kept from an older build come back with cameras, so its rules never read a missing list', () => {
+    const kept = cleanPrinterPrefs({ voron: { events: ['finished', 'paused'], percents: [], hours: 0, layer: 4, pictures: true }, bad: 'x' });
+    expect(Object.keys(kept)).toEqual(['voron']);
+    expect(kept.voron.cameras).toEqual(defaultPrefs().cameras);
+    expect(kept.voron.layer).toBe(4);
+    expect(cleanPrinterPrefs(undefined)).toEqual({});
   });
 });
