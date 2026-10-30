@@ -1582,7 +1582,8 @@
   content: '';
   position: absolute;
   bottom: -1px;
-  width: var(--r-lg);
+  /* One pixel wider, over the tile's own side edge, so the side turns into the curve. */
+  width: calc(var(--r-lg) + 1px);
   height: var(--r-lg);
   pointer-events: none;
 }
