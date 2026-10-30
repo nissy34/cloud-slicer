@@ -111,6 +111,9 @@ match ([testing](testing.md#same-as-desktop-orca)).
 - **Patches 0006 and 0007** keep big slices inside a phone's memory: G-code results are
   moved rather than copied, and only the last move is kept (desktop keeps every move for
   its preview; we parse the G-code instead).
+- **Patch 0010** makes a slice independent of earlier ones: the support infill kept
+  limits from the first support fill the engine made, which in a tab that stays open
+  means the first one of the session.
 - **No wasm64**: Safari lacks it, phones kill tabs below 4 GB anyway, and it is slower.
 - More in [decisions.md](../decisions.md#engines).
 

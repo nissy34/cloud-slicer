@@ -48,8 +48,10 @@ format (we add the plate number), two flush settings desktop's command line fill
 itself (OrcaSlicer only), the colour-mix prime tower we keep and desktop drops
 (`patches/snapmaker/0009`), and tree supports, whose branches round a little differently in
 the browser build (2% and 1.5 mm there). OrcaSlicer 2.4.2's supports also depend on which
-thread finishes first, in desktop as much as in ours (on a busy computer the same Benchy
-gives one of two results), so on that engine the support cases get three tries. Desktop's command line crashes on loose preset
+thread finishes first on desktop (on a busy computer the same Benchy gives one of two
+results): its support infill keeps three limits from whichever support fill ran first.
+Our engines don't (`patches/0010`, the same fix as OrcaSlicer #15564), so on that engine
+the support cases get three tries at desktop's answer. Desktop's command line crashes on loose preset
 files, which is why it gets our saved 3MF.
 
 CI runs it on pull requests that change the engine, its presets or the check, and every
