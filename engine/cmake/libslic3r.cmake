@@ -209,6 +209,12 @@ target_include_directories(libslic3r_cgal PRIVATE ${ENGINE_INCLUDES})
 add_library(libslic3r STATIC ${LIBSLIC3R_SOURCES})
 target_compile_definitions(libslic3r PUBLIC USE_TBB TBB_USE_CAPTURED_EXCEPTION=0)
 target_include_directories(libslic3r PUBLIC ${ENGINE_INCLUDES})
+# CGAL 6 headers that reach Boost.Interval need a rounding control it lacks
+# for wasm (compat/boost_interval_wasm.hpp).
+if(ENGINE_CGAL_DEP STREQUAL "cgal6")
+    set_property(SOURCE ${LIBSLIC3R_DIR}/Geometry/VoronoiUtilsCgal.cpp APPEND PROPERTY
+                 COMPILE_OPTIONS "-include${COMPAT_DIR}/boost_interval_wasm.hpp")
+endif()
 # Platform.cpp static_asserts on unknown OSes; Emscripten is POSIX enough to
 # take the Linux branch (its /proc/version probe just fails).
 set_source_files_properties(${LIBSLIC3R_DIR}/Platform.cpp PROPERTIES COMPILE_DEFINITIONS "__linux__=1")

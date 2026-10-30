@@ -378,7 +378,17 @@ std::vector<std::string> paPattern(const Calib_Params& params, DynamicPrintConfi
     }
 
     const SuggestedConfigCalibPAPattern suggested;
+#if ENGINE_UPSTREAM_NEXT
+    // OrcaSlicer 2.5 keeps these per extruder variant: desktop sets every value.
+    for (const auto& [key, values] : suggested.floats_pairs) {
+        if (auto* opt = cfg.option<ConfigOptionFloatsNullable>(key))
+            std::fill(opt->values.begin(), opt->values.end(), values[0]);
+        else
+            set(cfg, key, number(key, values[0]));
+    }
+#else
     for (const auto& [key, value] : suggested.float_pairs) set(cfg, key, new ConfigOptionFloat(value));
+#endif
     for (const auto& [key, ratio] : suggested.nozzle_ratio_pairs) set(cfg, key, new ConfigOptionFloatOrPercent(nozzle_diameter * ratio / 100, false));
     for (const auto& [key, value] : suggested.int_pairs) set(cfg, key, new ConfigOptionInt(value));
     set(cfg, suggested.brim_pair.first, new ConfigOptionEnum<BrimType>(suggested.brim_pair.second));
