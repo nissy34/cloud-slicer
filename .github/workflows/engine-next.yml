@@ -1,0 +1,192 @@
+name: Next OrcaSlicer engine
+
+# Builds the next upstream OrcaSlicer (engine/orcaslicer-next, the orca-next
+# flavor: OrcaSlicer 2.5 while it is in beta) and runs the engine tests on it,
+# to find what moving the OrcaSlicer engine to it needs before it is stable.
+# The app never loads this engine and nothing waits for this workflow: a red
+# run here blocks no pull request. See engine/README.md, "The next OrcaSlicer".
+
+on:
+  pull_request:
+    paths:
+      - 'engine/**'
+      - '!engine/**/*.md'
+      - '.github/workflows/engine-next.yml'
+  workflow_dispatch:
+
+concurrency:
+  group: engine-next-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  engine-next:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 240
+    # Publishes the build to the engine-builds release, like ci.yml, so
+    # fetch-engine.mjs-style downloads can test it without building it.
+    permissions:
+      contents: write
+    env:
+      FLAVOR: orca-next
+      OUT: engine/build/engine-next
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+
+      # The same Emscripten as the shipped engines (ci.yml), so the dependency
+      # cache built for them fits.
+      - name: Engine key
+        id: key
+        run: |
+          emsdk=$(sed -n 's/^  EMSDK_VERSION: *//p' .github/workflows/ci.yml)
+          echo "EMSDK_VERSION=$emsdk" >> "$GITHUB_ENV"
+          name=$(node engine/scripts/engine-key.mjs --flavor "$FLAVOR")
+          echo "name=$name" >> "$GITHUB_OUTPUT"
+          echo "key=engine-out-$name" >> "$GITHUB_OUTPUT"
+          echo "### Next OrcaSlicer: \`$name\`" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Reuse an engine built from the same sources
+        id: engine-cache
+        uses: actions/cache/restore@v5
+        with:
+          path: ${{ env.OUT }}/orca-engine.*
+          key: ${{ steps.key.outputs.key }}
+
+      # Its presets are read even when the engine is reused, and the tests take
+      # calibration models and fonts from Snapmaker Orca's sources.
+      - name: Fetch the pinned next OrcaSlicer and Snapmaker Orca submodules (shallow)
+        run: |
+          for sub in engine/orcaslicer-next engine/orcaslicer; do
+            sha=$(git ls-tree HEAD "$sub" | awk '{print $3}')
+            url=$(git config -f .gitmodules "submodule.$sub.url")
+            (cd "$sub" && git init -q && git remote add origin "$url" &&
+              git fetch -q --depth 1 origin "$sha" && git checkout -q FETCH_HEAD)
+          done
+          grep -m1 SoftFever_VERSION engine/orcaslicer-next/version.inc >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Install Emscripten
+        if: steps.engine-cache.outputs.cache-hit != 'true'
+        run: |
+          sudo apt-get install -y -qq ninja-build ccache
+          git clone -q --depth 1 https://github.com/emscripten-core/emsdk.git "$RUNNER_TEMP/emsdk"
+          "$RUNNER_TEMP/emsdk/emsdk" install "$EMSDK_VERSION"
+          "$RUNNER_TEMP/emsdk/emsdk" activate "$EMSDK_VERSION"
+
+      # The shipped engines' dependencies (ci.yml builds and saves them), plus
+      # the few the next OrcaSlicer needs on top (build-deps-next.sh, seconds).
+      - name: Restore engine dependencies
+        if: steps.engine-cache.outputs.cache-hit != 'true'
+        id: deps-cache
+        uses: actions/cache/restore@v5
+        with:
+          path: engine/build/deps
+          key: engine-deps-${{ env.EMSDK_VERSION }}-${{ hashFiles('engine/scripts/build-deps.sh') }}
+
+      - name: Build engine dependencies
+        if: steps.engine-cache.outputs.cache-hit != 'true'
+        env:
+          CURL_HOME: ${{ runner.temp }}/curl-retry
+        run: |
+          mkdir -p "$CURL_HOME"
+          printf '%s\n' 'retry = 6' 'retry-delay = 20' 'retry-all-errors' 'connect-timeout = 30' > "$CURL_HOME/.curlrc"
+          source "$RUNNER_TEMP/emsdk/emsdk_env.sh"
+          if [ "${{ steps.deps-cache.outputs.cache-hit }}" != true ]; then engine/scripts/build-deps.sh; fi
+          engine/scripts/build-deps-next.sh
+
+      - name: Restore compiler cache
+        if: steps.engine-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/restore@v5
+        with:
+          path: ${{ runner.temp }}/ccache
+          key: engine-ccache-orca-next-${{ env.EMSDK_VERSION }}-${{ github.sha }}
+          restore-keys: |
+            engine-ccache-orca-next-${{ env.EMSDK_VERSION }}-
+            engine-ccache-orca-${{ env.EMSDK_VERSION }}-
+
+      # -k 0 keeps compiling past the first broken file, so one run lists every
+      # file that needs work.
+      - name: Build the engine
+        if: steps.engine-cache.outputs.cache-hit != 'true'
+        env:
+          EM_COMPILER_WRAPPER: ccache
+          CCACHE_DIR: ${{ runner.temp }}/ccache
+          CCACHE_MAXSIZE: 1G
+          CCACHE_BASEDIR: ${{ github.workspace }}
+        run: |
+          source "$RUNNER_TEMP/emsdk/emsdk_env.sh"
+          emcmake cmake -S engine -B "$OUT" -G Ninja -DCMAKE_BUILD_TYPE=Release -DENGINE_FLAVOR=$FLAVOR
+          set +e
+          cmake --build "$OUT" -- -k 0 2>&1 | tee "$RUNNER_TEMP/build.log"
+          rc=${PIPESTATUS[0]}
+          set -e
+          { echo '### Files that failed to build'; echo '```';
+            grep -E '^FAILED: ' "$RUNNER_TEMP/build.log" | sed 's/^FAILED: //' | head -60 || true; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
+          ccache -s | head -8
+          [ "$rc" = 0 ] || exit "$rc"
+          ls -la "$OUT"/orca-engine.*
+          { echo '### Engine size'; echo '```'; ls -la "$OUT"/orca-engine.*; gzip -c "$OUT/orca-engine.wasm" | wc -c | sed 's/$/ bytes gzipped/'; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Save compiler cache
+        if: always() && steps.engine-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v5
+        with:
+          path: ${{ runner.temp }}/ccache
+          key: engine-ccache-orca-next-${{ env.EMSDK_VERSION }}-${{ github.sha }}
+
+      - name: Save the engine
+        if: steps.engine-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v5
+        with:
+          path: ${{ env.OUT }}/orca-engine.*
+          key: ${{ steps.key.outputs.key }}
+
+      - name: Publish the engine
+        if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ASSET: engine-${{ steps.key.outputs.name }}.tar.gz
+        run: |
+          if gh release view engine-builds --json assets -q '.assets[].name' | grep -qxF "$ASSET"; then exit 0; fi
+          tar -C "$OUT" -czf "$RUNNER_TEMP/$ASSET" $(cd "$OUT" && ls orca-engine.*)
+          gh release upload engine-builds "$RUNNER_TEMP/$ASSET" --clobber
+          echo "Published \`$ASSET\` to the engine-builds release" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Bundle the next OrcaSlicer's presets
+        run: ENGINE_FLAVOR=$FLAVOR node engine/scripts/bundle-profiles.mjs engine/build/profiles-next
+
+      # Every check runs even when one before it fails, so a run shows all that
+      # needs work. The ci.yml engine-tests steps, on this engine.
+      - name: Engine tests (Node)
+        id: tests
+        continue-on-error: true
+        env:
+          ORCA_ENGINE_JS: ${{ github.workspace }}/engine/build/engine-next/orca-engine.js
+          ORCA_PROFILES: ${{ github.workspace }}/engine/build/profiles-next/profiles.json
+        run: node --test --test-reporter=spec engine/node/engine.test.mjs 2>&1 | tee "$RUNNER_TEMP/tests.log"; exit "${PIPESTATUS[0]}"
+
+      - name: Slice Benchy on a U1
+        id: benchy
+        continue-on-error: true
+        env:
+          ORCA_ENGINE_JS: ${{ github.workspace }}/engine/build/engine-next/orca-engine.js
+          ORCA_PROFILES: ${{ github.workspace }}/engine/build/profiles-next/profiles.json
+        run: |
+          /usr/bin/time -v node engine/node/slice.mjs fixtures/3DBenchy.stl /tmp/benchy.gcode 2> "$RUNNER_TEMP/time.txt"
+          grep -q '^PRINT_START' /tmp/benchy.gcode
+          { echo '### Benchy on a U1'; echo '```'; grep -E 'Elapsed|Maximum resident' "$RUNNER_TEMP/time.txt";
+            grep -E '^; (estimated printing time|filament used \[mm\]|total layers count)' /tmp/benchy.gcode; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Summary
+        if: always()
+        run: |
+          if [ -f "$RUNNER_TEMP/tests.log" ]; then
+            { echo '### Engine tests'; echo '```'; grep -E '^ℹ (tests|pass|fail|skipped)' "$RUNNER_TEMP/tests.log";
+              echo; grep -E '^\s*✖' "$RUNNER_TEMP/tests.log" | head -60; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
+          fi
+          [ "${{ steps.tests.outcome }}" = success ] && [ "${{ steps.benchy.outcome }}" = success ]

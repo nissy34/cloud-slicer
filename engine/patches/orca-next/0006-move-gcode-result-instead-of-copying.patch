@@ -1,0 +1,2 @@
+Not needed: OrcaSlicer 2.5's GCodeProcessorResult has a real move assignment,
+so `*result = std::move(m_processor.extract_result())` no longer copies the moves.

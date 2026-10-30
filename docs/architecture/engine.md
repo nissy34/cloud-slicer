@@ -60,6 +60,9 @@ the user's presets (written before presets load) and fonts for the Text tool.
 
 ## Updating an engine
 
+Before a stable upstream OrcaSlicer, its beta builds in CI only as `orca-next`
+(`engine/orcaslicer-next`, `.github/workflows/engine-next.yml`, [engine README](../../engine/README.md#the-next-orcaslicer)),
+so its build and patch work is done before release day; it never ships.
 Move the submodule to the new tag (replace, never add a third engine), then check:
 every patch in `engine/patches/` still applies; `extract-settings-layout.mjs` still reads
 desktop's pages (new settings show by themselves); `option-toggles.ts` gets the new

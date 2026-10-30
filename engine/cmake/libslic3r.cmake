@@ -14,8 +14,15 @@ set(LIBSLIC3R_DIR "${ORCA_DIR}/src/libslic3r")
 set(BUNDLED_DIR "${ORCA_DIR}/deps_src")
 set(COMPAT_DIR "${CMAKE_CURRENT_SOURCE_DIR}/compat")
 
+file(READ "${LIBSLIC3R_DIR}/CMakeLists.txt" _upstream)
+
 # --- dependency search paths (engine/scripts/build-deps.sh layout) ------------
-set(EXTERN_DEPS boost tbb gmp mpfr cgal eigen cereal nlohmann zlib expat nlopt libpng libjpeg libnoise)
+# An engine that asks for CGAL 6 (OrcaSlicer 2.5) gets it from build-deps-next.sh.
+set(ENGINE_CGAL_DEP cgal)
+if(_upstream MATCHES "find_package\\(CGAL 6")
+    set(ENGINE_CGAL_DEP cgal6)
+endif()
+set(EXTERN_DEPS boost tbb gmp mpfr ${ENGINE_CGAL_DEP} eigen cereal nlohmann zlib expat nlopt libpng libjpeg libnoise)
 if(ENGINE_WITH_STEP)
     list(APPEND EXTERN_DEPS occt)
 endif()
@@ -85,8 +92,13 @@ target_include_directories(glu-libtess PRIVATE ${BUNDLED_DIR}/glu-libtess PUBLIC
 add_library(qoi STATIC ${BUNDLED_DIR}/qoi/qoilib.c)
 target_include_directories(qoi PUBLIC ${BUNDLED_DIR}/qoi)
 
-add_library(clipper STATIC ${BUNDLED_DIR}/clipper/clipper.cpp ${BUNDLED_DIR}/clipper/clipper_z.cpp)
-target_include_directories(clipper PUBLIC ${ENGINE_INCLUDES})
+# Clipper 1 (gone from OrcaSlicer 2.5, which uses only Clipper2).
+set(CLIPPER_LIB "")
+if(EXISTS "${BUNDLED_DIR}/clipper")
+    add_library(clipper STATIC ${BUNDLED_DIR}/clipper/clipper.cpp ${BUNDLED_DIR}/clipper/clipper_z.cpp)
+    target_include_directories(clipper PUBLIC ${ENGINE_INCLUDES})
+    set(CLIPPER_LIB clipper)
+endif()
 
 # Clipper2 (upstream OrcaSlicer only).
 set(CLIPPER2_LIB "")
@@ -116,7 +128,6 @@ endif()
 # waits for them (the boolean hung in the browser; Node starts them fine).
 
 # --- libslic3r sources, from the engine's own list ----------------------------
-file(READ "${LIBSLIC3R_DIR}/CMakeLists.txt" _upstream)
 string(REGEX MATCH "set\\(lisbslic3r_sources([^)]*)\\)" _block "${_upstream}")
 if(NOT _block)
     message(FATAL_ERROR "libslic3r source list not found in ${LIBSLIC3R_DIR}/CMakeLists.txt")
@@ -131,6 +142,9 @@ set(LIBSLIC3R_EXCLUDE
     Shape/TextShape.cpp     # text embossing, needs OCCT + FreeType
     Format/DRC.cpp          # Draco meshes (upstream OrcaSlicer), compat/drc_stub.cpp
     ObjColorUtils.cpp       # OBJ colour clustering for desktop's import dialog, needs OpenCV
+    TexturePainting.cpp     # texture-to-colour import dialog (OrcaSlicer 2.5), needs OpenCV
+    TextureToColor/TextureToColor.cpp  # the same
+    Format/AssimpImport.cpp # glTF/GLB/FBX import (OrcaSlicer 2.5), needs Assimp; compat/assimp_stub.cpp
 )
 if(NOT ENGINE_WITH_STEP)
     list(APPEND LIBSLIC3R_EXCLUDE Format/STEP.cpp)  # compat/stubs.cpp
@@ -149,6 +163,9 @@ endforeach()
 list(REMOVE_DUPLICATES LIBSLIC3R_SOURCES)
 if("Format/DRC.cpp" IN_LIST _rel)
     list(APPEND LIBSLIC3R_SOURCES ${COMPAT_DIR}/drc_stub.cpp)
+endif()
+if("Format/AssimpImport.cpp" IN_LIST _rel)
+    list(APPEND LIBSLIC3R_SOURCES ${COMPAT_DIR}/assimp_stub.cpp)
 endif()
 # Desktop's flushing volume maths (FlushVolCalc.cpp, FlushVolPredictor.cpp)
 # calls colour conversions that live with the GUI, in
@@ -204,7 +221,7 @@ if(ENGINE_WITH_STEP)
         TKBRep TKGeomBase TKG3d TKG2d TKMath TKernel)
 endif()
 
-target_link_libraries(libslic3r PRIVATE admesh clipper ${CLIPPER2_LIB} glu-libtess qoi libslic3r_cgal miniz qhull mcut)
+target_link_libraries(libslic3r PRIVATE admesh ${CLIPPER_LIB} ${CLIPPER2_LIB} glu-libtess qoi libslic3r_cgal miniz qhull mcut)
 target_link_libraries(libslic3r PUBLIC
     semver
     boost_log_setup boost_log boost_filesystem boost_thread boost_regex boost_iostreams

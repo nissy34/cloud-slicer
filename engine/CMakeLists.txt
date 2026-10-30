@@ -20,8 +20,10 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 # OrcaSlicer (orcaslicer-upstream/). The same engine/src API builds against
 # either; the parts only Snapmaker Orca has (mixed filaments, standard/high
 # flow variants) compile only for it, and engineInfo() tells the page.
-set(ENGINE_FLAVOR "snapmaker" CACHE STRING "snapmaker or orca")
-set_property(CACHE ENGINE_FLAVOR PROPERTY STRINGS snapmaker orca)
+# orca-next is the next upstream OrcaSlicer (orcaslicer-next/), only built by
+# the engine-next workflow to find what its update needs; the app never loads it.
+set(ENGINE_FLAVOR "snapmaker" CACHE STRING "snapmaker, orca or orca-next")
+set_property(CACHE ENGINE_FLAVOR PROPERTY STRINGS snapmaker orca orca-next)
 if(ENGINE_FLAVOR STREQUAL "snapmaker")
     set(ORCA_DIR "${CMAKE_CURRENT_SOURCE_DIR}/orcaslicer")
     set(ENGINE_HAS_MIXING 1)
@@ -31,8 +33,13 @@ elseif(ENGINE_FLAVOR STREQUAL "orca")
     set(ENGINE_HAS_MIXING 0)
     set(ENGINE_HAS_FLOW_VARIANTS 0)
     add_compile_definitions(ENGINE_UPSTREAM=1)
+elseif(ENGINE_FLAVOR STREQUAL "orca-next")
+    set(ORCA_DIR "${CMAKE_CURRENT_SOURCE_DIR}/orcaslicer-next")
+    set(ENGINE_HAS_MIXING 0)
+    set(ENGINE_HAS_FLOW_VARIANTS 0)
+    add_compile_definitions(ENGINE_UPSTREAM=1 ENGINE_UPSTREAM_NEXT=1)
 else()
-    message(FATAL_ERROR "ENGINE_FLAVOR must be snapmaker or orca, not ${ENGINE_FLAVOR}")
+    message(FATAL_ERROR "ENGINE_FLAVOR must be snapmaker, orca or orca-next, not ${ENGINE_FLAVOR}")
 endif()
 # The engine's own name and version, from its version.inc.
 file(STRINGS "${ORCA_DIR}/version.inc" _engine_version_line REGEX "set\\((Snapmaker|SoftFever)_VERSION ")
@@ -40,7 +47,9 @@ string(REGEX REPLACE ".*\"([^\"]*)\".*" "\\1" ENGINE_VERSION "${_engine_version_
 file(STRINGS "${ORCA_DIR}/version.inc" _engine_name_line REGEX "set\\(SLIC3R_APP_NAME ")
 string(REGEX REPLACE ".*\"([^\"]*)\".*" "\\1" ENGINE_NAME "${_engine_name_line}")
 message(STATUS "Engine: ${ENGINE_NAME} ${ENGINE_VERSION} (${ENGINE_FLAVOR})")
-add_compile_definitions(ENGINE_FLAVOR="${ENGINE_FLAVOR}" ENGINE_NAME="${ENGINE_NAME}" ENGINE_VERSION="${ENGINE_VERSION}"
+# The app and the tests take orca-next for what it will become: the OrcaSlicer engine.
+string(REPLACE "orca-next" "orca" ENGINE_APP_FLAVOR "${ENGINE_FLAVOR}")
+add_compile_definitions(ENGINE_FLAVOR="${ENGINE_APP_FLAVOR}" ENGINE_NAME="${ENGINE_NAME}" ENGINE_VERSION="${ENGINE_VERSION}"
                         ENGINE_HAS_MIXING=${ENGINE_HAS_MIXING} ENGINE_HAS_FLOW_VARIANTS=${ENGINE_HAS_FLOW_VARIANTS})
 set(EXTERN_DIR "${CMAKE_CURRENT_SOURCE_DIR}/build/deps" CACHE PATH "Output of engine/scripts/build-deps.sh")
 # STEP import via OCCT 7.6 (engine/scripts/build-deps.sh occt). Off by default:
@@ -68,14 +77,32 @@ add_compile_definitions(CGAL_ALWAYS_ROUND_TO_NEAREST=1)
 
 # Engine source patches (engine/patches/*.patch, paths relative to the
 # orcaslicer submodule); patches/<flavor>/ holds the ones for one engine only.
+# A flavor's patch with the same name as a shared one replaces it there, and
+# one that changes no file (only its description) says that engine doesn't need it.
 # The submodule itself stays untouched: each patched file
 # is copied into the build tree, patched there, and swapped into libslic3r's
 # source list. Only bugs the browser build exposes belong here.
 set(ENGINE_PATCHED_DIR "${CMAKE_BINARY_DIR}/patched-engine")
 set(ENGINE_SOURCE_OVERRIDES "")
-file(GLOB ENGINE_PATCHES "${CMAKE_CURRENT_SOURCE_DIR}/patches/*.patch" "${CMAKE_CURRENT_SOURCE_DIR}/patches/${ENGINE_FLAVOR}/*.patch")
-foreach(patch ${ENGINE_PATCHES})
+file(GLOB _shared_patches "${CMAKE_CURRENT_SOURCE_DIR}/patches/*.patch")
+file(GLOB _flavor_patches "${CMAKE_CURRENT_SOURCE_DIR}/patches/${ENGINE_FLAVOR}/*.patch")
+set(ENGINE_PATCHES "")
+foreach(patch ${_shared_patches})
+    get_filename_component(_name ${patch} NAME)
+    if(NOT EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/patches/${ENGINE_FLAVOR}/${_name}")
+        list(APPEND ENGINE_PATCHES ${patch})
+    endif()
+endforeach()
+foreach(patch ${_shared_patches} ${_flavor_patches})
     set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS ${patch})
+endforeach()
+foreach(patch ${_flavor_patches})
+    file(STRINGS ${patch} _changes REGEX "^\\+\\+\\+ b/")
+    if(_changes)
+        list(APPEND ENGINE_PATCHES ${patch})
+    endif()
+endforeach()
+foreach(patch ${ENGINE_PATCHES})
     file(STRINGS ${patch} touched REGEX "^\\+\\+\\+ b/")
     foreach(line ${touched})
         string(REGEX REPLACE "^\\+\\+\\+ b/" "" rel "${line}")
@@ -134,7 +161,7 @@ target_link_options(orca-engine PRIVATE
 )
 # Upstream OrcaSlicer's flushing volumes come from measured colour pairs in
 # resources/flush (FlushVolPredictor reads them from resources_dir(), "" here).
-if(ENGINE_FLAVOR STREQUAL "orca")
+if(ENGINE_FLAVOR MATCHES "^orca")
     target_link_options(orca-engine PRIVATE "SHELL:--embed-file ${ORCA_DIR}/resources/flush@/flush")
 endif()
 option(ENGINE_WASM_DEBUG "Runtime assertions + symbolised stacks" OFF)

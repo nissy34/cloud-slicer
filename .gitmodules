@@ -4,3 +4,6 @@
 [submodule "engine/orcaslicer-upstream"]
 	path = engine/orcaslicer-upstream
 	url = https://github.com/OrcaSlicer/OrcaSlicer.git
+[submodule "engine/orcaslicer-next"]
+	path = engine/orcaslicer-next
+	url = https://github.com/OrcaSlicer/OrcaSlicer.git

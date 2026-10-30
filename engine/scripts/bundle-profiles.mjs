@@ -36,8 +36,9 @@ import { labelObjectsForKlipper } from './klipper-labels.mjs';
 import { plateInFileNames } from './plate-file-names.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
-// ENGINE_FLAVOR=orca bundles upstream OrcaSlicer's presets instead.
-const root = resolve(here, process.env.ENGINE_FLAVOR === 'orca' ? '../orcaslicer-upstream/resources/profiles' : '../orcaslicer/resources/profiles');
+// ENGINE_FLAVOR=orca bundles upstream OrcaSlicer's presets instead, orca-next the next OrcaSlicer's.
+const submodule = { orca: 'orcaslicer-upstream', 'orca-next': 'orcaslicer-next' }[process.env.ENGINE_FLAVOR] ?? 'orcaslicer';
+const root = resolve(here, `../${submodule}/resources/profiles`);
 // Both engines draw the same bed for a printer: its files come from Snapmaker Orca
 // first (upstream's U1 bed is a 13 mm block, Snapmaker's a thin sheet), then from
 // upstream OrcaSlicer for what Snapmaker Orca lacks.
