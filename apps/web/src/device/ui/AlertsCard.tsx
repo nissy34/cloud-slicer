@@ -23,6 +23,7 @@ const MILESTONES: Tile[] = [
   ['started', 'started', 'Started', 'Print started'],
   ['layer1', 'layer', 'First layer', 'First layer done'],
   ['layer3', 'layer', 'Third layer', 'Third layer done'],
+  ['layer', 'layer', 'Layer you pick', 'After a layer you pick'],
   ['progress', 'progress', 'Progress', 'Progress'],
   ['stillPrinting', 'clock', 'Still printing', 'Still printing, every few hours'],
   ['almostDone', 'almost', '10 min left', 'Almost done (10 min left)'],
@@ -140,16 +141,18 @@ export function AlertsCard() {
   const prefs = a.prefs;
   const on = a.status === 'on' && !!prefs;
   const set = (patch: Partial<AlertPrefs>) => prefs && void a.save({ ...prefs, ...patch });
-  const has = (e: AlertEvent) => !!prefs?.events.includes(e);
+  // "After layer N" is on while a layer is set, or while its settings are open to pick one.
+  const has = (e: AlertEvent) => (e === 'layer' ? prefs?.layer != null || open === 'layer' : !!prefs?.events.includes(e));
   const toggle = (e: AlertEvent, v: boolean) => {
     if (!prefs) return;
+    if (e === 'layer') return v || prefs.layer == null ? undefined : set({ layer: null });
     const events = v ? [...prefs.events, e] : prefs.events.filter((x) => x !== e);
     if (e === 'stillPrinting') set({ events, hours: v ? prefs.hours || 1 : 0 });
     else if (e === 'progress') set({ events, percents: v && !prefs.percents.length ? [50] : prefs.percents });
     else set({ events });
   };
   const blocked = a.problem && a.problem !== 'offline';
-  const chosen = prefs?.events.length ?? 0;
+  const chosen = (prefs?.events.length ?? 0) + (prefs?.layer != null ? 1 : 0);
   const names = cams ?? [];
   /** The cameras an alert's picture comes from now, as the printer will take them. */
   const camsOf = (e: AlertEvent) => camerasFor(prefs?.cameras[e], names);
@@ -159,6 +162,7 @@ export function AlertsCard() {
     const bits: string[] = [];
     if (e === 'progress') bits.push(prefs.percents.map((p) => `${p}%`).join(' '));
     if (e === 'stillPrinting') bits.push(`every ${prefs.hours || 1} h`);
+    if (e === 'layer') bits.push(prefs.layer != null ? `Layer ${prefs.layer}` : 'Pick a layer');
     if (names.length) {
       const c = camsOf(e);
       bits.push(c.length === 0 ? (bits.length ? '' : 'No picture') : c.length > 1 ? `📷 ${c.length}` : bits.length ? '📷' : `📷 ${c[0]}`);
@@ -177,7 +181,7 @@ export function AlertsCard() {
       onChange={(v) => {
         toggle(e, v);
         // Turning an alert on opens its settings when it has some; turning it off closes them.
-        setOpen(v && (names.length || e === 'progress' || e === 'stillPrinting') ? e : open === e ? null : open);
+        setOpen(v && (names.length || e === 'progress' || e === 'stillPrinting' || e === 'layer') ? e : open === e ? null : open);
       }}
       testId={`alert-${e}`}
       summary={summary(e)}
@@ -261,11 +265,6 @@ export function AlertsCard() {
           {tiles(PROBLEMS)}
           <h3 className="dv-alerts-group">During the print</h3>
           {tiles(MILESTONES)}
-          <ul className="dv-list dv-alerts-more">
-            <li className="dv-alerts-wrap">
-              <LayerField prefs={prefs} onSet={(layer) => set({ layer })} />
-            </li>
-          </ul>
           {bridge && (
             <div className="dv-alert-tiles dv-alerts-bridge">
               <AlertTile icon="offline" words="Bridge offline" label="The bridge goes offline" on={has('offline')} onChange={(v) => toggle('offline', v)} testId="alert-offline" />
@@ -353,6 +352,14 @@ function AlertSettings({
           </span>
         </div>
       )}
+      {event === 'layer' && (
+        <>
+          <div className="dv-alert-setting">
+            <LayerField prefs={prefs} label="After layer" onSet={(layer) => onSet({ layer })} testId="alert-layer-number" autoFocus={prefs.layer == null} />
+          </div>
+          <span className="muted dv-alert-setting-note">Once, on this print or the next one.</span>
+        </>
+      )}
       {names.length === 1 && (
         <div className="dv-alert-setting">
           <span>Camera picture</span>
@@ -401,12 +408,16 @@ export function LayerField({
   onSet,
   label = 'Alert me after layer',
   max,
+  testId = 'alert-layer',
+  autoFocus,
 }: {
   prefs: AlertPrefs | null;
   onSet(layer: number | null): void;
   label?: string;
   /** The print's layer count, when known: a later layer would never come. */
   max?: number | null;
+  testId?: string;
+  autoFocus?: boolean;
 }) {
   const [draft, setDraft] = useState<string | null>(null);
   const [hint, setHint] = useState('');
@@ -442,7 +453,8 @@ export function LayerField({
           }}
           onBlur={commit}
           onKeyDown={(e) => e.key === 'Enter' && (e.target as HTMLInputElement).blur()}
-          data-testid="alert-layer"
+          data-testid={testId}
+          autoFocus={autoFocus}
         />
         {max ? <span className="muted">of {max}</span> : null}
       </span>

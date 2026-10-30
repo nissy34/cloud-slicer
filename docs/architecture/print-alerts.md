@@ -21,6 +21,11 @@ tile like a tab (one at a time; turning an alert on opens them). Inside: Progres
 percentages, Still printing hours, and the cameras its picture comes from (chips; a switch
 when the printer has one camera).
 
+"Layer you pick" is the one-off "after layer N" (also set from the Print dialog) as a tile:
+turning it on opens a layer box; it stays on while a layer is set and turns off when the box
+is left empty or the print ends (the relay clears the layer then). Its pictures use the
+`layer` camera choice.
+
 Any alert can carry a picture from up to four cameras. A notification shows one picture, so
 several are joined into one: two side by side, three or four in a 2×2 grid, each named in its
 corner (bridge `alert_picture.go`, browser `device/alert-picture.ts`). Choices are camera
@@ -110,5 +115,4 @@ decrypts), bridge `alerts_test.go` and `alert_picture_test.go`.
 ## Open
 
 - Not built: a pause button in the alert, per-head filament in alerts.
-- "Alert me after layer N" keeps the default camera; it has no strip of its own.
 - Printers whose only camera is built in (no Moonraker webcam list) get no pictures.

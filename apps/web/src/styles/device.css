@@ -1651,14 +1651,6 @@
   width: 64px;
   text-align: right;
 }
-.dv-list li.dv-alerts-wrap {
-  flex-wrap: wrap;
-}
-.dv-alerts-more {
-  margin-top: 8px;
-  border-top: 1px solid var(--border);
-  padding-top: 6px;
-}
 .dv-print-layer {
   display: flex;
   flex-wrap: wrap;
