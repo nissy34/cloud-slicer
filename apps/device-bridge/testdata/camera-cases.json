@@ -1,0 +1,13 @@
+{
+  "about": "Which cameras an alert's picture comes from: the chosen names the printer has, in the printer's order; the first camera when none of them is there. Checked by apps/web/src/device/alerts.test.ts and alerts_test.go.",
+  "cases": [
+    { "name": "nothing chosen: no picture", "chosen": [], "names": ["case", "nozzle"], "want": [] },
+    { "name": "no cameras: no picture", "chosen": ["case"], "names": [], "want": [] },
+    { "name": "the default stands for the first camera", "chosen": ["*"], "names": ["case", "nozzle"], "want": ["case"] },
+    { "name": "one chosen", "chosen": ["nozzle"], "names": ["case", "nozzle"], "want": ["nozzle"] },
+    { "name": "several, in the printer's order", "chosen": ["nozzle", "case"], "names": ["case", "nozzle", "gui"], "want": ["case", "nozzle"] },
+    { "name": "a camera that is gone is skipped", "chosen": ["desk", "nozzle"], "names": ["case", "nozzle"], "want": ["nozzle"] },
+    { "name": "all gone: the first camera stands in", "chosen": ["desk"], "names": ["case", "nozzle"], "want": ["case"] },
+    { "name": "at most four", "chosen": ["a", "b", "c", "d", "e"], "names": ["a", "b", "c", "d", "e"], "want": ["a", "b", "c", "d"] }
+  ]
+}

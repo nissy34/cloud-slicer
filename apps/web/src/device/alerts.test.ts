@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import cases from '../../../device-bridge/testdata/alert-cases.json';
 import detailCases from '../../../device-bridge/testdata/alert-details-cases.json';
-import { AlertWatcher, cleanPrefs, defaultPrefs, detailsOf, snapshotOf, startingPrefs, wants, watchFor, type AlertWatch, type FiredAlert, type PrintSnapshot } from './alerts';
+import cameraCases from '../../../device-bridge/testdata/camera-cases.json';
+import { AlertWatcher, camerasFor, cleanPrefs, defaultPrefs, detailsOf, snapshotOf, startingPrefs, wants, watchFor, type AlertWatch, type FiredAlert, type PrintSnapshot } from './alerts';
 import type { KlipperObjects } from './status';
 
 describe('print alert rules (shared with the bridge)', () => {
@@ -25,6 +26,10 @@ describe('print alert rules (shared with the bridge)', () => {
 
 describe('what an alert says about the print (shared with the bridge)', () => {
   for (const c of detailCases.cases) it(c.name, () => expect(detailsOf(c.objects as KlipperObjects, c.facts)).toEqual(c.details));
+});
+
+describe('which cameras an alert uses (shared with the bridge)', () => {
+  for (const c of cameraCases.cases) it(c.name, () => expect(camerasFor(c.chosen, c.names)).toEqual(c.want));
 });
 
 const strip = (a: FiredAlert) => Object.fromEntries(Object.entries(a).filter(([, v]) => v !== undefined));
@@ -66,13 +71,23 @@ describe('who wants which alert', () => {
     expect(watchFor([p, { ...defaultPrefs(), layer: 3 }])).toEqual({ layers: [3, 7], percents: [50], hours: true });
   });
   it('a device turned on starts from the choices saved last, without "after layer N"', () => {
-    const last = { ...defaultPrefs(), events: ['finished', 'progress'], percents: [50], hours: 2, layer: 7, pictures: false };
+    const last = { ...defaultPrefs(), events: ['finished', 'progress'], percents: [50], hours: 2, layer: 7, cameras: { finished: ['nozzle'] } };
     expect(startingPrefs(last)).toEqual({ ...last, layer: null });
     expect(startingPrefs(undefined)).toEqual(defaultPrefs());
     expect(startingPrefs('nonsense')).toEqual(defaultPrefs());
   });
   it('cleans what comes from storage', () => {
-    expect(cleanPrefs({ events: ['finished', 'nope', 'finished'], percents: [50, 0, 150, 'x'], hours: 99, layer: 0 })).toEqual({ events: ['finished'], percents: [50], hours: 0, layer: null, pictures: true });
+    expect(cleanPrefs({ events: ['finished', 'nope', 'finished'], percents: [50, 0, 150, 'x'], hours: 99, layer: 0 })).toEqual({ events: ['finished'], percents: [50], hours: 0, layer: null, cameras: defaultPrefs().cameras });
     expect(cleanPrefs(null)).toBeNull();
+  });
+  it('keeps the cameras chosen for each alert', () => {
+    const p = cleanPrefs({ events: [], cameras: { started: ['case', 'case', 'nozzle'], offline: ['case'], nope: ['x'], finished: [], paused: ['a', 'b', 'c', 'd', 'e', 7] } });
+    expect(p?.cameras).toEqual({ started: ['case', 'nozzle'], paused: ['a', 'b', 'c', 'd'] });
+  });
+  it('choices from before cameras could be picked: the first camera on the key alerts, or none', () => {
+    expect(cleanPrefs({ events: [], pictures: true })?.cameras).toEqual(defaultPrefs().cameras);
+    expect(cleanPrefs({ events: [], pictures: false })?.cameras).toEqual({});
+    expect(defaultPrefs().cameras.finished).toEqual(['*']);
+    expect(defaultPrefs().cameras.started).toBeUndefined();
   });
 });

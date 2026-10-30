@@ -8,6 +8,7 @@ package main
 
 import (
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"net/url"
 	"strings"
@@ -397,9 +398,9 @@ func (pw *printerWatch) once() {
 			if b, ok := objects["bambu"].(map[string]any); ok && problemEvents[a.Event] {
 				msg["bambu"] = map[string]any{"print_error": b["print_error"], "hms": b["hms"]}
 			}
-			if w.Pictures && pictureEvents[a.Event] {
-				if pic := pw.picture(conn); pic != "" {
-					msg["picture"] = pic
+			if sets := w.Cameras[a.Event]; len(sets) > 0 {
+				if pics := pw.pictures(conn, sets); len(pics) > 0 {
+					msg["pictures"] = pics
 				}
 			}
 			pw.send(msg)
@@ -460,34 +461,71 @@ func (pw *printerWatch) once() {
 	}
 }
 
-// picture is one frame from the printer's first camera, base64, or "" when it has none.
-func (pw *printerWatch) picture(conn *moonrakerConn) string {
+// maxPicturesSize keeps an alert with its pictures under the relay's 1 MB message limit.
+const maxPicturesSize = 900_000
+
+// pictures is one picture (base64) for each choice of cameras in sets, keyed by the
+// choice's names joined with newlines: one camera's own frame, or several joined
+// into one (a notification shows one picture). A choice with no camera left gets none.
+func (pw *printerWatch) pictures(conn *moonrakerConn, sets [][]string) map[string]string {
 	res, ok := conn.call(pw.ctx, "server.webcams.list", map[string]any{})
 	if !ok {
-		return ""
+		return nil
 	}
 	var r struct {
 		Webcams []struct {
+			Name        string `json:"name"`
 			Enabled     *bool  `json:"enabled"`
 			SnapshotURL string `json:"snapshot_url"`
 		} `json:"webcams"`
 	}
 	_ = json.Unmarshal(res, &r)
-	s := &Session{printer: pw.printer, ctx: pw.ctx}
+	var names []string
+	urls := map[string]string{}
 	for _, c := range r.Webcams {
-		if (c.Enabled != nil && !*c.Enabled) || c.SnapshotURL == "" {
+		if (c.Enabled != nil && !*c.Enabled) || c.SnapshotURL == "" || c.Name == "" || urls[c.Name] != "" {
 			continue
 		}
-		frame, err := s.snapshot(c.SnapshotURL)
-		if err != nil {
-			continue
+		names = append(names, c.Name)
+		urls[c.Name] = c.SnapshotURL
+	}
+	s := &Session{printer: pw.printer, ctx: pw.ctx}
+	frames := map[string][]byte{}
+	frame := func(name string) []byte {
+		if f, ok := frames[name]; ok {
+			return f
 		}
-		if m, ok := frame.(map[string]any); ok {
-			if data, ok := m["data"].(string); ok && len(data) < 800*1024 {
-				return data
+		buf, _, err := s.frame(urls[name])
+		if err != nil || len(buf) > maxPicture {
+			buf = nil
+		}
+		frames[name] = buf
+		return buf
+	}
+	out := map[string]string{}
+	size := 0
+	for _, set := range sets {
+		var got []namedPicture
+		for _, n := range cameraList(set, names) {
+			if f := frame(n); f != nil {
+				got = append(got, namedPicture{n, f})
 			}
 		}
-		return ""
+		if len(got) == 0 {
+			continue
+		}
+		pic := got[0].data
+		if len(got) > 1 {
+			if joined, err := joinPictures(got); err == nil {
+				pic = joined
+			}
+		}
+		b64 := base64.StdEncoding.EncodeToString(pic)
+		if size+len(b64) > maxPicturesSize {
+			continue
+		}
+		size += len(b64)
+		out[strings.Join(set, "\n")] = b64
 	}
-	return ""
+	return out
 }

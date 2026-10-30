@@ -22,8 +22,34 @@ const (
 	errorSuppresses = time.Minute
 )
 
-// pictureEvents carry a camera picture, when the printer has a camera.
-var pictureEvents = map[string]bool{"layer1": true, "layer3": true, "layer": true, "paused": true, "failed": true, "error": true, "almostDone": true, "finished": true}
+// maxAlertCameras is the most cameras one alert's picture joins (a 2×2 grid).
+const maxAlertCameras = 4
+
+// cameraList is which of the printer's cameras (names, in its order) an alert's
+// picture comes from: the chosen ones it has, or its first camera when it has none
+// of them ("*" in the defaults, or choices carried over from another printer).
+// Same as camerasFor in the browser (testdata/camera-cases.json).
+func cameraList(chosen, names []string) []string {
+	if len(chosen) == 0 || len(names) == 0 {
+		return nil
+	}
+	var hit []string
+	for _, n := range names {
+		for _, c := range chosen {
+			if n == c {
+				hit = append(hit, n)
+				break
+			}
+		}
+	}
+	if len(hit) == 0 {
+		hit = names[:1]
+	}
+	if len(hit) > maxAlertCameras {
+		hit = hit[:maxAlertCameras]
+	}
+	return hit
+}
 
 // alertWatch is what the relay asked to look for on one printer, over everyone watching it.
 type alertWatch struct {
@@ -31,7 +57,9 @@ type alertWatch struct {
 	Layers   []int    `json:"layers"`
 	Percents []int    `json:"percents"`
 	Hours    bool     `json:"hours"`
-	Pictures bool     `json:"pictures"`
+	// Cameras holds, for each alert, every different choice of cameras someone asked for:
+	// one picture is sent per choice, keyed by its names joined with newlines.
+	Cameras map[string][][]string `json:"cameras"`
 }
 
 func (w alertWatch) wants(event string) bool {

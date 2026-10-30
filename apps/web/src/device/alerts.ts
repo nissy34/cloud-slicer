@@ -35,8 +35,14 @@ export const MILESTONE_EVENTS: AlertEvent[] = ['started', 'layer1', 'layer3', 'p
 /** On until the person changes them: problems, and of the milestones only Finished. */
 export const DEFAULT_EVENTS: AlertEvent[] = ['failed', 'paused', 'error', 'finished'];
 
-/** The alerts that carry a camera picture, when the printer has a camera. */
+/** The alerts that carry a camera picture until the person changes it: the key ones. */
 export const PICTURE_EVENTS: AlertEvent[] = ['layer1', 'layer3', 'layer', 'paused', 'failed', 'error', 'almostDone', 'finished'];
+/** Every alert that can carry a picture (not "bridge offline": the camera is behind the bridge). */
+export const CAMERA_EVENTS: AlertEvent[] = [...PROBLEM_EVENTS, ...MILESTONE_EVENTS, 'layer'];
+/** At most this many cameras in one alert: their pictures are joined into one (a notification shows one). */
+export const MAX_ALERT_CAMERAS = 4;
+/** Stands for "the printer's first camera" in the defaults, made before the printer's cameras are known. */
+export const FIRST_CAMERA = '*';
 
 /** "Almost done" this many seconds before the end. */
 export const ALMOST_DONE_S = 600;
@@ -55,11 +61,41 @@ export interface AlertPrefs {
   hours: number;
   /** "Alert me after layer N", for the current or next print; cleared when that print ends. */
   layer: number | null;
-  /** A camera picture on the alerts that have one. */
-  pictures: boolean;
+  /** The cameras each alert's picture comes from, by camera name; none = no picture. */
+  cameras: Partial<Record<AlertEvent, string[]>>;
 }
 
-export const defaultPrefs = (): AlertPrefs => ({ events: [...DEFAULT_EVENTS], percents: [], hours: 0, layer: null, pictures: true });
+/** The first camera on the key alerts. */
+const defaultCameras = (): AlertPrefs['cameras'] => Object.fromEntries(PICTURE_EVENTS.map((e) => [e, [FIRST_CAMERA]]));
+
+export const defaultPrefs = (): AlertPrefs => ({ events: [...DEFAULT_EVENTS], percents: [], hours: 0, layer: null, cameras: defaultCameras() });
+
+/**
+ * Which of the printer's cameras (`names`, in its order) an alert's picture comes
+ * from. Names the printer no longer has are skipped; when none is left, its first
+ * camera stands in (the defaults, or choices carried over from another printer).
+ * The bridge does the same (cameraList in alerts.go; cases in testdata/camera-cases.json).
+ */
+export function camerasFor(chosen: string[] | undefined, names: string[]): string[] {
+  if (!chosen?.length || !names.length) return [];
+  const hit = names.filter((n) => chosen.includes(n));
+  return (hit.length ? hit : names.slice(0, 1)).slice(0, MAX_ALERT_CAMERAS);
+}
+
+/** Names one choice of cameras, to match the bridge's pictures to who asked for them. */
+export const cameraKey = (chosen: string[]) => chosen.join('\n');
+
+function cleanCameras(raw: unknown): AlertPrefs['cameras'] {
+  const out: AlertPrefs['cameras'] = {};
+  if (!raw || typeof raw !== 'object') return out;
+  for (const e of CAMERA_EVENTS) {
+    const list = (raw as Record<string, unknown>)[e];
+    if (!Array.isArray(list)) continue;
+    const names = [...new Set(list.filter((n): n is string => typeof n === 'string' && n.length > 0 && n.length <= 64))].slice(0, MAX_ALERT_CAMERAS);
+    if (names.length) out[e] = names;
+  }
+  return out;
+}
 
 /** What a device starts with when alerts are turned on: the choices last saved on any device, else the defaults. "After layer N" belongs to one print, so it never carries over. */
 export function startingPrefs(last: unknown): AlertPrefs {
@@ -76,7 +112,9 @@ export function cleanPrefs(raw: unknown): AlertPrefs | null {
   const percents = Array.isArray(r.percents) ? [...new Set(r.percents.filter((p): p is number => Number.isInteger(p) && p >= 1 && p <= 99))].sort((a, b) => a - b).slice(0, 20) : [];
   const hours = Number.isInteger(r.hours) && (r.hours as number) >= 0 && (r.hours as number) <= 24 ? (r.hours as number) : 0;
   const layer = Number.isInteger(r.layer) && (r.layer as number) >= 1 && (r.layer as number) <= 100_000 ? (r.layer as number) : null;
-  return { events, percents, hours, layer, pictures: r.pictures !== false };
+  // Choices saved before cameras could be picked had one switch for the first camera.
+  const cameras = r.cameras !== undefined ? cleanCameras(r.cameras) : r.pictures === false ? {} : defaultCameras();
+  return { events, percents, hours, layer, cameras };
 }
 
 /** What the watcher needs to look for, merged over everyone watching one printer. */

@@ -9,6 +9,7 @@ require (
 	github.com/ncruces/zenity v0.10.14
 	github.com/pion/rtcp v1.2.15
 	github.com/pion/webrtc/v4 v4.1.6
+	golang.org/x/image v0.20.0
 	golang.org/x/sys v0.36.0
 )
 
@@ -37,7 +38,6 @@ require (
 	github.com/randall77/makefat v0.0.0-20210315173500-7ddd0e42c844 // indirect
 	github.com/wlynxg/anet v0.0.5 // indirect
 	golang.org/x/crypto v0.42.0 // indirect
-	golang.org/x/image v0.20.0 // indirect
 	golang.org/x/net v0.44.0 // indirect
 	golang.org/x/sync v0.17.0 // indirect
 )
