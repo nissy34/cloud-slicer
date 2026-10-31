@@ -1,5 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import {
+  applySuggestion,
+  barycentric,
+  minShare,
+  mixSuggestions,
+  spreadWeights,
+  triangleCorners,
+  trianglePoint,
+  triangleWeights,
   decodeIds,
   draftFromRow,
   encodeIds,
@@ -135,5 +143,70 @@ describe('physicalFilaments (desktop expand_virtual_extruder_ids)', () => {
     const mix = { virtualId: 5, enabled: true, componentA: 2, componentB: 3, gradientIds: '', pattern: '' } as unknown as MixRow;
     expect(physicalFilaments([1, 5], [mix])).toEqual([1, 2, 3]);
     expect(physicalFilaments([1, 5], [{ ...mix, enabled: false }])).toEqual([1, 5]);
+  });
+});
+
+describe('mixing recommendations (desktop build_swatch_grid)', () => {
+  it('Ratio with two filaments offers every pair at 50:50', () => {
+    const s = mixSuggestions('ratio', 2, 4);
+    expect(s).toHaveLength(6);
+    expect(s[0]).toEqual({ filaments: [1, 2], weights: [50, 50], label: 'F1(50%) + F2(50%)' });
+  });
+  it('Ratio with three filaments offers each triple of the first six: equal, then each dominant', () => {
+    const s = mixSuggestions('ratio', 3, 8);
+    expect(s).toHaveLength(20 * 4);
+    expect(s.slice(0, 4).map((x) => x.weights)).toEqual([[34, 33, 33], [50, 25, 25], [25, 50, 25], [25, 25, 50]]);
+    expect(Math.max(...s.flatMap((x) => x.filaments))).toBe(6);
+    expect(s[0].label).toBe('F1(34%)+F2(33%)+F3(33%)');
+  });
+  it('Gradient offers each pair both ways; Cycle none; Match pairs then triples', () => {
+    expect(mixSuggestions('gradient', 2, 3).map((x) => x.label)).toEqual(['F1 → F2', 'F2 → F1', 'F1 → F3', 'F3 → F1', 'F2 → F3', 'F3 → F2']);
+    expect(mixSuggestions('cycle', 2, 4)).toEqual([]);
+    expect(mixSuggestions('match', 2, 4)).toHaveLength(6 + 4 * 4);
+  });
+  it('spreads weights over all filaments for one blend call', () => {
+    expect(spreadWeights({ filaments: [3, 1], weights: [50, 50], label: '' }, 4)).toEqual([50, 0, 50, 0]);
+  });
+  it('tapping fills the dialog like desktop', () => {
+    const d = draftFromRow(undefined, 4);
+    expect(applySuggestion(d, { filaments: [2, 4], weights: [50, 50], label: '' }, '#123456')).toMatchObject({ filaments: [2, 4], percentB: 50 });
+    expect(applySuggestion(d, { filaments: [1, 3, 4], weights: [25, 50, 25], label: '' }, '#123456')).toMatchObject({ filaments: [1, 3, 4], weights: [25, 50, 25] });
+    expect(applySuggestion({ ...d, mode: 'gradient', reversed: true }, { filaments: [3, 1], weights: [50, 50], label: '' }, '#123456')).toMatchObject({ filaments: [3, 1], reversed: false });
+    // Match stores a triple largest share first (build_multi_color_match_candidate).
+    const m = applySuggestion({ ...d, mode: 'match' }, { filaments: [1, 2, 3], weights: [25, 50, 25], label: '' }, '#ABCDEF').match!;
+    expect(m).toMatchObject({ valid: true, componentA: 2, componentB: 1, mixBPercent: 33, gradientIds: '213', gradientWeights: '50/25/25', colour: '#ABCDEF' });
+    expect(recipeFromDraft({ ...d, mode: 'match', match: m })).toMatchObject({ distributionMode: LAYER_CYCLE, gradientIds: '213' });
+  });
+  it('Match hides suggestions below its Min share', () => {
+    expect(minShare({ filaments: [1, 2, 3], weights: [50, 25, 25], label: '' })).toBe(25);
+  });
+});
+
+describe('Ratio triangle (desktop build_tri_picker)', () => {
+  const c = triangleCorners(160);
+  it('puts the first filament on top, then bottom left, bottom right', () => {
+    expect(c[0].y).toBeLessThan(c[1].y);
+    expect(c[1].x).toBeLessThan(c[2].x);
+    expect(c[1].y).toBeCloseTo(c[2].y);
+  });
+  it('the centre is an even split and the handle goes back to it', () => {
+    const centre = { x: (c[0].x + c[1].x + c[2].x) / 3, y: (c[0].y + c[1].y + c[2].y) / 3 };
+    expect([...triangleWeights(centre, c)].sort()).toEqual([33, 33, 34]);
+    const p = trianglePoint([34, 33, 33], c);
+    // Whole percents: within a pixel or two of the 160 px triangle.
+    expect(Math.hypot(p.x - centre.x, p.y - centre.y)).toBeLessThan(2);
+  });
+  it('holds every share between 10% and 90%, even dragged past a corner', () => {
+    for (const p of [c[0], { x: c[0].x, y: -50 }, c[1], { x: 500, y: 500 }]) {
+      const w = triangleWeights(p, c);
+      expect(w.reduce((a, b) => a + b, 0)).toBe(100);
+      for (const v of w) expect(v).toBeGreaterThanOrEqual(9);
+      for (const v of w) expect(v).toBeLessThanOrEqual(90);
+    }
+    expect(triangleWeights(c[0], c)[0]).toBeGreaterThan(70);
+  });
+  it('barycentric weights sum to one', () => {
+    const w = barycentric({ x: 70, y: 100 }, c);
+    expect(w[0] + w[1] + w[2]).toBeCloseTo(1);
   });
 });
