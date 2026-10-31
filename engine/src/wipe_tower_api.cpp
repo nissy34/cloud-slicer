@@ -1,11 +1,14 @@
 // The prime (wipe) tower on a plate before slicing, as desktop's Prepare view
 // shows it (GLCanvas3D::reload_scene): whether there is one, where, and how
 // big. Snapmaker Orca 2.4.1 sizes it from the plate's filaments and the prime
-// volume (PartPlate::estimate_wipe_tower_size); upstream OrcaSlicer from
-// Print::wipe_tower_data's depth. After slicing both use the real tower.
+// volume (PartPlate::estimate_wipe_tower_size); OrcaSlicer 2.5 with its own
+// estimate_wipe_tower_footprint. After slicing both use the real tower.
 #include "engine.hpp"
 
 #include "libslic3r/GCode/WipeTower.hpp"
+#if ENGINE_UPSTREAM
+#include "libslic3r/GCode/WipeTowerEstimate.hpp"
+#endif
 #if ENGINE_HAS_MIXING
 #include "libslic3r/MixedFilament.hpp"
 #endif
@@ -13,6 +16,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <limits>
 #include <tuple>
 
 using nlohmann::json;
@@ -190,28 +194,44 @@ json wipeTowerFor(const DynamicPrintConfig& cfg, int plate, double slicedDepth) 
     }
 #else
     {
-        Print print;
-        // Upstream sizes the tower from the tallest object in the Print (and
-        // plans none for an empty one): stand in a block as tall as the plate.
-        Model stand_in;
-        if (height > EPSILON) {
-            ModelObject* block = stand_in.add_object();
-            block->add_volume(TriangleMesh(its_make_cube(10., 10., height)));
-            block->add_instance();
+        // OrcaSlicer 2.5's own pre-slice estimate (GCode/WipeTowerEstimate), fed
+        // as PartPlate::estimate_wipe_tower_footprint feeds it: the plate's
+        // filaments plus the tower's own filament, the tallest object instance
+        // and the thinnest layer of the plate's objects.
+        std::vector<unsigned int> ids;
+        for (int id : used) ids.push_back(unsigned(id - 1));
+        const ConfigOption* towerFilament = cfg.option("wipe_tower_filament");
+        const int own = towerFilament ? towerFilament->getInt() : 0;
+        if (used.size() > 1 && own > 0 && std::find(used.begin(), used.end(), own) == used.end()) ids.push_back(unsigned(own - 1));
+        const double globalLayer = cfg.opt_float("layer_height");
+        double layer = std::numeric_limits<double>::max();
+        double tallest = 0;
+        for (const ModelObject* mo : pr.model.objects) {
+            bool on = false;
+            for (size_t i = 0; i < mo->instances.size(); ++i)
+                if (pr.plateOf(*mo->instances[i]) == plate) {
+                    on = true;
+                    tallest = std::max(tallest, mo->instance_convex_hull_bounding_box(i, true).size().z());
+                }
+            if (!on) continue;
+            const ConfigOption* own_layer = mo->config.option("layer_height");
+            layer = std::min(layer, own_layer ? own_layer->getFloat() : globalLayer);
         }
-        print.apply(stand_in, cfg);
-        // Sized for the plate's own filaments, as the slice's Print counts
-        // them (the slice pads filament_colour to every filament).
-        const WipeTowerData& data = print.wipe_tower_data(used.size());
-        plannedDepth = data.depth;
-        brim = data.brim_width;
+        if (layer == std::numeric_limits<double>::max()) layer = globalLayer;
+        const WipeTowerFootprint fp = estimate_wipe_tower_footprint(cfg, resolve_wipe_tower_type(cfg), ids, layer, tallest);
+        plannedWidth = fp.width;
+        plannedDepth = fp.depth;
+        brim = fp.brim_width;
     }
-    // One filament on the plate: no tower unless timelapse needs it.
-    if (used.size() == 1) plannedDepth = 0;
-    if (smooth || plannedDepth > EPSILON) plannedDepth = std::max(double(minDepth(height)), plannedDepth);
-    if (depth < 0) depth = plannedDepth;
-    else if (plannedDepth > EPSILON) depth = std::max(double(minDepth(height)), depth);
-    else depth = 0;
+    if (depth < 0) {
+        width = plannedWidth;
+        depth = plannedDepth;
+    } else if (plannedDepth > EPSILON) {
+        // The sliced tower, never shallower than the engine's minimum.
+        depth = std::max(double(minDepth(height)), depth);
+    } else {
+        depth = 0;
+    }
 #endif
     if (depth < 0.01) return out;
 

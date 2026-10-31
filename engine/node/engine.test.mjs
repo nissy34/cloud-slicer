@@ -382,9 +382,8 @@ test('prime tower: shown and sized like desktop Prepare, sliced where it was pla
   assert.ok(t.show, JSON.stringify(t));
   assert.deepEqual(t.filaments, [1, 2]);
   const setWidth = Number(fullConfig(two).prime_tower_width);
-  if (flavor.flavor === 'orca') assert.equal(t.width, setWidth);
-  // Snapmaker Orca 2.4.1 sizes it from the prime volume: the U1's rib tower is square.
-  else assert.ok(fullConfig(two).wipe_tower_wall_type === 'rib' ? t.width === t.depth : t.width === setWidth, JSON.stringify(t));
+  // Both size it from the prime volume: the U1's rib tower is square.
+  assert.ok(fullConfig(two).wipe_tower_wall_type === 'rib' ? t.width === t.depth : t.width === setWidth, JSON.stringify(t));
   assert.ok(t.depth > 0 && t.height > 9, JSON.stringify(t));
   assert.ok(!tower({ ...two, enable_prime_tower: '0' }).show, 'prime tower turned off');
   // Off the bed it comes back on, like desktop.
