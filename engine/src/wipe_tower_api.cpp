@@ -7,6 +7,7 @@
 
 #include "libslic3r/GCode/WipeTower.hpp"
 #if ENGINE_UPSTREAM
+#include "libslic3r/FilamentMixer.hpp"
 #include "libslic3r/GCode/WipeTowerEstimate.hpp"
 #endif
 #if ENGINE_HAS_MIXING
@@ -94,6 +95,15 @@ std::vector<int> plateFilaments(const DynamicPrintConfig& cfg, int plate) {
     ids.erase(std::unique(ids.begin(), ids.end()), ids.end());
 #if ENGINE_HAS_MIXING
     mixes.expand_virtual_extruder_ids(ids, physical);
+#elif ENGINE_UPSTREAM
+    // OrcaSlicer 2.5's mixed slots, as the physical filaments they print with.
+    if (const auto* mixed = cfg.option<ConfigOptionBools>("filament_is_mixed"); mixed && has_any_mixed_filament(mixed->values)) {
+        const auto* parts = cfg.option<ConfigOptionStrings>("filament_mixed_components");
+        std::vector<unsigned int> zeroBased;
+        for (int id : ids) zeroBased.push_back(unsigned(id - 1));
+        ids.clear();
+        for (unsigned int id : expand_mixed_filaments(zeroBased, mixed->values, parts ? parts->values : std::vector<std::string>{})) ids.push_back(int(id) + 1);
+    }
 #endif
     std::sort(ids.begin(), ids.end());
     ids.erase(std::unique(ids.begin(), ids.end()), ids.end());

@@ -117,7 +117,11 @@ void extruderPerFilament(DynamicPrintConfig& cfg) {
     const auto* nozzles = cfg.option<ConfigOptionFloats>("nozzle_diameter");
     const auto* filaments = cfg.option<ConfigOptionFloats>("filament_diameter");
     if (!nozzles || !filaments || nozzles->values.size() <= 1 || cfg.opt_bool("single_extruder_multi_material")) return;
-    if (filaments->values.size() > nozzles->values.size()) cfg.set_num_extruders(unsigned(filaments->values.size()));
+    // Mixed slots (OrcaSlicer 2.5's colour mixes) print with the physical filaments' heads.
+    size_t physical = filaments->values.size();
+    if (const auto* mixed = cfg.option<ConfigOptionBools>("filament_is_mixed"))
+        physical -= std::min(physical, size_t(std::count(mixed->values.begin(), mixed->values.end(), (unsigned char) 1)));
+    if (physical > nozzles->values.size()) cfg.set_num_extruders(unsigned(physical));
 #endif
 }
 

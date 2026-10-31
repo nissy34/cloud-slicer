@@ -9,14 +9,23 @@
 // recipe for a target colour (the dialog's Match mode).
 #include "engine.hpp"
 
+#if ENGINE_UPSTREAM
+#include "libslic3r/FilamentMixer.hpp"
+#include "libslic3r/Preset.hpp"
+#include "libslic3r/PresetBundle.hpp"
+#include <boost/algorithm/string/predicate.hpp>
+#else
 #include "libslic3r/MixedFilament.hpp"
-#include "libslic3r/TriangleSelector.hpp"
 #include "libslic3r/filament_mixer.h"
+#endif
+#include "libslic3r/TriangleSelector.hpp"
 #include "libslic3r/libslic3r.h"
 
 #include <algorithm>
 #include <array>
 #include <cmath>
+#include <cstdio>
+#include <numeric>
 #include <queue>
 #include <sstream>
 #include <tuple>
@@ -31,6 +40,7 @@ json fail(const std::string& error) { return json{{"ok", false}, {"error", error
 
 bool compatible(const std::vector<std::string>& types, const std::vector<unsigned>& ids);
 
+#if !ENGINE_UPSTREAM
 // Physical filaments a row mixes (is_filament_compatible(const MixedFilament&)).
 std::vector<unsigned> rowFilaments(const MixedFilament& mf, size_t physical) {
     std::vector<unsigned> ids;
@@ -148,6 +158,8 @@ std::unordered_map<uint64_t, unsigned> virtualIds(const std::vector<MixedFilamen
     return out;
 }
 
+#endif  // !ENGINE_UPSTREAM
+
 // Moves object, part and painted filament IDs through `remap` (old 1-based ID
 // -> new, 0 = gone), as desktop's Plater::on_filament_deleted does with the
 // PresetBundle's remap: paint on a removed filament is erased, an object or
@@ -182,11 +194,16 @@ void applyRemap(const std::vector<unsigned>& remap, size_t newTotal) {
                 const size_t id = e + 1;
                 remaps |= id >= states.size() || id > newTotal || states[id] != EnforcerBlockerType(id);
             }
+#if ENGINE_UPSTREAM
+            if (remaps) v->mmu_segmentation_facets.remap_states(*v, states);
+#else
             if (remaps) v->mmu_segmentation_facets.remap_enforcer_block_types(*v, EnforcerBlockerType(newTotal), states);
+#endif
         }
     }
 }
 
+#if !ENGINE_UPSTREAM
 // mixedFilaments(request): the mixed rows of `definitions` for physical
 // filaments `colours`, after an optional edit. Request:
 //   {definitions, colours: ["#RRGGBB"...], nozzles: [mm...],
@@ -377,6 +394,292 @@ std::string mixedBlend(const std::string& requestJson) {
         return fail(e.what()).dump();
     }
 }
+
+#else  // ENGINE_UPSTREAM
+// ---------------------------------------------------------------------------
+// OrcaSlicer 2.5's mixed filaments. A mix is a filament slot of its own after
+// the physical ones (filament_is_mixed), printing with the physical filaments
+// in filament_mixed_components at filament_mixed_sublayer_ratios, or as a
+// gradient from one to the other up the print (filament_mixed_gradient*).
+// Desktop keeps them in the project's filament list (Sidebar::
+// create_mixed_filament_from_result); the page keeps them beside it as
+// `definitions`, a JSON list of these slots, the same way it keeps Snapmaker
+// Orca's mixes, and presetsFullConfig() turns them into slots with
+// fullConfigWithMixes(). The rows go back in the page's MixRow shape.
+// ---------------------------------------------------------------------------
+
+constexpr int LAYER_CYCLE = 0, SIMPLE = 2;     // the page's MixRow.distributionMode
+constexpr int UI_RATIO = 0, UI_GRADIENT = 3;  // its uiMode: index in lib/mixing.ts MODES
+
+struct Slot {
+    std::vector<unsigned> components;  // 1-based physical filaments
+    std::vector<int> ratios;           // percent each, summing to 100
+    bool gradient = false;
+    std::string range, curve;          // filament_mixed_gradient_range / _curve
+    bool perPart = false;
+};
+
+std::vector<Slot> parseSlots(const std::string& definitions) {
+    std::vector<Slot> slots;
+    if (definitions.empty()) return slots;
+    const json list = json::parse(definitions, nullptr, false);
+    if (!list.is_array()) return slots;
+    for (const json& j : list) {
+        Slot s;
+        for (const auto& c : j.value("components", json::array())) s.components.push_back(c.get<unsigned>());
+        for (const auto& r : j.value("ratios", json::array())) s.ratios.push_back(r.get<int>());
+        if (s.components.size() < 2) continue;
+        if (s.ratios.size() != s.components.size()) s.ratios.assign(s.components.size(), 100 / int(s.components.size()));
+        s.gradient = j.value("gradient", false);
+        s.range = j.value("range", std::string());
+        s.curve = j.value("curve", std::string());
+        s.perPart = j.value("perPart", false);
+        slots.push_back(std::move(s));
+    }
+    return slots;
+}
+
+std::string dumpSlots(const std::vector<Slot>& slots) {
+    if (slots.empty()) return "";
+    json list = json::array();
+    for (const Slot& s : slots)
+        list.push_back({{"components", s.components}, {"ratios", s.ratios}, {"gradient", s.gradient}, {"range", s.range},
+                        {"curve", s.curve}, {"perPart", s.perPart}});
+    return list.dump();
+}
+
+// encode_gradient_component_ids, as the page decodes it: "123", or "1/12/3" past 9.
+std::string encodeIds(const std::vector<unsigned>& ids) {
+    std::string out;
+    const bool digits = std::all_of(ids.begin(), ids.end(), [](unsigned i) { return i <= 9; });
+    for (size_t i = 0; i < ids.size(); ++i) out += (digits || i == 0 ? "" : "/") + std::to_string(ids[i]);
+    return digits ? out : (ids.size() == 1 ? "/" + out : out);
+}
+
+std::string slotColour(const Slot& s, const std::vector<std::string>& colours) {
+    std::vector<std::string> hexes;
+    std::vector<int> weights;
+    for (size_t i = 0; i < s.components.size(); ++i)
+        if (s.components[i] >= 1 && s.components[i] <= colours.size()) {
+            hexes.push_back(colours[s.components[i] - 1]);
+            weights.push_back(std::max(0, s.ratios[i]));
+        }
+    return hexes.empty() ? std::string("#26A69A") : blend_color_multi(hexes, weights);
+}
+
+// Share of the first filament at the bottom and top: "0.9000,0.1000" (Plater's format).
+std::pair<double, double> rangeOf(const Slot& s) {
+    double a = 0.9, b = 0.1;
+    if (std::sscanf(s.range.c_str(), "%lf,%lf", &a, &b) != 2) return {0.9, 0.1};
+    return {a, b};
+}
+
+json slotRow(const Slot& s, unsigned virtualId, const std::vector<std::string>& colours, const std::vector<std::string>& types) {
+    const bool many = s.components.size() >= 3;
+    std::string weights;
+    for (size_t i = 0; i < s.ratios.size(); ++i) weights += (i ? "/" : "") + std::to_string(s.ratios[i]);
+    const auto [start, end] = rangeOf(s);
+    return {
+        {"virtualId", virtualId},
+        {"stableId", std::to_string(virtualId)},
+        {"componentA", s.components[0]},
+        {"componentB", s.components[1]},
+        {"mixBPercent", many ? 50 : s.ratios[1]},
+        {"ratioA", 1},
+        {"ratioB", 1},
+        {"pattern", ""},
+        {"gradientIds", many ? encodeIds(s.components) : std::string()},
+        {"gradientIdList", many ? s.components : std::vector<unsigned>{}},
+        {"gradientWeights", many ? weights : std::string()},
+        {"distributionMode", s.gradient || many ? LAYER_CYCLE : SIMPLE},
+        {"gradientEnabled", s.gradient},
+        {"gradientStart", start},
+        {"gradientEnd", end},
+        {"localZMaxSublayers", 0},
+        {"enabled", true},
+        {"deleted", false},
+        {"custom", true},
+        {"uiMode", s.gradient ? UI_GRADIENT : UI_RATIO},
+        {"colour", slotColour(s, colours)},
+        {"compatible", compatible(types, s.components)},
+    };
+}
+
+// The page's recipe (lib/mixing.ts recipeFromDraft) as a slot, the way
+// desktop's MixedFilamentDialog::get_result describes one.
+Slot slotFromRecipe(const json& r, size_t physical) {
+    if (!r.value("pattern", std::string()).empty()) throw std::runtime_error("OrcaSlicer mixes by ratio or gradient, not by a layer pattern.");
+    Slot s;
+    std::vector<unsigned> ids;
+    const std::string encoded = r.value("gradientIds", std::string());
+    if (encoded.find('/') != std::string::npos) {
+        std::stringstream ss(encoded);
+        for (std::string t; std::getline(ss, t, '/');)
+            if (!t.empty()) ids.push_back(unsigned(std::stoul(t)));
+    } else {
+        for (char c : encoded)
+            if (c >= '1' && c <= '9') ids.push_back(unsigned(c - '0'));
+    }
+    if (ids.size() >= 3) {
+        s.components = ids;
+        std::vector<int> w;
+        std::stringstream ss(r.value("gradientWeights", std::string()));
+        for (std::string t; std::getline(ss, t, '/');)
+            if (!t.empty()) w.push_back(std::max(0, std::stoi(t)));
+        if (w.size() != ids.size()) w.assign(ids.size(), 100 / int(ids.size()));
+        const int sum = std::accumulate(w.begin(), w.end(), 0);
+        s.ratios = w;
+        if (sum > 0 && sum != 100) {
+            for (int& v : s.ratios) v = int(std::lround(100.0 * v / sum));
+            s.ratios[0] += 100 - std::accumulate(s.ratios.begin(), s.ratios.end(), 0);
+        }
+    } else {
+        const int b = std::clamp(r.value("mixBPercent", 50), 0, 100);
+        s.components = {r.value("componentA", 1u), r.value("componentB", 2u)};
+        s.ratios = {100 - b, b};
+    }
+    for (unsigned id : s.components)
+        if (id < 1 || id > physical) throw std::runtime_error("no filament " + std::to_string(id));
+    s.gradient = r.value("gradientEnabled", false) && s.components.size() == 2;
+    if (s.gradient) {
+        // Desktop's dialog only picks the direction: 90% of the first at the bottom, or at the top.
+        const bool firstAtBottom = r.value("gradientStart", 0.9) >= r.value("gradientEnd", 0.1);
+        s.range = firstAtBottom ? "0.9000,0.1000" : "0.1000,0.9000";
+        s.ratios = {50, 50};
+    }
+    return s;
+}
+
+std::string mixedFilaments(const std::string& requestJson) {
+    try {
+        const json req = json::parse(requestJson);
+        std::vector<std::string> colours, types;
+        for (const auto& c : req.value("colours", json::array())) colours.push_back(c.get<std::string>());
+        for (const auto& t : req.value("types", json::array())) types.push_back(t.get<std::string>());
+        size_t physical = colours.size();
+        std::vector<Slot> slots = parseSlots(req.value("definitions", std::string()));
+        bool changed = false;
+        if (req.contains("op")) {
+            const json& op = req["op"];
+            const std::string kind = op.value("kind", "");
+            const auto index = [&]() {
+                const int i = op.value("index", -1);
+                if (i < 0 || size_t(i) >= slots.size()) throw std::runtime_error("no mixed filament " + std::to_string(i));
+                return size_t(i);
+            };
+            // Old 1-based ID -> new (0 = gone) for every filament and mix.
+            std::vector<unsigned> remap(physical + slots.size() + 1, 0);
+            for (unsigned id = 1; id < remap.size(); ++id) remap[id] = id;
+            size_t newPhysical = physical;
+            std::vector<Slot> kept;
+            // Mixes after a change of physical filaments: components through
+            // `to`, a mix that lost one goes (as Snapmaker Orca's do).
+            auto moveSlots = [&](const std::vector<unsigned>& to, bool drop) {
+                for (size_t k = 0; k < slots.size(); ++k) {
+                    Slot s = slots[k];
+                    bool ok = !drop;
+                    for (unsigned& c : s.components) {
+                        c = c >= 1 && c < to.size() ? to[c] : 0;
+                        ok = ok && c >= 1 && c <= newPhysical;
+                    }
+                    remap[physical + 1 + k] = ok ? unsigned(newPhysical + 1 + kept.size()) : 0;
+                    if (ok) kept.push_back(s);
+                }
+                slots = kept;
+            };
+            if (kind == "add") {
+                if (physical < 2) throw std::runtime_error("Colour mixing needs at least two filaments.");
+                if (physical + slots.size() >= size_t(EnforcerBlockerType::ExtruderMax)) throw std::runtime_error("No more filaments can be added.");
+                slots.push_back(slotFromRecipe(op.at("row"), physical));
+            } else if (kind == "update") {
+                slots[index()] = slotFromRecipe(op.at("row"), physical);
+            } else if (kind == "delete") {
+                // Plater::delete_mixed_filament_at: paint and assignments on it go, later mixes move down.
+                const size_t i = index();
+                for (size_t k = 0; k < slots.size(); ++k) remap[physical + 1 + k] = k == i ? 0 : k > i ? unsigned(physical + k) : unsigned(physical + 1 + k);
+                slots.erase(slots.begin() + i);
+                applyRemap(remap, physical + slots.size());
+            } else if (kind == "removePhysical") {
+                const unsigned f = op.value("filament", 0u);
+                if (f < 1 || f > physical) throw std::runtime_error("no filament " + std::to_string(f));
+                newPhysical = physical - 1;
+                std::vector<unsigned> to(physical + 1, 0);
+                for (unsigned id = 1; id <= physical; ++id) remap[id] = to[id] = id == f ? 0 : id > f ? id - 1 : id;
+                moveSlots(to, false);
+                applyRemap(remap, newPhysical + slots.size());
+                colours.erase(colours.begin() + (f - 1));
+                if (f <= types.size()) types.erase(types.begin() + (f - 1));
+                physical = newPhysical;
+            } else if (kind == "replacePhysical") {
+                std::vector<std::string> after, afterTypes;
+                for (const auto& c : op.at("colours")) after.push_back(c.get<std::string>());
+                for (const auto& t : op.value("types", json::array())) afterTypes.push_back(t.get<std::string>());
+                if (after.empty()) throw std::runtime_error("a project needs at least one filament");
+                newPhysical = after.size();
+                const std::vector<unsigned> given = op.value("remap", std::vector<unsigned>{});
+                std::vector<unsigned> to(physical + 1, 0);
+                for (unsigned id = 1; id <= physical; ++id) remap[id] = to[id] = id - 1 < given.size() && given[id - 1] <= newPhysical ? given[id - 1] : 0;
+                moveSlots(to, op.value("dropMixes", false));
+                applyRemap(remap, newPhysical + slots.size());
+                colours = after;
+                types = afterTypes;
+                physical = newPhysical;
+            } else if (kind == "flatten") {
+                // Switching to an engine whose mixes are another kind
+                // (lib/engine-switch.ts): mix k becomes physical filament to[k].
+                const std::vector<unsigned> to = op.value("to", std::vector<unsigned>{});
+                for (size_t k = 0; k < slots.size(); ++k) remap[physical + 1 + k] = k < to.size() && to[k] >= 1 && to[k] <= physical ? to[k] : 0;
+                applyRemap(remap, physical);
+                for (auto& [plate, info] : engine::project().model.plates_custom_gcodes)
+                    for (CustomGCode::Item& item : info.gcodes)
+                        if (item.extruder > int(physical) && size_t(item.extruder) < remap.size() && remap[item.extruder])
+                            item.extruder = int(remap[item.extruder]);
+                slots.clear();
+            } else {
+                throw std::runtime_error("unknown mixed filament edit " + kind);
+            }
+            changed = true;
+        }
+        const std::string defs = changed ? dumpSlots(slots) : req.value("definitions", std::string());
+        json out{{"definitions", defs}, {"rows", json::array()}};
+        for (size_t k = 0; k < slots.size(); ++k) out["rows"].push_back(slotRow(slots[k], unsigned(physical + 1 + k), colours, types));
+        if (req.contains("draft") && physical >= 2) {
+            try {
+                const Slot d = slotFromRecipe(req["draft"], physical);
+                out["draftColour"] = slotColour(d, colours);
+                out["draftCompatible"] = compatible(types, d.components);
+            } catch (const std::exception&) {
+                // a recipe this engine can't make has no colour
+            }
+        }
+        return out.dump();
+    } catch (const std::exception& e) {
+        return fail(e.what()).dump();
+    }
+}
+
+// mixedBlend({colours, weights: [[w, ...], ...]}): the dialog's preview strips, with 2.5's blend_color_multi.
+std::string mixedBlend(const std::string& requestJson) {
+    try {
+        const json req = json::parse(requestJson);
+        std::vector<std::string> colours;
+        for (const auto& c : req.at("colours")) colours.push_back(c.get<std::string>());
+        json out = json::array();
+        for (const auto& w : req.at("weights")) {
+            std::vector<std::string> hexes;
+            std::vector<int> weights;
+            for (size_t i = 0; i < colours.size() && i < w.size(); ++i) {
+                hexes.push_back(colours[i]);
+                weights.push_back(w[i].get<int>());
+            }
+            out.push_back(blend_color_multi(hexes, weights));
+        }
+        return json{{"colours", out}}.dump();
+    } catch (const std::exception& e) {
+        return fail(e.what()).dump();
+    }
+}
+#endif  // ENGINE_UPSTREAM
 
 // ---------------------------------------------------------------------------
 // Match mode: the closest recipe for a target colour. A port of
@@ -705,6 +1008,116 @@ std::string mixedMatch(const std::string& requestJson) {
 }
 
 } // namespace
+
+#if ENGINE_UPSTREAM
+namespace engine {
+
+// See engine.hpp. Desktop's Sidebar::create_mixed_filament_from_result for
+// each mix, on the bundle, then the bundle as it was.
+DynamicPrintConfig fullConfigWithMixes(PresetBundle& b, const std::string& definitions, const std::vector<std::string>& given) {
+    const std::vector<Slot> slots = parseSlots(definitions);
+    auto* colourOpt = b.project_config.option<ConfigOptionStrings>("filament_colour");
+    const size_t physical = b.filament_presets.size();
+    if (slots.empty() || physical < 2 || !colourOpt) return b.full_config();
+    const std::vector<std::string> savedPresets = b.filament_presets;
+    const DynamicPrintConfig savedProject = b.project_config;
+    if (given.size() == physical) colourOpt->values = given;
+    const std::vector<std::string> colours = colourOpt->values;
+    const auto savedMultiColour = b.ams_multi_color_filment;
+    auto restore = [&]() {
+        b.filament_presets = savedPresets;
+        b.project_config = savedProject;
+        b.ams_multi_color_filment = savedMultiColour;
+    };
+    try {
+        for (const Slot& s : slots) {
+            const size_t idx = b.filament_presets.size();
+            const bool valid = std::all_of(s.components.begin(), s.components.end(), [&](unsigned c) { return c >= 1 && c <= physical; });
+            const std::string colour = slotColour(s, colours);
+            b.set_num_filaments(unsigned(idx + 1), colour);
+            b.filament_presets[idx] = savedPresets[valid ? s.components[0] - 1 : 0];
+            DynamicPrintConfig& pc = b.project_config;
+            auto put = [idx](auto* opt, auto value) {
+                if (opt->values.size() <= idx) opt->values.resize(idx + 1);
+                opt->values[idx] = value;
+            };
+            put(pc.option<ConfigOptionBools>("filament_is_mixed", true), (unsigned char) (valid ? 1 : 0));
+            put(pc.option<ConfigOptionStrings>("filament_mixed_components", true), format_mixed_components(s.components));
+            put(pc.option<ConfigOptionStrings>("filament_mixed_sublayer_ratios", true), format_mixed_ratios(s.ratios));
+            put(pc.option<ConfigOptionBools>("filament_mixed_gradient", true), (unsigned char) s.gradient);
+            put(pc.option<ConfigOptionStrings>("filament_mixed_gradient_range", true), s.range);
+            put(pc.option<ConfigOptionStrings>("filament_mixed_gradient_curve", true), s.curve);
+            put(pc.option<ConfigOptionBools>("filament_mixed_gradient_per_part", true), (unsigned char) (s.gradient && s.perPart));
+        }
+        DynamicPrintConfig cfg = b.full_config();
+        restore();
+        return cfg;
+    } catch (...) {
+        restore();
+        throw;
+    }
+}
+
+// See engine.hpp.
+std::string splitMixedSlots(DynamicPrintConfig& cfg) {
+    const auto* mixed = cfg.option<ConfigOptionBools>("filament_is_mixed");
+    const auto* colours = cfg.option<ConfigOptionStrings>("filament_colour");
+    if (!mixed || !colours) return "";
+    const size_t total = colours->values.size();
+    size_t physical = total;
+    while (physical > 0 && physical - 1 < mixed->values.size() && mixed->values[physical - 1]) --physical;
+    if (physical == total || physical == 0) return "";
+    auto text = [&](const char* key, size_t i) {
+        const auto* o = cfg.option<ConfigOptionStrings>(key);
+        return o && i < o->values.size() ? o->values[i] : std::string();
+    };
+    auto flag = [&](const char* key, size_t i) {
+        const auto* o = cfg.option<ConfigOptionBools>(key);
+        return o && i < o->values.size() && o->values[i];
+    };
+    std::vector<Slot> slots;
+    for (size_t i = physical; i < total; ++i) {
+        Slot s;
+        s.components = parse_mixed_components(text("filament_mixed_components", i));
+        // A broken mix (a part deleted) keeps its number with two placeholder parts.
+        if (s.components.size() < 2 || std::any_of(s.components.begin(), s.components.end(), [&](unsigned c) { return c < 1 || c > physical; }))
+            s.components = {1, unsigned(std::min<size_t>(2, physical))};
+        for (double r : parse_mixed_ratios(text("filament_mixed_sublayer_ratios", i), s.components.size())) s.ratios.push_back(int(std::lround(r * 100)));
+        if (!s.ratios.empty()) s.ratios[0] += 100 - std::accumulate(s.ratios.begin(), s.ratios.end(), 0);
+        s.gradient = flag("filament_mixed_gradient", i);
+        s.range = text("filament_mixed_gradient_range", i);
+        s.curve = text("filament_mixed_gradient_curve", i);
+        s.perPart = flag("filament_mixed_gradient_per_part", i);
+        slots.push_back(std::move(s));
+    }
+    // Every per-filament list down to the physical filaments. Lists with a
+    // column per nozzle variant (filament_self_index names each column's
+    // filament, mixes last) keep the physical filaments' columns.
+    std::vector<int> self;
+    if (const auto* si = cfg.option<ConfigOptionInts>("filament_self_index")) self = si->values;
+    const size_t physicalColumns = size_t(std::count_if(self.begin(), self.end(), [&](int f) { return f >= 1 && size_t(f) <= physical; }));
+    const std::vector<std::string>& filamentKeys = Preset::filament_options();
+    for (const std::string& key : cfg.keys()) {
+        auto* vec = dynamic_cast<ConfigOptionVectorBase*>(cfg.optptr(key));
+        if (!vec) continue;
+        if (!boost::starts_with(key, "filament_") && std::find(filamentKeys.begin(), filamentKeys.end(), key) == filamentKeys.end()) continue;
+        if (vec->size() == total) vec->resize(physical);
+        else if (!self.empty() && self.size() != total && vec->size() == self.size()) vec->resize(physicalColumns);
+    }
+    // The flushing volumes, a total x total table per extruder.
+    if (auto* flush = cfg.option<ConfigOptionFloats>("flush_volumes_matrix"); flush && total > 0 && flush->values.size() % (total * total) == 0) {
+        const size_t tables = flush->values.size() / (total * total);
+        std::vector<double> kept;
+        for (size_t t = 0; t < tables; ++t)
+            for (size_t r = 0; r < physical; ++r)
+                for (size_t c = 0; c < physical; ++c) kept.push_back(flush->values[t * total * total + r * total + c]);
+        flush->values = kept;
+    }
+    return dumpSlots(slots);
+}
+
+} // namespace engine
+#endif
 
 EMSCRIPTEN_BINDINGS(mixed_api) {
     emscripten::function("mixedFilaments", &mixedFilaments);

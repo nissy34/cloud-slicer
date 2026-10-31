@@ -3,6 +3,7 @@
 // the model, slice, and check the G-code alternates between both tools.
 //
 //   node test/mixing.mjs [screenshot-dir]
+//   MIX_ENGINE=orca node test/mixing.mjs   (OrcaSlicer 2.5's mixing; no Cycle)
 //
 // Needs `npm run build` first (with the engine copied into public/engine).
 import { spawn } from 'node:child_process';
@@ -18,7 +19,8 @@ const shots = process.argv[2] ? resolve(process.argv[2]) : null;
 const PORT = 4174;
 
 const server = spawn('npx', ['vite', 'preview', '--port', String(PORT), '--strictPort'], { cwd: web, stdio: 'pipe', detached: true });
-const url = `http://localhost:${PORT}/`;
+const orca = process.env.MIX_ENGINE === 'orca';
+const url = `http://localhost:${PORT}/${orca ? '?engine=orca' : ''}`;
 await new Promise((ok, fail) => {
   const timer = setTimeout(() => fail(new Error('vite preview did not start')), 30000);
   server.stdout.on('data', (d) => {
@@ -70,7 +72,9 @@ try {
   await dialog.waitFor();
   await page.waitForTimeout(500);
   await shot(page, 'dialog-ratio');
-  for (const mode of ['Cycle', 'Match', 'Gradient']) {
+  // OrcaSlicer mixes by ratio or gradient: no layer pattern (Cycle).
+  if (orca !== !(await dialog.getByRole('radio', { name: 'Cycle' }).count())) fail(`Cycle should ${orca ? 'not ' : ''}be offered`);
+  for (const mode of orca ? ['Match', 'Gradient'] : ['Cycle', 'Match', 'Gradient']) {
     await dialog.getByRole('radio', { name: mode }).click();
     if (mode === 'Match') {
       await dialog.getByLabel('Target colour hex').fill('#40A040');

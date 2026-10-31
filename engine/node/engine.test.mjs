@@ -13,7 +13,7 @@ const fixtures = resolve(dirname(fileURLToPath(import.meta.url)), '../../fixture
 let engine;
 let presets;
 // Which engine this build is (engine/README.md, "Two engines"): the same tests
-// run on both; preset names differ and colour mixing is Snapmaker Orca's own.
+// run on both; preset names differ and each has its own colour mixing.
 let flavor = { flavor: 'snapmaker', mixing: true };
 let STANDARD = '0.20mm Standard @Snapmaker U1 (0.4 nozzle)';
 
@@ -22,8 +22,8 @@ before(async () => {
   if (engine.engineInfo) flavor = JSON.parse(engine.engineInfo());
   if (flavor.flavor === 'orca') STANDARD = '0.20 Standard @Snapmaker U1 (0.4 nozzle)';
 });
-// Snapmaker Orca's colour mixing (engine/src/mixed_api.cpp) isn't in OrcaSlicer.
-const needsMixing = (t) => !flavor.mixing && (t.skip('colour mixing is Snapmaker Orca only'), true);
+// Colour mixing (engine/src/mixed_api.cpp): Snapmaker Orca's, or OrcaSlicer 2.5's.
+const needsMixing = (t) => !flavor.mixing && (t.skip('this engine has no colour mixing'), true);
 after(() => setImmediate(() => process.exit(process.exitCode ?? 0)));  // pthread workers keep Node alive
 
 const select = (selection) => call(engine, 'presetsSelect', JSON.stringify(selection));
@@ -1256,7 +1256,9 @@ test('colour mixing: deleting a mix or a filament moves what uses later filament
   call(engine, 'setExtruder', 0, -1, 5);  // the second mix (2 + 3)
   // Deleting the first mix: the second becomes filament 4.
   const afterDelete = mixed({ definitions: d, colours: THREE, op: { kind: 'delete', index: 0 } });
-  assert.deepEqual(afterDelete.rows.map((r) => [r.deleted, r.virtualId]), [[true, 0], [false, 4]]);
+  // Snapmaker Orca keeps a deleted row in its list; OrcaSlicer drops the slot.
+  const expected = flavor.flavor === 'orca' ? [[false, 4]] : [[true, 0], [false, 4]];
+  assert.deepEqual(afterDelete.rows.map((r) => [r.deleted, r.virtualId]), expected);
   assert.equal(info().objects[0].extruder, 4);
   // Deleting filament 1: the mix of 2 + 3 is now 1 + 2, filament 3.
   const afterRemove = mixed({ definitions: afterDelete.definitions, colours: THREE, op: { kind: 'removePhysical', filament: 1 } });
@@ -1293,6 +1295,36 @@ test('switching to an engine without mixing: each mix becomes one of its filamen
   const flat = mixed({ definitions: d, colours: THREE, op: { kind: 'flatten', to: [1, 3] } });
   assert.equal(flat.rows.filter((r) => r.enabled).length, 0);
   assert.equal(info().objects[0].extruder, 3);
+});
+
+test('colour mixing: an OrcaSlicer gradient prints more of the first filament low down and more of the second up high', (t) => {
+  if (flavor.flavor !== 'orca') return t.skip("OrcaSlicer 2.5's gradient (Mixed color sublayer)");
+  selectSlots(2);
+  // The Add Mix window's Gradient (lib/mixing.ts recipeFromDraft): filament 1 at the bottom.
+  const row = { componentA: 1, componentB: 2, mixBPercent: 50, distributionMode: 0, gradientEnabled: true, gradientStart: 0.8, gradientEnd: 0.2, uiMode: 3 };
+  const added = mixed({ definitions: '', colours: TWO, op: { kind: 'add', row } });
+  assert.equal(added.rows[0].gradientEnabled, true);
+  assert.ok(added.rows[0].gradientStart > added.rows[0].gradientEnd, JSON.stringify(added.rows[0]));
+  load('3DBenchy.stl');
+  call(engine, 'setExtruder', 0, -1, 3);
+  // It prints a gradient only with Mixed color sublayer on.
+  const { gcode } = slice(fullConfig({ filament_colour: TWO.join(';'), mixed_filament_definitions: added.definitions, enable_mixed_color_sublayer: '1' }));
+  // Extrusion moves per tool, per layer.
+  const layers = [];
+  let tool = 0;
+  for (const line of gcode.split('\n')) {
+    const tl = /^T(\d+)\s*$/.exec(line);
+    if (tl) tool = Number(tl[1]);
+    else if (line.startsWith(';LAYER_CHANGE')) layers.push([0, 0]);
+    else if (layers.length && /^G1 .*E[\d.]+/.test(line) && tool < 2) layers.at(-1)[tool]++;
+  }
+  const share = (part) => {
+    const [a, b] = part.reduce(([x, y], [p, q]) => [x + p, y + q], [0, 0]);
+    return a / (a + b);
+  };
+  const third = Math.floor(layers.length / 3);
+  const low = share(layers.slice(1, third)), high = share(layers.slice(-third));
+  assert.ok(low > high + 0.2, `filament 1: ${Math.round(low * 100)}% low down, ${Math.round(high * 100)}% up high`);
 });
 
 test('colour mixing: Match finds the recipe for a target colour', (t) => {

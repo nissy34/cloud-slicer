@@ -123,8 +123,9 @@ why: [README.md](README.md) (the docs map) and [architecture/](architecture/).
   filament whenever it or its colour changes), with the multiplier, Re-calculate, and where
   the purge goes (prime tower, infill, support, per object into objects). Printers with a
   head per filament (the U1) never purge, so they don't show it and say why.
-- **Colour mixing**: Snapmaker Orca's mixed filaments, virtual filaments made of two or
-  more physical ones, usable anywhere a filament is.
+- **Colour mixing**: mixed filaments, virtual filaments made of two or more physical
+  ones, usable anywhere a filament is. Both engines: Snapmaker Orca's (Ratio, Cycle, Match,
+  Gradient) and OrcaSlicer 2.5's (Ratio, Match, Gradient).
 - **Filaments from the printer**: "From printer" in the Filament section loads what is in
   a U1's tool heads or a Bambu Lab AMS (material, brand, colour) into the project, like
   desktop's Sync filament: match each project filament to the closest loaded one, or
