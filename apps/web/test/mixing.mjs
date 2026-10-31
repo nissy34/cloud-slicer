@@ -3,6 +3,7 @@
 // the model, slice, and check the G-code alternates between both tools.
 //
 //   node test/mixing.mjs [screenshot-dir]
+//   MIX_ENGINE=orca node test/mixing.mjs   (OrcaSlicer 2.5's mixing; no Cycle)
 //
 // Needs `npm run build` first (with the engine copied into public/engine).
 import { spawn } from 'node:child_process';
@@ -18,7 +19,8 @@ const shots = process.argv[2] ? resolve(process.argv[2]) : null;
 const PORT = 4174;
 
 const server = spawn('npx', ['vite', 'preview', '--port', String(PORT), '--strictPort'], { cwd: web, stdio: 'pipe', detached: true });
-const url = `http://localhost:${PORT}/`;
+const orca = process.env.MIX_ENGINE === 'orca';
+const url = `http://localhost:${PORT}/${orca ? '?engine=orca' : ''}`;
 await new Promise((ok, fail) => {
   const timer = setTimeout(() => fail(new Error('vite preview did not start')), 30000);
   server.stdout.on('data', (d) => {
@@ -72,7 +74,9 @@ try {
   await dialog.waitFor();
   await page.waitForTimeout(500);
   await shot(page, 'dialog-ratio');
-  for (const mode of ['Cycle', 'Match', 'Gradient']) {
+  // OrcaSlicer mixes by ratio or gradient: no layer pattern (Cycle).
+  if (orca !== !(await dialog.getByRole('radio', { name: 'Cycle' }).count())) fail(`Cycle should ${orca ? 'not ' : ''}be offered`);
+  for (const mode of orca ? ['Match', 'Gradient'] : ['Cycle', 'Match', 'Gradient']) {
     await dialog.getByRole('radio', { name: mode }).click();
     if (mode === 'Match') {
       await dialog.getByLabel('Target colour hex').fill('#40A040');
@@ -108,6 +112,12 @@ try {
     await dialog.getByRole('button', { name: '+ Add a third filament' }).click();
     const tri = dialog.getByTestId('mix-triangle');
     await tri.waitFor();
+    // The triples' colours come from the engine one by one; the grid grows the
+    // dialog (and moves the triangle) until they are all in, so wait for them.
+    const n = Math.min(total, 6);
+    const expected = ((n * (n - 1) * (n - 2)) / 6) * 4;
+    for (let i = 0; i < 100 && (await suggestions.getByRole('button').count()) !== expected; i++) await page.waitForTimeout(150);
+    await page.waitForTimeout(300);
     const tb = await tri.boundingBox();
     // Drag to the top corner: filament 1 takes the most (90% at most).
     await page.mouse.move(tb.x + tb.width / 2, tb.y + tb.height / 2);
@@ -120,8 +130,6 @@ try {
     const first = Number(/^F\d+ (\d+)%/.exec(label)?.[1]);
     if (!(first >= 70 && first <= 90)) fail(`dragging to the top corner should give the first filament 70-90%, got "${label}"`);
     const triples = await suggestions.getByRole('button').count();
-    const n = Math.min(total, 6);
-    const expected = ((n * (n - 1) * (n - 2)) / 6) * 4;
     if (triples !== expected) fail(`three-filament Ratio should recommend ${expected} triples, shows ${triples}`);
     await shot(page, 'ratio-triangle');
     await dialog.getByRole('button', { name: 'Remove this filament from the mix' }).first().click();

@@ -1,5 +1,6 @@
 // Types of what public/engine/engine-worker.js returns. The engine speaks
 // Orca's own vocabulary: preset names, option keys and serialized values.
+import type { MixMode } from '../lib/mixing';
 import type { TextStyle } from '../lib/fonts';
 
 export type OrcaConfig = Record<string, string>;
@@ -44,8 +45,10 @@ export interface EngineInfo {
   flavor: 'snapmaker' | 'orca';
   name: string;
   version: string;
-  /** Mixed filaments (Snapmaker Orca's colour mixing). */
+  /** Mixed filaments (colour mixing): Snapmaker Orca's, or OrcaSlicer 2.5's. */
   mixing: boolean;
+  /** The Add Mix window's ways of making a mix this engine has (OrcaSlicer has no Cycle). */
+  mixModes?: MixMode[];
   /** Standard / high flow values per option (Snapmaker Orca 2.4). */
   flowVariants: boolean;
 }
@@ -278,7 +281,23 @@ export interface SliceResult {
  */
 export type WipeTower =
   | { show: false }
-  | { show: true; x: number; y: number; width: number; depth: number; height: number; rotation: number; brim: number; filaments: number[] };
+  | {
+      show: true;
+      x: number;
+      y: number;
+      width: number;
+      depth: number;
+      height: number;
+      rotation: number;
+      brim: number;
+      filaments: number[];
+      /**
+       * OrcaSlicer 2.5: the saved spot was far off the plate, so the tower
+       * stands somewhere new: clear of the objects ("free"), or on one when the
+       * plate has no room left ("onObject"). The page saves the new spot.
+       */
+      moved?: 'free' | 'onObject';
+    };
 
 /** A point on the plate (mm). */
 export type PlatePoint = [number, number];

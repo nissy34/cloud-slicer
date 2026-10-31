@@ -68,14 +68,32 @@ add_compile_definitions(CGAL_ALWAYS_ROUND_TO_NEAREST=1)
 
 # Engine source patches (engine/patches/*.patch, paths relative to the
 # orcaslicer submodule); patches/<flavor>/ holds the ones for one engine only.
+# A flavor's patch with the same name as a shared one replaces it there, and
+# one that changes no file (only its description) says that engine doesn't need it.
 # The submodule itself stays untouched: each patched file
 # is copied into the build tree, patched there, and swapped into libslic3r's
 # source list. Only bugs the browser build exposes belong here.
 set(ENGINE_PATCHED_DIR "${CMAKE_BINARY_DIR}/patched-engine")
 set(ENGINE_SOURCE_OVERRIDES "")
-file(GLOB ENGINE_PATCHES "${CMAKE_CURRENT_SOURCE_DIR}/patches/*.patch" "${CMAKE_CURRENT_SOURCE_DIR}/patches/${ENGINE_FLAVOR}/*.patch")
-foreach(patch ${ENGINE_PATCHES})
+file(GLOB _shared_patches "${CMAKE_CURRENT_SOURCE_DIR}/patches/*.patch")
+file(GLOB _flavor_patches "${CMAKE_CURRENT_SOURCE_DIR}/patches/${ENGINE_FLAVOR}/*.patch")
+set(ENGINE_PATCHES "")
+foreach(patch ${_shared_patches})
+    get_filename_component(_name ${patch} NAME)
+    if(NOT EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/patches/${ENGINE_FLAVOR}/${_name}")
+        list(APPEND ENGINE_PATCHES ${patch})
+    endif()
+endforeach()
+foreach(patch ${_shared_patches} ${_flavor_patches})
     set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS ${patch})
+endforeach()
+foreach(patch ${_flavor_patches})
+    file(STRINGS ${patch} _changes REGEX "^\\+\\+\\+ b/")
+    if(_changes)
+        list(APPEND ENGINE_PATCHES ${patch})
+    endif()
+endforeach()
+foreach(patch ${ENGINE_PATCHES})
     file(STRINGS ${patch} touched REGEX "^\\+\\+\\+ b/")
     foreach(line ${touched})
         string(REGEX REPLACE "^\\+\\+\\+ b/" "" rel "${line}")
@@ -104,11 +122,8 @@ endforeach()
 
 include(cmake/libslic3r.cmake)
 
-set(ENGINE_FLAVOR_SOURCES "")
-if(ENGINE_HAS_MIXING)
-    list(APPEND ENGINE_FLAVOR_SOURCES src/mixed_api.cpp)
-endif()
-add_executable(orca-engine ${ENGINE_FLAVOR_SOURCES} src/presets_api.cpp src/model_api.cpp src/slice_api.cpp src/tools_api.cpp src/paint_api.cpp src/calib_api.cpp src/history_api.cpp src/measure_api.cpp src/layers_api.cpp src/brim_api.cpp src/simplify_api.cpp src/object_api.cpp src/volume_api.cpp src/wipe_tower_api.cpp src/boolean_api.cpp src/text_api.cpp src/svg_api.cpp src/surface_api.cpp src/plate_api.cpp src/flush_api.cpp src/fingerprint_api.cpp src/memory.cpp)
+# Colour mixing: Snapmaker Orca's mixed filaments, or OrcaSlicer 2.5's (mixed_api.cpp has both).
+add_executable(orca-engine src/mixed_api.cpp src/presets_api.cpp src/model_api.cpp src/slice_api.cpp src/tools_api.cpp src/paint_api.cpp src/calib_api.cpp src/history_api.cpp src/measure_api.cpp src/layers_api.cpp src/brim_api.cpp src/simplify_api.cpp src/object_api.cpp src/volume_api.cpp src/wipe_tower_api.cpp src/boolean_api.cpp src/text_api.cpp src/svg_api.cpp src/surface_api.cpp src/plate_api.cpp src/flush_api.cpp src/fingerprint_api.cpp src/memory.cpp)
 # mimalloc.h, for the allocator settings in src/memory.cpp.
 target_include_directories(orca-engine PRIVATE "${EMSCRIPTEN_ROOT_PATH}/system/lib/mimalloc/include")
 target_link_libraries(orca-engine PRIVATE libslic3r embind)

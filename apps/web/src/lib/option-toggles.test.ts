@@ -37,6 +37,36 @@ const base = {
   use_firmware_retraction: '0',
 };
 
+describe("OrcaSlicer 2.5's rules", () => {
+  const orca = { ...ctx, flavor: 'orca' as const };
+  it('a top shell at 0% surface density has no top surface settings', () => {
+    const s = optionStates({ ...base, top_surface_density: '0%', top_surface_pattern: 'monotonic' }, orca);
+    expect(s.disabled.has('top_surface_pattern')).toBe(true);
+    expect(s.disabled.has('top_surface_density')).toBe(false);
+    expect(s.disabled.has('top_shell_thickness')).toBe(false);
+    // Snapmaker Orca has no such rule.
+    expect(optionStates({ ...base, top_surface_density: '0%' }, ctx).disabled.has('top_surface_pattern')).toBe(false);
+  });
+  it('adaptive infill shows for gyroid below 100% and hides gyroid_optimized', () => {
+    const on = optionStates({ ...base, adaptive_infill_mode: 'smooth_blend', gyroid_optimized: '1' }, orca);
+    expect(on.hidden.has('adaptive_infill_mode')).toBe(false);
+    expect(on.hidden.has('adaptive_infill_interior_density')).toBe(false);
+    expect(on.hidden.has('gyroid_optimized')).toBe(true);
+    const off = optionStates({ ...base, adaptive_infill_mode: 'disabled' }, orca);
+    expect(off.hidden.has('adaptive_infill_interior_density')).toBe(true);
+    expect(off.hidden.has('gyroid_optimized')).toBe(false);
+    expect(optionStates({ ...base, sparse_infill_pattern: 'grid' }, orca).hidden.has('adaptive_infill_mode')).toBe(true);
+  });
+  it('a belt printer has no skirt, raft or scarf seam', () => {
+    const s = optionStates({ ...base, belt_printer: '1', skirt_loops: '2', raft_layers: '2' }, orca);
+    for (const k of ['skirt_loops', 'skirt_height', 'raft_layers', 'seam_slope_type', 'enable_arc_fitting']) expect(s.disabled.has(k), k).toBe(true);
+  });
+  it('cyclic tool change order settings show only for the cyclic ordering', () => {
+    expect(optionStates({ ...base, toolchange_ordering: 'cyclic' }, orca).hidden.has('toolchange_cyclic_order')).toBe(false);
+    expect(optionStates({ ...base, toolchange_ordering: 'default' }, orca).hidden.has('toolchange_cyclic_order')).toBe(true);
+  });
+});
+
 describe('optionStates', () => {
   it('greys support settings out while support is off, and back with it on', () => {
     expect(optionStates(base, ctx).disabled.has('support_top_z_distance')).toBe(true);
@@ -267,6 +297,14 @@ describe('reviewChange', () => {
     const before = { ...base, enable_arc_fitting: '1', max_volumetric_extrusion_rate_slope: '0' };
     expect(reviewChange(before, { ...before, max_volumetric_extrusion_rate_slope: '300' }, ['max_volumetric_extrusion_rate_slope'], ctx).changes).toEqual({
       enable_arc_fitting: '0',
+    });
+  });
+
+  it("turns OrcaSlicer 2.5's arc fitting choice to disabled", () => {
+    const before = { ...base, enable_arc_fitting: 'sparse_infill', max_volumetric_extrusion_rate_slope: '0' };
+    const orca = { ...ctx, flavor: 'orca' as const };
+    expect(reviewChange(before, { ...before, max_volumetric_extrusion_rate_slope: '300' }, ['max_volumetric_extrusion_rate_slope'], orca).changes).toEqual({
+      enable_arc_fitting: 'disabled',
     });
   });
 

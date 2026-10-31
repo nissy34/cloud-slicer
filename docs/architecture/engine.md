@@ -9,7 +9,7 @@
 
 Slices in the browser with the same code as desktop: Orca's `libslic3r` compiled to
 WebAssembly. Two engines ship, and each project picks one: Snapmaker Orca 2.4.1
-(`engine/orcaslicer`, the default) or OrcaSlicer 2.4.2 (`engine/orcaslicer-upstream`).
+(`engine/orcaslicer`, the default) or OrcaSlicer 2.5 (`engine/orcaslicer-upstream`, on its beta until 2.5.0 is out).
 
 ## Pieces
 
@@ -60,6 +60,8 @@ the user's presets (written before presets load) and fonts for the Text tool.
 
 ## Updating an engine
 
+A new upstream OrcaSlicer can be got ready on its beta in a draft pull request that is
+merged only once the stable release is out (OrcaSlicer 2.5: [engine README](../../engine/README.md#orcaslicer-25)).
 Move the submodule to the new tag (replace, never add a third engine), then check:
 every patch in `engine/patches/` still applies; `extract-settings-layout.mjs` still reads
 desktop's pages (new settings show by themselves); `option-toggles.ts` gets the new
@@ -82,8 +84,9 @@ match ([testing](testing.md#same-as-desktop-orca)).
   `engine/node/engine.test.mjs` and a browser test.
 - Anything Orca starts on its own thread and waits for (mcut did) hangs in a browser but
   works in Node: run it in place with a patch, and always run the browser test.
-- What only one engine has compiles only for it (`ENGINE_HAS_MIXING`,
-  `ENGINE_HAS_FLOW_VARIANTS`); differing calls sit under `#if ENGINE_UPSTREAM`.
+- What only one engine has compiles only for it (`ENGINE_HAS_MIXING` for Snapmaker's
+  `MixedFilamentManager`, `ENGINE_HAS_FLOW_VARIANTS`); differing calls sit under
+  `#if ENGINE_UPSTREAM` (OrcaSlicer 2.5's own mixing is there, in `mixed_api.cpp`).
 - A model object's bounding box goes stale after an instance moves: call
   `invalidate_bounding_box()` before `ensure_on_bed()`.
 - Never call `ModelVolume::get_extruders` for model info (it rebuilds paint and crashed

@@ -48,7 +48,7 @@ import type { BrimEars, BrimRequest } from '../lib/brim';
 import type { LayerProfile, LayerRequest } from '../lib/layers';
 import { sameFeature, type AssembleRequest, type MeasureFeature, type Measurement } from '../lib/measure';
 import { mixSettings, palette as mixPalette, type MatchResult, type MixRecipe, type MixRow } from '../lib/mixing';
-import { dropPlateTower, moveTower, towerOptions, towersFromConfig, type TowerSpot } from '../lib/wipe-tower';
+import { dropPlateTower, moveTower, towerMovedText, towerOptions, towersFromConfig, type TowerSpot } from '../lib/wipe-tower';
 import { stlName, type ObjectAction } from '../lib/objectMenu';
 import type { PlateAction } from '../lib/plateMenu';
 import { firstCopies, groupBox, groupChanges, itemsOnPlate, joinStl, toggled, type GroupAction } from '../lib/group';
@@ -834,7 +834,17 @@ export const useSlicer = create<SlicerState>((set, get) => {
     const key = towerKey(plate);
     const tower = await e.wipeTower(plate, engineOverrides(), get().slices[plate]?.result.wipeTowerDepth);
     const shown: ShownTower = tower.show ? tower : null;
-    if (e === client && towerKey(plate) === key) plateTowers.set(plate, { e, key, tower: shown });
+    if (e !== client || towerKey(plate) !== key) return shown;
+    if (tower.show && tower.moved) {
+      // Saved where it now stands, as desktop does, and said once.
+      set({
+        towers: moveTower(get().towers, plate, [tower.x, tower.y], get().project?.plateDepth),
+        notice: towerMovedText(plate, tower.moved),
+        noticeWarn: tower.moved === 'onObject',
+      });
+      return { ...tower, moved: undefined };
+    }
+    plateTowers.set(plate, { e, key, tower: shown });
     return shown;
   }
   // Coalesced: one look after a burst of changes.

@@ -209,7 +209,8 @@ describe('the generated table', () => {
   it("maps the U1's process presets by layer height", () => {
     expect(standIn('process', '0.20mm Standard @Snapmaker U1 (0.4 nozzle)', 'snapmaker', 'orca')).toBe('0.20 Standard @Snapmaker U1 (0.4 nozzle)');
     expect(standIn('process', '0.25 Benchy @Snapmaker U1 (0.4 nozzle)', 'orca', 'snapmaker')).toBe('0.24mm Standard @Snapmaker U1 (0.4 nozzle)');
-    expect(standIn('filament', 'Generic PLA', 'snapmaker', 'orca')).toBe('Generic PLA @System');
+    // OrcaSlicer 2.5 has U1 generics of its own, per nozzle.
+    expect(standIn('filament', 'Generic PLA', 'snapmaker', 'orca')).toBe('Generic PLA @U1 0.4 nozzle');
     expect(standIn('printer', 'Snapmaker U1 (0.4 nozzle)', 'snapmaker', 'orca')).toBe('Snapmaker U1 (0.4 nozzle)');
   });
 });

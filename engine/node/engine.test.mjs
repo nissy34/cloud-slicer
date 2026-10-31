@@ -13,7 +13,7 @@ const fixtures = resolve(dirname(fileURLToPath(import.meta.url)), '../../fixture
 let engine;
 let presets;
 // Which engine this build is (engine/README.md, "Two engines"): the same tests
-// run on both; preset names differ and colour mixing is Snapmaker Orca's own.
+// run on both; preset names differ and each has its own colour mixing.
 let flavor = { flavor: 'snapmaker', mixing: true };
 let STANDARD = '0.20mm Standard @Snapmaker U1 (0.4 nozzle)';
 
@@ -22,8 +22,8 @@ before(async () => {
   if (engine.engineInfo) flavor = JSON.parse(engine.engineInfo());
   if (flavor.flavor === 'orca') STANDARD = '0.20 Standard @Snapmaker U1 (0.4 nozzle)';
 });
-// Snapmaker Orca's colour mixing (engine/src/mixed_api.cpp) isn't in OrcaSlicer.
-const needsMixing = (t) => !flavor.mixing && (t.skip('colour mixing is Snapmaker Orca only'), true);
+// Colour mixing (engine/src/mixed_api.cpp): Snapmaker Orca's, or OrcaSlicer 2.5's.
+const needsMixing = (t) => !flavor.mixing && (t.skip('this engine has no colour mixing'), true);
 after(() => setImmediate(() => process.exit(process.exitCode ?? 0)));  // pthread workers keep Node alive
 
 const select = (selection) => call(engine, 'presetsSelect', JSON.stringify(selection));
@@ -332,6 +332,13 @@ test('embeds the plate picture as the printer profile\'s thumbnails', () => {
 });
 
 // N slots of the printer's default PLA, like adding filaments in the sidebar.
+// The filaments' colours for a mix test: `first`, then any more the printer always
+// has (OrcaSlicer fills a U1 up to its 4 heads). Mixes are numbered after all of them.
+function mixColours(first) {
+  const n = selectSlots(first.length).selection.filaments.length;
+  return [...first, ...Array(Math.max(0, n - first.length)).fill('#FFFFFF')];
+}
+
 function selectSlots(n) {
   const pla = select({ printer: DEFAULT_PRINTER }).filaments.find((f) => /Snapmaker PLA/.test(f.name))
     ?? select({ printer: DEFAULT_PRINTER }).filaments[0];
@@ -382,15 +389,24 @@ test('prime tower: shown and sized like desktop Prepare, sliced where it was pla
   assert.ok(t.show, JSON.stringify(t));
   assert.deepEqual(t.filaments, [1, 2]);
   const setWidth = Number(fullConfig(two).prime_tower_width);
-  if (flavor.flavor === 'orca') assert.equal(t.width, setWidth);
-  // Snapmaker Orca 2.4.1 sizes it from the prime volume: the U1's rib tower is square.
-  else assert.ok(fullConfig(two).wipe_tower_wall_type === 'rib' ? t.width === t.depth : t.width === setWidth, JSON.stringify(t));
+  // Both size it from the prime volume: the U1's rib tower is square.
+  assert.ok(fullConfig(two).wipe_tower_wall_type === 'rib' ? t.width === t.depth : t.width === setWidth, JSON.stringify(t));
   assert.ok(t.depth > 0 && t.height > 9, JSON.stringify(t));
   assert.ok(!tower({ ...two, enable_prime_tower: '0' }).show, 'prime tower turned off');
   // Off the bed it comes back on, like desktop.
   const [w, d] = bedSize(fullConfig());
   const far = tower({ ...two, wipe_tower_x: '900', wipe_tower_y: '-50' });
   assert.ok(far.x + far.width < w && far.x > 0 && far.y > 0 && far.y + far.depth < d, JSON.stringify(far));
+  // OrcaSlicer 2.5 places a far-off tower again, 15 mm in and clear of the
+  // objects, and says so (the page saves the spot); one just past the edge, as
+  // a drag leaves it, only snaps on. Snapmaker Orca 2.4.1 only pulls it back on.
+  if (flavor.flavor === 'orca') {
+    assert.equal(far.moved, 'free', JSON.stringify(far));
+    assert.ok(far.x >= 15 && far.y >= 15, JSON.stringify(far));
+    assert.equal(tower({ ...two, wipe_tower_x: String(w - far.width - far.brim), wipe_tower_y: '40' }).moved, undefined);
+  } else {
+    assert.equal(far.moved, undefined, JSON.stringify(far));
+  }
 
   // One position per plate; the slice puts the tower where this plate's says.
   const placed = { ...two, wipe_tower_x: '120,5', wipe_tower_y: '40,5' };
@@ -453,9 +469,10 @@ test('prime tower: shown and sized like desktop Prepare, sliced where it was pla
   // only changes tools and gets a tower (patches/snapmaker/0009), as with the
   // mix and another filament.
   if (!flavor.mixing) return;
-  const mix = call(engine, 'mixedFilaments', JSON.stringify({ definitions: '', colours: ['#FF0000', '#0000FF'], op: { kind: 'add', row: { componentA: 1, componentB: 2, mixBPercent: 50, uiMode: 0 } } }));
-  call(engine, 'setExtruder', 0, -1, 3);
-  const withMix = { ...two, mixed_filament_definitions: mix.definitions };
+  const colours = mixColours(['#FF0000', '#0000FF']);
+  const mix = call(engine, 'mixedFilaments', JSON.stringify({ definitions: '', colours, op: { kind: 'add', row: { componentA: 1, componentB: 2, mixBPercent: 50, uiMode: 0 } } }));
+  call(engine, 'setExtruder', 0, -1, colours.length + 1);
+  const withMix = { ...two, filament_colour: colours.join(';'), mixed_filament_definitions: mix.definitions };
   const alone = tower(withMix);
   assert.ok(alone.show, 'only a mix on the plate');
   assert.deepEqual(alone.filaments, [1, 2]);
@@ -1183,11 +1200,12 @@ const TWO = ['#0000FF', '#FFFF00'];
 
 test('colour mixing: a mix of two filaments is filament 3 and prints with both', (t) => {
   if (needsMixing(t)) return;
-  selectSlots(2);
-  const added = mixed({ definitions: '', colours: TWO, op: { kind: 'add', row: { componentA: 1, componentB: 2, mixBPercent: 50, uiMode: 0 } } });
+  const colours = mixColours(TWO);
+  const mixId = colours.length + 1;
+  const added = mixed({ definitions: '', colours, op: { kind: 'add', row: { componentA: 1, componentB: 2, mixBPercent: 50, uiMode: 0 } } });
   assert.equal(added.rows.length, 1);
   const [row] = added.rows;
-  assert.equal(row.virtualId, 3, 'numbered after the physical filaments');
+  assert.equal(row.virtualId, mixId, 'numbered after the physical filaments');
   assert.equal(row.componentA, 1);
   assert.equal(row.componentB, 2);
   // FilamentMixer blends like paint: blue + yellow is green, not grey.
@@ -1195,25 +1213,25 @@ test('colour mixing: a mix of two filaments is filament 3 and prints with both',
   assert.ok(g > r && g > b, `blue + yellow should look green, got ${row.colour}`);
   assert.ok(added.definitions.length > 0);
   // Reading the definitions back gives the same row.
-  assert.deepEqual(mixed({ definitions: added.definitions, colours: TWO }).rows, added.rows);
+  assert.deepEqual(mixed({ definitions: added.definitions, colours }).rows, added.rows);
 
   load('tetrahedron.stl');
-  call(engine, 'setExtruder', 0, -1, 3);
-  const { gcode, result } = slice(fullConfig({ filament_colour: TWO.join(';'), mixed_filament_definitions: added.definitions }));
+  call(engine, 'setExtruder', 0, -1, mixId);
+  const { gcode, result } = slice(fullConfig({ filament_colour: colours.join(';'), mixed_filament_definitions: added.definitions }));
   const tools = toolCounts(gcode);
   assert.ok(tools[0] > 0 && tools[1] > 0, `both tools print the mix: ${JSON.stringify(tools)}`);
-  assert.ok(!tools[2], 'the virtual filament never reaches the G-code as a tool');
+  assert.ok(!tools[mixId - 1], 'the virtual filament never reaches the G-code as a tool');
   // 50% alternates every layer.
   assert.ok(tools[0] + tools[1] >= result.totalLayers - 2, `${JSON.stringify(tools)} over ${result.totalLayers} layers`);
 });
 
 test('colour mixing: a 3:1 ratio prints the first filament three times as often', (t) => {
   if (needsMixing(t)) return;
-  selectSlots(2);
-  const { definitions } = mixed({ definitions: '', colours: TWO, op: { kind: 'add', row: { componentA: 1, componentB: 2, mixBPercent: 25, ratioA: 3, ratioB: 1 } } });
+  const colours = mixColours(TWO);
+  const { definitions } = mixed({ definitions: '', colours, op: { kind: 'add', row: { componentA: 1, componentB: 2, mixBPercent: 25, ratioA: 3, ratioB: 1 } } });
   load('tetrahedron.stl');
-  call(engine, 'setExtruder', 0, -1, 3);
-  const { gcode } = slice(fullConfig({ filament_colour: TWO.join(';'), mixed_filament_definitions: definitions }));
+  call(engine, 'setExtruder', 0, -1, colours.length + 1);
+  const { gcode } = slice(fullConfig({ filament_colour: colours.join(';'), mixed_filament_definitions: definitions }));
   // Layers per tool, from the tool active at each layer change.
   const layers = { 0: 0, 1: 0 };
   let tool = 0;
@@ -1228,13 +1246,14 @@ test('colour mixing: a 3:1 ratio prints the first filament three times as often'
 
 test('colour mixing: painted mixes and the mix list survive saving and opening the 3MF', (t) => {
   if (needsMixing(t)) return;
-  selectSlots(2);
-  const { definitions } = mixed({ definitions: '', colours: TWO, op: { kind: 'add', row: { componentA: 1, componentB: 2, mixBPercent: 50 } } });
+  const colours = mixColours(TWO);
+  const mixId = colours.length + 1;
+  const { definitions } = mixed({ definitions: '', colours, op: { kind: 'add', row: { componentA: 1, componentB: 2, mixBPercent: 50 } } });
   let m = load('3DBenchy.stl');
   const [x, y] = m.objects[0].instances[0].offset;
-  call(engine, 'paint', 0, JSON.stringify({ rays: [[x, y, 200, 0, 0, -1]], kind: 'color', state: 3, tool: 'sphere', radius: 10 }));
-  assert.ok(engine.previewMesh(0).filaments.includes(3), 'painted with the mix');
-  const config = fullConfig({ filament_colour: TWO.join(';'), mixed_filament_definitions: definitions });
+  call(engine, 'paint', 0, JSON.stringify({ rays: [[x, y, 200, 0, 0, -1]], kind: 'color', state: mixId, tool: 'sphere', radius: 10 }));
+  assert.ok(engine.previewMesh(0).filaments.includes(mixId), 'painted with the mix');
+  const config = fullConfig({ filament_colour: colours.join(';'), mixed_filament_definitions: definitions });
   call(engine, 'saveProject', '/work/mixed.3mf', JSON.stringify(config), null);
 
   engine.clearModel();
@@ -1242,8 +1261,8 @@ test('colour mixing: painted mixes and the mix list survive saving and opening t
   call(engine, 'loadModel', '/work/mixed.3mf', 0, bw, bd);
   const file = JSON.parse(engine.fileConfigJson());
   assert.equal(file.mixed_filament_definitions, definitions, 'mix list kept');
-  assert.ok(engine.previewMesh(0).filaments.includes(3), 'mix paint kept');
-  const { gcode } = slice(fullConfig({ filament_colour: TWO.join(';'), mixed_filament_definitions: file.mixed_filament_definitions }));
+  assert.ok(engine.previewMesh(0).filaments.includes(mixId), 'mix paint kept');
+  const { gcode } = slice(fullConfig({ filament_colour: colours.join(';'), mixed_filament_definitions: file.mixed_filament_definitions }));
   const tools = toolCounts(gcode);
   assert.ok(tools[0] > 0 && tools[1] > 0, JSON.stringify(tools));
 });
@@ -1257,7 +1276,9 @@ test('colour mixing: deleting a mix or a filament moves what uses later filament
   call(engine, 'setExtruder', 0, -1, 5);  // the second mix (2 + 3)
   // Deleting the first mix: the second becomes filament 4.
   const afterDelete = mixed({ definitions: d, colours: THREE, op: { kind: 'delete', index: 0 } });
-  assert.deepEqual(afterDelete.rows.map((r) => [r.deleted, r.virtualId]), [[true, 0], [false, 4]]);
+  // Snapmaker Orca keeps a deleted row in its list; OrcaSlicer drops the slot.
+  const expected = flavor.flavor === 'orca' ? [[false, 4]] : [[true, 0], [false, 4]];
+  assert.deepEqual(afterDelete.rows.map((r) => [r.deleted, r.virtualId]), expected);
   assert.equal(info().objects[0].extruder, 4);
   // Deleting filament 1: the mix of 2 + 3 is now 1 + 2, filament 3.
   const afterRemove = mixed({ definitions: afterDelete.definitions, colours: THREE, op: { kind: 'removePhysical', filament: 1 } });
@@ -1294,6 +1315,42 @@ test('switching to an engine without mixing: each mix becomes one of its filamen
   const flat = mixed({ definitions: d, colours: THREE, op: { kind: 'flatten', to: [1, 3] } });
   assert.equal(flat.rows.filter((r) => r.enabled).length, 0);
   assert.equal(info().objects[0].extruder, 3);
+});
+
+test('colour mixing: an OrcaSlicer gradient prints more of the first filament low down and more of the second up high', (t) => {
+  if (flavor.flavor !== 'orca') return t.skip("OrcaSlicer 2.5's gradient (Mixed color sublayer)");
+  const colours = mixColours(TWO);
+  // The Add Mix window's Gradient (lib/mixing.ts recipeFromDraft): filament 1 at the bottom.
+  const row = { componentA: 1, componentB: 2, mixBPercent: 50, distributionMode: 0, gradientEnabled: true, gradientStart: 0.8, gradientEnd: 0.2, uiMode: 3 };
+  const added = mixed({ definitions: '', colours, op: { kind: 'add', row } });
+  assert.equal(added.rows[0].gradientEnabled, true);
+  assert.ok(added.rows[0].gradientStart > added.rows[0].gradientEnd, JSON.stringify(added.rows[0]));
+  load('3DBenchy.stl');
+  call(engine, 'setExtruder', 0, -1, colours.length + 1);
+  // It prints a gradient only with Mixed color sublayer on.
+  const { gcode } = slice(fullConfig({ filament_colour: colours.join(';'), mixed_filament_definitions: added.definitions, enable_mixed_color_sublayer: '1' }));
+  // Filament extruded per tool, per layer (relative E): each layer is split into one
+  // sublayer per filament, as thick as that filament's share.
+  assert.match(gcode, /^M83/m, 'relative extrusion');
+  // Only the model's own lines: not the prime tower, not unretracts.
+  const layers = [];
+  let tool = 0;
+  let model = true;
+  for (const line of gcode.split('\n')) {
+    const tl = /^T(\d+)\s*$/.exec(line);
+    const e = /^G1 .*[XY].*E([\d.]+)/.exec(line);
+    if (tl) tool = Number(tl[1]);
+    else if (line.startsWith(';TYPE:')) model = !/tower/i.test(line);
+    else if (line.startsWith(';LAYER_CHANGE')) layers.push([0, 0]);
+    else if (layers.length && e && model && tool < 2) layers.at(-1)[tool] += Number(e[1]);
+  }
+  const share = (part) => {
+    const [a, b] = part.reduce(([x, y], [p, q]) => [x + p, y + q], [0, 0]);
+    return a / (a + b);
+  };
+  const third = Math.floor(layers.length / 3);
+  const low = share(layers.slice(1, third)), high = share(layers.slice(-third));
+  assert.ok(low > high + 0.2, `filament 1: ${Math.round(low * 100)}% low down, ${Math.round(high * 100)}% up high`);
 });
 
 test('colour mixing: Match finds the recipe for a target colour', (t) => {

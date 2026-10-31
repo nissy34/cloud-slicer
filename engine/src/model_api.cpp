@@ -508,7 +508,18 @@ std::string modelInfoJson() {
 }
 
 // The 3MF's own settings (project_settings.config), key -> value; {} if none.
-std::string fileConfigJson() { return configToJson(g_project.fileConfig).dump(); }
+std::string fileConfigJson() {
+#if ENGINE_UPSTREAM
+    // A desktop 2.5 project's mixed slots go to the page as its colour mixes.
+    DynamicPrintConfig cfg = g_project.fileConfig;
+    const std::string mixes = engine::splitMixedSlots(cfg);
+    json out = configToJson(cfg);
+    if (!mixes.empty()) out["mixed_filament_definitions"] = mixes;
+    return out.dump();
+#else
+    return configToJson(g_project.fileConfig).dump();
+#endif
+}
 
 // Prepare preview of one plate: {positions: Float32Array (9 floats / triangle,
 // plate-local mm), filaments: Uint8Array (1-based filament per triangle; paint

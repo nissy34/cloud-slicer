@@ -46,8 +46,37 @@ const EXPECTED_SETTINGS = {
   ...(flavor === 'orca' && {
     flush_volumes_matrix: "desktop's command line fills in its own flush volumes when it opens a project; the U1 has a nozzle per filament, so the print is the same",
     extruder_ams_count: "desktop's command line fills this in when it opens a project; it only names the filament holders",
+    textured_plate_temp: "OrcaSlicer's U1 filaments say 0 °C on the U1's own plate; our presets give them their High Temp Plate temperature (engine/scripts/plate-temps.mjs)",
+    textured_plate_temp_initial_layer: 'the same',
+    filament_self_index: "which filament each filament column belongs to: ours numbers them 1, 2, 3, 4; desktop's command line writes 1 for every column of a project it opens. Each filament has one column on the U1, so the print is the same",
   }),
 };
+
+// OrcaSlicer 2.5's preset files list a value per nozzle variant (a U1 head is
+// "Direct Drive Standard" or "Direct Drive High Flow"), in columns named by
+// <kind>_extruder_variant and <kind>_extruder_id. A resolved config keeps only
+// the column of the variant each extruder (or filament) uses: pick those.
+const VARIANT_KEYS = {
+  machine: ['printer_extruder_variant', 'printer_extruder_id'],
+  process: ['print_extruder_variant', 'print_extruder_id'],
+  filament: ['filament_extruder_variant'],
+};
+function pickVariants(values, file, ours, [variantKey, idKey]) {
+  const cols = file[variantKey];
+  if (!Array.isArray(cols) || cols.length < 2 || values.length % cols.length) return values;
+  const per = values.length / cols.length;
+  const ourVariants = readings(String(ours[variantKey] ?? '')).at(-1) ?? [];
+  const ourIds = idKey ? readings(String(ours[idKey] ?? ''))[2] : [];
+  const picked = [];
+  for (const [i, variant] of ourVariants.entries()) {
+    const j = cols.findIndex((c, n) => c === variant && (!idKey || String(file[idKey]?.[n]) === String(ourIds[i])));
+    if (j < 0) return values;
+    picked.push(...values.slice(j * per, (j + 1) * per));
+  }
+  return picked;
+}
+// Values a preset file may still hold from before an option changed type.
+const LEGACY = { enable_arc_fitting: { 0: 'disabled', 1: 'enabled' } };
 
 const PROCESS = {
   snapmaker: { fine: '0.12mm Standard @Snapmaker U1 (0.4 nozzle)' },
@@ -90,8 +119,11 @@ const CASES = [
 // supports come out about 1.2% different. So for support cases desktop runs
 // with that fix applied as it runs (desktop-fix.py, under gdb). Even then
 // desktop's supports vary a little from run to run (under 0.1%), so those
-// cases get three tries.
-for (const c of CASES) if (c.set?.enable_support === '1') Object.assign(c, { desktopFix: true, tries: 3 });
+// cases get three tries. An engine whose desktop already has the fix retires
+// 0010 with a patch of its own that changes no file (OrcaSlicer 2.5).
+const flavorFix = join(root, 'engine/patches', flavor, '0010-support-cost-limits-per-call.patch');
+const desktopHasFix = existsSync(flavorFix) && !/^\+\+\+ b\//m.test(readFileSync(flavorFix, 'utf8'));
+for (const c of CASES) if (c.set?.enable_support === '1') Object.assign(c, { desktopFix: !desktopHasFix, tries: 3 });
 
 rmSync(outDir, { recursive: true, force: true });
 mkdirSync(outDir, { recursive: true });
@@ -239,6 +271,8 @@ if (selfTest) {
 
 // Settings: ours for the presets the cases use, against desktop's own preset
 // files (resources/profiles in the app), each resolved through its inherits.
+// OrcaSlicer 2.5 ships them packed (<vendor>.opc); those are the files of the
+// same release's sources, so then the pinned submodule's are read instead.
 const settingsProblems = checkSettings();
 results.push({
   name: 'settings', ok: settingsProblems.length === 0,
@@ -253,7 +287,9 @@ function summary(report) {
 }
 
 function checkSettings() {
-  const profiles = join(dirname(desktop), 'resources/profiles');
+  const packed = join(dirname(desktop), 'resources/profiles');
+  const source = join(root, 'engine', flavor === 'orca' ? 'orcaslicer-upstream' : 'orcaslicer', 'resources/profiles');
+  const profiles = existsSync(join(packed, 'Snapmaker', 'machine')) ? packed : source;
   const index = new Map();
   for (const vendor of readdirSync(profiles, { withFileTypes: true }).filter((d) => d.isDirectory())) {
     for (const kind of ['machine', 'process', 'filament']) {
@@ -287,10 +323,14 @@ function checkSettings() {
     try {
       const sel = select({ process });
       const ours = call(engine, 'presetsFullConfig', '{}').config;
-      const theirs = { ...load('machine', sel.printer), ...load('process', sel.process), ...load('filament', sel.filaments[0]) };
+      const files = { machine: load('machine', sel.printer), process: load('process', sel.process), filament: load('filament', sel.filaments[0]) };
+      const theirs = { ...files.machine, ...files.process, ...files.filament };
       for (const [k, v] of Object.entries(theirs)) {
         if (META.has(k) || EXPECTED_SETTINGS[k] || !(k in ours)) continue;
-        if (!sameSetting(v, ours[k])) problems.push(`${sel.process.split(' @')[0]}: ${k} is ${show(v)} on desktop, ${show(ours[k])} ours`);
+        const kind = Object.keys(files).find((f) => k in files[f]);
+        const same = sameSetting(v, ours[k]) || sameSetting(LEGACY[k]?.[v] ?? v, ours[k])
+          || (Array.isArray(v) && sameSetting(pickVariants(v, files[kind], ours, VARIANT_KEYS[kind]), ours[k]));
+        if (!same) problems.push(`${sel.process.split(' @')[0]}: ${k} is ${show(v)} on desktop, ${show(ours[k])} ours`);
       }
     } catch (e) {
       problems.push(e.message);
@@ -339,7 +379,7 @@ const lines = [
   '|---|---|---|',
   ...results.map((r) => `| ${r.name} | ${r.label ?? (r.ok ? 'match' : '**differs**')} | ${String(r.note).replace(/\\/g, '\\\\').replace(/\|/g, '\\|').replace(/\n/g, ' ')} |`),
   '',
-  'On purpose: ' + Object.entries(EXPECTED_SETTINGS).map(([k, why]) => `\`${k}\` (${why})`).join('; ') + '; the colour-mix prime tower (patches/snapmaker/0009); support cases run desktop with the fix of patches/0010 applied (desktop-fix.py).',
+  'On purpose: ' + Object.entries(EXPECTED_SETTINGS).map(([k, why]) => `\`${k}\` (${why})`).join('; ') + '; the colour-mix prime tower (patches/snapmaker/0009)' + (desktopHasFix ? '.' : '; support cases run desktop with the fix of patches/0010 applied (desktop-fix.py).'),
 ];
 console.log('\n' + lines.join('\n'));
 writeFileSync(join(outDir, 'summary.md'), lines.join('\n') + '\n');

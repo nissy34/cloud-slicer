@@ -70,6 +70,19 @@ const isTree = (supportType: string) => supportType.startsWith('tree');
 const isAuto = (supportType: string) => supportType.endsWith('(auto)');
 const NORMAL_STYLES = ['default', 'grid', 'snug'];
 const TREE_STYLES = ['default', 'tree_slim', 'tree_strong', 'tree_hybrid', 'organic'];
+// OrcaSlicer 2.5's pattern groups (PrintConfig.hpp): is_adaptive_infill_pattern,
+// is_smoothable_infill_pattern, is_separable_infill_pattern.
+const ADAPTIVE_PATTERNS = new Set(['gyroid', 'tpmsd', 'tpmsfk']);
+const SMOOTHABLE_PATTERNS = new Set(['hilbertcurve', 'octagramspiral', 'lightning', 'honeycomb', '3dhoneycomb', 'concentric', 'crosshatch']);
+const SMOOTHABLE_MULTILINE = new Set(['grid', 'triangles', 'tri-hexagon', 'cubic']);
+const SEPARABLE_PATTERNS = new Set([
+  'monotonic', 'monotonicline', 'rectilinear', 'alignedrectilinear', 'zigzag', 'crosszag', 'lockedzag', 'line', 'grid', 'triangles',
+  'tri-hexagon', 'cubic', 'quartercubic', 'honeycomb', '3dhoneycomb', 'lateral-honeycomb', 'lateral-lattice', 'crosshatch', 'tpmsd',
+  'tpmsfk', 'gyroid', 'hilbertcurve', 'archimedeanchords', 'octagramspiral',
+]);
+const CENTERED_FILLS = new Set(['concentric', 'spiralinset', 'archimedeanchords', 'octagramspiral']);
+// BeltBrim.hpp: a belt printer's tilt that gets its own brim (degrees).
+const BELT_BRIM_TILT = [1, 85];
 const MULTILINE_PATTERNS = new Set([
   'gyroid', 'grid', 'rectilinear', 'tpmsd', 'tpmsfk', 'crosshatch', 'honeycomb', 'lateral-lattice', 'lateral-honeycomb',
   'cubic', 'tri-hexagon', 'alignedrectilinear', 'lightning', '3dhoneycomb', 'adaptivecubic', 'supportcubic',
@@ -105,8 +118,15 @@ export function optionStates(cfg: OrcaConfig, ctx: ToggleContext): OptionStates 
   const isBBL = ctx.bambu ?? false;
 
   // ---- Process (ConfigManipulation::toggle_print_fff_options) ----
+  // OrcaSlicer 2.5 changed some of these rules; `orca25` marks where the two
+  // engines' desktops differ. Rules for settings only 2.5 has need no mark.
+  const orca25 = ctx.flavor === 'orca';
+  const belt = c.bool('belt_printer');
+  const beltTilted =
+    belt && /^[xy]$/i.test(c.str('belt_slice_rotation')) && Math.abs(c.num('belt_slice_rotation_angle')) >= BELT_BRIM_TILT[0] &&
+    Math.abs(c.num('belt_slice_rotation_angle')) <= BELT_BRIM_TILT[1];
   const haveSlope = c.num('max_volumetric_extrusion_rate_slope') > 0;
-  toggleField('enable_arc_fitting', !haveSlope);
+  toggleField('enable_arc_fitting', !haveSlope && !belt);
   toggleLine(['max_volumetric_extrusion_rate_slope_segment_length', 'extrusion_rate_smoothing_external_perimeter_only'], haveSlope);
 
   const havePerimeters = c.num('wall_loops') > 0;
@@ -118,14 +138,19 @@ export function optionStates(cfg: OrcaConfig, ctx: ToggleContext): OptionStates 
   );
 
   const haveInfill = c.num('sparse_infill_density') > 0;
+  const pattern = c.str('sparse_infill_pattern');
   toggleLine(
     ['sparse_infill_pattern', 'infill_combination', 'minimum_sparse_infill_area', 'infill_anchor_max', 'infill_shift_step',
-      'sparse_infill_rotate_template', 'symmetric_infill_y_axis'],
+      'sparse_infill_rotate_template', 'symmetric_infill_y_axis', 'infill_complete_top'],
     haveInfill,
   );
+  if (orca25) toggleLine(['infill_anchor', 'infill_anchor_max'], haveInfill && pattern !== 'concentric' && pattern !== 'spiralinset');
   toggleLine('infill_combination_max_layer_height', c.bool('infill_combination') && haveInfill);
+  const adaptivePattern = haveInfill && c.num('sparse_infill_density') < 100 && ADAPTIVE_PATTERNS.has(pattern);
+  toggleLine('adaptive_infill_mode', adaptivePattern);
+  const adaptive = adaptivePattern && c.has('adaptive_infill_mode') && c.str('adaptive_infill_mode') !== 'disabled';
+  toggleLine(['adaptive_infill_interior_density', 'adaptive_infill_gradient'], adaptive);
 
-  const pattern = c.str('sparse_infill_pattern');
   toggleLine('fill_multiline', MULTILINE_PATTERNS.has(pattern));
   const infillAnchor = pattern !== 'line';
   toggleField('infill_anchor_max', infillAnchor);
@@ -135,22 +160,40 @@ export function optionStates(cfg: OrcaConfig, ctx: ToggleContext): OptionStates 
   toggleLine('infill_shift_step', crossZag || lockedZag);
   toggleLine(['skeleton_infill_density', 'skin_infill_density', 'infill_lock_depth', 'skin_infill_depth', 'skin_infill_line_width', 'skeleton_infill_line_width'], lockedZag);
   toggleLine('symmetric_infill_y_axis', pattern === 'zigzag' || crossZag || lockedZag);
+  toggleLine('gyroid_optimized', haveInfill && pattern === 'gyroid' && !adaptive);
+  toggleLine('infill_complete_top', haveInfill && pattern === '3dhoneycomb');
+  toggleLine('sparse_infill_smooth_factor', haveInfill && (SMOOTHABLE_PATTERNS.has(pattern) || (SMOOTHABLE_MULTILINE.has(pattern) && c.num('fill_multiline') > 1)));
+  toggleLine('separated_infills', SEPARABLE_PATTERNS.has(pattern));
 
   const spiral = c.bool('spiral_mode');
   toggleLine(['spiral_mode_smooth', 'spiral_starting_flow_ratio', 'spiral_finishing_flow_ratio'], spiral);
   toggleLine('spiral_mode_max_xy_smoothing', spiral && c.bool('spiral_mode_smooth'));
-  const hasTopShell = c.num('top_shell_layers') > 0 || (spiral && c.num('bottom_shell_layers') > 1);
+  const hasTopShellLayers = c.num('top_shell_layers') > 0 || (spiral && c.num('bottom_shell_layers') > 1);
+  // OrcaSlicer 2.5: a top shell at 0% surface density has no top surface.
+  const hasTopShell = hasTopShellLayers && (!orca25 || !c.has('top_surface_density') || c.num('top_surface_density') > 0);
   const hasBottomShell = c.num('bottom_shell_layers') > 0;
-  const hasSolidInfill = hasTopShell || hasBottomShell;
-  toggleField(['top_surface_pattern', 'top_surface_density'], hasTopShell);
+  const hasSolidInfill = hasTopShellLayers || hasBottomShell;
+  toggleField('top_surface_pattern', hasTopShell);
+  toggleField('top_surface_density', hasTopShellLayers);
   toggleField(['bottom_surface_pattern', 'bottom_surface_density'], hasBottomShell);
+  toggleField('top_layer_direction', hasTopShell);
+  toggleField('bottom_layer_direction', hasBottomShell);
+  toggleLine(['top_surface_expansion', 'top_surface_expansion_margin', 'top_surface_expansion_direction'], hasTopShell);
+  toggleField(['top_surface_expansion_margin', 'top_surface_expansion_direction'], c.num('top_surface_expansion') > 0);
+  const centred = (k: string) => k === 'archimedeanchords' || k === 'octagramspiral';
+  toggleLine(
+    'center_of_surface_pattern',
+    (hasTopShell && centred(c.str('top_surface_pattern'))) || (hasBottomShell && centred(c.str('bottom_surface_pattern'))),
+  );
+  toggleLine('top_surface_fill_order', hasTopShell && CENTERED_FILLS.has(c.str('top_surface_pattern')));
+  toggleLine('bottom_surface_fill_order', hasBottomShell && CENTERED_FILLS.has(c.str('bottom_surface_pattern')));
   toggleField(
     ['infill_direction', 'sparse_infill_line_width', 'fill_multiline', 'gap_fill_target', 'filter_out_gap_fill', 'infill_wall_overlap',
       'sparse_infill_speed', 'bridge_speed', 'internal_bridge_speed', 'bridge_angle', 'internal_bridge_angle', 'solid_infill_direction',
       'solid_infill_rotate_template', 'internal_solid_infill_pattern', 'solid_infill_filament'],
     haveInfill || hasSolidInfill,
   );
-  toggleField('top_shell_thickness', !spiral && hasTopShell);
+  toggleField('top_shell_thickness', !spiral && hasTopShellLayers);
   toggleField('bottom_shell_thickness', !spiral && hasBottomShell);
   toggleField('wall_direction', !spiral);
   toggleField('gap_infill_speed', havePerimeters);
@@ -164,22 +207,34 @@ export function optionStates(cfg: OrcaConfig, ctx: ToggleContext): OptionStates 
   toggleField(['outer_wall_jerk', 'inner_wall_jerk', 'initial_layer_jerk', 'top_surface_jerk', 'travel_jerk', 'first_layer_travel_jerk', 'infill_jerk'], c.num('default_jerk') > 0);
   toggleLine('default_junction_deviation', gcflavor === 'marlin2');
 
-  const haveSkirt = c.num('skirt_loops') > 0;
+  const haveSkirt = c.num('skirt_loops') > 0 && !belt;
   const draftShield = c.str('draft_shield') === 'enabled';
   toggleField('skirt_height', haveSkirt && !draftShield);
   toggleLine('single_loop_draft_shield', haveSkirt);
   toggleField(['skirt_type', 'min_skirt_length', 'skirt_distance', 'skirt_start_angle', 'skirt_speed', 'draft_shield'], haveSkirt);
+  if (belt) toggleField(['skirt_loops', 'skirt_height'], false);
 
   const brimType = c.str('brim_type');
   const haveBrim = brimType !== 'no_brim';
   toggleField('brim_object_gap', haveBrim);
-  toggleField('brim_width', haveBrim && brimType !== 'auto_brim' && brimType !== 'painted');
+  toggleField('brim_width', (haveBrim && brimType !== 'auto_brim' && brimType !== 'painted') || (haveBrim && beltTilted));
+  toggleField(['brim_use_efc_outline', 'combine_brims'], haveBrim && !beltTilted);
+  toggleLine(['leading_brim_length', 'extra_brim_width'], beltTilted);
+  toggleField(['leading_brim_length', 'extra_brim_width'], beltTilted && haveBrim);
   toggleField('wall_filament', havePerimeters || haveBrim);
+  const autoEars = brimType === 'brim_ears' && !beltTilted;
+  const paintedEars = brimType === 'painted' && !beltTilted;
   toggleField(['brim_ears_max_angle', 'brim_ears_detection_length'], c.num('brim_width') > 0);
-  toggleLine(['brim_ears_max_angle', 'brim_ears_detection_length'], brimType === 'brim_ears');
-  toggleLine('elefant_foot_compensation_layers', c.num('elefant_foot_compensation') > 0);
+  toggleField('brim_ears_outer_only', paintedEars || c.num('brim_width') > 0);
+  toggleLine(['brim_ears_max_angle', 'brim_ears_detection_length'], autoEars);
+  toggleLine('brim_ears_outer_only', autoEars || paintedEars);
+  toggleLine(
+    'elefant_foot_compensation_layers',
+    c.num('elefant_foot_compensation') > 0 || (c.has('elefant_foot_layers_density') && c.num('elefant_foot_layers_density') < 100),
+  );
 
-  const haveRaft = c.num('raft_layers') > 0;
+  const haveRaft = c.num('raft_layers') > 0 && !belt;
+  if (belt) toggleField('raft_layers', false);
   const haveSupport = c.bool('enable_support') || haveRaft;
   const supportType = c.str('support_type');
   const haveInterface = c.num('support_interface_top_layers') > 0 || c.num('support_interface_bottom_layers') > 0;
@@ -223,6 +278,11 @@ export function optionStates(cfg: OrcaConfig, ctx: ToggleContext): OptionStates 
   toggleField('inner_wall_line_width', havePerimeters || haveSkirt || haveBrim);
   toggleField('support_filament', haveSupport || haveSkirt);
   toggleLine('raft_contact_distance', haveRaft && !haveSoluble);
+  toggleField(['small_support_perimeter_speed', 'small_support_perimeter_threshold'], c.bool('enable_support'));
+  if (orca25) {
+    toggleLine('raft_expansion', haveRaft);
+    toggleField('raft_expansion', !(isTree(supportType) && ['tree_slim', 'tree_strong', 'tree_hybrid'].includes(supportStyle)));
+  }
   // raft_first_layer_expansion also widens a normal tree's first layer without a raft.
   toggleField('raft_first_layer_expansion', haveSupport);
   toggleField('raft_first_layer_density', haveSupport && !(normalTree && !haveRaft));
@@ -238,8 +298,9 @@ export function optionStates(cfg: OrcaConfig, ctx: ToggleContext): OptionStates 
   toggleLine(['standby_temperature_delta', 'preheat_time'], ooze);
   toggleLine('preheat_steps', ooze && c.num('preheat_steps') > 0);
 
-  const primeTower = c.bool('enable_prime_tower');
+  const primeTower = c.bool('enable_prime_tower') && !(orca25 && belt);
   toggleLine(['prime_tower_width', 'prime_tower_brim_width'], primeTower);
+  toggleLine('belt_purge_tower_width', belt && c.bool('enable_belt_purge_tower'));
   toggleLine(['wall_filament', 'sparse_infill_filament', 'solid_infill_filament', 'wipe_tower_filament'], !bSEMM);
   // The prime tower's interface boost is a Snapmaker U1 feature.
   const towerInterface = primeTower && isSnapmakerU1(cfg);
@@ -250,6 +311,11 @@ export function optionStates(cfg: OrcaConfig, ctx: ToggleContext): OptionStates 
       'wipe_tower_rib_width', 'wipe_tower_fillet_wall', 'wipe_tower_bridging', 'wipe_tower_extra_flow', 'wipe_tower_no_sparse_layers'],
     primeTower && !isBBL,
   );
+  // OrcaSlicer 2.5 builds every tower with sparse layers to skip, Bambu's too.
+  if (orca25) toggleLine('wipe_tower_no_sparse_layers', primeTower);
+  toggleLine('wipe_tower_sparse_layers_combination', primeTower && !c.bool('wipe_tower_no_sparse_layers'));
+  const cyclic = c.str('toolchange_ordering') === 'cyclic';
+  toggleLine(['toolchange_cyclic_order', 'toolchange_cyclic_first_layer'], cyclic);
   const localZ = c.bool('dithering_local_z_mode');
   toggleLine(['dithering_local_z_whole_objects', 'dithering_local_z_infill', 'dithering_local_z_direct_multicolor'], localZ);
   const wallType = c.str('wipe_tower_wall_type');
@@ -284,8 +350,18 @@ export function optionStates(cfg: OrcaConfig, ctx: ToggleContext): OptionStates 
   if (gcflavor === 'klipper') toggleField('accel_to_decel_factor', c.bool('accel_to_decel_enable'));
   const printableOverhang = c.bool('make_overhang_printable');
   toggleLine(['make_overhang_printable_angle', 'make_overhang_printable_hole_size'], printableOverhang);
-  toggleLine('min_width_top_surface', c.bool('only_one_wall_top') || (c.num('min_length_factor') > 0.5 && arachne));
-  toggleLine(['hole_to_polyhole_threshold', 'hole_to_polyhole_twisted'], c.bool('hole_to_polyhole'));
+  if (orca25) {
+    toggleLine('only_one_wall_first_layer', hasBottomShell);
+    toggleLine('only_one_wall_top', hasTopShellLayers);
+  }
+  toggleLine(
+    'min_width_top_surface',
+    ((!orca25 || hasTopShellLayers) && c.bool('only_one_wall_top')) || (c.num('min_length_factor') > 0.5 && arachne),
+  );
+  toggleLine(['hole_to_polyhole_threshold', 'hole_to_polyhole_twisted', 'hole_to_polyhole_max_edges'], c.bool('hole_to_polyhole'));
+  toggleLine('unsupported_wall_last', c.bool('detect_overhang_wall'));
+  toggleLine('wipe_inward_distance', c.bool('wipe_inward'));
+  toggleLine('exclude_object_tolerance', gcflavor === 'klipper' && c.bool('exclude_object'));
 
   const allowOverhangReverse = !spiral && c.str('wall_direction') === 'auto';
   const overhangReverse = c.bool('overhang_reverse');
@@ -295,8 +371,8 @@ export function optionStates(cfg: OrcaConfig, ctx: ToggleContext): OptionStates 
   toggleLine('timelapse_type', isBBL);
   toggleLine('small_area_infill_flow_compensation_model', c.bool('small_area_infill_flow_compensation'));
 
-  toggleField('seam_slope_type', !spiral);
-  const seamSlope = !spiral && c.str('seam_slope_type') !== 'none';
+  toggleField('seam_slope_type', !spiral && !belt);
+  const seamSlope = !spiral && !belt && c.str('seam_slope_type') !== 'none';
   toggleLine(
     ['seam_slope_conditional', 'seam_slope_start_height', 'seam_slope_entire_loop', 'seam_slope_min_length', 'seam_slope_steps',
       'seam_slope_inner_walls', 'scarf_joint_speed', 'scarf_joint_flow_ratio'],
@@ -505,7 +581,10 @@ export function reviewChange(before: OrcaConfig, after: OrcaConfig, changed: str
     );
 
   // Fixes toggle_print_fff_options makes while greying settings out.
-  if (touched('max_volumetric_extrusion_rate_slope') && c.num('max_volumetric_extrusion_rate_slope') > 0 && c.bool('enable_arc_fitting')) changes.enable_arc_fitting = '0';
+  // A switch, or (OrcaSlicer 2.5) a choice of disabled / enabled / sparse_infill.
+  const arc = c.str('enable_arc_fitting');
+  if (touched('max_volumetric_extrusion_rate_slope') && c.num('max_volumetric_extrusion_rate_slope') > 0 && arc !== '' && arc !== '0' && arc !== 'disabled')
+    changes.enable_arc_fitting = /^\d$/.test(arc) ? '0' : 'disabled';
   if (touched('max_volumetric_extrusion_rate_slope_segment_length') && c.has('max_volumetric_extrusion_rate_slope_segment_length')) {
     const all = splitValues(after.max_volumetric_extrusion_rate_slope_segment_length);
     if (all.some((v) => parseFloat(v) < 0.5)) changes.max_volumetric_extrusion_rate_slope_segment_length = all.map((v) => (parseFloat(v) < 0.5 ? '1' : v)).join(',');

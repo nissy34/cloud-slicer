@@ -44,3 +44,10 @@ export function moveTower(towers: TowerSpot[], plate: number, spot: TowerSpot, p
 export function dropPlateTower(towers: TowerSpot[], plate: number): TowerSpot[] {
   return towers.filter((_, i) => i !== plate);
 }
+
+/** What desktop OrcaSlicer 2.5 says when a tower that no longer fits is moved (GLCanvas3D::reload_scene). */
+export function towerMovedText(plate: number, moved: 'free' | 'onObject'): string {
+  return moved === 'onObject'
+    ? `The prime tower on plate ${plate + 1} no longer fits where it was placed. There is no free space left on the plate for it, so it was moved onto an object.`
+    : `The prime tower on plate ${plate + 1} no longer fits where it was placed, so it was moved to free space on the plate.`;
+}
