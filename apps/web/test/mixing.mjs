@@ -112,6 +112,12 @@ try {
     await dialog.getByRole('button', { name: '+ Add a third filament' }).click();
     const tri = dialog.getByTestId('mix-triangle');
     await tri.waitFor();
+    // The triples' colours come from the engine one by one; the grid grows the
+    // dialog (and moves the triangle) until they are all in, so wait for them.
+    const n = Math.min(total, 6);
+    const expected = ((n * (n - 1) * (n - 2)) / 6) * 4;
+    for (let i = 0; i < 100 && (await suggestions.getByRole('button').count()) !== expected; i++) await page.waitForTimeout(150);
+    await page.waitForTimeout(300);
     const tb = await tri.boundingBox();
     // Drag to the top corner: filament 1 takes the most (90% at most).
     await page.mouse.move(tb.x + tb.width / 2, tb.y + tb.height / 2);
@@ -124,8 +130,6 @@ try {
     const first = Number(/^F\d+ (\d+)%/.exec(label)?.[1]);
     if (!(first >= 70 && first <= 90)) fail(`dragging to the top corner should give the first filament 70-90%, got "${label}"`);
     const triples = await suggestions.getByRole('button').count();
-    const n = Math.min(total, 6);
-    const expected = ((n * (n - 1) * (n - 2)) / 6) * 4;
     if (triples !== expected) fail(`three-filament Ratio should recommend ${expected} triples, shows ${triples}`);
     await shot(page, 'ratio-triangle');
     await dialog.getByRole('button', { name: 'Remove this filament from the mix' }).first().click();
