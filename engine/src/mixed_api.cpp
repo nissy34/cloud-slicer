@@ -934,7 +934,11 @@ Recipe bestRecipe(const std::vector<std::string>& colours, const std::vector<std
         auto updateTriple = [&](unsigned a, unsigned b, unsigned c, int wa, int wb, int wc, double de) {
             if (!best.valid || de + 1e-6 < best.deltaE) {
                 best = Recipe{true, a, b, wa + wb > 0 ? int(std::lround(100.0 * wb / (wa + wb))) : 50,
+#if ENGINE_UPSTREAM
+                              encodeIds({a, b, c}), encodeWeights({wa, wb, wc}),
+#else
                               MixedFilamentManager::encode_gradient_component_ids({a, b, c}), encodeWeights({wa, wb, wc}),
+#endif
                               blendMulti({palette[a - 1], palette[b - 1], palette[c - 1]}, {double(wa), double(wb), double(wc)}), de};
             }
         };
