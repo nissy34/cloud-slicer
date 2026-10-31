@@ -21,6 +21,8 @@
 | Mix list, editing, remapping, Match a colour | `engine/src/mixed_api.cpp` (Snapmaker's `MixedFilamentManager`; OrcaSlicer 2.5's mixed slots under `#if ENGINE_UPSTREAM`) |
 | OrcaSlicer 2.5 mixes as filament slots, and back | `fullConfigWithMixes` (called by `presetsFullConfig`), `splitMixedSlots` (called by `fileConfigJson`) |
 | Add Mix dialog modes (desktop's `MixedFilamentDialog`); each part of a mix is picked with the shared filament Picker (numbered square, preset name) | `lib/mixing.ts`, `components/ColorMixing.tsx` |
+| Mixing recommendations under the dialog (desktop's `build_swatch_grid`): Ratio offers each pair at 50:50, or with three rows each triple of the first six filaments (even, then each one at 50%); Match both, minus repeats and those under its Min share; Gradient each pair both ways; Cycle none. Colours from the engine's FilamentMixer (`mixedBlend`), unmixable materials left out (the engine's `draftCompatible`, pair by pair) | `lib/mixing.ts` (`mixSuggestions`), `components/MixSuggestions.tsx` |
+| Ratio with three filaments: desktop's triangle (`build_tri_picker`), first row on top, plain RGB fill, each share held at 10–90% | `lib/mixing.ts` (`triangleWeights`), `components/MixTriangle.tsx` |
 | Flush table, multiplier, where the purge goes | `engine/src/flush_api.cpp`, `lib/flush.ts`, `components/FlushVolumes.tsx` |
 
 ## How it flows
@@ -65,8 +67,9 @@ See [decisions.md](../decisions.md#engines).
 
 ## Tests
 
-`mixing.mjs`, also with `MIX_ENGINE=orca` (the G-code alternates between both tools),
-`flush.mjs`, engine tests `colour mixing: …` (both engines, plus OrcaSlicer's gradient),
+`mixing.mjs`, also with `MIX_ENGINE=orca` (the G-code alternates between both tools;
+recommendations per mode and tapping one; dragging the triangle), `flush.mjs`,
+engine tests `colour mixing: …` (both engines, plus OrcaSlicer's gradient),
 `engine-switch.mjs`; unit tests `mixing.test.ts`, `flush.test.ts`.
 
 ## Open

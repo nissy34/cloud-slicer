@@ -1,13 +1,13 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { filamentChoices } from '../lib/filament-choices';
 import {
+  applySuggestion,
   draftFromRow,
   MODE_LABELS,
   MODES,
   mixLabel,
   mixWarning,
   normalizePattern,
-  normalizeWeights,
   patternIds,
   recipeFromDraft,
   textOn,
@@ -22,6 +22,8 @@ import { Swatch } from './Swatch';
 import { Slider } from './Slider';
 import { Picker } from './Picker';
 import { Note } from './Note';
+import { MixTriangle } from './MixTriangle';
+import { MixSuggestions } from './MixSuggestions';
 
 /**
  * Desktop's Color Mixing panel, under the filaments: each mix is a virtual
@@ -165,15 +167,6 @@ function MixDialog({ row, index, onClose }: { row: MixRow | undefined; index: nu
     onClose();
   };
 
-  const setWeight = (k: number, value: number) => {
-    // The other two share what is left, keeping their proportion.
-    const w = [...draft.weights];
-    const rest = w.reduce((s, v, i) => (i === k ? s : s + v), 0);
-    w[k] = value;
-    for (let i = 0; i < w.length; i++) if (i !== k) w[i] = rest > 0 ? ((100 - value) * draft.weights[i]) / rest : (100 - value) / (w.length - 1);
-    change({ weights: normalizeWeights(w.map((v) => Math.max(0, v))) });
-  };
-
   const sequence = patternIds(draft.pattern).slice(0, 48);
   return (
     <Dialog
@@ -215,22 +208,11 @@ function MixDialog({ row, index, onClose }: { row: MixRow | undefined; index: nu
             <div key={k} className="mix-row">
               {pick(k, `Filament ${k + 1} of the mix`)}
               {draft.filaments.length === 3 && (
-                <>
-                  <Slider
-                    aria-label={`Share of filament ${draft.filaments[k]}`}
-                    min={0}
-                    max={100}
-                    value={draft.weights[k]}
-                    onChange={(e) => setWeight(k, Number(e.target.value))}
-                  />
-                  <span className="unit">{draft.weights[k]}%</span>
-                </>
-              )}
-              {draft.filaments.length === 3 && (
                 <IconButton icon={X} label="Remove this filament from the mix" onClick={() => change({ filaments: draft.filaments.filter((__, i) => i !== k), weights: [34, 33, 33] })} />
               )}
             </div>
           ))}
+          {draft.filaments.length === 3 && <MixTriangle filaments={draft.filaments} colours={colours} weights={draft.weights} onChange={(weights) => change({ weights })} />}
           {draft.filaments.length === 2 && (
             <label className="mix-slider">
               <span className="sr-only">Mix ratio</span>
@@ -345,6 +327,7 @@ function MixDialog({ row, index, onClose }: { row: MixRow | undefined; index: nu
 
       {incompatible && <p className="hint warn">Different filament types cannot be mixed. Please correct the settings.</p>}
       {!incompatible && warning && <p className="hint warn">{warning}</p>}
+      <MixSuggestions draft={draft} colours={colours} onPick={(s, colour) => setDraft((d) => applySuggestion(d, s, colour))} />
     </Dialog>
   );
 }

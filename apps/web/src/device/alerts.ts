@@ -28,15 +28,19 @@ export type AlertEvent =
   | 'offline'
   | 'test';
 
-/** The switches on the Alerts card, in its order. `offline` is the relay's own (the bridge stopped answering). */
+/**
+ * The switches on the Alerts card, in its order. `offline` is the relay's own (the bridge stopped answering).
+ * Chosen layers (`layer`) are set by AlertPrefs.layers/layer, not here. `layer3` is no longer offered (it
+ * became layers: [3]); the bridge still knows the rule.
+ */
 export const PROBLEM_EVENTS: AlertEvent[] = ['failed', 'paused', 'error'];
-export const MILESTONE_EVENTS: AlertEvent[] = ['started', 'layer1', 'layer3', 'progress', 'almostDone', 'stillPrinting', 'finished', 'resumed', 'bedCooled'];
+export const MILESTONE_EVENTS: AlertEvent[] = ['started', 'layer1', 'progress', 'almostDone', 'stillPrinting', 'finished', 'resumed', 'bedCooled'];
 
 /** On until the person changes them: problems, and of the milestones only Finished. */
 export const DEFAULT_EVENTS: AlertEvent[] = ['failed', 'paused', 'error', 'finished'];
 
 /** The alerts that carry a camera picture until the person changes it: the key ones. */
-export const PICTURE_EVENTS: AlertEvent[] = ['layer1', 'layer3', 'layer', 'paused', 'failed', 'error', 'almostDone', 'finished'];
+export const PICTURE_EVENTS: AlertEvent[] = ['layer1', 'layer', 'paused', 'failed', 'error', 'almostDone', 'finished'];
 /** Every alert that can carry a picture (not "bridge offline": the camera is behind the bridge). */
 export const CAMERA_EVENTS: AlertEvent[] = [...PROBLEM_EVENTS, ...MILESTONE_EVENTS, 'layer'];
 /** At most this many cameras in one alert: their pictures are joined into one (a notification shows one). */
@@ -59,6 +63,8 @@ export interface AlertPrefs {
   percents: number[];
   /** "Still printing" every this many hours; 0 = off. */
   hours: number;
+  /** After these layers, on every print. */
+  layers: number[];
   /** "Alert me after layer N", for the current or next print; cleared when that print ends. */
   layer: number | null;
   /** The cameras each alert's picture comes from, by camera name; none = no picture. */
@@ -68,7 +74,7 @@ export interface AlertPrefs {
 /** The first camera on the key alerts. */
 const defaultCameras = (): AlertPrefs['cameras'] => Object.fromEntries(PICTURE_EVENTS.map((e) => [e, [FIRST_CAMERA]]));
 
-export const defaultPrefs = (): AlertPrefs => ({ events: [...DEFAULT_EVENTS], percents: [], hours: 0, layer: null, cameras: defaultCameras() });
+export const defaultPrefs = (): AlertPrefs => ({ events: [...DEFAULT_EVENTS], percents: [], hours: 0, layers: [], layer: null, cameras: defaultCameras() });
 
 /**
  * Which of the printer's cameras (`names`, in its order) an alert's picture comes
@@ -111,10 +117,16 @@ export function cleanPrefs(raw: unknown): AlertPrefs | null {
   const events = Array.isArray(r.events) ? [...new Set(r.events.filter((e): e is AlertEvent => typeof e === 'string' && known.has(e)))] : [];
   const percents = Array.isArray(r.percents) ? [...new Set(r.percents.filter((p): p is number => Number.isInteger(p) && p >= 1 && p <= 99))].sort((a, b) => a - b).slice(0, 20) : [];
   const hours = Number.isInteger(r.hours) && (r.hours as number) >= 0 && (r.hours as number) <= 24 ? (r.hours as number) : 0;
-  const layer = Number.isInteger(r.layer) && (r.layer as number) >= 1 && (r.layer as number) <= 100_000 ? (r.layer as number) : null;
+  const isLayer = (n: unknown): n is number => Number.isInteger(n) && (n as number) >= 1 && (n as number) <= 100_000;
+  const layer = isLayer(r.layer) ? r.layer : null;
+  // "Third layer" was its own switch before layers could be chosen.
+  const oldThird = Array.isArray(r.events) && r.events.includes('layer3') ? [3] : [];
+  const layers = [...new Set([...(Array.isArray(r.layers) ? r.layers.filter(isLayer) : []), ...oldThird])].sort((a, b) => a - b).slice(0, 20);
   // Choices saved before cameras could be picked had one switch for the first camera.
   const cameras = r.cameras !== undefined ? cleanCameras(r.cameras) : r.pictures === false ? {} : defaultCameras();
-  return { events, percents, hours, layer, cameras };
+  const rawCams = r.cameras as Record<string, unknown> | undefined;
+  if (oldThird.length && !cameras.layer && rawCams?.layer3) cameras.layer = cleanCameras({ layer: rawCams.layer3 }).layer;
+  return { events, percents, hours, layers, layer, cameras };
 }
 
 /**
@@ -364,6 +376,7 @@ export function watchFor(all: AlertPrefs[]): AlertWatch {
   let hours = false;
   for (const p of all) {
     if (p.layer != null) layers.add(p.layer);
+    for (const n of p.layers) layers.add(n);
     if (p.events.includes('progress')) for (const x of p.percents) percents.add(x);
     if (p.events.includes('stillPrinting') && p.hours > 0) hours = true;
   }
@@ -373,7 +386,7 @@ export function watchFor(all: AlertPrefs[]): AlertWatch {
 /** Whether one person's choices want this alert. */
 export function wants(p: AlertPrefs, a: Pick<FiredAlert, 'event' | 'layer' | 'percent' | 'hours'>): boolean {
   if (a.event === 'test') return true;
-  if (a.event === 'layer') return p.layer != null && a.layer === p.layer;
+  if (a.event === 'layer') return a.layer != null && (a.layer === p.layer || p.layers.includes(a.layer));
   if (!p.events.includes(a.event)) return false;
   if (a.event === 'progress') return a.percent != null && p.percents.includes(a.percent);
   if (a.event === 'stillPrinting') return p.hours > 0 && a.hours != null && a.hours % p.hours === 0;

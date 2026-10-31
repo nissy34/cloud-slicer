@@ -314,3 +314,146 @@ export function textOn(colour: string): string {
   // Above this brightness black has more contrast than white.
   return 0.2126 * r + 0.7152 * g + 0.0722 * b > 0.179 ? '#000' : '#fff';
 }
+
+// ---------------------------------------------------------------------------
+// Mixing Recommendations: the swatch grid under desktop's Add Mix dialog
+// (MixedFilamentDialog::build_swatch_grid and build_color_match_presets).
+
+/** One recommended mix. Tapping it fills the dialog with it. */
+export interface MixSuggestion {
+  /** Filaments in the order the dialog's rows take them (1-based); a gradient's first is where it starts. */
+  filaments: number[];
+  /** Percent of each filament, same order, summing to 100. */
+  weights: number[];
+  /** Desktop's tooltip: "F1(50%) + F2(50%)", "F1 → F2". */
+  label: string;
+}
+
+/** Desktop only offers three-filament mixes of the first six filaments (kMaxSwatchFilaments). */
+export const SUGGEST_TRIPLE_LIMIT = 6;
+
+const pairs = (n: number) => {
+  const out: [number, number][] = [];
+  for (let i = 1; i <= n; i++) for (let j = i + 1; j <= n; j++) out.push([i, j]);
+  return out;
+};
+
+/** Each triple of the first six filaments: equal shares, then each one at 50% with the others at 25%. */
+function triples(n: number): MixSuggestion[] {
+  const out: MixSuggestion[] = [];
+  const m = Math.min(n, SUGGEST_TRIPLE_LIMIT);
+  const eq = normalizeWeights([1, 1, 1]);
+  for (let i = 1; i <= m; i++)
+    for (let j = i + 1; j <= m; j++)
+      for (let k = j + 1; k <= m; k++)
+        for (const w of [eq, [50, 25, 25], [25, 50, 25], [25, 25, 50]])
+          out.push({ filaments: [i, j, k], weights: w, label: `F${i}(${w[0]}%)+F${j}(${w[1]}%)+F${k}(${w[2]}%)` });
+  return out;
+}
+
+/**
+ * The recommendations for a mode, before colours: Ratio with two rows offers
+ * every pair at 50:50, with three rows every triple; Match offers both; Gradient
+ * every pair in both directions. Cycle has none (desktop hides the card).
+ */
+export function mixSuggestions(mode: MixMode, rows: number, physical: number): MixSuggestion[] {
+  const half = ([i, j]: [number, number]): MixSuggestion => ({ filaments: [i, j], weights: [50, 50], label: `F${i}(50%) + F${j}(50%)` });
+  switch (mode) {
+    case 'ratio':
+      return rows >= 3 ? triples(physical) : pairs(physical).map(half);
+    case 'match':
+      return [...pairs(physical).map(half), ...triples(physical)];
+    case 'gradient':
+      return pairs(physical).flatMap(([i, j]) => [
+        { filaments: [i, j], weights: [50, 50], label: `F${i} → F${j}` },
+        { filaments: [j, i], weights: [50, 50], label: `F${j} → F${i}` },
+      ]);
+    case 'cycle':
+      return [];
+  }
+}
+
+/** The smallest share in a suggestion: Match hides those below its Min share. */
+export const minShare = (s: MixSuggestion) => Math.min(...s.weights);
+
+/** A suggestion's weights over all `physical` filaments (0 for the rest), for one blend call. */
+export function spreadWeights(s: MixSuggestion, physical: number): number[] {
+  const w = Array.from({ length: physical }, () => 0);
+  s.filaments.forEach((f, i) => (w[f - 1] = s.weights[i]));
+  return w;
+}
+
+/** The dialog after tapping a suggestion (desktop's badge click handler). */
+export function applySuggestion(d: MixDraft, s: MixSuggestion, colour: string): MixDraft {
+  if (d.mode === 'match') return { ...d, match: matchFromSuggestion(s, colour) };
+  if (d.mode === 'gradient') return { ...d, filaments: s.filaments.slice(0, 2), reversed: false };
+  if (s.filaments.length >= 3) return { ...d, filaments: s.filaments.slice(0, 3), weights: [...s.weights] };
+  return { ...d, filaments: s.filaments.slice(0, 2), percentB: s.weights[1] };
+}
+
+/**
+ * Match recipe of a suggestion, as build_multi_color_match_candidate stores it:
+ * filaments ordered by share (largest first, then lowest number).
+ */
+export function matchFromSuggestion(s: MixSuggestion, colour: string): MatchResult {
+  const order = s.filaments.map((f, i) => ({ f, w: s.weights[i] })).sort((a, b) => b.w - a.w || a.f - b.f);
+  const [a, b] = order;
+  const mixBPercent = Math.round((100 * b.w) / (a.w + b.w));
+  if (order.length < 3) return { valid: true, componentA: s.filaments[0], componentB: s.filaments[1], mixBPercent: s.weights[1], gradientIds: '', gradientWeights: '', colour, deltaE: -1 };
+  return {
+    valid: true,
+    componentA: a.f,
+    componentB: b.f,
+    mixBPercent,
+    gradientIds: encodeIds(order.map((o) => o.f)),
+    gradientWeights: order.map((o) => o.w).join('/'),
+    colour,
+    deltaE: -1,
+  };
+}
+
+// ---------------------------------------------------------------------------
+// The Ratio triangle for three filaments (MixedFilamentDialog::build_tri_picker).
+
+export type Point = { x: number; y: number };
+
+/** Corners of the triangle in a size×size box: top = first row, bottom left = second, bottom right = third. */
+export function triangleCorners(size: number, margin = 3): [Point, Point, Point] {
+  const side = size - 2 * margin;
+  const h = (side * Math.sqrt(3)) / 2;
+  const top = (size - h) / 2;
+  return [
+    { x: size / 2, y: top },
+    { x: size / 2 - side / 2, y: top + h },
+    { x: size / 2 + side / 2, y: top + h },
+  ];
+}
+
+const area2 = (a: Point, b: Point, c: Point) => (b.x - a.x) * (c.y - a.y) - (c.x - a.x) * (b.y - a.y);
+
+/** Barycentric weights of p (tri_bary); negative outside the triangle. */
+export function barycentric(p: Point, [v0, v1, v2]: [Point, Point, Point]): [number, number, number] {
+  const total = area2(v0, v1, v2);
+  if (Math.abs(total) < 1e-9) return [1 / 3, 1 / 3, 1 / 3];
+  const w0 = area2(p, v1, v2) / total;
+  const w1 = area2(v0, p, v2) / total;
+  return [w0, w1, 1 - w0 - w1];
+}
+
+/** Shares for a point dragged anywhere: each held between 10% and 90%, as desktop does (4 passes). */
+export function triangleWeights(p: Point, corners: [Point, Point, Point]): number[] {
+  let w = barycentric(p, corners);
+  for (let pass = 0; pass < 4; pass++) {
+    w = w.map((v) => Math.min(0.9, Math.max(0.1, v))) as [number, number, number];
+    const sum = w[0] + w[1] + w[2];
+    w = w.map((v) => v / sum) as [number, number, number];
+  }
+  return normalizeWeights(w.map((v) => v * 100));
+}
+
+/** Where the handle sits for these shares. */
+export function trianglePoint(weights: number[], [v0, v1, v2]: [Point, Point, Point]): Point {
+  const sum = weights[0] + weights[1] + weights[2] || 1;
+  const [a, b, c] = weights.map((w) => w / sum);
+  return { x: a * v0.x + b * v1.x + c * v2.x, y: a * v0.y + b * v1.y + c * v2.y };
+}

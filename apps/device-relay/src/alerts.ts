@@ -149,12 +149,12 @@ export function agentConfig(
   for (const [printer, all] of by) {
     const events = new Set<AlertEvent>();
     for (const p of all) for (const e of p.events) if (e !== 'offline') events.add(e);
-    if (all.some((p) => p.layer != null)) events.add('layer');
+    if (all.some((p) => p.layer != null || p.layers.length)) events.add('layer');
     if (!events.size) continue;
     const cameras: Partial<Record<AlertEvent, string[][]>> = {};
     for (const e of events) {
       const sets = new Map<string, string[]>();
-      for (const p of all) if (p.cameras[e]?.length && (e === 'layer' ? p.layer != null : p.events.includes(e))) sets.set(cameraKey(p.cameras[e]!), p.cameras[e]!);
+      for (const p of all) if (p.cameras[e]?.length && (e === 'layer' ? p.layer != null || p.layers.length > 0 : p.events.includes(e))) sets.set(cameraKey(p.cameras[e]!), p.cameras[e]!);
       if (sets.size) cameras[e] = [...sets.values()];
     }
     const pictures = PICTURE_EVENTS.some((e) => cameras[e]);
