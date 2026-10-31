@@ -6,9 +6,10 @@
 
 ## What it does
 
-- **Colour mixing**: Snapmaker Orca's mixed filaments, virtual filaments made of two or
-  more physical ones, numbered after them (5, 6… on a four-filament U1), usable for
-  objects, parts and paint. Snapmaker Orca engine only.
+- **Colour mixing**: mixed filaments, virtual filaments made of two or more physical
+  ones, numbered after them (5, 6… on a four-filament U1), usable for objects, parts and
+  paint. Both engines: Snapmaker Orca's own, and OrcaSlicer 2.5's (Ratio, Match and
+  Gradient; it has no Cycle, so the Add Mix window leaves it out: `engineInfo.mixModes`).
 - **Flushing volumes**: for printers with one nozzle and several filaments (Bambu AMS,
   Prusa MMU, Creality CFS): how much each filament change purges, per pair, worked out
   from their colours by each engine's own formula.
@@ -17,16 +18,28 @@
 
 | Part | Where |
 |---|---|
-| Mix list, editing, remapping, Match a colour | `engine/src/mixed_api.cpp` (Orca's `MixedFilamentManager`) |
+| Mix list, editing, remapping, Match a colour | `engine/src/mixed_api.cpp` (Snapmaker's `MixedFilamentManager`; OrcaSlicer 2.5's mixed slots under `#if ENGINE_UPSTREAM`) |
+| OrcaSlicer 2.5 mixes as filament slots, and back | `fullConfigWithMixes` (called by `presetsFullConfig`), `splitMixedSlots` (called by `fileConfigJson`) |
 | Add Mix dialog modes (desktop's `MixedFilamentDialog`); each part of a mix is picked with the shared filament Picker (numbered square, preset name) | `lib/mixing.ts`, `components/ColorMixing.tsx` |
 | Flush table, multiplier, where the purge goes | `engine/src/flush_api.cpp`, `lib/flush.ts`, `components/FlushVolumes.tsx` |
 
 ## How it flows
 
-The mix list is Orca's own project option `mixed_filament_definitions`, which
-`Print::apply` reads when slicing. The store keeps it as the project's mixes, outside the
-settings overrides, and it is saved in the 3MF. When a mix or a physical filament goes
-away, the engine remaps painted and assigned filaments.
+The store keeps the project's mixes as `mixed_filament_definitions`, outside the
+settings overrides, and hands it to the engine with them. When a mix or a physical
+filament goes away, the engine remaps painted and assigned filaments.
+
+- **Snapmaker Orca**: that string is Snapmaker's own project option, which `Print::apply`
+  reads when slicing and the 3MF saves.
+- **OrcaSlicer 2.5**: a mix is a filament slot of its own after the physical ones
+  (`filament_is_mixed`, `filament_mixed_components`, `_sublayer_ratios`, `_gradient*`).
+  The string is a JSON list of those slots. `presetsFullConfig` adds them to the bundle
+  the way desktop's Add Mixed Filament does (the slot takes its first filament's preset,
+  its colour is the blend), so slicing, the prime tower and the saved 3MF see what desktop
+  2.5 would; opening a desktop 2.5 3MF takes its mixed slots back out of every
+  per-filament list (`splitMixedSlots`). Gradients print only with the Quality setting
+  "Mixed color sublayer" on, which the Gradient tab says. Deleting a mix drops its slot;
+  deleting a filament drops the mixes that use it.
 
 Flush values: `presetsSelect` returns the table, recalculated for a filament whenever it
 or its colour changes; a printer change resets the table and multiplier.
@@ -39,18 +52,21 @@ or its colour changes; a printer change resets the table and multiplier.
 - A mix counts as the filaments it mixes for the prime tower, so an object printed with a
   mix alone gets one. Snapmaker Orca's own slice counted it as one filament and dropped
   the tower; `patches/snapmaker/0009` fixes that.
-- Switching a project to OrcaSlicer turns each mix into the filament it uses most
-  (`flatten`), after saying so.
+- Switching a project to the other engine turns each mix into the filament it uses most
+  (`flatten`), after saying so: the two keep mixes differently.
 
 ## Why
 
 Snapmaker's colour mixing is required in the web app; Android-only mixing extras were
-dropped. OrcaSlicer 2.5's own mixing works differently and isn't compatible.
+dropped. OrcaSlicer 2.5's mixing works differently, so each engine keeps its own, behind
+one panel. Not yet on OrcaSlicer: desktop 2.5's gradient curve editor and per-part
+gradients (a project that has them keeps them).
 See [decisions.md](../decisions.md#engines).
 
 ## Tests
 
-`mixing.mjs` (the G-code alternates between both tools), `flush.mjs`,
+`mixing.mjs`, also with `MIX_ENGINE=orca` (the G-code alternates between both tools),
+`flush.mjs`, engine tests `colour mixing: …` (both engines, plus OrcaSlicer's gradient),
 `engine-switch.mjs`; unit tests `mixing.test.ts`, `flush.test.ts`.
 
 ## Open

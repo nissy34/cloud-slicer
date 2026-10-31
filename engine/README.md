@@ -33,7 +33,7 @@ same engine code.
 | `src/measure_api.cpp` | The Measure tool: Orca's `Measure::Measuring` finds the point, edge, circle or plane under a ray from the page, and `Measure::get_measurement` gives the distance and angle between two. Assemble (desktop's `GLGizmoAssembly`) uses the same picks: `assembleAction` moves the second feature's part, or object, onto the first (parallel, center coincidence, flip, parallel distance, rotate around center, point onto point, with `Measure::get_assembly_action` saying which apply), or joins the two objects into one "Assembly" object, as the object list's Assemble does; picks follow the parts they are on |
 | `src/simplify_api.cpp` | Simplify, like desktop's Simplify model: Orca's quadric edge collapse (`its_quadric_edge_collapse`) by detail level or decimate ratio, previewed as a triangle count, then applied with the object's painting remapped onto the simplified mesh |
 | `src/calib_api.cpp` | Calibration tests, ported from desktop's Plater: temperature, flow rate, pressure advance (line, tower, pattern: a handle cube per speed and acceleration pair, its pattern G-code made at every slice like desktop), retraction, max volumetric speed, VFA, input shaping and junction deviation. Loads the test model, returns the settings to change, and sets `Print::set_calib_params` for slicing |
-| `src/mixed_api.cpp` | Colour mixing: reads and edits the project's `mixed_filament_definitions` with Orca's `MixedFilamentManager`, gives each mix its colour, remaps painted and assigned filaments when a mix or a physical filament goes away, and matches a colour |
+| `src/mixed_api.cpp` | Colour mixing: reads and edits the project's mixes (Snapmaker Orca: `mixed_filament_definitions` with its `MixedFilamentManager`; OrcaSlicer 2.5: mixed filament slots, which `presetsFullConfig` adds and a desktop 2.5 3MF's are taken out of), gives each mix its colour, remaps painted and assigned filaments when a mix or a physical filament goes away, and matches a colour |
 | `src/history_api.cpp` | Undo and redo of project edits, like desktop's Ctrl+Z / Ctrl+Y: Model snapshots that share their meshes |
 | `src/slice_api.cpp` | Slices one plate with a full config and exports G-code with Orca's time and filament estimates and the plate thumbnails the page renders |
 | `src/plate_api.cpp` | Desktop's plate menus: add a shape, delete all, rename, lock, copy and paste, plate settings; and the layer slider's pauses, filament changes and custom G-code per plate |
@@ -139,8 +139,8 @@ cmake --build engine/build/engine-orca
 ENGINE_FLAVOR=orca node engine/scripts/bundle-profiles.mjs engine/build/profiles-orca
 ```
 
-What only Snapmaker Orca has compiles only for it (`ENGINE_HAS_MIXING`: mixed filaments,
-`src/mixed_api.cpp`; `ENGINE_HAS_FLOW_VARIANTS`: standard/high flow pairs), and the few
+What only Snapmaker Orca has compiles only for it (`ENGINE_HAS_MIXING`: Snapmaker's mixed
+filaments; `ENGINE_HAS_FLOW_VARIANTS`: standard/high flow pairs), and the few
 calls whose signatures differ upstream are under `#if ENGINE_UPSTREAM`. `engineInfo()`
 tells the page which engine it got. `apps/web/scripts/copy-engine.mjs` puts an upstream
 build (from `engine/build/engine-orca`) in `public/engine-orca/`. CI builds and tests both

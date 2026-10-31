@@ -644,6 +644,7 @@ jobs:
         if: matrix.suite == 'mixing'
         run: |
           node test/mixing.mjs
+          MIX_ENGINE=orca node test/mixing.mjs
           node test/sync-filaments.mjs
           node test/warnings.mjs
 

@@ -40,7 +40,10 @@ down. Add a line with the date when a new choice is made.
   needs no engine.
 - wasm64: not now (no Safari, phones kill tabs below 4 GB, slower; 2026-10-20).
 - OrcaSlicer 2.5 replaces 2.4.2 (one OrcaSlicer at a time), got ready on its beta and merged
-  once 2.5.0 is stable (2026-10-30). Its colour mixing is incompatible with Snapmaker's.
+  once 2.5.0 is stable (2026-10-30). Its colour mixing is wired in too, through the same
+  Color mixing panel and Add Mix window (Ratio, Match, Gradient; it has no Cycle), stored
+  the way desktop 2.5 stores it (2026-10-31). Mixes don't carry between the engines: they
+  keep them differently, so switching turns each into its main filament.
 - Colour mixing from Snapmaker Orca is required; Android-only mixing extras dropped.
 - More than four colours on the U1 through manual swap pauses: turned down (2026-10-18);
   colour mixing or more filaments per head instead.

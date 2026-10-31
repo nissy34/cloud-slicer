@@ -113,6 +113,12 @@ describe('switchPlan', () => {
     expect(losesNothing(plan)).toBe(true);
   });
 
+  it("back to Snapmaker Orca, OrcaSlicer's own mixes become plain filaments too", () => {
+    const plan = switchPlan({ ...input, from: 'orca', to: 'snapmaker', overrides: {}, mixes: [row({ virtualId: 3, mixBPercent: 30 })], project: null }, table);
+    expect(plan.mixes).toEqual([{ id: 3, label: 'F1 70% + F2 30%', colour: '#808080', becomes: 1 }]);
+    expect(losesNothing(plan)).toBe(false);
+  });
+
   it('a plain model on built-in presets loses nothing, so the switch asks nothing', () => {
     const plain = { ...input, overrides: { sparse_infill_density: '20%' }, mixes: [], project: { objects: [{ name: 'Cube', settings: {}, volumes: [] }] } as unknown as ProjectInfo };
     expect(losesNothing(switchPlan(plain, table))).toBe(true);
