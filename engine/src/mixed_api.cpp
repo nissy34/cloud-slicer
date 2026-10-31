@@ -1021,12 +1021,9 @@ namespace engine {
 DynamicPrintConfig fullConfigWithMixes(PresetBundle& b, const std::string& definitions, const std::vector<std::string>& given) {
     const std::vector<Slot> slots = parseSlots(definitions);
     auto* colourOpt = b.project_config.option<ConfigOptionStrings>("filament_colour");
-    const size_t physical = b.filament_presets.size();
-    if (slots.empty() || physical < 2 || !colourOpt) return b.full_config();
+    if (slots.empty() || !colourOpt) return b.full_config();
     const std::vector<std::string> savedPresets = b.filament_presets;
     const DynamicPrintConfig savedProject = b.project_config;
-    if (given.size() == physical) colourOpt->values = given;
-    const std::vector<std::string> colours = colourOpt->values;
     const auto savedMultiColour = b.ams_multi_color_filment;
     auto restore = [&]() {
         b.filament_presets = savedPresets;
@@ -1034,6 +1031,12 @@ DynamicPrintConfig fullConfigWithMixes(PresetBundle& b, const std::string& defin
         b.ams_multi_color_filment = savedMultiColour;
     };
     try {
+        // The mixes are numbered after the filaments the page has (its colours),
+        // which can be fewer than the presets carry (a U1 always has 4).
+        if (!given.empty() && given.size() < b.filament_presets.size()) b.set_num_filaments(unsigned(given.size()));
+        const size_t physical = b.filament_presets.size();
+        if (given.size() == physical) b.project_config.option<ConfigOptionStrings>("filament_colour")->values = given;
+        const std::vector<std::string> colours = b.project_config.option<ConfigOptionStrings>("filament_colour")->values;
         for (const Slot& s : slots) {
             const size_t idx = b.filament_presets.size();
             const bool valid = std::all_of(s.components.begin(), s.components.end(), [&](unsigned c) { return c >= 1 && c <= physical; });

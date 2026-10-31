@@ -324,7 +324,8 @@ std::string presetsFullConfig(const std::string& overridesJson) {
         if (!mixes.empty() && overrides.contains("filament_colour") && overrides["filament_colour"].is_string()) {
             ConfigOptionStrings given;
             given.deserialize(overrides["filament_colour"].get<std::string>());
-            if (given.values.size() == bundle().filament_presets.size()) {
+            // Fewer colours than the presets have filaments: the page counts only those.
+            if (!given.values.empty() && given.values.size() <= bundle().filament_presets.size()) {
                 colours = given.values;
                 overrides.erase("filament_colour");
             }
