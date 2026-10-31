@@ -117,7 +117,7 @@ jobs:
         run: npm test
 
       - name: Preset bundling tests
-        run: node --test engine/scripts/klipper-labels.test.mjs engine/scripts/plate-file-names.test.mjs
+        run: node --test engine/scripts/klipper-labels.test.mjs engine/scripts/plate-file-names.test.mjs engine/scripts/plate-temps.test.mjs
 
       - name: Web app typecheck and unit tests
         working-directory: apps/web
@@ -222,6 +222,11 @@ jobs:
         with:
           path: engine/build/deps
           key: ${{ steps.deps-cache.outputs.cache-primary-key }}
+
+      # OrcaSlicer's own few on top (CGAL 6, headers only: seconds).
+      - name: OrcaSlicer's own dependencies
+        if: steps.engine-cache.outputs.cache-hit != 'true' && matrix.flavor == 'orca'
+        run: engine/scripts/build-deps-orca.sh
 
       - name: Restore compiler cache
         if: steps.engine-cache.outputs.cache-hit != 'true'

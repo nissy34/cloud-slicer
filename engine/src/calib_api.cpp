@@ -54,10 +54,12 @@ void set(DynamicPrintConfig& cfg, const std::string& key, ConfigOption* value) {
 
 // A number option with one value, in the type Orca declares for `key`:
 // Snapmaker Orca keeps speeds and accelerations per nozzle flow type (a
-// vector), upstream OrcaSlicer as a single number.
+// vector), upstream OrcaSlicer as a single number or, from 2.5, per extruder
+// variant (nullable).
 ConfigOption* number(const std::string& key, double value) {
     const ConfigOptionDef* def = print_config_def.get(key);
     if (def && def->type == coFloat) return new ConfigOptionFloat(value);
+    if (def && def->nullable) return new ConfigOptionFloatsNullable{value};
     return new ConfigOptionFloats{value};
 }
 
@@ -207,7 +209,7 @@ void flowRate(bool linear, int pass, DynamicPrintConfig& cfg) {
         c.set_key_value("top_surface_line_width", new ConfigOptionFloatOrPercent(nozzle_diameter * 1.2, false));
         c.set_key_value("internal_solid_infill_line_width", new ConfigOptionFloatOrPercent(nozzle_diameter * 1.2, false));
         c.set_key_value("top_surface_pattern", new ConfigOptionEnum<InfillPattern>(ipArchimedeanChords));
-        c.set_key_value("top_solid_infill_flow_ratio", new ConfigOptionFloat(1.0f));
+        c.set_key_value("top_solid_infill_flow_ratio", number("top_solid_infill_flow_ratio", 1.0));
         c.set_key_value("infill_direction", new ConfigOptionFloat(45));
         c.set_key_value("solid_infill_direction", new ConfigOptionFloat(135));
         c.set_key_value("align_infill_direction_to_model", new ConfigOptionBool(true));
@@ -378,7 +380,7 @@ std::vector<std::string> paPattern(const Calib_Params& params, DynamicPrintConfi
     }
 
     const SuggestedConfigCalibPAPattern suggested;
-#if ENGINE_UPSTREAM_NEXT
+#if ENGINE_UPSTREAM
     // OrcaSlicer 2.5 keeps these per extruder variant: desktop sets every value.
     for (const auto& [key, values] : suggested.floats_pairs) {
         if (auto* opt = cfg.option<ConfigOptionFloatsNullable>(key))

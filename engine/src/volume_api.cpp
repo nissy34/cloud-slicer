@@ -23,7 +23,7 @@ TriangleMesh shapeMesh(const std::string& shape) {
     if (shape == "Sphere") return TriangleMesh(its_make_sphere(0.5 * side, PI / 90));
     if (shape == "Cone") return TriangleMesh(its_make_cone(0.5 * side, side));
     if (shape == "Disc") return TriangleMesh(its_make_cylinder(0.5 * side, 0.2f));
-#if ENGINE_UPSTREAM_NEXT  // OrcaSlicer 2.5 takes the tube's own angle step too
+#if ENGINE_UPSTREAM  // OrcaSlicer 2.5 takes the tube's own angle step too
     if (shape == "Torus") return TriangleMesh(its_make_torus(0.5 * side, 0.125 * side, PI / 60, PI / 60));
 #else
     if (shape == "Torus") return TriangleMesh(its_make_torus(0.5 * side, 0.125 * side, PI / 60));

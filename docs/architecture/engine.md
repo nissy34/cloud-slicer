@@ -9,7 +9,7 @@
 
 Slices in the browser with the same code as desktop: Orca's `libslic3r` compiled to
 WebAssembly. Two engines ship, and each project picks one: Snapmaker Orca 2.4.1
-(`engine/orcaslicer`, the default) or OrcaSlicer 2.4.2 (`engine/orcaslicer-upstream`).
+(`engine/orcaslicer`, the default) or OrcaSlicer 2.5 (`engine/orcaslicer-upstream`, on its beta until 2.5.0 is out).
 
 ## Pieces
 
@@ -60,9 +60,8 @@ the user's presets (written before presets load) and fonts for the Text tool.
 
 ## Updating an engine
 
-Before a stable upstream OrcaSlicer, its beta builds in CI only as `orca-next`
-(`engine/orcaslicer-next`, `.github/workflows/engine-next.yml`, [engine README](../../engine/README.md#the-next-orcaslicer)),
-so its build and patch work is done before release day; it never ships.
+A new upstream OrcaSlicer can be got ready on its beta in a draft pull request that is
+merged only once the stable release is out (OrcaSlicer 2.5: [engine README](../../engine/README.md#orcaslicer-25)).
 Move the submodule to the new tag (replace, never add a third engine), then check:
 every patch in `engine/patches/` still applies; `extract-settings-layout.mjs` still reads
 desktop's pages (new settings show by themselves); `option-toggles.ts` gets the new

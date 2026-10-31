@@ -46,6 +46,8 @@ const EXPECTED_SETTINGS = {
   ...(flavor === 'orca' && {
     flush_volumes_matrix: "desktop's command line fills in its own flush volumes when it opens a project; the U1 has a nozzle per filament, so the print is the same",
     extruder_ams_count: "desktop's command line fills this in when it opens a project; it only names the filament holders",
+    textured_plate_temp: "OrcaSlicer's U1 filaments say 0 °C on the U1's own plate; our presets give them their High Temp Plate temperature (engine/scripts/plate-temps.mjs)",
+    textured_plate_temp_initial_layer: 'the same',
   }),
 };
 
@@ -90,8 +92,11 @@ const CASES = [
 // supports come out about 1.2% different. So for support cases desktop runs
 // with that fix applied as it runs (desktop-fix.py, under gdb). Even then
 // desktop's supports vary a little from run to run (under 0.1%), so those
-// cases get three tries.
-for (const c of CASES) if (c.set?.enable_support === '1') Object.assign(c, { desktopFix: true, tries: 3 });
+// cases get three tries. An engine whose desktop already has the fix retires
+// 0010 with a patch of its own that changes no file (OrcaSlicer 2.5).
+const flavorFix = join(root, 'engine/patches', flavor, '0010-support-cost-limits-per-call.patch');
+const desktopHasFix = existsSync(flavorFix) && !/^\+\+\+ b\//m.test(readFileSync(flavorFix, 'utf8'));
+for (const c of CASES) if (c.set?.enable_support === '1') Object.assign(c, { desktopFix: !desktopHasFix, tries: 3 });
 
 rmSync(outDir, { recursive: true, force: true });
 mkdirSync(outDir, { recursive: true });
@@ -339,7 +344,7 @@ const lines = [
   '|---|---|---|',
   ...results.map((r) => `| ${r.name} | ${r.label ?? (r.ok ? 'match' : '**differs**')} | ${String(r.note).replace(/\\/g, '\\\\').replace(/\|/g, '\\|').replace(/\n/g, ' ')} |`),
   '',
-  'On purpose: ' + Object.entries(EXPECTED_SETTINGS).map(([k, why]) => `\`${k}\` (${why})`).join('; ') + '; the colour-mix prime tower (patches/snapmaker/0009); support cases run desktop with the fix of patches/0010 applied (desktop-fix.py).',
+  'On purpose: ' + Object.entries(EXPECTED_SETTINGS).map(([k, why]) => `\`${k}\` (${why})`).join('; ') + '; the colour-mix prime tower (patches/snapmaker/0009)' + (desktopHasFix ? '.' : '; support cases run desktop with the fix of patches/0010 applied (desktop-fix.py).'),
 ];
 console.log('\n' + lines.join('\n'));
 writeFileSync(join(outDir, 'summary.md'), lines.join('\n') + '\n');

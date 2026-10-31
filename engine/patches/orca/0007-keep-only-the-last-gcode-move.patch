@@ -1,4 +1,4 @@
-../0007 and ../orca/0008 in one, for OrcaSlicer 2.5: keep only the last G-code move,
+../0007 and OrcaSlicer 2.4.2's 0008 (G-code times without stored moves) in one, for OrcaSlicer 2.5: keep only the last G-code move,
 except on printers that pre-heat the next nozzle (enable_pre_heating, new in 2.5), whose
 injection pass reads every move's time.
 

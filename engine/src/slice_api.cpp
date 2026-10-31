@@ -410,7 +410,7 @@ std::string sliceWithConfig(const std::string& configJson, int plate, const std:
         print.set_plate_origin(Vec3d::Zero());
         print.set_calib_params(engine::project().calib);
         print.apply(model, cfg);
-#if ENGINE_UPSTREAM_NEXT
+#if ENGINE_UPSTREAM
         // OrcaSlicer 2.5 returns every warning, not only the last (its #14112).
         std::vector<StringObjectException> found;
         const StringObjectException err = print.validate(&found);

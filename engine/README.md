@@ -14,8 +14,7 @@ same engine code.
 | Path | What |
 |---|---|
 | `orcaslicer/` | Submodule pinned to the v2.4.1 tag. Never edited in place |
-| `orcaslicer-upstream/` | Upstream OrcaSlicer v2.4.2, the second engine, live beside the first and chosen per project (see "Two engines" below). Never edited in place |
-| `orcaslicer-next/` | The next upstream OrcaSlicer (v2.5.0-beta), only built and tested in CI to prepare its update; the app never loads it (see "The next OrcaSlicer" below) |
+| `orcaslicer-upstream/` | Upstream OrcaSlicer v2.5.0-beta, the second engine, live beside the first and chosen per project (see "Two engines" below). Never edited in place |
 | `patches/` | Browser-only fixes, applied to copies of the touched files in the build tree |
 | `compat/` | Stand-ins for what a browser lacks: OpenSSL MD5 (on Boost), no-op STEP/SVG import when built without OCCT, thread naming |
 | `cmake/libslic3r.cmake` | Builds libslic3r from the source list in upstream's own `src/libslic3r/CMakeLists.txt` |
@@ -108,7 +107,7 @@ CI runs it on Benchy and a two-colour cube from both engines.
 ## Patches
 
 Each `patches/*.patch` is a unified diff against the submodule (`a/src/...`, `b/src/...`);
-`patches/snapmaker/`, `patches/orca/` and `patches/orca-next/` hold the ones for one engine
+`patches/snapmaker/` and `patches/orca/` hold the ones for one engine
 only, applied after the shared ones. A patch there with the same name as a shared one
 replaces it for that engine; one that changes no file (only a description) says the engine
 doesn't need it (upstream fixed it).
@@ -128,8 +127,7 @@ its hunk.
 | `0007-keep-only-the-last-gcode-move` | G-code processing keeps every move for desktop's preview, which the browser doesn't use; on a big print that list alone outgrew the 4 GB a page can have |
 | `snapmaker/0009-count-mix-filaments-for-prime-tower` | A plate printed with a colour mix alone counted as one filament, so the slice turned its prime tower off while the G-code changed heads; counts each mix as the filaments it mixes |
 | `0010-support-cost-limits-per-call` | Support infill kept three limits from the first support fill the engine ever made, so a slice depended on what the tab sliced before (and, on desktop, on thread timing); works them out on every call, as OrcaSlicer #15564 does |
-| `orca-next/0003`, `orca-next/0007` | OrcaSlicer 2.5's versions of 0003 (one more OpenVDB include) and 0007 + orca/0008 in one; 0007 keeps every move when the printer pre-heats the next nozzle (`enable_pre_heating`, new in 2.5), whose pass reads each move's time. `orca-next/0006` and `orca-next/0010` say 2.5 doesn't need those |
-| `orca/0008-gcode-times-without-stored-moves` | Upstream's time estimate writes each move's time and "actual speed" points back into that list by position, which 0007 no longer keeps; skips those preview-only writes |
+| `orca/0003`, `orca/0007` | OrcaSlicer 2.5's versions of 0003 (one more OpenVDB include) and 0007. Its 0007 also skips the preview-only writes of each move's time and "actual speed" points back into the move list by position (which 0007 no longer keeps), and keeps every move when the printer pre-heats the next nozzle (`enable_pre_heating`, new in 2.5, Bambu printers), whose pass reads each move's time. `orca/0006` and `orca/0010` say 2.5 doesn't need those |
 
 ## Two engines
 
@@ -155,16 +153,14 @@ both engines have with the same type, from `apps/web/scripts/shared-settings.mjs
 picks each engine's stand-in for the other's system presets. CI checks the file is current;
 after an engine update, run it in `apps/web` and commit `src/lib/shared-settings.json`.
 
-## The next OrcaSlicer
+## OrcaSlicer 2.5
 
-`orcaslicer-next/` is the next upstream release while it is in beta (2.5.0-beta), the
-`orca-next` flavor. Only `.github/workflows/engine-next.yml` builds it, on pull requests
-that change `engine/` and by hand: it builds with `ninja -k 0` (the summary lists every
-file that fails), publishes the build to `engine-builds` and runs the Node engine tests and
-a Benchy slice on it. Nothing waits for it and the app never loads it. On top of the
-shipped engines' dependencies it needs CGAL 6.2 (`scripts/build-deps-next.sh`, picked when
-the engine's own CMakeLists asks for CGAL 6); its OpenCV texture-to-colour import and
-Assimp glTF/GLB/FBX import are left out (`compat/assimp_stub.cpp`). It reports itself as
-`orca` (`engineInfo()`), what it becomes when the stable release replaces
-`orcaslicer-upstream/` (then its `patches/orca-next/` move to `patches/orca/` and the
-flavor goes away).
+`orcaslicer-upstream/` is pinned to the 2.5.0 beta; the app moves to it when 2.5.0 is
+stable (pull request #250 stays a draft until then; that step is a new pin plus its desktop
+download's checksum in `desktop-check/desktop.sh`). On top of Snapmaker Orca's dependencies
+it needs CGAL 6.2 (`scripts/build-deps-orca.sh`, picked when the engine's own CMakeLists
+asks for CGAL 6; Boost.Interval's rounding for wasm in `compat/boost_interval_wasm.hpp`). Its
+OpenCV texture-to-colour import and Assimp glTF/GLB/FBX import are left out
+(`compat/assimp_stub.cpp`). Its Snapmaker U1 filaments say 0 °C for the U1's own plate
+(Textured PEI), which 2.5 refuses to slice; `scripts/plate-temps.mjs` gives such a filament
+its High Temp Plate temperature when the presets are bundled.

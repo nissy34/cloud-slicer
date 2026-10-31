@@ -34,11 +34,11 @@ import { gzipSync } from 'node:zlib';
 import { encodeBedMesh, readStl } from './bed-mesh.mjs';
 import { labelObjectsForKlipper } from './klipper-labels.mjs';
 import { plateInFileNames } from './plate-file-names.mjs';
+import { fillPlateTemps } from './plate-temps.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
-// ENGINE_FLAVOR=orca bundles upstream OrcaSlicer's presets instead, orca-next the next OrcaSlicer's.
-const submodule = { orca: 'orcaslicer-upstream', 'orca-next': 'orcaslicer-next' }[process.env.ENGINE_FLAVOR] ?? 'orcaslicer';
-const root = resolve(here, `../${submodule}/resources/profiles`);
+// ENGINE_FLAVOR=orca bundles upstream OrcaSlicer's presets instead.
+const root = resolve(here, process.env.ENGINE_FLAVOR === 'orca' ? '../orcaslicer-upstream/resources/profiles' : '../orcaslicer/resources/profiles');
 // Both engines draw the same bed for a printer: its files come from Snapmaker Orca
 // first (upstream's U1 bed is a 13 mm block, Snapmaker's a thin sheet), then from
 // upstream OrcaSlicer for what Snapmaker Orca lacks.
@@ -101,12 +101,16 @@ function withoutDefaultMaterials(text) {
 
 let labelled = 0;
 let plateNamed = 0;
+let plateTemps = 0;
+const done = new Map();
 /**
  * The vendor's preset files ({path: text}). Every Klipper printer gets object
- * labels, for skipping objects mid-print (klipper-labels.mjs), and every
- * G-code file name its plate number (plate-file-names.mjs).
+ * labels, for skipping objects mid-print (klipper-labels.mjs), every G-code
+ * file name its plate number (plate-file-names.mjs), and every filament a bed
+ * temperature on its printers' default plate (plate-temps.mjs).
  */
 function vendorFiles(vendor) {
+  if (done.has(vendor)) return done.get(vendor);
   const files = { [`${vendor}.json`]: readText(join(root, `${vendor}.json`)) };
   for (const file of walk(join(root, vendor))) {
     const rel = relative(root, file).split('\\').join('/');
@@ -114,6 +118,8 @@ function vendorFiles(vendor) {
   }
   labelled += labelObjectsForKlipper(files).length;
   plateNamed += plateInFileNames(files).length;
+  plateTemps += fillPlateTemps(files, vendor === LIBRARY ? {} : vendorFiles(LIBRARY)).length;
+  done.set(vendor, files);
   return files;
 }
 
@@ -264,7 +270,8 @@ const models = catalog.reduce((n, v) => n + v.models.length, 0);
 console.log(
   `${join(outDir, 'profiles.json')}: ${Object.keys(bundle).length} preset files (${startup.join(', ')}, ${version}); ` +
     `profiles/: ${catalog.length} brands, ${models} printer models, ${kb(lazyBytes)} compressed if every brand were loaded; ` +
-    `Exclude objects turned on in ${labelled} Klipper process presets; plate number put in the file name of ${plateNamed}`,
+    `Exclude objects turned on in ${labelled} Klipper process presets; plate number put in the file name of ${plateNamed}; ` +
+    `default plate bed temperature filled in for ${plateTemps} filaments`,
 );
 const bedTotal = (b) => b.model + b.texture;
 bedSizes.sort((a, b) => bedTotal(b) - bedTotal(a));

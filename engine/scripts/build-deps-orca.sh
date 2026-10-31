@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
-# The extra dependencies the next upstream OrcaSlicer (the orca-next engine, see
-# engine/README.md) needs on top of build-deps.sh, kept apart so the two shipped
-# engines' dependencies (and their CI cache) stay as they are.
+# The dependencies only the OrcaSlicer engine (orcaslicer-upstream/) needs on top
+# of build-deps.sh, kept apart so Snapmaker Orca's dependencies (and their CI
+# cache) stay as they are.
 #
-#     engine/scripts/build-deps-next.sh     # after build-deps.sh, same WASM_DEPS_* env
+#     engine/scripts/build-deps-orca.sh     # after build-deps.sh, same WASM_DEPS_* env
 #
-# cgal6: OrcaSlicer 2.5 asks for CGAL 6.2 (find_package(CGAL 6.2 REQUIRED)); the
-# shipped engines build against 5.6. Header-only, so no Emscripten needed.
+# cgal6: OrcaSlicer 2.5 asks for CGAL 6.2 (find_package(CGAL 6.2 REQUIRED));
+# Snapmaker Orca builds against 5.6. Header-only, so no Emscripten needed.
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"

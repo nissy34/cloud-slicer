@@ -20,8 +20,7 @@ import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-// orca-next: the next upstream OrcaSlicer, only built by the engine-next workflow.
-export const FLAVORS = { snapmaker: 'engine/orcaslicer', orca: 'engine/orcaslicer-upstream', 'orca-next': 'engine/orcaslicer-next' };
+export const FLAVORS = { snapmaker: 'engine/orcaslicer', orca: 'engine/orcaslicer-upstream' };
 
 export function engineKey(repo = join(dirname(fileURLToPath(import.meta.url)), '../..'), flavor = 'snapmaker') {
   const submodule = FLAVORS[flavor];
@@ -37,7 +36,7 @@ export function engineKey(repo = join(dirname(fileURLToPath(import.meta.url)), '
   if (!orca) throw new Error(`engine-key: ${submodule} is not a submodule in the index`);
 
   const inputs = ['engine/CMakeLists.txt', 'engine/cmake', 'engine/compat', 'engine/patches', 'engine/src', 'engine/scripts/build-deps.sh'];
-  if (flavor === 'orca-next') inputs.push('engine/scripts/build-deps-next.sh');
+  if (flavor === 'orca') inputs.push('engine/scripts/build-deps-orca.sh');
   const list = (...args) => git('ls-files', '-z', ...args, '--', ...inputs).split('\0').filter(Boolean);
   const deleted = new Set(list('-d'));
   const files = [...new Set(list('-co', '--exclude-standard'))].filter((f) => !deleted.has(f)).sort();

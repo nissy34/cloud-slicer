@@ -17,7 +17,7 @@ set(COMPAT_DIR "${CMAKE_CURRENT_SOURCE_DIR}/compat")
 file(READ "${LIBSLIC3R_DIR}/CMakeLists.txt" _upstream)
 
 # --- dependency search paths (engine/scripts/build-deps.sh layout) ------------
-# An engine that asks for CGAL 6 (OrcaSlicer 2.5) gets it from build-deps-next.sh.
+# An engine that asks for CGAL 6 (OrcaSlicer 2.5) gets it from build-deps-orca.sh.
 set(ENGINE_CGAL_DEP cgal)
 if(_upstream MATCHES "find_package\\(CGAL 6")
     set(ENGINE_CGAL_DEP cgal6)
