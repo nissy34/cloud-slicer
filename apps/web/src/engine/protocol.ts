@@ -278,7 +278,23 @@ export interface SliceResult {
  */
 export type WipeTower =
   | { show: false }
-  | { show: true; x: number; y: number; width: number; depth: number; height: number; rotation: number; brim: number; filaments: number[] };
+  | {
+      show: true;
+      x: number;
+      y: number;
+      width: number;
+      depth: number;
+      height: number;
+      rotation: number;
+      brim: number;
+      filaments: number[];
+      /**
+       * OrcaSlicer 2.5: the saved spot was far off the plate, so the tower
+       * stands somewhere new: clear of the objects ("free"), or on one when the
+       * plate has no room left ("onObject"). The page saves the new spot.
+       */
+      moved?: 'free' | 'onObject';
+    };
 
 /** A point on the plate (mm). */
 export type PlatePoint = [number, number];

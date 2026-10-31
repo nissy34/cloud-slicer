@@ -390,6 +390,16 @@ test('prime tower: shown and sized like desktop Prepare, sliced where it was pla
   const [w, d] = bedSize(fullConfig());
   const far = tower({ ...two, wipe_tower_x: '900', wipe_tower_y: '-50' });
   assert.ok(far.x + far.width < w && far.x > 0 && far.y > 0 && far.y + far.depth < d, JSON.stringify(far));
+  // OrcaSlicer 2.5 places a far-off tower again, 15 mm in and clear of the
+  // objects, and says so (the page saves the spot); one just past the edge, as
+  // a drag leaves it, only snaps on. Snapmaker Orca 2.4.1 only pulls it back on.
+  if (flavor.flavor === 'orca') {
+    assert.equal(far.moved, 'free', JSON.stringify(far));
+    assert.ok(far.x >= 15 && far.y >= 15, JSON.stringify(far));
+    assert.equal(tower({ ...two, wipe_tower_x: String(w - far.width - far.brim), wipe_tower_y: '40' }).moved, undefined);
+  } else {
+    assert.equal(far.moved, undefined, JSON.stringify(far));
+  }
 
   // One position per plate; the slice puts the tower where this plate's says.
   const placed = { ...two, wipe_tower_x: '120,5', wipe_tower_y: '40,5' };

@@ -7,7 +7,9 @@
 
 #include "libslic3r/GCode/WipeTower.hpp"
 #if ENGINE_UPSTREAM
+#include "libslic3r/ClipperUtils.hpp"
 #include "libslic3r/GCode/WipeTowerEstimate.hpp"
+#include "libslic3r/Geometry.hpp"
 #endif
 #if ENGINE_HAS_MIXING
 #include "libslic3r/MixedFilament.hpp"
@@ -17,6 +19,7 @@
 #include <algorithm>
 #include <cmath>
 #include <limits>
+#include <optional>
 #include <tuple>
 
 using nlohmann::json;
@@ -173,6 +176,7 @@ json wipeTowerFor(const DynamicPrintConfig& cfg, int plate, double slicedDepth) 
     double depth = slicedDepth;
     double brim = cfg.opt_float("prime_tower_brim_width");
     double plannedWidth = width, plannedDepth = depth;
+    [[maybe_unused]] double plannedHeight = height;
 #if !ENGINE_UPSTREAM
     // Desktop counts the plate's own filaments (a mix as the ones it mixes);
     // one needs no tower unless timelapse does.
@@ -221,6 +225,7 @@ json wipeTowerFor(const DynamicPrintConfig& cfg, int plate, double slicedDepth) 
         const WipeTowerFootprint fp = estimate_wipe_tower_footprint(cfg, resolve_wipe_tower_type(cfg), ids, layer, tallest);
         plannedWidth = fp.width;
         plannedDepth = fp.depth;
+        plannedHeight = fp.height;
         brim = fp.brim_width;
     }
     if (depth < 0) {
@@ -237,13 +242,79 @@ json wipeTowerFor(const DynamicPrintConfig& cfg, int plate, double slicedDepth) 
 
     // Kept on the bed, as desktop does whenever it shows the plate.
     const BoundingBoxf bed(cfg.option<ConfigOptionPoints>("printable_area")->values);
-    const double margin = WIPE_TOWER_MARGIN + cfg.opt_float("prime_tower_brim_width");
     double x = cfg.option<ConfigOptionFloats>("wipe_tower_x")->get_at(plate);
     double y = cfg.option<ConfigOptionFloats>("wipe_tower_y")->get_at(plate);
+    bool moved = false, onObject = false;
+#if !ENGINE_UPSTREAM
+    const double margin = WIPE_TOWER_MARGIN + cfg.opt_float("prime_tower_brim_width");
     if (x + margin + plannedWidth > bed.max.x()) x = bed.max.x() - plannedWidth - margin;
     else if (x < margin) x = margin;
     if (y + margin + plannedDepth > bed.max.y()) y = bed.max.y() - plannedDepth - margin;
     else if (y < margin) y = margin;
+#else
+    // OrcaSlicer 2.5's PartPlate::estimate_wipe_tower_polygon: a spot just past
+    // the edge (a drag) snaps onto it; one far off the plate (a smaller printer,
+    // another project) is placed again 15 mm in, and if that lands on an object,
+    // at the clear spot nearest where it was. GLCanvas3D::reload_scene saves the
+    // new spot and says so; the page does both with `moved`.
+    {
+        const double w = plannedWidth, d = plannedDepth;
+        double brimW = brim;
+        // A Type2 stabilization cone bulges past the body like a brim does.
+        const BoundingBox cone = get_extents(estimate_wipe_tower_first_layer_outline(cfg, resolve_wipe_tower_type(cfg), w, d, plannedHeight));
+        brimW += std::max({0., unscaled(cone.max.x()) - w, unscaled(cone.max.y()) - d, -unscaled(cone.min.x()), -unscaled(cone.min.y())});
+        const double plateW = bed.max.x(), plateD = bed.max.y();
+        const double margin = WIPE_TOWER_MARGIN + brimW;
+        const double xHi = std::max(margin, plateW - w - margin), yHi = std::max(margin, plateD - d - margin);
+        const double marginC = WIPE_TOWER_AUTO_MARGIN + brimW;
+        double xLoC = marginC, xHiC = plateW - w - marginC, yLoC = marginC, yHiC = plateD - d - marginC;
+        if (xLoC > xHiC) { xLoC = margin; xHiC = xHi; }
+        if (yLoC > yHiC) { yLoC = margin; yHiC = yHi; }
+        const double tol = 5., savedX = x, savedY = y;
+        const bool replaceX = x < margin - tol || x > xHi + tol, replaceY = y < margin - tol || y > yHi + tol;
+        x = replaceX ? std::clamp(x, xLoC, xHiC) : std::clamp(x, margin, xHi);
+        y = replaceY ? std::clamp(y, yLoC, yHiC) : std::clamp(y, margin, yHi);
+        if (replaceX || replaceY) {
+            moved = true;
+            Polygon tower({{scaled(-brimW), scaled(-brimW)}, {scaled(w + brimW), scaled(-brimW)},
+                           {scaled(w + brimW), scaled(d + brimW)}, {scaled(-brimW), scaled(d + brimW)}});
+            if (const double a = cfg.opt_float("wipe_tower_rotation_angle"); a != 0.) tower.rotate(Geometry::deg2rad(a));
+            // PartPlate::wipe_tower_obstacles: each printable object with its brim.
+            Polygons objects;
+            const Vec2d origin = pr.plateOrigin(plate);
+            for (const ModelObject* mo : pr.model.objects)
+                for (const ModelInstance* inst : mo->instances) {
+                    if (pr.plateOf(*inst) != plate || !inst->printable) continue;
+                    Polygon hull = mo->convex_hull_2d(inst->get_matrix());
+                    if (hull.size() < 3) continue;
+                    hull.translate(-scaled(origin.x()), -scaled(origin.y()));
+                    auto optionOf = [&](const char* key) {
+                        const ConfigOption* o = mo->config.option(key);
+                        return o ? o : cfg.option(key);
+                    };
+                    const ConfigOption* brimType = optionOf("brim_type");
+                    const ConfigOption* brimWidth = optionOf("brim_width");
+                    const double objBrim = brimType && brimWidth && brimType->getInt() != int(btNoBrim) ? brimWidth->getFloat() : 0.;
+                    append(objects, offset(hull, float(scaled(objBrim + WIPE_TOWER_MARGIN))));
+                }
+            const Point placed(scaled(x), scaled(y));
+            if (!nearest_clear_wipe_tower_anchor(BoundingBox(placed, placed), tower, objects, placed)) {
+                const Point saved(scaled(savedX), scaled(savedY));
+                std::optional<Point> clear = nearest_clear_wipe_tower_anchor(
+                    BoundingBox(Point(scaled(xLoC), scaled(yLoC)), Point(scaled(xHiC), scaled(yHiC))), tower, objects, saved);
+                if (!clear)
+                    clear = nearest_clear_wipe_tower_anchor(BoundingBox(Point(scaled(margin), scaled(margin)), Point(scaled(xHi), scaled(yHi))),
+                                                            tower, objects, saved);
+                if (clear) {
+                    x = unscaled(clear->x());
+                    y = unscaled(clear->y());
+                } else {
+                    onObject = true;
+                }
+            }
+        }
+    }
+#endif
 
     out = {{"show", true},
            {"x", x},
@@ -254,6 +325,7 @@ json wipeTowerFor(const DynamicPrintConfig& cfg, int plate, double slicedDepth) 
            {"rotation", cfg.opt_float("wipe_tower_rotation_angle")},
            {"brim", brim},
            {"filaments", used}};
+    if (moved) out["moved"] = onObject ? "onObject" : "free";
     return out;
 }
 
