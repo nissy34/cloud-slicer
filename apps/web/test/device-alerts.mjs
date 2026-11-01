@@ -86,15 +86,23 @@ const fakePush = (sub) => {
   // Headless Chromium reports notifications as blocked even when the permission is granted.
   Object.defineProperty(Notification, 'permission', { get: () => 'granted' });
   Notification.requestPermission = async () => 'granted';
-  let current = null;
+  // Like a real browser, the subscription outlives the page: other tabs of the site see it too.
+  const SAVED = 'test:push-key';
   const make = (key) => ({
     endpoint: sub.endpoint,
     options: { applicationServerKey: key },
     toJSON: () => ({ endpoint: sub.endpoint, keys: sub.keys }),
-    unsubscribe: async () => ((current = null), true),
+    unsubscribe: async () => (localStorage.removeItem(SAVED), true),
   });
-  PushManager.prototype.getSubscription = async () => current;
-  PushManager.prototype.subscribe = async (o) => (current = make(o.applicationServerKey.buffer ?? o.applicationServerKey));
+  PushManager.prototype.getSubscription = async () => {
+    const saved = localStorage.getItem(SAVED);
+    return saved ? make(new Uint8Array(JSON.parse(saved)).buffer) : null;
+  };
+  PushManager.prototype.subscribe = async (o) => {
+    const key = new Uint8Array(o.applicationServerKey.buffer ?? o.applicationServerKey);
+    localStorage.setItem(SAVED, JSON.stringify([...key]));
+    return make(key.buffer);
+  };
   ServiceWorkerRegistration.prototype.showNotification = async (title, o) => void window.__shown.push({ title, ...o });
 };
 
@@ -294,6 +302,27 @@ try {
   await tapped.getByTestId('printer-select').waitFor();
   if ((await currentPrinter(tapped)) !== 'Voron-mock') throw new Error('a tapped alert did not open its printer');
   console.log('a tapped alert opens the Device tab on its printer');
+
+  // Opened while the printer is still connecting (a slow network or VPN): the card reads its alerts once connected,
+  // and the read that couldn't happen yet leaves no "Not connected." behind.
+  const slow = await context.newPage();
+  failShot = slow;
+  await noWizard(slow);
+  await slow.routeWebSocket(/\/v1\/bridges\/.*\/client/, async (ws) => {
+    await new Promise((r) => setTimeout(r, 3000));
+    ws.connectToServer();
+  });
+  await slow.goto(`${site}#alert=${encodeURIComponent(`${cfg.bridgeId}.voron`)}`);
+  await slow.getByTestId('connection').filter({ hasText: 'Connected' }).waitFor({ timeout: 30_000 });
+  const slowCard = slow.getByTestId('alerts-card');
+  await slowCard.getByTestId('alert-finished').waitFor({ timeout: 30_000 });
+  await slow.waitForTimeout(1000);
+  if (await slowCard.getByText('Not connected').count()) throw new Error(`a stale "Not connected." shows while connected: ${(await slowCard.innerText()).replace(/\s+/g, ' ')}`);
+  await slowCard.getByTestId('alert-test').click();
+  await slowCard.getByText('Sent. It should show in a few seconds.').waitFor();
+  console.log('opened while connecting: no stale "Not connected.", and the test alert still sends');
+  await slow.close();
+  failShot = page;
 
   // ---- iPhone in Safari, not on the Home Screen ----------------------------------------
   const iphone = await browser.newContext({ ...devices['iPhone 13'], defaultBrowserType: undefined });

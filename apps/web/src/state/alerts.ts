@@ -82,9 +82,12 @@ function bridgeLink(): BridgeLink | null {
   return link instanceof BridgeLink ? link : null;
 }
 
+/** Whether the printer on screen is connected right now. */
+const online = () => useDevice.getState().conn.state === 'online';
+
 async function relayCall<T>(params: Record<string, unknown>): Promise<T> {
   const link = bridgeLink();
-  if (!link) throw new Error('Connect to the printer first.');
+  if (!link || !online()) throw new Error('Connect to the printer first.');
   return link.relay<T>('relay.alerts', params);
 }
 
@@ -115,6 +118,8 @@ export const useAlerts = create<AlertsState>((set, get) => {
         return;
       }
       if (problem) return set({ status: 'off', problem });
+      // The relay is asked through the printer's own connection: wait until it is up (the card reads again then).
+      if (!online()) return;
       try {
         const key = await relayPushKey(p.relay);
         if (mine !== seq) return;
@@ -124,7 +129,8 @@ export const useAlerts = create<AlertsState>((set, get) => {
         const { prefs } = await relayCall<{ prefs: unknown }>({ op: 'get', endpoint: sub.endpoint, clock: localClock() });
         if (mine !== seq) return;
         const clean = cleanPrefs(prefs);
-        set({ status: clean ? 'on' : 'off', prefs: clean, problem: null });
+        // A read that failed while connecting leaves no error behind.
+        set({ status: clean ? 'on' : 'off', prefs: clean, problem: null, error: '' });
       } catch (e) {
         if (mine === seq) set({ status: 'off', problem: 'offline', error: (e as Error).message });
       }

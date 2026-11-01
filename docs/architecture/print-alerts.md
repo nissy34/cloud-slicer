@@ -99,6 +99,9 @@ like `cameras`, is never missing when the rules run.
 - Titles are plain ("First layer done"), no hints in titles.
 - Push addresses must belong to Google, Mozilla, Apple or Microsoft.
 - Nothing about an alert is logged.
+- A bridge printer's card asks the relay only once the printer is connected (it reads
+  again when the connection changes), and a read that works clears any older error: a
+  read tried while still connecting once left a stale "Not connected." under the tiles.
 - Android Chrome 155+ asks with a small Allow bar that times out: no answer is not
   "blocked". iPhone needs the site on the Home Screen (iOS 16.4+), no pictures.
 
@@ -112,7 +115,8 @@ live was turned down. See [decisions.md](../decisions.md#device-tab).
 ## Tests
 
 `device-alerts.mjs` (UI, fakes PushManager; picks two cameras for Finished and checks the
-pushed picture is one 1280 × 480 JPEG), `alerts-live.mjs` (pretend push service,
+pushed picture is one 1280 × 480 JPEG; opens the printer with the relay socket held back
+3 s and checks no stale error shows), `alerts-live.mjs` (pretend push service,
 decrypts), bridge `alerts_test.go` and `alert_picture_test.go`.
 
 ## Open
