@@ -148,6 +148,22 @@
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+.paint-remap {
+  display: grid;
+  gap: 8px;
+  /* A line above, like desktop's separator, so it isn't read as the paint-with squares. */
+  padding-top: 8px;
+  border-top: 1px solid var(--border);
+}
+/* The small pop-up of filaments to pick from, as wide as a few squares. */
+.paint-remap-pop {
+  min-width: 0;
+  padding: var(--s-3);
+}
+.paint-remap-actions {
+  display: flex;
+  gap: 8px;
+}
 .paint-head {
   display: flex;
   align-items: center;

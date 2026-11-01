@@ -330,6 +330,7 @@ if (self.name !== 'em-pthread') {
       return json(e.clearanceJson(JSON.stringify(config), plate));
     },
     clearPaint: (e, o, kind) => (json(e.clearPaint(o, kind)), JSON.parse(e.modelInfoJson())),
+    remapPaint: (e, objects, map) => (json(e.remapPaint(JSON.stringify(objects), JSON.stringify(map))), JSON.parse(e.modelInfoJson())),
     // Undo history: {undo, redo} are the labels of the next steps, or null.
     snapshot: (e, label) => json(e.snapshot(label)),
     dropSnapshot: (e) => json(e.dropSnapshot()),

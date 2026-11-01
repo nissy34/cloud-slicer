@@ -514,6 +514,11 @@ export interface SlicerState {
   /** Paints along rays; newStroke when the pointer just went down. */
   paintStroke(rays: PaintRay[], newStroke: boolean): Promise<void>;
   clearPaint(o: number): Promise<void>;
+  /**
+   * Desktop's Remap filaments: colour paint on filament i becomes filament map[i - 1]
+   * (mixes included), on the selected object, or every object on the plate.
+   */
+  remapPaint(map: number[]): Promise<void>;
   /** Labels of the edits undo and redo would take back or redo next. */
   history: History;
   undo(): Promise<void>;
@@ -2480,6 +2485,14 @@ export const useSlicer = create<SlicerState>((set, get) => {
     undo: () => stepHistory('undo'),
     redo: () => stepHistory('redo'),
     clearPaint: (o) => projectEdit('Clear paint', () => engine().clearPaint(o, get().paint?.kind ?? 'all')),
+    async remapPaint(map) {
+      if (map.every((to, i) => to === i + 1)) return;
+      const sel = get().selected;
+      const objects = sel ? [sel.object] : (get().project?.plates[get().plate]?.objects ?? []);
+      if (!objects.length) return;
+      await projectEdit('Remap filaments', () => engine().remapPaint(objects, map));
+      if (get().job.kind !== 'error') set({ notice: 'Filament remapping finished.', noticeWarn: false });
+    },
 
     async startCalibration(mode, values) {
       const title = CALIBRATIONS.find((c) => c.mode === mode)?.title ?? mode;

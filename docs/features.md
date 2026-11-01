@@ -73,7 +73,7 @@ why: [README.md](README.md) (the docs map) and [architecture/](architecture/).
   tool picks only on those two), changes filament,
   clones, copies (Ctrl+V pastes them as a block), centres, arranges only them, auto-orients,
   toggles Printable, exports them as one STL or deletes them,
-  painting (colours, support and seam enforcers/blockers, fuzzy skin), desktop's plate
+  painting (colours, with Remap filaments for mixes too, support and seam enforcers/blockers, fuzzy skin), desktop's plate
   menu (right click or long press the plate or the space around it: add a primitive
   shape, text, an SVG, one of Orca's handy models or a model file, and on the plate
   arrange, auto orient, delete all, delete plate and rename plate, the name then shown
