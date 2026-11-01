@@ -336,6 +336,8 @@ export class EngineClient {
   /** Printing object by object: the tool head's clearance round each object on `plate` with these settings. */
   clearance = (plate: number, overrides: OrcaConfig) => this.call<Clearance>('clearance', [plate, overrides]);
   clearPaint = (o: number, kind: PaintKind | 'all') => this.call<ProjectInfo>('clearPaint', [o, kind]);
+  /** Desktop's Remap filaments: colour paint on filament i moves to map[i - 1], on these objects. */
+  remapPaint = (objects: number[], map: number[]) => this.call<ProjectInfo>('remapPaint', [objects, map]);
   /** Remembers the project before an edit called `label`, for undo. */
   snapshot = (label: string) => this.call<History>('snapshot', [label]);
   dropSnapshot = () => this.call<History>('dropSnapshot');

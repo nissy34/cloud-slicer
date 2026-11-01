@@ -635,10 +635,11 @@ jobs:
           name: preset-screenshots
           path: apps/web/preset-shots
 
-      - name: Colour mixing, loading the printer's filaments and slicing warnings end to end (Chromium, mock printer)
+      - name: Colour mixing, remapping painted filaments, loading the printer's filaments and slicing warnings end to end (Chromium, mock printer)
         if: matrix.suite == 'mixing'
         run: |
           node test/mixing.mjs
+          node test/paint-remap.mjs
           node test/sync-filaments.mjs
           node test/warnings.mjs
 
