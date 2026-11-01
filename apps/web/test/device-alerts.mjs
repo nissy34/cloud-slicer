@@ -320,6 +320,7 @@ try {
   if (await slowCard.getByText('Not connected').count()) throw new Error(`a stale "Not connected." shows while connected: ${(await slowCard.innerText()).replace(/\s+/g, ' ')}`);
   await slowCard.getByTestId('alert-test').click();
   await slowCard.getByText('Sent. It should show in a few seconds.').waitFor();
+  if (shots) await slowCard.screenshot({ path: join(shots, 'alerts-after-slow-connect-desktop.png') });
   console.log('opened while connecting: no stale "Not connected.", and the test alert still sends');
   await slow.close();
   failShot = page;
