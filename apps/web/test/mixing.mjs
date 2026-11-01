@@ -108,7 +108,21 @@ try {
     await dialog.getByRole('button', { name: '+ Add a third filament' }).click();
     const tri = dialog.getByTestId('mix-triangle');
     await tri.waitFor();
-    const tb = await tri.boundingBox();
+    // The recommendations load after the triangle shows, and the dialog sits in the
+    // middle of the screen, so the triangle moves when they arrive: wait for them
+    // and for the triangle to stay put before dragging it.
+    const n = Math.min(total, 6);
+    const expected = ((n * (n - 1) * (n - 2)) / 6) * 4;
+    await page
+      .waitForFunction((want) => document.querySelectorAll('[aria-label="Mixing recommendations"] button').length === want, expected, { timeout: 15000 })
+      .catch(() => {});
+    let tb = await tri.boundingBox();
+    for (let i = 0; i < 20; i++) {
+      await page.waitForTimeout(200);
+      const now = await tri.boundingBox();
+      if (now.x === tb.x && now.y === tb.y) break;
+      tb = now;
+    }
     // Drag to the top corner: filament 1 takes the most (90% at most).
     await page.mouse.move(tb.x + tb.width / 2, tb.y + tb.height / 2);
     await page.mouse.down();
@@ -120,8 +134,6 @@ try {
     const first = Number(/^F\d+ (\d+)%/.exec(label)?.[1]);
     if (!(first >= 70 && first <= 90)) fail(`dragging to the top corner should give the first filament 70-90%, got "${label}"`);
     const triples = await suggestions.getByRole('button').count();
-    const n = Math.min(total, 6);
-    const expected = ((n * (n - 1) * (n - 2)) / 6) * 4;
     if (triples !== expected) fail(`three-filament Ratio should recommend ${expected} triples, shows ${triples}`);
     await shot(page, 'ratio-triangle');
     await dialog.getByRole('button', { name: 'Remove this filament from the mix' }).first().click();
