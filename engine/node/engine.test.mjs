@@ -884,6 +884,30 @@ test('painting: colour, supports and seams, like the desktop paint tools', () =>
   assert.equal(m.objects[0].volumes[0].paint.seam, false);
 });
 
+test('painting: Remap filaments moves paint from one filament to another, like desktop', () => {
+  select({ printer: DEFAULT_PRINTER });
+  const m = load('3DBenchy.stl');
+  const [x, y] = m.objects[0].instances[0].offset;
+  const down = [[x, y, 200, 0, 0, -1]];
+  call(engine, 'paint', 0, JSON.stringify({ rays: down, kind: 'color', state: 2, tool: 'sphere', radius: 10 }));
+  const used = () => [...new Set(engine.previewMesh(0).filaments)].sort();
+  assert.deepEqual(used(), [1, 2]);
+
+  // Nothing painted with 3 or 4: a no-op.
+  assert.equal(call(engine, 'remapPaint', '[0]', JSON.stringify([1, 2, 4, 3])).changed, false);
+  // 2 becomes 3 (a mix's number is just one past the filaments).
+  assert.equal(call(engine, 'remapPaint', '[0]', JSON.stringify([1, 3, 3, 4])).changed, true);
+  assert.deepEqual(used(), [1, 3], 'the paint on 2 is on 3 now');
+  // A swap: 1 and 3 change places at once. The unpainted faces show as the
+  // part's filament (1), so they move with it, as desktop moves them with 1.
+  call(engine, 'remapPaint', '[0]', JSON.stringify([3, 2, 1, 4]));
+  assert.deepEqual(used(), [1, 3], 'both moved');
+  const counts = (f) => engine.previewMesh(0).filaments.filter((v) => v === f).length;
+  assert.ok(counts(3) > counts(1), 'the big unpainted area is filament 3 now');
+  assert.throws(() => call(engine, 'remapPaint', '[7]', '[1]'), /no object/);
+  call(engine, 'clearPaint', 0, 'all');
+});
+
 test('painting: height range, section view and overhangs only, like desktop', () => {
   select({ printer: DEFAULT_PRINTER });
   load('gen-cube-20.stl');

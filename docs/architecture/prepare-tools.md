@@ -89,6 +89,17 @@ Desktop Orca's Prepare tools, one by one, each backed by Orca's own code.
   clipping plane). Support painting has Highlight overhangs (faces whose normal points down
   past the angle, TriangleSelector's own test, drawn over the parts) and On overhangs only
   (the engine's `highlight_by_angle`).
+- Remap filaments (colour painting, desktop's `GLGizmoMmuSegmentation::render_filament_remap_ui`):
+  a row of squares, one per filament and mix, each in the colour and number of the
+  filament its paint becomes; tapping one opens a small pop-up of every filament to pick
+  from. Remap moves all of them at once (so 1 and 2 can swap) as one undo step and says
+  "Filament remapping finished."; Cancel leaves the paint. The engine's `remapPaint`
+  (`paint_api.cpp`) runs TriangleSelector's `remap_triangle_state` on every part, as desktop
+  does. Mixes are just the numbers after the filaments, so they remap the same way. It
+  changes the selected object, or every object on the plate when none is selected (desktop's
+  tool always has one object). One difference: desktop also moves the unpainted faces when
+  filament 1 moves (they show as 1 there); here they move with the part's own filament,
+  the one they show and print with, which is 1 unless the part is set to another.
 - Long-press menus ignore clicks until a press starts on the menu, or lifting the finger
   picks an item.
 - Edits that take a while show the loading screen (`busyWhile` in `store.ts`) until the

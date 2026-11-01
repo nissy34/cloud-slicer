@@ -1,8 +1,10 @@
-import { useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import type { PaintKind, PaintSettings, PaintTool } from '../engine/protocol';
 import { NO_COLOURS, useOption, useSlicer } from '../state/store';
 import { Swatch } from './Swatch';
 import { Slider } from './Slider';
+import { Menu } from './Menu';
+import { filamentChoices } from '../lib/filament-choices';
 
 /** The card's title: the toolbar button that opened it says what is painted. */
 const TITLES: Record<PaintKind, string> = {
@@ -42,6 +44,9 @@ export function PaintPanel() {
   // Physical filaments, then the colour mixes: paint with either.
   const colours = useSlicer((s) => (s.palette.length ? s.palette : (s.selection?.colours ?? NO_COLOURS)));
   const physical = useSlicer((s) => s.selection?.filaments.length ?? 1);
+  const presets = useSlicer((s) => s.selection?.filaments ?? NO_COLOURS);
+  // Desktop's Remap filaments: while open, the filament each one becomes (1-based).
+  const [remap, setRemap] = useState<number[] | null>(null);
   const selected = useSlicer((s) => s.selected);
   const project = useSlicer((s) => s.project);
   const preview = useSlicer((s) => s.preview);
@@ -189,11 +194,111 @@ export function PaintPanel() {
       <p className="muted hint">
         {brush ? 'Drag on a part to paint. Drag off the parts to turn the view.' : paint.tool === 'height' ? 'Tap a part where the band starts.' : 'Tap a part to fill.'} Esc finishes.
       </p>
+      {colour && (
+        <RemapFilaments
+          remap={remap}
+          setRemap={setRemap}
+          colours={colours}
+          presets={presets}
+          physical={physical}
+          where={object && selected ? object.name || 'this object' : 'the objects on this plate'}
+        />
+      )}
       {object && selected && (
         <button className="secondary paint-clear" title={object.name} onClick={() => void clearPaint(selected.object)}>
           Clear {KIND_WORDS[paint.kind]} paint on {object.name || 'this object'}
         </button>
       )}
     </section>
+  );
+}
+
+type RemapProps = {
+  remap: number[] | null;
+  setRemap(remap: number[] | null): void;
+  colours: readonly string[];
+  presets: readonly string[];
+  physical: number;
+  /** What it changes, for the tooltip: the selected object or the plate's objects. */
+  where: string;
+};
+
+/**
+ * Desktop's "Remap filaments" (GLGizmoMmuSegmentation::render_filament_remap_ui):
+ * a square per filament, mixes included, in the colour and number of the filament
+ * its paint becomes; tapping one opens a small pop-up of every filament to pick
+ * from. Remap changes them all at once (so 1 and 2 can swap); Cancel leaves the paint.
+ */
+function RemapFilaments({ remap, setRemap, colours, presets, physical, where }: RemapProps) {
+  const remapPaint = useSlicer((s) => s.remapPaint);
+  const names = filamentChoices(colours, presets, physical).map((o) => o.label);
+  if (!remap)
+    return (
+      <button className="secondary paint-remap" title={`Moves the paint on ${where} from one filament to another`} onClick={() => setRemap(colours.map((_, i) => i + 1))}>
+        Remap filaments
+      </button>
+    );
+  // The row follows the filaments, if one was added or removed while it was open.
+  const to = colours.map((_, i) => (remap[i] && remap[i] <= colours.length ? remap[i] : i + 1));
+  const label = (n: number) => `${n}: ${names[n - 1] ?? ''}`;
+  return (
+    <div className="paint-remap" role="group" aria-label="Remap filaments">
+      <div className="paint-filaments">
+        {to.map((dst, i) => (
+          <Menu
+            key={i}
+            role="dialog"
+            label={`Filament ${i + 1} becomes`}
+            placement="bottom"
+            className="paint-remap-pop"
+            button={(props, open) => (
+              <button
+                {...props}
+                className={open ? 'on' : ''}
+                aria-label={`Filament ${i + 1} becomes ${dst}`}
+                title={dst === i + 1 ? `${label(i + 1)} stays` : `${label(i + 1)} becomes ${label(dst)}`}
+              >
+                <Swatch colour={colours[dst - 1]} number={dst} size="lg" />
+              </button>
+            )}
+          >
+            {(close) => (
+              <div className="paint-filaments" role="radiogroup" aria-label={`Filament ${i + 1} becomes`}>
+                {colours.map((c, k) => (
+                  <button
+                    key={k}
+                    role="radio"
+                    aria-checked={dst === k + 1}
+                    aria-label={`Filament ${k + 1}`}
+                    title={label(k + 1)}
+                    className={dst === k + 1 ? 'on' : ''}
+                    onClick={() => {
+                      setRemap(to.map((d, j) => (j === i ? k + 1 : d)));
+                      close();
+                    }}
+                  >
+                    <Swatch colour={c} number={k + 1} size="lg" />
+                  </button>
+                ))}
+              </div>
+            )}
+          </Menu>
+        ))}
+      </div>
+      <div className="paint-remap-actions">
+        <button
+          className="primary"
+          onClick={() => {
+            setRemap(null);
+            void remapPaint(to);
+          }}
+        >
+          Remap
+        </button>
+        <button className="secondary" onClick={() => setRemap(null)}>
+          Cancel
+        </button>
+      </div>
+    </div>
   );
 }

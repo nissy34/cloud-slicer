@@ -281,6 +281,54 @@ std::string clearPaint(int o, const std::string& kind) {
     }
 }
 
+// Desktop's "Remap filaments" in the colour painting tool
+// (GLGizmoMmuSegmentation::remap_filament_assignments): every face painted
+// with filament i takes filament map[i - 1] instead, on every part of the
+// objects. Mixes are filaments past the physical ones, so they remap the
+// same way. Desktop also moves unpainted faces when filament 1 moves (they
+// show as filament 1 there); here they move with the part's own filament,
+// the one they show and print with, which is filament 1 unless set.
+// Returns {ok, changed}.
+std::string remapPaint(const std::string& objectsJson, const std::string& mapJson) {
+    try {
+        const json objects = json::parse(objectsJson);
+        const json map = json::parse(mapJson);
+        constexpr size_t MAX = size_t(EnforcerBlockerType::ExtruderMax);
+        EnforcerBlockerStateMap states;
+        for (size_t i = 0; i < states.size(); ++i) states[i] = EnforcerBlockerType(i);
+        for (size_t src = 1; src <= std::min(map.size(), MAX); ++src) {
+            const int dst = map[src - 1].get<int>();
+            if (dst >= 1 && size_t(dst) <= MAX) states[src] = EnforcerBlockerType(dst);
+        }
+        auto& objs = pr().model.objects;
+        bool changed = false;
+        for (const json& oj : objects) {
+            const int o = oj.get<int>();
+            if (o < 0 || size_t(o) >= objs.size()) throw std::runtime_error("no object " + std::to_string(o));
+            for (ModelVolume* v : objs[o]->volumes) {
+                if (!v->is_model_part()) continue;
+                EnforcerBlockerStateMap to = states;
+                const size_t own = size_t(std::clamp(v->extruder_id(), 1, int(MAX)));
+                if (to[own] != EnforcerBlockerType(own)) to[0] = to[own];
+                FacetsAnnotation& f = v->mmu_segmentation_facets;
+                bool moves = to[0] != EnforcerBlockerType::NONE;
+                if (!f.empty())
+                    for (size_t e : v->get_extruders_from_multi_material_painting())
+                        moves |= e + 1 < to.size() && to[e + 1] != EnforcerBlockerType(e + 1);
+                if (!moves) continue;
+                TriangleSelector sel(v->mesh());
+                if (!f.empty()) sel.deserialize(f.get_data(), false);
+                sel.remap_triangle_state(to);
+                f.set(sel);
+                changed = true;
+            }
+        }
+        return json{{"ok", true}, {"changed", changed}}.dump();
+    } catch (const std::exception& e) {
+        return fail(e.what());
+    }
+}
+
 // Support, seam or fuzzy skin paint on `plate`, to draw over the parts:
 // {positions: Float32Array (9 floats / triangle, plate coordinates),
 //  states: Uint8Array (1 enforce / 2 block per triangle)}.
@@ -322,5 +370,6 @@ emscripten::val paintOverlay(int plate, const std::string& kind) {
 EMSCRIPTEN_BINDINGS(paint_api) {
     emscripten::function("paint", &paint);
     emscripten::function("clearPaint", &clearPaint);
+    emscripten::function("remapPaint", &remapPaint);
     emscripten::function("paintOverlay", &paintOverlay);
 }
