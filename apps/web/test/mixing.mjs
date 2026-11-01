@@ -112,13 +112,21 @@ try {
     await dialog.getByRole('button', { name: '+ Add a third filament' }).click();
     const tri = dialog.getByTestId('mix-triangle');
     await tri.waitFor();
-    // The triples' colours come from the engine one by one; the grid grows the
-    // dialog (and moves the triangle) until they are all in, so wait for them.
+    // The recommendations load after the triangle shows, and the dialog sits in the
+    // middle of the screen, so the triangle moves when they arrive: wait for them
+    // and for the triangle to stay put before dragging it.
     const n = Math.min(total, 6);
     const expected = ((n * (n - 1) * (n - 2)) / 6) * 4;
-    for (let i = 0; i < 100 && (await suggestions.getByRole('button').count()) !== expected; i++) await page.waitForTimeout(150);
-    await page.waitForTimeout(300);
-    const tb = await tri.boundingBox();
+    await page
+      .waitForFunction((want) => document.querySelectorAll('[aria-label="Mixing recommendations"] button').length === want, expected, { timeout: 15000 })
+      .catch(() => {});
+    let tb = await tri.boundingBox();
+    for (let i = 0; i < 20; i++) {
+      await page.waitForTimeout(200);
+      const now = await tri.boundingBox();
+      if (now.x === tb.x && now.y === tb.y) break;
+      tb = now;
+    }
     // Drag to the top corner: filament 1 takes the most (90% at most).
     await page.mouse.move(tb.x + tb.width / 2, tb.y + tb.height / 2);
     await page.mouse.down();
