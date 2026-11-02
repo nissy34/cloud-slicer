@@ -259,12 +259,19 @@ messages gets base64 pieces of 512 KiB (`bridge.upload_chunk`). Cancel in the
 Send window calls `bridge.upload_cancel`, which stops the request to Moonraker
 (even once every byte is here), so the printer keeps nothing.
 
-**Cameras** (`camera.go`): the page sends a WebRTC offer as `bridge.camera_open`
-and the camera then comes straight from this computer to the browser, never over
-the relay. A camera with its own live H.264 video (camera-streamer, MediaMTX,
+**The direct link** (`link.go`): each page makes ONE WebRTC connection to the
+bridge (`bridge.link_open`, its offer carries 4 receive-only video slots and a
+first data channel) and everything that goes straight shares it: cameras,
+printer pages (channel `page`) and uploads (channel `upload:<id>`). A new camera
+is one short relay call (`bridge.link_camera`, answered with its slot and
+whether video or pictures come), never a new connection. When the link drops the
+page makes a new one, which replaces the old (`link_close` ends it on purpose).
+
+**Cameras** (`camera.go`, `link.go`): the camera comes straight from this
+computer to the browser over the direct link, never over the relay. A camera with its own live H.264 video (camera-streamer, MediaMTX,
 go2rtc, and the paxx12 U1 firmware at `/webcam/webrtc`) is forwarded packet for
-packet, without re-encoding; any other camera is sent as pictures over a data
-channel, up to 15 a second. Both sides find each other with a public STUN server,
+packet, without re-encoding, on the camera's video slot; any other camera is
+sent as pictures on channel `frames:<slot>`, up to 15 a second. Both sides find each other with a public STUN server,
 so it usually works away from home too; where a network blocks direct links the
 page falls back to `bridge.snapshot`, one picture a second over the relay.
 Camera addresses Moonraker lists as paths (`/webcam/...`) are opened the way

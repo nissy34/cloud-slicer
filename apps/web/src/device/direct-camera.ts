@@ -1,21 +1,14 @@
-// A camera straight from the bridge to this browser: the offer and answer go
-// over the relay once (bridge.camera_open), then the picture comes over its
-// own WebRTC connection and never crosses the relay. The bridge sends the
-// camera's own live video when it has one, and otherwise pictures over a data
-// channel, each cut into pieces whose first byte is 1 on a picture's last piece.
+// A camera straight from the bridge to this browser, on the page's direct link
+// to it (shared-link.ts): one short relay call (bridge.link_camera) starts it,
+// then the picture comes over the link and never crosses the relay. The bridge
+// sends the camera's own live video on one of the link's video slots when it
+// has one, and otherwise pictures on channel "frames:<slot>", each cut into
+// pieces whose first byte is 1 on a picture's last piece.
 import type { DirectCamera } from './camera';
-import type { DirectAnswer } from './link/types';
-import { STUN, gathered, watchLink } from './webrtc';
+import type { SharedLink } from './shared-link';
 
-/** How long the direct link gets to show something before the camera falls back to the relay. */
+/** How long the camera gets to show something before it falls back to the relay. */
 export const DIRECT_TIMEOUT_MS = 12_000;
-
-export interface DirectBridge {
-  cameraOpen(camera: DirectCamera, sdp: string): Promise<DirectAnswer>;
-  cameraClose(id: string): void;
-  /** The link is up: an upload to the same bridge can ride it. Returns its undo. */
-  linked?(pc: RTCPeerConnection): () => void;
-}
 
 export interface DirectPlayer {
   mode: 'video' | 'pictures';
@@ -45,62 +38,68 @@ export function pictureAssembler(): (piece: Uint8Array) => Uint8Array | null {
 }
 
 /**
- * Connects and resolves once the first video or picture has arrived. Rejects
- * (and cleans up) when it can't, so the caller can fall back to the relay;
- * `onLost` fires if a link that was up drops later.
+ * Starts the camera on the direct link (making the link if there is none) and
+ * resolves once the first video or picture has arrived. Rejects (and cleans
+ * up) when it can't, so the caller can fall back to the relay; `onLost` fires
+ * if the link drops later.
  */
 export async function playDirect(
-  bridge: DirectBridge,
+  link: SharedLink,
   camera: DirectCamera,
   show: { video: HTMLVideoElement; picture(blob: Blob): void; onLost(): void },
 ): Promise<DirectPlayer> {
-  const pc = new RTCPeerConnection({ iceServers: STUN });
-  let id = '';
   let stopped = false;
-  let unlink: (() => void) | undefined;
-  let unwatch = () => {};
+  let slot = -1;
+  let frames: RTCDataChannel | undefined;
+  let undrop = () => {};
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const timeout = new Promise<never>((_, reject) => {
+    timer = setTimeout(() => reject(new Error('The direct camera link did not connect in time.')), DIRECT_TIMEOUT_MS);
+  });
+  timeout.catch(() => {});
+  const up = await Promise.race([link.ready(), timeout]).catch((e: unknown) => {
+    clearTimeout(timer);
+    throw e;
+  });
   const stop = () => {
     if (stopped) return;
     stopped = true;
-    unwatch();
-    unlink?.();
-    pc.close();
+    undrop();
+    frames?.close();
     show.video.srcObject = null;
-    if (id) bridge.cameraClose(id);
+    if (slot >= 0) link.cameraClose(up, slot);
   };
-  pc.addTransceiver('video', { direction: 'recvonly' });
-  const frames = pc.createDataChannel('frames');
-  frames.binaryType = 'arraybuffer';
-  const assemble = pictureAssembler();
-  let timer: ReturnType<typeof setTimeout> | undefined;
-  const first = new Promise<void>((resolve, reject) => {
-    timer = setTimeout(() => reject(new Error('The direct camera link did not connect in time.')), DIRECT_TIMEOUT_MS);
-    pc.ontrack = (e) => {
-      if (e.track.kind !== 'video') return;
-      show.video.srcObject = e.streams[0] ?? new MediaStream([e.track]);
-      show.video.addEventListener('loadeddata', () => resolve(), { once: true });
-    };
-    frames.onmessage = (e) => {
-      if (typeof e.data === 'string') return;
-      const picture = assemble(new Uint8Array(e.data as ArrayBuffer));
-      if (!picture) return;
-      show.picture(new Blob([picture as BlobPart], { type: 'image/jpeg' }));
-      resolve();
-    };
-    unwatch = watchLink(pc, () => {
-      reject(new Error('The direct camera link failed.'));
-      if (!stopped) show.onLost();
-    });
+  undrop = link.onDrop(() => {
+    if (stopped) return;
+    stop();
+    show.onLost();
   });
   try {
-    await pc.setLocalDescription(await pc.createOffer());
-    await gathered(pc);
-    const answer = await bridge.cameraOpen(camera, pc.localDescription?.sdp ?? '');
-    id = answer.id;
-    await pc.setRemoteDescription({ type: 'answer', sdp: answer.sdp });
-    await first;
-    unlink = bridge.linked?.(pc);
-    return { mode: answer.mode, stop };
+    const started = await Promise.race([link.camera(up, camera), timeout]);
+    slot = started.slot;
+    if (stopped) throw new Error('The direct link closed.');
+    const first = new Promise<void>((resolve) => {
+      if (started.mode === 'video') {
+        const stream = up.video(slot);
+        if (!stream) throw new Error('The direct link has no video for this camera.');
+        show.video.srcObject = stream;
+        show.video.addEventListener('loadeddata', () => resolve(), { once: true });
+        return;
+      }
+      const assemble = pictureAssembler();
+      const dc = up.pc.createDataChannel(`frames:${slot}`);
+      frames = dc;
+      dc.binaryType = 'arraybuffer';
+      dc.onmessage = (e) => {
+        if (typeof e.data === 'string') return;
+        const picture = assemble(new Uint8Array(e.data as ArrayBuffer));
+        if (!picture) return;
+        show.picture(new Blob([picture as BlobPart], { type: 'image/jpeg' }));
+        resolve();
+      };
+    });
+    await Promise.race([first, timeout]);
+    return { mode: started.mode, stop };
   } catch (e) {
     stop();
     throw e;

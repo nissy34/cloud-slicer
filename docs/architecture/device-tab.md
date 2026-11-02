@@ -23,7 +23,7 @@ OctoPrint, Elegoo Centauri Carbon and Bambu Lab printers through the bridge.
 | Add-ons per printer family | `device/addons/` (`u1`, `prusa`, `octoprint`, `elegoo`, `bambu`), `types.ts` |
 | Kinds of printer, "Which printers work?" (its table starts folded in the add-a-printer window) | `device/brands.ts`, `ui/WorksWith.tsx` |
 | Tool heads, filament slots, "From printer", the printer's filaments at the top of each Filament list | `device/heads.ts`, `slots.ts`, `lib/filament-sync.ts`, `components/FilamentSync.tsx` |
-| Cameras | `device/camera.ts`, `direct-camera.ts`, `webrtc.ts`, `ui/CameraCard.tsx` |
+| Cameras | `device/camera.ts`, `direct-camera.ts`, `shared-link.ts`, `webrtc.ts`, `ui/CameraCard.tsx` |
 | Page cards (a printer's own page, e.g. its remote screen) | `device/printer-page.ts`, `ui/PrinterPage.tsx`, relay `page-shell.ts` |
 | Layout and Arrange | `device/layout.ts`, `ui/Arrange.tsx`, `ui/DeviceScreen.tsx` |
 | Skip objects | `device/objects.ts`, `ui/SkipObjects.tsx` |
@@ -64,6 +64,13 @@ setting `device-layout.<printer id>`, per-device conveniences in browser storage
 - A WebRTC camera (straight from the printer or the bridge's direct link) ends only on
   "failed", or after 6 s of "disconnected" (`watchLink` in `webrtc.ts`): that state often
   mends itself on phones and Wi-Fi, and giving up at once made the camera flap.
+- Through a bridge, the page holds ONE direct WebRTC link to it (`shared-link.ts`,
+  bridge `link.go`): every camera (a video slot or a pictures channel), printer page and
+  upload rides it. One connection to set up, one rule for drops: when it drops, cameras
+  start again on a new link still showing their last picture, pages go over the relay
+  and try the direct link again after 5 s. A link that never connects means the network
+  blocks direct links: cameras show relay pictures with the "Slow camera" note and the
+  next try waits 20 s.
 - Each printer has its own layout; a new printer starts from the default; removing a
   printer removes its layout.
 - The top row keeps the printer and the layout apart. Printer things live in the printer

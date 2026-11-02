@@ -5,7 +5,8 @@ import { cameraCardOf, type CamCardId } from '../layout';
 import type { CameraHints } from '../addons/types';
 import type { PrinterSession } from '../session';
 import { playWebrtc } from '../webrtc';
-import { playDirect, type DirectBridge } from '../direct-camera';
+import { playDirect } from '../direct-camera';
+import type { SharedLink } from '../shared-link';
 import { Card, useFolded } from './parts';
 import { CameraOff } from 'lucide-react';
 import { Empty } from '../../components/Empty';
@@ -231,9 +232,6 @@ function CameraTile({
     setNote('');
   }, [cam, viaBridge]);
   const view = views[index];
-  const blocked = note === NETWORK_BLOCKS;
-  // While this camera shows pictures over the relay because direct links are blocked, uploads don't try one either.
-  useEffect(() => (blocked ? session.link.directBlocked?.() : undefined), [blocked, session]);
   const next = (why?: string) => {
     if (view?.kind === 'direct') setNote(why && /Unknown bridge call/.test(why) ? 'Slow camera: update the bridge for a smooth one.' : NETWORK_BLOCKS);
     setIndex((i) => i + 1);
@@ -267,11 +265,9 @@ function CameraTile({
   );
 }
 
-/** The bridge link's direct camera calls, or null on a link that has none. */
-function directBridge(session: PrinterSession): DirectBridge | null {
-  const link = session.link;
-  if (!link.cameraOpen || !link.cameraClose) return null;
-  return { cameraOpen: (c, sdp) => link.cameraOpen!(c, sdp), cameraClose: (id) => link.cameraClose!(id), linked: link.directLinked && ((pc) => link.directLinked!(pc)) };
+/** The bridge link's shared direct link, or null on a link that has none. */
+function directBridge(session: PrinterSession): SharedLink | null {
+  return session.link.shared ?? null;
 }
 
 function ViewFor({ view, session, transform, onFail }: { view: CameraView; session: PrinterSession; transform: string; onFail(why?: string): void }) {
@@ -322,7 +318,8 @@ function WebrtcView({ protocol, url, style, onFail }: { protocol: Parameters<typ
 
 /**
  * The camera straight from the bridge: live video, or pictures as fast as the
- * camera makes them. Falls back (onFail) when the link can't be made or drops.
+ * camera makes them. When the link drops it starts again on a new one, still
+ * showing the last picture; falls back (onFail) when a link can't be made.
  */
 function DirectView({
   view,
@@ -340,23 +337,21 @@ function DirectView({
   fail.current = onFail;
   const [mode, setMode] = useState<'video' | 'pictures' | null>(null);
   const [frame, setFrame] = useState<string | null>(null);
+  // Counts links this camera has started on: a dropped link starts it again.
+  const [attempt, setAttempt] = useState(0);
   useEffect(() => {
     const bridge = directBridge(session);
     if (!video.current || !bridge) return;
     let cancelled = false;
     let stop: (() => void) | null = null;
-    let shown: string | null = null;
     playDirect(bridge, view.camera, {
       video: video.current,
       picture: (blob) => {
         if (cancelled) return;
-        const next = URL.createObjectURL(blob);
-        if (shown) URL.revokeObjectURL(shown);
-        shown = next;
-        setFrame(next);
+        setFrame(URL.createObjectURL(blob));
         setMode('pictures');
       },
-      onLost: () => !cancelled && fail.current('lost'),
+      onLost: () => !cancelled && setAttempt((a) => a + 1),
     })
       .then((p) => {
         if (cancelled) return p.stop();
@@ -367,9 +362,10 @@ function DirectView({
     return () => {
       cancelled = true;
       stop?.();
-      if (shown) URL.revokeObjectURL(shown);
     };
-  }, [view, session]);
+  }, [view, session, attempt]);
+  // Each picture's address is let go once the next one shows (or the camera goes); the last stays up while the camera starts again.
+  useEffect(() => () => void (frame && URL.revokeObjectURL(frame)), [frame]);
   return (
     <>
       <video ref={video} autoPlay muted playsInline style={style} hidden={mode !== 'video'} data-testid={mode === 'video' ? 'camera-frame' : undefined} data-view="direct-video" />

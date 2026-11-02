@@ -26,7 +26,7 @@ export type CameraView =
   | { kind: 'snapshots'; url: string; fps: number }
   | { kind: 'direct'; camera: DirectCamera };
 
-/** What the bridge needs to send a camera straight to this browser (bridge.camera_open). */
+/** What the bridge needs to send a camera straight to this browser (bridge.link_camera). */
 export interface DirectCamera {
   service: string;
   streamUrl: string;

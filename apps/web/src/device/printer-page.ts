@@ -9,16 +9,18 @@
 // about three times a second over the direct link, once a second over the relay,
 // and again at once after a tap. Over the relay a page stops after a data limit.
 import type { PageAnswer, PageRequest } from './link/types';
-import { STUN, gathered } from './webrtc';
+import type { SharedLink } from './shared-link';
 
 export interface PageBridge {
   pageFetch(req: PageRequest): Promise<PageAnswer>;
-  pageOpen?(sdp: string): Promise<{ id: string; sdp: string }>;
-  pageClose?(id: string): void;
+  /** The page's direct link to the bridge, when it has one; pages ride it on channel "page". */
+  shared?: SharedLink;
 }
 
 /** How long the direct link gets to connect; the page meanwhile goes over the relay. */
 export const DIRECT_PAGE_TIMEOUT_MS = 12_000;
+/** After the direct link drops, the page tries it again this soon (meanwhile over the relay). */
+export const DIRECT_PAGE_RETRY_MS = 5000;
 /** Over the relay, a picture the page already has is asked for again at most this often. */
 export const RELAY_RECHECK_MS = 1000;
 /** Over the direct link, the same: the printer works out each answer, so it isn't asked ten times a second. */
@@ -106,20 +108,28 @@ function toBase64(buf: ArrayBuffer): string {
   return btoa(s);
 }
 
-/** A direct WebRTC link to the bridge for page requests; resolves once its channel is open. */
-async function openDirect(bridge: Required<PageBridge>, onLost: () => void): Promise<DirectPageLink> {
-  const pc = new RTCPeerConnection({ iceServers: STUN });
-  const dc = pc.createDataChannel('page');
+/** Page requests on a channel of the shared direct link (made if needed); resolves once the channel is open. */
+async function openDirect(shared: SharedLink, onLost: () => void): Promise<DirectPageLink> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const late = new Promise<never>((_, fail) => {
+    timer = setTimeout(() => fail(new Error('The direct page link did not connect in time.')), DIRECT_PAGE_TIMEOUT_MS);
+  });
+  late.catch(() => {});
+  const up = await Promise.race([shared.ready(), late]).catch((e: unknown) => {
+    clearTimeout(timer);
+    throw e;
+  });
+  const dc = up.pc.createDataChannel('page');
   dc.binaryType = 'arraybuffer';
-  let id = '';
   let closed = false;
+  let undrop = () => {};
   let seq = 0;
   const waiting = new Map<number, { head?: { status: number; headers: Record<string, string> }; ok(a: PageAnswer): void; fail(e: Error): void }>();
   const close = () => {
     if (closed) return;
     closed = true;
-    pc.close();
-    if (id) bridge.pageClose(id);
+    undrop();
+    dc.close();
     for (const w of waiting.values()) w.fail(new Error('The direct page link closed.'));
     waiting.clear();
   };
@@ -149,24 +159,20 @@ async function openDirect(bridge: Required<PageBridge>, onLost: () => void): Pro
     waiting.delete(done.id);
     w.ok({ ...w.head, body: done.body });
   };
-  pc.onconnectionstatechange = () => {
-    if (!closed && (pc.connectionState === 'failed' || pc.connectionState === 'disconnected')) {
-      close();
-      onLost();
-    }
+  const lost = () => {
+    if (closed) return;
+    close();
+    onLost();
   };
-  let timer: ReturnType<typeof setTimeout> | undefined;
+  undrop = shared.onDrop(lost);
+  dc.onclose = lost;
   try {
-    const open = new Promise<void>((ok, fail) => {
-      timer = setTimeout(() => fail(new Error('The direct page link did not connect in time.')), DIRECT_PAGE_TIMEOUT_MS);
-      dc.onopen = () => ok();
-    });
-    await pc.setLocalDescription(await pc.createOffer());
-    await gathered(pc);
-    const answer = await bridge.pageOpen(pc.localDescription?.sdp ?? '');
-    id = answer.id;
-    await pc.setRemoteDescription({ type: 'answer', sdp: answer.sdp });
-    await open;
+    await Promise.race([
+      new Promise<void>((ok) => {
+        dc.onopen = () => ok();
+      }),
+      late,
+    ]);
   } catch (e) {
     close();
     throw e;
@@ -194,11 +200,16 @@ export function pageCarrier(bridge: PageBridge, onRoute: (route: PageRoute) => v
   let stopped = false;
   let relayed = 0;
   const cache = conditionalCache();
-  onRoute('connecting');
-  if (bridge.pageOpen && bridge.pageClose && typeof RTCPeerConnection !== 'undefined') {
-    openDirect(bridge as Required<PageBridge>, () => {
+  let retry: ReturnType<typeof setTimeout> | undefined;
+  const shared = typeof RTCPeerConnection !== 'undefined' ? bridge.shared : undefined;
+  const tryDirect = () => {
+    if (!shared || stopped) return;
+    openDirect(shared, () => {
       direct = null;
-      if (!stopped) onRoute('relay');
+      if (stopped) return;
+      onRoute('relay');
+      // The link dropped: the relay carries on while a new one is made.
+      retry = setTimeout(tryDirect, DIRECT_PAGE_RETRY_MS);
     })
       .then((d) => {
         if (stopped) return d.close();
@@ -206,7 +217,10 @@ export function pageCarrier(bridge: PageBridge, onRoute: (route: PageRoute) => v
         onRoute('direct');
       })
       .catch(() => !stopped && onRoute('relay'));
-  } else onRoute('relay');
+  };
+  onRoute('connecting');
+  if (shared) tryDirect();
+  else onRoute('relay');
 
   const viaRelay = async (r: PageRequest): Promise<PageAnswer> => {
     const kept = cache.answer(r, RELAY_RECHECK_MS);
@@ -236,6 +250,7 @@ export function pageCarrier(bridge: PageBridge, onRoute: (route: PageRoute) => v
     },
     close() {
       stopped = true;
+      clearTimeout(retry);
       direct?.close();
       direct = null;
     },

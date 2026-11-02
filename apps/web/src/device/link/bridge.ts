@@ -4,14 +4,15 @@
 // The relay is a dumb pipe, so this speaks plain Moonraker JSON-RPC; upload
 // and camera frames become bridge.* calls the agent answers itself.
 import type { DirectCamera } from '../camera';
-import { LinkError, type BridgeStatus, type DirectAnswer, type LinkHandlers, type PageAnswer, type PageRequest, type PrinterLink, type RpcMessage, type UploadStage } from './types';
+import { SharedLink } from '../shared-link';
+import { LinkError, type BridgeStatus, type LinkHandlers, type PageAnswer, type PageRequest, type PrinterLink, type RpcMessage, type UploadStage } from './types';
 import {
   DirectUploadRefused,
   STREAM_PIECE,
   STREAM_WINDOW,
   UPLOAD_CHUNK,
   UPLOAD_PIECE,
-  cameraDirectUpload,
+  linkDirectUpload,
   encodePiece,
   gzipped,
   offerDirectUpload,
@@ -168,6 +169,7 @@ export class BridgeLink implements PrinterLink {
   }
 
   close() {
+    this.shared.close();
     if (this.renewTimer) clearTimeout(this.renewTimer);
     this.renewTimer = null;
     const ws = this.ws;
@@ -206,40 +208,30 @@ export class BridgeLink implements PrinterLink {
     });
   }
 
-  /** Cameras' direct links to this bridge that are up: an upload rides one at once. */
-  private cameraLinks = new Set<RTCPeerConnection>();
-  /** Cameras showing pictures over the relay because this network blocks direct links. */
-  private blockedCameras = 0;
-
-  directLinked(pc: RTCPeerConnection) {
-    this.cameraLinks.add(pc);
-    return () => void this.cameraLinks.delete(pc);
-  }
-
-  directBlocked() {
-    this.blockedCameras++;
-    let undone = false;
-    return () => {
-      if (!undone) this.blockedCameras--;
-      undone = true;
-    };
-  }
+  /** The page's direct link to this bridge (shared-link.ts): cameras, printer pages and uploads ride it. */
+  readonly shared = new SharedLink({
+    linkOpen: (sdp) => this.call('bridge.link_open', { sdp }, 15_000),
+    linkClose: (id) => void this.call('bridge.link_close', { id }, 5000).catch(() => {}),
+    // The bridge first tries the camera's own live video, which can take a few seconds.
+    linkCamera: (link, camera: DirectCamera) => this.call('bridge.link_camera', { ...camera, link }, 15_000),
+    linkCameraClose: (link, slot) => void this.call('bridge.link_camera_close', { link, slot }, 5000).catch(() => {}),
+  });
 
   async upload(blob: Blob, path: string, onProgress?: (f: number) => void, signal?: AbortSignal, onStage?: (stage: UploadStage) => void): Promise<string> {
     const cancelled = () => new LinkError('Upload cancelled.', 'network');
     onStage?.('zipping');
     const zip = await gzipped(blob);
     const wire = zip ?? blob;
-    const camera = [...this.cameraLinks].find((pc) => pc.connectionState === 'connected');
-    // A camera's link is up: ride it. A camera fell back to the relay: direct links are blocked here, don't wait on one.
-    const blocked = !camera && (this.blockedCameras > 0 || typeof RTCPeerConnection !== 'function');
+    const onLink = this.shared.current();
+    // The direct link is up: ride it. Its last try didn't connect: direct links are blocked here, don't wait on one.
+    const blocked = !onLink && (this.shared.blocked || typeof RTCPeerConnection !== 'function');
     onStage?.(blocked ? 'relay' : 'direct');
-    const own = camera || blocked ? null : await offerDirectUpload();
+    const own = onLink || blocked ? null : await offerDirectUpload();
     if (signal?.aborted) {
       own?.close();
       throw cancelled();
     }
-    let start: { uploadId: string; sdp?: string; stream?: boolean; camera?: boolean };
+    let start: { uploadId: string; sdp?: string; stream?: boolean; link?: boolean };
     try {
       start = await this.call('bridge.upload_start', { path, size: blob.size, wire: wire.size, zipped: !!zip, sdp: own?.sdp ?? '' }, 15_000);
     } catch (e) {
@@ -249,8 +241,8 @@ export class BridgeLink implements PrinterLink {
       throw e;
     }
     const { uploadId } = start;
-    // An older bridge doesn't take uploads over a camera's link.
-    const direct: DirectUpload | null = own && start.sdp ? own : camera && start.camera ? cameraDirectUpload(camera, uploadId) : null;
+    // An older bridge doesn't take uploads over the direct link.
+    const direct: DirectUpload | null = own && start.sdp ? own : onLink && start.link ? linkDirectUpload(onLink.pc, uploadId) : null;
     if (own && own !== direct) own.close();
     // Stopping: the bridge drops the upload, so Moonraker gets an incomplete file and keeps nothing.
     const stop = () => {
@@ -372,15 +364,6 @@ export class BridgeLink implements PrinterLink {
     return new Blob([fromBase64(r.data) as BlobPart], { type: r.contentType || 'image/jpeg' });
   }
 
-  cameraOpen(camera: DirectCamera, sdp: string): Promise<DirectAnswer> {
-    // The bridge first tries the camera's own live video, which can take a few seconds.
-    return this.call<DirectAnswer>('bridge.camera_open', { ...camera, sdp }, 15_000);
-  }
-
-  cameraClose(id: string) {
-    this.call('bridge.camera_close', { id }, 5000).catch(() => {});
-  }
-
   /**
    * Printer pages are held on the relay's own address, away from the site; a
    * relay on a name next to the site's says where else to hold them (/v1/info "pages").
@@ -406,13 +389,5 @@ export class BridgeLink implements PrinterLink {
     );
     const bytes = fromBase64(r.data ?? '');
     return { status: r.status, headers: r.headers ?? {}, body: bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength) as ArrayBuffer };
-  }
-
-  pageOpen(sdp: string): Promise<{ id: string; sdp: string }> {
-    return this.call('bridge.page_open', { sdp }, 15_000);
-  }
-
-  pageClose(id: string) {
-    this.call('bridge.page_close', { id }, 5000).catch(() => {});
   }
 }

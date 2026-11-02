@@ -42,7 +42,7 @@ function PageView({ cam, link, onError }: { cam: Webcam; link: PrinterLink; onEr
   useEffect(() => {
     if (!host) return;
     const carrier = pageCarrier(
-      { pageFetch: (r) => link.pageFetch!(r), pageOpen: link.pageOpen && ((sdp) => link.pageOpen!(sdp)), pageClose: link.pageClose && ((id) => link.pageClose!(id)) },
+      { pageFetch: (r) => link.pageFetch!(r), shared: link.shared },
       setRoute,
     );
     const channel = new MessageChannel();
