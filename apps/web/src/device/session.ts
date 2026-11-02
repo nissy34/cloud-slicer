@@ -4,7 +4,7 @@
 import { detectAddons, type PrinterAddon, type PrinterError, type PrinterFacts } from './addons';
 import type { BridgeStatus, PrinterLink, RpcMessage, UploadStage } from './link/types';
 import { parseWebcams, type Webcam } from './camera';
-import { TIMELAPSE_ROOTS, fileAddress, pickTimelapses, type RangeReader, type Timelapse } from './timelapse';
+import { TIMELAPSE_ROOTS, fileAddress, mergeCopies, pickTimelapses, type RangeReader, type Timelapse } from './timelapse';
 import { genericObjects, mergeStatus, type KlipperObjects } from './status';
 
 export type ConnState = 'connecting' | 'online' | 'offline';
@@ -335,7 +335,7 @@ export class PrinterSession {
       ),
     );
     if (found.every((f) => f == null)) return null;
-    return found.flatMap((f) => f ?? []).sort((a, b) => b.modified - a.modified);
+    return mergeCopies(found.flatMap((f) => f ?? []));
   }
 
   /** Reads a timelapse video or its picture a Range at a time; null when this link can't fetch files. */
@@ -348,7 +348,12 @@ export class PrinterSession {
 
   async deleteTimelapse(t: Timelapse) {
     await this.rpc('server.files.delete_file', { path: `${t.root}/${t.path}` });
-    if (t.picture) await this.rpc('server.files.delete_file', { path: `${t.root}/${t.picture}` }).catch(() => {});
+    if (t.picture) await this.rpc('server.files.delete_file', { path: `${t.pictureRoot ?? t.root}/${t.picture}` }).catch(() => {});
+    // The same video elsewhere goes too (it may be the same file, already gone).
+    for (const c of t.copies ?? []) {
+      await this.rpc('server.files.delete_file', { path: `${c.root}/${c.path}` }).catch(() => {});
+      if (c.picture && c.picture !== t.picture) await this.rpc('server.files.delete_file', { path: `${c.root}/${c.picture}` }).catch(() => {});
+    }
   }
 
   deleteFile(path: string) {

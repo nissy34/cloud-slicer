@@ -5,7 +5,7 @@
 // fixed pieces (PIECE), a few at once, and kept for the page's life, so
 // watching or downloading again costs nothing. Through a bridge the pieces come over a direct
 // link when one connects, else over the relay, which only takes videos up to
-// RELAY_VIDEO_LIMIT; row pictures never go over the relay.
+// RELAY_VIDEO_LIMIT. Row pictures come either way (one small message each).
 import type { PageAnswer, PageRequest } from './link/types';
 import { LinkError } from './link/types';
 import { openDirect, PageRefused, type DirectPageLink, type PageBridge } from './printer-page';
@@ -22,6 +22,33 @@ export interface Timelapse {
   size: number;
   /** The add-on's still picture beside the video ("benchy_20261102.jpg"), when there is one. */
   picture?: string;
+  /** The folder the picture is in, when it isn't the video's own. */
+  pictureRoot?: TimelapseRoot;
+  /** The same video found elsewhere on the printer (another folder or subfolder): deleted with it. */
+  copies?: { root: TimelapseRoot; path: string; picture?: string }[];
+}
+
+const nameOnly = (p: string) => p.split('/').pop() ?? p;
+
+/**
+ * One row per video: the same file name and size in two places (the U1 can
+ * list a video in two folders) is one timelapse, kept where its path is shortest.
+ */
+export function mergeCopies(list: Timelapse[]): Timelapse[] {
+  const rows = new Map<string, Timelapse>();
+  for (const t of [...list].sort((a, b) => a.path.length - b.path.length)) {
+    const key = `${nameOnly(t.path)}|${t.size}`;
+    const first = rows.get(key);
+    if (!first) rows.set(key, { ...t });
+    else {
+      (first.copies ??= []).push({ root: t.root, path: t.path, ...(t.picture ? { picture: t.picture } : {}) });
+      if (!first.picture && t.picture) {
+        first.picture = t.picture;
+        first.pictureRoot = t.root;
+      }
+    }
+  }
+  return [...rows.values()].sort((a, b) => b.modified - a.modified);
 }
 
 /** Videos above this never go through the relay: only over a direct link. */
@@ -69,7 +96,7 @@ export function fileAddress(root: string, path: string): string {
 export type FileRoute = 'direct' | 'relay';
 
 export interface ReadOptions {
-  /** Never through the relay (row pictures, videos over RELAY_VIDEO_LIMIT). */
+  /** Never through the relay (videos over RELAY_VIDEO_LIMIT). */
   directOnly?: boolean;
   signal?: AbortSignal;
 }

@@ -46,6 +46,7 @@ users (4 hours of status and 1 hour of camera each).
 - Timelapse videos too; when the direct link is blocked they come through the relay in
   512 KiB pieces (a 50 MB video is about 200 messages, some 10 requests), only up to
   200 MB each, and a fetched video is kept so watching or downloading again costs nothing.
+  Row pictures too: one request and answer each, kept for the page's life.
 - Rate limits: 60 connects and 5 new bridge ids a minute per IP; 20 alert browsers,
   120 alerts and 30 pictures an hour per bridge; 120 print reports an hour per bridge.
 - Cameras through the relay (pictures, `bridge.snapshot`): at most the ticket's `cams`

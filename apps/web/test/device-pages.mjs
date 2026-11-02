@@ -193,15 +193,12 @@ try {
     if (opened > (viaRelay ? 0 : 1)) throw new Error(`folding the page card reconnected the cameras (${opened} new direct links)`);
     console.log(`${label}: folding the page card stops it and leaves the cameras alone`);
 
-    // Timelapses: the Files card's tab lists them; row pictures only without the relay.
+    // Timelapses: the Files card's tab lists them, with row pictures either way.
     const filesCard = page.getByTestId('files-card');
     await filesCard.getByTestId('timelapses-tab').click();
     const lapses = filesCard.getByTestId('timelapse-list');
     await lapses.getByRole('button', { name: 'benchy.webm', exact: true }).waitFor({ timeout: 30_000 });
-    if (viaRelay) {
-      await new Promise((r) => setTimeout(r, 2000));
-      if (await lapses.locator('.dv-file-thumb img').count()) throw new Error('a row picture came through the relay');
-    } else await until('the row picture shows', async () => (await lapses.locator('.dv-file-thumb img').count()) === 1, 30_000);
+    await until('the row picture shows', async () => (await lapses.locator('.dv-file-thumb img').count()) === 1, 30_000);
     const pieces = printer.stats.lapsePieces ?? 0;
     await lapses.getByRole('button', { name: 'benchy.webm', exact: true }).click();
     const player = page.getByTestId('timelapse-player');
@@ -224,7 +221,7 @@ try {
     await video.waitFor({ timeout: 10_000 });
     if (printer.stats.lapsePieces !== again) throw new Error('watching the video again fetched it again');
     await player.getByRole('button', { name: 'Close window' }).click();
-    console.log(`${label}: the timelapse played and downloaded (${asked} pieces ${viaRelay ? 'over the relay' : 'over the direct link'}), row picture ${viaRelay ? 'left out' : 'shown'}`);
+    console.log(`${label}: the timelapse played and downloaded (${asked} pieces ${viaRelay ? 'over the relay' : 'over the direct link'}), row picture shown`);
     if (viaRelay) {
       await lapses.getByRole('button', { name: 'Delete older.webm' }).click();
       await page.getByRole('button', { name: 'Delete timelapse' }).click();

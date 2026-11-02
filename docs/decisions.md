@@ -116,7 +116,8 @@ down. Add a line with the date when a new choice is made.
   200 MB; row pictures never go through the relay. A link from the Finished alert: maybe later.
   After the first real-U1 try: Save renamed Download, a dark video-shaped box with a thin
   bar while it arrives. Playing as it arrives was built and dropped (stalled on mobile data
-  and too complicated): fetch whole, then play, as Fluidd does.
+  and too complicated): fetch whole, then play, as Fluidd does. Row pictures over the relay
+  too (Nissan, 2026-11-02: one small message each).
 - Alerts: choices stay per device; a new device starts from the last saved (2026-10-22).
   Titles plain, no hints (2026-10-26). Cameras per alert (2026-10-30): any alert, up to
   four cameras joined into one picture (one notification, not one per camera); settings

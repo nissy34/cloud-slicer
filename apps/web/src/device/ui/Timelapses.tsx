@@ -1,7 +1,6 @@
 // The Files card's Timelapses tab: the printer's timelapse videos, newest
 // first. Tap one to watch it (fetched whole, then played, as Fluidd does),
-// download it, or delete it. Row pictures come only when they can be
-// fetched without the relay.
+// download it, or delete it. Row pictures come over the direct link or the relay.
 import { useEffect, useState } from 'react';
 import { ChevronLeft, ChevronRight, Film, RefreshCw } from 'lucide-react';
 import { currentSession, useDevice } from '../../state/device';
@@ -37,8 +36,8 @@ function RowPicture({ t }: { t: Timelapse }) {
   const printer = useDevice((s) => s.activeId);
   const [blob, setBlob] = useState<Blob | null>(null);
   useEffect(() => {
-    // Never over the relay: no picture beats spending relay data on one.
-    const src = t.picture ? sourceFor(printer, t, t.picture, 0, true) : null;
+    // Over the relay too: a picture is one small message.
+    const src = t.picture ? sourceFor(printer, { ...t, root: t.pictureRoot ?? t.root }, t.picture, 0) : null;
     if (!src) return;
     let live = true;
     src.all().then((b) => live && setBlob(b), () => {});
