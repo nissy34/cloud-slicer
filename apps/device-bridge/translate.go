@@ -223,6 +223,7 @@ func startStandIn(p Printer) (*standIn, error) {
 	mux.HandleFunc("/printer/info", s.servePrinterInfo)
 	mux.HandleFunc("/server/files/upload", s.serveUpload)
 	mux.HandleFunc("/server/files/gcodes/", s.serveThumbnail)
+	mux.HandleFunc("/server/files/timelapse/", s.serveTimelapse)
 	mux.HandleFunc("/camera/", s.serveCamera)
 	s.srv = &http.Server{Handler: mux, ReadHeaderTimeout: 10 * time.Second}
 	go func() { _ = s.srv.Serve(ln) }()
@@ -490,6 +491,7 @@ func (s *standIn) call(ctx context.Context, c *standInClient, method string, par
 	var p struct {
 		Filename string         `json:"filename"`
 		Path     string         `json:"path"`
+		Root     string         `json:"root"`
 		Objects  map[string]any `json:"objects"`
 		Script   string         `json:"script"`
 		Message  map[string]any `json:"message"`
@@ -544,6 +546,17 @@ func (s *standIn) call(ctx context.Context, c *standInClient, method string, par
 	case "printer.print.cancel":
 		return done(s.b.cancel(ctx))
 	case "server.files.list":
+		if p.Root != "" && p.Root != "gcodes" {
+			t, ok := s.b.(timelapser)
+			if p.Root != "timelapse" || !ok {
+				return nil, fmt.Errorf("Invalid root: %s", p.Root)
+			}
+			files, err := t.timelapses(ctx)
+			if files == nil && err == nil {
+				files = []brandFile{}
+			}
+			return files, err
+		}
 		files, err := s.b.files(ctx)
 		if err != nil {
 			return nil, err
@@ -555,6 +568,17 @@ func (s *standIn) call(ctx context.Context, c *standInClient, method string, par
 	case "server.files.metadata":
 		return s.b.metadata(ctx, gcodePath(p.Filename))
 	case "server.files.delete_file":
+		if rel := timelapseRel(p.Path); strings.HasPrefix(rel, "timelapse/") {
+			t, ok := s.b.(timelapser)
+			if !ok {
+				return nil, fmt.Errorf("%w: %s", errNoMethod, method)
+			}
+			name := strings.TrimPrefix(rel, "timelapse/")
+			if err := t.removeTimelapse(ctx, name); err != nil {
+				return nil, err
+			}
+			return map[string]any{"item": map[string]any{"root": "timelapse", "path": name}, "action": "delete_file"}, nil
+		}
 		path := gcodePath(p.Path)
 		if err := s.b.remove(ctx, path); err != nil {
 			return nil, err
@@ -742,6 +766,31 @@ func (s *standIn) serveUpload(w http.ResponseWriter, r *http.Request) {
 		s.filesChanged("create_file", name)
 		writeJSON(w, http.StatusCreated, map[string]any{"result": map[string]any{"item": map[string]any{"path": name, "root": "gcodes"}, "action": "create_file"}})
 		return
+	}
+}
+
+// serveTimelapse passes on one timelapse video (or a piece of it, by Range) from the printer.
+func (s *standIn) serveTimelapse(w http.ResponseWriter, r *http.Request) {
+	t, ok := s.b.(timelapser)
+	rel := timelapseRel(strings.TrimPrefix(r.URL.Path, "/server/files/"))
+	if !ok || rel == "" {
+		http.NotFound(w, r)
+		return
+	}
+	res, err := t.timelapseOpen(r.Context(), strings.TrimPrefix(rel, "timelapse/"), r.Header.Get("Range"))
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadGateway)
+		return
+	}
+	defer res.Body.Close()
+	for _, h := range []string{"Content-Type", "Content-Length", "Content-Range", "Accept-Ranges", "Last-Modified", "ETag"} {
+		if v := res.Header.Get(h); v != "" {
+			w.Header().Set(h, v)
+		}
+	}
+	w.WriteHeader(res.StatusCode)
+	if r.Method != http.MethodHead {
+		_, _ = io.Copy(w, res.Body)
 	}
 }
 

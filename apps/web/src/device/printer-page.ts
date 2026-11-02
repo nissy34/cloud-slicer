@@ -96,7 +96,7 @@ export class PageLimit extends Error {}
 /** The bridge's own answer that a request can't be done (not a lost link): the relay would say the same. */
 export class PageRefused extends Error {}
 
-interface DirectPageLink {
+export interface DirectPageLink {
   fetch(r: PageRequest): Promise<PageAnswer>;
   close(): void;
 }
@@ -109,7 +109,7 @@ function toBase64(buf: ArrayBuffer): string {
 }
 
 /** Page requests on a channel of the shared direct link (made if needed); resolves once the channel is open. */
-async function openDirect(shared: SharedLink, onLost: () => void): Promise<DirectPageLink> {
+export async function openDirect(shared: SharedLink, onLost: () => void): Promise<DirectPageLink> {
   let timer: ReturnType<typeof setTimeout> | undefined;
   const late = new Promise<never>((_, fail) => {
     timer = setTimeout(() => fail(new Error('The direct page link did not connect in time.')), DIRECT_PAGE_TIMEOUT_MS);

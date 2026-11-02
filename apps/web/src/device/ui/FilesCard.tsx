@@ -7,12 +7,14 @@ import { Card, useConfirm } from './parts';
 import { ChevronLeft, ChevronRight, FileCode } from 'lucide-react';
 import { Swatch } from '../../components/Swatch';
 import { Empty } from '../../components/Empty';
+import type { Timelapse } from '../timelapse';
+import { TimelapseList } from './Timelapses';
 
-function size(bytes: number) {
+export function fileSize(bytes: number) {
   return bytes >= 1 << 20 ? `${(bytes / (1 << 20)).toFixed(1)} MB` : `${Math.max(1, Math.round(bytes / 1024))} KB`;
 }
 
-function when(seconds: number) {
+export function fileWhen(seconds: number) {
   const d = new Date(seconds * 1000);
   const today = new Date();
   return d.toDateString() === today.toDateString() ? d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : d.toLocaleDateString();
@@ -69,7 +71,7 @@ function FileRow({ file: f, onPrint, onDelete }: { file: GcodeFile; onPrint(): v
       <span className="dv-file-thumb" aria-hidden="true">
         {d?.thumb ? <img src={d.thumb} alt="" /> : null}
       </span>
-      <span className="dv-file-name" title={`${f.path} · ${size(f.size)}`}>
+      <span className="dv-file-name" title={`${f.path} · ${fileSize(f.size)}`}>
         {f.path}
       </span>
       <span className="muted dv-file-meta" data-testid="file-meta">
@@ -83,7 +85,7 @@ function FileRow({ file: f, onPrint, onDelete }: { file: GcodeFile; onPrint(): v
             {grams > 0 ? ` ${formatGrams(grams)}` : ''}
           </span>
         ) : null}
-        <span>{when(f.modified)}</span>
+        <span>{fileWhen(f.modified)}</span>
       </span>
       <span className="dv-file-actions">
         <button className="quiet" onClick={onPrint}>
@@ -95,6 +97,35 @@ function FileRow({ file: f, onPrint, onDelete }: { file: GcodeFile; onPrint(): v
       </span>
     </li>
   );
+}
+
+/**
+ * The printer's timelapses, asked once a printer is online and again on
+ * Refresh (not on every file change: the U1 rewrites its camera folder
+ * several times a second). Null while unknown or when the printer keeps none.
+ */
+function useTimelapses() {
+  const printer = useDevice((s) => s.activeId);
+  const online = useDevice((s) => s.conn.state === 'online');
+  const [list, setList] = useState<Timelapse[] | null>(null);
+  const [asked, setAsked] = useState(0);
+  useEffect(() => {
+    setList(null);
+  }, [printer]);
+  useEffect(() => {
+    const s = currentSession();
+    if (!online || !s) return;
+    let live = true;
+    void s.listTimelapses().then((l) => live && setList(l), () => {});
+    return () => {
+      live = false;
+    };
+  }, [printer, online, asked]);
+  return {
+    list,
+    refresh: () => setAsked((n) => n + 1),
+    removed: (t: Timelapse) => setList((l) => l && l.filter((x) => x.root !== t.root || x.path !== t.path)),
+  };
 }
 
 /** Rows per page, as in Fluidd. The list is newest first (Session.listFiles). */
@@ -109,6 +140,8 @@ export function FilesCard() {
   const { confirm, dialog } = useConfirm();
   const [query, setQuery] = useState('');
   const [page, setPage] = useState(0);
+  const [tab, setTab] = useState<'gcode' | 'timelapses'>('gcode');
+  const timelapses = useTimelapses();
 
   const q = query.trim().toLowerCase();
   const shown = files && q ? files.filter((f) => f.path.toLowerCase().includes(q)) : (files ?? []);
@@ -140,7 +173,19 @@ export function FilesCard() {
         </>
       }
     >
-      {files == null ? (
+      {timelapses.list && (
+        <div className="line-tabs dv-files-tabs" role="tablist" aria-label="Files">
+          <button role="tab" aria-selected={tab === 'gcode'} onClick={() => setTab('gcode')}>
+            G-code
+          </button>
+          <button role="tab" aria-selected={tab === 'timelapses'} data-testid="timelapses-tab" onClick={() => setTab('timelapses')}>
+            Timelapses
+          </button>
+        </div>
+      )}
+      {tab === 'timelapses' && timelapses.list ? (
+        <TimelapseList list={timelapses.list} onRefresh={timelapses.refresh} onDeleted={timelapses.removed} />
+      ) : files == null ? (
         <p className="muted">…</p>
       ) : files.length === 0 ? (
         <Empty icon={FileCode} text="No G-code files yet." />
