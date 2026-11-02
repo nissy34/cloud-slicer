@@ -61,6 +61,9 @@ setting `device-layout.<printer id>`, per-device conveniences in browser storage
 - Generic over printer-specific: filament "loaded" comes from Klipper's filament sensors
   matched by name, not a U1-only flag.
 - A folded camera or page card streams and loads nothing.
+- A WebRTC camera (straight from the printer or the bridge's direct link) ends only on
+  "failed", or after 6 s of "disconnected" (`watchLink` in `webrtc.ts`): that state often
+  mends itself on phones and Wi-Fi, and giving up at once made the camera flap.
 - Each printer has its own layout; a new printer starts from the default; removing a
   printer removes its layout.
 - The top row keeps the printer and the layout apart. Printer things live in the printer

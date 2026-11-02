@@ -5,7 +5,7 @@
 // channel, each cut into pieces whose first byte is 1 on a picture's last piece.
 import type { DirectCamera } from './camera';
 import type { DirectAnswer } from './link/types';
-import { STUN, gathered } from './webrtc';
+import { STUN, gathered, watchLink } from './webrtc';
 
 /** How long the direct link gets to show something before the camera falls back to the relay. */
 export const DIRECT_TIMEOUT_MS = 12_000;
@@ -58,9 +58,11 @@ export async function playDirect(
   let id = '';
   let stopped = false;
   let unlink: (() => void) | undefined;
+  let unwatch = () => {};
   const stop = () => {
     if (stopped) return;
     stopped = true;
+    unwatch();
     unlink?.();
     pc.close();
     show.video.srcObject = null;
@@ -85,10 +87,10 @@ export async function playDirect(
       show.picture(new Blob([picture as BlobPart], { type: 'image/jpeg' }));
       resolve();
     };
-    pc.onconnectionstatechange = () => {
-      if (pc.connectionState === 'failed') reject(new Error('The direct camera link failed.'));
-      if (!stopped && (pc.connectionState === 'failed' || pc.connectionState === 'disconnected')) show.onLost();
-    };
+    unwatch = watchLink(pc, () => {
+      reject(new Error('The direct camera link failed.'));
+      if (!stopped) show.onLost();
+    });
   });
   try {
     await pc.setLocalDescription(await pc.createOffer());
