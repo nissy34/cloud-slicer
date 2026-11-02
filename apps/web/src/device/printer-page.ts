@@ -9,7 +9,7 @@
 // about three times a second over the direct link, once a second over the relay,
 // and again at once after a tap. Over the relay a page stops after a data limit.
 import type { PageAnswer, PageRequest } from './link/types';
-import { STUN, gathered } from './webrtc';
+import { STUN, gathered, watchLink } from './webrtc';
 
 export interface PageBridge {
   pageFetch(req: PageRequest): Promise<PageAnswer>;
@@ -94,7 +94,7 @@ export class PageLimit extends Error {}
 /** The bridge's own answer that a request can't be done (not a lost link): the relay would say the same. */
 export class PageRefused extends Error {}
 
-interface DirectPageLink {
+export interface DirectPageLink {
   fetch(r: PageRequest): Promise<PageAnswer>;
   close(): void;
 }
@@ -107,7 +107,7 @@ function toBase64(buf: ArrayBuffer): string {
 }
 
 /** A direct WebRTC link to the bridge for page requests; resolves once its channel is open. */
-async function openDirect(bridge: Required<PageBridge>, onLost: () => void): Promise<DirectPageLink> {
+export async function openDirect(bridge: Required<PageBridge>, onLost: () => void): Promise<DirectPageLink> {
   const pc = new RTCPeerConnection({ iceServers: STUN });
   const dc = pc.createDataChannel('page');
   dc.binaryType = 'arraybuffer';
@@ -149,12 +149,12 @@ async function openDirect(bridge: Required<PageBridge>, onLost: () => void): Pro
     waiting.delete(done.id);
     w.ok({ ...w.head, body: done.body });
   };
-  pc.onconnectionstatechange = () => {
-    if (!closed && (pc.connectionState === 'failed' || pc.connectionState === 'disconnected')) {
-      close();
-      onLost();
-    }
-  };
+  // "disconnected" gets a few seconds to mend before the link counts as lost.
+  watchLink(pc, () => {
+    if (closed) return;
+    close();
+    onLost();
+  });
   let timer: ReturnType<typeof setTimeout> | undefined;
   try {
     const open = new Promise<void>((ok, fail) => {

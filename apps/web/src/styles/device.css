@@ -1400,6 +1400,75 @@
   gap: 12px;
   align-items: center;
 }
+/* Timelapses tab (ui/Timelapses.tsx): the name opens the player. */
+.dv-timelapse-name {
+  border: 0;
+  padding: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.dv-timelapse-name:hover {
+  color: var(--accent);
+}
+.dv-file-thumb:has(.dv-file-thumb-icon) {
+  display: grid;
+  place-items: center;
+  color: var(--muted);
+}
+.dv-timelapse-title {
+  display: block;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+/* The player: a dark video-shaped box, with a thin bar while the video starts. */
+.dv-timelapse-stage {
+  position: relative;
+  aspect-ratio: 16 / 9;
+  max-height: 70vh;
+  border-radius: var(--r-md);
+  overflow: hidden;
+  background: var(--media-bg);
+}
+.dv-timelapse-video {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  background: var(--media-bg);
+}
+.dv-timelapse-arriving {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-content: center;
+  justify-items: center;
+  gap: 8px;
+  padding: 0 24px;
+  color: var(--on-media);
+  font-size: var(--t-sm);
+  pointer-events: none;
+}
+.dv-timelapse-bar {
+  width: min(240px, 60vw);
+  height: 3px;
+  border-radius: var(--r-full);
+  overflow: hidden;
+  background: var(--on-media-track);
+}
+.dv-timelapse-bar span {
+  display: block;
+  height: 100%;
+  background: var(--on-media);
+  transition: width 0.2s;
+}
+.dv-files-tabs {
+  margin-bottom: var(--s-3);
+}
 .dv-files-search {
   width: 100%;
   margin-bottom: var(--s-3);
