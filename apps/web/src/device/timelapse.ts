@@ -35,6 +35,12 @@ export const PIECE = 512 * 1024;
 const PARALLEL = 3;
 /** How long a direct link gets to connect before a video goes over the relay. */
 export const DIRECT_WAIT_MS = 12_000;
+/** After a direct link drops, how long reads use the relay before trying a direct link again. */
+const REOPEN_AFTER_MS = 20_000;
+/** Pieces read ahead of what the player asked for, so it doesn't wait on each one. */
+const AHEAD = 6;
+/** What the player holds before it starts: a few seconds of a typical timelapse. */
+export const START_BUFFER = 2 * 1024 * 1024;
 /** A direct link with nothing to fetch closes after this long. */
 const DIRECT_IDLE_MS = 60_000;
 
@@ -99,6 +105,14 @@ export function rangeAnswer(status: number, body: Uint8Array, total: number | nu
 
 const TOO_BIG = 'This video is too big to fetch through the relay. Open the app on the printer’s network to watch it.';
 
+/** A stuck direct piece goes to the relay after this long. */
+const DIRECT_PIECE_MS = 15_000;
+
+function withTimeout<T>(p: Promise<T>, ms: number): Promise<T> {
+  let t: ReturnType<typeof setTimeout> | undefined;
+  return Promise.race([p, new Promise<T>((_, fail) => (t = setTimeout(() => fail(new Error('The direct link stalled.')), ms)))]).finally(() => clearTimeout(t));
+}
+
 /** Thrown when the bridge is too old to pass on timelapse files. */
 const OLD_BRIDGE = 'Update the bridge to watch timelapses: Printers and bridges, then Update now.';
 
@@ -114,17 +128,28 @@ export class BridgeFiles {
 
   constructor(private readonly bridge: PageBridge) {}
 
-  private link(): Promise<DirectPageLink | null> {
+  /** When the last direct link dropped: until it is back, reads go over the relay without waiting for it. */
+  private droppedAt = 0;
+
+  private link(wait: boolean): Promise<DirectPageLink | null> {
     if (this.closed || !this.bridge.pageOpen || !this.bridge.pageClose || typeof RTCPeerConnection === 'undefined') return Promise.resolve(null);
     if (!this.direct) {
+      // Right after a drop, don't try again on every piece.
+      if (Date.now() - this.droppedAt < REOPEN_AFTER_MS && !wait) return Promise.resolve(null);
       const opening = openDirect(this.bridge as Required<PageBridge>, () => {
         if (this.direct === opening) this.direct = null;
+        this.droppedAt = Date.now();
       }).catch(() => {
         // Blocked this time; the next read tries again.
         if (this.direct === opening) this.direct = null;
         return null;
       });
       this.direct = opening;
+    }
+    if (this.droppedAt && !wait) {
+      // A link coming back after a drop: use the relay until it is open.
+      const d = this.direct;
+      return Promise.race([d, Promise.resolve(null)]);
     }
     return this.direct;
   }
@@ -134,16 +159,17 @@ export class BridgeFiles {
     clearTimeout(this.idle);
     try {
       const req: PageRequest = { method: 'GET', path, headers: { Range: `bytes=${start}-${end}` } };
-      const direct = await this.link();
+      const direct = await this.link(!!o.directOnly);
       if (o.signal?.aborted) throw new DOMException('Stopped', 'AbortError');
       let a: PageAnswer | null = null;
       let route: FileRoute = 'direct';
       try {
-        if (direct) a = await direct.fetch(req);
+        if (direct) a = await withTimeout(direct.fetch(req), DIRECT_PIECE_MS);
       } catch (e) {
         if (e instanceof PageRefused) throw new LinkError(/not part of a page/.test(e.message) ? OLD_BRIDGE : e.message, 'bridge');
         // The direct link dropped: the relay answers this one.
         this.direct = null;
+        this.droppedAt = Date.now();
       }
       if (!a) {
         if (o.directOnly) throw new LinkError('No direct link to the bridge.', 'blocked');
@@ -228,11 +254,26 @@ export class VideoSource {
   /** Bytes from `start`, as far as its piece goes (and not past `end`). */
   async range(start: number, end?: number): Promise<{ start: number; end: number; bytes: Uint8Array }> {
     const i = Math.floor(start / PIECE);
-    const p = await this.piece(i);
+    const pending = this.piece(i);
+    // The player reads on from here: fetch the next few now so it doesn't stop at each piece.
+    const last = Math.ceil(this.size / PIECE) - 1;
+    for (let k = i + 1; k <= Math.min(last, i + AHEAD); k++) this.piece(k).catch(() => {});
+    const p = await pending;
     const from = start - i * PIECE;
     const to = Math.min(p.length, end == null ? p.length : end - i * PIECE + 1);
     const bytes = p.subarray(from, Math.max(from, to));
     return { start, end: start + bytes.length - 1, bytes };
+  }
+
+  /** The first `bytes` of the file (or all of a smaller one), so the player has some in hand before it starts. */
+  async buffer(bytes: number, onProgress?: (fraction: number) => void): Promise<void> {
+    const count = Math.max(1, Math.min(Math.ceil(bytes / PIECE), Math.ceil(this.size / PIECE)));
+    let done = 0;
+    await Promise.all(
+      Array.from({ length: count }, (_, i) =>
+        this.piece(i).then(() => onProgress?.(++done / count)),
+      ),
+    );
   }
 
   /** The whole file, a few pieces at a time. */

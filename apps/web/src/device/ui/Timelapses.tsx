@@ -8,7 +8,7 @@ import { currentSession, useDevice } from '../../state/device';
 import { Dialog } from '../../components/Dialog';
 import { Empty } from '../../components/Empty';
 import { Note } from '../../components/Note';
-import { forgetSource, playable, stopStream, streamUrl, videoSource, videoType, VideoSource, type FileRoute, type Timelapse } from '../timelapse';
+import { START_BUFFER, forgetSource, playable, stopStream, streamUrl, videoSource, videoType, VideoSource, type FileRoute, type Timelapse } from '../timelapse';
 import { FILES_PER_PAGE, fileSize, fileWhen } from './FilesCard';
 
 const keyOf = (printer: string | null, t: Timelapse, file: string) => `${printer}:${t.root}/${file}@${t.modified}`;
@@ -74,6 +74,7 @@ function Player({ t, onClose, onDelete }: { t: Timelapse; onClose(): void; onDel
   const canPlay = playable(t.path);
   const [src] = useState(() => sourceFor(printer, t, t.path, t.size));
   const [url, setUrl] = useState<string | null>(null);
+  const [streamable, setStreamable] = useState(false);
   // Fetching the whole video before it plays: only when the app's service worker can't stream it.
   const [whole, setWhole] = useState<number | null>(null);
   const [blob, setBlob] = useState<Blob | null>(null);
@@ -91,8 +92,16 @@ function Player({ t, onClose, onDelete }: { t: Timelapse; onClose(): void; onDel
     let stream: string | null = null;
     if (canPlay) {
       stream = streamUrl(src);
-      if (stream) setUrl(stream);
-      else {
+      if (stream) {
+        // Hold a little before it starts, so it doesn't stop again a second later.
+        const go = stream;
+        setStreamable(true);
+        setWhole(0);
+        src.buffer(START_BUFFER, (f) => live && setWhole(f)).then(
+          () => live && setUrl(go),
+          (e: Error) => live && setError(e.message || 'The video could not be fetched.'),
+        );
+      } else {
         setWhole(0);
         src.all((f) => live && setWhole(f)).then(
           (b) => live && setBlob(b),
@@ -157,16 +166,20 @@ function Player({ t, onClose, onDelete }: { t: Timelapse; onClose(): void; onDel
             <video
               className="dv-timelapse-video"
               src={playUrl}
-              controls
+              // The browser's own controls (and its spinner) only once it can play: before that, just our bar.
+              controls={started}
               autoPlay
               playsInline
               muted
               data-testid="timelapse-video"
-              onLoadedData={() => setStarted(true)}
+              onLoadedData={(e) => {
+                setStarted(true);
+                e.currentTarget.play().catch(() => {});
+              }}
               onError={() => setError(src?.lastError?.message || 'The video could not be played.')}
             />
           )}
-          {!started && <Arriving fraction={whole} size={t.size} route={route} />}
+          {!started && <Arriving fraction={whole} size={url || !streamable ? t.size : Math.min(START_BUFFER, t.size)} route={route} />}
         </div>
       ) : (
         <Note>This kind of video doesn’t play in the browser. Download it to watch it.</Note>

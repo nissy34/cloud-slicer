@@ -19,6 +19,8 @@ export interface PageBridge {
 
 /** How long the direct link gets to connect; the page meanwhile goes over the relay. */
 export const DIRECT_PAGE_TIMEOUT_MS = 12_000;
+/** How long a dropped direct link gets to come back before it counts as lost. */
+const DIRECT_MEND_MS = 6_000;
 /** Over the relay, a picture the page already has is asked for again at most this often. */
 export const RELAY_RECHECK_MS = 1000;
 /** Over the direct link, the same: the printer works out each answer, so it isn't asked ten times a second. */
@@ -149,11 +151,17 @@ export async function openDirect(bridge: Required<PageBridge>, onLost: () => voi
     waiting.delete(done.id);
     w.ok({ ...w.head, body: done.body });
   };
+  // "disconnected" often mends itself (a phone on mobile data, a busy moment): give it a few seconds.
+  let mending: ReturnType<typeof setTimeout> | undefined;
+  const lost = () => {
+    if (closed) return;
+    close();
+    onLost();
+  };
   pc.onconnectionstatechange = () => {
-    if (!closed && (pc.connectionState === 'failed' || pc.connectionState === 'disconnected')) {
-      close();
-      onLost();
-    }
+    clearTimeout(mending);
+    if (pc.connectionState === 'failed') lost();
+    else if (pc.connectionState === 'disconnected') mending = setTimeout(lost, DIRECT_MEND_MS);
   };
   let timer: ReturnType<typeof setTimeout> | undefined;
   try {

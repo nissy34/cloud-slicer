@@ -89,14 +89,18 @@ function reader(bytes: Uint8Array) {
 }
 
 describe('VideoSource', () => {
-  it('reads only the pieces asked for, and each once', async () => {
-    const bytes = counting(PIECE * 3 + 7);
+  it('reads from where the player is, a few pieces ahead, each once', async () => {
+    const bytes = counting(PIECE * 20 + 7);
     const r = reader(bytes);
     const src = new VideoSource(r.read, bytes.length, 'video/mp4');
     const a = await src.range(PIECE * 2 + 5, PIECE * 2 + 9);
     expect([...a.bytes]).toEqual([...bytes.subarray(PIECE * 2 + 5, PIECE * 2 + 10)]);
+    expect(r.asked).toEqual([2, 3, 4, 5, 6, 7, 8].map((i) => i * PIECE));
     await src.range(PIECE * 2);
-    expect(r.asked).toEqual([PIECE * 2]);
+    expect(r.asked.length).toBe(7);
+    // Near the end it stops at the last piece.
+    await src.range(PIECE * 18);
+    expect(r.asked.slice(7)).toEqual([18, 19, 20].map((i) => i * PIECE));
   });
   it('joins every piece for a download, reusing what was watched', async () => {
     const bytes = counting(PIECE * 2 + 10);
@@ -122,7 +126,8 @@ describe('VideoSource', () => {
       'video/mp4',
     );
     await src.range(0);
-    expect(seen).toEqual([true]);
+    expect(seen.length).toBeGreaterThan(0);
+    expect(seen.every(Boolean)).toBe(true);
   });
   it('tries a failed piece again', async () => {
     let fail = true;
@@ -138,6 +143,17 @@ describe('VideoSource', () => {
     expect(src.lastError?.message).toBe('dropped');
     fail = false;
     expect([...(await src.range(0)).bytes]).toEqual([1]);
+  });
+});
+
+describe('VideoSource.buffer', () => {
+  it('holds the first pieces before the player starts', async () => {
+    const bytes = counting(PIECE * 10);
+    const r = reader(bytes);
+    const progress: number[] = [];
+    await new VideoSource(r.read, bytes.length, 'video/mp4').buffer(PIECE * 3, (f) => progress.push(f));
+    expect(r.asked.sort((a, b) => a - b)).toEqual([0, PIECE, PIECE * 2]);
+    expect(progress.at(-1)).toBe(1);
   });
 });
 

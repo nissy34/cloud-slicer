@@ -67,7 +67,10 @@ setting `device-layout.<printer id>`, per-device conveniences in browser storage
   read in 512 KiB Range pieces (`VideoSource`, `BridgeFiles`), each kept for the page's
   life. It plays as it arrives: the player asks the service worker (`public/sw.js`) for
   `/timelapse-stream/<id>` with a Range, the worker asks the page, the page answers from
-  the pieces, so only what is watched is fetched. Download joins every piece, reusing
+  the pieces, so only what is watched is fetched. It holds the first 2 MB before it
+  starts and reads 6 pieces ahead while it plays. A direct link that drops gets 6 s to
+  come back; after a drop pieces go over the relay without waiting, trying direct again
+  after 20 s, and a direct piece stuck 15 s goes over the relay. Download joins every piece, reusing
   those already watched; watching or downloading again costs nothing. Without a service
   worker the player fetches the whole video first. Through a bridge: a direct link first, the
   relay only for videos up to 200 MB (`RELAY_VIDEO_LIMIT`); a row's picture (the add-on's
