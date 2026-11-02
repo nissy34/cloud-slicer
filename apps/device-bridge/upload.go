@@ -478,9 +478,10 @@ func (s *Session) takeDirect(id string, up *upload, dc *webrtc.DataChannel, link
 		}
 		s.debug(fmt.Sprintf("Upload %s: %d bytes over %s", up.name, up.received, how))
 		go func() {
-			// Kept until the printer answers, so Cancel can still stop it.
-			defer s.forget(id)
+			// Kept until the printer answers, so Cancel can still stop it; let
+			// go before answering, so the next upload can start at once.
 			res, err := up.finish()
+			s.forget(id)
 			if err != nil {
 				answer(map[string]any{"error": err.Error()})
 			} else {
