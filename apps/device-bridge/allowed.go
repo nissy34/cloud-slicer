@@ -52,14 +52,15 @@ func refusal(method string, params json.RawMessage) string {
 	if !allowed[method] {
 		return "The bridge does not pass on " + method + ". If the Device tab needs it, update the bridge."
 	}
-	// Deleting stays inside the G-code folder: never the printer's config files.
+	// Deleting stays inside the G-code folder and timelapse videos: never the printer's config files.
 	if method == "server.files.delete_file" {
 		var p struct {
 			Path string `json:"path"`
 		}
 		_ = json.Unmarshal(params, &p)
-		if !strings.HasPrefix(strings.TrimLeft(p.Path, "/"), "gcodes/") || strings.Contains(p.Path, "..") {
-			return "The bridge only deletes files in the G-code folder."
+		gcode := strings.HasPrefix(strings.TrimLeft(p.Path, "/"), "gcodes/") && !strings.Contains(p.Path, "..")
+		if !gcode && timelapseRel(p.Path) == "" {
+			return "The bridge only deletes files in the G-code folder and timelapse videos."
 		}
 	}
 	if method == "printer.request" {

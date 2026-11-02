@@ -149,7 +149,10 @@ export function thumbnailBlock(png) {
 // kind of printer: printer.info's brand, and that printer's own objects.
 // `printStep`: how much of a print each 0.3 s tick does (0.01: a 30 s print).
 // The U1 firmware below 1.3.0 has no server.files.start_local_print; tests pass u1Firmware: '1.2.0' to try that path.
-export async function startMockPrinter({ port = 0, host = '127.0.0.1', generic = false, hostname = generic ? 'voron-mock' : 'U1-mock', apiKey = '', screen = false, brand = '', objects = {}, printStep = 0.01, u1Firmware = '1.3.0' } = {}) {
+// `timelapses`: { root, files: [[name, Buffer]] }, a folder of timelapse videos and
+// pictures (root "timelapse" as the moonraker-timelapse add-on keeps it, "camera" as the U1 does).
+export async function startMockPrinter({ port = 0, host = '127.0.0.1', generic = false, hostname = generic ? 'voron-mock' : 'U1-mock', apiKey = '', screen = false, brand = '', objects = {}, printStep = 0.01, u1Firmware = '1.3.0', timelapses = null } = {}) {
+  const lapses = new Map(timelapses?.files ?? []);
   const fresh = () => ({ ...u1State(generic), ...structuredClone(objects) });
   let state = fresh();
   // Three objects, the way Orca labels them for Klipper's exclude_object.
@@ -425,6 +428,11 @@ export async function startMockPrinter({ port = 0, host = '127.0.0.1', generic =
         patch({ webhooks: { state: 'ready', state_message: 'Printer is ready' } });
         return 'ok';
       case 'server.files.list':
+        if (params?.root && params.root !== 'gcodes') {
+          // Like Moonraker: a folder it doesn't have is an error.
+          if (params.root !== timelapses?.root) throw Object.assign(new Error(`Invalid root request: ${params.root}`), { code: 400 });
+          return [...lapses].map(([path, b]) => ({ path, size: b.length, modified: Date.now() / 1000 - 600, permissions: 'rw' }));
+        }
         stats.fileLists++;
         return [...files].map(([path, f]) => ({ path, size: f.size, modified: f.modified, permissions: 'rw' }));
       case 'server.files.metadata': {
@@ -454,6 +462,10 @@ export async function startMockPrinter({ port = 0, host = '127.0.0.1', generic =
         };
       }
       case 'server.files.delete_file':
+        if (timelapses && String(params.path).startsWith(`${timelapses.root}/`)) {
+          lapses.delete(String(params.path).slice(timelapses.root.length + 1));
+          return { item: { path: params.path } };
+        }
         files.delete(String(params.path).replace(/^gcodes\//, ''));
         broadcast('notify_filelist_changed', [{ action: 'delete_file', item: { root: 'gcodes', path: params.path } }]);
         return { item: { path: params.path } };
@@ -521,6 +533,20 @@ export async function startMockPrinter({ port = 0, host = '127.0.0.1', generic =
       const part = all.subarray(0, Number(range[1]) + 1);
       res.writeHead(206, { ...headers, 'Content-Type': 'text/plain', 'Content-Range': `bytes 0-${part.length - 1}/${all.length}` });
       return res.end(part);
+    }
+    // A timelapse video or picture, in Range pieces as Moonraker serves files.
+    if (timelapses && req.method === 'GET' && url.pathname.startsWith(`/server/files/${timelapses.root}/`)) {
+      if (apiKey && req.headers['x-api-key'] !== apiKey) return send(401, { error: { message: 'Unauthorized' } });
+      const all = lapses.get(decodeURIComponent(url.pathname.slice(`/server/files/${timelapses.root}/`.length)));
+      if (!all) return send(404, { error: { message: 'File not found' } });
+      stats.lapsePieces = (stats.lapsePieces ?? 0) + 1;
+      const type = /\.jpe?g$/.test(url.pathname) ? 'image/jpeg' : 'video/mp4';
+      const range = /^bytes=(\d+)-(\d+)$/.exec(req.headers.range ?? '');
+      if (!range) return send(200, all, type);
+      const a = Number(range[1]);
+      const b = Math.min(Number(range[2]), all.length - 1);
+      res.writeHead(206, { ...headers, 'Content-Type': type, 'Content-Range': `bytes ${a}-${b}/${all.length}` });
+      return res.end(all.subarray(a, b + 1));
     }
     if (url.pathname === '/server/files/camera/monitor.jpg') {
       if (!generic && Date.now() < monitorUntil) return send(200, pngFrame(frame), 'image/png');

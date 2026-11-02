@@ -5,6 +5,9 @@
 // login. Checks the page shows, taps reach the printer, the page runs on the
 // relay's address (not the site's), it can't reach Moonraker's API, repeated
 // picture checks are held back, and folding the page card leaves the cameras alone.
+// Also timelapse videos through the same link: the Files card's Timelapses tab
+// plays one (direct link, or relay pieces), row pictures only over a direct link,
+// and a delete.
 //
 //   npm run build && node test/device-pages.mjs [screenshot-dir]
 import { spawn } from 'node:child_process';
@@ -14,7 +17,7 @@ import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { chromium } from 'playwright';
 import { bridgeConfig, bridgeProgram, browserKey, startBridge } from './device/go-bridge.mjs';
-import { startMockPrinter } from './device/mock-printer.mjs';
+import { pngFrame, startMockPrinter } from './device/mock-printer.mjs';
 
 const web = join(dirname(fileURLToPath(import.meta.url)), '..');
 const relayDir = join(web, '../device-relay');
@@ -53,7 +56,15 @@ const until = async (what, fn, ms = 30_000) => {
   }
 };
 
-const printer = await startMockPrinter({ generic: true, hostname: 'Screen-mock', apiKey: 'mock-api-key', screen: true });
+// A timelapse bigger than one relay piece (512 KiB), so the relay carries several.
+const VIDEO = Buffer.alloc(1_300_000, 7);
+const printer = await startMockPrinter({
+  generic: true,
+  hostname: 'Screen-mock',
+  apiKey: 'mock-api-key',
+  screen: true,
+  timelapses: { root: 'timelapse', files: [['benchy.mp4', VIDEO], ['benchy.jpg', pngFrame(1)], ['older.mp4', Buffer.alloc(1000, 1)]] },
+});
 let bridge;
 let failShot = null;
 const browser = await chromium.launch(process.env.PLAYWRIGHT_BROWSERS_PATH === '/opt/pw-browsers' ? { executablePath: '/opt/pw-browsers/chromium' } : {});
@@ -180,6 +191,41 @@ try {
     // Unfolding opens the page's own direct link again; nothing else may reconnect.
     if (opened > (viaRelay ? 0 : 1)) throw new Error(`folding the page card reconnected the cameras (${opened} new direct links)`);
     console.log(`${label}: folding the page card stops it and leaves the cameras alone`);
+
+    // Timelapses: the Files card's tab lists them; row pictures only without the relay.
+    const filesCard = page.getByTestId('files-card');
+    await filesCard.getByTestId('timelapses-tab').click();
+    const lapses = filesCard.getByTestId('timelapse-list');
+    await lapses.getByRole('button', { name: 'benchy.mp4', exact: true }).waitFor({ timeout: 30_000 });
+    if (viaRelay) {
+      await new Promise((r) => setTimeout(r, 2000));
+      if (await lapses.locator('.dv-file-thumb img').count()) throw new Error('a row picture came through the relay');
+    } else await until('the row picture shows', async () => (await lapses.locator('.dv-file-thumb img').count()) === 1, 30_000);
+    const pieces = printer.stats.lapsePieces ?? 0;
+    await lapses.getByRole('button', { name: 'benchy.mp4', exact: true }).click();
+    const player = page.getByTestId('timelapse-player');
+    const video = player.getByTestId('timelapse-video');
+    await video.waitFor({ timeout: 60_000 });
+    const got = await video.evaluate(async (v) => (await (await fetch(v.src)).blob()).size);
+    if (got !== VIDEO.length) throw new Error(`the video arrived with ${got} of ${VIDEO.length} bytes`);
+    const asked = (printer.stats.lapsePieces ?? 0) - pieces;
+    if (viaRelay && asked < 3) throw new Error(`the relay should carry the video in pieces, the printer was asked ${asked} times`);
+    if (!(await player.getByRole('link', { name: 'Save' }).getAttribute('href'))?.startsWith('blob:')) throw new Error('Save does not hand over the video');
+    if (shots) await page.screenshot({ path: join(shots, `timelapse-${label.replace(' ', '-')}.png`) });
+    await player.getByRole('button', { name: 'Close window' }).click();
+    // Watching again fetches nothing.
+    const again = printer.stats.lapsePieces;
+    await lapses.getByRole('button', { name: 'benchy.mp4', exact: true }).click();
+    await video.waitFor({ timeout: 10_000 });
+    if (printer.stats.lapsePieces !== again) throw new Error('watching the video again fetched it again');
+    await player.getByRole('button', { name: 'Close window' }).click();
+    console.log(`${label}: the timelapse played (${asked} pieces ${viaRelay ? 'over the relay' : 'over the direct link'}), row picture ${viaRelay ? 'left out' : 'shown'}`);
+    if (viaRelay) {
+      await lapses.getByRole('button', { name: 'Delete older.mp4' }).click();
+      await page.getByRole('button', { name: 'Delete timelapse' }).click();
+      await lapses.getByRole('button', { name: 'older.mp4', exact: true }).waitFor({ state: 'detached', timeout: 15_000 });
+      console.log(`${label}: a timelapse was deleted`);
+    }
     await context.close();
   }
   console.log('DEVICE PAGES OK');

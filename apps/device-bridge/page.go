@@ -184,6 +184,15 @@ func (s *Session) pageFetch(r pageRequest, limit int) (*pageResponse, error) {
 	if !pageMethodOK(method) {
 		return nil, errors.New("A printer page can only read and send forms through the bridge.")
 	}
+	// A timelapse video or its picture, read from Moonraker (or the stand-in) in Range pieces.
+	if p := timelapsePath(r.Path); p != "" && (method == http.MethodGet || method == http.MethodHead) {
+		u, err := url.Parse(s.printer.URL)
+		if err != nil {
+			return nil, err
+		}
+		u.Path, u.RawPath, u.RawQuery, u.Fragment = p, "", "", ""
+		return s.pageDo(method, u, r.Headers, nil, limit)
+	}
 	target, folder, err := s.pageTarget(r.Path)
 	if err != nil {
 		return nil, err

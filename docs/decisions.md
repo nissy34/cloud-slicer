@@ -110,6 +110,10 @@ down. Add a line with the date when a new choice is made.
   ends with Printers & bridges (add, edit, remove); the right side has only Arrange cards and
   Emergency stop. The separate Edit and Add a printer items went: Printers & bridges has both.
 - Printer pages as a Device tab card, not a pop-up (2026-10-22).
+- Timelapses (2026-11-02): a Timelapses tab in the Files card (not its own card); watch,
+  save, delete; U1 (camera folder), any Klipper with moonraker-timelapse and OctoPrint.
+  Bambu left out. Videos come over the direct link, the relay is the backup up to
+  200 MB; row pictures never go through the relay. A link from the Finished alert: maybe later.
 - Alerts: choices stay per device; a new device starts from the last saved (2026-10-22).
   Titles plain, no hints (2026-10-26). Cameras per alert (2026-10-30): any alert, up to
   four cameras joined into one picture (one notification, not one per camera); settings

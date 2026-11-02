@@ -4,6 +4,7 @@
 import { detectAddons, type PrinterAddon, type PrinterError, type PrinterFacts } from './addons';
 import type { BridgeStatus, PrinterLink, RpcMessage, UploadStage } from './link/types';
 import { parseWebcams, type Webcam } from './camera';
+import { TIMELAPSE_ROOTS, fileAddress, pickTimelapses, type DownloadOptions, type Timelapse } from './timelapse';
 import { genericObjects, mergeStatus, type KlipperObjects } from './status';
 
 export type ConnState = 'connecting' | 'online' | 'offline';
@@ -318,6 +319,33 @@ export class PrinterSession {
   /** A file's slicer thumbnail, fetched through the link (direct or bridge). */
   thumbnail(url: string) {
     return this.link.snapshot(url);
+  }
+
+  /**
+   * The printer's timelapse videos: Moonraker's "timelapse" folder (the
+   * moonraker-timelapse add-on, or a bridge's OctoPrint) and the U1's
+   * "camera" folder. Null when the printer has neither folder.
+   */
+  async listTimelapses(): Promise<Timelapse[] | null> {
+    const found = await Promise.all(
+      TIMELAPSE_ROOTS.map((root) =>
+        this.rpc<GcodeFile[]>('server.files.list', { root })
+          .then((files) => pickTimelapses(root, files ?? []))
+          .catch(() => null),
+      ),
+    );
+    if (found.every((f) => f == null)) return null;
+    return found.flatMap((f) => f ?? []).sort((a, b) => b.modified - a.modified);
+  }
+
+  /** A timelapse video or its picture, whole; null when this link can't fetch files. */
+  downloadFile(root: string, path: string, size: number, options?: DownloadOptions): Promise<Blob> | null {
+    return this.link.download?.(fileAddress(root, path), size, options) ?? null;
+  }
+
+  async deleteTimelapse(t: Timelapse) {
+    await this.rpc('server.files.delete_file', { path: `${t.root}/${t.path}` });
+    if (t.picture) await this.rpc('server.files.delete_file', { path: `${t.root}/${t.picture}` }).catch(() => {});
   }
 
   deleteFile(path: string) {

@@ -94,7 +94,7 @@ export class PageLimit extends Error {}
 /** The bridge's own answer that a request can't be done (not a lost link): the relay would say the same. */
 export class PageRefused extends Error {}
 
-interface DirectPageLink {
+export interface DirectPageLink {
   fetch(r: PageRequest): Promise<PageAnswer>;
   close(): void;
 }
@@ -107,7 +107,7 @@ function toBase64(buf: ArrayBuffer): string {
 }
 
 /** A direct WebRTC link to the bridge for page requests; resolves once its channel is open. */
-async function openDirect(bridge: Required<PageBridge>, onLost: () => void): Promise<DirectPageLink> {
+export async function openDirect(bridge: Required<PageBridge>, onLost: () => void): Promise<DirectPageLink> {
   const pc = new RTCPeerConnection({ iceServers: STUN });
   const dc = pc.createDataChannel('page');
   dc.binaryType = 'arraybuffer';

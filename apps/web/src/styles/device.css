@@ -1400,6 +1400,34 @@
   gap: 12px;
   align-items: center;
 }
+/* Timelapses tab (ui/Timelapses.tsx): the name opens the player. */
+.dv-timelapse-name {
+  border: 0;
+  padding: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.dv-timelapse-name:hover {
+  color: var(--accent);
+}
+.dv-file-thumb:has(.dv-file-thumb-icon) {
+  display: grid;
+  place-items: center;
+  color: var(--muted);
+}
+.dv-timelapse-video {
+  display: block;
+  width: 100%;
+  max-height: 70vh;
+  border-radius: var(--r-md);
+  background: var(--media-bg);
+}
+.dv-files-tabs {
+  margin-bottom: var(--s-3);
+}
 .dv-files-search {
   width: 100%;
   margin-bottom: var(--s-3);

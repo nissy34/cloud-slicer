@@ -3,6 +3,7 @@
 // served over plain http, as in local development). Moonraker must list this
 // site in [authorization] cors_domains for the HTTP calls.
 import { LinkError, type LinkHandlers, type PrinterLink, type RpcMessage } from './types';
+import type { DownloadOptions } from '../timelapse';
 
 /** "printer.example.com" -> "https://printer.example.com"; trailing slashes dropped. */
 export function normalizePrinterUrl(raw: string, pageProtocol = globalThis.location?.protocol ?? 'https:'): string {
@@ -184,6 +185,35 @@ export class DirectLink implements PrinterLink {
       signal?.addEventListener('abort', () => xhr.abort(), { once: true });
       xhr.send(form);
     });
+  }
+
+  /** A whole file from the printer, read as it comes so the bar can follow it. */
+  async download(path: string, size: number, options: DownloadOptions = {}): Promise<Blob> {
+    const blocked = directBlockedReason(this.baseUrl);
+    if (blocked) throw new LinkError(blocked, 'blocked');
+    let r: Response;
+    try {
+      r = await fetch(this.resolve(path), { headers: this.headers(), signal: options.signal });
+    } catch (e) {
+      if ((e as Error).name === 'AbortError') throw e;
+      throw new LinkError(`Could not reach ${this.label}.`, 'network');
+    }
+    if (r.status === 404) throw new LinkError('The video is no longer on the printer.', 'http');
+    if (!r.ok) throw new LinkError(`The printer answered HTTP ${r.status}.`, 'http');
+    options.onRoute?.('direct');
+    const total = Number(r.headers.get('Content-Length')) || size;
+    const reader = r.body?.getReader();
+    if (!reader) return new Blob([await r.arrayBuffer()], { type: options.type ?? '' });
+    const parts: Uint8Array[] = [];
+    let got = 0;
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      parts.push(value);
+      got += value.length;
+      if (total) options.onProgress?.(Math.min(1, got / total));
+    }
+    return new Blob(parts as BlobPart[], { type: options.type ?? '' });
   }
 
   mediaUrl(url: string): string | null {
