@@ -44,12 +44,16 @@ function relayBridge(bytes: Uint8Array, opts: { range?: boolean; refuse?: string
 
 describe('BridgeFiles', () => {
   it('fetches a video over the relay in pieces', async () => {
-    const bytes = new Uint8Array(RELAY_PIECE * 2 + 10).map((_, i) => i % 251);
+    const bytes = new Uint8Array(RELAY_PIECE * 2 + 10);
+    for (let i = 0; i < bytes.length; i++) bytes[i] = i % 251;
     const bridge = relayBridge(bytes, { range: true });
     const progress: number[] = [];
     const routes: string[] = [];
     const blob = await new BridgeFiles(bridge).download('/server/files/timelapse/a.mp4', bytes.length, { onProgress: (f) => progress.push(f), onRoute: (r) => routes.push(r) });
-    expect(new Uint8Array(await blob.arrayBuffer())).toEqual(bytes);
+    // A byte loop, not toEqual: a deep compare of 1 MB takes seconds.
+    const got = new Uint8Array(await blob.arrayBuffer());
+    expect(got.length).toBe(bytes.length);
+    expect(got.every((b, i) => b === bytes[i])).toBe(true);
     expect(bridge.asked).toEqual([`bytes=0-${RELAY_PIECE - 1}`, `bytes=${RELAY_PIECE}-${2 * RELAY_PIECE - 1}`, `bytes=${2 * RELAY_PIECE}-${3 * RELAY_PIECE - 1}`]);
     expect(progress.at(-1)).toBe(1);
     expect(routes).toEqual(['relay']);
