@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { PageAnswer, PageRequest } from './link/types';
 import { PageRefused } from './printer-page';
-import { BridgeFiles, RELAY_PIECE, RELAY_VIDEO_LIMIT, fileAddress, pickTimelapses, playable, rangeTotal } from './timelapse';
+import { BridgeFiles, PIECE, RELAY_VIDEO_LIMIT, VideoSource, fileAddress, parseRange, pickTimelapses, playable, rangeTotal, streamAnswer, type RangeReader } from './timelapse';
 
 describe('pickTimelapses', () => {
   it('keeps videos newest first, each with its picture', () => {
@@ -42,38 +42,120 @@ function relayBridge(bytes: Uint8Array, opts: { range?: boolean; refuse?: string
   };
 }
 
+function counting(n: number) {
+  const bytes = new Uint8Array(n);
+  for (let i = 0; i < n; i++) bytes[i] = i % 251;
+  return bytes;
+}
+
+const same = (a: Uint8Array, b: Uint8Array) => a.length === b.length && a.every((x, i) => x === b[i]);
+
 describe('BridgeFiles', () => {
-  it('fetches a video over the relay in pieces', async () => {
-    const bytes = new Uint8Array(RELAY_PIECE * 2 + 10);
-    for (let i = 0; i < bytes.length; i++) bytes[i] = i % 251;
-    const bridge = relayBridge(bytes, { range: true });
-    const progress: number[] = [];
-    const routes: string[] = [];
-    const blob = await new BridgeFiles(bridge).download('/server/files/timelapse/a.mp4', bytes.length, { onProgress: (f) => progress.push(f), onRoute: (r) => routes.push(r) });
-    // A byte loop, not toEqual: a deep compare of 1 MB takes seconds.
-    const got = new Uint8Array(await blob.arrayBuffer());
-    expect(got.length).toBe(bytes.length);
-    expect(got.every((b, i) => b === bytes[i])).toBe(true);
-    expect(bridge.asked).toEqual([`bytes=0-${RELAY_PIECE - 1}`, `bytes=${RELAY_PIECE}-${2 * RELAY_PIECE - 1}`, `bytes=${2 * RELAY_PIECE}-${3 * RELAY_PIECE - 1}`]);
-    expect(progress.at(-1)).toBe(1);
-    expect(routes).toEqual(['relay']);
+  it('reads a piece over the relay', async () => {
+    const bridge = relayBridge(counting(10), { range: true });
+    const a = await new BridgeFiles(bridge).readRange('/server/files/timelapse/a.mp4', 2, 5);
+    expect([...a.bytes]).toEqual([2, 3, 4, 5]);
+    expect(a.total).toBe(10);
+    expect(a.route).toBe('relay');
+    expect(bridge.asked).toEqual(['bytes=2-5']);
   });
-  it('takes a whole answer from a printer without Range', async () => {
-    const bytes = new Uint8Array([1, 2, 3]);
-    const blob = await new BridgeFiles(relayBridge(bytes)).download('/server/files/camera/a.mp4', 3);
-    expect(new Uint8Array(await blob.arrayBuffer())).toEqual(bytes);
+  it('cuts the piece from a printer that ignores Range', async () => {
+    const a = await new BridgeFiles(relayBridge(counting(10))).readRange('/server/files/camera/a.mp4', 8, 20);
+    expect([...a.bytes]).toEqual([8, 9]);
+    expect(a.total).toBe(10);
   });
-  it('never sends big videos or row pictures through the relay', async () => {
-    const bridge = relayBridge(new Uint8Array(4), { range: true });
-    await expect(new BridgeFiles(bridge).download('/server/files/timelapse/big.mp4', RELAY_VIDEO_LIMIT + 1)).rejects.toThrow(/too big/);
-    await expect(new BridgeFiles(bridge).download('/server/files/timelapse/a.jpg', 4, { directOnly: true })).rejects.toThrow();
+  it('never goes through the relay when told not to', async () => {
+    const bridge = relayBridge(counting(4), { range: true });
+    await expect(new BridgeFiles(bridge).readRange('/server/files/timelapse/a.jpg', 0, 3, { directOnly: true })).rejects.toThrow();
     expect(bridge.asked).toEqual([]);
   });
   it('asks for a bridge update when the bridge is too old', async () => {
-    const bridge = relayBridge(new Uint8Array(4), { refuse: 'This address is not part of a page the printer lists.' });
-    await expect(new BridgeFiles(bridge).download('/server/files/timelapse/a.mp4', 4)).rejects.toThrow(/Update the bridge/);
+    const bridge = relayBridge(counting(4), { refuse: 'This address is not part of a page the printer lists.' });
+    await expect(new BridgeFiles(bridge).readRange('/server/files/timelapse/a.mp4', 0, 3)).rejects.toThrow(/Update the bridge/);
   });
   it('reads the whole size from a Range answer', () => {
     expect(rangeTotal({ status: 206, headers: { 'content-range': 'bytes 0-3/10' }, body: new ArrayBuffer(0) })).toBe(10);
+  });
+});
+
+/** A reader over `bytes` that counts what it was asked. */
+function reader(bytes: Uint8Array) {
+  const asked: number[] = [];
+  const read: RangeReader = async (start, end) => {
+    asked.push(start);
+    return { bytes: bytes.subarray(start, Math.min(end, bytes.length - 1) + 1), total: bytes.length, route: 'relay' };
+  };
+  return { asked, read };
+}
+
+describe('VideoSource', () => {
+  it('reads only the pieces asked for, and each once', async () => {
+    const bytes = counting(PIECE * 3 + 7);
+    const r = reader(bytes);
+    const src = new VideoSource(r.read, bytes.length, 'video/mp4');
+    const a = await src.range(PIECE * 2 + 5, PIECE * 2 + 9);
+    expect([...a.bytes]).toEqual([...bytes.subarray(PIECE * 2 + 5, PIECE * 2 + 10)]);
+    await src.range(PIECE * 2);
+    expect(r.asked).toEqual([PIECE * 2]);
+  });
+  it('joins every piece for a download, reusing what was watched', async () => {
+    const bytes = counting(PIECE * 2 + 10);
+    const r = reader(bytes);
+    const src = new VideoSource(r.read, bytes.length, 'video/mp4');
+    await src.range(0);
+    const progress: number[] = [];
+    const blob = await src.all((f) => progress.push(f));
+    expect(same(new Uint8Array(await blob.arrayBuffer()), bytes)).toBe(true);
+    expect(r.asked.sort((a, b) => a - b)).toEqual([0, PIECE, PIECE * 2]);
+    expect(progress.at(-1)).toBe(1);
+    await src.all();
+    expect(r.asked.length).toBe(3);
+  });
+  it('keeps big videos off the relay', async () => {
+    const seen: boolean[] = [];
+    const src = new VideoSource(
+      async (_s, _e, o) => {
+        seen.push(!!o.directOnly);
+        return { bytes: new Uint8Array(1), total: null, route: 'direct' };
+      },
+      RELAY_VIDEO_LIMIT + 1,
+      'video/mp4',
+    );
+    await src.range(0);
+    expect(seen).toEqual([true]);
+  });
+  it('tries a failed piece again', async () => {
+    let fail = true;
+    const src = new VideoSource(
+      async () => {
+        if (fail) throw new Error('dropped');
+        return { bytes: new Uint8Array([1]), total: 1, route: 'relay' };
+      },
+      1,
+      'video/mp4',
+    );
+    await expect(src.range(0)).rejects.toThrow('dropped');
+    expect(src.lastError?.message).toBe('dropped');
+    fail = false;
+    expect([...(await src.range(0)).bytes]).toEqual([1]);
+  });
+});
+
+describe('streaming to the player', () => {
+  it('reads Range headers', () => {
+    expect(parseRange('bytes=10-')).toEqual([10, null]);
+    expect(parseRange('bytes=10-20')).toEqual([10, 20]);
+    expect(parseRange(null)).toEqual([0, null]);
+  });
+  it('answers one piece at a time', async () => {
+    const bytes = counting(PIECE + 100);
+    const src = new VideoSource(reader(bytes).read, bytes.length, 'video/mp4');
+    const a = await streamAnswer(src, 'bytes=0-');
+    expect(a.status).toBe(206);
+    expect(a.headers['Content-Range']).toBe(`bytes 0-${PIECE - 1}/${bytes.length}`);
+    expect(a.body.byteLength).toBe(PIECE);
+    const b = await streamAnswer(src, `bytes=${PIECE}-`);
+    expect(b.headers['Content-Range']).toBe(`bytes ${PIECE}-${bytes.length - 1}/${bytes.length}`);
+    expect((await streamAnswer(src, `bytes=${bytes.length}-`)).status).toBe(416);
   });
 });

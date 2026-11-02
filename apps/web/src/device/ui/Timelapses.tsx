@@ -1,17 +1,26 @@
 // The Files card's Timelapses tab: the printer's timelapse videos, newest
-// first. Tap one to watch it (fetched whole, then played), save it, or delete
-// it. Row pictures come only when they can be fetched without the relay.
-import { useEffect, useState } from 'react';
+// first. Tap one to watch it (it plays as it arrives; only what is watched is
+// fetched), download it, or delete it. Row pictures come only when they can be
+// fetched without the relay.
+import { useEffect, useRef, useState } from 'react';
 import { ChevronLeft, ChevronRight, Film, RefreshCw } from 'lucide-react';
 import { currentSession, useDevice } from '../../state/device';
 import { Dialog } from '../../components/Dialog';
 import { Empty } from '../../components/Empty';
 import { Note } from '../../components/Note';
-import { PrintLoader } from '../../components/PrintLoader';
-import { forgetDownload, keptDownload, playable, videoType, type FileRoute, type Timelapse } from '../timelapse';
+import { forgetSource, playable, stopStream, streamUrl, videoSource, videoType, VideoSource, type FileRoute, type Timelapse } from '../timelapse';
 import { FILES_PER_PAGE, fileSize, fileWhen } from './FilesCard';
 
 const keyOf = (printer: string | null, t: Timelapse, file: string) => `${printer}:${t.root}/${file}@${t.modified}`;
+const nameOf = (path: string) => path.split('/').pop() ?? path;
+
+/** The file's pieces, shared by the player, Download and the next visit; null when this connection can't fetch files. */
+function sourceFor(printer: string | null, t: Timelapse, file: string, size: number, directOnly = false): VideoSource | null {
+  const s = currentSession();
+  const read = s?.fileReader(t.root, file);
+  if (!read) return null;
+  return videoSource(keyOf(printer, t, file), () => new VideoSource(read, size, videoType(file), directOnly));
+}
 
 function useBlobUrl(blob: Blob | null) {
   const [url, setUrl] = useState<string | null>(null);
@@ -28,13 +37,11 @@ function RowPicture({ t }: { t: Timelapse }) {
   const printer = useDevice((s) => s.activeId);
   const [blob, setBlob] = useState<Blob | null>(null);
   useEffect(() => {
-    const s = currentSession();
-    const pic = t.picture;
-    if (!s || !pic) return;
-    let live = true;
     // Never over the relay: no picture beats spending relay data on one.
-    const p = keptDownload(keyOf(printer, t, pic), () => s.downloadFile(t.root, pic, 0, { directOnly: true, type: videoType(pic) }) ?? Promise.reject(new Error('no files')));
-    p.then((b) => live && setBlob(b)).catch(() => {});
+    const src = t.picture ? sourceFor(printer, t, t.picture, 0, true) : null;
+    if (!src) return;
+    let live = true;
+    src.all().then((b) => live && setBlob(b), () => {});
     return () => {
       live = false;
     };
@@ -47,71 +54,122 @@ function RowPicture({ t }: { t: Timelapse }) {
   );
 }
 
+const mb = (n: number) => (n / 1024 / 1024).toFixed(n < 10 * 1024 * 1024 ? 1 : 0);
+
+/** A thin bar and "3.1 of 12 MB" over the dark video box while the video starts or arrives. */
+function Arriving({ fraction, size, route }: { fraction: number | null; size: number; route: FileRoute | null }) {
+  const via = route === 'relay' ? ' through the relay' : '';
+  return (
+    <div className="dv-timelapse-arriving" role="status">
+      <div className={`dv-timelapse-bar${fraction == null ? ' busy' : ''}`}>
+        <span style={fraction == null ? undefined : { width: `${Math.round(fraction * 100)}%` }} />
+      </div>
+      <span>{fraction == null ? `Starting the video${via}…` : `${mb(fraction * size)} of ${mb(size)} MB${via}`}</span>
+    </div>
+  );
+}
+
 function Player({ t, onClose, onDelete }: { t: Timelapse; onClose(): void; onDelete(): void }) {
   const printer = useDevice((s) => s.activeId);
+  const canPlay = playable(t.path);
+  const [src] = useState(() => sourceFor(printer, t, t.path, t.size));
+  const [url, setUrl] = useState<string | null>(null);
+  // Fetching the whole video before it plays: only when the app's service worker can't stream it.
+  const [whole, setWhole] = useState<number | null>(null);
   const [blob, setBlob] = useState<Blob | null>(null);
-  const [progress, setProgress] = useState(0);
-  const [route, setRoute] = useState<FileRoute | null>(null);
-  const [error, setError] = useState('');
+  const blobUrl = useBlobUrl(blob);
+  const [started, setStarted] = useState(false);
+  const [route, setRoute] = useState<FileRoute | null>(src?.route ?? null);
+  const [saving, setSaving] = useState<number | null>(null);
+  const [error, setError] = useState(src ? '' : 'This printer connection cannot fetch videos.');
+  const stop = useRef<AbortController | null>(null);
+
   useEffect(() => {
-    const s = currentSession();
-    if (!s) return setError('Not connected to the printer.');
+    if (!src) return;
+    src.onRoute = setRoute;
     let live = true;
-    keptDownload(
-      keyOf(printer, t, t.path),
-      () =>
-        s.downloadFile(t.root, t.path, t.size, {
-          type: videoType(t.path),
-          onProgress: (f) => live && setProgress(f),
-          onRoute: (r) => live && setRoute(r),
-        }) ?? Promise.reject(new Error('This printer connection cannot fetch videos.')),
-    )
-      .then((b) => live && setBlob(b))
-      .catch((e: Error) => live && setError(e.message || 'The video could not be fetched.'));
+    let stream: string | null = null;
+    if (canPlay) {
+      stream = streamUrl(src);
+      if (stream) setUrl(stream);
+      else {
+        setWhole(0);
+        src.all((f) => live && setWhole(f)).then(
+          (b) => live && setBlob(b),
+          (e: Error) => live && setError(e.message || 'The video could not be fetched.'),
+        );
+      }
+    }
     return () => {
       live = false;
+      src.onRoute = undefined;
+      stop.current?.abort();
+      if (stream) stopStream(stream);
     };
-  }, [printer, t]);
-  const url = useBlobUrl(blob);
-  const canPlay = playable(t.path);
+  }, [src, canPlay]);
+
+  const download = async () => {
+    if (!src || saving != null) return;
+    const ctl = new AbortController();
+    stop.current = ctl;
+    setSaving(0);
+    try {
+      const b = await src.all((f) => setSaving(f), ctl.signal);
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(b);
+      a.download = nameOf(t.path);
+      document.body.append(a);
+      a.click();
+      a.remove();
+      setTimeout(() => URL.revokeObjectURL(a.href), 60_000);
+    } catch (e) {
+      if ((e as Error).name !== 'AbortError') setError((e as Error).message || 'The video could not be fetched.');
+    } finally {
+      if (stop.current === ctl) stop.current = null;
+      setSaving(null);
+    }
+  };
+
+  const playUrl = url ?? blobUrl;
+  const busy = saving != null || (whole != null && !blob);
   return (
     <Dialog
-      title={t.path}
+      title={<span className="dv-timelapse-title">{nameOf(t.path)}</span>}
       onClose={onClose}
       wide
       testId="timelapse-player"
       footer={
         <>
-          <button className="secondary danger" onClick={onDelete}>
+          <button className="secondary danger" onClick={onDelete} disabled={busy}>
             Delete
           </button>
-          {url ? (
-            <a className="primary" href={url} download={t.path.split('/').pop()}>
-              Save
-            </a>
-          ) : (
-            <button className="primary" disabled>
-              Save
-            </button>
-          )}
+          <button className="primary" onClick={() => void download()} disabled={!src || saving != null}>
+            {saving != null ? `Downloading ${Math.round(saving * 100)}%` : 'Download'}
+          </button>
         </>
       }
     >
       {error ? (
         <Note tone="error">{error}</Note>
-      ) : !url ? (
-        <PrintLoader
-          loading={{
-            label: route === 'relay' ? 'Fetching the video through the relay…' : 'Fetching the video…',
-            loaded: progress * t.size,
-            total: t.size,
-            progress,
-          }}
-        />
       ) : canPlay ? (
-        <video className="dv-timelapse-video" src={url} controls autoPlay playsInline muted data-testid="timelapse-video" />
+        <div className="dv-timelapse-stage">
+          {playUrl && (
+            <video
+              className="dv-timelapse-video"
+              src={playUrl}
+              controls
+              autoPlay
+              playsInline
+              muted
+              data-testid="timelapse-video"
+              onLoadedData={() => setStarted(true)}
+              onError={() => setError(src?.lastError?.message || 'The video could not be played.')}
+            />
+          )}
+          {!started && <Arriving fraction={whole} size={t.size} route={route} />}
+        </div>
       ) : (
-        <Note>This kind of video doesn’t play in the browser. Save it to watch it.</Note>
+        <Note>This kind of video doesn’t play in the browser. Download it to watch it.</Note>
       )}
     </Dialog>
   );
@@ -131,7 +189,8 @@ export function TimelapseList({ list, onRefresh, onDeleted }: { list: Timelapse[
     setDeleting(null);
     setOpen(null);
     if (await call('Deleted', (s) => s.deleteTimelapse(t))) {
-      forgetDownload(keyOf(printer, t, t.path));
+      forgetSource(keyOf(printer, t, t.path));
+      if (t.picture) forgetSource(keyOf(printer, t, t.picture));
       onDeleted(t);
     }
   };

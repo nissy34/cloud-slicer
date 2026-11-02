@@ -1418,12 +1418,65 @@
   place-items: center;
   color: var(--muted);
 }
+.dv-timelapse-title {
+  display: block;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+/* The player: a dark video-shaped box, with a thin bar while the video starts. */
+.dv-timelapse-stage {
+  position: relative;
+  aspect-ratio: 16 / 9;
+  max-height: 70vh;
+  border-radius: var(--r-md);
+  overflow: hidden;
+  background: var(--media-bg);
+}
 .dv-timelapse-video {
   display: block;
   width: 100%;
-  max-height: 70vh;
-  border-radius: var(--r-md);
+  height: 100%;
+  object-fit: contain;
   background: var(--media-bg);
+}
+.dv-timelapse-arriving {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-content: center;
+  justify-items: center;
+  gap: 8px;
+  padding: 0 24px;
+  color: var(--on-media);
+  font-size: var(--t-sm);
+  pointer-events: none;
+}
+.dv-timelapse-bar {
+  width: min(240px, 60vw);
+  height: 3px;
+  border-radius: var(--r-full);
+  overflow: hidden;
+  background: var(--on-media-track);
+}
+.dv-timelapse-bar span {
+  display: block;
+  height: 100%;
+  background: var(--on-media);
+  transition: width 0.2s;
+}
+.dv-timelapse-bar.busy span {
+  width: 30%;
+  animation: dv-timelapse-busy 1.2s ease-in-out infinite;
+}
+@keyframes dv-timelapse-busy {
+  from {
+    translate: -100%;
+  }
+  to {
+    translate: 340%;
+  }
 }
 .dv-files-tabs {
   margin-bottom: var(--s-3);

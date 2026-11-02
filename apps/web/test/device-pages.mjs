@@ -11,7 +11,7 @@
 //
 //   npm run build && node test/device-pages.mjs [screenshot-dir]
 import { spawn } from 'node:child_process';
-import { mkdirSync, mkdtempSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -56,14 +56,15 @@ const until = async (what, fn, ms = 30_000) => {
   }
 };
 
-// A timelapse bigger than one relay piece (512 KiB), so the relay carries several.
-const VIDEO = Buffer.alloc(1_300_000, 7);
+// A real (webm: the test browser has no mp4 decoder) timelapse bigger than one
+// relay piece (512 KiB), so the relay carries several.
+const VIDEO = readFileSync(new URL('./device/timelapse.webm', import.meta.url));
 const printer = await startMockPrinter({
   generic: true,
   hostname: 'Screen-mock',
   apiKey: 'mock-api-key',
   screen: true,
-  timelapses: { root: 'timelapse', files: [['benchy.mp4', VIDEO], ['benchy.jpg', pngFrame(1)], ['older.mp4', Buffer.alloc(1000, 1)]] },
+  timelapses: { root: 'timelapse', files: [['benchy.webm', VIDEO], ['benchy.jpg', pngFrame(1)], ['older.webm', Buffer.alloc(1000, 1)]] },
 });
 let bridge;
 let failShot = null;
@@ -196,34 +197,44 @@ try {
     const filesCard = page.getByTestId('files-card');
     await filesCard.getByTestId('timelapses-tab').click();
     const lapses = filesCard.getByTestId('timelapse-list');
-    await lapses.getByRole('button', { name: 'benchy.mp4', exact: true }).waitFor({ timeout: 30_000 });
+    await lapses.getByRole('button', { name: 'benchy.webm', exact: true }).waitFor({ timeout: 30_000 });
     if (viaRelay) {
       await new Promise((r) => setTimeout(r, 2000));
       if (await lapses.locator('.dv-file-thumb img').count()) throw new Error('a row picture came through the relay');
     } else await until('the row picture shows', async () => (await lapses.locator('.dv-file-thumb img').count()) === 1, 30_000);
     const pieces = printer.stats.lapsePieces ?? 0;
-    await lapses.getByRole('button', { name: 'benchy.mp4', exact: true }).click();
+    await lapses.getByRole('button', { name: 'benchy.webm', exact: true }).click();
     const player = page.getByTestId('timelapse-player');
     const video = player.getByTestId('timelapse-video');
     await video.waitFor({ timeout: 60_000 });
-    const got = await video.evaluate(async (v) => (await (await fetch(v.src)).blob()).size);
-    if (got !== VIDEO.length) throw new Error(`the video arrived with ${got} of ${VIDEO.length} bytes`);
+    if (shots) await player.screenshot({ path: join(shots, `timelapse-starting-${label.replace(' ', '-')}.png`) });
+    // It plays as it arrives: the app's service worker hands the player pieces.
+    const src = await video.getAttribute('src');
+    if (!src?.startsWith('/timelapse-stream/')) throw new Error(`the video does not stream (src ${src})`);
+    await player.locator('.dv-timelapse-arriving').waitFor({ state: 'detached', timeout: 60_000 });
+    if (await player.locator('.note').count()) throw new Error(`the player says: ${await player.locator('.note').innerText()}`);
+    const watched = (printer.stats.lapsePieces ?? 0) - pieces;
+    if (watched < 1) throw new Error('the player started without asking the printer');
+    if (shots) await page.screenshot({ path: join(shots, `timelapse-${label.replace(' ', '-')}.png`) });
+    // Download joins every piece, reusing the ones already watched.
+    const [file] = await Promise.all([page.waitForEvent('download', { timeout: 60_000 }), player.getByRole('button', { name: 'Download' }).click()]);
+    const saved = readFileSync(await file.path());
+    if (!saved.equals(VIDEO)) throw new Error(`the download has ${saved.length} of ${VIDEO.length} bytes, or other bytes`);
     const asked = (printer.stats.lapsePieces ?? 0) - pieces;
     if (viaRelay && asked < 3) throw new Error(`the relay should carry the video in pieces, the printer was asked ${asked} times`);
-    if (!(await player.getByRole('link', { name: 'Save' }).getAttribute('href'))?.startsWith('blob:')) throw new Error('Save does not hand over the video');
-    if (shots) await page.screenshot({ path: join(shots, `timelapse-${label.replace(' ', '-')}.png`) });
     await player.getByRole('button', { name: 'Close window' }).click();
-    // Watching again fetches nothing.
+    // Watching and downloading again fetch nothing.
     const again = printer.stats.lapsePieces;
-    await lapses.getByRole('button', { name: 'benchy.mp4', exact: true }).click();
-    await video.waitFor({ timeout: 10_000 });
-    if (printer.stats.lapsePieces !== again) throw new Error('watching the video again fetched it again');
+    await lapses.getByRole('button', { name: 'benchy.webm', exact: true }).click();
+    await player.locator('.dv-timelapse-arriving').waitFor({ state: 'detached', timeout: 30_000 });
+    await Promise.all([page.waitForEvent('download', { timeout: 30_000 }), player.getByRole('button', { name: 'Download' }).click()]);
+    if (printer.stats.lapsePieces !== again) throw new Error('watching or downloading the video again fetched it again');
     await player.getByRole('button', { name: 'Close window' }).click();
-    console.log(`${label}: the timelapse played (${asked} pieces ${viaRelay ? 'over the relay' : 'over the direct link'}), row picture ${viaRelay ? 'left out' : 'shown'}`);
+    console.log(`${label}: the timelapse streamed and downloaded (${asked} pieces ${viaRelay ? 'over the relay' : 'over the direct link'}), row picture ${viaRelay ? 'left out' : 'shown'}`);
     if (viaRelay) {
-      await lapses.getByRole('button', { name: 'Delete older.mp4' }).click();
+      await lapses.getByRole('button', { name: 'Delete older.webm' }).click();
       await page.getByRole('button', { name: 'Delete timelapse' }).click();
-      await lapses.getByRole('button', { name: 'older.mp4', exact: true }).waitFor({ state: 'detached', timeout: 15_000 });
+      await lapses.getByRole('button', { name: 'older.webm', exact: true }).waitFor({ state: 'detached', timeout: 15_000 });
       console.log(`${label}: a timelapse was deleted`);
     }
     await context.close();

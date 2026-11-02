@@ -40,6 +40,8 @@
   --overlay: rgb(0 0 0 / 45%);
   --progress-stripe: rgb(255 255 255 / 28%);
   --media-bg: #000000;
+  --on-media: rgb(255 255 255 / 78%);
+  --on-media-track: rgb(255 255 255 / 18%);
   --media-veil: rgb(0 0 0 / 55%);
   --media-muted: #aaaaaa;
   --thumb-bg: #16191e;

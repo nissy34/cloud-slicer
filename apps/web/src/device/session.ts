@@ -4,7 +4,7 @@
 import { detectAddons, type PrinterAddon, type PrinterError, type PrinterFacts } from './addons';
 import type { BridgeStatus, PrinterLink, RpcMessage, UploadStage } from './link/types';
 import { parseWebcams, type Webcam } from './camera';
-import { TIMELAPSE_ROOTS, fileAddress, pickTimelapses, type DownloadOptions, type Timelapse } from './timelapse';
+import { TIMELAPSE_ROOTS, fileAddress, pickTimelapses, type RangeReader, type Timelapse } from './timelapse';
 import { genericObjects, mergeStatus, type KlipperObjects } from './status';
 
 export type ConnState = 'connecting' | 'online' | 'offline';
@@ -338,9 +338,12 @@ export class PrinterSession {
     return found.flatMap((f) => f ?? []).sort((a, b) => b.modified - a.modified);
   }
 
-  /** A timelapse video or its picture, whole; null when this link can't fetch files. */
-  downloadFile(root: string, path: string, size: number, options?: DownloadOptions): Promise<Blob> | null {
-    return this.link.download?.(fileAddress(root, path), size, options) ?? null;
+  /** Reads a timelapse video or its picture a Range at a time; null when this link can't fetch files. */
+  fileReader(root: string, path: string): RangeReader | null {
+    const link = this.link;
+    if (!link.readRange) return null;
+    const address = fileAddress(root, path);
+    return (start, end, o) => link.readRange!(address, start, end, o);
   }
 
   async deleteTimelapse(t: Timelapse) {

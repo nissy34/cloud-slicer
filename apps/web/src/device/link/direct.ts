@@ -3,7 +3,7 @@
 // served over plain http, as in local development). Moonraker must list this
 // site in [authorization] cors_domains for the HTTP calls.
 import { LinkError, type LinkHandlers, type PrinterLink, type RpcMessage } from './types';
-import type { DownloadOptions } from '../timelapse';
+import { rangeAnswer, rangeTotal, type RangeAnswer, type ReadOptions } from '../timelapse';
 
 /** "printer.example.com" -> "https://printer.example.com"; trailing slashes dropped. */
 export function normalizePrinterUrl(raw: string, pageProtocol = globalThis.location?.protocol ?? 'https:'): string {
@@ -187,33 +187,21 @@ export class DirectLink implements PrinterLink {
     });
   }
 
-  /** A whole file from the printer, read as it comes so the bar can follow it. */
-  async download(path: string, size: number, options: DownloadOptions = {}): Promise<Blob> {
+  /** A piece of a file on the printer, asked with a Range header. */
+  async readRange(path: string, start: number, end: number, options: ReadOptions = {}): Promise<RangeAnswer> {
     const blocked = directBlockedReason(this.baseUrl);
     if (blocked) throw new LinkError(blocked, 'blocked');
     let r: Response;
     try {
-      r = await fetch(this.resolve(path), { headers: this.headers(), signal: options.signal });
+      r = await fetch(this.resolve(path), { headers: { ...this.headers(), Range: `bytes=${start}-${end}` }, signal: options.signal });
     } catch (e) {
       if ((e as Error).name === 'AbortError') throw e;
       throw new LinkError(`Could not reach ${this.label}.`, 'network');
     }
-    if (r.status === 404) throw new LinkError('The video is no longer on the printer.', 'http');
-    if (!r.ok) throw new LinkError(`The printer answered HTTP ${r.status}.`, 'http');
-    options.onRoute?.('direct');
-    const total = Number(r.headers.get('Content-Length')) || size;
-    const reader = r.body?.getReader();
-    if (!reader) return new Blob([await r.arrayBuffer()], { type: options.type ?? '' });
-    const parts: Uint8Array[] = [];
-    let got = 0;
-    for (;;) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      parts.push(value);
-      got += value.length;
-      if (total) options.onProgress?.(Math.min(1, got / total));
-    }
-    return new Blob(parts as BlobPart[], { type: options.type ?? '' });
+    const body = r.status === 200 || r.status === 206 ? new Uint8Array(await r.arrayBuffer()) : new Uint8Array(0);
+    const headers: Record<string, string> = {};
+    r.headers.forEach((v, k) => (headers[k] = v));
+    return rangeAnswer(r.status, body, rangeTotal({ status: r.status, headers, body: body.buffer }), start, end, 'direct');
   }
 
   mediaUrl(url: string): string | null {

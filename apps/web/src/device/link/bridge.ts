@@ -4,7 +4,7 @@
 // The relay is a dumb pipe, so this speaks plain Moonraker JSON-RPC; upload
 // and camera frames become bridge.* calls the agent answers itself.
 import type { DirectCamera } from '../camera';
-import { BridgeFiles, type DownloadOptions } from '../timelapse';
+import { BridgeFiles, type ReadOptions, type RangeAnswer } from '../timelapse';
 import { LinkError, type BridgeStatus, type DirectAnswer, type LinkHandlers, type PageAnswer, type PageRequest, type PrinterLink, type RpcMessage, type UploadStage } from './types';
 import {
   DirectUploadRefused,
@@ -413,10 +413,10 @@ export class BridgeLink implements PrinterLink {
 
   private files: BridgeFiles | null = null;
 
-  /** A file in pieces: over a direct link when one connects, else the relay (see timelapse.ts). */
-  download(path: string, size: number, options?: DownloadOptions): Promise<Blob> {
+  /** A piece of a file: over a direct link when one connects, else the relay (see timelapse.ts). */
+  readRange(path: string, start: number, end: number, options?: ReadOptions): Promise<RangeAnswer> {
     this.files ??= new BridgeFiles(this);
-    return this.files.download(path, size, options);
+    return this.files.readRange(path, start, end, options);
   }
 
   pageOpen(sdp: string): Promise<{ id: string; sdp: string }> {

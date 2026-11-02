@@ -24,7 +24,7 @@ OctoPrint, Elegoo Centauri Carbon and Bambu Lab printers through the bridge.
 | Kinds of printer, "Which printers work?" (its table starts folded in the add-a-printer window) | `device/brands.ts`, `ui/WorksWith.tsx` |
 | Tool heads, filament slots, "From printer", the printer's filaments at the top of each Filament list | `device/heads.ts`, `slots.ts`, `lib/filament-sync.ts`, `components/FilamentSync.tsx` |
 | Cameras | `device/camera.ts`, `direct-camera.ts`, `webrtc.ts`, `ui/CameraCard.tsx` |
-| Timelapses tab in the Files card: list, watch, save, delete | `device/timelapse.ts`, `ui/Timelapses.tsx`, `ui/FilesCard.tsx` |
+| Timelapses tab in the Files card: list, watch, download, delete | `device/timelapse.ts`, `ui/Timelapses.tsx`, `ui/FilesCard.tsx` |
 | Page cards (a printer's own page, e.g. its remote screen) | `device/printer-page.ts`, `ui/PrinterPage.tsx`, relay `page-shell.ts` |
 | Layout and Arrange | `device/layout.ts`, `ui/Arrange.tsx`, `ui/DeviceScreen.tsx` |
 | Skip objects | `device/objects.ts`, `ui/SkipObjects.tsx` |
@@ -64,8 +64,12 @@ setting `device-layout.<printer id>`, per-device conveniences in browser storage
 - A folded camera or page card streams and loads nothing.
 - **Timelapses** come from Moonraker's `timelapse` folder (the moonraker-timelapse add-on;
   the bridge offers OctoPrint's there too) and the U1's own `camera` folder. A video is
-  fetched whole in Range pieces (`fileAddress`, `BridgeFiles`) and kept for the page's
-  life, so watching it again costs nothing. Through a bridge: a direct link first, the
+  read in 512 KiB Range pieces (`VideoSource`, `BridgeFiles`), each kept for the page's
+  life. It plays as it arrives: the player asks the service worker (`public/sw.js`) for
+  `/timelapse-stream/<id>` with a Range, the worker asks the page, the page answers from
+  the pieces, so only what is watched is fetched. Download joins every piece, reusing
+  those already watched; watching or downloading again costs nothing. Without a service
+  worker the player fetches the whole video first. Through a bridge: a direct link first, the
   relay only for videos up to 200 MB (`RELAY_VIDEO_LIMIT`); a row's picture (the add-on's
   .jpg of the same name) only over a direct link, never the relay. The list is asked when
   the printer connects and on Refresh, not on every file change (the U1 rewrites its

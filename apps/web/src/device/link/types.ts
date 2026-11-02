@@ -4,7 +4,7 @@
 // which Moonraker serves over plain HTTP, need their own calls.
 
 import type { DirectCamera } from '../camera';
-import type { DownloadOptions } from '../timelapse';
+import type { RangeAnswer, ReadOptions } from '../timelapse';
 
 export type RpcMessage = {
   jsonrpc?: '2.0';
@@ -54,10 +54,10 @@ export interface PrinterLink {
    */
   upload(blob: Blob, path: string, onProgress?: (fraction: number) => void, signal?: AbortSignal, onStage?: (stage: UploadStage) => void): Promise<string>;
   /**
-   * A file on the printer, whole (a timelapse video or its picture). `path` is
-   * Moonraker's address ("/server/files/timelapse/a.mp4"); `size` its size when known.
+   * Bytes `start`..`end` of a file on the printer (a timelapse video or its
+   * picture). `path` is Moonraker's address ("/server/files/timelapse/a.mp4").
    */
-  download?(path: string, size: number, options?: DownloadOptions): Promise<Blob>;
+  readRange?(path: string, start: number, end: number, options?: ReadOptions): Promise<RangeAnswer>;
   /** One camera frame. `url` may be relative to the printer ("/webcam/?action=snapshot"). */
   snapshot(url: string): Promise<Blob>;
   /**

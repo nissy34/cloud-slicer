@@ -114,6 +114,8 @@ down. Add a line with the date when a new choice is made.
   save, delete; U1 (camera folder), any Klipper with moonraker-timelapse and OctoPrint.
   Bambu left out. Videos come over the direct link, the relay is the backup up to
   200 MB; row pictures never go through the relay. A link from the Finished alert: maybe later.
+  After the first real-U1 try: plays as it arrives (service worker serves the pieces), Save
+  renamed Download, a dark video-shaped box with a thin bar while it starts.
 - Alerts: choices stay per device; a new device starts from the last saved (2026-10-22).
   Titles plain, no hints (2026-10-26). Cameras per alert (2026-10-30): any alert, up to
   four cameras joined into one picture (one notification, not one per camera); settings
