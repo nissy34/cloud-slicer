@@ -77,6 +77,7 @@ func (v *videoSlot) leave(owner context.Context) {
 
 // linkCamera is one camera shown over the link.
 type linkCamera struct {
+	mu       sync.Mutex
 	cancel   context.CancelFunc
 	ctx      context.Context
 	upstream *webrtc.PeerConnection
@@ -87,8 +88,11 @@ type linkCamera struct {
 
 func (c *linkCamera) close() {
 	c.cancel()
-	if c.upstream != nil {
-		_ = c.upstream.Close()
+	c.mu.Lock()
+	up := c.upstream
+	c.mu.Unlock()
+	if up != nil {
+		_ = up.Close()
 	}
 }
 
@@ -282,7 +286,14 @@ func (s *Session) linkCamera(p cameraOpenParams) (any, error) {
 		for _, sig := range s.videoSources(p) {
 			up, track, err := connectSource(ctx, sig)
 			if err == nil {
+				cam.mu.Lock()
 				cam.upstream = up
+				cam.mu.Unlock()
+				if ctx.Err() != nil {
+					// Closed while the camera was being asked.
+					_ = up.Close()
+					return fail(errors.New("The direct link closed."))
+				}
 				go forwardVideo(ctx, track, l.slots[slot], up)
 				return map[string]any{"slot": slot, "mode": "video"}, nil
 			}
@@ -299,7 +310,10 @@ func (s *Session) linkCamera(p cameraOpenParams) (any, error) {
 	if fps <= 0 || fps > maxDirectFPS {
 		fps = maxDirectFPS
 	}
+	// Read by servePictures when the page opens the camera's channel.
+	l.mu.Lock()
 	cam.snapshot, cam.fps = p.SnapshotURL, fps
+	l.mu.Unlock()
 	return map[string]any{"slot": slot, "mode": "pictures"}, nil
 }
 
@@ -327,12 +341,17 @@ func (l *sharedLink) servePictures(s *Session, dc *webrtc.DataChannel, which str
 	}
 	l.mu.Lock()
 	cam := l.cams[slot]
+	var snapshot string
+	var fps float64
+	if cam != nil {
+		snapshot, fps = cam.snapshot, cam.fps
+	}
 	l.mu.Unlock()
-	if cam == nil || cam.snapshot == "" {
+	if snapshot == "" {
 		_ = dc.Close()
 		return
 	}
-	dc.OnOpen(func() { go s.sendPictures(cam.ctx, dc, cam.snapshot, cam.fps) })
+	dc.OnOpen(func() { go s.sendPictures(cam.ctx, dc, snapshot, fps) })
 }
 
 // readSlotRTCP passes the browser's requests for a fresh full picture (after a
