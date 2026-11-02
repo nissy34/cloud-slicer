@@ -5,6 +5,34 @@ import type { WebrtcProtocol } from './camera';
 
 export const STUN: RTCIceServer[] = [{ urls: ['stun:stun.l.google.com:19302'] }];
 const SIGNAL_TIMEOUT_MS = 10_000;
+/** How long a dropped link ("disconnected") gets to come back before it counts as lost. */
+export const LINK_MEND_MS = 6_000;
+
+/**
+ * Calls `lost` once when the connection is really gone: at once on "failed",
+ * but only after LINK_MEND_MS of "disconnected", because that state often
+ * mends itself (a phone on mobile data, a Wi-Fi blip, a busy moment).
+ * Without the wait every blip tore the camera down and started it again.
+ */
+export function watchLink(pc: Pick<RTCPeerConnection, 'connectionState' | 'onconnectionstatechange'>, lost: () => void): () => void {
+  let mending: ReturnType<typeof setTimeout> | undefined;
+  let done = false;
+  const end = () => {
+    clearTimeout(mending);
+    if (done) return;
+    done = true;
+    lost();
+  };
+  pc.onconnectionstatechange = () => {
+    clearTimeout(mending);
+    if (pc.connectionState === 'failed') end();
+    else if (pc.connectionState === 'disconnected') mending = setTimeout(end, LINK_MEND_MS);
+  };
+  return () => {
+    done = true;
+    clearTimeout(mending);
+  };
+}
 
 /** Waits for ICE gathering so the SDP we send carries every candidate (no trickle needed). */
 export function gathered(pc: RTCPeerConnection): Promise<void> {
@@ -96,7 +124,9 @@ export async function playWebrtc(protocol: WebrtcProtocol, url: string, video: H
   const pc = new RTCPeerConnection({ iceServers: STUN });
   const ac = new AbortController();
   let extra = () => {};
+  let unwatch = () => {};
   const stop = () => {
+    unwatch();
     ac.abort();
     extra();
     pc.close();
@@ -109,10 +139,10 @@ export async function playWebrtc(protocol: WebrtcProtocol, url: string, video: H
       video.srcObject = e.streams[0] ?? new MediaStream([e.track]);
       resolve();
     };
-    pc.onconnectionstatechange = () => {
-      if (pc.connectionState === 'failed') reject(new Error('The camera stream failed.'));
-      if (pc.connectionState === 'failed' || pc.connectionState === 'disconnected') onLost();
-    };
+    unwatch = watchLink(pc, () => {
+      reject(new Error('The camera stream failed.'));
+      onLost();
+    });
   });
   const timeout = setTimeout(() => ac.abort(), SIGNAL_TIMEOUT_MS);
   try {

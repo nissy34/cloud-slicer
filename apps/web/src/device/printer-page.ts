@@ -9,7 +9,7 @@
 // about three times a second over the direct link, once a second over the relay,
 // and again at once after a tap. Over the relay a page stops after a data limit.
 import type { PageAnswer, PageRequest } from './link/types';
-import { STUN, gathered } from './webrtc';
+import { STUN, gathered, watchLink } from './webrtc';
 
 export interface PageBridge {
   pageFetch(req: PageRequest): Promise<PageAnswer>;
@@ -19,8 +19,6 @@ export interface PageBridge {
 
 /** How long the direct link gets to connect; the page meanwhile goes over the relay. */
 export const DIRECT_PAGE_TIMEOUT_MS = 12_000;
-/** How long a dropped direct link gets to come back before it counts as lost. */
-const DIRECT_MEND_MS = 6_000;
 /** Over the relay, a picture the page already has is asked for again at most this often. */
 export const RELAY_RECHECK_MS = 1000;
 /** Over the direct link, the same: the printer works out each answer, so it isn't asked ten times a second. */
@@ -151,18 +149,12 @@ export async function openDirect(bridge: Required<PageBridge>, onLost: () => voi
     waiting.delete(done.id);
     w.ok({ ...w.head, body: done.body });
   };
-  // "disconnected" often mends itself (a phone on mobile data, a busy moment): give it a few seconds.
-  let mending: ReturnType<typeof setTimeout> | undefined;
-  const lost = () => {
+  // "disconnected" gets a few seconds to mend before the link counts as lost.
+  watchLink(pc, () => {
     if (closed) return;
     close();
     onLost();
-  };
-  pc.onconnectionstatechange = () => {
-    clearTimeout(mending);
-    if (pc.connectionState === 'failed') lost();
-    else if (pc.connectionState === 'disconnected') mending = setTimeout(lost, DIRECT_MEND_MS);
-  };
+  });
   let timer: ReturnType<typeof setTimeout> | undefined;
   try {
     const open = new Promise<void>((ok, fail) => {

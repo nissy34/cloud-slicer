@@ -69,7 +69,7 @@ setting `device-layout.<printer id>`, per-device conveniences in browser storage
   `/timelapse-stream/<id>` with a Range, the worker asks the page, the page answers from
   the pieces, so only what is watched is fetched. It holds the first 2 MB before it
   starts and reads 6 pieces ahead while it plays. A direct link that drops gets 6 s to
-  come back; after a drop pieces go over the relay without waiting, trying direct again
+  come back (`watchLink`); after a drop pieces go over the relay without waiting, trying direct again
   after 20 s, and a direct piece stuck 15 s goes over the relay. Download joins every piece, reusing
   those already watched; watching or downloading again costs nothing. Without a service
   worker the player fetches the whole video first. Through a bridge: a direct link first, the
@@ -77,6 +77,9 @@ setting `device-layout.<printer id>`, per-device conveniences in browser storage
   .jpg of the same name) only over a direct link, never the relay. The list is asked when
   the printer connects and on Refresh, not on every file change (the U1 rewrites its
   camera folder several times a second).
+- A WebRTC camera (straight from the printer or the bridge's direct link) ends only on
+  "failed", or after 6 s of "disconnected" (`watchLink` in `webrtc.ts`): that state often
+  mends itself on phones and Wi-Fi, and giving up at once made the camera flap.
 - Each printer has its own layout; a new printer starts from the default; removing a
   printer removes its layout.
 - The top row keeps the printer and the layout apart. Printer things live in the printer
