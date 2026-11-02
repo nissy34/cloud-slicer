@@ -64,15 +64,11 @@ setting `device-layout.<printer id>`, per-device conveniences in browser storage
 - A folded camera or page card streams and loads nothing.
 - **Timelapses** come from Moonraker's `timelapse` folder (the moonraker-timelapse add-on;
   the bridge offers OctoPrint's there too) and the U1's own `camera` folder. A video is
-  read in 512 KiB Range pieces (`VideoSource`, `BridgeFiles`), each kept for the page's
-  life. It plays as it arrives: the player asks the service worker (`public/sw.js`) for
-  `/timelapse-stream/<id>` with a Range, the worker asks the page, the page answers from
-  the pieces, so only what is watched is fetched. It holds the first 2 MB before it
-  starts and reads 6 pieces ahead while it plays. A direct link that drops gets 6 s to
-  come back (`watchLink`); after a drop pieces go over the relay without waiting, trying direct again
-  after 20 s, and a direct piece stuck 15 s goes over the relay. Download joins every piece, reusing
-  those already watched; watching or downloading again costs nothing. Without a service
-  worker the player fetches the whole video first. Through a bridge: a direct link first, the
+  fetched whole before it plays (as Fluidd does), in 512 KiB Range pieces three at a time
+  (`VideoSource`, `BridgeFiles`), and kept for the page's life: Download hands over the
+  same copy, and watching again costs nothing. A direct link that drops gets 6 s to come
+  back (`watchLink`); after a drop pieces go over the relay without waiting, trying direct
+  again after 20 s, and a direct piece stuck 15 s goes over the relay. Through a bridge: a direct link first, the
   relay only for videos up to 200 MB (`RELAY_VIDEO_LIMIT`); a row's picture (the add-on's
   .jpg of the same name) only over a direct link, never the relay. The list is asked when
   the printer connects and on Refresh, not on every file change (the U1 rewrites its

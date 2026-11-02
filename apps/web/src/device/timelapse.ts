@@ -1,12 +1,9 @@
 // Timelapse videos on the printer, for the Files card's Timelapses tab.
 // Klipper printers with the moonraker-timelapse add-on keep them in Moonraker's
 // "timelapse" folder, the Snapmaker U1 in its "camera" folder, and the bridge
-// offers OctoPrint's as a "timelapse" folder too. A video is read in fixed
-// pieces (PIECE), each kept for the page's life, so watching again costs
-// nothing. The player plays as pieces arrive: it asks the app's service worker
-// (public/sw.js) for /timelapse-stream/<id> with a Range, the worker asks this
-// page, and the page answers from the pieces; only what is watched is fetched.
-// Download joins every piece. Through a bridge the pieces come over a direct
+// offers OctoPrint's as a "timelapse" folder too. A video is fetched whole in
+// fixed pieces (PIECE), a few at once, and kept for the page's life, so
+// watching or downloading again costs nothing. Through a bridge the pieces come over a direct
 // link when one connects, else over the relay, which only takes videos up to
 // RELAY_VIDEO_LIMIT; row pictures never go over the relay.
 import type { PageAnswer, PageRequest } from './link/types';
@@ -37,10 +34,6 @@ const PARALLEL = 3;
 export const DIRECT_WAIT_MS = 12_000;
 /** After a direct link drops, how long reads use the relay before trying a direct link again. */
 const REOPEN_AFTER_MS = 20_000;
-/** Pieces read ahead of what the player asked for, so it doesn't wait on each one. */
-const AHEAD = 6;
-/** What the player holds before it starts: a few seconds of a typical timelapse. */
-export const START_BUFFER = 2 * 1024 * 1024;
 /** A direct link with nothing to fetch closes after this long. */
 const DIRECT_IDLE_MS = 60_000;
 
@@ -210,15 +203,13 @@ export type RangeReader = (start: number, end: number, o: ReadOptions) => Promis
 
 /**
  * One file on the printer, read in PIECE-sized pieces kept for the page's
- * life: the player's Range requests and Download share them.
+ * life: watching and Download share them.
  */
 export class VideoSource {
   private pieces = new Map<number, Promise<Uint8Array>>();
   /** The way the last piece came. */
   route: FileRoute | null = null;
   onRoute?: (route: FileRoute) => void;
-  /** Why the last piece failed, for the player to say. */
-  lastError: Error | null = null;
 
   constructor(
     private readonly read: RangeReader,
@@ -237,43 +228,14 @@ export class VideoSource {
       p = this.read(start, start + PIECE - 1, { directOnly }).then((a) => {
         if (a.total != null) this.size = a.total;
         if (a.route !== this.route) this.onRoute?.((this.route = a.route));
-        this.lastError = null;
         return a.bytes;
       }, (e: Error) => {
         throw big && e instanceof LinkError && e.kind === 'blocked' ? new LinkError(TOO_BIG, 'blocked') : e;
       });
       this.pieces.set(i, p);
-      p.catch((e: Error) => {
-        this.pieces.delete(i);
-        this.lastError = e;
-      });
+      p.catch(() => this.pieces.delete(i));
     }
     return p;
-  }
-
-  /** Bytes from `start`, as far as its piece goes (and not past `end`). */
-  async range(start: number, end?: number): Promise<{ start: number; end: number; bytes: Uint8Array }> {
-    const i = Math.floor(start / PIECE);
-    const pending = this.piece(i);
-    // The player reads on from here: fetch the next few now so it doesn't stop at each piece.
-    const last = Math.ceil(this.size / PIECE) - 1;
-    for (let k = i + 1; k <= Math.min(last, i + AHEAD); k++) this.piece(k).catch(() => {});
-    const p = await pending;
-    const from = start - i * PIECE;
-    const to = Math.min(p.length, end == null ? p.length : end - i * PIECE + 1);
-    const bytes = p.subarray(from, Math.max(from, to));
-    return { start, end: start + bytes.length - 1, bytes };
-  }
-
-  /** The first `bytes` of the file (or all of a smaller one), so the player has some in hand before it starts. */
-  async buffer(bytes: number, onProgress?: (fraction: number) => void): Promise<void> {
-    const count = Math.max(1, Math.min(Math.ceil(bytes / PIECE), Math.ceil(this.size / PIECE)));
-    let done = 0;
-    await Promise.all(
-      Array.from({ length: count }, (_, i) =>
-        this.piece(i).then(() => onProgress?.(++done / count)),
-      ),
-    );
   }
 
   /** The whole file, a few pieces at a time. */
@@ -312,61 +274,4 @@ export function videoSource(key: string, make: () => VideoSource): VideoSource {
 
 export function forgetSource(key: string) {
   sources.delete(key);
-}
-
-/** "bytes=10-" → [10, null]; "bytes=10-20" → [10, 20]; anything else → [0, null]. */
-export function parseRange(header: string | null | undefined): [number, number | null] {
-  const m = /^bytes=(\d+)-(\d*)$/.exec((header ?? '').trim());
-  return m ? [Number(m[1]), m[2] ? Number(m[2]) : null] : [0, null];
-}
-
-/** The answer the service worker gives the player for one Range request. */
-export async function streamAnswer(src: VideoSource, range: string | null): Promise<{ status: number; headers: Record<string, string>; body: ArrayBuffer }> {
-  const [start, end] = parseRange(range);
-  if (src.size > 0 && start >= src.size) return { status: 416, headers: { 'Content-Range': `bytes */${src.size}` }, body: new ArrayBuffer(0) };
-  const r = await src.range(start, end ?? undefined);
-  return {
-    status: 206,
-    headers: {
-      'Content-Type': src.type || 'application/octet-stream',
-      'Content-Range': `bytes ${r.start}-${r.end}/${src.size}`,
-      'Content-Length': String(r.bytes.length),
-      'Accept-Ranges': 'bytes',
-    },
-    body: r.bytes.slice().buffer,
-  };
-}
-
-// Streams the player may ask the service worker for, by id.
-const streams = new Map<string, VideoSource>();
-let listening = false;
-
-/**
- * An address the player can play `src` from as it arrives, or null when the
- * app's service worker doesn't control this page (then the caller fetches all first).
- */
-export function streamUrl(src: VideoSource): string | null {
-  const sw = typeof navigator !== 'undefined' ? navigator.serviceWorker : undefined;
-  if (!sw?.controller) return null;
-  if (!listening) {
-    listening = true;
-    sw.addEventListener('message', (e: MessageEvent) => {
-      const d = e.data as { timelapseStream?: string; range?: string | null } | null;
-      const port = e.ports[0];
-      if (!d?.timelapseStream || !port) return;
-      const s = streams.get(d.timelapseStream);
-      if (!s) return port.postMessage({ status: 404, headers: {}, body: new ArrayBuffer(0) });
-      streamAnswer(s, d.range ?? null).then(
-        (a) => port.postMessage(a, [a.body]),
-        () => port.postMessage({ status: 502, headers: {}, body: new ArrayBuffer(0) }),
-      );
-    });
-  }
-  const id = Math.random().toString(36).slice(2) + Date.now().toString(36);
-  streams.set(id, src);
-  return `/timelapse-stream/${id}`;
-}
-
-export function stopStream(url: string) {
-  streams.delete(url.split('/').pop() ?? '');
 }

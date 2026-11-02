@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { PageAnswer, PageRequest } from './link/types';
 import { PageRefused } from './printer-page';
-import { BridgeFiles, PIECE, RELAY_VIDEO_LIMIT, VideoSource, fileAddress, parseRange, pickTimelapses, playable, rangeTotal, streamAnswer, type RangeReader } from './timelapse';
+import { BridgeFiles, PIECE, RELAY_VIDEO_LIMIT, VideoSource, fileAddress, pickTimelapses, playable, rangeTotal, type RangeReader } from './timelapse';
 
 describe('pickTimelapses', () => {
   it('keeps videos newest first, each with its picture', () => {
@@ -89,24 +89,10 @@ function reader(bytes: Uint8Array) {
 }
 
 describe('VideoSource', () => {
-  it('reads from where the player is, a few pieces ahead, each once', async () => {
-    const bytes = counting(PIECE * 20 + 7);
-    const r = reader(bytes);
-    const src = new VideoSource(r.read, bytes.length, 'video/mp4');
-    const a = await src.range(PIECE * 2 + 5, PIECE * 2 + 9);
-    expect([...a.bytes]).toEqual([...bytes.subarray(PIECE * 2 + 5, PIECE * 2 + 10)]);
-    expect(r.asked).toEqual([2, 3, 4, 5, 6, 7, 8].map((i) => i * PIECE));
-    await src.range(PIECE * 2);
-    expect(r.asked.length).toBe(7);
-    // Near the end it stops at the last piece.
-    await src.range(PIECE * 18);
-    expect(r.asked.slice(7)).toEqual([18, 19, 20].map((i) => i * PIECE));
-  });
-  it('joins every piece for a download, reusing what was watched', async () => {
+  it('fetches the whole video in pieces, and only once', async () => {
     const bytes = counting(PIECE * 2 + 10);
     const r = reader(bytes);
     const src = new VideoSource(r.read, bytes.length, 'video/mp4');
-    await src.range(0);
     const progress: number[] = [];
     const blob = await src.all((f) => progress.push(f));
     expect(same(new Uint8Array(await blob.arrayBuffer()), bytes)).toBe(true);
@@ -120,12 +106,12 @@ describe('VideoSource', () => {
     const src = new VideoSource(
       async (_s, _e, o) => {
         seen.push(!!o.directOnly);
-        return { bytes: new Uint8Array(1), total: null, route: 'direct' };
+        return { bytes: new Uint8Array(1), total: 1, route: 'direct' };
       },
       RELAY_VIDEO_LIMIT + 1,
       'video/mp4',
     );
-    await src.range(0);
+    await src.all();
     expect(seen.length).toBeGreaterThan(0);
     expect(seen.every(Boolean)).toBe(true);
   });
@@ -139,39 +125,8 @@ describe('VideoSource', () => {
       1,
       'video/mp4',
     );
-    await expect(src.range(0)).rejects.toThrow('dropped');
-    expect(src.lastError?.message).toBe('dropped');
+    await expect(src.all()).rejects.toThrow('dropped');
     fail = false;
-    expect([...(await src.range(0)).bytes]).toEqual([1]);
-  });
-});
-
-describe('VideoSource.buffer', () => {
-  it('holds the first pieces before the player starts', async () => {
-    const bytes = counting(PIECE * 10);
-    const r = reader(bytes);
-    const progress: number[] = [];
-    await new VideoSource(r.read, bytes.length, 'video/mp4').buffer(PIECE * 3, (f) => progress.push(f));
-    expect(r.asked.sort((a, b) => a - b)).toEqual([0, PIECE, PIECE * 2]);
-    expect(progress.at(-1)).toBe(1);
-  });
-});
-
-describe('streaming to the player', () => {
-  it('reads Range headers', () => {
-    expect(parseRange('bytes=10-')).toEqual([10, null]);
-    expect(parseRange('bytes=10-20')).toEqual([10, 20]);
-    expect(parseRange(null)).toEqual([0, null]);
-  });
-  it('answers one piece at a time', async () => {
-    const bytes = counting(PIECE + 100);
-    const src = new VideoSource(reader(bytes).read, bytes.length, 'video/mp4');
-    const a = await streamAnswer(src, 'bytes=0-');
-    expect(a.status).toBe(206);
-    expect(a.headers['Content-Range']).toBe(`bytes 0-${PIECE - 1}/${bytes.length}`);
-    expect(a.body.byteLength).toBe(PIECE);
-    const b = await streamAnswer(src, `bytes=${PIECE}-`);
-    expect(b.headers['Content-Range']).toBe(`bytes ${PIECE}-${bytes.length - 1}/${bytes.length}`);
-    expect((await streamAnswer(src, `bytes=${bytes.length}-`)).status).toBe(416);
+    expect((await src.all()).size).toBe(1);
   });
 });

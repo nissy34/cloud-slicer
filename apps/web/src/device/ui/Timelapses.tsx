@@ -1,14 +1,14 @@
 // The Files card's Timelapses tab: the printer's timelapse videos, newest
-// first. Tap one to watch it (it plays as it arrives; only what is watched is
-// fetched), download it, or delete it. Row pictures come only when they can be
+// first. Tap one to watch it (fetched whole, then played, as Fluidd does),
+// download it, or delete it. Row pictures come only when they can be
 // fetched without the relay.
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { ChevronLeft, ChevronRight, Film, RefreshCw } from 'lucide-react';
 import { currentSession, useDevice } from '../../state/device';
 import { Dialog } from '../../components/Dialog';
 import { Empty } from '../../components/Empty';
 import { Note } from '../../components/Note';
-import { START_BUFFER, forgetSource, playable, stopStream, streamUrl, videoSource, videoType, VideoSource, type FileRoute, type Timelapse } from '../timelapse';
+import { forgetSource, playable, videoSource, videoType, VideoSource, type FileRoute, type Timelapse } from '../timelapse';
 import { FILES_PER_PAGE, fileSize, fileWhen } from './FilesCard';
 
 const keyOf = (printer: string | null, t: Timelapse, file: string) => `${printer}:${t.root}/${file}@${t.modified}`;
@@ -56,15 +56,15 @@ function RowPicture({ t }: { t: Timelapse }) {
 
 const mb = (n: number) => (n / 1024 / 1024).toFixed(n < 10 * 1024 * 1024 ? 1 : 0);
 
-/** A thin bar and "3.1 of 12 MB" over the dark video box while the video starts or arrives. */
-function Arriving({ fraction, size, route }: { fraction: number | null; size: number; route: FileRoute | null }) {
+/** A thin bar and "3.1 of 12 MB" in the dark video box while the video arrives. */
+function Arriving({ fraction, size, route }: { fraction: number; size: number; route: FileRoute | null }) {
   const via = route === 'relay' ? ' through the relay' : '';
   return (
     <div className="dv-timelapse-arriving" role="status">
-      <div className={`dv-timelapse-bar${fraction == null ? ' busy' : ''}`}>
-        <span style={fraction == null ? undefined : { width: `${Math.round(fraction * 100)}%` }} />
+      <div className="dv-timelapse-bar">
+        <span style={{ width: `${Math.round(fraction * 100)}%` }} />
       </div>
-      <span>{fraction == null ? `Starting the video${via}…` : `${mb(fraction * size)} of ${mb(size)} MB${via}`}</span>
+      <span>{`${mb(fraction * size)} of ${mb(size)} MB${via}`}</span>
     </div>
   );
 }
@@ -73,74 +73,27 @@ function Player({ t, onClose, onDelete }: { t: Timelapse; onClose(): void; onDel
   const printer = useDevice((s) => s.activeId);
   const canPlay = playable(t.path);
   const [src] = useState(() => sourceFor(printer, t, t.path, t.size));
-  const [url, setUrl] = useState<string | null>(null);
-  const [streamable, setStreamable] = useState(false);
-  // Fetching the whole video before it plays: only when the app's service worker can't stream it.
-  const [whole, setWhole] = useState<number | null>(null);
+  // The whole video, fetched before it plays (as Fluidd does); Download hands over the same copy.
+  const [fraction, setFraction] = useState(0);
   const [blob, setBlob] = useState<Blob | null>(null);
-  const blobUrl = useBlobUrl(blob);
-  const [started, setStarted] = useState(false);
+  const url = useBlobUrl(blob);
   const [route, setRoute] = useState<FileRoute | null>(src?.route ?? null);
-  const [saving, setSaving] = useState<number | null>(null);
   const [error, setError] = useState(src ? '' : 'This printer connection cannot fetch videos.');
-  const stop = useRef<AbortController | null>(null);
 
   useEffect(() => {
     if (!src) return;
     src.onRoute = setRoute;
     let live = true;
-    let stream: string | null = null;
-    if (canPlay) {
-      stream = streamUrl(src);
-      if (stream) {
-        // Hold a little before it starts, so it doesn't stop again a second later.
-        const go = stream;
-        setStreamable(true);
-        setWhole(0);
-        src.buffer(START_BUFFER, (f) => live && setWhole(f)).then(
-          () => live && setUrl(go),
-          (e: Error) => live && setError(e.message || 'The video could not be fetched.'),
-        );
-      } else {
-        setWhole(0);
-        src.all((f) => live && setWhole(f)).then(
-          (b) => live && setBlob(b),
-          (e: Error) => live && setError(e.message || 'The video could not be fetched.'),
-        );
-      }
-    }
+    src.all((f) => live && setFraction(f)).then(
+      (b) => live && setBlob(b),
+      (e: Error) => live && setError(e.message || 'The video could not be fetched.'),
+    );
     return () => {
       live = false;
       src.onRoute = undefined;
-      stop.current?.abort();
-      if (stream) stopStream(stream);
     };
-  }, [src, canPlay]);
+  }, [src]);
 
-  const download = async () => {
-    if (!src || saving != null) return;
-    const ctl = new AbortController();
-    stop.current = ctl;
-    setSaving(0);
-    try {
-      const b = await src.all((f) => setSaving(f), ctl.signal);
-      const a = document.createElement('a');
-      a.href = URL.createObjectURL(b);
-      a.download = nameOf(t.path);
-      document.body.append(a);
-      a.click();
-      a.remove();
-      setTimeout(() => URL.revokeObjectURL(a.href), 60_000);
-    } catch (e) {
-      if ((e as Error).name !== 'AbortError') setError((e as Error).message || 'The video could not be fetched.');
-    } finally {
-      if (stop.current === ctl) stop.current = null;
-      setSaving(null);
-    }
-  };
-
-  const playUrl = url ?? blobUrl;
-  const busy = saving != null || (whole != null && !blob);
   return (
     <Dialog
       title={<span className="dv-timelapse-title">{nameOf(t.path)}</span>}
@@ -149,37 +102,30 @@ function Player({ t, onClose, onDelete }: { t: Timelapse; onClose(): void; onDel
       testId="timelapse-player"
       footer={
         <>
-          <button className="secondary danger" onClick={onDelete} disabled={busy}>
+          <button className="secondary danger" onClick={onDelete} disabled={!blob && !error}>
             Delete
           </button>
-          <button className="primary" onClick={() => void download()} disabled={!src || saving != null}>
-            {saving != null ? `Downloading ${Math.round(saving * 100)}%` : 'Download'}
-          </button>
+          {url ? (
+            <a className="primary" href={url} download={nameOf(t.path)}>
+              Download
+            </a>
+          ) : (
+            <button className="primary" disabled>
+              Download
+            </button>
+          )}
         </>
       }
     >
       {error ? (
         <Note tone="error">{error}</Note>
+      ) : !url ? (
+        <div className="dv-timelapse-stage">
+          <Arriving fraction={fraction} size={t.size} route={route} />
+        </div>
       ) : canPlay ? (
         <div className="dv-timelapse-stage">
-          {playUrl && (
-            <video
-              className="dv-timelapse-video"
-              src={playUrl}
-              // The browser's own controls (and its spinner) only once it can play: before that, just our bar.
-              controls={started}
-              autoPlay
-              playsInline
-              muted
-              data-testid="timelapse-video"
-              onLoadedData={(e) => {
-                setStarted(true);
-                e.currentTarget.play().catch(() => {});
-              }}
-              onError={() => setError(src?.lastError?.message || 'The video could not be played.')}
-            />
-          )}
-          {!started && <Arriving fraction={whole} size={streamable ? Math.min(START_BUFFER, t.size) : t.size} route={route} />}
+          <video className="dv-timelapse-video" src={url} controls autoPlay playsInline muted data-testid="timelapse-video" />
         </div>
       ) : (
         <Note>This kind of video doesn’t play in the browser. Download it to watch it.</Note>

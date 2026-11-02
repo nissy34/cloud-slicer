@@ -207,30 +207,24 @@ try {
     const player = page.getByTestId('timelapse-player');
     const video = player.getByTestId('timelapse-video');
     await video.waitFor({ timeout: 60_000 });
-    if (shots) await player.screenshot({ path: join(shots, `timelapse-starting-${label.replace(' ', '-')}.png`) });
-    // It plays as it arrives: the app's service worker hands the player pieces.
-    const src = await video.getAttribute('src');
-    if (!src?.startsWith('/timelapse-stream/')) throw new Error(`the video does not stream (src ${src})`);
-    await player.locator('.dv-timelapse-arriving').waitFor({ state: 'detached', timeout: 60_000 });
     if (await player.locator('.note').count()) throw new Error(`the player says: ${await player.locator('.note').innerText()}`);
-    const watched = (printer.stats.lapsePieces ?? 0) - pieces;
-    if (watched < 1) throw new Error('the player started without asking the printer');
-    if (shots) await page.screenshot({ path: join(shots, `timelapse-${label.replace(' ', '-')}.png`) });
-    // Download joins every piece, reusing the ones already watched.
-    const [file] = await Promise.all([page.waitForEvent('download', { timeout: 60_000 }), player.getByRole('button', { name: 'Download' }).click()]);
-    const saved = readFileSync(await file.path());
-    if (!saved.equals(VIDEO)) throw new Error(`the download has ${saved.length} of ${VIDEO.length} bytes, or other bytes`);
+    const got = await video.evaluate(async (v) => (await (await fetch(v.src)).blob()).size);
+    if (got !== VIDEO.length) throw new Error(`the video arrived with ${got} of ${VIDEO.length} bytes`);
     const asked = (printer.stats.lapsePieces ?? 0) - pieces;
     if (viaRelay && asked < 3) throw new Error(`the relay should carry the video in pieces, the printer was asked ${asked} times`);
+    if (shots) await page.screenshot({ path: join(shots, `timelapse-${label.replace(' ', '-')}.png`) });
+    // Download hands over the copy already fetched.
+    const [file] = await Promise.all([page.waitForEvent('download', { timeout: 30_000 }), player.getByRole('link', { name: 'Download' }).click()]);
+    if (!readFileSync(await file.path()).equals(VIDEO)) throw new Error('the download is not the video');
+    if ((printer.stats.lapsePieces ?? 0) - pieces !== asked) throw new Error('Download fetched the video again');
     await player.getByRole('button', { name: 'Close window' }).click();
-    // Watching and downloading again fetch nothing.
+    // Watching again fetches nothing.
     const again = printer.stats.lapsePieces;
     await lapses.getByRole('button', { name: 'benchy.webm', exact: true }).click();
-    await player.locator('.dv-timelapse-arriving').waitFor({ state: 'detached', timeout: 30_000 });
-    await Promise.all([page.waitForEvent('download', { timeout: 30_000 }), player.getByRole('button', { name: 'Download' }).click()]);
-    if (printer.stats.lapsePieces !== again) throw new Error('watching or downloading the video again fetched it again');
+    await video.waitFor({ timeout: 10_000 });
+    if (printer.stats.lapsePieces !== again) throw new Error('watching the video again fetched it again');
     await player.getByRole('button', { name: 'Close window' }).click();
-    console.log(`${label}: the timelapse streamed and downloaded (${asked} pieces ${viaRelay ? 'over the relay' : 'over the direct link'}), row picture ${viaRelay ? 'left out' : 'shown'}`);
+    console.log(`${label}: the timelapse played and downloaded (${asked} pieces ${viaRelay ? 'over the relay' : 'over the direct link'}), row picture ${viaRelay ? 'left out' : 'shown'}`);
     if (viaRelay) {
       await lapses.getByRole('button', { name: 'Delete older.webm' }).click();
       await page.getByRole('button', { name: 'Delete timelapse' }).click();

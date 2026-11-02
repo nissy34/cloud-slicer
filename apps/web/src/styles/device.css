@@ -1466,18 +1466,6 @@
   background: var(--on-media);
   transition: width 0.2s;
 }
-.dv-timelapse-bar.busy span {
-  width: 30%;
-  animation: dv-timelapse-busy 1.2s ease-in-out infinite;
-}
-@keyframes dv-timelapse-busy {
-  from {
-    translate: -100%;
-  }
-  to {
-    translate: 340%;
-  }
-}
 .dv-files-tabs {
   margin-bottom: var(--s-3);
 }

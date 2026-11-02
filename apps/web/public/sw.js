@@ -4,9 +4,7 @@
 // with the page closed. It caches no part of the app. Every request goes to the
 // network as before, so a new deploy's JS and engine always arrive together (a
 // cached engine against new JS breaks slicing). Page loads with no network get
-// a short offline note. It also lets the Device tab play a timelapse as it
-// arrives: the video player asks /timelapse-stream/<id> with a Range, and the
-// page that opened it answers from the printer (src/device/timelapse.ts).
+// a short offline note.
 self.addEventListener('install', () => self.skipWaiting());
 self.addEventListener('activate', (event) => event.waitUntil(self.clients.claim()));
 
@@ -29,28 +27,8 @@ async function receiveShare(request) {
   return Response.redirect('/?shared=1', 303);
 }
 
-// One Range of a timelapse, asked of the page that is playing it.
-async function timelapseStream(event, id) {
-  const client = (event.clientId && (await self.clients.get(event.clientId))) || (await self.clients.matchAll({ type: 'window' }))[0];
-  if (!client) return new Response('', { status: 404 });
-  const answer = await new Promise((resolve) => {
-    const channel = new MessageChannel();
-    const timer = setTimeout(() => resolve({ status: 504, headers: {}, body: new ArrayBuffer(0) }), 60000);
-    channel.port1.onmessage = (e) => {
-      clearTimeout(timer);
-      resolve(e.data);
-    };
-    client.postMessage({ timelapseStream: id, range: event.request.headers.get('Range') }, [channel.port2]);
-  });
-  return new Response(answer.status === 416 || answer.status >= 400 ? null : answer.body, { status: answer.status, headers: answer.headers });
-}
-
 self.addEventListener('fetch', (event) => {
   const url = new URL(event.request.url);
-  if (event.request.method === 'GET' && url.pathname.startsWith('/timelapse-stream/')) {
-    event.respondWith(timelapseStream(event, url.pathname.slice('/timelapse-stream/'.length)));
-    return;
-  }
   if (event.request.method === 'POST' && url.pathname === '/share-target') {
     event.respondWith(receiveShare(event.request).catch(() => Response.redirect('/', 303)));
     return;
