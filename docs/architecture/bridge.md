@@ -23,7 +23,7 @@ printer in its own protocol.
 | What a browser may ask for | `allowed.go` (Moonraker methods, per-brand `requests`) |
 | Setup code, autostart, uninstall | `setup.go`, `autostart.go`, `install.sh`, `install.ps1`, `install.cmd` |
 | Self-update | `update.go`, `tools/release` |
-| Cameras, uploads, page cards | `camera.go`, `upload.go`, `page.go` |
+| Cameras, uploads, page cards, timelapse files | `camera.go`, `upload.go`, `page.go`, `timelapse.go`, `octoprint_timelapse.go` |
 | Alerts and print watching | `watch.go`, `alerts.go`, `printjob.go` |
 | Status window, native dialogs | `gui.go`, `status.go`, `opened.go` |
 
@@ -68,6 +68,10 @@ printers with their API keys.
   through a per-brand allow list (`allowed.go`) that blocks host takeover (Moonraker
   `machine.*`/`access.*`, OctoPrint plugins, Bambu firmware).
 - Status is merged and sent at most once a second, and only while a browser watches.
+- Timelapse files ride the page link (`bridge.page_open` / `page_fetch`): only GET of a
+  video or picture in Moonraker's `timelapse` or `camera` folder (`timelapse.go`), with
+  the printer's key and the browser's Range. Deleting is allowed there too, nothing else
+  of Moonraker's file API.
 - Before adding a brand, check [decisions.md](../decisions.md#device-tab): some were
   turned down.
 - A new brand touches:

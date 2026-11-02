@@ -4,6 +4,7 @@
 import { detectAddons, type PrinterAddon, type PrinterError, type PrinterFacts } from './addons';
 import type { BridgeStatus, PrinterLink, RpcMessage, UploadStage } from './link/types';
 import { parseWebcams, type Webcam } from './camera';
+import { TIMELAPSE_ROOTS, fileAddress, pickTimelapses, type RangeReader, type Timelapse } from './timelapse';
 import { genericObjects, mergeStatus, type KlipperObjects } from './status';
 
 export type ConnState = 'connecting' | 'online' | 'offline';
@@ -318,6 +319,38 @@ export class PrinterSession {
   /** A file's slicer thumbnail, fetched through the link (direct or bridge). */
   thumbnail(url: string) {
     return this.link.snapshot(url);
+  }
+
+  /**
+   * The printer's timelapse videos from ONE folder, as Fluidd shows one folder
+   * at a time: Moonraker's "timelapse" folder (the moonraker-timelapse add-on,
+   * or a bridge's OctoPrint) when it holds videos, else the U1's "camera"
+   * folder. Listing both showed every video twice on a real U1. Null when the
+   * printer has neither folder.
+   */
+  async listTimelapses(): Promise<Timelapse[] | null> {
+    const found = await Promise.all(
+      TIMELAPSE_ROOTS.map((root) =>
+        this.rpc<GcodeFile[]>('server.files.list', { root })
+          .then((files) => pickTimelapses(root, files ?? []))
+          .catch(() => null),
+      ),
+    );
+    if (found.every((f) => f == null)) return null;
+    return found.find((f) => f && f.length > 0) ?? [];
+  }
+
+  /** Reads a timelapse video or its picture a Range at a time; null when this link can't fetch files. */
+  fileReader(root: string, path: string): RangeReader | null {
+    const link = this.link;
+    if (!link.readRange) return null;
+    const address = fileAddress(root, path);
+    return (start, end, o) => link.readRange!(address, start, end, o);
+  }
+
+  async deleteTimelapse(t: Timelapse) {
+    await this.rpc('server.files.delete_file', { path: `${t.root}/${t.path}` });
+    if (t.picture) await this.rpc('server.files.delete_file', { path: `${t.root}/${t.picture}` }).catch(() => {});
   }
 
   deleteFile(path: string) {
