@@ -37,7 +37,7 @@ function RowPicture({ t }: { t: Timelapse }) {
   const [blob, setBlob] = useState<Blob | null>(null);
   useEffect(() => {
     // Over the relay too: a picture is one small message.
-    const src = t.picture ? sourceFor(printer, { ...t, root: t.pictureRoot ?? t.root }, t.picture, 0) : null;
+    const src = t.picture ? sourceFor(printer, t, t.picture, 0) : null;
     if (!src) return;
     let live = true;
     src.all().then((b) => live && setBlob(b), () => {});

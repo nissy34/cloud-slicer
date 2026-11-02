@@ -70,8 +70,7 @@ setting `device-layout.<printer id>`, per-device conveniences in browser storage
   back (`watchLink`); after a drop pieces go over the relay without waiting, trying direct
   again after 20 s, and a direct piece stuck 15 s goes over the relay. Through a bridge: a direct link first, the
   relay only for videos up to 200 MB (`RELAY_VIDEO_LIMIT`); a row's picture (the .jpg of
-  the same name the U1 and the add-on save) either way, one small message each. The same
-  file name and size found in two places is one row (`mergeCopies`); Delete removes both. The list is asked when
+  the same name the U1 and the add-on save) either way, one small message each. The list is asked when
   the printer connects and on Refresh, not on every file change (the U1 rewrites its
   camera folder several times a second).
 - A WebRTC camera (straight from the printer or the bridge's direct link) ends only on

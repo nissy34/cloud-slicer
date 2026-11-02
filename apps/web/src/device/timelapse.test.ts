@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { PageAnswer, PageRequest } from './link/types';
 import { PageRefused } from './printer-page';
-import { BridgeFiles, PIECE, RELAY_VIDEO_LIMIT, VideoSource, fileAddress, mergeCopies, pickTimelapses, playable, rangeTotal, type RangeReader } from './timelapse';
+import { BridgeFiles, PIECE, RELAY_VIDEO_LIMIT, VideoSource, fileAddress, pickTimelapses, playable, rangeTotal, type RangeReader } from './timelapse';
 
 describe('pickTimelapses', () => {
   it('keeps videos newest first, each with its picture', () => {
@@ -16,17 +16,6 @@ describe('pickTimelapses', () => {
       { root: 'timelapse', path: 'benchy.mp4', modified: 5, size: 20, picture: 'benchy.jpg' },
       { root: 'timelapse', path: 'old.mp4', modified: 1, size: 10 },
     ]);
-  });
-  it('shows a video found in two places once, and deletes both', () => {
-    const rows = mergeCopies([
-      { root: 'camera', path: 'timelapse/a.mp4', modified: 5, size: 20 },
-      { root: 'camera', path: 'a.mp4', modified: 5, size: 20, picture: 'a.jpg' },
-      { root: 'camera', path: 'b.mp4', modified: 9, size: 20 },
-      { root: 'timelapse', path: 'a.mp4', modified: 4, size: 21 },
-    ]);
-    expect(rows.map((r) => `${r.root}/${r.path}`)).toEqual(['camera/b.mp4', 'camera/a.mp4', 'timelapse/a.mp4']);
-    expect(rows[1].copies).toEqual([{ root: 'camera', path: 'timelapse/a.mp4' }]);
-    expect(rows[1].picture).toBe('a.jpg');
   });
   it('knows what a browser plays', () => {
     expect(playable('a.mp4')).toBe(true);
