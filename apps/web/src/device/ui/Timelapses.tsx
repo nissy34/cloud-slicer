@@ -179,7 +179,7 @@ function Player({ t, onClose, onDelete }: { t: Timelapse; onClose(): void; onDel
               onError={() => setError(src?.lastError?.message || 'The video could not be played.')}
             />
           )}
-          {!started && <Arriving fraction={whole} size={url || !streamable ? t.size : Math.min(START_BUFFER, t.size)} route={route} />}
+          {!started && <Arriving fraction={whole} size={streamable ? Math.min(START_BUFFER, t.size) : t.size} route={route} />}
         </div>
       ) : (
         <Note>This kind of video doesn’t play in the browser. Download it to watch it.</Note>
