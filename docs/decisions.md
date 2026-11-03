@@ -96,6 +96,9 @@ down. Add a line with the date when a new choice is made.
 - Signed-out use works and merges at sign-in (2026-10-18).
 - Admin page for owners; storage per person, 3 bridges, 2 cameras; signed-out bridge use
   off by default (2026-10-20).
+- Bridges per person set on the Admin page (default 1, per-person override), not a cap on
+  printers: bridges are what cost relay requests, one reaches every printer on its
+  network (2026-11-03).
 - Relay ticket key made once, copied to the relay by every live deploy (2026-10-22).
 
 ## Device tab

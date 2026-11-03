@@ -920,7 +920,7 @@ test('admin: only the owner (OWNER_EMAILS) gets the Admin page', async () => {
   const res = await alice.json('/api/admin');
   assert.equal(res.status, 200, await res.clone().text());
   const data = await res.json();
-  assert.deepEqual(data.settings, { inviteOnly: false });
+  assert.deepEqual(data.settings, { inviteOnly: false, bridgesPerPerson: 1 });
   const emails = data.users.map((u) => u.email);
   assert.ok(emails.includes('alice@example.com') && emails.includes('bob@example.com'), emails.join());
   const a = data.users.find((u) => u.email === 'alice@example.com');
@@ -1013,7 +1013,7 @@ test('online projects off for one person: saves are refused, presets still save'
   assert.equal((await bob.json('/api/projects/big', 'DELETE')).status, 200);
 });
 
-test('relay tickets: signed-in accounts only, for one bridge, with a bridge cap', async () => {
+test('relay tickets: signed-in accounts only, for one bridge, with a bridge cap the owner sets', async () => {
   const relay = 'https://relay.example';
   assert.equal((await new Browser().json('/api/relay/ticket', 'POST', { relay, bridgeId: 'bridge-0001' })).status, 401);
   const carol = new Browser();
@@ -1026,6 +1026,21 @@ test('relay tickets: signed-in accounts only, for one bridge, with a bridge cap'
   assert.equal(payload.b, 'bridge-0001');
   assert.equal(payload.cams, 2);
   assert.ok(expiresAt > Date.now() + 3000_000);
+  // One bridge per person unless the owner says otherwise (one bridge reaches every printer on its network).
+  assert.equal((await (await alice.json('/api/admin')).json()).settings.bridgesPerPerson, 1);
+  assert.equal((await carol.json('/api/relay/ticket', 'POST', { relay, bridgeId: 'bridge-0001' })).status, 200, 'the same bridge again is fine');
+  const second = await carol.json('/api/relay/ticket', 'POST', { relay, bridgeId: 'bridge-0002' });
+  assert.equal(second.status, 403);
+  const refused = await second.json();
+  assert.equal(refused.code, 'bridge-limit');
+  assert.match(refused.error, /one bridge/);
+  // The owner raises it for everyone.
+  for (const bad of [0, 1.5, -2, '3']) assert.equal((await alice.json('/api/admin/settings', 'PUT', { bridgesPerPerson: bad })).status, 400, `not a bridge number: ${bad}`);
+  assert.equal((await alice.json('/api/admin/settings', 'PUT', { bridgesPerPerson: -1 })).status, 200, 'no limit');
+  assert.equal((await (await alice.json('/api/admin')).json()).settings.bridgesPerPerson, -1);
+  assert.equal((await carol.json('/api/admin/settings', 'PUT', { bridgesPerPerson: 5 })).status, 403);
+  assert.equal((await alice.json('/api/admin/settings', 'PUT', { bridgesPerPerson: 3 })).status, 200, 'any whole number');
+  assert.equal((await (await alice.json('/api/admin')).json()).settings.inviteOnly, false, 'the other settings are kept');
   for (const id of ['bridge-0002', 'bridge-0003', 'bridge-0001']) assert.equal((await carol.json('/api/relay/ticket', 'POST', { relay, bridgeId: id })).status, 200);
   const fourth = await carol.json('/api/relay/ticket', 'POST', { relay, bridgeId: 'bridge-0004' });
   assert.equal(fourth.status, 403);
@@ -1033,8 +1048,27 @@ test('relay tickets: signed-in accounts only, for one bridge, with a bridge cap'
   assert.equal((await carol.json('/api/relay/bridges/bridge-0002', 'DELETE')).status, 200);
   assert.equal((await carol.json('/api/relay/ticket', 'POST', { relay, bridgeId: 'bridge-0004' })).status, 200, 'a removed bridge frees a place');
   assert.equal((await carol.json('/api/relay/ticket', 'POST', { relay: 'http://evil.example', bridgeId: 'bridge-0005' })).status, 400);
-  const row = (await (await alice.json('/api/admin')).json()).users.find((u) => u.email === 'carol@example.com');
-  assert.equal(row.bridges, 3);
+  // Back to one for everyone: bridges already in use keep working, new ones are refused.
+  assert.equal((await alice.json('/api/admin/settings', 'PUT', { bridgesPerPerson: 1 })).status, 200);
+  assert.equal((await carol.json('/api/relay/ticket', 'POST', { relay, bridgeId: 'bridge-0004' })).status, 200, 'kept');
+  assert.equal((await carol.json('/api/relay/ticket', 'POST', { relay, bridgeId: 'bridge-0005' })).status, 403);
+  // One person can have their own number.
+  const carolId = (await carol.me()).id;
+  assert.equal((await alice.json(`/api/admin/users/${carolId}/bridges`, 'PUT', { bridges: -2 })).status, 400);
+  // No limit for this person: any number of bridges.
+  assert.equal((await alice.json(`/api/admin/users/${carolId}/bridges`, 'PUT', { bridges: -1 })).status, 200);
+  for (const id of ['bridge-0006', 'bridge-0007']) assert.equal((await carol.json('/api/relay/ticket', 'POST', { relay, bridgeId: id })).status, 200, 'no limit');
+  for (const id of ['bridge-0006', 'bridge-0007']) assert.equal((await carol.json(`/api/relay/bridges/${id}`, 'DELETE')).status, 200);
+  assert.equal((await alice.json(`/api/admin/users/${carolId}/bridges`, 'PUT', { bridges: 4 })).status, 200);
+  assert.equal((await carol.json('/api/relay/ticket', 'POST', { relay, bridgeId: 'bridge-0005' })).status, 200, "their own number wins over the site's");
+  assert.equal((await carol.json('/api/relay/ticket', 'POST', { relay, bridgeId: 'bridge-0008' })).status, 403, 'and is a cap too');
+  let row = (await (await alice.json('/api/admin')).json()).users.find((u) => u.email === 'carol@example.com');
+  assert.equal(row.bridges, 4);
+  assert.equal(row.bridgesLimit, 4);
+  assert.equal(row.bridgesAllowed, true);
+  assert.equal((await alice.json(`/api/admin/users/${carolId}/bridges`, 'PUT', { bridges: null })).status, 200);
+  row = (await (await alice.json('/api/admin')).json()).users.find((u) => u.email === 'carol@example.com');
+  assert.equal(row.bridgesLimit, null, "back to the site's number");
 });
 
 test('the relay is for signed-in people only: signed out gets no ticket', async () => {
@@ -1058,9 +1092,17 @@ test('bridges: the owner turns one off for everyone, or bridges off for one pers
   assert.equal((await alice.json('/api/admin/bridges/bridge-0003/on', 'POST', {})).status, 200);
   assert.equal((await carol.json('/api/relay/ticket', 'POST', { relay, bridgeId: 'bridge-0003' })).status, 200);
   assert.equal((await alice.json('/api/admin/bridges/no-such-bridge/off', 'POST', {})).status, 404);
+  // Remove: an old bridge comes off the list and frees its place.
+  const used = async () => (await (await alice.json('/api/admin')).json()).users.find((u) => u.id === carolId).bridges;
+  const before = await used();
+  assert.equal((await carol.json('/api/admin/bridges/bridge-0003', 'DELETE')).status, 403, 'owner only');
+  assert.equal((await alice.json('/api/admin/bridges/bridge-0003', 'DELETE')).status, 200);
+  assert.equal(await used(), before - 1);
+  assert.ok(!(await (await alice.json('/api/admin')).json()).bridges.some((b) => b.id === 'bridge-0003'));
+  assert.equal((await alice.json('/api/admin/bridges/bridge-0003', 'DELETE')).status, 404);
   // One person: no bridges at all, then allowed again; the online projects setting is kept.
   await alice.json(`/api/admin/users/${carolId}/projects`, 'PUT', { allowed: false });
-  assert.equal((await alice.json(`/api/admin/users/${carolId}/bridges`, 'PUT', { allowed: false })).status, 200);
+  assert.equal((await alice.json(`/api/admin/users/${carolId}/bridges`, 'PUT', { bridges: 0 })).status, 200);
   const none = await carol.json('/api/relay/ticket', 'POST', { relay, bridgeId: 'bridge-0003' });
   assert.equal(none.status, 403);
   assert.equal((await none.json()).code, 'no-bridges');
@@ -1068,7 +1110,14 @@ test('bridges: the owner turns one off for everyone, or bridges off for one pers
   assert.equal(row.bridgesAllowed, false);
   assert.equal(row.projectsAllowed, false);
   await alice.json(`/api/admin/users/${carolId}/projects`, 'PUT', { allowed: true });
-  assert.equal((await alice.json(`/api/admin/users/${carolId}/bridges`, 'PUT', { allowed: true })).status, 200);
+  assert.equal((await alice.json(`/api/admin/users/${carolId}/bridges`, 'PUT', { bridges: null })).status, 200);
+  // Carol's other bridges are in use, so the removed one can't come back at one per person...
+  const back = await carol.json('/api/relay/ticket', 'POST', { relay, bridgeId: 'bridge-0003' });
+  assert.equal(back.status, 403);
+  assert.equal((await back.json()).code, 'bridge-limit');
+  // ...until they go unused for 30 days, which frees their places by themselves.
+  const sql = `UPDATE relay_bridges SET last_used_at = ${Date.now() - 31 * 24 * 3600_000} WHERE user_id = '${carolId}'`;
+  assert.equal(spawnSync(wrangler, ['d1', 'execute', 'cloud-slicer', '--local', '--persist-to', state, '--command', sql], { cwd: web, encoding: 'utf8' }).status, 0);
   assert.equal((await carol.json('/api/relay/ticket', 'POST', { relay, bridgeId: 'bridge-0003' })).status, 200);
 });
 
@@ -1118,6 +1167,17 @@ test('setup codes: a bridge joins the account that made the code, once, within t
   assert.equal(saved.name, 'Bridge on FRANK-PC');
   assert.equal(saved.extra.kind, 'bridge-agent');
   assert.deepEqual(await (await frank.json(`/api/devices/${saved.id}/secret`)).json(), { apiKey: 'k'.repeat(43) });
+  // The Admin list names it the way the account saved it, with its printers.
+  assert.equal((await frank.json(`/api/devices/u1-f`, 'PUT', { name: 'U1 in the shed', url: '', extra: { kind: 'bridge', relay, bridgeId: 'bridge-f001', printer: 'p1' } })).status, 200);
+  const listed = (await (await alice.json('/api/admin')).json()).bridges.find((b) => b.id === 'bridge-f001');
+  assert.equal(listed.name, 'Bridge on FRANK-PC');
+  assert.equal(listed.printers, 'U1 in the shed');
+
+  // One bridge per person by default: no second code, until the owner gives Frank three.
+  const second = await frank.json('/api/relay/setup', 'POST', { relay });
+  assert.equal(second.status, 403);
+  assert.equal((await second.json()).code, 'bridge-limit');
+  assert.equal((await alice.json(`/api/admin/users/${(await frank.me()).id}/bridges`, 'PUT', { bridges: 3 })).status, 200);
 
   // An hour later the code is no good.
   const late = await (await frank.json('/api/relay/setup', 'POST', { relay })).json();
@@ -1126,7 +1186,7 @@ test('setup codes: a bridge joins the account that made the code, once, within t
   assert.equal((await (await frank.json(`/api/relay/setup/${late.code}`)).json()).state, 'expired');
   assert.equal((await claim({ code: late.code, bridgeId: 'bridge-f002' })).status, 410);
 
-  // Three bridges per account: a fourth code isn't given out.
+  // Three bridges for Frank: a fourth code isn't given out.
   for (const id of ['bridge-f002', 'bridge-f003']) {
     const c = (await (await frank.json('/api/relay/setup', 'POST', { relay })).json()).code;
     assert.equal((await claim({ code: c, bridgeId: id })).status, 200);
