@@ -24,6 +24,7 @@ import { HttpError, json, readJson, requireSameOrigin } from './http';
 import type { Env } from './types';
 
 export const LIMITS = {
+  /** A safety guard only, never shown as "N of 200" (each project is just a row + picture here). */
   userProjects: 200,
   /** The list picture, kept in the row: 256 px WebP is about 15 KB. */
   thumbnailBytes: 64 * 1024,
@@ -127,7 +128,7 @@ async function projectCount(env: Env, userId: string) {
   return u?.n ?? 0;
 }
 
-/** GET /api/projects -> { enabled, projects, count, limits, drive } (newest first; the draft, if any, is among them with draft: true) */
+/** GET /api/projects -> { enabled, projects, count, drive } (newest first; the draft, if any, is among them with draft: true) */
 export async function list(env: Env, request: Request): Promise<Response> {
   const user = await requireUser(env, request);
   const rows = await env.DB!.prepare(`SELECT ${COLUMNS} FROM projects WHERE user_id = ? ORDER BY updated_at DESC`).bind(user.id).all<ProjectRow>();
@@ -136,7 +137,6 @@ export async function list(env: Env, request: Request): Promise<Response> {
     enabled: await projectsAllowed(env, user.id),
     projects: rows.results.map((r) => toProject(r, printed.get(r.id) ?? 0)),
     count: rows.results.filter((r) => !r.draft).length,
-    limits: { userProjects: LIMITS.userProjects },
     drive: { connected: await driveConnected(env, user.id) },
   });
 }

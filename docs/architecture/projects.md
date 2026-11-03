@@ -86,8 +86,11 @@ a long name takes two lines on a card and shows in full in List.
 
 D1 `projects` (name, size, `file_key` = `drive:<file id>`, `drive_md5`, the picture in
 `thumb`/`thumb_type`, version, engine, draft, device, plates). The 3MF itself is in the
-person's Google Drive. The only limit is 200 projects per person (drafts not counted);
-a project can be as big as their Drive has room for. Deleting an account leaves its
+person's Google Drive. 200 projects per person (drafts not counted) is a safety guard only, so rows can't pile up
+forever; the UI shows just the count, never "of 200" (each project costs the site one D1
+row and a ~15 KB picture). The file uses the person's own Google storage, which the Online
+projects footer, account menu and privacy page say.
+A project can be as big as their Drive has room for. Deleting an account leaves its
 projects in the person's Drive.
 
 ## Rules

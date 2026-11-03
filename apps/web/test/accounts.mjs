@@ -552,7 +552,7 @@ test('projects: save a 3MF online, thumbnail, conflicts, rename, list, delete', 
   assert.equal(list.enabled, true);
   assert.deepEqual(list.projects.map((p) => [p.name, p.hasThumbnail]), [['Benchy v2', true], ['Cube', false]], 'newest first');
   assert.equal(list.count, 2);
-  assert.equal(list.limits.userProjects, 200);
+  assert.equal(list.limits, undefined, 'the 200 guard is not shown');
   assert.ok(list.projects.every((p) => driveFiles.has(p.driveFile)), 'each points at its file in Drive');
 
   const bob = new Browser();

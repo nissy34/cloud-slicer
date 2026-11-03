@@ -117,7 +117,6 @@ export interface ProjectList {
   projects: OnlineProject[];
   /** Saved projects (drafts aren't counted). */
   count: number;
-  limits: { userProjects: number };
   /** Whether the person let the app keep projects in their Google Drive. */
   drive?: { connected: boolean };
 }

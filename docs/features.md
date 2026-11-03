@@ -246,7 +246,7 @@ the open project as an Orca 3MF project, written by the engine with Orca's own
 colour mixes and the full print, filament and printer settings, so it reopens here or in
 desktop Orca. Signed out, Save downloads the file. Signed in, Save keeps it in the
 account's online projects: the 3MF in the person's own Google Drive ("Cloud Slicer"
-folder), indexed in D1 (`projects` table) with a small picture. 200 projects per user, any
+folder), indexed in D1 (`projects` table) with a small picture. 200 projects per user (a safety guard, not shown), any
 size their Drive has room for. Without Drive (said no at sign-in) Save downloads and Online
 projects is grayed out until "Connect Google Drive" in the account menu. Saves carry the version they started
 from, so a save from a second device asks before overwriting.
