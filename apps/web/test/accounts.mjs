@@ -1430,10 +1430,10 @@ if (withApp)
 
       // The first change asks once whether AutoSave may send work to Google Drive; nothing goes there before.
       const autosaveAsk = page.getByTestId('autosave-question');
-      await autosaveAsk.getByText('Turn on AutoSave to Google Drive?').waitFor({ timeout: 30000 });
+      await autosaveAsk.getByText('Turn on AutoSave?').waitFor({ timeout: 30000 });
       if (process.env.ACCOUNTS_SHOTS) await page.screenshot({ path: join(process.env.ACCOUNTS_SHOTS, 'autosave-question.png') });
       assert.equal((await (await carol.json('/api/projects')).json()).projects.length, 0, 'nothing in Drive before the answer');
-      await autosaveAsk.getByRole('button', { name: 'Turn on' }).click();
+      await autosaveAsk.getByRole('button', { name: 'On', exact: true }).click();
       await autosaveAsk.waitFor({ state: 'detached' });
 
       // AutoSave keeps a new project as the draft, named after its model.
@@ -1769,12 +1769,13 @@ if (withApp)
   });
 
 if (withApp)
-  test('browser: "Not now" keeps unsaved work out of Drive, in this browser, and a reload offers it back', async () => {
-    users.kim = { sub: 'g-kim', name: 'Kim', email: 'kim@example.com', email_verified: true };
+  test('browser: AutoSave Off keeps unsaved work out of Drive, in this browser, and a reload offers it back', async () => {
+    users.lena = { sub: 'g-lena', name: 'Lena', email: 'lena@example.com', email_verified: true };
     const browser = await launchBrowser();
     try {
       const kim = new Browser();
-      await signIn(kim, 'kim');
+      await signIn(kim, 'lena');
+      await kim.json('/api/settings/setup', 'PUT', { value: { printers: ['Snapmaker U1 (0.4 nozzle)'] } });
       const context = await browser.newContext({ viewport: { width: 1280, height: 860 } });
       await context.addCookies([...kim.jar.get(new URL(HOST).host)].map(([name, value]) => ({ name, value, url: HOST })));
       const page = await context.newPage();
@@ -1785,7 +1786,7 @@ if (withApp)
       await page.getByTestId('model-input').setInputFiles(join(web, '../../fixtures/3DBenchy.stl'));
       await page.getByRole('button', { name: 'Add model' }).waitFor({ timeout: 60000 });
       const ask = page.getByTestId('autosave-question');
-      await ask.getByRole('button', { name: 'Not now' }).click({ timeout: 30000 });
+      await ask.getByRole('button', { name: 'Off', exact: true }).click({ timeout: 30000 });
       await waitFor(async () => (await (await kim.json('/api/settings')).json()).settings.some((s) => s.key === 'autosave' && s.value === false), 'the answer is kept');
       // Kept in this browser a few seconds later, and nothing in Drive.
       await waitFor(
@@ -1801,7 +1802,7 @@ if (withApp)
         'the unsaved work is kept in this browser',
         60000,
       );
-      assert.equal((await (await kim.json('/api/projects')).json()).projects.length, 0, 'nothing went to Drive');
+      { const l = (await (await kim.json('/api/projects')).json()).projects; assert.equal(l.length, 0, 'nothing went to Drive: ' + JSON.stringify(l)); }
 
       // A reload (or a crash) offers it back, still unsaved; the question isn't asked again.
       await page.reload();
@@ -1812,7 +1813,7 @@ if (withApp)
       await card.getByRole('button', { name: 'Continue' }).click();
       const projectButton = page.getByRole('button', { name: /^Project/ });
       await projectButton.getByText('3DBenchy').waitFor({ timeout: 60000 });
-      await projectButton.getByLabel('unsaved changes').waitFor();
+      await projectButton.getByLabel('unsaved changes').waitFor().catch(async (e) => { await page.screenshot({ path: '/tmp/claude-0/dbg2.png' }); throw e; });
       await page.getByRole('button', { name: 'Add model' }).waitFor({ timeout: 60000 });
       await page.waitForTimeout(2000);
       assert.equal(await ask.count(), 0, 'asked only once');

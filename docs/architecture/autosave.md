@@ -10,8 +10,7 @@ Everyone, signed in or not: unsaved work is kept in this browser (IndexedDB) and
 Continue card offers it back after a crash or a closed tab ("Continue where you left
 off?"). It never leaves the browser.
 
-Signed in with Google Drive, the first change to a project asks once "Turn on AutoSave
-to Google Drive?" (the answer is the `autosave` account setting; nothing goes to Drive
+Signed in with Google Drive, the first change to a project asks once "Turn on AutoSave?" (the answer is the `autosave` account setting; nothing goes to Drive
 before it). With AutoSave on, work saves itself like Word: new work is a draft, the first
 Save names it, then each change saves when things are quiet. Opening the app elsewhere offers to
 continue; only one device edits a project at a time. On Android, files shared from

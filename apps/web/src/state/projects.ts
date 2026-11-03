@@ -86,7 +86,7 @@ interface ProjectsState {
   offer: ContinueOffer | null;
   /** The first look for a Continue card is done (the setup wizard waits for it). */
   offerChecked: boolean;
-  /** The one-time question "Turn on AutoSave to Google Drive?" is showing. */
+  /** The one-time question "Turn on AutoSave?" (On / Off) is showing. */
   askAutosave: boolean;
 
   /** Online when signed in with Google Drive connected (and online projects on for them), else a download. */

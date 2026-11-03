@@ -93,15 +93,15 @@ export function AutosaveQuestion() {
   return (
     <Notice
       testId="autosave-question"
-      title="Turn on AutoSave to Google Drive?"
-      text="Your work also saves to your Google Drive as you go, even before you name it, so you can continue on another device. It takes up your Google storage space. Either way, unsaved work is kept in this browser."
+      title="Turn on AutoSave?"
+      text="Saves to your Google Drive as you work. Uses your Google storage."
       actions={
         <>
           <button className="secondary" onClick={() => void answerAutosave(false)}>
-            Not now
+            Off
           </button>
           <button className="primary" onClick={() => void answerAutosave(true)}>
-            Turn on
+            On
           </button>
         </>
       }

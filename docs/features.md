@@ -254,7 +254,7 @@ from, so a save from a second device asks before overwriting.
 
 Unsaved work is always kept in the browser (`lib/local-copy.ts`) and offered back by the
 Continue card. AutoSave (signed in, off until the person answers the one-time question
-"Turn on AutoSave to Google Drive?"; the switch is a user setting): a new project is a
+"Turn on AutoSave?" (On / Off); the switch is a user setting): a new project is a
 draft in the account (`projects.draft = 1`). Each device keeps one draft (a new one replaces
 that device's old one, at most 3 per person, oldest go first), so Discard on the Continue
 card never takes another device's open work with it: that device says so, keeps what it
