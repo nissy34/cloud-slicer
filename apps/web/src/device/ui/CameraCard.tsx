@@ -195,8 +195,8 @@ function useKeepalive(session: PrinterSession | null, keepalive: CameraHints['ke
 }
 
 const NETWORK_BLOCKS = 'Slow camera: your network blocks a direct connection.';
-/** A camera showing relay pictures checks this often whether the direct link is back. */
-const BACK_TO_DIRECT_MS = 20_000;
+/** A camera showing relay pictures checks this often whether the direct link can be made (a blocked network still waits RETRY_AFTER_MS between real tries). */
+const BACK_TO_DIRECT_MS = 5_000;
 
 function CameraTile({
   cam,
@@ -246,18 +246,17 @@ function CameraTile({
   useEffect(() => {
     if (!fellBack || !shared || !active) return;
     let stopped = false;
-    const tryAgain = () =>
-      shared.ready().then(
-        () => {
-          if (stopped) return;
-          setNote('');
-          setIndex(0);
-        },
-        () => {},
-      );
-    const timer = setInterval(tryAgain, BACK_TO_DIRECT_MS);
+    const back = () => {
+      if (stopped) return;
+      setNote('');
+      setIndex(0);
+    };
+    // Another camera, a page or a timelapse brought the link up: join it at once.
+    const unUp = shared.onUp(back);
+    const timer = setInterval(() => void shared.ready().then(back, () => {}), BACK_TO_DIRECT_MS);
     return () => {
       stopped = true;
+      unUp();
       clearInterval(timer);
     };
   }, [fellBack, shared, active]);
