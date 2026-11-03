@@ -1810,10 +1810,16 @@ if (withApp)
       await card.getByText('Continue where you left off?').waitFor({ timeout: 120000 });
       await card.getByText(/3DBenchy, changed .*Kept in this browser, not saved\./).waitFor();
       if (process.env.ACCOUNTS_SHOTS) await page.screenshot({ path: join(process.env.ACCOUNTS_SHOTS, 'continue-local.png') });
+      // A 3MF made for a printer this account doesn't have asks to convert, as any opened project does.
+      const convert = page.getByRole('dialog', { name: 'Convert this project?' });
       await card.getByRole('button', { name: 'Continue' }).click();
       const projectButton = page.getByRole('button', { name: /^Project/ });
+      await Promise.race([
+        convert.waitFor({ timeout: 60000 }).then(() => convert.getByRole('button', { name: 'Convert' }).click()),
+        projectButton.getByLabel('unsaved changes').waitFor({ timeout: 60000 }),
+      ]);
       await projectButton.getByText('3DBenchy').waitFor({ timeout: 60000 });
-      await projectButton.getByLabel('unsaved changes').waitFor().catch(async (e) => { await page.screenshot({ path: '/tmp/claude-0/dbg2.png' }); throw e; });
+      await projectButton.getByLabel('unsaved changes').waitFor();
       await page.getByRole('button', { name: 'Add model' }).waitFor({ timeout: 60000 });
       await page.waitForTimeout(2000);
       assert.equal(await ask.count(), 0, 'asked only once');
