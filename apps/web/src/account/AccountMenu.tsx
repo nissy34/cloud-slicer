@@ -103,7 +103,7 @@ function SignedOut() {
   return (
     <>
       <h3>Sign in to Cloud Slicer</h3>
-      <p className="account-muted">Keep your printers, filaments and process presets, and use them on any device. Projects save to your Google Drive and use its storage.</p>
+      <p className="account-muted">Keep your printers, filaments and process presets, and use them on any device. Projects save to your own Google Drive and take up your Google storage space.</p>
       <div className="account-providers">
         {ALL_PROVIDERS.map((p) => (
           <button
@@ -156,7 +156,7 @@ function SignedIn({ onDone }: { onDone: () => void }) {
           {user.projects === false
             ? 'Online projects are turned off for your account'
             : user.drive
-              ? 'Projects save to your Google Drive and use its storage'
+              ? 'Projects save to your own Google Drive and take up your Google storage space'
               : "Projects don't save online: Google Drive isn't connected"}
         </li>
       </ul>

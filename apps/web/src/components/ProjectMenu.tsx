@@ -613,7 +613,7 @@ function DriveNote({ list }: { list: ProjectList }) {
   return (
     <p className="muted small projects-usage" data-testid="projects-storage">
       {list.drive?.connected
-        ? `Saved in your Google Drive (“Cloud Slicer” folder) and uses its storage · ${list.count} ${list.count === 1 ? 'project' : 'projects'}`
+        ? `Saved in your own Google Drive, “Cloud Slicer” folder. Projects take up your Google storage space (shared with Gmail and Photos) · ${list.count} ${list.count === 1 ? 'project' : 'projects'}`
         : 'Connect Google Drive in the account menu to save projects online.'}
     </p>
   );
