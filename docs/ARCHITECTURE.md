@@ -11,6 +11,7 @@ files you are changing.
 - **Slicing runs only in the browser**, on desktops and phones. There is no server
   slicing and no separate phone app: one responsive site.
 - **$0 a month**: Cloudflare's free tier only (Pages, D1, R2, Workers with Durable Objects).
+  Project files live in each person's own Google Drive, not on our storage.
 - **Every printer brand the engine ships**, Snapmaker's loaded first.
 - **Orca's own code and well-known libraries** rather than our own versions of them.
 - **No telemetry. Open source**, AGPL-3.0 like the engine.
@@ -30,7 +31,6 @@ flowchart LR
   subgraph CF["Cloudflare"]
     pages["Pages: site + /api Functions<br/>Better Auth"]
     d1[("D1")]
-    r2p[("R2 projects")]
     relay["Relay Worker<br/>one Durable Object per bridge"]
     r2b[("R2 bridge downloads,<br/>alert pictures")]
   end
@@ -40,12 +40,13 @@ flowchart LR
   end
   push["Push services<br/>Google, Apple, Mozilla, Microsoft"]
   direct["Printer with a public<br/>https address"]
+  gdrive[("The person's Google Drive<br/>project files")]
 
   page <--> eng
   page <--> gw
   page -- https --> pages
   pages --> d1
-  pages --> r2p
+  page -- "project files" --> gdrive
   page <-- wss --> relay
   bridge -- "wss (connects out)" --> relay
   relay --> r2b
@@ -63,7 +64,7 @@ flowchart LR
 | G-code worker | `src/engine/gcode-worker.ts` | Reads sliced G-code into lines for the Preview | [preview](architecture/preview.md) |
 | Service worker | `public/sw.js` | Makes the site installable, receives files shared to it, shows alerts. Caches nothing, so a deploy's page and engine always match | [autosave](architecture/autosave.md), [alerts](architecture/print-alerts.md) |
 | Pages Functions | `apps/web/functions` | `/api/*`: sign-in, presets, settings, printers, projects, print history, admin, the relay's calls | [accounts](architecture/accounts.md) |
-| D1, R2 | `apps/web/migrations` | Accounts and everything they save; project files | [data](architecture/data.md) |
+| D1 | `apps/web/migrations` | Accounts and everything they save; the project list (project files are in each person's Google Drive) | [data](architecture/data.md) |
 | Relay | `apps/device-relay` | Passes messages between browsers and bridges; alerts; bridge downloads | [relay](architecture/relay.md) |
 | Bridge | `apps/device-bridge` | Small Go program on a home computer or the printer; connects out to the relay, talks to printers in their own protocols | [bridge](architecture/bridge.md) |
 | CI | `.github/workflows` | Builds both engines, tests, deploys site, relay and bridge builds | [CI.md](CI.md) |
@@ -74,7 +75,7 @@ flowchart LR
 | Store | Holds | Page |
 |---|---|---|
 | D1 (one database for production and every preview) | Accounts, user presets, settings, printers (keys encrypted), project index, print history, admin and bridge records | [data](architecture/data.md) |
-| R2 `cloud-slicer-projects` | Project 3MFs and thumbnails, a new key per save | [projects](architecture/projects.md) |
+| The person's Google Drive | Project 3MFs ("Cloud Slicer" folder, drafts in "Drafts"), a new file per save; the page uploads and downloads them itself | [projects](architecture/projects.md) |
 | R2 `cloud-slicer-bridge` | Signed bridge builds and installers; alert pictures (deleted after a day) | [bridge](architecture/bridge.md) |
 | Durable Object storage | Per bridge: key hashes, owner, alert subscriptions | [relay](architecture/relay.md) |
 | Browser storage | Signed-out presets, settings and printers; per-device choices | [data](architecture/data.md) |
@@ -87,8 +88,8 @@ flowchart LR
    estimates and the plate pictures the page drew; the G-code worker reads it for the
    Preview. A change while slicing cancels it. [engine](architecture/engine.md),
    [preview](architecture/preview.md)
-2. **Save a project.** The engine writes an Orca 3MF; signed in, it goes to R2 under a new
-   key and D1 records it. AutoSave saves each change when things are quiet, and only one
+2. **Save a project.** The engine writes an Orca 3MF; signed in, the page uploads it to
+   the person's own Google Drive and D1 records it. AutoSave saves each change when things are quiet, and only one
    device edits a project at a time. [projects](architecture/projects.md),
    [autosave](architecture/autosave.md)
 3. **Send to a printer.** The page zips the G-code and sends it over a direct WebRTC link

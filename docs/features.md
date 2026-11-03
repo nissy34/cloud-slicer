@@ -245,17 +245,18 @@ the open project as an Orca 3MF project, written by the engine with Orca's own
 `store_bbs_3mf` (like desktop's Save project): plates, objects, part settings, paint,
 colour mixes and the full print, filament and printer settings, so it reopens here or in
 desktop Orca. Signed out, Save downloads the file. Signed in, Save keeps it in the
-account's online projects: the 3MF and a thumbnail in R2 (`PROJECTS` bucket), indexed in
-D1 (`projects` table). Limits keep R2 inside its free 10 GB: 200 MB
-(changeable on the Admin page) and 200 projects per user, one project as big as that storage up to 95 MB, 8 GB for the whole site. Saves carry the version they started
+account's online projects: the 3MF in the person's own Google Drive ("Cloud Slicer"
+folder), indexed in D1 (`projects` table) with a small picture. 200 projects per user, any
+size their Drive has room for. Without Drive (said no at sign-in) Save downloads and Online
+projects is grayed out until "Connect Google Drive" in the account menu. Saves carry the version they started
 from, so a save from a second device asks before overwriting.
 
 AutoSave (signed in, on by default, the switch is a user setting): a new project is a
 draft in the account (`projects.draft = 1`). Each device keeps one draft (a new one replaces
 that device's old one, at most 3 per person, oldest go first), so Discard on the Continue
 card never takes another device's open work with it: that device says so, keeps what it
-shows and saves it as a new draft. Drafts don't count toward the 200 projects but do count
-toward storage. Leaving it asks Save / Don't
+shows and saves it as a new draft. Drafts don't count toward the 200 projects and go in
+the Drive folder's "Drafts" folder. Leaving it asks Save / Don't
 save / Cancel; the first Save names it and turns it into a project. After that each change
 is saved once things are quiet for 5 s, at most every 30 s (every 3 min for projects of
 5 MB or more, since each save uploads the whole 3MF), and when the tab is hidden; the

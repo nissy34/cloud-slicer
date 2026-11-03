@@ -14,6 +14,10 @@ export interface AccountUser {
   identities: { provider: ProviderId; login: string | null; email: string | null }[];
   /** The site's owner (OWNER_EMAILS): sees the Admin page. */
   owner?: boolean;
+  /** Google Drive is connected: projects save online (into it). */
+  drive?: boolean;
+  /** False when the site's owner turned online projects off for them. */
+  projects?: boolean;
 }
 
 export interface Me {
@@ -95,6 +99,8 @@ export interface OnlineProject {
   plates?: number | null;
   /** Plates with a printed mark (the list only; lib/prints.ts). */
   printedPlates?: number;
+  /** Its 3MF in the person's Google Drive (account/drive.ts downloads it); null: it has no file. */
+  driveFile: string | null;
 }
 
 /** Where a save comes from: draft or not, and the device saving. */
@@ -106,11 +112,14 @@ export interface SaveOptions {
 }
 
 export interface ProjectList {
-  /** False when the site has no project storage (R2) yet. */
+  /** False when the site's owner turned online projects off for this person. */
   enabled: boolean;
   projects: OnlineProject[];
-  usage: { count: number; bytes: number };
-  limits: { projectBytes: number; userBytes: number; userProjects: number };
+  /** Saved projects (drafts aren't counted). */
+  count: number;
+  limits: { userProjects: number };
+  /** Whether the person let the app keep projects in their Google Drive. */
+  drive?: { connected: boolean };
 }
 
 export class ApiError extends Error {
@@ -136,6 +145,9 @@ async function call<T>(path: string, init: RequestInit = {}, contentType = 'appl
   if (!res.ok) throw new ApiError(res.status, String(body.error ?? res.statusText), body);
   return body as T;
 }
+
+/** Google's narrowest Drive permission: only files this app made. */
+export const DRIVE_SCOPE = 'https://www.googleapis.com/auth/drive.file';
 
 const presetPath = (type: PresetType, name: string) => `/api/presets/${type}/${encodeURIComponent(name)}`;
 
@@ -175,9 +187,13 @@ export const api = {
     call<{ device: Device }>(`/api/devices/${encodeURIComponent(id)}`, { method: 'PUT', body: JSON.stringify(rest) }).then((r) => r.device),
   deleteDevice: (id: string) => call<{ ok: true }>(`/api/devices/${encodeURIComponent(id)}`, { method: 'DELETE' }),
   projects: () => call<ProjectList>('/api/projects'),
-  /** baseVersion: the version this save started from (0 = must be new); undefined overwrites. */
-  saveProject: (id: string, name: string, file: Blob, baseVersion: number | undefined, engine: EngineFlavor, opts: SaveOptions = {}) => {
-    const q = new URLSearchParams({ name, engine });
+  /**
+   * Points the project at `driveFile`, the 3MF the page just uploaded to the
+   * person's Google Drive (account/drive.ts). baseVersion: the version this
+   * save started from (0 = must be new); undefined overwrites.
+   */
+  saveProject: (id: string, name: string, driveFile: string, baseVersion: number | undefined, engine: EngineFlavor, opts: SaveOptions = {}) => {
+    const q = new URLSearchParams({ drive: driveFile, name, engine });
     if (baseVersion !== undefined) q.set('baseVersion', String(baseVersion));
     if (opts.draft) q.set('draft', '1');
     if (opts.plates) q.set('plates', String(opts.plates));
@@ -185,10 +201,32 @@ export const api = {
       q.set('device', opts.device.id);
       q.set('deviceName', opts.device.name);
     }
-    return call<{ project: OnlineProject }>(`${projectPath(id)}?${q}`, { method: 'PUT', body: file }, 'model/3mf').then((r) => r.project);
+    return call<{ project: OnlineProject }>(`${projectPath(id)}?${q}`, { method: 'PUT' }).then((r) => r.project);
   },
-  saveProjectThumbnail: (id: string, png: Blob) =>
-    call<{ ok: true }>(`${projectPath(id)}/thumbnail`, { method: 'PUT', body: png }, 'image/png'),
+  /** A short key (about an hour) the page uploads and downloads projects in the person's Google Drive with. */
+  driveToken: () => call<{ accessToken: string; expiresAt: number }>('/api/drive/token', { method: 'POST' }),
+  /**
+   * Asks Google for the "files this app makes" Drive permission on the signed-in
+   * account; returns Google's page to open. Ends like a sign-in (signInDoneUrl).
+   */
+  startDriveConnect: (opts: { returnTo: string; popup?: boolean }) => {
+    const done = location.origin + signInDoneUrl(opts);
+    return call<{ url: string }>('/api/auth/link-social', {
+      method: 'POST',
+      body: JSON.stringify({
+        provider: 'google',
+        scopes: [DRIVE_SCOPE],
+        // A refresh key, so saving keeps working past the first hour.
+        additionalParams: { access_type: 'offline', prompt: 'consent' },
+        callbackURL: done,
+        errorCallbackURL: done,
+        disableRedirect: true,
+      }),
+    }).then((r) => r.url);
+  },
+  /** The list picture (WebP or PNG, lib/snapshot.ts). */
+  saveProjectThumbnail: (id: string, picture: Blob) =>
+    call<{ ok: true }>(`${projectPath(id)}/thumbnail`, { method: 'PUT', body: picture }, picture.type || 'image/png'),
   renameProject: (id: string, name: string, baseVersion?: number) =>
     call<{ project: OnlineProject }>(projectPath(id), { method: 'PATCH', body: JSON.stringify({ name, baseVersion }) }).then((r) => r.project),
   deleteProject: (id: string) => call<{ ok: true }>(projectPath(id), { method: 'DELETE' }),
@@ -221,34 +259,6 @@ export const api = {
     call<{ state: 'waiting' | 'used' | 'expired'; bridgeId?: string; name?: string }>(`/api/relay/setup/${encodeURIComponent(code)}`),
   /** The bridge was removed: it no longer counts against the account's bridges. */
   forgetBridge: (bridgeId: string) => call<{ ok: true }>(`/api/relay/bridges/${encodeURIComponent(bridgeId)}`, { method: 'DELETE' }),
-  /** The project's 3MF and the version it is at. */
-  /** `onProgress`: bytes downloaded so far, of `total` (0 when the size is unknown). */
-  async projectFile(id: string, onProgress?: (loaded: number, total: number) => void): Promise<{ bytes: ArrayBuffer; version: number }> {
-    const res = await fetch(`${projectPath(id)}/file`, { credentials: 'same-origin' });
-    if (!res.ok) {
-      const body = (await res.json().catch(() => ({}))) as Record<string, unknown>;
-      throw new ApiError(res.status, String(body.error ?? res.statusText), body);
-    }
-    const version = Number(res.headers.get('X-Project-Version') ?? 0);
-    if (!onProgress || !res.body) return { bytes: await res.arrayBuffer(), version };
-    // A compressed response's length isn't the size of what it reads.
-    const total = res.headers.get('Content-Encoding') ? 0 : Number(res.headers.get('Content-Length') ?? 0);
-    const chunks: Uint8Array[] = [];
-    let loaded = 0;
-    const reader = res.body.getReader();
-    for (let r = await reader.read(); !r.done; r = await reader.read()) {
-      chunks.push(r.value);
-      loaded += r.value.byteLength;
-      onProgress(loaded, total);
-    }
-    const bytes = new Uint8Array(loaded);
-    let at = 0;
-    for (const c of chunks) {
-      bytes.set(c, at);
-      at += c.byteLength;
-    }
-    return { bytes: bytes.buffer, version };
-  },
 };
 
 const projectPath = (id: string) => `/api/projects/${encodeURIComponent(id)}`;
