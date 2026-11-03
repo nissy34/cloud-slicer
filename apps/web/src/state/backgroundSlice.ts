@@ -1,6 +1,8 @@
 // While a plate slices: keep the phone's screen awake, show the progress in the
-// tab title, and when the slice ends while the page is hidden, say so with a
-// notification (only when notifications are already allowed, for print alerts).
+// tab title, and when the slice ends while the page is hidden on a computer, say
+// so with a notification (only when notifications are already allowed, for print
+// alerts). Not on phones and tablets: there a hidden page stops slicing, so the
+// slicer has to stay on screen anyway and a notification would only be odd.
 // A page hidden on a phone gets paused by the browser, so keeping the screen on
 // is what keeps a long slice going. docs/architecture/background-slicing.md.
 import { endNotice, slicingTitle, type SliceEnd } from '../lib/backgroundSlice';
@@ -36,8 +38,11 @@ function letSleep() {
   void l?.release().catch(() => {});
 }
 
+/** A phone or tablet (touch first), like the rest of the app decides it. */
+const touch = () => typeof matchMedia !== 'undefined' && matchMedia('(pointer: coarse)').matches;
+
 async function notify(end: SliceEnd) {
-  if (document.visibilityState === 'visible' || typeof Notification === 'undefined' || Notification.permission !== 'granted') return;
+  if (document.visibilityState === 'visible' || touch() || typeof Notification === 'undefined' || Notification.permission !== 'granted') return;
   const reg = await navigator.serviceWorker?.getRegistration('/');
   if (!reg) return;
   const { title, body } = endNotice(end, useSlicer.getState().project?.plates.length ?? 1);

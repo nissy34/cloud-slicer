@@ -11,11 +11,13 @@
   screen) and the tab title reads `42% · Slicing · Cloud Slicer`, so the progress shows
   in the tab strip and the phone's app switcher. When the slice ends, cancels or fails,
   the screen may sleep again and the title goes back.
-- **A slice that ends while the page is hidden** shows a notification: "Slicing done"
+- **A slice that ends while the page is hidden on a computer** shows a notification: "Slicing done"
   (naming the plate when the project has more than one), "Slicing failed" with the first
   line of the reason, or "Slicing needs you" when the foreign G-code question is waiting.
   Tapping it brings the slicer tab back. Only when notifications are already allowed
-  (for [print alerts](print-alerts.md)); it never asks for permission itself.
+  (for [print alerts](print-alerts.md)); it never asks for permission itself. Not on
+  phones and tablets (`pointer: coarse`, like the rest of the app): there a hidden page
+  stops slicing, so the slicer has to stay on screen anyway and a notification would be odd.
 
 ## Pieces
 
@@ -30,7 +32,7 @@
 - The wake lock is taken when `job` becomes `slicing` and the page is visible, taken
   again on `visibilitychange` back to visible (browsers drop it whenever the page is
   hidden), and released when the slice ends. A refused lock (battery saver) is ignored.
-- Notify only when the page is hidden at the end, so nobody gets a notification for a
+- Notify only on a computer, and only when the page is hidden at the end, so nobody gets a notification for a
   slice they watched finish.
 
 ## Why
@@ -47,7 +49,8 @@ and slicing on a server isn't free. Keeping the screen awake is the one thing th
 - `lib/backgroundSlice.test.ts`: title and notification words.
 - `test/background-slice.mjs` (Chromium, `cancel` CI suite): wake lock held while
   slicing and taken again after the page comes back, title shows progress and comes
-  back, no notification while on screen, "Slicing done" when it ends hidden. The wake
+  back, no notification while on screen, "Slicing done" when it ends hidden, and none
+  on a phone (the page's `pointer: coarse` faked). The wake
   lock, visibility and notifications are stand-ins, since headless Chromium has none.
 
 ## Open

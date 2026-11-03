@@ -3,7 +3,8 @@
 // (docs/architecture/background-slicing.md): while a plate slices the screen is
 // kept awake and the tab title shows the progress; a slice that ends while the
 // page is hidden shows a "Slicing done" notification; afterwards the screen may
-// sleep again and the title is back.
+// sleep again and the title is back. On a phone (touch first) there is no
+// notification: a hidden page stops slicing there, so it has to stay on screen.
 //
 //   node test/background-slice.mjs
 //
@@ -42,9 +43,14 @@ const expect = (ok, msg) => ok || fail(msg);
 const browser = await chromium.launch(
   process.env.PLAYWRIGHT_BROWSERS_PATH === '/opt/pw-browsers' ? { executablePath: '/opt/pw-browsers/chromium' } : {},
 );
-try {
+async function run(phone) {
   const page = await browser.newPage({ viewport: { width: 1280, height: 860 } });
   page.on('pageerror', (e) => console.error(`page error: ${e.message}`));
+  // Same layout, only the pointer says "touch", so the steps below stay the same.
+  if (phone) await page.addInitScript(() => {
+    const real = window.matchMedia.bind(window);
+    window.matchMedia = (q) => (q === '(pointer: coarse)' ? { ...real(q), matches: true, media: q } : real(q));
+  });
   await page.addInitScript(() => {
     const log = (window.__bg = { held: 0, asked: 0, notes: [], hidden: false });
     Object.defineProperty(navigator, 'wakeLock', {
@@ -100,7 +106,7 @@ try {
   expect((await page.title()) === title, `title not restored: "${await page.title()}"`);
   expect(b.notes.length === 0, `notified while on screen: ${JSON.stringify(b.notes)}`);
 
-  // Hidden mid-slice, back, hidden again: awake again on return; notified at the end.
+  // Hidden mid-slice, back, hidden again: awake again on return; notified at the end (not on a phone).
   await page.getByRole('tab', { name: 'Prepare' }).click();
   const field = page.getByLabel('Layer height', { exact: true });
   await field.fill('0.24');
@@ -115,13 +121,25 @@ try {
   b = await bg();
   expect(b.held === 1 && b.asked > asked, `screen not kept awake again after coming back (held ${b.held}, asked ${b.asked})`);
   await page.evaluate(() => window.__hide(true));
-  await page.waitForFunction(() => window.__bg.notes.length > 0, null, { timeout: 300000 });
+  if (phone) {
+    // Still "hidden" to the app; the stand-in only fakes visibility, so the result still draws.
+    await stats.waitFor({ timeout: 300000 });
+    await page.waitForTimeout(1000);
+  } else await page.waitForFunction(() => window.__bg.notes.length > 0, null, { timeout: 300000 });
   b = await bg();
-  expect(b.notes[0].title === 'Slicing done', `notification: ${JSON.stringify(b.notes)}`);
-  expect(b.held === 0, 'screen kept awake after a slice that ended hidden');
+  if (phone) expect(b.notes.length === 0, `notified on a phone: ${JSON.stringify(b.notes)}`);
+  else expect(b.notes[0]?.title === 'Slicing done', `notification: ${JSON.stringify(b.notes)}`);
+  await page.waitForFunction(() => window.__bg.held === 0, null, { timeout: 10000 }).catch(() => {});
+  expect((await bg()).held === 0, 'screen kept awake after the slice');
   await page.evaluate(() => window.__hide(false));
   expect((await page.title()) === title, `title not restored after a hidden slice: "${await page.title()}"`);
-  console.log(`background slice: ${JSON.stringify(b.notes)}`);
+  console.log(`background slice (${phone ? 'phone' : 'computer'}): ${JSON.stringify(b.notes)}`);
+  await page.close();
+}
+
+try {
+  await run(false);
+  await run(true);
 } finally {
   await browser.close();
   try {
