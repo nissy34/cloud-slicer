@@ -21,13 +21,13 @@ export interface AdminUser {
   blocked: boolean;
   /** On the invite-only list. */
   allowed: boolean;
+  /** Saved projects (drafts aren't counted). */
   projects: number;
-  bytes: number;
   presets: number;
   printers: number;
   bridges: number;
-  /** null = the site's default. */
-  storageMb: number | null;
+  /** False when the owner turned online projects off for this person. */
+  projectsAllowed: boolean;
   /** False when the owner turned bridges off for this person. */
   bridgesAllowed: boolean;
 }
@@ -43,7 +43,7 @@ export interface AdminBridge {
 }
 
 export interface AdminOverview {
-  settings: { inviteOnly: boolean; storageMb: number };
+  settings: { inviteOnly: boolean };
   users: AdminUser[];
   invites: { email: string; addedAt: number }[];
   bridges: AdminBridge[];
@@ -68,7 +68,7 @@ export const adminApi = {
   quickOverview: () => call<Omit<AdminOverview, 'usage'> & { usage: null }>('?quick'),
   saveSettings: (s: Partial<AdminOverview['settings']>) => call('/settings', 'PUT', s),
   userAction: (id: string, action: 'block' | 'unblock' | 'allow' | 'disallow' | 'delete') => call(`/users/${encodeURIComponent(id)}/${action}`, 'POST', {}),
-  setStorage: (id: string, storageMb: number | null) => call(`/users/${encodeURIComponent(id)}/storage`, 'PUT', { storageMb }),
+  setProjects: (id: string, allowed: boolean) => call(`/users/${encodeURIComponent(id)}/projects`, 'PUT', { allowed }),
   setBridges: (id: string, allowed: boolean) => call(`/users/${encodeURIComponent(id)}/bridges`, 'PUT', { allowed }),
   bridge: (id: string, action: 'off' | 'on') => call(`/bridges/${encodeURIComponent(id)}/${action}`, 'POST', {}),
   invite: (email: string) => call('/invites', 'POST', { email }),

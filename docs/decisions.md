@@ -67,6 +67,12 @@ down. Add a line with the date when a new choice is made.
 
 - Online projects in R2 + D1, limits 50 MB / 200 MB / 200 projects / 8 GB site (2026-10-18).
 - One project can be as big as the person's storage, up to 95 MB (the free plan's 100 MB upload), not a fixed 50 MB; uploads stream to R2 (2026-10-29).
+- Project files only in each person's own Google Drive (`drive.file`, asked at sign-in); our
+  project storage (R2) removed, no dual mode, no per-save choice, no migration (one user).
+  No Drive = Save downloads, Online projects grayed out, Connect in the account menu only.
+  List pictures in the D1 row; drafts in "Cloud Slicer/Drafts"; a file changed in Drive is a
+  conflict; a file deleted in Drive offers Remove; no "Open from Google Drive" picker
+  (2026-11-03).
 - Convert keeps only settings the author changed (`different_settings_to_system`);
   comparing against Bambu presets was turned down (2026-10-19).
 - Another slicer's G-code kept as desktop does, with a fallback question (2026-10-21).
@@ -162,7 +168,7 @@ down. Add a line with the date when a new choice is made.
 ## Hosting and CI
 
 - Repository public so Actions minutes are free (2026-10-18).
-- Previews share production's D1 and R2; migrations only add.
+- Previews share production's D1 (and the relay's R2); migrations only add.
 - CI round two: no `--with-deps`, early preview, path skips, split slow suites
   (2026-10-22). Real-Klipper tests nightly and on demand, not on every PR (2026-10-22).
 - Engine cache misses retry with a random wait rather than fetching from the release

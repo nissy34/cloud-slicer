@@ -1,5 +1,5 @@
 // The owner's Admin page (only accounts in OWNER_EMAILS see it): who may sign
-// in, how much each user may store, and how close the site is to
+// in, who may save projects online (in their own Google Drive), and how close the site is to
 // Cloudflare's free limits. Server side: functions/_lib/admin.ts.
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { adminApi, type AdminBridge, type AdminOverview, type AdminUser, type Meter } from '../account/admin-api';
@@ -10,15 +10,11 @@ import { InfoTip } from './InfoTip';
 import { Note } from './Note';
 import { Picker } from './Picker';
 
-const STORAGE_CHOICES = [0, 50, 100, 200, 500, 1000];
-
 export function formatBytes(n: number): string {
   if (n < 1024 * 1024) return `${Math.round(n / 1024)} KB`;
   if (n < 1024 ** 3) return `${(n / 1024 / 1024).toFixed(n < 10 * 1024 * 1024 ? 1 : 0)} MB`;
   return `${(n / 1024 ** 3).toFixed(2)} GB`;
 }
-
-export const storageLabel = (mb: number) => (mb === 0 ? 'Presets only' : mb >= 1000 ? `${mb / 1000} GB` : `${mb} MB`);
 
 function when(t: number | null): string {
   if (!t) return 'never';
@@ -98,7 +94,7 @@ export function AdminScreen() {
         <p className="admin-intro muted">
           Only you see this page. Changes save on their own.
           <InfoTip label="About this page">
-            Here you choose who may sign in and how much each person may store, and see how close the site is to Cloudflare's free limits. People who
+            Here you choose who may sign in and who may save projects online (in their own Google Drive), and see how close the site is to Cloudflare's free limits. People who
             are allowed notice nothing.
           </InfoTip>
         </p>
@@ -277,26 +273,8 @@ function AccessCard({ data, act }: { data: AdminOverview; act: Act }) {
           ))}
         </ul>
       )}
-      <label className="admin-field">
-        <span className="small muted">Online project storage for each person (unless set below)</span>
-        <Picker
-          field
-          label="Online project storage for each person"
-          value={String(s.storageMb)}
-          options={[...new Set([...STORAGE_CHOICES, s.storageMb])]
-            .sort((x, y) => x - y)
-            .map((mb) => ({ value: String(mb), label: mb === 0 ? 'Presets only: no online projects' : storageLabel(mb) }))}
-          onChange={(v) => {
-            const mb = Number(v);
-            act(
-              () => adminApi.saveSettings({ storageMb: mb }),
-              (d) => ({ ...d, settings: { ...d.settings, storageMb: mb } }),
-            );
-          }}
-        />
-      </label>
       <p className="muted small">
-        Presets and printers always save to the account. Each account can use up to 3 bridges and watch 2 cameras at a time through a bridge.
+        Presets and printers always save to the account. Projects save to each person’s own Google Drive, so they use none of the site’s space. Each account can use up to 3 bridges and watch 2 cameras at a time through a bridge.
       </p>
     </Card>
   );
@@ -315,17 +293,15 @@ function UsersCard({ data, act }: { data: AdminOverview; act: Act }) {
       )}
       <ul className="admin-users">
         {users.map((u) => (
-          <UserRow key={u.id} u={u} defaultMb={data.settings.storageMb} inviteOnly={data.settings.inviteOnly} act={act} />
+          <UserRow key={u.id} u={u} inviteOnly={data.settings.inviteOnly} act={act} />
         ))}
       </ul>
     </Card>
   );
 }
 
-function UserRow({ u, defaultMb, inviteOnly, act }: { u: AdminUser; defaultMb: number; inviteOnly: boolean; act: Act }) {
+function UserRow({ u, inviteOnly, act }: { u: AdminUser; inviteOnly: boolean; act: Act }) {
   const [confirming, setConfirming] = useState(false);
-  const mb = u.storageMb ?? defaultMb;
-  const choices = [...new Set([...STORAGE_CHOICES, mb])].sort((a, b) => a - b);
   return (
     <li className={u.blocked ? 'admin-user blocked' : 'admin-user'} data-testid="admin-user">
       <div className="admin-user-who">
@@ -339,7 +315,7 @@ function UserRow({ u, defaultMb, inviteOnly, act }: { u: AdminUser; defaultMb: n
         <span>Joined {when(u.createdAt)}</span>
         <span>{u.lastSeen ? `Seen ${when(u.lastSeen)}` : 'Not signed in anywhere'}</span>
         <span>
-          {formatBytes(u.bytes)} in {u.projects} project
+          {!u.projectsAllowed && <span className="tag warn">No online projects</span>} {u.projects} project
           {u.projects === 1 ? '' : 's'}
         </span>
         <span>
@@ -352,14 +328,17 @@ function UserRow({ u, defaultMb, inviteOnly, act }: { u: AdminUser; defaultMb: n
       <div className="admin-user-actions">
         <Picker
           field
-          label={`Storage for ${u.email}`}
-          value={u.storageMb === null ? 'default' : String(u.storageMb)}
-          options={[{ value: 'default', label: `Storage: default (${storageLabel(defaultMb)})` }, ...choices.map((c) => ({ value: String(c), label: `Storage: ${storageLabel(c)}` }))]}
+          label={`Online projects for ${u.email}`}
+          value={u.projectsAllowed ? 'yes' : 'no'}
+          options={[
+            { value: 'yes', label: 'Online projects: on' },
+            { value: 'no', label: 'Online projects: off' },
+          ]}
           onChange={(v) => {
-            const mb = v === 'default' ? null : Number(v);
+            const yes = v === 'yes';
             act(
-              () => adminApi.setStorage(u.id, mb),
-              patchUser(u.id, (x) => ({ ...x, storageMb: mb })),
+              () => adminApi.setProjects(u.id, yes),
+              patchUser(u.id, (x) => ({ ...x, projectsAllowed: yes })),
             );
           }}
         />
@@ -416,8 +395,8 @@ function UserRow({ u, defaultMb, inviteOnly, act }: { u: AdminUser; defaultMb: n
       {confirming && (
         <div className="admin-confirm" role="alert">
           <span>
-            Delete {u.name || u.email} and everything they saved ({formatBytes(u.bytes)} of projects, presets, printers, bridges)? This can't be
-            undone. They can sign up again later unless the site is invite only.
+            Delete {u.name || u.email} and everything they saved here (project list, presets, printers, bridges)? Their project files stay in their
+            Google Drive. This can't be undone. They can sign up again later unless the site is invite only.
           </span>
           <div className="admin-user-actions">
             <button className="secondary" onClick={() => setConfirming(false)}>

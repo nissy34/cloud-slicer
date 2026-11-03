@@ -1,9 +1,9 @@
 // The owner's Admin page (OWNER_EMAILS only):
 //
 //   GET    /api/admin[?quick]               settings, users, invites, free-tier usage (not with ?quick)
-//   PUT    /api/admin/settings              { inviteOnly, storageMb }
+//   PUT    /api/admin/settings              { inviteOnly }
 //   POST   /api/admin/users/<id>/<action>   block | unblock | allow | disallow | delete
-//   PUT    /api/admin/users/<id>/storage    { storageMb: number | null }  (null = the site default)
+//   PUT    /api/admin/users/<id>/projects   { allowed: boolean }  (online projects, in their Google Drive)
 //   PUT    /api/admin/users/<id>/bridges    { allowed: boolean }
 //   POST   /api/admin/bridges/<id>/<off|on> turn a bridge off for everyone, or back on
 //   POST   /api/admin/invites               { email }
@@ -11,7 +11,7 @@
 //
 // Blocking is Better Auth's admin plugin (ban: signs the user out everywhere
 // and refuses their sign-ins); the relay drops their bridge connections too.
-import { accessSettings, isOwner, MAX_STORAGE_MB, normalEmail, saveAccessSettings } from './access';
+import { accessSettings, isOwner, normalEmail, saveAccessSettings } from './access';
 import { createAuth, requireUser, type SessionUser } from './auth';
 import { HttpError, json, readJson, requireSameOrigin } from './http';
 import { revoke, setBridgeOff } from './relay';
@@ -43,19 +43,12 @@ interface UserRow {
   lastSeen: unknown;
   relaySeen: number | null;
   projects: number;
-  bytes: number;
   presets: number;
   printers: number;
   bridges: number;
-  storage_mb: number | null;
+  projects_allowed: number | null;
   bridges_allowed: number | null;
   allowed: number;
-}
-
-function storageMb(v: unknown): number {
-  const n = Number(v);
-  if (!Number.isInteger(n) || n < 0 || n > MAX_STORAGE_MB) throw new HttpError(400, `Storage is a whole number of MB, 0-${MAX_STORAGE_MB}`);
-  return n;
 }
 
 function validEmail(v: unknown): string {
@@ -77,12 +70,11 @@ export async function overview(env: Env, request: Request): Promise<Response> {
         `SELECT u.id, u.name, u.email, u."createdAt", u.banned,
            (SELECT MAX(s."updatedAt") FROM "session" s WHERE s."userId" = u.id) AS "lastSeen",
            (SELECT MAX(r.last_used_at) FROM relay_bridges r WHERE r.user_id = u.id) AS "relaySeen",
-           (SELECT COUNT(*) FROM projects p WHERE p.user_id = u.id) AS projects,
-           (SELECT COALESCE(SUM(p.size), 0) FROM projects p WHERE p.user_id = u.id) AS bytes,
+           (SELECT COUNT(*) FROM projects p WHERE p.user_id = u.id AND p.draft = 0) AS projects,
            (SELECT COUNT(*) FROM presets p WHERE p.user_id = u.id) AS presets,
            (SELECT COUNT(*) FROM devices v WHERE v.user_id = u.id) AS printers,
            (SELECT COUNT(*) FROM relay_bridges r WHERE r.user_id = u.id) AS bridges,
-           l.storage_mb, l.bridges AS bridges_allowed,
+           l.projects AS projects_allowed, l.bridges AS bridges_allowed,
            (a.email IS NOT NULL) AS allowed
          FROM "user" u
          LEFT JOIN user_limits l ON l.user_id = u.id
@@ -122,11 +114,10 @@ export async function overview(env: Env, request: Request): Promise<Response> {
         blocked: !!u.banned,
         allowed: !!u.allowed,
         projects: u.projects,
-        bytes: u.bytes,
         presets: u.presets,
         printers: u.printers,
         bridges: u.bridges,
-        storageMb: u.storage_mb,
+        projectsAllowed: u.projects_allowed !== 0,
         bridgesAllowed: u.bridges_allowed !== 0,
       };
     }),
@@ -140,12 +131,9 @@ export async function overview(env: Env, request: Request): Promise<Response> {
 export async function putSettings(env: Env, request: Request): Promise<Response> {
   requireSameOrigin(request);
   await requireOwner(env, request);
-  const body = await readJson<{ inviteOnly?: unknown; storageMb?: unknown }>(request, 4096);
+  const body = await readJson<{ inviteOnly?: unknown }>(request, 4096);
   const before = await accessSettings(env);
-  const next = {
-    inviteOnly: body.inviteOnly === undefined ? before.inviteOnly : body.inviteOnly === true,
-    storageMb: body.storageMb === undefined ? before.storageMb : storageMb(body.storageMb),
-  };
+  const next = { inviteOnly: body.inviteOnly === undefined ? before.inviteOnly : body.inviteOnly === true };
   // Turning invite only on keeps everyone who already has an account: they go on the list.
   if (next.inviteOnly && !before.inviteOnly)
     await env.DB!.prepare('INSERT OR IGNORE INTO allowed_emails (email, added_at) SELECT lower(email), ? FROM "user"').bind(Date.now()).run();
@@ -191,8 +179,8 @@ export async function userAction(env: Env, request: Request, id: string, action:
       break;
     }
     case 'delete':
-      // Everything goes: sessions, presets, printers, projects (and their files, auth.ts's
-      // delete hook), bridges; their relay connections close and they leave the invite list.
+      // Everything goes: sessions, presets, printers, the project list, bridges; their relay
+      // connections close and they leave the invite list. Project files stay in their Google Drive.
       if (owner) throw new HttpError(400, "The owner's own account can't be deleted here");
       await revoke(env, id, true);
       await auth.api.removeUser({ body: { userId: id }, headers });
@@ -204,20 +192,18 @@ export async function userAction(env: Env, request: Request, id: string, action:
   return json({ ok: true });
 }
 
-/** PUT /api/admin/users/<id>/storage */
-export async function putUserStorage(env: Env, request: Request, id: string): Promise<Response> {
+/** PUT /api/admin/users/<id>/projects  { allowed }: may this person save projects online (in their Google Drive). */
+export async function putUserProjects(env: Env, request: Request, id: string): Promise<Response> {
   requireSameOrigin(request);
   await requireOwner(env, request);
   await targetUser(env, id);
-  const body = await readJson<{ storageMb?: unknown }>(request, 4096);
-  if (body.storageMb === null) await env.DB!.prepare('UPDATE user_limits SET storage_mb = NULL WHERE user_id = ?').bind(id).run();
-  else
-    await env.DB!.prepare(
-      `INSERT INTO user_limits (user_id, storage_mb, updated_at) VALUES (?, ?, ?)
-       ON CONFLICT (user_id) DO UPDATE SET storage_mb = excluded.storage_mb, updated_at = excluded.updated_at`,
-    )
-      .bind(id, storageMb(body.storageMb), Date.now())
-      .run();
+  const body = await readJson<{ allowed?: unknown }>(request, 4096);
+  await env.DB!.prepare(
+    `INSERT INTO user_limits (user_id, projects, updated_at) VALUES (?, ?, ?)
+     ON CONFLICT (user_id) DO UPDATE SET projects = excluded.projects, updated_at = excluded.updated_at`,
+  )
+    .bind(id, body.allowed === false ? 0 : null, Date.now())
+    .run();
   return json({ ok: true });
 }
 

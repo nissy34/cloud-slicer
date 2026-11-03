@@ -3,8 +3,9 @@
 //
 // A project is saved as Orca's own 3MF (the engine's store_bbs_3mf, like
 // desktop's Save project). Signed in, Save keeps it in the account's online
-// projects (R2 + D1, functions/_lib/projects.ts); signed out, Save downloads
-// the file. Download 3MF always downloads.
+// projects: the file in the person's Google Drive (account/drive.ts), its list
+// entry in D1 (functions/_lib/projects.ts); signed out, or without Drive, Save
+// downloads the file. Download 3MF always downloads.
 //
 // AutoSave, like Word (signed in, switch on by default): a new project is kept
 // as the person's one draft until the first Save names it; after that every
@@ -16,6 +17,7 @@
 // whose draft was discarded elsewhere keeps what it shows and saves it again.
 import { create } from 'zustand';
 import { api, ApiError, type OnlineProject } from '../account/api';
+import { CHUNK, downloadFromDrive, driveGone, uploadToDrive } from '../account/drive';
 import { autosaveDelay, continueOffer, deviceNameFrom, goneText, THUMBNAIL_EVERY_MS, type ContinueOffer } from '../lib/autosave';
 import { copyName, freeName, nameFromFile, newProjectId, projectFileName, projectSignature, UNTITLED } from '../lib/projects';
 import { engineFromUrl, engineName, engineOf3mf, type EngineFlavor } from '../lib/engines';
@@ -57,15 +59,21 @@ interface ProjectsState {
   /** The last problem or result, shown under the project menu. */
   message: string;
   messageWarn: boolean;
-  /** A save found a newer version saved from another device. */
-  conflict: { theirs: OnlineProject | null } | null;
+  /** A save found a newer version saved from another device, or the file changed in Google Drive (`inDrive`). */
+  conflict: { theirs: OnlineProject | null; inDrive?: boolean } | null;
+  /** AutoSave's upload of a big project: how far it got (0-100), or null. */
+  savePercent: number | null;
+  /** A project whose file was deleted in Google Drive: offered for removal from the list. */
+  gone: OnlineProject | null;
+  /** Removes `gone` from the list (its file is already gone from Drive). */
+  removeGone(): Promise<void>;
   /** The Projects list is open. */
   listOpen: boolean;
   /** Save is asking for a name: 'name' names the open project, 'copy' saves a copy. */
   saveAsOpen: false | 'name' | 'copy';
   /** AutoSave's state (signed in). */
   saveState: SaveState;
-  /** Why AutoSave stopped for this project (too big, storage full...), or ''. */
+  /** Why AutoSave stopped for this project (Drive full, Drive disconnected...), or ''. */
   autosaveStopped: string;
   elsewhere: Elsewhere | null;
   /** The Continue card: a draft or a project changed on another device. */
@@ -73,7 +81,7 @@ interface ProjectsState {
   /** The first look for a Continue card is done (the setup wizard waits for it). */
   offerChecked: boolean;
 
-  /** Online when signed in (and the site has project storage), else a download. */
+  /** Online when signed in with Google Drive connected (and online projects on for them), else a download. */
   canSaveOnline(): boolean;
   /** AutoSave's switch (an account setting, on unless turned off). */
   autosaveOn(): boolean;
@@ -163,13 +171,13 @@ function markSaved(sig: string, paints: number) {
   useProjects.setState({ dirty });
 }
 
-async function buildFile(): Promise<{ file: Blob; png: Blob | null }> {
+async function buildFile(): Promise<{ file: Blob; picture: Blob | null }> {
   const shot = await snapshot();
   const plate = useSlicer.getState().plate;
   const bytes = await useSlicer
     .getState()
     .projectFile(shot ? { plate, width: shot.width, height: shot.height, pixels: shot.pixels } : null);
-  return { file: new Blob([bytes], { type: 'model/3mf' }), png: shot?.png ?? null };
+  return { file: new Blob([bytes], { type: 'model/3mf' }), picture: shot?.picture ?? null };
 }
 
 function downloadBlob(blob: Blob, fileName: string) {
@@ -186,6 +194,15 @@ function downloadBlob(blob: Blob, fileName: string) {
 const errorText = (e: unknown) => (e as Error).message || 'Something went wrong';
 const hasObjects = () => Boolean(useSlicer.getState().project?.objects.length);
 const signedIn = () => useAccount.getState().status === 'signedIn';
+/**
+ * Projects save online only into the person's Google Drive: someone who said no
+ * to Drive at sign-in saves as a download, with no draft and no AutoSave, until
+ * they connect it (account menu or Online projects).
+ */
+const savesOnline = () => {
+  const user = useAccount.getState().user;
+  return signedIn() && user?.drive === true && user.projects !== false;
+};
 
 // AutoSave's clock: the last change, the last save and its size, the last thumbnail.
 let lastChange = 0;
@@ -222,9 +239,20 @@ export const useProjects = create<ProjectsState>((set, get) => {
     const sig = signature();
     const paints = paintCount;
     try {
-      const { file, png } = await buildFile();
+      const { file, picture } = await buildFile();
       const id = target.id ?? newProjectId();
-      const saved = await api.saveProject(id, target.name, file, baseVersion, useSlicer.getState().flavor, {
+      // Projects live in the person's Google Drive: the page uploads the file there, then the save points at it.
+      // A big one shows how far it got (busy text, or next to the name for AutoSave).
+      const drive = await uploadToDrive(file, target.name, {
+        draft: target.draft,
+        onProgress: (sent, total) => {
+          if (total < 2 * CHUNK) return;
+          const pct = Math.floor((sent / total) * 100);
+          if (auto) set({ savePercent: pct });
+          else set({ busy: `Saving… ${pct}%` });
+        },
+      });
+      const saved = await api.saveProject(id, target.name, drive, baseVersion, useSlicer.getState().flavor, {
         draft: target.draft,
         device: thisDevice(),
         plates: useSlicer.getState().project?.plates.length,
@@ -232,9 +260,9 @@ export const useProjects = create<ProjectsState>((set, get) => {
       lastSave = Date.now();
       lastSize = file.size;
       // The project is saved even if its picture isn't.
-      if (png && (opts.thumbnail || !auto || lastSave - lastThumbnail > THUMBNAIL_EVERY_MS)) {
+      if (picture && (opts.thumbnail || !auto || lastSave - lastThumbnail > THUMBNAIL_EVERY_MS)) {
         lastThumbnail = lastSave;
-        await api.saveProjectThumbnail(id, png).catch(() => {});
+        await api.saveProjectThumbnail(id, picture).catch(() => {});
       }
       // A save that works also ends an AutoSave that had stopped on an error.
       set({ current: { name: saved.name, id: saved.id, version: saved.version, draft: saved.draft }, conflict: null, saveState: 'idle', autosaveStopped: '' });
@@ -254,7 +282,7 @@ export const useProjects = create<ProjectsState>((set, get) => {
         return false;
       }
       if (e instanceof ApiError && e.status === 409) {
-        set({ conflict: { theirs: (e.body.current as OnlineProject | null) ?? null }, saveState: 'idle' });
+        set({ conflict: { theirs: (e.body.current as OnlineProject | null) ?? null, inDrive: code === 'changed-in-drive' }, saveState: 'idle' });
         return false;
       }
       if (!(e instanceof ApiError) && auto) {
@@ -267,6 +295,7 @@ export const useProjects = create<ProjectsState>((set, get) => {
       return false;
     } finally {
       if (!auto) set({ busy: '' });
+      set({ savePercent: null });
     }
   }
 
@@ -308,7 +337,7 @@ export const useProjects = create<ProjectsState>((set, get) => {
       conflict: null,
       autosaveStopped: '',
       saveState: 'idle',
-      message: goneText(cur, device, signedIn() && get().autosaveOn()),
+      message: goneText(cur, device, savesOnline() && get().autosaveOn()),
       messageWarn: true,
     });
     paintedSinceSave = true;
@@ -330,6 +359,8 @@ export const useProjects = create<ProjectsState>((set, get) => {
     message: '',
     messageWarn: false,
     conflict: null,
+    savePercent: null,
+    gone: null,
     listOpen: false,
     saveAsOpen: false,
     saveState: 'idle',
@@ -338,7 +369,7 @@ export const useProjects = create<ProjectsState>((set, get) => {
     offer: null,
     offerChecked: false,
 
-    canSaveOnline: () => signedIn(),
+    canSaveOnline: () => savesOnline(),
     autosaveOn: () => getUserSetting<boolean>(AUTOSAVE_KEY) !== false,
 
     async setAutosave(on) {
@@ -455,7 +486,10 @@ export const useProjects = create<ProjectsState>((set, get) => {
         set({ downloading: { name: p.name, loaded: 0, total: 0 } });
         // This device edits it from now on; another device that had it open only views it.
         await api.takeOverProject(p.id, thisDevice()).catch(() => {});
-        const { bytes, version } = await api.projectFile(p.id, (loaded, total) => set({ downloading: { name: p.name, loaded, total } }));
+        // Straight from their Google Drive, with the latest list entry (its file and version).
+        const latest = await api.project(p.id).catch(() => p);
+        const bytes = await downloadFromDrive(latest.driveFile, (loaded, total) => set({ downloading: { name: p.name, loaded, total } }));
+        const version = latest.version;
         set({ downloading: null });
         if (await useEngineOf(p.engine ?? 'snapmaker')) switchedNotice(p.engine);
         if ((await useSlicer.getState().openFiles([new File([bytes], projectFileName(p.name), { type: 'model/3mf' })], 'project')) === 'cancelled') {
@@ -468,7 +502,9 @@ export const useProjects = create<ProjectsState>((set, get) => {
         lastSave = Date.now();
         markClean();
       } catch (e) {
-        set({ message: `Couldn't open “${p.name}”: ${errorText(e)}`, messageWarn: true });
+        // Deleted in Drive: the Online projects window offers to remove it from the list.
+        if (driveGone(e)) set({ gone: p });
+        else set({ message: `Couldn't open “${p.name}”: ${errorText(e)}`, messageWarn: true });
       } finally {
         set({ busy: '', downloading: null });
       }
@@ -504,7 +540,7 @@ export const useProjects = create<ProjectsState>((set, get) => {
       const { dirty, current, elsewhere } = get();
       // View only: nothing here is ours to keep (changes made here were offered as a copy).
       if (elsewhere || !hasObjects()) return true;
-      if (!signedIn()) return discardOk(dirty, current.name);
+      if (!savesOnline()) return discardOk(dirty, current.name);
       // A new project or the draft: like Word on close.
       if (!current.id || current.draft) {
         const choice = await askSave(current.name);
@@ -576,6 +612,15 @@ export const useProjects = create<ProjectsState>((set, get) => {
       set({ offer: null });
       if (offer && !discard) writeDismissed(offerKey(offer));
       if (discard && offer?.kind === 'draft') await api.deleteProject(offer.project.id).catch(() => {});
+    },
+
+    async removeGone() {
+      const p = get().gone;
+      set({ gone: null });
+      if (!p) return;
+      await api.deleteProject(p.id).catch(() => {});
+      get().onlineChanged({ id: p.id, deleted: true });
+      set({ message: `Removed “${p.name}” from your projects`, messageWarn: false });
     },
 
     setListOpen: (listOpen) => set({ listOpen }),
@@ -673,7 +718,7 @@ async function openShared() {
 function autosaveWanted() {
   const p = useProjects.getState();
   return (
-    signedIn() &&
+    savesOnline() &&
     p.autosaveOn() &&
     !p.autosaveStopped &&
     !p.elsewhere &&
