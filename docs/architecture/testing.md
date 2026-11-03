@@ -109,6 +109,7 @@ for the rest):
 | `test/busy.mjs` | The loading screen while Clone with Arrange runs, and every copy landing on the plate |
 | `test/preview-views.mjs` | The Preview's colour key: grams and filament changes match the G-code, every view draws its scale, a tapped line type hides and comes back, and on a phone the key sits above the model |
 | `test/cancel.mjs` | Cancel stops the slice in the engine, and a change while slicing drops its result |
+| `test/background-slice.mjs` | Screen kept awake and progress in the tab title while slicing; "Slicing done" notification when it ends hidden |
 | `test/plate-switch.mjs` | Picking another plate while one slices shows it at once and keeps the slice; each plate keeps its slice in Prepare and Preview |
 | `test/restart.mjs` | After an engine crash (mid-slice or after), the engine restarts and reopens the project |
 | `test/heavy.mjs` | A model with over a million triangles offers Simplify, which brings it to about half a million; on a phone the question comes before it is drawn (Cancel, Simplify, Open as is, Don't ask again) |

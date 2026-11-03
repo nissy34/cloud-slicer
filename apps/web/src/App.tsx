@@ -24,6 +24,7 @@ import { AdminScreen } from './components/AdminScreen';
 import { Notices } from './components/Notices';
 import { PrintHistoryDialog } from './components/PrintHistory';
 import './state/prints';
+import './state/backgroundSlice';
 import { useProjects } from './state/projects';
 import { useSlicer } from './state/store';
 
