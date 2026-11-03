@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"reflect"
@@ -82,59 +83,35 @@ var fakePicture = func() []byte {
 	return b
 }()
 
-// pretendBrowser makes the offer the page makes: receive-only video plus a "frames" channel.
-func pretendBrowser(t *testing.T) (*webrtc.PeerConnection, *webrtc.DataChannel, string) {
-	pc, err := webrtc.NewPeerConnection(webrtc.Configuration{})
-	if err != nil {
-		t.Fatal(err)
-	}
-	t.Cleanup(func() { _ = pc.Close() })
-	if _, err := pc.AddTransceiverFromKind(webrtc.RTPCodecTypeVideo, webrtc.RTPTransceiverInit{Direction: webrtc.RTPTransceiverDirectionRecvonly}); err != nil {
-		t.Fatal(err)
-	}
-	dc, err := pc.CreateDataChannel("frames", nil)
-	if err != nil {
-		t.Fatal(err)
-	}
-	offer, _ := pc.CreateOffer(nil)
-	done := webrtc.GatheringCompletePromise(pc)
-	_ = pc.SetLocalDescription(offer)
-	<-done
-	return pc, dc, pc.LocalDescription().SDP
-}
-
-func openDirect(t *testing.T, s *Session, p cameraOpenParams) (string, string) {
-	res, err := s.cameraOpen(p)
-	if err != nil {
-		t.Fatal(err)
-	}
-	m := res.(map[string]any)
-	return m["mode"].(string), m["sdp"].(string)
-}
-
 func TestDirectCameraForwardsTheCamerasOwnVideo(t *testing.T) {
 	cam := newFakeVideoCamera(t, true)
 	s := newSession("c1", Printer{ID: "p", Name: "fake", URL: cam.URL}, func(string) {}, func(string) {})
 	defer s.close()
-	pc, _, offer := pretendBrowser(t)
-	got := make(chan string, 1)
-	pc.OnTrack(func(tr *webrtc.TrackRemote, _ *webrtc.RTPReceiver) {
-		pkt, _, err := tr.ReadRTP()
-		if err == nil && len(pkt.Payload) > 0 {
-			got <- tr.Codec().MimeType
-		}
+	got := make(chan string, 4)
+	b := pretendBrowser(t, s, func(pc *webrtc.PeerConnection) {
+		pc.OnTrack(func(tr *webrtc.TrackRemote, _ *webrtc.RTPReceiver) {
+			for {
+				pkt, _, err := tr.ReadRTP()
+				if err != nil {
+					return
+				}
+				if len(pkt.Payload) > 0 {
+					select {
+					case got <- tr.StreamID():
+					default:
+					}
+				}
+			}
+		})
 	})
-	mode, answer := openDirect(t, s, cameraOpenParams{SDP: offer, Service: "iframe", StreamURL: "/webcam/player", SnapshotURL: "/webcam/snapshot.jpg"})
+	slot, mode := b.camera(cameraOpenParams{Service: "iframe", StreamURL: "/webcam/player", SnapshotURL: "/webcam/snapshot.jpg"})
 	if mode != "video" {
 		t.Fatalf("mode %q, want video", mode)
 	}
-	if err := pc.SetRemoteDescription(webrtc.SessionDescription{Type: webrtc.SDPTypeAnswer, SDP: answer}); err != nil {
-		t.Fatal(err)
-	}
 	select {
-	case mime := <-got:
-		if mime != webrtc.MimeTypeH264 {
-			t.Fatalf("got %s", mime)
+	case stream := <-got:
+		if stream != fmt.Sprintf("slot%d", slot) {
+			t.Fatalf("video came on %s, want slot%d", stream, slot)
 		}
 	case <-time.After(15 * time.Second):
 		t.Fatal("no video reached the browser")
@@ -145,26 +122,12 @@ func TestDirectCameraSendsPicturesWhenTheCameraHasNoVideo(t *testing.T) {
 	cam := newFakeVideoCamera(t, false)
 	s := newSession("c1", Printer{ID: "p", Name: "fake", URL: cam.URL}, func(string) {}, func(string) {})
 	defer s.close()
-	pc, dc, offer := pretendBrowser(t)
-	pictures := make(chan []byte, 4)
-	var buf []byte
-	dc.OnMessage(func(m webrtc.DataChannelMessage) {
-		if m.IsString || len(m.Data) == 0 {
-			return
-		}
-		buf = append(buf, m.Data[1:]...)
-		if m.Data[0] == 1 {
-			pictures <- buf
-			buf = nil
-		}
-	})
-	mode, answer := openDirect(t, s, cameraOpenParams{SDP: offer, Service: "iframe", StreamURL: "/webcam/player", SnapshotURL: "/webcam/snapshot.jpg", FPS: 10})
+	b := pretendBrowser(t, s, nil)
+	slot, mode := b.camera(cameraOpenParams{Service: "iframe", StreamURL: "/webcam/player", SnapshotURL: "/webcam/snapshot.jpg", FPS: 10})
 	if mode != "pictures" {
 		t.Fatalf("mode %q, want pictures", mode)
 	}
-	if err := pc.SetRemoteDescription(webrtc.SessionDescription{Type: webrtc.SDPTypeAnswer, SDP: answer}); err != nil {
-		t.Fatal(err)
-	}
+	pictures := b.pictures(slot)
 	start := time.Now()
 	for i := 0; i < 3; i++ {
 		select {
@@ -180,10 +143,10 @@ func TestDirectCameraSendsPicturesWhenTheCameraHasNoVideo(t *testing.T) {
 	t.Logf("3 pictures in %s", time.Since(start))
 	s.close()
 	s.mu.Lock()
-	left := len(s.cameras)
+	left := len(s.links)
 	s.mu.Unlock()
 	if left != 0 {
-		t.Fatal("closing the session should close its cameras")
+		t.Fatal("closing the session should close its link")
 	}
 }
 

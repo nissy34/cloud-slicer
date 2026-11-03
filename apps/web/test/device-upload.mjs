@@ -105,7 +105,7 @@ try {
     await page.getByRole('tab', { name: 'Device' }).click();
     await page.getByTestId('connection').filter({ hasText: 'Connected' }).waitFor({ timeout: 30_000 });
 
-    // A camera showing straight from the bridge: the file rides its link.
+    // A camera showing straight from the bridge: the file rides the page's shared link to it.
     if (label === 'direct') await page.locator('[data-view="direct-pictures"]').first().waitFor({ timeout: 20_000 });
     const name = `upload_${label}.gcode`;
     // Over the relay, big enough to stream as many pieces.
@@ -133,12 +133,12 @@ try {
     if (got !== text) throw new Error(`${label}: the printer got ${got.length} bytes that differ from the ${text.length} sent`);
     if (printer.state.print_stats.state !== 'standby') throw new Error('Upload only started a print');
     const route = routes.find((r) => r.name === name);
-    const want = label === 'direct' ? /over a camera's link/ : /over the relay/;
+    const want = label === 'direct' ? /over the shared link/ : /over the relay/;
     if (!route || !want.test(route.how)) throw new Error(`${label}: the bridge says ${route ? route.how : 'nothing'} for ${name}`);
     console.log(`${label}: ${(text.length / 1e6).toFixed(1)} MB reached the printer intact in ${((Date.now() - started) / 1000).toFixed(1)} s (${route.how})`);
 
     if (label === 'direct') {
-      // With no camera showing, the upload opens its own direct link.
+      // With no camera showing, the shared link stays up and the file still goes straight.
       await page.getByTestId('camera-card').getByRole('button', { name: 'Choose' }).click();
       for (const cam of ['case', 'nozzle']) await page.getByTestId('camera-pick').getByLabel(cam).uncheck();
       await until('no camera showing', async () => (await page.getByTestId('camera-tile').count()) === 0);
@@ -148,8 +148,8 @@ try {
       await until(`${own} on the printer`, () => printer.files.has(own), 60_000);
       await page.getByRole('dialog').waitFor({ state: 'detached', timeout: 30_000 });
       const how = routes.find((r) => r.name === own)?.how ?? 'nothing';
-      if (!/over the direct link/.test(how) || printer.files.get(own).text !== text) throw new Error(`direct: without a camera the bridge says ${how}`);
-      console.log(`direct: without a camera the file went over its own direct link (${how})`);
+      if (!/over the (shared|direct) link/.test(how) || printer.files.get(own).text !== text) throw new Error(`direct: without a camera the bridge says ${how}`);
+      console.log(`direct: without a camera the file still went straight (${how})`);
     }
 
     // The printer refuses the file (a file of that name is printing): the reason shows in the window, which stays open.

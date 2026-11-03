@@ -23,7 +23,7 @@ OctoPrint, Elegoo Centauri Carbon and Bambu Lab printers through the bridge.
 | Add-ons per printer family | `device/addons/` (`u1`, `prusa`, `octoprint`, `elegoo`, `bambu`), `types.ts` |
 | Kinds of printer, "Which printers work?" (its table starts folded in the add-a-printer window) | `device/brands.ts`, `ui/WorksWith.tsx` |
 | Tool heads, filament slots, "From printer", the printer's filaments at the top of each Filament list | `device/heads.ts`, `slots.ts`, `lib/filament-sync.ts`, `components/FilamentSync.tsx` |
-| Cameras | `device/camera.ts`, `direct-camera.ts`, `webrtc.ts`, `ui/CameraCard.tsx` |
+| Cameras | `device/camera.ts`, `direct-camera.ts`, `shared-link.ts`, `webrtc.ts`, `ui/CameraCard.tsx` |
 | Timelapses tab in the Files card: list, watch, download, delete | `device/timelapse.ts`, `ui/Timelapses.tsx`, `ui/FilesCard.tsx` |
 | Page cards (a printer's own page, e.g. its remote screen) | `device/printer-page.ts`, `ui/PrinterPage.tsx`, relay `page-shell.ts` |
 | Layout and Arrange | `device/layout.ts`, `ui/Arrange.tsx`, `ui/DeviceScreen.tsx` |
@@ -68,7 +68,7 @@ setting `device-layout.<printer id>`, per-device conveniences in browser storage
   (`VideoSource`, `BridgeFiles`), and kept for the page's life: Download hands over the
   same copy, and watching again costs nothing. A direct link that drops gets 6 s to come
   back (`watchLink`); after a drop pieces go over the relay without waiting, trying direct
-  again after 20 s, and a direct piece stuck 15 s goes over the relay. Through a bridge: a direct link first, the
+  again after 20 s (unless the shared link is still up: then they wait for a new channel on it), and a direct piece stuck 15 s goes over the relay. Through a bridge: a direct link first, the
   relay only for videos up to 200 MB (`RELAY_VIDEO_LIMIT`); a row's picture (the .jpg of
   the same name the U1 and the add-on save) either way, one small message each. The list is asked when
   the printer connects and on Refresh, not on every file change (the U1 rewrites its
@@ -76,6 +76,21 @@ setting `device-layout.<printer id>`, per-device conveniences in browser storage
 - A WebRTC camera (straight from the printer or the bridge's direct link) ends only on
   "failed", or after 6 s of "disconnected" (`watchLink` in `webrtc.ts`): that state often
   mends itself on phones and Wi-Fi, and giving up at once made the camera flap.
+- Through a bridge, the page holds ONE direct WebRTC link to it (`shared-link.ts`,
+  bridge `link.go`): every camera (a video slot or a pictures channel), printer page and
+  upload rides it. One connection to set up, one rule for drops: when it drops, cameras
+  start again on a new link still showing their last picture, pages go over the relay
+  and try the direct link again after 5 s. A link that never connects means the network
+  blocks direct links: cameras show relay pictures with the "Slow camera" note and the
+  next try waits 20 s. While the link is up no camera leaves it: a camera whose video
+  won't start asks the same link for pictures (`pictures` on `bridge.link_camera`); a
+  camera on relay pictures goes back to the link once it is up again (checked every 20 s).
+- When the phone changes network (Wi-Fi ↔ mobile data, the `online` event or
+  `navigator.connection` change) or the page comes back to the front, the session checks
+  at once (`checkNow` in `session.ts`): not connected → reconnect now, with the back-off
+  reset; connected → one `server.info` that must answer in 5 s, else reconnect. Cards
+  say "Reconnecting…" meanwhile, not "Not connected". No timed ping: it would cost relay
+  messages all day.
 - Each printer has its own layout; a new printer starts from the default; removing a
   printer removes its layout.
 - The top row keeps the printer and the layout apart. Printer things live in the printer

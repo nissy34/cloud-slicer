@@ -4,7 +4,7 @@ package main
 // Moonraker lists as service "iframe" (paxx12's remote screen at /screen/ on
 // the U1, a camera's player page), opened inside the Device tab. The page runs
 // in the browser; each request it makes comes here, over a direct WebRTC data
-// channel (bridge.page_open) or over the relay (bridge.page_fetch), and goes to
+// channel on the direct link (link.go) or over the relay (bridge.page_fetch), and goes to
 // the printer's web server with the printer's API key, as it would from Fluidd.
 // Only the folder of a page Moonraker lists can be reached, and never
 // Moonraker's own API: the bridge's allow-list of Moonraker calls still holds.
@@ -35,9 +35,7 @@ const (
 	maxPageResponse = 8 << 20
 	// Over the relay an answer must fit one message, as camera frames do.
 	maxRelayedPage = maxFrame
-	// Pages one browser may have open over direct links at once.
-	maxDirectPages = 2
-	// Requests one direct page link works on at once.
+	// Requests one page channel works on at once.
 	pageParallel = 6
 	// The printer's page list is asked again after this long.
 	pageListTTL = 30 * time.Second
@@ -297,120 +295,34 @@ func (s *Session) pageFetchRelayed(r pageRequest) (any, error) {
 	return map[string]any{"status": res.Status, "headers": res.Headers, "data": base64.StdEncoding.EncodeToString(res.Body)}, nil
 }
 
-// directPage is one browser's direct link for the pages it has open.
-type directPage struct {
-	id     string
-	pc     *webrtc.PeerConnection
-	cancel context.CancelFunc
-	once   sync.Once
-}
-
-func (p *directPage) close() {
-	p.once.Do(func() {
-		p.cancel()
-		_ = p.pc.Close()
-	})
-}
-
-// pageOpen answers the browser's offer for a direct page link. Requests come
-// as text on data channel "page"; each answer is a text header
-// {id, status, headers, size} (or {id, error}), then its body in pieces of
-// 4 bytes id, 1 byte "last piece", and the data.
-func (s *Session) pageOpen(sdp string) (any, error) {
-	if sdp == "" {
-		return nil, errors.New("No offer from the browser.")
-	}
-	s.mu.Lock()
-	n := len(s.pages)
-	s.mu.Unlock()
-	if n >= maxDirectPages {
-		return nil, fmt.Errorf("Up to %d printer pages at a time.", maxDirectPages)
-	}
-	ctx, cancel := context.WithCancel(s.ctx)
-	pc, err := webrtc.NewPeerConnection(webrtc.Configuration{ICEServers: iceServers})
-	if err != nil {
-		cancel()
-		return nil, err
-	}
-	pg := &directPage{id: fmt.Sprintf("page%d", time.Now().UnixNano()), pc: pc, cancel: cancel}
-	fail := func(err error) (any, error) {
-		pg.close()
-		return nil, err
-	}
-	if err := pc.SetRemoteDescription(webrtc.SessionDescription{Type: webrtc.SDPTypeOffer, SDP: sdp}); err != nil {
-		return fail(errors.New("The browser's offer could not be read."))
-	}
-	pc.OnDataChannel(func(dc *webrtc.DataChannel) {
-		if dc.Label() != "page" {
+// servePage answers a page's requests on the direct link's channel "page".
+// Requests come as text; each answer is a text header {id, status, headers,
+// size} (or {id, error}), then its body in pieces of 4 bytes id, 1 byte "last
+// piece", and the data.
+func (s *Session) servePage(ctx context.Context, dc *webrtc.DataChannel) {
+	busy := make(chan struct{}, pageParallel)
+	var sendMu sync.Mutex
+	dc.OnMessage(func(m webrtc.DataChannelMessage) {
+		if !m.IsString {
 			return
 		}
-		busy := make(chan struct{}, pageParallel)
-		var sendMu sync.Mutex
-		dc.OnMessage(func(m webrtc.DataChannelMessage) {
-			if !m.IsString {
+		var r pageRequest
+		if json.Unmarshal(m.Data, &r) != nil {
+			return
+		}
+		go func() {
+			select {
+			case busy <- struct{}{}:
+			case <-ctx.Done():
 				return
 			}
-			var r pageRequest
-			if json.Unmarshal(m.Data, &r) != nil {
-				return
-			}
-			go func() {
-				select {
-				case busy <- struct{}{}:
-				case <-ctx.Done():
-					return
-				}
-				defer func() { <-busy }()
-				res, err := s.pageFetch(r, maxPageResponse)
-				sendMu.Lock()
-				defer sendMu.Unlock()
-				sendPageAnswer(ctx, dc, r.ID, res, err)
-			}()
-		})
+			defer func() { <-busy }()
+			res, err := s.pageFetch(r, maxPageResponse)
+			sendMu.Lock()
+			defer sendMu.Unlock()
+			sendPageAnswer(ctx, dc, r.ID, res, err)
+		}()
 	})
-	connected := make(chan struct{})
-	var connectedOnce sync.Once
-	pc.OnConnectionStateChange(func(st webrtc.PeerConnectionState) {
-		switch st {
-		case webrtc.PeerConnectionStateConnected:
-			connectedOnce.Do(func() { close(connected) })
-		case webrtc.PeerConnectionStateFailed, webrtc.PeerConnectionStateClosed:
-			s.dropPage(pg.id)
-		}
-	})
-	answer, err := pc.CreateAnswer(nil)
-	if err != nil {
-		return fail(err)
-	}
-	gathered := webrtc.GatheringCompletePromise(pc)
-	if err := pc.SetLocalDescription(answer); err != nil {
-		return fail(err)
-	}
-	select {
-	case <-gathered:
-	case <-time.After(3 * time.Second):
-	case <-ctx.Done():
-		return fail(errors.New("The browser went away."))
-	}
-	s.mu.Lock()
-	if s.closed {
-		s.mu.Unlock()
-		return fail(errors.New("The browser went away."))
-	}
-	if s.pages == nil {
-		s.pages = map[string]*directPage{}
-	}
-	s.pages[pg.id] = pg
-	s.mu.Unlock()
-	go func() {
-		select {
-		case <-connected:
-		case <-time.After(connectTimeout):
-			s.dropPage(pg.id)
-		case <-ctx.Done():
-		}
-	}()
-	return map[string]any{"id": pg.id, "sdp": pc.LocalDescription().SDP}, nil
 }
 
 // sendPageAnswer sends one answer on a direct page link, waiting while the browser catches up.
@@ -441,20 +353,5 @@ func sendPageAnswer(ctx context.Context, dc *webrtc.DataChannel, id uint32, res 
 		if dc.Send(append(piece, res.Body[off:end]...)) != nil {
 			return
 		}
-	}
-}
-
-func (s *Session) pageClose(id string) (any, error) {
-	s.dropPage(id)
-	return map[string]any{"ok": true}, nil
-}
-
-func (s *Session) dropPage(id string) {
-	s.mu.Lock()
-	pg := s.pages[id]
-	delete(s.pages, id)
-	s.mu.Unlock()
-	if pg != nil {
-		go pg.close()
 	}
 }

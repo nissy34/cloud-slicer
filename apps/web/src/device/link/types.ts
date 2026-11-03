@@ -3,7 +3,7 @@
 // Moonraker's JSON-RPC over one socket; only file upload and camera frames,
 // which Moonraker serves over plain HTTP, need their own calls.
 
-import type { DirectCamera } from '../camera';
+import type { SharedLink } from '../shared-link';
 import type { RangeAnswer, ReadOptions } from '../timelapse';
 
 export type RpcMessage = {
@@ -66,29 +66,18 @@ export interface PrinterLink {
    */
   mediaUrl(url: string): string | null;
   /**
-   * Bridge links only: asks the bridge to send a camera straight to this
-   * browser. Takes the browser's WebRTC offer, resolves to the bridge's answer
-   * and whether live video or pictures will come.
+   * Bridge links only: the page's direct WebRTC link to the bridge, shared by
+   * cameras, printer pages and uploads (shared-link.ts).
    */
-  cameraOpen?(camera: DirectCamera, sdp: string): Promise<DirectAnswer>;
-  cameraClose?(id: string): void;
-  /**
-   * Bridge links only: a camera's direct link is up (an upload can ride it at
-   * once), or a camera fell back to the relay because the network blocks
-   * direct links (an upload skips trying). Each returns its undo.
-   */
-  directLinked?(pc: RTCPeerConnection): () => void;
-  directBlocked?(): () => void;
+  shared?: SharedLink;
   /**
    * Bridge links only: printer pages (a camera Moonraker lists as an "iframe"
    * page, shown in a page card). `pageHolder` is the address the page holder
    * lives on (the relay's, kept apart from the site); requests go through the
-   * bridge one by one (pageFetch), or over a direct link the bridge answers (pageOpen).
+   * bridge one by one (pageFetch), or over the shared direct link (channel "page").
    */
   pageHolder?(): Promise<string>;
   pageFetch?(req: PageRequest): Promise<PageAnswer>;
-  pageOpen?(sdp: string): Promise<{ id: string; sdp: string }>;
-  pageClose?(id: string): void;
 }
 
 /** One request a printer page makes; `path` is on the printer ("/screen/touch?a=tap&x=1&y=2"). */
@@ -105,11 +94,6 @@ export interface PageAnswer {
   body: ArrayBuffer;
 }
 
-export interface DirectAnswer {
-  id: string;
-  mode: 'video' | 'pictures';
-  sdp: string;
-}
 
 export class LinkError extends Error {
   constructor(

@@ -51,7 +51,7 @@ flowchart LR
   relay --> r2b
   relay -- "claim, release, print" --> pages
   bridge --> printers
-  page -. "WebRTC: camera, upload" .- bridge
+  page -. "one WebRTC link: cameras, pages, uploads" .- bridge
   page -. https .-> direct
   relay --> push --> sw
 ```

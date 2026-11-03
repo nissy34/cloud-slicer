@@ -47,7 +47,7 @@ type upload struct {
 }
 
 // directLink is a way an upload's bytes come straight from the browser: the
-// upload's own WebRTC link, or a channel on a camera's link that is already up.
+// upload's own WebRTC link, or a channel on the page's direct link that is already up.
 type directLink struct{ close func() }
 
 type uploadResult struct {
@@ -190,8 +190,8 @@ func (s *Session) uploadStart(p uploadParams) (any, error) {
 		up.done <- uploadResult{path: p}
 	}()
 	// stream: pieces over the relay may come without waiting for each answer;
-	// camera: the bytes may come on a camera's direct link (uploadOverCamera).
-	answer := map[string]any{"uploadId": id, "stream": true, "camera": true}
+	// link: the bytes may come on the page's direct link (uploadOverLink).
+	answer := map[string]any{"uploadId": id, "stream": true, "link": true}
 	if p.SDP != "" {
 		// No direct link is no failure: the bytes come over the relay instead.
 		if sdp, err := s.uploadDirect(id, up, p.SDP); err == nil {
@@ -421,9 +421,9 @@ func (s *Session) uploadDirect(id string, up *upload, sdp string) (string, error
 	return pc.LocalDescription().SDP, nil
 }
 
-// uploadOverCamera takes an upload's bytes on channel "upload:<id>" of a
-// camera's direct link that is already up: nothing to negotiate or wait for.
-func (s *Session) uploadOverCamera(dc *webrtc.DataChannel) {
+// uploadOverLink takes an upload's bytes on channel "upload:<id>" of
+// the page's direct link that is already up: nothing to negotiate or wait for.
+func (s *Session) uploadOverLink(dc *webrtc.DataChannel) {
 	id := strings.TrimPrefix(dc.Label(), "upload:")
 	up, err := s.getUpload(id)
 	if err != nil {
@@ -441,7 +441,7 @@ func (s *Session) uploadOverCamera(dc *webrtc.DataChannel) {
 		_ = dc.Close()
 		return
 	}
-	s.takeDirect(id, up, dc, link, "a camera's link")
+	s.takeDirect(id, up, dc, link, "the shared link")
 }
 
 // takeDirect writes the upload's bytes as they come on the channel, in order.
@@ -478,9 +478,10 @@ func (s *Session) takeDirect(id string, up *upload, dc *webrtc.DataChannel, link
 		}
 		s.debug(fmt.Sprintf("Upload %s: %d bytes over %s", up.name, up.received, how))
 		go func() {
-			// Kept until the printer answers, so Cancel can still stop it.
-			defer s.forget(id)
+			// Kept until the printer answers, so Cancel can still stop it; let
+			// go before answering, so the next upload can start at once.
 			res, err := up.finish()
+			s.forget(id)
 			if err != nil {
 				answer(map[string]any{"error": err.Error()})
 			} else {

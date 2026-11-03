@@ -1,9 +1,9 @@
 // Faster uploads through the bridge. The G-code is zipped first (it shrinks 4
 // to 5 times), then goes over a direct WebRTC link to the bridge when one
 // connects (on the same network: home-network speed, nothing crosses the
-// relay). A camera's direct link to the bridge carries it at once when one is
-// open; a camera that fell back to the relay means direct links are blocked,
-// so none is tried. Else streamed over the relay: raw 256 KiB pieces sent back to back,
+// relay). The page's shared direct link to the bridge (shared-link.ts) carries
+// it at once when it is up; when its last try never connected, direct links
+// are blocked here, so none is tried. Else streamed over the relay: raw 256 KiB pieces sent back to back,
 // at most 8 MiB of them unanswered, the bar following the bridge's answers. A
 // direct link that opens but then carries nothing (a VPN in the way, say) is
 // given up too, and the relay carries on from what arrived. A bridge from
@@ -84,11 +84,11 @@ export async function offerDirectUpload(): Promise<DirectUpload | null> {
 }
 
 /**
- * An upload over a camera's direct link to the same bridge, already open: a
+ * An upload over the page's direct link to the same bridge, already open: a
  * new channel named for the upload, so nothing is negotiated and nothing
- * waits. Closing it leaves the camera's link alone.
+ * waits. Closing it leaves the link alone.
  */
-export function cameraDirectUpload(pc: RTCPeerConnection, uploadId: string): DirectUpload {
+export function linkDirectUpload(pc: RTCPeerConnection, uploadId: string): DirectUpload {
   const dc = pc.createDataChannel(`upload:${uploadId}`);
   const close = () => dc.close();
   return { sdp: '', close, send: (_answerSdp, wire, onProgress) => sendOver(pc, dc, async () => {}, wire, onProgress, close) };
@@ -124,7 +124,7 @@ async function sendOver(
   };
   const broke = () => lost(new DirectUploadLost('The direct link to the bridge dropped.'));
   dc.onclose = broke;
-  // A listener, not onconnectionstatechange: a camera's link has its own.
+  // A listener, not onconnectionstatechange: the shared link has its own.
   const watch = () => (pc.connectionState === 'failed' || pc.connectionState === 'closed') && broke();
   pc.addEventListener('connectionstatechange', watch);
   try {

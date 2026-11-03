@@ -26,13 +26,15 @@ export type CameraView =
   | { kind: 'snapshots'; url: string; fps: number }
   | { kind: 'direct'; camera: DirectCamera };
 
-/** What the bridge needs to send a camera straight to this browser (bridge.camera_open). */
+/** What the bridge needs to send a camera straight to this browser (bridge.link_camera). */
 export interface DirectCamera {
   service: string;
   streamUrl: string;
   snapshotUrl: string;
   /** Pictures per second, for a camera with no live video of its own. */
   fps: number;
+  /** Pictures even when the camera has live video (asked again after its video didn't start). */
+  pictures?: boolean;
 }
 
 export type WebrtcProtocol = 'camera-streamer' | 'whep' | 'go2rtc';

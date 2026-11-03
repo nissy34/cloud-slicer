@@ -68,7 +68,7 @@ printers with their API keys.
   through a per-brand allow list (`allowed.go`) that blocks host takeover (Moonraker
   `machine.*`/`access.*`, OctoPrint plugins, Bambu firmware).
 - Status is merged and sent at most once a second, and only while a browser watches.
-- Timelapse files ride the page link (`bridge.page_open` / `page_fetch`): only GET of a
+- Timelapse files ride the page link (channel `page` on the shared direct link / `bridge.page_fetch`): only GET of a
   video or picture in Moonraker's `timelapse` or `camera` folder (`timelapse.go`), with
   the printer's key and the browser's Range. Deleting is allowed there too, nothing else
   of Moonraker's file API.
