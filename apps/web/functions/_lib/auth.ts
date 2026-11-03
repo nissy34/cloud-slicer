@@ -11,10 +11,9 @@
 import { betterAuth } from 'better-auth';
 import { APIError } from 'better-auth/api';
 import { admin, oAuthProxy } from 'better-auth/plugins';
-import { isOwner, ownerEmails, signInRefusal } from './access';
+import { isOwner, ownerEmails, projectsAllowed, signInRefusal } from './access';
 import { HttpError, json } from './http';
 import { DRIVE_SCOPE, hasDriveScope } from './drive';
-import { deleteAllFiles } from './projects';
 import type { Env } from './types';
 
 export type ProviderId = 'google';
@@ -87,8 +86,8 @@ export async function createAuth(env: Env, request: Request) {
           },
         },
         // Deleting an account (the user's own Delete account, or Delete on the Admin page):
-        // D1 rows go with the user row (ON DELETE CASCADE); saved project files are in R2.
-        delete: { before: async (user) => void (await deleteAllFiles(env, user.id)) },
+        // D1 rows go with the user row (ON DELETE CASCADE). Project files are in the
+        // person's own Google Drive and stay there.
       },
       session: {
         create: {
@@ -154,6 +153,8 @@ export async function me(env: Env, request: Request): Promise<Response> {
       identities: accounts.results.map((a) => ({ provider: a.provider, login: null, email: user.email })),
       // Projects save online only into their Google Drive (drive.ts).
       drive: accounts.results.some((a) => a.provider === 'google' && hasDriveScope(a.scope)),
+      // False when the site's owner turned online projects off for them (Admin page).
+      projects: await projectsAllowed(env, user.id),
     },
   });
 }

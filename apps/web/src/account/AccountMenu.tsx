@@ -152,9 +152,15 @@ function SignedIn({ onDone }: { onDone: () => void }) {
           </li>
         ))}
         <li>{presetSummary(counts)}</li>
-        <li>{user.drive ? 'Projects save to your Google Drive' : "Projects don't save online: Google Drive isn't connected"}</li>
+        <li>
+          {user.projects === false
+            ? 'Online projects are turned off for your account'
+            : user.drive
+              ? 'Projects save to your Google Drive'
+              : "Projects don't save online: Google Drive isn't connected"}
+        </li>
       </ul>
-      {!user.drive && (
+      {!user.drive && user.projects !== false && (
         <button className="secondary" onClick={() => void useAccount.getState().connectDrive()}>
           Connect Google Drive
         </button>
@@ -175,6 +181,7 @@ function SignedIn({ onDone }: { onDone: () => void }) {
           <p>
             Delete your account{total ? ` and its ${total} saved preset${total === 1 ? '' : 's'}` : ''}? This can't be undone.
           </p>
+          <p className="account-muted">Your projects stay in your Google Drive, in the “Cloud Slicer” folder.</p>
           <div className="account-actions">
             <button className="secondary" onClick={() => setConfirming(false)}>
               Keep it

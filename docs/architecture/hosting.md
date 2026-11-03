@@ -10,7 +10,7 @@
 |---|---|---|---|
 | Site and `/api` Functions | Pages project `cloud-slicer` | https://slicer.awesomestuff.qzz.io (main) | `ci.yml` deploy, after every test passed |
 | Branch previews | same Pages project | `<branch>.cloud-slicer.pages.dev` | `ci.yml` preview, as soon as the site is built |
-| D1 `cloud-slicer`, R2 `cloud-slicer-projects` | | | created by `scripts/setup-accounts.mjs` on deploy |
+| D1 `cloud-slicer` | | | created by `scripts/setup-accounts.mjs` on deploy (project files are in each person's Google Drive, not here) |
 | Relay | Worker `cloud-slicer-relay` | https://cloud-slicer-relay.awesomestuff.qzz.io (also its first `cloud-slicer-relay.nissy34.workers.dev`, kept for good) | `device.yml`, main only, only when relay files changed |
 | Bridge builds | R2 `cloud-slicer-bridge` | served by the relay | `device.yml`, main only, only when bridge files changed |
 | Test relay | Worker `cloud-slicer-relay-test`, R2 `cloud-slicer-bridge-test` | https://cloud-slicer-relay-test.awesomestuff.qzz.io | label `use test relay` on a PR, or a manual Device run on a branch |
@@ -47,8 +47,7 @@ Every build that is not `main` points new bridges at the test relay
 (`VITE_DEVICE_RELAY_URL` in `ci.yml`), label or not; the label only decides whether the
 pull request's relay and bridge code are deployed there.
 
-A preview shares everything else with production: the D1 database, the R2 projects
-bucket, the sign-in host and the Pages secrets. Its D1 migrations are applied as soon as
+A preview shares everything else with production: the D1 database, the sign-in host and the Pages secrets. Its D1 migrations are applied as soon as
 it is built, even when its tests then fail, and anything you set on it (limits,
 projects) is live at once.
 

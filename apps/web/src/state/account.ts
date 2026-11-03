@@ -47,8 +47,6 @@ interface AccountState {
   signIn(provider: ProviderId): Promise<void>;
   /** Asks Google to let the app keep projects in the person's Drive (a popup, like Sign in). */
   connectDrive(): Promise<void>;
-  /** When a sign-in or Drive connection last finished in a popup (Online projects reloads on it). */
-  linkedAt: number;
   signOut(): Promise<void>;
   deleteAccount(): Promise<void>;
   clearError(): void;
@@ -178,10 +176,7 @@ export const useAccount = create<AccountState>((set, get) => ({
     // popup off from window.opener once it visits the provider).
     if (typeof BroadcastChannel !== 'undefined') {
       new BroadcastChannel(CHANNEL).onmessage = (e: MessageEvent<{ type: string; message?: string }>) => {
-        if (e.data?.type === 'signed-in') {
-          set({ linkedAt: Date.now() });
-          void get().refresh();
-        }
+        if (e.data?.type === 'signed-in') void get().refresh();
         if (e.data?.type === 'error') set({ error: e.data.message ?? 'Sign-in failed' });
       };
     }
@@ -219,7 +214,6 @@ export const useAccount = create<AccountState>((set, get) => ({
     await googlePopup((opts) => api.startDriveConnect(opts));
   },
 
-  linkedAt: 0,
 
   async signOut() {
     try {

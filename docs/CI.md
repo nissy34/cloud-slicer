@@ -95,7 +95,7 @@ the engine from scratch.
 - A preview deploys before the tests finish, so a pull request with failing tests still
   gets one, and its D1 migrations are applied. `main` deploys only after every test passed.
 - The deploy creates the Pages project the first time, sets up accounts
-  (`apps/web/scripts/setup-accounts.mjs`: the D1 database, R2 bucket, sign-in secrets),
+  (`apps/web/scripts/setup-accounts.mjs`: the D1 database, sign-in secrets),
   applies D1 migrations (one database for production and previews, so migrations must
   stay additive), then deploys and runs the smoke test against the deployed URL.
 
@@ -103,14 +103,14 @@ the engine from scratch.
 
 | Secret | For |
 |---|---|
-| `CLOUDFLARE_API_TOKEN` | Pages: Edit; D1: Edit for accounts; Workers R2 Storage: Edit for online projects and bridge downloads; Workers Scripts: Edit for the relay |
+| `CLOUDFLARE_API_TOKEN` | Pages: Edit; D1: Edit for accounts; Workers R2 Storage: Edit for bridge downloads; Workers Scripts: Edit for the relay |
 | `CLOUDFLARE_ACCOUNT_ID` | The Cloudflare account |
 | `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` | Google sign-in, copied into the Pages project |
 | `vars.CF_PAGES_PROJECT` | Optional Pages project name (default `cloud-slicer`) |
 
 `BETTER_AUTH_SECRET` and `ACCOUNT_ENC_KEY` are generated once by the deploy. Without the
-Cloudflare secrets CI still builds and tests, and skips deploying. Without D1 or R2
-access the site deploys without accounts or without online projects.
+Cloudflare secrets CI still builds and tests, and skips deploying. Without D1 access the
+site deploys without accounts.
 
 ## `device.yml`: bridge, relay and Device tab
 
