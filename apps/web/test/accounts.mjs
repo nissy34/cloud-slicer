@@ -1754,6 +1754,8 @@ if (withApp)
       await page.getByText('Open a model to start').waitFor({ timeout: 120000 });
       const wizard = page.getByRole('dialog', { name: 'Set up your printers' });
       if (await wizard.waitFor({ timeout: 5000 }).then(() => true, () => false)) await wizard.getByRole('button', { name: 'Not now' }).click();
+      // Signed in as far as the page knows before the menu is looked at.
+      await page.getByRole('button', { name: /Jill/ }).waitFor({ timeout: 30000 });
       await page.getByRole('button', { name: /^Project/ }).click();
       assert.equal(await page.getByRole('menuitem', { name: 'Online projects…' }).isDisabled(), true);
       await page.getByTestId('online-projects-off').getByText('Connect Google Drive in the account menu').waitFor();
@@ -1823,6 +1825,8 @@ if (withApp)
       await page.getByRole('button', { name: 'Add model' }).waitFor({ timeout: 60000 });
       await page.waitForTimeout(2000);
       assert.equal(await ask.count(), 0, 'asked only once');
+      assert.equal(await page.getByRole('switch', { name: /AutoSave/ }).getAttribute('aria-checked'), 'false', 'the AutoSave switch shows the answer');
+      await projectButton.getByText('Not saved', { exact: true }).waitFor();
       assert.equal((await (await kim.json('/api/projects')).json()).projects.length, 0, 'still nothing in Drive');
     } finally {
       await browser.close();

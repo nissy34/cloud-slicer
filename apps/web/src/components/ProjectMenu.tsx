@@ -24,7 +24,7 @@ const MOD = isMac ? '⌘' : 'Ctrl+';
 /** What AutoSave shows next to the project name ('' when there is nothing to say). */
 function useSaveStatus(): string {
   const signedIn = useAccount((s) => s.status === 'signedIn' && s.user?.drive === true && s.user.projects !== false);
-  const autosave = useAccount((s) => s.settings.autosave?.value !== false);
+  const autosave = useAccount((s) => s.settings.autosave?.value === true);
   const cur = useProjects((s) => s.current);
   const dirty = useProjects((s) => s.dirty);
   const state = useProjects((s) => s.saveState);
@@ -37,7 +37,7 @@ function useSaveStatus(): string {
   if (state === 'saving') return percent === null ? 'Saving…' : `Saving… ${percent}%`;
   if (state === 'offline') return 'Not saved: no connection';
   if (stopped) return 'Not saved';
-  if (!cur.id || cur.draft) return 'Draft, not saved yet';
+  if (!cur.id || cur.draft) return autosave ? 'Draft, not saved yet' : 'Not saved';
   if (!dirty) return 'Saved';
   return autosave ? 'Saving…' : 'Not saved';
 }
@@ -55,7 +55,7 @@ export function ProjectMenu() {
   const projectsOff = useAccount((s) => s.user?.projects === false);
   const savesOnline = signedIn && !noDrive;
   const engineInfo = useSlicer((s) => s.engineInfo);
-  const autosave = useAccount((s) => s.settings.autosave?.value !== false);
+  const autosave = useAccount((s) => s.settings.autosave?.value === true);
   const autosaveBusy = useProjects((s) => s.saveState === 'saving');
   const stopped = useProjects((s) => s.autosaveStopped);
   const status = useSaveStatus();
