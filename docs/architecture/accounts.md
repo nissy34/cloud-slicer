@@ -52,9 +52,20 @@ D1 `user`, `session`, `account`, `verification` (Better Auth), `presets`,
 - Owners are the emails in the `OWNER_EMAILS` secret; Block and the user list are Better
   Auth's admin plugin; Invite only is a database hook on new accounts and sessions.
 - Per account: online projects on or off (on unless the owner turns them off; the files
-  are in the person's own Google Drive, so there is no storage to share out), 3 bridges, 2 cameras at once through the relay (signed into the ticket as `cams`, 8 for
-  owners; see [relay](relay.md) for the direct-camera cap). "Bridges: not allowed" per
-  person.
+  are in the person's own Google Drive, so there is no storage to share out), 2 cameras
+  at once through the relay (signed into the ticket as `cams`, 8 for owners; see
+  [relay](relay.md) for the direct-camera cap).
+- Bridges per person: one site number on the Admin page (any whole number from 1, or no limit = -1; 1 when never set,
+  kept in `site_settings` 'access' as `bridgesPerPerson`), and a person's own number in
+  `user_limits.bridges` (NULL = the site's, -1 = no limit, 0 = none, which closes their bridges at once). The page shows a number box and a No limit switch.
+  One bridge reaches every printer on its network, so printers aren't capped: a printer
+  is one small row and only bridges cost relay requests. Lowering a number stops new
+  bridges; bridges already in use keep working. Owners have no cap.
+- A bridge nobody opened for 30 days (`relay_bridges.last_used_at`, `UNUSED_MS`) stops
+  counting toward its person's number, so an old install or a dead computer frees its
+  place by itself. The Admin page's Bridges list shows each bridge by the name it's saved
+  under, with its printers ("Not saved by anyone" = left over), and Remove takes one off
+  the list for everyone (`DELETE /api/admin/bridges/<id>`).
 - Blocking someone drops their relay connections at once (`POST /v1/revoke`).
 - The site's ticket key is made once and never replaced; every live deploy of the site
   and the relay copies the public half from `/api/relay/key`, so they always match.
