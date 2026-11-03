@@ -616,9 +616,10 @@ export const useProjects = create<ProjectsState>((set, get) => {
 
     async removeGone() {
       const p = get().gone;
-      set({ gone: null });
       if (!p) return;
+      // Delete first: closing the popup reloads the open list, which must not race the delete.
       await api.deleteProject(p.id).catch(() => {});
+      set({ gone: null });
       get().onlineChanged({ id: p.id, deleted: true });
       set({ message: `Removed “${p.name}” from your projects`, messageWarn: false });
     },
