@@ -38,6 +38,7 @@ export class SharedLink {
   private up: LinkUp | null = null;
   private opening: Promise<LinkUp> | null = null;
   private dropped = new Set<() => void>();
+  private ups = new Set<() => void>();
   private failedAt = 0;
 
   constructor(
@@ -66,11 +67,14 @@ export class SharedLink {
         this.opening = null;
         this.failedAt = 0;
         this.up = up;
+        for (const f of [...this.ups]) f();
         return up;
       },
       (e: unknown) => {
         this.opening = null;
-        this.failedAt = this.now();
+        // Only a link that was set up but never connected says the network blocks it.
+        // A relay call that failed (the page is reconnecting) does not: the next ask tries again at once.
+        if (e instanceof LinkNotUp) this.failedAt = this.now();
         throw e;
       },
     );
@@ -82,6 +86,12 @@ export class SharedLink {
   onDrop(f: () => void): () => void {
     this.dropped.add(f);
     return () => void this.dropped.delete(f);
+  }
+
+  /** Calls `f` each time a new link comes up (whoever asked for it). Returns its undo. */
+  onUp(f: () => void): () => void {
+    this.ups.add(f);
+    return () => void this.ups.delete(f);
   }
 
   camera(up: LinkUp, camera: DirectCamera) {

@@ -131,4 +131,24 @@ describe('SharedLink', () => {
     expect((await later).id).toBe('link2');
     expect(link.blocked).toBe(false);
   });
+
+  it('a relay call that fails (the page is reconnecting) is not a blocked network: the next ask tries at once and everyone hears when it is up', async () => {
+    const c = calls();
+    const real = c.linkOpen;
+    let relayDown = true;
+    c.linkOpen = async (sdp: string) => {
+      if (relayDown) throw new Error('Not connected.');
+      return real(sdp);
+    };
+    const link = new SharedLink(c, () => now);
+    await expect(link.ready()).rejects.toThrow(/Not connected/);
+    expect(link.blocked).toBe(false);
+    const up = vi.fn();
+    link.onUp(up);
+    relayDown = false;
+    const again = link.ready();
+    await connectNewest();
+    await again;
+    expect(up).toHaveBeenCalledTimes(1);
+  });
 });
