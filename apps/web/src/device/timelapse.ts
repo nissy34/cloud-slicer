@@ -127,8 +127,9 @@ export class BridgeFiles {
   private link(wait: boolean): Promise<DirectPageLink | null> {
     const shared = this.bridge.shared;
     if (this.closed || !shared || typeof RTCPeerConnection === 'undefined') return Promise.resolve(null);
-    // The link is up (the cameras use it too): a channel on it opens at once, so always wait for it.
-    if (shared.current()) wait = true;
+    // Unless this network blocks direct links, wait for the link (shared with the cameras):
+    // when it is up a channel opens at once, and after a drop a new one is on its way.
+    if (!shared.blocked) wait = true;
     if (!this.direct) {
       // Right after a drop, don't try again on every piece.
       if (Date.now() - this.droppedAt < REOPEN_AFTER_MS && !wait) return Promise.resolve(null);
