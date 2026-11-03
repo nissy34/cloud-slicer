@@ -1,10 +1,10 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { api, projectThumbnailUrl, type OnlineProject, type ProjectList, type ProjectStorage } from '../account/api';
+import { api, projectThumbnailUrl, type OnlineProject, type ProjectList } from '../account/api';
 import { engineName } from '../lib/engines';
 import { copyName, findProjects, formatBytes, formatWhen, PROJECT_SORTS, UNTITLED, type ProjectSort } from '../lib/projects';
 import { MODEL_EXTENSIONS } from '../lib/presets';
-import { saveUserSetting, useAccount, useUserSetting } from '../state/account';
-import { PROJECT_STORAGE_KEY, useProjects } from '../state/projects';
+import { useAccount } from '../state/account';
+import { useProjects } from '../state/projects';
 import { useSlicer } from '../state/store';
 import { Dialog } from './Dialog';
 import { continueOffer, yourDevice } from '../lib/autosave';
@@ -413,7 +413,6 @@ function ProjectsDialog() {
     <>
       <div className="muted small">
         {formatWhen(proj.updatedAt)} · {formatBytes(proj.size)} · {engineName(proj.engine ?? 'snapmaker')}
-        {proj.storage === 'drive' && ' · Google Drive'}
       </div>
       {Boolean(proj.printedPlates) && (
         <div className="small print-count" data-testid="project-printed">
@@ -431,19 +430,7 @@ function ProjectsDialog() {
       onClose={close}
       footer={
         <>
-          {list && status === 'signedIn' && list.enabled && <StorageChoice connected={Boolean(list.drive?.connected)} />}
-          {list &&
-            status === 'signedIn' &&
-            (list.limits.userBytes ? (
-              <p className="muted small projects-usage">
-                {formatBytes(list.usage.bytes)} of {formatBytes(list.limits.userBytes)} used · {list.usage.count} of {list.limits.userProjects} projects · up to{' '}
-                {formatBytes(list.limits.projectBytes)} each
-              </p>
-            ) : (
-              <p className="muted small projects-usage">
-                Online projects are off for your account: your presets and printers still save to it. Download a project to keep it.
-              </p>
-            ))}
+          {list && status === 'signedIn' && <DriveNote list={list} />}
           <button className="secondary" onClick={close}>
             Close
           </button>
@@ -559,42 +546,23 @@ function ProjectsDialog() {
 }
 
 /**
- * Where new saves go: Cloud Slicer's storage, or the person's own Google Drive
- * (a trial). Drive asks Google once for the "files this app makes" permission.
- * Projects already saved stay where they are until they are saved again.
+ * Projects are kept in the person's own Google Drive (a trial). Sign-in asks for
+ * it; someone who said no, or signed in before, connects it here.
  */
-function StorageChoice({ connected }: { connected: boolean }) {
-  const choice: ProjectStorage = useUserSetting<ProjectStorage>(PROJECT_STORAGE_KEY) === 'drive' ? 'drive' : 'cloud';
-  const [failed, setFailed] = useState('');
-  const pick = (v: ProjectStorage) => {
-    setFailed('');
-    saveUserSetting(PROJECT_STORAGE_KEY, v).catch((e: Error) => setFailed(e.message));
-    if (v === 'drive' && !connected) void useAccount.getState().connectDrive();
-  };
-  const options: [ProjectStorage, string][] = [
-    ['cloud', 'Cloud Slicer'],
-    ['drive', 'Google Drive'],
-  ];
+function DriveNote({ list }: { list: ProjectList }) {
+  if (!list.drive?.connected)
+    return (
+      <div className="projects-storage" data-testid="projects-storage">
+        <span className="muted small">Projects are saved in your Google Drive. Allow it to save projects online.</span>
+        <button type="button" className="primary" onClick={() => void useAccount.getState().connectDrive()}>
+          Connect Google Drive
+        </button>
+      </div>
+    );
   return (
-    <div className="projects-storage" data-testid="projects-storage">
-      <span className="muted small">Save projects to</span>
-      <span className="chips" role="group" aria-label="Save projects to">
-        {options.map(([v, label]) => (
-          <button key={v} type="button" className="chip" aria-pressed={choice === v} onClick={() => pick(v)}>
-            {label}
-          </button>
-        ))}
-      </span>
-      {choice === 'drive' &&
-        (connected ? (
-          <span className="muted small">New saves go to the “Cloud Slicer” folder in your Google Drive.</span>
-        ) : (
-          <button type="button" className="secondary" onClick={() => void useAccount.getState().connectDrive()}>
-            Connect Google Drive
-          </button>
-        ))}
-      {failed && <ErrorNote message={failed} />}
-    </div>
+    <p className="muted small projects-usage" data-testid="projects-storage">
+      Saved in the “Cloud Slicer” folder of your Google Drive · {list.usage.count} of {list.limits.userProjects} projects
+    </p>
   );
 }
 

@@ -64,6 +64,10 @@ D1 `user`, `session`, `account`, `verification` (Better Auth), `presets`,
 - Google OAuth client (Web application), redirect URI
   `https://slicer.awesomestuff.qzz.io/api/auth/callback/google`; its id and secret as
   repository secrets `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`.
+- In the same Google Cloud project: the Google Drive API enabled, `.../auth/drive.file` added
+  under Data access (sign-in asks for it, [projects](projects.md)), and the app published
+  (Audience → Publish app; home page and `/privacy` on the Branding page). No logo: a logo
+  makes Google require a review.
 - The owner's Google email(s) as `OWNER_EMAILS` (comma separated).
 - R2 turned on in the Cloudflare dashboard for online projects; the CI token needs
   "D1: Edit" and "Workers R2 Storage: Edit" ([CI.md](../CI.md#secrets)).

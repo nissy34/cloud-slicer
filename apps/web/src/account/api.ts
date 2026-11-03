@@ -14,6 +14,8 @@ export interface AccountUser {
   identities: { provider: ProviderId; login: string | null; email: string | null }[];
   /** The site's owner (OWNER_EMAILS): sees the Admin page. */
   owner?: boolean;
+  /** Google Drive is connected: projects save online (into it). */
+  drive?: boolean;
 }
 
 export interface Me {

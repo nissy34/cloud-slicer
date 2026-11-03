@@ -43,20 +43,23 @@ target printer; filaments are matched by material and kind (Matte, Silk, HF, Tra
 `baseVersion` → R2 under a new key, D1 row updated → thumbnail PNG separately. A save
 over a newer version gets 409 and asks: overwrite, or save a copy.
 
-**Google Drive (trial).** The Online projects window's footer has "Save projects to:
-Cloud Slicer / Google Drive" (account setting `projectStorage`). Picking Google Drive the
-first time opens Google in a popup asking for `drive.file` only (the app sees the files it
-made, nothing else; Google needs no security review for it). That is Better Auth's
-`link-social` on the same Google account, with `access_type=offline` so a refresh key is
-kept (encrypted, like the sign-in keys). On save the page gets a one-hour key from
-`POST /api/drive/token`, uploads the 3MF straight to a "Cloud Slicer" folder in their Drive
-(resumable upload; no Cloudflare 100 MB limit, nothing passes through us), then
-`PUT /api/projects/<id>?drive=<file id>` with no body. The server checks the file (size,
-zip signature) with the person's key and points the row at `drive:<file id>`. Version
-checks, drafts, devices and print history work as for R2; a refused save deletes the file
-it just uploaded, and the next save deletes the one before. Opening streams the file from
-Drive through `/api/projects/<id>/file`; Rename renames it in Drive; Delete deletes it.
-Thumbnails stay in R2. Projects already saved stay where they are until saved again.
+**Google Drive (trial).** Online projects live in the person's own Google Drive. Sign-in
+asks Google for `drive.file` (the app sees only the files it made; Google needs no security
+review for it) with `access_type=offline` so a refresh key is kept (encrypted, like the
+sign-in keys); `/api/me` says `drive: true` once it's granted. Someone who unticks Drive on
+Google's screen, or signed in before, saves as a download only: no draft, no AutoSave
+(`savesOnline` in `state/projects.ts`) until they press "Connect Google Drive" in the
+account menu or Online projects (Better Auth's `link-social` on the same account). On save
+the page gets a one-hour key from `POST /api/drive/token`, uploads the 3MF straight to a
+"Cloud Slicer" folder in their Drive (resumable upload; no Cloudflare 100 MB limit, nothing
+passes through us), then `PUT /api/projects/<id>?drive=<file id>` with no body. The server
+checks the file (size, zip signature) with the person's key and points the row at
+`drive:<file id>`. Version checks, drafts, devices and print history work as before; a
+refused save deletes the file it just uploaded, and the next save deletes the one before.
+Opening streams the file from Drive through `/api/projects/<id>/file`; Rename renames it in
+Drive; Delete deletes it. Thumbnails stay in R2. Projects saved in R2 before stay there
+until saved again. What is kept is told in plain words on `/privacy` (`public/privacy.html`,
+Google requires it to publish the sign-in app) and `/terms`.
 
 **Online projects window.** Tapping a project's picture or name opens it; its ⋯ menu holds
 Open, Rename… and Delete…. Rename and Delete each ask in their own small window, whose
@@ -111,8 +114,8 @@ Deleting an account leaves its Drive projects in the person's Drive.
 
 ## Open
 
-- Google Drive is a trial (see the PR "Save projects to Google Drive"): it needs the Google
-  Drive API turned on in the Google Cloud project and `drive.file` added to the consent
-  screen. Not decided: whether it stays, becomes the default, or replaces R2 with a small
-  R2 allowance.
+- Google Drive is a trial (PR #261): it needs the Google Drive API turned on in the Google
+  Cloud project, `drive.file` added to the consent screen, and the sign-in app published
+  (home page, `/privacy`). The server still takes R2 uploads (older pages, tests); remove
+  them once Drive is decided.
 - Recent projects on an empty plate (#85) is on hold.

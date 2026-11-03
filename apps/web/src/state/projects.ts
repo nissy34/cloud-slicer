@@ -15,7 +15,7 @@
 // Continue card's Discard) never takes another device's work with it: a tab
 // whose draft was discarded elsewhere keeps what it shows and saves it again.
 import { create } from 'zustand';
-import { api, ApiError, type OnlineProject, type ProjectStorage } from '../account/api';
+import { api, ApiError, type OnlineProject } from '../account/api';
 import { uploadToDrive } from '../account/drive';
 import { autosaveDelay, continueOffer, deviceNameFrom, goneText, THUMBNAIL_EVERY_MS, type ContinueOffer } from '../lib/autosave';
 import { copyName, freeName, nameFromFile, newProjectId, projectFileName, projectSignature, UNTITLED } from '../lib/projects';
@@ -187,6 +187,12 @@ function downloadBlob(blob: Blob, fileName: string) {
 const errorText = (e: unknown) => (e as Error).message || 'Something went wrong';
 const hasObjects = () => Boolean(useSlicer.getState().project?.objects.length);
 const signedIn = () => useAccount.getState().status === 'signedIn';
+/**
+ * Projects save online only into the person's Google Drive: someone who said no
+ * to Drive at sign-in saves as a download, with no draft and no AutoSave, until
+ * they connect it (account menu or Online projects).
+ */
+const savesOnline = () => signedIn() && useAccount.getState().user?.drive === true;
 
 // AutoSave's clock: the last change, the last save and its size, the last thumbnail.
 let lastChange = 0;
@@ -198,10 +204,6 @@ let timer: ReturnType<typeof setTimeout> | undefined;
 let saving: Promise<void> = Promise.resolve();
 const queue = (fn: () => Promise<void>) => (saving = saving.then(fn, fn));
 // AutoSave's way into the store's upload (set when the store is made).
-/** The account setting for where online projects go (Online projects window). */
-export const PROJECT_STORAGE_KEY = 'projectStorage';
-export const projectStorage = (): ProjectStorage => (getUserSetting<ProjectStorage>(PROJECT_STORAGE_KEY) === 'drive' ? 'drive' : 'cloud');
-
 let uploadFromOutside: (target: CurrentProject, base: number) => Promise<boolean> = async () => false;
 let keepGoneFromOutside: (device: string | null) => void = () => {};
 
@@ -229,8 +231,8 @@ export const useProjects = create<ProjectsState>((set, get) => {
     try {
       const { file, png } = await buildFile();
       const id = target.id ?? newProjectId();
-      // Kept in their Google Drive: the page uploads the file there, then the save points at it.
-      const drive = projectStorage() === 'drive' ? await uploadToDrive(file, target.name) : undefined;
+      // Projects live in the person's Google Drive: the page uploads the file there, then the save points at it.
+      const drive = await uploadToDrive(file, target.name);
       const saved = await api.saveProject(id, target.name, file, baseVersion, useSlicer.getState().flavor, {
         draft: target.draft,
         device: thisDevice(),
@@ -316,7 +318,7 @@ export const useProjects = create<ProjectsState>((set, get) => {
       conflict: null,
       autosaveStopped: '',
       saveState: 'idle',
-      message: goneText(cur, device, signedIn() && get().autosaveOn()),
+      message: goneText(cur, device, savesOnline() && get().autosaveOn()),
       messageWarn: true,
     });
     paintedSinceSave = true;
@@ -346,7 +348,7 @@ export const useProjects = create<ProjectsState>((set, get) => {
     offer: null,
     offerChecked: false,
 
-    canSaveOnline: () => signedIn(),
+    canSaveOnline: () => savesOnline(),
     autosaveOn: () => getUserSetting<boolean>(AUTOSAVE_KEY) !== false,
 
     async setAutosave(on) {
@@ -512,7 +514,7 @@ export const useProjects = create<ProjectsState>((set, get) => {
       const { dirty, current, elsewhere } = get();
       // View only: nothing here is ours to keep (changes made here were offered as a copy).
       if (elsewhere || !hasObjects()) return true;
-      if (!signedIn()) return discardOk(dirty, current.name);
+      if (!savesOnline()) return discardOk(dirty, current.name);
       // A new project or the draft: like Word on close.
       if (!current.id || current.draft) {
         const choice = await askSave(current.name);
@@ -681,7 +683,7 @@ async function openShared() {
 function autosaveWanted() {
   const p = useProjects.getState();
   return (
-    signedIn() &&
+    savesOnline() &&
     p.autosaveOn() &&
     !p.autosaveStopped &&
     !p.elsewhere &&

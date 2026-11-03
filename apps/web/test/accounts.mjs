@@ -46,6 +46,7 @@ const users = {
   kim: { sub: 'g-kim', name: 'Kim', email: 'kim@example.com', email_verified: true },
 };
 let nextUser = 'alice';
+let declineDrive = false;
 const codes = new Map(); // code -> { user, challenge }
 const b64url = (buf) => Buffer.from(buf).toString('base64').replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
 // Unsigned id_token: the site reads the profile from the token Google returned
@@ -63,7 +64,9 @@ const mock = createServer(async (req, res) => {
     assert.equal(q.get('client_id'), 'google-id');
     assert.equal(q.get('code_challenge_method'), 'S256');
     const code = `code-${codes.size + 1}-${Math.random()}`;
-    codes.set(code, { user: users[nextUser], challenge: q.get('code_challenge'), scope: q.get('scope') });
+    // declineDrive: the person unticks Google Drive on Google's consent screen.
+    const scope = declineDrive ? q.get('scope').split(' ').filter((x) => !x.includes('drive')).join(' ') : q.get('scope');
+    codes.set(code, { user: users[nextUser], challenge: q.get('code_challenge'), scope });
     const back = new URL(q.get('redirect_uri'));
     if (nextUser === 'cancel') back.searchParams.set('error', 'access_denied');
     else back.searchParams.set('code', code);
@@ -89,23 +92,60 @@ const mock = createServer(async (req, res) => {
       id_token: idToken({ iss: 'https://accounts.google.com', aud: 'google-id', iat: now, exp: now + 3600, ...c.user }),
     });
   }
-  // Google Drive (drive.ts, in test mode): the files the app made, by id.
+  // Google Drive, as the page (account/drive.ts, routed here by the browser tests) and
+  // the server (functions/_lib/drive.ts, in test mode) reach it.
+  const cors = { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Headers': '*', 'Access-Control-Allow-Methods': '*', 'Access-Control-Expose-Headers': 'Location' };
+  if (url.pathname.startsWith('/googleapis/')) for (const [k, v] of Object.entries(cors)) res.setHeader(k, v);
+  if (url.pathname.startsWith('/googleapis/') && req.method === 'OPTIONS') return send(204);
+  const authorized = () => (req.headers.authorization ?? '').startsWith('Bearer tok-');
+  const readBody = async () => {
+    const chunks = [];
+    for await (const chunk of req) chunks.push(chunk);
+    return Buffer.concat(chunks);
+  };
+  if (url.pathname === '/googleapis/drive/v3/files' && req.method === 'GET') {
+    if (!authorized()) return send(401, { error: { message: 'Invalid Credentials' } });
+    const name = /name = '([^']*)'/.exec(url.searchParams.get('q') ?? '')?.[1];
+    return send(200, { files: [...driveFiles].filter(([, f]) => f.folder && f.name === name).map(([id]) => ({ id })) });
+  }
+  if (url.pathname === '/googleapis/drive/v3/files' && req.method === 'POST') {
+    if (!authorized()) return send(401, { error: { message: 'Invalid Credentials' } });
+    const meta = JSON.parse((await readBody()).toString());
+    const id = `folder-${driveFiles.size + 1}-${Math.random().toString(36).slice(2)}`;
+    driveFiles.set(id, { name: meta.name, folder: true, bytes: Buffer.alloc(0) });
+    return send(200, { id });
+  }
+  if (url.pathname === '/googleapis/upload/drive/v3/files' && req.method === 'POST') {
+    if (!authorized()) return send(401, { error: { message: 'Invalid Credentials' } });
+    const meta = JSON.parse((await readBody()).toString());
+    const session = `s${Math.random().toString(36).slice(2)}`;
+    driveUploads.set(session, meta);
+    return send(200, {}, { Location: `${MOCK}/googleapis/upload/session/${session}` });
+  }
+  const upload = /^\/googleapis\/upload\/session\/(\w+)$/.exec(url.pathname);
+  if (upload && req.method === 'PUT') {
+    const meta = driveUploads.get(upload[1]);
+    if (!meta) return send(404, { error: { message: 'No upload' } });
+    driveUploads.delete(upload[1]);
+    const id = `drive-${Math.random().toString(36).slice(2)}`;
+    driveFiles.set(id, { name: meta.name, parents: meta.parents, bytes: await readBody() });
+    return send(200, { id });
+  }
+  // One file the app made, by id.
   const drivePath = /^\/googleapis\/drive\/v3\/files\/([^/]+)$/.exec(url.pathname);
   if (drivePath) {
-    if (!(req.headers.authorization ?? '').startsWith('Bearer tok-')) return send(401, { error: { message: 'Invalid Credentials' } });
+    if (!authorized()) return send(401, { error: { message: 'Invalid Credentials' } });
     const f = driveFiles.get(drivePath[1]);
     if (!f) return send(404, { error: { message: 'File not found' } });
     if (req.method === 'DELETE') return driveFiles.delete(drivePath[1]), send(204);
     if (req.method === 'PATCH') {
-      let body = '';
-      for await (const chunk of req) body += chunk;
-      f.name = JSON.parse(body).name;
+      f.name = JSON.parse((await readBody()).toString()).name;
       return send(200, { id: drivePath[1], name: f.name });
     }
     if (url.searchParams.get('alt') === 'media') {
       const range = /bytes=(\d+)-(\d+)/.exec(req.headers.range ?? '');
       const bytes = range ? f.bytes.subarray(Number(range[1]), Number(range[2]) + 1) : f.bytes;
-      res.writeHead(range ? 206 : 200, { 'Content-Type': 'model/3mf', 'Content-Length': bytes.length });
+      res.writeHead(range ? 206 : 200, { ...cors, 'Content-Type': 'model/3mf', 'Content-Length': bytes.length });
       return res.end(bytes);
     }
     return send(200, { size: String(f.bytes.length), trashed: false });
@@ -114,6 +154,7 @@ const mock = createServer(async (req, res) => {
 });
 /** The mock Google Drive: id -> { name, bytes }. The page uploads to Google itself; tests put files here. */
 const driveFiles = new Map();
+const driveUploads = new Map(); // resumable upload session -> the file's name and folder
 await new Promise((ok) => mock.listen(MOCK_PORT, '127.0.0.1', ok));
 
 // ---- the site under test ----------------------------------------------------
@@ -224,6 +265,23 @@ async function startSignIn(browser, { returnTo = '/?tab=prepare', popup = false 
 async function signIn(browser, user, opts) {
   nextUser = user;
   return browser.navigate(await startSignIn(browser, opts));
+}
+
+/** Chromium whose pages reach the mock Google Drive in place of www.googleapis.com. */
+async function launchBrowser() {
+  const browser = await chromium.launch(
+    process.env.PLAYWRIGHT_BROWSERS_PATH === '/opt/pw-browsers' ? { executablePath: '/opt/pw-browsers/chromium' } : {},
+  );
+  const newContext = browser.newContext.bind(browser);
+  browser.newContext = async (opts) => {
+    const context = await newContext(opts);
+    await context.route('https://www.googleapis.com/**', async (route) =>
+      route.fulfill({ response: await route.fetch({ url: route.request().url().replace('https://www.googleapis.com/', `${MOCK}/googleapis/`) }) }),
+    );
+    return context;
+  };
+  browser.newPage = async (opts) => (await browser.newContext(opts)).newPage();
+  return browser;
 }
 
 const tests = [];
@@ -460,6 +518,16 @@ test('projects: save a 3MF online, thumbnail, conflicts, rename, list, delete', 
   assert.equal((await alice.json('/api/projects/bad%20id', 'DELETE')).status, 400);
 });
 
+test('sign-in asks for Google Drive (files the app makes), with a refresh key', async () => {
+  const b = new Browser();
+  const google = new URL(await startSignIn(b));
+  assert.match(google.searchParams.get('scope'), /https:\/\/www\.googleapis\.com\/auth\/drive\.file/);
+  assert.equal(google.searchParams.get('access_type'), 'offline');
+  nextUser = 'hank';
+  await b.navigate(google.toString());
+  assert.equal((await b.me()).drive, true);
+});
+
 test('projects in Google Drive: connect, save, open, rename, conflict, delete', async () => {
   const file = (text) => Buffer.concat([Buffer.from('PK\x03\x04'), Buffer.from(text)]);
   const putInDrive = (id, text) => driveFiles.set(id, { name: 'x.3mf', bytes: file(text) });
@@ -468,8 +536,12 @@ test('projects in Google Drive: connect, save, open, rename, conflict, delete', 
       method: 'PUT',
       headers: { Origin: HOST },
     });
+  // Sign-in asks for Drive; Gina unticks it on Google's screen.
   const gina = new Browser();
+  declineDrive = true;
   await signIn(gina, 'gina');
+  declineDrive = false;
+  assert.equal((await gina.me()).drive, false);
   let list = await (await gina.json('/api/projects')).json();
   assert.deepEqual(list.drive, { connected: false });
   const refused = await gina.json('/api/drive/token', 'POST');
@@ -497,6 +569,7 @@ test('projects in Google Drive: connect, save, open, rename, conflict, delete', 
   assert.equal(back.url, done, 'ends where a popup sign-in ends');
   list = await (await gina.json('/api/projects')).json();
   assert.deepEqual(list.drive, { connected: true });
+  assert.equal((await gina.me()).drive, true);
   const token = await (await gina.json('/api/drive/token', 'POST')).json();
   assert.match(token.accessToken, /^tok-/);
   assert.ok(token.expiresAt > Date.now());
@@ -1094,9 +1167,7 @@ if (withApp)
     await signIn(dave, 'dave');
     await owner.json(`/api/admin/users/${(await dave.me()).id}/block`, 'POST', {});
     await owner.json('/api/admin/invites', 'POST', { email: 'frank@example.com' });
-    const browser = await chromium.launch(
-      process.env.PLAYWRIGHT_BROWSERS_PATH === '/opt/pw-browsers' ? { executablePath: '/opt/pw-browsers/chromium' } : {},
-    );
+    const browser = await launchBrowser();
     try {
       const context = await browser.newContext({ viewport: { width: 1280, height: 860 } });
       await context.addCookies([...owner.jar.get(new URL(HOST).host)].map(([name, value]) => ({ name, value, url: HOST })));
@@ -1174,9 +1245,7 @@ if (withApp)
 if (withApp)
   test('browser: Sign in button, popup sign-in, account menu, sign out', async () => {
     await signIn(bobBrowser, 'bob');
-    const browser = await chromium.launch(
-      process.env.PLAYWRIGHT_BROWSERS_PATH === '/opt/pw-browsers' ? { executablePath: '/opt/pw-browsers/chromium' } : {},
-    );
+    const browser = await launchBrowser();
     try {
       const page = await browser.newPage({ viewport: { width: 1280, height: 800 } });
       await page.context().route('https://accounts.google.com/**', (r) => r.fulfill({ status: 302, headers: { location: toMock(r.request().url()) } }));
@@ -1230,9 +1299,7 @@ if (withApp)
 
 if (withApp)
   test('browser: save a project online, reopen it with its settings, download the 3MF', async () => {
-    const browser = await chromium.launch(
-      process.env.PLAYWRIGHT_BROWSERS_PATH === '/opt/pw-browsers' ? { executablePath: '/opt/pw-browsers/chromium' } : {},
-    );
+    const browser = await launchBrowser();
     try {
       const carol = new Browser();
       await signIn(carol, 'bob');
@@ -1544,9 +1611,7 @@ if (withApp)
 
 if (withApp)
   test('browser: the setup wizard waits until the Continue card is answered', async () => {
-    const browser = await chromium.launch(
-      process.env.PLAYWRIGHT_BROWSERS_PATH === '/opt/pw-browsers' ? { executablePath: '/opt/pw-browsers/chromium' } : {},
-    );
+    const browser = await launchBrowser();
     try {
       // Someone new (no printers set up yet) with an unsaved project from another device.
       const gina = new Browser();
@@ -1576,9 +1641,7 @@ if (withApp)
 
 if (withApp)
   test('browser: a draft discarded on another computer stays open here and is saved again', async () => {
-    const browser = await chromium.launch(
-      process.env.PLAYWRIGHT_BROWSERS_PATH === '/opt/pw-browsers' ? { executablePath: '/opt/pw-browsers/chromium' } : {},
-    );
+    const browser = await launchBrowser();
     try {
       const hank = new Browser();
       await signIn(hank, 'hank');
@@ -1674,9 +1737,7 @@ if (withApp)
   test('browser: print history marks plates printed, changed since, kept, marked by hand, and caught after Upload only', async () => {
     const { startMockPrinter } = await import('./device/mock-printer.mjs');
     const printer = await startMockPrinter({ printStep: 0.01 });
-    const browser = await chromium.launch(
-      process.env.PLAYWRIGHT_BROWSERS_PATH === '/opt/pw-browsers' ? { executablePath: '/opt/pw-browsers/chromium' } : {},
-    );
+    const browser = await launchBrowser();
     const shot = (page, name) => process.env.ACCOUNTS_SHOTS && page.screenshot({ path: join(process.env.ACCOUNTS_SHOTS, `${name}.png`) });
     try {
       const ivy = new Browser();

@@ -103,7 +103,7 @@ function SignedOut() {
   return (
     <>
       <h3>Sign in to Cloud Slicer</h3>
-      <p className="account-muted">Keep your printers, filaments and process presets, and use them on any device.</p>
+      <p className="account-muted">Keep your printers, filaments and process presets, and use them on any device. Projects save to your Google Drive.</p>
       <div className="account-providers">
         {ALL_PROVIDERS.map((p) => (
           <button
@@ -123,6 +123,7 @@ function SignedOut() {
           {total === 1 ? 'The preset' : `The ${total} presets`} saved in this browser will move to your account.
         </p>
       )}
+      <Legal />
     </>
   );
 }
@@ -151,7 +152,13 @@ function SignedIn({ onDone }: { onDone: () => void }) {
           </li>
         ))}
         <li>{presetSummary(counts)}</li>
+        <li>{user.drive ? 'Projects save to your Google Drive' : "Projects don't save online: Google Drive isn't connected"}</li>
       </ul>
+      {!user.drive && (
+        <button className="secondary" onClick={() => void useAccount.getState().connectDrive()}>
+          Connect Google Drive
+        </button>
+      )}
       {user.owner && (
         <button
           className="secondary account-admin"
@@ -200,6 +207,22 @@ function SignedIn({ onDone }: { onDone: () => void }) {
           </button>
         </div>
       )}
+      <Legal />
     </>
+  );
+}
+
+/** What is kept and how (public/privacy.html, public/terms.html). */
+function Legal() {
+  return (
+    <p className="account-muted account-legal">
+      <a href="/privacy" target="_blank" rel="noopener">
+        Privacy
+      </a>
+      {' · '}
+      <a href="/terms" target="_blank" rel="noopener">
+        Terms
+      </a>
+    </p>
   );
 }
