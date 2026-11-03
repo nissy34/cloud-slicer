@@ -45,6 +45,10 @@ interface AccountState {
   init(): void;
   refresh(): Promise<void>;
   signIn(provider: ProviderId): Promise<void>;
+  /** Asks Google to let the app keep projects in the person's Drive (a popup, like Sign in). */
+  connectDrive(): Promise<void>;
+  /** When a sign-in or Drive connection last finished in a popup (Online projects reloads on it). */
+  linkedAt: number;
   signOut(): Promise<void>;
   deleteAccount(): Promise<void>;
   clearError(): void;
@@ -174,7 +178,10 @@ export const useAccount = create<AccountState>((set, get) => ({
     // popup off from window.opener once it visits the provider).
     if (typeof BroadcastChannel !== 'undefined') {
       new BroadcastChannel(CHANNEL).onmessage = (e: MessageEvent<{ type: string; message?: string }>) => {
-        if (e.data?.type === 'signed-in') void get().refresh();
+        if (e.data?.type === 'signed-in') {
+          set({ linkedAt: Date.now() });
+          void get().refresh();
+        }
         if (e.data?.type === 'error') set({ error: e.data.message ?? 'Sign-in failed' });
       };
     }
@@ -205,20 +212,14 @@ export const useAccount = create<AccountState>((set, get) => ({
   },
 
   async signIn(provider) {
-    set({ error: '' });
-    const returnTo = location.pathname + location.search;
-    // A popup keeps the open model; it is opened right away (before any await)
-    // so the browser counts it as a click. Blocked: sign in in this tab.
-    const popup = window.open('about:blank', 'cloud-slicer-signin', 'popup,width=520,height=680');
-    try {
-      const url = await api.startSignIn(provider, { returnTo, popup: Boolean(popup) });
-      if (popup) popup.location.href = url;
-      else location.assign(url);
-    } catch (e) {
-      popup?.close();
-      set({ error: (e as Error).message });
-    }
+    await googlePopup((opts) => api.startSignIn(provider, opts));
   },
+
+  async connectDrive() {
+    await googlePopup((opts) => api.startDriveConnect(opts));
+  },
+
+  linkedAt: 0,
 
   async signOut() {
     try {
@@ -240,6 +241,26 @@ export const useAccount = create<AccountState>((set, get) => ({
 
   clearError: () => set({ error: '' }),
 }));
+
+/**
+ * Opens Google in a popup (Sign in, Connect Google Drive); it tells this window
+ * when it's done over CHANNEL. The popup is opened right away (before any
+ * await) so the browser counts it as a click and the open model stays. Blocked:
+ * the same page in this tab.
+ */
+async function googlePopup(start: (opts: { returnTo: string; popup: boolean }) => Promise<string>) {
+  useAccount.setState({ error: '' });
+  const returnTo = location.pathname + location.search;
+  const popup = window.open('about:blank', 'cloud-slicer-signin', 'popup,width=520,height=680');
+  try {
+    const url = await start({ returnTo, popup: Boolean(popup) });
+    if (popup) popup.location.href = url;
+    else location.assign(url);
+  } catch (e) {
+    popup?.close();
+    useAccount.setState({ error: (e as Error).message });
+  }
+}
 
 const signedIn = () => useAccount.getState().status === 'signedIn';
 

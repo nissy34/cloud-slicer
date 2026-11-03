@@ -15,7 +15,8 @@
 // Continue card's Discard) never takes another device's work with it: a tab
 // whose draft was discarded elsewhere keeps what it shows and saves it again.
 import { create } from 'zustand';
-import { api, ApiError, type OnlineProject } from '../account/api';
+import { api, ApiError, type OnlineProject, type ProjectStorage } from '../account/api';
+import { uploadToDrive } from '../account/drive';
 import { autosaveDelay, continueOffer, deviceNameFrom, goneText, THUMBNAIL_EVERY_MS, type ContinueOffer } from '../lib/autosave';
 import { copyName, freeName, nameFromFile, newProjectId, projectFileName, projectSignature, UNTITLED } from '../lib/projects';
 import { engineFromUrl, engineName, engineOf3mf, type EngineFlavor } from '../lib/engines';
@@ -197,6 +198,10 @@ let timer: ReturnType<typeof setTimeout> | undefined;
 let saving: Promise<void> = Promise.resolve();
 const queue = (fn: () => Promise<void>) => (saving = saving.then(fn, fn));
 // AutoSave's way into the store's upload (set when the store is made).
+/** The account setting for where online projects go (Online projects window). */
+export const PROJECT_STORAGE_KEY = 'projectStorage';
+export const projectStorage = (): ProjectStorage => (getUserSetting<ProjectStorage>(PROJECT_STORAGE_KEY) === 'drive' ? 'drive' : 'cloud');
+
 let uploadFromOutside: (target: CurrentProject, base: number) => Promise<boolean> = async () => false;
 let keepGoneFromOutside: (device: string | null) => void = () => {};
 
@@ -224,10 +229,13 @@ export const useProjects = create<ProjectsState>((set, get) => {
     try {
       const { file, png } = await buildFile();
       const id = target.id ?? newProjectId();
+      // Kept in their Google Drive: the page uploads the file there, then the save points at it.
+      const drive = projectStorage() === 'drive' ? await uploadToDrive(file, target.name) : undefined;
       const saved = await api.saveProject(id, target.name, file, baseVersion, useSlicer.getState().flavor, {
         draft: target.draft,
         device: thisDevice(),
         plates: useSlicer.getState().project?.plates.length,
+        drive,
       });
       lastSave = Date.now();
       lastSize = file.size;

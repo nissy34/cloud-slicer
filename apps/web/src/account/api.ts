@@ -95,7 +95,12 @@ export interface OnlineProject {
   plates?: number | null;
   /** Plates with a printed mark (the list only; lib/prints.ts). */
   printedPlates?: number;
+  /** Where its file is kept: Cloud Slicer's storage or the person's own Google Drive. */
+  storage?: ProjectStorage;
 }
+
+/** Where online projects are kept (the person's choice in Online projects). */
+export type ProjectStorage = 'cloud' | 'drive';
 
 /** Where a save comes from: draft or not, and the device saving. */
 export interface SaveOptions {
@@ -103,6 +108,8 @@ export interface SaveOptions {
   /** How many plates the project has (for "6/10 printed" in the list). */
   plates?: number;
   device?: { id: string; name: string };
+  /** The 3MF is already in the person's Google Drive as this file (account/drive.ts): no body is sent. */
+  drive?: string;
 }
 
 export interface ProjectList {
@@ -111,6 +118,8 @@ export interface ProjectList {
   projects: OnlineProject[];
   usage: { count: number; bytes: number };
   limits: { projectBytes: number; userBytes: number; userProjects: number };
+  /** Whether the person let the app keep projects in their Google Drive. */
+  drive?: { connected: boolean };
 }
 
 export class ApiError extends Error {
@@ -136,6 +145,9 @@ async function call<T>(path: string, init: RequestInit = {}, contentType = 'appl
   if (!res.ok) throw new ApiError(res.status, String(body.error ?? res.statusText), body);
   return body as T;
 }
+
+/** Google's narrowest Drive permission: only files this app made. */
+export const DRIVE_SCOPE = 'https://www.googleapis.com/auth/drive.file';
 
 const presetPath = (type: PresetType, name: string) => `/api/presets/${type}/${encodeURIComponent(name)}`;
 
@@ -176,7 +188,7 @@ export const api = {
   deleteDevice: (id: string) => call<{ ok: true }>(`/api/devices/${encodeURIComponent(id)}`, { method: 'DELETE' }),
   projects: () => call<ProjectList>('/api/projects'),
   /** baseVersion: the version this save started from (0 = must be new); undefined overwrites. */
-  saveProject: (id: string, name: string, file: Blob, baseVersion: number | undefined, engine: EngineFlavor, opts: SaveOptions = {}) => {
+  saveProject: (id: string, name: string, file: Blob | null, baseVersion: number | undefined, engine: EngineFlavor, opts: SaveOptions = {}) => {
     const q = new URLSearchParams({ name, engine });
     if (baseVersion !== undefined) q.set('baseVersion', String(baseVersion));
     if (opts.draft) q.set('draft', '1');
@@ -185,7 +197,29 @@ export const api = {
       q.set('device', opts.device.id);
       q.set('deviceName', opts.device.name);
     }
-    return call<{ project: OnlineProject }>(`${projectPath(id)}?${q}`, { method: 'PUT', body: file }, 'model/3mf').then((r) => r.project);
+    if (opts.drive) q.set('drive', opts.drive);
+    return call<{ project: OnlineProject }>(`${projectPath(id)}?${q}`, { method: 'PUT', body: opts.drive ? undefined : file }, 'model/3mf').then((r) => r.project);
+  },
+  /** A short key (about an hour) the page uploads projects to the person's Google Drive with. */
+  driveToken: () => call<{ accessToken: string; expiresAt: number }>('/api/drive/token', { method: 'POST' }),
+  /**
+   * Asks Google for the "files this app makes" Drive permission on the signed-in
+   * account; returns Google's page to open. Ends like a sign-in (signInDoneUrl).
+   */
+  startDriveConnect: (opts: { returnTo: string; popup?: boolean }) => {
+    const done = location.origin + signInDoneUrl(opts);
+    return call<{ url: string }>('/api/auth/link-social', {
+      method: 'POST',
+      body: JSON.stringify({
+        provider: 'google',
+        scopes: [DRIVE_SCOPE],
+        // A refresh key, so saving keeps working past the first hour.
+        additionalParams: { access_type: 'offline', prompt: 'consent' },
+        callbackURL: done,
+        errorCallbackURL: done,
+        disableRedirect: true,
+      }),
+    }).then((r) => r.url);
   },
   saveProjectThumbnail: (id: string, png: Blob) =>
     call<{ ok: true }>(`${projectPath(id)}/thumbnail`, { method: 'PUT', body: png }, 'image/png'),

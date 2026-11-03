@@ -63,7 +63,7 @@ const mock = createServer(async (req, res) => {
     assert.equal(q.get('client_id'), 'google-id');
     assert.equal(q.get('code_challenge_method'), 'S256');
     const code = `code-${codes.size + 1}-${Math.random()}`;
-    codes.set(code, { user: users[nextUser], challenge: q.get('code_challenge') });
+    codes.set(code, { user: users[nextUser], challenge: q.get('code_challenge'), scope: q.get('scope') });
     const back = new URL(q.get('redirect_uri'));
     if (nextUser === 'cancel') back.searchParams.set('error', 'access_denied');
     else back.searchParams.set('code', code);
@@ -84,12 +84,36 @@ const mock = createServer(async (req, res) => {
       access_token: `tok-${Math.random()}`,
       expires_in: 3600,
       token_type: 'Bearer',
-      scope: 'openid email profile',
+      scope: c.scope ?? 'openid email profile',
+      ...(c.scope?.includes('drive.file') && { refresh_token: `refresh-${Math.random()}` }),
       id_token: idToken({ iss: 'https://accounts.google.com', aud: 'google-id', iat: now, exp: now + 3600, ...c.user }),
     });
   }
+  // Google Drive (drive.ts, in test mode): the files the app made, by id.
+  const drivePath = /^\/googleapis\/drive\/v3\/files\/([^/]+)$/.exec(url.pathname);
+  if (drivePath) {
+    if (!(req.headers.authorization ?? '').startsWith('Bearer tok-')) return send(401, { error: { message: 'Invalid Credentials' } });
+    const f = driveFiles.get(drivePath[1]);
+    if (!f) return send(404, { error: { message: 'File not found' } });
+    if (req.method === 'DELETE') return driveFiles.delete(drivePath[1]), send(204);
+    if (req.method === 'PATCH') {
+      let body = '';
+      for await (const chunk of req) body += chunk;
+      f.name = JSON.parse(body).name;
+      return send(200, { id: drivePath[1], name: f.name });
+    }
+    if (url.searchParams.get('alt') === 'media') {
+      const range = /bytes=(\d+)-(\d+)/.exec(req.headers.range ?? '');
+      const bytes = range ? f.bytes.subarray(Number(range[1]), Number(range[2]) + 1) : f.bytes;
+      res.writeHead(range ? 206 : 200, { 'Content-Type': 'model/3mf', 'Content-Length': bytes.length });
+      return res.end(bytes);
+    }
+    return send(200, { size: String(f.bytes.length), trashed: false });
+  }
   send(404, {});
 });
+/** The mock Google Drive: id -> { name, bytes }. The page uploads to Google itself; tests put files here. */
+const driveFiles = new Map();
 await new Promise((ok) => mock.listen(MOCK_PORT, '127.0.0.1', ok));
 
 // ---- the site under test ----------------------------------------------------
@@ -434,6 +458,77 @@ test('projects: save a 3MF online, thumbnail, conflicts, rename, list, delete', 
   assert.deepEqual((await (await alice.json('/api/projects')).json()).projects.map((p) => p.id), ['p1']);
   assert.equal((await alice.fetch(`${HOST}/api/projects/p2/file`)).status, 404);
   assert.equal((await alice.json('/api/projects/bad%20id', 'DELETE')).status, 400);
+});
+
+test('projects in Google Drive: connect, save, open, rename, conflict, delete', async () => {
+  const file = (text) => Buffer.concat([Buffer.from('PK\x03\x04'), Buffer.from(text)]);
+  const putInDrive = (id, text) => driveFiles.set(id, { name: 'x.3mf', bytes: file(text) });
+  const save = (b, id, name, driveId, baseVersion) =>
+    b.fetch(`${HOST}/api/projects/${id}?${new URLSearchParams({ name, drive: driveId, ...(baseVersion !== undefined ? { baseVersion: String(baseVersion) } : {}) })}`, {
+      method: 'PUT',
+      headers: { Origin: HOST },
+    });
+  const gina = new Browser();
+  await signIn(gina, 'gina');
+  let list = await (await gina.json('/api/projects')).json();
+  assert.deepEqual(list.drive, { connected: false });
+  const refused = await gina.json('/api/drive/token', 'POST');
+  assert.equal(refused.status, 403);
+  assert.equal((await refused.json()).code, 'drive-connect', 'not connected yet');
+  putInDrive('drive-file-1', 'one');
+  assert.equal((await save(gina, 'd1', 'Drive Benchy', 'drive-file-1', 0)).status, 403, 'a Drive save needs Drive connected');
+
+  // Connect Google Drive: the same Google account, asked for drive.file, through AUTH_ORIGIN like a sign-in.
+  const done = `${HOST}/api/signin-done?popup=1&return=%2F`;
+  const link = await gina.json('/api/auth/link-social', 'POST', {
+    provider: 'google',
+    scopes: ['https://www.googleapis.com/auth/drive.file'],
+    additionalParams: { access_type: 'offline', prompt: 'consent' },
+    callbackURL: done,
+    errorCallbackURL: done,
+    disableRedirect: true,
+  });
+  assert.equal(link.status, 200, await link.clone().text());
+  const google = new URL(toMock((await link.json()).url));
+  assert.match(google.searchParams.get('scope'), /drive\.file/);
+  assert.equal(google.searchParams.get('access_type'), 'offline');
+  nextUser = 'gina';
+  const back = await gina.navigate(google.toString());
+  assert.equal(back.url, done, 'ends where a popup sign-in ends');
+  list = await (await gina.json('/api/projects')).json();
+  assert.deepEqual(list.drive, { connected: true });
+  const token = await (await gina.json('/api/drive/token', 'POST')).json();
+  assert.match(token.accessToken, /^tok-/);
+  assert.ok(token.expiresAt > Date.now());
+
+  // Save: the page uploaded to Drive; the project points at that file.
+  assert.equal((await save(gina, 'd1', 'Drive Benchy', 'not-in-drive', 0)).status, 400, 'only a file that is in their Drive');
+  driveFiles.set('drive-notzip', { name: 'x', bytes: Buffer.from('not a zip') });
+  assert.equal((await save(gina, 'd1', 'Drive Benchy', 'drive-notzip', 0)).status, 400, 'only 3MF files');
+  const created = await save(gina, 'd1', 'Drive Benchy', 'drive-file-1', 0);
+  assert.equal(created.status, 200, await created.clone().text());
+  const p = (await created.json()).project;
+  assert.deepEqual([p.storage, p.version, p.size], ['drive', 1, file('one').length]);
+  const got = await gina.fetch(`${HOST}/api/projects/d1/file`);
+  assert.equal(got.headers.get('X-Project-Version'), '1');
+  assert.match(Buffer.from(await got.arrayBuffer()).toString(), /one$/, 'opens from Drive');
+  list = await (await gina.json('/api/projects')).json();
+  assert.equal(list.usage.bytes, 0, "a project in their Drive doesn't use storage here");
+
+  // The next save replaces the Drive file; a save that loses a race leaves nothing behind in Drive.
+  putInDrive('drive-file-2', 'two');
+  assert.equal((await save(gina, 'd1', 'Drive Benchy', 'drive-file-2', 1)).status, 200);
+  assert.ok(!driveFiles.has('drive-file-1'), 'the old file goes');
+  putInDrive('drive-file-3', 'stale');
+  assert.equal((await save(gina, 'd1', 'Drive Benchy', 'drive-file-3', 1)).status, 409);
+  assert.ok(!driveFiles.has('drive-file-3'), "the refused save's file goes");
+  assert.ok(driveFiles.has('drive-file-2'), 'the newer file stays');
+
+  // Rename renames the file in Drive too; Delete removes it.
+  assert.equal((await gina.json('/api/projects/d1', 'PATCH', { name: 'Renamed' })).status, 200);
+  assert.equal(driveFiles.get('drive-file-2').name, 'Renamed.3mf');
+  assert.equal((await gina.json('/api/projects/d1', 'DELETE')).status, 200);
+  assert.ok(!driveFiles.has('drive-file-2'));
 });
 
 test('projects: a draft per device, the device editing a project, taking it over (AutoSave)', async () => {

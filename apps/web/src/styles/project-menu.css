@@ -305,3 +305,15 @@
     height: var(--ctl);
   }
 }
+
+/* Where new saves go: Cloud Slicer or Google Drive (StorageChoice). */
+.projects-storage {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  flex-basis: 100%;
+  gap: var(--s-2) var(--s-3);
+}
+.projects-storage > .note {
+  flex-basis: 100%;
+}

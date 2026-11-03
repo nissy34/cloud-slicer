@@ -23,6 +23,7 @@ online when signed in.
 | The open project as a document | `state/projects.ts`, `lib/projects.ts`, `components/ProjectMenu.tsx`, `OpenProjectDialog.tsx` |
 | The Online projects window (search, sort, Cards/List, Rename and Delete windows) | `components/ProjectMenu.tsx` (`ProjectsDialog`), `lib/projects.ts` (`findProjects`), `styles/project-menu.css` |
 | Online projects API | `functions/_lib/projects.ts` (`/api/projects`) |
+| Projects in the person's Google Drive (trial) | `functions/_lib/drive.ts` (`/api/drive/token`), `src/account/drive.ts` (upload), `StorageChoice` in `components/ProjectMenu.tsx` |
 | Writing the 3MF | engine `saveProject` (Orca's `store_bbs_3mf`) |
 
 ## How it flows
@@ -42,6 +43,21 @@ target printer; filaments are matched by material and kind (Matte, Silk, HF, Tra
 `baseVersion` → R2 under a new key, D1 row updated → thumbnail PNG separately. A save
 over a newer version gets 409 and asks: overwrite, or save a copy.
 
+**Google Drive (trial).** The Online projects window's footer has "Save projects to:
+Cloud Slicer / Google Drive" (account setting `projectStorage`). Picking Google Drive the
+first time opens Google in a popup asking for `drive.file` only (the app sees the files it
+made, nothing else; Google needs no security review for it). That is Better Auth's
+`link-social` on the same Google account, with `access_type=offline` so a refresh key is
+kept (encrypted, like the sign-in keys). On save the page gets a one-hour key from
+`POST /api/drive/token`, uploads the 3MF straight to a "Cloud Slicer" folder in their Drive
+(resumable upload; no Cloudflare 100 MB limit, nothing passes through us), then
+`PUT /api/projects/<id>?drive=<file id>` with no body. The server checks the file (size,
+zip signature) with the person's key and points the row at `drive:<file id>`. Version
+checks, drafts, devices and print history work as for R2; a refused save deletes the file
+it just uploaded, and the next save deletes the one before. Opening streams the file from
+Drive through `/api/projects/<id>/file`; Rename renames it in Drive; Delete deletes it.
+Thumbnails stay in R2. Projects already saved stay where they are until saved again.
+
 **Online projects window.** Tapping a project's picture or name opens it; its ⋯ menu holds
 Open, Rename… and Delete…. Rename and Delete each ask in their own small window, whose
 button shows a spinner ("Renaming…", "Deleting…") with every button locked until the
@@ -59,7 +75,9 @@ D1 `projects` (name, size, keys, version, engine, draft, device, plates), R2 3MF
 thumbnail. Limits: 200 MB and 200 projects per person (storage set per person on the Admin
 page); one project can use all of it, up to 95 MB (Cloudflare's free plan takes uploads
 up to 100 MB, and the 3MF streams straight to R2 so a Worker's 128 MB memory isn't the
-limit); 8 GB for the whole site (R2's free tier is 10 GB).
+limit); 8 GB for the whole site (R2's free tier is 10 GB). Projects in a person's Google Drive
+count toward none of these except the 200 projects, and have no size limit of ours.
+Deleting an account leaves its Drive projects in the person's Drive.
 
 ## Rules
 
@@ -93,4 +111,8 @@ limit); 8 GB for the whole site (R2's free tier is 10 GB).
 
 ## Open
 
+- Google Drive is a trial (see the PR "Save projects to Google Drive"): it needs the Google
+  Drive API turned on in the Google Cloud project and `drive.file` added to the consent
+  screen. Not decided: whether it stays, becomes the default, or replaces R2 with a small
+  R2 allowance.
 - Recent projects on an empty plate (#85) is on hold.
