@@ -442,6 +442,9 @@ function UserRow({ u, inviteOnly, siteBridges, act }: { u: AdminUser; inviteOnly
  * A bridge number: a number box (saved when it loses focus or on Enter) and a
  * No limit switch that grays the box out. min 0 means "no bridges" is allowed.
  */
+/** A bridge nobody opened for this long stops counting (functions/_lib/relay.ts UNUSED_MS). */
+const UNUSED_MS = 30 * 24 * 3600_000;
+
 function BridgeLimit({ label, value, min, onSave }: { label: string; value: number; min: number; onSave: (n: number) => void }) {
   const unlimited = value === NO_LIMIT;
   const [text, setText] = useState(unlimited ? '' : String(value));
@@ -509,7 +512,9 @@ function BridgesCard({ data, act }: { data: AdminOverview; act: Act }) {
       <p className="muted small admin-note">
         Every bridge someone reached a printer through.
         <InfoTip label="About turning a bridge off">
-          Turning one off closes it for everyone at once, and the bridge app is refused until you turn it on again.
+          Turning one off closes it for everyone at once, and the bridge app is refused until you turn it on again. Remove takes an old bridge off
+          the list and frees its place; if it is still running, it comes back the next time someone opens it. A bridge nobody opened for 30 days
+          stops counting toward anyone&apos;s bridges by itself.
         </InfoTip>
       </p>
       {bridges.length === 0 ? (
@@ -519,14 +524,16 @@ function BridgesCard({ data, act }: { data: AdminOverview; act: Act }) {
           {bridges.map((b) => (
             <li key={b.id} className={b.off ? 'admin-user blocked' : 'admin-user'} data-testid="admin-bridge">
               <div className="admin-user-who">
-                <strong className="admin-bridge-id">{b.id}</strong>
+                <strong>{b.name || 'Not saved by anyone'}</strong>
                 {b.off && <span className="tag danger">Off</span>}
+                {!b.off && b.lastUsed !== null && Date.now() - b.lastUsed > UNUSED_MS && <span className="tag">Not used for 30 days</span>}
                 <div className="muted small admin-email">
-                  {b.people || 'nobody yet'}
+                  {b.people || 'nobody yet'} · <span className="admin-bridge-id">{b.id}</span>
                 </div>
               </div>
               <div className="admin-user-stats small">
                 <span>Used {when(b.lastUsed)}</span>
+                <span>{b.printers ? `Printers: ${b.printers}` : 'No printers'}</span>
               </div>
               <div className="admin-user-actions">
                 <button
@@ -543,6 +550,19 @@ function BridgesCard({ data, act }: { data: AdminOverview; act: Act }) {
                 >
                   {b.off ? 'Turn on' : 'Turn off'}
                 </button>
+                {!b.off && (
+                  <button
+                    className="quiet"
+                    onClick={() =>
+                      act(
+                        () => adminApi.removeBridge(b.id),
+                        (d) => ({ ...d, bridges: d.bridges.filter((x) => x.id !== b.id) }),
+                      )
+                    }
+                  >
+                    Remove
+                  </button>
+                )}
               </div>
             </li>
           ))}

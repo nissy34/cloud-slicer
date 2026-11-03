@@ -61,6 +61,11 @@ D1 `user`, `session`, `account`, `verification` (Better Auth), `presets`,
   One bridge reaches every printer on its network, so printers aren't capped: a printer
   is one small row and only bridges cost relay requests. Lowering a number stops new
   bridges; bridges already in use keep working. Owners have no cap.
+- A bridge nobody opened for 30 days (`relay_bridges.last_used_at`, `UNUSED_MS`) stops
+  counting toward its person's number, so an old install or a dead computer frees its
+  place by itself. The Admin page's Bridges list shows each bridge by the name it's saved
+  under, with its printers ("Not saved by anyone" = left over), and Remove takes one off
+  the list for everyone (`DELETE /api/admin/bridges/<id>`).
 - Blocking someone drops their relay connections at once (`POST /v1/revoke`).
 - The site's ticket key is made once and never replaced; every live deploy of the site
   and the relay copies the public half from `/api/relay/key`, so they always match.

@@ -1092,6 +1092,14 @@ test('bridges: the owner turns one off for everyone, or bridges off for one pers
   assert.equal((await alice.json('/api/admin/bridges/bridge-0003/on', 'POST', {})).status, 200);
   assert.equal((await carol.json('/api/relay/ticket', 'POST', { relay, bridgeId: 'bridge-0003' })).status, 200);
   assert.equal((await alice.json('/api/admin/bridges/no-such-bridge/off', 'POST', {})).status, 404);
+  // Remove: an old bridge comes off the list and frees its place.
+  const used = async () => (await (await alice.json('/api/admin')).json()).users.find((u) => u.id === carolId).bridges;
+  const before = await used();
+  assert.equal((await carol.json('/api/admin/bridges/bridge-0003', 'DELETE')).status, 403, 'owner only');
+  assert.equal((await alice.json('/api/admin/bridges/bridge-0003', 'DELETE')).status, 200);
+  assert.equal(await used(), before - 1);
+  assert.ok(!(await (await alice.json('/api/admin')).json()).bridges.some((b) => b.id === 'bridge-0003'));
+  assert.equal((await alice.json('/api/admin/bridges/bridge-0003', 'DELETE')).status, 404);
   // One person: no bridges at all, then allowed again; the online projects setting is kept.
   await alice.json(`/api/admin/users/${carolId}/projects`, 'PUT', { allowed: false });
   assert.equal((await alice.json(`/api/admin/users/${carolId}/bridges`, 'PUT', { bridges: 0 })).status, 200);
@@ -1103,6 +1111,13 @@ test('bridges: the owner turns one off for everyone, or bridges off for one pers
   assert.equal(row.projectsAllowed, false);
   await alice.json(`/api/admin/users/${carolId}/projects`, 'PUT', { allowed: true });
   assert.equal((await alice.json(`/api/admin/users/${carolId}/bridges`, 'PUT', { bridges: null })).status, 200);
+  // Carol's other bridges are in use, so the removed one can't come back at one per person...
+  const back = await carol.json('/api/relay/ticket', 'POST', { relay, bridgeId: 'bridge-0003' });
+  assert.equal(back.status, 403);
+  assert.equal((await back.json()).code, 'bridge-limit');
+  // ...until they go unused for 30 days, which frees their places by themselves.
+  const sql = `UPDATE relay_bridges SET last_used_at = ${Date.now() - 31 * 24 * 3600_000} WHERE user_id = '${carolId}'`;
+  assert.equal(spawnSync(wrangler, ['d1', 'execute', 'cloud-slicer', '--local', '--persist-to', state, '--command', sql], { cwd: web, encoding: 'utf8' }).status, 0);
   assert.equal((await carol.json('/api/relay/ticket', 'POST', { relay, bridgeId: 'bridge-0003' })).status, 200);
 });
 
@@ -1152,6 +1167,11 @@ test('setup codes: a bridge joins the account that made the code, once, within t
   assert.equal(saved.name, 'Bridge on FRANK-PC');
   assert.equal(saved.extra.kind, 'bridge-agent');
   assert.deepEqual(await (await frank.json(`/api/devices/${saved.id}/secret`)).json(), { apiKey: 'k'.repeat(43) });
+  // The Admin list names it the way the account saved it, with its printers.
+  assert.equal((await frank.json(`/api/devices/u1-f`, 'PUT', { name: 'U1 in the shed', url: '', extra: { kind: 'bridge', relay, bridgeId: 'bridge-f001', printer: 'p1' } })).status, 200);
+  const listed = (await (await alice.json('/api/admin')).json()).bridges.find((b) => b.id === 'bridge-f001');
+  assert.equal(listed.name, 'Bridge on FRANK-PC');
+  assert.equal(listed.printers, 'U1 in the shed');
 
   // One bridge per person by default: no second code, until the owner gives Frank three.
   const second = await frank.json('/api/relay/setup', 'POST', { relay });

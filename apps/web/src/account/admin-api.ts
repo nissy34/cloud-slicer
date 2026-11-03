@@ -41,7 +41,10 @@ export interface AdminBridge {
   people: string;
   /** Turned off by the owner. */
   off: boolean;
-  /** Last use by a signed-out browser. */
+  /** The name(s) it is saved under in people's printers ("Bridge on <computer>"); empty when nobody has it saved any more. */
+  name: string;
+  /** Names of the printers added to it. */
+  printers: string;
 }
 
 export interface AdminOverview {
@@ -79,6 +82,8 @@ export const adminApi = {
   /** null = the site's number, 0 = none, NO_LIMIT = any number. */
   setBridges: (id: string, bridges: number | null) => call(`/users/${encodeURIComponent(id)}/bridges`, 'PUT', { bridges }),
   bridge: (id: string, action: 'off' | 'on') => call(`/bridges/${encodeURIComponent(id)}/${action}`, 'POST', {}),
+  /** Takes an old bridge off the list (frees its place). */
+  removeBridge: (id: string) => call(`/bridges/${encodeURIComponent(id)}`, 'DELETE'),
   invite: (email: string) => call('/invites', 'POST', { email }),
   uninvite: (email: string) => call(`/invites/${encodeURIComponent(email)}`, 'DELETE'),
 };

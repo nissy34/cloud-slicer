@@ -20,6 +20,8 @@ import { HttpError, json, readJson, requireSameOrigin } from './http';
 import type { Env } from './types';
 import { keyContext } from './userdata';
 
+/** A bridge nobody opened for this long stops counting toward its person's bridges. */
+export const UNUSED_MS = 30 * 24 * 3600_000;
 /** Cameras one account may watch at once through one bridge (the relay enforces it; sent in the ticket). */
 export const MAX_CAMERAS = 2;
 /** Tickets last an hour; the page renews them over the open connection. */
@@ -95,7 +97,11 @@ async function mayAddBridge(env: Env, userId: string, owner: boolean, bridgeId?:
   // The person's own number, else the site's (Admin page). Lowering it keeps bridges already in use.
   const max = limits?.bridges ?? (await accessSettings(env)).bridgesPerPerson;
   if (max === NO_LIMIT) return;
-  const n = await d.prepare('SELECT COUNT(*) AS n FROM relay_bridges WHERE user_id = ?').bind(userId).first<{ n: number }>();
+  // Only bridges opened in the last 30 days count: an old install or a dead computer frees its place by itself.
+  const n = await d
+    .prepare('SELECT COUNT(*) AS n FROM relay_bridges WHERE user_id = ? AND last_used_at > ?')
+    .bind(userId, Date.now() - UNUSED_MS)
+    .first<{ n: number }>();
   if ((n?.n ?? 0) >= max)
     throw new HttpError(
       403,
