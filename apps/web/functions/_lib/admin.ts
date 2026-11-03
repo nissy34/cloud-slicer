@@ -1,17 +1,17 @@
 // The owner's Admin page (OWNER_EMAILS only):
 //
 //   GET    /api/admin[?quick]               settings, users, invites, free-tier usage (not with ?quick)
-//   PUT    /api/admin/settings              { inviteOnly?, bridgesPerPerson? }
+//   PUT    /api/admin/settings              { inviteOnly?, bridgesPerPerson? (-1 = no limit) }
 //   POST   /api/admin/users/<id>/<action>   block | unblock | allow | disallow | delete
 //   PUT    /api/admin/users/<id>/projects   { allowed: boolean }  (online projects, in their Google Drive)
-//   PUT    /api/admin/users/<id>/bridges    { bridges: null (the site's number) | 0 (none) | a number }
+//   PUT    /api/admin/users/<id>/bridges    { bridges: null (the site's number) | a whole number, 0 = none | -1 (no limit) }
 //   POST   /api/admin/bridges/<id>/<off|on> turn a bridge off for everyone, or back on
 //   POST   /api/admin/invites               { email }
 //   DELETE /api/admin/invites/<email>
 //
 // Blocking is Better Auth's admin plugin (ban: signs the user out everywhere
 // and refuses their sign-ins); the relay drops their bridge connections too.
-import { accessSettings, bridgeChoice, isOwner, normalEmail, saveAccessSettings } from './access';
+import { accessSettings, bridgeNumber, isOwner, normalEmail, saveAccessSettings } from './access';
 import { createAuth, requireUser, type SessionUser } from './auth';
 import { HttpError, json, readJson, requireSameOrigin } from './http';
 import { revoke, setBridgeOff } from './relay';
@@ -135,8 +135,8 @@ export async function putSettings(env: Env, request: Request): Promise<Response>
   await requireOwner(env, request);
   const body = await readJson<{ inviteOnly?: unknown; bridgesPerPerson?: unknown }>(request, 4096);
   const before = await accessSettings(env);
-  const bridges = body.bridgesPerPerson === undefined ? before.bridgesPerPerson : bridgeChoice(body.bridgesPerPerson);
-  if (bridges === null) throw new HttpError(400, 'Bridges per person must be 1, 2, 3 or 5');
+  const bridges = body.bridgesPerPerson === undefined ? before.bridgesPerPerson : bridgeNumber(body.bridgesPerPerson);
+  if (bridges === null) throw new HttpError(400, 'Bridges per person must be a whole number from 1 up, or no limit (-1)');
   const next = { inviteOnly: body.inviteOnly === undefined ? before.inviteOnly : body.inviteOnly === true, bridgesPerPerson: bridges };
   // Turning invite only on keeps everyone who already has an account: they go on the list.
   if (next.inviteOnly && !before.inviteOnly)
@@ -240,8 +240,8 @@ export async function putUserBridges(env: Env, request: Request, id: string): Pr
   const target = await targetUser(env, id);
   if (isOwner(env, target.email)) throw new HttpError(400, 'The owner can always use bridges');
   const body = await readJson<{ bridges?: unknown }>(request, 4096);
-  const n = body.bridges === null ? null : body.bridges === 0 ? 0 : bridgeChoice(body.bridges);
-  if (n === null && body.bridges !== null) throw new HttpError(400, "Bridges must be the site's number, none, 1, 2, 3 or 5");
+  const n = body.bridges === null ? null : bridgeNumber(body.bridges, 0);
+  if (n === null && body.bridges !== null) throw new HttpError(400, "Bridges must be the site's number (null), a whole number from 0 up, or no limit (-1)");
   await env.DB!.prepare(
     `INSERT INTO user_limits (user_id, bridges, updated_at) VALUES (?, ?, ?)
      ON CONFLICT (user_id) DO UPDATE SET bridges = excluded.bridges, updated_at = excluded.updated_at`,

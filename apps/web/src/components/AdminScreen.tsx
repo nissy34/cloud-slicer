@@ -2,7 +2,7 @@
 // in, who may save projects online (in their own Google Drive), and how close the site is to
 // Cloudflare's free limits. Server side: functions/_lib/admin.ts.
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { adminApi, BRIDGE_CHOICES, type AdminBridge, type AdminOverview, type AdminUser, type Meter } from '../account/admin-api';
+import { adminApi, bridgeCount, NO_LIMIT, type AdminBridge, type AdminOverview, type AdminUser, type Meter } from '../account/admin-api';
 import { useAccount } from '../state/account';
 import { useSlicer } from '../state/store';
 import { Card } from './Card';
@@ -343,23 +343,37 @@ function UserRow({ u, inviteOnly, siteBridges, act }: { u: AdminUser; inviteOnly
           }}
         />
         {!u.owner && (
-          <Picker
-            field
-            label={`Bridges for ${u.email}`}
-            value={u.bridgesLimit === null ? 'site' : String(u.bridgesLimit)}
-            options={[
-              { value: 'site', label: `Bridges: ${siteBridges} (same as everyone)` },
-              { value: '0', label: 'Bridges: none' },
-              ...BRIDGE_CHOICES.map((n) => ({ value: String(n), label: `Bridges: ${n}` })),
-            ]}
-            onChange={(v) => {
-              const n = v === 'site' ? null : Number(v);
-              act(
-                () => adminApi.setBridges(u.id, n),
-                patchUser(u.id, (x) => ({ ...x, bridgesLimit: n, bridgesAllowed: n !== 0 })),
-              );
-            }}
-          />
+          <div className="admin-bridge-limit">
+            <label className="admin-switch">
+              <input
+                className="switch"
+                type="checkbox"
+                aria-label={`Bridges for ${u.email}: same as everyone`}
+                checked={u.bridgesLimit === null}
+                onChange={(e) => {
+                  const n = e.target.checked ? null : siteBridges;
+                  act(
+                    () => adminApi.setBridges(u.id, n),
+                    patchUser(u.id, (x) => ({ ...x, bridgesLimit: n, bridgesAllowed: n !== 0 })),
+                  );
+                }}
+              />
+              <span>Bridges: same as everyone ({bridgeCount(siteBridges)})</span>
+            </label>
+            {u.bridgesLimit !== null && (
+              <BridgeLimit
+                label={`Bridges for ${u.email}`}
+                value={u.bridgesLimit}
+                min={0}
+                onSave={(n) =>
+                  act(
+                    () => adminApi.setBridges(u.id, n),
+                    patchUser(u.id, (x) => ({ ...x, bridgesLimit: n, bridgesAllowed: n !== 0 })),
+                  )
+                }
+              />
+            )}
+          </div>
         )}
         {!u.owner && inviteOnly && !u.blocked && (
           <button
@@ -424,6 +438,51 @@ function UserRow({ u, inviteOnly, siteBridges, act }: { u: AdminUser; inviteOnly
   );
 }
 
+/**
+ * A bridge number: a number box (saved when it loses focus or on Enter) and a
+ * No limit switch that grays the box out. min 0 means "no bridges" is allowed.
+ */
+function BridgeLimit({ label, value, min, onSave }: { label: string; value: number; min: number; onSave: (n: number) => void }) {
+  const unlimited = value === NO_LIMIT;
+  const [text, setText] = useState(unlimited ? '' : String(value));
+  useEffect(() => setText(value === NO_LIMIT ? '' : String(value)), [value]);
+  const commit = () => {
+    const n = Number(text);
+    if (text.trim() !== '' && Number.isInteger(n) && n >= min) {
+      if (n !== value) onSave(n);
+    } else setText(unlimited ? '' : String(value));
+  };
+  return (
+    <div className="admin-bridge-number">
+      <input
+        type="number"
+        inputMode="numeric"
+        aria-label={label}
+        min={min}
+        step={1}
+        disabled={unlimited}
+        placeholder={unlimited ? 'No limit' : undefined}
+        value={text}
+        onChange={(e) => setText(e.target.value)}
+        onBlur={commit}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter') (e.target as HTMLInputElement).blur();
+        }}
+      />
+      <label className="admin-switch">
+        <input
+          className="switch"
+          type="checkbox"
+          aria-label={`${label}: no limit`}
+          checked={unlimited}
+          onChange={(e) => onSave(e.target.checked ? NO_LIMIT : Math.max(min, 1))}
+        />
+        <span>No limit</span>
+      </label>
+    </div>
+  );
+}
+
 function BridgesCard({ data, act }: { data: AdminOverview; act: Act }) {
   const bridges: AdminBridge[] = data.bridges;
   const perPerson = data.settings.bridgesPerPerson;
@@ -431,23 +490,20 @@ function BridgesCard({ data, act }: { data: AdminOverview; act: Act }) {
     <Card title={`Bridges (${bridges.length})`}>
       <div className="admin-field">
         <span className="small muted">Bridges per person</span>
-        <Picker
-          field
+        <BridgeLimit
           label="Bridges per person"
-          testId="admin-bridges-per-person"
-          value={String(perPerson)}
-          options={BRIDGE_CHOICES.map((n) => ({ value: String(n), label: n === 1 ? '1 bridge' : `${n} bridges` }))}
-          onChange={(v) => {
-            const n = Number(v);
+          value={perPerson}
+          min={1}
+          onSave={(n) =>
             act(
               () => adminApi.saveSettings({ bridgesPerPerson: n }),
               (d) => ({ ...d, settings: { ...d.settings, bridgesPerPerson: n } }),
-            );
-          }}
+            )
+          }
         />
         <span className="muted small">
           One bridge reaches every printer on its network, so most people need one. A lower number stops new bridges; ones already in use keep working. You
-          can give one person a different number under People.
+          can give one person a different number under People (0 = no bridges).
         </span>
       </div>
       <p className="muted small admin-note">

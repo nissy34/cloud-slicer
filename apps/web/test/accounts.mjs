@@ -1035,9 +1035,11 @@ test('relay tickets: signed-in accounts only, for one bridge, with a bridge cap 
   assert.equal(refused.code, 'bridge-limit');
   assert.match(refused.error, /one bridge/);
   // The owner raises it for everyone.
-  assert.equal((await alice.json('/api/admin/settings', 'PUT', { bridgesPerPerson: 4 })).status, 400, 'only the offered numbers');
+  for (const bad of [0, 1.5, -2, '3']) assert.equal((await alice.json('/api/admin/settings', 'PUT', { bridgesPerPerson: bad })).status, 400, `not a bridge number: ${bad}`);
+  assert.equal((await alice.json('/api/admin/settings', 'PUT', { bridgesPerPerson: -1 })).status, 200, 'no limit');
+  assert.equal((await (await alice.json('/api/admin')).json()).settings.bridgesPerPerson, -1);
   assert.equal((await carol.json('/api/admin/settings', 'PUT', { bridgesPerPerson: 5 })).status, 403);
-  assert.equal((await alice.json('/api/admin/settings', 'PUT', { bridgesPerPerson: 3 })).status, 200);
+  assert.equal((await alice.json('/api/admin/settings', 'PUT', { bridgesPerPerson: 3 })).status, 200, 'any whole number');
   assert.equal((await (await alice.json('/api/admin')).json()).settings.inviteOnly, false, 'the other settings are kept');
   for (const id of ['bridge-0002', 'bridge-0003', 'bridge-0001']) assert.equal((await carol.json('/api/relay/ticket', 'POST', { relay, bridgeId: id })).status, 200);
   const fourth = await carol.json('/api/relay/ticket', 'POST', { relay, bridgeId: 'bridge-0004' });
@@ -1052,12 +1054,17 @@ test('relay tickets: signed-in accounts only, for one bridge, with a bridge cap 
   assert.equal((await carol.json('/api/relay/ticket', 'POST', { relay, bridgeId: 'bridge-0005' })).status, 403);
   // One person can have their own number.
   const carolId = (await carol.me()).id;
-  assert.equal((await alice.json(`/api/admin/users/${carolId}/bridges`, 'PUT', { bridges: 7 })).status, 400);
-  assert.equal((await alice.json(`/api/admin/users/${carolId}/bridges`, 'PUT', { bridges: 5 })).status, 200);
+  assert.equal((await alice.json(`/api/admin/users/${carolId}/bridges`, 'PUT', { bridges: -2 })).status, 400);
+  // No limit for this person: any number of bridges.
+  assert.equal((await alice.json(`/api/admin/users/${carolId}/bridges`, 'PUT', { bridges: -1 })).status, 200);
+  for (const id of ['bridge-0006', 'bridge-0007']) assert.equal((await carol.json('/api/relay/ticket', 'POST', { relay, bridgeId: id })).status, 200, 'no limit');
+  for (const id of ['bridge-0006', 'bridge-0007']) assert.equal((await carol.json(`/api/relay/bridges/${id}`, 'DELETE')).status, 200);
+  assert.equal((await alice.json(`/api/admin/users/${carolId}/bridges`, 'PUT', { bridges: 4 })).status, 200);
   assert.equal((await carol.json('/api/relay/ticket', 'POST', { relay, bridgeId: 'bridge-0005' })).status, 200, "their own number wins over the site's");
+  assert.equal((await carol.json('/api/relay/ticket', 'POST', { relay, bridgeId: 'bridge-0008' })).status, 403, 'and is a cap too');
   let row = (await (await alice.json('/api/admin')).json()).users.find((u) => u.email === 'carol@example.com');
   assert.equal(row.bridges, 4);
-  assert.equal(row.bridgesLimit, 5);
+  assert.equal(row.bridgesLimit, 4);
   assert.equal(row.bridgesAllowed, true);
   assert.equal((await alice.json(`/api/admin/users/${carolId}/bridges`, 'PUT', { bridges: null })).status, 200);
   row = (await (await alice.json('/api/admin')).json()).users.find((u) => u.email === 'carol@example.com');

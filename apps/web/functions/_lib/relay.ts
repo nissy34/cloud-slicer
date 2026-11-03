@@ -13,7 +13,7 @@
 // the per-user bridge cap and the Admin page's bridge counts work. Blocking a
 // user also tells each relay they used to drop them at once (revoke()).
 import { SignJWT, importJWK, type JWK } from 'jose';
-import { accessSettings, isOwner } from './access';
+import { NO_LIMIT, accessSettings, isOwner } from './access';
 import { currentUser, requireUser } from './auth';
 import { decrypt, encrypt } from './crypto';
 import { HttpError, json, readJson, requireSameOrigin } from './http';
@@ -92,9 +92,10 @@ async function mayAddBridge(env: Env, userId: string, owner: boolean, bridgeId?:
   const limits = await d.prepare('SELECT bridges FROM user_limits WHERE user_id = ?').bind(userId).first<{ bridges: number | null }>().catch(() => null);
   if (limits?.bridges === 0) throw new HttpError(403, "Bridges aren't available for your account. Printers you reach directly still work.", { code: 'no-bridges' });
   if (bridgeId && (await d.prepare('SELECT 1 AS ok FROM relay_bridges WHERE user_id = ? AND bridge_id = ?').bind(userId, bridgeId).first())) return;
-  const n = await d.prepare('SELECT COUNT(*) AS n FROM relay_bridges WHERE user_id = ?').bind(userId).first<{ n: number }>();
   // The person's own number, else the site's (Admin page). Lowering it keeps bridges already in use.
   const max = limits?.bridges ?? (await accessSettings(env)).bridgesPerPerson;
+  if (max === NO_LIMIT) return;
+  const n = await d.prepare('SELECT COUNT(*) AS n FROM relay_bridges WHERE user_id = ?').bind(userId).first<{ n: number }>();
   if ((n?.n ?? 0) >= max)
     throw new HttpError(
       403,

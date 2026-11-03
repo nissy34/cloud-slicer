@@ -55,9 +55,9 @@ D1 `user`, `session`, `account`, `verification` (Better Auth), `presets`,
   are in the person's own Google Drive, so there is no storage to share out), 2 cameras
   at once through the relay (signed into the ticket as `cams`, 8 for owners; see
   [relay](relay.md) for the direct-camera cap).
-- Bridges per person: one site number on the Admin page (1, 2, 3 or 5; 1 when never set,
+- Bridges per person: one site number on the Admin page (any whole number from 1, or no limit = -1; 1 when never set,
   kept in `site_settings` 'access' as `bridgesPerPerson`), and a person's own number in
-  `user_limits.bridges` (NULL = the site's, 0 = none, which closes their bridges at once).
+  `user_limits.bridges` (NULL = the site's, -1 = no limit, 0 = none, which closes their bridges at once). The page shows a number box and a No limit switch.
   One bridge reaches every printer on its network, so printers aren't capped: a printer
   is one small row and only bridges cost relay requests. Lowering a number stops new
   bridges; bridges already in use keep working. Owners have no cap.

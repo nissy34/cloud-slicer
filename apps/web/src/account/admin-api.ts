@@ -30,7 +30,7 @@ export interface AdminUser {
   projectsAllowed: boolean;
   /** False when the owner turned bridges off for this person. */
   bridgesAllowed: boolean;
-  /** Bridges this person may use: null = the site's number, 0 = none. */
+  /** Bridges this person may use: null = the site's number, 0 = none, NO_LIMIT = any number. */
   bridgesLimit: number | null;
 }
 
@@ -64,8 +64,10 @@ async function call<T>(path: string, method = 'GET', body?: unknown): Promise<T>
   return data as T;
 }
 
-/** The numbers offered for bridges per person (functions/_lib/access.ts BRIDGE_CHOICES). */
-export const BRIDGE_CHOICES = [1, 2, 3, 5];
+/** "No limit" for bridges per person (functions/_lib/access.ts NO_LIMIT). */
+export const NO_LIMIT = -1;
+/** How a bridge number reads on the Admin page. */
+export const bridgeCount = (n: number) => (n === NO_LIMIT ? 'no limit' : n === 1 ? '1 bridge' : `${n} bridges`);
 
 export const adminApi = {
   overview: () => call<AdminOverview>(''),
@@ -74,7 +76,7 @@ export const adminApi = {
   saveSettings: (s: Partial<AdminOverview['settings']>) => call('/settings', 'PUT', s),
   userAction: (id: string, action: 'block' | 'unblock' | 'allow' | 'disallow' | 'delete') => call(`/users/${encodeURIComponent(id)}/${action}`, 'POST', {}),
   setProjects: (id: string, allowed: boolean) => call(`/users/${encodeURIComponent(id)}/projects`, 'PUT', { allowed }),
-  /** null = the site's number, 0 = none. */
+  /** null = the site's number, 0 = none, NO_LIMIT = any number. */
   setBridges: (id: string, bridges: number | null) => call(`/users/${encodeURIComponent(id)}/bridges`, 'PUT', { bridges }),
   bridge: (id: string, action: 'off' | 'on') => call(`/bridges/${encodeURIComponent(id)}/${action}`, 'POST', {}),
   invite: (email: string) => call('/invites', 'POST', { email }),
