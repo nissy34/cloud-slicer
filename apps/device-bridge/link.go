@@ -49,6 +49,8 @@ type cameraOpenParams struct {
 	StreamURL   string  `json:"streamUrl"`
 	SnapshotURL string  `json:"snapshotUrl"`
 	FPS         float64 `json:"fps"`
+	// Pictures skips the camera's own video: the page asks again this way when the video didn't start.
+	Pictures bool `json:"pictures"`
 }
 
 // videoSlot is one video track on the link; a camera's video goes out on it while the camera is open.
@@ -282,7 +284,7 @@ func (s *Session) linkCamera(p cameraOpenParams) (any, error) {
 	}
 
 	// The camera's own live video, when it has one and the browser can play it.
-	if slot < len(l.slots) {
+	if slot < len(l.slots) && !p.Pictures {
 		for _, sig := range s.videoSources(p) {
 			up, track, err := connectSource(ctx, sig)
 			if err == nil {

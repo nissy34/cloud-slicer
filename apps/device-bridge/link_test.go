@@ -168,3 +168,20 @@ func TestNewLinkReplacesTheOldOne(t *testing.T) {
 		t.Fatalf("first camera on the new link on slot %d", slot)
 	}
 }
+
+// A camera whose video didn't start in the browser is asked for again as pictures, on the same link.
+func TestCameraWithVideoCanAskForPictures(t *testing.T) {
+	cam := newFakeVideoCamera(t, true)
+	s := newSession("c1", Printer{ID: "p", Name: "fake", URL: cam.URL}, func(string) {}, func(string) {})
+	defer s.close()
+	b := pretendBrowser(t, s, nil)
+	slot, mode := b.camera(cameraOpenParams{Service: "iframe", StreamURL: "/webcam/player", SnapshotURL: "/webcam/snapshot.jpg", FPS: 10, Pictures: true})
+	if mode != "pictures" {
+		t.Fatalf("mode %q, want pictures", mode)
+	}
+	select {
+	case <-b.pictures(slot):
+	case <-time.After(15 * time.Second):
+		t.Fatal("no pictures came")
+	}
+}

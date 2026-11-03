@@ -82,7 +82,9 @@ setting `device-layout.<printer id>`, per-device conveniences in browser storage
   start again on a new link still showing their last picture, pages go over the relay
   and try the direct link again after 5 s. A link that never connects means the network
   blocks direct links: cameras show relay pictures with the "Slow camera" note and the
-  next try waits 20 s.
+  next try waits 20 s. While the link is up no camera leaves it: a camera whose video
+  won't start asks the same link for pictures (`pictures` on `bridge.link_camera`); a
+  camera on relay pictures goes back to the link once it is up again (checked every 20 s).
 - Each printer has its own layout; a new printer starts from the default; removing a
   printer removes its layout.
 - The top row keeps the printer and the layout apart. Printer things live in the printer

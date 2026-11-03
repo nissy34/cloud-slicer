@@ -33,6 +33,8 @@ export interface DirectCamera {
   snapshotUrl: string;
   /** Pictures per second, for a camera with no live video of its own. */
   fps: number;
+  /** Pictures even when the camera has live video (asked again after its video didn't start). */
+  pictures?: boolean;
 }
 
 export type WebrtcProtocol = 'camera-streamer' | 'whep' | 'go2rtc';

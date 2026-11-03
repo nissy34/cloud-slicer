@@ -194,6 +194,8 @@ function useKeepalive(session: PrinterSession | null, keepalive: CameraHints['ke
 }
 
 const NETWORK_BLOCKS = 'Slow camera: your network blocks a direct connection.';
+/** A camera showing relay pictures checks this often whether the direct link is back. */
+const BACK_TO_DIRECT_MS = 20_000;
 
 function CameraTile({
   cam,
@@ -232,10 +234,32 @@ function CameraTile({
     setNote('');
   }, [cam, viaBridge]);
   const view = views[index];
+  const shared = session.link.shared;
   const next = (why?: string) => {
-    if (view?.kind === 'direct') setNote(why && /Unknown bridge call/.test(why) ? 'Slow camera: update the bridge for a smooth one.' : NETWORK_BLOCKS);
+    if (view?.kind === 'direct') setNote(why && /Unknown bridge call/.test(why) ? 'Slow camera: update the bridge for a smooth one.' : shared?.blocked ? NETWORK_BLOCKS : '');
     setIndex((i) => i + 1);
   };
+  // Showing relay pictures although the camera can come straight from the bridge:
+  // when the direct link is up again (or can be made), go back to it.
+  const fellBack = views[0]?.kind === 'direct' && index > 0 && !!shared;
+  useEffect(() => {
+    if (!fellBack || !shared || !active) return;
+    let stopped = false;
+    const tryAgain = () =>
+      shared.ready().then(
+        () => {
+          if (stopped) return;
+          setNote('');
+          setIndex(0);
+        },
+        () => {},
+      );
+    const timer = setInterval(tryAgain, BACK_TO_DIRECT_MS);
+    return () => {
+      stopped = true;
+      clearInterval(timer);
+    };
+  }, [fellBack, shared, active]);
   const transform = cameraTransform(cam);
 
   return (
@@ -339,12 +363,14 @@ function DirectView({
   const [frame, setFrame] = useState<string | null>(null);
   // Counts links this camera has started on: a dropped link starts it again.
   const [attempt, setAttempt] = useState(0);
+  // Live video that won't start on a working link: ask the same link for pictures instead of leaving it.
+  const [picturesOnly, setPicturesOnly] = useState(false);
   useEffect(() => {
     const bridge = directBridge(session);
     if (!video.current || !bridge) return;
     let cancelled = false;
     let stop: (() => void) | null = null;
-    playDirect(bridge, view.camera, {
+    playDirect(bridge, picturesOnly ? { ...view.camera, pictures: true } : view.camera, {
       video: video.current,
       picture: (blob) => {
         if (cancelled) return;
@@ -358,12 +384,17 @@ function DirectView({
         stop = p.stop;
         setMode(p.mode);
       })
-      .catch((e: Error) => !cancelled && fail.current(e.message));
+      .catch((e: Error) => {
+        if (cancelled) return;
+        // While the link is up every camera stays on it; only a link that is down falls back.
+        if (!picturesOnly && bridge.current()) setPicturesOnly(true);
+        else fail.current(e.message);
+      });
     return () => {
       cancelled = true;
       stop?.();
     };
-  }, [view, session, attempt]);
+  }, [view, session, attempt, picturesOnly]);
   // Each picture's address is let go once the next one shows (or the camera goes); the last stays up while the camera starts again.
   useEffect(() => () => void (frame && URL.revokeObjectURL(frame)), [frame]);
   return (
