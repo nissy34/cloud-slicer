@@ -147,7 +147,7 @@ func (s *Session) linkOpen(sdp string) (any, error) {
 			if t.Kind() != webrtc.RTPCodecTypeVideo || len(l.slots) >= maxDirectCameras {
 				continue
 			}
-			track, err := webrtc.NewTrackLocalStaticRTP(slotCodec, "video", fmt.Sprintf("slot%d", len(l.slots)))
+			track, err := webrtc.NewTrackLocalStaticRTP(slotCodec, fmt.Sprintf("video%d", len(l.slots)), fmt.Sprintf("slot%d", len(l.slots)))
 			if err != nil {
 				return fail(err)
 			}
