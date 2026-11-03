@@ -85,6 +85,12 @@ setting `device-layout.<printer id>`, per-device conveniences in browser storage
   next try waits 20 s. While the link is up no camera leaves it: a camera whose video
   won't start asks the same link for pictures (`pictures` on `bridge.link_camera`); a
   camera on relay pictures goes back to the link once it is up again (checked every 20 s).
+- When the phone changes network (Wi-Fi ↔ mobile data, the `online` event or
+  `navigator.connection` change) or the page comes back to the front, the session checks
+  at once (`checkNow` in `session.ts`): not connected → reconnect now, with the back-off
+  reset; connected → one `server.info` that must answer in 5 s, else reconnect. Cards
+  say "Reconnecting…" meanwhile, not "Not connected". No timed ping: it would cost relay
+  messages all day.
 - Each printer has its own layout; a new printer starts from the default; removing a
   printer removes its layout.
 - The top row keeps the printer and the layout apart. Printer things live in the printer

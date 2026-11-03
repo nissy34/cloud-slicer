@@ -96,6 +96,7 @@ function useTabVisible() {
  */
 export function PageCard({ card, home, onPick }: { card: CamCardId; home: Record<string, CamCardId>; onPick(name: string): void }) {
   const online = useDevice((s) => s.conn.state === 'online');
+  const reconnecting = useDevice((s) => s.conn.state === 'connecting');
   const facts = useDevice((s) => s.facts);
   const visible = useTabVisible();
   const folded = useFolded();
@@ -173,7 +174,7 @@ export function PageCard({ card, home, onPick }: { card: CamCardId; home: Record
         <div className="dv-camera">
           <span className="muted">
             {!online
-              ? 'Not connected'
+              ? reconnecting ? 'Reconnecting…' : 'Not connected'
               : !pages
                 ? 'Looking for pages…'
                 : !pages.length

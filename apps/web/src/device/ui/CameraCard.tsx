@@ -64,6 +64,7 @@ export function CameraCard({
   onPlace?(name: string, card: 'camera' | CamCardId): void;
 }) {
   const online = useDevice((s) => s.conn.state === 'online');
+  const reconnecting = useDevice((s) => s.conn.state === 'connecting');
   const addons = useDevice((s) => s.addons);
   const facts = useDevice((s) => s.facts);
   const visible = usePageVisible();
@@ -141,7 +142,7 @@ export function CameraCard({
           <Empty
             icon={CameraOff}
             text={!online
-                ? 'Not connected'
+                ? reconnecting ? 'Reconnecting…' : 'Not connected'
                 : !shown
                   ? 'Looking for cameras…'
                   : !main

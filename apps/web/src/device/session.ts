@@ -63,6 +63,9 @@ export class RpcError extends Error {
   }
 }
 
+/** How long a working connection takes to answer a check after the network changed. */
+export const CHECK_MS = 5_000;
+
 export class PrinterSession {
   private seq = 0;
   private pending = new Map<number, { resolve(v: unknown): void; reject(e: Error): void; timer: ReturnType<typeof setTimeout> }>();
@@ -85,11 +88,14 @@ export class PrinterSession {
 
   start() {
     this.stopped = false;
+    this.watchNetwork();
     void this.connect();
   }
 
   stop() {
     this.stopped = true;
+    this.unwatchNetwork?.();
+    this.unwatchNetwork = null;
     if (this.retryTimer) clearTimeout(this.retryTimer);
     if (this.flushTimer) clearTimeout(this.flushTimer);
     this.failPending('Disconnected.');
@@ -120,7 +126,10 @@ export class PrinterSession {
     this.ev.onState('offline', reason);
     const delay = Math.min(30_000, 2000 * 2 ** Math.min(this.retries++, 4));
     if (this.retryTimer) clearTimeout(this.retryTimer);
-    this.retryTimer = setTimeout(() => void this.connect(), delay);
+    this.retryTimer = setTimeout(() => {
+      this.retryTimer = null;
+      void this.connect();
+    }, delay);
   }
 
   /**
@@ -144,9 +153,47 @@ export class PrinterSession {
     });
   }
 
+  private unwatchNetwork: (() => void) | null = null;
+  private checking = false;
+
+  /**
+   * A phone moving between Wi-Fi and mobile data, or a page coming back to the
+   * front, can leave the connection dead without closing it, or waiting out a
+   * long back-off on a network that already works: check at once instead.
+   */
+  private watchNetwork() {
+    if (this.unwatchNetwork || typeof window === 'undefined') return;
+    const check = () => void this.checkNow();
+    const shown = () => document.visibilityState === 'visible' && check();
+    const conn = (navigator as Navigator & { connection?: EventTarget }).connection;
+    window.addEventListener('online', check);
+    document.addEventListener('visibilitychange', shown);
+    conn?.addEventListener?.('change', check);
+    this.unwatchNetwork = () => {
+      window.removeEventListener('online', check);
+      document.removeEventListener('visibilitychange', shown);
+      conn?.removeEventListener?.('change', check);
+    };
+  }
+
+  /** Reconnects at once when not connected; when connected, a quick call shows whether the connection still works. */
+  async checkNow() {
+    if (this.stopped || this.checking) return;
+    if (this.retryTimer) return this.retryNow();
+    this.checking = true;
+    try {
+      await this.rpc('server.info', undefined, CHECK_MS);
+    } catch {
+      if (!this.stopped) this.retryNow();
+    } finally {
+      this.checking = false;
+    }
+  }
+
   /** Reconnect now instead of waiting for the back-off. */
   retryNow() {
     if (this.retryTimer) clearTimeout(this.retryTimer);
+    this.retryTimer = null;
     this.retries = 0;
     this.link.close();
     void this.connect();

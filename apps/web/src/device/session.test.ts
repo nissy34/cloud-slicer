@@ -1,6 +1,6 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import type { BridgeStatus, LinkHandlers, PrinterLink, RpcMessage } from './link/types';
-import { PrinterSession } from './session';
+import { CHECK_MS, PrinterSession } from './session';
 
 /** A link that answers like Moonraker and lets the test speak as the relay. */
 function fakeLink() {
@@ -47,6 +47,59 @@ describe('printer session through the bridge', () => {
     await settle();
     await settle();
     expect(subscribes()).toBe(2);
+    s.stop();
+  });
+});
+
+describe('printer session when the network changes', () => {
+  it('reconnects at once instead of waiting out the back-off', async () => {
+    // The test runs outside a browser: a stand-in window and page to send the events.
+    const win = new EventTarget();
+    vi.stubGlobal('window', win);
+    vi.stubGlobal('document', Object.assign(new EventTarget(), { visibilityState: 'visible' }));
+    const { link } = fakeLink();
+    let opens = 0;
+    const open = link.open.bind(link);
+    link.open = async (h) => {
+      opens++;
+      if (opens === 1) throw new Error('no network');
+      return open(h);
+    };
+    const states: string[] = [];
+    const s = new PrinterSession(link, { onState: (st) => states.push(st), onObjects: noop, onFacts: noop, onConsole: noop, onFilesChanged: noop });
+    s.start();
+    await settle();
+    expect(states.at(-1)).toBe('offline');
+    win.dispatchEvent(new Event('online'));
+    await settle();
+    await settle();
+    expect(opens).toBe(2);
+    expect(states.at(-1)).toBe('online');
+    s.stop();
+    vi.unstubAllGlobals();
+  });
+
+  it('a connection that no longer answers is started again', async () => {
+    const { link } = fakeLink();
+    const s = new PrinterSession(link, { onState: noop, onObjects: noop, onFacts: noop, onConsole: noop, onFilesChanged: noop });
+    s.start();
+    await settle();
+    await settle();
+    let opens = 0;
+    const send = link.send.bind(link);
+    link.send = () => {}; // the old network: nothing comes back
+    const open = link.open.bind(link);
+    link.open = async (h) => {
+      opens++;
+      link.send = send;
+      return open(h);
+    };
+    vi.useFakeTimers();
+    const checked = s.checkNow();
+    vi.advanceTimersByTime(CHECK_MS);
+    vi.useRealTimers();
+    await checked;
+    expect(opens).toBe(1);
     s.stop();
   });
 });
