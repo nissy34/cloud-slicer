@@ -54,11 +54,11 @@ type Session struct {
 	pending map[string]any
 	timer   *time.Timer
 	uploads map[string]*upload
-	cameras map[string]*directCamera
+	// links holds the page's direct link (link.go): one, or none while it reconnects.
+	links map[string]*sharedLink
 	// pictureAt remembers which address answered for each camera picture path.
 	pictureAt map[string]*url.URL
-	// Printer pages: open direct links, the folders the printer lists, and which address answered for each folder.
-	pages      map[string]*directPage
+	// Printer pages: the folders the printer lists, and which address answered for each folder.
 	pageList   []string
 	pageListAt time.Time
 	pageAt     map[string]*url.URL
@@ -72,7 +72,7 @@ type Session struct {
 
 func newSession(id string, p Printer, send func(string), drop func(string)) *Session {
 	ctx, cancel := context.WithCancel(context.Background())
-	return &Session{id: id, printer: p, send: send, drop: drop, ctx: ctx, cancel: cancel, uploads: map[string]*upload{}, cameras: map[string]*directCamera{}, pictureAt: map[string]*url.URL{}, pages: map[string]*directPage{}, pageAt: map[string]*url.URL{}}
+	return &Session{id: id, printer: p, send: send, drop: drop, ctx: ctx, cancel: cancel, uploads: map[string]*upload{}, links: map[string]*sharedLink{}, pictureAt: map[string]*url.URL{}, pageAt: map[string]*url.URL{}}
 }
 
 // open connects to the printer's Moonraker websocket, then passes its messages on until either end closes.
@@ -340,32 +340,33 @@ func (s *Session) local(msg rpc) (any, error) {
 		}
 		_ = json.Unmarshal(msg.Params, &p)
 		return s.uploadEnd(p.UploadID)
-	case "bridge.camera_open":
-		var p cameraOpenParams
-		_ = json.Unmarshal(msg.Params, &p)
-		return s.cameraOpen(p)
-	case "bridge.camera_close":
-		var p struct {
-			ID string `json:"id"`
-		}
-		_ = json.Unmarshal(msg.Params, &p)
-		return s.cameraClose(p.ID)
-	case "bridge.page_fetch":
-		var p pageRequest
-		_ = json.Unmarshal(msg.Params, &p)
-		return s.pageFetchRelayed(p)
-	case "bridge.page_open":
+	case "bridge.link_open":
 		var p struct {
 			SDP string `json:"sdp"`
 		}
 		_ = json.Unmarshal(msg.Params, &p)
-		return s.pageOpen(p.SDP)
-	case "bridge.page_close":
+		return s.linkOpen(p.SDP)
+	case "bridge.link_close":
 		var p struct {
 			ID string `json:"id"`
 		}
 		_ = json.Unmarshal(msg.Params, &p)
-		return s.pageClose(p.ID)
+		return s.linkClose(p.ID)
+	case "bridge.link_camera":
+		var p cameraOpenParams
+		_ = json.Unmarshal(msg.Params, &p)
+		return s.linkCamera(p)
+	case "bridge.link_camera_close":
+		var p struct {
+			Link string `json:"link"`
+			Slot int    `json:"slot"`
+		}
+		_ = json.Unmarshal(msg.Params, &p)
+		return s.linkCameraClose(p.Link, p.Slot)
+	case "bridge.page_fetch":
+		var p pageRequest
+		_ = json.Unmarshal(msg.Params, &p)
+		return s.pageFetchRelayed(p)
 	}
 	return nil, errors.New("Unknown bridge call " + msg.Method)
 }
@@ -474,16 +475,11 @@ func (s *Session) close() {
 	ws := s.ws
 	ups := s.uploads
 	s.uploads = map[string]*upload{}
-	cams := s.cameras
-	s.cameras = map[string]*directCamera{}
-	pages := s.pages
-	s.pages = map[string]*directPage{}
+	links := s.links
+	s.links = map[string]*sharedLink{}
 	s.mu.Unlock()
-	for _, c := range cams {
-		c.close()
-	}
-	for _, p := range pages {
-		p.close()
+	for _, l := range links {
+		l.close()
 	}
 	for _, up := range ups {
 		up.abort(errors.New("The browser went away."))

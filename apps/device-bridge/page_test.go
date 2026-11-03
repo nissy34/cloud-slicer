@@ -193,12 +193,9 @@ func TestDirectPageLink(t *testing.T) {
 	p := newFakePagePrinter(t)
 	s := pageSession(p)
 	defer s.close()
-	pc, err := webrtc.NewPeerConnection(webrtc.Configuration{})
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer pc.Close()
-	dc, _ := pc.CreateDataChannel("page", nil)
+	b := pretendBrowser(t, s, nil)
+	// A page opens its channel on the link that is already up.
+	dc, _ := b.pc.CreateDataChannel("page", nil)
 	type answer struct {
 		head map[string]any
 		body []byte
@@ -224,17 +221,6 @@ func TestDirectPageLink(t *testing.T) {
 			answers <- answer{heads[id], bodies[id]}
 		}
 	})
-	offer, _ := pc.CreateOffer(nil)
-	done := webrtc.GatheringCompletePromise(pc)
-	_ = pc.SetLocalDescription(offer)
-	<-done
-	res, err := s.pageOpen(pc.LocalDescription().SDP)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if err := pc.SetRemoteDescription(webrtc.SessionDescription{Type: webrtc.SDPTypeAnswer, SDP: res.(map[string]any)["sdp"].(string)}); err != nil {
-		t.Fatal(err)
-	}
 	opened := make(chan struct{})
 	dc.OnOpen(func() { close(opened) })
 	select {
@@ -267,9 +253,9 @@ func TestDirectPageLink(t *testing.T) {
 	}
 	s.close()
 	s.mu.Lock()
-	left := len(s.pages)
+	left := len(s.links)
 	s.mu.Unlock()
 	if left != 0 {
-		t.Fatal("closing the session should close its page links")
+		t.Fatal("closing the session should close its link")
 	}
 }

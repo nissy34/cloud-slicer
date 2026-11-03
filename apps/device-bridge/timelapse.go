@@ -2,7 +2,7 @@ package main
 
 // Timelapse videos: the Device tab lists them (server.files.list on the
 // printer's timelapse folder), fetches them in Range pieces through the page
-// link (bridge.page_open / bridge.page_fetch) and may delete them. Klipper
+// link (channel "page" on the shared direct link, or bridge.page_fetch) and may delete them. Klipper
 // printers with the moonraker-timelapse add-on keep them in Moonraker's
 // "timelapse" folder; the Snapmaker U1 keeps its own in "camera"; a stand-in
 // (OctoPrint) offers its timelapses as a "timelapse" folder too. Only video
