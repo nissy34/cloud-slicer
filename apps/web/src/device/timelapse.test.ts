@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import type { PageAnswer, PageRequest } from './link/types';
 import { PageRefused } from './printer-page';
 import { BridgeFiles, PIECE, RELAY_VIDEO_LIMIT, VideoSource, fileAddress, pickTimelapses, playable, rangeTotal, type RangeReader } from './timelapse';
@@ -72,6 +72,39 @@ describe('BridgeFiles', () => {
   it('asks for a bridge update when the bridge is too old', async () => {
     const bridge = relayBridge(counting(4), { refuse: 'This address is not part of a page the printer lists.' });
     await expect(new BridgeFiles(bridge).readRange('/server/files/timelapse/a.mp4', 0, 3)).rejects.toThrow(/Update the bridge/);
+  });
+  it('after a drop, waits for the direct link while it is up instead of going over the relay', async () => {
+    vi.stubGlobal('RTCPeerConnection', class {});
+    // A pretend direct link that answers every piece with 4 bytes.
+    const dc = {
+      readyState: 'connecting',
+      binaryType: '',
+      onopen: null as null | (() => void),
+      onmessage: null as null | ((e: { data: unknown }) => void),
+      onclose: null,
+      close() {},
+      send(text: string) {
+        const { id } = JSON.parse(text) as { id: number };
+        queueMicrotask(() => {
+          this.onmessage?.({ data: JSON.stringify({ id, status: 206, headers: { 'Content-Range': 'bytes 0-3/4' }, size: 4 }) });
+          const piece = new Uint8Array(9);
+          new DataView(piece.buffer).setUint32(0, id);
+          piece[4] = 1;
+          piece.set([1, 2, 3, 4], 5);
+          this.onmessage?.({ data: piece.buffer });
+        });
+      },
+    };
+    const up = { id: 'l', pc: { createDataChannel: () => (setTimeout(() => ((dc.readyState = 'open'), dc.onopen?.())), dc) } };
+    let drop = () => {};
+    const shared = { current: () => up, ready: async () => up, onDrop: (f: () => void) => ((drop = f), () => {}) };
+    const bridge = { ...relayBridge(counting(4), { range: true }), shared: shared as never };
+    const files = new BridgeFiles(bridge);
+    expect((await files.readRange('/server/files/timelapse/a.mp4', 0, 3)).route).toBe('direct');
+    drop(); // the channel dropped, but the link came back at once
+    expect((await files.readRange('/server/files/timelapse/a.mp4', 0, 3)).route).toBe('direct');
+    expect(bridge.asked).toEqual([]);
+    vi.unstubAllGlobals();
   });
   it('reads the whole size from a Range answer', () => {
     expect(rangeTotal({ status: 206, headers: { 'content-range': 'bytes 0-3/10' }, body: new ArrayBuffer(0) })).toBe(10);

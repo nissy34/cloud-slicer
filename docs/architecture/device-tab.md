@@ -68,7 +68,7 @@ setting `device-layout.<printer id>`, per-device conveniences in browser storage
   (`VideoSource`, `BridgeFiles`), and kept for the page's life: Download hands over the
   same copy, and watching again costs nothing. A direct link that drops gets 6 s to come
   back (`watchLink`); after a drop pieces go over the relay without waiting, trying direct
-  again after 20 s, and a direct piece stuck 15 s goes over the relay. Through a bridge: a direct link first, the
+  again after 20 s (unless the shared link is still up: then they wait for a new channel on it), and a direct piece stuck 15 s goes over the relay. Through a bridge: a direct link first, the
   relay only for videos up to 200 MB (`RELAY_VIDEO_LIMIT`); a row's picture (the .jpg of
   the same name the U1 and the add-on save) either way, one small message each. The list is asked when
   the printer connects and on Refresh, not on every file change (the U1 rewrites its
