@@ -20,6 +20,7 @@ owner gets an Admin page: people, block, invite only, storage per person, bridge
 | Admin page and its API | `components/AdminScreen.tsx`, `account/admin-api.ts`, `functions/_lib/admin.ts`, `access.ts`, `usage.ts` |
 | Relay tickets, setup codes, bridge records | `functions/_lib/relay.ts` |
 | All routes, listed at the top | `functions/api/[[path]].ts` |
+| Privacy and terms pages (linked from the account menu; Google needs them to publish the sign-in app) | `public/privacy.html`, `public/terms.html` |
 
 ## How it flows
 

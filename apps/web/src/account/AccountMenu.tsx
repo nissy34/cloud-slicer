@@ -123,6 +123,7 @@ function SignedOut() {
           {total === 1 ? 'The preset' : `The ${total} presets`} saved in this browser will move to your account.
         </p>
       )}
+      <Legal />
     </>
   );
 }
@@ -200,6 +201,22 @@ function SignedIn({ onDone }: { onDone: () => void }) {
           </button>
         </div>
       )}
+      <Legal />
     </>
+  );
+}
+
+/** What is kept and how (public/privacy.html, public/terms.html). */
+function Legal() {
+  return (
+    <p className="account-muted account-legal">
+      <a href="/privacy" target="_blank" rel="noopener">
+        Privacy
+      </a>
+      {' · '}
+      <a href="/terms" target="_blank" rel="noopener">
+        Terms
+      </a>
+    </p>
   );
 }
