@@ -1,17 +1,17 @@
 // The owner's Admin page (OWNER_EMAILS only):
 //
 //   GET    /api/admin[?quick]               settings, users, invites, free-tier usage (not with ?quick)
-//   PUT    /api/admin/settings              { inviteOnly }
+//   PUT    /api/admin/settings              { inviteOnly?, bridgesPerPerson? }
 //   POST   /api/admin/users/<id>/<action>   block | unblock | allow | disallow | delete
 //   PUT    /api/admin/users/<id>/projects   { allowed: boolean }  (online projects, in their Google Drive)
-//   PUT    /api/admin/users/<id>/bridges    { allowed: boolean }
+//   PUT    /api/admin/users/<id>/bridges    { bridges: null (the site's number) | 0 (none) | a number }
 //   POST   /api/admin/bridges/<id>/<off|on> turn a bridge off for everyone, or back on
 //   POST   /api/admin/invites               { email }
 //   DELETE /api/admin/invites/<email>
 //
 // Blocking is Better Auth's admin plugin (ban: signs the user out everywhere
 // and refuses their sign-ins); the relay drops their bridge connections too.
-import { accessSettings, isOwner, normalEmail, saveAccessSettings } from './access';
+import { accessSettings, bridgeChoice, isOwner, normalEmail, saveAccessSettings } from './access';
 import { createAuth, requireUser, type SessionUser } from './auth';
 import { HttpError, json, readJson, requireSameOrigin } from './http';
 import { revoke, setBridgeOff } from './relay';
@@ -119,6 +119,8 @@ export async function overview(env: Env, request: Request): Promise<Response> {
         bridges: u.bridges,
         projectsAllowed: u.projects_allowed !== 0,
         bridgesAllowed: u.bridges_allowed !== 0,
+        /** This person's own bridge number: null = the site's, 0 = none. */
+        bridgesLimit: u.bridges_allowed,
       };
     }),
     invites: invites.results.map((i) => ({ email: i.email, addedAt: i.added_at })),
@@ -131,9 +133,11 @@ export async function overview(env: Env, request: Request): Promise<Response> {
 export async function putSettings(env: Env, request: Request): Promise<Response> {
   requireSameOrigin(request);
   await requireOwner(env, request);
-  const body = await readJson<{ inviteOnly?: unknown }>(request, 4096);
+  const body = await readJson<{ inviteOnly?: unknown; bridgesPerPerson?: unknown }>(request, 4096);
   const before = await accessSettings(env);
-  const next = { inviteOnly: body.inviteOnly === undefined ? before.inviteOnly : body.inviteOnly === true };
+  const bridges = body.bridgesPerPerson === undefined ? before.bridgesPerPerson : bridgeChoice(body.bridgesPerPerson);
+  if (bridges === null) throw new HttpError(400, 'Bridges per person must be 1, 2, 3 or 5');
+  const next = { inviteOnly: body.inviteOnly === undefined ? before.inviteOnly : body.inviteOnly === true, bridgesPerPerson: bridges };
   // Turning invite only on keeps everyone who already has an account: they go on the list.
   if (next.inviteOnly && !before.inviteOnly)
     await env.DB!.prepare('INSERT OR IGNORE INTO allowed_emails (email, added_at) SELECT lower(email), ? FROM "user"').bind(Date.now()).run();
@@ -225,21 +229,26 @@ export async function removeInvite(env: Env, request: Request, email: string): P
   return json({ ok: true });
 }
 
-/** PUT /api/admin/users/<id>/bridges  { allowed }: may this person use bridges at all. */
+/**
+ * PUT /api/admin/users/<id>/bridges  { bridges }: how many bridges this person may use.
+ * null = the site's number, 0 = none (their bridges close at once). Lowering the
+ * number keeps bridges they already use; it stops new ones.
+ */
 export async function putUserBridges(env: Env, request: Request, id: string): Promise<Response> {
   requireSameOrigin(request);
   await requireOwner(env, request);
   const target = await targetUser(env, id);
   if (isOwner(env, target.email)) throw new HttpError(400, 'The owner can always use bridges');
-  const body = await readJson<{ allowed?: unknown }>(request, 4096);
-  const allowed = body.allowed !== false;
+  const body = await readJson<{ bridges?: unknown }>(request, 4096);
+  const n = body.bridges === null ? null : body.bridges === 0 ? 0 : bridgeChoice(body.bridges);
+  if (n === null && body.bridges !== null) throw new HttpError(400, "Bridges must be the site's number, none, 1, 2, 3 or 5");
   await env.DB!.prepare(
     `INSERT INTO user_limits (user_id, bridges, updated_at) VALUES (?, ?, ?)
      ON CONFLICT (user_id) DO UPDATE SET bridges = excluded.bridges, updated_at = excluded.updated_at`,
   )
-    .bind(id, allowed ? null : 0, Date.now())
+    .bind(id, n, Date.now())
     .run();
-  await revoke(env, id, !allowed);
+  await revoke(env, id, n === 0);
   return json({ ok: true });
 }
 

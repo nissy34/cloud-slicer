@@ -2,7 +2,7 @@
 // in, who may save projects online (in their own Google Drive), and how close the site is to
 // Cloudflare's free limits. Server side: functions/_lib/admin.ts.
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { adminApi, type AdminBridge, type AdminOverview, type AdminUser, type Meter } from '../account/admin-api';
+import { adminApi, BRIDGE_CHOICES, type AdminBridge, type AdminOverview, type AdminUser, type Meter } from '../account/admin-api';
 import { useAccount } from '../state/account';
 import { useSlicer } from '../state/store';
 import { Card } from './Card';
@@ -110,7 +110,7 @@ export function AdminScreen() {
             <UsageCard data={data} />
             <AccessCard data={data} act={act} />
             <UsersCard data={data} act={act} />
-            <BridgesCard bridges={data.bridges} act={act} />
+            <BridgesCard data={data} act={act} />
           </>
         )}
       </div>
@@ -274,7 +274,7 @@ function AccessCard({ data, act }: { data: AdminOverview; act: Act }) {
         </ul>
       )}
       <p className="muted small">
-        Presets and printers always save to the account. Projects save to each person’s own Google Drive, so they use none of the site’s space. Each account can use up to 3 bridges and watch 2 cameras at a time through a bridge.
+        Presets and printers always save to the account. Projects save to each person’s own Google Drive, so they use none of the site’s space. Each person can use as many bridges as Bridges per person says (below), and watch 2 cameras at a time through a bridge.
       </p>
     </Card>
   );
@@ -293,14 +293,14 @@ function UsersCard({ data, act }: { data: AdminOverview; act: Act }) {
       )}
       <ul className="admin-users">
         {users.map((u) => (
-          <UserRow key={u.id} u={u} inviteOnly={data.settings.inviteOnly} act={act} />
+          <UserRow key={u.id} u={u} inviteOnly={data.settings.inviteOnly} siteBridges={data.settings.bridgesPerPerson} act={act} />
         ))}
       </ul>
     </Card>
   );
 }
 
-function UserRow({ u, inviteOnly, act }: { u: AdminUser; inviteOnly: boolean; act: Act }) {
+function UserRow({ u, inviteOnly, siteBridges, act }: { u: AdminUser; inviteOnly: boolean; siteBridges: number; act: Act }) {
   const [confirming, setConfirming] = useState(false);
   return (
     <li className={u.blocked ? 'admin-user blocked' : 'admin-user'} data-testid="admin-user">
@@ -346,16 +346,17 @@ function UserRow({ u, inviteOnly, act }: { u: AdminUser; inviteOnly: boolean; ac
           <Picker
             field
             label={`Bridges for ${u.email}`}
-            value={u.bridgesAllowed ? 'yes' : 'no'}
+            value={u.bridgesLimit === null ? 'site' : String(u.bridgesLimit)}
             options={[
-              { value: 'yes', label: 'Bridges: allowed' },
-              { value: 'no', label: 'Bridges: not allowed' },
+              { value: 'site', label: `Bridges: ${siteBridges} (same as everyone)` },
+              { value: '0', label: 'Bridges: none' },
+              ...BRIDGE_CHOICES.map((n) => ({ value: String(n), label: `Bridges: ${n}` })),
             ]}
             onChange={(v) => {
-              const yes = v === 'yes';
+              const n = v === 'site' ? null : Number(v);
               act(
-                () => adminApi.setBridges(u.id, yes),
-                patchUser(u.id, (x) => ({ ...x, bridgesAllowed: yes })),
+                () => adminApi.setBridges(u.id, n),
+                patchUser(u.id, (x) => ({ ...x, bridgesLimit: n, bridgesAllowed: n !== 0 })),
               );
             }}
           />
@@ -423,9 +424,32 @@ function UserRow({ u, inviteOnly, act }: { u: AdminUser; inviteOnly: boolean; ac
   );
 }
 
-function BridgesCard({ bridges, act }: { bridges: AdminBridge[]; act: Act }) {
+function BridgesCard({ data, act }: { data: AdminOverview; act: Act }) {
+  const bridges: AdminBridge[] = data.bridges;
+  const perPerson = data.settings.bridgesPerPerson;
   return (
     <Card title={`Bridges (${bridges.length})`}>
+      <div className="admin-field">
+        <span className="small muted">Bridges per person</span>
+        <Picker
+          field
+          label="Bridges per person"
+          testId="admin-bridges-per-person"
+          value={String(perPerson)}
+          options={BRIDGE_CHOICES.map((n) => ({ value: String(n), label: n === 1 ? '1 bridge' : `${n} bridges` }))}
+          onChange={(v) => {
+            const n = Number(v);
+            act(
+              () => adminApi.saveSettings({ bridgesPerPerson: n }),
+              (d) => ({ ...d, settings: { ...d.settings, bridgesPerPerson: n } }),
+            );
+          }}
+        />
+        <span className="muted small">
+          One bridge reaches every printer on its network, so most people need one. A lower number stops new bridges; ones already in use keep working. You
+          can give one person a different number under People.
+        </span>
+      </div>
       <p className="muted small admin-note">
         Every bridge someone reached a printer through.
         <InfoTip label="About turning a bridge off">

@@ -6,9 +6,17 @@ import type { Env } from './types';
 export interface AccessSettings {
   /** Only owners and allowed emails may sign in. */
   inviteOnly: boolean;
+  /** Bridges each person may use, unless the owner set another number for them (user_limits.bridges). */
+  bridgesPerPerson: number;
 }
 
-export const DEFAULT_ACCESS: AccessSettings = { inviteOnly: false };
+/** The numbers the Admin page offers for bridges per person. One bridge reaches every printer on its network. */
+export const BRIDGE_CHOICES = [1, 2, 3, 5] as const;
+
+export const DEFAULT_ACCESS: AccessSettings = { inviteOnly: false, bridgesPerPerson: 1 };
+
+/** A bridge count the Admin page offers, or null. */
+export const bridgeChoice = (v: unknown): number | null => ((BRIDGE_CHOICES as readonly number[]).includes(v as number) ? (v as number) : null);
 
 export const normalEmail = (email: string) => email.trim().toLowerCase();
 
@@ -23,7 +31,7 @@ export async function accessSettings(env: Env): Promise<AccessSettings> {
   if (!row) return { ...DEFAULT_ACCESS };
   try {
     const saved = JSON.parse(row.value) as Partial<AccessSettings>;
-    return { inviteOnly: saved.inviteOnly === true };
+    return { inviteOnly: saved.inviteOnly === true, bridgesPerPerson: bridgeChoice(saved.bridgesPerPerson) ?? DEFAULT_ACCESS.bridgesPerPerson };
   } catch {
     return { ...DEFAULT_ACCESS };
   }
