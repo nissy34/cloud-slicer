@@ -2,7 +2,7 @@
 
 > **Read this when** you change anything under `engine/`, the engine worker, or how the
 > page talks to it. **Build commands and the full API file list:**
-> [engine/README.md](../../engine/README.md). **Related:** [presets](presets.md),
+> [engine/README.md](../../engine/README.md). **Related:** [presets](presets.md), [slicing in the background](background-slicing.md),
 > [preview](preview.md), [CI.md](../CI.md#published-engines).
 
 ## What it does

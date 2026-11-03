@@ -70,6 +70,16 @@ self.addEventListener('push', (event) => {
 // Tapping an alert opens the Device tab on its printer: in an open tab if there is one.
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
+  // "Slicing done": back to the open tab, as it was.
+  if (event.notification.data?.slice) {
+    event.waitUntil(
+      self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((tabs) => {
+        const tab = tabs.find((c) => new URL(c.url).origin === self.location.origin);
+        return tab ? tab.focus() : self.clients.openWindow('/');
+      }),
+    );
+    return;
+  }
   const printer = event.notification.data?.printer ?? '';
   event.waitUntil(
     (async () => {
