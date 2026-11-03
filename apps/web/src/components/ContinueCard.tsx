@@ -9,8 +9,27 @@ export function ContinueCard() {
   const offer = useProjects((s) => s.offer);
   const busy = useProjects((s) => Boolean(s.busy));
   if (!offer || busy) return null;
-  const p = offer.project;
   const { acceptOffer, dismissOffer } = useProjects.getState();
+  if (offer.kind === 'local')
+    return (
+      <Notice
+        testId="continue-card"
+        icon={<span className="project-thumb small">3MF</span>}
+        title="Continue where you left off?"
+        text={`${offer.copy.name}, changed ${formatWhen(offer.copy.savedAt)}. Kept in this browser, not saved.`}
+        actions={
+          <>
+            <button className="secondary" onClick={() => void dismissOffer(true)}>
+              Discard
+            </button>
+            <button className="primary" onClick={() => void acceptOffer()}>
+              Continue
+            </button>
+          </>
+        }
+      />
+    );
+  const p = offer.project;
   const draft = offer.kind === 'draft';
   return (
     <Notice
@@ -59,6 +78,30 @@ export function ViewOnlyBanner() {
           )}
           <button className="primary" onClick={() => void editHere()}>
             Edit here instead
+          </button>
+        </>
+      }
+    />
+  );
+}
+
+/** Asked once, the first time a project changes (signed in with Google Drive): AutoSave to Drive, or not. */
+export function AutosaveQuestion() {
+  const ask = useProjects((s) => s.askAutosave);
+  if (!ask) return null;
+  const { answerAutosave } = useProjects.getState();
+  return (
+    <Notice
+      testId="autosave-question"
+      title="Turn on AutoSave to Google Drive?"
+      text="Your work also saves to your Google Drive as you go, even before you name it, so you can continue on another device. It takes up your Google storage space. Either way, unsaved work is kept in this browser."
+      actions={
+        <>
+          <button className="secondary" onClick={() => void answerAutosave(false)}>
+            Not now
+          </button>
+          <button className="primary" onClick={() => void answerAutosave(true)}>
+            Turn on
           </button>
         </>
       }

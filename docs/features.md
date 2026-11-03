@@ -154,9 +154,10 @@ why: [README.md](README.md) (the docs map) and [architecture/](architecture/).
   Front, Back, Left and Right (keys 0 to 6, Z fits all). On a phone two fingers always zoom
   and turn the camera, even when they land on the model; one finger on a model moves it.
 - **Projects**: save as an Orca 3MF that reopens here or in desktop Orca; online in your
-  account when signed in, downloaded when signed out. Signed in, **AutoSave** works like
-  Word's: new work is kept as an unsaved draft, the first Save names it, then every change
-  is saved on its own (a switch turns it off). Open the app on another device and a
+  account when signed in, downloaded when signed out. Unsaved work is always kept in the
+  browser and offered back after a crash. Signed in, **AutoSave** (asked once, a switch
+  after) works like Word's: new work is kept as an unsaved draft in Drive, the first Save
+  names it, then every change is saved on its own. Open the app on another device and a
   **Continue** card picks up where you left off; one device edits a project at a time,
   the other shows it view only with "Edit here instead".
 - **Share to Cloud Slicer** on Android (installed app): share a model from another app
@@ -251,7 +252,9 @@ size their Drive has room for. Without Drive (said no at sign-in) Save downloads
 projects is grayed out until "Connect Google Drive" in the account menu. Saves carry the version they started
 from, so a save from a second device asks before overwriting.
 
-AutoSave (signed in, on by default, the switch is a user setting): a new project is a
+Unsaved work is always kept in the browser (`lib/local-copy.ts`) and offered back by the
+Continue card. AutoSave (signed in, off until the person answers the one-time question
+"Turn on AutoSave to Google Drive?"; the switch is a user setting): a new project is a
 draft in the account (`projects.draft = 1`). Each device keeps one draft (a new one replaces
 that device's old one, at most 3 per person, oldest go first), so Discard on the Continue
 card never takes another device's open work with it: that device says so, keeps what it

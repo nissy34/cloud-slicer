@@ -107,8 +107,8 @@ projects in the person's Drive.
   column beside it (as `project_prints` does), not in the 3MF.
 - A sliced-only `.gcode.3mf` is explained, not opened.
 - Changed settings and colour mixes belong to the project. After a reload, the preset
-  selection comes back from the browser; the project itself comes back through AutoSave
-  (signed in) or by opening it again.
+  selection comes back from the browser; the project itself comes back from the copy kept
+  in the browser, through AutoSave, or by opening it again.
 
 ## Why
 

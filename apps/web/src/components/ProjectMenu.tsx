@@ -171,8 +171,8 @@ export function ProjectMenu() {
         {savesOnline && (
           <p className="menu-note">
             {autosave
-              ? 'AutoSave keeps changes in your online projects a few seconds after you make them. A new project stays a draft until you Save it.'
-              : 'AutoSave is off: changes wait for Save.'}
+              ? 'AutoSave keeps changes in your Google Drive a few seconds after you make them. A new project stays a draft until you Save it.'
+              : 'AutoSave is off: changes go to your Google Drive when you Save. Until then they are kept in this browser.'}
           </p>
         )}
         {stopped && <Note tone="warn" className="menu-note-box">{stopped}</Note>}

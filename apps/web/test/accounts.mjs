@@ -1428,6 +1428,14 @@ if (withApp)
       await projectButton.getByText('3DBenchy').waitFor();
       await projectButton.getByLabel('unsaved changes').waitFor();
 
+      // The first change asks once whether AutoSave may send work to Google Drive; nothing goes there before.
+      const autosaveAsk = page.getByTestId('autosave-question');
+      await autosaveAsk.getByText('Turn on AutoSave to Google Drive?').waitFor({ timeout: 30000 });
+      if (process.env.ACCOUNTS_SHOTS) await page.screenshot({ path: join(process.env.ACCOUNTS_SHOTS, 'autosave-question.png') });
+      assert.equal((await (await carol.json('/api/projects')).json()).projects.length, 0, 'nothing in Drive before the answer');
+      await autosaveAsk.getByRole('button', { name: 'Turn on' }).click();
+      await autosaveAsk.waitFor({ state: 'detached' });
+
       // AutoSave keeps a new project as the draft, named after its model.
       await projectButton.getByText('Draft, not saved yet').waitFor({ timeout: 30000 });
       await waitFor(async () => (await (await carol.json('/api/projects')).json()).projects.some((p) => p.draft && p.name === '3DBenchy'), 'the draft is saved');
@@ -1761,6 +1769,60 @@ if (withApp)
   });
 
 if (withApp)
+  test('browser: "Not now" keeps unsaved work out of Drive, in this browser, and a reload offers it back', async () => {
+    users.kim = { sub: 'g-kim', name: 'Kim', email: 'kim@example.com', email_verified: true };
+    const browser = await launchBrowser();
+    try {
+      const kim = new Browser();
+      await signIn(kim, 'kim');
+      const context = await browser.newContext({ viewport: { width: 1280, height: 860 } });
+      await context.addCookies([...kim.jar.get(new URL(HOST).host)].map(([name, value]) => ({ name, value, url: HOST })));
+      const page = await context.newPage();
+      page.on('pageerror', (e) => console.error(`page error: ${e.message}`));
+      await page.addLocatorHandler(page.getByRole('dialog', { name: 'Set up your printers' }), (d) => d.getByRole('button', { name: 'Not now' }).click());
+      await page.goto(HOST);
+      await page.getByText('Open a model to start').waitFor({ timeout: 120000 });
+      await page.getByTestId('model-input').setInputFiles(join(web, '../../fixtures/3DBenchy.stl'));
+      await page.getByRole('button', { name: 'Add model' }).waitFor({ timeout: 60000 });
+      const ask = page.getByTestId('autosave-question');
+      await ask.getByRole('button', { name: 'Not now' }).click({ timeout: 30000 });
+      await waitFor(async () => (await (await kim.json('/api/settings')).json()).settings.some((s) => s.key === 'autosave' && s.value === false), 'the answer is kept');
+      // Kept in this browser a few seconds later, and nothing in Drive.
+      await waitFor(
+        () => page.evaluate(() => new Promise((ok) => {
+          const open = indexedDB.open('cloud-slicer-unsaved');
+          open.onsuccess = () => {
+            const get = open.result.transaction('work').objectStore('work').get('unsaved');
+            get.onsuccess = () => ok(Boolean(get.result));
+            get.onerror = () => ok(false);
+          };
+          open.onerror = () => ok(false);
+        })),
+        'the unsaved work is kept in this browser',
+        60000,
+      );
+      assert.equal((await (await kim.json('/api/projects')).json()).projects.length, 0, 'nothing went to Drive');
+
+      // A reload (or a crash) offers it back, still unsaved; the question isn't asked again.
+      await page.reload();
+      const card = page.getByTestId('continue-card');
+      await card.getByText('Continue where you left off?').waitFor({ timeout: 120000 });
+      await card.getByText(/3DBenchy, changed .*Kept in this browser, not saved\./).waitFor();
+      if (process.env.ACCOUNTS_SHOTS) await page.screenshot({ path: join(process.env.ACCOUNTS_SHOTS, 'continue-local.png') });
+      await card.getByRole('button', { name: 'Continue' }).click();
+      const projectButton = page.getByRole('button', { name: /^Project/ });
+      await projectButton.getByText('3DBenchy').waitFor({ timeout: 60000 });
+      await projectButton.getByLabel('unsaved changes').waitFor();
+      await page.getByRole('button', { name: 'Add model' }).waitFor({ timeout: 60000 });
+      await page.waitForTimeout(2000);
+      assert.equal(await ask.count(), 0, 'asked only once');
+      assert.equal((await (await kim.json('/api/projects')).json()).projects.length, 0, 'still nothing in Drive');
+    } finally {
+      await browser.close();
+    }
+  });
+
+if (withApp)
   test('browser: the setup wizard waits until the Continue card is answered', async () => {
     const browser = await launchBrowser();
     try {
@@ -1792,6 +1854,7 @@ if (withApp)
     try {
       const hank = new Browser();
       await signIn(hank, 'hank');
+      await hank.json('/api/settings/autosave', 'PUT', { value: true });
       const drafts = async () => (await (await hank.json('/api/projects')).json()).projects.filter((p) => p.draft);
       const open = async (viewport) => {
         const context = await browser.newContext({ viewport });
@@ -1889,6 +1952,7 @@ if (withApp)
     try {
       const ivy = new Browser();
       await signIn(ivy, 'ivy');
+      await ivy.json('/api/settings/autosave', 'PUT', { value: true });
       assert.equal((await ivy.json('/api/devices/u1-mock', 'PUT', { name: 'U1-mock', preset: 'Snapmaker U1 (0.4 nozzle)', url: printer.url, extra: { kind: 'direct' } })).status, 200);
       const context = await browser.newContext({ viewport: { width: 1280, height: 860 } });
       await context.addCookies([...ivy.jar.get(new URL(HOST).host)].map(([name, value]) => ({ name, value, url: HOST })));

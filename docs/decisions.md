@@ -72,6 +72,9 @@ down. Add a line with the date when a new choice is made.
   (2026-11-03).
 - 200 online projects per person stays as a hidden safety guard; the UI shows only the
   count. The UI says Drive saves use the person's Google storage (2026-11-03).
+- Nothing goes to Drive before the person says so: unsaved work is always kept in the
+  browser (Continue card brings it back), and AutoSave to Drive is asked once, off until
+  "Turn on" (2026-11-03).
 - Convert keeps only settings the author changed (`different_settings_to_system`);
   comparing against Bambu presets was turned down (2026-10-19).
 - Another slicer's G-code kept as desktop does, with a fallback question (2026-10-21).
