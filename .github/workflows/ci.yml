@@ -16,6 +16,7 @@ name: CI
 # Jobs, so independent work runs side by side:
 #            ┌ unit ──────────────────────────────────────┐
 #   changes ─┤        ┌─ engine-tests ────────────────────┤
+#            │        ├─ mcp ─────────────────────────────┤
 #            │        ├─ desktop-orca (engine PRs)
 #            └ engine ┼─ shared-settings ─────────────────┼─ deploy (main)
 #                     └─ site ─┬─ browser (smoke, ...) ───┘
@@ -402,6 +403,48 @@ jobs:
             echo "the Klipper check missed a move off the bed"; exit 1
           fi
 
+  # The MCP server (apps/mcp): builds it with both engines and drives it the
+  # way Claude does, over stdin/stdout with the official SDK's client.
+  mcp:
+    needs: engine
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v5
+      - name: Fetch the pinned Snapmaker Orca and OrcaSlicer submodules (shallow)
+        run: |
+          for sub in engine/orcaslicer engine/orcaslicer-upstream; do
+            sha=$(git ls-tree HEAD "$sub" | awk '{print $3}')
+            url=$(git config -f .gitmodules "submodule.$sub.url")
+            (cd "$sub" && git init -q && git remote add origin "$url" &&
+              git fetch -q --depth 1 origin "$sha" && git checkout -q FETCH_HEAD)
+          done
+      - name: Engine keys
+        id: key
+        run: |
+          echo "snapmaker=engine-out-$(node engine/scripts/engine-key.mjs)" >> "$GITHUB_OUTPUT"
+          echo "orca=engine-out-$(node engine/scripts/engine-key.mjs --flavor orca)" >> "$GITHUB_OUTPUT"
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: apps/mcp/package-lock.json
+      - uses: ./.github/actions/restore-engine
+        with:
+          path: engine/build/engine/orca-engine.*
+          key: ${{ steps.key.outputs.snapmaker }}
+      - uses: ./.github/actions/restore-engine
+        with:
+          path: engine/build/engine-orca/orca-engine.*
+          key: ${{ steps.key.outputs.orca }}
+      - name: Build and test
+        working-directory: apps/mcp
+        run: |
+          npm ci
+          npm run check
+          npm run build
+          npm test
+
   # The real desktop app of the same version slices the same test files, and
   # what gets printed must match (engine/desktop-check). Only on pull requests
   # that change the engine, its presets or this check: without such a change
@@ -732,7 +775,7 @@ jobs:
 
   # The live site, from main, only after every test passed.
   deploy:
-    needs: [unit, engine-tests, shared-settings, browser]
+    needs: [unit, engine-tests, mcp, shared-settings, browser]
     if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
     runs-on: ubuntu-24.04
     timeout-minutes: 30

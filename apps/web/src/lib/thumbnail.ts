@@ -35,6 +35,8 @@ export function thumbnailSizes(value: string | undefined): { width: number; heig
 // Orca's thumbnail shader (resources/shaders/140/thumbnail.vs/.fs): two
 // directional lights fixed to the camera, a little specular and emission, and
 // nothing below the plate.
+// The MCP server (apps/mcp/src/picture.ts) has no GPU and draws with the same
+// numbers on the processor: keep the two in step.
 const vertexShader = /* glsl */ `
   #define INTENSITY_CORRECTION 0.6
   const vec3 LIGHT_TOP_DIR = vec3(-0.4574957, 0.4574957, 0.7624929);
@@ -70,7 +72,7 @@ const fragmentShader = /* glsl */ `
 
 // adjust_color_for_rendering: black parts are drawn dark grey so they keep their shape.
 const FULL_BLACK = 0.2;
-function partColour(hex: string | undefined): [number, number, number] {
+export function partColour(hex: string | undefined): [number, number, number] {
   const c = rgb(hex);
   return c.every((v) => v < FULL_BLACK) ? [FULL_BLACK, FULL_BLACK, FULL_BLACK] : c;
 }
@@ -153,7 +155,7 @@ export function downsample(src: Uint8Array, w: number, h: number, factor: number
   return out;
 }
 
-const SUPERSAMPLE = 3;
+export const SUPERSAMPLE = 3;
 let renderer: THREE.WebGLRenderer | null = null;
 
 /**

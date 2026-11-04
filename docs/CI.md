@@ -21,6 +21,7 @@ the Device workflow tests those.
 ```
          ┌ unit ──────────────────────────────────────┐
 changes ─┤        ┌─ engine-tests ────────────────────┤
+         │        ├─ mcp ─────────────────────────────┤
          │        ├─ desktop-orca (engine PRs)
          └ engine ┼─ shared-settings ─────────────────┼─ deploy (main)
                   └─ site ─┬─ browser (smoke, ...) ───┘
@@ -33,6 +34,7 @@ changes ─┤        ┌─ engine-tests ────────────�
 | `unit` | Printer driver tests, web typecheck (app and Functions) and Vitest |
 | `engine` | Builds the wasm engine, or skips the build when an engine built from the same sources is cached, and publishes it (below) |
 | `engine-tests` | Bundles the presets, runs `engine/node/engine.test.mjs`, and checks that Klipper accepts sliced G-code (`engine/klipper-check/check.sh`, on a U1 stand-in and a Voron) |
+| `mcp` | Builds the MCP server (`apps/mcp`) with both engines, type-checks it and drives it like Claude does ([MCP server](architecture/mcp.md)) |
 | `desktop-orca` | Pull requests that change the engine, its presets or the desktop check, and runs by hand: slices the test files with our engine and with the real desktop app of the same version, and fails if what gets printed differs ([testing.md](architecture/testing.md#same-as-desktop-orca)) |
 | `site` | Builds the web app with the engine and uploads it as the `web-site` artifact (kept 7 days) |
 | `shared-settings` | Checks `apps/web/src/lib/shared-settings.json` is up to date with both engines' presets |

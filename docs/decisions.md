@@ -165,6 +165,18 @@ down. Add a line with the date when a new choice is made.
 - Engine cache misses retry with a random wait rather than fetching from the release
   first (2026-10-23).
 
+## Slicing from Claude (MCP)
+
+- A local MCP server on the person's computer, slicing with the same wasm engines under
+  Node (2026-11-04). An online one on Cloudflare later, for account things only (it can't
+  slice). Driving the open site tab from Claude (WebMCP) turned down: too new, needs the
+  tab open.
+- First version local only: no sign-in, no printers. Then sign-in, printer status,
+  "Upload only" and "Upload and print" (which asks every time), with per-account limits
+  on the site and relay, not in the program (anyone can change a program).
+- Plate pictures drawn without a GPU, matching the site's; comparing two slices, and
+  calibration models, left out.
+
 ## Not built
 
 Snapmaker cloud, HTTP
