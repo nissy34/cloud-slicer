@@ -8,8 +8,10 @@
 ## What it does
 
 A small program on the person's own computer that lets Claude (Claude Code, Claude
-Desktop) slice: open a model, choose presets, change settings, move or copy objects,
-slice, and read the print time and filament use. It uses the same engines and presets
+Desktop) slice: open a model, choose presets and filament colours, pick which filament
+prints each object, change settings (for the plate or one object), move or copy objects
+across plates, look at the plate, slice one plate or all, and read the print time and
+filament use. It uses the same engines and presets
 as the site, running under Node instead of a browser, so a slice from Claude matches a
 slice on the site. It talks to nothing on the internet: no sign-in, no relay, no
 Google Drive (those come later, with their own limits; see Open).
@@ -25,6 +27,7 @@ Google Drive (those come later, with their own limits; see Open).
 | Loading the engine, presets, brands, opening and slicing (shared with `slice.mjs` and the engine tests) | `engine/node/engine.mjs` |
 | The site's own rules it reuses | `lib/project-import.ts` (a 3MF's own settings), `lib/presets.ts` (matching filaments), `lib/option-check.ts` (checking typed values), `lib/thumbnail.ts` (picture camera and colours), `lib/format.ts` |
 | Build: one bundle plus both engines and their presets | `apps/mcp/build.mjs` → `apps/mcp/dist/` |
+| Install files: Claude Desktop extension and `npx` package, on the `mcp` release | `apps/mcp/pack.mjs` → `apps/mcp/release/`; CI job `mcp` publishes on main |
 
 ## How it flows
 
@@ -57,6 +60,15 @@ sequenceDiagram
 - The engine runs on its own thread so the server keeps answering (and passes progress
   on) while a slice runs. Calls run one at a time. If the engine stops (out of memory),
   the next call starts a fresh one and says the model must be opened again.
+
+## Installing
+
+Two files on the GitHub release `mcp`, rebuilt on every push to main with the same links,
+so a link given out keeps working and always gives the newest: `cloud-slicer.mcpb` (a
+Claude Desktop extension: open it, Install; it runs on the Node that Claude Desktop
+ships) and `cloud-slicer-mcp.tgz` (`npx -y <link>` for Claude Code and other MCP apps).
+Both carry the engines inside (about 11 MB each), so they never depend on CI's
+`engine-builds`, which keeps only the newest 15. No npm account, no hosting: $0.
 
 ## What it keeps
 
@@ -95,14 +107,14 @@ where Claude says, or beside the model, named by the printer's file name format.
 `apps/mcp/test/mcp.test.mjs` starts the built server the way Claude does (the SDK's own
 client over stdin/stdout): open an STL and slice it with pictures and progress, settings
 by key (refused, set to nearest, taken back), another brand (Prusa MK4, PETG), a 3MF
-project's own presets, move/copies/arrange then save and reopen, OrcaSlicer 2.4.2, and
-plain errors. CI job `mcp` builds it with both engines, type-checks and runs the test.
+project's own presets, move/copies/arrange then save and reopen, filament and settings
+per object with the plate picture as an image, every plate at once, OrcaSlicer 2.4.2,
+and plain errors. CI job `mcp` builds it with both engines, type-checks, runs the test,
+packs the install files and starts the packed one.
 
 ## Open
 
-- **Install**: from a checkout for now (`npm run build`). Next: a fixed download with the
-  engines inside, never deleted (CI's `engine-builds` keeps only the newest 15), and a
-  one-click Claude Desktop extension.
+- **"Use with Claude" on the site**: how to install, from the account menu (sketch first).
 - **Second step**: sign-in (own presets and printers), printer status, "Upload only" and
   "Upload and print" through the relay, with limits on the site and relay per account
   so a program can't use up the free tier.

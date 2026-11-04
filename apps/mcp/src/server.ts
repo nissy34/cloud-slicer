@@ -10,6 +10,7 @@ import { dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
+import { PNG } from 'pngjs';
 import { z } from 'zod';
 import { formatDuration } from '../../web/src/lib/format';
 import { ENGINES, Slicer, type ModelInfo, type SliceResult } from './slicer';
@@ -38,6 +39,19 @@ async function run<T>(fn: () => Promise<T>) {
 
 const round = (n: number, d = 1) => Math.round(n * 10 ** d) / 10 ** d;
 
+/** A plate picture (rows bottom to top, like OpenGL) as a PNG on a white ground. */
+function toPng({ width, height, pixels }: { width: number; height: number; pixels: Uint8Array }) {
+  const png = new PNG({ width, height });
+  for (let y = 0; y < height; y++)
+    for (let x = 0; x < width; x++) {
+      const i = ((height - 1 - y) * width + x) * 4, o = (y * width + x) * 4;
+      const a = pixels[i + 3] / 255;
+      for (let k = 0; k < 3; k++) png.data[o + k] = Math.round(pixels[i + k] * a + 255 * (1 - a));
+      png.data[o + 3] = 255;
+    }
+  return PNG.sync.write(png);
+}
+
 /** What Claude needs to know about the open model: objects by number, sizes, where each copy is. */
 function summary(info: ModelInfo | null) {
   if (!info) return { open: false };
@@ -48,6 +62,20 @@ function summary(info: ModelInfo | null) {
       object: i,
       name: o.name,
       sizeMm: o.size.map((v) => round(v)),
+      filamentSlot: o.extruder || 1,
+      ...(Object.keys(o.settings ?? {}).length && { ownSettings: o.settings }),
+      ...(o.volumes.length > 1 || o.volumes.some((v) => v.painted)
+        ? {
+            parts: o.volumes.map((v, k) => ({
+              part: k,
+              name: v.name,
+              ...(v.kind !== 'part' && { kind: v.kind }),
+              filamentSlot: v.extruder || o.extruder || 1,
+              ...(v.painted && { painted: 'colours painted on, each from its own slot' }),
+              ...(Object.keys(v.settings ?? {}).length && { ownSettings: v.settings }),
+            })),
+          }
+        : {}),
       copies: o.instances.map((c, j) => ({
         copy: j,
         plate: c.plate,
@@ -218,27 +246,37 @@ server.registerTool(
   {
     title: 'Slice',
     description:
-      'Slices a plate with the chosen presets and settings and writes the G-code file (with the plate picture for the printer screen). ' +
+      'Slices a plate (or every plate) with the chosen presets and settings and writes the G-code file, with the plate picture for the printer screen. ' +
       'Returns print time, filament use in grams and metres per slot, layers and warnings. ' +
       'out is a .gcode file or a folder; default is beside the model. settings (optional) apply to this slice only.',
     inputSchema: {
       plate: z.number().int().min(0).optional().describe('Plate number, from 0'),
+      allPlates: z.boolean().optional().describe('Slice every plate, one G-code file each'),
       out: z.string().optional(),
       settings: z.record(z.string(), z.union([z.string(), z.number(), z.boolean()])).optional(),
     },
   },
-  ({ plate, out, settings }, extra) =>
+  ({ plate, allPlates, out, settings }, extra) =>
     run(async () => {
+      await slicer.engine();
       const token = extra._meta?.progressToken;
-      let last = -1;
-      const progress = token === undefined ? undefined : (pct: number, stage: string) => {
-        if (pct === last) return;
-        last = pct;
-        extra.sendNotification({ method: 'notifications/progress', params: { progressToken: token, progress: pct, total: 100, message: stage } }).catch(() => {});
-      };
+      const plates = allPlates ? [...Array(slicer.model?.plates.length ?? 1).keys()] : [plate ?? 0];
+      if (allPlates && out && /\.gcode$/i.test(out)) throw new Error('For every plate, out must be a folder.');
       const once = settings && Object.fromEntries(Object.entries(settings).map(([k, v]) => [k, typeof v === 'boolean' ? (v ? '1' : '0') : String(v)]));
-      const { file, file3mf, result, pictures } = await slicer.slice({ plate, out, settings: once }, progress);
-      return { gcodeFile: file, ...(file3mf && { gcode3mfFile: file3mf }), ...stats(result), platePictures: pictures, presets: presets() };
+      const results = [];
+      for (const [n, p] of plates.entries()) {
+        let last = -1;
+        const progress = token === undefined ? undefined : (pct: number, stage: string) => {
+          const overall = Math.floor((n * 100 + pct) / plates.length);
+          if (overall === last) return;
+          last = overall;
+          const message = plates.length > 1 ? `Plate ${p + 1}: ${stage}` : stage;
+          extra.sendNotification({ method: 'notifications/progress', params: { progressToken: token, progress: overall, total: 100, message } }).catch(() => {});
+        };
+        const { file, file3mf, result, pictures } = await slicer.slice({ plate: p, out, settings: once }, progress);
+        results.push({ ...(plates.length > 1 && { plate: p }), gcodeFile: file, ...(file3mf && { gcode3mfFile: file3mf }), ...stats(result), platePictures: pictures });
+      }
+      return plates.length > 1 ? { plates: results, presets: presets() } : { ...results[0], presets: presets() };
     }),
 );
 
@@ -269,7 +307,7 @@ server.registerTool(
       positionMm: z.array(z.number()).min(2).max(3).optional(),
       rotationDeg: z.array(z.number()).length(3).optional(),
       scale: z.array(z.number().positive()).length(3).optional(),
-      plate: z.number().int().min(0).optional().describe('Move it to this plate'),
+      plate: z.number().int().min(0).optional().describe('Move it to this plate (from 0); the number after the last plate makes a new one'),
     },
   },
   ({ object, copy, positionMm, rotationDeg, scale, plate }) =>
@@ -289,6 +327,56 @@ server.registerTool(
   'set_copies',
   { title: 'Number of copies', description: 'Sets how many copies of an object there are. Run arrange_plate after adding copies.', inputSchema: { object: copyArgs.object, count: z.number().int().min(1).max(200) } },
   ({ object, count }) => run(async () => (await slicer.engine(), summary(await slicer.copies(object, count)))),
+);
+
+server.registerTool(
+  'set_filament',
+  {
+    title: 'Choose an object\'s filament',
+    description: 'Prints an object, or one part of it, with a filament slot (1 = the first). Slots and their colours come from choose_presets.',
+    inputSchema: { object: copyArgs.object, part: z.number().int().min(0).optional().describe('Part number from model_info; leave out for the whole object'), slot: z.number().int().min(1) },
+  },
+  ({ object, part, slot }) => run(async () => (await slicer.engine(), summary(await slicer.setFilament(object, part, slot)))),
+);
+
+server.registerTool(
+  'object_settings',
+  {
+    title: 'Settings for one object',
+    description:
+      'Settings for one object (or part) only, on top of the plate\'s: e.g. {"wall_loops": 5, "sparse_infill_density": "40%"}, ' +
+      'the settings OrcaSlicer\'s object list offers. null takes one back.',
+    inputSchema: {
+      object: copyArgs.object,
+      part: z.number().int().min(0).optional(),
+      settings: z.record(z.string(), z.union([z.string(), z.number(), z.boolean(), z.null()])),
+    },
+  },
+  ({ object, part, settings }) =>
+    run(async () => {
+      await slicer.engine();
+      const { model, refused, notes } = await slicer.objectSettings(object, part, settings);
+      return { ...(refused.length && { refused }), ...(notes.length && { notes }), ...summary(model) };
+    }),
+);
+
+server.registerTool(
+  'show_plate',
+  {
+    title: 'Look at the plate',
+    description: 'A picture of a plate with its objects in their filament colours, seen from the front left like OrcaSlicer\'s plate picture.',
+    inputSchema: { plate: z.number().int().min(0).optional() },
+  },
+  async ({ plate }) => {
+    try {
+      await slicer.engine();
+      const picture = await slicer.picture(plate ?? 0);
+      if (!picture) return text('The plate is empty.');
+      return { content: [{ type: 'image' as const, data: toPng(picture).toString('base64'), mimeType: 'image/png' }] };
+    } catch (e) {
+      return failure(e);
+    }
+  },
 );
 
 server.registerTool(

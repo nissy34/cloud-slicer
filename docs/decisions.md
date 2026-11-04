@@ -176,6 +176,9 @@ down. Add a line with the date when a new choice is made.
   on the site and relay, not in the program (anyone can change a program).
 - Plate pictures drawn without a GPU, matching the site's; comparing two slices, and
   calibration models, left out.
+- Installed from a GitHub release `mcp` (Claude Desktop extension + `npx` package), same
+  links updated on every merge, not npm; the site gets a "Use with Claude" item
+  (2026-11-04).
 
 ## Not built
 

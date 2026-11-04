@@ -405,10 +405,15 @@ jobs:
 
   # The MCP server (apps/mcp): builds it with both engines and drives it the
   # way Claude does, over stdin/stdout with the official SDK's client.
+  # On main it then puts the install files on the `mcp` release (never deleted;
+  # the same links always give the newest): cloud-slicer.mcpb for Claude Desktop
+  # and cloud-slicer-mcp.tgz for `npx` (apps/mcp/pack.mjs).
   mcp:
     needs: engine
     runs-on: ubuntu-24.04
     timeout-minutes: 15
+    permissions:
+      contents: write
     steps:
       - uses: actions/checkout@v5
       - name: Fetch the pinned Snapmaker Orca and OrcaSlicer submodules (shallow)
@@ -444,6 +449,29 @@ jobs:
           npm run check
           npm run build
           npm test
+          npm run pack
+          # What `npx` runs from the download starts and answers like the built one.
+          npm install -g ./release/cloud-slicer-mcp.tgz
+          node -e "
+            const { Client } = require('@modelcontextprotocol/sdk/client/index.js');
+            const { StdioClientTransport } = require('@modelcontextprotocol/sdk/client/stdio.js');
+            (async () => {
+              const c = new Client({ name: 'ci', version: '1' });
+              await c.connect(new StdioClientTransport({ command: 'cloud-slicer-mcp' }));
+              const { tools } = await c.listTools();
+              if (!tools.some((t) => t.name === 'slice')) throw new Error('no slice tool');
+              await c.close();
+            })().catch((e) => { console.error(e); process.exit(1); });"
+
+      - name: Publish the install files
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release view mcp > /dev/null 2>&1 || gh release create mcp --target "$GITHUB_SHA" --latest=false \
+            --title "Cloud Slicer for Claude" \
+            --notes "Lets Claude slice on your computer. Claude Desktop: download cloud-slicer.mcpb and open it. Claude Code: claude mcp add cloud-slicer -- npx -y https://github.com/$GITHUB_REPOSITORY/releases/download/mcp/cloud-slicer-mcp.tgz . Updated on every change to main; see apps/mcp/README.md."
+          gh release upload mcp apps/mcp/release/cloud-slicer.mcpb apps/mcp/release/cloud-slicer-mcp.tgz --clobber
 
   # The real desktop app of the same version slices the same test files, and
   # what gets printed must match (engine/desktop-check). Only on pull requests

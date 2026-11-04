@@ -128,6 +128,41 @@ test('move, copies, arrange, then save and reopen the project', async () => {
   assert.equal(reopened.presets.changedSettings.wall_loops, '5');
 });
 
+test('filament per object, settings per object, a picture to look at', async () => {
+  await tool('open_model', { path: resolve(fixtures, 'tetrahedron.stl') });
+  await tool('open_model', { path: resolve(fixtures, 'tetrahedron.stl'), add: true });
+  const pla = (await tool('list_presets', { search: 'PLA' })).filaments[0].name;
+  await tool('choose_presets', { filaments: [pla, pla], colours: ['#FFFFFF', '#E5383B'] });
+  const tooMany = await tool('set_filament', { object: 1, slot: 3 });
+  assert.match(tooMany.error, /2 filament slots/);
+  const set = await tool('set_filament', { object: 1, slot: 2 });
+  assert.equal(set.objects[1].filamentSlot, 2);
+  const own = await tool('object_settings', { object: 0, settings: { wall_loops: 4, nozzle_temperature: 250 } });
+  assert.equal(own.objects[0].ownSettings.wall_loops, '4');
+  assert.match(own.refused.join(), /nozzle_temperature/);
+  await tool('arrange_plate', {});
+  const shown = await client.callTool({ name: 'show_plate', arguments: {} });
+  assert.equal(shown.content[0].type, 'image');
+  assert.equal(shown.content[0].mimeType, 'image/png');
+  assert.ok(Buffer.from(shown.content[0].data, 'base64').subarray(1, 4).toString() === 'PNG');
+  const sliced = await tool('slice', { out });
+  assert.ok(!sliced.error, sliced.error);
+  assert.equal(sliced.perFilament.length, 2, JSON.stringify(sliced.perFilament));
+  assert.match(readFileSync(sliced.gcodeFile, 'utf8'), /^T1$/m);
+});
+
+test('slices every plate at once', async () => {
+  await tool('open_model', { path: resolve(fixtures, 'tetrahedron.stl') });
+  await tool('open_model', { path: resolve(fixtures, 'tetrahedron.stl'), add: true });
+  const moved = await tool('move_object', { object: 1, plate: 1, positionMm: [100, 100] });
+  assert.ok(!moved.error, moved.error);
+  assert.equal(moved.plates, 2);
+  const sliced = await tool('slice', { allPlates: true, out });
+  assert.ok(!sliced.error, sliced.error);
+  assert.equal(sliced.plates.length, 2);
+  assert.match(sliced.plates[1].gcodeFile, /plate_02/);
+});
+
 test('slices with OrcaSlicer 2.4.2 too', async () => {
   const opened = await tool('open_model', { path: resolve(fixtures, 'tetrahedron.stl'), engine: 'orca' });
   assert.match(opened.presets.engine, /OrcaSlicer/);

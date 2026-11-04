@@ -6,6 +6,7 @@ import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { basename, dirname, extname, resolve } from 'node:path';
 import type { OrcaConfig, PresetSummary, Selection } from '../../web/src/engine/protocol';
 import { emptyProjectMessage, pickProcess, printerLabel, projectOverrides } from '../../web/src/lib/project-import';
+import { objectSettingGroups } from '../../web/src/lib/object-settings';
 import { checkOptionValue } from '../../web/src/lib/option-check';
 import { pickFilamentPreset, splitList } from '../../web/src/lib/presets';
 import { bedSize } from '../../web/src/lib/colour';
@@ -47,6 +48,10 @@ export interface ModelInfo {
   objects: {
     name: string;
     size: number[];
+    /** Filament slot (1-based); 0 = the default, slot 1. */
+    extruder: number;
+    settings: OrcaConfig;
+    volumes: { name: string; kind: string; extruder: number; painted?: boolean; settings: OrcaConfig }[];
     instances: { offset: number[]; plate: number; printable: boolean; rotation: number[]; scale: number[] }[];
   }[];
   plates: unknown[];
@@ -177,18 +182,12 @@ export class Slicer {
         applied.push(key);
         continue;
       }
-      const text = typeof raw === 'boolean' ? (raw ? '1' : '0') : String(raw);
-      if (def.type === 'enum' && def.enumValues && !def.enumValues.includes(text)) {
-        refused.push(`${key}: "${text}" is not one of ${def.enumValues.join(', ')}`);
-        continue;
-      }
-      const r = checkOptionValue(def, def.type, text);
-      if (r.kind === 'invalid') refused.push(`${key}: ${r.problem}`);
-      else if (r.kind === 'ask') refused.push(`${key}: say "${r.number}%" for a percentage or "${r.number}${r.unit === 'mm' ? 'mm' : ''}" for ${r.unit}`);
+      const r = this.check(key, raw);
+      if ('problem' in r) refused.push(r.problem);
       else {
         next[key] = r.value;
         applied.push(key);
-        if (r.kind === 'clamped') notes.push(`${key}: ${r.note}`);
+        if (r.note) notes.push(r.note);
       }
     }
     const { errors } = await this.call<{ errors: string[] }>('json', 'presetsFullConfig', JSON.stringify(next));
@@ -292,6 +291,12 @@ export class Slicer {
 
   /** Moves, turns or scales one copy. Offsets are millimetres from the plate's front left corner. */
   async transform(object: number, instance: number, change: { offset?: number[]; rotation?: number[]; scale?: number[]; plate?: number }) {
+    // Moving to the plate after the last one makes it, as dragging there does on the site.
+    if (change.plate !== undefined) {
+      const plates = this.model?.plates.length ?? 1;
+      if (change.plate > plates) throw new Error(`There ${plates === 1 ? 'is 1 plate' : `are ${plates} plates`}; plate ${plates} (a new one) is the furthest an object can go.`);
+      if (change.plate === plates) await this.call('json', 'addPlate');
+    }
     await this.call('json', 'setInstanceTransform', object, instance, JSON.stringify(change));
     return this.refreshModel();
   }
@@ -313,6 +318,63 @@ export class Slicer {
     const tall = config.print_sequence === 'by object' ? Number(config.extruder_clearance_height_to_rod) || 0 : 0;
     await this.call('json', 'arrangePlate', plate, spacing, tall);
     return this.refreshModel();
+  }
+
+  /** Prints an object (or one of its parts) with filament `slot` (1-based). */
+  async setFilament(object: number, part: number | undefined, slot: number) {
+    const slots = this.lists?.selection.filaments.length ?? 1;
+    if (slot < 1 || slot > slots) throw new Error(`There ${slots === 1 ? 'is 1 filament slot' : `are ${slots} filament slots`}; choose_presets adds more.`);
+    await this.call('json', 'setExtruder', object, part ?? -1, slot);
+    return this.refreshModel();
+  }
+
+  /**
+   * Settings for one object (or part) only, like desktop's object list "Add
+   * settings": only the settings desktop offers there (lib/object-settings.ts),
+   * each checked like change(). null takes one back.
+   */
+  async objectSettings(object: number, part: number | undefined, settings: Record<string, string | number | boolean | null>) {
+    const slots = this.lists?.selection.filaments.length ?? 1;
+    const allowed = new Set(objectSettingGroups(this.options as never, part !== undefined, slots, false).flatMap((g) => g.settings.map((x) => x.key)));
+    const values: Record<string, string | null> = {};
+    const refused: string[] = [];
+    const notes: string[] = [];
+    for (const [key, raw] of Object.entries(settings)) {
+      if (!allowed.has(key)) {
+        refused.push(`${key}: not a setting ${part === undefined ? 'an object' : 'a part'} can have on its own${key === 'extruder' ? ' (set_filament does this)' : ''}`);
+        continue;
+      }
+      if (raw === null || raw === '') {
+        values[key] = null;
+        continue;
+      }
+      const r = this.check(key, raw);
+      if ('problem' in r) refused.push(r.problem);
+      else {
+        values[key] = r.value;
+        if (r.note) notes.push(r.note);
+      }
+    }
+    if (Object.keys(values).length) await this.call('json', 'setObjectSettings', object, part ?? -1, JSON.stringify(values));
+    return { model: await this.refreshModel(), refused, notes };
+  }
+
+  /** One value checked like the site's settings boxes. */
+  private check(key: string, raw: string | number | boolean): { value: string; note?: string } | { problem: string } {
+    const def = this.options[key];
+    const text = typeof raw === 'boolean' ? (raw ? '1' : '0') : String(raw);
+    if (def.type === 'enum' && def.enumValues && !def.enumValues.includes(text)) return { problem: `${key}: "${text}" is not one of ${def.enumValues.join(', ')}` };
+    const r = checkOptionValue(def, def.type, text);
+    if (r.kind === 'invalid') return { problem: `${key}: ${r.problem}` };
+    if (r.kind === 'ask') return { problem: `${key}: say "${r.number}%" for a percentage or "${r.number}${r.unit === 'mm' ? 'mm' : ''}" for ${r.unit}` };
+    return { value: r.value, ...(r.kind === 'clamped' && { note: `${key}: ${r.note}` }) };
+  }
+
+  /** A picture of a plate as the printer's screen shows it, for Claude to look at. */
+  async picture(plate: number, size = 512) {
+    const { config } = await this.fullConfig();
+    const mesh = await this.call<PlateMesh>('preview', plate);
+    return drawThumbnails(mesh, splitList(config.filament_colour), [{ width: size, height: size }])[0] ?? null;
   }
 
   async orient(object: number) {

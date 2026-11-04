@@ -10,3 +10,4 @@ apps/web/test/.*.mjs
 
 # apps/mcp build scratch
 apps/mcp/.profiles-*/
+apps/mcp/release/
