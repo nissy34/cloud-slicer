@@ -6,7 +6,7 @@ import { useEffect, useLayoutEffect, useState, type CSSProperties, type ReactNod
 import { useDevice } from '../state/device';
 import { useProjects } from '../state/projects';
 import { useSlicer } from '../state/store';
-import { ContinueCard, ViewOnlyBanner } from './ContinueCard';
+import { AutosaveQuestion, ContinueCard, ViewOnlyBanner } from './ContinueCard';
 import { Notice, NOTICE_MS } from './Notice';
 
 /** Goes away by itself after NOTICE_MS unless it is a problem. */
@@ -68,12 +68,14 @@ export function Notices() {
   const slicer = tab !== 'device' && tab !== 'admin';
   const viewOnly = useProjects((s) => s.elsewhere !== null);
   const offer = useProjects((s) => s.offer !== null && !s.busy);
+  const askAutosave = useProjects((s) => s.askAutosave);
   const message = useProjects((s) => Boolean(s.message));
   const toast = useDevice((s) => s.toast !== null);
   const style = usePlace();
   const cards: [string, ReactNode][] = [];
   if (slicer && viewOnly) cards.push(['view-only', <ViewOnlyBanner />]);
   if (tab === 'prepare' && offer) cards.push(['continue', <ContinueCard />]);
+  if (slicer && askAutosave) cards.push(['autosave', <AutosaveQuestion />]);
   if (message) cards.push(['project', <ProjectMessage />]);
   if (toast) cards.push(['device', <DeviceMessage />]);
   return (

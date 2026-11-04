@@ -24,7 +24,7 @@ const MOD = isMac ? '⌘' : 'Ctrl+';
 /** What AutoSave shows next to the project name ('' when there is nothing to say). */
 function useSaveStatus(): string {
   const signedIn = useAccount((s) => s.status === 'signedIn' && s.user?.drive === true && s.user.projects !== false);
-  const autosave = useAccount((s) => s.settings.autosave?.value !== false);
+  const autosave = useAccount((s) => s.settings.autosave?.value === true);
   const cur = useProjects((s) => s.current);
   const dirty = useProjects((s) => s.dirty);
   const state = useProjects((s) => s.saveState);
@@ -37,7 +37,7 @@ function useSaveStatus(): string {
   if (state === 'saving') return percent === null ? 'Saving…' : `Saving… ${percent}%`;
   if (state === 'offline') return 'Not saved: no connection';
   if (stopped) return 'Not saved';
-  if (!cur.id || cur.draft) return 'Draft, not saved yet';
+  if (!cur.id || cur.draft) return autosave ? 'Draft, not saved yet' : 'Not saved';
   if (!dirty) return 'Saved';
   return autosave ? 'Saving…' : 'Not saved';
 }
@@ -55,7 +55,7 @@ export function ProjectMenu() {
   const projectsOff = useAccount((s) => s.user?.projects === false);
   const savesOnline = signedIn && !noDrive;
   const engineInfo = useSlicer((s) => s.engineInfo);
-  const autosave = useAccount((s) => s.settings.autosave?.value !== false);
+  const autosave = useAccount((s) => s.settings.autosave?.value === true);
   const autosaveBusy = useProjects((s) => s.saveState === 'saving');
   const stopped = useProjects((s) => s.autosaveStopped);
   const status = useSaveStatus();
@@ -171,8 +171,8 @@ export function ProjectMenu() {
         {savesOnline && (
           <p className="menu-note">
             {autosave
-              ? 'AutoSave keeps changes in your online projects a few seconds after you make them. A new project stays a draft until you Save it.'
-              : 'AutoSave is off: changes wait for Save.'}
+              ? 'AutoSave keeps changes in your Google Drive a few seconds after you make them. A new project stays a draft until you Save it.'
+              : 'AutoSave is off: changes go to your Google Drive when you Save. Until then they are kept in this browser.'}
           </p>
         )}
         {stopped && <Note tone="warn" className="menu-note-box">{stopped}</Note>}
@@ -613,7 +613,7 @@ function DriveNote({ list }: { list: ProjectList }) {
   return (
     <p className="muted small projects-usage" data-testid="projects-storage">
       {list.drive?.connected
-        ? `Saved in the “Cloud Slicer” folder of your Google Drive · ${list.count} of ${list.limits.userProjects} projects`
+        ? `Saved in your own Google Drive, “Cloud Slicer” folder. Projects take up your Google storage space (shared with Gmail and Photos) · ${list.count} ${list.count === 1 ? 'project' : 'projects'}`
         : 'Connect Google Drive in the account menu to save projects online.'}
     </p>
   );
