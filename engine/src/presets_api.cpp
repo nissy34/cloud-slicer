@@ -311,9 +311,31 @@ std::string presetConfig(const std::string& type, const std::string& name) {
 // applied on top. Returns {ok, config: {key: value}, errors: [...]}.
 std::string presetsFullConfig(const std::string& overridesJson) {
     try {
+#if ENGINE_UPSTREAM
+        // The page's colour mixes become OrcaSlicer 2.5's mixed slots.
+        json overrides = overridesJson.empty() ? json::object() : json::parse(overridesJson);
+        std::string mixes;
+        if (overrides.contains("mixed_filament_definitions")) {
+            if (overrides["mixed_filament_definitions"].is_string()) mixes = overrides["mixed_filament_definitions"].get<std::string>();
+            overrides.erase("mixed_filament_definitions");
+        }
+        // The physical filaments' colours the page sets go into the blends too.
+        std::vector<std::string> colours;
+        if (!mixes.empty() && overrides.contains("filament_colour") && overrides["filament_colour"].is_string()) {
+            ConfigOptionStrings given;
+            given.deserialize(overrides["filament_colour"].get<std::string>());
+            if (given.values.size() == bundle().filament_presets.size()) {
+                colours = given.values;
+                overrides.erase("filament_colour");
+            }
+        }
+        DynamicPrintConfig cfg = engine::fullConfigWithMixes(bundle(), mixes, colours);
+        std::vector<std::string> errors = applyJsonConfig(cfg, overrides);
+#else
         DynamicPrintConfig cfg = bundle().full_config();
         std::vector<std::string> errors;
         if (!overridesJson.empty()) errors = applyJsonConfig(cfg, json::parse(overridesJson));
+#endif
         return json{{"ok", true}, {"config", configToJson(cfg)}, {"errors", errors}}.dump();
     } catch (const std::exception& e) {
         return json{{"ok", false}, {"error", e.what()}}.dump();
@@ -555,7 +577,10 @@ std::string engineInfo() {
     return json{{"flavor", ENGINE_FLAVOR},
                 {"name", ENGINE_NAME},
                 {"version", ENGINE_VERSION},
-                {"mixing", bool(ENGINE_HAS_MIXING)},
+                {"mixing", true},
+                // The Add Mix window's ways of making a mix this engine has
+                // (OrcaSlicer 2.5 mixes by ratio or gradient, not by a layer pattern).
+                {"mixModes", ENGINE_HAS_MIXING ? json::array({"ratio", "cycle", "match", "gradient"}) : json::array({"ratio", "match", "gradient"})},
                 {"flowVariants", bool(ENGINE_HAS_FLOW_VARIANTS)}}
         .dump();
 }

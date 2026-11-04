@@ -14,7 +14,7 @@ same engine code.
 | Path | What |
 |---|---|
 | `orcaslicer/` | Submodule pinned to the v2.4.1 tag. Never edited in place |
-| `orcaslicer-upstream/` | Upstream OrcaSlicer v2.4.2, the second engine, live beside the first and chosen per project (see "Two engines" below). Never edited in place |
+| `orcaslicer-upstream/` | Upstream OrcaSlicer v2.5.0-beta, the second engine, live beside the first and chosen per project (see "Two engines" below). Never edited in place |
 | `patches/` | Browser-only fixes, applied to copies of the touched files in the build tree |
 | `compat/` | Stand-ins for what a browser lacks: OpenSSL MD5 (on Boost), no-op STEP/SVG import when built without OCCT, thread naming |
 | `cmake/libslic3r.cmake` | Builds libslic3r from the source list in upstream's own `src/libslic3r/CMakeLists.txt` |
@@ -33,7 +33,7 @@ same engine code.
 | `src/measure_api.cpp` | The Measure tool: Orca's `Measure::Measuring` finds the point, edge, circle or plane under a ray from the page, and `Measure::get_measurement` gives the distance and angle between two. Assemble (desktop's `GLGizmoAssembly`) uses the same picks: `assembleAction` moves the second feature's part, or object, onto the first (parallel, center coincidence, flip, parallel distance, rotate around center, point onto point, with `Measure::get_assembly_action` saying which apply), or joins the two objects into one "Assembly" object, as the object list's Assemble does; picks follow the parts they are on |
 | `src/simplify_api.cpp` | Simplify, like desktop's Simplify model: Orca's quadric edge collapse (`its_quadric_edge_collapse`) by detail level or decimate ratio, previewed as a triangle count, then applied with the object's painting remapped onto the simplified mesh |
 | `src/calib_api.cpp` | Calibration tests, ported from desktop's Plater: temperature, flow rate, pressure advance (line, tower, pattern: a handle cube per speed and acceleration pair, its pattern G-code made at every slice like desktop), retraction, max volumetric speed, VFA, input shaping and junction deviation. Loads the test model, returns the settings to change, and sets `Print::set_calib_params` for slicing |
-| `src/mixed_api.cpp` | Colour mixing: reads and edits the project's `mixed_filament_definitions` with Orca's `MixedFilamentManager`, gives each mix its colour, remaps painted and assigned filaments when a mix or a physical filament goes away, and matches a colour |
+| `src/mixed_api.cpp` | Colour mixing: reads and edits the project's mixes (Snapmaker Orca: `mixed_filament_definitions` with its `MixedFilamentManager`; OrcaSlicer 2.5: mixed filament slots, which `presetsFullConfig` adds and a desktop 2.5 3MF's are taken out of), gives each mix its colour, remaps painted and assigned filaments when a mix or a physical filament goes away, and matches a colour |
 | `src/history_api.cpp` | Undo and redo of project edits, like desktop's Ctrl+Z / Ctrl+Y: Model snapshots that share their meshes |
 | `src/slice_api.cpp` | Slices one plate with a full config and exports G-code with Orca's time and filament estimates and the plate thumbnails the page renders |
 | `src/plate_api.cpp` | Desktop's plate menus: add a shape, delete all, rename, lock, copy and paste, plate settings; and the layer slider's pauses, filament changes and custom G-code per plate |
@@ -107,8 +107,10 @@ CI runs it on Benchy and a two-colour cube from both engines.
 ## Patches
 
 Each `patches/*.patch` is a unified diff against the submodule (`a/src/...`, `b/src/...`);
-`patches/snapmaker/` and `patches/orca/` hold the ones for one engine only, applied after
-the shared ones.
+`patches/snapmaker/` and `patches/orca/` hold the ones for one engine
+only, applied after the shared ones. A patch there with the same name as a shared one
+replaces it for that engine; one that changes no file (only a description) says the engine
+doesn't need it (upstream fixed it).
 CMake copies the files a patch touches into `build/engine/patched-engine/`, applies every
 patch there and compiles those copies instead. Only fixes the browser build needs belong
 here, plus engine bugs that change what prints (0009, 0010); each patch says why at the top of
@@ -125,7 +127,7 @@ its hunk.
 | `0007-keep-only-the-last-gcode-move` | G-code processing keeps every move for desktop's preview, which the browser doesn't use; on a big print that list alone outgrew the 4 GB a page can have |
 | `snapmaker/0009-count-mix-filaments-for-prime-tower` | A plate printed with a colour mix alone counted as one filament, so the slice turned its prime tower off while the G-code changed heads; counts each mix as the filaments it mixes |
 | `0010-support-cost-limits-per-call` | Support infill kept three limits from the first support fill the engine ever made, so a slice depended on what the tab sliced before (and, on desktop, on thread timing); works them out on every call, as OrcaSlicer #15564 does |
-| `orca/0008-gcode-times-without-stored-moves` | Upstream's time estimate writes each move's time and "actual speed" points back into that list by position, which 0007 no longer keeps; skips those preview-only writes |
+| `orca/0003`, `orca/0007` | OrcaSlicer 2.5's versions of 0003 (one more OpenVDB include) and 0007. Its 0007 also skips the preview-only writes of each move's time and "actual speed" points back into the move list by position (which 0007 no longer keeps), and keeps every move when the printer pre-heats the next nozzle (`enable_pre_heating`, new in 2.5, Bambu printers), whose pass reads each move's time. `orca/0006` and `orca/0010` say 2.5 doesn't need those |
 
 ## Two engines
 
@@ -137,8 +139,8 @@ cmake --build engine/build/engine-orca
 ENGINE_FLAVOR=orca node engine/scripts/bundle-profiles.mjs engine/build/profiles-orca
 ```
 
-What only Snapmaker Orca has compiles only for it (`ENGINE_HAS_MIXING`: mixed filaments,
-`src/mixed_api.cpp`; `ENGINE_HAS_FLOW_VARIANTS`: standard/high flow pairs), and the few
+What only Snapmaker Orca has compiles only for it (`ENGINE_HAS_MIXING`: Snapmaker's mixed
+filaments; `ENGINE_HAS_FLOW_VARIANTS`: standard/high flow pairs), and the few
 calls whose signatures differ upstream are under `#if ENGINE_UPSTREAM`. `engineInfo()`
 tells the page which engine it got. `apps/web/scripts/copy-engine.mjs` puts an upstream
 build (from `engine/build/engine-orca`) in `public/engine-orca/`. CI builds and tests both
@@ -150,3 +152,15 @@ User presets are shared between the engines (`apps/web/src/lib/preset-engines.ts
 both engines have with the same type, from `apps/web/scripts/shared-settings.mjs`, which also
 picks each engine's stand-in for the other's system presets. CI checks the file is current;
 after an engine update, run it in `apps/web` and commit `src/lib/shared-settings.json`.
+
+## OrcaSlicer 2.5
+
+`orcaslicer-upstream/` is pinned to the 2.5.0 beta; the app moves to it when 2.5.0 is
+stable (pull request #250 stays a draft until then; that step is a new pin plus its desktop
+download's checksum in `desktop-check/desktop.sh`). On top of Snapmaker Orca's dependencies
+it needs CGAL 6.2 (`scripts/build-deps-orca.sh`, picked when the engine's own CMakeLists
+asks for CGAL 6; Boost.Interval's rounding for wasm in `compat/boost_interval_wasm.hpp`). Its
+OpenCV texture-to-colour import and Assimp glTF/GLB/FBX import are left out
+(`compat/assimp_stub.cpp`). Its Snapmaker U1 filaments say 0 °C for the U1's own plate
+(Textured PEI), which 2.5 refuses to slice; `scripts/plate-temps.mjs` gives such a filament
+its High Temp Plate temperature when the presets are bundled.

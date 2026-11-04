@@ -12,7 +12,7 @@ hosted on Cloudflare's free tier.
 
 - **Slices like desktop Snapmaker Orca 2.4**, in the browser, on a computer or a phone:
   STL, OBJ, AMF and 3MF projects, Bambu Studio files with painted colours, multi-plate
-  projects. A second engine, OrcaSlicer 2.4.2, can be picked per project.
+  projects. A second engine, OrcaSlicer 2.5, can be picked per project.
 - **Every printer brand the engine ships**, with a first-run setup wizard, desktop's
   settings pages, your own presets and preset files in and out.
 - **Desktop's Prepare tools**: move, cut, measure, simplify, mesh boolean, text and SVG,
@@ -36,7 +36,7 @@ Every feature in detail: [docs/features.md](docs/features.md). How it is built a
 |---|---|
 | `engine/` | The engine: Snapmaker Orca's libslic3r in WebAssembly with an embind API, its build, patches, and a Node CLI and tests. See [engine/README.md](engine/README.md) |
 | `engine/orcaslicer/` | Submodule: upstream Snapmaker Orca, pinned to v2.4.1 |
-| `engine/orcaslicer-upstream/` | Submodule: OrcaSlicer, pinned to v2.4.2, the second engine (engine/README.md, "Two engines") |
+| `engine/orcaslicer-upstream/` | Submodule: OrcaSlicer, pinned to v2.5.0-beta until 2.5.0 is out, the second engine (engine/README.md, "Two engines") |
 | `apps/web/` | The web app (React + TypeScript + Vite) and its Cloudflare Pages Functions. See [apps/web/README.md](apps/web/README.md) |
 | `apps/device-bridge/` | The bridge that lets the Device tab reach printers on a home network: one small Go program per system and chip, and the Mac/Linux installer. See [apps/device-bridge/README.md](apps/device-bridge/README.md) |
 | `apps/device-relay/` | The relay Worker between browsers and bridges. See [apps/device-relay/README.md](apps/device-relay/README.md) and [SECURITY.md](apps/device-relay/SECURITY.md) |

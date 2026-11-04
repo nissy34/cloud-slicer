@@ -112,7 +112,7 @@ try {
   if ((await engineSelect.inputValue()) !== 'snapmaker') fail(`the dropdown says "${await engineSelect.inputValue()}"`);
   // The picker names both engines with their versions (phones hide the top bar's tag).
   const shown = (await pickerChoices(page, 'Slicer engine')).join(' / ');
-  if (!/^Snapmaker Orca\s*\d+\.\d+\.\d+ \/ OrcaSlicer\s*\d+\.\d+\.\d+$/.test(shown)) fail(`the picker shows "${shown}", not both engine versions`);
+  if (!/^Snapmaker Orca\s*\d+\.\d+\.\d+ \/ OrcaSlicer\s*\d+\.\d+\.\d+(-[\w.]+)?$/.test(shown)) fail(`the picker shows "${shown}", not both engine versions`);
   // The version is the small grey note, on the button too.
   if (!/^\d+\.\d+\.\d+$/.test((await engineSelect.button.locator('.picker-note').textContent()) ?? '')) fail('the Slicer engine button has no version note');
 
@@ -134,7 +134,7 @@ try {
   await page.setViewportSize({ width: 390, height: 844 });
   await projectButton.click();
   const note = await page.getByTestId('project-engine').innerText();
-  if (!note.includes('OrcaSlicer 2.4.2')) fail(`Project menu says "${note}"`);
+  if (!/OrcaSlicer \d+\.\d+/.test(note)) fail(`Project menu says "${note}"`);
   if (shots) await page.screenshot({ path: join(shots, 'project-menu-phone.png') });
   await page.keyboard.press('Escape');
   await projectButton.click();

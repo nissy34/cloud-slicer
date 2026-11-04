@@ -78,6 +78,23 @@ int joinCopies(const std::vector<Slic3r::ModelInstance*>& copies);
 // G-code before slicing (calib_api.cpp). Does nothing for other tests.
 void addCalibrationGcodes(Slic3r::Model& model, const Slic3r::DynamicPrintConfig& cfg);
 
+#if ENGINE_UPSTREAM
+// OrcaSlicer 2.5's colour mixes (mixed_api.cpp). The page keeps them as
+// `definitions`, a JSON list beside the filaments; OrcaSlicer keeps each as a
+// filament slot after the physical ones (filament_is_mixed and the
+// filament_mixed_* lists).
+//
+// fullConfigWithMixes: bundle.full_config() with the mixes added as slots the
+// way desktop's "Add Mixed Filament" adds them (slot preset = its first
+// filament's, colour = the blend); the bundle is left as it was.
+// `colours`, when given (one per physical filament), replace the bundle's.
+Slic3r::DynamicPrintConfig fullConfigWithMixes(Slic3r::PresetBundle& bundle, const std::string& definitions,
+                                               const std::vector<std::string>& colours = {});
+// splitMixedSlots: a project's config (desktop 2.5 3MF) with its mixed slots
+// taken out of every per-filament list; returns them as `definitions` ("" for none).
+std::string splitMixedSlots(Slic3r::DynamicPrintConfig& cfg);
+#endif
+
 // Whether part of the object is below the bed (model_api.cpp).
 bool isSunk(const Slic3r::ModelObject* obj);
 // Puts an object back on the bed after an edit; with `sinking`, one that is
