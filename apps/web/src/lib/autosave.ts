@@ -1,6 +1,7 @@
 // Small rules for AutoSave and Continue on another device, kept apart from the
 // state so they can be tested (state/projects.ts uses them).
 import type { OnlineProject } from '../account/api';
+import type { LocalCopy } from './local-copy';
 
 /** Projects this big save less often: each AutoSave uploads the whole 3MF, on the person's own data. */
 export const BIG_PROJECT_BYTES = 5 * 1024 * 1024;
@@ -34,7 +35,13 @@ export function deviceNameFrom(userAgent: string, maxTouchPoints = 0): string {
   return 'other device';
 }
 
+/** What the Continue card offers: unsaved work kept in this browser, or one from the account. */
 export type ContinueOffer =
+  /** Unsaved work kept in this browser (lib/local-copy.ts): the newest work here, so it comes first. */
+  | { kind: 'local'; copy: LocalCopy }
+  | OnlineOffer;
+
+export type OnlineOffer =
   /** The person's unsaved project, from this device or another. */
   | { kind: 'draft'; project: OnlineProject }
   /** A saved project last changed on another device. */
@@ -50,7 +57,7 @@ export type ContinueOffer =
  * Other projects last changed here aren't offered (they're one click away in
  * Online projects).
  */
-export function continueOffer(projects: OnlineProject[], device: string, now = Date.now(), openHere: string | null = null): ContinueOffer | null {
+export function continueOffer(projects: OnlineProject[], device: string, now = Date.now(), openHere: string | null = null): OnlineOffer | null {
   const here = openHere ? projects.find((p) => p.id === openHere && !p.draft) : undefined;
   if (here) return { kind: 'here', project: here };
   // Each device keeps its own draft: the newest one is offered.
