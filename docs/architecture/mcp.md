@@ -70,6 +70,14 @@ ships) and `cloud-slicer-mcp.tgz` (`npx -y <link>` for Claude Code and other MCP
 Both carry the engines inside (about 11 MB each), so they never depend on CI's
 `engine-builds`, which keeps only the newest 15. No npm account, no hosting: $0.
 
+On the site, **Use with an AI app** (`apps/web/src/components/AiAppsDialog.tsx`) shows
+how: in the account menu, and in the Project menu too, since the add-on needs no account
+and the account menu has no items before signing in. Two choices: **Claude Desktop** (the
+`.mcpb` download, open it, Install) and **Other chat apps** (the `mcpServers` settings
+with `npx` and the `.tgz` link, with Copy). Chat apps only: coding apps work with the same
+line but aren't offered (the README has it). The same window on a phone, which can't run
+it but can read how. Named for any AI app, not Claude, because MCP is an open standard.
+
 ## What it keeps
 
 Nothing between runs. The G-code (and a `.gcode.3mf` for printers that take one) goes
@@ -109,15 +117,16 @@ client over stdin/stdout): open an STL and slice it with pictures and progress, 
 by key (refused, set to nearest, taken back), another brand (Prusa MK4, PETG), a 3MF
 project's own presets, move/copies/arrange then save and reopen, filament and settings
 per object with the plate picture as an image, every plate at once, OrcaSlicer 2.4.2,
-and plain errors. CI job `mcp` builds it with both engines, type-checks, runs the test,
+and plain errors. The site's window: `apps/web/test/ai-apps.mjs` (Project menu, both
+choices, links, Copy, phone) and the account menu's button in `accounts.mjs`. CI job `mcp` builds it with both engines, type-checks, runs the test,
 packs the install files and starts the packed one.
 
 ## Open
 
-- **"Use with Claude" on the site**: how to install, from the account menu (sketch first).
+- **Online add-on** for ChatGPT, Gemini and Claude on the web or phone (they only take
+  add-ons at an internet address): analysis first.
 - **Second step**: sign-in (own presets and printers), printer status, "Upload only" and
   "Upload and print" through the relay, with limits on the site and relay per account
   so a program can't use up the free tier.
-- **Online MCP** on Cloudflare for claude.ai and the phone (account things only).
 - Site-only extras (per-plate settings, colour mixes chosen on the site) come only from
   a 3MF made there.

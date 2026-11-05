@@ -693,6 +693,7 @@ jobs:
           node test/support-filaments.mjs
           node test/filament-list.mjs
           node test/calibration.mjs
+          node test/ai-apps.mjs
 
       - name: Preset editing, import and export end to end (Chromium)
         if: matrix.suite == 'presetfiles'

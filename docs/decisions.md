@@ -177,8 +177,10 @@ down. Add a line with the date when a new choice is made.
 - Plate pictures drawn without a GPU, matching the site's; comparing two slices, and
   calibration models, left out.
 - Installed from a GitHub release `mcp` (Claude Desktop extension + `npx` package), same
-  links updated on every merge, not npm; the site gets a "Use with Claude" item
-  (2026-11-04).
+  links updated on every merge, not npm (2026-11-04).
+- The site's window is **Use with an AI app**, not "Use with Claude" (MCP is an open
+  standard), for chat apps only (Claude Desktop, other chat apps), in the account menu
+  and the Project menu, the same on phones; no line on the empty plate (2026-11-05).
 
 ## Not built
 
