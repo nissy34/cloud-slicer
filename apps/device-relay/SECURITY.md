@@ -95,8 +95,8 @@ Attackers considered: someone on the internet with nothing, someone who got a pa
   minute (Workers rate limiting), so the free tier can't be exhausted cheaply.
 - **Accounts**: with tickets on, only signed-in, allowed accounts get in, and a
   pairing link alone is no longer enough. Blocking an account drops its
-  connections at once; each account can use 3 bridges and watch 2 cameras at a
-  time. Tickets are ES256 JWTs; the relay holds only the public key.
+  connections at once; each account can use as many bridges as the owner allows
+  (1 unless the Admin page says otherwise) and watch 2 cameras at a time. Tickets are ES256 JWTs; the relay holds only the public key.
 - **Deploys**: the live relay deploys from main only, never from a PR. PRs (labelled
   `use test relay`) and the Device workflow run on any other branch deploy only to the
   separate test relay (`cloud-slicer-relay-test`, own bucket, own rate limits, own push

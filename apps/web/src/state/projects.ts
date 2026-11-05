@@ -3,11 +3,17 @@
 //
 // A project is saved as Orca's own 3MF (the engine's store_bbs_3mf, like
 // desktop's Save project). Signed in, Save keeps it in the account's online
-// projects (R2 + D1, functions/_lib/projects.ts); signed out, Save downloads
-// the file. Download 3MF always downloads.
+// projects: the file in the person's Google Drive (account/drive.ts), its list
+// entry in D1 (functions/_lib/projects.ts); signed out, or without Drive, Save
+// downloads the file. Download 3MF always downloads.
 //
-// AutoSave, like Word (signed in, switch on by default): a new project is kept
-// as the person's one draft until the first Save names it; after that every
+// Unsaved work is always kept in this browser (lib/local-copy.ts), signed in or
+// not, and the Continue card offers it back after a crash or a closed tab. It
+// goes to Google Drive only on Save, or with AutoSave.
+//
+// AutoSave, like Word (signed in with Drive; off until the person turns it on,
+// asked once the first time they change a project): a new project is kept
+// as this device's draft until the first Save names it; after that every
 // change saves into the project a few seconds later (lib/autosave.ts has the
 // timing). One device edits a project at a time: opening it elsewhere takes it
 // over, and this tab then only views it (`elsewhere`) until "Edit here instead".
@@ -16,7 +22,9 @@
 // whose draft was discarded elsewhere keeps what it shows and saves it again.
 import { create } from 'zustand';
 import { api, ApiError, type OnlineProject } from '../account/api';
-import { autosaveDelay, continueOffer, deviceNameFrom, goneText, THUMBNAIL_EVERY_MS, type ContinueOffer } from '../lib/autosave';
+import { CHUNK, downloadFromDrive, driveGone, uploadToDrive } from '../account/drive';
+import { autosaveDelay, continueOffer, deviceNameFrom, goneText, THUMBNAIL_EVERY_MS, type ContinueOffer, type OnlineOffer } from '../lib/autosave';
+import { clearLocalCopy, loadLocalCopy, saveLocalCopy, type LocalCopy } from '../lib/local-copy';
 import { copyName, freeName, nameFromFile, newProjectId, projectFileName, projectSignature, UNTITLED } from '../lib/projects';
 import { engineFromUrl, engineName, engineOf3mf, type EngineFlavor } from '../lib/engines';
 import { SETUP_KEY, type Setup } from '../lib/setup';
@@ -57,27 +65,37 @@ interface ProjectsState {
   /** The last problem or result, shown under the project menu. */
   message: string;
   messageWarn: boolean;
-  /** A save found a newer version saved from another device. */
-  conflict: { theirs: OnlineProject | null } | null;
+  /** A save found a newer version saved from another device, or the file changed in Google Drive (`inDrive`). */
+  conflict: { theirs: OnlineProject | null; inDrive?: boolean } | null;
+  /** AutoSave's upload of a big project: how far it got (0-100), or null. */
+  savePercent: number | null;
+  /** A project whose file was deleted in Google Drive: offered for removal from the list. */
+  gone: OnlineProject | null;
+  /** Removes `gone` from the list (its file is already gone from Drive). */
+  removeGone(): Promise<void>;
   /** The Projects list is open. */
   listOpen: boolean;
   /** Save is asking for a name: 'name' names the open project, 'copy' saves a copy. */
   saveAsOpen: false | 'name' | 'copy';
   /** AutoSave's state (signed in). */
   saveState: SaveState;
-  /** Why AutoSave stopped for this project (too big, storage full...), or ''. */
+  /** Why AutoSave stopped for this project (Drive full, Drive disconnected...), or ''. */
   autosaveStopped: string;
   elsewhere: Elsewhere | null;
   /** The Continue card: a draft or a project changed on another device. */
   offer: ContinueOffer | null;
   /** The first look for a Continue card is done (the setup wizard waits for it). */
   offerChecked: boolean;
+  /** The one-time question "Turn on AutoSave?" (On / Off) is showing. */
+  askAutosave: boolean;
 
-  /** Online when signed in (and the site has project storage), else a download. */
+  /** Online when signed in with Google Drive connected (and online projects on for them), else a download. */
   canSaveOnline(): boolean;
-  /** AutoSave's switch (an account setting, on unless turned off). */
+  /** AutoSave's switch (an account setting, off until turned on). */
   autosaveOn(): boolean;
   setAutosave(on: boolean): Promise<void>;
+  /** The answer to the one-time AutoSave question (kept as the switch, so it isn't asked again). */
+  answerAutosave(on: boolean): Promise<void>;
   /** Ctrl+S: names a new project or draft, else saves now. Signed out: downloads. */
   save(): Promise<void>;
   /** Names the open project (mode 'name') or saves a copy and continues in it ('copy'). */
@@ -102,7 +120,7 @@ interface ProjectsState {
   /** Looks for a draft or a project changed on another device (the Continue card). */
   findOffer(): Promise<void>;
   acceptOffer(): Promise<void>;
-  /** "Not now", or "Discard" for a draft (deletes it). */
+  /** "Not now", or "Discard" for a draft or the work kept in this browser (deletes it). */
   dismissOffer(discard: boolean): Promise<void>;
   setListOpen(open: boolean): void;
   setSaveAsOpen(open: false | 'name' | 'copy'): void;
@@ -163,13 +181,13 @@ function markSaved(sig: string, paints: number) {
   useProjects.setState({ dirty });
 }
 
-async function buildFile(): Promise<{ file: Blob; png: Blob | null }> {
+async function buildFile(): Promise<{ file: Blob; picture: Blob | null }> {
   const shot = await snapshot();
   const plate = useSlicer.getState().plate;
   const bytes = await useSlicer
     .getState()
     .projectFile(shot ? { plate, width: shot.width, height: shot.height, pixels: shot.pixels } : null);
-  return { file: new Blob([bytes], { type: 'model/3mf' }), png: shot?.png ?? null };
+  return { file: new Blob([bytes], { type: 'model/3mf' }), picture: shot?.picture ?? null };
 }
 
 function downloadBlob(blob: Blob, fileName: string) {
@@ -186,7 +204,18 @@ function downloadBlob(blob: Blob, fileName: string) {
 const errorText = (e: unknown) => (e as Error).message || 'Something went wrong';
 const hasObjects = () => Boolean(useSlicer.getState().project?.objects.length);
 const signedIn = () => useAccount.getState().status === 'signedIn';
+/**
+ * Projects save online only into the person's Google Drive: someone who said no
+ * to Drive at sign-in saves as a download, with no draft and no AutoSave, until
+ * they connect it (account menu or Online projects).
+ */
+const savesOnline = () => {
+  const user = useAccount.getState().user;
+  return signedIn() && user?.drive === true && user.projects !== false;
+};
 
+// The AutoSave question is asked once a visit at most (the answer is kept as the switch).
+let autosaveAsked = false;
 // AutoSave's clock: the last change, the last save and its size, the last thumbnail.
 let lastChange = 0;
 let lastSave = 0;
@@ -222,9 +251,20 @@ export const useProjects = create<ProjectsState>((set, get) => {
     const sig = signature();
     const paints = paintCount;
     try {
-      const { file, png } = await buildFile();
+      const { file, picture } = await buildFile();
       const id = target.id ?? newProjectId();
-      const saved = await api.saveProject(id, target.name, file, baseVersion, useSlicer.getState().flavor, {
+      // Projects live in the person's Google Drive: the page uploads the file there, then the save points at it.
+      // A big one shows how far it got (busy text, or next to the name for AutoSave).
+      const drive = await uploadToDrive(file, target.name, {
+        draft: target.draft,
+        onProgress: (sent, total) => {
+          if (total < 2 * CHUNK) return;
+          const pct = Math.floor((sent / total) * 100);
+          if (auto) set({ savePercent: pct });
+          else set({ busy: `Saving… ${pct}%` });
+        },
+      });
+      const saved = await api.saveProject(id, target.name, drive, baseVersion, useSlicer.getState().flavor, {
         draft: target.draft,
         device: thisDevice(),
         plates: useSlicer.getState().project?.plates.length,
@@ -232,9 +272,9 @@ export const useProjects = create<ProjectsState>((set, get) => {
       lastSave = Date.now();
       lastSize = file.size;
       // The project is saved even if its picture isn't.
-      if (png && (opts.thumbnail || !auto || lastSave - lastThumbnail > THUMBNAIL_EVERY_MS)) {
+      if (picture && (opts.thumbnail || !auto || lastSave - lastThumbnail > THUMBNAIL_EVERY_MS)) {
         lastThumbnail = lastSave;
-        await api.saveProjectThumbnail(id, png).catch(() => {});
+        await api.saveProjectThumbnail(id, picture).catch(() => {});
       }
       // A save that works also ends an AutoSave that had stopped on an error.
       set({ current: { name: saved.name, id: saved.id, version: saved.version, draft: saved.draft }, conflict: null, saveState: 'idle', autosaveStopped: '' });
@@ -254,7 +294,7 @@ export const useProjects = create<ProjectsState>((set, get) => {
         return false;
       }
       if (e instanceof ApiError && e.status === 409) {
-        set({ conflict: { theirs: (e.body.current as OnlineProject | null) ?? null }, saveState: 'idle' });
+        set({ conflict: { theirs: (e.body.current as OnlineProject | null) ?? null, inDrive: code === 'changed-in-drive' }, saveState: 'idle' });
         return false;
       }
       if (!(e instanceof ApiError) && auto) {
@@ -267,6 +307,7 @@ export const useProjects = create<ProjectsState>((set, get) => {
       return false;
     } finally {
       if (!auto) set({ busy: '' });
+      set({ savePercent: null });
     }
   }
 
@@ -294,6 +335,28 @@ export const useProjects = create<ProjectsState>((set, get) => {
     if (p.draft && p.id) await api.deleteProject(p.id).catch(() => {});
   };
 
+  // Unsaved work kept in this browser, opened again as it was (still unsaved).
+  async function openLocal(copy: LocalCopy) {
+    set({ busy: `Opening “${copy.name}”…`, message: '', offer: null });
+    try {
+      if (await useEngineOf(copy.engine)) switchedNotice(copy.engine);
+      const opened = await useSlicer.getState().openFiles([new File([copy.file], projectFileName(copy.name), { type: 'model/3mf' })], 'project');
+      if (opened === 'cancelled') {
+        set({ current: blank() });
+        markClean();
+        return;
+      }
+      set({ current: { name: copy.name, id: copy.id, version: copy.version, draft: copy.draft }, elsewhere: null, conflict: null, autosaveStopped: '', saveState: 'idle' });
+      markClean();
+      paintedSinceSave = true;
+      set({ dirty: true });
+    } catch (e) {
+      set({ message: `Couldn't open “${copy.name}”: ${errorText(e)}`, messageWarn: true });
+    } finally {
+      set({ busy: '' });
+    }
+  }
+
   uploadFromOutside = (target, base) => upload(target, base, { auto: true });
   keepGoneFromOutside = (device) => keepGone(device);
 
@@ -308,7 +371,7 @@ export const useProjects = create<ProjectsState>((set, get) => {
       conflict: null,
       autosaveStopped: '',
       saveState: 'idle',
-      message: goneText(cur, device, signedIn() && get().autosaveOn()),
+      message: goneText(cur, device, savesOnline() && get().autosaveOn()),
       messageWarn: true,
     });
     paintedSinceSave = true;
@@ -330,6 +393,8 @@ export const useProjects = create<ProjectsState>((set, get) => {
     message: '',
     messageWarn: false,
     conflict: null,
+    savePercent: null,
+    gone: null,
     listOpen: false,
     saveAsOpen: false,
     saveState: 'idle',
@@ -337,9 +402,16 @@ export const useProjects = create<ProjectsState>((set, get) => {
     elsewhere: null,
     offer: null,
     offerChecked: false,
+    askAutosave: false,
 
-    canSaveOnline: () => signedIn(),
-    autosaveOn: () => getUserSetting<boolean>(AUTOSAVE_KEY) !== false,
+    canSaveOnline: () => savesOnline(),
+    autosaveOn: () => getUserSetting<boolean>(AUTOSAVE_KEY) === true,
+
+    async answerAutosave(on) {
+      autosaveAsked = true;
+      set({ askAutosave: false });
+      await get().setAutosave(on);
+    },
 
     async setAutosave(on) {
       await saveUserSetting(AUTOSAVE_KEY, on);
@@ -455,7 +527,10 @@ export const useProjects = create<ProjectsState>((set, get) => {
         set({ downloading: { name: p.name, loaded: 0, total: 0 } });
         // This device edits it from now on; another device that had it open only views it.
         await api.takeOverProject(p.id, thisDevice()).catch(() => {});
-        const { bytes, version } = await api.projectFile(p.id, (loaded, total) => set({ downloading: { name: p.name, loaded, total } }));
+        // Straight from their Google Drive, with the latest list entry (its file and version).
+        const latest = await api.project(p.id).catch(() => p);
+        const bytes = await downloadFromDrive(latest.driveFile, (loaded, total) => set({ downloading: { name: p.name, loaded, total } }));
+        const version = latest.version;
         set({ downloading: null });
         if (await useEngineOf(p.engine ?? 'snapmaker')) switchedNotice(p.engine);
         if ((await useSlicer.getState().openFiles([new File([bytes], projectFileName(p.name), { type: 'model/3mf' })], 'project')) === 'cancelled') {
@@ -468,7 +543,9 @@ export const useProjects = create<ProjectsState>((set, get) => {
         lastSave = Date.now();
         markClean();
       } catch (e) {
-        set({ message: `Couldn't open “${p.name}”: ${errorText(e)}`, messageWarn: true });
+        // Deleted in Drive: the Online projects window offers to remove it from the list.
+        if (driveGone(e)) set({ gone: p });
+        else set({ message: `Couldn't open “${p.name}”: ${errorText(e)}`, messageWarn: true });
       } finally {
         set({ busy: '', downloading: null });
       }
@@ -504,7 +581,7 @@ export const useProjects = create<ProjectsState>((set, get) => {
       const { dirty, current, elsewhere } = get();
       // View only: nothing here is ours to keep (changes made here were offered as a copy).
       if (elsewhere || !hasObjects()) return true;
-      if (!signedIn()) return discardOk(dirty, current.name);
+      if (!savesOnline()) return discardOk(dirty, current.name);
       // A new project or the draft: like Word on close.
       if (!current.id || current.draft) {
         const choice = await askSave(current.name);
@@ -567,15 +644,27 @@ export const useProjects = create<ProjectsState>((set, get) => {
     async acceptOffer() {
       const offer = get().offer;
       offerSettled = true;
-      if (offer) await get().openOnline(offer.project);
+      if (offer?.kind === 'local') await openLocal(offer.copy);
+      else if (offer) await get().openOnline(offer.project);
     },
 
     async dismissOffer(discard) {
       const offer = get().offer;
       offerSettled = true;
       set({ offer: null });
+      if (offer?.kind === 'local') return void (await clearLocalCopy());
       if (offer && !discard) writeDismissed(offerKey(offer));
       if (discard && offer?.kind === 'draft') await api.deleteProject(offer.project.id).catch(() => {});
+    },
+
+    async removeGone() {
+      const p = get().gone;
+      if (!p) return;
+      // Delete first: closing the popup reloads the open list, which must not race the delete.
+      await api.deleteProject(p.id).catch(() => {});
+      set({ gone: null });
+      get().onlineChanged({ id: p.id, deleted: true });
+      set({ message: `Removed “${p.name}” from your projects`, messageWarn: false });
     },
 
     setListOpen: (listOpen) => set({ listOpen }),
@@ -589,8 +678,16 @@ export const useProjects = create<ProjectsState>((set, get) => {
 /** The card is offered once a visit: true once it was answered or a project was opened. */
 let offerSettled = false;
 
-/** What the Continue card would offer now (null when signed out, busy with a project, or offline). */
+/** What the Continue card would offer now: work kept in this browser first, then the account's (null: busy with a project). */
 async function offerNow(): Promise<ContinueOffer | null> {
+  if (!untouchedProject()) return null;
+  const copy = await loadLocalCopy();
+  if (copy && untouchedProject()) return { kind: 'local', copy };
+  return onlineOfferNow();
+}
+
+/** A draft or project from the account (null when signed out, busy with a project, or offline). */
+async function onlineOfferNow(): Promise<OnlineOffer | null> {
   if (!signedIn() || !untouchedProject()) return null;
   try {
     return continueOffer((await api.projects()).projects, deviceId(), Date.now(), loadOpenProject());
@@ -604,7 +701,7 @@ useProjects.subscribe((p, prev) => {
   if (p.current !== prev.current) saveOpenProject(p.current.id && !p.current.draft ? p.current.id : null);
 });
 const DISMISSED_KEY = 'cloud-slicer:continue-dismissed:v1';
-const offerKey = (o: ContinueOffer) => `${o.project.id}:${o.project.version}`;
+const offerKey = (o: ContinueOffer) => (o.kind === 'local' ? `local:${o.copy.savedAt}` : `${o.project.id}:${o.project.version}`);
 function readDismissed() {
   try {
     return localStorage.getItem(DISMISSED_KEY);
@@ -656,7 +753,7 @@ async function openShared() {
   if (!open.length) return void useProjects.getState().findOffer();
   // The question replaces the Continue card: it isn't shown as well.
   try {
-    const offer = await offerNow();
+    const offer = await onlineOfferNow();
     if (offer) {
       const choice = await askAddTo(open.length === 1 ? open[0].name : `${open.length} files`, offer.project.name);
       if (choice === 'cancel') return;
@@ -673,7 +770,7 @@ async function openShared() {
 function autosaveWanted() {
   const p = useProjects.getState();
   return (
-    signedIn() &&
+    savesOnline() &&
     p.autosaveOn() &&
     !p.autosaveStopped &&
     !p.elsewhere &&
@@ -715,6 +812,71 @@ async function flushAutosave() {
   else await saving;
 }
 
+// ---- unsaved work kept in this browser ------------------------------------------------
+// Always, signed in or not: lib/local-copy.ts. Skipped while AutoSave is about to
+// send the same work to Drive; dropped once the work is saved.
+
+let localTimer: ReturnType<typeof setTimeout> | undefined;
+let lastLocal = 0;
+let localSize = 0;
+// One write at a time, so a drop never runs before an older write.
+let localQueue: Promise<void> = Promise.resolve();
+const inLocalQueue = (fn: () => Promise<void>) => (localQueue = localQueue.then(fn, fn));
+
+function localWanted() {
+  const p = useProjects.getState();
+  if (!p.dirty || !hasObjects() || p.busy || p.elsewhere || useSlicer.getState().engine !== 'ready') return false;
+  return !autosaveWanted() || p.saveState === 'offline';
+}
+
+async function keepLocal() {
+  localTimer = undefined;
+  await inLocalQueue(async () => {
+    if (!localWanted()) return;
+    try {
+      const bytes = await useSlicer.getState().projectFile(null);
+      // Saved while the file was being made: nothing to keep.
+      if (!useProjects.getState().dirty) return;
+      const cur = useProjects.getState().current;
+      const file = new Blob([bytes], { type: 'model/3mf' });
+      await saveLocalCopy({ file, picture: null, name: cur.name, id: cur.id, version: cur.version, draft: cur.draft, engine: useSlicer.getState().flavor, savedAt: Date.now() });
+      lastLocal = Date.now();
+      localSize = file.size;
+    } catch (e) {
+      console.warn('Unsaved work not kept in this browser:', e);
+    }
+  });
+  scheduleLocal();
+}
+
+function scheduleLocal() {
+  if (localTimer) clearTimeout(localTimer);
+  localTimer = undefined;
+  if (!localWanted()) return;
+  localTimer = setTimeout(() => void keepLocal(), autosaveDelay(Date.now(), lastChange, lastLocal, localSize));
+}
+
+function dropLocal() {
+  if (localTimer) clearTimeout(localTimer);
+  localTimer = undefined;
+  void inLocalQueue(clearLocalCopy);
+}
+
+/** Leaving the tab: keep what is waiting now. */
+function flushLocal() {
+  if (!localTimer) return;
+  clearTimeout(localTimer);
+  void keepLocal();
+}
+
+// The first change to a project, signed in with Drive and never asked: should AutoSave send it to Drive?
+function maybeAskAutosave() {
+  const p = useProjects.getState();
+  if (autosaveAsked || p.askAutosave || !p.dirty || !hasObjects() || !savesOnline()) return;
+  if (getUserSetting<boolean>(AUTOSAVE_KEY) !== undefined) return;
+  useProjects.setState({ askAutosave: true });
+}
+
 // Another device took the project over? Asked when the tab comes back into view.
 let lastCheck = 0;
 async function checkElsewhere() {
@@ -737,7 +899,10 @@ async function checkElsewhere() {
 
 if (typeof document !== 'undefined') {
   document.addEventListener('visibilitychange', () => {
-    if (document.visibilityState === 'hidden') void flushAutosave();
+    if (document.visibilityState === 'hidden') {
+      void flushAutosave();
+      flushLocal();
+    }
     else void checkElsewhere();
   });
   window.addEventListener('focus', () => void checkElsewhere());
@@ -760,6 +925,8 @@ useSlicer.subscribe((s, prev) => {
   if (dirty) {
     lastChange = Date.now();
     scheduleAutosave();
+    scheduleLocal();
+    maybeAskAutosave();
   }
 });
 // A fresh page starts clean once the engine has its presets and selection, and
@@ -774,6 +941,9 @@ useSlicer.subscribe((s, prev) => {
 // AutoSave starts again when what held it back clears (a conflict answered, signing in...).
 useProjects.subscribe((p, prev) => {
   if (p.dirty !== prev.dirty || p.conflict !== prev.conflict || p.elsewhere !== prev.elsewhere || p.busy !== prev.busy) scheduleAutosave();
+  // Saved (or back as it was saved): the copy kept here isn't needed.
+  if (prev.dirty && !p.dirty) dropLocal();
+  else if (p.dirty !== prev.dirty || p.elsewhere !== prev.elsewhere || p.busy !== prev.busy || p.saveState !== prev.saveState || p.autosaveStopped !== prev.autosaveStopped) scheduleLocal();
   // A project taken over elsewhere: nothing stays selected to edit.
   if (p.elsewhere && !prev.elsewhere) useSlicer.getState().select(null);
 });
@@ -786,8 +956,13 @@ useAccount.subscribe((a, prev) => {
     useProjects.setState({ offerChecked: false });
     void useProjects.getState().findOffer();
   }
+  if (a.settings === prev.settings && a.user === prev.user) return;
+  // Answered on another device: the question goes.
+  if (useProjects.getState().askAutosave && getUserSetting<boolean>(AUTOSAVE_KEY) !== undefined) useProjects.setState({ askAutosave: false });
+  else maybeAskAutosave();
   if (a.settings === prev.settings) return;
   scheduleAutosave();
+  scheduleLocal();
   const engine = defaultEngine();
   saveDefaultEngine(engine);
   const s = useSlicer.getState();

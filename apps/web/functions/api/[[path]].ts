@@ -14,13 +14,14 @@
 //   GET    /api/devices/<id>/secret         one printer's API key
 //   PUT    /api/devices/<id>                save ({ name, preset, url, apiKey?, extra?, baseVersion? })
 //   DELETE /api/devices/<id>
-//   GET    /api/projects                    the user's online projects, usage and limits
+//   POST   /api/drive/token                 a short key for the person's Google Drive (the page uploads and downloads projects there)
+//   GET    /api/projects                    the user's online projects, count, limits and whether Google Drive is connected
 //   GET    /api/projects/<id>                one project (its version and the device editing it)
 //   POST   /api/projects/<id>/device         this device edits it from now on ({ device, deviceName })
-//   GET    /api/projects/<id>/file          the project's 3MF
-//   GET    /api/projects/<id>/thumbnail     its PNG thumbnail
-//   PUT    /api/projects/<id>?name=&baseVersion=&engine=&draft=&device=&deviceName=   save (body: the 3MF)
-//   PUT    /api/projects/<id>/thumbnail     set the thumbnail (body: PNG)
+//   GET    /api/projects/<id>/thumbnail     its list picture (kept in the row)
+//   PUT    /api/projects/<id>?drive=<file id>&name=&baseVersion=&engine=&draft=&device=&deviceName=
+//                                           save: points at the 3MF the page uploaded to their Google Drive (no body)
+//   PUT    /api/projects/<id>/thumbnail     set the list picture (body: WebP or PNG)
 //   PATCH  /api/projects/<id>               rename ({ name, baseVersion? })
 //   DELETE /api/projects/<id>
 //   GET    /api/projects/<id>/prints        its print history (functions/_lib/prints.ts)
@@ -42,6 +43,7 @@ import * as admin from '../_lib/admin';
 import * as auth from '../_lib/auth';
 import { HttpError, json } from '../_lib/http';
 import * as presets from '../_lib/presets';
+import * as drive from '../_lib/drive';
 import * as prints from '../_lib/prints';
 import * as projects from '../_lib/projects';
 import * as relay from '../_lib/relay';
@@ -58,6 +60,7 @@ function useTestGoogle(env: Env) {
   globalThis.fetch = (input, init) => {
     const url = input instanceof Request ? input.url : String(input);
     if (url.startsWith('https://oauth2.googleapis.com/token')) return real(`${base}/google/token`, init);
+    if (url.startsWith('https://www.googleapis.com/')) return real(url.replace('https://www.googleapis.com/', `${base}/googleapis/`), init);
     return real(input, init);
   };
 }
@@ -88,11 +91,11 @@ export async function onRequest({ request, env }: PagesContext): Promise<Respons
       if (parts.length === 2 && m === 'PUT') return await userdata.putDevice(env, request, b);
       if (parts.length === 2 && m === 'DELETE') return await userdata.deleteDevice(env, request, b);
     }
+    if (a === 'drive' && b === 'token' && parts.length === 2 && m === 'POST') return await drive.token(env, request);
     if (a === 'projects') {
       if (parts.length === 1 && m === 'GET') return await projects.list(env, request);
       if (parts.length === 2 && m === 'GET') return await projects.get(env, request, b);
       if (parts.length === 3 && c === 'device' && m === 'POST') return await projects.takeOver(env, request, b);
-      if (parts.length === 3 && c === 'file' && m === 'GET') return await projects.file(env, request, b);
       if (parts.length === 3 && c === 'thumbnail' && m === 'GET') return await projects.thumbnail(env, request, b);
       if (parts.length === 3 && c === 'thumbnail' && m === 'PUT') return await projects.putThumbnail(env, request, b);
       if (parts.length === 3 && c === 'prints' && m === 'GET') return await prints.list(env, request, b);
@@ -120,10 +123,11 @@ export async function onRequest({ request, env }: PagesContext): Promise<Respons
     if (a === 'admin') {
       if (parts.length === 1 && m === 'GET') return await admin.overview(env, request);
       if (b === 'settings' && parts.length === 2 && m === 'PUT') return await admin.putSettings(env, request);
-      if (b === 'users' && parts.length === 4 && parts[3] === 'storage' && m === 'PUT') return await admin.putUserStorage(env, request, c);
+      if (b === 'users' && parts.length === 4 && parts[3] === 'projects' && m === 'PUT') return await admin.putUserProjects(env, request, c);
       if (b === 'users' && parts.length === 4 && parts[3] === 'bridges' && m === 'PUT') return await admin.putUserBridges(env, request, c);
       if (b === 'users' && parts.length === 4 && m === 'POST') return await admin.userAction(env, request, c, parts[3]);
       if (b === 'bridges' && parts.length === 4 && m === 'POST') return await admin.bridgeAction(env, request, c, parts[3]);
+      if (b === 'bridges' && parts.length === 3 && m === 'DELETE') return await admin.removeBridge(env, request, c);
       if (b === 'invites' && parts.length === 2 && m === 'POST') return await admin.addInvite(env, request);
       if (b === 'invites' && parts.length === 3 && m === 'DELETE') return await admin.removeInvite(env, request, c);
     }

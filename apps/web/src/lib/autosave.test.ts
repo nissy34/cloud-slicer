@@ -7,6 +7,7 @@ const project = (p: Partial<OnlineProject>): OnlineProject => ({
   name: 'Benchy',
   size: 1000,
   hasThumbnail: false,
+  driveFile: 'file-p',
   version: 1,
   createdAt: 0,
   updatedAt: 0,

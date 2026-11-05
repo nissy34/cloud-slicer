@@ -6,8 +6,13 @@
 
 ## What it does
 
-Signed in, work saves itself like Word: new work is a draft, the first Save names it,
-then each change saves when things are quiet. Opening the app elsewhere offers to
+Everyone, signed in or not: unsaved work is kept in this browser (IndexedDB) and the
+Continue card offers it back after a crash or a closed tab ("Continue where you left
+off?"). It never leaves the browser.
+
+Signed in with Google Drive, the first change to a project asks once "Turn on AutoSave?" (the answer is the `autosave` account setting; nothing goes to Drive
+before it). With AutoSave on, work saves itself like Word: new work is a draft, the first
+Save names it, then each change saves when things are quiet. Opening the app elsewhere offers to
 continue; only one device edits a project at a time. On Android, files shared from
 another app open here.
 
@@ -17,7 +22,8 @@ another app open here.
 |---|---|
 | Timer, queue, take-over, view only | `state/projects.ts` |
 | Timing rules and Continue offer | `lib/autosave.ts` |
-| Continue card, view-only notice | `components/ContinueCard.tsx`, shown as a [message card](../../apps/web/src/components/Notice.tsx) |
+| Unsaved work kept in this browser | `lib/local-copy.ts` (idb-keyval) |
+| Continue card, AutoSave question, view-only notice | `components/ContinueCard.tsx`, shown as a [message card](../../apps/web/src/components/Notice.tsx) |
 | Drafts and device checks on the server | `functions/_lib/projects.ts` |
 | Share target | `public/manifest.webmanifest` `share_target`, `public/sw.js`, `lib/share-target.ts` |
 
@@ -43,7 +49,9 @@ There is no polling: a device finds out on its next save or when its tab is focu
 
 - D1 `projects.draft = 1` for drafts; `device` (a random id kept in the browser) and
   `device_name` ("phone") on every save.
-- Account setting `autosave` (the on/off switch).
+- Account setting `autosave` (the on/off switch; unset = not asked yet = off).
+- Browser IndexedDB `cloud-slicer-unsaved` / `work` / `unsaved`: one copy of the unsaved
+  work (3MF, name, online id and version, engine), dropped once it is saved.
 - Browser: `cloud-slicer:open-project:v1` (the project open here when left),
   `cloud-slicer:continue-dismissed:v1` ("Not now", per project version).
 
@@ -55,8 +63,11 @@ There is no polling: a device finds out on its next save or when its tab is focu
 - A save the server refuses stops AutoSave and shows "Not saved" (the reason is in the
   Project menu). The next save that works, a Save or turning AutoSave back on, starts it
   again; no connection just retries every 30 s.
+- The browser copy uses the same timing, and is skipped while AutoSave is about to send
+  the same work to Drive (kept when it is offline). The Continue card offers it before
+  anything from the account; Discard deletes it.
 - One draft per device, at most 3 per person (oldest go first). Drafts don't count
-  toward the 200 projects but do count toward storage.
+  toward the 200 projects.
 - A device whose draft was deleted elsewhere keeps its work, says so and saves a new draft.
 - Continue offers, in order: the project open in this browser when it was left, else the
   draft, else the newest project changed on another device in the last day. Once per visit.

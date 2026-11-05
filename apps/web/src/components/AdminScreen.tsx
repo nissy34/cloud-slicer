@@ -1,8 +1,8 @@
 // The owner's Admin page (only accounts in OWNER_EMAILS see it): who may sign
-// in, how much each user may store, and how close the site is to
+// in, who may save projects online (in their own Google Drive), and how close the site is to
 // Cloudflare's free limits. Server side: functions/_lib/admin.ts.
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { adminApi, type AdminBridge, type AdminOverview, type AdminUser, type Meter } from '../account/admin-api';
+import { adminApi, bridgeCount, NO_LIMIT, type AdminBridge, type AdminOverview, type AdminUser, type Meter } from '../account/admin-api';
 import { useAccount } from '../state/account';
 import { useSlicer } from '../state/store';
 import { Card } from './Card';
@@ -10,15 +10,11 @@ import { InfoTip } from './InfoTip';
 import { Note } from './Note';
 import { Picker } from './Picker';
 
-const STORAGE_CHOICES = [0, 50, 100, 200, 500, 1000];
-
 export function formatBytes(n: number): string {
   if (n < 1024 * 1024) return `${Math.round(n / 1024)} KB`;
   if (n < 1024 ** 3) return `${(n / 1024 / 1024).toFixed(n < 10 * 1024 * 1024 ? 1 : 0)} MB`;
   return `${(n / 1024 ** 3).toFixed(2)} GB`;
 }
-
-export const storageLabel = (mb: number) => (mb === 0 ? 'Presets only' : mb >= 1000 ? `${mb / 1000} GB` : `${mb} MB`);
 
 function when(t: number | null): string {
   if (!t) return 'never';
@@ -98,7 +94,7 @@ export function AdminScreen() {
         <p className="admin-intro muted">
           Only you see this page. Changes save on their own.
           <InfoTip label="About this page">
-            Here you choose who may sign in and how much each person may store, and see how close the site is to Cloudflare's free limits. People who
+            Here you choose who may sign in and who may save projects online (in their own Google Drive), and see how close the site is to Cloudflare's free limits. People who
             are allowed notice nothing.
           </InfoTip>
         </p>
@@ -114,7 +110,7 @@ export function AdminScreen() {
             <UsageCard data={data} />
             <AccessCard data={data} act={act} />
             <UsersCard data={data} act={act} />
-            <BridgesCard bridges={data.bridges} act={act} />
+            <BridgesCard data={data} act={act} />
           </>
         )}
       </div>
@@ -277,26 +273,8 @@ function AccessCard({ data, act }: { data: AdminOverview; act: Act }) {
           ))}
         </ul>
       )}
-      <label className="admin-field">
-        <span className="small muted">Online project storage for each person (unless set below)</span>
-        <Picker
-          field
-          label="Online project storage for each person"
-          value={String(s.storageMb)}
-          options={[...new Set([...STORAGE_CHOICES, s.storageMb])]
-            .sort((x, y) => x - y)
-            .map((mb) => ({ value: String(mb), label: mb === 0 ? 'Presets only: no online projects' : storageLabel(mb) }))}
-          onChange={(v) => {
-            const mb = Number(v);
-            act(
-              () => adminApi.saveSettings({ storageMb: mb }),
-              (d) => ({ ...d, settings: { ...d.settings, storageMb: mb } }),
-            );
-          }}
-        />
-      </label>
       <p className="muted small">
-        Presets and printers always save to the account. Each account can use up to 3 bridges and watch 2 cameras at a time through a bridge.
+        Presets and printers always save to the account. Projects save to each person’s own Google Drive, so they use none of the site’s space. Each person can use as many bridges as Bridges per person says (below), and watch 2 cameras at a time through a bridge.
       </p>
     </Card>
   );
@@ -315,17 +293,15 @@ function UsersCard({ data, act }: { data: AdminOverview; act: Act }) {
       )}
       <ul className="admin-users">
         {users.map((u) => (
-          <UserRow key={u.id} u={u} defaultMb={data.settings.storageMb} inviteOnly={data.settings.inviteOnly} act={act} />
+          <UserRow key={u.id} u={u} inviteOnly={data.settings.inviteOnly} siteBridges={data.settings.bridgesPerPerson} act={act} />
         ))}
       </ul>
     </Card>
   );
 }
 
-function UserRow({ u, defaultMb, inviteOnly, act }: { u: AdminUser; defaultMb: number; inviteOnly: boolean; act: Act }) {
+function UserRow({ u, inviteOnly, siteBridges, act }: { u: AdminUser; inviteOnly: boolean; siteBridges: number; act: Act }) {
   const [confirming, setConfirming] = useState(false);
-  const mb = u.storageMb ?? defaultMb;
-  const choices = [...new Set([...STORAGE_CHOICES, mb])].sort((a, b) => a - b);
   return (
     <li className={u.blocked ? 'admin-user blocked' : 'admin-user'} data-testid="admin-user">
       <div className="admin-user-who">
@@ -339,7 +315,7 @@ function UserRow({ u, defaultMb, inviteOnly, act }: { u: AdminUser; defaultMb: n
         <span>Joined {when(u.createdAt)}</span>
         <span>{u.lastSeen ? `Seen ${when(u.lastSeen)}` : 'Not signed in anywhere'}</span>
         <span>
-          {formatBytes(u.bytes)} in {u.projects} project
+          {!u.projectsAllowed && <span className="tag warn">No online projects</span>} {u.projects} project
           {u.projects === 1 ? '' : 's'}
         </span>
         <span>
@@ -352,34 +328,52 @@ function UserRow({ u, defaultMb, inviteOnly, act }: { u: AdminUser; defaultMb: n
       <div className="admin-user-actions">
         <Picker
           field
-          label={`Storage for ${u.email}`}
-          value={u.storageMb === null ? 'default' : String(u.storageMb)}
-          options={[{ value: 'default', label: `Storage: default (${storageLabel(defaultMb)})` }, ...choices.map((c) => ({ value: String(c), label: `Storage: ${storageLabel(c)}` }))]}
+          label={`Online projects for ${u.email}`}
+          value={u.projectsAllowed ? 'yes' : 'no'}
+          options={[
+            { value: 'yes', label: 'Online projects: on' },
+            { value: 'no', label: 'Online projects: off' },
+          ]}
           onChange={(v) => {
-            const mb = v === 'default' ? null : Number(v);
+            const yes = v === 'yes';
             act(
-              () => adminApi.setStorage(u.id, mb),
-              patchUser(u.id, (x) => ({ ...x, storageMb: mb })),
+              () => adminApi.setProjects(u.id, yes),
+              patchUser(u.id, (x) => ({ ...x, projectsAllowed: yes })),
             );
           }}
         />
         {!u.owner && (
-          <Picker
-            field
-            label={`Bridges for ${u.email}`}
-            value={u.bridgesAllowed ? 'yes' : 'no'}
-            options={[
-              { value: 'yes', label: 'Bridges: allowed' },
-              { value: 'no', label: 'Bridges: not allowed' },
-            ]}
-            onChange={(v) => {
-              const yes = v === 'yes';
-              act(
-                () => adminApi.setBridges(u.id, yes),
-                patchUser(u.id, (x) => ({ ...x, bridgesAllowed: yes })),
-              );
-            }}
-          />
+          <div className="admin-bridge-limit">
+            <label className="admin-switch">
+              <input
+                className="switch"
+                type="checkbox"
+                aria-label={`Bridges for ${u.email}: same as everyone`}
+                checked={u.bridgesLimit === null}
+                onChange={(e) => {
+                  const n = e.target.checked ? null : siteBridges;
+                  act(
+                    () => adminApi.setBridges(u.id, n),
+                    patchUser(u.id, (x) => ({ ...x, bridgesLimit: n, bridgesAllowed: n !== 0 })),
+                  );
+                }}
+              />
+              <span>Bridges: same as everyone ({bridgeCount(siteBridges)})</span>
+            </label>
+            {u.bridgesLimit !== null && (
+              <BridgeLimit
+                label={`Bridges for ${u.email}`}
+                value={u.bridgesLimit}
+                min={0}
+                onSave={(n) =>
+                  act(
+                    () => adminApi.setBridges(u.id, n),
+                    patchUser(u.id, (x) => ({ ...x, bridgesLimit: n, bridgesAllowed: n !== 0 })),
+                  )
+                }
+              />
+            )}
+          </div>
         )}
         {!u.owner && inviteOnly && !u.blocked && (
           <button
@@ -416,8 +410,8 @@ function UserRow({ u, defaultMb, inviteOnly, act }: { u: AdminUser; defaultMb: n
       {confirming && (
         <div className="admin-confirm" role="alert">
           <span>
-            Delete {u.name || u.email} and everything they saved ({formatBytes(u.bytes)} of projects, presets, printers, bridges)? This can't be
-            undone. They can sign up again later unless the site is invite only.
+            Delete {u.name || u.email} and everything they saved here (project list, presets, printers, bridges)? Their project files stay in their
+            Google Drive. This can't be undone. They can sign up again later unless the site is invite only.
           </span>
           <div className="admin-user-actions">
             <button className="secondary" onClick={() => setConfirming(false)}>
@@ -444,13 +438,83 @@ function UserRow({ u, defaultMb, inviteOnly, act }: { u: AdminUser; defaultMb: n
   );
 }
 
-function BridgesCard({ bridges, act }: { bridges: AdminBridge[]; act: Act }) {
+/**
+ * A bridge number: a number box (saved when it loses focus or on Enter) and a
+ * No limit switch that grays the box out. min 0 means "no bridges" is allowed.
+ */
+/** A bridge nobody opened for this long stops counting (functions/_lib/relay.ts UNUSED_MS). */
+const UNUSED_MS = 30 * 24 * 3600_000;
+
+function BridgeLimit({ label, value, min, onSave }: { label: string; value: number; min: number; onSave: (n: number) => void }) {
+  const unlimited = value === NO_LIMIT;
+  const [text, setText] = useState(unlimited ? '' : String(value));
+  useEffect(() => setText(value === NO_LIMIT ? '' : String(value)), [value]);
+  const commit = () => {
+    const n = Number(text);
+    if (text.trim() !== '' && Number.isInteger(n) && n >= min) {
+      if (n !== value) onSave(n);
+    } else setText(unlimited ? '' : String(value));
+  };
+  return (
+    <div className="admin-bridge-number">
+      <input
+        type="number"
+        inputMode="numeric"
+        aria-label={label}
+        min={min}
+        step={1}
+        disabled={unlimited}
+        placeholder={unlimited ? 'No limit' : undefined}
+        value={text}
+        onChange={(e) => setText(e.target.value)}
+        onBlur={commit}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter') (e.target as HTMLInputElement).blur();
+        }}
+      />
+      <label className="admin-switch">
+        <input
+          className="switch"
+          type="checkbox"
+          aria-label={`${label}: no limit`}
+          checked={unlimited}
+          onChange={(e) => onSave(e.target.checked ? NO_LIMIT : Math.max(min, 1))}
+        />
+        <span>No limit</span>
+      </label>
+    </div>
+  );
+}
+
+function BridgesCard({ data, act }: { data: AdminOverview; act: Act }) {
+  const bridges: AdminBridge[] = data.bridges;
+  const perPerson = data.settings.bridgesPerPerson;
   return (
     <Card title={`Bridges (${bridges.length})`}>
+      <div className="admin-field">
+        <span className="small muted">Bridges per person</span>
+        <BridgeLimit
+          label="Bridges per person"
+          value={perPerson}
+          min={1}
+          onSave={(n) =>
+            act(
+              () => adminApi.saveSettings({ bridgesPerPerson: n }),
+              (d) => ({ ...d, settings: { ...d.settings, bridgesPerPerson: n } }),
+            )
+          }
+        />
+        <span className="muted small">
+          One bridge reaches every printer on its network, so most people need one. A lower number stops new bridges; ones already in use keep working. You
+          can give one person a different number under People (0 = no bridges).
+        </span>
+      </div>
       <p className="muted small admin-note">
         Every bridge someone reached a printer through.
         <InfoTip label="About turning a bridge off">
-          Turning one off closes it for everyone at once, and the bridge app is refused until you turn it on again.
+          Turning one off closes it for everyone at once, and the bridge app is refused until you turn it on again. Remove takes an old bridge off
+          the list and frees its place; if it is still running, it comes back the next time someone opens it. A bridge nobody opened for 30 days
+          stops counting toward anyone&apos;s bridges by itself.
         </InfoTip>
       </p>
       {bridges.length === 0 ? (
@@ -460,14 +524,16 @@ function BridgesCard({ bridges, act }: { bridges: AdminBridge[]; act: Act }) {
           {bridges.map((b) => (
             <li key={b.id} className={b.off ? 'admin-user blocked' : 'admin-user'} data-testid="admin-bridge">
               <div className="admin-user-who">
-                <strong className="admin-bridge-id">{b.id}</strong>
+                <strong>{b.name || 'Not saved by anyone'}</strong>
                 {b.off && <span className="tag danger">Off</span>}
+                {!b.off && b.lastUsed !== null && Date.now() - b.lastUsed > UNUSED_MS && <span className="tag">Not used for 30 days</span>}
                 <div className="muted small admin-email">
-                  {b.people || 'nobody yet'}
+                  {b.people || 'nobody yet'} · <span className="admin-bridge-id">{b.id}</span>
                 </div>
               </div>
               <div className="admin-user-stats small">
                 <span>Used {when(b.lastUsed)}</span>
+                <span>{b.printers ? `Printers: ${b.printers}` : 'No printers'}</span>
               </div>
               <div className="admin-user-actions">
                 <button
@@ -484,6 +550,19 @@ function BridgesCard({ bridges, act }: { bridges: AdminBridge[]; act: Act }) {
                 >
                   {b.off ? 'Turn on' : 'Turn off'}
                 </button>
+                {!b.off && (
+                  <button
+                    className="quiet"
+                    onClick={() =>
+                      act(
+                        () => adminApi.removeBridge(b.id),
+                        (d) => ({ ...d, bridges: d.bridges.filter((x) => x.id !== b.id) }),
+                      )
+                    }
+                  >
+                    Remove
+                  </button>
+                )}
               </div>
             </li>
           ))}

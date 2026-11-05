@@ -46,6 +46,7 @@ const users = {
   kim: { sub: 'g-kim', name: 'Kim', email: 'kim@example.com', email_verified: true },
 };
 let nextUser = 'alice';
+let declineDrive = false;
 const codes = new Map(); // code -> { user, challenge }
 const b64url = (buf) => Buffer.from(buf).toString('base64').replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
 // Unsigned id_token: the site reads the profile from the token Google returned
@@ -63,7 +64,9 @@ const mock = createServer(async (req, res) => {
     assert.equal(q.get('client_id'), 'google-id');
     assert.equal(q.get('code_challenge_method'), 'S256');
     const code = `code-${codes.size + 1}-${Math.random()}`;
-    codes.set(code, { user: users[nextUser], challenge: q.get('code_challenge') });
+    // declineDrive: the person unticks Google Drive on Google's consent screen.
+    const scope = declineDrive ? q.get('scope').split(' ').filter((x) => !x.includes('drive')).join(' ') : q.get('scope');
+    codes.set(code, { user: users[nextUser], challenge: q.get('code_challenge'), scope });
     const back = new URL(q.get('redirect_uri'));
     if (nextUser === 'cancel') back.searchParams.set('error', 'access_denied');
     else back.searchParams.set('code', code);
@@ -84,12 +87,97 @@ const mock = createServer(async (req, res) => {
       access_token: `tok-${Math.random()}`,
       expires_in: 3600,
       token_type: 'Bearer',
-      scope: 'openid email profile',
+      scope: c.scope ?? 'openid email profile',
+      ...(c.scope?.includes('drive.file') && { refresh_token: `refresh-${Math.random()}` }),
       id_token: idToken({ iss: 'https://accounts.google.com', aud: 'google-id', iat: now, exp: now + 3600, ...c.user }),
     });
   }
+  // Google Drive, as the page (account/drive.ts, routed here by the browser tests) and
+  // the server (functions/_lib/drive.ts, in test mode) reach it.
+  const cors = { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Headers': '*', 'Access-Control-Allow-Methods': '*', 'Access-Control-Expose-Headers': 'Location, Range' };
+  if (url.pathname.startsWith('/googleapis/')) for (const [k, v] of Object.entries(cors)) res.setHeader(k, v);
+  if (url.pathname.startsWith('/googleapis/') && req.method === 'OPTIONS') return send(204);
+  const authorized = () => (req.headers.authorization ?? '').startsWith('Bearer tok-');
+  const readBody = async () => {
+    const chunks = [];
+    for await (const chunk of req) chunks.push(chunk);
+    return Buffer.concat(chunks);
+  };
+  if (url.pathname === '/googleapis/drive/v3/files' && req.method === 'GET') {
+    if (!authorized()) return send(401, { error: { message: 'Invalid Credentials' } });
+    const q = url.searchParams.get('q') ?? '';
+    const name = /name = '([^']*)'/.exec(q)?.[1];
+    const parent = /'([^']*)' in parents/.exec(q)?.[1];
+    // A folder by name (and parent), or every file the app made that isn't in the bin.
+    const found = name
+      ? [...driveFiles].filter(([, f]) => f.folder && f.name === name && !f.trashed && (!parent || f.parents?.includes(parent)))
+      : [...driveFiles].filter(([, f]) => !f.folder && !f.trashed);
+    return send(200, { files: found.map(([id]) => ({ id })) });
+  }
+  if (url.pathname === '/googleapis/drive/v3/files' && req.method === 'POST') {
+    if (!authorized()) return send(401, { error: { message: 'Invalid Credentials' } });
+    const meta = JSON.parse((await readBody()).toString());
+    const id = `folder-${driveFiles.size + 1}-${Math.random().toString(36).slice(2)}`;
+    driveFiles.set(id, { name: meta.name, folder: true, parents: meta.parents, bytes: Buffer.alloc(0) });
+    return send(200, { id });
+  }
+  if (url.pathname === '/googleapis/upload/drive/v3/files' && req.method === 'POST') {
+    if (!authorized()) return send(401, { error: { message: 'Invalid Credentials' } });
+    const meta = JSON.parse((await readBody()).toString());
+    const session = `s${Math.random().toString(36).slice(2)}`;
+    driveUploads.set(session, meta);
+    return send(200, {}, { Location: `${MOCK}/googleapis/upload/session/${session}` });
+  }
+  // An upload in pieces (Content-Range); 308 + Range says how much has arrived.
+  const upload = /^\/googleapis\/upload\/session\/(\w+)$/.exec(url.pathname);
+  if (upload && req.method === 'PUT') {
+    const meta = driveUploads.get(upload[1]);
+    if (!meta) return send(404, { error: { message: 'No upload' } });
+    meta.bytes ??= Buffer.alloc(0);
+    const piece = await readBody();
+    const range = /bytes (?:(\d+)-(\d+)|\*)\/(\d+)/.exec(req.headers['content-range'] ?? '');
+    const total = range ? Number(range[3]) : piece.length;
+    if (range?.[1] !== undefined) {
+      // dropUploads: the connection drops after this piece arrived (the page asks how much Google has, then goes on).
+      if (Number(range[1]) === meta.bytes.length) meta.bytes = Buffer.concat([meta.bytes, piece]);
+      if (dropUploads > 0 && meta.bytes.length < total) {
+        dropUploads--;
+        return req.socket.destroy();
+      }
+    } else if (!range) meta.bytes = piece;
+    if (meta.bytes.length < total) return send(308, undefined, meta.bytes.length ? { Range: `bytes=0-${meta.bytes.length - 1}` } : {});
+    driveUploads.delete(upload[1]);
+    const id = `drive-${Math.random().toString(36).slice(2)}`;
+    driveFiles.set(id, { name: meta.name, parents: meta.parents, bytes: meta.bytes });
+    uploadedPieces.push(upload[1]);
+    return send(200, { id });
+  }
+  // One file the app made, by id.
+  const drivePath = /^\/googleapis\/drive\/v3\/files\/([^/]+)$/.exec(url.pathname);
+  if (drivePath) {
+    if (!authorized()) return send(401, { error: { message: 'Invalid Credentials' } });
+    const f = driveFiles.get(drivePath[1]);
+    if (!f) return send(404, { error: { message: 'File not found' } });
+    if (req.method === 'DELETE') return driveFiles.delete(drivePath[1]), send(204);
+    if (req.method === 'PATCH') {
+      f.name = JSON.parse((await readBody()).toString()).name;
+      return send(200, { id: drivePath[1], name: f.name });
+    }
+    if (url.searchParams.get('alt') === 'media') {
+      const range = /bytes=(\d+)-(\d+)/.exec(req.headers.range ?? '');
+      const bytes = range ? f.bytes.subarray(Number(range[1]), Number(range[2]) + 1) : f.bytes;
+      res.writeHead(range ? 206 : 200, { ...cors, 'Content-Type': 'model/3mf', 'Content-Length': bytes.length });
+      return res.end(bytes);
+    }
+    return send(200, { size: String(f.bytes.length), md5Checksum: createHash('md5').update(f.bytes).digest('hex'), trashed: Boolean(f.trashed) });
+  }
   send(404, {});
 });
+/** The mock Google Drive: id -> { name, bytes }. The page uploads to Google itself; tests put files here. */
+const driveFiles = new Map();
+const driveUploads = new Map(); // resumable upload session -> the file's name, folder and the bytes so far
+const uploadedPieces = []; // finished upload sessions, in order
+let dropUploads = 0; // drop the connection after this many pieces (a phone losing signal)
 await new Promise((ok) => mock.listen(MOCK_PORT, '127.0.0.1', ok));
 
 // ---- the site under test ----------------------------------------------------
@@ -200,6 +288,49 @@ async function startSignIn(browser, { returnTo = '/?tab=prepare', popup = false 
 async function signIn(browser, user, opts) {
   nextUser = user;
   return browser.navigate(await startSignIn(browser, opts));
+}
+
+/** Chromium whose pages reach the mock Google Drive in place of www.googleapis.com. */
+async function launchBrowser() {
+  const browser = await chromium.launch(
+    process.env.PLAYWRIGHT_BROWSERS_PATH === '/opt/pw-browsers' ? { executablePath: '/opt/pw-browsers/chromium' } : {},
+  );
+  const newContext = browser.newContext.bind(browser);
+  browser.newContext = async (opts) => {
+    const context = await newContext(opts);
+    await context.route('https://www.googleapis.com/**', async (route) =>
+      // A dropped connection at the mock is dropped for the page too.
+      route.fetch({ url: route.request().url().replace('https://www.googleapis.com/', `${MOCK}/googleapis/`), maxRedirects: 0 }).then(
+        (response) => route.fulfill({ response }),
+        () => route.abort('connectionreset'),
+      ),
+    );
+    return context;
+  };
+  browser.newPage = async (opts) => (await browser.newContext(opts)).newPage();
+  return browser;
+}
+
+// ---- projects, as the page saves them ------------------------------------------
+/** A tiny zip-looking file stands in for the 3MF; the server only checks the signature. */
+const zipOf = (text) => Buffer.concat([Buffer.from('PK\x03\x04'), Buffer.from(text)]);
+let driveIds = 0;
+/** Puts a file in the (mock) Google Drive as the page uploads it; returns its id. */
+function inDrive(body, name = 'x.3mf') {
+  const id = `drive-test-${++driveIds}`;
+  driveFiles.set(id, { name, bytes: Buffer.isBuffer(body) ? body : zipOf(body) });
+  return id;
+}
+/** A save: the 3MF goes into their Drive, then the project points at it (body: text or bytes). */
+function putProject(b, id, params, body) {
+  return b.fetch(`${HOST}/api/projects/${id}?${new URLSearchParams({ ...params, drive: inDrive(body) })}`, { method: 'PUT', headers: { Origin: HOST } });
+}
+/** What a project's file holds, read from Drive as the page opens it (null: no such project or file). */
+async function projectText(b, id) {
+  const res = await b.json(`/api/projects/${id}`);
+  if (res.status !== 200) return null;
+  const f = driveFiles.get((await res.json()).project.driveFile);
+  return f ? f.bytes.toString() : null;
 }
 
 const tests = [];
@@ -372,81 +503,174 @@ test('devices: connection details sync, API key encrypted and only on request', 
 });
 
 test('projects: save a 3MF online, thumbnail, conflicts, rename, list, delete', async () => {
-  // A tiny zip-looking file stands in for the 3MF; the server only checks the signature.
-  const file = (text) => new Blob([Buffer.concat([Buffer.from('PK\x03\x04'), Buffer.from(text)])]);
-  const save = (b, id, name, body, baseVersion) =>
-    b.fetch(`${HOST}/api/projects/${id}?${new URLSearchParams({ name, ...(baseVersion !== undefined ? { baseVersion: String(baseVersion) } : {}) })}`, {
-      method: 'PUT',
-      headers: { Origin: HOST, 'Content-Type': 'model/3mf' },
-      body,
-    });
+  const save = (b, id, name, body, baseVersion) => putProject(b, id, { name, ...(baseVersion !== undefined ? { baseVersion: String(baseVersion) } : {}) }, body);
   assert.equal((await new Browser().json('/api/projects')).status, 401, 'signed out');
   assert.equal(
-    (await alice.fetch(`${HOST}/api/projects/p1?name=x`, { method: 'PUT', headers: { 'Content-Type': 'model/3mf' }, body: file('a') })).status,
+    (await alice.fetch(`${HOST}/api/projects/p1?name=x&drive=${inDrive('a')}`, { method: 'PUT' })).status,
     403,
     'writes need the page origin',
   );
-  assert.equal((await save(alice, 'p1', 'Benchy', new Blob(['not a zip']), 0)).status, 400, 'only 3MF (zip) files');
+  assert.equal((await save(alice, 'p1', 'Benchy', Buffer.from('not a zip'), 0)).status, 400, 'only 3MF (zip) files');
+  assert.equal((await alice.fetch(`${HOST}/api/projects/p1?name=x`, { method: 'PUT', headers: { Origin: HOST } })).status, 400, 'a save names its file in Drive');
 
-  const created = await save(alice, 'p1', 'Benchy', file('version one'), 0);
+  const created = await save(alice, 'p1', 'Benchy', 'version one', 0);
   assert.equal(created.status, 200, await created.clone().text());
   const p1 = (await created.json()).project;
   assert.deepEqual([p1.name, p1.version, p1.hasThumbnail], ['Benchy', 1, false]);
-  const got = await alice.fetch(`${HOST}/api/projects/p1/file`);
-  assert.equal(got.headers.get('X-Project-Version'), '1');
-  assert.match(Buffer.from(await got.arrayBuffer()).toString(), /version one$/);
+  assert.match(await projectText(alice, 'p1'), /version one$/);
 
   // Both devices opened version 1; the phone saves first.
   const phone = new Browser();
   await signIn(phone, 'alice');
-  assert.equal((await save(phone, 'p1', 'Benchy', file('from the phone'), 1)).status, 200);
-  const stale = await save(alice, 'p1', 'Benchy', file('from the laptop'), 1);
+  assert.equal((await save(phone, 'p1', 'Benchy', 'from the phone', 1)).status, 200);
+  const stale = await save(alice, 'p1', 'Benchy', 'from the laptop', 1);
   assert.equal(stale.status, 409, 'a save based on an old version is refused');
   assert.equal((await stale.json()).current.version, 2);
-  assert.match(Buffer.from(await (await alice.fetch(`${HOST}/api/projects/p1/file`)).arrayBuffer()).toString(), /from the phone$/, 'the newer save is kept');
-  assert.equal((await save(alice, 'p1', 'Benchy', file('overwrite'), undefined)).status, 200, 'overwrite without baseVersion');
-  assert.equal((await save(alice, 'p1', 'Benchy', file('x'), 0)).status, 409, 'baseVersion 0 never replaces a project');
+  assert.match(await projectText(alice, 'p1'), /from the phone$/, 'the newer save is kept');
+  assert.equal((await save(alice, 'p1', 'Benchy', 'overwrite', undefined)).status, 200, 'overwrite without baseVersion');
+  assert.equal((await save(alice, 'p1', 'Benchy', 'x', 0)).status, 409, 'baseVersion 0 never replaces a project');
 
-  // Thumbnail: PNG only, replaced on the next upload.
+  // The list picture lives in the row: WebP or PNG, small, replaced on the next upload.
   const png = Buffer.from('89504e470d0a1a0a0000000d49484452', 'hex');
+  const webp = Buffer.concat([Buffer.from('RIFF'), Buffer.from([20, 0, 0, 0]), Buffer.from('WEBPVP8 ')]);
   const thumb = (body) => alice.fetch(`${HOST}/api/projects/p1/thumbnail`, { method: 'PUT', headers: { Origin: HOST, 'Content-Type': 'image/png' }, body });
   assert.equal((await thumb(Buffer.from('GIF89a'))).status, 400);
+  assert.equal((await thumb(Buffer.concat([png, Buffer.alloc(70 * 1024)]))).status, 413, 'pictures are small');
   assert.equal((await thumb(png)).status, 200);
-  const shown = await alice.fetch(`${HOST}/api/projects/p1/thumbnail`);
+  let shown = await alice.fetch(`${HOST}/api/projects/p1/thumbnail`);
   assert.equal(shown.headers.get('content-type'), 'image/png');
   assert.deepEqual(Buffer.from(await shown.arrayBuffer()), png);
+  assert.equal((await thumb(webp)).status, 200);
+  shown = await alice.fetch(`${HOST}/api/projects/p1/thumbnail`);
+  assert.equal(shown.headers.get('content-type'), 'image/webp');
+  assert.deepEqual(Buffer.from(await shown.arrayBuffer()), webp);
 
-  await save(alice, 'p2', 'Cube', file('cube'), 0);
+  await save(alice, 'p2', 'Cube', 'cube', 0);
   const renamed = await alice.json('/api/projects/p1', 'PATCH', { name: 'Benchy v2' });
   assert.equal((await renamed.json()).project.name, 'Benchy v2');
   const list = await (await alice.json('/api/projects')).json();
   assert.equal(list.enabled, true);
   assert.deepEqual(list.projects.map((p) => [p.name, p.hasThumbnail]), [['Benchy v2', true], ['Cube', false]], 'newest first');
-  assert.equal(list.usage.count, 2);
-  assert.ok(list.usage.bytes > 0 && list.limits.userBytes > list.usage.bytes);
+  assert.equal(list.count, 2);
+  assert.equal(list.limits, undefined, 'the 200 guard is not shown');
+  assert.ok(list.projects.every((p) => driveFiles.has(p.driveFile)), 'each points at its file in Drive');
 
   const bob = new Browser();
   await signIn(bob, 'bob');
   assert.equal((await (await bob.json('/api/projects')).json()).projects.length, 0, "users don't see each other's projects");
-  assert.equal((await bob.fetch(`${HOST}/api/projects/p1/file`)).status, 404);
+  assert.equal((await bob.json('/api/projects/p1')).status, 404);
+  assert.equal((await bob.fetch(`${HOST}/api/projects/p1/thumbnail`)).status, 404);
 
+  const p2File = list.projects.find((p) => p.id === 'p2').driveFile;
   assert.equal((await alice.json('/api/projects/p2', 'DELETE')).status, 200);
   assert.deepEqual((await (await alice.json('/api/projects')).json()).projects.map((p) => p.id), ['p1']);
-  assert.equal((await alice.fetch(`${HOST}/api/projects/p2/file`)).status, 404);
+  assert.ok(!driveFiles.has(p2File), 'its file in Drive goes too');
   assert.equal((await alice.json('/api/projects/bad%20id', 'DELETE')).status, 400);
 });
 
-test('projects: a draft per device, the device editing a project, taking it over (AutoSave)', async () => {
-  const file = (text) => new Blob([Buffer.concat([Buffer.from('PK\x03\x04'), Buffer.from(text)])]);
-  const save = (b, id, name, body, baseVersion, extra = {}) =>
-    b.fetch(`${HOST}/api/projects/${id}?${new URLSearchParams({ name, ...(baseVersion !== undefined ? { baseVersion: String(baseVersion) } : {}), ...extra })}`, {
+test('sign-in asks for Google Drive (files the app makes), with a refresh key', async () => {
+  const b = new Browser();
+  const google = new URL(await startSignIn(b));
+  assert.match(google.searchParams.get('scope'), /https:\/\/www\.googleapis\.com\/auth\/drive\.file/);
+  assert.equal(google.searchParams.get('access_type'), 'offline');
+  nextUser = 'hank';
+  await b.navigate(google.toString());
+  assert.equal((await b.me()).drive, true);
+});
+
+test('projects in Google Drive: connect, save, open, rename, conflict, delete', async () => {
+  const file = (text) => Buffer.concat([Buffer.from('PK\x03\x04'), Buffer.from(text)]);
+  const putInDrive = (id, text) => driveFiles.set(id, { name: 'x.3mf', bytes: file(text) });
+  const save = (b, id, name, driveId, baseVersion) =>
+    b.fetch(`${HOST}/api/projects/${id}?${new URLSearchParams({ name, drive: driveId, ...(baseVersion !== undefined ? { baseVersion: String(baseVersion) } : {}) })}`, {
       method: 'PUT',
-      headers: { Origin: HOST, 'Content-Type': 'model/3mf' },
-      body,
+      headers: { Origin: HOST },
     });
+  // Sign-in asks for Drive; Gina unticks it on Google's screen.
+  const gina = new Browser();
+  declineDrive = true;
+  await signIn(gina, 'gina');
+  declineDrive = false;
+  assert.equal((await gina.me()).drive, false);
+  let list = await (await gina.json('/api/projects')).json();
+  assert.deepEqual(list.drive, { connected: false });
+  const refused = await gina.json('/api/drive/token', 'POST');
+  assert.equal(refused.status, 403);
+  assert.equal((await refused.json()).code, 'drive-connect', 'not connected yet');
+  putInDrive('drive-file-1', 'one');
+  assert.equal((await save(gina, 'd1', 'Drive Benchy', 'drive-file-1', 0)).status, 403, 'a Drive save needs Drive connected');
+
+  // Connect Google Drive: the same Google account, asked for drive.file, through AUTH_ORIGIN like a sign-in.
+  const done = `${HOST}/api/signin-done?popup=1&return=%2F`;
+  const link = await gina.json('/api/auth/link-social', 'POST', {
+    provider: 'google',
+    scopes: ['https://www.googleapis.com/auth/drive.file'],
+    additionalParams: { access_type: 'offline', prompt: 'consent' },
+    callbackURL: done,
+    errorCallbackURL: done,
+    disableRedirect: true,
+  });
+  assert.equal(link.status, 200, await link.clone().text());
+  const google = new URL(toMock((await link.json()).url));
+  assert.match(google.searchParams.get('scope'), /drive\.file/);
+  assert.equal(google.searchParams.get('access_type'), 'offline');
+  nextUser = 'gina';
+  const back = await gina.navigate(google.toString());
+  assert.equal(back.url, done, 'ends where a popup sign-in ends');
+  list = await (await gina.json('/api/projects')).json();
+  assert.deepEqual(list.drive, { connected: true });
+  assert.equal((await gina.me()).drive, true);
+  const token = await (await gina.json('/api/drive/token', 'POST')).json();
+  assert.match(token.accessToken, /^tok-/);
+  assert.ok(token.expiresAt > Date.now());
+
+  // Save: the page uploaded to Drive; the project points at that file.
+  assert.equal((await save(gina, 'd1', 'Drive Benchy', 'not-in-drive', 0)).status, 400, 'only a file that is in their Drive');
+  driveFiles.set('drive-notzip', { name: 'x', bytes: Buffer.from('not a zip') });
+  assert.equal((await save(gina, 'd1', 'Drive Benchy', 'drive-notzip', 0)).status, 400, 'only 3MF files');
+  const created = await save(gina, 'd1', 'Drive Benchy', 'drive-file-1', 0);
+  assert.equal(created.status, 200, await created.clone().text());
+  const p = (await created.json()).project;
+  assert.deepEqual([p.driveFile, p.version, p.size], ['drive-file-1', 1, file('one').length]);
+  assert.match(await projectText(gina, 'd1'), /one$/, 'the page opens it from Drive');
+
+  // The next save replaces the Drive file; a save that loses a race leaves nothing behind in Drive.
+  putInDrive('drive-file-2', 'two');
+  assert.equal((await save(gina, 'd1', 'Drive Benchy', 'drive-file-2', 1)).status, 200);
+  assert.ok(!driveFiles.has('drive-file-1'), 'the old file goes');
+  putInDrive('drive-file-3', 'stale');
+  assert.equal((await save(gina, 'd1', 'Drive Benchy', 'drive-file-3', 1)).status, 409);
+  assert.ok(!driveFiles.has('drive-file-3'), "the refused save's file goes");
+  assert.ok(driveFiles.has('drive-file-2'), 'the newer file stays');
+
+  // Changed in Drive since (another app saved over it): the next save asks first.
+  driveFiles.get('drive-file-2').bytes = file('edited on the PC');
+  putInDrive('drive-file-4', 'from the web');
+  const changed = await save(gina, 'd1', 'Drive Benchy', 'drive-file-4', 2);
+  assert.equal(changed.status, 409);
+  assert.equal((await changed.json()).code, 'changed-in-drive');
+  assert.ok(!driveFiles.has('drive-file-4') && driveFiles.has('drive-file-2'), 'nothing replaced, nothing left behind');
+  putInDrive('drive-file-4', 'from the web');
+  assert.equal((await save(gina, 'd1', 'Drive Benchy', 'drive-file-4', undefined)).status, 200, 'Overwrite goes over it');
+  // A file deleted in Drive (in the bin) is no conflict: the save just makes it again.
+  driveFiles.get('drive-file-4').trashed = true;
+  putInDrive('drive-file-2', 'two again');
+  assert.equal((await save(gina, 'd1', 'Drive Benchy', 'drive-file-2', 3)).status, 200);
+
+  // Rename renames the file in Drive too; Delete removes it.
+  assert.equal((await gina.json('/api/projects/d1', 'PATCH', { name: 'Renamed' })).status, 200);
+  assert.equal(driveFiles.get('drive-file-2').name, 'Renamed.3mf');
+  assert.equal((await gina.json('/api/projects/d1', 'DELETE')).status, 200);
+  assert.ok(!driveFiles.has('drive-file-2'));
+});
+
+test('projects: a draft per device, the device editing a project, taking it over (AutoSave)', async () => {
+  const file = (text) => text;
+  const save = (b, id, name, body, baseVersion, extra = {}) =>
+    putProject(b, id, { name, ...(baseVersion !== undefined ? { baseVersion: String(baseVersion) } : {}), ...extra }, body);
   const laptop = { device: 'laptop-device-1', deviceName: 'Windows computer' };
   const phoneDevice = { device: 'phone-device-1', deviceName: 'phone' };
-  const before = (await (await alice.json('/api/projects')).json()).usage.count;
+  const before = (await (await alice.json('/api/projects')).json()).count;
 
   // A draft: listed with draft: true, not counted as a project; a second draft replaces the first.
   const d1 = await save(alice, 'd1', 'Benchy', file('draft one'), 0, { draft: '1', ...laptop });
@@ -456,12 +680,13 @@ test('projects: a draft per device, the device editing a project, taking it over
     { draft: true, device: laptop.device, deviceName: 'Windows computer' },
   );
   let list = await (await alice.json('/api/projects')).json();
-  assert.equal(list.usage.count, before, "the draft isn't counted as a project");
+  assert.equal(list.count, before, "the draft isn't counted as a project");
   assert.ok(list.projects.find((p) => p.id === 'd1')?.draft);
   assert.equal((await save(alice, 'd2', 'Cube', file('draft two'), 0, { draft: '1', ...laptop })).status, 200);
+  const d1File = list.projects.find((p) => p.id === 'd1').driveFile;
   list = await (await alice.json('/api/projects')).json();
   assert.deepEqual(list.projects.filter((p) => p.draft).map((p) => p.id), ['d2'], 'one draft per device');
-  assert.equal((await alice.fetch(`${HOST}/api/projects/d1/file`)).status, 404, "the old draft's file is gone");
+  assert.ok(!driveFiles.has(d1File), "the old draft's file is gone from Drive");
   // Each device keeps its own draft: the phone's doesn't replace the laptop's
   // (discarding one on a device never takes another device's work with it).
   assert.equal((await save(alice, 'dp', 'Clip', file('phone draft'), 0, { draft: '1', ...phoneDevice })).status, 200);
@@ -480,7 +705,7 @@ test('projects: a draft per device, the device editing a project, taking it over
   const named = await save(alice, 'd2', 'My cube', file('named'), 1, laptop);
   assert.equal(named.status, 200, await named.clone().text());
   assert.equal((await named.json()).project.draft, false);
-  assert.equal((await (await alice.json('/api/projects')).json()).usage.count, before + 1);
+  assert.equal((await (await alice.json('/api/projects')).json()).count, before + 1);
   assert.equal((await save(alice, 'd2', 'My cube', file('again a draft'), 2, { draft: '1', ...laptop })).status, 400, 'a saved project never becomes a draft');
 
   // The phone takes it over: the laptop's next save is refused with "elsewhere", the phone's goes through.
@@ -511,9 +736,7 @@ test('print history: sends and marks per plate, the printer\'s word, plates dele
   await signIn(ivy, 'ivy');
   const other = new Browser();
   await signIn(other, 'june');
-  const file = new Blob([Buffer.from('PK\x03\x04 plates')]);
-  const save = (id, plates) =>
-    ivy.fetch(`${HOST}/api/projects/${id}?${new URLSearchParams({ name: id, plates: String(plates) })}`, { method: 'PUT', headers: { Origin: HOST, 'Content-Type': 'model/3mf' }, body: file });
+  const save = (id, plates) => putProject(ivy, id, { name: id, plates: String(plates) }, ' plates');
   assert.equal((await save('ten', 10)).status, 200);
   const add = (id, body, who = ivy) => who.json(`/api/projects/${id}/prints`, 'POST', body);
   const list = async (id, who = ivy) => (await (await who.json(`/api/projects/${id}/prints`)).json()).prints;
@@ -610,8 +833,7 @@ test("print history from the bridge: the file's tag or its name says which plate
   // The bridge and its printer as the Device tab saves them (state/device.ts bridgeInput, printerInput).
   assert.equal((await kim.json('/api/devices/br-1', 'PUT', { name: 'Bridge', url: '', apiKey: browserKey, extra: { kind: 'bridge-agent', relay, bridgeId: 'bridge-k001' } })).status, 200);
   assert.equal((await kim.json('/api/devices/u1-k', 'PUT', { name: 'U1 in the garage', url: '', extra: { kind: 'bridge', relay, bridgeId: 'bridge-k001', printer: 'p1' } })).status, 200);
-  const file = new Blob([Buffer.from('PK\x03\x04 plates')]);
-  const saved = await kim.fetch(`${HOST}/api/projects/kp?${new URLSearchParams({ name: 'kp', plates: '3' })}`, { method: 'PUT', headers: { Origin: HOST, 'Content-Type': 'model/3mf' }, body: file });
+  const saved = await putProject(kim, 'kp', { name: 'kp', plates: '3' }, ' plates');
   assert.equal(saved.status, 200);
   const list = async () => (await (await kim.json('/api/projects/kp/prints')).json()).prints;
   // What the relay sends (apps/device-relay/src/prints.ts).
@@ -698,15 +920,16 @@ test('admin: only the owner (OWNER_EMAILS) gets the Admin page', async () => {
   const res = await alice.json('/api/admin');
   assert.equal(res.status, 200, await res.clone().text());
   const data = await res.json();
-  assert.deepEqual(data.settings, { inviteOnly: false, storageMb: 200 });
+  assert.deepEqual(data.settings, { inviteOnly: false, bridgesPerPerson: 1 });
   const emails = data.users.map((u) => u.email);
   assert.ok(emails.includes('alice@example.com') && emails.includes('bob@example.com'), emails.join());
   const a = data.users.find((u) => u.email === 'alice@example.com');
   assert.equal(a.owner, true);
-  assert.ok(a.projects >= 1 && a.bytes > 0 && a.presets >= 1, JSON.stringify(a));
+  assert.ok(a.projects >= 1 && a.presets >= 1 && a.projectsAllowed === true, JSON.stringify(a));
   assert.ok(a.createdAt > Date.now() - 3600_000 && a.lastSeen > Date.now() - 3600_000, `dates: ${a.createdAt} ${a.lastSeen}`);
   assert.equal(data.usage.analytics, 'not-set-up');
   assert.ok(data.usage.meters.find((m) => m.key === 'projects').used > 0);
+  assert.ok(data.usage.meters.find((m) => m.key === 'database').used > 0, 'the database size is shown');
 });
 
 /** The sign-in popup's closing page: the message the app shows, or null when signed in. */
@@ -764,43 +987,33 @@ test('block: signed out everywhere and refused; unblock lets them back', async (
   assert.equal(await popupResult(bob, 'bob'), null);
 });
 
-test('storage per user: presets only refuses online projects, presets still save', async () => {
+test('online projects off for one person: saves are refused, presets still save', async () => {
   const bob = new Browser();
   await signIn(bob, 'bob');
   const bobId = (await bob.me()).id;
-  assert.equal((await alice.json(`/api/admin/users/${bobId}/storage`, 'PUT', { storageMb: 0 })).status, 200);
-  const list = await (await bob.json('/api/projects')).json();
-  assert.equal(list.limits.userBytes, 0);
-  const zip = new Uint8Array([0x50, 0x4b, 3, 4, 0, 0]);
-  const put = await bob.fetch(`${HOST}/api/projects/p1?name=x&baseVersion=0`, { method: 'PUT', headers: { Origin: HOST, 'Content-Type': 'model/3mf' }, body: zip });
+  assert.equal((await bob.me()).projects, true, 'on unless turned off');
+  assert.equal((await alice.json(`/api/admin/users/${bobId}/projects`, 'PUT', { allowed: false })).status, 200);
+  assert.equal((await bob.me()).projects, false);
+  assert.equal((await (await bob.json('/api/projects')).json()).enabled, false);
+  const fileId = inDrive('bob');
+  const put = await bob.fetch(`${HOST}/api/projects/p1?name=x&baseVersion=0&drive=${fileId}`, { method: 'PUT', headers: { Origin: HOST } });
   assert.equal(put.status, 403);
   assert.equal((await put.json()).code, 'presets-only');
+  assert.ok(!driveFiles.has(fileId), "the refused save's file doesn't stay in their Drive");
   assert.equal((await bob.json('/api/presets/process/Mine', 'PUT', { inherits: 'x', config: {} })).status, 200);
-  // A site default, then back to it.
-  assert.equal((await alice.json('/api/admin/settings', 'PUT', { storageMb: 50 })).status, 200);
-  assert.equal((await alice.json(`/api/admin/users/${bobId}/storage`, 'PUT', { storageMb: null })).status, 200);
-  const fifty = (await (await bob.json('/api/projects')).json()).limits;
-  assert.equal(fifty.userBytes, 50 * 1024 * 1024);
-  assert.equal(fifty.projectBytes, 50 * 1024 * 1024, 'a project can be as big as the storage');
-  // More storage for one person: one project may then be bigger than 50 MB, up to what an upload carries.
-  assert.equal((await alice.json(`/api/admin/users/${bobId}/storage`, 'PUT', { storageMb: 200 })).status, 200);
-  const more = (await (await bob.json('/api/projects')).json()).limits;
-  assert.equal(more.userBytes, 200 * 1024 * 1024);
-  assert.equal(more.projectBytes, 95 * 1024 * 1024);
-  const big = new Uint8Array(60 * 1024 * 1024);
+  const row = (await (await alice.json('/api/admin')).json()).users.find((u) => u.id === bobId);
+  assert.equal(row.projectsAllowed, false);
+  // Back on: a big project is fine, since it's their Drive's space, not ours.
+  assert.equal((await alice.json(`/api/admin/users/${bobId}/projects`, 'PUT', { allowed: true })).status, 200);
+  const big = Buffer.alloc(120 * 1024 * 1024);
   big.set([0x50, 0x4b, 3, 4]);
-  const bigPut = await bob.fetch(`${HOST}/api/projects/big?name=big&baseVersion=0`, { method: 'PUT', headers: { Origin: HOST, 'Content-Type': 'model/3mf' }, body: big });
+  const bigPut = await putProject(bob, 'big', { name: 'big', baseVersion: '0' }, big);
   assert.equal(bigPut.status, 200, await bigPut.clone().text());
   assert.equal((await bigPut.json()).project.size, big.byteLength);
-  const notZip = await bob.fetch(`${HOST}/api/projects/nz?name=nz&baseVersion=0`, { method: 'PUT', headers: { Origin: HOST, 'Content-Type': 'model/3mf' }, body: new Uint8Array(10) });
-  assert.equal(notZip.status, 400);
   assert.equal((await bob.json('/api/projects/big', 'DELETE')).status, 200);
-  assert.equal((await alice.json(`/api/admin/users/${bobId}/storage`, 'PUT', { storageMb: null })).status, 200);
-  assert.equal((await alice.json(`/api/admin/users/${bobId}/storage`, 'PUT', { storageMb: 99999 })).status, 400);
-  await alice.json('/api/admin/settings', 'PUT', { storageMb: 200 });
 });
 
-test('relay tickets: signed-in accounts only, for one bridge, with a bridge cap', async () => {
+test('relay tickets: signed-in accounts only, for one bridge, with a bridge cap the owner sets', async () => {
   const relay = 'https://relay.example';
   assert.equal((await new Browser().json('/api/relay/ticket', 'POST', { relay, bridgeId: 'bridge-0001' })).status, 401);
   const carol = new Browser();
@@ -813,6 +1026,21 @@ test('relay tickets: signed-in accounts only, for one bridge, with a bridge cap'
   assert.equal(payload.b, 'bridge-0001');
   assert.equal(payload.cams, 2);
   assert.ok(expiresAt > Date.now() + 3000_000);
+  // One bridge per person unless the owner says otherwise (one bridge reaches every printer on its network).
+  assert.equal((await (await alice.json('/api/admin')).json()).settings.bridgesPerPerson, 1);
+  assert.equal((await carol.json('/api/relay/ticket', 'POST', { relay, bridgeId: 'bridge-0001' })).status, 200, 'the same bridge again is fine');
+  const second = await carol.json('/api/relay/ticket', 'POST', { relay, bridgeId: 'bridge-0002' });
+  assert.equal(second.status, 403);
+  const refused = await second.json();
+  assert.equal(refused.code, 'bridge-limit');
+  assert.match(refused.error, /one bridge/);
+  // The owner raises it for everyone.
+  for (const bad of [0, 1.5, -2, '3']) assert.equal((await alice.json('/api/admin/settings', 'PUT', { bridgesPerPerson: bad })).status, 400, `not a bridge number: ${bad}`);
+  assert.equal((await alice.json('/api/admin/settings', 'PUT', { bridgesPerPerson: -1 })).status, 200, 'no limit');
+  assert.equal((await (await alice.json('/api/admin')).json()).settings.bridgesPerPerson, -1);
+  assert.equal((await carol.json('/api/admin/settings', 'PUT', { bridgesPerPerson: 5 })).status, 403);
+  assert.equal((await alice.json('/api/admin/settings', 'PUT', { bridgesPerPerson: 3 })).status, 200, 'any whole number');
+  assert.equal((await (await alice.json('/api/admin')).json()).settings.inviteOnly, false, 'the other settings are kept');
   for (const id of ['bridge-0002', 'bridge-0003', 'bridge-0001']) assert.equal((await carol.json('/api/relay/ticket', 'POST', { relay, bridgeId: id })).status, 200);
   const fourth = await carol.json('/api/relay/ticket', 'POST', { relay, bridgeId: 'bridge-0004' });
   assert.equal(fourth.status, 403);
@@ -820,8 +1048,27 @@ test('relay tickets: signed-in accounts only, for one bridge, with a bridge cap'
   assert.equal((await carol.json('/api/relay/bridges/bridge-0002', 'DELETE')).status, 200);
   assert.equal((await carol.json('/api/relay/ticket', 'POST', { relay, bridgeId: 'bridge-0004' })).status, 200, 'a removed bridge frees a place');
   assert.equal((await carol.json('/api/relay/ticket', 'POST', { relay: 'http://evil.example', bridgeId: 'bridge-0005' })).status, 400);
-  const row = (await (await alice.json('/api/admin')).json()).users.find((u) => u.email === 'carol@example.com');
-  assert.equal(row.bridges, 3);
+  // Back to one for everyone: bridges already in use keep working, new ones are refused.
+  assert.equal((await alice.json('/api/admin/settings', 'PUT', { bridgesPerPerson: 1 })).status, 200);
+  assert.equal((await carol.json('/api/relay/ticket', 'POST', { relay, bridgeId: 'bridge-0004' })).status, 200, 'kept');
+  assert.equal((await carol.json('/api/relay/ticket', 'POST', { relay, bridgeId: 'bridge-0005' })).status, 403);
+  // One person can have their own number.
+  const carolId = (await carol.me()).id;
+  assert.equal((await alice.json(`/api/admin/users/${carolId}/bridges`, 'PUT', { bridges: -2 })).status, 400);
+  // No limit for this person: any number of bridges.
+  assert.equal((await alice.json(`/api/admin/users/${carolId}/bridges`, 'PUT', { bridges: -1 })).status, 200);
+  for (const id of ['bridge-0006', 'bridge-0007']) assert.equal((await carol.json('/api/relay/ticket', 'POST', { relay, bridgeId: id })).status, 200, 'no limit');
+  for (const id of ['bridge-0006', 'bridge-0007']) assert.equal((await carol.json(`/api/relay/bridges/${id}`, 'DELETE')).status, 200);
+  assert.equal((await alice.json(`/api/admin/users/${carolId}/bridges`, 'PUT', { bridges: 4 })).status, 200);
+  assert.equal((await carol.json('/api/relay/ticket', 'POST', { relay, bridgeId: 'bridge-0005' })).status, 200, "their own number wins over the site's");
+  assert.equal((await carol.json('/api/relay/ticket', 'POST', { relay, bridgeId: 'bridge-0008' })).status, 403, 'and is a cap too');
+  let row = (await (await alice.json('/api/admin')).json()).users.find((u) => u.email === 'carol@example.com');
+  assert.equal(row.bridges, 4);
+  assert.equal(row.bridgesLimit, 4);
+  assert.equal(row.bridgesAllowed, true);
+  assert.equal((await alice.json(`/api/admin/users/${carolId}/bridges`, 'PUT', { bridges: null })).status, 200);
+  row = (await (await alice.json('/api/admin')).json()).users.find((u) => u.email === 'carol@example.com');
+  assert.equal(row.bridgesLimit, null, "back to the site's number");
 });
 
 test('the relay is for signed-in people only: signed out gets no ticket', async () => {
@@ -845,17 +1092,32 @@ test('bridges: the owner turns one off for everyone, or bridges off for one pers
   assert.equal((await alice.json('/api/admin/bridges/bridge-0003/on', 'POST', {})).status, 200);
   assert.equal((await carol.json('/api/relay/ticket', 'POST', { relay, bridgeId: 'bridge-0003' })).status, 200);
   assert.equal((await alice.json('/api/admin/bridges/no-such-bridge/off', 'POST', {})).status, 404);
-  // One person: no bridges at all, then allowed again; storage settings are kept.
-  await alice.json(`/api/admin/users/${carolId}/storage`, 'PUT', { storageMb: 100 });
-  assert.equal((await alice.json(`/api/admin/users/${carolId}/bridges`, 'PUT', { allowed: false })).status, 200);
+  // Remove: an old bridge comes off the list and frees its place.
+  const used = async () => (await (await alice.json('/api/admin')).json()).users.find((u) => u.id === carolId).bridges;
+  const before = await used();
+  assert.equal((await carol.json('/api/admin/bridges/bridge-0003', 'DELETE')).status, 403, 'owner only');
+  assert.equal((await alice.json('/api/admin/bridges/bridge-0003', 'DELETE')).status, 200);
+  assert.equal(await used(), before - 1);
+  assert.ok(!(await (await alice.json('/api/admin')).json()).bridges.some((b) => b.id === 'bridge-0003'));
+  assert.equal((await alice.json('/api/admin/bridges/bridge-0003', 'DELETE')).status, 404);
+  // One person: no bridges at all, then allowed again; the online projects setting is kept.
+  await alice.json(`/api/admin/users/${carolId}/projects`, 'PUT', { allowed: false });
+  assert.equal((await alice.json(`/api/admin/users/${carolId}/bridges`, 'PUT', { bridges: 0 })).status, 200);
   const none = await carol.json('/api/relay/ticket', 'POST', { relay, bridgeId: 'bridge-0003' });
   assert.equal(none.status, 403);
   assert.equal((await none.json()).code, 'no-bridges');
   const row = (await (await alice.json('/api/admin')).json()).users.find((u) => u.id === carolId);
   assert.equal(row.bridgesAllowed, false);
-  assert.equal(row.storageMb, 100);
-  await alice.json(`/api/admin/users/${carolId}/storage`, 'PUT', { storageMb: null });
-  assert.equal((await alice.json(`/api/admin/users/${carolId}/bridges`, 'PUT', { allowed: true })).status, 200);
+  assert.equal(row.projectsAllowed, false);
+  await alice.json(`/api/admin/users/${carolId}/projects`, 'PUT', { allowed: true });
+  assert.equal((await alice.json(`/api/admin/users/${carolId}/bridges`, 'PUT', { bridges: null })).status, 200);
+  // Carol's other bridges are in use, so the removed one can't come back at one per person...
+  const back = await carol.json('/api/relay/ticket', 'POST', { relay, bridgeId: 'bridge-0003' });
+  assert.equal(back.status, 403);
+  assert.equal((await back.json()).code, 'bridge-limit');
+  // ...until they go unused for 30 days, which frees their places by themselves.
+  const sql = `UPDATE relay_bridges SET last_used_at = ${Date.now() - 31 * 24 * 3600_000} WHERE user_id = '${carolId}'`;
+  assert.equal(spawnSync(wrangler, ['d1', 'execute', 'cloud-slicer', '--local', '--persist-to', state, '--command', sql], { cwd: web, encoding: 'utf8' }).status, 0);
   assert.equal((await carol.json('/api/relay/ticket', 'POST', { relay, bridgeId: 'bridge-0003' })).status, 200);
 });
 
@@ -905,6 +1167,17 @@ test('setup codes: a bridge joins the account that made the code, once, within t
   assert.equal(saved.name, 'Bridge on FRANK-PC');
   assert.equal(saved.extra.kind, 'bridge-agent');
   assert.deepEqual(await (await frank.json(`/api/devices/${saved.id}/secret`)).json(), { apiKey: 'k'.repeat(43) });
+  // The Admin list names it the way the account saved it, with its printers.
+  assert.equal((await frank.json(`/api/devices/u1-f`, 'PUT', { name: 'U1 in the shed', url: '', extra: { kind: 'bridge', relay, bridgeId: 'bridge-f001', printer: 'p1' } })).status, 200);
+  const listed = (await (await alice.json('/api/admin')).json()).bridges.find((b) => b.id === 'bridge-f001');
+  assert.equal(listed.name, 'Bridge on FRANK-PC');
+  assert.equal(listed.printers, 'U1 in the shed');
+
+  // One bridge per person by default: no second code, until the owner gives Frank three.
+  const second = await frank.json('/api/relay/setup', 'POST', { relay });
+  assert.equal(second.status, 403);
+  assert.equal((await second.json()).code, 'bridge-limit');
+  assert.equal((await alice.json(`/api/admin/users/${(await frank.me()).id}/bridges`, 'PUT', { bridges: 3 })).status, 200);
 
   // An hour later the code is no good.
   const late = await (await frank.json('/api/relay/setup', 'POST', { relay })).json();
@@ -913,7 +1186,7 @@ test('setup codes: a bridge joins the account that made the code, once, within t
   assert.equal((await (await frank.json(`/api/relay/setup/${late.code}`)).json()).state, 'expired');
   assert.equal((await claim({ code: late.code, bridgeId: 'bridge-f002' })).status, 410);
 
-  // Three bridges per account: a fourth code isn't given out.
+  // Three bridges for Frank: a fourth code isn't given out.
   for (const id of ['bridge-f002', 'bridge-f003']) {
     const c = (await (await frank.json('/api/relay/setup', 'POST', { relay })).json()).code;
     assert.equal((await claim({ code: c, bridgeId: id })).status, 200);
@@ -937,23 +1210,24 @@ test('setup codes: a bridge joins the account that made the code, once, within t
   assert.equal((await frank.json('/api/relay/setup', 'POST', { relay })).status, 200, 'its place is free again');
 });
 
-test('delete a person: account, presets, printers, projects and files go', async () => {
+test('delete a person: account, presets, printers and the project list go; their Drive files stay', async () => {
   const erin = new Browser();
   users.erin = { sub: 'g-erin', name: 'Erin', email: 'erin@example.com', email_verified: true };
   await signIn(erin, 'erin');
   const erinId = (await erin.me()).id;
   await erin.json('/api/presets/process/Fast', 'PUT', { inherits: 'x', config: {} });
   await erin.json('/api/devices/e1', 'PUT', { name: 'E1', url: 'http://10.0.0.5', apiKey: 'k' });
-  const zip = new Uint8Array([0x50, 0x4b, 3, 4, 1, 2, 3]);
-  const put = await erin.fetch(`${HOST}/api/projects/ep?name=x&baseVersion=0`, { method: 'PUT', headers: { Origin: HOST, 'Content-Type': 'model/3mf' }, body: zip });
+  const put = await putProject(erin, 'ep', { name: 'x', baseVersion: '0' }, 'erin');
   assert.equal(put.status, 200, await put.clone().text());
+  const erinFile = (await put.json()).project.driveFile;
   const before = (await (await alice.json('/api/admin')).json()).usage.meters.find((m) => m.key === 'projects').used;
   assert.equal((await alice.json(`/api/admin/users/${(await alice.me()).id}/delete`, 'POST', {})).status, 400, "the owner can't delete themself here");
   assert.equal((await alice.json(`/api/admin/users/${erinId}/delete`, 'POST', {})).status, 200);
   assert.equal(await erin.me(), null);
   const after = await (await alice.json('/api/admin')).json();
   assert.ok(!after.users.some((u) => u.id === erinId));
-  assert.equal(after.usage.meters.find((m) => m.key === 'projects').used, before - zip.length);
+  assert.equal(after.usage.meters.find((m) => m.key === 'projects').used, before - 1);
+  assert.ok(driveFiles.has(erinFile), 'the file is theirs: it stays in their Drive');
   // Signing up again starts empty.
   await signIn(erin, 'erin');
   assert.notEqual((await erin.me()).id, erinId);
@@ -999,9 +1273,7 @@ if (withApp)
     await signIn(dave, 'dave');
     await owner.json(`/api/admin/users/${(await dave.me()).id}/block`, 'POST', {});
     await owner.json('/api/admin/invites', 'POST', { email: 'frank@example.com' });
-    const browser = await chromium.launch(
-      process.env.PLAYWRIGHT_BROWSERS_PATH === '/opt/pw-browsers' ? { executablePath: '/opt/pw-browsers/chromium' } : {},
-    );
+    const browser = await launchBrowser();
     try {
       const context = await browser.newContext({ viewport: { width: 1280, height: 860 } });
       await context.addCookies([...owner.jar.get(new URL(HOST).host)].map(([name, value]) => ({ name, value, url: HOST })));
@@ -1086,9 +1358,7 @@ if (withApp)
 if (withApp)
   test('browser: Sign in button, popup sign-in, account menu, sign out', async () => {
     await signIn(bobBrowser, 'bob');
-    const browser = await chromium.launch(
-      process.env.PLAYWRIGHT_BROWSERS_PATH === '/opt/pw-browsers' ? { executablePath: '/opt/pw-browsers/chromium' } : {},
-    );
+    const browser = await launchBrowser();
     try {
       const page = await browser.newPage({ viewport: { width: 1280, height: 800 } });
       await page.context().route('https://accounts.google.com/**', (r) => r.fulfill({ status: 302, headers: { location: toMock(r.request().url()) } }));
@@ -1142,9 +1412,7 @@ if (withApp)
 
 if (withApp)
   test('browser: save a project online, reopen it with its settings, download the 3MF', async () => {
-    const browser = await chromium.launch(
-      process.env.PLAYWRIGHT_BROWSERS_PATH === '/opt/pw-browsers' ? { executablePath: '/opt/pw-browsers/chromium' } : {},
-    );
+    const browser = await launchBrowser();
     try {
       const carol = new Browser();
       await signIn(carol, 'bob');
@@ -1166,6 +1434,14 @@ if (withApp)
       const projectButton = page.getByRole('button', { name: /^Project/ });
       await projectButton.getByText('3DBenchy').waitFor();
       await projectButton.getByLabel('unsaved changes').waitFor();
+
+      // The first change asks once whether AutoSave may send work to Google Drive; nothing goes there before.
+      const autosaveAsk = page.getByTestId('autosave-question');
+      await autosaveAsk.getByText('Turn on AutoSave?').waitFor({ timeout: 30000 });
+      if (process.env.ACCOUNTS_SHOTS) await page.screenshot({ path: join(process.env.ACCOUNTS_SHOTS, 'autosave-question.png') });
+      assert.equal((await (await carol.json('/api/projects')).json()).projects.length, 0, 'nothing in Drive before the answer');
+      await autosaveAsk.getByRole('button', { name: 'On', exact: true }).click();
+      await autosaveAsk.waitFor({ state: 'detached' });
 
       // AutoSave keeps a new project as the draft, named after its model.
       await projectButton.getByText('Draft, not saved yet').waitFor({ timeout: 30000 });
@@ -1189,6 +1465,15 @@ if (withApp)
       assert.equal(saved.engine, 'snapmaker', 'saved with the engine it slices with');
       assert.equal(saved.draft, false, 'the draft became the project');
       assert.equal(list.projects.filter((p) => p.draft).length, 0, 'no draft left');
+      // In their Drive: the project in the "Cloud Slicer" folder; drafts went in its "Drafts" folder and are gone now.
+      const folderOf = (name) => [...driveFiles].find(([, f]) => f.folder && f.name === name)?.[0];
+      const top = folderOf('Cloud Slicer');
+      const drafts = folderOf('Drafts');
+      assert.ok(top && drafts, 'both folders were made');
+      assert.deepEqual(driveFiles.get(drafts).parents, [top], 'Drafts sits inside Cloud Slicer');
+      assert.deepEqual(driveFiles.get(saved.driveFile).parents, [top], 'the named project is in Cloud Slicer');
+      assert.equal(driveFiles.get(saved.driveFile).name, '3DBenchy.3mf');
+      assert.equal([...driveFiles.values()].filter((f) => f.parents?.includes(drafts)).length, 0, "the draft's file went on the first Save");
 
       // AutoSave: a change saves by itself a few seconds later.
       await layer.fill('0.24');
@@ -1310,12 +1595,9 @@ if (withApp)
       // Continue opens the unsaved project, and the card doesn't come back. This tab
       // starts on the other engine, so opening it restarts the engine, which used to
       // look for the card again while the project was still loading.
-      const bytes = await (await carol.fetch(`${HOST}/api/projects/${saved.id}/file`)).arrayBuffer();
-      const draftSave = await carol.fetch(`${HOST}/api/projects/draft-continue?${new URLSearchParams({ name: 'Untitled', draft: '1', device: 'laptop-device-9', deviceName: 'Windows computer', engine: 'snapmaker' })}`, {
-        method: 'PUT',
-        headers: { Origin: HOST, 'Content-Type': 'model/3mf' },
-        body: bytes,
-      });
+      const latest = (await (await carol.json(`/api/projects/${saved.id}`)).json()).project;
+      const bytes = driveFiles.get(latest.driveFile).bytes;
+      const draftSave = await putProject(carol, 'draft-continue', { name: 'Untitled', draft: '1', device: 'laptop-device-9', deviceName: 'Windows computer', engine: 'snapmaker' }, bytes);
       assert.equal(draftSave.status, 200, await draftSave.clone().text());
       const second = await browser.newContext({ viewport: { width: 1280, height: 860 } });
       await second.addCookies([...carol.jar.get(new URL(HOST).host)].map(([name, value]) => ({ name, value, url: HOST })));
@@ -1355,15 +1637,24 @@ if (withApp)
       await carol.fetch(`${HOST}/api/projects/draft-continue`, { method: 'DELETE', headers: { Origin: HOST } });
 
       // A saved project keeps its engine too: one made in OrcaSlicer opens in it here.
-      const orcaSave = await carol.fetch(`${HOST}/api/projects/orca-made?${new URLSearchParams({ name: 'Made in OrcaSlicer', engine: 'orca' })}`, {
-        method: 'PUT',
-        headers: { Origin: HOST, 'Content-Type': 'model/3mf' },
-        body: bytes,
-      });
+      const orcaSave = await putProject(carol, 'orca-made', { name: 'Made in OrcaSlicer', engine: 'orca' }, bytes);
       assert.equal(orcaSave.status, 200, await orcaSave.clone().text());
+      // A project whose file was deleted in Drive says so, and Remove takes it off the list.
+      const goneSave = await putProject(carol, 'deleted-in-drive', { name: 'Deleted in Drive' }, bytes);
+      driveFiles.delete((await goneSave.json()).project.driveFile);
       await secondPage.getByRole('button', { name: /^Project/ }).click();
       await secondPage.getByRole('menuitem', { name: 'Online projects…' }).click();
       const list2 = secondPage.getByRole('dialog', { name: 'Online projects' });
+      const goneCard = list2.locator('.project-card', { hasText: 'Deleted in Drive' });
+      await goneCard.getByTestId('project-not-in-drive').waitFor({ timeout: 30000 });
+      if (process.env.ACCOUNTS_SHOTS) await secondPage.screenshot({ path: join(process.env.ACCOUNTS_SHOTS, 'project-not-in-drive.png') });
+      await goneCard.getByRole('button', { name: 'Remove…' }).click();
+      const goneAsk = secondPage.getByTestId('project-gone');
+      await goneAsk.getByText('is no longer in your Google Drive').waitFor();
+      if (process.env.ACCOUNTS_SHOTS) await secondPage.screenshot({ path: join(process.env.ACCOUNTS_SHOTS, 'project-gone-dialog.png') });
+      await goneAsk.getByRole('button', { name: 'Remove' }).click();
+      await goneCard.waitFor({ state: 'detached', timeout: 30000 });
+      assert.equal((await carol.json('/api/projects/deleted-in-drive')).status, 404, 'removed from the list');
       await list2.getByRole('button', { name: 'Made in OrcaSlicer', exact: true }).click();
       const leave = secondPage.getByTestId('ask-dialog');
       if (await leave.isVisible().catch(() => false)) await leave.getByRole('button', { name: /Don.t save|Discard/ }).click();
@@ -1455,20 +1746,109 @@ if (withApp)
   });
 
 if (withApp)
+  test('browser: without Google Drive, Online projects is grayed out and Connect is in the account menu', async () => {
+    users.jill = { sub: 'g-jill', name: 'Jill', email: 'jill@example.com', email_verified: true };
+    const jill = new Browser();
+    declineDrive = true;
+    await signIn(jill, 'jill');
+    declineDrive = false;
+    const browser = await launchBrowser();
+    try {
+      const context = await browser.newContext({ viewport: { width: 390, height: 844 } });
+      await context.addCookies([...jill.jar.get(new URL(HOST).host)].map(([name, value]) => ({ name, value, url: HOST })));
+      const page = await context.newPage();
+      await page.goto(HOST);
+      await page.getByText('Open a model to start').waitFor({ timeout: 120000 });
+      const wizard = page.getByRole('dialog', { name: 'Set up your printers' });
+      if (await wizard.waitFor({ timeout: 5000 }).then(() => true, () => false)) await wizard.getByRole('button', { name: 'Not now' }).click();
+      // Signed in as far as the page knows before the menu is looked at.
+      await page.getByRole('button', { name: /Jill/ }).waitFor({ timeout: 30000 });
+      await page.getByRole('button', { name: /^Project/ }).click();
+      assert.equal(await page.getByRole('menuitem', { name: 'Online projects…' }).isDisabled(), true);
+      await page.getByTestId('online-projects-off').getByText('Connect Google Drive in the account menu').waitFor();
+      await page.waitForTimeout(400);
+      if (process.env.ACCOUNTS_SHOTS) await page.screenshot({ path: join(process.env.ACCOUNTS_SHOTS, 'online-projects-no-drive-phone.png') });
+      await page.keyboard.press('Escape');
+      await page.getByRole('button', { name: /Jill/ }).click();
+      await page.getByRole('button', { name: 'Connect Google Drive' }).waitFor();
+      if (process.env.ACCOUNTS_SHOTS) await page.screenshot({ path: join(process.env.ACCOUNTS_SHOTS, 'account-menu-no-drive-phone.png') });
+    } finally {
+      await browser.close();
+    }
+  });
+
+if (withApp)
+  test('browser: AutoSave Off keeps unsaved work out of Drive, in this browser, and a reload offers it back', async () => {
+    users.lena = { sub: 'g-lena', name: 'Lena', email: 'lena@example.com', email_verified: true };
+    const browser = await launchBrowser();
+    try {
+      const kim = new Browser();
+      await signIn(kim, 'lena');
+      await kim.json('/api/settings/setup', 'PUT', { value: { printers: ['Snapmaker U1 (0.4 nozzle)'] } });
+      const context = await browser.newContext({ viewport: { width: 1280, height: 860 } });
+      await context.addCookies([...kim.jar.get(new URL(HOST).host)].map(([name, value]) => ({ name, value, url: HOST })));
+      const page = await context.newPage();
+      page.on('pageerror', (e) => console.error(`page error: ${e.message}`));
+      await page.addLocatorHandler(page.getByRole('dialog', { name: 'Set up your printers' }), (d) => d.getByRole('button', { name: 'Not now' }).click());
+      await page.goto(HOST);
+      await page.getByText('Open a model to start').waitFor({ timeout: 120000 });
+      await page.getByTestId('model-input').setInputFiles(join(web, '../../fixtures/3DBenchy.stl'));
+      await page.getByRole('button', { name: 'Add model' }).waitFor({ timeout: 60000 });
+      const ask = page.getByTestId('autosave-question');
+      await ask.getByRole('button', { name: 'Off', exact: true }).click({ timeout: 30000 });
+      await waitFor(async () => (await (await kim.json('/api/settings')).json()).settings.some((s) => s.key === 'autosave' && s.value === false), 'the answer is kept');
+      // Kept in this browser a few seconds later, and nothing in Drive.
+      await waitFor(
+        () => page.evaluate(() => new Promise((ok) => {
+          const open = indexedDB.open('cloud-slicer-unsaved');
+          open.onsuccess = () => {
+            const get = open.result.transaction('work').objectStore('work').get('unsaved');
+            get.onsuccess = () => ok(Boolean(get.result));
+            get.onerror = () => ok(false);
+          };
+          open.onerror = () => ok(false);
+        })),
+        'the unsaved work is kept in this browser',
+        60000,
+      );
+      { const l = (await (await kim.json('/api/projects')).json()).projects; assert.equal(l.length, 0, 'nothing went to Drive: ' + JSON.stringify(l)); }
+
+      // A reload (or a crash) offers it back, still unsaved; the question isn't asked again.
+      await page.reload();
+      const card = page.getByTestId('continue-card');
+      await card.getByText('Continue where you left off?').waitFor({ timeout: 120000 });
+      await card.getByText(/3DBenchy, changed .*Kept in this browser, not saved\./).waitFor();
+      if (process.env.ACCOUNTS_SHOTS) await page.screenshot({ path: join(process.env.ACCOUNTS_SHOTS, 'continue-local.png') });
+      // A 3MF made for a printer this account doesn't have asks to convert, as any opened project does.
+      const convert = page.getByRole('dialog', { name: 'Convert this project?' });
+      await card.getByRole('button', { name: 'Continue' }).click();
+      const projectButton = page.getByRole('button', { name: /^Project/ });
+      await Promise.race([
+        convert.waitFor({ timeout: 60000 }).then(() => convert.getByRole('button', { name: 'Convert' }).click()),
+        projectButton.getByLabel('unsaved changes').waitFor({ timeout: 60000 }),
+      ]);
+      await projectButton.getByText('3DBenchy').waitFor({ timeout: 60000 });
+      await projectButton.getByLabel('unsaved changes').waitFor();
+      await page.getByRole('button', { name: 'Add model' }).waitFor({ timeout: 60000 });
+      await page.waitForTimeout(2000);
+      assert.equal(await ask.count(), 0, 'asked only once');
+      assert.equal(await page.getByRole('switch', { name: /AutoSave/ }).getAttribute('aria-checked'), 'false', 'the AutoSave switch shows the answer');
+      await projectButton.getByText('Not saved', { exact: true }).waitFor();
+      assert.equal((await (await kim.json('/api/projects')).json()).projects.length, 0, 'still nothing in Drive');
+    } finally {
+      await browser.close();
+    }
+  });
+
+if (withApp)
   test('browser: the setup wizard waits until the Continue card is answered', async () => {
-    const browser = await chromium.launch(
-      process.env.PLAYWRIGHT_BROWSERS_PATH === '/opt/pw-browsers' ? { executablePath: '/opt/pw-browsers/chromium' } : {},
-    );
+    const browser = await launchBrowser();
     try {
       // Someone new (no printers set up yet) with an unsaved project from another device.
       const gina = new Browser();
       await signIn(gina, 'gina');
       const bytes = readFileSync(join(web, '../../fixtures/colored_3DBenchy.3mf'));
-      const draft = await gina.fetch(`${HOST}/api/projects/draft-gina?${new URLSearchParams({ name: 'Untitled', draft: '1', device: 'gina-laptop', deviceName: 'Windows computer', engine: 'snapmaker' })}`, {
-        method: 'PUT',
-        headers: { Origin: HOST, 'Content-Type': 'model/3mf' },
-        body: bytes,
-      });
+      const draft = await putProject(gina, 'draft-gina', { name: 'Untitled', draft: '1', device: 'gina-laptop', deviceName: 'Windows computer', engine: 'snapmaker' }, bytes);
       assert.equal(draft.status, 200, await draft.clone().text());
       const context = await browser.newContext({ viewport: { width: 1280, height: 860 } });
       await context.addCookies([...gina.jar.get(new URL(HOST).host)].map(([name, value]) => ({ name, value, url: HOST })));
@@ -1488,12 +1868,11 @@ if (withApp)
 
 if (withApp)
   test('browser: a draft discarded on another computer stays open here and is saved again', async () => {
-    const browser = await chromium.launch(
-      process.env.PLAYWRIGHT_BROWSERS_PATH === '/opt/pw-browsers' ? { executablePath: '/opt/pw-browsers/chromium' } : {},
-    );
+    const browser = await launchBrowser();
     try {
       const hank = new Browser();
       await signIn(hank, 'hank');
+      await hank.json('/api/settings/autosave', 'PUT', { value: true });
       const drafts = async () => (await (await hank.json('/api/projects')).json()).projects.filter((p) => p.draft);
       const open = async (viewport) => {
         const context = await browser.newContext({ viewport });
@@ -1586,13 +1965,12 @@ if (withApp)
   test('browser: print history marks plates printed, changed since, kept, marked by hand, and caught after Upload only', async () => {
     const { startMockPrinter } = await import('./device/mock-printer.mjs');
     const printer = await startMockPrinter({ printStep: 0.01 });
-    const browser = await chromium.launch(
-      process.env.PLAYWRIGHT_BROWSERS_PATH === '/opt/pw-browsers' ? { executablePath: '/opt/pw-browsers/chromium' } : {},
-    );
+    const browser = await launchBrowser();
     const shot = (page, name) => process.env.ACCOUNTS_SHOTS && page.screenshot({ path: join(process.env.ACCOUNTS_SHOTS, `${name}.png`) });
     try {
       const ivy = new Browser();
       await signIn(ivy, 'ivy');
+      await ivy.json('/api/settings/autosave', 'PUT', { value: true });
       assert.equal((await ivy.json('/api/devices/u1-mock', 'PUT', { name: 'U1-mock', preset: 'Snapmaker U1 (0.4 nozzle)', url: printer.url, extra: { kind: 'direct' } })).status, 200);
       const context = await browser.newContext({ viewport: { width: 1280, height: 860 } });
       await context.addCookies([...ivy.jar.get(new URL(HOST).host)].map(([name, value]) => ({ name, value, url: HOST })));

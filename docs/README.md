@@ -33,6 +33,7 @@ Find the folder or file you are about to change; read that page first.
 | `App.tsx`, `components/TopBar.tsx`, `Sidebar.tsx`, `ActionBar.tsx`, `BottomTabs.tsx`, anything about phones (the 760 px width) | [layout and phones](architecture/layout.md) |
 | `components/*Panel.tsx`, `Toolbar.tsx`, `ObjectMenu.tsx`, `lib/transform.ts`, `simplify.ts`, `boolean.ts`, `measure.ts`, `brim.ts`, `layers.ts`, the tool files in `engine/src/` | [prepare tools](architecture/prepare-tools.md) |
 | `lib/mixing.ts`, `flush.ts`, `components/ColorMixing.tsx`, `FlushVolumes.tsx`, `engine/src/mixed_api.cpp`, `flush_api.cpp` | [colour mixing](architecture/colour-mixing.md) |
+| `lib/backgroundSlice.ts`, `state/backgroundSlice.ts`, `public/sw.js` ("Slicing done") | [slicing in the background](architecture/background-slicing.md) |
 | `components/Preview.tsx`, `LayerCodes.tsx`, `lib/gcode.ts`, `preview-colours.ts`, `layerCodes.ts`, `engine/gcode-worker.ts` | [preview](architecture/preview.md) |
 | `lib/calibration.ts`, `components/CalibrationDialog.tsx`, `engine/src/calib_api.cpp`, `engine/calib/` | [calibration](architecture/calibration.md) |
 | `functions/_lib/auth.ts`, `admin.ts`, `relay.ts` (tickets), `access.ts`, `usage.ts`, `account/`, `state/account.ts`, `components/AdminScreen.tsx` | [accounts](architecture/accounts.md) |

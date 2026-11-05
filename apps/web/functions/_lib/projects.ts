@@ -1,7 +1,8 @@
-// Projects saved online: each is an Orca 3MF project in R2 with a PNG
-// thumbnail beside it, indexed by a D1 row. The limits keep the whole site
-// inside R2's free 10 GB. Storage per user is set on the Admin page
-// (access.ts storageBytes; 0 = presets only, no online projects).
+// Projects saved online. Each is an Orca 3MF project in the person's own
+// Google Drive (drive.ts), indexed by a D1 row that also keeps its list
+// picture. Cloud Slicer has no project storage of its own, so the only limit
+// is the number of projects; the owner can turn online projects off for a
+// person on the Admin page (access.ts projectsAllowed).
 //
 // AutoSave: a new project is kept as a draft (draft = 1) until its first Save
 // names it. Each device keeps one draft (a new one replaces that device's old
@@ -9,19 +10,24 @@
 // with it; a person has at most MAX_DRAFTS, the oldest go first. The device
 // editing a project is recorded with each save; a save from another device is
 // refused (409, code "elsewhere") until that device takes over (POST .../device).
-import { storageBytes } from './access';
+//
+// Every save is a new file in Drive (the page uploads it, then PUT ?drive=<id>
+// points the row at it, and the file before goes), so a save that lost a race
+// never replaces the newer file. A save also checks the file it replaces is
+// still the one last saved: one changed in Drive since is a conflict too
+// (409, code "changed-in-drive").
+import { projectsAllowed } from './access';
+import { checkDriveFile, driveConnected, driveDelete, driveKey, driveMd5, driveRename, driveToken, fileIdOf, validDriveId } from './drive';
 import { printedCounts } from './prints';
 import { requireUser } from './auth';
 import { HttpError, json, readJson, requireSameOrigin } from './http';
-import type { Env, R2Bucket } from './types';
+import type { Env } from './types';
 
 export const LIMITS = {
-  /** One project can use all of the person's storage, up to what one upload can carry
-   * (Cloudflare's free plan takes request bodies up to 100 MB). */
-  projectBytes: 95 * 1024 * 1024,
+  /** A safety guard only, never shown as "N of 200" (each project is just a row + picture here). */
   userProjects: 200,
-  siteBytes: 8 * 1024 * 1024 * 1024,
-  thumbnailBytes: 512 * 1024,
+  /** The list picture, kept in the row: 256 px WebP is about 15 KB. */
+  thumbnailBytes: 64 * 1024,
 };
 /** Drafts kept per person (one per device; past this the oldest go). */
 export const MAX_DRAFTS = 3;
@@ -30,8 +36,11 @@ interface ProjectRow {
   id: string;
   name: string;
   size: number;
+  /** "drive:<file id>" (rows from before Drive have an old key: their file is gone). */
   file_key: string;
-  thumb_key: string | null;
+  /** 1 when the row has a picture (the picture itself is only read by GET .../thumbnail). */
+  has_thumb: number;
+  drive_md5: string | null;
   version: number;
   created_at: number;
   updated_at: number;
@@ -45,27 +54,28 @@ interface ProjectRow {
   /** How many plates it has (null: saved before this was kept). */
   plates: number | null;
 }
+/** Every column but the picture, so listing 200 projects doesn't read 200 pictures. */
+const COLUMNS =
+  'id, name, size, file_key, thumb IS NOT NULL AS has_thumb, drive_md5, version, created_at, updated_at, engine, draft, device, device_name, plates';
+
 const toProject = (r: ProjectRow, printed?: number) => ({
   id: r.id,
   name: r.name,
   size: r.size,
-  hasThumbnail: r.thumb_key !== null,
+  hasThumbnail: Boolean(r.has_thumb),
   version: r.version,
   engine: r.engine ?? 'snapmaker',
   draft: Boolean(r.draft),
   device: r.device,
   deviceName: r.device_name,
   plates: r.plates ?? null,
+  /** Its file in the person's Google Drive (the page downloads it from there); null: no file. */
+  driveFile: fileIdOf(r.file_key),
   /** Plates with a printed mark (functions/_lib/prints.ts), in the Projects list only. */
   ...(printed !== undefined && { printedPlates: printed }),
   createdAt: r.created_at,
   updatedAt: r.updated_at,
 });
-
-function bucket(env: Env): R2Bucket {
-  if (!env.PROJECTS) throw new HttpError(503, "Online projects aren't set up on this site yet");
-  return env.PROJECTS;
-}
 
 const validId = (id: string) => {
   if (!/^[A-Za-z0-9_-]{1,64}$/.test(id)) throw new HttpError(400, 'Bad project id');
@@ -90,50 +100,44 @@ function baseVersion(v: string | null): number | undefined {
   if (!Number.isInteger(n) || n < 0) throw new HttpError(400, 'Bad baseVersion');
   return n;
 }
-const prefix = (userId: string) => `projects/${userId}/`;
-const randomPart = () => crypto.randomUUID().slice(0, 8);
 
 async function row(env: Env, userId: string, id: string) {
-  return env.DB!.prepare('SELECT * FROM projects WHERE user_id = ? AND id = ?').bind(userId, id).first<ProjectRow>();
+  return env.DB!.prepare(`SELECT ${COLUMNS} FROM projects WHERE user_id = ? AND id = ?`).bind(userId, id).first<ProjectRow>();
 }
 async function mustRow(env: Env, userId: string, id: string) {
   const r = await row(env, userId, id);
   if (!r) throw new HttpError(404, 'No such project');
   return r;
 }
-function conflict(current: ProjectRow | null) {
-  return new HttpError(409, 'This project was saved on another device', { current: current ? toProject(current) : null });
+function conflict(current: ProjectRow | null, code?: string) {
+  const message = code === 'changed-in-drive' ? 'This project was changed in your Google Drive' : 'This project was saved on another device';
+  return new HttpError(409, message, { current: current ? toProject(current) : null, ...(code && { code }) });
 }
 /** Another device took the project over: this one only views it until it takes it back. */
 function elsewhere(current: ProjectRow) {
   return new HttpError(409, `This project is being edited on your ${current.device_name ?? 'other device'}`, { code: 'elsewhere', current: toProject(current) });
 }
+const presetsOnly = () =>
+  new HttpError(403, "Online projects aren't available for your account. Your presets and printers still save; download the project to keep it.", {
+    code: 'presets-only',
+  });
 
-/** The person's limits: a project can be as big as their whole storage, up to LIMITS.projectBytes. */
-export const limitsFor = (userBytes: number) => ({
-  projectBytes: Math.min(userBytes, LIMITS.projectBytes),
-  userBytes,
-  userProjects: LIMITS.userProjects,
-});
-
-// Bytes count every file, the draft too; the project count leaves the draft out.
-async function usage(env: Env, userId: string) {
-  const u = await env.DB!.prepare('SELECT COALESCE(SUM(draft = 0), 0) AS n, COALESCE(SUM(size), 0) AS bytes FROM projects WHERE user_id = ?')
-    .bind(userId)
-    .first<{ n: number; bytes: number }>();
-  return { count: u?.n ?? 0, bytes: u?.bytes ?? 0 };
+/** Saved projects; the draft isn't counted. */
+async function projectCount(env: Env, userId: string) {
+  const u = await env.DB!.prepare('SELECT COALESCE(SUM(draft = 0), 0) AS n FROM projects WHERE user_id = ?').bind(userId).first<{ n: number }>();
+  return u?.n ?? 0;
 }
 
-/** GET /api/projects -> { projects, usage, limits } (newest first; the draft, if any, is among them with draft: true) */
+/** GET /api/projects -> { enabled, projects, count, drive } (newest first; the draft, if any, is among them with draft: true) */
 export async function list(env: Env, request: Request): Promise<Response> {
   const user = await requireUser(env, request);
-  const rows = await env.DB!.prepare('SELECT * FROM projects WHERE user_id = ? ORDER BY updated_at DESC').bind(user.id).all<ProjectRow>();
+  const rows = await env.DB!.prepare(`SELECT ${COLUMNS} FROM projects WHERE user_id = ? ORDER BY updated_at DESC`).bind(user.id).all<ProjectRow>();
   const printed = await printedCounts(env, user.id);
   return json({
-    enabled: Boolean(env.PROJECTS),
+    enabled: await projectsAllowed(env, user.id),
     projects: rows.results.map((r) => toProject(r, printed.get(r.id) ?? 0)),
-    usage: await usage(env, user.id),
-    limits: limitsFor(await storageBytes(env, user.id)),
+    count: rows.results.filter((r) => !r.draft).length,
+    drive: { connected: await driveConnected(env, user.id) },
   });
 }
 
@@ -157,34 +161,23 @@ export async function takeOver(env: Env, request: Request, rawId: string): Promi
   return json({ project: toProject({ ...r, device, device_name: deviceName }) });
 }
 
-/** GET /api/projects/<id>/file -> the 3MF */
-export async function file(env: Env, request: Request, rawId: string): Promise<Response> {
+/** GET /api/projects/<id>/thumbnail -> the list picture */
+export async function thumbnail(env: Env, request: Request, rawId: string): Promise<Response> {
   const user = await requireUser(env, request);
-  const r = await mustRow(env, user.id, validId(rawId));
-  const obj = await bucket(env).get(r.file_key);
-  if (!obj) throw new HttpError(404, "The project's file is missing");
-  return new Response(obj.body, {
-    headers: {
-      'Content-Type': 'model/3mf',
-      'Content-Length': String(obj.size),
-      'Cache-Control': 'private, no-store',
-      'X-Project-Version': String(r.version),
-    },
+  const r = await env.DB!.prepare('SELECT thumb, thumb_type FROM projects WHERE user_id = ? AND id = ?')
+    .bind(user.id, validId(rawId))
+    .first<{ thumb: ArrayBuffer | number[] | null; thumb_type: string | null }>();
+  if (!r?.thumb) throw new HttpError(404, 'No thumbnail');
+  // The address carries the project's version, so the browser may keep it.
+  return new Response(new Uint8Array(r.thumb as ArrayBuffer), {
+    headers: { 'Content-Type': r.thumb_type ?? 'image/png', 'Cache-Control': 'private, max-age=86400' },
   });
 }
 
-/** GET /api/projects/<id>/thumbnail -> PNG */
-export async function thumbnail(env: Env, request: Request, rawId: string): Promise<Response> {
-  const user = await requireUser(env, request);
-  const r = await mustRow(env, user.id, validId(rawId));
-  const obj = r.thumb_key ? await bucket(env).get(r.thumb_key) : null;
-  if (!obj) throw new HttpError(404, 'No thumbnail');
-  // The key changes with every save, so the browser may keep it.
-  return new Response(obj.body, { headers: { 'Content-Type': 'image/png', 'Cache-Control': 'private, max-age=86400' } });
-}
-
 /**
- * PUT /api/projects/<id>?name=…&baseVersion=…&engine=…  body: the 3MF
+ * PUT /api/projects/<id>?drive=…&name=…&baseVersion=…&engine=…  (no body)
+ * drive: the file the page just uploaded to the person's Google Drive; the
+ * project points at it from now on and the file before goes.
  * baseVersion: the version this save started from (0 = a new project);
  * left out, the save goes over whatever is there.
  * engine: snapmaker (the default) or orca, the engine the project slices with.
@@ -197,7 +190,6 @@ export async function thumbnail(env: Env, request: Request, rawId: string): Prom
 export async function put(env: Env, request: Request, rawId: string): Promise<Response> {
   requireSameOrigin(request);
   const user = await requireUser(env, request);
-  const b = bucket(env);
   const id = validId(rawId);
   const url = new URL(request.url);
   const name = validName(url.searchParams.get('name'));
@@ -208,82 +200,71 @@ export async function put(env: Env, request: Request, rawId: string): Promise<Re
   const deviceName = validDeviceName(url.searchParams.get('deviceName'));
   const platesParam = Number(url.searchParams.get('plates'));
   const plates = Number.isInteger(platesParam) && platesParam > 0 && platesParam < 1000 ? platesParam : null;
+  const driveId = validDriveId(url.searchParams.get('drive'));
+  if (!driveId) throw new HttpError(400, 'Save the project to your Google Drive first');
 
-  // The body streams straight to R2 (a Worker has 128 MB of memory, a project up to 95 MB),
-  // so its size is known up front from Content-Length, which the runtime holds the body to.
-  const size = Number(request.headers.get('Content-Length') ?? '');
-  if (!request.body || !Number.isInteger(size) || size <= 0) throw new HttpError(411, 'The project file has no size');
-  const userBytes = await storageBytes(env, user.id);
-  if (!userBytes) throw new HttpError(403, "Online projects aren't available for your account. Your presets and printers still save; download the project to keep it.", { code: 'presets-only' });
-  const maxBytes = limitsFor(userBytes).projectBytes;
-  if (size > maxBytes) throw new HttpError(413, `Projects can be up to ${Math.round(maxBytes / 1024 / 1024)} MB`);
+  const files = driveFiles(env, request, user.id);
+  // A Drive file the save didn't keep goes again, so a refused save leaves nothing behind in Drive.
+  const refuse = async (e: Error): Promise<never> => {
+    await files.remove([driveKey(driveId)]).catch(() => {});
+    throw e;
+  };
+  if (!(await projectsAllowed(env, user.id))) await refuse(presetsOnly());
+  const { size, md5 } = await checkDriveFile(await files.token(), driveId);
   const current = await row(env, user.id, id);
-  if (base !== undefined && current?.device && device && current.device !== device) throw elsewhere(current);
-  if (base !== undefined && (current?.version ?? 0) !== base) throw conflict(current);
-  if (draft && current && !current.draft) throw new HttpError(400, 'A saved project cannot become a draft again');
-
-  const mine = await usage(env, user.id);
-  if (!draft && (!current || current.draft) && mine.count >= LIMITS.userProjects)
-    throw new HttpError(413, `You can save up to ${LIMITS.userProjects} projects online`);
-  const grow = size - (current?.size ?? 0);
-  if (mine.bytes + grow > userBytes)
-    throw new HttpError(413, `Your online projects would use more than ${Math.round(userBytes / 1024 / 1024)} MB. Delete some or download this one instead.`);
-  const site = await env.DB!.prepare('SELECT COALESCE(SUM(size), 0) AS bytes FROM projects').first<{ bytes: number }>();
-  if ((site?.bytes ?? 0) + grow > LIMITS.siteBytes) throw new HttpError(507, 'Online project storage is full. Download the project instead.');
-
-  // A new key per save: the row only points at it once the version check
-  // below passes, so a save that lost a race leaves the newer file alone.
-  const version = (current?.version ?? 0) + 1;
-  const key = `${prefix(user.id)}${id}/${version}-${randomPart()}.3mf`;
-  const stored = await b.put(key, request.body, { httpMetadata: { contentType: 'model/3mf' } });
-  const head = await b.get(key, { range: { offset: 0, length: 2 } });
-  const magic = head ? new Uint8Array(await head.arrayBuffer()) : new Uint8Array();
-  if (stored?.size !== size || magic[0] !== 0x50 || magic[1] !== 0x4b) {
-    await b.delete(key);
-    throw new HttpError(400, "That isn't a 3MF file");
+  if (base !== undefined && current?.device && device && current.device !== device) await refuse(elsewhere(current));
+  if (base !== undefined && (current?.version ?? 0) !== base) await refuse(conflict(current));
+  if (draft && current && !current.draft) await refuse(new HttpError(400, 'A saved project cannot become a draft again'));
+  // Changed in Drive since it was last saved here (opened in another app, say): ask before replacing it.
+  if (base !== undefined && current?.drive_md5) {
+    const now = await driveMd5(await files.token(), current.file_key);
+    if (now && now !== current.drive_md5) await refuse(conflict(current, 'changed-in-drive'));
   }
+  if (!draft && (!current || current.draft) && (await projectCount(env, user.id)) >= LIMITS.userProjects)
+    await refuse(new HttpError(413, `You can save up to ${LIMITS.userProjects} projects online`));
+
+  const version = (current?.version ?? 0) + 1;
+  const key = driveKey(driveId);
   const now = Date.now();
   const d = env.DB!;
   const res = current
     ? await d
         .prepare(
-          'UPDATE projects SET name = ?, size = ?, file_key = ?, version = ?, updated_at = ?, engine = ?, draft = ?, device = ?, device_name = ?, plates = COALESCE(?, plates) WHERE user_id = ? AND id = ? AND version = ?',
+          'UPDATE projects SET name = ?, size = ?, file_key = ?, drive_md5 = ?, version = ?, updated_at = ?, engine = ?, draft = ?, device = ?, device_name = ?, plates = COALESCE(?, plates) WHERE user_id = ? AND id = ? AND version = ?',
         )
-        .bind(name, size, key, version, now, engine, draft, device, deviceName, plates, user.id, id, current.version)
+        .bind(name, size, key, md5, version, now, engine, draft, device, deviceName, plates, user.id, id, current.version)
         .run()
     : await d
         .prepare(
-          `INSERT INTO projects (user_id, id, name, size, file_key, thumb_key, version, created_at, updated_at, engine, draft, device, device_name, plates)
-           VALUES (?, ?, ?, ?, ?, NULL, ?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT (user_id, id) DO NOTHING`,
+          `INSERT INTO projects (user_id, id, name, size, file_key, drive_md5, version, created_at, updated_at, engine, draft, device, device_name, plates)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT (user_id, id) DO NOTHING`,
         )
-        .bind(user.id, id, name, size, key, version, now, now, engine, draft, device, deviceName, plates)
+        .bind(user.id, id, name, size, key, md5, version, now, now, engine, draft, device, deviceName, plates)
         .run();
-  if (!res.meta.changes) {
-    await b.delete(key);
-    throw conflict(await row(env, user.id, id));
-  }
-  if (current) await b.delete(current.file_key);
+  if (!res.meta.changes) await refuse(conflict(await row(env, user.id, id)));
+  if (current && current.file_key !== key) await files.remove([current.file_key]);
   // One draft per device: a new one replaces the one before it on this device,
   // and the oldest drafts of other devices go past MAX_DRAFTS.
   if (draft && !current) {
     const others = await d
-      .prepare('SELECT * FROM projects WHERE user_id = ? AND draft = 1 AND id != ? ORDER BY updated_at DESC')
+      .prepare(`SELECT ${COLUMNS} FROM projects WHERE user_id = ? AND draft = 1 AND id != ? ORDER BY updated_at DESC`)
       .bind(user.id, id)
       .all<ProjectRow>();
     const old = others.results.filter((r, i) => !device || !r.device || r.device === device || i >= MAX_DRAFTS - 1);
     for (const r of old) {
       await d.prepare('DELETE FROM project_prints WHERE user_id = ? AND project_id = ?').bind(user.id, r.id).run();
       await d.prepare('DELETE FROM projects WHERE user_id = ? AND id = ?').bind(user.id, r.id).run();
-      await b.delete([r.file_key, ...(r.thumb_key ? [r.thumb_key] : [])]);
+      await files.remove([r.file_key]);
     }
   }
   return json({
     project: toProject({
-      ...(current ?? { thumb_key: null, created_at: now }),
+      ...(current ?? { has_thumb: 0, created_at: now }),
       id,
       name,
       size,
       file_key: key,
+      drive_md5: md5,
       version,
       updated_at: now,
       engine,
@@ -295,21 +276,25 @@ export async function put(env: Env, request: Request, rawId: string): Promise<Re
   });
 }
 
-/** PUT /api/projects/<id>/thumbnail  body: PNG. Doesn't change the version. */
+/** PUT /api/projects/<id>/thumbnail  body: a WebP or PNG picture. Doesn't change the version. */
 export async function putThumbnail(env: Env, request: Request, rawId: string): Promise<Response> {
   requireSameOrigin(request);
   const user = await requireUser(env, request);
-  const b = bucket(env);
   const r = await mustRow(env, user.id, validId(rawId));
   const bytes = await request.arrayBuffer();
   if (bytes.byteLength > LIMITS.thumbnailBytes) throw new HttpError(413, 'Thumbnail is too large');
-  const sig = new Uint8Array(bytes, 0, Math.min(4, bytes.byteLength));
-  if (sig[0] !== 0x89 || sig[1] !== 0x50 || sig[2] !== 0x4e || sig[3] !== 0x47) throw new HttpError(400, 'Thumbnails are PNG images');
-  const key = `${prefix(user.id)}${r.id}/thumb-${randomPart()}.png`;
-  await b.put(key, bytes, { httpMetadata: { contentType: 'image/png' } });
-  await env.DB!.prepare('UPDATE projects SET thumb_key = ? WHERE user_id = ? AND id = ?').bind(key, user.id, r.id).run();
-  if (r.thumb_key) await b.delete(r.thumb_key);
+  const type = pictureType(new Uint8Array(bytes, 0, Math.min(12, bytes.byteLength)));
+  if (!type) throw new HttpError(400, 'Thumbnails are WebP or PNG pictures');
+  await env.DB!.prepare('UPDATE projects SET thumb = ?, thumb_type = ? WHERE user_id = ? AND id = ?').bind(bytes, type, user.id, r.id).run();
   return json({ ok: true });
+}
+
+/** The picture's type from its first bytes: PNG or WebP, else null. */
+function pictureType(b: Uint8Array): string | null {
+  if (b[0] === 0x89 && b[1] === 0x50 && b[2] === 0x4e && b[3] === 0x47) return 'image/png';
+  const ascii = (from: number, to: number) => String.fromCharCode(...b.subarray(from, to));
+  if (b.length >= 12 && ascii(0, 4) === 'RIFF' && ascii(8, 12) === 'WEBP') return 'image/webp';
+  return null;
 }
 
 /** PATCH /api/projects/<id>  { name, baseVersion? }: rename. */
@@ -325,10 +310,14 @@ export async function rename(env: Env, request: Request, rawId: string): Promise
   await env.DB!.prepare('UPDATE projects SET name = ?, version = ?, updated_at = ? WHERE user_id = ? AND id = ?')
     .bind(name, r.version + 1, now, user.id, id)
     .run();
+  // The file in their Drive takes the new name too (best effort: the name here is what the app shows).
+  await driveToken(env, request, user.id)
+    .then((t) => driveRename(t.accessToken, r.file_key, name))
+    .catch((e) => console.warn('Drive rename failed:', e));
   return json({ project: toProject({ ...r, name, version: r.version + 1, updated_at: now }) });
 }
 
-/** DELETE /api/projects/<id> */
+/** DELETE /api/projects/<id>: the project and its file in Drive (a file already gone is fine). */
 export async function remove(env: Env, request: Request, rawId: string): Promise<Response> {
   requireSameOrigin(request);
   const user = await requireUser(env, request);
@@ -338,18 +327,24 @@ export async function remove(env: Env, request: Request, rawId: string): Promise
   // Its print history goes with it.
   await env.DB!.prepare('DELETE FROM project_prints WHERE user_id = ? AND project_id = ?').bind(user.id, id).run();
   await env.DB!.prepare('DELETE FROM projects WHERE user_id = ? AND id = ?').bind(user.id, id).run();
-  await bucket(env).delete([r.file_key, ...(r.thumb_key ? [r.thumb_key] : [])]);
+  await driveFiles(env, request, user.id).remove([r.file_key]);
   return json({ ok: true });
 }
 
-/** Deletes every stored file of a user (their account is being deleted; D1 rows cascade). */
-export async function deleteAllFiles(env: Env, userId: string) {
-  const b = env.PROJECTS;
-  if (!b) return;
-  let cursor: string | undefined;
-  do {
-    const page = await b.list({ prefix: prefix(userId), cursor });
-    if (page.objects.length) await b.delete(page.objects.map((o) => o.key));
-    cursor = page.truncated ? page.cursor : undefined;
-  } while (cursor);
+/**
+ * Deletes files in the person's Google Drive, with a Drive key fetched once,
+ * only when needed. A file we can't reach (access taken away) stays in their Drive.
+ */
+function driveFiles(env: Env, request: Request, userId: string) {
+  let token: Promise<string> | null = null;
+  const getToken = () => (token ??= driveToken(env, request, userId).then((t) => t.accessToken));
+  return {
+    token: getToken,
+    async remove(keys: string[]) {
+      for (const k of keys.filter((k) => fileIdOf(k)))
+        await getToken()
+          .then((t) => driveDelete(t, k))
+          .catch((e) => console.warn('Drive delete failed:', e));
+    },
+  };
 }

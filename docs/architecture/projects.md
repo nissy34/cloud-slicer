@@ -10,7 +10,8 @@
 Opens models and 3MF projects (Bambu Studio's included) through Orca's own reader, brings
 a project's own settings in, offers to convert a project made for a printer you don't
 have, and saves Orca 3MF projects that reopen in desktop Orca: downloaded when signed out,
-online when signed in.
+into the person's own Google Drive when signed in. Cloud Slicer keeps no project files of
+its own: only the list entry and its small picture.
 
 ## Pieces
 
@@ -23,6 +24,7 @@ online when signed in.
 | The open project as a document | `state/projects.ts`, `lib/projects.ts`, `components/ProjectMenu.tsx`, `OpenProjectDialog.tsx` |
 | The Online projects window (search, sort, Cards/List, Rename and Delete windows) | `components/ProjectMenu.tsx` (`ProjectsDialog`), `lib/projects.ts` (`findProjects`), `styles/project-menu.css` |
 | Online projects API | `functions/_lib/projects.ts` (`/api/projects`) |
+| Project files in the person's Google Drive | `functions/_lib/drive.ts` (`/api/drive/token`, check, rename, delete), `src/account/drive.ts` (upload in pieces, download, which files are still there) |
 | Writing the 3MF | engine `saveProject` (Orca's `store_bbs_3mf`) |
 
 ## How it flows
@@ -38,9 +40,35 @@ those the author changed, read from the project's `different_settings_to_system`
 without that list keep every model setting that differs. Printer settings come from the
 target printer; filaments are matched by material and kind (Matte, Silk, HF, Translucent).
 
-**Save (signed in).** Engine writes the 3MF → `PUT /api/projects/<id>` with
-`baseVersion` → R2 under a new key, D1 row updated → thumbnail PNG separately. A save
-over a newer version gets 409 and asks: overwrite, or save a copy.
+**Google Drive.** Sign-in asks Google for `drive.file` (the app sees only the files it
+made; Google needs no security review for it) with `access_type=offline`, so a refresh key
+is kept (encrypted, like the sign-in keys); `/api/me` says `drive: true` once it's granted.
+Someone who unticks Drive on Google's screen, or signed in before, saves as a download only:
+no draft, no AutoSave, and Online projects is grayed out in the Project menu
+(`savesOnline` in `state/projects.ts`) until they press "Connect Google Drive" in the
+account menu (Better Auth's `link-social` on the same account). The owner can also turn
+online projects off for one person (Admin page; `/api/me` says `projects: false`).
+
+**Save (signed in).** Engine writes the 3MF → the page gets a one-hour key from
+`POST /api/drive/token` → uploads the 3MF straight to the "Cloud Slicer" folder in their
+Drive (AutoSave's drafts go in "Cloud Slicer/Drafts"), a resumable upload in 4 MB pieces
+that shows "Saving… N%" for a big project and carries on from what Google has after a
+dropped connection → `PUT /api/projects/<id>?drive=<file id>&baseVersion=…` with no body.
+The server checks the file with the person's key (size, MD5, zip signature) and points the
+row at `drive:<file id>`; every save is a new file and the one before is deleted, so a save
+that loses a race never replaces the newer one, and a refused save deletes the file it just
+uploaded. A save over a newer version gets 409 and asks: overwrite, or save a copy. So does
+a save over a file that was changed in Drive since (its MD5 differs from the one kept at
+the last save; code `changed-in-drive`, "Changed in your Google Drive"). The list picture
+(256 px WebP, about 15 KB; PNG where the browser can't make WebP) goes in the row with
+`PUT /api/projects/<id>/thumbnail`.
+
+**Open.** The page downloads the 3MF straight from Drive with its key (nothing passes
+through us). A file deleted in Drive (or emptied from Drive's bin) shows "Not in your
+Google Drive" on its card in the Online projects window: one Google call per list
+(`filesInDrive`) finds which files are still there; Remove takes it off the list. Rename
+renames the file in Drive too; Delete deletes it. What is kept is told in plain words on
+`/privacy` and `/terms`.
 
 **Online projects window.** Tapping a project's picture or name opens it; its ⋯ menu holds
 Open, Rename… and Delete…. Rename and Delete each ask in their own small window, whose
@@ -49,17 +77,21 @@ server answers; a failure stays in that window with a Copy button and changes no
 While the open project is saved or asked about before another opens, that card shows
 "Opening…". Search (every typed word, any case), Sort (newest, oldest, name, biggest) and
 Cards or List sit at the top and stay put while the projects scroll; Sort and the view are
-remembered per browser. The storage line sits in the window's footer. While the list loads
+remembered per browser. The footer says where projects are kept and how many of the 200
+there are. While the list loads
 the window shows the app's loading card (components/PrintLoader.tsx) with a moving bar, and
 a long name takes two lines on a card and shows in full in List.
 
 ## What it keeps
 
-D1 `projects` (name, size, keys, version, engine, draft, device, plates), R2 3MF and
-thumbnail. Limits: 200 MB and 200 projects per person (storage set per person on the Admin
-page); one project can use all of it, up to 95 MB (Cloudflare's free plan takes uploads
-up to 100 MB, and the 3MF streams straight to R2 so a Worker's 128 MB memory isn't the
-limit); 8 GB for the whole site (R2's free tier is 10 GB).
+D1 `projects` (name, size, `file_key` = `drive:<file id>`, `drive_md5`, the picture in
+`thumb`/`thumb_type`, version, engine, draft, device, plates). The 3MF itself is in the
+person's Google Drive. 200 projects per person (drafts not counted) is a safety guard only, so rows can't pile up
+forever; the UI shows just the count, never "of 200" (each project costs the site one D1
+row and a ~15 KB picture). The file uses the person's own Google storage, which the Online
+projects footer, account menu and privacy page say.
+A project can be as big as their Drive has room for. Deleting an account leaves its
+projects in the person's Drive.
 
 ## Rules
 
@@ -75,22 +107,28 @@ limit); 8 GB for the whole site (R2's free tier is 10 GB).
   column beside it (as `project_prints` does), not in the 3MF.
 - A sliced-only `.gcode.3mf` is explained, not opened.
 - Changed settings and colour mixes belong to the project. After a reload, the preset
-  selection comes back from the browser; the project itself comes back through AutoSave
-  (signed in) or by opening it again.
+  selection comes back from the browser; the project itself comes back from the copy kept
+  in the browser, through AutoSave, or by opening it again.
 
 ## Why
 
 - Orca's own reader and writer, so files round-trip with desktop.
 - Convert copies only what the author changed: copying everything (as other converters
   do) carries the old printer's defaults, such as Bambu's 0.2 mm first layer.
-- A new R2 key per save avoids half-written files being read.
-  See [decisions.md](../decisions.md#projects-and-autosave).
+- A new Drive file per save avoids half-written files being read, and a lost race never
+  replaces the newer save.
+- Project files in the person's own Drive, not ours: no storage cost, no size cap, and the
+  files stay theirs. See [decisions.md](../decisions.md#projects-and-autosave).
 
 ## Tests
 
-`accounts.mjs` (online projects, conflicts; runs Pages Functions with a local D1, see [accounts](accounts.md#tests)), `convert.mjs`, `foreign-gcode.mjs`,
+`accounts.mjs` (online projects, conflicts, Drive: a mock Google Drive the page and the
+server both reach; runs Pages Functions with a local D1, see [accounts](accounts.md#tests)),
+`account/drive.test.ts` (upload in pieces, resume after a drop), `convert.mjs`, `foreign-gcode.mjs`,
 `engine-switch.mjs`, `engines.mjs`; unit tests `project-import.test.ts`, `projects.test.ts`.
 
 ## Open
 
+- Not offered on purpose: opening a 3MF the app didn't make from Drive (Google's file
+  picker), since `drive.file` can't see it.
 - Recent projects on an empty plate (#85) is on hold.

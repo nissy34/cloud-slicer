@@ -1,18 +1,25 @@
 // Who may use the site: the owner (OWNER_EMAILS), the "Invite only" switch
-// and its allow list, and how much each user may store. Blocking is Better
+// and its allow list, and who may save projects online. Blocking is Better
 // Auth's admin plugin (auth.ts); this file holds the site's own settings.
 import type { Env } from './types';
 
 export interface AccessSettings {
   /** Only owners and allowed emails may sign in. */
   inviteOnly: boolean;
-  /** Online project storage per user, in MB, unless set per user. 0 = presets only. */
-  storageMb: number;
+  /** Bridges each person may use (NO_LIMIT = any number), unless the owner set another number for them (user_limits.bridges). */
+  bridgesPerPerson: number;
 }
 
-export const DEFAULT_ACCESS: AccessSettings = { inviteOnly: false, storageMb: 200 };
-/** Most anyone can be given (the site as a whole stays under R2's free 10 GB). */
-export const MAX_STORAGE_MB = 2048;
+/** "No limit" for bridges per person, in site_settings and in user_limits.bridges. */
+export const NO_LIMIT = -1;
+
+
+
+export const DEFAULT_ACCESS: AccessSettings = { inviteOnly: false, bridgesPerPerson: 1 };
+
+/** A bridge number: any whole number from `min` up, or NO_LIMIT; null when it isn't one. One bridge reaches every printer on its network. */
+export const bridgeNumber = (v: unknown, min = 1): number | null =>
+  v === NO_LIMIT || (Number.isSafeInteger(v) && (v as number) >= min) ? (v as number) : null;
 
 export const normalEmail = (email: string) => email.trim().toLowerCase();
 
@@ -26,7 +33,8 @@ export async function accessSettings(env: Env): Promise<AccessSettings> {
   const row = await env.DB!.prepare("SELECT value FROM site_settings WHERE key = 'access'").first<{ value: string }>().catch(() => null);
   if (!row) return { ...DEFAULT_ACCESS };
   try {
-    return { ...DEFAULT_ACCESS, ...(JSON.parse(row.value) as Partial<AccessSettings>) };
+    const saved = JSON.parse(row.value) as Partial<AccessSettings>;
+    return { inviteOnly: saved.inviteOnly === true, bridgesPerPerson: bridgeNumber(saved.bridgesPerPerson) ?? DEFAULT_ACCESS.bridgesPerPerson };
   } catch {
     return { ...DEFAULT_ACCESS };
   }
@@ -54,12 +62,14 @@ export async function signInRefusal(env: Env, email: string): Promise<string | n
   return "Cloud Slicer is invite only for now, and this Google account isn't on the list. Ask the site's owner to add your email.";
 }
 
-/** The user's online project storage in bytes (0 = presets only). */
-export async function storageBytes(env: Env, userId: string): Promise<number> {
-  const own = await env.DB!.prepare('SELECT storage_mb FROM user_limits WHERE user_id = ?')
+/**
+ * Whether the person may save projects online (into their Google Drive). On
+ * unless the owner turned it off for them on the Admin page.
+ */
+export async function projectsAllowed(env: Env, userId: string): Promise<boolean> {
+  const own = await env.DB!.prepare('SELECT projects FROM user_limits WHERE user_id = ?')
     .bind(userId)
-    .first<{ storage_mb: number | null }>()
+    .first<{ projects: number | null }>()
     .catch(() => null);
-  const mb = own?.storage_mb ?? (await accessSettings(env)).storageMb;
-  return Math.max(0, mb) * 1024 * 1024;
+  return own?.projects !== 0;
 }
