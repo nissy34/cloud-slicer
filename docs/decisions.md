@@ -194,6 +194,8 @@ down. Add a line with the date when a new choice is made.
 - The site's window is **Use with an AI app**, not "Use with Claude" (MCP is an open
   standard), for chat apps only (Claude Desktop, other chat apps), in the account menu
   and the Project menu, the same on phones; no line on the empty plate (2026-11-05).
+- No online add-on for ChatGPT, Gemini or Claude on the web and phone: it can't slice
+  without a computer of the person's, so it's too complicated (2026-11-05).
 
 ## Not built
 

@@ -99,6 +99,9 @@ where Claude says, or beside the model, named by the printer's file name format.
 
 ## Why
 
+- **No online add-on** for ChatGPT, Gemini or Claude on the web and phone (2026-11-05):
+  they only take add-ons at an internet address, and we don't slice on servers, so it
+  would have to hand the slice to the person's open tab: too complicated for what it gives.
 - **On the person's computer, not ours**: slicing on a server is turned down (cost), and
   a local program costs nothing and works offline. An online MCP on Cloudflare can't
   slice, so it would only cover account things (later).
@@ -123,8 +126,6 @@ packs the install files and starts the packed one.
 
 ## Open
 
-- **Online add-on** for ChatGPT, Gemini and Claude on the web or phone (they only take
-  add-ons at an internet address): analysis first.
 - **Second step**: sign-in (own presets and printers), printer status, "Upload only" and
   "Upload and print" through the relay, with limits on the site and relay per account
   so a program can't use up the free tier.
