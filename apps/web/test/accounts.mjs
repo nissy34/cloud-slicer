@@ -1530,8 +1530,42 @@ if (withApp)
       assert.notEqual(mine.project.device, 'other-device-1234', 'this device edits it again');
       await layer.fill('0.28');
       await layer.press('Enter');
+      // A Save shows it is saving from the press until it is done: a card, a spinner by the name,
+      // and the menu says why Save, Save a copy and Download 3MF wait (here the server is held).
+      let letSave;
+      const held = new Promise((r) => (letSave = r));
+      const hold = async (route) =>
+        route.request().method() === 'PUT' && !route.request().url().includes('/thumbnail') ? (await held, route.fallback()) : route.fallback();
+      await page.route('**/api/projects/**', hold);
       await page.keyboard.press('Control+s');
+      const savingCard = page.getByTestId('saving-card');
+      await savingCard.getByText('Saving…').waitFor({ timeout: 30000 });
+      await projectButton.getByTestId('save-spinner').waitFor();
+      await projectButton.click();
+      await page.getByTestId('menu-saving').getByText('Save, Save a copy and Download 3MF wait until it is done.').waitFor();
+      for (const row of ['Save', 'Save a copy…', 'Download 3MF'])
+        assert.ok(await page.getByRole('menuitem', { name: new RegExp(`^${row.replace('…', '.')}`) }).first().isDisabled(), `${row} waits while saving`);
+      await page.mouse.move(900, 400);
+      await page.waitForTimeout(400); // the menu fades in
+      if (process.env.ACCOUNTS_SHOTS) await page.screenshot({ path: join(process.env.ACCOUNTS_SHOTS, 'saving-menu.png') });
+      await page.keyboard.press('Escape');
+      if (process.env.ACCOUNTS_SHOTS) {
+        await page.setViewportSize({ width: 390, height: 800 });
+        await page.mouse.move(200, 400);
+        await page.waitForTimeout(300);
+        await page.screenshot({ path: join(process.env.ACCOUNTS_SHOTS, 'saving-phone.png') });
+        await projectButton.click();
+        await page.getByTestId('menu-saving').waitFor();
+        await page.waitForTimeout(400);
+        await page.screenshot({ path: join(process.env.ACCOUNTS_SHOTS, 'saving-menu-phone.png') });
+        await page.keyboard.press('Escape');
+        await page.setViewportSize({ width: 1280, height: 860 });
+      }
+      letSave();
       await page.getByText('Saved “3DBenchy” to your projects').waitFor({ timeout: 60000 });
+      await page.unroute('**/api/projects/**', hold);
+      await savingCard.waitFor({ state: 'detached' });
+      assert.equal(await projectButton.getByTestId('save-spinner').count(), 0, 'the spinner goes when saved');
       if (process.env.ACCOUNTS_SHOTS) await page.screenshot({ path: join(process.env.ACCOUNTS_SHOTS, 'project-saved.png') });
 
       // A reload offers the saved project that was open here.

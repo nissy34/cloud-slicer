@@ -50,6 +50,7 @@ export function ProjectMenu() {
   const online = useProjects((s) => s.current.id !== null && !s.current.draft);
   const dirty = useProjects((s) => s.dirty);
   const busy = useProjects((s) => s.busy);
+  const saving = useProjects((s) => s.saving);
   const signedIn = useAccount((s) => s.status === 'signedIn');
   // Signed in without Google Drive: there are no online projects to show (Connect is in the account menu).
   const noDrive = useAccount((s) => s.status === 'signedIn' && (s.user?.drive !== true || s.user.projects === false));
@@ -116,7 +117,8 @@ export function ProjectMenu() {
               <span className="project-name-text">{name}</span>
               {online && <span className="project-cloud" aria-label="saved online" title="Saved in your online projects" />}
             </span>
-            {dirty && !autosaveBusy && <span className="project-dirty" aria-label="unsaved changes" />}
+            {(saving || autosaveBusy) && <LoaderCircle className="spin project-spin" size={14} aria-label="saving" data-testid="save-spinner" />}
+            {dirty && !autosaveBusy && !saving && <span className="project-dirty" aria-label="unsaved changes" />}
             {status && !busy && <span className="project-status" data-testid="save-status">{status}</span>}
             {busy && <span className="project-busy">{busy}</span>}
           </button>
@@ -140,6 +142,15 @@ export function ProjectMenu() {
           </p>
         )}
         <hr />
+        {/* While a save runs its rows wait, and say why. */}
+        {saving && (
+          <p className="menu-note menu-working" data-testid="menu-saving">
+            <LoaderCircle className="spin" size={16} aria-hidden />
+            <span>
+              <b>{busy}</b> Save, Save a copy and Download 3MF wait until it is done.
+            </span>
+          </p>
+        )}
         {/* Signed out or without Drive, Save downloads the 3MF: one row for both. */}
         {savesOnline && (
           <button role="menuitem" className="menu-item" disabled={!!busy} onClick={run(() => p.save())}>
