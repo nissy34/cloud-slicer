@@ -17,6 +17,14 @@ export function markWords(m: PlateMark): string {
   return 'Not printed';
 }
 
+/** The same in a word, for a phone's top bar (the mark's colour and the tooltip say the rest). */
+export function markShortWords(m: PlateMark): string {
+  if (m.state === 'printed') return 'Printed';
+  if (m.state === 'changed') return 'Changed';
+  if (m.state === 'sent') return m.record.status === 'printing' ? 'Printing' : 'Sent';
+  return 'Not printed';
+}
+
 const when = (ms: number) =>
   new Date(ms).toLocaleString(undefined, { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
 
@@ -78,9 +86,12 @@ export function PrintProgress() {
     const m = marks[0];
     if (!m || m.state === 'none') return null;
     return (
-      <button className={`ghost print-progress single ${m.state}`} onClick={() => open(0)} title="Print history" data-testid="print-progress">
+      <button className={`ghost print-progress single ${m.state}`} onClick={() => open(0)} title={`${markWords(m)}. Tap for the print history.`} data-testid="print-progress">
         <MarkIcon mark={m} />
-        <span className="print-progress-text">{markWords(m)}</span>
+        <span className="print-progress-text">
+          <span className="wide-only">{markWords(m)}</span>
+          <span className="phone-only">{markShortWords(m)}</span>
+        </span>
       </button>
     );
   }
