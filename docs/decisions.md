@@ -178,6 +178,25 @@ down. Add a line with the date when a new choice is made.
 - Engine cache misses retry with a random wait rather than fetching from the release
   first (2026-10-23).
 
+## Slicing from Claude (MCP)
+
+- A local MCP server on the person's computer, slicing with the same wasm engines under
+  Node (2026-11-04). An online one on Cloudflare later, for account things only (it can't
+  slice). Driving the open site tab from Claude (WebMCP) turned down: too new, needs the
+  tab open.
+- First version local only: no sign-in, no printers. Then sign-in, printer status,
+  "Upload only" and "Upload and print" (which asks every time), with per-account limits
+  on the site and relay, not in the program (anyone can change a program).
+- Plate pictures drawn without a GPU, matching the site's; comparing two slices, and
+  calibration models, left out.
+- Installed from a GitHub release `mcp` (Claude Desktop extension + `npx` package), same
+  links updated on every merge, not npm (2026-11-04).
+- The site's window is **Use with an AI app**, not "Use with Claude" (MCP is an open
+  standard), for chat apps only (Claude Desktop, other chat apps), in the account menu
+  and the Project menu, the same on phones; no line on the empty plate (2026-11-05).
+- No online add-on for ChatGPT, Gemini or Claude on the web and phone: it can't slice
+  without a computer of the person's, so it's too complicated (2026-11-05).
+
 ## Not built
 
 Snapmaker cloud, HTTP

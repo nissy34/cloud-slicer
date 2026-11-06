@@ -8,6 +8,7 @@ import { useAccount } from '../state/account';
 import { useProjects } from '../state/projects';
 import { useSlicer } from '../state/store';
 import { Dialog } from './Dialog';
+import { AiAppsDialog } from './AiAppsDialog';
 import { continueOffer, yourDevice } from '../lib/autosave';
 import { deviceId } from '../lib/storage';
 import { Note } from './Note';
@@ -62,6 +63,7 @@ export function ProjectMenu() {
   const status = useSaveStatus();
   const p = useProjects.getState();
   const [open, setOpen] = useState(false);
+  const [aiApps, setAiApps] = useState(false);
   const input = useRef<HTMLInputElement>(null);
 
   // Ctrl+S / Ctrl+Shift+S / Ctrl+O, like desktop.
@@ -163,6 +165,11 @@ export function ProjectMenu() {
           Download 3MF
           {!savesOnline && <kbd>{MOD}S</kbd>}
         </button>
+        <hr />
+        {/* Also in the account menu; here too because it needs no account (signed-out people never see that menu's item). */}
+        <button role="menuitem" className="menu-item" onClick={run(() => setAiApps(true))}>
+          Use with an AI app…
+        </button>
         {engineInfo && (
           <p className="menu-note" data-testid="project-engine">
             This project slices with {engineInfo.name} {engineInfo.version}.
@@ -216,6 +223,7 @@ export function ProjectMenu() {
           })();
         }}
       />
+      {aiApps && <AiAppsDialog onClose={() => setAiApps(false)} />}
       <SaveAsDialog />
       <ConflictDialog />
       <GoneDialog />

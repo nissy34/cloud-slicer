@@ -7,3 +7,7 @@ node_modules/
 # Local throwaway browser scripts
 apps/web/test/.*.mjs
 *.syso
+
+# apps/mcp build scratch
+apps/mcp/.profiles-*/
+apps/mcp/release/

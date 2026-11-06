@@ -46,6 +46,7 @@ Find the folder or file you are about to change; read that page first.
 | `lib/prints.ts`, `state/prints.ts`, `components/PrintHistory.tsx`, `functions/_lib/prints.ts`, `printjob.go`, relay `prints.ts`, `fingerprint_api.cpp` | [print history](architecture/print-history.md) |
 | `functions/api/[[path]].ts` (every `/api` route, listed at its top) | the page of the feature the route serves |
 | `wrangler.toml` files, domains, the test relay | [hosting](architecture/hosting.md) |
+| `apps/mcp/` (slicing from Claude), `engine/node/engine.mjs` | [MCP server](architecture/mcp.md) |
 | `.github/`, `apps/web/test/`, `engine/node/`, `engine/klipper-check/` | [CI.md](CI.md) and [testing](architecture/testing.md) |
 | Anything a stranger could reach: keys, tickets, allow lists | [security](architecture/security.md) |
 

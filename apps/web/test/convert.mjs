@@ -67,7 +67,8 @@ try {
   const ready = async () => {
     await page.getByText('Open a model to start').waitFor({ timeout: 120000 });
     const wizard = page.getByRole('dialog', { name: 'Set up your printers' });
-    if (await wizard.isVisible().catch(() => false)) await wizard.getByRole('button', { name: 'Not now' }).click();
+    // The wizard can open a moment after the page is ready: answer it whenever it shows.
+    await page.addLocatorHandler(wizard, () => wizard.getByRole('button', { name: 'Not now' }).click());
     await page.getByRole('combobox', { name: 'Process preset' }).waitFor();
   };
   // Opens `file`, converts it to the U1 keeping the model settings, and

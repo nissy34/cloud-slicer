@@ -1284,6 +1284,13 @@ if (withApp)
       await page.getByRole('button', { name: /Alice/ }).waitFor({ timeout: 60000 });
       await wizard.waitFor({ timeout: 5000 }).catch(() => {});
       if (await wizard.isVisible().catch(() => false)) await wizard.getByRole('button', { name: 'Not now' }).click();
+      // The account menu's "Use with an AI app" opens the window (tested in ai-apps.mjs) and closes the menu.
+      await page.getByRole('button', { name: /Alice/ }).click();
+      await page.getByRole('button', { name: 'Use with an AI app' }).click();
+      const aiApps = page.getByRole('dialog', { name: 'Use with an AI app' });
+      await aiApps.getByTestId('ai-apps-download').waitFor();
+      assert.equal(await page.getByRole('button', { name: 'Sign out' }).isVisible(), false, 'account menu closes behind the window');
+      await aiApps.getByRole('button', { name: 'Done' }).click();
       await page.getByRole('button', { name: /Alice/ }).click();
       await page.getByRole('button', { name: 'Admin: people and limits' }).click();
       const admin = page.getByTestId('admin');
