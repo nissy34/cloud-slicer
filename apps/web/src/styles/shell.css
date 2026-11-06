@@ -464,8 +464,19 @@
   .topbar .calib-button {
     margin-left: auto;
   }
-  .topbar .project-button {
+  /* The name shortens to "…" inside its box, so the print mark beside it never
+     sits on top of it; the mark keeps its full width and stays readable. */
+  .topbar .project-menu {
+    flex: 0 1 auto;
+    min-width: 48px;
     max-width: 52vw;
+  }
+  .topbar .project-button {
+    max-width: 100%;
+  }
+  .topbar > .print-progress,
+  .print-progress-group {
+    flex: none;
   }
   .bottom-tabs {
     grid-row: 3;

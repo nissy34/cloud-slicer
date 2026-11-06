@@ -2106,8 +2106,14 @@ if (withApp)
       await projects.waitFor({ state: 'detached' });
 
       // Phone width: the top bar and the window fit.
-      await page.setViewportSize({ width: 390, height: 844 });
-      await progress.waitFor();
+      // The project name shortens instead of running under the mark (it used to overlap it).
+      for (const width of [360, 390]) {
+        await page.setViewportSize({ width, height: 844 });
+        await progress.waitFor();
+        const name = await page.locator('.topbar .project-button').boundingBox();
+        const mark = await progress.boundingBox();
+        assert.ok(name.x + name.width <= mark.x + 0.5, `at ${width} px the project name ends at ${name.x + name.width}, under the print mark at ${mark.x}`);
+      }
       await shot(page, 'print-history-phone');
       await progress.click();
       await history.waitFor();
