@@ -25,7 +25,7 @@ import { api, ApiError, type OnlineProject } from '../account/api';
 import { CHUNK, downloadFromDrive, driveGone, uploadToDrive } from '../account/drive';
 import { autosaveDelay, continueOffer, deviceNameFrom, goneText, THUMBNAIL_EVERY_MS, type ContinueOffer, type OnlineOffer } from '../lib/autosave';
 import { clearLocalCopy, loadLocalCopy, saveLocalCopy, type LocalCopy } from '../lib/local-copy';
-import { copyName, freeName, nameFromFile, newProjectId, projectFileName, projectSignature, UNTITLED } from '../lib/projects';
+import { copyName, freeName, nameFromFile, newProjectId, projectFileName, projectSignature, sentOf, UNTITLED } from '../lib/projects';
 import { engineFromUrl, engineName, engineOf3mf, type EngineFlavor } from '../lib/engines';
 import { SETUP_KEY, type Setup } from '../lib/setup';
 import { sharedOnLoad, splitShared, takeSharedFiles } from '../lib/share-target';
@@ -263,7 +263,7 @@ export const useProjects = create<ProjectsState>((set, get) => {
           if (total < 2 * CHUNK) return;
           const pct = Math.floor((sent / total) * 100);
           if (auto) set({ savePercent: pct });
-          else set({ busy: `Saving… ${pct}%` });
+          else set({ busy: `Saving… ${sentOf(sent, total)}` });
         },
       });
       const saved = await api.saveProject(id, target.name, drive, baseVersion, useSlicer.getState().flavor, {

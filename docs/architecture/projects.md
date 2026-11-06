@@ -52,7 +52,7 @@ online projects off for one person (Admin page; `/api/me` says `projects: false`
 **Save (signed in).** Engine writes the 3MF → the page gets a one-hour key from
 `POST /api/drive/token` → uploads the 3MF straight to the "Cloud Slicer" folder in their
 Drive (AutoSave's drafts go in "Cloud Slicer/Drafts"), a resumable upload in 4 MB pieces
-that shows "Saving… N%" for a big project and carries on from what Google has after a
+that shows how far it got for a big project (8 MB or more: "Saving… 12 of 40 MB" on a Save, "Saving… N%" by the name for AutoSave) and carries on from what Google has after a
 dropped connection → `PUT /api/projects/<id>?drive=<file id>&baseVersion=…` with no body.
 The server checks the file with the person's key (size, MD5, zip signature) and points the
 row at `drive:<file id>`; every save is a new file and the one before is deleted, so a save
@@ -66,7 +66,7 @@ the last save; code `changed-in-drive`, "Changed in your Google Drive"). The lis
 **While a save runs.** A Save, Save a copy or Download 3MF the person asked for sets
 `busy` and `saving` from the press (also while an AutoSave still running finishes first and
 while the names are checked) until it is done. Meanwhile a card at the bottom says
-"Saving… N%" ("Preparing the 3MF…" for a download) with a spinner, a spinner sits by the
+"Saving…" (with "12 of 40 MB" for a big project; "Preparing the 3MF…" for a download) with a spinner, a spinner sits by the
 project name on every screen size (AutoSave's own saves show it too), and the Project menu
 greys out Save, Save a copy and Download 3MF with a row saying why. The card gives way to
 "Saved “name” to your projects" or the error. Editing stays possible; what changes after
