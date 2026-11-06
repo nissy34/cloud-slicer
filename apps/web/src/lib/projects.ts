@@ -52,6 +52,15 @@ export function formatBytes(bytes: number): string {
   return `${(bytes / 1024 / 1024).toFixed(bytes < 10 * 1024 * 1024 ? 1 : 0)} MB`;
 }
 
+/** How far an upload got, in the total's unit: "12 of 40 MB", "3.5 of 8.2 MB". */
+export function sentOf(sent: number, total: number): string {
+  const unit = formatBytes(total);
+  const n = unit.split(' ')[0];
+  const digits = n.includes('.') ? n.split('.')[1].length : 0;
+  const scale = unit.endsWith(' MB') ? 1024 * 1024 : unit.endsWith(' KB') ? 1024 : 1;
+  return `${(Math.min(sent, total) / scale).toFixed(digits)} of ${unit}`;
+}
+
 /** "just now", "5 min ago", "3 h ago", else the date. */
 export function formatWhen(ms: number, now = Date.now()): string {
   const s = Math.round((now - ms) / 1000);
