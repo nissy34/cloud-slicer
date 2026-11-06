@@ -59,7 +59,8 @@ async function run(name, options) {
   await page.goto(url);
   await page.getByText(/Open a model to start|Tap to open a model/).first().waitFor({ timeout: 120000 });
   const wizard = page.getByRole('dialog', { name: 'Set up your printers' });
-  if (await wizard.isVisible().catch(() => false)) await wizard.getByRole('button', { name: 'Not now' }).click();
+  // The wizard can open a moment after the page is ready: answer it whenever it shows.
+  await page.addLocatorHandler(wizard, () => wizard.getByRole('button', { name: 'Not now' }).click());
   const search = page.getByRole('searchbox', { name: 'Search process settings' });
   await search.waitFor();
   // The Simple · Advanced · Expert chooser over the process settings.
