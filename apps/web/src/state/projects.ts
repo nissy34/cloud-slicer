@@ -524,12 +524,17 @@ export const useProjects = create<ProjectsState>((set, get) => {
       offerSettled = true;
       set({ busy: `Opening “${p.name}”…`, message: '', listOpen: false, offer: null });
       try {
-        set({ downloading: { name: p.name, loaded: 0, total: 0 } });
+        // The list keeps each project's size, so the bar fills from the start.
+        set({ downloading: { name: p.name, loaded: 0, total: p.size || 0 } });
         // This device edits it from now on; another device that had it open only views it.
         await api.takeOverProject(p.id, thisDevice()).catch(() => {});
         // Straight from their Google Drive, with the latest list entry (its file and version).
         const latest = await api.project(p.id).catch(() => p);
-        const bytes = await downloadFromDrive(latest.driveFile, (loaded, total) => set({ downloading: { name: p.name, loaded, total } }));
+        const bytes = await downloadFromDrive(
+          latest.driveFile,
+          (loaded, total) => set({ downloading: { name: p.name, loaded, total } }),
+          latest.size || p.size,
+        );
         const version = latest.version;
         set({ downloading: null });
         if (await useEngineOf(p.engine ?? 'snapmaker')) switchedNotice(p.engine);

@@ -64,7 +64,9 @@ the last save; code `changed-in-drive`, "Changed in your Google Drive"). The lis
 `PUT /api/projects/<id>/thumbnail`.
 
 **Open.** The page downloads the 3MF straight from Drive with its key (nothing passes
-through us). A file deleted in Drive (or emptied from Drive's bin) shows "Not in your
+through us). The loading card's bar fills from 0 to the project's size: Drive often sends
+the file compressed with no length, so the size kept in the list entry is the total
+(`downloadTotal`); only when neither is known does the bar move without filling. A file deleted in Drive (or emptied from Drive's bin) shows "Not in your
 Google Drive" on its card in the Online projects window: one Google call per list
 (`filesInDrive`) finds which files are still there; Remove takes it off the list. Rename
 renames the file in Drive too; Delete deletes it. What is kept is told in plain words on
