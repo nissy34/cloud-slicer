@@ -110,6 +110,10 @@ export const APPS: Record<string, string> = {
 
 const BRIDGE_ID = /^[\w-]{8,64}$/;
 const MAX_CLIENTS = 16;
+/** A page's own name for its link to a bridge (bridge.ts), kept across its reconnects. */
+const PAGE_SLOT = /^[\w-]{8,40}$/;
+/** The close code for a page socket that a newer one replaced. */
+const REPLACED = 4012;
 const MAX_MESSAGE = 1024 * 1024;
 /** A browser's binary message: an upload piece of up to 8 MiB plus its header (Cloudflare allows 32 MiB). */
 const MAX_BINARY = 9 * 1024 * 1024;
@@ -443,6 +447,10 @@ interface ClientAttachment {
   bridge?: string;
   exp?: number;
   cams?: number;
+  /** The page's own name for this link, the same on every reconnect (bridge.ts). */
+  slot?: string;
+  /** When it connected (ms). */
+  at?: number;
 }
 
 interface BridgeInfo {
@@ -563,7 +571,6 @@ export class Bridge extends DurableObject<Env> {
     if (same(stored, hash)) return reject(4003, 'This pairing code is from an older bridge. Download the new bridge, restart it and pair again.');
     if (!clientHash) return reject(4003, 'Restart the bridge, then pair again.');
     if (!same(clientHash, hash)) return reject(4003, 'Wrong pairing code.');
-    if (this.clients().length >= MAX_CLIENTS) return reject(4029, 'Too many open windows for this bridge.');
     let ticket: Ticket | null = null;
     if (this.env.RELAY_TICKET_PUBLIC_KEY) {
       // Checked by the Worker in front; a request without it never came through there.
@@ -572,14 +579,47 @@ export class Bridge extends DurableObject<Env> {
       if (await this.ctx.storage.get<boolean>('off')) return reject(4403, "The site's owner turned this bridge off.");
       if (ticket.user === (await this.ctx.storage.get<string>('owner')) && (await this.ctx.storage.get<boolean>('blocked'))) return reject(4003, 'This account is blocked.');
     }
+    const slot = url.searchParams.get('slot') ?? '';
+    if (!this.makeRoom(ticket?.user, PAGE_SLOT.test(slot) ? slot : undefined)) return reject(4029, 'Too many pages are open for this bridge. Close one and try again.');
     const id = crypto.randomUUID().slice(0, 8);
     const printer = (url.searchParams.get('printer') ?? '').slice(0, 64);
     this.ctx.acceptWebSocket(ours, ['client', `c:${id}`]);
-    ours.serializeAttachment({ id, printer, user: ticket?.user, bridge: ticket?.bridge, exp: ticket?.exp, cams: ticket?.cams } satisfies ClientAttachment);
+    ours.serializeAttachment({ id, printer, user: ticket?.user, bridge: ticket?.bridge, exp: ticket?.exp, cams: ticket?.cams, slot: PAGE_SLOT.test(slot) ? slot : undefined, at: Date.now() } satisfies ClientAttachment);
     const agent = this.agent();
     ours.send(this.statusMessage(await this.info(), !!agent));
     if (agent && printer) agent.send(JSON.stringify({ ctl: 'open', c: id, printer }));
     return new Response(null, { status: 101, webSocket: browserEnd });
+  }
+
+  /**
+   * Room for one more page socket. On a bad network a page's old socket can stay
+   * open here long after the page gave up on it (the close never got through), so:
+   * the same page connecting again replaces its own old socket, and when the bridge
+   * is still full, this account's oldest socket makes way for its newest.
+   */
+  private makeRoom(user: string | undefined, slot: string | undefined): boolean {
+    const gone = new Set<WebSocket>();
+    const drop = (ws: WebSocket, a: ClientAttachment) => {
+      gone.add(ws);
+      try {
+        ws.close(REPLACED, 'This page connected again.');
+      } catch {
+        // already closing
+      }
+      // The relay may not hear this close itself: tell the bridge now (a second close is harmless).
+      this.agent()?.send(JSON.stringify({ ctl: 'close', c: a.id }));
+    };
+    const open = () =>
+      this.clients()
+        .filter((ws) => !gone.has(ws))
+        .map((ws) => ({ ws, a: ws.deserializeAttachment() as ClientAttachment | null }));
+    if (slot) for (const { ws, a } of open()) if (a?.slot === slot && a.user === user) drop(ws, a);
+    const left = open();
+    if (left.length < MAX_CLIENTS) return true;
+    const oldest = left.filter(({ a }) => a && a.user === user).sort((x, y) => (x.a!.at ?? 0) - (y.a!.at ?? 0))[0];
+    if (!oldest) return false;
+    drop(oldest.ws, oldest.a!);
+    return true;
   }
 
   async webSocketMessage(ws: WebSocket, message: string | ArrayBuffer) {

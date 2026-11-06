@@ -33,6 +33,12 @@ browser  <--text--  relay  <--{c, m: text}--  bridge
 - A browser needs a ticket from the site ([accounts](accounts.md#how-it-flows)),
   checked in the Worker before the Durable Object wakes.
 - Sockets hibernate, so an idle bridge costs nothing.
+- Up to 16 page sockets per bridge. On a bad network a page's old socket can stay open
+  at the relay long after the page gave up on it, so each page link sends its own
+  `slot` name (the same on every reconnect, `link/bridge.ts`): a socket with the same
+  slot and account replaces the old one (closed with 4012). When the bridge is still
+  full, that account's oldest socket makes way for the new one; only another account's
+  sockets can fill it ("Too many pages are open for this bridge").
 
 ## Free tier budget
 
