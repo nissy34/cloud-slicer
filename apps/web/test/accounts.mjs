@@ -1001,6 +1001,8 @@ test('online projects off for one person: saves are refused, presets still save'
   assert.equal((await put.json()).code, 'presets-only');
   assert.ok(!driveFiles.has(fileId), "the refused save's file doesn't stay in their Drive");
   assert.equal((await bob.json('/api/presets/process/Mine', 'PUT', { inherits: 'x', config: {} })).status, 200);
+  // Bob signs in from the browser later; his account starts that test without presets.
+  assert.equal((await bob.json('/api/presets/process/Mine', 'DELETE')).status, 200);
   const row = (await (await alice.json('/api/admin')).json()).users.find((u) => u.id === bobId);
   assert.equal(row.projectsAllowed, false);
   // Back on: a big project is fine, since it's their Drive's space, not ours.
@@ -1373,6 +1375,13 @@ if (withApp)
       await menu.waitFor({ timeout: 30000 });
       await menu.click();
       await page.getByText('Signed in with Google as bob@example.com').waitFor();
+      // The browser's preset moves into the account: wait for it there, then the menu counts it.
+      let presets = [];
+      for (let i = 0; i < 50 && !presets.some((p) => p.name === 'Fast'); i++) {
+        if (i) await new Promise((r) => setTimeout(r, 200));
+        presets = (await (await bobBrowser.json('/api/presets')).json()).presets;
+      }
+      assert.deepEqual(presets.map((p) => `${p.type}:${p.name}`), ['process:Fast'], 'the browser preset moved into the account');
       await page.getByText('1 process').waitFor();
       // The merged settings upload after the presets, so wait for them too.
       const merged = { printers: ['Snapmaker U1 (0.4 nozzle)', 'Snapmaker J1'] };
@@ -1415,8 +1424,8 @@ if (withApp)
       page.on('pageerror', (e) => console.error(`page error: ${e.message}`));
       await page.goto(HOST);
       await page.getByText('Open a model to start').waitFor({ timeout: 120000 });
-      const wizard = page.getByRole('dialog', { name: 'Set up your printers' });
-      if (await wizard.isVisible().catch(() => false)) await wizard.getByRole('button', { name: 'Not now' }).click();
+      // The wizard can open a moment after the page is ready (it waits for the engine, the account and the Continue card): dismiss it whenever it shows.
+      await page.addLocatorHandler(page.getByRole('dialog', { name: 'Set up your printers' }), (d) => d.getByRole('button', { name: 'Not now' }).click());
       await page.getByRole('button', { name: /Bob/ }).waitFor({ timeout: 30000 });
 
       await page.getByTestId('model-input').setInputFiles(join(web, '../../fixtures/3DBenchy.stl'));
