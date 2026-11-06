@@ -63,6 +63,15 @@ the last save; code `changed-in-drive`, "Changed in your Google Drive"). The lis
 (256 px WebP, about 15 KB; PNG where the browser can't make WebP) goes in the row with
 `PUT /api/projects/<id>/thumbnail`.
 
+**While a save runs.** A Save, Save a copy or Download 3MF the person asked for sets
+`busy` and `saving` from the press (also while an AutoSave still running finishes first and
+while the names are checked) until it is done. Meanwhile a card at the bottom says
+"Saving… N%" ("Preparing the 3MF…" for a download) with a spinner, a spinner sits by the
+project name on every screen size (AutoSave's own saves show it too), and the Project menu
+greys out Save, Save a copy and Download 3MF with a row saying why. The card gives way to
+"Saved “name” to your projects" or the error. Editing stays possible; what changes after
+the press goes in the next save.
+
 **Open.** The page downloads the 3MF straight from Drive with its key (nothing passes
 through us). A file deleted in Drive (or emptied from Drive's bin) shows "Not in your
 Google Drive" on its card in the Online projects window: one Google call per list

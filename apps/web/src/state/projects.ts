@@ -60,6 +60,8 @@ interface ProjectsState {
   dirty: boolean;
   /** What is being done right now ('' when idle), e.g. "Saving…". */
   busy: string;
+  /** A Save, Save a copy or Download 3MF the person asked for is running: a card says so until it is done. */
+  saving: boolean;
   /** A project from the account being downloaded: bytes so far, of `total` (0 when unknown). */
   downloading: { name: string; loaded: number; total: number } | null;
   /** The last problem or result, shown under the project menu. */
@@ -247,7 +249,7 @@ export const useProjects = create<ProjectsState>((set, get) => {
   async function upload(target: CurrentProject, baseVersion: number | undefined, opts: UploadOptions = {}): Promise<boolean> {
     const auto = Boolean(opts.auto);
     if (auto) set({ saveState: 'saving' });
-    else set({ busy: 'Saving…', message: '' });
+    else set({ busy: 'Saving…', saving: true, message: '' });
     const sig = signature();
     const paints = paintCount;
     try {
@@ -306,13 +308,13 @@ export const useProjects = create<ProjectsState>((set, get) => {
       else set({ message: `Not saved: ${errorText(e)}`, messageWarn: true });
       return false;
     } finally {
-      if (!auto) set({ busy: '' });
+      if (!auto) set({ busy: '', saving: false });
       set({ savePercent: null });
     }
   }
 
   async function downloadAs(name: string) {
-    set({ busy: 'Preparing the 3MF…', message: '' });
+    set({ busy: 'Preparing the 3MF…', saving: true, message: '' });
     try {
       const { file } = await buildFile();
       downloadBlob(file, projectFileName(name));
@@ -321,7 +323,19 @@ export const useProjects = create<ProjectsState>((set, get) => {
       set({ message: `Couldn't make the 3MF: ${errorText(e)}`, messageWarn: true });
       return false;
     } finally {
-      set({ busy: '' });
+      set({ busy: '', saving: false });
+    }
+  }
+
+  // A save the person asked for shows "Saving…" from the press, also while an AutoSave
+  // still running finishes first, or while the names are checked, until it is done.
+  async function asked(fn: () => Promise<void>) {
+    set({ busy: 'Saving…', saving: true, message: '' });
+    try {
+      await queue(fn);
+    } finally {
+      // Something else started meanwhile (opening a project) keeps its own text.
+      set((s) => (s.busy.startsWith('Saving') ? { busy: '', saving: false } : { saving: false }));
     }
   }
 
@@ -389,6 +403,7 @@ export const useProjects = create<ProjectsState>((set, get) => {
     current: blank(),
     dirty: false,
     busy: '',
+    saving: false,
     downloading: null,
     message: '',
     messageWarn: false,
@@ -433,7 +448,7 @@ export const useProjects = create<ProjectsState>((set, get) => {
       if (get().elsewhere) return;
       // Like Word: the first Save names the project.
       if (!cur.id || cur.draft) return set({ saveAsOpen: 'name' });
-      await queue(async () => {
+      await asked(async () => {
         const now = get().current;
         await upload(now, now.version, { thumbnail: true });
       });
@@ -450,7 +465,7 @@ export const useProjects = create<ProjectsState>((set, get) => {
         }
         return;
       }
-      await queue(async () => {
+      await asked(async () => {
         if (mode === 'name') {
           const target = named(freeName(clean, await takenNames(get().current.id)));
           await upload(target, target.id ? get().current.version : 0, { thumbnail: true });
@@ -470,7 +485,7 @@ export const useProjects = create<ProjectsState>((set, get) => {
       const cur = get().current;
       const theirs = get().conflict?.theirs;
       set({ conflict: null });
-      await queue(async () => {
+      await asked(async () => {
         if (choice === 'overwrite') await upload(cur, undefined);
         if (choice === 'copy') {
           const taken = await api.projects().then((l) => l.projects.map((p) => p.name)).catch(() => [theirs?.name ?? cur.name]);
