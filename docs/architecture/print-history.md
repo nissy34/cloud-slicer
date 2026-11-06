@@ -76,3 +76,6 @@ summary.
 
 - Untested on a real U1. Harmless edits count as changed; Bambu matches by name only;
   Download is never recorded; reading Bambu tags over FTPS isn't done.
+- On a phone the top bar's mark says it in one word ("Changed", "Printed", "Sent",
+  "Printing") and "Printed 6 of 10" becomes "6/10"; the full words stay in the tooltip.
+  The mark never shrinks: the project name beside it shortens to "…" instead.
