@@ -4,7 +4,7 @@ vi.mock('./api', async (actual) => ({
   ...(await actual<typeof import('./api')>()),
   api: { driveToken: async () => ({ accessToken: 'key', expiresAt: Date.now() + 3600_000 }) },
 }));
-const { CHUNK, rangeEnd, uploadToDrive } = await import('./drive');
+const { CHUNK, downloadFromDrive, downloadTotal, rangeEnd, uploadToDrive } = await import('./drive');
 
 /** Google Drive's upload API, as much as uploadToDrive uses: one folder, one resumable upload. */
 function fakeDrive({ dropAfterPieces = Infinity } = {}) {
@@ -69,5 +69,34 @@ describe('Google Drive uploads', () => {
     expect(drive.bytes().every((b, i) => b === sent[i])).toBe(true);
     // The piece that dropped was asked about (bytes */total), then the upload went on, not over.
     expect(drive.calls.filter((c) => c.startsWith('PUT')).length).toBe(4);
+  });
+});
+
+describe('Google Drive downloads', () => {
+  it('knows the total from Drive, or from the size we keep when Drive sends it compressed', () => {
+    expect(downloadTotal(new Headers({ 'Content-Length': '4000000' }), 3900000)).toBe(4000000);
+    expect(downloadTotal(new Headers({ 'Content-Length': '1000', 'Content-Encoding': 'gzip' }), 4000000)).toBe(4000000);
+    expect(downloadTotal(new Headers(), 4000000)).toBe(4000000);
+    expect(downloadTotal(new Headers(), 0)).toBe(0);
+  });
+
+  it('reports bytes of the known size as they arrive, never past it', async () => {
+    const piece = new Uint8Array(1000);
+    const body = new ReadableStream<Uint8Array>({
+      start(c) {
+        for (let i = 0; i < 3; i++) c.enqueue(piece);
+        c.close();
+      },
+    });
+    // Compressed on the way: no usable length, so the list's size (a bit small here) is the total.
+    vi.stubGlobal('fetch', vi.fn(async () => new Response(body, { headers: { 'Content-Encoding': 'gzip' } })));
+    const seen: [number, number][] = [];
+    const bytes = await downloadFromDrive('file-1', (loaded, total) => seen.push([loaded, total]), 2500);
+    expect(bytes.byteLength).toBe(3000);
+    expect(seen).toEqual([
+      [1000, 2500],
+      [2000, 2500],
+      [3000, 3000],
+    ]);
   });
 });

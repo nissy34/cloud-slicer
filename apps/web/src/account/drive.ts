@@ -149,11 +149,24 @@ export function rangeEnd(range: string | null): number {
   return m ? Number(m[1]) + 1 : 0;
 }
 
+/** How big a download will be: Drive's own length when it is the file's (not compressed), else the size we keep. */
+export function downloadTotal(headers: Headers, size: number): number {
+  const length = headers.get('Content-Encoding') ? 0 : Number(headers.get('Content-Length') ?? 0);
+  return length > 0 ? length : Math.max(0, size || 0);
+}
+
 /** The project is no longer in their Drive (deleted, or in the bin and emptied). */
 export const driveGone = (e: unknown) => e instanceof ApiError && e.body.code === 'drive-gone';
 
-/** A project's 3MF, straight from their Drive. `onProgress`: bytes so far, of `total` (0 when unknown). */
-export async function downloadFromDrive(fileId: string | null, onProgress?: (loaded: number, total: number) => void): Promise<ArrayBuffer> {
+/**
+ * A project's 3MF, straight from their Drive. `onProgress`: bytes so far, of `total` (0 when unknown).
+ * `size`: the size the list keeps for it, used when Drive doesn't say (it often sends the file compressed).
+ */
+export async function downloadFromDrive(
+  fileId: string | null,
+  onProgress?: (loaded: number, total: number) => void,
+  size = 0,
+): Promise<ArrayBuffer> {
   const gone = () => new ApiError(404, 'This project is no longer in your Google Drive', { code: 'drive-gone' });
   if (!fileId) throw gone();
   let res: Response;
@@ -164,14 +177,15 @@ export async function downloadFromDrive(fileId: string | null, onProgress?: (loa
     throw e;
   }
   if (!onProgress || !res.body) return res.arrayBuffer();
-  const total = res.headers.get('Content-Encoding') ? 0 : Number(res.headers.get('Content-Length') ?? 0);
+  const total = downloadTotal(res.headers, size);
   const chunks: Uint8Array[] = [];
   let loaded = 0;
   const reader = res.body.getReader();
   for (let r = await reader.read(); !r.done; r = await reader.read()) {
     chunks.push(r.value);
     loaded += r.value.byteLength;
-    onProgress(loaded, total);
+    // A file a little bigger than the list said: the bar stays full rather than going past.
+    onProgress(loaded, total && Math.max(total, loaded));
   }
   const bytes = new Uint8Array(loaded);
   let at = 0;
