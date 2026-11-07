@@ -1,36 +1,10 @@
-/* Autosave and view only, tablet top bar, messages, selection, print history, print order, bottom tabs. */
-/* AutoSave, Continue and view only (src/components/ContinueCard.tsx, ProjectMenu.tsx) */
+/* Save status and view only, tablet top bar, messages, selection, print history, print order, bottom tabs. */
+/* Save status, Continue and view only (src/components/ContinueCard.tsx, ProjectMenu.tsx) */
 .project-status {
   color: var(--muted);
   font-size: var(--t-sm);
   font-weight: 400;
   white-space: nowrap;
-}
-.autosave-pill {
-  display: none;
-  align-items: center;
-  gap: 6px;
-  padding: 4px 8px;
-  border: 1px solid var(--border);
-  border-radius: var(--r-full);
-  background: none;
-  color: var(--muted);
-  font-size: var(--t-sm);
-  white-space: nowrap;
-  cursor: pointer;
-}
-.project-menu:has(.autosave-pill) {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-.menu .menu-switch {
-  justify-content: space-between;
-}
-@media (min-width: 1100px) {
-  .autosave-pill {
-    display: inline-flex;
-  }
 }
 /* Tablets and narrow windows (761-1279 px): the desktop bar, made smaller so
    the tabs, Calibration, theme and account always stay inside the window. */

@@ -4,12 +4,10 @@
 // is the number of projects; the owner can turn online projects off for a
 // person on the Admin page (access.ts projectsAllowed).
 //
-// AutoSave: a new project is kept as a draft (draft = 1) until its first Save
-// names it. Each device keeps one draft (a new one replaces that device's old
-// one), so discarding a draft on one device never takes another device's work
-// with it; a person has at most MAX_DRAFTS, the oldest go first. The device
-// editing a project is recorded with each save; a save from another device is
-// refused (409, code "elsewhere") until that device takes over (POST .../device).
+// Only Save puts a project here: AutoSave keeps unsaved work in the browser
+// (the projects.draft column is no longer used). The device editing a project
+// is recorded with each save; a save from another device is refused (409, code
+// "elsewhere") until that device takes over (POST .../device).
 //
 // Every save is a new file in Drive (the page uploads it, then PUT ?drive=<id>
 // points the row at it, and the file before goes), so a save that lost a race
@@ -29,8 +27,6 @@ export const LIMITS = {
   /** The list picture, kept in the row: 256 px WebP is about 15 KB. */
   thumbnailBytes: 64 * 1024,
 };
-/** Drafts kept per person (one per device; past this the oldest go). */
-export const MAX_DRAFTS = 3;
 
 interface ProjectRow {
   id: string;
@@ -46,8 +42,6 @@ interface ProjectRow {
   updated_at: number;
   /** null: saved before there were two engines (Snapmaker Orca). */
   engine: string | null;
-  /** 1: the person's unsaved draft. */
-  draft: number;
   /** The device editing it (an id the browser keeps), and its name ("phone"). */
   device: string | null;
   device_name: string | null;
@@ -56,7 +50,7 @@ interface ProjectRow {
 }
 /** Every column but the picture, so listing 200 projects doesn't read 200 pictures. */
 const COLUMNS =
-  'id, name, size, file_key, thumb IS NOT NULL AS has_thumb, drive_md5, version, created_at, updated_at, engine, draft, device, device_name, plates';
+  'id, name, size, file_key, thumb IS NOT NULL AS has_thumb, drive_md5, version, created_at, updated_at, engine, device, device_name, plates';
 
 const toProject = (r: ProjectRow, printed?: number) => ({
   id: r.id,
@@ -65,7 +59,6 @@ const toProject = (r: ProjectRow, printed?: number) => ({
   hasThumbnail: Boolean(r.has_thumb),
   version: r.version,
   engine: r.engine ?? 'snapmaker',
-  draft: Boolean(r.draft),
   device: r.device,
   deviceName: r.device_name,
   plates: r.plates ?? null,
@@ -122,13 +115,13 @@ const presetsOnly = () =>
     code: 'presets-only',
   });
 
-/** Saved projects; the draft isn't counted. */
+/** The person's online projects. */
 async function projectCount(env: Env, userId: string) {
-  const u = await env.DB!.prepare('SELECT COALESCE(SUM(draft = 0), 0) AS n FROM projects WHERE user_id = ?').bind(userId).first<{ n: number }>();
+  const u = await env.DB!.prepare('SELECT COUNT(*) AS n FROM projects WHERE user_id = ?').bind(userId).first<{ n: number }>();
   return u?.n ?? 0;
 }
 
-/** GET /api/projects -> { enabled, projects, count, drive } (newest first; the draft, if any, is among them with draft: true) */
+/** GET /api/projects -> { enabled, projects, count, drive } (newest first) */
 export async function list(env: Env, request: Request): Promise<Response> {
   const user = await requireUser(env, request);
   const rows = await env.DB!.prepare(`SELECT ${COLUMNS} FROM projects WHERE user_id = ? ORDER BY updated_at DESC`).bind(user.id).all<ProjectRow>();
@@ -136,7 +129,7 @@ export async function list(env: Env, request: Request): Promise<Response> {
   return json({
     enabled: await projectsAllowed(env, user.id),
     projects: rows.results.map((r) => toProject(r, printed.get(r.id) ?? 0)),
-    count: rows.results.filter((r) => !r.draft).length,
+    count: rows.results.length,
     drive: { connected: await driveConnected(env, user.id) },
   });
 }
@@ -181,8 +174,6 @@ export async function thumbnail(env: Env, request: Request, rawId: string): Prom
  * baseVersion: the version this save started from (0 = a new project);
  * left out, the save goes over whatever is there.
  * engine: snapmaker (the default) or orca, the engine the project slices with.
- * draft=1: this device's draft (it replaces the device's old one); a save
- * without it turns the draft into a normal project.
  * device, deviceName: the device saving; a save from a device other than the
  * one editing the project is refused unless baseVersion is left out.
  * plates: how many plates the project has.
@@ -195,7 +186,6 @@ export async function put(env: Env, request: Request, rawId: string): Promise<Re
   const name = validName(url.searchParams.get('name'));
   const base = baseVersion(url.searchParams.get('baseVersion'));
   const engine = validEngine(url.searchParams.get('engine'));
-  const draft = url.searchParams.get('draft') === '1' ? 1 : 0;
   const device = validDevice(url.searchParams.get('device'));
   const deviceName = validDeviceName(url.searchParams.get('deviceName'));
   const platesParam = Number(url.searchParams.get('plates'));
@@ -214,13 +204,12 @@ export async function put(env: Env, request: Request, rawId: string): Promise<Re
   const current = await row(env, user.id, id);
   if (base !== undefined && current?.device && device && current.device !== device) await refuse(elsewhere(current));
   if (base !== undefined && (current?.version ?? 0) !== base) await refuse(conflict(current));
-  if (draft && current && !current.draft) await refuse(new HttpError(400, 'A saved project cannot become a draft again'));
   // Changed in Drive since it was last saved here (opened in another app, say): ask before replacing it.
   if (base !== undefined && current?.drive_md5) {
     const now = await driveMd5(await files.token(), current.file_key);
     if (now && now !== current.drive_md5) await refuse(conflict(current, 'changed-in-drive'));
   }
-  if (!draft && (!current || current.draft) && (await projectCount(env, user.id)) >= LIMITS.userProjects)
+  if (!current && (await projectCount(env, user.id)) >= LIMITS.userProjects)
     await refuse(new HttpError(413, `You can save up to ${LIMITS.userProjects} projects online`));
 
   const version = (current?.version ?? 0) + 1;
@@ -230,33 +219,19 @@ export async function put(env: Env, request: Request, rawId: string): Promise<Re
   const res = current
     ? await d
         .prepare(
-          'UPDATE projects SET name = ?, size = ?, file_key = ?, drive_md5 = ?, version = ?, updated_at = ?, engine = ?, draft = ?, device = ?, device_name = ?, plates = COALESCE(?, plates) WHERE user_id = ? AND id = ? AND version = ?',
+          'UPDATE projects SET name = ?, size = ?, file_key = ?, drive_md5 = ?, version = ?, updated_at = ?, engine = ?, device = ?, device_name = ?, plates = COALESCE(?, plates) WHERE user_id = ? AND id = ? AND version = ?',
         )
-        .bind(name, size, key, md5, version, now, engine, draft, device, deviceName, plates, user.id, id, current.version)
+        .bind(name, size, key, md5, version, now, engine, device, deviceName, plates, user.id, id, current.version)
         .run()
     : await d
         .prepare(
-          `INSERT INTO projects (user_id, id, name, size, file_key, drive_md5, version, created_at, updated_at, engine, draft, device, device_name, plates)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT (user_id, id) DO NOTHING`,
+          `INSERT INTO projects (user_id, id, name, size, file_key, drive_md5, version, created_at, updated_at, engine, device, device_name, plates)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT (user_id, id) DO NOTHING`,
         )
-        .bind(user.id, id, name, size, key, md5, version, now, now, engine, draft, device, deviceName, plates)
+        .bind(user.id, id, name, size, key, md5, version, now, now, engine, device, deviceName, plates)
         .run();
   if (!res.meta.changes) await refuse(conflict(await row(env, user.id, id)));
   if (current && current.file_key !== key) await files.remove([current.file_key]);
-  // One draft per device: a new one replaces the one before it on this device,
-  // and the oldest drafts of other devices go past MAX_DRAFTS.
-  if (draft && !current) {
-    const others = await d
-      .prepare(`SELECT ${COLUMNS} FROM projects WHERE user_id = ? AND draft = 1 AND id != ? ORDER BY updated_at DESC`)
-      .bind(user.id, id)
-      .all<ProjectRow>();
-    const old = others.results.filter((r, i) => !device || !r.device || r.device === device || i >= MAX_DRAFTS - 1);
-    for (const r of old) {
-      await d.prepare('DELETE FROM project_prints WHERE user_id = ? AND project_id = ?').bind(user.id, r.id).run();
-      await d.prepare('DELETE FROM projects WHERE user_id = ? AND id = ?').bind(user.id, r.id).run();
-      await files.remove([r.file_key]);
-    }
-  }
   return json({
     project: toProject({
       ...(current ?? { has_thumb: 0, created_at: now }),
@@ -268,7 +243,6 @@ export async function put(env: Env, request: Request, rawId: string): Promise<Re
       version,
       updated_at: now,
       engine,
-      draft,
       device,
       device_name: deviceName,
       plates: plates ?? current?.plates ?? null,

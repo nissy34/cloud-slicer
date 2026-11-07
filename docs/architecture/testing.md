@@ -97,7 +97,7 @@ for the rest):
 | `test/presets.mjs` | Save, find, rename and delete your own presets |
 | `test/shared-presets.mjs` | A preset saved in Snapmaker Orca shows in OrcaSlicer and back, each engine on its own base |
 | `test/preset-files.mjs` | Printer and filament settings windows, preset export and import |
-| `test/accounts.mjs` | Sign-in, sessions, synced presets/settings/printers, online projects, AutoSave drafts, Continue on another device, view only, Share to Cloud Slicer (Pages Functions + local D1, mock Google) |
+| `test/accounts.mjs` | Sign-in, sessions, synced presets/settings/printers, online projects, AutoSave in the browser, Continue on another device, view only, Share to Cloud Slicer (Pages Functions + local D1, mock Google) |
 | `test/toolbar.mjs` | The object toolbar: add a model, variable layer height, simplify, brim ears, lay on face, measure, the object menu, parts and modifiers, mesh boolean, text and SVG shapes, assemble, fits a phone |
 | `test/layout-fixes.mjs` | Prepare's layout and dialogs: long object and project names shorten with "…", the Paint card fits, closing the Text tool takes back an unchanged new text, preset menus name presets as their dropdowns and open upward near the bottom, Online projects closes with Esc or a click outside, unsaved changes ask in the app's own dialog, the phone's buttons after slicing fit one row |
 | `test/mixing.mjs` | Make a colour mix, slice, the G-code alternates between both tools |
