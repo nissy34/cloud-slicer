@@ -104,7 +104,7 @@ export async function usage(env: Env): Promise<Usage> {
   const d = env.DB!;
   const [users, projects, bridges, size] = await Promise.all([
     d.prepare('SELECT COUNT(*) AS n FROM "user"').first<{ n: number }>(),
-    d.prepare('SELECT COUNT(*) AS n FROM projects WHERE draft = 0').first<{ n: number }>(),
+    d.prepare('SELECT COUNT(*) AS n FROM projects').first<{ n: number }>(),
     d.prepare('SELECT COUNT(DISTINCT bridge_id) AS n FROM relay_bridges').first<{ n: number }>().catch(() => ({ n: 0 })),
     // D1 reports the database's size with every query.
     d

@@ -2,15 +2,12 @@
 // the page uploads each save straight there and downloads a project straight
 // from there, so a project never passes through Cloud Slicer and isn't held to
 // Cloudflare's 100 MB request limit. With the drive.file permission the app
-// only sees files it made: the "Cloud Slicer" folder, its "Drafts" folder and
-// the projects in them.
+// only sees files it made: the "Cloud Slicer" folder and the projects in it.
 import { api, ApiError } from './api';
 
 const FILES = 'https://www.googleapis.com/drive/v3/files';
 const UPLOAD = 'https://www.googleapis.com/upload/drive/v3/files';
 const FOLDER = 'Cloud Slicer';
-/** AutoSave's drafts, inside the Cloud Slicer folder, so unnamed projects don't crowd it. */
-const DRAFTS = 'Drafts';
 const FOLDER_TYPE = 'application/vnd.google-apps.folder';
 /** Upload pieces: Google wants multiples of 256 KB. 4 MB shows progress often enough on a phone. */
 export const CHUNK = 16 * 256 * 1024;
@@ -64,32 +61,24 @@ async function folder(name: string, parent?: string): Promise<string> {
   folders.set(cacheKey, id);
   return id;
 }
-const projectsFolder = async (draft: boolean) => {
-  const top = await folder(FOLDER);
-  return draft ? folder(DRAFTS, top) : top;
-};
-
 export interface UploadOptions {
-  /** AutoSave's draft: it goes in Cloud Slicer/Drafts. */
-  draft?: boolean;
   /** Bytes sent so far, of `total`. */
   onProgress?: (sent: number, total: number) => void;
 }
 
 /**
- * Uploads the 3MF as a new file in the Cloud Slicer folder (or its Drafts
- * folder) and returns its id. A resumable upload: one request names the file,
+ * Uploads the 3MF as a new file in the Cloud Slicer folder and returns its id. A resumable upload: one request names the file,
  * then it goes in 4 MB pieces, and a dropped connection carries on from the
  * last piece Google has.
  */
 export async function uploadToDrive(file: Blob, name: string, opts: UploadOptions = {}): Promise<string> {
   try {
-    return await upload(file, name, await projectsFolder(Boolean(opts.draft)), opts);
+    return await upload(file, name, await folder(FOLDER), opts);
   } catch (e) {
     // A folder was deleted in Drive since: make it again.
     if (!(e instanceof ApiError && e.status === 404 && folders.size)) throw e;
     folders.clear();
-    return upload(file, name, await projectsFolder(Boolean(opts.draft)), opts);
+    return upload(file, name, await folder(FOLDER), opts);
   }
 }
 

@@ -21,7 +21,7 @@ export interface AdminUser {
   blocked: boolean;
   /** On the invite-only list. */
   allowed: boolean;
-  /** Saved projects (drafts aren't counted). */
+  /** Online projects. */
   projects: number;
   presets: number;
   printers: number;

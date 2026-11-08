@@ -34,7 +34,7 @@ export async function ask(q: Omit<Question, 'answer' | 'other'>): Promise<boolea
   return (await askChoice(q)) === 'action';
 }
 
-/** Word's question when a new project or the draft is about to be replaced: Save, Don't save or Cancel. */
+/** Word's question when a new project is about to be replaced: Save, Don't save or Cancel. */
 export async function askSave(name: string): Promise<'save' | 'discard' | 'cancel'> {
   const choice = await askChoice({
     title: `Save “${name}”?`,
@@ -83,7 +83,7 @@ export function discardOk(dirty: boolean, name: string): Promise<boolean> {
   return ask({ title: 'Discard unsaved changes?', text: `“${name}” has changes that aren't saved yet.`, action: 'Discard changes' });
 }
 
-/** Files were shared to the app while a draft or a project from another device waits: add them to it, or start new. */
+/** Files were shared to the app while a project from before waits: add them to it, or start new. */
 async function askAddTo(what: string, project: string): Promise<'add' | 'new' | 'cancel'> {
   const choice = await askChoice({
     title: `Open ${what}`,
