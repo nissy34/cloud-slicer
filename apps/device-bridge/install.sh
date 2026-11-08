@@ -36,8 +36,7 @@ for a in "$@"; do
     --uninstall) uninstall=1 ;;
     *)
       # Checked before anything is downloaded or the setup code is spent.
-      echo "Nothing installed: \"$a\" isn't something this installer knows (it takes --printer and --uninstall)."
-      echo "If you pasted the install line twice, paste it once and press Enter. The setup code still works."
+      echo "Unknown option: $a"
       exit 2
       ;;
   esac

@@ -313,7 +313,7 @@ jobs:
           sh "$RUNNER_TEMP/install.sh" --printercurl -fsSL "$relay/install.sh?code=CK23-4567" 2>"$RUNNER_TEMP/doubled.log" | sh -s -- --printer > "$RUNNER_TEMP/doubled.out" 2>&1
           set -e
           cat "$RUNNER_TEMP/doubled.log" "$RUNNER_TEMP/doubled.out"
-          grep -q 'Nothing installed: "--printercurl"' "$RUNNER_TEMP/doubled.log" || { echo "The installer took an unknown option"; exit 1; }
+          grep -q 'Unknown option: --printercurl' "$RUNNER_TEMP/doubled.log" || { echo "The installer took an unknown option"; exit 1; }
           [ ! -s "$RUNNER_TEMP/doubled.out" ] || { echo "The second sh got something to run"; exit 1; }
           if grep -q 'Downloading' "$RUNNER_TEMP/doubled.log"; then echo "An unknown option still downloaded the bridge"; exit 1; fi
           sleep 2
