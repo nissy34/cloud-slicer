@@ -53,7 +53,9 @@ const b64url = (buf) => Buffer.from(buf).toString('base64').replace(/\+/g, '-').
 // straight to it over TLS, without checking a signature (as Google documents).
 const idToken = (claims) => `${b64url(JSON.stringify({ alg: 'none' }))}.${b64url(JSON.stringify(claims))}.`;
 
-const mock = createServer(async (req, res) => {
+// A request the page gave up on is dropped; anything else wrong still stops the test.
+const mock = createServer((req, res) => mockGoogle(req, res).catch((e) => { if (!e.pageAborted) throw e; res.destroy(); }));
+async function mockGoogle(req, res) {
   const url = new URL(req.url, MOCK);
   const send = (status, body, headers = {}) => {
     res.writeHead(status, { 'Content-Type': 'application/json', ...headers });
@@ -100,7 +102,13 @@ const mock = createServer(async (req, res) => {
   const authorized = () => (req.headers.authorization ?? '').startsWith('Bearer tok-');
   const readBody = async () => {
     const chunks = [];
-    for await (const chunk of req) chunks.push(chunk);
+    try {
+      for await (const chunk of req) chunks.push(chunk);
+    } catch (e) {
+      // The page gave up on the request (Cancel, a time limit): like Google, drop it rather than fall over.
+      console.warn(`mock Google: ${req.method} ${url.pathname} aborted by the page (${e.code ?? e.message})`);
+      throw Object.assign(new Error('aborted by the page'), { pageAborted: true });
+    }
     return Buffer.concat(chunks);
   };
   if (url.pathname === '/googleapis/drive/v3/files' && req.method === 'GET') {
@@ -172,7 +180,7 @@ const mock = createServer(async (req, res) => {
     return send(200, { size: String(f.bytes.length), md5Checksum: createHash('md5').update(f.bytes).digest('hex'), trashed: Boolean(f.trashed) });
   }
   send(404, {});
-});
+}
 /** The mock Google Drive: id -> { name, bytes }. The page uploads to Google itself; tests put files here. */
 const driveFiles = new Map();
 const driveUploads = new Map(); // resumable upload session -> the file's name, folder and the bytes so far
@@ -1509,6 +1517,10 @@ if (withApp)
       await projectButton.getByTestId('save-spinner').waitFor();
       await projectButton.click();
       await page.getByTestId('menu-saving').getByText('Save, Save a copy and Download 3MF wait until it is done.').waitFor();
+      // Uploaded to Drive; recording the save can't be stopped halfway, so no Cancel now (#276).
+      await page.getByTestId('menu-saving').getByText('Saving… finishing').waitFor();
+      await page.getByTestId('menu-saving').getByTestId('save-bar').waitFor();
+      assert.equal(await page.getByTestId('menu-cancel-save').count(), 0, 'no Cancel once the save is being recorded');
       for (const row of ['Save', 'Save a copy…', 'Download 3MF'])
         assert.ok(await page.getByRole('menuitem', { name: new RegExp(`^${row.replace('…', '.')}`) }).first().isDisabled(), `${row} waits while saving`);
       await page.mouse.move(900, 400);
@@ -1533,6 +1545,48 @@ if (withApp)
       await savingCard.waitFor({ state: 'detached' });
       assert.equal(await projectButton.getByTestId('save-spinner').count(), 0, 'the spinner goes when saved');
       if (process.env.ACCOUNTS_SHOTS) await page.screenshot({ path: join(process.env.ACCOUNTS_SHOTS, 'project-saved.png') });
+
+      // A save that gets stuck uploading says how far it got and can be cancelled (#276):
+      // here Google never answers the upload; Cancel stops it and the changes stay unsaved.
+      await layer.fill('0.2');
+      await layer.press('Enter');
+      let letUpload;
+      const uploadHeld = new Promise((r) => (letUpload = r));
+      // The page gave up on these requests (Cancel): they never reach the mock Drive.
+      const holdUpload = (route) => uploadHeld.then(() => route.abort().catch(() => {}));
+      await page.route(`${MOCK}/googleapis/upload/session/**`, holdUpload);
+      await page.keyboard.press('Control+s');
+      await savingCard.getByText(/Saving… 0(\.0+)? of [\d.]+ (KB|MB)/).waitFor({ timeout: 30000 });
+      await savingCard.getByTestId('save-bar').waitFor();
+      await projectButton.click();
+      await page.getByTestId('menu-saving').getByText(/Saving… 0(\.0+)? of/).waitFor();
+      await page.getByTestId('menu-cancel-save').waitFor();
+      await page.mouse.move(900, 400);
+      await page.waitForTimeout(400);
+      if (process.env.ACCOUNTS_SHOTS) await page.screenshot({ path: join(process.env.ACCOUNTS_SHOTS, 'saving-cancel-menu.png') });
+      if (process.env.ACCOUNTS_SHOTS) {
+        await page.keyboard.press('Escape');
+        await page.setViewportSize({ width: 390, height: 800 });
+        await page.mouse.move(200, 400);
+        await page.waitForTimeout(300);
+        await page.screenshot({ path: join(process.env.ACCOUNTS_SHOTS, 'saving-cancel-phone.png') });
+        await page.setViewportSize({ width: 1280, height: 860 });
+        await projectButton.click();
+      }
+      await page.getByTestId('menu-cancel-save').click();
+      await page.getByText('Save cancelled').waitFor({ timeout: 15000 });
+      await savingCard.waitFor({ state: 'detached', timeout: 15000 });
+      assert.equal(await projectButton.getByTestId('save-spinner').count(), 0, 'the spinner goes when cancelled');
+      assert.notEqual(await projectButton.getByTestId('save-status').textContent(), 'Saved', 'a cancelled save leaves the changes unsaved');
+      if (process.env.ACCOUNTS_SHOTS) await page.screenshot({ path: join(process.env.ACCOUNTS_SHOTS, 'saving-cancelled.png') });
+      letUpload();
+      await page.unroute(`${MOCK}/googleapis/upload/session/**`, holdUpload);
+      // Saving again works (back to 0.28, which the steps below expect).
+      await layer.fill('0.28');
+      await layer.press('Enter');
+      await page.keyboard.press('Control+s');
+      await page.getByText('Saved “3DBenchy” to your projects').waitFor({ timeout: 60000 });
+      await savingCard.waitFor({ state: 'detached' });
 
       // A reload offers the saved project that was open here.
       await page.reload();
