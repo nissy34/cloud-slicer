@@ -33,7 +33,9 @@ printer in its own protocol.
 install line per system → the bridge spends it through the relay, which asks the site
 (`/api/relay/claim`) → the site saves the bridge in that account → the dialog turns green.
 A bridge without a valid code never connects. After that it starts with the computer and
-asks nothing; printers and their keys are added from the Device tab.
+asks nothing; printers and their keys are added from the Device tab. `install.sh` refuses
+any option but `--printer` and `--uninstall` before it downloads anything, and prints
+only to stderr, so the line pasted twice onto one line can't feed text to a second `sh`.
 
 **Update.** Two minutes after start and every 6 hours it fetches `/bridge-release.json`,
 checks the ed25519 signature (key only in the `BRIDGE_SIGNING_KEY` secret), size and

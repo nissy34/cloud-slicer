@@ -21,12 +21,31 @@
 # when needed). Remove it the same way with: sh -s -- --printer --uninstall
 set -eu
 
+# Everything this prints, the bridge's own messages too, goes to stderr. This
+# script arrives through a pipe, so if the line gets pasted twice onto one line
+# ("... | sh -s -- --printercurl -fsSL ... | sh -s -- --printer"), stdout feeds a
+# second sh: nothing must reach it, or it runs our messages as commands (and the
+# bridge, writing to a closed pipe, dies halfway through installing).
+exec 1>&2
+
+# A wrong option stops it before anything is downloaded or the setup code is spent.
+usage_error() {
+  echo "error: $1"
+  echo
+  echo "Usage: install.sh [--printer] [--uninstall]"
+  echo "  --printer    install on the printer itself (run over SSH on the printer)"
+  echo "  --uninstall  remove the bridge"
+  exit 2
+}
+
 printer=""
 uninstall=""
 for a in "$@"; do
   case "$a" in
     --printer) printer=1 ;;
     --uninstall) uninstall=1 ;;
+    -*) usage_error "unknown option '$a'" ;;
+    *) usage_error "unexpected argument '$a'" ;;
   esac
 done
 
