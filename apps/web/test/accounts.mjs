@@ -1544,7 +1544,8 @@ if (withApp)
       await layer.press('Enter');
       let letUpload;
       const uploadHeld = new Promise((r) => (letUpload = r));
-      const holdUpload = (route) => uploadHeld.then(() => route.fallback().catch(() => {}));
+      // The page gave up on these requests (Cancel): they never reach the mock Drive.
+      const holdUpload = (route) => uploadHeld.then(() => route.abort().catch(() => {}));
       await page.route(`${MOCK}/googleapis/upload/session/**`, holdUpload);
       await page.keyboard.press('Control+s');
       await savingCard.getByText(/Saving… 0(\.0+)? of [\d.]+ (KB|MB)/).waitFor({ timeout: 30000 });
