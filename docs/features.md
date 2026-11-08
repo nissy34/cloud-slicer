@@ -251,6 +251,11 @@ size their Drive has room for. Without Drive (said no at sign-in) Save downloads
 projects is grayed out until "Connect Google Drive" in the account menu. Saves carry the version they started
 from, so a save from a second device asks before overwriting.
 
+Open from Google Drive (Project menu, and the empty plate) opens Google's own file window
+on the whole Drive; the picked models or 3MF files open like files from the device. The
+first Save keeps a copy in the Cloud Slicer folder, and says so; the file in Drive is not
+changed. The permission stays `drive.file`: picking a file gives the app only that file.
+
 AutoSave keeps unsaved work in the browser only (`lib/local-copy.ts`), for everyone: 5 s
 after the last change, at most every 10 s (every minute for projects of 20 MB or more),
 and when the tab is hidden. The Continue card offers it back; the top bar says "Saved in

@@ -18,6 +18,8 @@ export interface AccountUser {
   drive?: boolean;
   /** False when the site's owner turned online projects off for them. */
   projects?: boolean;
+  /** The site can open Google's file window (Open from Google Drive, account/drive-picker.ts). */
+  drivePicker?: boolean;
 }
 
 export interface Me {

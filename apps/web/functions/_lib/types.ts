@@ -28,6 +28,8 @@ export interface Env {
   BETTER_AUTH_SECRET?: string;
   GOOGLE_CLIENT_ID?: string;
   GOOGLE_CLIENT_SECRET?: string;
+  /** Browser key for Google's file window (Open from Google Drive); not secret, limited to the site's addresses in Google Cloud console. */
+  GOOGLE_PICKER_KEY?: string;
   /** 32 random bytes, base64: encrypts printer API keys at rest. CI creates it once. */
   ACCOUNT_ENC_KEY?: string;
   /** Who may open the Admin page: Google account emails, comma separated. A Pages secret (CI copies the repository secret). */

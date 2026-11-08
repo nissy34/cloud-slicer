@@ -9,6 +9,10 @@
 //     repository secrets) into Pages secrets, for production and previews.
 //  3. Creates BETTER_AUTH_SECRET (sessions) and ACCOUNT_ENC_KEY (printer API
 //     keys) once, if missing. Production and previews share them.
+//     Also GOOGLE_PICKER_KEY: the browser key Google's file window needs for
+//     Open from Google Drive, stored as a Pages secret even though every
+//     browser gets it, because each deploy replaces the plain variables with
+//     wrangler.toml's [vars] and the key would be dropped.
 //  4. The Admin page: copies OWNER_EMAILS (who may open it) and, if set,
 //     CLOUDFLARE_ANALYTICS_TOKEN (a read-only token for its usage numbers).
 //  5. Creates the relay ticket key pair once, if the site has none: the private
@@ -87,6 +91,10 @@ async function setupSecrets() {
     if (process.env.OWNER_EMAILS) vars.OWNER_EMAILS = process.env.OWNER_EMAILS;
     else warn('No OWNER_EMAILS repository secret: nobody can open the Admin page. Add your Google email as that secret.');
     const plain = {};
+    // Open from Google Drive: Google's file window needs this browser key. It is sent to every browser, but it is
+    // kept as a Pages secret: a deploy replaces the plain variables with wrangler.toml's [vars], which drops it.
+    if (process.env.GOOGLE_PICKER_KEY) vars.GOOGLE_PICKER_KEY = process.env.GOOGLE_PICKER_KEY;
+    else warn('No GOOGLE_PICKER_KEY repository secret: "Open from Google Drive" stays grayed out. See docs/architecture/projects.md.');
     if (process.env.CLOUDFLARE_ANALYTICS_TOKEN) {
       vars.CF_ANALYTICS_TOKEN = process.env.CLOUDFLARE_ANALYTICS_TOKEN;
       plain.CF_ACCOUNT_ID = account;

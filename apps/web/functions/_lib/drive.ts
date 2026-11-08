@@ -106,9 +106,22 @@ export async function driveDelete(token: string, key: string): Promise<void> {
   if (!res.ok && res.status !== 404) throw new HttpError(502, `Google Drive answered ${res.status}`);
 }
 
-/** POST /api/drive/token -> { accessToken, expiresAt }: lets the page upload and download projects straight from Drive. */
+/**
+ * POST /api/drive/token -> { accessToken, expiresAt, picker? }: lets the page upload and download projects straight from Drive.
+ * `picker`: what Google's file window (Open from Google Drive, public/drive-picker.html) needs, when the site has a Picker key.
+ */
 export async function token(env: Env, request: Request): Promise<Response> {
   requireSameOrigin(request);
   const user = await requireUser(env, request);
-  return json(await driveToken(env, request, user.id));
+  return json({ ...(await driveToken(env, request, user.id)), ...(pickerConfig(env) && { picker: pickerConfig(env) }) });
+}
+
+/**
+ * Google's file window wants a browser key (GOOGLE_PICKER_KEY, limited to the site in Google Cloud console) and the app's
+ * Cloud project number, which starts the OAuth client id ("123456789012-abc.apps.googleusercontent.com"). With both,
+ * a file picked in the window is opened up to the app's drive.file permission: no wider Drive access.
+ */
+export function pickerConfig(env: Env): { key: string; appId: string } | null {
+  const appId = /^(\d+)-/.exec(env.GOOGLE_CLIENT_ID ?? '')?.[1];
+  return env.GOOGLE_PICKER_KEY && appId ? { key: env.GOOGLE_PICKER_KEY, appId } : null;
 }

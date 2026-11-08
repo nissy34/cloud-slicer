@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { api, projectThumbnailUrl, type OnlineProject, type ProjectList } from '../account/api';
 import { filesInDrive } from '../account/drive';
+import { useDriveOpen } from '../account/useDriveOpen';
 import { engineName } from '../lib/engines';
 import { copyName, findProjects, formatBytes, formatWhen, PROJECT_SORTS, UNTITLED, type ProjectSort } from '../lib/projects';
 import { MODEL_EXTENSIONS } from '../lib/presets';
@@ -55,6 +56,7 @@ export function ProjectMenu() {
   const [open, setOpen] = useState(false);
   const [aiApps, setAiApps] = useState(false);
   const input = useRef<HTMLInputElement>(null);
+  const driveOpen = useDriveOpen();
 
   // Ctrl+S / Ctrl+Shift+S / Ctrl+O, like desktop.
   useEffect(() => {
@@ -120,14 +122,26 @@ export function ProjectMenu() {
         <button role="menuitem" className="menu-item" onClick={run(() => input.current?.click())}>
           Open from this device…<kbd>{MOD}O</kbd>
         </button>
+        <button
+          role="menuitem"
+          className="menu-item"
+          disabled={!driveOpen.available || !!busy}
+          title={driveOpen.reason || undefined}
+          data-testid="open-from-drive"
+          onClick={run(() => driveOpen.open('project'))}
+        >
+          Open from Google Drive…
+        </button>
         <button role="menuitem" className="menu-item" disabled={noDrive} onClick={run(() => p.setListOpen(true))}>
           Online projects…
         </button>
+        {/* Drive connected but the site lacks Google's key: say so (the other reasons share the note below). */}
+        {!noDrive && signedIn && !driveOpen.available && <p className="menu-note">{driveOpen.reason}</p>}
         {noDrive && (
           <p className="menu-note" data-testid="online-projects-off">
             {projectsOff
               ? 'Online projects are turned off for your account.'
-              : 'Connect Google Drive in the account menu to keep projects online. Until then, Save downloads the 3MF.'}
+              : 'Connect Google Drive in the account menu to open files from it and keep projects online. Until then, Save downloads the 3MF.'}
           </p>
         )}
         <hr />
@@ -208,12 +222,14 @@ function SaveAsDialog() {
 function SaveAsForm({ copy, initial }: { copy: boolean; initial: string }) {
   const signedIn = useAccount((s) => s.status === 'signedIn');
   const online = useProjects((s) => s.canSaveOnline());
+  // Opened from Google Drive: the first Save says plainly that it makes a copy and leaves the Drive file alone.
+  const fromDrive = useProjects((s) => (online && !copy ? s.current.fromDrive : undefined));
   const [name, setName] = useState(initial);
   const close = () => useProjects.getState().setSaveAsOpen(false);
   const trimmed = name.trim();
   return (
     <Dialog
-      title={copy ? 'Save a copy' : 'Save project'}
+      title={fromDrive ? 'Save a copy to Cloud Slicer' : copy ? 'Save a copy' : 'Save project'}
       testId="save-as-dialog"
       onClose={close}
       footer={
@@ -222,7 +238,7 @@ function SaveAsForm({ copy, initial }: { copy: boolean; initial: string }) {
             Cancel
           </button>
           <button type="submit" form="save-as-form" className="primary" disabled={!trimmed}>
-            {online ? 'Save' : 'Download'}
+            {fromDrive ? 'Save copy' : online ? 'Save' : 'Download'}
           </button>
         </>
       }
@@ -239,8 +255,20 @@ function SaveAsForm({ copy, initial }: { copy: boolean; initial: string }) {
           <span>Name</span>
           <input aria-label="Project name" autoFocus maxLength={128} value={name} placeholder="My project" onChange={(e) => setName(e.target.value)} />
         </label>
-        <p className="muted small">
-          {!signedIn
+        <p className="muted small" data-testid="save-as-note">
+          {fromDrive ? (
+            <>
+              Saves a copy in the Cloud Slicer folder in your Google Drive, with its plates, settings and paint.{' '}
+              {/\.\w+$/.test(fromDrive) ? (
+                <>
+                  Your file <b>{fromDrive}</b> in Drive is not changed.
+                </>
+              ) : (
+                <>Your {fromDrive} in Drive are not changed.</>
+              )}{' '}
+              After this, Save updates the copy.
+            </>
+          ) : !signedIn
             ? 'Downloaded as a 3MF project file. Sign in to keep projects online.'
             : !online
               ? 'Downloaded as a 3MF project file. Connect Google Drive in the account menu to keep projects online.'

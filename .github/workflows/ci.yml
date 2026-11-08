@@ -9,6 +9,7 @@ name: CI
 # Accounts (sign-in) also need the token to have "D1: Edit", and these
 # secrets, which the deploy copies into the Pages project:
 #   secrets.GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET
+# Open from Google Drive needs vars.GOOGLE_PICKER_KEY (a Google browser key).
 # The Admin page needs secrets.OWNER_EMAILS (the owner's Google email); its
 # usage numbers optionally secrets.CLOUDFLARE_ANALYTICS_TOKEN (read-only).
 # CI never talks to a real printer: printer tests run against a mock Moonraker.
@@ -796,6 +797,8 @@ jobs:
       GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
       GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
       OWNER_EMAILS: ${{ secrets.OWNER_EMAILS }}
+      # Open from Google Drive: the browser key for Google's file window (not secret; a variable or a secret both work).
+      GOOGLE_PICKER_KEY: ${{ vars.GOOGLE_PICKER_KEY || secrets.GOOGLE_PICKER_KEY }}
       CLOUDFLARE_ANALYTICS_TOKEN: ${{ secrets.CLOUDFLARE_ANALYTICS_TOKEN }}
     steps:
       - uses: actions/checkout@v5
@@ -821,6 +824,8 @@ jobs:
       GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
       GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
       OWNER_EMAILS: ${{ secrets.OWNER_EMAILS }}
+      # Open from Google Drive: the browser key for Google's file window (not secret; a variable or a secret both work).
+      GOOGLE_PICKER_KEY: ${{ vars.GOOGLE_PICKER_KEY || secrets.GOOGLE_PICKER_KEY }}
       CLOUDFLARE_ANALYTICS_TOKEN: ${{ secrets.CLOUDFLARE_ANALYTICS_TOKEN }}
     steps:
       - uses: actions/checkout@v5
