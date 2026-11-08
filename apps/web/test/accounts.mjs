@@ -61,7 +61,7 @@ const mock = createServer(async (req, res) => {
   };
   if (url.pathname === '/google/authorize') {
     const q = url.searchParams;
-    assert.equal(q.get('client_id'), 'google-id');
+    assert.equal(q.get('client_id'), '123456789012-google-id');
     assert.equal(q.get('code_challenge_method'), 'S256');
     const code = `code-${codes.size + 1}-${Math.random()}`;
     // declineDrive: the person unticks Google Drive on Google's consent screen.
@@ -89,7 +89,7 @@ const mock = createServer(async (req, res) => {
       token_type: 'Bearer',
       scope: c.scope ?? 'openid email profile',
       ...(c.scope?.includes('drive.file') && { refresh_token: `refresh-${Math.random()}` }),
-      id_token: idToken({ iss: 'https://accounts.google.com', aud: 'google-id', iat: now, exp: now + 3600, ...c.user }),
+      id_token: idToken({ iss: 'https://accounts.google.com', aud: '123456789012-google-id', iat: now, exp: now + 3600, ...c.user }),
     });
   }
   // Google Drive, as the page (account/drive.ts, routed here by the browser tests) and
@@ -204,7 +204,9 @@ const bindings = {
   TRUSTED_ORIGINS: `${HOST},${AUTH}`,
   BETTER_AUTH_SECRET: 'test-secret-test-secret-test-secret-0123',
   OAUTH_TEST_BASE: MOCK,
-  GOOGLE_CLIENT_ID: 'google-id',
+  // A real client id starts with the Cloud project number, which Google's file window needs as its app id.
+  GOOGLE_CLIENT_ID: '123456789012-google-id',
+  GOOGLE_PICKER_KEY: 'picker-key',
   GOOGLE_CLIENT_SECRET: 'google-secret',
   ACCOUNT_ENC_KEY: Buffer.alloc(32, 7).toString('base64'),
 };
@@ -1761,6 +1763,157 @@ if (withApp)
       await page.getByRole('button', { name: /Jill/ }).click();
       await page.getByRole('button', { name: 'Connect Google Drive' }).waitFor();
       if (process.env.ACCOUNTS_SHOTS) await page.screenshot({ path: join(process.env.ACCOUNTS_SHOTS, 'account-menu-no-drive-phone.png') });
+    } finally {
+      await browser.close();
+    }
+  });
+
+/**
+ * Google's file window, as public/drive-picker.html loads it from apis.google.com: a stand-in that checks what the page
+ * hands Google and "picks" `docs` at once (or cancels when `docs` is null).
+ */
+function fakePicker(docs) {
+  return `
+    window.gapi = { load: (name, cb) => cb() };
+    class Chain { constructor() { const p = new Proxy(this, { get: (t, k) => (k in t ? t[k] : () => p) }); return p; } }
+    class PickerBuilder extends Chain {
+      setOAuthToken(t) { this.token = t; return this; }
+      setDeveloperKey(k) { this.key = k; return this; }
+      setAppId(a) { this.appId = a; return this; }
+      setCallback(cb) { this.cb = cb; return this; }
+      build() {
+        const b = this;
+        return { setVisible() {
+          window.__picker = { token: b.token, key: b.key, appId: b.appId };
+          const docs = ${JSON.stringify(docs)};
+          setTimeout(() => b.cb(docs ? { action: 'picked', docs } : { action: 'cancel' }), 50);
+        } };
+      }
+    }
+    window.google = { picker: { PickerBuilder, DocsView: Chain, ViewId: {}, Feature: {}, Action: { PICKED: 'picked', CANCEL: 'cancel' } } };
+  `;
+}
+
+if (withApp)
+  test('browser: Open from Google Drive opens picked files, and the first Save keeps a copy in the Cloud Slicer folder', async () => {
+    users.pia = { sub: 'g-pia', name: 'Pia', email: 'pia@example.com', email_verified: true };
+    const pia = new Browser();
+    await signIn(pia, 'pia');
+    const me = await pia.me();
+    assert.equal(me.drive, true);
+    assert.equal(me.drivePicker, true, 'the site has the key for Google\'s file window');
+    const token = await (await pia.json('/api/drive/token', 'POST')).json();
+    assert.deepEqual(token.picker, { key: 'picker-key', appId: '123456789012' }, 'the app id is the project number from the client id');
+    // Their own file, somewhere in their Drive (not in the Cloud Slicer folder).
+    const stl = readFileSync(join(web, '../../fixtures/tetrahedron.stl'));
+    driveFiles.set('their-stl', { name: 'tetrahedron.stl', parents: ['their-folder'], bytes: stl });
+    let docs = [{ id: 'their-stl', name: 'tetrahedron.stl', mimeType: 'application/octet-stream', sizeBytes: String(stl.length) }];
+    const browser = await launchBrowser();
+    try {
+      const context = await browser.newContext({ viewport: { width: 1280, height: 860 } });
+      await context.addCookies([...pia.jar.get(new URL(HOST).host)].map(([name, value]) => ({ name, value, url: HOST })));
+      await context.route('https://apis.google.com/js/api.js', (route) => route.fulfill({ contentType: 'text/javascript', body: fakePicker(docs) }));
+      const page = await context.newPage();
+      page.on('pageerror', (e) => console.error(`page error: ${e.message}`));
+      await page.goto(HOST);
+      await page.getByText('Open a model to start').waitFor({ timeout: 120000 });
+      const wizard = page.getByRole('dialog', { name: 'Set up your printers' });
+      if (await wizard.waitFor({ timeout: 5000 }).then(() => true, () => false)) await wizard.getByRole('button', { name: 'Not now' }).click();
+      await page.getByRole('button', { name: /Pia/ }).waitFor({ timeout: 30000 });
+
+      // The empty plate's button opens Google's window in a window of its own, without the app's isolation.
+      const fromPlate = page.getByTestId('empty-open-from-drive');
+      await waitFor(async () => !(await fromPlate.isDisabled()), 'Open from Google Drive is ready');
+      assert.equal(await page.getByTestId('empty-drive-note').count(), 0, 'no note when it works');
+      if (process.env.ACCOUNTS_SHOTS) await page.screenshot({ path: join(process.env.ACCOUNTS_SHOTS, 'empty-plate-desktop.png') });
+      // Listen before the click: the stand-in picks at once, so the window can be gone before a later listener.
+      const [popup, popupResponse] = await Promise.all([
+        context.waitForEvent('page'),
+        context.waitForEvent('response', (r) => new URL(r.url()).pathname === '/drive-picker'),
+        fromPlate.click(),
+      ]);
+      assert.equal(popupResponse.headers()['cross-origin-embedder-policy'], undefined, 'the picker page is not isolated');
+      if (!popup.isClosed()) await popup.waitForEvent('close', { timeout: 30000 });
+
+      // It opens like a file from the device, and says that Save keeps a copy.
+      await page.getByRole('button', { name: 'Add model' }).waitFor({ timeout: 60000 });
+      const note = page.getByTestId('project-message');
+      await note.getByText('Opened “tetrahedron.stl” from your Google Drive. Save keeps a copy in your Cloud Slicer folder. The file in Drive stays as it is.').waitFor();
+      if (process.env.ACCOUNTS_SHOTS) await page.screenshot({ path: join(process.env.ACCOUNTS_SHOTS, 'opened-note-desktop.png') });
+
+      // The first Save says plainly it makes a copy, and names their file.
+      await page.keyboard.press('Control+s');
+      const naming = page.getByRole('dialog', { name: 'Save a copy to Cloud Slicer' });
+      await naming.getByTestId('save-as-note').getByText('tetrahedron.stl').waitFor();
+      await page.waitForTimeout(400);
+      if (process.env.ACCOUNTS_SHOTS) await page.screenshot({ path: join(process.env.ACCOUNTS_SHOTS, 'save-copy-desktop.png') });
+      await naming.getByRole('button', { name: 'Save copy' }).click();
+      await page.getByText('Saved “tetrahedron” to your projects').waitFor({ timeout: 60000 });
+      const saved = (await (await pia.json('/api/projects')).json()).projects.find((p) => p.name === 'tetrahedron');
+      assert.ok(saved, 'saved as a project');
+      const top = [...driveFiles].find(([, f]) => f.folder && f.name === 'Cloud Slicer')?.[0];
+      assert.deepEqual(driveFiles.get(saved.driveFile).parents, [top], 'the copy is in the Cloud Slicer folder');
+      assert.notEqual(saved.driveFile, 'their-stl');
+      assert.ok(driveFiles.get('their-stl').bytes.equals(stl), 'their file in Drive is not changed');
+      // After the first save, the Save window is the plain one again.
+      await page.getByRole('button', { name: /^Project/ }).click();
+      const row = page.getByRole('menuitem', { name: 'Open from Google Drive…' });
+      assert.equal(await row.isDisabled(), false);
+      await page.waitForTimeout(400);
+      if (process.env.ACCOUNTS_SHOTS) {
+        await page.screenshot({ path: join(process.env.ACCOUNTS_SHOTS, 'project-menu-desktop.png') });
+        await page.keyboard.press('Escape');
+        await page.setViewportSize({ width: 390, height: 844 });
+        await page.getByRole('button', { name: /^Project/ }).click();
+        await page.waitForTimeout(400);
+        await page.screenshot({ path: join(process.env.ACCOUNTS_SHOTS, 'project-menu-phone.png') });
+        await page.keyboard.press('Escape');
+        await page.setViewportSize({ width: 1280, height: 860 });
+        await page.getByRole('button', { name: /^Project/ }).click();
+      }
+
+      // A file the slicer can't open is named and left out.
+      docs = [{ id: 'their-pdf', name: 'notes.pdf', mimeType: 'application/pdf', sizeBytes: '10' }];
+      const [popup2] = await Promise.all([context.waitForEvent('page'), row.click()]);
+      if (!popup2.isClosed()) await popup2.waitForEvent('close', { timeout: 30000 });
+      await note.getByText('Cloud Slicer can’t open “notes.pdf”.').or(note.getByText("Cloud Slicer can't open “notes.pdf”.")).waitFor();
+
+      // Closing Google's window without picking leaves everything as it was.
+      docs = null;
+      await page.getByRole('button', { name: /^Project/ }).click();
+      const [popup3] = await Promise.all([context.waitForEvent('page'), page.getByRole('menuitem', { name: 'Open from Google Drive…' }).click()]);
+      if (!popup3.isClosed()) await popup3.waitForEvent('close', { timeout: 30000 });
+      assert.equal(await page.getByRole('button', { name: /^Project/ }).getByText('tetrahedron').count(), 1, 'the open project stays');
+    } finally {
+      await browser.close();
+    }
+  });
+
+if (withApp)
+  test('browser: Open from Google Drive on a phone, and grayed out without Drive', async () => {
+    users.mona = { sub: 'g-mona', name: 'Mona', email: 'mona@example.com', email_verified: true };
+    const mona = new Browser();
+    declineDrive = true;
+    await signIn(mona, 'mona');
+    declineDrive = false;
+    const browser = await launchBrowser();
+    try {
+      const context = await browser.newContext({ viewport: { width: 390, height: 844 } });
+      await context.addCookies([...mona.jar.get(new URL(HOST).host)].map(([name, value]) => ({ name, value, url: HOST })));
+      const page = await context.newPage();
+      await page.goto(HOST);
+      await page.getByText('Open a model to start').waitFor({ timeout: 120000 });
+      const wizard = page.getByRole('dialog', { name: 'Set up your printers' });
+      if (await wizard.waitFor({ timeout: 5000 }).then(() => true, () => false)) await wizard.getByRole('button', { name: 'Not now' }).click();
+      await page.getByRole('button', { name: /Mona/ }).waitFor({ timeout: 30000 });
+      assert.equal(await page.getByTestId('empty-open-from-drive').isDisabled(), true);
+      await page.getByTestId('empty-drive-note').getByText('Connect Google Drive in the account menu first.').waitFor();
+      if (process.env.ACCOUNTS_SHOTS) await page.screenshot({ path: join(process.env.ACCOUNTS_SHOTS, 'empty-plate-no-drive-phone.png') });
+      await page.getByRole('button', { name: /^Project/ }).click();
+      assert.equal(await page.getByRole('menuitem', { name: 'Open from Google Drive…' }).isDisabled(), true);
+      await page.getByTestId('online-projects-off').getByText('Connect Google Drive in the account menu to open files from it').waitFor();
+      await page.waitForTimeout(400);
+      if (process.env.ACCOUNTS_SHOTS) await page.screenshot({ path: join(process.env.ACCOUNTS_SHOTS, 'project-menu-no-drive-phone.png') });
     } finally {
       await browser.close();
     }

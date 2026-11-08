@@ -25,6 +25,7 @@ its own: only the list entry and its small picture.
 | The Online projects window (search, sort, Cards/List, Rename and Delete windows) | `components/ProjectMenu.tsx` (`ProjectsDialog`), `lib/projects.ts` (`findProjects`), `styles/project-menu.css` |
 | Online projects API | `functions/_lib/projects.ts` (`/api/projects`) |
 | Project files in the person's Google Drive | `functions/_lib/drive.ts` (`/api/drive/token`, check, rename, delete), `src/account/drive.ts` (upload in pieces, download, which files are still there) |
+| Open from Google Drive (Google's file window) | `public/drive-picker.html` (the window), `src/account/drive-picker.ts` (open it, download the picked files), `src/account/useDriveOpen.ts` (grayed out and why), `state/projects.ts` `openFromDrive`, `functions/_lib/drive.ts` (`pickerConfig`) |
 | Writing the 3MF | engine `saveProject` (Orca's `store_bbs_3mf`) |
 
 ## How it flows
@@ -81,6 +82,26 @@ Google Drive" on its card in the Online projects window: one Google call per lis
 renames the file in Drive too; Delete deletes it. What is kept is told in plain words on
 `/privacy` and `/terms`.
 
+**Open from Google Drive.** The Project menu's "Open from Google Drive…" and a button on
+the empty plate open Google's own file window (the Google Picker) on the whole Drive: My
+Drive, Shared with me, recently picked; several files at once. Picking a file in it is what
+gives the app that one file under `drive.file`: no wider permission is asked. The window
+can't run inside the app: the app is cross-origin isolated for the engine (COEP), which blocks
+Google's frames, so it runs in a small window of its own (a tab on a phone),
+`public/drive-picker.html`, which `_headers` (and `vite.config.ts` locally) sends without the
+isolation headers. That page gets the Drive key and the Picker's browser key and app id from
+`POST /api/drive/token` (`picker`: the key is `GOOGLE_PICKER_KEY`, a Pages secret so deploys keep it, the
+app id is the Cloud project number at the start of `GOOGLE_CLIENT_ID`), loads
+`apis.google.com/js/api.js`, and hands the picked files back over a `BroadcastChannel`
+tagged with a one-time code (the isolation also cuts `window.opener`), then closes. Closing
+it without picking answers "cancelled". The app downloads the files with its own key, like a
+project, and opens them as Open from this device does (a 3MF asks before replacing the open
+project); files it can't open are named and left out. A note says "Save keeps a copy in your
+Cloud Slicer folder. The file in Drive stays as it is.", and the first Save's window is titled
+"Save a copy to Cloud Slicer", names the Drive file and its button says "Save copy"
+(`current.fromDrive`). The file in Drive is never written. Without Drive (or without the key on the
+site, `/api/me` `drivePicker: false`) the row and the button are grayed out and say why.
+
 **Online projects window.** Tapping a project's picture or name opens it; its ⋯ menu holds
 Open, Rename… and Delete…. Rename and Delete each ask in their own small window, whose
 button shows a spinner ("Renaming…", "Deleting…") with every button locked until the
@@ -135,11 +156,14 @@ projects in the person's Drive.
 
 `accounts.mjs` (online projects, conflicts, Drive: a mock Google Drive the page and the
 server both reach; runs Pages Functions with a local D1, see [accounts](accounts.md#tests)),
-`account/drive.test.ts` (upload in pieces, resume after a drop), `convert.mjs`, `foreign-gcode.mjs`,
+`account/drive.test.ts` (upload in pieces, resume after a drop), `account/drive-picker.test.ts`
+(which picked files open, downloads), `accounts.mjs` "Open from Google Drive" (a stand-in
+for Google's window script: picks, cancels, unsupported files, the copy in the Cloud Slicer folder), `convert.mjs`, `foreign-gcode.mjs`,
 `engine-switch.mjs`, `engines.mjs`; unit tests `project-import.test.ts`, `projects.test.ts`.
 
 ## Open
 
-- Not offered on purpose: opening a 3MF the app didn't make from Drive (Google's file
-  picker), since `drive.file` can't see it.
+- Not offered on purpose: adding a part from Drive into the open project (plate Add), saving
+  back over the file that was opened from Drive, a wider Drive permission (Google calls it
+  restricted: a security review) and listing Cloud Slicer folder files no longer in the list.
 - Recent projects on an empty plate (#85) is on hold.

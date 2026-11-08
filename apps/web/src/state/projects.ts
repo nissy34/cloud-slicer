@@ -18,6 +18,7 @@
 import { create } from 'zustand';
 import { api, ApiError, type OnlineProject } from '../account/api';
 import { CHUNK, downloadFromDrive, driveGone, uploadToDrive } from '../account/drive';
+import { downloadPicked, type PickedFile } from '../account/drive-picker';
 import { autosaveDelay, continueOffer, deviceNameFrom, goneText, type ContinueOffer, type OnlineOffer } from '../lib/autosave';
 import { clearLocalCopy, loadLocalCopy, saveLocalCopy, type LocalCopy } from '../lib/local-copy';
 import { copyName, freeName, nameFromFile, newProjectId, projectFileName, projectSignature, sentOf, UNTITLED } from '../lib/projects';
@@ -35,6 +36,11 @@ export interface CurrentProject {
   id: string | null;
   /** Online version this copy started from (0 when not online). */
   version: number;
+  /**
+   * Opened from Google Drive (Open from Google Drive) and not saved yet: the Drive file's name. Save then says it keeps a
+   * copy in the Cloud Slicer folder, and that this file stays as it is.
+   */
+  fromDrive?: string;
 }
 
 /** The project is being edited on another device: this tab only views it. */
@@ -85,6 +91,11 @@ interface ProjectsState {
   resolveConflict(choice: 'overwrite' | 'copy' | 'cancel'): Promise<void>;
   /** Adds model files, or opens a 3MF as the project (see the slicer store's openFiles). */
   openFiles(files: File[], mode?: OpenMode): Promise<void>;
+  /**
+   * Open from Google Drive: downloads the files picked in Google's window (account/drive-picker.ts) and opens them like
+   * files from the device (`mode` as there). Files the app can't open are named and left out.
+   */
+  openFromDrive(picked: PickedFile[], mode?: OpenMode): Promise<void>;
   openOnline(p: OnlineProject): Promise<void>;
   /** A project in the list was renamed or deleted. */
   onlineChanged(p: OnlineProject | { id: string; deleted: true }): void;
@@ -431,6 +442,43 @@ export const useProjects = create<ProjectsState>((set, get) => {
         offerSettled = true;
         set({ current: { name: nameFromFile(files[0].name), id: null, version: 0 }, offer: null });
       }
+    },
+
+    async openFromDrive(picked, mode) {
+      if (!picked.length || get().busy) return;
+      const label = picked.length === 1 ? picked[0].name : `${picked.length} files`;
+      set({ busy: `Opening “${label}”…`, message: '' });
+      let files: File[];
+      let skipped: string[];
+      try {
+        set({ downloading: { name: label, loaded: 0, total: 0 } });
+        ({ files, skipped } = await downloadPicked(picked, (loaded, total) => set({ downloading: { name: label, loaded, total } })));
+      } catch (e) {
+        set({ message: `Couldn't open “${label}” from Google Drive: ${errorText(e)}`, messageWarn: true });
+        return;
+      } finally {
+        set({ busy: '', downloading: null });
+      }
+      const cantOpen = skipped.length ? `Cloud Slicer can't open ${skipped.map((n) => `“${n}”`).join(', ')}.` : '';
+      if (!files.length) return set({ message: cantOpen, messageWarn: true });
+      // A 3MF replaces the open project: ask first, as Open from this device does.
+      if (mode === 'project' && files.some((f) => /\.3mf$/i.test(f.name)) && !(await get().leaveOk())) return;
+      const before = get().current;
+      await get().openFiles(files, mode);
+      const cur = get().current;
+      // Nothing opened (cancelled, or an error the open already showed).
+      if (cur === before || !hasObjects()) return;
+      if (cantOpen) return set({ message: cantOpen, messageWarn: true });
+      if (cur.id) return;
+      const name = files.length === 1 ? files[0].name : `${files.length} files`;
+      set({
+        current: { ...cur, fromDrive: name },
+        message:
+          files.length === 1
+            ? `Opened “${name}” from your Google Drive. Save keeps a copy in your Cloud Slicer folder. The file in Drive stays as it is.`
+            : `Opened ${name} from your Google Drive. Save keeps a copy in your Cloud Slicer folder. The files in Drive stay as they are.`,
+        messageWarn: false,
+      });
     },
 
     async openOnline(p) {

@@ -13,7 +13,7 @@ import { APIError } from 'better-auth/api';
 import { admin, oAuthProxy } from 'better-auth/plugins';
 import { isOwner, ownerEmails, projectsAllowed, signInRefusal } from './access';
 import { HttpError, json } from './http';
-import { DRIVE_SCOPE, hasDriveScope } from './drive';
+import { DRIVE_SCOPE, hasDriveScope, pickerConfig } from './drive';
 import type { Env } from './types';
 
 export type ProviderId = 'google';
@@ -155,6 +155,8 @@ export async function me(env: Env, request: Request): Promise<Response> {
       drive: accounts.results.some((a) => a.provider === 'google' && hasDriveScope(a.scope)),
       // False when the site's owner turned online projects off for them (Admin page).
       projects: await projectsAllowed(env, user.id),
+      // Open from Google Drive works: the site has the key Google's file window needs.
+      drivePicker: Boolean(pickerConfig(env)),
     },
   });
 }

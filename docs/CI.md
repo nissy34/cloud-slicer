@@ -106,6 +106,7 @@ the engine from scratch.
 | `CLOUDFLARE_API_TOKEN` | Pages: Edit; D1: Edit for accounts; Workers R2 Storage: Edit for bridge downloads; Workers Scripts: Edit for the relay |
 | `CLOUDFLARE_ACCOUNT_ID` | The Cloudflare account |
 | `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` | Google sign-in, copied into the Pages project |
+| `GOOGLE_PICKER_KEY` (a variable; a secret works too) | Open from Google Drive: the browser key for Google's file window, copied into the Pages project |
 | `vars.CF_PAGES_PROJECT` | Optional Pages project name (default `cloud-slicer`) |
 
 `BETTER_AUTH_SECRET` and `ACCOUNT_ENC_KEY` are generated once by the deploy. Without the
