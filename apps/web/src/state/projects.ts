@@ -17,7 +17,7 @@
 // over, and this tab then only views it (`elsewhere`) until "Edit here instead".
 import { create } from 'zustand';
 import { api, ApiError, type OnlineProject } from '../account/api';
-import { CHUNK, downloadFromDrive, driveGone, uploadToDrive } from '../account/drive';
+import { downloadFromDrive, driveGone, uploadToDrive } from '../account/drive';
 import { downloadPicked, type PickedFile } from '../account/drive-picker';
 import { autosaveDelay, continueOffer, deviceNameFrom, goneText, type ContinueOffer, type OnlineOffer } from '../lib/autosave';
 import { clearLocalCopy, loadLocalCopy, saveLocalCopy, type LocalCopy } from '../lib/local-copy';
@@ -26,6 +26,7 @@ import { engineFromUrl, engineName, engineOf3mf, type EngineFlavor } from '../li
 import { SETUP_KEY, type Setup } from '../lib/setup';
 import { sharedOnLoad, splitShared, takeSharedFiles } from '../lib/share-target';
 import { snapshot } from '../lib/snapshot';
+import { isCancelled, unlessCancelled } from '../lib/time-limit';
 import { deviceId, loadOpenProject, saveDefaultEngine, saveOpenProject } from '../lib/storage';
 import { getUserSetting, useAccount } from './account';
 import { useSlicer, type OpenMode } from './store';
@@ -58,6 +59,12 @@ interface ProjectsState {
   busy: string;
   /** A Save, Save a copy or Download 3MF the person asked for is running: a card says so until it is done. */
   saving: boolean;
+  /** How far the save's upload got, 0 to 1 (null while it isn't uploading). */
+  saveProgress: number | null;
+  /** The running save can still be cancelled (not once it is being recorded, which is quick). */
+  saveCancel: boolean;
+  /** Stops the running save (and any waiting after it): nothing is saved, the changes stay here. */
+  cancelSave(): void;
   /** A project from the account being downloaded: bytes so far, of `total` (0 when unknown). */
   downloading: { name: string; loaded: number; total: number } | null;
   /** The last problem or result, shown under the project menu. */
@@ -208,6 +215,15 @@ let lastChange = 0;
 // One save at a time; a save asked for meanwhile runs after it.
 let saving: Promise<void> = Promise.resolve();
 const queue = (fn: () => Promise<void>) => (saving = saving.then(fn, fn));
+// Cancel for the saves running or waiting now.
+const saveAborts = new Set<AbortController>();
+/** A Cancel for one save, until `done`. */
+function cancellable(): { signal: AbortSignal; done: () => void } {
+  const ctl = new AbortController();
+  saveAborts.add(ctl);
+  return { signal: ctl.signal, done: () => saveAborts.delete(ctl) };
+}
+const idle = { busy: '', saving: false, saveCancel: false, saveProgress: null };
 
 export const useProjects = create<ProjectsState>((set, get) => {
   // A copy just saved from project `from` starts with its print history (lib/prints.ts).
@@ -217,20 +233,26 @@ export const useProjects = create<ProjectsState>((set, get) => {
   }
 
   // Saves online as `target`. baseVersion undefined overwrites what is there. True when saved.
-  async function upload(target: CurrentProject, baseVersion: number | undefined): Promise<boolean> {
-    set({ busy: 'Saving…', saving: true, message: '' });
+  // `signal`: Cancel (one of its own when not given).
+  async function upload(target: CurrentProject, baseVersion: number | undefined, signal?: AbortSignal): Promise<boolean> {
+    const own = signal ? null : cancellable();
+    signal ??= own!.signal;
+    set({ busy: 'Saving…', saving: true, saveCancel: true, saveProgress: null, message: '' });
     const sig = signature();
     const paints = paintCount;
     try {
-      const { file, picture } = await buildFile();
+      // The engine does one thing at a time: a slice running now finishes first.
+      if (useSlicer.getState().job.kind === 'slicing') set({ busy: 'Saving… after the slice' });
+      const { file, picture } = await unlessCancelled(buildFile(), signal);
       const id = target.id ?? newProjectId();
-      // Projects live in the person's Google Drive: the page uploads the file there, then the save points at it.
-      // A big one shows how far it got.
+      // Projects live in the person's Google Drive: the page uploads the file there, then the save points at it,
+      // saying how far it got.
       const drive = await uploadToDrive(file, target.name, {
-        onProgress: (sent, total) => {
-          if (total >= 2 * CHUNK) set({ busy: `Saving… ${sentOf(sent, total)}` });
-        },
+        signal,
+        onProgress: (sent, total) => set({ busy: `Saving… ${sentOf(sent, total)}`, saveProgress: total ? Math.min(1, sent / total) : 1 }),
       });
+      // Recording the save is quick and can't be stopped halfway (the server would keep it).
+      set({ busy: 'Saving… finishing', saveCancel: false, saveProgress: 1 });
       const saved = await api.saveProject(id, target.name, drive, baseVersion, useSlicer.getState().flavor, {
         device: thisDevice(),
         plates: useSlicer.getState().project?.plates.length,
@@ -242,6 +264,8 @@ export const useProjects = create<ProjectsState>((set, get) => {
       markSaved(sig, paints);
       return true;
     } catch (e) {
+      // Cancelled: nothing saved, and Cancel already said so.
+      if (isCancelled(e)) return false;
       const code = e instanceof ApiError ? (e.body.code as string | undefined) : undefined;
       if (e instanceof ApiError && e.status === 409 && code === 'elsewhere') {
         set({ elsewhere: { project: e.body.current as OnlineProject, unsaved: get().dirty } });
@@ -254,33 +278,39 @@ export const useProjects = create<ProjectsState>((set, get) => {
       set({ message: `Not saved: ${errorText(e)}`, messageWarn: true });
       return false;
     } finally {
-      set({ busy: '', saving: false });
+      own?.done();
+      set(idle);
     }
   }
 
   async function downloadAs(name: string) {
-    set({ busy: 'Preparing the 3MF…', saving: true, message: '' });
+    const cancel = cancellable();
+    set({ busy: 'Preparing the 3MF…', saving: true, saveCancel: true, saveProgress: null, message: '' });
     try {
-      const { file } = await buildFile();
+      const { file } = await unlessCancelled(buildFile(), cancel.signal);
       downloadBlob(file, projectFileName(name));
       return true;
     } catch (e) {
-      set({ message: `Couldn't make the 3MF: ${errorText(e)}`, messageWarn: true });
+      if (!isCancelled(e)) set({ message: `Couldn't make the 3MF: ${errorText(e)}`, messageWarn: true });
       return false;
     } finally {
-      set({ busy: '', saving: false });
+      cancel.done();
+      set(idle);
     }
   }
 
   // A save the person asked for shows "Saving…" from the press, also while a save
   // before it finishes first, or while the names are checked, until it is done.
-  async function asked(fn: () => Promise<void>) {
-    set({ busy: 'Saving…', saving: true, message: '' });
+  async function asked(fn: (signal: AbortSignal) => Promise<void>) {
+    const cancel = cancellable();
+    set({ busy: 'Saving…', saving: true, saveCancel: true, saveProgress: null, message: '' });
     try {
-      await queue(fn);
+      // Cancelled while it waited: it doesn't start.
+      await queue(async () => void (cancel.signal.aborted || (await fn(cancel.signal))));
     } finally {
+      cancel.done();
       // Something else started meanwhile (opening a project) keeps its own text.
-      set((s) => (s.busy.startsWith('Saving') ? { busy: '', saving: false } : { saving: false }));
+      set((s) => (s.busy.startsWith('Saving') ? idle : { saving: false, saveCancel: false, saveProgress: null }));
     }
   }
 
@@ -324,9 +354,9 @@ export const useProjects = create<ProjectsState>((set, get) => {
   }
 
   /** Names other saved projects have, so a new save doesn't repeat one (`except`: the open project's own id). */
-  const takenNames = (except: string | null) =>
+  const takenNames = (except: string | null, signal?: AbortSignal) =>
     api
-      .projects()
+      .projects(signal)
       .then((l) => l.projects.filter((p) => p.id !== except).map((p) => p.name))
       .catch(() => [] as string[]);
 
@@ -335,6 +365,8 @@ export const useProjects = create<ProjectsState>((set, get) => {
     dirty: false,
     busy: '',
     saving: false,
+    saveProgress: null,
+    saveCancel: false,
     downloading: null,
     message: '',
     messageWarn: false,
@@ -349,6 +381,12 @@ export const useProjects = create<ProjectsState>((set, get) => {
 
     canSaveOnline: () => savesOnline(),
 
+    cancelSave() {
+      if (!get().saveCancel) return;
+      for (const ctl of saveAborts) ctl.abort();
+      set({ message: 'Save cancelled', messageWarn: false });
+    },
+
     async save() {
       if (get().busy) return;
       const cur = get().current;
@@ -362,9 +400,9 @@ export const useProjects = create<ProjectsState>((set, get) => {
       if (get().elsewhere) return;
       // Like Word: the first Save names the project.
       if (!cur.id) return set({ saveAsOpen: 'name' });
-      await asked(async () => {
+      await asked(async (signal) => {
         const now = get().current;
-        await upload(now, now.version);
+        await upload(now, now.version, signal);
       });
     },
 
@@ -379,10 +417,10 @@ export const useProjects = create<ProjectsState>((set, get) => {
         }
         return;
       }
-      await asked(async () => {
+      await asked(async (signal) => {
         // Naming a new project and saving a copy both make a new online project.
         const from = get().current;
-        if (await upload({ name: freeName(clean, await takenNames(null)), id: null, version: 0 }, 0)) {
+        if (await upload({ name: freeName(clean, await takenNames(null, signal)), id: null, version: 0 }, 0, signal)) {
           if (mode === 'copy') await copyHistory(from.id);
         }
       });
@@ -394,11 +432,11 @@ export const useProjects = create<ProjectsState>((set, get) => {
       const cur = get().current;
       const theirs = get().conflict?.theirs;
       set({ conflict: null });
-      await asked(async () => {
-        if (choice === 'overwrite') await upload(cur, undefined);
+      await asked(async (signal) => {
+        if (choice === 'overwrite') await upload(cur, undefined, signal);
         if (choice === 'copy') {
-          const taken = await api.projects().then((l) => l.projects.map((p) => p.name)).catch(() => [theirs?.name ?? cur.name]);
-          if (await upload({ name: copyName(cur.name, taken), id: null, version: 0 }, 0)) await copyHistory(cur.id);
+          const taken = await api.projects(signal).then((l) => l.projects.map((p) => p.name)).catch(() => [theirs?.name ?? cur.name]);
+          if (await upload({ name: copyName(cur.name, taken), id: null, version: 0 }, 0, signal)) await copyHistory(cur.id);
         }
       });
     },

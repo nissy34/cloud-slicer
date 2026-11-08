@@ -17,6 +17,7 @@ import { Empty } from './Empty';
 import { Menu } from './Menu';
 import { Picker } from './Picker';
 import { PrintLoader } from './PrintLoader';
+import { SaveBar } from './SaveBar';
 import { IconButton } from './IconButton';
 import { FolderOpen, LoaderCircle, MoreHorizontal, Search } from 'lucide-react';
 
@@ -45,6 +46,7 @@ export function ProjectMenu() {
   const dirty = useProjects((s) => s.dirty);
   const busy = useProjects((s) => s.busy);
   const saving = useProjects((s) => s.saving);
+  const saveCancel = useProjects((s) => s.saveCancel);
   const signedIn = useAccount((s) => s.status === 'signedIn');
   // Signed in without Google Drive: there are no online projects to show (Connect is in the account menu).
   const noDrive = useAccount((s) => s.status === 'signedIn' && (s.user?.drive !== true || s.user.projects === false));
@@ -145,14 +147,20 @@ export function ProjectMenu() {
           </p>
         )}
         <hr />
-        {/* While a save runs its rows wait, and say why. */}
+        {/* While a save runs its rows wait, and say why; how far it got, and Cancel. */}
         {saving && (
-          <p className="menu-note menu-working" data-testid="menu-saving">
+          <div className="menu-note menu-working" data-testid="menu-saving">
             <LoaderCircle className="spin" size={16} aria-hidden />
             <span>
               <b>{busy}</b> Save, Save a copy and Download 3MF wait until it is done.
+              <SaveBar />
             </span>
-          </p>
+          </div>
+        )}
+        {saving && saveCancel && (
+          <button role="menuitem" className="menu-item" data-testid="menu-cancel-save" onClick={run(() => p.cancelSave())}>
+            Cancel saving
+          </button>
         )}
         {/* Signed out or without Drive, Save downloads the 3MF: one row for both. */}
         {savesOnline && (
