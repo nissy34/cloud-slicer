@@ -145,7 +145,7 @@
 }
 /* Why Open from Google Drive is grayed out. */
 .empty .empty-note {
-  font-size: 0.85em;
+  font-size: var(--t-sm);
   opacity: 0.8;
   max-width: 300px;
   text-align: center;
