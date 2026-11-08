@@ -2,15 +2,12 @@
 // the page uploads each save straight there and downloads a project straight
 // from there, so a project never passes through Cloud Slicer and isn't held to
 // Cloudflare's 100 MB request limit. With the drive.file permission the app
-// only sees files it made: the "Cloud Slicer" folder, its "Drafts" folder and
-// the projects in them.
+// only sees files it made: the "Cloud Slicer" folder and the projects in it.
 import { api, ApiError } from './api';
 
 const FILES = 'https://www.googleapis.com/drive/v3/files';
 const UPLOAD = 'https://www.googleapis.com/upload/drive/v3/files';
 const FOLDER = 'Cloud Slicer';
-/** AutoSave's drafts, inside the Cloud Slicer folder, so unnamed projects don't crowd it. */
-const DRAFTS = 'Drafts';
 const FOLDER_TYPE = 'application/vnd.google-apps.folder';
 /** Upload pieces: Google wants multiples of 256 KB. 4 MB shows progress often enough on a phone. */
 export const CHUNK = 16 * 256 * 1024;
@@ -64,32 +61,24 @@ async function folder(name: string, parent?: string): Promise<string> {
   folders.set(cacheKey, id);
   return id;
 }
-const projectsFolder = async (draft: boolean) => {
-  const top = await folder(FOLDER);
-  return draft ? folder(DRAFTS, top) : top;
-};
-
 export interface UploadOptions {
-  /** AutoSave's draft: it goes in Cloud Slicer/Drafts. */
-  draft?: boolean;
   /** Bytes sent so far, of `total`. */
   onProgress?: (sent: number, total: number) => void;
 }
 
 /**
- * Uploads the 3MF as a new file in the Cloud Slicer folder (or its Drafts
- * folder) and returns its id. A resumable upload: one request names the file,
+ * Uploads the 3MF as a new file in the Cloud Slicer folder and returns its id. A resumable upload: one request names the file,
  * then it goes in 4 MB pieces, and a dropped connection carries on from the
  * last piece Google has.
  */
 export async function uploadToDrive(file: Blob, name: string, opts: UploadOptions = {}): Promise<string> {
   try {
-    return await upload(file, name, await projectsFolder(Boolean(opts.draft)), opts);
+    return await upload(file, name, await folder(FOLDER), opts);
   } catch (e) {
     // A folder was deleted in Drive since: make it again.
     if (!(e instanceof ApiError && e.status === 404 && folders.size)) throw e;
     folders.clear();
-    return upload(file, name, await projectsFolder(Boolean(opts.draft)), opts);
+    return upload(file, name, await folder(FOLDER), opts);
   }
 }
 
@@ -149,11 +138,24 @@ export function rangeEnd(range: string | null): number {
   return m ? Number(m[1]) + 1 : 0;
 }
 
+/** How big a download will be: Drive's own length when it is the file's (not compressed), else the size we keep. */
+export function downloadTotal(headers: Headers, size: number): number {
+  const length = headers.get('Content-Encoding') ? 0 : Number(headers.get('Content-Length') ?? 0);
+  return length > 0 ? length : Math.max(0, size || 0);
+}
+
 /** The project is no longer in their Drive (deleted, or in the bin and emptied). */
 export const driveGone = (e: unknown) => e instanceof ApiError && e.body.code === 'drive-gone';
 
-/** A project's 3MF, straight from their Drive. `onProgress`: bytes so far, of `total` (0 when unknown). */
-export async function downloadFromDrive(fileId: string | null, onProgress?: (loaded: number, total: number) => void): Promise<ArrayBuffer> {
+/**
+ * A project's 3MF, straight from their Drive. `onProgress`: bytes so far, of `total` (0 when unknown).
+ * `size`: the size the list keeps for it, used when Drive doesn't say (it often sends the file compressed).
+ */
+export async function downloadFromDrive(
+  fileId: string | null,
+  onProgress?: (loaded: number, total: number) => void,
+  size = 0,
+): Promise<ArrayBuffer> {
   const gone = () => new ApiError(404, 'This project is no longer in your Google Drive', { code: 'drive-gone' });
   if (!fileId) throw gone();
   let res: Response;
@@ -164,14 +166,15 @@ export async function downloadFromDrive(fileId: string | null, onProgress?: (loa
     throw e;
   }
   if (!onProgress || !res.body) return res.arrayBuffer();
-  const total = res.headers.get('Content-Encoding') ? 0 : Number(res.headers.get('Content-Length') ?? 0);
+  const total = downloadTotal(res.headers, size);
   const chunks: Uint8Array[] = [];
   let loaded = 0;
   const reader = res.body.getReader();
   for (let r = await reader.read(); !r.done; r = await reader.read()) {
     chunks.push(r.value);
     loaded += r.value.byteLength;
-    onProgress(loaded, total);
+    // A file a little bigger than the list said: the bar stays full rather than going past.
+    onProgress(loaded, total && Math.max(total, loaded));
   }
   const bytes = new Uint8Array(loaded);
   let at = 0;

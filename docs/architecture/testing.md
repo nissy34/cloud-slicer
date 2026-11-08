@@ -97,7 +97,7 @@ for the rest):
 | `test/presets.mjs` | Save, find, rename and delete your own presets |
 | `test/shared-presets.mjs` | A preset saved in Snapmaker Orca shows in OrcaSlicer and back, each engine on its own base |
 | `test/preset-files.mjs` | Printer and filament settings windows, preset export and import |
-| `test/accounts.mjs` | Sign-in, sessions, synced presets/settings/printers, online projects, AutoSave drafts, Continue on another device, view only, Share to Cloud Slicer (Pages Functions + local D1, mock Google) |
+| `test/accounts.mjs` | Sign-in, sessions, synced presets/settings/printers, online projects, AutoSave in the browser, Continue on another device, view only, Share to Cloud Slicer (Pages Functions + local D1, mock Google) |
 | `test/toolbar.mjs` | The object toolbar: add a model, variable layer height, simplify, brim ears, lay on face, measure, the object menu, parts and modifiers, mesh boolean, text and SVG shapes, assemble, fits a phone |
 | `test/layout-fixes.mjs` | Prepare's layout and dialogs: long object and project names shorten with "…", the Paint card fits, closing the Text tool takes back an unchanged new text, preset menus name presets as their dropdowns and open upward near the bottom, Online projects closes with Esc or a click outside, unsaved changes ask in the app's own dialog, the phone's buttons after slicing fit one row |
 | `test/mixing.mjs` | Make a colour mix, slice, the G-code alternates between both tools |
@@ -120,6 +120,13 @@ for the rest):
 ## Rules
 
 - Touch drags in tests must move more than 6 px on the first step (long-press wiggle limit).
+- The setup wizard can open a moment after "Open a model to start" shows (it waits for the
+  engine, the account and the Continue card). Dismiss it with
+  `page.addLocatorHandler(wizard, (d) => d.getByRole('button', { name: 'Not now' }).click())`,
+  never with a one-off `isVisible()` check, which misses a late wizard that then covers the page.
+- `test/accounts.mjs` runs its tests in order against one database: a test that gives a shared
+  person (alice, bob…) a preset or setting removes it again, so later tests start from a known
+  account.
 - Headless Chromium reports notifications as denied even when granted: stub it.
 - In a cloud coding sandbox the full Device screen test fails before the camera step
   (an environment limit); CI decides.

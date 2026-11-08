@@ -155,11 +155,10 @@ why: [README.md](README.md) (the docs map) and [architecture/](architecture/).
   Front, Back, Left and Right (keys 0 to 6, Z fits all). On a phone two fingers always zoom
   and turn the camera, even when they land on the model; one finger on a model moves it.
 - **Projects**: save as an Orca 3MF that reopens here or in desktop Orca; online in your
-  account when signed in, downloaded when signed out. Unsaved work is always kept in the
-  browser and offered back after a crash. Signed in, **AutoSave** (asked once, a switch
-  after) works like Word's: new work is kept as an unsaved draft in Drive, the first Save
-  names it, then every change is saved on its own. Open the app on another device and a
-  **Continue** card picks up where you left off; one device edits a project at a time,
+  account when signed in, downloaded when signed out. **AutoSave** keeps unsaved work in
+  the browser as you work and offers it back after a crash or a closed tab; only Save puts
+  it in your Google Drive. Open the app on another device and a **Continue** card offers
+  the project you saved there; one device edits a project at a time,
   the other shows it view only with "Edit here instead".
 - **Share to Cloud Slicer** on Android (installed app): share a model from another app
   and it opens here, or is added to the project you have open.
@@ -242,7 +241,7 @@ can't, so that box isn't shown.
 
 ### Projects
 
-The Project menu in the top bar (New, Open, Projects, Save, Save a copy, AutoSave, Download 3MF) saves
+The Project menu in the top bar (New, Open, Projects, Save, Save a copy, Download 3MF) saves
 the open project as an Orca 3MF project, written by the engine with Orca's own
 `store_bbs_3mf` (like desktop's Save project): plates, objects, part settings, paint,
 colour mixes and the full print, filament and printer settings, so it reopens here or in
@@ -253,26 +252,19 @@ size their Drive has room for. Without Drive (said no at sign-in) Save downloads
 projects is grayed out until "Connect Google Drive" in the account menu. Saves carry the version they started
 from, so a save from a second device asks before overwriting.
 
-Unsaved work is always kept in the browser (`lib/local-copy.ts`) and offered back by the
-Continue card. AutoSave (signed in, off until the person answers the one-time question
-"Turn on AutoSave?" (On / Off); the switch is a user setting): a new project is a
-draft in the account (`projects.draft = 1`). Each device keeps one draft (a new one replaces
-that device's old one, at most 3 per person, oldest go first), so Discard on the Continue
-card never takes another device's open work with it: that device says so, keeps what it
-shows and saves it as a new draft. Drafts don't count toward the 200 projects and go in
-the Drive folder's "Drafts" folder. Leaving it asks Save / Don't
-save / Cancel; the first Save names it and turns it into a project. After that each change
-is saved once things are quiet for 5 s, at most every 30 s (every 3 min for projects of
-5 MB or more, since each save uploads the whole 3MF), and when the tab is hidden; the
-thumbnail goes up at most every 10 min. Each save names the browser it came from
+AutoSave keeps unsaved work in the browser only (`lib/local-copy.ts`), for everyone: 5 s
+after the last change, at most every 10 s (every minute for projects of 20 MB or more),
+and when the tab is hidden. The Continue card offers it back; the top bar says "Saved in
+this browser". Nothing goes to Drive until Save: a new project asks Save / Don't save /
+Cancel when it is about to be replaced, and the first Save names it. Each save names the browser it came from
 (`projects.device`, a random id kept in the browser, and `device_name`, like "phone").
 A save from another device than the last one is refused (409 `elsewhere`) until that device
 takes the project over (`POST /api/projects/<id>/device`, "Edit here instead"); the other
 tab notices when it is focused again (no polling) and goes view only, offering "Save mine as
 a copy" when it had unsaved changes. On opening the app with nothing loaded, the Continue card
 offers the saved project that was open in this browser when it was left (its id is kept in
-the browser until a new project, a draft or another file replaces it), else the draft, else
-the newest project changed on another device in the last day.
+the browser until a new project or another file replaces it), else the newest project
+changed on another device in the last day; work kept in the browser comes before both.
 Share to Cloud Slicer is the manifest's `share_target`: `public/sw.js` keeps the shared files
 in the Cache API and opens `/?shared=1`, which opens them (`src/lib/share-target.ts`).
 

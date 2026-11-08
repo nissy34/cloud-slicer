@@ -48,11 +48,17 @@ export function onBridgeRemoved(fn: (relay: string, bridgeId: string) => void) {
   removedListener = fn;
 }
 
-export function bridgeSocketUrl(t: BridgeTarget, ticket?: string): string {
+/**
+ * `slot` is the link's own name, the same on every reconnect: on a bad network the
+ * relay may still hold the old socket open, and this lets it replace that one
+ * instead of counting both towards the bridge's page limit.
+ */
+export function bridgeSocketUrl(t: BridgeTarget, ticket?: string, slot?: string): string {
   const base = t.relay.replace(/\/+$/, '').replace(/^http/i, 'ws');
   const q = new URLSearchParams({ key: t.key });
   if (t.printer) q.set('printer', t.printer);
   if (ticket) q.set('ticket', ticket);
+  if (slot) q.set('slot', slot);
   return `${base}/v1/bridges/${encodeURIComponent(t.bridgeId)}/client?${q}`;
 }
 
@@ -75,6 +81,8 @@ export class BridgeLink implements PrinterLink {
   private seq = 0;
   private pending = new Map<string, { resolve(v: unknown): void; reject(e: Error): void; timer: ReturnType<typeof setTimeout> }>();
   readonly label = 'through the bridge';
+  /** This link's name at the relay, kept across reconnects (bridgeSocketUrl). */
+  readonly slot = crypto.randomUUID().replace(/-/g, '').slice(0, 16);
 
   constructor(readonly target: BridgeTarget) {}
 
@@ -108,7 +116,7 @@ export class BridgeLink implements PrinterLink {
 
   private connect(h: LinkHandlers, ticket?: string): Promise<void> {
     return new Promise((resolve, reject) => {
-      const ws = new WebSocket(bridgeSocketUrl(this.target, ticket));
+      const ws = new WebSocket(bridgeSocketUrl(this.target, ticket, this.slot));
       let opened = false;
       const timer = setTimeout(() => {
         ws.close();
@@ -148,11 +156,9 @@ export class BridgeLink implements PrinterLink {
       };
       ws.onclose = (ev) => {
         clearTimeout(timer);
-        for (const p of this.pending.values()) {
-          clearTimeout(p.timer);
-          p.reject(new LinkError('The bridge connection closed.', 'bridge'));
-        }
-        this.pending.clear();
+        // A socket this link already left (closed, or replaced after a reconnect) must
+        // not fail the calls waiting on the current one.
+        if (this.ws === ws) this.failPending();
         if (ev.code === BRIDGE_REMOVED) removedListener?.(this.target.relay, this.target.bridgeId);
         if (!opened) {
           reject(new LinkError(ev.reason || 'The relay refused this bridge. Check the pairing code.', 'auth'));
@@ -169,7 +175,16 @@ export class BridgeLink implements PrinterLink {
     this.ws.send(JSON.stringify(msg));
   }
 
+  private failPending() {
+    for (const p of this.pending.values()) {
+      clearTimeout(p.timer);
+      p.reject(new LinkError('The bridge connection closed.', 'bridge'));
+    }
+    this.pending.clear();
+  }
+
   close() {
+    this.failPending();
     this.shared.close();
     this.files?.close();
     this.files = null;

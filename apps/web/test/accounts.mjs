@@ -664,7 +664,7 @@ test('projects in Google Drive: connect, save, open, rename, conflict, delete', 
   assert.ok(!driveFiles.has('drive-file-2'));
 });
 
-test('projects: a draft per device, the device editing a project, taking it over (AutoSave)', async () => {
+test('projects: the device editing a project, taking it over', async () => {
   const file = (text) => text;
   const save = (b, id, name, body, baseVersion, extra = {}) =>
     putProject(b, id, { name, ...(baseVersion !== undefined ? { baseVersion: String(baseVersion) } : {}), ...extra }, body);
@@ -672,41 +672,15 @@ test('projects: a draft per device, the device editing a project, taking it over
   const phoneDevice = { device: 'phone-device-1', deviceName: 'phone' };
   const before = (await (await alice.json('/api/projects')).json()).count;
 
-  // A draft: listed with draft: true, not counted as a project; a second draft replaces the first.
-  const d1 = await save(alice, 'd1', 'Benchy', file('draft one'), 0, { draft: '1', ...laptop });
-  assert.equal(d1.status, 200, await d1.clone().text());
+  // Saved from the laptop: the save records the device editing it.
+  const first = await save(alice, 'd2', 'My cube', file('first'), 0, laptop);
+  assert.equal(first.status, 200, await first.clone().text());
   assert.deepEqual(
-    (({ draft, device, deviceName }) => ({ draft, device, deviceName }))((await d1.json()).project),
-    { draft: true, device: laptop.device, deviceName: 'Windows computer' },
+    (({ device, deviceName }) => ({ device, deviceName }))((await first.json()).project),
+    { device: laptop.device, deviceName: 'Windows computer' },
   );
-  let list = await (await alice.json('/api/projects')).json();
-  assert.equal(list.count, before, "the draft isn't counted as a project");
-  assert.ok(list.projects.find((p) => p.id === 'd1')?.draft);
-  assert.equal((await save(alice, 'd2', 'Cube', file('draft two'), 0, { draft: '1', ...laptop })).status, 200);
-  const d1File = list.projects.find((p) => p.id === 'd1').driveFile;
-  list = await (await alice.json('/api/projects')).json();
-  assert.deepEqual(list.projects.filter((p) => p.draft).map((p) => p.id), ['d2'], 'one draft per device');
-  assert.ok(!driveFiles.has(d1File), "the old draft's file is gone from Drive");
-  // Each device keeps its own draft: the phone's doesn't replace the laptop's
-  // (discarding one on a device never takes another device's work with it).
-  assert.equal((await save(alice, 'dp', 'Clip', file('phone draft'), 0, { draft: '1', ...phoneDevice })).status, 200);
-  list = await (await alice.json('/api/projects')).json();
-  assert.deepEqual(list.projects.filter((p) => p.draft).map((p) => p.id).sort(), ['d2', 'dp'], "the phone's draft sits beside the laptop's");
-  // At most three drafts a person: the oldest go first.
-  for (const n of [1, 2, 3]) {
-    assert.equal((await save(alice, `dx${n}`, 'Extra', file(`extra ${n}`), 0, { draft: '1', device: `extra-device-${n}`, deviceName: 'Mac' })).status, 200);
-  }
-  list = await (await alice.json('/api/projects')).json();
-  assert.deepEqual(list.projects.filter((p) => p.draft).map((p) => p.id).sort(), ['dx1', 'dx2', 'dx3'], 'only the newest three drafts are kept');
-  for (const id of ['dx1', 'dx2', 'dx3']) await alice.fetch(`${HOST}/api/projects/${id}`, { method: 'DELETE', headers: { Origin: HOST } });
-  assert.equal((await save(alice, 'd2', 'Cube', file('draft two again'), undefined, { draft: '1', ...laptop })).status, 200, 'the laptop saves its draft again');
-
-  // The first Save names it: same id, no longer a draft, now counted.
-  const named = await save(alice, 'd2', 'My cube', file('named'), 1, laptop);
-  assert.equal(named.status, 200, await named.clone().text());
-  assert.equal((await named.json()).project.draft, false);
   assert.equal((await (await alice.json('/api/projects')).json()).count, before + 1);
-  assert.equal((await save(alice, 'd2', 'My cube', file('again a draft'), 2, { draft: '1', ...laptop })).status, 400, 'a saved project never becomes a draft');
+  assert.equal((await save(alice, 'd2', 'My cube', file('second'), 1, laptop)).status, 200);
 
   // The phone takes it over: the laptop's next save is refused with "elsewhere", the phone's goes through.
   const phone = new Browser();
@@ -1001,6 +975,8 @@ test('online projects off for one person: saves are refused, presets still save'
   assert.equal((await put.json()).code, 'presets-only');
   assert.ok(!driveFiles.has(fileId), "the refused save's file doesn't stay in their Drive");
   assert.equal((await bob.json('/api/presets/process/Mine', 'PUT', { inherits: 'x', config: {} })).status, 200);
+  // Bob signs in from the browser later; his account starts that test without presets.
+  assert.equal((await bob.json('/api/presets/process/Mine', 'DELETE')).status, 200);
   const row = (await (await alice.json('/api/admin')).json()).users.find((u) => u.id === bobId);
   assert.equal(row.projectsAllowed, false);
   // Back on: a big project is fine, since it's their Drive's space, not ours.
@@ -1373,6 +1349,13 @@ if (withApp)
       await menu.waitFor({ timeout: 30000 });
       await menu.click();
       await page.getByText('Signed in with Google as bob@example.com').waitFor();
+      // The browser's preset moves into the account: wait for it there, then the menu counts it.
+      let presets = [];
+      for (let i = 0; i < 50 && !presets.some((p) => p.name === 'Fast'); i++) {
+        if (i) await new Promise((r) => setTimeout(r, 200));
+        presets = (await (await bobBrowser.json('/api/presets')).json()).presets;
+      }
+      assert.deepEqual(presets.map((p) => `${p.type}:${p.name}`), ['process:Fast'], 'the browser preset moved into the account');
       await page.getByText('1 process').waitFor();
       // The merged settings upload after the presets, so wait for them too.
       const merged = { printers: ['Snapmaker U1 (0.4 nozzle)', 'Snapmaker J1'] };
@@ -1428,18 +1411,11 @@ if (withApp)
       await projectButton.getByText('3DBenchy').waitFor();
       await projectButton.getByLabel('unsaved changes').waitFor();
 
-      // The first change asks once whether AutoSave may send work to Google Drive; nothing goes there before.
-      const autosaveAsk = page.getByTestId('autosave-question');
-      await autosaveAsk.getByText('Turn on AutoSave?').waitFor({ timeout: 30000 });
-      if (process.env.ACCOUNTS_SHOTS) await page.screenshot({ path: join(process.env.ACCOUNTS_SHOTS, 'autosave-question.png') });
-      assert.equal((await (await carol.json('/api/projects')).json()).projects.length, 0, 'nothing in Drive before the answer');
-      await autosaveAsk.getByRole('button', { name: 'On', exact: true }).click();
-      await autosaveAsk.waitFor({ state: 'detached' });
-
-      // AutoSave keeps a new project as the draft, named after its model.
-      await projectButton.getByText('Draft, not saved yet').waitFor({ timeout: 30000 });
-      await waitFor(async () => (await (await carol.json('/api/projects')).json()).projects.some((p) => p.draft && p.name === '3DBenchy'), 'the draft is saved');
-      if (process.env.ACCOUNTS_SHOTS) await page.screenshot({ path: join(process.env.ACCOUNTS_SHOTS, 'project-draft.png') });
+      // AutoSave keeps the change in this browser only: no question, nothing goes to Drive.
+      await projectButton.getByText('Saved in this browser').waitFor({ timeout: 30000 });
+      assert.equal(await page.getByTestId('autosave-question').count(), 0, 'AutoSave asks nothing');
+      assert.equal((await (await carol.json('/api/projects')).json()).projects.length, 0, 'nothing in Drive before Save');
+      if (process.env.ACCOUNTS_SHOTS) await page.screenshot({ path: join(process.env.ACCOUNTS_SHOTS, 'saved-in-this-browser.png') });
 
       // The first Save names it, like Word.
       await page.keyboard.press('Control+s');
@@ -1456,43 +1432,35 @@ if (withApp)
       assert.equal(saved.hasThumbnail, true, 'the 3D view was saved as its thumbnail');
       assert.ok(saved.size > 100_000, `3MF is ${saved.size} bytes`);
       assert.equal(saved.engine, 'snapmaker', 'saved with the engine it slices with');
-      assert.equal(saved.draft, false, 'the draft became the project');
-      assert.equal(list.projects.filter((p) => p.draft).length, 0, 'no draft left');
-      // In their Drive: the project in the "Cloud Slicer" folder; drafts went in its "Drafts" folder and are gone now.
+      // In their Drive: the project in the "Cloud Slicer" folder, and no other folder.
       const folderOf = (name) => [...driveFiles].find(([, f]) => f.folder && f.name === name)?.[0];
       const top = folderOf('Cloud Slicer');
-      const drafts = folderOf('Drafts');
-      assert.ok(top && drafts, 'both folders were made');
-      assert.deepEqual(driveFiles.get(drafts).parents, [top], 'Drafts sits inside Cloud Slicer');
+      assert.ok(top, 'the Cloud Slicer folder was made');
+      assert.equal(folderOf('Drafts'), undefined, 'no Drafts folder');
       assert.deepEqual(driveFiles.get(saved.driveFile).parents, [top], 'the named project is in Cloud Slicer');
       assert.equal(driveFiles.get(saved.driveFile).name, '3DBenchy.3mf');
-      assert.equal([...driveFiles.values()].filter((f) => f.parents?.includes(drafts)).length, 0, "the draft's file went on the first Save");
 
-      // AutoSave: a change saves by itself a few seconds later.
+      // A change after that stays in this browser until the next Save: Drive keeps the saved version.
       await layer.fill('0.24');
       await layer.press('Enter');
-      await waitFor(async () => (await (await carol.json('/api/projects')).json()).projects.find((p) => p.id === saved.id)?.version > saved.version, 'AutoSave saved the change', 60000);
-      await projectButton.getByText('Saved', { exact: true }).waitFor({ timeout: 30000 });
+      await projectButton.getByText('Saved in this browser').waitFor({ timeout: 30000 });
+      await page.waitForTimeout(3000);
+      assert.equal((await (await carol.json('/api/projects')).json()).projects.find((p) => p.id === saved.id)?.version, saved.version, 'AutoSave sent nothing to Drive');
 
-      // An AutoSave the server refuses stops AutoSave and says so; a Save that works ends that.
+      // A Save the server refuses says so and keeps the change; the next Save that works saves it.
       const refuse = (route) =>
         route.request().method() === 'PUT' && !route.request().url().includes('/thumbnail')
           ? route.fulfill({ status: 500, contentType: 'application/json', body: JSON.stringify({ error: 'Test refusal' }) })
           : route.fallback();
       await page.route('**/api/projects/**', refuse);
-      await layer.fill('0.2');
-      await layer.press('Enter');
-      await projectButton.getByText('Not saved', { exact: true }).waitFor({ timeout: 60000 });
+      await page.keyboard.press('Control+s');
+      await page.getByText('Not saved: Test refusal').waitFor({ timeout: 60000 });
+      await projectButton.getByLabel('unsaved changes').waitFor();
       await page.unroute('**/api/projects/**', refuse);
       await page.keyboard.press('Control+s');
       await page.getByText('Saved “3DBenchy” to your projects').waitFor({ timeout: 60000 });
       await projectButton.getByText('Saved', { exact: true }).waitFor({ timeout: 10000 });
-      // ...and AutoSave carries on.
-      const now = (await (await carol.json('/api/projects')).json()).projects.find((p) => p.id === saved.id).version;
-      await layer.fill('0.24');
-      await layer.press('Enter');
-      await waitFor(async () => (await (await carol.json('/api/projects')).json()).projects.find((p) => p.id === saved.id)?.version > now, 'AutoSave saved after the error', 60000);
-      await projectButton.getByText('Saved', { exact: true }).waitFor({ timeout: 30000 });
+      assert.ok((await (await carol.json('/api/projects')).json()).projects.find((p) => p.id === saved.id)?.version > saved.version, 'Save sent the change');
 
       // Another device takes it over: coming back to this tab, it is view only.
       const other = await carol.json(`/api/projects/${saved.id}/device`, 'POST', { device: 'other-device-1234', deviceName: 'phone' });
@@ -1523,8 +1491,42 @@ if (withApp)
       assert.notEqual(mine.project.device, 'other-device-1234', 'this device edits it again');
       await layer.fill('0.28');
       await layer.press('Enter');
+      // A Save shows it is saving from the press until it is done: a card, a spinner by the name,
+      // and the menu says why Save, Save a copy and Download 3MF wait (here the server is held).
+      let letSave;
+      const held = new Promise((r) => (letSave = r));
+      const hold = async (route) =>
+        route.request().method() === 'PUT' && !route.request().url().includes('/thumbnail') ? (await held, route.fallback()) : route.fallback();
+      await page.route('**/api/projects/**', hold);
       await page.keyboard.press('Control+s');
+      const savingCard = page.getByTestId('saving-card');
+      await savingCard.getByText('Saving…').waitFor({ timeout: 30000 });
+      await projectButton.getByTestId('save-spinner').waitFor();
+      await projectButton.click();
+      await page.getByTestId('menu-saving').getByText('Save, Save a copy and Download 3MF wait until it is done.').waitFor();
+      for (const row of ['Save', 'Save a copy…', 'Download 3MF'])
+        assert.ok(await page.getByRole('menuitem', { name: new RegExp(`^${row.replace('…', '.')}`) }).first().isDisabled(), `${row} waits while saving`);
+      await page.mouse.move(900, 400);
+      await page.waitForTimeout(400); // the menu fades in
+      if (process.env.ACCOUNTS_SHOTS) await page.screenshot({ path: join(process.env.ACCOUNTS_SHOTS, 'saving-menu.png') });
+      await page.keyboard.press('Escape');
+      if (process.env.ACCOUNTS_SHOTS) {
+        await page.setViewportSize({ width: 390, height: 800 });
+        await page.mouse.move(200, 400);
+        await page.waitForTimeout(300);
+        await page.screenshot({ path: join(process.env.ACCOUNTS_SHOTS, 'saving-phone.png') });
+        await projectButton.click();
+        await page.getByTestId('menu-saving').waitFor();
+        await page.waitForTimeout(400);
+        await page.screenshot({ path: join(process.env.ACCOUNTS_SHOTS, 'saving-menu-phone.png') });
+        await page.keyboard.press('Escape');
+        await page.setViewportSize({ width: 1280, height: 860 });
+      }
+      letSave();
       await page.getByText('Saved “3DBenchy” to your projects').waitFor({ timeout: 60000 });
+      await page.unroute('**/api/projects/**', hold);
+      await savingCard.waitFor({ state: 'detached' });
+      assert.equal(await projectButton.getByTestId('save-spinner').count(), 0, 'the spinner goes when saved');
       if (process.env.ACCOUNTS_SHOTS) await page.screenshot({ path: join(process.env.ACCOUNTS_SHOTS, 'project-saved.png') });
 
       // A reload offers the saved project that was open here.
@@ -1585,49 +1587,43 @@ if (withApp)
       await ask.getByRole('button', { name: 'Cancel' }).click();
       await visitor.close();
 
-      // Continue opens the unsaved project, and the card doesn't come back. This tab
-      // starts on the other engine, so opening it restarts the engine, which used to
-      // look for the card again while the project was still loading.
+      // A project saved on another device in the last day is offered on a new browser. Continue opens it,
+      // and the card doesn't come back. This tab starts on the other engine, so opening it restarts the
+      // engine, which used to look for the card again while the project was still loading.
       const latest = (await (await carol.json(`/api/projects/${saved.id}`)).json()).project;
       const bytes = driveFiles.get(latest.driveFile).bytes;
-      const draftSave = await putProject(carol, 'draft-continue', { name: 'Untitled', draft: '1', device: 'laptop-device-9', deviceName: 'Windows computer', engine: 'snapmaker' }, bytes);
-      assert.equal(draftSave.status, 200, await draftSave.clone().text());
+      const laptopSave = await putProject(carol, 'from-laptop', { name: 'From my laptop', device: 'laptop-device-9', deviceName: 'Windows computer', engine: 'snapmaker' }, bytes);
+      assert.equal(laptopSave.status, 200, await laptopSave.clone().text());
       const second = await browser.newContext({ viewport: { width: 1280, height: 860 } });
       await second.addCookies([...carol.jar.get(new URL(HOST).host)].map(([name, value]) => ({ name, value, url: HOST })));
       const secondPage = await second.newPage();
       await secondPage.goto(`${HOST}/?engine=orca`);
       const again = secondPage.getByTestId('continue-card');
-      await again.getByText('Continue your unsaved project?').waitFor({ timeout: 120000 });
+      await again.getByText('Continue From my laptop').waitFor({ timeout: 120000 });
+      await again.getByText(/on your Windows computer/).waitFor();
       await again.getByRole('button', { name: 'Continue' }).click();
       await secondPage.getByText('Snapmaker Orca 2.4').first().waitFor({ timeout: 120000 });
       await secondPage.locator('.project-busy').waitFor({ state: 'detached', timeout: 120000 });
       await secondPage.getByRole('button', { name: 'Add model' }).waitFor({ timeout: 60000 });
       await secondPage.waitForTimeout(3000);
       assert.equal(await again.count(), 0, 'the Continue card shows once');
-      // The draft keeps its engine: this tab started on OrcaSlicer and switched back.
-      assert.equal(await pickerOf(secondPage, 'Slicer engine').inputValue(), 'snapmaker', 'the draft opened in the engine it was made with');
+      // It keeps its engine: this tab started on OrcaSlicer and switched back.
+      assert.equal(await pickerOf(secondPage, 'Slicer engine').inputValue(), 'snapmaker', 'the project opened in the engine it was made with');
 
-      // Changing only the engine is a change AutoSave keeps: Continue on a new tab opens it in the new engine.
-      const draftBefore = (await (await carol.json('/api/projects/draft-continue')).json()).project;
+      // Changing only the engine is a change AutoSave keeps in this browser: coming back opens it in the new engine.
       await pickerOf(secondPage, 'Slicer engine').selectOption('orca');
       const sw = secondPage.getByRole('dialog').filter({ hasText: /Switch/ });
       if (await sw.getByRole('button', { name: 'Switch' }).isVisible({ timeout: 3000 }).catch(() => false)) await sw.getByRole('button', { name: 'Switch' }).click();
-      await waitFor(async () => {
-        const d = (await (await carol.json('/api/projects/draft-continue')).json()).project;
-        return d.engine === 'orca' && d.version > draftBefore.version;
-      }, 'AutoSave saved the engine change', 90000);
-      const third = await browser.newContext({ viewport: { width: 1280, height: 860 } });
-      await third.addCookies([...carol.jar.get(new URL(HOST).host)].map(([name, value]) => ({ name, value, url: HOST })));
-      const thirdPage = await third.newPage();
-      await thirdPage.goto(HOST);
-      const card3 = thirdPage.getByTestId('continue-card');
-      await card3.getByText('Continue your unsaved project?').waitFor({ timeout: 120000 });
+      await secondPage.getByRole('button', { name: /^Project/ }).getByText('Saved in this browser').waitFor({ timeout: 90000 });
+      assert.equal((await (await carol.json('/api/projects/from-laptop')).json()).project.engine, 'snapmaker', 'nothing went to Drive');
+      await secondPage.goto(HOST);
+      const card3 = secondPage.getByTestId('continue-card');
+      await card3.getByText('Continue where you left off?').waitFor({ timeout: 120000 });
       await card3.getByRole('button', { name: 'Continue' }).click();
-      await thirdPage.getByText(/OrcaSlicer \d+\.\d+/).first().waitFor({ timeout: 120000 });
-      await thirdPage.locator('.project-busy').waitFor({ state: 'detached', timeout: 120000 });
-      assert.equal(await pickerOf(thirdPage, 'Slicer engine').inputValue(), 'orca', 'Continue opened the draft in the engine it was switched to');
-      await third.close();
-      await carol.fetch(`${HOST}/api/projects/draft-continue`, { method: 'DELETE', headers: { Origin: HOST } });
+      await secondPage.getByText(/OrcaSlicer \d+\.\d+/).first().waitFor({ timeout: 120000 });
+      await secondPage.locator('.project-busy').waitFor({ state: 'detached', timeout: 120000 });
+      assert.equal(await pickerOf(secondPage, 'Slicer engine').inputValue(), 'orca', 'Continue opened the work in the engine it was switched to');
+      await carol.fetch(`${HOST}/api/projects/from-laptop`, { method: 'DELETE', headers: { Origin: HOST } });
 
       // A saved project keeps its engine too: one made in OrcaSlicer opens in it here.
       const orcaSave = await putProject(carol, 'orca-made', { name: 'Made in OrcaSlicer', engine: 'orca' }, bytes);
@@ -1685,7 +1681,7 @@ if (withApp)
       await copying.getByRole('button', { name: 'Save' }).click();
       const copied = page.getByText('Saved “3DBenchy (2)” to your projects');
       await copied.waitFor({ timeout: 60000 });
-      const names = (await (await carol.json('/api/projects')).json()).projects.filter((p) => !p.draft).map((p) => p.name);
+      const names = (await (await carol.json('/api/projects')).json()).projects.map((p) => p.name);
       assert.equal(names.filter((n) => n === '3DBenchy').length, 1, `one 3DBenchy: ${names.join(', ')}`);
       assert.ok(names.includes('3DBenchy (2)'), `the copy is 3DBenchy (2): ${names.join(', ')}`);
       // The "Saved" note goes away by itself.
@@ -1771,7 +1767,7 @@ if (withApp)
   });
 
 if (withApp)
-  test('browser: AutoSave Off keeps unsaved work out of Drive, in this browser, and a reload offers it back', async () => {
+  test('browser: AutoSave keeps unsaved work in this browser, never in Drive, and a reload offers it back', async () => {
     users.lena = { sub: 'g-lena', name: 'Lena', email: 'lena@example.com', email_verified: true };
     const browser = await launchBrowser();
     try {
@@ -1787,10 +1783,7 @@ if (withApp)
       await page.getByText('Open a model to start').waitFor({ timeout: 120000 });
       await page.getByTestId('model-input').setInputFiles(join(web, '../../fixtures/3DBenchy.stl'));
       await page.getByRole('button', { name: 'Add model' }).waitFor({ timeout: 60000 });
-      const ask = page.getByTestId('autosave-question');
-      await ask.getByRole('button', { name: 'Off', exact: true }).click({ timeout: 30000 });
-      await waitFor(async () => (await (await kim.json('/api/settings')).json()).settings.some((s) => s.key === 'autosave' && s.value === false), 'the answer is kept');
-      // Kept in this browser a few seconds later, and nothing in Drive.
+      // Kept in this browser a few seconds later, without a question, and nothing in Drive.
       await waitFor(
         () => page.evaluate(() => new Promise((ok) => {
           const open = indexedDB.open('cloud-slicer-unsaved');
@@ -1805,8 +1798,18 @@ if (withApp)
         60000,
       );
       { const l = (await (await kim.json('/api/projects')).json()).projects; assert.equal(l.length, 0, 'nothing went to Drive: ' + JSON.stringify(l)); }
+      await page.getByRole('button', { name: /^Project/ }).getByText('Saved in this browser').waitFor({ timeout: 30000 });
+      assert.equal(await page.getByTestId('autosave-question').count(), 0, 'nothing is asked');
+      await page.getByRole('button', { name: /^Project/ }).click();
+      await page.getByTestId('autosave-note').getByText('AutoSave keeps your changes in this browser as you work. They go to your Google Drive when you Save.').waitFor();
+      assert.equal(await page.getByRole('menuitemcheckbox', { name: /AutoSave/ }).count(), 0, 'no AutoSave switch');
+      if (process.env.ACCOUNTS_SHOTS) {
+        await page.waitForTimeout(400); // the menu fades in
+        await page.screenshot({ path: join(process.env.ACCOUNTS_SHOTS, 'project-menu-autosave.png') });
+      }
+      await page.keyboard.press('Escape');
 
-      // A reload (or a crash) offers it back, still unsaved; the question isn't asked again.
+      // A reload (or a crash) offers it back, still unsaved.
       await page.reload();
       const card = page.getByTestId('continue-card');
       await card.getByText('Continue where you left off?').waitFor({ timeout: 120000 });
@@ -1823,10 +1826,7 @@ if (withApp)
       await projectButton.getByText('3DBenchy').waitFor({ timeout: 60000 });
       await projectButton.getByLabel('unsaved changes').waitFor();
       await page.getByRole('button', { name: 'Add model' }).waitFor({ timeout: 60000 });
-      await page.waitForTimeout(2000);
-      assert.equal(await ask.count(), 0, 'asked only once');
-      assert.equal(await page.getByRole('switch', { name: /AutoSave/ }).getAttribute('aria-checked'), 'false', 'the AutoSave switch shows the answer');
-      await projectButton.getByText('Not saved', { exact: true }).waitFor();
+      await projectButton.getByText('Saved in this browser').waitFor();
       assert.equal((await (await kim.json('/api/projects')).json()).projects.length, 0, 'still nothing in Drive');
     } finally {
       await browser.close();
@@ -1837,22 +1837,22 @@ if (withApp)
   test('browser: the setup wizard waits until the Continue card is answered', async () => {
     const browser = await launchBrowser();
     try {
-      // Someone new (no printers set up yet) with an unsaved project from another device.
+      // Someone new (no printers set up yet) with a project just saved on another device.
       const gina = new Browser();
       await signIn(gina, 'gina');
       const bytes = readFileSync(join(web, '../../fixtures/colored_3DBenchy.3mf'));
-      const draft = await putProject(gina, 'draft-gina', { name: 'Untitled', draft: '1', device: 'gina-laptop', deviceName: 'Windows computer', engine: 'snapmaker' }, bytes);
-      assert.equal(draft.status, 200, await draft.clone().text());
+      const other = await putProject(gina, 'laptop-gina', { name: 'Gina’s boat', device: 'gina-laptop', deviceName: 'Windows computer', engine: 'snapmaker' }, bytes);
+      assert.equal(other.status, 200, await other.clone().text());
       const context = await browser.newContext({ viewport: { width: 1280, height: 860 } });
       await context.addCookies([...gina.jar.get(new URL(HOST).host)].map(([name, value]) => ({ name, value, url: HOST })));
       const page = await context.newPage();
       await page.goto(HOST);
       const card = page.getByTestId('continue-card');
       const wizard = page.getByRole('dialog', { name: 'Set up your printers' });
-      await card.getByText('Continue your unsaved project?').waitFor({ timeout: 120000 });
+      await card.getByText('Continue Gina’s boat').waitFor({ timeout: 120000 });
       await page.waitForTimeout(3000);
       assert.equal(await wizard.count(), 0, 'the wizard opened over the Continue card');
-      await card.getByRole('button', { name: 'Discard' }).click();
+      await card.getByRole('button', { name: 'Not now' }).click();
       await wizard.waitFor({ timeout: 30000 });
     } finally {
       await browser.close();
@@ -1860,94 +1860,50 @@ if (withApp)
   });
 
 if (withApp)
-  test('browser: a draft discarded on another computer stays open here and is saved again', async () => {
+  test('browser: a project deleted on another computer stays open here, kept in this browser', async () => {
     const browser = await launchBrowser();
     try {
       const hank = new Browser();
       await signIn(hank, 'hank');
-      await hank.json('/api/settings/autosave', 'PUT', { value: true });
-      const drafts = async () => (await (await hank.json('/api/projects')).json()).projects.filter((p) => p.draft);
-      const open = async (viewport) => {
-        const context = await browser.newContext({ viewport });
-        await context.addCookies([...hank.jar.get(new URL(HOST).host)].map(([name, value]) => ({ name, value, url: HOST })));
-        const page = await context.newPage();
-        page.on('pageerror', (e) => console.error(`page error: ${e.message}`));
-        await page.goto(HOST);
-        return page;
-      };
-      const skipWizard = async (page) => {
-        const wizard = page.getByRole('dialog', { name: 'Set up your printers' });
-        await page.waitForTimeout(2000);
-        if (await wizard.isVisible().catch(() => false)) await wizard.getByRole('button', { name: 'Not now' }).click();
-      };
-      const changeLayer = async (page, value) => {
-        const layer = page.getByLabel('Layer height', { exact: true });
+      const context = await browser.newContext({ viewport: { width: 1280, height: 860 } });
+      await context.addCookies([...hank.jar.get(new URL(HOST).host)].map(([name, value]) => ({ name, value, url: HOST })));
+      const a = await context.newPage();
+      a.on('pageerror', (e) => console.error(`page error: ${e.message}`));
+      await a.addLocatorHandler(a.getByRole('dialog', { name: 'Set up your printers' }), (d) => d.getByRole('button', { name: 'Not now' }).click());
+      await a.goto(HOST);
+      const changeLayer = async (value) => {
+        const layer = a.getByLabel('Layer height', { exact: true });
         await layer.fill(value);
         await layer.press('Enter');
       };
 
-      // Computer A: a new project, kept online as its draft.
-      const a = await open({ width: 1280, height: 860 });
+      // Computer A: a saved project, then a change that isn't saved yet.
       await a.getByText('Open a model to start').waitFor({ timeout: 120000 });
-      await skipWizard(a);
       await a.getByTestId('model-input').setInputFiles(join(web, '../../fixtures/3DBenchy.stl'));
       await a.getByRole('button', { name: 'Add model' }).waitFor({ timeout: 60000 });
       const projectButton = a.getByRole('button', { name: /^Project/ });
-      await projectButton.getByText('Draft, not saved yet').waitFor({ timeout: 30000 });
-      await waitFor(async () => (await drafts()).length === 1, 'A saved its draft');
-      const first = (await drafts())[0];
+      await projectButton.getByText('3DBenchy').waitFor({ timeout: 30000 });
+      await a.keyboard.press('Control+s');
+      await a.getByRole('dialog', { name: 'Save project' }).getByRole('button', { name: 'Save' }).click();
+      await a.getByText('Saved “3DBenchy” to your projects').waitFor({ timeout: 60000 });
+      const saved = (await (await hank.json('/api/projects')).json()).projects.find((p) => p.name === '3DBenchy');
+      await changeLayer('0.28');
 
-      // Computer B: the Continue card, Discard; then B starts its own project (its own draft).
-      const b = await open({ width: 390, height: 800 });
-      const card = b.getByTestId('continue-card');
-      await card.getByText('Continue your unsaved project?').waitFor({ timeout: 120000 });
-      await card.getByRole('button', { name: 'Discard' }).click();
-      await card.waitFor({ state: 'detached' });
-      await waitFor(async () => (await drafts()).length === 0, "B discarded A's draft");
-      await skipWizard(b);
-      await b.getByTestId('model-input').setInputFiles(join(web, '../../fixtures/3DBenchy.stl'));
-      await waitFor(async () => (await drafts()).length === 1, 'B saved its own draft', 60000);
-      const bDraft = (await drafts())[0];
-
-      // Back on A, a change: AutoSave finds its draft gone. No "Saved on another
-      // device" question (it used to come back after every answer): A says what
-      // happened and keeps its work as a new draft, beside B's.
-      await changeLayer(a, '0.28');
-      const toast = a.getByText('Your unsaved project was discarded on another device. It’s still open here, and AutoSave keeps it as a new draft.');
-      await toast.waitFor({ timeout: 60000 });
-      assert.equal(await a.getByRole('alertdialog').count(), 0, 'A asked about a project it no longer has');
-      if (process.env.ACCOUNTS_SHOTS) await a.screenshot({ path: join(process.env.ACCOUNTS_SHOTS, 'draft-discarded-desktop.png') });
-      await a.setViewportSize({ width: 390, height: 800 });
-      await a.waitForTimeout(500);
-      if (process.env.ACCOUNTS_SHOTS) await a.screenshot({ path: join(process.env.ACCOUNTS_SHOTS, 'draft-discarded-phone.png') });
-      await a.setViewportSize({ width: 1280, height: 860 });
-      await waitFor(async () => (await drafts()).length === 2, "A saved its work again, beside B's draft", 90000);
-      const ids = (await drafts()).map((p) => p.id);
-      assert.ok(ids.includes(bDraft.id), "B's draft is still there");
-      assert.ok(!ids.includes(first.id), 'A saved a new draft');
-      await projectButton.getByText('Draft, not saved yet').waitFor({ timeout: 30000 });
-      assert.equal(await a.getByLabel('Layer height', { exact: true }).inputValue(), '0.28', "A's change is still there");
-
-      // B's next change saves into its own draft, no question either.
-      await changeLayer(b, '0.12');
-      await waitFor(async () => (await drafts()).find((p) => p.id === bDraft.id)?.version > bDraft.version, "B's AutoSave went on", 90000);
-      assert.equal(await b.getByRole('alertdialog').count(), 0, 'B was asked about its draft');
-
-      // A's draft taken over on B (Continue), then discarded there: A's "Edit
-      // here instead" used to spin and stay view only. Now A keeps its work.
-      const aDraft = (await drafts()).find((p) => p.id !== bDraft.id);
-      assert.equal((await hank.json(`/api/projects/${aDraft.id}/device`, 'POST', { device: 'b-device-12345', deviceName: 'phone' })).status, 200);
+      // Taken over on the phone, then deleted there: A's "Edit here instead" used to
+      // spin and stay view only. Now A keeps its work, kept in this browser.
+      assert.equal((await hank.json(`/api/projects/${saved.id}/device`, 'POST', { device: 'b-device-12345', deviceName: 'phone' })).status, 200);
       await a.evaluate(() => window.dispatchEvent(new Event('focus')));
       const banner = a.getByTestId('view-only-banner');
       await banner.getByText('being edited on your phone').waitFor({ timeout: 15000 });
-      await hank.fetch(`${HOST}/api/projects/${aDraft.id}`, { method: 'DELETE', headers: { Origin: HOST } });
+      await hank.fetch(`${HOST}/api/projects/${saved.id}`, { method: 'DELETE', headers: { Origin: HOST } });
       await banner.getByRole('button', { name: 'Edit here instead' }).click();
       await banner.waitFor({ state: 'detached', timeout: 30000 });
-      await a.getByText('Your unsaved project was discarded on your phone. It’s still open here, and AutoSave keeps it as a new draft.').waitFor({ timeout: 15000 });
-      if (process.env.ACCOUNTS_SHOTS) await a.screenshot({ path: join(process.env.ACCOUNTS_SHOTS, 'draft-discarded-edit-here.png') });
+      await a.getByText('“3DBenchy” was deleted on your phone. It’s still open here, not saved.').waitFor({ timeout: 15000 });
+      if (process.env.ACCOUNTS_SHOTS) await a.screenshot({ path: join(process.env.ACCOUNTS_SHOTS, 'deleted-elsewhere.png') });
       assert.equal(await projectButton.getByText('View only').count(), 0, 'still view only');
-      await waitFor(async () => (await drafts()).some((p) => p.id !== bDraft.id), 'A saved its work again', 90000);
-      await changeLayer(a, '0.2');
+      assert.equal(await a.getByLabel('Layer height', { exact: true }).inputValue(), '0.28', "A's change is still there");
+      await projectButton.getByText('Saved in this browser').waitFor({ timeout: 30000 });
+      await changeLayer('0.2');
       assert.equal(await a.getByLabel('Layer height', { exact: true }).inputValue(), '0.2', 'A can edit again');
     } finally {
       await browser.close();
@@ -1963,7 +1919,6 @@ if (withApp)
     try {
       const ivy = new Browser();
       await signIn(ivy, 'ivy');
-      await ivy.json('/api/settings/autosave', 'PUT', { value: true });
       assert.equal((await ivy.json('/api/devices/u1-mock', 'PUT', { name: 'U1-mock', preset: 'Snapmaker U1 (0.4 nozzle)', url: printer.url, extra: { kind: 'direct' } })).status, 200);
       const context = await browser.newContext({ viewport: { width: 1280, height: 860 } });
       await context.addCookies([...ivy.jar.get(new URL(HOST).host)].map(([name, value]) => ({ name, value, url: HOST })));
@@ -1973,7 +1928,7 @@ if (withApp)
       await page.goto(HOST);
       await page.getByText('Open a model to start').waitFor({ timeout: 120000 });
 
-      // Two plates: Benchy on plate 1, a tetrahedron on plate 2; AutoSave keeps it online.
+      // Two plates: Benchy on plate 1, a tetrahedron on plate 2, saved online.
       await page.getByTestId('model-input').setInputFiles(join(web, '../../fixtures/3DBenchy.stl'));
       await page.getByRole('button', { name: 'Add model' }).waitFor({ timeout: 60000 });
       await page.getByRole('toolbar', { name: 'Object tools' }).getByRole('button', { name: 'Add plate' }).click();
@@ -1982,8 +1937,10 @@ if (withApp)
       await tabs.getByRole('tab', { name: /^2/ }).click();
       await page.getByTestId('model-input').setInputFiles(join(web, '../../fixtures/tetrahedron.stl'));
       await tabs.getByRole('tab', { name: /^2.*· 1/ }).waitFor({ timeout: 60000 });
-      await waitFor(async () => (await (await ivy.json('/api/projects')).json()).projects.some((p) => p.draft), 'the draft is saved', 60000);
-      const projectId = (await (await ivy.json('/api/projects')).json()).projects.find((p) => p.draft).id;
+      await page.keyboard.press('Control+s');
+      await page.getByRole('dialog', { name: 'Save project' }).getByRole('button', { name: 'Save' }).click();
+      await page.getByText(/Saved “.*” to your projects/).waitFor({ timeout: 60000 });
+      const projectId = (await (await ivy.json('/api/projects')).json()).projects[0].id;
       const prints = async () => (await (await ivy.json(`/api/projects/${projectId}/prints`)).json()).prints;
 
       // Plate 1: Upload and print. Blue while it prints, green when the printer says it finished.
@@ -2058,9 +2015,8 @@ if (withApp)
       await progress.filter({ hasText: 'Printed 2 of' }).waitFor({ timeout: 30000 });
       await shot(page, 'print-history-all-printed');
 
-      // Saved (no longer a draft), the projects list says how many plates were printed.
+      // Saved again, the projects list says how many plates were printed.
       await page.keyboard.press('Control+s');
-      await page.getByRole('dialog', { name: 'Save project' }).getByRole('button', { name: 'Save' }).click();
       await page.getByText(/Saved “.*” to your projects/).waitFor({ timeout: 60000 });
       await progress.filter({ hasText: 'Printed 2 of' }).waitFor({ timeout: 30000 });
       await page.getByRole('button', { name: /^Project/ }).click();
@@ -2072,8 +2028,14 @@ if (withApp)
       await projects.waitFor({ state: 'detached' });
 
       // Phone width: the top bar and the window fit.
-      await page.setViewportSize({ width: 390, height: 844 });
-      await progress.waitFor();
+      // The project name shortens instead of running under the mark (it used to overlap it).
+      for (const width of [360, 390]) {
+        await page.setViewportSize({ width, height: 844 });
+        await progress.waitFor();
+        const name = await page.locator('.topbar .project-button').boundingBox();
+        const mark = await progress.boundingBox();
+        assert.ok(name.x + name.width <= mark.x + 0.5, `at ${width} px the project name ends at ${name.x + name.width}, under the print mark at ${mark.x}`);
+      }
       await shot(page, 'print-history-phone');
       await progress.click();
       await history.waitFor();

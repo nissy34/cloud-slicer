@@ -75,7 +75,7 @@ flowchart LR
 | Store | Holds | Page |
 |---|---|---|
 | D1 (one database for production and every preview) | Accounts, user presets, settings, printers (keys encrypted), project index, print history, admin and bridge records | [data](architecture/data.md) |
-| The person's Google Drive | Project 3MFs ("Cloud Slicer" folder, drafts in "Drafts"), a new file per save; the page uploads and downloads them itself | [projects](architecture/projects.md) |
+| The person's Google Drive | Project 3MFs ("Cloud Slicer" folder), a new file per save; the page uploads and downloads them itself | [projects](architecture/projects.md) |
 | R2 `cloud-slicer-bridge` | Signed bridge builds and installers; alert pictures (deleted after a day) | [bridge](architecture/bridge.md) |
 | Durable Object storage | Per bridge: key hashes, owner, alert subscriptions | [relay](architecture/relay.md) |
 | Browser storage | Signed-out presets, settings and printers; per-device choices | [data](architecture/data.md) |
@@ -89,7 +89,7 @@ flowchart LR
    Preview. A change while slicing cancels it. [engine](architecture/engine.md),
    [preview](architecture/preview.md)
 2. **Save a project.** The engine writes an Orca 3MF; signed in, the page uploads it to
-   the person's own Google Drive and D1 records it. AutoSave saves each change when things are quiet, and only one
+   the person's own Google Drive and D1 records it. AutoSave keeps each change in the browser, and only one
    device edits a project at a time. [projects](architecture/projects.md),
    [autosave](architecture/autosave.md)
 3. **Send to a printer.** The page zips the G-code and sends it over a direct WebRTC link

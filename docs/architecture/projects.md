@@ -44,15 +44,15 @@ target printer; filaments are matched by material and kind (Matte, Silk, HF, Tra
 made; Google needs no security review for it) with `access_type=offline`, so a refresh key
 is kept (encrypted, like the sign-in keys); `/api/me` says `drive: true` once it's granted.
 Someone who unticks Drive on Google's screen, or signed in before, saves as a download only:
-no draft, no AutoSave, and Online projects is grayed out in the Project menu
+AutoSave still keeps their work in the browser, and Online projects is grayed out in the Project menu
 (`savesOnline` in `state/projects.ts`) until they press "Connect Google Drive" in the
 account menu (Better Auth's `link-social` on the same account). The owner can also turn
 online projects off for one person (Admin page; `/api/me` says `projects: false`).
 
 **Save (signed in).** Engine writes the 3MF → the page gets a one-hour key from
 `POST /api/drive/token` → uploads the 3MF straight to the "Cloud Slicer" folder in their
-Drive (AutoSave's drafts go in "Cloud Slicer/Drafts"), a resumable upload in 4 MB pieces
-that shows "Saving… N%" for a big project and carries on from what Google has after a
+Drive, a resumable upload in 4 MB pieces
+that shows how far it got for a big project (8 MB or more: "Saving… 12 of 40 MB") and carries on from what Google has after a
 dropped connection → `PUT /api/projects/<id>?drive=<file id>&baseVersion=…` with no body.
 The server checks the file with the person's key (size, MD5, zip signature) and points the
 row at `drive:<file id>`; every save is a new file and the one before is deleted, so a save
@@ -63,8 +63,19 @@ the last save; code `changed-in-drive`, "Changed in your Google Drive"). The lis
 (256 px WebP, about 15 KB; PNG where the browser can't make WebP) goes in the row with
 `PUT /api/projects/<id>/thumbnail`.
 
+**While a save runs.** A Save, Save a copy or Download 3MF the person asked for sets
+`busy` and `saving` from the press (also while a save before it finishes first and
+while the names are checked) until it is done. Meanwhile a card at the bottom says
+"Saving…" (with "12 of 40 MB" for a big project; "Preparing the 3MF…" for a download) with a spinner, a spinner sits by the
+project name on every screen size, and the Project menu
+greys out Save, Save a copy and Download 3MF with a row saying why. The card gives way to
+"Saved “name” to your projects" or the error. Editing stays possible; what changes after
+the press goes in the next save.
+
 **Open.** The page downloads the 3MF straight from Drive with its key (nothing passes
-through us). A file deleted in Drive (or emptied from Drive's bin) shows "Not in your
+through us). The loading card's bar fills from 0 to the project's size: Drive often sends
+the file compressed with no length, so the size kept in the list entry is the total
+(`downloadTotal`); only when neither is known does the bar move without filling. A file deleted in Drive (or emptied from Drive's bin) shows "Not in your
 Google Drive" on its card in the Online projects window: one Google call per list
 (`filesInDrive`) finds which files are still there; Remove takes it off the list. Rename
 renames the file in Drive too; Delete deletes it. What is kept is told in plain words on
@@ -85,8 +96,8 @@ a long name takes two lines on a card and shows in full in List.
 ## What it keeps
 
 D1 `projects` (name, size, `file_key` = `drive:<file id>`, `drive_md5`, the picture in
-`thumb`/`thumb_type`, version, engine, draft, device, plates). The 3MF itself is in the
-person's Google Drive. 200 projects per person (drafts not counted) is a safety guard only, so rows can't pile up
+`thumb`/`thumb_type`, version, engine, device, plates). The 3MF itself is in the
+person's Google Drive. 200 projects per person is a safety guard only, so rows can't pile up
 forever; the UI shows just the count, never "of 200" (each project costs the site one D1
 row and a ~15 KB picture). The file uses the person's own Google storage, which the Online
 projects footer, account menu and privacy page say.
@@ -102,13 +113,13 @@ projects in the person's Drive.
 - `version` goes up on every save and on Rename; a save from another tab or device
   against an older version gets a conflict. Things stored beside the project without
   changing the file (thumbnail, print history) must **not** raise it, or the device
-  editing the project hits a conflict on its next AutoSave.
+  editing the project hits a conflict on its next Save.
 - Something that belongs to the project but needn't travel with the file goes in a D1
   column beside it (as `project_prints` does), not in the 3MF.
 - A sliced-only `.gcode.3mf` is explained, not opened.
 - Changed settings and colour mixes belong to the project. After a reload, the preset
-  selection comes back from the browser; the project itself comes back from the copy kept
-  in the browser, through AutoSave, or by opening it again.
+  selection comes back from the browser; the project itself comes back from the copy AutoSave
+  kept in the browser, or by opening it again.
 
 ## Why
 

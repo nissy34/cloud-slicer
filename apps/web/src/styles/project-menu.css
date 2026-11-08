@@ -311,3 +311,20 @@
 }
 
 /* Where new saves go: Cloud Slicer or Google Drive (StorageChoice). */
+
+/* Saving (ProjectMenu.tsx): a spinner by the name on every screen, and a row saying why the save rows wait. */
+.project-spin {
+  color: var(--muted);
+}
+.menu .menu-working {
+  display: flex;
+  gap: var(--s-2);
+  align-items: flex-start;
+}
+.menu .menu-working .spin {
+  margin-top: 2px;
+}
+.menu .menu-working b {
+  color: var(--text);
+  font-weight: 600;
+}

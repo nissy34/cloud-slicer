@@ -90,7 +90,7 @@ let sessionDevice: string | null = null;
 
 /**
  * An id for this browser, so online projects know which device is editing
- * them (AutoSave, Continue). Kept in this browser; without storage, one per
+ * them (Save, Continue). Kept in this browser; without storage, one per
  * page load, which only means Continue sees each visit as another device.
  */
 export function deviceId(): string {
@@ -109,7 +109,7 @@ const OPEN_KEY = 'cloud-slicer:open-project:v1';
 
 /**
  * The saved online project open in this browser, so a reload can offer it
- * again (the Continue card). Null when a new project, a draft or nothing is open.
+ * again (the Continue card). Null when a new project or nothing is open.
  */
 export function loadOpenProject(): string | null {
   try {

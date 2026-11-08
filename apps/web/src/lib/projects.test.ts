@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { ProjectInfo } from '../engine/protocol';
-import { copyName, findProjects, formatBytes, freeName, formatWhen, nameFromFile, projectFileName, projectSignature } from './projects';
+import { copyName, findProjects, formatBytes, freeName, formatWhen, nameFromFile, projectFileName, projectSignature, sentOf } from './projects';
 
 describe('project names', () => {
   it('comes from the file name without its extension', () => {
@@ -47,6 +47,12 @@ describe('formatting', () => {
     expect(formatBytes(2048)).toBe('2 KB');
     expect(formatBytes(3.5 * 1024 * 1024)).toBe('3.5 MB');
     expect(formatBytes(42 * 1024 * 1024)).toBe('42 MB');
+  });
+  it('how far a save got, in the size\'s unit', () => {
+    const MB = 1024 * 1024;
+    expect(sentOf(12 * MB, 40 * MB)).toBe('12 of 40 MB');
+    expect(sentOf(4 * MB, 8.2 * MB)).toBe('4.0 of 8.2 MB');
+    expect(sentOf(50 * MB, 40 * MB)).toBe('40 of 40 MB');
   });
   it('times', () => {
     const now = 1_000_000_000_000;

@@ -90,8 +90,6 @@ export interface OnlineProject {
   updatedAt: number;
   /** The engine it slices with. */
   engine: EngineFlavor;
-  /** The person's one unsaved project (AutoSave keeps it until the first Save names it). */
-  draft: boolean;
   /** The device editing it (see lib/storage.ts deviceId) and its name ("phone"), when known. */
   device: string | null;
   deviceName: string | null;
@@ -103,9 +101,8 @@ export interface OnlineProject {
   driveFile: string | null;
 }
 
-/** Where a save comes from: draft or not, and the device saving. */
+/** What a save says about itself: its plates and the device saving. */
 export interface SaveOptions {
-  draft?: boolean;
   /** How many plates the project has (for "6/10 printed" in the list). */
   plates?: number;
   device?: { id: string; name: string };
@@ -115,7 +112,7 @@ export interface ProjectList {
   /** False when the site's owner turned online projects off for this person. */
   enabled: boolean;
   projects: OnlineProject[];
-  /** Saved projects (drafts aren't counted). */
+  /** How many projects are saved online. */
   count: number;
   /** Whether the person let the app keep projects in their Google Drive. */
   drive?: { connected: boolean };
@@ -194,7 +191,6 @@ export const api = {
   saveProject: (id: string, name: string, driveFile: string, baseVersion: number | undefined, engine: EngineFlavor, opts: SaveOptions = {}) => {
     const q = new URLSearchParams({ drive: driveFile, name, engine });
     if (baseVersion !== undefined) q.set('baseVersion', String(baseVersion));
-    if (opts.draft) q.set('draft', '1');
     if (opts.plates) q.set('plates', String(opts.plates));
     if (opts.device) {
       q.set('device', opts.device.id);
