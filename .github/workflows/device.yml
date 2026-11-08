@@ -301,9 +301,21 @@ jobs:
           sudo $bridge install-printer --printer-data "$data" --relay $relay --code CK23-4567
           systemctl is-active cloud-slicer-bridge
           curl -fsS $relay/install.sh > "$RUNNER_TEMP/install.sh"
-          HOME="$RUNNER_TEMP" sh "$RUNNER_TEMP/install.sh" --printer --uninstall | tee "$RUNNER_TEMP/uninstall.log"
+          # Every message goes to stderr (stdout stays empty: see the doubled paste below).
+          HOME="$RUNNER_TEMP" sh "$RUNNER_TEMP/install.sh" --printer --uninstall 2>"$RUNNER_TEMP/uninstall.log" | tee "$RUNNER_TEMP/uninstall.out"
+          cat "$RUNNER_TEMP/uninstall.log"
+          [ ! -s "$RUNNER_TEMP/uninstall.out" ] || { echo "The installer printed to stdout"; exit 1; }
           grep -q 'Removed the bridge from this printer' "$RUNNER_TEMP/uninstall.log"
           if grep -q 'Downloading' "$RUNNER_TEMP/uninstall.log"; then echo "Uninstall downloaded the bridge"; exit 1; fi
+          # The install line pasted twice onto one line: the first installer gets "--printercurl -fsSL <url>",
+          # refuses before downloading or spending the code, and feeds the second sh nothing.
+          set +e
+          sh "$RUNNER_TEMP/install.sh" --printercurl -fsSL "$relay/install.sh?code=CK23-4567" 2>"$RUNNER_TEMP/doubled.log" | sh -s -- --printer > "$RUNNER_TEMP/doubled.out" 2>&1
+          set -e
+          cat "$RUNNER_TEMP/doubled.log" "$RUNNER_TEMP/doubled.out"
+          grep -q "error: unknown option '--printercurl'" "$RUNNER_TEMP/doubled.log" || { echo "The installer took an unknown option"; exit 1; }
+          [ ! -s "$RUNNER_TEMP/doubled.out" ] || { echo "The second sh got something to run"; exit 1; }
+          if grep -q 'Downloading' "$RUNNER_TEMP/doubled.log"; then echo "An unknown option still downloaded the bridge"; exit 1; fi
           sleep 2
           if systemctl is-active cloud-slicer-bridge; then echo "The service still runs after uninstall"; exit 1; fi
           # Typed by hand as a normal user, the bridge asks sudo for root by itself.
