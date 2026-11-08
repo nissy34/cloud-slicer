@@ -165,7 +165,7 @@ export async function userAction(env: Env, request: Request, id: string, action:
   await requireOwner(env, request);
   const target = await targetUser(env, id);
   const owner = isOwner(env, target.email);
-  const auth = await createAuth(env, request);
+  const auth = await createAuth(env, request, { admin: true });
   const headers = request.headers;
   switch (action) {
     case 'block':

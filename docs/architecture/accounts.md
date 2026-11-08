@@ -58,6 +58,9 @@ D1 `user`, `session`, `account`, `verification` (Better Auth), `presets`,
 - The site's ticket key is made once and never replaced; every live deploy of the site
   and the relay copies the public half from `/api/relay/key`, so they always match.
 - Usage today needs the optional read-only `CLOUDFLARE_ANALYTICS_TOKEN`.
+- D1 cost per request: Better Auth is built per request, so its schema check is off
+  (`validateSchema: false`; it read every table's columns each time, half of all D1
+  time) and the owners' ids are looked up only for the Admin page's actions. What's left is the session and user lookup.
 
 ## Setup, once
 

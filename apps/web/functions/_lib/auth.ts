@@ -33,7 +33,7 @@ export function trustedOrigins(env: Env, request: Request): string[] {
 
 const configured = (env: Env) => Boolean(env.DB && env.BETTER_AUTH_SECRET);
 
-/** The owners' user ids (OWNER_EMAILS), for the admin plugin. One indexed lookup per request (Better Auth keeps emails lower case). */
+/** The owners' user ids (OWNER_EMAILS), for the admin plugin. One indexed lookup (Better Auth keeps emails lower case), only for Admin page actions. */
 async function ownerIds(env: Env): Promise<string[]> {
   const emails = ownerEmails(env);
   if (!emails.length) return [];
@@ -49,7 +49,12 @@ function refuse(message: string): never {
   throw APIError.from('FORBIDDEN', { code: 'INVITE_ONLY', message });
 }
 
-export async function createAuth(env: Env, request: Request) {
+/**
+ * Better Auth for this request. `admin: true` (the Admin page's actions in admin.ts) looks
+ * up the owners so the admin plugin lets them block and remove people; every other
+ * request skips that D1 query, and the plugin's own admin endpoints refuse everyone.
+ */
+export async function createAuth(env: Env, request: Request, { admin: forAdmin = false } = {}) {
   const origin = new URL(request.url).origin;
   return betterAuth({
     appName: 'Cloud Slicer',
@@ -93,11 +98,16 @@ export async function createAuth(env: Env, request: Request) {
       oAuthProxy({ productionURL: env.AUTH_ORIGIN, currentURL: origin }),
       // Block / unblock and the user list for the Admin page; only the owners may use it.
       admin({
-        adminUserIds: await ownerIds(env),
+        adminUserIds: forAdmin ? await ownerIds(env) : [],
         bannedUserMessage: "This account has been blocked on Cloud Slicer. Ask the site's owner if you think that's a mistake.",
       }),
     ],
     telemetry: { enabled: false },
+    // Better Auth would otherwise read every table's columns (one pragma_table_info query
+    // per table) to check its schema. It remembers the answer per instance, but we build
+    // a new instance per request, so it ran on every request: half of all D1 time.
+    // migrations/0001_better_auth.sql sets up the schema, so the check adds nothing.
+    advanced: { database: { validateSchema: false } },
   });
 }
 
