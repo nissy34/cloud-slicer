@@ -46,6 +46,12 @@ The Device tab's "Add a printer" dialog offers the right one for each system:
   downloads nothing: it runs the bridge already in printer_data (with sudo when needed).
   A Snapmaker U1 firmware update wipes the service: run the line again.
 
+  `install.sh` takes only `--printer` and `--uninstall`: anything else stops it
+  before it downloads or spends the setup code. All its messages (and the
+  bridge's) go to stderr, so a line pasted twice onto one line
+  (`… | sh -s -- --printercurl -fsSL … | sh -s -- --printer`) feeds the second
+  `sh` nothing: it shows "error: unknown option" with the usage, and the code still works.
+
 **Setup codes.** A bridge only connects once it has joined an account, and a
 setup code is the only way in (there are no pairing links any more): `install` (and `install-printer`) sends the setup
 code to the relay's `/v1/bridges/<id>/claim`, which checks it with the site, and

@@ -51,10 +51,10 @@ const browser = await chromium.launch(
 try {
   const page = await browser.newPage({ viewport: { width: 1280, height: 900 } });
   page.on('pageerror', (e) => console.error(`page error: ${e.message}`));
+  // The wizard can open a moment after the page is ready (it waits for the engine, the account and the Continue card): dismiss it whenever it shows.
+  await page.addLocatorHandler(page.getByRole('dialog', { name: 'Set up your printers' }), (d) => d.getByRole('button', { name: 'Not now' }).click());
   const ready = async () => {
     await page.getByText('Open a model to start').waitFor({ timeout: 120000 });
-    const wizard = page.getByRole('dialog', { name: 'Set up your printers' });
-    if (await wizard.isVisible().catch(() => false)) await wizard.getByRole('button', { name: 'Not now' }).click();
     await page.getByRole('combobox', { name: 'Process preset' }).waitFor();
   };
   const processPicker = pickerOf(page, 'Process preset');

@@ -4,21 +4,23 @@
 //  1. Finds (or creates) the D1 database and writes its id into wrangler.toml.
 //     If the Cloudflare token can't reach D1, it drops the D1 block instead so
 //     the deploy still works, just without accounts.
-//  2. Finds (or creates) the R2 bucket for saved projects. If R2 isn't turned
-//     on for the account or the token can't reach it, drops the R2 block so
-//     the deploy works without online projects.
-//  3. Copies the Google OAuth credentials (GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET,
+//     (Projects are kept in each person's Google Drive: the site has no R2.)
+//  2. Copies the Google OAuth credentials (GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET,
 //     repository secrets) into Pages secrets, for production and previews.
-//  4. Creates BETTER_AUTH_SECRET (sessions) and ACCOUNT_ENC_KEY (printer API
+//  3. Creates BETTER_AUTH_SECRET (sessions) and ACCOUNT_ENC_KEY (printer API
 //     keys) once, if missing. Production and previews share them.
-//  5. The Admin page: copies OWNER_EMAILS (who may open it) and, if set,
+//     Also GOOGLE_PICKER_KEY: the browser key Google's file window needs for
+//     Open from Google Drive, stored as a Pages secret even though every
+//     browser gets it, because each deploy replaces the plain variables with
+//     wrangler.toml's [vars] and the key would be dropped.
+//  4. The Admin page: copies OWNER_EMAILS (who may open it) and, if set,
 //     CLOUDFLARE_ANALYTICS_TOKEN (a read-only token for its usage numbers).
-//  6. Creates the relay ticket key pair once, if the site has none: the private
+//  5. Creates the relay ticket key pair once, if the site has none: the private
 //     half signs tickets (Pages secret RELAY_TICKET_KEY), the public half goes to
 //     the relay Worker (secret RELAY_TICKET_PUBLIC_KEY), which then only lets in
 //     browsers of signed-in, allowed accounts. Never replaced after that.
 //
-// Prints `d1=ok|missing` and `r2=ok|missing` for $GITHUB_OUTPUT. Never fails the build.
+// Prints `d1=ok|missing` for $GITHUB_OUTPUT. Never fails the build.
 //
 //   CLOUDFLARE_API_TOKEN=… CLOUDFLARE_ACCOUNT_ID=… PROJECT=cloud-slicer node scripts/setup-accounts.mjs
 import { generateKeyPairSync, randomBytes } from 'node:crypto';
@@ -31,7 +33,6 @@ const tomlPath = join(web, 'wrangler.toml');
 const { CLOUDFLARE_API_TOKEN: token, CLOUDFLARE_ACCOUNT_ID: account } = process.env;
 const project = process.env.PROJECT || 'cloud-slicer';
 const DB_NAME = 'cloud-slicer';
-const BUCKET = 'cloud-slicer-projects';
 const SECRET_NAMES = ['GOOGLE_CLIENT_ID', 'GOOGLE_CLIENT_SECRET'];
 const RELAY_WORKER = process.env.RELAY_WORKER || 'cloud-slicer-relay';
 
@@ -71,27 +72,6 @@ async function setupD1() {
   }
 }
 
-async function setupR2() {
-  try {
-    const { buckets = [] } = (await cf(`/r2/buckets?name_contains=${BUCKET}`)) ?? {};
-    if (!buckets.some((b) => b.name === BUCKET)) {
-      await cf('/r2/buckets', { method: 'POST', body: JSON.stringify({ name: BUCKET }) });
-      console.log(`created R2 bucket ${BUCKET}`);
-    }
-    console.log(`R2 ${BUCKET}: ok`);
-    return true;
-  } catch (e) {
-    warn(
-      `Online projects disabled for this deploy: R2 isn't usable (${e.message}). ` +
-        'Turn on R2 in the Cloudflare dashboard (free up to 10 GB) and give the token "Workers R2 Storage: Edit".',
-    );
-    const toml = readFileSync(tomlPath, 'utf8');
-    const start = toml.indexOf('# --- R2');
-    writeFileSync(tomlPath, toml.slice(0, start) + toml.slice(toml.indexOf('# --- D1')));
-    return false;
-  }
-}
-
 async function setupSecrets() {
   const vars = {};
   for (const name of SECRET_NAMES) if (process.env[name]) vars[name] = process.env[name];
@@ -111,6 +91,10 @@ async function setupSecrets() {
     if (process.env.OWNER_EMAILS) vars.OWNER_EMAILS = process.env.OWNER_EMAILS;
     else warn('No OWNER_EMAILS repository secret: nobody can open the Admin page. Add your Google email as that secret.');
     const plain = {};
+    // Open from Google Drive: Google's file window needs this browser key. It is sent to every browser, but it is
+    // kept as a Pages secret: a deploy replaces the plain variables with wrangler.toml's [vars], which drops it.
+    if (process.env.GOOGLE_PICKER_KEY) vars.GOOGLE_PICKER_KEY = process.env.GOOGLE_PICKER_KEY;
+    else warn('No GOOGLE_PICKER_KEY repository secret: "Open from Google Drive" stays grayed out. See docs/architecture/projects.md.');
     if (process.env.CLOUDFLARE_ANALYTICS_TOKEN) {
       vars.CF_ANALYTICS_TOKEN = process.env.CLOUDFLARE_ANALYTICS_TOKEN;
       plain.CF_ACCOUNT_ID = account;
@@ -160,11 +144,8 @@ async function relayPublicKey(publicKey) {
 if (!token || !account) {
   warn('No Cloudflare credentials: skipping accounts setup');
   output('d1=missing');
-  output('r2=missing');
 } else {
-  const r2 = await setupR2();
   const d1 = await setupD1();
   await setupSecrets();
   output(`d1=${d1 ? 'ok' : 'missing'}`);
-  output(`r2=${r2 ? 'ok' : 'missing'}`);
 }

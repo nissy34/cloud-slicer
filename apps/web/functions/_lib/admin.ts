@@ -1,17 +1,18 @@
 // The owner's Admin page (OWNER_EMAILS only):
 //
 //   GET    /api/admin[?quick]               settings, users, invites, free-tier usage (not with ?quick)
-//   PUT    /api/admin/settings              { inviteOnly, storageMb }
+//   PUT    /api/admin/settings              { inviteOnly?, bridgesPerPerson? (-1 = no limit) }
 //   POST   /api/admin/users/<id>/<action>   block | unblock | allow | disallow | delete
-//   PUT    /api/admin/users/<id>/storage    { storageMb: number | null }  (null = the site default)
-//   PUT    /api/admin/users/<id>/bridges    { allowed: boolean }
+//   PUT    /api/admin/users/<id>/projects   { allowed: boolean }  (online projects, in their Google Drive)
+//   PUT    /api/admin/users/<id>/bridges    { bridges: null (the site's number) | a whole number, 0 = none | -1 (no limit) }
 //   POST   /api/admin/bridges/<id>/<off|on> turn a bridge off for everyone, or back on
+//   DELETE /api/admin/bridges/<id>          take an old bridge off the list (frees its place)
 //   POST   /api/admin/invites               { email }
 //   DELETE /api/admin/invites/<email>
 //
 // Blocking is Better Auth's admin plugin (ban: signs the user out everywhere
 // and refuses their sign-ins); the relay drops their bridge connections too.
-import { accessSettings, isOwner, MAX_STORAGE_MB, normalEmail, saveAccessSettings } from './access';
+import { accessSettings, bridgeNumber, isOwner, normalEmail, saveAccessSettings } from './access';
 import { createAuth, requireUser, type SessionUser } from './auth';
 import { HttpError, json, readJson, requireSameOrigin } from './http';
 import { revoke, setBridgeOff } from './relay';
@@ -43,19 +44,12 @@ interface UserRow {
   lastSeen: unknown;
   relaySeen: number | null;
   projects: number;
-  bytes: number;
   presets: number;
   printers: number;
   bridges: number;
-  storage_mb: number | null;
+  projects_allowed: number | null;
   bridges_allowed: number | null;
   allowed: number;
-}
-
-function storageMb(v: unknown): number {
-  const n = Number(v);
-  if (!Number.isInteger(n) || n < 0 || n > MAX_STORAGE_MB) throw new HttpError(400, `Storage is a whole number of MB, 0-${MAX_STORAGE_MB}`);
-  return n;
 }
 
 function validEmail(v: unknown): string {
@@ -78,11 +72,10 @@ export async function overview(env: Env, request: Request): Promise<Response> {
            (SELECT MAX(s."updatedAt") FROM "session" s WHERE s."userId" = u.id) AS "lastSeen",
            (SELECT MAX(r.last_used_at) FROM relay_bridges r WHERE r.user_id = u.id) AS "relaySeen",
            (SELECT COUNT(*) FROM projects p WHERE p.user_id = u.id) AS projects,
-           (SELECT COALESCE(SUM(p.size), 0) FROM projects p WHERE p.user_id = u.id) AS bytes,
            (SELECT COUNT(*) FROM presets p WHERE p.user_id = u.id) AS presets,
            (SELECT COUNT(*) FROM devices v WHERE v.user_id = u.id) AS printers,
            (SELECT COUNT(*) FROM relay_bridges r WHERE r.user_id = u.id) AS bridges,
-           l.storage_mb, l.bridges AS bridges_allowed,
+           l.projects AS projects_allowed, l.bridges AS bridges_allowed,
            (a.email IS NOT NULL) AS allowed
          FROM "user" u
          LEFT JOIN user_limits l ON l.user_id = u.id
@@ -99,13 +92,17 @@ export async function overview(env: Env, request: Request): Promise<Response> {
     d
       .prepare(
         `SELECT b.bridge_id AS id, MAX(b.last_used_at) AS used, group_concat(COALESCE(NULLIF(u.name, ''), u.email), ', ') AS people,
-           i.revoked
+           i.revoked,
+           (SELECT group_concat(v.name, ', ') FROM devices v
+              WHERE json_extract(v.extra, '$.kind') = 'bridge-agent' AND json_extract(v.extra, '$.bridgeId') = b.bridge_id) AS names,
+           (SELECT group_concat(v.name, ', ') FROM devices v
+              WHERE json_extract(v.extra, '$.kind') = 'bridge' AND json_extract(v.extra, '$.bridgeId') = b.bridge_id) AS printers
          FROM relay_bridges b
          LEFT JOIN "user" u ON u.id = b.user_id
          LEFT JOIN relay_bridge_info i ON i.bridge_id = b.bridge_id
          GROUP BY b.bridge_id ORDER BY used DESC LIMIT 500`,
       )
-      .all<{ id: string; used: number; people: string | null; revoked: number | null }>()
+      .all<{ id: string; used: number; people: string | null; revoked: number | null; names: string | null; printers: string | null }>()
       .catch(() => ({ results: [] })),
   ]);
   return json({
@@ -122,16 +119,24 @@ export async function overview(env: Env, request: Request): Promise<Response> {
         blocked: !!u.banned,
         allowed: !!u.allowed,
         projects: u.projects,
-        bytes: u.bytes,
         presets: u.presets,
         printers: u.printers,
         bridges: u.bridges,
-        storageMb: u.storage_mb,
+        projectsAllowed: u.projects_allowed !== 0,
         bridgesAllowed: u.bridges_allowed !== 0,
+        /** This person's own bridge number: null = the site's, 0 = none. */
+        bridgesLimit: u.bridges_allowed,
       };
     }),
     invites: invites.results.map((i) => ({ email: i.email, addedAt: i.added_at })),
-    bridges: bridges.results.map((b) => ({ id: b.id, lastUsed: b.used, people: b.people ?? '', off: !!b.revoked })),
+    bridges: bridges.results.map((b) => ({
+      id: b.id,
+      lastUsed: b.used,
+      people: b.people ?? '',
+      off: !!b.revoked,
+      name: b.names ?? '',
+      printers: b.printers ?? '',
+    })),
     usage: use,
   });
 }
@@ -140,12 +145,11 @@ export async function overview(env: Env, request: Request): Promise<Response> {
 export async function putSettings(env: Env, request: Request): Promise<Response> {
   requireSameOrigin(request);
   await requireOwner(env, request);
-  const body = await readJson<{ inviteOnly?: unknown; storageMb?: unknown }>(request, 4096);
+  const body = await readJson<{ inviteOnly?: unknown; bridgesPerPerson?: unknown }>(request, 4096);
   const before = await accessSettings(env);
-  const next = {
-    inviteOnly: body.inviteOnly === undefined ? before.inviteOnly : body.inviteOnly === true,
-    storageMb: body.storageMb === undefined ? before.storageMb : storageMb(body.storageMb),
-  };
+  const bridges = body.bridgesPerPerson === undefined ? before.bridgesPerPerson : bridgeNumber(body.bridgesPerPerson);
+  if (bridges === null) throw new HttpError(400, 'Bridges per person must be a whole number from 1 up, or no limit (-1)');
+  const next = { inviteOnly: body.inviteOnly === undefined ? before.inviteOnly : body.inviteOnly === true, bridgesPerPerson: bridges };
   // Turning invite only on keeps everyone who already has an account: they go on the list.
   if (next.inviteOnly && !before.inviteOnly)
     await env.DB!.prepare('INSERT OR IGNORE INTO allowed_emails (email, added_at) SELECT lower(email), ? FROM "user"').bind(Date.now()).run();
@@ -191,8 +195,8 @@ export async function userAction(env: Env, request: Request, id: string, action:
       break;
     }
     case 'delete':
-      // Everything goes: sessions, presets, printers, projects (and their files, auth.ts's
-      // delete hook), bridges; their relay connections close and they leave the invite list.
+      // Everything goes: sessions, presets, printers, the project list, bridges; their relay
+      // connections close and they leave the invite list. Project files stay in their Google Drive.
       if (owner) throw new HttpError(400, "The owner's own account can't be deleted here");
       await revoke(env, id, true);
       await auth.api.removeUser({ body: { userId: id }, headers });
@@ -204,20 +208,18 @@ export async function userAction(env: Env, request: Request, id: string, action:
   return json({ ok: true });
 }
 
-/** PUT /api/admin/users/<id>/storage */
-export async function putUserStorage(env: Env, request: Request, id: string): Promise<Response> {
+/** PUT /api/admin/users/<id>/projects  { allowed }: may this person save projects online (in their Google Drive). */
+export async function putUserProjects(env: Env, request: Request, id: string): Promise<Response> {
   requireSameOrigin(request);
   await requireOwner(env, request);
   await targetUser(env, id);
-  const body = await readJson<{ storageMb?: unknown }>(request, 4096);
-  if (body.storageMb === null) await env.DB!.prepare('UPDATE user_limits SET storage_mb = NULL WHERE user_id = ?').bind(id).run();
-  else
-    await env.DB!.prepare(
-      `INSERT INTO user_limits (user_id, storage_mb, updated_at) VALUES (?, ?, ?)
-       ON CONFLICT (user_id) DO UPDATE SET storage_mb = excluded.storage_mb, updated_at = excluded.updated_at`,
-    )
-      .bind(id, storageMb(body.storageMb), Date.now())
-      .run();
+  const body = await readJson<{ allowed?: unknown }>(request, 4096);
+  await env.DB!.prepare(
+    `INSERT INTO user_limits (user_id, projects, updated_at) VALUES (?, ?, ?)
+     ON CONFLICT (user_id) DO UPDATE SET projects = excluded.projects, updated_at = excluded.updated_at`,
+  )
+    .bind(id, body.allowed === false ? 0 : null, Date.now())
+    .run();
   return json({ ok: true });
 }
 
@@ -239,21 +241,26 @@ export async function removeInvite(env: Env, request: Request, email: string): P
   return json({ ok: true });
 }
 
-/** PUT /api/admin/users/<id>/bridges  { allowed }: may this person use bridges at all. */
+/**
+ * PUT /api/admin/users/<id>/bridges  { bridges }: how many bridges this person may use.
+ * null = the site's number, 0 = none (their bridges close at once). Lowering the
+ * number keeps bridges they already use; it stops new ones.
+ */
 export async function putUserBridges(env: Env, request: Request, id: string): Promise<Response> {
   requireSameOrigin(request);
   await requireOwner(env, request);
   const target = await targetUser(env, id);
   if (isOwner(env, target.email)) throw new HttpError(400, 'The owner can always use bridges');
-  const body = await readJson<{ allowed?: unknown }>(request, 4096);
-  const allowed = body.allowed !== false;
+  const body = await readJson<{ bridges?: unknown }>(request, 4096);
+  const n = body.bridges === null ? null : bridgeNumber(body.bridges, 0);
+  if (n === null && body.bridges !== null) throw new HttpError(400, "Bridges must be the site's number (null), a whole number from 0 up, or no limit (-1)");
   await env.DB!.prepare(
     `INSERT INTO user_limits (user_id, bridges, updated_at) VALUES (?, ?, ?)
      ON CONFLICT (user_id) DO UPDATE SET bridges = excluded.bridges, updated_at = excluded.updated_at`,
   )
-    .bind(id, allowed ? null : 0, Date.now())
+    .bind(id, n, Date.now())
     .run();
-  await revoke(env, id, !allowed);
+  await revoke(env, id, n === 0);
   return json({ ok: true });
 }
 
@@ -263,5 +270,20 @@ export async function bridgeAction(env: Env, request: Request, bridgeId: string,
   await requireOwner(env, request);
   if (action !== 'off' && action !== 'on') throw new HttpError(404, 'Not found');
   await setBridgeOff(env, bridgeId, action === 'off');
+  return json({ ok: true });
+}
+
+/**
+ * DELETE /api/admin/bridges/<id>: takes a bridge off the list for everyone, so it
+ * stops counting toward anyone's bridges. A bridge that is still running comes
+ * back the next time someone opens it (if they have a place for it).
+ */
+export async function removeBridge(env: Env, request: Request, bridgeId: string): Promise<Response> {
+  requireSameOrigin(request);
+  await requireOwner(env, request);
+  const d = env.DB!;
+  const { meta } = await d.prepare('DELETE FROM relay_bridges WHERE bridge_id = ?').bind(bridgeId).run();
+  await d.prepare('DELETE FROM relay_bridge_info WHERE bridge_id = ? AND revoked = 0').bind(bridgeId).run();
+  if (!meta.changes) throw new HttpError(404, 'No such bridge');
   return json({ ok: true });
 }

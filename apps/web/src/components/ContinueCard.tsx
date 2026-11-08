@@ -4,30 +4,42 @@ import { formatWhen } from '../lib/projects';
 import { useProjects } from '../state/projects';
 import { Notice } from './Notice';
 
-/** On opening the app with nothing loaded: continue the project open here last, the draft, or a project changed on another device. */
+/** On opening the app with nothing loaded: continue the work kept in this browser, the project open here last, or a project changed on another device. */
 export function ContinueCard() {
   const offer = useProjects((s) => s.offer);
   const busy = useProjects((s) => Boolean(s.busy));
   if (!offer || busy) return null;
-  const p = offer.project;
   const { acceptOffer, dismissOffer } = useProjects.getState();
-  const draft = offer.kind === 'draft';
+  if (offer.kind === 'local')
+    return (
+      <Notice
+        testId="continue-card"
+        icon={<span className="project-thumb small">3MF</span>}
+        title="Continue where you left off?"
+        text={`${offer.copy.name}, changed ${formatWhen(offer.copy.savedAt)}. Kept in this browser, not saved.`}
+        actions={
+          <>
+            <button className="secondary" onClick={() => void dismissOffer(true)}>
+              Discard
+            </button>
+            <button className="primary" onClick={() => void acceptOffer()}>
+              Continue
+            </button>
+          </>
+        }
+      />
+    );
+  const p = offer.project;
   return (
     <Notice
       testId="continue-card"
       icon={<span className="project-thumb small">{p.hasThumbnail ? <img src={projectThumbnailUrl(p)} alt="" /> : '3MF'}</span>}
-      title={draft ? 'Continue your unsaved project?' : offer.kind === 'here' ? `Continue ${p.name}?` : `Continue ${p.name}`}
-      text={
-        draft
-          ? `${p.name}, changed ${formatWhen(p.updatedAt)}${p.deviceName ? ` on ${yourDevice(p.deviceName)}` : ''}`
-          : offer.kind === 'here'
-            ? `You had it open here, edited ${formatWhen(p.updatedAt)}`
-            : `Edited ${formatWhen(p.updatedAt)} on ${yourDevice(p.deviceName)}`
-      }
+      title={offer.kind === 'here' ? `Continue ${p.name}?` : `Continue ${p.name}`}
+      text={offer.kind === 'here' ? `You had it open here, edited ${formatWhen(p.updatedAt)}` : `Edited ${formatWhen(p.updatedAt)} on ${yourDevice(p.deviceName)}`}
       actions={
         <>
-          <button className="secondary" onClick={() => void dismissOffer(draft)}>
-            {draft ? 'Discard' : 'Not now'}
+          <button className="secondary" onClick={() => void dismissOffer(false)}>
+            Not now
           </button>
           <button className="primary" onClick={() => void acceptOffer()}>
             Continue

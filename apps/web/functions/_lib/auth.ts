@@ -11,9 +11,9 @@
 import { betterAuth } from 'better-auth';
 import { APIError } from 'better-auth/api';
 import { admin, oAuthProxy } from 'better-auth/plugins';
-import { isOwner, ownerEmails, signInRefusal } from './access';
+import { isOwner, ownerEmails, projectsAllowed, signInRefusal } from './access';
 import { HttpError, json } from './http';
-import { deleteAllFiles } from './projects';
+import { DRIVE_SCOPE, hasDriveScope, pickerConfig } from './drive';
 import type { Env } from './types';
 
 export type ProviderId = 'google';
@@ -65,7 +65,17 @@ export async function createAuth(env: Env, request: Request, { admin: forAdmin =
     trustedOrigins: trustedOrigins(env, request),
     socialProviders:
       env.GOOGLE_CLIENT_ID && env.GOOGLE_CLIENT_SECRET
-        ? { google: { clientId: env.GOOGLE_CLIENT_ID, clientSecret: env.GOOGLE_CLIENT_SECRET, prompt: 'select_account' } }
+        ? {
+            google: {
+              clientId: env.GOOGLE_CLIENT_ID,
+              clientSecret: env.GOOGLE_CLIENT_SECRET,
+              prompt: 'select_account',
+              // Projects are kept in the person's own Google Drive (drive.ts): sign-in asks
+              // for it (only files the app makes), with a refresh key so saving keeps working.
+              scope: [DRIVE_SCOPE],
+              accessType: 'offline',
+            },
+          }
         : {},
     session: { expiresIn: 30 * DAY, updateAge: DAY },
     account: { encryptOAuthTokens: true },
@@ -81,8 +91,8 @@ export async function createAuth(env: Env, request: Request, { admin: forAdmin =
           },
         },
         // Deleting an account (the user's own Delete account, or Delete on the Admin page):
-        // D1 rows go with the user row (ON DELETE CASCADE); saved project files are in R2.
-        delete: { before: async (user) => void (await deleteAllFiles(env, user.id)) },
+        // D1 rows go with the user row (ON DELETE CASCADE). Project files are in the
+        // person's own Google Drive and stay there.
       },
       session: {
         create: {
@@ -142,13 +152,22 @@ export async function me(env: Env, request: Request): Promise<Response> {
   const user = await currentUser(env, request);
   if (!user) return json({ enabled, providers, user: null });
   const accounts = await db(env)
-    .prepare('SELECT "providerId" AS provider FROM "account" WHERE "userId" = ? ORDER BY "createdAt"')
+    .prepare('SELECT "providerId" AS provider, scope FROM "account" WHERE "userId" = ? ORDER BY "createdAt"')
     .bind(user.id)
-    .all<{ provider: ProviderId }>();
+    .all<{ provider: ProviderId; scope: string | null }>();
   return json({
     enabled,
     providers,
-    user: { ...user, identities: accounts.results.map((a) => ({ provider: a.provider, login: null, email: user.email })) },
+    user: {
+      ...user,
+      identities: accounts.results.map((a) => ({ provider: a.provider, login: null, email: user.email })),
+      // Projects save online only into their Google Drive (drive.ts).
+      drive: accounts.results.some((a) => a.provider === 'google' && hasDriveScope(a.scope)),
+      // False when the site's owner turned online projects off for them (Admin page).
+      projects: await projectsAllowed(env, user.id),
+      // Open from Google Drive works: the site has the key Google's file window needs.
+      drivePicker: Boolean(pickerConfig(env)),
+    },
   });
 }
 

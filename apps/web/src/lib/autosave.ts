@@ -1,22 +1,25 @@
-// Small rules for AutoSave and Continue on another device, kept apart from the
-// state so they can be tested (state/projects.ts uses them).
+// Small rules for AutoSave (which keeps unsaved work in this browser only) and
+// the Continue card, kept apart from the state so they can be tested
+// (state/projects.ts uses them).
 import type { OnlineProject } from '../account/api';
+import type { LocalCopy } from './local-copy';
 
-/** Projects this big save less often: each AutoSave uploads the whole 3MF, on the person's own data. */
-export const BIG_PROJECT_BYTES = 5 * 1024 * 1024;
-/** Quiet time after the last change before AutoSave sends the project. */
+/**
+ * Projects this big are kept in this browser less often: the engine needs a few
+ * seconds to write their 3MF, even when it never leaves the browser.
+ */
+export const BIG_PROJECT_BYTES = 20 * 1024 * 1024;
+/** Quiet time after the last change before AutoSave keeps the project in this browser. */
 export const QUIET_MS = 5_000;
-/** The thumbnail is sent again at most this often (and on every Save). */
-export const THUMBNAIL_EVERY_MS = 10 * 60_000;
 /** The Continue card offers projects changed on another device within this long. */
 export const CONTINUE_WITHIN_MS = 24 * 3600_000;
 
-/** Least time between two AutoSaves of a project of `bytes` (its last saved size). */
+/** Least time between two AutoSaves of a project of `bytes` (its last kept size). */
 export function autosaveGap(bytes: number): number {
-  return bytes < BIG_PROJECT_BYTES ? 30_000 : 180_000;
+  return bytes < BIG_PROJECT_BYTES ? 10_000 : 60_000;
 }
 
-/** How long to wait before AutoSave sends: QUIET_MS after the last change, and not sooner than the gap after the last save. */
+/** How long to wait before AutoSave keeps the work: QUIET_MS after the last change, and not sooner than the gap after the last one. */
 export function autosaveDelay(now: number, lastChange: number, lastSave: number, bytes: number): number {
   return Math.max(0, lastChange + QUIET_MS - now, lastSave + autosaveGap(bytes) - now);
 }
@@ -34,9 +37,13 @@ export function deviceNameFrom(userAgent: string, maxTouchPoints = 0): string {
   return 'other device';
 }
 
+/** What the Continue card offers: unsaved work kept in this browser, or one from the account. */
 export type ContinueOffer =
-  /** The person's unsaved project, from this device or another. */
-  | { kind: 'draft'; project: OnlineProject }
+  /** Unsaved work kept in this browser (lib/local-copy.ts): the newest work here, so it comes first. */
+  | { kind: 'local'; copy: LocalCopy }
+  | OnlineOffer;
+
+export type OnlineOffer =
   /** A saved project last changed on another device. */
   | { kind: 'elsewhere'; project: OnlineProject }
   /** The saved project that was open on this device when the page was left. */
@@ -45,18 +52,14 @@ export type ContinueOffer =
 /**
  * What the Continue card offers when the app opens with nothing loaded: the
  * saved project that was open here when the page was left (`openHere`, however
- * long ago), else the newest draft if there is one (from this device or
- * another), else the newest project changed on another device in the last day.
+ * long ago), else the newest project changed on another device in the last day.
  * Other projects last changed here aren't offered (they're one click away in
  * Online projects).
  */
-export function continueOffer(projects: OnlineProject[], device: string, now = Date.now(), openHere: string | null = null): ContinueOffer | null {
-  const here = openHere ? projects.find((p) => p.id === openHere && !p.draft) : undefined;
+export function continueOffer(projects: OnlineProject[], device: string, now = Date.now(), openHere: string | null = null): OnlineOffer | null {
+  const here = openHere ? projects.find((p) => p.id === openHere) : undefined;
   if (here) return { kind: 'here', project: here };
-  // Each device keeps its own draft: the newest one is offered.
-  const draft = projects.filter((p) => p.draft).sort((a, b) => b.updatedAt - a.updatedAt)[0];
-  if (draft) return { kind: 'draft', project: draft };
-  const newest = [...projects].filter((p) => !p.draft).sort((a, b) => b.updatedAt - a.updatedAt)[0];
+  const newest = [...projects].sort((a, b) => b.updatedAt - a.updatedAt)[0];
   if (newest && newest.device && newest.device !== device && now - newest.updatedAt < CONTINUE_WITHIN_MS) return { kind: 'elsewhere', project: newest };
   return null;
 }
@@ -68,8 +71,7 @@ export const yourDevice = (name: string | null | undefined) => (name ? `your ${n
  * Said when the open project was deleted on another device: it stays open here.
  * `device`: the device that had it, when known.
  */
-export function goneText(p: { name: string; draft: boolean }, device: string | null | undefined, autosave: boolean): string {
+export function goneText(name: string, device: string | null | undefined): string {
   const where = device ? `on ${yourDevice(device)}` : 'on another device';
-  const kept = autosave ? ' It’s still open here, and AutoSave keeps it as a new draft.' : ' It’s still open here, not saved.';
-  return p.draft ? `Your unsaved project was discarded ${where}.${kept}` : `“${p.name}” was deleted ${where}.${kept}`;
+  return `“${name}” was deleted ${where}. It’s still open here, not saved.`;
 }

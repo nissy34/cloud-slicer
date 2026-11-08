@@ -1,15 +1,20 @@
-# AutoSave, drafts and Continue
+# AutoSave and Continue
 
-> **Read this when** you change AutoSave timing, drafts, the Continue card, "one device
-> edits at a time", or Share to Cloud Slicer. **Related:** [projects](projects.md),
+> **Read this when** you change AutoSave timing, the Continue card, "one device edits at
+> a time", or Share to Cloud Slicer. **Related:** [projects](projects.md),
 > [data](data.md).
 
 ## What it does
 
-Signed in, work saves itself like Word: new work is a draft, the first Save names it,
-then each change saves when things are quiet. Opening the app elsewhere offers to
-continue; only one device edits a project at a time. On Android, files shared from
-another app open here.
+AutoSave, for everyone, signed in or not: unsaved work is kept in this browser
+(IndexedDB) a few seconds after each change, and the Continue card offers it back after a
+crash or a closed tab ("Continue where you left off?"). It never leaves the browser, asks
+nothing and has no switch. A project goes to Google Drive only when the person presses
+Save. The top bar says "Saved in this browser" once the change is kept, "Saved" once it is
+saved online.
+
+Opening the app elsewhere offers to continue a project saved on another device; only one
+device edits a project at a time. On Android, files shared from another app open here.
 
 ## Pieces
 
@@ -17,8 +22,10 @@ another app open here.
 |---|---|
 | Timer, queue, take-over, view only | `state/projects.ts` |
 | Timing rules and Continue offer | `lib/autosave.ts` |
+| Unsaved work kept in this browser | `lib/local-copy.ts` (idb-keyval) |
 | Continue card, view-only notice | `components/ContinueCard.tsx`, shown as a [message card](../../apps/web/src/components/Notice.tsx) |
-| Drafts and device checks on the server | `functions/_lib/projects.ts` |
+| Save status by the project name, the AutoSave note in the Project menu | `components/ProjectMenu.tsx` (`useSaveStatus`) |
+| Device checks on the server | `functions/_lib/projects.ts` |
 | Share target | `public/manifest.webmanifest` `share_target`, `public/sw.js`, `lib/share-target.ts` |
 
 ## How it flows
@@ -41,39 +48,47 @@ There is no polling: a device finds out on its next save or when its tab is focu
 
 ## What it keeps
 
-- D1 `projects.draft = 1` for drafts; `device` (a random id kept in the browser) and
-  `device_name` ("phone") on every save.
-- Account setting `autosave` (the on/off switch).
+- D1 `projects.device` (a random id kept in the browser) and `device_name` ("phone") on
+  every save. The `projects.draft` column and the `autosave` account setting are left
+  from when AutoSave uploaded drafts to Drive; nothing reads or writes them now (D1
+  columns are never dropped).
+- Browser IndexedDB `cloud-slicer-unsaved` / `work` / `unsaved`: one copy of the unsaved
+  work (3MF, name, online id and version, engine), dropped once it is saved.
 - Browser: `cloud-slicer:open-project:v1` (the project open here when left),
   `cloud-slicer:continue-dismissed:v1` ("Not now", per project version).
 
 ## Rules
 
-- Timing: save 5 s after the last change, at most every 30 s (every 3 min for projects of
-  5 MB or more, since each save uploads the whole 3MF), and when the tab is hidden;
-  thumbnail at most every 10 min.
-- A save the server refuses stops AutoSave and shows "Not saved" (the reason is in the
-  Project menu). The next save that works, a Save or turning AutoSave back on, starts it
-  again; no connection just retries every 30 s.
-- One draft per device, at most 3 per person (oldest go first). Drafts don't count
-  toward the 200 projects but do count toward storage.
-- A device whose draft was deleted elsewhere keeps its work, says so and saves a new draft.
-- Continue offers, in order: the project open in this browser when it was left, else the
-  draft, else the newest project changed on another device in the last day. Once per visit.
+- Timing: kept 5 s after the last change, at most every 10 s (every minute for projects
+  of 20 MB or more, since the engine takes a few seconds to write their 3MF), and when
+  the tab is hidden. A slice's new preview isn't a change.
+- The Continue card offers the browser copy before anything from the account; Discard
+  deletes it. It is dropped once the work is saved.
+- Leaving with unsaved changes still asks (the browser's "Leave site?"): they are kept
+  here, but not online.
+- A device whose project was deleted elsewhere keeps its work, says so, and AutoSave keeps
+  it in this browser.
+- Continue offers, in order: the work kept in this browser, else the project open in this
+  browser when it was left, else the newest project changed on another device in the last
+  day. Once per visit.
 - Share target: the service worker keeps shared files in the Cache API and opens
   `/?shared=1`, which opens or adds them.
 
 ## Why
 
-- One draft per person made two devices delete each other's work; one per device fixed it.
+- AutoSave used to upload the whole 3MF to Drive after every change (every 3 min for big
+  ones): a 200 MB project re-uploaded 200 MB for one setting. Drive can only replace a
+  whole file, so AutoSave now stays in the browser and Save is the only upload
+  (2026-11-07). The cost: work started on one device reaches another only after Save.
 - "Discard only if not open elsewhere" was turned down: without presence or polling we
   can't tell open from asleep. See [decisions.md](../decisions.md#projects-and-autosave).
 
 ## Tests
 
-`accounts.mjs` (drafts, Continue on another device, view only, Share to Cloud Slicer);
-unit test `autosave.test.ts`.
+`accounts.mjs` (kept in this browser and nothing in Drive, Continue after a reload and on
+another device, view only, Share to Cloud Slicer); unit test `autosave.test.ts`.
 
 ## Open
 
-- Signed out, nothing autosaves.
+- Saving only what changed (a small settings file beside the 3MF) would make Save of a big
+  project fast too; not built.

@@ -1,5 +1,5 @@
 // Use of Cloudflare's free tier, for the Admin page. What D1 knows (users,
-// saved project bytes, bridges) is always there; today's request counts come
+// projects, the database's size, bridges) is always there; today's request counts come
 // from Cloudflare's GraphQL Analytics API when the site has a read-only
 // analytics token (CF_ANALYTICS_TOKEN + CF_ACCOUNT_ID), and are left out
 // otherwise.
@@ -7,10 +7,8 @@ import type { Env } from './types';
 
 /** Free plan limits (https://developers.cloudflare.com/workers/platform/pricing/). */
 export const FREE = {
-  r2Bytes: 10 * 1024 ** 3,
-  /** Our own cap for online projects, under R2's 10 GB (projects.ts LIMITS.siteBytes). */
-  projectBytes: 8 * 1024 ** 3,
-  d1Bytes: 5 * 1024 ** 3,
+  /** One D1 database on the free plan (the account has 5 GB in all). */
+  d1Bytes: 500 * 1024 ** 2,
   d1RowsReadPerDay: 5_000_000,
   d1RowsWrittenPerDay: 100_000,
   workerRequestsPerDay: 100_000,
@@ -104,20 +102,27 @@ async function today(env: Env): Promise<{ meters: Meter[]; errors: string[] }> {
 
 export async function usage(env: Env): Promise<Usage> {
   const d = env.DB!;
-  const [users, projects, bridges] = await Promise.all([
+  const [users, projects, bridges, size] = await Promise.all([
     d.prepare('SELECT COUNT(*) AS n FROM "user"').first<{ n: number }>(),
-    d.prepare('SELECT COALESCE(SUM(size), 0) AS bytes, COUNT(*) AS n FROM projects').first<{ bytes: number; n: number }>(),
+    d.prepare('SELECT COUNT(*) AS n FROM projects').first<{ n: number }>(),
     d.prepare('SELECT COUNT(DISTINCT bridge_id) AS n FROM relay_bridges').first<{ n: number }>().catch(() => ({ n: 0 })),
+    // D1 reports the database's size with every query.
+    d
+      .prepare('SELECT 1')
+      .run()
+      .then((r) => Number((r.meta as { size_after?: number }).size_after ?? 0))
+      .catch(() => 0),
   ]);
   const meters: Meter[] = [
     {
-      key: 'projects',
-      label: 'Online projects storage',
-      used: projects?.bytes ?? 0,
-      limit: FREE.projectBytes,
+      key: 'database',
+      label: 'Database size',
+      used: size,
+      limit: FREE.d1Bytes,
       unit: 'bytes',
-      note: `${(projects?.n ?? 0).toLocaleString('en')} projects. The site stops taking new ones at 8 GB (R2 is free up to 10 GB).`,
+      note: 'Accounts, presets, printers, the project list and its pictures (about 15 KB a project). Project files are in each person’s Google Drive.',
     },
+    { key: 'projects', label: 'Online projects', used: projects?.n ?? 0, limit: 0, unit: 'count' },
     { key: 'users', label: 'Accounts', used: users?.n ?? 0, limit: 0, unit: 'count' },
     {
       key: 'bridges',

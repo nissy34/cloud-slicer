@@ -17,23 +17,22 @@ One database for production **and every branch preview**. Migrations in
 | `presets` | User presets: `type`, `name`, `inherits`, `config` (diff), `engines`, `version` | 0001, 0006 |
 | `user_settings` | Small JSON values by key (below) | 0001 |
 | `devices` | Saved printers and bridges: `url`, `api_key_enc`, `extra` (bridge, relay, kind) | 0001 |
-| `projects` | Online project index: `name`, R2 keys (`file_key`, `thumb_key`), size, `version`, `engine`, `draft`, `device`, `device_name`, `plates` | 0004, 0005, 0007, 0009 |
+| `projects` | Online project index: `name`, `file_key` (`drive:<file id>` in the person's Google Drive), `drive_md5`, the list picture (`thumb`, `thumb_type`), size, `version`, `engine`, `device`, `device_name`, `plates`. `thumb_key` (R2 days) and `draft` (AutoSave's old Drive drafts) are left, unused | 0004, 0005, 0007, 0009, 0010 |
 | `project_prints` | Print history records per plate ([print history](print-history.md)) | 0009 |
 | `site_settings` | Admin switches (invite only, defaults) | 0005 |
 | `allowed_emails` | Invite-only list | 0005 |
-| `user_limits` | Per-person storage and bridges overrides | 0005, 0006 |
+| `user_limits` | Per person: online projects off (`projects` = 0), bridges off; `storage_mb` is left from R2 days, unused | 0005, 0006, 0010 |
 | `relay_bridges` | Which account uses which bridge (the 3-bridge cap) | 0005 |
 | `relay_bridge_info` | Per bridge: relay, turned off, guest use | 0006 |
 | `bridge_setup_codes` | Setup codes as SHA-256 only, one use, one hour | 0008 |
 
 Account settings keys (`user_settings.key`): `setup` (wizard choices), `theme`,
-`autosave`, `alerts.last` (last alert choices), `device-layout.<printer id>`.
+`alerts.last` (last alert choices), `device-layout.<printer id>`.
 
 ## R2
 
 | Bucket | Binding | Holds |
 |---|---|---|
-| `cloud-slicer-projects` | `PROJECTS` (site) | Project 3MFs and PNG thumbnails, a new key per save |
 | `cloud-slicer-bridge` | `DOWNLOADS` (relay) | Signed bridge builds and installers (`bridge/`), alert pictures (`alerts/`, deleted after a day by a lifecycle rule) |
 | `cloud-slicer-bridge-test` | test relay | The same for the [test relay](hosting.md#test-relay) |
 
@@ -60,7 +59,7 @@ secret key, printers and their API keys or access codes.
 | `alerts:v1` | Alert choices for printers reached directly |
 | `console-filters:v1`, `printer-active:v1`, `printer-send:v1` | Device tab conveniences |
 | `ask-simplify:v1`, `convert:v1` (what to do with a 3MF for a printer we don't have), `font-files:v1`, `theme` | Other per-device choices |
-| `device:v1` | This browser's random device id for AutoSave |
+| `device:v1` | This browser's random device id, so a save says which device edits the project |
 | `printers:v1` | Old printer list, moved once into the account store |
 
 ## Rules

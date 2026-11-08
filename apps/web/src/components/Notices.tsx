@@ -8,6 +8,7 @@ import { useProjects } from '../state/projects';
 import { useSlicer } from '../state/store';
 import { ContinueCard, ViewOnlyBanner } from './ContinueCard';
 import { Notice, NOTICE_MS } from './Notice';
+import { LoaderCircle } from 'lucide-react';
 
 /** Goes away by itself after NOTICE_MS unless it is a problem. */
 function useAutoHide(key: unknown, problem: boolean, hide: () => void) {
@@ -27,6 +28,21 @@ function ProjectMessage() {
   useAutoHide(message, warn, clear);
   if (!message) return null;
   return <Notice tone={warn ? 'error' : 'ok'} title={message} onClose={clear} testId="project-message" />;
+}
+
+/** A Save or Download the person asked for, from the press until it is done ("Saved" follows). */
+function SavingCard() {
+  const busy = useProjects((s) => s.busy);
+  const download = busy.startsWith('Preparing');
+  return (
+    <Notice
+      tone="info"
+      icon={<LoaderCircle className="spin" size={18} />}
+      title={busy || 'Saving…'}
+      text={download ? 'It downloads by itself when it is ready.' : 'You can keep working. Changes from now on go in the next save.'}
+      testId="saving-card"
+    />
+  );
 }
 
 function DeviceMessage() {
@@ -69,11 +85,13 @@ export function Notices() {
   const viewOnly = useProjects((s) => s.elsewhere !== null);
   const offer = useProjects((s) => s.offer !== null && !s.busy);
   const message = useProjects((s) => Boolean(s.message));
+  const saving = useProjects((s) => s.saving);
   const toast = useDevice((s) => s.toast !== null);
   const style = usePlace();
   const cards: [string, ReactNode][] = [];
   if (slicer && viewOnly) cards.push(['view-only', <ViewOnlyBanner />]);
   if (tab === 'prepare' && offer) cards.push(['continue', <ContinueCard />]);
+  if (saving) cards.push(['saving', <SavingCard />]);
   if (message) cards.push(['project', <ProjectMessage />]);
   if (toast) cards.push(['device', <DeviceMessage />]);
   return (

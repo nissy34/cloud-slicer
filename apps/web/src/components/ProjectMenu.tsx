@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { api, projectThumbnailUrl, type OnlineProject, type ProjectList } from '../account/api';
+import { filesInDrive } from '../account/drive';
+import { useDriveOpen } from '../account/useDriveOpen';
 import { engineName } from '../lib/engines';
 import { copyName, findProjects, formatBytes, formatWhen, PROJECT_SORTS, UNTITLED, type ProjectSort } from '../lib/projects';
 import { MODEL_EXTENSIONS } from '../lib/presets';
@@ -20,42 +22,39 @@ import { FolderOpen, LoaderCircle, MoreHorizontal, Search } from 'lucide-react';
 const isMac = typeof navigator !== 'undefined' && /Mac|iPhone|iPad/.test(navigator.platform);
 const MOD = isMac ? '⌘' : 'Ctrl+';
 
-/** What AutoSave shows next to the project name ('' when there is nothing to say). */
+/** What is said next to the project name ('' when there is nothing to say). */
 function useSaveStatus(): string {
-  const signedIn = useAccount((s) => s.status === 'signedIn');
-  const autosave = useAccount((s) => s.settings.autosave?.value !== false);
-  const cur = useProjects((s) => s.current);
+  const online = useProjects((s) => s.current.id !== null);
   const dirty = useProjects((s) => s.dirty);
-  const state = useProjects((s) => s.saveState);
-  const stopped = useProjects((s) => s.autosaveStopped);
+  const keptHere = useProjects((s) => s.keptHere);
   const elsewhere = useProjects((s) => s.elsewhere);
   const hasModel = useSlicer((s) => Boolean(s.project?.objects.length));
-  if (!signedIn || !hasModel) return '';
+  if (!hasModel) return '';
   if (elsewhere) return 'View only';
-  if (state === 'saving') return 'Saving…';
-  if (state === 'offline') return 'Not saved: no connection';
-  if (stopped) return 'Not saved';
-  if (!cur.id || cur.draft) return 'Draft, not saved yet';
-  if (!dirty) return 'Saved';
-  return autosave ? 'Saving…' : 'Not saved';
+  // AutoSave keeps unsaved changes in this browser; Save puts them online.
+  if (dirty) return keptHere ? 'Saved in this browser' : 'Not saved';
+  return online ? 'Saved' : '';
 }
 
-/** The top bar's Project menu (New, Open, Projects, Save, Save a copy, Download 3MF, AutoSave) and its dialogs. */
+/** The top bar's Project menu (New, Open, Projects, Save, Save a copy, Download 3MF) and its dialogs. */
 export function ProjectMenu() {
   const ready = useSlicer((s) => s.engine === 'ready');
   const name = useProjects((s) => s.current.name);
-  const online = useProjects((s) => s.current.id !== null && !s.current.draft);
+  const online = useProjects((s) => s.current.id !== null);
   const dirty = useProjects((s) => s.dirty);
   const busy = useProjects((s) => s.busy);
+  const saving = useProjects((s) => s.saving);
   const signedIn = useAccount((s) => s.status === 'signedIn');
+  // Signed in without Google Drive: there are no online projects to show (Connect is in the account menu).
+  const noDrive = useAccount((s) => s.status === 'signedIn' && (s.user?.drive !== true || s.user.projects === false));
+  const projectsOff = useAccount((s) => s.user?.projects === false);
+  const savesOnline = signedIn && !noDrive;
   const engineInfo = useSlicer((s) => s.engineInfo);
-  const autosave = useAccount((s) => s.settings.autosave?.value !== false);
-  const autosaveBusy = useProjects((s) => s.saveState === 'saving');
-  const stopped = useProjects((s) => s.autosaveStopped);
   const status = useSaveStatus();
   const p = useProjects.getState();
   const [open, setOpen] = useState(false);
   const input = useRef<HTMLInputElement>(null);
+  const driveOpen = useDriveOpen();
 
   // Ctrl+S / Ctrl+Shift+S / Ctrl+O, like desktop.
   useEffect(() => {
@@ -75,14 +74,13 @@ export function ProjectMenu() {
     return () => document.removeEventListener('keydown', keys);
   }, [ready]);
 
-  // Leaving with unsaved changes asks first (AutoSave saves as the tab goes away instead).
-  const autosaving = signedIn && autosave && !stopped;
+  // Leaving with unsaved changes asks first (they stay in this browser, but not online).
   useEffect(() => {
-    if (!dirty || autosaving) return;
+    if (!dirty) return;
     const warn = (e: BeforeUnloadEvent) => e.preventDefault();
     window.addEventListener('beforeunload', warn);
     return () => window.removeEventListener('beforeunload', warn);
-  }, [dirty, autosaving]);
+  }, [dirty]);
 
   const run = (fn: () => unknown) => () => {
     setOpen(false);
@@ -108,7 +106,8 @@ export function ProjectMenu() {
               <span className="project-name-text">{name}</span>
               {online && <span className="project-cloud" aria-label="saved online" title="Saved in your online projects" />}
             </span>
-            {dirty && !autosaveBusy && <span className="project-dirty" aria-label="unsaved changes" />}
+            {saving && <LoaderCircle className="spin project-spin" size={14} aria-label="saving" data-testid="save-spinner" />}
+            {dirty && !saving && <span className="project-dirty" aria-label="unsaved changes" />}
             {status && !busy && <span className="project-status" data-testid="save-status">{status}</span>}
             {busy && <span className="project-busy">{busy}</span>}
           </button>
@@ -121,12 +120,40 @@ export function ProjectMenu() {
         <button role="menuitem" className="menu-item" onClick={run(() => input.current?.click())}>
           Open from this device…<kbd>{MOD}O</kbd>
         </button>
-        <button role="menuitem" className="menu-item" onClick={run(() => p.setListOpen(true))}>
+        <button
+          role="menuitem"
+          className="menu-item"
+          disabled={!driveOpen.available || !!busy}
+          title={driveOpen.reason || undefined}
+          data-testid="open-from-drive"
+          onClick={run(() => driveOpen.open('project'))}
+        >
+          Open from Google Drive…
+        </button>
+        <button role="menuitem" className="menu-item" disabled={noDrive} onClick={run(() => p.setListOpen(true))}>
           Online projects…
         </button>
+        {/* Drive connected but the site lacks Google's key: say so (the other reasons share the note below). */}
+        {!noDrive && signedIn && !driveOpen.available && <p className="menu-note">{driveOpen.reason}</p>}
+        {noDrive && (
+          <p className="menu-note" data-testid="online-projects-off">
+            {projectsOff
+              ? 'Online projects are turned off for your account.'
+              : 'Connect Google Drive in the account menu to open files from it and keep projects online. Until then, Save downloads the 3MF.'}
+          </p>
+        )}
         <hr />
-        {/* Signed out, Save downloads the 3MF: one row for both. */}
-        {signedIn && (
+        {/* While a save runs its rows wait, and say why. */}
+        {saving && (
+          <p className="menu-note menu-working" data-testid="menu-saving">
+            <LoaderCircle className="spin" size={16} aria-hidden />
+            <span>
+              <b>{busy}</b> Save, Save a copy and Download 3MF wait until it is done.
+            </span>
+          </p>
+        )}
+        {/* Signed out or without Drive, Save downloads the 3MF: one row for both. */}
+        {savesOnline && (
           <button role="menuitem" className="menu-item" disabled={!!busy} onClick={run(() => p.save())}>
             Save
             <kbd>{MOD}S</kbd>
@@ -135,47 +162,22 @@ export function ProjectMenu() {
         <button role="menuitem" className="menu-item" disabled={!!busy} onClick={run(() => p.setSaveAsOpen('copy'))}>
           Save a copy…
         </button>
-        <button role="menuitem" className="menu-item" disabled={!!busy} onClick={run(() => (signedIn ? p.download() : p.save()))}>
+        <button role="menuitem" className="menu-item" disabled={!!busy} onClick={run(() => (savesOnline ? p.download() : p.save()))}>
           Download 3MF
-          {!signedIn && <kbd>{MOD}S</kbd>}
+          {!savesOnline && <kbd>{MOD}S</kbd>}
         </button>
         {engineInfo && (
           <p className="menu-note" data-testid="project-engine">
             This project slices with {engineInfo.name} {engineInfo.version}.
           </p>
         )}
-        {signedIn && (
-          <button
-            role="menuitemcheckbox"
-            aria-checked={autosave}
-            className="menu-item menu-switch"
-            onClick={() => void useProjects.getState().setAutosave(!autosave)}
-          >
-            AutoSave
-            <span className={autosave ? 'switch on' : 'switch'} aria-hidden />
-          </button>
-        )}
-        {signedIn && (
-          <p className="menu-note">
-            {autosave
-              ? 'AutoSave keeps changes in your online projects a few seconds after you make them. A new project stays a draft until you Save it.'
-              : 'AutoSave is off: changes wait for Save.'}
-          </p>
-        )}
-        {stopped && <Note tone="warn" className="menu-note-box">{stopped}</Note>}
+        <p className="menu-note" data-testid="autosave-note">
+          {savesOnline
+            ? 'AutoSave keeps your changes in this browser as you work. They go to your Google Drive when you Save.'
+            : 'AutoSave keeps your changes in this browser as you work.'}
+        </p>
         {!signedIn && <p className="menu-note">Sign in to keep projects online and open them on any device.</p>}
       </Menu>
-      {signedIn && (
-        <button
-          className={autosave ? 'autosave-pill on' : 'autosave-pill'}
-          role="switch"
-          aria-checked={autosave}
-          title={autosave ? 'AutoSave is on: changes save by themselves' : 'AutoSave is off: changes wait for Save'}
-          onClick={() => void useProjects.getState().setAutosave(!autosave)}
-        >
-          AutoSave <span className={autosave ? 'switch on' : 'switch'} aria-hidden />
-        </button>
-      )}
       <input
         ref={input}
         type="file"
@@ -194,6 +196,7 @@ export function ProjectMenu() {
       />
       <SaveAsDialog />
       <ConflictDialog />
+      <GoneDialog />
       <ProjectsDialog />
     </div>
   );
@@ -210,12 +213,15 @@ function SaveAsDialog() {
 
 function SaveAsForm({ copy, initial }: { copy: boolean; initial: string }) {
   const signedIn = useAccount((s) => s.status === 'signedIn');
+  const online = useProjects((s) => s.canSaveOnline());
+  // Opened from Google Drive: the first Save says plainly that it makes a copy and leaves the Drive file alone.
+  const fromDrive = useProjects((s) => (online && !copy ? s.current.fromDrive : undefined));
   const [name, setName] = useState(initial);
   const close = () => useProjects.getState().setSaveAsOpen(false);
   const trimmed = name.trim();
   return (
     <Dialog
-      title={copy ? 'Save a copy' : 'Save project'}
+      title={fromDrive ? 'Save a copy to Cloud Slicer' : copy ? 'Save a copy' : 'Save project'}
       testId="save-as-dialog"
       onClose={close}
       footer={
@@ -224,7 +230,7 @@ function SaveAsForm({ copy, initial }: { copy: boolean; initial: string }) {
             Cancel
           </button>
           <button type="submit" form="save-as-form" className="primary" disabled={!trimmed}>
-            {signedIn ? 'Save' : 'Download'}
+            {fromDrive ? 'Save copy' : online ? 'Save' : 'Download'}
           </button>
         </>
       }
@@ -241,12 +247,26 @@ function SaveAsForm({ copy, initial }: { copy: boolean; initial: string }) {
           <span>Name</span>
           <input aria-label="Project name" autoFocus maxLength={128} value={name} placeholder="My project" onChange={(e) => setName(e.target.value)} />
         </label>
-        <p className="muted small">
-          {!signedIn
+        <p className="muted small" data-testid="save-as-note">
+          {fromDrive ? (
+            <>
+              Saves a copy in the Cloud Slicer folder in your Google Drive, with its plates, settings and paint.{' '}
+              {/\.\w+$/.test(fromDrive) ? (
+                <>
+                  Your file <b>{fromDrive}</b> in Drive is not changed.
+                </>
+              ) : (
+                <>Your {fromDrive} in Drive are not changed.</>
+              )}{' '}
+              After this, Save updates the copy.
+            </>
+          ) : !signedIn
             ? 'Downloaded as a 3MF project file. Sign in to keep projects online.'
+            : !online
+              ? 'Downloaded as a 3MF project file. Connect Google Drive in the account menu to keep projects online.'
             : copy
               ? 'Saved as a new project in your online projects, with its plates, settings and paint. You carry on in the copy.'
-              : 'Kept in your online projects with its plates, settings and paint. After this, AutoSave saves your changes.'}
+              : 'Kept in your online projects with its plates, settings and paint. After this, Save puts your changes there.'}
         </p>
       </form>
     </Dialog>
@@ -261,7 +281,7 @@ function ConflictDialog() {
   const when = conflict.theirs ? formatWhen(conflict.theirs.updatedAt) : null;
   return (
     <Dialog
-      title="Saved on another device"
+      title={conflict.inDrive ? 'Changed in your Google Drive' : 'Saved on another device'}
       role="alertdialog"
       onClose={() => void resolveConflict('cancel')}
       footer={
@@ -279,11 +299,41 @@ function ConflictDialog() {
       }
     >
       <p>
-        {conflict.theirs
+        {conflict.inDrive
+          ? `“${name}” was changed in your Google Drive (by another app, say) after you opened it here.`
+          : conflict.theirs
           ? `“${conflict.theirs.name}” was saved again ${when}, after you opened it here.`
           : `“${name}” was deleted from your online projects after you opened it here.`}{' '}
         Overwrite it with this version, or keep both?
       </p>
+    </Dialog>
+  );
+}
+
+/** A project whose file was deleted in Google Drive: remove it from the list too? */
+function GoneDialog() {
+  const gone = useProjects((s) => s.gone);
+  if (!gone) return null;
+  const { removeGone } = useProjects.getState();
+  const close = () => useProjects.setState({ gone: null });
+  return (
+    <Dialog
+      title="Not in your Google Drive"
+      role="alertdialog"
+      testId="project-gone"
+      onClose={close}
+      footer={
+        <>
+          <button className="secondary" onClick={close}>
+            Keep in the list
+          </button>
+          <button className="primary" onClick={() => void removeGone()}>
+            Remove
+          </button>
+        </>
+      }
+    >
+      <p>“{gone.name}” is no longer in your Google Drive. It was deleted there, or is in Drive’s bin. Remove it from your projects?</p>
     </Dialog>
   );
 }
@@ -327,14 +377,25 @@ function ProjectsDialog() {
   const [sort, setSort] = useRemembered<ProjectSort>(SORT_KEY, PROJECT_SORTS.map((s) => s.value), 'newest');
   const [view, setView] = useRemembered<ProjectView>(VIEW_KEY, ['cards', 'list'], 'cards');
 
+  // Projects whose file was deleted in Google Drive (null until Drive answers).
+  const [inDrive, setInDrive] = useState<Set<string> | null>(null);
   const load = () =>
     api
       .projects()
       .then((l) => {
         setList(l);
         setError('');
+        // One Google call for the whole list: which files are still in their Drive.
+        if (l.drive?.connected) void filesInDrive().then(setInDrive, () => setInDrive(null));
       })
       .catch((e: Error) => setError(e.message));
+  // A project removed from the "not in your Google Drive" popup leaves the list.
+  const gone = useProjects((s) => s.gone);
+  const wasGone = useRef(gone);
+  useEffect(() => {
+    if (open && wasGone.current && !gone) void load();
+    wasGone.current = gone;
+  }, [gone]);
   useEffect(() => {
     if (open && status === 'signedIn') void load();
     if (!open) {
@@ -348,8 +409,10 @@ function ProjectsDialog() {
   if (!open) return null;
   const p = useProjects.getState();
 
+  const missing = (proj: OnlineProject) => !proj.driveFile || (inDrive !== null && !inDrive.has(proj.driveFile));
   const openProject = async (proj: OnlineProject) => {
     if (opening) return;
+    if (missing(proj)) return useProjects.setState({ gone: proj });
     setOpening(proj.id);
     try {
       if (!(await useProjects.getState().leaveOk())) return;
@@ -358,7 +421,7 @@ function ProjectsDialog() {
       setOpening(null);
     }
   };
-  const saved = list?.projects.filter((x) => !x.draft) ?? [];
+  const saved = list?.projects ?? [];
   const shown = findProjects(saved, search, sort);
 
   const actions = (proj: OnlineProject) => (
@@ -406,6 +469,14 @@ function ProjectsDialog() {
   );
   const details = (proj: OnlineProject) => (
     <>
+      {missing(proj) && (
+        <div className="small project-gone" data-testid="project-not-in-drive">
+          Not in your Google Drive{' '}
+          <button className="quiet small-btn" onClick={() => useProjects.setState({ gone: proj })}>
+            Remove…
+          </button>
+        </div>
+      )}
       <div className="muted small">
         {formatWhen(proj.updatedAt)} · {formatBytes(proj.size)} · {engineName(proj.engine ?? 'snapmaker')}
       </div>
@@ -425,18 +496,7 @@ function ProjectsDialog() {
       onClose={close}
       footer={
         <>
-          {list &&
-            status === 'signedIn' &&
-            (list.limits.userBytes ? (
-              <p className="muted small projects-usage">
-                {formatBytes(list.usage.bytes)} of {formatBytes(list.limits.userBytes)} used · {list.usage.count} of {list.limits.userProjects} projects · up to{' '}
-                {formatBytes(list.limits.projectBytes)} each
-              </p>
-            ) : (
-              <p className="muted small projects-usage">
-                Online projects are off for your account: your presets and printers still save to it. Download a project to keep it.
-              </p>
-            ))}
+          {list && status === 'signedIn' && <DriveNote list={list} />}
           <button className="secondary" onClick={close}>
             Close
           </button>
@@ -467,7 +527,7 @@ function ProjectsDialog() {
         )
       ) : (
         <>
-          {!list.enabled && <Note tone="warn">Online projects aren't set up on this site yet. Save as a download instead.</Note>}
+          {!list.enabled && <Note tone="warn">Online projects are turned off for your account. Save downloads the 3MF instead.</Note>}
           {error && <ErrorNote message={error} />}
           <ContinueRow list={list} onOpen={(proj) => void openProject(proj)} />
           {saved.length === 0 ? (
@@ -548,6 +608,17 @@ function ProjectsDialog() {
         />
       )}
     </Dialog>
+  );
+}
+
+/** Projects are kept in the person's own Google Drive (Connect is in the account menu, for anyone who said no at sign-in). */
+function DriveNote({ list }: { list: ProjectList }) {
+  return (
+    <p className="muted small projects-usage" data-testid="projects-storage">
+      {list.drive?.connected
+        ? `Saved in your own Google Drive, “Cloud Slicer” folder. Projects take up your Google storage space (shared with Gmail and Photos) · ${list.count} ${list.count === 1 ? 'project' : 'projects'}`
+        : 'Connect Google Drive in the account menu to save projects online.'}
+    </p>
   );
 }
 
@@ -680,7 +751,7 @@ function printedText(printed: number, plates: number | null): string {
   return plates ? `✓ ${Math.min(printed, plates)}/${plates} printed` : `✓ ${printed} ${printed === 1 ? 'plate' : 'plates'} printed`;
 }
 
-/** The top of Online projects: the draft, or the newest project changed on another device. */
+/** The top of Online projects: the newest project changed on another device. */
 function ContinueRow({ list, onOpen }: { list: ProjectList; onOpen(p: OnlineProject): void }) {
   const currentId = useProjects((s) => s.current.id);
   const offer = continueOffer(list.projects, deviceId());
@@ -692,10 +763,8 @@ function ContinueRow({ list, onOpen }: { list: ProjectList; onOpen(p: OnlineProj
         {proj.hasThumbnail ? <img src={projectThumbnailUrl(proj)} alt="" loading="lazy" /> : <span>3MF</span>}
       </div>
       <div className="continue-text">
-        <b>{offer.kind === 'draft' ? 'Your unsaved project' : `Continue ${proj.name}`}</b>
-        <span className="muted small">
-          {offer.kind === 'draft' ? `${proj.name}, changed ${formatWhen(proj.updatedAt)}` : `Edited ${formatWhen(proj.updatedAt)} on ${yourDevice(proj.deviceName)}`}
-        </span>
+        <b>{`Continue ${proj.name}`}</b>
+        <span className="muted small">{`Edited ${formatWhen(proj.updatedAt)} on ${yourDevice(proj.deviceName)}`}</span>
       </div>
       <button className="primary" onClick={() => onOpen(proj)}>
         Continue

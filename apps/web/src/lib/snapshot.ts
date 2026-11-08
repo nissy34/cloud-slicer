@@ -1,5 +1,6 @@
 // Pictures of the 3D view for saved projects: the plate thumbnail inside the
-// 3MF (RGBA pixels) and the PNG shown in the Projects list. The Prepare view
+// 3MF (RGBA pixels) and the small picture shown in the Projects list (kept in
+// the database row, so WebP: about 15 KB; browsers that can't make WebP give PNG). The Prepare view
 // registers how to take one while it is on screen.
 
 export interface Snapshot {
@@ -7,7 +8,8 @@ export interface Snapshot {
   pixels: Uint8Array;
   width: number;
   height: number;
-  png: Blob;
+  /** The list picture: WebP, or PNG where the browser can't make WebP. */
+  picture: Blob;
 }
 
 type Capture = () => HTMLCanvasElement | null;
@@ -31,6 +33,6 @@ export async function snapshot(size = 256): Promise<Snapshot | null> {
   const side = Math.min(source.width, source.height);
   ctx.drawImage(source, (source.width - side) / 2, (source.height - side) / 2, side, side, 0, 0, size, size);
   const pixels = new Uint8Array(ctx.getImageData(0, 0, size, size).data.buffer);
-  const png = await new Promise<Blob | null>((resolve) => out.toBlob(resolve, 'image/png'));
-  return png ? { pixels, width: size, height: size, png } : null;
+  const picture = await new Promise<Blob | null>((resolve) => out.toBlob(resolve, 'image/webp', 0.85));
+  return picture ? { pixels, width: size, height: size, picture } : null;
 }
