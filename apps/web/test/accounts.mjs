@@ -1824,6 +1824,7 @@ if (withApp)
       // The empty plate's button opens Google's window in a window of its own, without the app's isolation.
       const fromPlate = page.getByTestId('empty-open-from-drive');
       await waitFor(async () => !(await fromPlate.isDisabled()), 'Open from Google Drive is ready');
+      assert.equal(await page.getByTestId('empty-drive-note').count(), 0, 'no note when it works');
       if (process.env.ACCOUNTS_SHOTS) await page.screenshot({ path: join(process.env.ACCOUNTS_SHOTS, 'empty-plate-desktop.png') });
       // Listen before the click: the stand-in picks at once, so the window can be gone before a later listener.
       const [popup, popupResponse] = await Promise.all([
@@ -1906,6 +1907,7 @@ if (withApp)
       if (await wizard.waitFor({ timeout: 5000 }).then(() => true, () => false)) await wizard.getByRole('button', { name: 'Not now' }).click();
       await page.getByRole('button', { name: /Mona/ }).waitFor({ timeout: 30000 });
       assert.equal(await page.getByTestId('empty-open-from-drive').isDisabled(), true);
+      await page.getByTestId('empty-drive-note').getByText('Connect Google Drive in the account menu first.').waitFor();
       if (process.env.ACCOUNTS_SHOTS) await page.screenshot({ path: join(process.env.ACCOUNTS_SHOTS, 'empty-plate-no-drive-phone.png') });
       await page.getByRole('button', { name: /^Project/ }).click();
       assert.equal(await page.getByRole('menuitem', { name: 'Open from Google Drive…' }).isDisabled(), true);

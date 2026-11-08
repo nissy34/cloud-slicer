@@ -10,19 +10,25 @@ export function useDriveOpen() {
   const user = useAccount((s) => s.user);
   const signedIn = status === 'signedIn';
   const drive = signedIn && user?.drive === true && user.projects !== false;
-  const reason = !signedIn
-    ? 'Sign in with Google to open files from your Google Drive.'
-    : !drive
-      ? user?.projects === false
-        ? 'Online projects are turned off for your account.'
-        : 'Connect Google Drive in the account menu first.'
-      : !user?.drivePicker
-        ? "Open from Google Drive isn't set up on this site yet."
-        : '';
+  // Still asking who is signed in: grayed, with no reason yet (no flash of "Sign in…").
+  const reason =
+    status === 'loading'
+      ? ' '
+      : !signedIn
+        ? 'Sign in with Google to open files from your Google Drive.'
+        : !drive
+          ? user?.projects === false
+            ? 'Online projects are turned off for your account.'
+            : 'Connect Google Drive in the account menu first.'
+          : !user?.drivePicker
+            ? "Open from Google Drive isn't set up on this site yet."
+            : '';
   return {
+    /** The site has accounts at all (not a local build without them): otherwise there is nothing to show. */
+    offered: status !== 'unavailable',
     available: !reason,
     /** Why it is grayed out ('' when it isn't). */
-    reason,
+    reason: reason.trim(),
     /** Call straight from the click: the browser only allows Google's window from one. */
     open(mode?: OpenMode) {
       const p = useProjects.getState();

@@ -143,6 +143,13 @@
 .empty button {
   pointer-events: auto;
 }
+/* Why Open from Google Drive is grayed out. */
+.empty .empty-note {
+  font-size: 0.85em;
+  opacity: 0.8;
+  max-width: 300px;
+  text-align: center;
+}
 /* Open model and Open from Google Drive, side by side; stacked when narrow. */
 .empty-buttons {
   display: flex;

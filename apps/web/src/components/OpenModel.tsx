@@ -59,16 +59,24 @@ export function OpenModel({ children }: { children: React.ReactNode }) {
             <button className="primary" onClick={() => input.current?.click()}>
               Open model
             </button>
-            <button
-              className="secondary"
-              disabled={!driveOpen.available}
-              title={driveOpen.reason || undefined}
-              data-testid="empty-open-from-drive"
-              onClick={() => driveOpen.open()}
-            >
-              Open from Google Drive
-            </button>
+            {driveOpen.offered && (
+              <button
+                className="secondary"
+                disabled={!driveOpen.available}
+                title={driveOpen.reason || undefined}
+                data-testid="empty-open-from-drive"
+                onClick={() => driveOpen.open()}
+              >
+                Open from Google Drive
+              </button>
+            )}
           </div>
+          {/* Grayed out: say why in plain sight (a tooltip never shows on a phone). */}
+          {driveOpen.offered && driveOpen.reason && (
+            <p className="empty-note" data-testid="empty-drive-note">
+              {driveOpen.reason}
+            </p>
+          )}
         </div>
       )}
       {/* Always there, so a first visit shows what the slicer can do; tools that need a model wait greyed out. */}
@@ -85,7 +93,14 @@ export function OpenModel({ children }: { children: React.ReactNode }) {
               className="ghost"
               onClick={async () => {
                 const p = useProjects.getState();
-                if (!p.dirty || (await ask({ title: 'Clear the plate?', text: `“${p.current.name}” has changes that aren't saved yet.`, action: 'Clear all' })))
+                if (
+                  !p.dirty ||
+                  (await ask({
+                    title: 'Clear the plate?',
+                    text: `“${p.current.name}” has changes that aren't saved yet.`,
+                    action: 'Clear all',
+                  }))
+                )
                   void p.newProject();
               }}
             >
