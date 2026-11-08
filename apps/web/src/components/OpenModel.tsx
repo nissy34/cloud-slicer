@@ -1,4 +1,5 @@
 import { useRef, useState, type DragEvent } from 'react';
+import { useDriveOpen } from '../account/useDriveOpen';
 import { MODEL_EXTENSIONS } from '../lib/presets';
 import { useLoading } from '../state/loading';
 import { useProjects } from '../state/projects';
@@ -20,6 +21,7 @@ export function OpenModel({ children }: { children: React.ReactNode }) {
   const input = useRef<HTMLInputElement>(null);
   const [dragging, setDragging] = useState(false);
   const loading = useLoading() !== null;
+  const driveOpen = useDriveOpen();
 
   const onDrop = (e: DragEvent) => {
     e.preventDefault();
@@ -53,9 +55,20 @@ export function OpenModel({ children }: { children: React.ReactNode }) {
       {!hasModel && !dragging && !loading && (
         <div className="empty">
           <p>Drop STL, 3MF, OBJ, STEP or SVG files here</p>
-          <button className="primary" onClick={() => input.current?.click()}>
-            Open model
-          </button>
+          <div className="empty-buttons">
+            <button className="primary" onClick={() => input.current?.click()}>
+              Open model
+            </button>
+            <button
+              className="secondary"
+              disabled={!driveOpen.available}
+              title={driveOpen.reason || undefined}
+              data-testid="empty-open-from-drive"
+              onClick={() => driveOpen.open()}
+            >
+              Open from Google Drive
+            </button>
+          </div>
         </div>
       )}
       {/* Always there, so a first visit shows what the slicer can do; tools that need a model wait greyed out. */}
