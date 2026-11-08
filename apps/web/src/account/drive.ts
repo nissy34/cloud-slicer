@@ -4,6 +4,7 @@
 // Cloudflare's 100 MB request limit. With the drive.file permission the app
 // only sees files it made: the "Cloud Slicer" folder and the projects in it.
 import { api, ApiError } from './api';
+import { Cancelled, fetchWithin, TimedOut, unlessCancelled } from '../lib/time-limit';
 
 const FILES = 'https://www.googleapis.com/drive/v3/files';
 const UPLOAD = 'https://www.googleapis.com/upload/drive/v3/files';
@@ -13,12 +14,17 @@ const FOLDER_TYPE = 'application/vnd.google-apps.folder';
 export const CHUNK = 16 * 256 * 1024;
 /** Tries after a dropped connection, waiting 1, 2, 4, 8 and 16 s. */
 const RETRIES = 5;
+/** Time limits: a stalled connection fails (or, for an upload piece, is tried again) instead of waiting for good (#276). */
+const CALL_MS = 30_000;
+/** One 4 MB piece: about 270 kbit/s at the slowest. */
+const PIECE_MS = 120_000;
+const noAnswer = () => new ApiError(504, "Google Drive didn't answer. Check your connection, then save again.", { code: 'timeout' });
 
 let token: { accessToken: string; expiresAt: number } | null = null;
 const folders = new Map<string, string>();
 
-async function key(): Promise<string> {
-  if (!token || token.expiresAt - Date.now() < 60_000) token = await api.driveToken();
+async function key(signal?: AbortSignal): Promise<string> {
+  if (!token || token.expiresAt - Date.now() < 60_000) token = await unlessCancelled(api.driveToken(), signal);
   return token.accessToken;
 }
 
@@ -34,19 +40,28 @@ async function driveError(res: Response): Promise<ApiError> {
   return new ApiError(res.status, `Google Drive: ${body.error?.message ?? res.statusText}`, {});
 }
 
-async function drive(url: string, init: RequestInit = {}): Promise<Response> {
-  const res = await fetch(url, { ...init, headers: { ...(init.headers as Record<string, string>), Authorization: `Bearer ${await key()}` } });
+/** A Drive call; its answer (and body, read straight after) within `ms`. `signal`: Cancel. */
+async function drive(url: string, init: RequestInit = {}, signal?: AbortSignal, ms = CALL_MS): Promise<Response> {
+  const headers = { ...(init.headers as Record<string, string>), Authorization: `Bearer ${await key(signal)}` };
+  let res: Response;
+  try {
+    res = await fetchWithin(ms, url, { ...init, headers }, signal);
+  } catch (e) {
+    throw e instanceof TimedOut ? noAnswer() : e;
+  }
   if (!res.ok) throw await driveError(res);
   return res;
 }
 
 /** A folder of the app's, made the first time (`parent`: inside that folder, else at the top of their Drive). */
-async function folder(name: string, parent?: string): Promise<string> {
+async function folder(name: string, parent?: string, signal?: AbortSignal): Promise<string> {
   const cacheKey = `${parent ?? ''}/${name}`;
   const known = folders.get(cacheKey);
   if (known) return known;
   const q = `name = '${name}' and mimeType = '${FOLDER_TYPE}' and trashed = false${parent ? ` and '${parent}' in parents` : ''}`;
-  const found = (await (await drive(`${FILES}?${new URLSearchParams({ q, fields: 'files(id)', spaces: 'drive' })}`)).json()) as { files: { id: string }[] };
+  const found = (await (await drive(`${FILES}?${new URLSearchParams({ q, fields: 'files(id)', spaces: 'drive' })}`, {}, signal)).json()) as {
+    files: { id: string }[];
+  };
   let id = found.files[0]?.id;
   if (!id) {
     const made = (await (
@@ -54,7 +69,7 @@ async function folder(name: string, parent?: string): Promise<string> {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ name, mimeType: FOLDER_TYPE, ...(parent && { parents: [parent] }) }),
-      })
+      }, signal)
     ).json()) as { id: string };
     id = made.id;
   }
@@ -64,6 +79,8 @@ async function folder(name: string, parent?: string): Promise<string> {
 export interface UploadOptions {
   /** Bytes sent so far, of `total`. */
   onProgress?: (sent: number, total: number) => void;
+  /** Cancel: the upload stops, and Google drops what it had (no file is made). */
+  signal?: AbortSignal;
 }
 
 /**
@@ -72,22 +89,34 @@ export interface UploadOptions {
  * last piece Google has.
  */
 export async function uploadToDrive(file: Blob, name: string, opts: UploadOptions = {}): Promise<string> {
+  let id: string;
   try {
-    return await upload(file, name, await folder(FOLDER), opts);
+    id = await upload(file, name, await folder(FOLDER, undefined, opts.signal), opts);
   } catch (e) {
     // A folder was deleted in Drive since: make it again.
     if (!(e instanceof ApiError && e.status === 404 && folders.size)) throw e;
     folders.clear();
-    return upload(file, name, await folder(FOLDER), opts);
+    id = await upload(file, name, await folder(FOLDER, undefined, opts.signal), opts);
   }
+  // Cancelled as the last piece went in: the file isn't kept.
+  if (opts.signal?.aborted) {
+    void drive(`${FILES}/${encodeURIComponent(id)}`, { method: 'DELETE' }).catch(() => {});
+    throw new Cancelled();
+  }
+  return id;
 }
 
 async function upload(file: Blob, name: string, parent: string, opts: UploadOptions): Promise<string> {
-  const start = await drive(`${UPLOAD}?uploadType=resumable&fields=id`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json; charset=UTF-8', 'X-Upload-Content-Type': 'model/3mf', 'X-Upload-Content-Length': String(file.size) },
-    body: JSON.stringify({ name: `${name}.3mf`, parents: [parent], mimeType: 'model/3mf' }),
-  });
+  const { signal } = opts;
+  const start = await drive(
+    `${UPLOAD}?uploadType=resumable&fields=id`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json; charset=UTF-8', 'X-Upload-Content-Type': 'model/3mf', 'X-Upload-Content-Length': String(file.size) },
+      body: JSON.stringify({ name: `${name}.3mf`, parents: [parent], mimeType: 'model/3mf' }),
+    },
+    signal,
+  );
   const session = start.headers.get('Location');
   if (!session) throw new ApiError(502, "Google Drive didn't start the upload", {});
   const total = file.size;
@@ -97,24 +126,39 @@ async function upload(file: Blob, name: string, parent: string, opts: UploadOpti
   for (;;) {
     const end = Math.min(sent + CHUNK, total);
     let res: Response;
+    let id: string | undefined;
     try {
-      res = await fetch(session, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'model/3mf', 'Content-Range': total ? `bytes ${sent}-${end - 1}/${total}` : 'bytes */0' },
-        body: file.slice(sent, end),
-      });
+      res = await fetchWithin(
+        PIECE_MS,
+        session,
+        {
+          method: 'PUT',
+          headers: { 'Content-Type': 'model/3mf', 'Content-Range': total ? `bytes ${sent}-${end - 1}/${total}` : 'bytes */0' },
+          body: file.slice(sent, end),
+        },
+        signal,
+      );
+      if (res.ok) id = ((await res.json()) as { id: string }).id;
     } catch (e) {
-      // The connection dropped: wait, ask Google how much it has, and go on from there.
-      if (++tries > RETRIES) throw e;
-      await new Promise((r) => setTimeout(r, 1000 * 2 ** (tries - 1)));
-      const at = await received(session, total).catch(() => null);
+      if (e instanceof Cancelled) {
+        // Google drops an upload whose session is deleted.
+        void fetch(session, { method: 'DELETE' }).catch(() => {});
+        throw e;
+      }
+      // The connection dropped or stalled: wait, ask Google how much it has, and go on from there.
+      if (++tries > RETRIES) throw e instanceof TimedOut ? noAnswer() : e;
+      await unlessCancelled(new Promise((r) => setTimeout(r, 1000 * 2 ** (tries - 1))), signal);
+      const at = await received(session, total, signal).catch((err) => {
+        if (err instanceof Cancelled) throw err;
+        return null;
+      });
       if (typeof at === 'string') return at;
       if (at !== null) sent = at;
       continue;
     }
-    if (res.ok) {
+    if (id !== undefined) {
       opts.onProgress?.(total, total);
-      return ((await res.json()) as { id: string }).id;
+      return id;
     }
     // 308: Google has the bytes its Range header names; the next piece starts after them.
     if (res.status !== 308) throw await driveError(res);
@@ -125,8 +169,8 @@ async function upload(file: Blob, name: string, parent: string, opts: UploadOpti
 }
 
 /** How much of an interrupted upload Google has (bytes), or the file id when it already has all of it. */
-async function received(session: string, total: number): Promise<number | string> {
-  const res = await fetch(session, { method: 'PUT', headers: { 'Content-Range': `bytes */${total}` } });
+async function received(session: string, total: number, signal?: AbortSignal): Promise<number | string> {
+  const res = await fetchWithin(CALL_MS, session, { method: 'PUT', headers: { 'Content-Range': `bytes */${total}` } }, signal);
   if (res.ok) return ((await res.json()) as { id: string }).id;
   if (res.status !== 308) throw await driveError(res);
   return rangeEnd(res.headers.get('Range'));
@@ -160,7 +204,8 @@ export async function downloadFromDrive(
   if (!fileId) throw gone();
   let res: Response;
   try {
-    res = await drive(`${FILES}/${encodeURIComponent(fileId)}?alt=media`);
+    // No time limit: a big project takes as long as it takes to come down.
+    res = await drive(`${FILES}/${encodeURIComponent(fileId)}?alt=media`, {}, undefined, Infinity);
   } catch (e) {
     if (e instanceof ApiError && e.status === 404) throw gone();
     throw e;

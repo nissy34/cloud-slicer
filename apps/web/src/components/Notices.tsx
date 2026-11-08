@@ -8,6 +8,7 @@ import { useProjects } from '../state/projects';
 import { useSlicer } from '../state/store';
 import { ContinueCard, ViewOnlyBanner } from './ContinueCard';
 import { Notice, NOTICE_MS } from './Notice';
+import { SaveBar } from './SaveBar';
 import { LoaderCircle } from 'lucide-react';
 
 /** Goes away by itself after NOTICE_MS unless it is a problem. */
@@ -30,16 +31,29 @@ function ProjectMessage() {
   return <Notice tone={warn ? 'error' : 'ok'} title={message} onClose={clear} testId="project-message" />;
 }
 
-/** A Save or Download the person asked for, from the press until it is done ("Saved" follows). */
+/** A Save or Download the person asked for, from the press until it is done ("Saved" follows): how far it got, and Cancel. */
 function SavingCard() {
   const busy = useProjects((s) => s.busy);
+  const canCancel = useProjects((s) => s.saveCancel);
   const download = busy.startsWith('Preparing');
   return (
     <Notice
       tone="info"
       icon={<LoaderCircle className="spin" size={18} />}
       title={busy || 'Saving…'}
-      text={download ? 'It downloads by itself when it is ready.' : 'You can keep working. Changes from now on go in the next save.'}
+      text={
+        <>
+          {download ? 'It downloads by itself when it is ready.' : 'You can keep working. Changes from now on go in the next save.'}
+          <SaveBar />
+        </>
+      }
+      actions={
+        canCancel && (
+          <button className="secondary" onClick={() => useProjects.getState().cancelSave()} data-testid="cancel-save">
+            Cancel
+          </button>
+        )
+      }
       testId="saving-card"
     />
   );

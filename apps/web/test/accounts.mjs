@@ -1509,6 +1509,10 @@ if (withApp)
       await projectButton.getByTestId('save-spinner').waitFor();
       await projectButton.click();
       await page.getByTestId('menu-saving').getByText('Save, Save a copy and Download 3MF wait until it is done.').waitFor();
+      // Uploaded to Drive; recording the save can't be stopped halfway, so no Cancel now (#276).
+      await page.getByTestId('menu-saving').getByText('Saving… finishing').waitFor();
+      await page.getByTestId('menu-saving').getByTestId('save-bar').waitFor();
+      assert.equal(await page.getByTestId('menu-cancel-save').count(), 0, 'no Cancel once the save is being recorded');
       for (const row of ['Save', 'Save a copy…', 'Download 3MF'])
         assert.ok(await page.getByRole('menuitem', { name: new RegExp(`^${row.replace('…', '.')}`) }).first().isDisabled(), `${row} waits while saving`);
       await page.mouse.move(900, 400);
@@ -1534,6 +1538,45 @@ if (withApp)
       assert.equal(await projectButton.getByTestId('save-spinner').count(), 0, 'the spinner goes when saved');
       if (process.env.ACCOUNTS_SHOTS) await page.screenshot({ path: join(process.env.ACCOUNTS_SHOTS, 'project-saved.png') });
 
+      // A save that gets stuck uploading says how far it got and can be cancelled (#276):
+      // here Google never answers the upload; Cancel stops it and the changes stay unsaved.
+      await layer.fill('0.2');
+      await layer.press('Enter');
+      let letUpload;
+      const uploadHeld = new Promise((r) => (letUpload = r));
+      const holdUpload = (route) => uploadHeld.then(() => route.fallback().catch(() => {}));
+      await page.route(`${MOCK}/googleapis/upload/session/**`, holdUpload);
+      await page.keyboard.press('Control+s');
+      await savingCard.getByText(/Saving… 0(\.0+)? of [\d.]+ (KB|MB)/).waitFor({ timeout: 30000 });
+      await savingCard.getByTestId('save-bar').waitFor();
+      await projectButton.click();
+      await page.getByTestId('menu-saving').getByText(/Saving… 0(\.0+)? of/).waitFor();
+      await page.getByTestId('menu-cancel-save').waitFor();
+      await page.mouse.move(900, 400);
+      await page.waitForTimeout(400);
+      if (process.env.ACCOUNTS_SHOTS) await page.screenshot({ path: join(process.env.ACCOUNTS_SHOTS, 'saving-cancel-menu.png') });
+      if (process.env.ACCOUNTS_SHOTS) {
+        await page.keyboard.press('Escape');
+        await page.setViewportSize({ width: 390, height: 800 });
+        await page.mouse.move(200, 400);
+        await page.waitForTimeout(300);
+        await page.screenshot({ path: join(process.env.ACCOUNTS_SHOTS, 'saving-cancel-phone.png') });
+        await page.setViewportSize({ width: 1280, height: 860 });
+        await projectButton.click();
+      }
+      await page.getByTestId('menu-cancel-save').click();
+      await page.getByText('Save cancelled').waitFor({ timeout: 15000 });
+      await savingCard.waitFor({ state: 'detached', timeout: 15000 });
+      assert.equal(await projectButton.getByTestId('save-spinner').count(), 0, 'the spinner goes when cancelled');
+      assert.notEqual(await projectButton.getByTestId('save-status').textContent(), 'Saved', 'a cancelled save leaves the changes unsaved');
+      if (process.env.ACCOUNTS_SHOTS) await page.screenshot({ path: join(process.env.ACCOUNTS_SHOTS, 'saving-cancelled.png') });
+      letUpload();
+      await page.unroute(`${MOCK}/googleapis/upload/session/**`, holdUpload);
+      // Saving again works, and keeps the change.
+      await page.keyboard.press('Control+s');
+      await page.getByText('Saved “3DBenchy” to your projects').waitFor({ timeout: 60000 });
+      await savingCard.waitFor({ state: 'detached' });
+
       // A reload offers the saved project that was open here.
       await page.reload();
       const hereCard = page.getByTestId('continue-card');
@@ -1547,7 +1590,7 @@ if (withApp)
       await hereCard.getByRole('button', { name: 'Continue' }).click();
       await hereCard.waitFor({ state: 'detached' });
       await projectButton.getByText('Saved', { exact: true }).waitFor({ timeout: 60000 });
-      assert.equal(await layer.inputValue(), '0.28', 'the saved project came back');
+      assert.equal(await layer.inputValue(), '0.2', 'the saved project came back (the save after the cancelled one)');
       // Answered, the setup wizard comes next when no printers are set up (this test on its own).
       if (await wizard.waitFor({ timeout: 3000 }).then(() => true, () => false)) await wizard.getByRole('button', { name: 'Not now' }).click();
 

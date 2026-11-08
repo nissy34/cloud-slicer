@@ -52,6 +52,7 @@ describe('formatting', () => {
     const MB = 1024 * 1024;
     expect(sentOf(12 * MB, 40 * MB)).toBe('12 of 40 MB');
     expect(sentOf(4 * MB, 8.2 * MB)).toBe('4.0 of 8.2 MB');
+    expect(sentOf(0, 2.4 * MB)).toBe('0 of 2.4 MB');
     expect(sentOf(50 * MB, 40 * MB)).toBe('40 of 40 MB');
   });
   it('times', () => {

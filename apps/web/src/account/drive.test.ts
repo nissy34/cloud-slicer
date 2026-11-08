@@ -4,12 +4,14 @@ vi.mock('./api', async (actual) => ({
   ...(await actual<typeof import('./api')>()),
   api: { driveToken: async () => ({ accessToken: 'key', expiresAt: Date.now() + 3600_000 }) },
 }));
+const { Cancelled } = await import('../lib/time-limit');
 const { CHUNK, downloadFromDrive, downloadTotal, rangeEnd, uploadToDrive } = await import('./drive');
 
 /** Google Drive's upload API, as much as uploadToDrive uses: one folder, one resumable upload. */
-function fakeDrive({ dropAfterPieces = Infinity } = {}) {
+function fakeDrive({ dropAfterPieces = Infinity, stallPiece = 0 } = {}) {
   let got = new Uint8Array(0);
   let pieces = 0;
+  let stalled = false;
   const calls: string[] = [];
   const range = () => (got.length ? { Range: `bytes=0-${got.length - 1}` } : undefined);
   vi.stubGlobal(
@@ -19,8 +21,14 @@ function fakeDrive({ dropAfterPieces = Infinity } = {}) {
       calls.push(`${method} ${url.replace(/\?.*/, '')}`);
       if (url.startsWith('https://www.googleapis.com/drive/v3/files?') && method === 'GET') return Response.json({ files: [{ id: 'folder' }] });
       if (url.startsWith('https://www.googleapis.com/upload/')) return new Response(null, { headers: { Location: 'https://upload.example/session' } });
+      if (method === 'DELETE') return new Response(null, { status: 499 });
       const cr = /bytes (?:(\d+)-(\d+)|\*)\/(\d+)/.exec(new Headers(init.headers).get('Content-Range') ?? '')!;
       const total = Number(cr[3]);
+      // A piece that never gets an answer (a stalled connection) until it is given up on.
+      if (cr[1] !== undefined && pieces + 1 === stallPiece && !stalled) {
+        stalled = true;
+        return new Promise<Response>((_, reject) => init.signal?.addEventListener('abort', () => reject(new DOMException('aborted', 'AbortError'))));
+      }
       if (cr[1] !== undefined) {
         const body = new Uint8Array(await (init.body as Blob).arrayBuffer());
         if (Number(cr[1]) === got.length) {
@@ -69,6 +77,30 @@ describe('Google Drive uploads', () => {
     expect(drive.bytes().every((b, i) => b === sent[i])).toBe(true);
     // The piece that dropped was asked about (bytes */total), then the upload went on, not over.
     expect(drive.calls.filter((c) => c.startsWith('PUT')).length).toBe(4);
+  });
+});
+
+describe('Google Drive uploads that stall or are cancelled (#276)', () => {
+  it('gives up on a piece that gets no answer, and carries on from what Google has', async () => {
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
+    const drive = fakeDrive({ stallPiece: 2 });
+    const file = new Blob([new Uint8Array(CHUNK * 3).map((_, i) => i % 251)]);
+    const done = uploadToDrive(file, 'Benchy');
+    await vi.runAllTimersAsync();
+    expect(await done).toBe('file-1');
+    vi.useRealTimers();
+    expect(drive.bytes().length).toBe(file.size);
+  });
+
+  it('stops when cancelled, and tells Google to drop the upload', async () => {
+    const ctl = new AbortController();
+    const drive = fakeDrive();
+    const file = new Blob([new Uint8Array(CHUNK * 3)]);
+    const done = uploadToDrive(file, 'Benchy', { signal: ctl.signal, onProgress: (sent) => sent >= CHUNK && ctl.abort() });
+    await expect(done).rejects.toBeInstanceOf(Cancelled);
+    await new Promise((r) => setTimeout(r, 0));
+    expect(drive.bytes().length).toBeLessThan(file.size);
+    expect(drive.calls).toContain('DELETE https://upload.example/session');
   });
 });
 
