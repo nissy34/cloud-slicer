@@ -945,7 +945,7 @@ test('invite only: new people are refused with a message; existing and invited o
   assert.equal(await popupResult(new Browser(), 'carol'), null, 'open again');
 });
 
-test('block: signed out everywhere and refused; unblock lets them back', async () => {
+test('block: signed out everywhere (within 5 minutes) and refused; unblock lets them back', async () => {
   const bob = new Browser();
   await signIn(bob, 'bob');
   const bob2 = new Browser();
@@ -953,6 +953,9 @@ test('block: signed out everywhere and refused; unblock lets them back', async (
   const bobId = (await bob.me()).id;
   assert.equal((await alice.json(`/api/admin/users/${(await alice.me()).id}/block`, 'POST', {})).status, 400, "the owner can't be blocked");
   assert.equal((await alice.json(`/api/admin/users/${bobId}/block`, 'POST', {})).status, 200);
+  // Each browser keeps a signed 5-minute copy of its session (cookieCache in auth.ts), so
+  // Block reaches open devices when that copy runs out. Dropping it stands in for the wait.
+  for (const b of [bob, bob2]) for (const c of b.jar.values()) for (const name of [...c.keys()]) if (name.endsWith('session_data')) c.delete(name);
   assert.equal(await bob.me(), null);
   assert.equal(await bob2.me(), null);
   assert.equal((await bob.json('/api/presets')).status, 401);
