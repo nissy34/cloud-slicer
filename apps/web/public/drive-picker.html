@@ -1,0 +1,105 @@
+<!doctype html>
+<!--
+  Open from Google Drive: Google's own file window (the Google Picker), in a
+  small window of its own. It can't run inside the app's page: the app is
+  cross-origin isolated (public/_headers) so the engine gets SharedArrayBuffer,
+  and that blocks Google's frames. This page is sent without that isolation.
+  It hands the picked files back to the app over a BroadcastChannel (the
+  isolation also cuts window.opener) and closes. The app downloads them with
+  its drive.file key; picking a file is what gives the app that one file.
+  See src/account/drive-picker.ts and docs/architecture/projects.md.
+-->
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Open from Google Drive · Cloud Slicer</title>
+    <link rel="icon" href="/icon.svg" type="image/svg+xml" />
+    <style>
+      :root { color-scheme: light dark; font: 15px/1.5 system-ui, sans-serif; }
+      body { margin: 0; min-height: 100vh; display: grid; place-items: center; background: Canvas; color: CanvasText; }
+      main { max-width: 360px; padding: 24px; text-align: center; display: grid; gap: 12px; }
+      button { font: inherit; padding: 6px 16px; border-radius: 6px; border: 1px solid GrayText; background: ButtonFace; color: ButtonText; cursor: pointer; }
+    </style>
+  </head>
+  <body>
+    <main>
+      <p id="text">Opening Google Drive…</p>
+      <p><button id="close" type="button" hidden>Close</button></p>
+    </main>
+    <script>
+      (() => {
+        const CHANNEL = 'cloud-slicer:drive-picker';
+        const nonce = location.hash.slice(1);
+        const channel = new BroadcastChannel(CHANNEL);
+        let answered = false;
+        const text = document.getElementById('text');
+        const closeButton = document.getElementById('close');
+        closeButton.onclick = () => window.close();
+
+        /** Tells the app, once: { files } picked, { cancelled }, or { error }. */
+        function answer(msg) {
+          if (answered) return;
+          answered = true;
+          channel.postMessage({ nonce, ...msg });
+        }
+        function fail(message) {
+          answer({ error: message });
+          text.textContent = message;
+          closeButton.hidden = false;
+        }
+        // Closed without picking (the window's own close button): the app stops waiting.
+        addEventListener('pagehide', () => answer({ cancelled: true }));
+
+        function script(src) {
+          return new Promise((resolve, reject) => {
+            const s = document.createElement('script');
+            s.src = src;
+            s.onload = resolve;
+            s.onerror = () => reject(new Error("Couldn't reach Google. Check your connection and try again."));
+            document.head.appendChild(s);
+          });
+        }
+
+        async function start() {
+          if (!nonce) return fail('Open this from Cloud Slicer: Project menu, Open from Google Drive.');
+          const res = await fetch('/api/drive/token', { method: 'POST', credentials: 'same-origin' });
+          const body = await res.json().catch(() => ({}));
+          if (!res.ok) return fail(body.error || 'Google Drive needs connecting again, in the account menu.');
+          if (!body.picker) return fail("Open from Google Drive isn't set up on this site yet.");
+          await script('https://apis.google.com/js/api.js');
+          await new Promise((resolve) => window.gapi.load('picker', resolve));
+          const g = window.google.picker;
+          const view = new g.DocsView(g.ViewId.DOCS).setIncludeFolders(true).setOwnedByMe(false);
+          const mine = new g.DocsView(g.ViewId.DOCS).setIncludeFolders(true).setParent('root');
+          const picker = new g.PickerBuilder()
+            .setTitle('Open in Cloud Slicer')
+            .addView(mine)
+            .addView(view)
+            .addView(g.ViewId.RECENTLY_PICKED)
+            .enableFeature(g.Feature.MULTISELECT_ENABLED)
+            .enableFeature(g.Feature.SUPPORT_DRIVES)
+            .setOAuthToken(body.accessToken)
+            .setDeveloperKey(body.picker.key)
+            .setAppId(body.picker.appId)
+            .setSize(Math.max(320, innerWidth - 16), Math.max(320, innerHeight - 16))
+            .setCallback((data) => {
+              if (data.action === g.Action.PICKED) {
+                answer({
+                  files: data.docs.map((d) => ({ id: d.id, name: d.name, mimeType: d.mimeType, sizeBytes: Number(d.sizeBytes) || 0 })),
+                });
+                window.close();
+              } else if (data.action === g.Action.CANCEL) {
+                answer({ cancelled: true });
+                window.close();
+              }
+            })
+            .build();
+          text.textContent = 'Pick files in the Google Drive window.';
+          picker.setVisible(true);
+        }
+        start().catch((e) => fail(e && e.message ? e.message : String(e)));
+      })();
+    </script>
+  </body>
+</html>

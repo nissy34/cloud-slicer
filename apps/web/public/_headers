@@ -10,3 +10,14 @@
 # The service worker must update as soon as a deploy changes it.
 /sw.js
   Cache-Control: no-cache
+
+# Open from Google Drive: Google's file window runs in this page, which must not
+# be cross-origin isolated (that blocks Google's frames). It holds no engine.
+/drive-picker
+  ! Cross-Origin-Opener-Policy
+  ! Cross-Origin-Embedder-Policy
+  ! Cross-Origin-Resource-Policy
+/drive-picker.html
+  ! Cross-Origin-Opener-Policy
+  ! Cross-Origin-Embedder-Policy
+  ! Cross-Origin-Resource-Policy

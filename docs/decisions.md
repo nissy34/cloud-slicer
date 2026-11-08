@@ -70,6 +70,10 @@ down. Add a line with the date when a new choice is made.
   List pictures in the D1 row; a file changed in Drive is a
   conflict; a file deleted in Drive offers Remove; no "Open from Google Drive" picker
   (2026-11-03).
+- Open from Google Drive after all: Google's file window (Picker) in a small window of its
+  own, from the Project menu and the empty plate, several files at once; still only
+  `drive.file`. The first Save keeps a copy in the Cloud Slicer folder and says so; the file
+  in Drive is never written. No plate Add from Drive, no save-back (2026-11-08).
 - 200 online projects per person stays as a hidden safety guard; the UI shows only the
   count. The UI says Drive saves use the person's Google storage (2026-11-03).
 - Nothing goes to Drive before the person says so: unsaved work is always kept in the
