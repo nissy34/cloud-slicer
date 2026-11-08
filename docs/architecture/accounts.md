@@ -72,7 +72,10 @@ D1 `user`, `session`, `account`, `verification` (Better Auth), `presets`,
 - Usage today needs the optional read-only `CLOUDFLARE_ANALYTICS_TOKEN`.
 - D1 cost per request: Better Auth is built per request, so its schema check is off
   (`validateSchema: false`; it read every table's columns each time, half of all D1
-  time) and the owners' ids are looked up only for the Admin page's actions. What's left is the session and user lookup.
+  time) and the owners' ids are looked up only for the Admin page's actions. The session itself is
+  cached in a signed cookie for 5 minutes (`cookieCache`), so most requests skip D1;
+  Block, Delete and signing out elsewhere reach other open devices within those 5
+  minutes (relay connections still drop at once).
 
 ## Setup, once
 
