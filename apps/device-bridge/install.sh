@@ -21,12 +21,25 @@
 # when needed). Remove it the same way with: sh -s -- --printer --uninstall
 set -eu
 
+# Everything this prints, the bridge's own messages too, goes to stderr. This
+# script arrives through a pipe, so if the line gets pasted twice onto one line
+# ("... | sh -s -- --printercurl -fsSL ... | sh -s -- --printer"), stdout feeds a
+# second sh: nothing must reach it, or it runs our messages as commands (and the
+# bridge, writing to a closed pipe, dies halfway through installing).
+exec 1>&2
+
 printer=""
 uninstall=""
 for a in "$@"; do
   case "$a" in
     --printer) printer=1 ;;
     --uninstall) uninstall=1 ;;
+    *)
+      # Checked before anything is downloaded or the setup code is spent.
+      echo "Nothing installed: \"$a\" isn't something this installer knows (it takes --printer and --uninstall)."
+      echo "If you pasted the install line twice, paste it once and press Enter. The setup code still works."
+      exit 2
+      ;;
   esac
 done
 
