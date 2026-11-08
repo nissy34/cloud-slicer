@@ -1796,13 +1796,13 @@ function fakePicker(docs) {
 
 if (withApp)
   test('browser: Open from Google Drive opens picked files, and the first Save keeps a copy in the Cloud Slicer folder', async () => {
-    users.lena = { sub: 'g-lena', name: 'Lena', email: 'lena@example.com', email_verified: true };
-    const lena = new Browser();
-    await signIn(lena, 'lena');
-    const me = await lena.me();
+    users.pia = { sub: 'g-pia', name: 'Pia', email: 'pia@example.com', email_verified: true };
+    const pia = new Browser();
+    await signIn(pia, 'pia');
+    const me = await pia.me();
     assert.equal(me.drive, true);
     assert.equal(me.drivePicker, true, 'the site has the key for Google\'s file window');
-    const token = await (await lena.json('/api/drive/token', 'POST')).json();
+    const token = await (await pia.json('/api/drive/token', 'POST')).json();
     assert.deepEqual(token.picker, { key: 'picker-key', appId: '123456789012' }, 'the app id is the project number from the client id');
     // Their own file, somewhere in their Drive (not in the Cloud Slicer folder).
     const stl = readFileSync(join(web, '../../fixtures/tetrahedron.stl'));
@@ -1811,7 +1811,7 @@ if (withApp)
     const browser = await launchBrowser();
     try {
       const context = await browser.newContext({ viewport: { width: 1280, height: 860 } });
-      await context.addCookies([...lena.jar.get(new URL(HOST).host)].map(([name, value]) => ({ name, value, url: HOST })));
+      await context.addCookies([...pia.jar.get(new URL(HOST).host)].map(([name, value]) => ({ name, value, url: HOST })));
       await context.route('https://apis.google.com/js/api.js', (route) => route.fulfill({ contentType: 'text/javascript', body: fakePicker(docs) }));
       const page = await context.newPage();
       page.on('pageerror', (e) => console.error(`page error: ${e.message}`));
@@ -1819,7 +1819,7 @@ if (withApp)
       await page.getByText('Open a model to start').waitFor({ timeout: 120000 });
       const wizard = page.getByRole('dialog', { name: 'Set up your printers' });
       if (await wizard.waitFor({ timeout: 5000 }).then(() => true, () => false)) await wizard.getByRole('button', { name: 'Not now' }).click();
-      await page.getByRole('button', { name: /Lena/ }).waitFor({ timeout: 30000 });
+      await page.getByRole('button', { name: /Pia/ }).waitFor({ timeout: 30000 });
 
       // The empty plate's button opens Google's window in a window of its own, without the app's isolation.
       const fromPlate = page.getByTestId('empty-open-from-drive');
@@ -1848,7 +1848,7 @@ if (withApp)
       if (process.env.ACCOUNTS_SHOTS) await page.screenshot({ path: join(process.env.ACCOUNTS_SHOTS, 'save-copy-desktop.png') });
       await naming.getByRole('button', { name: 'Save copy' }).click();
       await page.getByText('Saved “tetrahedron” to your projects').waitFor({ timeout: 60000 });
-      const saved = (await (await lena.json('/api/projects')).json()).projects.find((p) => p.name === 'tetrahedron');
+      const saved = (await (await pia.json('/api/projects')).json()).projects.find((p) => p.name === 'tetrahedron');
       assert.ok(saved, 'saved as a project');
       const top = [...driveFiles].find(([, f]) => f.folder && f.name === 'Cloud Slicer')?.[0];
       assert.deepEqual(driveFiles.get(saved.driveFile).parents, [top], 'the copy is in the Cloud Slicer folder');
