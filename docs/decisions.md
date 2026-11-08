@@ -67,7 +67,7 @@ down. Add a line with the date when a new choice is made.
 - Project files only in each person's own Google Drive (`drive.file`, asked at sign-in); our
   project storage (R2) removed, no dual mode, no per-save choice, no migration (one user).
   No Drive = Save downloads, Online projects grayed out, Connect in the account menu only.
-  List pictures in the D1 row; drafts in "Cloud Slicer/Drafts"; a file changed in Drive is a
+  List pictures in the D1 row; a file changed in Drive is a
   conflict; a file deleted in Drive offers Remove; no "Open from Google Drive" picker
   (2026-11-03).
 - 200 online projects per person stays as a hidden safety guard; the UI shows only the
@@ -80,6 +80,10 @@ down. Add a line with the date when a new choice is made.
 - AutoSave like Word, one device edits at a time, no polling (2026-10-21).
 - One draft per device, at most 3 (2026-10-22). "Discard only if not open elsewhere"
   turned down: no presence without polling.
+- AutoSave keeps work in the browser only; Drive gets a project only on Save. Uploading
+  the whole 3MF after each change (200 MB for one setting on a big project) made no
+  sense, and Drive can't update part of a file. The AutoSave question, switch and Drive
+  drafts are gone; carrying work to another device needs a Save (2026-11-07).
 - Continue offers the project last open in this browser first (2026-10-23).
 
 ## Plates and tools

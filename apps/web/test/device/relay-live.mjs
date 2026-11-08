@@ -75,8 +75,8 @@ const claimAt = (bridgeId, body) =>
   fetch(`${relay}/v1/bridges/${bridgeId}/claim`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
 let bridge = { stop() {} };
 
-const socket = (key, printer, role = 'client', ticket = ownerTicket) =>
-  new WebSocket(`${relay.replace(/^http/, 'ws')}/v1/bridges/${cfg.bridgeId}/${role}?key=${key}&printer=${printer}${ticket && role === 'client' ? `&ticket=${ticket}` : ''}`);
+const socket = (key, printer, role = 'client', ticket = ownerTicket, slot = '') =>
+  new WebSocket(`${relay.replace(/^http/, 'ws')}/v1/bridges/${cfg.bridgeId}/${role}?key=${key}&printer=${printer}${ticket && role === 'client' ? `&ticket=${ticket}` : ''}${slot ? `&slot=${slot}` : ''}`);
 /** One call through a fresh socket; resolves to the answer message. */
 function ask(ticket, call) {
   return new Promise((resolve, reject) => {
@@ -218,6 +218,32 @@ try {
   if (secretAsBrowser.code !== 4003) throw new Error(`the secret key connected as a browser (${secretAsBrowser.code})`);
   console.log(`secret key refused as a browser: ${secretAsBrowser.reason}`);
   console.log(`pairing code format ok (${pairingCode(cfg).length} chars)`);
+
+  // A bad network: the page gave up on its socket and connects again, while the relay
+  // still holds the old one open (its close never got through). The new one replaces it.
+  const live = async (slot) => {
+    const ws = socket(clientKey, 'u1', 'client', ownerTicket, slot);
+    open.add(ws);
+    await new Promise((r, j) => ((ws.onmessage = r), (ws.onclose = (e) => j(new Error(`closed early: ${e.code} ${e.reason}`)))));
+    return ws;
+  };
+  const stale = await live('page-one-slot');
+  const replaced = closeCode(stale);
+  const again = await live('page-one-slot');
+  if ((await replaced).code !== 4012) throw new Error('the same page connecting again did not replace its old socket');
+  again.close();
+  console.log('the same page connecting again replaces its old socket');
+  if (/\/\/(127\.0\.0\.1|localhost)[:/]/.test(relay)) {
+    // A full bridge (16 pages, old ones or old sockets nobody closed): the newest page still
+    // gets in, and the oldest makes way. Local relays only: this is many connects at once.
+    const pages = [];
+    for (let i = 0; i < 16; i++) pages.push(await live(`full-page-${String(i).padStart(2, '0')}`));
+    const oldestGone = closeCode(pages[0]);
+    const newest = await live('full-page-new');
+    if ((await oldestGone).code !== 4012) throw new Error('a full bridge did not make way for a new page');
+    for (const ws of [...pages.slice(1), newest]) ws.close();
+    console.log('a full bridge lets a new page in: the oldest makes way');
+  }
 
   if (signer && !accounts) console.log('this relay takes no tickets (it has no ticket key): skipping the account checks');
   if (signer && accounts) {

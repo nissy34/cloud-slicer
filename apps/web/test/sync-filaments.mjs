@@ -71,10 +71,9 @@ async function open(viewport) {
   }, devices);
   await page.reload();
   await page.getByText('Open a model to start').waitFor({ timeout: 120000 });
-  // The setup wizard can open a moment after the page is ready: answer it whenever it shows,
-  // not only if it is already up (it covered a click once in CI).
   const wizard = page.getByRole('dialog', { name: 'Set up your printers' });
-  await page.addLocatorHandler(wizard, () => wizard.getByRole('button', { name: 'Not now' }).click());
+  // The wizard can open a moment after the page is ready (it waits for the engine, the account and the Continue card): dismiss it whenever it shows.
+  await page.addLocatorHandler(wizard, (d) => d.getByRole('button', { name: 'Not now' }).click());
   return page;
 }
 

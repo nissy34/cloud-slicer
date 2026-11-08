@@ -6,7 +6,7 @@ import { useEffect, useLayoutEffect, useState, type CSSProperties, type ReactNod
 import { useDevice } from '../state/device';
 import { useProjects } from '../state/projects';
 import { useSlicer } from '../state/store';
-import { AutosaveQuestion, ContinueCard, ViewOnlyBanner } from './ContinueCard';
+import { ContinueCard, ViewOnlyBanner } from './ContinueCard';
 import { Notice, NOTICE_MS } from './Notice';
 import { LoaderCircle } from 'lucide-react';
 
@@ -84,7 +84,6 @@ export function Notices() {
   const slicer = tab !== 'device' && tab !== 'admin';
   const viewOnly = useProjects((s) => s.elsewhere !== null);
   const offer = useProjects((s) => s.offer !== null && !s.busy);
-  const askAutosave = useProjects((s) => s.askAutosave);
   const message = useProjects((s) => Boolean(s.message));
   const saving = useProjects((s) => s.saving);
   const toast = useDevice((s) => s.toast !== null);
@@ -92,7 +91,6 @@ export function Notices() {
   const cards: [string, ReactNode][] = [];
   if (slicer && viewOnly) cards.push(['view-only', <ViewOnlyBanner />]);
   if (tab === 'prepare' && offer) cards.push(['continue', <ContinueCard />]);
-  if (slicer && askAutosave) cards.push(['autosave', <AutosaveQuestion />]);
   if (saving) cards.push(['saving', <SavingCard />]);
   if (message) cards.push(['project', <ProjectMessage />]);
   if (toast) cards.push(['device', <DeviceMessage />]);

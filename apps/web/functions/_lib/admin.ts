@@ -71,7 +71,7 @@ export async function overview(env: Env, request: Request): Promise<Response> {
         `SELECT u.id, u.name, u.email, u."createdAt", u.banned,
            (SELECT MAX(s."updatedAt") FROM "session" s WHERE s."userId" = u.id) AS "lastSeen",
            (SELECT MAX(r.last_used_at) FROM relay_bridges r WHERE r.user_id = u.id) AS "relaySeen",
-           (SELECT COUNT(*) FROM projects p WHERE p.user_id = u.id AND p.draft = 0) AS projects,
+           (SELECT COUNT(*) FROM projects p WHERE p.user_id = u.id) AS projects,
            (SELECT COUNT(*) FROM presets p WHERE p.user_id = u.id) AS presets,
            (SELECT COUNT(*) FROM devices v WHERE v.user_id = u.id) AS printers,
            (SELECT COUNT(*) FROM relay_bridges r WHERE r.user_id = u.id) AS bridges,

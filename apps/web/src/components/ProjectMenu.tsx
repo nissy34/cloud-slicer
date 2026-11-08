@@ -22,32 +22,25 @@ import { FolderOpen, LoaderCircle, MoreHorizontal, Search } from 'lucide-react';
 const isMac = typeof navigator !== 'undefined' && /Mac|iPhone|iPad/.test(navigator.platform);
 const MOD = isMac ? '⌘' : 'Ctrl+';
 
-/** What AutoSave shows next to the project name ('' when there is nothing to say). */
+/** What is said next to the project name ('' when there is nothing to say). */
 function useSaveStatus(): string {
-  const signedIn = useAccount((s) => s.status === 'signedIn' && s.user?.drive === true && s.user.projects !== false);
-  const autosave = useAccount((s) => s.settings.autosave?.value === true);
-  const cur = useProjects((s) => s.current);
+  const online = useProjects((s) => s.current.id !== null);
   const dirty = useProjects((s) => s.dirty);
-  const state = useProjects((s) => s.saveState);
-  const percent = useProjects((s) => s.savePercent);
-  const stopped = useProjects((s) => s.autosaveStopped);
+  const keptHere = useProjects((s) => s.keptHere);
   const elsewhere = useProjects((s) => s.elsewhere);
   const hasModel = useSlicer((s) => Boolean(s.project?.objects.length));
-  if (!signedIn || !hasModel) return '';
+  if (!hasModel) return '';
   if (elsewhere) return 'View only';
-  if (state === 'saving') return percent === null ? 'Saving…' : `Saving… ${percent}%`;
-  if (state === 'offline') return 'Not saved: no connection';
-  if (stopped) return 'Not saved';
-  if (!cur.id || cur.draft) return autosave ? 'Draft, not saved yet' : 'Not saved';
-  if (!dirty) return 'Saved';
-  return autosave ? 'Saving…' : 'Not saved';
+  // AutoSave keeps unsaved changes in this browser; Save puts them online.
+  if (dirty) return keptHere ? 'Saved in this browser' : 'Not saved';
+  return online ? 'Saved' : '';
 }
 
-/** The top bar's Project menu (New, Open, Projects, Save, Save a copy, Download 3MF, AutoSave) and its dialogs. */
+/** The top bar's Project menu (New, Open, Projects, Save, Save a copy, Download 3MF) and its dialogs. */
 export function ProjectMenu() {
   const ready = useSlicer((s) => s.engine === 'ready');
   const name = useProjects((s) => s.current.name);
-  const online = useProjects((s) => s.current.id !== null && !s.current.draft);
+  const online = useProjects((s) => s.current.id !== null);
   const dirty = useProjects((s) => s.dirty);
   const busy = useProjects((s) => s.busy);
   const saving = useProjects((s) => s.saving);
@@ -57,9 +50,6 @@ export function ProjectMenu() {
   const projectsOff = useAccount((s) => s.user?.projects === false);
   const savesOnline = signedIn && !noDrive;
   const engineInfo = useSlicer((s) => s.engineInfo);
-  const autosave = useAccount((s) => s.settings.autosave?.value === true);
-  const autosaveBusy = useProjects((s) => s.saveState === 'saving');
-  const stopped = useProjects((s) => s.autosaveStopped);
   const status = useSaveStatus();
   const p = useProjects.getState();
   const [open, setOpen] = useState(false);
@@ -84,14 +74,13 @@ export function ProjectMenu() {
     return () => document.removeEventListener('keydown', keys);
   }, [ready]);
 
-  // Leaving with unsaved changes asks first (AutoSave saves as the tab goes away instead).
-  const autosaving = savesOnline && autosave && !stopped;
+  // Leaving with unsaved changes asks first (they stay in this browser, but not online).
   useEffect(() => {
-    if (!dirty || autosaving) return;
+    if (!dirty) return;
     const warn = (e: BeforeUnloadEvent) => e.preventDefault();
     window.addEventListener('beforeunload', warn);
     return () => window.removeEventListener('beforeunload', warn);
-  }, [dirty, autosaving]);
+  }, [dirty]);
 
   const run = (fn: () => unknown) => () => {
     setOpen(false);
@@ -117,8 +106,8 @@ export function ProjectMenu() {
               <span className="project-name-text">{name}</span>
               {online && <span className="project-cloud" aria-label="saved online" title="Saved in your online projects" />}
             </span>
-            {(saving || autosaveBusy) && <LoaderCircle className="spin project-spin" size={14} aria-label="saving" data-testid="save-spinner" />}
-            {dirty && !autosaveBusy && !saving && <span className="project-dirty" aria-label="unsaved changes" />}
+            {saving && <LoaderCircle className="spin project-spin" size={14} aria-label="saving" data-testid="save-spinner" />}
+            {dirty && !saving && <span className="project-dirty" aria-label="unsaved changes" />}
             {status && !busy && <span className="project-status" data-testid="save-status">{status}</span>}
             {busy && <span className="project-busy">{busy}</span>}
           </button>
@@ -175,38 +164,13 @@ export function ProjectMenu() {
             This project slices with {engineInfo.name} {engineInfo.version}.
           </p>
         )}
-        {savesOnline && (
-          <button
-            role="menuitemcheckbox"
-            aria-checked={autosave}
-            className="menu-item menu-switch"
-            onClick={() => void useProjects.getState().setAutosave(!autosave)}
-          >
-            AutoSave
-            <span className={autosave ? 'switch on' : 'switch'} aria-hidden />
-          </button>
-        )}
-        {savesOnline && (
-          <p className="menu-note">
-            {autosave
-              ? 'AutoSave keeps changes in your Google Drive a few seconds after you make them. A new project stays a draft until you Save it.'
-              : 'AutoSave is off: changes go to your Google Drive when you Save. Until then they are kept in this browser.'}
-          </p>
-        )}
-        {stopped && <Note tone="warn" className="menu-note-box">{stopped}</Note>}
+        <p className="menu-note" data-testid="autosave-note">
+          {savesOnline
+            ? 'AutoSave keeps your changes in this browser as you work. They go to your Google Drive when you Save.'
+            : 'AutoSave keeps your changes in this browser as you work.'}
+        </p>
         {!signedIn && <p className="menu-note">Sign in to keep projects online and open them on any device.</p>}
       </Menu>
-      {savesOnline && (
-        <button
-          className={autosave ? 'autosave-pill on' : 'autosave-pill'}
-          role="switch"
-          aria-checked={autosave}
-          title={autosave ? 'AutoSave is on: changes save by themselves' : 'AutoSave is off: changes wait for Save'}
-          onClick={() => void useProjects.getState().setAutosave(!autosave)}
-        >
-          AutoSave <span className={autosave ? 'switch on' : 'switch'} aria-hidden />
-        </button>
-      )}
       <input
         ref={input}
         type="file"
@@ -282,7 +246,7 @@ function SaveAsForm({ copy, initial }: { copy: boolean; initial: string }) {
               ? 'Downloaded as a 3MF project file. Connect Google Drive in the account menu to keep projects online.'
             : copy
               ? 'Saved as a new project in your online projects, with its plates, settings and paint. You carry on in the copy.'
-              : 'Kept in your online projects with its plates, settings and paint. After this, AutoSave saves your changes.'}
+              : 'Kept in your online projects with its plates, settings and paint. After this, Save puts your changes there.'}
         </p>
       </form>
     </Dialog>
@@ -437,7 +401,7 @@ function ProjectsDialog() {
       setOpening(null);
     }
   };
-  const saved = list?.projects.filter((x) => !x.draft) ?? [];
+  const saved = list?.projects ?? [];
   const shown = findProjects(saved, search, sort);
 
   const actions = (proj: OnlineProject) => (
@@ -767,7 +731,7 @@ function printedText(printed: number, plates: number | null): string {
   return plates ? `✓ ${Math.min(printed, plates)}/${plates} printed` : `✓ ${printed} ${printed === 1 ? 'plate' : 'plates'} printed`;
 }
 
-/** The top of Online projects: the draft, or the newest project changed on another device. */
+/** The top of Online projects: the newest project changed on another device. */
 function ContinueRow({ list, onOpen }: { list: ProjectList; onOpen(p: OnlineProject): void }) {
   const currentId = useProjects((s) => s.current.id);
   const offer = continueOffer(list.projects, deviceId());
@@ -779,10 +743,8 @@ function ContinueRow({ list, onOpen }: { list: ProjectList; onOpen(p: OnlineProj
         {proj.hasThumbnail ? <img src={projectThumbnailUrl(proj)} alt="" loading="lazy" /> : <span>3MF</span>}
       </div>
       <div className="continue-text">
-        <b>{offer.kind === 'draft' ? 'Your unsaved project' : `Continue ${proj.name}`}</b>
-        <span className="muted small">
-          {offer.kind === 'draft' ? `${proj.name}, changed ${formatWhen(proj.updatedAt)}` : `Edited ${formatWhen(proj.updatedAt)} on ${yourDevice(proj.deviceName)}`}
-        </span>
+        <b>{`Continue ${proj.name}`}</b>
+        <span className="muted small">{`Edited ${formatWhen(proj.updatedAt)} on ${yourDevice(proj.deviceName)}`}</span>
       </div>
       <button className="primary" onClick={() => onOpen(proj)}>
         Continue

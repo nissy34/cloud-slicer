@@ -1,8 +1,8 @@
-// Unsaved work kept in this browser (IndexedDB), for everyone, signed in or not:
-// after a crash or a closed tab the Continue card offers it back. It never
-// leaves the browser; only Save (or AutoSave to Google Drive, when turned on)
-// puts a project in the person's Drive. One copy per browser: the newest
-// unsaved work replaces the one before, and it is dropped once the work is saved.
+// AutoSave: unsaved work kept in this browser (IndexedDB), for everyone, signed
+// in or not: after a crash or a closed tab the Continue card offers it back. It
+// never leaves the browser; only Save puts a project in the person's Google
+// Drive. One copy per browser: the newest unsaved work replaces the one before,
+// and it is dropped once the work is saved.
 import { createStore, del, get, set } from 'idb-keyval';
 import type { EngineFlavor } from './engines';
 
@@ -15,7 +15,6 @@ export interface LocalCopy {
   /** The online project it came from (null: never saved online), and that version. */
   id: string | null;
   version: number;
-  draft: boolean;
   engine: EngineFlavor;
   savedAt: number;
 }
@@ -34,12 +33,14 @@ export async function loadLocalCopy(): Promise<LocalCopy | null> {
   }
 }
 
-export async function saveLocalCopy(copy: LocalCopy): Promise<void> {
+/** True when it was kept (false: a private window or a full disk, so the work just isn't kept here). */
+export async function saveLocalCopy(copy: LocalCopy): Promise<boolean> {
   try {
     await set(KEY, copy, db());
+    return true;
   } catch (e) {
-    // Private window or a full disk: the work just isn't kept here.
     console.warn('Unsaved work not kept in this browser:', e);
+    return false;
   }
 }
 

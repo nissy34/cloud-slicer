@@ -19,7 +19,7 @@
 //   GET    /api/projects/<id>                one project (its version and the device editing it)
 //   POST   /api/projects/<id>/device         this device edits it from now on ({ device, deviceName })
 //   GET    /api/projects/<id>/thumbnail     its list picture (kept in the row)
-//   PUT    /api/projects/<id>?drive=<file id>&name=&baseVersion=&engine=&draft=&device=&deviceName=
+//   PUT    /api/projects/<id>?drive=<file id>&name=&baseVersion=&engine=&device=&deviceName=
 //                                           save: points at the 3MF the page uploaded to their Google Drive (no body)
 //   PUT    /api/projects/<id>/thumbnail     set the list picture (body: WebP or PNG)
 //   PATCH  /api/projects/<id>               rename ({ name, baseVersion? })

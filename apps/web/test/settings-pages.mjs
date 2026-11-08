@@ -56,11 +56,10 @@ try {
   const context = await browser.newContext({ viewport: { width: 1280, height: 900 }, acceptDownloads: true });
   const page = await context.newPage();
   page.on('pageerror', (e) => console.error(`page error: ${e.message}`));
+  // The wizard can open a moment after the page is ready (it waits for the engine, the account and the Continue card): dismiss it whenever it shows.
+  await page.addLocatorHandler(page.getByRole('dialog', { name: 'Set up your printers' }), (d) => d.getByRole('button', { name: 'Not now' }).click());
   const ready = async () => {
     await page.getByText('Open a model to start').waitFor({ timeout: 120000 });
-    const wizard = page.getByRole('dialog', { name: 'Set up your printers' });
-    // The wizard can open a moment after the page is ready: answer it whenever it shows.
-    await page.addLocatorHandler(wizard, () => wizard.getByRole('button', { name: 'Not now' }).click());
     await page.getByRole('combobox', { name: 'Process preset' }).waitFor();
   };
   const stored = () => page.evaluate(() => JSON.parse(localStorage.getItem('cloud-slicer:user-presets:v1') || '[]'));
