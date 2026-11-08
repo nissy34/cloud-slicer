@@ -2,6 +2,7 @@
 import type { EngineFlavor } from '../lib/engines';
 import type { PresetEngines } from '../lib/preset-engines';
 import type { PrintRecord } from '../lib/prints';
+import { failure, TimedOut, within } from '../lib/time-limit';
 
 export type ProviderId = 'google';
 export type PresetType = 'printer' | 'filament' | 'process';
@@ -108,6 +109,8 @@ export interface SaveOptions {
   /** How many plates the project has (for "6/10 printed" in the list). */
   plates?: number;
   device?: { id: string; name: string };
+  /** Cancel. */
+  signal?: AbortSignal;
 }
 
 export interface ProjectList {
@@ -130,18 +133,31 @@ export class ApiError extends Error {
   }
 }
 
-async function call<T>(path: string, init: RequestInit = {}, contentType = 'application/json'): Promise<T> {
-  const res = await fetch(path, {
-    ...init,
-    credentials: 'same-origin',
-    headers: init.body ? { 'Content-Type': contentType } : undefined,
-  });
-  const type = res.headers.get('Content-Type') ?? '';
-  // Without Functions (vite dev/preview) /api/* falls through to index.html.
-  if (!type.includes('application/json')) throw new ApiError(404, 'Accounts are not available on this server');
-  const body = (await res.json()) as Record<string, unknown>;
-  if (!res.ok) throw new ApiError(res.status, String(body.error ?? res.statusText), body);
-  return body as T;
+/** No request to Cloud Slicer takes longer than this: a stalled connection fails instead of waiting for good (#276). */
+const API_MS = 60_000;
+
+/** `init.signal`: Cancel. `ms`: the time limit. */
+async function call<T>(path: string, init: RequestInit = {}, contentType = 'application/json', ms = API_MS): Promise<T> {
+  const cancel = init.signal ?? undefined;
+  const limit = within(ms, cancel);
+  try {
+    const res = await fetch(path, {
+      ...init,
+      signal: limit,
+      credentials: 'same-origin',
+      headers: init.body ? { 'Content-Type': contentType } : undefined,
+    });
+    const type = res.headers.get('Content-Type') ?? '';
+    // Without Functions (vite dev/preview) /api/* falls through to index.html.
+    if (!type.includes('application/json')) throw new ApiError(404, 'Accounts are not available on this server');
+    const body = (await res.json()) as Record<string, unknown>;
+    if (!res.ok) throw new ApiError(res.status, String(body.error ?? res.statusText), body);
+    return body as T;
+  } catch (e) {
+    const why = failure(e, limit, cancel);
+    if (why instanceof TimedOut) throw new ApiError(504, "Cloud Slicer didn't answer. Check your connection, then try again.", { code: 'timeout' });
+    throw why;
+  }
 }
 
 /** Google's narrowest Drive permission: only files this app made. */
@@ -184,7 +200,7 @@ export const api = {
   saveDevice: ({ id, ...rest }: DeviceInput) =>
     call<{ device: Device }>(`/api/devices/${encodeURIComponent(id)}`, { method: 'PUT', body: JSON.stringify(rest) }).then((r) => r.device),
   deleteDevice: (id: string) => call<{ ok: true }>(`/api/devices/${encodeURIComponent(id)}`, { method: 'DELETE' }),
-  projects: () => call<ProjectList>('/api/projects'),
+  projects: (signal?: AbortSignal) => call<ProjectList>('/api/projects', { signal }),
   /**
    * Points the project at `driveFile`, the 3MF the page just uploaded to the
    * person's Google Drive (account/drive.ts). baseVersion: the version this
@@ -198,7 +214,7 @@ export const api = {
       q.set('device', opts.device.id);
       q.set('deviceName', opts.device.name);
     }
-    return call<{ project: OnlineProject }>(`${projectPath(id)}?${q}`, { method: 'PUT' }).then((r) => r.project);
+    return call<{ project: OnlineProject }>(`${projectPath(id)}?${q}`, { method: 'PUT', signal: opts.signal }).then((r) => r.project);
   },
   /** A short key (about an hour) the page uploads and downloads projects in the person's Google Drive with. */
   driveToken: () => call<{ accessToken: string; expiresAt: number }>('/api/drive/token', { method: 'POST' }),

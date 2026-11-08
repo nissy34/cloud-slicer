@@ -328,3 +328,15 @@
   color: var(--text);
   font-weight: 600;
 }
+.menu .menu-working > span {
+  flex: 1;
+  min-width: 0;
+}
+/* How far a save got (#276), under its text in the menu and on the Saving card. */
+.save-bar {
+  display: block;
+  margin-top: var(--s-2);
+}
+.notice .save-bar {
+  min-width: 200px;
+}

@@ -58,7 +58,7 @@ export function sentOf(sent: number, total: number): string {
   const n = unit.split(' ')[0];
   const digits = n.includes('.') ? n.split('.')[1].length : 0;
   const scale = unit.endsWith(' MB') ? 1024 * 1024 : unit.endsWith(' KB') ? 1024 : 1;
-  return `${(Math.min(sent, total) / scale).toFixed(digits)} of ${unit}`;
+  return `${sent <= 0 ? 0 : (Math.min(sent, total) / scale).toFixed(digits)} of ${unit}`;
 }
 
 /** "just now", "5 min ago", "3 h ago", else the date. */
