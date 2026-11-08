@@ -35,8 +35,8 @@ for a in "$@"; do
     --printer) printer=1 ;;
     --uninstall) uninstall=1 ;;
     # Checked before anything is downloaded or the setup code is spent.
-    -*) echo "Unknown option: $a (options: --printer, --uninstall)"; exit 2 ;;
-    *) echo "Unexpected argument: $a (options: --printer, --uninstall)"; exit 2 ;;
+    -*) echo "Unknown flag: $a (flags: --printer, --uninstall)"; exit 2 ;;
+    *) echo "Unexpected argument: $a (flags: --printer, --uninstall)"; exit 2 ;;
   esac
 done
 
