@@ -28,15 +28,24 @@ set -eu
 # bridge, writing to a closed pipe, dies halfway through installing).
 exec 1>&2
 
+# A wrong option stops it before anything is downloaded or the setup code is spent.
+usage_error() {
+  echo "error: $1"
+  echo
+  echo "Usage: install.sh [--printer] [--uninstall]"
+  echo "  --printer    install on the printer itself (run over SSH on the printer)"
+  echo "  --uninstall  remove the bridge"
+  exit 2
+}
+
 printer=""
 uninstall=""
 for a in "$@"; do
   case "$a" in
     --printer) printer=1 ;;
     --uninstall) uninstall=1 ;;
-    # Checked before anything is downloaded or the setup code is spent.
-    -*) echo "Unknown flag: $a (flags: --printer, --uninstall)"; exit 2 ;;
-    *) echo "Unexpected argument: $a (flags: --printer, --uninstall)"; exit 2 ;;
+    -*) usage_error "unknown option '$a'" ;;
+    *) usage_error "unexpected argument '$a'" ;;
   esac
 done
 
