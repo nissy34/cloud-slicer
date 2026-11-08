@@ -83,8 +83,9 @@ D1 `user`, `session`, `account`, `verification` (Better Auth), `presets`,
 - For Open from Google Drive ([projects](projects.md)): in the same Google Cloud project,
   the Google Picker API enabled and an API key (Credentials → Create credentials → API key)
   limited to websites `https://slicer.awesomestuff.qzz.io/*` and `https://*.cloud-slicer.pages.dev/*`
-  and to the Google Picker API, saved as the repository variable `GOOGLE_PICKER_KEY` (not a
-  secret: every browser gets it). Without it the menu row is grayed out.
+  and to the Google Picker API, saved as the repository variable `GOOGLE_PICKER_KEY`. CI stores
+  it as a Pages secret even though every browser gets it: each deploy replaces Pages' plain
+  variables with `wrangler.toml`'s `[vars]`, which would drop it. Without it the menu row is grayed out.
 - The owner's Google email(s) as `OWNER_EMAILS` (comma separated).
 - The CI token needs "D1: Edit" ([CI.md](../CI.md#secrets)). The site has no R2 bucket:
   project files are in each person's Google Drive.

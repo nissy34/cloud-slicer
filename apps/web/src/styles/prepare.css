@@ -143,6 +143,11 @@
 .empty button {
   pointer-events: auto;
 }
+/* Grayed out on the plate: a see-through button lets the bed's logo show through its label. */
+.empty button:disabled {
+  opacity: 1;
+  color: var(--muted);
+}
 /* Why Open from Google Drive is grayed out. */
 .empty .empty-note {
   font-size: var(--t-sm);

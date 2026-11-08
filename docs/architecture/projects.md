@@ -90,7 +90,7 @@ can't run inside the app: the app is cross-origin isolated for the engine (COEP)
 Google's frames, so it runs in a small window of its own (a tab on a phone),
 `public/drive-picker.html`, which `_headers` (and `vite.config.ts` locally) sends without the
 isolation headers. That page gets the Drive key and the Picker's browser key and app id from
-`POST /api/drive/token` (`picker`: the key is the plain variable `GOOGLE_PICKER_KEY`, the
+`POST /api/drive/token` (`picker`: the key is `GOOGLE_PICKER_KEY`, a Pages secret so deploys keep it, the
 app id is the Cloud project number at the start of `GOOGLE_CLIENT_ID`), loads
 `apis.google.com/js/api.js`, and hands the picked files back over a `BroadcastChannel`
 tagged with a one-time code (the isolation also cuts `window.opener`), then closes. Closing
