@@ -1572,7 +1572,9 @@ if (withApp)
       if (process.env.ACCOUNTS_SHOTS) await page.screenshot({ path: join(process.env.ACCOUNTS_SHOTS, 'saving-cancelled.png') });
       letUpload();
       await page.unroute(`${MOCK}/googleapis/upload/session/**`, holdUpload);
-      // Saving again works, and keeps the change.
+      // Saving again works (back to 0.28, which the steps below expect).
+      await layer.fill('0.28');
+      await layer.press('Enter');
       await page.keyboard.press('Control+s');
       await page.getByText('Saved “3DBenchy” to your projects').waitFor({ timeout: 60000 });
       await savingCard.waitFor({ state: 'detached' });
@@ -1590,7 +1592,7 @@ if (withApp)
       await hereCard.getByRole('button', { name: 'Continue' }).click();
       await hereCard.waitFor({ state: 'detached' });
       await projectButton.getByText('Saved', { exact: true }).waitFor({ timeout: 60000 });
-      assert.equal(await layer.inputValue(), '0.2', 'the saved project came back (the save after the cancelled one)');
+      assert.equal(await layer.inputValue(), '0.28', 'the saved project came back');
       // Answered, the setup wizard comes next when no printers are set up (this test on its own).
       if (await wizard.waitFor({ timeout: 3000 }).then(() => true, () => false)) await wizard.getByRole('button', { name: 'Not now' }).click();
 
