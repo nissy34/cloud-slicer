@@ -1825,10 +1825,14 @@ if (withApp)
       const fromPlate = page.getByTestId('empty-open-from-drive');
       await waitFor(async () => !(await fromPlate.isDisabled()), 'Open from Google Drive is ready');
       if (process.env.ACCOUNTS_SHOTS) await page.screenshot({ path: join(process.env.ACCOUNTS_SHOTS, 'empty-plate-desktop.png') });
-      const [popup] = await Promise.all([context.waitForEvent('page'), fromPlate.click()]);
-      const popupResponse = await popup.waitForEvent('response', (r) => r.url().includes('/drive-picker'));
+      // Listen before the click: the stand-in picks at once, so the window can be gone before a later listener.
+      const [popup, popupResponse] = await Promise.all([
+        context.waitForEvent('page'),
+        context.waitForEvent('response', (r) => new URL(r.url()).pathname === '/drive-picker'),
+        fromPlate.click(),
+      ]);
       assert.equal(popupResponse.headers()['cross-origin-embedder-policy'], undefined, 'the picker page is not isolated');
-      await popup.waitForEvent('close', { timeout: 30000 });
+      if (!popup.isClosed()) await popup.waitForEvent('close', { timeout: 30000 });
 
       // It opens like a file from the device, and says that Save keeps a copy.
       await page.getByRole('button', { name: 'Add model' }).waitFor({ timeout: 60000 });
@@ -1870,14 +1874,14 @@ if (withApp)
       // A file the slicer can't open is named and left out.
       docs = [{ id: 'their-pdf', name: 'notes.pdf', mimeType: 'application/pdf', sizeBytes: '10' }];
       const [popup2] = await Promise.all([context.waitForEvent('page'), row.click()]);
-      await popup2.waitForEvent('close', { timeout: 30000 });
+      if (!popup2.isClosed()) await popup2.waitForEvent('close', { timeout: 30000 });
       await note.getByText('Cloud Slicer can’t open “notes.pdf”.').or(note.getByText("Cloud Slicer can't open “notes.pdf”.")).waitFor();
 
       // Closing Google's window without picking leaves everything as it was.
       docs = null;
       await page.getByRole('button', { name: /^Project/ }).click();
       const [popup3] = await Promise.all([context.waitForEvent('page'), page.getByRole('menuitem', { name: 'Open from Google Drive…' }).click()]);
-      await popup3.waitForEvent('close', { timeout: 30000 });
+      if (!popup3.isClosed()) await popup3.waitForEvent('close', { timeout: 30000 });
       assert.equal(await page.getByRole('button', { name: /^Project/ }).getByText('tetrahedron').count(), 1, 'the open project stays');
     } finally {
       await browser.close();
