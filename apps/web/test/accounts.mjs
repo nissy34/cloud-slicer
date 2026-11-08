@@ -53,7 +53,9 @@ const b64url = (buf) => Buffer.from(buf).toString('base64').replace(/\+/g, '-').
 // straight to it over TLS, without checking a signature (as Google documents).
 const idToken = (claims) => `${b64url(JSON.stringify({ alg: 'none' }))}.${b64url(JSON.stringify(claims))}.`;
 
-const mock = createServer(async (req, res) => {
+// A request the page gave up on is dropped; anything else wrong still stops the test.
+const mock = createServer((req, res) => mockGoogle(req, res).catch((e) => { if (!e.pageAborted) throw e; res.destroy(); }));
+async function mockGoogle(req, res) {
   const url = new URL(req.url, MOCK);
   const send = (status, body, headers = {}) => {
     res.writeHead(status, { 'Content-Type': 'application/json', ...headers });
@@ -100,7 +102,13 @@ const mock = createServer(async (req, res) => {
   const authorized = () => (req.headers.authorization ?? '').startsWith('Bearer tok-');
   const readBody = async () => {
     const chunks = [];
-    for await (const chunk of req) chunks.push(chunk);
+    try {
+      for await (const chunk of req) chunks.push(chunk);
+    } catch (e) {
+      // The page gave up on the request (Cancel, a time limit): like Google, drop it rather than fall over.
+      console.warn(`mock Google: ${req.method} ${url.pathname} aborted by the page (${e.code ?? e.message})`);
+      throw Object.assign(new Error('aborted by the page'), { pageAborted: true });
+    }
     return Buffer.concat(chunks);
   };
   if (url.pathname === '/googleapis/drive/v3/files' && req.method === 'GET') {
@@ -172,7 +180,7 @@ const mock = createServer(async (req, res) => {
     return send(200, { size: String(f.bytes.length), md5Checksum: createHash('md5').update(f.bytes).digest('hex'), trashed: Boolean(f.trashed) });
   }
   send(404, {});
-});
+}
 /** The mock Google Drive: id -> { name, bytes }. The page uploads to Google itself; tests put files here. */
 const driveFiles = new Map();
 const driveUploads = new Map(); // resumable upload session -> the file's name, folder and the bytes so far
