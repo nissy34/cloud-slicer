@@ -11,12 +11,15 @@
 
 x-printer: &printer
   image: ei99070/docker-klipper-simulavr:latest
-  # The simulated board runs as fast as the computer lets it. Held to a fixed
-  # fraction of real speed instead, it fell below what Klipper needs to connect
-  # on a busy CI machine ("Timeout on connect"). Motors use no microsteps, so
-  # Klipper keeps up even when the board's speed varies.
+  # The simulated board's clock must tick at a steady rate, like a real board's
+  # crystal: Klipper times every move by it. Left to run as fast as the computer
+  # lets it (rate 0), its speed swings with how busy the computer is (1 to 2.8 MHz
+  # within a minute on CI), Klipper's timing falls behind and the board stops
+  # with "Timer too close", usually while homing. 0.04 holds it at a steady
+  # 0.8 MHz, below what the slowest CI machines reach (about 1 MHz), so there is
+  # always room to keep pace. Motors use no microsteps, so 0.8 MHz is plenty.
   environment:
-    SIMULAVR_PACING_RATE: "0.0"
+    SIMULAVR_PACING_RATE: "0.04"
   # Klipper gives a board 5 s to send its list of commands when it connects. A
   # simulated board on a slow computer (some CI machines) needs longer, and
   # Klipper then retries forever ("Timeout on connect"): allow 60 s.
