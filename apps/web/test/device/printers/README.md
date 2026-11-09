@@ -56,10 +56,12 @@ request labelled `real klipper`, and when these printers or the test change.
 - `sim_temperature.py`: a Klipper add-on that makes heaters warm up. The
   simulated board reads a fixed number from every thermometer, so without it
   a heater never warms and Klipper stops with "not heating at expected rate".
-- The simulated board runs as fast as the computer lets it (each one keeps a
-  processor core busy), and the motors use no microsteps so Klipper keeps up.
-  Slowed down on purpose (`SIMULAVR_PACING_RATE`), it can get too slow for
-  Klipper to connect ("Timeout on connect").
+- The simulated board runs at a fixed 4% of a real 20 MHz board
+  (`SIMULAVR_PACING_RATE: "0.04"`, a steady 0.8 MHz), and the motors use no
+  microsteps so that is plenty. The rate must stay below what the computer can
+  always reach: run as fast as possible (`0.0`), the board's speed swings with
+  how busy the computer is, Klipper's timing falls behind and the board stops
+  with "Timer too close" (usually while homing).
 - Klipper gives a board 5 seconds to send its list of commands when it
   connects; a simulated board on a slow computer can need longer, so
   `docker-compose.yml` raises that to 60 seconds when each printer starts.
