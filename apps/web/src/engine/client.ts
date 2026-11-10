@@ -1,3 +1,4 @@
+import type { ArrangeOptions } from '../lib/arrange';
 import type { CutPieces, CutRequest } from '../lib/cut';
 import { engineFolder, type EngineFlavor } from '../lib/engines';
 import type {
@@ -296,8 +297,12 @@ export class EngineClient {
   addInstance = (o: number, i: number, dx: number, dy: number) => this.call<ProjectInfo>('addInstance', [o, i, dx, dy]);
   deleteInstance = (o: number, i: number) => this.call<ProjectInfo>('deleteInstance', [o, i]);
   resizePlates = (width: number, depth: number) => this.call<ProjectInfo>('resizePlates', [width, depth]);
-  /** `tall` > 0: arranged for printing object by object, a row ending after any object taller than it. */
-  arrangePlate = (plate: number, spacing: number, tall = 0) => this.call<ProjectInfo>('arrangePlate', [plate, spacing, tall]);
+  /**
+   * `tall` > 0: arranged for printing object by object, a row ending after any object taller than it.
+   * `options`: the rest of desktop's Arrange pop-up (auto rotate, align to Y, several materials on a plate).
+   */
+  arrangePlate = (plate: number, spacing: number, tall = 0, options: ArrangeOptions = {}) =>
+    this.call<ProjectInfo>('arrangePlate', [plate, spacing, tall, options]);
   orientObject = (o: number) => this.call<ProjectInfo>('orientObject', [o]);
   splitObject = (o: number) => this.call<ProjectInfo>('splitObject', [o]);
   splitParts = (o: number) => this.call<ProjectInfo>('splitParts', [o]);

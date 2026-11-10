@@ -804,7 +804,7 @@ test('plates: add, arrange, delete', () => {
   load('3DBenchy.stl');
   call(engine, 'addInstance', 0, 0, 0, 0);  // a copy right on top of the first
   call(engine, 'addInstance', 0, 0, 0, 0);
-  call(engine, 'arrangePlate', 0, 6, 0);
+  call(engine, 'arrangePlate', 0, 6, 0, '{}');
   let m = info();
   const xs = m.objects[0].instances.map((i) => [i.offset[0], i.offset[1]]);
   for (let a = 0; a < xs.length; a++)
@@ -820,6 +820,40 @@ test('plates: add, arrange, delete', () => {
   m = info();
   assert.equal(m.plates.length, 1);
   assert.equal(m.objects.length, 0, 'deleting plate 1 deleted its objects');
+});
+
+test("arrange options from desktop's Arrange pop-up: auto rotate, align to Y axis, materials apart", () => {
+  select({ printer: DEFAULT_PRINTER });
+  load('3DBenchy.stl', 0, false, 90);  // turned: its long side runs front to back
+  const size = () => info().objects[0].size;
+  assert.ok(size()[1] > size()[0] + 10, `loaded turned (${size()})`);
+  call(engine, 'arrangePlate', 0, 6, 0, JSON.stringify({ rotate: true }));
+  assert.ok(size()[0] > size()[1] + 10, `auto rotate lays it long side across (${size()})`);
+  call(engine, 'arrangePlate', 0, 6, 0, JSON.stringify({ alignY: true }));
+  assert.ok(size()[1] > size()[0] + 10, `align to Y axis turns its long side front to back (${size()})`);
+  call(engine, 'arrangePlate', 0, 6, 0, JSON.stringify({ rotate: true, alignY: true }));
+  assert.ok(size()[0] > size()[1] + 10, 'with auto rotate on, align to Y axis is left out, as desktop greys it out');
+  const before = size();
+  call(engine, 'arrangePlate', 0, 6, 0, '{}');
+  assert.deepEqual(size(), before, 'without the options nothing turns');
+
+  // A second object printed with another filament.
+  load('tetrahedron.stl', 0, true);
+  call(engine, 'setExtruder', 1, -1, 2);
+  call(engine, 'arrangePlate', 0, 6, 0, JSON.stringify({ multiMaterial: true }));
+  let m = info();
+  assert.equal(m.plates.length, 1, 'several materials may share a plate');
+  assert.ok(m.objects.every((o) => o.instances[0].plate === 0));
+  call(engine, 'arrangePlate', 0, 6, 0, JSON.stringify({ multiMaterial: false }));
+  m = info();
+  assert.equal(m.plates.length, 2, 'the other material goes onto a plate of its own');
+  assert.notEqual(m.objects[0].instances[0].plate, m.objects[1].instances[0].plate);
+  // Filament 1 with filament 2's object: one is a subset of the other, so they share.
+  call(engine, 'deletePlate', 1);
+  load('tetrahedron.stl', 0, true);
+  call(engine, 'setExtruder', 1, -1, 1);
+  call(engine, 'arrangePlate', 0, 6, 0, JSON.stringify({ multiMaterial: false }));
+  assert.equal(info().plates.length, 1, 'objects with the same filament stay together');
 });
 
 test('per-object settings change how that object slices', () => {
@@ -1078,7 +1112,7 @@ test('by object: the tool head clearance round each object, and Arrange keeps it
   assert.ok(Math.max(...xs) - Math.min(...xs) > 60 + c.radius - 5, `outline ${Math.max(...xs) - Math.min(...xs)} mm wide`);
 
   // Arrange by the clearance: then it slices.
-  call(engine, 'arrangePlate', 0, Math.max(6, c.spacing), c.short ? 0 : c.rod);
+  call(engine, 'arrangePlate', 0, Math.max(6, c.spacing), c.short ? 0 : c.rod, '{}');
   c = clearance();
   assert.equal(c.error, '', 'arranged by the clearance');
   assert.equal(c.collisions.length, 0);
