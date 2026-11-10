@@ -211,7 +211,11 @@ std::string explain(const SlicingErrors& e, const Print& print) {
 // land in m_state[-1]: past the array, onto the Print's other fields.
 class SlicePrint : public Print {
 public:
+    // Always writes the G-code again: a kept Print (see Kept) has the export
+    // done already, and Orca's export then returns without filling `result`
+    // (no time, no filament) or taking this slice's thumbnails.
     std::string exportGcode(const std::string& path, GCodeProcessorResult* result, ThumbnailsGeneratorCallback thumbnails) {
+        invalidate_step(psGCodeExport);
         set_started(psGCodeExport);
         std::string out = export_gcode(path, result, thumbnails);
         set_done(psGCodeExport);

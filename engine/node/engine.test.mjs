@@ -238,6 +238,13 @@ test('a slice redoes only what changed since the last one, like desktop, and pri
   const first = run(fullConfig());
   assert.equal(first.result.reused, false, 'nothing to keep yet');
   assert.ok(walls(first.stages) && infill(first.stages), first.stages.join(', '));
+  // Nothing changed: the G-code is still written again, with its estimates.
+  const same = run(fullConfig());
+  assert.equal(same.result.reused, true);
+  assert.equal(same.gcode, first.gcode);
+  assert.ok(same.result.estimatedTimeSeconds > 0, 'estimates from the export');
+  assert.equal(same.result.estimatedTimeSeconds, first.result.estimatedTimeSeconds);
+  assert.deepEqual(same.result.filamentMm, first.result.filamentMm);
 
   // A new infill density keeps the sliced layers and walls.
   const sparse = run(fullConfig({ sparse_infill_density: '25%' }));
