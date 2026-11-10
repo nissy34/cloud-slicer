@@ -68,8 +68,8 @@ the last save; code `changed-in-drive`, "Changed in your Google Drive"). The lis
 `busy` and `saving` from the press (also while a save before it finishes first and
 while the names are checked) until it is done. Meanwhile a card at the bottom says
 what the save is doing, with a spinner and a bar: "Saving… after the slice" (the engine
-does one thing at a time, so a slice running now finishes first), "Saving…" while the
-engine writes the 3MF, "Saving… 12 of 40 MB" while it uploads, then "Saving… finishing"
+does one thing at a time, so a slice running now finishes first), "Saving… making the
+3MF" while the engine writes it (about 30 s for an 86 MB project), "Saving… 12 of 40 MB" while it uploads, then "Saving… finishing"
 ("Preparing the 3MF…" for a download). A spinner sits by the project name on every
 screen size, and the Project menu greys out Save, Save a copy and Download 3MF with a row
 saying why, with the same text and bar. The card gives way to "Saved “name” to your
