@@ -1,0 +1,10 @@
+{
+  "vendor": "Snapmaker",
+  "version": "02.03.04.05",
+  "url": "https://public.resource.snapmaker.com/upgrade/packages/profile/02.03.04.05/profiles.zip",
+  "sha256": "4df02907c5a279c70214317600cbb914652bcaae8b646fef0c00da77860c7b73",
+  "minApp": "2.4.1",
+  "maxApp": "2.4.2",
+  "engineVersion": "02.03.04.04",
+  "changelog": "The following preset pack updates have been added:\n\n- Updated some consumable parameters, such as \"Minimum cleaning volume on the polishing tower\", \nand fixed the major issues with the polishing tower.\n- Updated the G-code instructions, restored the change where M109 was replaced by M104, \nand fixed the problem where printing began before reaching the printing temperature.\n\n\n  本次预设包更新内容如下：\n\n- 更新部分耗材参数“擦拭塔上的最小清理量”，修复擦拭塔巨大的问题\n- 更新gcode指令，恢复M109改成了M104的改动，修复没加热到打印温度就开始打印的问题"
+}
