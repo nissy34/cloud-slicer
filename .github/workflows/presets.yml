@@ -1,0 +1,91 @@
+name: Snapmaker presets
+
+# Every Monday, asks Snapmaker's preset feed (the one desktop Snapmaker Orca
+# checks) for a newer preset pack. When there is one that supports our engine,
+# stores it in engine/presets/snapmaker/ (engine/scripts/snapmaker-presets.mjs)
+# on the branch presets/snapmaker-<version> and opens a pull request, then
+# starts CI on it (a pull request opened by this workflow's token doesn't start
+# CI by itself). No engine build: presets aren't part of it. Also by hand
+# (Actions, Run workflow).
+#
+# Opening the pull request needs Settings > Actions > General > "Allow GitHub
+# Actions to create and approve pull requests"; without it, this opens an issue
+# that links the branch instead.
+
+on:
+  schedule:
+    - cron: '0 6 * * 1'
+  workflow_dispatch:
+
+concurrency:
+  group: snapmaker-presets
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+  pull-requests: write
+  issues: write
+  actions: write
+
+jobs:
+  check:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+      # Only the presets and version of the pinned Snapmaker Orca.
+      - name: Fetch the pinned Snapmaker Orca presets (shallow)
+        run: |
+          sub=engine/orcaslicer
+          sha=$(git ls-tree HEAD "$sub" | awk '{print $3}')
+          url=$(git config -f .gitmodules "submodule.$sub.url")
+          (cd "$sub" && git init -q && git remote add origin "$url" &&
+            git sparse-checkout set --no-cone '/resources/profiles/' '/version.inc' &&
+            git fetch -q --depth 1 --filter=blob:none origin "$sha" && git checkout -q FETCH_HEAD)
+
+      - name: Ask Snapmaker's feed
+        id: check
+        run: node engine/scripts/snapmaker-presets.mjs check | tee -a "$GITHUB_STEP_SUMMARY"
+
+      - name: Store the new pack and open a pull request
+        if: steps.check.outputs.new == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ steps.check.outputs.version }}
+        run: |
+          branch="presets/snapmaker-$VERSION"
+          if [ -n "$(git ls-remote origin "refs/heads/$branch")" ]; then
+            echo "Branch $branch exists already: nothing to do." | tee -a "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          node engine/scripts/snapmaker-presets.mjs update | tee /tmp/update.txt
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898+github-actions[bot]@users.noreply.github.com'
+          git checkout -b "$branch"
+          git add engine/presets
+          git commit -q -m "Snapmaker presets $VERSION"
+          git push -q origin "$branch"
+          {
+            echo "Snapmaker's preset pack **$VERSION** (desktop Snapmaker Orca offers it as a configuration update), laid over our engine's presets. No engine build."
+            echo
+            echo "### What Snapmaker says changed"
+            echo
+            node -p "require('./engine/presets/snapmaker/pack.json').changelog"
+            echo
+            echo "### Files that differ from the engine's presets"
+            echo
+            echo '```'
+            cat /tmp/update.txt
+            echo '```'
+            echo
+            echo "CI (with the desktop comparison) was started on this branch by the Snapmaker presets workflow."
+          } > /tmp/body.md
+          if gh pr create --base main --head "$branch" --title "Snapmaker presets $VERSION" --body-file /tmp/body.md; then
+            gh workflow run ci.yml --ref "$branch"
+          else
+            gh issue create --title "Snapmaker presets $VERSION are ready" \
+              --body "$(printf 'The branch [%s](%s/%s/tree/%s) has them; open a pull request from it.\n\n' "$branch" "$GITHUB_SERVER_URL" "$GITHUB_REPOSITORY" "$branch"; cat /tmp/body.md)"
+          fi

@@ -90,7 +90,7 @@ jobs:
           files=$(gh api --paginate "repos/$GITHUB_REPOSITORY/pulls/$PR/files" -q '.[].filename')
           echo "$files"
           # What the engine is built from, its presets, and the desktop check itself.
-          if printf '%s\n' "$files" | grep -qE '^(engine/(CMakeLists\.txt|cmake/|compat/|patches/|src/|orcaslicer$|orcaslicer-upstream$|desktop-check/|scripts/(build-deps\.sh|bundle-profiles\.mjs|plate-file-names\.mjs|klipper-labels\.mjs|compare-gcode\.py))|\.github/actions/desktop-check/)'; then
+          if printf '%s\n' "$files" | grep -qE '^(engine/(CMakeLists\.txt|cmake/|compat/|patches/|src/|orcaslicer$|orcaslicer-upstream$|desktop-check/|presets/|scripts/(build-deps\.sh|bundle-profiles\.mjs|preset-packs\.mjs|plate-file-names\.mjs|klipper-labels\.mjs|compare-gcode\.py))|\.github/actions/desktop-check/)'; then
             echo "engine=true" >> "$GITHUB_OUTPUT"
           fi
           other=$(printf '%s\n' "$files" | grep -vE '^(apps/device-relay/|apps/device-bridge/|\.github/workflows/device\.yml$|docs/|.*\.md$)' || true)
@@ -118,7 +118,7 @@ jobs:
         run: npm test
 
       - name: Preset bundling tests
-        run: node --test engine/scripts/klipper-labels.test.mjs engine/scripts/plate-file-names.test.mjs engine/scripts/plate-temps.test.mjs
+        run: node --test engine/scripts/klipper-labels.test.mjs engine/scripts/plate-file-names.test.mjs engine/scripts/plate-temps.test.mjs engine/scripts/preset-packs.test.mjs
 
       - name: Web app typecheck and unit tests
         working-directory: apps/web

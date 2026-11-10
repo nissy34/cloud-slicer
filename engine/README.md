@@ -45,6 +45,7 @@ same engine code.
 | `scripts/fetch-engine.mjs` | Downloads the engine CI built for this checkout's key into `build/engine`, so it needn't be built |
 | `scripts/build-deps.sh` | Builds the third-party libraries for wasm into `build/deps` |
 | `scripts/bundle-profiles.mjs` | Packs the presets: Snapmaker's (and Orca's filament library they inherit from) into the start-up file, every other brand into its own file, a catalog of every brand's printer models, and each printer model's bed (its shape as a small mesh file, `scripts/bed-mesh.mjs`, and its print sheet picture) |
+| `scripts/preset-packs.mjs`, `scripts/snapmaker-presets.mjs` | Snapmaker's latest preset pack in `presets/snapmaker/`, laid over the engine's Snapmaker presets by `bundle-profiles.mjs`; `snapmaker-presets.mjs check` / `update` asks Snapmaker's feed and stores a newer pack ([presets](../docs/architecture/presets.md#snapmaker-preset-packs)) |
 | `scripts/extract-settings-layout.mjs` | Reads desktop's settings pages and groups out of `Tab.cpp` for the web settings panel, including the per-extruder pages, Motion ability and the filament Setting Overrides |
 | `node/` | The engine under Node.js: a slicing CLI and the engine tests |
 

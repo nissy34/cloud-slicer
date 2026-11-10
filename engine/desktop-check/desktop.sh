@@ -8,7 +8,10 @@
 #
 # Kept in $DESKTOP_ORCA_DIR (default ~/.cache/desktop-orca). Each download is
 # checked against the SHA-256 below; after an engine update, add the new
-# version's line (the error prints it).
+# version's line (the error prints it). For Snapmaker Orca, Snapmaker's preset
+# pack in engine/presets/snapmaker/ (our engine's presets have it) is installed
+# into desktop's presets too, as desktop's preset update would: the zip from
+# pack.json's url, checked against its sha256.
 set -euo pipefail
 flavor=${1:?usage: desktop.sh snapmaker|orca}
 here=$(cd "$(dirname "$0")" && pwd)
@@ -28,7 +31,14 @@ declare -A SHA256=(
   [orca-2.5.0-beta]=15b0e9f9d577bc7a84cfef4f1ecc6e16ef75bc253e500d772fcaa66f4c25b97e
 )
 
-out=$DIR/$flavor-$version
+pack_json=$here/../presets/snapmaker/pack.json
+pack=
+if [ "$flavor" = snapmaker ] && [ -f "$pack_json" ]; then
+  pack=$(node -p "const p=require(process.argv[1]); [p.version,p.url,p.sha256].join(' ')" "$pack_json")
+fi
+read -r pack_version pack_url pack_sha <<< "$pack"
+
+out=$DIR/$flavor-$version${pack_version:+-presets-$pack_version}
 if [ ! -x "$out/squashfs-root/AppRun" ]; then
   url=https://github.com/$repo/releases/download/v$version/${file}_Linux_AppImage_Ubuntu2404_V$version.AppImage
   rm -rf "$out"; mkdir -p "$out"
@@ -44,5 +54,17 @@ if [ ! -x "$out/squashfs-root/AppRun" ]; then
   chmod +x "$out/app.AppImage"
   (cd "$out" && ./app.AppImage --appimage-extract > /dev/null)
   rm "$out/app.AppImage"
+  if [ -n "$pack_version" ]; then
+    echo "Installing Snapmaker presets $pack_version from $pack_url" >&2
+    curl -fsSL --retry 4 --retry-all-errors -o "$out/presets.zip" "$pack_url"
+    sum=$(sha256sum "$out/presets.zip" | cut -d' ' -f1)
+    if [ "$sum" != "$pack_sha" ]; then
+      echo "SHA-256 of Snapmaker presets $pack_version is $sum; engine/presets/snapmaker/pack.json says $pack_sha." >&2
+      rm -rf "$out"; exit 1
+    fi
+    # The zip holds profiles/Snapmaker.json and profiles/Snapmaker/...
+    unzip -q -o "$out/presets.zip" -d "$out/squashfs-root/resources"
+    rm "$out/presets.zip"
+  fi
 fi
 echo "$out/squashfs-root/AppRun"
