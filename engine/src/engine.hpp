@@ -27,8 +27,10 @@ namespace engine {
 // The open project: every object on every plate, as Orca keeps it in the
 // desktop Plater. Plates are laid out on a grid exactly like desktop
 // (PartPlateList): plate i sits at column i % cols, row i / cols, with a gap of
-// 1/5 of the plate size between plates, and an instance belongs to the plate
-// that contains its centre.
+// 1/5 of the plate size between plates. An instance belongs to a plate the way
+// desktop's PartPlateList::notify_instance_update decides: the plate it
+// overlaps (PartPlate::intersect_instance); one that overlaps none is on
+// desktop's "unprintable plate": still drawn, never sliced.
 struct Project {
     Slic3r::Model model;
     Slic3r::PlateDataPtrs plates;            // from a 3MF; empty otherwise
@@ -41,7 +43,12 @@ struct Project {
 
     int columns() const;
     Slic3r::Vec2d plateOrigin(int plate) const;
-    // Plate index the instance's centre falls on, or -1 when off every plate.
+    // The plate the instance is printed with: the one under its centre, else
+    // the first one it overlaps; -1 when it is off every plate.
+    int printedOn(const Slic3r::ModelInstance& inst) const;
+    // The plate the instance is shown and edited on: the one it is printed
+    // with, or the nearest one when it is off every plate, so it stays in view
+    // and can be moved back (desktop draws it beside the plates).
     int plateOf(const Slic3r::ModelInstance& inst) const;
     void clear();
 };

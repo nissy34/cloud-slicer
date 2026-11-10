@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { FEATURES, parseGcode } from './gcode';
-import { blocksPrinting, objectsOutside, plateBounds, toolpathWarnings } from './outside';
+import { blocksPrinting, objectsOutside, plateBounds, printedObjects, toolpathWarnings } from './outside';
 
 const U1 = plateBounds('0x0,270x0,270x270,0x270', '270');
 
@@ -27,6 +27,30 @@ describe('objectsOutside', () => {
   it('ignores what sinks below the bed and points on the edge', () => {
     const p = preview([[[0, 0, -5], [270, 0, 0], [0, 270, 10]]], [[0, 0, 0, 1]]);
     expect(objectsOutside(p, U1)).toEqual([]);
+  });
+  it('lets an object totally off the plate be (it is shown, not printed), as desktop does', () => {
+    const offPlate = [[300, 10, 0], [320, 10, 0], [300, 20, 5]];
+    const p = preview([offPlate], [[0, 0, 0, 1]]);
+    expect(objectsOutside(p, U1)).toEqual([]);
+  });
+  it('still flags an object with one part on the plate and another off it', () => {
+    const inside = [[10, 10, 0], [20, 10, 0], [10, 20, 5]];
+    const overEdge = [[260, 10, 0], [275, 10, 0], [260, 20, 5]];
+    const p = preview([inside, overEdge], [[0, 0, 0, 1], [0, 1, 1, 1]]);
+    expect(objectsOutside(p, U1)).toEqual([0]);
+  });
+});
+
+describe('printedObjects', () => {
+  const inst = (plate: number, loose = false) => ({ plate, loose });
+  const project = {
+    plates: [{ objects: [0, 1, 2] }, { objects: [2] }],
+    objects: [{ instances: [inst(0)] }, { instances: [inst(0, true)] }, { instances: [inst(0, true), inst(1)] }],
+  } as unknown as Parameters<typeof printedObjects>[0];
+  it('leaves out objects whose copies on the plate are off every plate', () => {
+    expect(printedObjects(project, 0)).toEqual([0]);
+    expect(printedObjects(project, 1)).toEqual([2]);
+    expect(printedObjects(null, 0)).toEqual([]);
   });
 });
 
