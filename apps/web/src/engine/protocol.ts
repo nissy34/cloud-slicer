@@ -141,6 +141,11 @@ export interface InstanceInfo {
   rotation: [number, number, number];
   scale: [number, number, number];
   printable: boolean;
+  /**
+   * Off every plate (desktop's "unprintable plate"): shown on the nearest plate
+   * (`plate`) so it can be moved back, but not printed with it.
+   */
+  loose: boolean;
 }
 export interface ObjectInfo {
   name: string;

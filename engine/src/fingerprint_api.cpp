@@ -130,7 +130,7 @@ std::string plateFingerprint(int plate) {
             Hash place;
             int copies = 0;
             for (const ModelInstance* inst : obj->instances) {
-                if (pr.plateOf(*inst) != plate) continue;
+                if (pr.printedOn(*inst) != plate) continue;
                 ++copies;
                 Transform3d t = inst->get_matrix();
                 t.translation() -= Vec3d(origin.x(), origin.y(), 0);

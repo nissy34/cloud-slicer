@@ -25,6 +25,14 @@ printing object by object, a draggable prime tower, and a slice kept per plate.
 
 ## How it flows
 
+- **Which plate an object is on**: as desktop's `PartPlateList::notify_instance_update`
+  (engine `Project::printedOn`): the plate under its centre, else the first plate it
+  overlaps. One partly over the edge stays the plate's and blocks Slice (desktop's
+  "laid over the plate boundaries" message, `lib/outside.ts`). One totally off every
+  plate is on desktop's unprintable plate: never sliced, but still drawn, darker, on the
+  nearest plate (`Project::plateOf`, `loose` in the project info), so it can be picked
+  and moved back. Slice, the prime tower, clearance and print history count only the
+  printed objects (`printedObjects`).
 - **Plate settings**: kept in the 3MF's plate data, merged over the project's settings
   when that plate slices (as desktop's `BackgroundSlicingProcess::apply`).
 - **Prime tower**: follows desktop's `reload_scene` and `estimate_wipe_tower_size`: the

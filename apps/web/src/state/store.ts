@@ -60,7 +60,7 @@ import { cameraPosition } from './view';
 import { saveFile } from '../lib/preset-files';
 import { estimateLayers, slicePercent } from '../lib/slice-progress';
 import { MATRIX, MULTIPLIER, remapMatrix, type FlushInfo } from '../lib/flush';
-import { OBJECT_CLASHED, objectsOutside, plateBounds } from '../lib/outside';
+import { OBJECT_CLASHED, objectsOutside, plateBounds, printedObjects } from '../lib/outside';
 import { fingerprintOf, summarize, type PlateSummary } from '../lib/prints';
 
 /** 'admin' is the owner's Admin page, opened from the account menu (no tab of its own). */
@@ -806,7 +806,7 @@ export const useSlicer = create<SlicerState>((set, get) => {
   async function refreshTower() {
     const run = ++towerRun;
     const { project, plate } = get();
-    if (!project?.plates[plate]?.objects.length) return set({ wipeTower: null });
+    if (!printedObjects(project, plate).length) return set({ wipeTower: null });
     const kept = keptTower(plate);
     if (kept !== undefined) return set({ wipeTower: kept });
     // Another plate's tower doesn't stay up while the engine is busy (slicing).
@@ -874,7 +874,7 @@ export const useSlicer = create<SlicerState>((set, get) => {
   async function refreshClearance() {
     const run = ++clearanceRun;
     const { project, plate } = get();
-    if (!project?.plates[plate]?.objects.length || !byObject()) return set({ clearance: null });
+    if (!printedObjects(project, plate).length || !byObject()) return set({ clearance: null });
     try {
       const c = await engine().clearance(plate, engineOverrides());
       if (run === clearanceRun) set({ clearance: c.byObject ? c : null });
@@ -2575,7 +2575,7 @@ export const useSlicer = create<SlicerState>((set, get) => {
       const thumbnails = plateThumbnails();
       // For the G-code step's percentage (lib/slice-progress).
       const config = { ...get().baseConfig, ...get().overrides };
-      const onPlate = project.plates[plate]?.objects ?? [];
+      const onPlate = printedObjects(project, plate);
       const layers = Math.max(
         0,
         ...onPlate.map((i) => {

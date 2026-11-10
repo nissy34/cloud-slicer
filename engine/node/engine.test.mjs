@@ -506,6 +506,36 @@ test('resizing plates keeps objects centred on their plate', () => {
 const info = () => JSON.parse(engine.modelInfoJson());
 const cut = (request) => JSON.stringify(request);
 
+test('an object moved off the plate stays in view on the nearest plate, and is not printed', () => {
+  select({ printer: DEFAULT_PRINTER, process: STANDARD });
+  load('gen-cube-20.stl');
+  load('gen-cube-20.stl', 0, true);
+  call(engine, 'setInstanceTransform', 0, 0, JSON.stringify({ offset: [100, 100] }));
+  const at = (x) => {
+    call(engine, 'setInstanceTransform', 1, 0, JSON.stringify({ offset: [x, 100] }));
+    const m = JSON.parse(engine.modelInfoJson());
+    return { inst: m.objects[1].instances[0], plate: m.plates[0], mesh: engine.previewMesh(0) };
+  };
+  // Centre off the plate, but over its edge: still the plate's (desktop then won't slice it).
+  let s = at(-5);
+  assert.equal(s.inst.plate, 0);
+  assert.equal(s.inst.loose, false);
+  assert.ok(s.mesh.objectTriangles[1] > 0, 'drawn over the edge');
+  // Totally off: shown on the plate next to it, not printed with it.
+  s = at(-60);
+  assert.equal(s.inst.plate, 0, 'shown on the nearest plate');
+  assert.equal(s.inst.loose, true);
+  assert.ok(s.plate.objects.includes(1), 'listed with the plate it is shown on');
+  assert.ok(s.mesh.objectTriangles[1] > 0, 'still drawn');
+  let right = -Infinity;
+  for (let k = s.mesh.objectTriangles[0] * 9; k < s.mesh.positions.length; k += 3) right = Math.max(right, s.mesh.positions[k]);
+  assert.ok(right < 0, `drawn where it is, left of the plate: ${right}`);
+  const one = usedMm(slice(fullConfig()).gcode)[0];
+  at(150);
+  const two = usedMm(slice(fullConfig()).gcode)[0];
+  assert.ok(two > one * 1.6, `only the cube on the plate is printed: ${one} mm, ${two} mm with both on it`);
+});
+
 test('object tools: cut, split, mirror, orient', () => {
   select({ printer: DEFAULT_PRINTER });
   let m = load('3DBenchy.stl');
