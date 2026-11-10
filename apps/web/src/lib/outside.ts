@@ -3,7 +3,7 @@
 // check_outside_state, ObjectClashed) and the sliced toolpaths against it
 // (GCodeViewer's BuildVolume::all_paths_inside, ToolpathOutside and
 // ToolHeightOutside).
-import type { PreviewMesh, SliceWarning } from '../engine/protocol';
+import type { PreviewMesh, ProjectInfo, SliceWarning } from '../engine/protocol';
 import { bedSize } from './colour';
 import { FEATURES } from './gcode';
 
@@ -32,9 +32,11 @@ export const OBJECT_CLASHED =
 
 /**
  * Objects with a part that is partly outside the plate or taller than the
- * printer, from the Prepare preview (which holds the objects whose centre is
- * on the shown plate). Like desktop, each part's bounding box is tested, and
- * what sinks below the bed doesn't count.
+ * printer, from the Prepare preview (which holds the objects shown on the
+ * plate, including those off every plate). Like desktop
+ * (GLVolumeCollection::check_outside_state), each part's bounding box is
+ * tested: partly outside is a clash, totally off the plate is not (it isn't
+ * printed). What sinks below the bed doesn't count.
  */
 export function objectsOutside(preview: Pick<PreviewMesh, 'positions' | 'partList'>, b: PlateBounds): number[] {
   const out = new Set<number>();
@@ -42,20 +44,26 @@ export function objectsOutside(preview: Pick<PreviewMesh, 'positions' | 'partLis
   const p = preview.positions;
   for (let k = 0; k + 3 < list.length; k += 4) {
     const [object, , first, count] = [list[k], list[k + 1], list[k + 2], list[k + 3]];
-    if (out.has(object)) continue;
+    if (out.has(object) || count === 0) continue;
+    let [x0, y0, x1, y1, z1] = [Infinity, Infinity, -Infinity, -Infinity, -Infinity];
     for (let i = first * 9, end = (first + count) * 9; i < end; i += 3) {
-      const x = p[i], y = p[i + 1], z = p[i + 2];
-      if (
-        x < b.minX - SCENE_EPSILON || x > b.maxX + SCENE_EPSILON ||
-        y < b.minY - SCENE_EPSILON || y > b.maxY + SCENE_EPSILON ||
-        z > b.maxZ + SCENE_EPSILON
-      ) {
-        out.add(object);
-        break;
-      }
+      x0 = Math.min(x0, p[i]);
+      x1 = Math.max(x1, p[i]);
+      y0 = Math.min(y0, p[i + 1]);
+      y1 = Math.max(y1, p[i + 1]);
+      z1 = Math.max(z1, p[i + 2]);
     }
+    const overlaps = x1 > b.minX && x0 < b.maxX && y1 > b.minY && y0 < b.maxY;
+    const inside =
+      x0 >= b.minX - SCENE_EPSILON && x1 <= b.maxX + SCENE_EPSILON && y0 >= b.minY - SCENE_EPSILON && y1 <= b.maxY + SCENE_EPSILON && z1 <= b.maxZ + SCENE_EPSILON;
+    if (overlaps && !inside) out.add(object);
   }
   return [...out].sort((a, c) => a - c);
+}
+
+/** The objects printed with `plate`: those with a copy on it that isn't off every plate. */
+export function printedObjects(project: Pick<ProjectInfo, 'plates' | 'objects'> | null | undefined, plate: number): number[] {
+  return (project?.plates[plate]?.objects ?? []).filter((o) => project?.objects[o]?.instances.some((i) => i.plate === plate && !i.loose));
 }
 
 const NOT_CHECKED = new Set([FEATURES.indexOf('Custom'), FEATURES.indexOf('Other')]);

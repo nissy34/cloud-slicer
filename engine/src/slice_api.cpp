@@ -137,7 +137,7 @@ Model plateModel(int plate) {
         ModelObject* obj = m.objects[o];
         const ModelObject* src = pr.model.objects[o];
         for (int i = int(obj->instances.size()) - 1; i >= 0; --i) {
-            if (pr.plateOf(*src->instances[i]) != plate) obj->delete_instance(size_t(i));
+            if (pr.printedOn(*src->instances[i]) != plate) obj->delete_instance(size_t(i));
             else obj->instances[i]->set_offset(obj->instances[i]->get_offset() - Vec3d(origin.x(), origin.y(), 0));
         }
         if (obj->instances.empty()) m.delete_object(size_t(o));
@@ -346,7 +346,7 @@ bool writeGcode3mf(const std::string& path, int plate, const std::string& gcodeP
     }
     for (size_t o = 0; o < pr.model.objects.size(); ++o)
         for (size_t i = 0; i < pr.model.objects[o]->instances.size(); ++i) {
-            const int p = pr.plateOf(*pr.model.objects[o]->instances[i]);
+            const int p = pr.printedOn(*pr.model.objects[o]->instances[i]);
             if (p >= 0) plates[p]->objects_and_instances.emplace_back(int(o), int(i));
         }
     PlateData* d = plates[plate];
@@ -668,7 +668,7 @@ std::string clearanceJson(const std::string& configJson, int plate) {
         for (size_t o = 0; o < pr.model.objects.size(); ++o) {
             std::vector<std::pair<int, int>> copies;
             for (size_t i = 0; i < pr.model.objects[o]->instances.size(); ++i)
-                if (pr.plateOf(*pr.model.objects[o]->instances[i]) == plate) copies.emplace_back(int(o), int(i));
+                if (pr.printedOn(*pr.model.objects[o]->instances[i]) == plate) copies.emplace_back(int(o), int(i));
             if (!copies.empty()) source.push_back(std::move(copies));
         }
         Model model = plateModel(plate);

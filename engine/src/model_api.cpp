@@ -247,13 +247,38 @@ Vec2d Project::plateOrigin(int plate) const {
     return Vec2d((plate % cols) * plateWidth * (1 + PLATE_GAP), -(plate / cols) * plateDepth * (1 + PLATE_GAP));
 }
 
-int Project::plateOf(const ModelInstance& inst) const {
-    const Vec3d c = inst.get_object()->instance_bounding_box(inst, false).center();
+namespace {
+// Distance from a point to the rectangle [o, o + size] (0 inside it).
+double distanceTo(const Vec2d& o, double w, double d, const Vec2d& c) {
+    const double dx = std::max({o.x() - c.x(), 0.0, c.x() - (o.x() + w)});
+    const double dy = std::max({o.y() - c.y(), 0.0, c.y() - (o.y() + d)});
+    return std::hypot(dx, dy);
+}
+} // namespace
+
+int Project::printedOn(const ModelInstance& inst) const {
+    const BoundingBoxf3 bb = inst.get_object()->instance_bounding_box(inst, false);
+    const Vec2d c(bb.center().x(), bb.center().y());
+    for (int p = 0; p < plateCount; ++p)
+        if (distanceTo(plateOrigin(p), plateWidth, plateDepth, c) == 0) return p;
+    // Partly over the edge: still the plate's (desktop then refuses to slice
+    // it until it is moved totally on or off the plate).
     for (int p = 0; p < plateCount; ++p) {
         const Vec2d o = plateOrigin(p);
-        if (c.x() >= o.x() && c.x() <= o.x() + plateWidth && c.y() >= o.y() && c.y() <= o.y() + plateDepth) return p;
+        if (bb.max.x() > o.x() && bb.min.x() < o.x() + plateWidth && bb.max.y() > o.y() && bb.min.y() < o.y() + plateDepth) return p;
     }
     return -1;
+}
+
+int Project::plateOf(const ModelInstance& inst) const {
+    const int printed = printedOn(inst);
+    if (printed >= 0 || plateCount < 1) return printed;
+    const Vec3d c3 = inst.get_object()->instance_bounding_box(inst, false).center();
+    const Vec2d c(c3.x(), c3.y());
+    int nearest = 0;
+    for (int p = 1; p < plateCount; ++p)
+        if (distanceTo(plateOrigin(p), plateWidth, plateDepth, c) < distanceTo(plateOrigin(nearest), plateWidth, plateDepth, c)) nearest = p;
+    return nearest;
 }
 
 void Project::clear() {
@@ -452,6 +477,7 @@ std::string modelInfoJson() {
         json instances = json::array();
         for (const ModelInstance* inst : obj->instances) {
             const int plate = pr.plateOf(*inst);
+            const bool loose = pr.printedOn(*inst) < 0;
             const Vec2d origin = pr.plateOrigin(std::max(plate, 0));
             const Vec3d off = inst->get_offset();
             const Vec3d rot = inst->get_rotation() * DEG;
@@ -460,7 +486,9 @@ std::string modelInfoJson() {
                                  {"offset", {off.x() - origin.x(), off.y() - origin.y(), off.z()}},
                                  {"rotation", {rot.x(), rot.y(), rot.z()}},
                                  {"scale", {scl.x(), scl.y(), scl.z()}},
-                                 {"printable", inst->printable}});
+                                 {"printable", inst->printable},
+                                 // Off every plate: shown on the nearest, not printed (desktop's unprintable plate).
+                                 {"loose", loose}});
             if (plate >= 0) {
                 auto &list = plates[plate]["objects"];
                 if (std::find(list.begin(), list.end(), json(o)) == list.end()) list.push_back(o);
@@ -469,6 +497,7 @@ std::string modelInfoJson() {
                 // (ModelVolume::get_extruders gives the same, but rebuilds the
                 // paint's triangles to find them; the paint's used states say
                 // which filaments it has without that.)
+                if (loose) continue;
                 auto &used = plates[plate]["filaments"];
                 const auto use = [&](int e) {
                     if (e > 0 && std::find(used.begin(), used.end(), json(e)) == used.end()) used.push_back(e);
@@ -699,7 +728,7 @@ std::string resizePlates(double width, double depth) {
         std::vector<Move> moves;
         for (ModelObject* obj : pr.model.objects)
             for (ModelInstance* inst : obj->instances) {
-                const int plate = pr.plateOf(*inst);
+                const int plate = pr.printedOn(*inst);
                 if (plate < 0) continue;
                 const Vec2d centre = pr.plateOrigin(plate) + Vec2d(pr.plateWidth / 2, pr.plateDepth / 2);
                 const Vec3d c = obj->instance_bounding_box(*inst, false).center();
@@ -752,7 +781,7 @@ std::string saveProject(const std::string& path, const std::string& configJson, 
         }
         for (size_t o = 0; o < pr.model.objects.size(); ++o)
             for (size_t i = 0; i < pr.model.objects[o]->instances.size(); ++i) {
-                const int p = pr.plateOf(*pr.model.objects[o]->instances[i]);
+                const int p = pr.printedOn(*pr.model.objects[o]->instances[i]);
                 if (p >= 0) plates[p]->objects_and_instances.emplace_back(int(o), int(i));
             }
 
