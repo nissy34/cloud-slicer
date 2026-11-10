@@ -38,7 +38,7 @@ std::vector<int> plateFilaments(const DynamicPrintConfig& cfg, int plate) {
     const int solid = intOpt(cfg, "solid_infill_filament", 1);
     const bool globalSupport = cfg.opt_bool("enable_support") || intOpt(cfg, "raft_layers") > 0;
     for (const ModelObject* mo : pr.model.objects) {
-        if (std::none_of(mo->instances.begin(), mo->instances.end(), [&](const ModelInstance* i) { return pr.plateOf(*i) == plate; }))
+        if (std::none_of(mo->instances.begin(), mo->instances.end(), [&](const ModelInstance* i) { return pr.printedOn(*i) == plate; }))
             continue;
         for (const ModelVolume* mv : mo->volumes) {
             ids.push_back(mv->extruder_id());
@@ -152,7 +152,7 @@ json wipeTowerFor(const DynamicPrintConfig& cfg, int plate, double slicedDepth) 
     for (const ModelObject* mo : pr.model.objects) {
         bool on = false;
         for (const ModelInstance* i : mo->instances)
-            if (pr.plateOf(*i) == plate) {
+            if (pr.printedOn(*i) == plate) {
                 on = true;
                 if (i->printable) ++printable;
             }

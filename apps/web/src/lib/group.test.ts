@@ -9,6 +9,7 @@ const inst = (plate: number, offset: [number, number, number], rotation: [number
   rotation,
   scale,
   printable: true,
+  loose: false,
 });
 const project = {
   objects: [

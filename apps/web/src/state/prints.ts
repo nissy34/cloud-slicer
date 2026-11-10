@@ -13,6 +13,7 @@
 import { create } from 'zustand';
 import { api } from '../account/api';
 import { job } from '../device/status';
+import { printedObjects } from '../lib/outside';
 import { changesBetween, nextStatus, OPEN_STATUSES, plateMarks, progressOf, type PlateMark, type PlateSummary, type PrintOrigin, type PrintRecord } from '../lib/prints';
 import { useAccount } from './account';
 import { onFileSent, useDevice } from './device';
@@ -152,7 +153,7 @@ export function usePrintProgress() {
   const marks = usePlateMarks();
   const project = useSlicer((s) => s.project);
   if (!marks.length || marks.every((m) => m.state === 'none')) return null;
-  return progressOf(marks, (p) => !project?.plates[p]?.objects.length);
+  return progressOf(marks, (p) => !printedObjects(project, p).length);
 }
 
 /** What changed on a plate since it was printed, in words. */
