@@ -294,6 +294,7 @@ export function Toolbar({ onAdd }: { onAdd(): void }) {
                   role="dialog"
                   label="Arrange options"
                   className="arrange-pop"
+                  portal
                   open={arrangeOpen}
                   onOpenChange={(open) => {
                     // Waiting for a model (or a locked plate): say why instead of opening.

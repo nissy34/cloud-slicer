@@ -88,6 +88,14 @@ async function field(page, object, key, label) {
   return v;
 }
 
+// The pop-up is drawn on top (not clipped by the toolbar or under the 3D view): what is
+// at the middle of its Spacing row belongs to it.
+const onTop = (page) =>
+  pop(page).evaluate((el) => {
+    const r = el.querySelector('.arrange-spacing').getBoundingClientRect();
+    return el.contains(document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2));
+  });
+
 // Arranges from the pop-up and waits for the slice bar to come back.
 async function arrange(page) {
   await pop(page).getByRole('button', { name: 'Arrange', exact: true }).click();
@@ -126,11 +134,12 @@ try {
   await arrangeButton(page).click();
   await pop(page).waitFor({ timeout: 5000 });
   await pop(page).getByText('0 means auto spacing.').waitFor();
+  if (!(await onTop(page))) fail('the pop-up is hidden behind the 3D view or clipped by the toolbar');
   const sw = (name) => pop(page).getByRole('checkbox', { name });
   if (!(await sw('Allow multiple materials on same plate').isChecked())) fail('Allow multiple materials should start on, like desktop');
   if (await sw('Auto rotate for arrangement').isChecked()) fail('Auto rotate should start off, like desktop');
   if ((await pop(page).getByLabel('Spacing in mm').inputValue()) !== '0') fail('spacing should start at 0 (auto)');
-  if (shots) await page.screenshot({ path: join(shots, 'arrange-desktop.png') });
+  if (shots) await page.waitForTimeout(400), await page.screenshot({ path: join(shots, 'arrange-desktop.png') });
 
   // Auto rotate greys out Align to Y axis.
   await sw('Auto rotate for arrangement').check();
@@ -177,8 +186,9 @@ try {
   await arrangeButton(phone).tap();
   await pop(phone).waitFor({ timeout: 5000 });
   const r = await pop(phone).boundingBox();
+  if (!(await onTop(phone))) fail('phone: the pop-up is hidden behind the 3D view or clipped by the toolbar');
   if (!r || r.x < 0 || r.x + r.width > 390 || r.y + r.height > 844) fail(`the pop-up runs off a phone screen: ${JSON.stringify(r)}`);
-  if (shots) await phone.screenshot({ path: join(shots, 'arrange-phone.png') });
+  if (shots) await phone.waitForTimeout(400), await phone.screenshot({ path: join(shots, 'arrange-phone.png') });
   await pop(phone).getByRole('button', { name: 'Arrange', exact: true }).tap();
   await pop(phone).waitFor({ state: 'detached', timeout: 10000 });
   const pageScroll = await phone.evaluate(() => document.documentElement.scrollWidth > window.innerWidth);
