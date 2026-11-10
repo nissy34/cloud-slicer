@@ -1,8 +1,9 @@
 # CI and deploys
 
-Four GitHub Actions workflows: `ci.yml` (engines, site, tests, Pages deploy), `device.yml`
-(bridge, relay, Device tab), `klipper.yml` (real Klipper printers, nightly) and
-`desktop-orca.yml` (our G-code against the real desktop apps, nightly). None ever
+Five GitHub Actions workflows: `ci.yml` (engines, site, tests, Pages deploy), `device.yml`
+(bridge, relay, Device tab), `klipper.yml` (real Klipper printers, nightly),
+`desktop-orca.yml` (our G-code against the real desktop apps, nightly) and `presets.yml`
+(Snapmaker's new preset packs, weekly). None ever
 talks to a real printer: tests use pretend printers (a Node mock Moonraker, real Klipper on
 a simulated board in Docker, the real OctoPrint's virtual printer, and pretend Prusa, Elegoo
 and Bambu Lab printers; see [architecture/testing.md](architecture/testing.md)). The
@@ -166,5 +167,18 @@ checks each download's SHA-256) and runs `engine/desktop-check/check.mjs` for ea
 steps live in `.github/actions/desktop-check`, shared with ci.yml's `desktop-orca` job,
 which runs the same check on pull requests that change the engine. About 3 minutes per
 engine. The table of results is in the run's summary; on failure every case's files are
-the `desktop-check-<flavor>` artifact.
+the `desktop-check-<flavor>` artifact. Desktop Snapmaker Orca gets the same Snapmaker preset
+pack as our engine (`engine/presets/snapmaker/`, installed from Snapmaker's own zip), so
+both compare with the same presets.
+
+## Snapmaker presets (`.github/workflows/presets.yml`)
+
+Every Monday and by hand: asks Snapmaker's preset feed for a newer preset pack (the
+"Configuration update" desktop Snapmaker Orca offers). When one supports our engine's
+version, it stores it with `engine/scripts/snapmaker-presets.mjs update` on the branch
+`presets/snapmaker-<version>`, opens a pull request and starts CI on it with
+`gh workflow run` (a pull request this workflow's token opens doesn't start CI by itself);
+the desktop comparison runs too. Opening the pull request needs Settings → Actions →
+General → "Allow GitHub Actions to create and approve pull requests"; without it the
+workflow opens an issue linking the branch. See [presets](architecture/presets.md#snapmaker-preset-packs).
 

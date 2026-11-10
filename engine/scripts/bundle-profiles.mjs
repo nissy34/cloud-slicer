@@ -34,6 +34,7 @@ import { gzipSync } from 'node:zlib';
 import { encodeBedMesh, readStl } from './bed-mesh.mjs';
 import { labelObjectsForKlipper } from './klipper-labels.mjs';
 import { plateInFileNames } from './plate-file-names.mjs';
+import { packOverlay } from './preset-packs.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
 // ENGINE_FLAVOR=orca bundles upstream OrcaSlicer's presets instead.
@@ -45,6 +46,9 @@ const bedRoots = ['../orcaslicer/resources/profiles', '../orcaslicer-upstream/re
   .map((r) => resolve(here, r))
   .filter((r) => existsSync(r));
 if (!bedRoots.includes(root)) bedRoots.push(root);
+// Snapmaker's latest preset pack, laid over Snapmaker Orca's presets as desktop
+// installs it (preset-packs.mjs). Upstream OrcaSlicer keeps its own presets.
+const overlay = process.env.ENGINE_FLAVOR === 'orca' ? {} : packOverlay(root);
 const [outDir, ...vendorArgs] = process.argv.slice(2);
 if (!outDir) {
   console.error('usage: bundle-profiles.mjs <out-dir> [vendor ...]');
@@ -106,10 +110,14 @@ let plateNamed = 0;
  * G-code file name its plate number (plate-file-names.mjs).
  */
 function vendorFiles(vendor) {
-  const files = { [`${vendor}.json`]: readText(join(root, `${vendor}.json`)) };
+  const files = { [`${vendor}.json`]: readText(overlay[`${vendor}.json`] ?? join(root, `${vendor}.json`)) };
   for (const file of walk(join(root, vendor))) {
     const rel = relative(root, file).split('\\').join('/');
-    if (file.endsWith('.json')) files[rel] = withoutDefaultMaterials(readText(file));
+    if (file.endsWith('.json')) files[rel] = withoutDefaultMaterials(readText(overlay[rel] ?? file));
+  }
+  // Files only the pack has.
+  for (const [rel, file] of Object.entries(overlay)) {
+    if (rel.startsWith(`${vendor}/`) && !(rel in files)) files[rel] = withoutDefaultMaterials(readText(file));
   }
   labelled += labelObjectsForKlipper(files).length;
   plateNamed += plateInFileNames(files).length;

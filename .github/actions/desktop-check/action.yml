@@ -24,7 +24,7 @@ runs:
     - name: Desktop version
       id: version
       shell: bash
-      run: echo "key=desktop-orca-${{ inputs.flavor }}-${{ hashFiles('engine/orcaslicer/version.inc', 'engine/orcaslicer-upstream/version.inc', 'engine/desktop-check/desktop.sh') }}" >> "$GITHUB_OUTPUT"
+      run: echo "key=desktop-orca-${{ inputs.flavor }}-${{ hashFiles('engine/orcaslicer/version.inc', 'engine/orcaslicer-upstream/version.inc', 'engine/desktop-check/desktop.sh', 'engine/presets/snapmaker/pack.json') }}" >> "$GITHUB_OUTPUT"
 
     - uses: actions/cache@v5
       with:

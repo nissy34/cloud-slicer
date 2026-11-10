@@ -16,6 +16,7 @@ them), and preset files in and out.
 | Part | Where |
 |---|---|
 | Bundling every brand, per engine | `engine/scripts/bundle-profiles.mjs` → `profiles.json`, `profiles/<brand>.json`, `profiles/catalog.json`, `profiles/beds/` |
+| Snapmaker's latest preset pack | `engine/presets/snapmaker/`, `engine/scripts/preset-packs.mjs`, `engine/scripts/snapmaker-presets.mjs`, `.github/workflows/presets.yml` |
 | Loading brands only when needed | `loadVendors` in `src/state/store.ts`, worker method `vendors` |
 | Catalog, Direct print marks | `src/lib/printer-catalog.ts` |
 | Setup wizard, the Manage window, and their saved choice | `components/SetupWizard.tsx` (`Wizard`, `Manage`), `lib/setup.ts` |
@@ -35,6 +36,26 @@ them), and preset files in and out.
    loading, so Orca treats them as its own.
 4. Only the selected printer's bed files are fetched (a U1 about 5 KB).
 
+## Snapmaker preset packs
+
+Desktop Snapmaker Orca updates its Snapmaker presets apart from the app: it asks
+Snapmaker's feed (`https://meta-cfg.snapmaker.com/upgrade/profile/en/version.json`) and
+offers a "Configuration update" when the pack there is newer and supports the app's
+version. The packs are not in Snapmaker's GitHub repository, so the engine's source
+(`engine/orcaslicer`) only has the pack its release shipped with.
+
+We keep the latest pack in `engine/presets/snapmaker/`: `pack.json` (version, zip URL, the
+zip's SHA-256, the app versions it supports, Snapmaker's change notes) and the pack's
+preset files that differ from the engine's, byte for byte. `bundle-profiles.mjs` lays
+them over Snapmaker Orca's presets (upstream OrcaSlicer keeps its own). Presets aren't
+part of the engine build, so a new pack needs no engine build, only the usual CI. The
+weekly `presets.yml` opens the pull request ([CI](../CI.md#snapmaker-presets-githubworkflowspresetsyml));
+by hand: `node engine/scripts/snapmaker-presets.mjs check`, then `update`.
+
+User presets keep only their changes, so they pick up a pack's new values unless they
+changed the same setting. A saved project keeps the settings it was saved with, as in
+desktop, until its preset is picked again.
+
 ## What it keeps
 
 - **User presets**: D1 `presets` (signed in) or browser storage (signed out), merged at
@@ -46,6 +67,9 @@ them), and preset files in and out.
 ## Rules
 
 - A user preset without a parseable `version` is skipped by Orca: always write one.
+- `bundle-profiles` refuses a Snapmaker preset pack the engine already ships (same or
+  newer version), so a pack never puts older presets back: after an engine update, delete
+  `engine/presets/snapmaker/` if the error says so.
 - `bundle-profiles` strips `default_materials` from printer models: once any loaded model
   names some, Orca shows only those filaments for every printer.
 - A preset file must sit on a system preset we ship: printers we don't have are refused;
