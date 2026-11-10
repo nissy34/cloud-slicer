@@ -49,9 +49,9 @@ async function open(context, viewport, mobile) {
   return page;
 }
 
-// An ASCII STL box, x by y by z mm.
+// An ASCII STL box, x by y by z mm, centred on x = y = 0 (so its position is its centre).
 const boxStl = (x, y, z) => {
-  const v = (a, b, c) => [a * x, b * y, c * z];
+  const v = (a, b, c) => [(a - 0.5) * x, (b - 0.5) * y, c * z];
   const quads = [
     [[0, 0, 0], [0, 1, 0], [1, 1, 0], [1, 0, 0]],
     [[0, 0, 1], [1, 0, 1], [1, 1, 1], [0, 1, 1]],
@@ -76,6 +76,8 @@ const arrangeButton = (page) => tools(page).getByRole('button', { name: 'Arrange
 const pop = (page) => page.getByRole('dialog', { name: 'Arrange options' });
 // An object's engine value in the Move or Rotate card ("Position X", "Rotation Z").
 async function field(page, object, key, label) {
+  // Let go of what is chosen first: a click on the chosen object's name renames it.
+  await page.locator('body').press('Escape');
   await page.locator('ul.objects .object-name').nth(object).click();
   await page.keyboard.press(key);
   const box = page.getByLabel(label, { exact: true });
@@ -86,12 +88,25 @@ async function field(page, object, key, label) {
   return v;
 }
 
-// Arranges from the pop-up and waits for the plate to be redrawn.
+// Arranges from the pop-up and waits for the slice bar to come back.
 async function arrange(page) {
-  await page.evaluate(() => document.querySelector('[data-tool="undo"]')?.setAttribute('title', ''));
   await pop(page).getByRole('button', { name: 'Arrange', exact: true }).click();
-  await page.waitForFunction(() => (document.querySelector('[data-tool="undo"]')?.getAttribute('title') ?? '').includes('Arrange'), null, { timeout: 60000 });
+  await page.waitForTimeout(300);
   await page.getByText('Ready to slice').waitFor({ timeout: 60000 });
+  // Desktop keeps the pop-up open; close it so the tool keys reach the 3D view.
+  await page.keyboard.press('Escape');
+  await pop(page).waitFor({ state: 'detached', timeout: 5000 });
+}
+
+// Reads `read` until `ok` holds (the engine may still be arranging), up to 30 s; the last value.
+async function until(read, ok) {
+  let v;
+  for (let t = 0; t < 30; t++) {
+    v = await read();
+    if (ok(v)) break;
+    await new Promise((r) => setTimeout(r, 1000));
+  }
+  return v;
 }
 
 try {
@@ -99,7 +114,8 @@ try {
   const page = await open(desktop);
 
   // Empty plate: the button explains instead of opening.
-  await arrangeButton(page).click();
+  // (aria-disabled: Playwright would wait for it to be enabled, so force the click.)
+  await arrangeButton(page).click({ force: true });
   await page.getByText('Arrange all objects works on a model: open one first.').waitFor({ timeout: 5000 });
   if (await pop(page).count()) fail('the Arrange pop-up opened on an empty plate');
 
@@ -124,7 +140,7 @@ try {
   // Align to Y axis: the 40 mm bar turns front to back.
   await sw('Align to Y axis').check();
   await arrange(page);
-  const bar0 = Math.abs(await field(page, 1, 'r', 'Rotation Z'));
+  const bar0 = await until(async () => Math.abs(await field(page, 1, 'r', 'Rotation Z')), (v) => Math.abs(v - 90) <= 1);
   if (Math.abs(bar0 - 90) > 1) fail(`Align to Y axis should turn the bar by 90°, got ${bar0}`);
   console.log('Align to Y axis turns the long bar front to back');
 
@@ -134,10 +150,10 @@ try {
   await sw('Auto rotate for arrangement').check();
   await pop(page).getByLabel('Spacing in mm').fill('30');
   await arrange(page);
-  const bar1 = Math.abs(await field(page, 1, 'r', 'Rotation Z')) % 180;
+  const bar1 = await until(async () => Math.abs(await field(page, 1, 'r', 'Rotation Z')) % 180, (v) => Math.min(v, 180 - v) <= 1);
   if (Math.min(bar1, 180 - bar1) > 1) fail(`Auto rotate should lay the bar across, got ${bar1}°`);
   // One row: the cube (deeper) first, then the bar, 20/2 + 30 + 40/2 = 60 mm between their centres.
-  const gap = Math.abs((await field(page, 1, 'm', 'Position X')) - (await field(page, 0, 'm', 'Position X')));
+  const gap = await until(async () => Math.abs((await field(page, 1, 'm', 'Position X')) - (await field(page, 0, 'm', 'Position X'))), (v) => Math.abs(v - 60) <= 0.5);
   if (Math.abs(gap - 60) > 0.5) fail(`30 mm spacing should put the centres 60 mm apart, got ${gap}`);
   console.log('Auto rotate lays it across, the spacing sets the gap');
 
