@@ -83,6 +83,8 @@ function summary(info: ModelInfo | null) {
         rotationDeg: c.rotation.map((v) => round(v)),
         scale: c.scale.map((v) => round(v, 3)),
         ...(c.printable ? {} : { printable: false }),
+        // Off every plate (like desktop): shown on the nearest plate but not printed with it.
+        ...(c.loose ? { offEveryPlate: true } : {}),
       })),
     })),
   };

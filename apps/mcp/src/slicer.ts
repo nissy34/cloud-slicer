@@ -52,7 +52,7 @@ export interface ModelInfo {
     extruder: number;
     settings: OrcaConfig;
     volumes: { name: string; kind: string; extruder: number; painted?: boolean; settings: OrcaConfig }[];
-    instances: { offset: number[]; plate: number; printable: boolean; rotation: number[]; scale: number[] }[];
+    instances: { offset: number[]; plate: number; printable: boolean; loose?: boolean; rotation: number[]; scale: number[] }[];
   }[];
   plates: unknown[];
   file?: { printer?: string; process?: string; filamentColours?: string; filamentPresets?: string; filamentTypes?: string; hasConfig?: boolean };
