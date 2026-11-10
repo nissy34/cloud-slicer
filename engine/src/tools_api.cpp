@@ -611,7 +611,7 @@ std::string deletePlate(int plate) {
         for (int o = int(p.model.objects.size()) - 1; o >= 0; --o) {
             ModelObject* obj = p.model.objects[o];
             for (int i = int(obj->instances.size()) - 1; i >= 0; --i)
-                if (p.plateOf(*obj->instances[i]) == plate) obj->delete_instance(size_t(i));
+                if (p.printedOn(*obj->instances[i]) == plate) obj->delete_instance(size_t(i));
             if (obj->instances.empty()) p.model.delete_object(size_t(o));
         }
         // Every later plate moves one place back; all instances follow their
