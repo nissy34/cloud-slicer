@@ -5,7 +5,7 @@ import { sentence, stageLabel } from '../lib/format';
 import { clearanceProblems } from '../lib/clearance';
 import { physicalFilaments } from '../lib/mixing';
 import { usesPlaAndPetg } from '../lib/option-toggles';
-import { blocksPrinting, OBJECT_CLASHED } from '../lib/outside';
+import { blocksPrinting, OBJECT_CLASHED, printedObjects } from '../lib/outside';
 import { newPrintId, withPrintTag } from '../lib/prints';
 import { LIGHT_TRIANGLES, triangleCount } from '../lib/simplify';
 import { useProjects } from '../state/projects';
@@ -142,7 +142,8 @@ export function ActionBar() {
 
   if (engine === 'failed') return <EngineFailed message={engineMessage} />;
 
-  const onPlate = project?.plates[plate]?.objects.length ?? 0;
+  // Objects off every plate are shown on it, but not printed.
+  const onPlate = printedObjects(project, plate).length;
   const busy = job.kind === 'loading' || job.kind === 'slicing';
   // As desktop: once sliced, Slice greys out until something changes (a change drops the slice).
   const upToDate = job.kind === 'sliced' && !job.outdated;
