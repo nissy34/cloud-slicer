@@ -554,7 +554,13 @@ let sliceRun = 0;
  * in the engine, so a new engine starts empty): the 3MF it was opened from, or
  * one saved before slicing, with the engine's edit count when it was made.
  */
-let saved3mf: { file: File; edits: number } | null = null;
+let saved3mf: { file: File; edits: number; settings?: string } | null = null;
+/**
+ * The project 3MF the engine is writing now, if any (AutoSave's or a slice's
+ * copy). Writing a big project takes the engine many seconds, and it does one
+ * thing at a time, so one write is shared rather than started twice.
+ */
+let writing: { done: Promise<ArrayBuffer>; edits: number; settings: string } | null = null;
 // The opened project's G-code when another slicer wrote it: which slicer, and
 // the values, put back to the printer's own if the engine can't fill them in.
 let foreignGcode: { app: string; values: OrcaConfig } | null = null;
@@ -687,12 +693,32 @@ export const useSlicer = create<SlicerState>((set, get) => {
           message,
         };
     saved3mf = null;
+    writing = null;
     set({
       ...emptyEngine(),
       project: retry || !pendingRestore.file ? null : project,
       preview: retry || !pendingRestore.file ? null : get().preview,
     });
     engine();
+  }
+
+  // Writes the project as a 3MF and keeps it as the copy to reopen if the
+  // engine crashes (and for AutoSave, while nothing changes).
+  function writeCopy(thumbnail: ProjectThumbnail | null): Promise<ArrayBuffer> {
+    const e = engine();
+    const overrides = engineOverrides();
+    // Requests run in order, so the file holds every edit asked for so far.
+    const mine = { edits: e.projectEdits, settings: JSON.stringify(overrides), done: e.saveProject(overrides, thumbnail) };
+    writing = mine;
+    const name = `${get().project?.fileName.replace(/\.\w+$/, '') || 'project'}.3mf`;
+    return mine.done
+      .then((bytes) => {
+        if (e === client) saved3mf = { file: new File([bytes], name), edits: mine.edits, settings: mine.settings };
+        return bytes;
+      })
+      .finally(() => {
+        if (writing === mine) writing = null;
+      });
   }
 
   // A new engine with an empty plate, for a heavy model dropped at the Simplify
@@ -706,6 +732,7 @@ export const useSlicer = create<SlicerState>((set, get) => {
     old?.terminate('The slicing engine restarted.');
     pendingRestore = null;
     saved3mf = null;
+    writing = null;
     triangleCounts = null;
     set({ ...emptyEngine(), plate: 0, towers: [], conversion: null, heavy: null });
     engine();
@@ -1868,13 +1895,23 @@ export const useSlicer = create<SlicerState>((set, get) => {
         fail(err);
       }
     },
-    projectFile: (thumbnail) => engine().saveProject(engineOverrides(), thumbnail),
+    async projectFile(thumbnail) {
+      // Nothing changed since the last copy (a slice's or AutoSave's): the same file.
+      const e = engine();
+      const settings = JSON.stringify(engineOverrides());
+      if (!thumbnail) {
+        if (saved3mf?.settings === settings && saved3mf.edits === e.projectEdits) return saved3mf.file.arrayBuffer();
+        if (writing?.settings === settings && writing.edits === e.projectEdits) return (await writing.done).slice(0);
+      }
+      return writeCopy(thumbnail);
+    },
     async switchEngine(flavor) {
       if (flavor === get().flavor && client) return;
       sliceRun++;
       const old = client;
       client = null;
       saved3mf = null;
+      writing = null;
       pendingRestore = null;
       // What the old engine was still doing is dropped, not an error to show.
       restarting = true;
@@ -2587,10 +2624,13 @@ export const useSlicer = create<SlicerState>((set, get) => {
       );
       try {
         // Slicing is what runs out of memory; keep a copy to reopen if it does.
+        // (Settings aren't needed in it: a restarted engine gets the page's.)
+        // A big project takes the engine many seconds to write, so the bar
+        // says so, and a write already running (AutoSave's) is used, not repeated.
         const e = engine();
+        if (writing || saved3mf?.edits !== e.projectEdits) set({ job: { kind: 'slicing', plate, pct: 0, stage: 'Saving a copy first' } });
         if (saved3mf?.edits !== e.projectEdits) {
-          const bytes = await e.saveProject(engineOverrides(), null);
-          saved3mf = { file: new File([bytes], `${project.fileName.replace(/\.\w+$/, '') || 'project'}.3mf`), edits: e.projectEdits };
+          await (writing?.edits === e.projectEdits ? writing.done : writeCopy(null));
           if (run !== sliceRun) return;
         }
         // The other plates' pictures and towers first, so they show at once
