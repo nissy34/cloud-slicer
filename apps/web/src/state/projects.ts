@@ -766,9 +766,15 @@ let localSize = 0;
 let localQueue: Promise<void> = Promise.resolve();
 const inLocalQueue = (fn: () => Promise<void>) => (localQueue = localQueue.then(fn, fn));
 
+// Not while slicing or opening: the engine does one thing at a time, and
+// writing a big project's 3MF takes it many seconds, which the slice (or the
+// opening) would wait behind. It is kept once that is done.
+const engineBusy = (kind: string) => kind === 'slicing' || kind === 'loading';
+
 function localWanted() {
   const p = useProjects.getState();
-  return p.dirty && hasObjects() && !p.busy && !p.elsewhere && useSlicer.getState().engine === 'ready';
+  const s = useSlicer.getState();
+  return p.dirty && hasObjects() && !p.busy && !p.elsewhere && s.engine === 'ready' && !engineBusy(s.job.kind);
 }
 
 async function keepLocal() {
@@ -842,6 +848,8 @@ if (typeof document !== 'undefined') {
 // Unsaved changes: anything a save keeps, or paint (which the signature can't see).
 // An empty plate never counts as unsaved.
 useSlicer.subscribe((s, prev) => {
+  // A slice or an opening done: AutoSave can go ahead.
+  if (engineBusy(prev.job.kind) && !engineBusy(s.job.kind)) scheduleLocal();
   const same = s.project === prev.project && s.selection === prev.selection && s.overrides === prev.overrides && s.mixDefinitions === prev.mixDefinitions;
   if (same && s.preview === prev.preview && s.overlay === prev.overlay) return;
   const painted = Boolean(s.paint && ((s.preview !== prev.preview && prev.preview) || (s.overlay !== prev.overlay && prev.overlay)));
