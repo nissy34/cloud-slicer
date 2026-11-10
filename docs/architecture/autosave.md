@@ -62,6 +62,13 @@ There is no polling: a device finds out on its next save or when its tab is focu
 - Timing: kept 5 s after the last change, at most every 10 s (every minute for projects
   of 20 MB or more, since the engine takes a few seconds to write their 3MF), and when
   the tab is hidden. A slice's new preview isn't a change.
+- Not while slicing or opening: the engine does one thing at a time and writing a big
+  project's 3MF takes it many seconds (about 25 s for 67 MB), which the slice would wait
+  behind at 0%. It keeps the work once the slice or opening is done (#288).
+- One 3MF for both: the copy a slice keeps for reopening after a crash and AutoSave's are
+  the same file when nothing changed in between (`saved3mf` with its edit count and
+  settings, in `state/store.ts`), and a slice pressed while one is being written waits for
+  that one instead of writing another. Its bar says "Saving a copy first" meanwhile.
 - The Continue card offers the browser copy before anything from the account; Discard
   deletes it. It is dropped once the work is saved.
 - Leaving with unsaved changes still asks (the browser's "Leave site?"): they are kept
