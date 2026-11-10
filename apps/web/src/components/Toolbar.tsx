@@ -209,7 +209,16 @@ export function Toolbar({ onAdd }: { onAdd(): void }) {
       const edit = editKey(e);
       const nudge = nudgeKey(e);
       const s = useSlicer.getState();
-      if (nudge) {
+      const picks = tool === 'measure' || tool === 'assemble' ? s.measure.picks.length : -1;
+      if (picks > 0 && e.key === 'Escape' && !document.querySelector('[role="dialog"]')) {
+        // Desktop's Measure: Esc lets go of the last pick (the tool closes once none is left).
+        e.preventDefault();
+        s.measureRemove(picks - 1);
+      } else if (picks >= 0 && edit === 'delete') {
+        // Desktop's Delete in Measure starts the picking over (it never deletes the object).
+        e.preventDefault();
+        s.measureReset();
+      } else if (nudge) {
         // Arrows on a slider or a list keep working there.
         if (el.closest('input, select, [role="slider"], [role="listbox"], [role="menu"]') || (!several && (!selected || selected.volume !== undefined))) return;
         e.preventDefault();
