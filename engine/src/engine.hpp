@@ -57,6 +57,11 @@ void clearUndoHistory();
 void clearPaintCaches();
 void clearMeasureCaches();
 void clearSimplifyPreview();
+// The last slice's Print, kept so the next slice of the plate redoes only the
+// steps that changed (slice_api.cpp). Dropped whenever the project is cleared,
+// a model is added or a calibration test starts or stops, so the memory it
+// holds is free for those.
+void dropKeptSlice();
 
 // Puts a new object on `plate`, on the free spot closest to the centre, on the
 // bed, as an added model is placed (model_api.cpp).
