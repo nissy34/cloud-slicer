@@ -372,6 +372,8 @@ export interface SlicerState {
   /** The open project as an Orca 3MF project file, with the current settings. */
   projectFile(thumbnail: ProjectThumbnail | null): Promise<ArrayBuffer>;
   clearProject(): Promise<void>;
+  /** Drops the undo history, so Undo can't reach back past this point (desktop's project separator). */
+  clearUndo(): Promise<void>;
   /**
    * Replaces the running engine with another one, which starts empty (the
    * project lives in the engine). Resolves once it is up, or failed to start.
@@ -1922,6 +1924,10 @@ export const useSlicer = create<SlicerState>((set, get) => {
       }
       pendingCarry = { file, plan, towers: get().towers, plate: get().plate, layerHeight: config.layer_height ?? '', types: splitList(config.filament_type) };
       await get().switchEngine(to);
+    },
+    async clearUndo() {
+      if (get().engine !== 'ready') return;
+      set({ history: await engine().clearHistory() });
     },
     clearProject: () =>
       projectEdit('Delete all', async () => {

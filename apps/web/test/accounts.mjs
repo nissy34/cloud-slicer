@@ -1607,6 +1607,8 @@ if (withApp)
 
       await projectButton.click();
       await page.getByRole('menuitem', { name: 'New project', exact: true }).click();
+      // Its changed layer height: New project asks what to do with it, like desktop.
+      await page.getByTestId('preset-changes').getByRole('button', { name: 'Discard' }).click({ timeout: 5000 }).catch(() => {});
       await page.getByText('Open a model to start').waitFor();
       // A new project forgets it: the next reload starts empty.
       await page.reload();

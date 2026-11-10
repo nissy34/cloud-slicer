@@ -9,6 +9,7 @@ import { saveUserSetting, useUserSetting } from '../state/account';
 import { useOption, useSlicer } from '../state/store';
 import { FlowVariantSwitch } from './FlowVariantSwitch';
 import { OptionField } from './OptionField';
+import { forgetChoice, useRememberedChoice } from './PresetChangesDialog';
 import { useOptionStates } from './SettingsPrompt';
 
 // Desktop's modes: Simple, Advanced, and Expert for Advanced plus desktop's Developer mode (its develop settings).
@@ -258,6 +259,7 @@ export function SettingsPanel() {
   const hasLayout = useSlicer((s) => !!s.layout?.print.length);
   const overrides = useSlicer((s) => s.overrides);
   const resetOverrides = useSlicer((s) => s.resetOverrides);
+  const remembered = useRememberedChoice();
   if (!hasLayout) return null;
   const changed = Object.keys(overrides).length;
 
@@ -277,6 +279,15 @@ export function SettingsPanel() {
           <button className="quiet" onClick={() => resetOverrides()}>
             Reset all
           </button>
+          {remembered && (
+            <>
+              {' '}
+              New project {remembered === 'keep' ? 'keeps' : 'discards'} them without asking.{' '}
+              <button className="quiet" onClick={forgetChoice}>
+                Ask again
+              </button>
+            </>
+          )}
         </p>
       )}
     </section>

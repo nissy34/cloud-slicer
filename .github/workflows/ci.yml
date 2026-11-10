@@ -620,6 +620,7 @@ jobs:
           node test/convert.mjs
           node test/foreign-gcode.mjs
           node test/settings.mjs
+          node test/new-project.mjs
           node test/support-filaments.mjs
           node test/filament-list.mjs
           node test/calibration.mjs

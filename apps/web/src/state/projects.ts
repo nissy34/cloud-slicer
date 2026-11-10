@@ -107,7 +107,13 @@ interface ProjectsState {
   /** A project in the list was renamed or deleted. */
   onlineChanged(p: OnlineProject | { id: string; deleted: true }): void;
   /** An empty project, with the default engine or the one given. */
-  newProject(engine?: EngineFlavor): Promise<void>;
+  newProject(engine?: EngineFlavor, changes?: 'keep' | 'discard'): Promise<void>;
+  /**
+   * Desktop's New project: asks to save the open project, then what to do with
+   * changed settings (keep, discard or save into presets), then starts an
+   * empty project that Undo can't reach back from.
+   */
+  startNew(): Promise<void>;
   /** Moves the open project to the other engine (the Slicer engine dropdown); it then has unsaved changes. */
   switchEngine(engine: EngineFlavor): Promise<void>;
   /** Before the open project is replaced: saves, asks or discards as needed. False: stay. */
@@ -560,11 +566,25 @@ export const useProjects = create<ProjectsState>((set, get) => {
       else set({ current: { ...cur, name: p.name, version: p.version } });
     },
 
-    async newProject(engine = defaultEngine()) {
-      if (engine !== useSlicer.getState().flavor) await useSlicer.getState().switchEngine(engine);
-      else await useSlicer.getState().clearProject();
+    async newProject(engine = defaultEngine(), changes = 'discard') {
+      const slicer = useSlicer.getState();
+      if (engine === slicer.flavor) await slicer.clearProject();
+      // Kept changes go along to the other engine with the presets, as switching an empty plate does.
+      else if (changes === 'keep' && Object.keys(slicer.overrides).length && slicer.engine === 'ready') {
+        await slicer.clearProject();
+        await slicer.switchProject(engine);
+      } else await slicer.switchEngine(engine);
       set({ current: blank(), message: '', elsewhere: null, conflict: null });
       markClean();
+    },
+
+    async startNew() {
+      if (!(await get().leaveOk())) return;
+      const changes = await askPresetChanges();
+      if (changes === 'cancel') return;
+      if (changes === 'discard') useSlicer.getState().resetOverrides();
+      await get().newProject(undefined, changes === 'discard' ? 'discard' : 'keep');
+      await useSlicer.getState().clearUndo();
     },
 
     async switchEngine(engine) {
@@ -716,6 +736,11 @@ export function setLeaveQuestions(q: { discardOk: typeof discardOk; askSave: typ
   discardOk = q.discardOk;
   askSave = q.askSave;
   askAddTo = q.askAddTo;
+}
+// Set by components/PresetChangesDialog.tsx: New project's question about changed settings.
+let askPresetChanges: () => Promise<'keep' | 'discard' | 'saved' | 'cancel'> = async () => 'keep';
+export function setPresetChangesQuestion(ask: typeof askPresetChanges) {
+  askPresetChanges = ask;
 }
 
 // ---- files shared to the app (Android's Share menu) -------------------------------
