@@ -5,6 +5,7 @@
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { basename, dirname, extname, resolve } from 'node:path';
 import type { OrcaConfig, PresetSummary, Selection } from '../../web/src/engine/protocol';
+import { arrangeRequest, cleanArrange, DEFAULT_ARRANGE, type ArrangeSettings } from '../../web/src/lib/arrange';
 import { emptyProjectMessage, pickProcess, printerLabel, projectOverrides } from '../../web/src/lib/project-import';
 import { objectSettingGroups } from '../../web/src/lib/object-settings';
 import { checkOptionValue } from '../../web/src/lib/option-check';
@@ -313,10 +314,12 @@ export class Slicer {
     return this.refreshModel();
   }
 
-  async arrange(plate: number, spacing: number) {
+  /** Arrange like the site's Arrange pop-up (lib/arrange.ts): spacing 0 = auto, desktop's options. */
+  async arrange(plate: number, choice: Partial<ArrangeSettings> = {}) {
     const { config } = await this.fullConfig();
     const tall = config.print_sequence === 'by object' ? Number(config.extruder_clearance_height_to_rod) || 0 : 0;
-    await this.call('json', 'arrangePlate', plate, spacing, tall);
+    const { spacing, options } = arrangeRequest(cleanArrange({ ...DEFAULT_ARRANGE, ...choice }), config.printer_structure as string | undefined);
+    await this.call('json', 'arrangePlate', plate, spacing, tall, JSON.stringify(options));
     return this.refreshModel();
   }
 

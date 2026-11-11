@@ -274,6 +274,8 @@ export interface SliceResult {
   filamentParts?: Record<string, Partial<Record<FilamentPart, { mm: number; g: number }>>>;
   /** Depth of the prime tower the slice made (mm), when it made one. */
   wipeTowerDepth?: number;
+  /** The slice started from the last slice of this plate, redoing only the steps the change touched (as desktop does). */
+  reused?: boolean;
 }
 
 /**

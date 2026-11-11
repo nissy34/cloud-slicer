@@ -53,12 +53,19 @@ try {
   };
   const projectButton = page.getByRole('button', { name: /^Project/ });
   // Unsaved changes ask in the app's own dialog (not the browser's confirm).
-  const discardIfAsked = () =>
-    page
+  const discardIfAsked = async () => {
+    await page
       .getByTestId('ask-dialog')
       .getByRole('button', { name: 'Discard changes' })
       .click({ timeout: 3000 })
       .catch(() => {});
+    // Settings the opened project changed: New project asks about them, like desktop.
+    await page
+      .getByTestId('preset-changes')
+      .getByRole('button', { name: 'Discard' })
+      .click({ timeout: 3000 })
+      .catch(() => {});
+  };
 
   await page.goto(url);
   await engineIs('Snapmaker Orca');

@@ -119,6 +119,9 @@ test('move, copies, arrange, then save and reopen the project', async () => {
   const arranged = await tool('arrange_plate', {});
   const spots = new Set(arranged.objects[0].copies.map((c) => c.positionMm.slice(0, 2).join()));
   assert.equal(spots.size, 4);
+  // Desktop's Arrange options, as the site's Arrange pop-up passes them.
+  const rotated = await tool('arrange_plate', { spacingMm: 20, autoRotate: true, multipleMaterialsOnPlate: false });
+  assert.equal(new Set(rotated.objects[0].copies.map((c) => c.positionMm.slice(0, 2).join())).size, 4);
   await tool('change_settings', { settings: { wall_loops: 5 } });
   const file = join(out, 'saved.3mf');
   assert.equal((await tool('save_project', { path: file })).saved, file);

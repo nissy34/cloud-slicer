@@ -11,12 +11,15 @@
 #include "libslic3r/Layer.hpp"
 #include "libslic3r/Print.hpp"
 
+#include <emscripten/heap.h>
+
 #include <algorithm>
 #include <atomic>
 #include <chrono>
 #include <cmath>
 #include <cstdint>
 #include <cstdio>
+#include <memory>
 #include <mutex>
 #include <thread>
 
@@ -208,7 +211,11 @@ std::string explain(const SlicingErrors& e, const Print& print) {
 // land in m_state[-1]: past the array, onto the Print's other fields.
 class SlicePrint : public Print {
 public:
+    // Always writes the G-code again: a kept Print (see Kept) has the export
+    // done already, and Orca's export then returns without filling `result`
+    // (no time, no filament) or taking this slice's thumbnails.
     std::string exportGcode(const std::string& path, GCodeProcessorResult* result, ThumbnailsGeneratorCallback thumbnails) {
+        invalidate_step(psGCodeExport);
         set_started(psGCodeExport);
         std::string out = export_gcode(path, result, thumbnails);
         set_done(psGCodeExport);
@@ -226,6 +233,27 @@ public:
         return name;
     }
 };
+
+// The last slice's Print, kept for the next slice of the same plate, as
+// desktop keeps one Print per plate between slices. Print::apply compares the
+// new plate and settings with the ones it sliced and invalidates only the
+// steps they change (Orca's own rules, per option): a new infill density
+// keeps the sliced layers and walls, a new speed or temperature keeps all of
+// it and only writes the G-code again, a new layer height starts over.
+//
+// It holds every layer's paths, so only one is kept, and only while the
+// engine's memory is small (KEEP_LIMIT: the memory a page has is 4 GB, and a
+// phone may close the page sooner). Opening or adding a model, emptying the
+// plate, a calibration test, slicing another plate, a cancelled or failed
+// slice all drop it (dropKeptSlice), so its memory is free for them.
+constexpr double KEEP_LIMIT = 1.5 * (1 << 30);
+
+struct Kept {
+    std::unique_ptr<SlicePrint> print;
+    int plate = -1;
+    bool bambu = false;
+};
+Kept g_kept;
 
 // Warnings for the user from one slice, the ones desktop shows as
 // notifications: validation's warning, each Print / PrintObject step's
@@ -254,6 +282,21 @@ public:
                 if (o->id() == s.warning_object_id) object = o->model_object()->name;
         add(s.text, s.message_type == PrintStateBase::SlicingEmptyGcodeLayers || s.message_type == PrintStateBase::SlicingReplaceInitEmptyLayers,
             object);
+    }
+    // The warnings every step of the Print holds, as desktop's notifications
+    // show them after a slice. A step the slice kept from the last one (see
+    // Kept) didn't run, so it didn't report its warnings again.
+    void addKept(const Print& print) {
+        const auto serious = [](int id) {
+            return id == PrintStateBase::SlicingEmptyGcodeLayers || id == PrintStateBase::SlicingReplaceInitEmptyLayers;
+        };
+        for (int s = 0; s < int(psCount); ++s)
+            for (const PrintStateBase::Warning& w : print.step_state_with_warnings(PrintStep(s)).warnings)
+                if (w.current) add(w.message, serious(w.message_id));
+        for (const PrintObject* o : print.objects())
+            for (int s = 0; s < int(posCount); ++s)
+                for (const PrintStateBase::Warning& w : o->step_state_with_warnings(PrintObjectStep(s)).warnings)
+                    if (w.current) add(w.message, serious(w.message_id), o->model_object()->name);
     }
     json list() const {
         std::scoped_lock lock(m_mutex);
@@ -362,6 +405,8 @@ std::string sliceWithConfig(const std::string& configJson, int plate, const std:
                             emscripten::val thumbnails, std::string name) {
     json res{{"success", false}, {"cancelled", false}, {"error", ""}};
     Warnings warnings;
+    std::unique_ptr<SlicePrint> owned;  // this slice's Print, kept after it when it succeeds
+    bool reused = false;
     try {
         const ThumbnailsList pictures = readThumbnails(thumbnails);
         Model model = plateModel(plate);
@@ -403,8 +448,18 @@ std::string sliceWithConfig(const std::string& configJson, int plate, const std:
         if (!outside.empty()) throw std::runtime_error("Some objects are outside the printable area: " + outside.dump());
 
         engine::report(onProgress, 2, "Preparing");
-        SlicePrint print;
-        print.is_BBL_printer() = engine::selectedPrinterIsBambu();  // as desktop does before slicing
+        const bool bambu = engine::selectedPrinterIsBambu();
+        if (g_kept.print && g_kept.plate == plate && g_kept.bambu == bambu) {
+            owned = std::move(g_kept.print);
+            reused = true;
+        } else {
+            engine::dropKeptSlice();  // its memory is free for this one
+            owned = std::make_unique<SlicePrint>();
+        }
+        g_kept = Kept();
+        SlicePrint& print = *owned;
+        print.restart();  // as desktop does before each slice: clears a cancel
+        print.is_BBL_printer() = bambu;  // as desktop does before slicing
         // Desktop's PartPlate sets this; Print leaves it uninitialised (brim and
         // skirt read it). plateModel already put the plate's corner at the origin.
         print.set_plate_origin(Vec3d::Zero());
@@ -457,6 +512,7 @@ std::string sliceWithConfig(const std::string& configJson, int plate, const std:
         // A cancel that landed in code which caught the exception itself.
         if (cancelRequested()) throw CanceledException();
         if (result.conflict_result) warnings.add(conflictText(*result.conflict_result, print), true);
+        warnings.addKept(print);
 
         // Layers as the G-code has them ("; total layer number"), counted as
         // GCode::_do_export does: one per height printed, so object and
@@ -548,6 +604,7 @@ std::string sliceWithConfig(const std::string& configJson, int plate, const std:
                              "filename_format");
             }
         }
+        res["reused"] = reused;
         engine::report(onProgress, 100, "Done");
     } catch (const CanceledException&) {
         res["cancelled"] = true;
@@ -555,6 +612,15 @@ std::string sliceWithConfig(const std::string& configJson, int plate, const std:
     } catch (const std::exception& e) {
         res["error"] = e.what();
     }
+    // Kept for the next slice of this plate (the cancel watcher has stopped).
+    // Its status callback reported into this call's locals.
+    if (owned && res["success"].get<bool>() && double(emscripten_get_heap_size()) <= KEEP_LIMIT) {
+        owned->set_status_silent();
+        g_kept.print = std::move(owned);
+        g_kept.plate = plate;
+        g_kept.bambu = engine::selectedPrinterIsBambu();
+    }
+    owned.reset();
     res["warnings"] = warnings.list();
     return res.dump();
 }
@@ -649,6 +715,8 @@ std::string clearanceJson(const std::string& configJson, int plate) {
         return json{{"byObject", false}, {"error", e.what()}}.dump();
     }
 }
+
+void engine::dropKeptSlice() { g_kept = Kept(); }
 
 EMSCRIPTEN_BINDINGS(slice_api) {
     emscripten::function("sliceWithConfig", &sliceWithConfig);

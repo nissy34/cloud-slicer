@@ -282,6 +282,7 @@ int Project::plateOf(const ModelInstance& inst) const {
 }
 
 void Project::clear() {
+    dropKeptSlice();
     model.clear_objects();
     model.clear_materials();
     model.plates_custom_gcodes.clear();
@@ -332,6 +333,7 @@ size_t filamentCount(const DynamicPrintConfig& cfg) {
 std::string loadModel(const std::string& path, int plate, double bedWidth, double bedDepth, bool geometryOnly, double orientation) {
     try {
         const bool is3mf = boost::iends_with(path, ".3mf");
+        dropKeptSlice();  // its memory is free for the file
         if (is3mf && !geometryOnly) {
             // The open project goes, with everything kept about it, before the
             // new one is read: both at once may not fit.

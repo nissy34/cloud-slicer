@@ -50,6 +50,9 @@ sequenceDiagram
   pictures to Orca's own G-code export.
 - If the engine crashes after start, a new one starts and reopens the project
   (from its 3MF, or a copy saved before slicing if it was edited).
+- The last slice's Orca `Print` stays in the engine, so slicing the same plate again
+  redoes only the steps the change touches, as desktop does (see Why). The result's
+  `reused` says whether it started from the kept one.
 - Files the worker loads carry `?v=<engine build hash>`, so a cached older engine is
   never mixed with a newer page.
 
@@ -107,6 +110,15 @@ match ([testing](testing.md#same-as-desktop-orca)).
 - **Caches go with their meshes**: ray-cast trees (painting, text on a surface) and
   Measure's data are dropped when their mesh is, and emptying the plate drops them all
   (the undo history stays, so Delete all can be undone).
+- **The last slice is kept, like desktop**: desktop keeps a `Print` per plate, and
+  `Print::apply` compares the new plate and settings with what it sliced and invalidates
+  only the steps they change (Orca's own rules per option). A new infill density keeps
+  the sliced layers and walls; a new speed or temperature only writes the G-code again;
+  a new layer height starts over. It holds every layer's paths, so we keep one (the last
+  plate sliced), only while the engine's memory is under 1.5 GB, and drop it when a
+  model is opened or added, the plate is emptied, a calibration test starts or stops,
+  another plate is sliced, or a slice is cancelled or fails. Warnings are read from the
+  kept steps too, since a step that didn't run didn't report them again.
 - **A wasm trap restarts the engine**: a trap inside a call (out of memory) leaves the
   engine unusable, so the worker reports it like a crash and the page starts a new engine
   and reopens the project, saying it ran out of memory.
@@ -116,13 +128,20 @@ match ([testing](testing.md#same-as-desktop-orca)).
 - **Patch 0010** makes a slice independent of earlier ones: the support infill kept
   limits from the first support fill the engine made, which in a tab that stays open
   means the first one of the session.
+- **Patch 0011** makes each G-code export from a kept `Print` the same as the first:
+  export turned some of the print's infill and support paths round in place, so the
+  next export printed them the other way (desktop does this too, after a speed or
+  temperature change). **0012** and **orca/0013** fix Orca's step rules where redoing a
+  step on a kept `Print` gave other G-code than a fresh slice (lift detection not redone
+  after supports; walls simplified twice after an infill change).
 - **No wasm64**: Safari lacks it, phones kill tabs below 4 GB anyway, and it is slower.
 - More in [decisions.md](../decisions.md#engines).
 
 ## Tests
 
 `engine/node/engine.test.mjs` (both engines, in CI `engine-tests`; its memory test keeps
-a heavy model, repeated painting and 40 medium objects under 1.25 GB),
+a heavy model, repeated painting and 40 medium objects under 1.25 GB; a kept slice must
+print exactly what a fresh slice prints after an infill, speed or move change),
 `engine/klipper-check/check.sh` (Klipper accepts the G-code), browser tests
 `smoke.mjs`, `cancel.mjs`, `restart.mjs`, `startup-matrix.mjs`, `engines.mjs`,
 `engine-switch.mjs`.

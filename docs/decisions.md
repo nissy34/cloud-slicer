@@ -44,6 +44,9 @@ down. Add a line with the date when a new choice is made.
 - Colour mixing from Snapmaker Orca is required; Android-only mixing extras dropped.
 - More than four colours on the U1 through manual swap pauses: turned down (2026-10-18);
   colour mixing or more filaments per head instead.
+- Slices reuse the last slice's work like desktop (Orca's `Print::apply`), keeping only the
+  last plate sliced and only under 1.5 GB of engine memory; one `Print` per plate like
+  desktop turned down for phone memory (2026-11-10).
 
 ## Presets and settings
 

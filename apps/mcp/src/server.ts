@@ -389,8 +389,22 @@ server.registerTool(
 
 server.registerTool(
   'arrange_plate',
-  { title: 'Arrange', description: 'Spreads the objects on a plate so none overlap; any that don\'t fit go to new plates.', inputSchema: { plate: z.number().int().min(0).optional(), spacingMm: z.number().min(0).optional() } },
-  ({ plate, spacingMm }) => run(async () => (await slicer.engine(), summary(await slicer.arrange(plate ?? 0, spacingMm ?? 6)))),
+  {
+    title: 'Arrange',
+    description: 'Spreads the objects on a plate so none overlap; any that don\'t fit go to new plates. Options are desktop OrcaSlicer\'s Arrange options.',
+    inputSchema: {
+      plate: z.number().int().min(0).optional(),
+      spacingMm: z.number().min(0).optional().describe('Gap between objects; 0 or left out = auto'),
+      autoRotate: z.boolean().optional().describe('Turn objects to fit more (desktop "Auto rotate for arrangement")'),
+      alignToYAxis: z.boolean().optional().describe('Desktop "Align to Y axis"; left out = on for printers whose bed moves along Y; ignored with autoRotate'),
+      multipleMaterialsOnPlate: z.boolean().optional().describe('Desktop "Allow multiple materials on same plate" (default true); false puts objects with different filaments on plates of their own'),
+    },
+  },
+  ({ plate, spacingMm, autoRotate, alignToYAxis, multipleMaterialsOnPlate }) =>
+    run(async () => (
+      await slicer.engine(),
+      summary(await slicer.arrange(plate ?? 0, { spacing: spacingMm, rotate: autoRotate, alignY: alignToYAxis, multiMaterial: multipleMaterialsOnPlate }))
+    )),
 );
 
 server.registerTool(

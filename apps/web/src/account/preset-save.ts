@@ -9,6 +9,7 @@ import { listUserPresets, presetEdit, saveUserPreset } from '../state/account';
 import { useSlicer } from '../state/store';
 import type { PresetType } from './api';
 import { META, presetEdited, systemParent } from './preset-diff';
+import { presetNameError } from './api';
 
 /** The presets a picker of `type` offers. */
 export function presetList(type: PresetType): PresetSummary[] {
@@ -111,6 +112,64 @@ export const saveAsNew = (type: PresetType, name: string, slot?: number) =>
     await saveFromEngine(type, name, await editsFor(type, preset, slot), { from: preset.user ? preset.name : undefined });
     return selectionWith(type, name, slot);
   });
+
+/** A selected preset with changes not saved into it (desktop's "Some presets are modified"). */
+export interface ChangedPreset {
+  type: PresetType;
+  /** The filament slot, for a filament. */
+  slot?: number;
+  name: string;
+  /** One of the user's own presets, which Save can write the changes into. */
+  user: boolean;
+  changes: number;
+}
+
+/** The selected presets the current changes belong to: filaments first, then process, then printer. */
+export async function changedPresets(): Promise<ChangedPreset[]> {
+  const s = useSlicer.getState();
+  const selection = s.selection;
+  if (!selection || !Object.keys(s.overrides).length) return [];
+  const slots = selection.filaments.length;
+  const picks: { type: PresetType; slot?: number }[] = [...selection.filaments.map((_, slot) => ({ type: 'filament' as const, slot })), { type: 'process' }, { type: 'printer' }];
+  const out: ChangedPreset[] = [];
+  for (const { type, slot } of picks) {
+    const name = selectedName(selection, type, slot);
+    const preset = presetList(type).find((p) => p.name === name);
+    const own = preset ? await s.presetConfig(type, name) : null;
+    if (!preset || !own) continue;
+    const edited = presetEdited({
+      own,
+      overrides: s.overrides,
+      options: s.options,
+      slot: type === 'filament' ? { index: slot ?? 0, count: slots, config: s.baseConfig } : undefined,
+    });
+    const changes = Object.keys(edited).filter((k) => k in s.overrides && edited[k] !== own[k]).length;
+    if (changes) out.push({ type, slot, name, user: !!preset.user, changes });
+  }
+  return out;
+}
+
+/**
+ * Saves each changed preset's changes under the name given for it: into the
+ * preset itself when that is the user's own and keeps its name, else as a new
+ * preset. Printer last, as a new printer can change which filaments and
+ * processes fit.
+ */
+export async function saveChangedPresets(rows: { preset: ChangedPreset; name: string }[]): Promise<void> {
+  const names = rows.map((r) => `${r.preset.type}:${r.name.trim()}`);
+  for (const { preset, name: raw } of rows) {
+    const name = raw.trim();
+    const problem =
+      presetNameError(name) ??
+      (names.filter((n) => n === `${preset.type}:${name}`).length > 1 ? 'Two presets can\'t have the same name.' : null) ??
+      (!(preset.user && name === preset.name) && presetTaken(preset.type, name) ? `A preset named “${name}” already exists.` : null);
+    if (problem) throw new Error(problem);
+  }
+  for (const { preset, name } of rows) {
+    if (preset.user && name.trim() === preset.name) await saveChanges(preset.type, preset.slot);
+    else await saveAsNew(preset.type, name.trim(), preset.slot);
+  }
+}
 
 /** Makes the settings a preset keeps apart per engine the same in both, with the running engine's values. */
 export const sameValuesInBothEngines = (type: PresetType, name: string) =>

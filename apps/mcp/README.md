@@ -65,4 +65,4 @@ walls and tell me the time and grams."
 | `show_plate` | A picture of the plate for Claude to look at |
 | `slice` | Writes the G-code (with plate pictures) for one plate or every plate; returns time, grams and metres per slot, layers, warnings |
 | `save_project` | Writes a 3MF that the site and desktop OrcaSlicer open |
-| `move_object`, `set_copies`, `remove_object`, `arrange_plate`, `auto_orient` | Move (also to another or a new plate), turn, scale, copy, arrange, orient |
+| `move_object`, `set_copies`, `remove_object`, `arrange_plate`, `auto_orient` | Move (also to another or a new plate), turn, scale, copy, arrange (with desktop's Arrange options), orient |

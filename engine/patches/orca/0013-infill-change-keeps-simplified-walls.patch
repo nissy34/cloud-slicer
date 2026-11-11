@@ -1,0 +1,26 @@
+Invalidation: an infill change leaves the simplified walls alone.
+
+Invalidating posPrepareInfill also invalidated posSimplifyPath, which
+simplifies the walls. The infill doesn't change the walls, and simplifying
+walls that were already simplified turned their fitted arcs into lines, so a
+Print sliced again after an infill change (desktop does; the browser engine
+keeps the last slice's Print) printed other walls than a fresh slice. A wall
+change still redoes it (posPerimeters invalidates posSimplifyPath).
+
+diff --git a/src/libslic3r/PrintObject.cpp b/src/libslic3r/PrintObject.cpp
+index 925da0c5..3dbce142 100644
+--- a/src/libslic3r/PrintObject.cpp
++++ b/src/libslic3r/PrintObject.cpp
+@@ -1476,7 +1476,11 @@ bool PrintObject::invalidate_step(PrintObjectStep step)
+ 		invalidated |= this->invalidate_steps({ posPrepareInfill, posInfill, posIroning, posContouring, posSimplifyPath, posSimplifyInfill });
+         invalidated |= m_print->invalidate_steps({ psSkirtBrim });
+     } else if (step == posPrepareInfill) {
+-        invalidated |= this->invalidate_steps({ posInfill, posIroning, posContouring, posSimplifyPath, posSimplifyInfill });
++        // cloud-slicer: not posSimplifyPath (the walls): the infill doesn't
++        // change them, and simplifying walls already simplified turned their
++        // arcs into lines, so a Print sliced again after an infill change
++        // printed other walls than a fresh slice.
++        invalidated |= this->invalidate_steps({ posInfill, posIroning, posContouring, posSimplifyInfill });
+     } else if (step == posInfill) {
+         invalidated |= this->invalidate_steps({ posIroning, posContouring, posSimplifyInfill });
+         invalidated |= m_print->invalidate_steps({ psSkirtBrim });
