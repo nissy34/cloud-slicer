@@ -1,0 +1,5 @@
+G-code export: chain copies of the print's infill and support paths.
+
+OrcaSlicer 2.5 doesn't need patches/snapmaker/0011: its chain_and_reorder_extrusion_entities
+takes the print's paths as const and turns copies ("reversed"), so exporting again from a
+kept Print leaves them as they were. This patch changes no file.

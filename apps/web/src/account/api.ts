@@ -17,6 +17,8 @@ export interface AccountUser {
   owner?: boolean;
   /** Google Drive is connected: projects save online (into it). */
   drive?: boolean;
+  /** Connected once, but Google no longer gives the site a key for it: "Connect Google Drive" again. */
+  driveReconnect?: boolean;
   /** False when the site's owner turned online projects off for them. */
   projects?: boolean;
   /** The site can open Google's file window (Open from Google Drive, account/drive-picker.ts). */
@@ -133,6 +135,18 @@ export class ApiError extends Error {
   }
 }
 
+type DriveLostListener = () => void;
+const driveLostListeners = new Set<DriveLostListener>();
+/** Called whenever Cloud Slicer or Google says Drive needs connecting again (state/account.ts shows Connect for it). */
+export function onDriveLost(fn: DriveLostListener): () => void {
+  driveLostListeners.add(fn);
+  return () => driveLostListeners.delete(fn);
+}
+/** Google stopped accepting the site's key for the person's Drive. */
+export function driveLost() {
+  for (const fn of driveLostListeners) fn();
+}
+
 /** No request to Cloud Slicer takes longer than this: a stalled connection fails instead of waiting for good (#276). */
 const API_MS = 60_000;
 
@@ -151,7 +165,10 @@ async function call<T>(path: string, init: RequestInit = {}, contentType = 'appl
     // Without Functions (vite dev/preview) /api/* falls through to index.html.
     if (!type.includes('application/json')) throw new ApiError(404, 'Accounts are not available on this server');
     const body = (await res.json()) as Record<string, unknown>;
-    if (!res.ok) throw new ApiError(res.status, String(body.error ?? res.statusText), body);
+    if (!res.ok) {
+      if (body.code === 'drive-connect') driveLost();
+      throw new ApiError(res.status, String(body.error ?? res.statusText), body);
+    }
     return body as T;
   } catch (e) {
     const why = failure(e, limit, cancel);

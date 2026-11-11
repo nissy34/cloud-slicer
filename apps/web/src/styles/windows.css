@@ -106,3 +106,18 @@
 .small {
   font-size: var(--t-sm);
 }
+
+/* New project's "Keep your changed settings?" list of changed presets. */
+.preset-changes-list {
+  display: grid;
+  gap: var(--s-2);
+  margin: 0;
+  padding-inline-start: var(--s-7);
+}
+.preset-changes-names {
+  display: grid;
+  gap: var(--s-5);
+}
+.preset-changes-names p {
+  margin: 0;
+}

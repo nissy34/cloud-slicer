@@ -266,6 +266,25 @@
   font-variant-numeric: tabular-nums;
   text-align: right;
 }
+/* A picked feature's title with desktop's Reset beside it. */
+.measure-figures > .measure-title-row {
+  align-items: center;
+}
+.measure-reset {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  margin: -4px -4px -4px 0;
+  padding: 0;
+}
+@media (pointer: coarse) {
+  .measure-reset {
+    width: var(--ctl);
+    height: var(--ctl);
+    margin-block: -6px;
+  }
+}
 .object-label {
   padding: 2px 8px;
   border-radius: var(--r-sm);

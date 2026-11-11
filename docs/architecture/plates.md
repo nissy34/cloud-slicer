@@ -20,7 +20,7 @@ printing object by object, a draggable prime tower, and a slice kept per plate.
 | Engine: add, delete, rename, lock, copy/paste, shapes | `engine/src/plate_api.cpp` (`plateAction`) |
 | Clearance outlines and checks | `lib/clearance.ts`, `components/Clearance.tsx` |
 | Prime tower size and place | `engine/src/wipe_tower_api.cpp`, `lib/wipe-tower.ts`, `components/WipeTower.tsx` |
-| Arrange | `engine/src/tools_api.cpp` `arrangePlate` |
+| Arrange and its options pop-up | `engine/src/tools_api.cpp` `arrangePlate`, `components/ArrangeOptions.tsx`, `lib/arrange.ts` |
 | A slice per plate | `state/store.ts` `slices`, `slicedAway` |
 
 ## How it flows
@@ -53,6 +53,22 @@ printing object by object, a draggable prime tower, and a slice kept per plate.
   where two touch, a red band where an object is too tall for its place (rod and lid
   heights from the printer preset). Slice waits; Arrange spaces by the clearance with
   tall objects last.
+- **Arrange options**: the toolbar's Arrange button opens desktop's pop-up
+  (`GLCanvas3D::_render_arrange_menu`): Spacing (slider 0 to 100 mm and a box that takes
+  any value; 0 means auto, which is 6 mm here), Auto rotate for arrangement, Allow
+  multiple materials on same plate, Align to Y axis (greyed while Auto rotate is on, as
+  desktop), then Arrange (all plates) and Reset. Defaults are desktop's
+  `ArrangeSettings`; Align to Y axis follows the printer (on for `printer_structure` i3)
+  until chosen. They are kept in this browser (`localStorage`, like desktop's app
+  config, not in the project) and every Arrange uses them: A, Shift+A, the plate icon
+  and menu, Clone with Arrange. The engine gets `{rotate, alignY, multiMaterial}`:
+  Auto rotate turns each object to Orca's `MinAreaBoundigBox` angle, long side across
+  (libnest2d starts from the same angle); Align to Y axis is Orca's own
+  `update_selected_items_axis_align`; with multiple materials off, objects whose
+  filaments aren't a subset of each other's go onto plates of their own (desktop's
+  rule in `AutoArranger`). Printing object by object, the gap is never under the
+  clearance. On a phone the pop-up closes after Arrange so the plate is in sight;
+  desktop keeps it open, like Orca.
 - **Slicing another plate**: picking a plate while one slices shows it at once; the
   slice goes on and the bar says "Plate N sliced · View".
 
@@ -64,7 +80,9 @@ All in the project 3MF: plate settings, names, lock, tower positions, layer code
 
 - Any project edit drops every plate's slice; re-slicing a plate drops its old one first.
 - Arrange all skips locked plates. Arrange is our own row packer: Orca's libnest2d stacks
-  everything in wasm.
+  everything in wasm. So the options act on rows: Auto rotate picks one turn per object
+  (desktop also tries 45° steps while packing), and "Avoid extrusion calibration region"
+  (Bambu lidar printers only) is left out.
 - Move to plate (object and group menus) keeps each copy's plate-local offset, so it lands
   on the same spot of the other plate; the engine's `transform` with `plate` does it, no
   plate API of its own.
@@ -78,7 +96,8 @@ The engine loaded and saved plate settings but never applied them before #176 (a
 ## Tests
 
 `plate-settings.mjs`, `clearance.mjs`, `plate-menu.mjs`, `plate-switch.mjs`,
-`wipe-tower.mjs`, `busy.mjs`.
+`wipe-tower.mjs`, `busy.mjs`, `arrange-options.mjs`; `lib/arrange.test.ts`; engine test
+"arrange options from desktop's Arrange pop-up".
 
 ## Open
 

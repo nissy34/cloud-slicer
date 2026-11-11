@@ -20,6 +20,7 @@ import {
   api,
   ApiError,
   mergeSetting,
+  onDriveLost,
   type AccountUser,
   type Device,
   type DeviceInput,
@@ -41,6 +42,8 @@ interface AccountState {
   devices: Device[];
   /** Last sign-in or sync problem, for the account menu. */
   error: string;
+  /** Google stopped giving the site a key for their Drive (a save said so): the account menu offers Connect again. */
+  driveLost: boolean;
 
   init(): void;
   refresh(): Promise<void>;
@@ -162,6 +165,7 @@ export const useAccount = create<AccountState>((set, get) => ({
   providers: { google: false },
   ...localState(),
   error: '',
+  driveLost: false,
 
   init() {
     if (started) return;
@@ -176,10 +180,12 @@ export const useAccount = create<AccountState>((set, get) => ({
     // popup off from window.opener once it visits the provider).
     if (typeof BroadcastChannel !== 'undefined') {
       new BroadcastChannel(CHANNEL).onmessage = (e: MessageEvent<{ type: string; message?: string }>) => {
-        if (e.data?.type === 'signed-in') void get().refresh();
+        // Signed in, or Drive connected again: Google gave a fresh key.
+        if (e.data?.type === 'signed-in') set({ driveLost: false }), void get().refresh();
         if (e.data?.type === 'error') set({ error: e.data.message ?? 'Sign-in failed' });
       };
     }
+    onDriveLost(() => set({ driveLost: true }));
     void get().refresh();
   },
 

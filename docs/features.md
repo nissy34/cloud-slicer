@@ -58,7 +58,7 @@ why: [README.md](README.md) (the docs map) and [architecture/](architecture/).
 - **Prepare tools**: move, rotate, scale (exact fields like desktop's: position X, Y and Z, where a
   Z below the bed sinks the object into it; rotation; scale in percent or size in mm, all three
   axes together while "Scale evenly" is on; the same fields for a part inside its object), lay on face, cut, measure (distances and angles
-  between faces, edges, circles and corners), variable layer height (adaptive, smooth,
+  between faces, edges, circles and corners, a circle's diameter and radius, Reset or Esc to take back a pick, a tap on a phone reaching the edge or circle near it), variable layer height (adaptive, smooth,
   or by hand on the layer height chart), arrange, auto-orient, split,
   mirror, simplify (offered by itself when the plate to slice has too many triangles to slice comfortably; a phone or tablet asks before drawing such a model, since drawing it can take more memory than the phone allows), plates, brim ears (by hand or on the corners), undo and redo, desktop's editing keys (Del deletes the
   picked copy or part, Ctrl+C / Ctrl+V copy and paste an object, Ctrl+K clones it, + and - add or

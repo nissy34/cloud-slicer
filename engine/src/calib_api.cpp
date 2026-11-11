@@ -550,6 +550,7 @@ std::string calibrationStart(const std::string& optionsJson, const std::string& 
         default: ringingTower(params.mode, cfg); break;
         }
         pr().calib = params;
+        engine::dropKeptSlice();  // the kept Print was sliced without the test's params
         pr().fileName = opt.value("name", "");
 
         json overrides = json::object();
@@ -565,7 +566,10 @@ std::string calibrationStart(const std::string& optionsJson, const std::string& 
 }
 
 // Ends calibration mode: slicing goes back to normal G-code.
-void calibrationStop() { pr().calib = Calib_Params(); }
+void calibrationStop() {
+    pr().calib = Calib_Params();
+    engine::dropKeptSlice();
+}
 
 } // namespace
 

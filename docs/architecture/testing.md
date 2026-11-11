@@ -99,6 +99,7 @@ for the rest):
 | `test/preset-files.mjs` | Printer and filament settings windows, preset export and import |
 | `test/accounts.mjs` | Sign-in, sessions, synced presets/settings/printers, online projects, AutoSave in the browser, Continue on another device, view only, Share to Cloud Slicer (Pages Functions + local D1, mock Google) |
 | `test/toolbar.mjs` | The object toolbar: add a model, variable layer height, simplify, brim ears, lay on face, measure, the object menu, parts and modifiers, mesh boolean, text and SVG shapes, assemble, fits a phone |
+| `test/measure.mjs` | Measure: a washer's rim shows its circle's diameter and radius, picking again lets go, Esc lets go of the last pick, Delete starts over and keeps the model, Reset; on a phone a tap near the rim picks the circle |
 | `test/layout-fixes.mjs` | Prepare's layout and dialogs: long object and project names shorten with "…", the Paint card fits, closing the Text tool takes back an unchanged new text, preset menus name presets as their dropdowns and open upward near the bottom, Online projects closes with Esc or a click outside, unsaved changes ask in the app's own dialog, the phone's buttons after slicing fit one row |
 | `test/mixing.mjs` | Make a colour mix, slice, the G-code alternates between both tools |
 | `test/paint-remap.mjs` | Paint with a mix, Remap filaments it to filament 1, slice: only filament 1 prints |
@@ -107,6 +108,7 @@ for the rest):
 | `test/view-touch.mjs` | Phone 3D view: pinching on a model that fills the screen zooms out instead of moving it; Fit all and the views menu |
 | `test/loading.mjs` | The loading screen while the engine starts and a project opens |
 | `test/busy.mjs` | The loading screen while Clone with Arrange runs, and every copy landing on the plate |
+| `test/arrange-options.mjs` | The toolbar's Arrange pop-up: its options, Align to Y axis and Auto rotate turning a bar, the spacing gap, kept in the browser, fits a phone |
 | `test/preview-views.mjs` | The Preview's colour key: grams and filament changes match the G-code, every view draws its scale, a tapped line type hides and comes back, and on a phone the key sits above the model |
 | `test/cancel.mjs` | Cancel stops the slice in the engine, and a change while slicing drops its result |
 | `test/background-slice.mjs` | Screen kept awake and progress in the tab title while slicing; "Slicing done" notification when it ends hidden |

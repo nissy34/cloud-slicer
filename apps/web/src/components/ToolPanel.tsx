@@ -2,6 +2,7 @@ import { useMemo } from 'react';
 import * as THREE from 'three';
 import { CutPanel } from './CutPanel';
 import { describeFeature, measurementRows } from '../lib/measure';
+import { PickReset } from './PickReset';
 import { scaledBy } from '../lib/transform';
 import { groupBox } from '../lib/group';
 import { AssemblePanel } from './AssemblePanel';
@@ -166,6 +167,9 @@ function GroupFields({ tool }: { tool: 'move' | 'rotate' | 'scale' }) {
   );
 }
 
+// A touch screen: hints say tap.
+const COARSE = typeof window !== 'undefined' && !!window.matchMedia?.('(pointer: coarse)').matches;
+
 /** The Measure tool's figures, like desktop's Measure panel. */
 function MeasurePanel() {
   const { hover, picks, result, onlyPlane } = useSlicer((s) => s.measure);
@@ -181,16 +185,28 @@ function MeasurePanel() {
       </div>
       <p className="muted hint">
         {picks.length === 0
-          ? 'Point at a face, edge, circle or corner and click it. Click a second one to measure between them.'
+          ? COARSE
+            ? 'Tap a face, edge, circle or corner. Tap a second one to measure between them.'
+            : 'Point at a face, edge, circle or corner and click it. Click a second one to measure between them.'
           : picks.length === 1
-            ? 'Now click a second feature to measure the distance and angle.'
-            : 'Click another feature to start a new measurement.'}
+            ? `Now ${COARSE ? 'tap' : 'click'} a second feature to measure the distance and angle.`
+            : `${COARSE ? 'Tap' : 'Click'} another feature to start a new measurement.`}
+        {picks.length > 0 && !COARSE && ' Esc lets go of the last pick, Delete starts over.'}
       </p>
       {shown.map((f, i) => {
         const { name, rows } = describeFeature(f);
         return (
           <dl className={`measure-figures pick-${picks.length ? i + 1 : 0}`} key={`${i}-${f.id}`} aria-label={picks.length ? `Feature ${i + 1}` : 'Feature under the pointer'}>
-            <dt className="measure-title">{picks.length ? `${i + 1}. ${name}` : name}</dt>
+            {picks.length ? (
+              <div className="measure-title-row">
+                <dt className="measure-title">{`${i + 1}. ${name}`}</dt>
+                <dd>
+                  <PickReset index={i} />
+                </dd>
+              </div>
+            ) : (
+              <dt className="measure-title">{name}</dt>
+            )}
             {rows.map(([k, v]) => (
               <div key={k}>
                 <dt>{k}</dt>

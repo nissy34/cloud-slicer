@@ -85,6 +85,29 @@ export function saveConvertPreference(pref: ConvertPreference | null) {
 }
 
 
+const NEW_PROJECT_KEY = 'cloud-slicer:new-project-changes:v1';
+
+/** What New project does with changed settings when "Remember my choice" was ticked (desktop's remembered choice). */
+export type PresetChangesChoice = 'keep' | 'discard';
+
+export function loadPresetChangesChoice(): PresetChangesChoice | null {
+  try {
+    const v = localStorage.getItem(NEW_PROJECT_KEY);
+    return v === 'keep' || v === 'discard' ? v : null;
+  } catch {
+    return null;
+  }
+}
+
+export function savePresetChangesChoice(choice: PresetChangesChoice | null) {
+  try {
+    if (choice) localStorage.setItem(NEW_PROJECT_KEY, choice);
+    else localStorage.removeItem(NEW_PROJECT_KEY);
+  } catch {
+    // storage unavailable: ask every time
+  }
+}
+
 const DEVICE_KEY = 'cloud-slicer:device:v1';
 let sessionDevice: string | null = null;
 
