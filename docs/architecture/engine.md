@@ -128,6 +128,10 @@ match ([testing](testing.md#same-as-desktop-orca)).
 - **Patch 0010** makes a slice independent of earlier ones: the support infill kept
   limits from the first support fill the engine made, which in a tab that stays open
   means the first one of the session.
+- **Patch 0011** makes each G-code export from a kept `Print` the same as the first:
+  export turned some of the print's infill and support paths round in place, so the
+  next export printed them the other way (desktop does this too, after a speed or
+  temperature change).
 - **No wasm64**: Safari lacks it, phones kill tabs below 4 GB anyway, and it is slower.
 - More in [decisions.md](../decisions.md#engines).
 

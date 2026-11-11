@@ -1,0 +1,39 @@
+G-code export: chain copies of the print's infill and support paths.
+
+GCode::extrude_infill and extrude_support chain the print's own extrusion
+entities with chain_and_reorder_extrusion_entities, which reverses some of
+them in place. The Print keeps them reversed, so exporting G-code again from
+the same Print (desktop does after a speed or temperature change; the
+browser engine keeps the last slice's Print) printed them the other way
+round, and every export of an unchanged Print differed. Chaining clones, as
+ExtrusionEntityCollection::chained_path_from already does, leaves the print
+as it was; the first export's G-code is unchanged.
+
+diff --git a/src/libslic3r/GCode.cpp b/src/libslic3r/GCode.cpp
+index ee05435..831a8c7 100644
+--- a/src/libslic3r/GCode.cpp
++++ b/src/libslic3r/GCode.cpp
+@@ -7710,6 +7710,11 @@ std::string GCode::extrude_infill(const Print& print, const std::vector<ObjectBy
+                     extrusions.emplace_back(ee);
+             if (!extrusions.empty()) {
+                 m_config.apply(print.get_print_region(&region - &by_region.front()).config());
++                // cloud-slicer: chain copies of the print's paths. Chaining turns some
++                // round, and turning the print's own ones left them turned for the next
++                // export, so G-code written again from a kept Print differed each time.
++                std::vector<std::unique_ptr<ExtrusionEntity>> copies;
++                for (ExtrusionEntity *&ee : extrusions) ee = copies.emplace_back(ee->clone()).get();
+                 chain_and_reorder_extrusion_entities(extrusions, &m_last_pos);
+                 for (const ExtrusionEntity* fill : extrusions) {
+                     auto* eec = dynamic_cast<const ExtrusionEntityCollection*>(fill);
+@@ -7746,6 +7751,11 @@ std::string GCode::extrude_support(const ExtrusionEntityCollection& support_fill
+         if (extrusions.empty())
+             return gcode;
+ 
++        // cloud-slicer: chain copies of the print's paths. Chaining turns some
++        // round, and turning the print's own ones left them turned for the next
++        // export, so G-code written again from a kept Print differed each time.
++        std::vector<std::unique_ptr<ExtrusionEntity>> copies;
++        for (ExtrusionEntity *&ee : extrusions) ee = copies.emplace_back(ee->clone()).get();
+         chain_and_reorder_extrusion_entities(extrusions, &m_last_pos);
+ 
+         const double support_speed           = this->process_flow_value(m_config.support_speed);

@@ -112,7 +112,7 @@ Each `patches/*.patch` is a unified diff against the submodule (`a/src/...`, `b/
 the shared ones.
 CMake copies the files a patch touches into `build/engine/patched-engine/`, applies every
 patch there and compiles those copies instead. Only fixes the browser build needs belong
-here, plus engine bugs that change what prints (0009, 0010); each patch says why at the top of
+here, plus engine bugs that change what prints (0009, 0010, 0011); each patch says why at the top of
 its hunk.
 
 | Patch | Why |
@@ -126,6 +126,7 @@ its hunk.
 | `0007-keep-only-the-last-gcode-move` | G-code processing keeps every move for desktop's preview, which the browser doesn't use; on a big print that list alone outgrew the 4 GB a page can have |
 | `snapmaker/0009-count-mix-filaments-for-prime-tower` | A plate printed with a colour mix alone counted as one filament, so the slice turned its prime tower off while the G-code changed heads; counts each mix as the filaments it mixes |
 | `0010-support-cost-limits-per-call` | Support infill kept three limits from the first support fill the engine ever made, so a slice depended on what the tab sliced before (and, on desktop, on thread timing); works them out on every call, as OrcaSlicer #15564 does |
+| `snapmaker/0011`, `orca/0011-chain-copies-of-print-paths` | G-code export turned some of the kept Print's infill and support paths round in place, so writing G-code again from the last slice's Print (kept between slices, as desktop keeps its own) printed them the other way and each export differed; chains copies, so the first export is unchanged and later ones match it |
 | `orca/0008-gcode-times-without-stored-moves` | Upstream's time estimate writes each move's time and "actual speed" points back into that list by position, which 0007 no longer keeps; skips those preview-only writes |
 
 ## Two engines

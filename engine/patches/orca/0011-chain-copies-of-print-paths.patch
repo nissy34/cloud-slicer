@@ -1,0 +1,39 @@
+G-code export: chain copies of the print's infill and support paths.
+
+Same as patches/snapmaker/0011: chain_and_reorder_extrusion_entities reverses
+some of the print's own entities in place, so exporting again from the same
+Print (kept between slices) printed them the other way round. Chaining
+clones leaves the print as it was; the first export's G-code is unchanged.
+
+diff --git a/src/libslic3r/GCode.cpp b/src/libslic3r/GCode.cpp
+index b9a81c54..c9da542d 100644
+--- a/src/libslic3r/GCode.cpp
++++ b/src/libslic3r/GCode.cpp
+@@ -6161,6 +6161,11 @@ std::string GCode::extrude_infill(const Print &print, const std::vector<ObjectBy
+                     extrusions.emplace_back(ee);
+             if (! extrusions.empty()) {
+                 m_config.apply(print.get_print_region(&region - &by_region.front()).config());
++                // cloud-slicer: chain copies of the print's paths. Chaining turns some
++                // round, and turning the print's own ones left them turned for the next
++                // export, so G-code written again from a kept Print differed each time.
++                std::vector<std::unique_ptr<ExtrusionEntity>> copies;
++                for (ExtrusionEntity *&ee : extrusions) ee = copies.emplace_back(ee->clone()).get();
+                 chain_and_reorder_extrusion_entities(extrusions, m_last_pos.to_point());
+                 for (const ExtrusionEntity *fill : extrusions) {
+                     auto *eec = dynamic_cast<const ExtrusionEntityCollection*>(fill);
+@@ -6197,8 +6202,14 @@ std::string GCode::extrude_support(const ExtrusionEntityCollection &support_fill
+             return gcode;
+ 
+         //ORCA: Respect no_sort to preserve support base outline->fill order.
+-        if (!support_fills.no_sort)
++        // cloud-slicer: chain copies of the print's paths. Chaining turns some
++        // round, and turning the print's own ones left them turned for the next
++        // export, so G-code written again from a kept Print differed each time.
++        std::vector<std::unique_ptr<ExtrusionEntity>> copies;
++        if (!support_fills.no_sort) {
++            for (ExtrusionEntity *&ee : extrusions) ee = copies.emplace_back(ee->clone()).get();
+             chain_and_reorder_extrusion_entities(extrusions, m_last_pos.to_point());
++        }
+ 
+         const double  support_speed            = m_config.support_speed.value;
+         const double  support_interface_speed  = m_config.get_abs_value("support_interface_speed");
