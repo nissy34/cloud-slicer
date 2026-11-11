@@ -130,6 +130,8 @@ function SignedOut() {
 
 function SignedIn({ onDone }: { onDone: () => void }) {
   const user = useAccount((s) => s.user)!;
+  // Connected once, but Google no longer gives the site a key (the app's access was taken away, or the key ran out).
+  const reconnect = useAccount((s) => Boolean(user.drive && (s.driveLost || user.driveReconnect)));
   const { counts, total } = usePresetCounts();
   const [confirming, setConfirming] = useState(false);
 
@@ -155,13 +157,15 @@ function SignedIn({ onDone }: { onDone: () => void }) {
         <li>
           {user.projects === false
             ? 'Online projects are turned off for your account'
-            : user.drive
-              ? 'Projects save to your own Google Drive and take up your Google storage space'
+            : reconnect
+              ? "Google Drive needs connecting again: projects can't save to it until then"
+              : user.drive
+                ? 'Projects save to your own Google Drive and take up your Google storage space'
               : "Projects don't save online: Google Drive isn't connected"}
         </li>
       </ul>
-      {!user.drive && user.projects !== false && (
-        <button className="secondary" onClick={() => void useAccount.getState().connectDrive()}>
+      {(!user.drive || reconnect) && user.projects !== false && (
+        <button className="secondary" data-testid="connect-drive" onClick={() => void useAccount.getState().connectDrive()}>
           Connect Google Drive
         </button>
       )}

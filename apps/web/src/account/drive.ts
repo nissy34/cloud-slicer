@@ -3,7 +3,7 @@
 // from there, so a project never passes through Cloud Slicer and isn't held to
 // Cloudflare's 100 MB request limit. With the drive.file permission the app
 // only sees files it made: the "Cloud Slicer" folder and the projects in it.
-import { api, ApiError } from './api';
+import { api, ApiError, driveLost } from './api';
 import { Cancelled, fetchWithin, TimedOut, unlessCancelled } from '../lib/time-limit';
 
 const FILES = 'https://www.googleapis.com/drive/v3/files';
@@ -18,6 +18,8 @@ const RETRIES = 5;
 const CALL_MS = 30_000;
 /** One 4 MB piece: about 270 kbit/s at the slowest. */
 const PIECE_MS = 120_000;
+/** Where the person fixes it: the account menu (their name, top right) has Connect Google Drive then. */
+export const RECONNECT = 'Google Drive needs connecting again. Open the account menu (top right) and press Connect Google Drive.';
 const noAnswer = () => new ApiError(504, "Google Drive didn't answer. Check your connection, then save again.", { code: 'timeout' });
 
 let token: { accessToken: string; expiresAt: number } | null = null;
@@ -35,7 +37,8 @@ async function driveError(res: Response): Promise<ApiError> {
   if (reason === 'storageQuotaExceeded') return new ApiError(res.status, 'Your Google Drive is full. Free some space in Drive, then save again.', { code: 'drive-full' });
   if (res.status === 401) {
     token = null;
-    return new ApiError(403, 'Google Drive needs connecting again, in the account menu', { code: 'drive-connect' });
+    driveLost();
+    return new ApiError(403, RECONNECT, { code: 'drive-connect' });
   }
   return new ApiError(res.status, `Google Drive: ${body.error?.message ?? res.statusText}`, {});
 }

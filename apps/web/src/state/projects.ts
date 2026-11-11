@@ -248,7 +248,8 @@ export const useProjects = create<ProjectsState>((set, get) => {
     const paints = paintCount;
     try {
       // The engine does one thing at a time: a slice running now finishes first.
-      if (useSlicer.getState().job.kind === 'slicing') set({ busy: 'Saving… after the slice' });
+      // Making the 3MF of a big project takes a while (about 30 s for 86 MB): say so, so it doesn't look stuck (#284).
+      set({ busy: useSlicer.getState().job.kind === 'slicing' ? 'Saving… after the slice' : 'Saving… making the 3MF' });
       const { file, picture } = await unlessCancelled(buildFile(), signal);
       const id = target.id ?? newProjectId();
       // Projects live in the person's Google Drive: the page uploads the file there, then the save points at it,
