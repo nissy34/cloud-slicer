@@ -238,7 +238,7 @@
 @media (max-width: 760px) {
   /* Clear of the view buttons in the right corner. */
   .choose-bar {
-    left: 12px;
+    inset-inline-start: 12px;
     transform: none;
     max-width: calc(100% - 76px);
     gap: 4px;
@@ -485,7 +485,7 @@
   .bottom-tab-mark {
     position: absolute;
     top: 0;
-    left: calc(50% + 6px);
+    inset-inline-start: calc(50% + 6px);
     min-width: 10px;
     height: 16px;
     padding: 0 5px;

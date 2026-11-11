@@ -24,6 +24,7 @@
     "myPresets": "הפרופילים שלי",
     "systemPresets": "פרופילי מערכת",
     "show": "הצגת הסרגל הצדדי (Shift+Tab)",
-    "hide": "הסתרת הסרגל הצדדי (Shift+Tab)"
+    "hide": "הסתרת הסרגל הצדדי (Shift+Tab)",
+    "width": "רוחב הסרגל הצדדי"
   }
 }

@@ -43,10 +43,14 @@
   margin-inline-start: -1px;
 }
 .levels .chip:first-child {
-  border-radius: var(--r-full) 0 0 var(--r-full);
+  border-radius: 0;
+  border-start-start-radius: var(--r-full);
+  border-end-start-radius: var(--r-full);
 }
 .levels .chip:last-child {
-  border-radius: 0 var(--r-full) var(--r-full) 0;
+  border-radius: 0;
+  border-start-end-radius: var(--r-full);
+  border-end-end-radius: var(--r-full);
 }
 .levels .chip[aria-pressed='true'] {
   z-index: 1;
@@ -776,4 +780,10 @@ kbd {
 }
 pre {
   text-align: left;
+}
+
+/* Arrows that point along the reading direction turn round in a right-to-left page. */
+[dir='rtl'] .menu-arrow svg,
+[dir='rtl'] .flip-rtl {
+  transform: scaleX(-1);
 }

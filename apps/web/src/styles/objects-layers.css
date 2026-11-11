@@ -20,7 +20,7 @@
   display: grid;
   margin: 0 0 4px 12px;
   padding-inline-start: 6px;
-  border-left: 2px solid var(--border);
+  border-inline-start: 2px solid var(--border);
 }
 .object-menu .menu-form {
   display: grid;
@@ -131,17 +131,17 @@ button.volume-name {
 .layer-mark::after {
   content: '';
   position: absolute;
-  left: 4px;
+  inset-inline-start: 4px;
   bottom: 0;
-  border-left: 5px solid transparent;
-  border-right: 5px solid transparent;
+  border-inline-start: 5px solid transparent;
+  border-inline-end: 5px solid transparent;
   border-top: 9px solid currentColor;
   /* Outlined, so a dark or light filament still shows on either theme. */
   filter: drop-shadow(0 0 1px var(--muted));
 }
 .layer-mark.custom::after,
 .layer-mark.template::after {
-  left: 5px;
+  inset-inline-start: 5px;
   width: 8px;
   height: 8px;
   border: 0;
@@ -166,7 +166,7 @@ button.volume-name {
 }
 .object-menu.layer-menu {
   position: absolute;
-  right: max(16px, calc(50% - 260px));
+  inset-inline-end: max(16px, calc(50% - 260px));
   bottom: 76px;
   max-height: min(60%, 420px);
 }
@@ -187,8 +187,8 @@ button.volume-name {
 }
 @media (max-width: 760px) {
   .object-menu.layer-menu {
-    right: 8px;
-    left: 8px;
+    inset-inline-end: 8px;
+    inset-inline-start: 8px;
     width: auto;
     bottom: 74px;
     max-height: 45%;

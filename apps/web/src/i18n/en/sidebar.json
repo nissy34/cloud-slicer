@@ -24,6 +24,7 @@
     "myPresets": "My presets",
     "systemPresets": "System presets",
     "show": "Show sidebar (Shift+Tab)",
-    "hide": "Hide sidebar (Shift+Tab)"
+    "hide": "Hide sidebar (Shift+Tab)",
+    "width": "Sidebar width"
   }
 }

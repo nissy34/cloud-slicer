@@ -415,7 +415,7 @@
 }
 .dv-cameras-many .dv-camera:not(.dv-camera-main) figcaption {
   font-size: var(--t-xs);
-  left: 3px;
+  inset-inline-start: 3px;
   top: 3px;
   padding: 0 4px;
 }
@@ -448,7 +448,7 @@
   }
   .dv-cameras-pair .dv-camera:not(.dv-camera-main) figcaption {
     font-size: var(--t-sm);
-    left: 6px;
+    inset-inline-start: 6px;
     top: 6px;
     padding: 1px 6px;
   }
@@ -476,7 +476,7 @@
 }
 .dv-camera figcaption {
   position: absolute;
-  left: 6px;
+  inset-inline-start: 6px;
   top: 6px;
   padding: 1px 6px;
   border-radius: var(--r-sm);
@@ -522,8 +522,8 @@
 }
 .dv-camera-note {
   position: absolute;
-  left: 6px;
-  right: 6px;
+  inset-inline-start: 6px;
+  inset-inline-end: 6px;
   bottom: 6px;
   padding: 2px 8px;
   border-radius: var(--r-sm);
@@ -1658,7 +1658,7 @@
 }
 /* The inside corners where the tile meets its settings, outline included. */
 .dv-alert-tile.open:not(.col0)::before {
-  left: calc(-1 * var(--r-lg) - 1px);
+  inset-inline-start: calc(-1 * var(--r-lg) - 1px);
   background: radial-gradient(
     circle at 0 0,
     transparent calc(var(--r-lg) - 1.5px),
@@ -1668,7 +1668,7 @@
   );
 }
 .dv-alert-tile.open:not(.col2)::after {
-  right: calc(-1 * var(--r-lg) - 1px);
+  inset-inline-end: calc(-1 * var(--r-lg) - 1px);
   background: radial-gradient(
     circle at 100% 0,
     transparent calc(var(--r-lg) - 1.5px),

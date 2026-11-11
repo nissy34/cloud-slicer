@@ -446,5 +446,5 @@
   letter-spacing: 0.06em;
 }
 .dv-bridge-state.connecting {
-  border-left-color: var(--accent);
+  border-inline-start-color: var(--accent);
 }

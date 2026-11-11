@@ -284,7 +284,7 @@
   padding: 12px;
   border-radius: var(--r-md);
   background: var(--surface-2);
-  border-left: 3px solid var(--accent);
+  border-inline-start: 3px solid var(--accent);
 }
 .dv-bridge-state > div {
   display: grid;
@@ -292,10 +292,10 @@
   justify-items: start;
 }
 .dv-bridge-state.online {
-  border-left-color: var(--ok);
+  border-inline-start-color: var(--ok);
 }
 .dv-bridge-state.failed {
-  border-left-color: var(--warn);
+  border-inline-start-color: var(--warn);
 }
 .dv-bridge-state-icon {
   flex: none;
