@@ -1,13 +1,15 @@
 import { useEffect, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { heightAt, layerColour, type LayerAction, type LayerProfile } from '../lib/layers';
 import { useSlicer } from '../state/store';
 import { Slider } from './Slider';
 
+// Word keys: t(label), t(title).
 const ACTIONS: { action: LayerAction; label: string; title: string }[] = [
-  { action: 'decrease', label: 'Add detail', title: 'Thinner layers (desktop: left mouse button)' },
-  { action: 'increase', label: 'Remove detail', title: 'Thicker layers (desktop: right mouse button)' },
-  { action: 'reduce', label: 'Back to base', title: 'Back to the plain layer height (desktop: Shift + left button)' },
-  { action: 'smooth', label: 'Smooth', title: 'Smooth out steps (desktop: Shift + right button)' },
+  { action: 'decrease', label: 'layersPanel.addDetail', title: 'layersPanel.addDetailTip' },
+  { action: 'increase', label: 'layersPanel.removeDetail', title: 'layersPanel.removeDetailTip' },
+  { action: 'reduce', label: 'layersPanel.backToBase', title: 'layersPanel.backToBaseTip' },
+  { action: 'smooth', label: 'layersPanel.smooth', title: 'layersPanel.smoothTip' },
 ];
 
 const W = 260;
@@ -20,6 +22,7 @@ const fmt = (n: number) => n.toFixed(2);
  * desktop's drag; the mouse buttons and Shift do what they do on desktop.
  */
 function ProfileChart({ p, action, band, onEdit }: { p: LayerProfile; action: LayerAction; band: number; onEdit(z: number, action: LayerAction, first: boolean): Promise<void> }) {
+  const { t } = useTranslation();
   const [hoverZ, setHoverZ] = useState<number | null>(null);
   const held = useRef<{ z: number; action: LayerAction; first: boolean; busy: boolean } | null>(null);
   const timer = useRef<number>();
@@ -62,7 +65,7 @@ function ProfileChart({ p, action, band, onEdit }: { p: LayerProfile; action: La
       className="layer-chart"
       viewBox={`-8 -4 ${W + 12} ${H + 8}`}
       role="img"
-      aria-label="Layer height profile"
+      aria-label={t('layersPanel.profile')}
       onContextMenu={(e) => e.preventDefault()}
       onPointerMove={(e) => {
         const z = zAt(e);
@@ -94,6 +97,7 @@ function ProfileChart({ p, action, band, onEdit }: { p: LayerProfile; action: La
 
 /** Desktop's Variable layer height panel for the selected object. */
 export function LayersPanel({ object }: { object: number }) {
+  const { t } = useTranslation();
   const p = useSlicer((s) => (s.layers?.object === object ? s.layers : null));
   const project = useSlicer((s) => s.project);
   const { setTool, editLayers } = useSlicer.getState();
@@ -108,21 +112,20 @@ export function LayersPanel({ object }: { object: number }) {
   useEffect(() => void editLayers(object, { op: 'get' }), [object, project, editLayers]);
 
   return (
-    <section className="tool-panel layers-panel" aria-label="Variable layer height">
+    <section className="tool-panel layers-panel" aria-label={t('layersPanel.title')}>
       <div className="tool-panel-head">
-        <strong>Variable layer height</strong>
+        <strong>{t('layersPanel.title')}</strong>
         <button className="ghost" onClick={() => setTool(null)}>
-          Done
+          {t('layersPanel.done')}
         </button>
       </div>
       <p className="muted hint">
-        Thin layers where the shape needs detail, thick ones where it doesn't. Adaptive does it from the slopes; or press and hold on the
-        chart to add or remove detail around that height.
+        {t('layersPanel.intro')}
       </p>
       {p ? (
         <>
-          <div className="layer-summary" aria-label="Layer heights">
-            {p.custom ? 'Variable' : 'Plain'} · {p.layers.length / 2} layers · {fmt(p.minLayerHeight)}–{fmt(p.maxLayerHeight)} mm
+          <div className="layer-summary" aria-label={t('layersPanel.heights')}>
+            {p.custom ? t('layersPanel.variable') : t('layersPanel.plain')} · {t('layersPanel.layers', { count: p.layers.length / 2 })} · {fmt(p.minLayerHeight)}–{fmt(p.maxLayerHeight)} mm
             {hover != null && (
               <span>
                 {' '}
@@ -136,50 +139,50 @@ export function LayersPanel({ object }: { object: number }) {
           }} onPointerLeave={() => setHover(null)}>
             <ProfileChart p={p} action={action} band={band} onEdit={(z, a, first) => editLayers(object, { op: 'adjust', action: a, zs: [z], band }, !first)} />
           </div>
-          <div className="chooser" role="radiogroup" aria-label="Chart edits">
+          <div className="chooser" role="radiogroup" aria-label={t('layersPanel.chartEdits')}>
             {ACTIONS.map((a) => (
-              <button key={a.action} role="radio" aria-checked={action === a.action} className={action === a.action ? 'on' : ''} title={a.title} onClick={() => setAction(a.action)}>
-                {a.label}
+              <button key={a.action} role="radio" aria-checked={action === a.action} className={action === a.action ? 'on' : ''} title={t(a.title)} onClick={() => setAction(a.action)}>
+                {t(a.label)}
               </button>
             ))}
           </div>
           <label className="transform-row">
-            <span>Edit band</span>
-            <Slider aria-label="Edit band" min={1.5} max={10} step={0.5} value={band} onChange={(e) => setBand(Number(e.target.value))} />
+            <span>{t('layersPanel.band')}</span>
+            <Slider aria-label={t('layersPanel.band')} min={1.5} max={10} step={0.5} value={band} onChange={(e) => setBand(Number(e.target.value))} />
             <span className="unit">{band} mm</span>
           </label>
           <div className="layer-op">
             <button className="secondary" onClick={() => void editLayers(object, { op: 'adaptive', quality })}>
-              Adaptive
+              {t('layersPanel.adaptive')}
             </button>
             <label className="transform-row">
-              <span>Quality</span>
-              <Slider aria-label="Quality or speed" min={0} max={1} step={0.05} value={quality} onChange={(e) => setQuality(Number(e.target.value))} />
-              <span className="unit">Speed</span>
+              <span>{t('layersPanel.quality')}</span>
+              <Slider aria-label={t('layersPanel.qualityOrSpeed')} min={0} max={1} step={0.05} value={quality} onChange={(e) => setQuality(Number(e.target.value))} />
+              <span className="unit">{t('layersPanel.speed')}</span>
             </label>
           </div>
           <div className="layer-op">
             <button className="secondary" onClick={() => void editLayers(object, { op: 'smooth', radius, keepMin })}>
-              Smooth
+              {t('layersPanel.smooth')}
             </button>
             <label className="transform-row">
-              <span>Radius</span>
-              <Slider aria-label="Smoothing radius" min={1} max={10} step={1} value={radius} onChange={(e) => setRadius(Number(e.target.value))} />
+              <span>{t('layersPanel.radius')}</span>
+              <Slider aria-label={t('layersPanel.smoothRadius')} min={1} max={10} step={1} value={radius} onChange={(e) => setRadius(Number(e.target.value))} />
               <span className="unit">{radius}</span>
             </label>
             <label className="switch-row">
               <input className="switch" type="checkbox" checked={keepMin} onChange={(e) => setKeepMin(e.target.checked)} />
-              <span>Keep the thinnest layers</span>
+              <span>{t('layersPanel.keepMin')}</span>
             </label>
           </div>
           <div className="tool-row">
             <button className="secondary" disabled={!p.custom} onClick={() => void editLayers(object, { op: 'reset' })}>
-              Reset
+              {t('layersPanel.reset')}
             </button>
           </div>
         </>
       ) : (
-        <p className="muted hint">Reading the layers…</p>
+        <p className="muted hint">{t('layersPanel.reading')}</p>
       )}
     </section>
   );

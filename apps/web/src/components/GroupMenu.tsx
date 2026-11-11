@@ -1,4 +1,5 @@
 import { Fragment, useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { itemsOnPlate } from '../lib/group';
 import { menuPosition } from '../lib/objectMenu';
 import { NO_COLOURS, useSlicer } from '../state/store';
@@ -19,6 +20,7 @@ export function GroupMenu() {
 }
 
 function GroupCard() {
+  const { t } = useTranslation();
   const menu = useSlicer((s) => s.groupMenu)!;
   const group = useSlicer((s) => s.group);
   const project = useSlicer((s) => s.project)!;
@@ -86,7 +88,7 @@ function GroupCard() {
       ref={card}
       className="menu object-menu"
       role="menu"
-      aria-label={`${group.length} objects menu`}
+      aria-label={t('groupMenu.menu', { count: group.length })}
       style={at ?? { left: menu.x, top: menu.y, visibility: 'hidden' }}
       onContextMenu={(e) => e.preventDefault()}
       onPointerDownCapture={() => (armed.current = true)}
@@ -97,7 +99,7 @@ function GroupCard() {
         e.stopPropagation();
       }}
     >
-      <div className="menu-title">{group.length} objects</div>
+      <div className="menu-title">{t('groupMenu.objects', { count: group.length })}</div>
       {cloning ? (
         <form
           className="menu-form"
@@ -107,33 +109,33 @@ function GroupCard() {
           }}
         >
           <label>
-            Copies of each
-            <input aria-label="Number of copies" type="number" min={1} max={1000} value={count} autoFocus onChange={(e) => setCount(Math.max(1, Math.min(1000, Number(e.target.value) || 1)))} />
+            {t('groupMenu.copiesOfEach')}
+            <input aria-label={t('groupMenu.copiesCount')} type="number" min={1} max={1000} value={count} autoFocus onChange={(e) => setCount(Math.max(1, Math.min(1000, Number(e.target.value) || 1)))} />
           </label>
           <label className="menu-check-row">
             <input type="checkbox" checked={arrange} onChange={(e) => setArrange(e.target.checked)} />
-            Arrange the plate after cloning
+            {t('groupMenu.arrangeAfterClone')}
           </label>
           <div className="menu-form-actions">
             <button type="button" className="ghost" onClick={() => setCloning(false)}>
-              Back
+              {t('groupMenu.back')}
             </button>
             <button type="submit" className="primary">
-              Clone
+              {t('groupMenu.clone')}
             </button>
           </div>
         </form>
       ) : (
         <>
-          {item('Assemble', run(() => s.groupAction({ op: 'assemble' })), { title: 'Join them into one object, each part where it stands' })}
+          {item(t('groupMenu.assemble'), run(() => s.groupAction({ op: 'assemble' })), { title: t('groupMenu.assembleTip') })}
           <button role="menuitem" aria-haspopup="menu" aria-expanded={filaments} className="menu-item submenu" onClick={() => setFilaments(!filaments)}>
-            Change filament
+            {t('groupMenu.changeFilament')}
             <span className="menu-arrow" aria-hidden="true">
               {filaments ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
             </span>
           </button>
           {filaments && (
-            <div role="menu" aria-label="Change filament" className="menu-sub">
+            <div role="menu" aria-label={t('groupMenu.changeFilament')} className="menu-sub">
               {filamentRows.map((f, k) => (
                 <button
                   key={k}
@@ -148,39 +150,39 @@ function GroupCard() {
               ))}
             </div>
           )}
-          {item('Clone…', () => setCloning(true), { title: 'Copies of each of them, as new objects (Ctrl+K)' })}
+          {item(t('groupMenu.cloneMenu'), () => setCloning(true), { title: t('groupMenu.cloneTip') })}
           <button role="menuitem" aria-haspopup="menu" aria-expanded={plates} className="menu-item submenu" onClick={() => setPlates(!plates)}>
-            Move to plate
+            {t('groupMenu.moveToPlate')}
             <span className="menu-arrow" aria-hidden="true">
               {plates ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
             </span>
           </button>
           {plates && (
-            <div role="menu" aria-label="Move to plate" className="menu-sub">
+            <div role="menu" aria-label={t('groupMenu.moveToPlate')} className="menu-sub">
               {project.plates.map((p, k) => (
                 <Fragment key={k}>
-                  {item(p.name ? `Plate ${k + 1}: ${p.name}` : `Plate ${k + 1}`, run(() => s.groupAction({ op: 'moveToPlate', plate: k })), {
+                  {item(p.name ? t('groupMenu.plateNamed', { n: k + 1, name: p.name }) : t('groupMenu.plateN', { n: k + 1 }), run(() => s.groupAction({ op: 'moveToPlate', plate: k })), {
                     disabled: k === plate,
-                    title: k === plate ? 'They are on this plate' : 'The same spots on that plate',
+                    title: k === plate ? t('groupMenu.onThisPlate') : t('groupMenu.sameSpots'),
                   })}
                 </Fragment>
               ))}
-              {item('New plate', run(() => s.groupAction({ op: 'moveToPlate', plate: 'new' })), { title: 'A new plate after the last, with these on it' })}
+              {item(t('groupMenu.newPlate'), run(() => s.groupAction({ op: 'moveToPlate', plate: 'new' })), { title: t('groupMenu.newPlateTip') })}
             </div>
           )}
           <hr />
-          {item('Copy', run(() => s.groupAction({ op: 'copy' })), { title: 'Paste makes them new objects, as far apart as now (Ctrl+C)' })}
-          {item('Cut', run(() => s.groupAction({ op: 'cut' })), { title: 'Copy them and remove them; Paste puts them back (Ctrl+X)' })}
-          {item('Paste', run(() => s.paste()), { disabled: !copied, title: copied ? 'What you copied, as new objects (Ctrl+V)' : 'Copy or cut objects first' })}
+          {item(t('groupMenu.copy'), run(() => s.groupAction({ op: 'copy' })), { title: t('groupMenu.copyTip') })}
+          {item(t('groupMenu.cut'), run(() => s.groupAction({ op: 'cut' })), { title: t('groupMenu.cutTip') })}
+          {item(t('groupMenu.paste'), run(() => s.paste()), { disabled: !copied, title: copied ? t('groupMenu.pasteTip') : t('groupMenu.copyFirst') })}
           <hr />
-          {item('Center', run(() => s.groupAction({ op: 'center' })), { title: 'Move them together to the middle of the plate' })}
-          {item('Arrange selection', run(() => s.groupAction({ op: 'arrange' })), { title: 'Each on a free spot, around the objects that stay put' })}
-          {item('Auto orient', run(() => s.groupAction({ op: 'orient' })), { title: 'Turn each so it prints with the least overhang' })}
-          {item('Printable', run(() => s.groupAction({ op: 'printable', value: !printable })), { checked: printable })}
-          {item('Export as one STL', run(() => s.groupAction({ op: 'exportStl' })))}
+          {item(t('groupMenu.center'), run(() => s.groupAction({ op: 'center' })), { title: t('groupMenu.centerTip') })}
+          {item(t('groupMenu.arrange'), run(() => s.groupAction({ op: 'arrange' })), { title: t('groupMenu.arrangeTip') })}
+          {item(t('groupMenu.autoOrient'), run(() => s.groupAction({ op: 'orient' })), { title: t('groupMenu.autoOrientTip') })}
+          {item(t('groupMenu.printable'), run(() => s.groupAction({ op: 'printable', value: !printable })), { checked: printable })}
+          {item(t('groupMenu.exportStl'), run(() => s.groupAction({ op: 'exportStl' })))}
           <hr />
-          {choosing && item('Done choosing', run(() => s.setChoosing(false)), { title: 'Taps pick one model again' })}
-          {item('Delete', run(() => s.groupAction({ op: 'delete' })), { title: 'Delete them all (Del)', danger: true })}
+          {choosing && item(t('groupMenu.doneChoosing'), run(() => s.setChoosing(false)), { title: t('groupMenu.doneChoosingTip') })}
+          {item(t('groupMenu.delete'), run(() => s.groupAction({ op: 'delete' })), { title: t('groupMenu.deleteTip'), danger: true })}
         </>
       )}
     </div>

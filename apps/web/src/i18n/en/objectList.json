@@ -1,0 +1,32 @@
+{
+  "objectList": {
+    "notPrinted": "Not printed",
+    "someNotPrinted": "Some copies not printed",
+    "object": "Object",
+    "sameAsObject": "Same as the object",
+    "objects": "Objects",
+    "skippedTip": "{{name}}: {{why}}. Slicing leaves it out; tick Printable in its ⋯ menu to print it.",
+    "objectN": "Object {{n}}",
+    "filamentFor": "Filament for {{name}}",
+    "more": "More",
+    "moreFor": "More for {{name}}",
+    "moreTip": "More: clone, rename, mirror, export… (or right-click the object)",
+    "painted": "(painted)",
+    "moreForPart": "More for part {{name}}",
+    "partMoreTip": "Rename, change type, settings, delete",
+    "chosen_one": "{{count}} object chosen",
+    "chosen_other": "{{count}} objects chosen",
+    "groupHint": "Move, rotate and scale work on all of them. Right-click a chosen model, or long press it on a phone, for the rest.",
+    "deleteAllTip": "Delete them all (Del)",
+    "delete": "Delete",
+    "blockerHint": "{{kind}}: supports don't grow where it overlaps the object, when supports are on. Move it with the Move tool.",
+    "enforcerHint": "{{kind}}: supports grow where it overlaps the object, when supports are on. Move it with the Move tool.",
+    "addInstance": "Add instance",
+    "addInstanceTip": "One more copy of it, beside it (+). Ctrl+C and Ctrl+V paste it as a new object.",
+    "removeInstance": "Remove instance",
+    "removeInstanceTip": "Remove this copy, keeping the others (-)",
+    "simplify": "Simplify",
+    "simplifyTip": "Fewer triangles, like desktop's Simplify model",
+    "deleteTip": "The object with all its copies (Del removes only the picked copy)"
+  }
+}

@@ -1,0 +1,18 @@
+{
+  "objectSettings": {
+    "objectSettings": "Object settings",
+    "modifierSettings": "Modifier settings",
+    "partSettings": "Part settings",
+    "addToObject": "Add a setting to this object",
+    "addToModifier": "Add a setting to this modifier",
+    "addToPart": "Add a setting to this part",
+    "addSetting": "+ Add setting",
+    "modifierEmpty": "Add a setting to change it where the modifier overlaps the object, like more infill in one spot.",
+    "partEmpty": "Uses the object's settings. Add one to change it for this part only.",
+    "objectEmpty": "Uses the process settings. Add one to change it for this object only.",
+    "others": "Others",
+    "removeFromObject": "Remove from this object",
+    "removeFromModifier": "Remove from this modifier",
+    "removeFromPart": "Remove from this part"
+  }
+}

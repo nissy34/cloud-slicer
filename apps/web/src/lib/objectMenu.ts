@@ -1,3 +1,5 @@
+import { i18n } from '../i18n';
+
 // The object menu's requests to the engine (engine/src/object_api.cpp).
 export type UnitConversion = 'fromInch' | 'toInch' | 'fromMeter' | 'toMeter';
 export type ObjectAction =
@@ -14,11 +16,11 @@ export type ObjectAction =
  * and meters, or back once it was converted.
  */
 export function unitConversions(units: '' | 'inch' | 'meter'): { to: UnitConversion; label: string }[] {
-  if (units === 'inch') return [{ to: 'toInch', label: 'Convert back to inches' }];
-  if (units === 'meter') return [{ to: 'toMeter', label: 'Convert back to meters' }];
+  if (units === 'inch') return [{ to: 'toInch', label: i18n.t('objectMenu.backToInches') }];
+  if (units === 'meter') return [{ to: 'toMeter', label: i18n.t('objectMenu.backToMeters') }];
   return [
-    { to: 'fromInch', label: 'Convert from inches' },
-    { to: 'fromMeter', label: 'Convert from meters' },
+    { to: 'fromInch', label: i18n.t('objectMenu.fromInches') },
+    { to: 'fromMeter', label: i18n.t('objectMenu.fromMeters') },
   ];
 }
 

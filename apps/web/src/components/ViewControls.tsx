@@ -1,6 +1,7 @@
 import { Bounds, useBounds } from '@react-three/drei';
 import { useThree } from '@react-three/fiber';
 import { useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import * as THREE from 'three';
 import fitIcon from '../assets/orca-view/fit_camera.svg?raw';
 import cubeIcon from '../assets/orca-view/menu_obj_cube.svg?raw';
@@ -22,13 +23,13 @@ export type ViewHandle = React.MutableRefObject<((view: View | ViewFrom) => void
 // the screen, Bottom at the top. The tiny Y in Top and Bottom tells the
 // camera which way is up when it looks straight down.
 const VIEWS: { view: Exclude<View, 'fit'>; label: string; key: string; from: [number, number, number] }[] = [
-  { view: 'iso', label: 'Iso', key: '0', from: [-0.5, -0.5, Math.SQRT1_2] },
-  { view: 'top', label: 'Top', key: '1', from: [0, -1e-4, 1] },
-  { view: 'bottom', label: 'Bottom', key: '2', from: [0, -1e-4, -1] },
-  { view: 'front', label: 'Front', key: '3', from: [0, -1, 0] },
-  { view: 'back', label: 'Back', key: '4', from: [0, 1, 0] },
-  { view: 'left', label: 'Left', key: '5', from: [-1, 0, 0] },
-  { view: 'right', label: 'Right', key: '6', from: [1, 0, 0] },
+  { view: 'iso', label: 'viewControls.iso', key: '0', from: [-0.5, -0.5, Math.SQRT1_2] },
+  { view: 'top', label: 'viewControls.top', key: '1', from: [0, -1e-4, 1] },
+  { view: 'bottom', label: 'viewControls.bottom', key: '2', from: [0, -1e-4, -1] },
+  { view: 'front', label: 'viewControls.front', key: '3', from: [0, -1, 0] },
+  { view: 'back', label: 'viewControls.back', key: '4', from: [0, 1, 0] },
+  { view: 'left', label: 'viewControls.left', key: '5', from: [-1, 0, 0] },
+  { view: 'right', label: 'viewControls.right', key: '6', from: [1, 0, 0] },
 ];
 
 const Z_UP = new THREE.Vector3(0, 0, 1);
@@ -118,15 +119,16 @@ const CUBE = cubeIcon.replace(/#949494/g, 'currentColor');
  * screen from wherever the camera is, and a menu of the standard views.
  */
 export function ViewButtons({ handle, className }: { handle: ViewHandle; className?: string }) {
+  const { t } = useTranslation();
   const go = (view: View) => handle.current?.(view);
   return (
     <div className={className ? `view-buttons ${className}` : 'view-buttons'}>
       <Menu
-        label="Views"
+        label={t('viewControls.views')}
         placement="left-end"
         className="view-menu"
         button={(props) => (
-          <button {...props} className="view-button" aria-label="Views" title="Views: top, front, side...">
+          <button {...props} className="view-button" aria-label={t('viewControls.views')} title={t('viewControls.viewsTip')}>
             <span className="view-icon small" dangerouslySetInnerHTML={{ __html: CUBE }} />
           </button>
         )}
@@ -137,18 +139,18 @@ export function ViewButtons({ handle, className }: { handle: ViewHandle; classNa
               key={v.view}
               className="menu-item"
               role="menuitem"
-              title={`${v.label} view (${v.key})`}
+              title={t('viewControls.viewTip', { view: t(v.label), key: v.key })}
               onClick={() => {
                 close();
                 go(v.view);
               }}
             >
-              {v.label}
+              {t(v.label)}
             </button>
           ))
         }
       </Menu>
-      <button className="view-button" aria-label="Fit all" title="Fit all: show everything (Z)" onClick={() => go('fit')}>
+      <button className="view-button" aria-label={t('viewControls.fitAll')} title={t('viewControls.fitAllTip')} onClick={() => go('fit')}>
         <span className="view-icon" dangerouslySetInnerHTML={{ __html: FIT }} />
       </button>
     </div>

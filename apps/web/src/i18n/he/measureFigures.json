@@ -1,0 +1,20 @@
+{
+  "measureFigures": {
+    "point": "נקודה",
+    "edge": "קצה",
+    "circle": "עיגול",
+    "plane": "מישור",
+    "position": "מיקום",
+    "length": "אורך",
+    "from": "מ-",
+    "to": "עד",
+    "diameter": "קוטר",
+    "radius": "רדיוס",
+    "centre": "מרכז",
+    "normal": "נורמל",
+    "angle": "זווית",
+    "distance": "מרחק",
+    "perpendicular": "מרחק אנכי",
+    "along": "לאורך {{axis}}"
+  }
+}

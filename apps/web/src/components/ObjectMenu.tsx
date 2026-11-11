@@ -1,4 +1,5 @@
 import { Fragment, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
+import { useTranslation } from 'react-i18next';
 import { menuPosition, unitConversions } from '../lib/objectMenu';
 import { ALL } from '../lib/boolean';
 import { ADD_MENUS, kindLabel, keepsAPart, shapeLabel, SHAPES, type VolumeKind } from '../lib/volumes';
@@ -32,6 +33,7 @@ export function ObjectMenu() {
 }
 
 function MenuCard() {
+  const { t } = useTranslation();
   const menu = useSlicer((s) => s.objectMenu)!;
   const project = useSlicer((s) => s.project)!;
   const colours = useSlicer((s) => (s.palette.length ? s.palette : (s.selection?.colours ?? NO_COLOURS)));
@@ -120,7 +122,7 @@ function MenuCard() {
       ref={card}
       className="menu object-menu"
       role="menu"
-      aria-label={`${vol ? vol.name : obj.name || `Object ${o + 1}`} menu`}
+      aria-label={t('objectMenu.menuOf', { name: vol ? vol.name : obj.name || t('objectMenu.objectN', { n: o + 1 }) })}
       style={at ?? { left: menu.x, top: menu.y, visibility: 'hidden' }}
       onContextMenu={(e) => e.preventDefault()}
       onPointerDownCapture={() => (armed.current = true)}
@@ -132,7 +134,7 @@ function MenuCard() {
       }}
     >
       <div className="menu-title" title={vol ? vol.name : obj.name}>
-        {vol ? vol.name : obj.name || `Object ${o + 1}`}
+        {vol ? vol.name : obj.name || t('objectMenu.objectN', { n: o + 1 })}
         {vol && <span className="muted"> · {kindLabel(vol.kind)}</span>}
       </div>
       {form === 'rename' ? (
@@ -141,20 +143,20 @@ function MenuCard() {
           onSubmit={(e) => {
             e.preventDefault();
             if (!name.trim()) return;
-            if (vi !== undefined) run(() => s.volumeAction(o, { op: 'rename', volume: vi, name: name.trim() }, 'Rename'))();
-            else run(() => s.objectAction(o, i, { op: 'rename', name: name.trim() }, 'Rename'))();
+            if (vi !== undefined) run(() => s.volumeAction(o, { op: 'rename', volume: vi, name: name.trim() }, t('objectMenu.rename')))();
+            else run(() => s.objectAction(o, i, { op: 'rename', name: name.trim() }, t('objectMenu.rename')))();
           }}
         >
           <label>
-            Name
-            <input aria-label="Name" value={name} autoFocus onChange={(e) => setName(e.target.value)} />
+            {t('objectMenu.name')}
+            <input aria-label={t('objectMenu.name')} value={name} autoFocus onChange={(e) => setName(e.target.value)} />
           </label>
           <div className="menu-form-actions">
             <button type="button" className="ghost" onClick={() => setForm(null)}>
-              Back
+              {t('objectMenu.back')}
             </button>
             <button type="submit" className="primary" disabled={!name.trim()}>
-              Rename
+              {t('objectMenu.rename')}
             </button>
           </div>
         </form>
@@ -167,19 +169,19 @@ function MenuCard() {
           }}
         >
           <label>
-            Number of copies
-            <input aria-label="Number of copies" type="number" min={1} max={1000} value={count} autoFocus onChange={(e) => setCount(Math.max(1, Math.min(1000, Number(e.target.value) || 1)))} />
+            {t('objectMenu.copiesCount')}
+            <input aria-label={t('objectMenu.copiesCount')} type="number" min={1} max={1000} value={count} autoFocus onChange={(e) => setCount(Math.max(1, Math.min(1000, Number(e.target.value) || 1)))} />
           </label>
           <label className="menu-check-row">
             <input type="checkbox" checked={arrange} onChange={(e) => setArrange(e.target.checked)} />
-            Arrange the plate after cloning
+            {t('objectMenu.arrangeAfterClone')}
           </label>
           <div className="menu-form-actions">
             <button type="button" className="ghost" onClick={() => setForm(null)}>
-              Back
+              {t('objectMenu.back')}
             </button>
             <button type="submit" className="primary">
-              Clone
+              {t('objectMenu.clone')}
             </button>
           </div>
         </form>
@@ -192,34 +194,34 @@ function MenuCard() {
           }}
         >
           <label>
-            Number of instances
-            <input aria-label="Number of instances" type="number" min={1} max={1000} value={count} autoFocus onChange={(e) => setCount(Math.max(1, Math.min(1000, Number(e.target.value) || 1)))} />
+            {t('objectMenu.instancesCount')}
+            <input aria-label={t('objectMenu.instancesCount')} type="number" min={1} max={1000} value={count} autoFocus onChange={(e) => setCount(Math.max(1, Math.min(1000, Number(e.target.value) || 1)))} />
           </label>
           <div className="menu-form-actions">
             <button type="button" className="ghost" onClick={() => setForm(null)}>
-              Back
+              {t('objectMenu.back')}
             </button>
             <button type="submit" className="primary">
-              Set
+              {t('objectMenu.set')}
             </button>
           </div>
         </form>
       ) : vol && vi !== undefined ? (
         <>
           {vol.text &&
-            item('Edit text', run(() => {
+            item(t('objectMenu.editText'), run(() => {
               s.select({ object: o, instance: i, volume: vi });
               s.setTool('text');
-            }), { title: 'Change the words, font or size' })}
+            }), { title: t('objectMenu.editTextTip') })}
           {vol.svg &&
-            item('Edit SVG', run(() => {
+            item(t('objectMenu.editSvg'), run(() => {
               s.select({ object: o, instance: i, volume: vi });
               s.setTool('svg');
-            }), { title: 'Change its depth or size' })}
-          {item('Rename…', () => setForm('rename'))}
+            }), { title: t('objectMenu.editSvgTip') })}
+          {item(t('objectMenu.renameMenu'), () => setForm('rename'))}
           {submenu(
             'type',
-            'Change type',
+            t('objectMenu.changeType'),
             <>
               {ADD_MENUS.map(({ type }) => (
                 <button
@@ -228,7 +230,7 @@ function MenuCard() {
                   aria-checked={vol.kind === type}
                   className="menu-item"
                   disabled={vol.kind !== type && type !== 'part' && !keepsAPart(obj.volumes, vi)}
-                  onClick={run(() => vol.kind !== type && s.volumeAction(o, { op: 'type', volume: vi, type }, 'Change type'))}
+                  onClick={run(() => vol.kind !== type && s.volumeAction(o, { op: 'type', volume: vi, type }, t('objectMenu.changeType')))}
                 >
                   {kindLabel(type)}
                 </button>
@@ -238,7 +240,7 @@ function MenuCard() {
           {(vol.kind === 'part' || vol.kind === 'modifier') &&
             submenu(
               'filament',
-              'Change filament',
+              t('objectMenu.changeFilament'),
               <>
                 {filamentRows.map((f, k) => (
                   <button key={k} role="menuitemradio" aria-checked={(vol.extruder || obj.extruder || 1) === k + 1} className="menu-item" onClick={run(() => s.setObjectFilament(o, vi, k + 1))}>
@@ -251,53 +253,53 @@ function MenuCard() {
           {vol.kind !== 'supportBlocker' &&
             vol.kind !== 'supportEnforcer' &&
             item(
-              vol.kind === 'modifier' ? 'Modifier settings' : 'Part settings',
+              vol.kind === 'modifier' ? t('objectMenu.modifierSettings') : t('objectMenu.partSettings'),
               run(() => {
                 s.select({ object: o, instance: i, volume: vi });
                 setTimeout(() => document.querySelector('.object-settings')?.scrollIntoView({ block: 'nearest', behavior: scrollMotion() }), 50);
               }),
-              { title: vol.kind === 'modifier' ? 'Settings for where the modifier overlaps the object' : 'Settings for this part only' },
+              { title: vol.kind === 'modifier' ? t('objectMenu.modifierSettingsTip') : t('objectMenu.partSettingsTip') },
             )}
           <hr />
-          {item('Delete', run(() => s.volumeAction(o, { op: 'delete', volume: vi }, 'Delete part')), {
+          {item(t('objectMenu.delete'), run(() => s.volumeAction(o, { op: 'delete', volume: vi }, t('objectMenu.deletePart'))), {
             disabled: !keepsAPart(obj.volumes, vi),
-            title: keepsAPart(obj.volumes, vi) ? undefined : 'An object keeps at least one part',
+            title: keepsAPart(obj.volumes, vi) ? undefined : t('objectMenu.keepsAPart'),
           })}
         </>
       ) : (
         <>
           {item(
-            'Choose several',
+            t('objectMenu.chooseSeveral'),
             run(() => {
               s.setChoosing(true);
               s.choose([o]);
             }),
-            { title: 'Then tap more models to choose them together, or drag on the plate for a rectangle (Ctrl+click and Shift+drag with a mouse)' },
+            { title: t('objectMenu.chooseSeveralTip') },
           )}
           <hr />
           {ADD_MENUS.map(({ type, label }) => (
             <Fragment key={type}>
               {submenu(
                 `add-${type}`,
-                label,
+                t(label),
                 <>
-                  {item('Load…', () => {
+                  {item(t('objectMenu.load'), () => {
                     addType.current = type;
                     addInput.current?.click();
-                  }, { title: 'A mesh file (STL, OBJ, 3MF)' })}
+                  }, { title: t('objectMenu.loadTip') })}
                   {SHAPES.map((shape) => (
-                    <Fragment key={shape}>{item(shapeLabel(shape), run(() => s.volumeAction(o, { op: 'add', type, shape, instance: i }, label)))}</Fragment>
+                    <Fragment key={shape}>{item(shapeLabel(shape), run(() => s.volumeAction(o, { op: 'add', type, shape, instance: i }, t(label))))}</Fragment>
                   ))}
                   {(type === 'part' || type === 'negative' || type === 'modifier') &&
-                    item('Text', run(() => {
+                    item(t('objectMenu.text'), run(() => {
                       s.select({ object: o, instance: i });
                       return startText(o, type);
-                    }), { title: 'Letters in a font, edited in the Text shape tool' })}
+                    }), { title: t('objectMenu.textTip') })}
                   {(type === 'part' || type === 'negative' || type === 'modifier') &&
-                    item('SVG…', run(() => {
+                    item(t('objectMenu.svg'), run(() => {
                       s.select({ object: o, instance: i });
                       return startSvg(o, type);
-                    }), { title: 'The paths of an .svg file, like a logo' })}
+                    }), { title: t('objectMenu.svgTip') })}
                 </>,
               )}
             </Fragment>
@@ -312,90 +314,90 @@ function MenuCard() {
               const file = e.target.files?.[0];
               e.target.value = '';
               const label = ADD_MENUS.find((m) => m.type === addType.current)!.label;
-              if (file) run(() => s.volumeAction(o, { op: 'add', type: addType.current }, label, file))();
+              if (file) run(() => s.volumeAction(o, { op: 'add', type: addType.current }, t(label), file))();
             }}
           />
           <hr />
-          {item('Clone…', () => setForm('clone'), { title: 'Copies of this object, as new objects (Ctrl+K)' })}
-          {item('Center', run(() => s.objectAction(o, i, { op: 'center' }, 'Center')), { title: 'Move it to the middle of its plate' })}
+          {item(t('objectMenu.cloneMenu'), () => setForm('clone'), { title: t('objectMenu.cloneTip') })}
+          {item(t('objectMenu.center'), run(() => s.objectAction(o, i, { op: 'center' }, t('objectMenu.center'))), { title: t('objectMenu.centerTip') })}
           {submenu(
             'split',
-            'Split',
+            t('objectMenu.split'),
             <>
-              {item('To objects', run(() => s.splitObject(o)))}
-              {item('To parts', run(() => s.splitParts(o)))}
+              {item(t('objectMenu.toObjects'), run(() => s.splitObject(o)))}
+              {item(t('objectMenu.toParts'), run(() => s.splitParts(o)))}
             </>,
           )}
           {submenu(
             'mirror',
-            'Mirror',
+            t('objectMenu.mirror'),
             <>
-              {item('Along X axis', run(() => s.mirror(o, i, 0)))}
-              {item('Along Y axis', run(() => s.mirror(o, i, 1)))}
-              {item('Along Z axis', run(() => s.mirror(o, i, 2)))}
+              {item(t('objectMenu.alongX'), run(() => s.mirror(o, i, 0)))}
+              {item(t('objectMenu.alongY'), run(() => s.mirror(o, i, 1)))}
+              {item(t('objectMenu.alongZ'), run(() => s.mirror(o, i, 2)))}
             </>,
           )}
           {submenu(
             'copies',
-            'Instances',
+            t('objectMenu.instances'),
             <>
-              {item('Add instance', run(() => s.copyInstance(o, i)), { title: 'One more copy of it, beside it (+)' })}
-              {item('Remove instance', run(() => s.removeInstance(o, i)), {
+              {item(t('objectMenu.addInstance'), run(() => s.copyInstance(o, i)), { title: t('objectMenu.addInstanceTip') })}
+              {item(t('objectMenu.removeInstance'), run(() => s.removeInstance(o, i)), {
                 disabled: obj.instances.length < 2,
-                title: obj.instances.length < 2 ? 'It has no other copies; Delete removes it' : 'Remove this copy, keeping the others (-)',
+                title: obj.instances.length < 2 ? t('objectMenu.noOtherCopies') : t('objectMenu.removeInstanceTip'),
               })}
-              {item('Set number of instances…', () => {
+              {item(t('objectMenu.setInstances'), () => {
                 setCount(obj.instances.length);
                 setForm('instances');
-              }, { title: `How many copies of it in all (now ${obj.instances.length})` })}
+              }, { title: t('objectMenu.setInstancesTip', { n: obj.instances.length }) })}
             </>,
           )}
           {submenu(
             'plate',
-            'Move to plate',
+            t('objectMenu.moveToPlate'),
             <>
               {project.plates.map((p, k) => (
                 <Fragment key={k}>
-                  {item(p.name ? `Plate ${k + 1}: ${p.name}` : `Plate ${k + 1}`, run(() => s.moveToPlate([{ object: o, instance: i }], k)), {
+                  {item(p.name ? t('objectMenu.plateNamed', { n: k + 1, name: p.name }) : t('objectMenu.plateN', { n: k + 1 }), run(() => s.moveToPlate([{ object: o, instance: i }], k)), {
                     disabled: k === plate,
-                    title: k === plate ? 'It is on this plate' : 'The same spot on that plate',
+                    title: k === plate ? t('objectMenu.onThisPlate') : t('objectMenu.sameSpot'),
                   })}
                 </Fragment>
               ))}
-              {item('New plate', run(() => s.moveToPlate([{ object: o, instance: i }], 'new')), { title: 'A new plate after the last, with this on it' })}
+              {item(t('objectMenu.newPlate'), run(() => s.moveToPlate([{ object: o, instance: i }], 'new')), { title: t('objectMenu.newPlateTip') })}
             </>,
           )}
           <hr />
-          {item('Copy', run(() => s.copyToClipboard(o, i)), { title: 'Paste makes it a new object (Ctrl+C)' })}
-          {item('Cut', run(() => s.cutToClipboard(o, i)), { title: 'Copy it and remove it; Paste puts it back (Ctrl+X)' })}
-          {item('Paste', run(() => s.paste()), { disabled: !copied, title: copied ? 'What you copied, as a new object (Ctrl+V)' : 'Copy or cut an object first' })}
-          {item('Delete', run(() => s.deleteObject(o)), { title: obj.instances.length > 1 ? 'The object with all its copies' : 'Delete (Del)' })}
+          {item(t('objectMenu.copy'), run(() => s.copyToClipboard(o, i)), { title: t('objectMenu.copyTip') })}
+          {item(t('objectMenu.cut'), run(() => s.cutToClipboard(o, i)), { title: t('objectMenu.cutTip') })}
+          {item(t('objectMenu.paste'), run(() => s.paste()), { disabled: !copied, title: copied ? t('objectMenu.pasteTip') : t('objectMenu.copyFirst') })}
+          {item(t('objectMenu.delete'), run(() => s.deleteObject(o)), { title: obj.instances.length > 1 ? t('objectMenu.deleteAllTip') : t('objectMenu.deleteTip') })}
           <hr />
-          {item('Auto orient', run(() => s.orientObject(o)))}
+          {item(t('objectMenu.autoOrient'), run(() => s.orientObject(o)))}
           {item(
-            'Simplify model',
+            t('objectMenu.simplify'),
             run(() => {
               s.select({ object: o, instance: i });
               s.setTool('simplify');
             }),
-            { title: 'Fewer triangles, keeping the shape' },
+            { title: t('objectMenu.simplifyTip') },
           )}
           {/* Joins all the object's parts into one (the toolbar's Mesh boolean works on two). */}
           {item(
-            'Mesh boolean',
+            t('objectMenu.meshBoolean'),
             run(() => {
               s.select({ object: o, instance: i });
               return s.meshBoolean(o, { op: 'union', a: obj.volumes.findIndex((v) => v.kind === 'part'), b: ALL });
             }),
             obj.volumes.filter((v) => v.kind === 'part').length < 2
-              ? { disabled: true, title: 'It has only one part: add a part first' }
-              : { title: 'Join all its parts into one part' },
+              ? { disabled: true, title: t('objectMenu.onePart') }
+              : { title: t('objectMenu.meshBooleanTip') },
           )}
-          {item('Printable', run(() => s.objectAction(o, i, { op: 'printable', value: !inst.printable }, 'Printable')), { checked: inst.printable })}
-          {item('Rename…', () => setForm('rename'))}
+          {item(t('objectMenu.printable'), run(() => s.objectAction(o, i, { op: 'printable', value: !inst.printable }, t('objectMenu.printable'))), { checked: inst.printable })}
+          {item(t('objectMenu.renameMenu'), () => setForm('rename'))}
           {submenu(
             'filament',
-            'Change filament',
+            t('objectMenu.changeFilament'),
             <>
               {filamentRows.map((f, k) => (
                 <button key={k} role="menuitemradio" aria-checked={(obj.extruder || 1) === k + 1} className="menu-item" onClick={run(() => s.setObjectFilament(o, -1, k + 1))}>
@@ -406,31 +408,31 @@ function MenuCard() {
             </>,
           )}
           {item(
-            'Object settings',
+            t('objectMenu.objectSettings'),
             run(() => {
               s.select({ object: o, instance: i });
               setTimeout(() => document.querySelector('.object-settings')?.scrollIntoView({ block: 'nearest', behavior: scrollMotion() }), 50);
             }),
-            { title: 'Settings for this object only, on top of the process' },
+            { title: t('objectMenu.objectSettingsTip') },
           )}
           <hr />
-          {item('Scale to fit the plate', run(() => s.objectAction(o, i, { op: 'scaleToFit', height }, 'Scale to fit')), {
-            title: 'As large as the plate (and printer height) allows',
+          {item(t('objectMenu.scaleToFit'), run(() => s.objectAction(o, i, { op: 'scaleToFit', height }, t('objectMenu.scaleToFitUndo'))), {
+            title: t('objectMenu.scaleToFitTip'),
           })}
           {submenu(
             'units',
-            'Units',
+            t('objectMenu.units'),
             <>
               {unitConversions(obj.units).map((c) => (
                 <Fragment key={c.to}>{item(c.label, run(() => s.objectAction(o, i, { op: 'convert', to: c.to }, c.label)))}</Fragment>
               ))}
             </>,
           )}
-          {item('Replace with STL…', () => replaceInput.current?.click(), {
+          {item(t('objectMenu.replace'), () => replaceInput.current?.click(), {
             disabled: parts.length !== 1,
-            title: parts.length === 1 ? 'Another mesh in its place' : 'Only for an object with one part',
+            title: parts.length === 1 ? t('objectMenu.replaceTip') : t('objectMenu.replaceOnePart'),
           })}
-          {item('Export as STL', run(() => s.exportStl(o, i)))}
+          {item(t('objectMenu.exportStl'), run(() => s.exportStl(o, i)))}
           <input
             ref={replaceInput}
             type="file"

@@ -1,0 +1,18 @@
+{
+  "chooseBar": {
+    "chosenModels": "Chosen models",
+    "tapToChoose": "Tap models to choose them",
+    "chosen_one": "{{count}} chosen",
+    "chosen_other": "{{count}} chosen",
+    "selectAll": "Select all",
+    "all": "All",
+    "assemble": "Assemble",
+    "assembleTip": "Join them into one object, each part where it stands",
+    "menuTip": "What to do with them all (or right-click / long press a chosen model)",
+    "menu": "What to do with them",
+    "doneTip": "Taps pick one model again",
+    "clearTip": "Nothing chosen (Esc)",
+    "done": "Done",
+    "clear": "Clear"
+  }
+}

@@ -1,0 +1,15 @@
+{
+  "plateIcons": {
+    "untitled": "Untitled",
+    "nothingYet": "Nothing on this plate yet",
+    "locked": "This plate is locked",
+    "deleteTip": "Remove this plate and what is on it (not the last one)",
+    "orientTip": "Auto orient the objects on this plate",
+    "arrangeTip": "Arrange the objects on this plate (Shift+A)",
+    "unlockTip": "Unlock this plate",
+    "lockTip": "Lock this plate: Arrange and Auto orient leave it as it is",
+    "settingsOwnTip": "Plate settings: this plate has settings of its own",
+    "settingsTip": "Plate settings: plate type, print sequence, spiral vase, filament order",
+    "renameTip": "Rename this plate"
+  }
+}

@@ -1,0 +1,16 @@
+{
+  "viewControls": {
+    "iso": "Iso",
+    "top": "Top",
+    "bottom": "Bottom",
+    "front": "Front",
+    "back": "Back",
+    "left": "Left",
+    "right": "Right",
+    "views": "Views",
+    "viewsTip": "Views: top, front, side...",
+    "viewTip": "{{view}} view ({{key}})",
+    "fitAll": "Fit all",
+    "fitAllTip": "Fit all: show everything (Z)"
+  }
+}

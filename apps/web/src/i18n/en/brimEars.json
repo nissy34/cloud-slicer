@@ -1,0 +1,28 @@
+{
+  "brimEars": {
+    "title": "Brim ears",
+    "done": "Done",
+    "intro": "Round pads of brim under the corners keep them from lifting, with far less brim to clean off than a full brim.",
+    "howTouch": "Tap the model or the bed next to it to add an ear. Tap an ear to pick it, then Remove picked.",
+    "howMouse": "Click the model or the bed next to it to add an ear. Click an ear to pick it (Shift adds more), or right-click it to remove it.",
+    "reading": "Reading the ears…",
+    "notPainted": "The ears only print when this object's brim type is Painted (brim ears).",
+    "usePainted": "Use brim ears for this object",
+    "ears": "Ears",
+    "count_one": "{{count}} ear",
+    "count_other": "{{count}} ears",
+    "loose_one": "{{count}} not touching the object",
+    "loose_other": "{{count}} not touching the object",
+    "picked_one": "{{count}} picked",
+    "picked_other": "{{count}} picked",
+    "size": "Ear size",
+    "auto": "Add ears on the corners",
+    "maxAngle": "Max angle",
+    "maxAngleTip": "Corners sharper than this get an ear",
+    "detection": "Detection length",
+    "detectionTip": "Small bumps shorter than this are smoothed out first, so they don't get ears",
+    "resize": "Resize picked",
+    "remove": "Remove picked",
+    "removeAll": "Remove all"
+  }
+}

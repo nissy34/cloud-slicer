@@ -1,4 +1,5 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { usePhone } from '../lib/usePhone';
 import type { PaintKind } from '../engine/protocol';
 import { sentence } from '../lib/format';
@@ -23,6 +24,7 @@ const icon = (name: string) =>
 interface Item {
   id: string;
   icon: string;
+  /** Its word key (t(label)). */
   label: string;
   /** Desktop's keyboard shortcut, where this tool has one here too. */
   key?: string;
@@ -40,35 +42,35 @@ interface Item {
 // plate toolbar, then the object gizmos, then the view.
 const GROUPS: Item[][] = [
   [
-    { id: 'undo', icon: 'topbar_undo', label: 'Undo', key: 'Ctrl+Z' },
-    { id: 'redo', icon: 'topbar_redo', label: 'Redo', key: 'Ctrl+Y' },
+    { id: 'undo', icon: 'topbar_undo', label: 'toolbar.undo', key: 'Ctrl+Z' },
+    { id: 'redo', icon: 'topbar_redo', label: 'toolbar.redo', key: 'Ctrl+Y' },
   ],
   [
-    { id: 'add', icon: 'toolbar_open', label: 'Add models', key: 'Ctrl+I' },
-    { id: 'addplate', icon: 'toolbar_add_plate', label: 'Add plate' },
-    { id: 'orient', icon: 'toolbar_orient', label: 'Auto orient', key: 'Q' },
-    { id: 'arrange', icon: 'toolbar_arrange', label: 'Arrange all objects', key: 'A', more: 'Shift+A: only this plate · Click for options' },
-    { id: 'splitobjects', icon: 'split_objects', label: 'Split to objects', needsSelection: true },
-    { id: 'splitparts', icon: 'split_parts', label: 'Split to parts', needsSelection: true },
-    { id: 'layers', icon: 'toolbar_variable_layer_height', label: 'Variable layer height', tool: 'layers', needsSelection: true },
+    { id: 'add', icon: 'toolbar_open', label: 'toolbar.add', key: 'Ctrl+I' },
+    { id: 'addplate', icon: 'toolbar_add_plate', label: 'toolbar.addplate' },
+    { id: 'orient', icon: 'toolbar_orient', label: 'toolbar.orient', key: 'Q' },
+    { id: 'arrange', icon: 'toolbar_arrange', label: 'toolbar.arrange', key: 'A', more: 'toolbar.arrangeMore' },
+    { id: 'splitobjects', icon: 'split_objects', label: 'toolbar.splitobjects', needsSelection: true },
+    { id: 'splitparts', icon: 'split_parts', label: 'toolbar.splitparts', needsSelection: true },
+    { id: 'layers', icon: 'toolbar_variable_layer_height', label: 'toolbar.layers', tool: 'layers', needsSelection: true },
   ],
   [
-    { id: 'move', icon: 'toolbar_move', label: 'Move', key: 'M', tool: 'move', needsSelection: true },
-    { id: 'rotate', icon: 'toolbar_rotate', label: 'Rotate', key: 'R', tool: 'rotate', needsSelection: true },
-    { id: 'scale', icon: 'toolbar_scale', label: 'Scale', key: 'S', tool: 'scale', needsSelection: true },
-    { id: 'flatten', icon: 'toolbar_flatten', label: 'Lay on face', key: 'F', tool: 'flatten', needsSelection: true },
-    { id: 'cut', icon: 'toolbar_cut', label: 'Cut', key: 'C', tool: 'cut', needsSelection: true },
-    { id: 'boolean', icon: 'toolbar_meshboolean', label: 'Mesh boolean', tool: 'boolean', needsSelection: true },
-    { id: 'support', icon: 'toolbar_support', label: 'Support painting', key: 'L', paint: 'support' },
-    { id: 'seam', icon: 'toolbar_seam', label: 'Seam painting', key: 'P', paint: 'seam' },
-    { id: 'fuzzy', icon: 'toolbar_fuzzy_skin_paint', label: 'Fuzzy skin painting', key: 'H', paint: 'fuzzy' },
-    { id: 'color', icon: 'mmu_segmentation', label: 'Colour painting', key: 'N', paint: 'color' },
-    { id: 'text', icon: 'toolbar_text', label: 'Text shape', key: 'T', tool: 'text' },
-    { id: 'measure', icon: 'toolbar_measure', label: 'Measure', key: 'U', tool: 'measure' },
-    { id: 'assembly', icon: 'toolbar_assembly', label: 'Assemble', tool: 'assemble' },
-    { id: 'brimears', icon: 'toolbar_brimears', label: 'Brim ears', tool: 'brim', needsSelection: true },
+    { id: 'move', icon: 'toolbar_move', label: 'toolbar.move', key: 'M', tool: 'move', needsSelection: true },
+    { id: 'rotate', icon: 'toolbar_rotate', label: 'toolbar.rotate', key: 'R', tool: 'rotate', needsSelection: true },
+    { id: 'scale', icon: 'toolbar_scale', label: 'toolbar.scale', key: 'S', tool: 'scale', needsSelection: true },
+    { id: 'flatten', icon: 'toolbar_flatten', label: 'toolbar.flatten', key: 'F', tool: 'flatten', needsSelection: true },
+    { id: 'cut', icon: 'toolbar_cut', label: 'toolbar.cut', key: 'C', tool: 'cut', needsSelection: true },
+    { id: 'boolean', icon: 'toolbar_meshboolean', label: 'toolbar.boolean', tool: 'boolean', needsSelection: true },
+    { id: 'support', icon: 'toolbar_support', label: 'toolbar.support', key: 'L', paint: 'support' },
+    { id: 'seam', icon: 'toolbar_seam', label: 'toolbar.seam', key: 'P', paint: 'seam' },
+    { id: 'fuzzy', icon: 'toolbar_fuzzy_skin_paint', label: 'toolbar.fuzzy', key: 'H', paint: 'fuzzy' },
+    { id: 'color', icon: 'mmu_segmentation', label: 'toolbar.color', key: 'N', paint: 'color' },
+    { id: 'text', icon: 'toolbar_text', label: 'toolbar.text', key: 'T', tool: 'text' },
+    { id: 'measure', icon: 'toolbar_measure', label: 'toolbar.measure', key: 'U', tool: 'measure' },
+    { id: 'assembly', icon: 'toolbar_assembly', label: 'toolbar.assembly', tool: 'assemble' },
+    { id: 'brimears', icon: 'toolbar_brimears', label: 'toolbar.brimears', tool: 'brim', needsSelection: true },
   ],
-  [{ id: 'assemblyview', icon: 'toolbar_assemble', label: 'Assembly view', missing: true }],
+  [{ id: 'assemblyview', icon: 'toolbar_assemble', label: 'toolbar.assemblyview', missing: true }],
 ];
 const ALL = GROUPS.flat();
 // What works on several chosen objects at once; the other object tools need one.
@@ -76,6 +78,7 @@ const GROUP_TOOLS = new Set(['move', 'rotate', 'scale']);
 
 /** The tool row over the 3D view, like desktop Orca's top toolbar. Scrolls sideways on a phone. */
 export function Toolbar({ onAdd }: { onAdd(): void }) {
+  const { t } = useTranslation();
   const project = useSlicer((s) => s.project);
   const plate = useSlicer((s) => s.plate);
   const selected = useSlicer((s) => s.selected);
@@ -114,9 +117,9 @@ export function Toolbar({ onAdd }: { onAdd(): void }) {
   const needsModel = (item: Item) => !onPlate.length && !item.missing && item.id !== 'undo' && item.id !== 'redo' && disabled(item);
 
   const run = (item: Item) => {
-    if (needsModel(item)) return useSlicer.setState({ notice: `${item.label} works on a model: open one first.`, noticeWarn: false });
+    if (needsModel(item)) return useSlicer.setState({ notice: t('toolbar.needsModel', { tool: t(item.label) }), noticeWarn: false });
     if (several && item.needsSelection && !GROUP_TOOLS.has(item.id))
-      return useSlicer.setState({ notice: `${item.label} works on one model: pick just one.`, noticeWarn: false });
+      return useSlicer.setState({ notice: t('toolbar.needsOne', { tool: t(item.label) }), noticeWarn: false });
     if (disabled(item)) return;
     const s = useSlicer.getState();
     if (item.needsSelection && target && !selected) s.select(target);
@@ -181,7 +184,7 @@ export function Toolbar({ onAdd }: { onAdd(): void }) {
         // A picked part goes (not the object's last one); else the picked copy, the object with its last.
         const vol = v !== undefined ? obj.volumes[v] : undefined;
         if (vol && (vol.kind !== 'part' || obj.volumes.filter((x) => x.kind === 'part').length > 1))
-          return void s.volumeAction(o, { op: 'delete', volume: v! }, 'Delete part');
+          return void s.volumeAction(o, { op: 'delete', volume: v! }, t('toolbar.deletePart'));
         return void (obj.instances.length > 1 ? s.removeInstance(o, i) : s.deleteObject(o));
       }
       case 'copy':
@@ -264,28 +267,28 @@ export function Toolbar({ onAdd }: { onAdd(): void }) {
 
   return (
     <>
-      <div className="toolbar" role="toolbar" aria-label="Object tools" ref={bar}>
+      <div className="toolbar" role="toolbar" aria-label={t('toolbar.objectTools')} ref={bar}>
         {GROUPS.map((group, g) => (
           <div className="toolbar-group" key={g}>
             {group.map((item) => {
               const off = disabled(item);
               const step = item.id === 'undo' || item.id === 'redo' ? history[item.id] : null;
               const why = needsModel(item)
-                ? ': add a model first'
+                ? t('toolbar.whyAddModel')
                 : several && item.needsSelection && !GROUP_TOOLS.has(item.id)
-                  ? ': works on one model, pick just one'
+                  ? t('toolbar.whyPickOne')
                   : item.needsSelection && !target && !several
-                    ? ': select an object first'
+                    ? t('toolbar.whySelect')
                     : '';
               const title = item.missing
-                ? `${item.label}: not in the web app yet`
-                : `${item.label}${step ? ` ${step}` : ''}${item.key ? ` (${item.key})` : ''}${item.more && !why ? ` · ${item.more}` : ''}${why}`;
+                ? t('toolbar.notYet', { tool: t(item.label) })
+                : `${t(item.label)}${step ? ` ${step}` : ''}${item.key ? ` (${item.key})` : ''}${item.more && !why ? ` · ${t(item.more)}` : ''}${why}`;
               const button = (props: Record<string, unknown> = {}, open = false) => (
                 <button
                   key={item.id}
                   {...props}
                   className={active(item) || open ? 'tool on' : 'tool'}
-                  aria-label={item.label}
+                  aria-label={t(item.label)}
                   aria-pressed={item.tool || item.paint ? active(item) : undefined}
                   aria-disabled={off || undefined}
                   data-missing={item.missing || undefined}
@@ -301,7 +304,7 @@ export function Toolbar({ onAdd }: { onAdd(): void }) {
                 <Menu
                   key={item.id}
                   role="dialog"
-                  label="Arrange options"
+                  label={t('toolbar.arrangeOptions')}
                   className="arrange-pop"
                   portal
                   open={arrangeOpen}

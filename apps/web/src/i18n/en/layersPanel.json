@@ -1,0 +1,32 @@
+{
+  "layersPanel": {
+    "addDetail": "Add detail",
+    "addDetailTip": "Thinner layers (desktop: left mouse button)",
+    "removeDetail": "Remove detail",
+    "removeDetailTip": "Thicker layers (desktop: right mouse button)",
+    "backToBase": "Back to base",
+    "backToBaseTip": "Back to the plain layer height (desktop: Shift + left button)",
+    "smooth": "Smooth",
+    "smoothTip": "Smooth out steps (desktop: Shift + right button)",
+    "profile": "Layer height profile",
+    "title": "Variable layer height",
+    "done": "Done",
+    "intro": "Thin layers where the shape needs detail, thick ones where it doesn't. Adaptive does it from the slopes; or press and hold on the chart to add or remove detail around that height.",
+    "heights": "Layer heights",
+    "variable": "Variable",
+    "plain": "Plain",
+    "layers_one": "{{count}} layer",
+    "layers_other": "{{count}} layers",
+    "chartEdits": "Chart edits",
+    "band": "Edit band",
+    "adaptive": "Adaptive",
+    "quality": "Quality",
+    "qualityOrSpeed": "Quality or speed",
+    "speed": "Speed",
+    "radius": "Radius",
+    "smoothRadius": "Smoothing radius",
+    "keepMin": "Keep the thinnest layers",
+    "reset": "Reset",
+    "reading": "Reading the layers…"
+  }
+}

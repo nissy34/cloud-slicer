@@ -1,0 +1,18 @@
+{
+  "viewport": {
+    "move": "הזזה",
+    "rotate": "סיבוב",
+    "scale": "שינוי גודל",
+    "rotateText": "סיבוב טקסט",
+    "moveSvgSurface": "הזזת SVG על פני השטח",
+    "moveTextSurface": "הזזת טקסט על פני השטח",
+    "movePart": "הזזת חלק",
+    "rotatePart": "סיבוב חלק",
+    "scalePart": "שינוי גודל חלק",
+    "plates": "משטחים",
+    "ownSettingsTip": "למשטח הזה יש הגדרות משלו",
+    "ownSettings": "יש לו הגדרות משלו",
+    "plateSettings": "הגדרות המשטח",
+    "plateNSettings": "הגדרות משטח {{n}}"
+  }
+}
