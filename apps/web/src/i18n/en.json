@@ -29,7 +29,8 @@
     "copyError": "Copy error",
     "hide": "Hide",
     "show": "Show",
-    "close": "Close"
+    "close": "Close",
+    "closeMessage": "Close message"
   },
   "actionbar": {
     "engineFailed": "The slicing engine could not start: {{error}}",
@@ -174,5 +175,10 @@
     "chromebook": "Chromebook",
     "linux": "Linux computer",
     "other": "other device"
+  },
+  "saving": {
+    "saving": "Saving…",
+    "downloadsItself": "It downloads by itself when it is ready.",
+    "keepWorking": "You can keep working. Changes from now on go in the next save."
   }
 }

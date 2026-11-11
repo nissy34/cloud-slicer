@@ -29,7 +29,8 @@
     "copyError": "העתקת השגיאה",
     "hide": "הסתרה",
     "show": "הצגה",
-    "close": "סגירה"
+    "close": "סגירה",
+    "closeMessage": "סגירת ההודעה"
   },
   "actionbar": {
     "engineFailed": "מנוע הפריסה לא הצליח לעלות: {{error}}",
@@ -180,5 +181,10 @@
     "chromebook": "כרומבוק",
     "linux": "מחשב Linux",
     "other": "מכשיר אחר"
+  },
+  "saving": {
+    "saving": "שומר…",
+    "downloadsItself": "ההורדה תתחיל מעצמה כשהקובץ יהיה מוכן.",
+    "keepWorking": "אפשר להמשיך לעבוד. שינויים מעכשיו ייכנסו לשמירה הבאה."
   }
 }

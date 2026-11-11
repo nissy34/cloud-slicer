@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import type { ReactNode } from 'react';
 import { CircleCheck, Info, TriangleAlert, X } from 'lucide-react';
 import { IconButton } from './IconButton';
@@ -24,6 +25,7 @@ export function Notice({
   onClose?: () => void;
   testId?: string;
 }) {
+  const { t } = useTranslation();
   const Sign = tone === 'ok' ? CircleCheck : tone === 'info' ? Info : TriangleAlert;
   const sign = icon ?? <Sign size={18} />;
   return (
@@ -37,7 +39,7 @@ export function Notice({
           {text && <span>{text}</span>}
         </div>
         {onClose && (
-          <IconButton icon={X} label="Close" aria-label="Close message" onClick={onClose} />
+          <IconButton icon={X} label={t('common.close')} aria-label={t('common.closeMessage')} onClick={onClose} />
         )}
       </div>
       {actions && <div className="notice-actions">{actions}</div>}
