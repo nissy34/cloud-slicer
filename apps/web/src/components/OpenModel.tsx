@@ -1,4 +1,5 @@
 import { useRef, useState, type DragEvent } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useDriveOpen } from '../account/useDriveOpen';
 import { MODEL_EXTENSIONS } from '../lib/presets';
 import { useLoading } from '../state/loading';
@@ -14,6 +15,7 @@ import { Toolbar } from './Toolbar';
 
 /** File button plus drag-and-drop anywhere over the workspace. */
 export function OpenModel({ children }: { children: React.ReactNode }) {
+  const { t } = useTranslation();
   const openFiles = useProjects((s) => s.openFiles);
   const hasModel = useSlicer((s) => (s.project?.objects.length ?? 0) > 0);
   const plates = useSlicer((s) => s.project?.plates.length ?? 1);
@@ -54,10 +56,10 @@ export function OpenModel({ children }: { children: React.ReactNode }) {
       />
       {!hasModel && !dragging && !loading && (
         <div className="empty">
-          <p>Drop STL, 3MF, OBJ, STEP or SVG files here</p>
+          <p>{t('open.drop')}</p>
           <div className="empty-buttons">
             <button className="primary" onClick={() => input.current?.click()}>
-              Open model
+              {t('open.openModel')}
             </button>
             {driveOpen.offered && (
               <button
@@ -67,7 +69,7 @@ export function OpenModel({ children }: { children: React.ReactNode }) {
                 data-testid="empty-open-from-drive"
                 onClick={() => driveOpen.open()}
               >
-                Open from Google Drive
+                {t('open.fromDrive')}
               </button>
             )}
           </div>
@@ -85,8 +87,8 @@ export function OpenModel({ children }: { children: React.ReactNode }) {
         <>
           <div className="workspace-tools">
             {plates > 1 && (
-              <button className="ghost" title="Delete this plate and what's on it" onClick={() => void deletePlate()}>
-                Delete plate
+              <button className="ghost" title={t('open.deletePlateTip')} onClick={() => void deletePlate()}>
+                {t('open.deletePlate')}
               </button>
             )}
             <button
@@ -96,20 +98,20 @@ export function OpenModel({ children }: { children: React.ReactNode }) {
                 if (
                   !p.dirty ||
                   (await ask({
-                    title: 'Clear the plate?',
-                    text: `“${p.current.name}” has changes that aren't saved yet.`,
-                    action: 'Clear all',
+                    title: t('open.clearAsk'),
+                    text: t('open.unsavedChanges', { name: p.current.name }),
+                    action: t('open.clearAll'),
                   }))
                 )
                   void p.newProject();
               }}
             >
-              Clear all
+              {t('open.clearAll')}
             </button>
           </div>
         </>
       )}
-      {dragging && <div className="dropzone">Drop to add</div>}
+      {dragging && <div className="dropzone">{t('open.dropToAdd')}</div>}
       {hasModel && <ChooseBar />}
       <ObjectMenu />
       <GroupMenu />

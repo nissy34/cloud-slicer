@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
 import { PanelLeftClose, PanelLeftOpen } from 'lucide-react';
 import { IconButton } from './IconButton';
 import { SIDEBAR_DEFAULT, useSidebar } from '../state/sidebar';
@@ -50,6 +51,7 @@ export function SidebarResize() {
 
 /** Hide or show the sidebar, from the 3D view's top-left corner; Shift+Tab too, like desktop Orca's "Collapse sidebar". */
 export function SidebarToggle() {
+  const { t } = useTranslation();
   const hidden = useSidebar((s) => s.hidden);
   const toggle = useSidebar((s) => s.toggle);
   useEffect(() => {
@@ -70,7 +72,7 @@ export function SidebarToggle() {
     <IconButton
       className="side-toggle"
       icon={hidden ? PanelLeftOpen : PanelLeftClose}
-      label={hidden ? 'Show sidebar (Shift+Tab)' : 'Hide sidebar (Shift+Tab)'}
+      label={hidden ? t('sidebar.show') : t('sidebar.hide')}
       aria-expanded={!hidden}
       onClick={toggle}
     />

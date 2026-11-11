@@ -2,6 +2,7 @@
 // the Continue card, kept apart from the state so they can be tested
 // (state/projects.ts uses them).
 import type { OnlineProject } from '../account/api';
+import { i18n } from '../i18n';
 import type { LocalCopy } from './local-copy';
 
 /**
@@ -65,13 +66,25 @@ export function continueOffer(projects: OnlineProject[], device: string, now = D
 }
 
 /** "your phone", or "another device" when the name isn't known. */
-export const yourDevice = (name: string | null | undefined) => (name ? `your ${name}` : 'another device');
+// Device names are kept in English (they are stored with the project) and shown in the page's language.
+const DEVICE_WORDS = {
+  iPad: 'devices.iPad',
+  phone: 'devices.phone',
+  tablet: 'devices.tablet',
+  'Windows computer': 'devices.windows',
+  Mac: 'devices.mac',
+  Chromebook: 'devices.chromebook',
+  'Linux computer': 'devices.linux',
+  'other device': 'devices.other',
+} as const;
+
+export const yourDevice = (name: string | null | undefined) =>
+  name ? i18n.t('devices.your', { device: name in DEVICE_WORDS ? i18n.t(DEVICE_WORDS[name as keyof typeof DEVICE_WORDS]) : name }) : i18n.t('devices.another');
 
 /**
  * Said when the open project was deleted on another device: it stays open here.
  * `device`: the device that had it, when known.
  */
 export function goneText(name: string, device: string | null | undefined): string {
-  const where = device ? `on ${yourDevice(device)}` : 'on another device';
-  return `“${name}” was deleted ${where}. It’s still open here, not saved.`;
+  return i18n.t('continue.gone', { name, device: device ? yourDevice(device) : i18n.t('devices.another') });
 }

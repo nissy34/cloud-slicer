@@ -1,5 +1,6 @@
 // Small rules for saved projects, kept apart from the state so they can be tested.
 import type { OrcaConfig, ProjectInfo, Selection } from '../engine/protocol';
+import { i18n } from '../i18n';
 
 export const UNTITLED = 'Untitled';
 
@@ -64,10 +65,10 @@ export function sentOf(sent: number, total: number): string {
 /** "just now", "5 min ago", "3 h ago", else the date. */
 export function formatWhen(ms: number, now = Date.now()): string {
   const s = Math.round((now - ms) / 1000);
-  if (s < 60) return 'just now';
-  if (s < 3600) return `${Math.floor(s / 60)} min ago`;
-  if (s < 86400) return `${Math.floor(s / 3600)} h ago`;
-  return new Date(ms).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
+  if (s < 60) return i18n.t('time.justNow');
+  if (s < 3600) return i18n.t('time.minAgo', { n: Math.floor(s / 60) });
+  if (s < 86400) return i18n.t('time.hoursAgo', { n: Math.floor(s / 3600) });
+  return new Date(ms).toLocaleDateString(i18n.language, { year: 'numeric', month: 'short', day: 'numeric' });
 }
 
 export const newProjectId = () => crypto.randomUUID();

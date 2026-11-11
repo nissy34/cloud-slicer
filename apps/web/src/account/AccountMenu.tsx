@@ -1,4 +1,6 @@
 import { useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
+import { i18n } from '../i18n';
 import { useAccount } from '../state/account';
 import { useSlicer } from '../state/store';
 import type { PresetType, ProviderId } from './api';
@@ -7,11 +9,7 @@ import { Menu } from '../components/Menu';
 
 const PROVIDER_LABEL: Record<ProviderId, string> = { google: 'Google' };
 const ALL_PROVIDERS = Object.keys(PROVIDER_LABEL) as ProviderId[];
-const TYPE_LABEL: Record<PresetType, [string, string]> = {
-  printer: ['printer', 'printers'],
-  filament: ['filament', 'filaments'],
-  process: ['process', 'processes'],
-};
+const TYPE_LABEL = { printer: 'account.printers', filament: 'account.filaments', process: 'account.processes' } as const;
 
 export function initials(name: string): string {
   const words = name.trim().split(/\s+/).filter(Boolean);
@@ -22,12 +20,13 @@ export function initials(name: string): string {
 function presetSummary(counts: Record<PresetType, number>): string {
   const parts = (Object.keys(TYPE_LABEL) as PresetType[])
     .filter((t) => counts[t])
-    .map((t) => `${counts[t]} ${TYPE_LABEL[t][counts[t] === 1 ? 0 : 1]}`);
-  return parts.length ? parts.join(', ') : 'No saved presets yet';
+    .map((t) => i18n.t(TYPE_LABEL[t], { count: counts[t] }));
+  return parts.length ? parts.join(', ') : i18n.t('account.noPresets');
 }
 
 /** The top bar's Sign in button, and the account menu once signed in. */
 export function AccountMenu() {
+  const { t } = useTranslation();
   const status = useAccount((s) => s.status);
   const user = useAccount((s) => s.user);
   const error = useAccount((s) => s.error);
@@ -45,7 +44,7 @@ export function AccountMenu() {
   return (
     <div className="account">
       <Menu
-        label={user ? 'Account' : 'Sign in'}
+        label={user ? t('account.account') : t('account.signIn')}
         role="dialog"
         placement="bottom-end"
         className="account-pop"
@@ -61,7 +60,7 @@ export function AccountMenu() {
             </button>
           ) : (
             <button {...props} className="ghost" disabled={status === 'loading'}>
-              Sign in
+              {t('account.signIn')}
             </button>
           )
         }
@@ -71,7 +70,7 @@ export function AccountMenu() {
           <Note tone="error">
             {error}{' '}
             <button className="quiet" onClick={() => useAccount.getState().clearError()}>
-              Close
+              {t('common.close')}
             </button>
           </Note>
         )}
@@ -88,6 +87,7 @@ function usePresetCounts() {
 }
 
 function SignedOut() {
+  const { t } = useTranslation();
   const status = useAccount((s) => s.status);
   const providers = useAccount((s) => s.providers);
   const { total } = usePresetCounts();
@@ -95,32 +95,32 @@ function SignedOut() {
   if (status === 'unavailable')
     return (
       <>
-        <h3>Sign in</h3>
-        <p className="account-muted">Accounts aren't set up on this site yet. Your presets are kept in this browser meanwhile.</p>
+        <h3>{t('account.signIn')}</h3>
+        <p className="account-muted">{t('account.unavailable')}</p>
       </>
     );
   const none = !ALL_PROVIDERS.some((p) => providers[p]);
   return (
     <>
-      <h3>Sign in to Cloud Slicer</h3>
-      <p className="account-muted">Keep your printers, filaments and process presets, and use them on any device. Projects save to your own Google Drive and take up your Google storage space.</p>
+      <h3>{t('account.signInTitle')}</h3>
+      <p className="account-muted">{t('account.signInWhy')}</p>
       <div className="account-providers">
         {ALL_PROVIDERS.map((p) => (
           <button
             key={p}
             className="secondary account-provider"
             disabled={!providers[p]}
-            title={providers[p] ? undefined : `${PROVIDER_LABEL[p]} sign-in isn't set up yet`}
+            title={providers[p] ? undefined : t('account.providerNotSetUp', { provider: PROVIDER_LABEL[p] })}
             onClick={() => void useAccount.getState().signIn(p)}
           >
-            Continue with {PROVIDER_LABEL[p]}
+            {t('account.continueWith', { provider: PROVIDER_LABEL[p] })}
           </button>
         ))}
       </div>
-      {none && <p className="account-muted">Sign-in isn't set up on this site yet.</p>}
+      {none && <p className="account-muted">{t('account.noSignIn')}</p>}
       {total > 0 && (
         <p className="account-muted">
-          {total === 1 ? 'The preset' : `The ${total} presets`} saved in this browser will move to your account.
+          {t('account.presetsMove', { count: total })}
         </p>
       )}
       <Legal />
@@ -129,6 +129,7 @@ function SignedOut() {
 }
 
 function SignedIn({ onDone }: { onDone: () => void }) {
+  const { t } = useTranslation();
   const user = useAccount((s) => s.user)!;
   // Connected once, but Google no longer gives the site a key (the app's access was taken away, or the key ran out).
   const reconnect = useAccount((s) => Boolean(user.drive && (s.driveLost || user.driveReconnect)));
@@ -149,24 +150,25 @@ function SignedIn({ onDone }: { onDone: () => void }) {
       <ul className="account-list">
         {user.identities.map((i) => (
           <li key={i.provider}>
-            Signed in with {PROVIDER_LABEL[i.provider]}
-            {i.login ? ` as ${i.login}` : i.email ? ` as ${i.email}` : ''}
+            {i.login || i.email
+              ? t('account.signedInAs', { provider: PROVIDER_LABEL[i.provider], who: i.login || i.email })
+              : t('account.signedInWith', { provider: PROVIDER_LABEL[i.provider] })}
           </li>
         ))}
         <li>{presetSummary(counts)}</li>
         <li>
           {user.projects === false
-            ? 'Online projects are turned off for your account'
+            ? t('account.projectsOff')
             : reconnect
-              ? "Google Drive needs connecting again: projects can't save to it until then"
+              ? t('account.driveReconnect')
               : user.drive
-                ? 'Projects save to your own Google Drive and take up your Google storage space'
-              : "Projects don't save online: Google Drive isn't connected"}
+                ? t('account.driveOn')
+                : t('account.driveOff')}
         </li>
       </ul>
       {(!user.drive || reconnect) && user.projects !== false && (
         <button className="secondary" data-testid="connect-drive" onClick={() => void useAccount.getState().connectDrive()}>
-          Connect Google Drive
+          {t('account.connectDrive')}
         </button>
       )}
       {user.owner && (
@@ -177,18 +179,18 @@ function SignedIn({ onDone }: { onDone: () => void }) {
             onDone();
           }}
         >
-          Admin: people and limits
+          {t('account.admin')}
         </button>
       )}
       {confirming ? (
         <div className="account-confirm">
           <p>
-            Delete your account{total ? ` and its ${total} saved preset${total === 1 ? '' : 's'}` : ''}? This can't be undone.
+            {total ? t('account.deleteAskPresets', { count: total }) : t('account.deleteAsk')}
           </p>
-          <p className="account-muted">Your projects stay in your Google Drive, in the “Cloud Slicer” folder.</p>
+          <p className="account-muted">{t('account.projectsStay')}</p>
           <div className="account-actions">
             <button className="secondary" onClick={() => setConfirming(false)}>
-              Keep it
+              {t('account.keepIt')}
             </button>
             <button
               className="primary danger"
@@ -198,14 +200,14 @@ function SignedIn({ onDone }: { onDone: () => void }) {
                 onDone();
               }}
             >
-              Delete account
+              {t('account.delete')}
             </button>
           </div>
         </div>
       ) : (
         <div className="account-actions">
           <button className="quiet danger" onClick={() => setConfirming(true)}>
-            Delete account
+            {t('account.delete')}
           </button>
           <button
             className="secondary"
@@ -214,7 +216,7 @@ function SignedIn({ onDone }: { onDone: () => void }) {
               onDone();
             }}
           >
-            Sign out
+            {t('account.signOut')}
           </button>
         </div>
       )}
@@ -225,14 +227,15 @@ function SignedIn({ onDone }: { onDone: () => void }) {
 
 /** What is kept and how (public/privacy.html, public/terms.html). */
 function Legal() {
+  const { t } = useTranslation();
   return (
     <p className="account-muted account-legal">
       <a href="/privacy" target="_blank" rel="noopener">
-        Privacy
+        {t('account.privacy')}
       </a>
       {' · '}
       <a href="/terms" target="_blank" rel="noopener">
-        Terms
+        {t('account.terms')}
       </a>
     </p>
   );
