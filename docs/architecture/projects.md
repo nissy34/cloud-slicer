@@ -22,6 +22,7 @@ its own: only the list entry and its small picture.
 | Another slicer's start/end G-code that our engine can't fill in | `components/GcodeFallbackDialog.tsx`, `lib/gcode-errors.ts` |
 | Engine switch for an open project | `lib/engine-switch.ts`, `components/EngineSection.tsx`, `EngineSwitchDialog.tsx` |
 | The open project as a document | `state/projects.ts`, `lib/projects.ts`, `components/ProjectMenu.tsx`, `OpenProjectDialog.tsx` |
+| New project's "Keep your changed settings?" | `components/PresetChangesDialog.tsx`, `account/preset-save.ts` (`changedPresets`, `saveChangedPresets`), `state/projects.ts` `startNew` |
 | The Online projects window (search, sort, Cards/List, Rename and Delete windows) | `components/ProjectMenu.tsx` (`ProjectsDialog`), `lib/projects.ts` (`findProjects`), `styles/project-menu.css` |
 | Online projects API | `functions/_lib/projects.ts` (`/api/projects`) |
 | Project files in the person's Google Drive | `functions/_lib/drive.ts` (`/api/drive/token`, check, rename, delete), `src/account/drive.ts` (upload in pieces, download, which files are still there) |
@@ -35,6 +36,21 @@ its own: only the list entry and its small picture.
 comes in as overrides on the selected presets → plates, per-part filaments, paint and
 mixes are drawn. Opening a 3MF over loaded objects asks: open as the project, or add its
 objects.
+
+**New project.** Like desktop Orca's `Plater::new_project`: first the usual question
+about the open project (save it or discard its changes), then, when changed settings
+belong to a selected preset, "Keep your changed settings?" listing each preset with its
+number of changes (filaments, process, printer). **Keep** takes them into the new
+project; **Discard** puts the presets' own values back; **Save…** asks a name per preset
+(the person's own preset keeps its name and takes the changes, a system preset gets
+"Name - Copy") and saves them as the preset ⋯ menu does, printer last, then selects them.
+Cancel stays in the open project. "Remember my choice" (Keep or Discard, per browser,
+`lib/storage.ts`) answers without asking; the settings panel's "changed from the presets"
+line then says so, with **Ask again**. The selected presets always stay. The plate, its
+plates and per-plate settings go, and Undo can't bring the old project back (desktop's
+project separator: the undo history is dropped). New project starts in the default
+engine: when that is the other engine, kept changes go along as switching an empty plate
+does. Clear all keeps its own behaviour (no question; Undo brings the model back).
 
 **Convert.** Only model settings carry over (walls, infill, supports, seams) and only
 those the author changed, read from the project's `different_settings_to_system`; files
@@ -189,7 +205,7 @@ server both reach; runs Pages Functions with a local D1, see [accounts](accounts
 `account/drive.test.ts` (upload in pieces, resume after a drop), `account/drive-picker.test.ts`
 (which picked files open, downloads), `accounts.mjs` "Open from Google Drive" (a stand-in
 for Google's window script: picks, cancels, unsupported files, the copy in the Cloud Slicer folder), `convert.mjs`, `foreign-gcode.mjs`,
-`engine-switch.mjs`, `engines.mjs`; unit tests `project-import.test.ts`, `projects.test.ts`.
+`engine-switch.mjs`, `engines.mjs`, `new-project.mjs` (Keep, Discard, Save…, Cancel, Remember my choice, Undo off); unit tests `project-import.test.ts`, `projects.test.ts`.
 
 ## Open
 

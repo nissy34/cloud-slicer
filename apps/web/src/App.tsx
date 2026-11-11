@@ -3,6 +3,7 @@ import { ImportPresetsDialog } from './account/ImportPresets';
 import { PresetSettingsDialog } from './components/PresetSettingsDialog';
 import { SettingsPromptDialog } from './components/SettingsPrompt';
 import { AskDialog } from './components/AskDialog';
+import { PresetChangesDialog } from './components/PresetChangesDialog';
 import { SimplifyFirstDialog } from './components/SimplifyFirstDialog';
 import { ActionBar } from './components/ActionBar';
 import { BottomTabs } from './components/BottomTabs';
@@ -59,6 +60,7 @@ export function App() {
       <SettingsPromptDialog />
       <AskDialog />
       <SimplifyFirstDialog />
+      <PresetChangesDialog />
       <PrintHistoryDialog />
       {tab !== 'device' && tab !== 'admin' && (
         <div className={sideHidden ? 'body side-hidden' : 'body'} style={{ '--side-w': `${sideWidth}px` } as CSSProperties}>
