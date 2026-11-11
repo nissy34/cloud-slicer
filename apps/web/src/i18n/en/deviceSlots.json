@@ -1,0 +1,11 @@
+{
+  "deviceSlots": {
+    "matchingFilament": "a matching filament",
+    "noSlot": "No {{noun}} has {{material}}. Load it, or change the filament in the slicer and slice again.",
+    "noSlotNozzle": "No {{noun}} has {{material}} with a {{nozzle}} mm nozzle. Load it, or change the filament in the slicer and slice again.",
+    "noType": "{{slot}} has no filament type set. {{unset}}",
+    "otherMaterial": "{{slot}} has {{has}}, but this filament was sliced as {{material}}.",
+    "otherNozzle": "{{slot}} has a {{has}} mm nozzle, but the file was sliced for {{nozzle}} mm.",
+    "highFlow": "The file was sliced for a high-flow nozzle, but {{slot}} has a standard one."
+  }
+}

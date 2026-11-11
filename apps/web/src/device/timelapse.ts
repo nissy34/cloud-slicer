@@ -6,6 +6,7 @@
 // watching or downloading again costs nothing. Through a bridge the pieces come over a direct
 // link when one connects, else over the relay, which only takes videos up to
 // RELAY_VIDEO_LIMIT. Row pictures come either way (one small message each).
+import { i18n } from '../i18n';
 import type { PageAnswer, PageRequest } from './link/types';
 import { LinkError } from './link/types';
 import { openDirect, PageRefused, type DirectPageLink, type PageBridge } from './printer-page';
@@ -93,21 +94,21 @@ export function rangeAnswer(status: number, body: Uint8Array, total: number | nu
   if (status === 200) return { bytes: body.subarray(start, end + 1), total: body.length, route };
   if (status === 206) return { bytes: body, total, route };
   if (status === 416) return { bytes: new Uint8Array(0), total, route };
-  throw new LinkError(status === 404 ? 'The video is no longer on the printer.' : `The printer answered HTTP ${status}.`, 'http');
+  throw new LinkError(status === 404 ? i18n.t('deviceLink.videoGone') : i18n.t('deviceLink.httpStatus', { status }), 'http');
 }
 
-const TOO_BIG = 'This video is too big to fetch through the relay. Open the app on the printer’s network to watch it.';
+const tooBig = () => i18n.t('deviceLink.videoTooBig');
 
 /** A stuck direct piece goes to the relay after this long. */
 const DIRECT_PIECE_MS = 15_000;
 
 function withTimeout<T>(p: Promise<T>, ms: number): Promise<T> {
   let t: ReturnType<typeof setTimeout> | undefined;
-  return Promise.race([p, new Promise<T>((_, fail) => (t = setTimeout(() => fail(new Error('The direct link stalled.')), ms)))]).finally(() => clearTimeout(t));
+  return Promise.race([p, new Promise<T>((_, fail) => (t = setTimeout(() => fail(new Error(i18n.t('deviceLink.directLinkStalled'))), ms)))]).finally(() => clearTimeout(t));
 }
 
 /** Thrown when the bridge is too old to pass on timelapse files. */
-const OLD_BRIDGE = 'Update the bridge to watch timelapses: Printers and bridges, then Update now.';
+const oldBridge = () => i18n.t('deviceLink.oldBridgeTimelapse');
 
 /**
  * Reads files through a bridge, a Range at a time: over one direct link shared
@@ -163,18 +164,18 @@ export class BridgeFiles {
       try {
         if (direct) a = await withTimeout(direct.fetch(req), DIRECT_PIECE_MS);
       } catch (e) {
-        if (e instanceof PageRefused) throw new LinkError(/not part of a page/.test(e.message) ? OLD_BRIDGE : e.message, 'bridge');
+        if (e instanceof PageRefused) throw new LinkError(/not part of a page/.test(e.message) ? oldBridge() : e.message, 'bridge');
         // The direct link dropped: the relay answers this one.
         this.direct = null;
         this.droppedAt = Date.now();
       }
       if (!a) {
-        if (o.directOnly) throw new LinkError('No direct link to the bridge.', 'blocked');
+        if (o.directOnly) throw new LinkError(i18n.t('deviceLink.noDirectToBridge'), 'blocked');
         route = 'relay';
         try {
           a = await this.bridge.pageFetch(req);
         } catch (e) {
-          if (e instanceof PageRefused || /not part of a page/.test((e as Error).message)) throw new LinkError(/not part of a page/.test((e as Error).message) ? OLD_BRIDGE : (e as Error).message, 'bridge');
+          if (e instanceof PageRefused || /not part of a page/.test((e as Error).message)) throw new LinkError(/not part of a page/.test((e as Error).message) ? oldBridge() : (e as Error).message, 'bridge');
           throw e;
         }
       }
@@ -234,7 +235,7 @@ export class VideoSource {
         if (a.route !== this.route) this.onRoute?.((this.route = a.route));
         return a.bytes;
       }, (e: Error) => {
-        throw big && e instanceof LinkError && e.kind === 'blocked' ? new LinkError(TOO_BIG, 'blocked') : e;
+        throw big && e instanceof LinkError && e.kind === 'blocked' ? new LinkError(tooBig(), 'blocked') : e;
       });
       this.pieces.set(i, p);
       p.catch(() => this.pieces.delete(i));

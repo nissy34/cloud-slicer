@@ -2,6 +2,7 @@
 // has an https address the browser can reach (or when this page itself is
 // served over plain http, as in local development). Moonraker must list this
 // site in [authorization] cors_domains for the HTTP calls.
+import { i18n } from '../../i18n';
 import { LinkError, type LinkHandlers, type PrinterLink, type RpcMessage } from './types';
 import { rangeAnswer, rangeTotal, type RangeAnswer, type ReadOptions } from '../timelapse';
 
@@ -25,7 +26,7 @@ export function directBlockedReason(printerUrl: string, pageUrl = globalThis.loc
   try {
     printer = new URL(printerUrl);
   } catch {
-    return 'That is not a valid address.';
+    return i18n.t('deviceLink.badAddress');
   }
   try {
     page = new URL(pageUrl);
@@ -34,10 +35,10 @@ export function directBlockedReason(printerUrl: string, pageUrl = globalThis.loc
   }
   const pageIsLocal = PRIVATE_HOST.test(page.hostname);
   if (page.protocol === 'https:' && printer.protocol === 'http:') {
-    return 'This printer only has a plain http address, which a secure page cannot reach. Connect it through the bridge instead.';
+    return i18n.t('deviceLink.plainHttp');
   }
   if (!pageIsLocal && PRIVATE_HOST.test(printer.hostname)) {
-    return 'This is an address on your home network, which the browser will not let a public site reach. Connect it through the bridge instead.';
+    return i18n.t('deviceLink.homeNetwork');
   }
   return null;
 }
@@ -81,14 +82,14 @@ export class DirectLink implements PrinterLink {
       // The API key only goes to the printer's own host, never to a camera elsewhere.
       const key = sameHost(url, this.baseUrl) ? this.headers() : {};
       const r = await fetch(url, { ...init, headers: { ...key, ...(init.headers ?? {}) }, signal: ac.signal });
-      if (r.status === 401 || r.status === 403) throw new LinkError('The printer refused the API key.', 'auth');
-      if (!r.ok) throw new LinkError(`The printer answered HTTP ${r.status}.`, 'http');
+      if (r.status === 401 || r.status === 403) throw new LinkError(i18n.t('deviceLink.refusedKey'), 'auth');
+      if (!r.ok) throw new LinkError(i18n.t('deviceLink.httpStatus', { status: r.status }), 'http');
       return r;
     } catch (e) {
       if (e instanceof LinkError) throw e;
-      if ((e as Error).name === 'AbortError') throw new LinkError('The printer did not answer in time.', 'timeout');
+      if ((e as Error).name === 'AbortError') throw new LinkError(i18n.t('deviceLink.printerTimeout'), 'timeout');
       throw new LinkError(
-        `Could not reach ${this.label}. Check that it is on, and that moonraker.conf lists this site under [authorization] cors_domains (${location.origin}), then restart Moonraker.`,
+        i18n.t('deviceLink.corsHelp', { target: this.label, origin: location.origin }),
         'network',
       );
     } finally {
@@ -116,7 +117,7 @@ export class DirectLink implements PrinterLink {
       const ws = new WebSocket(url);
       const timer = setTimeout(() => {
         ws.close();
-        reject(new LinkError(`${this.label} did not answer in time.`, 'timeout'));
+        reject(new LinkError(i18n.t('deviceLink.targetTimeout', { target: this.label }), 'timeout'));
       }, 10_000);
       ws.onopen = () => {
         clearTimeout(timer);
@@ -125,7 +126,7 @@ export class DirectLink implements PrinterLink {
       };
       ws.onerror = () => {
         clearTimeout(timer);
-        reject(new LinkError(`Could not open a connection to ${this.label}.`, 'network'));
+        reject(new LinkError(i18n.t('deviceLink.cannotOpen', { target: this.label }), 'network'));
       };
       ws.onmessage = (ev) => {
         try {
@@ -137,14 +138,14 @@ export class DirectLink implements PrinterLink {
       ws.onclose = () => {
         if (this.ws === ws) {
           this.ws = null;
-          h.onClose(`Lost the connection to ${this.label}.`);
+          h.onClose(i18n.t('deviceLink.lost', { target: this.label }));
         }
       };
     });
   }
 
   send(msg: RpcMessage) {
-    if (this.ws?.readyState !== WebSocket.OPEN) throw new LinkError('Not connected.', 'network');
+    if (this.ws?.readyState !== WebSocket.OPEN) throw new LinkError(i18n.t('deviceLink.notConnectedShort'), 'network');
     this.ws.send(JSON.stringify(msg));
   }
 
@@ -178,9 +179,9 @@ export class DirectLink implements PrinterLink {
           reject(new LinkError(uploadRefused(xhr.status, xhr.responseText), 'http'));
         }
       };
-      xhr.onerror = () => reject(new LinkError(`Upload to ${this.label} failed.`, 'network'));
+      xhr.onerror = () => reject(new LinkError(i18n.t('deviceLink.uploadFailed', { target: this.label }), 'network'));
       // A stopped upload leaves nothing on the printer: Moonraker drops an incomplete file.
-      xhr.onabort = () => reject(new LinkError('Upload cancelled.', 'network'));
+      xhr.onabort = () => reject(new LinkError(i18n.t('deviceLink.uploadCancelled'), 'network'));
       if (signal?.aborted) return xhr.onabort(new ProgressEvent('abort'));
       signal?.addEventListener('abort', () => xhr.abort(), { once: true });
       xhr.send(form);
@@ -196,7 +197,7 @@ export class DirectLink implements PrinterLink {
       r = await fetch(this.resolve(path), { headers: { ...this.headers(), Range: `bytes=${start}-${end}` }, signal: options.signal });
     } catch (e) {
       if ((e as Error).name === 'AbortError') throw e;
-      throw new LinkError(`Could not reach ${this.label}.`, 'network');
+      throw new LinkError(i18n.t('deviceLink.cannotReach', { target: this.label }), 'network');
     }
     const body = r.status === 200 || r.status === 206 ? new Uint8Array(await r.arrayBuffer()) : new Uint8Array(0);
     const headers: Record<string, string> = {};
@@ -212,7 +213,7 @@ export class DirectLink implements PrinterLink {
     const sep = url.includes('?') ? '&' : '?';
     const r = await this.fetch(`${url}${sep}_t=${Date.now()}`, { cache: 'no-store' }, 5000);
     const blob = await r.blob();
-    if (!blob.size) throw new LinkError('The camera sent an empty frame.', 'http');
+    if (!blob.size) throw new LinkError(i18n.t('deviceLink.emptyFrame'), 'http');
     return blob;
   }
 }
@@ -226,5 +227,5 @@ export function uploadRefused(status: number, body: string): string {
   } catch {
     // not JSON: the status says enough
   }
-  return reason ? `The printer refused the file: ${reason.replace(/\.$/, '')} (HTTP ${status}).` : `The printer refused the file (HTTP ${status}).`;
+  return reason ? i18n.t('deviceLink.refusedFileWhy', { reason: reason.replace(/\.$/, ''), status }) : i18n.t('deviceLink.refusedFile', { status });
 }

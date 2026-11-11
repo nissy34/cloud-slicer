@@ -1,0 +1,31 @@
+{
+  "deviceAddons": {
+    "octoprintStopped": "OctoPrint isn't connected to the printer.",
+    "octoprintRestart": "Connect again",
+    "octoprintRestarting": "Connecting OctoPrint to the printer",
+    "bambuStopped": "The printer stopped answering: check that it is on and on the network.",
+    "bambuCameraMissing": "Only P1 and A1 printers show their camera here: X1, H2 and P2S send video that only Bambu's own apps play.",
+    "bambuSlotNoun": "AMS slot",
+    "bambuSlotUnset": "Load filament there, or set it on the printer’s screen.",
+    "bambuSlotNote": "As in Bambu Studio, a filament can only go to a slot with the same filament type. Brand and colour can differ.",
+    "outsideSpool": "Outside spool",
+    "u1Heads": "Tool heads",
+    "u1HeadNoun": "tool head",
+    "u1HeadUnset": "Load filament, or set its type on the Tool heads card.",
+    "u1HeadNote": "As in Snapmaker’s own app, a filament can only go to a head with the same filament type and nozzle size. Brand and colour can differ.",
+    "nozzleStandard": "Standard",
+    "nozzleHighFlow": "High flow",
+    "calibratingOffsets": "Calibrating tool offsets",
+    "levellingBed": "Levelling the bed",
+    "calibratingFlow": "Calibrating flow",
+    "calibratingShaper": "Calibrating input shaping",
+    "updatingFirmware": "Updating firmware",
+    "needsAttention": "Needs attention on the printer screen",
+    "adjustingScrews": "Adjusting bed screws",
+    "loadingFilament": "Loading filament",
+    "unloadingFilament": "Unloading filament",
+    "calibratingPark": "Calibrating park position",
+    "calibratingHome": "Calibrating home position",
+    "hotendFan": "Hotend fan T{{n}}"
+  }
+}

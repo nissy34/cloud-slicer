@@ -7,6 +7,7 @@
 // the printer's own message. The words come from that page via
 // scripts/u1-errors.mjs and load only when an error turns up.
 import type { PrinterError, PrinterErrorSource } from './types';
+import { say } from '../say';
 
 export interface Words {
   titles: string[];
@@ -33,8 +34,8 @@ export function describeU1Error(raw: unknown, w: Words, once = false): PrinterEr
   return {
     id: code,
     code,
-    title: w.titles[title] ?? 'Printer error',
-    text: text || message || 'The printer reported an error. Check its screen for details.',
+    title: w.titles[title] ?? say('devicePrinterErrors.printerError'),
+    text: text || message || say('devicePrinterErrors.u1Unknown'),
     once,
   };
 }

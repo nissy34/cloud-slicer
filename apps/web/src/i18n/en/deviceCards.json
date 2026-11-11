@@ -1,0 +1,22 @@
+{
+  "deviceCards": {
+    "cameras": "Cameras",
+    "climate": "Bed and chamber",
+    "move": "Move",
+    "console": "Console",
+    "print": "Print",
+    "toolHeads": "Tool heads",
+    "alerts": "Alerts",
+    "files": "Files",
+    "unfold": "Unfold this card",
+    "fold": "Fold this card",
+    "targetOf": "{{label}} target",
+    "turnOff": "Turn {{label}} off",
+    "off": "Off",
+    "keepGoing": "Keep going",
+    "chamberLight": "Chamber light",
+    "purifierExhaust": "Purifier exhaust",
+    "purifierFilter": "Purifier filter",
+    "fanAuto": "The printer runs this fan by itself"
+  }
+}

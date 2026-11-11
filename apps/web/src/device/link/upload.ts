@@ -10,6 +10,7 @@
 // before streaming gets 8 MiB pieces one at a time; an older relay that only
 // passes text gets base64 pieces of 512 KiB, as its 1 MiB limit wants; an
 // older bridge still gets the file the old way (bridge.upload_begin).
+import { i18n } from '../../i18n';
 import { STUN, gathered } from '../webrtc';
 
 /** A piece streamed over the relay, as raw bytes. */
@@ -122,7 +123,7 @@ async function sendOver(
       // not ours
     }
   };
-  const broke = () => lost(new DirectUploadLost('The direct link to the bridge dropped.'));
+  const broke = () => lost(new DirectUploadLost(i18n.t('deviceLink.directDropped')));
   dc.onclose = broke;
   // A listener, not onconnectionstatechange: the shared link has its own.
   const watch = () => (pc.connectionState === 'failed' || pc.connectionState === 'closed') && broke();
@@ -133,7 +134,7 @@ async function sendOver(
       await connect();
       if (dc.readyState !== 'open')
         await new Promise<void>((ok, fail) => {
-          timer = setTimeout(() => fail(new DirectUploadLost('The direct link to the bridge did not connect.')), DIRECT_UPLOAD_TIMEOUT_MS);
+          timer = setTimeout(() => fail(new DirectUploadLost(i18n.t('deviceLink.directNoConnect'))), DIRECT_UPLOAD_TIMEOUT_MS);
           dc.onopen = () => ok();
           done.catch(fail);
         });
@@ -152,7 +153,7 @@ async function sendOver(
         moved = Date.now();
         onProgress?.(left);
       } else if (Date.now() - moved > DIRECT_STALL_MS) {
-        lost(new DirectUploadLost('The direct link to the bridge stalled.'));
+        lost(new DirectUploadLost(i18n.t('deviceLink.directStalled')));
       }
     }, 250);
     try {

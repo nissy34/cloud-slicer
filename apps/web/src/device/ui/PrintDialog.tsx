@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { formatDuration, formatGrams } from '../../lib/format';
 import { currentSession, useDevice, type SendSource } from '../../state/device';
 import type { PrinterCall } from '../addons';
@@ -13,12 +14,12 @@ import { Dialog } from '../../components/Dialog';
 import { Note } from '../../components/Note';
 import { Picker } from '../../components/Picker';
 
-/** What the upload bar says before the first byte leaves. */
+/** What the upload bar says before the first byte leaves (word keys). */
 const UPLOAD_STAGE = {
-  start: 'Uploading…',
-  zipping: 'Zipping…',
-  direct: 'Opening a direct link…',
-  relay: 'Direct link blocked, sending through the relay…',
+  start: 'deviceSend.stageStart',
+  zipping: 'deviceSend.stageZipping',
+  direct: 'deviceSend.stageDirect',
+  relay: 'deviceSend.stageRelay',
 };
 
 /**
@@ -29,6 +30,7 @@ const UPLOAD_STAGE = {
  * to one of them, and sets the printer's own pre-print options.
  */
 export function PrintDialog({ source }: { source: SendSource }) {
+  const { t } = useTranslation();
   const objects = useDevice((s) => s.objects);
   const addons = useDevice((s) => s.addons);
   const conn = useDevice((s) => s.conn.state);
@@ -128,7 +130,13 @@ export function PrintDialog({ source }: { source: SendSource }) {
   return (
     <Dialog
       title={
-        source.kind === 'upload' ? `Send to ${printer?.name ?? 'printer'}` : printer ? `Print on ${printer.name}` : 'Print'
+        source.kind === 'upload'
+          ? printer
+            ? t('deviceSend.sendTo', { name: printer.name })
+            : t('deviceSend.sendToPrinter')
+          : printer
+            ? t('deviceSend.printOn', { name: printer.name })
+            : t('deviceSend.print')
       }
       onClose={close}
       wide={Boolean(fil)}
@@ -143,33 +151,36 @@ export function PrintDialog({ source }: { source: SendSource }) {
             <span className="dv-upload" aria-live="polite">
               {upload.fraction > 0 ? (
                 <>
-                  <progress max={1} value={upload.fraction} /> Uploading {Math.round(upload.fraction * 100)}%{upload.stage === 'relay' && ' through the relay'}
+                  <progress max={1} value={upload.fraction} />{' '}
+                  {upload.stage === 'relay'
+                    ? t('deviceSend.uploadingRelay', { percent: Math.round(upload.fraction * 100) })
+                    : t('deviceSend.uploading', { percent: Math.round(upload.fraction * 100) })}
                 </>
               ) : (
                 <>
                   {/* Before the first byte leaves: zipping, then opening a direct link or not. */}
-                  <progress max={1} /> {UPLOAD_STAGE[upload.stage ?? 'start']}
+                  <progress max={1} /> {t(UPLOAD_STAGE[upload.stage ?? 'start'])}
                 </>
               )}
             </span>
           )}
           {/* While the file goes up, Cancel stops it; once it's starting a print, it waits. */}
           <button className="secondary" onClick={uploading ? () => useDevice.getState().cancelUpload() : close} disabled={busy && !uploading} data-testid="send-cancel">
-            Cancel
+            {t('common.cancel')}
           </button>
           {source.kind === 'upload' && (
             <button className="secondary" onClick={() => void submit(false)} disabled={busy || !online} data-testid="upload-only">
-              Upload only
+              {t('deviceSend.uploadOnly')}
             </button>
           )}
           <button
             className="primary"
             onClick={() => void submit(true)}
             disabled={busy || !online || printerBusy || mapBlocked}
-            title={printerBusy ? 'The printer is already printing' : mapBlocked ? `A filament is mapped to a ${fil?.words.noun ?? 'slot'} it can’t print on` : undefined}
+            title={printerBusy ? t('deviceSend.alreadyPrinting') : mapBlocked ? t('deviceSend.mapBlocked', { noun: fil?.words.noun ?? t('deviceSend.slot') }) : undefined}
             data-testid="upload-and-print"
           >
-            {source.kind === 'upload' ? 'Upload and print' : 'Print'}
+            {source.kind === 'upload' ? t('deviceSend.uploadAndPrint') : t('deviceSend.print')}
           </button>
         </>
       }
@@ -177,10 +188,10 @@ export function PrintDialog({ source }: { source: SendSource }) {
       <div className="dv-form">
         {source.kind === 'upload' && printers.length > 1 && (
           <label>
-            Printer
+            {t('deviceSend.printer')}
             <Picker
               field
-              label="Printer"
+              label={t('deviceSend.printer')}
               testId="send-printer"
               value={activeId}
               disabled={busy}
@@ -191,7 +202,7 @@ export function PrintDialog({ source }: { source: SendSource }) {
         )}
         {source.kind === 'upload' ? (
           <label>
-            File name
+            {t('deviceSend.fileName')}
             <input value={name} onChange={(e) => setName(e.target.value)} spellCheck={false} />
           </label>
         ) : (
@@ -200,16 +211,16 @@ export function PrintDialog({ source }: { source: SendSource }) {
       </div>
       {meta && (
         <p className="muted dv-print-facts">
-          {meta.estimatedSeconds ? `${formatDuration(meta.estimatedSeconds)} print` : 'No time estimate'}
-          {meta.layers ? ` · ${meta.layers} layers` : ''}
-          {meta.filaments.length ? ` · ${formatGrams(meta.filaments.reduce((a, f) => a + f.grams, 0))} filament` : ''}
+          {meta.estimatedSeconds ? t('deviceSend.printTime', { time: formatDuration(meta.estimatedSeconds) }) : t('deviceSend.noEstimate')}
+          {meta.layers ? ` · ${t('deviceSend.layers', { count: meta.layers })}` : ''}
+          {meta.filaments.length ? ` · ${t('deviceSend.filament', { amount: formatGrams(meta.filaments.reduce((a, f) => a + f.grams, 0)) })}` : ''}
         </p>
       )}
-      {printerBusy && <p className="dv-alert">The printer is busy, so this can only be uploaded for now.</p>}
-      {!online && <p className="dv-alert">{conn === 'connecting' ? `Connecting to ${printer?.name ?? 'the printer'}…` : `${printer?.name ?? 'The printer'} is not connected.`}</p>}
+      {printerBusy && <p className="dv-alert">{t('deviceSend.busy')}</p>}
+      {!online && <p className="dv-alert">{conn === 'connecting' ? (printer ? t('deviceSend.connectingTo', { name: printer.name }) : t('deviceSend.connecting')) : printer ? t('deviceSend.notConnectedName', { name: printer.name }) : t('deviceSend.notConnected')}</p>}
       {meta?.printer && printer?.preset && meta.printer !== printer.preset && (
         <p className="dv-alert" data-testid="profile-mismatch">
-          This file was sliced for {meta.printer}, but {printer.name} is set up as {printer.preset}. Choose that printer in the slicer and slice again before printing.
+          {t('deviceSend.mismatch', { sliced: meta.printer, name: printer.name, preset: printer.preset })}
         </p>
       )}
 
@@ -225,7 +236,7 @@ export function PrintDialog({ source }: { source: SendSource }) {
                   <span className="dv-map-file">
                     <Swatch colour={f.colour} number={f.index + 1} />
                     <span>
-                      Filament {f.index + 1} <span className="muted">{[f.material, f.grams ? formatGrams(f.grams) : ''].filter(Boolean).join(' · ')}</span>
+                      {t('deviceSend.filamentN', { n: f.index + 1 })} <span className="muted">{[f.material, f.grams ? formatGrams(f.grams) : ''].filter(Boolean).join(' · ')}</span>
                     </span>
                   </span>
                   <span aria-hidden className="muted">
@@ -235,15 +246,15 @@ export function PrintDialog({ source }: { source: SendSource }) {
                     {/* The printer's filaments, its slot name in the square, like every filament picker. */}
                     <Picker
                       field
-                      label={`${fil.words.noun[0].toUpperCase()}${fil.words.noun.slice(1)} for filament ${f.index + 1}`}
+                      label={t('deviceSend.slotFor', { noun: `${fil.words.noun[0].toUpperCase()}${fil.words.noun.slice(1)}`, n: f.index + 1 })}
                       invalid={Boolean(check?.blocked)}
                       value={String(toolMap[f.index])}
-                      placeholder={`No matching ${fil.words.noun}`}
+                      placeholder={t('deviceSend.noMatching', { noun: fil.words.noun })}
                       options={slots.map((h) => {
                         const blocked = slotCheck(f, h, fil.words).blocked;
                         return {
                           value: String(h.index),
-                          label: h.material ? `${h.material} ${h.subType}`.trim() : 'Empty',
+                          label: h.material ? `${h.material} ${h.subType}`.trim() : t('deviceSend.empty'),
                           swatch: h.colour,
                           swatchNumber: h.label,
                           swatchEmpty: !h.ready,
@@ -260,7 +271,7 @@ export function PrintDialog({ source }: { source: SendSource }) {
                     </span>
                   )}
                   {check?.warning && <span className="dv-warn-text">{check.warning}</span>}
-                  {slot && !check?.blocked && !slot.ready && <span className="dv-warn-text">No filament in {slot.label}</span>}
+                  {slot && !check?.blocked && !slot.ready && <span className="dv-warn-text">{t('deviceSend.noFilamentIn', { slot: slot.label })}</span>}
                 </li>
               );
             })}
@@ -270,41 +281,41 @@ export function PrintDialog({ source }: { source: SendSource }) {
       )}
       {fil && !mapping && meta && meta.filaments.length > 1 && (
         <p className="muted dv-map-note" data-testid="no-map">
-          Plain G-code prints filament 1 from the first {fil.words.noun}, filament 2 from the second, and so on. Slice for this printer to send a .gcode.3mf and choose them here.
+          {t('deviceSend.plainGcode', { noun: fil.words.noun })}
         </p>
       )}
       {options && (!fil || mapping) && (
         <fieldset className="dv-fieldset">
-          <legend>Before printing</legend>
+          <legend>{t('deviceSend.beforePrinting')}</legend>
           <div className="switch-list">
           <label className="switch-row">
             <input className="switch" type="checkbox" checked={options.bedLevel} onChange={(e) => setOptionEdits({ ...optionEdits, bedLevel: e.target.checked })} />
-            Level the bed
+            {t('deviceSend.levelBed')}
           </label>
           {options.flowCalibrate !== undefined && (
             <label className="switch-row">
               <input className="switch" type="checkbox" checked={options.flowCalibrate} onChange={(e) => setOptionEdits({ ...optionEdits, flowCalibrate: e.target.checked })} />
-              Calibrate flow
+              {t('deviceSend.calibrateFlow')}
             </label>
           )}
           <label className="switch-row">
             <input className="switch" type="checkbox" checked={options.timeLapse} onChange={(e) => setOptionEdits({ ...optionEdits, timeLapse: e.target.checked })} />
-            Record a time-lapse
+            {t('deviceSend.timeLapse')}
           </label>
           </div>
         </fieldset>
       )}
       {alertsHere && alertStatus !== 'loading' && (
         <fieldset className="dv-fieldset" data-testid="send-layer-alert">
-          <legend>Alert</legend>
+          <legend>{t('deviceSend.alert')}</legend>
           {alertProblem && alertProblem !== 'offline' ? (
-            <p className="muted">This device can’t show alerts. The Alerts card on the Device tab says why.</p>
+            <p className="muted">{t('deviceSend.cantAlert')}</p>
           ) : (
             <>
               <div className="dv-print-layer">
                 <LayerField prefs={alertPrefs} max={meta?.layers} onSet={(layer) => void layerAlert(layer)} />
               </div>
-              {alertStatus !== 'on' && <p className="muted dv-map-note">Alerts are off for this printer. A layer here turns them on, with the usual alerts (problems and Finished).</p>}
+              {alertStatus !== 'on' && <p className="muted dv-map-note">{t('deviceSend.alertsOff')}</p>}
             </>
           )}
         </fieldset>

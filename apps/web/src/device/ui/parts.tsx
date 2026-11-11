@@ -1,4 +1,5 @@
 import { createContext, useContext, useState, type ReactNode } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Card as BaseCard } from '../../components/Card';
 import { Dialog } from '../../components/Dialog';
 import { Slider } from '../../components/Slider';
@@ -10,6 +11,7 @@ export const SlotContext = createContext<{ folded: boolean; toggleFold(): void }
 export const useFolded = () => useContext(SlotContext)?.folded ?? false;
 
 export function Card({ title, actions, className, children, testId }: { title: string; actions?: ReactNode; className?: string; children: ReactNode; testId?: string }) {
+  const { t } = useTranslation();
   const slot = useContext(SlotContext);
   const folded = slot?.folded ?? false;
   return (
@@ -20,7 +22,7 @@ export function Card({ title, actions, className, children, testId }: { title: s
       actions={folded ? undefined : actions}
       title={
         slot ? (
-          <button className="dv-fold" aria-expanded={!folded} onClick={slot.toggleFold} title={folded ? 'Unfold this card' : 'Fold this card'}>
+          <button className="dv-fold" aria-expanded={!folded} onClick={slot.toggleFold} title={folded ? t('deviceCards.unfold') : t('deviceCards.fold')}>
             <span className="dv-fold-icon" aria-hidden="true" />
             {title}
           </button>
@@ -36,6 +38,7 @@ export function Card({ title, actions, className, children, testId }: { title: s
 
 /** "215 / 220 °C" with the target editable in place. */
 export function Temperature({ temp, target, max, onSet, disabled, label }: { temp: number; target: number; max: number; onSet(t: number): void; disabled?: boolean; label: string }) {
+  const { t } = useTranslation();
   const [draft, setDraft] = useState<string | null>(null);
   const commit = () => {
     if (draft == null) return;
@@ -58,7 +61,7 @@ export function Temperature({ temp, target, max, onSet, disabled, label }: { tem
           inputMode="numeric"
           min={0}
           max={max}
-          aria-label={`${label} target`}
+          aria-label={t('deviceCards.targetOf', { label })}
           value={draft ?? String(Math.round(target))}
           onFocus={(e) => e.target.select()}
           onChange={(e) => setDraft(e.target.value)}
@@ -71,8 +74,8 @@ export function Temperature({ temp, target, max, onSet, disabled, label }: { tem
       )}
       <span className="muted">°C</span>
       {target > 0 && !disabled && (
-        <button className="quiet" onClick={() => onSet(0)} aria-label={`Turn ${label} off`}>
-          Off
+        <button className="quiet" onClick={() => onSet(0)} aria-label={t('deviceCards.turnOff', { label })}>
+          {t('deviceCards.off')}
         </button>
       )}
     </span>
@@ -107,6 +110,7 @@ export function PercentSlider({ value, onCommit, label, disabled }: { value: num
 }
 
 export function useConfirm() {
+  const { t } = useTranslation();
   const [pending, setPending] = useState<{ text: string; action: string; title?: string; keep?: string; danger?: boolean; run(): void } | null>(null);
   const dialog = pending && (
     <Dialog
@@ -115,7 +119,7 @@ export function useConfirm() {
       footer={
         <>
           <button className="secondary" onClick={() => setPending(null)}>
-            {pending.keep ?? 'Keep going'}
+            {pending.keep ?? t('deviceCards.keepGoing')}
           </button>
           <button
             className={pending.danger ? 'primary danger' : 'primary'}

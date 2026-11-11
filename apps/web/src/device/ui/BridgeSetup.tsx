@@ -1,4 +1,6 @@
 import { useEffect, useState, type ReactNode } from 'react';
+import { Trans, useTranslation } from 'react-i18next';
+import { i18n } from '../../i18n';
 import { api } from '../../account/api';
 import { useAccount } from '../../state/account';
 import { useDevice } from '../../state/device';
@@ -26,8 +28,12 @@ export function guessSystem(ua = typeof navigator === 'undefined' ? '' : navigat
 
 const mb = (bytes: number) => `${Math.round(bytes / 1e6)} MB`;
 
+/** Markup inside the words: <b>, <kbd>, <c> (code), <strong>. */
+const C = { b: <b />, kbd: <kbd />, c: <code />, strong: <strong /> };
+
 /** One command on its own line, with a button that copies exactly that command. */
 export function CopyCommand({ command, testId }: { command: string; testId?: string }) {
+  const { t } = useTranslation();
   const [copied, setCopied] = useState(false);
   const copy = () => {
     void navigator.clipboard?.writeText(command).then(() => {
@@ -41,7 +47,7 @@ export function CopyCommand({ command, testId }: { command: string; testId?: str
         {command}
       </pre>
       <button className="secondary" onClick={copy}>
-        {copied ? 'Copied' : 'Copy'}
+        {copied ? t('common.copied') : t('deviceBridge.copy')}
       </button>
     </div>
   );
@@ -54,8 +60,9 @@ const BRIDGE_COMMAND: Record<'windows' | 'mac' | 'linux', string> = {
   mac: '"$HOME/Library/Application Support/Cloud Slicer Bridge/cloud-slicer-bridge"',
   linux: '~/.local/bin/cloud-slicer-bridge',
 };
-const SHELL_NAME = { windows: 'PowerShell or Command Prompt', mac: 'Terminal', linux: 'a terminal' };
-const SYSTEM_NAME = { windows: 'Windows', mac: 'Mac', linux: 'Linux or Pi' };
+// Word keys, shown with t().
+const SHELL_NAME = { windows: 'deviceBridge.shellWindows', mac: 'deviceBridge.shellMac', linux: 'deviceBridge.shellLinux' };
+const SYSTEM_NAME = { windows: 'deviceBridge.sysWindows', mac: 'deviceBridge.sysMac', linux: 'deviceBridge.sysLinux' };
 
 type BridgeOs = 'windows' | 'mac' | 'linux';
 
@@ -66,11 +73,12 @@ function useBridgeOs(): [BridgeOs, (os: BridgeOs) => void] {
 }
 
 function OsTabs<K extends string>({ os, onChange, tabs = ['windows', 'mac', 'linux'] as K[], names = SYSTEM_NAME as Record<K, string> }: { os: K; onChange: (os: K) => void; tabs?: K[]; names?: Record<K, string> }) {
+  const { t } = useTranslation();
   return (
-    <div className="chooser dv-os-tabs" role="tablist" aria-label="The bridge's computer">
+    <div className="chooser dv-os-tabs" role="tablist" aria-label={t('deviceBridge.bridgeComputer')}>
       {tabs.map((k) => (
         <button key={k} role="tab" aria-selected={os === k} className={os === k ? 'on' : ''} onClick={() => onChange(k)}>
-          {names[k]}
+          {t(names[k])}
         </button>
       ))}
     </div>
@@ -80,10 +88,11 @@ function OsTabs<K extends string>({ os, onChange, tabs = ['windows', 'mac', 'lin
 /** Where a bridge that never said where it runs could be: a computer, or the printer itself. */
 type UninstallPlace = BridgeOs | 'printer';
 const UNINSTALL_TABS: UninstallPlace[] = ['windows', 'mac', 'linux', 'printer'];
-const UNINSTALL_NAMES: Record<UninstallPlace, string> = { ...SYSTEM_NAME, printer: 'On the printer' };
+const UNINSTALL_NAMES: Record<UninstallPlace, string> = { ...SYSTEM_NAME, printer: 'deviceBridge.onPrinter' };
 
 /** The add and uninstall commands for one system, with the printer address the user types filled in. */
 function ManageCommands() {
+  const { t } = useTranslation();
   const [os, setOs] = useBridgeOs();
   const [address, setAddress] = useState('');
   const exe = BRIDGE_COMMAND[os];
@@ -91,20 +100,21 @@ function ManageCommands() {
     <div className="dv-about-commands">
       <OsTabs os={os} onChange={setOs} />
       <label>
-        Printer address
-        <input value={address} onChange={(e) => setAddress(e.target.value.trim())} placeholder="for example 192.168.1.50" spellCheck={false} autoCapitalize="off" data-testid="bridge-add-address" />
+        {t('deviceBridge.printerAddress')}
+        <input value={address} onChange={(e) => setAddress(e.target.value.trim())} placeholder={t('deviceBridge.addressExample')} spellCheck={false} autoCapitalize="off" data-testid="bridge-add-address" />
       </label>
-      <span className="muted">Add that printer, in {SHELL_NAME[os]}:</span>
+      <span className="muted">{t('deviceBridge.addThatPrinter', { shell: t(SHELL_NAME[os]) })}</span>
       <CopyCommand command={`${exe} add ${address || '<printer address>'}`} testId="bridge-add-command" />
-      <span className="muted">Stop the bridge and remove it from that computer, with its printers and pairing:</span>
+      <span className="muted">{t('deviceBridge.stopAndRemove')}</span>
       <CopyCommand command={`${exe} uninstall`} testId="bridge-uninstall-command" />
-      <span className="muted">These need the bridge set up to start with the computer, which it does the first time you open it. If a command says the path can't be found, open the bridge app again.</span>
+      <span className="muted">{t('deviceBridge.theseNeed')}</span>
     </div>
   );
 }
 
 /** How to remove the bridge from its computer, for when its last printer goes. */
 export function UninstallBridge({ system, place, relay }: { system?: string; place?: string; relay?: string }) {
+  const { t } = useTranslation();
   const known = system ? FROM_PLATFORM[system] : undefined;
   const [guess] = useBridgeOs();
   const [picked, setOs] = useState<UninstallPlace>(guess);
@@ -114,27 +124,26 @@ export function UninstallBridge({ system, place, relay }: { system?: string; pla
     return (
       <div className="dv-about-commands" data-testid="bridge-uninstall">
         {!known && place !== 'printer' && <OsTabs os={os} onChange={setOs} tabs={UNINSTALL_TABS} names={UNINSTALL_NAMES} />}
-        <span className="muted">On the printer, over SSH:</span>
+        <span className="muted">{t('deviceBridge.onPrinterSsh')}</span>
         <CopyCommand command={`curl -fsSL ${relay ?? DEFAULT_RELAY_URL}/install.sh | sh -s -- --printer --uninstall`} testId="bridge-uninstall-command" />
-        <span className="muted">That stops the bridge on the printer and deletes it with its settings and pairing.</span>
+        <span className="muted">{t('deviceBridge.stopsOnPrinter')}</span>
       </div>
     );
   }
   return (
     <div className="dv-about-commands" data-testid="bridge-uninstall">
       {!known && <OsTabs os={os} onChange={setOs} tabs={UNINSTALL_TABS} names={UNINSTALL_NAMES} />}
-      <span className="muted">On the bridge's computer, in {SHELL_NAME[os]}:</span>
+      <span className="muted">{t('deviceBridge.onBridgeComputer', { shell: t(SHELL_NAME[os]) })}</span>
       <CopyCommand command={`${BRIDGE_COMMAND[os]} uninstall`} testId="bridge-uninstall-command" />
       <span className="muted">
-        That stops the bridge, stops it starting with the computer, and deletes it with its printers and pairing. If it says the path can't be found, the bridge was never
-        set to start with that computer: closing its window stops it.
+        {t('deviceBridge.uninstallExplain')}
       </span>
     </div>
   );
 }
 
 const FROM_PLATFORM: Record<string, BridgeOs> = { win32: 'windows', darwin: 'mac', linux: 'linux' };
-const STARTS_WHEN = { windows: 'when you sign in to Windows', mac: 'when you log in to the Mac', linux: 'when the computer starts' };
+const STARTS_WHEN = { windows: 'deviceBridge.startsWindows', mac: 'deviceBridge.startsMac', linux: 'deviceBridge.startsLinux' };
 const LOG = { mac: '~/Library/Logs/cloud-slicer-bridge.log', linux: 'journalctl --user -u cloud-slicer-bridge -n 50' } as const;
 
 /**
@@ -142,6 +151,7 @@ const LOG = { mac: '~/Library/Logs/cloud-slicer-bridge.log', linux: 'journalctl 
  * when the bridge said which it is, else with a choice of system.
  */
 export function BridgeOffline({ system, place }: { system?: string; place?: string }) {
+  const { t } = useTranslation();
   const known = system ? FROM_PLATFORM[system] : undefined;
   const [guess] = useBridgeOs();
   const [picked, setOs] = useState<UninstallPlace>(guess);
@@ -152,11 +162,10 @@ export function BridgeOffline({ system, place }: { system?: string; place?: stri
       <div className="dv-about-commands" data-testid="bridge-offline-help">
         {!known && place !== 'printer' && <OsTabs os={os} onChange={setOs} tabs={UNINSTALL_TABS} names={UNINSTALL_NAMES} />}
         <span>
-          The bridge runs on the printer itself and isn't answering. Check the printer is on and online; the bridge starts with it. This page reconnects by itself.
+          {t('deviceBridge.offlinePrinter')}
         </span>
         <span className="muted">
-          Still offline? Restart the printer. A Snapmaker U1 loses the bridge with a firmware update: connect to it over SSH and paste the install line from Add a printer,
-          On the printer, again.
+          {t('deviceBridge.offlinePrinterMore')}
         </span>
       </div>
     );
@@ -164,16 +173,24 @@ export function BridgeOffline({ system, place }: { system?: string; place?: stri
   return (
     <div className="dv-about-commands" data-testid="bridge-offline-help">
       <span>
-        The bridge isn't running{known ? ` on its ${os === 'windows' ? 'Windows PC' : os === 'mac' ? 'Mac' : 'Linux computer'}` : ''}. It starts by itself{' '}
-        {STARTS_WHEN[os]}, so first check that computer is on{os === 'linux' ? '' : ', signed in'} and online. This page reconnects by itself.
+        {known
+          ? t('deviceBridge.notRunningOn', { computer: t(os === 'windows' ? 'deviceBridge.onWindowsPc' : os === 'mac' ? 'deviceBridge.onMac' : 'deviceBridge.onLinux') })
+          : t('deviceBridge.notRunning')}{' '}
+        {os === 'linux' ? t('deviceBridge.startsCheckOn', { when: t(STARTS_WHEN[os]) }) : t('deviceBridge.startsCheckSignedIn', { when: t(STARTS_WHEN[os]) })}{' '}
+        {t('deviceBridge.reconnects')}
       </span>
       {!known && <OsTabs os={os} onChange={setOs} tabs={UNINSTALL_TABS} names={UNINSTALL_NAMES} />}
-      <span className="muted">Still offline? Start it again on that computer, in {SHELL_NAME[os]}:</span>
+      <span className="muted">{t('deviceBridge.startAgain', { shell: t(SHELL_NAME[os]) })}</span>
       <CopyCommand command={`${BRIDGE_COMMAND[os]} install`} testId="bridge-offline-command" />
       <span className="muted">
-        That starts it in the background and sets it to start with the computer again.
-        {os !== 'windows' && <> If it keeps stopping, its log says why: <code>{LOG[os]}</code>.</>} If the command says the path can't be found, download
-        the bridge again from Add a printer and open it.
+        {t('deviceBridge.startsBackground')}
+        {os !== 'windows' && (
+          <>
+            {' '}
+            {t('deviceBridge.logSays')} <code>{LOG[os]}</code>.
+          </>
+        )}{' '}
+        {t('deviceBridge.pathNotFound')}
       </span>
     </div>
   );
@@ -196,6 +213,7 @@ function Step({ n, title, children }: { n: number; title: ReactNode; children?: 
 
 /** One command to paste, with a big Copy button first: copying it is the whole step. */
 function CopyStep({ command, testId }: { command: string; testId?: string }) {
+  const { t } = useTranslation();
   const [copied, setCopied] = useState(false);
   const copy = () => {
     void navigator.clipboard?.writeText(command).then(() => {
@@ -206,7 +224,7 @@ function CopyStep({ command, testId }: { command: string; testId?: string }) {
   return (
     <div className="dv-copy-step">
       <button className="primary dv-big" onClick={copy}>
-        {copied ? 'Copied ✓' : 'Copy'}
+        {copied ? `${t('common.copied')} ✓` : t('deviceBridge.copy')}
       </button>
       <pre className="dv-code" data-testid={testId}>
         {command}
@@ -217,10 +235,11 @@ function CopyStep({ command, testId }: { command: string; testId?: string }) {
 
 /** Where the bridge can run: a computer, or the printer's own Klipper computer. */
 type SetupOs = BridgeOs | 'printer';
-const OS_LABEL: Record<SetupOs, string> = { windows: 'Windows PC', mac: 'Mac', linux: 'Raspberry Pi or Linux', printer: 'On the printer' };
+const OS_LABEL: Record<SetupOs, string> = { windows: 'deviceBridge.labelWindows', mac: 'deviceBridge.labelMac', linux: 'deviceBridge.labelLinux', printer: 'deviceBridge.onPrinter' };
 
 /** On the test relay: says so, and what it runs now (PR #113, main). */
 function TestRelayNote({ relay }: { relay: string }) {
+  const { t } = useTranslation();
   const [testRuns, setTestRuns] = useState('');
   useEffect(() => {
     if (!isTestRelay(relay)) return;
@@ -236,22 +255,19 @@ function TestRelayNote({ relay }: { relay: string }) {
   if (!isTestRelay(relay)) return null;
   return (
     <Note tone="warn" className="dv-test-note" testId="bridge-test-relay">
-      <span className="tag warn">Test</span> This test site sets up a <b>test bridge</b>
+      <span className="tag warn">{t('deviceBridge.test')}</span>{' '}
       {testRuns ? (
-        <>
-          {' '}
-          on the test relay, which runs <b>{testRuns}</b>
-        </>
+        <Trans i18nKey={'deviceBridge.testNoteRuns'} values={{ runs: testRuns }} components={C} />
       ) : (
-        ' on the test relay'
+        <Trans i18nKey={'deviceBridge.testNote'} components={C} />
       )}
-      . It installs next to your everyday bridge without touching it, and only ever updates from the test relay. Remove it with the same steps, or with Remove bridge.
     </Note>
   );
 }
 
 /** Copies this page's address, for someone reading it on a phone who sets the bridge up on a computer. */
 function CopyPageLink() {
+  const { t } = useTranslation();
   const [copied, setCopied] = useState(false);
   const url = location.origin + location.pathname;
   return (
@@ -264,7 +280,7 @@ function CopyPageLink() {
         })
       }
     >
-      {copied ? 'Link copied ✓' : 'Copy the link to this page'}
+      {copied ? t('deviceBridge.linkCopied') : t('deviceBridge.copyLink')}
     </button>
   );
 }
@@ -278,6 +294,7 @@ function CopyPageLink() {
  * page opened on another computer or not at all.
  */
 export function BridgeSetup({ relay, pasteLink }: { relay: string; pasteLink?: ReactNode }) {
+  const { t } = useTranslation();
   const [apps, setApps] = useState<BridgeApp[] | null>(null);
   const system = guessSystem();
   const [guess] = useBridgeOs();
@@ -299,16 +316,15 @@ export function BridgeSetup({ relay, pasteLink }: { relay: string; pasteLink?: R
 
   const paste = pasteLink && (
     <details className="dv-node-option dv-paste-link" data-testid="bridge-paste-link">
-      <summary>This page didn't open by itself?</summary>
+      <summary>{t('deviceBridge.didntOpen')}</summary>
       <p className="muted">
-        The bridge opens this page on its own computer. If that is a different computer, you can carry on there. Or copy the address of the page it opened (it ends with a long
-        code after #pair=) and paste it here:
+        {t('deviceBridge.didntOpenHelp')}
       </p>
       {pasteLink}
     </details>
   );
 
-  if (apps === null) return <p className="muted">Getting the bridge ready…</p>;
+  if (apps === null) return <p className="muted">{t('deviceBridge.gettingReady')}</p>;
   const win = has('windows-x64');
   const mac = has('mac-arm64');
   const macIntel = has('mac-x64');
@@ -318,16 +334,15 @@ export function BridgeSetup({ relay, pasteLink }: { relay: string; pasteLink?: R
   if (!shown) {
     return (
       <p className="muted" data-testid="bridge-not-ready">
-        The bridge app isn't available to download yet. Try again in a few minutes.
+        {t('deviceBridge.notReady')}
       </p>
     );
   }
 
   const lastStep = (n: number) => (
-    <Step n={n} title="Pick your printer">
+    <Step n={n} title={t('deviceBridge.pickPrinter')}>
       <span>
-        The bridge opens this page by itself and looks for printers on your network. Choose yours, then click <b>Add printer</b>. That's it: from now on the bridge starts
-        by itself whenever that computer is on.
+        <Trans i18nKey={'deviceBridge.pickPrinterHelp'} components={C} />
       </span>
     </Step>
   );
@@ -336,23 +351,20 @@ export function BridgeSetup({ relay, pasteLink }: { relay: string; pasteLink?: R
     <div className="dv-bridge-setup">
       <TestRelayNote relay={relay} />
       <p>
-        A small free app called the <b>bridge</b> connects your printer to this site. You set it up once.
-        <InfoTip label="Why a bridge">
-          Your printer is on your home network, which websites can't reach on their own. The bridge runs on the printer itself or on a computer in your home that is
-          usually switched on.
-        </InfoTip>
+        <Trans i18nKey={'deviceBridge.intro'} components={C} />
+        <InfoTip label={t('deviceBridge.whyBridge')}>{t('deviceBridge.whyBridgeLong')}</InfoTip>
       </p>
       {system === 'other' && (
         <Note testId="bridge-phone-note">
-          Do this on that computer, not on this phone. <CopyPageLink /> and open it there.
+          {t('deviceBridge.onComputerNotPhone')} <CopyPageLink /> {t('deviceBridge.andOpenThere')}
         </Note>
       )}
       <div className="dv-setup-os">
-        <span className="dv-setup-question">Where will the bridge run?</span>
-        <div className="chooser dv-os-tabs" role="tablist" aria-label="The bridge's computer">
+        <span className="dv-setup-question">{t('deviceBridge.whereRun')}</span>
+        <div className="chooser dv-os-tabs" role="tablist" aria-label={t('deviceBridge.bridgeComputer')}>
           {offered.map((k) => (
             <button key={k} role="tab" aria-selected={shown === k} className={shown === k ? 'on' : ''} onClick={() => setOs(k)}>
-              {OS_LABEL[k]}
+              {t(OS_LABEL[k])}
             </button>
           ))}
         </div>
@@ -361,18 +373,18 @@ export function BridgeSetup({ relay, pasteLink }: { relay: string; pasteLink?: R
       <ol className="dv-setup-steps" data-testid={`bridge-steps-${shown}`}>
         {shown === 'windows' && win && (
           <>
-            <Step n={1} title="Download the bridge">
+            <Step n={1} title={t('deviceBridge.download')}>
               <div>
                 <a className="primary dv-big" href={`${relay}/download/windows-x64`} data-testid="bridge-download-windows">
-                  Download for Windows
+                  {t('deviceBridge.downloadWindows')}
                 </a>{' '}
                 <span className="muted">{mb(win.size)}</span>
               </div>
             </Step>
-            <Step n={2} title="Open the file you downloaded">
-              <span>You'll find it in your Downloads folder.</span>
+            <Step n={2} title={t('deviceBridge.openDownloaded')}>
+              <span>{t('deviceBridge.inDownloads')}</span>
               <span className="muted">
-                If a blue box says "Windows protected your PC", click <b>More info</b>, then <b>Run anyway</b>. Windows says this about new apps it doesn't know yet.
+                <Trans i18nKey={'deviceBridge.smartScreen'} components={C} />
               </span>
             </Step>
             {lastStep(3)}
@@ -380,16 +392,15 @@ export function BridgeSetup({ relay, pasteLink }: { relay: string; pasteLink?: R
         )}
         {shown === 'mac' && (
           <>
-            <Step n={1} title="Copy this line">
+            <Step n={1} title={t('deviceBridge.copyLine')}>
               <CopyStep command={install} testId="bridge-install-command" />
             </Step>
-            <Step n={2} title="Paste it into Terminal and press Return">
+            <Step n={2} title={t('deviceBridge.pasteTerminal')}>
               <span>
-                To open Terminal, press <kbd>⌘ Command</kbd> + <kbd>Space</kbd>, type <b>Terminal</b> and press <kbd>Return</kbd>. Paste with <kbd>⌘ Command</kbd> +{' '}
-                <kbd>V</kbd>.
+                <Trans i18nKey={'deviceBridge.openTerminal'} components={C} />
               </span>
               <span className="muted">
-                If your Mac asks whether the bridge may find devices on your local network, click <b>Allow</b>.
+                <Trans i18nKey={'deviceBridge.macAllow'} components={C} />
               </span>
             </Step>
             {lastStep(3)}
@@ -397,42 +408,34 @@ export function BridgeSetup({ relay, pasteLink }: { relay: string; pasteLink?: R
         )}
         {shown === 'linux' && (
           <>
-            <Step n={1} title="Copy this line">
+            <Step n={1} title={t('deviceBridge.copyLine')}>
               <CopyStep command={install} testId="bridge-install-command" />
             </Step>
-            <Step n={2} title="Paste it into a terminal on that computer and press Enter">
-              <span className="muted">
-                On a Raspberry Pi without a screen, connect to it over SSH first. With no screen, the bridge prints a link instead of opening
-                this page: open that link on any computer or phone.
-              </span>
+            <Step n={2} title={t('deviceBridge.pasteLinux')}>
+              <span className="muted">{t('deviceBridge.piNoScreen')}</span>
             </Step>
             {lastStep(3)}
           </>
         )}
         {shown === 'printer' && (
           <>
-            <Step n={1} title="Connect to the printer over SSH">
+            <Step n={1} title={t('deviceBridge.sshStep')}>
               <span>
-                From a terminal on your computer: <code>ssh root@&lt;printer address&gt;</code>. Klipper printers on a Raspberry Pi use the Pi's own user instead of
-                root.
+                <Trans i18nKey={'deviceBridge.sshHow'} values={{ addr: t('deviceBridge.addrSlot') }} components={C} />
               </span>
               <span className="muted">
-                Snapmaker U1: first turn on <b>Settings, Maintenance, Root Access</b> on the printer; the password is <b>snapmaker</b>. Creality K1: the password is{' '}
-                <b>creality_2023</b>.
+                <Trans i18nKey={'deviceBridge.sshPasswords'} components={C} />
               </span>
             </Step>
-            <Step n={2} title="Paste this line and press Enter">
+            <Step n={2} title={t('deviceBridge.pasteEnter')}>
               <CopyStep command={onPrinter} testId="bridge-printer-command" />
-              <span className="muted">
-                It installs the bridge on the printer as a service that starts with it and serves that printer. It updates itself, and it needs no computer left on.
-              </span>
+              <span className="muted">{t('deviceBridge.printerService')}</span>
             </Step>
-            <Step n={3} title="Open the link shown in the terminal">
+            <Step n={3} title={t('deviceBridge.openLink')}>
               <span>
-                Open it on this phone or computer; the printer is already on its list, so pick it and click <b>Add printer</b>. The link is also saved in Mainsail and
-                Fluidd, in the config folder, as <code>cloud-slicer-bridge-pairing.txt</code>.
+                <Trans i18nKey={'deviceBridge.openLinkHelp'} components={C} />
               </span>
-              <span className="muted">On a Snapmaker U1 a firmware update removes the bridge: paste the line again afterwards.</span>
+              <span className="muted">{t('deviceBridge.u1Update')}</span>
             </Step>
           </>
         )}
@@ -441,44 +444,39 @@ export function BridgeSetup({ relay, pasteLink }: { relay: string; pasteLink?: R
       {paste}
       {shown === 'mac' && (
         <details className="dv-node-option">
-          <summary>Rather download the Mac app?</summary>
+          <summary>{t('deviceBridge.ratherMacApp')}</summary>
           <div className="dv-about">
             <div className="dv-downloads">
               {mac && (
                 <a className="secondary" href={`${relay}/download/mac-arm64`} data-testid="bridge-download-mac">
-                  Mac with Apple chip
+                  {t('deviceBridge.macApple')}
                 </a>
               )}
               {macIntel && (
                 <a className="secondary" href={`${relay}/download/mac-x64`}>
-                  Mac with Intel chip
+                  {t('deviceBridge.macIntel')}
                 </a>
               )}
             </div>
             <p className="muted">
-              Open the zip, then the app. The app isn't signed by Apple yet, so macOS stops it the first time: click <b>Done</b>, open <b>System Settings</b>, then{' '}
-              <b>Privacy &amp; Security</b>, scroll down and click <b>Open Anyway</b>. The Terminal line above avoids all of this.
+              <Trans i18nKey={'deviceBridge.macGatekeeper'} components={C} />
             </p>
           </div>
         </details>
       )}
       <details className="dv-node-option" data-testid="bridge-about">
-        <summary>More about the bridge: is it safe, keeping it running, removing it</summary>
+        <summary>{t('deviceBridge.more')}</summary>
         <div className="dv-about">
           <p>
-            <strong>Does it keep running?</strong> Yes. Once set up it starts by itself: on Windows and Mac when you log in (with no window: it
-            runs in the background, out of the taskbar), on Linux and Raspberry Pi when the computer starts. The Device tab can reach your printer whenever that computer is on.
+            <Trans i18nKey={'deviceBridge.keepRunning'} components={C} />
           </p>
           <p>
-            <strong>Adding a printer later, or stopping it.</strong> Once the bridge is paired, add printers right in this dialog: search the network, or
-            type an address. Or type the address here and run the command on the bridge's computer:
+            <Trans i18nKey={'deviceBridge.addLater'} components={C} />
           </p>
           <ManageCommands />
-          <p>The bridge restarts by itself to use a printer you add. It updates itself, and Printers &amp; bridges offers an update when one is out.</p>
+          <p>{t('deviceBridge.restartsItself')}</p>
           <p>
-            <strong>Is it safe?</strong> The bridge only connects out to Cloud Slicer's relay, so nothing on your router is opened, and it only talks to the printers it
-            found or you added. Your printer's API key is kept on that computer (one typed here goes straight to the bridge). The pairing link works like a password: anyone who has it can control your
-            printers, so don't share it.
+            <Trans i18nKey={'deviceBridge.isSafe'} components={C} />
           </p>
         </div>
       </details>
@@ -499,16 +497,17 @@ export function setupCommands(relay: string, code: string) {
 
 /** The download, which has no setup code inside: the app asks for it when opened. */
 function DownloadWithCode({ code, children }: { code: string; children: ReactNode }) {
+  const { t } = useTranslation();
   return (
     <>
-      <strong>Or download it</strong>
+      <strong>{t('deviceBridge.orDownload')}</strong>
       <span className="dv-setup-download" data-testid="setup-download">
         {children}
         <span>
-          then paste this setup code when it asks: <code>{code}</code>
+          {t('deviceBridge.thenPasteCode')} <code>{code}</code>
         </span>
         <button className="quiet" onClick={() => void navigator.clipboard?.writeText(code)}>
-          Copy
+          {t('deviceBridge.copy')}
         </button>
       </span>
     </>
@@ -525,6 +524,7 @@ const POLL_MS = 2000;
  * code that runs out is replaced by a new one, with a note saying so.
  */
 export function AddBridge({ relay, onJoined }: { relay: string; onJoined: (p: Pairing, name: string) => void }) {
+  const { t } = useTranslation();
   const [guess] = useBridgeOs();
   const [os, setOs] = useState<SetupOs>(guess);
   const [setup, setSetup] = useState<{ code: string; expiresAt: number } | null>(null);
@@ -555,7 +555,7 @@ export function AddBridge({ relay, onJoined }: { relay: string; onJoined: (p: Pa
         if (!live) return;
         if (s.state === 'used' && s.bridgeId) {
           const pairing = await useDevice.getState().adoptBridge(s.bridgeId);
-          if (live && pairing) return onJoined(pairing, s.name ?? 'The bridge');
+          if (live && pairing) return onJoined(pairing, s.name ?? i18n.t('deviceBridge.theBridge'));
         }
         if (s.state === 'expired') {
           setRenewed(true);
@@ -581,16 +581,16 @@ export function AddBridge({ relay, onJoined }: { relay: string; onJoined: (p: Pa
       </Note>
     );
   }
-  if (!setup) return <p className="muted">Making a setup code…</p>;
+  if (!setup) return <p className="muted">{t('deviceBridge.makingCode')}</p>;
   const c = setupCommands(relay, setup.code);
 
   return (
     <div className="dv-bridge-setup" data-testid="add-bridge">
       <TestRelayNote relay={relay} />
-      <p>Run the bridge on a computer that stays on at home, on the same network as the printer, or on the printer itself.</p>
+      <p>{t('deviceBridge.runWhere')}</p>
       {system === 'other' && (
         <Note testId="bridge-phone-note">
-          Do this on that computer, not on this phone: copy the command and run it there, or <CopyPageLink /> and open it there.
+          {t('deviceBridge.onComputerCopy')} <CopyPageLink /> {t('deviceBridge.andOpenThere')}
         </Note>
       )}
       {renewed && (
@@ -599,15 +599,15 @@ export function AddBridge({ relay, onJoined }: { relay: string; onJoined: (p: Pa
             !
           </span>
           <div>
-            <strong>That setup code expired</strong>
-            <span className="muted">A setup code works for one hour. Here is a new one. If you already ran the command, paste this code where it asks; otherwise copy the new command.</span>
+            <strong>{t('deviceBridge.codeExpired')}</strong>
+            <span className="muted">{t('deviceBridge.codeExpiredHelp')}</span>
           </div>
         </div>
       )}
-      <div className="chooser dv-os-tabs" role="tablist" aria-label="Where the bridge runs">
+      <div className="chooser dv-os-tabs" role="tablist" aria-label={t('deviceBridge.whereRuns')}>
         {(['windows', 'mac', 'linux', 'printer'] as const).map((k) => (
           <button key={k} role="tab" aria-selected={os === k} className={os === k ? 'on' : ''} onClick={() => setOs(k)}>
-            {k === 'printer' ? 'On the printer' : SYSTEM_NAME[k]}
+            {t(k === 'printer' ? 'deviceBridge.onPrinter' : SYSTEM_NAME[k])}
           </button>
         ))}
       </div>
@@ -615,81 +615,76 @@ export function AddBridge({ relay, onJoined }: { relay: string; onJoined: (p: Pa
       <div className="dv-setup-commands" data-testid={`setup-${os}`}>
         {os === 'windows' && (
           <>
-            <strong>In PowerShell</strong>
+            <strong>{t('deviceBridge.inPowershell')}</strong>
             <CopyCommand command={c.powershell} testId="setup-powershell" />
             <details className="dv-node-option">
-              <summary>How do I open PowerShell?</summary>
+              <summary>{t('deviceBridge.howPowershell')}</summary>
               <p className="muted">
-                Press the <kbd>Windows</kbd> key, type <b>PowerShell</b> and press <kbd>Enter</kbd>. Paste the line with <kbd>Ctrl</kbd> + <kbd>V</kbd> (or a right-click) and
-                press <kbd>Enter</kbd>.
+                <Trans i18nKey={'deviceBridge.openPowershell'} components={C} />
               </p>
             </details>
-            <strong>Or in Command Prompt</strong>
+            <strong>{t('deviceBridge.orCmd')}</strong>
             <CopyCommand command={c.cmd} testId="setup-cmd" />
             <DownloadWithCode code={setup.code}>
               <a className="secondary" href={`${relay}/download/windows-x64`} data-testid="setup-download-windows">
-                Download for Windows
+                {t('deviceBridge.downloadWindows')}
               </a>
             </DownloadWithCode>
             <span className="muted">
-              If a blue box says "Windows protected your PC" when you open it, click <b>More info</b>, then <b>Run anyway</b>.
+              <Trans i18nKey={'deviceBridge.smartScreenShort'} components={C} />
             </span>
           </>
         )}
         {os === 'mac' && (
           <>
-            <strong>In Terminal</strong>
+            <strong>{t('deviceBridge.inTerminal')}</strong>
             <CopyCommand command={c.unix} testId="setup-unix" />
             <span className="muted">
-              To open Terminal, press <kbd>⌘ Command</kbd> + <kbd>Space</kbd>, type <b>Terminal</b> and press <kbd>Return</kbd>. If your Mac asks whether the bridge may find
-              devices on your local network, click <b>Allow</b>.
+              <Trans i18nKey={'deviceBridge.openTerminalAllow'} components={C} />
             </span>
             <DownloadWithCode code={setup.code}>
               <a className="secondary" href={`${relay}/download/mac-arm64`} data-testid="setup-download-mac">
-                Mac with Apple chip
+                {t('deviceBridge.macApple')}
               </a>
               <a className="secondary" href={`${relay}/download/mac-x64`}>
-                Mac with Intel chip
+                {t('deviceBridge.macIntel')}
               </a>
             </DownloadWithCode>
             <span className="muted">
-              Open the zip, then the app. It isn't signed by Apple yet, so the first time macOS stops it: click <b>Done</b>, open <b>System Settings</b>, then{' '}
-              <b>Privacy &amp; Security</b>, scroll down and click <b>Open Anyway</b>. The Terminal line avoids this.
+              <Trans i18nKey={'deviceBridge.macGatekeeperShort'} components={C} />
             </span>
           </>
         )}
         {os === 'linux' && (
           <>
-            <strong>In a terminal on that computer</strong>
+            <strong>{t('deviceBridge.inLinuxTerminal')}</strong>
             <CopyCommand command={c.unix} testId="setup-unix" />
-            <span className="muted">On a Raspberry Pi without a screen, connect to it over SSH first.</span>
+            <span className="muted">{t('deviceBridge.piSsh')}</span>
           </>
         )}
         {os === 'printer' && (
           <>
-            <strong>In an SSH window on the printer (Klipper printers)</strong>
+            <strong>{t('deviceBridge.inSsh')}</strong>
             <CopyCommand command={c.printer} testId="setup-printer" />
             <span className="muted">
-              Connect first with <code>ssh root@&lt;printer address&gt;</code>; Klipper printers on a Raspberry Pi use the Pi's own user instead of root. Snapmaker U1: turn on{' '}
-              <b>Settings, Maintenance, Root Access</b> on the printer first; the password is <b>snapmaker</b>. Creality K1: the password is <b>creality_2023</b>. On a U1 a
-              firmware update removes the bridge: make a new setup code and run the command again afterwards.
+              <Trans i18nKey={'deviceBridge.sshSetup'} values={{ addr: t('deviceBridge.addrSlot') }} components={C} />
             </span>
           </>
         )}
         <span className="dv-setup-code">
-          Setup code <code data-testid="setup-code">{setup.code}</code>
+          {t('deviceBridge.setupCode')} <code data-testid="setup-code">{setup.code}</code>
           <button className="quiet" onClick={() => void navigator.clipboard?.writeText(setup.code)}>
-            Copy
+            {t('deviceBridge.copy')}
           </button>
         </span>
-        <span className="muted">The setup code (also inside the commands) works once, for the next hour, and adds the bridge to your account.</span>
+        <span className="muted">{t('deviceBridge.setupCodeHelp')}</span>
       </div>
 
       <div className="dv-bridge-state connecting" role="status" data-testid="setup-waiting">
         <span className="dv-spinner" aria-hidden />
         <div>
-          <strong>Waiting for your bridge…</strong>
-          <span className="muted">This turns green by itself once the command has run.</span>
+          <strong>{t('deviceBridge.waiting')}</strong>
+          <span className="muted">{t('deviceBridge.waitingHelp')}</span>
         </div>
       </div>
     </div>
@@ -698,16 +693,17 @@ export function AddBridge({ relay, onJoined }: { relay: string; onJoined: (p: Pa
 
 /** Signed out: bridges belong to an account, so adding one starts with signing in. */
 export function SignInForBridge() {
+  const { t } = useTranslation();
   const status = useAccount((s) => s.status);
-  if (status === 'loading') return <p className="muted">Checking your account…</p>;
+  if (status === 'loading') return <p className="muted">{t('deviceBridge.checkingAccount')}</p>;
   return (
     <div className="dv-bridge-setup" data-testid="bridge-sign-in">
       <p>
-        A small free app called the <b>bridge</b> connects your printer to this site, and joins your Cloud Slicer account when you set it up.
-        <InfoTip label="Why a bridge">Your printer is on your home network, which websites can't reach on their own.</InfoTip>
+        <Trans i18nKey={'deviceBridge.introAccount'} components={C} />
+        <InfoTip label={t('deviceBridge.whyBridge')}>{t('deviceBridge.whyBridgeShort')}</InfoTip>
       </p>
       <button className="primary dv-big" onClick={() => void useAccount.getState().signIn('google')} data-testid="bridge-sign-in-button">
-        Sign in to add a bridge
+        {t('deviceScreen.signInToAddBridge')}
       </button>
     </div>
   );

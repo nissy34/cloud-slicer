@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { formatDuration } from '../../lib/format';
 import { currentSession, useDevice } from '../../state/device';
 import { job as jobOf, klippyMessage, klippyState, remainingSeconds } from '../status';
@@ -8,16 +9,18 @@ import { Card, useConfirm } from './parts';
 import { SkipObjectsDialog } from './SkipObjects';
 import { Note } from '../../components/Note';
 
+/** Word keys for each print state. */
 const STATE_LABEL: Record<string, string> = {
-  standby: 'Ready',
-  printing: 'Printing',
-  paused: 'Paused',
-  complete: 'Finished',
-  cancelled: 'Cancelled',
-  error: 'Error',
+  standby: 'deviceJob.ready',
+  printing: 'deviceJob.printing',
+  paused: 'deviceJob.paused',
+  complete: 'deviceJob.finished',
+  cancelled: 'deviceJob.cancelled',
+  error: 'deviceJob.error',
 };
 
 export function JobCard() {
+  const { t } = useTranslation();
   const objects = useDevice((s) => s.objects);
   const addons = useDevice((s) => s.addons);
   const errors = useDevice((s) => s.errors);
@@ -52,36 +55,36 @@ export function JobCard() {
   if (klippy !== 'ready') {
     const host = addons.map((a) => a.host).find(Boolean);
     return (
-      <Card title="Print" testId="job-card">
+      <Card title={t('deviceCards.print')} testId="job-card">
         {takesCommands(addons) ? (
           <>
             <Note tone="warn">
               {host
                 ? klippyMessage(objects) || host.stopped
-                : `${klippy === 'startup' ? 'The printer firmware is starting.' : 'The printer firmware has stopped.'} ${klippyMessage(objects)}`}
+                : `${klippy === 'startup' ? t('deviceJob.firmwareStarting') : t('deviceJob.firmwareStopped')} ${klippyMessage(objects)}`}
             </Note>
             <PrinterErrors errors={errors} />
             {(!host || host.restart) && (
               <div className="dv-row">
-                <button className="secondary" onClick={() => void call(host?.restarting ?? 'Restarting the firmware', (s) => s.firmwareRestart())}>
-                  {host?.restart ?? 'Restart firmware'}
+                <button className="secondary" onClick={() => void call(host?.restarting ?? t('deviceJob.restarting'), (s) => s.firmwareRestart())}>
+                  {host?.restart ?? t('deviceJob.restart')}
                 </button>
               </div>
             )}
           </>
         ) : (
           // Not Klipper: the bridge says the printer stopped answering, and it keeps asking.
-          <Note tone="warn">{klippyMessage(objects) || 'The printer is not answering.'}</Note>
+          <Note tone="warn">{klippyMessage(objects) || t('deviceJob.notAnswering')}</Note>
         )}
       </Card>
     );
   }
 
   return (
-    <Card title="Print" testId="job-card">
+    <Card title={t('deviceCards.print')} testId="job-card">
       <div className="dv-job-head">
         <span className={`dv-badge ${errors.length && !active ? 'error' : j.state}`} data-testid="print-state">
-          {errors.length && !active ? 'Needs attention' : activity && !active ? activity : STATE_LABEL[j.state]}
+          {errors.length && !active ? t('deviceJob.needsAttention') : activity && !active ? activity : t(STATE_LABEL[j.state])}
         </span>
         {j.filename && (
           <span className="dv-job-file" title={j.filename}>
@@ -97,30 +100,30 @@ export function JobCard() {
           </div>
           <dl className="dv-facts">
             <div>
-              <dt>Done</dt>
+              <dt>{t('deviceJob.done')}</dt>
               <dd>{pct}%</dd>
             </div>
             <div>
-              <dt>Printing for</dt>
+              <dt>{t('deviceJob.printingFor')}</dt>
               <dd>{formatDuration(j.printSeconds)}</dd>
             </div>
             {active && (
               <div>
-                <dt>Left</dt>
+                <dt>{t('deviceJob.left')}</dt>
                 <dd>{remaining != null ? formatDuration(remaining) : '–'}</dd>
               </div>
             )}
             {j.totalLayers != null && (
               <div>
-                <dt>Layer</dt>
+                <dt>{t('deviceJob.layer')}</dt>
                 <dd>
-                  {j.layer ?? 0} of {j.totalLayers}
+                  {t('deviceJob.layerOf', { layer: j.layer ?? 0, total: j.totalLayers })}
                 </dd>
               </div>
             )}
             {active && printingNow && (
               <div>
-                <dt>Printing</dt>
+                <dt>{t('deviceJob.printingNow')}</dt>
                 <dd data-testid="printing-object">{printingNow.label}</dd>
               </div>
             )}
@@ -128,29 +131,29 @@ export function JobCard() {
         </>
       ) : (
         <p className="muted dv-job-idle">
-          {j.state === 'error' && j.message ? j.message : 'Send a sliced plate from Prepare, or print a file already on the printer.'}
+          {j.state === 'error' && j.message ? j.message : t('deviceJob.idle')}
         </p>
       )}
       {j.message && active && <p className="muted">{j.message}</p>}
       {noObjectList && (
         <Note testId="no-object-list">
-          This file has no object list, so objects can't be skipped. Files sliced here always have one.
+          {t('deviceJob.noObjectList')}
         </Note>
       )}
       <div className="dv-row">
         {j.state === 'printing' && (
-          <button className="secondary" onClick={() => void call('Pausing', (s) => s.pause())}>
-            Pause
+          <button className="secondary" onClick={() => void call(t('deviceJob.pausing'), (s) => s.pause())}>
+            {t('deviceJob.pause')}
           </button>
         )}
         {j.state === 'paused' && (
-          <button className="primary" onClick={() => void call('Resuming', (s) => s.resume())}>
-            Resume
+          <button className="primary" onClick={() => void call(t('deviceJob.resuming'), (s) => s.resume())}>
+            {t('deviceJob.resume')}
           </button>
         )}
         {canSkip && (
           <button className="secondary" onClick={() => setSkipping(true)}>
-            Skip objects…
+            {t('deviceJob.skipObjects')}
           </button>
         )}
         {active && (
@@ -158,19 +161,19 @@ export function JobCard() {
             className="secondary danger"
             onClick={() =>
               confirm({
-                action: 'Cancel print',
-                text: `Stop printing ${j.filename}? This cannot be resumed.`,
+                action: t('deviceJob.cancelPrint'),
+                text: t('deviceJob.cancelText', { file: j.filename }),
                 danger: true,
-                run: () => void call('Cancelling', (s) => s.cancel()),
+                run: () => void call(t('deviceJob.cancelling'), (s) => s.cancel()),
               })
             }
           >
-            Cancel print
+            {t('deviceJob.cancelPrint')}
           </button>
         )}
         {!active && j.filename && (
           <button className="secondary" onClick={() => openPrintDialog({ kind: 'file', path: j.filename })}>
-            Print again…
+            {t('deviceJob.printAgain')}
           </button>
         )}
       </div>
@@ -182,6 +185,7 @@ export function JobCard() {
 
 /** What the printer is complaining about, in its maker's words, with the code its own app shows. */
 function PrinterErrors({ errors }: { errors: PrinterError[] }) {
+  const { t } = useTranslation();
   if (!errors.length) return null;
   return (
     <div className="dv-errors" data-testid="printer-errors">
@@ -190,10 +194,10 @@ function PrinterErrors({ errors }: { errors: PrinterError[] }) {
           <strong>{e.title}</strong>
           <p>{e.text}</p>
           <div className="dv-error-foot">
-            <span className="muted">Error code {e.code}</span>
+            <span className="muted">{t('deviceJob.errorCode', { code: e.code })}</span>
             {e.once && (
               <button className="quiet" onClick={() => currentSession()?.dismissError(e.id)}>
-                Close
+                {t('common.close')}
               </button>
             )}
           </div>

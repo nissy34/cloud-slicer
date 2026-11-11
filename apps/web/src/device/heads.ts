@@ -32,16 +32,16 @@ export function headMood(h: HeadMoodInput): HeadMood {
   return h.inUse ? 'ready' : 'napping';
 }
 
-/** What the speech bubble says. */
+/** What the speech bubble says (word keys, shown with t()). */
 export const MOOD_WORDS: Record<HeadMood, string> = {
-  worried: 'Check me',
-  hungry: 'Feed me',
-  printing: 'Printing!',
-  heating: 'Heating up',
-  hot: 'Hot',
-  cooling: 'Cooling down',
-  ready: 'Ready',
-  napping: 'Napping',
+  worried: 'deviceHeads.moodWorried',
+  hungry: 'deviceHeads.moodHungry',
+  printing: 'deviceHeads.moodPrinting',
+  heating: 'deviceHeads.moodHeating',
+  hot: 'deviceHeads.moodHot',
+  cooling: 'deviceHeads.moodCooling',
+  ready: 'deviceHeads.moodReady',
+  napping: 'deviceHeads.moodNapping',
 };
 
 const SENSOR_PREFIXES = ['filament_switch_sensor ', 'filament_motion_sensor '];

@@ -1,6 +1,7 @@
 // WebRTC camera players for the three servers Moonraker knows about. Each
 // signals differently; all of them end with a receive-only video track.
 // Adapted from Mainsail's streamers (camera-streamer, MediaMTX WHEP, go2rtc).
+import { i18n } from '../i18n';
 import type { WebrtcProtocol } from './camera';
 
 export const STUN: RTCIceServer[] = [{ urls: ['stun:stun.l.google.com:19302'] }];
@@ -51,7 +52,7 @@ export function gathered(pc: RTCPeerConnection): Promise<void> {
 
 async function post(url: string, body: string, contentType: string, signal: AbortSignal): Promise<Response> {
   const r = await fetch(url, { method: 'POST', body, headers: { 'Content-Type': contentType }, signal });
-  if (!r.ok) throw new Error(`The camera answered HTTP ${r.status}.`);
+  if (!r.ok) throw new Error(i18n.t('deviceLink.cameraHttp', { status: r.status }));
   return r;
 }
 
@@ -92,7 +93,7 @@ export function go2rtcSocketUrl(streamUrl: string, base: string): string {
 function go2rtc(pc: RTCPeerConnection, url: string, signal: AbortSignal): Promise<() => void> {
   return new Promise((resolve, reject) => {
     const ws = new WebSocket(go2rtcSocketUrl(url, location.href));
-    const fail = () => reject(new Error('The camera closed the connection.'));
+    const fail = () => reject(new Error(i18n.t('deviceLink.cameraClosed')));
     signal.addEventListener('abort', () => ws.close());
     ws.onerror = fail;
     ws.onopen = async () => {
@@ -140,7 +141,7 @@ export async function playWebrtc(protocol: WebrtcProtocol, url: string, video: H
       resolve();
     };
     unwatch = watchLink(pc, () => {
-      reject(new Error('The camera stream failed.'));
+      reject(new Error(i18n.t('deviceLink.cameraFailed')));
       onLost();
     });
   });
@@ -151,7 +152,7 @@ export async function playWebrtc(protocol: WebrtcProtocol, url: string, video: H
     else extra = await go2rtc(pc, url, ac.signal);
     await Promise.race([
       playing,
-      new Promise((_, reject) => ac.signal.addEventListener('abort', () => reject(new Error('The camera did not start in time.')))),
+      new Promise((_, reject) => ac.signal.addEventListener('abort', () => reject(new Error(i18n.t('deviceLink.cameraTimeout'))))),
     ]);
     return stop;
   } catch (e) {

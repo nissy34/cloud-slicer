@@ -1,0 +1,33 @@
+{
+  "deviceMove": {
+    "disabledPrinting": "Disabled while printing",
+    "disabledPaused": "Disabled while paused",
+    "position": "Position",
+    "speed": "Speed",
+    "flow": "Flow",
+    "head": "Head",
+    "moveHead": "Move the head",
+    "headBack": "Head to the back",
+    "headLeft": "Head left",
+    "homeHead": "Home the head",
+    "headRight": "Head right",
+    "headToward": "Head toward you",
+    "bed": "Bed",
+    "headHeight": "Head height",
+    "moveBed": "Move the bed",
+    "moveHeadZ": "Move the head up and down",
+    "bedUp": "Bed up",
+    "headUp": "Head up",
+    "homeBed": "Home the bed",
+    "homeHeight": "Home the height",
+    "bedDown": "Bed down",
+    "headDown": "Head down",
+    "step": "Step",
+    "homeAll": "Home all",
+    "motorsOff": "Motors off",
+    "heatFirst": "Heat the nozzle first",
+    "extrude10": "Extrude 10 mm",
+    "retract": "Retract",
+    "homeFirst": "Home the printer before moving it."
+  }
+}

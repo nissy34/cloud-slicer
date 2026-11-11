@@ -1,0 +1,31 @@
+{
+  "deviceAddons": {
+    "octoprintStopped": "OctoPrint לא מחובר למדפסת.",
+    "octoprintRestart": "חיבור מחדש",
+    "octoprintRestarting": "מחברים את OctoPrint למדפסת",
+    "bambuStopped": "המדפסת הפסיקה לענות: בדקו שהיא דולקת ומחוברת לרשת.",
+    "bambuCameraMissing": "רק מדפסות P1 ו-A1 מציגות כאן את המצלמה שלהן: X1, H2 ו-P2S שולחות וידאו שרק האפליקציות של Bambu עצמה מנגנות.",
+    "bambuSlotNoun": "תא AMS",
+    "bambuSlotUnset": "טענו שם פילמנט, או הגדירו אותו במסך המדפסת.",
+    "bambuSlotNote": "כמו ב-Bambu Studio, פילמנט יכול להגיע רק לתא עם אותו סוג פילמנט. המותג והצבע יכולים להיות שונים.",
+    "outsideSpool": "סליל חיצוני",
+    "u1Heads": "ראשי הדפסה",
+    "u1HeadNoun": "ראש הדפסה",
+    "u1HeadUnset": "טענו פילמנט, או הגדירו את הסוג שלו בכרטיס ראשי ההדפסה.",
+    "u1HeadNote": "כמו באפליקציה של Snapmaker, פילמנט יכול להגיע רק לראש עם אותו סוג פילמנט ואותו גודל נחיר. המותג והצבע יכולים להיות שונים.",
+    "nozzleStandard": "רגיל",
+    "nozzleHighFlow": "זרימה גבוהה",
+    "calibratingOffsets": "כיול היסטי הראשים",
+    "levellingBed": "פילוס המיטה",
+    "calibratingFlow": "כיול זרימה",
+    "calibratingShaper": "כיול input shaping",
+    "updatingFirmware": "עדכון קושחה",
+    "needsAttention": "דורש טיפול במסך המדפסת",
+    "adjustingScrews": "כוונון ברגי המיטה",
+    "loadingFilament": "טעינת פילמנט",
+    "unloadingFilament": "פריקת פילמנט",
+    "calibratingPark": "כיול מיקום החניה",
+    "calibratingHome": "כיול נקודת הבית",
+    "hotendFan": "מאוורר ראש חם T{{n}}"
+  }
+}

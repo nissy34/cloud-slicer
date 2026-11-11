@@ -21,12 +21,13 @@ export const DEFAULT_CONSOLE_FILTERS: ConsoleFilters = { temps: true, timelapse:
 
 export type BuiltInFilter = Exclude<keyof ConsoleFilters, 'custom'>;
 
-export const BUILT_IN_FILTERS: { key: BuiltInFilter; label: string; example: string; match: RegExp }[] = [
+/** `label` and `exampleWords` are word keys (deviceConsole.*); `example` is printer text, shown as is. */
+export const BUILT_IN_FILTERS: { key: BuiltInFilter; label: string; example?: string; exampleWords?: string; match: RegExp }[] = [
   // M105 replies and the reports M109/M190 print while they wait.
-  { key: 'temps', label: 'Temperatures', example: 'B:60.0 /60.0 T0:215.0 /215.0', match: /^(?:ok\s+)?(?:B|C|T\d*):\s*-?\d/i },
-  { key: 'timelapse', label: 'Timelapse', example: 'timelapse frame messages', match: /timelapse/i },
-  { key: 'progress', label: 'Print progress', example: 'SD printing byte 1234/5678', match: /^(?:ok\s+)?(?:SD printing byte|Not SD printing)/i },
-  { key: 'ok', label: 'Plain "ok"', example: 'ok', match: /^ok\s*$/i },
+  { key: 'temps', label: 'deviceConsole.filterTemps', example: 'B:60.0 /60.0 T0:215.0 /215.0', match: /^(?:ok\s+)?(?:B|C|T\d*):\s*-?\d/i },
+  { key: 'timelapse', label: 'deviceConsole.filterTimelapse', exampleWords: 'deviceConsole.filterTimelapseExample', match: /timelapse/i },
+  { key: 'progress', label: 'deviceConsole.filterProgress', example: 'SD printing byte 1234/5678', match: /^(?:ok\s+)?(?:SD printing byte|Not SD printing)/i },
+  { key: 'ok', label: 'deviceConsole.filterOk', example: 'ok', match: /^ok\s*$/i },
 ];
 
 /** Reads saved filters, keeping defaults for anything missing or malformed. */

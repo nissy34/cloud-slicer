@@ -11,6 +11,7 @@
 // object) and the page's own messages to the printer (printer.request): this
 // file reads the AMS from the one and starts prints with the other, the way
 // Bambu Studio does (OpenBambuAPI's mqtt.md; Orca's SelectMachine.cpp).
+import { i18n } from '../../i18n';
 import type { KlipperObjects } from '../status';
 import type { FilamentSlot, PrintOptions } from '../slot-types';
 import type { PrinterAddon, PrinterCall, PrintStart } from './types';
@@ -88,7 +89,7 @@ export function bambuSlots(o: KlipperObjects): BambuSlot[] | null {
       out.push(traySlot(t, out.length, amsId >= 128 ? name : `${name}${slotId + 1}`, amsId, slotId));
     }
   }
-  if (r.vt_tray) out.push(traySlot(obj(r.vt_tray), out.length, 'Outside spool', BAMBU_OUTSIDE_SPOOL, BAMBU_OUTSIDE_SPOOL));
+  if (r.vt_tray) out.push(traySlot(obj(r.vt_tray), out.length, i18n.t('deviceAddons.outsideSpool'), BAMBU_OUTSIDE_SPOOL, BAMBU_OUTSIDE_SPOOL));
   return out;
 }
 
@@ -162,12 +163,29 @@ export const bambuAddon: PrinterAddon = {
   objects: () => ['bambu'],
   gcode: 'marlin',
   // It restarts from its own screen: no restart button.
-  host: { name: 'Bambu Lab', stopped: 'The printer stopped answering: check that it is on and on the network.' },
-  cameraMissing: 'Only P1 and A1 printers show their camera here: X1, H2 and P2S send video that only Bambu\'s own apps play.',
+  // Getters: the words are read in the reader's language when shown.
+  host: {
+    name: 'Bambu Lab',
+    get stopped() {
+      return i18n.t('deviceAddons.bambuStopped');
+    },
+  },
+  get cameraMissing() {
+    return i18n.t('deviceAddons.bambuCameraMissing');
+  },
   filaments: {
     title: 'AMS',
-    words: { noun: 'AMS slot', unset: 'Load filament there, or set it on the printer’s screen.' },
-    note: 'As in Bambu Studio, a filament can only go to a slot with the same filament type. Brand and colour can differ.',
+    words: {
+      get noun() {
+        return i18n.t('deviceAddons.bambuSlotNoun');
+      },
+      get unset() {
+        return i18n.t('deviceAddons.bambuSlotUnset');
+      },
+    },
+    get note() {
+      return i18n.t('deviceAddons.bambuSlotNote');
+    },
     read: bambuSlots,
     // Only a .gcode.3mf carries the slot list; plain G-code prints filament n from slot n.
     maps: isProject,

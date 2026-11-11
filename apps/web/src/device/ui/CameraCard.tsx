@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
+import { useTranslation } from 'react-i18next';
 import { currentSession, useDevice } from '../../state/device';
 import { cameraTransform, cameraViews, type CameraView, type Webcam } from '../camera';
 import { cameraCardOf, type CamCardId } from '../layout';
@@ -63,6 +64,7 @@ export function CameraCard({
   home?: Record<string, CamCardId>;
   onPlace?(name: string, card: 'camera' | CamCardId): void;
 }) {
+  const { t } = useTranslation();
   const online = useDevice((s) => s.conn.state === 'online');
   const reconnecting = useDevice((s) => s.conn.state === 'connecting');
   const addons = useDevice((s) => s.addons);
@@ -108,7 +110,15 @@ export function CameraCard({
     else onPlace?.(name, 'camera');
   };
   useKeepalive(active && shown?.length ? session : null, hint?.keepalive);
-  const title = main ? (shown && shown.length > 1 ? 'Cameras' : 'Camera') : shown?.length === 1 ? shown[0].name : shown && shown.length > 1 ? 'Cameras' : 'Camera card';
+  const title = main
+    ? shown && shown.length > 1
+      ? t('deviceCamera.cameras')
+      : t('deviceCamera.camera')
+    : shown?.length === 1
+      ? shown[0].name
+      : shown && shown.length > 1
+        ? t('deviceCamera.cameras')
+        : t('deviceCamera.cameraCard');
 
   return (
     <Card
@@ -119,7 +129,7 @@ export function CameraCard({
         <>
           {cams && (cams.length > 1 || (!main && cams.length > 0)) && (
             <button className="quiet" onClick={() => setChoosing(!choosing)} aria-expanded={choosing}>
-              {choosing ? 'Done' : 'Choose'}
+              {choosing ? t('deviceCamera.done') : t('deviceCamera.choose')}
             </button>
           )}
         </>
@@ -127,12 +137,12 @@ export function CameraCard({
     >
       {choosing && cams && cams.length > 0 && (
         <fieldset className="dv-camera-pick" data-testid="camera-pick">
-          <legend>{main ? 'Show these cameras' : 'Show these cameras in this card'}</legend>
+          <legend>{main ? t('deviceCamera.showThese') : t('deviceCamera.showTheseHere')}</legend>
           {cams.map((c) => (
             <label key={c.id}>
               <input type="checkbox" checked={shown?.includes(c) ?? false} onChange={(e) => toggle(c.name, e.target.checked)} />
               {c.name}
-              {!here(c) && <span className="muted"> (in another card)</span>}
+              {!here(c) && <span className="muted"> {t('deviceCamera.inAnotherCard')}</span>}
             </label>
           ))}
         </fieldset>
@@ -142,16 +152,16 @@ export function CameraCard({
           <Empty
             icon={CameraOff}
             text={!online
-                ? reconnecting ? 'Reconnecting…' : 'Not connected'
+                ? reconnecting ? t('deviceCamera.reconnecting') : t('deviceCamera.notConnected')
                 : !shown
-                  ? 'Looking for cameras…'
+                  ? t('deviceCamera.looking')
                   : !main
-                    ? 'No camera in this card yet. Use Choose to pick one.'
+                    ? t('deviceCamera.noneInCard')
                     : cams?.length && cams.every((c) => !here(c))
-                    ? 'Your cameras are in other camera cards.'
+                    ? t('deviceCamera.inOtherCards')
                     : cams?.length
-                    ? 'All cameras are hidden. Use Choose to show one.'
-                    : (addons.map((a) => a.cameraMissing).find(Boolean) ?? `This printer has no camera set up in ${addons.map((a) => a.host?.name).find(Boolean) ?? 'Moonraker'}.`)}
+                    ? t('deviceCamera.allHidden')
+                    : (addons.map((a) => a.cameraMissing).find(Boolean) ?? t('deviceCamera.noneSetUp', { host: addons.map((a) => a.host?.name).find(Boolean) ?? 'Moonraker' }))}
           />
         </div>
       ) : (
@@ -194,7 +204,6 @@ function useKeepalive(session: PrinterSession | null, keepalive: CameraHints['ke
   }, [session, keepalive]);
 }
 
-const NETWORK_BLOCKS = 'Slow camera: your network blocks a direct connection.';
 /** A camera showing relay pictures checks this often whether the direct link can be made (a blocked network still waits RETRY_AFTER_MS between real tries). */
 const BACK_TO_DIRECT_MS = 5_000;
 
@@ -213,6 +222,7 @@ function CameraTile({
   main: boolean;
   onPick(): void;
 }) {
+  const { t } = useTranslation();
   const viaBridge = session.link.mediaUrl('/') === null;
   // Streams load straight in the browser, so their addresses resolve against the printer here.
   // Kept between renders: a new view object restarts the stream (a card folding elsewhere re-renders this one).
@@ -237,7 +247,7 @@ function CameraTile({
   const view = views[index];
   const shared = session.link.shared;
   const next = (why?: string) => {
-    if (view?.kind === 'direct') setNote(why && /Unknown bridge call/.test(why) ? 'Slow camera: update the bridge for a smooth one.' : shared?.blocked ? NETWORK_BLOCKS : '');
+    if (view?.kind === 'direct') setNote(why && /Unknown bridge call/.test(why) ? t('deviceCamera.updateBridge') : shared?.blocked ? t('deviceCamera.networkBlocks') : '');
     setIndex((i) => i + 1);
   };
   // Showing relay pictures although the camera can come straight from the bridge:
@@ -271,15 +281,15 @@ function CameraTile({
       data-main={main || undefined}
     >
       {!active ? (
-        <span className="muted">Paused</span>
+        <span className="muted">{t('deviceCamera.paused')}</span>
       ) : !view ? (
-        <span className="muted">No picture from the camera</span>
+        <span className="muted">{t('deviceCamera.noPicture')}</span>
       ) : (
         <ViewFor key={`${index}`} view={view} session={session} transform={transform} onFail={next} />
       )}
       {labelled && <figcaption>{cam.name}</figcaption>}
       {/* Covers a small camera, whose player page would otherwise swallow the click. */}
-      {!main && <button className="dv-camera-swap" onClick={onPick} aria-label={`Show ${cam.name} big`} />}
+      {!main && <button className="dv-camera-swap" onClick={onPick} aria-label={t('deviceCamera.showBig', { name: cam.name })} />}
       {active && note && view?.kind === 'snapshots' && (
         <span className="dv-camera-note" data-testid="camera-note">
           {note}
@@ -295,6 +305,7 @@ function directBridge(session: PrinterSession): SharedLink | null {
 }
 
 function ViewFor({ view, session, transform, onFail }: { view: CameraView; session: PrinterSession; transform: string; onFail(why?: string): void }) {
+  const { t } = useTranslation();
   const style = transform ? { transform } : undefined;
   if (view.kind === 'snapshots') return <SnapshotView url={view.url} fps={view.fps} session={session} style={style} />;
   if (view.kind === 'direct') return <DirectView view={view} session={session} style={style} onFail={onFail} />;
@@ -302,13 +313,13 @@ function ViewFor({ view, session, transform, onFail }: { view: CameraView; sessi
   // This page is cross-origin isolated (the engine needs it), so a camera on
   // another origin only loads in CORS mode, or in a credentialless iframe.
   if (view.kind === 'mjpeg')
-    return <img src={url} crossOrigin="anonymous" alt="Printer camera" style={style} onError={() => onFail()} data-testid="camera-frame" data-view="mjpeg" />;
+    return <img src={url} crossOrigin="anonymous" alt={t('deviceCamera.printerCamera')} style={style} onError={() => onFail()} data-testid="camera-frame" data-view="mjpeg" />;
   if (view.kind === 'iframe')
     return (
       <iframe
         {...{ credentialless: '' }}
         src={url}
-        title="Printer camera"
+        title={t('deviceCamera.printerCamera')}
         allow="autoplay; fullscreen"
         referrerPolicy="no-referrer"
         data-testid="camera-frame"
@@ -356,6 +367,7 @@ function DirectView({
   style?: CSSProperties;
   onFail(why?: string): void;
 }) {
+  const { t } = useTranslation();
   const video = useRef<HTMLVideoElement>(null);
   const fail = useRef(onFail);
   fail.current = onFail;
@@ -400,8 +412,8 @@ function DirectView({
   return (
     <>
       <video ref={video} autoPlay muted playsInline style={style} hidden={mode !== 'video'} data-testid={mode === 'video' ? 'camera-frame' : undefined} data-view="direct-video" />
-      {mode === 'pictures' && frame && <img src={frame} alt="Printer camera" style={style} data-testid="camera-frame" data-view="direct-pictures" />}
-      {!mode && <span className="muted">Connecting to the camera…</span>}
+      {mode === 'pictures' && frame && <img src={frame} alt={t('deviceCamera.printerCamera')} style={style} data-testid="camera-frame" data-view="direct-pictures" />}
+      {!mode && <span className="muted">{t('deviceCamera.connecting')}</span>}
     </>
   );
 }
@@ -412,6 +424,7 @@ function DirectView({
  * A frame that doesn't decode (caught mid-write) is skipped.
  */
 function SnapshotView({ url, fps, session, style }: { url: string; fps: number; session: PrinterSession; style?: CSSProperties }) {
+  const { t } = useTranslation();
   const [frame, setFrame] = useState<string | null>(null);
   const [failed, setFailed] = useState(false);
 
@@ -457,6 +470,6 @@ function SnapshotView({ url, fps, session, style }: { url: string; fps: number; 
     };
   }, [url, fps, session]);
 
-  if (failed || !frame) return <span className="muted">{failed ? 'No picture from the camera' : 'Connecting to the camera…'}</span>;
-  return <img src={frame} alt="Printer camera" style={style} data-testid="camera-frame" data-view="snapshots" />;
+  if (failed || !frame) return <span className="muted">{failed ? t('deviceCamera.noPicture') : t('deviceCamera.connecting')}</span>;
+  return <img src={frame} alt={t('deviceCamera.printerCamera')} style={style} data-testid="camera-frame" data-view="snapshots" />;
 }

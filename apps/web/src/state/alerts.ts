@@ -14,6 +14,7 @@ import { BridgeLink } from '../device/link/bridge';
 import { allowNotifications, localClock, pushProblem, pushSubscription, relayPushKey, serviceWorker, type PushProblem } from '../device/push';
 import { getUserSetting, saveUserSetting } from './account';
 import { currentSession, useDevice, type SavedPrinter } from './device';
+import { i18n } from '../i18n';
 
 export type AlertsProblem = PushProblem | 'relay' | 'offline';
 
@@ -48,7 +49,7 @@ function rememberLast(prefs: AlertPrefs) {
 /** The choices to turn alerts on with, and the note that says where they came from. */
 function starting(): { prefs: AlertPrefs; note: string } {
   const last = getUserSetting<unknown>(LAST_SETTING);
-  return { prefs: startingPrefs(last), note: cleanPrefs(last) ? 'Started with the alerts you chose last time. Change them here for this device.' : '' };
+  return { prefs: startingPrefs(last), note: cleanPrefs(last) ? i18n.t('deviceAlerts.startedWithLast') : '' };
 }
 
 function localPrefs(): Record<string, AlertPrefs> {
@@ -87,13 +88,13 @@ const online = () => useDevice.getState().conn.state === 'online';
 
 async function relayCall<T>(params: Record<string, unknown>): Promise<T> {
   const link = bridgeLink();
-  if (!link || !online()) throw new Error('Connect to the printer first.');
+  if (!link || !online()) throw new Error(i18n.t('deviceAlerts.connectPrinterFirst'));
   return link.relay<T>('relay.alerts', params);
 }
 
 export const useAlerts = create<AlertsState>((set, get) => {
   let seq = 0;
-  const fail = (e: unknown) => set({ busy: false, error: (e as Error).message || 'Something went wrong.' });
+  const fail = (e: unknown) => set({ busy: false, error: (e as Error).message || i18n.t('deviceAlerts.somethingWrong') });
 
   return {
     printerId: null,
@@ -151,7 +152,7 @@ export const useAlerts = create<AlertsState>((set, get) => {
         const key = await relayPushKey(p.relay);
         if (!key) return set({ busy: false, problem: 'relay' });
         const sub = await pushSubscription(key, true);
-        if (!sub) throw new Error('This browser did not make a push subscription.');
+        if (!sub) throw new Error(i18n.t('deviceAlerts.noSubscription'));
         const r = await relayCall<{ prefs: unknown }>({ op: 'set', ...sub, clock: localClock(), prefs: start.prefs });
         set({ busy: false, status: 'on', prefs: cleanPrefs(r.prefs), note: start.note });
       } catch (e) {
@@ -189,12 +190,12 @@ export const useAlerts = create<AlertsState>((set, get) => {
         }
         const key = await relayPushKey(p.relay);
         const sub = key ? await pushSubscription(key, false) : null;
-        if (!sub) throw new Error('Turn alerts off and on again on this device.');
+        if (!sub) throw new Error(i18n.t('deviceAlerts.toggleAgain'));
         const r = await relayCall<{ prefs: unknown }>({ op: 'set', ...sub, clock: localClock(), prefs });
         if (get().printerId === p.id) set({ prefs: cleanPrefs(r.prefs) ?? prefs });
         rememberLast(prefs);
       } catch (e) {
-        set({ prefs: before, error: `Could not save: ${(e as Error).message}` });
+        set({ prefs: before, error: i18n.t('deviceAlerts.couldNotSave', { error: (e as Error).message }) });
       }
     },
 
@@ -207,10 +208,10 @@ export const useAlerts = create<AlertsState>((set, get) => {
         else {
           const key = await relayPushKey(p.relay);
           const sub = key ? await pushSubscription(key, false) : null;
-          if (!sub) throw new Error('Turn alerts off and on again on this device.');
+          if (!sub) throw new Error(i18n.t('deviceAlerts.toggleAgain'));
           await relayCall({ op: 'test', endpoint: sub.endpoint });
         }
-        set({ busy: false, note: 'Sent. It should show in a few seconds.' });
+        set({ busy: false, note: i18n.t('deviceAlerts.testSent') });
       } catch (e) {
         fail(e);
       }

@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { formatDuration, formatGrams } from '../../lib/format';
 import { metaFromMoonraker, thumbnailUrl, type GcodeMeta } from '../gcode-meta';
 import type { GcodeFile } from '../session';
@@ -63,6 +64,7 @@ function useDetails(f: GcodeFile) {
 }
 
 function FileRow({ file: f, onPrint, onDelete }: { file: GcodeFile; onPrint(): void; onDelete(): void }) {
+  const { t } = useTranslation();
   const d = useDetails(f);
   const grams = d?.meta.filaments.reduce((t, x) => t + x.grams, 0) ?? 0;
   const materials = [...new Set(d?.meta.filaments.map((x) => x.material).filter(Boolean))].join(' + ');
@@ -89,10 +91,10 @@ function FileRow({ file: f, onPrint, onDelete }: { file: GcodeFile; onPrint(): v
       </span>
       <span className="dv-file-actions">
         <button className="quiet" onClick={onPrint}>
-          Print…
+          {t('deviceFiles.print')}
         </button>
-        <button className="quiet danger" aria-label={`Delete ${f.path}`} onClick={onDelete}>
-          Delete
+        <button className="quiet danger" aria-label={t('deviceFiles.deleteName', { name: f.path })} onClick={onDelete}>
+          {t('deviceFiles.delete')}
         </button>
       </span>
     </li>
@@ -132,6 +134,7 @@ function useTimelapses() {
 export const FILES_PER_PAGE = 10;
 
 export function FilesCard() {
+  const { t } = useTranslation();
   const files = useDevice((s) => s.files);
   const call = useDevice((s) => s.call);
   const openPrintDialog = useDevice((s) => s.openPrintDialog);
@@ -151,12 +154,12 @@ export function FilesCard() {
 
   return (
     <Card
-      title="Files on the printer"
+      title={t('deviceFiles.title')}
       testId="files-card"
       actions={
         <>
           <button className="quiet" onClick={() => input.current?.click()}>
-            Upload G-code…
+            {t('deviceFiles.upload')}
           </button>
           <input
             ref={input}
@@ -174,12 +177,12 @@ export function FilesCard() {
       }
     >
       {timelapses.list && (
-        <div className="line-tabs dv-files-tabs" role="tablist" aria-label="Files">
+        <div className="line-tabs dv-files-tabs" role="tablist" aria-label={t('deviceCards.files')}>
           <button role="tab" aria-selected={tab === 'gcode'} onClick={() => setTab('gcode')}>
             G-code
           </button>
           <button role="tab" aria-selected={tab === 'timelapses'} data-testid="timelapses-tab" onClick={() => setTab('timelapses')}>
-            Timelapses
+            {t('deviceFiles.timelapses')}
           </button>
         </div>
       )}
@@ -188,7 +191,7 @@ export function FilesCard() {
       ) : files == null ? (
         <p className="muted">…</p>
       ) : files.length === 0 ? (
-        <Empty icon={FileCode} text="No G-code files yet." />
+        <Empty icon={FileCode} text={t('deviceFiles.none')} />
       ) : (
         <>
           {files.length > FILES_PER_PAGE && (
@@ -200,33 +203,33 @@ export function FilesCard() {
                 setQuery(e.target.value);
                 setPage(0);
               }}
-              placeholder={`Search ${files.length} files`}
-              aria-label="Search files"
+              placeholder={t('deviceFiles.searchN', { count: files.length })}
+              aria-label={t('deviceFiles.search')}
               spellCheck={false}
               autoCapitalize="off"
             />
           )}
-          {rows.length === 0 && <p className="muted">No file matches “{query.trim()}”.</p>}
+          {rows.length === 0 && <p className="muted">{t('deviceFiles.noMatch', { query: query.trim() })}</p>}
           <ul className="dv-files">
             {rows.map((f) => (
               <FileRow
                 key={f.path}
                 file={f}
                 onPrint={() => openPrintDialog({ kind: 'file', path: f.path })}
-                onDelete={() => confirm({ action: 'Delete file', text: `Delete ${f.path} from the printer?`, danger: true, run: () => void call('Deleted', (s) => s.deleteFile(f.path)) })}
+                onDelete={() => confirm({ action: t('deviceFiles.deleteFile'), text: t('deviceFiles.deleteText', { name: f.path }), danger: true, run: () => void call(t('deviceFiles.deleted'), (s) => s.deleteFile(f.path)) })}
               />
             ))}
           </ul>
           {pages > 1 && (
-            <nav className="dv-pager" aria-label="File pages" data-testid="files-pager">
+            <nav className="dv-pager" aria-label={t('deviceFiles.pages')} data-testid="files-pager">
               <button className="quiet" disabled={at === 0} onClick={() => setPage(at - 1)}>
-                <ChevronLeft size={14} aria-hidden /> Newer
+                <ChevronLeft size={14} aria-hidden /> {t('deviceFiles.newer')}
               </button>
               <span className="muted">
-                {at * FILES_PER_PAGE + 1}–{at * FILES_PER_PAGE + rows.length} of {shown.length}
+                {t('deviceFiles.range', { from: at * FILES_PER_PAGE + 1, to: at * FILES_PER_PAGE + rows.length, total: shown.length })}
               </span>
               <button className="quiet" disabled={at === pages - 1} onClick={() => setPage(at + 1)}>
-                Older <ChevronRight size={14} aria-hidden />
+                {t('deviceFiles.older')} <ChevronRight size={14} aria-hidden />
               </button>
             </nav>
           )}

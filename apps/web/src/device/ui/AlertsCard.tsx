@@ -1,4 +1,5 @@
 import { Fragment, useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useAlerts } from '../../state/alerts';
 import { currentSession, useDevice } from '../../state/device';
 import { camerasFor, MAX_ALERT_CAMERAS, type AlertEvent, type AlertPrefs } from '../alerts';
@@ -8,27 +9,28 @@ import { Card } from './parts';
 import { InfoTip } from '../../components/InfoTip';
 import { Note } from '../../components/Note';
 
+/** [event, icon, tile words, full name]; the words are word keys, shown with t(). */
 type Tile = [AlertEvent, IconName, string, string];
 
 const PROBLEMS: Tile[] = [
-  ['failed', 'failed', 'Failed or cancelled', 'Failed or cancelled'],
-  ['paused', 'paused', 'Paused or out of filament', 'Paused or filament ran out'],
-  ['error', 'error', 'Printer error', 'Printer error'],
+  ['failed', 'failed', 'deviceAlerts.failed', 'deviceAlerts.failed'],
+  ['paused', 'paused', 'deviceAlerts.pausedTile', 'deviceAlerts.pausedName'],
+  ['error', 'error', 'deviceAlerts.error', 'deviceAlerts.error'],
 ];
 /** Red for a print that stopped, amber for one that waits for you. */
 const TONE: Partial<Record<AlertEvent, string>> = { failed: 'red', paused: 'amber', error: 'red' };
 
 /** Along the print: [event, icon, tile words, full name]. */
 const MILESTONES: Tile[] = [
-  ['started', 'started', 'Started', 'Print started'],
-  ['layer1', 'layer', 'First layer', 'First layer done'],
-  ['layer', 'layer', 'After layer', 'After chosen layers'],
-  ['progress', 'progress', 'Progress', 'Progress'],
-  ['stillPrinting', 'clock', 'Still printing', 'Still printing, every few hours'],
-  ['almostDone', 'almost', '10 min left', 'Almost done (10 min left)'],
-  ['finished', 'finished', 'Finished', 'Finished'],
-  ['resumed', 'resumed', 'Resumed', 'Resumed'],
-  ['bedCooled', 'cooled', 'Bed cooled', 'Bed cooled down'],
+  ['started', 'started', 'deviceAlerts.startedTile', 'deviceAlerts.startedName'],
+  ['layer1', 'layer', 'deviceAlerts.layer1Tile', 'deviceAlerts.layer1Name'],
+  ['layer', 'layer', 'deviceAlerts.layerTile', 'deviceAlerts.layerName'],
+  ['progress', 'progress', 'deviceAlerts.progress', 'deviceAlerts.progress'],
+  ['stillPrinting', 'clock', 'deviceAlerts.stillTile', 'deviceAlerts.stillName'],
+  ['almostDone', 'almost', 'deviceAlerts.almostTile', 'deviceAlerts.almostName'],
+  ['finished', 'finished', 'deviceAlerts.finished', 'deviceAlerts.finished'],
+  ['resumed', 'resumed', 'deviceAlerts.resumed', 'deviceAlerts.resumed'],
+  ['bedCooled', 'cooled', 'deviceAlerts.bedTile', 'deviceAlerts.bedName'],
 ];
 
 const PERCENTS = [10, 20, 30, 40, 50, 60, 70, 80, 90];
@@ -75,6 +77,7 @@ function AlertTile({
   onOpen?(): void;
   column?: number;
 }) {
+  const { t } = useTranslation();
   const strip = on && summary !== undefined && onOpen;
   return (
     <div className={`dv-alert-tile${on ? ' on' : ''}${tone ? ` ${tone}` : ''}${strip ? ' split' : ''}${open ? ` open col${column ?? 0}` : ''}`}>
@@ -83,7 +86,7 @@ function AlertTile({
         <span>{words}</span>
       </button>
       {strip && (
-        <button className="dv-alert-strip" aria-expanded={!!open} aria-label={`${label}: ${open ? 'hide' : 'show'} its settings`} onClick={onOpen} data-testid={`${testId}-more`}>
+        <button className="dv-alert-strip" aria-expanded={!!open} aria-label={open ? t('deviceAlerts.hideSettings', { label }) : t('deviceAlerts.showSettings', { label })} onClick={onOpen} data-testid={`${testId}-more`}>
           <span>{summary}</span>
           <Icon name="expand" size={14} />
         </button>
@@ -119,6 +122,7 @@ function useCameraNames(): string[] | null {
  * reached directly only alert while a tab is open.
  */
 export function AlertsCard() {
+  const { t } = useTranslation();
   const activeId = useDevice((s) => s.activeId);
   const conn = useDevice((s) => s.conn.state);
   const printer = useDevice((s) => s.printers.find((p) => p.id === s.activeId));
@@ -134,8 +138,8 @@ export function AlertsCard() {
   const ended = printState === 'complete' || printState === 'cancelled' || printState === 'error';
   useEffect(() => {
     if (!ended) return void useAlerts.getState().load();
-    const t = setTimeout(() => void useAlerts.getState().load(), 1500);
-    return () => clearTimeout(t);
+    const timer = setTimeout(() => void useAlerts.getState().load(), 1500);
+    return () => clearTimeout(timer);
   }, [activeId, conn, ended]);
 
   if (!printer) return null;
@@ -162,14 +166,14 @@ export function AlertsCard() {
     if (!prefs) return undefined;
     const bits: string[] = [];
     if (e === 'progress') bits.push(prefs.percents.map((p) => `${p}%`).join(' '));
-    if (e === 'stillPrinting') bits.push(`every ${prefs.hours || 1} h`);
+    if (e === 'stillPrinting') bits.push(t('deviceAlerts.everyHours', { h: prefs.hours || 1 }));
     if (e === 'layer') {
-      const every = prefs.layers.length ? `${prefs.layers.length > 1 ? 'Layers' : 'Layer'} ${prefs.layers.join(', ')}` : '';
-      bits.push([every, prefs.layer != null && `${every ? '' : 'Layer '}${prefs.layer} once`].filter(Boolean).join(' · '));
+      const every = prefs.layers.length ? t('deviceAlerts.layersList', { count: prefs.layers.length, list: prefs.layers.join(', ') }) : '';
+      bits.push([every, prefs.layer != null && (every ? t('deviceAlerts.once', { n: prefs.layer }) : t('deviceAlerts.layerOnce', { n: prefs.layer }))].filter(Boolean).join(' · '));
     }
     if (names.length) {
       const c = camsOf(e);
-      bits.push(c.length === 0 ? (bits.length ? '' : 'No picture') : c.length > 1 ? `📷 ${c.length}` : bits.length ? '📷' : `📷 ${c[0]}`);
+      bits.push(c.length === 0 ? (bits.length ? '' : t('deviceAlerts.noPicture')) : c.length > 1 ? `📷 ${c.length}` : bits.length ? '📷' : `📷 ${c[0]}`);
     }
     const said = bits.filter(Boolean);
     return said.length ? said.join(' · ') : undefined;
@@ -178,8 +182,8 @@ export function AlertsCard() {
     <AlertTile
       key={e}
       icon={icon}
-      words={words}
-      label={label}
+      words={t(words)}
+      label={t(label)}
       tone={TONE[e]}
       on={has(e)}
       onChange={(v) => {
@@ -200,13 +204,13 @@ export function AlertsCard() {
     const after = at < 0 ? -1 : Math.min(list.length - 1, Math.floor(at / COLUMNS) * COLUMNS + COLUMNS - 1);
     return (
       <div className={`dv-alert-tiles${at >= 0 ? ' joined' : ''}`}>
-        {list.map((t, i) => (
-          <Fragment key={t[0]}>
-            {tile(t, i % COLUMNS)}
+        {list.map((x, i) => (
+          <Fragment key={x[0]}>
+            {tile(x, i % COLUMNS)}
             {i === after && prefs && (
               <AlertSettings
                 event={list[at][0]}
-                label={list[at][3]}
+                label={t(list[at][3])}
                 tone={TONE[list[at][0]]}
                 column={at % COLUMNS}
                 prefs={prefs}
@@ -222,17 +226,17 @@ export function AlertsCard() {
   };
 
   return (
-    <Card title="Alerts" testId="alerts-card" className="dv-alerts">
+    <Card title={t('deviceCards.alerts')} testId="alerts-card" className="dv-alerts">
       <div className={`dv-alerts-hero${on ? ' on' : ''}`}>
         <span className="dv-alerts-bell">
           <Icon name="bell" size={24} />
         </span>
         <span className="dv-alerts-hero-text">
-          <b>{on ? `Alerts on ${device}` : `Get alerts on ${device}`}</b>
-          <span className="muted">{on ? `${chosen} ${chosen === 1 ? 'alert' : 'alerts'} chosen` : 'Know when a print fails, runs out of filament or finishes.'}</span>
+          <b>{on ? t('deviceAlerts.onDevice', { device }) : t('deviceAlerts.getOnDevice', { device })}</b>
+          <span className="muted">{on ? t('deviceAlerts.chosen', { count: chosen }) : t('deviceAlerts.pitch')}</span>
         </span>
         <Switch
-          label={`Send alerts to ${device}`}
+          label={t('deviceAlerts.sendTo', { device })}
           checked={on}
           disabled={a.busy || a.status === 'loading' || !!blocked || (bridge && conn !== 'online')}
           onChange={(v) => void (v ? a.enable() : a.disable())}
@@ -241,43 +245,43 @@ export function AlertsCard() {
       </div>
       {bridge
         ? on && (
-            <Note>Sent through the bridge, even when the browser is closed.</Note>
+            <Note>{t('deviceAlerts.viaBridge')}</Note>
           )
         : (
-            <Note>Alerts only come while Cloud Slicer is open in a tab. Through a bridge they come with the browser closed too.</Note>
+            <Note>{t('deviceAlerts.tabOnly')}</Note>
           )}
       {a.problem === 'ios-home' && (
         <Note tone="warn" testId="alerts-ios">
-          On iPhone and iPad, alerts work once Cloud Slicer is on your Home Screen: tap Share, then Add to Home Screen, and open it from there (iOS 16.4 or later).
+          {t('deviceAlerts.iosHome')}
         </Note>
       )}
-      {a.problem === 'unsupported' && <Note tone="warn">This browser can’t show alerts. Chrome, Edge, Firefox and Safari can.</Note>}
-      {a.problem === 'denied' && <Note tone="warn">Notifications are blocked for this site. Allow them in the browser’s site settings, then turn alerts on again.</Note>}
-      {a.problem === 'relay' && <Note tone="warn">The bridge’s relay can’t send alerts yet.</Note>}
-      {bridge && conn !== 'online' && !blocked && <p className="muted">Connect to the printer to change its alerts.</p>}
+      {a.problem === 'unsupported' && <Note tone="warn">{t('deviceAlerts.unsupported')}</Note>}
+      {a.problem === 'denied' && <Note tone="warn">{t('deviceAlerts.denied')}</Note>}
+      {a.problem === 'relay' && <Note tone="warn">{t('deviceAlerts.relay')}</Note>}
+      {bridge && conn !== 'online' && !blocked && <p className="muted">{t('deviceAlerts.connectFirst')}</p>}
       {on && prefs && (
         <>
-          <h3 className="dv-alerts-group">When something goes wrong</h3>
+          <h3 className="dv-alerts-group">{t('deviceAlerts.groupProblems')}</h3>
           {tiles(PROBLEMS)}
-          <h3 className="dv-alerts-group">During the print</h3>
+          <h3 className="dv-alerts-group">{t('deviceAlerts.groupDuring')}</h3>
           {tiles(MILESTONES)}
           {bridge && (
             <div className="dv-alert-tiles dv-alerts-bridge">
-              <AlertTile icon="offline" words="Bridge offline" label="The bridge goes offline" on={has('offline')} onChange={(v) => toggle('offline', v)} testId="alert-offline" />
+              <AlertTile icon="offline" words={t('deviceAlerts.offlineTile')} label={t('deviceAlerts.offlineName')} on={has('offline')} onChange={(v) => toggle('offline', v)} testId="alert-offline" />
             </div>
           )}
           {names.length > 0 && (
             <p className="muted dv-alerts-note">
-              Tap the strip under an alert to choose its cameras.
-              <InfoTip label="About alert pictures">
-                Several cameras are joined into one picture. Pictures from a bridge printer need its bridge up to date (Update now in Printers and bridges).{isIos() ? ' iPhone shows alerts without the picture.' : ''}
+              {t('deviceAlerts.stripHelp')}
+              <InfoTip label={t('deviceAlerts.picturesAbout')}>
+                {t('deviceAlerts.picturesHelp')}{isIos() ? ` ${t('deviceAlerts.picturesIos')}` : ''}
               </InfoTip>
             </p>
           )}
           <div className="dv-row">
             <button className="secondary" onClick={() => void a.test()} disabled={a.busy} data-testid="alert-test">
               <Icon name="bell" />
-              Send a test alert
+              {t('deviceAlerts.sendTest')}
             </button>
             {a.note && (
               <span className="muted" role="status">
@@ -316,13 +320,14 @@ function AlertSettings({
   chosen: string[];
   onSet(patch: Partial<AlertPrefs>): void;
 }) {
+  const { t } = useTranslation();
   const setCameras = (list: string[]) => onSet({ cameras: { ...prefs.cameras, [event]: names.filter((n) => list.includes(n)) } });
   return (
-    <div className={`dv-alert-settings${tone ? ` ${tone}` : ''} col${column}`} role="group" aria-label={`${label} settings`} data-testid="alert-settings">
+    <div className={`dv-alert-settings${tone ? ` ${tone}` : ''} col${column}`} role="group" aria-label={t('deviceAlerts.settingsOf', { label })} data-testid="alert-settings">
       {event === 'progress' && (
         <div className="dv-alert-setting">
-          <span>At</span>
-          <span className="chips" role="group" aria-label="Progress alerts at">
+          <span>{t('deviceAlerts.at')}</span>
+          <span className="chips" role="group" aria-label={t('deviceAlerts.progressAt')}>
             {PERCENTS.map((pc) => (
               <button
                 key={pc}
@@ -338,11 +343,11 @@ function AlertSettings({
       )}
       {event === 'stillPrinting' && (
         <div className="dv-alert-setting">
-          <span>Every</span>
-          <span className="chips" role="group" aria-label="Every how many hours">
+          <span>{t('deviceAlerts.every')}</span>
+          <span className="chips" role="group" aria-label={t('deviceAlerts.everyHowMany')}>
             {[1, 2, 3, 4].map((h) => (
               <button key={h} className="chip" aria-pressed={(prefs.hours || 1) === h} onClick={() => onSet({ hours: h })}>
-                {h} h
+                {t('deviceAlerts.hours', { h })}
               </button>
             ))}
           </span>
@@ -351,8 +356,8 @@ function AlertSettings({
       {event === 'layer' && (
         <>
           <div className="dv-alert-setting">
-            <span>Every print</span>
-            <span className="chips" role="group" aria-label="After these layers, every print">
+            <span>{t('deviceAlerts.everyPrint')}</span>
+            <span className="chips" role="group" aria-label={t('deviceAlerts.afterLayersEvery')}>
               {[...new Set([...LAYERS, ...prefs.layers])].sort((x, y) => x - y).map((n) => (
                 <button
                   key={n}
@@ -371,12 +376,12 @@ function AlertSettings({
       )}
       {names.length === 1 && (
         <div className="dv-alert-setting">
-          <span>Camera picture</span>
+          <span>{t('deviceAlerts.cameraPicture')}</span>
           <input
             className="switch"
             type="checkbox"
             role="switch"
-            aria-label={`Camera picture with ${label}`}
+            aria-label={t('deviceAlerts.cameraPictureWith', { label })}
             checked={chosen.length > 0}
             onChange={(e) => setCameras(e.target.checked ? names : [])}
             data-testid="alert-picture"
@@ -385,8 +390,8 @@ function AlertSettings({
       )}
       {names.length > 1 && (
         <div className="dv-alert-setting">
-          <span>Picture</span>
-          <span className="chips" role="group" aria-label={`Cameras for ${label}`}>
+          <span>{t('deviceAlerts.picture')}</span>
+          <span className="chips" role="group" aria-label={t('deviceAlerts.camerasFor', { label })}>
             {names.map((n) => {
               const on = chosen.includes(n);
               return (
@@ -406,13 +411,14 @@ function AlertSettings({
           </span>
         </div>
       )}
-      {names.length > 1 && <span className="muted dv-alert-setting-note">{chosen.length > 1 ? `${chosen.length} cameras, joined into one picture.` : chosen.length ? 'Tap more cameras to join them into one picture.' : 'No picture.'}</span>}
+      {names.length > 1 && <span className="muted dv-alert-setting-note">{chosen.length > 1 ? t('deviceAlerts.joined', { n: chosen.length }) : chosen.length ? t('deviceAlerts.tapMore') : t('deviceAlerts.noPictureDot')}</span>}
     </div>
   );
 }
 
 /** A box to add any layer to the "every print" chips. */
 function AddLayer({ onAdd }: { onAdd(n: number): void }) {
+  const { t } = useTranslation();
   const [v, setV] = useState('');
   const add = () => {
     const n = Number(v);
@@ -425,8 +431,8 @@ function AddLayer({ onAdd }: { onAdd(n: number): void }) {
       type="number"
       inputMode="numeric"
       min={1}
-      placeholder="+ layer"
-      aria-label="Add a layer"
+      placeholder={t('deviceAlerts.addLayerPlaceholder')}
+      aria-label={t('deviceAlerts.addLayer')}
       value={v}
       onChange={(e) => setV(e.target.value)}
       onBlur={add}
@@ -440,7 +446,7 @@ function AddLayer({ onAdd }: { onAdd(n: number): void }) {
 export function LayerField({
   prefs,
   onSet,
-  label = 'Alert me after layer',
+  label,
   max,
 }: {
   prefs: AlertPrefs | null;
@@ -449,8 +455,10 @@ export function LayerField({
   /** The print's layer count, when known: a later layer would never come. */
   max?: number | null;
 }) {
+  const { t } = useTranslation();
   const [draft, setDraft] = useState<string | null>(null);
   const [hint, setHint] = useState('');
+  label ??= t('deviceAlerts.alertAfterLayer');
   const layerNow = prefs?.layer ?? null;
   const commit = () => {
     if (draft == null) return;
@@ -458,8 +466,8 @@ export function LayerField({
     const n = Number(draft);
     let layer = layerNow;
     if (draft.trim() === '') layer = null;
-    else if (!Number.isInteger(n) || n < 1) setHint('Whole layers from 1');
-    else if (max && n > max) setHint(`This print has ${max} layers`);
+    else if (!Number.isInteger(n) || n < 1) setHint(t('deviceAlerts.wholeLayers'));
+    else if (max && n > max) setHint(t('deviceAlerts.printHas', { count: max }));
     else layer = n;
     if (layer !== layerNow) onSet(layer);
   };
@@ -485,7 +493,7 @@ export function LayerField({
           onKeyDown={(e) => e.key === 'Enter' && (e.target as HTMLInputElement).blur()}
           data-testid="alert-layer"
         />
-        {max ? <span className="muted">of {max}</span> : null}
+        {max ? <span className="muted">{t('deviceAlerts.ofMax', { max })}</span> : null}
       </span>
       {hint && (
         <Note tone="warn" className="dv-alerts-hint" id="alert-layer-hint" testId="alert-layer-hint">

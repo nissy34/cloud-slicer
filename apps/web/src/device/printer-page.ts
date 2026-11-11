@@ -8,6 +8,7 @@
 // has its repeated "has it changed?" checks answered here: the printer is asked
 // about three times a second over the direct link, once a second over the relay,
 // and again at once after a tap. Over the relay a page stops after a data limit.
+import { i18n } from '../i18n';
 import type { PageAnswer, PageRequest } from './link/types';
 import type { SharedLink } from './shared-link';
 
@@ -112,7 +113,7 @@ function toBase64(buf: ArrayBuffer): string {
 export async function openDirect(shared: SharedLink, onLost: () => void): Promise<DirectPageLink> {
   let timer: ReturnType<typeof setTimeout> | undefined;
   const late = new Promise<never>((_, fail) => {
-    timer = setTimeout(() => fail(new Error('The direct page link did not connect in time.')), DIRECT_PAGE_TIMEOUT_MS);
+    timer = setTimeout(() => fail(new Error(i18n.t('deviceLink.pageLinkTimeout'))), DIRECT_PAGE_TIMEOUT_MS);
   });
   late.catch(() => {});
   const up = await Promise.race([shared.ready(), late]).catch((e: unknown) => {
@@ -130,7 +131,7 @@ export async function openDirect(shared: SharedLink, onLost: () => void): Promis
     closed = true;
     undrop();
     dc.close();
-    for (const w of waiting.values()) w.fail(new Error('The direct page link closed.'));
+    for (const w of waiting.values()) w.fail(new Error(i18n.t('deviceLink.pageLinkClosed')));
     waiting.clear();
   };
   const assemble = pageAssembler();
@@ -183,7 +184,7 @@ export async function openDirect(shared: SharedLink, onLost: () => void): Promis
     close,
     fetch: (r) =>
       new Promise<PageAnswer>((ok, fail) => {
-        if (closed || dc.readyState !== 'open') return fail(new Error('The direct page link closed.'));
+        if (closed || dc.readyState !== 'open') return fail(new Error(i18n.t('deviceLink.pageLinkClosed')));
         const n = ++seq;
         waiting.set(n, { ok, fail });
         dc.send(JSON.stringify({ id: n, method: r.method, path: r.path, headers: r.headers, body: r.body && r.body.byteLength ? toBase64(r.body) : '' }));
@@ -225,7 +226,7 @@ export function pageCarrier(bridge: PageBridge, onRoute: (route: PageRoute) => v
   const viaRelay = async (r: PageRequest): Promise<PageAnswer> => {
     const kept = cache.answer(r, RELAY_RECHECK_MS);
     if (kept) return kept;
-    if (relayed > RELAY_DATA_LIMIT) throw new PageLimit('Paused to save data: this page has used its share through the relay.');
+    if (relayed > RELAY_DATA_LIMIT) throw new PageLimit(i18n.t('deviceLink.pageLimit'));
     const a = await bridge.pageFetch(r);
     relayed += a.body.byteLength;
     cache.learn(r, a);
@@ -233,7 +234,7 @@ export function pageCarrier(bridge: PageBridge, onRoute: (route: PageRoute) => v
   };
   return {
     async fetch(r: PageRequest): Promise<PageAnswer> {
-      if (stopped) throw new Error('The page was closed.');
+      if (stopped) throw new Error(i18n.t('deviceLink.pageClosed'));
       if (direct) {
         const kept = cache.answer(r, DIRECT_RECHECK_MS);
         if (kept) return kept;

@@ -6,6 +6,7 @@
 // camera or page that comes later only adds a channel or a short call. A short
 // "disconnected" blip gets time to mend (watchLink); when the link really
 // drops, everyone on it hears so at once and the next ask makes a new one.
+import { i18n } from '../i18n';
 import type { DirectCamera } from './camera';
 import { STUN, gathered, watchLink } from './webrtc';
 
@@ -60,8 +61,8 @@ export class SharedLink {
   ready(): Promise<LinkUp> {
     if (this.up) return Promise.resolve(this.up);
     if (this.opening) return this.opening;
-    if (typeof RTCPeerConnection === 'undefined') return Promise.reject(new LinkNotUp('This browser has no direct links.'));
-    if (this.failedAt && this.now() - this.failedAt < RETRY_AFTER_MS) return Promise.reject(new LinkNotUp('The direct link did not connect.'));
+    if (typeof RTCPeerConnection === 'undefined') return Promise.reject(new LinkNotUp(i18n.t('deviceLink.noDirectLinks')));
+    if (this.failedAt && this.now() - this.failedAt < RETRY_AFTER_MS) return Promise.reject(new LinkNotUp(i18n.t('deviceLink.directLinkNoConnect')));
     const opening = this.open().then(
       (up) => {
         this.opening = null;
@@ -131,10 +132,10 @@ export class SharedLink {
     let id = '';
     let timer: ReturnType<typeof setTimeout> | undefined;
     const connected = new Promise<void>((resolve, reject) => {
-      timer = setTimeout(() => reject(new LinkNotUp('The direct link did not connect in time.')), LINK_TIMEOUT_MS);
+      timer = setTimeout(() => reject(new LinkNotUp(i18n.t('deviceLink.directLinkTimeout'))), LINK_TIMEOUT_MS);
       pc.onconnectionstatechange = () => {
         if (pc.connectionState === 'connected') resolve();
-        if (pc.connectionState === 'failed') reject(new LinkNotUp('The direct link failed.'));
+        if (pc.connectionState === 'failed') reject(new LinkNotUp(i18n.t('deviceLink.directLinkFailed')));
       };
     });
     try {

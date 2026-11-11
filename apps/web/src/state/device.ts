@@ -26,6 +26,11 @@ import { decodePairing, type Pairing } from '../device/pairing';
 import { PrinterSession, RpcError, type ConnState, type ConsoleLine, type GcodeFile } from '../device/session';
 import type { KlipperObjects } from '../device/status';
 import type { PrintOrigin } from '../lib/prints';
+import { i18n } from '../i18n';
+import { setSay } from '../device/say';
+
+// Words the page shares with the relay (alerts, printer errors) read in the reader's language here.
+setSay((key, vars) => i18n.t(key, vars));
 
 /** Shared by both kinds: `hiddenCameras` names the webcams the user chose not to show. */
 type PrinterCommon = { id: string; name: string; preset?: string; hiddenCameras?: string[] };
@@ -48,7 +53,7 @@ export interface SavedBridge {
 }
 
 /** Shown when a bridge needs an account; the Device tab offers Sign in next to it. */
-export const BRIDGE_SIGN_IN = 'Sign in to reach printers through the bridge. Printers you reach directly need no account.';
+export const bridgeSignIn = () => i18n.t('deviceLink.bridgeSignIn');
 
 // The relay lets a browser in only with the site's ticket for a signed-in, allowed account.
 setBridgeTickets(async (relay, bridgeId) => {
@@ -61,9 +66,9 @@ setBridgeTickets(async (relay, bridgeId) => {
     return await api.relayTicket(relay, bridgeId);
   } catch (e) {
     if (e instanceof ApiError && (e.status === 503 || e.status === 404)) return null;
-    if (e instanceof ApiError && e.status === 401) throw new LinkError(BRIDGE_SIGN_IN, 'auth');
+    if (e instanceof ApiError && e.status === 401) throw new LinkError(bridgeSignIn(), 'auth');
     if (e instanceof ApiError) throw new LinkError(e.message, 'auth');
-    throw new LinkError('Could not reach Cloud Slicer to open the bridge. Check your internet connection.', 'network');
+    throw new LinkError(i18n.t('deviceLink.noSite'), 'network');
   }
 });
 
@@ -194,9 +199,18 @@ export const bridgeInput = (b: SavedBridge) => ({ id: b.id, name: b.name, url: '
 
 /** What to call a bridge before the user names it: by its computer's name or system when the bridge says. */
 export function bridgeLabel(status?: { host?: string; system?: string } | null): string {
-  if (status?.host) return `Bridge on ${status.host}`;
-  return status?.system === 'win32' ? 'Bridge on a Windows PC' : status?.system === 'darwin' ? 'Bridge on a Mac' : status?.system === 'linux' ? 'Bridge on Linux' : 'Bridge';
+  if (status?.host) return i18n.t('deviceLink.bridgeOn', { host: status.host });
+  return status?.system === 'win32'
+    ? i18n.t('deviceLink.bridgeOnWindows')
+    : status?.system === 'darwin'
+      ? i18n.t('deviceLink.bridgeOnMac')
+      : status?.system === 'linux'
+        ? i18n.t('deviceLink.bridgeOnLinux')
+        : i18n.t('deviceLink.bridge');
 }
+
+/** A bridge still called by the plain name it gets before its computer is known (in any language it was saved in). */
+export const isPlainBridgeName = (name: string) => name === 'Bridge' || name === bridgeLabel();
 
 const secretOf = (p: SavedPrinter) => (p.kind === 'direct' ? p.apiKey : p.key);
 /**
@@ -223,7 +237,7 @@ export async function runCalls(s: Pick<PrinterSession, 'gcode' | 'rpc'>, calls: 
       throw e;
     }
     const r = result as { state?: unknown; message?: unknown } | null;
-    if (r && typeof r === 'object' && r.state === 'error') throw new Error(typeof r.message === 'string' && r.message ? r.message : 'The printer did not start the print.');
+    if (r && typeof r === 'object' && r.state === 'error') throw new Error(typeof r.message === 'string' && r.message ? r.message : i18n.t('deviceLink.didNotStart'));
   }
 }
 
@@ -466,7 +480,7 @@ export const useDevice = create<DeviceState>((set, get) => {
       try {
         await saveDevice(deviceInput(p));
       } catch (e) {
-        get().setToast(`Could not save the printer: ${(e as Error).message}`, true);
+        get().setToast(i18n.t('deviceLink.saveFailed', { error: (e as Error).message }), true);
         return;
       } finally {
         savingId = null;
@@ -486,7 +500,7 @@ export const useDevice = create<DeviceState>((set, get) => {
         // apiKey undefined: keep the saved secret as it is.
         await saveDevice({ ...deviceInput(next), apiKey: undefined });
       } catch (e) {
-        get().setToast(`Could not save the camera choice: ${(e as Error).message}`, true);
+        get().setToast(i18n.t('deviceLink.saveCameraFailed', { error: (e as Error).message }), true);
       } finally {
         savingId = null;
       }
@@ -497,7 +511,7 @@ export const useDevice = create<DeviceState>((set, get) => {
         await deleteDevice(id);
         forgetLayout(id);
       } catch (e) {
-        get().setToast(`Could not remove the printer: ${(e as Error).message}`, true);
+        get().setToast(i18n.t('deviceLink.removeFailed', { error: (e as Error).message }), true);
         return;
       }
       secrets.delete(id);
@@ -509,7 +523,7 @@ export const useDevice = create<DeviceState>((set, get) => {
       try {
         await saveDevice(bridgeInput(b));
       } catch (e) {
-        get().setToast(`Could not save the bridge: ${(e as Error).message}`, true);
+        get().setToast(i18n.t('deviceLink.saveBridgeFailed', { error: (e as Error).message }), true);
       }
     },
 
@@ -527,7 +541,7 @@ export const useDevice = create<DeviceState>((set, get) => {
         // It no longer counts against the account's bridges.
         if (useAccount.getState().status === 'signedIn') await api.forgetBridge(b.bridgeId).catch(() => undefined);
       } catch (e) {
-        get().setToast(`Could not remove the bridge: ${(e as Error).message}`, true);
+        get().setToast(i18n.t('deviceLink.removeBridgeFailed', { error: (e as Error).message }), true);
         return;
       }
       secrets.delete(id);
@@ -570,7 +584,7 @@ export const useDevice = create<DeviceState>((set, get) => {
 
     run(script) {
       if (!takesCommands(get().addons)) {
-        get().setToast("This printer doesn't take commands from Cloud Slicer: use its screen.", true);
+        get().setToast(i18n.t('deviceLink.noCommands'), true);
         return Promise.resolve(false);
       }
       return get().call('', (s) => s.gcode(script));
@@ -578,7 +592,7 @@ export const useDevice = create<DeviceState>((set, get) => {
 
     async call(label, fn) {
       if (!session || get().conn.state !== 'online') {
-        get().setToast('The printer is not connected.', true);
+        get().setToast(i18n.t('deviceLink.notConnected'), true);
         return false;
       }
       try {
@@ -623,7 +637,7 @@ export const useDevice = create<DeviceState>((set, get) => {
     async uploadAndMaybePrint(source, { start }) {
       const s = session;
       if (!s || get().conn.state !== 'online') {
-        get().setToast('The printer is not connected.', true);
+        get().setToast(i18n.t('deviceLink.notConnected'), true);
         return false;
       }
       const target = get().activeId;
@@ -645,9 +659,9 @@ export const useDevice = create<DeviceState>((set, get) => {
         }
         if (start) {
           await runCalls(s, start(path));
-          get().setToast(`Printing ${path}`);
+          get().setToast(i18n.t('deviceLink.printing', { path }));
         } else {
-          get().setToast(`Uploaded ${path}`);
+          get().setToast(i18n.t('deviceLink.uploaded', { path }));
         }
         const printer = get().printers.find((p) => p.id === target);
         if (printer) onSent({ source, path, printer, started: Boolean(start) });
@@ -656,7 +670,7 @@ export const useDevice = create<DeviceState>((set, get) => {
         return true;
       } catch (e) {
         if (abort.signal.aborted) {
-          get().setToast('Upload cancelled.');
+          get().setToast(i18n.t('deviceLink.uploadCancelled'));
           return false;
         }
         if (uploadAbort === abort) uploadAbort = null;
@@ -696,7 +710,7 @@ onBridgeRemoved(async (_relay, bridgeId) => {
     if (useAccount.getState().status === 'signedIn') useAccount.setState({ devices: await api.devices() });
     const left = useDevice.getState().bridges.find((b) => b.bridgeId === bridgeId);
     if (left) await useDevice.getState().removeBridge(left.id);
-    if (before) useDevice.getState().setToast(`${before.name} was removed from its computer, so it's gone from Printers & bridges.`);
+    if (before) useDevice.getState().setToast(i18n.t('deviceLink.bridgeRemoved', { name: before.name }));
   } catch {
     // tried again the next time the relay says so
   } finally {

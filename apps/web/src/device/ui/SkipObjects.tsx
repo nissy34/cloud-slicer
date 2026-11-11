@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useDevice } from '../../state/device';
 import { excludeObjectGcode } from '../commands';
 import { mapBox, svgPoints, type PlateObject } from '../objects';
@@ -12,6 +13,7 @@ import { Dialog } from '../../components/Dialog';
  * outline or a row marks both.
  */
 export function SkipObjectsDialog({ objects, onClose }: { objects: PlateObject[]; onClose(): void }) {
+  const { t } = useTranslation();
   const klipper = useDevice((s) => s.objects);
   const call = useDevice((s) => s.call);
   const [picked, setPicked] = useState<string | null>(null);
@@ -25,35 +27,35 @@ export function SkipObjectsDialog({ objects, onClose }: { objects: PlateObject[]
     // empty layers until the end: offer to cancel the print instead.
     left === 1
       ? confirm({
-          title: `${o.label} is the last object`,
-          text: 'Skipping it leaves nothing to print, but the printer would keep heating and moving until the print ends. Cancel the print instead? It can’t be resumed.',
-          action: 'Cancel print',
-          keep: 'Keep printing',
+          title: t('deviceJob.lastObject', { name: o.label }),
+          text: t('deviceJob.lastObjectText'),
+          action: t('deviceJob.cancelPrint'),
+          keep: t('deviceJob.keepPrinting'),
           danger: true,
           run: () => {
-            void call('Cancelling', (s) => s.cancel());
+            void call(t('deviceJob.cancelling'), (s) => s.cancel());
             onClose();
           },
         })
       : confirm({
-      title: `Skip ${o.label}?`,
-      text: "The printer stops printing this object for the rest of the print. It can't be printed again in this print.",
-      action: `Skip ${o.label}`,
-      keep: 'Cancel',
+      title: t('deviceJob.skipQuestion', { name: o.label }),
+      text: t('deviceJob.skipText'),
+      action: t('deviceJob.skipName', { name: o.label }),
+      keep: t('common.cancel'),
       danger: true,
-      run: () => void call(`Skipping ${o.label}`, (s) => s.gcode(excludeObjectGcode(o.name))),
+      run: () => void call(t('deviceJob.skipping', { name: o.label }), (s) => s.gcode(excludeObjectGcode(o.name))),
     });
 
   // Lines and markers keep their size whatever the printer's bed size.
   const unit = Math.max(box.w, box.h) / 220;
   return (
-    <Dialog title="Skip objects" onClose={onClose} wide className="dv-skip">
+    <Dialog title={t('deviceJob.skipTitle')} onClose={onClose} wide className="dv-skip">
       <div className="dv-skip-body" data-testid="skip-objects">
         <svg
           className="dv-skip-map"
           viewBox={`0 0 ${box.w} ${box.h}`}
           role="img"
-          aria-label="The plate seen from above, with each object's outline"
+          aria-label={t('deviceJob.mapLabel')}
           style={{ ['--u' as string]: unit }}
         >
           <rect className="dv-skip-bed" x={0} y={0} width={box.w} height={box.h} rx={4 * unit} />
@@ -81,9 +83,9 @@ export function SkipObjectsDialog({ objects, onClose }: { objects: PlateObject[]
                 onClick={() => setPicked(o.name)}
               >
                 <span className="dv-skip-name">{o.label}</span>
-                {o.current && !o.skipped && <span className="dv-skip-now">Printing now</span>}
+                {o.current && !o.skipped && <span className="dv-skip-now">{t('deviceJob.printingNowTag')}</span>}
                 {o.skipped ? (
-                  <span className="muted">Skipped</span>
+                  <span className="muted">{t('deviceJob.skipped')}</span>
                 ) : (
                   <button
                     className="secondary small"
@@ -93,14 +95,14 @@ export function SkipObjectsDialog({ objects, onClose }: { objects: PlateObject[]
                       skip(o);
                     }}
                   >
-                    Skip
+                    {t('deviceJob.skip')}
                   </button>
                 )}
               </li>
             ))}
           </ul>
           <p className="muted dv-skip-count">
-            {left} of {objects.length} object{objects.length === 1 ? '' : 's'} still printing.
+            {t('deviceJob.stillPrinting', { left, count: objects.length })}
           </p>
         </div>
       </div>

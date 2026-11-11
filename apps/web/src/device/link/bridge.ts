@@ -3,6 +3,7 @@
 // computer next to the printer, which pipes it to the printer's Moonraker.
 // The relay is a dumb pipe, so this speaks plain Moonraker JSON-RPC; upload
 // and camera frames become bridge.* calls the agent answers itself.
+import { i18n } from '../../i18n';
 import type { DirectCamera } from '../camera';
 import { SharedLink } from '../shared-link';
 import { BridgeFiles, type ReadOptions, type RangeAnswer } from '../timelapse';
@@ -80,7 +81,9 @@ export class BridgeLink implements PrinterLink {
   private renewTimer: ReturnType<typeof setTimeout> | null = null;
   private seq = 0;
   private pending = new Map<string, { resolve(v: unknown): void; reject(e: Error): void; timer: ReturnType<typeof setTimeout> }>();
-  readonly label = 'through the bridge';
+  get label() {
+    return i18n.t('deviceLink.throughBridge');
+  }
   /** This link's name at the relay, kept across reconnects (bridgeSocketUrl). */
   readonly slot = crypto.randomUUID().replace(/-/g, '').slice(0, 16);
 
@@ -120,7 +123,7 @@ export class BridgeLink implements PrinterLink {
       let opened = false;
       const timer = setTimeout(() => {
         ws.close();
-        reject(new LinkError('The bridge relay did not answer in time.', 'timeout'));
+        reject(new LinkError(i18n.t('deviceLink.relayTimeout'), 'timeout'));
       }, 10_000);
       ws.onopen = () => {
         clearTimeout(timer);
@@ -130,7 +133,7 @@ export class BridgeLink implements PrinterLink {
       };
       ws.onerror = () => {
         clearTimeout(timer);
-        if (!opened) reject(new LinkError('Could not reach the bridge relay.', 'bridge'));
+        if (!opened) reject(new LinkError(i18n.t('deviceLink.relayUnreachable'), 'bridge'));
       };
       ws.onmessage = (ev) => {
         let msg: RpcMessage;
@@ -144,7 +147,7 @@ export class BridgeLink implements PrinterLink {
           const p = this.pending.get(msg.id)!;
           this.pending.delete(msg.id);
           clearTimeout(p.timer);
-          if (msg.error) p.reject(new LinkError(msg.error.message ?? 'Bridge error', 'bridge'));
+          if (msg.error) p.reject(new LinkError(msg.error.message ?? i18n.t('deviceLink.bridgeError'), 'bridge'));
           else p.resolve(msg.result);
           return;
         }
@@ -161,24 +164,24 @@ export class BridgeLink implements PrinterLink {
         if (this.ws === ws) this.failPending();
         if (ev.code === BRIDGE_REMOVED) removedListener?.(this.target.relay, this.target.bridgeId);
         if (!opened) {
-          reject(new LinkError(ev.reason || 'The relay refused this bridge. Check the pairing code.', 'auth'));
+          reject(new LinkError(ev.reason || i18n.t('deviceLink.relayRefused'), 'auth'));
         } else if (this.ws === ws) {
           this.ws = null;
-          h.onClose(ev.reason || 'Lost the connection to the bridge relay.');
+          h.onClose(ev.reason || i18n.t('deviceLink.relayLost'));
         }
       };
     });
   }
 
   send(msg: RpcMessage) {
-    if (this.ws?.readyState !== WebSocket.OPEN) throw new LinkError('Not connected.', 'network');
+    if (this.ws?.readyState !== WebSocket.OPEN) throw new LinkError(i18n.t('deviceLink.notConnectedShort'), 'network');
     this.ws.send(JSON.stringify(msg));
   }
 
   private failPending() {
     for (const p of this.pending.values()) {
       clearTimeout(p.timer);
-      p.reject(new LinkError('The bridge connection closed.', 'bridge'));
+      p.reject(new LinkError(i18n.t('deviceLink.bridgeClosed'), 'bridge'));
     }
     this.pending.clear();
   }
@@ -221,7 +224,7 @@ export class BridgeLink implements PrinterLink {
       } catch {
         clearTimeout(timer);
         this.pending.delete(id);
-        reject(new LinkError('Not connected.', 'network'));
+        reject(new LinkError(i18n.t('deviceLink.notConnectedShort'), 'network'));
       }
     });
   }
@@ -236,7 +239,7 @@ export class BridgeLink implements PrinterLink {
   });
 
   async upload(blob: Blob, path: string, onProgress?: (f: number) => void, signal?: AbortSignal, onStage?: (stage: UploadStage) => void): Promise<string> {
-    const cancelled = () => new LinkError('Upload cancelled.', 'network');
+    const cancelled = () => new LinkError(i18n.t('deviceLink.uploadCancelled'), 'network');
     onStage?.('zipping');
     const zip = await gzipped(blob);
     const wire = zip ?? blob;
@@ -321,7 +324,7 @@ export class BridgeLink implements PrinterLink {
     let failure: unknown = null;
     const waiting = new Set<Promise<void>>();
     while (next < wire.size && !failure) {
-      if (signal?.aborted) throw new LinkError('Upload cancelled.', 'network');
+      if (signal?.aborted) throw new LinkError(i18n.t('deviceLink.uploadCancelled'), 'network');
       if (next - confirmed >= STREAM_WINDOW) {
         await Promise.race(waiting);
         continue;
@@ -352,7 +355,7 @@ export class BridgeLink implements PrinterLink {
     const { uploadId } = await this.call<{ uploadId: string }>('bridge.upload_begin', { path, size: blob.size });
     for (let offset = 0; offset < blob.size || offset === 0; offset += UPLOAD_CHUNK) {
       // Such a bridge drops the half-sent file when this browser leaves.
-      if (signal?.aborted) throw new LinkError('Upload cancelled.', 'network');
+      if (signal?.aborted) throw new LinkError(i18n.t('deviceLink.uploadCancelled'), 'network');
       const bytes = new Uint8Array(await blob.slice(offset, offset + UPLOAD_CHUNK).arrayBuffer());
       await this.call('bridge.upload_chunk', { uploadId, offset, data: toBase64(bytes) });
       onProgress?.(Math.min(1, (offset + bytes.length) / Math.max(1, blob.size)));

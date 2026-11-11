@@ -3,6 +3,7 @@
 // its klippy/extras: print_task_config (filament per tool head, print
 // preferences, tool map), filament_feed (automatic load/unload), purifier
 // (the top cover's air purifier), machine_state_manager and the cavity light.
+import { i18n } from '../../i18n';
 import { extruderIndex, type Fan, type KlipperObjects } from '../status';
 import type { PrinterAddon, PrinterCall } from './types';
 import { u1Errors } from './u1-errors';
@@ -35,10 +36,22 @@ export const u1Addon: PrinterAddon = {
   },
   activity: (o) => u1Activity(o),
   errors: u1Errors,
+  // Getters: the words are read in the reader's language when shown.
   filaments: {
-    title: 'Tool heads',
-    words: { noun: 'tool head', unset: 'Load filament, or set its type on the Tool heads card.' },
-    note: 'As in Snapmaker’s own app, a filament can only go to a head with the same filament type and nozzle size. Brand and colour can differ.',
+    get title() {
+      return i18n.t('deviceAddons.u1Heads');
+    },
+    words: {
+      get noun() {
+        return i18n.t('deviceAddons.u1HeadNoun');
+      },
+      get unset() {
+        return i18n.t('deviceAddons.u1HeadUnset');
+      },
+    },
+    get note() {
+      return i18n.t('deviceAddons.u1HeadNote');
+    },
     read: (o) => (o.print_task_config ? u1Heads(o) : null),
   },
   printOptions: (o) => u1PrintOptions(o),
@@ -142,9 +155,10 @@ export const parkHeadGcode = (i: number) => `PARK_${u1ExtruderName(i).toUpperCas
 
 /** Nozzle sizes and kinds the U1 firmware accepts (VALID_NOZZLE_DIAMETERS / VOLUME_TYPES). */
 export const U1_NOZZLE_DIAMETERS = [0.2, 0.4, 0.6, 0.8];
+/** `label` is a word key, shown with t(). */
 export const U1_NOZZLE_TYPES = [
-  { id: 'standard', label: 'Standard' },
-  { id: 'high_flow', label: 'High flow' },
+  { id: 'standard', label: 'deviceAddons.nozzleStandard' },
+  { id: 'high_flow', label: 'deviceAddons.nozzleHighFlow' },
 ];
 
 /** Tells the printer which nozzle is fitted to head i. Refused while printing. */
@@ -223,18 +237,18 @@ const MAIN_STATES = [
 ];
 
 const ACTIVITIES: Record<string, string> = {
-  XYZ_OFFSET_CALIBRATE: 'Calibrating tool offsets',
-  BED_LEVELING: 'Levelling the bed',
-  FLOW_CALIBRATION: 'Calibrating flow',
-  SHAPER_CALIBRATE: 'Calibrating input shaping',
-  UPGRADING: 'Updating firmware',
-  ABNORMAL: 'Needs attention on the printer screen',
-  SCREWS_TILT_ADJUST: 'Adjusting bed screws',
-  AUTO_LOAD: 'Loading filament',
-  AUTO_UNLOAD: 'Unloading filament',
-  MANUAL_LOAD: 'Loading filament',
-  PARK_POINT_MANUAL_CALIBRATION: 'Calibrating park position',
-  HOMING_ORIGIN_CALIBRATION: 'Calibrating home position',
+  XYZ_OFFSET_CALIBRATE: 'deviceAddons.calibratingOffsets',
+  BED_LEVELING: 'deviceAddons.levellingBed',
+  FLOW_CALIBRATION: 'deviceAddons.calibratingFlow',
+  SHAPER_CALIBRATE: 'deviceAddons.calibratingShaper',
+  UPGRADING: 'deviceAddons.updatingFirmware',
+  ABNORMAL: 'deviceAddons.needsAttention',
+  SCREWS_TILT_ADJUST: 'deviceAddons.adjustingScrews',
+  AUTO_LOAD: 'deviceAddons.loadingFilament',
+  AUTO_UNLOAD: 'deviceAddons.unloadingFilament',
+  MANUAL_LOAD: 'deviceAddons.loadingFilament',
+  PARK_POINT_MANUAL_CALIBRATION: 'deviceAddons.calibratingPark',
+  HOMING_ORIGIN_CALIBRATION: 'deviceAddons.calibratingHome',
 };
 
 export function u1MainState(o: KlipperObjects): string {
@@ -245,7 +259,7 @@ export function u1MainState(o: KlipperObjects): string {
 export function u1Activity(o: KlipperObjects): string | null {
   const st = u1MainState(o);
   if (!st || st === 'IDLE' || st === 'PRINTING') return null;
-  return ACTIVITIES[st] ?? st.charAt(0) + st.slice(1).toLowerCase().replace(/_/g, ' ');
+  return ACTIVITIES[st] ? i18n.t(ACTIVITIES[st]) : st.charAt(0) + st.slice(1).toLowerCase().replace(/_/g, ' ');
 }
 
 /** The file's filament -> tool head pairs the printer accepts, in filament order. */
@@ -321,7 +335,7 @@ export function u1Fans(list: Fan[], activeExtruder: string): Fan[] {
     const head = /^e(\d+)_(nozzle_)?fan$/i.exec(own);
     if (!head) return [f];
     const n = Number(head[1]);
-    return head[2] && (n === active || f.speed > 0) ? [{ ...f, label: `Hotend fan T${n + 1}` }] : [];
+    return head[2] && (n === active || f.speed > 0) ? [{ ...f, label: i18n.t('deviceAddons.hotendFan', { n: n + 1 }) }] : [];
   });
 }
 
