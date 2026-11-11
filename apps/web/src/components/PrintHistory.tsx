@@ -98,8 +98,7 @@ export function useHistoryAvailable(): boolean {
   return Boolean(id && signedIn);
 }
 
-/** Why there is no history here, for greyed menu items (English; noHistoryWords() in the page's language). */
-export const NO_HISTORY = 'Save the project online (signed in) to keep which plates were printed';
+/** Why there is no history here, for greyed menu items. */
 export const noHistoryWords = () => i18n.t('printHistory.noHistory');
 
 /** "Printed 6 of 10" with a small bar, and "Next: plate 7", beside the project name. */

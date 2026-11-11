@@ -6,7 +6,7 @@ import { shapeLabel, SHAPES } from '../lib/volumes';
 import { usePlateMarks, usePrints } from '../state/prints';
 import { useProjects } from '../state/projects';
 import { useSlicer } from '../state/store';
-import { NO_HISTORY, useHistoryAvailable } from './PrintHistory';
+import { noHistoryWords, useHistoryAvailable } from './PrintHistory';
 import { startSvg } from './SvgPanel';
 import { startText } from './TextPanel';
 import { ChevronDown, ChevronRight } from 'lucide-react';
@@ -167,11 +167,11 @@ function MenuCard({ onAdd }: { onAdd(): void }) {
                 ? item(t('plateMenu.markNotPrinted'), run(() => usePrints.getState().unmark(plate)), { title: t('plateMenu.markNotPrintedTip') })
                 : item(t('plateMenu.markPrinted'), run(() => usePrints.getState().mark(plate)), {
                     disabled: !history || empty,
-                    title: !history ? NO_HISTORY : (needsModel ?? t('plateMenu.markPrintedTip')),
+                    title: !history ? noHistoryWords() : (needsModel ?? t('plateMenu.markPrintedTip')),
                   })}
               {item(t('plateMenu.printHistory'), run(() => usePrints.getState().openHistory(plate)), {
                 disabled: !history,
-                title: history ? t('plateMenu.printHistoryTip') : NO_HISTORY,
+                title: history ? t('plateMenu.printHistoryTip') : noHistoryWords(),
               })}
               <hr />
             </>

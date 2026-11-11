@@ -24,7 +24,7 @@ down. Add a line with the date when a new choice is made.
   Every filament choice shows the numbered square and preset name.
 - **Languages: the site's own words only** (option B, 2026-11-11). Setting names and
   tooltips stay English. Hebrew first; the language follows the browser, picked by hand
-  in the theme menu, not on its own button. i18next.
+  at the bottom of the account menu, not on its own button nor in the theme menu. i18next.
 
 ## Engines
 

@@ -7,9 +7,10 @@
 ## What it does
 
 The site speaks English and Hebrew. It follows the browser's languages: the first one the
-site speaks wins, else English. To change it by hand, the theme menu (sun/moon button in
-the top bar) has a **Language** section under Light/Dark: *Match this device*, English,
-עברית. There is no button of its own on purpose: most people never need it (2026-11-11).
+site speaks wins, else English. To change it by hand, the account menu (the top bar's Sign in
+or name button, signed in or not) ends with a **Language** picker beside Privacy · Terms:
+*Match this device*, English, עברית. There is no button of its own on purpose: most people
+never need it; inside the theme menu read as odd (2026-11-11).
 Hebrew turns the whole page right to left.
 
 **Setting names, tooltips and their choices stay English**, as the engine gives them
@@ -24,7 +25,7 @@ errors, and G-code.
 | Library set-up; English built in, another language fetched only when picked | `src/i18n/index.ts` (i18next + react-i18next) |
 | The choice: browser or picked; sets `<html lang dir>`; kept per browser and in the account | `src/lib/language.ts` |
 | Start in the right direction before the app loads | the script in `index.html` |
-| The picker | `components/ThemeMenu.tsx` |
+| The picker, and taking the account's choice | `account/AccountMenu.tsx` (`Legal`, `AccountMenu`) |
 
 ## Rules
 
