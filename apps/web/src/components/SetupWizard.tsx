@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { X } from 'lucide-react';
 import { create } from 'zustand';
 import type { PresetSummary } from '../engine/protocol';
@@ -45,11 +46,12 @@ export const useSetupWizard = create<{
 let dismissed = typeof location !== 'undefined' && (location.hash.startsWith('#pair=') || location.hash === '#device');
 
 type Step = 'engine' | 'printers' | 'filaments' | 'connect';
+// Labels are word keys, shown with t().
 const STEPS: { id: Step; label: string }[] = [
-  { id: 'engine', label: 'Default engine' },
-  { id: 'printers', label: 'Printers' },
-  { id: 'filaments', label: 'Filaments' },
-  { id: 'connect', label: 'Connect' },
+  { id: 'engine', label: 'setupWizard.defaultEngine' },
+  { id: 'printers', label: 'setupWizard.printers' },
+  { id: 'filaments', label: 'setupWizard.filaments' },
+  { id: 'connect', label: 'setupWizard.connect' },
 ];
 
 /**
@@ -82,6 +84,7 @@ export function SetupWizard() {
 }
 
 function Wizard({ onClose }: { onClose: () => void }) {
+  const { t } = useTranslation();
   const allPrinters = useSlicer((s) => s.printers);
   const running = useSlicer((s) => s.flavor);
   const savedPrinters = installedPrinters(useUserSetting<Setup>(SETUP_KEY), running);
@@ -111,7 +114,7 @@ function Wizard({ onClose }: { onClose: () => void }) {
       onClose();
       then?.();
     } catch (e) {
-      setError(`Could not save: ${(e as Error).message}`);
+      setError(t('setupWizard.couldNotSave', { error: (e as Error).message }));
     } finally {
       setSaving(false);
     }
@@ -124,7 +127,7 @@ function Wizard({ onClose }: { onClose: () => void }) {
       await useSlicer.getState().loadVendors(printers);
       return true;
     } catch (e) {
-      setError(`Could not load the printer profiles: ${(e as Error).message}`);
+      setError(t('setupWizard.couldNotLoad', { error: (e as Error).message }));
       return false;
     } finally {
       setLoadingBrands(false);
@@ -147,17 +150,17 @@ function Wizard({ onClose }: { onClose: () => void }) {
   };
   return (
     <Dialog
-      title="Set up your printers"
+      title={t('setupWizard.title')}
       onClose={onClose}
       className="wizard"
       footer={
         <>
           <button className="secondary wizard-later" onClick={onClose}>
-            Not now
+            {t('setupWizard.notNow')}
           </button>
           {index > 0 && (
             <button className="secondary" onClick={() => setStep(STEPS[index - 1].id)}>
-              Back
+              {t('setupWizard.back')}
             </button>
           )}
           {step === 'connect' && (
@@ -177,12 +180,12 @@ function Wizard({ onClose }: { onClose: () => void }) {
                 })
               }
             >
-              Add a printer connection
+              {t('setupWizard.addConnection')}
             </button>
           )}
           {step === 'connect' ? (
             <button className="primary" disabled={saving || !printers.length} onClick={() => void finish()}>
-              Finish
+              {t('setupWizard.finish')}
             </button>
           ) : (
             <button
@@ -190,26 +193,26 @@ function Wizard({ onClose }: { onClose: () => void }) {
               disabled={step === 'printers' ? !printers.length || loadingBrands : step === 'filaments' && !filaments?.length}
               onClick={() => void next()}
             >
-              Next
+              {t('setupWizard.next')}
             </button>
           )}
         </>
       }
     >
       <p className="wizard-step-now">
-        Step {index + 1} of {STEPS.length}: {STEPS[index].label}
+        {t('setupWizard.stepOf', { n: index + 1, total: STEPS.length, label: t(STEPS[index].label) })}
       </p>
       <ol className="wizard-steps">
         {STEPS.map((s, i) => (
           <li key={s.id} className={i === index ? 'on' : i < index ? 'done' : ''}>
-            {s.label}
+            {t(s.label)}
           </li>
         ))}
       </ol>
       <div className="wizard-body">
         {step === 'engine' && <EngineStep chosen={engine} onChange={setEngine} />}
         {step === 'printers' && <PrinterStep all={allPrinters} chosen={printers} onChange={setPrinters} />}
-        {step === 'printers' && loadingBrands && <p className="muted small">Loading the printer profiles…</p>}
+        {step === 'printers' && loadingBrands && <p className="muted small">{t('setupWizard.loadingProfiles')}</p>}
         {step === 'filaments' && <FilamentStep printers={printers} chosen={filaments} onLoad={setFilaments} onChange={setFilaments} />}
         {step === 'connect' && <ConnectStep />}
       </div>
@@ -220,9 +223,9 @@ function Wizard({ onClose }: { onClose: () => void }) {
 
 type Tab = 'printers' | 'filaments' | 'engine';
 const TABS: { id: Tab; label: string; short?: string }[] = [
-  { id: 'printers', label: 'Printers' },
-  { id: 'filaments', label: 'Filaments' },
-  { id: 'engine', label: 'Default engine', short: 'Engine' },
+  { id: 'printers', label: 'setupWizard.printers' },
+  { id: 'filaments', label: 'setupWizard.filaments' },
+  { id: 'engine', label: 'setupWizard.defaultEngine', short: 'setupWizard.engineShort' },
 ];
 
 const sameSet = (a: string[], b: string[]) => a.length === b.length && a.every((x) => b.includes(x));
@@ -233,6 +236,7 @@ const sameSet = (a: string[], b: string[]) => a.length === b.length && a.every((
  * adds printer connections). Closing with changes asks first.
  */
 function Manage({ tab: firstTab, onClose }: { tab: Tab; onClose: () => void }) {
+  const { t } = useTranslation();
   const allPrinters = useSlicer((s) => s.printers);
   const running = useSlicer((s) => s.flavor);
   const setup = useUserSetting<Setup>(SETUP_KEY);
@@ -255,7 +259,7 @@ function Manage({ tab: firstTab, onClose }: { tab: Tab; onClose: () => void }) {
   const filaments = ticked ?? loaded ?? saved.filaments;
 
   const close = async () => {
-    if (changed && !(await ask({ title: 'Discard your changes?', text: 'Your changes to printers, filaments or the default engine are not saved yet.', action: 'Discard changes' })))
+    if (changed && !(await ask({ title: t('setupWizard.discardTitle'), text: t('setupWizard.discardText'), action: t('setupWizard.discardAction') })))
       return;
     onClose();
   };
@@ -268,37 +272,37 @@ function Manage({ tab: firstTab, onClose }: { tab: Tab; onClose: () => void }) {
       await saveUserSetting<Setup>(SETUP_KEY, { printers, printersIn: running, filaments, filamentsIn: running, engine });
       onClose();
     } catch (e) {
-      setError(`Could not save: ${(e as Error).message}`);
+      setError(t('setupWizard.couldNotSave', { error: (e as Error).message }));
     } finally {
       setSaving(false);
     }
   };
   return (
     <Dialog
-      title="Printers and filaments"
+      title={t('setupWizard.manageTitle')}
       onClose={() => void close()}
       className="manage"
       footer={
         <>
           {error && <Note tone="error" className="manage-error">{error}</Note>}
           <button className="secondary" onClick={() => void close()}>
-            Cancel
+            {t('common.cancel')}
           </button>
           <button className="primary" disabled={saving || !changed || !printers.length || !filaments.length} onClick={() => void save()}>
-            {saving ? 'Saving…' : 'Save'}
+            {saving ? t('setupWizard.saving') : t('setupWizard.save')}
           </button>
         </>
       }
     >
-      <div className="line-tabs manage-tabs" role="tablist" aria-label="Printers and filaments">
-        {TABS.map((t) => (
-          <button key={t.id} role="tab" aria-selected={tab === t.id} aria-label={t.label} onClick={() => setTab(t.id)}>
-            <span className="manage-tab-long">{t.label}</span>
-            {t.short && <span className="manage-tab-short">{t.short}</span>}
+      <div className="line-tabs manage-tabs" role="tablist" aria-label={t('setupWizard.manageTitle')}>
+        {TABS.map((x) => (
+          <button key={x.id} role="tab" aria-selected={tab === x.id} aria-label={t(x.label)} onClick={() => setTab(x.id)}>
+            <span className="manage-tab-long">{t(x.label)}</span>
+            {x.short && <span className="manage-tab-short">{t(x.short)}</span>}
           </button>
         ))}
       </div>
-      <div className="manage-body" role="tabpanel" aria-label={TABS.find((t) => t.id === tab)?.label}>
+      <div className="manage-body" role="tabpanel" aria-label={t(TABS.find((x) => x.id === tab)?.label ?? '')}>
         {tab === 'printers' && <PrinterStep all={allPrinters} chosen={printers} onChange={setPrinters} manage />}
         {tab === 'filaments' &&
           (printers.length ? (
@@ -310,7 +314,7 @@ function Manage({ tab: firstTab, onClose }: { tab: Tab; onClose: () => void }) {
               onChange={setTicked}
             />
           ) : (
-            <p className="muted">Pick a printer first: the filaments listed are the ones your printers have.</p>
+            <p className="muted">{t('setupWizard.pickPrinterFirst')}</p>
           ))}
         {tab === 'engine' && <EngineStep chosen={engine} onChange={setEngine} heading={false} />}
       </div>
@@ -319,14 +323,12 @@ function Manage({ tab: firstTab, onClose }: { tab: Tab; onClose: () => void }) {
 }
 
 function EngineStep({ chosen, onChange, heading = true }: { chosen: EngineFlavor; onChange: (engine: EngineFlavor) => void; heading?: boolean }) {
+  const { t } = useTranslation();
   return (
     <>
-      {heading && <h3 className="wizard-engine-title">Default engine</h3>}
-      <p className="muted small">
-        New projects start with this engine. You can still pick the other one for any project: use Slicer engine above the printer. A project you open uses the
-        engine it was made with.
-      </p>
-      <div className="wizard-engines" role="radiogroup" aria-label="Slicing engine">
+      {heading && <h3 className="wizard-engine-title">{t('setupWizard.defaultEngine')}</h3>}
+      <p className="muted small">{t('setupWizard.engineExplain')}</p>
+      <div className="wizard-engines" role="radiogroup" aria-label={t('setupWizard.slicingEngine')}>
         {ENGINES.map((e) => (
           <button key={e.id} role="radio" aria-label={e.name} aria-checked={chosen === e.id} className={chosen === e.id ? 'wizard-engine on' : 'wizard-engine'} onClick={() => onChange(e.id)}>
             <b>
@@ -348,6 +350,7 @@ function EngineStep({ chosen, onChange, heading = true }: { chosen: EngineFlavor
 
 /** `manage`: the Manage window's Printers tab, which lists your printers above instead of explaining the page. */
 function PrinterStep({ all, chosen, onChange, manage }: { all: PresetSummary[]; chosen: string[]; onChange: (names: string[]) => void; manage?: boolean }) {
+  const { t } = useTranslation();
   const catalog = useSlicer((s) => s.catalog);
   const flavor = useSlicer((s) => s.flavor);
   // The brands you already have come first; the order stays put while you pick.
@@ -364,31 +367,30 @@ function PrinterStep({ all, chosen, onChange, manage }: { all: PresetSummary[]; 
     <>
       {manage && (
         <>
-          <h3 className="manage-label">Your printers</h3>
+          <h3 className="manage-label">{t('setupWizard.yourPrinters')}</h3>
           {chosen.length ? (
             <ul className="manage-mine">
               {chosen.map((name) => (
                 <li key={name}>
                   <span>{name}</span>
-                  <IconButton icon={X} label={`Remove ${name}`} onClick={() => toggle(name)} />
+                  <IconButton icon={X} label={t('setupWizard.remove', { name })} onClick={() => toggle(name)} />
                 </li>
               ))}
             </ul>
           ) : (
-            <p className="muted">No printers. Pick at least one below.</p>
+            <p className="muted">{t('setupWizard.noPrinters')}</p>
           )}
-          <h3 className="manage-label">Add a printer</h3>
+          <h3 className="manage-label">{t('setupWizard.addPrinter')}</h3>
         </>
       )}
       <p className="muted small" hidden={manage}>
-        Pick each printer you have and its nozzle sizes in mm (you can change this later with Manage). Every printer slices here; <SendMark /> marks the ones this app can
-        also send prints to and start (Klipper printers, Prusa printers through PrusaLink, the Elegoo Centauri Carbon, and Bambu Lab printers with Developer Mode on). For the others you download the G-code, or send it through OctoPrint if OctoPrint runs the printer.
+        {t('setupWizard.printersIntro')} <SendMark /> {t('setupWizard.printersIntroAfter')}
       </p>
       <div className="wizard-filters">
-        <input type="search" placeholder="Search printers" aria-label="Search printers" value={query} onChange={(e) => setQuery(e.target.value)} />
+        <input type="search" placeholder={t('setupWizard.searchPrinters')} aria-label={t('setupWizard.searchPrinters')} value={query} onChange={(e) => setQuery(e.target.value)} />
         <label className="switch-row">
           <input className="switch" type="checkbox" checked={sendOnly} onChange={(e) => setSendOnly(e.target.checked)} />
-          <span>Only direct print</span>
+          <span>{t('setupWizard.onlyDirect')}</span>
         </label>
       </div>
       <div className="wizard-brands">
@@ -399,7 +401,7 @@ function PrinterStep({ all, chosen, onChange, manage }: { all: PresetSummary[]; 
               <summary>
                 {b.vendor}{' '}
                 <span className="muted small">
-                  {picked ? `${picked} of ${b.models.length}` : `${b.models.length} printer${b.models.length === 1 ? '' : 's'}`}
+                  {picked ? t('setupWizard.nOfM', { n: picked, m: b.models.length }) : t('setupWizard.printerCount', { count: b.models.length })}
                 </span>
               </summary>
               <ul className="wizard-models">
@@ -412,7 +414,7 @@ function PrinterStep({ all, chosen, onChange, manage }: { all: PresetSummary[]; 
                         {m.model}
                         {m.send && <SendMark />}
                       </span>
-                      <span className="chips" role="group" aria-label={`${m.model} nozzles`}>
+                      <span className="chips" role="group" aria-label={t('setupWizard.nozzles', { model: m.model })}>
                         {m.nozzles.map((n) => (
                           <button key={n.name} className="chip" aria-pressed={chosen.includes(n.name)} onClick={() => toggle(n.name)}>
                             {n.nozzle}
@@ -426,11 +428,11 @@ function PrinterStep({ all, chosen, onChange, manage }: { all: PresetSummary[]; 
             </details>
           );
         })}
-        {!shown.length && <p className="muted">No printer matches “{q}”.</p>}
+        {!shown.length && <p className="muted">{t('setupWizard.noPrinterMatch', { query: q })}</p>}
       </div>
       {!manage && (
         <p className="muted small">
-          {chosen.length} printer profile{chosen.length === 1 ? '' : 's'} selected.
+          {t('setupWizard.profilesSelected', { count: chosen.length })}
         </p>
       )}
     </>
@@ -439,12 +441,13 @@ function PrinterStep({ all, chosen, onChange, manage }: { all: PresetSummary[]; 
 
 /** The "Direct print" mark: the app can send prints to this printer and start them (it runs Klipper, or the bridge reaches it another way: Prusa, Elegoo Centauri Carbon, Bambu Lab). */
 export function SendMark() {
+  const { t } = useTranslation();
   return (
-    <span className="send-mark" title="Direct print: this app sends prints to it and starts them from the Device tab (Klipper with Moonraker, Prusa with PrusaLink, the Elegoo Centauri Carbon, or Bambu Lab with Developer Mode on)">
+    <span className="send-mark" title={t('setupWizard.directTip')}>
       <svg viewBox="0 0 16 16" width="12" height="12" aria-hidden="true">
         <path d="M2 8.5 14 2l-3.5 12-2.7-4.3L2 8.5Zm5.8 1.2 1.6 2.6L11.6 5 7.8 9.7Z" fill="currentColor" />
       </svg>
-      Direct print
+      {t('setupWizard.direct')}
     </span>
   );
 }
@@ -461,6 +464,7 @@ function FilamentStep({
   onLoad: (names: string[]) => void;
   onChange: (names: string[]) => void;
 }) {
+  const { t } = useTranslation();
   const filamentsFor = useSlicer((s) => s.filamentsFor);
   const [list, setList] = useState<PresetSummary[] | null>(null);
   const [error, setError] = useState('');
@@ -493,7 +497,7 @@ function FilamentStep({
   }, [printers.join('\n')]);
 
   if (error) return <p className="hint warn">{error}</p>;
-  if (!list) return <p className="muted">Finding filaments for your printers…</p>;
+  if (!list) return <p className="muted">{t('setupWizard.findingFilaments')}</p>;
   const picked = new Set(chosen ?? []);
   const types = [...new Set(list.map((f) => f.filamentType || 'Other'))].sort();
   const q = query.trim().toLowerCase();
@@ -504,10 +508,16 @@ function FilamentStep({
   const set = (names: string[], on: boolean) => onChange(on ? [...new Set([...picked, ...names])] : [...picked].filter((n) => !names.includes(n)));
   return (
     <>
-      <p className="muted small">Pick the filaments you use. The filament pickers will offer only these.</p>
+      <p className="muted small">{t('setupWizard.pickFilaments')}</p>
       <div className="wizard-filters">
-        <input type="search" placeholder="Search filaments" aria-label="Search filaments" value={query} onChange={(e) => setQuery(e.target.value)} />
-        <Picker field label="Material" value={type} options={[{ value: '', label: 'All materials' }, ...types.map((t) => ({ value: t, label: t }))]} onChange={setType} />
+        <input type="search" placeholder={t('setupWizard.searchFilaments')} aria-label={t('setupWizard.searchFilaments')} value={query} onChange={(e) => setQuery(e.target.value)} />
+        <Picker
+          field
+          label={t('setupWizard.material')}
+          value={type}
+          options={[{ value: '', label: t('setupWizard.allMaterials') }, ...types.map((m) => ({ value: m, label: m === 'Other' ? t('setupWizard.otherMaterial') : m }))]}
+          onChange={setType}
+        />
       </div>
       <div className="wizard-filaments">
         {groups.map((g) => {
@@ -517,10 +527,10 @@ function FilamentStep({
           return (
             <details key={g.vendor} open={groups.length <= 3 || count > 0 || !!q}>
               <summary>
-                {g.vendor} <span className="muted small">{count ? `${count} of ${g.rows.length}` : g.rows.length}</span>
+                {g.vendor} <span className="muted small">{count ? t('setupWizard.nOfM', { n: count, m: g.rows.length }) : g.rows.length}</span>
               </summary>
               <button className="quiet" onClick={() => set(names, count < g.rows.length)}>
-                {count < g.rows.length ? 'Select all' : 'Select none'}
+                {count < g.rows.length ? t('setupWizard.selectAll') : t('setupWizard.selectNone')}
               </button>
               <ul>
                 {g.rows.map((r) => (
@@ -537,31 +547,31 @@ function FilamentStep({
         })}
       </div>
       <p className="muted small">
-        {chosenRows} filament{chosenRows === 1 ? '' : 's'} selected.
+        {t('setupWizard.filamentsSelected', { count: chosenRows })}
       </p>
     </>
   );
 }
 
 function ConnectStep() {
+  const { t } = useTranslation();
   // Bridges are saved alongside printers; only the printers are listed here.
   const devices = useDevices().filter((d) => d.extra?.kind !== 'bridge-agent');
   return (
     <>
       <p className="muted small">
-        To send prints and watch them, add how to reach each printer: its address on your network (through a small bridge) or a public https address. You can do this now or later
-        in the Device tab.
+        {t('setupWizard.connectExplain')}
       </p>
       {devices.length > 0 ? (
         <ul className="wizard-devices">
           {devices.map((d) => (
             <li key={d.id}>
-              <b>{d.name}</b> <span className="muted small">{d.preset || 'no printer profile yet'}</span>
+              <b>{d.name}</b> <span className="muted small">{d.preset || t('setupWizard.noProfileYet')}</span>
             </li>
           ))}
         </ul>
       ) : (
-        <p className="muted">No printer connections yet.</p>
+        <p className="muted">{t('setupWizard.noConnections')}</p>
       )}
     </>
   );

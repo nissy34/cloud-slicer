@@ -11,6 +11,7 @@
 // standard / high flow) are shared on their standard value.
 import type { OptionDef, OrcaConfig } from '../engine/protocol';
 import type { EngineFlavor } from './engines';
+import { i18n } from '../i18n';
 import { splitValues, valueAt, withValueAt } from './flow-variants';
 import table from './shared-settings.json';
 
@@ -98,8 +99,8 @@ export function upgradePreset(p: StoredPreset, t: SharedTable = SHARED): { prese
     else (apart.add(key), separate++);
   }
   const notes: string[] = [];
-  if (split) notes.push(`${split} setting${split === 1 ? ' is' : 's are'} no longer the same in both engines; "${p.name}" keeps its values in each.`);
-  if (separate) notes.push(`${separate} setting${separate === 1 ? '' : 's'} of "${p.name}" can now be the same in both engines but differ; "Use the same values in both engines" in its menu makes them match.`);
+  if (split) notes.push(i18n.t('presetEngines.split', { count: split, name: p.name }));
+  if (separate) notes.push(i18n.t('presetEngines.separate', { count: separate, name: p.name }));
   return {
     preset: { ...p, config, engines: { ...p.engines, shared: t.version, orca, apart: apart.size ? [...apart] : undefined } },
     notes,

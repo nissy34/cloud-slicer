@@ -4,6 +4,7 @@
 // the Device tab's connection (state/device.ts, the printer add-on's
 // `filaments`); the plan from lib/filament-sync.
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Swatch } from './Swatch';
 import { Dialog } from './Dialog';
 import { Picker } from './Picker';
@@ -34,6 +35,7 @@ export interface PrinterFilamentRow {
  * when there is nothing to show (no printer, not connected, it doesn't say).
  */
 export function usePrinterFilamentRows(): { group: string; reading: boolean; rows: PrinterFilamentRow[] } | null {
+  const { t } = useTranslation();
   const printer = useDevice((s) => s.printers.find((p) => p.id === s.activeId));
   const conn = useDevice((s) => s.conn.state);
   const facts = useDevice((s) => s.facts);
@@ -53,13 +55,14 @@ export function usePrinterFilamentRows(): { group: string; reading: boolean; row
       .filter((r) => r.preset);
   }, [slots, presets, installedNames]);
   if (!printer) return null;
-  const group = `On ${printer.name}`;
+  const group = t('filamentSync.onPrinter', { name: printer.name });
   if (conn === 'connecting' || (conn === 'online' && (!facts || (fil && !slots)))) return { group, reading: true, rows: [] };
   if (conn !== 'online' || !rows.length) return null;
   return { group, reading: false, rows };
 }
 
 export function SyncFilamentsButton() {
+  const { t } = useTranslation();
   const [open, setOpen] = useState(false);
   // Only a printer that says what it has loaded can be synced: with just one
   // printer, connected and not saying (Prusa, OctoPrint, Elegoo, plain
@@ -71,10 +74,10 @@ export function SyncFilamentsButton() {
         className="quiet"
         onClick={() => setOpen(true)}
         disabled={silent}
-        title={silent ? "This printer doesn't say what filament is loaded" : "Load the filaments in your printer's tool heads into this project"}
+        title={silent ? t('filamentSync.silentTip') : t('filamentSync.buttonTip')}
         data-testid="sync-filaments"
       >
-        From printer
+        {t('filamentSync.fromPrinter')}
       </button>
       {open && <SyncFilamentsDialog onClose={() => setOpen(false)} />}
     </>
@@ -82,6 +85,7 @@ export function SyncFilamentsButton() {
 }
 
 function SyncFilamentsDialog({ onClose }: { onClose(): void }) {
+  const { t } = useTranslation();
   const printers = useDevice((s) => s.printers);
   const activeId = useDevice((s) => s.activeId);
   const conn = useDevice((s) => s.conn);
@@ -140,75 +144,79 @@ function SyncFilamentsDialog({ onClose }: { onClose(): void }) {
   if (!printer)
     status = (
       <p data-testid="sync-status">
-        No printer is set up yet. Add your printer on the Device tab, then come back here.
+        {t('filamentSync.noPrinter')}
       </p>
     );
   else if (conn.state !== 'online')
     status = (
       <p data-testid="sync-status">
-        {conn.state === 'offline' ? `${printer.name} is not connected${conn.message ? `: ${conn.message}` : '.'}` : `Connecting to ${printer.name}…`}
+        {conn.state === 'offline'
+          ? conn.message
+            ? t('filamentSync.offlineWhy', { name: printer.name, message: conn.message })
+            : t('filamentSync.offline', { name: printer.name })
+          : t('filamentSync.connecting', { name: printer.name })}
       </p>
     );
   else if (!fil)
     status = (
       <p data-testid="sync-status">
-        {printer.name} doesn't say what filament is loaded, so there is nothing to load from it.
+        {t('filamentSync.silent', { name: printer.name })}
       </p>
     );
-  else if (!slots) status = <p data-testid="sync-status">Reading the printer's filaments…</p>;
+  else if (!slots) status = <p data-testid="sync-status">{t('filamentSync.reading')}</p>;
   else if (!loaded.length)
     status = (
       <p data-testid="sync-status">
-        No filament is loaded on {printer.name}. {fil.words.unset}
+        {t('filamentSync.noneLoaded', { name: printer.name })} {fil.words.unset}
       </p>
     );
 
   return (
     <Dialog
-      title="Load filaments from the printer"
+      title={t('filamentSync.title')}
       onClose={onClose}
       wide
       footer={
         <>
           {!ready && (
             <button className="secondary dv-left" onClick={openDevice}>
-              Open Device tab
+              {t('filamentSync.openDevice')}
             </button>
           )}
           <button className="secondary" onClick={onClose}>
-            Cancel
+            {t('common.cancel')}
           </button>
           <button className="primary" disabled={!plan?.filaments.length || busy} onClick={() => void load()} data-testid="sync-load">
-            Load filaments
+            {t('filamentSync.load')}
           </button>
         </>
       }
     >
       <div className="sync-filaments">
         <p className="muted">
-          Reads the material, brand and colour in each of your printer's {fil?.words.noun ?? 'tool head'}s and puts them in this project's filament list, so what you slice matches what is loaded.
+          {t('filamentSync.explain', { noun: fil?.words.noun ?? t('filamentSync.toolHead') })}
         </p>
         {printers.length > 1 && (
           <label className="field">
-            <span>Printer</span>
-            <Picker field label="Printer" value={activeId} options={printers.map((p) => ({ value: p.id, label: p.name }))} onChange={(id) => useDevice.getState().select(id)} />
+            <span>{t('filamentSync.printer')}</span>
+            <Picker field label={t('filamentSync.printer')} value={activeId} options={printers.map((p) => ({ value: p.id, label: p.name }))} onChange={(id) => useDevice.getState().select(id)} />
           </label>
         )}
         {status}
         {ready && plan && (
           <>
-            <div className="chooser" role="radiogroup" aria-label="How to load">
+            <div className="chooser" role="radiogroup" aria-label={t('filamentSync.howToLoad')}>
               <button role="radio" aria-checked={mode === 'match'} className={mode === 'match' ? 'on' : ''} onClick={() => setMode('match')}>
-                Match colours
+                {t('filamentSync.match')}
               </button>
               <button role="radio" aria-checked={mode === 'replace'} className={mode === 'replace' ? 'on' : ''} onClick={() => setMode('replace')}>
-                Replace all
+                {t('filamentSync.replace')}
               </button>
             </div>
             {mode === 'match' ? (
               <>
                 <p className="small muted">
-                  Keeps your {project.length} filament{project.length === 1 ? '' : 's'} and what each object prints with. Each one takes the printer's filament of the same material with the closest colour; pick another if you like.
+                  {t('filamentSync.matchExplain', { count: project.length })}
                 </p>
                 <ol className="sync-rows" data-testid="sync-rows">
                   {project.map((p, i) => {
@@ -223,7 +231,7 @@ function SyncFilamentsDialog({ onClose }: { onClose(): void }) {
                         {/* The printer's filaments, its slot name in the square. */}
                         <Picker
                           field
-                          label={`Printer filament for filament ${i + 1}`}
+                          label={t('filamentSync.pickFor', { n: i + 1 })}
                           value={String(picks[i])}
                           options={heads.flatMap((h, j) => (isLoaded(h) ? [{ value: String(j), label: h.name, swatch: h.colour, swatchNumber: h.label }] : []))}
                           onChange={(v) => setChoice({ key: headsKey, picks: picks.map((c, j) => (j === i ? Number(v) : c)) })}
@@ -236,18 +244,18 @@ function SyncFilamentsDialog({ onClose }: { onClose(): void }) {
                 {unused.length > 0 && (
                   <label className="switch-row">
                     <input className="switch" type="checkbox" checked={addRest} onChange={(e) => setAddRest(e.target.checked)} />
-                    <span>Also add the filaments on the other {fil?.words.noun ?? 'head'}s ({unused.map((f) => f.label).join(', ')})</span>
+                    <span>{t('filamentSync.addRest', { noun: fil?.words.noun ?? t('filamentSync.head'), list: unused.map((f) => f.label).join(', ') })}</span>
                   </label>
                 )}
                 {mixCount > 0 && (
-                  <p className="small warn">Colour mixes keep their filament numbers, so their colours follow the new filaments.</p>
+                  <p className="small warn">{t('filamentSync.mixesFollow')}</p>
                 )}
               </>
             ) : (
               <>
                 <p className="small muted">
-                  The project's filaments become exactly what is loaded, in the printer's order.
-                  {hasObjects && ' Objects on filament 1 go to the first one, filament 2 to the second, and so on.'}
+                  {t('filamentSync.replaceExplain')}
+                  {hasObjects && ` ${t('filamentSync.replaceObjects')}`}
                 </p>
                 <ol className="sync-rows" data-testid="sync-rows">
                   {plan.filaments.map((f, i) => (
@@ -262,18 +270,23 @@ function SyncFilamentsDialog({ onClose }: { onClose(): void }) {
                 </ol>
                 {hasObjects && project.length > plan.filaments.length && (
                   <p className="small muted">
-                    Objects on filament{project.length - plan.filaments.length === 1 ? '' : 's'}{' '}
-                    {project.slice(plan.filaments.length).map((_, k) => `${plan.filaments.length + k + 1} → ${(plan.remap?.[plan.filaments.length + k] ?? 1)}`).join(', ')}.
+                    {t('filamentSync.objectsMove', {
+                      count: project.length - plan.filaments.length,
+                      list: project
+                        .slice(plan.filaments.length)
+                        .map((_, k) => `${plan.filaments.length + k + 1} → ${plan.remap?.[plan.filaments.length + k] ?? 1}`)
+                        .join(', '),
+                    })}
                   </p>
                 )}
                 {mixCount > 0 && (
                   <p className="small warn">
-                    Your {mixCount} colour mix{mixCount === 1 ? '' : 'es'} will be removed.
+                    {t('filamentSync.mixesRemoved', { count: mixCount })}
                   </p>
                 )}
               </>
             )}
-            <p className="small muted">Only materials and colours are loaded. Nozzle sizes are set on the printer preset.</p>
+            <p className="small muted">{t('filamentSync.onlyMaterials')}</p>
           </>
         )}
       </div>

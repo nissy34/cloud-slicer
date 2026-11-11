@@ -3,6 +3,7 @@
 // rejects either fixes itself or asks, like desktop's "change these settings
 // automatically?" messages (setOverrideChecked, setObjectSettingChecked).
 import { useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 import { create } from 'zustand';
 import type { OrcaConfig } from '../engine/protocol';
 import { physicalFilaments } from '../lib/mixing';
@@ -89,13 +90,14 @@ export function useOptionStates(scope: Scope, slot?: number, own?: OrcaConfig): 
 
 /** The message for the first check waiting on an answer. */
 export function SettingsPromptDialog() {
+  const { t } = useTranslation();
   const current = useSettingsPrompts((s) => s.queue[0]);
   const answer = useSettingsPrompts((s) => s.answer);
   if (!current) return null;
   const { prompt } = current;
   return (
     <Dialog
-      title={prompt.answers.length > 1 ? 'Change settings?' : 'About this setting'}
+      title={prompt.answers.length > 1 ? t('settingsPrompt.changeTitle') : t('settingsPrompt.aboutTitle')}
       role="alertdialog"
       describedBy="settings-prompt-text"
       className="settings-prompt"

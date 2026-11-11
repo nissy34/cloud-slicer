@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
 import { barycentric, triangleCorners, triangleWeights, trianglePoint, type Point } from '../lib/mixing';
 import { Swatch } from './Swatch';
 
@@ -12,6 +13,7 @@ const STEP = 4;
  * how much of each goes in (10% to 90% each).
  */
 export function MixTriangle({ filaments, colours, weights, onChange }: { filaments: number[]; colours: string[]; weights: number[]; onChange: (weights: number[]) => void }) {
+  const { t } = useTranslation();
   const canvas = useRef<HTMLCanvasElement>(null);
   const corners = triangleCorners(SIZE);
   const tri = filaments.map((f) => colours[f - 1] ?? '#808080');
@@ -62,7 +64,7 @@ export function MixTriangle({ filaments, colours, weights, onChange }: { filamen
           viewBox={`0 0 ${SIZE} ${SIZE}`}
           role="slider"
           tabIndex={0}
-          aria-label="Mixing ratio"
+          aria-label={t('colorMixing.mixingRatio')}
           aria-valuetext={summary}
           aria-valuenow={weights[0]}
           aria-valuemin={10}

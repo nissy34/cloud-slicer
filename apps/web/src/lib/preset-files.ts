@@ -10,6 +10,7 @@ import type { OptionDef, OrcaConfig, PresetSummary, SettingsLayout } from '../en
 import type { PresetType } from '../account/api';
 import { presetNameError } from '../account/api';
 import { META } from '../account/preset-diff';
+import { i18n } from '../i18n';
 import { alignFlowVariants } from './flow-variants';
 import { modelProcessKeys, pickProcess } from './project-import';
 import { pickFilamentPreset } from './presets';
@@ -47,15 +48,15 @@ export function readPresetFiles(files: { name: string; bytes: Uint8Array }[]): {
   const sources: PresetSource[] = [];
   const problems: string[] = [];
   const add = (label: string, bytes: Uint8Array) => {
-    if (bytes.length > MAX_FILE_BYTES) return problems.push(`${label} is ${kb(bytes.length)}; a preset file can be up to ${kb(MAX_FILE_BYTES)}.`);
+    if (bytes.length > MAX_FILE_BYTES) return problems.push(i18n.t('presetFiles.fileTooBig', { label, size: kb(bytes.length), max: kb(MAX_FILE_BYTES) }));
     const text = strFromU8(bytes);
     try {
       const value = JSON.parse(text) as unknown;
       if (!value || typeof value !== 'object' || Array.isArray(value)) throw new Error();
     } catch {
-      return problems.push(`${label} is not a preset file (not JSON).`);
+      return problems.push(i18n.t('presetFiles.notJson', { label }));
     }
-    if (sources.length >= MAX_PRESETS_PER_IMPORT) return problems.push(`Only ${MAX_PRESETS_PER_IMPORT} presets can be imported at once; ${label} was left out.`);
+    if (sources.length >= MAX_PRESETS_PER_IMPORT) return problems.push(i18n.t('presetFiles.tooMany', { max: MAX_PRESETS_PER_IMPORT, label }));
     sources.push({ label, text });
   };
   for (const { name, bytes } of files) {
@@ -64,7 +65,7 @@ export function readPresetFiles(files: { name: string; bytes: Uint8Array }[]): {
       continue;
     }
     if (bytes.length > MAX_BUNDLE_BYTES) {
-      problems.push(`${name} is ${mb(bytes.length)}; a bundle can be up to ${mb(MAX_BUNDLE_BYTES)}.`);
+      problems.push(i18n.t('presetFiles.bundleTooBig', { name, size: mb(bytes.length), max: mb(MAX_BUNDLE_BYTES) }));
       continue;
     }
     let unpacked = 0;
@@ -81,15 +82,15 @@ export function readPresetFiles(files: { name: string; bytes: Uint8Array }[]): {
         },
       });
     } catch {
-      problems.push(`${name} could not be opened as a zip.`);
+      problems.push(i18n.t('presetFiles.badZip', { name }));
       continue;
     }
     if (tooBig) {
-      problems.push(`${name} unpacks to more than ${mb(MAX_UNPACKED_BYTES)}, or holds a file over ${kb(MAX_FILE_BYTES)}; nothing was imported from it.`);
+      problems.push(i18n.t('presetFiles.unpacksTooBig', { name, max: mb(MAX_UNPACKED_BYTES), fileMax: kb(MAX_FILE_BYTES) }));
       continue;
     }
     const names = Object.keys(entries).sort();
-    if (!names.length) problems.push(`${name} has no preset files in it.`);
+    if (!names.length) problems.push(i18n.t('presetFiles.empty', { name }));
     for (const entry of names) add(`${name} › ${entry}`, entries[entry]);
   }
   return { sources, problems };
@@ -160,8 +161,8 @@ export function changedGcode(diff: OrcaConfig, options: Record<string, OptionDef
 
 /** Why a diff can't be stored, or null. */
 export function limitError(diff: OrcaConfig): string | null {
-  if (Object.keys(diff).length > MAX_KEYS) return `It changes more than ${MAX_KEYS} settings.`;
-  if (new TextEncoder().encode(JSON.stringify(diff)).length > MAX_CONFIG_BYTES) return `Its settings are over ${kb(MAX_CONFIG_BYTES)}.`;
+  if (Object.keys(diff).length > MAX_KEYS) return i18n.t('presetFiles.tooManyKeys', { max: MAX_KEYS });
+  if (new TextEncoder().encode(JSON.stringify(diff)).length > MAX_CONFIG_BYTES) return i18n.t('presetFiles.tooLarge', { max: kb(MAX_CONFIG_BYTES) });
   return null;
 }
 
@@ -193,7 +194,6 @@ export interface ImportItem {
   parsed: Extract<ParsedPreset, { ok: true }> | null;
 }
 
-const typeLabel = (t: PresetType) => (t === 'printer' ? 'printer' : t);
 
 /**
  * The import plan for what the engine read: which presets go on which base,
@@ -214,9 +214,9 @@ export function planImport(args: {
   const { sources, parsed, systemNames, userNames } = args;
   const seen: Record<PresetType, Set<string>> = { printer: new Set(), filament: new Set(), process: new Set() };
   const items = parsed.map((p, i): ImportItem => {
-    const label = sources[i]?.label ?? `file ${i + 1}`;
+    const label = sources[i]?.label ?? i18n.t('presetFiles.fileN', { n: i + 1 });
     const base = { key: `${i}`, label, fileName: '', inherits: '', base: '', converted: false, collision: 'keep' as Collision, dropped: [] };
-    if (!p.ok) return { ...base, type: 'process', name: label, parsed: null, rejected: `Not a preset Orca can read: ${p.error}.` };
+    if (!p.ok) return { ...base, type: 'process', name: label, parsed: null, rejected: i18n.t('presetFiles.unreadable', { error: p.error }) };
     const fileName = p.name || label.replace(/^.*[›/]\s*/, '').replace(/\.json$/i, '');
     const item: ImportItem = {
       ...base,
@@ -228,22 +228,22 @@ export function planImport(args: {
       dropped: [...p.unknown, ...p.invalid],
       parsed: p,
     };
-    if (!item.name || presetNameError(item.name)) return { ...item, rejected: 'It has no usable name.' };
+    if (!item.name || presetNameError(item.name)) return { ...item, rejected: i18n.t('presetFiles.noName') };
     if (!p.parent) {
-      const made = p.config.printer_model || p.inherits || 'another printer';
+      const made = p.config.printer_model || p.inherits || i18n.t('presetFiles.anotherPrinter');
       if (p.type === 'printer')
         return {
           ...item,
           rejected: p.inherits
-            ? `It is for ${made}, which this app doesn't have. Printer settings are specific to the machine, so it can't be moved onto another printer.`
-            : `It isn't based on a printer this app has.`,
+            ? i18n.t('presetFiles.otherPrinter', { made })
+            : i18n.t('presetFiles.noPrinterBase'),
         };
       item.converted = true;
       item.base =
         p.type === 'filament'
           ? pickFilamentPreset(args.filaments, p.config.filament_type, undefined, p.inherits || fileName)
           : pickProcess(args.processes, p.config.layer_height, args.defaultProcess);
-      if (!item.base) return { ...item, rejected: `There is no ${typeLabel(p.type)} preset to put it on.` };
+      if (!item.base) return { ...item, rejected: p.type === 'filament' ? i18n.t('presetFiles.noFilamentBase') : i18n.t('presetFiles.noProcessBase') };
     }
     if (systemNames[p.type].has(item.name)) item.taken = 'system';
     else if (userNames[p.type].has(item.name)) item.taken = 'user';

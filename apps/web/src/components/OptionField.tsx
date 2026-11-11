@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { entryType, isVectorType, processFlowModes, splitValues, valueAt, withValueAt } from '../lib/flow-variants';
 import { decodeString, encodeString, slotEntryIndex, splitStrings } from '../lib/slot-values';
 import { checkOptionValue } from '../lib/option-check';
@@ -43,7 +44,7 @@ export function OptionField({
   label,
   value: ownValue,
   onChange,
-  resetLabel = 'Reset to the preset value',
+  resetLabel: resetLabelProp,
   slot,
   entry,
   before,
@@ -65,6 +66,8 @@ export function OptionField({
   onChange?: (value: string | null) => void;
   resetLabel?: string;
 }) {
+  const { t } = useTranslation();
+  const resetLabel = resetLabelProp ?? t('optionField.reset');
   const def = useSlicer((s) => s.options[optKey]);
   const globalValue = useOption(optKey);
   const globalModified = useSlicer((s) => optKey in s.overrides);
@@ -109,7 +112,7 @@ export function OptionField({
   const text = label ?? (def.label || optKey);
   const commit = (v: string) => {
     if (v === shown) return;
-    if (slotText) setOverride(optKey, slotText.map((t, i) => (i === slot ? encodeString(v) : t)).join(';'));
+    if (slotText) setOverride(optKey, slotText.map((s, i) => (i === slot ? encodeString(v) : s)).join(';'));
     else if (slotIndex !== null) setOverride(optKey, withValueAt(value, slotIndex, v));
     else if (!perEntry) setOverride(optKey, v);
     else if (def.flow === 'process') setOverride(optKey, withValueAt(value, index, v, variants));
@@ -122,7 +125,7 @@ export function OptionField({
     const r = checkOptionValue(def, type, raw);
     if (r.kind === 'invalid') {
       setDraft(shown);
-      setNote(`${r.problem} ${shown === '' ? 'Kept the old value.' : `Kept ${shown}${unit}.`}`);
+      setNote(`${r.problem} ${shown === '' ? t('optionField.keptOld') : t('optionField.kept', { value: `${shown}${unit}` })}`);
     } else if (r.kind === 'ask') {
       setAsk({ number: r.number, unit: r.unit });
     } else {
@@ -144,7 +147,7 @@ export function OptionField({
   const changed = slotMode ? slotChanged : modified;
   const resetSlot = () => {
     const next = slotText
-      ? slotText.map((t, i) => (i === slot ? splitStrings(baseValue)[i] : t)).join(';')
+      ? slotText.map((s, i) => (i === slot ? splitStrings(baseValue)[i] : s)).join(';')
       : withValueAt(value, slotIndex!, valueAt(baseValue, slotIndex!));
     setOverride(optKey, next === baseValue ? null : next);
   };
@@ -156,10 +159,10 @@ export function OptionField({
   const plateNote =
     plateValue === undefined ? null : (
       <p className="option-note plate-note">
-        Plate {plateNumber} uses{' '}
-        <b>{type === 'bool' ? (plateValue === '1' ? 'on' : 'off') : def.enumLabels?.[def.enumValues?.indexOf(plateValue) ?? -1] || plateValue}</b> (its own setting).{' '}
+        {t('optionField.plateUses', { n: plateNumber })}{' '}
+        <b>{type === 'bool' ? (plateValue === '1' ? t('optionField.on') : t('optionField.off')) : def.enumLabels?.[def.enumValues?.indexOf(plateValue) ?? -1] || plateValue}</b> {t('optionField.itsOwn')}{' '}
         <button type="button" className="quiet" onClick={() => useSlicer.getState().openPlateSettings(true)}>
-          Plate settings
+          {t('optionField.plateSettings')}
         </button>
       </p>
     );
@@ -191,7 +194,7 @@ export function OptionField({
   if (type === 'int' && FILAMENT_LIST_KEYS.has(optKey)) {
     // Desktop's list: "Default" first when the option allows 0, then each filament.
     const options = [
-      ...((def.min ?? 0) <= 0 ? [{ value: '0', label: 'Default' }] : []),
+      ...((def.min ?? 0) <= 0 ? [{ value: '0', label: t('optionField.default') }] : []),
       ...filamentChoices(colours, presets, slots, Number(shown) || 0),
     ];
     editor = <Picker field label={text} className="filament-field" value={shown} options={options} disabled={disabled} onChange={commit} />;
@@ -253,7 +256,7 @@ export function OptionField({
       )}
       {ask && (
         <Dialog
-          title="Percent or mm?"
+          title={t('optionField.percentOrMm')}
           role="alertdialog"
           describedBy="option-ask-text"
           onClose={() => answer(ask.number)}
@@ -269,7 +272,7 @@ export function OptionField({
           }
         >
           <p id="option-ask-text">
-            {text}: is it {ask.number}% or {ask.number} {ask.unit}?
+            {t('optionField.isItPercent', { label: text, number: ask.number, unit: ask.unit })}
           </p>
         </Dialog>
       )}

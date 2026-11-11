@@ -7,6 +7,7 @@
 // values. In the full config the filament ones are per filament segments, one
 // segment of filament_flow_step_size values per filament.
 import type { OrcaConfig } from '../engine/protocol';
+import { i18n } from '../i18n';
 import { splitList } from './presets';
 
 export type FlowDomain = 'process' | 'filament';
@@ -44,8 +45,9 @@ export function processFlowModes(config: OrcaConfig): string[] {
 
 /** "high_flow" -> "High flow", as desktop's switch names them. */
 export function flowModeLabel(mode: string): string {
-  if (mode === 'standard') return 'Standard flow';
-  if (mode === 'high_flow') return 'High flow';
+  if (mode === 'standard') return i18n.t('flowVariant.standard');
+  if (mode === 'high_flow') return i18n.t('flowVariant.high');
+  // Another variant the engine names: its own words, in English.
   const text = mode.replace(/_/g, ' ');
   return text.charAt(0).toUpperCase() + text.slice(1);
 }

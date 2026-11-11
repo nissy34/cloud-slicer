@@ -1,0 +1,21 @@
+{
+  "presetFiles": {
+    "fileTooBig": "{{label}} is {{size}}; a preset file can be up to {{max}}.",
+    "notJson": "{{label}} is not a preset file (not JSON).",
+    "tooMany": "Only {{max}} presets can be imported at once; {{label}} was left out.",
+    "bundleTooBig": "{{name}} is {{size}}; a bundle can be up to {{max}}.",
+    "badZip": "{{name}} could not be opened as a zip.",
+    "unpacksTooBig": "{{name}} unpacks to more than {{max}}, or holds a file over {{fileMax}}; nothing was imported from it.",
+    "empty": "{{name}} has no preset files in it.",
+    "tooManyKeys": "It changes more than {{max}} settings.",
+    "tooLarge": "Its settings are over {{max}}.",
+    "fileN": "file {{n}}",
+    "unreadable": "Not a preset Orca can read: {{error}}.",
+    "noName": "It has no usable name.",
+    "anotherPrinter": "another printer",
+    "otherPrinter": "It is for {{made}}, which this app doesn't have. Printer settings are specific to the machine, so it can't be moved onto another printer.",
+    "noPrinterBase": "It isn't based on a printer this app has.",
+    "noFilamentBase": "There is no filament preset to put it on.",
+    "noProcessBase": "There is no process preset to put it on."
+  }
+}

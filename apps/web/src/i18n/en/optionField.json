@@ -1,0 +1,18 @@
+{
+  "optionField": {
+    "reset": "Reset to the preset value",
+    "keptOld": "Kept the old value.",
+    "kept": "Kept {{value}}.",
+    "plateUses": "Plate {{n}} uses",
+    "on": "on",
+    "off": "off",
+    "itsOwn": "(its own setting).",
+    "plateSettings": "Plate settings",
+    "default": "Default",
+    "percentOrMm": "Percent or mm?",
+    "isItPercent": "{{label}}: is it {{number}}% or {{number}} {{unit}}?",
+    "filamentN": "Filament {{n}}",
+    "mix": "Mix",
+    "mixes": "Mixes"
+  }
+}

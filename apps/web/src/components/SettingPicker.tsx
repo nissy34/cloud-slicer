@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import type { SettingGroup } from '../lib/object-settings';
 import { useSlicer } from '../state/store';
 import { ChevronRight } from 'lucide-react';
@@ -17,10 +18,11 @@ export function SettingPicker({
 }: {
   groups: SettingGroup[];
   have: Record<string, string>;
-  kind: string;
+  kind: 'object' | 'part' | 'modifier';
   onAdd: (key: string) => void;
   onClose: () => void;
 }) {
+  const { t } = useTranslation();
   const options = useSlicer((s) => s.options);
   const [query, setQuery] = useState('');
   const [open, setOpen] = useState<string | null>(null);
@@ -56,19 +58,19 @@ export function SettingPicker({
   const firstMore = left.findIndex((g) => g.group.startsWith('More: '));
 
   return (
-    <div className="setting-picker" role="region" aria-label={`Settings to add to this ${kind}`}>
+    <div className="setting-picker" role="region" aria-label={t(PICKER_LABEL[kind])}>
       <div className="setting-picker-head">
         <input
           ref={search}
           type="search"
-          placeholder="Search settings"
-          aria-label="Search settings"
+          placeholder={t('settingPicker.search')}
+          aria-label={t('settingPicker.search')}
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           onKeyDown={(e) => e.key === 'Escape' && onClose()}
         />
         <button type="button" className="secondary" onClick={onClose}>
-          Done
+          {t('settingPicker.done')}
         </button>
       </div>
       <div className="setting-picker-list">
@@ -76,12 +78,12 @@ export function SettingPicker({
           matches.length ? (
             <ul>{matches.map((s) => row(s, s.group))}</ul>
           ) : (
-            <p className="hint">No setting matches “{query.trim()}”.</p>
+            <p className="hint">{t('settingPicker.noMatch', { query: query.trim() })}</p>
           )
         ) : (
           left.map((g, i) => (
             <div key={g.group}>
-              {i === firstMore && <div className="setting-picker-divider">More settings</div>}
+              {i === firstMore && <div className="setting-picker-divider">{t('settingPicker.more')}</div>}
               <button
                 type="button"
                 className="setting-group-toggle"
@@ -101,4 +103,6 @@ export function SettingPicker({
   );
 }
 
+const PICKER_LABEL = { object: 'settingPicker.forObject', part: 'settingPicker.forPart', modifier: 'settingPicker.forModifier' } as const;
+// Desktop's category names (Quality, Speed...) stay English, like the settings.
 const groupName = (group: string) => group.replace(/^More: /, '');

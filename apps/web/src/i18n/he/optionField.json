@@ -1,0 +1,18 @@
+{
+  "optionField": {
+    "reset": "איפוס לערך של הפרופיל",
+    "keptOld": "הערך הקודם נשמר.",
+    "kept": "נשאר {{value}}.",
+    "plateUses": "משטח {{n}} משתמש בערך",
+    "on": "מופעל",
+    "off": "כבוי",
+    "itsOwn": "(הגדרה משלו).",
+    "plateSettings": "הגדרות משטח",
+    "default": "ברירת מחדל",
+    "percentOrMm": "אחוזים או מ״מ?",
+    "isItPercent": "{{label}}: האם זה {{number}}% או {{number}} {{unit}}?",
+    "filamentN": "פילמנט {{n}}",
+    "mix": "ערבוב",
+    "mixes": "ערבובי צבעים"
+  }
+}

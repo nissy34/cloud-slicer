@@ -4,6 +4,7 @@
 // file turns the dialog's four modes into a row's recipe the way desktop's
 // MixedFilamentDialog::collect_result does, and labels rows like its panel.
 import type { OrcaConfig } from '../engine/protocol';
+import { i18n } from '../i18n';
 
 /** Orca's MixedFilament::DistributionMode. */
 export const LAYER_CYCLE = 0;
@@ -12,7 +13,8 @@ export const SIMPLE = 2;
 /** The dialog's modes (MixedFilament::ui_mode). */
 export type MixMode = 'ratio' | 'cycle' | 'match' | 'gradient';
 export const MODES: MixMode[] = ['ratio', 'cycle', 'match', 'gradient'];
-export const MODE_LABELS: Record<MixMode, string> = { ratio: 'Ratio', cycle: 'Cycle', match: 'Match', gradient: 'Gradient' };
+/** Word keys: show with t(MODE_LABELS[mode]). */
+export const MODE_LABELS: Record<MixMode, string> = { ratio: 'colorMixing.ratio', cycle: 'colorMixing.cycle', match: 'colorMixing.match', gradient: 'colorMixing.gradient' };
 
 /** What makes a mix, in the engine's field names (MixedFilament). */
 export interface MixRecipe {
@@ -299,7 +301,7 @@ export function mixSettings(config: OrcaConfig) {
 export function mixWarning(r: MixRecipe, colours: string[]): string {
   const ids = recipeFilaments(r);
   const hex = new Set(ids.map((i) => (colours[i - 1] ?? '').slice(0, 7).toUpperCase()));
-  if (ids.length >= 2 && hex.size === 1) return 'Same filament colours cannot produce new colours. Please select different colours for mixing.';
+  if (ids.length >= 2 && hex.size === 1) return i18n.t('colorMixing.sameColours');
   return '';
 }
 

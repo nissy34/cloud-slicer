@@ -1,0 +1,25 @@
+{
+  "flushVolumes": {
+    "title": "Flushing volumes",
+    "ownAmounts": "your own amounts",
+    "fromColours": "from the colours",
+    "leftNozzle": "Left nozzle",
+    "rightNozzle": "Right nozzle",
+    "nozzleN": "Nozzle {{n}}",
+    "filamentN": "Filament {{n}}",
+    "recalculate": "Re-calculate",
+    "done": "Done",
+    "explain": "How much the printer pushes out, in mm³, when it changes from the filament on the left to the one at the top. Worked out from the colours: dark to light needs more.",
+    "nozzle": "Nozzle",
+    "tableLabel": "Flushing volumes in mm³",
+    "from": "from",
+    "to": "to",
+    "toFilament": "To {{name}}",
+    "fromFilament": "From {{name}}",
+    "purgeLabel": "Purge from {{from}} to {{to}}, mm³",
+    "suggested": "Suggested: {{min}} to {{max}} mm³ (outside it shows red).",
+    "multiplier": "Multiplier",
+    "scales": "Scales every amount ({{min}} to {{max}}).",
+    "towerOff": "\"Purge in prime tower\" is off in this printer's settings (Multimaterial page), so each filament change purges the prime volume ({{volume}} mm³) instead of these amounts. They still set the flush length the printer's change G-code gets."
+  }
+}

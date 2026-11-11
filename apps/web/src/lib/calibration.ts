@@ -2,6 +2,9 @@
 // (with desktop's defaults and checks) and the test model it prints. The
 // engine sets the test up (calib_api.cpp); the models are copied from
 // resources/calib into public/engine/calib by scripts/copy-engine.mjs.
+// Titles stay English in the table (they name the test object the engine makes);
+// labels and hints are word keys, shown with t().
+import { i18n } from '../i18n';
 
 export type CalibrationMode =
   | 'temperature'
@@ -44,34 +47,34 @@ export interface CalibrationTest {
   defaults?: (v: CalibrationValues) => CalibrationValues;
 }
 
-const towerModel = { key: 'testModel', label: 'Test model', value: '0', options: [
-  { value: '0', label: 'Ringing tower' },
-  { value: '1', label: 'Fast tower' },
+const towerModel = { key: 'testModel', label: 'calibration.testModel', value: '0', options: [
+  { value: '0', label: 'calibration.ringingTower' },
+  { value: '1', label: 'calibration.fastTower' },
 ] };
 
 const PA_HINTS: Record<string, string> = {
-  tower: 'A tower whose pressure advance rises with height. Measure where the corners look best.',
-  line: 'Lines printed with rising pressure advance. Pick the most even line.',
-  pattern: 'Rows of nested corners, each printed with a higher pressure advance. Pick the sharpest corner with no gaps; the number above it is the value.',
+  tower: 'calibration.paTowerHint',
+  line: 'calibration.paLineHint',
+  pattern: 'calibration.paPatternHint',
 };
 
 export const CALIBRATIONS: CalibrationTest[] = [
   {
-    mode: 'temperature', title: 'Temperature', hint: 'A tower with one block per nozzle temperature. Pick the block that looks best.',
+    mode: 'temperature', title: 'Temperature', hint: 'calibration.temperatureHint',
     fields: [
-      { key: 'start', label: 'Start temperature', unit: '°C', value: 230 },
-      { key: 'end', label: 'End temperature', unit: '°C', value: 190 },
-      { key: 'step', label: 'Step', unit: '°C', value: 5 },
+      { key: 'start', label: 'calibration.startTemperature', unit: '°C', value: 230 },
+      { key: 'end', label: 'calibration.endTemperature', unit: '°C', value: 190 },
+      { key: 'step', label: 'calibration.step', unit: '°C', value: 5 },
     ],
   },
   {
-    mode: 'flowRate', title: 'Flow rate', hint: 'Blocks printed at different flow ratios. Pick the smoothest top surface and set its ratio in the filament.',
+    mode: 'flowRate', title: 'Flow rate', hint: 'calibration.flowRateHint',
     fields: [],
-    choices: [{ key: 'method', label: 'Test', value: 'pass1', options: [
-      { value: 'pass1', label: 'Pass 1 (coarse)' },
-      { value: 'pass2', label: 'Pass 2 (fine)' },
-      { value: 'yolo', label: 'YOLO (recommended)' },
-      { value: 'yoloFine', label: 'YOLO (perfectionist)' },
+    choices: [{ key: 'method', label: 'calibration.test', value: 'pass1', options: [
+      { value: 'pass1', label: 'calibration.pass1' },
+      { value: 'pass2', label: 'calibration.pass2' },
+      { value: 'yolo', label: 'calibration.yolo' },
+      { value: 'yoloFine', label: 'calibration.yoloFine' },
     ] }],
   },
   {
@@ -79,25 +82,25 @@ export const CALIBRATIONS: CalibrationTest[] = [
     mode: 'pressureAdvance', title: 'Pressure advance',
     hint: (v) => PA_HINTS[String(v.method)] ?? PA_HINTS.tower,
     choices: [
-      { key: 'extruder', label: 'Extruder type', value: 'direct', options: [
-        { value: 'direct', label: 'Direct drive' },
-        { value: 'bowden', label: 'Bowden' },
+      { key: 'extruder', label: 'calibration.extruderType', value: 'direct', options: [
+        { value: 'direct', label: 'calibration.directDrive' },
+        { value: 'bowden', label: 'calibration.bowden' },
       ] },
-      { key: 'method', label: 'Method', value: 'tower', options: [
-        { value: 'tower', label: 'Tower' },
-        { value: 'line', label: 'Lines' },
-        { value: 'pattern', label: 'Pattern' },
+      { key: 'method', label: 'calibration.method', value: 'tower', options: [
+        { value: 'tower', label: 'calibration.tower' },
+        { value: 'line', label: 'calibration.lines' },
+        { value: 'pattern', label: 'calibration.pattern' },
       ] },
     ],
     fields: [
-      { key: 'start', label: 'Start PA', value: 0, step: 0.001 },
-      { key: 'end', label: 'End PA', value: 0.1, step: 0.001 },
-      { key: 'step', label: 'PA step', value: 0.002, step: 0.001 },
-      { key: 'printNumbers', label: 'Print numbers', kind: 'check', value: true, when: (v) => v.method === 'line' },
-      { key: 'accelerations', label: 'Accelerations', unit: 'mm/s²', kind: 'list', value: '', when: (v) => v.method === 'pattern',
-        hint: 'Comma separated, like 1000, 3000. One test per speed and acceleration pair. Empty uses the outer wall acceleration.' },
-      { key: 'speeds', label: 'Speeds', unit: 'mm/s', kind: 'list', value: '', when: (v) => v.method === 'pattern',
-        hint: 'Comma separated, like 100, 200. Empty picks the best speed for the test.' },
+      { key: 'start', label: 'calibration.startPa', value: 0, step: 0.001 },
+      { key: 'end', label: 'calibration.endPa', value: 0.1, step: 0.001 },
+      { key: 'step', label: 'calibration.paStep', value: 0.002, step: 0.001 },
+      { key: 'printNumbers', label: 'calibration.printNumbers', kind: 'check', value: true, when: (v) => v.method === 'line' },
+      { key: 'accelerations', label: 'calibration.accelerations', unit: 'mm/s²', kind: 'list', value: '', when: (v) => v.method === 'pattern',
+        hint: 'calibration.accelerationsHint' },
+      { key: 'speeds', label: 'calibration.speeds', unit: 'mm/s', kind: 'list', value: '', when: (v) => v.method === 'pattern',
+        hint: 'calibration.speedsHint' },
     ],
     defaults: (v) => {
       const bowden = v.extruder === 'bowden';
@@ -110,55 +113,55 @@ export const CALIBRATIONS: CalibrationTest[] = [
     },
   },
   {
-    mode: 'retraction', title: 'Retraction', hint: 'A tower whose retraction length grows with height. Find the lowest length without strings.',
+    mode: 'retraction', title: 'Retraction', hint: 'calibration.retractionHint',
     fields: [
-      { key: 'start', label: 'Start length', unit: 'mm', value: 0, step: 0.1 },
-      { key: 'end', label: 'End length', unit: 'mm', value: 2, step: 0.1 },
-      { key: 'step', label: 'Step', unit: 'mm', value: 0.1, step: 0.1 },
+      { key: 'start', label: 'calibration.startLength', unit: 'mm', value: 0, step: 0.1 },
+      { key: 'end', label: 'calibration.endLength', unit: 'mm', value: 2, step: 0.1 },
+      { key: 'step', label: 'calibration.step', unit: 'mm', value: 0.1, step: 0.1 },
     ],
   },
   {
-    mode: 'volumetricSpeed', title: 'Max volumetric speed', hint: 'A vase that prints faster as it grows. Note the height where it starts to fail.',
+    mode: 'volumetricSpeed', title: 'Max volumetric speed', hint: 'calibration.volumetricHint',
     fields: [
-      { key: 'start', label: 'Start', unit: 'mm³/s', value: 5 },
-      { key: 'end', label: 'End', unit: 'mm³/s', value: 20 },
-      { key: 'step', label: 'Step', unit: 'mm³/s', value: 0.5, step: 0.1 },
+      { key: 'start', label: 'calibration.start', unit: 'mm³/s', value: 5 },
+      { key: 'end', label: 'calibration.end', unit: 'mm³/s', value: 20 },
+      { key: 'step', label: 'calibration.step', unit: 'mm³/s', value: 0.5, step: 0.1 },
     ],
   },
   {
-    mode: 'vfa', title: 'VFA', hint: 'Vertical fine artifacts: a tower printed at rising speeds. Pick the speed with the cleanest walls.',
+    mode: 'vfa', title: 'VFA', hint: 'calibration.vfaHint',
     fields: [
-      { key: 'start', label: 'Start speed', unit: 'mm/s', value: 40 },
-      { key: 'end', label: 'End speed', unit: 'mm/s', value: 200 },
-      { key: 'step', label: 'Step', unit: 'mm/s', value: 10 },
+      { key: 'start', label: 'calibration.startSpeed', unit: 'mm/s', value: 40 },
+      { key: 'end', label: 'calibration.endSpeed', unit: 'mm/s', value: 200 },
+      { key: 'step', label: 'calibration.step', unit: 'mm/s', value: 10 },
     ],
   },
   {
-    mode: 'inputShapingFrequency', title: 'Input shaping frequency', hint: 'Sweeps the input shaper frequency on X and Y. Pick where ringing is lowest.',
+    mode: 'inputShapingFrequency', title: 'Input shaping frequency', hint: 'calibration.shapingFrequencyHint',
     fields: [
-      { key: 'freqStartX', label: 'X start', unit: 'Hz', value: 15 },
-      { key: 'freqEndX', label: 'X end', unit: 'Hz', value: 110 },
-      { key: 'freqStartY', label: 'Y start', unit: 'Hz', value: 15 },
-      { key: 'freqEndY', label: 'Y end', unit: 'Hz', value: 110 },
-      { key: 'start', label: 'Damping', value: 0.15, step: 0.01 },
-    ],
-    choices: [towerModel],
-  },
-  {
-    mode: 'inputShapingDamping', title: 'Input shaping damping', hint: 'Sweeps the damping factor at fixed frequencies. Pick where ringing is lowest.',
-    fields: [
-      { key: 'freqStartX', label: 'X frequency', unit: 'Hz', value: 30 },
-      { key: 'freqStartY', label: 'Y frequency', unit: 'Hz', value: 30 },
-      { key: 'start', label: 'Damping start', value: 0, step: 0.01 },
-      { key: 'end', label: 'Damping end', value: 0.4, step: 0.01 },
+      { key: 'freqStartX', label: 'calibration.xStart', unit: 'Hz', value: 15 },
+      { key: 'freqEndX', label: 'calibration.xEnd', unit: 'Hz', value: 110 },
+      { key: 'freqStartY', label: 'calibration.yStart', unit: 'Hz', value: 15 },
+      { key: 'freqEndY', label: 'calibration.yEnd', unit: 'Hz', value: 110 },
+      { key: 'start', label: 'calibration.damping', value: 0.15, step: 0.01 },
     ],
     choices: [towerModel],
   },
   {
-    mode: 'junctionDeviation', title: 'Junction deviation', hint: 'Sweeps junction deviation up the tower. Pick the highest value with sharp corners.',
+    mode: 'inputShapingDamping', title: 'Input shaping damping', hint: 'calibration.shapingDampingHint',
     fields: [
-      { key: 'start', label: 'Start', unit: 'mm', value: 0, step: 0.01 },
-      { key: 'end', label: 'End', unit: 'mm', value: 0.25, step: 0.01 },
+      { key: 'freqStartX', label: 'calibration.xFrequency', unit: 'Hz', value: 30 },
+      { key: 'freqStartY', label: 'calibration.yFrequency', unit: 'Hz', value: 30 },
+      { key: 'start', label: 'calibration.dampingStart', value: 0, step: 0.01 },
+      { key: 'end', label: 'calibration.dampingEnd', value: 0.4, step: 0.01 },
+    ],
+    choices: [towerModel],
+  },
+  {
+    mode: 'junctionDeviation', title: 'Junction deviation', hint: 'calibration.junctionHint',
+    fields: [
+      { key: 'start', label: 'calibration.start', unit: 'mm', value: 0, step: 0.01 },
+      { key: 'end', label: 'calibration.end', unit: 'mm', value: 0.25, step: 0.01 },
     ],
     choices: [towerModel],
   },
@@ -174,7 +177,25 @@ export const parseList = (text: unknown) =>
     .filter((x) => x > 0);
 
 export const calibrationHint = (test: CalibrationTest, v: CalibrationValues) =>
-  typeof test.hint === 'function' ? test.hint(v) : test.hint;
+  i18n.t(typeof test.hint === 'function' ? test.hint(v) : test.hint);
+
+const TITLE_WORDS: Record<CalibrationMode, string> = {
+  temperature: 'calibration.temperature',
+  flowRate: 'calibration.flowRate',
+  pressureAdvance: 'calibration.pressureAdvance',
+  retraction: 'calibration.retraction',
+  volumetricSpeed: 'calibration.volumetricSpeed',
+  vfa: 'calibration.vfa',
+  inputShapingFrequency: 'calibration.inputShapingFrequency',
+  inputShapingDamping: 'calibration.inputShapingDamping',
+  junctionDeviation: 'calibration.junctionDeviation',
+};
+
+/** A test's name in the site's language; `title` is the English one the table keeps. */
+export function calibrationTitle(title: string): string {
+  const mode = CALIBRATIONS.find((c) => c.title === title)?.mode;
+  return mode ? i18n.t(TITLE_WORDS[mode]) : title;
+}
 
 /** The fields shown for the current choices. */
 export const visibleFields = (test: CalibrationTest, v: CalibrationValues) => test.fields.filter((f) => !f.when || f.when(v));
@@ -229,30 +250,30 @@ export function checkCalibration(mode: CalibrationMode, v: CalibrationValues): s
   const n = (k: string) => Number(v[k]);
   const test = CALIBRATIONS.find((c) => c.mode === mode);
   const fields = test ? visibleFields(test, v).filter((f) => (f.kind ?? 'number') === 'number') : [];
-  if (fields.some((f) => v[f.key] === '' || !Number.isFinite(n(f.key)))) return 'Please fill in every value.';
+  if (fields.some((f) => v[f.key] === '' || !Number.isFinite(n(f.key)))) return i18n.t('calibration.fillAll');
   switch (mode) {
     case 'flowRate': return '';
     case 'inputShapingFrequency':
       if (n('freqStartX') < 0 || n('freqEndX') > 500 || n('freqStartY') < 0 || n('freqEndY') > 500 ||
           n('freqStartX') >= n('freqEndX') || n('freqStartY') >= n('freqEndY'))
-        return 'Frequencies must be 0 ≤ start < end ≤ 500 Hz.';
-      return n('start') < 0 || n('start') >= 1 ? 'The damping factor must be from 0 to below 1.' : '';
+        return i18n.t('calibration.frequencies');
+      return n('start') < 0 || n('start') >= 1 ? i18n.t('calibration.dampingFactor') : '';
     case 'inputShapingDamping':
       if (n('freqStartX') < 0 || n('freqStartX') > 500 || n('freqStartY') < 0 || n('freqStartY') > 500)
-        return 'Frequencies must be from 0 to 500 Hz.';
-      return n('start') < 0 || n('end') > 1 || n('start') >= n('end') ? 'Damping must be 0 ≤ start < end ≤ 1.' : '';
+        return i18n.t('calibration.frequencyRange');
+      return n('start') < 0 || n('end') > 1 || n('start') >= n('end') ? i18n.t('calibration.dampingRange') : '';
     case 'junctionDeviation':
-      return n('start') < 0 || n('end') >= 1 || n('start') >= n('end') ? 'Junction deviation must be 0 ≤ start < end < 1.' : '';
+      return n('start') < 0 || n('end') >= 1 || n('start') >= n('end') ? i18n.t('calibration.junctionRange') : '';
     case 'temperature':
-      if (n('step') <= 0) return 'The step must be more than 0.';
+      if (n('step') <= 0) return i18n.t('calibration.stepPositive');
       return n('start') > 350 || n('end') < 170 || n('end') > n('start') - 5
-        ? 'Temperatures must be from 170 to 350 °C, with start at least 5 °C above end.' : '';
+        ? i18n.t('calibration.temperatureRange') : '';
     case 'pressureAdvance':
       return n('start') < 0 || n('step') < 0.001 || n('end') < n('start') + n('step')
-        ? 'Start PA must be 0 or more, the PA step at least 0.001, and end PA at least one step above start.' : '';
+        ? i18n.t('calibration.paRange') : '';
     default:
       return n('start') < 0 || n('step') <= 0 || n('end') < n('start') + n('step')
-        ? 'Start must be 0 or more, the step above 0, and end at least one step above start.' : '';
+        ? i18n.t('calibration.range') : '';
   }
 }
 
