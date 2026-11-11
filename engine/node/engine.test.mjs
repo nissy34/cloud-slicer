@@ -902,7 +902,7 @@ test('plates: add, arrange, delete', () => {
   load('3DBenchy.stl');
   call(engine, 'addInstance', 0, 0, 0, 0);  // a copy right on top of the first
   call(engine, 'addInstance', 0, 0, 0, 0);
-  call(engine, 'arrangePlate', 0, 6, 0);
+  call(engine, 'arrangePlate', 0, 6, 0, '{}');
   let m = info();
   const xs = m.objects[0].instances.map((i) => [i.offset[0], i.offset[1]]);
   for (let a = 0; a < xs.length; a++)
@@ -918,6 +918,40 @@ test('plates: add, arrange, delete', () => {
   m = info();
   assert.equal(m.plates.length, 1);
   assert.equal(m.objects.length, 0, 'deleting plate 1 deleted its objects');
+});
+
+test("arrange options from desktop's Arrange pop-up: auto rotate, align to Y axis, materials apart", () => {
+  select({ printer: DEFAULT_PRINTER });
+  load('3DBenchy.stl', 0, false, 90);  // turned: its long side runs front to back
+  const size = () => info().objects[0].size;
+  assert.ok(size()[1] > size()[0] + 10, `loaded turned (${size()})`);
+  call(engine, 'arrangePlate', 0, 6, 0, JSON.stringify({ rotate: true }));
+  assert.ok(size()[0] > size()[1] + 10, `auto rotate lays it long side across (${size()})`);
+  call(engine, 'arrangePlate', 0, 6, 0, JSON.stringify({ alignY: true }));
+  assert.ok(size()[1] > size()[0] + 10, `align to Y axis turns its long side front to back (${size()})`);
+  call(engine, 'arrangePlate', 0, 6, 0, JSON.stringify({ rotate: true, alignY: true }));
+  assert.ok(size()[0] > size()[1] + 10, 'with auto rotate on, align to Y axis is left out, as desktop greys it out');
+  const before = size();
+  call(engine, 'arrangePlate', 0, 6, 0, '{}');
+  assert.deepEqual(size(), before, 'without the options nothing turns');
+
+  // A second object printed with another filament.
+  load('tetrahedron.stl', 0, true);
+  call(engine, 'setExtruder', 1, -1, 2);
+  call(engine, 'arrangePlate', 0, 6, 0, JSON.stringify({ multiMaterial: true }));
+  let m = info();
+  assert.equal(m.plates.length, 1, 'several materials may share a plate');
+  assert.ok(m.objects.every((o) => o.instances[0].plate === 0));
+  call(engine, 'arrangePlate', 0, 6, 0, JSON.stringify({ multiMaterial: false }));
+  m = info();
+  assert.equal(m.plates.length, 2, 'the other material goes onto a plate of its own');
+  assert.notEqual(m.objects[0].instances[0].plate, m.objects[1].instances[0].plate);
+  // Filament 1 with filament 2's object: one is a subset of the other, so they share.
+  call(engine, 'deletePlate', 1);
+  load('tetrahedron.stl', 0, true);
+  call(engine, 'setExtruder', 1, -1, 1);
+  call(engine, 'arrangePlate', 0, 6, 0, JSON.stringify({ multiMaterial: false }));
+  assert.equal(info().plates.length, 1, 'objects with the same filament stay together');
 });
 
 test('per-object settings change how that object slices', () => {
@@ -1176,7 +1210,7 @@ test('by object: the tool head clearance round each object, and Arrange keeps it
   assert.ok(Math.max(...xs) - Math.min(...xs) > 60 + c.radius - 5, `outline ${Math.max(...xs) - Math.min(...xs)} mm wide`);
 
   // Arrange by the clearance: then it slices.
-  call(engine, 'arrangePlate', 0, Math.max(6, c.spacing), c.short ? 0 : c.rod);
+  call(engine, 'arrangePlate', 0, Math.max(6, c.spacing), c.short ? 0 : c.rod, '{}');
   c = clearance();
   assert.equal(c.error, '', 'arranged by the clearance');
   assert.equal(c.collisions.length, 0);
@@ -1623,6 +1657,31 @@ test('measure: faces, edges and corners under a ray, and the distance and angle 
   const angle = call(engine, 'measureBetween', top.id, left.id);
   assert.ok(Math.abs(angle.angle.degrees - 90) < 1e-3, `top and side are square: ${JSON.stringify(angle)}`);
   assert.equal(feature([x + 100, y + 100, 100, 0, 0, -1]), null, 'nothing under a ray that misses');
+});
+
+test('measure: a tap reaches the circle, edge or corner near it, which a mouse must point at', () => {
+  select({ printer: DEFAULT_PRINTER });
+  load('gen-cylinder.stl');
+  // A 15 mm cylinder, 30 mm tall: its top face is a plane bounded by one circle.
+  const pos = engine.previewMesh(0).positions;
+  let [cx, cy, n] = [0, 0, pos.length / 3];
+  for (let i = 0; i < pos.length; i += 3) [cx, cy] = [cx + pos[i] / n, cy + pos[i + 1] / n];
+  const feature = (dx, reach, onlyPlane = false) => call(engine, 'measureFeature', 0, JSON.stringify({ ray: [cx + dx, cy, 100, 0, 0, -1], onlyPlane, reach })).feature;
+  assert.equal(feature(12).type, 'plane', 'a mouse 3 mm in from the rim is on the face');
+  const rim = feature(12, 4);
+  assert.equal(rim.type, 'circle', 'a tap 3 mm in from the rim reaches the circle');
+  assert.ok(Math.abs(rim.radius - 15) < 0.01, `its radius: ${rim.radius}`);
+  assert.equal(feature(5, 4).type, 'plane', 'a tap in the middle stays on the face');
+  assert.equal(feature(12, 4, true).type, 'plane', 'whole faces only');
+
+  load('gen-cube-20.stl');
+  const cube = engine.previewMesh(0).positions;
+  const lo = [0, 1].map((k) => Math.min(...cube.filter((_, i) => i % 3 === k)));
+  const tap = (x, y) => call(engine, 'measureFeature', 0, JSON.stringify({ ray: [lo[0] + x, lo[1] + y, 100, 0, 0, -1], reach: 3 })).feature;
+  assert.equal(tap(10, 18).type, 'edge', 'near the middle of a side: the edge');
+  const corner = tap(18.5, 18.5);
+  assert.equal(corner.type, 'point', 'near a corner: the corner');
+  assert.ok(Math.abs(corner.point[0] - lo[0] - 20) < 1e-3 && Math.abs(corner.point[1] - lo[1] - 20) < 1e-3, `the corner: ${corner.point}`);
 });
 
 test('assemble: faces turned and moved onto each other, objects joined, parts stacked, points moved, like desktop', () => {

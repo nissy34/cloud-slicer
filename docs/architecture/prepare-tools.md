@@ -56,6 +56,16 @@ Desktop Orca's Prepare tools, one by one, each backed by Orca's own code.
 - The 3D views have `touch-action: none` in CSS: TransformControls clears the inline value
   the camera controls set when a drag ends, after which a downward ring drag on a phone
   scrolled the page and cut the drag short.
+- Measure, like desktop's GLGizmoMeasure: Orca's `Measure::Measuring` finds the point,
+  edge, circle or plane under the pointer within Orca's own 0.5 mm (a circle shows its
+  diameter and radius, an edge its length). Undo is desktop's: a Reset button beside each
+  pick (letting go of the first makes the second the first), Esc lets go of the last pick
+  (and closes the tool once none is left), Delete starts over (it never deletes the
+  object there), and a picked feature picked again is let go. Assemble shares the picks,
+  so the same holds there. A tap has no hover to aim with and a finger can't hit 0.5 mm,
+  so on touch the page sends `reach` (20 px on screen, in mm at the tap) and the engine
+  picks the face's nearest edge, circle or corner within it, measured with Orca's own
+  `get_measurement` (`test/measure.mjs`, desktop and touch).
 - Move's arrows sit on top of the part (desktop draws them from its box), so the up arrow
   isn't hidden inside it; dragging it below the bed sinks the object, like the Z field.
 - Filament choices are the shared Picker with colour, number and preset name, never a

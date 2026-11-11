@@ -16,8 +16,10 @@
 #include "libslic3r/Measure.hpp"
 
 #include <algorithm>
+#include <cmath>
 #include <map>
 #include <memory>
+#include <optional>
 #include <set>
 
 using nlohmann::json;
@@ -106,6 +108,34 @@ json featureJson(int id, int object, const SurfaceFeature& f, const Measure::Mea
     return out;
 }
 
+// The edge, circle or corner of plane `plane` nearest `point` (mesh
+// coordinates) within `limit` mm, measured with Orca's own get_measurement as
+// its get_feature does, with a wider limit. Like get_feature, a point near an
+// edge's end picks that corner (here within a quarter of the edge).
+std::optional<SurfaceFeature> nearFeature(Measure::Measuring& m, unsigned plane, const Vec3d& point, double limit) {
+    const SurfaceFeature at(point);
+    const SurfaceFeature* best = nullptr;
+    double bestDist = limit;
+    for (const SurfaceFeature& pf : m.get_plane_features(plane)) {
+        if (pf.get_type() == SurfaceFeatureType::Plane) continue;
+        const Measure::MeasurementResult r = Measure::get_measurement(pf, at);
+        if (r.distance_strict && r.distance_strict->dist < bestDist) {
+            bestDist = r.distance_strict->dist;
+            best = &pf;
+        }
+    }
+    if (!best) return std::nullopt;
+    SurfaceFeature out(*best);
+    if (best->get_type() == SurfaceFeatureType::Edge) {
+        const auto [sp, ep] = best->get_edge();
+        const double corner = std::min(limit, 0.25 * (ep - sp).norm());
+        if ((point - sp).norm() < corner) out = SurfaceFeature(sp);
+        else if ((point - ep).norm() < corner) out = SurfaceFeature(ep);
+    }
+    out.origin_surface_feature = std::make_shared<SurfaceFeature>(out);
+    return out;
+}
+
 // The feature under a ray on `plate`. options:
 //   ray:       [x, y, z, dx, dy, dz] in plate coordinates
 //   onlyPlane: pick whole planes only (desktop's "Select plane" mode)
@@ -113,6 +143,10 @@ json featureJson(int id, int object, const SurfaceFeature& f, const Measure::Mea
 //              they are no longer among the latest few
 //   objects:   only these objects' parts (Assemble on the chosen objects);
 //              the ray passes through the rest
+//   reach:     mm; a tap on a touch screen has no hover to aim with, so an
+//              edge, circle or corner of the face within this distance of the
+//              tap is picked rather than the face (desktop's mouse uses
+//              Orca's own 0.5 mm, which a finger can't hit)
 // Returns {ok, feature: {id, object, type, ...} | null}. Points, edges and
 // circles are in plate coordinates (mm); a plane has its normal, a point on it
 // and its triangles (9 floats each).
@@ -136,8 +170,15 @@ std::string measureFeature(int plate, const std::string& optionsJson) {
         const Vec2d origin = engine::project().plateOrigin(plate);
         const Transform3d trafo = Geometry::translation_transform(Vec3d(-origin.x(), -origin.y(), 0)) * hit->trafo;
         Measure::Measuring& m = measuringOf(*hit->volume);
-        std::optional<SurfaceFeature> f = m.get_feature(size_t(hit->facet), hit->point.cast<double>(), trafo, opt.value("onlyPlane", false));
+        const bool onlyPlane = opt.value("onlyPlane", false);
+        std::optional<SurfaceFeature> f = m.get_feature(size_t(hit->facet), hit->point.cast<double>(), trafo, onlyPlane);
         if (!f) return json{{"ok", true}, {"feature", nullptr}}.dump();
+        const double reach = opt.value("reach", 0.0);
+        if (reach > 0 && !onlyPlane && f->get_type() == SurfaceFeatureType::Plane)
+            if (std::optional<SurfaceFeature> near = nearFeature(m, unsigned(std::get<0>(f->get_plane())), hit->point.cast<double>(), reach / std::cbrt(std::abs(hit->trafo.linear().determinant())))) {
+                near->translate(trafo);
+                f = std::move(near);
+            }
         if (f->get_type() == SurfaceFeatureType::Plane) {
             // Orca measures from an edge or circle to a plane through the
             // plane's own edges, in the same coordinates.

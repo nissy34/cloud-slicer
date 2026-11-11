@@ -152,9 +152,12 @@ export async function me(env: Env, request: Request): Promise<Response> {
   const user = await currentUser(env, request);
   if (!user) return json({ enabled, providers, user: null });
   const accounts = await db(env)
-    .prepare('SELECT "providerId" AS provider, scope FROM "account" WHERE "userId" = ? ORDER BY "createdAt"')
+    .prepare(
+      'SELECT "providerId" AS provider, scope, "refreshToken" IS NOT NULL AS refresh, "accessTokenExpiresAt" AS expires FROM "account" WHERE "userId" = ? ORDER BY "createdAt"',
+    )
     .bind(user.id)
-    .all<{ provider: ProviderId; scope: string | null }>();
+    .all<{ provider: ProviderId; scope: string | null; refresh: number; expires: string | number | null }>();
+  const drive = accounts.results.find((a) => a.provider === 'google' && hasDriveScope(a.scope));
   return json({
     enabled,
     providers,
@@ -162,7 +165,10 @@ export async function me(env: Env, request: Request): Promise<Response> {
       ...user,
       identities: accounts.results.map((a) => ({ provider: a.provider, login: null, email: user.email })),
       // Projects save online only into their Google Drive (drive.ts).
-      drive: accounts.results.some((a) => a.provider === 'google' && hasDriveScope(a.scope)),
+      drive: Boolean(drive),
+      // Connected, but its key ran out and there is no refresh key to get another: the account menu offers Connect again.
+      // (A refresh key Google stopped accepting only shows when a save tries it: the page then offers Connect too.)
+      driveReconnect: Boolean(drive && !drive.refresh && drive.expires !== null && new Date(drive.expires).getTime() < Date.now()),
       // False when the site's owner turned online projects off for them (Admin page).
       projects: await projectsAllowed(env, user.id),
       // Open from Google Drive works: the site has the key Google's file window needs.

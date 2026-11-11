@@ -209,6 +209,15 @@ function Overlay({ overlay, kind }: { overlay: PaintOverlay; kind: string }) {
   );
 }
 
+/** How far a tap reaches for an edge, circle or corner in the Measure tool, in CSS pixels. */
+const FINGER_PX = 20;
+/** How many mm one CSS pixel spans at `at` on the screen. */
+function mmPerPixel(at: THREE.Vector3, camera: THREE.Camera, canvas: HTMLElement): number {
+  const width = canvas.clientWidth || 1;
+  const ndc = at.clone().project(camera);
+  const side = new THREE.Vector3(ndc.x + 2 / width, ndc.y, ndc.z).unproject(camera);
+  return side.distanceTo(at);
+}
 const toRay = (r: THREE.Ray): PaintRay => [r.origin.x, r.origin.y, r.origin.z, r.direction.x, r.direction.y, r.direction.z];
 
 // The brush outline under the pointer: a ring lying on the face it hovers.
@@ -1950,8 +1959,13 @@ function Objects({ w, d, views }: { w: number; d: number; views: ViewHandle }) {
   const onClick = (e: ThreeEvent<MouseEvent>) => {
     if (!measuring || e.delta > 6 || twoFingers()) return;
     e.stopPropagation();
-    // The ray of the click itself: a tap has no hover before it.
-    void measurePick(toRay(e.ray));
+    // The ray of the click itself: a tap has no hover before it. A finger
+    // can't aim at an edge or a circle's rim, so a tap reaches one about a
+    // fingertip (20 px on screen) away.
+    // Browsers without a pointer type on clicks go by the screen.
+    const kind = (e.nativeEvent as Partial<PointerEvent>).pointerType;
+    const touch = kind ? kind === 'touch' : !!window.matchMedia?.('(pointer: coarse)').matches;
+    void measurePick(toRay(e.ray), touch ? FINGER_PX * mmPerPixel(e.point, camera, canvas) : undefined);
   };
   const onMissed = () => {
     if (twoFingers()) return;

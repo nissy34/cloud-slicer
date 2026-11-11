@@ -634,6 +634,36 @@ test('projects in Google Drive: connect, save, open, rename, conflict, delete', 
   assert.match(token.accessToken, /^tok-/);
   assert.ok(token.expiresAt > Date.now());
 
+  // Google stops accepting the refresh key (a 7-day key from an app in Testing, or access taken away in the
+  // Google account): the key can't be renewed, and the answer says where Connect Google Drive is.
+  const d1 = (sql) => assert.equal(spawnSync(wrangler, ['d1', 'execute', 'cloud-slicer', '--local', '--persist-to', state, '--command', sql], { cwd: web, encoding: 'utf8' }).status, 0);
+  const ginaGoogle = `"userId" = (SELECT id FROM "user" WHERE email = 'gina@example.com') AND "providerId" = 'google'`;
+  d1(`UPDATE "account" SET "accessTokenExpiresAt" = '2020-01-01T00:00:00.000Z' WHERE ${ginaGoogle}`);
+  const dead = await gina.json('/api/drive/token', 'POST');
+  assert.equal(dead.status, 403);
+  assert.deepEqual(await dead.json(), {
+    error: 'Google Drive needs connecting again. Open the account menu (top right) and press Connect Google Drive.',
+    code: 'drive-connect',
+  });
+  // Still listed as connected (a refused refresh key only shows when it is tried; the page then offers Connect).
+  assert.equal((await gina.me()).drive, true);
+  // No refresh key at all, and the key ran out: the account menu offers Connect again from the start.
+  d1(`UPDATE "account" SET "refreshToken" = NULL WHERE ${ginaGoogle}`);
+  assert.equal((await gina.me()).driveReconnect, true, 'no way to renew the key: Connect again');
+  // Connecting again gives a fresh key.
+  const relink = await gina.json('/api/auth/link-social', 'POST', {
+    provider: 'google',
+    scopes: ['https://www.googleapis.com/auth/drive.file'],
+    additionalParams: { access_type: 'offline', prompt: 'consent' },
+    callbackURL: done,
+    errorCallbackURL: done,
+    disableRedirect: true,
+  });
+  nextUser = 'gina';
+  assert.equal((await gina.navigate(toMock((await relink.json()).url))).url, done);
+  assert.equal((await gina.me()).driveReconnect, false, 'connected again');
+  assert.match((await (await gina.json('/api/drive/token', 'POST')).json()).accessToken, /^tok-/, 'a fresh key works');
+
   // Save: the page uploaded to Drive; the project points at that file.
   assert.equal((await save(gina, 'd1', 'Drive Benchy', 'not-in-drive', 0)).status, 400, 'only a file that is in their Drive');
   driveFiles.set('drive-notzip', { name: 'x', bytes: Buffer.from('not a zip') });
@@ -1475,6 +1505,34 @@ if (withApp)
       await projectButton.getByText('Saved', { exact: true }).waitFor({ timeout: 10000 });
       assert.ok((await (await carol.json('/api/projects')).json()).projects.find((p) => p.id === saved.id)?.version > saved.version, 'Save sent the change');
 
+      // Google stops accepting the site's key for their Drive: Save stops, says where to connect again,
+      // and the account menu shows Connect Google Drive (it only did when Drive was never connected).
+      await page.getByRole('button', { name: /Bob/ }).click();
+      assert.equal(await page.getByTestId('connect-drive').count(), 0, 'connected: no Connect button');
+      await page.keyboard.press('Escape');
+      const refusedKey = (route) =>
+        route.fulfill({ status: 401, contentType: 'application/json', headers: { 'Access-Control-Allow-Origin': '*' }, body: JSON.stringify({ error: { message: 'Invalid Credentials' } }) });
+      await page.route('https://www.googleapis.com/**', refusedKey);
+      await layer.fill('0.26');
+      await layer.press('Enter');
+      await page.keyboard.press('Control+s');
+      await page.getByText('Not saved: Google Drive needs connecting again. Open the account menu (top right) and press Connect Google Drive.').waitFor({ timeout: 60000 });
+      await page.getByTestId('saving-card').waitFor({ state: 'detached', timeout: 5000 });
+      await projectButton.getByLabel('unsaved changes').waitFor();
+      if (process.env.ACCOUNTS_SHOTS) await page.screenshot({ path: join(process.env.ACCOUNTS_SHOTS, 'drive-reconnect-message.png') });
+      await page.getByRole('button', { name: /Bob/ }).click();
+      await page.getByText("Google Drive needs connecting again: projects can't save to it until then").waitFor();
+      await page.getByTestId('connect-drive').waitFor();
+      await page.waitForTimeout(300);
+      if (process.env.ACCOUNTS_SHOTS) await page.screenshot({ path: join(process.env.ACCOUNTS_SHOTS, 'drive-reconnect-menu.png') });
+      await page.keyboard.press('Escape');
+      await page.unroute('https://www.googleapis.com/**', refusedKey);
+      // With a fresh key, the same Save works.
+      await layer.fill('0.24');
+      await layer.press('Enter');
+      await page.keyboard.press('Control+s');
+      await page.getByText('Saved “3DBenchy” to your projects').waitFor({ timeout: 60000 });
+
       // Another device takes it over: coming back to this tab, it is view only.
       const other = await carol.json(`/api/projects/${saved.id}/device`, 'POST', { device: 'other-device-1234', deviceName: 'phone' });
       assert.equal(other.status, 200);
@@ -1607,6 +1665,8 @@ if (withApp)
 
       await projectButton.click();
       await page.getByRole('menuitem', { name: 'New project', exact: true }).click();
+      // Its changed layer height: New project asks what to do with it, like desktop.
+      await page.getByTestId('preset-changes').getByRole('button', { name: 'Discard' }).click({ timeout: 5000 }).catch(() => {});
       await page.getByText('Open a model to start').waitFor();
       // A new project forgets it: the next reload starts empty.
       await page.reload();

@@ -116,7 +116,7 @@ export function ProjectMenu() {
         )}
       >
         {/* The default engine; the sidebar's Slicer engine dropdown picks the other one. */}
-        <button role="menuitem" className="menu-item" onClick={run(async () => (await leaveOk()) && p.newProject())}>
+        <button role="menuitem" className="menu-item" onClick={run(() => p.startNew())}>
           New project
         </button>
         <button role="menuitem" className="menu-item" onClick={run(() => input.current?.click())}>

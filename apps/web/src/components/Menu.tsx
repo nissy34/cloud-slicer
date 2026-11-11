@@ -3,6 +3,7 @@ import {
   autoUpdate,
   flip,
   FloatingFocusManager,
+  FloatingPortal,
   offset,
   safePolygon,
   shift,
@@ -34,6 +35,12 @@ type Props = {
   hover?: boolean;
   /** Sits inside a line of text: a `span`, so it can go in a `<p>`. */
   inline?: boolean;
+  /**
+   * Drawn at the end of the page (inside an open `<dialog>`, if any), not beside its
+   * button: for a button in a box that clips or moves what's in it, such as the
+   * sideways-scrolling toolbar over the 3D view.
+   */
+  portal?: boolean;
 };
 
 /**
@@ -42,7 +49,7 @@ type Props = {
  * outside. Rows are the shared `.menu-item` look, also used by the object menu and the
  * Picker.
  */
-export function Menu({ label, button, children, placement = 'bottom-start', role = 'menu', className, open: openProp, onOpenChange, hover, inline }: Props) {
+export function Menu({ label, button, children, placement = 'bottom-start', role = 'menu', className, open: openProp, onOpenChange, hover, inline, portal }: Props) {
   const [openState, setOpenState] = useState(false);
   const open = openProp ?? openState;
   const setOpen = (next: boolean) => {
@@ -75,22 +82,28 @@ export function Menu({ label, button, children, placement = 'bottom-start', role
   ]);
   const Box = inline ? 'span' : 'div';
   const close = () => setOpen(false);
+  const floating = (
+    <FloatingFocusManager context={context} modal={false} initialFocus={role === 'menu' ? -1 : refs.floating}>
+      <Box
+        ref={refs.setFloating}
+        className={[role === 'menu' ? 'menu' : 'pop', className].filter(Boolean).join(' ')}
+        style={floatingStyles}
+        aria-label={label}
+        {...getFloatingProps()}
+      >
+        {typeof children === 'function' ? children(close) : children}
+      </Box>
+    </FloatingFocusManager>
+  );
   return (
     <>
       {button({ ref: refs.setReference, ...getReferenceProps() }, open)}
-      {open && (
-        <FloatingFocusManager context={context} modal={false} initialFocus={role === 'menu' ? -1 : refs.floating}>
-          <Box
-            ref={refs.setFloating}
-            className={[role === 'menu' ? 'menu' : 'pop', className].filter(Boolean).join(' ')}
-            style={floatingStyles}
-            aria-label={label}
-            {...getFloatingProps()}
-          >
-            {typeof children === 'function' ? children(close) : children}
-          </Box>
-        </FloatingFocusManager>
-      )}
+      {open &&
+        (portal ? (
+          <FloatingPortal root={((refs.domReference.current as HTMLElement | null)?.closest('dialog') as HTMLElement | null) ?? undefined}>{floating}</FloatingPortal>
+        ) : (
+          floating
+        ))}
     </>
   );
 }

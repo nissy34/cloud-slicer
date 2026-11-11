@@ -9,6 +9,42 @@
   padding: 4px 10px;
   font-size: var(--t-md);
 }
+/* The toolbar's Arrange pop-up (components/ArrangeOptions.tsx), like desktop's. */
+.arrange-pop {
+  width: 300px;
+}
+.arrange-options {
+  display: grid;
+  gap: var(--s-4);
+}
+.arrange-spacing {
+  display: flex;
+  align-items: center;
+  gap: var(--s-4);
+}
+.arrange-spacing .slider {
+  flex: 1;
+  min-width: 0;
+}
+.arrange-spacing .input-unit {
+  flex: none;
+  width: 84px;
+}
+.arrange-options .arrange-note {
+  margin: 0;
+  color: var(--muted);
+  font-size: var(--t-sm);
+}
+.arrange-options hr {
+  width: 100%;
+  margin: 0;
+  border: 0;
+  border-top: 1px solid var(--border);
+}
+.arrange-actions {
+  display: flex;
+  gap: var(--s-4);
+}
 .cut-panel {
   display: grid;
   gap: 8px;

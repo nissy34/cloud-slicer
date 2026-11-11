@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { describeFeature, sameFeature, type MeasureFeature, type Vec3 } from '../lib/measure';
 import { useSlicer } from '../state/store';
+import { PickReset } from './PickReset';
 
 const touch = typeof window !== 'undefined' && !!window.matchMedia?.('(pointer: coarse)').matches;
 const click = touch ? 'Tap' : 'Click';
@@ -55,9 +56,14 @@ export function AssemblePanel() {
       </p>
       {picks.map((f, i) => (
         <dl className={`measure-figures pick-${i + 1}`} key={`${i}-${f.id}`} aria-label={`Feature ${i + 1}`}>
-          <dt className="measure-title">
-            {i + 1}. {describeFeature(f).name} {i === 0 ? '(stays)' : '(moves)'}
-          </dt>
+          <div className="measure-title-row">
+            <dt className="measure-title">
+              {i + 1}. {describeFeature(f).name} {i === 0 ? '(stays)' : '(moves)'}
+            </dt>
+            <dd>
+              <PickReset index={i} />
+            </dd>
+          </div>
         </dl>
       ))}
       {hovering && (

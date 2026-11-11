@@ -33,6 +33,7 @@ import { DEFAULT_PRINTER, pickFilamentPreset, splitList, SLOT_COLOURS } from '..
 import { changedOnPurpose, emptyProjectMessage, modelProcessKeys, pickProcess, printerLabel, projectOverrides, fallBackGcode, gcodeOverrides } from '../lib/project-import';
 import { accountReady, getUserSetting, presetEditing, useAccount } from './account';
 import { installedFilaments, installedOnly, installedPrinters, SETUP_KEY, startPrinter, type Setup } from '../lib/setup';
+import { arrangeRequest, loadArrange, saveArrange, type ArrangeSettings } from '../lib/arrange';
 import { loadAskSimplify, loadConvertPreference, loadDefaultEngine, loadSaved, save, saveAskSimplify, saveConvertPreference } from '../lib/storage';
 import { gcodeErrors, readableGcodeError } from '../lib/gcode-errors';
 import { appOfModelHead, engineFolder, engineFromUrl, engineName, engineOfModelHead, modelHeadOf3mf, type EngineFlavor } from '../lib/engines';
@@ -207,6 +208,9 @@ export interface SlicerState {
   setUniformScale(on: boolean): void;
   /** Ctrl+C took something (the engine holds the copy). */
   copied: boolean;
+  /** Desktop's Arrange options (the toolbar's Arrange pop-up), kept in this browser. */
+  arrangeSettings: ArrangeSettings;
+  setArrangeSettings(settings: ArrangeSettings): void;
   /** Desktop's Show labels: object names in the 3D view. */
   labels: boolean;
   setLabels(labels: boolean): void;
@@ -326,8 +330,14 @@ export interface SlicerState {
   measure: { hover: MeasureFeature | null; picks: MeasureFeature[]; result: Measurement | null; onlyPlane: boolean };
   /** Looks up the feature under a ray from the camera (null: the pointer left the parts). */
   measureHover(ray: PaintRay | null): void;
-  /** Picks the feature under `ray` (a tap), else the hovered one; off the parts it starts over. */
-  measurePick(ray?: PaintRay): Promise<void>;
+  /**
+   * Picks the feature under `ray` (a tap), else the hovered one; off the parts
+   * it starts over, and a picked feature picked again is let go, like desktop.
+   * `reach` (mm) lets a tap pick an edge, circle or corner that near it.
+   */
+  measurePick(ray?: PaintRay, reach?: number): Promise<void>;
+  /** Lets go of pick `index` (desktop's Reset on a selection); the second one becomes the first. */
+  measureRemove(index: number): void;
   measureReset(): void;
   setMeasureOnlyPlane(onlyPlane: boolean): void;
   /** The Assemble tool picks two faces or two points (it shares measure's picks). */
@@ -372,6 +382,8 @@ export interface SlicerState {
   /** The open project as an Orca 3MF project file, with the current settings. */
   projectFile(thumbnail: ProjectThumbnail | null): Promise<ArrayBuffer>;
   clearProject(): Promise<void>;
+  /** Drops the undo history, so Undo can't reach back past this point (desktop's project separator). */
+  clearUndo(): Promise<void>;
   /**
    * Replaces the running engine with another one, which starts empty (the
    * project lives in the engine). Resolves once it is up, or failed to start.
@@ -909,13 +921,15 @@ export const useSlicer = create<SlicerState>((set, get) => {
       if (get().engine === 'ready') void refreshClearance();
     });
   };
-  // Arrange: 6 mm apart, like desktop's default arrange distance; printing
-  // object by object, far enough apart for the tool head and with the tall
-  // ones last in their row, like desktop's ArrangeJob then.
+  // Arrange with the Arrange pop-up's options (lib/arrange.ts): auto spacing is
+  // 6 mm apart; printing object by object, far enough apart for the tool head
+  // and with the tall ones last in their row, like desktop's ArrangeJob then.
   const arrangePlate = async (plate: number) => {
     const e = engine();
     const c = byObject(plate) ? await e.clearance(plate, engineOverrides()) : null;
-    return c?.byObject ? e.arrangePlate(plate, Math.max(6, c.spacing), c.short ? 0 : c.rod) : e.arrangePlate(plate, 6);
+    const structure = get().overrides.printer_structure ?? get().baseConfig.printer_structure;
+    const { spacing, options } = arrangeRequest(get().arrangeSettings, structure, c?.byObject ? c.spacing : undefined);
+    return e.arrangePlate(plate, spacing, c?.byObject && !c.short ? c.rod : 0, options);
   };
 
   // A request about the mix list, with what colours its rows.
@@ -1455,6 +1469,7 @@ export const useSlicer = create<SlicerState>((set, get) => {
     uniformScale: true,
     setUniformScale: (uniformScale) => set({ uniformScale }),
     copied: false,
+    arrangeSettings: loadArrange(),
     labels: false,
     history: { undo: null, redo: null },
     cutZ: 0,
@@ -1696,6 +1711,10 @@ export const useSlicer = create<SlicerState>((set, get) => {
     },
     cancelOpen: () => set({ pendingOpen: null }),
     setSnap: (snap) => set({ snap }),
+    setArrangeSettings: (arrangeSettings) => {
+      saveArrange(arrangeSettings);
+      set({ arrangeSettings });
+    },
     setLabels: (labels) => set({ labels }),
     setTool: (tool) => {
       if (tool !== get().tool) clearError(true);
@@ -1802,10 +1821,10 @@ export const useSlicer = create<SlicerState>((set, get) => {
         hovering = false;
       }
     },
-    async measurePick(ray) {
+    async measurePick(ray, reach) {
       if (ray) {
         try {
-          const found = await engine().measureFeature(get().plate, { ray, ...pickOptions() });
+          const found = await engine().measureFeature(get().plate, { ray, ...pickOptions(), ...(reach ? { reach } : {}) });
           // Assemble's points mode passes over edges and faces rather than starting over.
           if (found && !fits(found)) return;
           const hover = found;
@@ -1817,7 +1836,9 @@ export const useSlicer = create<SlicerState>((set, get) => {
       const { hover, picks, onlyPlane } = get().measure;
       // Like desktop: a click off the parts starts over, a third pick starts a new pair.
       if (!hover) return set({ measure: { ...NO_MEASURE, onlyPlane } });
-      if (picks.some((p) => sameFeature(p, hover))) return;
+      // Like desktop, picking a picked feature again lets go of it.
+      const again = picks.findIndex((p) => sameFeature(p, hover));
+      if (again >= 0) return get().measureRemove(again);
       const next = picks.length === 1 ? [picks[0], hover] : [hover];
       set({ measure: { ...get().measure, picks: next, result: null } });
       if (next.length < 2) return;
@@ -1827,6 +1848,11 @@ export const useSlicer = create<SlicerState>((set, get) => {
       } catch (e) {
         fail(e);
       }
+    },
+    measureRemove: (index) => {
+      const { picks } = get().measure;
+      if (index < 0 || index >= picks.length) return;
+      set({ measure: { ...get().measure, picks: picks.filter((_, i) => i !== index), result: null } });
     },
     measureReset: () => set({ measure: { ...NO_MEASURE, onlyPlane: get().measure.onlyPlane } }),
     setMeasureOnlyPlane: (onlyPlane) => set({ measure: { ...NO_MEASURE, onlyPlane } }),
@@ -1959,6 +1985,10 @@ export const useSlicer = create<SlicerState>((set, get) => {
       }
       pendingCarry = { file, plan, towers: get().towers, plate: get().plate, layerHeight: config.layer_height ?? '', types: splitList(config.filament_type) };
       await get().switchEngine(to);
+    },
+    async clearUndo() {
+      if (get().engine !== 'ready') return;
+      set({ history: await engine().clearHistory() });
     },
     clearProject: () =>
       projectEdit('Delete all', async () => {

@@ -395,7 +395,8 @@ try {
     }
 
     // The object menu: a right click on an object in the 3D view, or ⋯ in the object list.
-    await page.keyboard.press('Escape');
+    // (Esc in Measure lets go of a pick first, like desktop: Done closes it.)
+    await measure.getByRole('button', { name: 'Done' }).click();
     const objectMenu = page.locator('.object-menu');
     let menuAt = null;
     for (const [x, y] of points) {
