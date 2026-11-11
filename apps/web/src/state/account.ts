@@ -15,7 +15,6 @@
 //   saveDevice({ id, name, preset, url, apiKey, extra }) / deleteDevice(id)
 //   getDeviceApiKey(id)
 import { create } from 'zustand';
-import { i18n } from '../i18n';
 import { useShallow } from 'zustand/react/shallow';
 import {
   api,
@@ -183,7 +182,7 @@ export const useAccount = create<AccountState>((set, get) => ({
       new BroadcastChannel(CHANNEL).onmessage = (e: MessageEvent<{ type: string; message?: string }>) => {
         // Signed in, or Drive connected again: Google gave a fresh key.
         if (e.data?.type === 'signed-in') set({ driveLost: false }), void get().refresh();
-        if (e.data?.type === 'error') set({ error: e.data.message ?? i18n.t('accountErrors.signInFailed') });
+        if (e.data?.type === 'error') set({ error: e.data.message ?? 'Sign-in failed' });
       };
     }
     onDriveLost(() => set({ driveLost: true }));

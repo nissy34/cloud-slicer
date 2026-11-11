@@ -9,7 +9,6 @@
     "driveGone": "This project is no longer in your Google Drive",
     "driveNoUpload": "Google Drive didn't start the upload",
     "pickerBlocked": "Your browser blocked the Google Drive window. Allow pop-ups for this site, then try again.",
-    "signInFailed": "Sign-in failed",
     "driveSignIn": "Sign in with Google to open files from your Google Drive.",
     "driveConnectFirst": "Connect Google Drive in the account menu first.",
     "pickerNotSetUp": "Open from Google Drive isn't set up on this site yet."
