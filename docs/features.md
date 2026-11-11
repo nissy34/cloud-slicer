@@ -174,7 +174,7 @@ why: [README.md](README.md) (the docs map) and [architecture/](architecture/).
   dialog, the U1's error codes in Snapmaker's own words). Printers on a home network are reached through a small bridge app.
 - **Light and dark theme**, a layout that works on phones (Prepare, Preview and Device as tabs at the bottom, the Device tab showing the print's progress; an open tool stacks the toolbar, its options and the model, with the settings hidden until Done), and installable as an app
   (PWA) on Android.
-- **English or Hebrew**, following the browser's language, or picked at the bottom of the account menu; Hebrew turns the page right to left. Setting names stay English, like the engine gives them. Most screens are still being moved over.
+- **English or Hebrew**, following the browser's language, or picked at the bottom of the account menu; Hebrew turns the page right to left. Setting names stay English, like the engine gives them.
 
 ## Accounts, presets and projects in detail
 

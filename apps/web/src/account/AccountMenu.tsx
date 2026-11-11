@@ -4,7 +4,6 @@ import { i18n } from '../i18n';
 import { saveUserSetting, useAccount, useUserSetting } from '../state/account';
 import { isLanguageChoice, LANGUAGE_SETTING, setLocalLanguage, useLanguageStore, type LanguageChoice } from '../lib/language';
 import { LANGUAGES } from '../i18n';
-import { Picker } from '../components/Picker';
 import { useSlicer } from '../state/store';
 import type { PresetType, ProviderId } from './api';
 import { Note } from '../components/Note';
@@ -249,14 +248,25 @@ function Legal() {
   };
   return (
     <div className="account-legal">
-      <Picker
-        label={t('language.heading')}
-        className="account-language"
-        testId="language-picker"
-        value={language}
-        options={[{ value: 'system', label: t('language.system') }, ...LANGUAGES.map((l) => ({ value: l.id, label: l.name }))]}
-        onChange={(v) => isLanguageChoice(v) && pick(v)}
-      />
+      <div className="account-language">
+        <span className="account-muted">{t('language.heading')}</span>
+        <div className="chooser" role="radiogroup" aria-label={t('language.heading')} data-testid="language-picker">
+          {(['system', ...LANGUAGES.map((l) => l.id)] as LanguageChoice[]).map((id) => (
+            <button
+              key={id}
+              role="radio"
+              aria-checked={language === id}
+              className={language === id ? 'active' : ''}
+              data-testid={`language-${id}`}
+              lang={id === 'system' ? undefined : id}
+              title={id === 'system' ? t('language.system') : undefined}
+              onClick={() => pick(id)}
+            >
+              {id === 'system' ? t('language.auto') : LANGUAGES.find((l) => l.id === id)!.name}
+            </button>
+          ))}
+        </div>
+      </div>
     <p className="account-muted">
       <a href="/privacy" target="_blank" rel="noopener">
         {t('account.privacy')}

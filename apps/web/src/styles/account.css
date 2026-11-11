@@ -195,16 +195,17 @@
 .preset-pop-field input {
   width: 100%;
 }
-/* The last line: the language picker, then Privacy · Terms. */
+/* The last lines: the language, then Privacy · Terms. */
 .account-legal {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
+  display: grid;
   gap: var(--s-3);
 }
 .account-legal p {
   margin: 0;
 }
 .account-language {
-  margin-inline-start: calc(-1 * var(--s-3));
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s-3);
 }

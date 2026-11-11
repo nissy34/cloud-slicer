@@ -18,8 +18,9 @@ type Words = Record<string, unknown>;
 const join = (files: Record<string, Words>): Words => Object.assign({}, ...Object.values(files));
 
 const EN = join(import.meta.glob<Words>('./en/*.json', { eager: true, import: 'default' }));
-const LOAD: Record<Exclude<Language, 'en'>, Record<string, () => Promise<Words>>> = {
-  he: import.meta.glob<Words>('./he/*.json', { import: 'default' }),
+// Each other language is one file of its own (he.ts), fetched when picked.
+const LOAD: Record<Exclude<Language, 'en'>, () => Promise<{ default: Words }>> = {
+  he: () => import('./he'),
 };
 
 void i18n.use(initReactI18next).init({
@@ -33,8 +34,8 @@ void i18n.use(initReactI18next).init({
 /** Switch the site's words (fetching the language's files the first time). */
 export async function loadLanguage(lang: Language): Promise<void> {
   if (lang !== 'en' && !i18n.hasResourceBundle(lang, 'translation')) {
-    const files = await Promise.all(Object.values(LOAD[lang]).map((load) => load()));
-    i18n.addResourceBundle(lang, 'translation', Object.assign({}, ...files), true, true);
+    const words = await LOAD[lang]();
+    i18n.addResourceBundle(lang, 'translation', words.default, true, true);
   }
   await i18n.changeLanguage(lang);
 }

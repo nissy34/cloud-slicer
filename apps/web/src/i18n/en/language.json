@@ -1,6 +1,7 @@
 {
   "language": {
     "heading": "Language",
-    "system": "Match this device"
+    "system": "Match this device",
+    "auto": "Auto"
   }
 }

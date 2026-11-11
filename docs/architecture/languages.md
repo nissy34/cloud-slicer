@@ -8,8 +8,8 @@
 
 The site speaks English and Hebrew. It follows the browser's languages: the first one the
 site speaks wins, else English. To change it by hand, the account menu (the top bar's Sign in
-or name button, signed in or not) ends with a **Language** picker beside Privacy · Terms:
-*Match this device*, English, עברית. There is no button of its own on purpose: most people
+or name button, signed in or not) ends with a **Language** row above Privacy · Terms:
+*Auto* (match this device), English, עברית. There is no button of its own on purpose: most people
 never need it; inside the theme menu read as odd (2026-11-11).
 Hebrew turns the whole page right to left.
 
@@ -26,6 +26,8 @@ errors, and G-code.
 | The choice: browser or picked; sets `<html lang dir>`; kept per browser and in the account | `src/lib/language.ts` |
 | Start in the right direction before the app loads | the script in `index.html` |
 | The picker, and taking the account's choice | `account/AccountMenu.tsx` (`Legal`, `AccountMenu`) |
+| Hebrew as one download | `src/i18n/he.ts` |
+| Device words shared with the relay (no i18next there: it speaks English) | `device/say.ts`, plugged into i18n by `state/device.ts` |
 
 ## Rules
 
@@ -54,6 +56,9 @@ i18next is the most used translation library and handles Hebrew plurals.
 
 ## Open holes
 
-- Most screens are still English: they move over area by area.
-- Positions (`left:`/`right:`) not yet flipped for right to left.
-- More languages: add a file and a line in `LANGUAGES`; nothing else changes.
+- Alerts the relay pushes to a phone, and error text from the server or Google, stay
+  English: they are made where the reader's language isn't known.
+- Undo names and notices are made in the language of the moment; switching language
+  leaves earlier ones in the old language.
+- Operating system button names quoted in the bridge steps stay English.
+- More languages: add a folder, a `<lang>.ts` like `he.ts` and a line in `LANGUAGES`.
