@@ -1,6 +1,7 @@
 import { lazy, StrictMode, Suspense } from 'react';
 import { createRoot } from 'react-dom/client';
 import './lib/theme';
+import './lib/language';
 import { App } from './App';
 import { Tips } from './components/Tips';
 import { useDevice } from './state/device';

@@ -22,6 +22,9 @@ down. Add a line with the date when a new choice is made.
 - **Every drop-down is the app's own Picker**, plain lists too; the browser's `<select>`
   is no longer used (2026-10-29, reversing "plain lists stay native" from 2026-10-26).
   Every filament choice shows the numbered square and preset name.
+- **Languages: the site's own words only** (option B, 2026-11-11). Setting names and
+  tooltips stay English. Hebrew first; the language follows the browser, picked by hand
+  in the theme menu, not on its own button. i18next.
 
 ## Engines
 

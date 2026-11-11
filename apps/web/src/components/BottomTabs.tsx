@@ -1,3 +1,5 @@
+import { useTranslation } from 'react-i18next';
+import { i18n } from '../i18n';
 import { job as jobOf } from '../device/status';
 import { useDevice } from '../state/device';
 import { useSlicer } from '../state/store';
@@ -22,27 +24,28 @@ function useDeviceMark(): { text: string; tone: 'busy' | 'warn' | 'error' } | nu
   });
   if (!mark) return null;
   const [tone, text] = mark.split(':') as ['busy' | 'warn' | 'error', string];
-  return { tone, text };
+  return { tone, text: text === 'Paused' ? i18n.t('tabs.paused') : text };
 }
 
 /** Phones: Prepare, Preview and Device as tabs at the bottom of the screen, under the Slice bar. */
 export function BottomTabs() {
+  const { t } = useTranslation();
   const tab = useSlicer((s) => s.tab);
   const setTab = useSlicer((s) => s.setTab);
   const mark = useDeviceMark();
   return (
-    <nav className="bottom-tabs" role="tablist" aria-label="Workspace" data-testid="bottom-tabs">
-      {TABS.map((t) => (
-        <button key={t.id} role="tab" aria-selected={tab === t.id} className={tab === t.id ? 'bottom-tab active' : 'bottom-tab'} onClick={() => setTab(t.id)}>
+    <nav className="bottom-tabs" role="tablist" aria-label={t('topbar.workspace')} data-testid="bottom-tabs">
+      {TABS.map((it) => (
+        <button key={it.id} role="tab" aria-selected={tab === it.id} className={tab === it.id ? 'bottom-tab active' : 'bottom-tab'} onClick={() => setTab(it.id)}>
           <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" strokeLinecap="round">
-            {ICONS[t.id]}
+            {ICONS[it.id]}
           </svg>
-          {t.id === 'device' && mark && (
-            <span className={`bottom-tab-mark ${mark.tone}`} data-testid="device-tab-mark" aria-label={mark.tone === 'error' ? 'The printer needs attention' : mark.text}>
+          {it.id === 'device' && mark && (
+            <span className={`bottom-tab-mark ${mark.tone}`} data-testid="device-tab-mark" aria-label={mark.tone === 'error' ? t('tabs.needsAttention') : mark.text}>
               {mark.text}
             </span>
           )}
-          {t.label}
+          {t(it.label)}
         </button>
       ))}
     </nav>

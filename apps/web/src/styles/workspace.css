@@ -33,8 +33,8 @@
   background: var(--surface);
 }
 .toolbar-group + .toolbar-group {
-  margin-left: 4px;
-  padding-left: 4px;
+  margin-inline-start: 4px;
+  padding-inline-start: 4px;
   border-left: 1px solid var(--border);
 }
 .tool {
@@ -264,7 +264,7 @@
 .measure-figures dd {
   margin: 0;
   font-variant-numeric: tabular-nums;
-  text-align: right;
+  text-align: end;
 }
 /* A picked feature's title with desktop's Reset beside it. */
 .measure-figures > .measure-title-row {
@@ -366,7 +366,7 @@
   display: inline-block;
   width: 7px;
   height: 7px;
-  margin-left: 6px;
+  margin-inline-start: 6px;
   border-radius: 50%;
   background: var(--warn);
   vertical-align: middle;

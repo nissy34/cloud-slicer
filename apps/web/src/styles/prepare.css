@@ -266,7 +266,7 @@
 .progress-pct {
   flex: none;
   min-width: 3.5ch;
-  text-align: right;
+  text-align: end;
   font-variant-numeric: tabular-nums;
   font-weight: 600;
 }
@@ -418,7 +418,7 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  text-align: left;
+  text-align: start;
   padding: 6px 8px;
   border: 1px solid var(--border);
   border-radius: var(--r-md);
@@ -653,7 +653,7 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  text-align: left;
+  text-align: start;
 }
 .object-name {
   border: 0;
@@ -797,7 +797,7 @@
   width: 64px;
 }
 .layer-range-head .icon-btn:last-child {
-  margin-left: auto;
+  margin-inline-start: auto;
 }
 /* A setting another setting switched off, like desktop's greyed fields. */
 .option.disabled {

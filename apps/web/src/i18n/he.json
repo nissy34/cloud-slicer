@@ -1,0 +1,26 @@
+{
+  "topbar": {
+    "workspace": "סביבת עבודה",
+    "prepare": "הכנה",
+    "preview": "תצוגה מקדימה",
+    "device": "מכשיר",
+    "calibration": "כיול",
+    "slicingWith": "פורס עם {{name}} {{version}}"
+  },
+  "tabs": {
+    "needsAttention": "המדפסת דורשת תשומת לב",
+    "paused": "מושהה"
+  },
+  "theme": {
+    "menu": "ערכת נושא",
+    "current": "ערכת נושא: {{choice}}",
+    "system": "מערכת",
+    "systemHint": "לפי המכשיר",
+    "light": "בהיר",
+    "dark": "כהה"
+  },
+  "language": {
+    "heading": "שפה",
+    "system": "לפי המכשיר"
+  }
+}

@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { AccountMenu } from '../account/AccountMenu';
 import { useSlicer, type Tab } from '../state/store';
 import { CalibrationDialog } from './CalibrationDialog';
@@ -6,13 +7,14 @@ import { PrintProgress } from './PrintHistory';
 import { ProjectMenu } from './ProjectMenu';
 import { ThemeMenu } from './ThemeMenu';
 
-export const TABS: { id: Tab; label: string }[] = [
-  { id: 'prepare', label: 'Prepare' },
-  { id: 'preview', label: 'Preview' },
-  { id: 'device', label: 'Device' },
+export const TABS: { id: Tab; label: 'topbar.prepare' | 'topbar.preview' | 'topbar.device' }[] = [
+  { id: 'prepare', label: 'topbar.prepare' },
+  { id: 'preview', label: 'topbar.preview' },
+  { id: 'device', label: 'topbar.device' },
 ];
 
 export function TopBar() {
+  const { t } = useTranslation();
   const tab = useSlicer((s) => s.tab);
   const setTab = useSlicer((s) => s.setTab);
   const ready = useSlicer((s) => s.engine === 'ready');
@@ -27,26 +29,26 @@ export function TopBar() {
       <ProjectMenu />
       <PrintProgress />
       {engineInfo && (
-        <span className="tag engine-badge" title={`Slicing with ${engineInfo.name} ${engineInfo.version}`}>
+        <span className="tag engine-badge" title={t('topbar.slicingWith', { name: engineInfo.name, version: engineInfo.version })}>
           {engineInfo.name} {engineInfo.version}
         </span>
       )}
-      <nav className="tabs" role="tablist" aria-label="Workspace">
-        {TABS.map((t) => (
+      <nav className="tabs" role="tablist" aria-label={t('topbar.workspace')}>
+        {TABS.map((it) => (
           <button
-            key={t.id}
+            key={it.id}
             role="tab"
-            aria-selected={tab === t.id}
-            className={tab === t.id ? 'tab active' : 'tab'}
-            onClick={() => setTab(t.id)}
+            aria-selected={tab === it.id}
+            className={tab === it.id ? 'tab active' : 'tab'}
+            onClick={() => setTab(it.id)}
           >
-            {t.label}
+            {t(it.label)}
           </button>
         ))}
       </nav>
-      <button className="ghost calib-button" disabled={!ready} aria-label="Calibration" title="Calibration" onClick={() => setCalibrating(true)}>
+      <button className="ghost calib-button" disabled={!ready} aria-label={t('topbar.calibration')} title={t('topbar.calibration')} onClick={() => setCalibrating(true)}>
         <CalibrationIcon />
-        <span className="calib-label">Calibration</span>
+        <span className="calib-label">{t('topbar.calibration')}</span>
       </button>
       {calibrating && <CalibrationDialog onClose={() => setCalibrating(false)} />}
       <ThemeMenu />

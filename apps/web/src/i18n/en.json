@@ -1,0 +1,26 @@
+{
+  "topbar": {
+    "workspace": "Workspace",
+    "prepare": "Prepare",
+    "preview": "Preview",
+    "device": "Device",
+    "calibration": "Calibration",
+    "slicingWith": "Slicing with {{name}} {{version}}"
+  },
+  "tabs": {
+    "needsAttention": "The printer needs attention",
+    "paused": "Paused"
+  },
+  "theme": {
+    "menu": "Theme",
+    "current": "Theme: {{choice}}",
+    "system": "System",
+    "systemHint": "Match this device",
+    "light": "Light",
+    "dark": "Dark"
+  },
+  "language": {
+    "heading": "Language",
+    "system": "Match this device"
+  }
+}

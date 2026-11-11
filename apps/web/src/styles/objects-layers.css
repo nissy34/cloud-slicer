@@ -19,7 +19,7 @@
 .object-menu .menu-sub {
   display: grid;
   margin: 0 0 4px 12px;
-  padding-left: 6px;
+  padding-inline-start: 6px;
   border-left: 2px solid var(--border);
 }
 .object-menu .menu-form {
@@ -59,7 +59,7 @@ button.volume-name {
   display: inline-block;
   width: 9px;
   height: 9px;
-  margin-right: 6px;
+  margin-inline-end: 6px;
   border-radius: 50%;
   border: 1px solid var(--border);
   vertical-align: baseline;
@@ -120,7 +120,7 @@ button.volume-name {
   bottom: 0;
   width: 18px;
   height: 14px;
-  margin-left: -9px;
+  margin-inline-start: -9px;
   padding: 0;
   border: 0;
   background: none;

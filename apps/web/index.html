@@ -22,6 +22,22 @@
         // Storage blocked: still follow the system, as the stylesheet has no other dark switch.
         document.documentElement.dataset.theme = matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
       }
+      // Start in the saved language's direction, so a Hebrew page doesn't flip once
+      // the app loads (see src/lib/language.ts).
+      try {
+        var l = localStorage.getItem('cloud-slicer:language');
+        if (l !== 'en' && l !== 'he') {
+          l = 'en';
+          var p = navigator.languages && navigator.languages.length ? navigator.languages : [navigator.language];
+          for (var i = 0; i < p.length; i++) {
+            var b = String(p[i]).toLowerCase().split('-')[0];
+            if (b === 'iw') b = 'he';
+            if (b === 'he' || b === 'en') { l = b; break; }
+          }
+        }
+        document.documentElement.lang = l;
+        document.documentElement.dir = l === 'he' ? 'rtl' : 'ltr';
+      } catch (e) {}
     </script>
   </head>
   <body>

@@ -177,7 +177,7 @@
   margin-top: 6px;
 }
 .wizard-later {
-  margin-right: auto;
+  margin-inline-end: auto;
 }
 
 /* Manage (SetupWizard.tsx): the wizard's pages as tabs once setup is done. One height

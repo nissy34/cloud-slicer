@@ -111,7 +111,7 @@ Slicing in the browser: [engine](architecture/engine.md) ·
 [plates](architecture/plates.md) · [prepare tools](architecture/prepare-tools.md) ·
 [colour mixing](architecture/colour-mixing.md) · [preview](architecture/preview.md) ·
 [calibration](architecture/calibration.md) · [layout and phones](architecture/layout.md) ·
-[design system](architecture/design-system.md)
+[design system](architecture/design-system.md) · [languages](architecture/languages.md)
 
 Accounts and storage: [accounts](architecture/accounts.md) · [data](architecture/data.md)
 

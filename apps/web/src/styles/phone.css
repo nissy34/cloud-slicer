@@ -281,7 +281,7 @@
     display: inline;
   }
   .filament-use {
-    margin-left: 0;
+    margin-inline-start: 0;
   }
   .stats-total {
     display: flex;

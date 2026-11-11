@@ -30,7 +30,7 @@
 }
 .dv-printer-picker {
   max-width: 60vw;
-  margin-left: calc(-1 * var(--s-3));
+  margin-inline-start: calc(-1 * var(--s-3));
   font-size: var(--t-xl);
   font-weight: 600;
 }
@@ -63,7 +63,7 @@
   background: var(--danger);
 }
 .dv-header-actions {
-  margin-left: auto;
+  margin-inline-start: auto;
   display: flex;
   flex-wrap: wrap;
   gap: var(--s-2);
@@ -221,7 +221,7 @@
   font-size: var(--t-md);
 }
 .dv-slot-tools {
-  margin-left: auto;
+  margin-inline-start: auto;
   display: inline-flex;
   align-items: center;
   gap: 10px;
@@ -313,7 +313,7 @@
   color: var(--text);
   font: inherit;
   font-size: var(--t-sm);
-  text-align: left;
+  text-align: start;
   cursor: pointer;
 }
 .dv-fan-tile span {
@@ -1239,12 +1239,12 @@
 }
 .dv-temp-target {
   min-width: 2ch;
-  text-align: right;
+  text-align: end;
   font-variant-numeric: tabular-nums;
 }
 .dv-temp input {
   width: 52px;
-  text-align: right;
+  text-align: end;
   padding: 0 var(--s-2);
 }
 .dv-list li {
@@ -1265,7 +1265,7 @@
 }
 .dv-slider-value {
   width: 36px;
-  text-align: right;
+  text-align: end;
   font-variant-numeric: tabular-nums;
 }
 .dv-pos {
@@ -1392,7 +1392,7 @@
   gap: 3px;
 }
 .dv-file-filaments .swatch:last-of-type {
-  margin-right: 2px;
+  margin-inline-end: 2px;
 }
 .dv-file-actions {
   grid-area: actions;
@@ -1407,7 +1407,7 @@
   background: none;
   color: inherit;
   font: inherit;
-  text-align: left;
+  text-align: start;
   cursor: pointer;
 }
 .dv-timelapse-name:hover {
@@ -1738,11 +1738,11 @@
 }
 .dv-alerts-layer {
   width: 64px;
-  text-align: right;
+  text-align: end;
 }
 .dv-alerts-layer.dv-alerts-add {
   width: 84px;
-  text-align: left;
+  text-align: start;
 }
 .dv-print-layer {
   display: flex;
@@ -1838,7 +1838,7 @@
   font-family: var(--font-mono);
 }
 .dv-left {
-  margin-right: auto;
+  margin-inline-end: auto;
 }
 
 /* Skip objects (device/ui/SkipObjects.tsx): plate map beside the list, map above it on a phone */
@@ -1999,7 +1999,7 @@
 }
 .dv-steps-list {
   margin: 0;
-  padding-left: 18px;
+  padding-inline-start: 18px;
   display: grid;
   gap: 8px;
 }
@@ -2200,7 +2200,7 @@
   flex-basis: 100%;
 }
 .dv-upload {
-  margin-right: auto;
+  margin-inline-end: auto;
   display: flex;
   gap: 8px;
   align-items: center;
@@ -2260,7 +2260,7 @@
     white-space: nowrap;
   }
   .dv-header-actions {
-    margin-left: 0;
+    margin-inline-start: 0;
     width: 100%;
   }
   .dv-banner {

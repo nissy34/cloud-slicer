@@ -114,7 +114,7 @@
 }
 .preset-pop {
   width: 300px;
-  text-align: left;
+  text-align: start;
 }
 .preset-pop .small {
   font-size: var(--t-sm);
