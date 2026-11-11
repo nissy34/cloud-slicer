@@ -33,6 +33,7 @@ import { DEFAULT_PRINTER, pickFilamentPreset, splitList, SLOT_COLOURS } from '..
 import { changedOnPurpose, emptyProjectMessage, modelProcessKeys, pickProcess, printerLabel, projectOverrides, fallBackGcode, gcodeOverrides } from '../lib/project-import';
 import { accountReady, getUserSetting, presetEditing, useAccount } from './account';
 import { installedFilaments, installedOnly, installedPrinters, SETUP_KEY, startPrinter, type Setup } from '../lib/setup';
+import { arrangeRequest, loadArrange, saveArrange, type ArrangeSettings } from '../lib/arrange';
 import { loadAskSimplify, loadConvertPreference, loadDefaultEngine, loadSaved, save, saveAskSimplify, saveConvertPreference } from '../lib/storage';
 import { gcodeErrors, readableGcodeError } from '../lib/gcode-errors';
 import { appOfModelHead, engineFolder, engineFromUrl, engineName, engineOfModelHead, modelHeadOf3mf, type EngineFlavor } from '../lib/engines';
@@ -207,6 +208,9 @@ export interface SlicerState {
   setUniformScale(on: boolean): void;
   /** Ctrl+C took something (the engine holds the copy). */
   copied: boolean;
+  /** Desktop's Arrange options (the toolbar's Arrange pop-up), kept in this browser. */
+  arrangeSettings: ArrangeSettings;
+  setArrangeSettings(settings: ArrangeSettings): void;
   /** Desktop's Show labels: object names in the 3D view. */
   labels: boolean;
   setLabels(labels: boolean): void;
@@ -915,13 +919,15 @@ export const useSlicer = create<SlicerState>((set, get) => {
       if (get().engine === 'ready') void refreshClearance();
     });
   };
-  // Arrange: 6 mm apart, like desktop's default arrange distance; printing
-  // object by object, far enough apart for the tool head and with the tall
-  // ones last in their row, like desktop's ArrangeJob then.
+  // Arrange with the Arrange pop-up's options (lib/arrange.ts): auto spacing is
+  // 6 mm apart; printing object by object, far enough apart for the tool head
+  // and with the tall ones last in their row, like desktop's ArrangeJob then.
   const arrangePlate = async (plate: number) => {
     const e = engine();
     const c = byObject(plate) ? await e.clearance(plate, engineOverrides()) : null;
-    return c?.byObject ? e.arrangePlate(plate, Math.max(6, c.spacing), c.short ? 0 : c.rod) : e.arrangePlate(plate, 6);
+    const structure = get().overrides.printer_structure ?? get().baseConfig.printer_structure;
+    const { spacing, options } = arrangeRequest(get().arrangeSettings, structure, c?.byObject ? c.spacing : undefined);
+    return e.arrangePlate(plate, spacing, c?.byObject && !c.short ? c.rod : 0, options);
   };
 
   // A request about the mix list, with what colours its rows.
@@ -1461,6 +1467,7 @@ export const useSlicer = create<SlicerState>((set, get) => {
     uniformScale: true,
     setUniformScale: (uniformScale) => set({ uniformScale }),
     copied: false,
+    arrangeSettings: loadArrange(),
     labels: false,
     history: { undo: null, redo: null },
     cutZ: 0,
@@ -1702,6 +1709,10 @@ export const useSlicer = create<SlicerState>((set, get) => {
     },
     cancelOpen: () => set({ pendingOpen: null }),
     setSnap: (snap) => set({ snap }),
+    setArrangeSettings: (arrangeSettings) => {
+      saveArrange(arrangeSettings);
+      set({ arrangeSettings });
+    },
     setLabels: (labels) => set({ labels }),
     setTool: (tool) => {
       if (tool !== get().tool) clearError(true);

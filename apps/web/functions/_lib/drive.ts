@@ -29,6 +29,8 @@ export const hasDriveScope = (scope: string | null | undefined) => (scope ?? '')
 
 /** Not connected, or Google no longer accepts the app's key: the page offers "Connect Google Drive". */
 const notConnected = (message = 'Connect Google Drive first, in the account menu') => new HttpError(403, message, { code: 'drive-connect' });
+/** The page then shows Connect Google Drive in the account menu again (src/state/account.ts driveLost). */
+const RECONNECT = 'Google Drive needs connecting again. Open the account menu (top right) and press Connect Google Drive.';
 
 async function googleAccount(env: Env, userId: string) {
   return db(env)
@@ -52,14 +54,14 @@ export async function driveToken(env: Env, request: Request, userId: string): Pr
     if (!t.accessToken || expiresAt < Date.now()) throw new Error('expired');
     return { accessToken: t.accessToken, expiresAt };
   } catch {
-    throw notConnected('Google Drive needs connecting again, in the account menu');
+    throw notConnected(RECONNECT);
   }
 }
 
 /** Calls Drive as the person; a refused key means they took the app's access away. */
 async function drive(token: string, path: string, init: RequestInit = {}): Promise<Response> {
   const res = await fetch(`${FILES}${path}`, { ...init, headers: { ...(init.headers as Record<string, string>), Authorization: `Bearer ${token}` } });
-  if (res.status === 401) throw notConnected('Google Drive needs connecting again, in the account menu');
+  if (res.status === 401) throw notConnected(RECONNECT);
   return res;
 }
 
