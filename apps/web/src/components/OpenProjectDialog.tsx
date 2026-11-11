@@ -1,35 +1,36 @@
+import { Trans, useTranslation } from 'react-i18next';
 import { useProjects } from '../state/projects';
 import { useSlicer } from '../state/store';
 import { Dialog } from './Dialog';
 
 /** Desktop's question when a 3MF project is opened over objects already loaded. */
 export function OpenProjectDialog() {
+  const { t } = useTranslation();
   const files = useSlicer((s) => s.pendingOpen);
   const { cancelOpen } = useSlicer.getState();
   const { openFiles } = useProjects.getState();
   if (!files) return null;
-  const name = files.find((f) => /\.3mf$/i.test(f.name))?.name ?? 'This file';
+  const name = files.find((f) => /\.3mf$/i.test(f.name))?.name ?? t('openProject.thisFile');
   return (
     <Dialog
-      title="Open as a project?"
+      title={t('openProject.title')}
       onClose={cancelOpen}
       footer={
         <>
           <button className="secondary" onClick={cancelOpen}>
-            Cancel
+            {t('common.cancel')}
           </button>
           <button className="secondary" onClick={() => void openFiles(files, 'geometry')}>
-            Import geometry only
+            {t('openProject.geometryOnly')}
           </button>
           <button className="primary" onClick={() => void openFiles(files, 'project')}>
-            Open project
+            {t('openProject.open')}
           </button>
         </>
       }
     >
       <p>
-        <b>{name}</b> is a project with its own plates and settings. Opening it replaces what is on your plates now. Importing its geometry adds its objects to
-        your plate and keeps your settings.
+        <Trans i18nKey={'openProject.body'} values={{ name }} components={{ b: <b /> }} />
       </p>
     </Dialog>
   );

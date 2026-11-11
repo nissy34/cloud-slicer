@@ -1,0 +1,32 @@
+{
+  "projectStore": {
+    "sentOf": "{{sent}} מתוך {{total}}",
+    "engineNoStart": "{{engine}} לא הצליח לעלות",
+    "openedWith": "נפתח עם {{engine}}, המנוע שבו נוצר הפרויקט הזה.",
+    "somethingWrong": "משהו השתבש",
+    "files_one": "קובץ אחד",
+    "files_two": "שני קבצים",
+    "files_other": "{{count}} קבצים",
+    "saving": "שומר…",
+    "savingAfterSlice": "שומר… אחרי הפריסה",
+    "savingMaking": "שומר… מכין את קובץ ה-3MF",
+    "savingSent": "שומר… {{progress}}",
+    "savingFinishing": "שומר… מסיים",
+    "saved": "״{{name}}״ נשמר בפרויקטים שלכם",
+    "notSaved": "לא נשמר: {{error}}",
+    "preparing": "מכין את קובץ ה-3MF…",
+    "makeFailed": "לא הצלחנו להכין את קובץ ה-3MF: {{error}}",
+    "opening": "פותח את ״{{name}}״…",
+    "openFailed": "לא הצלחנו לפתוח את ״{{name}}״: {{error}}",
+    "saveCancelled": "השמירה בוטלה",
+    "viewOnly": "הפרויקט הזה לצפייה בלבד כאן. כדי לשנות אותו, לחצו ״עריכה כאן במקום״.",
+    "openDriveFailed": "לא הצלחנו לפתוח את ״{{name}}״ מ-Google Drive: {{error}}",
+    "quoted": "״{{name}}״",
+    "cantOpen": "Cloud Slicer לא יכול לפתוח את {{names}}.",
+    "cantOpenShared": "Cloud Slicer לא יכול לפתוח את {{names}}",
+    "openedDriveFile": "״{{name}}״ נפתח מ-Google Drive שלכם. שמירה תשמור עותק בתיקיית Cloud Slicer שלכם. הקובץ ב-Drive נשאר כמו שהוא.",
+    "openedDriveFiles": "{{name}} נפתחו מ-Google Drive שלכם. שמירה תשמור עותק בתיקיית Cloud Slicer שלכם. הקבצים ב-Drive נשארים כמו שהם.",
+    "myProject": "הפרויקט שלי",
+    "removed": "״{{name}}״ הוסר מהפרויקטים שלכם"
+  }
+}

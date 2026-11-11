@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { createPortal } from 'react-dom';
 import { Cpu } from 'lucide-react';
 import { losesNothing } from '../lib/engine-switch';
@@ -15,6 +16,7 @@ import { Picker } from './Picker';
  * empty plate), asking first when something would be lost (EngineSwitchDialog).
  */
 export function EngineSection() {
+  const { t } = useTranslation();
   const flavor = useSlicer((s) => s.flavor);
   // Each engine's version beside its name (phones have no room for the top bar's tag):
   // the running one's own word, the other's from the build.
@@ -35,12 +37,12 @@ export function EngineSection() {
       <div className="group-head">
         <h2>
           <Cpu aria-hidden />
-          Slicer engine
+          {t('engineSwitch.slicerEngine')}
         </h2>
       </div>
       <Picker
         field
-        label="Slicer engine"
+        label={t('engineSwitch.slicerEngine')}
         testId="engine-select"
         value={flavor}
         disabled={busy}

@@ -1,4 +1,6 @@
 import { create } from 'zustand';
+import { useTranslation } from 'react-i18next';
+import { i18n } from '../i18n';
 import { Dialog } from './Dialog';
 import { setLeaveQuestions } from '../state/projects';
 
@@ -37,15 +39,16 @@ export async function ask(q: Omit<Question, 'answer' | 'other'>): Promise<boolea
 /** Word's question when a new project is about to be replaced: Save, Don't save or Cancel. */
 export async function askSave(name: string): Promise<'save' | 'discard' | 'cancel'> {
   const choice = await askChoice({
-    title: `Save “${name}”?`,
-    text: "It isn't in your online projects yet. Don't save throws it away.",
-    action: 'Save',
-    other: "Don't save",
+    title: i18n.t('askDialog.saveTitle', { name }),
+    text: i18n.t('askDialog.saveText'),
+    action: i18n.t('askDialog.save'),
+    other: i18n.t('askDialog.dontSave'),
   });
   return choice === 'action' ? 'save' : choice === 'other' ? 'discard' : 'cancel';
 }
 
 export function AskDialog() {
+  const { t } = useTranslation();
   const q = useAsk((s) => s.question);
   if (!q) return null;
   return (
@@ -59,7 +62,7 @@ export function AskDialog() {
       footer={
         <>
           <button className="secondary" onClick={() => q.answer('cancel')}>
-            Cancel
+            {t('common.cancel')}
           </button>
           {q.other && (
             <button className="secondary" onClick={() => q.answer('other')}>
@@ -80,16 +83,16 @@ export function AskDialog() {
 /** Asks before unsaved changes to the open project are thrown away; true straight away when there are none. */
 export function discardOk(dirty: boolean, name: string): Promise<boolean> {
   if (!dirty) return Promise.resolve(true);
-  return ask({ title: 'Discard unsaved changes?', text: `“${name}” has changes that aren't saved yet.`, action: 'Discard changes' });
+  return ask({ title: i18n.t('askDialog.discardTitle'), text: i18n.t('open.unsavedChanges', { name }), action: i18n.t('askDialog.discard') });
 }
 
 /** Files were shared to the app while a project from before waits: add them to it, or start new. */
 async function askAddTo(what: string, project: string): Promise<'add' | 'new' | 'cancel'> {
   const choice = await askChoice({
-    title: `Open ${what}`,
-    text: `You were working on “${project}”. Add it there, or start a new project with it?`,
-    action: 'New project',
-    other: `Add to ${project}`,
+    title: i18n.t('askDialog.openTitle', { what }),
+    text: i18n.t('askDialog.addToText', { project }),
+    action: i18n.t('askDialog.newProject'),
+    other: i18n.t('askDialog.addTo', { project }),
   });
   return choice === 'action' ? 'new' : choice === 'other' ? 'add' : 'cancel';
 }

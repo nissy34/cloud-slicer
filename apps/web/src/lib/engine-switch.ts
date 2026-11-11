@@ -13,6 +13,7 @@
 //   - colour mixes (Snapmaker Orca only): each becomes the filament it uses
 //     most, on objects, parts, paint and layer filament changes.
 import type { OptionDef, OrcaConfig, ProjectInfo, Selection } from '../engine/protocol';
+import { i18n } from '../i18n';
 import { engineName, type EngineFlavor } from './engines';
 import { splitValues, valueAt, withValueAt } from './flow-variants';
 import { decodeIds, decodeWeights, mixLabel, normalizeWeights, patternIds, type MixRow } from './mixing';
@@ -235,10 +236,11 @@ export const losesNothing = (plan: SwitchPlan) =>
 
 /** The notice after a switch (`model` false: an empty plate, only the settings moved). */
 export function switchedText(plan: SwitchPlan, model = true): string {
-  const parts = [model ? `This project now slices with ${engineName(plan.to)}.` : `Now slicing with ${engineName(plan.to)}.`];
-  if (!model && Object.keys(plan.overrides).length) parts.push('Your changed settings came along.');
-  if (plan.mixes.length) parts.push(plan.mixes.length === 1 ? 'Its colour mix is now a plain filament.' : `Its ${plan.mixes.length} colour mixes are now plain filaments.`);
-  if (plan.dropped.length) parts.push(`${plan.dropped.length} setting${plan.dropped.length === 1 ? '' : 's'} ${engineName(plan.to)} doesn't have were left out.`);
-  if (model) parts.push('Slice again before printing.');
+  const engine = engineName(plan.to);
+  const parts = [model ? i18n.t('engineSwitch.nowSlicesWith', { engine }) : i18n.t('engineSwitch.nowSlicing', { engine })];
+  if (!model && Object.keys(plan.overrides).length) parts.push(i18n.t('engineSwitch.settingsCame'));
+  if (plan.mixes.length) parts.push(i18n.t('engineSwitch.mixesNowPlain', { count: plan.mixes.length }));
+  if (plan.dropped.length) parts.push(i18n.t('engineSwitch.settingsLeftOut', { count: plan.dropped.length, engine }));
+  if (model) parts.push(i18n.t('engineSwitch.sliceBeforePrinting'));
   return parts.join(' ');
 }

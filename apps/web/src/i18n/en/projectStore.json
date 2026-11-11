@@ -1,0 +1,31 @@
+{
+  "projectStore": {
+    "sentOf": "{{sent}} of {{total}}",
+    "engineNoStart": "{{engine}} could not start",
+    "openedWith": "Opened with {{engine}}, the engine this project was made with.",
+    "somethingWrong": "Something went wrong",
+    "files_one": "{{count}} file",
+    "files_other": "{{count}} files",
+    "saving": "Saving…",
+    "savingAfterSlice": "Saving… after the slice",
+    "savingMaking": "Saving… making the 3MF",
+    "savingSent": "Saving… {{progress}}",
+    "savingFinishing": "Saving… finishing",
+    "saved": "Saved “{{name}}” to your projects",
+    "notSaved": "Not saved: {{error}}",
+    "preparing": "Preparing the 3MF…",
+    "makeFailed": "Couldn't make the 3MF: {{error}}",
+    "opening": "Opening “{{name}}”…",
+    "openFailed": "Couldn't open “{{name}}”: {{error}}",
+    "saveCancelled": "Save cancelled",
+    "viewOnly": "This project is view only here. Use “Edit here instead” to change it.",
+    "openDriveFailed": "Couldn't open “{{name}}” from Google Drive: {{error}}",
+    "quoted": "“{{name}}”",
+    "cantOpen": "Cloud Slicer can't open {{names}}.",
+    "cantOpenShared": "Cloud Slicer can't open {{names}}",
+    "openedDriveFile": "Opened “{{name}}” from your Google Drive. Save keeps a copy in your Cloud Slicer folder. The file in Drive stays as it is.",
+    "openedDriveFiles": "Opened {{name}} from your Google Drive. Save keeps a copy in your Cloud Slicer folder. The files in Drive stay as they are.",
+    "myProject": "My project",
+    "removed": "Removed “{{name}}” from your projects"
+  }
+}

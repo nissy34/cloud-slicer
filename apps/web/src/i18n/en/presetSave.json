@@ -1,0 +1,11 @@
+{
+  "presetSave": {
+    "nameRule": "Use 1-128 characters, without / \\ : * ? \" < > |",
+    "notAvailable": "The preset {{name}} is not available.",
+    "onlyOwn": "Only your own presets can be saved; use Save as.",
+    "noneSelected": "No preset is selected.",
+    "sameName": "Two presets can't have the same name.",
+    "nameTaken": "A preset named “{{name}}” already exists.",
+    "notYours": "This preset is not one of yours."
+  }
+}

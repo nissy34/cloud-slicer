@@ -37,7 +37,7 @@ function SavingCard() {
   const { t } = useTranslation();
   const busy = useProjects((s) => s.busy);
   const canCancel = useProjects((s) => s.saveCancel);
-  const download = busy.startsWith('Preparing');
+  const download = useProjects((s) => s.busyKind === 'download');
   return (
     <Notice
       tone="info"

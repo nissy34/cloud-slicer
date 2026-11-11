@@ -5,6 +5,7 @@
 // BroadcastChannel, tagged with a one-time code so two tabs don't mix answers.
 // Picking a file gives the app that one file under its drive.file permission;
 // the app then downloads it like a project (account/drive.ts).
+import { i18n } from '../i18n';
 import { MODEL_EXTENSIONS } from '../lib/presets';
 import { downloadFromDrive } from './drive';
 
@@ -39,7 +40,7 @@ export function pickFromDrive(): Promise<PickedFile[]> {
   const win = window.open(`${PICKER_PAGE}#${nonce}`, 'cloud-slicer-drive-picker', features);
   if (!win) {
     channel.close();
-    return Promise.reject(new Error('Your browser blocked the Google Drive window. Allow pop-ups for this site, then try again.'));
+    return Promise.reject(new Error(i18n.t('accountErrors.pickerBlocked')));
   }
   return new Promise((resolve, reject) => {
     channel.onmessage = (e: MessageEvent<Answer>) => {

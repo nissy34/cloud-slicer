@@ -4,6 +4,7 @@
 // (src/lib/preset-engines.ts): what the running engine saves never changes
 // the other engine's own part.
 import type { OrcaConfig, PresetSummary, Selection } from '../engine/protocol';
+import { i18n } from '../i18n';
 import { presetFromEngine, upgradePreset, useSameValues } from '../lib/preset-engines';
 import { listUserPresets, presetEdit, saveUserPreset } from '../state/account';
 import { useSlicer } from '../state/store';
@@ -42,7 +43,7 @@ async function editsFor(type: PresetType, target: PresetSummary, slot?: number):
   const s = useSlicer.getState();
   const inherits = systemParent(target);
   const [ownCfg, parentCfg] = await Promise.all([s.presetConfig(type, target.name), s.presetConfig(type, inherits)]);
-  if (!ownCfg || !parentCfg) throw new Error(`The preset ${inherits} is not available.`);
+  if (!ownCfg || !parentCfg) throw new Error(i18n.t('presetSave.notAvailable', { name: inherits }));
   const slots = s.selection?.filaments.length ?? 1;
   const edited = presetEdited({
     own: ownCfg,
@@ -97,7 +98,7 @@ export const saveChanges = (type: PresetType, slot?: number) =>
   editPresets(async () => {
     const name = selectedName(useSlicer.getState().selection, type, slot);
     const preset = presetList(type).find((p) => p.name === name);
-    if (!preset?.user) throw new Error('Only your own presets can be saved; use Save as.');
+    if (!preset?.user) throw new Error(i18n.t('presetSave.onlyOwn'));
     await saveFromEngine(type, preset.name, await editsFor(type, preset, slot), { overwrite: true, from: preset.name });
     return undefined;
   });
@@ -107,7 +108,7 @@ export const saveAsNew = (type: PresetType, name: string, slot?: number) =>
   editPresets(async () => {
     const current = selectedName(useSlicer.getState().selection, type, slot);
     const preset = presetList(type).find((p) => p.name === current);
-    if (!preset) throw new Error('No preset is selected.');
+    if (!preset) throw new Error(i18n.t('presetSave.noneSelected'));
     // A copy of one of the user's presets keeps its other engine's part too.
     await saveFromEngine(type, name, await editsFor(type, preset, slot), { from: preset.user ? preset.name : undefined });
     return selectionWith(type, name, slot);
@@ -161,8 +162,8 @@ export async function saveChangedPresets(rows: { preset: ChangedPreset; name: st
     const name = raw.trim();
     const problem =
       presetNameError(name) ??
-      (names.filter((n) => n === `${preset.type}:${name}`).length > 1 ? 'Two presets can\'t have the same name.' : null) ??
-      (!(preset.user && name === preset.name) && presetTaken(preset.type, name) ? `A preset named “${name}” already exists.` : null);
+      (names.filter((n) => n === `${preset.type}:${name}`).length > 1 ? i18n.t('presetSave.sameName') : null) ??
+      (!(preset.user && name === preset.name) && presetTaken(preset.type, name) ? i18n.t('presetSave.nameTaken', { name }) : null);
     if (problem) throw new Error(problem);
   }
   for (const { preset, name } of rows) {
@@ -175,7 +176,7 @@ export async function saveChangedPresets(rows: { preset: ChangedPreset; name: st
 export const sameValuesInBothEngines = (type: PresetType, name: string) =>
   editPresets(async () => {
     const stored = listUserPresets(type).find((p) => p.name === name);
-    if (!stored) throw new Error('This preset is not one of yours.');
+    if (!stored) throw new Error(i18n.t('presetSave.notYours'));
     const p = useSameValues(stored, useSlicer.getState().flavor);
     await saveUserPreset(type, name, p.inherits, p.config, { overwrite: true, engines: p.engines });
     return undefined;

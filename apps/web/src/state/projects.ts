@@ -16,6 +16,7 @@
 // One device edits a saved project at a time: opening it elsewhere takes it
 // over, and this tab then only views it (`elsewhere`) until "Edit here instead".
 import { create } from 'zustand';
+import { i18n } from '../i18n';
 import { api, ApiError, type OnlineProject } from '../account/api';
 import { downloadFromDrive, driveGone, uploadToDrive } from '../account/drive';
 import { downloadPicked, type PickedFile } from '../account/drive-picker';
@@ -51,12 +52,17 @@ export interface Elsewhere {
   unsaved: boolean;
 }
 
+/** A save to the account, a download of the 3MF, or opening a project. */
+export type BusyKind = 'save' | 'download' | 'open' | null;
+
 interface ProjectsState {
   current: CurrentProject;
   /** Something a save would keep changed since the project was opened or saved. */
   dirty: boolean;
-  /** What is being done right now ('' when idle), e.g. "Saving…". */
+  /** What is being done right now ('' when idle), e.g. "Saving…", in the page's language. */
   busy: string;
+  /** What kind of thing `busy` says is happening (null when idle): code checks this, not the words. */
+  busyKind: BusyKind;
   /** A Save, Save a copy or Download 3MF the person asked for is running: a card says so until it is done. */
   saving: boolean;
   /** How far the save's upload got, 0 to 1 (null while it isn't uploading). */
@@ -154,11 +160,11 @@ async function useEngineOf(flavor: EngineFlavor | null) {
   const slicer = useSlicer.getState();
   if (!flavor || flavor === slicer.flavor) return false;
   await slicer.switchEngine(flavor);
-  if (useSlicer.getState().engine !== 'ready') throw new Error(`${engineName(flavor)} could not start`);
+  if (useSlicer.getState().engine !== 'ready') throw new Error(i18n.t('projectStore.engineNoStart', { engine: engineName(flavor) }));
   return true;
 }
 const switchedNotice = (flavor: EngineFlavor) =>
-  useSlicer.setState({ notice: `Opened with ${engineName(flavor)}, the engine this project was made with.`, noticeWarn: false });
+  useSlicer.setState({ notice: i18n.t('projectStore.openedWith', { engine: engineName(flavor) }), noticeWarn: false });
 
 // What was last opened or saved, to tell whether anything changed since.
 let savedSignature = '';
@@ -204,7 +210,9 @@ function downloadBlob(blob: Blob, fileName: string) {
   setTimeout(() => URL.revokeObjectURL(url), 10_000);
 }
 
-const errorText = (e: unknown) => (e as Error).message || 'Something went wrong';
+const errorText = (e: unknown) => (e as Error).message || i18n.t('projectStore.somethingWrong');
+/** "3 files", for a message about several files at once. */
+const filesText = (count: number) => i18n.t('projectStore.files', { count });
 const hasObjects = () => Boolean(useSlicer.getState().project?.objects.length);
 const signedIn = () => useAccount.getState().status === 'signedIn';
 /**
@@ -229,7 +237,7 @@ function cancellable(): { signal: AbortSignal; done: () => void } {
   saveAborts.add(ctl);
   return { signal: ctl.signal, done: () => saveAborts.delete(ctl) };
 }
-const idle = { busy: '', saving: false, saveCancel: false, saveProgress: null };
+const idle = { busy: '', busyKind: null, saving: false, saveCancel: false, saveProgress: null };
 
 export const useProjects = create<ProjectsState>((set, get) => {
   // A copy just saved from project `from` starts with its print history (lib/prints.ts).
@@ -243,23 +251,23 @@ export const useProjects = create<ProjectsState>((set, get) => {
   async function upload(target: CurrentProject, baseVersion: number | undefined, signal?: AbortSignal): Promise<boolean> {
     const own = signal ? null : cancellable();
     signal ??= own!.signal;
-    set({ busy: 'Saving…', saving: true, saveCancel: true, saveProgress: null, message: '' });
+    set({ busy: i18n.t('projectStore.saving'), busyKind: 'save', saving: true, saveCancel: true, saveProgress: null, message: '' });
     const sig = signature();
     const paints = paintCount;
     try {
       // The engine does one thing at a time: a slice running now finishes first.
       // Making the 3MF of a big project takes a while (about 30 s for 86 MB): say so, so it doesn't look stuck (#284).
-      set({ busy: useSlicer.getState().job.kind === 'slicing' ? 'Saving… after the slice' : 'Saving… making the 3MF' });
+      set({ busy: useSlicer.getState().job.kind === 'slicing' ? i18n.t('projectStore.savingAfterSlice') : i18n.t('projectStore.savingMaking') });
       const { file, picture } = await unlessCancelled(buildFile(), signal);
       const id = target.id ?? newProjectId();
       // Projects live in the person's Google Drive: the page uploads the file there, then the save points at it,
       // saying how far it got.
       const drive = await uploadToDrive(file, target.name, {
         signal,
-        onProgress: (sent, total) => set({ busy: `Saving… ${sentOf(sent, total)}`, saveProgress: total ? Math.min(1, sent / total) : 1 }),
+        onProgress: (sent, total) => set({ busy: i18n.t('projectStore.savingSent', { progress: sentOf(sent, total) }), saveProgress: total ? Math.min(1, sent / total) : 1 }),
       });
       // Recording the save is quick and can't be stopped halfway (the server would keep it).
-      set({ busy: 'Saving… finishing', saveCancel: false, saveProgress: 1 });
+      set({ busy: i18n.t('projectStore.savingFinishing'), saveCancel: false, saveProgress: 1 });
       const saved = await api.saveProject(id, target.name, drive, baseVersion, useSlicer.getState().flavor, {
         device: thisDevice(),
         plates: useSlicer.getState().project?.plates.length,
@@ -267,7 +275,7 @@ export const useProjects = create<ProjectsState>((set, get) => {
       // The project is saved even if its picture isn't.
       if (picture) await api.saveProjectThumbnail(id, picture).catch(() => {});
       set({ current: { name: saved.name, id: saved.id, version: saved.version }, conflict: null });
-      set({ message: `Saved “${saved.name}” to your projects`, messageWarn: false });
+      set({ message: i18n.t('projectStore.saved', { name: saved.name }), messageWarn: false });
       markSaved(sig, paints);
       return true;
     } catch (e) {
@@ -282,7 +290,7 @@ export const useProjects = create<ProjectsState>((set, get) => {
         set({ conflict: { theirs: (e.body.current as OnlineProject | null) ?? null, inDrive: code === 'changed-in-drive' } });
         return false;
       }
-      set({ message: `Not saved: ${errorText(e)}`, messageWarn: true });
+      set({ message: i18n.t('projectStore.notSaved', { error: errorText(e) }), messageWarn: true });
       return false;
     } finally {
       own?.done();
@@ -292,13 +300,13 @@ export const useProjects = create<ProjectsState>((set, get) => {
 
   async function downloadAs(name: string) {
     const cancel = cancellable();
-    set({ busy: 'Preparing the 3MF…', saving: true, saveCancel: true, saveProgress: null, message: '' });
+    set({ busy: i18n.t('projectStore.preparing'), busyKind: 'download', saving: true, saveCancel: true, saveProgress: null, message: '' });
     try {
       const { file } = await unlessCancelled(buildFile(), cancel.signal);
       downloadBlob(file, projectFileName(name));
       return true;
     } catch (e) {
-      if (!isCancelled(e)) set({ message: `Couldn't make the 3MF: ${errorText(e)}`, messageWarn: true });
+      if (!isCancelled(e)) set({ message: i18n.t('projectStore.makeFailed', { error: errorText(e) }), messageWarn: true });
       return false;
     } finally {
       cancel.done();
@@ -310,21 +318,21 @@ export const useProjects = create<ProjectsState>((set, get) => {
   // before it finishes first, or while the names are checked, until it is done.
   async function asked(fn: (signal: AbortSignal) => Promise<void>) {
     const cancel = cancellable();
-    set({ busy: 'Saving…', saving: true, saveCancel: true, saveProgress: null, message: '' });
+    set({ busy: i18n.t('projectStore.saving'), busyKind: 'save', saving: true, saveCancel: true, saveProgress: null, message: '' });
     try {
       // Cancelled while it waited: it doesn't start.
       await queue(async () => void (cancel.signal.aborted || (await fn(cancel.signal))));
     } finally {
       cancel.done();
       // Something else started meanwhile (opening a project) keeps its own text.
-      set((s) => (s.busy.startsWith('Saving') ? idle : { saving: false, saveCancel: false, saveProgress: null }));
+      set((s) => (s.busyKind === 'save' ? idle : { saving: false, saveCancel: false, saveProgress: null }));
     }
   }
 
 
   // Unsaved work kept in this browser, opened again as it was (still unsaved).
   async function openLocal(copy: LocalCopy) {
-    set({ busy: `Opening “${copy.name}”…`, message: '', offer: null });
+    set({ busy: i18n.t('projectStore.opening', { name: copy.name }), busyKind: 'open', message: '', offer: null });
     try {
       if (await useEngineOf(copy.engine)) switchedNotice(copy.engine);
       const opened = await useSlicer.getState().openFiles([new File([copy.file], projectFileName(copy.name), { type: 'model/3mf' })], 'project');
@@ -339,9 +347,9 @@ export const useProjects = create<ProjectsState>((set, get) => {
       paintedSinceSave = true;
       set({ dirty: true, keptHere: true });
     } catch (e) {
-      set({ message: `Couldn't open “${copy.name}”: ${errorText(e)}`, messageWarn: true });
+      set({ message: i18n.t('projectStore.openFailed', { name: copy.name, error: errorText(e) }), messageWarn: true });
     } finally {
-      set({ busy: '' });
+      set({ busy: '', busyKind: null });
     }
   }
 
@@ -371,6 +379,7 @@ export const useProjects = create<ProjectsState>((set, get) => {
     current: blank(),
     dirty: false,
     busy: '',
+    busyKind: null,
     saving: false,
     saveProgress: null,
     saveCancel: false,
@@ -391,7 +400,7 @@ export const useProjects = create<ProjectsState>((set, get) => {
     cancelSave() {
       if (!get().saveCancel) return;
       for (const ctl of saveAborts) ctl.abort();
-      set({ message: 'Save cancelled', messageWarn: false });
+      set({ message: i18n.t('projectStore.saveCancelled'), messageWarn: false });
     },
 
     async save() {
@@ -454,7 +463,7 @@ export const useProjects = create<ProjectsState>((set, get) => {
       const project = threeMfs[0];
       const asProject = threeMfs.length === 1 && mode !== 'geometry' && (mode === 'project' || wasEmpty);
       if (get().elsewhere && !asProject) {
-        set({ message: 'This project is view only here. Use “Edit here instead” to change it.', messageWarn: true });
+        set({ message: i18n.t('projectStore.viewOnly'), messageWarn: true });
         return;
       }
       // A single 3MF opens as the project (see the slicer store's openFiles), with its own engine.
@@ -464,7 +473,7 @@ export const useProjects = create<ProjectsState>((set, get) => {
         try {
           if (await useEngineOf(made)) switched = made;
         } catch (e) {
-          set({ message: `Couldn't open “${project.name}”: ${errorText(e)}`, messageWarn: true });
+          set({ message: i18n.t('projectStore.openFailed', { name: project.name, error: errorText(e) }), messageWarn: true });
           return;
         }
       }
@@ -491,20 +500,20 @@ export const useProjects = create<ProjectsState>((set, get) => {
 
     async openFromDrive(picked, mode) {
       if (!picked.length || get().busy) return;
-      const label = picked.length === 1 ? picked[0].name : `${picked.length} files`;
-      set({ busy: `Opening “${label}”…`, message: '' });
+      const label = picked.length === 1 ? picked[0].name : filesText(picked.length);
+      set({ busy: i18n.t('projectStore.opening', { name: label }), busyKind: 'open', message: '' });
       let files: File[];
       let skipped: string[];
       try {
         set({ downloading: { name: label, loaded: 0, total: 0 } });
         ({ files, skipped } = await downloadPicked(picked, (loaded, total) => set({ downloading: { name: label, loaded, total } })));
       } catch (e) {
-        set({ message: `Couldn't open “${label}” from Google Drive: ${errorText(e)}`, messageWarn: true });
+        set({ message: i18n.t('projectStore.openDriveFailed', { name: label, error: errorText(e) }), messageWarn: true });
         return;
       } finally {
-        set({ busy: '', downloading: null });
+        set({ busy: '', busyKind: null, downloading: null });
       }
-      const cantOpen = skipped.length ? `Cloud Slicer can't open ${skipped.map((n) => `“${n}”`).join(', ')}.` : '';
+      const cantOpen = skipped.length ? i18n.t('projectStore.cantOpen', { names: skipped.map((n) => i18n.t('projectStore.quoted', { name: n })).join(', ') }) : '';
       if (!files.length) return set({ message: cantOpen, messageWarn: true });
       // A 3MF replaces the open project: ask first, as Open from this device does.
       if (mode === 'project' && files.some((f) => /\.3mf$/i.test(f.name)) && !(await get().leaveOk())) return;
@@ -515,20 +524,20 @@ export const useProjects = create<ProjectsState>((set, get) => {
       if (cur === before || !hasObjects()) return;
       if (cantOpen) return set({ message: cantOpen, messageWarn: true });
       if (cur.id) return;
-      const name = files.length === 1 ? files[0].name : `${files.length} files`;
+      const name = files.length === 1 ? files[0].name : filesText(files.length);
       set({
         current: { ...cur, fromDrive: name },
         message:
           files.length === 1
-            ? `Opened “${name}” from your Google Drive. Save keeps a copy in your Cloud Slicer folder. The file in Drive stays as it is.`
-            : `Opened ${name} from your Google Drive. Save keeps a copy in your Cloud Slicer folder. The files in Drive stay as they are.`,
+            ? i18n.t('projectStore.openedDriveFile', { name })
+            : i18n.t('projectStore.openedDriveFiles', { name }),
         messageWarn: false,
       });
     },
 
     async openOnline(p) {
       offerSettled = true;
-      set({ busy: `Opening “${p.name}”…`, message: '', listOpen: false, offer: null });
+      set({ busy: i18n.t('projectStore.opening', { name: p.name }), busyKind: 'open', message: '', listOpen: false, offer: null });
       try {
         // The list keeps each project's size, so the bar fills from the start.
         set({ downloading: { name: p.name, loaded: 0, total: p.size || 0 } });
@@ -554,9 +563,9 @@ export const useProjects = create<ProjectsState>((set, get) => {
       } catch (e) {
         // Deleted in Drive: the Online projects window offers to remove it from the list.
         if (driveGone(e)) set({ gone: p });
-        else set({ message: `Couldn't open “${p.name}”: ${errorText(e)}`, messageWarn: true });
+        else set({ message: i18n.t('projectStore.openFailed', { name: p.name, error: errorText(e) }), messageWarn: true });
       } finally {
-        set({ busy: '', downloading: null });
+        set({ busy: '', busyKind: null, downloading: null });
       }
     },
 
@@ -609,7 +618,7 @@ export const useProjects = create<ProjectsState>((set, get) => {
         if (choice === 'discard') return true;
         let ok = false;
         await queue(async () => {
-          ok = await upload({ name: freeName(current.name === UNTITLED ? 'My project' : current.name, await takenNames(null)), id: null, version: 0 }, 0);
+          ok = await upload({ name: freeName(current.name === UNTITLED ? i18n.t('projectStore.myProject') : current.name, await takenNames(null)), id: null, version: 0 }, 0);
         });
         return ok;
       }
@@ -675,7 +684,7 @@ export const useProjects = create<ProjectsState>((set, get) => {
       await api.deleteProject(p.id).catch(() => {});
       set({ gone: null });
       get().onlineChanged({ id: p.id, deleted: true });
-      set({ message: `Removed “${p.name}” from your projects`, messageWarn: false });
+      set({ message: i18n.t('projectStore.removed', { name: p.name }), messageWarn: false });
     },
 
     setListOpen: (listOpen) => set({ listOpen }),
@@ -764,14 +773,14 @@ const accountKnown = () =>
 // before or changed on another device, or start a new project with them.
 async function openShared() {
   const { open, skipped } = splitShared(await takeSharedFiles());
-  if (skipped.length) useProjects.setState({ message: `Cloud Slicer can't open ${skipped.join(', ')}`, messageWarn: true });
+  if (skipped.length) useProjects.setState({ message: i18n.t('projectStore.cantOpenShared', { names: skipped.join(', ') }), messageWarn: true });
   await accountKnown();
   if (!open.length) return void useProjects.getState().findOffer();
   // The question replaces the Continue card: it isn't shown as well.
   try {
     const offer = await onlineOfferNow();
     if (offer) {
-      const choice = await askAddTo(open.length === 1 ? open[0].name : `${open.length} files`, offer.project.name);
+      const choice = await askAddTo(open.length === 1 ? open[0].name : filesText(open.length), offer.project.name);
       if (choice === 'cancel') return;
       if (choice === 'add') await useProjects.getState().openOnline(offer.project);
     }

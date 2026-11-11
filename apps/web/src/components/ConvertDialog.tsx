@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { Trans, useTranslation } from 'react-i18next';
 import { installedOnly, installedPrinters, SETUP_KEY, type Setup } from '../lib/setup';
 import { loadConvertPreference } from '../lib/storage';
 import { useUserSetting } from '../state/account';
@@ -8,6 +9,7 @@ import { Picker } from './Picker';
 
 /** Asks how to bring a 3MF made for a printer we don't have onto one we do. */
 export function ConvertDialog() {
+  const { t } = useTranslation();
   const conversion = useSlicer((s) => s.conversion);
   const allPrinters = useSlicer((s) => s.printers);
   const installed = installedPrinters(useUserSetting<Setup>(SETUP_KEY), useSlicer((s) => s.flavor));
@@ -21,36 +23,36 @@ export function ConvertDialog() {
   const printer = printers.some((p) => p.name === target) ? target : current;
   return (
     <Dialog
-      title="Convert this project?"
+      title={t('convertDialog.title')}
       onClose={dismissConversion}
       footer={
         <>
           <button className="secondary" onClick={dismissConversion}>
-            Cancel
+            {t('common.cancel')}
           </button>
           <button className="primary" onClick={() => void convertProject(printer, keep, remember)}>
-            Convert
+            {t('convertDialog.convert')}
           </button>
         </>
       }
     >
       <p>
-        It was set up for <b>{conversion.from}</b>. Pick one of your printers to print it on.
+        <Trans i18nKey={'convertDialog.setUpFor'} values={{ printer: conversion.from }} components={{ b: <b /> }} />
       </p>
       <label className="field">
-        <span>Printer</span>
-        <Picker field label="Convert to printer" value={printer} options={printers.map((p) => ({ value: p.name, label: p.name }))} onChange={setTarget} />
+        <span>{t('convertDialog.printer')}</span>
+        <Picker field label={t('convertDialog.convertTo')} value={printer} options={printers.map((p) => ({ value: p.name, label: p.name }))} onChange={setTarget} />
       </label>
       <label className="switch-row">
         <input className="switch" type="checkbox" checked={keep} onChange={(e) => setKeep(e.target.checked)} />
-        <span>Keep the model settings the project changed: layers, walls, infill, supports, seams, brim</span>
+        <span>{t('convertDialog.keep')}</span>
       </label>
       <label className="switch-row">
         <input className="switch" type="checkbox" checked={remember} onChange={(e) => setRemember(e.target.checked)} />
-        <span>Do this automatically next time</span>
+        <span>{t('convertDialog.remember')}</span>
       </label>
       <p className="muted small">
-        Settings the project left at its old printer's defaults, and speeds, acceleration, jerk, line widths, flow calibration and the prime tower, come from {printer || 'your printer'}. Filaments are matched by material and kind (matte, silk, high flow...) and keep the project's colours.
+        {t('convertDialog.note', { printer: printer || t('convertDialog.yourPrinter') })}
       </p>
     </Dialog>
   );

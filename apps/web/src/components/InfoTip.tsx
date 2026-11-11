@@ -1,12 +1,15 @@
 import type { ReactNode } from 'react';
 import { Info } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { Menu } from './Menu';
 
 /**
  * The ⓘ after a one-line hint (docs/architecture/design-system.md): the rest
  * of the explanation, shown on hover or a tap, so a card keeps one line of words.
  */
-export function InfoTip({ label = 'More about this', children }: { label?: string; children: ReactNode }) {
+export function InfoTip({ label: given, children }: { label?: string; children: ReactNode }) {
+  const { t } = useTranslation();
+  const label = given ?? t('uiParts.moreAboutThis');
   return (
     <Menu
       label={label}

@@ -1,6 +1,7 @@
 // Time limits and Cancel for network requests. A fetch on a connection that
 // stalls (VPN, Wi-Fi change, a laptop waking up) can wait forever without
 // failing; a save waiting on one would say "Saving…" for good (#276).
+import { i18n } from '../i18n';
 
 /** The person pressed Cancel. */
 export class Cancelled extends Error {
@@ -12,7 +13,7 @@ export class Cancelled extends Error {
 
 /** The other side didn't answer within the time limit. */
 export class TimedOut extends Error {
-  constructor(message = "It didn't answer in time") {
+  constructor(message = i18n.t('accountErrors.noAnswer')) {
     super(message);
     this.name = 'TimedOut';
   }

@@ -59,7 +59,7 @@ export function sentOf(sent: number, total: number): string {
   const n = unit.split(' ')[0];
   const digits = n.includes('.') ? n.split('.')[1].length : 0;
   const scale = unit.endsWith(' MB') ? 1024 * 1024 : unit.endsWith(' KB') ? 1024 : 1;
-  return `${sent <= 0 ? 0 : (Math.min(sent, total) / scale).toFixed(digits)} of ${unit}`;
+  return i18n.t('projectStore.sentOf', { sent: sent <= 0 ? 0 : (Math.min(sent, total) / scale).toFixed(digits), total: unit });
 }
 
 /** "just now", "5 min ago", "3 h ago", else the date. */
@@ -73,13 +73,13 @@ export function formatWhen(ms: number, now = Date.now()): string {
 
 export const newProjectId = () => crypto.randomUUID();
 
-/** How Online projects orders its list (the Sort picker). */
+/** How Online projects orders its list (the Sort picker); each label is a word to look up (t(label)). */
 export type ProjectSort = 'newest' | 'oldest' | 'name' | 'size';
 export const PROJECT_SORTS: { value: ProjectSort; label: string }[] = [
-  { value: 'newest', label: 'Newest first' },
-  { value: 'oldest', label: 'Oldest first' },
-  { value: 'name', label: 'Name A–Z' },
-  { value: 'size', label: 'Biggest first' },
+  { value: 'newest', label: 'projectMenu.sortNewest' },
+  { value: 'oldest', label: 'projectMenu.sortOldest' },
+  { value: 'name', label: 'projectMenu.sortName' },
+  { value: 'size', label: 'projectMenu.sortSize' },
 ];
 
 /** The projects whose name holds every word typed in Search (any case), in the chosen order. */

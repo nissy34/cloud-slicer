@@ -1,0 +1,13 @@
+{
+  "convertDialog": {
+    "title": "Convert this project?",
+    "convert": "Convert",
+    "setUpFor": "It was set up for <b>{{printer}}</b>. Pick one of your printers to print it on.",
+    "printer": "Printer",
+    "convertTo": "Convert to printer",
+    "keep": "Keep the model settings the project changed: layers, walls, infill, supports, seams, brim",
+    "remember": "Do this automatically next time",
+    "note": "Settings the project left at its old printer's defaults, and speeds, acceleration, jerk, line widths, flow calibration and the prime tower, come from {{printer}}. Filaments are matched by material and kind (matte, silk, high flow...) and keep the project's colours.",
+    "yourPrinter": "your printer"
+  }
+}

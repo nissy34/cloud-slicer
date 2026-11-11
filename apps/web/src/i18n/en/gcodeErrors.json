@@ -1,0 +1,17 @@
+{
+  "gcodeErrors": {
+    "notSetting": "“{{variable}}” isn't a setting this slicer knows (it may come from another slicer or a newer version).",
+    "unknownName": "it uses a name this slicer doesn't know.",
+    "negativeIndex": "“{{variable}}” is read before the first filament is loaded (its index is -1 there); check that index with {if ...} first.",
+    "negativeIndexList": "a list is read before the first filament is loaded (its index is -1 there); check that index with {if ...} first.",
+    "reasonAt": "{{reason}} at “{{variable}}”.",
+    "reason": "{{reason}}.",
+    "line": "{{setting}}, line {{line}}: {{why}}",
+    "filamentSettings": "filament settings",
+    "printerSettings": "printer settings",
+    "or": " or ",
+    "stoppedOne": "Slicing stopped: a custom G-code can't be filled in.",
+    "stoppedSome": "Slicing stopped: some custom G-code can't be filled in.",
+    "fix": "Fix it in the {{where}}, or reset it to the preset's G-code."
+  }
+}
