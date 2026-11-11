@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { BOOLEAN_OPS, defaultPair, pickerLabels, type BooleanOp } from '../lib/boolean';
-import { KIND_LABELS } from '../lib/volumes';
+import { kindLabel } from '../lib/volumes';
 import { useSlicer } from '../state/store';
 import { Note } from './Note';
 import { Picker } from './Picker';
@@ -36,7 +36,7 @@ export function BooleanPanel({ object }: { object: number }) {
         field
         label={label}
         value={String(value)}
-        options={volumes.map((v, k) => ({ value: String(k), label: `${v.name} (${KIND_LABELS[v.kind].toLowerCase()})` }))}
+        options={volumes.map((v, k) => ({ value: String(k), label: `${v.name} (${kindLabel(v.kind).toLowerCase()})` }))}
         onChange={(v) => onChange(Number(v))}
       />
     </label>

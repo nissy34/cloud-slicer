@@ -1,0 +1,15 @@
+{
+  "volumes": {
+    "addPart": "Add part",
+    "addNegative": "Add negative part",
+    "addModifier": "Add modifier",
+    "addBlocker": "Add support blocker",
+    "addEnforcer": "Add support enforcer",
+    "part": "Part",
+    "negative": "Negative part",
+    "modifier": "Modifier",
+    "enforcer": "Support enforcer",
+    "blocker": "Support blocker",
+    "other": "Other"
+  }
+}

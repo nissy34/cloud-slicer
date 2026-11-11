@@ -1,0 +1,10 @@
+{
+  "topbar": {
+    "workspace": "סביבת עבודה",
+    "prepare": "הכנה",
+    "preview": "תצוגה מקדימה",
+    "device": "מכשיר",
+    "calibration": "כיול",
+    "slicingWith": "פורס עם {{name}} {{version}}"
+  }
+}

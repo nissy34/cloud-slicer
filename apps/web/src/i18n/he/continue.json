@@ -1,0 +1,19 @@
+{
+  "continue": {
+    "title": "להמשיך מאיפה שהפסקתם?",
+    "local": "{{name}}, שונה {{when}}. שמור בדפדפן הזה, לא נשמר כפרויקט.",
+    "discard": "מחיקה",
+    "continue": "המשך",
+    "projectAsk": "להמשיך את {{name}}?",
+    "project": "המשך {{name}}",
+    "openHere": "הוא היה פתוח כאן, נערך {{when}}",
+    "editedOn": "נערך {{when}} מ{{device}}",
+    "notNow": "לא עכשיו",
+    "editedElsewhere": "{{name}} נערך עכשיו מ{{device}}",
+    "viewOnly": "הלשונית הזו לצפייה בלבד.",
+    "viewOnlyUnsaved": "הלשונית הזו לצפייה בלבד. השינויים שעשיתם כאן לא נכללים בו.",
+    "saveMineAsCopy": "שמירת הגרסה שלי כעותק",
+    "editHere": "עריכה כאן במקום",
+    "gone": "״{{name}}״ נמחק מ{{device}}. הוא עדיין פתוח כאן, לא שמור."
+  }
+}

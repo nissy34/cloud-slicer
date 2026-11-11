@@ -1,0 +1,13 @@
+{
+  "open": {
+    "drop": "Drop STL, 3MF, OBJ, STEP or SVG files here",
+    "openModel": "Open model",
+    "fromDrive": "Open from Google Drive",
+    "deletePlateTip": "Delete this plate and what's on it",
+    "deletePlate": "Delete plate",
+    "clearAsk": "Clear the plate?",
+    "unsavedChanges": "“{{name}}” has changes that aren't saved yet.",
+    "clearAll": "Clear all",
+    "dropToAdd": "Drop to add"
+  }
+}

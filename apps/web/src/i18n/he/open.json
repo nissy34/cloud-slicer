@@ -1,0 +1,13 @@
+{
+  "open": {
+    "drop": "גררו לכאן קובצי STL, ‏3MF, ‏OBJ, ‏STEP או SVG",
+    "openModel": "פתיחת מודל",
+    "fromDrive": "פתיחה מ-Google Drive",
+    "deletePlateTip": "מחיקת המשטח הזה ומה שעליו",
+    "deletePlate": "מחיקת משטח",
+    "clearAsk": "לנקות את המשטח?",
+    "unsavedChanges": "ב״{{name}}״ יש שינויים שעדיין לא נשמרו.",
+    "clearAll": "ניקוי הכול",
+    "dropToAdd": "שחררו כדי להוסיף"
+  }
+}

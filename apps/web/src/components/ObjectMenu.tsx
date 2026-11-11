@@ -1,7 +1,7 @@
 import { Fragment, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 import { menuPosition, unitConversions } from '../lib/objectMenu';
 import { ALL } from '../lib/boolean';
-import { ADD_MENUS, KIND_LABELS, keepsAPart, SHAPES, type VolumeKind } from '../lib/volumes';
+import { ADD_MENUS, kindLabel, keepsAPart, shapeLabel, SHAPES, type VolumeKind } from '../lib/volumes';
 import { NO_COLOURS, useSlicer } from '../state/store';
 import { startSvg } from './SvgPanel';
 import { startText } from './TextPanel';
@@ -133,7 +133,7 @@ function MenuCard() {
     >
       <div className="menu-title" title={vol ? vol.name : obj.name}>
         {vol ? vol.name : obj.name || `Object ${o + 1}`}
-        {vol && <span className="muted"> · {KIND_LABELS[vol.kind]}</span>}
+        {vol && <span className="muted"> · {kindLabel(vol.kind)}</span>}
       </div>
       {form === 'rename' ? (
         <form
@@ -230,7 +230,7 @@ function MenuCard() {
                   disabled={vol.kind !== type && type !== 'part' && !keepsAPart(obj.volumes, vi)}
                   onClick={run(() => vol.kind !== type && s.volumeAction(o, { op: 'type', volume: vi, type }, 'Change type'))}
                 >
-                  {KIND_LABELS[type]}
+                  {kindLabel(type)}
                 </button>
               ))}
             </>,
@@ -286,7 +286,7 @@ function MenuCard() {
                     addInput.current?.click();
                   }, { title: 'A mesh file (STL, OBJ, 3MF)' })}
                   {SHAPES.map((shape) => (
-                    <Fragment key={shape}>{item(shape, run(() => s.volumeAction(o, { op: 'add', type, shape, instance: i }, label)))}</Fragment>
+                    <Fragment key={shape}>{item(shapeLabel(shape), run(() => s.volumeAction(o, { op: 'add', type, shape, instance: i }, label)))}</Fragment>
                   ))}
                   {(type === 'part' || type === 'negative' || type === 'modifier') &&
                     item('Text', run(() => {

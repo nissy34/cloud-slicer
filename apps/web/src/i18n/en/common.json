@@ -1,0 +1,11 @@
+{
+  "common": {
+    "cancel": "Cancel",
+    "copied": "Copied",
+    "copyError": "Copy error",
+    "hide": "Hide",
+    "show": "Show",
+    "close": "Close",
+    "closeMessage": "Close message"
+  }
+}

@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { DEFAULT_TEXT, clampStyle, missingLettersHint, type FontChoice, type TextStyle } from '../lib/fonts';
-import { KIND_LABELS, keepsAPart } from '../lib/volumes';
+import { kindLabel, keepsAPart } from '../lib/volumes';
 import { addFontFile, availableFonts, canListComputerFonts, loadComputerFonts, nextTextStyle, rememberTextStyle, restoreFonts } from '../state/fonts';
 import { useSlicer } from '../state/store';
 import { ShapeActions, ShapePlacement, placementHint } from './ShapePlacement';
@@ -264,7 +264,7 @@ function TextFields({
               className={kind === t ? 'on' : ''}
               onClick={() => kind !== t && void volumeAction(object, { op: 'type', volume, type: t, remake: true }, 'Change type')}
             >
-              {t === 'negative' ? 'Engraved' : KIND_LABELS[t]}
+              {t === 'negative' ? 'Engraved' : kindLabel(t)}
             </button>
           ))}
         </div>

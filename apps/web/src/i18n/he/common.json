@@ -1,0 +1,11 @@
+{
+  "common": {
+    "cancel": "ביטול",
+    "copied": "הועתק",
+    "copyError": "העתקת השגיאה",
+    "hide": "הסתרה",
+    "show": "הצגה",
+    "close": "סגירה",
+    "closeMessage": "סגירת ההודעה"
+  }
+}

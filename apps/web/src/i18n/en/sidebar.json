@@ -1,0 +1,29 @@
+{
+  "sidebar": {
+    "myPrinters": "My printers",
+    "otherPrinters": "Other",
+    "printer": "Printer",
+    "manage": "Manage",
+    "printerPreset": "Printer preset",
+    "addRemovePrinters": "Add or remove printers…",
+    "sendsFromDevice": "Send prints to it from the Device tab.",
+    "noDirectPrint": "No direct print for this printer (not Klipper, a Prusa or a Centauri Carbon): download the G-code to print it, or send it from the Device tab if OctoPrint runs the printer.",
+    "plateType": "Plate type",
+    "filament": "Filament",
+    "addFilament": "Add filament",
+    "add": "+ Add",
+    "filamentColour": "Filament colour",
+    "filamentNColour": "Filament {{n}} colour",
+    "filamentNPreset": "Filament {{n}} preset",
+    "addRemoveFilaments": "Add or remove filaments…",
+    "removeFilament": "Remove this filament",
+    "removeFilamentN": "Remove filament {{n}}",
+    "process": "Process",
+    "processPreset": "Process preset",
+    "readingFilaments": "Reading the printer's filaments…",
+    "myPresets": "My presets",
+    "systemPresets": "System presets",
+    "show": "Show sidebar (Shift+Tab)",
+    "hide": "Hide sidebar (Shift+Tab)"
+  }
+}

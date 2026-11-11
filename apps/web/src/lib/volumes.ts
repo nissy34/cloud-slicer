@@ -1,3 +1,4 @@
+import { i18n } from '../i18n';
 // Parts, negative parts, modifiers and support enforcers/blockers of an object
 // (engine/src/volume_api.cpp), like desktop Orca's object list.
 import type { PreviewMesh, VolumeInfo } from '../engine/protocol';
@@ -20,23 +21,35 @@ export type VolumeAction =
   | { op: 'set'; volume: number; offset?: number[]; rotation?: number[]; scale?: number[] };
 
 /** The object menu's add submenus, in desktop's order and words. */
-export const ADD_MENUS: { type: VolumeKind; label: string }[] = [
-  { type: 'part', label: 'Add part' },
-  { type: 'negative', label: 'Add negative part' },
-  { type: 'modifier', label: 'Add modifier' },
-  { type: 'supportBlocker', label: 'Add support blocker' },
-  { type: 'supportEnforcer', label: 'Add support enforcer' },
-];
+export const ADD_MENUS = [
+  { type: 'part', label: 'volumes.addPart' },
+  { type: 'negative', label: 'volumes.addNegative' },
+  { type: 'modifier', label: 'volumes.addModifier' },
+  { type: 'supportBlocker', label: 'volumes.addBlocker' },
+  { type: 'supportEnforcer', label: 'volumes.addEnforcer' },
+] as const satisfies readonly { type: VolumeKind; label: string }[];
 
 /** What each kind is called in the object list. */
-export const KIND_LABELS: Record<VolumeInfo['kind'], string> = {
-  part: 'Part',
-  negative: 'Negative part',
-  modifier: 'Modifier',
-  supportEnforcer: 'Support enforcer',
-  supportBlocker: 'Support blocker',
-  other: 'Other',
-};
+const KIND_WORDS = {
+  part: 'volumes.part',
+  negative: 'volumes.negative',
+  modifier: 'volumes.modifier',
+  supportEnforcer: 'volumes.enforcer',
+  supportBlocker: 'volumes.blocker',
+  other: 'volumes.other',
+} as const satisfies Record<VolumeInfo['kind'], string>;
+export const kindLabel = (kind: VolumeInfo['kind']) => i18n.t(KIND_WORDS[kind]);
+
+const SHAPE_WORDS = {
+  Cube: 'shapes.cube',
+  Cylinder: 'shapes.cylinder',
+  Sphere: 'shapes.sphere',
+  Cone: 'shapes.cone',
+  Disc: 'shapes.disc',
+  Torus: 'shapes.torus',
+} as const;
+/** A shape's name in the page's language (the engine takes the English one). */
+export const shapeLabel = (shape: Shape) => i18n.t(SHAPE_WORDS[shape]);
 
 /** The kind numbers of a preview's volumeList. */
 export const KIND_CODES: Partial<Record<VolumeInfo['kind'], number>> = { negative: 1, modifier: 2, supportEnforcer: 3, supportBlocker: 4 };

@@ -1,5 +1,5 @@
 import { printableLabel } from '../lib/printable';
-import { KIND_CODES, KIND_COLOURS, KIND_LABELS } from '../lib/volumes';
+import { KIND_CODES, KIND_COLOURS, kindLabel } from '../lib/volumes';
 import { NO_COLOURS, useSlicer } from '../state/store';
 import { ObjectSettings } from './ObjectSettings';
 import { Boxes, Ellipsis } from 'lucide-react';
@@ -90,13 +90,13 @@ export function ObjectList() {
                       <li key={i} className={picked ? 'object-row volume active' : 'object-row volume'}>
                         <button
                           className="volume-name"
-                          title={`${KIND_LABELS[v.kind]}: ${v.name}`}
+                          title={`${kindLabel(v.kind)}: ${v.name}`}
                           aria-pressed={picked}
                           onClick={() => select({ object: o, instance: Math.max(0, instance), volume: picked ? undefined : i })}
                         >
                           {tint && <span className="volume-kind" style={{ background: tint.colour }} aria-hidden="true" />}
                           {v.name}
-                          {v.kind !== 'part' && <span className="muted"> · {KIND_LABELS[v.kind]}</span>}
+                          {v.kind !== 'part' && <span className="muted"> · {kindLabel(v.kind)}</span>}
                           {v.painted && <span className="muted"> (painted)</span>}
                         </button>
                         {(v.kind === 'part' || v.kind === 'modifier') && filamentSelect(o, i, v.extruder, `Filament for ${v.name}`)}
@@ -149,7 +149,7 @@ export function ObjectList() {
           {selected.volume !== undefined && project.objects[selected.object].volumes[selected.volume] ? (
             project.objects[selected.object].volumes[selected.volume].kind.startsWith('support') ? (
               <p className="hint">
-                {KIND_LABELS[project.objects[selected.object].volumes[selected.volume].kind]}: supports {project.objects[selected.object].volumes[selected.volume].kind === 'supportBlocker' ? "don't grow" : 'grow'} where it
+                {kindLabel(project.objects[selected.object].volumes[selected.volume].kind)}: supports {project.objects[selected.object].volumes[selected.volume].kind === 'supportBlocker' ? "don't grow" : 'grow'} where it
                 overlaps the object, when supports are on. Move it with the Move tool.
               </p>
             ) : (

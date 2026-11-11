@@ -1,0 +1,10 @@
+{
+  "theme": {
+    "menu": "Theme",
+    "current": "Theme: {{choice}}",
+    "system": "System",
+    "systemHint": "Match this device",
+    "light": "Light",
+    "dark": "Dark"
+  }
+}

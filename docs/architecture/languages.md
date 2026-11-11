@@ -20,23 +20,22 @@ errors, and G-code.
 
 | Part | Where |
 |---|---|
-| The words, one file per language, grouped by area (`topbar.prepare`) | `src/i18n/en.json`, `he.json` |
+| The words: one file per area and language, `en/<area>.json` holding `{ "<area>": { … } }`, used as `t('<area>.<word>')` | `src/i18n/en/`, `src/i18n/he/` |
 | Library set-up; English built in, another language fetched only when picked | `src/i18n/index.ts` (i18next + react-i18next) |
-| TypeScript checks every `t('…')` key against `en.json` | `src/i18n/i18next.d.ts` |
 | The choice: browser or picked; sets `<html lang dir>`; kept per browser and in the account | `src/lib/language.ts` |
 | Start in the right direction before the app loads | the script in `index.html` |
 | The picker | `components/ThemeMenu.tsx` |
 
 ## Rules
 
-- **No words in code.** Every word a person sees goes in `en.json` and is shown with
+- **No words in code.** Every word a person sees goes in its area's file in `en/` and is shown with
   `const { t } = useTranslation()` then `t('area.key')`, numbers and names as blanks:
   `t('topbar.slicingWith', { name, version })` with `"Slicing with {{name}} {{version}}"`.
   Counts use i18next plurals (`files_one`, `files_other`; Hebrew also `_two`), never
   `n === 1 ? … : …`. Outside React, `i18n.t(…)` from `src/i18n`.
-- A word missing from `he.json` shows in English, so a new feature can land in English
+- A word missing from `he/` shows in English, so a new feature can land in English
   first; add the Hebrew in the same pull request when you can.
-- `src/i18n/words.test.ts` fails on a key the code asks for that English lacks, an English
+- `src/i18n/words.test.ts` fails on a file holding another area's words, a key the code asks for (or keeps in a table) that English lacks, an English
   word no code uses, a Hebrew word English lacks, or a Hebrew word with different
   `{{blanks}}`.
 - **Right to left:** CSS uses start/end, not left/right: `margin-inline-start`,
@@ -54,6 +53,6 @@ i18next is the most used translation library and handles Hebrew plurals.
 
 ## Open holes
 
-- Most screens are still English: they move to `en.json` area by area.
+- Most screens are still English: they move over area by area.
 - Positions (`left:`/`right:`) not yet flipped for right to left.
 - More languages: add a file and a line in `LANGUAGES`; nothing else changes.

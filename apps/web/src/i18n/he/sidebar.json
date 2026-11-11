@@ -1,0 +1,29 @@
+{
+  "sidebar": {
+    "myPrinters": "המדפסות שלי",
+    "otherPrinters": "אחרות",
+    "printer": "מדפסת",
+    "manage": "ניהול",
+    "printerPreset": "פרופיל מדפסת",
+    "addRemovePrinters": "הוספה או הסרה של מדפסות…",
+    "sendsFromDevice": "אפשר לשלוח אליה הדפסות מהלשונית ״מכשיר״.",
+    "noDirectPrint": "אין הדפסה ישירה למדפסת הזו (היא לא Klipper, ‏Prusa או Centauri Carbon): הורידו את ה-G-code כדי להדפיס, או שלחו מהלשונית ״מכשיר״ אם המדפסת מופעלת דרך OctoPrint.",
+    "plateType": "סוג משטח",
+    "filament": "פילמנט",
+    "addFilament": "הוספת פילמנט",
+    "add": "+ הוספה",
+    "filamentColour": "צבע הפילמנט",
+    "filamentNColour": "צבע פילמנט {{n}}",
+    "filamentNPreset": "פרופיל פילמנט {{n}}",
+    "addRemoveFilaments": "הוספה או הסרה של פילמנטים…",
+    "removeFilament": "הסרת הפילמנט הזה",
+    "removeFilamentN": "הסרת פילמנט {{n}}",
+    "process": "תהליך",
+    "processPreset": "פרופיל תהליך",
+    "readingFilaments": "קורא את הפילמנטים מהמדפסת…",
+    "myPresets": "הפרופילים שלי",
+    "systemPresets": "פרופילי מערכת",
+    "show": "הצגת הסרגל הצדדי (Shift+Tab)",
+    "hide": "הסתרת הסרגל הצדדי (Shift+Tab)"
+  }
+}
