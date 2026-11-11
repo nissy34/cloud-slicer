@@ -1,7 +1,10 @@
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { i18n } from '../i18n';
-import { useAccount } from '../state/account';
+import { saveUserSetting, useAccount, useUserSetting } from '../state/account';
+import { isLanguageChoice, LANGUAGE_SETTING, setLocalLanguage, useLanguageStore, type LanguageChoice } from '../lib/language';
+import { LANGUAGES } from '../i18n';
+import { Picker } from '../components/Picker';
 import { useSlicer } from '../state/store';
 import type { PresetType, ProviderId } from './api';
 import { Note } from '../components/Note';
@@ -33,6 +36,11 @@ export function AccountMenu() {
   const [open, setOpen] = useState(false);
 
   useEffect(() => useAccount.getState().init(), []);
+  // The account's language (from another device, or after sign-in) wins.
+  const savedLanguage = useUserSetting<unknown>(LANGUAGE_SETTING);
+  useEffect(() => {
+    if (isLanguageChoice(savedLanguage)) setLocalLanguage(savedLanguage);
+  }, [savedLanguage]);
   // Close the sign-in panel once the sign-in (popup) finishes.
   const userId = user?.id;
   useEffect(() => setOpen(false), [userId]);
@@ -97,6 +105,7 @@ function SignedOut() {
       <>
         <h3>{t('account.signIn')}</h3>
         <p className="account-muted">{t('account.unavailable')}</p>
+        <Legal />
       </>
     );
   const none = !ALL_PROVIDERS.some((p) => providers[p]);
@@ -225,11 +234,30 @@ function SignedIn({ onDone }: { onDone: () => void }) {
   );
 }
 
-/** What is kept and how (public/privacy.html, public/terms.html). */
+/**
+ * The menu's last line: the language (it follows the browser unless picked here,
+ * docs/architecture/languages.md), then what is kept and how (public/privacy.html,
+ * public/terms.html).
+ */
 function Legal() {
   const { t } = useTranslation();
+  const language = useLanguageStore((s) => s.choice);
+  const pick = (next: LanguageChoice) => {
+    setLocalLanguage(next);
+    // Signed out, it stays in this browser.
+    saveUserSetting(LANGUAGE_SETTING, next).catch(() => {});
+  };
   return (
-    <p className="account-muted account-legal">
+    <div className="account-legal">
+      <Picker
+        label={t('language.heading')}
+        className="account-language"
+        testId="language-picker"
+        value={language}
+        options={[{ value: 'system', label: t('language.system') }, ...LANGUAGES.map((l) => ({ value: l.id, label: l.name }))]}
+        onChange={(v) => isLanguageChoice(v) && pick(v)}
+      />
+    <p className="account-muted">
       <a href="/privacy" target="_blank" rel="noopener">
         {t('account.privacy')}
       </a>
@@ -238,5 +266,6 @@ function Legal() {
         {t('account.terms')}
       </a>
     </p>
+    </div>
   );
 }
