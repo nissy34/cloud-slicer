@@ -2,6 +2,7 @@
 // page offers a few bundled ones (Google's Noto, copied into engine/fonts by
 // scripts/copy-engine.mjs), the computer's own where the browser allows it
 // (Chrome and Edge, after asking), and any font file the user picks.
+import { i18n } from '../i18n';
 
 export interface FontChoice {
   /** Shown in the list and kept with the text in the project. */
@@ -93,6 +94,9 @@ export function fontFileName(name: string): string {
 
 /** The scripts with built-in fonts, by their letters' Unicode blocks. */
 const SCRIPTS: [string, RegExp][] = [['Hebrew', /[\u0590-\u05FF\uFB1D-\uFB4F]/]];
+const SCRIPT_WORDS: Record<string, string> = { Hebrew: 'fontList.hebrew' };
+/** A script's name (a font's `script`) in the page's language. */
+export const scriptLabel = (script: string) => (SCRIPT_WORDS[script] ? i18n.t(SCRIPT_WORDS[script]) : script);
 
 /**
  * What to tell the user when the font has no letters for some of the text
@@ -104,6 +108,8 @@ export function missingLettersHint(missing: string): string {
   const shown = chars.slice(0, 8).join(' ') + (chars.length > 8 ? ' …' : '');
   const script = SCRIPTS.find(([, re]) => re.test(missing))?.[0];
   const has = script && BUNDLED_FONTS.filter((f) => f.script === script).map((f) => f.name.replace(/ Bold$/, ''));
-  const pick = has ? ` Pick a ${script} font, like ${[...new Set(has)].slice(0, 3).join(', ')}.` : ' Pick a font that has them: a font file, or one of this computer\'s fonts.';
-  return `This font has no letters for ${shown}, so they are left out.${pick}`;
+  const pick = has
+    ? i18n.t('fontList.pickScriptFont', { script: scriptLabel(script!), fonts: [...new Set(has)].slice(0, 3).join(', ') })
+    : i18n.t('fontList.pickAnyFont');
+  return `${i18n.t('fontList.noLetters', { letters: shown })} ${pick}`;
 }

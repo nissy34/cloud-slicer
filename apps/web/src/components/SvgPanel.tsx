@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { kindLabel, keepsAPart } from '../lib/volumes';
 import { useSlicer } from '../state/store';
 import { ShapeActions, ShapePlacement, placementHint } from './ShapePlacement';
@@ -37,12 +38,13 @@ export function SvgPanel() {
   const v = selected?.volume !== undefined ? volumes?.[selected.volume] : volumes?.length === 1 ? volumes[0] : undefined;
   const index = selected?.volume ?? 0;
   const { setTool } = useSlicer.getState();
+  const { t } = useTranslation();
   return (
-    <section className="tool-panel text-panel" aria-label="SVG shape">
+    <section className="tool-panel text-panel" aria-label={t('svgTool.title')}>
       <div className="tool-panel-head">
-        <strong>SVG shape</strong>
+        <strong>{t('svgTool.title')}</strong>
         <button className="ghost" onClick={() => setTool(null)}>
-          Done
+          {t('svgTool.done')}
         </button>
       </div>
       {v?.svg && selected ? (
@@ -59,12 +61,11 @@ export function SvgPanel() {
       ) : (
         <>
           <p className="muted hint">
-            Pick an SVG shape in the object list or the 3D view to change it, or add one from an .svg file: on the selected object, or as an object of its
-            own when nothing is selected. Opening or dropping an .svg file adds one too.
+            {t('svgTool.pickHint')}
           </p>
           <div className="tool-row">
             <button className="primary" onClick={() => void startSvg(selected?.object ?? null)}>
-              Add SVG…
+              {t('svgTool.addSvg')}
             </button>
           </div>
         </>
@@ -97,6 +98,7 @@ function SvgFields({
   const [working, setWorking] = useState(false);
   const applied = useRef<Size>(values);
   const { svgVolume, volumeAction } = useSlicer.getState();
+  const { t } = useTranslation();
 
   // Changed elsewhere (undo, the Scale tool): show the new size.
   useEffect(() => {
@@ -148,22 +150,22 @@ function SvgFields({
         object={object}
         volume={volume}
         followsSurface={size.useSurface}
-        label="SVG"
+        shapeKind="svg"
         fields={
           <>
-            {field('depth', 'Depth', kind === 'negative' ? 'How deep the shape cuts in' : 'How far the shape stands out', (x) => setValues((s) => ({ ...s, depth: x })))}
-            {field('width', 'Width', 'Size across the shape', (x) => setSize('width', x))}
-            {field('height', 'Height', 'Size up the shape', (x) => setSize('height', x))}
+            {field('depth', t('svgTool.depth'), kind === 'negative' ? t('svgTool.depthCutTip') : t('svgTool.depthTip'), (x) => setValues((s) => ({ ...s, depth: x })))}
+            {field('width', t('svgTool.width'), t('svgTool.widthTip'), (x) => setSize('width', x))}
+            {field('height', t('svgTool.height'), t('svgTool.heightTip'), (x) => setSize('height', x))}
           </>
         }
       />
       <label className="switch-row">
         <input className="switch" type="checkbox" checked={keepRatio} onChange={(e) => setKeepRatio(e.target.checked)} />
-        Keep proportions
+        {t('svgTool.keepProportions')}
       </label>
       {onObject && (
         <div className="shape-checks">
-          <label className="switch-row" title="The shape bends with the object's surface instead of standing flat on it">
+          <label className="switch-row" title={t('svgTool.useSurfaceTip')}>
             <input className="switch"
               type="checkbox"
               checked={size.useSurface}
@@ -174,27 +176,27 @@ function SvgFields({
                 setWorking(false);
               }}
             />
-            Use surface
+            {t('svgTool.useSurface')}
           </label>
         </div>
       )}
       <ShapeActions object={object} volume={volume} />
       {canChangeType && (
-        <div className="chooser" role="radiogroup" aria-label="SVG type">
-          {TYPES.map((t) => (
+        <div className="chooser" role="radiogroup" aria-label={t('svgTool.svgType')}>
+          {TYPES.map((type) => (
             <button
-              key={t}
+              key={type}
               role="radio"
-              aria-checked={kind === t}
-              className={kind === t ? 'on' : ''}
-              onClick={() => kind !== t && void volumeAction(object, { op: 'type', volume, type: t, remake: true }, 'Change type')}
+              aria-checked={kind === type}
+              className={kind === type ? 'on' : ''}
+              onClick={() => kind !== type && void volumeAction(object, { op: 'type', volume, type, remake: true }, t('svgTool.changeType'))}
             >
-              {t === 'negative' ? 'Engraved' : kindLabel(t)}
+              {type === 'negative' ? t('svgTool.engraved') : kindLabel(type)}
             </button>
           ))}
         </div>
       )}
-      <p className="muted hint">{working ? 'Making the shape…' : `${placementHint('shape', onObject)} Undo brings the last shape back.`}</p>
+      <p className="muted hint">{working ? t('svgTool.making') : `${placementHint('shape', onObject)} ${t('svgTool.undoHint')}`}</p>
     </>
   );
 }

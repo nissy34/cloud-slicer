@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { create } from 'zustand';
 import { Dialog } from './Dialog';
 
@@ -35,6 +36,7 @@ export function askSimplifyFirst(text: string, painted: boolean): Promise<{ choi
 export function SimplifyFirstDialog() {
   const q = useQuestion((s) => s.question);
   const [dontAsk, setDontAsk] = useState(false);
+  const { t } = useTranslation();
   if (!q) return null;
   const answer = (choice: SimplifyAnswer) => {
     setDontAsk(false);
@@ -42,7 +44,7 @@ export function SimplifyFirstDialog() {
   };
   return (
     <Dialog
-      title="Simplify this model first?"
+      title={t('simplifyFirst.title')}
       role="alertdialog"
       describedBy="simplify-first-text"
       testId="simplify-first"
@@ -50,22 +52,22 @@ export function SimplifyFirstDialog() {
       footer={
         <>
           <button className="secondary" onClick={() => answer('cancel')}>
-            Cancel
+            {t('common.cancel')}
           </button>
           <button className="secondary" onClick={() => answer('open')}>
-            Open as is
+            {t('simplifyFirst.openAsIs')}
           </button>
           <button className="primary" autoFocus onClick={() => answer('simplify')}>
-            Simplify
+            {t('simplifyFirst.simplify')}
           </button>
         </>
       }
     >
       <p id="simplify-first-text">{q.text}</p>
-      {q.painted && <p className="muted">Its painting will be kept on the simplified mesh.</p>}
+      {q.painted && <p className="muted">{t('simplifyFirst.paintKept')}</p>}
       <label className="switch-row">
         <input className="switch" type="checkbox" checked={dontAsk} onChange={(e) => setDontAsk(e.target.checked)} />
-        <span>Don't ask again on this device</span>
+        <span>{t('simplifyFirst.dontAsk')}</span>
       </label>
     </Dialog>
   );

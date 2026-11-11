@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { DETAIL_LEVELS, simplifyBy, type SimplifyResult } from '../lib/simplify';
 import { useSlicer } from '../state/store';
 import { Slider } from './Slider';
@@ -10,6 +11,7 @@ const count = (n: number) => n.toLocaleString('en-US');
 export function SimplifyPanel({ object }: { object: number }) {
   const project = useSlicer((s) => s.project);
   const { setTool, simplifyPreview, simplifyObject } = useSlicer.getState();
+  const { t } = useTranslation();
   // Desktop's defaults: Medium detail, or half the triangles.
   const [mode, setMode] = useState<'level' | 'ratio'>('level');
   const [level, setLevel] = useState(2);
@@ -42,49 +44,49 @@ export function SimplifyPanel({ object }: { object: number }) {
   };
 
   return (
-    <section className="tool-panel" aria-label="Simplify">
+    <section className="tool-panel" aria-label={t('simplifyTool.title')}>
       <div className="tool-panel-head">
-        <strong>Simplify</strong>
+        <strong>{t('simplifyTool.title')}</strong>
         <button className="ghost" onClick={() => setTool(null)}>
-          Done
+          {t('simplifyTool.done')}
         </button>
       </div>
       <p className="muted hint">
-        Fewer triangles make a big model open, slice and preview faster. Fine details can soften; Undo brings the old mesh back.
+        {t('simplifyTool.hint')}
       </p>
-      <div className="simplify-figures" aria-label="Triangles">
+      <div className="simplify-figures" aria-label={t('simplifyTool.trianglesLabel')}>
         <span>{name}</span>
         <span>
-          {result ? count(result.triangles) : '…'} triangles
+          {result ? t('simplifyTool.triangles', { count: result.triangles, n: count(result.triangles) }) : t('simplifyTool.trianglesUnknown')}
           {result?.after !== undefined && !working && <> → {count(result.after)}</>}
-          {working && <span className="muted"> (working out…)</span>}
+          {working && <span className="muted"> {t('simplifyTool.workingOut')}</span>}
         </span>
       </div>
-      <div className="chooser" role="radiogroup" aria-label="Simplify by">
+      <div className="chooser" role="radiogroup" aria-label={t('simplifyTool.by')}>
         <button role="radio" aria-checked={mode === 'level'} className={mode === 'level' ? 'on' : ''} onClick={() => setMode('level')}>
-          Detail level
+          {t('simplifyTool.detailLevel')}
         </button>
         <button role="radio" aria-checked={mode === 'ratio'} className={mode === 'ratio' ? 'on' : ''} onClick={() => setMode('ratio')}>
-          Decimate ratio
+          {t('simplifyTool.ratio')}
         </button>
       </div>
       {mode === 'level' ? (
         <label className="transform-row">
-          <span>Detail</span>
-          <Slider aria-label="Detail level" min={0} max={4} step={1} value={level} onChange={(e) => setLevel(Number(e.target.value))} />
-          <span className="unit">{DETAIL_LEVELS[level]}</span>
+          <span>{t('simplifyTool.detail')}</span>
+          <Slider aria-label={t('simplifyTool.detailLevel')} min={0} max={4} step={1} value={level} onChange={(e) => setLevel(Number(e.target.value))} />
+          <span className="unit">{t(DETAIL_LEVELS[level])}</span>
         </label>
       ) : (
-        <label className="transform-row" title="Share of the triangles to remove">
-          <span>Remove</span>
-          <Slider aria-label="Decimate ratio" min={0} max={99} step={1} value={ratio} onChange={(e) => setRatio(Number(e.target.value))} />
+        <label className="transform-row" title={t('simplifyTool.removeTip')}>
+          <span>{t('simplifyTool.remove')}</span>
+          <Slider aria-label={t('simplifyTool.ratio')} min={0} max={99} step={1} value={ratio} onChange={(e) => setRatio(Number(e.target.value))} />
           <span className="unit">{ratio}%</span>
         </label>
       )}
-      {result?.painted && <Note>This object's painting (colours, supports, seams, fuzzy skin) is kept on the simplified mesh.</Note>}
+      {result?.painted && <Note>{t('simplifyTool.paintKept')}</Note>}
       <div className="tool-row">
         <button className="primary" disabled={working || !result || result.after === undefined || result.after === result.triangles} onClick={() => void apply()}>
-          Apply
+          {t('simplifyTool.apply')}
         </button>
       </div>
     </section>
