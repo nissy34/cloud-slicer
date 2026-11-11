@@ -276,6 +276,11 @@ test('a slice redoes only what changed since the last one, like desktop, and pri
   load('3DBenchy.stl');
   assert.ok(run(fullConfig({ sparse_infill_density: '25%', outer_wall_speed: '100', nozzle_temperature: '215' })).gcode === faster.gcode,
     'new speed and temperature, kept vs fresh');
+  // A new layer height slices again, on the kept Print's objects.
+  const thick = run(fullConfig({ layer_height: '0.28' }));
+  assert.equal(thick.result.reused, true);
+  load('3DBenchy.stl');
+  assert.ok(run(fullConfig({ layer_height: '0.28' })).gcode === thick.gcode, 'new layer height, kept vs fresh');
 
   // Emptying the plate drops it too (a cancelled slice: the cancel test).
   engine.clearModel();

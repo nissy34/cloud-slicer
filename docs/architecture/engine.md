@@ -131,7 +131,9 @@ match ([testing](testing.md#same-as-desktop-orca)).
 - **Patch 0011** makes each G-code export from a kept `Print` the same as the first:
   export turned some of the print's infill and support paths round in place, so the
   next export printed them the other way (desktop does this too, after a speed or
-  temperature change).
+  temperature change). **0012** and **orca/0013** fix Orca's step rules where redoing a
+  step on a kept `Print` gave other G-code than a fresh slice (lift detection not redone
+  after supports; walls simplified twice after an infill change).
 - **No wasm64**: Safari lacks it, phones kill tabs below 4 GB anyway, and it is slower.
 - More in [decisions.md](../decisions.md#engines).
 
