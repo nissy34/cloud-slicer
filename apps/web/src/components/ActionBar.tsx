@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { sendToPrinter } from '../device';
 import type { SliceWarning } from '../engine/protocol';
 import { sentence, stageLabel } from '../lib/format';
@@ -22,6 +23,7 @@ function download(blob: Blob, name: string) {
 
 /** The engine start-up error in full, with a button that copies it (and the build and browser) for a bug report. */
 function EngineFailed({ message }: { message: string }) {
+  const { t } = useTranslation();
   const [copied, setCopied] = useState(false);
   // The first line is the error; any lines after it are the stack.
   const summary = message.split('\n')[0];
@@ -34,12 +36,12 @@ function EngineFailed({ message }: { message: string }) {
   return (
     <div className="actionbar error engine-failed" role="alert">
       <div className="status">
-        The slicing engine could not start: {summary}
+        {t('actionbar.engineFailed', { error: summary })}
         <pre className="error-details" data-testid="engine-error">{report}</pre>
       </div>
       <div className="actions">
         <button className="secondary" onClick={() => void copy()}>
-          {copied ? 'Copied' : 'Copy error'}
+          {copied ? t('common.copied') : t('common.copyError')}
         </button>
       </div>
     </div>
@@ -51,16 +53,17 @@ function EngineFailed({ message }: { message: string }) {
  * still looks alive), the percentage, and the step on its own line in full.
  */
 function SliceProgress({ pct, stage, onCancel }: { pct: number; stage: string; onCancel: () => void }) {
+  const { t } = useTranslation();
   const shown = Math.floor(pct);
   return (
     <span className="progress" data-testid="slice-progress">
       <span className="progress-row">
-        <span className="progress-bar" role="progressbar" aria-label="Slicing" aria-valuemin={0} aria-valuemax={100} aria-valuenow={shown} aria-valuetext={`${shown}%, ${stage}`}>
+        <span className="progress-bar" role="progressbar" aria-label={t('actionbar.slicing')} aria-valuemin={0} aria-valuemax={100} aria-valuenow={shown} aria-valuetext={`${shown}%, ${stage}`}>
           <span className="progress-fill" style={{ width: `${Math.max(2, pct)}%` }} />
         </span>
         <span className="progress-pct">{shown}%</span>
         <button className="secondary" onClick={onCancel}>
-          Cancel
+          {t('common.cancel')}
         </button>
       </span>
       <span className="stage">{stage}</span>
@@ -85,6 +88,7 @@ function useSliceWarnings(): SliceWarning[] {
 
 /** One line per warning, serious ones first, folded to a count with Hide. */
 function SliceWarnings({ warnings }: { warnings: SliceWarning[] }) {
+  const { t } = useTranslation();
   const options = useSlicer((s) => s.options);
   const gcode = useSlicer((s) => (s.job.kind === 'sliced' ? s.job.gcode : null));
   const [open, setOpen] = useState(true);
@@ -92,12 +96,12 @@ function SliceWarnings({ warnings }: { warnings: SliceWarning[] }) {
   useEffect(() => setOpen(true), [gcode]);
   const serious = warnings.filter((w) => w.level === 'serious').length;
   const sorted = [...warnings].sort((a, b) => Number(b.level === 'serious') - Number(a.level === 'serious'));
-  const count = `${warnings.length} ${warnings.length === 1 ? 'warning' : 'warnings'}`;
+  const count = t('actionbar.warnings', { count: warnings.length });
   return (
     <div className="slice-warnings" data-testid="slice-warnings">
       <button className={`warnings-toggle${serious ? ' serious' : ''}`} aria-expanded={open} onClick={() => setOpen(!open)}>
         <TriangleAlert size={14} aria-hidden /> {count}
-        <span className="muted"> · {open ? 'Hide' : 'Show'}</span>
+        <span className="muted"> · {open ? t('common.hide') : t('common.show')}</span>
       </button>
       {open && (
         <ul className="warnings-list">
@@ -105,7 +109,7 @@ function SliceWarnings({ warnings }: { warnings: SliceWarning[] }) {
             <li key={k} className={w.level === 'serious' ? 'serious' : 'warning'}>
               {w.object && !w.text.includes(w.object) && <b>{w.object}: </b>}
               {sentence(w.text)}
-              {w.option && <span className="muted"> (setting: {options[w.option]?.label || w.option})</span>}
+              {w.option && <span className="muted"> {t('actionbar.warningSetting', { setting: options[w.option]?.label || w.option })}</span>}
             </li>
           ))}
         </ul>
@@ -120,6 +124,7 @@ const busy0 = (kind: string) => kind === 'loading' || kind === 'slicing';
 const mm = (v: number) => `${Math.round(v * 10) / 10} mm`;
 
 export function ActionBar() {
+  const { t } = useTranslation();
   const { engine, engineMessage, project, plate, job, notice, noticeWarn, heavy, simplifyHeavy, slice, cancelSlice, setTab, tab, slicedAway, viewSlice } = useSlicer();
   // A problem with the open tool shows in its card, where the eye is.
   const toolOpen = useSlicer((s) => !!(s.tool || s.paint));
@@ -147,7 +152,7 @@ export function ActionBar() {
   const busy = job.kind === 'loading' || job.kind === 'slicing';
   // As desktop: once sliced, Slice greys out until something changes (a change drops the slice).
   const upToDate = job.kind === 'sliced' && !job.outdated;
-  const plateLabel = (project?.plates.length ?? 0) > 1 ? `Slice plate ${plate + 1}` : 'Slice plate';
+  const plateLabel = (project?.plates.length ?? 0) > 1 ? t('actionbar.slicePlateN', { n: plate + 1 }) : t('actionbar.slicePlate');
   // As desktop names it: the engine fills the process preset's filename_format in, whose {plate_number} tells plates apart.
   const gcodeName = job.kind === 'sliced' ? job.result.fileName || 'plate.gcode' : '';
   // A printer that takes a .gcode.3mf (its "Use 3MF instead of G-code") gets the plate in one, named like desktop's.
@@ -166,31 +171,31 @@ export function ActionBar() {
   return (
     <div className="actionbar" data-testid="actionbar">
       <div className="status" aria-live="polite">
-        {engine === 'starting' && <span className="muted">Loading the engine and Snapmaker presets…</span>}
+        {engine === 'starting' && <span className="muted">{t('actionbar.loadingEngine')}</span>}
         {engine === 'ready' && !clashed && (job.kind === 'idle' || (job.kind === 'error' && !errorHere)) && (
           <span className="muted">
-            {onPlate ? 'Ready to slice' : project?.objects.length ? 'This plate is empty' : 'Open a model to start'}
+            {onPlate ? t('actionbar.ready') : project?.objects.length ? t('actionbar.plateEmpty') : t('actionbar.openToStart')}
             {(notice || heavy || slicedAway !== null) && '.'}
           </span>
         )}
-        {job.kind === 'loading' && <span className="muted">{job.label ?? `Opening ${job.name}`}…</span>}
+        {job.kind === 'loading' && <span className="muted">{job.label ?? t('actionbar.opening', { name: job.name })}…</span>}
         {job.kind === 'slicing' && (
           <SliceProgress
             pct={job.pct}
-            stage={`${job.plate !== plate ? `Plate ${job.plate + 1}: ` : ''}${stageLabel(job.stage) || 'Slicing'}`}
+            stage={`${job.plate !== plate ? t('actionbar.platePrefix', { n: job.plate + 1 }) : ''}${stageLabel(job.stage) || t('actionbar.slicing')}`}
             onCancel={cancelSlice}
           />
         )}
         {job.kind === 'sliced' && (
           // Time and filament are in the Preview's key and the layers on its slider, as on desktop.
           <span className="stats" data-testid="slice-stats" data-layers={job.result.totalLayers}>
-            <span>Sliced in {(job.ms / 1000).toFixed(1)} s</span>
+            <span>{t('actionbar.slicedIn', { seconds: (job.ms / 1000).toFixed(1) })}</span>
           </span>
         )}
         {job.kind === 'sliced' && job.outdated && (
           <span className="hint warn" data-testid="layer-codes-outdated">
             {' '}
-            Layer changes (pauses, filament, G-code) aren't in the G-code yet: slice again.
+            {t('actionbar.layerCodesOutdated')}
           </span>
         )}
         {errorHere && (
@@ -207,23 +212,22 @@ export function ActionBar() {
         {blocked && clearance && (
           <span className="error-text clearance-notice" role="alert" data-testid="clearance-notice">
             {' '}
-            Printing object by object, the tool head needs room: {tooClose.map(sentence).join(' ')} This printer keeps {mm(clearance.radius)} round each object, objects
-            printed before others in the same row up to {mm(clearance.rod)} tall and the rest up to {mm(clearance.lid)}.{' '}
+            {t('actionbar.clearance', { problems: tooClose.map(sentence).join(' '), radius: mm(clearance.radius), rod: mm(clearance.rod), lid: mm(clearance.lid) })}{' '}
             <button className="quiet" onClick={() => void useSlicer.getState().arrange()}>
-              Arrange
+              {t('actionbar.arrange')}
             </button>{' '}
             ·{' '}
             <button className="quiet" onClick={() => usePresetSettings.getState().show({ type: 'printer' })}>
-              Printer settings
+              {t('actionbar.printerSettings')}
             </button>
           </span>
         )}
         {slicedAway !== null && (
           <span className="hint" data-testid="sliced-away">
             {' '}
-            Plate {slicedAway + 1} sliced ·{' '}
+            {t('actionbar.plateSliced', { n: slicedAway + 1 })} ·{' '}
             <button className="quiet" onClick={() => void viewSlice(slicedAway)}>
-              View
+              {t('actionbar.view')}
             </button>
           </span>
         )}
@@ -231,9 +235,9 @@ export function ActionBar() {
         {plaPetg && !busy && (
           <span className="hint warn" data-testid="pla-petg">
             {' '}
-            This plate prints PLA and PETG, which don't stick to each other. Used as support for one another, they need adjusted support settings.{' '}
+            {t('actionbar.plaPetg')}{' '}
             <a href={PLA_PETG_GUIDE} target="_blank" rel="noreferrer">
-              How to
+              {t('actionbar.howTo')}
             </a>
           </span>
         )}
@@ -241,8 +245,7 @@ export function ActionBar() {
         {heavy && job.kind === 'idle' && (
           <span className="hint warn" data-testid="heavy-model">
             {' '}
-            {(project?.plates.length ?? 0) > 1 ? 'This plate has' : 'This model has'} {triangleCount(heavy.triangles)} triangles, more than a browser can comfortably slice. Simplifying it to
-            about {triangleCount(LIGHT_TRIANGLES)} keeps plenty of detail for printing.
+            {t((project?.plates.length ?? 0) > 1 ? 'actionbar.heavyPlate' : 'actionbar.heavyModel', { triangles: triangleCount(heavy.triangles), light: triangleCount(LIGHT_TRIANGLES) })}
           </span>
         )}
       </div>
@@ -252,39 +255,39 @@ export function ActionBar() {
             {/* Phones have the Preview tab right below the bar. */}
             {tab !== 'preview' && (
               <button className="secondary wide-only-button" onClick={() => setTab('preview')}>
-                Preview
+                {t('topbar.preview')}
               </button>
             )}
             {/* Phones show the short words so all four buttons fit in one row. */}
             <button
               className="secondary"
-              aria-label={bundle ? 'Download G-code 3MF' : 'Download G-code'}
+              aria-label={bundle ? t('actionbar.downloadGcode3mf') : t('actionbar.downloadGcode')}
               disabled={unprintable}
-              title={unprintable ? 'The toolpaths leave the build volume' : bundle ? 'This printer takes the G-code in a .gcode.3mf file' : undefined}
+              title={unprintable ? t('actionbar.leavesVolume') : bundle ? t('actionbar.takes3mf') : undefined}
               onClick={async () => download(bundle ?? (await tagged()), fileName)}
             >
-              <span className="wide-only">{bundle ? 'Download G-code 3MF' : 'Download G-code'}</span>
-              <span className="phone-only">Download</span>
+              <span className="wide-only">{bundle ? t('actionbar.downloadGcode3mf') : t('actionbar.downloadGcode')}</span>
+              <span className="phone-only">{t('actionbar.download')}</span>
             </button>
             <button
               className="secondary"
-              aria-label="Send to printer"
+              aria-label={t('actionbar.send')}
               disabled={unprintable}
-              title={unprintable ? 'The toolpaths leave the build volume' : undefined}
+              title={unprintable ? t('actionbar.leavesVolume') : undefined}
               onClick={async () => {
                 const origin = printOrigin();
                 sendToPrinter(bundle ?? (await tagged(origin)), fileName, useSlicer.getState().selection?.printer, bundle && job.gcode, origin);
                 setTab('device');
               }}
             >
-              <span className="wide-only">Send to printer</span>
-              <span className="phone-only">Send</span>
+              <span className="wide-only">{t('actionbar.send')}</span>
+              <span className="phone-only">{t('actionbar.sendShort')}</span>
             </button>
           </>
         )}
         {heavy && job.kind === 'idle' && (
           <button className="secondary" onClick={() => void simplifyHeavy()}>
-            Simplify model
+            {t('actionbar.simplify')}
           </button>
         )}
         <button
@@ -292,9 +295,9 @@ export function ActionBar() {
           disabled={!onPlate || busy || engine !== 'ready' || outside.length > 0 || blocked || upToDate}
           title={
             blocked
-              ? 'Printing object by object, the tool head would hit an object: see the message beside this button'
+              ? t('actionbar.blockedTip')
               : upToDate
-                ? 'Already sliced. Change something to slice again.'
+                ? t('actionbar.upToDateTip')
                 : undefined
           }
           onClick={() => void slice()}

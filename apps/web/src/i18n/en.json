@@ -22,5 +22,48 @@
   "language": {
     "heading": "Language",
     "system": "Match this device"
+  },
+  "common": {
+    "cancel": "Cancel",
+    "copied": "Copied",
+    "copyError": "Copy error",
+    "hide": "Hide",
+    "show": "Show"
+  },
+  "actionbar": {
+    "engineFailed": "The slicing engine could not start: {{error}}",
+    "slicing": "Slicing",
+    "warnings_one": "{{count}} warning",
+    "warnings_other": "{{count}} warnings",
+    "warningSetting": "(setting: {{setting}})",
+    "slicePlate": "Slice plate",
+    "slicePlateN": "Slice plate {{n}}",
+    "loadingEngine": "Loading the engine and Snapmaker presets…",
+    "ready": "Ready to slice",
+    "plateEmpty": "This plate is empty",
+    "openToStart": "Open a model to start",
+    "opening": "Opening {{name}}",
+    "platePrefix": "Plate {{n}}: ",
+    "slicedIn": "Sliced in {{seconds}} s",
+    "layerCodesOutdated": "Layer changes (pauses, filament, G-code) aren't in the G-code yet: slice again.",
+    "clearance": "Printing object by object, the tool head needs room: {{problems}} This printer keeps {{radius}} round each object, objects printed before others in the same row up to {{rod}} tall and the rest up to {{lid}}.",
+    "arrange": "Arrange",
+    "printerSettings": "Printer settings",
+    "plateSliced": "Plate {{n}} sliced",
+    "view": "View",
+    "plaPetg": "This plate prints PLA and PETG, which don't stick to each other. Used as support for one another, they need adjusted support settings.",
+    "howTo": "How to",
+    "heavyPlate": "This plate has {{triangles}} triangles, more than a browser can comfortably slice. Simplifying it to about {{light}} keeps plenty of detail for printing.",
+    "heavyModel": "This model has {{triangles}} triangles, more than a browser can comfortably slice. Simplifying it to about {{light}} keeps plenty of detail for printing.",
+    "downloadGcode": "Download G-code",
+    "downloadGcode3mf": "Download G-code 3MF",
+    "download": "Download",
+    "leavesVolume": "The toolpaths leave the build volume",
+    "takes3mf": "This printer takes the G-code in a .gcode.3mf file",
+    "send": "Send to printer",
+    "sendShort": "Send",
+    "simplify": "Simplify model",
+    "blockedTip": "Printing object by object, the tool head would hit an object: see the message beside this button",
+    "upToDateTip": "Already sliced. Change something to slice again."
   }
 }
