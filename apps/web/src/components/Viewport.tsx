@@ -575,7 +575,7 @@ function CutPlane({ part, active, views, onRelease }: { part: Part; active: Reac
     // Right of the Cut panel when it sits over the view at its left (not on a
     // phone, where it is above): the face goes in the middle of the room left.
     const r = gl.domElement.getBoundingClientRect();
-    const panel = document.querySelector('section[aria-label="Cut"]')?.getBoundingClientRect();
+    const panel = document.querySelector('section[data-tool="cut"]')?.getBoundingClientRect();
     const aside = panel && panel.right > r.left && panel.right < r.left + r.width * 0.7 && panel.top < r.top + r.height / 2 ? -(panel.right - r.left) / 2 / r.width : 0;
     views.current?.({ from: normal, box: new THREE.Box3().setFromCenterAndSize(centre, new THREE.Vector3(span, span, span).multiplyScalar(0.6)), aside });
     return () => {

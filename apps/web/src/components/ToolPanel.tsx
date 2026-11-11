@@ -320,7 +320,7 @@ export function ToolPanel() {
   if (tool === 'layers') return <LayersPanel key={selected.object} object={selected.object} />;
   if (tool === 'cut')
     return (
-      <section className="tool-panel" aria-label={t('toolPanel.cut')}>
+      <section className="tool-panel" data-tool="cut" aria-label={t('toolPanel.cut')}>
         <strong>{t('toolPanel.cut')}</strong>
         <CutPanel key={`${selected.object}-${selected.instance}`} object={selected.object} instance={selected.instance} size={size ?? [10, 10, 10]} onDone={() => setTool(null)} />
       </section>
