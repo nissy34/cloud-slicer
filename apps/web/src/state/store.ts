@@ -330,8 +330,14 @@ export interface SlicerState {
   measure: { hover: MeasureFeature | null; picks: MeasureFeature[]; result: Measurement | null; onlyPlane: boolean };
   /** Looks up the feature under a ray from the camera (null: the pointer left the parts). */
   measureHover(ray: PaintRay | null): void;
-  /** Picks the feature under `ray` (a tap), else the hovered one; off the parts it starts over. */
-  measurePick(ray?: PaintRay): Promise<void>;
+  /**
+   * Picks the feature under `ray` (a tap), else the hovered one; off the parts
+   * it starts over, and a picked feature picked again is let go, like desktop.
+   * `reach` (mm) lets a tap pick an edge, circle or corner that near it.
+   */
+  measurePick(ray?: PaintRay, reach?: number): Promise<void>;
+  /** Lets go of pick `index` (desktop's Reset on a selection); the second one becomes the first. */
+  measureRemove(index: number): void;
   measureReset(): void;
   setMeasureOnlyPlane(onlyPlane: boolean): void;
   /** The Assemble tool picks two faces or two points (it shares measure's picks). */
@@ -1815,10 +1821,10 @@ export const useSlicer = create<SlicerState>((set, get) => {
         hovering = false;
       }
     },
-    async measurePick(ray) {
+    async measurePick(ray, reach) {
       if (ray) {
         try {
-          const found = await engine().measureFeature(get().plate, { ray, ...pickOptions() });
+          const found = await engine().measureFeature(get().plate, { ray, ...pickOptions(), ...(reach ? { reach } : {}) });
           // Assemble's points mode passes over edges and faces rather than starting over.
           if (found && !fits(found)) return;
           const hover = found;
@@ -1830,7 +1836,9 @@ export const useSlicer = create<SlicerState>((set, get) => {
       const { hover, picks, onlyPlane } = get().measure;
       // Like desktop: a click off the parts starts over, a third pick starts a new pair.
       if (!hover) return set({ measure: { ...NO_MEASURE, onlyPlane } });
-      if (picks.some((p) => sameFeature(p, hover))) return;
+      // Like desktop, picking a picked feature again lets go of it.
+      const again = picks.findIndex((p) => sameFeature(p, hover));
+      if (again >= 0) return get().measureRemove(again);
       const next = picks.length === 1 ? [picks[0], hover] : [hover];
       set({ measure: { ...get().measure, picks: next, result: null } });
       if (next.length < 2) return;
@@ -1840,6 +1848,11 @@ export const useSlicer = create<SlicerState>((set, get) => {
       } catch (e) {
         fail(e);
       }
+    },
+    measureRemove: (index) => {
+      const { picks } = get().measure;
+      if (index < 0 || index >= picks.length) return;
+      set({ measure: { ...get().measure, picks: picks.filter((_, i) => i !== index), result: null } });
     },
     measureReset: () => set({ measure: { ...NO_MEASURE, onlyPlane: get().measure.onlyPlane } }),
     setMeasureOnlyPlane: (onlyPlane) => set({ measure: { ...NO_MEASURE, onlyPlane } }),

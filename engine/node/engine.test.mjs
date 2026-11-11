@@ -1591,6 +1591,31 @@ test('measure: faces, edges and corners under a ray, and the distance and angle 
   assert.equal(feature([x + 100, y + 100, 100, 0, 0, -1]), null, 'nothing under a ray that misses');
 });
 
+test('measure: a tap reaches the circle, edge or corner near it, which a mouse must point at', () => {
+  select({ printer: DEFAULT_PRINTER });
+  load('gen-cylinder.stl');
+  // A 15 mm cylinder, 30 mm tall: its top face is a plane bounded by one circle.
+  const pos = engine.previewMesh(0).positions;
+  let [cx, cy, n] = [0, 0, pos.length / 3];
+  for (let i = 0; i < pos.length; i += 3) [cx, cy] = [cx + pos[i] / n, cy + pos[i + 1] / n];
+  const feature = (dx, reach, onlyPlane = false) => call(engine, 'measureFeature', 0, JSON.stringify({ ray: [cx + dx, cy, 100, 0, 0, -1], onlyPlane, reach })).feature;
+  assert.equal(feature(12).type, 'plane', 'a mouse 3 mm in from the rim is on the face');
+  const rim = feature(12, 4);
+  assert.equal(rim.type, 'circle', 'a tap 3 mm in from the rim reaches the circle');
+  assert.ok(Math.abs(rim.radius - 15) < 0.01, `its radius: ${rim.radius}`);
+  assert.equal(feature(5, 4).type, 'plane', 'a tap in the middle stays on the face');
+  assert.equal(feature(12, 4, true).type, 'plane', 'whole faces only');
+
+  load('gen-cube-20.stl');
+  const cube = engine.previewMesh(0).positions;
+  const lo = [0, 1].map((k) => Math.min(...cube.filter((_, i) => i % 3 === k)));
+  const tap = (x, y) => call(engine, 'measureFeature', 0, JSON.stringify({ ray: [lo[0] + x, lo[1] + y, 100, 0, 0, -1], reach: 3 })).feature;
+  assert.equal(tap(10, 18).type, 'edge', 'near the middle of a side: the edge');
+  const corner = tap(18.5, 18.5);
+  assert.equal(corner.type, 'point', 'near a corner: the corner');
+  assert.ok(Math.abs(corner.point[0] - lo[0] - 20) < 1e-3 && Math.abs(corner.point[1] - lo[1] - 20) < 1e-3, `the corner: ${corner.point}`);
+});
+
 test('assemble: faces turned and moved onto each other, objects joined, parts stacked, points moved, like desktop', () => {
   select({ printer: DEFAULT_PRINTER });
   load('gen-cube-20.stl');
