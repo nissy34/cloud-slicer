@@ -107,6 +107,7 @@ for the rest):
 | `test/view-touch.mjs` | Phone 3D view: pinching on a model that fills the screen zooms out instead of moving it; Fit all and the views menu |
 | `test/loading.mjs` | The loading screen while the engine starts and a project opens |
 | `test/busy.mjs` | The loading screen while Clone with Arrange runs, and every copy landing on the plate |
+| `test/arrange-options.mjs` | The toolbar's Arrange pop-up: its options, Align to Y axis and Auto rotate turning a bar, the spacing gap, kept in the browser, fits a phone |
 | `test/preview-views.mjs` | The Preview's colour key: grams and filament changes match the G-code, every view draws its scale, a tapped line type hides and comes back, and on a phone the key sits above the model |
 | `test/cancel.mjs` | Cancel stops the slice in the engine, and a change while slicing drops its result |
 | `test/background-slice.mjs` | Screen kept awake and progress in the tab title while slicing; "Slicing done" notification when it ends hidden |

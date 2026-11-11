@@ -5,13 +5,16 @@
 
 #include "paint_remap.hpp"
 
+#include "libslic3r/Arrange.hpp"
 #include "libslic3r/CutUtils.hpp"
 #include "libslic3r/Geometry.hpp"
+#include "libslic3r/MinAreaBoundingBox.hpp"
 #include "libslic3r/Orient.hpp"
 
 #include <algorithm>
 #include <map>
 #include <optional>
+#include <set>
 
 using nlohmann::json;
 using namespace Slic3r;
@@ -43,6 +46,64 @@ template<class F> std::string guarded(F&& f) {
 
 void relayout(int newCount);
 
+// The filaments an object prints with, 1-based: its parts' own and their
+// colour paint (what desktop's ModelInstance::get_arrange_polygon collects as
+// extrude_ids, without rebuilding the paint's triangles to find them).
+std::set<int> objectFilaments(const ModelObject& obj) {
+    std::set<int> ids;
+    for (const ModelVolume* v : obj.volumes)
+        if (v->is_model_part()) {
+            ids.insert(std::max(1, v->extruder_id()));
+            for (size_t e : v->get_extruders_from_multi_material_painting()) ids.insert(int(e) + 1);
+        }
+    if (ids.empty()) ids.insert(1);
+    return ids;
+}
+
+// Turns an instance about the plate's Z axis, around its own position.
+void turnInstance(ModelInstance& inst, double angle) {
+    if (std::abs(angle) < 1e-4) return;
+    inst.rotate(Eigen::AngleAxisd(angle, Vec3d::UnitZ()).toRotationMatrix());
+    inst.get_object()->invalidate_bounding_box();
+}
+
+// Desktop's "Auto rotate for arrangement": libnest2d starts each item at its
+// minimum-area bounding box rotation (Arrange.cpp, min_area_boundingbox_rotation),
+// and turns one too big for the bed until it fits. Rows here pack best with the
+// box's long side across, so it ends up wider than deep unless only the other
+// way fits the plate.
+void autoRotate(ModelInstance& inst, double plateWidth, double plateDepth) {
+    const Polygon hull = inst.get_object()->convex_hull_2d(inst.get_matrix());
+    if (hull.points.size() < 3) return;
+    double angle = MinAreaBoundigBox(hull, MinAreaBoundigBox::pcConvex).angle_to_X();
+    Polygon turned = hull;
+    turned.rotate(angle);
+    const Point box = turned.bounding_box().size();
+    Vec2d size(unscale<double>(box.x()), unscale<double>(box.y()));
+    if (size.y() > size.x()) {
+        angle += PI / 2;
+        std::swap(size.x(), size.y());
+    }
+    if (size.x() > plateWidth && size.x() <= plateDepth && size.y() <= plateWidth) angle += PI / 2;
+    // Of the turns that give the same box, the smallest one.
+    while (angle > PI / 2) angle -= PI;
+    while (angle <= -PI / 2) angle += PI;
+    turnInstance(inst, angle);
+}
+
+// Desktop's "Align to Y axis" (for printers whose bed moves along Y): each
+// object's long axis along Y, by Orca's own update_selected_items_axis_align
+// (the outline's second moments of area; a roundish outline stays as it is).
+void alignToY(ModelInstance& inst) {
+    arrangement::ArrangePolygons aps(1);
+    aps[0].poly.contour = inst.get_object()->convex_hull_2d(inst.get_matrix());
+    if (aps[0].poly.contour.points.size() < 3) return;
+    arrangement::ArrangeParams params;
+    params.align_to_y_axis = true;
+    arrangement::update_selected_items_axis_align(aps, nullptr, params);
+    turnInstance(inst, aps[0].rotation);
+}
+
 // Arranges every instance on `plate`: rows of bounding boxes, `spacing` mm
 // apart, tallest-first, the whole layout centred on the plate. What does not
 // fit goes onto new plates after the last one.
@@ -53,38 +114,74 @@ void relayout(int newCount);
 // extruder_clearance_height_to_rod), so the tool head's rod never passes over
 // it: it is the last of its row to print.
 //
+// `optionsJson` carries the rest of desktop's Arrange options (its toolbar
+// pop-up, GLCanvas3D::_render_arrange_menu): {rotate, alignY, multiMaterial}.
+//   rotate         "Auto rotate for arrangement" (autoRotate above)
+//   alignY         "Align to Y axis", only without rotate, as desktop greys it out then
+//   multiMaterial  "Allow multiple materials on same plate"; false keeps objects
+//                  with different filaments off each other's plates (desktop
+//                  rejects a spot that mixes them unless one object's filaments
+//                  are a subset of the others'), so they go onto new plates.
+//
 // Desktop uses libnest2d's no-fit-polygon packer (arrangement::arrange); in
 // this build it places every item on the same spot, so until that is tracked
 // down the page gets this simpler packer.
-std::string arrangePlate(int plate, double spacing, double tall) {
+std::string arrangePlate(int plate, double spacing, double tall, const std::string& optionsJson) {
     return guarded([&] {
         engine::Project& p = pr();
         if (plate < 0 || plate >= p.plateCount) throw std::runtime_error("no plate " + std::to_string(plate));
+        const json options = optionsJson.empty() ? json::object() : json::parse(optionsJson);
+        const bool rotate = options.value("rotate", false);
+        const bool alignY = !rotate && options.value("alignY", false);
+        const bool multiMaterial = options.value("multiMaterial", true);
         spacing = std::max(0.0, spacing);
-        struct Box { ModelInstance* inst; Vec2d centre, size; double height; int plate = 0; Vec2d at; };
+        struct Box { ModelInstance* inst; Vec2d centre, size; double height; int group = 0; int plate = 0; Vec2d at; };
         std::vector<Box> boxes;
+        std::vector<std::set<int>> groups;  // the filaments of each group of objects that may share a plate
         for (ModelObject* obj : p.model.objects)
             for (ModelInstance* inst : obj->instances) {
                 if (p.plateOf(*inst) != plate) continue;
+                if (rotate) autoRotate(*inst, p.plateWidth, p.plateDepth);
+                else if (alignY) alignToY(*inst);
                 const BoundingBoxf3 bb = obj->instance_bounding_box(*inst, false);
-                boxes.push_back({inst, Vec2d(bb.center().x(), bb.center().y()), Vec2d(bb.size().x(), bb.size().y()), bb.max.z() - std::max(0.0, bb.min.z())});
+                Box box{inst, Vec2d(bb.center().x(), bb.center().y()), Vec2d(bb.size().x(), bb.size().y()), bb.max.z() - std::max(0.0, bb.min.z())};
+                if (!multiMaterial) {
+                    const std::set<int> mine = objectFilaments(*obj);
+                    const auto shares = [&](const std::set<int>& g) {
+                        return std::includes(g.begin(), g.end(), mine.begin(), mine.end()) || std::includes(mine.begin(), mine.end(), g.begin(), g.end());
+                    };
+                    auto g = std::find_if(groups.begin(), groups.end(), shares);
+                    if (g == groups.end()) g = groups.insert(groups.end(), mine);
+                    else g->insert(mine.begin(), mine.end());
+                    box.group = int(g - groups.begin());
+                }
+                boxes.push_back(box);
             }
         if (boxes.empty()) return ok();
         const bool byObject = tall > 0;
-        if (!byObject) std::stable_sort(boxes.begin(), boxes.end(), [](const Box& a, const Box& b) { return a.size.y() > b.size.y(); });
+        // Group by group (each starts a plate of its own), the deepest first within one.
+        std::stable_sort(boxes.begin(), boxes.end(), [&](const Box& a, const Box& b) {
+            if (a.group != b.group) return a.group < b.group;
+            return !byObject && a.size.y() > b.size.y();
+        });
 
         // Shelf packing: fill a row left to right, start a new row when it is
         // full, and a new plate when the rows run out of depth.
         const double W = p.plateWidth, D = p.plateDepth;
-        int target = plate, extra = 0;
+        int target = plate, extra = 0, group = boxes.front().group;
         double x = 0, y = 0, rowDepth = 0;
+        const auto nextPlate = [&] {
+            target = target == plate ? p.plateCount + extra : target + 1;
+            extra += 1;
+            x = y = rowDepth = 0;
+        };
         for (Box& b : boxes) {
-            if (x > 0 && x + b.size.x() > W) { x = 0; y += rowDepth + spacing; rowDepth = 0; }
-            if (y > 0 && y + b.size.y() > D) {
-                target = target == plate ? p.plateCount + extra : target + 1;
-                extra += 1;
-                x = y = rowDepth = 0;
+            if (b.group != group) {
+                group = b.group;
+                nextPlate();
             }
+            if (x > 0 && x + b.size.x() > W) { x = 0; y += rowDepth + spacing; rowDepth = 0; }
+            if (y > 0 && y + b.size.y() > D) nextPlate();
             b.plate = target;
             b.at = Vec2d(x + b.size.x() / 2, y + b.size.y() / 2);
             x += b.size.x() + spacing;

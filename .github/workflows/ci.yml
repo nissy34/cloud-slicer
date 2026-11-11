@@ -653,6 +653,7 @@ jobs:
           node test/clearance.mjs
           node test/layer-codes.mjs
           node test/transform-fields.mjs
+          node test/arrange-options.mjs
 
       - name: Phone 3D view gestures, rotate ring and choosing several models end to end (Chromium)
         if: matrix.suite == 'touch'

@@ -129,9 +129,14 @@ try {
   await clone(desktop, 8, 'clone-desktop');
 
   // Arrange on its own shows it at once, and keeps it until the plate is redrawn.
-  await watch(desktop);
+  // The toolbar's Arrange button opens desktop's options pop-up; its Arrange button arranges.
   await desktop.getByRole('button', { name: 'Arrange all objects' }).click();
+  const arrangePop = desktop.getByRole('dialog', { name: 'Arrange options' });
+  await arrangePop.waitFor({ timeout: 5000 });
+  await watch(desktop);
+  await arrangePop.getByRole('button', { name: 'Arrange', exact: true }).click();
   const arranged = await settle(desktop);
+  await desktop.keyboard.press('Escape');
   if (shows(arranged) !== 1 || !arranged.overlay[0]?.includes('Arranging all plates')) fail(`Arrange: the loading screen should come up once (saw ${JSON.stringify(arranged.overlay)})`);
   else if (frozenAfter(arranged).length) fail(`Arrange: the loading screen went before the plate was drawn (${JSON.stringify(frozenAfter(arranged))})`);
   else console.log('Arrange shows "Arranging all plates" once, until the plate is drawn');

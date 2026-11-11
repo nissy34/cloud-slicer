@@ -7,6 +7,8 @@ import { NO_COLOURS, useSlicer, type Tool } from '../state/store';
 import { DEFAULT_PAINT, PaintPanel } from './PaintPanel';
 import { startText } from './TextPanel';
 import { ToolPanel } from './ToolPanel';
+import { ArrangeOptions } from './ArrangeOptions';
+import { Menu } from './Menu';
 import { Note } from './Note';
 
 // Desktop Snapmaker Orca's toolbar icons (resources/images, AGPL-3.0 like this
@@ -45,7 +47,7 @@ const GROUPS: Item[][] = [
     { id: 'add', icon: 'toolbar_open', label: 'Add models', key: 'Ctrl+I' },
     { id: 'addplate', icon: 'toolbar_add_plate', label: 'Add plate' },
     { id: 'orient', icon: 'toolbar_orient', label: 'Auto orient', key: 'Q' },
-    { id: 'arrange', icon: 'toolbar_arrange', label: 'Arrange all objects', key: 'A', more: 'Shift+A: only this plate' },
+    { id: 'arrange', icon: 'toolbar_arrange', label: 'Arrange all objects', key: 'A', more: 'Shift+A: only this plate · Click for options' },
     { id: 'splitobjects', icon: 'split_objects', label: 'Split to objects', needsSelection: true },
     { id: 'splitparts', icon: 'split_parts', label: 'Split to parts', needsSelection: true },
     { id: 'layers', icon: 'toolbar_variable_layer_height', label: 'Variable layer height', tool: 'layers', needsSelection: true },
@@ -84,6 +86,9 @@ export function Toolbar({ onAdd }: { onAdd(): void }) {
   const history = useSlicer((s) => s.history);
   const onPlate = useMemo(() => project?.plates[plate]?.objects ?? [], [project, plate]);
   const bar = useRef<HTMLDivElement>(null);
+  const phone = usePhone();
+  // Desktop's Arrange button opens its options pop-up; A still arranges at once.
+  const [arrangeOpen, setArrangeOpen] = useState(false);
   const svgs = useMemo(() => Object.fromEntries(ALL.map((i) => [i.id, icon(i.icon)])), []);
 
   // With nothing selected, the object tools work on the only object on the plate.
@@ -266,20 +271,41 @@ export function Toolbar({ onAdd }: { onAdd(): void }) {
               const title = item.missing
                 ? `${item.label}: not in the web app yet`
                 : `${item.label}${step ? ` ${step}` : ''}${item.key ? ` (${item.key})` : ''}${item.more && !why ? ` · ${item.more}` : ''}${why}`;
-              return (
+              const button = (props: Record<string, unknown> = {}, open = false) => (
                 <button
                   key={item.id}
-                  className={active(item) ? 'tool on' : 'tool'}
+                  {...props}
+                  className={active(item) || open ? 'tool on' : 'tool'}
                   aria-label={item.label}
                   aria-pressed={item.tool || item.paint ? active(item) : undefined}
                   aria-disabled={off || undefined}
                   data-missing={item.missing || undefined}
                   data-tool={item.id}
                   title={title}
-                  onClick={() => run(item)}
+                  onClick={props.onClick ? (props.onClick as React.MouseEventHandler) : () => run(item)}
                 >
                   <span className="tool-icon" aria-hidden="true" dangerouslySetInnerHTML={{ __html: svgs[item.id] }} />
                 </button>
+              );
+              if (item.id !== 'arrange') return button();
+              return (
+                <Menu
+                  key={item.id}
+                  role="dialog"
+                  label="Arrange options"
+                  className="arrange-pop"
+                  portal
+                  open={arrangeOpen}
+                  onOpenChange={(open) => {
+                    // Waiting for a model (or a locked plate): say why instead of opening.
+                    if (open && off) return run(item);
+                    setArrangeOpen(open);
+                  }}
+                  button={button}
+                >
+                  {/* On a phone it closes, so the arranged plate is in sight; desktop keeps it open, like Orca. */}
+                  <ArrangeOptions onArranged={() => phone && setArrangeOpen(false)} />
+                </Menu>
               );
             })}
           </div>
