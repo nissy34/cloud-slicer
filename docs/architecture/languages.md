@@ -6,10 +6,10 @@
 
 ## What it does
 
-The site speaks English and Hebrew. It follows the browser's languages: the first one the
-site speaks wins, else English. To change it by hand, the account menu (the top bar's Sign in
-or name button, signed in or not) ends with a **Language** row above Privacy · Terms:
-*Auto* (match this device), English, עברית. There is no button of its own on purpose: most people
+The site speaks English and Hebrew. It always starts in English; the browser's language is
+never used to guess (owner's call, 2026-11-11). To change it, the account menu (the top bar's
+Sign in or name button, signed in or not) ends with a **Language** row above Privacy · Terms:
+English, עברית. There is no button of its own on purpose: most people
 never need it; inside the theme menu read as odd (2026-11-11).
 Hebrew turns the whole page right to left.
 
@@ -23,7 +23,7 @@ errors, and G-code.
 |---|---|
 | The words: one file per area and language, `en/<area>.json` holding `{ "<area>": { … } }`, used as `t('<area>.<word>')` | `src/i18n/en/`, `src/i18n/he/` |
 | Library set-up; English built in, another language fetched only when picked | `src/i18n/index.ts` (i18next + react-i18next) |
-| The choice: browser or picked; sets `<html lang dir>`; kept per browser and in the account | `src/lib/language.ts` |
+| The choice (English unless picked); sets `<html lang dir>`; kept per browser and in the account | `src/lib/language.ts` |
 | Start in the right direction before the app loads | the script in `index.html` |
 | The picker, and taking the account's choice | `account/AccountMenu.tsx` (`Legal`, `AccountMenu`) |
 | Hebrew as one download | `src/i18n/he.ts` |

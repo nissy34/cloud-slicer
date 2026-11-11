@@ -234,7 +234,7 @@ function SignedIn({ onDone }: { onDone: () => void }) {
 }
 
 /**
- * The menu's last line: the language (it follows the browser unless picked here,
+ * The menu's last line: the language (English unless picked here,
  * docs/architecture/languages.md), then what is kept and how (public/privacy.html,
  * public/terms.html).
  */
@@ -251,18 +251,17 @@ function Legal() {
       <div className="account-language">
         <span className="account-muted">{t('language.heading')}</span>
         <div className="chooser" role="radiogroup" aria-label={t('language.heading')} data-testid="language-picker">
-          {(['system', ...LANGUAGES.map((l) => l.id)] as LanguageChoice[]).map((id) => (
+          {LANGUAGES.map((l) => l.id).map((id) => (
             <button
               key={id}
               role="radio"
               aria-checked={language === id}
               className={language === id ? 'active' : ''}
               data-testid={`language-${id}`}
-              lang={id === 'system' ? undefined : id}
-              title={id === 'system' ? t('language.system') : undefined}
+              lang={id}
               onClick={() => pick(id)}
             >
-              {id === 'system' ? t('language.auto') : LANGUAGES.find((l) => l.id === id)!.name}
+              {LANGUAGES.find((l) => l.id === id)!.name}
             </button>
           ))}
         </div>

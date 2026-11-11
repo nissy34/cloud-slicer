@@ -23,7 +23,7 @@ down. Add a line with the date when a new choice is made.
   is no longer used (2026-10-29, reversing "plain lists stay native" from 2026-10-26).
   Every filament choice shows the numbered square and preset name.
 - **Languages: the site's own words only** (option B, 2026-11-11). Setting names and
-  tooltips stay English. Hebrew first; the language follows the browser, picked by hand
+  tooltips stay English. Hebrew first; always starts in English (never guessed from the browser), picked by hand
   at the bottom of the account menu, not on its own button nor in the theme menu. i18next.
 
 ## Engines

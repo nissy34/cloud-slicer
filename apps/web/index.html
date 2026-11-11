@@ -26,15 +26,7 @@
       // the app loads (see src/lib/language.ts).
       try {
         var l = localStorage.getItem('cloud-slicer:language');
-        if (l !== 'en' && l !== 'he') {
-          l = 'en';
-          var p = navigator.languages && navigator.languages.length ? navigator.languages : [navigator.language];
-          for (var i = 0; i < p.length; i++) {
-            var b = String(p[i]).toLowerCase().split('-')[0];
-            if (b === 'iw') b = 'he';
-            if (b === 'he' || b === 'en') { l = b; break; }
-          }
-        }
+        if (l !== 'he') l = 'en';
         document.documentElement.lang = l;
         document.documentElement.dir = l === 'he' ? 'rtl' : 'ltr';
       } catch (e) {}
