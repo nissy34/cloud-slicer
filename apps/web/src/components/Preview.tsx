@@ -1,6 +1,7 @@
 import { OrbitControls } from '@react-three/drei';
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
+import { useTranslation } from 'react-i18next';
 import * as THREE from 'three';
 import { bedSize, rgb } from '../lib/colour';
 import { formatClock, formatMegabytes } from '../lib/format';
@@ -8,6 +9,7 @@ import { FEATURE_COLOURS, FEATURES, type GcodeStats, type PreviewGcode } from '.
 import {
   RANGE_COLOURS,
   VIEW_TYPES,
+  featureLabel,
   formatValue,
   isRangeView,
   segmentColours,
@@ -302,6 +304,7 @@ function FitCamera({ parsed }: { parsed: PreviewGcode }) {
 
 /** Line types in the print, each a button that hides or shows it (desktop's Display column). */
 function LineTypes({ features, hidden, setHidden }: { features: number[]; hidden: ReadonlySet<number>; setHidden: (h: ReadonlySet<number>) => void }) {
+  const { t, i18n } = useTranslation();
   const toggle = (f: number) => {
     const next = new Set(hidden);
     if (!next.delete(f)) next.add(f);
@@ -315,15 +318,15 @@ function LineTypes({ features, hidden, setHidden }: { features: number[]; hidden
             key={f}
             className={hidden.has(f) ? 'legend-row legend-item off' : 'legend-row legend-item'}
             aria-pressed={!hidden.has(f)}
-            title={hidden.has(f) ? `Show ${FEATURES[f].toLowerCase()}` : `Hide ${FEATURES[f].toLowerCase()}`}
+            title={t(hidden.has(f) ? 'previewTab.showType' : 'previewTab.hideType', { name: featureLabel(f).toLocaleLowerCase(i18n.language) })}
             onClick={() => toggle(f)}
           >
             <span className="dot" style={{ background: FEATURE_COLOURS[f] }} />
-            {FEATURES[f]}
+            {featureLabel(f)}
           </button>
         ))}
       </div>
-      <p className="legend-note">{hidden.size ? 'Tap a line type to show it again.' : 'Tap a line type to hide it.'}</p>
+      <p className="legend-note">{hidden.size ? t('previewTab.tapToShow') : t('previewTab.tapToHide')}</p>
     </>
   );
 }
@@ -333,10 +336,10 @@ const metres = (mm: number) => `${(mm / 1000).toFixed(2)} m`;
 const money = (c: number) => c.toFixed(2);
 
 const PARTS: { part: FilamentPart; title: string }[] = [
-  { part: 'model', title: 'Model' },
-  { part: 'support', title: 'Support' },
-  { part: 'flushed', title: 'Flushed' },
-  { part: 'tower', title: 'Tower' },
+  { part: 'model', title: 'previewTab.partModel' },
+  { part: 'support', title: 'previewTab.partSupport' },
+  { part: 'flushed', title: 'previewTab.partFlushed' },
+  { part: 'tower', title: 'previewTab.partTower' },
 ];
 
 /** A weight with its length under it (the phone shows the weight only). */
@@ -356,18 +359,19 @@ function Use({ g, mm }: { g: number; mm: number }) {
  * the engine's split, one line per filament with the G-code's own totals.
  */
 function FilamentStats({ stats, used, colours, parts, cost }: { stats: GcodeStats; used: number[]; colours: string[]; parts?: SliceResult['filamentParts']; cost?: number }) {
+  const { t } = useTranslation();
   const tools = [...new Set([...used, ...stats.filaments.flatMap((f, i) => (f.grams > 0 || f.mm > 0 ? [i] : []))])].sort((a, b) => a - b);
   // The engine's total has the printer's time cost too; a G-code file opened on its own has only the filaments'.
   const totalCost = cost ?? stats.totalCost;
   const costed = totalCost > 0;
   const totalMm = stats.filaments.reduce((a, f) => a + f.mm, 0);
-  const columns = parts ? PARTS.filter(({ part }) => tools.some((t) => (parts[t + 1]?.[part]?.mm ?? 0) > 0)) : [];
-  const partOf = (t: number, part: FilamentPart) => parts?.[t + 1]?.[part];
+  const columns = parts ? PARTS.filter(({ part }) => tools.some((k) => (parts[k + 1]?.[part]?.mm ?? 0) > 0)) : [];
+  const partOf = (k: number, part: FilamentPart) => parts?.[k + 1]?.[part];
   const add = (cells: ({ g: number; mm: number } | undefined)[]) =>
     cells.reduce<{ g: number; mm: number }>((a, c) => ({ g: a.g + (c?.g ?? 0), mm: a.mm + (c?.mm ?? 0) }), { g: 0, mm: 0 });
   // As desktop: a filament's total is its columns added up, shown when there is more than Model.
-  const rowTotal = (t: number) => add(columns.map(({ part }) => partOf(t, part)));
-  const columnTotal = (part: FilamentPart) => add(tools.map((t) => partOf(t, part)));
+  const rowTotal = (k: number) => add(columns.map(({ part }) => partOf(k, part)));
+  const columnTotal = (part: FilamentPart) => add(tools.map((k) => partOf(k, part)));
   const totalColumn = columns.some(({ part }) => part !== 'model');
   const grandTotal = add(tools.map(rowTotal));
   return (
@@ -376,24 +380,24 @@ function FilamentStats({ stats, used, colours, parts, cost }: { stats: GcodeStat
         <table className="filament-table">
           <thead>
             <tr>
-              <th>Filament</th>
+              <th>{t('previewTab.filament')}</th>
               {columns.map((c) => (
-                <th key={c.part}>{c.title}</th>
+                <th key={c.part}>{t(c.title)}</th>
               ))}
-              {totalColumn && <th>Total</th>}
+              {totalColumn && <th>{t('previewTab.total')}</th>}
             </tr>
           </thead>
           <tbody>
-            {tools.map((t) => {
-              const total = rowTotal(t);
+            {tools.map((k) => {
+              const total = rowTotal(k);
               return (
-                <tr key={t} data-filament={t + 1}>
+                <tr key={k} data-filament={k + 1}>
                   <td>
-                    <span className="dot" style={{ background: colours[t] ?? '#ccc' }} />
-                    {t + 1}
+                    <span className="dot" style={{ background: colours[k] ?? '#ccc' }} />
+                    {k + 1}
                   </td>
                   {columns.map(({ part }) => {
-                    const p = partOf(t, part);
+                    const p = partOf(k, part);
                     return <td key={part}>{p ? <Use g={p.g} mm={p.mm} /> : <span className="none">–</span>}</td>;
                   })}
                   {totalColumn && (
@@ -407,7 +411,7 @@ function FilamentStats({ stats, used, colours, parts, cost }: { stats: GcodeStat
           </tbody>
           <tfoot>
             <tr>
-              <td>Total</td>
+              <td>{t('previewTab.total')}</td>
               {columns.map(({ part }) => {
                 const c = columnTotal(part);
                 return (
@@ -425,12 +429,12 @@ function FilamentStats({ stats, used, colours, parts, cost }: { stats: GcodeStat
           </tfoot>
         </table>
       ) : (
-        tools.map((t) => {
-          const f = stats.filaments[t];
+        tools.map((k) => {
+          const f = stats.filaments[k];
           return (
-            <div key={t} className="legend-row filament-row" data-filament={t + 1}>
-              <span className="dot" style={{ background: colours[t] ?? '#ccc' }} />
-              <span className="filament-name">Filament {t + 1}</span>
+            <div key={k} className="legend-row filament-row" data-filament={k + 1}>
+              <span className="dot" style={{ background: colours[k] ?? '#ccc' }} />
+              <span className="filament-name">{t('previewTab.filamentN', { n: k + 1 })}</span>
               {f && (
                 <span className="filament-use">
                   {grams(f.grams)} · {metres(f.mm)}
@@ -442,32 +446,33 @@ function FilamentStats({ stats, used, colours, parts, cost }: { stats: GcodeStat
         })
       )}
       <div className={columns.length > 0 ? 'stats-total split' : 'stats-total'}>
-        <span>Total</span>
+        <span>{t('previewTab.total')}</span>
         <span>
           {grams(stats.totalGrams)} · {metres(totalMm)}
         </span>
-        <span>Cost</span>
+        <span>{t('previewTab.cost')}</span>
         <span>{costed ? money(totalCost) : '–'}</span>
-        <span>Filament changes</span>
+        <span>{t('previewTab.filamentChanges')}</span>
         <span data-testid="tool-changes">{stats.toolChanges}</span>
       </div>
-      {!costed && <p className="legend-note">Set the Price in the filament settings, or the Time cost in the printer settings, to see the cost.</p>}
+      {!costed && <p className="legend-note">{t('previewTab.costHint')}</p>}
     </div>
   );
 }
 
 /** Desktop's time estimate under the key, in every view: the start G-code's share, the model's, and the total. */
 function TimeStats({ total, prepare }: { total: number; prepare: number }) {
+  const { t } = useTranslation();
   if (!(total > 0)) return null;
   // The phone shows the rows on one line with the short names.
   const rows: [string, string, number, string?][] = [
-    ...(prepare > 0 ? [['Prepare time', 'Prepare', prepare] as [string, string, number]] : []),
-    ['Model printing time', 'Printing', total - prepare],
-    ['Total time', 'Total', total, 'total-time'],
+    ...(prepare > 0 ? [[t('previewTab.prepareTime'), t('previewTab.prepareShort'), prepare] as [string, string, number]] : []),
+    [t('previewTab.modelTime'), t('previewTab.modelShort'), total - prepare],
+    [t('previewTab.totalTime'), t('previewTab.total'), total, 'total-time'],
   ];
   return (
     <div className="time-stats" data-testid="time-stats">
-      <span className="time-title">Time</span>
+      <span className="time-title">{t('previewTab.time')}</span>
       {rows.map(([name, short, seconds, testId]) => (
         <span key={name} className="time-row">
           <span className="long">{name}</span>
@@ -483,13 +488,14 @@ function TimeStats({ total, prepare }: { total: number; prepare: number }) {
 
 /** The scale of a value view: Orca's colours from highest at the top to lowest, with six values along it. */
 function RangeKey({ by, range }: { by: ColourBy; range: ValueRange | null }) {
+  const { t } = useTranslation();
   const title = VIEW_TYPES.find((v) => v.id === by)?.title;
-  if (!range) return <p className="legend-note">Nothing shown to colour.</p>;
+  if (!range) return <p className="legend-note">{t('previewTab.nothingToColour')}</p>;
   const single = range.max <= range.min;
-  const ticks = single ? [range.max] : [1, 0.8, 0.6, 0.4, 0.2, 0].map((t) => valueAt(range, t));
+  const ticks = single ? [range.max] : [1, 0.8, 0.6, 0.4, 0.2, 0].map((at) => valueAt(range, at));
   return (
     <div className="range-key" data-testid="range-key">
-      <span className="range-title">{title}</span>
+      <span className="range-title">{title && t(title)}</span>
       <div className="range-body">
         <span
           className="range-bar"
@@ -539,6 +545,7 @@ function SeeThrough({ preview, colours }: { preview: PreviewMesh; colours: strin
 
 /** The plate's models see-through, with a line saying it isn't sliced and a Slice button (or that it is slicing). */
 function Unsliced({ preview }: { preview: PreviewMesh }) {
+  const { t } = useTranslation();
   const { w, d } = bedSize(useOption('printable_area'));
   // Filament numbers past the physical ones are colour mixes, as in Prepare.
   const colours = useSlicer((s) => (s.palette.length ? s.palette : (s.selection?.colours ?? NO_COLOURS)));
@@ -568,15 +575,15 @@ function Unsliced({ preview }: { preview: PreviewMesh }) {
       <PlateTabs />
       <div className="unsliced" role="status" data-testid="not-sliced">
         {slicingPlate === plate ? (
-          <span>Slicing {plates > 1 ? `plate ${plate + 1}` : 'the plate'}…</span>
+          <span>{plates > 1 ? t('previewTab.slicingPlateN', { plate: plate + 1 }) : t('previewTab.slicingThePlate')}</span>
         ) : slicingPlate !== null ? (
-          <span>Not sliced yet. Plate {slicingPlate + 1} is slicing now.</span>
+          <span>{t('previewTab.notSlicedOtherSlicing', { plate: slicingPlate + 1 })}</span>
         ) : (
           <>
-            <span>{plates > 1 ? `Plate ${plate + 1}` : 'This plate'} isn't sliced yet.</span>
+            <span>{plates > 1 ? t('previewTab.plateNotSliced', { plate: plate + 1 }) : t('previewTab.thisPlateNotSliced')}</span>
             {/* Hidden on a phone, where the Slice bar sits right under the 3D view. */}
             <button className="primary" disabled={engine !== 'ready' || outside.length > 0} onClick={() => void useSlicer.getState().slice()}>
-              {plates > 1 ? `Slice plate ${plate + 1}` : 'Slice plate'}
+              {plates > 1 ? t('previewTab.slicePlateN', { plate: plate + 1 }) : t('previewTab.slicePlate')}
             </button>
           </>
         )}
@@ -586,6 +593,7 @@ function Unsliced({ preview }: { preview: PreviewMesh }) {
 }
 
 export function Preview() {
+  const { t } = useTranslation();
   const job = useSlicer((s) => s.job);
   const colours = useSlicer((s) => s.selection?.colours ?? NO_COLOURS);
   const setTab = useSlicer((s) => s.setTab);
@@ -638,8 +646,8 @@ export function Preview() {
     return (
       <div className="coming-soon">
         <PlateTabs />
-        <h1>{plates > 1 ? `Slicing plate ${plate + 1}` : 'Slicing the plate'}</h1>
-        <p>Its toolpaths show here when it's done.</p>
+        <h1>{plates > 1 ? t('previewTab.slicingPlateTitle', { plate: plate + 1 }) : t('previewTab.slicingPlateTitleOne')}</h1>
+        <p>{t('previewTab.toolpathsWhenDone')}</p>
       </div>
     );
   }
@@ -647,17 +655,17 @@ export function Preview() {
     return (
       <div className="coming-soon">
         <PlateTabs />
-        <h1>Plate {plate + 1} isn't sliced yet</h1>
+        <h1>{t('previewTab.plateNotSlicedTitle', { plate: plate + 1 })}</h1>
         <p>
           {!onPlate
-            ? 'This plate is empty.'
+            ? t('previewTab.plateEmpty')
             : slicingPlate !== null
-              ? `Plate ${slicingPlate + 1} is slicing now. Slice this one when it's done.`
-              : 'Slice it to see its toolpaths here.'}
+              ? t('previewTab.otherSlicing', { plate: slicingPlate + 1 })
+              : t('previewTab.sliceToSee')}
         </p>
         {!onPlate && (
           <button className="primary" onClick={() => setTab('prepare')}>
-            Go to Prepare
+            {t('previewTab.goToPrepare')}
           </button>
         )}
       </div>
@@ -666,10 +674,10 @@ export function Preview() {
   if (!gcode) {
     return (
       <div className="coming-soon">
-        <h1>Nothing sliced yet</h1>
-        <p>Slice a plate on the Prepare tab to see its toolpaths here.</p>
+        <h1>{t('previewTab.nothingSliced')}</h1>
+        <p>{t('previewTab.nothingSlicedHint')}</p>
         <button className="primary" onClick={() => setTab('prepare')}>
-          Go to Prepare
+          {t('previewTab.goToPrepare')}
         </button>
       </div>
     );
@@ -701,9 +709,9 @@ export function Preview() {
         <div className="legend-head">
           <Picker
             field
-            label="Colour by"
+            label={t('previewTab.colourBy')}
             value={colourBy}
-            options={VIEW_TYPES.map((v) => ({ value: v.id, label: v.label }))}
+            options={VIEW_TYPES.map((v) => ({ value: v.id, label: t(v.label) }))}
             onChange={(v) => {
               setColourBy(v as ColourBy);
               setKeyOpen(true);
@@ -711,7 +719,7 @@ export function Preview() {
           />
           <button
             className="legend-toggle"
-            aria-label={keyOpen ? 'Hide colour key' : 'Show colour key'}
+            aria-label={keyOpen ? t('previewTab.hideKey') : t('previewTab.showKey')}
             aria-expanded={keyOpen}
             onClick={() => setKeyOpen((o) => !o)}
           >
@@ -725,9 +733,9 @@ export function Preview() {
             {isRangeView(colourBy) && <RangeKey by={colourBy} range={range} />}
             {colourBy !== 'feature' && hidden.size > 0 && (
               <p className="legend-note">
-                {hidden.size === 1 ? '1 line type hidden. ' : `${hidden.size} line types hidden. `}
+                {t('previewTab.typesHidden', { count: hidden.size })}{' '}
                 <button className="quiet" onClick={() => setHidden(new Set())}>
-                  Show all
+                  {t('previewTab.showAll')}
                 </button>
               </p>
             )}
@@ -743,8 +751,8 @@ export function Preview() {
           <PrintLoader
             loading={
               read
-                ? { label: 'Drawing the preview', progress: 1 }
-                : { label: 'Reading the G-code', progress, detail: `${formatMegabytes(gcode.size)} of G-code` }
+                ? { label: t('previewTab.drawing'), progress: 1 }
+                : { label: t('previewTab.reading'), progress, detail: t('previewTab.gcodeSize', { size: formatMegabytes(gcode.size) }) }
             }
           />
         </div>
@@ -756,7 +764,7 @@ export function Preview() {
         <div className="layer-slider">
           <div className="layer-track">
             <Slider
-              aria-label="Layer"
+              aria-label={t('previewTab.layer')}
               min={0}
               max={layers - 1}
               value={upTo}
@@ -774,8 +782,8 @@ export function Preview() {
           </span>
           <button
             className={`layer-add${codeAt(codes, parsed.layerZ, upTo) ? ' has-code' : ''}`}
-            aria-label={codeAt(codes, parsed.layerZ, upTo) ? 'Change what happens at this layer' : 'Add a pause, filament change or G-code at this layer'}
-            title={codeAt(codes, parsed.layerZ, upTo) ? 'Change what happens at this layer' : 'Add a pause, filament change or G-code at this layer'}
+            aria-label={codeAt(codes, parsed.layerZ, upTo) ? t('previewTab.changeLayer') : t('previewTab.addLayer')}
+            title={codeAt(codes, parsed.layerZ, upTo) ? t('previewTab.changeLayer') : t('previewTab.addLayer')}
             aria-expanded={menuOpen}
             onClick={() => setMenuOpen((o) => !o)}
           >

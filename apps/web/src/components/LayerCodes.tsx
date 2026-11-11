@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import type { LayerCode } from '../engine/protocol';
 import { canChangeFilament, codeAt, codeLabel, layerOf, newCode, withCodeAt } from '../lib/layerCodes';
 import { NO_COLOURS, useOption, usePlateOption, useSlicer } from '../state/store';
@@ -24,6 +25,7 @@ function markColour(code: LayerCode, palette: string[]) {
  * sits along the slider. Tapping one goes to its layer.
  */
 export function LayerMarks({ layerZ, onLayer }: { layerZ: Float32Array; onLayer(layer: number): void }) {
+  const { t } = useTranslation();
   const codes = useLayerCodes();
   const palette = usePalette();
   const last = layerZ.length - 1;
@@ -38,8 +40,8 @@ export function LayerMarks({ layerZ, onLayer }: { layerZ: Float32Array; onLayer(
             className={`layer-mark ${c.type}`}
             // Along the track, which runs half a thumb in from each end.
             style={{ left: `calc(9px + (100% - 18px) * ${layer / last})`, color: markColour(c, palette) }}
-            title={`Layer ${layer + 1}: ${codeLabel(c)}`}
-            aria-label={`Layer ${layer + 1}: ${codeLabel(c)}`}
+            title={t('layerCodes.markLabel', { layer: layer + 1, what: codeLabel(c) })}
+            aria-label={t('layerCodes.markLabel', { layer: layer + 1, what: codeLabel(c) })}
             onClick={() => onLayer(layer)}
           />
         );
@@ -63,6 +65,7 @@ type Form = null | 'gcode' | 'jump';
  * the item already there; and jump to a layer. It opens above the slider.
  */
 export function LayerMenu({ layerZ, layer, onLayer, onClose }: { layerZ: Float32Array; layer: number; onLayer(layer: number): void; onClose(): void }) {
+  const { t } = useTranslation();
   const codes = useLayerCodes();
   const palette = usePalette();
   const presets = useSlicer((s) => s.selection?.filaments ?? NO_COLOURS);
@@ -80,8 +83,8 @@ export function LayerMenu({ layerZ, layer, onLayer, onClose }: { layerZ: Float32
   // Closes on a press elsewhere (but not on the slider's own button) or Escape.
   useEffect(() => {
     const away = (e: PointerEvent) => {
-      const t = e.target as HTMLElement;
-      if (!card.current?.contains(t) && !t.closest?.('.layer-add')) onClose();
+      const target = e.target as HTMLElement;
+      if (!card.current?.contains(target) && !target.closest?.('.layer-add')) onClose();
     };
     const key = (e: KeyboardEvent) => e.key === 'Escape' && onClose();
     window.addEventListener('pointerdown', away, true);
@@ -105,7 +108,7 @@ export function LayerMenu({ layerZ, layer, onLayer, onClose }: { layerZ: Float32
   );
   // The rows every filament picker shows: numbered square, then the preset's name.
   const filaments = (current?: number) => (
-    <div className="layer-filaments" role="group" aria-label="Change filament">
+    <div className="layer-filaments" role="group" aria-label={t('layerCodes.changeFilament')}>
       {filamentChoices(palette, presets, physical).map((f, i) => (
         <button
           key={i}
@@ -114,8 +117,8 @@ export function LayerMenu({ layerZ, layer, onLayer, onClose }: { layerZ: Float32
           className="menu-item"
           data-filament={i + 1}
           disabled={!canChange || current === i + 1}
-          title={canChange ? `Print with filament ${i + 1} from this layer on` : undefined}
-          onClick={() => put(newCode('filament', z, { filament: i + 1, colour: f.swatch }), 'Change filament')}
+          title={canChange ? t('layerCodes.printWith', { filament: i + 1 }) : undefined}
+          onClick={() => put(newCode('filament', z, { filament: i + 1, colour: f.swatch }), t('layerCodes.changeFilament'))}
         >
           <Swatch colour={f.swatch} number={f.swatchNumber} />
           {f.label}
@@ -123,38 +126,39 @@ export function LayerMenu({ layerZ, layer, onLayer, onClose }: { layerZ: Float32
       ))}
     </div>
   );
-  const sequenceNote = byObject ? 'Not when printing object by object' : undefined;
+  const sequenceNote = byObject ? t('layerCodes.notByObject') : undefined;
 
   return (
     <div
       ref={card}
       className="menu object-menu layer-menu"
       role="menu"
-      aria-label="Layer menu"
+      aria-label={t('layerCodes.menu')}
       data-testid="layer-menu"
       onContextMenu={(e) => e.preventDefault()}
     >
       <div className="menu-title">
-        Layer {layer + 1} · {z.toFixed(2)} mm{here ? ` · ${codeLabel(here)}` : ''}
+        {t('layerCodes.title', { layer: layer + 1, z: z.toFixed(2) })}
+        {here ? ` · ${codeLabel(here)}` : ''}
       </div>
       {form === 'gcode' ? (
         <form
           className="menu-form"
           onSubmit={(e) => {
             e.preventDefault();
-            if (gcode.trim()) put(newCode('custom', z, { gcode: gcode.trim() }), here ? 'Edit custom G-code' : 'Add custom G-code');
+            if (gcode.trim()) put(newCode('custom', z, { gcode: gcode.trim() }), here ? t('layerCodes.editGcodeStep') : t('layerCodes.addGcodeStep'));
           }}
         >
           <label>
-            Custom G-code run at the start of this layer
-            <textarea aria-label="Custom G-code" rows={4} value={gcode} autoFocus spellCheck={false} placeholder="M117 Hello" onChange={(e) => setGcode(e.target.value)} />
+            {t('layerCodes.gcodeLabel')}
+            <textarea aria-label={t('layerCodes.customGcode')} rows={4} value={gcode} autoFocus spellCheck={false} placeholder="M117 Hello" onChange={(e) => setGcode(e.target.value)} />
           </label>
           <div className="menu-form-actions">
             <button type="button" className="ghost" onClick={() => setForm(null)}>
-              Back
+              {t('layerCodes.back')}
             </button>
             <button type="submit" className="primary" disabled={!gcode.trim()}>
-              {here ? 'Save' : 'Add'}
+              {here ? t('layerCodes.save') : t('layerCodes.add')}
             </button>
           </div>
         </form>
@@ -171,61 +175,65 @@ export function LayerMenu({ layerZ, layer, onLayer, onClose }: { layerZ: Float32
           }}
         >
           <label>
-            Layer number (1 to {layerZ.length})
-            <input aria-label="Layer number" type="number" inputMode="numeric" min={1} max={layerZ.length} value={jumpTo} autoFocus onChange={(e) => setJumpTo(e.target.value)} />
+            {t('layerCodes.layerNumberRange', { last: layerZ.length })}
+            <input aria-label={t('layerCodes.layerNumber')} type="number" inputMode="numeric" min={1} max={layerZ.length} value={jumpTo} autoFocus onChange={(e) => setJumpTo(e.target.value)} />
           </label>
           <div className="menu-form-actions">
             <button type="button" className="ghost" onClick={() => setForm(null)}>
-              Back
+              {t('layerCodes.back')}
             </button>
             <button type="submit" className="primary">
-              Go
+              {t('layerCodes.go')}
             </button>
           </div>
         </form>
       ) : here ? (
         <>
-          {here.type === 'pause' && item('Delete pause', () => put(null, 'Delete pause'))}
-          {here.type === 'template' && item('Delete custom template', () => put(null, 'Delete custom template'))}
-          {here.type === 'colour' && item('Delete colour change', () => put(null, 'Delete colour change'))}
+          {here.type === 'pause' && item(t('layerCodes.deletePause'), () => put(null, t('layerCodes.deletePause')))}
+          {here.type === 'template' && item(t('layerCodes.deleteTemplate'), () => put(null, t('layerCodes.deleteTemplate')))}
+          {here.type === 'colour' && item(t('layerCodes.deleteColour'), () => put(null, t('layerCodes.deleteColour')))}
           {here.type === 'custom' && (
             <>
-              {item('Edit custom G-code…', () => setForm('gcode'))}
-              {item('Delete custom G-code', () => put(null, 'Delete custom G-code'))}
+              {item(t('layerCodes.editGcode'), () => setForm('gcode'))}
+              {item(t('layerCodes.deleteGcode'), () => put(null, t('layerCodes.deleteGcode')))}
             </>
           )}
           {here.type === 'filament' && (
             <>
-              <div className="menu-label">Change filament</div>
+              <div className="menu-label">{t('layerCodes.changeFilament')}</div>
               {filaments(here.filament)}
-              {item('Delete filament change', () => put(null, 'Delete filament change'))}
+              {item(t('layerCodes.deleteFilament'), () => put(null, t('layerCodes.deleteFilament')))}
             </>
           )}
           <hr />
-          {item('Jump to layer…', () => setForm('jump'))}
+          {item(t('layerCodes.jump'), () => setForm('jump'))}
         </>
       ) : (
         <>
-          {item('Add pause', () => put(newCode('pause', z), 'Add pause'), {
+          {item(t('layerCodes.addPause'), () => put(newCode('pause', z), t('layerCodes.addPause')), {
             disabled: byObject,
-            title: sequenceNote ?? 'The printer pauses at the start of this layer, for example to drop in a magnet or nut',
+            title: sequenceNote ?? t('layerCodes.addPauseHint'),
           })}
-          {item('Add custom G-code…', () => setForm('gcode'), { disabled: byObject, title: sequenceNote ?? 'Your own G-code at the start of this layer' })}
+          {item(t('layerCodes.addGcode'), () => setForm('gcode'), { disabled: byObject, title: sequenceNote ?? t('layerCodes.addGcodeHint') })}
           {template.trim() &&
-            item('Add custom template', () => put(newCode('template', z), 'Add custom template'), {
+            item(t('layerCodes.addTemplate'), () => put(newCode('template', z), t('layerCodes.addTemplate')), {
               disabled: byObject,
-              title: sequenceNote ?? "The printer's custom template G-code at the start of this layer",
+              title: sequenceNote ?? t('layerCodes.addTemplateHint'),
             })}
           {palette.length > 1 && (
             <>
               <div className="menu-label">
-                Change filament{!canChange && (byObject ? ' (not when printing object by object)' : ' (only when the plate prints with one filament)')}
+                {canChange
+                  ? t('layerCodes.changeFilament')
+                  : byObject
+                    ? t('layerCodes.changeFilamentByObject')
+                    : t('layerCodes.changeFilamentOneOnly')}
               </div>
               {filaments()}
             </>
           )}
           <hr />
-          {item('Jump to layer…', () => setForm('jump'))}
+          {item(t('layerCodes.jump'), () => setForm('jump'))}
         </>
       )}
     </div>

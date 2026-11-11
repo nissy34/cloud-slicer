@@ -2,6 +2,7 @@
 // change or custom G-code at the start of a layer, one per layer, kept per
 // plate in the project (engine/src/plate_api.cpp).
 import type { LayerCode } from '../engine/protocol';
+import { i18n } from '../i18n';
 
 /** The layer (index into the G-code's layer heights) a code runs at: the one whose top is nearest its height. */
 export function layerOf(z: number, layerZ: ArrayLike<number>): number {
@@ -36,15 +37,15 @@ export function newCode(type: LayerCode['type'], z: number, extra: { filament?: 
 export function codeLabel(code: LayerCode): string {
   switch (code.type) {
     case 'pause':
-      return 'Pause';
+      return i18n.t('layerCodes.pause');
     case 'filament':
-      return `Change to filament ${code.filament}`;
+      return i18n.t('layerCodes.changeTo', { filament: code.filament });
     case 'template':
-      return 'Custom template';
+      return i18n.t('layerCodes.customTemplate');
     case 'colour':
-      return 'Colour change (M600)';
+      return i18n.t('layerCodes.colourChange');
     default:
-      return code.gcode.trim() ? `Custom G-code: ${firstLine(code.gcode)}` : 'Custom G-code';
+      return code.gcode.trim() ? i18n.t('layerCodes.customGcodeLine', { line: firstLine(code.gcode) }) : i18n.t('layerCodes.customGcode');
   }
 }
 

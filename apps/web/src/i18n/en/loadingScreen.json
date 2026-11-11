@@ -1,0 +1,9 @@
+{
+  "loadingScreen": {
+    "download": "Downloading the slicing engine",
+    "setup": "Starting the slicing engine",
+    "printers": "Loading your printers and presets",
+    "downloadingProject": "Downloading “{{name}}”",
+    "opening": "Opening {{name}}"
+  }
+}

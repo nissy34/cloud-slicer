@@ -1,0 +1,12 @@
+{
+  "backgroundSlice": {
+    "tabTitle": "{{pct}}% · פורסים · {{title}}",
+    "doneTitle": "הפריסה הסתיימה",
+    "plateSliced": "משטח {{plate}} נפרס. הקישו כדי לראות.",
+    "tapToSee": "הקישו כדי לראות.",
+    "questionTitle": "הפריסה צריכה אתכם",
+    "questionBody": "יש שאלה לפני שאפשר לסיים. הקישו כדי לענות.",
+    "failedTitle": "הפריסה נכשלה",
+    "tapToSeeWhy": "הקישו כדי לראות למה."
+  }
+}

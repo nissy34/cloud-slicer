@@ -177,7 +177,31 @@ export function progressOf(marks: PlateMark[], empty: (plate: number) => boolean
 }
 
 /** What changed between the summary a plate was printed with and now, in plain words. */
-export function changesBetween(then: PlateSummary, now: PlateSummary, label: (key: string) => string | undefined): string[] {
+/** The kinds of change changesBetween lists; `list` names what changed, `count` how many more settings. */
+export type ChangeKind = 'added' | 'removed' | 'copies' | 'moved' | 'reshaped' | 'objectSettings' | 'paint' | 'plate' | 'settings' | 'settingsMore';
+export type SayChange = (kind: ChangeKind, v: { list: string; count: number }) => string;
+
+/** The lines in English; the page passes its own words (this file also runs on the server, without them). */
+const ENGLISH_CHANGES: SayChange = (kind, { list, count }) =>
+  ({
+    added: `Added: ${list}`,
+    removed: `Removed: ${list}`,
+    copies: `Number of copies: ${list}`,
+    moved: `Moved: ${list}`,
+    reshaped: `Shape changed: ${list}`,
+    objectSettings: `Object settings: ${list}`,
+    paint: `Paint: ${list}`,
+    plate: 'Plate settings, pauses or custom G-code',
+    settings: `Settings: ${list}`,
+    settingsMore: `Settings: ${list} and ${count} more`,
+  })[kind];
+
+export function changesBetween(
+  then: PlateSummary,
+  now: PlateSummary,
+  label: (key: string) => string | undefined,
+  say: SayChange = ENGLISH_CHANGES,
+): string[] {
   const out: string[] = [];
   const byName = (s: PlateSummary) => {
     const m = new Map<string, PlateSummary['objects']>();
@@ -209,14 +233,17 @@ export function changesBetween(then: PlateSummary, now: PlateSummary, label: (ke
     }
   }
   const list = (names: string[]) => [...new Set(names)].join(', ');
-  if (added.length) out.push(`Added: ${list(added)}`);
-  if (removed.length) out.push(`Removed: ${list(removed)}`);
-  if (copies.length) out.push(`Number of copies: ${list(copies)}`);
-  if (moved.length) out.push(`Moved: ${list(moved)}`);
-  if (reshaped.length) out.push(`Shape changed: ${list(reshaped)}`);
-  if (own.length) out.push(`Object settings: ${list(own)}`);
-  if (painted.length) out.push(`Paint: ${list(painted)}`);
-  if (then.plate !== now.plate) out.push('Plate settings, pauses or custom G-code');
+  const line = (kind: ChangeKind, names: string[]) => {
+    if (names.length) out.push(say(kind, { list: list(names), count: 0 }));
+  };
+  line('added', added);
+  line('removed', removed);
+  line('copies', copies);
+  line('moved', moved);
+  line('reshaped', reshaped);
+  line('objectSettings', own);
+  line('paint', painted);
+  if (then.plate !== now.plate) out.push(say('plate', { list: '', count: 0 }));
   // Settings only one side has came with another engine version: not a change (samePrint).
   const keys = Object.keys(then.config)
     .filter((k) => k in now.config && then.config[k] !== now.config[k])
@@ -224,7 +251,7 @@ export function changesBetween(then: PlateSummary, now: PlateSummary, label: (ke
   if (keys.length) {
     const names = [...new Set(keys.map((k) => label(k) || k))];
     const shown = names.slice(0, 4).join(', ');
-    out.push(`Settings: ${shown}${names.length > 4 ? ` and ${names.length - 4} more` : ''}`);
+    out.push(names.length > 4 ? say('settingsMore', { list: shown, count: names.length - 4 }) : say('settings', { list: shown, count: 0 }));
   }
   return out;
 }
@@ -311,28 +338,4 @@ export function nextStatus(
   if (record.status === 'printing') return s;
   const total = job.totalSeconds ?? 0;
   return record.status === 'sent' && total > 0 && at - record.at >= total * 1000 ? s : null;
-}
-
-/** Short words for a record in the history list. */
-export function statusWords(r: PrintRecord): string {
-  switch (r.status) {
-    case 'uploaded':
-      return 'Uploaded, not started';
-    case 'sent':
-      return 'Sent';
-    case 'printing':
-      return 'Printing';
-    case 'printed':
-      return 'Printed';
-    case 'failed':
-      return r.progress != null ? `Failed at ${Math.round(r.progress * 100)}%` : 'Failed';
-    case 'cancelled':
-      return r.progress != null ? `Cancelled at ${Math.round(r.progress * 100)}%` : 'Cancelled';
-    case 'marked':
-      return 'Marked as printed';
-    case 'unmarked':
-      return 'Marked as not printed';
-    case 'unknown':
-      return 'No word from the printer';
-  }
 }

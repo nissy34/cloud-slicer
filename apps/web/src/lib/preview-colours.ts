@@ -1,8 +1,9 @@
 // What the Preview colours toolpaths by, like desktop Orca's view types: line
 // type, filament, or a value per segment (speed, layer height, ...) on Orca's
 // blue-to-red scale.
+import { i18n } from '../i18n';
 import { rgb } from './colour';
-import { FEATURE_COLOURS, type PreviewGcode } from './gcode';
+import { FEATURE_COLOURS, FEATURES, type PreviewGcode } from './gcode';
 
 export type ColourBy =
   | 'feature'
@@ -16,19 +17,45 @@ export type ColourBy =
   | 'fan'
   | 'temperature';
 
-/** In desktop's order. */
+/** In desktop's order. label and title are word keys: show them with t(). */
 export const VIEW_TYPES: { id: ColourBy; label: string; title?: string }[] = [
-  { id: 'feature', label: 'Line type' },
-  { id: 'filament', label: 'Filament' },
-  { id: 'speed', label: 'Speed', title: 'Speed (mm/s)' },
-  { id: 'height', label: 'Layer height', title: 'Layer height (mm)' },
-  { id: 'width', label: 'Line width', title: 'Line width (mm)' },
-  { id: 'flow', label: 'Flow', title: 'Volumetric flow (mm³/s)' },
-  { id: 'layerTime', label: 'Layer time', title: 'Layer time' },
-  { id: 'layerTimeLog', label: 'Layer time (log)', title: 'Layer time (log scale)' },
-  { id: 'fan', label: 'Fan speed', title: 'Fan speed (%)' },
-  { id: 'temperature', label: 'Temperature', title: 'Temperature (°C)' },
+  { id: 'feature', label: 'previewColours.lineType' },
+  { id: 'filament', label: 'previewColours.filament' },
+  { id: 'speed', label: 'previewColours.speed', title: 'previewColours.speedTitle' },
+  { id: 'height', label: 'previewColours.layerHeight', title: 'previewColours.layerHeightTitle' },
+  { id: 'width', label: 'previewColours.lineWidth', title: 'previewColours.lineWidthTitle' },
+  { id: 'flow', label: 'previewColours.flow', title: 'previewColours.flowTitle' },
+  { id: 'layerTime', label: 'previewColours.layerTime', title: 'previewColours.layerTime' },
+  { id: 'layerTimeLog', label: 'previewColours.layerTimeLog', title: 'previewColours.layerTimeLogTitle' },
+  { id: 'fan', label: 'previewColours.fan', title: 'previewColours.fanTitle' },
+  { id: 'temperature', label: 'previewColours.temperature', title: 'previewColours.temperatureTitle' },
 ];
+
+/** The shown name of each line type, by FEATURES index (the G-code's ;TYPE: names stay the matching ones). */
+const FEATURE_WORDS: Record<(typeof FEATURES)[number], string> = {
+  'Outer wall': 'previewColours.outerWall',
+  'Inner wall': 'previewColours.innerWall',
+  'Overhang wall': 'previewColours.overhangWall',
+  'Sparse infill': 'previewColours.sparseInfill',
+  'Internal solid infill': 'previewColours.internalSolidInfill',
+  'Top surface': 'previewColours.topSurface',
+  'Bottom surface': 'previewColours.bottomSurface',
+  Bridge: 'previewColours.bridge',
+  'Internal Bridge': 'previewColours.internalBridge',
+  'Gap infill': 'previewColours.gapInfill',
+  Skirt: 'previewColours.skirt',
+  Brim: 'previewColours.brim',
+  Support: 'previewColours.support',
+  'Support interface': 'previewColours.supportInterface',
+  'Support transition': 'previewColours.supportTransition',
+  'Prime tower': 'previewColours.primeTower',
+  Ironing: 'previewColours.ironing',
+  Custom: 'previewColours.custom',
+  Other: 'previewColours.other',
+};
+
+/** A line type's name in the page's language. */
+export const featureLabel = (feature: number) => i18n.t(FEATURE_WORDS[FEATURES[feature]] ?? 'previewColours.other');
 
 /** Orca's range colours (GCodeViewer::Range_Colors), low to high. */
 export const RANGE_COLOURS = ['#0b2c7a', '#135985', '#1c8891', '#04d60f', '#aaf200', '#fcf903', '#f5ce0a', '#d16830', '#c2523c', '#942616'];
@@ -169,10 +196,10 @@ export function segmentColours(p: PreviewGcode, by: ColourBy, filamentColours: s
 /** "3m 05s", "42s", "1h 02m": desktop's short layer times. */
 export function shortTime(seconds: number): string {
   const s = Math.round(seconds);
-  if (s < 60) return `${s}s`;
+  if (s < 60) return i18n.t('timeFormat.clockS', { n: s });
   const m = Math.floor(s / 60);
-  if (m < 60) return `${m}m ${String(s % 60).padStart(2, '0')}s`;
-  return `${Math.floor(m / 60)}h ${String(m % 60).padStart(2, '0')}m`;
+  if (m < 60) return `${i18n.t('timeFormat.clockM', { n: m })} ${i18n.t('timeFormat.clockS', { n: String(s % 60).padStart(2, '0') })}`;
+  return `${i18n.t('timeFormat.clockH', { n: Math.floor(m / 60) })} ${i18n.t('timeFormat.clockM', { n: String(m % 60).padStart(2, '0') })}`;
 }
 
 /** A legend label for a value of the view. */

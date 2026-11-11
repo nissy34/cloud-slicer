@@ -2,6 +2,8 @@
 // in, who may save projects online (in their own Google Drive), and how close the site is to
 // Cloudflare's free limits. Server side: functions/_lib/admin.ts.
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
+import { i18n } from '../i18n';
 import { adminApi, bridgeCount, NO_LIMIT, type AdminBridge, type AdminOverview, type AdminUser, type Meter } from '../account/admin-api';
 import { useAccount } from '../state/account';
 import { useSlicer } from '../state/store';
@@ -16,13 +18,13 @@ export function formatBytes(n: number): string {
   return `${(n / 1024 ** 3).toFixed(2)} GB`;
 }
 
-function when(t: number | null): string {
-  if (!t) return 'never';
-  const days = Math.floor((Date.now() - t) / 86_400_000);
-  if (days <= 0) return 'today';
-  if (days === 1) return 'yesterday';
-  if (days < 60) return `${days} days ago`;
-  return new Date(t).toLocaleDateString();
+function when(at: number | null): string {
+  if (!at) return i18n.t('adminPage.never');
+  const days = Math.floor((Date.now() - at) / 86_400_000);
+  if (days <= 0) return i18n.t('adminPage.today');
+  if (days === 1) return i18n.t('adminPage.yesterday');
+  if (days < 60) return i18n.t('adminPage.daysAgo', { count: days });
+  return new Date(at).toLocaleDateString(i18n.language);
 }
 
 type Status = { state: 'idle' | 'saving' | 'saved' } | { state: 'failed'; message: string };
@@ -35,6 +37,7 @@ const patchUser =
   (d) => ({ ...d, users: d.users.map((u) => (u.id === id ? f(u) : u)) });
 
 export function AdminScreen() {
+  const { t } = useTranslation();
   const [data, setData] = useState<AdminOverview | null>(null);
   const [error, setError] = useState('');
   const [status, setStatus] = useState<Status>({ state: 'idle' });
@@ -85,18 +88,15 @@ export function AdminScreen() {
     <div className="device admin" data-testid="admin">
       <div className="admin-wrap">
         <header className="admin-head">
-          <h1>Admin</h1>
+          <h1>{t('adminPage.title')}</h1>
           <SaveStatus status={status} />
           <button className="secondary" onClick={() => useSlicer.getState().setTab('prepare')}>
-            Back to the slicer
+            {t('adminPage.back')}
           </button>
         </header>
         <p className="admin-intro muted">
-          Only you see this page. Changes save on their own.
-          <InfoTip label="About this page">
-            Here you choose who may sign in and who may save projects online (in their own Google Drive), and see how close the site is to Cloudflare's free limits. People who
-            are allowed notice nothing.
-          </InfoTip>
+          {t('adminPage.intro')}
+          <InfoTip label={t('adminPage.aboutPage')}>{t('adminPage.aboutPageText')}</InfoTip>
         </p>
         {error && (
           <Note tone="error">
@@ -104,7 +104,7 @@ export function AdminScreen() {
           </Note>
         )}
         {!data ? (
-          !error && <p className="muted">Loading…</p>
+          !error && <p className="muted">{t('adminPage.loading')}</p>
         ) : (
           <>
             <UsageCard data={data} />
@@ -119,32 +119,34 @@ export function AdminScreen() {
 }
 
 function SaveStatus({ status }: { status: Status }) {
+  const { t } = useTranslation();
   const [shown, setShown] = useState(status.state);
   // "Saved" fades after a few seconds; "Saving…" and failures stay. The header
   // stays on screen while scrolling, so this is always in view.
   useEffect(() => {
     setShown(status.state);
     if (status.state !== 'saved') return;
-    const t = setTimeout(() => setShown('idle'), 3000);
-    return () => clearTimeout(t);
+    const timer = setTimeout(() => setShown('idle'), 3000);
+    return () => clearTimeout(timer);
   }, [status]);
   return (
     <span className={`admin-status ${shown}`} role="status" aria-live="polite" data-testid="admin-status">
       {shown === 'saving' && (
         <>
-          <span className="admin-spinner" aria-hidden /> Saving…
+          <span className="admin-spinner" aria-hidden /> {t('adminPage.saving')}
         </>
       )}
-      {shown === 'saved' && '✓ Saved'}
-      {status.state === 'failed' && shown === 'failed' && `That change didn't save, so this shows what's saved: ${status.message}`}
+      {shown === 'saved' && `✓ ${t('adminPage.saved')}`}
+      {status.state === 'failed' && shown === 'failed' && t('adminPage.saveFailed', { error: status.message })}
     </span>
   );
 }
 
 function UsageCard({ data }: { data: AdminOverview }) {
+  const { t } = useTranslation();
   const u = data.usage;
   return (
-    <Card title="Free tier use">
+    <Card title={t('adminPage.usage')}>
       <ul className="admin-meters">
         {u.meters.map((m) => (
           <MeterRow key={m.key} m={m} />
@@ -152,19 +154,19 @@ function UsageCard({ data }: { data: AdminOverview }) {
       </ul>
       {u.analytics === 'not-set-up' && (
         <p className="muted small">
-          Today's request counts (site, relay, database) need a read-only Cloudflare token. In Cloudflare: My Profile, API Tokens, Create Token, "Read
-          analytics and logs" template. Add it on GitHub as the repository secret <code>CLOUDFLARE_ANALYTICS_TOKEN</code>; the next deploy picks it
-          up.
+          {t('adminPage.tokenNeeded')} <code>CLOUDFLARE_ANALYTICS_TOKEN</code>
+          {t('adminPage.tokenNeededEnd')}
         </p>
       )}
-      {u.analytics === 'failed' && <p className="muted small">Cloudflare didn't give today's counts: {u.analyticsError}</p>}
-      <p className="muted small">Over a daily limit, that part stops until 00:00 UTC; nothing is charged on the free plan.</p>
+      {u.analytics === 'failed' && <p className="muted small">{t('adminPage.analyticsFailed', { error: u.analyticsError })}</p>}
+      <p className="muted small">{t('adminPage.overLimit')}</p>
     </Card>
   );
 }
 
 function MeterRow({ m }: { m: Meter }) {
-  const fmt = (n: number) => (m.unit === 'bytes' ? formatBytes(n) : n.toLocaleString());
+  const { t } = useTranslation();
+  const fmt = (n: number) => (m.unit === 'bytes' ? formatBytes(n) : n.toLocaleString(i18n.language));
   const share = m.limit ? Math.min(1, m.used / m.limit) : 0;
   const level = share >= 0.9 ? 'high' : share >= 0.7 ? 'mid' : 'low';
   return (
@@ -173,7 +175,7 @@ function MeterRow({ m }: { m: Meter }) {
         <span>{m.label}</span>
         <span className="admin-meter-num">
           {fmt(m.used)}
-          {m.limit ? ` of ${fmt(m.limit)}` : ''}
+          {m.limit ? ` ${t('adminPage.ofLimit', { limit: fmt(m.limit) })}` : ''}
         </span>
       </div>
       {m.limit > 0 && (
@@ -194,10 +196,11 @@ function MeterRow({ m }: { m: Meter }) {
 }
 
 function AccessCard({ data, act }: { data: AdminOverview; act: Act }) {
+  const { t } = useTranslation();
   const s = data.settings;
   const [email, setEmail] = useState('');
   return (
-    <Card title="Who can sign in">
+    <Card title={t('adminPage.whoCanSignIn')}>
       <label className="admin-switch">
         <input
           className="switch"
@@ -216,12 +219,8 @@ function AccessCard({ data, act }: { data: AdminOverview; act: Act }) {
           }}
         />
         <span>
-          <strong>Invite only</strong>
-          <span className="muted small">
-            {s.inviteOnly
-              ? 'Only people on the list can sign in. Anyone else sees "Cloud Slicer is invite only for now".'
-              : 'Anyone with a Google account can sign in. Turning this on keeps everyone who already has an account.'}
-          </span>
+          <strong>{t('adminPage.inviteOnly')}</strong>
+          <span className="muted small">{s.inviteOnly ? t('adminPage.inviteOnlyOn') : t('adminPage.inviteOnlyOff')}</span>
         </span>
       </label>
       <form
@@ -242,11 +241,11 @@ function AccessCard({ data, act }: { data: AdminOverview; act: Act }) {
         }}
       >
         <label className="admin-field">
-          <span className="small muted">Add someone to the list (their Google email)</span>
+          <span className="small muted">{t('adminPage.addSomeone')}</span>
           <input type="email" value={email} placeholder="name@gmail.com" onChange={(e) => setEmail(e.target.value)} />
         </label>
         <button className="primary" disabled={!email.trim()}>
-          Add
+          {t('adminPage.add')}
         </button>
       </form>
       {data.invites.length > 0 && (
@@ -254,7 +253,7 @@ function AccessCard({ data, act }: { data: AdminOverview; act: Act }) {
           {data.invites.map((i) => (
             <li key={i.email}>
               <span>{i.email}</span>
-              <span className="muted small">hasn't signed in yet</span>
+              <span className="muted small">{t('adminPage.notSignedInYet')}</span>
               <button
                 className="quiet"
                 onClick={() =>
@@ -267,29 +266,28 @@ function AccessCard({ data, act }: { data: AdminOverview; act: Act }) {
                   )
                 }
               >
-                Remove
+                {t('adminPage.remove')}
               </button>
             </li>
           ))}
         </ul>
       )}
-      <p className="muted small">
-        Presets and printers always save to the account. Projects save to each person’s own Google Drive, so they use none of the site’s space. Each person can use as many bridges as Bridges per person says (below), and watch 2 cameras at a time through a bridge.
-      </p>
+      <p className="muted small">{t('adminPage.storageNote')}</p>
     </Card>
   );
 }
 
 function UsersCard({ data, act }: { data: AdminOverview; act: Act }) {
+  const { t } = useTranslation();
   const [q, setQ] = useState('');
   const users = useMemo(() => {
-    const t = q.trim().toLowerCase();
-    return t ? data.users.filter((u) => u.name.toLowerCase().includes(t) || u.email.toLowerCase().includes(t)) : data.users;
+    const find = q.trim().toLowerCase();
+    return find ? data.users.filter((u) => u.name.toLowerCase().includes(find) || u.email.toLowerCase().includes(find)) : data.users;
   }, [data.users, q]);
   return (
-    <Card title={`People (${data.users.length})`}>
+    <Card title={t('adminPage.people', { n: data.users.length })}>
       {data.users.length > 5 && (
-        <input className="admin-search" type="search" placeholder="Search by name or email" value={q} onChange={(e) => setQ(e.target.value)} />
+        <input className="admin-search" type="search" placeholder={t('adminPage.search')} value={q} onChange={(e) => setQ(e.target.value)} />
       )}
       <ul className="admin-users">
         {users.map((u) => (
@@ -301,38 +299,36 @@ function UsersCard({ data, act }: { data: AdminOverview; act: Act }) {
 }
 
 function UserRow({ u, inviteOnly, siteBridges, act }: { u: AdminUser; inviteOnly: boolean; siteBridges: number; act: Act }) {
+  const { t } = useTranslation();
   const [confirming, setConfirming] = useState(false);
   return (
     <li className={u.blocked ? 'admin-user blocked' : 'admin-user'} data-testid="admin-user">
       <div className="admin-user-who">
         <strong>{u.name || u.email}</strong>
-        {u.owner && <span className="tag">You</span>}
-        {u.blocked && <span className="tag danger">Blocked</span>}
-        {inviteOnly && !u.owner && !u.allowed && !u.blocked && <span className="tag warn">Not on the list</span>}
+        {u.owner && <span className="tag">{t('adminPage.you')}</span>}
+        {u.blocked && <span className="tag danger">{t('adminPage.blocked')}</span>}
+        {inviteOnly && !u.owner && !u.allowed && !u.blocked && <span className="tag warn">{t('adminPage.notOnList')}</span>}
         <div className="muted small admin-email">{u.email}</div>
       </div>
       <div className="admin-user-stats small">
-        <span>Joined {when(u.createdAt)}</span>
-        <span>{u.lastSeen ? `Seen ${when(u.lastSeen)}` : 'Not signed in anywhere'}</span>
+        <span>{t('adminPage.joined', { when: when(u.createdAt) })}</span>
+        <span>{u.lastSeen ? t('adminPage.seen', { when: when(u.lastSeen) }) : t('adminPage.notSignedIn')}</span>
         <span>
-          {!u.projectsAllowed && <span className="tag warn">No online projects</span>} {u.projects} project
-          {u.projects === 1 ? '' : 's'}
+          {!u.projectsAllowed && <span className="tag warn">{t('adminPage.noOnlineProjects')}</span>} {t('adminPage.projects', { count: u.projects })}
         </span>
         <span>
-          {!u.bridgesAllowed && <span className="tag warn">No bridges</span>} {u.presets} preset{u.presets === 1 ? '' : 's'} · {u.printers}{' '}
-          printer
-          {u.printers === 1 ? '' : 's'} · {u.bridges} bridge
-          {u.bridges === 1 ? '' : 's'}
+          {!u.bridgesAllowed && <span className="tag warn">{t('adminPage.noBridges')}</span>} {t('adminPage.presets', { count: u.presets })} ·{' '}
+          {t('adminPage.printers', { count: u.printers })} · {t('adminPage.bridges', { count: u.bridges })}
         </span>
       </div>
       <div className="admin-user-actions">
         <Picker
           field
-          label={`Online projects for ${u.email}`}
+          label={t('adminPage.projectsFor', { email: u.email })}
           value={u.projectsAllowed ? 'yes' : 'no'}
           options={[
-            { value: 'yes', label: 'Online projects: on' },
-            { value: 'no', label: 'Online projects: off' },
+            { value: 'yes', label: t('adminPage.projectsOn') },
+            { value: 'no', label: t('adminPage.projectsOff') },
           ]}
           onChange={(v) => {
             const yes = v === 'yes';
@@ -348,7 +344,7 @@ function UserRow({ u, inviteOnly, siteBridges, act }: { u: AdminUser; inviteOnly
               <input
                 className="switch"
                 type="checkbox"
-                aria-label={`Bridges for ${u.email}: same as everyone`}
+                aria-label={t('adminPage.bridgesSameFor', { email: u.email })}
                 checked={u.bridgesLimit === null}
                 onChange={(e) => {
                   const n = e.target.checked ? null : siteBridges;
@@ -358,11 +354,11 @@ function UserRow({ u, inviteOnly, siteBridges, act }: { u: AdminUser; inviteOnly
                   );
                 }}
               />
-              <span>Bridges: same as everyone ({bridgeCount(siteBridges)})</span>
+              <span>{t('adminPage.bridgesSame', { n: bridgeCount(siteBridges) })}</span>
             </label>
             {u.bridgesLimit !== null && (
               <BridgeLimit
-                label={`Bridges for ${u.email}`}
+                label={t('adminPage.bridgesFor', { email: u.email })}
                 value={u.bridgesLimit}
                 min={0}
                 onSave={(n) =>
@@ -385,12 +381,12 @@ function UserRow({ u, inviteOnly, siteBridges, act }: { u: AdminUser; inviteOnly
               )
             }
           >
-            {u.allowed ? 'Remove from list' : 'Allow'}
+            {u.allowed ? t('adminPage.removeFromList') : t('adminPage.allow')}
           </button>
         )}
         {!u.owner && !confirming && (
           <button className="secondary danger" onClick={() => setConfirming(true)}>
-            Delete
+            {t('adminPage.delete')}
           </button>
         )}
         {!u.owner && (
@@ -403,19 +399,16 @@ function UserRow({ u, inviteOnly, siteBridges, act }: { u: AdminUser; inviteOnly
               )
             }
           >
-            {u.blocked ? 'Unblock' : 'Block'}
+            {u.blocked ? t('adminPage.unblock') : t('adminPage.block')}
           </button>
         )}
       </div>
       {confirming && (
         <div className="admin-confirm" role="alert">
-          <span>
-            Delete {u.name || u.email} and everything they saved here (project list, presets, printers, bridges)? Their project files stay in their
-            Google Drive. This can't be undone. They can sign up again later unless the site is invite only.
-          </span>
+          <span>{t('adminPage.deleteConfirm', { name: u.name || u.email })}</span>
           <div className="admin-user-actions">
             <button className="secondary" onClick={() => setConfirming(false)}>
-              Keep
+              {t('adminPage.keep')}
             </button>
             <button
               className="primary admin-delete"
@@ -429,7 +422,7 @@ function UserRow({ u, inviteOnly, siteBridges, act }: { u: AdminUser; inviteOnly
                 )
               }
             >
-              Delete for good
+              {t('adminPage.deleteForGood')}
             </button>
           </div>
         </div>
@@ -446,6 +439,7 @@ function UserRow({ u, inviteOnly, siteBridges, act }: { u: AdminUser; inviteOnly
 const UNUSED_MS = 30 * 24 * 3600_000;
 
 function BridgeLimit({ label, value, min, onSave }: { label: string; value: number; min: number; onSave: (n: number) => void }) {
+  const { t } = useTranslation();
   const unlimited = value === NO_LIMIT;
   const [text, setText] = useState(unlimited ? '' : String(value));
   useEffect(() => setText(value === NO_LIMIT ? '' : String(value)), [value]);
@@ -464,7 +458,7 @@ function BridgeLimit({ label, value, min, onSave }: { label: string; value: numb
         min={min}
         step={1}
         disabled={unlimited}
-        placeholder={unlimited ? 'No limit' : undefined}
+        placeholder={unlimited ? t('adminPage.noLimit') : undefined}
         value={text}
         onChange={(e) => setText(e.target.value)}
         onBlur={commit}
@@ -476,25 +470,26 @@ function BridgeLimit({ label, value, min, onSave }: { label: string; value: numb
         <input
           className="switch"
           type="checkbox"
-          aria-label={`${label}: no limit`}
+          aria-label={t('adminPage.noLimitFor', { label })}
           checked={unlimited}
           onChange={(e) => onSave(e.target.checked ? NO_LIMIT : Math.max(min, 1))}
         />
-        <span>No limit</span>
+        <span>{t('adminPage.noLimit')}</span>
       </label>
     </div>
   );
 }
 
 function BridgesCard({ data, act }: { data: AdminOverview; act: Act }) {
+  const { t } = useTranslation();
   const bridges: AdminBridge[] = data.bridges;
   const perPerson = data.settings.bridgesPerPerson;
   return (
-    <Card title={`Bridges (${bridges.length})`}>
+    <Card title={t('adminPage.bridgesTitle', { n: bridges.length })}>
       <div className="admin-field">
-        <span className="small muted">Bridges per person</span>
+        <span className="small muted">{t('adminPage.perPerson')}</span>
         <BridgeLimit
-          label="Bridges per person"
+          label={t('adminPage.perPerson')}
           value={perPerson}
           min={1}
           onSave={(n) =>
@@ -504,36 +499,29 @@ function BridgesCard({ data, act }: { data: AdminOverview; act: Act }) {
             )
           }
         />
-        <span className="muted small">
-          One bridge reaches every printer on its network, so most people need one. A lower number stops new bridges; ones already in use keep working. You
-          can give one person a different number under People (0 = no bridges).
-        </span>
+        <span className="muted small">{t('adminPage.perPersonNote')}</span>
       </div>
       <p className="muted small admin-note">
-        Every bridge someone reached a printer through.
-        <InfoTip label="About turning a bridge off">
-          Turning one off closes it for everyone at once, and the bridge app is refused until you turn it on again. Remove takes an old bridge off
-          the list and frees its place; if it is still running, it comes back the next time someone opens it. A bridge nobody opened for 30 days
-          stops counting toward anyone&apos;s bridges by itself.
-        </InfoTip>
+        {t('adminPage.everyBridge')}
+        <InfoTip label={t('adminPage.aboutOff')}>{t('adminPage.aboutOffText')}</InfoTip>
       </p>
       {bridges.length === 0 ? (
-        <p className="muted small">No bridges yet.</p>
+        <p className="muted small">{t('adminPage.noBridgesYet')}</p>
       ) : (
         <ul className="admin-users">
           {bridges.map((b) => (
             <li key={b.id} className={b.off ? 'admin-user blocked' : 'admin-user'} data-testid="admin-bridge">
               <div className="admin-user-who">
-                <strong>{b.name || 'Not saved by anyone'}</strong>
-                {b.off && <span className="tag danger">Off</span>}
-                {!b.off && b.lastUsed !== null && Date.now() - b.lastUsed > UNUSED_MS && <span className="tag">Not used for 30 days</span>}
+                <strong>{b.name || t('adminPage.notSaved')}</strong>
+                {b.off && <span className="tag danger">{t('adminPage.off')}</span>}
+                {!b.off && b.lastUsed !== null && Date.now() - b.lastUsed > UNUSED_MS && <span className="tag">{t('adminPage.unused30')}</span>}
                 <div className="muted small admin-email">
-                  {b.people || 'nobody yet'} · <span className="admin-bridge-id">{b.id}</span>
+                  {b.people || t('adminPage.nobodyYet')} · <span className="admin-bridge-id">{b.id}</span>
                 </div>
               </div>
               <div className="admin-user-stats small">
-                <span>Used {when(b.lastUsed)}</span>
-                <span>{b.printers ? `Printers: ${b.printers}` : 'No printers'}</span>
+                <span>{t('adminPage.used', { when: when(b.lastUsed) })}</span>
+                <span>{b.printers ? t('adminPage.printersList', { list: b.printers }) : t('adminPage.noPrinters')}</span>
               </div>
               <div className="admin-user-actions">
                 <button
@@ -548,7 +536,7 @@ function BridgesCard({ data, act }: { data: AdminOverview; act: Act }) {
                     )
                   }
                 >
-                  {b.off ? 'Turn on' : 'Turn off'}
+                  {b.off ? t('adminPage.turnOn') : t('adminPage.turnOff')}
                 </button>
                 {!b.off && (
                   <button
@@ -560,7 +548,7 @@ function BridgesCard({ data, act }: { data: AdminOverview; act: Act }) {
                       )
                     }
                   >
-                    Remove
+                    {t('adminPage.remove')}
                   </button>
                 )}
               </div>

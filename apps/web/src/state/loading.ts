@@ -1,5 +1,6 @@
 // What the loading screen over the 3D view shows: the engine starting, a
 // project downloading from the account, or a file opening. null when idle.
+import { i18n } from '../i18n';
 import { useProjects } from './projects';
 import { useSlicer, type EngineStatus, type Job, type SlicerState } from './store';
 
@@ -15,9 +16,9 @@ export interface Loading {
 }
 
 const ENGINE_LABELS = {
-  download: 'Downloading the slicing engine',
-  setup: 'Starting the slicing engine',
-  printers: 'Loading your printers and presets',
+  download: 'loadingScreen.download',
+  setup: 'loadingScreen.setup',
+  printers: 'loadingScreen.printers',
 };
 
 export function loadingState(
@@ -28,10 +29,10 @@ export function loadingState(
 ): Loading | null {
   if (engine === 'starting') {
     const { stage, loaded, total } = engineLoad;
-    return stage === 'download' ? { label: ENGINE_LABELS.download, loaded, total } : { label: ENGINE_LABELS[stage] };
+    return stage === 'download' ? { label: i18n.t(ENGINE_LABELS.download), loaded, total } : { label: i18n.t(ENGINE_LABELS[stage]) };
   }
-  if (downloading) return { label: `Downloading “${downloading.name}”`, loaded: downloading.loaded, total: downloading.total };
-  if (job.kind === 'loading') return { label: job.label ?? `Opening ${job.name}` };
+  if (downloading) return { label: i18n.t('loadingScreen.downloadingProject', { name: downloading.name }), loaded: downloading.loaded, total: downloading.total };
+  if (job.kind === 'loading') return { label: job.label ?? i18n.t('loadingScreen.opening', { name: job.name }) };
   return null;
 }
 

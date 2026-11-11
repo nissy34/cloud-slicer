@@ -1,0 +1,10 @@
+{
+  "timeFormat": {
+    "clockH": "{{n}}h",
+    "clockM": "{{n}}m",
+    "clockS": "{{n}}s",
+    "minutes": "{{m}} min",
+    "hours": "{{h}} h",
+    "hoursMinutes": "{{h}} h {{m}} min"
+  }
+}
