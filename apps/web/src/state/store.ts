@@ -815,11 +815,15 @@ export const useSlicer = create<SlicerState>((set, get) => {
       }
       setOverrides(overrides);
       set({ towers: c.towers });
-      // An empty plate: only the settings move over.
-      if (!c.file) return set({ job: { kind: 'idle' }, notice: switchedText(c.plan, false), noticeWarn: false });
+      // An empty plate: only the settings (and the mixes) move over.
+      if (!c.file) {
+        await carryMixes(c.plan);
+        return set({ job: { kind: 'idle' }, notice: switchedText(c.plan, false), noticeWarn: false });
+      }
       const area = get().overrides.printable_area ?? get().baseConfig.printable_area ?? '';
       const res = await e.load(c.file, 0, area, false);
       set({ plate: Math.min(c.plate, Math.max(0, res.info.plates.length - 1)), history: await e.clearHistory() });
+      await carryMixes(c.plan);
       await refreshPreview(res.info);
       await refreshMixes();
       await checkHeavy().catch((err) => console.warn('Triangle count:', err));
@@ -829,6 +833,17 @@ export const useSlicer = create<SlicerState>((set, get) => {
     } catch (err) {
       set({ job: { kind: 'error', message: `Couldn't open your project in ${engineName(c.plan.to)}: ${(err as Error).message}` } });
     }
+  }
+
+  // The other engine's mixes, made again here in their order, so each gets
+  // the filament number it had there (the first after the filaments, ...).
+  async function carryMixes(plan: SwitchPlan) {
+    set({ mixDefinitions: '' });
+    for (const m of plan.carried) {
+      const res = await engine().mixed(mixRequest({ op: { kind: 'add', row: m.recipe } }));
+      set({ mixDefinitions: res.definitions });
+    }
+    await refreshMixes();
   }
 
   // The settings as the engine slices and saves them: the user's changes plus
@@ -1982,9 +1997,20 @@ export const useSlicer = create<SlicerState>((set, get) => {
         set({ job: { kind: 'loading', name: '', label: `Moving your project to ${engineName(to)}` }, tool: null, paint: null });
         if (hasModel) {
           // The old engine changes what the new one can't read, then saves the project.
-          if (plan.mixes.length) await e.mixed(mixRequest({ op: { kind: 'flatten', to: [...plan.mixes].sort((a, b) => a.id - b.id).map((m) => m.becomes) } }));
           for (const edit of plan.objectEdits) await e.setObjectSettings(edit.object, edit.volume, edit.values);
-          const bytes = await e.saveProject({ ...get().overrides, mixed_filament_definitions: '' }, null);
+          // The mixes are made again in the new engine (carry). Until then the
+          // file lists a filament per mix after the real ones (a colour and a
+          // preset name), so the new engine counts their numbers as filaments:
+          // objects, parts and paint that use a mix keep its number.
+          const extra: OrcaConfig = {};
+          if (plan.carried.length) {
+            const colours = s.selection?.colours ?? [];
+            const names = splitList(config.filament_settings_id);
+            const mixColours = plan.carried.map((m) => s.mixes.find((r) => r.virtualId === m.id)?.colour ?? '#808080');
+            extra.filament_colour = [...colours, ...mixColours].join(';');
+            if (names.length) extra.filament_settings_id = [...names, ...plan.carried.map(() => names[names.length - 1])].join(';');
+          }
+          const bytes = await e.saveProject({ ...get().overrides, mixed_filament_definitions: '', ...extra }, null);
           // Named like the model, so the new engine's G-code is named the same (its {input_filename_base}).
           const name = `${(s.project?.fileName || s.project?.objects[0]?.name || 'project').replace(/\.\w+$/, '')}.3mf`;
           file = new File([bytes], name, { type: 'model/3mf' });

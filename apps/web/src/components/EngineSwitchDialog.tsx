@@ -33,8 +33,6 @@ function SettingRows({ list }: { list: DroppedSetting[] }) {
  */
 export function EngineSwitchDialog({ to, onClose, onSwitch }: { to: EngineFlavor; onClose: () => void; onSwitch: () => void }) {
   const from = useSlicer((s) => s.flavor);
-  const palette = useSlicer((s) => s.palette);
-  const colours = useSlicer((s) => s.selection?.colours);
   const hasModel = useSlicer((s) => !!s.project?.objects.length);
   const plan = useMemo(() => useSlicer.getState().switchPlan(to), [to]);
   const target = engineName(to);
@@ -64,16 +62,15 @@ export function EngineSwitchDialog({ to, onClose, onSwitch }: { to: EngineFlavor
         </p>
         {plan.mixes.length > 0 && (
           <section>
-            <h3>Colour mixes become plain filaments</h3>
-            <p className="muted small">{target} has no colour mixing. What is printed with a mix prints with the filament it uses most.</p>
+            <h3>Cycle mixes become Ratio mixes</h3>
+            <p className="muted small">{target} has no Cycle mode. Each Cycle mix keeps its filaments, in the same shares, mixed by ratio.</p>
             <ul className="engine-switch-mixes">
               {plan.mixes.map((m) => (
                 <li key={m.id}>
                   {swatch(m.colour, String(m.id))}
                   <span className="muted small">{m.label}</span>
                   <span aria-hidden>→</span>
-                  {swatch(colours?.[m.becomes - 1] ?? palette[m.becomes - 1], String(m.becomes))}
-                  <span className="sr-only">becomes filament {m.becomes}</span>
+                  <span className="muted small">{m.becomes}</span>
                 </li>
               ))}
             </ul>
