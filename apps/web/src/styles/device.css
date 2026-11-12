@@ -1992,11 +1992,6 @@
   align-items: center;
   gap: 8px;
 }
-.dv-colour input[type='color'] {
-  width: 44px;
-  height: 32px;
-  padding: 2px;
-}
 .dv-steps-list {
   margin: 0;
   padding-left: 18px;

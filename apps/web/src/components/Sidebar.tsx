@@ -20,7 +20,8 @@ import type { PresetSummary } from '../engine/protocol';
 import { Printer, Settings, SlidersHorizontal, Spool, X } from 'lucide-react';
 import { Picker, type PickerOption } from './Picker';
 import { IconButton } from './IconButton';
-import { textOn } from '../lib/mixing';
+import { ColourPicker } from './ColourPicker';
+import { toHex6 } from '../lib/colours';
 import { filamentsByBrand, type FilamentOrder } from '../lib/filament-order';
 
 /** The user's own presets always show, whatever the setup wizard installed. */
@@ -111,15 +112,7 @@ function FilamentSection() {
       <ol className="slots">
         {selection.filaments.map((name, i) => (
           <li key={i} className="slot" data-preset={name}>
-            <label className="swatch lg" style={{ background: selection.colours[i], color: textOn(selection.colours[i]) }} title="Filament colour">
-              {i + 1}
-              <input
-                type="color"
-                aria-label={`Filament ${i + 1} colour`}
-                value={toHex6(selection.colours[i])}
-                onChange={(e) => void setColour(i, e.target.value.toUpperCase())}
-              />
-            </label>
+            <ColourPicker label={`Filament ${i + 1} colour`} title="Filament colour" number={i + 1} value={selection.colours[i]} onChange={(hex) => void setColour(i, hex)} />
             <Picker
               field
               label={`Filament ${i + 1} preset`}
@@ -232,10 +225,3 @@ export function Sidebar() {
   );
 }
 
-/** "#RGB", "#RRGGBBAA" -> "#RRGGBB" for <input type=color>. */
-function toHex6(colour: string | undefined): string {
-  const c = (colour ?? '#FFFFFF').trim();
-  if (/^#[0-9a-f]{6}/i.test(c)) return c.slice(0, 7);
-  if (/^#[0-9a-f]{3}$/i.test(c)) return `#${c[1]}${c[1]}${c[2]}${c[2]}${c[3]}${c[3]}`;
-  return '#FFFFFF';
-}
