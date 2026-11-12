@@ -1281,7 +1281,7 @@ test('AI app add-on: signs in with a code the person approves on the site, then 
   assert.equal(addon.signedIn, false);
   const { code, link } = await addon.start();
   assert.match(code, /^[A-Z0-9-]{8,9}$/);
-  assert.equal(link, `${AUTH}/?user_code=${code}#link`, 'the link opens the site at the approval window');
+  assert.equal(link, `${HOST}/?user_code=${code}#link`, 'the link opens the site at the approval window');
   assert.deepEqual((await addon.status()).waiting, { code, link });
 
   // A signed-out browser can't claim or approve it.

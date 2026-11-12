@@ -130,7 +130,8 @@ export async function createAuth(env: Env, request: Request, { admin: forAdmin =
       deviceAuthorization({
         expiresIn: '10m',
         interval: '5s',
-        verificationUri: `${env.AUTH_ORIGIN ?? origin}/#link`,
+        // The site the add-on asked (a preview has its own sign-in cookies, so it approves there too).
+        verificationUri: `${origin}/#link`,
         validateClient: (id) => PROGRAM_CLIENTS.has(id),
         onDeviceAuthRequest: () => programSignInGuard(env, request),
       }),
