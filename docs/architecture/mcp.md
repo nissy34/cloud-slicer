@@ -149,6 +149,10 @@ a tool needs it and closes a minute after the last use: no streaming in the back
   only a second call with the same action and arguments plus that code goes ahead. A code
   works once, for 5 minutes, only for the action it was given for (owner's pick,
   2026-11-12; the phone had no way to say yes before).
+- **Slow commands** (a U1 homes for about a minute, loading filament longer): a control
+  waits at most 20 s (`WAIT_MS` in `printers.ts`), then answers that it was sent and is
+  still running; `printer_status` shows `homedAxes`, temperatures and filaments. An AI
+  app gives up on a tool after about a minute and drops the add-on (seen 2026-11-12).
 - Refused before asking: a print while the printer prints or isn't ready, a filament with
   no head or slot it can print from (the Send window's checks), moving while it prints, a
   printer whose add-on takes no commands (Bambu Lab: status, files and prints only).

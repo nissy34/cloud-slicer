@@ -20,7 +20,7 @@ import type { UploadStage } from '../../web/src/device/link/types';
 import { printPlan } from '../../web/src/device/print-plan';
 import { printerFromDevice, runCalls, type SavedPrinter } from '../../web/src/device/saved';
 import { PrinterSession, type ConnState } from '../../web/src/device/session';
-import { fans, heaters, job, klippyMessage, klippyState, lights, type KlipperObjects } from '../../web/src/device/status';
+import { fans, heaters, job, klippyMessage, klippyState, lights, motion, type KlipperObjects } from '../../web/src/device/status';
 import type { PrinterError } from '../../web/src/device/addons';
 import { ApiError, type Account } from './account';
 
@@ -30,6 +30,9 @@ const CONNECT_MS = 30_000;
 const KEEP_MS = 60_000;
 
 class Declined extends Error {}
+
+/** How long a control waits for the printer before answering that it is still running. */
+const WAIT_MS = Number(process.env.CLOUD_SLICER_WAIT_MS) || 20_000;
 
 /** One Device tab control (server.ts printer_control). */
 export interface Control {
@@ -264,10 +267,20 @@ export class Printers {
     const notPrinting = () => {
       if (printing) throw new Error(`${p.name} is printing ${j.filename}. Pause or stop it first.`);
     };
+    // Homing a U1 or loading filament can take minutes, longer than an AI app waits for a
+    // tool: after WAIT_MS the answer says it's still running, and printer_status tells when done.
+    let still = false;
     const run = async (script: string) => {
-      await s.gcode(script);
       this.keep(l);
+      const done = s.gcode(script, 600_000).finally(() => this.keep(l));
+      const waited = await Promise.race([done.then(() => false), new Promise<boolean>((r) => setTimeout(() => r(true), WAIT_MS))]);
+      if (waited) {
+        still = true;
+        done.catch(() => {});
+      }
     };
+    const answer = (r: Record<string, unknown>) =>
+      still ? { ...r, done: `${String(r.done)}: sent, still running on the printer`, note: 'It takes a while; printer_status shows when it is done (homed axes, temperatures, filaments).' } : r;
     const head = (n: number | undefined) => {
       if (!isU1) throw new Error('Tool heads can only be handled on a Snapmaker U1.');
       const h = u1Heads(o)[(n ?? 1) - 1];
@@ -275,7 +288,7 @@ export class Printers {
       return h;
     };
     try {
-      switch (c.action) {
+      return answer(await (async (): Promise<Record<string, unknown>> => { switch (c.action) {
         case 'print_file': {
           if (!c.file) throw new Error('Say which file (from printer_files).');
           notPrinting();
@@ -403,6 +416,8 @@ export class Printers {
           return { done: `${pick ? 'Picked up' : 'Parked'} ${h.label}` };
         }
       }
+      throw new Error(`Unknown action ${String(c.action)}.`);
+      })());
     } catch (e) {
       if (e instanceof Declined) return { done: false, note: 'The person said no; nothing was done.' };
       throw e;
@@ -427,6 +442,7 @@ function describe(l: Live) {
     }),
     ...(j.message && { message: j.message }),
     ...(klippyState(l.objects) && klippyState(l.objects) !== 'ready' && { problem: klippyMessage(l.objects) || klippyState(l.objects) }),
+    ...(motion(l.objects).homed !== undefined && { homedAxes: motion(l.objects).homed || 'none' }),
     temperatures: heaters(l.objects).map((h) => ({ name: h.label, now: round(h.temp), target: round(h.target) })),
     ...(slots.length && {
       filaments: slots.map((s) => ({ slot: s.label, material: s.material || 'not set', colour: s.colour, ...(s.vendor && { brand: s.vendor }), loaded: s.ready })),

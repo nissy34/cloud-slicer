@@ -164,6 +164,7 @@ export async function startMockPrinter({ port = 0, host = '127.0.0.1', generic =
   const cube = `${thumbnailBlock(pngFrame(3, 300, 300))}; filament_colour = #FF0000\n; filament_type = PLA\n; filament used [g] = 5.1\n${labels}\n`;
   const files = new Map([['calibration_cube.gcode', { size: 123456, modified: Date.now() / 1000 - 3600, text: cube }]]);
   const scripts = [];
+  const slow = { gcodeMs: 0 };
   // Upload behaviour tests can change: refuse with Moonraker's message, or read the file slowly.
   const uploads = { refuse: '', slowMs: 0 };
   const clients = new Set();
@@ -674,7 +675,10 @@ document.addEventListener('pointerdown', async (e) => {
       try {
         if (msg.method === 'printer.objects.subscribe') client.objects = new Set(Object.keys(msg.params?.objects ?? {}));
         const result = rpc(msg.method, msg.params);
-        ws.send(JSON.stringify({ jsonrpc: '2.0', id: msg.id, result }));
+        const reply = () => ws.send(JSON.stringify({ jsonrpc: '2.0', id: msg.id, result }));
+        // A slow command (a U1 homing takes a minute): the answer comes when it's done.
+        if (msg.method === 'printer.gcode.script' && slow.gcodeMs) setTimeout(reply, slow.gcodeMs);
+        else reply();
       } catch (e) {
         ws.send(JSON.stringify({ jsonrpc: '2.0', id: msg.id, error: { code: e.code ?? 400, message: e.message } }));
       }
@@ -685,6 +689,7 @@ document.addEventListener('pointerdown', async (e) => {
   return {
     url: `http://${host}:${server.address().port}`,
     scripts,
+    slow,
     files,
     uploads,
     stats,

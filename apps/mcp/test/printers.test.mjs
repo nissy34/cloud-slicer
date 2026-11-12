@@ -43,7 +43,7 @@ async function connect(capabilities) {
     new StdioClientTransport({
       command: process.execPath,
       args: [resolve(here, '../dist/server.mjs')],
-      env: { ...process.env, CLOUD_SLICER_SITE: `http://127.0.0.1:${site.address().port}`, CLOUD_SLICER_ACCOUNT_FILE: join(dir, 'account.json') },
+      env: { ...process.env, CLOUD_SLICER_SITE: `http://127.0.0.1:${site.address().port}`, CLOUD_SLICER_ACCOUNT_FILE: join(dir, 'account.json'), CLOUD_SLICER_WAIT_MS: '1000' },
       stderr: 'inherit',
     }),
   );
@@ -216,12 +216,22 @@ test('controls: pause, resume and stop ask first; light and fans don\'t; heat, h
   assert.ok(u1.scripts.some((x) => /heater_bed.*60|M140 S60/i.test(x)), u1.scripts.slice(-3).join(' | '));
   assert.match((await control('heat', { heater: 'bed', target: 0 })).done, /off/);
   assert.equal((await control('home')).done, 'Homed');
+  await until('status to say what is homed', async () => (await tool(client, 'printer_status', { printer: 'My U1' })).homedAxes === 'xyz');
+  // A slow command (a real U1 homes for about a minute) answers before the AI app gives up.
+  u1.slow.gcodeMs = 3000;
+  const t0 = Date.now();
+  const slowHome = await control('home');
+  assert.ok(Date.now() - t0 < 2900, 'answered before the printer finished');
+  assert.match(slowHome.done, /^Homed: sent, still running on the printer$/);
+  assert.match(slowHome.note, /printer_status shows when it is done/);
+  u1.slow.gcodeMs = 0;
+  await new Promise((r) => setTimeout(r, 2500));
   assert.ok(u1.scripts.includes('G28'));
   assert.match((await control('unload_filament', { head: 2 })).done, /Unloading T2/);
   assert.ok(u1.scripts.some((x) => /FEED_AUTO .*UNLOAD=1/.test(x)));
   assert.match((await control('set_head_filament', { head: 4, material: 'PETG', colour: '#112233' })).done, /T4: PETG/);
   assert.ok(u1.scripts.some((x) => /SET_PRINT_FILAMENT_CONFIG CONFIG_EXTRUDER=3 FILAMENT_TYPE='PETG'.*112233FF/.test(x)));
-  assert.equal(prompts.length, asked + 4, 'asked for heat (twice), home and unload; not for off or setting a type');
+  assert.equal(prompts.length, asked + 5, 'asked for heat (twice), home (twice) and unload; not for off or setting a type');
 
   // A file already on the printer prints after a yes.
   const { files } = await tool(client, 'printer_files', { printer: 'My U1' });
