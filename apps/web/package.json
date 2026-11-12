@@ -31,6 +31,7 @@
     "jose": "6.2.12",
     "lucide-react": "1.54.0",
     "react": "18.3.1",
+    "react-colorful": "5.8.1",
     "react-dom": "18.3.1",
     "react-i18next": "17.1.8",
     "three": "0.186.1",

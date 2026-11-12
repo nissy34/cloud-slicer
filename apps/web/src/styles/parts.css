@@ -466,19 +466,13 @@
 .swatch.unloaded {
   background: repeating-linear-gradient(45deg, transparent 0 3px, var(--border) 3px 4px);
 }
-/* A swatch that picks its colour: the colour box is invisible, over it. */
-label.swatch,
+/* A swatch you tap: it picks a colour (ColourPicker) or a filament. */
 button.swatch {
   padding: 0;
   cursor: pointer;
 }
-.swatch > input[type='color'] {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  opacity: 0;
-  cursor: pointer;
+button.swatch:disabled {
+  cursor: default;
 }
 
 /* Slider (components/Slider.tsx): a thin track that fills in blue up to an
@@ -786,4 +780,69 @@ pre {
 [dir='rtl'] .menu-arrow svg,
 [dir='rtl'] .flip-rtl {
   transform: scaleX(-1);
+}
+
+/* Colour picker (components/ColourPicker.tsx): a swatch that opens desktop Orca's
+   24 filament colours, your recent own colours and Custom (a colour square + hex). */
+.colour-pop {
+  width: min(296px, calc(100vw - 16px));
+  min-width: 0;
+  /* One column the popup's width: the hex field must not widen it. */
+  grid-template-columns: minmax(0, 1fr);
+}
+.colour-grid {
+  display: grid;
+  grid-template-columns: repeat(8, minmax(0, 1fr));
+  gap: var(--s-3);
+  min-width: 0;
+}
+.colour-grid .swatch.md {
+  width: 100%;
+  min-width: 0;
+  padding: 0;
+  height: auto;
+  aspect-ratio: 1;
+  border-radius: var(--r-sm);
+}
+.colour-grid .swatch[aria-pressed='true'] {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+.colour-label {
+  color: var(--muted);
+  font-size: var(--t-sm);
+  font-weight: 600;
+}
+.colour-custom {
+  display: flex;
+  align-items: center;
+  gap: var(--s-4);
+}
+.colour-custom .colour-hex {
+  flex: 1 1 0;
+  width: 0;
+  min-width: 0;
+  font-family: var(--font-mono);
+  text-transform: uppercase;
+}
+.colour-custom .flip {
+  transform: rotate(180deg);
+}
+/* react-colorful's square and hue bar, full width and easy to drag on a phone. */
+.colour-square.react-colorful {
+  width: 100%;
+  height: 180px;
+}
+.colour-square .react-colorful__hue {
+  height: 28px;
+}
+.colour-square .react-colorful__pointer {
+  width: 24px;
+  height: 24px;
+}
+@media (max-width: 760px) {
+  /* Shorter on a phone, so Done fits above the bottom tabs. */
+  .colour-square.react-colorful {
+    height: 132px;
+  }
 }

@@ -1,0 +1,33 @@
+{
+  "colourPicker": {
+    "white": "White",
+    "yellow": "Yellow",
+    "lime": "Lime",
+    "green": "Green",
+    "darkGreen": "Dark green",
+    "teal": "Teal",
+    "mint": "Mint",
+    "skyBlue": "Sky blue",
+    "lightBlue": "Light blue",
+    "blue": "Blue",
+    "indigo": "Indigo",
+    "purple": "Purple",
+    "magenta": "Magenta",
+    "lavender": "Lavender",
+    "pink": "Pink",
+    "red": "Red",
+    "brown": "Brown",
+    "orange": "Orange",
+    "cream": "Cream",
+    "beige": "Beige",
+    "tan": "Tan",
+    "grey": "Grey",
+    "lightGrey": "Light grey",
+    "black": "Black",
+    "colours": "Colours",
+    "recent": "Recent",
+    "recentColours": "Recent colours",
+    "hex": "Hex code",
+    "custom": "Custom"
+  }
+}

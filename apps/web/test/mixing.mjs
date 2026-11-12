@@ -11,7 +11,7 @@ import { readFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { chromium } from 'playwright';
-import { pickerOf } from './picker.mjs';
+import { pickerOf, setColour as setPopupColour } from './picker.mjs';
 
 const web = join(dirname(fileURLToPath(import.meta.url)), '..');
 const model = join(web, '../../fixtures/3DBenchy.stl');
@@ -51,11 +51,7 @@ try {
   // Two filaments, blue and yellow.
   while ((await page.getByLabel(/^Filament \d+ colour$/).count()) < 3) await page.getByLabel('Add filament').click();
   // Colour inputs need a real input event for React to see the change.
-  const setColour = (label, c) =>
-    page.getByLabel(label).evaluate((el, c) => {
-      Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(el, c);
-      el.dispatchEvent(new Event('input', { bubbles: true }));
-    }, c);
+  const setColour = (label, c) => setPopupColour(page, label, c);
   await setColour('Filament 1 colour', '#0000ff');
   await page.waitForTimeout(1000);
   await setColour('Filament 2 colour', '#ffff00');
