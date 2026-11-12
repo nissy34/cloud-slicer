@@ -150,6 +150,23 @@ a tool needs it and closes a minute after the last use: no streaming in the back
   no head or slot it can print from (the Send window's checks), moving while it prints, a
   printer whose add-on takes no commands (Bambu Lab: status, files and prints only).
 
+## Limits
+
+Hidden guards, so a program stuck in a loop can't use up the free tier. They live on the
+site and the relay, not in the add-on (anyone can change a program):
+
+- **Sign-in codes**: only the add-on's client id; at most 200 waiting at once.
+- **Relay tickets** for an add-on's token: 100 per account a day (`program_use`,
+  `PROGRAM_TICKETS_PER_DAY` in `functions/_lib/relay.ts`); the add-on keeps each one for
+  its hour. The ticket says `prog`.
+- **Relay messages** with a `prog` ticket: 10,000 per account per bridge a day
+  ([relay](relay.md#free-tier-budget)); a status reading is a few, a 40 MB zipped upload
+  about 160.
+- **Site calls**: presets at most once a minute; a printer's connection is reused for a
+  minute, then closed. Over a limit the person reads why, and the Device tab still works.
+- A token (no `Origin`, `Authorization: Bearer`) passes the site's same-origin check:
+  another site's page can't send that header here.
+
 ## What it keeps
 
 The sign-in, if any: the site and its token (plus name and email for showing) in
@@ -215,8 +232,6 @@ packs the install files and starts the packed one.
 
 ## Open
 
-- **Second step, in progress**: sign-in, their presets and printers are done; next
-  limits on the site and relay per account so a program can't use up the free tier.
 - Not tried on a real printer yet (rule: pretend printers in tests; "Upload only" is fine
   on a real one).
 - Site-only extras (per-plate settings, colour mixes chosen on the site) come only from

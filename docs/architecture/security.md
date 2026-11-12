@@ -22,6 +22,9 @@
 - **Allow lists, not deny lists.** The bridge passes only the Moonraker methods the Device
   tab uses, and per brand only listed requests (`allowed.go`). They guard the printer's
   computer (system commands, plugins, firmware), not G-code.
+- Changes through `/api` must come from the site's own pages (same `Origin`), except a
+  request with an AI app add-on's own token (`Authorization: Bearer`, no `Origin`):
+  another site's page can't send that header here, so it can't be a cross-site request.
 - A browser needs a signed-in, allowed account and a ticket for each bridge; blocking an
   account closes its connections at once.
 - The relay sees traffic in plain text (TLS to and from it); it logs nothing about alerts

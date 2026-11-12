@@ -68,6 +68,7 @@ interface Live {
 
 export class Printers {
   private live = new Map<string, Live>();
+  private tickets = new Map<string, { ticket: string; expiresAt: number }>();
 
   constructor(private account: Account) {}
 
@@ -154,8 +155,13 @@ export class Printers {
 
   /** The site's relay ticket for the bridge; null when the site uses none (as the Device tab: state/device.ts). */
   private async ticket(relay: string, bridgeId: string) {
+    // A ticket lasts an hour: kept and used again (the site counts them per day).
+    const kept = this.tickets.get(bridgeId);
+    if (kept && kept.expiresAt - Date.now() > 5 * 60_000) return kept;
     try {
-      return await this.account.api<{ ticket: string; expiresAt: number }>('/relay/ticket', { method: 'POST', body: JSON.stringify({ relay, bridgeId }) });
+      const t = await this.account.api<{ ticket: string; expiresAt: number }>('/relay/ticket', { method: 'POST', body: JSON.stringify({ relay, bridgeId }) });
+      this.tickets.set(bridgeId, t);
+      return t;
     } catch (e) {
       if (e instanceof ApiError && (e.status === 503 || e.status === 404)) return null;
       throw e;

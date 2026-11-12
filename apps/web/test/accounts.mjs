@@ -1304,6 +1304,19 @@ test('AI app add-on: signs in with a code the person approves on the site, then 
   assert.equal(again.signedIn, true);
   assert.ok(Array.isArray((await again.api('/presets')).presets));
 
+  // A relay ticket for the add-on (no Origin, its own token) is marked as a program's, and
+  // a hidden daily number of them keeps a program in a loop from using up the relay.
+  const ticketFor = (bridgeId) => again.api('/relay/ticket', { method: 'POST', body: JSON.stringify({ relay: 'https://cloud-slicer-relay.awesomestuff.qzz.io', bridgeId }) });
+  const t = await ticketFor('mcp-ticket-bridge');
+  const claims = JSON.parse(Buffer.from(t.ticket.split('.')[1], 'base64url').toString());
+  assert.equal(claims.prog, true, JSON.stringify(claims));
+  const pageTicket = await person.json('/api/relay/ticket', 'POST', { relay: 'https://cloud-slicer-relay.awesomestuff.qzz.io', bridgeId: 'mcp-ticket-bridge' });
+  assert.equal(JSON.parse(Buffer.from((await pageTicket.json()).ticket.split('.')[1], 'base64url').toString()).prog, undefined, "a page's ticket isn't a program's");
+  const userId = (await person.me()).id;
+  spawnSync(wrangler, ['d1', 'execute', 'cloud-slicer', '--local', '--persist-to', state, '--command', `UPDATE program_use SET tickets = 100 WHERE user_id = '${userId}'`], { cwd: web, encoding: 'utf8' });
+  await assert.rejects(ticketFor('mcp-ticket-bridge'), /AI app has opened your printers a lot today/);
+  assert.equal((await person.json('/api/relay/ticket', 'POST', { relay: 'https://cloud-slicer-relay.awesomestuff.qzz.io', bridgeId: 'mcp-ticket-bridge' })).status, 200, 'the Device tab still works');
+
   // Turned down on the site: the add-on says so and stays signed out.
   const other = new Account(join(state, 'mcp-other.json'));
   const second = await other.start();

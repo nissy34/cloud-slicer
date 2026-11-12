@@ -62,6 +62,8 @@ import { alertText } from '../../web/src/device/alert-text';
 import { cleanPrint, MAX_PRINTS_PER_HOUR } from './prints';
 
 export interface Env extends PushEnv {
+  /** Tests only: a smaller daily budget for AI app add-ons (PROGRAM_MESSAGES_PER_DAY). */
+  PROGRAM_MESSAGES_PER_DAY?: string;
   BRIDGE: DurableObjectNamespace<Bridge>;
   /** Websocket connects per IP (wrangler.toml [[ratelimits]]). */
   CONNECT_LIMIT: RateLimit;
@@ -131,7 +133,18 @@ interface Ticket {
   bridge: string;
   exp: number;
   cams: number;
+  /** An AI app's add-on (apps/mcp), not a page: it has a daily budget (PROGRAM_MESSAGES_PER_DAY). */
+  prog?: boolean;
 }
+
+/**
+ * Messages an AI app's add-on may send through one bridge per account per day: plenty
+ * for status readings, controls and uploads (a 40 MB zipped file is about 160 pieces),
+ * but a program stuck in a loop can't use up the relay's free requests. Counted in the
+ * bridge's memory, so it starts again if Cloudflare moves the bridge's object.
+ */
+const PROGRAM_MESSAGES_PER_DAY = 10_000;
+const PROGRAM_LIMIT_REASON = 'Your AI app has sent a lot through this bridge today. It can carry on tomorrow; the Device tab still works.';
 
 const keys = new Map<string, CryptoKey>();
 async function publicKey(jwk: string): Promise<CryptoKey> {
@@ -161,7 +174,7 @@ async function readTicket(env: Env, token: string, bridge: string): Promise<Tick
   try {
     const { payload: p, test } = await verifyTicket(env, token);
     if (p.b !== bridge || (test && !testBridge(bridge))) return null;
-    return { user: p.sub!, bridge, exp: p.exp! * 1000, cams: Math.max(1, Math.min(16, Number(p.cams) || 2)) };
+    return { user: p.sub!, bridge, exp: p.exp! * 1000, cams: Math.max(1, Math.min(16, Number(p.cams) || 2)), ...(p.prog === true && { prog: true }) };
   } catch {
     return null;
   }
@@ -447,6 +460,8 @@ interface ClientAttachment {
   bridge?: string;
   exp?: number;
   cams?: number;
+  /** From an AI app's add-on (Ticket.prog). */
+  prog?: boolean;
   /** The page's own name for this link, the same on every reconnect (bridge.ts). */
   slot?: string;
   /** When it connected (ms). */
@@ -584,7 +599,7 @@ export class Bridge extends DurableObject<Env> {
     const id = crypto.randomUUID().slice(0, 8);
     const printer = (url.searchParams.get('printer') ?? '').slice(0, 64);
     this.ctx.acceptWebSocket(ours, ['client', `c:${id}`]);
-    ours.serializeAttachment({ id, printer, user: ticket?.user, bridge: ticket?.bridge, exp: ticket?.exp, cams: ticket?.cams, slot: PAGE_SLOT.test(slot) ? slot : undefined, at: Date.now() } satisfies ClientAttachment);
+    ours.serializeAttachment({ id, printer, user: ticket?.user, bridge: ticket?.bridge, exp: ticket?.exp, cams: ticket?.cams, ...(ticket?.prog && { prog: true }), slot: PAGE_SLOT.test(slot) ? slot : undefined, at: Date.now() } satisfies ClientAttachment);
     const agent = this.agent();
     ours.send(this.statusMessage(await this.info(), !!agent));
     if (agent && printer) agent.send(JSON.stringify({ ctl: 'open', c: id, printer }));
@@ -670,6 +685,7 @@ export class Bridge extends DurableObject<Env> {
     const a = ws.deserializeAttachment() as ClientAttachment;
     if (message.startsWith('{"relay":"ticket"')) return this.renew(ws, a, message);
     if (this.expired(ws, a)) return;
+    if (this.overProgramBudget(ws, a)) return;
     if (message.includes('"relay.alerts"')) {
       let call: { id?: unknown; method?: unknown; params?: unknown } = {};
       try {
@@ -724,6 +740,7 @@ export class Bridge extends DurableObject<Env> {
     if (message.byteLength > MAX_BINARY || !this.ctx.getTags(ws).includes('client')) return;
     const a = ws.deserializeAttachment() as ClientAttachment;
     if (this.expired(ws, a)) return;
+    if (this.overProgramBudget(ws, a)) return;
     const agent = this.agent();
     if (!agent || !a.printer) return;
     const id = new TextEncoder().encode(a.id);
@@ -735,6 +752,21 @@ export class Bridge extends DurableObject<Env> {
   }
 
   /** A browser whose ticket ran out (the page renews it well before) is closed; it reconnects with a new one. */
+  /** Today's messages from AI app add-ons, per account (PROGRAM_MESSAGES_PER_DAY). */
+  private programUse = new Map<string, { day: string; n: number }>();
+
+  /** Counts a message from an AI app's add-on; past today's budget, closes it with the reason. */
+  private overProgramBudget(ws: WebSocket, a: ClientAttachment): boolean {
+    if (!a.prog) return false;
+    const day = new Date().toISOString().slice(0, 10);
+    const key = a.user ?? '';
+    let u = this.programUse.get(key);
+    if (!u || u.day !== day) this.programUse.set(key, (u = { day, n: 0 }));
+    if (++u.n <= (Number(this.env.PROGRAM_MESSAGES_PER_DAY) || PROGRAM_MESSAGES_PER_DAY)) return false;
+    ws.close(4029, PROGRAM_LIMIT_REASON);
+    return true;
+  }
+
   private expired(ws: WebSocket, a = ws.deserializeAttachment() as ClientAttachment | null) {
     if (!a?.exp || Date.now() < a.exp) return false;
     ws.close(4401, 'Your sign-in to the bridge ran out. Reconnecting.');
