@@ -74,7 +74,8 @@ export function projectOverrides(
   const out: OrcaConfig = {};
   for (const [key, raw] of Object.entries(alignFlowVariants(file, base, known))) {
     if (NEVER.has(key) || !(key in known) || (only && !only.has(key))) continue;
-    const value = PLATE_TEMP.test(key) ? keepRealPlateTemps(raw, base[key]) : raw;
+    // A 0 the project lists as yours stays: you set it on purpose.
+    const value = PLATE_TEMP.test(key) && !only?.has(key) ? keepRealPlateTemps(raw, base[key]) : raw;
     if (base[key] !== value && inRange(value, known[key])) out[key] = value;
   }
   return out;

@@ -24,6 +24,10 @@ describe('projectOverrides', () => {
     const preset = { textured_plate_temp: '55,55,55,55', textured_plate_temp_initial_layer: '55', hot_plate_temp: '0' };
     expect(projectOverrides(saved, preset, k)).toEqual({ textured_plate_temp: '55,55,60,55' });
   });
+  it('keeps a 0 °C the project lists as yours', () => {
+    const k = { textured_plate_temp: { min: 0 } };
+    expect(projectOverrides({ textured_plate_temp: '0' }, { textured_plate_temp: '55' }, k, new Set(['textured_plate_temp']))).toEqual({ textured_plate_temp: '0' });
+  });
 });
 
 describe('processKeys', () => {
