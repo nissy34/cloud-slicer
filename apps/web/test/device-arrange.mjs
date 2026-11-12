@@ -86,7 +86,7 @@ try {
   });
   const page = await context.newPage();
   failShot = page;
-  await page.addLocatorHandler(page.getByRole('dialog', { name: 'Set up your printers' }), (d) => d.getByRole('button', { name: 'Not now' }).click());
+  await page.addLocatorHandler(page.getByRole('dialog', { name: 'Set up your printers' }), (d) => d.getByRole('button', { name: 'Close window' }).click());
   page.on('pageerror', (e) => console.error(`page error: ${e.message}`));
   await page.goto(site);
   await page.evaluate(
@@ -205,7 +205,7 @@ try {
   const phone = await context.newPage();
   failShot = phone;
   await phone.setViewportSize({ width: 390, height: 844 });
-  await phone.addLocatorHandler(phone.getByRole('dialog', { name: 'Set up your printers' }), (d) => d.getByRole('button', { name: 'Not now' }).click());
+  await phone.addLocatorHandler(phone.getByRole('dialog', { name: 'Set up your printers' }), (d) => d.getByRole('button', { name: 'Close window' }).click());
   await phone.goto(site);
   await open(phone);
   if (!(await phone.getByTestId('console-card').count())) fail('the phone keeps its own layout: Console is not hidden there');

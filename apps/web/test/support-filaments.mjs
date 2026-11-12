@@ -60,7 +60,7 @@ try {
   const shot = async (file) => shots && (await page.screenshot({ path: join(shots, `${file}.png`) }));
   await page.goto(url);
   await page.getByText('Open a model to start').waitFor({ timeout: 120000 });
-  await page.getByRole('dialog', { name: 'Set up your printers' }).getByRole('button', { name: 'Not now' }).click();
+  await page.getByRole('dialog', { name: 'Set up your printers' }).getByRole('button', { name: 'Close window' }).click();
   await page.getByTestId('model-input').setInputFiles(model);
   await page.getByText('Ready to slice').waitFor({ timeout: 120000 });
 

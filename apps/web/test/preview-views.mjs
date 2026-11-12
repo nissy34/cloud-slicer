@@ -55,7 +55,7 @@ try {
   page.on('pageerror', (e) => console.error(`page error: ${e.message}`));
   await page.goto(url);
   await page.getByText('Open a model to start').waitFor({ timeout: 120000 });
-  await page.getByRole('dialog', { name: 'Set up your printers' }).getByRole('button', { name: 'Not now' }).click();
+  await page.getByRole('dialog', { name: 'Set up your printers' }).getByRole('button', { name: 'Close window' }).click();
 
   while ((await page.getByLabel(/^Filament \d+ colour$/).count()) < 2) await page.getByLabel('Add filament').click();
   await page.getByTestId('model-input').setInputFiles([model, second]);

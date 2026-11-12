@@ -65,7 +65,7 @@ try {
 
   const wizard = page.getByRole('dialog', { name: 'Set up your printers' });
   await wizard.waitFor({ timeout: 30000 });
-  await wizard.getByRole('button', { name: 'Not now' }).click();
+  await wizard.getByRole('button', { name: 'Close window' }).click();
 
   // Remember every label the loader shows while the project opens (it can be quick).
   await page.evaluate(() => {
