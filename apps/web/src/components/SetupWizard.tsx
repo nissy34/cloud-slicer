@@ -95,9 +95,11 @@ function Wizard({ onClose }: { onClose: () => void }) {
   const canSignIn = useAccount((s) => s.status === 'signedOut' && s.providers.google);
   // Opened from a picker before setup was done: from the start.
   const [step, setStep] = useState<Step>(() => {
-    const asked = useSetupWizard.getState().wizard ? useSetupWizard.getState().step : 'welcome';
+    // Manage (not the first-visit wizard) opens straight at the steps, never the welcome page.
+    const asked = useSetupWizard.getState().wizard ? useSetupWizard.getState().step : 'engine';
     return asked === 'welcome' && !canSignIn ? 'engine' : asked;
   });
+  const [openedOnWelcome] = useState(step === 'welcome');
   const [engine, setEngine] = useState<EngineFlavor>(useSetupWizard.getState().engine ?? savedEngine ?? running);
   // The first time nothing is picked, as on desktop: the printer the app starts on is not one you chose.
   const [printers, setPrinters] = useState<string[]>(() => savedPrinters ?? []);
@@ -175,7 +177,7 @@ function Wizard({ onClose }: { onClose: () => void }) {
           <button className="secondary wizard-later" onClick={onClose}>
             Not now
           </button>
-          {(index > 0 || (step === 'engine' && canSignIn)) && (
+          {(index > 0 || (step === 'engine' && canSignIn && openedOnWelcome)) && (
             <button className="secondary" onClick={() => setStep(index > 0 ? STEPS[index - 1].id : 'welcome')}>
               Back
             </button>

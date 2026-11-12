@@ -1611,6 +1611,19 @@ if (withApp)
         }
         await page.context().close();
       }
+      // Closed with ✕, then Manage: the setup steps, not the welcome page again.
+      const page = await browser.newPage({ viewport: { width: 1280, height: 860 } });
+      await page.goto(HOST);
+      await page.getByText('Open a model to start').waitFor({ timeout: 120000 });
+      const wizard = page.getByRole('dialog', { name: 'Set up your printers' });
+      await wizard.getByRole('heading', { name: 'Welcome to Cloud Slicer' }).waitFor({ timeout: 30000 });
+      await wizard.getByRole('button', { name: 'Close window' }).click();
+      await wizard.waitFor({ state: 'detached' });
+      await page.getByRole('button', { name: 'Manage' }).first().click();
+      await wizard.getByRole('radio', { name: 'Snapmaker Orca' }).waitFor({ timeout: 30000 });
+      assert.equal(await wizard.getByRole('heading', { name: 'Welcome to Cloud Slicer' }).count(), 0, 'Manage never shows the welcome page');
+      assert.equal(await wizard.getByRole('button', { name: 'Back' }).count(), 0, 'Manage starts on the first step');
+      await page.context().close();
     } finally {
       await browser.close();
     }
