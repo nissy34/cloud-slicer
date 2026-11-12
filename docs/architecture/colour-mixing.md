@@ -54,8 +54,12 @@ or its colour changes; a printer change resets the table and multiplier.
 - A mix counts as the filaments it mixes for the prime tower, so an object printed with a
   mix alone gets one. Snapmaker Orca's own slice counted it as one filament and dropped
   the tower; `patches/snapmaker/0009` fixes that.
-- Switching a project to the other engine turns each mix into the filament it uses most
-  (`flatten`), after saying so: the two keep mixes differently.
+- Switching a project to the other engine (experimental) makes each mix again there, in
+  order, so it keeps its filament number (`carryMixes` in `store.ts`). The old engine saves
+  the 3MF with a filament per mix after the real ones (`filament_colour`,
+  `filament_settings_id`), so the new engine's file reader keeps objects, parts and paint
+  on those numbers. Ratio, Match and Gradient are the same in both; OrcaSlicer has no
+  Cycle, so a Cycle mix goes there as a Ratio mix of the same shares, after saying so.
 
 ## Why
 

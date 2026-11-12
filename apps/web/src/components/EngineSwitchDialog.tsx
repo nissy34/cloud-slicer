@@ -35,8 +35,6 @@ function SettingRows({ list }: { list: DroppedSetting[] }) {
 export function EngineSwitchDialog({ to, onClose, onSwitch }: { to: EngineFlavor; onClose: () => void; onSwitch: () => void }) {
   const { t } = useTranslation();
   const from = useSlicer((s) => s.flavor);
-  const palette = useSlicer((s) => s.palette);
-  const colours = useSlicer((s) => s.selection?.colours);
   const hasModel = useSlicer((s) => !!s.project?.objects.length);
   const plan = useMemo(() => useSlicer.getState().switchPlan(to), [to]);
   const target = engineName(to);
@@ -74,8 +72,7 @@ export function EngineSwitchDialog({ to, onClose, onSwitch }: { to: EngineFlavor
                   {swatch(m.colour, String(m.id))}
                   <span className="muted small">{m.label}</span>
                   <span aria-hidden>→</span>
-                  {swatch(colours?.[m.becomes - 1] ?? palette[m.becomes - 1], String(m.becomes))}
-                  <span className="sr-only">{t('engineSwitch.becomes', { n: m.becomes })}</span>
+                  <span className="muted small">{m.becomes}</span>
                 </li>
               ))}
             </ul>
