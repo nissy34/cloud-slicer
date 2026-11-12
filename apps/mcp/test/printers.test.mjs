@@ -181,6 +181,59 @@ test('upload and print asks every time: no sends nothing, yes uploads and starts
   assert.equal(prompts.length, 2);
 });
 
+test('controls: pause, resume and stop ask first; light and fans don\'t; heat, home and tool heads ask', async () => {
+  const control = (action, args = {}) => tool(client, 'printer_control', { printer: 'My U1', action, ...args });
+  const seen = (state) => until(`the add-on to see ${state}`, async () => (await tool(client, 'printer_status', { printer: 'My U1' })).state === state);
+  let asked = prompts.length;
+  answer = 'decline';
+  assert.equal((await control('pause')).done, false);
+  assert.equal(prompts.length, ++asked);
+  assert.match(prompts.at(-1), /Pause the print of .* on My U1\?/);
+  assert.equal(u1.state.print_stats.state, 'printing', 'a no leaves it printing');
+  answer = 'accept';
+  assert.equal((await control('pause')).done, 'Paused');
+  await seen('paused');
+  assert.equal((await control('resume')).done, 'Resumed');
+  await seen('printing');
+  assert.equal((await control('stop')).done, 'Stopped');
+  await seen('cancelled');
+  asked = prompts.length;
+
+  // No question for the light or a fan.
+  assert.equal((await control('light', { on: true })).done, 'Light on');
+  assert.ok(u1.scripts.some((x) => /SET_LED LED=cavity_led WHITE=1/.test(x)));
+  assert.match((await control('fan', { fan: 'Part cooling', percent: 50 })).done, /50%/);
+  assert.ok(u1.scripts.includes('M106 S128'));
+  assert.equal(prompts.length, asked, 'nothing asked for the light and fan');
+
+  // Heating, homing and the tool heads ask; a no sends nothing.
+  answer = 'decline';
+  const before = u1.scripts.length;
+  assert.equal((await control('heat', { heater: 'bed', target: 60 })).done, false);
+  assert.equal(u1.scripts.length, before, 'a no sends nothing');
+  answer = 'accept';
+  assert.match((await control('heat', { heater: 'bed', target: 60 })).done, /60 °C/);
+  assert.ok(u1.scripts.some((x) => /heater_bed.*60|M140 S60/i.test(x)), u1.scripts.slice(-3).join(' | '));
+  assert.match((await control('heat', { heater: 'bed', target: 0 })).done, /off/);
+  assert.equal((await control('home')).done, 'Homed');
+  assert.ok(u1.scripts.includes('G28'));
+  assert.match((await control('unload_filament', { head: 2 })).done, /Unloading T2/);
+  assert.ok(u1.scripts.some((x) => /FEED_AUTO .*UNLOAD=1/.test(x)));
+  assert.match((await control('set_head_filament', { head: 4, material: 'PETG', colour: '#112233' })).done, /T4: PETG/);
+  assert.ok(u1.scripts.some((x) => /SET_PRINT_FILAMENT_CONFIG CONFIG_EXTRUDER=3 FILAMENT_TYPE='PETG'.*112233FF/.test(x)));
+  assert.equal(prompts.length, asked + 4, 'asked for heat (twice), home and unload; not for off or setting a type');
+
+  // A file already on the printer prints after a yes.
+  const { files } = await tool(client, 'printer_files', { printer: 'My U1' });
+  assert.ok(files.some((f) => f.file === 'calibration_cube.gcode'), JSON.stringify(files));
+  assert.equal((await control('print_file', { file: 'calibration_cube.gcode' })).done, 'Printing calibration_cube.gcode');
+  await seen('printing');
+  assert.match(prompts.at(-1), /Start printing calibration_cube\.gcode on My U1\?/);
+  assert.match((await control('home')).error, /is printing/, 'no moving while it prints');
+  answer = 'accept';
+  await control('stop');
+});
+
 test('an app that can\'t ask on screen never starts a print', async () => {
   const file = join(dir, 'cube.gcode');
   writeFileSync(file, '; filament_type = PLA\nG28\nM84\n');

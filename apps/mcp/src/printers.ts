@@ -9,14 +9,18 @@ import { readFileSync } from 'node:fs';
 import { basename } from 'node:path';
 import type { Device } from '../../web/src/account/api';
 import { uploadName } from '../../web/src/device/commands';
-import { readGcode3mf, readGcodeMeta } from '../../web/src/device/gcode-meta';
+import { metaFromMoonraker, readGcode3mf, readGcodeMeta } from '../../web/src/device/gcode-meta';
+import { excludeObjectGcode, extrudeGcode, fanGcode, homeGcode, jogGcode, lightGcode, motorsOffGcode, setHeaterGcode, speedFactorGcode, flowFactorGcode } from '../../web/src/device/commands';
+import { dialect, takesCommands } from '../../web/src/device/addons';
+import { feedGcode, filamentConfigGcode, parkHeadGcode, pickHeadGcode, U1_LIGHT, u1Heads, u1LightGcode } from '../../web/src/device/addons/u1';
+import { printObjects } from '../../web/src/device/objects';
 import { BridgeLink } from '../../web/src/device/link/bridge';
 import { DirectLink } from '../../web/src/device/link/direct';
 import type { UploadStage } from '../../web/src/device/link/types';
 import { printPlan } from '../../web/src/device/print-plan';
 import { printerFromDevice, runCalls, type SavedPrinter } from '../../web/src/device/saved';
 import { PrinterSession, type ConnState } from '../../web/src/device/session';
-import { heaters, job, klippyMessage, klippyState, type KlipperObjects } from '../../web/src/device/status';
+import { fans, heaters, job, klippyMessage, klippyState, lights, type KlipperObjects } from '../../web/src/device/status';
 import type { PrinterError } from '../../web/src/device/addons';
 import { ApiError, type Account } from './account';
 
@@ -24,6 +28,32 @@ import { ApiError, type Account } from './account';
 const CONNECT_MS = 30_000;
 /** A printer's connection stays open this long after the last use (status, then send, costs one connection). */
 const KEEP_MS = 60_000;
+
+class Declined extends Error {}
+
+/** One Device tab control (server.ts printer_control). */
+export interface Control {
+  action:
+    | 'print_file' | 'pause' | 'resume' | 'stop' | 'skip_object'
+    | 'home' | 'move' | 'extrude' | 'motors_off' | 'heat' | 'fan' | 'light' | 'speed' | 'flow'
+    | 'load_filament' | 'unload_filament' | 'set_head_filament' | 'pick_head' | 'park_head';
+  file?: string;
+  object?: string;
+  axes?: ('x' | 'y' | 'z')[];
+  axis?: 'x' | 'y' | 'z';
+  mm?: number;
+  heater?: string;
+  target?: number;
+  fan?: string;
+  light?: string;
+  on?: boolean;
+  percent?: number;
+  head?: number;
+  material?: string;
+  subType?: string;
+  brand?: string;
+  colour?: string;
+}
 
 interface Live {
   printer: SavedPrinter;
@@ -196,6 +226,181 @@ export class Printers {
     if (!opts.start || !check) return { printer: p.name, sent: true, started: false, path };
     await runCalls(l.session, check.calls(path));
     return { printer: p.name, sent: true, started: true, path };
+  }
+
+  /** The files on the printer, newest first. */
+  async files(which?: string) {
+    const p = await this.find(which);
+    const l = await this.connect(p);
+    const list = await l.session.listFiles();
+    return { printer: p.name, files: list.sort((a, b) => b.modified - a.modified).slice(0, 50).map((f) => ({ file: f.path, sizeKb: Math.round(f.size / 1024), at: new Date(f.modified * 1000).toISOString() })) };
+  }
+
+  /**
+   * One of the Device tab's controls. `confirm` asks the person; every control that
+   * heats, moves, starts, resumes or stops a print is asked first, every time.
+   */
+  async control(which: string | undefined, c: Control, confirm: (what: string) => Promise<boolean>) {
+    const p = await this.find(which);
+    const l = await this.connect(p);
+    const s = l.session;
+    const o = l.objects;
+    const addons = s.addons;
+    const isU1 = addons.some((a) => a.id === 'u1');
+    const j = job(o);
+    const printing = j.state === 'printing' || j.state === 'paused';
+    const ask = async (what: string) => {
+      if (!(await confirm(`${what} on ${p.name}?`))) throw new Declined();
+    };
+    const gcodeOk = () => {
+      if (!takesCommands(addons)) throw new Error(`${p.name} doesn't take commands from Cloud Slicer (only status, files and prints).`);
+    };
+    const notPrinting = () => {
+      if (printing) throw new Error(`${p.name} is printing ${j.filename}. Pause or stop it first.`);
+    };
+    const run = async (script: string) => {
+      await s.gcode(script);
+      this.keep(l);
+    };
+    const head = (n: number | undefined) => {
+      if (!isU1) throw new Error('Tool heads can only be handled on a Snapmaker U1.');
+      const h = u1Heads(o)[(n ?? 1) - 1];
+      if (!h) throw new Error('Head numbers are 1 to 4.');
+      return h;
+    };
+    try {
+      switch (c.action) {
+        case 'print_file': {
+          if (!c.file) throw new Error('Say which file (from printer_files).');
+          notPrinting();
+          const meta = metaFromMoonraker(await s.metadata(c.file));
+          const plan = printPlan({ addons, objects: o, path: c.file, meta, plate: null });
+          const blocked = [...plan.checks.values()].map((x) => x.blocked).filter(Boolean);
+          if (blocked.length) throw new Error(blocked.join(' '));
+          await ask(`Start printing ${c.file}`);
+          await runCalls(s, plan.calls(c.file));
+          return { done: `Printing ${c.file}` };
+        }
+        case 'pause':
+          if (j.state !== 'printing') throw new Error(`${p.name} isn't printing.`);
+          await ask(`Pause the print of ${j.filename}`);
+          await s.pause();
+          return { done: 'Paused' };
+        case 'resume':
+          if (j.state !== 'paused') throw new Error(`${p.name} isn't paused.`);
+          await ask(`Resume printing ${j.filename}`);
+          await s.resume();
+          return { done: 'Resumed' };
+        case 'stop':
+          if (!printing) throw new Error(`${p.name} isn't printing.`);
+          await ask(`Stop the print of ${j.filename} (it can't be continued)`);
+          await s.cancel();
+          return { done: 'Stopped' };
+        case 'skip_object': {
+          const objs = printObjects(o);
+          if (!objs.supported) throw new Error(`${p.name} can't skip objects.`);
+          const want = (c.object ?? '').toLowerCase();
+          const ob = objs.objects.find((x) => x.label.toLowerCase() === want || x.name.toLowerCase() === want);
+          if (!ob) throw new Error(`No object "${c.object}". Objects: ${objs.objects.map((x) => x.label).join(', ') || 'none'}.`);
+          await ask(`Skip ${ob.label} for the rest of this print (it can't be undone)`);
+          await run(excludeObjectGcode(ob.name));
+          return { done: `Skipping ${ob.label}` };
+        }
+        case 'home':
+          gcodeOk();
+          notPrinting();
+          await ask(`Home ${c.axes?.length ? c.axes.join(', ').toUpperCase() : 'all axes'} (the head and bed move)`);
+          await run(homeGcode(c.axes ?? []));
+          return { done: 'Homed' };
+        case 'move': {
+          gcodeOk();
+          notPrinting();
+          if (!c.axis || !c.mm) throw new Error('Say the axis (x, y or z) and the millimetres.');
+          await ask(`Move ${c.axis.toUpperCase()} by ${c.mm} mm`);
+          await run(jogGcode(c.axis, c.mm, c.axis === 'z' ? 600 : 6000, dialect(addons)));
+          return { done: `Moved ${c.axis.toUpperCase()} ${c.mm} mm` };
+        }
+        case 'extrude': {
+          gcodeOk();
+          notPrinting();
+          if (!c.mm) throw new Error('Say the millimetres (negative to pull back).');
+          await ask(`${c.mm > 0 ? 'Push out' : 'Pull back'} ${Math.abs(c.mm)} mm of filament (the nozzle must be hot)`);
+          await run(extrudeGcode(c.mm, undefined, dialect(addons)));
+          return { done: `${c.mm > 0 ? 'Extruded' : 'Retracted'} ${Math.abs(c.mm)} mm` };
+        }
+        case 'motors_off':
+          gcodeOk();
+          notPrinting();
+          await run(motorsOffGcode());
+          return { done: 'Motors off' };
+        case 'heat': {
+          gcodeOk();
+          const all = heaters(o);
+          const want = (c.heater ?? '').toLowerCase();
+          const h = all.find((x) => x.name.toLowerCase() === want || x.label.toLowerCase() === want) ?? (want === 'bed' ? all.find((x) => x.kind === 'bed') : want === 'nozzle' ? all.find((x) => x.kind === 'nozzle') : undefined);
+          if (!h) throw new Error(`No heater "${c.heater}". Heaters: ${all.map((x) => x.label).join(', ')}.`);
+          const target = Math.max(0, Math.min(h.max, Math.round(c.target ?? 0)));
+          if (target > 0) await ask(`Heat ${h.label} to ${target} °C`);
+          await run(setHeaterGcode(h.name, target, h.max, dialect(addons)));
+          return { done: target > 0 ? `${h.label} heating to ${target} °C` : `${h.label} off` };
+        }
+        case 'fan': {
+          gcodeOk();
+          const all = fans(o).filter((f) => f.settable);
+          const want = (c.fan ?? '').toLowerCase();
+          const f = all.find((x) => x.name.toLowerCase() === want || x.label.toLowerCase() === want) ?? (all.length === 1 || !want ? all[0] : undefined);
+          if (!f) throw new Error(`No fan "${c.fan}". Fans that can be set: ${all.map((x) => x.label).join(', ') || 'none'}.`);
+          const pct = Math.max(0, Math.min(100, c.percent ?? 0));
+          await run(fanGcode(f.name, pct / 100));
+          return { done: `${f.label} at ${pct}%` };
+        }
+        case 'light': {
+          gcodeOk();
+          const all = lights(o);
+          if (!all.length) throw new Error(`${p.name} has no light it lets us switch.`);
+          const want = (c.light ?? '').toLowerCase();
+          const li = all.find((x) => x.name.toLowerCase() === want || x.label.toLowerCase() === want) ?? all.find((x) => x.name === U1_LIGHT) ?? all[0];
+          await run(isU1 && li.name === U1_LIGHT ? u1LightGcode(Boolean(c.on)) : lightGcode(li.name, Boolean(c.on)));
+          return { done: `Light ${c.on ? 'on' : 'off'}` };
+        }
+        case 'speed':
+        case 'flow': {
+          gcodeOk();
+          if (!c.percent) throw new Error('Say the percent (100 is normal).');
+          await run(c.action === 'speed' ? speedFactorGcode(c.percent) : flowFactorGcode(c.percent));
+          return { done: `${c.action === 'speed' ? 'Speed' : 'Flow'} ${c.percent}%` };
+        }
+        case 'load_filament':
+        case 'unload_filament': {
+          const h = head(c.head);
+          notPrinting();
+          if (!h.feed) throw new Error(`${h.label} has no automatic feed.`);
+          const load = c.action === 'load_filament';
+          await ask(`${load ? 'Load' : 'Unload'} filament ${load ? 'into' : 'from'} ${h.label} (the head heats and moves)`);
+          await run(feedGcode(h.feed, load ? 'load' : 'unload'));
+          return { done: `${load ? 'Loading' : 'Unloading'} ${h.label}` };
+        }
+        case 'set_head_filament': {
+          const h = head(c.head);
+          if (!c.material) throw new Error('Say the material, e.g. PLA or PETG.');
+          if (h.official) throw new Error(`${h.label} has a tagged spool; the printer reads its filament from the tag.`);
+          await run(filamentConfigGcode(h.index, { material: c.material, subType: c.subType ?? '', vendor: c.brand ?? '', colour: c.colour ?? h.colour }));
+          return { done: `${h.label}: ${c.material}${c.colour ? ` ${c.colour}` : ''}` };
+        }
+        case 'pick_head':
+        case 'park_head': {
+          const h = head(c.head);
+          notPrinting();
+          const pick = c.action === 'pick_head';
+          await ask(`${pick ? 'Pick up' : 'Park'} ${h.label} (the carriage moves)`);
+          await run(pick ? pickHeadGcode(h.index) : parkHeadGcode(h.index));
+          return { done: `${pick ? 'Picked up' : 'Parked'} ${h.label}` };
+        }
+      }
+    } catch (e) {
+      if (e instanceof Declined) return { done: false, note: 'The person said no; nothing was done.' };
+      throw e;
+    }
   }
 }
 

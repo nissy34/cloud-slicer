@@ -18,6 +18,7 @@ OctoPrint, Elegoo Centauri Carbon and Bambu Lab printers through the bridge.
 | Part | Where |
 |---|---|
 | State: saved printers, live connection, send hand-off | `src/state/device.ts` |
+| Saved printers and bridges from the account's rows, running a start's calls (plain code, the AI app add-on uses it too) | `device/saved.ts` |
 | One live connection: Moonraker JSON-RPC, subscriptions, commands | `device/session.ts`, `status.ts`, `commands.ts` |
 | How it reaches the printer | `device/link/direct.ts`, `link/bridge.ts` |
 | Add-ons per printer family | `device/addons/` (`u1`, `prusa`, `octoprint`, `elegoo`, `bambu`), `types.ts` |

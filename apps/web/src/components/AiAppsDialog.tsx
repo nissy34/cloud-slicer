@@ -113,7 +113,8 @@ export function AiAppsDialog({ onClose }: { onClose(): void }) {
           filaments, set colours and which filament prints each object, change
           settings, arrange plates and slice. ChatGPT, Gemini and Claude on the
           web or phone only take add-ons that run online, so they can't use this
-          one. Sending to a printer comes later.
+          one. Signed in, it also uses your presets and printers, and asks you
+          on screen before it starts a print.
         </p>
       </div>
     </Dialog>

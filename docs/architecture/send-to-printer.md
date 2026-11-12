@@ -15,6 +15,7 @@ still working away from home or on a VPN.
 |---|---|
 | Hand-off from the slicer | `useDevice.getState().requestSend(blob, name, preset)` in `state/device.ts` |
 | Send window: printer, tool or AMS mapping, options | `device/ui/PrintDialog.tsx`, `device/slots.ts`, `lib/filament-limit.ts` |
+| What a start will do (slot map, options, checks, start calls), shared with the AI app add-on | `device/print-plan.ts`, `device/saved.ts` (`runCalls`) |
 | Upload (zip, direct link, relay stream) | `device/link/upload.ts`, bridge `upload.go` |
 | File name from the preset's Filename format | engine `sliceWithConfig` → `result.fileName` |
 | `.gcode.3mf` for Bambu Lab and `use_3mf` printers | engine `result.gcode3mfPath` |

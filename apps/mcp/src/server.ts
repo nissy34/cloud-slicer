@@ -482,6 +482,21 @@ server.registerTool(
   () => run(async () => (await account.signOut(), { signedIn: false })),
 );
 
+/**
+ * Asks the person on screen (MCP elicitation) and answers whether they said yes.
+ * An app that can't ask gets an error instead: nothing that heats, moves or prints
+ * happens without the person's yes.
+ */
+async function askPerson(message: string): Promise<boolean> {
+  if (!server.server.getClientCapabilities()?.elicitation)
+    throw new Error(
+      'This app can\'t ask the person on screen, so the add-on won\'t do anything that heats, moves or prints. Nothing was done or sent. ' +
+        'Uploading without print still works; do the rest on the printer or in the site\'s Device tab.',
+    );
+  const answer = await server.server.elicitInput({ message: `${message}\nAccept to go ahead, Decline to stop.`, requestedSchema: { type: 'object', properties: {} } });
+  return answer.action === 'accept';
+}
+
 server.registerTool(
   'printers',
   {
@@ -530,21 +545,58 @@ server.registerTool(
       return printers.send(printer, path, {
         start: Boolean(print),
         progress,
-        confirm: async ({ printer: name, file: shown, slots }) => {
-          if (!server.server.getClientCapabilities()?.elicitation)
-            throw new Error(
-              'This app can\'t ask the person on screen before a print starts, so the add-on won\'t start one. Nothing was sent. ' +
-                'Send without print (upload only), then start it on the printer or in the site\'s Device tab.',
-            );
-          const answer = await server.server.elicitInput({
-            message:
-              `Start printing ${shown} on ${name}? The printer heats up and moves.` + (slots.length ? `\n${slots.map((s) => `• ${s}`).join('\n')}` : '') + '\nAccept to print, Decline to stop.',
-            requestedSchema: { type: 'object', properties: {} },
-          });
-          return answer.action === 'accept';
-        },
+        confirm: ({ printer: name, file: shown, slots }) =>
+          askPerson(`Start printing ${shown} on ${name}? The printer heats up and moves.` + (slots.length ? `\n${slots.map((s) => `• ${s}`).join('\n')}` : '')),
       });
     }),
+);
+
+server.registerTool(
+  'printer_files',
+  {
+    title: 'Files on a printer',
+    description: 'The G-code files on one of the person\'s printers, newest first (for printer_control print_file). Needs sign_in.',
+    inputSchema: { printer: z.string().optional().describe('Printer name from printers; can be left out with only one printer') },
+  },
+  ({ printer }) => run(() => printers.files(printer)),
+);
+
+const axis = z.enum(['x', 'y', 'z']);
+server.registerTool(
+  'printer_control',
+  {
+    title: 'Control a printer',
+    description:
+      'The site\'s Device tab controls for one of the person\'s printers. Anything that heats, moves, starts, resumes or stops a print asks the person on screen first, every time; ' +
+      'only do what the person asked for. Actions: print_file {file} (a file already on the printer), pause, resume, stop, skip_object {object}, ' +
+      'home {axes?}, move {axis, mm}, extrude {mm, negative pulls back}, motors_off, heat {heater: "bed", "nozzle" or a name from printer_status, target °C, 0 = off}, ' +
+      'fan {fan?, percent}, light {on}, speed {percent}, flow {percent}; Snapmaker U1 tool heads 1-4: load_filament {head}, unload_filament {head}, ' +
+      'set_head_filament {head, material, colour?, brand?, subType?}, pick_head {head}, park_head {head}. Needs sign_in.',
+    inputSchema: {
+      printer: z.string().optional().describe('Printer name from printers; can be left out with only one printer'),
+      action: z.enum([
+        'print_file', 'pause', 'resume', 'stop', 'skip_object', 'home', 'move', 'extrude', 'motors_off', 'heat', 'fan', 'light', 'speed', 'flow',
+        'load_filament', 'unload_filament', 'set_head_filament', 'pick_head', 'park_head',
+      ]),
+      file: z.string().optional(),
+      object: z.string().optional().describe('Object name, as the printer\'s Skip objects list shows it'),
+      axes: z.array(axis).optional(),
+      axis: axis.optional(),
+      mm: z.number().optional(),
+      heater: z.string().optional(),
+      target: z.number().optional(),
+      fan: z.string().optional(),
+      light: z.string().optional(),
+      on: z.boolean().optional(),
+      percent: z.number().optional(),
+      head: z.number().int().min(1).max(4).optional(),
+      material: z.string().optional(),
+      colour: z.string().optional().describe('#RRGGBB'),
+      brand: z.string().optional(),
+      subType: z.string().optional(),
+    },
+  },
+  ({ printer, ...c }) => run(() => printers.control(printer, c, askPerson)),
 );
 
 await server.connect(new StdioServerTransport());

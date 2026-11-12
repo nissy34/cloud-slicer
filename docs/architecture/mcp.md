@@ -27,6 +27,7 @@ else goes over the internet.
 | Plate pictures without a GPU | `apps/mcp/src/picture.ts` |
 | Signing in to the person's account, and calls to the site's `/api` as them | `apps/mcp/src/account.ts` |
 | The site's approval window for that sign-in | `apps/web/src/account/LinkProgramDialog.tsx` |
+| Their printers: status, files, send, the Device tab's controls | `apps/mcp/src/printers.ts`, with the site's `device/session.ts`, `link/bridge.ts`, `link/direct.ts`, add-ons, `device/print-plan.ts`, `device/saved.ts`, `device/commands.ts` |
 | Loading the engine, presets, brands, opening and slicing (shared with `slice.mjs` and the engine tests) | `engine/node/engine.mjs` |
 | The site's own rules it reuses | `lib/project-import.ts` (a 3MF's own settings), `lib/presets.ts` (matching filaments), `lib/option-check.ts` (checking typed values), `lib/thumbnail.ts` (picture camera and colours), `lib/format.ts` |
 | Build: one bundle plus both engines and their presets | `apps/mcp/build.mjs` → `apps/mcp/dist/` |
@@ -123,6 +124,32 @@ sequenceDiagram
 - The site ending the session (Sign out there, Block, Delete) shows on the next call:
   the add-on forgets the sign-in and their presets.
 
+## Their printers
+
+Signed in, the add-on reaches the account's printers (`/api/devices`, each one's key from
+`/api/devices/<id>/secret`) the way the Device tab does, with the same code: a printer
+behind a bridge through the relay with the site's ticket (`/api/relay/ticket`), one
+reached directly over its own address. Node has no WebRTC, so uploads always stream
+through the relay (and over plain `fetch` to a direct printer). A connection opens when
+a tool needs it and closes a minute after the last use: no streaming in the background.
+
+| Tool | What it does | Asks first |
+|---|---|---|
+| `printers` | The account's printers | |
+| `printer_status` | Printing or not, progress, temperatures, each head's filament, errors | |
+| `printer_files` | Files on the printer, newest first | |
+| `send_to_printer` | Uploads the newest slice (the `.gcode.3mf` when the printer takes one) or a file; with `print`, starts it with the Send window's own plan (`device/print-plan.ts`: slot per filament, the printer's options, checks, start calls) | `print` only |
+| `printer_control` | print a file on it, pause, resume, stop, skip object, home, move, extrude, heat, U1 load / unload / pick / park a head | yes |
+| `printer_control` | motors off, heat off, fans, light, speed and flow %, a U1 head's filament type and colour | no |
+
+- **Asking** is MCP elicitation (`askPerson` in `server.ts`): one Accept / Decline message
+  on screen, every time, before anything is sent. Decline does nothing. An app without
+  elicitation gets an error and nothing that heats, moves or prints happens; upload only
+  still works there.
+- Refused before asking: a print while the printer prints or isn't ready, a filament with
+  no head or slot it can print from (the Send window's checks), moving while it prints, a
+  printer whose add-on takes no commands (Bambu Lab: status, files and prints only).
+
 ## What it keeps
 
 The sign-in, if any: the site and its token (plus name and email for showing) in
@@ -141,8 +168,12 @@ where Claude says, or beside the model, named by the printer's file name format.
 - **The plate picture follows the site's**: `picture.ts` uses `thumbnailCamera` and
   `partColour` from `lib/thumbnail.ts` and the same lighting numbers as its shader. A
   change to one changes the other.
-- **Never start a print without asking**: sending to a printer is not in this version;
-  when it comes, "Upload and print" asks the person on screen every time.
+- **Never start a print without asking**: "Upload and print", and every control that
+  heats, moves, starts, resumes or stops, asks the person on screen every time; an app
+  that can't ask never does them.
+- **The Device tab's code, not a copy**: printer code the add-on needs moves out of React
+  and the page state into plain modules (`device/print-plan.ts`, `device/saved.ts`) that
+  both use.
 - Tool names and descriptions say what happens in plain words; errors say what to do.
 
 ## Why
@@ -175,13 +206,18 @@ approve, turn down, the saved file, expired codes cleared, sign out ends the tok
 the Connect an AI app window in Chromium on desktop and phone. `apps/mcp/test/account.test.mjs`
 runs the add-on against a stand-in site: their presets (a Prusa-based printer of their
 own too) chosen and their settings in the slice config, fetched once, and gone when the
-site ends the session. CI job `mcp` builds it with both engines, type-checks, runs the test,
+site ends the session. `apps/mcp/test/printers.test.mjs` uses pretend printers only: a
+pretend U1 behind the real bridge (Go) and a local relay, and a pretend Klipper printer
+reached directly. Status, upload only, upload and print (no sends nothing, yes starts it
+the U1 way, busy is refused), the controls (which ask, which don't, a no sends nothing),
+and an app that can't ask. The CI job `mcp` sets up Go and the relay for it. CI job `mcp` builds it with both engines, type-checks, runs the test,
 packs the install files and starts the packed one.
 
 ## Open
 
-- **Second step, in progress**: sign-in and their own presets are done; next their
-  printers: status, "Upload only" and "Upload and print" through the relay, with
+- **Second step, in progress**: sign-in, their presets and printers are done; next
   limits on the site and relay per account so a program can't use up the free tier.
+- Not tried on a real printer yet (rule: pretend printers in tests; "Upload only" is fine
+  on a real one).
 - Site-only extras (per-plate settings, colour mixes chosen on the site) come only from
   a 3MF made there.
