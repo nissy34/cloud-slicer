@@ -10,12 +10,15 @@
 //     (standIn), the nearest match by printer, layer height or material.
 //   - changed settings: those both engines share (shared-settings.json).
 //     Snapmaker's flow-variant lists keep their standard-flow value only.
-//   - colour mixes (both engines have them, kept differently): each becomes
-//     the filament it uses most, on objects, parts, paint and layer filament changes.
+//   - colour mixes (both engines have them, kept differently; experimental):
+//     each is made again in the other engine with the same filaments and
+//     shares, under the same filament number, so objects, parts, paint and
+//     layer filament changes keep printing with it. OrcaSlicer has no Cycle
+//     mode: a Cycle mix goes there as a Ratio mix of the same shares.
 import type { OptionDef, OrcaConfig, ProjectInfo, Selection } from '../engine/protocol';
 import { engineName, type EngineFlavor } from './engines';
 import { splitValues, valueAt, withValueAt } from './flow-variants';
-import { decodeIds, decodeWeights, mixLabel, normalizeWeights, patternIds, type MixRow } from './mixing';
+import { encodeIds, LAYER_CYCLE, MODES, mixLabel, normalizeWeights, patternIds, ratioFor, SIMPLE, type MixRecipe, type MixRow } from './mixing';
 import { isShared, SHARED, standIn, type PresetType, type SharedTable } from './preset-engines';
 import { splitList } from './presets';
 
@@ -24,8 +27,14 @@ export interface MixChange {
   id: number;
   label: string;
   colour: string;
-  /** The physical filament (1-based) it becomes. */
-  becomes: number;
+  /** How it is mixed in the other engine ("F1 50% + F2 50%"). */
+  becomes: string;
+}
+
+/** A mix made again in the other engine, under the same filament number. */
+export interface MixCarry {
+  id: number;
+  recipe: MixRecipe;
 }
 
 export interface DroppedSetting {
@@ -44,7 +53,10 @@ export interface PresetMove {
 export interface SwitchPlan {
   from: EngineFlavor;
   to: EngineFlavor;
+  /** Mixes that carry over mixed another way (a Cycle mix going to OrcaSlicer). */
   mixes: MixChange[];
+  /** Every mix in use, in filament-number order, as the other engine makes it. */
+  carried: MixCarry[];
   /** Changed settings whose high-flow value differs from the standard one, which carries over alone (untouched presets lose nothing worth a word). */
   highFlowChanged: DroppedSetting[];
   /** Changed settings, and objects' own settings, the other engine doesn't have. */
@@ -66,30 +78,39 @@ export interface SwitchPlan {
 /** "0.20mm Standard @U1" -> 0.2 (NaN for a name without one). */
 const layerHeight = (process: string) => parseFloat(/^\s*(\d+(?:\.\d+)?)/.exec(process)?.[1] ?? 'NaN');
 
-/** The filament a mix uses most (the first of them on a tie), 1-based. */
-export function mainFilament(row: MixRow): number {
-  const shares = new Map<number, number>();
-  const add = (id: number, w: number) => id > 0 && shares.set(id, (shares.get(id) ?? 0) + w);
-  if (row.pattern) for (const id of patternIds(row.pattern)) add(id, 1);
-  else {
-    const ids = decodeIds(row.gradientIds);
-    if (ids.length >= 3) {
-      const w = normalizeWeights(decodeWeights(row.gradientWeights, ids.length));
-      ids.forEach((id, i) => add(id, w[i]));
-    } else if (row.gradientEnabled) {
-      // A gradient: half of each, from A at one end to B at the other.
-      add(row.componentA, 50);
-      add(row.componentB, 50);
-    } else {
-      const b = Math.min(100, Math.max(0, row.mixBPercent));
-      add(row.componentA, 100 - b);
-      add(row.componentB, b);
-    }
-  }
-  let best = row.componentA || 1;
-  let most = -1;
-  for (const [id, w] of shares) if (w > most) (best = id), (most = w);
-  return best;
+/**
+ * A mix's recipe as `to` makes it. Ratio, Match and Gradient mixes are the
+ * same in both engines. OrcaSlicer mixes by ratio or gradient, not by a layer
+ * pattern: a Cycle mix goes there as a Ratio mix of the filaments in the
+ * pattern, each with its share of the layers.
+ */
+export function carriedRecipe(row: MixRecipe, to: EngineFlavor): MixRecipe {
+  const recipe: MixRecipe = {
+    componentA: row.componentA,
+    componentB: row.componentB,
+    mixBPercent: row.mixBPercent,
+    ratioA: row.ratioA,
+    ratioB: row.ratioB,
+    pattern: row.pattern,
+    gradientIds: row.gradientIds,
+    gradientWeights: row.gradientWeights,
+    distributionMode: row.distributionMode,
+    gradientEnabled: row.gradientEnabled,
+    gradientStart: row.gradientStart,
+    gradientEnd: row.gradientEnd,
+    uiMode: row.uiMode,
+  };
+  if (to !== 'orca' || !row.pattern) return recipe;
+  const counts = new Map<number, number>();
+  for (const id of patternIds(row.pattern)) counts.set(id, (counts.get(id) ?? 0) + 1);
+  const ids = [...counts.keys()];
+  const shares = normalizeWeights([...counts.values()]);
+  const ratio = { ...recipe, pattern: '', gradientEnabled: false, uiMode: MODES.indexOf('ratio') };
+  if (ids.length >= 3) return { ...ratio, componentA: ids[0], componentB: ids[1], mixBPercent: 50, distributionMode: LAYER_CYCLE, gradientIds: encodeIds(ids), gradientWeights: shares.join('/') };
+  const [a, b] = ids.length === 2 ? ids : [ids[0] ?? row.componentA, ids[0] === row.componentA ? row.componentB : row.componentA];
+  const percentB = ids.length === 2 ? shares[1] : 0;
+  const [ratioA, ratioB] = ratioFor(percentB);
+  return { ...ratio, componentA: a, componentB: b, mixBPercent: percentB, ratioA, ratioB, distributionMode: SIMPLE, gradientIds: '', gradientWeights: '' };
 }
 
 /** Splits `values` into one segment per filament, `steps` long each (one value each when they don't add up). */
@@ -225,9 +246,13 @@ export function switchPlan(p: PlanInput, t: SharedTable = SHARED): SwitchPlan {
     o.volumes.forEach((v, volume) => own(v.settings, volume, `${o.name}, ${v.name}`));
   });
 
-  // The two engines keep mixes differently, so a mix becomes the filament it uses most either way.
-  const mixes = p.mixes.filter((r) => r.enabled && r.virtualId > 0).map((r) => ({ id: r.virtualId, label: mixLabel(r), colour: r.colour, becomes: mainFilament(r) }));
-  return { from, to, mixes, highFlowChanged, dropped, presets, selection, overrides, objectEdits };
+  // The two engines keep mixes differently: each is made again there, under the same number.
+  const inUse = p.mixes.filter((r) => r.enabled && r.virtualId > 0).sort((a, b) => a.virtualId - b.virtualId);
+  const carried = inUse.map((r) => ({ id: r.virtualId, recipe: carriedRecipe(r, to) }));
+  const mixes = inUse
+    .filter((r) => r.pattern && to === 'orca')
+    .map((r) => ({ id: r.virtualId, label: `Cycle: ${mixLabel(r)}`, colour: r.colour, becomes: `Ratio: ${mixLabel(carriedRecipe(r, to))}` }));
+  return { from, to, mixes, carried, highFlowChanged, dropped, presets, selection, overrides, objectEdits };
 }
 
 /** Nothing to tell: everything that matters carries over, so the switch needs no question. */
@@ -238,7 +263,8 @@ export const losesNothing = (plan: SwitchPlan) =>
 export function switchedText(plan: SwitchPlan, model = true): string {
   const parts = [model ? `This project now slices with ${engineName(plan.to)}.` : `Now slicing with ${engineName(plan.to)}.`];
   if (!model && Object.keys(plan.overrides).length) parts.push('Your changed settings came along.');
-  if (plan.mixes.length) parts.push(plan.mixes.length === 1 ? 'Its colour mix is now a plain filament.' : `Its ${plan.mixes.length} colour mixes are now plain filaments.`);
+  if (plan.carried.length) parts.push(plan.carried.length === 1 ? 'Its colour mix came along.' : `Its ${plan.carried.length} colour mixes came along.`);
+  if (plan.mixes.length) parts.push(plan.mixes.length === 1 ? 'Its Cycle mix is now a Ratio mix.' : `Its ${plan.mixes.length} Cycle mixes are now Ratio mixes.`);
   if (plan.dropped.length) parts.push(`${plan.dropped.length} setting${plan.dropped.length === 1 ? '' : 's'} ${engineName(plan.to)} doesn't have were left out.`);
   if (model) parts.push('Slice again before printing.');
   return parts.join(' ');

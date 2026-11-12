@@ -1,10 +1,11 @@
 #!/usr/bin/env node
 // Browser end to end for switching an open project to the other engine:
 // changed settings on an empty plate carrying over both ways, then a
-// model printed with a colour mix in Snapmaker Orca, the Slicer engine dropdown's
-// "Switch this project to OrcaSlicer?" pop-up listing what won't carry over,
-// then the project in OrcaSlicer with the mix turned into its main filament,
-// sliced, and back to Snapmaker Orca.
+// model printed with a Cycle colour mix in Snapmaker Orca, the Slicer engine
+// dropdown's "Switch this project to OrcaSlicer?" pop-up saying it becomes a
+// Ratio mix, then the project in OrcaSlicer still printed with that mix (same
+// filament number, both filaments in the G-code), and back to Snapmaker Orca
+// with the mix still there.
 //
 //   node test/engine-switch.mjs [screenshot-dir]
 //
@@ -124,11 +125,9 @@ try {
   await page.getByLabel('Add mix').click();
   const mixDialog = page.getByRole('dialog', { name: /mix/i });
   await mixDialog.waitFor();
-  // A range input needs a real input event for React to see the change.
-  await mixDialog.getByLabel('Mix ratio').evaluate((el) => {
-    Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(el, '70');
-    el.dispatchEvent(new Event('input', { bubbles: true }));
-  });
+  // A Cycle mix: filament 1 on one layer, filament 2 on the next three.
+  await mixDialog.getByRole('radio', { name: 'Cycle' }).click();
+  await mixDialog.getByLabel('Layer pattern').fill('1222');
   await mixDialog.getByRole('button', { name: /^(Add|Save)/ }).click();
   await page.getByLabel(`Delete mix ${mixId}`).waitFor();
   await pickerOf(page, 'Filament for tetrahedron.stl').selectOption(String(mixId));
@@ -139,7 +138,7 @@ try {
   await ask.waitFor();
   const text = await ask.innerText();
   console.log(`pop-up:\n${text}`);
-  for (const want of ['Switch this project to OrcaSlicer?', 'Colour mixes become plain filaments', "won't bring these back"])
+  for (const want of ['Switch this project to OrcaSlicer?', 'Cycle mixes become Ratio mixes', 'Cycle: F1 25% + F2 75%', 'Ratio: F1 25% + F2 75%', "won't bring these back"])
     if (!text.includes(want)) fail(`the pop-up doesn't say "${want}"`);
   await shot(page, 'switch-desktop');
 
@@ -168,20 +167,23 @@ try {
   await page.getByText('Ready to slice').waitFor({ timeout: 120000 });
   await shot(page, 'switched-desktop');
   const filament = await pickerOf(page, 'Filament for tetrahedron.stl').inputValue();
-  if (filament !== '2') fail(`the mix should have become filament 2, the object has ${filament}`);
+  if (filament !== String(mixId)) fail(`the object should still print with mix ${mixId}, it has ${filament}`);
+  if (!(await page.getByLabel(`Delete mix ${mixId}`).count())) fail('the mix did not come along to OrcaSlicer');
   const orcaTools = await sliceTools();
   console.log(`OrcaSlicer tool changes: ${orcaTools.join(', ')}`);
+  if (!orcaTools[0] || !orcaTools[1]) fail(`OrcaSlicer should print the mix with filaments 1 and 2: tool changes ${orcaTools.join(', ')}`);
 
-  // And back: nothing to lose now, so no question; the mix does not come back.
+  // And back: a Ratio mix is the same in both, so no question, and the mix stays.
   await engineSelect.selectOption('snapmaker');
   await engineIs('Snapmaker Orca');
   await page.getByText('This project now slices with Snapmaker Orca').waitFor({ timeout: 180000 });
-  const back = await pickerOf(page, 'Filament for tetrahedron.stl').inputValue();
-  if (back !== '2') fail(`back in Snapmaker Orca the object has filament ${back}`);
-  if (await page.getByLabel(`Delete mix ${mixId}`).count()) fail('the mix came back');
   if (await ask.count()) fail('switching back asked first');
+  const back = await pickerOf(page, 'Filament for tetrahedron.stl').inputValue();
+  if (back !== String(mixId)) fail(`back in Snapmaker Orca the object has filament ${back}, not mix ${mixId}`);
+  if (!(await page.getByLabel(`Delete mix ${mixId}`).count())) fail('the mix did not come back to Snapmaker Orca');
   const tools = await sliceTools();
   console.log(`Snapmaker Orca tool changes: ${tools.join(', ')}`);
+  if (!tools[0] || !tools[1]) fail(`Snapmaker Orca should print the mix with filaments 1 and 2: tool changes ${tools.join(', ')}`);
 } catch (e) {
   fail(e.message);
   const text = await browser.contexts()[0]?.pages()[0]?.locator('body').innerText().catch(() => '');
