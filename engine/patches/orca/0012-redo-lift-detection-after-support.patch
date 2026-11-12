@@ -1,31 +1,23 @@
-Invalidation: support and slicing redo the lift detection.
+Invalidation: support generation redoes the lift detection.
 
-PrintObject::detect_overhangs_for_lift fills each layer's loverhangs after
-support generation, and support generation (its overhang detection, also run
-to check whether supports are needed) clears them. Invalidating
-posSupportMaterial (a speed, a brim, a move) left posDetectOverhangsForLift
-done, so a Print sliced again (desktop does after such a change; the browser
-engine keeps the last slice's Print) lost every overhang and lifted
-differently from a fresh slice. A new layer height (posSlice) left it done
-on new layers too. Both now invalidate it.
+OrcaSlicer 2.5's version of patches/snapmaker/0012. PrintObject::detect_overhangs_for_lift
+fills each layer's loverhangs after support generation, and support generation (its
+overhang detection, also run to check whether supports are needed) clears them.
+Invalidating posSupportMaterial (a speed, a brim, a move) left posDetectOverhangsForLift
+done, so a Print sliced again (desktop does after such a change; the browser engine keeps
+the last slice's Print) lost every overhang and lifted differently from a fresh slice.
+2.5 already redoes it on a new layer height (posSlice); this adds posSupportMaterial.
 
-diff --git a/src/libslic3r/PrintObject.cpp b/src/libslic3r/PrintObject.cpp
-index 925da0c5..f1464ec9 100644
 --- a/src/libslic3r/PrintObject.cpp
 +++ b/src/libslic3r/PrintObject.cpp
-@@ -1481,11 +1481,13 @@ bool PrintObject::invalidate_step(PrintObjectStep step)
-         invalidated |= this->invalidate_steps({ posIroning, posContouring, posSimplifyInfill });
-         invalidated |= m_print->invalidate_steps({ psSkirtBrim });
-     } else if (step == posSlice) {
--		invalidated |= this->invalidate_steps({ posPerimeters, posPrepareInfill, posInfill, posIroning, posContouring, posSupportMaterial, posSimplifyPath, posSimplifyInfill });
-+		invalidated |= this->invalidate_steps({ posPerimeters, posPrepareInfill, posInfill, posIroning, posContouring, posSupportMaterial, posSimplifyPath, posSimplifyInfill, posDetectOverhangsForLift });
-         invalidated |= m_print->invalidate_steps({ psSkirtBrim });
-         m_slicing_params.valid = false;
+@@ -1899,7 +1899,9 @@
+         // The exact belt_floor_z_shift is recomputed when slice() runs again.
+         m_belt_floor_z_shift_cache_valid = false;
      } else if (step == posSupportMaterial) {
 -        invalidated |= this->invalidate_steps({ posSimplifySupportPath });
 +        // cloud-slicer: support generation clears each layer's overhangs, which
 +        // the lift detection fills in after it, so it has to run again too.
 +        invalidated |= this->invalidate_steps({ posSimplifySupportPath, posDetectOverhangsForLift });
          invalidated |= m_print->invalidate_steps({ psSkirtBrim });
-         m_slicing_params.valid = false;
-     }
+         // SlicingParameters depend on support config (enable_support /
+         // raft_layers / enforce_support_layers feed min/max layer height in
