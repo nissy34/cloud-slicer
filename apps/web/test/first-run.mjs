@@ -175,7 +175,7 @@ async function firstRun({ label, engine, search, expect, badge, other, filaments
 }
 
 // The U1's PETG, ABS and matte PLA as each engine names them (the picker leaves out the @ part).
-const U1_FILAMENTS = { OrcaSlicer: ['Snapmaker PETG', 'Snapmaker ABS', 'Snapmaker PLA Matte'], 'Snapmaker Orca': ['Snapmaker PETG HF', 'Snapmaker ABS', 'Snapmaker PLA Matte'] };
+const U1_FILAMENTS = { OrcaSlicer: ['Snapmaker PETG HF', 'Snapmaker ABS', 'Snapmaker PLA Matte'], 'Snapmaker Orca': ['Snapmaker PETG HF', 'Snapmaker ABS', 'Snapmaker PLA Matte'] };
 
 /** The filament picker offers each of `filaments[engine]`. */
 async function checkFilaments(page, label, filaments) {

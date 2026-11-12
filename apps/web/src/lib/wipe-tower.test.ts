@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { DEFAULT_TOWER, dropPlateTower, moveTower, towerOptions, towersFromConfig } from './wipe-tower';
+import { DEFAULT_TOWER, dropPlateTower, moveTower, towerMovedText, towerOptions, towersFromConfig } from './wipe-tower';
 
 describe('prime tower spots', () => {
   it('reads one spot per plate from a project', () => {
@@ -20,5 +20,12 @@ describe('prime tower spots', () => {
   });
   it('drops a deleted plate, moving later plates down', () => {
     expect(dropPlateTower([[1, 2], [3, 4], [5, 6]], 1)).toEqual([[1, 2], [5, 6]]);
+  });
+});
+
+describe('towerMovedText', () => {
+  it("says what desktop OrcaSlicer 2.5 says, with the plate's number from 1", () => {
+    expect(towerMovedText(0, 'free')).toBe('The prime tower on plate 1 no longer fits where it was placed, so it was moved to free space on the plate.');
+    expect(towerMovedText(2, 'onObject')).toMatch(/^The prime tower on plate 3 no longer fits .* moved onto an object\.$/);
   });
 });
