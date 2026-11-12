@@ -224,7 +224,7 @@ where Claude says, or beside the model, named by the printer's file name format.
 client over stdin/stdout): open an STL and slice it with pictures and progress, settings
 by key (refused, set to nearest, taken back), another brand (Prusa MK4, PETG), a 3MF
 project's own presets, move/copies/arrange then save and reopen, filament and settings
-per object with the plate picture as an image, every plate at once, OrcaSlicer 2.4.2,
+per object with the plate picture as an image, every plate at once, OrcaSlicer 2.5.0,
 and plain errors. The site's window: `apps/web/test/ai-apps.mjs` (Project menu, both
 choices, links, Copy, phone) and the account menu's button in `accounts.mjs`. Signing
 in: `accounts.mjs` runs `account.ts` against the real site functions (wrangler, local D1):

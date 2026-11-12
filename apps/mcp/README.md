@@ -1,7 +1,7 @@
 # Cloud Slicer for Claude (MCP server)
 
 Lets Claude slice 3D models on your computer with Cloud Slicer's engines (Snapmaker
-Orca 2.4.1 and OrcaSlicer 2.4.2) and their presets. Slicing stays on your computer;
+Orca 2.4.1 and OrcaSlicer 2.5.0) and their presets. Slicing stays on your computer;
 signing in to your Cloud Slicer account is optional.
 Design and rules: [docs/architecture/mcp.md](../../docs/architecture/mcp.md).
 

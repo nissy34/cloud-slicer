@@ -166,7 +166,7 @@ test('slices every plate at once', async () => {
   assert.match(sliced.plates[1].gcodeFile, /plate_02/);
 });
 
-test('slices with OrcaSlicer 2.4.2 too', async () => {
+test('slices with OrcaSlicer 2.5.0 too', async () => {
   const opened = await tool('open_model', { path: resolve(fixtures, 'tetrahedron.stl'), engine: 'orca' });
   assert.match(opened.presets.engine, /OrcaSlicer/);
   const sliced = await tool('slice', { out });

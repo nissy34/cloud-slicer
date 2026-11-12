@@ -40,7 +40,7 @@ writeFileSync(
       long_description:
         'Lets Claude open STL and 3MF files, choose printer, process and filament presets, change settings, ' +
         'arrange objects and slice, and tells you the print time and filament use. Uses the same engines and ' +
-        'presets as https://slicer.awesomestuff.qzz.io (Snapmaker Orca 2.4.1 and OrcaSlicer 2.4.2). Slicing stays on this computer. Signed in to your Cloud Slicer account, it also uses your presets and printers, and asks you before anything that heats, moves or prints.',
+        'presets as https://slicer.awesomestuff.qzz.io (Snapmaker Orca 2.4.1 and OrcaSlicer 2.5.0). Slicing stays on this computer. Signed in to your Cloud Slicer account, it also uses your presets and printers, and asks you before anything that heats, moves or prints.',
       author: { name: 'Cloud Slicer', url: 'https://slicer.awesomestuff.qzz.io' },
       homepage: 'https://slicer.awesomestuff.qzz.io',
       repository: { type: 'git', url: 'https://github.com/nissy34/cloud-slicer' },
