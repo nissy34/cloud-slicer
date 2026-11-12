@@ -174,6 +174,36 @@ export function changedOnPurpose(file: OrcaConfig): Set<string> | null {
 }
 
 /**
+ * The settings changed from the presets, as desktop Orca saves them in a
+ * project's different_settings_to_system (PresetBundle::export_selections_3mf
+ * via store_bbs_3mf): one entry for the process, one per filament, one for the
+ * printer, each the changed keys joined by ';'. Opening the project then takes
+ * only these on top of the presets, so later engine and preset updates reach
+ * everything else. Returned as the engine reads a list of strings.
+ */
+export function changedSettingsList(overrides: OrcaConfig, base: OrcaConfig, layout: SettingsLayout | null, filaments: number): string {
+  const tab = (pages: SettingsLayout['print'] | undefined) => new Set((pages ?? []).flatMap((p) => p.groups.flatMap((g) => g.options)));
+  const filamentKeys = tab(layout?.filament);
+  const printerKeys = tab(layout?.printer);
+  const n = Math.max(1, filaments);
+  const process: string[] = [];
+  const perFilament: string[][] = Array.from({ length: n }, () => []);
+  const printer: string[] = [];
+  for (const key of Object.keys(overrides).sort()) {
+    if (NEVER.has(key) || key === 'mixed_filament_definitions') continue;
+    if (filamentKeys.has(key)) {
+      const mine = overrides[key].split(',');
+      const theirs = (base[key] ?? '').split(',');
+      // One value per filament: list the key only for the filaments it changed.
+      const each = mine.length === n && theirs.length === n;
+      perFilament.forEach((list, i) => (!each || mine[i] !== theirs[i]) && list.push(key));
+    } else if (printerKeys.has(key)) printer.push(key);
+    else process.push(key);
+  }
+  return [process, ...perFilament, printer].map((keys) => `"${keys.join(';')}"`).join(';');
+}
+
+/**
  * Process preset for a converted project: same layer height as the project,
  * preferring a "Standard" one, else `fallback` (the printer's default).
  */

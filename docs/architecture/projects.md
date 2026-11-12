@@ -38,8 +38,13 @@ mixes are drawn. Opening a 3MF over loaded objects asks: open as the project, or
 objects. A plate temperature of 0 °C in the file doesn't replace a real one in the
 filament's preset: OrcaSlicer's U1 filaments said 0 °C for the U1's default plate, so
 projects saved with them (on OrcaSlicer 2.4.2) would slice with the bed off.
-A project saved with an older engine or older presets keeps the values it was saved
-with, so presets that changed since show up as changed settings, as in desktop.
+Saving lists the settings you changed in `different_settings_to_system`, as desktop does
+(one entry for the process, one per filament, one for the printer;
+`changedSettingsList`). Opening takes only those on top of the presets, so an engine or
+preset update since reaches the rest of the project. That needs the project's presets
+to be here by name; otherwise, and for files without the list (saved before
+2026-11-12), every value that differs comes along, and presets that changed since show
+up as changed settings.
 
 **New project.** Like desktop Orca's `Plater::new_project`: first the usual question
 about the open project (save it or discard its changes), then, when changed settings
@@ -209,7 +214,7 @@ server both reach; runs Pages Functions with a local D1, see [accounts](accounts
 `account/drive.test.ts` (upload in pieces, resume after a drop), `account/drive-picker.test.ts`
 (which picked files open, downloads), `accounts.mjs` "Open from Google Drive" (a stand-in
 for Google's window script: picks, cancels, unsupported files, the copy in the Cloud Slicer folder), `convert.mjs`, `foreign-gcode.mjs`,
-`engine-switch.mjs`, `engines.mjs`, `new-project.mjs` (Keep, Discard, Save…, Cancel, Remember my choice, Undo off); unit tests `project-import.test.ts`, `projects.test.ts`.
+`engine-switch.mjs`, `engines.mjs`, `new-project.mjs` (Keep, Discard, Save…, Cancel, Remember my choice, Undo off); `own-settings.mjs`; unit tests `project-import.test.ts`, `projects.test.ts`.
 
 ## Open
 

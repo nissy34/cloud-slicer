@@ -623,6 +623,7 @@ jobs:
         run: |
           node test/presets.mjs
           node test/convert.mjs
+          node test/own-settings.mjs
           node test/foreign-gcode.mjs
           node test/settings.mjs
           node test/new-project.mjs
