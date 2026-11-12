@@ -254,7 +254,7 @@ function WelcomeStep({ error, onSetup }: { error: string; onSetup: () => void })
   return (
     <div className="welcome-page">
       <div className="welcome-art" aria-hidden>
-        <img src="/welcome/print.svg" alt="" />
+        <img src="/welcome/phone-print.svg" alt="" />
       </div>
       <div className="welcome-side">
         <img src="/icon.svg" alt="" className="welcome-logo" />
