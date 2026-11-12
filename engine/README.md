@@ -14,7 +14,7 @@ same engine code.
 | Path | What |
 |---|---|
 | `orcaslicer/` | Submodule pinned to the v2.4.1 tag. Never edited in place |
-| `orcaslicer-upstream/` | Upstream OrcaSlicer v2.5.0-beta, the second engine, live beside the first and chosen per project (see "Two engines" below). Never edited in place |
+| `orcaslicer-upstream/` | Upstream OrcaSlicer v2.5.0, the second engine, live beside the first and chosen per project (see "Two engines" below). Never edited in place |
 | `patches/` | Browser-only fixes, applied to copies of the touched files in the build tree |
 | `compat/` | Stand-ins for what a browser lacks: OpenSSL MD5 (on Boost), no-op STEP/SVG import when built without OCCT, thread naming |
 | `cmake/libslic3r.cmake` | Builds libslic3r from the source list in upstream's own `src/libslic3r/CMakeLists.txt` |

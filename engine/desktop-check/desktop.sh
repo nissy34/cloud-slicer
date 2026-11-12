@@ -28,7 +28,7 @@ version=$(sed -n "s/^set($var \"\([^\"]*\)\")/\1/p" "$inc")
 declare -A SHA256=(
   [snapmaker-2.4.1]=2b5117e22d04a3a27bcdfc5a873c55d28ff3b7ce9721946de1f134fa97d2cc06
   [orca-2.4.2]=d12fb8c8eac1aecd2dfb6377acd48f994f8fa439ed5292fa532dd82880f029fd
-  [orca-2.5.0-beta]=15b0e9f9d577bc7a84cfef4f1ecc6e16ef75bc253e500d772fcaa66f4c25b97e
+  [orca-2.5.0]=d13eb0a9cd618ed080ab6b82c64c0a60c4501aac91e88d5ac2c3b526fb141a7c
 )
 
 pack_json=$here/../presets/snapmaker/pack.json

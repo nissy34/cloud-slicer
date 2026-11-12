@@ -9,7 +9,7 @@
 
 Slices in the browser with the same code as desktop: Orca's `libslic3r` compiled to
 WebAssembly. Two engines ship, and each project picks one: Snapmaker Orca 2.4.1
-(`engine/orcaslicer`, the default) or OrcaSlicer 2.5 (`engine/orcaslicer-upstream`, on its beta until 2.5.0 is out).
+(`engine/orcaslicer`, the default) or OrcaSlicer 2.5 (`engine/orcaslicer-upstream`, pinned to 2.5.0).
 
 ## Pieces
 
