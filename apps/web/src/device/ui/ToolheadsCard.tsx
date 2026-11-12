@@ -25,6 +25,7 @@ import { Swatch } from '../../components/Swatch';
 import { Card, Temperature, useConfirm } from './parts';
 import { Dialog } from '../../components/Dialog';
 import { Picker } from '../../components/Picker';
+import { ColourPicker } from '../../components/ColourPicker';
 
 const MATERIALS = ['PLA', 'PETG', 'ABS', 'ASA', 'TPU', 'PA', 'PC', 'PVA', 'HIPS', 'PLA-CF', 'PETG-CF', 'PA-CF'];
 
@@ -436,7 +437,7 @@ function FilamentEditor({ head, onClose }: { head: U1Head; onClose(): void }) {
         <label>
           Colour
           <span className="dv-colour">
-            <input type="color" value={colour} onChange={(e) => setColour(e.target.value.toUpperCase())} disabled={head.official} />
+            <ColourPicker label="Colour" size="md" value={colour} onChange={setColour} disabled={head.official} />
             <code>{colour}</code>
           </span>
         </label>
