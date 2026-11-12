@@ -46,6 +46,10 @@ export interface SharedTable {
   version: number;
   shared: string[];
   flow: Record<string, string>;
+  /** Settings one engine keeps as one value and the other as a list, with the engine that keeps the list. */
+  listIn: Record<string, EngineFlavor>;
+  /** G-code both engines have: it stays each printer's own when a project switches. */
+  gcode: string[];
   names: Record<string, Partial<Record<PresetType, Record<string, string>>>>;
   history: { version: number; shared: string[] }[];
 }
