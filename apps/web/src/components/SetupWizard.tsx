@@ -42,8 +42,8 @@ export const useSetupWizard = create<{
 }));
 
 // Closed this visit, or the visit started from a printer pairing link or the bridge app (the
-// Device tab's add-printer dialog is waiting).
-let dismissed = typeof location !== 'undefined' && (location.hash.startsWith('#pair=') || location.hash === '#device');
+// Device tab's add-printer dialog is waiting), or an AI app's sign-in link (#link).
+let dismissed = typeof location !== 'undefined' && (location.hash.startsWith('#pair=') || location.hash === '#device' || location.hash.startsWith('#link'));
 
 /** `welcome` comes before the numbered steps, only when signed out: sign in, or set up this browser. */
 type Step = 'welcome' | 'engine' | 'printers' | 'filaments' | 'connect';

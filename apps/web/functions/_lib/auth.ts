@@ -10,7 +10,7 @@
 // own session cookie.
 import { betterAuth } from 'better-auth';
 import { APIError } from 'better-auth/api';
-import { admin, oAuthProxy } from 'better-auth/plugins';
+import { admin, bearer, deviceAuthorization, oAuthProxy } from 'better-auth/plugins';
 import { isOwner, ownerEmails, projectsAllowed, signInRefusal } from './access';
 import { HttpError, json } from './http';
 import { DRIVE_SCOPE, hasDriveScope, pickerConfig } from './drive';
@@ -19,6 +19,9 @@ import type { Env } from './types';
 export type ProviderId = 'google';
 
 const DAY = 24 * 3600;
+
+/** Programs that may ask to sign in (device-authorization client ids). */
+export const PROGRAM_CLIENTS = new Set(['cloud-slicer-mcp']);
 
 export function db(env: Env) {
   if (!env.DB) throw new HttpError(503, 'Accounts are not set up on this site yet');
@@ -42,6 +45,20 @@ async function ownerIds(env: Env): Promise<string[]> {
     .bind(...emails)
     .all<{ id: string }>();
   return rows.results.map((r) => r.id);
+}
+
+/**
+ * Hidden guard on program sign-ins (no visible quota): expired codes are cleared,
+ * and while too many are waiting site-wide a new one is refused, so nothing that
+ * keeps asking for codes can fill D1. Each code lasts 10 minutes.
+ */
+const MAX_PENDING_PROGRAM_SIGN_INS = 200;
+async function programSignInGuard(env: Env, _request: Request) {
+  const d = db(env);
+  await d.prepare('DELETE FROM "deviceCode" WHERE "expiresAt" < ?').bind(new Date().toISOString()).run();
+  const row = await d.prepare('SELECT COUNT(*) AS n FROM "deviceCode"').first<{ n: number }>();
+  if ((row?.n ?? 0) >= MAX_PENDING_PROGRAM_SIGN_INS)
+    throw APIError.from('TOO_MANY_REQUESTS', { code: 'SLOW_DOWN', message: 'Too many sign-ins are waiting right now. Try again in a few minutes.' });
 }
 
 /** Refuses a sign-in the way Better Auth reports errors: the sign-in page shows `message`. */
@@ -106,6 +123,20 @@ export async function createAuth(env: Env, request: Request, { admin: forAdmin =
     },
     plugins: [
       oAuthProxy({ productionURL: env.AUTH_ORIGIN, currentURL: origin }),
+      // Signing in a program on the person's computer (the MCP add-on, apps/mcp): it
+      // shows a short code, the person approves it on the site (#link=CODE, signed in
+      // there already), and the program gets a session of its own, sent as a bearer
+      // token. No password or Google sign-in goes through the program.
+      deviceAuthorization({
+        expiresIn: '10m',
+        interval: '5s',
+        // The site the add-on asked (a preview has its own sign-in cookies, so it approves there too).
+        verificationUri: `${origin}/#link`,
+        validateClient: (id) => PROGRAM_CLIENTS.has(id),
+        onDeviceAuthRequest: () => programSignInGuard(env, request),
+      }),
+      // A program's session token, sent as "Authorization: Bearer", counts as its session.
+      bearer({ requireSignature: false }),
       // Block / unblock and the user list for the Admin page; only the owners may use it.
       admin({
         adminUserIds: forAdmin ? await ownerIds(env) : [],

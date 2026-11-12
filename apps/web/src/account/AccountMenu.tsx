@@ -4,6 +4,7 @@ import { useSlicer } from '../state/store';
 import type { PresetType, ProviderId } from './api';
 import { Note } from '../components/Note';
 import { Menu } from '../components/Menu';
+import { AiAppsDialog } from '../components/AiAppsDialog';
 
 const PROVIDER_LABEL: Record<ProviderId, string> = { google: 'Google' };
 const ALL_PROVIDERS = Object.keys(PROVIDER_LABEL) as ProviderId[];
@@ -32,6 +33,7 @@ export function AccountMenu() {
   const user = useAccount((s) => s.user);
   const error = useAccount((s) => s.error);
   const [open, setOpen] = useState(false);
+  const [aiApps, setAiApps] = useState(false);
 
   useEffect(() => useAccount.getState().init(), []);
   // Close the sign-in panel once the sign-in (popup) finishes.
@@ -66,7 +68,13 @@ export function AccountMenu() {
           )
         }
       >
-        {user ? <SignedIn onDone={() => setOpen(false)} /> : <SignedOut />}
+        {user ? <SignedIn
+            onDone={() => setOpen(false)}
+            onAiApps={() => {
+              setOpen(false);
+              setAiApps(true);
+            }}
+          /> : <SignedOut />}
         {error && (
           <Note tone="error">
             {error}{' '}
@@ -76,6 +84,7 @@ export function AccountMenu() {
           </Note>
         )}
       </Menu>
+      {aiApps && <AiAppsDialog onClose={() => setAiApps(false)} />}
     </div>
   );
 }
@@ -128,7 +137,7 @@ function SignedOut() {
   );
 }
 
-function SignedIn({ onDone }: { onDone: () => void }) {
+function SignedIn({ onDone, onAiApps }: { onDone: () => void; onAiApps: () => void }) {
   const user = useAccount((s) => s.user)!;
   // Connected once, but Google no longer gives the site a key (the app's access was taken away, or the key ran out).
   const reconnect = useAccount((s) => Boolean(user.drive && (s.driveLost || user.driveReconnect)));
@@ -169,6 +178,9 @@ function SignedIn({ onDone }: { onDone: () => void }) {
           Connect Google Drive
         </button>
       )}
+      <button className="secondary account-admin" onClick={onAiApps}>
+        Use with an AI app
+      </button>
       {user.owner && (
         <button
           className="secondary account-admin"

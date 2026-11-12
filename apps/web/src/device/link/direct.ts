@@ -88,7 +88,7 @@ export class DirectLink implements PrinterLink {
       if (e instanceof LinkError) throw e;
       if ((e as Error).name === 'AbortError') throw new LinkError('The printer did not answer in time.', 'timeout');
       throw new LinkError(
-        `Could not reach ${this.label}. Check that it is on, and that moonraker.conf lists this site under [authorization] cors_domains (${location.origin}), then restart Moonraker.`,
+        `Could not reach ${this.label}. Check that it is on, and that moonraker.conf lists this site under [authorization] cors_domains (${globalThis.location?.origin ?? 'this site'}), then restart Moonraker.`,
         'network',
       );
     } finally {
@@ -157,11 +157,13 @@ export class DirectLink implements PrinterLink {
   upload(blob: Blob, path: string, onProgress?: (f: number) => void, signal?: AbortSignal): Promise<string> {
     const blocked = directBlockedReason(this.baseUrl);
     if (blocked) return Promise.reject(new LinkError(blocked, 'blocked'));
+    const form = new FormData();
+    form.append('root', 'gcodes');
+    form.append('file', blob, path);
+    // Outside a browser (the AI app add-on, apps/mcp) there is no XMLHttpRequest: fetch, without progress.
+    if (typeof XMLHttpRequest === 'undefined') return this.fetchUpload(form, path, signal);
     // XMLHttpRequest rather than fetch: it reports upload progress.
     return new Promise((resolve, reject) => {
-      const form = new FormData();
-      form.append('root', 'gcodes');
-      form.append('file', blob, path);
       const xhr = new XMLHttpRequest();
       xhr.open('POST', this.resolve('/server/files/upload'));
       for (const [k, v] of Object.entries(this.headers())) xhr.setRequestHeader(k, v);
@@ -185,6 +187,24 @@ export class DirectLink implements PrinterLink {
       signal?.addEventListener('abort', () => xhr.abort(), { once: true });
       xhr.send(form);
     });
+  }
+
+  private async fetchUpload(form: FormData, path: string, signal?: AbortSignal): Promise<string> {
+    let r: Response;
+    try {
+      r = await fetch(this.resolve('/server/files/upload'), { method: 'POST', headers: this.headers(), body: form, signal });
+    } catch (e) {
+      if ((e as Error).name === 'AbortError') throw new LinkError('Upload cancelled.', 'network');
+      throw new LinkError(`Upload to ${this.label} failed.`, 'network');
+    }
+    const text = await r.text();
+    if (!r.ok) throw new LinkError(uploadRefused(r.status, text), 'http');
+    try {
+      const body = JSON.parse(text) as { result?: { item?: { path?: string } }; item?: { path?: string } };
+      return body.result?.item?.path ?? body.item?.path ?? path;
+    } catch {
+      return path;
+    }
   }
 
   /** A piece of a file on the printer, asked with a Range header. */

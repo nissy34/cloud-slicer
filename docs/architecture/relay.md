@@ -59,6 +59,10 @@ users (4 hours of status and 1 hour of camera each).
 - Cameras through the relay (pictures, `bridge.snapshot`): at most the ticket's `cams`
   per account at once (2, the owner 8; checked in `cameraRefusal`). Direct WebRTC cameras
   are capped by the bridge instead: 4 per browser (`maxDirectCameras`, `link.go`).
+- AI app add-ons (apps/mcp; tickets with `prog`, signed only for a program's own token):
+  10,000 messages per account per bridge a day (`PROGRAM_MESSAGES_PER_DAY`), counted in
+  the bridge's memory; past it the add-on's socket closes with the reason (4029)
+  ([mcp](mcp.md#limits)).
 - Over a limit, that kind of request fails until midnight UTC.
 
 ## Rules

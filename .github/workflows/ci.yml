@@ -17,6 +17,7 @@ name: CI
 # Jobs, so independent work runs side by side:
 #            ┌ unit ──────────────────────────────────────┐
 #   changes ─┤        ┌─ engine-tests ────────────────────┤
+#            │        ├─ mcp ─────────────────────────────┤
 #            │        ├─ desktop-orca (engine PRs)
 #            └ engine ┼─ shared-settings ─────────────────┼─ deploy (main)
 #                     └─ site ─┬─ browser (smoke, ...) ───┘
@@ -408,6 +409,88 @@ jobs:
             echo "the Klipper check missed a move off the bed"; exit 1
           fi
 
+  # The MCP server (apps/mcp): builds it with both engines and drives it the
+  # way Claude does, over stdin/stdout with the official SDK's client.
+  # On main it then puts the install files on the `mcp` release (never deleted;
+  # the same links always give the newest): cloud-slicer.mcpb for Claude Desktop
+  # and cloud-slicer-mcp.tgz for `npx` (apps/mcp/pack.mjs).
+  mcp:
+    needs: engine
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v5
+      - name: Fetch the pinned Snapmaker Orca and OrcaSlicer submodules (shallow)
+        run: |
+          for sub in engine/orcaslicer engine/orcaslicer-upstream; do
+            sha=$(git ls-tree HEAD "$sub" | awk '{print $3}')
+            url=$(git config -f .gitmodules "submodule.$sub.url")
+            (cd "$sub" && git init -q && git remote add origin "$url" &&
+              git fetch -q --depth 1 origin "$sha" && git checkout -q FETCH_HEAD)
+          done
+      - name: Engine keys
+        id: key
+        run: |
+          echo "snapmaker=engine-out-$(node engine/scripts/engine-key.mjs)" >> "$GITHUB_OUTPUT"
+          echo "orca=engine-out-$(node engine/scripts/engine-key.mjs --flavor orca)" >> "$GITHUB_OUTPUT"
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: |
+            apps/mcp/package-lock.json
+            apps/web/package-lock.json
+            apps/device-relay/package-lock.json
+      # The printers test (test/printers.test.mjs) runs the real bridge, a local relay and the pretend printers.
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: apps/device-bridge/go.mod
+          cache-dependency-path: apps/device-bridge/go.sum
+      - name: Bridge test helpers and local relay
+        run: |
+          (cd apps/web && npm ci --no-audit --no-fund --ignore-scripts)
+          (cd apps/device-relay && npm ci --no-audit --no-fund)
+      - uses: ./.github/actions/restore-engine
+        with:
+          path: engine/build/engine/orca-engine.*
+          key: ${{ steps.key.outputs.snapmaker }}
+      - uses: ./.github/actions/restore-engine
+        with:
+          path: engine/build/engine-orca/orca-engine.*
+          key: ${{ steps.key.outputs.orca }}
+      - name: Build and test
+        working-directory: apps/mcp
+        run: |
+          npm ci
+          npm run check
+          npm run build
+          npm test
+          npm run pack
+          # What `npx` runs from the download starts and answers like the built one.
+          npm install -g ./release/cloud-slicer-mcp.tgz
+          node -e "
+            const { Client } = require('@modelcontextprotocol/sdk/client/index.js');
+            const { StdioClientTransport } = require('@modelcontextprotocol/sdk/client/stdio.js');
+            (async () => {
+              const c = new Client({ name: 'ci', version: '1' });
+              await c.connect(new StdioClientTransport({ command: 'cloud-slicer-mcp' }));
+              const { tools } = await c.listTools();
+              if (!tools.some((t) => t.name === 'slice')) throw new Error('no slice tool');
+              await c.close();
+            })().catch((e) => { console.error(e); process.exit(1); });"
+
+      - name: Publish the install files
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release view mcp > /dev/null 2>&1 || gh release create mcp --target "$GITHUB_SHA" --latest=false \
+            --title "Cloud Slicer for Claude" \
+            --notes "Lets Claude slice on your computer. Claude Desktop: download cloud-slicer.mcpb and open it. Claude Code: claude mcp add cloud-slicer -- npx -y https://github.com/$GITHUB_REPOSITORY/releases/download/mcp/cloud-slicer-mcp.tgz . Updated on every change to main; see apps/mcp/README.md."
+          gh release upload mcp apps/mcp/release/cloud-slicer.mcpb apps/mcp/release/cloud-slicer-mcp.tgz --clobber
+
   # The real desktop app of the same version slices the same test files, and
   # what gets printed must match (engine/desktop-check). Only on pull requests
   # that change the engine, its presets or this check: without such a change
@@ -630,6 +713,7 @@ jobs:
           node test/support-filaments.mjs
           node test/filament-list.mjs
           node test/calibration.mjs
+          node test/ai-apps.mjs
 
       - name: Preset editing, import and export end to end (Chromium)
         if: matrix.suite == 'presetfiles'
@@ -747,7 +831,7 @@ jobs:
 
   # The live site, from main, only after every test passed.
   deploy:
-    needs: [unit, engine-tests, shared-settings, browser]
+    needs: [unit, engine-tests, mcp, shared-settings, browser]
     if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
     runs-on: ubuntu-24.04
     timeout-minutes: 30

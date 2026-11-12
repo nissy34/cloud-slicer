@@ -15,12 +15,16 @@
 | Relay ticket key | Pages secret `RELAY_TICKET_KEY`; relay has the public half | Regenerated once made |
 | Bridge signing key | GitHub secret `BRIDGE_SIGNING_KEY` | On the relay or R2 |
 | Push key | Relay secret `VAPID_KEY` | |
+| AI app add-on's session token | The person's computer, a file only their user can read (`account.json`); D1 `session` like any sign-in | Seen by the AI app or typed by the person: they approve a short code on the site instead |
 
 ## Rules
 
 - **Allow lists, not deny lists.** The bridge passes only the Moonraker methods the Device
   tab uses, and per brand only listed requests (`allowed.go`). They guard the printer's
   computer (system commands, plugins, firmware), not G-code.
+- Changes through `/api` must come from the site's own pages (same `Origin`), except a
+  request with an AI app add-on's own token (`Authorization: Bearer`, no `Origin`):
+  another site's page can't send that header here, so it can't be a cross-site request.
 - A browser needs a signed-in, allowed account and a ticket for each bridge; blocking an
   account closes its connections at once.
 - The relay sees traffic in plain text (TLS to and from it); it logs nothing about alerts

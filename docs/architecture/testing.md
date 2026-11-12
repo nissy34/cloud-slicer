@@ -10,6 +10,7 @@
 |---|---|---|
 | Web unit tests (Vitest), beside each `lib/` and `device/` file | `cd apps/web && npm test` | `src/**/*.test.ts` |
 | Engine tests in Node, both engines | `node --test engine/node/engine.test.mjs` | `engine/node/` |
+| MCP server, driven like Claude does | `cd apps/mcp && npm run build && npm test` | `apps/mcp/test/` |
 | Does Klipper accept the G-code (batch mode, U1 stand-in and a Voron) | `engine/klipper-check/check.sh` | `engine/klipper-check/` |
 | Does our G-code print the same as the real desktop app's (below) | `node engine/desktop-check/check.mjs` | `engine/desktop-check/` |
 | Bridge unit tests | `cd apps/device-bridge && go test ./...` | `*_test.go`, `testdata/` |

@@ -14,6 +14,7 @@ One database for production **and every branch preview**. Migrations in
 | Table | Holds | From |
 |---|---|---|
 | `user`, `session`, `account`, `verification` | Better Auth (plus `role`, `banned`… from its admin plugin) | 0001, 0005 |
+| `deviceCode` | Better Auth's device authorization: AI app add-on sign-ins waiting for the person to tap Connect (10 minutes; expired ones deleted on the next request, at most 200) | 0011 |
 | `presets` | User presets: `type`, `name`, `inherits`, `config` (diff), `engines`, `version` | 0001, 0006 |
 | `user_settings` | Small JSON values by key (below) | 0001 |
 | `devices` | Saved printers and bridges: `url`, `api_key_enc`, `extra` (bridge, relay, kind) | 0001 |

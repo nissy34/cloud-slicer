@@ -15,7 +15,7 @@
 import assert from 'node:assert/strict';
 import { spawn, spawnSync } from 'node:child_process';
 import { createHash, generateKeyPairSync } from 'node:crypto';
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { createServer } from 'node:http';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
@@ -1265,6 +1265,81 @@ test('signing in again, on another device, finds the same account', async () => 
   assert.deepEqual((await (await otherDevice.json('/api/presets')).json()).presets.map((p) => p.name), ['My U1']);
 });
 
+test('AI app add-on: signs in with a code the person approves on the site, then uses the account', async () => {
+  process.env.CLOUD_SLICER_SITE = HOST;
+  const person = new Browser();
+  await signIn(person, 'alice');
+  const { Account } = await import('../../mcp/src/account.ts');
+  const until = async (what, ok, ms = 20000) => {
+    for (const end = Date.now() + ms; Date.now() < end; await new Promise((r) => setTimeout(r, 250))) if (await ok()) return;
+    assert.fail(`timed out waiting for ${what}`);
+  };
+  // Only the add-on's own name may ask for a code.
+  const stranger = await fetch(`${HOST}/api/auth/device/code`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ client_id: 'someone-else' }) });
+  assert.equal(stranger.ok, false, 'an unknown program is refused');
+
+  const file = join(state, 'mcp-account.json');
+  const addon = new Account(file);
+  assert.equal(addon.signedIn, false);
+  const { code, link } = await addon.start();
+  assert.match(code, /^[A-Z0-9-]{8,9}$/);
+  assert.equal(link, `${HOST}/?user_code=${code}#link`, 'the link opens the site at the approval window');
+  assert.deepEqual((await addon.status()).waiting, { code, link });
+
+  // A signed-out browser can't claim or approve it.
+  const nobody = new Browser();
+  assert.notEqual((await nobody.json('/api/auth/device/approve', 'POST', { userCode: code })).status, 200);
+
+  // Alice opens the link: the window claims the code for her account, then she taps Connect.
+  const seen = await (await person.json(`/api/auth/device?user_code=${encodeURIComponent(code)}`)).json();
+  assert.equal(seen.status, 'pending');
+  assert.equal((await person.json('/api/auth/device/approve', 'POST', { userCode: code })).status, 200);
+  await until('the add-on to pick up the approval', () => addon.signedIn);
+  const status = await addon.status();
+  assert.equal(status.email, 'alice@example.com');
+  const saved = JSON.parse(readFileSync(file, 'utf8'));
+  assert.equal(saved.email, 'alice@example.com');
+  assert.equal(statSync(file).mode & 0o077, 0, 'only this computer user can read the saved sign-in');
+
+  // The next start is still signed in, and the account's presets come with it.
+  const again = new Account(file);
+  assert.equal(again.signedIn, true);
+  assert.ok(Array.isArray((await again.api('/presets')).presets));
+
+  // A relay ticket for the add-on (no Origin, its own token) is marked as a program's, so the
+  // relay keeps it to a daily budget of messages (test/device/relay-live.mjs).
+  const ticketFor = (bridgeId) => again.api('/relay/ticket', { method: 'POST', body: JSON.stringify({ relay: 'https://cloud-slicer-relay.awesomestuff.qzz.io', bridgeId }) });
+  const t = await ticketFor('mcp-ticket-bridge');
+  const claims = JSON.parse(Buffer.from(t.ticket.split('.')[1], 'base64url').toString());
+  assert.equal(claims.prog, true, JSON.stringify(claims));
+  const pageTicket = await person.json('/api/relay/ticket', 'POST', { relay: 'https://cloud-slicer-relay.awesomestuff.qzz.io', bridgeId: 'mcp-ticket-bridge' });
+  assert.equal(JSON.parse(Buffer.from((await pageTicket.json()).ticket.split('.')[1], 'base64url').toString()).prog, undefined, "a page's ticket isn't a program's");
+
+  // Turned down on the site: the add-on says so and stays signed out.
+  const other = new Account(join(state, 'mcp-other.json'));
+  const second = await other.start();
+  await person.json(`/api/auth/device?user_code=${encodeURIComponent(second.code)}`);
+  assert.equal((await person.json('/api/auth/device/deny', 'POST', { userCode: second.code })).status, 200);
+  await until('the add-on to see the refusal', async () => Boolean((await other.status()).problem));
+  assert.equal(other.signedIn, false);
+
+  // Codes nobody approved are cleared once they expire, so they never pile up.
+  const sql = (q) => JSON.parse(spawnSync(wrangler, ['d1', 'execute', 'cloud-slicer', '--local', '--persist-to', state, '--json', '--command', q], { cwd: web, encoding: 'utf8' }).stdout)[0].results;
+  const third = await new Account(join(state, 'mcp-third.json')).start();
+  sql(`UPDATE "deviceCode" SET "expiresAt" = '${new Date(Date.now() - 60000).toISOString()}' WHERE "userCode" = '${third.code}'`);
+  const fourth = await new Account(join(state, 'mcp-fourth.json')).start();
+  const stored = sql(`SELECT "expiresAt" FROM "deviceCode" WHERE "userCode" = '${fourth.code}'`)[0];
+  assert.ok(stored && Date.parse(stored.expiresAt) > Date.now(), `dates are stored as ISO text (${stored?.expiresAt})`);
+  assert.equal(sql(`SELECT COUNT(*) AS n FROM "deviceCode" WHERE "userCode" = '${third.code}'`)[0].n, 0, 'the expired code was cleared');
+
+  // Signing out ends the session on the site too.
+  await again.signOut();
+  assert.equal(existsSync(file), false);
+  const old = await fetch(`${HOST}/api/me`, { headers: { authorization: `Bearer ${saved.token}` } });
+  assert.equal((await old.json()).user, null, 'the old token no longer works');
+  await assert.rejects(addon.api('/presets'), /sign/i, 'the other copy finds out on its next call');
+});
+
 test('sign out, then delete the account and its presets', async () => {
   const other = new Browser();
   await signIn(other, 'alice');
@@ -1287,6 +1362,60 @@ test('sign out, then delete the account and its presets', async () => {
 
 const bobBrowser = new Browser();
 if (withApp)
+  test('browser: the AI app sign-in link asks to connect, shows the code, and Connect signs the add-on in (desktop and phone)', async () => {
+    const { Account } = await import('../../mcp/src/account.ts');
+    const person = new Browser();
+    await signIn(person, 'alice');
+    const browser = await launchBrowser();
+    const shots = process.env.ACCOUNTS_SHOTS;
+    try {
+      for (const [name, viewport] of [['desktop', { width: 1280, height: 860 }], ['phone', { width: 390, height: 844 }]]) {
+        const addon = new Account(join(state, `mcp-browser-${name}.json`));
+        const { code } = await addon.start();
+        const context = await browser.newContext({ viewport, colorScheme: 'dark', deviceScaleFactor: 2 });
+        await context.addCookies([...person.jar.get(new URL(HOST).host)].map(([n, value]) => ({ name: n, value, url: HOST })));
+        const page = await context.newPage();
+        await page.goto(`${HOST}/?user_code=${code}#link`);
+        const dialog = page.getByRole('dialog', { name: 'Connect an AI app' });
+        await dialog.getByTestId('link-code').waitFor({ timeout: 120000 });
+        assert.equal(await dialog.getByTestId('link-code').innerText(), code);
+        await dialog.getByText('alice@example.com').waitFor();
+        assert.equal(await page.getByRole('dialog', { name: 'Set up your printers' }).isVisible(), false, 'the setup wizard waits');
+        if (shots) await dialog.screenshot({ path: join(shots, `link-${name}-ask.png`) });
+        await dialog.getByRole('button', { name: 'Connect', exact: true }).click();
+        await dialog.getByText(/Connected\. Go back to your AI app/).waitFor();
+        if (shots) await dialog.screenshot({ path: join(shots, `link-${name}-done.png`) });
+        for (let i = 0; i < 80 && !addon.signedIn; i++) await new Promise((r) => setTimeout(r, 250));
+        assert.equal(addon.signedIn, true, 'the add-on picked up the approval');
+        await dialog.getByRole('button', { name: 'Done' }).click();
+        await dialog.waitFor({ state: 'hidden' });
+        assert.equal(new URL(page.url()).search, '', 'the code leaves the address');
+        await context.close();
+      }
+      // A bare link (from typing the address) asks for the code.
+      const context = await browser.newContext({ viewport: { width: 1280, height: 860 } });
+      await context.addCookies([...person.jar.get(new URL(HOST).host)].map(([n, value]) => ({ name: n, value, url: HOST })));
+      const page = await context.newPage();
+      await page.goto(`${HOST}/#link`);
+      const dialog = page.getByRole('dialog', { name: 'Connect an AI app' });
+      await dialog.getByLabel('The code your AI app shows').fill('nope1234');
+      await dialog.getByRole('button', { name: 'Next' }).click();
+      await dialog.getByText("This code isn't valid", { exact: false }).waitFor();
+      await context.close();
+      // Signed out, it asks to sign in first.
+      const signedOut = await browser.newContext({ viewport: { width: 1280, height: 860 } });
+      const out = await signedOut.newPage();
+      await out.goto(`${HOST}/?user_code=ABCD1234#link`);
+      const ask = out.getByRole('dialog', { name: 'Connect an AI app' });
+      await ask.getByRole('button', { name: 'Continue with Google' }).waitFor({ timeout: 120000 });
+      if (shots) await ask.screenshot({ path: join(shots, 'link-signed-out.png') });
+      await signedOut.close();
+    } finally {
+      await browser.close();
+    }
+  });
+
+if (withApp)
   test('browser: the owner opens the Admin page from the account menu (desktop and phone)', async () => {
     const owner = new Browser();
     await signIn(owner, 'alice');
@@ -1305,6 +1434,13 @@ if (withApp)
       await page.getByRole('button', { name: /Alice/ }).waitFor({ timeout: 60000 });
       await wizard.waitFor({ timeout: 5000 }).catch(() => {});
       if (await wizard.isVisible().catch(() => false)) await wizard.getByRole('button', { name: 'Close window' }).click();
+      // The account menu's "Use with an AI app" opens the window (tested in ai-apps.mjs) and closes the menu.
+      await page.getByRole('button', { name: /Alice/ }).click();
+      await page.getByRole('button', { name: 'Use with an AI app' }).click();
+      const aiApps = page.getByRole('dialog', { name: 'Use with an AI app' });
+      await aiApps.getByTestId('ai-apps-download').waitFor();
+      assert.equal(await page.getByRole('button', { name: 'Sign out' }).isVisible(), false, 'account menu closes behind the window');
+      await aiApps.getByRole('button', { name: 'Done' }).click();
       await page.getByRole('button', { name: /Alice/ }).click();
       await page.getByRole('button', { name: 'Admin: people and limits' }).click();
       const admin = page.getByTestId('admin');
