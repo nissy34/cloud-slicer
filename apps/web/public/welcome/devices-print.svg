@@ -1,9 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 320">
 <!-- Welcome page art (SetupWizard WelcomeStep): a laptop and a phone show the vase sliced in the real app and send it over Wi-Fi to the printer, which prints it layer by layer. Drawn for Cloud Slicer. All motion is SMIL on one clock so every loop starts from an empty plate. -->
 <defs><linearGradient id="shade" x1="0" x2="1"><stop offset="0" stop-color="#000" stop-opacity=".22"/><stop offset=".45" stop-color="#fff" stop-opacity=".18"/><stop offset="1" stop-color="#000" stop-opacity=".28"/></linearGradient></defs>
-<rect x="194" y="96" width="8" height="180" rx="3" fill="#aeb4be"/>
-<rect x="382" y="96" width="8" height="180" rx="3" fill="#aeb4be"/>
-<rect x="192" y="86" width="200" height="12" rx="4" fill="#c9ced6"/>
 <path d="M200 276 L292 246 L384 276 L292 306 Z" fill="#2b2f36"/>
 <path d="M200 276 L292 306 L292 313 L200 283 Z" fill="#1c1f24"/>
 <path d="M384 276 L292 306 L292 313 L384 283 Z" fill="#15171b"/>
