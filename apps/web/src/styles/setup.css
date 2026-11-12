@@ -179,6 +179,24 @@
 .wizard-later {
   margin-right: auto;
 }
+/* The welcome page (signed out): sign in, or set up this browser. */
+.wizard-welcome {
+  display: grid;
+  gap: var(--s-6);
+}
+.wizard-welcome section {
+  display: grid;
+  justify-items: start;
+  gap: var(--s-4);
+}
+.wizard-welcome section + section {
+  padding-top: var(--s-6);
+  border-top: 1px solid var(--border);
+}
+.wizard-welcome h3,
+.wizard-welcome p {
+  margin: 0;
+}
 
 /* Manage (SetupWizard.tsx): the wizard's pages as tabs once setup is done. One height
    whatever the tab, so switching doesn't jump; the tabs and buttons stay put and only

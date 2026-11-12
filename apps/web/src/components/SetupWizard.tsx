@@ -6,7 +6,7 @@ import { engineFromUrl, engineRelease, ENGINES, type EngineFlavor } from '../lib
 import { shortName } from '../lib/presets';
 import { coverUrl } from '../lib/printer-catalog';
 import { filamentGroups, installedFilaments, installedPrinters, matchModels, SETUP_KEY, wizardBrands, type FilamentRow, type Setup } from '../lib/setup';
-import { saveUserSetting, useAccount, useDevices, useUserSetting } from '../state/account';
+import { saveUserSetting, useAccount, useAccountSettled, useDevices, useUserSetting } from '../state/account';
 import { useDevice } from '../state/device';
 import { untouchedProject, useProjects } from '../state/projects';
 import { useSlicer } from '../state/store';
@@ -44,8 +44,9 @@ export const useSetupWizard = create<{
 // Device tab's add-printer dialog is waiting).
 let dismissed = typeof location !== 'undefined' && (location.hash.startsWith('#pair=') || location.hash === '#device');
 
-type Step = 'engine' | 'printers' | 'filaments' | 'connect';
-const STEPS: { id: Step; label: string }[] = [
+/** `welcome` comes before the numbered steps, only when signed out: sign in, or set up this browser. */
+type Step = 'welcome' | 'engine' | 'printers' | 'filaments' | 'connect';
+const STEPS: { id: Exclude<Step, 'welcome'>; label: string }[] = [
   { id: 'engine', label: 'Default engine' },
   { id: 'printers', label: 'Printers' },
   { id: 'filaments', label: 'Filaments' },
@@ -62,13 +63,15 @@ const STEPS: { id: Step; label: string }[] = [
 export function SetupWizard() {
   const { open, step, wizard, show, hide } = useSetupWizard();
   const ready = useSlicer((s) => s.engine === 'ready');
-  const accountReady = useAccount((s) => s.status !== 'loading');
+  // Signed in, the account's printers arrive just after the status: wait for them, or the wizard flashes up.
+  const accountReady = useAccountSettled();
   const installedPrinters = useUserSetting<Setup>(SETUP_KEY)?.printers;
   // The Continue card goes first: the wizard waits until it is answered.
   const offerDone = useProjects((s) => s.offerChecked && !s.offer);
   useEffect(() => {
-    if (ready && accountReady && offerDone && !installedPrinters?.length && !dismissed) show('engine', true);
-  }, [ready, accountReady, offerDone, installedPrinters, show]);
+    // (`open`: signing in on the welcome page closes the wizard, and it comes back here if the account has no printers yet.)
+    if (!open && ready && accountReady && offerDone && !installedPrinters?.length && !dismissed) show('welcome', true);
+  }, [open, ready, accountReady, offerDone, installedPrinters, show]);
   if (!open || !ready) return null;
   if (installedPrinters?.length && !wizard) return <Manage tab={step === 'filaments' || step === 'engine' ? step : 'printers'} onClose={hide} />;
   return (
@@ -87,8 +90,13 @@ function Wizard({ onClose }: { onClose: () => void }) {
   const savedPrinters = installedPrinters(useUserSetting<Setup>(SETUP_KEY), running);
   const savedFilaments = installedFilaments(useUserSetting<Setup>(SETUP_KEY), running);
   const savedEngine = useUserSetting<Setup>(SETUP_KEY)?.engine;
+  // Signed out on a site with sign-in: the first page offers it, for people who already set up their printers on their account.
+  const canSignIn = useAccount((s) => s.status === 'signedOut' && s.providers.google);
   // Opened from a picker before setup was done: from the start.
-  const [step, setStep] = useState<Step>(() => (useSetupWizard.getState().wizard ? useSetupWizard.getState().step : 'engine'));
+  const [step, setStep] = useState<Step>(() => {
+    const asked = useSetupWizard.getState().wizard ? useSetupWizard.getState().step : 'welcome';
+    return asked === 'welcome' && !canSignIn ? 'engine' : asked;
+  });
   const [engine, setEngine] = useState<EngineFlavor>(useSetupWizard.getState().engine ?? savedEngine ?? running);
   // The first time nothing is picked, as on desktop: the printer the app starts on is not one you chose.
   const [printers, setPrinters] = useState<string[]>(() => savedPrinters ?? []);
@@ -116,6 +124,16 @@ function Wizard({ onClose }: { onClose: () => void }) {
       setSaving(false);
     }
   };
+
+  // Signed in from the welcome page: the wizard closes. The account's printers and settings
+  // (and the Continue card for its last project) take over; with no printers on the account
+  // yet, the wizard opens again without the welcome page, on Default engine.
+  const signedIn = useAccount((s) => s.status === 'signedIn');
+  const accountSettled = useAccountSettled();
+  useEffect(() => {
+    if (step === 'welcome' && signedIn && accountSettled) useSetupWizard.getState().hide();
+  }, [step, signedIn, accountSettled]);
+  const signInError = useAccount((s) => s.error);
 
   const index = STEPS.findIndex((s) => s.id === step);
   const loadBrands = async () => {
@@ -155,8 +173,13 @@ function Wizard({ onClose }: { onClose: () => void }) {
           <button className="secondary wizard-later" onClick={onClose}>
             Not now
           </button>
-          {index > 0 && (
-            <button className="secondary" onClick={() => setStep(STEPS[index - 1].id)}>
+          {step === 'welcome' && (
+            <button className="secondary" onClick={() => setStep('engine')}>
+              Continue without signing in
+            </button>
+          )}
+          {(index > 0 || (step === 'engine' && canSignIn)) && (
+            <button className="secondary" onClick={() => setStep(index > 0 ? STEPS[index - 1].id : 'welcome')}>
               Back
             </button>
           )}
@@ -184,7 +207,7 @@ function Wizard({ onClose }: { onClose: () => void }) {
             <button className="primary" disabled={saving || !printers.length} onClick={() => void finish()}>
               Finish
             </button>
-          ) : (
+          ) : step === 'welcome' ? null : (
             <button
               className="primary"
               disabled={step === 'printers' ? !printers.length || loadingBrands : step === 'filaments' && !filaments?.length}
@@ -196,17 +219,22 @@ function Wizard({ onClose }: { onClose: () => void }) {
         </>
       }
     >
-      <p className="wizard-step-now">
-        Step {index + 1} of {STEPS.length}: {STEPS[index].label}
-      </p>
-      <ol className="wizard-steps">
-        {STEPS.map((s, i) => (
-          <li key={s.id} className={i === index ? 'on' : i < index ? 'done' : ''}>
-            {s.label}
-          </li>
-        ))}
-      </ol>
+      {step !== 'welcome' && (
+        <>
+          <p className="wizard-step-now">
+            Step {index + 1} of {STEPS.length}: {STEPS[index].label}
+          </p>
+          <ol className="wizard-steps">
+            {STEPS.map((s, i) => (
+              <li key={s.id} className={i === index ? 'on' : i < index ? 'done' : ''}>
+                {s.label}
+              </li>
+            ))}
+          </ol>
+        </>
+      )}
       <div className="wizard-body">
+        {step === 'welcome' && <WelcomeStep error={signInError} />}
         {step === 'engine' && <EngineStep chosen={engine} onChange={setEngine} />}
         {step === 'printers' && <PrinterStep all={allPrinters} chosen={printers} onChange={setPrinters} />}
         {step === 'printers' && loadingBrands && <p className="muted small">Loading the printer profiles…</p>}
@@ -215,6 +243,33 @@ function Wizard({ onClose }: { onClose: () => void }) {
       </div>
       {error && <p className="hint warn">{error}</p>}
     </Dialog>
+  );
+}
+
+/**
+ * Before the numbered steps, signed out: someone who already has an account
+ * signs in and gets their printers, filaments, presets and projects, instead of
+ * picking them all again (desktop Orca and Bambu Studio offer sign-in on their
+ * first page too). Choices made here while signed out move to the account later.
+ */
+function WelcomeStep({ error }: { error: string }) {
+  return (
+    <div className="wizard-welcome">
+      <section>
+        <h3>Have an account?</h3>
+        <p className="muted small">Sign in to get your printers, filaments, presets and projects here.</p>
+        <button className="primary" onClick={() => void useAccount.getState().signIn('google')}>
+          Sign in with Google
+        </button>
+        {error && <Note tone="error">{error}</Note>}
+      </section>
+      <section>
+        <h3>New here?</h3>
+        <p className="muted small">
+          Pick your printers and filaments, so the lists show only yours. You don't need an account; if you sign in later, your choices move to it.
+        </p>
+      </section>
+    </div>
   );
 }
 

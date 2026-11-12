@@ -58,6 +58,9 @@ down. Add a line with the date when a new choice is made.
 - The setup wizard only on the first visit; after that Manage opens a tabbed Printers and
   filaments window (Printers, Filaments, Default engine; no Connect), one Save, asks
   before discarding, and the filament picker gets "Add or remove filaments…" (2026-10-26).
+- Sign-in offered on the wizard's first page when signed out, so people with an account
+  aren't walked through setup before they can sign in (like desktop Orca and Bambu Studio's
+  sign-in on their first page, 2026-11-12).
 - Every plate type on every printer; each printer starts on its own default (2026-10-24).
 - Post-processing scripts removed (a browser can't run programs); file names from the
   preset's Filename format with `{plate_number}` (2026-10-23).

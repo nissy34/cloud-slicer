@@ -44,6 +44,8 @@ const users = {
   ivy: { sub: 'g-ivy', name: 'Ivy', email: 'ivy@example.com', email_verified: true },
   june: { sub: 'g-june', name: 'June', email: 'june@example.com', email_verified: true },
   kim: { sub: 'g-kim', name: 'Kim', email: 'kim@example.com', email_verified: true },
+  lee: { sub: 'g-lee', name: 'Lee', email: 'lee@example.com', email_verified: true },
+  max: { sub: 'g-max', name: 'Max', email: 'max@example.com', email_verified: true },
 };
 let nextUser = 'alice';
 let declineDrive = false;
@@ -1424,6 +1426,55 @@ if (withApp)
       if (process.env.ACCOUNTS_SHOTS) await page.screenshot({ path: join(process.env.ACCOUNTS_SHOTS, 'account-menu-phone.png') });
       await page.getByRole('button', { name: 'Sign out' }).click();
       await page.getByRole('button', { name: 'Sign in' }).waitFor();
+    } finally {
+      await browser.close();
+    }
+  });
+
+if (withApp)
+  test('browser: first visit signed out offers sign-in before the setup wizard', async () => {
+    // Lee set up printers on another device; Max has an account but never ran the wizard.
+    const lee = new Browser();
+    await signIn(lee, 'lee');
+    await lee.json('/api/settings/setup', 'PUT', { value: { printers: ['Snapmaker U1 (0.4 nozzle)'], filaments: ['Snapmaker PLA'] } });
+    const browser = await launchBrowser();
+    const shots = process.env.ACCOUNTS_SHOTS;
+    try {
+      for (const who of ['lee', 'max']) {
+        const page = await browser.newPage({ viewport: { width: 1280, height: 860 } });
+        await page.context().route('https://accounts.google.com/**', (r) => r.fulfill({ status: 302, headers: { location: toMock(r.request().url()) } }));
+        await page.goto(HOST);
+        await page.getByText('Open a model to start').waitFor({ timeout: 120000 });
+        const wizard = page.getByRole('dialog', { name: 'Set up your printers' });
+        await wizard.getByRole('heading', { name: 'Have an account?' }).waitFor({ timeout: 30000 });
+        assert.equal(await wizard.getByText(/Step 1 of/).count(), 0, 'the welcome page is not a numbered step');
+        if (shots && who === 'lee') {
+          await page.screenshot({ path: join(shots, 'welcome-desktop.png') });
+          await page.setViewportSize({ width: 390, height: 844 });
+          await page.screenshot({ path: join(shots, 'welcome-phone.png') });
+          await page.setViewportSize({ width: 1280, height: 860 });
+        }
+        // Without signing in: the numbered steps, and Back returns to the welcome page.
+        await wizard.getByRole('button', { name: 'Continue without signing in' }).click();
+        await wizard.getByRole('radio', { name: 'Snapmaker Orca' }).waitFor();
+        await wizard.getByRole('button', { name: 'Back' }).click();
+        nextUser = who;
+        const [popup] = await Promise.all([page.waitForEvent('popup'), wizard.getByRole('button', { name: 'Sign in with Google' }).click()]);
+        if (!popup.isClosed()) await popup.waitForEvent('close', { timeout: 30000 });
+        await page.getByRole('button', { name: who === 'lee' ? /Lee/ : /Max/ }).waitFor({ timeout: 30000 });
+        if (who === 'lee') {
+          // The account's printers came with the sign-in: no wizard.
+          await wizard.waitFor({ state: 'detached', timeout: 30000 });
+          await new Promise((r) => setTimeout(r, 1500));
+          assert.equal(await wizard.count(), 0, 'the wizard stays closed for an account with printers');
+        } else {
+          // Nothing on the account yet: the wizard comes back on its first numbered step.
+          await wizard.getByRole('radio', { name: 'Snapmaker Orca' }).waitFor({ timeout: 30000 });
+          assert.equal(await wizard.getByRole('heading', { name: 'Have an account?' }).count(), 0, 'no welcome page once signed in');
+          assert.equal(await wizard.getByRole('button', { name: 'Back' }).count(), 0, 'signed in, Default engine is the first page');
+        }
+        await page.context().close();
+      }
     } finally {
       await browser.close();
     }

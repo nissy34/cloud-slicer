@@ -93,6 +93,14 @@ desktop, until its preset is picked again.
   Generic second, the rest by name. Snapmaker's filaments follow the order in its
   `filament/filament_allow_list.json` (`sections.filament_order`), which the engine
   worker passes along; brands and engines without one sort by name (`test/filament-list.mjs`).
+- Signed out (on a site with sign-in), the wizard opens on a welcome page before its
+  numbered steps: "Have an account?" with **Sign in with Google**, or **Continue without
+  signing in** (Back on Default engine returns to it). Signing in there closes the wizard;
+  the account's printers, settings and Continue card take over, and an account with no
+  printers yet gets the wizard again from Default engine. It waits for the account's data
+  (`useAccountSettled`), so a signed-in visit never flashes it. Choices made signed out
+  move to the account at sign-in (lists unioned, `mergeSetting`). Test:
+  `test/accounts.mjs` "first visit signed out".
 - The wizard ticks nothing on a first visit; "Direct print" marks Klipper printers
   (through `inherits`), Prusa, Elegoo Centauri Carbon and Bambu Lab.
 
