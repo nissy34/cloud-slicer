@@ -41,6 +41,15 @@ export interface Pending {
 }
 
 export class SignInError extends Error {}
+/** The site refused a call; `status` is its HTTP status. */
+export class ApiError extends Error {
+  constructor(
+    message: string,
+    readonly status: number,
+  ) {
+    super(message);
+  }
+}
 
 export class Account {
   private saved: Saved | null = null;
@@ -186,7 +195,7 @@ export class Account {
     });
     if (r.status === 401) this.ended();
     const body = (await r.json().catch(() => ({}))) as T & { error?: string };
-    if (!r.ok) throw new Error(body.error ?? `The site answered ${r.status}`);
+    if (!r.ok) throw new ApiError(body.error ?? `The site answered ${r.status}`, r.status);
     return body;
   }
 

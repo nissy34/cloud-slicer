@@ -12,7 +12,7 @@
     "noEmit": true,
     "types": ["node"],
     "typeRoots": ["./node_modules/@types"],
-    "paths": { "three": ["./node_modules/@types/three"] }
+    "paths": { "three": ["./node_modules/@types/three"], "fflate": ["./node_modules/fflate"], "culori": ["./node_modules/@types/culori"] }
   },
   "include": ["src"]
 }

@@ -412,7 +412,7 @@ jobs:
   mcp:
     needs: engine
     runs-on: ubuntu-24.04
-    timeout-minutes: 15
+    timeout-minutes: 25
     permissions:
       contents: write
     steps:
@@ -434,7 +434,19 @@ jobs:
         with:
           node-version: 22
           cache: npm
-          cache-dependency-path: apps/mcp/package-lock.json
+          cache-dependency-path: |
+            apps/mcp/package-lock.json
+            apps/web/package-lock.json
+            apps/device-relay/package-lock.json
+      # The printers test (test/printers.test.mjs) runs the real bridge, a local relay and the pretend printers.
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: apps/device-bridge/go.mod
+          cache-dependency-path: apps/device-bridge/go.sum
+      - name: Bridge test helpers and local relay
+        run: |
+          (cd apps/web && npm ci --no-audit --no-fund --ignore-scripts)
+          (cd apps/device-relay && npm ci --no-audit --no-fund)
       - uses: ./.github/actions/restore-engine
         with:
           path: engine/build/engine/orca-engine.*

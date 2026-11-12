@@ -16,6 +16,7 @@ import { z } from 'zod';
 import { formatDuration } from '../../web/src/lib/format';
 import type { StoredPreset } from '../../web/src/lib/preset-engines';
 import { Account } from './account';
+import { Printers } from './printers';
 import { ENGINES, Slicer, type ModelInfo, type SliceResult } from './slicer';
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -23,6 +24,9 @@ const slicer = new Slicer(here, here);
 const account = new Account();
 /** When the account's presets were last fetched; 0 asks again on the next tool call. */
 let presetsAt = 0;
+const printers = new Printers(account);
+/** The newest slice's files: what send_to_printer sends when not told a file. */
+let lastSliced: { gcodeFile: string; gcode3mfFile?: string } | null = null;
 account.onChange = () => (presetsAt = 0);
 
 /**
@@ -306,6 +310,7 @@ server.registerTool(
           extra.sendNotification({ method: 'notifications/progress', params: { progressToken: token, progress: overall, total: 100, message } }).catch(() => {});
         };
         const { file, file3mf, result, pictures } = await slicer.slice({ plate: p, out, settings: once }, progress);
+        lastSliced = { gcodeFile: file, ...(file3mf && { gcode3mfFile: file3mf }) };
         results.push({ ...(plates.length > 1 && { plate: p }), gcodeFile: file, ...(file3mf && { gcode3mfFile: file3mf }), ...stats(result), platePictures: pictures });
       }
       return plates.length > 1 ? { plates: results, presets: presets() } : { ...results[0], presets: presets() };
@@ -477,8 +482,74 @@ server.registerTool(
   () => run(async () => (await account.signOut(), { signedIn: false })),
 );
 
+server.registerTool(
+  'printers',
+  {
+    title: 'Your printers',
+    description: 'The printers in the person\'s Cloud Slicer account (the site\'s Device tab). Needs sign_in.',
+    inputSchema: {},
+  },
+  () => run(async () => (await printers.list()).map((p) => ({ name: p.name, ...(p.preset && { preset: p.preset }), through: p.kind === 'bridge' ? 'bridge' : 'direct' }))),
+);
+
+server.registerTool(
+  'printer_status',
+  {
+    title: 'Printer status',
+    description: 'How one of the person\'s printers is doing: printing or not, progress, temperatures, the filaments it has loaded, errors. Needs sign_in.',
+    inputSchema: { printer: z.string().optional().describe('Printer name from printers; can be left out with only one printer') },
+  },
+  ({ printer }) => run(() => printers.status(printer)),
+);
+
+server.registerTool(
+  'send_to_printer',
+  {
+    title: 'Send to printer',
+    description:
+      'Uploads G-code (by default the newest slice) to one of the person\'s printers. With print: true it then starts printing, but only after the person says yes ' +
+      'on screen, every time; never set print without them asking for a print. Without print it only uploads (the printer does not move). Needs sign_in.',
+    inputSchema: {
+      printer: z.string().optional().describe('Printer name from printers; can be left out with only one printer'),
+      file: z.string().optional().describe('G-code or .gcode.3mf on this computer; default the newest slice'),
+      print: z.boolean().optional().describe('Start printing after the upload (asks the person first). Default false: upload only'),
+    },
+  },
+  ({ printer, file, print }, extra) =>
+    run(async () => {
+      const path = file ?? lastSliced?.gcode3mfFile ?? lastSliced?.gcodeFile;
+      if (!path) throw new Error('Nothing to send yet: slice first, or give a file.');
+      const token = extra._meta?.progressToken;
+      let last = -1;
+      const progress = (f: number) => {
+        const pct = Math.floor(f * 100);
+        if (token === undefined || pct === last) return;
+        last = pct;
+        extra.sendNotification({ method: 'notifications/progress', params: { progressToken: token, progress: pct, total: 100, message: 'Uploading' } }).catch(() => {});
+      };
+      return printers.send(printer, path, {
+        start: Boolean(print),
+        progress,
+        confirm: async ({ printer: name, file: shown, slots }) => {
+          if (!server.server.getClientCapabilities()?.elicitation)
+            throw new Error(
+              'This app can\'t ask the person on screen before a print starts, so the add-on won\'t start one. Nothing was sent. ' +
+                'Send without print (upload only), then start it on the printer or in the site\'s Device tab.',
+            );
+          const answer = await server.server.elicitInput({
+            message:
+              `Start printing ${shown} on ${name}? The printer heats up and moves.` + (slots.length ? `\n${slots.map((s) => `• ${s}`).join('\n')}` : '') + '\nAccept to print, Decline to stop.',
+            requestedSchema: { type: 'object', properties: {} },
+          });
+          return answer.action === 'accept';
+        },
+      });
+    }),
+);
+
 await server.connect(new StdioServerTransport());
 const stop = async () => {
+  printers.close();
   await slicer.close();
   process.exit(0);
 };

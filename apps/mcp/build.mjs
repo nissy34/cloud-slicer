@@ -32,6 +32,8 @@ await build({
   banner: { js: "import { createRequire as __cr } from 'node:module'; const require = __cr(import.meta.url);" },
   // The site's helpers import three; take it from here, not from apps/web's own install.
   nodePaths: [resolve(here, 'node_modules')],
+  // The site's code reads Vite's build-time values; the add-on has none.
+  define: { 'import.meta.env': '{}' },
   logLevel: 'warning',
 });
 
