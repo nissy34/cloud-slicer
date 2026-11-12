@@ -17,6 +17,13 @@ describe('projectOverrides', () => {
   it('can be limited to some keys', () => {
     expect(projectOverrides(file, base, known, new Set(['layer_height']))).toEqual({ layer_height: '0.1' });
   });
+  it("doesn't let a saved 0 °C plate temperature turn the bed off", () => {
+    // A U1 PLA project saved on OrcaSlicer 2.4.2 says 0 °C for Textured PEI.
+    const k = { textured_plate_temp: { min: 0 }, textured_plate_temp_initial_layer: { min: 0 }, hot_plate_temp: { min: 0 } };
+    const saved = { textured_plate_temp: '0,0,60,0', textured_plate_temp_initial_layer: '0', hot_plate_temp: '0' };
+    const preset = { textured_plate_temp: '55,55,55,55', textured_plate_temp_initial_layer: '55', hot_plate_temp: '0' };
+    expect(projectOverrides(saved, preset, k)).toEqual({ textured_plate_temp: '55,55,60,55' });
+  });
 });
 
 describe('processKeys', () => {

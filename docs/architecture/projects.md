@@ -35,7 +35,11 @@ its own: only the list entry and its small picture.
 [prepare tools](prepare-tools.md#big-models)) → the file's `project_settings.config`
 comes in as overrides on the selected presets → plates, per-part filaments, paint and
 mixes are drawn. Opening a 3MF over loaded objects asks: open as the project, or add its
-objects.
+objects. A plate temperature of 0 °C in the file doesn't replace a real one in the
+filament's preset: OrcaSlicer's U1 filaments said 0 °C for the U1's default plate, so
+projects saved with them (on OrcaSlicer 2.4.2) would slice with the bed off.
+A project saved with an older engine or older presets keeps the values it was saved
+with, so presets that changed since show up as changed settings, as in desktop.
 
 **New project.** Like desktop Orca's `Plater::new_project`: first the usual question
 about the open project (save it or discard its changes), then, when changed settings
