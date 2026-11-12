@@ -589,6 +589,33 @@ server.registerTool(
 );
 
 server.registerTool(
+  'printer_camera',
+  {
+    title: 'Camera picture',
+    description:
+      'A still picture from one of the person\'s printers\' cameras: look before asking to print (is the plate clear?) or to see how a print is going. Needs sign_in.',
+    inputSchema: {
+      printer: z.string().optional().describe('Printer name from printers; can be left out with only one printer'),
+      camera: z.string().optional().describe('Camera name, when the printer has more than one; default the first'),
+    },
+  },
+  async ({ printer, camera }) => {
+    try {
+      await syncAccount();
+      const shot = await printers.camera(printer, camera);
+      return {
+        content: [
+          { type: 'image' as const, data: shot.data.toString('base64'), mimeType: shot.mimeType },
+          { type: 'text' as const, text: `${shot.printer}, ${shot.camera}, just now.` },
+        ],
+      };
+    } catch (e) {
+      return failure(e);
+    }
+  },
+);
+
+server.registerTool(
   'printer_files',
   {
     title: 'Files on a printer',

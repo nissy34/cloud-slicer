@@ -227,6 +227,40 @@ export class Printers {
     for (const id of [...this.live.keys()]) this.drop(id);
   }
 
+  /**
+   * One still picture from the printer's camera (a named one, or the first). Moonraker's
+   * cameras first; a printer without one uses its add-on's camera (the U1's own, which
+   * only writes frames for a while after it is asked to).
+   */
+  async camera(which?: string, name?: string): Promise<{ printer: string; camera: string; data: Buffer; mimeType: string }> {
+    const p = await this.find(which);
+    const l = await this.connect(p);
+    const s = l.session;
+    const cams = (await s.webcams()).filter((c) => c.snapshotUrl);
+    const hint = s.addons.find((a) => a.camera)?.camera;
+    const list = cams.length ? cams.map((c) => ({ name: c.name, url: c.snapshotUrl })) : hint ? [{ name: hint.name, url: hint.snapshotUrl }] : [];
+    if (!list.length) throw new Error(`${p.name} has no camera with still pictures.`);
+    const cam = name ? list.find((c) => c.name.toLowerCase() === name.toLowerCase()) : list[0];
+    if (!cam) throw new Error(`No camera called ${name}. ${p.name} has: ${list.map((c) => c.name).join(', ')}.`);
+    const wake = !cams.length && hint?.keepalive;
+    if (wake) {
+      await s.rpc(wake.method, wake.params, 15_000).catch(() => {});
+      await new Promise((r) => setTimeout(r, 1500));
+    }
+    let last: unknown;
+    for (let i = 0; i < (wake ? 4 : 1); i++) {
+      try {
+        const blob = await l.session.link.snapshot(cam.url);
+        this.keep(l);
+        return { printer: p.name, camera: cam.name, data: Buffer.from(await blob.arrayBuffer()), mimeType: blob.type || 'image/jpeg' };
+      } catch (e) {
+        last = e;
+        await new Promise((r) => setTimeout(r, 1000));
+      }
+    }
+    throw new Error(`${p.name}'s camera didn't send a picture: ${(last as Error)?.message ?? 'no answer'}`);
+  }
+
   /** How the printer is doing: what it prints, temperatures, its filaments, its errors. */
   async status(which?: string) {
     const p = await this.find(which);

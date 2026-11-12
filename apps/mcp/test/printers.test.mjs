@@ -135,6 +135,23 @@ test('lists the account\'s printers, and how one is doing through its bridge', a
   );
 });
 
+test('a still picture from the camera: the U1\'s own camera through the bridge, a printer\'s named camera directly', async () => {
+  const shot = async (args) => {
+    const r = await client.callTool({ name: 'printer_camera', arguments: args }, undefined, { timeout: 60_000 });
+    assert.ok(!r.isError, r.content[0].text);
+    return r.content;
+  };
+  const [u1Pic, u1Text] = await shot({ printer: 'My U1' });
+  assert.equal(u1Pic.type, 'image');
+  assert.match(u1Pic.mimeType, /^image\//);
+  assert.ok(Buffer.from(u1Pic.data, 'base64').length > 100, 'a real picture');
+  assert.match(u1Text.text, /My U1, Camera/);
+  const [, voronText] = await shot({ printer: 'Voron', camera: 'nozzle' });
+  assert.match(voronText.text, /Voron, nozzle/);
+  const missing = await client.callTool({ name: 'printer_camera', arguments: { printer: 'Voron', camera: 'garage' } });
+  assert.match(missing.content[0].text, /No camera called garage\. Voron has: case, nozzle/);
+});
+
 test('upload only puts the file on the printer and starts nothing', async () => {
   const sliced = await tool(client, 'open_model', { path: resolve(fixtures, 'tetrahedron.stl') });
   assert.ok(!sliced.error, sliced.error);
