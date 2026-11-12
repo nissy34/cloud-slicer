@@ -46,7 +46,7 @@ try {
   page.on('pageerror', (e) => console.error(`page error: ${e.message}`));
   await page.goto(url);
   await page.getByText('Open a model to start').waitFor({ timeout: 120000 });
-  await page.getByRole('dialog', { name: 'Set up your printers' }).getByRole('button', { name: 'Not now' }).click();
+  await page.getByRole('dialog', { name: 'Set up your printers' }).getByRole('button', { name: 'Close window' }).click();
 
   const layer = page.getByLabel('Layer height', { exact: true });
   const question = page.getByTestId('preset-changes');

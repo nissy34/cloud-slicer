@@ -51,7 +51,7 @@ try {
     const shot = (name) => shots && page.screenshot({ path: join(shots, `${name}-${phone ? 'phone' : 'desktop'}.png`) });
     await page.goto(url);
     await page.getByText('Open a model to start').waitFor({ timeout: 120000 });
-    await page.getByRole('dialog', { name: 'Set up your printers' }).getByRole('button', { name: 'Not now' }).click();
+    await page.getByRole('dialog', { name: 'Set up your printers' }).getByRole('button', { name: 'Close window' }).click();
     await page.getByTestId('model-input').setInputFiles(benchy);
     await page.getByText('Ready to slice').waitFor({ timeout: 120000 });
     const tab = (n) => page.getByRole('tablist', { name: 'Plates' }).getByRole('tab', { name: new RegExp(`^${n}\\b`) });

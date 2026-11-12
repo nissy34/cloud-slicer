@@ -148,7 +148,7 @@ try {
   const page = await context.newPage();
   failShot = page;
   // The first-run printer wizard (when the engine is there) is closed whenever it gets in the way.
-  const noWizard = (p) => p.addLocatorHandler(p.getByRole('dialog', { name: 'Set up your printers' }), (d) => d.getByRole('button', { name: 'Not now' }).click());
+  const noWizard = (p) => p.addLocatorHandler(p.getByRole('dialog', { name: 'Set up your printers' }), (d) => d.getByRole('button', { name: 'Close window' }).click());
   await noWizard(page);
   page.on('pageerror', (e) => console.error(`page error: ${e.message}`));
   // Two saved printers, as an earlier build kept them (they move into the account store on load).

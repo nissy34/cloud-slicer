@@ -38,6 +38,11 @@
   --on-colour-edge: #000000;
   --brand-2: #8b5cf6;
   --overlay: rgb(0 0 0 / 45%);
+  /* Sign in with Google: Google's own button colours (its branding rules), per theme. */
+  --google-bg: #ffffff;
+  --google-hover: #f8f9fa;
+  --google-border: #dadce0;
+  --google-text: #1f1f1f;
   --progress-stripe: rgb(255 255 255 / 28%);
   --media-bg: #000000;
   --on-media: rgb(255 255 255 / 78%);
@@ -117,6 +122,10 @@
 }
 
 [data-theme='dark'] {
+  --google-bg: #131314;
+  --google-hover: #1f1f20;
+  --google-border: #8e918f;
+  --google-text: #e3e3e3;
   --bg: #0f1114;
   --surface: #17191d;
   --surface-2: #20242a;

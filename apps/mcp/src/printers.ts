@@ -31,6 +31,9 @@ const KEEP_MS = 60_000;
 
 class Declined extends Error {}
 
+/** Pictures at most per camera call without a name, so a printer with many cameras can't flood the chat. */
+const MAX_CAMERAS = 4;
+
 /** How long a control waits for the printer before answering that it is still running. */
 const WAIT_MS = Number(process.env.CLOUD_SLICER_WAIT_MS) || 20_000;
 
@@ -240,7 +243,7 @@ export class Printers {
     const hint = s.addons.find((a) => a.camera)?.camera;
     const list = cams.length ? cams.map((c) => ({ name: c.name, url: c.snapshotUrl })) : hint ? [{ name: hint.name, url: hint.snapshotUrl }] : [];
     if (!list.length) throw new Error(`${p.name} has no camera with still pictures.`);
-    const picked = name ? list.filter((c) => c.name.toLowerCase() === name.toLowerCase()) : list;
+    const picked = name ? list.filter((c) => c.name.toLowerCase() === name.toLowerCase()) : list.slice(0, MAX_CAMERAS);
     if (!picked.length) throw new Error(`No camera called ${name}. ${p.name} has: ${list.map((c) => c.name).join(', ')}.`);
     const wake = !cams.length && hint?.keepalive;
     if (wake) {

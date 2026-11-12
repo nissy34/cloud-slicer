@@ -179,6 +179,129 @@
 .wizard-later {
   margin-right: auto;
 }
+/* The welcome page (signed out): printer pictures beside Sign in with Google, or
+   Continue without signing in. The window's title is only for screen readers here. */
+.win.wizard.welcome {
+  --win-w: 720px;
+}
+.win.wizard.welcome .win-head {
+  position: absolute;
+  top: 0;
+  right: 0;
+  z-index: 1;
+  border: 0;
+  background: none;
+}
+.win.wizard.welcome .win-head h2 {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+.win.wizard.welcome .win-content {
+  padding: 0;
+}
+.welcome-page {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+}
+.welcome-art {
+  display: grid;
+  place-items: center;
+  padding: var(--s-6);
+  background: var(--accent-faint);
+}
+.welcome-art img {
+  width: 100%;
+  max-width: 400px;
+}
+.welcome-side {
+  display: grid;
+  justify-items: center;
+  align-content: center;
+  gap: var(--s-5);
+  padding: var(--s-8) var(--s-7) var(--s-7);
+  text-align: center;
+}
+.welcome-side h3 {
+  margin: 0;
+  font-size: var(--t-xl);
+}
+.welcome-side p {
+  margin: 0;
+}
+.welcome-logo {
+  width: 56px;
+  height: 56px;
+}
+.welcome-wide,
+.google-button {
+  width: 100%;
+}
+/* Google's sign-in button look: white, grey outline, the coloured G. */
+.google-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--s-5);
+  height: 40px;
+  border: 1px solid var(--google-border);
+  border-radius: var(--r-full);
+  background: var(--google-bg);
+  color: var(--google-text);
+}
+.google-button:hover {
+  background: var(--google-hover);
+}
+.welcome-or {
+  display: flex;
+  align-items: center;
+  gap: var(--s-4);
+  width: 100%;
+  color: var(--muted);
+  font-size: var(--t-sm);
+}
+.welcome-or::before,
+.welcome-or::after {
+  content: '';
+  flex: 1;
+  border-top: 1px solid var(--border);
+}
+@media (max-width: 760px) {
+  .welcome-page {
+    grid-template-columns: 1fr;
+  }
+  .welcome-art {
+    padding: var(--s-4);
+  }
+  .welcome-art img {
+    width: auto;
+    height: 130px;
+  }
+  .welcome-side {
+    padding: var(--s-6);
+  }
+}
+/* The welcome page (signed out): sign in, or set up this browser. */
+.wizard-welcome {
+  display: grid;
+  gap: var(--s-6);
+}
+.wizard-welcome section {
+  display: grid;
+  justify-items: start;
+  gap: var(--s-4);
+}
+.wizard-welcome section + section {
+  padding-top: var(--s-6);
+  border-top: 1px solid var(--border);
+}
+.wizard-welcome h3,
+.wizard-welcome p {
+  margin: 0;
+}
 
 /* Manage (SetupWizard.tsx): the wizard's pages as tabs once setup is done. One height
    whatever the tab, so switching doesn't jump; the tabs and buttons stay put and only
@@ -265,3 +388,4 @@
     display: inline;
   }
 }
+

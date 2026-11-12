@@ -69,7 +69,7 @@ async function open(viewport, mobile) {
   await page.getByText('Open a model to start').waitFor({ timeout: 120000 });
   const wizard = page.getByRole('dialog', { name: 'Set up your printers' });
   await wizard.waitFor({ timeout: 30000 });
-  await wizard.getByRole('button', { name: 'Not now' }).click();
+  await wizard.getByRole('button', { name: 'Close window' }).click();
   await page.getByTestId('model-input').setInputFiles(model);
   await page.getByText('Ready to slice').waitFor({ timeout: 120000 });
   return page;
@@ -264,7 +264,7 @@ try {
   await page.reload();
   await page.getByText('Open a model to start').waitFor({ timeout: 120000 });
   const again = page.getByRole('dialog', { name: 'Set up your printers' });
-  if (await again.isVisible().catch(() => false)) await again.getByRole('button', { name: 'Not now' }).click();
+  if (await again.isVisible().catch(() => false)) await again.getByRole('button', { name: 'Close window' }).click();
   if (await page.locator('.panel').isVisible()) fail('the hidden sidebar came back after a reload');
   await page.evaluate(() => document.activeElement instanceof HTMLElement && document.activeElement.blur());
   await page.keyboard.press('Shift+Tab');

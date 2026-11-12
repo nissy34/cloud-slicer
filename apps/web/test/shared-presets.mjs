@@ -90,7 +90,7 @@ try {
   await page.goto(url);
   const wizard = page.getByRole('dialog', { name: 'Set up your printers' });
   await wizard.waitFor({ timeout: 120000 });
-  await wizard.getByRole('button', { name: 'Not now' }).click();
+  await wizard.getByRole('button', { name: 'Close window' }).click();
   await ready('Snapmaker Orca');
   const snapBase = await processPicker.inputValue();
 
