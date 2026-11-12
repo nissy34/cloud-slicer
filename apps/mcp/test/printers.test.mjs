@@ -223,9 +223,12 @@ test('controls: pause, resume and stop ask first; light and fans don\'t; heat, h
   const slowHome = await control('home');
   assert.ok(Date.now() - t0 < 2900, 'answered before the printer finished');
   assert.match(slowHome.done, /^Homed: sent, still running on the printer$/);
-  assert.match(slowHome.note, /printer_status shows when it is done/);
+  assert.match(slowHome.note, /printer_status in a bit/);
+  const lastSent = async () => (await tool(client, 'printer_status', { printer: 'My U1' })).sent.at(-1);
+  assert.equal((await lastSent()).result, 'running', 'status says it is still running');
   u1.slow.gcodeMs = 0;
-  await new Promise((r) => setTimeout(r, 2500));
+  await until('status to say the home finished', async () => (await lastSent()).result === 'done');
+  assert.equal((await lastSent()).command, 'home');
   assert.ok(u1.scripts.includes('G28'));
   assert.match((await control('unload_filament', { head: 2 })).done, /Unloading T2/);
   assert.ok(u1.scripts.some((x) => /FEED_AUTO .*UNLOAD=1/.test(x)));

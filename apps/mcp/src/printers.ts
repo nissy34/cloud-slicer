@@ -19,7 +19,7 @@ import { DirectLink } from '../../web/src/device/link/direct';
 import type { UploadStage } from '../../web/src/device/link/types';
 import { printPlan } from '../../web/src/device/print-plan';
 import { printerFromDevice, runCalls, type SavedPrinter } from '../../web/src/device/saved';
-import { PrinterSession, type ConnState } from '../../web/src/device/session';
+import { PrinterSession, RpcError, type ConnState } from '../../web/src/device/session';
 import { fans, heaters, job, klippyMessage, klippyState, lights, motion, type KlipperObjects } from '../../web/src/device/status';
 import type { PrinterError } from '../../web/src/device/addons';
 import { ApiError, type Account } from './account';
@@ -67,7 +67,19 @@ interface Live {
   errors: PrinterError[];
   ready: Promise<void>;
   timer?: NodeJS.Timeout;
+  /** Commands still waiting for the printer's answer: the connection stays open meanwhile. */
+  busy: number;
 }
+
+/** A command the add-on sent, so printer_status can say whether it finished. */
+interface Sent {
+  what: string;
+  at: number;
+  state: 'running' | 'done' | 'failed' | 'unknown';
+  why?: string;
+}
+const SENT_KEPT = 5;
+const SENT_MS = 30 * 60_000;
 
 export class Printers {
   private live = new Map<string, Live>();
@@ -123,6 +135,7 @@ export class Printers {
       message: '',
       objects: {},
       errors: [],
+      busy: 0,
       ready: new Promise<void>((ok, fail) => (settle = (e) => (e ? fail(e) : ok()))),
       session: null as unknown as PrinterSession,
     };
@@ -171,6 +184,30 @@ export class Printers {
     }
   }
 
+  private sentByPrinter = new Map<string, Sent[]>();
+
+  private sent(printerId: string, what: string): Sent {
+    const now = Date.now();
+    const list = (this.sentByPrinter.get(printerId) ?? []).filter((x) => x.state === 'running' || now - x.at < SENT_MS);
+    const entry: Sent = { what, at: now, state: 'running' };
+    list.push(entry);
+    this.sentByPrinter.set(printerId, list.slice(-SENT_KEPT));
+    return entry;
+  }
+
+  /** What the add-on sent to this printer lately, newest last, for printer_status. */
+  recent(printerId: string) {
+    const now = Date.now();
+    return (this.sentByPrinter.get(printerId) ?? [])
+      .filter((x) => x.state === 'running' || now - x.at < SENT_MS)
+      .map((x) => ({
+        command: x.what,
+        secondsAgo: Math.round((now - x.at) / 1000),
+        result: x.state === 'unknown' ? "unknown: the printer didn't answer before the connection dropped; check the printer" : x.state,
+        ...(x.why && x.state === 'failed' && { why: x.why }),
+      }));
+  }
+
   private keep(l: Live) {
     if (l.timer) clearTimeout(l.timer);
     l.timer = setTimeout(() => this.drop(l.printer.id), KEEP_MS);
@@ -180,6 +217,7 @@ export class Printers {
   private drop(id: string) {
     const l = this.live.get(id);
     if (!l) return;
+    if (l.busy) return this.keep(l);
     if (l.timer) clearTimeout(l.timer);
     l.session.stop();
     this.live.delete(id);
@@ -193,7 +231,8 @@ export class Printers {
   async status(which?: string) {
     const p = await this.find(which);
     const l = await this.connect(p);
-    return describe(l);
+    const sent = this.recent(p.id);
+    return { ...describe(l), ...(sent.length && { sent }) };
   }
 
   /**
@@ -271,8 +310,22 @@ export class Printers {
     // tool: after WAIT_MS the answer says it's still running, and printer_status tells when done.
     let still = false;
     const run = async (script: string) => {
+      const sent = this.sent(p.id, c.action);
+      l.busy++;
       this.keep(l);
-      const done = s.gcode(script, 600_000).finally(() => this.keep(l));
+      const done = s.gcode(script, 600_000).then(
+        () => void (sent.state = 'done'),
+        (e: Error) => {
+          // The printer said why (Klipper's error) = it failed; no answer (connection lost,
+          // timed out) = we can't know whether it ran.
+          sent.state = e instanceof RpcError && e.code !== undefined ? 'failed' : 'unknown';
+          sent.why = e.message;
+          throw e;
+        },
+      ).finally(() => {
+        l.busy--;
+        this.keep(l);
+      });
       const waited = await Promise.race([done.then(() => false), new Promise<boolean>((r) => setTimeout(() => r(true), WAIT_MS))]);
       if (waited) {
         still = true;
@@ -280,7 +333,9 @@ export class Printers {
       }
     };
     const answer = (r: Record<string, unknown>) =>
-      still ? { ...r, done: `${String(r.done)}: sent, still running on the printer`, note: 'It takes a while; printer_status shows when it is done (homed axes, temperatures, filaments).' } : r;
+      still
+        ? { ...r, done: `${String(r.done)}: sent, still running on the printer`, note: 'It takes a while. Call printer_status in a bit: its "sent" list says when this finished, or if it failed and why.' }
+        : r;
     const head = (n: number | undefined) => {
       if (!isU1) throw new Error('Tool heads can only be handled on a Snapmaker U1.');
       const h = u1Heads(o)[(n ?? 1) - 1];

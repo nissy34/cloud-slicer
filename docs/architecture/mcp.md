@@ -151,7 +151,11 @@ a tool needs it and closes a minute after the last use: no streaming in the back
   2026-11-12; the phone had no way to say yes before).
 - **Slow commands** (a U1 homes for about a minute, loading filament longer): a control
   waits at most 20 s (`WAIT_MS` in `printers.ts`), then answers that it was sent and is
-  still running; `printer_status` shows `homedAxes`, temperatures and filaments. An AI
+  still running; `printer_status` lists what the add-on `sent` lately with each result
+  (running, done, failed with Klipper's reason, or unknown when the connection dropped
+  before the printer answered), plus `homedAxes`, temperatures and filaments. The
+  connection stays open while a command runs. The list lives in the add-on (5 newest,
+  30 minutes), so it starts empty after the AI app restarts it. An AI
   app gives up on a tool after about a minute and drops the add-on (seen 2026-11-12).
 - Refused before asking: a print while the printer prints or isn't ready, a filament with
   no head or slot it can print from (the Send window's checks), moving while it prints, a

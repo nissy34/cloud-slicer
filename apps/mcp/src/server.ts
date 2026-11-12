@@ -547,7 +547,7 @@ server.registerTool(
   'printer_status',
   {
     title: 'Printer status',
-    description: 'How one of the person\'s printers is doing: printing or not, progress, temperatures, the filaments it has loaded, errors. Needs sign_in.',
+    description: 'How one of the person\'s printers is doing: printing or not, progress, temperatures, homed axes, the filaments it has loaded, errors, and "sent": the commands this add-on sent it lately and whether each finished, failed (and why) or is still running. Needs sign_in.',
     inputSchema: { printer: z.string().optional().describe('Printer name from printers; can be left out with only one printer') },
   },
   ({ printer }) => run(() => printers.status(printer)),
