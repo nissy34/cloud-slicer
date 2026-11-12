@@ -15,6 +15,7 @@
 | Relay ticket key | Pages secret `RELAY_TICKET_KEY`; relay has the public half | Regenerated once made |
 | Bridge signing key | GitHub secret `BRIDGE_SIGNING_KEY` | On the relay or R2 |
 | Push key | Relay secret `VAPID_KEY` | |
+| AI app add-on's session token | The person's computer, a file only their user can read (`account.json`); D1 `session` like any sign-in | Seen by the AI app or typed by the person: they approve a short code on the site instead |
 
 ## Rules
 

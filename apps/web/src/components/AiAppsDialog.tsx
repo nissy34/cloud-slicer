@@ -56,8 +56,7 @@ export function AiAppsDialog({ onClose }: { onClose(): void }) {
           with 4 walls and tell me the time.” It works in chat apps on your
           computer that take MCP add-ons (an open standard): Claude Desktop, and
           others such as LM Studio and Msty. It slices on your computer with the
-          same engines and presets as this site, and nothing goes over the
-          internet.
+          same engines and presets as this site, and your models stay there.
         </p>
         <div className="chooser" role="radiogroup" aria-label="Which app">
           {APPS.map((a) => (

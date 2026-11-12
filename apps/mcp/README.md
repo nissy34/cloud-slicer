@@ -1,7 +1,8 @@
 # Cloud Slicer for Claude (MCP server)
 
 Lets Claude slice 3D models on your computer with Cloud Slicer's engines (Snapmaker
-Orca 2.4.1 and OrcaSlicer 2.4.2) and their presets. Nothing goes over the internet.
+Orca 2.4.1 and OrcaSlicer 2.4.2) and their presets. Slicing stays on your computer;
+signing in to your Cloud Slicer account is optional.
 Design and rules: [docs/architecture/mcp.md](../../docs/architecture/mcp.md).
 
 ## Install
@@ -66,3 +67,4 @@ walls and tell me the time and grams."
 | `slice` | Writes the G-code (with plate pictures) for one plate or every plate; returns time, grams and metres per slot, layers, warnings |
 | `save_project` | Writes a 3MF that the site and desktop OrcaSlicer open |
 | `move_object`, `set_copies`, `remove_object`, `arrange_plate`, `auto_orient` | Move (also to another or a new plate), turn, scale, copy, arrange (with desktop's Arrange options), orient |
+| `sign_in`, `account`, `sign_out` | Connects your Cloud Slicer account: you open the link it gives (signed in on the site), check the code and tap Connect |

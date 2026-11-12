@@ -140,3 +140,22 @@
 .preset-changes-names p {
   margin: 0;
 }
+
+/* "Connect an AI app" (account/LinkProgramDialog.tsx): the code to compare with the AI app's. */
+.link-program {
+  display: grid;
+  gap: var(--s-5);
+  max-width: 480px;
+}
+.link-program p {
+  margin: 0;
+}
+.link-code {
+  font: var(--t-xl)/1.2 var(--font-mono);
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-align: center;
+  padding: var(--s-4);
+  border-radius: var(--r-md);
+  background: var(--surface-2);
+}

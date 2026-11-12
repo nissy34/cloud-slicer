@@ -1,7 +1,8 @@
 #!/usr/bin/env node
 // Cloud Slicer's MCP server: lets Claude (Claude Code, Claude Desktop) open
 // models, choose presets, change settings and slice on this computer, with the
-// same engine and presets as the site. Nothing here goes over the internet.
+// same engine and presets as the site. Slicing stays on this computer; only
+// signing in (account.ts) and what needs the account talk to the site.
 //
 //   node dist/server.mjs          (Claude starts it; it talks over stdin/stdout)
 //
@@ -13,17 +14,20 @@ import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
 import { PNG } from 'pngjs';
 import { z } from 'zod';
 import { formatDuration } from '../../web/src/lib/format';
+import { Account } from './account';
 import { ENGINES, Slicer, type ModelInfo, type SliceResult } from './slicer';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const slicer = new Slicer(here, here);
+const account = new Account();
 const server = new McpServer(
   { name: 'cloud-slicer', version: '0.1.0' },
   {
     instructions:
       'Slices 3D models for 3D printers on this computer with Cloud Slicer (OrcaSlicer). ' +
       'Typical order: open_model, then choose_presets (printer, process, filaments) and change_settings if asked, then slice. ' +
-      'Settings use OrcaSlicer option keys (find_settings looks them up). Object numbers come from model_info.',
+      'Settings use OrcaSlicer option keys (find_settings looks them up). Object numbers come from model_info. ' +
+      'Slicing needs no account. sign_in connects the person\'s Cloud Slicer account: give them the link and code it returns, then check with account.',
   },
 );
 
@@ -411,6 +415,40 @@ server.registerTool(
   'auto_orient',
   { title: 'Auto orient', description: 'Turns an object so it prints with the least overhang, like OrcaSlicer\'s Orient.', inputSchema: { object: copyArgs.object } },
   ({ object }) => run(async () => (await slicer.engine(), summary(await slicer.orient(object)))),
+);
+
+server.registerTool(
+  'sign_in',
+  {
+    title: 'Sign in to Cloud Slicer',
+    description:
+      'Connects the person\'s Cloud Slicer account (their saved presets and printers). Returns a link and a code: ask the person to open the link ' +
+      '(signed in on the site), check the code matches and tap Connect. Then call account to see that it worked. No password goes through here.',
+    inputSchema: {},
+  },
+  () =>
+    run(async () => {
+      if (account.signedIn) return { alreadySignedIn: true, ...(await account.status()) };
+      const p = await account.start();
+      return {
+        link: p.link,
+        code: p.code,
+        expiresInMinutes: Math.round((p.expiresAt - Date.now()) / 60000),
+        tell: `Open ${p.link} , check it shows ${p.code}, and tap Connect.`,
+      };
+    }),
+);
+
+server.registerTool(
+  'account',
+  { title: 'Account', description: 'Who is signed in to Cloud Slicer, or whether a sign-in is still waiting for the person to tap Connect.', inputSchema: {} },
+  () => run(() => account.status()),
+);
+
+server.registerTool(
+  'sign_out',
+  { title: 'Sign out', description: 'Signs out of Cloud Slicer here and ends the session on the site.', inputSchema: {} },
+  () => run(async () => (await account.signOut(), { signedIn: false })),
 );
 
 await server.connect(new StdioServerTransport());

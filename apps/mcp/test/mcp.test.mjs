@@ -43,7 +43,7 @@ function thumbnailsIn(gcode) {
 test('lists its tools', async () => {
   const { tools } = await client.listTools();
   const names = tools.map((t) => t.name);
-  for (const n of ['open_model', 'choose_presets', 'change_settings', 'slice', 'save_project', 'move_object']) assert.ok(names.includes(n), n);
+  for (const n of ['open_model', 'choose_presets', 'change_settings', 'slice', 'save_project', 'move_object', 'sign_in', 'account', 'sign_out']) assert.ok(names.includes(n), n);
 });
 
 test('opens an STL and slices it on the U1, with plate pictures and progress', async () => {

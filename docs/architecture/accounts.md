@@ -19,6 +19,7 @@ owner gets an Admin page: people, block, invite only, online projects per person
 | Client: same calls signed in or out | `src/state/account.ts`, `src/account/api.ts` |
 | Admin page and its API | `components/AdminScreen.tsx`, `account/admin-api.ts`, `functions/_lib/admin.ts`, `access.ts`, `usage.ts` |
 | Relay tickets, setup codes, bridge records | `functions/_lib/relay.ts` |
+| AI app add-on sign-in (device codes, `Authorization: Bearer` sessions) and its Connect window | `functions/_lib/auth.ts`, `src/account/LinkProgramDialog.tsx`; see [mcp](mcp.md#signing-in) |
 | All routes, listed at the top | `functions/api/[[path]].ts` |
 | Privacy and terms pages (linked from the account menu; Google needs them to publish the sign-in app) | `public/privacy.html`, `public/terms.html` |
 
@@ -42,7 +43,7 @@ Durable Object; the page renews it over the socket.
 
 ## What it keeps
 
-D1 `user`, `session`, `account`, `verification` (Better Auth), `presets`,
+D1 `user`, `session`, `account`, `verification`, `deviceCode` (Better Auth), `presets`,
 `user_settings`, `devices` (API keys AES-GCM encrypted with `ACCOUNT_ENC_KEY`),
 `site_settings`, `allowed_emails`, `user_limits`, `relay_bridges`,
 `relay_bridge_info`, `bridge_setup_codes`. Details in [data](data.md).

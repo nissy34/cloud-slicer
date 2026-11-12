@@ -12,6 +12,7 @@ import { GcodeFallbackDialog } from './components/GcodeFallbackDialog';
 import { OpenProjectDialog } from './components/OpenProjectDialog';
 import { PlateSettingsDialog } from './components/PlateSettingsDialog';
 import { SetupWizard } from './components/SetupWizard';
+import { LinkProgramDialog } from './account/LinkProgramDialog';
 import { OpenModel } from './components/OpenModel';
 import { Preview } from './components/Preview';
 import { Sidebar } from './components/Sidebar';
@@ -55,6 +56,7 @@ export function App() {
       <OpenProjectDialog />
       <PlateSettingsDialog />
       <SetupWizard />
+      <LinkProgramDialog />
       <ImportPresetsDialog />
       <PresetSettingsDialog />
       <SettingsPromptDialog />

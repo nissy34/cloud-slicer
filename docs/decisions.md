@@ -207,6 +207,9 @@ down. Add a line with the date when a new choice is made.
   and the Project menu, the same on phones; no line on the empty plate (2026-11-05).
 - No online add-on for ChatGPT, Gemini or Claude on the web and phone: it can't slice
   without a computer of the person's, so it's too complicated (2026-11-05).
+- The add-on signs in with a code the person approves on the site (Better Auth's device
+  authorization, RFC 8628), not a password or a key to paste: nothing secret passes
+  through the AI app, and it is an ordinary session that Sign out and Block end (2026-11-12).
 
 ## Not built
 

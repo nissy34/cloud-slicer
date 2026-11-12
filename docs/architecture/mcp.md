@@ -13,8 +13,9 @@ prints each object, change settings (for the plate or one object), move or copy 
 across plates, look at the plate, slice one plate or all, and read the print time and
 filament use. It uses the same engines and presets
 as the site, running under Node instead of a browser, so a slice from Claude matches a
-slice on the site. It talks to nothing on the internet: no sign-in, no relay, no
-Google Drive (those come later, with their own limits; see Open).
+slice on the site. Slicing never leaves the computer. Signing in is optional: it
+connects the person's Cloud Slicer account (see Signing in) for what needs it; nothing
+else goes over the internet.
 
 ## Pieces
 
@@ -24,6 +25,8 @@ Google Drive (those come later, with their own limits; see Open).
 | One engine, one open project, the chosen presets and changed settings | `apps/mcp/src/slicer.ts` |
 | The engine on its own thread, like the site's engine worker | `apps/mcp/src/worker.ts`, `engine-client.ts` |
 | Plate pictures without a GPU | `apps/mcp/src/picture.ts` |
+| Signing in to the person's account, and calls to the site's `/api` as them | `apps/mcp/src/account.ts` |
+| The site's approval window for that sign-in | `apps/web/src/account/LinkProgramDialog.tsx` |
 | Loading the engine, presets, brands, opening and slicing (shared with `slice.mjs` and the engine tests) | `engine/node/engine.mjs` |
 | The site's own rules it reuses | `lib/project-import.ts` (a 3MF's own settings), `lib/presets.ts` (matching filaments), `lib/option-check.ts` (checking typed values), `lib/thumbnail.ts` (picture camera and colours), `lib/format.ts` |
 | Build: one bundle plus both engines and their presets | `apps/mcp/build.mjs` → `apps/mcp/dist/` |
@@ -78,9 +81,46 @@ with `npx` and the `.tgz` link, with Copy). Chat apps only: coding apps work wit
 line but aren't offered (the README has it). The same window on a phone, which can't run
 it but can read how. Named for any AI app, not Claude, because MCP is an open standard.
 
+## Signing in
+
+Better Auth's device authorization plugin (RFC 8628, the "enter this code on your TV"
+sign-in), set up in `functions/_lib/auth.ts`:
+
+```mermaid
+sequenceDiagram
+  participant C as Claude
+  participant A as add-on (account.ts)
+  participant S as site /api/auth
+  participant P as person's browser
+  C->>A: sign_in
+  A->>S: POST /device/code {client_id: cloud-slicer-mcp}
+  S-->>A: code, link (<site>/?user_code=…#link), every 5 s
+  A-->>C: "Open the link, check the code, tap Connect"
+  P->>S: GET /device?user_code= (claims it for the signed-in account)
+  P->>S: POST /device/approve
+  A->>S: POST /device/token (in the background, every 5 s)
+  S-->>A: a session token of its own
+  A->>S: /api/... with Authorization: Bearer <token>
+```
+
+- The link opens the site's **Connect an AI app** window: signed out, it asks to sign in
+  with Google first; signed in, it shows the account's email and the code, and Connect /
+  Don't connect. The setup wizard waits while it is open. A bare `#link` asks for the code.
+- No password or Google sign-in passes through the add-on or the AI app. The token is an
+  ordinary session (the `bearer` plugin), so it ends on Sign out, Block or Delete like
+  any other, and lasts as long as a browser session.
+- Only `PROGRAM_CLIENTS` (`cloud-slicer-mcp`) may ask for a code. Codes last 10 minutes;
+  expired ones are deleted when the next is asked for, and at most 200 may wait at once
+  (`deviceCode` table, [data](data.md)).
+- Tools: `sign_in` (the link and code), `account` (who, or still waiting, or why it
+  failed), `sign_out` (ends the session on the site too).
+
 ## What it keeps
 
-Nothing between runs. The G-code (and a `.gcode.3mf` for printers that take one) goes
+The sign-in, if any: the site and its token (plus name and email for showing) in
+`<config>/cloud-slicer/account.json` (`%APPDATA%`, `~/Library/Application Support` or
+`~/.config`), readable only by the computer's user. A token for another site
+(`CLOUD_SLICER_SITE`, for tests and previews) is ignored. Nothing else between runs. The G-code (and a `.gcode.3mf` for printers that take one) goes
 where Claude says, or beside the model, named by the printer's file name format.
 
 ## Rules
@@ -121,13 +161,16 @@ by key (refused, set to nearest, taken back), another brand (Prusa MK4, PETG), a
 project's own presets, move/copies/arrange then save and reopen, filament and settings
 per object with the plate picture as an image, every plate at once, OrcaSlicer 2.4.2,
 and plain errors. The site's window: `apps/web/test/ai-apps.mjs` (Project menu, both
-choices, links, Copy, phone) and the account menu's button in `accounts.mjs`. CI job `mcp` builds it with both engines, type-checks, runs the test,
+choices, links, Copy, phone) and the account menu's button in `accounts.mjs`. Signing
+in: `accounts.mjs` runs `account.ts` against the real site functions (wrangler, local D1):
+approve, turn down, the saved file, expired codes cleared, sign out ends the token, and
+the Connect an AI app window in Chromium on desktop and phone. CI job `mcp` builds it with both engines, type-checks, runs the test,
 packs the install files and starts the packed one.
 
 ## Open
 
-- **Second step**: sign-in (own presets and printers), printer status, "Upload only" and
-  "Upload and print" through the relay, with limits on the site and relay per account
-  so a program can't use up the free tier.
+- **Second step, in progress**: sign-in is done; next the account's own presets and
+  printers, printer status, "Upload only" and "Upload and print" through the relay, with
+  limits on the site and relay per account so a program can't use up the free tier.
 - Site-only extras (per-plate settings, colour mixes chosen on the site) come only from
   a 3MF made there.
