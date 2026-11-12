@@ -9,6 +9,7 @@ import { IconButton } from './IconButton';
 import { Picker } from './Picker';
 import { Slider } from './Slider';
 import { Swatch } from './Swatch';
+import { ColourPicker } from './ColourPicker';
 import { Card } from './Card';
 import { Note } from './Note';
 import { Empty } from './Empty';
@@ -135,6 +136,7 @@ function Choices() {
 /** Fields, a slider and filament swatches. */
 function Fields() {
   const [speed, setSpeed] = useState(60);
+  const [pickedColour, setPickedColour] = useState('#1E9E8F');
   const [plate, setPlate] = useState('Textured PEI Plate');
   return (
     <>
@@ -172,6 +174,7 @@ function Fields() {
         <Swatch colour="#FFEE00" number={2} size="lg" />
         <Swatch colour="#D7263D" size="sm" />
         <Swatch empty />
+        <ColourPicker label="Colour picker demo" value={pickedColour} onChange={setPickedColour} number={1} />
       </div>
     </>
   );

@@ -11,6 +11,7 @@ import { spawn } from 'node:child_process';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { chromium } from 'playwright';
+import { setColour } from './picker.mjs';
 
 const web = join(dirname(fileURLToPath(import.meta.url)), '..');
 const model = join(web, '../../fixtures/3DBenchy.stl');
@@ -107,10 +108,7 @@ try {
   // An edit the engine makes (the filament colour) also stops a running slice.
   await sliceButton.click();
   await cancel.waitFor();
-  await page.getByLabel('Filament 1 colour').evaluate((el) => {
-    Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(el, '#ff0000');
-    el.dispatchEvent(new Event('input', { bubbles: true }));
-  });
+  await setColour(page, 'Filament 1 colour', '#ff0000');
   await page.getByText('Slicing stopped because something changed').waitFor({ timeout: 10000 });
   await page.waitForTimeout(full + 2000);
   expect(!(await stats.isVisible()), 'the slice stopped by a colour change still showed a result');

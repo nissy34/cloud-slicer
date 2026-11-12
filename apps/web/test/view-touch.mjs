@@ -14,6 +14,7 @@ import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { chromium } from 'playwright';
+import { setColour } from './picker.mjs';
 
 const web = join(dirname(fileURLToPath(import.meta.url)), '..');
 const shots = process.argv[2] ? resolve(process.argv[2]) : null;
@@ -66,10 +67,7 @@ try {
   await page.getByTestId('model-input').setInputFiles(stl);
   await page.getByText('Ready to slice').waitFor({ timeout: 120000 });
   // A red model, so its share of the screen can be counted.
-  await page.getByLabel('Filament 1 colour').evaluate((el) => {
-    Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(el, '#ff2020');
-    el.dispatchEvent(new Event('input', { bubbles: true }));
-  });
+  await setColour(page, 'Filament 1 colour', '#ff2020');
   await page.keyboard.press('Escape');
   await page.waitForTimeout(500);
 
