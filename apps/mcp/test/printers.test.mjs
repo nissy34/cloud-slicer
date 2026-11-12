@@ -135,19 +135,24 @@ test('lists the account\'s printers, and how one is doing through its bridge', a
   );
 });
 
-test('a still picture from the camera: the U1\'s own camera through the bridge, a printer\'s named camera directly', async () => {
+test('a still picture from the camera: the U1\'s own camera through the bridge; directly, every camera or a named one', async () => {
   const shot = async (args) => {
     const r = await client.callTool({ name: 'printer_camera', arguments: args }, undefined, { timeout: 60_000 });
     assert.ok(!r.isError, r.content[0].text);
     return r.content;
   };
-  const [u1Pic, u1Text] = await shot({ printer: 'My U1' });
+  const [u1Text, u1Pic] = await shot({ printer: 'My U1' });
   assert.equal(u1Pic.type, 'image');
   assert.match(u1Pic.mimeType, /^image\//);
   assert.ok(Buffer.from(u1Pic.data, 'base64').length > 100, 'a real picture');
   assert.match(u1Text.text, /My U1, Camera/);
-  const [, voronText] = await shot({ printer: 'Voron', camera: 'nozzle' });
+  const [voronText, voronPic, ...rest] = await shot({ printer: 'Voron', camera: 'nozzle' });
   assert.match(voronText.text, /Voron, nozzle/);
+  assert.equal(voronPic.type, 'image');
+  assert.equal(rest.length, 0, 'only the named camera');
+  const all = await shot({ printer: 'Voron' });
+  assert.deepEqual(all.filter((x) => x.type === 'text').map((x) => x.text), ['Voron, case, just now:', 'Voron, nozzle, just now:'], 'one picture from each camera');
+  assert.equal(all.filter((x) => x.type === 'image').length, 2);
   const missing = await client.callTool({ name: 'printer_camera', arguments: { printer: 'Voron', camera: 'garage' } });
   assert.match(missing.content[0].text, /No camera called garage\. Voron has: case, nozzle/);
 });

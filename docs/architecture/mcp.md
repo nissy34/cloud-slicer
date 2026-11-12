@@ -138,7 +138,7 @@ a tool needs it and closes a minute after the last use: no streaming in the back
 | `printers` | The account's printers | |
 | `printer_status` | Printing or not, progress, temperatures, each head's filament, errors | |
 | `printer_files` | Files on the printer, newest first | |
-| `printer_camera` | One still picture: Moonraker's cameras (by name, default the first), else the add-on's (the U1's own, woken with `camera.start_monitor` first); through the bridge as `bridge.snapshot`. No video | |
+| `printer_camera` | Still pictures, one per camera (or one named camera): Moonraker's cameras, else the add-on's (the U1's own, woken with `camera.start_monitor` first); through the bridge as `bridge.snapshot`. No video | |
 | `send_to_printer` | Uploads the newest slice (the `.gcode.3mf` when the printer takes one) or a file; with `print`, starts it with the Send window's own plan (`device/print-plan.ts`: slot per filament, the printer's options, checks, start calls) | `print` only |
 | `printer_control` | print a file on it, pause, resume, stop, skip object, home, move, extrude, heat, U1 load / unload / pick / park a head | yes |
 | `printer_control` | motors off, heat off, fans, light, speed and flow %, a U1 head's filament type and colour | no |

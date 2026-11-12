@@ -228,11 +228,11 @@ export class Printers {
   }
 
   /**
-   * One still picture from the printer's camera (a named one, or the first). Moonraker's
-   * cameras first; a printer without one uses its add-on's camera (the U1's own, which
-   * only writes frames for a while after it is asked to).
+   * Still pictures from the printer's cameras: one named camera, or every camera it has.
+   * Moonraker's cameras first; a printer without one uses its add-on's camera (the U1's
+   * own, which only writes frames for a while after it is asked to).
    */
-  async camera(which?: string, name?: string): Promise<{ printer: string; camera: string; data: Buffer; mimeType: string }> {
+  async camera(which?: string, name?: string): Promise<{ printer: string; shots: { camera: string; data: Buffer; mimeType: string }[]; failed: string[] }> {
     const p = await this.find(which);
     const l = await this.connect(p);
     const s = l.session;
@@ -240,25 +240,33 @@ export class Printers {
     const hint = s.addons.find((a) => a.camera)?.camera;
     const list = cams.length ? cams.map((c) => ({ name: c.name, url: c.snapshotUrl })) : hint ? [{ name: hint.name, url: hint.snapshotUrl }] : [];
     if (!list.length) throw new Error(`${p.name} has no camera with still pictures.`);
-    const cam = name ? list.find((c) => c.name.toLowerCase() === name.toLowerCase()) : list[0];
-    if (!cam) throw new Error(`No camera called ${name}. ${p.name} has: ${list.map((c) => c.name).join(', ')}.`);
+    const picked = name ? list.filter((c) => c.name.toLowerCase() === name.toLowerCase()) : list;
+    if (!picked.length) throw new Error(`No camera called ${name}. ${p.name} has: ${list.map((c) => c.name).join(', ')}.`);
     const wake = !cams.length && hint?.keepalive;
     if (wake) {
       await s.rpc(wake.method, wake.params, 15_000).catch(() => {});
       await new Promise((r) => setTimeout(r, 1500));
     }
-    let last: unknown;
-    for (let i = 0; i < (wake ? 4 : 1); i++) {
-      try {
-        const blob = await l.session.link.snapshot(cam.url);
-        this.keep(l);
-        return { printer: p.name, camera: cam.name, data: Buffer.from(await blob.arrayBuffer()), mimeType: blob.type || 'image/jpeg' };
-      } catch (e) {
-        last = e;
-        await new Promise((r) => setTimeout(r, 1000));
+    const shots: { camera: string; data: Buffer; mimeType: string }[] = [];
+    const failed: string[] = [];
+    for (const cam of picked) {
+      let last: unknown;
+      for (let i = 0; i < (wake ? 4 : 1); i++) {
+        try {
+          const blob = await s.link.snapshot(cam.url);
+          shots.push({ camera: cam.name, data: Buffer.from(await blob.arrayBuffer()), mimeType: blob.type || 'image/jpeg' });
+          last = undefined;
+          break;
+        } catch (e) {
+          last = e;
+          await new Promise((r) => setTimeout(r, 1000));
+        }
       }
+      if (last) failed.push(`${cam.name}: ${(last as Error).message}`);
     }
-    throw new Error(`${p.name}'s camera didn't send a picture: ${(last as Error)?.message ?? 'no answer'}`);
+    this.keep(l);
+    if (!shots.length) throw new Error(`${p.name}'s camera didn't send a picture (${failed.join('; ')}).`);
+    return { printer: p.name, shots, failed };
   }
 
   /** How the printer is doing: what it prints, temperatures, its filaments, its errors. */

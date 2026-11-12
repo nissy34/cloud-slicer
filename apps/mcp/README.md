@@ -69,6 +69,6 @@ walls and tell me the time and grams."
 | `move_object`, `set_copies`, `remove_object`, `arrange_plate`, `auto_orient` | Move (also to another or a new plate), turn, scale, copy, arrange (with desktop's Arrange options), orient |
 | `sign_in`, `account`, `sign_out` | Connects your Cloud Slicer account: you open the link it gives (signed in on the site), check the code and tap Connect |
 | `printers`, `printer_status`, `printer_files` | Your printers from the site's Device tab: how each is doing, its filaments, its files |
-| `printer_camera` | A still picture from a printer's camera (is the plate clear? how is the print going?) |
+| `printer_camera` | A still picture from each of a printer's cameras (is the plate clear? how is the print going?) |
 | `send_to_printer` | Uploads the newest slice; with `print` it starts it, after you say yes (on screen, or in the chat on a phone) |
 | `printer_control` | Print a file on it, pause, resume, stop, skip an object, home, move, extrude, heat, fans, light, speed, U1 tool heads. Anything that heats, moves or prints asks you first, every time (on screen, or in the chat on a phone) |

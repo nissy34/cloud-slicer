@@ -593,20 +593,23 @@ server.registerTool(
   {
     title: 'Camera picture',
     description:
-      'A still picture from one of the person\'s printers\' cameras: look before asking to print (is the plate clear?) or to see how a print is going. Needs sign_in.',
+      'Still pictures from one of the person\'s printers\' cameras, one from each camera it has (or one named camera): look before asking to print (is the plate clear?) or to see how a print is going. Needs sign_in.',
     inputSchema: {
       printer: z.string().optional().describe('Printer name from printers; can be left out with only one printer'),
-      camera: z.string().optional().describe('Camera name, when the printer has more than one; default the first'),
+      camera: z.string().optional().describe('One camera by name; default every camera the printer has'),
     },
   },
   async ({ printer, camera }) => {
     try {
       await syncAccount();
-      const shot = await printers.camera(printer, camera);
+      const r = await printers.camera(printer, camera);
       return {
         content: [
-          { type: 'image' as const, data: shot.data.toString('base64'), mimeType: shot.mimeType },
-          { type: 'text' as const, text: `${shot.printer}, ${shot.camera}, just now.` },
+          ...r.shots.flatMap((x) => [
+            { type: 'text' as const, text: `${r.printer}, ${x.camera}, just now:` },
+            { type: 'image' as const, data: x.data.toString('base64'), mimeType: x.mimeType },
+          ]),
+          ...(r.failed.length ? [{ type: 'text' as const, text: `No picture from ${r.failed.join('; ')}.` }] : []),
         ],
       };
     } catch (e) {
