@@ -68,7 +68,7 @@ const until = async (what, fn, ms = 30_000) => {
 
 before(async () => {
   u1 = await startMockPrinter({ hostname: 'U1-mcp', printStep: 0.0005 });
-  voron = await startMockPrinter({ generic: true, hostname: 'voron-mcp' });
+  voron = await startMockPrinter({ generic: true, hostname: 'voron-mcp', printStep: 0.0005 });
   cfg.printers = [{ id: 'u1', name: 'U1-mcp', url: u1.url, apiKey: '' }];
   relayProc = spawn('npx', ['wrangler', 'dev', '--port', String(RELAY_PORT), '--ip', '127.0.0.1', '--persist-to', join(dir, 'relay')], {
     cwd: resolve(here, '../../device-relay'),
@@ -234,11 +234,38 @@ test('controls: pause, resume and stop ask first; light and fans don\'t; heat, h
   await control('stop');
 });
 
-test('an app that can\'t ask on screen never starts a print', async () => {
+test('an app that can\'t ask on screen asks in the chat: only a fresh code for the same action starts it', async () => {
   const file = join(dir, 'cube.gcode');
   writeFileSync(file, '; filament_type = PLA\nG28\nM84\n');
-  const r = await tool(plain, 'send_to_printer', { printer: 'Voron', file, print: true });
-  assert.match(r.error, /can't ask the person on screen/);
-  assert.equal(voron.state.print_stats.state, 'standby');
+  const other = join(dir, 'other.gcode');
+  writeFileSync(other, '; filament_type = PLA\nG28\nM84\n');
+  const send = (args) => tool(plain, 'send_to_printer', { printer: 'Voron', print: true, ...args });
+  const codeIn = (r) => r.error.match(/confirm: "(\d{6})"/)?.[1];
+
+  const first = await send({ file });
+  assert.match(first.error, /Nothing was done yet: this needs the person's yes\. Ask them in the chat, in these words: "Start printing cube\.gcode on Voron\?/);
+  const code = codeIn(first);
+  assert.ok(code, first.error);
   assert.equal(voron.files.has('cube.gcode'), false, 'nothing was sent');
+
+  assert.ok(codeIn(await send({ file, confirm: '000000' })), 'a made-up code only asks again');
+  assert.ok(codeIn(await send({ file: other, confirm: code })), 'a code is only good for the action it was given for');
+  assert.equal(voron.state.print_stats.state, 'standby');
+  assert.equal(voron.files.has('other.gcode'), false);
+
+  const again = await send({ file });
+  const yes = codeIn(again);
+  const r = await send({ file, confirm: yes });
+  assert.equal(r.started, true, JSON.stringify(r));
+  await until('the add-on to see the Voron printing', async () => (await tool(plain, 'printer_status', { printer: 'Voron' })).state === 'printing');
+
+  // Each code works once; stopping asks the same way.
+  const stop = (confirm) => tool(plain, 'printer_control', { printer: 'Voron', action: 'stop', confirm });
+  const used = await stop(yes);
+  assert.ok(codeIn(used), JSON.stringify(used));
+  const stopCode = codeIn(await stop());
+  assert.equal(voron.state.print_stats.state, 'printing');
+  const stopped = await stop(stopCode);
+  assert.equal(stopped.error, undefined, JSON.stringify(stopped));
+  await until('the Voron to stop', () => voron.state.print_stats.state !== 'printing');
 });

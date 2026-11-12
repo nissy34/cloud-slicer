@@ -7,6 +7,7 @@
 //   node dist/server.mjs          (Claude starts it; it talks over stdin/stdout)
 //
 // Design and rules: docs/architecture/mcp.md.
+import { randomInt } from 'node:crypto';
 import { dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
@@ -482,20 +483,44 @@ server.registerTool(
   () => run(async () => (await account.signOut(), { signedIn: false })),
 );
 
+/** Codes for a yes given in the chat (apps that can't show a popup), each for one exact action. */
+const chatYes = new Map<string, { action: string; until: number }>();
+const CHAT_YES_MS = 5 * 60_000;
+
 /**
- * Asks the person on screen (MCP elicitation) and answers whether they said yes.
- * An app that can't ask gets an error instead: nothing that heats, moves or prints
- * happens without the person's yes.
+ * Asks the person and answers whether they said yes. Where the app can show it, on
+ * screen (MCP elicitation: an Accept popup). Where it can't (Claude on a phone, through
+ * Claude Desktop), the first call does nothing and hands back a one-time code: Claude asks
+ * in the chat, and only a second call with the same action and that code goes ahead.
  */
-async function askPerson(message: string): Promise<boolean> {
-  if (!server.server.getClientCapabilities()?.elicitation)
+function asker(tool: string, args: Record<string, unknown>, code: string | undefined) {
+  const action = JSON.stringify([tool, Object.entries(args).filter(([, v]) => v !== undefined).sort(([a], [b]) => a.localeCompare(b))]);
+  return async (message: string): Promise<boolean> => {
+    if (server.server.getClientCapabilities()?.elicitation) {
+      const answer = await server.server.elicitInput({ message: `${message}\nAccept to go ahead, Decline to stop.`, requestedSchema: { type: 'object', properties: {} } });
+      return answer.action === 'accept';
+    }
+    const now = Date.now();
+    for (const [k, v] of chatYes) if (v.until < now) chatYes.delete(k);
+    const given = code && chatYes.get(code);
+    if (given && given.action === action) {
+      chatYes.delete(code!);
+      return true;
+    }
+    const fresh = String(randomInt(100000, 1000000));
+    chatYes.set(fresh, { action, until: now + CHAT_YES_MS });
     throw new Error(
-      'This app can\'t ask the person on screen, so the add-on won\'t do anything that heats, moves or prints. Nothing was done or sent. ' +
-        'Uploading without print still works; do the rest on the printer or in the site\'s Device tab.',
+      `Nothing was done yet: this needs the person's yes. Ask them in the chat, in these words: "${message}" ` +
+        `Only if they answer yes, call ${tool} again with exactly the same arguments plus confirm: "${fresh}" (good for 5 minutes, once). ` +
+        'If they say no or anything else, don\'t call it again.',
     );
-  const answer = await server.server.elicitInput({ message: `${message}\nAccept to go ahead, Decline to stop.`, requestedSchema: { type: 'object', properties: {} } });
-  return answer.action === 'accept';
+  };
 }
+
+const confirmArg = z
+  .string()
+  .optional()
+  .describe('Only the code an earlier answer gave, and only after the person said yes to it in the chat');
 
 server.registerTool(
   'printers',
@@ -523,14 +548,15 @@ server.registerTool(
     title: 'Send to printer',
     description:
       'Uploads G-code (by default the newest slice) to one of the person\'s printers. With print: true it then starts printing, but only after the person says yes ' +
-      'on screen, every time; never set print without them asking for a print. Without print it only uploads (the printer does not move). Needs sign_in.',
+      '(on screen, or in the chat with a one-time code), every time; never set print without them asking for a print. Without print it only uploads (the printer does not move). Needs sign_in.',
     inputSchema: {
       printer: z.string().optional().describe('Printer name from printers; can be left out with only one printer'),
       file: z.string().optional().describe('G-code or .gcode.3mf on this computer; default the newest slice'),
       print: z.boolean().optional().describe('Start printing after the upload (asks the person first). Default false: upload only'),
+      confirm: confirmArg,
     },
   },
-  ({ printer, file, print }, extra) =>
+  ({ printer, file, print, confirm }, extra) =>
     run(async () => {
       const path = file ?? lastSliced?.gcode3mfFile ?? lastSliced?.gcodeFile;
       if (!path) throw new Error('Nothing to send yet: slice first, or give a file.');
@@ -546,7 +572,7 @@ server.registerTool(
         start: Boolean(print),
         progress,
         confirm: ({ printer: name, file: shown, slots }) =>
-          askPerson(`Start printing ${shown} on ${name}? The printer heats up and moves.` + (slots.length ? `\n${slots.map((s) => `• ${s}`).join('\n')}` : '')),
+          asker('send_to_printer', { printer, file: path, print }, confirm)(`Start printing ${shown} on ${name}? The printer heats up and moves.` + (slots.length ? `\n${slots.map((s) => `• ${s}`).join('\n')}` : '')),
       });
     }),
 );
@@ -567,7 +593,7 @@ server.registerTool(
   {
     title: 'Control a printer',
     description:
-      'The site\'s Device tab controls for one of the person\'s printers. Anything that heats, moves, starts, resumes or stops a print asks the person on screen first, every time; ' +
+      'The site\'s Device tab controls for one of the person\'s printers. Anything that heats, moves, starts, resumes or stops a print asks the person first, every time (on screen, or in the chat with a one-time code where the app can\'t show a popup); ' +
       'only do what the person asked for. Actions: print_file {file} (a file already on the printer), pause, resume, stop, skip_object {object}, ' +
       'home {axes?}, move {axis, mm}, extrude {mm, negative pulls back}, motors_off, heat {heater: "bed", "nozzle" or a name from printer_status, target °C, 0 = off}, ' +
       'fan {fan?, percent}, light {on}, speed {percent}, flow {percent}; Snapmaker U1 tool heads 1-4: load_filament {head}, unload_filament {head}, ' +
@@ -594,9 +620,10 @@ server.registerTool(
       colour: z.string().optional().describe('#RRGGBB'),
       brand: z.string().optional(),
       subType: z.string().optional(),
+      confirm: confirmArg,
     },
   },
-  ({ printer, ...c }) => run(() => printers.control(printer, c, askPerson)),
+  ({ printer, confirm, ...c }) => run(() => printers.control(printer, c, asker('printer_control', { printer, ...c }, confirm))),
 );
 
 await server.connect(new StdioServerTransport());

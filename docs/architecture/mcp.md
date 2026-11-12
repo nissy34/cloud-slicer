@@ -142,10 +142,13 @@ a tool needs it and closes a minute after the last use: no streaming in the back
 | `printer_control` | print a file on it, pause, resume, stop, skip object, home, move, extrude, heat, U1 load / unload / pick / park a head | yes |
 | `printer_control` | motors off, heat off, fans, light, speed and flow %, a U1 head's filament type and colour | no |
 
-- **Asking** is MCP elicitation (`askPerson` in `server.ts`): one Accept / Decline message
-  on screen, every time, before anything is sent. Decline does nothing. An app without
-  elicitation gets an error and nothing that heats, moves or prints happens; upload only
-  still works there.
+- **Asking** (`asker` in `server.ts`) is MCP elicitation where the app has it: one Accept /
+  Decline message on screen, every time, before anything is sent. Decline does nothing.
+  Where it doesn't (Claude on a phone, reaching Claude Desktop), the first call does
+  nothing and answers with the question and a 6-digit code: Claude asks in the chat, and
+  only a second call with the same action and arguments plus that code goes ahead. A code
+  works once, for 5 minutes, only for the action it was given for (owner's pick,
+  2026-11-12; the phone had no way to say yes before).
 - Refused before asking: a print while the printer prints or isn't ready, a filament with
   no head or slot it can print from (the Send window's checks), moving while it prints, a
   printer whose add-on takes no commands (Bambu Lab: status, files and prints only).
@@ -184,8 +187,8 @@ where Claude says, or beside the model, named by the printer's file name format.
   `partColour` from `lib/thumbnail.ts` and the same lighting numbers as its shader. A
   change to one changes the other.
 - **Never start a print without asking**: "Upload and print", and every control that
-  heats, moves, starts, resumes or stops, asks the person on screen every time; an app
-  that can't ask never does them.
+  heats, moves, starts, resumes or stops, asks the person every time: on screen, or in
+  the chat with a one-time code.
 - **The Device tab's code, not a copy**: printer code the add-on needs moves out of React
   and the page state into plain modules (`device/print-plan.ts`, `device/saved.ts`) that
   both use.
@@ -229,7 +232,7 @@ site ends the session. `apps/mcp/test/printers.test.mjs` uses pretend printers o
 pretend U1 behind the real bridge (Go) and a local relay, and a pretend Klipper printer
 reached directly. Status, upload only, upload and print (no sends nothing, yes starts it
 the U1 way, busy is refused), the controls (which ask, which don't, a no sends nothing),
-and an app that can't ask. The CI job `mcp` sets up Go and the relay for it. CI job `mcp` builds it with both engines, type-checks, runs the test,
+and an app that can't show a popup (asks in the chat: a made-up, used or other action's code only asks again). The CI job `mcp` sets up Go and the relay for it. CI job `mcp` builds it with both engines, type-checks, runs the test,
 packs the install files and starts the packed one.
 
 ## Open

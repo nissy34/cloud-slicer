@@ -113,7 +113,7 @@ export function AiAppsDialog({ onClose }: { onClose(): void }) {
           filaments, set colours and which filament prints each object, change
           settings, arrange plates and slice. While your computer is on, Claude
           on your phone can use it too. Signed in, it also uses your presets and
-          printers, and asks you on screen before it starts a print.
+          printers, and asks you before it starts a print.
         </p>
       </div>
     </Dialog>
