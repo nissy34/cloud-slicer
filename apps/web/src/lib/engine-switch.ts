@@ -9,7 +9,11 @@
 //     lib/preset-engines.ts); system presets move to their stand-in
 //     (standIn), the nearest match by printer, layer height or material.
 //   - changed settings: those both engines share (shared-settings.json).
-//     Snapmaker's flow-variant lists keep their standard-flow value only.
+//     Snapmaker's flow-variant lists keep their standard-flow value only. A
+//     setting one engine keeps as one value and the other as a list (2.5's
+//     flush_multiplier, one per nozzle) carries over too (listIn).
+//   - G-code is not moved: each engine keeps its printer's own (Snapmaker's U1
+//     G-code uses variables OrcaSlicer lacks). The pop-up says so (ownGcode).
 //   - colour mixes (both engines have them, kept differently; experimental):
 //     each is made again in the other engine with the same filaments and
 //     shares, under the same filament number, so objects, parts, paint and
@@ -61,6 +65,8 @@ export interface SwitchPlan {
   highFlowChanged: DroppedSetting[];
   /** Changed settings, and objects' own settings, the other engine doesn't have. */
   dropped: DroppedSetting[];
+  /** Changed G-code: the other engine has it, but uses its own printer's. */
+  ownGcode: DroppedSetting[];
   /**
    * Presets whose stand-in prints differently: a process of another layer
    * height. A built-in that moves to the other engine's matching built-in
@@ -74,6 +80,24 @@ export interface SwitchPlan {
   /** Per object (and part, volume >= 0): settings to remove before the project leaves the engine, and flow lists cut to their standard value. */
   objectEdits: { object: number; volume: number; values: Record<string, string | null> }[];
 }
+
+/**
+ * Colour mixing settings that are the same thing under another name: Snapmaker's
+ * Subdivide Mix Layer and OrcaSlicer 2.5's Mixed color sublayer both split the
+ * layers of mixed areas into thinner ones.
+ */
+const MIX_SAME: Record<string, string> = { dithering_local_z_mode: 'enable_mixed_color_sublayer' };
+const MIX_NAME = { ...MIX_SAME, ...Object.fromEntries(Object.entries(MIX_SAME).map(([a, b]) => [b, a])) };
+
+/**
+ * What desktop's filament swatches show (a multi-colour filament's colours);
+ * slicing doesn't read it, the page doesn't show it, and each engine names it
+ * differently. Not worth a word when it stays behind.
+ */
+const SWATCH_ONLY = new Set(['filament_multi_colors', 'filament_multi_colour', 'filament_colour_type']);
+
+/** A value for engine `to` of a setting one engine keeps as a list (listIn): one value is a list of one. */
+const listValue = (value: string, listIn: EngineFlavor, to: EngineFlavor) => (listIn === to ? value : (value.split(',')[0] ?? value));
 
 /** "0.20mm Standard @U1" -> 0.2 (NaN for a name without one). */
 const layerHeight = (process: string) => parseFloat(/^\s*(\d+(?:\.\d+)?)/.exec(process)?.[1] ?? 'NaN');
@@ -208,11 +232,15 @@ export function switchPlan(p: PlanInput, t: SharedTable = SHARED): SwitchPlan {
   const leavingFlow = from === 'snapmaker';
   const flowOf = (key: string) => (leavingFlow ? options[key]?.flow : undefined);
   const dropped: DroppedSetting[] = [];
+  const ownGcode: DroppedSetting[] = [];
   const highFlowChanged: DroppedSetting[] = [];
   const overrides: OrcaConfig = {};
   for (const [key, value] of Object.entries(p.overrides)) {
     if (!isShared(key, undefined, t)) {
-      dropped.push({ key, label: label(key) });
+      if (t.listIn?.[key]) overrides[key] = listValue(value, t.listIn[key], to);
+      else if (MIX_NAME[key]) overrides[MIX_NAME[key]] = value;
+      else if (t.gcode?.includes(key)) ownGcode.push({ key, label: label(key) });
+      else if (!SWATCH_ONLY.has(key)) dropped.push({ key, label: label(key) });
       continue;
     }
     const flow = flowOf(key);
@@ -230,8 +258,14 @@ export function switchPlan(p: PlanInput, t: SharedTable = SHARED): SwitchPlan {
       for (const [key, value] of Object.entries(settings)) {
         if (key === 'extruder') continue;
         if (!isShared(key, undefined, t)) {
+          if (t.listIn?.[key]) {
+            const v = listValue(value, t.listIn[key], to);
+            if (v !== value) values[key] = v;
+            continue;
+          }
           values[key] = null;
-          dropped.push({ key, label: label(key), where });
+          if (t.gcode?.includes(key)) ownGcode.push({ key, label: label(key), where });
+          else if (!SWATCH_ONLY.has(key)) dropped.push({ key, label: label(key), where });
           continue;
         }
         const flow = flowOf(key);
@@ -252,12 +286,12 @@ export function switchPlan(p: PlanInput, t: SharedTable = SHARED): SwitchPlan {
   const mixes = inUse
     .filter((r) => r.pattern && to === 'orca')
     .map((r) => ({ id: r.virtualId, label: `Cycle: ${mixLabel(r)}`, colour: r.colour, becomes: `Ratio: ${mixLabel(carriedRecipe(r, to))}` }));
-  return { from, to, mixes, carried, highFlowChanged, dropped, presets, selection, overrides, objectEdits };
+  return { from, to, mixes, carried, highFlowChanged, dropped, ownGcode, presets, selection, overrides, objectEdits };
 }
 
 /** Nothing to tell: everything that matters carries over, so the switch needs no question. */
 export const losesNothing = (plan: SwitchPlan) =>
-  !plan.mixes.length && !plan.highFlowChanged.length && !plan.dropped.length && !plan.presets.length;
+  !plan.mixes.length && !plan.highFlowChanged.length && !plan.dropped.length && !plan.ownGcode.length && !plan.presets.length;
 
 /** The notice after a switch (`model` false: an empty plate, only the settings moved). */
 export function switchedText(plan: SwitchPlan, model = true): string {

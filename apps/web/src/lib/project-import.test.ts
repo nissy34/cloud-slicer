@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { PresetSummary } from '../engine/protocol';
-import { changedOnPurpose, emptyProjectMessage, modelProcessKeys, pickProcess, processKeys, projectOverrides, fallBackGcode, gcodeOverrides } from './project-import';
+import { changedOnPurpose, changedSettingsList, emptyProjectMessage, modelProcessKeys, pickProcess, processKeys, projectOverrides, fallBackGcode, gcodeOverrides } from './project-import';
 
 const known = { layer_height: {}, wall_loops: {}, nozzle_diameter: {}, wipe_tower_x: {}, print_settings_id: {} };
 
@@ -16,6 +16,17 @@ describe('projectOverrides', () => {
   });
   it('can be limited to some keys', () => {
     expect(projectOverrides(file, base, known, new Set(['layer_height']))).toEqual({ layer_height: '0.1' });
+  });
+  it("doesn't let a saved 0 °C plate temperature turn the bed off", () => {
+    // A U1 PLA project saved on OrcaSlicer 2.4.2 says 0 °C for Textured PEI.
+    const k = { textured_plate_temp: { min: 0 }, textured_plate_temp_initial_layer: { min: 0 }, hot_plate_temp: { min: 0 } };
+    const saved = { textured_plate_temp: '0,0,60,0', textured_plate_temp_initial_layer: '0', hot_plate_temp: '0' };
+    const preset = { textured_plate_temp: '55,55,55,55', textured_plate_temp_initial_layer: '55', hot_plate_temp: '0' };
+    expect(projectOverrides(saved, preset, k)).toEqual({ textured_plate_temp: '55,55,60,55' });
+  });
+  it('keeps a 0 °C the project lists as yours', () => {
+    const k = { textured_plate_temp: { min: 0 } };
+    expect(projectOverrides({ textured_plate_temp: '0' }, { textured_plate_temp: '55' }, k, new Set(['textured_plate_temp']))).toEqual({ textured_plate_temp: '0' });
   });
 });
 
@@ -92,5 +103,23 @@ describe("other slicers' G-code", () => {
       overrides: { change_filament_gcode: 'G1 mine', wall_loops: '3' },
       dropped: 1,
     });
+  });
+});
+
+describe('changedSettingsList', () => {
+  const page = (options: string[]) => [{ page: 'p', groups: [{ title: 'g', options }] }];
+  const layout = { print: page(['wall_loops']), filament: page(['nozzle_temperature', 'filament_type']), printer: page(['retraction_length']) };
+  it('lists your changes per preset, as desktop saves them, and reads back', () => {
+    const overrides = { wall_loops: '5', nozzle_temperature: '220,210,220', retraction_length: '1', print_settings_id: 'x', mixed_filament_definitions: 'm' };
+    const base = { wall_loops: '2', nozzle_temperature: '220,220,220', retraction_length: '0.8' };
+    const list = changedSettingsList(overrides, base, layout, 3);
+    expect(list).toBe('"wall_loops";"";"nozzle_temperature";"";"retraction_length"');
+    expect([...changedOnPurpose({ different_settings_to_system: list })!].sort()).toEqual(['layer_height', 'nozzle_temperature', 'retraction_length', 'wall_loops']);
+  });
+  it('a filament change it cannot place goes to every filament', () => {
+    expect(changedSettingsList({ filament_type: 'PETG' }, { filament_type: 'PLA,PLA' }, layout, 2)).toBe('"";"filament_type";"filament_type";""');
+  });
+  it('nothing changed', () => {
+    expect(changedSettingsList({}, {}, null, 1)).toBe('"";"";""');
   });
 });

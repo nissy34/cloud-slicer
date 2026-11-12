@@ -65,6 +65,8 @@ describe('switchPlan', () => {
     version: 1,
     shared: ['sparse_infill_density', 'outer_wall_speed', 'wall_loops'],
     flow: { outer_wall_speed: 'process' },
+    listIn: { flush_multiplier: 'orca' },
+    gcode: ['change_filament_gcode'],
     names: { 'snapmaker>orca': { process: { '0.20mm Standard @U1': '0.20 Standard @U1', '0.10mm Color Mixing @U1': '0.12 Fine @U1' }, filament: { 'Snapmaker PLA': 'Generic PLA @U1' } } },
     history: [],
   };
@@ -127,6 +129,17 @@ describe('switchPlan', () => {
       [4, 30],
     ]);
     expect(losesNothing(plan)).toBe(true);
+  });
+
+  it('carries what OrcaSlicer has under another shape or name, and says G-code stays the printer\'s own', () => {
+    const overrides = { flush_multiplier: '0.8', change_filament_gcode: 'T[next_extruder]', filament_multi_colors: '"#FF0000|#00FF00"', dithering_local_z_mode: '1', dithering_local_z_infill: '1' };
+    const plan = switchPlan({ ...input, overrides, project: null }, table);
+    expect(plan.overrides).toEqual({ flush_multiplier: '0.8', enable_mixed_color_sublayer: '1' });
+    expect(plan.ownGcode.map((d) => d.key)).toEqual(['change_filament_gcode']);
+    // Swatch colours desktop shows aren't worth a word; Snapmaker's Local-Z infill has no OrcaSlicer setting.
+    expect(plan.dropped.map((d) => d.key)).toEqual(['dithering_local_z_infill']);
+    const back = switchPlan({ ...input, from: 'orca', to: 'snapmaker', overrides: { flush_multiplier: '0.7,0.9', enable_mixed_color_sublayer: '1' }, mixes: [], project: null }, table);
+    expect(back.overrides).toEqual({ flush_multiplier: '0.7', dithering_local_z_mode: '1' });
   });
 
   it('a Cycle mix going to OrcaSlicer is worth a word', () => {

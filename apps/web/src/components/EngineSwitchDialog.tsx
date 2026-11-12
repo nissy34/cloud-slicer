@@ -92,6 +92,13 @@ export function EngineSwitchDialog({ to, onClose, onSwitch }: { to: EngineFlavor
             <SettingRows list={plan.dropped} />
           </section>
         )}
+        {plan.ownGcode.length > 0 && (
+          <section>
+            <h3>G-code stays the printer's own</h3>
+            <p className="muted small">{target} uses its own printer G-code for these, not this project's:</p>
+            <SettingRows list={plan.ownGcode} />
+          </section>
+        )}
         {plan.presets.length > 0 && (
           <section>
             <h3>A different layer height</h3>

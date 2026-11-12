@@ -59,7 +59,8 @@ const NOT_SHARED = new Set([
   'upward_compatible_machine',
   'filament_id',
 ]);
-const isGcode = (key) => /(^|_)gcode$/.test(key) || key === 'template_custom_gcode';
+// G-code itself, not a switch about it (emit_machine_limits_to_gcode).
+const isGcode = (key, def) => (def.type === 'string' || def.type === 'strings') && (/(^|_)gcode$/.test(key) || key === 'template_custom_gcode');
 const singular = { bools: 'bool', ints: 'int', floats: 'float', percents: 'percent', floatsOrPercents: 'floatOrPercent', strings: 'string', enums: 'enum' };
 
 /** Each engine's options and system presets (every preset that fits each printer). */
@@ -90,7 +91,7 @@ function sharedSettings(snap, orca) {
   const flow = {};
   for (const [key, s] of Object.entries(snap)) {
     const o = orca[key];
-    if (!o || NOT_SHARED.has(key) || isGcode(key)) continue;
+    if (!o || NOT_SHARED.has(key) || isGcode(key, s)) continue;
     if (s.flow) {
       if (o.type !== s.type && o.type !== singular[s.type]) continue;
       flow[key] = s.flow;
@@ -98,6 +99,24 @@ function sharedSettings(snap, orca) {
     shared.push(key);
   }
   return { shared: shared.sort(), flow: Object.fromEntries(Object.entries(flow).sort()) };
+}
+
+// For switching a project between engines (src/lib/engine-switch.ts), which
+// carries more than a preset shares: settings one engine keeps as one value
+// and the other as a list (OrcaSlicer 2.5's flush_multiplier, one per nozzle),
+// with the engine that keeps the list; and the G-code both engines have, which
+// stays each printer's own.
+function switchSettings(snap, orca) {
+  const listIn = {};
+  const gcode = [];
+  for (const [key, s] of Object.entries(snap)) {
+    const o = orca[key];
+    if (!o || NOT_SHARED.has(key) || s.flow) continue;
+    if (isGcode(key, s)) gcode.push(key);
+    else if (singular[o.type] === s.type) listIn[key] = 'orca';
+    else if (singular[s.type] === o.type) listIn[key] = 'snapmaker';
+  }
+  return { listIn: Object.fromEntries(Object.entries(listIn).sort()), gcode: gcode.sort() };
 }
 
 // ---- matching system presets between the engines --------------------------------
@@ -176,6 +195,7 @@ function names(from, to) {
 const snap = await read('snapmaker');
 const orca = await read('orca');
 const { shared, flow } = sharedSettings(snap.options, orca.options);
+const { listIn, gcode } = switchSettings(snap.options, orca.options);
 let current = null;
 try {
   current = JSON.parse(readFileSync(OUT, 'utf8'));
@@ -188,6 +208,8 @@ const next = {
   version,
   shared,
   flow,
+  listIn,
+  gcode,
   names: { 'snapmaker>orca': names(snap, orca), 'orca>snapmaker': names(orca, snap) },
   history: changed ? [...history, { version, shared }] : history,
 };

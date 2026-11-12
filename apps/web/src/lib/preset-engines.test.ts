@@ -8,6 +8,8 @@ const T: SharedTable = {
   version: 2,
   shared: ['outer_wall_speed', 'sparse_infill_density', 'wall_loops'],
   flow: { outer_wall_speed: 'process' },
+  listIn: {},
+  gcode: ['machine_start_gcode'],
   names: { 'snapmaker>orca': { process: { '0.20mm Standard': '0.20 Standard' } }, 'orca>snapmaker': { process: { '0.20 Standard': '0.20mm Standard', '0.25 Benchy': '0.20mm Standard' } } },
   history: [
     { version: 1, shared: ['chamber_temperature', 'outer_wall_speed', 'wall_loops'] },
@@ -201,7 +203,10 @@ describe('the generated table', () => {
     expect(SHARED.shared).toContain('wall_loops');
     expect(SHARED.shared).toContain('outer_wall_speed');
     expect(SHARED.flow.outer_wall_speed).toBe('process');
-    expect(SHARED.shared.some((k) => /gcode$/.test(k))).toBe(false);
+    // G-code stays each engine's own; a switch about it (emit_machine_limits_to_gcode) is a setting like any other.
+    expect(SHARED.gcode).toEqual(expect.arrayContaining(['machine_start_gcode', 'change_filament_gcode', 'filament_start_gcode']));
+    expect(SHARED.shared.filter((k) => /gcode$/.test(k))).toEqual(['emit_machine_limits_to_gcode']);
+    expect(SHARED.listIn.flush_multiplier).toBe('orca');
     expect(SHARED.shared).not.toContain('inherits');
     expect(SHARED.history.at(-1)?.version).toBe(SHARED.version);
   });
