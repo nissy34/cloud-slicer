@@ -14,6 +14,7 @@ import { ask } from './AskDialog';
 import { Dialog } from './Dialog';
 import { IconButton } from './IconButton';
 import { Note } from './Note';
+import { GoogleMark } from './GoogleMark';
 import { Picker } from './Picker';
 
 /**
@@ -167,17 +168,13 @@ function Wizard({ onClose }: { onClose: () => void }) {
     <Dialog
       title="Set up your printers"
       onClose={onClose}
-      className="wizard"
+      className={step === 'welcome' ? 'wizard welcome' : 'wizard'}
       footer={
+        step === 'welcome' ? undefined : (
         <>
           <button className="secondary wizard-later" onClick={onClose}>
             Not now
           </button>
-          {step === 'welcome' && (
-            <button className="secondary" onClick={() => setStep('engine')}>
-              Continue without signing in
-            </button>
-          )}
           {(index > 0 || (step === 'engine' && canSignIn)) && (
             <button className="secondary" onClick={() => setStep(index > 0 ? STEPS[index - 1].id : 'welcome')}>
               Back
@@ -207,7 +204,7 @@ function Wizard({ onClose }: { onClose: () => void }) {
             <button className="primary" disabled={saving || !printers.length} onClick={() => void finish()}>
               Finish
             </button>
-          ) : step === 'welcome' ? null : (
+          ) : (
             <button
               className="primary"
               disabled={step === 'printers' ? !printers.length || loadingBrands : step === 'filaments' && !filaments?.length}
@@ -217,6 +214,7 @@ function Wizard({ onClose }: { onClose: () => void }) {
             </button>
           )}
         </>
+        )
       }
     >
       {step !== 'welcome' && (
@@ -234,7 +232,7 @@ function Wizard({ onClose }: { onClose: () => void }) {
         </>
       )}
       <div className="wizard-body">
-        {step === 'welcome' && <WelcomeStep error={signInError} />}
+        {step === 'welcome' && <WelcomeStep error={signInError} onSetup={() => setStep('engine')} onLater={onClose} />}
         {step === 'engine' && <EngineStep chosen={engine} onChange={setEngine} />}
         {step === 'printers' && <PrinterStep all={allPrinters} chosen={printers} onChange={setPrinters} />}
         {step === 'printers' && loadingBrands && <p className="muted small">Loading the printer profiles…</p>}
@@ -246,29 +244,41 @@ function Wizard({ onClose }: { onClose: () => void }) {
   );
 }
 
+/** Printer pictures on the welcome page: any brand works. */
+const WELCOME_COVERS = ['covers/Snapmaker/Snapmaker_U1.png', 'covers/BBL/Bambu_Lab_X1_Carbon.png', 'covers/Prusa/Prusa_MK4S.png', 'covers/BBL/Bambu_Lab_A1.png'];
+
 /**
  * Before the numbered steps, signed out: someone who already has an account
  * signs in and gets their printers, filaments, presets and projects, instead of
  * picking them all again (desktop Orca and Bambu Studio offer sign-in on their
  * first page too). Choices made here while signed out move to the account later.
  */
-function WelcomeStep({ error }: { error: string }) {
+function WelcomeStep({ error, onSetup, onLater }: { error: string; onSetup: () => void; onLater: () => void }) {
+  const flavor = useSlicer((s) => s.flavor);
   return (
-    <div className="wizard-welcome">
-      <section>
-        <h3>Have an account?</h3>
-        <p className="muted small">Sign in to get your printers, filaments, presets and projects here.</p>
-        <button className="primary" onClick={() => void useAccount.getState().signIn('google')}>
+    <div className="welcome-page">
+      <div className="welcome-art" aria-hidden>
+        {WELCOME_COVERS.map((c) => (
+          <img key={c} src={coverUrl(flavor, c)} alt="" />
+        ))}
+      </div>
+      <div className="welcome-side">
+        <img src="/icon.svg" alt="" className="welcome-logo" />
+        <h3>Welcome to Cloud Slicer</h3>
+        <p className="muted">Sign in to get your printers, presets and projects.</p>
+        <button className="google-button" onClick={() => void useAccount.getState().signIn('google')}>
+          <GoogleMark />
           Sign in with Google
         </button>
         {error && <Note tone="error">{error}</Note>}
-      </section>
-      <section>
-        <h3>New here?</h3>
-        <p className="muted small">
-          Pick your printers and filaments, so the lists show only yours. You don't need an account; if you sign in later, your choices move to it.
-        </p>
-      </section>
+        <div className="welcome-or">or</div>
+        <button className="secondary welcome-wide" onClick={onSetup}>
+          Continue without signing in
+        </button>
+        <button className="quiet" onClick={onLater}>
+          Not now
+        </button>
+      </div>
     </div>
   );
 }

@@ -1446,7 +1446,7 @@ if (withApp)
         await page.goto(HOST);
         await page.getByText('Open a model to start').waitFor({ timeout: 120000 });
         const wizard = page.getByRole('dialog', { name: 'Set up your printers' });
-        await wizard.getByRole('heading', { name: 'Have an account?' }).waitFor({ timeout: 30000 });
+        await wizard.getByRole('heading', { name: 'Welcome to Cloud Slicer' }).waitFor({ timeout: 30000 });
         assert.equal(await wizard.getByText(/Step 1 of/).count(), 0, 'the welcome page is not a numbered step');
         if (shots && who === 'lee') {
           await page.screenshot({ path: join(shots, 'welcome-desktop.png') });
@@ -1470,7 +1470,7 @@ if (withApp)
         } else {
           // Nothing on the account yet: the wizard comes back on its first numbered step.
           await wizard.getByRole('radio', { name: 'Snapmaker Orca' }).waitFor({ timeout: 30000 });
-          assert.equal(await wizard.getByRole('heading', { name: 'Have an account?' }).count(), 0, 'no welcome page once signed in');
+          assert.equal(await wizard.getByRole('heading', { name: 'Welcome to Cloud Slicer' }).count(), 0, 'no welcome page once signed in');
           assert.equal(await wizard.getByRole('button', { name: 'Back' }).count(), 0, 'signed in, Default engine is the first page');
         }
         await page.context().close();
