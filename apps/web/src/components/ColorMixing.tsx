@@ -18,6 +18,7 @@ import { NO_COLOURS, useSlicer } from '../state/store';
 import { Dialog } from './Dialog';
 import { ArrowDownUp, Delete, TriangleAlert, X } from 'lucide-react';
 import { IconButton } from './IconButton';
+import { ColourPicker } from './ColourPicker';
 import { Swatch } from './Swatch';
 import { Slider } from './Slider';
 import { Picker } from './Picker';
@@ -280,9 +281,7 @@ function MixDialog({ row, index, onClose }: { row: MixRow | undefined; index: nu
       {draft.mode === 'match' && (
         <div className="mix-body">
           <div className="mix-row">
-            <label className="swatch lg" style={{ background: draft.target }} title="Target colour">
-              <input type="color" aria-label="Target colour" value={draft.target.slice(0, 7)} onChange={(e) => change({ target: e.target.value.toUpperCase() })} />
-            </label>
+            <ColourPicker label="Target colour" title="Target colour" value={draft.target} onChange={(hex) => change({ target: hex })} />
             <input
               aria-label="Target colour hex"
               className="mix-hex"

@@ -11,7 +11,7 @@ import { mkdirSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { chromium } from 'playwright';
-import { openPicker, pickerOf, pickerRows } from './picker.mjs';
+import { openPicker, pickerOf, pickerRows, setColour } from './picker.mjs';
 import { startMockPrinter } from './device/mock-printer.mjs';
 
 const web = join(dirname(fileURLToPath(import.meta.url)), '..');
@@ -80,7 +80,7 @@ async function open(viewport) {
 const slots = (page) =>
   page.evaluate(() =>
     [...document.querySelectorAll('ol.slots li')].map((li) => ({
-      colour: li.querySelector('input[type=color]').value.toUpperCase(),
+      colour: li.querySelector('button.swatch').dataset.colour,
       preset: li.dataset.preset,
       tag: li.querySelector('button.picker .picker-tag')?.textContent ?? '',
     })),
@@ -109,10 +109,7 @@ try {
   await page.keyboard.press('Escape');
   await shot(page, 'desktop-picked');
   // Another colour: no longer the head's filament, so no tag and the preset row is ticked.
-  await page.getByLabel('Filament 1 colour').evaluate((el) => {
-    Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(el, '#123456');
-    el.dispatchEvent(new Event('input', { bubbles: true }));
-  });
+  await setColour(page, 'Filament 1 colour', '#123456');
   await page.waitForTimeout(500);
   first = (await slots(page))[0];
   check(first.colour === '#123456' && first.tag === '', `a changed colour drops the tag: ${JSON.stringify(first)}`);

@@ -15,4 +15,11 @@ describe('pickers', () => {
     );
     expect(found).toEqual([]);
   });
+  // Colours too: the ColourPicker popup (desktop Orca's colours + Custom), never the browser's colour box.
+  it('uses no browser colour boxes', () => {
+    const found = Object.entries(CODE).flatMap(([file, code]) =>
+      code.split('\n').flatMap((line, i) => (/type=["'{]+color/.test(line) && !/^\s*(\/\/|\*)/.test(line) ? [`${file}:${i + 1} ${line.trim()}`] : [])),
+    );
+    expect(found).toEqual([]);
+  });
 });
