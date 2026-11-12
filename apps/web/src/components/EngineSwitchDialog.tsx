@@ -92,6 +92,13 @@ export function EngineSwitchDialog({ to, onClose, onSwitch }: { to: EngineFlavor
             <SettingRows list={plan.dropped} />
           </section>
         )}
+        {plan.ownGcode.length > 0 && (
+          <section>
+            <h3>{t('engineSwitch.ownGcodeTitle')}</h3>
+            <p className="muted small">{t('engineSwitch.ownGcodeText', { engine: target })}</p>
+            <SettingRows list={plan.ownGcode} />
+          </section>
+        )}
         {plan.presets.length > 0 && (
           <section>
             <h3>{t('engineSwitch.presetsTitle')}</h3>

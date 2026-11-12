@@ -38,6 +38,8 @@
     "orcaBlurb": "ה-OrcaSlicer של הקהילה, עם פרופילים משלו.",
     "orcaNewest": "התיקונים וההגדרות החדשים ביותר של OrcaSlicer",
     "orcaPresets": "פרופילי ה-U1 של OrcaSlicer עצמו",
-    "orcaNoMixing": "בלי ערבוב צבעים"
+    "orcaNoMixing": "בלי ערבוב צבעים",
+    "ownGcodeTitle": "קוד ה-G נשאר של המדפסת",
+    "ownGcodeText": "ב-{{engine}} משתמשים בקוד ה-G של המדפסת עבור אלה, ולא בזה של הפרויקט:"
   }
 }
