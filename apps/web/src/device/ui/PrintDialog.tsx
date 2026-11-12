@@ -2,8 +2,8 @@ import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { formatDuration, formatGrams } from '../../lib/format';
 import { currentSession, useDevice, type SendSource } from '../../state/device';
-import type { PrinterCall } from '../addons';
-import { noSlotReason, slotCheck, suggestSlotMap, type PrintOptions } from '../slots';
+import { printPlan } from '../print-plan';
+import { slotCheck, suggestSlotMap, type PrintOptions } from '../slots';
 import { uploadName } from '../commands';
 import { metaFromMoonraker, readGcode3mf, readGcodeMeta, type GcodeMeta } from '../gcode-meta';
 import { job } from '../status';
@@ -42,10 +42,6 @@ export function PrintDialog({ source }: { source: SendSource }) {
   const sendError = useDevice((s) => s.sendError);
   const close = () => useDevice.getState().openPrintDialog(null);
   const go = useDevice((s) => s.uploadAndMaybePrint);
-  const slotAddon = addons.find((a) => a.filaments);
-  const fil = slotAddon?.filaments;
-  const optionsAddon = addons.find((a) => a.printOptions);
-  const starter = addons.find((a) => a.startPrint);
   // Alerts for the printer picked here, as the Alerts card has them.
   const alertsHere = useAlerts((s) => s.printerId === activeId);
   const alertStatus = useAlerts((s) => s.status);
@@ -55,28 +51,20 @@ export function PrintDialog({ source }: { source: SendSource }) {
   const [meta, setMeta] = useState<GcodeMeta | null>(null);
   const [name, setName] = useState(source.kind === 'upload' ? uploadName(source.name) : source.path);
   const path = source.kind === 'upload' ? source.name : source.path;
-  // A file the printer can map (a Bambu Lab printer: only a .gcode.3mf).
-  const mapping = Boolean(fil && (!fil.maps || fil.maps(path)));
-  const slots = useMemo(() => (mapping ? (fil?.read(objects) ?? []) : []), [mapping, fil, objects]);
   // What the user changed; the rest follows the printer's own settings.
   const [optionEdits, setOptionEdits] = useState<Partial<PrintOptions>>({});
-  const options = optionsAddon?.printOptions ? { ...optionsAddon.printOptions(objects), ...optionEdits } : null;
   const [toolMap, setToolMap] = useState<Record<number, number> | null>(null);
   // The plate inside a .gcode.3mf, which the printer is told to print.
   const [plate, setPlate] = useState<number | null>(null);
+  // A file the printer can map (a Bambu Lab printer: only a .gcode.3mf), its slots, options and checks.
+  const plan = useMemo(
+    () => printPlan({ addons, objects, path, meta, plate, toolMap, suggest: false, optionEdits }),
+    [addons, objects, path, meta, plate, toolMap, optionEdits],
+  );
+  const { fil, mapping, slots, options, checks: mapChecks, blocked: mapBlocked } = plan;
   const [busy, setBusy] = useState(false);
   const state = job(objects).state;
   const printerBusy = state === 'printing' || state === 'paused';
-  const mapChecks = useMemo(() => {
-    const out = new Map<number, ReturnType<typeof slotCheck>>();
-    if (!fil || !mapping || !meta || !toolMap) return out;
-    for (const f of meta.filaments) {
-      const slot = slots[toolMap[f.index]];
-      out.set(f.index, slot ? slotCheck(f, slot, fil.words) : { blocked: noSlotReason(f, fil.words), warning: null });
-    }
-    return out;
-  }, [fil, mapping, meta, toolMap, slots]);
-  const mapBlocked = [...mapChecks.values()].some((c) => c.blocked);
 
   useEffect(() => {
     let live = true;
@@ -110,19 +98,7 @@ export function PrintDialog({ source }: { source: SendSource }) {
   const submit = async (start: boolean) => {
     setBusy(true);
     const src: SendSource = source.kind === 'upload' ? { ...source, name: name.trim() || uploadName(source.name) } : source;
-    const begin = (at: string): PrinterCall[] =>
-      starter?.startPrint
-        ? starter.startPrint({
-            path: at,
-            map: mapping ? (toolMap ?? {}) : {},
-            filamentCount: meta?.filamentCount ?? 0,
-            options: options ?? { bedLevel: false, flowCalibrate: false, timeLapse: false },
-            slots,
-            plate,
-            ...(meta?.bedType && { bedType: meta.bedType }),
-          })
-        : [{ method: 'printer.print.start', params: { filename: at }, timeoutMs: 60_000 }];
-    await go(src, { start: start ? begin : null });
+    await go(src, { start: start ? plan.calls : null });
     setBusy(false);
   };
 

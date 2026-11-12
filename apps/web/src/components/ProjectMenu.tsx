@@ -11,6 +11,7 @@ import { useAccount } from '../state/account';
 import { useProjects } from '../state/projects';
 import { useSlicer } from '../state/store';
 import { Dialog } from './Dialog';
+import { AiAppsDialog } from './AiAppsDialog';
 import { continueOffer, yourDevice } from '../lib/autosave';
 import { deviceId } from '../lib/storage';
 import { Note } from './Note';
@@ -60,6 +61,7 @@ export function ProjectMenu() {
   const status = useSaveStatus();
   const p = useProjects.getState();
   const [open, setOpen] = useState(false);
+  const [aiApps, setAiApps] = useState(false);
   const input = useRef<HTMLInputElement>(null);
   const driveOpen = useDriveOpen();
 
@@ -180,6 +182,11 @@ export function ProjectMenu() {
           {t('projectMenu.download3mf')}
           {!savesOnline && <kbd>{MOD}S</kbd>}
         </button>
+        <hr />
+        {/* Also in the account menu; here too because it needs no account (signed-out people never see that menu's item). */}
+        <button role="menuitem" className="menu-item" onClick={run(() => setAiApps(true))}>
+          {t('projectMenu.aiApps')}
+        </button>
         {engineInfo && (
           <p className="menu-note" data-testid="project-engine">
             {t('projectMenu.slicesWith', { name: engineInfo.name, version: engineInfo.version })}
@@ -208,6 +215,7 @@ export function ProjectMenu() {
           })();
         }}
       />
+      {aiApps && <AiAppsDialog onClose={() => setAiApps(false)} />}
       <SaveAsDialog />
       <ConflictDialog />
       <GoneDialog />

@@ -20,6 +20,10 @@ export function json(data: unknown, status = 200, headers: HeadersInit = {}): Re
 /** Every state-changing call must come from the page itself (blocks cross-site form posts). */
 export function requireSameOrigin(request: Request) {
   const origin = request.headers.get('Origin');
+  // A program signed in with its own token (the AI app add-on, "Authorization: Bearer")
+  // sends no Origin. Another site's page can't send that header here (no CORS), so
+  // such a request can't be a cross-site one.
+  if (origin === null && /^Bearer /.test(request.headers.get('Authorization') ?? '')) return;
   if (origin !== new URL(request.url).origin) throw new HttpError(403, 'Cross-origin request refused');
 }
 

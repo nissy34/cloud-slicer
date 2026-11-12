@@ -2,7 +2,7 @@
 // the CLI and the engine tests. The browser worker does the same steps.
 import { readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
-import { dirname, resolve } from 'node:path';
+import { basename, dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -49,4 +49,77 @@ export function bedSize(config) {
   const xs = pts.map((p) => p[0]);
   const ys = pts.map((p) => p[1]);
   return [Math.max(...xs) - Math.min(...xs), Math.max(...ys) - Math.min(...ys)];
+}
+
+// Adds printer brands beyond the start-up ones, as the page's worker does
+// (engine-worker.js `vendors`): each `profiles/<file>` from bundle-profiles.mjs
+// is written beside the others and every preset reloads when one was new.
+// `loaded` remembers what is in already. Returns whether anything was added.
+export function addBrands(engine, profilesDir, files, loaded = new Set()) {
+  const added = files.filter((f) => !loaded.has(f));
+  for (const file of added) {
+    writeProfiles(engine, JSON.parse(readFileSync(resolve(profilesDir, file), 'utf8')));
+    loaded.add(file);
+  }
+  if (added.length) call(engine, 'presetsLoad', DATA_DIR);
+  return added.length > 0;
+}
+
+// Puts the person's own presets in as desktop Orca user presets, replacing any
+// there before (engine-worker.js `userPresets`): one JSON file per preset under
+// user/default/, then every preset reloads. `presets`: [{type, name, inherits,
+// config}] with `type` printer | filament | process. Returns the engine's counts.
+export function writeUserPresets(engine, presets) {
+  const root = `${DATA_DIR}/user`;
+  const remove = (path) => {
+    if (!engine.FS.analyzePath(path).exists) return;
+    for (const name of engine.FS.readdir(path)) {
+      if (name === '.' || name === '..') continue;
+      const child = `${path}/${name}`;
+      if (engine.FS.isDir(engine.FS.stat(child).mode)) remove(child);
+      else engine.FS.unlink(child);
+    }
+    engine.FS.rmdir(path);
+  };
+  remove(root);
+  const folder = { printer: 'machine', filament: 'filament', process: 'process' };
+  for (const p of presets) {
+    const dir = `${root}/default/${folder[p.type]}`;
+    engine.FS.mkdirTree(dir);
+    // Orca skips a user preset file without a version.
+    const preset = { ...p.config, name: p.name, inherits: p.inherits, from: 'User', is_custom_defined: '0', version: '1.0.0' };
+    engine.FS.writeFile(`${dir}/${p.name}.json`, JSON.stringify(preset));
+  }
+  return call(engine, 'presetsLoad', DATA_DIR).counts;
+}
+
+// Opens a model file from disk as the project (or adds it to the open one), on
+// plates the size of `config`'s bed. Returns the engine's loadModel answer and
+// the model info.
+export function openModel(engine, file, { plate = 0, add = false, config = {}, orientation = 0 } = {}) {
+  const path = `/work/${basename(file)}`;
+  engine.FS.writeFile(path, readFileSync(file));
+  const [w, d] = bedSize(config);
+  if (!add) engine.clearModel();
+  try {
+    const loaded = call(engine, 'loadModel', path, plate, w, d, add, orientation);
+    return { loaded, info: JSON.parse(engine.modelInfoJson()) };
+  } finally {
+    engine.FS.unlink(path);
+  }
+}
+
+// Slices `plate` with the full `config`. onProgress(pct, stage); thumbnails:
+// the plate pictures [{width, height, pixels}] or []. Returns the engine's
+// result plus `gcode` (and `gcode3mf` for printers that take a .gcode.3mf) as bytes.
+export function slicePlate(engine, config, { plate = 0, name = '', thumbnails = [], onProgress = () => {} } = {}) {
+  const result = JSON.parse(engine.sliceWithConfig(JSON.stringify(config), plate, '/work/out.gcode', onProgress, thumbnails, name));
+  if (!result.success) return result;
+  result.gcode = engine.FS.readFile(result.gcodePath);
+  engine.FS.unlink(result.gcodePath);
+  if (result.gcode3mfPath) {
+    result.gcode3mf = engine.FS.readFile(result.gcode3mfPath);
+    engine.FS.unlink(result.gcode3mfPath);
+  }
+  return result;
 }

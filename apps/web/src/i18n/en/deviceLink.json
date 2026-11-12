@@ -68,6 +68,7 @@
     "cameraFailed": "The camera stream failed.",
     "cameraTimeout": "The camera did not start in time.",
     "directCameraTimeout": "The direct camera link did not connect in time.",
-    "directNoVideo": "The direct link has no video for this camera."
+    "directNoVideo": "The direct link has no video for this camera.",
+    "thisSite": "this site"
   }
 }

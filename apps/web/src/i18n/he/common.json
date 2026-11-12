@@ -6,6 +6,9 @@
     "hide": "הסתרה",
     "show": "הצגה",
     "close": "סגירה",
-    "closeMessage": "סגירת ההודעה"
+    "closeMessage": "סגירת ההודעה",
+    "done": "סיום",
+    "notNow": "לא עכשיו",
+    "next": "הבא"
   }
 }

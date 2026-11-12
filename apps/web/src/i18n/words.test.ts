@@ -1,4 +1,6 @@
 import { describe, expect, it } from 'vitest';
+import BUILT_IN from './en';
+import HEBREW from './he';
 
 type Words = { [k: string]: string | Words };
 const flat = (w: Words, pre = ''): Record<string, string> =>
@@ -19,6 +21,10 @@ const named = new Set(Object.values(CODE).flatMap((src) => [...src.matchAll(/'([
 const areas = new Set(Object.keys(EN).map((k) => k.split('.')[0]));
 
 describe('words', () => {
+  it('en.ts and he.ts list every word file', () => {
+    expect(Object.keys(BUILT_IN).sort()).toEqual(byLang('en').map(([p]) => p.slice(5, -5)).sort());
+    expect(Object.keys(HEBREW).sort()).toEqual(byLang('he').map(([p]) => p.slice(5, -5)).sort());
+  });
   it('each file holds only its own area', () => {
     for (const [path, words] of Object.entries(ALL)) {
       const area = path.split('/').pop()!.replace(/\.json$/, '');

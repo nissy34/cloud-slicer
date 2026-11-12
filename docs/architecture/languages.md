@@ -26,8 +26,9 @@ errors, and G-code.
 | The choice (English unless picked); sets `<html lang dir>`; kept per browser and in the account | `src/lib/language.ts` |
 | Start in the right direction before the app loads | the script in `index.html` |
 | The picker, and taking the account's choice | `account/AccountMenu.tsx` (`Legal`, `AccountMenu`) |
-| Hebrew as one download | `src/i18n/he.ts` |
+| Every word file by name: English built in (`en.ts`), Hebrew as one download (`he.ts`). Named, not `import.meta.glob`, so Node and Pages Functions can bundle them; `words.test.ts` checks none is missing | `src/i18n/en.ts`, `src/i18n/he.ts` |
 | Device words shared with the relay (no i18next there: it speaks English) | `device/say.ts`, plugged into i18n by `state/device.ts` |
+| The AI app add-on (`apps/mcp`) runs the site's printer code in Node: it gets i18next with English only, so its answers are in English | `src/i18n/index.ts` |
 
 ## Rules
 
@@ -61,4 +62,4 @@ i18next is the most used translation library and handles Hebrew plurals.
 - Undo names and notices are made in the language of the moment; switching language
   leaves earlier ones in the old language.
 - Operating system button names quoted in the bridge steps stay English.
-- More languages: add a folder, a `<lang>.ts` like `he.ts` and a line in `LANGUAGES`.
+- More languages: add a folder, a `<lang>.ts` like `he.ts` (listing every file) and a line in `LANGUAGES`.

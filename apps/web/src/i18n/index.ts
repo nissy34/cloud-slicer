@@ -5,6 +5,7 @@
 // here: they come from the engine in English (option B, 2026-11-11).
 import i18n from 'i18next';
 import { initReactI18next } from 'react-i18next';
+import EN from './en';
 
 export type Language = 'en' | 'he';
 
@@ -15,9 +16,7 @@ export const LANGUAGES: { id: Language; name: string; rtl?: boolean }[] = [
 ];
 
 type Words = Record<string, unknown>;
-const join = (files: Record<string, Words>): Words => Object.assign({}, ...Object.values(files));
 
-const EN = join(import.meta.glob<Words>('./en/*.json', { eager: true, import: 'default' }));
 // Each other language is one file of its own (he.ts), fetched when picked.
 const LOAD: Record<Exclude<Language, 'en'>, () => Promise<{ default: Words }>> = {
   he: () => import('./he'),

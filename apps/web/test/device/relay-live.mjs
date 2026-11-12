@@ -281,6 +281,27 @@ try {
     if (still.m.result?.hostname !== 'U1-mock') throw new Error('the owner lost the bridge');
     console.log('blocking an account drops it; a forged order is refused; the owner keeps the bridge');
 
+    // An AI app's add-on (prog in its ticket) has a daily budget of messages; a page has none.
+    // The relay is started with PROGRAM_MESSAGES_PER_DAY=20 for this (device.yml).
+    if (process.env.PROGRAM_BUDGET) {
+      const budget = Number(process.env.PROGRAM_BUDGET);
+      const send = async (ticket, n) => {
+        const ws = socket(clientKey, 'u1', 'client', ticket);
+        open.add(ws);
+        await new Promise((r, j) => ((ws.onmessage = r), (ws.onclose = (e) => j(new Error(`closed early: ${e.code}`)))));
+        const closed = closeCode(ws);
+        for (let i = 0; i < n && ws.readyState === WebSocket.OPEN; i++) ws.send(JSON.stringify({ jsonrpc: '2.0', id: i, method: 'server.info' }));
+        const done = await Promise.race([closed, new Promise((r) => setTimeout(() => r(null), 3000))]);
+        ws.close();
+        return done;
+      };
+      const prog = await send(await mint('ci-prog', { prog: true }), budget + 5);
+      if (prog?.code !== 4029) throw new Error(`an add-on past its daily budget was not stopped (${prog?.code})`);
+      const page = await send(await mint('ci-page'), budget + 5);
+      if (page) throw new Error(`a page was stopped (${page.code})`);
+      console.log(`add-on budget: stopped past ${budget} messages (${prog.reason}); a page is not`);
+    }
+
     if (site) {
       // Print history: a print started on the printer itself (its screen), from a file the site tagged,
       // reaches the account with the tag as the bridge read it from the file's start, then how it ended.

@@ -107,6 +107,25 @@
   font-size: var(--t-sm);
 }
 
+/* "Use with an AI app" (components/AiAppsDialog.tsx). */
+.ai-apps {
+  display: grid;
+  gap: var(--s-5);
+  max-width: 560px;
+}
+.ai-apps p {
+  margin: 0;
+}
+.ai-apps-steps {
+  margin: 0;
+  padding-left: var(--s-7);
+  display: grid;
+  gap: var(--s-4);
+}
+.ai-apps .dv-downloads {
+  align-items: center;
+}
+
 /* New project's "Keep your changed settings?" list of changed presets. */
 .preset-changes-list {
   display: grid;
@@ -120,4 +139,23 @@
 }
 .preset-changes-names p {
   margin: 0;
+}
+
+/* "Connect an AI app" (account/LinkProgramDialog.tsx): the code to compare with the AI app's. */
+.link-program {
+  display: grid;
+  gap: var(--s-5);
+  max-width: 480px;
+}
+.link-program p {
+  margin: 0;
+}
+.link-code {
+  font: var(--t-xl)/1.2 var(--font-mono);
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-align: center;
+  padding: var(--s-4);
+  border-radius: var(--r-md);
+  background: var(--surface-2);
 }

@@ -16,9 +16,9 @@
 //
 // Needs the engine build (engine/build/engine) and the preset bundle
 // (node engine/scripts/bundle-profiles.mjs engine/build/profiles).
-import { readFileSync, writeFileSync } from 'node:fs';
+import { writeFileSync } from 'node:fs';
 import { basename } from 'node:path';
-import { DEFAULT_PRINTER, bedSize, call, openEngine } from './engine.mjs';
+import { DEFAULT_PRINTER, call, openEngine, openModel, slicePlate } from './engine.mjs';
 
 const args = process.argv.slice(2);
 const opts = { printer: DEFAULT_PRINTER, filaments: [], set: {}, plate: 0 };
@@ -63,30 +63,30 @@ if (sel.selection.printer !== opts.printer) {
 
 const full = call(engine, 'presetsFullConfig', JSON.stringify(opts.set));
 if (full.errors.length) console.error(`config errors: ${full.errors.join('; ')}`);
-const [bedW, bedD] = bedSize(full.config);
 const tInit = performance.now();
 
-const modelPath = `/work/${basename(modelArg)}`;
-engine.FS.writeFile(modelPath, readFileSync(modelArg));
-const loaded = call(engine, 'loadModel', modelPath, opts.plate, bedW, bedD, false, 0);
-const info = JSON.parse(engine.modelInfoJson());
+const { loaded, info } = openModel(engine, modelArg, { plate: opts.plate, config: full.config });
 console.error(`model: ${info.objects.length} objects on ${info.plates.length} plate(s)${loaded.isProject ? ' (project)' : ''}`);
 const tLoad = performance.now();
 
 let lastStage = '';
-const result = JSON.parse(engine.sliceWithConfig(JSON.stringify(full.config), opts.plate, '/work/out.gcode', (pct, stage) => {
-  if (stage !== lastStage) {
-    console.error(`  [${String(pct).padStart(3)}%] ${stage}`);
-    lastStage = stage;
-  }
-}, null, basename(modelArg).replace(/\.[^.]+$/, '')));
+const { gcode, gcode3mf, ...result } = slicePlate(engine, full.config, {
+  plate: opts.plate,
+  name: basename(modelArg).replace(/\.[^.]+$/, ''),
+  onProgress: (pct, stage) => {
+    if (stage !== lastStage) {
+      console.error(`  [${String(pct).padStart(3)}%] ${stage}`);
+      lastStage = stage;
+    }
+  },
+});
 const tSlice = performance.now();
 console.error(`result: ${JSON.stringify(result)}`);
 if (opts.configOut) writeFileSync(opts.configOut, JSON.stringify(full.config, null, 1));
 if (!result.success) process.exit(1);
 
-writeFileSync(outArg, engine.FS.readFile(result.gcodePath));
-if (result.gcode3mfPath) writeFileSync(`${outArg}.3mf`, engine.FS.readFile(result.gcode3mfPath));
+writeFileSync(outArg, gcode);
+if (gcode3mf) writeFileSync(`${outArg}.3mf`, gcode3mf);
 console.error(
   `timing: init ${(tInit - t0).toFixed(0)}ms, load ${(tLoad - tInit).toFixed(0)}ms, slice ${(tSlice - tLoad).toFixed(0)}ms; ` +
   `rss ${(process.memoryUsage().rss / 2 ** 20).toFixed(0)}MB`);

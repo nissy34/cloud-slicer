@@ -100,6 +100,7 @@
     "printedOf": "✓ {{printed}}/{{plates}} הודפסו",
     "printedPlates_one": "✓ משטח אחד הודפס",
     "printedPlates_two": "✓ שני משטחים הודפסו",
-    "printedPlates_other": "✓ {{count}} משטחים הודפסו"
+    "printedPlates_other": "✓ {{count}} משטחים הודפסו",
+    "aiApps": "שימוש עם אפליקציית AI…"
   }
 }

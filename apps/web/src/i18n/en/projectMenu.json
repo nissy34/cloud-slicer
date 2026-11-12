@@ -98,6 +98,7 @@
     "printed": "✓ Printed",
     "printedOf": "✓ {{printed}}/{{plates}} printed",
     "printedPlates_one": "✓ {{count}} plate printed",
-    "printedPlates_other": "✓ {{count}} plates printed"
+    "printedPlates_other": "✓ {{count}} plates printed",
+    "aiApps": "Use with an AI app…"
   }
 }

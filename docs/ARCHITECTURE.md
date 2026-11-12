@@ -9,7 +9,8 @@ files you are changing.
 - **A full slicer like desktop Orca, in the browser.** Whatever desktop Snapmaker Orca 2.4
   slices should slice here the same way, Bambu 3MF projects and colour mixes included.
 - **Slicing runs only in the browser**, on desktops and phones. There is no server
-  slicing and no separate phone app: one responsive site.
+  slicing and no separate phone app: one responsive site. (Claude can also slice on the
+  person's own computer through the MCP server, with the same engines.)
 - **$0 a month**: Cloudflare's free tier only (Pages, D1, R2, Workers with Durable Objects).
   Project files live in each person's own Google Drive, not on our storage.
 - **Every printer brand the engine ships**, Snapmaker's loaded first.
@@ -67,6 +68,7 @@ flowchart LR
 | D1 | `apps/web/migrations` | Accounts and everything they save; the project list (project files are in each person's Google Drive) | [data](architecture/data.md) |
 | Relay | `apps/device-relay` | Passes messages between browsers and bridges; alerts; bridge downloads | [relay](architecture/relay.md) |
 | Bridge | `apps/device-bridge` | Small Go program on a home computer or the printer; connects out to the relay, talks to printers in their own protocols | [bridge](architecture/bridge.md) |
+| MCP server | `apps/mcp` | Lets Claude slice on the person's own computer with the same engines and presets, under Node | [MCP server](architecture/mcp.md) |
 | CI | `.github/workflows` | Builds both engines, tests, deploys site, relay and bridge builds | [CI.md](CI.md) |
 | `packages/printer` | | Printer helpers ported from the Android app. The site doesn't use them; only CI runs their tests | |
 
@@ -111,7 +113,8 @@ Slicing in the browser: [engine](architecture/engine.md) ·
 [plates](architecture/plates.md) · [prepare tools](architecture/prepare-tools.md) ·
 [colour mixing](architecture/colour-mixing.md) · [preview](architecture/preview.md) ·
 [calibration](architecture/calibration.md) · [layout and phones](architecture/layout.md) ·
-[design system](architecture/design-system.md) · [languages](architecture/languages.md)
+[design system](architecture/design-system.md) · [languages](architecture/languages.md) ·
+[slicing from Claude](architecture/mcp.md)
 
 Accounts and storage: [accounts](architecture/accounts.md) · [data](architecture/data.md)
 

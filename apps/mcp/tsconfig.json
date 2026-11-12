@@ -1,0 +1,18 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "lib": ["ES2022", "DOM"],
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "strict": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "skipLibCheck": true,
+    "isolatedModules": true,
+    "noEmit": true,
+    "types": ["node"],
+    "typeRoots": ["./node_modules/@types"],
+    "paths": { "three": ["./node_modules/@types/three"], "fflate": ["./node_modules/fflate"], "culori": ["./node_modules/@types/culori"] }
+  },
+  "include": ["src"]
+}

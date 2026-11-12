@@ -83,7 +83,9 @@ export async function ticket(env: Env, request: Request): Promise<Response> {
   if (!user) throw new HttpError(401, 'Sign in first');
   await mayAddBridge(env, user.id, user.owner, bridgeId);
   await recordBridge(env, user.id, bridgeId, relay, now);
-  const t = await sign(env, { b: bridgeId, cams: user.owner ? 8 : MAX_CAMERAS }, user.id, TICKET_SECONDS);
+  // An AI app's add-on (signed in with its own token): the relay keeps it to a daily budget of messages (prog).
+  const program = /^Bearer /.test(request.headers.get('Authorization') ?? '');
+  const t = await sign(env, { b: bridgeId, cams: user.owner ? 8 : MAX_CAMERAS, ...(program && { prog: true }) }, user.id, TICKET_SECONDS);
   return json({ ticket: t, expiresAt: now + TICKET_SECONDS * 1000 });
 }
 

@@ -1,0 +1,20 @@
+{
+  "linkProgram": {
+    "expired": "This code has expired. Ask your AI app to sign in again for a new one.",
+    "invalid": "This code isn't valid. Check it against the one your AI app shows, or ask it to sign in again.",
+    "siteAnswered": "The site answered {{status}}",
+    "checkingAccount": "Checking your account…",
+    "signInFirst": "Sign in to Cloud Slicer first. Then this window asks you to connect your AI app.",
+    "noSignIn": "Sign-in isn't set up on this site.",
+    "codeLabel": "The code your AI app shows",
+    "checkingCode": "Checking the code…",
+    "connected": "Connected. Go back to your AI app: it's signed in as {{name}}.",
+    "turnedDown": "Turned down. Your AI app isn't signed in.",
+    "asks": "An AI app on your computer (the Cloud Slicer add-on) asks to use your account, <b>{{email}}</b>. Check that it shows this code:",
+    "willSee": "It will see your saved presets and printers, and can check your printers and upload to them. It asks you every time before it starts a print. You can sign it out from the AI app.",
+    "continueGoogle": "Continue with Google",
+    "dontConnect": "Don't connect",
+    "connect": "Connect",
+    "title": "Connect an AI app"
+  }
+}

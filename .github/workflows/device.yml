@@ -260,10 +260,10 @@ jobs:
         run: |
           node -e "const k=require('crypto').generateKeyPairSync('ec',{namedCurve:'P-256'});const f=require('fs');f.writeFileSync('$RUNNER_TEMP/pub.json',JSON.stringify(k.publicKey.export({format:'jwk'})));f.writeFileSync('$RUNNER_TEMP/priv.json',JSON.stringify(k.privateKey.export({format:'jwk'})))"
           # The test plays the site on port 8799, to hand out a setup code for its bridge.
-          npx wrangler dev --port 8798 --ip 127.0.0.1 --persist-to "$RUNNER_TEMP/relay-accounts" --var "RELAY_TICKET_PUBLIC_KEY:$(cat "$RUNNER_TEMP/pub.json")" --var "SITE_ORIGIN:http://127.0.0.1:8799" > wrangler-accounts.log 2>&1 &
+          npx wrangler dev --port 8798 --ip 127.0.0.1 --persist-to "$RUNNER_TEMP/relay-accounts" --var "RELAY_TICKET_PUBLIC_KEY:$(cat "$RUNNER_TEMP/pub.json")" --var "SITE_ORIGIN:http://127.0.0.1:8799" --var PROGRAM_MESSAGES_PER_DAY:20 > wrangler-accounts.log 2>&1 &
           for i in $(seq 1 60); do curl -fsS -o /dev/null http://127.0.0.1:8798/ && break; sleep 1; done
           cd ../web
-          FAKE_SITE_PORT=8799 RELAY_TICKET_PRIVATE_KEY="$(cat "$RUNNER_TEMP/priv.json")" node test/device/relay-live.mjs http://127.0.0.1:8798 --app ../device-bridge/dist/linux-x64
+          FAKE_SITE_PORT=8799 PROGRAM_BUDGET=20 RELAY_TICKET_PRIVATE_KEY="$(cat "$RUNNER_TEMP/priv.json")" node test/device/relay-live.mjs http://127.0.0.1:8798 --app ../device-bridge/dist/linux-x64
 
       - name: The Linux bridge on a printer joins an account with a setup code, and Remove bridge removes it
         working-directory: apps/device-relay

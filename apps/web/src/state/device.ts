@@ -13,17 +13,17 @@
 // direct printer's API key, a bridge's pairing key) is saved as the printer's
 // API key and only fetched when connecting or editing.
 import { create } from 'zustand';
-import { api, ApiError, type Device } from '../account/api';
+import { api, ApiError } from '../account/api';
 import { accountReady, deleteDevice, deleteUserSetting, getDeviceApiKey, getUserSetting, saveDevice, useAccount } from './account';
 import { takesCommands, type PrinterAddon, type PrinterCall, type PrinterError, type PrinterFacts } from '../device/addons';
 import { coalesce } from '../device/coalesce';
+import { bridgeFromDevice, printerFromDevice, runCalls, type SavedBridge, type SavedPrinter } from '../device/saved';
 import { BridgeLink, onBridgeRemoved, setBridgeTickets } from '../device/link/bridge';
 import { DirectLink } from '../device/link/direct';
 import { LinkError, type BridgeStatus, type PrinterLink, type UploadStage } from '../device/link/types';
-import { currentRelay } from '../device/config';
 import { layoutSetting } from '../device/layout';
 import { decodePairing, type Pairing } from '../device/pairing';
-import { PrinterSession, RpcError, type ConnState, type ConsoleLine, type GcodeFile } from '../device/session';
+import { PrinterSession, type ConnState, type ConsoleLine, type GcodeFile } from '../device/session';
 import type { KlipperObjects } from '../device/status';
 import type { PrintOrigin } from '../lib/prints';
 import { i18n } from '../i18n';
@@ -32,25 +32,7 @@ import { setSay } from '../device/say';
 // Words the page shares with the relay (alerts, printer errors) read in the reader's language here.
 setSay((key, vars) => i18n.t(key, vars));
 
-/** Shared by both kinds: `hiddenCameras` names the webcams the user chose not to show. */
-type PrinterCommon = { id: string; name: string; preset?: string; hiddenCameras?: string[] };
-
-export type SavedPrinter =
-  | (PrinterCommon & { kind: 'direct'; url: string; apiKey: string })
-  | (PrinterCommon & { kind: 'bridge'; relay: string; bridgeId: string; key: string; printer: string });
-
-/**
- * A bridge (the small app on a computer near the printers), saved on its own:
- * it can have no printers, and removing a printer leaves it. Its printers
- * still carry the relay, id and key so they connect on their own.
- */
-export interface SavedBridge {
-  id: string;
-  name: string;
-  relay: string;
-  bridgeId: string;
-  key: string;
-}
+export { bridgeFromDevice, printerFromDevice, runCalls, type SavedBridge, type SavedPrinter };
 
 /** Shown when a bridge needs an account; the Device tab offers Sign in next to it. */
 export const bridgeSignIn = () => i18n.t('deviceLink.bridgeSignIn');
@@ -178,23 +160,6 @@ function store(key: string, value: unknown) {
   }
 }
 
-/** A saved account printer as the Device tab sees it (secret not filled in). */
-export function printerFromDevice(d: Device): SavedPrinter | null {
-  const x = d.extra ?? {};
-  const hidden = Array.isArray(x.hiddenCameras) ? x.hiddenCameras.filter((n): n is string => typeof n === 'string') : [];
-  const common = { ...(d.preset && { preset: d.preset }), ...(hidden.length && { hiddenCameras: hidden }) };
-  if (x.kind === 'bridge' && typeof x.relay === 'string' && typeof x.bridgeId === 'string') {
-    return { id: d.id, name: d.name, kind: 'bridge', relay: currentRelay(x.relay), bridgeId: x.bridgeId, key: '', printer: typeof x.printer === 'string' ? x.printer : '', ...common };
-  }
-  return d.url ? { id: d.id, name: d.name, kind: 'direct', url: d.url, apiKey: '', ...common } : null;
-}
-
-/** A saved bridge (extra.kind 'bridge-agent'); printers through it are kind 'bridge'. */
-export function bridgeFromDevice(d: Device): SavedBridge | null {
-  const x = d.extra ?? {};
-  return x.kind === 'bridge-agent' && typeof x.relay === 'string' && typeof x.bridgeId === 'string' ? { id: d.id, name: d.name, relay: currentRelay(x.relay), bridgeId: x.bridgeId, key: '' } : null;
-}
-
 export const bridgeInput = (b: SavedBridge) => ({ id: b.id, name: b.name, url: '', apiKey: b.key, extra: { kind: 'bridge-agent', relay: b.relay, bridgeId: b.bridgeId } });
 
 /** What to call a bridge before the user names it: by its computer's name or system when the bridge says. */
@@ -213,34 +178,6 @@ export function bridgeLabel(status?: { host?: string; system?: string } | null):
 export const isPlainBridgeName = (name: string) => name === 'Bridge' || name === bridgeLabel();
 
 const secretOf = (p: SavedPrinter) => (p.kind === 'direct' ? p.apiKey : p.key);
-/**
- * Runs a print start's calls in order. Commands show in the console like any
- * other. A call the printer doesn't have (-32601: older firmware, or a bridge
- * that doesn't pass it on) runs its orElse calls instead, and an answer of
- * { state: 'error' } (Snapmaker's own calls refuse that way) stops the start.
- */
-export async function runCalls(s: Pick<PrinterSession, 'gcode' | 'rpc'>, calls: PrinterCall[]): Promise<void> {
-  for (const call of calls) {
-    const script = call.method === 'printer.gcode.script' ? (call.params as { script?: unknown } | undefined)?.script : undefined;
-    if (typeof script === 'string') {
-      await s.gcode(script, call.timeoutMs);
-      continue;
-    }
-    let result: unknown;
-    try {
-      result = await s.rpc(call.method, call.params, call.timeoutMs);
-    } catch (e) {
-      if (call.orElse && e instanceof RpcError && e.code === -32601) {
-        await runCalls(s, call.orElse);
-        continue;
-      }
-      throw e;
-    }
-    const r = result as { state?: unknown; message?: unknown } | null;
-    if (r && typeof r === 'object' && r.state === 'error') throw new Error(typeof r.message === 'string' && r.message ? r.message : i18n.t('deviceLink.didNotStart'));
-  }
-}
-
 const withSecret = (p: SavedPrinter, secret: string): SavedPrinter => (p.kind === 'direct' ? { ...p, apiKey: secret } : { ...p, key: secret });
 
 export function deviceInput(p: SavedPrinter) {
