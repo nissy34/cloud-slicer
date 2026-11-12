@@ -60,6 +60,7 @@ async function run<T>(fn: () => Promise<T>) {
     await syncAccount();
     return text(await fn());
   } catch (e) {
+    if (e instanceof NeedsYes) return text(e.answer);
     return failure(e);
   }
 }
@@ -483,6 +484,15 @@ server.registerTool(
   () => run(async () => (await account.signOut(), { signedIn: false })),
 );
 
+/** Not an error: the action waits for the person's yes in the chat (see `asker`). */
+class NeedsYes extends Error {
+  readonly answer: Record<string, unknown>;
+  constructor(answer: Record<string, unknown>) {
+    super('waiting for a yes');
+    this.answer = answer;
+  }
+}
+
 /** Codes for a yes given in the chat (apps that can't show a popup), each for one exact action. */
 const chatYes = new Map<string, { action: string; until: number }>();
 const CHAT_YES_MS = 5 * 60_000;
@@ -509,11 +519,12 @@ function asker(tool: string, args: Record<string, unknown>, code: string | undef
     }
     const fresh = String(randomInt(100000, 1000000));
     chatYes.set(fresh, { action, until: now + CHAT_YES_MS });
-    throw new Error(
-      `Nothing was done yet: this needs the person's yes. Ask them in the chat, in these words: "${message}" ` +
-        `Only if they answer yes, call ${tool} again with exactly the same arguments plus confirm: "${fresh}" (good for 5 minutes, once). ` +
-        'If they say no or anything else, don\'t call it again.',
-    );
+    throw new NeedsYes({
+      done: false,
+      askThePerson: message,
+      confirm: fresh,
+      note: `Nothing was done yet. Ask the person this question in your reply, in plain words, without the code. Only if they say yes, call ${tool} again with exactly the same arguments plus this confirm (once, within 5 minutes). If they say no, leave it.`,
+    });
   };
 }
 

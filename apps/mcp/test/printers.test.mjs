@@ -240,10 +240,12 @@ test('an app that can\'t ask on screen asks in the chat: only a fresh code for t
   const other = join(dir, 'other.gcode');
   writeFileSync(other, '; filament_type = PLA\nG28\nM84\n');
   const send = (args) => tool(plain, 'send_to_printer', { printer: 'Voron', print: true, ...args });
-  const codeIn = (r) => r.error.match(/confirm: "(\d{6})"/)?.[1];
+  const codeIn = (r) => (/^\d{6}$/.test(r.confirm ?? '') ? r.confirm : undefined);
 
   const first = await send({ file });
-  assert.match(first.error, /Nothing was done yet: this needs the person's yes\. Ask them in the chat, in these words: "Start printing cube\.gcode on Voron\?/);
+  assert.equal(first.error, undefined, 'not shown as a failure');
+  assert.match(first.askThePerson, /^Start printing cube\.gcode on Voron\?/);
+  assert.match(first.note, /Nothing was done yet/);
   const code = codeIn(first);
   assert.ok(code, first.error);
   assert.equal(voron.files.has('cube.gcode'), false, 'nothing was sent');
