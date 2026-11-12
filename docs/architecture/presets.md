@@ -94,8 +94,8 @@ desktop, until its preset is picked again.
   `filament/filament_allow_list.json` (`sections.filament_order`), which the engine
   worker passes along; brands and engines without one sort by name (`test/filament-list.mjs`).
 - Signed out (on a site with sign-in), the wizard opens on a welcome page before its
-  numbered steps: printer pictures beside **Sign in with Google** (Google's button look,
-  `--google-*` tokens), "or", **Continue without signing in** and Not now (Back on Default
+  numbered steps: an animated print (`public/welcome/print.svg`, still with reduced motion) beside **Sign in with Google** (Google's button look,
+  `--google-*` tokens), "or", **Continue without signing in**; ✕ closes it (Back on Default
   engine returns to it). Signing in there closes the wizard;
   the account's printers, settings and Continue card take over, and an account with no
   printers yet gets the wizard again from Default engine. It waits for the account's data

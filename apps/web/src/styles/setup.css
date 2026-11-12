@@ -209,16 +209,13 @@
 }
 .welcome-art {
   display: grid;
-  grid-template-columns: 1fr 1fr;
-  align-content: center;
-  gap: var(--s-4);
-  padding: var(--s-7);
+  place-items: center;
+  padding: var(--s-6);
   background: var(--accent-faint);
 }
 .welcome-art img {
   width: 100%;
-  aspect-ratio: 1;
-  object-fit: contain;
+  max-width: 320px;
 }
 .welcome-side {
   display: grid;
@@ -277,8 +274,11 @@
     grid-template-columns: 1fr;
   }
   .welcome-art {
-    grid-template-columns: repeat(4, 1fr);
-    padding: var(--s-6) var(--s-8) var(--s-6) var(--s-6);
+    padding: var(--s-4);
+  }
+  .welcome-art img {
+    width: auto;
+    height: 130px;
   }
   .welcome-side {
     padding: var(--s-6);
@@ -388,3 +388,4 @@
     display: inline;
   }
 }
+

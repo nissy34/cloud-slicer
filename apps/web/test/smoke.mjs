@@ -78,7 +78,7 @@ try {
   // First visit: the setup wizard opens by itself.
   const wizard = page.getByRole('dialog', { name: 'Set up your printers' });
   await wizard.waitFor({ timeout: 30000 });
-  await wizard.getByRole('button', { name: 'Not now' }).click();
+  await wizard.getByRole('button', { name: 'Close window' }).click();
   console.log('setup wizard shown and closed');
 
   await page.getByTestId('model-input').setInputFiles(model);

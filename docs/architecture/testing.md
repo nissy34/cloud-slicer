@@ -124,7 +124,7 @@ for the rest):
 - Touch drags in tests must move more than 6 px on the first step (long-press wiggle limit).
 - The setup wizard can open a moment after "Open a model to start" shows (it waits for the
   engine, the account and the Continue card). Dismiss it with
-  `page.addLocatorHandler(wizard, (d) => d.getByRole('button', { name: 'Not now' }).click())`,
+  `page.addLocatorHandler(wizard, (d) => d.getByRole('button', { name: 'Close window' }).click())`,
   never with a one-off `isVisible()` check, which misses a late wizard that then covers the page.
 - `test/accounts.mjs` runs its tests in order against one database: a test that gives a shared
   person (alice, bob…) a preset or setting removes it again, so later tests start from a known

@@ -67,7 +67,7 @@ async function open(engine, printer, viewport = { width: 1280, height: 900 }) {
   const wizard = page.getByRole('dialog', { name: 'Set up your printers' });
   await wizard.waitFor({ timeout: 30000 });
   if (!printer) {
-    await wizard.getByRole('button', { name: 'Not now' }).click();
+    await wizard.getByRole('button', { name: 'Close window' }).click();
   } else {
     const search = wizard.getByRole('searchbox', { name: 'Search printers' });
     while (!(await search.isVisible())) await wizard.getByRole('button', { name: 'Next' }).click();

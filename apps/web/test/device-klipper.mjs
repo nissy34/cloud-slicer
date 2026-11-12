@@ -201,7 +201,7 @@ try {
   page.on('pageerror', (e) => console.error(`page error: ${e.message}`));
   await page.goto(site);
   // The setup wizard only opens once the engine has loaded; CI builds the site without one.
-  await page.getByRole('dialog', { name: 'Set up your printers' }).getByRole('button', { name: 'Not now' })
+  await page.getByRole('dialog', { name: 'Set up your printers' }).getByRole('button', { name: 'Close window' })
     .click({ timeout: 8_000 }).catch(() => {});
   await page.getByRole('tab', { name: 'Device' }).click();
 

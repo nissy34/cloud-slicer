@@ -73,7 +73,7 @@ async function open(viewport) {
   await page.getByText('Open a model to start').waitFor({ timeout: 120000 });
   const wizard = page.getByRole('dialog', { name: 'Set up your printers' });
   // The wizard can open a moment after the page is ready (it waits for the engine, the account and the Continue card): dismiss it whenever it shows.
-  await page.addLocatorHandler(wizard, (d) => d.getByRole('button', { name: 'Not now' }).click());
+  await page.addLocatorHandler(wizard, (d) => d.getByRole('button', { name: 'Close window' }).click());
   return page;
 }
 

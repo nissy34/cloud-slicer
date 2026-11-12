@@ -1304,7 +1304,7 @@ if (withApp)
       await page.getByText('Open a model to start').waitFor({ timeout: 120000 });
       await page.getByRole('button', { name: /Alice/ }).waitFor({ timeout: 60000 });
       await wizard.waitFor({ timeout: 5000 }).catch(() => {});
-      if (await wizard.isVisible().catch(() => false)) await wizard.getByRole('button', { name: 'Not now' }).click();
+      if (await wizard.isVisible().catch(() => false)) await wizard.getByRole('button', { name: 'Close window' }).click();
       await page.getByRole('button', { name: /Alice/ }).click();
       await page.getByRole('button', { name: 'Admin: people and limits' }).click();
       const admin = page.getByTestId('admin');
@@ -1493,7 +1493,7 @@ if (withApp)
       await page.goto(HOST);
       await page.getByText('Open a model to start').waitFor({ timeout: 120000 });
       const wizard = page.getByRole('dialog', { name: 'Set up your printers' });
-      if (await wizard.isVisible().catch(() => false)) await wizard.getByRole('button', { name: 'Not now' }).click();
+      if (await wizard.isVisible().catch(() => false)) await wizard.getByRole('button', { name: 'Close window' }).click();
       await page.getByRole('button', { name: /Bob/ }).waitFor({ timeout: 30000 });
 
       await page.getByTestId('model-input').setInputFiles(join(web, '../../fixtures/3DBenchy.stl'));
@@ -1712,7 +1712,7 @@ if (withApp)
       await projectButton.getByText('Saved', { exact: true }).waitFor({ timeout: 60000 });
       assert.equal(await layer.inputValue(), '0.28', 'the saved project came back');
       // Answered, the setup wizard comes next when no printers are set up (this test on its own).
-      if (await wizard.waitFor({ timeout: 3000 }).then(() => true, () => false)) await wizard.getByRole('button', { name: 'Not now' }).click();
+      if (await wizard.waitFor({ timeout: 3000 }).then(() => true, () => false)) await wizard.getByRole('button', { name: 'Close window' }).click();
 
       await projectButton.click();
       await page.getByRole('menuitem', { name: 'New project', exact: true }).click();
@@ -1919,7 +1919,7 @@ if (withApp)
       await page.goto(HOST);
       await page.getByText('Open a model to start').waitFor({ timeout: 120000 });
       const wizard = page.getByRole('dialog', { name: 'Set up your printers' });
-      if (await wizard.waitFor({ timeout: 5000 }).then(() => true, () => false)) await wizard.getByRole('button', { name: 'Not now' }).click();
+      if (await wizard.waitFor({ timeout: 5000 }).then(() => true, () => false)) await wizard.getByRole('button', { name: 'Close window' }).click();
       // Signed in as far as the page knows before the menu is looked at.
       await page.getByRole('button', { name: /Jill/ }).waitFor({ timeout: 30000 });
       await page.getByRole('button', { name: /^Project/ }).click();
@@ -1986,7 +1986,7 @@ if (withApp)
       await page.goto(HOST);
       await page.getByText('Open a model to start').waitFor({ timeout: 120000 });
       const wizard = page.getByRole('dialog', { name: 'Set up your printers' });
-      if (await wizard.waitFor({ timeout: 5000 }).then(() => true, () => false)) await wizard.getByRole('button', { name: 'Not now' }).click();
+      if (await wizard.waitFor({ timeout: 5000 }).then(() => true, () => false)) await wizard.getByRole('button', { name: 'Close window' }).click();
       await page.getByRole('button', { name: /Pia/ }).waitFor({ timeout: 30000 });
 
       // The empty plate's button opens Google's window in a window of its own, without the app's isolation.
@@ -2072,7 +2072,7 @@ if (withApp)
       await page.goto(HOST);
       await page.getByText('Open a model to start').waitFor({ timeout: 120000 });
       const wizard = page.getByRole('dialog', { name: 'Set up your printers' });
-      if (await wizard.waitFor({ timeout: 5000 }).then(() => true, () => false)) await wizard.getByRole('button', { name: 'Not now' }).click();
+      if (await wizard.waitFor({ timeout: 5000 }).then(() => true, () => false)) await wizard.getByRole('button', { name: 'Close window' }).click();
       await page.getByRole('button', { name: /Mona/ }).waitFor({ timeout: 30000 });
       assert.equal(await page.getByTestId('empty-open-from-drive').isDisabled(), true);
       await page.getByTestId('empty-drive-note').getByText('Connect Google Drive in the account menu first.').waitFor();
@@ -2099,7 +2099,7 @@ if (withApp)
       await context.addCookies([...kim.jar.get(new URL(HOST).host)].map(([name, value]) => ({ name, value, url: HOST })));
       const page = await context.newPage();
       page.on('pageerror', (e) => console.error(`page error: ${e.message}`));
-      await page.addLocatorHandler(page.getByRole('dialog', { name: 'Set up your printers' }), (d) => d.getByRole('button', { name: 'Not now' }).click());
+      await page.addLocatorHandler(page.getByRole('dialog', { name: 'Set up your printers' }), (d) => d.getByRole('button', { name: 'Close window' }).click());
       await page.goto(HOST);
       await page.getByText('Open a model to start').waitFor({ timeout: 120000 });
       await page.getByTestId('model-input').setInputFiles(join(web, '../../fixtures/3DBenchy.stl'));
@@ -2190,7 +2190,7 @@ if (withApp)
       await context.addCookies([...hank.jar.get(new URL(HOST).host)].map(([name, value]) => ({ name, value, url: HOST })));
       const a = await context.newPage();
       a.on('pageerror', (e) => console.error(`page error: ${e.message}`));
-      await a.addLocatorHandler(a.getByRole('dialog', { name: 'Set up your printers' }), (d) => d.getByRole('button', { name: 'Not now' }).click());
+      await a.addLocatorHandler(a.getByRole('dialog', { name: 'Set up your printers' }), (d) => d.getByRole('button', { name: 'Close window' }).click());
       await a.goto(HOST);
       const changeLayer = async (value) => {
         const layer = a.getByLabel('Layer height', { exact: true });
@@ -2245,7 +2245,7 @@ if (withApp)
       await context.addCookies([...ivy.jar.get(new URL(HOST).host)].map(([name, value]) => ({ name, value, url: HOST })));
       const page = await context.newPage();
       page.on('pageerror', (e) => console.error(`page error: ${e.message}`));
-      await page.addLocatorHandler(page.getByRole('dialog', { name: 'Set up your printers' }), (d) => d.getByRole('button', { name: 'Not now' }).click());
+      await page.addLocatorHandler(page.getByRole('dialog', { name: 'Set up your printers' }), (d) => d.getByRole('button', { name: 'Close window' }).click());
       await page.goto(HOST);
       await page.getByText('Open a model to start').waitFor({ timeout: 120000 });
 

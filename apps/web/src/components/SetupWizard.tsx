@@ -232,7 +232,7 @@ function Wizard({ onClose }: { onClose: () => void }) {
         </>
       )}
       <div className="wizard-body">
-        {step === 'welcome' && <WelcomeStep error={signInError} onSetup={() => setStep('engine')} onLater={onClose} />}
+        {step === 'welcome' && <WelcomeStep error={signInError} onSetup={() => setStep('engine')} />}
         {step === 'engine' && <EngineStep chosen={engine} onChange={setEngine} />}
         {step === 'printers' && <PrinterStep all={allPrinters} chosen={printers} onChange={setPrinters} />}
         {step === 'printers' && loadingBrands && <p className="muted small">Loading the printer profiles…</p>}
@@ -244,23 +244,17 @@ function Wizard({ onClose }: { onClose: () => void }) {
   );
 }
 
-/** Printer pictures on the welcome page: any brand works. */
-const WELCOME_COVERS = ['covers/Snapmaker/Snapmaker_U1.png', 'covers/BBL/Bambu_Lab_X1_Carbon.png', 'covers/Prusa/Prusa_MK4S.png', 'covers/BBL/Bambu_Lab_A1.png'];
-
 /**
  * Before the numbered steps, signed out: someone who already has an account
  * signs in and gets their printers, filaments, presets and projects, instead of
  * picking them all again (desktop Orca and Bambu Studio offer sign-in on their
  * first page too). Choices made here while signed out move to the account later.
  */
-function WelcomeStep({ error, onSetup, onLater }: { error: string; onSetup: () => void; onLater: () => void }) {
-  const flavor = useSlicer((s) => s.flavor);
+function WelcomeStep({ error, onSetup }: { error: string; onSetup: () => void }) {
   return (
     <div className="welcome-page">
       <div className="welcome-art" aria-hidden>
-        {WELCOME_COVERS.map((c) => (
-          <img key={c} src={coverUrl(flavor, c)} alt="" />
-        ))}
+        <img src="/welcome/print.svg" alt="" />
       </div>
       <div className="welcome-side">
         <img src="/icon.svg" alt="" className="welcome-logo" />
@@ -274,9 +268,6 @@ function WelcomeStep({ error, onSetup, onLater }: { error: string; onSetup: () =
         <div className="welcome-or">or</div>
         <button className="secondary welcome-wide" onClick={onSetup}>
           Continue without signing in
-        </button>
-        <button className="quiet" onClick={onLater}>
-          Not now
         </button>
       </div>
     </div>

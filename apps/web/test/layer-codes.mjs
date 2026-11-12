@@ -44,7 +44,7 @@ async function sliced(viewport, mobile, filaments = 1) {
   await page.getByText('Open a model to start').waitFor({ timeout: 120000 });
   const wizard = page.getByRole('dialog', { name: 'Set up your printers' });
   await wizard.waitFor({ timeout: 30000 });
-  await wizard.getByRole('button', { name: 'Not now' }).click();
+  await wizard.getByRole('button', { name: 'Close window' }).click();
   for (let n = 1; n < filaments; n++) await page.getByRole('button', { name: 'Add filament' }).click();
   await page.getByTestId('model-input').setInputFiles(model);
   await page.getByText('Ready to slice').waitFor({ timeout: 120000 });
