@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { OptionDef, ProjectInfo } from '../engine/protocol';
-import { flowFill, losesNothing, mainFilament, standardFlowValue, switchPlan, type PlanInput } from './engine-switch';
+import { carriedRecipe, flowFill, losesNothing, standardFlowValue, switchPlan, type PlanInput } from './engine-switch';
 import type { MixRow } from './mixing';
 import type { SharedTable } from './preset-engines';
 
@@ -30,13 +30,18 @@ const row = (r: Partial<MixRow>): MixRow => ({
   ...r,
 });
 
-describe('mainFilament', () => {
-  it('is the filament a mix uses most', () => {
-    expect(mainFilament(row({ mixBPercent: 30 }))).toBe(1);
-    expect(mainFilament(row({ mixBPercent: 70 }))).toBe(2);
-    expect(mainFilament(row({ mixBPercent: 50 }))).toBe(1);
-    expect(mainFilament(row({ pattern: '1222' }))).toBe(2);
-    expect(mainFilament(row({ gradientIds: '234', gradientWeights: '20/30/50' }))).toBe(4);
+describe('carriedRecipe', () => {
+  it('keeps Ratio, Match and Gradient mixes as they are, both ways', () => {
+    for (const r of [row({ mixBPercent: 30 }), row({ gradientIds: '234', gradientWeights: '20/30/50', distributionMode: 0 }), row({ gradientEnabled: true, uiMode: 3 })])
+      for (const to of ['orca', 'snapmaker'] as const) expect(carriedRecipe(r, to)).toMatchObject({ pattern: '', mixBPercent: r.mixBPercent, gradientIds: r.gradientIds, gradientWeights: r.gradientWeights, gradientEnabled: r.gradientEnabled, uiMode: r.uiMode });
+  });
+  it('keeps a Cycle mix for Snapmaker Orca', () => {
+    expect(carriedRecipe(row({ pattern: '1222', uiMode: 1 }), 'snapmaker')).toMatchObject({ pattern: '1222', uiMode: 1 });
+  });
+  it('makes a Cycle mix a Ratio mix of the same shares for OrcaSlicer', () => {
+    expect(carriedRecipe(row({ pattern: '1222', uiMode: 1, distributionMode: 0 }), 'orca')).toMatchObject({ pattern: '', uiMode: 0, componentA: 1, componentB: 2, mixBPercent: 75, ratioA: 1, ratioB: 3, distributionMode: 2, gradientEnabled: false });
+    expect(carriedRecipe(row({ pattern: '1123', uiMode: 1 }), 'orca')).toMatchObject({ pattern: '', uiMode: 0, gradientIds: '123', gradientWeights: '50/25/25', distributionMode: 0 });
+    expect(carriedRecipe(row({ pattern: '2[10]', componentA: 2, componentB: 10, uiMode: 1 }), 'orca')).toMatchObject({ componentA: 2, componentB: 10, mixBPercent: 50 });
   });
 });
 
@@ -86,7 +91,8 @@ describe('switchPlan', () => {
 
   it('lists what switching to OrcaSlicer loses, and what carries over', () => {
     const plan = switchPlan(input, table);
-    expect(plan.mixes).toEqual([{ id: 3, label: 'F1 20% + F2 80%', colour: '#808080', becomes: 2 }]);
+    expect(plan.mixes).toEqual([]);
+    expect(plan.carried).toEqual([{ id: 3, recipe: expect.objectContaining({ componentA: 1, componentB: 2, mixBPercent: 80 }) }]);
     expect(plan.highFlowChanged.map((d) => [d.key, d.where])).toEqual([
       ['outer_wall_speed', undefined],
       ['outer_wall_speed', 'Cube, Part'],
@@ -113,9 +119,19 @@ describe('switchPlan', () => {
     expect(losesNothing(plan)).toBe(true);
   });
 
-  it("back to Snapmaker Orca, OrcaSlicer's own mixes become plain filaments too", () => {
-    const plan = switchPlan({ ...input, from: 'orca', to: 'snapmaker', overrides: {}, mixes: [row({ virtualId: 3, mixBPercent: 30 })], project: null }, table);
-    expect(plan.mixes).toEqual([{ id: 3, label: 'F1 70% + F2 30%', colour: '#808080', becomes: 1 }]);
+  it("back to Snapmaker Orca, OrcaSlicer's own mixes come along with nothing to tell", () => {
+    const plan = switchPlan({ ...input, from: 'orca', to: 'snapmaker', overrides: {}, mixes: [row({ virtualId: 4, mixBPercent: 30 }), row({ virtualId: 3, mixBPercent: 60 })], project: null }, table);
+    expect(plan.mixes).toEqual([]);
+    expect(plan.carried.map((m) => [m.id, m.recipe.mixBPercent])).toEqual([
+      [3, 60],
+      [4, 30],
+    ]);
+    expect(losesNothing(plan)).toBe(true);
+  });
+
+  it('a Cycle mix going to OrcaSlicer is worth a word', () => {
+    const plan = switchPlan({ ...input, overrides: {}, project: null, mixes: [row({ virtualId: 3, pattern: '1222', uiMode: 1 })] }, table);
+    expect(plan.mixes).toEqual([{ id: 3, label: 'Cycle: F1 25% + F2 75%', colour: '#808080', becomes: 'Ratio: F1 25% + F2 75%' }]);
     expect(losesNothing(plan)).toBe(false);
   });
 
