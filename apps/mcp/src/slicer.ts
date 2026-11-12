@@ -10,6 +10,7 @@ import { emptyProjectMessage, pickProcess, printerLabel, projectOverrides } from
 import { objectSettingGroups } from '../../web/src/lib/object-settings';
 import { checkOptionValue } from '../../web/src/lib/option-check';
 import { pickFilamentPreset, splitList } from '../../web/src/lib/presets';
+import { expandPending, presetForEngine, type PresetType, type StoredPreset } from '../../web/src/lib/preset-engines';
 import { bedSize } from '../../web/src/lib/colour';
 import { thumbnailSizes } from '../../web/src/lib/thumbnail';
 import { EngineClient, EngineStopped, type EngineInfo, type Progress } from './engine-client';
@@ -71,6 +72,9 @@ export class Slicer {
   base: OrcaConfig = {};
   model: ModelInfo | null = null;
   modelFile: string | null = null;
+  /** The person's own presets (from their account), loaded into every engine like the site does. */
+  private mine: StoredPreset[] = [];
+  private mineKey = '[]';
 
   /** `root`: the folder with engines/<flavor>/ (the build output). */
   constructor(private root: string, private here: string) {}
@@ -92,6 +96,7 @@ export class Slicer {
     this.model = null;
     this.modelFile = null;
     this.overrides = {};
+    if (this.mine.length) await this.loadMine();
     await this.select({ printer: this.lists?.selection.printer ?? DEFAULT_PRINTER });
     if (restarted) throw new EngineStopped('The engine stopped (often: it ran out of memory). It has started again; open the model again.');
     return this.client;
@@ -113,6 +118,46 @@ export class Slicer {
           .filter((m) => m.printers.length),
       }))
       .filter((v) => v.models.length);
+  }
+
+  /**
+   * Takes the person's own presets (their account's; [] takes them out). A running
+   * engine reloads its presets and keeps the chosen ones when they are still there.
+   */
+  async setUserPresets(presets: StoredPreset[]) {
+    const key = JSON.stringify(presets.map(({ type, name, inherits, config, engines }) => ({ type, name, inherits, config, engines })));
+    if (key === this.mineKey) return;
+    this.mine = presets;
+    this.mineKey = key;
+    if (this.client && !this.client.stopped) {
+      await this.loadMine();
+      await this.select({});
+    }
+  }
+
+  /** The presets taken last (kept when the account can't be reached). */
+  mineNow() {
+    return this.mine;
+  }
+
+  /** Names of the person's own presets of `type`. */
+  myPresets(type: PresetType) {
+    return this.mine.filter((p) => p.type === type).map((p) => p.name);
+  }
+
+  /** The site's store.ts engineFiles: each preset as this engine loads it, over its base preset. */
+  private async loadMine() {
+    const files = this.mine.map((p) => presetForEngine(p, this.flavor, this.options as never));
+    // A printer of their own needs its base printer's brand in first.
+    for (const f of files) if (f.type === 'printer') await this.loadBrandOf(f.inherits);
+    const ready = await Promise.all(
+      files.map(async ({ type, name, inherits, config, pending }, i) => {
+        if (!pending) return { type, name, inherits, config };
+        const base = await this.call<OrcaConfig>('read', 'presetConfig', type, inherits).catch(() => ({}));
+        return { type, name, inherits, config: expandPending(config, pending, base ?? {}, this.mine[i].engines?.flowIndex) };
+      }),
+    );
+    await this.call('userPresets', ready);
   }
 
   /**

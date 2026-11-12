@@ -65,6 +65,34 @@ export function addBrands(engine, profilesDir, files, loaded = new Set()) {
   return added.length > 0;
 }
 
+// Puts the person's own presets in as desktop Orca user presets, replacing any
+// there before (engine-worker.js `userPresets`): one JSON file per preset under
+// user/default/, then every preset reloads. `presets`: [{type, name, inherits,
+// config}] with `type` printer | filament | process. Returns the engine's counts.
+export function writeUserPresets(engine, presets) {
+  const root = `${DATA_DIR}/user`;
+  const remove = (path) => {
+    if (!engine.FS.analyzePath(path).exists) return;
+    for (const name of engine.FS.readdir(path)) {
+      if (name === '.' || name === '..') continue;
+      const child = `${path}/${name}`;
+      if (engine.FS.isDir(engine.FS.stat(child).mode)) remove(child);
+      else engine.FS.unlink(child);
+    }
+    engine.FS.rmdir(path);
+  };
+  remove(root);
+  const folder = { printer: 'machine', filament: 'filament', process: 'process' };
+  for (const p of presets) {
+    const dir = `${root}/default/${folder[p.type]}`;
+    engine.FS.mkdirTree(dir);
+    // Orca skips a user preset file without a version.
+    const preset = { ...p.config, name: p.name, inherits: p.inherits, from: 'User', is_custom_defined: '0', version: '1.0.0' };
+    engine.FS.writeFile(`${dir}/${p.name}.json`, JSON.stringify(preset));
+  }
+  return call(engine, 'presetsLoad', DATA_DIR).counts;
+}
+
 // Opens a model file from disk as the project (or adds it to the open one), on
 // plates the size of `config`'s bed. Returns the engine's loadModel answer and
 // the model info.

@@ -47,6 +47,8 @@ export class Account {
   private pending: (Pending & { deviceCode: string; interval: number; timer?: NodeJS.Timeout; failed?: string }) | null = null;
 
   private file: string;
+  /** Called after signing in or out (or the site ending the sign-in). */
+  onChange?: () => void;
 
   constructor(file = accountFile()) {
     this.file = file;
@@ -66,7 +68,7 @@ export class Account {
   async status() {
     if (this.saved) {
       const me = await this.me().catch((e: Error) => ({ error: e.message }));
-      if ('error' in me) return { signedIn: true, site: SITE, problem: me.error };
+      if ('error' in me) return { signedIn: this.signedIn, site: SITE, problem: me.error };
       return { signedIn: true, site: SITE, name: me.name, email: me.email };
     }
     if (this.pending?.failed) {
@@ -162,6 +164,7 @@ export class Account {
     if (me) Object.assign(s, { name: me.name, email: me.email });
     mkdirSync(dirname(this.file), { recursive: true });
     writeFileSync(this.file, JSON.stringify(s), { mode: 0o600 });
+    this.onChange?.();
   }
 
   /** Signs out: ends the session on the site and forgets it here. */
@@ -170,6 +173,7 @@ export class Account {
     const s = this.saved;
     this.saved = null;
     rmSync(this.file, { force: true });
+    this.onChange?.();
     if (s) await fetch(`${SITE}/api/auth/sign-out`, { method: 'POST', headers: { authorization: `Bearer ${s.token}`, 'content-type': 'application/json' }, body: '{}' }).catch(() => {});
   }
 
@@ -180,11 +184,7 @@ export class Account {
       ...init,
       headers: { authorization: `Bearer ${this.saved.token}`, 'content-type': 'application/json', ...init.headers },
     });
-    if (r.status === 401) {
-      this.saved = null;
-      rmSync(this.file, { force: true });
-      throw new SignInError('The sign-in ended (signed out on the site, or it expired). Use sign_in again.');
-    }
+    if (r.status === 401) this.ended();
     const body = (await r.json().catch(() => ({}))) as T & { error?: string };
     if (!r.ok) throw new Error(body.error ?? `The site answered ${r.status}`);
     return body;
@@ -192,7 +192,15 @@ export class Account {
 
   async me(): Promise<{ name: string; email: string }> {
     const r = await this.api<{ user: { name: string; email: string } | null }>('/me');
-    if (!r.user) throw new SignInError('The sign-in ended. Use sign_in again.');
+    if (!r.user) this.ended();
     return r.user;
+  }
+
+  /** The site no longer knows the session (signed out there, blocked, or expired). */
+  private ended(): never {
+    this.saved = null;
+    rmSync(this.file, { force: true });
+    this.onChange?.();
+    throw new SignInError('The sign-in ended (signed out on the site, or it expired). Use sign_in again.');
   }
 }

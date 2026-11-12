@@ -14,12 +14,29 @@ import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
 import { PNG } from 'pngjs';
 import { z } from 'zod';
 import { formatDuration } from '../../web/src/lib/format';
+import type { StoredPreset } from '../../web/src/lib/preset-engines';
 import { Account } from './account';
 import { ENGINES, Slicer, type ModelInfo, type SliceResult } from './slicer';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const slicer = new Slicer(here, here);
 const account = new Account();
+/** When the account's presets were last fetched; 0 asks again on the next tool call. */
+let presetsAt = 0;
+account.onChange = () => (presetsAt = 0);
+
+/**
+ * Brings the person's own presets (from their account) into the engine: at most once a
+ * minute while tools are used, and at once after signing in or out. Offline, or with
+ * the site down, it carries on with what it has.
+ */
+async function syncAccount() {
+  if (!account.signedIn) return slicer.setUserPresets([]);
+  if (Date.now() - presetsAt < 60_000) return;
+  presetsAt = Date.now();
+  const r = await account.api<{ presets: StoredPreset[] }>('/presets', { signal: AbortSignal.timeout(8000) }).catch(() => null);
+  await slicer.setUserPresets(r?.presets ?? (account.signedIn ? slicer.mineNow() : []));
+}
 const server = new McpServer(
   { name: 'cloud-slicer', version: '0.1.0' },
   {
@@ -35,6 +52,7 @@ const text = (value: unknown) => ({ content: [{ type: 'text' as const, text: typ
 const failure = (e: unknown) => ({ ...text(e instanceof Error ? e.message : String(e)), isError: true });
 async function run<T>(fn: () => Promise<T>) {
   try {
+    await syncAccount();
     return text(await fn());
   } catch (e) {
     return failure(e);
@@ -156,15 +174,20 @@ server.registerTool(
   'find_printers',
   {
     title: 'Find printers',
-    description: 'Printer presets by brand and model, e.g. search "bambu a1" or "prusa mk4". Use a printer name from here in choose_presets.',
+    description:
+      'Printer presets by brand and model, e.g. search "bambu a1" or "prusa mk4", and (signed in) the person\'s own printer presets under yours. ' +
+      'Use a printer name from here in choose_presets.',
     inputSchema: { search: z.string().optional().describe('Words to look for; empty lists every brand') },
   },
   ({ search }) =>
     run(async () => {
       await slicer.engine();
       const found = slicer.printers(search ?? '');
-      if (!search) return found.map((v) => ({ brand: v.brand, models: v.models.length }));
-      return found.length ? found : `No printer matches "${search}".`;
+      const words = (search ?? '').toLowerCase().split(/\s+/).filter(Boolean);
+      const yours = slicer.myPresets('printer').filter((n) => words.every((w) => n.toLowerCase().includes(w)));
+      const mine = yours.length ? { yours } : {};
+      if (!search) return { ...mine, brands: found.map((v) => ({ brand: v.brand, models: v.models.length })) };
+      return found.length || yours.length ? { ...mine, brands: found } : `No printer matches "${search}".`;
     }),
 );
 
@@ -193,7 +216,8 @@ server.registerTool(
   'list_presets',
   {
     title: 'List presets',
-    description: 'Process and filament presets that fit the chosen printer. search narrows the list (e.g. "PETG", "0.16").',
+    description:
+      'Process and filament presets that fit the chosen printer; the person\'s own (from their account, when signed in) are marked yours. search narrows the list (e.g. "PETG", "0.16").',
     inputSchema: { search: z.string().optional() },
   },
   ({ search }) =>
@@ -204,8 +228,10 @@ server.registerTool(
       const l = slicer.lists!;
       return {
         printer: l.selection.printer,
-        processes: l.processes.filter((p) => p.compatible !== false && hit(p.name)).map((p) => p.name),
-        filaments: l.filaments.filter((f) => f.compatible !== false && hit(`${f.name} ${f.filamentType ?? ''}`)).map((f) => ({ name: f.name, type: f.filamentType })),
+        processes: l.processes.filter((p) => p.compatible !== false && hit(p.name)).map((p) => (p.user ? { name: p.name, yours: true } : p.name)),
+        filaments: l.filaments
+          .filter((f) => f.compatible !== false && hit(`${f.name} ${f.filamentType ?? ''}`))
+          .map((f) => ({ name: f.name, type: f.filamentType, ...(f.user && { yours: true }) })),
       };
     }),
 );

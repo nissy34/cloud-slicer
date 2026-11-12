@@ -114,6 +114,14 @@ sequenceDiagram
   (`deviceCode` table, [data](data.md)).
 - Tools: `sign_in` (the link and code), `account` (who, or still waiting, or why it
   failed), `sign_out` (ends the session on the site too).
+- **Their own presets**: signed in, the add-on fetches `/api/presets` (at most once a
+  minute while tools are used, and at once after signing in or out) and loads them the
+  way the site does (`presetForEngine` / `expandPending` from `lib/preset-engines.ts`,
+  then `writeUserPresets` in `engine/node/engine.mjs`, desktop Orca's user preset
+  files). A printer of their own loads its base printer's brand first. `find_printers`
+  and `list_presets` mark them `yours`. Offline it keeps the last ones it had.
+- The site ending the session (Sign out there, Block, Delete) shows on the next call:
+  the add-on forgets the sign-in and their presets.
 
 ## What it keeps
 
@@ -164,13 +172,16 @@ and plain errors. The site's window: `apps/web/test/ai-apps.mjs` (Project menu, 
 choices, links, Copy, phone) and the account menu's button in `accounts.mjs`. Signing
 in: `accounts.mjs` runs `account.ts` against the real site functions (wrangler, local D1):
 approve, turn down, the saved file, expired codes cleared, sign out ends the token, and
-the Connect an AI app window in Chromium on desktop and phone. CI job `mcp` builds it with both engines, type-checks, runs the test,
+the Connect an AI app window in Chromium on desktop and phone. `apps/mcp/test/account.test.mjs`
+runs the add-on against a stand-in site: their presets (a Prusa-based printer of their
+own too) chosen and their settings in the slice config, fetched once, and gone when the
+site ends the session. CI job `mcp` builds it with both engines, type-checks, runs the test,
 packs the install files and starts the packed one.
 
 ## Open
 
-- **Second step, in progress**: sign-in is done; next the account's own presets and
-  printers, printer status, "Upload only" and "Upload and print" through the relay, with
+- **Second step, in progress**: sign-in and their own presets are done; next their
+  printers: status, "Upload only" and "Upload and print" through the relay, with
   limits on the site and relay per account so a program can't use up the free tier.
 - Site-only extras (per-plate settings, colour mixes chosen on the site) come only from
   a 3MF made there.

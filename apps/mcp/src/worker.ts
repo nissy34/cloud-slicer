@@ -7,11 +7,11 @@ import { writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { parentPort, workerData } from 'node:worker_threads';
 // @ts-expect-error plain JS module shared with the CLI and the engine tests
-import { addBrands, call, openEngine, openModel, slicePlate } from '../../../engine/node/engine.mjs';
+import { addBrands, call, openEngine, openModel, slicePlate, writeUserPresets } from '../../../engine/node/engine.mjs';
 
 interface Engine {
   [fn: string]: any;
-  FS: { readFile(path: string): Uint8Array; unlink(path: string): void };
+  FS: { readFile(path: string): Uint8Array; unlink(path: string): void; [fn: string]: any };
 }
 
 const dir: string = workerData.dir;
@@ -29,6 +29,7 @@ const methods: Methods = {
   read: (_id, fn: string, ...args: unknown[]) => JSON.parse(engine[fn](...args)),
   brands: (_id, files: string[]) => addBrands(engine, resolve(dir, 'profiles'), files, brands),
   open: (_id, file: string, opts: object) => openModel(engine, file, opts),
+  userPresets: (_id, presets: object[]) => writeUserPresets(engine, presets),
   preview(_id, plate: number) {
     const p = engine.previewMesh(plate);
     return { positions: p.positions, filaments: p.filaments };

@@ -17,7 +17,7 @@ let client;
 
 before(async () => {
   client = new Client({ name: 'test', version: '1' });
-  await client.connect(new StdioClientTransport({ command: process.execPath, args: [resolve(here, '../dist/server.mjs')], stderr: 'inherit' }));
+  await client.connect(new StdioClientTransport({ command: process.execPath, args: [resolve(here, '../dist/server.mjs')], env: { ...process.env, CLOUD_SLICER_ACCOUNT_FILE: join(out, 'account.json') }, stderr: 'inherit' }));
 });
 after(async () => {
   await client.close();
@@ -86,7 +86,7 @@ test('changes settings by key and refuses what the engine refuses', async () => 
 
 test('another brand: Prusa MK4 presets, plates follow its bed', async () => {
   const found = await tool('find_printers', { search: 'prusa mk4' });
-  const printer = found[0].models.flatMap((m) => m.printers).find((p) => /0\.4/.test(p));
+  const printer = found.brands[0].models.flatMap((m) => m.printers).find((p) => /0\.4/.test(p));
   assert.ok(printer, JSON.stringify(found));
   const chosen = await tool('choose_presets', { printer });
   assert.equal(chosen.printer, printer);
