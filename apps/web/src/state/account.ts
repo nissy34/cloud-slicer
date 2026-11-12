@@ -296,6 +296,9 @@ export function accountReady(timeoutMs = 5000): Promise<void> {
   });
 }
 
+/** Hook form of accountReady(): it is known whose presets and settings to use (no timeout). */
+export const useAccountSettled = () => useAccount((s) => s.status !== 'loading' && !(s.status === 'signedIn' && pendingData));
+
 // ---- presets -------------------------------------------------------------------
 
 /** The user's presets, optionally of one type. */

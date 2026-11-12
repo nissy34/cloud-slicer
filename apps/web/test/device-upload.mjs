@@ -92,7 +92,7 @@ try {
     // A network that blocks direct links: the file goes over the relay.
     if (label === 'relay') await context.addInitScript(() => delete window.RTCPeerConnection);
     const page = await context.newPage();
-    await page.addLocatorHandler(page.getByRole('dialog', { name: 'Set up your printers' }), (d) => d.getByRole('button', { name: 'Not now' }).click());
+    await page.addLocatorHandler(page.getByRole('dialog', { name: 'Set up your printers' }), (d) => d.getByRole('button', { name: 'Close window' }).click());
     page.on('pageerror', (e) => console.error(`page error: ${e.message}`));
     await page.goto(site);
     await page.evaluate(

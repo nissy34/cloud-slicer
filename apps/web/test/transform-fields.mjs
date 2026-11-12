@@ -45,7 +45,7 @@ async function open(viewport, mobile) {
   await page.getByText('Open a model to start').waitFor({ timeout: 120000 });
   const wizard = page.getByRole('dialog', { name: 'Set up your printers' });
   await wizard.waitFor({ timeout: 30000 });
-  await wizard.getByRole('button', { name: 'Not now' }).click();
+  await wizard.getByRole('button', { name: 'Close window' }).click();
   return page;
 }
 

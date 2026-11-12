@@ -71,7 +71,7 @@ async function phone() {
   page.on('pageerror', (e) => console.error(`page error: ${e.message}`));
   await page.goto(url);
   await page.getByText('Open a model to start').waitFor({ timeout: 120000 });
-  await page.getByRole('dialog', { name: 'Set up your printers' }).getByRole('button', { name: 'Not now' }).click();
+  await page.getByRole('dialog', { name: 'Set up your printers' }).getByRole('button', { name: 'Close window' }).click();
   const question = page.getByTestId('simplify-first');
   const ask = async () => {
     await page.getByTestId('model-input').setInputFiles(model);
@@ -126,7 +126,7 @@ try {
   page.on('pageerror', (e) => console.error(`page error: ${e.message}`));
   await page.goto(url);
   await page.getByText('Open a model to start').waitFor({ timeout: 120000 });
-  await page.getByRole('dialog', { name: 'Set up your printers' }).getByRole('button', { name: 'Not now' }).click();
+  await page.getByRole('dialog', { name: 'Set up your printers' }).getByRole('button', { name: 'Close window' }).click();
   await page.getByTestId('model-input').setInputFiles(model);
 
   const offer = page.getByTestId('heavy-model');

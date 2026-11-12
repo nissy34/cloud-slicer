@@ -53,6 +53,11 @@
     "filamentsSelected_other": "{{count}} filaments selected.",
     "connectExplain": "To send prints and watch them, add how to reach each printer: its address on your network (through a small bridge) or a public https address. You can do this now or later in the Device tab.",
     "noProfileYet": "no printer profile yet",
-    "noConnections": "No printer connections yet."
+    "noConnections": "No printer connections yet.",
+    "welcomeTitle": "Welcome to Cloud Slicer",
+    "welcomeText": "Sign in to get your printers, presets and projects.",
+    "signInGoogle": "Sign in with Google",
+    "or": "or",
+    "continueWithout": "Continue without signing in"
   }
 }

@@ -57,7 +57,7 @@ try {
   const page = await context.newPage();
   page.on('pageerror', (e) => console.error(`page error: ${e.message}`));
   // The wizard can open a moment after the page is ready (it waits for the engine, the account and the Continue card): dismiss it whenever it shows.
-  await page.addLocatorHandler(page.getByRole('dialog', { name: 'Set up your printers' }), (d) => d.getByRole('button', { name: 'Not now' }).click());
+  await page.addLocatorHandler(page.getByRole('dialog', { name: 'Set up your printers' }), (d) => d.getByRole('button', { name: 'Close window' }).click());
   const ready = async () => {
     await page.getByText('Open a model to start').waitFor({ timeout: 120000 });
     await page.getByRole('combobox', { name: 'Process preset' }).waitFor();

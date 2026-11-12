@@ -99,7 +99,7 @@ try {
       });
     const page = await context.newPage();
     failShot = page;
-    await page.addLocatorHandler(page.getByRole('dialog', { name: 'Set up your printers' }), (d) => d.getByRole('button', { name: 'Not now' }).click());
+    await page.addLocatorHandler(page.getByRole('dialog', { name: 'Set up your printers' }), (d) => d.getByRole('button', { name: 'Close window' }).click());
     page.on('pageerror', (e) => console.error(`page error: ${e.message}`));
     await page.goto(site);
     await page.evaluate(

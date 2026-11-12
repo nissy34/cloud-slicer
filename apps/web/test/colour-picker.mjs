@@ -41,7 +41,7 @@ try {
     page.on('pageerror', (e) => fail(`page error: ${e.message}`));
     await page.goto(url);
     await page.getByText('Open a model to start').waitFor({ timeout: 120000 });
-    await page.getByRole('dialog', { name: 'Set up your printers' }).getByRole('button', { name: 'Not now' }).click();
+    await page.getByRole('dialog', { name: 'Set up your printers' }).getByRole('button', { name: 'Close window' }).click();
     await page.getByTestId('model-input').setInputFiles(model);
     await page.getByText('Ready to slice').first().waitFor({ timeout: 120000 });
     if (phone) await page.getByRole('tab', { name: 'Settings' }).first().click().catch(() => {});

@@ -44,7 +44,7 @@ async function open(viewport, mobile) {
   page.on('pageerror', (e) => console.error(`page error: ${e.message}`));
   await page.goto(`http://localhost:${PORT}/`);
   await page.getByText('Open a model to start').waitFor({ timeout: 120000 });
-  await page.getByRole('dialog', { name: 'Set up your printers' }).getByRole('button', { name: 'Not now' }).click();
+  await page.getByRole('dialog', { name: 'Set up your printers' }).getByRole('button', { name: 'Close window' }).click();
   return page;
 }
 

@@ -88,7 +88,7 @@ async function run(phone) {
   await page.goto(url);
   await page.getByText('Open a model to start').waitFor({ timeout: 120000 });
   await page.evaluate(() => navigator.serviceWorker.ready);
-  await page.getByRole('dialog', { name: 'Set up your printers' }).getByRole('button', { name: 'Not now' }).click();
+  await page.getByRole('dialog', { name: 'Set up your printers' }).getByRole('button', { name: 'Close window' }).click();
   await page.getByTestId('model-input').setInputFiles(model);
   await page.getByText('Ready to slice').waitFor({ timeout: 120000 });
   const title = await page.title();
