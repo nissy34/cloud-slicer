@@ -67,21 +67,6 @@ function relayOrigin(v: unknown): string {
   throw new HttpError(400, 'Bad relay address');
 }
 
-/** Relay tickets an AI app's add-on may have per account per day (each lasts an hour, the add-on keeps it). */
-export const PROGRAM_TICKETS_PER_DAY = 100;
-
-async function countProgramTicket(env: Env, userId: string, now: number) {
-  const day = new Date(now).toISOString().slice(0, 10);
-  const d = env.DB!;
-  const row = await d
-    .prepare('INSERT INTO program_use (user_id, day, tickets) VALUES (?, ?, 1) ON CONFLICT (user_id, day) DO UPDATE SET tickets = tickets + 1 RETURNING tickets')
-    .bind(userId, day)
-    .first<{ tickets: number }>();
-  if (row && row.tickets === 1) await d.prepare('DELETE FROM program_use WHERE user_id = ? AND day < ?').bind(userId, day).run();
-  if ((row?.tickets ?? 0) > PROGRAM_TICKETS_PER_DAY)
-    throw new HttpError(429, 'Your AI app has opened your printers a lot today. It can carry on tomorrow; the Device tab still works.');
-}
-
 /** POST /api/relay/ticket */
 export async function ticket(env: Env, request: Request): Promise<Response> {
   requireSameOrigin(request);
@@ -98,10 +83,8 @@ export async function ticket(env: Env, request: Request): Promise<Response> {
   if (!user) throw new HttpError(401, 'Sign in first');
   await mayAddBridge(env, user.id, user.owner, bridgeId);
   await recordBridge(env, user.id, bridgeId, relay, now);
-  // An AI app's add-on (signed in with its own token): a hidden daily number of tickets, and
-  // the relay keeps it to a daily budget of messages (prog).
+  // An AI app's add-on (signed in with its own token): the relay keeps it to a daily budget of messages (prog).
   const program = /^Bearer /.test(request.headers.get('Authorization') ?? '');
-  if (program) await countProgramTicket(env, user.id, now);
   const t = await sign(env, { b: bridgeId, cams: user.owner ? 8 : MAX_CAMERAS, ...(program && { prog: true }) }, user.id, TICKET_SECONDS);
   return json({ ticket: t, expiresAt: now + TICKET_SECONDS * 1000 });
 }

@@ -156,10 +156,8 @@ Hidden guards, so a program stuck in a loop can't use up the free tier. They liv
 site and the relay, not in the add-on (anyone can change a program):
 
 - **Sign-in codes**: only the add-on's client id; at most 200 waiting at once.
-- **Relay tickets** for an add-on's token: 100 per account a day (`program_use`,
-  `PROGRAM_TICKETS_PER_DAY` in `functions/_lib/relay.ts`); the add-on keeps each one for
-  its hour. The ticket says `prog`.
-- **Relay messages** with a `prog` ticket: 10,000 per account per bridge a day
+- **Relay messages** with a `prog` ticket (the site marks tickets it gives an add-on's
+  token; the add-on keeps each one for its hour): 10,000 per account per bridge a day
   ([relay](relay.md#free-tier-budget)); a status reading is a few, a 40 MB zipped upload
   about 160.
 - **Site calls**: presets at most once a minute; a printer's connection is reused for a

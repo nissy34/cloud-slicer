@@ -43,7 +43,7 @@ Durable Object; the page renews it over the socket.
 
 ## What it keeps
 
-D1 `user`, `session`, `account`, `verification`, `deviceCode` (Better Auth), `program_use`, `presets`,
+D1 `user`, `session`, `account`, `verification`, `deviceCode` (Better Auth), `presets`,
 `user_settings`, `devices` (API keys AES-GCM encrypted with `ACCOUNT_ENC_KEY`),
 `site_settings`, `allowed_emails`, `user_limits`, `relay_bridges`,
 `relay_bridge_info`, `bridge_setup_codes`. Details in [data](data.md).
