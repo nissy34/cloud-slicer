@@ -193,7 +193,11 @@ where Claude says, or beside the model, named by the printer's file name format.
 
 ## Why
 
-- **No online add-on** for ChatGPT, Gemini or Claude on the web and phone (2026-11-05):
+- **Claude on the phone** reaches it through Claude Desktop while the computer is on
+  (seen by the owner 2026-11-12); the window says so, and calls it a Claude Desktop
+  extension, not an MCP add-on (the Other chat apps steps still say MCP server, as those
+  apps do).
+- **No online add-on** for ChatGPT, Gemini or Claude on the web (2026-11-05):
   they only take add-ons at an internet address, and we don't slice on servers, so it
   would have to hand the slice to the person's open tab: too complicated for what it gives.
 - **On the person's computer, not ours**: slicing on a server is turned down (cost), and

@@ -53,10 +53,10 @@ export function AiAppsDialog({ onClose }: { onClose(): void }) {
       <div className="ai-apps">
         <p>
           Ask your AI app to slice for you: “Slice this Benchy for my U1 in PETG
-          with 4 walls and tell me the time.” It works in chat apps on your
-          computer that take MCP add-ons (an open standard): Claude Desktop, and
-          others such as LM Studio and Msty. It slices on your computer with the
-          same engines and presets as this site, and your models stay there.
+          with 4 walls and tell me the time.” Install it in Claude Desktop as an
+          extension, or in other chat apps on your computer such as LM Studio
+          and Msty. It slices on your computer with the same engines and presets
+          as this site, and your models stay there.
         </p>
         <div className="chooser" role="radiogroup" aria-label="Which app">
           {APPS.map((a) => (
@@ -74,7 +74,7 @@ export function AiAppsDialog({ onClose }: { onClose(): void }) {
         {app === "desktop" ? (
           <ol className="ai-apps-steps">
             <li>
-              Download the Cloud Slicer add-on.
+              Download the Cloud Slicer extension.
               <div className="dv-downloads">
                 <a
                   className="primary"
@@ -111,10 +111,9 @@ export function AiAppsDialog({ onClose }: { onClose(): void }) {
         <p className="muted small">
           It can open models and projects, choose the printer, process and
           filaments, set colours and which filament prints each object, change
-          settings, arrange plates and slice. ChatGPT, Gemini and Claude on the
-          web or phone only take add-ons that run online, so they can't use this
-          one. Signed in, it also uses your presets and printers, and asks you
-          on screen before it starts a print.
+          settings, arrange plates and slice. While your computer is on, Claude
+          on your phone can use it too. Signed in, it also uses your presets and
+          printers, and asks you on screen before it starts a print.
         </p>
       </div>
     </Dialog>
