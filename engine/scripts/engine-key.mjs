@@ -36,6 +36,7 @@ export function engineKey(repo = join(dirname(fileURLToPath(import.meta.url)), '
   if (!orca) throw new Error(`engine-key: ${submodule} is not a submodule in the index`);
 
   const inputs = ['engine/CMakeLists.txt', 'engine/cmake', 'engine/compat', 'engine/patches', 'engine/src', 'engine/scripts/build-deps.sh'];
+  if (flavor === 'orca') inputs.push('engine/scripts/build-deps-orca.sh');
   const list = (...args) => git('ls-files', '-z', ...args, '--', ...inputs).split('\0').filter(Boolean);
   const deleted = new Set(list('-d'));
   const files = [...new Set(list('-co', '--exclude-standard'))].filter((f) => !deleted.has(f)).sort();

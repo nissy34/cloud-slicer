@@ -23,13 +23,15 @@ import { IconButton } from './IconButton';
 import { Swatch } from './Swatch';
 import { Slider } from './Slider';
 import { Picker } from './Picker';
+import { Note } from './Note';
 import { MixTriangle } from './MixTriangle';
 import { MixSuggestions } from './MixSuggestions';
 
 /**
- * Desktop Snapmaker Orca's Color Mixing panel, under the filaments: each mix
- * is a virtual filament numbered after the physical ones, usable anywhere a
- * filament is (objects, parts, paint).
+ * Desktop's Color Mixing panel, under the filaments: each mix is a virtual
+ * filament numbered after the physical ones, usable anywhere a filament is
+ * (objects, parts, paint). Snapmaker Orca and OrcaSlicer 2.5 both have them;
+ * the engine says which ways of making one it has (engineInfo.mixModes).
  */
 export function ColorMixPanel() {
   const { t } = useTranslation();
@@ -37,7 +39,6 @@ export function ColorMixPanel() {
   const colours = useSlicer((s) => s.selection?.colours ?? NO_COLOURS);
   const deleteMix = useSlicer((s) => s.deleteMix);
   const [editing, setEditing] = useState<{ index: number } | 'new' | null>(null);
-  // Only Snapmaker Orca has mixed filaments.
   const mixing = useSlicer((s) => s.engineInfo?.mixing ?? true);
   if (colours.length < 2 || !mixing) return null;
   const live = mixes.map((row, index) => ({ row, index })).filter(({ row }) => !row.deleted);
@@ -91,6 +92,8 @@ function MixDialog({ row, index, onClose }: { row: MixRow | undefined; index: nu
   const names = useSlicer((s) => s.selection?.filaments ?? NO_COLOURS);
   const nextId = useSlicer((s) => s.palette.length + 1);
   const { addMix, updateMix, previewMix, blendFilaments, matchColour } = useSlicer.getState();
+  const modes = useSlicer((s) => s.engineInfo?.mixModes ?? MODES);
+  const sublayers = useSlicer((s) => s.engineInfo?.flavor === 'orca' && ({ ...s.baseConfig, ...s.overrides }).enable_mixed_color_sublayer !== '1');
   const [draft, setDraft] = useState<MixDraft>(() => draftFromRow(row, colours.length));
   const [look, setLook] = useState<{ colour: string; compatible: boolean } | null>(null);
   const [strip, setStrip] = useState<string[]>([]);
@@ -186,7 +189,7 @@ function MixDialog({ row, index, onClose }: { row: MixRow | undefined; index: nu
       }
     >
       <div className="chooser" role="radiogroup" aria-label={t('colorMixing.mode')}>
-        {MODES.map((m) => (
+        {modes.map((m) => (
           <button key={m} role="radio" aria-checked={draft.mode === m} className={draft.mode === m ? 'on' : ''} onClick={() => change({ mode: m })}>
             {t(MODE_LABELS[m])}
           </button>
@@ -322,6 +325,7 @@ function MixDialog({ row, index, onClose }: { row: MixRow | undefined; index: nu
           <button className="quiet" onClick={() => change({ reversed: !draft.reversed })}>
             <ArrowDownUp size={16} aria-hidden /> {t('colorMixing.swap')}
           </button>
+          {sublayers && <Note tone="warn">{t('colorMixing.sublayerNote')}</Note>}
         </div>
       )}
 

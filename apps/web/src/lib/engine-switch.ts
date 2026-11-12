@@ -10,8 +10,8 @@
 //     (standIn), the nearest match by printer, layer height or material.
 //   - changed settings: those both engines share (shared-settings.json).
 //     Snapmaker's flow-variant lists keep their standard-flow value only.
-//   - colour mixes (Snapmaker Orca only): each becomes the filament it uses
-//     most, on objects, parts, paint and layer filament changes.
+//   - colour mixes (both engines have them, kept differently): each becomes
+//     the filament it uses most, on objects, parts, paint and layer filament changes.
 import type { OptionDef, OrcaConfig, ProjectInfo, Selection } from '../engine/protocol';
 import { i18n } from '../i18n';
 import { engineName, type EngineFlavor } from './engines';
@@ -226,7 +226,8 @@ export function switchPlan(p: PlanInput, t: SharedTable = SHARED): SwitchPlan {
     o.volumes.forEach((v, volume) => own(v.settings, volume, `${o.name}, ${v.name}`));
   });
 
-  const mixes = to === 'snapmaker' ? [] : p.mixes.filter((r) => r.enabled && r.virtualId > 0).map((r) => ({ id: r.virtualId, label: mixLabel(r), colour: r.colour, becomes: mainFilament(r) }));
+  // The two engines keep mixes differently, so a mix becomes the filament it uses most either way.
+  const mixes = p.mixes.filter((r) => r.enabled && r.virtualId > 0).map((r) => ({ id: r.virtualId, label: mixLabel(r), colour: r.colour, becomes: mainFilament(r) }));
   return { from, to, mixes, highFlowChanged, dropped, presets, selection, overrides, objectEdits };
 }
 

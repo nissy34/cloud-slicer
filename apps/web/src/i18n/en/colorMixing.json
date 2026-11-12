@@ -50,6 +50,7 @@
     "sameColours": "Same filament colours cannot produce new colours. Please select different colours for mixing.",
     "recommendations": "Mixing recommendations",
     "useSuggestion": "Use {{label}}",
-    "mixingRatio": "Mixing ratio"
+    "mixingRatio": "Mixing ratio",
+    "sublayerNote": "The gradient prints only with Mixed color sublayer turned on, in the Quality settings."
   }
 }

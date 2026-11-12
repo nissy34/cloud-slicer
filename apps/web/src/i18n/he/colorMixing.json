@@ -50,6 +50,7 @@
     "sameColours": "פילמנטים באותו צבע לא יכולים ליצור צבעים חדשים. בחרו בבקשה צבעים שונים לערבוב.",
     "recommendations": "הצעות לערבוב",
     "useSuggestion": "שימוש ב־{{label}}",
-    "mixingRatio": "יחס הערבוב"
+    "mixingRatio": "יחס הערבוב",
+    "sublayerNote": "המעבר ההדרגתי יודפס רק כאשר Mixed color sublayer מופעל, בהגדרות Quality."
   }
 }

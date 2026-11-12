@@ -51,6 +51,11 @@ and filament windows offer Save to preset, Save as new preset, Save to project.
   the per-object filament picker. "Default" (0) comes first only when the option's `min`
   allows 0 (support, wipe tower, upstream's per-feature ones), not for Snapmaker's walls
   and infills. Only the physical filaments are offered, as on desktop.
+- Show/hide rules per engine: `option-toggles.ts` follows each engine's own desktop. Rules
+  for settings only OrcaSlicer 2.5 has apply whenever the setting is there; where 2.5
+  changed a rule Snapmaker Orca also has (a top shell at 0% surface density, raft
+  expansion, one wall on the first or top layer, sparse tower layers), the 2.5 rule is
+  under `orca25`. 2.5's "why is this greyed out" texts are not shown yet.
 - Support filaments: picking the support or interface filament asks desktop's questions
   (`supportFilamentChecks` in `option-toggles.ts`), each engine its own: Snapmaker Orca
   2.4.1 warns about PLA under PETG (or PETG under PLA) as the base and offers the settings
