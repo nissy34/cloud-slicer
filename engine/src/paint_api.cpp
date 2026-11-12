@@ -236,7 +236,11 @@ std::string paint(int plate, const std::string& optionsJson) {
             TriangleSelector& sel = selectorOf(*hit->volume, kind);
             if (tool == "fill" || tool == "bucket") {
                 if (tool == "fill")
+#if ENGINE_UPSTREAM  // OrcaSlicer 2.5 asks which way is up (belt printers' tilted plate)
+                    sel.seed_fill_select_triangles(hit->point, hit->facet, noTranslate, clip, angle, overhangs, Vec3f::UnitZ(), true);
+#else
                     sel.seed_fill_select_triangles(hit->point, hit->facet, noTranslate, clip, angle, overhangs, true);
+#endif
                 else
                     sel.bucket_fill_select_triangles(hit->point, hit->facet, clip, angle, true, true);
                 sel.seed_fill_apply_on_triangles(newState);

@@ -1875,7 +1875,7 @@ if (withApp)
       const card3 = secondPage.getByTestId('continue-card');
       await card3.getByText('Continue where you left off?').waitFor({ timeout: 120000 });
       await card3.getByRole('button', { name: 'Continue' }).click();
-      await secondPage.getByText('OrcaSlicer 2.4').first().waitFor({ timeout: 120000 });
+      await secondPage.getByText(/OrcaSlicer \d+\.\d+/).first().waitFor({ timeout: 120000 });
       await secondPage.locator('.project-busy').waitFor({ state: 'detached', timeout: 120000 });
       assert.equal(await pickerOf(secondPage, 'Slicer engine').inputValue(), 'orca', 'Continue opened the work in the engine it was switched to');
       await carol.fetch(`${HOST}/api/projects/from-laptop`, { method: 'DELETE', headers: { Origin: HOST } });
@@ -1902,7 +1902,7 @@ if (withApp)
       await list2.getByRole('button', { name: 'Made in OrcaSlicer', exact: true }).click();
       const leave = secondPage.getByTestId('ask-dialog');
       if (await leave.isVisible().catch(() => false)) await leave.getByRole('button', { name: /Don.t save|Discard/ }).click();
-      await secondPage.getByText('OrcaSlicer 2.4').first().waitFor({ timeout: 120000 });
+      await secondPage.getByText(/OrcaSlicer \d+\.\d+/).first().waitFor({ timeout: 120000 });
       await secondPage.locator('.project-busy').waitFor({ state: 'detached', timeout: 120000 });
       assert.equal(await pickerOf(secondPage, 'Slicer engine').inputValue(), 'orca', 'the saved project opened in the engine it was made with');
       await second.close();

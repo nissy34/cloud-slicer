@@ -78,7 +78,8 @@ describe('setup', () => {
   it('names the installed filaments the way each engine does', () => {
     const setup = { printers: [], filaments: ['Snapmaker PETG HF', 'Snapmaker ABS @U1 0.4 nozzle', 'Snapmaker PLA Matte @U1'] };
     const orca = installedFilaments(setup, 'orca')!;
-    expect(orca).toContain('Snapmaker PETG @U1');
+    // OrcaSlicer 2.5 has the high flow PETG too, per nozzle.
+    expect(orca).toContain('Snapmaker PETG HF @U1 0.4 nozzle');
     expect(orca).toContain('Snapmaker ABS @U1');
     expect(orca).toContain('Snapmaker PLA Matte @U1');
     expect(installedFilaments(setup, 'snapmaker')).toEqual(setup.filaments);

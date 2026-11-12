@@ -30,7 +30,7 @@ import sys
 
 # Lines only one of two identical slices may have (desktop writes its preset
 # bookkeeping, the browser engine has none).
-ALWAYS_IGNORED = {"different_settings_to_system", "inherits_group"}
+ALWAYS_IGNORED = {"different_settings_to_system", "inherits_group", "compatible_machine_expression_group", "compatible_process_expression_group"}
 
 
 def seconds(text):
