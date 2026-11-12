@@ -90,6 +90,9 @@ try {
     await pop.getByRole('button', { name: 'Custom' }).click();
     const square = pop.locator('.react-colorful__saturation');
     await square.waitFor();
+    // On a phone the popup scrolls: bring the square into view before tapping it.
+    await square.scrollIntoViewIfNeeded();
+    await page.waitForTimeout(400);
     const s = await square.boundingBox();
     await page.mouse.click(s.x + s.width * 0.8, s.y + s.height * 0.2);
     await shot(page, phone ? 'phone-custom' : 'desktop-custom');

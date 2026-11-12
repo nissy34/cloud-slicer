@@ -93,6 +93,12 @@ export async function setColour(scope, name, hex) {
   const page = 'page' in scope ? scope.page() : scope;
   await scope.getByRole('button', { name, exact: true }).click();
   const pop = page.getByRole('dialog', { name, exact: true });
+  // The popup moves the focus into itself a frame after it opens (Floating UI's focus manager);
+  // typing before that lands, on a busy machine, can lose the Enter to that move.
+  await pop.evaluate((el) => new Promise((done) => {
+    const check = () => (el.contains(document.activeElement) ? done() : requestAnimationFrame(check));
+    check();
+  }));
   await pop.getByLabel('Hex code').fill(hex);
   await pop.getByLabel('Hex code').press('Enter');
   await pop.waitFor({ state: 'hidden' });
