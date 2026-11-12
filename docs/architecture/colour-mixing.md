@@ -59,7 +59,9 @@ or its colour changes; a printer change resets the table and multiplier.
   the 3MF with a filament per mix after the real ones (`filament_colour`,
   `filament_settings_id`), so the new engine's file reader keeps objects, parts and paint
   on those numbers. Ratio, Match and Gradient are the same in both; OrcaSlicer has no
-  Cycle, so a Cycle mix goes there as a Ratio mix of the same shares, after saying so.
+  Cycle, so a Cycle mix goes there as a Ratio mix of the same shares, after saying so. Snapmaker's Subdivide Mix Layer and 2.5's Mixed color sublayer are the
+  same thing and carry over as each other; Snapmaker's other Local-Z options (infill,
+  full domain) have no 2.5 setting and are listed as left out.
 
 ## Why
 

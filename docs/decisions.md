@@ -90,6 +90,9 @@ down. Add a line with the date when a new choice is made.
   browser (Continue card brings it back), and AutoSave to Drive is asked once, off until On (2026-11-03).
 - Convert keeps only settings the author changed (`different_settings_to_system`);
   comparing against Bambu presets was turned down (2026-10-19).
+- Projects save which settings are yours (`different_settings_to_system`, as desktop) and
+  opening takes only those, so engine and preset updates reach saved projects; projects
+  saved before keep every value (2026-11-12).
 - Another slicer's G-code kept as desktop does, with a fallback question (2026-10-21).
 - AutoSave like Word, one device edits at a time, no polling (2026-10-21).
 - One draft per device, at most 3 (2026-10-22). "Discard only if not open elsewhere"

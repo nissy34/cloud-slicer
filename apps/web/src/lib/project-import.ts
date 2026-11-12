@@ -42,6 +42,24 @@ function inRange(value: string, def: { min?: number; max?: number }): boolean {
   });
 }
 
+const PLATE_TEMP = /_plate_temp(_initial_layer)?$/;
+
+/**
+ * A plate temperature of 0 °C saved in a project, where the filament's preset
+ * now has a real one. OrcaSlicer's own U1 filaments said 0 °C for the U1's
+ * default plate, so projects saved with them slice with the bed off; our presets
+ * now give such a filament its High Temp Plate temperature
+ * (engine/scripts/plate-temps.mjs), and a project takes that one too.
+ */
+function keepRealPlateTemps(value: string, preset: string | undefined): string {
+  if (preset === undefined) return value;
+  const ours = preset.split(',');
+  return value
+    .split(',')
+    .map((v, i) => (Number(v) === 0 && Number(ours[i] ?? ours[0]) > 0 ? (ours[i] ?? ours[0]) : v))
+    .join(',');
+}
+
 /**
  * The project's values that differ from `base` (the selected presets), limited
  * to options the engine knows (and values in their range) and, when given, to
@@ -54,8 +72,10 @@ export function projectOverrides(
   only?: Set<string>,
 ): OrcaConfig {
   const out: OrcaConfig = {};
-  for (const [key, value] of Object.entries(alignFlowVariants(file, base, known))) {
+  for (const [key, raw] of Object.entries(alignFlowVariants(file, base, known))) {
     if (NEVER.has(key) || !(key in known) || (only && !only.has(key))) continue;
+    // A 0 the project lists as yours stays: you set it on purpose.
+    const value = PLATE_TEMP.test(key) && !only?.has(key) ? keepRealPlateTemps(raw, base[key]) : raw;
     if (base[key] !== value && inRange(value, known[key])) out[key] = value;
   }
   return out;
@@ -152,6 +172,36 @@ export function changedOnPurpose(file: OrcaConfig): Set<string> | null {
   const keys = new Set(list.split(';').map((k) => k.trim().replace(/^"|"$/g, '')).filter(Boolean));
   keys.add('layer_height');
   return keys;
+}
+
+/**
+ * The settings changed from the presets, as desktop Orca saves them in a
+ * project's different_settings_to_system (PresetBundle::export_selections_3mf
+ * via store_bbs_3mf): one entry for the process, one per filament, one for the
+ * printer, each the changed keys joined by ';'. Opening the project then takes
+ * only these on top of the presets, so later engine and preset updates reach
+ * everything else. Returned as the engine reads a list of strings.
+ */
+export function changedSettingsList(overrides: OrcaConfig, base: OrcaConfig, layout: SettingsLayout | null, filaments: number): string {
+  const tab = (pages: SettingsLayout['print'] | undefined) => new Set((pages ?? []).flatMap((p) => p.groups.flatMap((g) => g.options)));
+  const filamentKeys = tab(layout?.filament);
+  const printerKeys = tab(layout?.printer);
+  const n = Math.max(1, filaments);
+  const process: string[] = [];
+  const perFilament: string[][] = Array.from({ length: n }, () => []);
+  const printer: string[] = [];
+  for (const key of Object.keys(overrides).sort()) {
+    if (NEVER.has(key) || key === 'mixed_filament_definitions') continue;
+    if (filamentKeys.has(key)) {
+      const mine = overrides[key].split(',');
+      const theirs = (base[key] ?? '').split(',');
+      // One value per filament: list the key only for the filaments it changed.
+      const each = mine.length === n && theirs.length === n;
+      perFilament.forEach((list, i) => (!each || mine[i] !== theirs[i]) && list.push(key));
+    } else if (printerKeys.has(key)) printer.push(key);
+    else process.push(key);
+  }
+  return [process, ...perFilament, printer].map((keys) => `"${keys.join(';')}"`).join(';');
 }
 
 /**

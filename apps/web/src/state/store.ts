@@ -30,7 +30,7 @@ import { bedSize, solidColour } from '../lib/colour';
 import { renderThumbnails, thumbnailSizes } from '../lib/thumbnail';
 import type { SyncPlan } from '../lib/filament-sync';
 import { DEFAULT_PRINTER, pickFilamentPreset, splitList, SLOT_COLOURS } from '../lib/presets';
-import { changedOnPurpose, emptyProjectMessage, modelProcessKeys, pickProcess, printerLabel, projectOverrides, fallBackGcode, gcodeOverrides } from '../lib/project-import';
+import { changedOnPurpose, changedSettingsList, emptyProjectMessage, modelProcessKeys, pickProcess, printerLabel, projectOverrides, fallBackGcode, gcodeOverrides } from '../lib/project-import';
 import { accountReady, getUserSetting, presetEditing, useAccount } from './account';
 import { installedFilaments, installedOnly, installedPrinters, SETUP_KEY, startPrinter, type Setup } from '../lib/setup';
 import { arrangeRequest, loadArrange, saveArrange, type ArrangeSettings } from '../lib/arrange';
@@ -715,8 +715,12 @@ export const useSlicer = create<SlicerState>((set, get) => {
   function writeCopy(thumbnail: ProjectThumbnail | null): Promise<ArrayBuffer> {
     const e = engine();
     const overrides = engineOverrides();
+    const { baseConfig, layout, selection } = get();
+    // Which settings are yours, as desktop saves them: opening the project takes
+    // only these, and the rest from the presets of the day.
+    const config = { ...overrides, different_settings_to_system: changedSettingsList(get().overrides, baseConfig, layout, selection?.filaments.length ?? 1) };
     // Requests run in order, so the file holds every edit asked for so far.
-    const mine = { edits: e.projectEdits, settings: JSON.stringify(overrides), done: e.saveProject(overrides, thumbnail) };
+    const mine = { edits: e.projectEdits, settings: JSON.stringify(overrides), done: e.saveProject(config, thumbnail) };
     writing = mine;
     const name = `${get().project?.fileName.replace(/\.\w+$/, '') || 'project'}.3mf`;
     return mine.done
@@ -1286,7 +1290,12 @@ export const useSlicer = create<SlicerState>((set, get) => {
     // The engine also finds a process by its old name, and keeps the current one when it can't.
     const process = info.file.process || (selection?.process ?? '');
     await applySelection({ printer: info.file.printer, process, filaments: names.length ? names : selection?.filaments, colours: colours.length ? colours : selection?.colours });
-    const { mixed_filament_definitions: mixes = '', ...overrides } = projectOverrides(file, get().baseConfig, get().options);
+    // Only the settings the project says are its own, when it says so and its
+    // presets are all here; the rest come from today's presets (an engine or
+    // preset update since reaches the project). Desktop writes the list too.
+    const samePresets = presets.every((p, i) => !p || p === names[i]) && (!info.file.process || get().selection?.process === info.file.process);
+    const own = samePresets ? changedOnPurpose(file) : null;
+    const { mixed_filament_definitions: mixes = '', ...overrides } = projectOverrides(file, get().baseConfig, get().options, own ?? undefined);
     const gcode = gcodeOverrides(overrides);
     foreignGcode = !engineOfModelHead(head) && Object.keys(gcode).length ? { app: appOfModelHead(head) || 'another slicer', values: gcode } : null;
     // The project's own mixes replace the current ones, as opening it in desktop does.

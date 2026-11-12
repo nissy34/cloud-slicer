@@ -76,7 +76,11 @@ desktop, until its preset is picked again.
   filaments and processes from other printers are moved onto one of ours.
 - Settings both engines have with the same type (listed in `shared-settings.json`, CI
   checks it is current) stay equal in both; G-code, high-flow values and one-engine
-  settings are kept per engine on that engine's base preset.
+  settings are kept per engine on that engine's base preset. G-code means text settings
+  (a switch like "Emit limits to G-code" is a setting like any other). For switching a
+  project, the file also lists settings one engine keeps as one value and the other as a
+  list (`listIn`: 2.5's flush multiplier, one per nozzle), which carry over, and the
+  G-code both engines have (`gcode`), which the pop-up names as staying the printer's own.
 - Every plate type is offered on every printer; a printer starts on its own default
   (U1: Textured PEI).
 - The step-by-step wizard is only for setup: it opens by itself until finished once.
