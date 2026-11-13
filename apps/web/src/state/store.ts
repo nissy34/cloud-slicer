@@ -79,6 +79,8 @@ const SVG_DEPTH = 2;
 const BUSY_AFTER_MS = 1000;
 /** Once the loading screen shows, it stays at least this long, so it never flashes, ms. */
 const BUSY_MIN_MS = 500;
+/** Most instances one "Fill bed with copies" lays out, like Clone's 1000. */
+const MAX_FILL = 1000;
 /** Resolves once the browser has drawn a frame (with what was set before it). */
 const nextPaint = () =>
   new Promise<void>((done) => (typeof requestAnimationFrame === 'function' ? requestAnimationFrame(() => setTimeout(done, 0)) : setTimeout(done, 0)));
@@ -476,6 +478,8 @@ export interface SlicerState {
   objectAction(o: number, i: number, request: ObjectAction, label: string): Promise<void>;
   /** Desktop's Clone: `count` copies as new objects, then (optionally) Arrange. */
   cloneObject(o: number, count: number, arrange: boolean): Promise<void>;
+  /** Desktop's "Fill bed with copies": instances of object o fill what is left of instance i's plate. */
+  fillPlate(o: number, i: number): Promise<void>;
   /** Replaces part `volume` of object o with the mesh in an STL file, keeping its place. */
   replaceWithStl(o: number, volume: number, file: File): Promise<void>;
   /**
@@ -673,10 +677,11 @@ export const useSlicer = create<SlicerState>((set, get) => {
   // Replaces a crashed engine with a new one, which reopens the project when
   // it is up (see start).
   // Desktop's words when a locked plate is asked to arrange or orient; true when it is locked.
-  function lockedNotice(action: 'arrange' | 'orient') {
+  function lockedNotice(action: 'arrange' | 'orient' | 'copies') {
     const { project, plate } = get();
     if (!project?.plates[plate]?.locked) return false;
-    set({ notice: action === 'arrange' ? i18n.t('slicerNotices.lockedArrange') : i18n.t('slicerNotices.lockedOrient'), noticeWarn: true });
+    const words = { arrange: 'slicerNotices.lockedArrange', orient: 'slicerNotices.lockedOrient', copies: 'slicerNotices.lockedCopies' } as const;
+    set({ notice: i18n.t(words[action]), noticeWarn: true });
     return true;
   }
 
@@ -955,12 +960,14 @@ export const useSlicer = create<SlicerState>((set, get) => {
   // Arrange with the Arrange pop-up's options (lib/arrange.ts): auto spacing is
   // 6 mm apart; printing object by object, far enough apart for the tool head
   // and with the tall ones last in their row, like desktop's ArrangeJob then.
-  const arrangePlate = async (plate: number) => {
-    const e = engine();
-    const c = byObject(plate) ? await e.clearance(plate, engineOverrides()) : null;
+  const arrangeFor = async (plate: number) => {
+    const c = byObject(plate) ? await engine().clearance(plate, engineOverrides()) : null;
     const structure = get().overrides.printer_structure ?? get().baseConfig.printer_structure;
-    const { spacing, options } = arrangeRequest(get().arrangeSettings, structure, c?.byObject ? c.spacing : undefined);
-    return e.arrangePlate(plate, spacing, c?.byObject && !c.short ? c.rod : 0, options);
+    return { ...arrangeRequest(get().arrangeSettings, structure, c?.byObject ? c.spacing : undefined), tall: c?.byObject && !c.short ? c.rod : 0 };
+  };
+  const arrangePlate = async (plate: number) => {
+    const { spacing, options, tall } = await arrangeFor(plate);
+    return engine().arrangePlate(plate, spacing, tall, options);
   };
 
   // A request about the mix list, with what colours its rows.
@@ -2388,6 +2395,22 @@ export const useSlicer = create<SlicerState>((set, get) => {
         });
         if (arrange) await projectEdit(i18n.t('slicerEdits.arrange'), () => arrangePlate(get().plate));
       }),
+    fillPlate: async (o, i) => {
+      if (lockedNotice('copies')) return;
+      const before = get().project?.objects[o]?.instances.length ?? 0;
+      await busyWhile(i18n.t('slicerEdits.fillingPlate'), () =>
+        projectEdit(i18n.t('slicerEdits.fillPlate'), async () => {
+          // Arrange's spacing, and clear of the prime tower, as desktop's FillBedJob.
+          const { plate, wipeTower } = get();
+          const { spacing } = await arrangeFor(plate);
+          const b = wipeTower?.brim ?? 0;
+          const keepOut = wipeTower ? [[wipeTower.x - b, wipeTower.y - b, wipeTower.width + 2 * b, wipeTower.depth + 2 * b]] : [];
+          return engine().fillPlate(o, i, spacing, MAX_FILL, keepOut);
+        }),
+      );
+      const after = get().project?.objects[o]?.instances.length ?? 0;
+      if (after === before) set({ notice: i18n.t('slicerNotices.noRoomForCopy'), noticeWarn: false });
+    },
     replaceWithStl: async (o, volume, file) =>
       projectEdit(i18n.t('slicerEdits.replaceStl'), async () => engine().objectAction(o, 0, { op: 'replace', volume }, await file.arrayBuffer())),
     volumeAction: async (o, request, label, file) => {

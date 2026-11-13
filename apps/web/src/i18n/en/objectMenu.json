@@ -87,6 +87,8 @@
     "replace": "Replace with STL…",
     "replaceTip": "Another mesh in its place",
     "replaceOnePart": "Only for an object with one part",
-    "exportStl": "Export as STL"
+    "exportStl": "Export as STL",
+    "fillPlate": "Fill plate with copies",
+    "fillPlateTip": "Fill the rest of the plate with copies of this object"
   }
 }

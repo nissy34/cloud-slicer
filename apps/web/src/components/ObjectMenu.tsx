@@ -1,6 +1,6 @@
 import { Fragment, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
-import { menuPosition, unitConversions } from '../lib/objectMenu';
+import { copiesFrom, MAX_COPIES, menuPosition, unitConversions } from '../lib/objectMenu';
 import { ALL } from '../lib/boolean';
 import { ADD_MENUS, kindLabel, keepsAPart, shapeLabel, SHAPES, type VolumeKind } from '../lib/volumes';
 import { NO_COLOURS, useSlicer } from '../state/store';
@@ -57,7 +57,7 @@ function MenuCard() {
   const [sub, setSub] = useState<Sub>(null);
   const [form, setForm] = useState<Form>(menu.form ?? null);
   const [name, setName] = useState(vol ? vol.name : obj.name);
-  const [count, setCount] = useState(1);
+  const [count, setCount] = useState('1');
   const [arrange, setArrange] = useState(true);
   const [at, setAt] = useState<{ left: number; top: number } | null>(null);
   // A long press opens the menu under the finger; lifting it must not pick
@@ -165,12 +165,12 @@ function MenuCard() {
           className="menu-form"
           onSubmit={(e) => {
             e.preventDefault();
-            run(() => s.cloneObject(o, count, arrange))();
+            run(() => s.cloneObject(o, copiesFrom(count), arrange))();
           }}
         >
           <label>
             {t('objectMenu.copiesCount')}
-            <input aria-label={t('objectMenu.copiesCount')} type="number" min={1} max={1000} value={count} autoFocus onChange={(e) => setCount(Math.max(1, Math.min(1000, Number(e.target.value) || 1)))} />
+            <input aria-label={t('objectMenu.copiesCount')} type="number" min={1} max={MAX_COPIES} value={count} autoFocus onChange={(e) => setCount(e.target.value)} onBlur={() => setCount(String(copiesFrom(count)))} />
           </label>
           <label className="menu-check-row">
             <input type="checkbox" checked={arrange} onChange={(e) => setArrange(e.target.checked)} />
@@ -179,6 +179,9 @@ function MenuCard() {
           <div className="menu-form-actions">
             <button type="button" className="ghost" onClick={() => setForm(null)}>
               {t('objectMenu.back')}
+            </button>
+            <button type="button" className="ghost" title="As many instances as fit on the plate" onClick={run(() => s.fillPlate(o, i))}>
+              Fill plate
             </button>
             <button type="submit" className="primary">
               {t('objectMenu.clone')}
@@ -190,12 +193,12 @@ function MenuCard() {
           className="menu-form"
           onSubmit={(e) => {
             e.preventDefault();
-            run(() => s.setInstanceCount(o, count))();
+            run(() => s.setInstanceCount(o, copiesFrom(count)))();
           }}
         >
           <label>
             {t('objectMenu.instancesCount')}
-            <input aria-label={t('objectMenu.instancesCount')} type="number" min={1} max={1000} value={count} autoFocus onChange={(e) => setCount(Math.max(1, Math.min(1000, Number(e.target.value) || 1)))} />
+            <input aria-label={t('objectMenu.instancesCount')} type="number" min={1} max={MAX_COPIES} value={count} autoFocus onChange={(e) => setCount(e.target.value)} onBlur={() => setCount(String(copiesFrom(count)))} />
           </label>
           <div className="menu-form-actions">
             <button type="button" className="ghost" onClick={() => setForm(null)}>
@@ -319,6 +322,7 @@ function MenuCard() {
           />
           <hr />
           {item(t('objectMenu.cloneMenu'), () => setForm('clone'), { title: t('objectMenu.cloneTip') })}
+          {item(t('objectMenu.fillPlate'), run(() => s.fillPlate(o, i)), { title: t('objectMenu.fillPlateTip') })}
           {item(t('objectMenu.center'), run(() => s.objectAction(o, i, { op: 'center' }, t('objectMenu.center'))), { title: t('objectMenu.centerTip') })}
           {submenu(
             'split',
@@ -347,7 +351,7 @@ function MenuCard() {
                 title: obj.instances.length < 2 ? t('objectMenu.noOtherCopies') : t('objectMenu.removeInstanceTip'),
               })}
               {item(t('objectMenu.setInstances'), () => {
-                setCount(obj.instances.length);
+                setCount(String(obj.instances.length));
                 setForm('instances');
               }, { title: t('objectMenu.setInstancesTip', { n: obj.instances.length }) })}
             </>,

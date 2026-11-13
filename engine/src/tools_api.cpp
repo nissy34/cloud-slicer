@@ -214,6 +214,89 @@ std::string arrangePlate(int plate, double spacing, double tall, const std::stri
     });
 }
 
+// Desktop's "Fill bed with copies" (Plater::fill_bed_with_instances, FillBedJob):
+// fills what is left of the instance's plate with more instances of its
+// object. As there, the other objects on the plate stay where they are and
+// only this instance and its new copies are laid out: a grid of the
+// instance's footprint, `spacing` mm apart, kept `spacing` clear of the other
+// objects and of the `keepOut` rectangles (the prime tower). Of a few ways to
+// line the grid up on the plate (centred, against either edge), the one that
+// fits the most copies wins. At most `maxCopies` instances in all.
+//
+// `optionsJson`: {keepOut: [[x, y, width, depth], ...]} in plate coordinates.
+// Answers {ok, instances}: the instance and its copies, 0 when not even one
+// fits (then nothing moves).
+std::string fillPlate(int o, int i, double spacing, int maxCopies, const std::string& optionsJson) {
+    return guarded([&] {
+        engine::Project& p = pr();
+        ModelObject* obj = objectAt(o);
+        if (i < 0 || size_t(i) >= obj->instances.size()) throw std::runtime_error("no instance " + std::to_string(i));
+        ModelInstance* inst = obj->instances[i];
+        const int plate = p.plateOf(*inst);
+        if (plate < 0) throw std::runtime_error("the object is not on a plate");
+        const json options = optionsJson.empty() ? json::object() : json::parse(optionsJson);
+        spacing = std::max(0.0, spacing);
+        const Vec2d origin = p.plateOrigin(plate);
+        const double W = p.plateWidth, D = p.plateDepth;
+
+        // What stays put, in plate coordinates, grown by the spacing.
+        std::vector<BoundingBoxf> fixed;
+        const auto grown = [&](Vec2d min, Vec2d max) {
+            return BoundingBoxf(min - Vec2d(spacing, spacing), max + Vec2d(spacing, spacing));
+        };
+        for (ModelObject* other : p.model.objects)
+            for (ModelInstance* in : other->instances) {
+                if (in == inst || p.plateOf(*in) != plate) continue;
+                const BoundingBoxf3 bb = other->instance_bounding_box(*in, false);
+                fixed.push_back(grown(Vec2d(bb.min.x(), bb.min.y()) - origin, Vec2d(bb.max.x(), bb.max.y()) - origin));
+            }
+        if (options.contains("keepOut"))
+            for (const json& r : options["keepOut"]) {
+                const Vec2d at(r.at(0).get<double>(), r.at(1).get<double>());
+                fixed.push_back(grown(at, at + Vec2d(r.at(2).get<double>(), r.at(3).get<double>())));
+            }
+
+        const BoundingBoxf3 own = obj->instance_bounding_box(*inst, false);
+        const double w = own.size().x(), h = own.size().y();
+        const int cols = int(std::floor((W + spacing) / (w + spacing) + 1e-9));
+        const int rows = int(std::floor((D + spacing) / (h + spacing) + 1e-9));
+        if (cols < 1 || rows < 1) throw std::runtime_error("the object is bigger than the plate");
+        const double gw = cols * w + (cols - 1) * spacing, gd = rows * h + (rows - 1) * spacing;
+        const auto clear = [&](const Vec2d& min) {
+            const Vec2d max = min + Vec2d(w, h);
+            for (const BoundingBoxf& f : fixed)
+                if (min.x() < f.max.x() && max.x() > f.min.x() && min.y() < f.max.y() && max.y() > f.min.y()) return false;
+            return true;
+        };
+        // Front row first, left to right, like Arrange's rows.
+        std::vector<Vec2d> best;
+        for (double x0 : {(W - gw) / 2, 0.0, W - gw})
+            for (double y0 : {(D - gd) / 2, 0.0, D - gd}) {
+                std::vector<Vec2d> cells;
+                for (int r = 0; r < rows; r++)
+                    for (int c = 0; c < cols; c++) {
+                        const Vec2d min(x0 + c * (w + spacing), y0 + r * (h + spacing));
+                        if (clear(min)) cells.push_back(min);
+                    }
+                if (cells.size() > best.size()) best = std::move(cells);
+            }
+        if (best.empty()) return ok({{"instances", 0}});  // no room: nothing changes
+        if (maxCopies > 0 && best.size() > size_t(maxCopies)) best.resize(size_t(maxCopies));
+
+        // Each copy has the instance's turn and scale; only where it stands differs.
+        const Vec2d centre(own.center().x(), own.center().y());
+        const Vec3d start = inst->get_offset();
+        const auto place = [&](ModelInstance* in, const Vec2d& min) {
+            const Vec2d d = origin + min + Vec2d(w, h) / 2 - centre;
+            in->set_offset(start + Vec3d(d.x(), d.y(), 0));
+        };
+        for (size_t k = 1; k < best.size(); k++) place(obj->add_instance(*inst), best[k]);
+        place(inst, best[0]);
+        obj->invalidate_bounding_box();
+        return ok({{"instances", best.size()}});
+    });
+}
+
 // Auto-orient (desktop's Orient): turns the object so it prints with the least
 // overhang, then drops it on the bed.
 std::string orientObject(int o) {
@@ -774,6 +857,7 @@ std::string setObjectSettings(int o, int volume, const std::string& valuesJson) 
 EMSCRIPTEN_BINDINGS(tools_api) {
     emscripten::function("setObjectSettings", &setObjectSettings);
     emscripten::function("arrangePlate", &arrangePlate);
+    emscripten::function("fillPlate", &fillPlate);
     emscripten::function("orientObject", &orientObject);
     emscripten::function("splitObject", &splitObject);
     emscripten::function("splitParts", &splitParts);

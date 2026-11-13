@@ -42,6 +42,10 @@ down. Add a line with the date when a new choice is made.
   mixing come with OrcaSlicer 2.5). Sending to Bambu printers goes through the bridge and
   needs no engine.
 - wasm64: not now (no Safari, phones kill tabs below 4 GB, slower; 2026-10-20).
+- wasm SIMD: both engines built with it (2026-11-13). 2-11% faster slices, same G-code;
+  Safari and iPhones need 16.4 (was 15.2). Eigen's SSE2 code as wasm SIMD was tried and
+  dropped: Eigen 3.4 uses x86 inline assembly under Emscripten, so it needs an Eigen
+  patch, and Orca's maths is mostly 3-element vectors Eigen doesn't vectorise anyway.
 - OrcaSlicer 2.5 replaces 2.4.2 (one OrcaSlicer at a time), got ready on its beta and merged
   once 2.5.0 is stable (2026-10-30). Its colour mixing is wired in too, through the same
   Color mixing panel and Add Mix window (Ratio, Match, Gradient; it has no Cycle), stored

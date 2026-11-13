@@ -77,6 +77,10 @@ Desktop Orca's Prepare tools, one by one, each backed by Orca's own code.
 - The Text tool's vertical alignment names where the text goes from its point: Top puts
   it above. Orca's stored value is the other way round (its `top` is the text's top on
   the point), so Top saves `bottom`; files stay the same as desktop's.
+- The right-click menus (object, group, plate, layer slider) are dense like desktop's:
+  24 px rows in small text, 210 px wide, so the object menu fits a laptop screen without
+  scrolling (`.object-menu` in `styles/objects-layers.css`). On a touch screen the rows
+  are 32 px with normal text, so a finger can still hit them; the menu scrolls there.
 - The object menu uses desktop's words for copies: an "Instances" submenu with Add
   instance, Remove instance and Set number of instances… (new copies go beside the last
   one, one undo step). Copy, Cut and Paste are in the object and group menus, and Paste in

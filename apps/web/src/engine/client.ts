@@ -303,6 +303,12 @@ export class EngineClient {
    */
   arrangePlate = (plate: number, spacing: number, tall = 0, options: ArrangeOptions = {}) =>
     this.call<ProjectInfo>('arrangePlate', [plate, spacing, tall, options]);
+  /**
+   * Desktop's "Fill bed with copies": more instances of object o round instance i,
+   * filling what is left of its plate. `keepOut`: plate rectangles [x, y, width, depth] to keep clear (the prime tower).
+   */
+  fillPlate = (o: number, i: number, spacing: number, max: number, keepOut: number[][] = []) =>
+    this.call<ProjectInfo>('fillPlate', [o, i, spacing, max, { keepOut }]);
   orientObject = (o: number) => this.call<ProjectInfo>('orientObject', [o]);
   splitObject = (o: number) => this.call<ProjectInfo>('splitObject', [o]);
   splitParts = (o: number) => this.call<ProjectInfo>('splitParts', [o]);

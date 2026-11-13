@@ -38,6 +38,8 @@
     "testName": "{{title}} test",
     "testReady_one": "{{title}} test ready. It changed {{count}} setting, marked in Settings.",
     "testReady_other": "{{title}} test ready. It changed {{count}} settings, marked in Settings.",
-    "thisPrinter": "this printer"
+    "thisPrinter": "this printer",
+    "lockedCopies": "This plate is locked, so it can't take more copies. Unlock it from its lock icon or the plate menu.",
+    "noRoomForCopy": "There is no room left on this plate for another copy."
   }
 }

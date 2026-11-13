@@ -69,6 +69,14 @@ printing object by object, a draggable prime tower, and a slice kept per plate.
   rule in `AutoArranger`). Printing object by object, the gap is never under the
   clearance. On a phone the pop-up closes after Arrange so the plate is in sight;
   desktop keeps it open, like Orca.
+- **Fill plate with copies**: desktop's "Fill bed with copies"
+  (`Plater::fill_bed_with_instances`, `FillBedJob`), in the object menu under Clone… and
+  as Fill plate in the Clone form. The engine's `fillPlate` (tools_api.cpp) adds
+  instances of the object in a grid of the instance's footprint, Arrange's spacing apart,
+  kept that far from the other objects and the prime tower (the page passes its
+  rectangle as `keepOut`); the other objects stay put, as on desktop. Of the grid lined up
+  centred or against either edge, the one that fits most wins; at most 1000. No room: a
+  notice, nothing moves.
 - **Slicing another plate**: picking a plate while one slices shows it at once; the
   slice goes on and the bar says "Plate N sliced · View".
 

@@ -87,6 +87,8 @@
     "replace": "החלפה ב-STL…",
     "replaceTip": "רשת אחרת במקומו",
     "replaceOnePart": "רק לאובייקט עם חלק אחד",
-    "exportStl": "ייצוא כ-STL"
+    "exportStl": "ייצוא כ-STL",
+    "fillPlate": "מילוי המשטח בהעתקים",
+    "fillPlateTip": "מילוי שאר המשטח בהעתקים של האובייקט הזה"
   }
 }

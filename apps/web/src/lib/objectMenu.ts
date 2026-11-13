@@ -34,3 +34,16 @@ export function stlName(objectName: string): string {
 export function menuPosition(x: number, y: number, menuW: number, menuH: number, w: number, h: number): { left: number; top: number } {
   return { left: Math.max(4, Math.min(x, w - menuW - 4)), top: Math.max(4, Math.min(y, h - menuH - 4)) };
 }
+
+/** Most copies or instances one Clone or "Set number of instances" makes. */
+export const MAX_COPIES = 1000;
+
+/**
+ * The number typed in a copies box, kept between 1 and MAX_COPIES. The box
+ * keeps what is typed (even nothing, on the way to another number); this is
+ * what counts when it is used.
+ */
+export function copiesFrom(text: string): number {
+  const n = Math.round(Number(text));
+  return Number.isFinite(n) && n >= 1 ? Math.min(MAX_COPIES, n) : 1;
+}

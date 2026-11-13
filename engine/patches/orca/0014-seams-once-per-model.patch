@@ -1,0 +1,114 @@
+diff --git a/src/libslic3r/GCode/SeamPlacer.cpp b/src/libslic3r/GCode/SeamPlacer.cpp
+index 2de6be1d..6ef0f2c3 100644
+--- a/src/libslic3r/GCode/SeamPlacer.cpp
++++ b/src/libslic3r/GCode/SeamPlacer.cpp
+@@ -2112,6 +2112,32 @@ void SeamPlacer::align_seam_points(const PrintObject *po, const SeamPlacerImpl::
+ 
+ }
+ 
++// cloud-slicer: whether two objects' seam visibility (compute_global_occlusion)
++// comes out the same: same seam position, same parts and negative parts with
++// the same meshes in the same places, turned and scaled alike. Copies of one
++// model, even with settings of their own (another filament, other infill),
++// are; their visibility is then worked out once.
++static bool same_seam_visibility(const PrintObject *a, const PrintObject *b) {
++  if (a->config().seam_position.value != b->config().seam_position.value) return false;
++  if (!(a->trafo_sliced().matrix() == b->trafo_sliced().matrix())) return false;
++  auto parts = [](const PrintObject *po) {
++    std::vector<const ModelVolume*> out;
++    for (const ModelVolume *v : po->model_object()->volumes)
++      if (v->type() == ModelVolumeType::MODEL_PART || v->type() == ModelVolumeType::NEGATIVE_VOLUME) out.push_back(v);
++    return out;
++  };
++  const std::vector<const ModelVolume*> pa = parts(a), pb = parts(b);
++  if (pa.size() != pb.size()) return false;
++  for (size_t i = 0; i < pa.size(); ++i) {
++    const ModelVolume &va = *pa[i], &vb = *pb[i];
++    if (va.type() != vb.type() || !(va.get_matrix().matrix() == vb.get_matrix().matrix())) return false;
++    if (&va.mesh() != &vb.mesh()
++        && (va.mesh().its.vertices != vb.mesh().its.vertices || va.mesh().its.indices != vb.mesh().its.indices))
++      return false;
++  }
++  return true;
++}
++
+ void SeamPlacer::init(const Print &print, std::function<void(void)> throw_if_canceled_func) {
+   using namespace SeamPlacerImpl;
+   m_seam_per_object.clear();
+@@ -2120,13 +2146,54 @@ void SeamPlacer::init(const Print &print, std::function<void(void)> throw_if_can
+   // Warning flags for Precise Seam processing — shared across all objects
+   PreciseSeam::PreciseSeamWarnings precise_seam_warnings;
+ 
+-  for (const PrintObject *po : print.objects()) {
++  // cloud-slicer: an object identical to an earlier one (Print::process's
++  // shared object, e.g. a clone) prints that object's own layers, and
++  // place_seam looks seams up by layer->object(), so the seams it uses are
++  // that object's: it needs none of its own. The others that share a mesh
++  // (same_seam_visibility) cast the visibility rays once between them, the
++  // costly part (about 2 s of CPU an object in the browser: a plate of 40
++  // copies sat at "Generating G-code" for minutes). Each object's ray casting
++  // is kept only until the last one that reuses it is done.
++  std::vector<const PrintObject*> objects;
++  for (const PrintObject *po : print.objects())
++    if (po->layer_count() == 0 || po->layers()[0]->object() == po)
++      objects.push_back(po);
++  auto needs_visibility = [](SeamPosition p) { return p == spAligned || p == spNearest || p == spAlignedBack; };
++  auto shareable = [&](const PrintObject *po) {
++    return needs_visibility(po->config().seam_position.value) && !po->model_object()->is_seam_painted()
++        && std::none_of(po->model_object()->volumes.begin(), po->model_object()->volumes.end(),
++                        [](const ModelVolume *v) { return v->is_precise_seam(); });
++  };
++  std::vector<int> visibility_from(objects.size(), -1);
++  std::vector<size_t> reused(objects.size(), 0);
++  for (size_t k = 0; k < objects.size(); ++k)
++    if (shareable(objects[k]))
++      for (size_t j = 0; j < k; ++j)
++        if (visibility_from[j] < 0 && shareable(objects[j]) && same_seam_visibility(objects[j], objects[k])) {
++          visibility_from[k] = int(j);
++          ++reused[j];
++          break;
++        }
++  std::vector<std::unique_ptr<GlobalModelInfo>> kept(objects.size());
++
++  for (size_t object_idx = 0; object_idx < objects.size(); ++object_idx) {
++    const PrintObject *po = objects[object_idx];
+     throw_if_canceled_func();
++    // cloud-slicer: seconds an object in the browser, so say how far it got.
++    print.set_status(80, "Generating G-code: placing seams, object " + std::to_string(object_idx + 1) + " of "
++                             + std::to_string(objects.size()));
+     SeamPosition configured_seam_preference = po->config().seam_position.value;
+     SeamComparator comparator { configured_seam_preference };
+ 
+     {
+-      GlobalModelInfo global_model_info { };
++      std::unique_ptr<GlobalModelInfo> own;
++      if (visibility_from[object_idx] >= 0) {
++        // No precise seam modifiers (shareable): only the flag to set.
++        std::vector<const ModelVolume*> strong, weak;
++        PreciseSeam::init_precise_seam_data(strong, weak, m_seam_per_object[po].has_precise_seam_strong_volumes, po->model_object());
++      } else {
++      own = std::make_unique<GlobalModelInfo>();
++      GlobalModelInfo &global_model_info = *own;
+       gather_enforcers_blockers(global_model_info, po);
+       PreciseSeam::init_precise_seam_data(
+           global_model_info.precise_seam_strong_volumes,
+@@ -2150,6 +2217,8 @@ void SeamPlacer::init(const Print &print, std::function<void(void)> throw_if_can
+       if (configured_seam_preference == spAligned || configured_seam_preference == spNearest || configured_seam_preference == spAlignedBack) {
+         compute_global_occlusion(global_model_info, po, throw_if_canceled_func, configured_seam_preference);
+       }
++      }
++      const GlobalModelInfo &global_model_info = own ? *own : *kept[visibility_from[object_idx]];
+       throw_if_canceled_func();
+ 
+       BOOST_LOG_TRIVIAL(debug)
+@@ -2165,6 +2234,10 @@ void SeamPlacer::init(const Print &print, std::function<void(void)> throw_if_can
+         BOOST_LOG_TRIVIAL(debug)
+             << "SeamPlacer: calculate_candidates_visibility : end";
+       }
++      if (own && reused[object_idx] > 0)
++        kept[object_idx] = std::move(own);
++      else if (!own && --reused[visibility_from[object_idx]] == 0)
++        kept[visibility_from[object_idx]].reset();
+     } // destruction of global_model_info (large structure, no longer needed)
+     throw_if_canceled_func();
+     BOOST_LOG_TRIVIAL(debug)

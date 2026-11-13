@@ -55,6 +55,8 @@
     "undoing": "Undoing",
     "union": "Union",
     "unlockPlate": "Unlock plate",
-    "variableLayerHeight": "Variable layer height"
+    "variableLayerHeight": "Variable layer height",
+    "fillingPlate": "Filling the plate",
+    "fillPlate": "Fill plate with copies"
   }
 }
