@@ -58,7 +58,7 @@ add_link_options(-pthread -fwasm-exceptions)
 # exceptions) already ask for nearly as much.
 # -msse2 on top lets Eigen use its SSE2 vectors (Eigen 3.4 has none for wasm);
 # Emscripten turns SSE2 into wasm SIMD. Desktop on x86-64 builds Eigen with SSE2 too.
-add_compile_options(-msimd128 -msse2 -I${CMAKE_CURRENT_SOURCE_DIR}/compat/sse)
+add_compile_options(-msimd128 -msse2)
 add_link_options(-msimd128)
 # wasm32 has a 32-bit size_t. Orca initialises size_t sentinels from
 # numeric_limits<coord_t /* int64 */>::max() (GCode.hpp LayerResult); the value
