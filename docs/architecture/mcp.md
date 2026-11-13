@@ -25,6 +25,7 @@ else goes over the internet.
 | One engine, one open project, the chosen presets and changed settings | `apps/mcp/src/slicer.ts` |
 | The engine on its own thread, like the site's engine worker | `apps/mcp/src/worker.ts`, `engine-client.ts` |
 | Plate pictures without a GPU | `apps/mcp/src/picture.ts` |
+| Pictures of the sliced toolpaths (`sliced_picture`): the site's G-code parser (`lib/gcode.ts`) and Preview colours (`lib/preview-colours.ts`), each extrusion drawn as a lit bead; the legend comes back as text beside the picture | `apps/mcp/src/toolpaths.ts` |
 | Signing in to the person's account, and calls to the site's `/api` as them | `apps/mcp/src/account.ts` |
 | Their online projects: list, open, save, print history (with the site's `account/drive.ts`, `lib/prints.ts`) | `apps/mcp/src/projects.ts` |
 | The site's approval window for that sign-in | `apps/web/src/account/LinkProgramDialog.tsx` |
@@ -56,6 +57,12 @@ sequenceDiagram
   S-->>C: file path, print time, grams and metres per slot, warnings
 ```
 
+- `layer_change` sets the plate's layer items with the site's own engine call (`plateAction`
+  op `layerCodes`) and rules (`lib/layerCodes.ts`: one per layer, the layer whose top is
+  nearest, filament change only when the plate prints with one filament). Layer numbers
+  come from the plate's newest slice (its `;Z:` heights); before a slice they are worked
+  out from the first layer and layer height, and the answer says so. They are saved in
+  the 3MF like the site's.
 - Everything is in Orca's own words: preset names, option keys, values as Orca writes them.
 - A 3MF made for a printer the presets have opens with its presets, filaments and own
   settings, like the site. One made for another printer stays on the current printer
@@ -214,7 +221,11 @@ site and the relay, not in the add-on (anyone can change a program):
 The sign-in, if any: the site and its token (plus name and email for showing) in
 `<config>/cloud-slicer/account.json` (`%APPDATA%`, `~/Library/Application Support` or
 `~/.config`), readable only by the computer's user. A token for another site
-(`CLOUD_SLICER_SITE`, for tests and previews) is ignored. Nothing else between runs. The G-code (and a `.gcode.3mf` for printers that take one) goes
+(`CLOUD_SLICER_SITE`, for tests and previews) is ignored. A model Claude made in the chat (`open_model` with `content`
+and `name`: text for an ASCII STL or OBJ, base64 for a binary STL or 3MF; AI apps hand an
+add-on no files of their own) is written to `~/Cloud Slicer/From the chat/` (never over
+another file, the name kept inside that folder) so the engine can read it and the person
+can find it; its G-code goes beside it. Nothing else between runs. The G-code (and a `.gcode.3mf` for printers that take one) goes
 where Claude says, or beside the model, named by the printer's file name format.
 
 ## Rules
