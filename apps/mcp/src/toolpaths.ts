@@ -7,6 +7,7 @@ import * as THREE from 'three';
 import { FEATURE_COLOURS, FEATURES, orderForPreview, parseGcode, type PreviewGcode } from '../../web/src/lib/gcode';
 import { formatValue, isRangeView, segmentColours, valueAt, valueRange, VIEW_TYPES, rangeColour, type ColourBy } from '../../web/src/lib/preview-colours';
 import { downsample, thumbnailCamera } from '../../web/src/lib/thumbnail';
+import { i18n } from '../../web/src/i18n';
 
 export type View = 'iso' | 'top' | 'front';
 
@@ -151,7 +152,7 @@ export function drawToolpaths(text: string, opts: ToolpathOptions) {
   return {
     picture: { width: opts.size, height: opts.size, pixels: downsample(pixels, opts.size, opts.size, SUPERSAMPLE) },
     about: {
-      colouredBy: title.title ?? title.label,
+      colouredBy: i18n.t(title.title ?? title.label),
       layers: from === 1 && to === layers ? `all ${layers}` : `${from} to ${to} of ${layers}`,
       topLayerZmm: Math.round(p.layerZ[to - 1] * 100) / 100,
       view: opts.view,

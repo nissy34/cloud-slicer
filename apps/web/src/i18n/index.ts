@@ -26,6 +26,8 @@ void i18n.use(initReactI18next).init({
   resources: { en: { translation: EN } },
   lng: 'en',
   fallbackLng: 'en',
+  // English is built in, so it is ready at once (the AI app add-on reads words while it starts).
+  initAsync: false,
   // React already escapes text.
   interpolation: { escapeValue: false },
 });
