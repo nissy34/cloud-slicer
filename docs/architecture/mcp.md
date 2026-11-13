@@ -74,6 +74,9 @@ Claude Desktop extension: open it, Install; it runs on the Node that Claude Desk
 ships) and `cloud-slicer-mcp.tgz` (`npx -y <link>` for Claude Code and other MCP apps).
 Both carry the engines inside (about 11 MB each), so they never depend on CI's
 `engine-builds`, which keeps only the newest 15. No npm account, no hosting: $0.
+Each build has its own version, `0.1.<CI run number>` (`MCP_VERSION`, read by `build.mjs`
+and `pack.mjs`): Claude Desktop installs a downloaded extension over the old one only
+when its version is newer. To update, the person downloads it again and opens it.
 
 On the site, **Use with an AI app** (`apps/web/src/components/AiAppsDialog.tsx`) shows
 how: in the account menu, and in the Project menu too, since the add-on needs no account

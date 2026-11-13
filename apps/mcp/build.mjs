@@ -5,11 +5,12 @@
 //                                           (profiles.json + profiles/<brand>.json + catalog.json)
 //
 //   node build.mjs            needs both engines: node engine/scripts/fetch-engine.mjs
+//   MCP_VERSION=0.1.7 node build.mjs && MCP_VERSION=0.1.7 node pack.mjs   a numbered build (CI does)
 //
 // Engines come from engine/build/engine and engine/build/engine-orca (fetch-engine.mjs
 // or a local build); their presets are bundled here from the engines' own sources.
 import { execFileSync } from 'node:child_process';
-import { cpSync, existsSync, mkdirSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
+import { cpSync, existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { build } from 'esbuild';
@@ -17,6 +18,8 @@ import { build } from 'esbuild';
 const here = dirname(fileURLToPath(import.meta.url));
 const repo = resolve(here, '../..');
 const dist = resolve(here, 'dist');
+// Each build its own version (CI: 0.1.<run number>), so Claude Desktop takes a new download as an update.
+const version = process.env.MCP_VERSION || JSON.parse(readFileSync(resolve(here, 'package.json'), 'utf8')).version;
 const ENGINES = { snapmaker: 'engine/build/engine', orca: 'engine/build/engine-orca' };
 
 rmSync(dist, { recursive: true, force: true });
@@ -33,7 +36,7 @@ await build({
   // The site's helpers import three; take it from here, not from apps/web's own install.
   nodePaths: [resolve(here, 'node_modules')],
   // The site's code reads Vite's build-time values; the add-on has none.
-  define: { 'import.meta.env': '{}' },
+  define: { 'import.meta.env': '{}', __ADDON_VERSION__: JSON.stringify(version) },
   logLevel: 'warning',
 });
 
@@ -57,4 +60,4 @@ for (const [flavor, from] of Object.entries(ENGINES)) {
   for (const f of readdirSync(resolve(tmp, 'profiles')).filter((f) => f.endsWith('.json'))) cpSync(resolve(tmp, 'profiles', f), resolve(out, 'profiles', f));
   rmSync(tmp, { recursive: true, force: true });
 }
-console.log(`built ${dist}`);
+console.log(`built ${dist} (version ${version})`);

@@ -462,6 +462,9 @@ jobs:
           key: ${{ steps.key.outputs.orca }}
       - name: Build and test
         working-directory: apps/mcp
+        env:
+          # Every build its own version: Claude Desktop only installs a download as an update when the number is newer.
+          MCP_VERSION: 0.1.${{ github.run_number }}
         run: |
           npm ci
           npm run check

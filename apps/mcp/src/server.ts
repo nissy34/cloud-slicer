@@ -46,7 +46,7 @@ async function syncAccount() {
   await slicer.setUserPresets(r?.presets ?? (account.signedIn ? slicer.mineNow() : []));
 }
 const server = new McpServer(
-  { name: 'cloud-slicer', version: '0.1.0' },
+  { name: 'cloud-slicer', version: __ADDON_VERSION__ },
   {
     instructions:
       'Slices 3D models for 3D printers on this computer with Cloud Slicer (OrcaSlicer). ' +
