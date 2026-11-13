@@ -137,6 +137,12 @@ match ([testing](testing.md#same-as-desktop-orca)).
   temperature change). **0012** and **orca/0013** fix Orca's step rules where redoing a
   step on a kept `Print` gave other G-code than a fresh slice (lift detection not redone
   after supports; walls simplified twice after an infill change).
+- **Patch 0014** works out seams once per model: before the first G-code layer Orca
+  casts seam visibility rays at every object (about 2 s of CPU each in the browser), so a
+  plate of 40 copies sat at "Generating G-code" for minutes. Identical copies print the
+  first one's layers and skip it; copies with settings of their own share the ray
+  casting; and the step reports "placing seams, object N of M", which
+  `lib/slice-progress.ts` turns into 70-78% of the bar. Seams stay where desktop puts them.
 - **wasm SIMD** (`-msimd128`): clang vectorises loops, never reordering floating-point
   maths, so the G-code is the same and slices are 2-11% faster (most in the seam step).
   Browsers need it: Chrome 91, Firefox 89, Safari/iOS 16.4.

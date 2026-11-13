@@ -580,6 +580,9 @@ jobs:
           # Branch previews set up new bridges on the test relay (device.yml), where
           # pull requests are tried before they merge; main uses the live one.
           VITE_DEVICE_RELAY_URL: ${{ github.ref != 'refs/heads/main' && 'https://cloud-slicer-relay-test.awesomestuff.qzz.io' || '' }}
+          # The AI app add-on's version that this same run publishes on main (the mcp job's MCP_VERSION),
+          # shown in "Use with an AI app"; previews publish none.
+          VITE_MCP_VERSION: ${{ github.ref == 'refs/heads/main' && format('0.1.{0}', github.run_number) || '' }}
         run: |
           npm ci --no-audit --no-fund
           npm run build
@@ -740,7 +743,7 @@ jobs:
           node test/warnings.mjs
           node test/colour-picker.mjs
 
-      - name: Prime tower, plate menu, plate settings, transform fields and layer slider items end to end (Chromium)
+      - name: Prime tower, plate menu, plate settings, transform fields, layer slider items, arrange and fill plate end to end (Chromium)
         if: matrix.suite == 'wipetower'
         run: |
           node test/wipe-tower.mjs
@@ -750,6 +753,7 @@ jobs:
           node test/layer-codes.mjs
           node test/transform-fields.mjs
           node test/arrange-options.mjs
+          node test/fill-plate.mjs
 
       - name: Phone 3D view gestures, rotate ring, measure and choosing several models end to end (Chromium)
         if: matrix.suite == 'touch'

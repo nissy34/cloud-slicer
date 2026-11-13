@@ -180,6 +180,7 @@ if (self.name !== 'em-pthread') {
     deleteInstance: (e, o, i) => (json(e.deleteInstance(o, i)), JSON.parse(e.modelInfoJson())),
     resizePlates: (e, w, d) => (json(e.resizePlates(w, d)), JSON.parse(e.modelInfoJson())),
     arrangePlate: (e, plate, spacing, tall, options) => (json(e.arrangePlate(plate, spacing, tall ?? 0, JSON.stringify(options ?? {}))), JSON.parse(e.modelInfoJson())),
+    fillPlate: (e, o, i, spacing, max, options) => (json(e.fillPlate(o, i, spacing, max, JSON.stringify(options ?? {}))), JSON.parse(e.modelInfoJson())),
     orientObject: (e, o) => (json(e.orientObject(o)), JSON.parse(e.modelInfoJson())),
     splitObject: (e, o) => (json(e.splitObject(o)), JSON.parse(e.modelInfoJson())),
     splitParts: (e, o) => (json(e.splitParts(o)), JSON.parse(e.modelInfoJson())),

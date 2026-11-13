@@ -79,7 +79,7 @@ why: [README.md](README.md) (the docs map) and [architecture/](architecture/).
   arrange, auto orient, delete all, delete plate and rename plate, the name then shown
   on the plate; Show labels or Ctrl+E puts each object's name over it), and desktop's
   object menu (right click or long press an object, or ⋯ in the object list: clone,
-  center, rename, printable, change filament, scale to fit, unit conversion, replace
+  fill plate with copies, center, rename, printable, change filament, scale to fit, unit conversion, replace
   with STL, export as STL), and parts, negative parts, modifiers and support
   blockers/enforcers added to an object (shapes or a mesh file), shown see-through,
   moved with the gizmos, with their own settings, mesh boolean (union, difference or

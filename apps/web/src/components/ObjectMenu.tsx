@@ -1,5 +1,5 @@
 import { Fragment, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
-import { menuPosition, unitConversions } from '../lib/objectMenu';
+import { copiesFrom, MAX_COPIES, menuPosition, unitConversions } from '../lib/objectMenu';
 import { ALL } from '../lib/boolean';
 import { ADD_MENUS, KIND_LABELS, keepsAPart, SHAPES, type VolumeKind } from '../lib/volumes';
 import { NO_COLOURS, useSlicer } from '../state/store';
@@ -55,7 +55,7 @@ function MenuCard() {
   const [sub, setSub] = useState<Sub>(null);
   const [form, setForm] = useState<Form>(menu.form ?? null);
   const [name, setName] = useState(vol ? vol.name : obj.name);
-  const [count, setCount] = useState(1);
+  const [count, setCount] = useState('1');
   const [arrange, setArrange] = useState(true);
   const [at, setAt] = useState<{ left: number; top: number } | null>(null);
   // A long press opens the menu under the finger; lifting it must not pick
@@ -163,12 +163,12 @@ function MenuCard() {
           className="menu-form"
           onSubmit={(e) => {
             e.preventDefault();
-            run(() => s.cloneObject(o, count, arrange))();
+            run(() => s.cloneObject(o, copiesFrom(count), arrange))();
           }}
         >
           <label>
             Number of copies
-            <input aria-label="Number of copies" type="number" min={1} max={1000} value={count} autoFocus onChange={(e) => setCount(Math.max(1, Math.min(1000, Number(e.target.value) || 1)))} />
+            <input aria-label="Number of copies" type="number" min={1} max={MAX_COPIES} value={count} autoFocus onChange={(e) => setCount(e.target.value)} onBlur={() => setCount(String(copiesFrom(count)))} />
           </label>
           <label className="menu-check-row">
             <input type="checkbox" checked={arrange} onChange={(e) => setArrange(e.target.checked)} />
@@ -177,6 +177,9 @@ function MenuCard() {
           <div className="menu-form-actions">
             <button type="button" className="ghost" onClick={() => setForm(null)}>
               Back
+            </button>
+            <button type="button" className="ghost" title="As many instances as fit on the plate" onClick={run(() => s.fillPlate(o, i))}>
+              Fill plate
             </button>
             <button type="submit" className="primary">
               Clone
@@ -188,12 +191,12 @@ function MenuCard() {
           className="menu-form"
           onSubmit={(e) => {
             e.preventDefault();
-            run(() => s.setInstanceCount(o, count))();
+            run(() => s.setInstanceCount(o, copiesFrom(count)))();
           }}
         >
           <label>
             Number of instances
-            <input aria-label="Number of instances" type="number" min={1} max={1000} value={count} autoFocus onChange={(e) => setCount(Math.max(1, Math.min(1000, Number(e.target.value) || 1)))} />
+            <input aria-label="Number of instances" type="number" min={1} max={MAX_COPIES} value={count} autoFocus onChange={(e) => setCount(e.target.value)} onBlur={() => setCount(String(copiesFrom(count)))} />
           </label>
           <div className="menu-form-actions">
             <button type="button" className="ghost" onClick={() => setForm(null)}>
@@ -317,6 +320,7 @@ function MenuCard() {
           />
           <hr />
           {item('Clone…', () => setForm('clone'), { title: 'Copies of this object, as new objects (Ctrl+K)' })}
+          {item('Fill plate with copies', run(() => s.fillPlate(o, i)), { title: 'Fill the rest of the plate with copies of this object' })}
           {item('Center', run(() => s.objectAction(o, i, { op: 'center' }, 'Center')), { title: 'Move it to the middle of its plate' })}
           {submenu(
             'split',
@@ -345,7 +349,7 @@ function MenuCard() {
                 title: obj.instances.length < 2 ? 'It has no other copies; Delete removes it' : 'Remove this copy, keeping the others (-)',
               })}
               {item('Set number of instances…', () => {
-                setCount(obj.instances.length);
+                setCount(String(obj.instances.length));
                 setForm('instances');
               }, { title: `How many copies of it in all (now ${obj.instances.length})` })}
             </>,

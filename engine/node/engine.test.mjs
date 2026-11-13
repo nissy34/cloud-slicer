@@ -184,6 +184,50 @@ test('slices an STL with the U1 presets', () => {
   assert.ok(result.prepareSeconds >= 0 && result.prepareSeconds < result.estimatedTimeSeconds, `prepare ${result.prepareSeconds} s`);
 });
 
+test('copies of one model work out their seams once, and say how far they got (patches/<flavor>/0014)', () => {
+  // Before G-code's first layer, Orca works out where the seams go by casting
+  // rays at each object: about 2 s of CPU an object in the browser, so a plate
+  // of 40 copies sat at "Generating G-code" for minutes. Identical copies print
+  // the first one's layers and need no seams of their own; copies with
+  // settings of their own (here every other one with more infill) share the
+  // ray casting.
+  select({ printer: DEFAULT_PRINTER, process: STANDARD });
+  // Seconds from "Generating G-code" to its first layer, the seam progress
+  // reports, and the G-code.
+  const beforeFirstLayer = (copies, ownSettings = false) => {
+    load('gen-cylinder.stl');
+    if (copies > 1) {
+      call(engine, 'objectAction', 0, 0, JSON.stringify({ op: 'clone', count: copies - 1 }));
+      call(engine, 'plateAction', 0, JSON.stringify({ op: 'arrangeSelection', objects: [...Array(copies).keys()] }));
+    }
+    if (ownSettings)
+      for (let o = 1; o < copies; o += 2) call(engine, 'setObjectSettings', o, -1, JSON.stringify({ sparse_infill_density: '40%' }));
+    let start = 0, first = 0;
+    const seams = [];
+    const onProgress = (pct, stage) => {
+      if (!start && stage === 'Generating G-code') start = performance.now();
+      const m = /placing seams, object (\d+) of (\d+)$/.exec(stage);
+      if (m) seams.push([Number(m[1]), Number(m[2])]);
+      if (start && !first && /layer \d+$/.test(stage)) first = performance.now();
+    };
+    const result = JSON.parse(engine.sliceWithConfig(JSON.stringify(fullConfig()), 0, '/work/out.gcode', onProgress, null, ''));
+    assert.ok(result.success, `slice failed: ${result.error}`);
+    const gcode = new TextDecoder().decode(engine.FS.readFile(result.gcodePath));
+    assert.ok(start && first, 'G-code reports its layers');
+    return { seconds: (first - start) / 1000, seams, gcode };
+  };
+  const one = beforeFirstLayer(1);
+  assert.deepEqual(one.seams, [[1, 1]], 'one object: one seam report');
+  const limit = 2 * one.seconds + 0.5;
+  const same = beforeFirstLayer(12);
+  assert.equal((same.gcode.match(/^EXCLUDE_OBJECT_DEFINE/gm) ?? []).length, 12, 'all 12 copies print');
+  assert.deepEqual(same.seams, [[1, 1]], 'identical copies use the first one\'s seams');
+  assert.ok(same.seconds < limit, `12 copies ${same.seconds.toFixed(2)} s before the first layer, 1 copy ${one.seconds.toFixed(2)} s`);
+  const mixed = beforeFirstLayer(12, true);
+  assert.deepEqual(mixed.seams, [[1, 2], [2, 2]], 'two kinds of copy: two seam reports');
+  assert.ok(mixed.seconds < limit, `12 copies of two kinds ${mixed.seconds.toFixed(2)} s before the first layer, 1 copy ${one.seconds.toFixed(2)} s`);
+});
+
 test('the layer count is the G-code\'s, support layers included only once', () => {
   select({ printer: DEFAULT_PRINTER, process: STANDARD });
   load('3DBenchy.stl');
@@ -935,6 +979,40 @@ test('plates: add, arrange, delete', () => {
   m = info();
   assert.equal(m.plates.length, 1);
   assert.equal(m.objects.length, 0, 'deleting plate 1 deleted its objects');
+});
+
+test("fill plate with copies: desktop's Fill bed with copies keeps other objects still", () => {
+  select({ printer: DEFAULT_PRINTER });
+  load('tetrahedron.stl');
+  load('3DBenchy.stl', 0, true);
+  const benchy = () => info().objects[1].instances[0].offset;
+  const still = benchy();
+  const reply = call(engine, 'fillPlate', 0, 0, 6, 1000, JSON.stringify({ keepOut: [[0, 0, 60, 60]] }));
+  const m = info();
+  const copies = m.objects[0].instances;
+  assert.equal(copies.length, reply.instances, 'the reply counts the instances');
+  assert.ok(copies.length > 20, `the plate fills up (${copies.length})`);
+  assert.ok(copies.every((c) => c.plate === 0), 'every copy stays on the plate');
+  assert.deepEqual(benchy(), still, 'the other object stays where it was');
+  const [w, d] = m.objects[0].size;
+  const box = (c) => [c.offset[0] - w / 2, c.offset[1] - d / 2, c.offset[0] + w / 2, c.offset[1] + d / 2];
+  const [bx, by] = still;
+  const [bw, bd] = m.objects[1].size;
+  for (const c of copies) {
+    const [x0, y0, x1, y1] = box(c);
+    assert.ok(x1 <= bx - bw / 2 || x0 >= bx + bw / 2 || y1 <= by - bd / 2 || y0 >= by + bd / 2, 'no copy sits on the other object');
+  }
+  for (let a = 0; a < copies.length; a++)
+    for (let b = a + 1; b < copies.length; b++)
+      assert.ok(Math.abs(copies[a].offset[0] - copies[b].offset[0]) >= w || Math.abs(copies[a].offset[1] - copies[b].offset[1]) >= d, 'copies do not overlap');
+
+  // At most the count asked for; no room at all changes nothing.
+  load('tetrahedron.stl');
+  assert.equal(call(engine, 'fillPlate', 0, 0, 6, 4, '{}').instances, 4);
+  assert.equal(info().objects[0].instances.length, 4);
+  load('tetrahedron.stl');
+  assert.equal(call(engine, 'fillPlate', 0, 0, 6, 1000, JSON.stringify({ keepOut: [[-10, -10, 400, 400]] })).instances, 0);
+  assert.equal(info().objects[0].instances.length, 1, 'no room: no copies');
 });
 
 test("arrange options from desktop's Arrange pop-up: auto rotate, align to Y axis, materials apart", () => {

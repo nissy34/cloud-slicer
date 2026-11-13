@@ -1,3 +1,4 @@
+import { ArrowDownToLine } from "lucide-react";
 import { useState } from "react";
 import { CopyCommand } from "../device/ui/BridgeSetup";
 import { Dialog } from "./Dialog";
@@ -6,6 +7,8 @@ import { Dialog } from "./Dialog";
 const RELEASE = "https://github.com/nissy34/cloud-slicer/releases/download/mcp";
 export const MCPB_URL = `${RELEASE}/cloud-slicer.mcpb`;
 export const NPX_URL = `${RELEASE}/cloud-slicer-mcp.tgz`;
+/** The version on the release, from the same CI run that published it (empty on branch previews, which don't publish). */
+const VERSION = (import.meta.env.VITE_MCP_VERSION as string | undefined) ?? "";
 const README_URL =
   "https://github.com/nissy34/cloud-slicer/blob/main/apps/mcp/README.md";
 
@@ -77,13 +80,17 @@ export function AiAppsDialog({ onClose }: { onClose(): void }) {
               Download the Cloud Slicer extension.
               <div className="dv-downloads">
                 <a
-                  className="primary"
+                  className="secondary"
                   href={MCPB_URL}
                   data-testid="ai-apps-download"
                 >
+                  <ArrowDownToLine size={16} aria-hidden />
                   Download for Claude Desktop
                 </a>
-                <span className="muted small">about 11 MB</span>
+                <span className="muted small" data-testid="ai-apps-version">
+                  {VERSION ? `Version ${VERSION} · ` : ""}about 11 MB. Installed
+                  already? Download it again to update.
+                </span>
               </div>
             </li>
             <li>
