@@ -137,6 +137,9 @@ match ([testing](testing.md#same-as-desktop-orca)).
   temperature change). **0012** and **orca/0013** fix Orca's step rules where redoing a
   step on a kept `Print` gave other G-code than a fresh slice (lift detection not redone
   after supports; walls simplified twice after an infill change).
+- **Patch 0014** works out seams once for identical objects: Orca slices clones once
+  (shared layers), but cast the seam visibility rays for every copy before the first
+  G-code layer, which made a plate of 40 copies sit at "Generating G-code" for minutes.
 - **No wasm64**: Safari lacks it, phones kill tabs below 4 GB anyway, and it is slower.
 - More in [decisions.md](../decisions.md#engines).
 

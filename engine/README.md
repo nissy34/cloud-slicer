@@ -132,6 +132,7 @@ its hunk.
 | `snapmaker/0011`, `orca/0011-chain-copies-of-print-paths` | G-code export turned some of the kept Print's infill and support paths round in place, so writing G-code again from the last slice's Print (kept between slices, as desktop keeps its own) printed them the other way and each export differed; chains copies, so the first export is unchanged and later ones match it. OrcaSlicer 2.5 already chains copies |
 | `snapmaker/0012`, `orca/0012-redo-lift-detection-after-support` | Support generation clears each layer's overhangs, which the lift detection fills in after it; a change that redoes supports (a speed, a brim, a move) or the layers left the lift detection done, so slicing the kept Print again lifted differently from a fresh slice. OrcaSlicer 2.5 already redoes it for new layers; its version adds supports only |
 | `orca/0013-infill-change-keeps-simplified-walls` | An infill change also simplified the walls again, which turned their arcs into lines, so slicing the kept Print again printed other walls than a fresh slice |
+| `snapmaker/0014`, `orca/0014-seams-once-per-shared-object` | Identical objects (clones) print the first one's layers, and the seam lookup goes by the layer's object, yet Orca cast the seam visibility rays for every copy before the G-code's first layer: about 0.5 s a copy in Node and seconds in a browser, so a plate of 40 caps sat at "Generating G-code" for minutes. Copies now skip it; the G-code is unchanged |
 
 ## Two engines
 

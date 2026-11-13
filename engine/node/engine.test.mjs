@@ -184,6 +184,37 @@ test('slices an STL with the U1 presets', () => {
   assert.ok(result.prepareSeconds >= 0 && result.prepareSeconds < result.estimatedTimeSeconds, `prepare ${result.prepareSeconds} s`);
 });
 
+test('copies of one object work out their seams once (patches/<flavor>/0014)', () => {
+  // A plate of identical objects prints the first one's layers for all of
+  // them. Before G-code's first layer, Orca works out where the seams go by
+  // casting rays at each object; doing it for every copy made a plate of 40
+  // copies sit at "Generating G-code" for minutes in the browser.
+  select({ printer: DEFAULT_PRINTER, process: STANDARD });
+  // Seconds from "Generating G-code" to its first layer, and the G-code.
+  const beforeFirstLayer = (copies) => {
+    load('gen-cylinder.stl');
+    if (copies > 1) {
+      call(engine, 'objectAction', 0, 0, JSON.stringify({ op: 'clone', count: copies - 1 }));
+      call(engine, 'plateAction', 0, JSON.stringify({ op: 'arrangeSelection', objects: [...Array(copies).keys()] }));
+    }
+    let start = 0, first = 0;
+    const onProgress = (pct, stage) => {
+      if (!start && stage === 'Generating G-code') start = performance.now();
+      if (start && !first && /layer \d+$/.test(stage)) first = performance.now();
+    };
+    const result = JSON.parse(engine.sliceWithConfig(JSON.stringify(fullConfig()), 0, '/work/out.gcode', onProgress, null, ''));
+    assert.ok(result.success, `slice failed: ${result.error}`);
+    const gcode = new TextDecoder().decode(engine.FS.readFile(result.gcodePath));
+    assert.ok(start && first, 'G-code reports its layers');
+    return { seconds: (first - start) / 1000, gcode };
+  };
+  const one = beforeFirstLayer(1);
+  const twelve = beforeFirstLayer(12);
+  assert.equal((twelve.gcode.match(/^EXCLUDE_OBJECT_DEFINE/gm) ?? []).length, 12, 'all 12 copies print');
+  // Each copy took as long as the first one did (about 0.3 s in Node, seconds on a phone).
+  assert.ok(twelve.seconds < 2 * one.seconds + 0.5, `12 copies ${twelve.seconds.toFixed(2)} s before the first layer, 1 copy ${one.seconds.toFixed(2)} s`);
+});
+
 test('the layer count is the G-code\'s, support layers included only once', () => {
   select({ printer: DEFAULT_PRINTER, process: STANDARD });
   load('3DBenchy.stl');
