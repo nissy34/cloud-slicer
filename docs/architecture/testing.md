@@ -108,6 +108,7 @@ for the rest):
 | `test/wipe-tower.mjs` | A two-filament plate shows the prime tower; drag it, and the slice prints it there |
 | `test/view-touch.mjs` | Phone 3D view: pinching on a model that fills the screen zooms out instead of moving it; Fit all and the views menu |
 | `test/loading.mjs` | The loading screen while the engine starts and a project opens |
+| `test/fill-plate.mjs` | The Clone form's number box can be emptied while typing; Fill plate with copies fills the plate (desktop and phone) |
 | `test/busy.mjs` | The loading screen while Clone with Arrange runs, and every copy landing on the plate |
 | `test/arrange-options.mjs` | The toolbar's Arrange pop-up: its options, Align to Y axis and Auto rotate turning a bar, the spacing gap, kept in the browser, fits a phone |
 | `test/preview-views.mjs` | The Preview's colour key: grams and filament changes match the G-code, every view draws its scale, a tapped line type hides and comes back, and on a phone the key sits above the model |

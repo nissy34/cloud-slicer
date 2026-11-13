@@ -937,6 +937,40 @@ test('plates: add, arrange, delete', () => {
   assert.equal(m.objects.length, 0, 'deleting plate 1 deleted its objects');
 });
 
+test("fill plate with copies: desktop's Fill bed with copies keeps other objects still", () => {
+  select({ printer: DEFAULT_PRINTER });
+  load('tetrahedron.stl');
+  load('3DBenchy.stl', 0, true);
+  const benchy = () => info().objects[1].instances[0].offset;
+  const still = benchy();
+  const reply = call(engine, 'fillPlate', 0, 0, 6, 1000, JSON.stringify({ keepOut: [[0, 0, 60, 60]] }));
+  const m = info();
+  const copies = m.objects[0].instances;
+  assert.equal(copies.length, reply.instances, 'the reply counts the instances');
+  assert.ok(copies.length > 20, `the plate fills up (${copies.length})`);
+  assert.ok(copies.every((c) => c.plate === 0), 'every copy stays on the plate');
+  assert.deepEqual(benchy(), still, 'the other object stays where it was');
+  const [w, d] = m.objects[0].size;
+  const box = (c) => [c.offset[0] - w / 2, c.offset[1] - d / 2, c.offset[0] + w / 2, c.offset[1] + d / 2];
+  const [bx, by] = still;
+  const [bw, bd] = m.objects[1].size;
+  for (const c of copies) {
+    const [x0, y0, x1, y1] = box(c);
+    assert.ok(x1 <= bx - bw / 2 || x0 >= bx + bw / 2 || y1 <= by - bd / 2 || y0 >= by + bd / 2, 'no copy sits on the other object');
+  }
+  for (let a = 0; a < copies.length; a++)
+    for (let b = a + 1; b < copies.length; b++)
+      assert.ok(Math.abs(copies[a].offset[0] - copies[b].offset[0]) >= w || Math.abs(copies[a].offset[1] - copies[b].offset[1]) >= d, 'copies do not overlap');
+
+  // At most the count asked for; no room at all changes nothing.
+  load('tetrahedron.stl');
+  assert.equal(call(engine, 'fillPlate', 0, 0, 6, 4, '{}').instances, 4);
+  assert.equal(info().objects[0].instances.length, 4);
+  load('tetrahedron.stl');
+  assert.equal(call(engine, 'fillPlate', 0, 0, 6, 1000, JSON.stringify({ keepOut: [[-10, -10, 400, 400]] })).instances, 0);
+  assert.equal(info().objects[0].instances.length, 1, 'no room: no copies');
+});
+
 test("arrange options from desktop's Arrange pop-up: auto rotate, align to Y axis, materials apart", () => {
   select({ printer: DEFAULT_PRINTER });
   load('3DBenchy.stl', 0, false, 90);  // turned: its long side runs front to back

@@ -743,7 +743,7 @@ jobs:
           node test/warnings.mjs
           node test/colour-picker.mjs
 
-      - name: Prime tower, plate menu, plate settings, transform fields and layer slider items end to end (Chromium)
+      - name: Prime tower, plate menu, plate settings, transform fields, layer slider items, arrange and fill plate end to end (Chromium)
         if: matrix.suite == 'wipetower'
         run: |
           node test/wipe-tower.mjs
@@ -753,6 +753,7 @@ jobs:
           node test/layer-codes.mjs
           node test/transform-fields.mjs
           node test/arrange-options.mjs
+          node test/fill-plate.mjs
 
       - name: Phone 3D view gestures, rotate ring, measure and choosing several models end to end (Chromium)
         if: matrix.suite == 'touch'

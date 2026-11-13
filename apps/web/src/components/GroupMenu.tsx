@@ -1,6 +1,6 @@
 import { Fragment, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { itemsOnPlate } from '../lib/group';
-import { menuPosition } from '../lib/objectMenu';
+import { copiesFrom, MAX_COPIES, menuPosition } from '../lib/objectMenu';
 import { NO_COLOURS, useSlicer } from '../state/store';
 import { ChevronDown, ChevronRight } from 'lucide-react';
 import { Swatch } from './Swatch';
@@ -35,7 +35,7 @@ function GroupCard() {
   const [filaments, setFilaments] = useState(false);
   const [plates, setPlates] = useState(false);
   const [cloning, setCloning] = useState(menu.form === 'clone');
-  const [count, setCount] = useState(1);
+  const [count, setCount] = useState('1');
   const [arrange, setArrange] = useState(true);
   const [at, setAt] = useState<{ left: number; top: number } | null>(null);
   // A long press opens the menu under the finger; lifting it must not pick
@@ -103,12 +103,12 @@ function GroupCard() {
           className="menu-form"
           onSubmit={(e) => {
             e.preventDefault();
-            run(() => s.groupAction({ op: 'clone', count, arrange }))();
+            run(() => s.groupAction({ op: 'clone', count: copiesFrom(count), arrange }))();
           }}
         >
           <label>
             Copies of each
-            <input aria-label="Number of copies" type="number" min={1} max={1000} value={count} autoFocus onChange={(e) => setCount(Math.max(1, Math.min(1000, Number(e.target.value) || 1)))} />
+            <input aria-label="Number of copies" type="number" min={1} max={MAX_COPIES} value={count} autoFocus onChange={(e) => setCount(e.target.value)} onBlur={() => setCount(String(copiesFrom(count)))} />
           </label>
           <label className="menu-check-row">
             <input type="checkbox" checked={arrange} onChange={(e) => setArrange(e.target.checked)} />
