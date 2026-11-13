@@ -2,25 +2,47 @@
 /* The object menu (right click, long press or ⋯ in the object list). Its rows are the
    shared menu rows in parts.css. */
 /* Right-click menus (a .menu, parts.css) open where the tap was; the menu moves itself on screen. */
+/* Dense like desktop Orca's: short rows in small text, so the whole menu fits on screen. */
 .object-menu {
   position: fixed;
   z-index: var(--z-context);
-  width: 240px;
+  width: 210px;
+  min-width: 0;
   max-height: calc(100dvh - 8px);
+  padding: var(--s-2);
+  font-size: var(--t-sm);
+}
+.menu.object-menu .menu-item {
+  gap: var(--s-3);
+  min-height: 24px;
+  padding: var(--s-1) var(--s-4);
+  border-radius: var(--r-sm);
+}
+.menu.object-menu hr {
+  margin: var(--s-1) 0;
 }
 .object-menu .menu-title {
   overflow: hidden;
-  padding: 4px 10px 6px;
+  padding: var(--s-1) var(--s-4) var(--s-2);
   color: var(--muted);
-  font-size: var(--t-sm);
+  font-size: var(--t-xs);
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 .object-menu .menu-sub {
   display: grid;
-  margin: 0 0 4px 12px;
-  padding-left: 6px;
+  margin: 0 0 var(--s-1) var(--s-5);
+  padding-left: var(--s-2);
   border-left: 2px solid var(--border);
+}
+/* A finger still gets rows it can hit. */
+@media (pointer: coarse) {
+  .object-menu {
+    font-size: var(--t-md);
+  }
+  .menu.object-menu .menu-item {
+    min-height: 32px;
+  }
 }
 .object-menu .menu-form {
   display: grid;
