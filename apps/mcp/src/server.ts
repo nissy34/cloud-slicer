@@ -8,7 +8,9 @@
 //
 // Design and rules: docs/architecture/mcp.md.
 import { randomInt } from 'node:crypto';
-import { dirname } from 'node:path';
+import { existsSync, mkdirSync, writeFileSync } from 'node:fs';
+import { homedir } from 'node:os';
+import { basename, dirname, extname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
@@ -145,22 +147,46 @@ server.registerTool(
   {
     title: 'Open a model',
     description:
-      'Opens a 3D model file from this computer (STL, 3MF, OBJ or AMF; not STEP). A 3MF project brings its own presets and settings. ' +
-      'With add, the file goes beside what is already open instead of replacing it.',
+      'Opens a 3D model (STL, 3MF, OBJ or AMF; not STEP): a file on this computer (path), or one made in the chat (content and name; ' +
+      'text for an ASCII STL or OBJ, base64 for a binary STL or a 3MF). A 3MF project brings its own presets and settings. ' +
+      'With add, the model goes beside what is already open instead of replacing it.',
     inputSchema: {
-      path: z.string().describe('Full path of the file'),
+      path: z.string().optional().describe('Full path of a file on this computer'),
+      content: z.string().optional().describe('Instead of path: the file itself, made in the chat'),
+      name: z.string().optional().describe('With content: its file name, e.g. stand.stl'),
+      base64: z.boolean().optional().describe('With content: it is base64 (a binary STL or a 3MF)'),
       add: z.boolean().optional().describe('Add to the open model instead of replacing it'),
       engine: engineChoice.optional(),
     },
   },
-  ({ path, add, engine }) =>
+  ({ path, content, name, base64, add, engine }) =>
     run(async () => {
-      const { notes } = await slicer.open(path, { add, engine });
+      const file = content === undefined ? path : fromChat(content, name, base64);
+      if (!file) throw new Error('Give the path of a file on this computer, or the content and name of one made in the chat.');
+      const { notes } = await slicer.open(file, { add, engine });
       // A file from this computer: what is open is no longer the online project (added to one, it still is).
       if (!add) projects.current = null;
-      return { ...summary(slicer.model), presets: presets(), ...(notes.length && { notes }) };
+      return { ...summary(slicer.model), ...(content !== undefined && { savedAs: file }), presets: presets(), ...(notes.length && { notes }) };
     }),
 );
+
+/** Where models made in the chat are written, so the engine (which reads files) can open them; the G-code goes beside them. */
+const chatDir = join(homedir(), 'Cloud Slicer', 'From the chat');
+
+/** A model made in the chat, written to a file under chatDir (never over another one). */
+function fromChat(content: string, name: string | undefined, base64: boolean | undefined) {
+  const base = basename((name ?? '').trim()).replace(/[<>:"/\\|?*\u0000-\u001f]/g, '_');
+  const ext = extname(base).toLowerCase();
+  if (!['.stl', '.obj', '.3mf', '.amf'].includes(ext)) throw new Error('Give the file a name ending .stl, .obj, .3mf or .amf.');
+  const bytes = base64 ? Buffer.from(content.replace(/^data:[^,]*,/, ''), 'base64') : Buffer.from(content, 'utf8');
+  if (!bytes.length) throw new Error('The content is empty.');
+  mkdirSync(chatDir, { recursive: true });
+  const stem = base.slice(0, -ext.length) || 'model';
+  let file = join(chatDir, `${stem}${ext}`);
+  for (let n = 2; existsSync(file); n++) file = join(chatDir, `${stem} (${n})${ext}`);
+  writeFileSync(file, bytes);
+  return file;
+}
 
 server.registerTool(
   'model_info',

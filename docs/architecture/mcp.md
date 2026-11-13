@@ -214,7 +214,11 @@ site and the relay, not in the add-on (anyone can change a program):
 The sign-in, if any: the site and its token (plus name and email for showing) in
 `<config>/cloud-slicer/account.json` (`%APPDATA%`, `~/Library/Application Support` or
 `~/.config`), readable only by the computer's user. A token for another site
-(`CLOUD_SLICER_SITE`, for tests and previews) is ignored. Nothing else between runs. The G-code (and a `.gcode.3mf` for printers that take one) goes
+(`CLOUD_SLICER_SITE`, for tests and previews) is ignored. A model Claude made in the chat (`open_model` with `content`
+and `name`: text for an ASCII STL or OBJ, base64 for a binary STL or 3MF; AI apps hand an
+add-on no files of their own) is written to `~/Cloud Slicer/From the chat/` (never over
+another file, the name kept inside that folder) so the engine can read it and the person
+can find it; its G-code goes beside it. Nothing else between runs. The G-code (and a `.gcode.3mf` for printers that take one) goes
 where Claude says, or beside the model, named by the printer's file name format.
 
 ## Rules

@@ -17,7 +17,7 @@ let client;
 
 before(async () => {
   client = new Client({ name: 'test', version: '1' });
-  await client.connect(new StdioClientTransport({ command: process.execPath, args: [resolve(here, '../dist/server.mjs')], env: { ...process.env, CLOUD_SLICER_ACCOUNT_FILE: join(out, 'account.json') }, stderr: 'inherit' }));
+  await client.connect(new StdioClientTransport({ command: process.execPath, args: [resolve(here, '../dist/server.mjs')], env: { ...process.env, HOME: out, CLOUD_SLICER_ACCOUNT_FILE: join(out, 'account.json') }, stderr: 'inherit' }));
 });
 after(async () => {
   await client.close();
@@ -172,6 +172,30 @@ test('slices with OrcaSlicer 2.5.0 too', async () => {
   const sliced = await tool('slice', { out });
   assert.ok(!sliced.error, sliced.error);
   assert.ok(sliced.grams > 0);
+});
+
+test('opens a model made in the chat: ASCII STL as text, a binary one as base64', async () => {
+  // A 20 mm cube, as an ASCII STL Claude might write.
+  const v = [[0,0,0],[20,0,0],[20,20,0],[0,20,0],[0,0,20],[20,0,20],[20,20,20],[0,20,20]];
+  const faces = [[0,2,1],[0,3,2],[4,5,6],[4,6,7],[0,1,5],[0,5,4],[1,2,6],[1,6,5],[2,3,7],[2,7,6],[3,0,4],[3,4,7]];
+  const stl = `solid cube\n${faces.map((f) => `facet normal 0 0 0\nouter loop\n${f.map((i) => `vertex ${v[i].join(' ')}`).join('\n')}\nendloop\nendfacet`).join('\n')}\nendsolid cube\n`;
+  const text = await tool('open_model', { content: stl, name: 'cube.stl' });
+  assert.ok(!text.error, text.error);
+  assert.deepEqual(text.objects[0].sizeMm, [20, 20, 20]);
+  assert.equal(text.savedAs, join(out, 'Cloud Slicer', 'From the chat', 'cube.stl'));
+  assert.equal(readFileSync(text.savedAs, 'utf8'), stl);
+  // The same name again never writes over the first one.
+  const binary = await tool('open_model', { content: readFileSync(resolve(fixtures, 'tetrahedron.stl')).toString('base64'), base64: true, name: 'cube.stl' });
+  assert.ok(!binary.error, binary.error);
+  assert.equal(binary.savedAs, join(out, 'Cloud Slicer', 'From the chat', 'cube (2).stl'));
+  const sliced = await tool('slice', {});
+  assert.ok(!sliced.error, sliced.error);
+  assert.ok(sliced.gcodeFile.startsWith(join(out, 'Cloud Slicer', 'From the chat')), 'the G-code goes beside it');
+  // A name that tries to leave the folder stays in it; a wrong kind of file is refused.
+  const sneaky = await tool('open_model', { content: stl, name: '../../escape.stl' });
+  assert.equal(sneaky.savedAs, join(out, 'Cloud Slicer', 'From the chat', 'escape.stl'));
+  assert.match((await tool('open_model', { content: stl, name: 'cube.txt' })).error, /ending \.stl, \.obj, \.3mf or \.amf/);
+  assert.match((await tool('open_model', {})).error, /path of a file on this computer, or the content and name/);
 });
 
 test('says plainly what went wrong', async () => {
