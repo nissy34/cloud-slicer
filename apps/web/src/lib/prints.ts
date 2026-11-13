@@ -8,6 +8,7 @@
 // A plate whose fingerprint differs from the one it was printed with shows
 // "Changed since printed"; the summary kept with the record says what changed.
 import type { OrcaConfig } from '../engine/protocol';
+import { i18n } from '../i18n';
 
 /** What the engine says about one plate (engine/src/fingerprint_api.cpp). */
 export interface PlateFingerprint {
@@ -338,4 +339,29 @@ export function nextStatus(
   if (record.status === 'printing') return s;
   const total = job.totalSeconds ?? 0;
   return record.status === 'sent' && total > 0 && at - record.at >= total * 1000 ? s : null;
+}
+
+/** Short words for a record in the history list. */
+export function statusWords(r: PrintRecord): string {
+  const pct = r.progress != null ? Math.round(r.progress * 100) : null;
+  switch (r.status) {
+    case 'uploaded':
+      return i18n.t('printHistory.uploaded');
+    case 'sent':
+      return i18n.t('printHistory.sent');
+    case 'printing':
+      return i18n.t('printHistory.printing');
+    case 'printed':
+      return i18n.t('printHistory.printed');
+    case 'failed':
+      return pct !== null ? i18n.t('printHistory.failedAt', { pct }) : i18n.t('printHistory.failed');
+    case 'cancelled':
+      return pct !== null ? i18n.t('printHistory.cancelledAt', { pct }) : i18n.t('printHistory.cancelled');
+    case 'marked':
+      return i18n.t('printHistory.markedPrinted');
+    case 'unmarked':
+      return i18n.t('printHistory.markedNotPrinted');
+    case 'unknown':
+      return i18n.t('printHistory.noWord');
+  }
 }

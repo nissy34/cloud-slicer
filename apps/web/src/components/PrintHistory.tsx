@@ -4,7 +4,7 @@
 import { useTranslation } from 'react-i18next';
 import { i18n } from '../i18n';
 import { formatDuration } from '../lib/format';
-import type { PlateMark, PrintRecord } from '../lib/prints';
+import { statusWords, type PlateMark, type PrintRecord } from '../lib/prints';
 import { changesSince, usePlateMarks, usePrintProgress, usePrints } from '../state/prints';
 import { useProjects } from '../state/projects';
 import { useAccount } from '../state/account';
@@ -25,31 +25,6 @@ export function markShortWords(m: PlateMark): string {
   if (m.state === 'changed') return i18n.t('printHistory.changed');
   if (m.state === 'sent') return m.record.status === 'printing' ? i18n.t('printHistory.printing') : i18n.t('printHistory.sent');
   return i18n.t('printHistory.notPrinted');
-}
-
-/** Short words for a record in the history list. */
-export function statusWords(r: PrintRecord): string {
-  const pct = r.progress != null ? Math.round(r.progress * 100) : null;
-  switch (r.status) {
-    case 'uploaded':
-      return i18n.t('printHistory.uploaded');
-    case 'sent':
-      return i18n.t('printHistory.sent');
-    case 'printing':
-      return i18n.t('printHistory.printing');
-    case 'printed':
-      return i18n.t('printHistory.printed');
-    case 'failed':
-      return pct !== null ? i18n.t('printHistory.failedAt', { pct }) : i18n.t('printHistory.failed');
-    case 'cancelled':
-      return pct !== null ? i18n.t('printHistory.cancelledAt', { pct }) : i18n.t('printHistory.cancelled');
-    case 'marked':
-      return i18n.t('printHistory.markedPrinted');
-    case 'unmarked':
-      return i18n.t('printHistory.markedNotPrinted');
-    case 'unknown':
-      return i18n.t('printHistory.noWord');
-  }
 }
 
 const when = (ms: number) =>
