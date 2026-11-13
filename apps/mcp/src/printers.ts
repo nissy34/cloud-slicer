@@ -288,13 +288,21 @@ export class Printers {
   async send(
     which: string | undefined,
     file: string,
-    opts: { start: boolean; confirm?: (plan: { printer: string; file: string; slots: string[] }) => Promise<boolean>; progress?: (fraction: number, stage?: UploadStage) => void },
+    opts: {
+      start: boolean;
+      confirm?: (plan: { printer: string; file: string; slots: string[] }) => Promise<boolean>;
+      progress?: (fraction: number, stage?: UploadStage) => void;
+      /** Changes the file as it goes (the print history's tag line); what is on this computer stays as it is. */
+      tag?: (file: Blob) => Promise<Blob>;
+      /** After the upload (and the start, when asked): for the print history. */
+      sent?: (to: { printer: string; printerName: string; file: string; started: boolean }) => void;
+    },
   ) {
     const p = await this.find(which);
     const l = await this.connect(p);
     const name = uploadName(basename(file));
     const bytes = readFileSync(file);
-    const blob = new Blob([bytes]);
+    const blob = opts.tag ? await opts.tag(new Blob([bytes])) : new Blob([bytes]);
     let check: ReturnType<typeof printPlan> | null = null;
     if (opts.start) {
       const j = job(l.objects);
@@ -316,8 +324,12 @@ export class Printers {
     }
     const path = await l.session.upload(blob, name, (f) => opts.progress?.(f), undefined, (s) => opts.progress?.(0, s));
     this.keep(l);
-    if (!opts.start || !check) return { printer: p.name, sent: true, started: false, path };
+    if (!opts.start || !check) {
+      opts.sent?.({ printer: p.id, printerName: p.name, file: path, started: false });
+      return { printer: p.name, sent: true, started: false, path };
+    }
     await runCalls(l.session, check.calls(path));
+    opts.sent?.({ printer: p.id, printerName: p.name, file: path, started: true });
     return { printer: p.name, sent: true, started: true, path };
   }
 

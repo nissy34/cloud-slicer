@@ -25,9 +25,17 @@ const noAnswer = () => new ApiError(504, i18n.t('accountErrors.driveNoAnswer'), 
 
 let token: { accessToken: string; expiresAt: number } | null = null;
 const folders = new Map<string, string>();
+type KeySource = () => Promise<{ accessToken: string; expiresAt: number }>;
+let keySource: KeySource = () => api.driveToken();
+
+/** Where the Drive key comes from: the page asks the site with its sign-in; the AI app add-on (apps/mcp) with its own. */
+export function setDriveKeySource(source: KeySource) {
+  keySource = source;
+  token = null;
+}
 
 async function key(signal?: AbortSignal): Promise<string> {
-  if (!token || token.expiresAt - Date.now() < 60_000) token = await unlessCancelled(api.driveToken(), signal);
+  if (!token || token.expiresAt - Date.now() < 60_000) token = await unlessCancelled(keySource(), signal);
   return token.accessToken;
 }
 

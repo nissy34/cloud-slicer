@@ -68,6 +68,9 @@ walls and tell me the time and grams."
 | `save_project` | Writes a 3MF that the site and desktop OrcaSlicer open |
 | `move_object`, `set_copies`, `remove_object`, `arrange_plate`, `auto_orient` | Move (also to another or a new plate), turn, scale, copy, arrange (with desktop's Arrange options), orient |
 | `sign_in`, `account`, `sign_out` | Connects your Cloud Slicer account: you open the link it gives (signed in on the site), check the code and tap Connect |
+| `online_projects`, `open_online_project` | Your online projects (the site's Online projects window, files in your Google Drive): list them, open one |
+| `save_online_project` | Saves what is open over the online project it came from, or as a new one; asks you first, every time |
+| `project_history` | An online project's print history; plates sent from Claude go into it, as from the site |
 | `printers`, `printer_status`, `printer_files` | Your printers from the site's Device tab: how each is doing, its filaments, its files |
 | `printer_camera` | A still picture from each of a printer's cameras (is the plate clear? how is the print going?) |
 | `send_to_printer` | Uploads the newest slice; with `print` it starts it, after you say yes (on screen, or in the chat on a phone) |

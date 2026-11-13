@@ -12,12 +12,14 @@ import { dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
-import { PNG } from 'pngjs';
 import { z } from 'zod';
 import { formatDuration } from '../../web/src/lib/format';
+import { newPrintId, withPrintTag } from '../../web/src/lib/prints';
 import type { StoredPreset } from '../../web/src/lib/preset-engines';
 import { Account } from './account';
+import { pngOf } from './png';
 import { Printers } from './printers';
+import { OnlineProjects, type PlateOrigin } from './projects';
 import { ENGINES, Slicer, type ModelInfo, type SliceResult } from './slicer';
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -27,7 +29,8 @@ const account = new Account();
 let presetsAt = 0;
 const printers = new Printers(account);
 /** The newest slice's files: what send_to_printer sends when not told a file. */
-let lastSliced: { gcodeFile: string; gcode3mfFile?: string } | null = null;
+let lastSliced: { gcodeFile: string; gcode3mfFile?: string; origin?: PlateOrigin } | null = null;
+const projects = new OnlineProjects(account, slicer);
 account.onChange = () => (presetsAt = 0);
 
 /**
@@ -66,19 +69,6 @@ async function run<T>(fn: () => Promise<T>) {
 }
 
 const round = (n: number, d = 1) => Math.round(n * 10 ** d) / 10 ** d;
-
-/** A plate picture (rows bottom to top, like OpenGL) as a PNG on a white ground. */
-function toPng({ width, height, pixels }: { width: number; height: number; pixels: Uint8Array }) {
-  const png = new PNG({ width, height });
-  for (let y = 0; y < height; y++)
-    for (let x = 0; x < width; x++) {
-      const i = ((height - 1 - y) * width + x) * 4, o = (y * width + x) * 4;
-      const a = pixels[i + 3] / 255;
-      for (let k = 0; k < 3; k++) png.data[o + k] = Math.round(pixels[i + k] * a + 255 * (1 - a));
-      png.data[o + 3] = 255;
-    }
-  return PNG.sync.write(png);
-}
 
 /** What Claude needs to know about the open model: objects by number, sizes, where each copy is. */
 function summary(info: ModelInfo | null) {
@@ -166,6 +156,8 @@ server.registerTool(
   ({ path, add, engine }) =>
     run(async () => {
       const { notes } = await slicer.open(path, { add, engine });
+      // A file from this computer: what is open is no longer the online project (added to one, it still is).
+      if (!add) projects.current = null;
       return { ...summary(slicer.model), presets: presets(), ...(notes.length && { notes }) };
     }),
 );
@@ -312,7 +304,9 @@ server.registerTool(
           extra.sendNotification({ method: 'notifications/progress', params: { progressToken: token, progress: overall, total: 100, message } }).catch(() => {});
         };
         const { file, file3mf, result, pictures } = await slicer.slice({ plate: p, out, settings: once }, progress);
-        lastSliced = { gcodeFile: file, ...(file3mf && { gcode3mfFile: file3mf }) };
+        // A plate of an online project: a send goes into its print history, as from the site.
+        const origin = projects.current ? await slicer.plateFingerprint(p).then((f) => ({ projectId: projects.current!.id, plate: p, ...f }), () => undefined) : undefined;
+        lastSliced = { gcodeFile: file, ...(file3mf && { gcode3mfFile: file3mf }), ...(origin && { origin }) };
         results.push({ ...(plates.length > 1 && { plate: p }), gcodeFile: file, ...(file3mf && { gcode3mfFile: file3mf }), ...stats(result), platePictures: pictures });
       }
       return plates.length > 1 ? { plates: results, presets: presets() } : { ...results[0], presets: presets() };
@@ -411,7 +405,7 @@ server.registerTool(
       await slicer.engine();
       const picture = await slicer.picture(plate ?? 0);
       if (!picture) return text('The plate is empty.');
-      return { content: [{ type: 'image' as const, data: toPng(picture).toString('base64'), mimeType: 'image/png' }] };
+      return { content: [{ type: 'image' as const, data: pngOf(picture).toString('base64'), mimeType: 'image/png' }] };
     } catch (e) {
       return failure(e);
     }
@@ -534,6 +528,61 @@ const confirmArg = z
   .describe('Only the code an earlier answer gave, and only after the person said yes to it in the chat');
 
 server.registerTool(
+  'online_projects',
+  {
+    title: 'Your online projects',
+    description:
+      'The person\'s online projects (the site\'s Online projects window; the files are in their Google Drive), newest first: name, when changed, plates, which plates were printed. Needs sign_in.',
+    inputSchema: {},
+  },
+  () => run(() => projects.list()),
+);
+
+server.registerTool(
+  'open_online_project',
+  {
+    title: 'Open an online project',
+    description:
+      'Opens one of the person\'s online projects (name from online_projects) from their Google Drive, with its presets and settings. ' +
+      'Like opening it on another computer: a site tab with it open only views it from then on. Needs sign_in.',
+    inputSchema: { project: z.string().describe('Project name from online_projects') },
+  },
+  ({ project }) =>
+    run(async () => {
+      const { notes } = await projects.open(project);
+      return { project: projects.current?.name, ...summary(slicer.model), presets: presets(), ...(notes.length && { notes }) };
+    }),
+);
+
+server.registerTool(
+  'save_online_project',
+  {
+    title: 'Save to online projects',
+    description:
+      'Saves what is open to the person\'s online projects, in their Google Drive: over the online project it was opened from, or (asNew, or a file from this computer) as a new one with name. ' +
+      'Asks the person first, every time. Refused when the project was changed elsewhere since it was opened. Needs sign_in.',
+    inputSchema: {
+      name: z.string().optional().describe('Name for a new project (default: the open project\'s name)'),
+      asNew: z.boolean().optional().describe('Save as a new project even when an online project is open'),
+      confirm: confirmArg,
+    },
+  },
+  ({ name, asNew, confirm }) => run(() => projects.save({ name, asNew }, asker('save_online_project', { name, asNew }, confirm))),
+);
+
+server.registerTool(
+  'project_history',
+  {
+    title: 'Print history',
+    description:
+      'An online project\'s print history (default the open one), newest first: which plate, sent or uploaded to which printer, and how it ended (printed, failed, stopped). ' +
+      'Plates sent from here with send_to_printer go into it too, as from the site. Needs sign_in.',
+    inputSchema: { project: z.string().optional().describe('Project name from online_projects; default the open one') },
+  },
+  ({ project }) => run(() => projects.history(project)),
+);
+
+server.registerTool(
   'printers',
   {
     title: 'Your printers',
@@ -579,9 +628,15 @@ server.registerTool(
         last = pct;
         extra.sendNotification({ method: 'notifications/progress', params: { progressToken: token, progress: pct, total: 100, message: 'Uploading' } }).catch(() => {});
       };
+      // The newest slice of an online project's plate: tagged and recorded like a send from the site (lib/prints.ts).
+      const origin = lastSliced?.origin && (path === lastSliced.gcodeFile || path === lastSliced.gcode3mfFile) ? lastSliced.origin : undefined;
+      const printId = origin && newPrintId();
       return printers.send(printer, path, {
         start: Boolean(print),
         progress,
+        // As the site: a plain G-code carries the tag line; a .gcode.3mf goes as it is and is still recorded.
+        ...(printId && /\.gcode$/i.test(path) && { tag: (f: Blob) => withPrintTag(f, { ...origin!, printId }) }),
+        ...(printId && { sent: (to: Parameters<OnlineProjects['recordSend']>[2]) => void projects.recordSend(origin!, printId, to) }),
         confirm: ({ printer: name, file: shown, slots }) =>
           asker('send_to_printer', { printer, file: path, print }, confirm)(`Start printing ${shown} on ${name}? The printer heats up and moves.` + (slots.length ? `\n${slots.map((s) => `• ${s}`).join('\n')}` : '')),
       });
@@ -670,6 +725,7 @@ server.registerTool(
 await server.connect(new StdioServerTransport());
 const stop = async () => {
   printers.close();
+  projects.close();
   await slicer.close();
   process.exit(0);
 };
