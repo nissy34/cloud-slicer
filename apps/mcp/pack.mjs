@@ -12,7 +12,10 @@ import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const here = dirname(fileURLToPath(import.meta.url));
-const { version, description, license } = JSON.parse(readFileSync(resolve(here, 'package.json'), 'utf8'));
+const pkg = JSON.parse(readFileSync(resolve(here, 'package.json'), 'utf8'));
+const { description, license } = pkg;
+// The same number build.mjs put in the server: a newer one is what Claude Desktop installs as an update.
+const version = process.env.MCP_VERSION || pkg.version;
 const out = resolve(here, 'release');
 const stage = resolve(out, 'stage');
 rmSync(out, { recursive: true, force: true });
