@@ -64,6 +64,7 @@ walls and tell me the time and grams."
 | `set_filament` | Which filament slot prints an object or one of its parts |
 | `object_settings` | Settings for one object or part only (what OrcaSlicer's object list offers) |
 | `show_plate` | A picture of the plate for Claude to look at |
+| `sliced_picture` | A picture of the sliced toolpaths like the Preview tab: by line type, filament, speed, layer height, line width, flow, layer time, fan or temperature; some layers only, line types left out; iso, top or front |
 | `slice` | Writes the G-code (with plate pictures) for one plate or every plate; returns time, grams and metres per slot, layers, warnings |
 | `save_project` | Writes a 3MF that the site and desktop OrcaSlicer open |
 | `move_object`, `set_copies`, `remove_object`, `arrange_plate`, `auto_orient` | Move (also to another or a new plate), turn, scale, copy, arrange (with desktop's Arrange options), orient |

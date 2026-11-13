@@ -8,7 +8,7 @@
 //
 // Design and rules: docs/architecture/mcp.md.
 import { randomInt } from 'node:crypto';
-import { existsSync, mkdirSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { basename, dirname, extname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -16,10 +16,13 @@ import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { z } from 'zod';
 import { formatDuration } from '../../web/src/lib/format';
+import { FEATURES } from '../../web/src/lib/gcode';
+import { VIEW_TYPES, type ColourBy } from '../../web/src/lib/preview-colours';
 import { newPrintId, withPrintTag } from '../../web/src/lib/prints';
 import type { StoredPreset } from '../../web/src/lib/preset-engines';
 import { Account } from './account';
 import { pngOf } from './png';
+import { drawToolpaths } from './toolpaths';
 import { Printers } from './printers';
 import { OnlineProjects, type PlateOrigin } from './projects';
 import { ENGINES, Slicer, type ModelInfo, type SliceResult } from './slicer';
@@ -337,6 +340,53 @@ server.registerTool(
       }
       return plates.length > 1 ? { plates: results, presets: presets() } : { ...results[0], presets: presets() };
     }),
+);
+
+server.registerTool(
+  'sliced_picture',
+  {
+    title: 'Picture of the slice',
+    description:
+      'A picture of the sliced toolpaths, like the Preview tab: coloured by line type (walls, infill, support...), filament, speed, layer height, line width, flow, layer time, fan speed or temperature, ' +
+      'with what each colour means. Show part of the print with fromLayer/toLayer (e.g. toLayer 40 to see inside), leave line types out with hide (e.g. ["Prime tower"]). ' +
+      'By default the newest slice. Use it to check a slice, or to show the person.',
+    inputSchema: {
+      colourBy: z
+        .enum(VIEW_TYPES.map((t) => t.id) as [ColourBy, ...ColourBy[]])
+        .optional()
+        .describe(`What the colours show (default feature = line type): ${VIEW_TYPES.map((t) => `${t.id} (${t.label})`).join(', ')}`),
+      fromLayer: z.number().int().min(1).optional().describe('First layer shown, from 1'),
+      toLayer: z.number().int().min(1).optional().describe('Last layer shown (default the top)'),
+      hide: z.array(z.string()).optional().describe(`Line types to leave out: ${FEATURES.join(', ')}. Custom (the start G-code's purge line) is always left out, unless hide is [] (everything)`),
+      view: z.enum(['iso', 'top', 'front']).optional().describe('Camera: iso (default, like the plate pictures), top or front'),
+      size: z.number().int().min(200).max(1600).optional().describe('Pixels across (default 800)'),
+      file: z.string().optional().describe('A .gcode file on this computer; default the newest slice'),
+    },
+  },
+  async ({ colourBy, fromLayer, toLayer, hide, view, size, file }) => {
+    try {
+      const path = file ?? lastSliced?.gcodeFile;
+      if (!path) throw new Error('Nothing sliced yet: slice first, or give a G-code file.');
+      if (!/\.gcode$/i.test(path)) throw new Error('Give a .gcode file (not a .gcode.3mf).');
+      const { picture, about } = drawToolpaths(readFileSync(path, 'utf8'), {
+        colourBy: colourBy ?? 'feature',
+        fromLayer,
+        toLayer,
+        hide,
+        view: view ?? 'iso',
+        size: size ?? 800,
+        colours: slicer.lists?.selection.colours ?? [],
+      });
+      return {
+        content: [
+          { type: 'image' as const, data: pngOf(picture).toString('base64'), mimeType: 'image/png' },
+          { type: 'text' as const, text: JSON.stringify({ file: path, ...about }, null, 1) },
+        ],
+      };
+    } catch (e) {
+      return failure(e);
+    }
+  },
 );
 
 server.registerTool(

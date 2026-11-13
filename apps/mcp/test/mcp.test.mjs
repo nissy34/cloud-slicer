@@ -43,7 +43,7 @@ function thumbnailsIn(gcode) {
 test('lists its tools', async () => {
   const { tools } = await client.listTools();
   const names = tools.map((t) => t.name);
-  for (const n of ['open_model', 'choose_presets', 'change_settings', 'slice', 'save_project', 'move_object', 'sign_in', 'account', 'sign_out', 'online_projects', 'open_online_project', 'save_online_project', 'project_history']) assert.ok(names.includes(n), n);
+  for (const n of ['open_model', 'choose_presets', 'change_settings', 'slice', 'save_project', 'move_object', 'sign_in', 'account', 'sign_out', 'online_projects', 'open_online_project', 'save_online_project', 'project_history', 'sliced_picture']) assert.ok(names.includes(n), n);
 });
 
 test('opens an STL and slices it on the U1, with plate pictures and progress', async () => {
@@ -196,6 +196,34 @@ test('opens a model made in the chat: ASCII STL as text, a binary one as base64'
   assert.equal(sneaky.savedAs, join(out, 'Cloud Slicer', 'From the chat', 'escape.stl'));
   assert.match((await tool('open_model', { content: stl, name: 'cube.txt' })).error, /ending \.stl, \.obj, \.3mf or \.amf/);
   assert.match((await tool('open_model', {})).error, /path of a file on this computer, or the content and name/);
+});
+
+test('a picture of the slice, coloured like the Preview', async () => {
+  await tool('open_model', { path: resolve(fixtures, '3DBenchy.stl') });
+  const sliced = await tool('slice', { out });
+  assert.ok(!sliced.error, sliced.error);
+  const picture = async (args) => {
+    const r = await client.callTool({ name: 'sliced_picture', arguments: args }, undefined, { timeout: 120_000 });
+    if (r.isError) return { error: r.content[0].text };
+    const png = Buffer.from(r.content[0].data, 'base64');
+    return { png, about: JSON.parse(r.content[1].text) };
+  };
+  const lineTypes = await picture({});
+  assert.equal(lineTypes.png.subarray(1, 4).toString(), 'PNG');
+  assert.equal(lineTypes.about.colouredBy, 'Line type');
+  assert.equal(lineTypes.about.layers, `all ${sliced.layers}`);
+  const names = lineTypes.about.legend.map((l) => l.lineType);
+  for (const n of ['Outer wall', 'Inner wall', 'Sparse infill', 'Top surface']) assert.ok(names.includes(n), n);
+  assert.ok(!names.includes('Custom'), 'the purge line is left out');
+  const speed = await picture({ colourBy: 'speed', view: 'top', size: 300 });
+  assert.equal(speed.about.colouredBy, 'Speed (mm/s)');
+  assert.equal(speed.about.legend.length, 6);
+  assert.ok(Number(speed.about.legend[0].value) > Number(speed.about.legend[5].value), 'fastest first');
+  const part = await picture({ toLayer: 20, hide: ['Sparse infill'] });
+  assert.equal(part.about.layers, `1 to 20 of ${sliced.layers}`);
+  assert.deepEqual(part.about.hidden.sort(), ['Custom', 'Sparse infill']);
+  assert.notDeepEqual(part.png, lineTypes.png);
+  assert.match((await picture({ hide: ['Walls'] })).error, /No line type called "Walls"/);
 });
 
 test('says plainly what went wrong', async () => {

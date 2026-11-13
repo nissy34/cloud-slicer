@@ -25,6 +25,7 @@ else goes over the internet.
 | One engine, one open project, the chosen presets and changed settings | `apps/mcp/src/slicer.ts` |
 | The engine on its own thread, like the site's engine worker | `apps/mcp/src/worker.ts`, `engine-client.ts` |
 | Plate pictures without a GPU | `apps/mcp/src/picture.ts` |
+| Pictures of the sliced toolpaths (`sliced_picture`): the site's G-code parser (`lib/gcode.ts`) and Preview colours (`lib/preview-colours.ts`), each extrusion drawn as a lit bead; the legend comes back as text beside the picture | `apps/mcp/src/toolpaths.ts` |
 | Signing in to the person's account, and calls to the site's `/api` as them | `apps/mcp/src/account.ts` |
 | Their online projects: list, open, save, print history (with the site's `account/drive.ts`, `lib/prints.ts`) | `apps/mcp/src/projects.ts` |
 | The site's approval window for that sign-in | `apps/web/src/account/LinkProgramDialog.tsx` |
