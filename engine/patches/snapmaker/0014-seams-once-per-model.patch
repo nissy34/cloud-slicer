@@ -1,29 +1,11 @@
-diff --git a/src/libslic3r/GCode.cpp b/src/libslic3r/GCode.cpp
-index ee05435..1d0e9b7 100644
---- a/src/libslic3r/GCode.cpp
-+++ b/src/libslic3r/GCode.cpp
-@@ -3206,7 +3206,11 @@ void GCode::_do_export(Print& print, GCodeOutputStream& file, ThumbnailsGenerato
- 
-     // Collect custom seam data from all objects.
-     std::function<void(void)> throw_if_canceled_func = [&print]() { print.throw_if_canceled(); };
--    m_seam_placer.init(print, throw_if_canceled_func);
-+    // cloud-slicer: working seams out takes seconds an object in the browser,
-+    // so it says how far it got instead of looking stuck.
-+    m_seam_placer.init(print, throw_if_canceled_func, [&print](size_t n, size_t total) {
-+        print.set_status(80, Slic3r::format(_(L("Generating G-code: placing seams, object %1% of %2%")), n, total));
-+    });
- 
-     // BBS: get path for change filament
-     if (m_writer.multiple_extruders) {
 diff --git a/src/libslic3r/GCode/SeamPlacer.cpp b/src/libslic3r/GCode/SeamPlacer.cpp
-index b2b49ec..abfaae9 100644
+index b2b49ec..714faea 100644
 --- a/src/libslic3r/GCode/SeamPlacer.cpp
 +++ b/src/libslic3r/GCode/SeamPlacer.cpp
 @@ -1420,22 +1420,84 @@ void SeamPlacer::align_seam_points(const PrintObject *po, const SeamPlacerImpl::
  
  }
  
--void SeamPlacer::init(const Print &print, std::function<void(void)> throw_if_canceled_func) {
 +// cloud-slicer: whether two objects' seam visibility (compute_global_occlusion)
 +// comes out the same: same seam position, same parts and negative parts with
 +// the same meshes in the same places, turned and scaled alike. Copies of one
@@ -50,8 +32,7 @@ index b2b49ec..abfaae9 100644
 +  return true;
 +}
 +
-+void SeamPlacer::init(const Print &print, std::function<void(void)> throw_if_canceled_func,
-+                      std::function<void(size_t, size_t)> on_object) {
+ void SeamPlacer::init(const Print &print, std::function<void(void)> throw_if_canceled_func) {
    using namespace SeamPlacerImpl;
    m_seam_per_object.clear();
  
@@ -87,8 +68,9 @@ index b2b49ec..abfaae9 100644
 +  for (size_t object_idx = 0; object_idx < objects.size(); ++object_idx) {
 +    const PrintObject *po = objects[object_idx];
      throw_if_canceled_func();
-+    if (on_object)
-+      on_object(object_idx + 1, objects.size());
++    // cloud-slicer: seconds an object in the browser, so say how far it got.
++    print.set_status(80, "Generating G-code: placing seams, object " + std::to_string(object_idx + 1) + " of "
++                             + std::to_string(objects.size()));
      SeamPosition configured_seam_preference = po->config().seam_position.value;
      SeamComparator comparator { configured_seam_preference };
  
@@ -122,18 +104,3 @@ index b2b49ec..abfaae9 100644
      } // destruction of global_model_info (large structure, no longer needed)
      throw_if_canceled_func();
      BOOST_LOG_TRIVIAL(debug)
-diff --git a/src/libslic3r/GCode/SeamPlacer.hpp b/src/libslic3r/GCode/SeamPlacer.hpp
-index 8a973d0..edde1b2 100644
---- a/src/libslic3r/GCode/SeamPlacer.hpp
-+++ b/src/libslic3r/GCode/SeamPlacer.hpp
-@@ -141,7 +141,9 @@ public:
-   //The following data structures hold all perimeter points for all PrintObject.
-   std::unordered_map<const PrintObject*, PrintObjectSeamData> m_seam_per_object;
- 
--  void init(const Print &print, std::function<void(void)> throw_if_canceled_func);
-+  // cloud-slicer: on_object(n, total) before each object's seams.
-+  void init(const Print &print, std::function<void(void)> throw_if_canceled_func,
-+            std::function<void(size_t, size_t)> on_object = {});
- 
-   void place_seam(const Layer *layer, ExtrusionLoop &loop, const Point &last_pos, float& overhang) const;
- private:
