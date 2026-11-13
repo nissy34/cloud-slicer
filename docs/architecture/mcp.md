@@ -57,6 +57,12 @@ sequenceDiagram
   S-->>C: file path, print time, grams and metres per slot, warnings
 ```
 
+- `layer_change` sets the plate's layer items with the site's own engine call (`plateAction`
+  op `layerCodes`) and rules (`lib/layerCodes.ts`: one per layer, the layer whose top is
+  nearest, filament change only when the plate prints with one filament). Layer numbers
+  come from the plate's newest slice (its `;Z:` heights); before a slice they are worked
+  out from the first layer and layer height, and the answer says so. They are saved in
+  the 3MF like the site's.
 - Everything is in Orca's own words: preset names, option keys, values as Orca writes them.
 - A 3MF made for a printer the presets have opens with its presets, filaments and own
   settings, like the site. One made for another printer stays on the current printer

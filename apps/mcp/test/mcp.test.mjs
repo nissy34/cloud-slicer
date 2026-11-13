@@ -43,7 +43,7 @@ function thumbnailsIn(gcode) {
 test('lists its tools', async () => {
   const { tools } = await client.listTools();
   const names = tools.map((t) => t.name);
-  for (const n of ['open_model', 'choose_presets', 'change_settings', 'slice', 'save_project', 'move_object', 'sign_in', 'account', 'sign_out', 'online_projects', 'open_online_project', 'save_online_project', 'project_history', 'sliced_picture']) assert.ok(names.includes(n), n);
+  for (const n of ['open_model', 'choose_presets', 'change_settings', 'slice', 'save_project', 'move_object', 'sign_in', 'account', 'sign_out', 'online_projects', 'open_online_project', 'save_online_project', 'project_history', 'sliced_picture', 'layer_change']) assert.ok(names.includes(n), n);
 });
 
 test('opens an STL and slices it on the U1, with plate pictures and progress', async () => {
@@ -224,6 +224,27 @@ test('a picture of the slice, coloured like the Preview', async () => {
   assert.deepEqual(part.about.hidden.sort(), ['Custom', 'Sparse infill']);
   assert.notDeepEqual(part.png, lineTypes.png);
   assert.match((await picture({ hide: ['Walls'] })).error, /No line type called "Walls"/);
+});
+
+test('a pause and custom G-code at layers, like the layer slider', async () => {
+  // The picture test left the Benchy sliced: layers come from that slice.
+  const paused = await tool('layer_change', { type: 'pause', layer: 10 });
+  assert.ok(!paused.error, paused.error);
+  assert.deepEqual(paused.layerChanges.map((c) => [c.layer, c.does]), [[10, 'Pause']]);
+  const custom = await tool('layer_change', { type: 'custom', heightMm: 20, gcode: 'M117 Halfway' });
+  assert.equal(custom.layerChanges.length, 2);
+  assert.match((await tool('layer_change', { type: 'remove', layer: 3 })).error, /nothing at that layer/);
+  assert.match((await tool('layer_change', { type: 'pause' })).error, /layer number or the height/);
+  const sliced = await tool('slice', { out });
+  assert.ok(!sliced.error, sliced.error);
+  // Layer by layer (";LAYER_CHANGE" starts each): the pause at the start of layer 10, the G-code where the top is nearest 20 mm.
+  const layers = readFileSync(sliced.gcodeFile, 'utf8').split(/^;LAYER_CHANGE/m);
+  assert.match(layers[10], /^;PAUSE_PRINT$/m);
+  const at = layers.findIndex((l) => /^M117 Halfway$/m.test(l));
+  assert.equal(custom.layerChanges.find((c) => c.does.includes('Halfway')).layer, at);
+  assert.deepEqual((await tool('model_info')).layerChanges.map((c) => c.does), ['Pause', 'Custom G-code: M117 Halfway']);
+  await tool('layer_change', { type: 'remove', layer: 10 });
+  assert.deepEqual((await tool('model_info')).layerChanges.map((c) => c.does), ['Custom G-code: M117 Halfway']);
 });
 
 test('says plainly what went wrong', async () => {

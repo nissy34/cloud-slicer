@@ -16,7 +16,9 @@ import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { z } from 'zod';
 import { formatDuration } from '../../web/src/lib/format';
+import type { LayerCode } from '../../web/src/engine/protocol';
 import { FEATURES } from '../../web/src/lib/gcode';
+import { canChangeFilament, codeLabel, layerOf, newCode } from '../../web/src/lib/layerCodes';
 import { VIEW_TYPES, type ColourBy } from '../../web/src/lib/preview-colours';
 import { newPrintId, withPrintTag } from '../../web/src/lib/prints';
 import type { StoredPreset } from '../../web/src/lib/preset-engines';
@@ -34,7 +36,7 @@ const account = new Account();
 let presetsAt = 0;
 const printers = new Printers(account);
 /** The newest slice's files: what send_to_printer sends when not told a file. */
-let lastSliced: { gcodeFile: string; gcode3mfFile?: string; origin?: PlateOrigin } | null = null;
+let lastSliced: { gcodeFile: string; gcode3mfFile?: string; origin?: PlateOrigin; plate?: number } | null = null;
 const projects = new OnlineProjects(account, slicer);
 account.onChange = () => (presetsAt = 0);
 
@@ -81,6 +83,7 @@ function summary(info: ModelInfo | null) {
   return {
     file: info.fileName,
     plates: info.plates.length,
+    ...(layerChanges().length && { layerChanges: layerChanges() }),
     objects: info.objects.map((o, i) => ({
       object: i,
       name: o.name,
@@ -335,7 +338,7 @@ server.registerTool(
         const { file, file3mf, result, pictures } = await slicer.slice({ plate: p, out, settings: once }, progress);
         // A plate of an online project: a send goes into its print history, as from the site.
         const origin = projects.current ? await slicer.plateFingerprint(p).then((f) => ({ projectId: projects.current!.id, plate: p, ...f }), () => undefined) : undefined;
-        lastSliced = { gcodeFile: file, ...(file3mf && { gcode3mfFile: file3mf }), ...(origin && { origin }) };
+        lastSliced = { gcodeFile: file, plate: p, ...(file3mf && { gcode3mfFile: file3mf }), ...(origin && { origin }) };
         results.push({ ...(plates.length > 1 && { plate: p }), gcodeFile: file, ...(file3mf && { gcode3mfFile: file3mf }), ...stats(result), platePictures: pictures });
       }
       return plates.length > 1 ? { plates: results, presets: presets() } : { ...results[0], presets: presets() };
@@ -387,6 +390,76 @@ server.registerTool(
       return failure(e);
     }
   },
+);
+
+/** The plate's layer heights: from its newest slice, else worked out from the settings (null: unknown). */
+function layerHeights(plate: number): { z: number[]; fromSlice: boolean } | null {
+  if (lastSliced?.plate === plate && existsSync(lastSliced.gcodeFile)) {
+    const z = [...readFileSync(lastSliced.gcodeFile, 'utf8').matchAll(/^;Z:([\d.]+)/gm)].map((m) => Number(m[1]));
+    if (z.length) return { z, fromSlice: true };
+  }
+  return null;
+}
+
+/** Every plate's layer items, for model_info. */
+function layerChanges() {
+  return (slicer.model?.plates ?? []).flatMap((_, plate) => {
+    const heights = layerHeights(plate);
+    return slicer.layerCodes(plate).map((c) => ({ plate, ...(heights && { layer: layerOf(c.z, heights.z) + 1 }), heightMm: round(c.z, 2), does: codeLabel(c) }));
+  });
+}
+
+server.registerTool(
+  'layer_change',
+  {
+    title: 'Pause or change filament at a layer',
+    description:
+      'Adds what the layer slider adds on the site, at the start of a layer: a pause (the printer stops until resumed, e.g. to drop in magnets), a filament change (that slot prints from this layer up, ' +
+      'when the plate prints with one filament), a colour change (M600, for printers with one nozzle) or custom G-code; or removes it (type remove). One per layer. ' +
+      'Give the layer number (from 1; best after a slice, which knows the real layers) or the height in mm. Slice again afterwards.',
+    inputSchema: {
+      type: z.enum(['pause', 'filament', 'colour', 'custom', 'remove']),
+      layer: z.number().int().min(1).optional().describe('Layer number, from 1'),
+      heightMm: z.number().positive().optional().describe('Instead of layer: the height in mm (the layer whose top is nearest)'),
+      plate: z.number().int().min(0).optional().describe('Plate number, from 0 (default 0)'),
+      filament: z.number().int().min(1).optional().describe('For a filament change: the slot to change to'),
+      gcode: z.string().optional().describe('For custom: the G-code to run'),
+    },
+  },
+  ({ type, layer, heightMm, plate = 0, filament, gcode }) =>
+    run(async () => {
+      if (!slicer.model) throw new Error('Open a model first.');
+      if ((layer === undefined) === (heightMm === undefined)) throw new Error('Give the layer number or the height in mm (one of them).');
+      const heights = layerHeights(plate);
+      let z: number;
+      const notes: string[] = [];
+      if (heightMm !== undefined) z = heights ? heights.z[layerOf(heightMm, heights.z)] : heightMm;
+      else if (heights) {
+        if (layer! > heights.z.length) throw new Error(`Plate ${plate} has ${heights.z.length} layers.`);
+        z = heights.z[layer! - 1];
+      } else {
+        // Not sliced yet: worked out from the first layer and layer height (objects with their own layer heights differ).
+        const { config } = await slicer.fullConfig();
+        const first = Number(config.initial_layer_print_height) || 0.2, step = Number(config.layer_height) || 0.2;
+        z = round(first + (layer! - 1) * step, 3);
+        notes.push(`Not sliced yet, so layer ${layer} was taken as ${z} mm from the layer height; slice first for the real layers.`);
+      }
+      const slots = slicer.lists?.selection.filaments.length ?? 1;
+      if (type === 'filament') {
+        if (!filament) throw new Error('Say which filament slot to change to.');
+        if (filament > slots) throw new Error(`There ${slots === 1 ? 'is 1 filament slot' : `are ${slots} filament slots`}.`);
+        const used = new Set(slicer.model.objects.flatMap((o) => (o.instances.some((i) => i.plate === plate) ? [o.extruder || 1, ...o.volumes.map((v) => v.extruder || o.extruder || 1)] : [])));
+        if (!canChangeFilament(slots, [...used])) throw new Error('A filament change works when everything on the plate prints with one filament and there are more slots, as on desktop. This plate already uses several.');
+      }
+      if (type === 'custom' && !gcode?.trim()) throw new Error('Give the G-code to run.');
+      const codes = slicer.layerCodes(plate);
+      const at = (c: LayerCode) => heights ? layerOf(c.z, heights.z) === layerOf(z, heights.z) : Math.abs(c.z - z) < 1e-3;
+      const rest = codes.filter((c) => !at(c));
+      if (type === 'remove' && rest.length === codes.length) throw new Error('There is nothing at that layer.');
+      const next = type === 'remove' ? rest : [...rest, newCode(type === 'colour' ? 'colour' : type, z, { filament, colour: type === 'filament' ? slicer.lists?.selection.colours[filament! - 1] : undefined, gcode })].sort((a, b) => a.z - b.z);
+      await slicer.setLayerCodes(plate, next);
+      return { layerChanges: layerChanges().filter((c) => c.plate === plate), note: 'Slice again so the G-code has it.', ...(notes.length && { notes }) };
+    }),
 );
 
 server.registerTool(
