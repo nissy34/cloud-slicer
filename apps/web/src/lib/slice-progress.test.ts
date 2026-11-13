@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { estimateLayers, GCODE_START, slicePercent } from './slice-progress';
+import { estimateLayers, GCODE_START, SEAMS_END, slicePercent } from './slice-progress';
 
 describe('estimateLayers', () => {
   it('counts the first layer, then the rest at the layer height', () => {
@@ -18,9 +18,15 @@ describe('slicePercent', () => {
     expect(slicePercent(0, 65, 'Generating skirt & brim', 100)).toBeLessThan(GCODE_START);
     expect(slicePercent(0, 93, 'Generating G-code', 100)).toBe(GCODE_START);
   });
+  it('moves while the seams are worked out, object by object', () => {
+    expect(slicePercent(GCODE_START, 74, 'Generating G-code: placing seams, object 1 of 40', 100)).toBe(GCODE_START);
+    const half = slicePercent(GCODE_START, 74, 'Generating G-code: placing seams, object 21 of 40', 100);
+    expect(half).toBeCloseTo((GCODE_START + SEAMS_END) / 2, 5);
+    expect(slicePercent(half, 74, 'Generating G-code: layer 0', 100)).toBeGreaterThan(SEAMS_END);
+  });
   it('moves through the G-code step layer by layer', () => {
     const half = slicePercent(GCODE_START, 74, 'Generating G-code: layer 49', 100);
-    expect(half).toBeCloseTo(GCODE_START + (99 - GCODE_START) / 2, 5);
+    expect(half).toBeCloseTo(SEAMS_END + (99 - SEAMS_END) / 2, 5);
     expect(slicePercent(half, 74, 'Generating G-code: layer 99', 100)).toBe(99);
   });
   it('keeps moving without a layer estimate, but never reaches 100 early', () => {

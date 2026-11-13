@@ -4,11 +4,15 @@
 // starts writing G-code. But Orca's G-code export reports every layer at a
 // flat 80 ("Generating G-code: layer N") with no total, so the bar sat still
 // (and even stepped back) for what is often the longest part of a slice. Here
-// the slicing stages fill the bar to 70%, and the G-code step fills the rest
-// layer by layer, against the plate's layer count estimated from its height.
+// the slicing stages fill the bar to 70%, working out the seams ("Generating
+// G-code: placing seams, object N of M", about 2 s of CPU an object) fills it
+// to 78%, and the G-code's layers fill the rest, against the plate's layer
+// count estimated from its height.
 
 /** Where the slicing stages end and writing G-code begins, in percent. */
 export const GCODE_START = 70;
+/** Where working out the seams ends and the G-code's layers begin, in percent. */
+export const SEAMS_END = 78;
 
 /** Layers the plate will have, roughly: its tallest object over the layer height (0 when unknown). */
 export function estimateLayers(heights: number[], layerHeight: number, firstLayer: number): number {
@@ -25,12 +29,17 @@ export function estimateLayers(heights: number[], layerHeight: number, firstLaye
 export function slicePercent(shown: number, pct: number, stage: string, layers: number): number {
   let target: number;
   const layer = /generating g-code: layer (\d+)/i.exec(stage);
+  const seams = /placing seams, object (\d+) of (\d+)/i.exec(stage);
   if (pct >= 100) target = 100;
-  else if (layer) {
+  else if (seams) {
+    // Reported before each object, so object N of M means N - 1 done.
+    const total = Math.max(1, Number(seams[2]));
+    target = GCODE_START + ((SEAMS_END - GCODE_START) * Math.min(total, Number(seams[1]) - 1)) / total;
+  } else if (layer) {
     // Orca counts layers from 0; without an estimate, creep towards the end.
     const done = Number(layer[1]) + 1;
     const fraction = layers > 0 ? Math.min(1, done / layers) : 1 - 1 / (1 + done / 50);
-    target = GCODE_START + (99 - GCODE_START) * fraction;
+    target = SEAMS_END + (99 - SEAMS_END) * fraction;
   } else if (/generating g-code/i.test(stage) || pct >= 93) target = GCODE_START;
   else target = Math.min(GCODE_START, (Math.max(0, pct) * GCODE_START) / 92);
   return Math.max(shown, Math.min(target, pct >= 100 ? 100 : 99));
