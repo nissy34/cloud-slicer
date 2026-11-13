@@ -580,6 +580,9 @@ jobs:
           # Branch previews set up new bridges on the test relay (device.yml), where
           # pull requests are tried before they merge; main uses the live one.
           VITE_DEVICE_RELAY_URL: ${{ github.ref != 'refs/heads/main' && 'https://cloud-slicer-relay-test.awesomestuff.qzz.io' || '' }}
+          # The AI app add-on's version that this same run publishes on main (the mcp job's MCP_VERSION),
+          # shown in "Use with an AI app"; previews publish none.
+          VITE_MCP_VERSION: ${{ github.ref == 'refs/heads/main' && format('0.1.{0}', github.run_number) || '' }}
         run: |
           npm ci --no-audit --no-fund
           npm run build
