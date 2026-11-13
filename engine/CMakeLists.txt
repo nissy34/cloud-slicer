@@ -51,6 +51,13 @@ option(ENGINE_WITH_STEP "Real STEP import (needs the occt dep)" OFF)
 # exception model and the shared-memory (pthread) ABI.
 add_compile_options(-pthread -fwasm-exceptions)
 add_link_options(-pthread -fwasm-exceptions)
+# WebAssembly SIMD (128-bit vectors): lets clang vectorise the engine's loops.
+# Clang never reorders floating-point maths for this without -ffast-math, so the
+# G-code stays the same; only speed changes. Browsers: Chrome/Edge 91, Firefox 89,
+# Safari 16.4 (iOS 16.4), Node 16.4. The engine's other needs (threads, wasm
+# exceptions) already ask for nearly as much.
+add_compile_options(-msimd128)
+add_link_options(-msimd128)
 # wasm32 has a 32-bit size_t. Orca initialises size_t sentinels from
 # numeric_limits<coord_t /* int64 */>::max() (GCode.hpp LayerResult); the value
 # truncates to SIZE_MAX, which is still the "no layer" sentinel. Clang makes

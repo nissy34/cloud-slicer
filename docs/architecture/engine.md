@@ -143,6 +143,9 @@ match ([testing](testing.md#same-as-desktop-orca)).
   first one's layers and skip it; copies with settings of their own share the ray
   casting; and the step reports "placing seams, object N of M", which
   `lib/slice-progress.ts` turns into 70-78% of the bar. Seams stay where desktop puts them.
+- **wasm SIMD** (`-msimd128`): clang vectorises loops, never reordering floating-point
+  maths, so the G-code is the same and slices are 2-11% faster (most in the seam step).
+  Browsers need it: Chrome 91, Firefox 89, Safari/iOS 16.4.
 - **No wasm64**: Safari lacks it, phones kill tabs below 4 GB anyway, and it is slower.
 - More in [decisions.md](../decisions.md#engines).
 
