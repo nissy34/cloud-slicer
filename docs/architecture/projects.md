@@ -186,6 +186,8 @@ projects in the person's Drive.
   as desktop does. If the engine can't fill it in, a pop-up asks to use the engine's own
   for the printer; the answer is saved with the project.
 - An online project remembers its engine; a 3MF opens with the engine that made it.
+- The AI app add-on lists, opens and saves online projects too, with the same Drive code
+  and version checks; it shows up as the device `AI app` ([mcp](mcp.md#their-online-projects)).
 - `version` goes up on every save and on Rename; a save from another tab or device
   against an older version gets a conflict. Things stored beside the project without
   changing the file (thumbnail, print history) must **not** raise it, or the device

@@ -13,6 +13,7 @@ import { pickFilamentPreset, splitList } from '../../web/src/lib/presets';
 import { expandPending, presetForEngine, type PresetType, type StoredPreset } from '../../web/src/lib/preset-engines';
 import { bedSize } from '../../web/src/lib/colour';
 import { thumbnailSizes } from '../../web/src/lib/thumbnail';
+import { fingerprintOf, summarize, type PlateFingerprint } from '../../web/src/lib/prints';
 import { EngineClient, EngineStopped, type EngineInfo, type Progress } from './engine-client';
 import { drawThumbnails, type PlateMesh } from './picture';
 
@@ -454,6 +455,14 @@ export class Slicer {
     let file3mf: string | undefined;
     if (result.gcode3mf) writeFileSync((file3mf = `${file.replace(/\.gcode$/i, '')}.gcode.3mf`), result.gcode3mf);
     return { file, file3mf, result, pictures: thumbnails.map((t) => `${t.width}x${t.height}`) };
+  }
+
+  /** What a plate prints, for print history, worked out as the site does (state/store.ts plateFingerprint). */
+  async plateFingerprint(plate: number) {
+    const fp = await this.call<PlateFingerprint>('json', 'plateFingerprint', plate);
+    const { config } = await this.fullConfig();
+    const summary = summarize(fp, config, plate);
+    return { summary, fingerprint: fingerprintOf(summary) };
   }
 
   /** Saves the project (models, presets and changes) as a 3MF that the site and desktop Orca open. */

@@ -26,6 +26,7 @@ else goes over the internet.
 | The engine on its own thread, like the site's engine worker | `apps/mcp/src/worker.ts`, `engine-client.ts` |
 | Plate pictures without a GPU | `apps/mcp/src/picture.ts` |
 | Signing in to the person's account, and calls to the site's `/api` as them | `apps/mcp/src/account.ts` |
+| Their online projects: list, open, save, print history (with the site's `account/drive.ts`, `lib/prints.ts`) | `apps/mcp/src/projects.ts` |
 | The site's approval window for that sign-in | `apps/web/src/account/LinkProgramDialog.tsx` |
 | Their printers: status, files, send, the Device tab's controls | `apps/mcp/src/printers.ts`, with the site's `device/session.ts`, `link/bridge.ts`, `link/direct.ts`, add-ons, `device/print-plan.ts`, `device/saved.ts`, `device/commands.ts` |
 | Loading the engine, presets, brands, opening and slicing (shared with `slice.mjs` and the engine tests) | `engine/node/engine.mjs` |
@@ -161,6 +162,34 @@ a tool needs it and closes a minute after the last use: no streaming in the back
 - Refused before asking: a print while the printer prints or isn't ready, a filament with
   no head or slot it can print from (the Send window's checks), moving while it prints, a
   printer whose add-on takes no commands (Bambu Lab: status, files and prints only).
+
+## Their online projects
+
+Signed in, the add-on reaches the person's online projects (the site's Online projects
+window, [projects](projects.md)) the way the page does. The files stay in their Google
+Drive: the add-on asks the site for a short Drive key (`POST /api/drive/token`) and
+downloads and uploads straight to Google with the site's own `account/drive.ts`
+(`setDriveKeySource` swaps the page's sign-in for the add-on's), so a project never
+passes through Cloud Slicer. The site keeps the list, versions and print history.
+
+| Tool | What it does | Asks first |
+|---|---|---|
+| `online_projects` | The list, newest first: when changed, plates, printed plates, which device is editing it | |
+| `open_online_project` | Takes the project over (`POST /api/projects/<id>/device`, device `AI app`, an id made from this computer) and opens its 3MF from Drive; a site tab with it open only views it from then on, as when it opens on another computer | |
+| `save_online_project` | Saves over the project it came from (`baseVersion`: refused with "changed or opened elsewhere" when the site has a newer one) or, with `asNew` or for a file from this computer, as a new one; then the list picture | yes, every time (it writes to their Drive) |
+| `project_history` | The project's print history, newest first | |
+
+- **Print history**: a slice of an open online project's plate keeps that plate's
+  fingerprint (`plateFingerprint`, `summarize`, `fingerprintOf` from `lib/prints.ts`).
+  When `send_to_printer` sends that slice, the G-code goes with the tag line
+  (`withPrintTag`; the file on this computer stays as sliced; a `.gcode.3mf` goes as it
+  is, as from the site) and the send makes a record (`uploaded`, or `sent` when it
+  started), as the page's `onFileSent` does. The bridge and the Device tab then follow
+  the print and write how it ended. A send of any other file makes no record.
+- `open_model` (not `add`) leaves the online project: what is open is then a file from
+  this computer.
+- `CLOUD_SLICER_GOOGLE` points the Drive calls at a stand-in (tests only, like
+  `CLOUD_SLICER_SITE`).
 
 ## Limits
 

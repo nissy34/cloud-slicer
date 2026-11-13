@@ -40,7 +40,9 @@ The tag names the record, so the printer's word lands on the right one in any or
 even for a renamed file or a print started on the printer's screen. The bridge reads the
 tag from the file's head on Klipper and OctoPrint printers. On Prusa, Elegoo and Bambu Lab
 printers it can't read the file, so their prints match a waiting record by printer and
-file name. A downloaded file carries the tag too, but Download makes no record.
+file name. A downloaded file carries the tag too, but Download makes no record. The AI app
+add-on records its sends of an online project's plate the same way, tag line included
+([mcp](mcp.md#their-online-projects)).
 
 ## What it keeps
 
