@@ -2093,6 +2093,7 @@
 .dv-downloads {
   display: flex;
   flex-wrap: wrap;
+  align-items: center;
   gap: 8px;
   margin: 6px 0 8px;
 }
@@ -2103,6 +2104,10 @@
 }
 .dv-downloads a.primary {
   color: var(--accent-text);
+}
+/* A button-styled link keeps the buttons' own layout (icon beside the words, centred). */
+.dv-downloads a:is(.primary, .secondary) {
+  display: inline-flex;
 }
 .dv-command {
   display: flex;

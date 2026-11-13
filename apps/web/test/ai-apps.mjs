@@ -77,6 +77,9 @@ async function check(name, viewport, mobile) {
   const download = dialog.getByTestId("ai-apps-download");
   if ((await download.getAttribute("href")) !== `${RELEASE}/cloud-slicer.mcpb`)
     fail(`${name}: download link is ${await download.getAttribute("href")}`);
+  // The version shows on builds that publish one (main); previews say only the size.
+  const version = await dialog.getByTestId("ai-apps-version").innerText();
+  if (!/^(Version 0\.1\.\d+ · )?about 11 MB/.test(version)) fail(`${name}: version line says "${version}"`);
   const more = dialog.getByRole("link", { name: "More about it" });
   if (!(await more.getAttribute("href"))?.endsWith("/apps/mcp/README.md"))
     fail(`${name}: More about it goes to ${await more.getAttribute("href")}`);
