@@ -4,7 +4,7 @@
 // rule comes from the engine or from the site's own helpers, never a copy.
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { basename, dirname, extname, resolve } from 'node:path';
-import type { OrcaConfig, PresetSummary, Selection } from '../../web/src/engine/protocol';
+import type { LayerCode, OrcaConfig, PresetSummary, Selection } from '../../web/src/engine/protocol';
 import { arrangeRequest, cleanArrange, DEFAULT_ARRANGE, type ArrangeSettings } from '../../web/src/lib/arrange';
 import { emptyProjectMessage, pickProcess, printerLabel, projectOverrides } from '../../web/src/lib/project-import';
 import { objectSettingGroups } from '../../web/src/lib/object-settings';
@@ -352,6 +352,18 @@ export class Slicer {
     const have = this.model?.objects[object]?.instances.length ?? 0;
     for (let i = have; i < count; i++) await this.call('json', 'addInstance', object, 0, 10, 10);
     for (let i = have - 1; i >= count; i--) await this.call('json', 'deleteInstance', object, i);
+    return this.refreshModel();
+  }
+
+  /** The plate's pauses, filament changes and custom G-code at layers (the site's layer slider items). */
+  layerCodes(plate: number): LayerCode[] {
+    return (this.model?.plates[plate] as { layerCodes?: LayerCode[] } | undefined)?.layerCodes ?? [];
+  }
+
+  /** Replaces the plate's layer items, as the site's layer slider does (engine plateAction layerCodes). */
+  async setLayerCodes(plate: number, codes: LayerCode[]) {
+    if (plate < 0 || plate >= (this.model?.plates.length ?? 0)) throw new Error(`There is no plate ${plate}.`);
+    await this.call('json', 'plateAction', plate, JSON.stringify({ op: 'layerCodes', codes, filaments: this.lists?.selection.filaments.length ?? 1 }));
     return this.refreshModel();
   }
 

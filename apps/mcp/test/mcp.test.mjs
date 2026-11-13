@@ -17,7 +17,7 @@ let client;
 
 before(async () => {
   client = new Client({ name: 'test', version: '1' });
-  await client.connect(new StdioClientTransport({ command: process.execPath, args: [resolve(here, '../dist/server.mjs')], env: { ...process.env, CLOUD_SLICER_ACCOUNT_FILE: join(out, 'account.json') }, stderr: 'inherit' }));
+  await client.connect(new StdioClientTransport({ command: process.execPath, args: [resolve(here, '../dist/server.mjs')], env: { ...process.env, HOME: out, CLOUD_SLICER_ACCOUNT_FILE: join(out, 'account.json') }, stderr: 'inherit' }));
 });
 after(async () => {
   await client.close();
@@ -43,7 +43,7 @@ function thumbnailsIn(gcode) {
 test('lists its tools', async () => {
   const { tools } = await client.listTools();
   const names = tools.map((t) => t.name);
-  for (const n of ['open_model', 'choose_presets', 'change_settings', 'slice', 'save_project', 'move_object', 'sign_in', 'account', 'sign_out', 'online_projects', 'open_online_project', 'save_online_project', 'project_history']) assert.ok(names.includes(n), n);
+  for (const n of ['open_model', 'choose_presets', 'change_settings', 'slice', 'save_project', 'move_object', 'sign_in', 'account', 'sign_out', 'online_projects', 'open_online_project', 'save_online_project', 'project_history', 'sliced_picture', 'layer_change']) assert.ok(names.includes(n), n);
 });
 
 test('opens an STL and slices it on the U1, with plate pictures and progress', async () => {
@@ -172,6 +172,79 @@ test('slices with OrcaSlicer 2.5.0 too', async () => {
   const sliced = await tool('slice', { out });
   assert.ok(!sliced.error, sliced.error);
   assert.ok(sliced.grams > 0);
+});
+
+test('opens a model made in the chat: ASCII STL as text, a binary one as base64', async () => {
+  // A 20 mm cube, as an ASCII STL Claude might write.
+  const v = [[0,0,0],[20,0,0],[20,20,0],[0,20,0],[0,0,20],[20,0,20],[20,20,20],[0,20,20]];
+  const faces = [[0,2,1],[0,3,2],[4,5,6],[4,6,7],[0,1,5],[0,5,4],[1,2,6],[1,6,5],[2,3,7],[2,7,6],[3,0,4],[3,4,7]];
+  const stl = `solid cube\n${faces.map((f) => `facet normal 0 0 0\nouter loop\n${f.map((i) => `vertex ${v[i].join(' ')}`).join('\n')}\nendloop\nendfacet`).join('\n')}\nendsolid cube\n`;
+  const text = await tool('open_model', { content: stl, name: 'cube.stl' });
+  assert.ok(!text.error, text.error);
+  assert.deepEqual(text.objects[0].sizeMm, [20, 20, 20]);
+  assert.equal(text.savedAs, join(out, 'Cloud Slicer', 'From the chat', 'cube.stl'));
+  assert.equal(readFileSync(text.savedAs, 'utf8'), stl);
+  // The same name again never writes over the first one.
+  const binary = await tool('open_model', { content: readFileSync(resolve(fixtures, 'tetrahedron.stl')).toString('base64'), base64: true, name: 'cube.stl' });
+  assert.ok(!binary.error, binary.error);
+  assert.equal(binary.savedAs, join(out, 'Cloud Slicer', 'From the chat', 'cube (2).stl'));
+  const sliced = await tool('slice', {});
+  assert.ok(!sliced.error, sliced.error);
+  assert.ok(sliced.gcodeFile.startsWith(join(out, 'Cloud Slicer', 'From the chat')), 'the G-code goes beside it');
+  // A name that tries to leave the folder stays in it; a wrong kind of file is refused.
+  const sneaky = await tool('open_model', { content: stl, name: '../../escape.stl' });
+  assert.equal(sneaky.savedAs, join(out, 'Cloud Slicer', 'From the chat', 'escape.stl'));
+  assert.match((await tool('open_model', { content: stl, name: 'cube.txt' })).error, /ending \.stl, \.obj, \.3mf or \.amf/);
+  assert.match((await tool('open_model', {})).error, /path of a file on this computer, or the content and name/);
+});
+
+test('a picture of the slice, coloured like the Preview', async () => {
+  await tool('open_model', { path: resolve(fixtures, '3DBenchy.stl') });
+  const sliced = await tool('slice', { out });
+  assert.ok(!sliced.error, sliced.error);
+  const picture = async (args) => {
+    const r = await client.callTool({ name: 'sliced_picture', arguments: args }, undefined, { timeout: 120_000 });
+    if (r.isError) return { error: r.content[0].text };
+    const png = Buffer.from(r.content[0].data, 'base64');
+    return { png, about: JSON.parse(r.content[1].text) };
+  };
+  const lineTypes = await picture({});
+  assert.equal(lineTypes.png.subarray(1, 4).toString(), 'PNG');
+  assert.equal(lineTypes.about.colouredBy, 'Line type');
+  assert.equal(lineTypes.about.layers, `all ${sliced.layers}`);
+  const names = lineTypes.about.legend.map((l) => l.lineType);
+  for (const n of ['Outer wall', 'Inner wall', 'Sparse infill', 'Top surface']) assert.ok(names.includes(n), n);
+  assert.ok(!names.includes('Custom'), 'the purge line is left out');
+  const speed = await picture({ colourBy: 'speed', view: 'top', size: 300 });
+  assert.equal(speed.about.colouredBy, 'Speed (mm/s)');
+  assert.equal(speed.about.legend.length, 6);
+  assert.ok(Number(speed.about.legend[0].value) > Number(speed.about.legend[5].value), 'fastest first');
+  const part = await picture({ toLayer: 20, hide: ['Sparse infill'] });
+  assert.equal(part.about.layers, `1 to 20 of ${sliced.layers}`);
+  assert.deepEqual(part.about.hidden.sort(), ['Custom', 'Sparse infill']);
+  assert.notDeepEqual(part.png, lineTypes.png);
+  assert.match((await picture({ hide: ['Walls'] })).error, /No line type called "Walls"/);
+});
+
+test('a pause and custom G-code at layers, like the layer slider', async () => {
+  // The picture test left the Benchy sliced: layers come from that slice.
+  const paused = await tool('layer_change', { type: 'pause', layer: 10 });
+  assert.ok(!paused.error, paused.error);
+  assert.deepEqual(paused.layerChanges.map((c) => [c.layer, c.does]), [[10, 'Pause']]);
+  const custom = await tool('layer_change', { type: 'custom', heightMm: 20, gcode: 'M117 Halfway' });
+  assert.equal(custom.layerChanges.length, 2);
+  assert.match((await tool('layer_change', { type: 'remove', layer: 3 })).error, /nothing at that layer/);
+  assert.match((await tool('layer_change', { type: 'pause' })).error, /layer number or the height/);
+  const sliced = await tool('slice', { out });
+  assert.ok(!sliced.error, sliced.error);
+  // Layer by layer (";LAYER_CHANGE" starts each): the pause at the start of layer 10, the G-code where the top is nearest 20 mm.
+  const layers = readFileSync(sliced.gcodeFile, 'utf8').split(/^;LAYER_CHANGE/m);
+  assert.match(layers[10], /^;PAUSE_PRINT$/m);
+  const at = layers.findIndex((l) => /^M117 Halfway$/m.test(l));
+  assert.equal(custom.layerChanges.find((c) => c.does.includes('Halfway')).layer, at);
+  assert.deepEqual((await tool('model_info')).layerChanges.map((c) => c.does), ['Pause', 'Custom G-code: M117 Halfway']);
+  await tool('layer_change', { type: 'remove', layer: 10 });
+  assert.deepEqual((await tool('model_info')).layerChanges.map((c) => c.does), ['Custom G-code: M117 Halfway']);
 });
 
 test('says plainly what went wrong', async () => {

@@ -8,16 +8,23 @@
 //
 // Design and rules: docs/architecture/mcp.md.
 import { randomInt } from 'node:crypto';
-import { dirname } from 'node:path';
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { homedir } from 'node:os';
+import { basename, dirname, extname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { z } from 'zod';
 import { formatDuration } from '../../web/src/lib/format';
+import type { LayerCode } from '../../web/src/engine/protocol';
+import { FEATURES } from '../../web/src/lib/gcode';
+import { canChangeFilament, codeLabel, layerOf, newCode } from '../../web/src/lib/layerCodes';
+import { VIEW_TYPES, type ColourBy } from '../../web/src/lib/preview-colours';
 import { newPrintId, withPrintTag } from '../../web/src/lib/prints';
 import type { StoredPreset } from '../../web/src/lib/preset-engines';
 import { Account } from './account';
 import { pngOf } from './png';
+import { drawToolpaths } from './toolpaths';
 import { Printers } from './printers';
 import { OnlineProjects, type PlateOrigin } from './projects';
 import { ENGINES, Slicer, type ModelInfo, type SliceResult } from './slicer';
@@ -29,7 +36,7 @@ const account = new Account();
 let presetsAt = 0;
 const printers = new Printers(account);
 /** The newest slice's files: what send_to_printer sends when not told a file. */
-let lastSliced: { gcodeFile: string; gcode3mfFile?: string; origin?: PlateOrigin } | null = null;
+let lastSliced: { gcodeFile: string; gcode3mfFile?: string; origin?: PlateOrigin; plate?: number } | null = null;
 const projects = new OnlineProjects(account, slicer);
 account.onChange = () => (presetsAt = 0);
 
@@ -76,6 +83,7 @@ function summary(info: ModelInfo | null) {
   return {
     file: info.fileName,
     plates: info.plates.length,
+    ...(layerChanges().length && { layerChanges: layerChanges() }),
     objects: info.objects.map((o, i) => ({
       object: i,
       name: o.name,
@@ -145,22 +153,46 @@ server.registerTool(
   {
     title: 'Open a model',
     description:
-      'Opens a 3D model file from this computer (STL, 3MF, OBJ or AMF; not STEP). A 3MF project brings its own presets and settings. ' +
-      'With add, the file goes beside what is already open instead of replacing it.',
+      'Opens a 3D model (STL, 3MF, OBJ or AMF; not STEP): a file on this computer (path), or one made in the chat (content and name; ' +
+      'text for an ASCII STL or OBJ, base64 for a binary STL or a 3MF). A 3MF project brings its own presets and settings. ' +
+      'With add, the model goes beside what is already open instead of replacing it.',
     inputSchema: {
-      path: z.string().describe('Full path of the file'),
+      path: z.string().optional().describe('Full path of a file on this computer'),
+      content: z.string().optional().describe('Instead of path: the file itself, made in the chat'),
+      name: z.string().optional().describe('With content: its file name, e.g. stand.stl'),
+      base64: z.boolean().optional().describe('With content: it is base64 (a binary STL or a 3MF)'),
       add: z.boolean().optional().describe('Add to the open model instead of replacing it'),
       engine: engineChoice.optional(),
     },
   },
-  ({ path, add, engine }) =>
+  ({ path, content, name, base64, add, engine }) =>
     run(async () => {
-      const { notes } = await slicer.open(path, { add, engine });
+      const file = content === undefined ? path : fromChat(content, name, base64);
+      if (!file) throw new Error('Give the path of a file on this computer, or the content and name of one made in the chat.');
+      const { notes } = await slicer.open(file, { add, engine });
       // A file from this computer: what is open is no longer the online project (added to one, it still is).
       if (!add) projects.current = null;
-      return { ...summary(slicer.model), presets: presets(), ...(notes.length && { notes }) };
+      return { ...summary(slicer.model), ...(content !== undefined && { savedAs: file }), presets: presets(), ...(notes.length && { notes }) };
     }),
 );
+
+/** Where models made in the chat are written, so the engine (which reads files) can open them; the G-code goes beside them. */
+const chatDir = join(homedir(), 'Cloud Slicer', 'From the chat');
+
+/** A model made in the chat, written to a file under chatDir (never over another one). */
+function fromChat(content: string, name: string | undefined, base64: boolean | undefined) {
+  const base = basename((name ?? '').trim()).replace(/[<>:"/\\|?*\u0000-\u001f]/g, '_');
+  const ext = extname(base).toLowerCase();
+  if (!['.stl', '.obj', '.3mf', '.amf'].includes(ext)) throw new Error('Give the file a name ending .stl, .obj, .3mf or .amf.');
+  const bytes = base64 ? Buffer.from(content.replace(/^data:[^,]*,/, ''), 'base64') : Buffer.from(content, 'utf8');
+  if (!bytes.length) throw new Error('The content is empty.');
+  mkdirSync(chatDir, { recursive: true });
+  const stem = base.slice(0, -ext.length) || 'model';
+  let file = join(chatDir, `${stem}${ext}`);
+  for (let n = 2; existsSync(file); n++) file = join(chatDir, `${stem} (${n})${ext}`);
+  writeFileSync(file, bytes);
+  return file;
+}
 
 server.registerTool(
   'model_info',
@@ -306,10 +338,127 @@ server.registerTool(
         const { file, file3mf, result, pictures } = await slicer.slice({ plate: p, out, settings: once }, progress);
         // A plate of an online project: a send goes into its print history, as from the site.
         const origin = projects.current ? await slicer.plateFingerprint(p).then((f) => ({ projectId: projects.current!.id, plate: p, ...f }), () => undefined) : undefined;
-        lastSliced = { gcodeFile: file, ...(file3mf && { gcode3mfFile: file3mf }), ...(origin && { origin }) };
+        lastSliced = { gcodeFile: file, plate: p, ...(file3mf && { gcode3mfFile: file3mf }), ...(origin && { origin }) };
         results.push({ ...(plates.length > 1 && { plate: p }), gcodeFile: file, ...(file3mf && { gcode3mfFile: file3mf }), ...stats(result), platePictures: pictures });
       }
       return plates.length > 1 ? { plates: results, presets: presets() } : { ...results[0], presets: presets() };
+    }),
+);
+
+server.registerTool(
+  'sliced_picture',
+  {
+    title: 'Picture of the slice',
+    description:
+      'A picture of the sliced toolpaths, like the Preview tab: coloured by line type (walls, infill, support...), filament, speed, layer height, line width, flow, layer time, fan speed or temperature, ' +
+      'with what each colour means. Show part of the print with fromLayer/toLayer (e.g. toLayer 40 to see inside), leave line types out with hide (e.g. ["Prime tower"]). ' +
+      'By default the newest slice. Use it to check a slice, or to show the person.',
+    inputSchema: {
+      colourBy: z
+        .enum(VIEW_TYPES.map((t) => t.id) as [ColourBy, ...ColourBy[]])
+        .optional()
+        .describe(`What the colours show (default feature = line type): ${VIEW_TYPES.map((t) => `${t.id} (${t.label})`).join(', ')}`),
+      fromLayer: z.number().int().min(1).optional().describe('First layer shown, from 1'),
+      toLayer: z.number().int().min(1).optional().describe('Last layer shown (default the top)'),
+      hide: z.array(z.string()).optional().describe(`Line types to leave out: ${FEATURES.join(', ')}. Custom (the start G-code's purge line) is always left out, unless hide is [] (everything)`),
+      view: z.enum(['iso', 'top', 'front']).optional().describe('Camera: iso (default, like the plate pictures), top or front'),
+      size: z.number().int().min(200).max(1600).optional().describe('Pixels across (default 800)'),
+      file: z.string().optional().describe('A .gcode file on this computer; default the newest slice'),
+    },
+  },
+  async ({ colourBy, fromLayer, toLayer, hide, view, size, file }) => {
+    try {
+      const path = file ?? lastSliced?.gcodeFile;
+      if (!path) throw new Error('Nothing sliced yet: slice first, or give a G-code file.');
+      if (!/\.gcode$/i.test(path)) throw new Error('Give a .gcode file (not a .gcode.3mf).');
+      const { picture, about } = drawToolpaths(readFileSync(path, 'utf8'), {
+        colourBy: colourBy ?? 'feature',
+        fromLayer,
+        toLayer,
+        hide,
+        view: view ?? 'iso',
+        size: size ?? 800,
+        colours: slicer.lists?.selection.colours ?? [],
+      });
+      return {
+        content: [
+          { type: 'image' as const, data: pngOf(picture).toString('base64'), mimeType: 'image/png' },
+          { type: 'text' as const, text: JSON.stringify({ file: path, ...about }, null, 1) },
+        ],
+      };
+    } catch (e) {
+      return failure(e);
+    }
+  },
+);
+
+/** The plate's layer heights: from its newest slice, else worked out from the settings (null: unknown). */
+function layerHeights(plate: number): { z: number[]; fromSlice: boolean } | null {
+  if (lastSliced?.plate === plate && existsSync(lastSliced.gcodeFile)) {
+    const z = [...readFileSync(lastSliced.gcodeFile, 'utf8').matchAll(/^;Z:([\d.]+)/gm)].map((m) => Number(m[1]));
+    if (z.length) return { z, fromSlice: true };
+  }
+  return null;
+}
+
+/** Every plate's layer items, for model_info. */
+function layerChanges() {
+  return (slicer.model?.plates ?? []).flatMap((_, plate) => {
+    const heights = layerHeights(plate);
+    return slicer.layerCodes(plate).map((c) => ({ plate, ...(heights && { layer: layerOf(c.z, heights.z) + 1 }), heightMm: round(c.z, 2), does: codeLabel(c) }));
+  });
+}
+
+server.registerTool(
+  'layer_change',
+  {
+    title: 'Pause or change filament at a layer',
+    description:
+      'Adds what the layer slider adds on the site, at the start of a layer: a pause (the printer stops until resumed, e.g. to drop in magnets), a filament change (that slot prints from this layer up, ' +
+      'when the plate prints with one filament), a colour change (M600, for printers with one nozzle) or custom G-code; or removes it (type remove). One per layer. ' +
+      'Give the layer number (from 1; best after a slice, which knows the real layers) or the height in mm. Slice again afterwards.',
+    inputSchema: {
+      type: z.enum(['pause', 'filament', 'colour', 'custom', 'remove']),
+      layer: z.number().int().min(1).optional().describe('Layer number, from 1'),
+      heightMm: z.number().positive().optional().describe('Instead of layer: the height in mm (the layer whose top is nearest)'),
+      plate: z.number().int().min(0).optional().describe('Plate number, from 0 (default 0)'),
+      filament: z.number().int().min(1).optional().describe('For a filament change: the slot to change to'),
+      gcode: z.string().optional().describe('For custom: the G-code to run'),
+    },
+  },
+  ({ type, layer, heightMm, plate = 0, filament, gcode }) =>
+    run(async () => {
+      if (!slicer.model) throw new Error('Open a model first.');
+      if ((layer === undefined) === (heightMm === undefined)) throw new Error('Give the layer number or the height in mm (one of them).');
+      const heights = layerHeights(plate);
+      let z: number;
+      const notes: string[] = [];
+      if (heightMm !== undefined) z = heights ? heights.z[layerOf(heightMm, heights.z)] : heightMm;
+      else if (heights) {
+        if (layer! > heights.z.length) throw new Error(`Plate ${plate} has ${heights.z.length} layers.`);
+        z = heights.z[layer! - 1];
+      } else {
+        // Not sliced yet: worked out from the first layer and layer height (objects with their own layer heights differ).
+        const { config } = await slicer.fullConfig();
+        const first = Number(config.initial_layer_print_height) || 0.2, step = Number(config.layer_height) || 0.2;
+        z = round(first + (layer! - 1) * step, 3);
+        notes.push(`Not sliced yet, so layer ${layer} was taken as ${z} mm from the layer height; slice first for the real layers.`);
+      }
+      const slots = slicer.lists?.selection.filaments.length ?? 1;
+      if (type === 'filament') {
+        if (!filament) throw new Error('Say which filament slot to change to.');
+        if (filament > slots) throw new Error(`There ${slots === 1 ? 'is 1 filament slot' : `are ${slots} filament slots`}.`);
+        const used = new Set(slicer.model.objects.flatMap((o) => (o.instances.some((i) => i.plate === plate) ? [o.extruder || 1, ...o.volumes.map((v) => v.extruder || o.extruder || 1)] : [])));
+        if (!canChangeFilament(slots, [...used])) throw new Error('A filament change works when everything on the plate prints with one filament and there are more slots, as on desktop. This plate already uses several.');
+      }
+      if (type === 'custom' && !gcode?.trim()) throw new Error('Give the G-code to run.');
+      const codes = slicer.layerCodes(plate);
+      const at = (c: LayerCode) => heights ? layerOf(c.z, heights.z) === layerOf(z, heights.z) : Math.abs(c.z - z) < 1e-3;
+      const rest = codes.filter((c) => !at(c));
+      if (type === 'remove' && rest.length === codes.length) throw new Error('There is nothing at that layer.');
+      const next = type === 'remove' ? rest : [...rest, newCode(type === 'colour' ? 'colour' : type, z, { filament, colour: type === 'filament' ? slicer.lists?.selection.colours[filament! - 1] : undefined, gcode })].sort((a, b) => a.z - b.z);
+      await slicer.setLayerCodes(plate, next);
+      return { layerChanges: layerChanges().filter((c) => c.plate === plate), note: 'Slice again so the G-code has it.', ...(notes.length && { notes }) };
     }),
 );
 
