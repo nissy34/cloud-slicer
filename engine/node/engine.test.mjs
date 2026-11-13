@@ -184,35 +184,48 @@ test('slices an STL with the U1 presets', () => {
   assert.ok(result.prepareSeconds >= 0 && result.prepareSeconds < result.estimatedTimeSeconds, `prepare ${result.prepareSeconds} s`);
 });
 
-test('copies of one object work out their seams once (patches/<flavor>/0014)', () => {
-  // A plate of identical objects prints the first one's layers for all of
-  // them. Before G-code's first layer, Orca works out where the seams go by
-  // casting rays at each object; doing it for every copy made a plate of 40
-  // copies sit at "Generating G-code" for minutes in the browser.
+test('copies of one model work out their seams once, and say how far they got (patches/<flavor>/0014)', () => {
+  // Before G-code's first layer, Orca works out where the seams go by casting
+  // rays at each object: about 2 s of CPU an object in the browser, so a plate
+  // of 40 copies sat at "Generating G-code" for minutes. Identical copies print
+  // the first one's layers and need no seams of their own; copies with
+  // settings of their own (here every other one with more infill) share the
+  // ray casting.
   select({ printer: DEFAULT_PRINTER, process: STANDARD });
-  // Seconds from "Generating G-code" to its first layer, and the G-code.
-  const beforeFirstLayer = (copies) => {
+  // Seconds from "Generating G-code" to its first layer, the seam progress
+  // reports, and the G-code.
+  const beforeFirstLayer = (copies, ownSettings = false) => {
     load('gen-cylinder.stl');
     if (copies > 1) {
       call(engine, 'objectAction', 0, 0, JSON.stringify({ op: 'clone', count: copies - 1 }));
       call(engine, 'plateAction', 0, JSON.stringify({ op: 'arrangeSelection', objects: [...Array(copies).keys()] }));
     }
+    if (ownSettings)
+      for (let o = 1; o < copies; o += 2) call(engine, 'setObjectSettings', o, -1, JSON.stringify({ sparse_infill_density: '40%' }));
     let start = 0, first = 0;
+    const seams = [];
     const onProgress = (pct, stage) => {
       if (!start && stage === 'Generating G-code') start = performance.now();
+      const m = /placing seams, object (\d+) of (\d+)$/.exec(stage);
+      if (m) seams.push([Number(m[1]), Number(m[2])]);
       if (start && !first && /layer \d+$/.test(stage)) first = performance.now();
     };
     const result = JSON.parse(engine.sliceWithConfig(JSON.stringify(fullConfig()), 0, '/work/out.gcode', onProgress, null, ''));
     assert.ok(result.success, `slice failed: ${result.error}`);
     const gcode = new TextDecoder().decode(engine.FS.readFile(result.gcodePath));
     assert.ok(start && first, 'G-code reports its layers');
-    return { seconds: (first - start) / 1000, gcode };
+    return { seconds: (first - start) / 1000, seams, gcode };
   };
   const one = beforeFirstLayer(1);
-  const twelve = beforeFirstLayer(12);
-  assert.equal((twelve.gcode.match(/^EXCLUDE_OBJECT_DEFINE/gm) ?? []).length, 12, 'all 12 copies print');
-  // Each copy took as long as the first one did (about 0.3 s in Node, seconds on a phone).
-  assert.ok(twelve.seconds < 2 * one.seconds + 0.5, `12 copies ${twelve.seconds.toFixed(2)} s before the first layer, 1 copy ${one.seconds.toFixed(2)} s`);
+  assert.deepEqual(one.seams, [[1, 1]], 'one object: one seam report');
+  const limit = 2 * one.seconds + 0.5;
+  const same = beforeFirstLayer(12);
+  assert.equal((same.gcode.match(/^EXCLUDE_OBJECT_DEFINE/gm) ?? []).length, 12, 'all 12 copies print');
+  assert.deepEqual(same.seams, [[1, 1]], 'identical copies use the first one\'s seams');
+  assert.ok(same.seconds < limit, `12 copies ${same.seconds.toFixed(2)} s before the first layer, 1 copy ${one.seconds.toFixed(2)} s`);
+  const mixed = beforeFirstLayer(12, true);
+  assert.deepEqual(mixed.seams, [[1, 2], [2, 2]], 'two kinds of copy: two seam reports');
+  assert.ok(mixed.seconds < limit, `12 copies of two kinds ${mixed.seconds.toFixed(2)} s before the first layer, 1 copy ${one.seconds.toFixed(2)} s`);
 });
 
 test('the layer count is the G-code\'s, support layers included only once', () => {
