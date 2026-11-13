@@ -56,7 +56,9 @@ add_link_options(-pthread -fwasm-exceptions)
 # G-code stays the same; only speed changes. Browsers: Chrome/Edge 91, Firefox 89,
 # Safari 16.4 (iOS 16.4), Node 16.4. The engine's other needs (threads, wasm
 # exceptions) already ask for nearly as much.
-add_compile_options(-msimd128)
+# -msse2 on top lets Eigen use its SSE2 vectors (Eigen 3.4 has none for wasm);
+# Emscripten turns SSE2 into wasm SIMD. Desktop on x86-64 builds Eigen with SSE2 too.
+add_compile_options(-msimd128 -msse2)
 add_link_options(-msimd128)
 # wasm32 has a 32-bit size_t. Orca initialises size_t sentinels from
 # numeric_limits<coord_t /* int64 */>::max() (GCode.hpp LayerResult); the value
