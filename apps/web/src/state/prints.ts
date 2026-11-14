@@ -14,7 +14,7 @@ import { create } from 'zustand';
 import { api } from '../account/api';
 import { job } from '../device/status';
 import { printedObjects } from '../lib/outside';
-import { i18n } from '../i18n';
+import { i18n, settingText } from '../i18n';
 import {
   changesBetween,
   nextStatus,
@@ -186,7 +186,7 @@ export function changesSince(plate: number, record: PrintRecord): string[] {
   const now = usePrints.getState().summaries[plate];
   if (!record.summary || !now) return [];
   const options = useSlicer.getState().options;
-  return changesBetween(record.summary, now, (k) => options[k]?.label, (kind, v) => i18n.t(CHANGE_WORDS[kind], { list: v.list, more: v.count }));
+  return changesBetween(record.summary, now, (k) => (options[k]?.label ? settingText(options[k].label) : undefined), (kind, v) => i18n.t(CHANGE_WORDS[kind], { list: v.list, more: v.count }));
 }
 
 // What each plate prints now: worked out a moment after anything changed, for

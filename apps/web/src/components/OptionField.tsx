@@ -11,6 +11,7 @@ import { setOverrideChecked } from './SettingsPrompt';
 import { RotateCcw, X } from 'lucide-react';
 import { IconButton } from './IconButton';
 import { Picker, type PickerOption } from './Picker';
+import { settingText } from '../i18n';
 
 /**
  * Editor for one Orca option, driven by the engine's option metadata: a
@@ -108,8 +109,8 @@ export function OptionField({
 
   // One filament's text (its type, vendor, G-code) edits as a single string, or a list when Orca has one.
   const type = slotText ? (def.enumValues ? 'enum' : 'string') : perEntry ? entryType(def.type) : def.type;
-  const title = (disabled && why) || def.tooltip || undefined;
-  const text = label ?? (def.label || optKey);
+  const title = (disabled && why) || settingText(def.tooltip) || undefined;
+  const text = label ?? (settingText(def.label) || optKey);
   const commit = (v: string) => {
     if (v === shown) return;
     if (slotText) setOverride(optKey, slotText.map((s, i) => (i === slot ? encodeString(v) : s)).join(';'));
@@ -160,7 +161,7 @@ export function OptionField({
     plateValue === undefined ? null : (
       <p className="option-note plate-note">
         {t('optionField.plateUses', { n: plateNumber })}{' '}
-        <b>{type === 'bool' ? (plateValue === '1' ? t('optionField.on') : t('optionField.off')) : def.enumLabels?.[def.enumValues?.indexOf(plateValue) ?? -1] || plateValue}</b> {t('optionField.itsOwn')}{' '}
+        <b>{type === 'bool' ? (plateValue === '1' ? t('optionField.on') : t('optionField.off')) : settingText(def.enumLabels?.[def.enumValues?.indexOf(plateValue) ?? -1] ?? '') || plateValue}</b> {t('optionField.itsOwn')}{' '}
         <button type="button" className="quiet" onClick={() => useSlicer.getState().openPlateSettings(true)}>
           {t('optionField.plateSettings')}
         </button>
@@ -199,7 +200,7 @@ export function OptionField({
     ];
     editor = <Picker field label={text} className="filament-field" value={shown} options={options} disabled={disabled} onChange={commit} />;
   } else if (type === 'enum' && def.enumValues) {
-    const options: PickerOption[] = def.enumValues.flatMap((v, i) => (choices && !choices.includes(v) && v !== shown ? [] : [{ value: v, label: def.enumLabels?.[i] || v }]));
+    const options: PickerOption[] = def.enumValues.flatMap((v, i) => (choices && !choices.includes(v) && v !== shown ? [] : [{ value: v, label: settingText(def.enumLabels?.[i] ?? '') || v }]));
     if (!def.enumValues.includes(shown)) options.unshift({ value: shown, label: shown });
     editor = <Picker field label={text} value={shown} options={options} disabled={disabled} onChange={commit} />;
   } else if (def.multiline || (def.type === 'strings' && !slotText) || (type === 'string' && shown.length > 60)) {
@@ -236,7 +237,7 @@ export function OptionField({
             }
           }}
         />
-        {def.sidetext && <span className="unit">{def.sidetext}</span>}
+        {def.sidetext && <span className="unit">{settingText(def.sidetext)}</span>}
       </span>
     );
   }

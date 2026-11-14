@@ -1,6 +1,6 @@
 // Hebrew, as one file fetched only when picked (i18n/index.ts). Each word file is
 // listed by name (not import.meta.glob) so code shared with Node can type-check it.
-// words.test.ts fails when a file in he/ is missing here.
+// Written by scripts/word-lists.mjs; words.test.ts fails when a file in he/ is missing here.
 import w_account from './he/account.json';
 import w_accountErrors from './he/accountErrors.json';
 import w_actionbar from './he/actionbar.json';

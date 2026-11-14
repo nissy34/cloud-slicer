@@ -26,7 +26,7 @@
       // the app loads (see src/lib/language.ts).
       try {
         var l = localStorage.getItem('cloud-slicer:language');
-        if (l !== 'he') l = 'en';
+        if (!/^[a-z]{2}(-[A-Z]{2})?$/.test(l || '')) l = 'en';
         document.documentElement.lang = l;
         document.documentElement.dir = l === 'he' ? 'rtl' : 'ltr';
       } catch (e) {}

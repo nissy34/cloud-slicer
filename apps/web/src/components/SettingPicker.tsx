@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { settingText } from '../i18n';
 import type { SettingGroup } from '../lib/object-settings';
 import { useSlicer } from '../state/store';
 import { ChevronRight } from 'lucide-react';
@@ -38,7 +39,7 @@ export function SettingPicker({
     ? left.flatMap((g) =>
         g.settings
           .filter((s) => {
-            const text = `${s.label} ${s.key.replace(/_/g, ' ')}`.toLowerCase();
+            const text = `${s.label} ${settingText(s.label)} ${s.key.replace(/_/g, ' ')}`.toLowerCase();
             return words.every((w) => text.includes(w));
           })
           .map((s) => ({ ...s, group: groupName(g.group) })),
@@ -46,8 +47,8 @@ export function SettingPicker({
     : null;
   const row = (s: { key: string; label: string }, note?: string) => (
     <li key={s.key}>
-      <button type="button" className="setting-pick" data-key={s.key} title={options[s.key]?.tooltip || undefined} onClick={() => onAdd(s.key)}>
-        <span>{s.label}</span>
+      <button type="button" className="setting-pick" data-key={s.key} title={settingText(options[s.key]?.tooltip ?? '') || undefined} onClick={() => onAdd(s.key)}>
+        <span>{settingText(s.label)}</span>
         {note && <span className="setting-pick-note">{note}</span>}
         <span className="setting-pick-plus" aria-hidden>
           +
@@ -105,4 +106,4 @@ export function SettingPicker({
 
 const PICKER_LABEL = { object: 'settingPicker.forObject', part: 'settingPicker.forPart', modifier: 'settingPicker.forModifier' } as const;
 // Desktop's category names (Quality, Speed...) stay English, like the settings.
-const groupName = (group: string) => group.replace(/^More: /, '');
+const groupName = (group: string) => settingText(group.replace(/^More: /, ''));

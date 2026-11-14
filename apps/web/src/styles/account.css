@@ -209,3 +209,24 @@
   justify-content: space-between;
   gap: var(--s-3);
 }
+.account-language-current {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-2);
+}
+/* Every language, two to a row, opened in place under the Language line. */
+.account-language-list {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--s-1);
+  max-height: 240px;
+  overflow-y: auto;
+}
+.menu .account-language-list .menu-item {
+  justify-content: space-between;
+  min-height: 30px;
+  padding: var(--s-2) var(--s-3);
+}
+.menu .account-language-list .menu-item.active {
+  font-weight: 600;
+}
