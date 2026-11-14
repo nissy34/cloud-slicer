@@ -29,7 +29,7 @@ sequenceDiagram
   participant B as Bridge
   participant R as Relay
   S->>A: record (sent / uploaded) with print id
-  Note over S: G-code carries "; cloud_slicer_print = project/plate/fingerprint/print id"
+  Note over S: G-code carries "#59; cloud_slicer_print = project/plate/fingerprint/print id"
   B->>B: print starts: read first 16 KB, find the tag
   B->>R: {ctl:'print', state, tag}
   R->>A: POST /api/relay/print (bridge's browser key as proof)
